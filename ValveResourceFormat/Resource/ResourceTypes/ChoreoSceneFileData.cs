@@ -1,19 +1,36 @@
 using System.IO;
 using System.Text;
-using ValveResourceFormat.Blocks;
 using ValveResourceFormat.ResourceTypes.Choreo;
 using ValveResourceFormat.ResourceTypes.Choreo.Parser;
 using LzmaDecoder = SevenZip.Compression.LZMA.Decoder;
 
 namespace ValveResourceFormat.ResourceTypes
 {
-    public class ChoreoSceneFileData : ResourceData
+    /// <summary>
+    /// Represents choreography scene file data.
+    /// </summary>
+    public class ChoreoSceneFileData : Block
     {
+        /// <summary>
+        /// Magic number for LZMA-compressed choreography data.
+        /// </summary>
         public const uint MAGIC_LZMA = 0x414D5A4C; //LZMA
-        public int Version { get; private set; }
-        public ChoreoScene[] Scenes { get; private set; }
 
-        public override void Read(BinaryReader reader, Resource resource)
+        /// <summary>
+        /// Gets the version of the choreography file format.
+        /// </summary>
+        public int Version { get; private set; }
+
+        /// <summary>
+        /// Gets the choreography scenes in this file.
+        /// </summary>
+        public ChoreoScene[] Scenes { get; private set; } = [];
+
+        /// <inheritdoc/>
+        public override BlockType Type => BlockType.DATA;
+
+        /// <inheritdoc/>
+        public override void Read(BinaryReader reader)
         {
             reader.BaseStream.Position = Offset;
 
@@ -25,6 +42,7 @@ namespace ValveResourceFormat.ResourceTypes
             Scenes = ReadScenes(reader, sceneCount, strings);
         }
 
+        /// <inheritdoc/>
         public override void WriteText(IndentedTextWriter writer)
         {
             foreach (var item in Scenes)
@@ -142,6 +160,12 @@ namespace ValveResourceFormat.ResourceTypes
 
             reader.BaseStream.Position = previousPosition;
             return strings;
+        }
+
+        /// <inheritdoc/>
+        public override void Serialize(Stream stream)
+        {
+            throw new NotImplementedException("Serializing this block is not yet supported. If you need this, send us a pull request!");
         }
     }
 }

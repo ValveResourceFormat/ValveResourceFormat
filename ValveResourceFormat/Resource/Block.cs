@@ -22,12 +22,21 @@ namespace ValveResourceFormat
         /// </summary>
         public uint Size { get; set; }
 
-        public abstract void Read(BinaryReader reader, Resource resource);
+        /// <summary>
+        /// Gets the resource this block belongs to.
+        /// </summary>
+        /// <remarks>
+        /// Can technically be <c>null</c> if constructed outside of a <see cref="Resource"/>.
+        /// </remarks>
+        public required Resource Resource { get; set; }
 
         /// <summary>
-        /// Returns a string that represents the current object.
+        /// Reads the block data from a binary reader.
         /// </summary>
-        /// <returns>A string that represents the current object.</returns>
+        /// <param name="reader">The binary reader to read from.</param>
+        public abstract void Read(BinaryReader reader);
+
+        /// <inheritdoc/>
         public override string ToString()
         {
             using var writer = new IndentedTextWriter();
@@ -37,9 +46,15 @@ namespace ValveResourceFormat
         }
 
         /// <summary>
-        /// Writers the correct object to IndentedTextWriter.
+        /// Writes the correct text dump of the object to IndentedTextWriter.
         /// </summary>
         /// <param name="writer">IndentedTextWriter.</param>
         public abstract void WriteText(IndentedTextWriter writer);
+
+        /// <summary>
+        /// Writes the binary representation of the object to Stream.
+        /// </summary>
+        /// <param name="stream">Stream.</param>
+        public abstract void Serialize(Stream stream);
     }
 }

@@ -1,8 +1,6 @@
-using System.Windows.Forms;
-
 namespace GUI.Forms
 {
-    public partial class PromptForm : Form
+    public partial class PromptForm : ThemedForm
     {
         public string ResultText => inputTextBox.Text;
 

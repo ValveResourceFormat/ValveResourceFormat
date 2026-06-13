@@ -1,17 +1,19 @@
 using System.IO;
+using System.Threading.Tasks;
 using System.Windows.Forms;
 using GUI.Controls;
-using GUI.Utils;
+using static GUI.Controls.CodeTextBox;
 
 namespace GUI.Types.Viewers
 {
-    interface IViewer
+    interface IViewer : IDisposable
     {
-        public TabPage Create(VrfGuiContext vrfGuiContext, Stream stream);
+        public Task LoadAsync(Stream? stream);
+        public void Create(TabPage containerTabPage);
 
-        public static TabPage AddContentTab<T>(TabControl resTabs, string name, T content, bool preSelect = false)
+        public static TabPage AddContentTab<T>(ThemedTabControl resTabs, string name, T content, bool preSelect = false, HighlightLanguage highlightSyntax = HighlightLanguage.Default)
         {
-            string extract = null;
+            var extract = string.Empty;
             if (content is Func<string> exceptionless)
             {
                 try
@@ -26,11 +28,11 @@ namespace GUI.Types.Viewers
             }
             else
             {
-                extract = content.ToString();
+                extract = content?.ToString() ?? string.Empty;
             }
 
-            var control = new CodeTextBox(extract);
-            var tab = new TabPage(name);
+            var control = CodeTextBox.Create(extract, highlightSyntax);
+            var tab = new ThemedTabPage(name);
             tab.Controls.Add(control);
             resTabs.TabPages.Add(tab);
 

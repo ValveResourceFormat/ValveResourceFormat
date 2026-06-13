@@ -1,0 +1,99 @@
+using System.Windows.Forms;
+
+namespace GUI.Controls;
+
+partial class MainFormBottomPanel
+{
+    /// <summary>
+    /// Required designer variable.
+    /// </summary>
+    private System.ComponentModel.IContainer components = null;
+
+    /// <summary>
+    /// Clean up any resources being used.
+    /// </summary>
+    /// <param name="disposing">true if managed resources should be disposed; otherwise, false.</param>
+    protected override void Dispose(bool disposing)
+    {
+        if (disposing && (components != null))
+        {
+            components.Dispose();
+        }
+        base.Dispose(disposing);
+    }
+
+    #region Component Designer generated code
+
+    /// <summary>
+    /// Required method for Designer support - do not modify
+    /// the contents of this method with the code editor.
+    /// </summary>
+    private void InitializeComponent()
+    {
+        menuStrip1 = new ThemedMenuStrip();
+        versionLabel = new ToolStripMenuItem();
+        newVersionAvailableToolStripMenuItem = new ThemedToolStripMenuItem();
+        keybindingsPanel = new KeybindingsPanel();
+        menuStrip1.SuspendLayout();
+        SuspendLayout();
+        //
+        // menuStrip1
+        //
+        menuStrip1.BackColor = System.Drawing.Color.FromArgb(218, 218, 218);
+        menuStrip1.Dock = DockStyle.Right;
+        menuStrip1.Items.AddRange(new ToolStripItem[] { versionLabel, newVersionAvailableToolStripMenuItem });
+        menuStrip1.LayoutStyle = ToolStripLayoutStyle.HorizontalStackWithOverflow;
+        menuStrip1.Location = new System.Drawing.Point(474, 0);
+        menuStrip1.Name = "menuStrip1";
+        menuStrip1.Size = new System.Drawing.Size(185, 30);
+        menuStrip1.TabIndex = 1;
+        menuStrip1.Text = "menuStrip1";
+        //
+        // versionLabel
+        //
+        versionLabel.Alignment = ToolStripItemAlignment.Right;
+        versionLabel.Name = "versionLabel";
+        versionLabel.Size = new System.Drawing.Size(57, 26);
+        versionLabel.Text = "Version";
+        versionLabel.Click += OnAboutItemClick;
+        //
+        // newVersionAvailableToolStripMenuItem
+        //
+        newVersionAvailableToolStripMenuItem.Alignment = ToolStripItemAlignment.Right;
+        newVersionAvailableToolStripMenuItem.Name = "newVersionAvailableToolStripMenuItem";
+        newVersionAvailableToolStripMenuItem.Size = new System.Drawing.Size(124, 26);
+        newVersionAvailableToolStripMenuItem.SVGImageResourceName = "GUI.Icons.UpdateAvailable.svg";
+        newVersionAvailableToolStripMenuItem.Text = "Update Available";
+        newVersionAvailableToolStripMenuItem.Click += OnAboutItemClick;
+        //
+        // keybindingsPanel
+        //
+        keybindingsPanel.AutoSize = true;
+        keybindingsPanel.AutoSizeMode = AutoSizeMode.GrowAndShrink;
+        keybindingsPanel.BackColor = System.Drawing.Color.Transparent;
+        keybindingsPanel.Dock = DockStyle.Right;
+        keybindingsPanel.Location = new System.Drawing.Point(458, 0);
+        keybindingsPanel.Name = "keybindingsPanel";
+        keybindingsPanel.Size = new System.Drawing.Size(16, 30);
+        keybindingsPanel.TabIndex = 2;
+        keybindingsPanel.Visible = false;
+        keybindingsPanel.WrapContents = false;
+        //
+        // MainFormBottomPanel
+        //
+        Controls.Add(keybindingsPanel);
+        Controls.Add(menuStrip1);
+        Name = "MainFormBottomPanel";
+        Size = new System.Drawing.Size(659, 30);
+        menuStrip1.ResumeLayout(false);
+        menuStrip1.PerformLayout();
+        ResumeLayout(false);
+        PerformLayout();
+    }
+
+    #endregion
+    private System.Windows.Forms.ToolStripMenuItem versionLabel;
+    private ThemedToolStripMenuItem newVersionAvailableToolStripMenuItem;
+    private KeybindingsPanel keybindingsPanel;
+    private ThemedMenuStrip menuStrip1;
+}

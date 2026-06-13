@@ -1,49 +1,155 @@
+using ValveKeyValue;
 using ValveResourceFormat.ResourceTypes.Choreo.Enums;
-using ValveResourceFormat.Serialization.KeyValues;
-using ValveResourceFormat.Utils;
 
 namespace ValveResourceFormat.ResourceTypes.Choreo
 {
+    /// <summary>
+    /// Represents an event in a choreography scene.
+    /// </summary>
     public class ChoreoEvent
     {
+        /// <summary>
+        /// Gets the type of the event.
+        /// </summary>
         public ChoreoEventType Type { get; init; }
-        public string Name { get; init; }
+
+        /// <summary>
+        /// Gets the name of the event.
+        /// </summary>
+        public required string Name { get; init; }
+
+        /// <summary>
+        /// Gets the start time of the event.
+        /// </summary>
         public float StartTime { get; init; }
+
+        /// <summary>
+        /// Gets the end time of the event.
+        /// </summary>
         public float EndTime { get; init; }
-        public string Param1 { get; init; }
-        public string Param2 { get; init; }
-        public string Param3 { get; init; }
-        public ChoreoCurveData Ramp { get; init; }
+
+        /// <summary>
+        /// Gets the first parameter of the event.
+        /// </summary>
+        public required string Param1 { get; init; }
+
+        /// <summary>
+        /// Gets the second parameter of the event.
+        /// </summary>
+        public required string Param2 { get; init; }
+
+        /// <summary>
+        /// Gets the third parameter of the event.
+        /// </summary>
+        public required string Param3 { get; init; }
+
+        /// <summary>
+        /// Gets the ramp curve data for the event.
+        /// </summary>
+        public required ChoreoCurveData Ramp { get; init; }
+
+        /// <summary>
+        /// Gets the flags for the event.
+        /// </summary>
         public ChoreoFlags Flags { get; init; }
+
+        /// <summary>
+        /// Gets the distance to target.
+        /// </summary>
         public float DistanceToTarget { get; init; }
-        public ChoreoTag[] RelativeTags { get; init; }
-        public ChoreoTag[] FlexTimingTags { get; init; }
-        public ChoreoTag[] PlaybackTimeTags { get; init; }
-        public ChoreoTag[] ShiftedTimeTags { get; init; }
+
+        /// <summary>
+        /// Gets the relative tags for the event.
+        /// </summary>
+        public required ChoreoTag[] RelativeTags { get; init; }
+
+        /// <summary>
+        /// Gets the flex timing tags for the event.
+        /// </summary>
+        public required ChoreoTag[] FlexTimingTags { get; init; }
+
+        /// <summary>
+        /// Gets the playback time tags for the event.
+        /// </summary>
+        public required ChoreoTag[] PlaybackTimeTags { get; init; }
+
+        /// <summary>
+        /// Gets the shifted time tags for the event.
+        /// </summary>
+        public required ChoreoTag[] ShiftedTimeTags { get; init; }
+
+        /// <summary>
+        /// Gets the sequence duration.
+        /// </summary>
         public float SequenceDuration { get; init; }
-        public ChoreoEventRelativeTag RelativeTag { get; init; }
-        public ChoreoEventFlex EventFlex { get; init; }
+
+        /// <summary>
+        /// Gets the relative tag for the event.
+        /// </summary>
+        public ChoreoEventRelativeTag? RelativeTag { get; init; }
+
+        /// <summary>
+        /// Gets the event flex data.
+        /// </summary>
+        public required ChoreoEventFlex EventFlex { get; init; }
+
+        /// <summary>
+        /// Gets the loop count for the event.
+        /// </summary>
         public byte LoopCount { get; init; }
+
+        /// <summary>
+        /// Gets the closed captions type.
+        /// </summary>
         public ChoreoClosedCaptionsType ClosedCaptionsType { get; init; }
-        public string ClosedCaptionsToken { get; init; }
+
+        /// <summary>
+        /// Gets the closed captions token.
+        /// </summary>
+        public string? ClosedCaptionsToken { get; init; }
+
+        /// <summary>
+        /// Gets the speak flags for the event.
+        /// </summary>
         public ChoreoSpeakFlags SpeakFlags { get; init; }
+
+        /// <summary>
+        /// Gets the sound start delay.
+        /// </summary>
         public float SoundStartDelay { get; init; }
+
+        /// <summary>
+        /// Gets the ID of the event.
+        /// </summary>
         public int Id { get; init; }
+
+        /// <summary>
+        /// Gets the constrained event ID.
+        /// </summary>
         public int ConstrainedEventId { get; init; }
 
+        /// <summary>
+        /// Gets the preferred name of the event.
+        /// </summary>
+        public string? PreferredName { get; init; }
+
+        /// <summary>
+        /// Converts this event to a <see cref="KVObject"/>.
+        /// </summary>
+        /// <returns>A <see cref="KVObject"/> representing this event.</returns>
         public KVObject ToKeyValues()
         {
-            var kv = new KVObject(null);
+            var kv = KVObject.Collection();
 
             var type = TypeToKVString();
-            kv.AddProperty("type", new KVValue(KVType.STRING, type));
+            kv.Add("type", type);
 
-            kv.AddProperty("name", new KVValue(KVType.STRING, Name));
-            kv.AddProperty("start_time", new KVValue(KVType.FLOAT, StartTime));
-            kv.AddProperty("end_time", new KVValue(KVType.FLOAT, EndTime));
-            kv.AddProperty("param", new KVValue(KVType.STRING, Param1));
-            kv.AddProperty("param2", new KVValue(KVType.STRING, Param2));
-            kv.AddProperty("param3", new KVValue(KVType.STRING, Param3));
+            kv.Add("name", Name);
+            kv.Add("start_time", StartTime);
+            kv.Add("end_time", EndTime);
+            kv.Add("param", Param1);
+            kv.Add("param2", Param2);
+            kv.Add("param3", Param3);
 
             if (ClosedCaptionsType != ChoreoClosedCaptionsType.None)
             {
@@ -54,8 +160,8 @@ namespace ValveResourceFormat.ResourceTypes.Choreo
                     ChoreoClosedCaptionsType.Disabled => "cc_disabled",
                     _ => ""
                 };
-                kv.AddProperty("cctype", new KVValue(KVType.STRING, ccType));
-                kv.AddProperty("cctoken", new KVValue(KVType.STRING, ClosedCaptionsToken));
+                kv.Add("cctype", ccType);
+                kv.Add("cctoken", ClosedCaptionsToken ?? string.Empty);
             }
 
             AddKVFlag(kv, "cc_noattenuate", SpeakFlags, ChoreoSpeakFlags.SuppressingCaptionAttenuation, false);
@@ -63,7 +169,7 @@ namespace ValveResourceFormat.ResourceTypes.Choreo
             AddKVFlag(kv, "cc_combinedusesgender", SpeakFlags, ChoreoSpeakFlags.CombinedUsingGenderToken, false);
             AddKVFlag(kv, "hardstopspeakevent", SpeakFlags, ChoreoSpeakFlags.HardStopSpeakEvent, false);
             AddKVFlag(kv, "volumematcheseventramp", SpeakFlags, ChoreoSpeakFlags.VolumeMatchesEventRamp, false);
-            kv.AddProperty("startdelay", new KVValue(KVType.FLOAT, SoundStartDelay));
+            kv.Add("startdelay", SoundStartDelay);
 
             AddKVFlag(kv, "resumecondition", Flags, ChoreoFlags.ResumeCondition, false);
             AddKVFlag(kv, "active", Flags, ChoreoFlags.IsActive, true);
@@ -75,42 +181,42 @@ namespace ValveResourceFormat.ResourceTypes.Choreo
             if (Type == ChoreoEventType.Loop)
             {
                 var loopCount = LoopCount == byte.MaxValue ? -1 : LoopCount;
-                kv.AddProperty("loopcount", new KVValue(KVType.INT64, loopCount));
+                kv.Add("loopcount", loopCount);
             }
             else if (Type == ChoreoEventType.Gesture)
             {
-                kv.AddProperty("sequenceduration", new KVValue(KVType.FLOAT, SequenceDuration));
+                kv.Add("sequenceduration", SequenceDuration);
             }
 
             if (RelativeTag != null)
             {
-                kv.AddProperty("relativetag_name", new KVValue(KVType.STRING, RelativeTag.Name));
-                kv.AddProperty("relativetag_sound", new KVValue(KVType.STRING, RelativeTag.SoundName));
+                kv.Add("relativetag_name", RelativeTag.Name);
+                kv.Add("relativetag_sound", RelativeTag.SoundName);
             }
 
             if (DistanceToTarget != 0.0f)
             {
-                kv.AddProperty("distancetotarget", new KVValue(KVType.FLOAT, DistanceToTarget));
+                kv.Add("distancetotarget", DistanceToTarget);
             }
 
             if (ConstrainedEventId != 0)
             {
-                kv.AddProperty("constrainedEventID", new KVValue(KVType.INT64, ConstrainedEventId));
+                kv.Add("constrainedEventID", ConstrainedEventId);
             }
 
-            kv.AddProperty("eventID", new KVValue(KVType.INT64, Id));
+            kv.Add("eventID", Id);
 
-            if (Ramp?.LeftEdge != null)
+            if (Ramp.LeftEdge != null)
             {
-                kv.AddProperty("left_edge", new KVValue(KVType.OBJECT, Ramp.LeftEdge.ToKeyValues()));
+                kv.Add("left_edge", Ramp.LeftEdge.ToKeyValues());
             }
-            if (Ramp?.RightEdge != null)
+            if (Ramp.RightEdge != null)
             {
-                kv.AddProperty("right_edge", new KVValue(KVType.OBJECT, Ramp.RightEdge.ToKeyValues()));
+                kv.Add("right_edge", Ramp.RightEdge.ToKeyValues());
             }
             if (Ramp.Samples.Length > 0)
             {
-                kv.AddProperty("event_ramp", new KVValue(KVType.OBJECT, Ramp.ToKeyValues()));
+                kv.Add("event_ramp", Ramp.ToKeyValues());
             }
 
             AddTagArrayToKV(kv, "flextimingtags", FlexTimingTags);
@@ -122,8 +228,13 @@ namespace ValveResourceFormat.ResourceTypes.Choreo
             {
                 //If samples_use_time is 1, samples in the flex animations are interpreted as real time (probably meaning values are not clamped to 0.0-1.0)
                 //They're stored as real time in the vcd, so this has to be set to true
-                kv.AddProperty("samples_use_time", new KVValue(KVType.BOOLEAN, true));
-                kv.AddProperty("flexanimations", new KVValue(KVType.OBJECT, EventFlex.ToKeyValues()));
+                kv.Add("samples_use_time", true);
+                kv.Add("flexanimations", EventFlex.ToKeyValues());
+            }
+
+            if (PreferredName != null)
+            {
+                kv.Add("preferred_name", PreferredName);
             }
 
             return kv;
@@ -136,18 +247,18 @@ namespace ValveResourceFormat.ResourceTypes.Choreo
                 return;
             }
 
-            var kv = new KVObject(null, true, tags.Length);
+            var tagList = KVObject.Array();
 
             foreach (var tag in tags)
             {
-                var tagKV = new KVObject(null);
-                tagKV.AddProperty("name", new KVValue(KVType.STRING, tag.Name));
-                tagKV.AddProperty("fraction", new KVValue(KVType.FLOAT, tag.Fraction));
+                var tagKV = KVObject.Collection();
+                tagKV.Add("name", tag.Name);
+                tagKV.Add("fraction", tag.Fraction);
 
-                kv.AddProperty(null, new KVValue(KVType.OBJECT, tagKV));
+                tagList.Add(tagKV);
             }
 
-            parent.AddProperty(name, new KVValue(KVType.ARRAY, kv));
+            parent.Add(name, tagList);
         }
 
         private static void AddKVFlag(KVObject kv, string name, Enum setFlags, Enum flag, bool defaultValue = false)
@@ -157,7 +268,8 @@ namespace ValveResourceFormat.ResourceTypes.Choreo
             {
                 return;
             }
-            kv.AddProperty(name, new KVValue(KVType.BOOLEAN, set));
+
+            kv.Add(name, set);
         }
 
         private string TypeToKVString()

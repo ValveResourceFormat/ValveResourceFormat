@@ -14,9 +14,10 @@ namespace Tests
             var captions = new ClosedCaptions();
             captions.Read(file);
 
-            Assert.Multiple(() =>
+            using (Assert.EnterMultipleScope())
             {
                 Assert.That(captions.Captions, Has.Count.EqualTo(840));
+                Assert.That(captions.ToString(), Has.Length.GreaterThan(1000));
 
                 var caption = captions.Captions[839];
                 Assert.That(caption.Blocknum, Is.EqualTo(4));
@@ -45,7 +46,7 @@ namespace Tests
 
                 Assert.That(found, Is.True);
                 Assert.That(i, Is.EqualTo(840));
-            });
+            }
         }
     }
 }

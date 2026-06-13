@@ -1,42 +1,74 @@
-using ValveResourceFormat.Serialization.KeyValues;
+using ValveKeyValue;
 
 namespace ValveResourceFormat.ResourceTypes.Choreo.Curves
 {
+    /// <summary>
+    /// Flags for Bezier curve interpolation.
+    /// </summary>
     [Flags]
     public enum BezierFlags
     {
+#pragma warning disable CS1591
         None,
         Unified,
         Unweighted,
+#pragma warning restore CS1591
     }
+
+    /// <summary>
+    /// Represents Bezier curve data for choreography animations.
+    /// </summary>
     public struct BezierData
     {
+        /// <summary>
+        /// Gets or sets the Bezier flags.
+        /// </summary>
         public BezierFlags Flags { get; set; }
+
+        /// <summary>
+        /// Gets or sets the in degrees.
+        /// </summary>
         public float InDegrees { get; set; }
+
+        /// <summary>
+        /// Gets or sets the in weight.
+        /// </summary>
         public float InWeight { get; set; }
+
+        /// <summary>
+        /// Gets or sets the out degrees.
+        /// </summary>
         public float OutDegrees { get; set; }
+
+        /// <summary>
+        /// Gets or sets the out weight.
+        /// </summary>
         public float OutWeight { get; set; }
 
-        public readonly KVValue ToKeyValue()
+        /// <summary>
+        /// Converts this Bezier data to a <see cref="KVObject"/>.
+        /// </summary>
+        /// <returns>A <see cref="KVObject"/> representing this Bezier data.</returns>
+        public readonly KVObject ToKeyValue()
         {
-            var kv = new KVObject(null);
+            var kv = new KVObject();
 
             var unified = Flags.HasFlag(BezierFlags.Unified);
-            kv.AddProperty("unified", new KVValue(KVType.BOOLEAN, unified));
+            kv.Add("unified", unified);
             var unweighted = Flags.HasFlag(BezierFlags.Unweighted);
-            kv.AddProperty("unweighted", new KVValue(KVType.BOOLEAN, unweighted));
+            kv.Add("unweighted", unweighted);
 
-            var inKV = new KVObject(null);
-            inKV.AddProperty("deg", new KVValue(KVType.FLOAT, InDegrees));
-            inKV.AddProperty("weight", new KVValue(KVType.FLOAT, InWeight));
-            kv.AddProperty("in", new KVValue(KVType.OBJECT, inKV));
+            var inKV = new KVObject();
+            inKV.Add("deg", InDegrees);
+            inKV.Add("weight", InWeight);
+            kv.Add("in", inKV);
 
-            var outKV = new KVObject(null);
-            outKV.AddProperty("deg", new KVValue(KVType.FLOAT, OutDegrees));
-            outKV.AddProperty("weight", new KVValue(KVType.FLOAT, OutWeight));
-            kv.AddProperty("out", new KVValue(KVType.OBJECT, outKV));
+            var outKV = new KVObject();
+            outKV.Add("deg", OutDegrees);
+            outKV.Add("weight", OutWeight);
+            kv.Add("out", outKV);
 
-            return new KVValue(KVType.OBJECT, kv);
+            return kv;
         }
     }
 }

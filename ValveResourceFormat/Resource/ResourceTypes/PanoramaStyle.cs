@@ -1,43 +1,50 @@
+using System.Diagnostics;
 using System.IO;
 using System.Text;
-using ValveResourceFormat.Utils;
 
 namespace ValveResourceFormat.ResourceTypes
 {
+    /// <summary>
+    /// Represents a Panorama style resource.
+    /// </summary>
     public class PanoramaStyle : Panorama
     {
-        private BinaryKV3 SourceMap;
+        private BinaryKV3? SourceMap;
 
-        public override void Read(BinaryReader reader, Resource resource)
+        /// <inheritdoc/>
+        public override void Read(BinaryReader reader)
         {
-            base.Read(reader, resource);
+            base.Read(reader);
 
-            SourceMap = resource.GetBlockByType(BlockType.SrMa) as BinaryKV3;
+            Debug.Assert(Resource != null);
+
+            SourceMap = Resource.GetBlockByType(BlockType.SrMa) as BinaryKV3;
         }
 
-        public override string ToString() => ToString(true);
-
-        public string ToString(bool applySourceMapIfPresent)
+        /// <inheritdoc/>
+        /// <remarks>
+        /// Writes the style content with optional source map decoding and formatting.
+        /// </remarks>
+        public override void WriteText(IndentedTextWriter writer)
         {
-            if (applySourceMapIfPresent && SourceMap != default && SourceMap.Data.GetProperty<object>("DBITSLC") is not null)
+            if (SourceMap != default && SourceMap.Data.Root.ContainsKey("DBITSLC"))
             {
 #if false
                 var sourceBytes = PanoramaSourceMapDecoder.Decode(Data, SourceMap.AsKeyValueCollection());
-                return Encoding.UTF8.GetString(sourceBytes);
+                writer.Write(Encoding.UTF8.GetString(sourceBytes));
+                return;
 #endif
 
-                return ToStringPrettified(Data);
+                WritePrettyText(writer);
+                return;
             }
-            else
-            {
-                return base.ToString();
-            }
+
+            base.WriteText(writer);
         }
 
-        private static string ToStringPrettified(byte[] data)
+        private void WritePrettyText(IndentedTextWriter output)
         {
-            var input = Encoding.UTF8.GetString(data);
-            using var output = new IndentedTextWriter();
+            var input = Encoding.UTF8.GetString(Data);
 
             output.WriteLine($"/* Prettified by {StringToken.VRF_GENERATOR} */");
             output.WriteLine();
@@ -91,8 +98,6 @@ namespace ValveResourceFormat.ResourceTypes
                     }
                 }
             }
-
-            return output.ToString();
         }
     }
 
@@ -101,7 +106,7 @@ namespace ValveResourceFormat.ResourceTypes
     {
         public static byte[] Decode(byte[] data, KVObject sourceMap)
         {
-            var mapping = sourceMap.GetArray("DBITSLC", kvArray => (kvArray.GetInt32Property("0"), kvArray.GetInt32Property("1"), kvArray.GetInt32Property("2")));
+            var mapping = sourceMap.GetArray("DBITSLC").Select(kvArray => (kvArray.GetInt32Property("0"), kvArray.GetInt32Property("1"), kvArray.GetInt32Property("2")));
 
             var output = new List<IEnumerable<byte>>();
 

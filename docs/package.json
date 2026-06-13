@@ -1,0 +1,16 @@
+{
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "generate": "docfx metadata",
+    "dev": "vitepress dev",
+    "build": "vitepress build",
+    "preview": "vitepress preview",
+    "format": "prettier --write --ignore-path .prettierignore ."
+  },
+  "devDependencies": {
+    "js-yaml": "^4.1.0",
+    "prettier": "^3.8.1",
+    "vitepress": "^1.6.3"
+  }
+}

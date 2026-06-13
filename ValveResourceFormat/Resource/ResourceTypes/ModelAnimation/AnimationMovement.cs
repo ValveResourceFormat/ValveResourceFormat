@@ -1,15 +1,32 @@
-using ValveResourceFormat.Serialization;
+using ValveKeyValue;
 using ValveResourceFormat.Serialization.KeyValues;
 
 namespace ValveResourceFormat.ResourceTypes.ModelAnimation
 {
+    /// <summary>
+    /// Represents root motion movement data for an animation.
+    /// </summary>
+    /// <seealso href="https://s2v.app/SchemaExplorer/cs2/animationsystem/CAnimMovement">CAnimMovement</seealso>
     public class AnimationMovement
     {
+        /// <summary>
+        /// Represents interpolated movement data containing position and angle.
+        /// </summary>
         public readonly struct MovementData
         {
+            /// <summary>
+            /// Gets the position offset.
+            /// </summary>
             public Vector3 Position { get; }
+
+            /// <summary>
+            /// Gets the angle offset in degrees.
+            /// </summary>
             public float Angle { get; }
 
+            /// <summary>
+            /// Initializes a new instance of the <see cref="MovementData"/> struct.
+            /// </summary>
             public MovementData(Vector3 position, float angle)
             {
                 Position = position;
@@ -17,14 +34,44 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
             }
         }
 
+        /// <summary>
+        /// Gets the ending frame for this movement.
+        /// </summary>
         public int EndFrame { get; }
+
+        /// <summary>
+        /// Gets the motion flags for this movement.
+        /// </summary>
         public ModelAnimationMotionFlags MotionFlags { get; }
+
+        /// <summary>
+        /// Gets the first motion scalar value (v0) for this segment.
+        /// </summary>
         public float V0 { get; }
+
+        /// <summary>
+        /// Gets the second motion scalar value (v1) for this segment.
+        /// </summary>
         public float V1 { get; }
+
+        /// <summary>
+        /// Gets the rotation angle in degrees.
+        /// </summary>
         public float Angle { get; }
+
+        /// <summary>
+        /// Gets the motion vector parameter stored for this segment.
+        /// </summary>
         public Vector3 Vector { get; }
+
+        /// <summary>
+        /// Gets the translation offset parameter stored for this segment.
+        /// </summary>
         public Vector3 Position { get; }
 
+        /// <summary>
+        /// Initializes a new instance of the <see cref="AnimationMovement"/> class.
+        /// </summary>
         public AnimationMovement(KVObject frameBlock)
         {
             EndFrame = frameBlock.GetInt32Property("endframe");
@@ -36,25 +83,18 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
             Position = new Vector3(frameBlock.GetFloatArray("position"));
         }
 
-        public static MovementData Lerp(AnimationMovement a, AnimationMovement b, float t)
+        /// <summary>
+        /// Interpolates linearly between two movement states using <paramref name="t"/> in the range [0, 1].
+        /// </summary>
+        public static MovementData Lerp(AnimationMovement? a, AnimationMovement? b, float t)
         {
-            if (a == null && b == null)
+            return (a, b) switch
             {
-                return new();
-            }
-
-            if (a == null)
-            {
-                return Lerp(Vector3.Zero, 0, b.Position, b.Angle, t);
-            }
-            else if (b == null)
-            {
-                return Lerp(a.Position, a.Angle, Vector3.Zero, 0f, t);
-            }
-            else
-            {
-                return Lerp(a.Position, a.Angle, b.Position, b.Angle, t);
-            }
+                (null, null) => new(),
+                (null, _) => Lerp(Vector3.Zero, 0, b.Position, b.Angle, t),
+                (_, null) => Lerp(a.Position, a.Angle, Vector3.Zero, 0f, t),
+                _ => Lerp(a.Position, a.Angle, b.Position, b.Angle, t),
+            };
         }
 
         private static MovementData Lerp(Vector3 aPos, float aAngle, Vector3 bPos, float bAngle, float t)

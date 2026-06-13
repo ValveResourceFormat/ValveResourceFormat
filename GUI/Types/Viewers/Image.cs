@@ -1,13 +1,18 @@
+using System.Diagnostics;
 using System.IO;
+using System.Threading.Tasks;
 using System.Windows.Forms;
-using GUI.Types.Renderer;
+using GUI.Types.GLViewers;
 using GUI.Utils;
 using SkiaSharp;
 
 namespace GUI.Types.Viewers
 {
-    class Image : IViewer
+    class Image(VrfGuiContext vrfGuiContext) : IViewer, IDisposable
     {
+        private SKBitmap? bitmap;
+        private GLTextureViewer? glViewer;
+
         public static bool IsAccepted(uint magic)
         {
             return magic == 0x474E5089 || /* png */
@@ -15,32 +20,43 @@ namespace GUI.Types.Viewers
                    magic << 8 == 0x46494700; /* gif */
         }
 
-        public TabPage Create(VrfGuiContext vrfGuiContext, Stream stream)
+        public async Task LoadAsync(Stream? stream)
         {
-            SKBitmap bitmap;
+            using var codec = (stream != null
+                ? SKCodec.Create(stream)
+                : SKCodec.Create(vrfGuiContext.FileName))
+                ?? throw new InvalidDataException("Failed to decode image");
 
-            if (stream != null)
-            {
-                bitmap = SKBitmap.Decode(stream);
-            }
-            else
-            {
-                bitmap = SKBitmap.Decode(vrfGuiContext.FileName);
-            }
+            var info = codec.Info.WithAlphaType(SKAlphaType.Unpremul);
+            bitmap = SKBitmap.Decode(codec, info);
 
+            var renderContext = vrfGuiContext.CreateRendererContext();
             try
             {
-                var textureControl = new GLTextureViewer(vrfGuiContext, bitmap);
-                var tab = new TabPage("IMAGE");
-                tab.Controls.Add(textureControl);
+                glViewer = new GLTextureViewer(vrfGuiContext, renderContext, bitmap);
+                glViewer.InitializeLoad();
                 bitmap = null;
-
-                return tab;
+                renderContext = null;
             }
             finally
             {
                 bitmap?.Dispose();
+                renderContext?.Dispose();
             }
+        }
+
+        public void Create(TabPage tab)
+        {
+            Debug.Assert(glViewer is not null);
+
+            tab.Controls.Add(glViewer.InitializeUiControls());
+            glViewer.InitializeRenderLoop();
+        }
+
+        public void Dispose()
+        {
+            bitmap?.Dispose();
+            glViewer?.Dispose();
         }
     }
 }

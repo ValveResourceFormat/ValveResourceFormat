@@ -11,6 +11,10 @@ launchSettings.json
 # User-specific files (MonoDevelop/Xamarin Studio)
 *.userprefs
 
+# Visual Studio Code files
+.vscode/
+*.lscache
+
 # Build results
 [Dd]ebug/
 [Dd]ebugPublic/
@@ -217,3 +221,8 @@ FakesAssemblies/
 _Pvt_Extensions
 
 Tests/lcov.info
+/docs/_site/
+/docs/api/
+/docs/.vitepress/dist/
+/docs/.vitepress/cache/
+/docs/.vitepress/temp/

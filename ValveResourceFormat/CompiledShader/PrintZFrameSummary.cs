@@ -1,94 +1,87 @@
+using System.Diagnostics;
 using System.IO;
-using System.Linq;
-using static ValveResourceFormat.CompiledShader.ShaderDataReader;
 using static ValveResourceFormat.CompiledShader.ShaderUtilHelpers;
 
 namespace ValveResourceFormat.CompiledShader
 {
+    /// <summary>
+    /// Prints a summary of shader static combo data.
+    /// </summary>
     public class PrintZFrameSummary
     {
-        public HandleOutputWrite OutputWriter { get; set; }
-        private readonly ShaderFile shaderFile;
-        private readonly ZFrameFile zframeFile;
-        private readonly bool showRichTextBoxLinks;
+        /// <summary>Gets or sets the output writer.</summary>
+        public IndentedTextWriter OutputWriter { get; set; }
+        private readonly VfxStaticComboData StaticCombo;
 
         // If OutputWriter is left as null; output will be written to Console.
         // Otherwise output is directed to the passed HandleOutputWrite object (defined by the calling application, for example GUI element or file)
-        public PrintZFrameSummary(ShaderFile shaderFile, ZFrameFile zframeFile,
-            HandleOutputWrite outputWriter = null, bool showRichTextBoxLinks = false)
+        /// <summary>
+        /// Initializes a new instance and prints the summary.
+        /// </summary>
+        public PrintZFrameSummary(VfxStaticComboData staticCombo, IndentedTextWriter outputWriter)
         {
-            this.shaderFile = shaderFile;
-            this.zframeFile = zframeFile;
-            OutputWriter = outputWriter ?? ((x) => { Console.Write(x); });
+            StaticCombo = staticCombo;
+            OutputWriter = outputWriter;
 
-            if (zframeFile.VcsProgramType == VcsProgramType.Features)
+            if (staticCombo.ParentProgramData?.VcsProgramType == VcsProgramType.Features)
             {
-                OutputWriteLine("Zframe byte data (encoding for features files has not been determined)");
-                zframeFile.DataReader.BaseStream.Position = 0;
-                var zframeBytes = zframeFile.DataReader.ReadBytesAsString((int)zframeFile.DataReader.BaseStream.Length);
-                OutputWriteLine(zframeBytes);
                 return;
             }
 
-            this.showRichTextBoxLinks = showRichTextBoxLinks;
-            if (showRichTextBoxLinks)
-            {
-                OutputWriteLine($"View byte detail \\\\{Path.GetFileName(shaderFile.FilenamePath)}-ZFRAME{zframeFile.ZframeId:x08}-databytes");
-                OutputWriteLine("");
-            }
             PrintConfigurationState();
             PrintAttributes();
             var writeSequences = GetBlockToUniqueSequenceMap();
             PrintWriteSequences(writeSequences);
             PrintDynamicConfigurations(writeSequences);
-            OutputWrite("\n");
+            OutputWriter.WriteLine();
             PrintSourceSummary();
             PrintEndBlocks();
         }
 
         private void PrintConfigurationState()
         {
-            var configHeader = "Configuration";
-            OutputWriteLine(configHeader);
-            OutputWriteLine(new string('-', configHeader.Length));
-            OutputWriteLine("The static configuration this zframe belongs to (zero or more static parameters)\n");
-            ConfigMappingSParams configGen = new(shaderFile);
-            var configState = configGen.GetConfigState(zframeFile.ZframeId);
+            Debug.Assert(StaticCombo.ParentProgramData != null);
+
+            var configHeader = "PARENT STATIC COMBO CONFIGURATION";
+            OutputWriter.WriteLine(configHeader);
+            ConfigMappingParams configGen = new(StaticCombo.ParentProgramData);
+            var configState = configGen.GetConfigState(StaticCombo.StaticComboId);
             for (var i = 0; i < configState.Length; i++)
             {
-                OutputWriteLine($"{shaderFile.SfBlocks[i].Name,-30} {configState[i]}");
+                OutputWriter.WriteLine($"{StaticCombo.ParentProgramData.StaticComboArray[i].Name,-30} {configState[i]}");
             }
             if (configState.Length == 0)
             {
-                OutputWriteLine("[no static params]");
+                OutputWriter.WriteLine("[no static params]");
             }
-            OutputWriteLine("");
-            OutputWriteLine("");
+            OutputWriter.WriteLine();
+            OutputWriter.WriteLine();
         }
 
         private void PrintAttributes()
         {
-            var headerText = "Attributes";
-            OutputWriteLine(headerText);
-            OutputWriteLine(new string('-', headerText.Length));
-            OutputWrite(zframeFile.AttributesStringDescription());
-            if (zframeFile.Attributes.Count == 0)
+            OutputWriter.WriteLine("ATTRIBUTES");
+            OutputWriter.Write(StaticCombo.AttributesStringDescription());
+            if (StaticCombo.Attributes.Length == 0)
             {
-                OutputWriteLine("[no attributes]");
+                OutputWriter.WriteLine("[no attributes]");
             }
-            OutputWriteLine("");
-            OutputWriteLine("");
+            OutputWriter.WriteLine();
+            OutputWriter.WriteLine();
         }
 
         /*
          * Because the write sequences are often repeated, we only print the unique ones.
          */
+        /// <summary>
+        /// Builds a lookup of unique write sequences, keyed by their serialized payload.
+        /// </summary>
         public Dictionary<string, int> GetUniqueWriteSequences()
         {
             Dictionary<string, int> writeSequences = [];
             var seqCount = 0;
-            writeSequences.Add(BytesToString(zframeFile.LeadingData.Dataload, -1), seqCount++);
-            foreach (var zBlock in zframeFile.DataBlocks)
+            writeSequences.Add(BytesToString(StaticCombo.VariablesFromStaticCombo.Dataload, -1), seqCount++);
+            foreach (var zBlock in StaticCombo.DynamicComboVariables)
             {
                 if (zBlock.Fields.Length == 0)
                 {
@@ -110,17 +103,20 @@ namespace ValveResourceFormat.CompiledShader
          * write sequence WRITESEQ[0] (configurations may refer to it) otherwise sequences assigned -1 mean the write
          * sequence doesn't contain any data and not needed.
          */
+        /// <summary>
+        /// Maps block IDs to unique sequence IDs.
+        /// </summary>
         public SortedDictionary<int, int> GetBlockToUniqueSequenceMap()
         {
             SortedDictionary<int, int> sequencesMap = new()
             {
                 // IMP the first entry is always set 0 regardless of whether the leading datablock carries any data
-                { zframeFile.LeadingData.BlockId, 0 }
+                { StaticCombo.VariablesFromStaticCombo.BlockId, 0 }
             };
 
             var uniqueSequences = GetUniqueWriteSequences();
 
-            foreach (var zBlock in zframeFile.DataBlocks)
+            foreach (var zBlock in StaticCombo.DynamicComboVariables)
             {
                 if (zBlock.Fields.Length == 0)
                 {
@@ -137,24 +133,19 @@ namespace ValveResourceFormat.CompiledShader
 
         private void PrintWriteSequences(SortedDictionary<int, int> writeSequences)
         {
-            var headerText = "Parameter write sequences";
-            OutputWriteLine(headerText);
-            OutputWriteLine(new string('-', headerText.Length));
-            OutputWriteLine(
-                "This data (thought to be buffer write sequences) appear to be linked to the dynamic (D-param) configurations;\n" +
-                "each configuration points to exactly one sequence. WRITESEQ[0] is always defined.");
+            OutputWriter.WriteLine("DYNAMIC COMBO VARIABLES");
 
             OutputFormatterTabulatedData tabulatedData = new(OutputWriter);
             var emptyRow = new string[] { "", "", "", "", "" };
-            tabulatedData.DefineHeaders(zframeFile.LeadingData.H0 > 0 ?
-                ["segment", "", nameof(WriteSeqField.Dest), nameof(WriteSeqField.Control), nameof(WriteSeqField.UnknFlags)] :
+            tabulatedData.DefineHeaders(StaticCombo.VariablesFromStaticCombo.Fields.Length > 0 ?
+                ["segment", "", nameof(VfxVariableIndexData.Dest), nameof(VfxVariableIndexData.Control), nameof(VfxVariableIndexData.LayoutSet)] :
                 emptyRow);
-            if (zframeFile.LeadingData.H0 > 0)
+            if (StaticCombo.VariablesFromStaticCombo.Fields.Length > 0)
             {
                 tabulatedData.AddTabulatedRow(emptyRow);
             }
-            tabulatedData.AddTabulatedRow(["WRITESEQ[0]", "", "", "", ""]);
-            var dataBlock0 = zframeFile.LeadingData;
+            tabulatedData.AddTabulatedRow(["STATIC-SEQ", "", "", "", ""]);
+            var dataBlock0 = StaticCombo.VariablesFromStaticCombo;
             PrintParamWriteSequence(dataBlock0, tabulatedData);
             tabulatedData.AddTabulatedRow(emptyRow);
 
@@ -164,62 +155,63 @@ namespace ValveResourceFormat.CompiledShader
                 if (item.Value > lastSeq)
                 {
                     lastSeq = item.Value;
-                    var dataBlock = zframeFile.DataBlocks[item.Key];
+                    var dataBlock = StaticCombo.DynamicComboVariables[item.Key];
                     tabulatedData.AddTabulatedRow([$"WRITESEQ[{lastSeq}]", "", "", "", ""]);
                     PrintParamWriteSequence(dataBlock, tabulatedData);
                     tabulatedData.AddTabulatedRow(emptyRow);
                 }
             }
             tabulatedData.PrintTabulatedValues(spacing: 2);
-            OutputWriteLine("");
+            OutputWriter.WriteLine();
         }
 
-        private void PrintParamWriteSequence(ZDataBlock dataBlock, OutputFormatterTabulatedData tabulatedData)
+        private void PrintParamWriteSequence(VfxVariableIndexArray dataBlock, OutputFormatterTabulatedData tabulatedData)
         {
             PrintParamWriteSequenceSegment(dataBlock.Evaluated, 0, tabulatedData);
-            PrintParamWriteSequenceSegment(dataBlock.Segment1, 1, tabulatedData);
+            PrintParamWriteSequenceSegment(dataBlock.RenderState, 1, tabulatedData);
             PrintParamWriteSequenceSegment(dataBlock.Globals, 2, tabulatedData);
         }
 
-        private void PrintParamWriteSequenceSegment(IReadOnlyList<WriteSeqField> segment, int segId, OutputFormatterTabulatedData tabulatedData)
+        private void PrintParamWriteSequenceSegment(IReadOnlyList<VfxVariableIndexData> segment, int segId, OutputFormatterTabulatedData tabulatedData)
         {
+            if (segment.Count == 0)
+            {
+                return;
+            }
+
             var segmentDesc = segId switch
             {
                 0 => "Evaluated",
-                2 => "_Globals_",
-                _ => "seg_" + segId
+                1 => "RenderState",
+                2 => "Constants",
+                _ => throw new InvalidDataException(),
             };
 
-            if (segment.Count > 0)
+            Debug.Assert(StaticCombo.ParentProgramData != null);
+
+            for (var i = 0; i < segment.Count; i++)
             {
-                for (var i = 0; i < segment.Count; i++)
-                {
-                    var field = segment[i];
-                    var paramDesc = $"[{field.ParamId}] {shaderFile.ParamBlocks[field.ParamId].Name}";
-                    var buffDesc = field.UnknFlags == WriteSeqFieldFlags.None ? $"{"_",7}" : $"{field.UnknFlags,7}";
-                    var arg1Desc = field.Dest == 0xff ? $"{"_",7}" : $"{field.Dest,7}";
-                    var arg2Desc = field.Control == 0xff ? $"{"_",10}" : $"{field.Control,10}";
-                    tabulatedData.AddTabulatedRow([i == 0 ? segmentDesc : string.Empty, paramDesc, arg1Desc, arg2Desc, buffDesc]);
-                }
-            }
-            else
-            {
-                tabulatedData.AddTabulatedRow([segmentDesc, "[empty]", "", "", ""]);
+                var field = segment[i];
+                var paramDesc = $"[{field.VariableIndex}] {StaticCombo.ParentProgramData.VariableDescriptions[field.VariableIndex].Name}";
+                var destDesc = field.Dest == 0xff ? $"{"_",7}" : $"{field.Dest,7}";
+                var controlDesc = field.Control == 0xff ? $"{"_",10}" : $"{field.Control,10}";
+                tabulatedData.AddTabulatedRow([i == 0 ? segmentDesc : string.Empty, paramDesc, destDesc, $"{controlDesc} ({field.Field2})", $"{field.LayoutSet,7}"]);
             }
         }
 
         private void PrintDynamicConfigurations(SortedDictionary<int, int> writeSequences)
         {
-            var blockIdToSource = GetBlockIdToSource(zframeFile);
+            Debug.Assert(StaticCombo.ParentProgramData != null);
+
+            var blockIdToSource = GetBlockIdToSource(StaticCombo);
             var abbreviations = DConfigsAbbreviations();
             var hasOnlyDefaultConfiguration = blockIdToSource.Count == 1;
             var hasNoDConfigsDefined = abbreviations.Count == 0;
-            var isVertexShader = zframeFile.VcsProgramType == VcsProgramType.VertexShader;
+            var isVertexShader = StaticCombo.ParentProgramData.VcsProgramType == VcsProgramType.VertexShader;
 
             var configsDefined = hasOnlyDefaultConfiguration ? "" : $" ({blockIdToSource.Count} defined)";
-            var configHeader = $"Dynamic (D-Param) configurations{configsDefined}";
-            OutputWriteLine(configHeader);
-            OutputWriteLine(new string('-', configHeader.Length));
+            var configHeader = $"DYNAMIC COMBOS{configsDefined}";
+            OutputWriter.WriteLine(configHeader);
 
             OutputFormatterTabulatedData tabulatedConfigNames = new(OutputWriter);
             tabulatedConfigNames.DefineHeaders(["", "abbrev."]);
@@ -234,34 +226,36 @@ namespace ValveResourceFormat.CompiledShader
             OutputFormatterTabulatedData tabulatedConfigCombinations = new(OutputWriter);
             tabulatedConfigCombinations.DefineHeaders([.. shortenedNames]);
 
-            var activeBlockIds = zframeFile.EndBlocks.Select(endBlock => endBlock.BlockIdRef).ToList();
-            foreach (var blockId in activeBlockIds)
+            foreach (var block in StaticCombo.DynamicCombos)
             {
-                var dBlockConfig = shaderFile.GetDBlockConfig(blockId);
+                var dBlockConfig = StaticCombo.ParentProgramData.GetDBlockConfig(block.DynamicComboId);
                 tabulatedConfigCombinations.AddTabulatedRow(IntArrayToStrings(dBlockConfig, nulledValue: 0));
             }
             var tabbedConfigs = new Stack<string>(tabulatedConfigCombinations.BuildTabulatedRows(reverse: true));
             if (tabbedConfigs.Count == 0)
             {
-                OutputWriteLine("No dynamic parameters defined");
+                OutputWriter.WriteLine("[none defined]");
             }
             else
             {
                 tabulatedConfigNames.PrintTabulatedValues();
             }
-            OutputWriteLine("");
+            OutputWriter.WriteLine();
             var dNamesHeader = hasNoDConfigsDefined ? "" : tabbedConfigs.Pop();
-            var gpuSourceName = zframeFile.GpuSources[0].BlockName.ToLowerInvariant();
+            var gpuSourceName = StaticCombo.ShaderFiles.Length > 0
+                ? StaticCombo.ShaderFiles[0].BlockName.ToLowerInvariant()
+                : "unknown";
             var sourceHeader = $"{gpuSourceName}-source";
             string[] dConfigHeaders = isVertexShader ?
-                    ["config-id", dNamesHeader, "write-seq.", sourceHeader, "gpu-inputs", nameof(ZFrameFile.UnknownArg), nameof(ZFrameFile.UnknownArg2), nameof(GpuSource.HashMD5)] :
-                    ["config-id", dNamesHeader, "write-seq.", sourceHeader, nameof(ZFrameFile.UnknownArg), nameof(ZFrameFile.UnknownArg2), nameof(GpuSource.HashMD5)];
+                    ["config-id", dNamesHeader, "write-seq.", sourceHeader, "gpu-inputs", nameof(VfxStaticComboData.ConstantBufferBindInfoSlots), nameof(VfxStaticComboData.ConstantBufferBindInfoFlags), nameof(VfxShaderFile.HashMD5)] :
+                    ["config-id", dNamesHeader, "write-seq.", sourceHeader, nameof(VfxStaticComboData.ConstantBufferBindInfoSlots), nameof(VfxStaticComboData.ConstantBufferBindInfoFlags), nameof(VfxShaderFile.HashMD5)];
             OutputFormatterTabulatedData tabulatedConfigFull = new(OutputWriter);
             tabulatedConfigFull.DefineHeaders(dConfigHeaders);
 
             var dBlockCount = 0;
-            foreach (var blockId in activeBlockIds)
+            foreach (var block in StaticCombo.DynamicCombos)
             {
+                var blockId = (int)block.DynamicComboId;
                 dBlockCount++;
                 if (dBlockCount % 100 == 0)
                 {
@@ -269,18 +263,20 @@ namespace ValveResourceFormat.CompiledShader
                         ["", dNamesHeader, "", "", "", "", "", ""] :
                         ["", dNamesHeader, "", "", "", "", ""]);
                 }
-                var configIdText = $"0x{blockId:x}";
+                var configIdText = $"0x{blockId:X2}";
                 var configCombText = hasNoDConfigsDefined ? $"{"(default)",-14}" : tabbedConfigs.Pop();
-                var writeSeqText = writeSequences[blockId] == -1 ? "[empty]" : $"seq[{writeSequences[blockId]}]";
-                var blockSource = blockIdToSource[blockId];
-                var sourceLink = showRichTextBoxLinks ?
-                    @$"\\source\{blockSource.SourceId}" :
-                    $"{gpuSourceName}[{blockSource.HashMD5}]";
-                var vsInputs = isVertexShader ?
-                    zframeFile.VShaderInputs[blockId] : -1;
-                var gpuInputText = vsInputs >= 0 ? $"VS-symbols[{zframeFile.VShaderInputs[blockId]}]" : "[none]";
-                var arg1Text = $"{zframeFile.UnknownArg[blockId]}";
-                var arg2Text = $"{zframeFile.UnknownArg2[blockId]}";
+                var writeSeqText = writeSequences[blockId] == -1 ? "[empty]" : $"SEQ[{writeSequences[blockId]}]";
+                var blockSource = blockIdToSource.GetValueOrDefault(blockId);
+                if (blockSource is null)
+                {
+                    return;
+                }
+
+                var sourceLink = $"{blockSource.ShaderFileId:X2}";
+                var vsInputs = isVertexShader ? StaticCombo.VShaderInputs[block.ShaderFileId] : -1;
+                var gpuInputText = vsInputs >= 0 ? $"VS[{vsInputs}]" : "[none]";
+                var arg1Text = $"{StaticCombo.ConstantBufferBindInfoSlots[blockId]}";
+                var arg2Text = $"{StaticCombo.ConstantBufferBindInfoFlags[blockId]}";
                 var hash = blockSource.HashMD5.ToString();
                 tabulatedConfigFull.AddTabulatedRow(
                     isVertexShader ?
@@ -291,14 +287,16 @@ namespace ValveResourceFormat.CompiledShader
             tabulatedConfigFull.PrintTabulatedValues();
             if (!hasNoDConfigsDefined)
             {
-                OutputWriteLine("");
+                OutputWriter.WriteLine();
             }
         }
 
         private List<(string, string)> DConfigsAbbreviations()
         {
+            Debug.Assert(StaticCombo.ParentProgramData != null);
+
             List<(string, string)> abbreviations = [];
-            foreach (var dBlock in shaderFile.DBlocks)
+            foreach (var dBlock in StaticCombo.ParentProgramData.DynamicComboArray)
             {
                 var abbreviation = ShortenShaderParam(dBlock.Name).ToLowerInvariant();
                 abbreviations.Add((dBlock.Name, abbreviation));
@@ -306,95 +304,77 @@ namespace ValveResourceFormat.CompiledShader
             return abbreviations;
         }
 
-        static Dictionary<int, GpuSource> GetBlockIdToSource(ZFrameFile zframeFile)
+        static Dictionary<long, VfxShaderFile> GetBlockIdToSource(VfxStaticComboData zframeFile)
         {
-            Dictionary<int, GpuSource> blockIdToSource = [];
-            foreach (var endBlock in zframeFile.EndBlocks)
+            Dictionary<long, VfxShaderFile> blockIdToSource = [];
+            foreach (var endBlock in zframeFile.DynamicCombos)
             {
-                blockIdToSource.Add(endBlock.BlockIdRef, zframeFile.GpuSources[endBlock.SourceRef]);
+                if (endBlock.ShaderFileId != -1)
+                {
+                    blockIdToSource.Add(endBlock.DynamicComboId, zframeFile.ShaderFiles[endBlock.ShaderFileId]);
+                }
             }
             return blockIdToSource;
         }
 
         private void PrintSourceSummary()
         {
-            var headerText = "source bytes/flags";
-            OutputWriteLine(headerText);
-            OutputWriteLine(new string('-', headerText.Length));
-            int b0 = zframeFile.Flags0[0];
-            int b1 = zframeFile.Flags0[1];
-            int b2 = zframeFile.Flags0[2];
-            int b3 = zframeFile.Flags0[3];
-            OutputWriteLine($"{b0:X02}      // possible control byte ({b0}) or flags ({Convert.ToString(b0, 2).PadLeft(8, '0')})");
-            OutputWriteLine($"{b1:X02}      // values seen (0,1,2)");
-            OutputWriteLine($"{b2:X02}      // always 0");
-            OutputWriteLine($"{b3:X02}      // always 0");
-            OutputWriteLine($"{zframeFile.Flagbyte0}       // values seen 0,1");
-            OutputWriteLine($"{zframeFile.Flagbyte1}       // added with v66");
-            OutputWriteLine($"{zframeFile.GpuSourceCount,-6}  // nr of source files");
-            OutputWriteLine($"{zframeFile.Flagbyte2}       // values seen 0,1");
-            OutputWriteLine("");
-            OutputWriteLine("");
+            OutputWriter.WriteLine("source bytes/flags");
+            OutputWriter.WriteLine($"{StaticCombo.ConstantBufferSize}      // Constant Buffer Size");
+            OutputWriter.WriteLine($"{StaticCombo.Flagbyte0}       //");
+            OutputWriter.WriteLine($"{StaticCombo.Flagbyte1}       // added with v66");
+            OutputWriter.WriteLine($"{StaticCombo.Flagbyte2}       //");
+            OutputWriter.WriteLine();
+            OutputWriter.WriteLine();
         }
 
         private void PrintEndBlocks()
         {
-            var headerText = $"End blocks";
-            OutputWriteLine(headerText);
-            OutputWriteLine(new string('-', headerText.Length));
-
-            var vcsFiletype = shaderFile.VcsProgramType;
-
-            OutputWriteLine($"{zframeFile.EndBlocks.Count:X02} 00 00 00   // end blocks ({zframeFile.EndBlocks.Count})");
-            OutputWriteLine("");
-
-            foreach (var endBlock in zframeFile.EndBlocks)
+            OutputWriter.WriteLine("RENDER STATE INFO");
+            OutputWriter.WriteLine();
+            foreach (var endBlock in StaticCombo.DynamicCombos)
             {
-                OutputWriteLine($"block-ref         {endBlock.BlockIdRef}");
-                OutputWriteLine($"arg0              {endBlock.Arg0}");
-                OutputWriteLine($"source-ref        {endBlock.SourceRef}");
-                OutputWriteLine($"source-pointer    {endBlock.SourcePointer}");
-
-                if (endBlock is ZFrameFile.HsEndBlock hsEndBlock)
+                OutputWriter.WriteLine($"block-ref         {endBlock.DynamicComboId}");
+                OutputWriter.WriteLine($"source-ref        {endBlock.ShaderFileId}");
+                OutputWriter.WriteLine($"source-pointer    {endBlock.SourcePointer}");
+                if (endBlock is VfxRenderStateInfoHullShader hsEndBlock)
                 {
-                    OutputWriteLine($"hs-arg            {hsEndBlock.HullShaderArg}");
+                    OutputWriter.WriteLine($"hs-arg            {hsEndBlock.HullShaderArg}");
                 }
-                else if (endBlock is ZFrameFile.PsEndBlock psEndBlock)
+                else if (endBlock is VfxRenderStateInfoPixelShader psEndBlock)
                 {
-                    OutputWriteLine($"has data ({psEndBlock.HasData0},{psEndBlock.HasData1},{psEndBlock.HasData2})");
-                    if (psEndBlock.HasData0)
+                    if (psEndBlock.RasterizerStateDesc != null)
                     {
-                        OutputWriteLine("// data-section 0");
-                        OutputWriteLine($"{BytesToString(psEndBlock.Data0)}");
+                        OutputWriter.WriteLine("// Rasterizer State");
+                        var rs = psEndBlock.RasterizerStateDesc;
+                        OutputWriter.WriteLine($"{nameof(rs.FillMode)}: {rs.FillMode}, {nameof(rs.CullMode)}: {rs.CullMode}");
+                        OutputWriter.WriteLine($"{nameof(rs.DepthClipEnable)}: {rs.DepthClipEnable}, {nameof(rs.MultisampleEnable)}: {rs.MultisampleEnable}");
+                        OutputWriter.WriteLine($"{nameof(rs.DepthBias)}: {rs.DepthBias}, {nameof(rs.DepthBiasClamp)}: {rs.DepthBiasClamp}, {nameof(rs.SlopeScaledDepthBias)}: {rs.SlopeScaledDepthBias}");
                     }
-                    if (psEndBlock.HasData1)
+                    if (psEndBlock.DepthStencilStateDesc != null)
                     {
-                        OutputWriteLine("// data-section 1");
-                        OutputWriteLine($"{BytesToString(psEndBlock.Data1)}");
+                        OutputWriter.WriteLine("// Depth Stencil State");
+                        var ds = psEndBlock.DepthStencilStateDesc;
+                        OutputWriter.WriteLine($"{nameof(ds.DepthTestEnable)}: {ds.DepthTestEnable}, {nameof(ds.DepthWriteEnable)}: {ds.DepthWriteEnable}, {nameof(ds.DepthFunc)}: {ds.DepthFunc}, {nameof(ds.HiZEnable360)}: {ds.HiZEnable360}, {nameof(ds.HiZWriteEnable360)}: {ds.HiZWriteEnable360}");
+                        OutputWriter.WriteLine($"{nameof(ds.StencilEnable)}: {ds.StencilEnable}, {nameof(ds.StencilReadMask)}: {ds.StencilReadMask}, {nameof(ds.StencilWriteMask)}: {ds.StencilWriteMask}, {nameof(ds.FrontStencilFailOp)}: {ds.FrontStencilFailOp}, {nameof(ds.FrontStencilDepthFailOp)}: {ds.FrontStencilDepthFailOp}");
+                        OutputWriter.WriteLine($"{nameof(ds.FrontStencilPassOp)}: {ds.FrontStencilPassOp}, {nameof(ds.FrontStencilFunc)}: {ds.FrontStencilFunc}, {nameof(ds.BackStencilFailOp)}: {ds.BackStencilFailOp}, {nameof(ds.BackStencilDepthFailOp)}: {ds.BackStencilDepthFailOp}, {nameof(ds.BackStencilPassOp)}: {ds.BackStencilPassOp}");
+                        OutputWriter.WriteLine($"{nameof(ds.BackStencilFunc)}: {ds.BackStencilFunc}, {nameof(ds.HiStencilEnable360)}: {ds.HiStencilEnable360}, {nameof(ds.HiStencilWriteEnable360)}: {ds.HiStencilWriteEnable360}, {nameof(ds.HiStencilFunc360)}: {ds.HiStencilFunc360}, {nameof(ds.HiStencilRef360)}: {ds.HiStencilRef360}");
                     }
-                    if (psEndBlock.HasData2)
+                    if (psEndBlock.BlendStateDesc != null)
                     {
-                        OutputWriteLine("// data-section 2");
-                        var data2 = psEndBlock.Data2.AsSpan();
-                        OutputWriteLine($"{BytesToString(data2[0..3])}");
-                        OutputWriteLine($"{BytesToString(data2[3..27])}");
-                        OutputWriteLine($"{BytesToString(data2[27..51])}");
-                        OutputWriteLine($"{BytesToString(data2[51..75])}");
+                        OutputWriter.WriteLine("// Blend State");
+                        var bs = psEndBlock.BlendStateDesc;
+                        OutputWriter.WriteLine($"{nameof(bs.AlphaToCoverageEnable)}: {bs.AlphaToCoverageEnable}, {nameof(bs.IndependentBlendEnable)}: {bs.IndependentBlendEnable}, {nameof(bs.HighPrecisionBlendEnable360)}: {bs.HighPrecisionBlendEnable360}");
+                        for (var i = 0; i < 8; i++)
+                        {
+                            OutputWriter.WriteLine($"RT{i}: Enabled={bs.BlendEnable[i]}, SRGB={bs.SrgbWriteEnable[i]}, WriteMask={bs.RenderTargetWriteMask[i]}");
+                            OutputWriter.WriteLine($"  RGB: Src={bs.SrcBlend[i]}, Dst={bs.DestBlend[i]}, Op={bs.BlendOp[i]}");
+                            OutputWriter.WriteLine($"  Alpha: Src={bs.SrcBlendAlpha[i]}, Dst={bs.DestBlendAlpha[i]}, Op={bs.BlendOpAlpha[i]}");
+                        }
                     }
                 }
-
-                OutputWriteLine("");
+                OutputWriter.WriteLine();
             }
-        }
-
-        public void OutputWrite(string text)
-        {
-            OutputWriter(text);
-        }
-
-        public void OutputWriteLine(string text)
-        {
-            OutputWrite(text + "\n");
         }
     }
 }

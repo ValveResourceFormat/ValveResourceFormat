@@ -1,49 +1,48 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
-    <TargetFramework>net8.0-windows</TargetFramework>
+    <TargetFramework>net10.0-windows10.0.19041.0</TargetFramework>
     <UseWindowsForms>true</UseWindowsForms>
     <RollForward>LatestMajor</RollForward>
-    <OutputType>WinExe</OutputType>
     <Description>Source 2 resource viewer</Description>
     <ApplicationIcon>..\Misc\Icons\source2viewer.ico</ApplicationIcon>
     <RuntimeIdentifier>win-x64</RuntimeIdentifier>
-    <IncludeAllContentForSelfExtract>true</IncludeAllContentForSelfExtract>
+    <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
     <ServerGarbageCollection>true</ServerGarbageCollection>
     <GarbageCollectionAdaptationMode>1</GarbageCollectionAdaptationMode>
     <StartupObject>GUI.Program</StartupObject>
     <AssemblyName>Source2Viewer</AssemblyName>
+    <SignAssembly>false</SignAssembly>
+    <PublishSingleFile Condition="'$(Configuration)' != 'Debug'">true</PublishSingleFile>
+    <EnableCompressionInSingleFile>true</EnableCompressionInSingleFile>
+    <NoWarn>$(NoWarn);NU1901;NU1902;NU1903</NoWarn>
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="FCTB" Version="2.16.24">
         <NoWarn>NU1701</NoWarn>
     </PackageReference>
-    <PackageReference Include="NAudio" Version="2.2.1" />
-    <PackageReference Include="NLayer" Version="1.15.0" />
+    <PackageReference Include="Microsoft.Extensions.Logging" Version="10.0.8" />
+    <PackageReference Include="Microsoft.Windows.CsWin32" Version="0.3.275">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+    <PackageReference Include="NAudio.Wasapi" Version="2.3.0" />
+    <PackageReference Include="NAudio.WinMM" Version="2.3.0" />
+    <PackageReference Include="NLayer" Version="1.16.0" />
     <PackageReference Include="NLayer.NAudioSupport" Version="1.4.0" />
-    <PackageReference Include="OpenTK" Version="3.3.3">
-        <NoWarn>NU1701</NoWarn>
-    </PackageReference>
-    <PackageReference Include="OpenTK.GLControl" Version="3.3.3">
-        <NoWarn>NU1701</NoWarn>
-    </PackageReference>
-    <PackageReference Include="Svg.Skia" Version="1.0.0.13" />
-    <PackageReference Include="System.IO.Hashing" Version="8.0.0" />
-    <PackageReference Include="Vortice.SpirvCross" Version="1.4.7" />
+    <PackageReference Include="OpenTK" Version="4.9.4" />
+    <PackageReference Include="Svg.Skia" Version="5.0.0" />
   </ItemGroup>
   <ItemGroup>
-    <EmbeddedResource Include="AssetTypes\*" />
-    <EmbeddedResource Include="Types\Renderer\Shaders\**" />
+    <EmbeddedResource Include="Icons\**" />
+    <EmbeddedResource Include="..\Misc\Icons\vpk.ico" Link="Utils\vpk.ico" />
     <EmbeddedResource Include="Utils\industrial_sunset_puresky.vtex_c" />
-    <EmbeddedResource Include="Utils\ggx_integrate_brdf_lut_schlick.vtex_c" />
-    <EmbeddedResource Include="Utils\env_cubemap.vmdl_c" />
-    <EmbeddedResource Include="Utils\sky_furnace.vtex_c" />
-    <EmbeddedResource Include="Utils\jetbrains_mono_msdf.png" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\ValveResourceFormat\ValveResourceFormat.csproj">
-      <Project>{E685E563-5F49-4D8D-8342-A7354229E54F}</Project>
-      <Name>ValveResourceFormat</Name>
-    </ProjectReference>
+    <ProjectReference Include="..\Renderer\Renderer.csproj" />
+    <ProjectReference Include="..\ValveResourceFormat\ValveResourceFormat.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <Using Include="ValveResourceFormat.Utils" />
   </ItemGroup>
 </Project>

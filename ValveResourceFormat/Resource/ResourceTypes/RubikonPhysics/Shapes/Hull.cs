@@ -1,21 +1,35 @@
 using System.Linq;
 using System.Runtime.InteropServices;
-using ValveResourceFormat.Serialization;
+using ValveKeyValue;
 using ValveResourceFormat.Serialization.KeyValues;
 
 namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Shapes
 {
+    /// <summary>
+    /// Represents a convex hull shape.
+    /// </summary>
+    /// <seealso href="https://s2v.app/SchemaExplorer/cs2/physicslib/RnHull_t">RnHull_t</seealso>
     public readonly struct Hull
     {
+        /// <summary>
+        /// Represents a plane in the hull.
+        /// </summary>
+        /// <seealso href="https://s2v.app/SchemaExplorer/cs2/physicslib/RnPlane_t">RnPlane_t</seealso>
         [StructLayout(LayoutKind.Sequential)]
         public readonly struct Plane
         {
+            /// <summary>
+            /// The plane normal.
+            /// </summary>
             public readonly Vector3 Normal;
             /// <summary>
             /// The plane offset such that P: n*x - d = 0
             /// </summary>
             public readonly float Offset;
 
+            /// <summary>
+            /// Initializes a new instance of the <see cref="Plane"/> struct.
+            /// </summary>
             public Plane(KVObject data)
             {
                 Normal = data.GetSubCollection("m_vNormal").ToVector3();
@@ -23,6 +37,10 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Shapes
             }
         }
 
+        /// <summary>
+        /// Represents a half-edge in the hull mesh.
+        /// </summary>
+        /// <seealso href="https://s2v.app/SchemaExplorer/cs2/physicslib/RnHalfEdge_t">RnHalfEdge_t</seealso>
         [StructLayout(LayoutKind.Sequential)]
         public readonly struct HalfEdge
         {
@@ -30,10 +48,22 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Shapes
             /// Next edge index in CCW circular list around face
             /// </summary>
             public readonly byte Next;
+            /// <summary>
+            /// The twin edge index.
+            /// </summary>
             public readonly byte Twin;
+            /// <summary>
+            /// The origin vertex index.
+            /// </summary>
             public readonly byte Origin;
+            /// <summary>
+            /// The face index.
+            /// </summary>
             public readonly byte Face;
 
+            /// <summary>
+            /// Initializes a new instance of the <see cref="HalfEdge"/> struct.
+            /// </summary>
             public HalfEdge(KVObject data)
             {
                 Next = data.GetByteProperty("m_nNext");
@@ -43,6 +73,10 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Shapes
             }
         }
 
+        /// <summary>
+        /// Represents a face in the hull mesh.
+        /// </summary>
+        /// <seealso href="https://s2v.app/SchemaExplorer/cs2/physicslib/RnFace_t">RnFace_t</seealso>
         [StructLayout(LayoutKind.Sequential)]
         public readonly struct Face
         {
@@ -51,17 +85,33 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Shapes
             /// </summary>
             public readonly byte Edge;
 
+            /// <summary>
+            /// Initializes a new instance of the <see cref="Face"/> struct.
+            /// </summary>
             public Face(KVObject data)
             {
                 Edge = data.GetByteProperty("m_nEdge");
             }
         }
 
+        /// <summary>
+        /// Represents a region in the hull.
+        /// </summary>
+        /// <seealso href="https://s2v.app/SchemaExplorer/cs2/physicslib/CRegionSVM">CRegionSVM</seealso>
         public class Region
         {
-            public object[] Nodes { get; }
+            /// <summary>
+            /// Gets the region nodes.
+            /// </summary>
+            public object[]? Nodes { get; }
+            /// <summary>
+            /// Gets the region data.
+            /// </summary>
             public KVObject Data { get; }
 
+            /// <summary>
+            /// Initializes a new instance of the <see cref="Region"/> class.
+            /// </summary>
             public Region(KVObject data)
             {
                 Data = data;
@@ -71,7 +121,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Shapes
             /// <summary>
             /// Hull face planes with outward pointing normals (n1, -d1, n2, -d2, ...)
             /// </summary>
-            public Span<Plane> GetPlanes()
+            public ReadOnlySpan<Plane> GetPlanes()
             {
                 if (Data.IsNotBlobType("m_Planes"))
                 {
@@ -83,6 +133,9 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Shapes
             }
         }
 
+        /// <summary>
+        /// Gets the centroid of the hull.
+        /// </summary>
         public Vector3 Centroid { get; }
 
         /// <summary>
@@ -90,20 +143,38 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Shapes
         /// </summary>
         public float MaxAngularRadius { get; }
 
-        public Region RegionSVM { get; }
+        /// <summary>
+        /// Gets the region SVM data.
+        /// </summary>
+        public Region? RegionSVM { get; }
 
         /// <summary>
         /// Fraction 0..1 of coverage along YZ,ZX,XY sides of AABB
         /// </summary>
         public Vector3 OrthographicAreas { get; }
 
+        /// <summary>
+        /// Gets the volume of the hull.
+        /// </summary>
         public float Volume { get; }
 
         //public AABB Bounds { get; set; }
+        /// <summary>
+        /// Gets the minimum bounds.
+        /// </summary>
         public Vector3 Min { get; }
+        /// <summary>
+        /// Gets the maximum bounds.
+        /// </summary>
         public Vector3 Max { get; }
+        /// <summary>
+        /// Gets the raw data.
+        /// </summary>
         public KVObject Data { get; }
 
+        /// <summary>
+        /// Initializes a new instance of the <see cref="Hull"/> struct.
+        /// </summary>
         public Hull(KVObject data)
         {
             Centroid = data.GetSubCollection("m_vCentroid").ToVector3();
@@ -127,7 +198,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Shapes
         /// <summary>
         /// Hull vertex indices. Hulls can have up to 255 vertices.
         /// </summary>
-        /// </remarks> Empty for resources compiled before 2023-11-04.</remarks>
+        /// <remarks>Empty for resources compiled before 2023-11-04.</remarks>
         public Span<byte> GetVertices()
         {
             if (!HasExplicitVertexIndices(Data))
@@ -141,12 +212,12 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Shapes
         /// <summary>
         /// Hull vertex positions.
         /// </summary>
-        public Span<Vector3> GetVertexPositions() => ParseVertices(Data);
+        public ReadOnlySpan<Vector3> GetVertexPositions() => ParseVertices(Data);
 
         /// <summary>
         /// Hull half edges order such that each edge e is followed by its twin e' (e1, e1', e2, e2', ...)
         /// </summary>
-        public Span<HalfEdge> GetEdges()
+        public ReadOnlySpan<HalfEdge> GetEdges()
         {
             if (Data.IsNotBlobType("m_Edges"))
             {
@@ -160,7 +231,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Shapes
         /// <summary>
         /// Hull faces.
         /// </summary>
-        public Span<Face> GetFaces()
+        public ReadOnlySpan<Face> GetFaces()
         {
             if (Data.IsNotBlobType("m_Faces"))
             {
@@ -174,7 +245,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Shapes
         /// <summary>
         /// Hull face planes with outward pointing normals (n1, -d1, n2, -d2, ...)
         /// </summary>
-        public Span<Plane> GetPlanes()
+        public ReadOnlySpan<Plane> GetPlanes()
         {
             if (Data.IsNotBlobType("m_Planes"))
             {
@@ -185,7 +256,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Shapes
             return MemoryMarshal.Cast<byte, Plane>(Data.GetArray<byte>("m_Planes"));
         }
 
-        internal static Span<Vector3> ParseVertices(KVObject data)
+        internal static ReadOnlySpan<Vector3> ParseVertices(KVObject data)
         {
             if (data.IsNotBlobType("m_Vertices"))
             {

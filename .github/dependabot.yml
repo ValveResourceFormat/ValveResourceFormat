@@ -2,8 +2,21 @@ version: 2
 updates:
   - package-ecosystem: "github-actions"
     directory: "/"
+    labels:
+      - "dependencies"
     schedule:
       interval: "weekly"
+    cooldown:
+      default-days: 14
     ignore:
       - dependency-name: "*"
         update-types: ["version-update:semver-minor", "version-update:semver-patch"]
+
+  - package-ecosystem: "nuget"
+    directory: "/"
+    labels:
+      - "dependencies"
+    schedule:
+      interval: "weekly"
+    cooldown:
+      default-days: 30

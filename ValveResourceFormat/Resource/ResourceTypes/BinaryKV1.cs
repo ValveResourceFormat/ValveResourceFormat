@@ -1,26 +1,49 @@
+using System.Diagnostics;
 using System.IO;
 using ValveKeyValue;
-using ValveResourceFormat.Blocks;
 
 namespace ValveResourceFormat.ResourceTypes
 {
-    public class BinaryKV1 : ResourceData
+    /// <summary>
+    /// Represents a binary KeyValues1 data block.
+    /// </summary>
+    public class BinaryKV1 : Block
     {
+        /// <summary>
+        /// The magic number for binary KeyValues1 format (VBKV).
+        /// </summary>
         public const int MAGIC = 0x564B4256; // VBKV
 
+        /// <inheritdoc/>
         public override BlockType Type => BlockType.DATA;
 
-        public KVObject KeyValues { get; private set; }
+        /// <summary>
+        /// Gets the deserialized KeyValues data.
+        /// </summary>
+        public KVDocument? KeyValues { get; private set; }
 
-        public override void Read(BinaryReader reader, Resource resource)
+        /// <inheritdoc/>
+        public override void Read(BinaryReader reader)
         {
             reader.BaseStream.Position = Offset;
 
             KeyValues = KVSerializer.Create(KVSerializationFormat.KeyValues1Binary).Deserialize(reader.BaseStream);
         }
 
-        public override string ToString()
+        /// <inheritdoc/>
+        public override void Serialize(Stream stream)
         {
+            throw new NotImplementedException("Serializing this block is not yet supported. If you need this, send us a pull request!");
+        }
+
+        /// <inheritdoc/>
+        /// <remarks>
+        /// Converts the binary KeyValues to text format and writes it.
+        /// </remarks>
+        public override void WriteText(IndentedTextWriter writer)
+        {
+            Debug.Assert(KeyValues != null);
+
             using var ms = new MemoryStream();
             using var reader = new StreamReader(ms);
 
@@ -28,7 +51,7 @@ namespace ValveResourceFormat.ResourceTypes
 
             ms.Seek(0, SeekOrigin.Begin);
 
-            return reader.ReadToEnd();
+            writer.Write(reader.ReadToEnd());
         }
     }
 }

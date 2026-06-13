@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.IO;
 using NUnit.Framework;
 using SteamDatabase.ValvePak;
@@ -16,6 +17,8 @@ namespace Tests
             vmapResource.Read(Path.Combine(TestContext.CurrentContext.TestDirectory, "Files", "dota.vmap_c"));
 
             var exception = Assert.Throws<FileNotFoundException>(() => new MapExtract(vmapResource, new NullFileLoader()));
+            Debug.Assert(exception != null);
+            Assert.That(exception, Is.Not.Null);
             Assert.That(exception.Message, Contains.Substring("Failed to find world resource"));
 
             //var extract = new MapExtract(vmapResource, null);
@@ -30,10 +33,12 @@ namespace Tests
             worldResource.Read(worldPath);
 
             var exception = Assert.Throws<ArgumentNullException>(() => new MapExtract(worldResource, null));
+            Debug.Assert(exception != null);
+            Assert.That(exception, Is.Not.Null);
             Assert.That(exception.Message, Contains.Substring("file loader must be provided to load the map's lumps"));
 
             var extract = new MapExtract(worldResource, new NullFileLoader());
-            Assert.That(Path.GetDirectoryName(worldPath), Is.EqualTo(extract.LumpFolder));
+            Assert.That(Path.GetFullPath(Path.GetDirectoryName(worldPath)!), Is.EqualTo(Path.GetFullPath(extract.LumpFolder)));
 
             extract.ToValveMap();
 
@@ -55,7 +60,28 @@ namespace Tests
 
             using var worldResource = loader.LoadFile("maps/ui/nametag.vmap_c");
 
-            var extract = new MapExtract(worldResource, loader);
+            var extract = new MapExtract(worldResource!, loader);
+
+            extract.ToValveMap();
+
+            var contentFile = extract.ToContentFile();
+            Assert.That(contentFile, Is.Not.Null);
+            Assert.That(contentFile.Data, Is.Not.Null);
+        }
+
+        [Test]
+        public void TestMapExtractFromVpkWithPhys()
+        {
+            var vpkPath = Path.Combine(TestContext.CurrentContext.TestDirectory, "Files", "dota_riverflow_fx.vpk");
+
+            using var package = new Package();
+            package.Read(vpkPath);
+
+            using var loader = new GameFileLoader(package, vpkPath);
+
+            using var worldResource = loader.LoadFile("maps/prefabs/dota_riverflow_fx.vmap_c");
+
+            var extract = new MapExtract(worldResource!, loader);
 
             extract.ToValveMap();
 

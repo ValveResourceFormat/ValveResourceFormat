@@ -1,17 +1,40 @@
 //#define DEBUG_FILE_LOAD
 
+using System.Diagnostics;
 using System.IO;
 using System.IO.Enumeration;
+using System.Threading;
 using SteamDatabase.ValvePak;
 using ValveKeyValue;
 using ValveResourceFormat.CompiledShader;
+using ValveResourceFormat.ResourceTypes;
+using ValveResourceFormat.Serialization.KeyValues;
+using KVObject = ValveKeyValue.KVObject;
 
 namespace ValveResourceFormat.IO
 {
+    /// <summary>
+    /// Loads compiled game resources from VPK packages and disk with automatic path resolution.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// This class is intended for loading compiled resources (such as models, textures, materials)
+    /// that need to be parsed as <see cref="Resource"/> objects. It handles resource lookup
+    /// across VPK packages and loose files on disk, automatically discovering game search paths
+    /// from gameinfo.gi files.
+    /// </para>
+    /// <para>
+    /// To read raw file bytes from a VPK package, use <c>Package.ReadEntry</c> instead.
+    /// </para>
+    /// </remarks>
     public class GameFileLoader : IFileLoader, IDisposable
     {
         private const string AddonsSuffix = "_addons";
         private const string GameinfoGi = "gameinfo.gi";
+
+        /// <summary>
+        /// The suffix added to compiled file names.
+        /// </summary>
         public const string CompiledFileSuffix = "_c";
 
         private static readonly string[] ModIdentifiers =
@@ -22,22 +45,30 @@ namespace ValveResourceFormat.IO
         ];
 
         private readonly Dictionary<string, ShaderCollection> CachedShaders = [];
-        private readonly object CachedShadersLock = new();
+        private readonly Lock CachedShadersLock = new();
         private readonly HashSet<string> CurrentGameSearchPaths = [];
+        private readonly HashSet<string> CurrentGameOfficialAddonsPaths = [];
         private readonly List<Package> CurrentGamePackages = [];
-        private readonly string CurrentFileName;
-        private string PreferredAddonFolderOnDisk;
+        private readonly string? CurrentFileName;
+        private string? PreferredAddonFolderOnDisk;
         private bool ShaderPackagesScanned;
         private bool AttemptToLoadWorkshopDependencies;
-
-        public Package CurrentPackage { get; set; }
+        private bool StoredSurfacePropertyStringTokens;
 
         /// <summary>
-        /// fileName is needed when used by GUI when package has not yet been resolved
+        /// Gets or sets the current package being processed.
+        /// </summary>
+        public Package? CurrentPackage { get; set; }
+
+        /// <summary>
+        /// Initializes a new instance of the <see cref="GameFileLoader"/> class.
         /// </summary>
         /// <param name="currentPackage">The current package to search for files in.</param>
         /// <param name="currentFileName">The path on disk to the current file that is being opened.</param>
-        public GameFileLoader(Package currentPackage, string currentFileName)
+        /// <remarks>
+        /// fileName is needed when used by GUI when package has not yet been resolved.
+        /// </remarks>
+        public GameFileLoader(Package? currentPackage, string? currentFileName)
         {
             CurrentPackage = currentPackage;
             CurrentFileName = currentFileName;
@@ -46,6 +77,7 @@ namespace ValveResourceFormat.IO
             if (CurrentFileName != null)
             {
                 FindAndLoadSearchPaths();
+                FindAndLoadOfficialGameAddonPackage();
             }
 
 #if DEBUG_FILE_LOAD
@@ -63,6 +95,9 @@ namespace ValveResourceFormat.IO
 #endif
         }
 
+        /// <summary>
+        /// Releases resources used by this instance.
+        /// </summary>
         protected virtual void Dispose(bool disposing)
         {
             if (disposing)
@@ -86,13 +121,20 @@ namespace ValveResourceFormat.IO
             }
         }
 
+        /// <inheritdoc/>
         public void Dispose()
         {
             Dispose(disposing: true);
             GC.SuppressFinalize(this);
         }
 
-        public virtual (string PathOnDisk, Package Package, PackageEntry PackageEntry) FindFile(string file, bool logNotFound = true)
+        /// <summary>
+        /// Finds a file in packages or on disk.
+        /// </summary>
+        /// <param name="file">The file path to find.</param>
+        /// <param name="logNotFound">Whether to log if file is not found.</param>
+        /// <returns>A tuple containing the path on disk, package, and package entry if found.</returns>
+        public virtual (string? PathOnDisk, Package? Package, PackageEntry? PackageEntry) FindFile(string file, bool logNotFound = true)
         {
             // Check current package
             var entry = CurrentPackage?.FindEntry(file);
@@ -141,15 +183,19 @@ namespace ValveResourceFormat.IO
 
                         // Completely assuming that workshop files are always packed as /appid/ugcid/ugcid.vpk
                         var workshopRoot = Path.GetDirectoryName(Path.GetDirectoryName(CurrentFileName.AsSpan()));
+                        var dependencies = addonInfo["Dependencies"];
 
-                        foreach (var dependency in (IEnumerable<KVObject>)addonInfo["Dependencies"])
+                        if (dependencies != null)
                         {
-                            var dependencyId = (uint)dependency.Value;
-                            var dependencyVpkPath = Path.Join(workshopRoot, $"{dependencyId}", $"{dependencyId}.vpk");
-
-                            if (File.Exists(dependencyVpkPath))
+                            foreach (var (_, dependency) in dependencies)
                             {
-                                AddPackageToSearch(dependencyVpkPath);
+                                var dependencyId = (uint)dependency;
+                                var dependencyVpkPath = Path.Join(workshopRoot, $"{dependencyId}", $"{dependencyId}.vpk");
+
+                                if (File.Exists(dependencyVpkPath))
+                                {
+                                    AddPackageToSearch(dependencyVpkPath);
+                                }
                             }
                         }
                     }
@@ -168,6 +214,7 @@ namespace ValveResourceFormat.IO
                 if (entry != null)
                 {
 #if DEBUG_FILE_LOAD
+                    Debug.Assert(package != null);
                     Console.WriteLine($"Loaded \"{file}\" from preloaded vpk \"{package.FileName}\"");
 #endif
 
@@ -203,6 +250,9 @@ namespace ValveResourceFormat.IO
             return (null, null, null);
         }
 
+        /// <summary>
+        /// Loads a shader from disk by finding all its program files.
+        /// </summary>
         protected virtual ShaderCollection LoadShaderFromDisk(string shaderName)
         {
             if (!ShaderPackagesScanned)
@@ -215,11 +265,12 @@ namespace ValveResourceFormat.IO
 
             bool TryLoadShader(VcsProgramType programType, VcsPlatformType platformType, VcsShaderModelType modelType)
             {
-                var shaderFile = new ShaderFile();
+                var shaderFile = new VfxProgramData();
 
                 try
                 {
-                    var path = Path.Join("shaders", "vfx", ShaderUtilHelpers.ComputeVCSFileName(shaderName, programType, platformType, modelType));
+                    var fileName = ShaderUtilHelpers.ComputeVCSFileName(shaderName, programType, platformType, modelType);
+                    var path = Path.Join("shaders", "vfx", fileName);
                     var foundFile = FindFile(path, logNotFound: false);
 
                     if (foundFile.PathOnDisk != null)
@@ -228,8 +279,8 @@ namespace ValveResourceFormat.IO
                     }
                     else if (foundFile.PackageEntry != null)
                     {
-                        var stream = GetPackageEntryStream(foundFile.Package, foundFile.PackageEntry);
-                        shaderFile.Read(path, stream);
+                        var stream = GetPackageEntryStream(foundFile.Package!, foundFile.PackageEntry);
+                        shaderFile.Read(fileName, stream);
                     }
 
                     if (shaderFile.VcsPlatformType == platformType)
@@ -278,6 +329,7 @@ namespace ValveResourceFormat.IO
             return collection;
         }
 
+        /// <inheritdoc/>
         public ShaderCollection LoadShader(string shaderName)
         {
             lock (CachedShadersLock)
@@ -293,15 +345,38 @@ namespace ValveResourceFormat.IO
             }
         }
 
-        public virtual Resource LoadFileCompiled(string file) => LoadFile(string.Concat(file, CompiledFileSuffix));
+        /// <summary>
+        /// Gets a stream for reading a file.
+        /// </summary>
+        public Stream? GetFileStream(string file)
+        {
+            var foundFile = FindFile(file);
 
-        public virtual Resource LoadFile(string file)
+            if (foundFile.PathOnDisk != null)
+            {
+                return File.OpenRead(foundFile.PathOnDisk);
+            }
+            else if (foundFile.PackageEntry != null)
+            {
+                return GetPackageEntryStream(foundFile.Package!, foundFile.PackageEntry);
+            }
+            else
+            {
+                return null;
+            }
+        }
+
+        /// <inheritdoc/>
+        public virtual Resource? LoadFileCompiled(string file) => LoadFile(string.Concat(file, CompiledFileSuffix));
+
+        /// <inheritdoc/>
+        public virtual Resource? LoadFile(string file)
         {
             var resource = new Resource
             {
                 FileName = file,
             };
-            Resource resourceToReturn = null;
+            Resource? resourceToReturn = null;
 
             try
             {
@@ -315,7 +390,7 @@ namespace ValveResourceFormat.IO
                 }
                 else if (foundFile.PackageEntry != null)
                 {
-                    var stream = GetPackageEntryStream(foundFile.Package, foundFile.PackageEntry);
+                    var stream = GetPackageEntryStream(foundFile.Package!, foundFile.PackageEntry);
                     resource.Read(stream);
                     resourceToReturn = resource;
                     resource = null;
@@ -329,7 +404,7 @@ namespace ValveResourceFormat.IO
             return resourceToReturn;
         }
 
-        private static void HandleGameInfo(HashSet<string> folders, string gameRoot, string gameinfoPath)
+        private void HandleGameInfo(HashSet<string> folders, string gameRoot, string gameinfoPath)
         {
             KVObject gameInfo;
             using (var stream = File.OpenRead(gameinfoPath))
@@ -345,19 +420,51 @@ namespace ValveResourceFormat.IO
                 }
             }
 
-            Console.WriteLine($"Found \"{gameInfo["game"]}\" from \"{gameinfoPath}\"");
+            gameInfo.TryGetValue("game", out var gameName);
+            Console.WriteLine($"Found \"{gameName}\" from \"{gameinfoPath}\"");
 
-            foreach (var searchPath in (IEnumerable<KVObject>)gameInfo["FileSystem"]["SearchPaths"])
+            foreach (var (key, searchPath) in gameInfo["FileSystem"]["SearchPaths"])
             {
-                if (searchPath.Name != "Game")
+                if (key == "Game")
                 {
-                    continue;
+                    folders.Add(Path.Combine(gameRoot, searchPath.ToString()!));
                 }
-
-                folders.Add(Path.Combine(gameRoot, searchPath.Value.ToString()));
+                else if (key == "OfficialAddonRoot")
+                {
+                    CurrentGameOfficialAddonsPaths.Add(Path.Combine(gameRoot, searchPath.ToString()!));
+                }
             }
         }
 
+        /// <summary>
+        /// Ensures surface property string tokens are loaded and stored.
+        /// </summary>
+        public void EnsureStringTokenGameKeys()
+        {
+            if (!StoredSurfacePropertyStringTokens)
+            {
+                using var vsurf = LoadFileCompiled("surfaceproperties/surfaceproperties.vsurf");
+                if (vsurf is not null && vsurf.DataBlock is BinaryKV3 kv3)
+                {
+                    var surfacePropertiesList = kv3.Data.Root.GetArray("SurfacePropertiesList");
+                    foreach (var surface in surfacePropertiesList)
+                    {
+                        var name = surface.GetStringProperty("surfacePropertyName");
+                        var hash = StringToken.Store(name);
+                        Debug.Assert(
+                            hash == surface.GetUnsignedIntegerProperty("m_nameHash"),
+                            "Stored surface property hash should be the same as the calculated one."
+                        );
+                    }
+                }
+
+                StoredSurfacePropertyStringTokens = true;
+            }
+        }
+
+        /// <summary>
+        /// Adds a disk path to the search paths.
+        /// </summary>
         public bool AddDiskPathToSearch(string searchPath)
         {
             var success = CurrentGameSearchPaths.Add(searchPath);
@@ -370,6 +477,9 @@ namespace ValveResourceFormat.IO
             return success;
         }
 
+        /// <summary>
+        /// Removes a disk path from the search paths.
+        /// </summary>
         public bool RemoveDiskPathFromSearch(string searchPath)
         {
             var success = CurrentGameSearchPaths.Remove(searchPath);
@@ -382,6 +492,9 @@ namespace ValveResourceFormat.IO
             return success;
         }
 
+        /// <summary>
+        /// Loads and adds a VPK package to the search paths.
+        /// </summary>
         public Package AddPackageToSearch(string searchPath)
         {
             Console.WriteLine($"Preloading vpk \"{searchPath}\"");
@@ -395,17 +508,26 @@ namespace ValveResourceFormat.IO
             return package;
         }
 
+        /// <summary>
+        /// Adds an already loaded package to the search paths.
+        /// </summary>
         public void AddPackageToSearch(Package package)
         {
             CurrentGamePackages.Add(package);
         }
 
+        /// <summary>
+        /// Removes a package from the search paths.
+        /// </summary>
         public bool RemovePackageFromSearch(Package package)
         {
             return CurrentGamePackages.Remove(package);
         }
 
-        protected void FindAndLoadSearchPaths(string modIdentifierPath = null)
+        /// <summary>
+        /// Finds and loads search paths from gameinfo.gi files.
+        /// </summary>
+        protected void FindAndLoadSearchPaths(string? modIdentifierPath = null)
         {
             modIdentifierPath ??= GetModIdentifierFile();
 
@@ -423,7 +545,7 @@ namespace ValveResourceFormat.IO
                 }
 
                 var rootFolder = Path.GetDirectoryName(modIdentifierPath);
-                var assumedGameRoot = Path.GetDirectoryName(rootFolder);
+                var assumedGameRoot = Path.GetDirectoryName(rootFolder)!;
 
                 if (Path.GetFileName(modIdentifierPath) == GameinfoGi)
                 {
@@ -442,7 +564,7 @@ namespace ValveResourceFormat.IO
 
                         if (File.Exists(mainGameInfo))
                         {
-                            HandleGameInfo(folders, Path.GetDirectoryName(mainGameDir), mainGameInfo);
+                            HandleGameInfo(folders, Path.GetDirectoryName(mainGameDir)!, mainGameInfo);
                         }
                         else if (Directory.Exists(mainGameDir))
                         {
@@ -481,14 +603,19 @@ namespace ValveResourceFormat.IO
             }
         }
 
-        private string GetModIdentifierFile()
+        private string? GetModIdentifierFile()
         {
-            var directory = CurrentFileName;
+            var directory = CurrentFileName!;
             var i = 10;
             var isLastWorkshop = false;
 
-            if (!Path.IsPathFullyQualified(directory))
+            // Check for slash here to support paths on linux under wine
+            if (!Path.IsPathFullyQualified(directory) && !directory.StartsWith('/'))
             {
+#if DEBUG_FILE_LOAD
+                Console.WriteLine($"Not a fully qualified path \"{directory}\", not checking for mod");
+#endif
+
                 return null;
             }
 
@@ -543,18 +670,53 @@ namespace ValveResourceFormat.IO
             return null;
         }
 
+        private void FindAndLoadOfficialGameAddonPackage()
+        {
+            if (CurrentFileName == null || CurrentGameOfficialAddonsPaths.Count == 0)
+            {
+                return;
+            }
+
+            // Check if vpk with same file name exists in addons folder
+            var fileName = Path.GetFileNameWithoutExtension(CurrentFileName);
+
+            foreach (var officialAddonPath in CurrentGameOfficialAddonsPaths)
+            {
+                var addonFolder = Path.Combine(officialAddonPath, fileName);
+
+                if (!Directory.Exists(addonFolder))
+                {
+                    continue;
+                }
+
+                var vpk = Path.Combine(addonFolder, $"{fileName}_dir.vpk");
+
+                if (File.Exists(vpk))
+                {
+                    AddPackageToSearch(vpk);
+                    break;
+                }
+
+                vpk = Path.Combine(addonFolder, $"{fileName}.vpk");
+
+                if (File.Exists(vpk))
+                {
+                    AddPackageToSearch(vpk);
+                    break;
+                }
+            }
+        }
+
         private HashSet<string> FindGameFoldersForWorkshopFile()
         {
-            var folders = new HashSet<string>();
-
             // If we're loading a file from steamapps/workshop folder, attempt to discover gameinfos and load vpks for the game
             const string STEAMAPPS_WORKSHOP_CONTENT = "steamapps/workshop/content";
-            var filePath = CurrentFileName.Replace('\\', '/');
+            var filePath = CurrentFileName!.Replace('\\', '/');
             var contentIndex = filePath.IndexOf(STEAMAPPS_WORKSHOP_CONTENT, StringComparison.InvariantCultureIgnoreCase);
 
             if (contentIndex == -1)
             {
-                return folders;
+                return [];
             }
 
             // Extract the appid from path
@@ -563,14 +725,14 @@ namespace ValveResourceFormat.IO
 
             if (slashAfterAppId == -1)
             {
-                return folders;
+                return [];
             }
 
             var appIdString = filePath[contentIndexEnd..slashAfterAppId];
 
             if (!uint.TryParse(appIdString, out var appId))
             {
-                return folders;
+                return [];
             }
 
 #if DEBUG_FILE_LOAD
@@ -594,15 +756,21 @@ namespace ValveResourceFormat.IO
             }
             catch
             {
-                return folders;
+                return [];
             }
 
             var installDir = appManifestKv["installdir"].ToString();
+
+            if (installDir == null)
+            {
+                return [];
+            }
+
             var gamePath = Path.Combine(steamPath, "common", installDir);
 
             if (!Directory.Exists(gamePath))
             {
-                return folders;
+                return [];
             }
 
             // Find all the gameinfo.gi files, open them to get game paths
@@ -618,16 +786,28 @@ namespace ValveResourceFormat.IO
                 ShouldIncludePredicate = static (ref FileSystemEntry entry) => !entry.IsDirectory && entry.FileName.Equals(GameinfoGi, StringComparison.Ordinal)
             };
 
+            var folders = new HashSet<string>();
+
             foreach (var gameInfo in gameInfos)
             {
-                var assumedGameRoot = Path.GetDirectoryName(Path.GetDirectoryName(gameInfo));
+                var directory = Path.GetDirectoryName(gameInfo);
+                var modName = Path.GetFileName(directory);
+                var assumedGameRoot = Path.GetDirectoryName(directory)!;
+
+                if (modName == "core")
+                {
+                    // Skip loading core gameinfo directly, let it be discovered by any of the other mod folders
+                    // This is needed to prevent core being found first and having highest priority
+                    continue;
+                }
+
                 HandleGameInfo(folders, assumedGameRoot, gameInfo);
             }
 
             return folders;
         }
 
-        private string FindFileOnDisk(string file)
+        private string? FindFileOnDisk(string file)
         {
             foreach (var folder in CurrentGameSearchPaths)
             {
@@ -667,8 +847,11 @@ namespace ValveResourceFormat.IO
         }
 
         /// <summary>
-        /// Do not use this method, it will be removed in the future in favor of a method in the ValvePak library.
+        /// Gets a stream for reading a package entry.
         /// </summary>
+        /// <remarks>
+        /// Do not use this method, it will be removed in the future in favor of a method in the ValvePak library.
+        /// </remarks>
         public static Stream GetPackageEntryStream(Package package, PackageEntry entry)
         {
             lock (package)

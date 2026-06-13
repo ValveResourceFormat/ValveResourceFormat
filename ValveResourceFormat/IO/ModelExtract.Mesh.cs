@@ -1,5 +1,4 @@
 using System.Diagnostics;
-using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices;
@@ -8,44 +7,132 @@ using Datamodel;
 using ValveResourceFormat.Blocks;
 using ValveResourceFormat.IO.ContentFormats.DmxModel;
 using ValveResourceFormat.ResourceTypes;
+using ValveResourceFormat.ResourceTypes.ModelAnimation;
 using ValveResourceFormat.ResourceTypes.RubikonPhysics;
-using ValveResourceFormat.Serialization;
 using ValveResourceFormat.Serialization.KeyValues;
-using ValveResourceFormat.Utils;
 using RnShapes = ValveResourceFormat.ResourceTypes.RubikonPhysics.Shapes;
 
 namespace ValveResourceFormat.IO;
 
 partial class ModelExtract
 {
-    public List<(HullDescriptor Hull, string FileName)> PhysHullsToExtract { get; } = [];
-    public List<(MeshDescriptor Mesh, string FileName)> PhysMeshesToExtract { get; } = [];
+    /// <summary>
+    /// Gets the list of physics hulls to be extracted with their output file names.
+    /// </summary>
+    public List<(HullDescriptor Hull, string FileName, string ParentBone)> PhysHullsToExtract { get; } = [];
+
+    /// <summary>
+    /// Gets the list of physics meshes to be extracted with their output file names.
+    /// </summary>
+    public List<(MeshDescriptor Mesh, string FileName, string ParentBone)> PhysMeshesToExtract { get; } = [];
+
+    /// <summary>
+    /// Gets the list of render meshes to be extracted.
+    /// </summary>
     public List<RenderMeshExtractConfiguration> RenderMeshesToExtract { get; } = [];
+
+    /// <summary>
+    /// Gets the material input signatures for mapping DirectX semantic names.
+    /// </summary>
     public Dictionary<string, Material.VsInputSignature> MaterialInputSignatures { get; } = [];
 
-    public string[] PhysicsSurfaceNames { get; private set; }
-    public HashSet<string>[] PhysicsCollisionTags { get; private set; }
+    /// <summary>
+    /// Gets the physics surface property names discovered in the aggregate data.
+    /// </summary>
+    public string[] PhysicsSurfaceNames { get; private set; } = [];
 
+    /// <summary>
+    /// Gets the physics collision tag sets associated with the current aggregate data.
+    /// </summary>
+    public HashSet<string>[] PhysicsCollisionTags { get; private set; } = [];
+
+    /// <summary>
+    /// Gets the set of surface tag combinations.
+    /// </summary>
     public HashSet<SurfaceTagCombo> SurfaceTagCombos { get; } = [];
-    public Func<SurfaceTagCombo, string> PhysicsToRenderMaterialNameProvider { get; init; }
+
+    /// <summary>
+    /// Gets or initializes the function to provide render material names for physics surface tags.
+    /// </summary>
+    public Func<SurfaceTagCombo, string>? PhysicsToRenderMaterialNameProvider { get; init; }
+
+    /// <summary>
+    /// Gets or sets the translation offset for the model.
+    /// </summary>
     public Vector3 Translation { get; set; }
 
-    public record struct RenderMeshExtractConfiguration(Mesh Mesh, string Name, int Index, string FileName, ImportFilter ImportFilter = default);
+    /// <summary>
+    /// Options for extracting a render mesh to datamodel format.
+    /// </summary>
+    public readonly struct DatamodelRenderMeshExtractOptions
+    {
+        /// <summary>
+        /// Split draw calls into sub-meshes named draw0, draw1, draw2...
+        /// </summary>
+        public bool SplitDrawCallsIntoSeparateSubmeshes { get; init; }
 
+        /// <summary>
+        /// Pre-parsed input signatures used to map DirectX semantic names to engine semantic names.
+        /// </summary>
+        public Dictionary<string, Material.VsInputSignature> MaterialInputSignatures { get; init; }
+
+        /// <summary>
+        /// Remap table for the mesh bone indices.
+        /// </summary>
+        public int[]? BoneRemapTable { get; init; }
+
+        /// <summary>
+        /// Skeleton whose bones the mesh's BLENDINDICES reference (post-remap, in <see cref="Bone.Index"/> order).
+        /// When provided, bones are emitted into the DMX <c>jointList</c> so ModelDoc can resolve indices.
+        /// </summary>
+        public Skeleton? Skeleton { get; init; }
+    }
+
+    /// <summary>
+    /// Configuration for extracting a render mesh.
+    /// </summary>
+    public record struct RenderMeshExtractConfiguration(
+        Mesh Mesh,
+        string Name,
+        int Index,
+        string FileName,
+        int[]? BoneRemapTable = null,
+        Skeleton? Skeleton = null,
+        ImportFilter ImportFilter = default
+    );
+
+    /// <summary>
+    /// Represents a combination of surface property and collision tags.
+    /// </summary>
     public sealed record SurfaceTagCombo(string SurfacePropName, HashSet<string> InteractAsStrings)
     {
+        /// <summary>
+        /// Initializes a new instance of the <see cref="SurfaceTagCombo"/> record.
+        /// </summary>
         public SurfaceTagCombo(string surfacePropName, string[] collisionTags)
             : this(surfacePropName, new HashSet<string>(collisionTags))
         { }
 
+        /// <summary>
+        /// Gets the string representation of the material.
+        /// </summary>
         public string StringMaterial => string.Join('+', InteractAsStrings) + '$' + SurfacePropName;
+
+        /// <inheritdoc/>
+        /// <remarks>
+        /// Returns the hash code of the string material representation.
+        /// </remarks>
         public override int GetHashCode() => StringMaterial.GetHashCode(StringComparison.OrdinalIgnoreCase);
-        public bool Equals(SurfaceTagCombo other) => GetHashCode() == other.GetHashCode();
+
+        /// <summary>
+        /// Determines whether the specified <see cref="SurfaceTagCombo"/> is equal to the current instance.
+        /// </summary>
+        public bool Equals(SurfaceTagCombo? other) => other is not null && GetHashCode() == other.GetHashCode();
     }
 
     string GetDmxFileName_ForEmbeddedMesh(string subString, int number = 0)
     {
-        var fileName = GetModelName();
+        var fileName = ModelName;
         return (Path.GetDirectoryName(fileName)
             + Path.DirectorySeparatorChar
             + Path.GetFileNameWithoutExtension(fileName)
@@ -61,6 +148,10 @@ partial class ModelExtract
 
     private void EnqueueMeshes()
     {
+        if (fileLoader is not null) // May be null for mesh-only constructor
+        {
+            FileExtract.EnsurePopulatedStringToken(fileLoader);
+        }
         EnqueueRenderMeshes();
         EnqueuePhysMeshes();
     }
@@ -77,12 +168,14 @@ partial class ModelExtract
         var i = 0;
         foreach (var embedded in model.GetEmbeddedMeshes())
         {
-            embedded.Mesh.VBIB = model.RemapBoneIndices(embedded.Mesh.VBIB, embedded.MeshIndex);
-            RenderMeshesToExtract.Add(new(embedded.Mesh, embedded.Name, embedded.MeshIndex, GetDmxFileName_ForEmbeddedMesh(embedded.Name, i++)));
+            var remapTable = model.GetRemapTable(embedded.MeshIndex);
+            RenderMeshesToExtract.Add(new(embedded.Mesh, embedded.Name, embedded.MeshIndex, GetDmxFileName_ForEmbeddedMesh(embedded.Name, i++), remapTable, model.Skeleton));
         }
 
         foreach (var reference in model.GetReferenceMeshNamesAndLoD())
         {
+            Debug.Assert(fileLoader is not null, "fileLoader should not be null when loading reference meshes");
+
             using var resource = fileLoader.LoadFileCompiled(reference.MeshName);
 
             if (resource is null)
@@ -92,21 +185,29 @@ partial class ModelExtract
 
             GrabMaterialInputSignatures(resource);
 
-            var mesh = (Mesh)resource.DataBlock;
-            mesh.VBIB = model.RemapBoneIndices(mesh.VBIB, reference.MeshIndex);
+            if (resource.DataBlock is not Mesh mesh)
+            {
+                continue;
+            }
+
             model.SetExternalMeshData(mesh);
 
-            RenderMeshesToExtract.Add(new(mesh, reference.MeshName, reference.MeshIndex, GetDmxFileName_ForReferenceMesh(reference.MeshName)));
-        }
+            var remapTable = model.GetRemapTable(reference.MeshIndex);
+            var meshKey = Path.GetFileNameWithoutExtension(reference.MeshName);
 
-        void GrabMaterialInputSignatures(Resource resource)
+            RenderMeshesToExtract.Add(new(mesh, meshKey, reference.MeshIndex, GetDmxFileName_ForReferenceMesh(reference.MeshName), remapTable, model.Skeleton));
+        }
+    }
+
+    internal void GrabMaterialInputSignatures(Resource? resource)
+    {
+        Debug.Assert(fileLoader is not null, "fileLoader should not be null when grabbing material signatures");
+
+        var materialReferences = resource?.ExternalReferences?.ResourceRefInfoList.Where(static r => r.Name[^4..] == "vmat");
+        foreach (var material in materialReferences ?? [])
         {
-            var materialReferences = resource?.ExternalReferences?.ResourceRefInfoList.Where(static r => r.Name[^4..] == "vmat");
-            foreach (var material in materialReferences ?? [])
-            {
-                using var materialResource = fileLoader.LoadFileCompiled(material.Name);
-                MaterialInputSignatures[material.Name] = (materialResource?.DataBlock as Material)?.InputSignature ?? default;
-            }
+            using var materialResource = fileLoader.LoadFileCompiled(material.Name);
+            MaterialInputSignatures[material.Name] = (materialResource?.DataBlock as Material)?.InputSignature ?? Material.VsInputSignature.Empty;
         }
     }
 
@@ -117,52 +218,69 @@ partial class ModelExtract
             return;
         }
 
-        var knownKeys = StringToken.InvertedTable;
-
-        PhysicsSurfaceNames = physAggregateData.SurfacePropertyHashes.Select(hash =>
-        {
-            knownKeys.TryGetValue(hash, out var name);
-            return name ?? hash.ToString(CultureInfo.InvariantCulture);
-        }).ToArray();
-
+        PhysicsSurfaceNames = physAggregateData.SurfacePropertyHashes.Select(StringToken.GetKnownString).ToArray();
 
         PhysicsCollisionTags = physAggregateData.CollisionAttributes.Select(attributes =>
-            (attributes.GetArray<string>("m_InteractAsStrings") ?? attributes.GetArray<string>("m_PhysicsTagStrings")).ToHashSet()
+            (attributes.GetArray<string>("m_InteractAsStrings") ?? attributes.GetArray<string>("m_PhysicsTagStrings"))!.ToHashSet()
         ).ToArray();
 
-        var i = 0;
-        foreach (var physicsPart in physAggregateData.Parts)
+        // Fix index error on some old vphys files
+        if (PhysicsSurfaceNames.Length == 0)
         {
+            PhysicsSurfaceNames = [string.Empty];
+        }
+
+        if (PhysicsCollisionTags.Length == 0)
+        {
+            PhysicsCollisionTags = [[]];
+        }
+
+        var i = 0;
+        for (var partIndex = 0; partIndex < physAggregateData.Parts.Length; partIndex++)
+        {
+            var physicsPart = physAggregateData.Parts[partIndex];
+            var parentBone = physAggregateData.GetParentBoneName(partIndex);
+
             foreach (var hull in physicsPart.Shape.Hulls)
             {
-                PhysHullsToExtract.Add((hull, GetDmxFileName_ForEmbeddedMesh("hull", i++)));
-
-                SurfaceTagCombos.Add(new SurfaceTagCombo(
-                    PhysicsSurfaceNames[hull.SurfacePropertyIndex],
-                    PhysicsCollisionTags[hull.CollisionAttributeIndex]
-                ));
+                PhysHullsToExtract.Add((hull, GetDmxFileName_ForEmbeddedMesh("hull", i++), parentBone));
+                StoreSurfaceTagCombo(hull);
             }
 
             foreach (var mesh in physicsPart.Shape.Meshes)
             {
-                PhysMeshesToExtract.Add((mesh, GetDmxFileName_ForEmbeddedMesh("phys", i++)));
+                PhysMeshesToExtract.Add((mesh, GetDmxFileName_ForEmbeddedMesh("phys", i++), parentBone));
 
-                SurfaceTagCombos.Add(new SurfaceTagCombo(
-                    PhysicsSurfaceNames[mesh.SurfacePropertyIndex],
-                    PhysicsCollisionTags[mesh.CollisionAttributeIndex]
-                ));
+                StoreSurfaceTagCombo(mesh);
 
                 foreach (var surfaceIndex in mesh.Shape.Materials)
                 {
-                    SurfaceTagCombos.Add(new SurfaceTagCombo(
-                        PhysicsSurfaceNames[surfaceIndex],
-                        PhysicsCollisionTags[mesh.CollisionAttributeIndex]
-                    ));
+                    StoreSurfaceTagCombo(mesh.CollisionAttributeIndex, surfaceIndex);
                 }
             }
         }
     }
 
+    private void StoreSurfaceTagCombo<T>(ShapeDescriptor<T> shapeDesc) where T : struct
+        => StoreSurfaceTagCombo(shapeDesc.CollisionAttributeIndex, shapeDesc.SurfacePropertyIndex);
+
+    private void StoreSurfaceTagCombo(int collisionAttributeIndex, int surfacePropertyIndex)
+    {
+        if (PhysicsCollisionTags.Length <= collisionAttributeIndex
+        || PhysicsSurfaceNames.Length <= surfacePropertyIndex)
+        {
+            return;
+        }
+
+        SurfaceTagCombos.Add(new SurfaceTagCombo(
+            PhysicsSurfaceNames[surfacePropertyIndex],
+            PhysicsCollisionTags[collisionAttributeIndex]
+        ));
+    }
+
+    /// <summary>
+    /// Extracts content files from an aggregate model resource, splitting by draw calls.
+    /// </summary>
     public static IEnumerable<ContentFile> GetContentFiles_DrawCallSplit(Resource aggregateModelResource, IFileLoader fileLoader, Vector3[] drawOrigins, int drawCallCount)
     {
         var extract = new ModelExtract(aggregateModelResource, fileLoader) { Type = ModelExtractType.Map_AggregateSplit };
@@ -173,16 +291,23 @@ partial class ModelExtract
             yield break;
         }
 
-        var (mesh, name, index, fileName, _) = extract.RenderMeshesToExtract[0];
+        var (mesh, name, index, fileName, boneRemapTable, skeleton, _) = extract.RenderMeshesToExtract[0];
+
+        var options = new DatamodelRenderMeshExtractOptions
+        {
+            MaterialInputSignatures = extract.MaterialInputSignatures,
+            SplitDrawCallsIntoSeparateSubmeshes = true,
+            BoneRemapTable = boneRemapTable,
+            Skeleton = skeleton,
+        };
 
         byte[] sharedDmxExtractMethod() => ToDmxMesh(
             mesh,
             Path.GetFileNameWithoutExtension(fileName),
-            extract.MaterialInputSignatures,
-            splitDrawCallsIntoSeparateSubmeshes: true
+            options
         );
 
-        var sharedMeshExtractConfiguration = new RenderMeshExtractConfiguration(mesh, name, index, fileName, new(true, new(1)));
+        var sharedMeshExtractConfiguration = new RenderMeshExtractConfiguration(mesh, name, index, fileName, boneRemapTable, skeleton, new(true, new(1)));
         extract.RenderMeshesToExtract.Clear();
         extract.RenderMeshesToExtract.Add(sharedMeshExtractConfiguration);
 
@@ -198,7 +323,7 @@ partial class ModelExtract
             var vmdl = new ContentFile
             {
                 Data = Encoding.UTF8.GetBytes(extract.ToValveModel()),
-                FileName = GetFragmentModelName(extract.GetModelName(), i),
+                FileName = GetFragmentModelName(extract.ModelName, i),
             };
 
             if (i == 0)
@@ -210,20 +335,21 @@ partial class ModelExtract
         }
     }
 
-    public static void ToDmxMesh_DrawCallSplit()
-    {
-        //
-    }
-
+    /// <summary>
+    /// Gets the fragment model name for a draw call index.
+    /// </summary>
     public static string GetFragmentModelName(string aggModelName, int drawCallIndex)
     {
         const string vmdlExt = ".vmdl";
         return aggModelName[..^vmdlExt.Length] + "_draw" + drawCallIndex + vmdlExt;
     }
 
-    private static void FillDatamodelVertexData(VBIB.OnDiskBufferData vertexBuffer, DmeVertexData vertexData, Material.VsInputSignature materialInputSignature)
+    private static void FillDatamodelVertexData(VBIB.OnDiskBufferData vertexBuffer, DmeVertexData vertexData, Material.VsInputSignature materialInputSignature,
+        int boneWeightCount, int[]? boneRemapTable)
     {
         var indices = Enumerable.Range(0, (int)vertexBuffer.ElementCount).ToArray(); // May break with non-unit strides, non-tri faces
+
+        var boneArrayComponents = boneWeightCount > 4 ? 8 : 4;
 
         foreach (var attribute in vertexBuffer.InputLayoutFields)
         {
@@ -244,10 +370,21 @@ partial class ModelExtract
             }
             else if (attribute.SemanticName is "BLENDINDICES")
             {
-                vertexData.JointCount = 4;
+                vertexData.JointCount = boneWeightCount;
 
-                var blendIndices = VBIB.GetBlendIndicesArray(vertexBuffer, attribute);
-                vertexData.AddStream(semantic, Array.ConvertAll(blendIndices, i => (int)i));
+                var boneIndices = VBIB.GetBlendIndicesArray(vertexBuffer, attribute, boneRemapTable);
+                var compactedLength = boneIndices.Length / boneArrayComponents * boneWeightCount;
+
+                var compactIndices = new int[compactedLength];
+                for (var i = 0; i < boneIndices.Length; i += boneArrayComponents)
+                {
+                    for (var j = 0; j < boneWeightCount; j++)
+                    {
+                        compactIndices[i / boneArrayComponents * boneWeightCount + j] = boneIndices[i + j];
+                    }
+                }
+
+                vertexData.AddStream(semantic, compactIndices);
                 continue;
             }
             else if (attribute.SemanticName is "BLENDWEIGHT" or "BLENDWEIGHTS")
@@ -255,7 +392,16 @@ partial class ModelExtract
                 var vectorWeights = VBIB.GetBlendWeightsArray(vertexBuffer, attribute);
                 var flatWeights = MemoryMarshal.Cast<Vector4, float>(vectorWeights).ToArray();
 
-                vertexData.AddStream("blendweights$" + attribute.SemanticIndex, flatWeights);
+                var compactWeights = new float[flatWeights.Length / boneArrayComponents * boneWeightCount];
+                for (var i = 0; i < flatWeights.Length; i += boneArrayComponents)
+                {
+                    for (var j = 0; j < boneWeightCount; j++)
+                    {
+                        compactWeights[i / boneArrayComponents * boneWeightCount + j] = flatWeights[i + j];
+                    }
+                }
+
+                vertexData.AddStream("blendweights$" + attribute.SemanticIndex, compactWeights);
                 continue;
             }
 
@@ -295,42 +441,79 @@ partial class ModelExtract
 
         if (vertexData.VertexFormat.Contains("blendindices$0") && !vertexData.VertexFormat.Contains("blendweights$0"))
         {
-            var blendIndicesLength = vertexData.TryGetValue("blendindices$0", out var blendIndices)
-                ? ((ICollection<int>)blendIndices).Count
-                : throw new InvalidOperationException("blendindices$0 stream not found");
-            vertexData.AddStream("blendweights$0", Enumerable.Repeat(1f, blendIndicesLength).ToArray());
+            if (!vertexData.TryGetValue("blendindices$0", out var blendIndices) || blendIndices is not ICollection<int> collection)
+            {
+                throw new InvalidOperationException("blendindices$0 stream not found");
+            }
+
+            vertexData.AddStream("blendweights$0", Enumerable.Repeat(1f, collection.Count).ToArray());
         }
     }
 
-    public static byte[] ToDmxMesh(Mesh mesh, string name, Dictionary<string, Material.VsInputSignature> materialInputSignatures = null,
-        bool splitDrawCallsIntoSeparateSubmeshes = false)
+    /// <summary>
+    /// Converts a mesh to DMX format.
+    /// </summary>
+    public static byte[] ToDmxMesh(Mesh mesh, string name, DatamodelRenderMeshExtractOptions options = default)
+    {
+        using var dmx = ConvertMeshToDatamodelMesh(mesh, name, options);
+        using var stream = new MemoryStream();
+        dmx.Save(stream, "binary", 9);
+
+        return stream.ToArray();
+    }
+
+    /// <summary>
+    /// Converts a mesh to a datamodel mesh representation.
+    /// </summary>
+    public static Datamodel.Datamodel ConvertMeshToDatamodelMesh(Mesh mesh, string name, DatamodelRenderMeshExtractOptions options)
     {
         var mdat = mesh.Data;
         var mbuf = mesh.VBIB;
         var indexBuffers = mbuf.IndexBuffers.Select(ib => new Lazy<int[]>(() => GltfModelExporter.ReadIndices(ib, 0, (int)ib.ElementCount, 0))).ToArray();
 
-        using var dmx = new Datamodel.Datamodel("model", 22);
-        DmxModelMultiVertexBufferLayout(name, mbuf.VertexBuffers.Count, out var dmeModel, out var dags, out var dmeVertexBuffers);
+        var datamodel = new Datamodel.Datamodel("model", 22);
+        var dmeModel = new DmeModel() { Name = name };
+        var dmeVertexBuffers = new Dictionary<(int, int), (DmeDag Dag, DmeVertexData VertexData)>(mbuf.VertexBuffers.Count);
 
-        Material.VsInputSignature materialInputSignature = default;
+        // Populate the joint list with bones up-front so DMX BLENDINDICES line up with Bone.Index.
+        // ModelDoc resolves mesh skinning indices through this list; without it the mesh is bound to "no skeleton".
+        if (options.Skeleton is { Bones.Length: > 0 } skeleton)
+        {
+            dmeModel = BuildDmeDagSkeleton(skeleton, out _);
+            dmeModel.Name = name;
+        }
+
+        var materialInputSignature = Material.VsInputSignature.Empty;
         var drawCallIndex = 0;
 
         foreach (var sceneObject in mdat.GetArray("m_sceneObjects"))
         {
             foreach (var drawCall in sceneObject.GetArray("m_drawCalls"))
             {
-                var vertexBufferInfo = drawCall.GetArray("m_vertexBuffers")[0]; // In what situation can we have more than 1 vertex buffer per draw call?
-                var vertexBufferIndex = vertexBufferInfo.GetInt32Property("m_hBuffer");
+                var vertexBuffers = drawCall.GetArray("m_vertexBuffers");
+
+                Debug.Assert(vertexBuffers.Count <= 2); // Hello traveler, if you are here to update this code to support more than 2 buffers!
+
+                var dmeVertexBufferKey = (
+                    vertexBuffers[0].GetInt32Property("m_hBuffer"),
+                    vertexBuffers.Count > 1 ? vertexBuffers[1].GetInt32Property("m_hBuffer") : -1
+                );
+
+                if (!dmeVertexBuffers.TryGetValue(dmeVertexBufferKey, out var dmeVertexBuffer))
+                {
+                    dmeVertexBuffer = CreateDmxDagVertexData(dmeModel, name);
+                    dmeVertexBuffers[dmeVertexBufferKey] = dmeVertexBuffer;
+                }
 
                 var indexBufferInfo = drawCall.GetSubCollection("m_indexBuffer");
                 var indexBufferIndex = indexBufferInfo.GetInt32Property("m_hBuffer");
                 ReadOnlySpan<int> indexBuffer = indexBuffers[indexBufferIndex].Value;
 
-                var material = drawCall.GetProperty<string>("m_material") ?? drawCall.GetProperty<string>("m_pMaterial");
+                var material = drawCall.GetStringProperty("m_material") ?? drawCall.GetStringProperty("m_pMaterial");
 
-                if (material != null && materialInputSignatures != null && (materialInputSignature.Elements == null || materialInputSignature.Elements.Length == 0))
+                if (material != null && options.MaterialInputSignatures != null && (materialInputSignature.Elements == null || materialInputSignature.Elements.Length == 0))
                 {
-                    materialInputSignature = materialInputSignatures.GetValueOrDefault(material);
+                    materialInputSignature = options.MaterialInputSignatures.GetValueOrDefault(material);
                 }
 
                 if (material == null && Mesh.IsOccluder(drawCall))
@@ -338,25 +521,25 @@ partial class ModelExtract
                     material = "materials/tools/toolsoccluder.vmat";
                 }
 
+                material ??= "materials/default.vmat";
+
                 var baseVertex = drawCall.GetInt32Property("m_nBaseVertex");
                 var startIndex = drawCall.GetInt32Property("m_nStartIndex");
                 var indexCount = drawCall.GetInt32Property("m_nIndexCount");
 
-                var dag = dags[vertexBufferIndex];
+                var dag = dmeVertexBuffer.Dag;
 
-                if (splitDrawCallsIntoSeparateSubmeshes)
+                if (options.SplitDrawCallsIntoSeparateSubmeshes)
                 {
+                    var subMeshName = "draw" + drawCallIndex;
+
                     if (drawCallIndex > 0)
                     {
                         // new submesh with same vertex buffer as first submesh
-                        dag = [];
-                        dmeModel.Children.Add(dag);
-                        dmeModel.JointList.Add(dag);
-                        dag.Shape.CurrentState = dmeVertexBuffers[vertexBufferIndex];
-                        dag.Shape.BaseStates.Add(dmeVertexBuffers[vertexBufferIndex]);
+                        dag = CreateDmxDag(dmeModel, dmeVertexBuffer.VertexData, subMeshName);
                     }
 
-                    dag.Shape.Name = "draw" + drawCallIndex;
+                    dag.Shape.Name = subMeshName;
                 }
 
                 GenerateTriangleFaceSetFromIndexBuffer(
@@ -371,35 +554,48 @@ partial class ModelExtract
             }
         }
 
-        for (var i = 0; i < mbuf.VertexBuffers.Count; i++)
+        var boneWeightCount = mesh.Data.GetSubCollection("m_skeleton")?.GetInt32Property("m_nBoneWeightCount") ?? 0;
+
+        foreach (var (vertexBufferIndices, dmeObjects) in dmeVertexBuffers)
         {
-            FillDatamodelVertexData(mbuf.VertexBuffers[i], dmeVertexBuffers[i], materialInputSignature);
+            FillDatamodelVertexData(mbuf.VertexBuffers[vertexBufferIndices.Item1], dmeObjects.VertexData, materialInputSignature, boneWeightCount, options.BoneRemapTable);
+
+            if (vertexBufferIndices.Item2 != -1)
+            {
+                FillDatamodelVertexData(mbuf.VertexBuffers[vertexBufferIndices.Item2], dmeObjects.VertexData, materialInputSignature, boneWeightCount, options.BoneRemapTable);
+            }
         }
 
-        TieElementRoot(dmx, dmeModel);
-        using var stream = new MemoryStream();
-        dmx.Save(stream, "keyvalues2", 4);
-
-        return stream.ToArray();
+        TieElementRoot(datamodel, dmeModel);
+        return datamodel;
     }
 
+    /// <summary>
+    /// Converts a physics hull descriptor to DMX format.
+    /// </summary>
     public byte[] ToDmxMesh(HullDescriptor hull)
     {
         var uniformSurface = PhysicsSurfaceNames[hull.SurfacePropertyIndex];
         var uniformCollisionTags = PhysicsCollisionTags[hull.CollisionAttributeIndex];
         // https://github.com/ValveResourceFormat/ValveResourceFormat/issues/660#issuecomment-1795499191
         var fixRenderMeshCompileCrash = Type == ModelExtractType.Map_PhysicsToRenderMesh;
-        return ToDmxMesh(hull.Shape, hull.UserFriendlyName, uniformSurface, uniformCollisionTags, fixRenderMeshCompileCrash);
+        return ToDmxMesh(hull.Shape, hull.UserFriendlyName ?? "hull", uniformSurface, uniformCollisionTags, fixRenderMeshCompileCrash);
     }
 
+    /// <summary>
+    /// Converts a physics mesh descriptor to DMX format.
+    /// </summary>
     public byte[] ToDmxMesh(MeshDescriptor mesh)
     {
         var uniformSurface = PhysicsSurfaceNames[mesh.SurfacePropertyIndex];
         var uniformCollisionTags = PhysicsCollisionTags[mesh.CollisionAttributeIndex];
         var fixRenderMeshCompileCrash = Type == ModelExtractType.Map_PhysicsToRenderMesh;
-        return ToDmxMesh(mesh.Shape, mesh.UserFriendlyName, uniformSurface, uniformCollisionTags, PhysicsSurfaceNames, fixRenderMeshCompileCrash);
+        return ToDmxMesh(mesh.Shape, mesh.UserFriendlyName ?? "mesh", uniformSurface, uniformCollisionTags, PhysicsSurfaceNames, fixRenderMeshCompileCrash);
     }
 
+    /// <summary>
+    /// Converts a Rubikon hull shape to DMX mesh format.
+    /// </summary>
     public static byte[] ToDmxMesh(RnShapes.Hull hull, string name,
         string uniformSurface,
         HashSet<string> uniformCollisionTags,
@@ -411,7 +607,10 @@ partial class ModelExtract
         // n-gon face set
         var faceSet = new DmeFaceSet() { Name = "hull faces" };
         faceSet.Material.MaterialName = new SurfaceTagCombo(uniformSurface, uniformCollisionTags).StringMaterial;
-        dag.Shape.FaceSets.Add(faceSet);
+        if (dag.Shape is DmeMesh dmeMesh)
+        {
+            dmeMesh.FaceSets.Add(faceSet);
+        }
 
         var edges = hull.GetEdges();
         var faces = hull.GetFaces();
@@ -444,11 +643,14 @@ partial class ModelExtract
 
         TieElementRoot(dmx, dmeModel);
         using var stream = new MemoryStream();
-        dmx.Save(stream, "keyvalues2", 4);
+        dmx.Save(stream, "binary", 9);
 
         return stream.ToArray();
     }
 
+    /// <summary>
+    /// Converts a Rubikon mesh shape to DMX mesh format.
+    /// </summary>
     public static byte[] ToDmxMesh(RnShapes.Mesh mesh, string name,
         string uniformSurface,
         HashSet<string> uniformCollisionTags,
@@ -465,7 +667,7 @@ partial class ModelExtract
             var materialName = new SurfaceTagCombo(uniformSurface, uniformCollisionTags).StringMaterial;
             GenerateTriangleFaceSet(dag, 0, triangles.Length, materialName);
         }
-        else
+        else if (dag.Shape is DmeMesh dmeMesh)
         {
             Debug.Assert(mesh.Materials.Length == triangles.Length);
             Debug.Assert(surfaceList.Length > 0);
@@ -484,7 +686,7 @@ partial class ModelExtract
                         Name = surface + '$' + surfaceIndex
                     };
                     faceSet.Material.MaterialName = new SurfaceTagCombo(surface, uniformCollisionTags).StringMaterial;
-                    dag.Shape.FaceSets.Add(faceSet);
+                    dmeMesh.FaceSets.Add(faceSet);
                 }
 
                 faceSet.Faces.Add(t * 3);
@@ -514,7 +716,7 @@ partial class ModelExtract
 
         TieElementRoot(dmx, dmeModel);
         using var stream = new MemoryStream();
-        dmx.Save(stream, "keyvalues2", 4);
+        dmx.Save(stream, "binary", 9);
 
         return stream.ToArray();
     }
@@ -535,26 +737,47 @@ partial class ModelExtract
 
         for (var i = 0; i < vertexBufferCount; i++)
         {
-            // dmx requires one dag per vertex buffer
-            var dag = dags[i] = new DmeDag() { Name = name };
-            dmeModel.Children.Add(dag);
-            dmeModel.JointList.Add(dag);
-
-            var transformList = new DmeTransformsList();
-            transformList.Transforms.Add(new DmeTransform());
-            dmeModel.BaseStates.Add(transformList);
-
-            var vertexData = dmeVertexBuffers[i] = new DmeVertexData { Name = "bind" };
-            dag.Shape.Name = name;
-            dag.Shape.CurrentState = vertexData;
-            dag.Shape.BaseStates.Add(vertexData);
+            (dags[i], dmeVertexBuffers[i]) = CreateDmxDagVertexData(dmeModel, name);
         }
+    }
+
+    private static DmeDag CreateDmxDag(DmeModel dmeModel, DmeVertexData vertexData, string name)
+    {
+        var dag = new DmeDag() { Name = name };
+        dmeModel.Children.Add(dag);
+        dmeModel.JointList.Add(dag);
+
+        var transformList = new DmeTransformsList();
+        transformList.Transforms.Add(new DmeTransform());
+        dmeModel.BaseStates.Add(transformList);
+
+        var shape = new DmeMesh
+        {
+            Name = name,
+            CurrentState = vertexData
+        };
+        shape.BaseStates.Add(vertexData);
+        dag.Shape = shape;
+
+        return dag;
+    }
+
+    private static (DmeDag, DmeVertexData) CreateDmxDagVertexData(DmeModel dmeModel, string name)
+    {
+        // dmx requires one dag per vertex buffer
+        var vertexData = new DmeVertexData { Name = "bind" };
+        var dag = CreateDmxDag(dmeModel, vertexData, name);
+
+        return (dag, vertexData);
     }
 
     private static void GenerateTriangleFaceSet(DmeDag dag, int triangleStart, int triangleEnd, string material)
     {
         var faceSet = new DmeFaceSet() { Name = triangleStart + "-" + triangleEnd };
-        dag.Shape.FaceSets.Add(faceSet);
+        if (dag.Shape is DmeMesh dmeMesh)
+        {
+            dmeMesh.FaceSets.Add(faceSet);
+        }
 
         for (var i = triangleStart; i < triangleEnd; i++)
         {
@@ -571,7 +794,10 @@ partial class ModelExtract
         string material, string name)
     {
         var faceSet = new DmeFaceSet() { Name = name };
-        dag.Shape.FaceSets.Add(faceSet);
+        if (dag.Shape is DmeMesh dmeMesh)
+        {
+            dmeMesh.FaceSets.Add(faceSet);
+        }
 
         for (var i = 0; i < indices.Length; i += 3)
         {
@@ -592,7 +818,7 @@ partial class ModelExtract
             ["model"] = dmeModel,
             ["exportTags"] = new Element(dmx, "exportTags", null, "DmeExportTags")
             {
-                ["source"] = $"Generated with {ValveResourceFormat.Utils.StringToken.VRF_GENERATOR}",
+                ["source"] = $"Generated with {StringToken.VRF_GENERATOR}",
             }
         };
     }

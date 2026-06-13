@@ -1,0 +1,68 @@
+name: Documentation
+
+on:
+  push:
+    branches:
+      - master
+    paths:
+      - docs/**
+      - Renderer/**
+      - ValveResourceFormat/**
+
+permissions:
+  actions: read
+  pages: write
+  id-token: write
+
+# Allow only one concurrent deployment, skipping runs queued between the run in-progress and latest queued.
+# However, do NOT cancel in-progress runs as we want to allow these production deployments to complete.
+concurrency:
+  group: "pages"
+  cancel-in-progress: false
+
+jobs:
+  publish-docs:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v6
+
+    - name: Dotnet Setup
+      uses: actions/setup-dotnet@v5
+      with:
+        dotnet-version: 10.x
+
+    - name: Install docfx
+      run: dotnet tool update -g docfx
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v6
+      with:
+        node-version: 22
+        cache: npm
+        cache-dependency-path: docs/package-lock.json
+
+    - name: Install dependencies
+      run: npm ci
+      working-directory: docs
+
+    - name: Generate API metadata
+      run: npm run generate
+      working-directory: docs
+
+    - name: Build with VitePress
+      run: npm run build
+      working-directory: docs
+
+    - name: Upload artifact
+      uses: actions/upload-pages-artifact@v5
+      with:
+        path: 'docs/.vitepress/dist'
+
+    - name: Deploy to GitHub Pages
+      id: deployment
+      uses: actions/deploy-pages@v5

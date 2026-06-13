@@ -1,15 +1,13 @@
-using System.ComponentModel;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Forms;
-using GUI.Utils;
 
 namespace GUI.Forms
 {
-    partial class GenericProgressForm : Form
+    partial class GenericProgressForm : ThemedForm
     {
         private CancellationTokenSource cancellationTokenSource;
-        public event EventHandler OnProcess;
+        public event EventHandler<CancellationToken>? OnProcess;
 
         public GenericProgressForm()
         {
@@ -55,35 +53,42 @@ namespace GUI.Forms
         protected override void OnShown(EventArgs e)
         {
             Task.Run(
-                () => OnProcess?.Invoke(this, new EventArgs()),
+                () => OnProcess?.Invoke(this, cancellationTokenSource.Token),
                 cancellationTokenSource.Token)
                 .ContinueWith((t) =>
                 {
-                    if (t.Exception != null)
+                    if (extractProgressBar.Style != ProgressBarStyle.Blocks && IsHandleCreated)
                     {
-                        foreach (var exception in t.Exception.Flatten().InnerExceptions)
+                        Invoke(() =>
                         {
-                            Log.Error(nameof(GenericProgressForm), exception.ToString());
-                        }
-
-                        Log.Error(nameof(GenericProgressForm), "Search existing issues or create a new one here: https://github.com/ValveResourceFormat/ValveResourceFormat/issues");
-
-                        SetProgress($"An exception occured, view console tab for more information. ({t.Exception.InnerException.Message})");
-
-                        // TODO: Throwing doesn't actually display the exception ui
-                        throw t.Exception;
+                            extractProgressBar.Style = ProgressBarStyle.Blocks;
+                            extractProgressBar.Value = extractProgressBar.Maximum;
+                        });
                     }
 
-                    if (!t.IsCanceled)
+                    if (t.Exception != null)
+                    {
+                        var exceptions = t.Exception.Flatten().InnerExceptions;
+
+                        SetProgress($"An exception occurred, view console tab for more information. ({(exceptions.Count > 0 ? exceptions[0].Message : t.Exception.InnerException?.Message)})");
+
+                        foreach (var exception in exceptions)
+                        {
+                            Program.ShowError(exception);
+                        }
+                    }
+
+                    if (!t.IsCanceled && IsHandleCreated)
                     {
                         Invoke((Action)Close);
                     }
                 });
         }
 
-        protected override void OnClosing(CancelEventArgs e)
+        protected override void OnFormClosing(FormClosingEventArgs e)
         {
             cancellationTokenSource.Cancel();
+            base.OnFormClosing(e);
         }
 
         private void CancelButton_Click(object sender, EventArgs e)

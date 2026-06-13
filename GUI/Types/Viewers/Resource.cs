@@ -1,39 +1,60 @@
 using System.ComponentModel;
+using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
+using System.Globalization;
 using System.IO;
+using System.Text;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 using GUI.Controls;
-using ValveResourceFormat.Renderer.Audio;
-using GUI.Types.Renderer;
+using GUI.Types.Audio;
+using GUI.Types.GLViewers;
+using GUI.Types.Graphs;
 using GUI.Utils;
+using ValveKeyValue;
 using ValveResourceFormat;
 using ValveResourceFormat.Blocks;
 using ValveResourceFormat.IO;
+using ValveResourceFormat.Renderer;
+using ValveResourceFormat.Renderer.Audio;
+using ValveResourceFormat.Renderer.World;
 using ValveResourceFormat.ResourceTypes;
 
 namespace GUI.Types.Viewers
 {
-    class Resource : IViewer
+    enum ResourceViewMode
     {
+        Default,
+        ViewerOnly,
+        ResourceBlocksOnly,
+    };
+
+    class Resource(VrfGuiContext vrfGuiContext, ResourceViewMode viewMode, bool verifyFileSize) : IViewer, IDisposable
+    {
+        private ValveResourceFormat.Resource? resource;
+        private RendererContext? rendererContext;
+        public GLBaseControl? GLViewer { get; private set; }
+        private CodeTextBox? GLViewerError;
+        private string? GLViewerTabName;
+
         public static bool IsAccepted(uint magic)
         {
             return magic == ValveResourceFormat.Resource.KnownHeaderVersion;
         }
 
-        public TabPage Create(VrfGuiContext vrfGuiContext, Stream stream)
+        public async Task LoadAsync(Stream? stream)
         {
-            var tab = new TabPage();
             var resourceTemp = new ValveResourceFormat.Resource
             {
                 FileName = vrfGuiContext.FileName,
             };
-            var resource = resourceTemp;
+            resource = resourceTemp;
 
             try
             {
                 if (stream != null)
                 {
-                    resource.Read(stream);
+                    resource.Read(stream, verifyFileSize);
                 }
                 else
                 {
@@ -48,190 +69,257 @@ namespace GUI.Types.Viewers
                 resourceTemp?.Dispose();
             }
 
-            var resTabs = new TabControl
+            if (viewMode != ResourceViewMode.ResourceBlocksOnly)
+            {
+                try
+                {
+                    InitializeSpecialViewer(vrfGuiContext, resource);
+                }
+                catch (Exception ex)
+                {
+                    GLViewerError = CodeTextBox.CreateFromException(ex);
+                }
+            }
+        }
+
+        private void InitializeSpecialViewer(VrfGuiContext vrfGuiContext, ValveResourceFormat.Resource resource)
+        {
+            rendererContext = vrfGuiContext.CreateRendererContext();
+
+            switch (resource.ResourceType)
+            {
+                case ResourceType.Texture:
+                case ResourceType.PanoramaVectorGraphic:
+                    GLViewer = new GLTextureViewer(vrfGuiContext, rendererContext, resource);
+                    GLViewerTabName = "TEXTURE";
+                    break;
+
+                case ResourceType.Particle:
+                    if (resource.DataBlock is ParticleSystem particleData)
+                    {
+                        GLViewer = new GLParticleViewer(vrfGuiContext, rendererContext, particleData);
+                        GLViewerTabName = "PARTICLE";
+                    }
+                    break;
+
+                case ResourceType.Map:
+                    {
+                        var worldResource = vrfGuiContext.LoadFileCompiled(WorldLoader.GetWorldNameFromMap(resource.FileName!));
+                        var mapExternalReferences = resource.ExternalReferences;
+
+                        if (worldResource != null && worldResource.DataBlock is World mapWorldData)
+                        {
+                            GLViewer = new GLWorldViewer(vrfGuiContext, rendererContext, mapWorldData, mapExternalReferences);
+                            GLViewerTabName = "MAP";
+                        }
+                        else
+                        {
+                            worldResource?.Dispose();
+                        }
+                        break;
+                    }
+
+                case ResourceType.World:
+                    if (resource.DataBlock is World worldData)
+                    {
+                        GLViewer = new GLWorldViewer(vrfGuiContext, rendererContext, worldData);
+                        GLViewerTabName = "MAP";
+                    }
+                    break;
+
+                case ResourceType.WorldNode:
+                    if (resource.DataBlock is WorldNode worldNodeData)
+                    {
+                        GLViewer = new GLWorldViewer(vrfGuiContext, rendererContext, worldNodeData, resource.ExternalReferences);
+                        GLViewerTabName = "WORLD NODE";
+                    }
+                    break;
+
+                case ResourceType.Model:
+                    if (resource.DataBlock is Model modelData)
+                    {
+                        GLViewer = new GLModelViewer(vrfGuiContext, rendererContext, modelData);
+                        GLViewerTabName = "MODEL";
+                    }
+                    break;
+
+                case ResourceType.Mesh:
+                    if (resource.DataBlock is Mesh meshData)
+                    {
+                        GLViewer = new GLMeshViewer(vrfGuiContext, rendererContext, meshData);
+                        GLViewerTabName = "MESH";
+                    }
+                    break;
+
+                case ResourceType.SmartProp:
+                    if (resource.DataBlock is SmartProp smartPropData)
+                    {
+                        GLViewer = new GLSmartPropViewer(vrfGuiContext, rendererContext, smartPropData);
+                        GLViewerTabName = "SMART PROP";
+                    }
+                    break;
+
+                case ResourceType.AnimationGraph:
+                    if (resource.DataBlock is AnimGraph animGraphData)
+                    {
+                        GLViewer = new GLAnimGraphViewer(vrfGuiContext, rendererContext, animGraphData);
+                        GLViewerTabName = "ANIMATION GRAPH";
+                    }
+                    break;
+
+                case ResourceType.NmClip:
+                    GLViewer = new GLAnimationViewer(vrfGuiContext, rendererContext, resource);
+                    GLViewerTabName = "ANIMATION CLIP";
+                    break;
+
+                case ResourceType.NmSkeleton:
+                    GLViewer = new GLAnimationViewer(vrfGuiContext, rendererContext, resource);
+                    GLViewerTabName = "SKELETON";
+                    break;
+
+                case ResourceType.NmGraph:
+                    if (resource.DataBlock is BinaryKV3 binaryKV3)
+                    {
+                        GLViewer = new AnimationGraphViewer(vrfGuiContext, rendererContext, binaryKV3.Data);
+                        GLViewerTabName = "ANIMATION GRAPH";
+                    }
+                    break;
+
+                case ResourceType.PulseGraphDef:
+                    if (resource.DataBlock is BinaryKV3 graphDefKV3)
+                    {
+                        GLViewer = new PulseGraphViewer(vrfGuiContext, rendererContext, graphDefKV3.Data);
+                        GLViewerTabName = "PULSE GRAPH";
+                    }
+                    break;
+
+                case ResourceType.Material:
+                    {
+                        if (resource.DataBlock is Material { ShaderName: "sky.vfx" })
+                        {
+                            GLViewer = new GLSkyboxViewer(vrfGuiContext, rendererContext, resource);
+                            GLViewerTabName = "SKYBOX";
+                        }
+                        else
+                        {
+                            GLViewer = new GLMaterialViewer(vrfGuiContext, rendererContext, resource);
+                            GLViewerTabName = "MATERIAL";
+                        }
+                        break;
+                    }
+
+                case ResourceType.PhysicsCollisionMesh:
+                    if (resource.DataBlock is PhysAggregateData physAggregateData)
+                    {
+                        GLViewer = new GLModelViewer(vrfGuiContext, rendererContext, physAggregateData);
+                        GLViewerTabName = "PHYSICS";
+                    }
+                    break;
+
+                case ResourceType.WorldVisibility:
+                    if (resource.GetBlockByType(BlockType.VXVS) is VoxelVisibility { BaseClusterCount: > 0 } vxvs)
+                    {
+                        GLViewer = new GLVoxelVisibilityViewer(vrfGuiContext, rendererContext, vxvs);
+                        GLViewerTabName = "VISIBILITY";
+                    }
+                    break;
+
+                case ResourceType.PostProcessing:
+                    if (resource.DataBlock is PostProcessing postProcessing && postProcessing.Data.ContainsKey("m_colorCorrectionVolumeData"))
+                    {
+                        GLViewer = new GLTextureViewer(vrfGuiContext, rendererContext, resource);
+                        GLViewerTabName = "LUT";
+                    }
+                    break;
+            }
+
+            GLViewer?.InitializeLoad();
+        }
+
+        public void Create(TabPage containerTabPage)
+        {
+            Debug.Assert(resource is not null);
+
+            var isPreview = viewMode == ResourceViewMode.ViewerOnly;
+
+            var resTabs = new ThemedTabControl
             {
                 Dock = DockStyle.Fill,
+                Multiline = true,
             };
+            containerTabPage.Controls.Add(resTabs);
+            //containerTabPage.PerformLayout();
 
-            TabPage specialTabPage = null;
-            var selectData = false;
+            var selectData = true;
 
-            try
+            if (viewMode != ResourceViewMode.ResourceBlocksOnly)
             {
-                switch (resource.ResourceType)
+                if (GLViewerError == null)
                 {
-                    case ResourceType.Texture:
-                    case ResourceType.PanoramaVectorGraphic:
-                        {
-                            var textureControl = new GLTextureViewer(vrfGuiContext, resource);
-                            specialTabPage = new TabPage("TEXTURE");
-                            specialTabPage.Controls.Add(textureControl);
-                            break;
-                        }
-
-                    case ResourceType.Panorama:
-                        if (((Panorama)resource.DataBlock).Names.Count > 0)
-                        {
-                            var nameControl = new DataGridView
-                            {
-                                Dock = DockStyle.Fill,
-                                AutoSize = true,
-                                ReadOnly = true,
-                                AllowUserToAddRows = false,
-                                AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill,
-                                DataSource =
-                                    new BindingSource(
-                                        new BindingList<Panorama.NameEntry>(((Panorama)resource.DataBlock).Names), null),
-                            };
-                            specialTabPage = new TabPage("PANORAMA NAMES");
-                            specialTabPage.Controls.Add(nameControl);
-                        }
-
-                        break;
-
-                    case ResourceType.Particle:
-                        {
-                            specialTabPage = new TabPage("PARTICLE");
-                            specialTabPage.Controls.Add(new GLParticleViewer(vrfGuiContext, (ParticleSystem)resource.DataBlock));
-                            break;
-                        }
-
-                    case ResourceType.Sound:
-                        {
-                            specialTabPage = new TabPage("SOUND");
-                            var ap = new AudioPlayer(resource, specialTabPage);
-                            break;
-                        }
-
-                    case ResourceType.Map:
-                        {
-                            var mapResource = vrfGuiContext.LoadFile(Path.Join(resource.FileName[..^7], "world.vwrld_c"));
-                            if (mapResource != null)
-                            {
-                                specialTabPage = new TabPage("MAP");
-                                specialTabPage.Controls.Add(new GLWorldViewer(vrfGuiContext, (World)mapResource.DataBlock));
-                            }
-                            break;
-                        }
-
-                    case ResourceType.World:
-                        {
-                            specialTabPage = new TabPage("MAP");
-                            specialTabPage.Controls.Add(new GLWorldViewer(vrfGuiContext, (World)resource.DataBlock));
-                            break;
-                        }
-
-                    case ResourceType.WorldNode:
-                        {
-                            specialTabPage = new TabPage("WORLD NODE");
-                            specialTabPage.Controls.Add(new GLWorldViewer(vrfGuiContext, (WorldNode)resource.DataBlock));
-                            break;
-                        }
-
-                    case ResourceType.Model:
-                        {
-                            specialTabPage = new TabPage("MODEL");
-                            specialTabPage.Controls.Add(new GLModelViewer(vrfGuiContext, (Model)resource.DataBlock));
-                            break;
-                        }
-
-                    case ResourceType.Mesh:
-                        {
-                            specialTabPage = new TabPage("MESH");
-                            specialTabPage.Controls.Add(new GLMeshViewer(vrfGuiContext, (Mesh)resource.DataBlock));
-                            break;
-                        }
-
-                    case ResourceType.SmartProp:
-                        {
-                            specialTabPage = new TabPage("SMART PROP");
-                            specialTabPage.Controls.Add(new GLSmartPropViewer(vrfGuiContext, (SmartProp)resource.DataBlock));
-                            break;
-                        }
-
-                    case ResourceType.AnimationGraph:
-                        {
-                            specialTabPage = new TabPage("ANIMATION GRAPH");
-                            specialTabPage.Controls.Add(new GLAnimGraphViewer(vrfGuiContext, (AnimGraph)resource.DataBlock));
-                            break;
-                        }
-
-                    case ResourceType.Material:
-                        {
-                            if (((Material)resource.DataBlock).ShaderName == "sky.vfx")
-                            {
-                                var skybox = new GLSkyboxViewer(vrfGuiContext, resource);
-                                specialTabPage = new TabPage("SKYBOX");
-                                specialTabPage.Controls.Add(skybox);
-                                break;
-                            }
-
-                            specialTabPage = new TabPage("MATERIAL");
-                            specialTabPage.Controls.Add(new GLMaterialViewer(vrfGuiContext, resource, resTabs));
-                            break;
-                        }
-
-                    case ResourceType.PhysicsCollisionMesh:
-                        {
-                            specialTabPage = new TabPage("PHYSICS");
-                            specialTabPage.Controls.Add(new GLModelViewer(vrfGuiContext, (PhysAggregateData)resource.DataBlock));
-                            break;
-                        }
-
-                    case ResourceType.ChoreoSceneFileData:
-                        {
-                            specialTabPage = new TabPage("VCDLIST");
-                            specialTabPage.Controls.Add(new ChoreoViewer(resource));
-                            break;
-                        }
-
-                    default:
-                        selectData = true;
-                        break;
+                    try
+                    {
+                        selectData = !AddSpecialViewer(vrfGuiContext, resource, isPreview, resTabs);
+                    }
+                    catch (Exception ex)
+                    {
+                        GLViewerError = CodeTextBox.CreateFromException(ex);
+                    }
                 }
 
-
-                if (specialTabPage != null)
+                if (GLViewerError != null)
                 {
-                    resTabs.TabPages.Add(specialTabPage);
-                    specialTabPage = null;
+                    GLViewer?.Dispose();
+                    GLViewer = null;
+                    var errorTab = new ThemedTabPage("Viewer Error");
+                    errorTab.Controls.Add(GLViewerError);
+                    resTabs.TabPages.Add(errorTab);
                 }
             }
-            catch (Exception ex)
-            {
-                var control = new CodeTextBox(ex.ToString());
 
-                var tabEx = new TabPage("Error");
-                tabEx.Controls.Add(control);
-                resTabs.TabPages.Add(tabEx);
-            }
-            finally
+            if (isPreview && !selectData)
             {
-                specialTabPage?.Dispose();
+                var previewTab = resTabs.TabPages[0];
+
+                // Preview only displays the first tab page, so copy over the contents
+                foreach (Control c in previewTab.Controls)
+                {
+                    containerTabPage.Controls.Add(c);
+                }
+
+                resTabs.Dispose();
+
+                return;
             }
+
+            // Strictly speaking this event should not be needed, but we have it for safety.
+            // Handled by OpenFile -> OnTabDisposed
+            void OnTabDisposed(object? sender, EventArgs e)
+            {
+                resTabs.Disposed -= OnTabDisposed;
+
+                resource?.Dispose();
+            }
+
+            resTabs.Disposed += OnTabDisposed;
+
+            List<RawBinary>? binaryBuffers = null;
 
             foreach (var block in resource.Blocks)
             {
-                if (block.Type == BlockType.RERL)
+                // They are just binary blobs, and the actual layout of them is stored in CTRL, so the tabs are not useful here
+                if (block is RawBinary rawBlock && block.Type is BlockType.MVTX or BlockType.MIDX or BlockType.MADJ)
                 {
-                    var externalRefs = new DataGridView
-                    {
-                        Dock = DockStyle.Fill,
-                        AutoGenerateColumns = true,
-                        AutoSize = true,
-                        ReadOnly = true,
-                        AllowUserToAddRows = false,
-                        AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill,
-                        DataSource =
-                            new BindingSource(
-                                new BindingList<ResourceExtRefList.ResourceReferenceInfo>(resource.ExternalReferences
-                                    .ResourceRefInfoList), null),
-                    };
+                    binaryBuffers ??= [];
+                    binaryBuffers.Add(rawBlock);
+                    continue;
+                }
 
-                    AddDataGridExternalRefAction(vrfGuiContext.FileLoader, externalRefs, "Name");
+                if (block.Type == BlockType.RERL && block is ResourceExtRefList externalReferences)
+                {
+                    var externalRefsTree = BuildExternalRefTree(vrfGuiContext, externalReferences.ResourceRefInfoList);
 
-                    var externalRefsTab = new TabPage("External Refs");
-                    externalRefsTab.Controls.Add(externalRefs);
+                    var externalRefsTab = new ThemedTabPage("References");
+                    externalRefsTab.Controls.Add(externalRefsTree);
                     resTabs.TabPages.Add(externalRefsTab);
 
                     continue;
@@ -252,10 +340,10 @@ namespace GUI.Types.Viewers
                             DataSource =
                                 new BindingSource(
                                     new BindingList<ResourceIntrospectionManifest.ResourceDiskStruct>(
-                                        ((ResourceIntrospectionManifest)block).ReferencedStructs), null),
+                                        ((ResourceIntrospectionManifest)block).ReferencedStructs), string.Empty),
                         };
 
-                        var externalRefsTab = new TabPage("Introspection Manifest: Structs");
+                        var externalRefsTab = new ThemedTabPage("Introspection Manifest: Structs");
                         externalRefsTab.Controls.Add(externalRefs);
                         resTabs.TabPages.Add(externalRefsTab);
                     }
@@ -273,16 +361,16 @@ namespace GUI.Types.Viewers
                             DataSource =
                                 new BindingSource(
                                     new BindingList<ResourceIntrospectionManifest.ResourceDiskEnum>(
-                                        ((ResourceIntrospectionManifest)block).ReferencedEnums), null),
+                                        ((ResourceIntrospectionManifest)block).ReferencedEnums), string.Empty),
                         };
 
-                        var externalRefsTab = new TabPage("Introspection Manifest: Enums");
+                        var externalRefsTab = new ThemedTabPage("Introspection Manifest: Enums");
                         externalRefsTab.Controls.Add(externalRefs2);
                         resTabs.TabPages.Add(externalRefsTab);
                     }
                 }
 
-                var blockTab = new TabPage(block.Type.ToString());
+                var blockTab = new ThemedTabPage(block.Type.ToString());
                 resTabs.TabPages.Add(blockTab);
 
                 try
@@ -301,68 +389,278 @@ namespace GUI.Types.Viewers
                 }
             }
 
+            if (binaryBuffers != null)
+            {
+                var blockTab = new ThemedTabPage("Buffers");
+                resTabs.TabPages.Add(blockTab);
+
+                var text = new StringBuilder();
+
+                foreach (var block in binaryBuffers)
+                {
+                    text.AppendLine(CultureInfo.InvariantCulture, $"{block.Type} - {block.Size} bytes");
+                }
+
+                var textBox = CodeTextBox.Create(text.ToString());
+                blockTab.Controls.Add(textBox);
+            }
+
             try
             {
                 AddReconstructedContentTab(vrfGuiContext, resource, resTabs);
             }
             catch (Exception ex)
             {
-                var control = new CodeTextBox(ex.ToString());
+                var control = CodeTextBox.CreateFromException(ex);
 
-                var tabEx = new TabPage("Decompile Error");
+                var tabEx = new ThemedTabPage("Decompile Error");
                 tabEx.Controls.Add(control);
                 resTabs.TabPages.Add(tabEx);
             }
-
-            tab.Controls.Add(resTabs);
-
-            return tab;
         }
 
-        public static void AddDataGridExternalRefAction(AdvancedGuiFileLoader guiFileLoader, DataGridView dataGrid,
-            string columnName, Action<bool> secondAction = null)
+        private bool AddSpecialViewer(VrfGuiContext vrfGuiContext, ValveResourceFormat.Resource resource, bool isPreview, TabControl resTabs)
         {
-            void OnCellDoubleClick(object sender, DataGridViewCellEventArgs e)
+            if (GLViewer != null)
             {
-                if (e.RowIndex < 0)
+                Debug.Assert(GLViewerTabName != null);
+
+                var glViewerControl = GLViewer.InitializeUiControls(isPreview);
+
+                var specialTabPage = new ThemedTabPage(GLViewerTabName);
+                resTabs.TabPages.Add(specialTabPage);
+                specialTabPage.Controls.Add(glViewerControl);
+
+                if (!isPreview && GLViewer is GLMaterialViewer glMaterialViewer)
                 {
-                    return;
+                    glMaterialViewer.SetTabControl(resTabs);
                 }
 
-                var grid = (DataGridView)sender;
-                var row = grid.Rows[e.RowIndex];
-                var colName = columnName;
-                var name = (string)row.Cells[colName].Value;
-
-                Log.Debug(nameof(Resource), $"Opening {name} from external refs");
-
-                var foundFile = guiFileLoader.FindFileWithContext(name + GameFileLoader.CompiledFileSuffix);
-                if (foundFile.Context == null)
+                if (!isPreview && GLViewer is GLWorldViewer glWorldViewer && glWorldViewer.LoadedWorld is { } loadedWorld)
                 {
-                    foundFile = guiFileLoader.FindFileWithContext(name);
+                    if (resource.ResourceType == ResourceType.Map)
+                    {
+                        var worldTabPage = new ThemedTabPage("World Data");
+                        resTabs.TabPages.Add(worldTabPage);
+                        AddTextViewControl(ResourceType.WorldNode, loadedWorld.World, worldTabPage);
+                    }
+
+                    if (loadedWorld.MainWorldNode != null)
+                    {
+                        var worldNodeTabPage = new ThemedTabPage("Node Data");
+                        resTabs.TabPages.Add(worldNodeTabPage);
+                        AddTextViewControl(ResourceType.WorldNode, loadedWorld.MainWorldNode, worldNodeTabPage);
+                    }
+
+                    var entitiesTabPage = new ThemedTabPage("Entity List");
+                    entitiesTabPage.Controls.Add(new EntityViewer(vrfGuiContext, loadedWorld.Entities, glWorldViewer.SelectAndFocusEntity));
+                    resTabs.TabPages.Add(entitiesTabPage);
                 }
 
-                var bFound = foundFile.Context != null;
-                if (bFound)
-                {
-                    Program.MainForm.OpenFile(foundFile.Context, foundFile.PackageEntry);
-                }
-
-                secondAction?.Invoke(bFound);
+                GLViewer.InitializeRenderLoop();
+                return true;
             }
 
-            void OnDisposed(object o, EventArgs e)
+            switch (resource.ResourceType)
             {
-                dataGrid.CellDoubleClick -= OnCellDoubleClick;
-                dataGrid.Disposed -= OnDisposed;
+                case ResourceType.Panorama:
+                    if (resource.DataBlock is Panorama { Names.Count: > 0 })
+                    {
+                        var nameControl = new DataGridView
+                        {
+                            Dock = DockStyle.Fill,
+                            AutoSize = true,
+                            ReadOnly = true,
+                            AllowUserToAddRows = false,
+                            AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill,
+                            DataSource =
+                                new BindingSource(
+                                    new BindingList<Panorama.NameEntry>(((Panorama)resource.DataBlock).Names), string.Empty),
+                        };
+                        var specialTabPage = new ThemedTabPage("PANORAMA NAMES");
+                        specialTabPage.Controls.Add(nameControl);
+                        resTabs.TabPages.Add(specialTabPage);
+                    }
+                    break;
+
+                case ResourceType.Sound:
+                    if (resource.ContainsBlockType(BlockType.DATA))
+                    {
+                        var specialTabPage = new ThemedTabPage("SOUND");
+                        var autoPlay = ((Settings.QuickPreviewFlags)Settings.Config.QuickFilePreview & Settings.QuickPreviewFlags.AutoPlaySounds) != 0;
+                        var ap = new AudioPlayer(resource, specialTabPage, isPreview && autoPlay);
+                        resTabs.TabPages.Add(specialTabPage);
+                        return true;
+                    }
+                    break;
+
+                case ResourceType.EntityLump:
+                    if (resource.DataBlock is EntityLump entityLumpData)
+                    {
+                        var specialTabPage = new ThemedTabPage("Entities");
+                        specialTabPage.Controls.Add(new EntityViewer(vrfGuiContext, entityLumpData.GetEntities()));
+                        resTabs.TabPages.Add(specialTabPage);
+                        return true;
+                    }
+                    break;
+
+                case ResourceType.ChoreoSceneFileData:
+                    {
+                        var specialTabPage = new ThemedTabPage("VCDLIST");
+                        specialTabPage.Controls.Add(new ChoreoViewer(resource));
+                        resTabs.TabPages.Add(specialTabPage);
+                        return true;
+                    }
+
+                case ResourceType.Shader:
+                    {
+                        var compiledShaderViewer = new CompiledShader(vrfGuiContext);
+                        try
+                        {
+                            var specialTabPage = new ThemedTabPage("SHADER");
+                            resTabs.TabPages.Add(specialTabPage);
+                            compiledShaderViewer.Create(specialTabPage);
+                            compiledShaderViewer = null;
+                        }
+                        finally
+                        {
+                            compiledShaderViewer?.Dispose();
+                        }
+                        return true;
+                    }
             }
 
-            dataGrid.CellDoubleClick += OnCellDoubleClick;
-            dataGrid.Disposed += OnDisposed;
+            return false;
+        }
+
+        public static bool OpenExternalReference(VrfGuiContext vrfGuiContext, string name)
+        {
+            Log.Debug(nameof(Resource), $"Opening {name} from external refs");
+
+            var foundFile = vrfGuiContext.FindFileWithContext(name + GameFileLoader.CompiledFileSuffix);
+            if (foundFile.Context == null)
+            {
+                foundFile = vrfGuiContext.FindFileWithContext(name);
+            }
+
+            if (foundFile.Context != null)
+            {
+                Program.MainForm.OpenFile(foundFile.Context, foundFile.PackageEntry);
+                return true;
+            }
+
+            return false;
+        }
+
+        public static TreeViewDoubleBuffered BuildExternalRefTree(VrfGuiContext vrfGuiContext, List<ResourceExtRefList.ResourceReferenceInfo> references)
+        {
+            var treeView = new TreeViewDoubleBuffered
+            {
+                Dock = DockStyle.Fill,
+                ImageList = MainForm.ImageList,
+                HideSelection = false,
+                ShowRootLines = true,
+            };
+
+            treeView.BeginUpdate();
+
+            var rootNodes = new Dictionary<string, TreeNode>();
+            var rootLookup = rootNodes.GetAlternateLookup<ReadOnlySpan<char>>();
+            var folderIcon = MainForm.Icons["Folder"];
+
+            foreach (var refInfo in references)
+            {
+                var pathSpan = refInfo.Name.AsSpan();
+                var slashIndex = pathSpan.IndexOf('/');
+
+                ReadOnlySpan<char> rootFolderSpan;
+
+                if (slashIndex >= 0)
+                {
+                    rootFolderSpan = pathSpan[..slashIndex];
+                }
+                else
+                {
+                    rootFolderSpan = [];
+                }
+
+                var extensionSpan = Path.GetExtension(pathSpan);
+                if (extensionSpan.Length > 0)
+                {
+                    extensionSpan = extensionSpan[1..];
+                }
+
+                var fileIcon = MainForm.GetImageIndexForExtension(extensionSpan);
+                var fileNode = new TreeNode(refInfo.Name)
+                {
+                    ImageIndex = fileIcon,
+                    SelectedImageIndex = fileIcon,
+                    Tag = refInfo,
+                };
+
+                TreeNode? rootNode = null;
+
+                if (!rootFolderSpan.IsEmpty && !rootLookup.TryGetValue(rootFolderSpan, out rootNode))
+                {
+                    var rootFolder = rootFolderSpan.ToString();
+                    rootNode = new TreeNode(rootFolder)
+                    {
+                        ImageIndex = folderIcon,
+                        SelectedImageIndex = folderIcon,
+                    };
+                    rootNodes[rootFolder] = rootNode;
+                    treeView.Nodes.Add(rootNode);
+                }
+
+                if (rootNode != null)
+                {
+                    rootNode.Nodes.Add(fileNode);
+                }
+                else
+                {
+                    treeView.Nodes.Add(fileNode);
+                }
+            }
+
+            treeView.ExpandAll();
+            treeView.EndUpdate();
+
+            void OnNodeDoubleClick(object? sender, TreeNodeMouseClickEventArgs e)
+            {
+                if (e.Node?.Tag is ResourceExtRefList.ResourceReferenceInfo refInfo)
+                {
+                    OpenExternalReference(vrfGuiContext, refInfo.Name);
+                }
+            }
+
+            void OnDisposed(object? sender, EventArgs e)
+            {
+                treeView.NodeMouseDoubleClick -= OnNodeDoubleClick;
+                treeView.Disposed -= OnDisposed;
+            }
+
+            treeView.NodeMouseDoubleClick += OnNodeDoubleClick;
+            treeView.Disposed += OnDisposed;
+
+            return treeView;
         }
 
         private static void AddByteViewControl(ValveResourceFormat.Resource resource, Block block, TabPage blockTab)
         {
+            Debug.Assert(resource.Reader != null);
+
+            resource.Reader.BaseStream.Position = block.Offset;
+            var input = resource.Reader.ReadBytes((int)block.Size);
+
+            var text = ByteViewer.GetTextFromBytes(input.AsSpan());
+
+            if (!string.IsNullOrEmpty(text))
+            {
+                var textBox = CodeTextBox.Create(text);
+                blockTab.Controls.Add(textBox);
+                return;
+            }
+
             var bv = new System.ComponentModel.Design.ByteViewer
             {
                 Dock = DockStyle.Fill
@@ -371,24 +669,29 @@ namespace GUI.Types.Viewers
 
             Program.MainForm.Invoke((MethodInvoker)(() =>
             {
-                resource.Reader.BaseStream.Position = block.Offset;
-                bv.SetBytes(resource.Reader.ReadBytes((int)block.Size));
+                bv.SetBytes(input);
             }));
         }
 
-        private static void AddTextViewControl(ValveResourceFormat.Resource resource, Block block, TabPage blockTab)
+        private void AddTextViewControl(ValveResourceFormat.Resource resource, Block block, TabPage blockTab)
         {
-            if (resource.ResourceType == ResourceType.Shader && block is SboxShader shaderBlock)
+            if (resource.ResourceType == ResourceType.SboxShader && block is SboxShader shaderBlock)
             {
-                var viewer = new CompiledShader();
+                var tabPage = new ThemedTabPage();
+                var viewer = new CompiledShader(vrfGuiContext);
 
                 try
                 {
-                    var shaderTabs = viewer.SetResourceBlockTabControl(blockTab, shaderBlock.Shaders);
+                    viewer.Create(
+                        tabPage,
+                        shaderBlock.Shaders,
+                        Path.GetFileNameWithoutExtension(resource.FileName.AsSpan()),
+                        ValveResourceFormat.CompiledShader.VcsProgramType.Features
+                    );
 
-                    foreach (var shaderFile in shaderBlock.Shaders)
+                    foreach (Control control in tabPage.Controls)
                     {
-                        shaderTabs.CreateShaderFileTab(shaderBlock.Shaders, shaderFile.VcsProgramType);
+                        blockTab.Controls.Add(control);
                     }
 
                     viewer = null;
@@ -396,31 +699,103 @@ namespace GUI.Types.Viewers
                 finally
                 {
                     viewer?.Dispose();
+                    tabPage.Dispose();
                 }
 
                 return;
             }
 
-            var textBox = new CodeTextBox(block.ToString());
+            AddTextViewControl(resource.ResourceType, block, blockTab);
+        }
+
+        private static void AddTextViewControl(ResourceType resourceType, Block block, TabPage blockTab)
+        {
+            if (TryGetKvDataBlock(block, out var kvRoot, out var kvHeader))
+            {
+                var doc = new KVDocument(kvHeader, name: null, kvRoot);
+                var (kv3Text, sourceMap) = KVSerializer.Create(KVSerializationFormat.KeyValues3Text).SerializeWithSourceMap(doc);
+                blockTab.Controls.Add(CodeTextBox.Create(kv3Text, sourceMap: sourceMap));
+                return;
+            }
+
+            var text = block.ToString();
+            var language = CodeTextBox.HighlightLanguage.KeyValues;
+
+            if (resourceType == ResourceType.PanoramaLayout && block.Type == BlockType.DATA)
+            {
+                language = CodeTextBox.HighlightLanguage.XML;
+            }
+            else if (resourceType == ResourceType.PanoramaVectorGraphic && block.Type == BlockType.DATA)
+            {
+                language = CodeTextBox.HighlightLanguage.XML;
+            }
+            else if (resourceType == ResourceType.PanoramaStyle && block.Type == BlockType.DATA)
+            {
+                language = CodeTextBox.HighlightLanguage.CSS;
+            }
+            else if ((resourceType == ResourceType.PanoramaScript || resourceType == ResourceType.PanoramaTypescript) && block.Type == BlockType.DATA)
+            {
+                language = CodeTextBox.HighlightLanguage.JS;
+            }
+
+            var textBox = CodeTextBox.Create(text, language);
             blockTab.Controls.Add(textBox);
         }
 
-        private static void AddReconstructedContentTab(VrfGuiContext vrfGuiContext, ValveResourceFormat.Resource resource, TabControl resTabs)
+        private static bool TryGetKvDataBlock(Block block, [MaybeNullWhen(false)] out KVObject root, out KVHeader? header)
+        {
+            switch (block)
+            {
+                case BinaryKV3 kv3:
+                    root = kv3.Data.Root;
+                    header = kv3.Data.Header;
+                    return true;
+
+                case KeyValuesOrNTRO kvOrNtro:
+                    root = kvOrNtro.Data;
+                    header = null;
+                    return true;
+
+                case NTRO ntro:
+                    root = ntro.Output;
+                    header = null;
+                    return true;
+
+                case ResourceEditInfo2 red2 when red2.Data is not null:
+                    root = red2.Data.Root;
+                    header = red2.Data.Header;
+                    return true;
+
+                default:
+                    root = null;
+                    header = null;
+                    return false;
+            }
+        }
+
+        private static void AddReconstructedContentTab(VrfGuiContext vrfGuiContext, ValveResourceFormat.Resource resource, ThemedTabControl resTabs)
         {
             switch (resource.ResourceType)
             {
                 case ResourceType.Material:
-                    var vmatTab = IViewer.AddContentTab(resTabs, "Reconstructed vmat", new MaterialExtract(resource).ToValveMaterial());
-                    var textBox = (CodeTextBox)vmatTab.Controls[0];
-                    Task.Run(() => textBox.Text = new MaterialExtract(resource, vrfGuiContext.FileLoader).ToValveMaterial().ReplaceLineEndings());
+                    var vmatTab = IViewer.AddContentTab(resTabs, "Reconstructed vmat", new MaterialExtract(resource, vrfGuiContext).ToValveMaterial);
                     break;
 
                 case ResourceType.EntityLump:
-                    IViewer.AddContentTab(resTabs, "Entities", ((EntityLump)resource.DataBlock).ToEntityDumpString(), true);
+                    if (resource.DataBlock is EntityLump entityLump)
+                    {
+                        IViewer.AddContentTab(resTabs, "FGD", entityLump.ToForgeGameData());
+                        IViewer.AddContentTab(resTabs, "Entities-Text", entityLump.ToEntityDumpString(), true);
+                        // force select the new entities tab for now
+                        resTabs.SelectedTab = resTabs.TabPages[0];
+                    }
                     break;
 
                 case ResourceType.PostProcessing:
-                    IViewer.AddContentTab(resTabs, "Reconstructed vpost", ((PostProcessing)resource.DataBlock).ToValvePostProcessing());
+                    if (resource.DataBlock is PostProcessing postProcessingData)
+                    {
+                        IViewer.AddContentTab(resTabs, "Reconstructed vpost", postProcessingData.ToValvePostProcessing());
+                    }
                     break;
 
                 case ResourceType.Texture:
@@ -441,7 +816,7 @@ namespace GUI.Types.Viewers
                         break;
                     }
 
-                case ResourceType.Snap:
+                case ResourceType.ParticleSnapshot:
                     {
                         if (!FileExtract.IsChildResource(resource))
                         {
@@ -450,22 +825,15 @@ namespace GUI.Types.Viewers
 
                         break;
                     }
-
-                case ResourceType.Shader:
-                    {
-                        var collectionBlock = resource.GetBlockByType(BlockType.SPRV)
-                            ?? resource.GetBlockByType(BlockType.DXBC)
-                            ?? resource.GetBlockByType(BlockType.DATA);
-
-                        var extract = new ShaderExtract((SboxShader)collectionBlock)
-                        {
-                            SpirvCompiler = CompiledShader.SpvToHlsl
-                        };
-
-                        IViewer.AddContentTab<Func<string>>(resTabs, extract.GetVfxFileName(), extract.ToVFX, true);
-                        break;
-                    }
             }
+        }
+
+        public void Dispose()
+        {
+            resource?.Dispose();
+            rendererContext?.Dispose();
+            GLViewer?.Dispose();
+            GLViewerError?.Dispose();
         }
     }
 }

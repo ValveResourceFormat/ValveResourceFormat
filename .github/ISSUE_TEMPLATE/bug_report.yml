@@ -1,8 +1,10 @@
 name: Bug Report
 description: File a bug report
-labels: [bug]
+labels: [Bug]
+type: 'Bug'
 body:
 - type: textarea
+  id: description
   attributes:
     label: Describe the bug
     description: A clear and concise description of what the bug is.
@@ -10,36 +12,53 @@ body:
     required: true
 
 - type: textarea
-  id: logs
-  attributes:
-    label: Relevant log output or exception with stacktrace
-    description: Please copy and paste any relevant log output. This will be automatically formatted into code, so no need for backticks.
-    render: shell
-
-- type: input
-  attributes:
-    label: What game does this happen in
-    placeholder: "Dota 2"
-  validations:
-    required: true
-
-- type: textarea
-  attributes:
-    label: Reference file in a Source 2 game
-    description: Give a filename (and path to it) that causes this behavior.
-  validations:
-    required: true
-
-- type: textarea
+  id: expected
   attributes:
     label: Expected behavior
     description: A clear and concise description of what you expected to happen.
   validations:
     required: true
 
-- type: input
+- type: textarea
+  id: logs
   attributes:
-    label: What version of VRF are you using? On what platform?
-    description: Before creating an issue, make sure it still exists on the latest unstable build. You can get version from Console tab.
+    label: Relevant log output or exception with stacktrace
+    description: "Copy and paste any relevant log output. *This will be automatically formatted into code, backticks are not needed.*"
+    placeholder: "System.IndexOutOfRangeException: Index was outside the bounds of the array…"
+    render: shell
+
+- type: input
+  id: game
+  attributes:
+    label: What game does this happen in
+  validations:
+    required: true
+
+- type: textarea
+  id: file
+  attributes:
+    label: Reference file in a Source 2 game
+    description: Provide path to the file that causes this behavior. If this happens in a workshop item, include a link to the workshop.
+  validations:
+    required: true
+
+- type: input
+  id: version
+  attributes:
+    label: What version of S2V are you using?
+    description: |
+      # **Make sure your issue still exists on [the latest dev build.](https://s2v.app/dev/)** (NOT RELEASE)
+    placeholder: Use copy version button in the about window. Download dev build from the site (NOT RELEASE)
+  validations:
+    required: true
+
+- type: dropdown
+  attributes:
+    label: Have you tried the latest dev build?
+    description: "**Make sure your issue still exists on [the latest dev build.](https://s2v.app/dev/)**"
+    options:
+      - "I don't know what this means"
+      - "No"
+      - "Yes"
   validations:
     required: true

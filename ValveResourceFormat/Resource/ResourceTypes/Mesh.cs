@@ -1,21 +1,28 @@
 using System.IO;
+using System.Linq;
+using ValveKeyValue;
 using ValveResourceFormat.Blocks;
 using ValveResourceFormat.IO;
 using ValveResourceFormat.ResourceTypes.ModelData;
 using ValveResourceFormat.ResourceTypes.ModelData.Attachments;
-using ValveResourceFormat.Serialization;
 using ValveResourceFormat.Serialization.KeyValues;
 
 namespace ValveResourceFormat.ResourceTypes
 {
+    /// <summary>
+    /// Represents a mesh resource containing geometry and vertex buffer data.
+    /// </summary>
     public class Mesh : KeyValuesOrNTRO
     {
+        /// <summary>
+        /// Gets or sets the mesh's vertex/index buffer block (VBIB).
+        /// </summary>
         public VBIB VBIB
         {
             get
             {
                 //new format has VBIB block, for old format we can get it from NTRO DATA block
-                cachedVBIB ??= Resource.VBIB ?? new VBIB(Data);
+                cachedVBIB ??= (VBIB?)Resource.GetBlockByType(BlockType.VBIB) ?? new VBIB(Resource, Data) { Resource = Resource };
                 return cachedVBIB;
             }
             set
@@ -24,27 +31,57 @@ namespace ValveResourceFormat.ResourceTypes
             }
         }
 
+        /// <summary>
+        /// Gets or sets the mesh name.
+        /// </summary>
+        public string Name { get; set; } = string.Empty;
+
+        /// <summary>
+        /// Gets the minimum bounds of the mesh.
+        /// </summary>
         public Vector3 MinBounds { get; private set; }
+
+        /// <summary>
+        /// Gets the maximum bounds of the mesh.
+        /// </summary>
         public Vector3 MaxBounds { get; private set; }
 
-        public Morph MorphData { get; set; }
+        /// <summary>
+        /// Gets or sets the morph data for this mesh.
+        /// </summary>
+        public Morph? MorphData { get; set; }
 
-        private VBIB cachedVBIB { get; set; }
+        private VBIB? cachedVBIB { get; set; }
 
+        /// <summary>
+        /// Gets the attachments associated with this mesh.
+        /// </summary>
         public Dictionary<string, Attachment> Attachments { get; init; } = [];
+
+        /// <summary>
+        /// Gets the hitbox sets associated with this mesh.
+        /// </summary>
         public Dictionary<string, Hitbox[]> HitboxSets { get; init; } = [];
 
+        /// <summary>
+        /// Initializes a new instance of the <see cref="Mesh"/> class.
+        /// </summary>
+        /// <param name="type">The block type.</param>
         public Mesh(BlockType type) : base(type, "PermRenderMeshData_t")
         {
         }
 
-        public override void Read(BinaryReader reader, Resource resource)
+        /// <inheritdoc/>
+        public override void Read(BinaryReader reader)
         {
-            base.Read(reader, resource);
+            base.Read(reader);
+
+            Name = Resource.FileName ?? string.Empty;
+
             if (Data.ContainsKey("m_attachments"))
             {
                 var attachmentsData = Data.GetArray("m_attachments");
-                for (var i = 0; i < attachmentsData.Length; i++)
+                for (var i = 0; i < attachmentsData.Count; i++)
                 {
                     var attachment = new Attachment(attachmentsData[i]);
                     Attachments.Add(attachment.Name, attachment);
@@ -53,20 +90,26 @@ namespace ValveResourceFormat.ResourceTypes
             if (Data.ContainsKey("m_hitboxsets"))
             {
                 var hitboxSetsData = Data.GetArray("m_hitboxsets");
-                for (var i = 0; i < hitboxSetsData.Length; i++)
+                for (var i = 0; i < hitboxSetsData.Count; i++)
                 {
-                    var hitboxSet = hitboxSetsData[i].GetSubCollection("value");
+                    var hitboxSet = hitboxSetsData[i].GetSubCollection("value") ?? hitboxSetsData[i];
                     var hitboxSetName = hitboxSet.GetStringProperty("m_name");
-                    var hitboxes = hitboxSet.GetArray("m_HitBoxes", d => new Hitbox(d));
+
+                    var hitboxesKey = hitboxSet.ContainsKey("m_HitBoxes") ? "m_HitBoxes" : "m_hitboxes";
+                    var hitboxes = hitboxSet.GetArray(hitboxesKey).Select(d => new Hitbox(d)).ToArray();
+
                     HitboxSets.Add(hitboxSetName, hitboxes);
                 }
             }
         }
 
+        /// <summary>
+        /// Calculates and sets the bounding box from scene objects.
+        /// </summary>
         public void GetBounds()
         {
             var sceneObjects = Data.GetArray("m_sceneObjects");
-            if (sceneObjects.Length == 0)
+            if (sceneObjects.Count == 0)
             {
                 MinBounds = MaxBounds = new Vector3(0, 0, 0);
                 return;
@@ -75,7 +118,7 @@ namespace ValveResourceFormat.ResourceTypes
             var minBounds = sceneObjects[0].GetSubCollection("m_vMinBounds").ToVector3();
             var maxBounds = sceneObjects[0].GetSubCollection("m_vMaxBounds").ToVector3();
 
-            for (var i = 1; i < sceneObjects.Length; ++i)
+            for (var i = 1; i < sceneObjects.Count; ++i)
             {
                 var localMin = sceneObjects[i].GetSubCollection("m_vMinBounds").ToVector3();
                 var localMax = sceneObjects[i].GetSubCollection("m_vMaxBounds").ToVector3();
@@ -92,41 +135,62 @@ namespace ValveResourceFormat.ResourceTypes
             MaxBounds = maxBounds;
         }
 
+        /// <summary>
+        /// Determines if compressed normal tangent is enabled for the draw call.
+        /// </summary>
+        /// <param name="drawCall">The draw call data.</param>
+        /// <returns>True if compressed normal tangent is used.</returns>
         public static bool IsCompressedNormalTangent(KVObject drawCall)
         {
             if (drawCall.ContainsKey("m_bUseCompressedNormalTangent"))
             {
-                return drawCall.GetProperty<bool>("m_bUseCompressedNormalTangent");
+                return drawCall.GetBooleanProperty("m_bUseCompressedNormalTangent");
             }
 
-            if (!drawCall.ContainsKey("m_nFlags"))
+            if (!drawCall.TryGetValue("m_nFlags", out var flags))
             {
                 return false;
             }
 
-            var flags = drawCall.GetProperty<object>("m_nFlags");
-
-            return flags switch
+            if (flags.ValueType == KVValueType.String)
             {
-                string flagsString => flagsString.Contains("MESH_DRAW_FLAGS_USE_COMPRESSED_NORMAL_TANGENT", StringComparison.InvariantCulture),
-                long flagsLong => ((RenderMeshDrawPrimitiveFlags)flagsLong & RenderMeshDrawPrimitiveFlags.UseCompressedNormalTangent) != 0,
-                byte flagsByte => ((RenderMeshDrawPrimitiveFlags)flagsByte & RenderMeshDrawPrimitiveFlags.UseCompressedNormalTangent) != 0,
-                _ => false
-            };
+                return ((string)flags).Contains("MESH_DRAW_FLAGS_USE_COMPRESSED_NORMAL_TANGENT", StringComparison.InvariantCulture);
+            }
+
+            return ((RenderMeshDrawPrimitiveFlags)(int)flags & RenderMeshDrawPrimitiveFlags.UseCompressedNormalTangent) != 0;
         }
 
+        /// <summary>
+        /// Determines if the draw call has baked lighting from lightmap.
+        /// </summary>
+        /// <param name="drawCall">The draw call data.</param>
+        /// <returns>True if baked lighting from lightmap is present.</returns>
         public static bool HasBakedLightingFromLightMap(KVObject drawCall)
             => drawCall.ContainsKey("m_bHasBakedLightingFromLightMap")
-                && drawCall.GetProperty<bool>("m_bHasBakedLightingFromLightMap");
+                && drawCall.GetBooleanProperty("m_bHasBakedLightingFromLightMap");
 
+        /// <summary>
+        /// Determines if the draw call has baked lighting from vertex stream.
+        /// </summary>
+        /// <param name="drawCall">The draw call data.</param>
+        /// <returns>True if baked lighting from vertex stream is present.</returns>
         public static bool HasBakedLightingFromVertexStream(KVObject drawCall)
             => drawCall.ContainsKey("m_bHasBakedLightingFromVertexStream")
-                && drawCall.GetProperty<bool>("m_bHasBakedLightingFromVertexStream");
+                && drawCall.GetBooleanProperty("m_bHasBakedLightingFromVertexStream");
 
+        /// <summary>
+        /// Determines if the draw call is an occluder.
+        /// </summary>
+        /// <param name="drawCall">The draw call data.</param>
+        /// <returns>True if the draw call is an occluder.</returns>
         public static bool IsOccluder(KVObject drawCall)
             => drawCall.ContainsKey("m_bIsOccluder")
-                && drawCall.GetProperty<bool>("m_bIsOccluder");
+                && drawCall.GetBooleanProperty("m_bIsOccluder");
 
+        /// <summary>
+        /// Loads external morph data from the file loader.
+        /// </summary>
+        /// <param name="fileLoader">The file loader to use.</param>
         public void LoadExternalMorphData(IFileLoader fileLoader)
         {
             if (MorphData == null)

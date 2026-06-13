@@ -1,0 +1,6 @@
+api/
+.vitepress/cache/
+.vitepress/dist/
+.vitepress/.temp/
+package-lock.json
+package.json

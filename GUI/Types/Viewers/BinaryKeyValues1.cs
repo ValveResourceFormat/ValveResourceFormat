@@ -1,4 +1,7 @@
+using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
+using System.Threading.Tasks;
 using System.Windows.Forms;
 using GUI.Controls;
 using GUI.Utils;
@@ -7,17 +10,20 @@ using ValveResourceFormat.ResourceTypes;
 
 namespace GUI.Types.Viewers
 {
-    class BinaryKeyValues1 : IViewer
+    class BinaryKeyValues1(VrfGuiContext vrfGuiContext) : IViewer, IDisposable
     {
+        private string? text;
+        private IReadOnlyList<KvSourceSpan>? sourceMap;
+
         public static bool IsAccepted(uint magic)
         {
             return magic == BinaryKV1.MAGIC;
         }
 
-        public TabPage Create(VrfGuiContext vrfGuiContext, Stream input)
+        public async Task LoadAsync(Stream? input)
         {
             Stream stream;
-            KVObject kv;
+            KVDocument kv;
 
             if (input != null)
             {
@@ -25,7 +31,7 @@ namespace GUI.Types.Viewers
             }
             else
             {
-                stream = File.OpenRead(vrfGuiContext.FileName);
+                stream = File.OpenRead(vrfGuiContext.FileName!);
             }
 
             try
@@ -37,20 +43,24 @@ namespace GUI.Types.Viewers
                 stream.Close();
             }
 
-            using var ms = new MemoryStream();
-            using var reader = new StreamReader(ms);
+            (text, sourceMap) = KVSerializer.Create(KVSerializationFormat.KeyValues1Text).SerializeWithSourceMap(kv);
+        }
 
-            KVSerializer.Create(KVSerializationFormat.KeyValues1Text).Serialize(ms, kv);
+        public void Create(TabPage tab)
+        {
+            Debug.Assert(text is not null);
+            Debug.Assert(sourceMap is not null);
 
-            ms.Seek(0, SeekOrigin.Begin);
-
-            var text = reader.ReadToEnd();
-
-            var control = new CodeTextBox(text);
-            var tab = new TabPage();
+            var control = CodeTextBox.Create(text, sourceMap: sourceMap);
             tab.Controls.Add(control);
 
-            return tab;
+            text = null;
+            sourceMap = null;
+        }
+
+        public void Dispose()
+        {
+            //
         }
     }
 }

@@ -1,36 +1,23 @@
 using System.IO;
+using System.Threading.Tasks;
 using System.Windows.Forms;
 using GUI.Controls;
 using GUI.Utils;
 
 namespace GUI.Types.Viewers
 {
-    class ByteViewer : IViewer
+    class ByteViewer(VrfGuiContext vrfGuiContext) : IViewer, IDisposable
     {
+        private byte[] input = [];
+        private string? text;
+
         public static bool IsAccepted() => true;
 
-        public TabPage Create(VrfGuiContext vrfGuiContext, Stream stream)
+        public async Task LoadAsync(Stream? stream)
         {
-            var tab = new TabPage();
-            var resTabs = new TabControl
-            {
-                Dock = DockStyle.Fill,
-            };
-            tab.Controls.Add(resTabs);
-
-            var bvTab = new TabPage("Hex");
-            var bv = new System.ComponentModel.Design.ByteViewer
-            {
-                Dock = DockStyle.Fill,
-            };
-            bvTab.Controls.Add(bv);
-            resTabs.TabPages.Add(bvTab);
-
-            byte[] input;
-
             if (stream == null)
             {
-                input = File.ReadAllBytes(vrfGuiContext.FileName);
+                input = await File.ReadAllBytesAsync(vrfGuiContext.FileName!).ConfigureAwait(false);
             }
             else
             {
@@ -38,45 +25,97 @@ namespace GUI.Types.Viewers
                 stream.ReadExactly(input);
             }
 
-            var span = input.AsSpan();
-            var firstNullByte = span.IndexOf((byte)0);
-            var hasNullBytes = firstNullByte >= 0;
+            text = GetTextFromBytes(input.AsSpan());
+        }
 
-            if (hasNullBytes && firstNullByte > 0)
+        public void Create(TabPage tab)
+        {
+            var resTabs = new ThemedTabControl
             {
-                var isTrailingNulls = true;
+                Dock = DockStyle.Fill,
+            };
+            tab.Controls.Add(resTabs);
 
-                for (var i = span.Length - 1; i > firstNullByte; i--)
-                {
-                    if (span[i] != 0x00)
-                    {
-                        isTrailingNulls = false;
-                        break;
-                    }
-                }
-
-                if (isTrailingNulls)
-                {
-                    span = span[..firstNullByte];
-                    hasNullBytes = false;
-                }
-            }
-
-            if (!hasNullBytes)
+            var bvTab = new ThemedTabPage("Hex");
+            var bv = new System.ComponentModel.Design.ByteViewer
             {
-                var textTab = new TabPage("Text");
-                var text = new CodeTextBox(System.Text.Encoding.UTF8.GetString(span));
-                textTab.Controls.Add(text);
+                Dock = DockStyle.Fill,
+            };
+            bvTab.Controls.Add(bv);
+            resTabs.TabPages.Add(bvTab);
+
+            if (!string.IsNullOrEmpty(text))
+            {
+                var textTab = new ThemedTabPage("Text");
+                var textBox = CodeTextBox.Create(text);
+                textTab.Controls.Add(textBox);
                 resTabs.TabPages.Add(textTab);
                 resTabs.SelectedTab = textTab;
+                text = null;
             }
 
-            Program.MainForm.Invoke((MethodInvoker)(() =>
-            {
-                bv.SetBytes(input);
-            }));
+            bv.SetBytes(input);
+            input = [];
+        }
 
-            return tab;
+        public static string? GetTextFromBytes(ReadOnlySpan<byte> span)
+        {
+            if (span.Length >= 4 && span[0] == 0xFF && span[1] == 0xFE && span[2] == 0x00 && span[3] == 0x00)  // UTF-32 LE BOM
+            {
+                var enc = new System.Text.UTF32Encoding(bigEndian: false, byteOrderMark: true);
+                return enc.GetString(span[4..]);
+            }
+
+            if (span.Length >= 4 && span[0] == 0x00 && span[1] == 0x00 && span[2] == 0xFE && span[3] == 0xFF) // UTF-32 BE BOM
+            {
+                var enc = new System.Text.UTF32Encoding(bigEndian: true, byteOrderMark: true);
+                return enc.GetString(span[4..]);
+            }
+
+            if (span.Length >= 2 && span[0] == 0xFF && span[1] == 0xFE) // UTF-16 LE BOM
+            {
+                return System.Text.Encoding.Unicode.GetString(span[2..]);
+            }
+
+            if (span.Length >= 2 && span[0] == 0xFE && span[1] == 0xFF) // UTF-16 BE BOM
+            {
+                var enc = new System.Text.UnicodeEncoding(bigEndian: true, byteOrderMark: true);
+                return enc.GetString(span[2..]);
+            }
+
+            if (span.Length >= 3 && span[0] == 0xEF && span[1] == 0xBB && span[2] == 0xBF) // UTF-8 BOM
+            {
+                return System.Text.Encoding.UTF8.GetString(span[3..]);
+            }
+
+            var firstNullByte = span.IndexOf((byte)0);
+            if (firstNullByte < 0)
+            {
+                return System.Text.Encoding.UTF8.GetString(span); // No null bytes found
+            }
+
+            if (firstNullByte == 0)
+            {
+                return null; // Starts with null byte
+            }
+
+            // Check if everything after first null byte is also null
+            var remainingBytes = span[(firstNullByte + 1)..];
+            foreach (var b in remainingBytes)
+            {
+                if (b != 0)
+                {
+                    return null; // Has embedded null bytes
+                }
+            }
+
+            // Only trailing nulls, trim them and decode as UTF-8
+            return System.Text.Encoding.UTF8.GetString(span[..firstNullByte]);
+        }
+
+        public void Dispose()
+        {
+            //
         }
     }
 }

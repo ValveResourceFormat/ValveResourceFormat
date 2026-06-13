@@ -7,35 +7,72 @@ using Channel = ValveResourceFormat.CompiledShader.ChannelMapping;
 
 namespace ValveResourceFormat.IO
 {
+    /// <summary>
+    /// Provides shader data information for materials, including texture input mappings and suffixes.
+    /// </summary>
     public interface IShaderDataProvider
     {
+        /// <summary>
+        /// Gets the input texture channels and names for a given texture type in a material.
+        /// </summary>
+        /// <param name="textureType">The type of texture to query.</param>
+        /// <param name="material">The material containing the texture.</param>
+        /// <returns>A collection of channel mappings and their corresponding input names.</returns>
         public IEnumerable<(Channel Channel, string Name)> GetInputsForTexture(string textureType, Material material);
-        public string GetSuffixForInputTexture(string inputName, Material material);
+
+        /// <summary>
+        /// Gets the file suffix for a given input texture name.
+        /// </summary>
+        /// <param name="inputName">The name of the input texture.</param>
+        /// <param name="material">The material containing the texture.</param>
+        /// <returns>The suffix string for the input texture, or null if not found.</returns>
+        public string? GetSuffixForInputTexture(string inputName, Material material);
     }
 
+    /// <summary>
+    /// Provides shader data by querying compiled shader files, with optional fallback to basic hardcoded mappings.
+    /// </summary>
     public class ShaderDataProvider : IShaderDataProvider
     {
 #pragma warning disable CA1859 // Use concrete types when possible for improved performance
         private readonly IFileLoader fileLoader;
-        private readonly IShaderDataProvider basicProvider;
+        private readonly IShaderDataProvider? basicProvider;
 #pragma warning restore CA1859
 
+        /// <summary>
+        /// Initializes a new instance of the <see cref="ShaderDataProvider"/> class.
+        /// </summary>
+        /// <param name="fileLoader">The file loader used to load shader files.</param>
+        /// <param name="useFallback">Whether to use the basic provider as a fallback when shader files are unavailable.</param>
         public ShaderDataProvider(IFileLoader fileLoader, bool useFallback = true)
         {
             this.fileLoader = fileLoader;
             basicProvider = useFallback ? new BasicShaderDataProvider() : null;
         }
 
+        /// <inheritdoc/>
+        /// <remarks>
+        /// Returns texture inputs for the specified texture type, falling back to basic provider if available.
+        /// </remarks>
         public IEnumerable<(Channel Channel, string Name)> GetInputsForTexture(string textureType, Material material)
         {
-            return GetInputsForTexture_Internal(textureType, material) ?? basicProvider?.GetInputsForTexture(textureType, material);
+            return GetInputsForTexture_Internal(textureType, material) ?? basicProvider?.GetInputsForTexture(textureType, material) ?? [];
         }
 
-        public string GetSuffixForInputTexture(string inputName, Material material)
+        /// <inheritdoc/>
+        /// <remarks>
+        /// Returns the filename suffix for the input texture, falling back to basic provider if available.
+        /// </remarks>
+        public string? GetSuffixForInputTexture(string inputName, Material material)
         {
             return GetSuffixForInputTexture_Internal(inputName, material) ?? basicProvider?.GetSuffixForInputTexture(inputName, material);
         }
 
+        /// <summary>
+        /// Extracts the material feature state from integer parameters.
+        /// </summary>
+        /// <param name="material">The material to extract feature state from.</param>
+        /// <returns>A dictionary of feature names (with 'F_' prefix) and their values.</returns>
         public static IDictionary<string, byte> GetMaterialFeatureState(Material material)
             => material.IntParams
                 .Where(p => p.Key.StartsWith("F_", StringComparison.Ordinal))
@@ -46,33 +83,33 @@ namespace ValveResourceFormat.IO
         /// This configuration can be used to select one of the static variants contained in the shader file.
         /// </summary>
         /// <param name="features">Features vcs file that contains the feature definitions.</param>
-        /// <param name="shaderFile">Stage for which the configuration will be generated.</param>
+        /// <param name="program">Stage for which the configuration will be generated.</param>
         /// <param name="featureParams">Feature parameters have the 'F_' prefix.</param>
         /// <param name="staticParams">Statics (not tied to a feature) that you want to override. Static parameters have the 'S_' prefix.</param>
-        /// <returns>Static configuration and a generator that can be used to retreive the zframe id.</returns>
-        public static (int[] StaticConfig, long ZFrameId) GetStaticConfiguration_ForFeatureState(
-            ShaderFile features,
-            ShaderFile shaderFile,
+        /// <returns>A tuple containing the static configuration array and the corresponding static combo identifier.</returns>
+        public static (int[] StaticConfig, long StaticComboId) GetStaticConfiguration_ForFeatureState(
+            VfxProgramData features,
+            VfxProgramData program,
             IDictionary<string, byte> featureParams,
-            IDictionary<string, byte> staticParams = null)
+            IDictionary<string, byte>? staticParams = null)
         {
             ArgumentNullException.ThrowIfNull(features, nameof(features));
-            ArgumentNullException.ThrowIfNull(shaderFile, nameof(shaderFile));
+            ArgumentNullException.ThrowIfNull(program, nameof(program));
 
             if (features.VcsProgramType != VcsProgramType.Features)
             {
                 throw new ArgumentOutOfRangeException(nameof(features), $"Argument needs to be a shader file of type: {VcsProgramType.Features}");
             }
 
-            if (shaderFile.VcsProgramType == VcsProgramType.Features)
+            if (program.VcsProgramType == VcsProgramType.Features)
             {
-                throw new ArgumentOutOfRangeException(nameof(shaderFile), $"Static config cannot be built for shader files of type: {VcsProgramType.Features}");
+                throw new ArgumentOutOfRangeException(nameof(program), $"Static config cannot be built for shader files of type: {VcsProgramType.Features}");
             }
 
-            var staticConfiguration = new int[shaderFile.SfBlocks.Count];
-            var configGen = new ConfigMappingSParams(shaderFile);
+            var staticConfiguration = new int[program.StaticComboArray.Length];
+            var configGen = new ConfigMappingParams(program);
 
-            foreach (var condition in shaderFile.SfBlocks)
+            foreach (var condition in program.StaticComboArray)
             {
                 if (condition.FeatureIndex == -1)
                 {
@@ -84,32 +121,160 @@ namespace ValveResourceFormat.IO
                     continue;
                 }
 
-                var feature = features.SfBlocks[condition.FeatureIndex];
+                var feature = features.StaticComboArray[condition.FeatureIndex];
+                featureParams.TryGetValue(feature.Name, out var featureValue);
 
-                foreach (var (Name, Value) in featureParams)
+                var sourceType = (VfxStaticComboSourceType)condition.ComboSourceType;
+
+                if (sourceType == VfxStaticComboSourceType.__SET_BY_FEATURE__)
                 {
-                    if (feature.Name == Name)
-                    {
-                        // Check that data coming from the material is within the allowed range
-                        if (Value > feature.RangeMax || Value < feature.RangeMin)
-                        {
-                            // TODO: what does source2 fall back to in this case? 0?
-                            throw new InvalidDataException($"Material feature '{Name}' is out of range for '{features.ShaderName}'");
-                        }
+                    var configValue = (int)featureValue;
 
-                        staticConfiguration[condition.BlockIndex] = Value;
-                        break;
+                    // Check that data coming from the material is within the allowed range
+                    if (featureValue > feature.RangeMax)
+                    {
+                        Console.WriteLine($"Value for feature '{feature.Name}' is higher ({featureValue}) than the maximum ({feature.RangeMax})."); // TODO: logger
+                        configValue = feature.RangeMax;
                     }
+                    else if (featureValue < feature.RangeMin)
+                    {
+                        Console.WriteLine($"Value for feature '{feature.Name}' is lower ({featureValue}) than the minimum ({feature.RangeMin})."); // TODO: logger
+                        configValue = feature.RangeMin;
+                    }
+
+                    staticConfiguration[condition.BlockIndex] = configValue;
+                }
+                else if (sourceType == VfxStaticComboSourceType.__SET_BY_FEATURE_EQ__)
+                {
+                    Debug.Assert(condition.RangeMin == 0 && condition.RangeMax == 1);
+                    staticConfiguration[condition.BlockIndex] = featureValue == condition.FeatureComparisonValue ? 1 : 0;
+                }
+                else if (sourceType == VfxStaticComboSourceType.__SET_BY_FEATURE_NE__)
+                {
+                    Debug.Assert(condition.RangeMin == 0 && condition.RangeMax == 1);
+                    staticConfiguration[condition.BlockIndex] = featureValue != condition.FeatureComparisonValue ? 1 : 0;
+                }
+                else
+                {
+                    throw new InvalidOperationException(
+                        $"Unexpected combo source type '{sourceType}' for feature-linked static combo '{condition.Name}'.");
                 }
             }
 
-            return (staticConfiguration, configGen.GetZframeId(staticConfiguration));
+            return (staticConfiguration, configGen.CalcStaticComboIdFromValues(staticConfiguration));
         }
 
         /// <summary>
-        /// Get precise texture inputs by querying the shader files. 
+        /// Removes switches that would point to a non-existent static combo.
         /// </summary>
-        private List<(Channel Channel, string Name)> GetInputsForTexture_Internal(string textureType, Material material)
+        /// <param name="program">The file that contains the combos and combo rules.</param>
+        /// <param name="staticConfiguration">The original static configuration.</param>
+        /// <param name="reducedConfiguration">The reduced configuration with invalid switches removed.</param>
+        /// <returns>True if the configuration was modified, false otherwise.</returns>
+        public static bool TryReduceStaticConfiguration(VfxProgramData program, int[] staticConfiguration, out int[] reducedConfiguration)
+        {
+            reducedConfiguration = [.. staticConfiguration];
+
+            // Iterate until stable -- disabling one combo may create new violations.
+            for (var loop = 0; loop < 100; loop++)
+            {
+                var changed = false;
+
+                foreach (var constraint in program.StaticComboRules)
+                {
+                    var indexCount = constraint.ExtraRuleData[1];
+
+                    if (loop == 0)
+                    {
+                        for (var i = 0; i < indexCount; i++)
+                        {
+                            if (constraint.ConditionalTypes[i] is not VfxRuleType.Static)
+                            {
+                                Console.WriteLine($"WARNING: Static combo rule {constraint.Rule} has non-static arg type {constraint.ConditionalTypes[i]} at index {i}");
+                                break;
+                            }
+                        }
+                    }
+
+                    if (constraint.Rule is VfxRuleMethod.ChildOf or VfxRuleMethod.Requires)
+                    {
+                        if (!ArgMatches(constraint, 0, reducedConfiguration))
+                        {
+                            continue;
+                        }
+
+                        var numEnabled = 0;
+                        for (var i = 1; i < indexCount; i++)
+                        {
+                            if (ArgMatches(constraint, i, reducedConfiguration))
+                            {
+                                numEnabled++;
+                            }
+                        }
+
+                        if (numEnabled < constraint.ExtraRuleData[0])
+                        {
+                            reducedConfiguration[constraint.Indices[0]] = 0;
+                            changed = true;
+                        }
+                    }
+                    else if (constraint.Rule == VfxRuleMethod.AllowNum)
+                    {
+                        var allowedCount = constraint.ExtraRuleData[0];
+
+                        var numEnabled = 0;
+                        for (var i = 0; i < indexCount; i++)
+                        {
+                            if (ArgMatches(constraint, i, reducedConfiguration))
+                            {
+                                if (numEnabled >= allowedCount)
+                                {
+                                    if (constraint.ConditionalTypes[i] == constraint.RuleType)
+                                    {
+                                        reducedConfiguration[constraint.Indices[i]] = 0;
+                                        changed = true;
+                                    }
+                                }
+                                else
+                                {
+                                    numEnabled++;
+                                }
+                            }
+                        }
+                    }
+                }
+
+                if (!changed)
+                {
+                    break;
+                }
+            }
+
+            return !reducedConfiguration.AsSpan().SequenceEqual(staticConfiguration);
+
+            static bool ArgMatches(VfxRule constraint, int argIndex, int[] values)
+            {
+                if (constraint.ConditionalTypes[argIndex] != VfxRuleType.Static)
+                {
+                    return false;
+                }
+
+                var value = values[constraint.Indices[argIndex]];
+                var expected = constraint.Values[argIndex];
+
+                if (expected == -1)
+                {
+                    return value != 0;
+                }
+
+                return value == expected;
+            }
+        }
+
+        /// <summary>
+        /// Get precise texture inputs by querying the shader files.
+        /// </summary>
+        private List<(Channel Channel, string Name)>? GetInputsForTexture_Internal(string textureType, Material material)
         {
             var shader = fileLoader.LoadShader(material.ShaderName);
             if (shader?.Features == null)
@@ -117,17 +282,19 @@ namespace ValveResourceFormat.IO
                 return null;
             }
 
-            var @params = shader.Features.ParamBlocks.FindAll(p => p.Name == textureType).ToList();
+            var @params = Array.FindAll(shader.Features.VariableDescriptions, p => p.Name == textureType);
 
-            if (@params.Count == 0)
+            if (@params.Length == 0)
             {
-                throw new InvalidDataException($"Features file for '{shader.Features.ShaderName}' does not contain a parameter named '{textureType}'");
+                // Texture not defined in the shader file, export the texture anyway.
+                // Most likely, the texture was removed by a shader update, and the material was not recompiled.
+                return [(Channel.RGBA, BasicShaderDataProvider.ConvertTextureToInput(textureType))];
             }
 
             // vr_simple (hlvr): g_tAmbientOcclusion[1] ChannelIndices (-1,-1,-1,-1)
-            @params = @params.Where(p => p.ChannelCount > 0).ToList();
+            @params = [.. @params.Where(static p => p.ChannelCount > 0)];
 
-            if (@params.Count == 0)
+            if (@params.Length == 0)
             {
                 throw new InvalidDataException($"None of the variants of '{textureType}' had any channel defined in shader '{shader.Features.ShaderName}'.");
             }
@@ -135,30 +302,35 @@ namespace ValveResourceFormat.IO
             var determinedParameter = @params[0];
             var originatingShaderFile = shader.Features;
 
-            if (@params.Count > 1)
+            if (@params.Length > 1)
             {
                 (determinedParameter, originatingShaderFile) = DetermineParameterReferencedByMaterial(shader, material, textureType);
+
+                if (determinedParameter == null)
+                {
+                    return [(Channel.RGBA, BasicShaderDataProvider.ConvertTextureToInput(textureType))];
+                }
             }
 
-            return GetParameterInputs(determinedParameter, originatingShaderFile).ToList();
+            return [.. GetParameterInputs(determinedParameter, originatingShaderFile)];
 
-            /// <summary>
-            /// Determine which of the parameter variants is the one referenced by the material.
-            /// </summary>
-            (ParamBlock, ShaderFile) DetermineParameterReferencedByMaterial(ShaderCollection shader, Material material, string paramName,
+            // <summary>
+            // Determine which of the parameter variants is the one referenced by the material.
+            // </summary>
+            (VfxVariableDescription, VfxProgramData) DetermineParameterReferencedByMaterial(ShaderCollection shader, Material material, string paramName,
                 KeyValuePair<string, byte> forcedStatic = default)
             {
                 var featureState = GetMaterialFeatureState(material);
 
                 // Pixel shader first
                 var collectionOrdered = shader
-                    .Where(sh => sh.VcsProgramType != VcsProgramType.Features && sh.ZframesLookup.Count > 0)
+                    .Where(sh => sh.VcsProgramType != VcsProgramType.Features && sh.StaticComboEntries.Count > 0)
                     .OrderByDescending(sh => sh.VcsProgramType == VcsProgramType.PixelShader);
 
                 foreach (var shaderFile in collectionOrdered)
                 {
-                    var fileParams = shaderFile.ParamBlocks.FindAll(p => p.Name == paramName).ToList();
-                    if (fileParams.Count == 0)
+                    var fileParams = Array.FindAll(shaderFile.VariableDescriptions, p => p.Name == paramName);
+                    if (fileParams.Length == 0)
                     {
                         continue;
                     }
@@ -172,27 +344,38 @@ namespace ValveResourceFormat.IO
                         staticState.Add(forcedStatic.Key, forcedStatic.Value);
                     }
 
-                    var configured = GetStaticConfiguration_ForFeatureState(shader.Features, shaderFile, featureState, staticState);
-                    var zframeId = configured.ZFrameId;
+                    var staticConfig = GetStaticConfiguration_ForFeatureState(shader.Features!, shaderFile, featureState, staticState).StaticConfig;
+
+                    var configGen = new ConfigMappingParams(shaderFile);
+                    var staticComboId = configGen.CalcStaticComboIdFromValues(staticConfig);
 
                     // It can happen that the shader feature rules don't match static rules, producing
                     // materials with bad feature configuration. That or the material data is just bad/incompatible.
-                    if (!shaderFile.ZframesLookup.ContainsKey(zframeId))
+                    if (!shaderFile.StaticComboEntries.ContainsKey(staticComboId))
                     {
-                        // Game code probably goes through the sfRules and switches off only some of the features.
-                        // But here we just fall back to first zframe (effectively switches all off).
-                        // TODO: the determined param will most likely be incorrect, fix this
-                        zframeId = 0;
+                        var reduced = TryReduceStaticConfiguration(shaderFile, staticConfig, out var reducedConfig);
+                        if (!reduced)
+                        {
+                            throw new NotImplementedException("Feature state points to a missing static combo, likely because constraint solver is not implemented.");
+                        }
+
+                        staticComboId = configGen.CalcStaticComboIdFromValues(reducedConfig);
+                        if (!shaderFile.StaticComboEntries.ContainsKey(staticComboId))
+                        {
+                            throw new InvalidOperationException("Constraint solver failed to produce a valid static combo.");
+                        }
+
+                        staticConfig = reducedConfig;
                     }
 
-                    shaderFile.ZFrameCache.EnsureCapacity(configured.StaticConfig.Length);
+                    shaderFile.StaticComboCache.EnsureCapacity(staticConfig.Length);
 
-                    var staticVariant = shaderFile.ZFrameCache.Get(zframeId);
+                    var staticVariant = shaderFile.StaticComboCache.Get(staticComboId);
 
                     // Should non-leading write sequences be checked too?
-                    foreach (var writeSequenceField in staticVariant.LeadingData.Fields)
+                    foreach (var writeSequenceField in staticVariant.VariablesFromStaticCombo.Fields)
                     {
-                        var referencedParam = fileParams.FirstOrDefault(p => p.BlockIndex == writeSequenceField.ParamId);
+                        var referencedParam = fileParams.FirstOrDefault(p => p.BlockIndex == writeSequenceField.VariableIndex);
                         if (referencedParam != null)
                         {
                             return (referencedParam, shaderFile);
@@ -208,21 +391,24 @@ namespace ValveResourceFormat.IO
                     }
                 }
 
-                // TODO: Ignore possibly unused texture for export? (Issue #652)
-                throw new InvalidDataException(
-                    $"Varying parameter '{paramName}' in '{shader.Features.ShaderName}' could not be resolved. "
-                    + $"Features ({string.Join(", ", featureState.Select(p => $"{p.Key}={p.Value}"))})");
+                // Parameter not found in write sequence for any shader file.
+                // Most likely the material was compiled against an older shader version, and the
+                // feature combination that references this parameter no longer exists.
+                Console.WriteLine($"WARNING: Varying parameter '{paramName}' in '{shader.Features!.ShaderName}' could not be resolved. "
+                    + $"Features ({string.Join(", ", featureState.Select(p => $"{p.Key}={p.Value}"))}). "
+                    + "The material may reference a texture that no longer exists in the shader.");
+                return default;
             }
 
-            IEnumerable<(Channel Channel, string Name)> GetParameterInputs(ParamBlock param, ShaderFile shaderFile)
+            IEnumerable<(Channel Channel, string Name)> GetParameterInputs(VfxVariableDescription param, VfxProgramData program)
             {
                 for (var i = 0; i < param.ChannelCount; i++)
                 {
                     var channelIndex = param.ChannelIndices[i];
-                    var channel = shaderFile.ChannelBlocks[channelIndex];
+                    var channel = program.TextureChannelProcessors[channelIndex];
 
                     var cutoff = Array.IndexOf(channel.InputTextureIndices, -1);
-                    var textureProcessorInputs = channel.InputTextureIndices[..cutoff].Select(idx => shaderFile.ParamBlocks[idx].Name).ToArray();
+                    var textureProcessorInputs = channel.InputTextureIndices[..cutoff].Select(idx => program.VariableDescriptions[idx].Name).ToArray();
 
                     if (channel.TexProcessorName == "HemiOctIsoRoughness_RG_B" || channel.TexProcessorName == "AnisoNormal")
                     {
@@ -255,12 +441,15 @@ namespace ValveResourceFormat.IO
             }
         }
 
-        private string GetSuffixForInputTexture_Internal(string inputName, Material material)
+        /// <summary>
+        /// Gets the file suffix for an input texture by querying the shader file.
+        /// </summary>
+        private string? GetSuffixForInputTexture_Internal(string inputName, Material material)
         {
             var shader = fileLoader.LoadShader(material.ShaderName);
             if (shader?.Features != null)
             {
-                foreach (var param in shader.Features.ParamBlocks)
+                foreach (var param in shader.Features.VariableDescriptions)
                 {
                     if (param.Name == inputName && !string.IsNullOrEmpty(param.ImageSuffix))
                     {
@@ -273,8 +462,14 @@ namespace ValveResourceFormat.IO
         }
     }
 
+    /// <summary>
+    /// Provides hardcoded shader data mappings for common shaders as a fallback when shader files are unavailable.
+    /// </summary>
     public class BasicShaderDataProvider : IShaderDataProvider
     {
+        /// <summary>
+        /// Hardcoded texture channel mappings for known shader types.
+        /// </summary>
         public static readonly Dictionary<string, Dictionary<string, (Channel Channel, string Name)[]>> TextureMappings = new()
         {
             ["global_lit_simple"] = new()
@@ -406,6 +601,9 @@ namespace ValveResourceFormat.IO
             }
         };
 
+        /// <summary>
+        /// Common texture input names and their corresponding file suffixes.
+        /// </summary>
         public static readonly Dictionary<string, string> CommonTextureSuffixes = new()
         {
             { "TextureDetailMask", "_detailmask" },
@@ -429,15 +627,18 @@ namespace ValveResourceFormat.IO
         };
 
         /// <summary>
-        /// Get hardcoded texture inputs. If no mappings are found it will be a single *guessed* RGBA input. 
+        /// Gets hardcoded texture inputs. If no mappings are found it will be a single guessed RGBA input.
         /// </summary>
+        /// <param name="textureType">The type of texture to query.</param>
+        /// <param name="material">The material containing the texture.</param>
+        /// <returns>A collection of channel mappings and their corresponding input names.</returns>
         public IEnumerable<(Channel Channel, string Name)> GetInputsForTexture(string textureType, Material material)
         {
             var shaderName = Path.ChangeExtension(material.ShaderName, null); // strip '.vfx'
 
             if (!(TextureMappings.TryGetValue(shaderName, out var shaderSpecific) && shaderSpecific.TryGetValue(textureType, out var channelMappings)))
             {
-                yield return (Channel.RGBA, textureType.Replace("g_t", "Texture", StringComparison.Ordinal));
+                yield return (Channel.RGBA, ConvertTextureToInput(textureType));
                 yield break;
             }
 
@@ -449,11 +650,30 @@ namespace ValveResourceFormat.IO
                     continue;
                 }
 
+                if (newTextureType == null)
+                {
+                    continue;
+                }
+
                 yield return (channel, newTextureType);
             }
         }
 
-        public string GetSuffixForInputTexture(string inputName, Material material)
+        /// <summary>
+        /// Converts a shader texture parameter name to an input texture name.
+        /// </summary>
+        /// <param name="textureType">The shader texture parameter name (e.g., "g_tColor").</param>
+        /// <returns>The input texture name (e.g., "TextureColor").</returns>
+        public static string ConvertTextureToInput(string textureType)
+        {
+            return textureType.Replace("g_t", "Texture", StringComparison.Ordinal);
+        }
+
+        /// <inheritdoc/>
+        /// <remarks>
+        /// Provides a filename suffix based on common texture type conventions.
+        /// </remarks>
+        public string? GetSuffixForInputTexture(string inputName, Material material)
         {
             foreach (var (commonType, commonSuffix) in CommonTextureSuffixes)
             {
@@ -467,7 +687,15 @@ namespace ValveResourceFormat.IO
             return null;
         }
 
-        private static bool TryFigureOutNonStaticMap(string shader, string textureType, Dictionary<string, long> intParams, out string newTextureType)
+        /// <summary>
+        /// Attempts to determine the correct texture mapping for shaders with non-static channel assignments.
+        /// </summary>
+        /// <param name="shader">The shader name.</param>
+        /// <param name="textureType">The texture type to resolve.</param>
+        /// <param name="intParams">The material's integer parameters.</param>
+        /// <param name="newTextureType">The resolved texture type name.</param>
+        /// <returns>True if the texture type was resolved, false otherwise.</returns>
+        private static bool TryFigureOutNonStaticMap(string shader, string textureType, Dictionary<string, long> intParams, out string? newTextureType)
         {
             if (shader == "vr_simple" && textureType == "g_tColor")
             {

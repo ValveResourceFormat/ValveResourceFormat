@@ -1,77 +1,109 @@
-using ValveResourceFormat.Serialization;
+using System.Diagnostics;
+using ValveKeyValue;
 using ValveResourceFormat.Serialization.KeyValues;
 
 namespace ValveResourceFormat.ResourceTypes
 {
+    /// <summary>
+    /// Represents a post-processing resource.
+    /// </summary>
     public class PostProcessing : KeyValuesOrNTRO
     {
+        /// <summary>
+        /// Initializes a new instance of the <see cref="PostProcessing"/> class.
+        /// </summary>
         public PostProcessing() : base(BlockType.DATA, "PostProcessingResource_t")
         { }
 
-        public KVObject GetTonemapParams()
+        /// <summary>
+        /// Gets the tonemap parameters.
+        /// </summary>
+        public KVObject? GetTonemapParams()
         {
-            if (Data.GetProperty<bool>("m_bHasTonemapParams"))
+            if (Data.GetBooleanProperty("m_bHasTonemapParams"))
             {
-                return Data.GetProperty<KVObject>("m_toneMapParams");
+                return Data.GetSubCollection("m_toneMapParams");
             }
 
             return null;
         }
 
-        public KVObject GetBloomParams()
+        /// <summary>
+        /// Gets the bloom parameters.
+        /// </summary>
+        public KVObject? GetBloomParams()
         {
-            if (Data.GetProperty<bool>("m_bHasBloomParams"))
+            if (Data.GetBooleanProperty("m_bHasBloomParams"))
             {
-                return Data.GetProperty<KVObject>("m_bloomParams");
+                return Data.GetSubCollection("m_bloomParams");
             }
 
             return null;
         }
 
-        public KVObject GetVignetteParams()
+        /// <summary>
+        /// Gets the vignette parameters.
+        /// </summary>
+        public KVObject? GetVignetteParams()
         {
-            if (Data.GetProperty<bool>("m_bHasVignetteParams"))
+            if (Data.GetBooleanProperty("m_bHasVignetteParams"))
             {
-                return Data.GetProperty<KVObject>("m_vignetteParams");
+                return Data.GetSubCollection("m_vignetteParams");
             }
 
             return null;
         }
 
-        public KVObject GetLocalContrastParams()
+        /// <summary>
+        /// Gets the local contrast parameters.
+        /// </summary>
+        public KVObject? GetLocalContrastParams()
         {
-            if (Data.GetProperty<bool>("m_bHasLocalContrastParams"))
+            if (Data.GetBooleanProperty("m_bHasLocalContrastParams"))
             {
-                return Data.GetProperty<KVObject>("m_localConstrastParams");
+                return Data.GetSubCollection("m_localConstrastParams");
             }
 
             return null;
         }
 
+        /// <summary>
+        /// Determines whether color correction is enabled.
+        /// </summary>
         public bool HasColorCorrection()
         {
-            if ((Data as KVObject).Properties.TryGetValue("m_bHasColorCorrection", out var value))
+            if (Data.TryGetValue("m_bHasColorCorrection", out var value))
             {
-                return (bool)value.Value;
+                return (bool)value;
             }
 
             return true; // Assumed true pre Aperture Desk Job
         }
 
+        /// <summary>
+        /// Gets the color correction LUT dimension.
+        /// </summary>
         public int GetColorCorrectionLUTDimension()
-            => Data.GetProperty<int>("m_nColorCorrectionVolumeDim");
+            => Data.GetInt32Property("m_nColorCorrectionVolumeDim");
 
+        /// <summary>
+        /// Gets the color correction LUT data.
+        /// </summary>
         public byte[] GetColorCorrectionLUT()
-            => Data.GetProperty<byte[]>("m_colorCorrectionVolumeData");
+            => Data.GetArray<byte>("m_colorCorrectionVolumeData");
 
+        /// <summary>
+        /// Gets the RAW data format of the color correction LUT.
+        /// </summary>
         public byte[] GetRAWData()
         {
             var lut = GetColorCorrectionLUT().Clone() as byte[];
+            Debug.Assert(lut != null);
 
             var j = 0;
             for (var i = 0; i < lut.Length; i++)
             {
-                // Skip each 4th byte
+                // Skip each 4th byte, for RAW format
                 if (((i + 1) % 4) == 0)
                 {
                     continue;
@@ -83,12 +115,15 @@ namespace ValveResourceFormat.ResourceTypes
             return lut[..j];
         }
 
+        /// <summary>
+        /// Converts this post-processing resource to Valve post-processing format.
+        /// </summary>
         public string ToValvePostProcessing(bool preloadLookupTable = false, string lutFileName = "")
         {
-            var outKV3 = new KVObject(null);
-            outKV3.AddProperty("_class", new KVValue(KVType.STRING, "CPostProcessData"));
+            var outKV3 = new KVObject();
+            outKV3.Add("_class", "CPostProcessData");
 
-            var layers = new KVObject("m_layers", isArray: true);
+            var layers = KVObject.Array();
 
             var tonemapParams = GetTonemapParams();
             var bloomParams = GetBloomParams();
@@ -97,46 +132,34 @@ namespace ValveResourceFormat.ResourceTypes
 
             if (tonemapParams != null)
             {
-                var tonemappingLayer = new KVObject(null);
+                var tonemappingLayer = new KVObject();
                 {
-                    tonemappingLayer.AddProperty("_class", new KVValue(KVType.STRING, "CToneMappingLayer"));
-                    tonemappingLayer.AddProperty("m_name", new KVValue(KVType.STRING, "Tone Mapping"));
-                    tonemappingLayer.AddProperty("m_nOpacityPercent", new KVValue(KVType.INT64, 100));
-                    tonemappingLayer.AddProperty("m_bVisible", new KVValue(KVType.BOOLEAN, true));
-                    tonemappingLayer.AddProperty("m_pLayerMask", new KVValue(KVType.NULL, null));
+                    tonemappingLayer.Add("_class", "CToneMappingLayer");
+                    tonemappingLayer.Add("m_name", "Tone Mapping");
+                    tonemappingLayer.Add("m_nOpacityPercent", 100);
+                    tonemappingLayer.Add("m_bVisible", true);
+                    tonemappingLayer.Add("m_pLayerMask", KVObject.Null());
 
-                    var tonemappingLayerParams = new KVObject("m_params");
-                    foreach (var kv in ((KVObject)tonemapParams).Properties)
-                    {
-                        tonemappingLayerParams.AddProperty(kv.Key, kv.Value);
-                    }
-
-                    tonemappingLayer.AddProperty(tonemappingLayerParams.Key, new KVValue(KVType.OBJECT, tonemappingLayerParams));
+                    tonemappingLayer.Add("m_params", KVObject.Collection(tonemapParams.Children));
                 }
 
-                layers.AddProperty("", new KVValue(KVType.OBJECT, tonemappingLayer));
+                layers.Add(tonemappingLayer);
             }
 
             if (bloomParams != null)
             {
-                var bloomLayer = new KVObject(null);
+                var bloomLayer = new KVObject();
                 {
-                    bloomLayer.AddProperty("_class", new KVValue(KVType.STRING, "CBloomLayer"));
-                    bloomLayer.AddProperty("m_name", new KVValue(KVType.STRING, "Bloom"));
-                    bloomLayer.AddProperty("m_nOpacityPercent", new KVValue(KVType.INT64, 100));
-                    bloomLayer.AddProperty("m_bVisible", new KVValue(KVType.BOOLEAN, true));
-                    bloomLayer.AddProperty("m_pLayerMask", new KVValue(KVType.NULL, null));
+                    bloomLayer.Add("_class", "CBloomLayer");
+                    bloomLayer.Add("m_name", "Bloom");
+                    bloomLayer.Add("m_nOpacityPercent", 100);
+                    bloomLayer.Add("m_bVisible", true);
+                    bloomLayer.Add("m_pLayerMask", KVObject.Null());
 
-                    var bloomLayerParams = new KVObject("m_params");
-                    foreach (var kv in ((KVObject)bloomParams).Properties)
-                    {
-                        bloomLayerParams.AddProperty(kv.Key, kv.Value);
-                    }
-
-                    bloomLayer.AddProperty(bloomLayerParams.Key, new KVValue(KVType.OBJECT, bloomLayerParams));
+                    bloomLayer.Add("m_params", KVObject.Collection(bloomParams.Children));
                 }
 
-                layers.AddProperty("", new KVValue(KVType.OBJECT, bloomLayer));
+                layers.Add(bloomLayer);
             }
 
             if (vignetteParams != null)
@@ -152,35 +175,35 @@ namespace ValveResourceFormat.ResourceTypes
             // All other layers are compiled into a 3D lookup table
             if (HasColorCorrection())
             {
-                var ccLayer = new KVObject(null);
+                var ccLayer = new KVObject();
                 {
-                    ccLayer.AddProperty("_class", new KVValue(KVType.STRING, "CColorLookupColorCorrectionLayer"));
-                    ccLayer.AddProperty("m_name", new KVValue(KVType.STRING, "VRF Extracted Lookup Table"));
-                    ccLayer.AddProperty("m_nOpacityPercent", new KVValue(KVType.INT64, 100));
-                    ccLayer.AddProperty("m_bVisible", new KVValue(KVType.BOOLEAN, true));
-                    ccLayer.AddProperty("m_pLayerMask", new KVValue(KVType.NULL, null));
-                    ccLayer.AddProperty("m_fileName", new KVValue(KVType.STRING, lutFileName));
+                    ccLayer.Add("_class", "CColorLookupColorCorrectionLayer");
+                    ccLayer.Add("m_name", "VRF Extracted Lookup Table");
+                    ccLayer.Add("m_nOpacityPercent", 100);
+                    ccLayer.Add("m_bVisible", true);
+                    ccLayer.Add("m_pLayerMask", KVObject.Null());
+                    ccLayer.Add("m_fileName", lutFileName);
 
-                    var lut = new KVObject("m_lut", isArray: true);
+                    var lut = KVObject.Array();
 
                     if (preloadLookupTable)
                     {
                         foreach (var b in GetRAWData())
                         {
-                            lut.AddProperty("", new KVValue(KVType.DOUBLE, b / 255d));
+                            lut.Add(b / 255d);
                         }
                     }
 
-                    ccLayer.AddProperty(lut.Key, new KVValue(KVType.ARRAY, lut));
-                    ccLayer.AddProperty("m_nDim", new KVValue(KVType.INT64, GetColorCorrectionLUTDimension()));
+                    ccLayer.Add("m_lut", lut);
+                    ccLayer.Add("m_nDim", GetColorCorrectionLUTDimension());
                 }
 
-                layers.AddProperty("", new KVValue(KVType.OBJECT, ccLayer));
+                layers.Add(ccLayer);
             }
 
-            outKV3.AddProperty(layers.Key, new KVValue(KVType.ARRAY, layers));
+            outKV3.Add("m_layers", layers);
 
-            return new KV3File(outKV3).ToString();
+            return outKV3.ToKV3String();
         }
     }
 }

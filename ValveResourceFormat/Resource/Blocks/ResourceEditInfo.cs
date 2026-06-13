@@ -1,4 +1,7 @@
 using System.IO;
+using System.Linq;
+using System.Text;
+using ValveKeyValue;
 using ValveResourceFormat.Blocks.ResourceEditInfoStructs;
 
 namespace ValveResourceFormat.Blocks
@@ -6,87 +9,143 @@ namespace ValveResourceFormat.Blocks
     /// <summary>
     /// "REDI" block. ResourceEditInfoBlock_t.
     /// </summary>
-    public class ResourceEditInfo : Block
+    public class ResourceEditInfo : RawBinary
     {
+        // Serialize legacy REDI info by copying raw data from the original resource because we have no plans to support NTRO serialization
+        /// <inheritdoc/>
         public override BlockType Type => BlockType.REDI;
 
         /// <summary>
-        /// This is not a real Valve enum, it's just the order they appear in.
+        /// Gets the list of input dependencies.
         /// </summary>
-        public enum REDIStruct
+        public List<InputDependency> InputDependencies { get; } = [];
+
+        /// <summary>
+        /// Gets the list of additional input dependencies.
+        /// </summary>
+        public List<InputDependency> AdditionalInputDependencies { get; } = [];
+
+        /// <summary>
+        /// Gets the list of argument dependencies.
+        /// </summary>
+        public List<ArgumentDependency> ArgumentDependencies { get; } = [];
+
+        /// <summary>
+        /// Gets the list of special dependencies.
+        /// </summary>
+        public List<SpecialDependency> SpecialDependencies { get; } = [];
+
+        /// <summary>
+        /// Gets the list of additional related files.
+        /// </summary>
+        public List<AdditionalRelatedFile> AdditionalRelatedFiles { get; } = [];
+
+        /// <summary>
+        /// Gets the list of child resources.
+        /// </summary>
+        public List<string> ChildResourceList { get; } = [];
+
+        /// <summary>
+        /// Gets the searchable user data.
+        /// </summary>
+        public KVObject SearchableUserData { get; } = KVObject.Collection();
+
+        /// <inheritdoc/>
+        public override void Read(BinaryReader reader)
         {
-            InputDependencies,
-            AdditionalInputDependencies,
-            ArgumentDependencies,
-            SpecialDependencies,
-            CustomDependencies,
-            AdditionalRelatedFiles,
-            ChildResourceList,
-            ExtraIntData,
-            ExtraFloatData,
-            ExtraStringData,
+            var subBlock = 0;
 
-            End,
-        }
-
-        public Dictionary<REDIStruct, REDIBlock> Structs { get; private set; }
-
-        public ResourceEditInfo()
-        {
-            Structs = [];
-        }
-
-        public override void Read(BinaryReader reader, Resource resource)
-        {
-            reader.BaseStream.Position = Offset;
-
-            for (var i = REDIStruct.InputDependencies; i < REDIStruct.End; i++)
+            int AdvanceGetCount()
             {
-                var block = ConstructStruct(i);
+                reader.BaseStream.Position = Offset + (subBlock * 8);
 
-                block.Offset = (uint)reader.BaseStream.Position + reader.ReadUInt32();
-                block.Size = reader.ReadUInt32();
+                var offset = reader.ReadUInt32();
+                var count = reader.ReadUInt32();
 
-                Structs.Add(i, block);
+                reader.BaseStream.Position = Offset + (subBlock * 8) + offset;
+                subBlock++;
+                return (int)count;
             }
 
-            foreach (var block in Structs)
+            void ReadItems<T>(List<T> list, Func<BinaryReader, T> constructor)
             {
-                block.Value.Read(reader, resource);
+                var count = AdvanceGetCount();
+                list.EnsureCapacity(count);
+
+                for (var i = 0; i < count; i++)
+                {
+                    var item = constructor.Invoke(reader);
+                    list.Add(item);
+                }
             }
+
+            void ReadKeyValues<T>(KVObject kvObject, Func<BinaryReader, T> valueReader)
+            {
+                var count = AdvanceGetCount();
+                for (var i = 0; i < count; i++)
+                {
+                    var key = reader.ReadOffsetString(Encoding.UTF8);
+                    var value = valueReader.Invoke(reader);
+
+                    // Note: we may override existing keys
+                    KVObject kvValue = value switch
+                    {
+                        string s => s,
+                        long l => l,
+                        double d => d,
+                        float f => f,
+                        int n => n,
+                        _ => value!.ToString()!,
+                    };
+                    kvObject[key] = kvValue;
+                }
+            }
+
+            ReadItems(InputDependencies, static (reader) => new InputDependency(reader));
+            ReadItems(AdditionalInputDependencies, static (reader) => new InputDependency(reader));
+            ReadItems(ArgumentDependencies, static (reader) => new ArgumentDependency(reader));
+            ReadItems(SpecialDependencies, static (reader) => new SpecialDependency(reader));
+
+            var customDependencies = AdvanceGetCount();
+            if (customDependencies > 0)
+            {
+                throw new NotImplementedException("CustomDependencies in REDI are not handled.\n" +
+                    "Please report this on https://github.com/ValveResourceFormat/ValveResourceFormat and provide the file that caused this exception.");
+            }
+
+            ReadItems(AdditionalRelatedFiles, static (reader) => new AdditionalRelatedFile(reader));
+            ReadItems(ChildResourceList, static (reader) =>
+            {
+                var id = reader.ReadUInt64();
+                var name = reader.ReadOffsetString(Encoding.UTF8);
+                var unknown = reader.ReadInt32();
+                return name; // Ignoring 'id' to match RED2
+            });
+
+            ReadKeyValues(SearchableUserData, static (reader) => (long)reader.ReadInt32());
+            ReadKeyValues(SearchableUserData, static (reader) => (double)reader.ReadSingle());
+            ReadKeyValues(SearchableUserData, static (reader) => reader.ReadOffsetString(Encoding.UTF8));
         }
 
+        /// <inheritdoc/>
         public override void WriteText(IndentedTextWriter writer)
         {
-            writer.WriteLine("ResourceEditInfoBlock_t");
-            writer.WriteLine("{");
-            writer.Indent++;
-
-            foreach (var dep in Structs)
+            using var ms = new MemoryStream();
+            var serializer = ValveKeyValue.KVSerializer.Create(ValveKeyValue.KVSerializationFormat.KeyValues1Text);
+            var serializedProps = new
             {
-                dep.Value.WriteText(writer);
-            }
-
-            writer.Indent--;
-            writer.WriteLine("}");
-        }
-
-        private static REDIBlock ConstructStruct(REDIStruct id)
-        {
-            return id switch
-            {
-                REDIStruct.InputDependencies => new InputDependencies(),
-                REDIStruct.AdditionalInputDependencies => new AdditionalInputDependencies(),
-                REDIStruct.ArgumentDependencies => new ArgumentDependencies(),
-                REDIStruct.SpecialDependencies => new SpecialDependencies(),
-                REDIStruct.CustomDependencies => new CustomDependencies(),
-                REDIStruct.AdditionalRelatedFiles => new AdditionalRelatedFiles(),
-                REDIStruct.ChildResourceList => new ChildResourceList(),
-                REDIStruct.ExtraIntData => new ExtraIntData(),
-                REDIStruct.ExtraFloatData => new ExtraFloatData(),
-                REDIStruct.ExtraStringData => new ExtraStringData(),
-                _ => throw new InvalidDataException($"Unknown struct in REDI block: {id}"),
+                InputDependencies,
+                AdditionalInputDependencies,
+                ArgumentDependencies,
+                SpecialDependencies,
+                AdditionalRelatedFiles,
+                ChildResourceList,
+                SearchableUserData = SearchableUserData.Select(c => new { c.Key, Value = c.Value.ToString() ?? string.Empty }),
             };
+
+            serializer.Serialize(ms, serializedProps, "ResourceEditInfo");
+
+            writer.Write(Encoding.UTF8.GetString(ms.ToArray()));
         }
     }
 }

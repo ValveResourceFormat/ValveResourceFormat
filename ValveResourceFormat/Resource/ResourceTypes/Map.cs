@@ -1,18 +1,31 @@
 using System.IO;
-using ValveResourceFormat.Blocks;
 
 namespace ValveResourceFormat.ResourceTypes
 {
-    public class Map : ResourceData
+    /// <summary>
+    /// Map resource block.
+    /// </summary>
+    public class Map : Block
     {
-        public override void Read(BinaryReader reader, Resource resource)
+        /// <inheritdoc/>
+        public override BlockType Type => BlockType.DATA;
+
+        /// <inheritdoc/>
+        public override void Read(BinaryReader reader)
         {
             // Maps have no data
         }
 
-        public override string ToString()
+        /// <inheritdoc/>
+        public override void Serialize(Stream stream)
         {
-            return string.Empty;
+            throw new NotImplementedException("Serializing this block is not yet supported. If you need this, send us a pull request!");
+        }
+
+        /// <inheritdoc/>
+        public override void WriteText(IndentedTextWriter writer)
+        {
+            // Maps have no data
         }
     }
 }

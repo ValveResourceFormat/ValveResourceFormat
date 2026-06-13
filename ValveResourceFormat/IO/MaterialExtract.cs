@@ -8,12 +8,22 @@ using ValveResourceFormat.ResourceTypes;
 using Channel = ValveResourceFormat.CompiledShader.ChannelMapping;
 
 namespace ValveResourceFormat.IO;
+
+/// <summary>
+/// Extracts Source 2 materials to editable vmat format.
+/// </summary>
 public sealed class MaterialExtract
 {
+    /// <summary>
+    /// Information about how to unpack a texture channel.
+    /// </summary>
     public readonly struct UnpackInfo
     {
+        /// <summary>Gets the texture type.</summary>
         public string TextureType { get; init; }
+        /// <summary>Gets the file name.</summary>
         public string FileName { get; init; }
+        /// <summary>Gets the channel mapping.</summary>
         public Channel Channel { get; init; }
     }
 
@@ -21,12 +31,15 @@ public sealed class MaterialExtract
         => textureFileName.StartsWith("materials/default/", StringComparison.OrdinalIgnoreCase);
 
     private readonly Material material;
-    private readonly ResourceEditInfo editInfo;
-    private readonly IFileLoader fileLoader;
+    private readonly ResourceEditInfo? editInfo;
+    private readonly IFileLoader? fileLoader;
     private readonly IShaderDataProvider shaderDataProvider;
 
-    public MaterialExtract(Material material, ResourceEditInfo editInfo, IFileLoader fileLoader,
-        IShaderDataProvider shaderDataProvider = null)
+    /// <summary>
+    /// Initializes a new instance of the <see cref="MaterialExtract"/> class.
+    /// </summary>
+    public MaterialExtract(Material material, ResourceEditInfo? editInfo, IFileLoader? fileLoader,
+        IShaderDataProvider? shaderDataProvider = null)
     {
         ArgumentNullException.ThrowIfNull(material);
         this.material = material;
@@ -35,8 +48,9 @@ public sealed class MaterialExtract
         this.shaderDataProvider = shaderDataProvider ?? new BasicShaderDataProvider();
     }
 
-    public MaterialExtract(Resource resource, IFileLoader fileLoader = null)
-        : this((Material)resource.DataBlock, resource.EditInfo, fileLoader)
+    /// <inheritdoc cref="MaterialExtract(Material, ResourceEditInfo, IFileLoader, IShaderDataProvider)"/>
+    public MaterialExtract(Resource resource, IFileLoader? fileLoader = null)
+        : this((Material)resource.DataBlock!, resource.EditInfo, fileLoader)
     {
         if (fileLoader is not null)
         {
@@ -44,6 +58,9 @@ public sealed class MaterialExtract
         }
     }
 
+    /// <summary>
+    /// Converts the material to a content file with associated textures.
+    /// </summary>
     public ContentFile ToContentFile()
     {
         var vmat = new ContentFile
@@ -68,7 +85,7 @@ public sealed class MaterialExtract
                 continue;
             }
 
-            var images = GetTextureUnpackInfos(type, filePath, omitDefaults: true, omitUniforms: true);
+            var images = GetTextureUnpackInfos(type, filePath, (Texture)texture.DataBlock!, omitDefaults: true, omitUniforms: true);
             var vtex = new TextureExtract(texture).ToMaterialMaps(images);
 
             if (vtex.SubFiles.Count > 0)
@@ -84,7 +101,10 @@ public sealed class MaterialExtract
         return vmat;
     }
 
-    public static string OutTextureName(string texturePath, bool keepOriginalExtension, string desiredSuffix = null)
+    /// <summary>
+    /// Generates the output texture file name from a compiled texture path.
+    /// </summary>
+    public static string OutTextureName(string texturePath, bool keepOriginalExtension, bool hdr, string? desiredSuffix = null)
     {
         if (!texturePath.EndsWith(".vtex", StringComparison.OrdinalIgnoreCase))
         {
@@ -97,7 +117,7 @@ public sealed class MaterialExtract
             texturePath = Path.ChangeExtension(texturePath, null);
         }
 
-        var textureParts = Path.GetFileName(texturePath).Split('_');
+        var textureParts = Path.GetFileName(texturePath)!.Split('_');
         if (textureParts.Length > 2)
         {
             // texture_suffix_ext_hash
@@ -105,7 +125,7 @@ public sealed class MaterialExtract
             && textureParts[^2].Length >= 3 && textureParts[^2].Length <= 4 // This is the original extension
             && !string.IsNullOrEmpty(string.Join("_", textureParts[..^2])))   // Name of the Input[0] image
             {
-                texturePath = Path.Combine(Path.GetDirectoryName(texturePath), string.Join("_", textureParts[..^2]));
+                texturePath = Path.Combine(Path.GetDirectoryName(texturePath)!, string.Join("_", textureParts[..^2]));
                 texturePath = texturePath.Replace(Path.DirectorySeparatorChar, '/');
             }
             // Also seen "{MAT}_vmat_{G_TPARAM}_{HASH}.vtex"
@@ -129,10 +149,14 @@ public sealed class MaterialExtract
             texturePath += "_" + textureParts[^1] + desiredSuffix;
         }
 
-        return Path.ChangeExtension(texturePath, keepOriginalExtension ? textureParts[^2] : "png");
+        var extension = hdr ? "exr" : "png";
+        return Path.ChangeExtension(texturePath, keepOriginalExtension ? textureParts[^2] : extension);
     }
 
-    public IEnumerable<UnpackInfo> GetTextureUnpackInfos(string textureType, string texturePath, bool omitDefaults, bool omitUniforms)
+    /// <summary>
+    /// Gets the texture unpacking information for a material texture parameter.
+    /// </summary>
+    public IEnumerable<UnpackInfo> GetTextureUnpackInfos(string textureType, string texturePath, Texture? texture, bool omitDefaults, bool omitUniforms)
     {
         var isInput0 = true;
         var shaderProvidedInputs = shaderDataProvider.GetInputsForTexture(textureType, material).ToList();
@@ -143,7 +167,7 @@ public sealed class MaterialExtract
                 continue;
             }
 
-            string desiredSuffix = null;
+            string? desiredSuffix = null;
             if (!isInput0)
             {
                 desiredSuffix = shaderDataProvider.GetSuffixForInputTexture(newTextureType, material) ?? "-" + channel;
@@ -161,63 +185,68 @@ public sealed class MaterialExtract
                 keepOriginalExtension = true;
             }
 
+            var isHdr = texture?.IsHighDynamicRange ?? false;
+
             yield return new UnpackInfo
             {
                 TextureType = newTextureType,
-                FileName = OutTextureName(texturePath, keepOriginalExtension, desiredSuffix),
-                Channel = channel
+                FileName = OutTextureName(texturePath, keepOriginalExtension, isHdr, desiredSuffix),
+                Channel = channel,
             };
 
             isInput0 = false;
         }
     }
 
+    /// <summary>
+    /// Converts the material to Valve material format as a string.
+    /// </summary>
     public string ToValveMaterial()
     {
-        var root = new KVObject("Layer0", [])
-        {
-            new KVObject("shader", material.ShaderName)
-        };
+        var root = KVObject.ListCollection();
+        root.Add("shader", material.ShaderName);
 
         foreach (var (key, value) in material.IntParams)
         {
-            root.Add(new KVObject(key, value));
+            root.Add(key, value);
         }
 
         foreach (var (key, value) in material.FloatParams)
         {
-            root.Add(new KVObject(key, value));
+            root.Add(key, value);
         }
 
         foreach (var (key, value) in material.VectorParams)
         {
-            root.Add(new KVObject(key, $"[{value.X:N6} {value.Y:N6} {value.Z:N6} {value.W:N6}]"));
+            root.Add(key, string.Create(CultureInfo.InvariantCulture, $"[{value.X:F6} {value.Y:F6} {value.Z:F6} {value.W:F6}]"));
         }
 
-        var originalTextures = new KVObject("Compiled Textures", []);
+        var originalTextures = KVObject.ListCollection();
         foreach (var (key, value) in material.TextureParams)
         {
-            foreach (var unpackInfo in GetTextureUnpackInfos(key, value, false, true))
+            using var textureResource = fileLoader?.LoadFileCompiled(value);
+            var textureData = textureResource?.DataBlock as Texture;
+            foreach (var unpackInfo in GetTextureUnpackInfos(key, value, textureData, false, true))
             {
-                root.Add(new KVObject(unpackInfo.TextureType, unpackInfo.FileName));
+                root.Add(unpackInfo.TextureType, unpackInfo.FileName);
             }
 
-            originalTextures.Add(new KVObject(key, value));
+            originalTextures.Add(key, value);
         }
 
-        root.Add(originalTextures);
+        root.Add("Compiled Textures", originalTextures);
 
         if (material.DynamicExpressions.Count > 0)
         {
-            var dynamicExpressionsNode = new KVObject("DynamicParams", []);
-            root.Add(dynamicExpressionsNode);
+            var dynamicExpressionsNode = KVObject.ListCollection();
+            root.Add("DynamicParams", dynamicExpressionsNode);
             foreach (var (key, value) in material.DynamicExpressions)
             {
-                dynamicExpressionsNode.Add(new KVObject(key, value));
+                dynamicExpressionsNode.Add(key, value);
             }
         }
 
-        var attributes = new List<KVObject>();
+        var attributes = new List<KeyValuePair<string, KVObject>>();
 
         foreach (var (key, value) in material.IntAttributes)
         {
@@ -227,24 +256,24 @@ public sealed class MaterialExtract
             {
                 continue;
             }
-            attributes.Add(new KVObject(key, value));
+            attributes.Add(new(key, value));
         }
 
         foreach (var (key, value) in material.FloatAttributes)
         {
             // Skip `int` definition if there is a `float` definition
-            attributes = attributes.Where(existing_key => existing_key.Name != key).ToList();
-            attributes.Add(new KVObject(key, value));
+            attributes = attributes.Where(existing_key => existing_key.Key != key).ToList();
+            attributes.Add(new(key, value));
         }
 
         foreach (var (key, value) in material.VectorAttributes)
         {
-            attributes.Add(new KVObject(key, $"[{value.X:N6} {value.Y:N6} {value.Z:N6} {value.W:N6}]"));
+            attributes.Add(new(key, string.Create(CultureInfo.InvariantCulture, $"[{value.X:F6} {value.Y:F6} {value.Z:F6} {value.W:F6}]")));
         }
 
         foreach (var (key, value) in material.StringAttributes)
         {
-            attributes.Add(new KVObject(key, value ?? string.Empty));
+            attributes.Add(new(key, value ?? string.Empty));
         }
 
         var attributesThatAreSystemAttributes = new HashSet<string>
@@ -261,44 +290,33 @@ public sealed class MaterialExtract
         if (attributes.Count > 0)
         {
             // Some attributes are actually SystemAttributes
-            var systemAttributes = attributes.Where(attribute => attributesThatAreSystemAttributes.Contains(attribute.Name.ToLowerInvariant())).ToList();
+            var systemAttributes = attributes.Where(attribute => attributesThatAreSystemAttributes.Contains(attribute.Key.ToLowerInvariant())).ToList();
             attributes = attributes.Except(systemAttributes).ToList();
 
             if (attributes.Count > 0)
             {
-                root.Add(new KVObject("Attributes", attributes));
+                root.Add("Attributes", KVObject.ListCollection(attributes));
             }
 
             if (systemAttributes.Count > 0)
             {
-                root.Add(new KVObject("SystemAttributes", systemAttributes));
+                root.Add("SystemAttributes", KVObject.ListCollection(systemAttributes));
             }
         }
 
-        string subrectDefinition = null;
+        var subrectDefinition = editInfo?.SearchableUserData
+            .FirstOrDefault(x => x.Key.Equals("subrectdefinition", StringComparison.OrdinalIgnoreCase)).Value;
 
-        if (editInfo is ResourceEditInfo2 redi2)
+        if (subrectDefinition?.ValueType == KVValueType.String)
         {
-            subrectDefinition = redi2.SearchableUserData.Where(x => x.Key.Equals("subrectdefinition", StringComparison.OrdinalIgnoreCase)).FirstOrDefault().Value as string;
-        }
-        else if (editInfo is not null)
-        {
-            var extraStringData = (Blocks.ResourceEditInfoStructs.ExtraStringData)editInfo.Structs[ResourceEditInfo.REDIStruct.ExtraStringData];
-            subrectDefinition = extraStringData.List.Where(x => x.Name.Equals("subrectdefinition", StringComparison.OrdinalIgnoreCase)).FirstOrDefault()?.Value;
-        }
+            var toolattributes = KVObject.ListCollection();
+            toolattributes.Add("SubrectDefinition", (string)subrectDefinition);
 
-        if (subrectDefinition != null)
-        {
-            var toolattributes = new List<KVObject>()
-                {
-                    new("SubrectDefinition", subrectDefinition)
-                };
-
-            root.Add(new KVObject("ToolAttributes", toolattributes));
+            root.Add("ToolAttributes", toolattributes);
         }
 
         using var ms = new MemoryStream();
-        KVSerializer.Create(KVSerializationFormat.KeyValues1Text).Serialize(ms, root);
+        KVSerializer.Create(KVSerializationFormat.KeyValues1Text).Serialize(ms, new KVDocument(new(), "Layer0", root));
         return Encoding.UTF8.GetString(ms.ToArray());
     }
 
@@ -321,8 +339,13 @@ public sealed class MaterialExtract
             _unlayeredTextures = unlayeredTextures;
         }
 
-        public bool Equals(string layered, string unlayered)
+        public bool Equals(string? layered, string? unlayered)
         {
+            if (layered is null || unlayered is null)
+            {
+                return layered == unlayered;
+            }
+
             if (layered.Equals(unlayered, StringComparison.Ordinal))
             {
                 return true;

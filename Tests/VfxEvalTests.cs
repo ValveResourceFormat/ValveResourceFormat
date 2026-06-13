@@ -46,12 +46,12 @@ namespace Tests
                 "19 38 AE 48 52 19 31 FB FD 02 0E 08 00 " +
                 "09 00 06 03 00 00";
             var expectedResult =
-                "v0 = UNKNOWN[5248ae38]>UNKNOWN[02fdfb31];\n" +
-                "v0 = UNKNOWN[5248ae38]<UNKNOWN[02fdfb31];\n" +
-                "v0 = UNKNOWN[5248ae38]==UNKNOWN[02fdfb31];\n" +
-                "v0 = UNKNOWN[5248ae38]>=UNKNOWN[02fdfb31];\n" +
-                "v0 = UNKNOWN[5248ae38]<=UNKNOWN[02fdfb31];\n" +
-                "v0 = UNKNOWN[5248ae38]!=UNKNOWN[02fdfb31];\n" +
+                "v0 = ATTRIBUTE[5248ae38]>ATTRIBUTE[02fdfb31];\n" +
+                "v0 = ATTRIBUTE[5248ae38]<ATTRIBUTE[02fdfb31];\n" +
+                "v0 = ATTRIBUTE[5248ae38]==ATTRIBUTE[02fdfb31];\n" +
+                "v0 = ATTRIBUTE[5248ae38]>=ATTRIBUTE[02fdfb31];\n" +
+                "v0 = ATTRIBUTE[5248ae38]<=ATTRIBUTE[02fdfb31];\n" +
+                "v0 = ATTRIBUTE[5248ae38]!=ATTRIBUTE[02fdfb31];\n" +
                 "return frac(v0);";
             Assert.That(new VfxEval(ParseString(exampleStr)).DynamicExpressionResult, Is.EqualTo(expectedResult));
         }
@@ -75,7 +75,7 @@ namespace Tests
         /*
          *      a = length(1);
          *      a = sqrt(1);
-         *      a = TextureSize(1);
+         *      a = rotation2d(1);
          *      frac(a)
          */
         [Test]
@@ -85,7 +85,7 @@ namespace Tests
             var expectedResult =
                 "v0 = length(1);\n" +
                 "v0 = sqrt(1);\n" +
-                "v0 = TextureSize(1);\n" +
+                "v0 = rotation2d(1);\n" +
                 "return frac(v0);";
             Assert.That(new VfxEval(ParseString(exampleStr)).DynamicExpressionResult, Is.EqualTo(expectedResult));
         }
@@ -130,7 +130,7 @@ namespace Tests
         {
             var exampleStr = "19 38 AE 48 52 04 12 00 0A 00 07 00 00 00 00 02 17 00 19 31 FB FD 02 04 1C 00 27 00 07 00 00 20 " +
                "41 06 03 00 02 32 00 07 00 00 C8 42 07 00 00 C8 42 15 00";
-            var expectedResult = "return (UNKNOWN[5248ae38] && UNKNOWN[02fdfb31]) ? frac(10) : (100*100);";
+            var expectedResult = "return (ATTRIBUTE[5248ae38] && ATTRIBUTE[02fdfb31]) ? frac(10) : (100*100);";
             Assert.That(new VfxEval(ParseString(exampleStr)).DynamicExpressionResult, Is.EqualTo(expectedResult));
         }
 
@@ -146,7 +146,7 @@ namespace Tests
                 "31 FB FD 02 04 29 00 34 00 07 00 00 80 3F 06 00 00 02 39 00 07 00 00 E0 40 00";
             var expectedResult =
                 "v0 = 10+10;\n" +
-                "return (UNKNOWN[5248ae38] || UNKNOWN[02fdfb31]) ? sin(1) : 7;";
+                "return (ATTRIBUTE[5248ae38] || ATTRIBUTE[02fdfb31]) ? sin(1) : 7;";
             Assert.That(new VfxEval(ParseString(exampleStr)).DynamicExpressionResult, Is.EqualTo(expectedResult));
         }
 
@@ -192,10 +192,10 @@ namespace Tests
             "00 40 40 07 00 00 80 40 06 18 00 02 45 00 07 00 00 A0 40 07 00 00 C0 40 07 00 00 E0 40 07 00 00 " +
             "00 41 06 18 00 08 01 09 00 06 01 00 08 02 09 00 09 01 19 15 D1 7D 0F 1E A4 06 09 00 09 02 15 13 00";
             var expectedResult =
-                "v0 = sin(UNKNOWN[2ce4aad6]);\n" +
-                "v1 = exists(UNKNOWN[3928f139]) ? float4(1,2,3,4) : float4(5,6,7,8);\n" +
+                "v0 = sin(ATTRIBUTE[2ce4aad6]);\n" +
+                "v1 = exists(ATTRIBUTE[3928f139]) ? float4(1,2,3,4) : float4(5,6,7,8);\n" +
                 "v2 = cos(v0);\n" +
-                "return v0+(dot4(v1,UNKNOWN[0f7dd115].xyz)*v2);";
+                "return v0+(dot4(v1,ATTRIBUTE[0f7dd115].xyz)*v2);";
             Assert.That(new VfxEval(ParseString(exampleStr)).DynamicExpressionResult, Is.EqualTo(expectedResult));
         }
 
@@ -209,7 +209,7 @@ namespace Tests
          *   => return is always implied and mandatory
          *
          * In the places where myvar appears the identifier (51 A2 54 EA) is the same (it is the murmur32 of the string).
-         * 0x19 retrieves its value and 0x1F retrives it's existence (true/false) or in float rep (1.0/0.0)
+         * 0x19 retrieves its value and 0x1F retrieves its existence (true/false) or in float rep (1.0/0.0)
          *
          */
         [Test]
@@ -217,9 +217,9 @@ namespace Tests
         {
             var exampleStr = "07 00 00 20 41 19 51 A2 54 EA 15 08 00 07 00 00 30 41 08 01 1F 51 A2 54 EA 00";
             var expectedResult =
-                "v0 = 10*UNKNOWN[ea54a251];\n" +
+                "v0 = 10*ATTRIBUTE[ea54a251];\n" +
                 "v1 = 11;\n" +
-                "return exists(UNKNOWN[ea54a251]);";
+                "return exists(ATTRIBUTE[ea54a251]);";
             Assert.That(new VfxEval(ParseString(exampleStr)).DynamicExpressionResult, Is.EqualTo(expectedResult));
         }
 
@@ -237,8 +237,8 @@ namespace Tests
             "44 00 07 00 00 20 41 07 00 00 20 41 15 06 03 00 02 4C 00 07 00 00 80 3F 02 54 " +
             "00 07 00 00 80 3F 00";
             var expectedResult =
-                "v0 = 10*UNKNOWN[ea54a251];\n" +
-                "return sin(exists(UNKNOWN[ea54a251])) ? (1 ? (0 ? 10 : frac(10*10)) : 1) : 1;";
+                "v0 = 10*ATTRIBUTE[ea54a251];\n" +
+                "return sin(exists(ATTRIBUTE[ea54a251])) ? (1 ? (0 ? 10 : frac(10*10)) : 1) : 1;";
             Assert.That(new VfxEval(ParseString(exampleStr)).DynamicExpressionResult, Is.EqualTo(expectedResult));
         }
 
@@ -262,6 +262,27 @@ namespace Tests
             "07 00 00 80 3F 04 0A 00 12 00 07 00 00 80 3F 02 17 00 07 00 00 00 40 00";
             var expectedResult = "return 1 || 2;";
             Assert.That(new VfxEval(ParseString(exampleStr)).DynamicExpressionResult, Is.EqualTo(expectedResult));
+        }
+
+        [Test]
+        public void TestDynamicExpression15_EnumMapper()
+        {
+            var exampleStr =
+            "07 00 00 80 3F 04 0A 00 12 00 07 00 00 80 3F 02 17 00 07 00 00 00 40 00";
+
+            var expectedResult = "return One ? One : Two;";
+
+            static string mapper(int v)
+            {
+                return v switch
+                {
+                    1 => "One",
+                    2 => "Two",
+                    _ => "Unknown",
+                };
+            }
+
+            Assert.That(new VfxEval(ParseString(exampleStr), [], false, [], mapper).DynamicExpressionResult, Is.EqualTo(expectedResult));
         }
 
         [Test]
@@ -296,18 +317,18 @@ namespace Tests
         public void TestShaderDynamicExpression1()
         {
             var testInput1 = ParseString("1A 01 04 07 00 0F 00 07 00 00 80 3F 02 14 00 07 00 00 00 00 00");
-            var expectedResultWithNoFeatures = "COND[1] || 0";
+            var expectedResultWithNoFeatures = "FEAT[1] || 0";
             var expectedResultWithFeatures = "F_B || 0";
 
             var testInput2 = ParseString("1D 3C 13 92 A3 1E A4 06 1F 00 00");
-            var expectedResult2 = "SrgbGammaToLinear(EVAL[a392133c].xyz)";
+            var expectedResult2 = "SrgbGammaToLinear(MATERIAL_PARAM[a392133c].xyz)";
 
-            Assert.Multiple(() =>
+            using (Assert.EnterMultipleScope())
             {
                 Assert.That(new VfxEval(testInput1, omitReturnStatement: true).DynamicExpressionResult, Is.EqualTo(expectedResultWithNoFeatures));
                 Assert.That(new VfxEval(testInput1, omitReturnStatement: true, features: ["F_A", "F_B"]).DynamicExpressionResult, Is.EqualTo(expectedResultWithFeatures));
                 Assert.That(new VfxEval(testInput2, omitReturnStatement: true).DynamicExpressionResult, Is.EqualTo(expectedResult2));
-            });
+            }
         }
 
         [Test]
@@ -320,7 +341,7 @@ namespace Tests
                 "1A 05 07 00 00 40 40 0D 04 4C 00 54 00 07 00 00 00 00 02 59 00 07 00 00 00 00 00");
 
             // (F_TEXTURE_FILTERING == 0 ? ANISOTROPIC : (F_TEXTURE_FILTERING == 1 ? BILINEAR : (F_TEXTURE_FILTERING == 2 ? TRILINEAR : (F_TEXTURE_FILTERING == 3 ? POINT : NEAREST))))
-            var expectedResult = "(COND[5]==0) ? 85 : ((COND[5]==1) ? 20 : ((COND[5]==2) ? 21 : ((COND[5]==3) ? 0 : 0)))";
+            var expectedResult = "(FEAT[5]==0) ? 85 : ((FEAT[5]==1) ? 20 : ((FEAT[5]==2) ? 21 : ((FEAT[5]==3) ? 0 : 0)))";
 
             Assert.That(new VfxEval(nestedTernaryBin, omitReturnStatement: true).DynamicExpressionResult, Is.EqualTo(expectedResult));
         }
@@ -336,13 +357,61 @@ namespace Tests
         [Test]
         public void TestDynamicExpression19()
         {
-            var exampleStr = "07 00 00 40 41 06 25 00 08 00 07 00 00 40 41 07 00 00 40 41 06 26 00 08 01 07 00 00 20 41 06 27 00 08 02 09 00 00";
+            var exampleStr = "07 00 00 40 41 06 24 00 08 00 07 00 00 40 41 07 00 00 40 41 06 25 00 08 01 07 00 00 20 41 06 26 00 08 02 09 00 00";
             var expectedResult =
                 "v0 = rotation2d(12);\n" +
                 "v1 = rotate2d(12,12);\n" +
                 "v2 = sincos(10);\n" +
                 "return v0;";
             Assert.That(new VfxEval(ParseString(exampleStr)).DynamicExpressionResult, Is.EqualTo(expectedResult));
+        }
+
+        /*
+         * a = 0;
+         * _27 = TextureSize(g_tColor);
+         * _28 = TextureAverageColor(g_tColor);
+         * _29 = MatrixIdentity();
+         * _2A = MatrixScale(float3(0.5, 0.3, 0.2));
+         * _2B = MatrixTranslate(float3(1.0, 2.0, 3.0));
+         * _2C = MatrixAxisAngle(float4(0.0, 1.0, 0.0, 45.0));
+         * _2D = MatrixAxisToAxis(float3(1.0, 0.0, 0.0), float3(0.0, 1.0, 0.0));
+         * _2E = MatrixMultiply(_2A, _2B);
+         * _2F = MatrixColorCorrect(float4(1.0, 0.8, 0.6, 1.0)); // contrast, saturation, brightness, unknown
+         * _30 = MatrixColorCorrect2(float4(1.0, 0.8, 0.6, 1.0), TextureAverageColor(g_tColor));
+         * _31 = MatrixColorTint(float4(1.0, 1.0, 1.0, 1.0));
+         *
+         * return a;
+         */
+
+        [Test]
+        public void TestDynamicExpression18_Matrices()
+        {
+            var blob = ParseString(
+                "07 00 00 00 00 08 00 19 0F 54 63 59 06 27 00 08 01 19 0F 54 63 59 06 28 00 08 02 06 29 00 08 03 " +
+                "07 00 00 00 3F 07 9A 99 99 3E 07 CD CC 4C 3E 06 19 00 06 2A 00 08 04 07 00 00 80 3F 07 00 00 00 " +
+                "40 07 00 00 40 40 06 19 00 06 2B 00 08 05 07 00 00 00 00 07 00 00 80 3F 07 00 00 00 00 07 00 00 " +
+                "34 42 06 18 00 06 2C 00 08 06 07 00 00 80 3F 07 00 00 00 00 07 00 00 00 00 06 19 00 07 00 00 00 " +
+                "00 07 00 00 80 3F 07 00 00 00 00 06 19 00 06 2D 00 08 07 09 04 09 05 06 2E 00 08 08 07 00 00 80 " +
+                "3F 07 CD CC 4C 3F 07 9A 99 19 3F 07 00 00 80 3F 06 18 00 06 2F 00 08 09 07 00 00 80 3F 07 CD CC " +
+                "4C 3F 07 9A 99 19 3F 07 00 00 80 3F 06 18 00 19 0F 54 63 59 06 28 00 06 30 00 08 0A 07 00 00 80 " +
+                "3F 07 00 00 80 3F 07 00 00 80 3F 07 00 00 80 3F 06 18 00 06 31 00 08 0B 09 00 00"
+            );
+
+            var expectedResult = "v0 = 0;\n" +
+                "v1 = TextureSize(g_tColor);\n" +
+                "v2 = TextureAverageColor(g_tColor);\n" +
+                "v3 = MatrixIdentity();\n" +
+                "v4 = MatrixScale(float3(.5,.3,.2));\n" +
+                "v5 = MatrixTranslate(float3(1,2,3));\n" +
+                "v6 = MatrixAxisAngle(float4(0,1,0,45));\n" +
+                "v7 = MatrixAxisToAxis(float3(1,0,0),float3(0,1,0));\n" +
+                "v8 = MatrixMultiply(v4,v5);\n" +
+                "v9 = MatrixColorCorrect(float4(1,.8,.6,1));\n" +
+                "v10 = MatrixColorCorrect2(float4(1,.8,.6,1),TextureAverageColor(g_tColor));\n" +
+                "v11 = MatrixColorTint(float4(1,1,1,1));\n" +
+                "return v0;";
+
+            Assert.That(new VfxEval(blob, ["g_tColor"]).DynamicExpressionResult, Is.EqualTo(expectedResult));
         }
 
         /*
@@ -378,7 +447,7 @@ namespace Tests
         {
             var testInput = ParseString(
                 "1A 13 04 0F 00 07 00 07 00 00 00 00 02 14 00 1F 28 A6 90 70 04 19 00 21 00 19 A1 D0 52 1E 02 26 00 1D 6F 89 29 B8 00");
-            var expectedResult = "(COND[19] && exists(UNKNOWN[7090a628])) ? UNKNOWN[1e52d0a1] : EVAL[b829896f]";
+            var expectedResult = "(FEAT[19] && exists(ATTRIBUTE[7090a628])) ? ATTRIBUTE[1e52d0a1] : MATERIAL_PARAM[b829896f]";
             var vfxEval = new VfxEval(testInput, omitReturnStatement: true);
             Assert.That(vfxEval.DynamicExpressionResult, Is.EqualTo(expectedResult));
         }
@@ -392,14 +461,376 @@ namespace Tests
                 "00 51 00 1D 16 82 0D 28 06 1B 00 15 02 56 00 07 00 00 00 00 1D CF 75 4A D4 13 07 00 00 00 3F 09 01 " +
                 "09 02 14 09 02 09 01 13 06 1A 00 15 14 07 00 00 00 3F 13 08 03 09 02 09 01 09 03 1E 55 06 19 00 00");
             var expectedResult =
-                "v0 = (EVAL[ab322b37]*3.1415927)/180;\n" +
-                "v1 = cos(v0)/EVAL[c79af6d2];\n" +
-                "v2 = sin(v0)/EVAL[c79af6d2];\n" +
-                "v3 = ((((dot2(EVAL[280d8216],EVAL[280d8216])>1e-05) ? (EVAL[280d8216]*time()) : 0)+EVAL[d44a75cf])-(.5*float2(v1-v2,v2+v1)))+.5;\n" +
+                "v0 = (MATERIAL_PARAM[ab322b37]*3.1415927)/180;\n" +
+                "v1 = cos(v0)/MATERIAL_PARAM[c79af6d2];\n" +
+                "v2 = sin(v0)/MATERIAL_PARAM[c79af6d2];\n" +
+                "v3 = ((((dot2(MATERIAL_PARAM[280d8216],MATERIAL_PARAM[280d8216])>1e-05) ? (MATERIAL_PARAM[280d8216]*time()) : 0)+MATERIAL_PARAM[d44a75cf])-(.5*float2(v1-v2,v2+v1)))+.5;\n" +
                 "float3(v2,v1,v3.y)";
             Assert.That(new VfxEval(testInput, omitReturnStatement: true).DynamicExpressionResult, Is.EqualTo(expectedResult));
         }
 
+
+        [Test]
+        public void TestMatrixColorTint2_GrayInput()
+        {
+            // Gray has zero saturation, result should be ~identity
+            var result = VfxEvalFunctions.MatrixColorTint2(new Vector3(0.5f, 0.5f, 0.5f), 1.0f);
+            AssertMatrixEqual(Matrix4x4.Identity, result, 1e-5f);
+        }
+
+        [Test]
+        public void TestMatrixColorTint2_WhiteInput()
+        {
+            // White has zero saturation, result should be ~identity
+            var result = VfxEvalFunctions.MatrixColorTint2(new Vector3(1f, 1f, 1f), 1.0f);
+            AssertMatrixEqual(Matrix4x4.Identity, result, 1e-5f);
+        }
+
+        [Test]
+        public void TestMatrixColorTint2_PureRed()
+        {
+            var result = VfxEvalFunctions.MatrixColorTint2(new Vector3(1f, 0f, 0f), 1.0f);
+            var expected = new Matrix4x4(
+                0f, 0f, 0f, 0.99999994f,
+                0f, 0f, 0f, 5.3124536E-09f,
+                0f, 0f, 0f, -2.9802322E-08f,
+                0f, 0f, 0f, 1f
+            );
+            AssertMatrixEqual(expected, result, 1e-5f);
+        }
+
+        [Test]
+        public void TestMatrixColorTint2_WarmColor()
+        {
+            var result = VfxEvalFunctions.MatrixColorTint2(new Vector3(0.8f, 0.2f, 0.1f), 0.5f);
+            var expected = new Matrix4x4(
+                0.16458952f, 0.44803202f, 0.0045659216f, 0.57826537f,
+                0.039589547f, 0.57303196f, 0.0045659216f, 0.053265363f,
+                0.039589554f, 0.44803208f, 0.12956592f, -0.034234628f,
+                0f, 0f, 0f, 1f
+            );
+            AssertMatrixEqual(expected, result, 1e-5f);
+        }
+
+        [Test]
+        public void TestMatrixColorTint2_BluishColor()
+        {
+            var result = VfxEvalFunctions.MatrixColorTint2(new Vector3(0.3f, 0.6f, 0.9f), 1.0f);
+            var expected = new Matrix4x4(
+                0.351208f, 0.20228605f, 0.0020615086f, 0.07141057f,
+                0.017874645f, 0.5356194f, 0.00206151f, 0.27141058f,
+                0.01787465f, 0.20228608f, 0.3353949f, 0.47141054f,
+                0f, 0f, 0f, 1f
+            );
+            AssertMatrixEqual(expected, result, 1e-5f);
+        }
+
+        [Test]
+        public void TestMatrixColorCorrect2_Identity()
+        {
+            // contrast=1, saturation=1, brightness=1 should be ~identity
+            var result = VfxEvalFunctions.MatrixColorCorrect2(new Vector3(1f, 1f, 1f), new Vector3(0.5f, 0.5f, 0.5f));
+            AssertMatrixEqual(Matrix4x4.Identity, result, 1e-5f);
+        }
+
+        [Test]
+        public void TestMatrixColorCorrect2_Adjusted()
+        {
+            var result = VfxEvalFunctions.MatrixColorCorrect2(new Vector3(1.2f, 0.8f, 1.5f), new Vector3(0.3f, 0.4f, 0.5f));
+            var expected = new Matrix4x4(
+                1.468957f, 0.32770345f, 0.003339633f, -0.095573045f,
+                0.028956933f, 1.7677034f, 0.0033396427f, -0.11957306f,
+                0.02895683f, 0.32770318f, 1.4433398f, -0.14357306f,
+                0f, 0f, 0f, 1f
+            );
+            AssertMatrixEqual(expected, result, 1e-5f);
+        }
+
+        [Test]
+        public void TestNotOpcode()
+        {
+            // !1
+            var exampleStr = "07 00 00 80 3F 0C 00";
+            var expectedResult = "return !1;";
+            Assert.That(new VfxEval(ParseString(exampleStr)).DynamicExpressionResult, Is.EqualTo(expectedResult));
+        }
+
+        [Test]
+        public void TestNegateOpcode()
+        {
+            // -5
+            var exampleStr = "07 00 00 A0 40 18 00";
+            var expectedResult = "return -5;";
+            Assert.That(new VfxEval(ParseString(exampleStr)).DynamicExpressionResult, Is.EqualTo(expectedResult));
+        }
+
+        [Test]
+        public void TestDoubleNegate()
+        {
+            // --3
+            var exampleStr = "07 00 00 40 40 18 18 00";
+            var expectedResult = "return --3;";
+            Assert.That(new VfxEval(ParseString(exampleStr)).DynamicExpressionResult, Is.EqualTo(expectedResult));
+        }
+
+        [Test]
+        public void TestModuloOpcode()
+        {
+            // 10 % 3
+            var exampleStr = "07 00 00 20 41 07 00 00 40 40 17 00";
+            var expectedResult = "return 10%3;";
+            Assert.That(new VfxEval(ParseString(exampleStr)).DynamicExpressionResult, Is.EqualTo(expectedResult));
+        }
+
+        [Test]
+        public void TestDivisionOpcode()
+        {
+            // 10 / 2
+            var exampleStr = "07 00 00 20 41 07 00 00 00 40 16 00";
+            var expectedResult = "return 10/2;";
+            Assert.That(new VfxEval(ParseString(exampleStr)).DynamicExpressionResult, Is.EqualTo(expectedResult));
+        }
+
+        [Test]
+        public void TestMixedOperatorPrecedence()
+        {
+            // (1*2)+3-4 → ((1*2)+3)-4
+            var exampleStr = "07 00 00 80 3F 07 00 00 00 40 15 07 00 00 40 40 13 07 00 00 80 40 14 00";
+            var expectedResult = "return ((1*2)+3)-4;";
+            Assert.That(new VfxEval(ParseString(exampleStr)).DynamicExpressionResult, Is.EqualTo(expectedResult));
+        }
+
+        [Test]
+        public void TestMixedOperatorsAddMul()
+        {
+            // (1+2) - (3*4)
+            var exampleStr = "07 00 00 80 3F 07 00 00 00 40 13 07 00 00 40 40 07 00 00 80 40 15 14 00";
+            var expectedResult = "return (1+2)-(3*4);";
+            Assert.That(new VfxEval(ParseString(exampleStr)).DynamicExpressionResult, Is.EqualTo(expectedResult));
+        }
+
+        [Test]
+        public void TestNotWithComparison()
+        {
+            // !(1>2)
+            var exampleStr = "07 00 00 80 3F 07 00 00 00 40 0F 0C 00";
+            var expectedResult = "return !(1>2);";
+            Assert.That(new VfxEval(ParseString(exampleStr)).DynamicExpressionResult, Is.EqualTo(expectedResult));
+        }
+
+        [Test]
+        public void TestNegateWithAddition()
+        {
+            // -1 + 2
+            var exampleStr = "07 00 00 80 3F 18 07 00 00 00 40 13 00";
+            var expectedResult = "return -1+2;";
+            Assert.That(new VfxEval(ParseString(exampleStr)).DynamicExpressionResult, Is.EqualTo(expectedResult));
+        }
+
+        [Test]
+        public void TestComparisonOperatorChain()
+        {
+            // (1==2) != (3>=4)
+            var exampleStr = "07 00 00 80 3F 07 00 00 00 40 0D 07 00 00 40 40 07 00 00 80 40 10 0E 00";
+            var expectedResult = "return (1==2)!=(3>=4);";
+            Assert.That(new VfxEval(ParseString(exampleStr)).DynamicExpressionResult, Is.EqualTo(expectedResult));
+        }
+
+        [Test]
+        public void TestComplexNotExpression()
+        {
+            // !((1+2) > (3*4))
+            var exampleStr = "07 00 00 80 3F 07 00 00 00 40 13 07 00 00 40 40 07 00 00 80 40 15 0F 0C 00";
+            var expectedResult = "return !((1+2)>(3*4));";
+            Assert.That(new VfxEval(ParseString(exampleStr)).DynamicExpressionResult, Is.EqualTo(expectedResult));
+        }
+
+        [Test]
+        public void TestNestedFunctionCalls()
+        {
+            // cos(sin(10))
+            var exampleStr = "07 00 00 20 41 06 00 00 06 01 00 00";
+            var expectedResult = "return cos(sin(10));";
+            Assert.That(new VfxEval(ParseString(exampleStr)).DynamicExpressionResult, Is.EqualTo(expectedResult));
+        }
+
+        [Test]
+        public void TestLerpFunction()
+        {
+            // lerp(1, 2, .5)
+            var exampleStr = "07 00 00 80 3F 07 00 00 00 40 07 00 00 00 3F 06 08 00 00";
+            var expectedResult = "return lerp(1,2,.5);";
+            Assert.That(new VfxEval(ParseString(exampleStr)).DynamicExpressionResult, Is.EqualTo(expectedResult));
+        }
+
+        [Test]
+        public void TestClampFunction()
+        {
+            // clamp(10, 0, 100)
+            var exampleStr = "07 00 00 20 41 07 00 00 00 00 07 00 00 C8 42 06 07 00 00";
+            var expectedResult = "return clamp(10,0,100);";
+            Assert.That(new VfxEval(ParseString(exampleStr)).DynamicExpressionResult, Is.EqualTo(expectedResult));
+        }
+
+        [Test]
+        public void TestSaturateFunction()
+        {
+            // saturate(.5)
+            var exampleStr = "07 00 00 00 3F 06 06 00 00";
+            var expectedResult = "return saturate(.5);";
+            Assert.That(new VfxEval(ParseString(exampleStr)).DynamicExpressionResult, Is.EqualTo(expectedResult));
+        }
+
+        [Test]
+        public void TestSwizzleW()
+        {
+            // ATTRIBUTE.w
+            var exampleStr = "19 01 02 03 04 1E FF 00";
+            var expectedResult = "return ATTRIBUTE[04030201].w;";
+            Assert.That(new VfxEval(ParseString(exampleStr)).DynamicExpressionResult, Is.EqualTo(expectedResult));
+        }
+
+        [Test]
+        public void TestSwizzleXyzw()
+        {
+            // ATTRIBUTE.xyzw
+            var exampleStr = "19 01 02 03 04 1E E4 00";
+            var expectedResult = "return ATTRIBUTE[04030201].xyzw;";
+            Assert.That(new VfxEval(ParseString(exampleStr)).DynamicExpressionResult, Is.EqualTo(expectedResult));
+        }
+
+        [Test]
+        public void TestSwizzleXy()
+        {
+            // ATTRIBUTE.xy (packed as xyyy, trimmed to xy)
+            var exampleStr = "19 01 02 03 04 1E 54 00";
+            var expectedResult = "return ATTRIBUTE[04030201].xy;";
+            Assert.That(new VfxEval(ParseString(exampleStr)).DynamicExpressionResult, Is.EqualTo(expectedResult));
+        }
+
+        [Test]
+        public void TestSwizzleX()
+        {
+            // ATTRIBUTE.x (packed as xxxx, trimmed to x)
+            var exampleStr = "19 01 02 03 04 1E 00 00";
+            var expectedResult = "return ATTRIBUTE[04030201].x;";
+            Assert.That(new VfxEval(ParseString(exampleStr)).DynamicExpressionResult, Is.EqualTo(expectedResult));
+        }
+
+        [Test]
+        public void TestMultipleStoreLoad()
+        {
+            // v0 = 1; v1 = 2; return v0+v1;
+            var exampleStr = "07 00 00 80 3F 08 00 07 00 00 00 40 08 01 09 00 09 01 13 00";
+            var expectedResult = "v0 = 1;\nv1 = 2;\nreturn v0+v1;";
+            Assert.That(new VfxEval(ParseString(exampleStr)).DynamicExpressionResult, Is.EqualTo(expectedResult));
+        }
+
+        [Test]
+        public void TestFeatureWithNames()
+        {
+            // FEATURE[0] with feature names
+            var exampleStr = "1A 00 00";
+            Assert.That(new VfxEval(ParseString(exampleStr), omitReturnStatement: true, features: ["MY_FEATURE", "OTHER"]).DynamicExpressionResult, Is.EqualTo("MY_FEATURE"));
+        }
+
+        [Test]
+        public void TestFeatureWithoutNames()
+        {
+            // FEATURE[2] without feature names
+            var exampleStr = "1A 02 00";
+            Assert.That(new VfxEval(ParseString(exampleStr), omitReturnStatement: true).DynamicExpressionResult, Is.EqualTo("FEAT[2]"));
+        }
+
+        [Test]
+        public void TestMaterialParam()
+        {
+            // MATERIAL_PARAM[04030201]
+            var exampleStr = "1D 01 02 03 04 00";
+            var expectedResult = "return MATERIAL_PARAM[04030201];";
+            Assert.That(new VfxEval(ParseString(exampleStr)).DynamicExpressionResult, Is.EqualTo(expectedResult));
+        }
+
+        [Test]
+        public void TestExistsStandalone()
+        {
+            // exists(ATTRIBUTE[04030201])
+            var exampleStr = "1F 01 02 03 04 00";
+            var expectedResult = "return exists(ATTRIBUTE[04030201]);";
+            Assert.That(new VfxEval(ParseString(exampleStr)).DynamicExpressionResult, Is.EqualTo(expectedResult));
+        }
+
+        [Test]
+        public void TestOmitReturnStatement()
+        {
+            // 1+2 with omitReturnStatement
+            var exampleStr = "07 00 00 80 3F 07 00 00 00 40 13 00";
+            var expectedResult = "1+2";
+            Assert.That(new VfxEval(ParseString(exampleStr), omitReturnStatement: true).DynamicExpressionResult, Is.EqualTo(expectedResult));
+        }
+
+        [Test]
+        public void TestUnknownOpcodeThrows()
+        {
+            // NOP (0x01) has no handler
+            var exampleStr = "01";
+            Assert.Throws<InvalidDataException>(() => new VfxEval(ParseString(exampleStr)));
+        }
+
+        [Test]
+        public void TestInsufficientExpressionsForBinaryOp()
+        {
+            // Only one float, then ADD which needs two
+            var exampleStr = "07 00 00 80 3F 13";
+            Assert.Throws<InvalidDataException>(() => new VfxEval(ParseString(exampleStr)));
+        }
+
+        [Test]
+        public void TestReturnWithRemainingDataThrows()
+        {
+            // RETURN but there's still data after
+            var exampleStr = "07 00 00 80 3F 00 07";
+            Assert.Throws<InvalidDataException>(() => new VfxEval(ParseString(exampleStr)));
+        }
+
+        [Test]
+        public void TestInvalidFunctionIdThrows()
+        {
+            // FUNC with out-of-range function id (0xFF)
+            var exampleStr = "06 FF 00";
+            Assert.Throws<InvalidDataException>(() => new VfxEval(ParseString(exampleStr)));
+        }
+
+        [Test]
+        public void TestMalformedFunctionSignatureThrows()
+        {
+            // FUNC with non-zero check byte
+            var exampleStr = "07 00 00 80 3F 06 00 01";
+            Assert.Throws<InvalidDataException>(() => new VfxEval(ParseString(exampleStr)));
+        }
+
+        private static void AssertMatrixEqual(Matrix4x4 expected, Matrix4x4 actual, float tolerance)
+        {
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(actual.M11, Is.EqualTo(expected.M11).Within(tolerance));
+                Assert.That(actual.M12, Is.EqualTo(expected.M12).Within(tolerance));
+                Assert.That(actual.M13, Is.EqualTo(expected.M13).Within(tolerance));
+                Assert.That(actual.M14, Is.EqualTo(expected.M14).Within(tolerance));
+                Assert.That(actual.M21, Is.EqualTo(expected.M21).Within(tolerance));
+                Assert.That(actual.M22, Is.EqualTo(expected.M22).Within(tolerance));
+                Assert.That(actual.M23, Is.EqualTo(expected.M23).Within(tolerance));
+                Assert.That(actual.M24, Is.EqualTo(expected.M24).Within(tolerance));
+                Assert.That(actual.M31, Is.EqualTo(expected.M31).Within(tolerance));
+                Assert.That(actual.M32, Is.EqualTo(expected.M32).Within(tolerance));
+                Assert.That(actual.M33, Is.EqualTo(expected.M33).Within(tolerance));
+                Assert.That(actual.M34, Is.EqualTo(expected.M34).Within(tolerance));
+                Assert.That(actual.M41, Is.EqualTo(expected.M41).Within(tolerance));
+                Assert.That(actual.M42, Is.EqualTo(expected.M42).Within(tolerance));
+                Assert.That(actual.M43, Is.EqualTo(expected.M43).Within(tolerance));
+                Assert.That(actual.M44, Is.EqualTo(expected.M44).Within(tolerance));
+            }
+        }
 
         private static byte[] ParseString(string bytestring)
         {

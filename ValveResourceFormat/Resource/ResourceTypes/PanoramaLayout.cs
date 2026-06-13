@@ -1,32 +1,42 @@
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Security;
-using ValveResourceFormat.Serialization;
+using ValveKeyValue;
 using ValveResourceFormat.Serialization.KeyValues;
-using ValveResourceFormat.Utils;
 
 namespace ValveResourceFormat.ResourceTypes
 {
+    /// <summary>
+    /// Represents a Panorama layout resource.
+    /// </summary>
     public class PanoramaLayout : Panorama
     {
-        private BinaryKV3 _layoutContent;
+        private BinaryKV3? _layoutContent;
 
-        public override void Read(BinaryReader reader, Resource resource)
+        /// <inheritdoc/>
+        public override void Read(BinaryReader reader)
         {
-            base.Read(reader, resource);
+            base.Read(reader);
 
-            _layoutContent = resource.GetBlockByType(BlockType.LaCo) as BinaryKV3;
+            Debug.Assert(Resource != null);
+
+            _layoutContent = Resource.GetBlockByType(BlockType.LaCo) as BinaryKV3;
         }
 
-        public override string ToString()
+        /// <inheritdoc/>
+        /// <remarks>
+        /// Outputs the layout content in a formatted XML-like structure.
+        /// </remarks>
+        public override void WriteText(IndentedTextWriter writer)
         {
             if (_layoutContent == default)
             {
-                return base.ToString();
+                base.WriteText(writer);
             }
             else
             {
-                return PanoramaLayoutPrinter.Print(_layoutContent.AsKeyValueCollection());
+                writer.Write(PanoramaLayoutPrinter.Print(_layoutContent.AsKeyValueCollection()));
             }
         }
     }
@@ -53,7 +63,7 @@ namespace ValveResourceFormat.ResourceTypes
 
         private static void PrintNode(KVObject node, IndentedTextWriter writer)
         {
-            var type = node.GetProperty<string>("eType");
+            var type = node.GetStringProperty("eType");
             switch (type)
             {
                 case "ROOT": PrintPanelBase("root", node, writer); break;
@@ -65,12 +75,12 @@ namespace ValveResourceFormat.ResourceTypes
                 case "SNIPPET": PrintSnippet(node, writer); break;
                 case "SNIPPETS": PrintPanelBase("snippets", node, writer); break;
                 default: throw new UnexpectedMagicException("Unknown node type", type, nameof(type));
-            };
+            }
         }
 
         private static void PrintPanel(KVObject node, IndentedTextWriter writer)
         {
-            var name = node.GetProperty<string>("name");
+            var name = node.GetStringProperty("name");
             PrintPanelBase(name, node, writer);
         }
 
@@ -108,7 +118,7 @@ namespace ValveResourceFormat.ResourceTypes
 
         private static void PrintScriptBody(KVObject node, IndentedTextWriter writer)
         {
-            var content = node.GetProperty<string>("name");
+            var content = node.GetStringProperty("name");
 
             writer.Write("<script><![CDATA[");
             writer.Write(content);
@@ -119,7 +129,7 @@ namespace ValveResourceFormat.ResourceTypes
         {
             var nodeChildren = NodeChildren(node);
 
-            var name = node.GetProperty<string>("name");
+            var name = node.GetStringProperty("name");
 
             writer.WriteLine($"<snippet name=\"{name}\">");
             writer.Indent++;
@@ -144,7 +154,7 @@ namespace ValveResourceFormat.ResourceTypes
         {
             foreach (var attribute in attributes)
             {
-                var name = attribute.GetProperty<string>("name");
+                var name = attribute.GetStringProperty("name");
                 var value = attribute.GetSubCollection("child");
 
                 writer.Write($" {name}=");
@@ -154,8 +164,8 @@ namespace ValveResourceFormat.ResourceTypes
 
         private static void PrintAttributeOrReferenceValue(KVObject attributeValue, IndentedTextWriter writer)
         {
-            var value = attributeValue.GetProperty<string>("name");
-            var type = attributeValue.GetProperty<string>("eType");
+            var value = attributeValue.GetStringProperty("name");
+            var type = attributeValue.GetStringProperty("eType");
 
             value = type switch
             {
@@ -168,11 +178,11 @@ namespace ValveResourceFormat.ResourceTypes
             writer.Write($"\"{value}\"");
         }
 
-        private static bool IsAttribute(KVObject node) => node.GetProperty<string>("eType") == "PANEL_ATTRIBUTE";
+        private static bool IsAttribute(KVObject node) => node.GetStringProperty("eType") == "PANEL_ATTRIBUTE";
         private static IEnumerable<KVObject> NodeAttributes(KVObject node) => SubNodes(node).Where(n => IsAttribute(n));
         private static IEnumerable<KVObject> NodeChildren(KVObject node) => SubNodes(node).Where(n => !IsAttribute(n));
 
-        private static KVObject[] SubNodes(KVObject node)
+        private static IReadOnlyList<KVObject> SubNodes(KVObject node)
         {
             if (node.ContainsKey("vecChildren"))
             {

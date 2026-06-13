@@ -1,22 +1,21 @@
+using System.Runtime.InteropServices;
 using SkiaSharp;
+using RGBA8888 = (byte R, byte G, byte B, byte A);
 
 namespace ValveResourceFormat.TextureDecoders
 {
-    internal class DecodeRGBA8888 : ITextureDecoder
+    internal readonly struct DecodeRGBA8888 : ITextureDecoder
     {
         public void Decode(SKBitmap res, Span<byte> input)
         {
             using var pixels = res.PeekPixels();
-            var span = pixels.GetPixelSpan<SKColor>();
-            var offset = 0;
+            var inputPixels = MemoryMarshal.Cast<byte, RGBA8888>(input);
+            var outPixels = pixels.GetPixelSpan<SKColor>(); // Note: output pixels have BGRA8888 order
 
-            for (var i = 0; i < span.Length; i++)
+            for (var i = 0; i < outPixels.Length; i++)
             {
-                var colorR = input[offset++];
-                var colorG = input[offset++];
-                var colorB = input[offset++];
-                var colorA = input[offset++];
-                span[i] = new SKColor(colorR, colorG, colorB, colorA);
+                var color = inputPixels[i];
+                outPixels[i] = new SKColor(color.R, color.G, color.B, color.A);
             }
         }
     }

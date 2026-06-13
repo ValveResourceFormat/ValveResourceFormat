@@ -3,15 +3,18 @@ name: CI
 permissions:
   actions: write
   contents: write
+  id-token: write
 
 on:
   push:
     paths-ignore:
     - '.github/*_TEMPLATE/**'
+    - 'docs/**'
     - '*.md'
   pull_request:
     paths-ignore:
     - '.github/*_TEMPLATE/**'
+    - 'docs/**'
     - '*.md'
   workflow_dispatch:
   schedule:
@@ -24,7 +27,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, windows-latest, macos-latest]
+        os: [ubuntu-latest, ubuntu-24.04-arm, windows-latest, windows-11-arm, macos-latest]
 
     runs-on: ${{ matrix.os }}
 
@@ -32,15 +35,15 @@ jobs:
       NUGET_PACKAGES: ${{ github.workspace }}/.nuget/packages
 
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v6
 
     - name: Setup .NET Core
-      uses: actions/setup-dotnet@v4
+      uses: actions/setup-dotnet@v5
       with:
-        dotnet-version: 8.0.x
+        dotnet-version: 10.0.x
 
     - name: Cache NuGet
-      uses: actions/cache@v4
+      uses: actions/cache@v5
       with:
         path: ${{ env.NUGET_PACKAGES }}
         key: nuget-${{ runner.os }}-${{ hashFiles('**/*.csproj') }}
@@ -48,161 +51,235 @@ jobs:
           nuget-${{ runner.os }}-
           nuget-
 
-    - name: Build Library
-      run: dotnet build -c Release ./ValveResourceFormat/ValveResourceFormat.csproj
-
-    - name: Build CLI
-      run: dotnet build -c Release ./Decompiler/Decompiler.csproj
-
-    - name: Build GUI
-      if: matrix.os == 'windows-latest'
-      run: dotnet build -c Release ./ValveResourceFormat/ValveResourceFormat.csproj
-
     - name: Run tests
-      run: dotnet test ./Tests/Tests.csproj /p:CollectCoverage=true /p:CoverletOutputFormat=lcov /p:CoverletOutput='./lcov.info' /p:Include="[ValveResourceFormat*]*"
+      run: dotnet test --project ./Tests/Tests.csproj --configuration Release --coverage --coverage-output-format cobertura --coverage-output coverage.cobertura.xml
 
 #    - name: Check formatting
 #      if: matrix.os == 'ubuntu-latest'
 #      run: dotnet format --verify-no-changes
 
     - name: Pack nupkg
+      if: matrix.os == 'ubuntu-latest'
       run: dotnet pack --configuration Release ValveResourceFormat/ValveResourceFormat.csproj
+
+    - name: Pack renderer nupkg
+      if: matrix.os == 'ubuntu-latest'
+      run: dotnet pack --configuration Release Renderer/Renderer.csproj
 
     - name: Publish GUI
       if: matrix.os == 'windows-latest'
       run: dotnet publish --configuration Release --self-contained --runtime win-x64 GUI/GUI.csproj
 
-    - name: Publish Decompiler (Windows x64)
+    - name: Publish CLI (Windows x64)
       if: matrix.os == 'windows-latest'
-      run: dotnet publish --configuration Release --self-contained --runtime win-x64 Decompiler/Decompiler.csproj
+      run: dotnet publish --configuration Release --self-contained --runtime win-x64 CLI/CLI.csproj
 
-    - name: Publish Decompiler (Linux x64)
+    - name: Publish CLI (Windows arm64)
+      if: matrix.os == 'windows-11-arm'
+      run: dotnet publish --configuration Release --self-contained --runtime win-arm64 CLI/CLI.csproj
+
+    - name: Publish CLI (Linux x64)
       if: matrix.os == 'ubuntu-latest'
-      run: dotnet publish --configuration Release --self-contained --runtime linux-x64 Decompiler/Decompiler.csproj
+      run: dotnet publish --configuration Release --self-contained --runtime linux-x64 CLI/CLI.csproj
 
-    - name: Publish Decompiler (Linux arm)
+    - name: Publish CLI (Linux arm)
       if: matrix.os == 'ubuntu-latest'
-      run: dotnet publish --configuration Release --self-contained --runtime linux-arm Decompiler/Decompiler.csproj
+      run: dotnet publish --configuration Release --self-contained --runtime linux-arm CLI/CLI.csproj
 
-    - name: Publish Decompiler (Linux arm64)
-      if: matrix.os == 'ubuntu-latest'
-      run: dotnet publish --configuration Release --self-contained --runtime linux-arm64 Decompiler/Decompiler.csproj
+    - name: Publish CLI (Linux arm64)
+      if: matrix.os == 'ubuntu-24.04-arm'
+      run: dotnet publish --configuration Release --self-contained --runtime linux-arm64 CLI/CLI.csproj
 
-    - name: Publish Decompiler (macOS x64)
+    - name: Publish CLI (macOS x64)
       if: matrix.os == 'macos-latest'
-      run: dotnet publish --configuration Release --self-contained --runtime osx-x64 Decompiler/Decompiler.csproj
+      run: dotnet publish --configuration Release --self-contained --runtime osx-x64 CLI/CLI.csproj
 
-    - name: Publish Decompiler (macOS arm64)
+    - name: Publish CLI (macOS arm64)
       if: matrix.os == 'macos-latest'
-      run: dotnet publish --configuration Release --self-contained --runtime osx-arm64 Decompiler/Decompiler.csproj
+      run: dotnet publish --configuration Release --self-contained --runtime osx-arm64 CLI/CLI.csproj
+
+    - name: Build misc projects
+      if: matrix.os == 'ubuntu-latest'
+      run: dotnet build Misc/MiscVrfProjects.slnx
 
     - name: Upload GUI
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v7
       if: matrix.os == 'windows-latest'
       with:
+        #archive: false # https://github.com/oprypin/nightly.link/issues/88
         name: Source2Viewer
-        path: GUI/bin/Release/win-x64/publish
+        path: 'GUI/bin/Release/win-x64/publish/*.exe'
 
     - name: Upload nupkg
-      uses: actions/upload-artifact@v4
-      if: matrix.os == 'windows-latest'
+      uses: actions/upload-artifact@v7
+      if: matrix.os == 'ubuntu-latest'
       with:
         name: nupkg
         path: 'ValveResourceFormat/bin/Release/*.nupkg'
 
-    - name: Upload Decompiler (Windows x64)
-      uses: actions/upload-artifact@v4
+    - name: Upload renderer nupkg
+      uses: actions/upload-artifact@v7
+      if: matrix.os == 'ubuntu-latest'
+      with:
+        name: renderer-nupkg
+        path: 'Renderer/bin/Release/*.nupkg'
+
+    - name: Upload CLI (Windows x64)
+      uses: actions/upload-artifact@v7
       if: matrix.os == 'windows-latest'
       with:
-        name: Decompiler-windows-x64
-        path: Decompiler/bin/Release/win-x64/publish
+        name: cli-windows-x64
+        path: |
+          CLI/bin/Release/win-x64/publish
+          !**/*.pdb
 
-    - name: Upload Decompiler (Linux x64)
-      uses: actions/upload-artifact@v4
+    - name: Upload CLI (Windows arm64)
+      uses: actions/upload-artifact@v7
+      if: matrix.os == 'windows-11-arm'
+      with:
+        name: cli-windows-arm64
+        path: |
+          CLI/bin/Release/win-arm64/publish
+          !**/*.pdb
+
+    - name: Upload CLI (Linux x64)
+      uses: actions/upload-artifact@v7
       if: matrix.os == 'ubuntu-latest'
       with:
-        name: Decompiler-linux-x64
-        path: Decompiler/bin/Release/linux-x64/publish
+        name: cli-linux-x64
+        path: |
+          CLI/bin/Release/linux-x64/publish
+          !**/*.pdb
 
-    - name: Upload Decompiler (Linux arm)
-      uses: actions/upload-artifact@v4
+    - name: Upload CLI (Linux arm)
+      uses: actions/upload-artifact@v7
       if: matrix.os == 'ubuntu-latest'
       with:
-        name: Decompiler-linux-arm
-        path: Decompiler/bin/Release/linux-arm/publish
+        name: cli-linux-arm
+        path: |
+          CLI/bin/Release/linux-arm/publish
+          !**/*.pdb
 
-    - name: Upload Decompiler (Linux arm64)
-      uses: actions/upload-artifact@v4
-      if: matrix.os == 'ubuntu-latest'
+    - name: Upload CLI (Linux arm64)
+      uses: actions/upload-artifact@v7
+      if: matrix.os == 'ubuntu-24.04-arm'
       with:
-        name: Decompiler-linux-arm64
-        path: Decompiler/bin/Release/linux-arm64/publish
+        name: cli-linux-arm64
+        path: |
+          CLI/bin/Release/linux-arm64/publish
+          !**/*.pdb
 
-    - name: Upload Decompiler (macOS x64)
-      uses: actions/upload-artifact@v4
+    - name: Upload CLI (macOS x64)
+      uses: actions/upload-artifact@v7
       if: matrix.os == 'macos-latest'
       with:
-        name: Decompiler-macos-x64
-        path: Decompiler/bin/Release/osx-x64/publish
+        name: cli-macos-x64
+        path: |
+          CLI/bin/Release/osx-x64/publish
+          !**/*.pdb
 
-    - name: Upload Decompiler (macOS arm64)
-      uses: actions/upload-artifact@v4
+    - name: Upload CLI (macOS arm64)
+      uses: actions/upload-artifact@v7
       if: matrix.os == 'macos-latest'
       with:
-        name: Decompiler-macos-arm64
-        path: Decompiler/bin/Release/osx-arm64/publish
+        name: cli-macos-arm64
+        path: |
+          CLI/bin/Release/osx-arm64/publish
+          !**/*.pdb
 
     - name: Upload test coverage
-      uses: codecov/codecov-action@v4
+      uses: codecov/codecov-action@v6
       if: github.ref == 'refs/heads/master'
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
-        files: ./Tests/lcov.info
+        files: ./Tests/bin/Release/TestResults/coverage.cobertura.xml
         fail_ci_if_error: true
         verbose: true
 
   release:
+    name: Create release
     if: startsWith(github.ref, 'refs/tags/')
     needs: build
     runs-on: ubuntu-latest
+
     steps:
     - name: Download artifacts
-      uses: actions/download-artifact@v4
+      uses: actions/download-artifact@v8
       with:
         path: artifacts
 
     - name: Display artifacts folder structure
-      run: ls -Rl
+      run: find .
       working-directory: artifacts
+
+    - name: Upload binaries to be signed
+      id: signpath-artifact
+      uses: actions/upload-artifact@v7
+      with:
+        name: signpath-to-be-signed
+        retention-days: 1
+        # If the folder or executable names change, login to signpath
+        # and modify the "Artifact Configurations" there, as it specifies the paths
+        path: |
+          artifacts/Source2Viewer/
+          artifacts/cli-windows-x64/
+          artifacts/cli-windows-arm64/
+
+    - name: Sign the binaries
+      uses: signpath/github-action-submit-signing-request@v2
+      with:
+        api-token: '${{ secrets.SIGNPATH_API_TOKEN }}'
+        organization-id: '4ff8c8f4-926e-4ee5-8886-7899212bb76e'
+        github-artifact-id: '${{ steps.signpath-artifact.outputs.artifact-id }}'
+        project-slug: 'ValveResourceFormat'
+        signing-policy-slug: 'release-signing'
+        output-artifact-directory: 'signed'
+        wait-for-completion: true
+
+    - name: Display signed folder structure
+      run: find .
+      working-directory: signed
 
     - name: Create release files
       run: |
+       set -eux
        mkdir release
-       chmod +x artifacts/Decompiler-linux-x64/Decompiler
-       chmod +x artifacts/Decompiler-linux-arm/Decompiler
-       chmod +x artifacts/Decompiler-linux-arm64/Decompiler
-       chmod +x artifacts/Decompiler-macos-x64/Decompiler
-       chmod +x artifacts/Decompiler-macos-arm64/Decompiler
-       zip -9j release/Decompiler-windows-x64.zip artifacts/Decompiler-windows-x64/*
-       zip -9j release/Decompiler-linux-x64.zip artifacts/Decompiler-linux-x64/*
-       zip -9j release/Decompiler-linux-arm.zip artifacts/Decompiler-linux-arm/*
-       zip -9j release/Decompiler-linux-arm64.zip artifacts/Decompiler-linux-arm64/*
-       zip -9j release/Decompiler-macos-x64.zip artifacts/Decompiler-macos-x64/*
-       zip -9j release/Decompiler-macos-arm64.zip artifacts/Decompiler-macos-arm64/*
-       mv artifacts/Source2Viewer/Source2Viewer.exe release/
-       mv artifacts/nupkg/*.nupkg release/
+       chmod +x artifacts/cli-linux-x64/Source2Viewer-CLI
+       chmod +x artifacts/cli-linux-arm/Source2Viewer-CLI
+       chmod +x artifacts/cli-linux-arm64/Source2Viewer-CLI
+       chmod +x artifacts/cli-macos-x64/Source2Viewer-CLI
+       chmod +x artifacts/cli-macos-arm64/Source2Viewer-CLI
+       zip -9j release/cli-windows-x64.zip signed/cli-windows-x64/*
+       zip -9j release/cli-windows-arm64.zip signed/cli-windows-arm64/*
+       zip -9j release/cli-linux-x64.zip artifacts/cli-linux-x64/*
+       zip -9j release/cli-linux-arm.zip artifacts/cli-linux-arm/*
+       zip -9j release/cli-linux-arm64.zip artifacts/cli-linux-arm64/*
+       zip -9j release/cli-macos-x64.zip artifacts/cli-macos-x64/*
+       zip -9j release/cli-macos-arm64.zip artifacts/cli-macos-arm64/*
+       mv signed/Source2Viewer/Source2Viewer.exe release/
+       mv artifacts/nupkg/ValveResourceFormat.*.nupkg release/ValveResourceFormat.nupkg
+       mv artifacts/renderer-nupkg/ValveResourceFormat.Renderer.*.nupkg release/ValveResourceFormat.Renderer.nupkg
 
     - name: Display structure of archived files
       run: ls -Rl
       working-directory: release
 
     - name: Release
-      uses: softprops/action-gh-release@v2
+      uses: softprops/action-gh-release@v3
       with:
         draft: true
         files: release/*
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
+    - name: NuGet login
+      uses: NuGet/login@v1
+      id: login
+      with:
+        user: ${{ secrets.NUGET_USER }}
+
     - name: Publish to NuGet Gallery
-      run: dotnet nuget push artifacts/nupkg/*.nupkg --api-key ${{ secrets.NUGET_API_KEY }} --source https://api.nuget.org/v3/index.json
+      run: dotnet nuget push release/ValveResourceFormat.nupkg --api-key ${{ steps.login.outputs.NUGET_API_KEY }} --source "https://api.nuget.org/v3/index.json"
+
+    - name: Publish renderer to NuGet Gallery
+      run: dotnet nuget push release/ValveResourceFormat.Renderer.nupkg --api-key ${{ steps.login.outputs.NUGET_API_KEY }} --source "https://api.nuget.org/v3/index.json"

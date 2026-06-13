@@ -3,11 +3,15 @@ using Datamodel;
 using ValveResourceFormat.IO.ContentFormats.DmxModel;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.ResourceTypes.ModelAnimation;
+using ValveResourceFormat.ResourceTypes.ModelFlex;
 
 namespace ValveResourceFormat.IO;
 
 partial class ModelExtract
 {
+    /// <summary>
+    /// Gets the list of animations to be extracted with their output file names.
+    /// </summary>
     public List<(Animation Anim, string FileName)> AnimationsToExtract { get; } = [];
 
     private void EnqueueAnimations()
@@ -23,7 +27,7 @@ partial class ModelExtract
 
     string GetDmxFileName_ForAnimation(string animationName)
     {
-        var fileName = GetModelName();
+        var fileName = ModelName;
         return (Path.GetDirectoryName(fileName)
             + Path.DirectorySeparatorChar
             + animationName
@@ -31,32 +35,84 @@ partial class ModelExtract
             .Replace('\\', '/');
     }
 
-    public static byte[] ToDmxAnim(Model model, Animation anim)
+    /// <summary>
+    /// Produces a skeleton DMX file.
+    /// </summary>
+    public static byte[] ToDmxSkeleton(Skeleton skeleton, bool nmSkelAxisFixup = false)
     {
         using var dmx = new Datamodel.Datamodel("model", 22);
 
-        var skeleton = BuildDmeDagSkeleton(model.Skeleton, out var transforms);
+        var dmeSkeleton = BuildDmeDagSkeleton(skeleton, out var transforms, nmSkelAxisFixup);
+
+        using var stream = new MemoryStream();
+
+        dmx.Root = new Element(dmx, "root", null, "DmElement")
+        {
+            ["skeleton"] = dmeSkeleton,
+            ["exportTags"] = new Element(dmx, "exportTags", null, "DmeExportTags")
+            {
+                ["app"] = "sfm", // maya
+                ["source"] = $"Generated with {StringToken.VRF_GENERATOR}",
+            }
+        };
+
+        dmx.Save(stream, "keyvalues2", 4);
+        return stream.ToArray();
+    }
+
+    /// <summary>
+    /// Converts an animation to DMX format.
+    /// </summary>
+    public static byte[] ToDmxAnim(Model model, Animation anim)
+        => ToDmxAnim(model.Skeleton, model.FlexControllers, anim);
+
+    /// <summary>
+    /// Converts an animation to DMX format using skeleton and flex controllers.
+    /// </summary>
+    public static byte[] ToDmxAnim(Skeleton skeleton, FlexController[] flexControllers, Animation anim, bool nmSkelAxisFixup = false)
+    {
+        using var dmx = new Datamodel.Datamodel("model", 22);
+
+        var rootMotionBone = skeleton["root_motion"];
+        var dmeSkeleton = BuildDmeDagSkeleton(skeleton, out var transforms);
 
         var animationList = new DmeAnimationList();
-        var clip = new DmeChannelsClip();
-
-        clip.TimeFrame.Duration = TimeSpan.FromSeconds((double)(anim.FrameCount - 1) / anim.Fps);
-        clip.FrameRate = anim.Fps;
-
-        var frames = new Frame[anim.FrameCount];
-        for (var i = 0; i < anim.FrameCount; i++)
+        var clip = new DmeChannelsClip
         {
-            var frame = new Frame(model.Skeleton, model.FlexControllers)
-            {
-                FrameIndex = i
-            };
-            anim.DecodeFrame(frame);
-            frames[i] = frame;
-        }
+            FrameRate = anim.Fps
+        };
 
-        ProcessRootMotionChannel(anim, skeleton, clip);
-        ProcessBoneChannels(model, anim, transforms, clip, frames);
-        ProcessFlexChannels(model, anim, clip, frames);
+        if (anim.FrameCount > 0)
+        {
+            clip.TimeFrame.Duration = TimeSpan.FromSeconds((double)(anim.FrameCount - 1) / MathF.Max(1f, anim.Fps));
+
+            var frames = new Frame[anim.FrameCount];
+            for (var i = 0; i < anim.FrameCount; i++)
+            {
+                var frame = new Frame(skeleton, flexControllers)
+                {
+                    FrameIndex = i
+                };
+                anim.DecodeFrame(frame);
+                frames[i] = frame;
+
+                if (nmSkelAxisFixup && rootMotionBone != null)
+                {
+                    foreach (var root in rootMotionBone.Children)
+                    {
+                        frame.Bones[root.Index].Position = Vector3.Transform(frame.Bones[root.Index].Position, NmSkelRotationFixup);
+
+                        var q = frame.Bones[root.Index].Angle * NmSkelRotationFixup;
+                        frame.Bones[root.Index].Angle = new(q.Y, q.Z, q.X, q.W);
+                    }
+                }
+            }
+
+
+            ProcessRootMotionChannel(anim, dmeSkeleton, clip);
+            ProcessBoneChannels(skeleton, anim, transforms, clip, frames);
+            ProcessFlexChannels(flexControllers, anim, clip, frames);
+        }
 
         animationList.Animations.Add(clip);
 
@@ -64,31 +120,33 @@ partial class ModelExtract
 
         dmx.Root = new Element(dmx, "root", null, "DmElement")
         {
-            ["skeleton"] = skeleton,
+            ["skeleton"] = dmeSkeleton,
             ["animationList"] = animationList,
             ["exportTags"] = new Element(dmx, "exportTags", null, "DmeExportTags")
             {
                 ["app"] = "sfm", //modeldoc won't import dmx animations without this
-                ["source"] = $"Generated with {ValveResourceFormat.Utils.StringToken.VRF_GENERATOR}",
+                ["source"] = $"Generated with {StringToken.VRF_GENERATOR}",
             }
         };
 
-        dmx.Save(stream, "keyvalues2", 4);
+        dmx.Save(stream, "binary", 9);
 
         return stream.ToArray();
     }
 
-    private static DmeModel BuildDmeDagSkeleton(Skeleton skeleton, out DmeTransform[] transforms)
+    private static Quaternion NmSkelRotationFixup = new(-0.5f, -0.5f, -0.5f, 0.5f);
+
+    private static DmeModel BuildDmeDagSkeleton(Skeleton skeleton, out DmeTransform[] transforms, bool nmSkelAxisFixup = false)
     {
         var dmeSkeleton = new DmeModel();
         var children = new ElementArray();
 
         transforms = new DmeTransform[skeleton.Bones.Length];
-        var boneDags = new DmeDag[skeleton.Bones.Length];
+        var boneDags = new DmeJoint[skeleton.Bones.Length];
 
         foreach (var bone in skeleton.Bones)
         {
-            var dag = new DmeDag
+            var dag = new DmeJoint
             {
                 Name = bone.Name
             };
@@ -99,6 +157,8 @@ partial class ModelExtract
 
             boneDags[bone.Index] = dag;
             transforms[bone.Index] = dag.Transform;
+
+            dmeSkeleton.JointList.Add(dag);
         }
 
         foreach (var bone in skeleton.Bones)
@@ -112,6 +172,24 @@ partial class ModelExtract
             else
             {
                 dmeSkeleton.Children.Add(boneDag);
+            }
+        }
+
+        var rootMotionBone = skeleton["root_motion"];
+
+        if (nmSkelAxisFixup && rootMotionBone != null)
+        {
+            // dmeSkeleton.AxisSystem.UpAxis = 2;
+            // dmeSkeleton.AxisSystem.ForwardParity = -1;
+            // dmeSkeleton.AxisSystem.CoordSys = 2;
+
+            var inverseNmSkelFixup = Quaternion.Inverse(NmSkelRotationFixup);
+            transforms[rootMotionBone.Index].Orientation *= inverseNmSkelFixup;
+
+            foreach (var root in rootMotionBone.Children)
+            {
+                transforms[root.Index].Position = Vector3.Transform(root.Position, NmSkelRotationFixup);
+                transforms[root.Index].Orientation *= NmSkelRotationFixup;
             }
         }
 
@@ -172,7 +250,7 @@ partial class ModelExtract
 
         for (var i = 0; i < anim.FrameCount; i++)
         {
-            var time = i / anim.Fps;
+            var time = i / MathF.Max(1f, anim.Fps);
             var timespan = TimeSpan.FromSeconds(time);
 
             var movement = anim.GetMovementOffsetData(time);
@@ -191,11 +269,11 @@ partial class ModelExtract
         clip.Channels.Add(rootOrientationChannel);
     }
 
-    private static void ProcessFlexChannels(Model model, Animation anim, DmeChannelsClip clip, Frame[] frames)
+    private static void ProcessFlexChannels(FlexController[] flexControllers, Animation anim, DmeChannelsClip clip, Frame[] frames)
     {
-        for (var flexId = 0; flexId < model.FlexControllers.Length; flexId++)
+        for (var flexId = 0; flexId < flexControllers.Length; flexId++)
         {
-            var flexController = model.FlexControllers[flexId];
+            var flexController = flexControllers[flexId];
 
             var flexElement = new Element
             {
@@ -210,16 +288,16 @@ partial class ModelExtract
             for (var i = 0; i < anim.FrameCount; i++)
             {
                 var frame = frames[i];
-                var time = TimeSpan.FromSeconds((double)i / anim.Fps);
+                var time = TimeSpan.FromSeconds((double)i / MathF.Max(1f, anim.Fps));
                 ProcessFlexFrameForDmeChannel(flexId, frame, time, flexLogLayer);
             }
             clip.Channels.Add(flexChannel);
         }
     }
 
-    private static void ProcessBoneChannels(Model model, Animation anim, DmeTransform[] transforms, DmeChannelsClip clip, Frame[] frames)
+    private static void ProcessBoneChannels(Skeleton skeleton, Animation anim, DmeTransform[] transforms, DmeChannelsClip clip, Frame[] frames)
     {
-        foreach (var bone in model.Skeleton.Bones)
+        foreach (var bone in skeleton.Bones)
         {
             var transform = transforms[bone.Index];
 
@@ -236,7 +314,7 @@ partial class ModelExtract
             {
                 var frame = frames[i];
 
-                var time = TimeSpan.FromSeconds((double)i / anim.Fps);
+                var time = TimeSpan.FromSeconds((double)i / MathF.Max(1f, anim.Fps));
 
                 ProcessBoneFrameForDmeChannel(bone, frame, time, positionLogLayer, orientationLogLayer);
             }
@@ -253,6 +331,12 @@ partial class ModelExtract
     /// </summary>
     private static void ApplyModelDocHack(DmeLogLayer<Vector3> logLayer)
     {
+        // I guess this means there is actually no animation data?
+        if (logLayer.LayerValues.Length == 0)
+        {
+            return;
+        }
+
         if (DoesLayerHaveMotion(logLayer))
         {
             return;
@@ -279,7 +363,7 @@ partial class ModelExtract
 
     private static bool DoesLayerHaveMotion(DmeLogLayer<Vector3> logLayer)
     {
-        if (logLayer.LayerValues.Length <= 1)
+        if (logLayer.LayerValues.Length == 1)
         {
             return false;
         }

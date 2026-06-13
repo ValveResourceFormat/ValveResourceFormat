@@ -1,35 +1,28 @@
+using System.Runtime.InteropServices;
 using System.Windows.Forms;
-using GUI.Types.Viewers;
 using GUI.Utils;
-using ValveResourceFormat.Serialization;
-using ValveResourceFormat.Serialization.KeyValues;
-using System.Globalization;
+using Windows.Win32;
+using Windows.Win32.UI.WindowsAndMessaging;
 
 namespace GUI.Forms
 {
-    partial class EntityInfoForm : Form
+    partial class EntityInfoForm : ThemedForm
     {
-        private readonly TabPage[] pages;
+        public EntityInfoControl EntityInfoControl;
+        private static WINDOWPLACEMENT? SavedWindowPlacement;
 
-        public EntityInfoForm(AdvancedGuiFileLoader guiFileLoader)
+        public EntityInfoForm(VrfGuiContext vrfGuiContext)
         {
-            InitializeComponent();
+            Width = 800;
+            Height = 450;
+            Text = "EntityInfoForm";
+
+            EntityInfoControl = new(vrfGuiContext);
+
+            EntityInfoControl.Dock = DockStyle.Fill;
+            Controls.Add(EntityInfoControl);
 
             Icon = Program.MainForm.Icon;
-
-            Resource.AddDataGridExternalRefAction(guiFileLoader, dataGridProperties, ColumnValue.Name, (referenceFound) =>
-            {
-                if (referenceFound)
-                {
-                    Close();
-                }
-            });
-
-            pages = new TabPage[tabControl.TabPages.Count];
-            for (var i = 0; i < pages.Length; i++)
-            {
-                pages[i] = tabControl.TabPages[i];
-            }
         }
 
         protected override bool ProcessDialogKey(Keys keyData)
@@ -43,69 +36,38 @@ namespace GUI.Forms
             return base.ProcessDialogKey(keyData);
         }
 
-        private void SetTabCount(int count)
+        protected override void OnShown(System.EventArgs e)
         {
-            if (tabControl.TabCount == count)
+            base.OnShown(e);
+
+            if (SavedWindowPlacement is { } placement)
             {
-                return;
-            }
-            else if (tabControl.TabCount > count)
-            {
-                tabControl.TabIndex = count - 1;
-                for (var i = tabControl.TabCount - 1; i >= count; i--)
-                {
-                    tabControl.TabPages.RemoveAt(i);
-                }
-            }
-            else
-            {
-                for (var i = tabControl.TabCount; i < count; i++)
-                {
-                    tabControl.TabPages.Add(pages[i]);
-                }
+                PInvoke.SetWindowPlacement((Windows.Win32.Foundation.HWND)Handle, placement);
             }
         }
 
-        public void SetEntityLayout(bool isEntity)
+        protected override void OnFormClosing(FormClosingEventArgs e)
         {
-            if (isEntity)
+            var placement = new WINDOWPLACEMENT
             {
-                SetTabCount(pages.Length);
-            }
-            else
+                length = (uint)Marshal.SizeOf<WINDOWPLACEMENT>(),
+            };
+
+            if (PInvoke.GetWindowPlacement((Windows.Win32.Foundation.HWND)Handle, ref placement))
             {
-                SetTabCount(1);
+                SavedWindowPlacement = placement;
             }
+
+            base.OnFormClosing(e);
         }
 
-        public void Clear()
+        protected override void Dispose(bool disposing)
         {
-            dataGridProperties.Rows.Clear();
-            dataGridOutputs.Rows.Clear();
-        }
-
-        public void AddProperty(string name, string value)
-        {
-            dataGridProperties.Rows.Add(new string[] { name, value });
-        }
-
-        public void AddConnection(KVObject connectionData)
-        {
-            var outputName = connectionData.GetStringProperty("m_outputName");
-            var targetName = connectionData.GetStringProperty("m_targetName");
-            var inputName = connectionData.GetStringProperty("m_inputName");
-            var parameter = connectionData.GetStringProperty("m_overrideParam");
-            var delay = connectionData.GetFloatProperty("m_flDelay");
-            var timesToFire = connectionData.GetInt32Property("m_nTimesToFire");
-
-            dataGridOutputs.Rows.Add(new string[] {
-                outputName,
-                targetName,
-                inputName,
-                parameter,
-                delay.ToString(NumberFormatInfo.InvariantInfo),
-                timesToFire == 1 ? "Yes" : "No"
-            });
+            if (disposing && (EntityInfoControl != null))
+            {
+                EntityInfoControl.Dispose();
+            }
+            base.Dispose(disposing);
         }
     }
 }

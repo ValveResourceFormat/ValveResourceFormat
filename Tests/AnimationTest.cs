@@ -19,16 +19,16 @@ namespace Tests
             };
             resource.Read(file);
 
-            var model = (Model)resource.DataBlock;
+            var model = (Model)resource.DataBlock!;
 
             var animGroupPaths = model.GetReferencedAnimationGroupNames();
             var animations = model.GetEmbeddedAnimations().ToList();
 
-            Assert.That(animGroupPaths.Count, Is.EqualTo(0));
-            Assert.That(animations, Has.Count.EqualTo(3));
-
-            Assert.Multiple(() =>
+            using (Assert.EnterMultipleScope())
             {
+                Assert.That(animGroupPaths.Count(), Is.Zero);
+                Assert.That(animations, Has.Count.EqualTo(3));
+
                 Assert.That(animations[0].Name, Is.EqualTo("ref_pose"));
                 Assert.That(animations[0].Fps, Is.EqualTo(30));
                 Assert.That(animations[0].FrameCount, Is.EqualTo(1));
@@ -40,7 +40,7 @@ namespace Tests
                 Assert.That(animations[2].Name, Is.EqualTo("box_creature_leggy_walk"));
                 Assert.That(animations[2].Fps, Is.EqualTo(30));
                 Assert.That(animations[2].FrameCount, Is.EqualTo(25));
-            });
+            }
         }
     }
 }

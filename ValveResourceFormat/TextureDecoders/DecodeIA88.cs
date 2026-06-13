@@ -1,20 +1,25 @@
+using System.Runtime.InteropServices;
 using SkiaSharp;
+using IA88 = (byte Intensity, byte Alpha);
 
 namespace ValveResourceFormat.TextureDecoders
 {
-    internal class DecodeIA88 : ITextureDecoder
+    internal readonly struct DecodeIA88 : ITextureDecoder
     {
         public void Decode(SKBitmap res, Span<byte> input)
         {
             using var pixels = res.PeekPixels();
-            var span = pixels.GetPixelSpan<SKColor>();
-            var offset = 0;
+            var inputPixels = MemoryMarshal.Cast<byte, IA88>(input);
+            var outPixels = pixels.GetPixelSpan<SKColor>();
 
-            for (var i = 0; i < span.Length; i++)
+            for (var i = 0; i < outPixels.Length; i++)
             {
-                var color = input[offset++];
-                var alpha = input[offset++];
-                span[i] = new SKColor(color, color, color, alpha);
+                outPixels[i] = new SKColor(
+                    inputPixels[i].Intensity,
+                    inputPixels[i].Intensity,
+                    inputPixels[i].Intensity,
+                    inputPixels[i].Alpha
+                );
             }
         }
     }

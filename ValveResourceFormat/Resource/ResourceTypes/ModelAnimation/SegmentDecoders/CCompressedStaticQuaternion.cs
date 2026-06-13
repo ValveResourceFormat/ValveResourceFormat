@@ -1,25 +1,26 @@
-using System.Linq;
-
 namespace ValveResourceFormat.ResourceTypes.ModelAnimation.SegmentDecoders
 {
+    /// <summary>
+    /// Decodes static compressed quaternion data that doesn't change per frame.
+    /// </summary>
     public class CCompressedStaticQuaternion : AnimationSegmentDecoder
     {
-        private readonly Quaternion[] Data;
-
-        public CCompressedStaticQuaternion(ArraySegment<byte> data, int[] wantedElements, int[] remapTable,
-            AnimationChannelAttribute channelAttribute) : base(remapTable, channelAttribute)
-        {
-            Data = wantedElements.Select(i =>
-            {
-                return SegmentHelpers.ReadQuaternion(data.Slice(i * 6));
-            }).ToArray();
-        }
-
+        /// <inheritdoc/>
+        /// <remarks>
+        /// Reads static compressed quaternion values that remain constant across all frames.
+        /// </remarks>
         public override void Read(int frameIndex, Frame outFrame)
         {
             for (var i = 0; i < RemapTable.Length; i++)
             {
-                outFrame.SetAttribute(RemapTable[i], ChannelAttribute, Data[i]);
+                var compressedQuaternionBytes = Data.Slice(
+                    WantedElements[i] * SegmentHelpers.CompressedQuaternionSize,
+                    SegmentHelpers.CompressedQuaternionSize
+                );
+
+                var quaternion = SegmentHelpers.ReadQuaternion(compressedQuaternionBytes);
+
+                outFrame.SetAttribute(RemapTable[i], ChannelAttribute, quaternion);
             }
         }
     }

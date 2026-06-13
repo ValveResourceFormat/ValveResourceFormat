@@ -1,63 +1,131 @@
-using System.Diagnostics;
 using System.IO;
-using System.Runtime.InteropServices;
 using System.Windows.Forms;
-using Microsoft.Win32;
 using ValveKeyValue;
+using ValveResourceFormat.IO;
+using ValveResourceFormat.Renderer.Utils;
 
 namespace GUI.Utils
 {
+    /// <summary>
+    /// Manages application settings.
+    /// </summary>
     static class Settings
     {
-        private const int SettingsFileCurrentVersion = 6;
+        private const int SettingsFileCurrentVersion = 14;
         private const int RecentFilesLimit = 20;
 
-        public class AppConfig
+        /// <summary>
+        /// Flags that control quick file preview behavior in the file explorer.
+        /// </summary>
+        [Flags]
+        public enum QuickPreviewFlags : int
         {
-            public List<string> GameSearchPaths { get; set; } = [];
-            public string OpenDirectory { get; set; } = string.Empty;
-            public string SaveDirectory { get; set; } = string.Empty;
-            public List<string> BookmarkedFiles { get; set; } = [];
-            public List<string> RecentFiles { get; set; } = new(RecentFilesLimit);
-            public Dictionary<string, float[]> SavedCameras { get; set; } = [];
-            public int MaxTextureSize { get; set; }
-            public int FieldOfView { get; set; }
-            public int AntiAliasingSamples { get; set; }
-            public int WindowTop { get; set; }
-            public int WindowLeft { get; set; }
-            public int WindowWidth { get; set; }
-            public int WindowHeight { get; set; }
-            public int WindowState { get; set; } = (int)FormWindowState.Normal;
-            public float Volume { get; set; }
-            public int Vsync { get; set; }
-            public int DisplayFps { get; set; }
-            public int _VERSION_DO_NOT_MODIFY { get; set; }
+            /// <summary>Quick preview is enabled.</summary>
+            Enabled = 1 << 0,
+            /// <summary>Sounds are automatically played when previewing audio files.</summary>
+            AutoPlaySounds = 1 << 1,
         }
 
-        private static string SettingsFolder;
-        private static string SettingsFilePath;
+        /// <summary>
+        /// Holds state related to automatic application update checks.
+        /// </summary>
+        public class AppUpdateState
+        {
+            /// <summary>Gets or sets whether to automatically check for updates on startup.</summary>
+            public bool CheckAutomatically { get; set; }
+            /// <summary>Gets or sets whether a newer version of the application is available.</summary>
+            public bool UpdateAvailable { get; set; }
+            /// <summary>Gets or sets the timestamp of the last update check.</summary>
+            public string LastCheck { get; set; } = string.Empty;
+            /// <summary>Gets or sets the application version recorded the last time settings were loaded, used to detect version changes and reset update state.</summary>
+            public string Version { get; set; } = string.Empty;
+        }
 
-        public static AppConfig Config { get; set; } = new AppConfig();
+        /// <summary>
+        /// Represents the full set of persisted application configuration values.
+        /// </summary>
+        public class AppConfig
+        {
+            /// <summary>Gets or sets the list of game content search paths.</summary>
+            public List<string> GameSearchPaths { get; set; } = [];
+            /// <summary>Gets or sets the last directory used when opening files.</summary>
+            public string OpenDirectory { get; set; } = string.Empty;
+            /// <summary>Gets or sets the last directory used when saving files.</summary>
+            public string SaveDirectory { get; set; } = string.Empty;
+            /// <summary>Gets or sets the list of bookmarked file paths.</summary>
+            public List<string> BookmarkedFiles { get; set; } = [];
+            /// <summary>Gets or sets the list of recently opened file paths.</summary>
+            public List<string> RecentFiles { get; set; } = [];
+            /// <summary>Gets or sets saved camera positions keyed by name.</summary>
+            public Dictionary<string, float[]> SavedCameras { get; set; } = [];
+            /// <summary>Gets or sets the selected UI theme index.</summary>
+            public int Theme { get; set; }
+            /// <summary>Gets or sets the maximum texture resolution loaded by the renderer.</summary>
+            public int MaxTextureSize { get; set; }
+            /// <summary>Gets or sets the shadow map resolution.</summary>
+            public int ShadowResolution { get; set; }
+            /// <summary>Gets or sets the camera field of view in degrees.</summary>
+            public float FieldOfView { get; set; }
+            /// <summary>Gets or sets the mouse look sensitivity.</summary>
+            public float MouseSensitivity { get; set; }
+            /// <summary>Gets or sets the number of MSAA samples used for anti-aliasing.</summary>
+            public int AntiAliasingSamples { get; set; }
+            /// <summary>Gets or sets the top edge position of the main window.</summary>
+            public int WindowTop { get; set; }
+            /// <summary>Gets or sets the left edge position of the main window.</summary>
+            public int WindowLeft { get; set; }
+            /// <summary>Gets or sets the width of the main window.</summary>
+            public int WindowWidth { get; set; }
+            /// <summary>Gets or sets the height of the main window.</summary>
+            public int WindowHeight { get; set; }
+            /// <summary>Gets or sets the window state (normal, minimized, maximized).</summary>
+            public int WindowState { get; set; }
+            /// <summary>Gets or sets the normalized audio playback volume.</summary>
+            public float Volume { get; set; }
+            /// <summary>Gets or sets the swap interval (the number of screen updates to wait between swapping front and back buffers).</summary>
+            public int Vsync { get; set; }
+            /// <summary>Gets or sets whether the FPS counter is shown in the viewport.</summary>
+            public int DisplayFps { get; set; }
+            /// <summary>Gets or sets the <see cref="QuickPreviewFlags"/> bitmask for quick file preview behavior.</summary>
+            public int QuickFilePreview { get; set; }
+            /// <summary>Gets or sets whether the file explorer panel is opened automatically on start (suppressed on first startup or when command-line files are provided).</summary>
+            public int OpenExplorerOnStart { get; set; }
+            /// <summary>Gets or sets the font size used in the text viewer.</summary>
+            public int TextViewerFontSize { get; set; }
+            /// <summary>Gets or sets whether the package file list uses grid view (1) or list view (0).</summary>
+            public int PackageGridView { get; set; }
+            /// <summary>Gets or sets the grid thumbnail size index (0–4, mapping to ThumbnailSizes enum).</summary>
+            public int PackageGridSize { get; set; }
+            /// <summary>Internal settings file version used to apply migrations when upgrading from older versions. Do not modify manually.</summary>
+            public int _VERSION_DO_NOT_MODIFY { get; set; }
+            /// <summary>Gets or sets the application update check state.</summary>
+            public AppUpdateState Update { get; set; } = new();
+        }
 
-        public static event EventHandler RefreshCamerasOnSave;
-        public static void InvokeRefreshCamerasOnSave() => RefreshCamerasOnSave.Invoke(null, null);
+        /// <summary>Gets whether this is the first time the application has been launched (no prior settings were found).</summary>
+        public static bool IsFirstStartup { get; private set; }
+        /// <summary>Gets the folder path where the settings file and other persistent application data are stored.</summary>
+        public static string SettingsFolder { get; private set; } = string.Empty;
+        private static string SettingsFilePath = string.Empty;
 
+        /// <summary>Gets or sets the active application configuration.</summary>
+        public static AppConfig Config { get; private set; } = new AppConfig();
+
+        /// <summary>Raised when <see cref="AppConfig.SavedCameras"/> is mutated, signaling subscribers to refresh their camera lists.</summary>
+        public static event EventHandler? RefreshCamerasOnSave;
+        /// <summary>Raises the <see cref="RefreshCamerasOnSave"/> event.</summary>
+        public static void InvokeRefreshCamerasOnSave() => RefreshCamerasOnSave?.Invoke(null, EventArgs.Empty);
+
+        /// <summary>
+        /// Loads the application configuration from disk, applies defaults and migrations for older
+        /// settings file versions, and populates <see cref="Config"/>.
+        /// </summary>
         public static void Load()
         {
             SettingsFolder = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Source2Viewer");
             SettingsFilePath = Path.Combine(SettingsFolder, "settings.vdf");
 
             Directory.CreateDirectory(SettingsFolder);
-
-            // Before 2023-09-08, settings were saved next to the executable
-            var legacySettings = Path.Combine(Path.GetDirectoryName(Process.GetCurrentProcess().MainModule?.FileName), "settings.txt");
-
-            if (File.Exists(legacySettings) && !File.Exists(SettingsFilePath))
-            {
-                Log.Info(nameof(Settings), $"Moving '{legacySettings}' to '{SettingsFilePath}'.");
-
-                File.Move(legacySettings, SettingsFilePath);
-            }
 
             try
             {
@@ -86,13 +154,38 @@ namespace GUI.Utils
                 }
             }
 
+            var currentVersion = Config._VERSION_DO_NOT_MODIFY;
+
+            if (currentVersion > SettingsFileCurrentVersion)
+            {
+                var result = MessageBox.Show(
+                    $"Your current settings.vdf has a higher version ({currentVersion}) than currently supported ({SettingsFileCurrentVersion}). You likely ran an older version of Source 2 Viewer and your settings may get reset.\n\nDo you want to continue?",
+                    "Source 2 Viewer downgraded",
+                    MessageBoxButtons.YesNo,
+                    MessageBoxIcon.Question
+                );
+
+                if (result != DialogResult.Yes)
+                {
+                    Environment.Exit(1);
+                    return;
+                }
+            }
+
+            Config.GameSearchPaths ??= [];
             Config.SavedCameras ??= [];
             Config.BookmarkedFiles ??= [];
             Config.RecentFiles ??= new(RecentFilesLimit);
+            Config.Update ??= new();
 
-            if (string.IsNullOrEmpty(Config.OpenDirectory) && RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+            if (string.IsNullOrEmpty(Config.OpenDirectory))
             {
-                Config.OpenDirectory = Path.Join(GetSteamPath(), "steamapps", "common");
+                var steamPath = Path.Join(GameFolderLocator.SteamPath, "steamapps", "common");
+
+                if (Directory.Exists(steamPath))
+                {
+                    Config.OpenDirectory = steamPath;
+                }
             }
 
             if (Config.MaxTextureSize <= 0)
@@ -104,41 +197,99 @@ namespace GUI.Utils
                 Config.MaxTextureSize = 10240;
             }
 
+            if (Config.ShadowResolution <= 0)
+            {
+                Config.ShadowResolution = 2048;
+            }
+            else if (Config.ShadowResolution > 4096)
+            {
+                Config.ShadowResolution = 4096;
+            }
+
             if (Config.FieldOfView <= 0)
             {
                 Config.FieldOfView = 60;
             }
-            else if (Config.FieldOfView >= 120)
+            else if (Config.FieldOfView > 170)
             {
-                Config.FieldOfView = 120;
+                Config.FieldOfView = 170;
             }
 
             Config.AntiAliasingSamples = Math.Clamp(Config.AntiAliasingSamples, 0, 64);
-            Config.Volume = Math.Clamp(Config.Volume, 0f, 1f);
+            Config.Volume = MathUtils.Saturate(Config.Volume);
+            Config.TextViewerFontSize = Math.Clamp(Config.TextViewerFontSize, 8, 24);
+            Config.PackageGridSize = Math.Clamp(Config.PackageGridSize, 0, Enum.GetValues<Types.PackageViewer.ThumbnailRenderers.ThumbnailSizes>().Length - 1);
 
-            if (Config._VERSION_DO_NOT_MODIFY < 2) // version 2: added anti aliasing samples
+            if (currentVersion < 2) // version 2: added anti aliasing samples
             {
                 Config.AntiAliasingSamples = 8;
             }
 
-            if (Config._VERSION_DO_NOT_MODIFY < 3) // version 3: added volume
+            if (currentVersion < 3) // version 3: added volume
             {
                 Config.Volume = 0.5f;
             }
 
-            if (Config._VERSION_DO_NOT_MODIFY < 4)
+            if (currentVersion < 4) // version 4: added vsync
             {
                 Config.Vsync = 1;
             }
 
-            if (Config._VERSION_DO_NOT_MODIFY < 5)
+            if (currentVersion < 5) // version 5: added display fps
             {
                 Config.DisplayFps = 1;
+            }
+
+            if (currentVersion < 8) // version 8: added explorer on start
+            {
+                Config.OpenExplorerOnStart = 1;
+            }
+
+            if (currentVersion < 10) // version 10: added startup window
+            {
+                IsFirstStartup = true;
+            }
+
+            if (currentVersion < 11) // version 11: added text viewer font size
+            {
+                Config.TextViewerFontSize = 10;
+            }
+
+            if (currentVersion < 12) // version 12: enable automatic update checks by default
+            {
+                Config.Update.CheckAutomatically = true;
+            }
+
+            if (currentVersion < 13) // version 13: added package grid view and grid size
+            {
+                Config.PackageGridView = 1;
+                Config.PackageGridSize = 2;
+            }
+
+            if (currentVersion < 14) // version 14: added mouse sensitivity
+            {
+                Config.MouseSensitivity = 4f;
+            }
+
+            if (currentVersion > 0 && currentVersion != SettingsFileCurrentVersion)
+            {
+                Log.Info(nameof(Settings), $"Settings version changed: {currentVersion} -> {SettingsFileCurrentVersion}");
+            }
+
+            // If the version changed, force an update check (if enabled)
+            if (Config.Update.Version != Application.ProductVersion)
+            {
+                Config.Update.Version = Application.ProductVersion;
+                Config.Update.UpdateAvailable = false;
+                Config.Update.LastCheck = string.Empty;
             }
 
             Config._VERSION_DO_NOT_MODIFY = SettingsFileCurrentVersion;
         }
 
+        /// <summary>
+        /// Serializes the current <see cref="Config"/> to disk, writing atomically via a temp file.
+        /// </summary>
         public static void Save()
         {
             var tempFile = Path.GetTempFileName();
@@ -151,6 +302,11 @@ namespace GUI.Utils
             File.Move(tempFile, SettingsFilePath, overwrite: true);
         }
 
+        /// <summary>
+        /// Adds <paramref name="path"/> to the top of the recent files list, removing any duplicate
+        /// entry, trimming the list to <see cref="RecentFilesLimit"/>, then saves.
+        /// </summary>
+        /// <param name="path">The absolute file path to record as recently opened.</param>
         public static void TrackRecentFile(string path)
         {
             Config.RecentFiles.Remove(path);
@@ -164,31 +320,13 @@ namespace GUI.Utils
             Save();
         }
 
+        /// <summary>
+        /// Clears the recent files list and saves.
+        /// </summary>
         public static void ClearRecentFiles()
         {
             Config.RecentFiles.Clear();
             Save();
-        }
-
-        public static string GetSteamPath()
-        {
-            try
-            {
-                using var key =
-                    Registry.CurrentUser.OpenSubKey("SOFTWARE\\Valve\\Steam") ??
-                    Registry.LocalMachine.OpenSubKey("SOFTWARE\\Valve\\Steam");
-
-                if (key?.GetValue("SteamPath") is string steamPath)
-                {
-                    return Path.GetFullPath(steamPath);
-                }
-            }
-            catch
-            {
-                // Don't care about registry exceptions
-            }
-
-            return string.Empty;
         }
     }
 }

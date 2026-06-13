@@ -1,31 +1,45 @@
+using System.Diagnostics;
 using System.IO;
 using System.Text;
-using ValveResourceFormat.Blocks;
-using ValveResourceFormat.Utils;
+using ValveKeyValue;
+using ValveResourceFormat.Serialization.KeyValues;
 
 namespace ValveResourceFormat.ResourceTypes
 {
-    public class ResourceManifest : ResourceData
+    /// <summary>
+    /// Represents a resource manifest.
+    /// </summary>
+    public class ResourceManifest : Block
     {
+        /// <inheritdoc/>
+        public override BlockType Type => BlockType.DATA;
+
+        /// <summary>
+        /// Gets the list of resources in the manifest.
+        /// </summary>
         public List<List<string>> Resources { get; private set; } = [];
 
-        public override void Read(BinaryReader reader, Resource resource)
+        /// <inheritdoc/>
+        public override void Read(BinaryReader reader)
         {
             reader.BaseStream.Position = Offset;
 
-            if (resource.ContainsBlockType(BlockType.NTRO))
+            Debug.Assert(Resource != null);
+
+            if (Resource.ContainsBlockType(BlockType.NTRO))
             {
                 var ntro = new NTRO
                 {
                     StructName = "ResourceManifest_t",
                     Offset = Offset,
                     Size = Size,
+                    Resource = Resource,
                 };
-                ntro.Read(reader, resource);
+                ntro.Read(reader);
 
                 Resources =
                 [
-                    new(ntro.Output.GetArray<string>("m_ResourceFileNameList")),
+                    new(ntro.Output.GetArray<string>("m_ResourceFileNameList")!),
                 ];
 
                 return;
@@ -52,10 +66,10 @@ namespace ValveResourceFormat.ResourceTypes
 
             for (var block = 0; block < blockCount; block++)
             {
-                var strings = new List<string>();
                 var originalOffset = reader.BaseStream.Position;
                 var offset = reader.ReadInt32();
                 var count = reader.ReadInt32();
+                var strings = new List<string>(count);
 
                 reader.BaseStream.Position = originalOffset + offset;
 
@@ -77,20 +91,41 @@ namespace ValveResourceFormat.ResourceTypes
             }
         }
 
-        public override string ToString()
+        /// <inheritdoc/>
+        public override void Serialize(Stream stream)
         {
-            using var writer = new IndentedTextWriter();
-            foreach (var block in Resources)
+            throw new NotImplementedException("Serializing this block is not yet supported. If you need this, send us a pull request!");
+        }
+
+        /// <inheritdoc/>
+        /// <remarks>
+        /// Outputs the resource manifest as a KV3 object.
+        /// </remarks>
+        public override void WriteText(IndentedTextWriter writer)
+        {
+            GetPrintabaleObject().WriteKV3Text(writer);
+        }
+
+        private KVDocument GetPrintabaleObject()
+        {
+            var root = new KVObject();
+            var index = 0;
+
+            foreach (var resource in Resources)
             {
-                foreach (var entry in block)
+                var arr = KVObject.Array();
+
+                foreach (var file in resource)
                 {
-                    writer.WriteLine(entry);
+                    arr.Add(file);
                 }
 
-                writer.WriteLine();
+                var key = index > 0 ? $"resourceManifest{index}" : "resourceManifest";
+                root.Add(key, arr);
+                index++;
             }
 
-            return writer.ToString();
+            return root.ToKV3Document();
         }
     }
 }

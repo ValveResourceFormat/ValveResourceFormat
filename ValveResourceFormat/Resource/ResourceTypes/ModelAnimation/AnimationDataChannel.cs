@@ -1,21 +1,34 @@
-using System.Linq;
+using ValveKeyValue;
 using ValveResourceFormat.ResourceTypes.ModelFlex;
-using ValveResourceFormat.Serialization;
 using ValveResourceFormat.Serialization.KeyValues;
 
 namespace ValveResourceFormat.ResourceTypes.ModelAnimation
 {
+    /// <summary>
+    /// Represents a data channel in an animation, mapping bones or flex controllers to animation elements.
+    /// </summary>
+    /// <seealso href="https://s2v.app/SchemaExplorer/cs2/animationsystem/CAnimDataChannelDesc">CAnimDataChannelDesc</seealso>
     public class AnimationDataChannel
     {
-        public int[] RemapTable { get; } // Bone ID => Element Index
+        /// <summary>
+        /// Gets the remap table that maps bone or flex controller IDs to element indices.
+        /// </summary>
+        public int[] RemapTable { get; }
+
+        /// <summary>
+        /// Gets the attribute type of this channel.
+        /// </summary>
         public AnimationChannelAttribute Attribute { get; }
 
+        /// <summary>
+        /// Initializes a new instance of the <see cref="AnimationDataChannel"/> class.
+        /// </summary>
         public AnimationDataChannel(Skeleton skeleton, FlexController[] flexControllers, KVObject dataChannel)
         {
             var elementNameArray = dataChannel.GetArray<string>("m_szElementNameArray");
             var elementIndexArray = dataChannel.GetIntegerArray("m_nElementIndexArray");
 
-            var channelAttribute = dataChannel.GetProperty<string>("m_szVariableName");
+            var channelAttribute = dataChannel.GetStringProperty("m_szVariableName");
             Attribute = channelAttribute switch
             {
                 "Position" => AnimationChannelAttribute.Position,
@@ -34,28 +47,32 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
             {
                 remapLength = skeleton.Bones.Length;
             }
-            RemapTable = Enumerable.Range(0, remapLength).Select(_ => -1).ToArray();
+
+            var remapTable = new int[remapLength];
+            Array.Fill(remapTable, -1);
 
             for (var i = 0; i < elementIndexArray.Length; i++)
             {
-                var elementName = elementNameArray[i];
+                var elementName = elementNameArray![i];
                 var elementIndex = (int)elementIndexArray[i];
 
                 int id;
                 if (Attribute == AnimationChannelAttribute.Data)
                 {
-                    id = Array.FindIndex(flexControllers, contr => contr.Name == elementName);
+                    id = Array.FindIndex(flexControllers, ctrl => ctrl.Name.Equals(elementName, StringComparison.OrdinalIgnoreCase));
                 }
                 else
                 {
-                    id = Array.FindIndex(skeleton.Bones, bone => bone.Name == elementName);
+                    id = Array.FindIndex(skeleton.Bones, bone => bone.Name.Equals(elementName, StringComparison.OrdinalIgnoreCase));
                 }
 
                 if (id != -1)
                 {
-                    RemapTable[id] = elementIndex;
+                    remapTable[id] = elementIndex;
                 }
             }
+
+            RemapTable = remapTable;
         }
     }
 }

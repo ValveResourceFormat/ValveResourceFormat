@@ -3,19 +3,39 @@ using ValveResourceFormat.ResourceTypes.ModelFlex;
 
 namespace ValveResourceFormat.ResourceTypes.ModelAnimation
 {
+    /// <summary>
+    /// Caches animation frames to optimize frame retrieval and interpolation.
+    /// </summary>
     public class AnimationFrameCache
     {
         private Frame PrevFrame;
         private Frame NextFrame;
-        private readonly Frame InterpolatedFrame;
+
+        /// <summary>
+        /// The output frame.
+        /// </summary>
+        public Frame InterpolatedFrame { get; }
+
+        /// <summary>
+        /// Gets the skeleton associated with this frame cache.
+        /// </summary>
         public Skeleton Skeleton { get; }
 
+        /// <summary>
+        /// Gets the flex controllers associated with this frame cache.
+        /// </summary>
+        public FlexController[] FlexControllers { get; }
+
+        /// <summary>
+        /// Initializes a new instance of the <see cref="AnimationFrameCache"/> class.
+        /// </summary>
         public AnimationFrameCache(Skeleton skeleton, FlexController[] flexControllers)
         {
             PrevFrame = new Frame(skeleton, flexControllers);
             NextFrame = new Frame(skeleton, flexControllers);
             InterpolatedFrame = new Frame(skeleton, flexControllers);
             Skeleton = skeleton;
+            FlexControllers = flexControllers;
             Clear();
         }
 
@@ -25,6 +45,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
         /// </summary>
         public void Clear()
         {
+            PurgeCache();
             PrevFrame.Clear(Skeleton);
             NextFrame.Clear(Skeleton);
         }
@@ -32,6 +53,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
         /// <summary>
         /// Get the animation frame at a time.
         /// </summary>
+        /// <param name="anim">The animation to interpolate.</param>
         /// <param name="time">The time to get the frame for.</param>
         public Frame GetInterpolatedFrame(Animation anim, float time)
         {
@@ -60,7 +82,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
                 var frame2Bone = frame2.Bones[i];
                 InterpolatedFrame.Bones[i].Position = Vector3.Lerp(frame1Bone.Position, frame2Bone.Position, t);
                 InterpolatedFrame.Bones[i].Angle = Quaternion.Slerp(frame1Bone.Angle, frame2Bone.Angle, t);
-                InterpolatedFrame.Bones[i].Scale = frame1Bone.Scale + (frame2Bone.Scale - frame1Bone.Scale) * t;
+                InterpolatedFrame.Bones[i].Scale = float.Lerp(frame1Bone.Scale, frame2Bone.Scale, t);
             }
 
             for (var i = 0; i < frame1.Datas.Length; i++)
@@ -69,6 +91,14 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
                 var frame2Data = frame2.Datas[i];
 
                 InterpolatedFrame.Datas[i] = float.Lerp(frame1Data, frame2Data, t);
+            }
+
+            if (anim.HasMovementData())
+            {
+                InterpolatedFrame.Movement = new(
+                    Vector3.Lerp(frame1.Movement.Position, frame2.Movement.Position, t),
+                    float.Lerp(frame1.Movement.Angle, frame2.Movement.Angle, t)
+                );
             }
 
             return InterpolatedFrame;
@@ -100,7 +130,17 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
             frame.FrameIndex = frameIndex;
             anim.DecodeFrame(frame);
 
+            frame.Movement = anim.GetMovementOffsetData(frameIndex);
             return frame;
+        }
+
+        /// <summary>
+        /// Purges the frame cache, resetting both previous and next frames.
+        /// </summary>
+        public void PurgeCache()
+        {
+            PrevFrame.FrameIndex = -2;
+            NextFrame.FrameIndex = -1;
         }
     }
 }

@@ -14,6 +14,7 @@ namespace Tests
         {
             var mockMaterial = new Material()
             {
+                Resource = null!,
                 ShaderName = "vr_complex.vfx",
             };
 
@@ -22,7 +23,7 @@ namespace Tests
         }
 
         [Test]
-        public void TextureInputsForFeatureState([Values(false, true)] bool translucent)
+        public void TextureInputsForFeatureState([Values] bool translucent)
         {
             var vr_complex_expected_inputs = new[] {
                 (ChannelMapping.RGB, "TextureColor"),
@@ -34,7 +35,7 @@ namespace Tests
         }
 
         [Test]
-        public void TextureInputPaths([Values(false, true)] bool translucent)
+        public void TextureInputPaths([Values] bool translucent)
         {
             var vr_complex_expected_inputs = new[] {
                 new MaterialExtract.UnpackInfo()
@@ -52,7 +53,7 @@ namespace Tests
             };
 
             var result = new MaterialExtract(GetMockMaterial(translucent), null, null, new BasicShaderDataProvider())
-                .GetTextureUnpackInfos("g_tColor", "test_color_jpg_65b7aff5.vtex", false, false);
+                .GetTextureUnpackInfos("g_tColor", "test_color_jpg_65b7aff5.vtex", null, false, false);
             Assert.That(result, Is.EquivalentTo(vr_complex_expected_inputs));
         }
 
@@ -122,7 +123,7 @@ namespace Tests
 
             var png = TextureExtract.ToPngImageChannels(img, channels);
             using var result = SKBitmap.Decode(png, img.Info);
-            Assert.Multiple(() =>
+            using (Assert.EnterMultipleScope())
             {
                 Assert.That(result.Width, Is.EqualTo(1));
                 Assert.That(result.Height, Is.EqualTo(1));
@@ -130,7 +131,7 @@ namespace Tests
                 Assert.That(result.AlphaType, Is.EqualTo(SKAlphaType.Unpremul));
 
                 Assert.That(result.GetPixel(0, 0), Is.EqualTo(colorOut));
-            });
+            }
         }
     }
 }

@@ -1,12 +1,13 @@
-using NUnit.Framework;
+using System.Diagnostics;
 using System.IO;
-using ValveResourceFormat.IO;
-using ValveResourceFormat;
-using ValveResourceFormat.ResourceTypes;
 using System.Linq;
+using NUnit.Framework;
+using ValveResourceFormat;
+using ValveResourceFormat.IO;
+using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.ResourceTypes.Choreo;
-using ValveResourceFormat.ResourceTypes.Choreo.Enums;
 using ValveResourceFormat.ResourceTypes.Choreo.Curves;
+using ValveResourceFormat.ResourceTypes.Choreo.Enums;
 
 namespace Tests
 {
@@ -20,7 +21,11 @@ namespace Tests
                 FileName = file,
             };
             resource.Read(file);
-            scene = resource.DataBlock as ChoreoSceneFileData;
+
+            var dataBlock = (ChoreoSceneFileData?)resource.DataBlock;
+            ArgumentNullException.ThrowIfNull(dataBlock);
+
+            scene = dataBlock;
             return resource;
         }
         private static void AssertEvents(ChoreoEvent[] events, params ChoreoEventType[] eventTypes)
@@ -81,7 +86,7 @@ namespace Tests
 
             foreach (var item in contentFile.SubFiles)
             {
-                Assert.That(item.Extract(), Has.Length.GreaterThan(1));
+                Assert.That(item.Extract?.Invoke(), Has.Length.GreaterThan(1));
             }
             Assert.That(contentFile.Data, Has.Length.GreaterThan(1));
 
@@ -98,13 +103,13 @@ namespace Tests
             Assert.That(choreoList.Scenes, Has.Length.EqualTo(28));
 
             var vcd = GetScene(choreoList, "dev/zoo/choreozoo_moveto_pausepoint.vcd");
-            Assert.Multiple(() =>
+            using (Assert.EnterMultipleScope())
             {
                 Assert.That(vcd.Version, Is.EqualTo(8));
                 Assert.That(vcd.HasSounds, Is.False);
                 Assert.That(vcd.Actors, Has.Length.EqualTo(1));
                 Assert.That(vcd.IgnorePhonemes, Is.False);
-            });
+            }
             AssertEvents(vcd.Events, ChoreoEventType.Section, ChoreoEventType.Section, ChoreoEventType.Loop);
 
             //actor
@@ -118,16 +123,16 @@ namespace Tests
             var lookChannel = GetChannel(target1Actor, "LookAt", 1);
             AssertEvents(lookChannel.Events, ChoreoEventType.LookAt);
             var lookAtEvent = GetEvent(lookChannel, "Look at !self", ChoreoEventType.LookAt);
-            Assert.Multiple(() =>
+            using (Assert.EnterMultipleScope())
             {
                 Assert.That(lookAtEvent.Param1, Is.EqualTo("!self"));
                 Assert.That(lookAtEvent.Param2, Is.Empty);
                 Assert.That(lookAtEvent.Param3, Is.Empty);
-                Assert.That(lookAtEvent.StartTime, Is.EqualTo(0f));
+                Assert.That(lookAtEvent.StartTime, Is.Zero);
                 Assert.That(lookAtEvent.EndTime, Is.EqualTo(6.620370f));
-                Assert.That(lookAtEvent.SoundStartDelay, Is.EqualTo(0f));
+                Assert.That(lookAtEvent.SoundStartDelay, Is.Zero);
                 Assert.That(lookAtEvent.Id, Is.EqualTo(6));
-            });
+            }
         }
         [Test]
         public void LoadTestChoreoVersion17()
@@ -136,24 +141,24 @@ namespace Tests
             Assert.That(choreoList.Scenes, Has.Length.EqualTo(1));
 
             var vcd = GetScene(choreoList, "allevents.vcd");
-            Assert.Multiple(() =>
+            using (Assert.EnterMultipleScope())
             {
                 Assert.That(vcd.Version, Is.EqualTo(17));
                 Assert.That(vcd.HasSounds, Is.True);
                 Assert.That(vcd.Actors, Has.Length.EqualTo(2));
                 Assert.That(vcd.IgnorePhonemes, Is.True);
-            });
+            }
 
             //scene events
             AssertEvents(vcd.Events, ChoreoEventType.Loop, ChoreoEventType.StopPoint);
             var loopEvent = GetEvent(vcd, "loop", ChoreoEventType.Loop);
-            Assert.Multiple(() =>
+            using (Assert.EnterMultipleScope())
             {
                 Assert.That(loopEvent.LoopCount, Is.EqualTo(255));
                 Assert.That(loopEvent.Param1, Is.EqualTo("0.1"));
                 Assert.That(loopEvent.StartTime, Is.EqualTo(5.088889f));
                 Assert.That(loopEvent.EndTime, Is.EqualTo(-1f));
-            });
+            }
 
             //actor 1
             var actor1 = GetActor(vcd, "actor 1", 1);
@@ -196,7 +201,11 @@ namespace Tests
 
             //flex animation event
             var flexEvent = GetEvent(actor2Channel2, "flex animation event", ChoreoEventType.FlexAnimation);
-            Assert.Multiple(() =>
+
+            Debug.Assert(flexEvent.Ramp.LeftEdge != null);
+            Debug.Assert(flexEvent.Ramp.RightEdge != null);
+
+            using (Assert.EnterMultipleScope())
             {
                 Assert.That(flexEvent.Ramp.Samples, Has.Length.EqualTo(4));
                 Assert.That(flexEvent.ConstrainedEventId, Is.EqualTo(19));
@@ -224,11 +233,19 @@ namespace Tests
                 Assert.That(flexEvent.ShiftedTimeTags, Has.Length.EqualTo(1));
                 Assert.That(flexEvent.ShiftedTimeTags[0].Name, Is.EqualTo("shifted tag"));
                 Assert.That(flexEvent.ShiftedTimeTags[0].Fraction, Is.EqualTo(2.5f).Within(0.01f));
-            });
+            }
+
             var flexTrack = flexEvent.EventFlex.Tracks.First();
+
+            Debug.Assert(flexTrack.Ramp.LeftEdge != null);
+            Debug.Assert(flexTrack.Ramp.RightEdge != null);
+            Debug.Assert(flexTrack.ComboRamp != null);
+            Debug.Assert(flexTrack.ComboRamp.LeftEdge != null);
+            Debug.Assert(flexTrack.ComboRamp.RightEdge != null);
+
             var leftCurve = flexTrack.Ramp.LeftEdge.CurveType;
             var rightCurve = flexTrack.Ramp.RightEdge.CurveType;
-            Assert.Multiple(() =>
+            using (Assert.EnterMultipleScope())
             {
                 Assert.That(leftCurve.InTypeName, Is.EqualTo("easein"));
                 Assert.That(leftCurve.OutTypeName, Is.EqualTo("default"));
@@ -238,11 +255,13 @@ namespace Tests
                 Assert.That(flexTrack.ComboRamp.RightEdge.CurveType, Is.EqualTo(rightCurve));
                 Assert.That(flexTrack.Ramp.Samples, Has.Length.EqualTo(3));
                 Assert.That(flexTrack.ComboRamp.Samples, Has.Length.EqualTo(3));
-            });
+            }
 
             //scene ramp
             var sceneRamp = vcd.Ramp;
-            Assert.Multiple(() =>
+            Debug.Assert(sceneRamp.LeftEdge != null);
+            Debug.Assert(sceneRamp.RightEdge != null);
+            using (Assert.EnterMultipleScope())
             {
                 Assert.That(sceneRamp.Samples, Has.Length.EqualTo(4));
 
@@ -253,24 +272,26 @@ namespace Tests
                 Assert.That(sceneRamp.RightEdge.CurveType.InTypeName, Is.EqualTo("kochanek_early"));
                 Assert.That(sceneRamp.RightEdge.CurveType.OutTypeName, Is.EqualTo("hold"));
                 Assert.That(sceneRamp.RightEdge.ZeroValue, Is.EqualTo(0.4f));
-            });
+            }
 
             var bezierTrack = sceneRamp.Samples[0];
-            Assert.Multiple(() =>
+            using (Assert.EnterMultipleScope())
             {
                 Assert.That(bezierTrack.Curve, Is.Not.Null);
+                Assert.That(bezierTrack.Bezier, Is.Not.Null);
+            }
+            using (Assert.EnterMultipleScope())
+            {
+                Debug.Assert(bezierTrack.Curve != null);
+                Debug.Assert(bezierTrack.Bezier != null);
                 Assert.That(bezierTrack.Curve.Value.InTypeName, Is.EqualTo("bezier"));
                 Assert.That(bezierTrack.Curve.Value.OutTypeName, Is.EqualTo("bezier"));
-            });
-            Assert.Multiple(() =>
-            {
-                Assert.That(bezierTrack.Bezier, Is.Not.Null);
                 Assert.That(bezierTrack.Bezier.Value.Flags, Is.EqualTo(BezierFlags.Unified));
                 Assert.That(bezierTrack.Bezier.Value.InWeight, Is.EqualTo(0.1f));
                 Assert.That(bezierTrack.Bezier.Value.InDegrees, Is.EqualTo(180f));
                 Assert.That(bezierTrack.Bezier.Value.OutWeight, Is.EqualTo(0.1f));
-                Assert.That(bezierTrack.Bezier.Value.OutDegrees, Is.EqualTo(0f));
-            });
+                Assert.That(bezierTrack.Bezier.Value.OutDegrees, Is.Zero);
+            }
         }
     }
 }

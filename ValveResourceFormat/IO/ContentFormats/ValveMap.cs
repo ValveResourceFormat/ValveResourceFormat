@@ -72,6 +72,15 @@ internal abstract class MapNode : DMElement
     public Datamodel.StringArray VariableNames { get; } = [];
 }
 
+internal class CMapPrefab : MapNode
+{
+    public bool FixupEntityNames { get; set; } = true;
+    public bool LoadAtRuntime { get; set; }
+    public bool LoadIfNested { get; set; } = true;
+    public string TargetMapPath { get; set; } = string.Empty;
+    public string TargetName { get; set; } = string.Empty;
+}
+
 [CamelCaseProperties]
 internal abstract class BaseEntity : MapNode
 {
@@ -167,7 +176,19 @@ internal class CMapSelectionSet : DMElement
 {
     public Datamodel.ElementArray Children { get; } = [];
     public string SelectionSetName { get; set; } = string.Empty;
-    public DMElement SelectionSetData { get; set; }
+    public CObjectSelectionSetDataElement SelectionSetData { get; set; } = [];
+
+    public CMapSelectionSet() { }
+    public CMapSelectionSet(string name)
+    {
+        SelectionSetName = name;
+    }
+}
+
+[CamelCaseProperties]
+internal class CObjectSelectionSetDataElement : DMElement
+{
+    public Datamodel.ElementArray SelectedObjects { get; } = [];
 }
 
 [CamelCaseProperties]
@@ -183,7 +204,7 @@ internal class CMapInstance : BaseEntity
     /// <summary>
     /// A target <see cref="CMapGroup"/> to instance. With custom tint and transform.
     /// </summary>
-    public DMElement Target { get; set; }
+    public DMElement? Target { get; set; }
     public Datamodel.Color TintColor { get; set; } = new Datamodel.Color(255, 255, 255, 255);
 }
 
@@ -246,7 +267,7 @@ internal class CDmePolygonMesh : MapNode
     public Datamodel.IntArray VertexDataIndices { get; } = [];
 
     /// <summary>
-    /// The origin (or destination, I'm not sure) vertex of this edge.
+    /// The destination vertex of this edge.
     /// </summary>
     public Datamodel.IntArray EdgeVertexIndices { get; } = [];
 
@@ -318,7 +339,7 @@ internal class CDmePolygonMeshDataArray : DMElement
 {
     public int Size { get; set; }
     /// <summary>
-    /// Array of <see cref="CDmePolygonMeshDataStream"/>.
+    /// Array of <see cref="CDmePolygonMeshDataStream{T}"/>.
     /// </summary>
     public Datamodel.ElementArray Streams { get; } = [];
 }
@@ -326,9 +347,9 @@ internal class CDmePolygonMeshDataArray : DMElement
 [CamelCaseProperties]
 internal class CDmePolygonMeshSubdivisionData : DMElement
 {
-    public Datamodel.IntArray SubdivisionLevels { get; set; } = [];
+    public Datamodel.IntArray SubdivisionLevels { get; } = [];
     /// <summary>
-    /// Array of <see cref="CDmePolygonMeshDataStream"/>.
+    /// Array of <see cref="CDmePolygonMeshDataStream{T}"/>.
     /// </summary>
     public Datamodel.ElementArray Streams { get; } = [];
 }
@@ -341,9 +362,9 @@ internal class CDmePolygonMeshDataStream<T> : DMElement
     public int SemanticIndex { get; set; }
     public int VertexBufferLocation { get; set; }
     public int DataStateFlags { get; set; }
-    public DMElement SubdivisionBinding { get; set; }
+    public DMElement? SubdivisionBinding { get; set; }
     /// <summary>
     /// An int, vector2, vector3, or vector4 array.
     /// </summary>
-    public Datamodel.Array<T> Data { get; set; }
+    public required Datamodel.Array<T> Data { get; set; }
 }

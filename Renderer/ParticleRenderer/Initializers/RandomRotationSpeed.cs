@@ -1,0 +1,46 @@
+namespace ValveResourceFormat.Renderer.Particles.Initializers
+{
+    /// <summary>
+    /// Sets the initial rotation speed of a particle by adding a configurable base speed to a
+    /// random offset sampled between a minimum and maximum degree-per-second range, with an
+    /// optional random direction flip.
+    /// </summary>
+    /// <seealso href="https://s2v.app/SchemaExplorer/cs2/particles/C_INIT_RandomRotationSpeed">C_INIT_RandomRotationSpeed</seealso>
+    class RandomRotationSpeed : ParticleFunctionInitializer
+    {
+        private readonly ParticleField FieldOutput = ParticleField.Roll;
+        private readonly bool randomlyFlipDirection = true;
+        private readonly float degrees;
+        private readonly float degreesMin;
+        private readonly float degreesMax = 360f;
+        public RandomRotationSpeed(ParticleDefinitionParser parse) : base(parse)
+        {
+            FieldOutput = parse.ParticleField("m_nFieldOutput", FieldOutput);
+            randomlyFlipDirection = parse.Boolean("m_bRandomlyFlipDirection", randomlyFlipDirection);
+            degrees = parse.Float("m_flDegrees", degrees);
+            degreesMin = parse.Float("m_flDegreesMin", degreesMin);
+            degreesMax = parse.Float("m_flDegreesMax", degreesMax);
+        }
+
+        public override Particle Initialize(ref Particle particle, ParticleCollection particles, ParticleSystemRenderState particleSystemState)
+        {
+            var value = float.DegreesToRadians(degrees + ParticleCollection.RandomBetween(particle.ParticleID, degreesMin, degreesMax));
+
+            if (randomlyFlipDirection && Random.Shared.NextSingle() > 0.5f)
+            {
+                value *= -1;
+            }
+
+            if (FieldOutput == ParticleField.Yaw)
+            {
+                particle.RotationSpeed = new Vector3(value, 0, 0);
+            }
+            else if (FieldOutput == ParticleField.Roll)
+            {
+                particle.RotationSpeed = new Vector3(0, 0, value);
+            }
+
+            return particle;
+        }
+    }
+}

@@ -1,12 +1,14 @@
-using System.ComponentModel;
 using System.Globalization;
 using System.IO;
+using System.Linq;
 using System.Text;
 using System.Windows.Forms;
 using GUI.Controls;
 using GUI.Utils;
 using SteamDatabase.ValvePak;
 using ValveKeyValue;
+using ValveResourceFormat.Blocks;
+using ValveResourceFormat.IO;
 
 namespace GUI.Types.Viewers
 {
@@ -19,19 +21,14 @@ namespace GUI.Types.Viewers
             var folder = Path.GetDirectoryName(guiContext.FileName);
             var filePath = entry.GetFullPath();
 
-            if (guiContext.ToolsAssetInfo == null)
-            {
-                var path = Path.Join(folder, "readonly_tools_asset_info.bin");
+            var toolsAssetInfo = guiContext.GetOrLoadToolsAssetInfo();
+            ValveResourceFormat.ToolsAssetInfo.ToolsAssetInfo.File? assetInfo = null;
 
-                guiContext.ToolsAssetInfo = new ValveResourceFormat.ToolsAssetInfo.ToolsAssetInfo();
-                guiContext.ToolsAssetInfo.Read(path);
-            }
-
-            if (!guiContext.ToolsAssetInfo.Files.TryGetValue(filePath, out var assetInfo))
+            if (toolsAssetInfo != null && !toolsAssetInfo.Files.TryGetValue(filePath, out assetInfo))
             {
                 var gameRootPath = string.Concat(Path.GetFileName(folder), "/", filePath);
 
-                foreach (var (filePathTemp, assetInfoTemp) in guiContext.ToolsAssetInfo.Files)
+                foreach (var (filePathTemp, assetInfoTemp) in toolsAssetInfo.Files)
                 {
                     if (assetInfoTemp.SearchPathsGameRoot.Exists(f => f.Filename == gameRootPath))
                     {
@@ -42,17 +39,35 @@ namespace GUI.Types.Viewers
                 }
             }
 
-            var resTabs = new TabControl
+            // If we didn't find exact match in the tools info, try to find the same file without the "_c" suffix
+            if (assetInfo == null && toolsAssetInfo != null && filePath.EndsWith(GameFileLoader.CompiledFileSuffix, StringComparison.Ordinal))
             {
-                Dock = DockStyle.Fill,
-            };
-            var parentTab = new TabPage(Path.GetFileName(filePath))
+                var filePathUncompiled = filePath[..^2];
+
+                if (!toolsAssetInfo.Files.TryGetValue(filePathUncompiled, out assetInfo))
+                {
+                    var gameRootPath = string.Concat(Path.GetFileName(folder), "/", filePathUncompiled);
+
+                    foreach (var (filePathTemp, assetInfoTemp) in toolsAssetInfo.Files)
+                    {
+                        if (assetInfoTemp.SearchPathsGameRoot.Exists(f => f.Filename == gameRootPath))
+                        {
+                            filePath = filePathTemp;
+                            assetInfo = assetInfoTemp;
+                            break;
+                        }
+                    }
+                }
+                else
+                {
+                    filePath = filePathUncompiled;
+                }
+            }
+
+            var parentTab = new ThemedTabPage(Path.GetFileName(filePath))
             {
                 ToolTipText = filePath
             };
-            parentTab.Controls.Add(resTabs);
-
-            var tab = new TabPage("File");
 
             var fileInfo = new StringBuilder();
 
@@ -65,17 +80,32 @@ namespace GUI.Types.Viewers
 
             var fileControl = new CodeTextBox(fileInfo.ToString());
 
-            tab.Controls.Add(fileControl);
-            resTabs.TabPages.Add(tab);
-
-            if (assetInfo == null)
+            if (assetInfo == null || toolsAssetInfo == null)
             {
+                fileControl.Dock = DockStyle.Fill;
+                parentTab.Controls.Add(fileControl);
                 return parentTab;
             }
 
+            var mainSplitter = new SplitContainer
+            {
+                Dock = DockStyle.Fill,
+            };
+            parentTab.Controls.Add(mainSplitter);
+
+            var leftSplitter = new SplitContainer
+            {
+                Dock = DockStyle.Fill,
+                Orientation = Orientation.Horizontal,
+            };
+            mainSplitter.Panel1.Controls.Add(leftSplitter);
+
+            fileControl.Dock = DockStyle.Fill;
+            leftSplitter.Panel1.Controls.Add(fileControl);
+
             var referencedBy = new List<FileReference>();
 
-            foreach (var (filePathTemp, assetInfoTemp) in guiContext.ToolsAssetInfo.Files)
+            foreach (var (filePathTemp, assetInfoTemp) in toolsAssetInfo.Files)
             {
                 if (assetInfoTemp.ChildResources.Contains(filePath))
                 {
@@ -108,32 +138,24 @@ namespace GUI.Types.Viewers
                 }
             }
 
-            // Info
-            tab = new TabPage("Info");
+            var externalReferences = referencedBy
+                .Select(static r => new ResourceExtRefList.ResourceReferenceInfo { Name = r.File })
+                .DistinctBy(static x => x.Name)
+                .ToList();
+            var referencedControl = Resource.BuildExternalRefTree(guiContext, externalReferences);
+            leftSplitter.Panel2.Controls.Add(referencedControl);
 
             using var ms = new MemoryStream();
             KVSerializer.Create(KVSerializationFormat.KeyValues1Text).Serialize(ms, assetInfo, "Asset Info");
 
-            var infoControl = new CodeTextBox(Encoding.UTF8.GetString(ms.ToArray()));
-            tab.Controls.Add(infoControl);
-            resTabs.TabPages.Add(tab);
-
-            // Referenced by
-            tab = new TabPage("Referenced by");
-
-            var referencedContorl = new DataGridView
+            var infoControl = new CodeTextBox(Encoding.UTF8.GetString(ms.ToArray()))
             {
                 Dock = DockStyle.Fill,
-                AutoGenerateColumns = true,
-                AutoSize = true,
-                ReadOnly = true,
-                AllowUserToAddRows = false,
-                AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill,
-                DataSource = new BindingSource(new BindingList<FileReference>(referencedBy), null),
             };
+            mainSplitter.Panel2.Controls.Add(infoControl);
 
-            tab.Controls.Add(referencedContorl);
-            resTabs.TabPages.Add(tab);
+            mainSplitter.SplitterDistance = mainSplitter.Width / 2;
+            leftSplitter.SplitterDistance = leftSplitter.Height / 2;
 
             return parentTab;
         }

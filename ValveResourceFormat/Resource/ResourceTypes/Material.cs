@@ -1,30 +1,78 @@
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Text;
-using ValveResourceFormat.Blocks;
-using ValveResourceFormat.Blocks.ResourceEditInfoStructs;
-using ValveResourceFormat.Serialization;
+using ValveKeyValue;
 using ValveResourceFormat.Serialization.KeyValues;
 using ValveResourceFormat.Serialization.VfxEval;
 
 namespace ValveResourceFormat.ResourceTypes
 {
+    /// <summary>
+    /// Represents a material resource containing shader parameters and texture references.
+    /// </summary>
     public class Material : KeyValuesOrNTRO
     {
+        /// <summary>
+        /// Gets or sets the material name.
+        /// </summary>
         public string Name { get; set; } = string.Empty;
+
+        /// <summary>
+        /// Gets or sets the shader name used by this material.
+        /// </summary>
         public string ShaderName { get; set; } = string.Empty;
 
+        /// <summary>
+        /// Gets the integer shader parameters.
+        /// </summary>
         public Dictionary<string, long> IntParams { get; } = [];
+
+        /// <summary>
+        /// Gets the floating-point shader parameters.
+        /// </summary>
         public Dictionary<string, float> FloatParams { get; } = [];
+
+        /// <summary>
+        /// Gets the vector shader parameters.
+        /// </summary>
         public Dictionary<string, Vector4> VectorParams { get; } = [];
+
+        /// <summary>
+        /// Gets the texture shader parameters.
+        /// </summary>
         public Dictionary<string, string> TextureParams { get; } = [];
+
+        /// <summary>
+        /// Gets the integer material attributes.
+        /// </summary>
         public Dictionary<string, long> IntAttributes { get; } = [];
+
+        /// <summary>
+        /// Gets the floating-point material attributes.
+        /// </summary>
         public Dictionary<string, float> FloatAttributes { get; } = [];
+
+        /// <summary>
+        /// Gets the vector material attributes.
+        /// </summary>
         public Dictionary<string, Vector4> VectorAttributes { get; } = [];
+
+        /// <summary>
+        /// Gets the string material attributes.
+        /// </summary>
         public Dictionary<string, string> StringAttributes { get; } = [];
+
+        /// <summary>
+        /// Gets the evaluated dynamic expressions for dynamic scalar and texture parameters.
+        /// </summary>
         public Dictionary<string, string> DynamicExpressions { get; } = [];
 
         private VsInputSignature? inputSignature;
+
+        /// <summary>
+        /// Gets the vertex shader input signature defining vertex attributes.
+        /// </summary>
         public VsInputSignature InputSignature
         {
             get
@@ -32,59 +80,59 @@ namespace ValveResourceFormat.ResourceTypes
                 if (!inputSignature.HasValue)
                 {
                     var inputSignatureObject = GetInputSignatureObject();
-                    inputSignature = inputSignatureObject != null ? new(inputSignatureObject) : default(VsInputSignature);
+                    inputSignature = inputSignatureObject != null ? new(inputSignatureObject) : VsInputSignature.Empty;
                 }
 
                 return inputSignature.Value;
             }
         }
 
-
-        public override void Read(BinaryReader reader, Resource resource)
+        /// <inheritdoc/>
+        public override void Read(BinaryReader reader)
         {
-            base.Read(reader, resource);
+            base.Read(reader);
 
-            Name = Data.GetProperty<string>("m_materialName");
-            ShaderName = Data.GetProperty<string>("m_shaderName");
+            Name = Data.GetStringProperty("m_materialName");
+            ShaderName = Data.GetStringProperty("m_shaderName");
 
             foreach (var kvp in Data.GetArray("m_intParams"))
             {
-                IntParams[kvp.GetProperty<string>("m_name")] = kvp.GetIntegerProperty("m_nValue");
+                IntParams[kvp.GetStringProperty("m_name")] = kvp.GetIntegerProperty("m_nValue");
             }
 
             foreach (var kvp in Data.GetArray("m_floatParams"))
             {
-                FloatParams[kvp.GetProperty<string>("m_name")] = kvp.GetFloatProperty("m_flValue");
+                FloatParams[kvp.GetStringProperty("m_name")] = kvp.GetFloatProperty("m_flValue");
             }
 
             foreach (var kvp in Data.GetArray("m_vectorParams"))
             {
-                VectorParams[kvp.GetProperty<string>("m_name")] = kvp.GetSubCollection("m_value").ToVector4();
+                VectorParams[kvp.GetStringProperty("m_name")] = kvp.GetSubCollection("m_value").ToVector4();
             }
 
             foreach (var kvp in Data.GetArray("m_textureParams"))
             {
-                TextureParams[kvp.GetProperty<string>("m_name")] = kvp.GetProperty<string>("m_pValue");
+                TextureParams[kvp.GetStringProperty("m_name")] = kvp.GetStringProperty("m_pValue");
             }
 
             foreach (var kvp in Data.GetArray("m_intAttributes"))
             {
-                IntAttributes[kvp.GetProperty<string>("m_name")] = kvp.GetIntegerProperty("m_nValue");
+                IntAttributes[kvp.GetStringProperty("m_name")] = kvp.GetIntegerProperty("m_nValue");
             }
 
             foreach (var kvp in Data.GetArray("m_floatAttributes"))
             {
-                FloatAttributes[kvp.GetProperty<string>("m_name")] = kvp.GetFloatProperty("m_flValue");
+                FloatAttributes[kvp.GetStringProperty("m_name")] = kvp.GetFloatProperty("m_flValue");
             }
 
             foreach (var kvp in Data.GetArray("m_vectorAttributes"))
             {
-                VectorAttributes[kvp.GetProperty<string>("m_name")] = kvp.GetSubCollection("m_value").ToVector4();
+                VectorAttributes[kvp.GetStringProperty("m_name")] = kvp.GetSubCollection("m_value").ToVector4();
             }
 
             foreach (var kvp in Data.GetArray("m_stringAttributes"))
             {
-                StringAttributes[kvp.GetProperty<string>("m_name")] = kvp.GetProperty<string>("m_value");
+                StringAttributes[kvp.GetStringProperty("m_name")] = kvp.GetStringProperty("m_value");
             }
 
             // This is zero-length for all vmat files in Dota2 and HL archives
@@ -96,23 +144,30 @@ namespace ValveResourceFormat.ResourceTypes
 
             var renderAttributesUsed = Data.GetArray<string>("m_renderAttributesUsed");
 
-            foreach (var kvp in Data.GetArray("m_dynamicParams"))
+            // s&box removed m_dynamicParams + m_dynamicTextureParams from the material schema
+            // so guard against nulls here
+
+            foreach (var kvp in Data.GetArray("m_dynamicParams") ?? [])
             {
-                var dynamicParamName = kvp.GetProperty<string>("m_name");
-                var dynamicParamBytes = kvp.GetProperty<byte[]>("m_value");
+                var dynamicParamName = kvp.GetStringProperty("m_name");
+                var dynamicParamBytes = kvp.GetArray<byte>("m_value");
                 var vfxEval = new VfxEval(dynamicParamBytes, renderAttributesUsed);
                 DynamicExpressions.Add(dynamicParamName, vfxEval.DynamicExpressionResult.Replace("\n", "\\n", StringComparison.Ordinal));
             }
 
-            foreach (var kvp in Data.GetArray("m_dynamicTextureParams"))
+            foreach (var kvp in Data.GetArray("m_dynamicTextureParams") ?? [])
             {
-                var dynamicTextureParamName = kvp.GetProperty<string>("m_name");
-                var dynamicTextureParamBytes = kvp.GetProperty<byte[]>("m_value");
+                var dynamicTextureParamName = kvp.GetStringProperty("m_name");
+                var dynamicTextureParamBytes = kvp.GetArray<byte>("m_value");
                 var vfxEval = new VfxEval(dynamicTextureParamBytes, renderAttributesUsed);
                 DynamicExpressions.Add(dynamicTextureParamName, vfxEval.DynamicExpressionResult.Replace("\n", "\\n", StringComparison.Ordinal));
             }
         }
 
+        /// <summary>
+        /// Gets the shader arguments from integer parameters starting with "F_".
+        /// </summary>
+        /// <returns>Dictionary of shader argument names and values.</returns>
         public Dictionary<string, byte> GetShaderArguments()
         {
             var arguments = new Dictionary<string, byte>();
@@ -125,29 +180,21 @@ namespace ValveResourceFormat.ResourceTypes
                 }
             }
 
-            if (Resource?.EditInfo != null)
-            {
-                var specialDeps = (SpecialDependencies)Resource.EditInfo.Structs[ResourceEditInfo.REDIStruct.SpecialDependencies];
-                var hemiOctIsoRoughness_RG_B = specialDeps.List.Any(dependancy => dependancy.CompilerIdentifier == "CompileTexture" && dependancy.String == "Texture Compiler Version Mip HemiOctIsoRoughness_RG_B");
-                if (hemiOctIsoRoughness_RG_B)
-                {
-                    arguments.Add("HemiOctIsoRoughness_RG_B", 1);
-                }
-            }
-
             return arguments;
         }
 
-        private KVObject GetInputSignatureObject()
+        private KVObject? GetInputSignatureObject()
         {
             if (Resource is null)
             {
                 return null;
             }
 
-            if (Resource.ContainsBlockType(BlockType.INSG))
+            var insg = Resource.GetBlockByType(BlockType.INSG);
+
+            if (insg is BinaryKV3 binaryKV3)
             {
-                return ((BinaryKV3)Resource.GetBlockByType(BlockType.INSG)).Data;
+                return binaryKV3.Data;
             }
 
             // Material might not have REDI, or it might have RED2 without INSG
@@ -156,13 +203,13 @@ namespace ValveResourceFormat.ResourceTypes
                 return null;
             }
 
-            var extraStringData = (ExtraStringData)Resource.EditInfo.Structs[ResourceEditInfo.REDIStruct.ExtraStringData];
-            var inputSignatureString = extraStringData.List.Where(x => x.Name == "VSInputSignature").FirstOrDefault()?.Value;
-
-            if (inputSignatureString == null)
+            var inputSignatureValue = Resource.EditInfo?.SearchableUserData["VSInputSignature"];
+            if (inputSignatureValue?.ValueType != KVValueType.String)
             {
                 return null;
             }
+
+            var inputSignatureString = (string)inputSignatureValue;
 
             if (!inputSignatureString.StartsWith("<!-- kv3", StringComparison.InvariantCulture))
             {
@@ -171,35 +218,104 @@ namespace ValveResourceFormat.ResourceTypes
 
             using var ms = new MemoryStream(Encoding.UTF8.GetBytes(inputSignatureString));
 
-            return KeyValues3.ParseKVFile(ms).Root;
+            return KVDocumentExtensions.ParseKV3(ms).Root;
         }
 
+        /// <summary>
+        /// Represents the vertex shader input signature containing vertex attribute elements.
+        /// </summary>
+        /// <seealso href="https://s2v.app/SchemaExplorer/cs2/modellib/VsInputSignature_t">VsInputSignature_t</seealso>
         public readonly struct VsInputSignature
         {
-            public InputSignatureElement[] Elements { get; } = [];
+            /// <summary>
+            /// An empty input signature with no elements.
+            /// </summary>
+            public static readonly VsInputSignature Empty = new();
 
+            /// <summary>
+            /// Gets the array of input signature elements.
+            /// </summary>
+            public InputSignatureElement[] Elements { get; }
+
+            /// <summary>
+            /// Initializes a new instance of the <see cref="VsInputSignature"/> struct with no elements.
+            /// </summary>
+            public VsInputSignature()
+            {
+                Elements = [];
+            }
+
+            /// <summary>
+            /// Initializes a new instance of the <see cref="VsInputSignature"/> struct from data.
+            /// </summary>
+            /// <param name="data">The key-value data containing element definitions.</param>
             public VsInputSignature(KVObject data)
             {
-                Elements = data.GetArray("m_elems").Select(x => new InputSignatureElement(x)).ToArray();
+                Elements = [.. data.GetArray("m_elems").Select(x => new InputSignatureElement(x))];
             }
         }
 
+        /// <summary>
+        /// Represents a single element in the vertex shader input signature.
+        /// </summary>
+        [DebuggerDisplay("{Name,nq} ({Semantic,nq})")]
         public readonly struct InputSignatureElement
         {
+            /// <summary>
+            /// Gets the element name.
+            /// </summary>
             public string Name { get; }
+
+            /// <summary>
+            /// Gets the semantic name.
+            /// </summary>
             public string Semantic { get; }
+
+            /// <summary>
+            /// Gets the Direct3D semantic name.
+            /// </summary>
             public string D3DSemanticName { get; }
+
+            /// <summary>
+            /// Gets the Direct3D semantic index.
+            /// </summary>
             public int D3DSemanticIndex { get; }
 
+            /// <summary>
+            /// Initializes a new instance of the <see cref="InputSignatureElement"/> struct from data.
+            /// </summary>
+            /// <param name="data">The key-value data containing element definition.</param>
             public InputSignatureElement(KVObject data)
             {
-                Name = data.GetProperty<string>("m_pName");
-                Semantic = data.GetProperty<string>("m_pSemantic");
-                D3DSemanticName = data.GetProperty<string>("m_pD3DSemanticName");
+                Name = data.GetStringProperty("m_pName");
+                Semantic = data.GetStringProperty("m_pSemantic");
+                D3DSemanticName = data.GetStringProperty("m_pD3DSemanticName");
                 D3DSemanticIndex = (int)data.GetIntegerProperty("m_nD3DSemanticIndex");
+            }
+
+            /// <summary>
+            /// Initializes a new instance of the <see cref="InputSignatureElement"/> struct with specified values.
+            /// </summary>
+            /// <param name="name">The element name.</param>
+            /// <param name="semantic">The semantic name.</param>
+            /// <param name="d3dSemanticName">The Direct3D semantic name.</param>
+            /// <param name="d3dSemanticIndex">The Direct3D semantic index.</param>
+            public InputSignatureElement(string name, string semantic, string d3dSemanticName, int d3dSemanticIndex)
+            {
+                Name = name;
+                Semantic = semantic;
+                D3DSemanticName = d3dSemanticName;
+                D3DSemanticIndex = d3dSemanticIndex;
             }
         }
 
+        /// <summary>
+        /// Finds an input signature element by Direct3D semantic name and index.
+        /// </summary>
+        /// <param name="insg">The input signature to search.</param>
+        /// <param name="d3dName">The Direct3D semantic name.</param>
+        /// <param name="d3dIndex">The Direct3D semantic index.</param>
+        /// <returns>The matching element, or default if not found.</returns>
         public static InputSignatureElement FindD3DInputSignatureElement(VsInputSignature insg, string d3dName, int d3dIndex)
         {
             foreach (var element in insg.Elements)

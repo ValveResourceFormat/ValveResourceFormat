@@ -2,10 +2,19 @@ using System.IO;
 
 namespace ValveResourceFormat.Compression
 {
+    /// <summary>
+    /// Provides methods for block compression and decompression.
+    /// </summary>
     public static class BlockCompress
     {
+        /// <summary>
+        /// Contains information about compression state and size.
+        /// </summary>
         public record struct CompressionInfo(bool IsCompressed, int Size);
 
+        /// <summary>
+        /// Gets the decompressed size from a binary reader.
+        /// </summary>
         public static CompressionInfo GetDecompressedSize(BinaryReader reader)
         {
             var decompressedSize = reader.ReadUInt32();
@@ -14,12 +23,15 @@ namespace ValveResourceFormat.Compression
             // 0x80000000 is 2147483648 which automatically makes any number higher than max signed 32-bit integer.
             if (decompressedSize > int.MaxValue)
             {
-                return new(false, (int)decompressedSize & 0x7FFFFFFF);
+                return new(false, (int)(decompressedSize & 0x7FFFFFFF));
             }
 
             return new(true, (int)decompressedSize);
         }
 
+        /// <summary>
+        /// Performs fast decompression of block-compressed data into the result buffer.
+        /// </summary>
         public static void FastDecompress(CompressionInfo info, BinaryReader reader, Span<byte> result)
         {
             ArgumentOutOfRangeException.ThrowIfLessThan(result.Length, info.Size);

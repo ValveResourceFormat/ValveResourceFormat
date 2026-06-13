@@ -1,25 +1,23 @@
-using System.Linq;
+using System.Runtime.InteropServices;
 
 namespace ValveResourceFormat.ResourceTypes.ModelAnimation.SegmentDecoders
 {
+    /// <summary>
+    /// Decodes static float data that doesn't change per frame.
+    /// </summary>
     public class CCompressedStaticFloat : AnimationSegmentDecoder
     {
-        private readonly float[] Data;
-
-        public CCompressedStaticFloat(ArraySegment<byte> data, int[] wantedElements, int[] remapTable,
-            AnimationChannelAttribute channelAttribute) : base(remapTable, channelAttribute)
-        {
-            Data = wantedElements.Select(i =>
-            {
-                return BitConverter.ToSingle(data.Slice(i * 4));
-            }).ToArray();
-        }
-
+        /// <inheritdoc/>
+        /// <remarks>
+        /// Reads static float values that remain constant across all frames.
+        /// </remarks>
         public override void Read(int frameIndex, Frame outFrame)
         {
+            var floatData = MemoryMarshal.Cast<byte, float>(Data);
+
             for (var i = 0; i < RemapTable.Length; i++)
             {
-                outFrame.SetAttribute(RemapTable[i], ChannelAttribute, Data[i]);
+                outFrame.SetAttribute(RemapTable[i], ChannelAttribute, floatData[WantedElements[i]]);
             }
         }
     }

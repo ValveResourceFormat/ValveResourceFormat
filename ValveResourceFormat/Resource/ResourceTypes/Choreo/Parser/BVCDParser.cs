@@ -1,13 +1,18 @@
 using System.Diagnostics;
 using System.IO;
-using ValveResourceFormat.ResourceTypes.Choreo.Enums;
 using ValveResourceFormat.ResourceTypes.Choreo.Curves;
-using ValveResourceFormat.Utils;
+using ValveResourceFormat.ResourceTypes.Choreo.Enums;
 
 namespace ValveResourceFormat.ResourceTypes.Choreo.Parser
 {
+    /// <summary>
+    /// Parser for binary VCD (BVCD) choreography scene files.
+    /// </summary>
     public class BVCDParser
     {
+        /// <summary>
+        /// Magic number for BVCD files ("bvcd").
+        /// </summary>
         public const int MAGIC = 0x64637662; // "bvcd"
         private byte version;
         private readonly BinaryReader reader;
@@ -19,6 +24,12 @@ namespace ValveResourceFormat.ResourceTypes.Choreo.Parser
             this.strings = strings;
         }
 
+        /// <summary>
+        /// Parses a BVCD choreography scene from a stream.
+        /// </summary>
+        /// <param name="stream">The stream containing BVCD data.</param>
+        /// <param name="strings">The string table for the BVCD file.</param>
+        /// <returns>The parsed choreography scene.</returns>
         public static ChoreoScene Parse(Stream stream, string[] strings)
         {
             using var reader = new BinaryReader(stream);
@@ -26,17 +37,29 @@ namespace ValveResourceFormat.ResourceTypes.Choreo.Parser
             return parser.Read();
         }
 
+        /// <summary>
+        /// Reads a string index from the stream.
+        /// </summary>
+        /// <returns>The string index.</returns>
         protected virtual int ReadStringIndex()
         {
             return reader.ReadInt32();
         }
 
+        /// <summary>
+        /// Reads a string from the string table.
+        /// </summary>
+        /// <returns>The string at the current index.</returns>
         protected string ReadString()
         {
             var index = ReadStringIndex();
             return strings[index];
         }
 
+        /// <summary>
+        /// Reads and parses the choreography scene from the stream.
+        /// </summary>
+        /// <returns>The parsed choreography scene.</returns>
         protected virtual ChoreoScene Read()
         {
             var magic = reader.ReadUInt32();
@@ -45,6 +68,10 @@ namespace ValveResourceFormat.ResourceTypes.Choreo.Parser
                 throw new UnexpectedMagicException("The content of the given stream is not bvcd data", magic, "bvcd");
             }
             version = reader.ReadByte();
+            if (version > 19)
+            {
+                throw new UnexpectedMagicException("Unsupported bvcd version", version, nameof(version));
+            }
             var crc = reader.ReadInt32();
 
             var eventsCount = reader.ReadByte();
@@ -72,6 +99,10 @@ namespace ValveResourceFormat.ResourceTypes.Choreo.Parser
             return data;
         }
 
+        /// <summary>
+        /// Reads an actor from the stream.
+        /// </summary>
+        /// <returns>The parsed actor.</returns>
         protected virtual ChoreoActor ReadActor()
         {
             var name = ReadString();
@@ -89,6 +120,10 @@ namespace ValveResourceFormat.ResourceTypes.Choreo.Parser
             return new ChoreoActor(name, channels, isActive);
         }
 
+        /// <summary>
+        /// Reads a channel from the stream.
+        /// </summary>
+        /// <returns>The parsed channel.</returns>
         protected virtual ChoreoChannel ReadChannel()
         {
             var name = ReadString();
@@ -106,6 +141,10 @@ namespace ValveResourceFormat.ResourceTypes.Choreo.Parser
             return new ChoreoChannel(name, events, isActive);
         }
 
+        /// <summary>
+        /// Reads a tag from the stream.
+        /// </summary>
+        /// <returns>The parsed tag.</returns>
         protected virtual ChoreoTag ReadTag()
         {
             var name = ReadString();
@@ -113,6 +152,10 @@ namespace ValveResourceFormat.ResourceTypes.Choreo.Parser
             return new ChoreoTag(name, value);
         }
 
+        /// <summary>
+        /// Reads a relative tag from the stream.
+        /// </summary>
+        /// <returns>The parsed relative tag.</returns>
         protected virtual ChoreoEventRelativeTag ReadRelativeTag()
         {
             var name = ReadString();
@@ -120,6 +163,10 @@ namespace ValveResourceFormat.ResourceTypes.Choreo.Parser
             return new ChoreoEventRelativeTag(name, soundName);
         }
 
+        /// <summary>
+        /// Reads an absolute tag from the stream.
+        /// </summary>
+        /// <returns>The parsed absolute tag.</returns>
         protected virtual ChoreoTag ReadAbsoluteTag()
         {
             var name = ReadString();
@@ -127,7 +174,11 @@ namespace ValveResourceFormat.ResourceTypes.Choreo.Parser
             return new ChoreoTag(name, value);
         }
 
-        protected virtual ChoreoEdge ReadEdge()
+        /// <summary>
+        /// Reads a curve edge from the stream.
+        /// </summary>
+        /// <returns>The parsed edge, or null if no edge exists.</returns>
+        protected virtual ChoreoEdge? ReadEdge()
         {
             var hasEdge = reader.ReadBoolean();
             if (!hasEdge)
@@ -142,7 +193,7 @@ namespace ValveResourceFormat.ResourceTypes.Choreo.Parser
                 OutType = toCurve
             };
 
-            //There's two more bytes here, but only curve type and zero value can be set from (v9) faceposer. Is there something else here for newer versions?
+            //There are two more bytes here, but only curve type and zero value can be set from (v9) faceposer. Is there something else here for newer versions?
             var unk = reader.ReadUInt16();
             Debug.Assert(unk == 0);
 
@@ -150,6 +201,11 @@ namespace ValveResourceFormat.ResourceTypes.Choreo.Parser
             return new ChoreoEdge(curve, zeroValue);
         }
 
+        /// <summary>
+        /// Remaps a byte value to the corresponding choreography event type.
+        /// </summary>
+        /// <param name="eventValue">The byte value representing the event type.</param>
+        /// <returns>The corresponding choreography event type.</returns>
         protected ChoreoEventType RemapEventType(byte eventValue)
         {
             if (eventValue <= 16)
@@ -207,10 +263,20 @@ namespace ValveResourceFormat.ResourceTypes.Choreo.Parser
             }
         }
 
+        /// <summary>
+        /// Reads an event from the stream.
+        /// </summary>
+        /// <returns>The parsed event.</returns>
         protected virtual ChoreoEvent ReadEvent()
         {
             var eventType = RemapEventType(reader.ReadByte());
             var name = ReadString();
+
+            string? preferredName = null;
+            if (version >= 19)
+            {
+                preferredName = ReadString();
+            }
 
             var eventStart = reader.ReadSingle();
             var eventEnd = reader.ReadSingle();
@@ -267,7 +333,7 @@ namespace ValveResourceFormat.ResourceTypes.Choreo.Parser
             }
 
             var usingRelativeTag = reader.ReadBoolean();
-            ChoreoEventRelativeTag relativeTag = null;
+            ChoreoEventRelativeTag? relativeTag = null;
             if (usingRelativeTag)
             {
                 relativeTag = ReadRelativeTag();
@@ -279,7 +345,7 @@ namespace ValveResourceFormat.ResourceTypes.Choreo.Parser
             var soundStartDelay = 0f;
 
             var ccType = ChoreoClosedCaptionsType.None;
-            string ccToken = null;
+            string? ccToken = null;
             var speakFlags = ChoreoSpeakFlags.None;
             if (eventType == ChoreoEventType.Loop)
             {
@@ -295,6 +361,8 @@ namespace ValveResourceFormat.ResourceTypes.Choreo.Parser
                 speakFlags = (ChoreoSpeakFlags)reader.ReadByte();
                 soundStartDelay = reader.ReadSingle();
             }
+
+            Debug.Assert(relativeTag is not null || !usingRelativeTag);
 
             var constrainedEventId = reader.ReadInt32();
             var eventId = reader.ReadInt32();
@@ -325,16 +393,21 @@ namespace ValveResourceFormat.ResourceTypes.Choreo.Parser
                 SoundStartDelay = soundStartDelay,
                 ConstrainedEventId = constrainedEventId,
                 Id = eventId,
+                PreferredName = preferredName,
             };
         }
 
+        /// <summary>
+        /// Reads curve data from the stream.
+        /// </summary>
+        /// <returns>The parsed curve data.</returns>
         protected virtual ChoreoCurveData ReadCurveData()
         {
             var sampleCount = reader.ReadUInt16();
             var samples = new ChoreoSample[sampleCount];
 
             var samplesRead = 0;
-            ChoreoSample lastSample = null;
+            ChoreoSample? lastSample = null;
             var type = 0;
             while (type != 0 || samplesRead < sampleCount)
             {
@@ -351,7 +424,7 @@ namespace ValveResourceFormat.ResourceTypes.Choreo.Parser
                     var inType = reader.ReadByte();
                     var nullTermination = reader.ReadByte();
                     Debug.Assert(nullTermination == 0);
-
+                    Debug.Assert(lastSample is not null);
                     lastSample.SetCurveType(inType, outType);
                 }
                 else
@@ -362,8 +435,8 @@ namespace ValveResourceFormat.ResourceTypes.Choreo.Parser
                 type = reader.ReadByte();
             }
 
-            ChoreoEdge leftEdge = null;
-            ChoreoEdge rightEdge = null;
+            ChoreoEdge? leftEdge = null;
+            ChoreoEdge? rightEdge = null;
             if (version >= 16)
             {
                 leftEdge = ReadEdge();
@@ -373,6 +446,10 @@ namespace ValveResourceFormat.ResourceTypes.Choreo.Parser
             return new ChoreoCurveData(samples, leftEdge, rightEdge);
         }
 
+        /// <summary>
+        /// Reads a sample point from the stream.
+        /// </summary>
+        /// <returns>The parsed sample.</returns>
         protected virtual ChoreoSample ReadSample()
         {
             var time = reader.ReadSingle();
@@ -394,6 +471,10 @@ namespace ValveResourceFormat.ResourceTypes.Choreo.Parser
             return sample;
         }
 
+        /// <summary>
+        /// Reads flex animation data from the stream.
+        /// </summary>
+        /// <returns>The parsed event flex data.</returns>
         protected virtual ChoreoEventFlex ReadFlex()
         {
             var tracksCount = reader.ReadByte();
@@ -406,6 +487,10 @@ namespace ValveResourceFormat.ResourceTypes.Choreo.Parser
             return new ChoreoEventFlex(tracks);
         }
 
+        /// <summary>
+        /// Reads a flex animation track from the stream.
+        /// </summary>
+        /// <returns>The parsed flex animation track.</returns>
         protected virtual ChoreoFlexAnimationTrack ReadFlexTrack()
         {
             var name = ReadString();
@@ -414,7 +499,7 @@ namespace ValveResourceFormat.ResourceTypes.Choreo.Parser
             var maxRange = reader.ReadSingle();
 
             var samplesCurve = ReadCurveData();
-            ChoreoCurveData comboSamplesCurve = null;
+            ChoreoCurveData? comboSamplesCurve = null;
             if (flags.HasFlag(ChoreoTrackFlags.Combo))
             {
                 comboSamplesCurve = ReadCurveData();

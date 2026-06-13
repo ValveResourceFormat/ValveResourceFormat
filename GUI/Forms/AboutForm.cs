@@ -1,37 +1,114 @@
 using System.Diagnostics;
+using System.Globalization;
 using System.Runtime.InteropServices;
+using System.Text;
 using System.Windows.Forms;
+using GUI.Types.GLViewers;
+using GUI.Utils;
+using Svg.Skia;
+using ValveResourceFormat.Renderer;
 
 namespace GUI.Forms
 {
-    partial class AboutForm : Form
+    partial class AboutForm : ThemedForm
     {
         public AboutForm()
         {
             InitializeComponent();
 
-            labelVersion.Text = $"Version: {Application.ProductVersion}";
-            labelRuntime.Text = $"Runtime: {RuntimeInformation.FrameworkDescription}";
+            Icon = Program.MainForm.Icon;
+
+            {
+                using var svg = new SKSvg();
+                using var svgResource = Program.Assembly.GetManifestResourceStream(Themer.CurrentThemeColors.ColorMode == SystemColorMode.Classic ? "GUI.Icons.Logo_light.svg" : "GUI.Icons.Logo.svg");
+                Debug.Assert(svgResource is not null);
+                svg.Load(svgResource);
+                icon.Image = Themer.SvgToBitmap(svg, icon.Width, icon.Height);
+            }
+
+            // Start the decoder thread so that it fetches the opengl version and is ready for the version copy
+            if (GLEnvironment.GpuRendererAndDriver == null && HardwareAcceleratedTextureDecoder.Decoder is GLTextureDecoder decoder)
+            {
+                decoder.StartThread();
+            }
+
+            currentVersionLabel.Text = Application.ProductVersion[..16].Replace('+', ' ');
+            newVersionLabel.Text = "Checking for updates…";
+
+            checkForUpdatesCheckbox.Checked = Settings.Config.Update.CheckAutomatically;
+
+            UpdateChecker.CheckForUpdates().ContinueWith(_ =>
+            {
+                if (InvokeRequired)
+                {
+                    Invoke(OnUpdateChecked);
+                }
+                else
+                {
+                    OnUpdateChecked();
+                }
+            });
         }
 
-        private void OnWebsiteClick(object sender, System.EventArgs e)
+        private void OnUpdateChecked()
+        {
+            if (!string.IsNullOrEmpty(UpdateChecker.NewVersion))
+            {
+                newVersionLabel.Text = UpdateChecker.IsNewVersionStableBuild ? UpdateChecker.NewVersion : $"Dev build {UpdateChecker.NewVersion}";
+            }
+
+            if (!UpdateChecker.IsNewVersionAvailable)
+            {
+                downloadButton.Text = "Up to date";
+                downloadButton.Enabled = false;
+            }
+
+            if (!string.IsNullOrEmpty(UpdateChecker.ReleaseNotesUrl))
+            {
+                viewReleaseNotesButton.Text = $"View release notes for {UpdateChecker.ReleaseNotesVersion}";
+            }
+        }
+
+        public void OnWebsiteClick(object sender, EventArgs e)
         {
             OpenUrl("https://valveresourceformat.github.io/");
         }
 
-        private void OnGithubClick(object sender, System.EventArgs e)
+        private void OnGithubClick(object sender, EventArgs e)
         {
             OpenUrl("https://github.com/ValveResourceFormat/ValveResourceFormat");
         }
 
-        private void OnReleasesClick(object sender, System.EventArgs e)
+        private void OnDiscordClick(object sender, EventArgs e)
         {
-            OpenUrl("https://github.com/ValveResourceFormat/ValveResourceFormat/releases");
+            OpenUrl("https://discord.gg/s9QQ7Wg7r4");
         }
 
-        private void OnKeybindsClick(object sender, System.EventArgs e)
+        private void OnViewReleaseNotesButtonClick(object sender, EventArgs e)
         {
-            OpenUrl("https://github.com/ValveResourceFormat/ValveResourceFormat/wiki/Source-2-Viewer-Keybinds");
+            OpenUrl(UpdateChecker.ReleaseNotesUrl ?? "https://github.com/ValveResourceFormat/ValveResourceFormat/releases");
+        }
+
+        private void OnDownloadButtonClick(object sender, EventArgs e)
+        {
+            OpenUrl("https://valveresourceformat.github.io/");
+        }
+
+        private void OnCheckForUpdatesCheckboxChanged(object sender, EventArgs e)
+        {
+            if (!IsHandleCreated)
+            {
+                return;
+            }
+
+            ToggleAutomaticUpdateCheck(checkForUpdatesCheckbox.Checked);
+        }
+
+        private static void ToggleAutomaticUpdateCheck(bool enabled = true)
+        {
+            Settings.Config.Update.CheckAutomatically = enabled;
+            Settings.Config.Update.LastCheck = string.Empty;
+            Settings.Config.Update.UpdateAvailable = UpdateChecker.IsNewVersionAvailable && Settings.Config.Update.CheckAutomatically;
         }
 
         private static void OpenUrl(string url)
@@ -40,6 +117,35 @@ namespace GUI.Forms
             {
                 CreateNoWindow = true,
             });
+        }
+
+        private void OnCopyVersionClick(object sender, EventArgs e)
+        {
+            var output = new StringBuilder(192);
+            var version = Application.ProductVersion;
+            var versionPlus = version.IndexOf('+', StringComparison.Ordinal);
+
+            if (versionPlus > 0)
+            {
+                output.Append(version[..versionPlus]);
+                output.Append(' ');
+                output.Append(version[(versionPlus + 1)..(versionPlus + 10)]);
+            }
+            else
+            {
+                output.Append(version);
+            }
+
+            output.Append(CultureInfo.InvariantCulture, $" on {RuntimeInformation.OSDescription} ({RuntimeInformation.OSArchitecture})");
+
+            if (GLEnvironment.GpuRendererAndDriver != null)
+            {
+                output.Append(CultureInfo.InvariantCulture, $" ({GLEnvironment.GpuRendererAndDriver})");
+            }
+
+            Clipboard.SetText(output.ToString());
+
+            copyVersion.Text = "Copied!";
         }
     }
 }

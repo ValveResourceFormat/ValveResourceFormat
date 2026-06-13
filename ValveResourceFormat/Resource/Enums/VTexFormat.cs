@@ -1,7 +1,11 @@
 namespace ValveResourceFormat
 {
+    /// <summary>
+    /// Valve texture formats.
+    /// </summary>
     public enum VTexFormat
     {
+#pragma warning disable CS1591
         UNKNOWN = 0,
         DXT1 = 1,
         DXT5 = 2,
@@ -31,5 +35,8 @@ namespace ValveResourceFormat
         RG11_EAC = 26,
         ATI1N = 27,
         BGRA8888 = 28,
+        WEBP_RGBA8888 = 29,
+        WEBP_DXT5 = 30,
+#pragma warning restore CS1591
     }
 }

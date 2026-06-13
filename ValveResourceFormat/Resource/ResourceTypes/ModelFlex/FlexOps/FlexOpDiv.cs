@@ -1,9 +1,19 @@
 namespace ValveResourceFormat.ResourceTypes.ModelFlex.FlexOps
 {
+    /// <summary>
+    /// Flex operation that divides two values.
+    /// </summary>
     public class FlexOpDiv : FlexOp
     {
+        /// <summary>
+        /// Initializes a new instance of the <see cref="FlexOpDiv"/> class.
+        /// </summary>
         public FlexOpDiv(float data) : base(data) { }
 
+        /// <inheritdoc/>
+        /// <remarks>
+        /// Pops two values from the stack and pushes their quotient.
+        /// </remarks>
         public override void Run(in FlexRuleContext context)
         {
             var v1 = context.Stack.Pop();

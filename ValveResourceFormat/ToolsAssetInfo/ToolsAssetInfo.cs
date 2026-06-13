@@ -1,63 +1,235 @@
 using System.IO;
 using System.Text;
 using ValveKeyValue;
-using ValveResourceFormat.Utils;
+using ValveResourceFormat.ResourceTypes;
 
 namespace ValveResourceFormat.ToolsAssetInfo
 {
+    /// <summary>
+    /// Represents tools asset info data from Valve's Source 2 engine.
+    /// </summary>
     public class ToolsAssetInfo
     {
+        /// <summary>
+        /// Represents a file entry in the tools asset info.
+        /// </summary>
         public class File
         {
+            /// <summary>
+            /// Represents an input dependency.
+            /// </summary>
             public readonly struct InputDependency
             {
+                /// <summary>
+                /// Gets the filename.
+                /// </summary>
                 public string Filename { get; init; }
+
+                /// <summary>
+                /// Gets the file CRC.
+                /// </summary>
                 public uint FileCRC { get; init; }
+
+                /// <summary>
+                /// Gets a value indicating whether this dependency is optional.
+                /// </summary>
                 public bool Optional { get; init; }
+
+                /// <summary>
+                /// Gets a value indicating whether the file exists.
+                /// </summary>
                 public bool FileExists { get; init; }
             }
 
+            /// <summary>
+            /// Represents a search path.
+            /// </summary>
             public readonly struct SearchPath
             {
+                /// <summary>
+                /// Gets the filename.
+                /// </summary>
                 public string Filename { get; init; }
-                public byte[] UnknownBits { get; init; }
+
+                // Valve reads them as 16 bytes
+                /// <summary>
+                /// Gets unknown bits (first 8 bytes).
+                /// </summary>
+                public ulong UnknownBits1 { get; init; }
+
+                /// <summary>
+                /// Gets unknown bits (second 8 bytes).
+                /// </summary>
+                public ulong UnknownBits2 { get; init; }
             }
 
+            /// <summary>
+            /// Represents a special dependency.
+            /// </summary>
             public struct SpecialDependency
             {
+                /// <summary>
+                /// Gets or sets the string value.
+                /// </summary>
                 public string String { get; set; }
+
+                /// <summary>
+                /// Gets or sets the compiler identifier.
+                /// </summary>
                 public string CompilerIdentifier { get; set; }
+
+                /// <summary>
+                /// Gets or sets the fingerprint.
+                /// </summary>
                 public uint Fingerprint { get; set; }
+
+                /// <summary>
+                /// Gets or sets the user data.
+                /// </summary>
                 public uint UserData { get; set; }
             }
 
+            /// <summary>
+            /// Represents an extended dependency (version 15+).
+            /// </summary>
+            public readonly struct ExtendedDependency
+            {
+                /// <summary>
+                /// Gets unknown bits.
+                /// </summary>
+                public uint Unknown1 { get; init; }
+
+                /// <summary>
+                /// Gets unknown bits.
+                /// </summary>
+                public uint Unknown2 { get; init; }
+
+                /// <summary>
+                /// Gets unknown bits (could be a crc).
+                /// </summary>
+                public uint Unknown3 { get; init; }
+
+                /// <summary>
+                /// Gets the filename.
+                /// </summary>
+                public string Filename { get; init; }
+            }
+
+            /// <summary>
+            /// Gets or sets a value indicating whether the file needs refresh.
+            /// </summary>
             public bool NeedsRefresh { get; set; }
+
+            /// <summary>
+            /// Gets or sets a value indicating whether the file is invalid.
+            /// </summary>
             public bool Invalid { get; set; }
+
+            /// <summary>
+            /// Gets or sets a value indicating whether the file is up to date.
+            /// </summary>
             public bool UpToDate { get; set; }
+
+            /// <summary>
+            /// Gets or sets a value indicating whether compilation failed.
+            /// </summary>
             public bool CompileFailed { get; set; }
 
+            /// <summary>
+            /// Gets the search paths in the game root.
+            /// </summary>
             public List<SearchPath> SearchPathsGameRoot { get; } = [];
+
+            /// <summary>
+            /// Gets the search paths in the content root.
+            /// </summary>
             public List<SearchPath> SearchPathsContentRoot { get; } = [];
+
+            /// <summary>
+            /// Gets the input dependencies.
+            /// </summary>
             public List<InputDependency> InputDependencies { get; } = [];
+
+            /// <summary>
+            /// Gets the additional input dependencies.
+            /// </summary>
             public List<InputDependency> AdditionalInputDependencies { get; } = [];
+
+            /// <summary>
+            /// Gets the external references.
+            /// </summary>
             public List<string> ExternalReferences { get; } = [];
+
+            /// <summary>
+            /// Gets the child resources.
+            /// </summary>
             public List<string> ChildResources { get; } = [];
+
+            /// <summary>
+            /// Gets the additional related files.
+            /// </summary>
             public List<string> AdditionalRelatedFiles { get; } = [];
+
+            /// <summary>
+            /// Gets the weak references.
+            /// </summary>
             public List<string> WeakReferences { get; } = [];
+
+            /// <summary>
+            /// Gets the special dependencies.
+            /// </summary>
             public List<SpecialDependency> SpecialDependencies { get; } = [];
+
+            /// <summary>
+            /// Gets the extended dependencies.
+            /// </summary>
+            public List<ExtendedDependency> ExtendedDependencies { get; } = [];
+
+            /// <summary>
+            /// Gets the searchable user data.
+            /// </summary>
             public Dictionary<string, object> SearchableUserData { get; } = [];
+
+            /// <summary>
+            /// Gets the subasset definitions.
+            /// </summary>
             public Dictionary<string, List<string>> SubassetDefinitions { get; } = [];
+
+            /// <summary>
+            /// Gets the subasset references.
+            /// </summary>
             public Dictionary<string, Dictionary<string, int>> SubassetReferences { get; } = [];
         }
 
+        /// <summary>
+        /// Magic identifier for the file format.
+        /// </summary>
         public const uint MAGIC = 0xC4CCACE8;
+
+        /// <summary>
+        /// Magic identifier for the newer file format.
+        /// </summary>
         public const uint MAGIC2 = 0xC4CCACE9;
+
+        /// <summary>
+        /// Guard value.
+        /// </summary>
         public const uint GUARD = 0x049A48B2;
+
+        /// <summary>
+        /// File version.
+        /// </summary>
+        public uint Version { get; private set; }
 
         /// <summary>
         /// All the assets.
         /// </summary>
         public Dictionary<string, File> Files { get; } = [];
+
+        /// <summary>
+        /// Gets the KV3 segment data, if present.
+        /// </summary>
+        public ValveKeyValue.KVObject? KV3Segment { get; private set; }
 
         /// <summary>
         /// Opens and reads the given filename.
@@ -79,20 +251,20 @@ namespace ValveResourceFormat.ToolsAssetInfo
         {
             using var reader = new BinaryReader(input, Encoding.UTF8, true);
             var magic = reader.ReadUInt32();
-            var version = reader.ReadUInt32();
+            Version = reader.ReadUInt32();
 
             if (magic == MAGIC2)
             {
-                if (version < 11 || version > 13)
+                if (Version < 11 || Version > 15)
                 {
-                    throw new UnexpectedMagicException("Unexpected version", version, nameof(version));
+                    throw new UnexpectedMagicException("Unexpected version", Version, nameof(Version));
                 }
             }
             else if (magic == MAGIC)
             {
-                if (version != 9 && version != 10)
+                if (Version != 9 && Version != 10)
                 {
-                    throw new UnexpectedMagicException("Unexpected version (old magic)", version, nameof(version));
+                    throw new UnexpectedMagicException("Unexpected version (old magic)", Version, nameof(Version));
                 }
             }
             else
@@ -117,7 +289,7 @@ namespace ValveResourceFormat.ToolsAssetInfo
             List<string> subassetDefinitions;
             List<string> subassetValues;
 
-            if (version >= 12)
+            if (Version >= 12)
             {
                 subassetDefinitions = ReadStringsBlock(reader);
                 subassetValues = ReadStringsBlock(reader);
@@ -128,15 +300,17 @@ namespace ValveResourceFormat.ToolsAssetInfo
                 subassetValues = [];
             }
 
+            var path = new StringBuilder(128);
+
             string ConstructFilePath(ulong hash)
             {
-                var unk1 = (int)(hash >> 61) & 7;
-                var addonIndex = (int)(hash >> 52) & 0x1FF;
-                var directoryIndex = (int)(hash >> 33) & 0x7FFFF;
-                var filenameIndex = (int)(hash >> 10) & 0x7FFFFF;
+                var unk1 = (int)((hash >> 61) & 7);
+                var addonIndex = (int)((hash >> 52) & 0x1FF);
+                var directoryIndex = (int)((hash >> 33) & 0x7FFFF);
+                var filenameIndex = (int)((hash >> 10) & 0x7FFFFF);
                 var extensionIndex = (int)(hash & 0x3FF);
 
-                var path = new StringBuilder();
+                path.Clear();
 
                 if (addonIndex != 0x1FF)
                 {
@@ -177,6 +351,40 @@ namespace ValveResourceFormat.ToolsAssetInfo
                 Files[ConstructFilePath(hash)] = file;
             }
 
+            if (Version >= 14)
+            {
+                // Align to 8-byte boundary
+                var currentPos = reader.BaseStream.Position;
+                var alignedPos = (currentPos + 7) & ~7L;
+
+                if (currentPos < alignedPos)
+                {
+                    var paddingBytes = alignedPos - currentPos;
+
+                    for (var i = 0; i < paddingBytes; i++)
+                    {
+                        if (reader.ReadByte() != 0)
+                        {
+                            throw new InvalidDataException("Alignment padding contains non-zero bytes");
+                        }
+                    }
+                }
+
+                var kv3magic = reader.ReadUInt32();
+                reader.BaseStream.Position -= 4; // rewind
+
+                if (BinaryKV3.IsBinaryKV3(kv3magic))
+                {
+                    var kv3 = new BinaryKV3(BlockType.Undefined)
+                    {
+                        Resource = null!
+                    };
+                    kv3.Read(reader);
+
+                    KV3Segment = kv3.Data;
+                }
+            }
+
             // These blocks quite closely match RERL and REDI blocks in the individual files
             for (var fileId = 0; fileId < fileCount; fileId++)
             {
@@ -193,12 +401,16 @@ namespace ValveResourceFormat.ToolsAssetInfo
                     while (count-- > 0)
                     {
                         var hash = reader.ReadUInt64();
-                        var unk = reader.ReadBytes(16); // packed bytes of multiple bits of info, what are they?
+
+                        // packed bytes of multiple bits of info, what are they?
+                        var unk1 = reader.ReadUInt64();
+                        var unk2 = reader.ReadUInt64();
 
                         var searchPath = new File.SearchPath
                         {
                             Filename = ConstructFilePath(hash),
-                            UnknownBits = unk,
+                            UnknownBits1 = unk1,
+                            UnknownBits2 = unk2,
                         };
 
                         switch (searchPathType)
@@ -281,7 +493,7 @@ namespace ValveResourceFormat.ToolsAssetInfo
                     int compilerIdentifierId;
                     int stringId;
 
-                    if (version >= 11)
+                    if (Version >= 11)
                     {
                         compilerIdentifierId = reader.ReadInt32();
                         stringId = reader.ReadInt32();
@@ -304,6 +516,28 @@ namespace ValveResourceFormat.ToolsAssetInfo
                     });
                 }
 
+                if (Version >= 15)
+                {
+                    count = reader.ReadInt32();
+                    file.ExtendedDependencies.Capacity = count;
+
+                    while (count-- > 0)
+                    {
+                        var unk1 = reader.ReadUInt32();
+                        var unk2 = reader.ReadUInt32();
+                        var fileHash = reader.ReadUInt64();
+                        var unk3 = reader.ReadUInt32(); // read as 4 bytes, a crc?
+
+                        file.ExtendedDependencies.Add(new File.ExtendedDependency
+                        {
+                            Unknown1 = unk1,
+                            Unknown2 = unk2,
+                            Unknown3 = unk3,
+                            Filename = ConstructFilePath(fileHash),
+                        });
+                    }
+                }
+
                 // m_SearchableUserData
                 count = reader.ReadInt32();
                 file.SearchableUserData.EnsureCapacity(count);
@@ -312,13 +546,13 @@ namespace ValveResourceFormat.ToolsAssetInfo
                 {
                     var keyId = reader.ReadUInt16();
                     var type = reader.ReadByte();
-                    object value = null;
+                    object? value = null;
 
                     if (type == 2)
                     {
                         int assetInfoValue;
 
-                        if (version >= 11)
+                        if (Version >= 11)
                         {
                             assetInfoValue = reader.ReadInt32();
                         }
@@ -371,7 +605,7 @@ namespace ValveResourceFormat.ToolsAssetInfo
                     });
                 }
 
-                if (version >= 12)
+                if (Version >= 12)
                 {
                     // m_SubassetDefinitions
                     count = reader.ReadInt32();
@@ -417,7 +651,7 @@ namespace ValveResourceFormat.ToolsAssetInfo
                     }
                 }
 
-                if (version >= 13)
+                if (Version >= 13)
                 {
                     // m_WeakReferenceList
                     count = reader.ReadInt32();
@@ -432,7 +666,7 @@ namespace ValveResourceFormat.ToolsAssetInfo
                 }
             }
 
-            if (version >= 10)
+            if (Version >= 10)
             {
                 var guard = reader.ReadUInt32();
                 UnexpectedMagicException.Assert(guard == GUARD, guard);
@@ -452,6 +686,7 @@ namespace ValveResourceFormat.ToolsAssetInfo
             return output;
         }
 
+        /// <inheritdoc/>
         public override string ToString()
         {
             using var ms = new MemoryStream();

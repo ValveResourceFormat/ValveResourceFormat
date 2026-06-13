@@ -1,0 +1,18 @@
+#version 460
+
+#ifndef VRF_FEATURES_INCLUDE
+#define VRF_FEATURES_INCLUDE
+
+// Baked lighting
+#define D_BAKED_LIGHTING_FROM_LIGHTMAP 0
+#define D_BAKED_LIGHTING_FROM_VERTEX_STREAM 0
+#define D_BAKED_LIGHTING_FROM_PROBE 0
+
+#define S_LIGHTMAP_VERSION_MAJOR 0
+#define S_LIGHTMAP_VERSION_MINOR 0
+
+uniform int F_RENDER_BACKFACES; // most shaders
+uniform int F_DONT_FLIP_BACKFACE_NORMALS; // most shaders
+uniform int F_RETRO_REFLECTIVE; // csgo_character, vr_complex
+
+#endif

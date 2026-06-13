@@ -1,14 +1,25 @@
-using System.Collections.Concurrent;
+using System.Diagnostics.CodeAnalysis;
+using System.Globalization;
 using System.IO;
-using ValveResourceFormat.ThirdParty;
-using ValveResourceFormat.Utils;
+using System.Text;
 
 namespace ValveResourceFormat.Serialization.VfxEval
 {
+    /// <summary>
+    /// Evaluates and decompiles VFX dynamic expressions.
+    /// </summary>
     public class VfxEval
     {
-        // parsed data assigned here
+        /// <summary>
+        /// Gets the parsed dynamic expression result as a string.
+        /// </summary>
         public string DynamicExpressionResult { get; private set; }
+
+        /// <summary>
+        /// Gets the original dynamic expression binary blob.
+        /// </summary>
+        public byte[] DynamicExpressionBlob { get; private set; }
+
         // parse the input one line at a time
         private readonly List<string> DynamicExpressionList = [];
 
@@ -51,44 +62,45 @@ namespace ValveResourceFormat.Serialization.VfxEval
             ("normalize",  1),     // 21
             ("length",     1),     // 22
             ("sqr",        1),     // 23
-            ("TextureSize",1),     // 24
-            ("rotation2d", 1),     // 25
-            ("rotate2d",   2),     // 26
-            ("sincos",     1),     // 27
-            ("TextureSize",1),     // 28
-            ("TextureAverageColor", 1), // 29
-            ("MatrixIdentity",      0), // 2A
-            ("MatrixScale",         1), // 2B
-            ("MatrixTranslate",     1), // 2C
-            ("MatrixAxisAngle",     1), // 2E
-            ("MatrixAxisToAxis",    2), // 2F
-            ("MatrixMultiply",      2), // 30
-            ("MatrixColorCorrect",  1), // 31
-            ("MatrixColorCorrect2", 2), // 32
-            ("MatrixColorTint",     1), // 33
-            ("normalize_safe",      1), // 34
-            ("Remap01ScaleOffset",  1), // 35
-            ("radians",             1), // 36
-            ("degrees",             1), // 37
-            ("MatrixColorTint2",    2), // 38
-            ("MatrixColorTint3",    3), // 39
+            ("rotation2d", 1),     // 24
+            ("rotate2d",   2),     // 25
+            ("sincos",     1),     // 26
+            ("TextureSize",1),     // 27
+            ("TextureAverageColor", 1), // 28
+            ("MatrixIdentity",      0), // 29
+            ("MatrixScale",         1), // 2A
+            ("MatrixTranslate",     1), // 2B
+            ("MatrixAxisAngle",     1), // 2C
+            ("MatrixAxisToAxis",    2), // 2D
+            ("MatrixMultiply",      2), // 2E
+            ("MatrixColorCorrect",  1), // 2F
+            ("MatrixColorCorrect2", 2), // 30
+            ("MatrixColorTint",     1), // 31
+            ("normalize_safe",      1), // 32
+            ("Remap01ScaleOffset",  1), // 33
+            ("radians",             1), // 34
+            ("degrees",             1), // 35
+            ("MatrixColorTint2",    2), // 36
+            ("MatrixColorTint3",    3), // 37
+            ("RemapVal",            5), // 38
+            ("RemapValClamped",     5), // 39
 #pragma warning restore format
         ];
 
         private enum OPCODE
         {
-            ENDOFDATA,          // 00
-            UNKNOWN01,
-            BRANCH_SEP,         // 02
-            UNKNOWN03,
+            RETURN,             // 00
+            NOP,                // 01
+            JUMP,               // 02
+            CALL,               // 03
             BRANCH,             // 04
-            UNKNOWN05,
+            RET,                // 05
             FUNC,               // 06
             FLOAT,              // 07
-            ASSIGN,             // 08
-            LOCALVAR,           // 09
-            UNKNOWN0A,
-            UNKNOWN0B,
+            STORE,              // 08
+            LOAD,               // 09
+            OR,                 // 0A
+            AND,                // 0B
             NOT,                // 0C
             EQUALS,             // 0D
             NEQUALS,            // 0E
@@ -102,15 +114,15 @@ namespace ValveResourceFormat.Serialization.VfxEval
             DIV,                // 16
             MODULO,             // 17
             NEGATE,             // 18
-            EXTVAR,             // 19
-            COND,               // 1A (inferred from the shader code)
-            UNKNOWN1B,
-            UNKNOWN1C,
-            EVAL,               // 1D (inferred from the shader code)
+            ATTRIBUTE,          // 19
+            FEATURE,            // 1A
+            FEATURE2,           // 1B
+            FEATURE3,           // 1C
+            MATERIAL_PARAM,     // 1D
             SWIZZLE,            // 1E
             EXISTS,             // 1F
-            UNKNOWN20,
-            UNKNOWN21,
+            MATERIAL_PARAM_IDX, // 20
+            FLOAT4,             // 21
         };
 
         private static readonly Dictionary<OPCODE, string> OpCodeToSymbol = new()
@@ -139,39 +151,64 @@ namespace ValveResourceFormat.Serialization.VfxEval
         private readonly Stack<uint> OffsetAtBranchExits = new();
         private readonly Dictionary<uint, string> LocalVariableNames = [];
 
-        // build a dictionary of the external variables seen, passed as 'renderAttributesUsed'
-        private static readonly ConcurrentDictionary<uint, string> ExternalVarsReference = new();
+        /// <summary>
+        /// Gets the list of render attributes used in the expression.
+        /// </summary>
+        public IReadOnlyList<string> RenderAttributesUsed { get; }
+
+        /// <summary>
+        /// Gets the enum mapper function.
+        /// </summary>
+        public Func<int, string>? EnumMapper { get; }
+
 
         // The 'return' keyword in the last line of a dynamic expression is optional (it is implied where absent)
         // OmitReturnStatement controls whether it is shown
         private readonly bool OmitReturnStatement;
 
-        private readonly IReadOnlyList<string> Features;
+        private readonly IReadOnlyList<string>? Features;
 
-        public VfxEval(byte[] binaryBlob, bool omitReturnStatement = false, IReadOnlyList<string> features = null)
+        /// <summary>
+        /// Initializes a new instance of the <see cref="VfxEval"/> class.
+        /// </summary>
+        /// <param name="binaryBlob">The binary blob to parse.</param>
+        /// <param name="omitReturnStatement">Whether to omit the return statement in the output.</param>
+        /// <param name="features">The list of features.</param>
+        public VfxEval(byte[] binaryBlob, bool omitReturnStatement = false, IReadOnlyList<string>? features = null)
         {
             OmitReturnStatement = omitReturnStatement;
             Features = features;
+            RenderAttributesUsed = [];
             ParseExpression(binaryBlob);
         }
 
-        public VfxEval(byte[] binaryBlob, IReadOnlyList<string> renderAttributesUsed, bool omitReturnStatement = false, IReadOnlyList<string> features = null)
+        /// <summary>
+        /// Initializes a new instance of the <see cref="VfxEval"/> class.
+        /// </summary>
+        /// <param name="binaryBlob">The binary blob to parse.</param>
+        /// <param name="renderAttributesUsed">The list of render attributes used.</param>
+        /// <param name="omitReturnStatement">Whether to omit the return statement in the output.</param>
+        /// <param name="features">The list of features.</param>
+        /// <param name="enumMapper">The enum mapper function.</param>
+        public VfxEval(byte[] binaryBlob, IReadOnlyList<string> renderAttributesUsed,
+            bool omitReturnStatement = false,
+            IReadOnlyList<string>? features = null,
+            Func<int, string>? enumMapper = null)
         {
             OmitReturnStatement = omitReturnStatement;
             Features = features;
+            EnumMapper = enumMapper;
+            RenderAttributesUsed = renderAttributesUsed;
 
-            foreach (var externalVarName in renderAttributesUsed)
-            {
-                var murmur32 = MurmurHash2.Hash(externalVarName.ToLowerInvariant(), StringToken.MURMUR2SEED);
-
-                ExternalVarsReference.AddOrUpdate(murmur32, externalVarName, (k, v) => externalVarName);
-            }
-
+            StringToken.Store(renderAttributesUsed);
             ParseExpression(binaryBlob);
         }
 
+        [MemberNotNull(nameof(DynamicExpressionBlob), nameof(DynamicExpressionResult))]
         private void ParseExpression(byte[] binaryBlob)
         {
+            DynamicExpressionBlob = binaryBlob;
+
             using var dataReader = new BinaryReader(new MemoryStream(binaryBlob));
 
             while (dataReader.BaseStream.Position < binaryBlob.Length)
@@ -179,12 +216,7 @@ namespace ValveResourceFormat.Serialization.VfxEval
                 ProcessOps((OPCODE)dataReader.ReadByte(), dataReader);
             }
 
-            foreach (var expression in DynamicExpressionList)
-            {
-                DynamicExpressionResult += $"{expression}\n";
-            }
-
-            DynamicExpressionResult = DynamicExpressionResult.Trim();
+            DynamicExpressionResult = string.Join("\n", DynamicExpressionList);
         }
 
         private void ProcessOps(OPCODE op, BinaryReader dataReader)
@@ -245,7 +277,7 @@ namespace ValveResourceFormat.Serialization.VfxEval
                 }
             }
 
-            if (op == OPCODE.BRANCH_SEP)
+            if (op == OPCODE.JUMP)
             {
                 var branchExit = (uint)dataReader.ReadUInt16();
                 OffsetAtBranchExits.Push(branchExit + 1);
@@ -258,6 +290,14 @@ namespace ValveResourceFormat.Serialization.VfxEval
             {
                 var pointer1 = dataReader.ReadUInt16();
                 var pointer2 = dataReader.ReadUInt16();
+
+                // Skip AND or OR branch detection as they might hide enum values that are 0 or 1
+                if (EnumMapper != null)
+                {
+                    OffsetAtBranchExits.Push(IFELSE_BRANCH);
+                    return;
+                }
+
                 var b = dataReader.ReadBytes(5);
 
                 // for <e1>&&<e2> expressions we are looking for the pattern
@@ -288,7 +328,7 @@ namespace ValveResourceFormat.Serialization.VfxEval
                 var funcCheckByte = dataReader.ReadByte();
                 if (funcId >= FUNCTION_REF.Length)
                 {
-                    throw new InvalidDataException($"Error parsing dynamic expression, invalid function Id = {funcId:x} (position: {dataReader.BaseStream.Position})");
+                    throw new InvalidDataException($"Error parsing dynamic expression, invalid function Id = 0x{funcId:x} (position: {dataReader.BaseStream.Position})");
                 }
                 if (funcCheckByte != 0)
                 {
@@ -309,18 +349,28 @@ namespace ValveResourceFormat.Serialization.VfxEval
             if (op == OPCODE.FLOAT)
             {
                 var floatVal = dataReader.ReadSingle();
-                var floatLiteral = $"{floatVal:g}";
+
+                if (EnumMapper != null && floatVal == MathF.Floor(floatVal))
+                {
+
+                    Expressions.Push(EnumMapper((int)floatVal));
+                    return;
+                }
+
+                var floatLiteral = floatVal.ToString("g", CultureInfo.InvariantCulture);
+
                 // if a float leads with "0." remove the 0 (as how Valve likes it)
                 if (floatLiteral.Length > 1 && floatLiteral[..2] == "0.")
                 {
                     floatLiteral = floatLiteral[1..];
                 }
+
                 Expressions.Push(floatLiteral);
                 return;
             }
 
             // assignment is always to a local variable, and it terminates the line
-            if (op == OPCODE.ASSIGN)
+            if (op == OPCODE.STORE)
             {
                 var varId = dataReader.ReadByte();
                 var locVarname = GetLocalVarName(varId);
@@ -330,7 +380,7 @@ namespace ValveResourceFormat.Serialization.VfxEval
                 return;
             }
 
-            if (op == OPCODE.LOCALVAR)
+            if (op == OPCODE.LOAD)
             {
                 var varId = dataReader.ReadByte();
                 var locVarname = GetLocalVarName(varId);
@@ -364,33 +414,24 @@ namespace ValveResourceFormat.Serialization.VfxEval
                 return;
             }
 
-            if (op == OPCODE.EXTVAR)
+            if (op == OPCODE.ATTRIBUTE)
             {
-                var varId = dataReader.ReadUInt32();
-                var extVarname = GetExternalVarName(varId);
-                Expressions.Push(extVarname);
+                var token = dataReader.ReadUInt32();
+                Expressions.Push(StringToken.InvertedTable.GetValueOrDefault(token, $"ATTRIBUTE[{token:x08}]"));
                 return;
             }
 
-            if (op == OPCODE.COND)
+            if (op == OPCODE.FEATURE)
             {
-                uint expressionId = dataReader.ReadByte();
-                Expressions.Push((Features is null) ? $"COND[{expressionId}]" : Features[(int)expressionId]);
+                uint featureId = dataReader.ReadByte();
+                Expressions.Push((Features is null) ? $"FEAT[{featureId}]" : Features[(int)featureId]);
                 return;
             }
 
-            if (op == OPCODE.EVAL)
+            if (op == OPCODE.MATERIAL_PARAM)
             {
-                var intval = dataReader.ReadUInt32();
-                // if this reference exists in the vars-reference, then show it
-                if (ExternalVarsReference.TryGetValue(intval, out var externalVar))
-                {
-                    Expressions.Push(externalVar);
-                }
-                else
-                {
-                    Expressions.Push($"EVAL[{intval:x08}]");
-                }
+                var token = dataReader.ReadUInt32();
+                Expressions.Push(StringToken.InvertedTable.GetValueOrDefault(token, $"MATERIAL_PARAM[{token:x08}]"));
                 return;
             }
 
@@ -404,14 +445,14 @@ namespace ValveResourceFormat.Serialization.VfxEval
 
             if (op == OPCODE.EXISTS)
             {
-                var varId = dataReader.ReadUInt32();
-                var extVarname = GetExternalVarName(varId);
+                var token = dataReader.ReadUInt32();
+                var extVarname = StringToken.InvertedTable.GetValueOrDefault(token, $"ATTRIBUTE[{token:x08}]");
                 Expressions.Push($"exists({extVarname})");
                 return;
             }
 
             // parser terminates here
-            if (op == OPCODE.ENDOFDATA)
+            if (op == OPCODE.RETURN)
             {
                 if (dataReader.PeekChar() != -1)
                 {
@@ -435,39 +476,29 @@ namespace ValveResourceFormat.Serialization.VfxEval
 
         private void ApplyFunction(string funcName, int nrArguments)
         {
-            if (nrArguments == 0)
+            var arguments = new Stack<string>(nrArguments);
+            for (var i = 0; i < nrArguments; i++)
             {
-                Expressions.Push($"{funcName}()");
-                return;
-            }
-            var exp1 = Expressions.Pop();
-            if (nrArguments == 1)
-            {
-                Expressions.Push($"{funcName}({Trimbrackets(exp1)})");
-                return;
-            }
-            var exp2 = Expressions.Pop();
-            if (nrArguments == 2)
-            {
-                Expressions.Push($"{funcName}({Trimbrackets(exp2)},{Trimbrackets(exp1)})");
-                return;
-            }
-            var exp3 = Expressions.Pop();
-            if (nrArguments == 3)
-            {
-                // Trimming the brackets here because it's always safe to remove these from functions
-                // (as they always carry their own brackets)
-                Expressions.Push($"{funcName}({Trimbrackets(exp3)},{Trimbrackets(exp2)},{Trimbrackets(exp1)})");
-                return;
-            }
-            var exp4 = Expressions.Pop();
-            if (nrArguments == 4)
-            {
-                Expressions.Push($"{funcName}({Trimbrackets(exp4)},{Trimbrackets(exp3)},{Trimbrackets(exp2)},{Trimbrackets(exp1)})");
-                return;
+                arguments.Push(Expressions.Pop());
             }
 
-            throw new InvalidDataException($"Error parsing dynamic expression, unexpected number of arguments ({nrArguments}) for function ${funcName}");
+            var expression = new StringBuilder();
+            expression.Append(funcName);
+            expression.Append('(');
+
+            for (var i = 0; i < nrArguments; i++)
+            {
+                if (i > 0)
+                {
+                    expression.Append(',');
+                }
+
+                expression.Append(Trimbrackets(arguments.Pop()));
+            }
+
+            expression.Append(')');
+
+            Expressions.Push(expression.ToString());
         }
 
         private static string GetSwizzle(byte packedSwizzle, bool trimmed = true)
@@ -498,20 +529,6 @@ namespace ValveResourceFormat.Serialization.VfxEval
         private static string Trimbrackets(string exp)
         {
             return exp[0] == '(' && exp[^1] == ')' ? exp[1..^1] : exp;
-        }
-
-        // if the variable reference is unknown return in the form UNKNOWN[e46d252d] (showing the murmur32)
-        private static string GetExternalVarName(uint varId)
-        {
-            ExternalVarsReference.TryGetValue(varId, out var varKnownName);
-            if (varKnownName != null)
-            {
-                return varKnownName;
-            }
-            else
-            {
-                return $"UNKNOWN[{varId:x08}]";
-            }
         }
 
         // naming local variables v0,v1,v2,..

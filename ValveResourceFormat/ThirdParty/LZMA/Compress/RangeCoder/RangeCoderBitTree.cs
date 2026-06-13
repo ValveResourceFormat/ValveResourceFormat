@@ -6,7 +6,6 @@ using System.Diagnostics.CodeAnalysis;
 
 namespace SevenZip.Compression.RangeCoder
 {
-	[ExcludeFromCodeCoverage]
 	internal struct BitTreeDecoder
 	{
 		BitDecoder[] Models;

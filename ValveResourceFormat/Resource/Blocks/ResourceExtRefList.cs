@@ -1,4 +1,3 @@
-using System.Collections;
 using System.IO;
 using System.Linq;
 using System.Text;
@@ -10,8 +9,12 @@ namespace ValveResourceFormat.Blocks
     /// </summary>
     public class ResourceExtRefList : Block
     {
+        /// <inheritdoc/>
         public override BlockType Type => BlockType.RERL;
 
+        /// <summary>
+        /// Represents an external resource reference.
+        /// </summary>
         public class ResourceReferenceInfo
         {
             /// <summary>
@@ -22,8 +25,11 @@ namespace ValveResourceFormat.Blocks
             /// <summary>
             /// Gets or sets the resource name.
             /// </summary>
-            public string Name { get; set; }
+            public required string Name { get; set; }
 
+            /// <summary>
+            /// Writes the resource reference info as text.
+            /// </summary>
             public void WriteText(IndentedTextWriter writer)
             {
                 writer.WriteLine("ResourceReferenceInfo_t");
@@ -36,9 +42,15 @@ namespace ValveResourceFormat.Blocks
             }
         }
 
+        /// <summary>
+        /// Gets the list of external resource references.
+        /// </summary>
         public List<ResourceReferenceInfo> ResourceRefInfoList { get; private set; }
 
-        public string this[ulong id]
+        /// <summary>
+        /// Gets the resource name mapped to the specified identifier, or <c>null</c> if missing.
+        /// </summary>
+        public string? this[ulong id]
         {
             get
             {
@@ -48,12 +60,16 @@ namespace ValveResourceFormat.Blocks
             }
         }
 
+        /// <summary>
+        /// Initializes a new instance of the <see cref="ResourceExtRefList"/> class.
+        /// </summary>
         public ResourceExtRefList()
         {
             ResourceRefInfoList = [];
         }
 
-        public override void Read(BinaryReader reader, Resource resource)
+        /// <inheritdoc/>
+        public override void Read(BinaryReader reader)
         {
             reader.BaseStream.Position = Offset;
 
@@ -71,8 +87,7 @@ namespace ValveResourceFormat.Blocks
 
             for (var i = 0; i < size; i++)
             {
-                var resInfo = new ResourceReferenceInfo { Id = reader.ReadUInt64() };
-
+                var id = reader.ReadUInt64();
                 var previousPosition = reader.BaseStream.Position;
 
                 // jump to string
@@ -80,14 +95,64 @@ namespace ValveResourceFormat.Blocks
                 // so we will need to add 8 to position later
                 reader.BaseStream.Position += reader.ReadInt64();
 
-                resInfo.Name = reader.ReadNullTermString(Encoding.UTF8);
-
-                ResourceRefInfoList.Add(resInfo);
+                var name = reader.ReadNullTermString(Encoding.UTF8);
 
                 reader.BaseStream.Position = previousPosition + 8; // 8 is to account for string offset
+
+                ResourceRefInfoList.Add(new ResourceReferenceInfo
+                {
+                    Id = id,
+                    Name = name,
+                });
             }
         }
 
+        /// <inheritdoc/>
+        public override void Serialize(Stream stream)
+        {
+            using var writer = new BinaryWriter(stream, Encoding.UTF8, leaveOpen: true);
+
+            if (ResourceRefInfoList.Count == 0)
+            {
+                writer.Write(0u);
+                writer.Write(0u);
+                return;
+            }
+
+            writer.Write(8u); // size of the 2 ints we are writing right now
+            writer.Write(ResourceRefInfoList.Count);
+
+            const uint EntrySize = sizeof(ulong) + sizeof(long);
+            var stringsStartOffset = ResourceRefInfoList.Count * EntrySize;
+            var currentStringOffset = 0;
+
+            for (var i = 0; i < ResourceRefInfoList.Count; i++)
+            {
+                var refInfo = ResourceRefInfoList[i];
+
+                writer.Write(refInfo.Id);
+
+                var currentPosAfterID = sizeof(ulong) + i * EntrySize;
+                var stringAbsolutePos = stringsStartOffset + currentStringOffset;
+                var relativeOffset = stringAbsolutePos - currentPosAfterID;
+
+                writer.Write(relativeOffset);
+
+                currentStringOffset += Encoding.UTF8.GetByteCount(refInfo.Name) + 1;
+            }
+
+            foreach (var refInfo in ResourceRefInfoList)
+            {
+                var nameBytes = Encoding.UTF8.GetBytes(refInfo.Name);
+                writer.Write(nameBytes);
+                writer.Write((byte)0);
+            }
+        }
+
+        /// <inheritdoc/>
+        /// <remarks>
+        /// Outputs the external reference list in a structured format showing resource IDs and names.
+        /// </remarks>
         public override void WriteText(IndentedTextWriter writer)
         {
             writer.WriteLine("ResourceExtRefList_t");

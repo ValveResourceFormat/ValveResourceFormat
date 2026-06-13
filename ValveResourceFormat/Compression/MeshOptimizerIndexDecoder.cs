@@ -1,28 +1,30 @@
-/**
- * C# Port of https://github.com/zeux/meshoptimizer/blob/master/src/indexcodec.cpp
- */
 using System.Buffers.Binary;
 using System.IO;
 
 namespace ValveResourceFormat.Compression
 {
+    /// <summary>
+    /// Provides decoding functionality for mesh optimizer index buffers.
+    /// </summary>
+    /// <seealso href="https://github.com/zeux/meshoptimizer/blob/master/src/indexcodec.cpp">This is a C# port of meshoptimizer.</seealso>
     public static class MeshOptimizerIndexDecoder
     {
         private const byte IndexHeader = 0xe0;
+        private const int DecodeIndexVersion = 1;
 
-        private static void PushEdgeFifo(ValueTuple<uint, uint>[] fifo, ref int offset, uint a, uint b)
+        private static void PushEdgeFifo(Span<ValueTuple<uint, uint>> fifo, ref int offset, uint a, uint b)
         {
             fifo[offset] = (a, b);
             offset = (offset + 1) & 15;
         }
 
-        private static void PushVertexFifo(uint[] fifo, ref int offset, uint v, bool cond = true)
+        private static void PushVertexFifo(Span<uint> fifo, ref int offset, uint v, bool cond = true)
         {
             fifo[offset] = v;
             offset = (offset + (cond ? 1 : 0)) & 15;
         }
 
-        private static uint DecodeVByte(Span<byte> data, ref int position)
+        private static uint DecodeVByte(ReadOnlySpan<byte> data, ref int position)
         {
             var lead = (uint)data[position++];
 
@@ -49,7 +51,7 @@ namespace ValveResourceFormat.Compression
             return result;
         }
 
-        private static uint DecodeIndex(Span<byte> data, uint last, ref int position)
+        private static uint DecodeIndex(ReadOnlySpan<byte> data, uint last, ref int position)
         {
             var v = DecodeVByte(data, ref position);
             var d = (uint)((v >> 1) ^ -(v & 1));
@@ -75,7 +77,10 @@ namespace ValveResourceFormat.Compression
             }
         }
 
-        public static byte[] DecodeIndexBuffer(int indexCount, int indexSize, Span<byte> buffer)
+        /// <summary>
+        /// Decodes an index buffer from compressed format.
+        /// </summary>
+        public static byte[] DecodeIndexBuffer(int indexCount, int indexSize, ReadOnlySpan<byte> buffer)
         {
             if (indexCount % 3 != 0)
             {
@@ -95,18 +100,27 @@ namespace ValveResourceFormat.Compression
                 throw new ArgumentException("Index buffer is too short.");
             }
 
-            if (buffer[0] != IndexHeader)
+            if ((buffer[0] & 0xF0) != IndexHeader)
             {
-                throw new ArgumentException("Incorrect index buffer header.");
+                throw new ArgumentException($"Invalid index buffer header, expected {IndexHeader} but got {buffer[0]}.");
             }
 
-            var vertexFifo = new uint[16];
-            var edgeFifo = new ValueTuple<uint, uint>[16];
+            var version = buffer[0] & 0x0F;
+
+            if (version > DecodeIndexVersion)
+            {
+                throw new ArgumentException($"Incorrect index buffer encoding version, got {version}.");
+            }
+
+            Span<uint> vertexFifo = stackalloc uint[16];
+            Span<ValueTuple<uint, uint>> edgeFifo = stackalloc ValueTuple<uint, uint>[16];
             var edgeFifoOffset = 0;
             var vertexFifoOffset = 0;
 
             var next = 0u;
             var last = 0u;
+
+            var fecmax = version >= 1 ? 13 : 15;
 
             var bufferIndex = 1;
             var data = buffer[dataOffset..^16];
@@ -126,34 +140,34 @@ namespace ValveResourceFormat.Compression
                     var fe = codetri >> 4;
 
                     var (a, b) = edgeFifo[(edgeFifoOffset - 1 - fe) & 15];
+                    uint c;
 
                     var fec = codetri & 15;
 
-                    if (fec != 15)
+                    if (fec < fecmax)
                     {
-                        var c = fec == 0 ? next : vertexFifo[(vertexFifoOffset - 1 - fec) & 15];
+                        c = fec == 0 ? next : vertexFifo[(vertexFifoOffset - 1 - fec) & 15];
 
                         var fec0 = fec == 0;
                         next += fec0 ? 1u : 0u;
 
-                        WriteTriangle(destination, i, indexSize, a, b, c);
-
+                        // push vertex fifo must match the encoding step *exactly* otherwise the data will not be decoded correctly
                         PushVertexFifo(vertexFifo, ref vertexFifoOffset, c, fec0);
-
-                        PushEdgeFifo(edgeFifo, ref edgeFifoOffset, c, b);
-                        PushEdgeFifo(edgeFifo, ref edgeFifoOffset, a, c);
                     }
                     else
                     {
-                        var c = last = DecodeIndex(data, last, ref position);
-
-                        WriteTriangle(destination, i, indexSize, a, b, c);
+                        c = last = (fec != 15) ? last + (uint)(fec - (fec ^ 3)) : DecodeIndex(data, last, ref position);
 
                         PushVertexFifo(vertexFifo, ref vertexFifoOffset, c);
-
-                        PushEdgeFifo(edgeFifo, ref edgeFifoOffset, c, b);
-                        PushEdgeFifo(edgeFifo, ref edgeFifoOffset, a, c);
                     }
+
+                    // push edge fifo must match the encoding step *exactly* otherwise the data will not be decoded correctly
+                    PushEdgeFifo(edgeFifo, ref edgeFifoOffset, c, b);
+                    PushEdgeFifo(edgeFifo, ref edgeFifoOffset, a, c);
+
+                    // output triangle
+                    WriteTriangle(destination, i, indexSize, a, b, c);
+
                 }
                 else if (codetri < 0xfe)
                 {
@@ -192,9 +206,14 @@ namespace ValveResourceFormat.Compression
                     var feb = codeaux >> 4;
                     var fec = codeaux & 15;
 
+                    if (codeaux == 0)
+                    {
+                        next = 0;
+                    }
+
                     var a = (fea == 0) ? next++ : 0;
-                    var b = (feb == 0) ? next++ : vertexFifo[(vertexFifoOffset - feb) & 15];
-                    var c = (fec == 0) ? next++ : vertexFifo[(vertexFifoOffset - fec) & 15];
+                    var b = (feb == 0) ? next++ : vertexFifo[(vertexFifoOffset - (int)feb) & 15];
+                    var c = (fec == 0) ? next++ : vertexFifo[(vertexFifoOffset - (int)fec) & 15];
 
                     if (fea == 15)
                     {

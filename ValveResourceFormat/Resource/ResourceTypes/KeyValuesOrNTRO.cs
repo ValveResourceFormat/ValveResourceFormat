@@ -1,44 +1,58 @@
 using System.IO;
-using ValveResourceFormat.Blocks;
+using ValveKeyValue;
 using ValveResourceFormat.Serialization.KeyValues;
 
 namespace ValveResourceFormat.ResourceTypes
 {
-    public class KeyValuesOrNTRO : ResourceData
+    /// <summary>
+    /// Block that can contain either <see cref="KVObject"/> or <see cref="NTRO"/> data.
+    /// </summary>
+    public class KeyValuesOrNTRO : Block
     {
-        private readonly string IntrospectionStructName;
+        private readonly string? IntrospectionStructName;
         private readonly BlockType KVBlockType;
+        /// <inheritdoc/>
         public override BlockType Type => KVBlockType;
 
-        protected Resource Resource { get; private set; }
-        public KVObject Data { get; private set; }
+        /// <summary>
+        /// Gets the parsed data as a <see cref="KVObject"/>.
+        /// </summary>
+        public KVObject Data { get; private set; } = null!;
 
-        private ResourceData BackingData;
+        private Block BackingData = null!;
 
+        /// <summary>
+        /// Initializes a new instance of the <see cref="KeyValuesOrNTRO"/> class.
+        /// </summary>
         public KeyValuesOrNTRO()
         {
             KVBlockType = BlockType.DATA;
         }
 
+        /// <summary>
+        /// Initializes a new instance of the <see cref="KeyValuesOrNTRO"/> class with a specific block type and introspection struct name.
+        /// </summary>
+        /// <param name="type">The block type.</param>
+        /// <param name="introspectionStructName">The introspection struct name for <see cref="NTRO"/> parsing.</param>
         public KeyValuesOrNTRO(BlockType type, string introspectionStructName)
         {
             KVBlockType = type;
             IntrospectionStructName = introspectionStructName;
         }
 
-        public override void Read(BinaryReader reader, Resource resource)
+        /// <inheritdoc/>
+        public override void Read(BinaryReader reader)
         {
-            Resource = resource;
-
             // It is possible to have MDAT block with NTRO in a file, but it will be KV3 anyway.
-            if (!resource.ContainsBlockType(BlockType.NTRO) || KVBlockType == BlockType.MDAT)
+            if (!Resource.ContainsBlockType(BlockType.NTRO) || KVBlockType == BlockType.MDAT)
             {
                 var kv3 = new BinaryKV3(KVBlockType)
                 {
                     Offset = Offset,
                     Size = Size,
+                    Resource = Resource,
                 };
-                kv3.Read(reader, resource);
+                kv3.Read(reader);
                 Data = kv3.Data;
                 BackingData = kv3;
             }
@@ -49,21 +63,39 @@ namespace ValveResourceFormat.ResourceTypes
                     StructName = IntrospectionStructName,
                     Offset = Offset,
                     Size = Size,
+                    Resource = Resource,
                 };
-                ntro.Read(reader, resource);
+                ntro.Read(reader);
                 Data = ntro.Output;
                 BackingData = ntro;
             }
         }
 
-        public override string ToString()
+        /// <inheritdoc/>
+        public override void Serialize(Stream stream)
         {
             if (BackingData is BinaryKV3 dataKv3)
             {
-                return dataKv3.GetKV3File().ToString();
+                dataKv3.Serialize(stream);
+                return;
             }
 
-            return BackingData.ToString();
+            throw new NotImplementedException("Serializing this block is not yet supported. If you need this, send us a pull request!");
+        }
+
+        /// <inheritdoc/>
+        /// <remarks>
+        /// Writes the data as KV3 text format, regardless of the backing data source.
+        /// </remarks>
+        public override void WriteText(IndentedTextWriter writer)
+        {
+            if (BackingData is BinaryKV3 dataKv3)
+            {
+                dataKv3.Data.WriteKV3Text(writer);
+                return;
+            }
+
+            BackingData.WriteText(writer);
         }
     }
 }

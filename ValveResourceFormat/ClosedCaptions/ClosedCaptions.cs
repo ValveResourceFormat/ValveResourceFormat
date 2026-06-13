@@ -1,5 +1,5 @@
 using System.Collections;
-using System.Globalization;
+using System.Diagnostics;
 using System.IO;
 using System.IO.Hashing;
 using System.Text;
@@ -7,20 +7,36 @@ using ValveKeyValue;
 
 namespace ValveResourceFormat.ClosedCaptions
 {
+    /// <summary>
+    /// Represents a collection of closed captions from a VCCD file.
+    /// </summary>
     public class ClosedCaptions : IEnumerable<ClosedCaption>
     {
+        /// <summary>
+        /// Magic number for VCCD files ("VCCD").
+        /// </summary>
         public const int MAGIC = 0x44434356; // "VCCD"
 
-        public List<ClosedCaption> Captions { get; private set; }
+        /// <summary>
+        /// Gets the list of captions.
+        /// </summary>
+        public List<ClosedCaption> Captions { get; private set; } = [];
 
-        private string FileName;
+        private string? FileName;
 
+        /// <summary>
+        /// Returns an enumerator that iterates through the captions.
+        /// </summary>
         public IEnumerator<ClosedCaption> GetEnumerator()
         {
             return ((IEnumerable<ClosedCaption>)Captions).GetEnumerator();
         }
 
-        public ClosedCaption this[string key]
+        /// <summary>
+        /// Gets a caption by its key.
+        /// </summary>
+        /// <param name="key">The caption key.</param>
+        public ClosedCaption? this[string key]
         {
             get
             {
@@ -30,8 +46,7 @@ namespace ValveResourceFormat.ClosedCaptions
         }
 
         /// <summary>
-        /// Opens and reads the given filename.
-        /// The file is held open until the object is disposed.
+        /// Opens the specified file and reads all caption entries into memory.
         /// </summary>
         /// <param name="filename">The file to open and read.</param>
         public void Read(string filename)
@@ -42,9 +57,9 @@ namespace ValveResourceFormat.ClosedCaptions
         }
 
         /// <summary>
-        /// Reads the given <see cref="Stream"/>.
+        /// Reads caption data from the provided stream.
         /// </summary>
-        /// <param name="filename">The filename <see cref="string"/>.</param>
+        /// <param name="filename">The name of the caption file (used for metadata only).</param>
         /// <param name="input">The input <see cref="Stream"/> to read from.</param>
         public void Read(string filename, Stream input)
         {
@@ -96,32 +111,39 @@ namespace ValveResourceFormat.ClosedCaptions
             foreach (var caption in Captions)
             {
                 reader.BaseStream.Position = dataoffset + (caption.Blocknum * blocksize) + caption.Offset;
-                caption.Text = reader.ReadNullTermString(Encoding.Unicode);
+                caption.Text = reader.ReadNullTermString(Encoding.Unicode, bufferLengthHint: caption.Length);
             }
         }
 
+        /// <summary>
+        /// Returns an enumerator that iterates through the captions.
+        /// </summary>
         IEnumerator IEnumerable.GetEnumerator()
         {
             return ((IEnumerable<ClosedCaption>)Captions).GetEnumerator();
         }
 
+        /// <inheritdoc/>
+        /// <remarks>
+        /// Exports the captions to KeyValues1 text format (VCD format).
+        /// </remarks>
         public override string ToString()
         {
+            Debug.Assert(FileName != null);
+
             var captionsToExport = new Dictionary<uint, string>(Captions.Count);
 
             foreach (var caption in Captions)
             {
-                captionsToExport.Add(caption.Hash, caption.Text);
+                if (caption.Text != null)
+                {
+                    captionsToExport.Add(caption.Hash, caption.Text);
+                }
             }
 
             using var ms = new MemoryStream();
             KVSerializer.Create(KVSerializationFormat.KeyValues1Text).Serialize(ms, captionsToExport, FileName);
-
-            var sb = new StringBuilder();
-            sb.AppendLine(CultureInfo.InvariantCulture, $"// {Utils.StringToken.VRF_GENERATOR}");
-            sb.Append(Encoding.UTF8.GetString(ms.ToArray()));
-
-            return sb.ToString();
+            return Encoding.UTF8.GetString(ms.ToArray());
         }
     }
 }

@@ -1,32 +1,56 @@
 using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices;
-using ValveResourceFormat.Serialization;
+using ValveKeyValue;
 using ValveResourceFormat.Serialization.KeyValues;
 
 namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Shapes
 {
+    /// <summary>
+    /// Represents a mesh shape.
+    /// </summary>
+    /// <seealso href="https://s2v.app/SchemaExplorer/cs2/physicslib/RnMesh_t">RnMesh_t</seealso>
     public readonly struct Mesh
     {
+        /// <summary>
+        /// The node type for mesh BVH nodes.
+        /// </summary>
         public enum NodeType
         {
+#pragma warning disable CS1591
             SplitX = 0,
             SplitY = 1,
             SplitZ = 2,
             Leaf = 3,
+#pragma warning restore CS1591
         }
 
+        /// <summary>
+        /// Represents a node in the mesh BVH.
+        /// </summary>
+        /// <seealso href="https://s2v.app/SchemaExplorer/cs2/physicslib/RnNode_t">RnNode_t</seealso>
         [StructLayout(LayoutKind.Sequential)]
         public readonly struct Node
         {
+            /// <summary>
+            /// The minimum bounds.
+            /// </summary>
             public readonly Vector3 Min;
+            private readonly uint PackedTypeChildOffset;
 
             /// <summary>
-            /// The 2nd child offset and the node type/split axis.
-            /// Type is stored in the first 2 MSBs.
+            /// The node type/split axis.
             /// </summary>
-            public readonly uint Children;
+            public NodeType Type => (NodeType)(PackedTypeChildOffset >> 30);
 
+            /// <summary>
+            /// The 2nd child offset, otherwise when <see cref="Type" /> is <see cref="NodeType.Leaf" />, this is the triangle count.
+            /// </summary>
+            public uint ChildOffset => PackedTypeChildOffset & 0x3FFFFFFF;
+
+            /// <summary>
+            /// The maximum bounds.
+            /// </summary>
             public readonly Vector3 Max;
 
             /// <summary>
@@ -34,15 +58,33 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Shapes
             /// </summary>
             public readonly uint TriangleOffset;
 
+            /// <summary>
+            /// Initializes a new instance of the <see cref="Node"/> struct.
+            /// </summary>
             public Node(KVObject data)
             {
                 Min = data.GetSubCollection("m_vMin").ToVector3();
                 Max = data.GetSubCollection("m_vMax").ToVector3();
-                Children = data.GetUInt32Property("m_nChildren");
+                PackedTypeChildOffset = data.GetUInt32Property("m_nChildren");
                 TriangleOffset = data.GetUInt32Property("m_nTriangleOffset");
+            }
+
+            /// <summary>
+            /// Creates a custom BVH node.
+            /// </summary>
+            public Node(Vector3 min, Vector3 max, NodeType type, uint childOffset, uint triangleOffset)
+            {
+                Min = min;
+                Max = max;
+                PackedTypeChildOffset = ((uint)type << 30) | childOffset;
+                TriangleOffset = triangleOffset;
             }
         }
 
+        /// <summary>
+        /// Represents a triangle in the mesh.
+        /// </summary>
+        /// <seealso href="https://s2v.app/SchemaExplorer/cs2/physicslib/RnTriangle_t">RnTriangle_t</seealso>
         [StructLayout(LayoutKind.Sequential)]
         public readonly struct Triangle
         {
@@ -53,9 +95,12 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Shapes
             /// <summary>The Z component of the triangle.</summary>
             public readonly int Z;
 
+            /// <summary>
+            /// Initializes a new instance of the <see cref="Triangle"/> struct.
+            /// </summary>
             public Triangle(KVObject data)
             {
-                var indices = data.GetArray<object>("m_nIndex").Select(Convert.ToInt32).ToArray();
+                var indices = data.GetArray<object>("m_nIndex")!.Select(Convert.ToInt32).ToArray();
 
                 if (indices.Length != 3)
                 {
@@ -68,7 +113,13 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Shapes
             }
         }
 
+        /// <summary>
+        /// Gets the minimum bounds.
+        /// </summary>
         public Vector3 Min { get; }
+        /// <summary>
+        /// Gets the maximum bounds.
+        /// </summary>
         public Vector3 Max { get; }
 
 
@@ -81,26 +132,42 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Shapes
         /// Fraction 0..1 of coverage along YZ,ZX,XY sides of AABB
         /// </summary>
         public Vector3 OrthographicAreas { get; }
+        /// <summary>
+        /// Gets the raw data.
+        /// </summary>
         public KVObject Data { get; }
 
+        /// <summary>
+        /// Initializes a new instance of the <see cref="Mesh"/> struct.
+        /// </summary>
         public Mesh(KVObject data)
         {
             Data = data;
             Min = data.GetSubCollection("m_vMin").ToVector3();
             Max = data.GetSubCollection("m_vMax").ToVector3();
-            Materials = data.GetArray<object>("m_Materials").Select(Convert.ToInt32).ToArray();
+
+            var materials = data.GetArray<object>("m_Materials"); // This might be binary blob or an array in different models
+            if (materials != null)
+            {
+                Materials = [.. materials.Select(Convert.ToInt32)];
+            }
+            else
+            {
+                Materials = [];
+            }
+
             OrthographicAreas = data.GetSubCollection("m_vOrthographicAreas").ToVector3();
         }
 
         /// <summary>
         /// The mesh vertices in the space of the parent shape.
         /// </summary>
-        public Span<Vector3> GetVertices() => Hull.ParseVertices(Data);
+        public ReadOnlySpan<Vector3> GetVertices() => Hull.ParseVertices(Data);
 
         /// <summary>
         /// The nodes of the loose kd-tree to accelerate ray casts and volume queries against this mesh.
         /// </summary>
-        public Span<Node> ParseNodes()
+        public ReadOnlySpan<Node> ParseNodes()
         {
             if (Data.IsNotBlobType("m_Nodes"))
             {
@@ -114,7 +181,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Shapes
         /// <summary>
         /// The mesh triangles with additional topology information similar to the half-edge data structure.
         /// </summary>
-        public Span<Triangle> GetTriangles()
+        public ReadOnlySpan<Triangle> GetTriangles()
         {
             if (Data.IsNotBlobType("m_Triangles"))
             {

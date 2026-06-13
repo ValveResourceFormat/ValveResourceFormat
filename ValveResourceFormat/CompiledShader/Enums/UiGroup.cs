@@ -1,17 +1,32 @@
 namespace ValveResourceFormat.CompiledShader;
 
+/// <summary>
+/// Organizes shader parameters into UI groups and sections.
+/// </summary>
 public struct UiGroup
 {
+    /// <summary>Gets the heading name.</summary>
     public string Heading { get; private set; }
+    /// <summary>Gets the heading sort order.</summary>
     public int HeadingOrder { get; private set; }
+    /// <summary>Gets the group name.</summary>
     public string Group { get; private set; }
+    /// <summary>Gets the group sort order.</summary>
     public int GroupOrder { get; private set; }
+    /// <summary>Gets the variable sort order.</summary>
     public int VariableOrder { get; private set; }
 
+    /// <summary>Gets the compact string representation.</summary>
     public string CompactString { get; private init; }
 
+    /// <summary>
+    /// Initializes a new instance with empty values.
+    /// </summary>
     public UiGroup() : this(string.Empty) { }
 
+    /// <summary>
+    /// Initializes a new instance with the specified values.
+    /// </summary>
     public UiGroup(string heading,
                    int headingOrder = 0,
                    string group = "",
@@ -29,6 +44,9 @@ public struct UiGroup
         CompactString = $"{heading},{headingOrder}/{group},{groupOrder}/{variableOrder}";
     }
 
+    /// <summary>
+    /// Creates a UiGroup from a compact string representation.
+    /// </summary>
     public static UiGroup FromCompactString(string compactString)
     {
         var uiGroup = new UiGroup()
@@ -68,19 +86,27 @@ public struct UiGroup
     {
         var name = string.Empty;
         var order = 0;
-        var byComma = bySlash.Split(",", 2, StringSplitOptions.TrimEntries);
-        for (var j = 0; j < byComma.Length; j++)
+        var parts = bySlash.Split(",", StringSplitOptions.TrimEntries);
+
+        for (var i = 0; i < parts.Length; i++)
         {
-            if (!int.TryParse(byComma[j], out order))
+            if (int.TryParse(parts[i], out var parsedOrder))
             {
-                name = byComma[j];
+                order = parsedOrder;
+                name = i > 0 ? string.Join(",", parts[..i]).Trim() : string.Empty;
+                return (name, order);
             }
         }
 
-        return (name, order);
+        name = bySlash.Trim();
+        return (name, 0);
     }
 
-    public readonly override string ToString()
+    /// <inheritdoc/>
+    /// <remarks>
+    /// Returns the compact string representation of the UI group.
+    /// </remarks>
+    public override readonly string ToString()
     {
         return CompactString;
     }

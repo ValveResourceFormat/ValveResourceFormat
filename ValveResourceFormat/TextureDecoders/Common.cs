@@ -1,4 +1,8 @@
+using System.Buffers.Binary;
+using System.Linq;
 using System.Runtime.InteropServices;
+using System.Runtime.Intrinsics;
+using SkiaSharp;
 
 namespace ValveResourceFormat.TextureDecoders
 {
@@ -16,9 +20,15 @@ namespace ValveResourceFormat.TextureDecoders
         }*/
     }
 
+    /// <summary>
+    /// Texture codec flags for decoding and color space conversions.
+    /// </summary>
     [Flags]
     public enum TextureCodec
     {
+        /// <summary>
+        /// No codec flags.
+        /// </summary>
         None = 0,
 
         /// <summary>
@@ -37,6 +47,9 @@ namespace ValveResourceFormat.TextureDecoders
         /// </summary>
         HemiOctRB = 1 << 2,
 
+        /// <summary>
+        /// Reconstruct normal Z from X and Y.
+        /// </summary>
         NormalizeNormals = 1 << 3,
 
         /// <summary>
@@ -45,33 +58,99 @@ namespace ValveResourceFormat.TextureDecoders
         Dxt5nm = 1 << 4,
 
         /// <summary>
-        /// Colors are in linear space. Converts to sRGB gamma space.
+        /// Indicates the texture data is stored in linear color space.
         /// </summary>
         ColorSpaceLinear = 1 << 5,
 
         /// <summary>
-        /// Colors are in sRGB gamma space. Converts to linear space.
+        /// Indicates the texture data is stored in sRGB gamma space.
         /// </summary>
         ColorSpaceSrgb = 1 << 6,
+
+        /// <summary>
+        /// Force decode HDR content to LDR.
+        /// </summary>
+        ForceLDR = 1 << 7,
+
+        /// <summary>
+        /// Automatically determine codec flags.
+        /// </summary>
+        Auto = 1 << 30,
     }
 
     internal class Common
     {
-        public static void Undo_YCoCg(ref Color color)
+        public static void ApplyTextureConversions(SKBitmap bitmap, TextureCodec decodeFlags)
         {
-            var scale = (color.b >> 3) + 1;
-            var co = (color.r - 128) / scale;
-            var cg = (color.g - 128) / scale;
+            var swapRA = decodeFlags.HasFlag(TextureCodec.Dxt5nm);
+            var decodeYCoCg = decodeFlags.HasFlag(TextureCodec.YCoCg);
+            var linearizeYCoCg = decodeYCoCg && decodeFlags.HasFlag(TextureCodec.ColorSpaceSrgb);
+            var decodeHemiOct = decodeFlags.HasFlag(TextureCodec.HemiOctRB);
+            var reconstructZ = decodeFlags.HasFlag(TextureCodec.NormalizeNormals);
 
-            var y = color.a;
+            if (!swapRA && !decodeYCoCg && !decodeHemiOct && !reconstructZ)
+            {
+                return;
+            }
 
-            color.r = ClampColor(y + co - cg);
-            color.g = ClampColor(y + cg);
-            color.b = ClampColor(y - co - cg);
-            color.a = 255;
+            var data = bitmap.GetPixelSpan();
+
+            if (swapRA)
+            {
+                SwapRA(data);
+            }
+
+            var pixels = MemoryMarshal.Cast<byte, Color>(data);
+
+            for (var i = 0; i < pixels.Length; i++)
+            {
+                if (decodeYCoCg)
+                {
+                    ref var pixel = ref pixels[i];
+
+                    var input = new Vector3(pixel.r, pixel.g, pixel.b) / 255f;
+
+                    if (linearizeYCoCg)
+                    {
+                        input = ColorSpace.SrgbGammaToLinear(input);
+                    }
+
+                    var rgb = Decode_YCoCg(new Vector4(input, pixel.a / 255f));
+
+                    pixel.r = ToClampedLdrColor(rgb.X);
+                    pixel.g = ToClampedLdrColor(rgb.Y);
+                    pixel.b = ToClampedLdrColor(rgb.Z);
+                    pixel.a = 255;
+                }
+
+                if (decodeHemiOct)
+                {
+                    Decode_HemiOct(ref pixels[i]);
+                }
+
+                if (reconstructZ)
+                {
+                    ReconstructNormals(ref pixels[i]);
+                }
+            }
         }
 
-        public static void Undo_NormalizeNormals(ref Color color)
+        /// <summary>
+        /// Reconstructs normalized RGB from the YCoCg encoding (Co, Cg, scale, Y in X, Y, Z, W). Pure
+        /// matrix with no color space handling; the caller linearizes the inputs. Mirrors DecodeYCoCg in utils.slang.
+        /// </summary>
+        public static Vector3 Decode_YCoCg(Vector4 color)
+        {
+            var scale = (color.Z * (255f / 8f)) + 1f;
+            var co = (color.X - (128f / 255f)) / scale;
+            var cg = (color.Y - (128f / 255f)) / scale;
+
+            var y = color.W;
+
+            return new Vector3(y + co - cg, y + cg, y - co - cg);
+        }
+
+        public static void ReconstructNormals(ref Color color)
         {
             var swizzleR = (color.r * 2) - 255;     // premul R
             var swizzleG = (color.g * 2) - 255;     // premul G
@@ -81,7 +160,7 @@ namespace ValveResourceFormat.TextureDecoders
             color.b = ClampColor((deriveB / 2) + 128);  // unpremul B and normalize
         }
 
-        public static void Undo_HemiOct(ref Color color)
+        public static void Decode_HemiOct(ref Color color)
         {
             var nx = ((color.r + color.g) / 255.0f) - 1.003922f;
             var ny = (color.r - color.g) / 255.0f;
@@ -112,6 +191,107 @@ namespace ValveResourceFormat.TextureDecoders
             }
 
             return a < 0f ? 0f : a;
+        }
+
+        public static byte ToClampedLdrColor(float a)
+        {
+            return (byte)(ClampHighRangeColor(a) * 255 + 0.5f);
+        }
+
+
+        private static byte[] CreateSimdSwizzleMask(int[] swizzle) =>
+        [
+            ..Enumerable.Range(0, 64).Select(component =>
+             {
+                 var pixel = component / 4;
+                 var pixelComponent = component % 4;
+                 return (byte)(pixel * 4 + swizzle[pixelComponent]);
+             })
+        ];
+
+        private static readonly byte[] SwapRBSwizzleMask_RGBA = CreateSimdSwizzleMask([2, 1, 0, 3]);
+        private static readonly byte[] SwapRASwizzleMask_BGRA = CreateSimdSwizzleMask([0, 1, 3, 2]);
+
+        /// <remarks>
+        /// Components are expected in RGBA order. This changes it to BGRA.
+        /// </remarks>
+        public static void SwapRB(Span<byte> pixels)
+        {
+            var offset = SwizzleSimd(pixels, SwapRBSwizzleMask_RGBA);
+
+            // Process remaining pixels with scalar code
+            var pixelsInt = MemoryMarshal.Cast<byte, uint>(pixels[offset..]);
+            for (var j = 0; j < pixelsInt.Length; j++)
+            {
+                pixelsInt[j] = BitOperations.RotateRight(BinaryPrimitives.ReverseEndianness(pixelsInt[j]), 8);
+            }
+        }
+
+        /// <remarks>
+        /// Components are expected in BGRA order.
+        /// </remarks>
+        public static void SwapRA(Span<byte> pixels)
+        {
+            var offset = SwizzleSimd(pixels, SwapRASwizzleMask_BGRA);
+
+            // Process remaining pixels with scalar code
+            var pixelsInt = MemoryMarshal.Cast<byte, uint>(pixels[offset..]);
+            for (var j = 0; j < pixelsInt.Length; j++)
+            {
+                var p = pixelsInt[j];
+
+                var bg = p & 0x0000FFFF;
+                var r = (p & 0x00FF0000) << 8;
+                var a = (p & 0xFF000000) >> 8;
+
+                pixelsInt[j] = bg | r | a;
+            }
+        }
+
+        private static int SwizzleSimd(Span<byte> pixels, byte[] swizzleMask)
+        {
+            var offset = 0;
+
+            // Process 64-byte chunks
+            if (Vector512.IsHardwareAccelerated && pixels.Length >= Vector512<byte>.Count)
+            {
+                var shuffleMask = Vector512.Create(swizzleMask);
+
+                for (; offset <= pixels.Length - Vector512<byte>.Count; offset += Vector512<byte>.Count)
+                {
+                    var rgba = Vector512.Create<byte>(pixels.Slice(offset, Vector512<byte>.Count));
+                    var bgra = Vector512.Shuffle(rgba, shuffleMask);
+                    bgra.CopyTo(pixels.Slice(offset, Vector512<byte>.Count));
+                }
+            }
+
+            // Process 32-byte chunks
+            if (Vector256.IsHardwareAccelerated && pixels.Length - offset >= Vector256<byte>.Count)
+            {
+                var shuffleMask = Vector256.Create(swizzleMask);
+
+                for (; offset <= pixels.Length - Vector256<byte>.Count; offset += Vector256<byte>.Count)
+                {
+                    var rgba = Vector256.Create<byte>(pixels.Slice(offset, Vector256<byte>.Count));
+                    var bgra = Vector256.Shuffle(rgba, shuffleMask);
+                    bgra.CopyTo(pixels.Slice(offset, Vector256<byte>.Count));
+                }
+            }
+
+            // Process 16-byte chunks
+            if (Vector128.IsHardwareAccelerated && pixels.Length - offset >= Vector128<byte>.Count)
+            {
+                var shuffleMask = Vector128.Create(swizzleMask);
+
+                for (; offset <= pixels.Length - Vector128<byte>.Count; offset += Vector128<byte>.Count)
+                {
+                    var rgba = Vector128.Create<byte>(pixels.Slice(offset, Vector128<byte>.Count));
+                    var bgra = Vector128.Shuffle(rgba, shuffleMask);
+                    bgra.CopyTo(pixels.Slice(offset, Vector128<byte>.Count));
+                }
+            }
+
+            return offset;
         }
     }
 }

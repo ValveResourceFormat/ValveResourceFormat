@@ -7,6 +7,9 @@ charset = utf-8
 trim_trailing_whitespace = true
 insert_final_newline = true
 
+[*.{yml,csproj,slnx,props}]
+indent_size = 2
+
 [*.cs]
 tab_width = 4
 end_of_line = lf
@@ -19,6 +22,9 @@ dotnet_diagnostic.CA1003.severity = suggestion
 
 # CA1008: Enums should have zero value
 dotnet_diagnostic.CA1008.severity = none
+
+# CA1028: Enum Storage should be Int32
+dotnet_diagnostic.CA1028.severity = none
 
 # CA1010: Type directly or indirectly inherits 'ICollection' without implementing 'ICollection<T>'
 dotnet_diagnostic.CA1010.severity = none
@@ -101,11 +107,38 @@ dotnet_diagnostic.CA1308.severity = none
 # CA1852: Seal internal types
 dotnet_diagnostic.CA1852.severity = none
 
+# IDE0010: Add missing cases to switch statement
+dotnet_diagnostic.IDE0010.severity = none
+
+# IDE0045: Use conditional expression for assignment
+dotnet_diagnostic.IDE0045.severity = none
+
+# IDE0046: Use conditional expression for return
+dotnet_diagnostic.IDE0046.severity = none
+
+# IDE0058: Remove unnecessary expression value
+dotnet_diagnostic.IDE0058.severity = none
+
 # IDE0059: Remove unnecessary value assignment
 dotnet_diagnostic.IDE0059.severity = none
 
+# IDE0072: Add missing cases to switch statement
+dotnet_diagnostic.IDE0072.severity = none
+
 # IDE0079: Remove unnecessary suppression
 dotnet_diagnostic.IDE0079.severity = none
+
+# CA1515: Consider making public types internal
+dotnet_diagnostic.CA1515.severity = none
+
+# WFO1000: Properties of classes derived from `Control` should have `DesignerSerializationVisibilityAttribute`
+dotnet_diagnostic.WFO1000.severity = none
+
+# CA1848: Use the LoggerMessage delegates
+dotnet_diagnostic.CA1848.severity = none
+
+# CA1873: Avoid potentially expensive logging
+dotnet_diagnostic.CA1873.severity = none
 
 #
 # Dotnet code style settings:
@@ -135,6 +168,9 @@ dotnet_style_explicit_tuple_names = true:suggestion
 
 # IDE0042: Deconstruct variable declaration
 csharp_style_deconstructed_variable_declaration = false:silent
+
+# IDE0130: Namespace does not match folder structure
+dotnet_style_namespace_match_folder = false:silent
 
 #
 # CSharp code style settings:
@@ -210,9 +246,10 @@ csharp_prefer_braces = true:suggestion
 csharp_preserve_single_line_blocks = true:suggestion
 csharp_preserve_single_line_statements = false:suggestion
 csharp_prefer_static_local_function = true:suggestion
+csharp_prefer_static_anonymous_function = true:suggestion
 csharp_prefer_simple_using_statement = true:suggestion
 csharp_style_prefer_switch_expression = true:suggestion
-csharp_style_namespace_declarations = block_scoped:silent
+csharp_style_namespace_declarations = file_scoped:silent
 csharp_style_prefer_method_group_conversion = true:silent
 csharp_style_prefer_top_level_statements = true:silent
 csharp_style_expression_bodied_lambdas = true:silent
@@ -221,6 +258,7 @@ csharp_style_prefer_null_check_over_type_check = true:suggestion
 csharp_prefer_simple_default_expression = true:suggestion
 csharp_style_prefer_local_over_anonymous_function = true:suggestion
 csharp_style_prefer_tuple_swap = false:suggestion
+csharp_style_unused_value_expression_statement_preference = false:suggestion
 
 dotnet_naming_rule.interface_should_be_begins_with_i.severity = silent
 dotnet_naming_rule.types_should_be_pascal_case.severity = silent
@@ -231,6 +269,19 @@ dotnet_diagnostic.IDE1006.severity = none
 
 # IDE0290: Use primary constructor
 dotnet_diagnostic.IDE0290.severity = none
+
+# IDE0040: Add accessibility modifiers
+dotnet_diagnostic.IDE0040.severity = none
+
+# IDE0160 and IDE0161: Namespace declaration preferences
+dotnet_diagnostic.IDE0160.severity = none
+dotnet_diagnostic.IDE0161.severity = none
+
+dotnet_style_require_accessibility_modifiers = for_non_interface_members
+dotnet_style_parentheses_in_arithmetic_binary_operators = never_if_unnecessary
+dotnet_style_parentheses_in_relational_binary_operators = never_if_unnecessary
+dotnet_style_parentheses_in_other_binary_operators = never_if_unnecessary
+dotnet_style_parentheses_in_other_operators = never_if_unnecessary
 
 # Disable very slow analyzers - https://github.com/dotnet/roslyn-analyzers/issues/6737
 dotnet_diagnostic.CA5403.severity = none # Do not hard-code certificate

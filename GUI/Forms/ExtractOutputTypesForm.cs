@@ -1,10 +1,11 @@
 using System.Windows.Forms;
+using GUI.Controls;
 
 namespace GUI.Forms
 {
-    public partial class ExtractOutputTypesForm : Form
+    public partial class ExtractOutputTypesForm : ThemedForm
     {
-        public event EventHandler ChangeTypeEvent;
+        public event EventHandler? ChangeTypeEvent;
 
         public ExtractOutputTypesForm()
         {
@@ -23,7 +24,7 @@ namespace GUI.Forms
                 Text = type
             }, 0, row);
 
-            var dropdown = new ComboBox
+            var dropdown = new ThemedComboBox
             {
                 Tag = type,
                 DropDownStyle = ComboBoxStyle.DropDownList,

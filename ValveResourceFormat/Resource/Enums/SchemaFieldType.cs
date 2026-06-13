@@ -1,7 +1,11 @@
 namespace ValveResourceFormat
 {
+    /// <summary>
+    /// Schema field data types.
+    /// </summary>
     public enum SchemaFieldType
     {
+#pragma warning disable CS1591
         Unknown = 0,
         Struct = 1,
         Enum = 2,
@@ -47,5 +51,6 @@ namespace ValveResourceFormat
         RadianEuler = 42,
         DegreeEuler = 43,
         FourVectors = 44,
+#pragma warning restore CS1591
     }
 }
