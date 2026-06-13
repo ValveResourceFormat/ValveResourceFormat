@@ -1,4 +1,4 @@
-using GUI.Types.Audio.SoundEventProviders;
+using ValveResourceFormat.Renderer.Audio.SoundEventProviders;
 using NAudio.Wave;
 using NAudio.Wave.SampleProviders;
 using System;
@@ -9,7 +9,7 @@ using System.Threading.Tasks;
 using ValveResourceFormat.Serialization;
 using ValveResourceFormat.Serialization.KeyValues;
 
-namespace GUI.Types.Audio
+namespace ValveResourceFormat.Renderer.Audio
 {
     internal class WorldSoundEventCSGOMega : WorldSoundEvent
     {

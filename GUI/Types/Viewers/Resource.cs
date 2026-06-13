@@ -3,7 +3,7 @@ using System.IO;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 using GUI.Controls;
-using GUI.Types.Audio;
+using ValveResourceFormat.Renderer.Audio;
 using GUI.Types.Renderer;
 using GUI.Utils;
 using ValveResourceFormat;

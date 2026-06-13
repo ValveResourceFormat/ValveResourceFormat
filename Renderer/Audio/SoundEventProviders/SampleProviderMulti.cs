@@ -6,7 +6,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace GUI.Types.Audio.SoundEventProviders
+namespace ValveResourceFormat.Renderer.Audio.SoundEventProviders
 {
     class SampleProviderMulti : SampleProvider
     {

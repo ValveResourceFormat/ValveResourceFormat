@@ -1,4 +1,4 @@
-using GUI.Types.Audio.SoundEventProviders;
+using ValveResourceFormat.Renderer.Audio.SoundEventProviders;
 using GUI.Utils;
 using NAudio.Mixer;
 using NAudio.Wave;
@@ -12,7 +12,7 @@ using ValveResourceFormat.Serialization;
 using ValveResourceFormat.Serialization.KeyValues;
 using static System.Windows.Forms.AxHost;
 
-namespace GUI.Types.Audio
+namespace ValveResourceFormat.Renderer.Audio
 {
     internal abstract class WorldSoundEvent : IDisposable
     {

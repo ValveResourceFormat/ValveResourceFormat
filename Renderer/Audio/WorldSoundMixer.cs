@@ -1,4 +1,4 @@
-using GUI.Types.Audio.SoundEventProviders;
+using ValveResourceFormat.Renderer.Audio.SoundEventProviders;
 using GUI.Types.Renderer;
 using GUI.Utils;
 using NAudio.Wave;
@@ -14,7 +14,7 @@ using System.Threading.Tasks;
 using ValveResourceFormat.Serialization;
 using ValveResourceFormat.Serialization.KeyValues;
 
-namespace GUI.Types.Audio
+namespace ValveResourceFormat.Renderer.Audio
 {
     class WorldSoundMixer : ISampleProvider, IDisposable
     {

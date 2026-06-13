@@ -9,7 +9,7 @@ using System.Text;
 using System.Threading.Tasks;
 using static ValveResourceFormat.Blocks.ResourceIntrospectionManifest.ResourceDiskEnum;
 
-namespace GUI.Types.Audio.SoundEventProviders
+namespace ValveResourceFormat.Renderer.Audio.SoundEventProviders
 {
     class SampleProvider3D : SampleProviderSpatial
     {

@@ -11,7 +11,7 @@ using ValveResourceFormat;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.Utils;
 
-namespace GUI.Types.Audio
+namespace ValveResourceFormat.Renderer.Audio
 {
     class SoundCache
     {

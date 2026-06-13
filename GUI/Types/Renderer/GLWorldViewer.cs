@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 using System.Windows.Forms;
 using GUI.Controls;
 using GUI.Forms;
-using GUI.Types.Audio;
+using ValveResourceFormat.Renderer.Audio;
 using GUI.Utils;
 using ValveResourceFormat.IO;
 using ValveResourceFormat.ResourceTypes;

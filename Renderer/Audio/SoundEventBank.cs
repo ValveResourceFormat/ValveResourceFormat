@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 using ValveResourceFormat.Serialization;
 using ValveResourceFormat.Serialization.KeyValues;
 
-namespace GUI.Types.Audio
+namespace ValveResourceFormat.Renderer.Audio
 {
     class SoundEventBank
     {

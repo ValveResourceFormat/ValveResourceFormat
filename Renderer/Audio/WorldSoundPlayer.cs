@@ -11,7 +11,7 @@ using ValveResourceFormat.Serialization.KeyValues;
 using ValveResourceFormat.Serialization;
 using System.Linq;
 
-namespace GUI.Types.Audio
+namespace ValveResourceFormat.Renderer.Audio
 {
     sealed class WorldSoundPlayer : IDisposable
     {

@@ -1,7 +1,7 @@
 using NAudio.Wave;
 using System.Buffers;
 
-namespace GUI.Types.Audio
+namespace ValveResourceFormat.Renderer.Audio
 {
     class LoopWaveStream : WaveStream
     {
