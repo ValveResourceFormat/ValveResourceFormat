@@ -7,7 +7,6 @@ using System.Text;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 using GUI.Controls;
-using GUI.Types.Audio;
 using GUI.Types.GLViewers;
 using GUI.Types.Graphs;
 using GUI.Utils;
@@ -488,7 +487,7 @@ namespace GUI.Types.Viewers
                     {
                         var specialTabPage = new ThemedTabPage("SOUND");
                         var autoPlay = ((Settings.QuickPreviewFlags)Settings.Config.QuickFilePreview & Settings.QuickPreviewFlags.AutoPlaySounds) != 0;
-                        var ap = new AudioPlayer(resource, specialTabPage, isPreview && autoPlay);
+                        //var ap = new AudioPlayer(resource, specialTabPage, isPreview && autoPlay);
                         resTabs.TabPages.Add(specialTabPage);
                         return true;
                     }

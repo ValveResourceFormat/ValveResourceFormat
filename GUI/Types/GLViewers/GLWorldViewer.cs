@@ -5,6 +5,7 @@ using System.Windows.Forms;
 using GUI.Controls;
 using GUI.Forms;
 using GUI.Utils;
+using ValveResourceFormat.Renderer.Audio;
 using ValveResourceFormat.Blocks;
 using ValveResourceFormat.IO;
 using ValveResourceFormat.Renderer;
@@ -31,6 +32,7 @@ namespace GUI.Types.GLViewers
         private ComboBox? cameraComboBox;
         private SavedCameraPositionsControl? savedCameraPositionsControl;
         private EntityInfoForm? entityInfoForm;
+        private WorldSoundPlayer? sounds;
         private bool ignoreLayersChangeEvents = true;
         private List<Matrix4x4> CameraMatrices = [];
         private WorldNodeLoader? LoadedWorldNode;
@@ -59,6 +61,7 @@ namespace GUI.Types.GLViewers
             cameraComboBox?.Dispose();
             savedCameraPositionsControl?.Dispose();
             entityInfoForm?.Dispose();
+            sounds?.Dispose();
         }
 
         private void AddSceneExposureSlider()
@@ -224,6 +227,34 @@ namespace GUI.Types.GLViewers
                 LoadedWorldNode = new WorldNodeLoader(Scene.RendererContext, worldNode, mapExternalReferences);
                 LoadedWorldNode.Load(Scene);
             }
+
+            sounds = new WorldSoundPlayer(GuiContext);
+            sounds.AddSoundEventsFile("soundevents/ambience/game_sounds_overpass.vsndevts");
+
+            foreach (var item in Scene.AllNodes.Where(IsSoundEntity))
+            {
+                var className = item.EntityData!.GetStringProperty("classname");
+                if (className == "env_soundscape")
+                {
+                    var soundPosition = EntityTransformHelper.ParseVector(item.EntityData.GetStringProperty("origin"));
+                    var radius = item.EntityData.GetFloatProperty("radius");
+                    var enableSoundEvent = item.EntityData.GetBooleanProperty("enablesoundevent");
+
+                    if (!enableSoundEvent)
+                    {
+                        continue;
+                    }
+
+                    var soundName = item.EntityData.GetStringProperty("soundevent");
+                    sounds.AddSoundscape(soundPosition, radius, soundName);
+                }
+                else
+                {
+                    var soundName = item.EntityData.GetStringProperty("soundname");
+                    var soundPosition = EntityTransformHelper.ParseVector(item.EntityData.GetStringProperty("origin"));
+                    // sounds.PlaySoundEvent(soundName, soundPosition, false);
+                }
+            }
         }
 
         protected override void OnFirstPaint()
@@ -232,6 +263,17 @@ namespace GUI.Types.GLViewers
 
             Input.MoveCamera(new Vector3(0, -150f, 0));
             Input.MoveCamera(new Vector3(0, 150f, 0), transition: true);
+        }
+
+        private static bool IsSoundEntity(SceneNode x)
+        {
+            if (x.EntityData == null)
+            {
+                return false;
+            }
+
+            var className = x.EntityData.GetStringProperty("classname");
+            return className == "point_soundevent" || className == "env_soundscape";
         }
 
         protected override void AddUiControls()
@@ -915,6 +957,12 @@ namespace GUI.Types.GLViewers
 
             Scene.UpdateOctrees();
             SkyboxScene?.UpdateOctrees();
+        }
+
+        protected override void OnPaint(float frameTime)
+        {
+            base.OnPaint(frameTime);
+            sounds?.Update(Renderer.Camera);
         }
     }
 }
