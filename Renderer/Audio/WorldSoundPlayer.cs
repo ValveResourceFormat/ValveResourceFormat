@@ -1,19 +1,21 @@
-using GUI.Utils;
-using GUI.Controls;
-using NAudio.Wave;
-using NLayer.NAudioSupport;
-using ValveResourceFormat.ResourceTypes;
-using ValveResourceFormat.Utils;
-using ValveResourceFormat;
-using NAudio.Wave.SampleProviders;
-using GUI.Types.Renderer;
-using ValveResourceFormat.Serialization.KeyValues;
-using ValveResourceFormat.Serialization;
+using System;
+using System.Diagnostics;
 using System.Linq;
+using System.Numerics;
+using ValveKeyValue;
+using NAudio.Wave;
+using NAudio.Wave.SampleProviders;
+using ValveResourceFormat.IO;
+using ValveResourceFormat.ResourceTypes;
+using ValveResourceFormat.Serialization;
+using ValveResourceFormat.Serialization.KeyValues;
+using ValveResourceFormat.Renderer;
+
+using Vector3 = System.Numerics.Vector3;
 
 namespace ValveResourceFormat.Renderer.Audio
 {
-    sealed class WorldSoundPlayer : IDisposable
+    public sealed class WorldSoundPlayer : IDisposable
     {
         public struct Soundscape
         {
@@ -27,16 +29,16 @@ namespace ValveResourceFormat.Renderer.Audio
 
         public List<Soundscape> Soundscapes { get; init; } = new();
 
-        WaveOutEvent output;
-        WorldSoundMixer worldSoundProvider;
-        private VrfGuiContext context;
+        private readonly IFileLoader fileLoader;
+        private readonly WaveOutEvent output;
+        private readonly WorldSoundMixer worldSoundProvider;
 
         private WorldSoundEvent SoundscapeEvent = null;
 
-        public WorldSoundPlayer(VrfGuiContext context)
+        public WorldSoundPlayer(IFileLoader fileLoader)
         {
-            this.context = context;
-            Cache = new SoundCache(context);
+            this.fileLoader = fileLoader;
+            Cache = new SoundCache(fileLoader);
             SoundEventBank = new SoundEventBank();
 
             output = new WaveOutEvent();
@@ -62,12 +64,12 @@ namespace ValveResourceFormat.Renderer.Audio
             UpdateSoundscape(camera.Location);
         }
 
-        public WorldSoundEvent PlaySoundEvent(string soundEventName, Vector3 position, bool soundscape)
+        public WorldSoundEvent? PlaySoundEvent(string soundEventName, Vector3 position, bool soundscape)
         {
             var soundEventData = SoundEventBank.GetSoundEvent(soundEventName);
             if (soundEventData == null)
             {
-                Log.Warn("Sounds", $"Couldn't find soundevent: {soundEventName}");
+                Debug.WriteLine($"Couldn't find soundevent: {soundEventName}");
                 return null;
             }
             WorldSoundEvent soundEvent = worldSoundProvider.PlaySoundEvent(soundEventData, position);
@@ -78,7 +80,7 @@ namespace ValveResourceFormat.Renderer.Audio
 
         public void AddSoundEventsFile(string fileName)
         {
-            var soundEventsFile = context.LoadFileCompiled(fileName);
+            var soundEventsFile = fileLoader.LoadFileCompiled(fileName);
             if (soundEventsFile == null)
             {
                 return;

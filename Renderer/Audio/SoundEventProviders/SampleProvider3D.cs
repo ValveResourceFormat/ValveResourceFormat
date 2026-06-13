@@ -1,9 +1,9 @@
-using GUI.Types.Renderer;
-using GUI.Utils;
 using NAudio.Wave;
 using System;
+using System.Numerics;
+
+using Vector3 = System.Numerics.Vector3;
 using System.Collections.Generic;
-using System.Drawing.Text;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;

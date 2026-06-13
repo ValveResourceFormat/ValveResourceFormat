@@ -1,3 +1,4 @@
+using ValveKeyValue;
 using ValveResourceFormat.Renderer.Audio.SoundEventProviders;
 using NAudio.Wave;
 using NAudio.Wave.SampleProviders;
@@ -51,9 +52,9 @@ namespace ValveResourceFormat.Renderer.Audio
                 soundStream = Mixer.WorldSoundPlayer.Cache.GetSoundStream(soundName);
                 if (soundStream != null)
                 {
-                    var curveProperty = SoundEventData.GetProperty<KVObject>("distance_volume_mapping_curve");
-                    var distanceMappingCurve = curveProperty.Properties.ToArray()[1];
-                    var distanceMappingArray = ((KVObject)distanceMappingCurve.Value.Value).Properties.First().Value.Value;
+                    var curveProperty = SoundEventData.GetSubCollection("distance_volume_mapping_curve");
+                    var distanceMappingCurve = curveProperty.ElementAt(1);
+                    var distanceMappingArray = ((KVObject)distanceMappingCurve.Value).Values.First();
 
                     var range = Convert.ToSingle(distanceMappingArray);
                     var resampleProvider = new WdlResamplingSampleProvider(soundStream.ToSampleProvider(), SampleRate);
@@ -96,7 +97,7 @@ namespace ValveResourceFormat.Renderer.Audio
 
         private bool CheckRetrigger()
         {
-            if (!SoundEventData.GetProperty<bool>("enable_retrigger"))
+            if (!SoundEventData.GetBooleanProperty("enable_retrigger"))
             {
                 return false;
             }

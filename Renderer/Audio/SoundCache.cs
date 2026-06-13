@@ -1,19 +1,19 @@
-using GUI.Utils;
-using NAudio.Wave;
-using NLayer.NAudioSupport;
 using System;
+using System.Diagnostics;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using NAudio.Wave;
+using NLayer.NAudioSupport;
 using ValveResourceFormat;
+using ValveResourceFormat.IO;
 using ValveResourceFormat.ResourceTypes;
-using ValveResourceFormat.Utils;
 
 namespace ValveResourceFormat.Renderer.Audio
 {
-    class SoundCache
+    public class SoundCache
     {
         struct SoundCacheData
         {
@@ -23,14 +23,15 @@ namespace ValveResourceFormat.Renderer.Audio
             public int LoopEnd;
             public uint Samples;
         }
-        VrfGuiContext context;
-        Dictionary<string, SoundCacheData> sounds = [];
-        public SoundCache(VrfGuiContext context)
+        private readonly IFileLoader fileLoader;
+        private readonly Dictionary<string, SoundCacheData> sounds = [];
+
+        public SoundCache(IFileLoader fileLoader)
         {
-            this.context = context;
+            this.fileLoader = fileLoader;
         }
 
-        public WaveStream GetSoundStream(string fileName)
+        public WaveStream? GetSoundStream(string fileName)
         {
             if (!sounds.TryGetValue(fileName, out var soundData))
             {
@@ -48,7 +49,7 @@ namespace ValveResourceFormat.Renderer.Audio
                 return null;
             }
 
-            WaveStream stream = new RawSourceWaveStream(new MemoryStream(soundData.Data), soundData.WaveFormat);
+            var stream = new RawSourceWaveStream(new MemoryStream(soundData.Data), soundData.WaveFormat);
             if (soundData.LoopStart != -1)
             {
                 float loopMultiplier = stream.Length / (float)soundData.Samples;
@@ -60,10 +61,10 @@ namespace ValveResourceFormat.Renderer.Audio
             return stream;
         }
 
-        private byte[] LoadSound(string fileName, out WaveFormat format, out Sound soundData)
+        private byte[]? LoadSound(string fileName, out WaveFormat? format, out Sound? soundData)
         {
             format = null;
-            Resource resource = context.LoadFileCompiled(fileName);
+            Resource? resource = fileLoader.LoadFileCompiled(fileName);
 
             if (resource == null)
             {
@@ -71,8 +72,7 @@ namespace ValveResourceFormat.Renderer.Audio
                 return null;
             }
 
-            soundData = (Sound)resource.DataBlock;
-
+            soundData = resource.DataBlock as Sound;
             if (soundData == null)
             {
                 return null;
@@ -96,7 +96,7 @@ namespace ValveResourceFormat.Renderer.Audio
             }
             catch (Exception e)
             {
-                Log.Error(nameof(SoundCache), e.ToString());
+                Debug.WriteLine(e.ToString());
                 return null;
             }
         }

@@ -3,12 +3,13 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using ValveKeyValue;
 using ValveResourceFormat.Serialization;
 using ValveResourceFormat.Serialization.KeyValues;
 
 namespace ValveResourceFormat.Renderer.Audio
 {
-    class SoundEventBank
+    public class SoundEventBank
     {
         private Dictionary<string, KVObject> soundEvents = [];
         public SoundEventBank() { }
@@ -20,10 +21,10 @@ namespace ValveResourceFormat.Renderer.Audio
         {
             foreach (var soundEvent in soundEventsFile)
             {
-                AddSoundEvent(soundEvent.Key, soundEventsFile.GetProperty<KVObject>(soundEvent.Key));
+                AddSoundEvent(soundEvent.Key, soundEventsFile.GetSubCollection(soundEvent.Key));
             }
         }
-        public KVObject GetSoundEvent(string name)
+        public KVObject? GetSoundEvent(string name)
         {
             if (soundEvents.TryGetValue(name, out var soundEvent))
             {

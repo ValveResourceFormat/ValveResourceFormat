@@ -34,6 +34,10 @@
   <ItemGroup>
     <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.8" />
     <PackageReference Include="OpenTK.Graphics" Version="4.9.4" />
+    <PackageReference Include="NAudio.Wasapi" Version="2.3.0" />
+    <PackageReference Include="NAudio.WinMM" Version="2.3.0" />
+    <PackageReference Include="NLayer" Version="1.16.0" />
+    <PackageReference Include="NLayer.NAudioSupport" Version="1.4.0" />
   </ItemGroup>
 
   <ItemGroup>

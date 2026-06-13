@@ -1,22 +1,21 @@
+using ValveKeyValue;
 using ValveResourceFormat.Renderer.Audio.SoundEventProviders;
-using GUI.Types.Renderer;
-using GUI.Utils;
 using NAudio.Wave;
 using NAudio.Wave.SampleProviders;
-using SkiaSharp;
 using System;
 using System.Collections.Generic;
-using System.IO;
 using System.Linq;
-using System.Net.NetworkInformation;
+using System.Numerics;
 using System.Text;
 using System.Threading.Tasks;
 using ValveResourceFormat.Serialization;
 using ValveResourceFormat.Serialization.KeyValues;
 
+using Vector3 = System.Numerics.Vector3;
+
 namespace ValveResourceFormat.Renderer.Audio
 {
-    class WorldSoundMixer : ISampleProvider, IDisposable
+    public class WorldSoundMixer : ISampleProvider, IDisposable
     {
         public WorldSoundPlayer WorldSoundPlayer { get; init; }
 
@@ -38,7 +37,7 @@ namespace ValveResourceFormat.Renderer.Audio
 
         public void Update(Camera camera)
         {
-            Vector3 forwardVector = camera.GetForwardVector();
+            Vector3 forwardVector = camera.Forward;
             Vector3 rightEarDirection = Vector3.Cross(Vector3.UnitZ, forwardVector);
 
             foreach (WorldSoundEvent soundEvent in soundEvents)

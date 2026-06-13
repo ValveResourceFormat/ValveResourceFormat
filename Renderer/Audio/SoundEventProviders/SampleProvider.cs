@@ -7,7 +7,7 @@ using System.Threading.Tasks;
 
 namespace ValveResourceFormat.Renderer.Audio.SoundEventProviders
 {
-    abstract class SampleProvider : ISampleProvider
+    public abstract class SampleProvider : ISampleProvider
     {
         public delegate void OnOverDelegate();
         public event OnOverDelegate OnOver;

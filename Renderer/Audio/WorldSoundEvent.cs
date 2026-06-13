@@ -1,20 +1,23 @@
+using ValveKeyValue;
 using ValveResourceFormat.Renderer.Audio.SoundEventProviders;
-using GUI.Utils;
 using NAudio.Mixer;
 using NAudio.Wave;
 using NAudio.Wave.SampleProviders;
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
+using System.Numerics;
 using System.Text;
 using System.Threading.Tasks;
+
+using Vector3 = System.Numerics.Vector3;
 using ValveResourceFormat.Serialization;
 using ValveResourceFormat.Serialization.KeyValues;
-using static System.Windows.Forms.AxHost;
 
 namespace ValveResourceFormat.Renderer.Audio
 {
-    internal abstract class WorldSoundEvent : IDisposable
+    public abstract class WorldSoundEvent : IDisposable
     {
         public delegate void OnSoundOverDelegate(WorldSoundEvent soundEvent);
         public event OnSoundOverDelegate OnSoundOver;
@@ -40,7 +43,7 @@ namespace ValveResourceFormat.Renderer.Audio
             }
         }
         public KVObject SoundEventData { get; init; }
-        public string SoundName => SoundEventData.Key;
+        public string SoundName => SoundEventData.GetStringProperty("name", string.Empty);
         public SampleProviderMulti SampleProvider { get; private set; }
         public List<WorldSoundEvent> ChildSoundEvents { get; private set; } = new();
         public List<SampleProvider> SampleProviders { get; private set; } = new();
@@ -201,19 +204,20 @@ namespace ValveResourceFormat.Renderer.Audio
 
         protected T[] GetArrayProperty<T>(string name)
         {
-            if (!SoundEventData.Properties.TryGetValue(name, out var value))
+            if (!SoundEventData.TryGetValue(name, out var value))
             {
                 return Array.Empty<T>();
             }
 
-            if (value.Type == KVType.ARRAY || value.Type == KVType.ARRAY_TYPED)
+            if (value.ValueType == KVValueType.Array)
             {
-                return ((KVObject)value.Value).Properties.Values.Select(v => (T)v.Value).ToArray();
+                return value.AsArraySpan()
+                    .ToArray()
+                    .Select(v => (T)Convert.ChangeType(v, typeof(T), CultureInfo.InvariantCulture))
+                    .ToArray();
             }
-            else
-            {
-                return [(T)value.Value];
-            }
+
+            return new[] { (T)Convert.ChangeType(value, typeof(T), CultureInfo.InvariantCulture) };
         }
     }
 }

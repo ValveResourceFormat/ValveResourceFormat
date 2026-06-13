@@ -7,7 +7,7 @@ using System.Threading.Tasks;
 
 namespace ValveResourceFormat.Renderer.Audio.SoundEventProviders
 {
-    internal class SampleProviderMixer : SampleProviderMulti
+    public class SampleProviderMixer : SampleProviderMulti
     {
         public SampleProviderMixer(IEnumerable<SampleProvider> sampleProviders, WaveFormat waveFormat) : base(sampleProviders, waveFormat)
         {

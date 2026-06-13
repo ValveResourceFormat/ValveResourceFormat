@@ -8,7 +8,7 @@ using System.Threading.Tasks;
 
 namespace ValveResourceFormat.Renderer.Audio.SoundEventProviders
 {
-    class SampleProviderMulti : SampleProvider
+    public class SampleProviderMulti : SampleProvider
     {
         private LinkedList<SampleProvider> providers;
         private WaveFormat waveFormat;
