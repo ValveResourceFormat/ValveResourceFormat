@@ -19,9 +19,13 @@ namespace GUI.Types.PackageViewer
         /// </summary>
         private void InitializeComponent()
         {
+            components = new System.ComponentModel.Container();
+            toolTip = new System.Windows.Forms.ToolTip(components);
             mainSplitContainer = new System.Windows.Forms.SplitContainer();
             mainTreeView = new BetterTreeView();
             rightPanel = new System.Windows.Forms.Panel();
+            backButton = new ThemedButton();
+            forwardButton = new ThemedButton();
             searchTextBox = new ThemedTextBox();
             panel1 = new System.Windows.Forms.Panel();
             mainListView = new BetterListView();
@@ -98,6 +102,26 @@ namespace GUI.Types.PackageViewer
             searchTextBox.TabIndex = 1;
             searchTextBox.KeyDown += OnSearchTextBoxKeyDown;
             // 
+            // backButton
+            // 
+            backButton.Dock = System.Windows.Forms.DockStyle.Fill;
+            backButton.Enabled = false;
+            backButton.Margin = new System.Windows.Forms.Padding(3, 4, 3, 4);
+            backButton.Name = "backButton";
+            backButton.TabIndex = 0;
+            toolTip.SetToolTip(backButton, "Back");
+            backButton.Click += BackButton_Click;
+            // 
+            // forwardButton
+            // 
+            forwardButton.Dock = System.Windows.Forms.DockStyle.Fill;
+            forwardButton.Enabled = false;
+            forwardButton.Margin = new System.Windows.Forms.Padding(3, 4, 3, 4);
+            forwardButton.Name = "forwardButton";
+            forwardButton.TabIndex = 1;
+            toolTip.SetToolTip(forwardButton, "Forward");
+            forwardButton.Click += ForwardButton_Click;
+            // 
             // panel1
             // 
             panel1.Controls.Add(mainListView);
@@ -126,13 +150,17 @@ namespace GUI.Types.PackageViewer
             // 
             // tableLayoutPanel2
             // 
-            tableLayoutPanel2.ColumnCount = 3;
+            tableLayoutPanel2.ColumnCount = 5;
+            tableLayoutPanel2.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Absolute, 36F));
+            tableLayoutPanel2.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Absolute, 36F));
             tableLayoutPanel2.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Absolute, 60F));
             tableLayoutPanel2.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Absolute, 60F));
             tableLayoutPanel2.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Absolute, 170F));
-            tableLayoutPanel2.Controls.Add(listRadioButton, 0, 0);
-            tableLayoutPanel2.Controls.Add(gridRadioButton, 1, 0);
-            tableLayoutPanel2.Controls.Add(gridSizeSlider, 2, 0);
+            tableLayoutPanel2.Controls.Add(backButton, 0, 0);
+            tableLayoutPanel2.Controls.Add(forwardButton, 1, 0);
+            tableLayoutPanel2.Controls.Add(listRadioButton, 2, 0);
+            tableLayoutPanel2.Controls.Add(gridRadioButton, 3, 0);
+            tableLayoutPanel2.Controls.Add(gridSizeSlider, 4, 0);
             tableLayoutPanel2.Dock = System.Windows.Forms.DockStyle.Fill;
             tableLayoutPanel2.Location = new System.Drawing.Point(0, 0);
             tableLayoutPanel2.Margin = new System.Windows.Forms.Padding(0);
@@ -150,7 +178,7 @@ namespace GUI.Types.PackageViewer
             gridSizeSlider.Maximum = 4;
             gridSizeSlider.Name = "gridSizeSlider";
             gridSizeSlider.Size = new System.Drawing.Size(107, 34);
-            gridSizeSlider.TabIndex = 2;
+            gridSizeSlider.TabIndex = 4;
             gridSizeSlider.Value = 2;
             gridSizeSlider.Scroll += gridSizeSlider_Scroll;
             // 
@@ -162,7 +190,7 @@ namespace GUI.Types.PackageViewer
             gridRadioButton.Location = new System.Drawing.Point(71, 3);
             gridRadioButton.Name = "gridRadioButton";
             gridRadioButton.Size = new System.Drawing.Size(54, 34);
-            gridRadioButton.TabIndex = 1;
+            gridRadioButton.TabIndex = 3;
             gridRadioButton.TabStop = true;
             gridRadioButton.Text = "Grid";
             gridRadioButton.UseVisualStyleBackColor = true;
@@ -173,9 +201,10 @@ namespace GUI.Types.PackageViewer
             listRadioButton.AutoSize = true;
             listRadioButton.Dock = System.Windows.Forms.DockStyle.Fill;
             listRadioButton.Location = new System.Drawing.Point(11, 3);
+            listRadioButton.Margin = new System.Windows.Forms.Padding(12, 3, 3, 3);
             listRadioButton.Name = "listRadioButton";
             listRadioButton.Size = new System.Drawing.Size(54, 34);
-            listRadioButton.TabIndex = 0;
+            listRadioButton.TabIndex = 2;
             listRadioButton.Text = "List";
             listRadioButton.UseVisualStyleBackColor = true;
             listRadioButton.CheckedChanged += listRadioButton_CheckedChanged;
@@ -226,6 +255,9 @@ namespace GUI.Types.PackageViewer
         private System.Windows.Forms.SplitContainer mainSplitContainer;
         public BetterTreeView mainTreeView;
         private System.Windows.Forms.Panel rightPanel;
+        private ThemedButton backButton;
+        private ThemedButton forwardButton;
+        private System.Windows.Forms.ToolTip toolTip;
         private ThemedTextBox searchTextBox;
         private System.Windows.Forms.TableLayoutPanel tableLayoutPanel1;
         private System.Windows.Forms.TableLayoutPanel tableLayoutPanel2;

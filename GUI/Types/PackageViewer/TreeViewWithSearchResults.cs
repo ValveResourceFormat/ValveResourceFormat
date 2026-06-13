@@ -14,6 +14,7 @@ using GUI.Types.PackageViewer.ThumbnailRenderers;
 using GUI.Utils;
 using SteamDatabase.ValvePak;
 using ValveResourceFormat.IO;
+using Windows.Win32;
 
 namespace GUI.Types.PackageViewer
 {
@@ -71,6 +72,9 @@ namespace GUI.Types.PackageViewer
         public event EventHandler<PackageContextMenuEventArgs>? OpenContextMenu;
         public event EventHandler<PackageEntry>? PreviewFile;
 
+        private readonly NavigationHistory navigationHistory = new();
+        private bool suppressHistoryRecording;
+
         /// <summary>
         /// Initializes a new instance of the <see cref="TreeViewWithSearchResults"/> class.
         /// Require a default constructor for the designer.
@@ -93,6 +97,9 @@ namespace GUI.Types.PackageViewer
             ThumbnailRenderThread.Start();
 
             searchTextBox.BackColor = Themer.CurrentThemeColors.AppMiddle;
+
+            backButton.Image = MainForm.ImageList.Images[MainForm.Icons["NavigateBack"]];
+            forwardButton.Image = MainForm.ImageList.Images[MainForm.Icons["NavigateForward"]];
 
             if (SplitterWidth > 0)
             {
@@ -325,6 +332,121 @@ namespace GUI.Types.PackageViewer
             {
                 UpdateSearchTextBoxToCurrentPath(pkgNode);
             }
+
+            RecordNavigation(new FolderNavigationEntry(pkgNode));
+        }
+
+        private void RecordNavigation(NavigationEntry entry)
+        {
+            // Opening a folder can reach DisplayNodes more than once (e.g. list double click both
+            // selects the tree node and calls DisplayNodes), and replaying history must not re-record.
+            if (suppressHistoryRecording)
+            {
+                return;
+            }
+
+            navigationHistory.Record(entry);
+            UpdateNavigationButtons();
+        }
+
+        private void BackButton_Click(object? sender, EventArgs e) => NavigateBack();
+
+        private void ForwardButton_Click(object? sender, EventArgs e) => NavigateForward();
+
+        private const int APPCOMMAND_BROWSER_BACKWARD = 1;
+        private const int APPCOMMAND_BROWSER_FORWARD = 2;
+        private const int FAPPCOMMAND_MASK = 0xF000;
+
+        /// <summary>
+        /// Handles the back/forward mouse buttons and keyboard keys. WM_APPCOMMAND bubbles up from
+        /// whichever child control was clicked or focused, so this works anywhere over the package viewer.
+        /// </summary>
+        protected override void WndProc(ref Message m)
+        {
+            if (m.Msg == PInvoke.WM_APPCOMMAND)
+            {
+                var cmd = (int)((ushort)((long)m.LParam >> 16) & ~FAPPCOMMAND_MASK);
+
+                if (cmd is APPCOMMAND_BROWSER_BACKWARD or APPCOMMAND_BROWSER_FORWARD)
+                {
+                    if (cmd == APPCOMMAND_BROWSER_BACKWARD)
+                    {
+                        NavigateBack();
+                    }
+                    else
+                    {
+                        NavigateForward();
+                    }
+
+                    m.Result = 1;
+                    return;
+                }
+            }
+
+            base.WndProc(ref m);
+        }
+
+        private void NavigateBack()
+        {
+            if (navigationHistory.Back() is { } entry)
+            {
+                NavigateTo(entry);
+            }
+        }
+
+        private void NavigateForward()
+        {
+            if (navigationHistory.Forward() is { } entry)
+            {
+                NavigateTo(entry);
+            }
+        }
+
+        private void NavigateTo(NavigationEntry entry)
+        {
+            suppressHistoryRecording = true;
+
+            try
+            {
+                if (entry is SearchNavigationEntry search)
+                {
+                    PerformSearch(search.Search);
+                }
+                else if (entry is FolderNavigationEntry { Node: var node })
+                {
+                    mainTreeView.BeginUpdate();
+                    var treeNode = CreateTreeNodes(node);
+
+                    if (treeNode != null)
+                    {
+                        treeNode.EnsureVisible();
+                        treeNode.Expand();
+                        mainTreeView.SelectedNode = treeNode;
+                    }
+
+                    mainTreeView.EndUpdate();
+
+                    DisplayMainListView();
+                    MainListView_DisplayNodes(node);
+                }
+            }
+            finally
+            {
+                suppressHistoryRecording = false;
+                UpdateNavigationButtons();
+            }
+        }
+
+        private void UpdateNavigationButtons()
+        {
+            backButton.Enabled = navigationHistory.CanGoBack;
+            forwardButton.Enabled = navigationHistory.CanGoForward;
+        }
+
+        public void PruneNavigationHistory(VirtualPackageNode removedRoot)
+        {
+            navigationHistory.RemoveSubtree(removedRoot);
+            UpdateNavigationButtons();
         }
 
         private void AssignIcons()
@@ -1080,11 +1202,29 @@ namespace GUI.Types.PackageViewer
         /// <param name="selectedSearchType">Determines the matching of the value. For example, full/partial text search or full path search.</param>
         internal void SearchAndFillResults(string searchText, SearchType selectedSearchType, string? filterKey = null, string? filterValue = null)
         {
-            var results = mainTreeView.Search(searchText, selectedSearchType);
+            var request = new SearchRequest(searchText, selectedSearchType, filterKey, filterValue);
 
-            if (filterKey != null && AssetSearchData != null)
+            suppressHistoryRecording = true;
+
+            try
             {
-                results.RemoveAll(entry => !MatchesAssetFilter(entry, filterKey, filterValue));
+                PerformSearch(request);
+            }
+            finally
+            {
+                suppressHistoryRecording = false;
+            }
+
+            RecordNavigation(new SearchNavigationEntry(request));
+        }
+
+        private void PerformSearch(SearchRequest request)
+        {
+            var results = mainTreeView.Search(request.Text, request.Type);
+
+            if (request.FilterKey != null && AssetSearchData != null)
+            {
+                results.RemoveAll(entry => !MatchesAssetFilter(entry, request.FilterKey, request.FilterValue));
             }
 
             var node = new VirtualPackageNode(string.Empty, 0, null);
@@ -1124,6 +1264,12 @@ namespace GUI.Types.PackageViewer
         /// <param name="e">Event data.</param>
         private void MainListView_MouseDown(object? sender, MouseEventArgs e)
         {
+            // Back/forward mouse buttons navigate history (WM_APPCOMMAND); don't let them change selection here.
+            if (e.Button is MouseButtons.XButton1 or MouseButtons.XButton2)
+            {
+                return;
+            }
+
             var info = mainListView.HitTest(e.X, e.Y);
 
             // if an item was clicked in the list view
