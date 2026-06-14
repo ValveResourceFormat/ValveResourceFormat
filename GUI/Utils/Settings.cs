@@ -11,7 +11,7 @@ namespace GUI.Utils
     /// </summary>
     static class Settings
     {
-        private const int SettingsFileCurrentVersion = 14;
+        private const int SettingsFileCurrentVersion = 15;
         private const int RecentFilesLimit = 20;
 
         /// <summary>
@@ -68,6 +68,8 @@ namespace GUI.Utils
             public float FieldOfView { get; set; }
             /// <summary>Gets or sets the mouse look sensitivity.</summary>
             public float MouseSensitivity { get; set; }
+            /// <summary>Gets or sets whether the viewport camera should have acceleration/deceleration when starting or stopping to move</summary>
+            public bool SmoothCameraEnabled { get; set; }
             /// <summary>Gets or sets the number of MSAA samples used for anti-aliasing.</summary>
             public int AntiAliasingSamples { get; set; }
             /// <summary>Gets or sets the top edge position of the main window.</summary>
@@ -269,6 +271,11 @@ namespace GUI.Utils
             if (currentVersion < 14) // version 14: added mouse sensitivity
             {
                 Config.MouseSensitivity = 4f;
+            }
+
+            if (currentVersion < 15) // version 15: added smooth camera setting
+            {
+                Config.SmoothCameraEnabled = true;
             }
 
             if (currentVersion > 0 && currentVersion != SettingsFileCurrentVersion)

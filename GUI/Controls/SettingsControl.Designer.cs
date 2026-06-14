@@ -52,6 +52,7 @@ namespace GUI.Controls
             displayFpsCheckBox = new System.Windows.Forms.CheckBox();
             groupBox1 = new ThemedGroupBox();
             groupBox2 = new ThemedGroupBox();
+            smoothCamCheckbox = new System.Windows.Forms.CheckBox();
             setFovTo4by3Button = new ThemedButton();
             shadowQualityComboBox = new ThemedComboBox();
             shadowResolutionLabel = new System.Windows.Forms.Label();
@@ -294,6 +295,7 @@ namespace GUI.Controls
             groupBox2.BorderColor = System.Drawing.Color.Black;
             groupBox2.BorderWidth = 2;
             groupBox2.Controls.Add(displayFpsCheckBox);
+            groupBox2.Controls.Add(smoothCamCheckbox);
             groupBox2.Controls.Add(setFovTo4by3Button);
             groupBox2.Controls.Add(vsyncCheckBox);
             groupBox2.Controls.Add(fovInput);
@@ -317,6 +319,19 @@ namespace GUI.Controls
             groupBox2.TabIndex = 2;
             groupBox2.TabStop = false;
             groupBox2.Text = "Video settings";
+            // 
+            // smoothCamCheckbox
+            // 
+            smoothCamCheckbox.AutoSize = true;
+            smoothCamCheckbox.Checked = true;
+            smoothCamCheckbox.CheckState = System.Windows.Forms.CheckState.Checked;
+            smoothCamCheckbox.Location = new System.Drawing.Point(15, 350);
+            smoothCamCheckbox.Name = "smoothCamCheckbox";
+            smoothCamCheckbox.Size = new System.Drawing.Size(98, 23);
+            smoothCamCheckbox.TabIndex = 13;
+            smoothCamCheckbox.Text = "Smooth camera";
+            smoothCamCheckbox.UseVisualStyleBackColor = true;
+            smoothCamCheckbox.CheckedChanged += OnSmoothCameraChanged;
             // 
             // setFovTo4by3Button
             // 
@@ -564,5 +579,6 @@ namespace GUI.Controls
         private ThemedGroupBox groupBox2;
         private ThemedGroupBox groupBox3;
         private ThemedGroupBox groupBox4;
+        private System.Windows.Forms.CheckBox smoothCamCheckbox;
     }
 }
