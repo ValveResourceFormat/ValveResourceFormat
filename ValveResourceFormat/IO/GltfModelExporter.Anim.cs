@@ -63,6 +63,21 @@ public partial class GltfModelExporter
             // to keep the skeleton from animating in place. https://github.com/ValveResourceFormat/ValveResourceFormat/issues/955
             var applyRootMotion = animation.HasMovementData();
 
+            // No cloth solver here, so mirror the renderer (BaseAnimationController.GetSkinningMatrices):
+            // pin each cloth root to the cloth anchor bone instead of writing its raw, solver-less clip data.
+            var clothAnchor = Skeleton.ClothSimulationRoot;
+            var anchorInverseBindPose = Matrix4x4.Identity;
+            if (clothAnchor != null)
+            {
+                var anchorBindPose = Matrix4x4.Identity;
+                for (var b = clothAnchor; b != null; b = b.Parent)
+                {
+                    anchorBindPose *= b.BindPose;
+                }
+
+                Matrix4x4.Invert(anchorBindPose, out anchorInverseBindPose);
+            }
+
             for (var f = 0; f < animation.FrameCount; f++)
             {
                 Frame.FrameIndex = f;
@@ -73,6 +88,28 @@ public partial class GltfModelExporter
                 var rootMotion = applyRootMotion
                     ? GetRootMotionMatrix(animation.GetMovementOffsetData(f))
                     : Matrix4x4.Identity;
+
+                // Anchor skinning matrix this frame (renderer's modelBones[clothSimRoot]).
+                var clothSkinning = Matrix4x4.Identity;
+                if (clothAnchor != null)
+                {
+                    var anchorPose = Matrix4x4.Identity;
+                    for (var b = clothAnchor; b != null; b = b.Parent)
+                    {
+                        var anchorFrame = Frame.Bones[b.Index];
+                        var anchorScale = anchorFrame.Scale;
+                        if (float.IsNaN(anchorScale) || float.IsInfinity(anchorScale))
+                        {
+                            anchorScale = 0.0f;
+                        }
+
+                        anchorPose *= Matrix4x4.CreateScale(anchorScale)
+                            * Matrix4x4.CreateFromQuaternion(anchorFrame.Angle)
+                            * Matrix4x4.CreateTranslation(anchorFrame.Position);
+                    }
+
+                    clothSkinning = anchorInverseBindPose * anchorPose;
+                }
 
                 for (var boneID = 0; boneID < BoneCount; boneID++)
                 {
@@ -91,7 +128,25 @@ public partial class GltfModelExporter
 
                     var scale = new Vector3(scalarBoneScale);
 
-                    if (applyRootMotion && Skeleton.Bones[boneID].Parent == null)
+                    var bone = Skeleton.Bones[boneID];
+
+                    if (clothAnchor != null && bone.Parent == null && bone.IsProceduralCloth)
+                    {
+                        // Pin to the anchor; cloth bones are roots, so apply root motion too.
+                        var local = bone.BindPose * clothSkinning;
+                        if (applyRootMotion)
+                        {
+                            local *= rootMotion;
+                        }
+
+                        if (Matrix4x4.Decompose(local, out var clothS, out var clothR, out var clothT))
+                        {
+                            position = clothT;
+                            rotation = clothR;
+                            scale = clothS;
+                        }
+                    }
+                    else if (applyRootMotion && bone.Parent == null)
                     {
                         var local = Matrix4x4.CreateScale(scale)
                             * Matrix4x4.CreateFromQuaternion(rotation)
