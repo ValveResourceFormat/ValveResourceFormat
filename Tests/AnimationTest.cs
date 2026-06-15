@@ -71,22 +71,5 @@ namespace Tests
                 Assert.That(byTime.Position.X, Is.EqualTo(FullDisplacementX).Within(0.05f));
             }
         }
-
-        [Test]
-        public void MovementDataToMatrixAppliesYawAndTranslation()
-        {
-            var movement = new AnimationMovement.MovementData(new Vector3(10f, 20f, 30f), 90f);
-            var matrix = movement.ToMatrix();
-
-            using (Assert.EnterMultipleScope())
-            {
-                Assert.That(matrix.Translation, Is.EqualTo(new Vector3(10f, 20f, 30f)));
-
-                // The movement angle is a yaw about Z, so +X maps onto +Y at 90 degrees.
-                var rotated = Vector3.TransformNormal(Vector3.UnitX, matrix);
-                Assert.That(rotated.X, Is.EqualTo(0f).Within(1e-5f));
-                Assert.That(rotated.Y, Is.EqualTo(1f).Within(1e-5f));
-            }
-        }
     }
 }

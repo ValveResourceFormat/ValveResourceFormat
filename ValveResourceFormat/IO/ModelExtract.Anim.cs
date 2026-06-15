@@ -280,7 +280,9 @@ partial class ModelExtract
 
                 if (bakeRootMotion)
                 {
-                    var rootMotion = anim.GetMovementOffsetData(i).ToMatrix();
+                    var movement = anim.GetMovementOffsetData(i);
+                    var rootMotion = Matrix4x4.CreateRotationZ(float.DegreesToRadians(movement.Angle))
+                        * Matrix4x4.CreateTranslation(movement.Position);
                     var local = Matrix4x4.CreateFromQuaternion(rotation) * Matrix4x4.CreateTranslation(position);
 
                     if (Matrix4x4.Decompose(local * rootMotion, out _, out var r, out var t))

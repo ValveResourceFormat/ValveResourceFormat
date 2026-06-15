@@ -32,13 +32,6 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
                 Position = position;
                 Angle = angle;
             }
-
-            /// <summary>
-            /// Builds the root-motion transform for this offset: a yaw about the source-engine up
-            /// axis (Z) plus the position translation.
-            /// </summary>
-            public Matrix4x4 ToMatrix()
-                => Matrix4x4.CreateRotationZ(float.DegreesToRadians(Angle)) * Matrix4x4.CreateTranslation(Position);
         }
 
         /// <summary>

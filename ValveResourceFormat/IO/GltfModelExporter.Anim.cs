@@ -88,9 +88,13 @@ public partial class GltfModelExporter
                 var time = f / fps;
                 var prevFrameTime = (f - 1) / fps;
 
-                var rootMotion = applyRootMotion
-                    ? animation.GetMovementOffsetData(f).ToMatrix()
-                    : Matrix4x4.Identity;
+                var rootMotion = Matrix4x4.Identity;
+                if (applyRootMotion)
+                {
+                    var movement = animation.GetMovementOffsetData(f);
+                    rootMotion = Matrix4x4.CreateRotationZ(float.DegreesToRadians(movement.Angle))
+                        * Matrix4x4.CreateTranslation(movement.Position);
+                }
 
                 // Anchor skinning matrix this frame (renderer's modelBones[clothSimRoot]).
                 var clothSkinning = Matrix4x4.Identity;
