@@ -109,7 +109,6 @@ partial class ModelExtract
             }
 
 
-            ProcessRootMotionChannel(anim, dmeSkeleton, clip);
             ProcessBoneChannels(skeleton, anim, transforms, clip, frames);
             ProcessFlexChannels(flexControllers, anim, clip, frames);
         }
@@ -215,58 +214,12 @@ partial class ModelExtract
         return channel;
     }
 
-    private static void ProcessBoneFrameForDmeChannel(Bone bone, Frame frame, TimeSpan time, DmeLogLayer<Vector3> positionLayer, DmeLogLayer<Quaternion> orientationLayer)
-    {
-        var frameBone = frame.Bones[bone.Index];
-
-        positionLayer.Times.Add(time);
-        positionLayer.LayerValues[frame.FrameIndex] = frameBone.Position;
-
-        orientationLayer.Times.Add(time);
-        orientationLayer.LayerValues[frame.FrameIndex] = frameBone.Angle;
-    }
-
     private static void ProcessFlexFrameForDmeChannel(int flexId, Frame frame, TimeSpan time, DmeLogLayer<float> flexLayer)
     {
         var flexValue = frame.Datas[flexId];
 
         flexLayer.Times.Add(time);
         flexLayer.LayerValues[frame.FrameIndex] = flexValue;
-    }
-
-    private static void ProcessRootMotionChannel(Animation anim, DmeModel skeleton, DmeChannelsClip clip)
-    {
-        if (!anim.HasMovementData())
-        {
-            return;
-        }
-        var rootPositionChannel = BuildDmeChannel<Vector3>($"_p", skeleton.Transform, "position", out var rootPositionLog);
-        var rootPositionLayer = rootPositionLog.GetLayer(0);
-        rootPositionLayer.LayerValues = new Vector3[anim.FrameCount];
-
-        var rootOrientationChannel = BuildDmeChannel<Quaternion>($"_o", skeleton.Transform, "orientation", out var rootOrientationLog);
-        var rootOrientationLayer = rootOrientationLog.GetLayer(0);
-        rootOrientationLayer.LayerValues = new Quaternion[anim.FrameCount];
-
-        for (var i = 0; i < anim.FrameCount; i++)
-        {
-            var time = i / MathF.Max(1f, anim.Fps);
-            var timespan = TimeSpan.FromSeconds(time);
-
-            var movement = anim.GetMovementOffsetData(time);
-
-            rootPositionLayer.LayerValues[i] = movement.Position;
-            rootPositionLayer.Times.Add(timespan);
-
-            var degrees = movement.Angle * 0.0174532925f; //Deg to rad
-            rootOrientationLayer.LayerValues[i] = Quaternion.CreateFromAxisAngle(Vector3.UnitZ, degrees);
-            rootOrientationLayer.Times.Add(timespan);
-        }
-
-        ApplyModelDocHack(rootPositionLayer);
-
-        clip.Channels.Add(rootPositionChannel);
-        clip.Channels.Add(rootOrientationChannel);
     }
 
     private static void ProcessFlexChannels(FlexController[] flexControllers, Animation anim, DmeChannelsClip clip, Frame[] frames)
@@ -297,6 +250,8 @@ partial class ModelExtract
 
     private static void ProcessBoneChannels(Skeleton skeleton, Animation anim, DmeTransform[] transforms, DmeChannelsClip clip, Frame[] frames)
     {
+        var applyRootMotion = anim.HasMovementData();
+
         foreach (var bone in skeleton.Bones)
         {
             var transform = transforms[bone.Index];
@@ -310,13 +265,41 @@ partial class ModelExtract
             positionLogLayer.LayerValues = new Vector3[anim.FrameCount];
             orientationLogLayer.LayerValues = new Quaternion[anim.FrameCount];
 
+            // Root motion is stored separately from bone frames; bake it into the root bone(s) so the
+            // skeleton travels. Importers ignore the model-level transform channel root motion was on
+            // before. https://github.com/ValveResourceFormat/ValveResourceFormat/issues/955
+            var bakeRootMotion = applyRootMotion && bone.Parent == null;
+
             for (var i = 0; i < anim.FrameCount; i++)
             {
-                var frame = frames[i];
-
+                var frameBone = frames[i].Bones[bone.Index];
                 var time = TimeSpan.FromSeconds((double)i / MathF.Max(1f, anim.Fps));
 
-                ProcessBoneFrameForDmeChannel(bone, frame, time, positionLogLayer, orientationLogLayer);
+                var position = frameBone.Position;
+                var rotation = frameBone.Angle;
+
+                if (bakeRootMotion)
+                {
+                    var movement = anim.GetMovementOffsetData(i);
+                    var rootMotion = Matrix4x4.CreateRotationZ(float.DegreesToRadians(movement.Angle))
+                        * Matrix4x4.CreateTranslation(movement.Position);
+                    var local = Matrix4x4.CreateFromQuaternion(rotation) * Matrix4x4.CreateTranslation(position);
+
+                    if (Matrix4x4.Decompose(local * rootMotion, out _, out var r, out var t))
+                    {
+                        position = t;
+                        rotation = r;
+                    }
+                    else
+                    {
+                        position += rootMotion.Translation;
+                    }
+                }
+
+                positionLogLayer.Times.Add(time);
+                positionLogLayer.LayerValues[i] = position;
+                orientationLogLayer.Times.Add(time);
+                orientationLogLayer.LayerValues[i] = rotation;
             }
 
             ApplyModelDocHack(positionLogLayer);

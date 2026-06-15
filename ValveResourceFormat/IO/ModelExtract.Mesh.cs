@@ -539,7 +539,7 @@ partial class ModelExtract
                         dag = CreateDmxDag(dmeModel, dmeVertexBuffer.VertexData, subMeshName);
                     }
 
-                    dag.Shape.Name = subMeshName;
+                    dag.Shape!.Name = subMeshName;
                 }
 
                 GenerateTriangleFaceSetFromIndexBuffer(

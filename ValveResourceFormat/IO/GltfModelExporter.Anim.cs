@@ -59,6 +59,10 @@ public partial class GltfModelExporter
                 fps = 1f;
             }
 
+            // Root motion is stored separately from bone frames, so bake it into the root bone(s)
+            // to keep the skeleton from animating in place. https://github.com/ValveResourceFormat/ValveResourceFormat/issues/955
+            var applyRootMotion = animation.HasMovementData();
+
             for (var f = 0; f < animation.FrameCount; f++)
             {
                 Frame.FrameIndex = f;
@@ -66,13 +70,16 @@ public partial class GltfModelExporter
                 var time = f / fps;
                 var prevFrameTime = (f - 1) / fps;
 
+                var rootMotion = applyRootMotion
+                    ? GetRootMotionMatrix(animation.GetMovementOffsetData(f))
+                    : Matrix4x4.Identity;
+
                 for (var boneID = 0; boneID < BoneCount; boneID++)
                 {
                     var boneFrame = Frame.Bones[boneID];
 
-                    RotationWriter.SubmitKeyframe(boneID, time, prevFrameTime, boneFrame.Angle);
-                    PositionWriter.SubmitKeyframe(boneID, time, prevFrameTime, boneFrame.Position);
-
+                    var position = boneFrame.Position;
+                    var rotation = boneFrame.Angle;
                     var scalarBoneScale = boneFrame.Scale;
 
                     if (float.IsNaN(scalarBoneScale) || float.IsInfinity(scalarBoneScale))
@@ -82,7 +89,29 @@ public partial class GltfModelExporter
                         scalarBoneScale = 0.0f;
                     }
 
-                    ScaleWriter.SubmitKeyframe(boneID, time, prevFrameTime, new Vector3(scalarBoneScale));
+                    var scale = new Vector3(scalarBoneScale);
+
+                    if (applyRootMotion && Skeleton.Bones[boneID].Parent == null)
+                    {
+                        var local = Matrix4x4.CreateScale(scale)
+                            * Matrix4x4.CreateFromQuaternion(rotation)
+                            * Matrix4x4.CreateTranslation(position);
+
+                        if (Matrix4x4.Decompose(local * rootMotion, out var s, out var r, out var t))
+                        {
+                            position = t;
+                            rotation = r;
+                            scale = s;
+                        }
+                        else
+                        {
+                            position += rootMotion.Translation;
+                        }
+                    }
+
+                    RotationWriter.SubmitKeyframe(boneID, time, prevFrameTime, rotation);
+                    PositionWriter.SubmitKeyframe(boneID, time, prevFrameTime, position);
+                    ScaleWriter.SubmitKeyframe(boneID, time, prevFrameTime, scale);
                 }
             }
 
@@ -101,6 +130,11 @@ public partial class GltfModelExporter
                 outputAnimation.CreateScaleChannel(jointNode, ScaleWriter.Channels[boneID], true);
             }
         }
+
+        // Movement rotation is a yaw around the source-engine up axis (Z), matching the DMX exporter.
+        private static Matrix4x4 GetRootMotionMatrix(AnimationMovement.MovementData movement)
+            => Matrix4x4.CreateRotationZ(float.DegreesToRadians(movement.Angle))
+                * Matrix4x4.CreateTranslation(movement.Position);
     }
 
     record struct AnimationChannelWriter<T>(Dictionary<float, T>[] Channels, T?[] LastValue, bool[] ValueOmmited) where T : struct
