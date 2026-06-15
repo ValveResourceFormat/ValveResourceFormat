@@ -48,6 +48,12 @@ namespace ValveResourceFormat.IO
         public List<ContentFile> AdditionalFiles { get; init; } = [];
 
         /// <summary>
+        /// When true, writers place this file (and its subfiles) at its full <see cref="FileName"/> relative
+        /// to the output root instead of next to the parent content file.
+        /// </summary>
+        public bool KeepFullPath { get; set; }
+
+        /// <summary>
         /// Gets a value indicating whether this instance has been disposed.
         /// </summary>
         protected bool Disposed { get; private set; }

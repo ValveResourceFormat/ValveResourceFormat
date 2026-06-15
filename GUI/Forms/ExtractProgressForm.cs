@@ -475,10 +475,11 @@ namespace GUI.Forms
                 {
                     extractedFiles.Add(additionalFile.FileName + GameFileLoader.CompiledFileSuffix);
                     var fileNameOut = additionalFile.FileName;
+                    var flattenThis = flatSubfiles && !additionalFile.KeepFullPath;
 
                     if (additionalFile.Data != null)
                     {
-                        if (flatSubfiles)
+                        if (flattenThis)
                         {
                             fileNameOut = Path.GetFileName(fileNameOut);
                         }
@@ -493,7 +494,7 @@ namespace GUI.Forms
                         await File.WriteAllBytesAsync(outPath.Full, additionalFile.Data, cancellationTokenSource.Token).ConfigureAwait(false);
                     }
 
-                    var contentRelativeFolder = flatSubfiles ? string.Empty : Path.GetDirectoryName(fileNameOut) ?? string.Empty;
+                    var contentRelativeFolder = flattenThis ? string.Empty : Path.GetDirectoryName(fileNameOut) ?? string.Empty;
 
                     await ExtractSubfiles(contentRelativeFolder, additionalFile).ConfigureAwait(false);
                 }

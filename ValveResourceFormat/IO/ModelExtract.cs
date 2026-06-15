@@ -156,6 +156,8 @@ public partial class ModelExtract
             );
         }
 
+        AddAnimationGraphClips(vmdl);
+
         return vmdl;
     }
 

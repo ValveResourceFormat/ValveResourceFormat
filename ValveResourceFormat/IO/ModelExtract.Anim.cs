@@ -3,6 +3,7 @@ using Datamodel;
 using ValveResourceFormat.IO.ContentFormats.DmxModel;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.ResourceTypes.ModelAnimation;
+using ValveResourceFormat.ResourceTypes.ModelAnimation2;
 using ValveResourceFormat.ResourceTypes.ModelFlex;
 
 namespace ValveResourceFormat.IO;
@@ -22,6 +23,52 @@ partial class ModelExtract
             {
                 AnimationsToExtract.Add((anim, GetDmxFileName_ForAnimation(anim.Name)));
             }
+        }
+    }
+
+    // Bundles the model's animation-graph clips (animgraph2) as content files, so a decompiled model
+    // includes them and not just the embedded animations. Each clip is extracted to its own NmSkel
+    // skeleton via NmClipExtract, written at its full resource path.
+    private void AddAnimationGraphClips(ContentFile vmdl)
+    {
+        if (Type != ModelExtractType.Default || model == null || fileLoader == null)
+        {
+            return;
+        }
+
+        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var clipName in AnimationGraphLoader.GetClipNames(model, fileLoader))
+        {
+            if (!seen.Add(clipName))
+            {
+                continue;
+            }
+
+            var clipResource = fileLoader.LoadFileCompiled(clipName);
+            if (clipResource?.DataBlock is not AnimationClip)
+            {
+                continue;
+            }
+
+            try
+            {
+                var clipContent = new NmClipExtract(clipResource, fileLoader).ToContentFile();
+                clipContent.FileName = clipName;
+                clipContent.KeepFullPath = true;
+                vmdl.AdditionalFiles.Add(clipContent);
+            }
+#if DEBUG
+            catch (Exception e)
+            {
+                // A single malformed clip shouldn't fail the whole model export.
+                Console.WriteLine($"Skipping animation graph clip '{clipName}': {e.Message}");
+            }
+#else
+            catch (Exception)
+            {
+                // A single malformed clip shouldn't fail the whole model export.
+            }
+#endif
         }
     }
 

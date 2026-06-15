@@ -1422,7 +1422,7 @@ namespace CLI
             return highestByShader.Values.Select(x => x.FilePath).ToHashSet();
         }
 
-        private static void DumpContentFile(string path, ContentFile contentFile, bool dumpSubFiles = true)
+        private void DumpContentFile(string path, ContentFile contentFile, bool dumpSubFiles = true)
         {
             if (contentFile.Data != null)
             {
@@ -1431,7 +1431,10 @@ namespace CLI
 
             foreach (var additionalFile in contentFile.AdditionalFiles)
             {
-                DumpContentFile(Path.Combine(Path.GetDirectoryName(path)!, Path.GetFileName(additionalFile.FileName)), additionalFile);
+                var additionalPath = additionalFile.KeepFullPath && OutputFile != null && (IsInputFolder || Directory.Exists(OutputFile))
+                    ? Path.Combine(OutputFile, additionalFile.FileName)
+                    : Path.Combine(Path.GetDirectoryName(path)!, Path.GetFileName(additionalFile.FileName));
+                DumpContentFile(additionalPath, additionalFile);
             }
 
             if (dumpSubFiles)
