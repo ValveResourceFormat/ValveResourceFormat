@@ -691,6 +691,8 @@ namespace ValveResourceFormat.IO
                     animationWriter.WriteAnimation(exportedModel, joints, animation);
                     CancellationToken.ThrowIfCancellationRequested();
                 }
+
+                WriteAnimationGraphClips(exportedModel, model, joints!, animationFilter);
             }
             else
             {

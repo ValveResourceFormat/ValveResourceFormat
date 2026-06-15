@@ -2,6 +2,7 @@ using System.Buffers;
 using System.Diagnostics;
 using System.Linq;
 using System.Runtime.InteropServices;
+using ValveResourceFormat.IO;
 using ValveResourceFormat.Renderer.Buffers;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.ResourceTypes.ModelAnimation;
@@ -117,15 +118,9 @@ namespace ValveResourceFormat.Renderer.SceneNodes
                     AnimationController.RegisterExternalSkeleton(skeletonName, skeleton);
                 }
 
-                var animGraphs = model.Data.GetArray("m_animGraph2Refs");
-
-                // just in case there is any recursive or duplicate references
-                var visitedResources = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-
-                foreach (var animGraphRef in animGraphs)
+                foreach (var clipName in AnimationGraphLoader.GetClipNames(model, Scene.RendererContext.FileLoader))
                 {
-                    var graphName = animGraphRef.GetStringProperty("m_hGraph");
-                    LoadAnimGraphResources(graphName, visitedResources);
+                    LoadAnimationClip(clipName);
                 }
             }
 
@@ -410,43 +405,6 @@ namespace ValveResourceFormat.Renderer.SceneNodes
             }
 
             LoadAnimationClip(clip);
-            return true;
-        }
-
-        private bool LoadAnimGraphResources(string graphName, HashSet<string> visited)
-        {
-            var resource = Scene.RendererContext.FileLoader.LoadFileCompiled(graphName);
-            if (resource?.DataBlock is not BinaryKV3 graphData)
-            {
-                return false;
-            }
-
-            var graphResources = graphData.Data.Root.GetArray<string>("m_resources");
-            if (graphResources == null)
-            {
-                return false;
-            }
-
-            var clipExt = ResourceType.NmClip.GetExtension()!;
-            var graphExt = ResourceType.NmGraph.GetExtension()!;
-
-            foreach (var graphResource in graphResources)
-            {
-                if (!visited.Add(graphResource))
-                {
-                    continue;
-                }
-
-                if (graphResource.EndsWith(clipExt, StringComparison.OrdinalIgnoreCase))
-                {
-                    LoadAnimationClip(graphResource);
-                }
-                else if (graphResource.EndsWith(graphExt, StringComparison.OrdinalIgnoreCase))
-                {
-                    LoadAnimGraphResources(graphResource, visited);
-                }
-            }
-
             return true;
         }
 
