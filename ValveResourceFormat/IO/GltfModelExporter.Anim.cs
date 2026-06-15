@@ -75,7 +75,10 @@ public partial class GltfModelExporter
                     anchorBindPose *= b.BindPose;
                 }
 
-                Matrix4x4.Invert(anchorBindPose, out anchorInverseBindPose);
+                if (!Matrix4x4.Invert(anchorBindPose, out anchorInverseBindPose))
+                {
+                    anchorInverseBindPose = Matrix4x4.Identity;
+                }
             }
 
             for (var f = 0; f < animation.FrameCount; f++)
@@ -86,7 +89,7 @@ public partial class GltfModelExporter
                 var prevFrameTime = (f - 1) / fps;
 
                 var rootMotion = applyRootMotion
-                    ? GetRootMotionMatrix(animation.GetMovementOffsetData(f))
+                    ? animation.GetMovementOffsetData(f).ToMatrix()
                     : Matrix4x4.Identity;
 
                 // Anchor skinning matrix this frame (renderer's modelBones[clothSimRoot]).
@@ -185,11 +188,6 @@ public partial class GltfModelExporter
                 outputAnimation.CreateScaleChannel(jointNode, ScaleWriter.Channels[boneID], true);
             }
         }
-
-        // Movement rotation is a yaw around the source-engine up axis (Z), matching the DMX exporter.
-        private static Matrix4x4 GetRootMotionMatrix(AnimationMovement.MovementData movement)
-            => Matrix4x4.CreateRotationZ(float.DegreesToRadians(movement.Angle))
-                * Matrix4x4.CreateTranslation(movement.Position);
     }
 
     record struct AnimationChannelWriter<T>(Dictionary<float, T>[] Channels, T?[] LastValue, bool[] ValueOmmited) where T : struct
