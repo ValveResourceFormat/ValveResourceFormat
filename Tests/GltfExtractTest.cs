@@ -5,6 +5,7 @@ using SharpGLTF.Schema2;
 using ValveResourceFormat;
 using ValveResourceFormat.IO;
 using ValveResourceFormat.NavMesh;
+using ValveResourceFormat.ResourceTypes;
 
 namespace Tests
 {
@@ -63,6 +64,24 @@ namespace Tests
             {
                 Directory.Delete(dir, true);
             }
+        }
+
+        [Test]
+        public void TestExportSucceedsWithoutClothAnchor()
+        {
+            using var resource = new Resource();
+            resource.Read(Path.Combine(TestContext.CurrentContext.TestDirectory, "Files", "box_creature_ik_model.vmdl_c"));
+
+            // This fixture has no procedural cloth, so the cloth-follow path is a no-op and export is unaffected.
+            var model = (Model)resource.DataBlock!;
+            Assert.That(model.Skeleton.ClothSimulationRoot, Is.Null);
+
+            var gltf = new GltfModelExporter(new NullFileLoader())
+            {
+                ExportMaterials = false,
+                ProgressReporter = new Progress<string>(progress => { }),
+            };
+            Assert.DoesNotThrow(() => gltf.Export(resource, null));
         }
 
         [Test]
