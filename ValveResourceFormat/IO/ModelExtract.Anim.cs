@@ -136,6 +136,12 @@ partial class ModelExtract
 
     private static Quaternion NmSkelRotationFixup = new(-0.5f, -0.5f, -0.5f, 0.5f);
 
+    /// <summary>Emits cloth bones with the '_' prefix the compiler sanitizes '$' to, so round-trips don't duplicate them.</summary>
+    internal static string GetExportBoneName(Bone bone)
+        => bone.IsProceduralCloth && bone.Name.StartsWith('$')
+            ? string.Concat("_", bone.Name.AsSpan(1))
+            : bone.Name;
+
     private static DmeModel BuildDmeDagSkeleton(Skeleton skeleton, out DmeTransform[] transforms, bool nmSkelAxisFixup = false)
     {
         var dmeSkeleton = new DmeModel();
@@ -146,12 +152,13 @@ partial class ModelExtract
 
         foreach (var bone in skeleton.Bones)
         {
+            var boneName = GetExportBoneName(bone);
             var dag = new DmeJoint
             {
-                Name = bone.Name
+                Name = boneName
             };
 
-            dag.Transform.Name = bone.Name;
+            dag.Transform.Name = boneName;
             dag.Transform.Position = bone.Position;
             dag.Transform.Orientation = bone.Angle;
 
@@ -300,9 +307,10 @@ partial class ModelExtract
         foreach (var bone in skeleton.Bones)
         {
             var transform = transforms[bone.Index];
+            var boneName = GetExportBoneName(bone);
 
-            var positionChannel = BuildDmeChannel<Vector3>($"{bone.Name}_p", transform, "position", out var positionLog);
-            var orientationChannel = BuildDmeChannel<Quaternion>($"{bone.Name}_o", transform, "orientation", out var orientationLog);
+            var positionChannel = BuildDmeChannel<Vector3>($"{boneName}_p", transform, "position", out var positionLog);
+            var orientationChannel = BuildDmeChannel<Quaternion>($"{boneName}_o", transform, "orientation", out var orientationLog);
 
             var positionLogLayer = positionLog.GetLayer(0);
             var orientationLogLayer = orientationLog.GetLayer(0);
