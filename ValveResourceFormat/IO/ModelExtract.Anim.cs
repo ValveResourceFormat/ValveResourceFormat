@@ -215,38 +215,30 @@ partial class ModelExtract
         return channel;
     }
 
+    private static void ProcessBoneFrameForDmeChannel(Bone bone, Frame frame, TimeSpan time, DmeLogLayer<Vector3> positionLayer, DmeLogLayer<Quaternion> orientationLayer, bool dropVertical)
+    {
+        var frameBone = frame.Bones[bone.Index];
+
+        var position = frameBone.Position;
+        if (dropVertical)
+        {
+            // vertical root motion is not applied to the visible body. baking it floats the model up.
+            position.Z = 0f;
+        }
+
+        positionLayer.Times.Add(time);
+        positionLayer.LayerValues[frame.FrameIndex] = position;
+
+        orientationLayer.Times.Add(time);
+        orientationLayer.LayerValues[frame.FrameIndex] = frameBone.Angle;
+    }
+
     private static void ProcessFlexFrameForDmeChannel(int flexId, Frame frame, TimeSpan time, DmeLogLayer<float> flexLayer)
     {
         var flexValue = frame.Datas[flexId];
 
         flexLayer.Times.Add(time);
         flexLayer.LayerValues[frame.FrameIndex] = flexValue;
-    }
-
-    private static void ProcessFlexChannels(FlexController[] flexControllers, Animation anim, DmeChannelsClip clip, Frame[] frames)
-    {
-        for (var flexId = 0; flexId < flexControllers.Length; flexId++)
-        {
-            var flexController = flexControllers[flexId];
-
-            var flexElement = new Element
-            {
-                Name = flexController.Name
-            };
-            flexElement.Add("flexWeight", 0f);
-
-            var flexChannel = BuildDmeChannel<float>($"{flexController.Name}_flex_channel", flexElement, "flexWeight", out var flexLog);
-            var flexLogLayer = flexLog.GetLayer(0);
-            flexLogLayer.LayerValues = new float[anim.FrameCount];
-
-            for (var i = 0; i < anim.FrameCount; i++)
-            {
-                var frame = frames[i];
-                var time = TimeSpan.FromSeconds((double)i / MathF.Max(1f, anim.Fps));
-                ProcessFlexFrameForDmeChannel(flexId, frame, time, flexLogLayer);
-            }
-            clip.Channels.Add(flexChannel);
-        }
     }
 
     private static void ProcessRootMotionChannel(Animation anim, DmeModel skeleton, DmeChannelsClip clip)
@@ -285,6 +277,32 @@ partial class ModelExtract
         clip.Channels.Add(rootOrientationChannel);
     }
 
+    private static void ProcessFlexChannels(FlexController[] flexControllers, Animation anim, DmeChannelsClip clip, Frame[] frames)
+    {
+        for (var flexId = 0; flexId < flexControllers.Length; flexId++)
+        {
+            var flexController = flexControllers[flexId];
+
+            var flexElement = new Element
+            {
+                Name = flexController.Name
+            };
+            flexElement.Add("flexWeight", 0f);
+
+            var flexChannel = BuildDmeChannel<float>($"{flexController.Name}_flex_channel", flexElement, "flexWeight", out var flexLog);
+            var flexLogLayer = flexLog.GetLayer(0);
+            flexLogLayer.LayerValues = new float[anim.FrameCount];
+
+            for (var i = 0; i < anim.FrameCount; i++)
+            {
+                var frame = frames[i];
+                var time = TimeSpan.FromSeconds((double)i / MathF.Max(1f, anim.Fps));
+                ProcessFlexFrameForDmeChannel(flexId, frame, time, flexLogLayer);
+            }
+            clip.Channels.Add(flexChannel);
+        }
+    }
+
     private static void ProcessBoneChannels(Skeleton skeleton, Animation anim, DmeTransform[] transforms, DmeChannelsClip clip, Frame[] frames)
     {
         var rootMotionBone = skeleton["root_motion"];
@@ -316,24 +334,6 @@ partial class ModelExtract
             clip.Channels.Add(positionChannel);
             clip.Channels.Add(orientationChannel);
         }
-    }
-
-    private static void ProcessBoneFrameForDmeChannel(Bone bone, Frame frame, TimeSpan time, DmeLogLayer<Vector3> positionLayer, DmeLogLayer<Quaternion> orientationLayer, bool dropVertical)
-    {
-        var frameBone = frame.Bones[bone.Index];
-
-        var position = frameBone.Position;
-        if (dropVertical)
-        {
-            // vertical root motion is not applied to the visible body. baking it floats the model up.
-            position.Z = 0f;
-        }
-
-        positionLayer.Times.Add(time);
-        positionLayer.LayerValues[frame.FrameIndex] = position;
-
-        orientationLayer.Times.Add(time);
-        orientationLayer.LayerValues[frame.FrameIndex] = frameBone.Angle;
     }
 
     /// <summary>
