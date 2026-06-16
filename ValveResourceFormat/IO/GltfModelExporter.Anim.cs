@@ -59,8 +59,9 @@ public partial class GltfModelExporter
                 fps = 1f;
             }
 
-            // Root motion is stored separately from bone frames, so bake it into the root bone(s)
-            // to keep the skeleton from animating in place. https://github.com/ValveResourceFormat/ValveResourceFormat/issues/955
+            // root motion is stored separately from bone frames, so bake it into the root bone(s) to keep
+            // the skeleton from animating in place. horizontal travel and yaw only. the engine doesn't
+            // apply a vertical movement track to the body.
             var applyRootMotion = animation.HasMovementData();
 
             // No cloth solver here, so mirror the renderer (BaseAnimationController.GetSkinningMatrices):
@@ -92,8 +93,9 @@ public partial class GltfModelExporter
                 if (applyRootMotion)
                 {
                     var movement = animation.GetMovementOffsetData(f);
+                    var movementPosition = new Vector3(movement.Position.X, movement.Position.Y, 0f);
                     rootMotion = Matrix4x4.CreateRotationZ(float.DegreesToRadians(movement.Angle))
-                        * Matrix4x4.CreateTranslation(movement.Position);
+                        * Matrix4x4.CreateTranslation(movementPosition);
                 }
 
                 // Anchor skinning matrix this frame (renderer's modelBones[clothSimRoot]).

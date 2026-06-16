@@ -12,30 +12,31 @@ namespace Tests
     public class ModelExtractDmxTest
     {
         [Test]
-        public void DmxAnimationBakesRootMotionIntoRootBone()
+        public void DmxAnimationWritesRootMotionToModelChannel()
         {
             var channels = ExtractChannels("box_creature_leggy_walk", out _);
 
-            // The root_motion bone has no per-frame animation, so its position channel is pure baked root
-            // motion. It must travel the animation's full ~47.92 source-unit displacement.
-            var rootMotion = RootChannelValues(channels, "root_motion");
-            var displacement = rootMotion[^1] - rootMotion[0];
+            // Root motion is written to the separate model-level transform channel ("_p"), not baked into
+            // bones, so the DMX keeps the root track intact. It must travel the animation's full ~47.92
+            // source-unit displacement.
+            var modelRoot = RootChannelValues(channels, "");
+            var displacement = modelRoot[^1] - modelRoot[0];
             Assert.That(displacement.X, Is.EqualTo(47.92f).Within(0.1f));
 
-            // The model-level transform channel that importers ignored must no longer be emitted.
-            Assert.That(channels.Cast<Datamodel.Element>().Any(c => c.Name is "_p" or "_o"), Is.False);
+            // The root_motion bone itself carries no baked travel - only its raw per-frame data.
+            var rootMotionBone = RootChannelValues(channels, "root_motion");
+            var boneDisplacement = rootMotionBone[^1] - rootMotionBone[0];
+            Assert.That(boneDisplacement.X, Is.LessThan(1.0f));
         }
 
         [Test]
-        public void DmxAnimationWithoutMovementDoesNotBakeRootMotion()
+        public void DmxAnimationWithoutMovementHasNoRootMotionChannel()
         {
             var channels = ExtractChannels("box_creature_leggy_idle", out var anim);
             Assert.That(anim.HasMovementData(), Is.False);
 
-            // With no movement data the root bone is not baked, so it does not travel like the walk does.
-            var rootMotion = RootChannelValues(channels, "root_motion");
-            var displacement = rootMotion[^1] - rootMotion[0];
-            Assert.That(displacement.X, Is.LessThan(1.0f));
+            // With no movement data, no model-level root motion channel is emitted.
+            Assert.That(channels.Cast<Datamodel.Element>().Any(c => c.Name is "_p" or "_o"), Is.False);
         }
 
         private static Datamodel.ElementArray ExtractChannels(string animationName, out Animation anim)
