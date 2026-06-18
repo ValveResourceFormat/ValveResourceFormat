@@ -203,7 +203,6 @@ namespace GUI.Types.GLViewers
             var screenPoint = new SKPoint(e.Location.X, e.Location.Y);
             var graphPoint = ScreenToGraph(screenPoint);
 
-            using var lockedGl = MakeCurrent();
             nodeGraph.HandleMouseDown(graphPoint, e.Button, Control.ModifierKeys);
 
             if (e.Button == MouseButtons.Left && Control.ModifierKeys == Keys.None)
@@ -228,7 +227,6 @@ namespace GUI.Types.GLViewers
                 return;
             }
 
-            using var lockedGl = MakeCurrent();
             nodeGraph.HandleMouseMove(graphPoint, Control.ModifierKeys);
         }
 
@@ -241,7 +239,6 @@ namespace GUI.Types.GLViewers
             var screenPoint = new SKPoint(e.Location.X, e.Location.Y);
             var graphPoint = ScreenToGraph(screenPoint);
 
-            using var lockedGl = MakeCurrent();
             nodeGraph.HandleMouseUp(graphPoint);
         }
 

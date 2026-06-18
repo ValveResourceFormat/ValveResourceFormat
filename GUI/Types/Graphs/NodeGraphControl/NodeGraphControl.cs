@@ -169,8 +169,13 @@ namespace GUI.Types.Graphs
         public bool IsMoving { get; private set; }
         SKPoint lastLocation;
 
+        // Synchronizes graph state between the render thread and UI mouse handlers.
+        private readonly System.Threading.Lock stateLock = new();
+
         public void RenderToCanvas(SKCanvas canvas, SKPoint topLeft, SKPoint bottomRight)
         {
+            using var _ = stateLock.EnterScope();
+
             canvas.Clear(_canvasBackgroundColor);
 
             OnDrawBackground(canvas, topLeft, bottomRight);
@@ -222,6 +227,8 @@ namespace GUI.Types.Graphs
         // Get the bounds of the entire graph in graph space
         public SKRect GetGraphBounds()
         {
+            using var _ = stateLock.EnterScope();
+
             if (_graphNodes.Count == 0)
             {
                 return new SKRect(-1000, -1000, 1000, 1000); // Default large area
@@ -248,6 +255,8 @@ namespace GUI.Types.Graphs
 
         public void HandleMouseDown(SKPoint graphPoint, MouseButtons button, Keys modifiers)
         {
+            using var _ = stateLock.EnterScope();
+
             UpdateOriginalLocation(graphPoint);
 
             var element = FindElementAt(lastLocation);
@@ -284,6 +293,8 @@ namespace GUI.Types.Graphs
 
         public void HandleMouseMove(SKPoint graphPoint, Keys modifiers = Keys.None)
         {
+            using var _ = stateLock.EnterScope();
+
             if (IsMoving)
             {
                 var delta = new SKPoint(
@@ -329,6 +340,8 @@ namespace GUI.Types.Graphs
 
         public void HandleMouseUp(SKPoint graphPoint)
         {
+            using var _ = stateLock.EnterScope();
+
             UpdateOriginalLocation(graphPoint);
 
             IsMoving = false;
@@ -424,6 +437,8 @@ namespace GUI.Types.Graphs
         // Find element at graph-space point
         public NodeUIElement? FindElementAt(SKPoint point)
         {
+            using var _ = stateLock.EnterScope();
+
             // Iterate in reverse order to find topmost (frontmost) nodes first
             for (var i = _graphNodes.Count - 1; i >= 0; i--)
             {
