@@ -255,6 +255,38 @@ namespace GUI.Types.GLViewers
             return new SKPoint(graphX, graphY);
         }
 
+        // The graph is drawn through Skia, not the texture/shader pipeline the base capture
+        // path assumes, so render the whole graph into a raster bitmap for Ctrl+C / saving.
+        protected override SKBitmap ReadPixelsToBitmap()
+        {
+            var bounds = nodeGraph.GetGraphBounds();
+
+            const float maxDimension = 8192f;
+            var scale = Math.Min(1f, maxDimension / Math.Max(bounds.Width, bounds.Height));
+
+            var width = Math.Max(1, (int)(bounds.Width * scale));
+            var height = Math.Max(1, (int)(bounds.Height * scale));
+
+            var bitmap = new SKBitmap(new SKImageInfo(width, height, SKColorType.Bgra8888, SKAlphaType.Premul));
+
+            try
+            {
+                using var canvas = new SKCanvas(bitmap);
+                canvas.Scale(scale, scale);
+                canvas.Translate(-bounds.Left, -bounds.Top);
+
+                nodeGraph.RenderToCanvas(canvas, bounds.Location, new SKPoint(bounds.Right, bounds.Bottom));
+
+                var bitmapToReturn = bitmap;
+                bitmap = null;
+                return bitmapToReturn;
+            }
+            finally
+            {
+                bitmap?.Dispose();
+            }
+        }
+
         public override void Dispose()
         {
             nodeGraph.GraphChanged -= OnGraphChanged;
