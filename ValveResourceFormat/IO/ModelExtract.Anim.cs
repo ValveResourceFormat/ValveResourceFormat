@@ -222,12 +222,19 @@ partial class ModelExtract
         return channel;
     }
 
-    private static void ProcessBoneFrameForDmeChannel(Bone bone, Frame frame, TimeSpan time, DmeLogLayer<Vector3> positionLayer, DmeLogLayer<Quaternion> orientationLayer)
+    private static void ProcessBoneFrameForDmeChannel(Bone bone, Frame frame, TimeSpan time, DmeLogLayer<Vector3> positionLayer, DmeLogLayer<Quaternion> orientationLayer, bool dropVertical)
     {
         var frameBone = frame.Bones[bone.Index];
 
+        var position = frameBone.Position;
+        if (dropVertical)
+        {
+            // vertical root motion is not applied to the visible body. baking it floats the model up.
+            position.Z = 0f;
+        }
+
         positionLayer.Times.Add(time);
-        positionLayer.LayerValues[frame.FrameIndex] = frameBone.Position;
+        positionLayer.LayerValues[frame.FrameIndex] = position;
 
         orientationLayer.Times.Add(time);
         orientationLayer.LayerValues[frame.FrameIndex] = frameBone.Angle;
@@ -262,7 +269,8 @@ partial class ModelExtract
 
             var movement = anim.GetMovementOffsetData(time);
 
-            rootPositionLayer.LayerValues[i] = movement.Position;
+            // vertical root motion is not applied to the visible body, so don't bake it.
+            rootPositionLayer.LayerValues[i] = new Vector3(movement.Position.X, movement.Position.Y, 0f);
             rootPositionLayer.Times.Add(timespan);
 
             var degrees = movement.Angle * 0.0174532925f; //Deg to rad
@@ -304,6 +312,8 @@ partial class ModelExtract
 
     private static void ProcessBoneChannels(Skeleton skeleton, Animation anim, DmeTransform[] transforms, DmeChannelsClip clip, Frame[] frames)
     {
+        var rootMotionBone = skeleton["root_motion"];
+
         foreach (var bone in skeleton.Bones)
         {
             var transform = transforms[bone.Index];
@@ -324,7 +334,7 @@ partial class ModelExtract
 
                 var time = TimeSpan.FromSeconds((double)i / MathF.Max(1f, anim.Fps));
 
-                ProcessBoneFrameForDmeChannel(bone, frame, time, positionLogLayer, orientationLogLayer);
+                ProcessBoneFrameForDmeChannel(bone, frame, time, positionLogLayer, orientationLogLayer, bone == rootMotionBone);
             }
 
             ApplyModelDocHack(positionLogLayer);

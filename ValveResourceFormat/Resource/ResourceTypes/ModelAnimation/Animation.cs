@@ -450,7 +450,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
             }
 
             GetMovementForTime(time, out var movement, out var nextMovement, out var t);
-            return AnimationMovement.Lerp(movement, nextMovement, time);
+            return AnimationMovement.Lerp(movement, nextMovement, t);
         }
 
         /// <summary>

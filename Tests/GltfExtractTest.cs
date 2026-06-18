@@ -1,8 +1,11 @@
 using System.IO;
+using System.Linq;
 using NUnit.Framework;
+using SharpGLTF.Schema2;
 using ValveResourceFormat;
 using ValveResourceFormat.IO;
 using ValveResourceFormat.NavMesh;
+using ValveResourceFormat.ResourceTypes;
 
 namespace Tests
 {
@@ -22,6 +25,63 @@ namespace Tests
                 ProgressReporter = new Progress<string>(progress => { }),
             };
             gltf.Export(resource, null);
+        }
+
+        [Test]
+        public void TestRootMotionIsBakedIntoExport()
+        {
+            using var resource = new Resource();
+            var modelPath = Path.Combine(TestContext.CurrentContext.TestDirectory, "Files", "box_creature_ik_model.vmdl_c");
+            resource.Read(modelPath);
+
+            var dir = Path.Combine(Path.GetTempPath(), "vrf_rootmotion_" + Guid.NewGuid().ToString("N"));
+            Directory.CreateDirectory(dir);
+            var outPath = Path.Combine(dir, "box_creature.glb");
+
+            try
+            {
+                var gltf = new GltfModelExporter(new NullFileLoader())
+                {
+                    ExportMaterials = false,
+                    ProgressReporter = new Progress<string>(progress => { }),
+                };
+                gltf.Export(resource, outPath);
+
+                var root = ModelRoot.Load(outPath);
+                var anim = root.LogicalAnimations.Single(a => a.Name == "box_creature_leggy_walk");
+
+                // The root_motion bone has no per-frame bone animation, so any net displacement of its
+                // translation channel comes purely from the baked root motion (~47.92 source units forward).
+                var rootMotionNode = root.LogicalNodes.Single(n => n.Name == "root_motion");
+                var sampler = anim.FindTranslationChannel(rootMotionNode)?.GetTranslationSampler();
+                Assert.That(sampler, Is.Not.Null, "root_motion bone should have a translation channel");
+
+                var keys = sampler.GetLinearKeys().ToArray();
+                var displacement = keys[^1].Value - keys[0].Value;
+                Assert.That(displacement.X, Is.GreaterThan(40f), "root motion should travel the skeleton forward");
+            }
+            finally
+            {
+                Directory.Delete(dir, true);
+            }
+        }
+
+        [Test]
+        public void TestExportSucceedsWithoutClothAnchor()
+        {
+            using var resource = new Resource();
+            resource.Read(Path.Combine(TestContext.CurrentContext.TestDirectory, "Files", "box_creature_ik_model.vmdl_c"));
+
+            // This fixture has no procedural cloth, so the cloth-follow path is a no-op and export is unaffected.
+            var model = (Model)resource.DataBlock!;
+            Assert.That(model.Skeleton.ClothSimulationRoot, Is.Null);
+
+            var gltf = new GltfModelExporter(new NullFileLoader())
+            {
+                ExportMaterials = false,
+                ProgressReporter = new Progress<string>(progress => { }),
+            };
+            Assert.DoesNotThrow(() => gltf.Export(resource, null));
         }
 
         [Test]

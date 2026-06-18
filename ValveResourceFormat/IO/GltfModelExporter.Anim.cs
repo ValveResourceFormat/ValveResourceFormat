@@ -59,6 +59,29 @@ public partial class GltfModelExporter
                 fps = 1f;
             }
 
+            // root motion is stored separately from bone frames, so bake it into the root bone(s) to keep
+            // the skeleton from animating in place. horizontal travel and yaw only. the engine doesn't
+            // apply a vertical movement track to the body.
+            var applyRootMotion = animation.HasMovementData();
+
+            // No cloth solver here, so mirror the renderer (BaseAnimationController.GetSkinningMatrices):
+            // pin each cloth root to the cloth anchor bone instead of writing its raw, solver-less clip data.
+            var clothAnchor = Skeleton.ClothSimulationRoot;
+            var anchorInverseBindPose = Matrix4x4.Identity;
+            if (clothAnchor != null)
+            {
+                var anchorBindPose = Matrix4x4.Identity;
+                for (var b = clothAnchor; b != null; b = b.Parent)
+                {
+                    anchorBindPose *= b.BindPose;
+                }
+
+                if (!Matrix4x4.Invert(anchorBindPose, out anchorInverseBindPose))
+                {
+                    anchorInverseBindPose = Matrix4x4.Identity;
+                }
+            }
+
             for (var f = 0; f < animation.FrameCount; f++)
             {
                 Frame.FrameIndex = f;
@@ -66,13 +89,43 @@ public partial class GltfModelExporter
                 var time = f / fps;
                 var prevFrameTime = (f - 1) / fps;
 
+                var rootMotion = Matrix4x4.Identity;
+                if (applyRootMotion)
+                {
+                    var movement = animation.GetMovementOffsetData(f);
+                    var movementPosition = new Vector3(movement.Position.X, movement.Position.Y, 0f);
+                    rootMotion = Matrix4x4.CreateRotationZ(float.DegreesToRadians(movement.Angle))
+                        * Matrix4x4.CreateTranslation(movementPosition);
+                }
+
+                // Anchor skinning matrix this frame (renderer's modelBones[clothSimRoot]).
+                var clothSkinning = Matrix4x4.Identity;
+                if (clothAnchor != null)
+                {
+                    var anchorPose = Matrix4x4.Identity;
+                    for (var b = clothAnchor; b != null; b = b.Parent)
+                    {
+                        var anchorFrame = Frame.Bones[b.Index];
+                        var anchorScale = anchorFrame.Scale;
+                        if (float.IsNaN(anchorScale) || float.IsInfinity(anchorScale))
+                        {
+                            anchorScale = 0.0f;
+                        }
+
+                        anchorPose *= Matrix4x4.CreateScale(anchorScale)
+                            * Matrix4x4.CreateFromQuaternion(anchorFrame.Angle)
+                            * Matrix4x4.CreateTranslation(anchorFrame.Position);
+                    }
+
+                    clothSkinning = anchorInverseBindPose * anchorPose;
+                }
+
                 for (var boneID = 0; boneID < BoneCount; boneID++)
                 {
                     var boneFrame = Frame.Bones[boneID];
 
-                    RotationWriter.SubmitKeyframe(boneID, time, prevFrameTime, boneFrame.Angle);
-                    PositionWriter.SubmitKeyframe(boneID, time, prevFrameTime, boneFrame.Position);
-
+                    var position = boneFrame.Position;
+                    var rotation = boneFrame.Angle;
                     var scalarBoneScale = boneFrame.Scale;
 
                     if (float.IsNaN(scalarBoneScale) || float.IsInfinity(scalarBoneScale))
@@ -82,7 +135,47 @@ public partial class GltfModelExporter
                         scalarBoneScale = 0.0f;
                     }
 
-                    ScaleWriter.SubmitKeyframe(boneID, time, prevFrameTime, new Vector3(scalarBoneScale));
+                    var scale = new Vector3(scalarBoneScale);
+
+                    var bone = Skeleton.Bones[boneID];
+
+                    if (clothAnchor != null && bone.Parent == null && bone.IsProceduralCloth)
+                    {
+                        // Pin to the anchor; cloth bones are roots, so apply root motion too.
+                        var local = bone.BindPose * clothSkinning;
+                        if (applyRootMotion)
+                        {
+                            local *= rootMotion;
+                        }
+
+                        if (Matrix4x4.Decompose(local, out var clothS, out var clothR, out var clothT))
+                        {
+                            position = clothT;
+                            rotation = clothR;
+                            scale = clothS;
+                        }
+                    }
+                    else if (applyRootMotion && bone.Parent == null)
+                    {
+                        var local = Matrix4x4.CreateScale(scale)
+                            * Matrix4x4.CreateFromQuaternion(rotation)
+                            * Matrix4x4.CreateTranslation(position);
+
+                        if (Matrix4x4.Decompose(local * rootMotion, out var s, out var r, out var t))
+                        {
+                            position = t;
+                            rotation = r;
+                            scale = s;
+                        }
+                        else
+                        {
+                            position += rootMotion.Translation;
+                        }
+                    }
+
+                    RotationWriter.SubmitKeyframe(boneID, time, prevFrameTime, rotation);
+                    PositionWriter.SubmitKeyframe(boneID, time, prevFrameTime, position);
+                    ScaleWriter.SubmitKeyframe(boneID, time, prevFrameTime, scale);
                 }
             }
 
