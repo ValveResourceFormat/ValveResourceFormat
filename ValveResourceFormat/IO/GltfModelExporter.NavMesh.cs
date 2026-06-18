@@ -49,7 +49,7 @@ public partial class GltfModelExporter
 
                 var node = scene.CreateNode(meshName);
                 node.Mesh = gltfMesh;
-                node.WorldMatrix = TRANSFORMSOURCETOGLTF;
+                node.WorldMatrix = TransformSourceToGltf;
                 node.Extras = new System.Text.Json.Nodes.JsonObject
                 {
                     ["HullIndex"] = i,
@@ -77,7 +77,7 @@ public partial class GltfModelExporter
 
                 var node = scene.CreateNode(meshName);
                 node.Mesh = gltfMesh;
-                node.WorldMatrix = TRANSFORMSOURCETOGLTF;
+                node.WorldMatrix = TransformSourceToGltf;
             }
         }
     }

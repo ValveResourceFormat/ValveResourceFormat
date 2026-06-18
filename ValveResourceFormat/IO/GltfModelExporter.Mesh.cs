@@ -144,10 +144,12 @@ public partial class GltfModelExporter
                 {
                     var (normals, tangents) = VBIB.GetNormalTangentArray(vertexBuffer, attribute);
                     FixZeroLengthVectors(normals);
+                    BakeDirections(normals);
 
                     if (tangents.Length > 0)
                     {
                         FixZeroLengthVectors(tangents);
+                        BakeTangents(tangents);
                         accessors["NORMAL"] = CreateAccessor(exportedModel, normals);
                         accessors["TANGENT"] = CreateAccessor(exportedModel, tangents);
                     }
@@ -180,6 +182,10 @@ public partial class GltfModelExporter
                         case 3:
                             {
                                 var vectors = VBIB.GetVector3AttributeArray(vertexBuffer, attribute);
+                                if (accessorName == "POSITION")
+                                {
+                                    BakePositions(vectors);
+                                }
                                 accessors[accessorName] = CreateAccessor(exportedModel, vectors);
                                 break;
                             }
@@ -190,6 +196,7 @@ public partial class GltfModelExporter
                                 if (accessorName == "TANGENT")
                                 {
                                     FixZeroLengthVectors(vectors);
+                                    BakeTangents(vectors);
                                 }
 
                                 accessors[accessorName] = CreateAccessor(exportedModel, vectors);
@@ -526,7 +533,7 @@ public partial class GltfModelExporter
             CreateMeshFromDrawCall(drawCall, mesh, vbib, vertexBufferAccessors, exportedModel, skinMaterialPath: null, tintColor);
 
             var newNode = scene.CreateNode(name).WithMesh(mesh);
-            newNode.WorldMatrix = transform * TRANSFORMSOURCETOGLTF;
+            newNode.WorldMatrix = transform * TransformSourceToGltf;
         }
 
         return true;

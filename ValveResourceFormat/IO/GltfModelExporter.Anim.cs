@@ -191,6 +191,8 @@ public partial class GltfModelExporter
                         }
                     }
 
+                    (position, rotation) = BakeConversion(position, rotation, bone.Parent == null);
+
                     RotationWriter.SubmitKeyframe(boneID, time, prevFrameTime, rotation);
                     PositionWriter.SubmitKeyframe(boneID, time, prevFrameTime, position);
                     ScaleWriter.SubmitKeyframe(boneID, time, prevFrameTime, scale);
@@ -201,8 +203,10 @@ public partial class GltfModelExporter
             {
                 if (animation.FrameCount == 0)
                 {
-                    RotationWriter.Channels[boneID].Add(0f, Skeleton.Bones[boneID].Angle);
-                    PositionWriter.Channels[boneID].Add(0f, Skeleton.Bones[boneID].Position);
+                    var bone = Skeleton.Bones[boneID];
+                    var (bindPosition, bindRotation) = BakeConversion(bone.Position, bone.Angle, bone.Parent == null);
+                    RotationWriter.Channels[boneID].Add(0f, bindRotation);
+                    PositionWriter.Channels[boneID].Add(0f, bindPosition);
                     ScaleWriter.Channels[boneID].Add(0f, Vector3.One);
                 }
 

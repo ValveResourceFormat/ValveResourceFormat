@@ -98,7 +98,7 @@ public partial class GltfModelExporter
                         collisionAttributes[collisionAttrIndex], physicsSurfaceNames, surfacePropIndex, classname);
                     var node = scene.CreateNode(meshName);
                     node.Mesh = gltfMesh;
-                    node.WorldMatrix = transform * TRANSFORMSOURCETOGLTF;
+                    node.WorldMatrix = transform * TransformSourceToGltf;
 
                     var interactAsStrings = collisionAttributes[collisionAttrIndex].GetArray<string>("m_InteractAsStrings");
                     var interactAsArray = new System.Text.Json.Nodes.JsonArray([.. interactAsStrings!]);

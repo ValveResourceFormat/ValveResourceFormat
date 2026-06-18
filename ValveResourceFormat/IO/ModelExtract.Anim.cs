@@ -57,18 +57,11 @@ partial class ModelExtract
                 clipContent.KeepFullPath = true;
                 vmdl.AdditionalFiles.Add(clipContent);
             }
-#if DEBUG
             catch (Exception e)
             {
                 // A single malformed clip shouldn't fail the whole model export.
-                Console.WriteLine($"Skipping animation graph clip '{clipName}': {e.Message}");
+                Console.Error.WriteLine($"Skipping animation graph clip '{clipName}': {e.Message}");
             }
-#else
-            catch (Exception)
-            {
-                // A single malformed clip shouldn't fail the whole model export.
-            }
-#endif
         }
     }
 
