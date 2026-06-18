@@ -224,6 +224,10 @@ public partial class GltfModelExporter
     {
         var retargets = new Dictionary<string, (AnimationWriter Writer, Node?[] Joints)?>();
 
+        // UseAnimation is find-or-create by name, so a clip sharing a name with an already-written
+        // animation (embedded, or an earlier clip) would merge its channels onto it. Keep the first, skip the rest.
+        var writtenNames = exportedModel.LogicalAnimations.Select(a => a.Name).ToHashSet();
+
         foreach (var clipName in AnimationGraphLoader.GetClipNames(model, FileLoader))
         {
             CancellationToken.ThrowIfCancellationRequested();
@@ -231,6 +235,12 @@ public partial class GltfModelExporter
             if (FileLoader.LoadFileCompiled(clipName)?.DataBlock is not VAnimationClip clip
                 || (animationFilter.Count > 0 && !animationFilter.Contains(clip.Name)))
             {
+                continue;
+            }
+
+            if (writtenNames.Contains(clip.Name))
+            {
+                ProgressReporter?.Report($"Skipping animation graph clip '{clip.Name}': an animation with that name was already exported.");
                 continue;
             }
 
@@ -242,6 +252,7 @@ public partial class GltfModelExporter
             if (retarget != null)
             {
                 retarget.Value.Writer.WriteAnimation(exportedModel, retarget.Value.Joints, new VAnim(clip));
+                writtenNames.Add(clip.Name);
             }
         }
     }
