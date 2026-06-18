@@ -88,7 +88,7 @@ if (args?.Length > 0 && Directory.Exists(args![0]))
 
             var asciiStart = position;
 
-            for (var i = position - 1; i > 0; i--)
+            for (var i = position - 1; i >= 0; i--)
             {
                 if (bytes[i] < 32 || bytes[i] > 126 || position - i > 50)
                 {
