@@ -258,7 +258,7 @@ partial class ModelExtract
         {
             var boneDefinitionNode = MakeNode(
                 "Bone",
-                ("name", bone.Name),
+                ("name", GetExportBoneName(bone)),
                 ("origin", ToKVArray(bone.Position)),
                 ("angles", ToKVArray(ToEulerAngles(bone.Angle))),
                 ("do_not_discard", true)
