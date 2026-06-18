@@ -139,7 +139,7 @@ partial class ModelExtract
     /// <summary>Emits cloth bones with the '_' prefix the compiler sanitizes '$' to, so round-trips don't duplicate them.</summary>
     internal static string GetExportBoneName(Bone bone)
         => bone.IsProceduralCloth && bone.Name.StartsWith('$')
-            ? string.Concat("_", bone.Name.AsSpan(1))
+            ? $"_{bone.Name[1..]}"
             : bone.Name;
 
     private static DmeModel BuildDmeDagSkeleton(Skeleton skeleton, out DmeTransform[] transforms, bool nmSkelAxisFixup = false)
