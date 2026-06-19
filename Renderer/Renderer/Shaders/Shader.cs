@@ -109,17 +109,24 @@ namespace ValveResourceFormat.Renderer.Shaders
         private unsafe void StoreUniformLocations()
         {
             Span<float> floatVal = stackalloc float[16];
+            var nextTextureSlot = (int)ReservedTextureSlots.Last + 1;
 
             // Stores uniform types and locations
             var uniforms = GetAllUniformNames();
 
             // Stores uniform values
-            foreach (var uniform in uniforms)
+            foreach (var activeUniform in uniforms)
             {
-                var name = uniform.Name;
-                var type = uniform.Type;
-                var index = uniform.Index;
-                var size = uniform.Size;
+                var name = activeUniform.Name;
+                var type = activeUniform.Type;
+                var index = activeUniform.Index;
+                var size = activeUniform.Size;
+                var isTexture = IsSamplerType(type);
+
+                if (isTexture && Uniforms.TryGetValue(name, out var cachedUniform))
+                {
+                    SetInitialTextureSlots(name, cachedUniform.Location, size, ref nextTextureSlot);
+                }
 
                 if (!name.StartsWith("g_", StringComparison.Ordinal) && !name.StartsWith("F_", StringComparison.Ordinal))
                 {
@@ -131,7 +138,6 @@ namespace ValveResourceFormat.Renderer.Shaders
                     continue;
                 }
 
-                var isTexture = type is >= ActiveUniformType.Sampler2D and <= ActiveUniformType.SamplerCube;
                 var isVector = type is >= ActiveUniformType.FloatVec2 and <= ActiveUniformType.IntVec4;
                 var isScalar = type == ActiveUniformType.Float;
                 var isBoolean = type == ActiveUniformType.Bool;
@@ -199,6 +205,95 @@ namespace ValveResourceFormat.Renderer.Shaders
                     );
                 }
             }
+        }
+
+        private static bool IsSamplerType(ActiveUniformType type) => type.ToString().Contains("Sampler", StringComparison.Ordinal);
+
+        private void SetInitialTextureSlots(string name, int location, int size, ref int nextTextureSlot)
+        {
+            if (size <= 1)
+            {
+                GL.ProgramUniform1(Program, location, GetInitialTextureSlot(name, ref nextTextureSlot));
+                return;
+            }
+
+            var slots = new int[size];
+            for (var i = 0; i < slots.Length; i++)
+            {
+                slots[i] = GetInitialTextureSlot($"{name}[{i}]", ref nextTextureSlot);
+            }
+
+            GL.ProgramUniform1(Program, location, slots.Length, slots);
+        }
+
+        private static int GetInitialTextureSlot(string name, ref int nextTextureSlot)
+        {
+            if (name.Contains("BRDFLookup", StringComparison.OrdinalIgnoreCase))
+            {
+                return (int)ReservedTextureSlots.BRDFLookup;
+            }
+            if (name.Contains("BlueNoise", StringComparison.OrdinalIgnoreCase))
+            {
+                return (int)ReservedTextureSlots.BlueNoise;
+            }
+            if (name.Contains("FogCubeTexture", StringComparison.OrdinalIgnoreCase))
+            {
+                return (int)ReservedTextureSlots.FogCubeTexture;
+            }
+            if (name.Contains("ShadowDepthBufferDepth", StringComparison.OrdinalIgnoreCase))
+            {
+                return (int)ReservedTextureSlots.ShadowDepthBufferDepth;
+            }
+            if (name.Contains("BarnLightShadowDepth", StringComparison.OrdinalIgnoreCase))
+            {
+                return (int)ReservedTextureSlots.BarnLightShadowDepth;
+            }
+            if (name.Contains("EnvironmentMap", StringComparison.OrdinalIgnoreCase))
+            {
+                return (int)ReservedTextureSlots.EnvironmentMap;
+            }
+            if (name.Contains("LPV_Irradiance", StringComparison.OrdinalIgnoreCase))
+            {
+                return (int)ReservedTextureSlots.Probe1;
+            }
+            if (name.Contains("LPV_Indices", StringComparison.OrdinalIgnoreCase) || name.Contains("LPV_Shadows", StringComparison.OrdinalIgnoreCase))
+            {
+                return (int)ReservedTextureSlots.Probe2;
+            }
+            if (name.Contains("LPV_Scalars", StringComparison.OrdinalIgnoreCase))
+            {
+                return (int)ReservedTextureSlots.Probe3;
+            }
+            if (name.Contains("LightCookieTextureWrap", StringComparison.OrdinalIgnoreCase))
+            {
+                return (int)ReservedTextureSlots.LightCookieTextureWrap;
+            }
+            if (name.Contains("LightCookieTexture", StringComparison.OrdinalIgnoreCase))
+            {
+                return (int)ReservedTextureSlots.LightCookieTexture;
+            }
+            if (name.Contains("SceneColor", StringComparison.OrdinalIgnoreCase))
+            {
+                return (int)ReservedTextureSlots.SceneColor;
+            }
+            if (name.Contains("SceneDepth", StringComparison.OrdinalIgnoreCase))
+            {
+                return (int)ReservedTextureSlots.SceneDepth;
+            }
+            if (name.Contains("SceneStencil", StringComparison.OrdinalIgnoreCase))
+            {
+                return (int)ReservedTextureSlots.SceneStencil;
+            }
+            if (name.Contains("DepthPyramid", StringComparison.OrdinalIgnoreCase))
+            {
+                return (int)ReservedTextureSlots.DepthPyramid;
+            }
+            if (name.Contains("Morph", StringComparison.OrdinalIgnoreCase))
+            {
+                return (int)ReservedTextureSlots.MorphCompositeTexture;
+            }
+
+            return nextTextureSlot++;
         }
 
         /// <summary>Installs this shader program as part of the current rendering state.</summary>

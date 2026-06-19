@@ -87,6 +87,9 @@ namespace ValveResourceFormat.Renderer.SceneNodes
             currentSet = hitboxSets[set];
         }
 
+        /// <summary>Gets all hitbox set names available on this node.</summary>
+        public IEnumerable<string> HitboxSets => hitboxSets.Keys;
+
         private static void UpdateHitboxSet(HitboxSetData hitboxSetData, Span<Matrix4x4> boneMatrices)
         {
             var hitboxSet = hitboxSetData.HitboxSet;

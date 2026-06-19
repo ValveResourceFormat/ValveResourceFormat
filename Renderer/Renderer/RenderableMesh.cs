@@ -379,7 +379,7 @@ namespace ValveResourceFormat.Renderer
                 drawCall.IndexBuffer = indexBuffer;
 
                 var indexElementSize = vbib.IndexBuffers[(int)bufferIndex].ElementSizeInBytes;
-                drawCall.StartIndex = (nint)(objectDrawCall.GetUInt32Property("m_nStartIndex") * indexElementSize);
+                drawCall.StartIndex = (nint)(indexBuffer.Offset + (objectDrawCall.GetUInt32Property("m_nStartIndex") * indexElementSize));
                 drawCall.IndexCount = objectDrawCall.GetInt32Property("m_nIndexCount");
 
                 drawCall.IndexType = indexElementSize switch

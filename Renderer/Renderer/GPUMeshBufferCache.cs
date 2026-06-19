@@ -19,7 +19,7 @@ namespace ValveResourceFormat.Renderer
         private readonly Dictionary<string, GPUMeshBuffers> gpuBuffers = [];
         private readonly Dictionary<VAOKey, int> vertexArrayObjects = [];
 
-        private record struct VAOKey(string MeshName, int Shader, int VertexIndex, int IndexIndex);
+        private record struct VAOKey(string MeshName, int Shader, string VertexBuffers, int IndexIndex);
 
         /// <summary>Initializes a new GPU mesh buffer cache.</summary>
         /// <param name="rendererContext">The renderer context owning this cache.</param>
@@ -104,7 +104,7 @@ namespace ValveResourceFormat.Renderer
             {
                 MeshName = meshName,
                 Shader = material.Shader.Program,
-                VertexIndex = vertexBuffers[0].Handle, // Probably good enough since every draw call will be creating new buffers
+                VertexBuffers = GetVertexBufferKey(vertexBuffers),
                 IndexIndex = idxIndex,
             };
 
@@ -122,11 +122,11 @@ namespace ValveResourceFormat.Renderer
             GL.BindVertexArray(newVaoHandle);
 
             var bindingIndex = 0;
-            vertexBuffers = AddMissingAttributes(vertexBuffers, material.Shader);
+            SetMissingAttributes(vertexBuffers, material.Shader);
 
             foreach (var curVertexBuffer in vertexBuffers)
             {
-                GL.VertexArrayVertexBuffer(newVaoHandle, bindingIndex, curVertexBuffer.Handle, 0, (int)curVertexBuffer.ElementSizeInBytes);
+                GL.VertexArrayVertexBuffer(newVaoHandle, bindingIndex, curVertexBuffer.Handle, (nint)curVertexBuffer.Offset, (int)curVertexBuffer.ElementSizeInBytes);
 
                 foreach (var attribute in curVertexBuffer.InputLayoutFields)
                 {
@@ -189,29 +189,17 @@ namespace ValveResourceFormat.Renderer
             return newVaoHandle;
         }
 
-        private VertexDrawBuffer[] AddMissingAttributes(VertexDrawBuffer[] vertexBuffers, Shader shader)
+        private static string GetVertexBufferKey(VertexDrawBuffer[] vertexBuffers)
+            => string.Join(';', vertexBuffers.Select(static vertexBuffer =>
+                $"{vertexBuffer.Handle}:{vertexBuffer.Offset}:{vertexBuffer.ElementSizeInBytes}"));
+
+        private static void SetMissingAttributes(VertexDrawBuffer[] vertexBuffers, Shader shader)
         {
             if (shader.Attributes.TryGetValue("vCOLOR", out var colorAttributeLocation)
                         && !vertexBuffers.Any(vb => vb.InputLayoutFields.Any(f => f.SemanticName == "COLOR")))
             {
-                var defaultColor = new VertexDrawBuffer
-                {
-                    Handle = VectorOneVertexBuffer,
-                    ElementSizeInBytes = 0, // required for the singular attribute to apply to all vertices
-                    InputLayoutFields =
-                    [
-                        new VBIB.RenderInputLayoutField
-                        {
-                            SemanticName = "COLOR",
-                            Format = DXGI_FORMAT.R32G32B32A32_FLOAT,
-                        },
-                    ],
-                };
-
-                vertexBuffers = [.. vertexBuffers, defaultColor];
+                GL.VertexAttrib4(colorAttributeLocation, 1f, 1f, 1f, 1f);
             }
-
-            return vertexBuffers;
         }
 
         private static void BindVertexAttrib(int vao, VBIB.RenderInputLayoutField attribute, int attributeLocation, int offset, int bindingIndex)

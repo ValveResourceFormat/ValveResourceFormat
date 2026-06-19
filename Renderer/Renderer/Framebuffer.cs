@@ -133,6 +133,21 @@ public class Framebuffer
     /// </summary>
     public static Framebuffer GLDefaultFramebuffer => new(fboHandle: 0);
 
+    /// <summary>
+    /// Creates a <see cref="Framebuffer"/> instance wrapping an existing OpenGL framebuffer owned by another UI toolkit.
+    /// </summary>
+    /// <param name="fboHandle">Existing OpenGL framebuffer handle.</param>
+    /// <param name="width">Framebuffer width in pixels.</param>
+    /// <param name="height">Framebuffer height in pixels.</param>
+    public static Framebuffer WrapExisting(int fboHandle, int width, int height)
+    {
+        return new Framebuffer(fboHandle)
+        {
+            Width = width,
+            Height = height,
+        };
+    }
+
     /// <inheritdoc/>
     public override bool Equals(object? obj) => obj is Framebuffer other && other.FboHandle == FboHandle;
 

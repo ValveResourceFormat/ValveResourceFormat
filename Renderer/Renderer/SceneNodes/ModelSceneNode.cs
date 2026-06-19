@@ -589,6 +589,10 @@ namespace ValveResourceFormat.Renderer.SceneNodes
         public IEnumerable<string> GetMeshGroups()
             => meshGroups;
 
+        /// <summary>Returns all material group names defined by this model.</summary>
+        public IEnumerable<string> GetMaterialGroups()
+            => materialGroups.Select(static group => group.Name);
+
         /// <summary>Returns the set of currently active mesh group names.</summary>
         public ICollection<string> GetActiveMeshGroups()
             => activeMeshGroups;
@@ -608,6 +612,9 @@ namespace ValveResourceFormat.Renderer.SceneNodes
 
         /// <summary>Gets whether the LoD level is being chosen automatically by distance, rather than forced.</summary>
         public bool IsAutoLod => lodOverride == null;
+
+        /// <summary>Gets the model LoD metadata used for automatic and forced LoD selection.</summary>
+        public ModelLodInfo LodInfo => lodInfo;
 
         /// <summary>
         /// Sets the LoD level to display, rebuilding the renderable mesh list accordingly.

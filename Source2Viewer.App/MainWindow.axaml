@@ -1,0 +1,255 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:local="using:Source2Viewer.App"
+        mc:Ignorable="d" d:DesignWidth="1280" d:DesignHeight="800"
+        x:Class="Source2Viewer.App.MainWindow"
+        Width="1280" Height="800" MinWidth="1000" MinHeight="620"
+        Background="#111721"
+        Title="Source 2 Viewer - Linux Native">
+    <Window.Styles>
+        <Style Selector="Button">
+            <Setter Property="Background" Value="#2A3140" />
+            <Setter Property="Foreground" Value="#E6EDF3" />
+            <Setter Property="BorderBrush" Value="#4A5263" />
+            <Setter Property="Padding" Value="8,5" />
+        </Style>
+        <Style Selector="TextBox">
+            <Setter Property="Background" Value="#151B26" />
+            <Setter Property="Foreground" Value="#E6EDF3" />
+            <Setter Property="BorderBrush" Value="#4A5263" />
+        </Style>
+        <Style Selector="ComboBox">
+            <Setter Property="Background" Value="#151B26" />
+            <Setter Property="Foreground" Value="#E6EDF3" />
+            <Setter Property="BorderBrush" Value="#4A5263" />
+        </Style>
+        <Style Selector="ListBox">
+            <Setter Property="Background" Value="#111722" />
+            <Setter Property="Foreground" Value="#E6EDF3" />
+            <Setter Property="BorderBrush" Value="#313948" />
+        </Style>
+        <Style Selector="TreeView">
+            <Setter Property="Background" Value="#111722" />
+            <Setter Property="Foreground" Value="#E6EDF3" />
+        </Style>
+        <Style Selector="CheckBox">
+            <Setter Property="Foreground" Value="#E6EDF3" />
+        </Style>
+    </Window.Styles>
+
+    <Grid RowDefinitions="42,*">
+        <Border Grid.Row="0" Padding="8,0" Background="#10151F" BorderBrush="#222B3A" BorderThickness="0,0,0,1">
+            <DockPanel LastChildFill="True">
+                <StackPanel DockPanel.Dock="Left" Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
+                    <Border Width="24" Height="24" CornerRadius="12" Background="#1D3351" BorderBrush="#5C8FD6" BorderThickness="1">
+                        <TextBlock Text="S²" Foreground="#EAF3FF" FontWeight="Bold" FontSize="12" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                    </Border>
+                    <Menu Background="#10151F" Foreground="#E6EDF3">
+                        <MenuItem Header="📁 File">
+                            <MenuItem x:Name="OpenPackageButton" Header="Open..." />
+                            <MenuItem x:Name="ReopenLastButton" Header="Reopen last" IsEnabled="False" />
+                            <Separator />
+                            <MenuItem x:Name="ClearButton" Header="Clear" />
+                        </MenuItem>
+                        <MenuItem Header="🧭 Explorer">
+                            <MenuItem x:Name="BackButton" Header="Back" IsEnabled="False" />
+                            <MenuItem x:Name="ForwardButton" Header="Forward" IsEnabled="False" />
+                            <Separator />
+                            <MenuItem x:Name="ExportSelectedButton" Header="Export selected raw" />
+                            <MenuItem x:Name="ExportVisibleButton" Header="Export shown raw" />
+                            <MenuItem x:Name="ExportVisibleDecompiledButton" Header="Export shown decompiled" />
+                            <MenuItem x:Name="PreviewDecompiledButton" Header="Preview decompiled" />
+                            <MenuItem x:Name="ExportDecompiledButton" Header="Export decompiled" />
+                        </MenuItem>
+                        <MenuItem x:Name="FindMenuItem" Header="🔎 Find" />
+                        <MenuItem Header="⚙ Settings">
+                            <MenuItem x:Name="SaveScreenshotButton" Header="Save screenshot" />
+                            <MenuItem x:Name="PlaySoundButton" Header="Play sound" IsVisible="False" />
+                            <MenuItem x:Name="StopSoundButton" Header="Stop sound" IsVisible="False" />
+                        </MenuItem>
+                        <MenuItem x:Name="AboutMenuItem" Header="ℹ About" />
+                    </Menu>
+                </StackPanel>
+                <TextBlock x:Name="StatusText" Margin="12,0,8,0" VerticalAlignment="Center" Foreground="#AEB8C7" Text="Open a .vpk to browse package entries." TextTrimming="CharacterEllipsis" />
+            </DockPanel>
+        </Border>
+
+        <TabControl x:Name="MainTabs" Grid.Row="1" Background="#111721" Foreground="#E6EDF3">
+            <TabItem x:Name="ExplorerTab" Header="🧭 Explorer">
+                <Grid RowDefinitions="36,*" Background="#111721">
+                    <Border Grid.Row="0" Padding="10,0" Background="#1B2230" BorderBrush="#2A3446" BorderThickness="0,0,0,1">
+                        <DockPanel LastChildFill="True">
+                            <TextBlock DockPanel.Dock="Left" Text="PACKAGE" Foreground="#7FA3D7" FontWeight="Bold" VerticalAlignment="Center" Margin="0,0,12,0" />
+                            <TextBlock x:Name="PackagePathText" TextWrapping="NoWrap" TextTrimming="CharacterEllipsis" Foreground="#C6D0DE" VerticalAlignment="Center" />
+                        </DockPanel>
+                    </Border>
+
+                    <Grid Grid.Row="1" ColumnDefinitions="380,5,*" Background="#111721">
+                        <Border Grid.Column="0" Padding="10" Background="#19202B" BorderBrush="#2A3446" BorderThickness="0,0,1,0">
+                            <Grid RowDefinitions="Auto,*,Auto,2*" RowSpacing="8">
+                                <Grid ColumnDefinitions="*,118,100,90" ColumnSpacing="8">
+                                    <TextBox x:Name="SearchTextBox" PlaceholderText="Search package entries" />
+                                    <ComboBox x:Name="SearchModeComboBox" Grid.Column="1" />
+                                    <ComboBox x:Name="EntryFilterComboBox" Grid.Column="2" />
+                                    <ComboBox x:Name="SortModeComboBox" Grid.Column="3" />
+                                </Grid>
+                                <TreeView x:Name="FolderTree" Grid.Row="1" />
+                                <Border Grid.Row="2" Padding="6,3" Background="#252C39" BorderBrush="#313948" BorderThickness="1">
+                                    <Grid ColumnDefinitions="*,90,90">
+                                        <TextBlock Text="Path" Foreground="#AEB8C7" />
+                                        <TextBlock Grid.Column="1" Text="Type" Foreground="#AEB8C7" />
+                                        <TextBlock Grid.Column="2" Text="Size" Foreground="#AEB8C7" HorizontalAlignment="Right" />
+                                    </Grid>
+                                </Border>
+                                <ListBox x:Name="EntryList" Grid.Row="3">
+                                    <ListBox.ItemTemplate>
+                                        <DataTemplate>
+                                            <TextBlock Text="{Binding}" FontFamily="monospace" TextTrimming="CharacterEllipsis" Margin="2" />
+                                        </DataTemplate>
+                                    </ListBox.ItemTemplate>
+                                    <ListBox.ContextMenu>
+                                        <ContextMenu>
+                                            <MenuItem x:Name="CopyEntryPathMenuItem" Header="Copy name" />
+                                            <MenuItem x:Name="ExportSelectedMenuItem" Header="Export as is" />
+                                            <MenuItem x:Name="PreviewDecompiledMenuItem" Header="Preview decompiled" />
+                                            <MenuItem x:Name="ExportDecompiledMenuItem" Header="Decompile and export" />
+                                        </ContextMenu>
+                                    </ListBox.ContextMenu>
+                                </ListBox>
+                            </Grid>
+                        </Border>
+                        <GridSplitter Grid.Column="1" Background="#2A3446" ResizeDirection="Columns" />
+                        <Border Grid.Column="2" Margin="10" Padding="12" Background="#151B26" BorderBrush="#313948" BorderThickness="1" CornerRadius="3">
+                            <Grid ColumnDefinitions="280,*" ColumnSpacing="14">
+                                <Border x:Name="PreviewImageBorder" Background="#0D1117" BorderBrush="#313948" BorderThickness="1" Padding="8" IsVisible="False">
+                                    <Image x:Name="PreviewImage" Stretch="Uniform" />
+                                </Border>
+                                <ScrollViewer Grid.Column="1">
+                                    <TextBlock x:Name="DetailsText" TextWrapping="Wrap" Foreground="#DDE7F3" FontFamily="monospace" />
+                                </ScrollViewer>
+                            </Grid>
+                        </Border>
+                    </Grid>
+                </Grid>
+            </TabItem>
+
+            <TabItem x:Name="ViewportTab" Header="Viewport">
+                <Grid RowDefinitions="36,*" Background="#111721">
+                    <Border Grid.Row="0" Background="#1B2230" BorderBrush="#2A3446" BorderThickness="0,0,0,1">
+                        <StackPanel Orientation="Horizontal" Spacing="0">
+                            <Border Padding="18,8,18,6" BorderBrush="#66A7FF" BorderThickness="0,0,0,3">
+                                <TextBlock Text="MAP" Foreground="#E6EDF3" FontWeight="Bold" />
+                            </Border>
+                            <Border Padding="16,8,16,6">
+                                <TextBlock Text="World Data" Foreground="#AEB8C7" />
+                            </Border>
+                            <Border Padding="16,8,16,6">
+                                <TextBlock Text="Node Data" Foreground="#AEB8C7" />
+                            </Border>
+                            <Border Padding="16,8,16,6">
+                                <TextBlock Text="Entity List" Foreground="#AEB8C7" />
+                            </Border>
+                            <Border Padding="16,8,16,6">
+                                <TextBlock Text="External Refs" Foreground="#AEB8C7" />
+                            </Border>
+                            <Border Padding="16,8,16,6">
+                                <TextBlock Text="RED2" Foreground="#AEB8C7" />
+                            </Border>
+                        </StackPanel>
+                    </Border>
+
+                    <Grid Grid.Row="1" ColumnDefinitions="220,5,*" Background="#111721">
+                        <Border Grid.Column="0" Padding="8" Background="#1A2230" BorderBrush="#2A3446" BorderThickness="0,0,1,0">
+                            <ScrollViewer>
+                                <StackPanel Spacing="10">
+                                    <Button x:Name="ResetCameraButton" Content="Reset camera / focus" />
+
+                                    <StackPanel Spacing="5">
+                                        <TextBlock Text="Render Mode" Foreground="#C6D0DE" />
+                                        <ComboBox x:Name="RenderModeComboBox" PlaceholderText="Render mode" />
+                                    </StackPanel>
+
+                                    <StackPanel x:Name="WorldSection" Spacing="8" IsVisible="False">
+                                        <Border Height="1" Background="#313948" />
+                                        <TextBlock x:Name="WorldLayerLabel" Text="World Layers" Foreground="#C6D0DE" FontWeight="SemiBold" IsVisible="False" />
+                                        <ListBox x:Name="WorldLayerListBox" Height="118" SelectionMode="Multiple" IsVisible="False" />
+                                        <TextBlock x:Name="PhysicsGroupLabel" Text="Physics Groups" Foreground="#C6D0DE" FontWeight="SemiBold" IsVisible="False" />
+                                        <ListBox x:Name="PhysicsGroupListBox" Height="130" SelectionMode="Multiple" IsVisible="False" />
+                                        <TextBlock x:Name="EntityLabel" Text="Entities" Foreground="#C6D0DE" FontWeight="SemiBold" IsVisible="False" />
+                                        <ListBox x:Name="EntityListBox" Height="116" IsVisible="False" />
+                                        <StackPanel Spacing="5">
+                                            <TextBlock Text="Map Camera" Foreground="#C6D0DE" />
+                                            <ComboBox x:Name="MapCameraComboBox" PlaceholderText="Map camera" IsVisible="False" />
+                                        </StackPanel>
+                                    </StackPanel>
+
+                                    <StackPanel x:Name="ModelSection" Spacing="8" IsVisible="False">
+                                        <Border Height="1" Background="#313948" />
+                                        <TextBlock x:Name="MeshGroupLabel" Text="Mesh groups" Foreground="#C6D0DE" FontWeight="SemiBold" IsVisible="False" />
+                                        <ListBox x:Name="MeshGroupListBox" Height="90" SelectionMode="Multiple" IsVisible="False" />
+                                        <TextBlock x:Name="MaterialGroupLabel" Text="Material group" Foreground="#C6D0DE" IsVisible="False" />
+                                        <ComboBox x:Name="MaterialGroupComboBox" PlaceholderText="Material group" IsVisible="False" />
+                                        <TextBlock x:Name="LodLabel" Text="Level of detail" Foreground="#C6D0DE" IsVisible="False" />
+                                        <ComboBox x:Name="LodComboBox" PlaceholderText="Level of detail" IsVisible="False" />
+                                        <TextBlock x:Name="HitboxSetLabel" Text="Hitbox set" Foreground="#C6D0DE" IsVisible="False" />
+                                        <ComboBox x:Name="HitboxSetComboBox" PlaceholderText="Hitbox set" IsVisible="False" />
+                                        <CheckBox x:Name="SkeletonCheckBox" Content="Show skeleton" IsVisible="False" />
+                                    </StackPanel>
+
+                                    <StackPanel x:Name="AnimationSection" Spacing="8" IsVisible="False">
+                                        <Border Height="1" Background="#313948" />
+                                        <TextBlock x:Name="AnimationLabel" Text="Animation" Foreground="#C6D0DE" FontWeight="SemiBold" IsVisible="False" />
+                                        <ComboBox x:Name="AnimationComboBox" PlaceholderText="Animation" IsVisible="False" />
+                                        <CheckBox x:Name="AnimationAutoplayCheckBox" Content="Autoplay" IsVisible="False" />
+                                        <CheckBox x:Name="RootMotionCheckBox" Content="Root motion" IsVisible="False" />
+                                        <TextBlock x:Name="AnimationFrameLabel" Text="Animation frame" Foreground="#C6D0DE" IsVisible="False" />
+                                        <Slider x:Name="AnimationFrameSlider" Minimum="0" Maximum="1" Value="0" IsVisible="False" />
+                                        <TextBlock x:Name="AnimationSpeedLabel" Text="Animation speed" Foreground="#C6D0DE" IsVisible="False" />
+                                        <Slider x:Name="AnimationSpeedSlider" Minimum="0.1" Maximum="2" Value="1" IsVisible="False" />
+                                    </StackPanel>
+
+                                    <StackPanel Spacing="6">
+                                        <Border Height="1" Background="#313948" />
+                                        <TextBlock Text="Scene" Foreground="#C6D0DE" FontWeight="SemiBold" />
+                                        <CheckBox x:Name="GridCheckBox" Content="Show grid" />
+                                        <CheckBox x:Name="SkyboxCheckBox" Content="Show skybox" />
+                                        <CheckBox x:Name="FogCheckBox" Content="Show fog" />
+                                        <CheckBox x:Name="ColorCorrectionCheckBox" Content="Color correction" />
+                                        <CheckBox x:Name="ToolMaterialsCheckBox" Content="Show tool materials" />
+                                    </StackPanel>
+
+                                    <StackPanel Spacing="6">
+                                        <Border Height="1" Background="#313948" />
+                                        <TextBlock Text="Debug" Foreground="#C6D0DE" FontWeight="SemiBold" />
+                                        <CheckBox x:Name="WireframeCheckBox" Content="Wireframe" />
+                                        <CheckBox x:Name="OcclusionCullingCheckBox" Content="Occlusion culling" />
+                                        <CheckBox x:Name="GpuCullingCheckBox" Content="GPU culling" />
+                                        <CheckBox x:Name="DepthPrepassCheckBox" Content="Depth prepass" />
+                                        <CheckBox x:Name="ExperimentalLightsCheckBox" Content="Experimental lights" />
+                                        <CheckBox x:Name="OccludedBoundsCheckBox" Content="Show occluded bounds" />
+                                        <CheckBox x:Name="StaticOctreeCheckBox" Content="Show static octree" />
+                                        <CheckBox x:Name="DynamicOctreeCheckBox" Content="Show dynamic octree" />
+                                        <CheckBox x:Name="ModelStatsCheckBox" Content="Model stats" IsVisible="False" />
+                                    </StackPanel>
+                                </StackPanel>
+                            </ScrollViewer>
+                        </Border>
+                        <GridSplitter Grid.Column="1" Background="#2A3446" ResizeDirection="Columns" />
+                        <Grid Grid.Column="2">
+                            <local:NativeRenderControl x:Name="RenderControl" />
+                            <Border x:Name="ViewportInputLayer" Background="Transparent" Focusable="True" />
+                            <Border HorizontalAlignment="Left" VerticalAlignment="Top" Margin="16" Padding="10,6" Background="#AA000000" CornerRadius="4" IsHitTestVisible="False">
+                                <TextBlock x:Name="ViewportMessageText" Text="Native OpenGL renderer viewport" Foreground="#F2F2F2" TextWrapping="Wrap" MaxWidth="720" />
+                            </Border>
+                            <Border HorizontalAlignment="Left" VerticalAlignment="Bottom" Margin="16" Padding="10,6" Background="#AA000000" CornerRadius="4" IsHitTestVisible="False">
+                                <TextBlock x:Name="ModelStatsText" Foreground="#F2F2F2" FontFamily="monospace" TextWrapping="Wrap" MaxWidth="720" IsVisible="False" />
+                            </Border>
+                        </Grid>
+                    </Grid>
+                </Grid>
+            </TabItem>
+        </TabControl>
+    </Grid>
+</Window>
