@@ -109,22 +109,19 @@ namespace GUI.Controls
 
             // Scan for vpks
             var scanTask = Task.Run(ScanForSteamGames);
-            scanTask.ContinueWith(t =>
+            scanTask.ContinueWith(async t =>
             {
-                if (t.Exception == null)
-                {
-                    return;
-                }
+                Log.Error(nameof(ExplorerControl), t.Exception!.ToString());
 
-                Log.Error(nameof(ExplorerControl), t.Exception.ToString());
-
-                treeView.InvokeAsync(() =>
+                await handleCreated.Task.ConfigureAwait(false);
+                await treeView.InvokeAsync(() =>
                 {
                     scanningTreeNode.Text = t.Exception.Message;
-                });
+                }).ConfigureAwait(false);
             }, CancellationToken.None, TaskContinuationOptions.OnlyOnFaulted, TaskScheduler.Default);
             scanTask.ContinueWith(async t =>
             {
+                await handleCreated.Task.ConfigureAwait(false);
                 await treeView.InvokeAsync(() =>
                 {
                     scanningTreeNode.Remove();
