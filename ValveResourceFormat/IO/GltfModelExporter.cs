@@ -626,7 +626,7 @@ namespace ValveResourceFormat.IO
                 {
                     var animation = new ResourceTypes.ModelAnimation.Animation(clip);
                     var animationWriter = new AnimationWriter(skeletonData, []);
-                    animationWriter.WriteAnimation(exportedModel, joints, animation);
+                    animationWriter.WriteAnimation(exportedModel, joints, animation, ClipAnimationName(clip.Name));
                 }
             }
 

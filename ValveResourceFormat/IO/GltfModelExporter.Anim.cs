@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.IO;
 using System.Linq;
 using SharpGLTF.Schema2;
 using ValveResourceFormat.ResourceTypes;
@@ -43,7 +44,7 @@ public partial class GltfModelExporter
         /// null when an animation targets a skeleton with bones the exported model does not have
         /// (e.g. animation graph clips retargeted by bone name); those bones are skipped.
         /// </summary>
-        public void WriteAnimation(ModelRoot model, Node?[] joints, VAnim animation)
+        public void WriteAnimation(ModelRoot model, Node?[] joints, VAnim animation, string? animationName = null)
         {
             Debug.Assert(joints.Length == BoneCount);
 
@@ -54,7 +55,7 @@ public partial class GltfModelExporter
             PositionWriter.Clear();
             ScaleWriter.Clear();
 
-            var outputAnimation = model.UseAnimation(animation.Name);
+            var outputAnimation = model.UseAnimation(animationName ?? animation.Name);
 
             var fps = animation.Fps;
 
@@ -236,15 +237,21 @@ public partial class GltfModelExporter
         {
             CancellationToken.ThrowIfCancellationRequested();
 
-            if (FileLoader.LoadFileCompiled(clipName)?.DataBlock is not VAnimationClip clip
-                || (animationFilter.Count > 0 && !animationFilter.Contains(clip.Name)))
+            if (FileLoader.LoadFileCompiled(clipName)?.DataBlock is not VAnimationClip clip)
             {
                 continue;
             }
 
-            if (writtenNames.Contains(clip.Name))
+            var animationName = ClipAnimationName(clip.Name);
+
+            if (animationFilter.Count > 0 && !animationFilter.Contains(animationName))
             {
-                ProgressReporter?.Report($"Skipping animation graph clip '{clip.Name}': an animation with that name was already exported.");
+                continue;
+            }
+
+            if (writtenNames.Contains(animationName))
+            {
+                ProgressReporter?.Report($"Skipping animation graph clip '{animationName}': an animation with that name was already exported.");
                 continue;
             }
 
@@ -255,11 +262,15 @@ public partial class GltfModelExporter
 
             if (retarget != null)
             {
-                retarget.Value.Writer.WriteAnimation(exportedModel, retarget.Value.Joints, new VAnim(clip));
-                writtenNames.Add(clip.Name);
+                retarget.Value.Writer.WriteAnimation(exportedModel, retarget.Value.Joints, new VAnim(clip), animationName);
+                writtenNames.Add(animationName);
             }
         }
     }
+
+    // glTF holds all animations in one flat named list, so AG2 clips are labelled by their resource
+    // path with the .vnmclip extension stripped (the path keeps them unique across clip folders).
+    private static string ClipAnimationName(string clipName) => Path.ChangeExtension(clipName, null)!;
 
     // Loads a clip's skeleton and maps its bones onto the model's joints by name. Null if none match.
     private (AnimationWriter Writer, Node?[] Joints)? BuildClipRetarget(VModel model, Node[] joints, string clipSkeletonName)
