@@ -26,9 +26,6 @@ partial class ModelExtract
         }
     }
 
-    // Bundles the model's animation-graph clips (animgraph2) as content files, so a decompiled model
-    // includes them and not just the embedded animations. Each clip is extracted to its own NmSkel
-    // skeleton via NmClipExtract, written at its full resource path.
     private void AddAnimationGraphClips(ContentFile vmdl)
     {
         if (Type != ModelExtractType.Default || model == null || fileLoader == null)
@@ -36,7 +33,6 @@ partial class ModelExtract
             return;
         }
 
-        // GetClipNames already returns a de-duplicated list, so no extra bookkeeping is needed here.
         foreach (var clipName in AnimationGraphLoader.GetClipNames(model, fileLoader))
         {
             var clipResource = fileLoader.LoadFileCompiled(clipName);
