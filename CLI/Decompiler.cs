@@ -1552,7 +1552,7 @@ namespace CLI
                         {
                             foreach (var property in entity.Children)
                             {
-                                if (!knownEntityKeys.Contains(property.Key))
+                                if (!knownEntityKeys.Contains(property.Key) && property.Key.StartsWith("vrf_unknown_key_", StringComparison.Ordinal))
                                 {
                                     lock (unknownEntityKeys)
                                     {
