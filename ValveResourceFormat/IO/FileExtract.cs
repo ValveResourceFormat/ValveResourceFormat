@@ -179,7 +179,7 @@ namespace ValveResourceFormat.IO
                     break;
 
                 case ResourceType.Model:
-                    contentFile = new ModelExtract(resource, fileLoader).ToContentFile();
+                    contentFile = new ModelExtract(resource, fileLoader) { ProgressReporter = progress }.ToContentFile();
                     break;
 
                 case ResourceType.AnimationGraph:

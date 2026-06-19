@@ -36,14 +36,9 @@ partial class ModelExtract
             return;
         }
 
-        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        // GetClipNames already returns a de-duplicated list, so no extra bookkeeping is needed here.
         foreach (var clipName in AnimationGraphLoader.GetClipNames(model, fileLoader))
         {
-            if (!seen.Add(clipName))
-            {
-                continue;
-            }
-
             var clipResource = fileLoader.LoadFileCompiled(clipName);
             if (clipResource?.DataBlock is not AnimationClip)
             {
@@ -60,7 +55,7 @@ partial class ModelExtract
             catch (Exception e)
             {
                 // A single malformed clip shouldn't fail the whole model export.
-                Console.Error.WriteLine($"Skipping animation graph clip '{clipName}': {e.Message}");
+                ProgressReporter?.Report($"Skipping animation graph clip '{clipName}': {e.Message}");
             }
         }
     }

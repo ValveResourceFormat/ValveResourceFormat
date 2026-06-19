@@ -39,6 +39,9 @@ public partial class ModelExtract
     /// <summary>Gets the extraction type to apply when generating assets.</summary>
     public ModelExtractType Type { get; init; } = ModelExtractType.Default;
 
+    /// <summary>Optional sink for non-fatal progress and warning messages.</summary>
+    public IProgress<string>? ProgressReporter { get; set; }
+
     /// <summary>
     /// Initializes a new instance of the <see cref="ModelExtract"/> class.
     /// </summary>
