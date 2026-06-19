@@ -644,6 +644,8 @@ class EntityLumpKnownKeys
         "box_size",
         "box_world_aligned",
         "box",
+        "boxproject_maxs",
+        "boxproject_mins",
         "brace_attachment_up",
         "brace_up_flipped",
         "brackets_a",
