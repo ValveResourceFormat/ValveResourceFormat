@@ -1,6 +1,3 @@
-using System;
-using System.Numerics;
-
 namespace ValveResourceFormat.IO;
 
 public partial class GltfModelExporter
@@ -11,6 +8,7 @@ public partial class GltfModelExporter
     private const float SourceToGltfScale = 0.0254f;
     private static readonly Quaternion SourceToGltfRotation = Quaternion.CreateFromYawPitchRoll(0, MathF.PI / -2f, MathF.PI / -2f);
     private static readonly Matrix4x4 TransformSourceToGltf = Matrix4x4.CreateScale(SourceToGltfScale) * Matrix4x4.CreateFromQuaternion(SourceToGltfRotation);
+    private static readonly Matrix4x4 TransformGltfToSource = Invert(TransformSourceToGltf);
 
     // The conversion is baked into the exported geometry (bones, vertices, animation tracks) so the armature
     // is identity-scaled and the bind matrices are clean inverses. The scale folds into translations (a bone
@@ -40,8 +38,13 @@ public partial class GltfModelExporter
     /// </summary>
     private static Matrix4x4 GetPlacementTransform(Matrix4x4 transform)
     {
-        Matrix4x4.Invert(TransformSourceToGltf, out var gltfToSource);
-        return gltfToSource * transform * TransformSourceToGltf;
+        return TransformGltfToSource * transform * TransformSourceToGltf;
+    }
+
+    private static Matrix4x4 Invert(Matrix4x4 matrix)
+    {
+        Matrix4x4.Invert(matrix, out var inverse);
+        return inverse;
     }
 
     private static void BakePositions(Span<Vector3> positions)

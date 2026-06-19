@@ -146,7 +146,7 @@ namespace Tests
 
         // The non-skinned mesh path bakes the conversion into vertex positions and leaves the node at
         // identity (it used to live on the node transform). Verify the geometry is in meters with no residual
-        // node scale or placement, which also guards the aggregate path against applying the conversion twice.
+        // node scale or placement.
         [Test]
         public void TestStaticMeshConversionBakedIntoGeometry()
         {

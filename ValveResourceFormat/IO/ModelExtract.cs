@@ -40,7 +40,7 @@ public partial class ModelExtract
     public ModelExtractType Type { get; init; } = ModelExtractType.Default;
 
     /// <summary>Optional sink for non-fatal progress and warning messages.</summary>
-    public IProgress<string>? ProgressReporter { get; set; }
+    public IProgress<string>? ProgressReporter { get; init; }
 
     /// <summary>
     /// Initializes a new instance of the <see cref="ModelExtract"/> class.

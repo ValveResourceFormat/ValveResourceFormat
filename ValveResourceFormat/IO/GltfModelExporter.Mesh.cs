@@ -553,8 +553,12 @@ public partial class GltfModelExporter
                 continue;
             }
 
+            // Morph deltas share the base mesh's vertex space, which is baked into glTF units, so bake them too.
+            var deltas = rectData[vertexOffset..(vertexOffset + vertexCount)];
+            BakePositions(deltas);
+
             var bufferView = model.CreateBufferView(3 * sizeof(float) * vertexCount, 0, BufferMode.ARRAY_BUFFER);
-            new Vector3Array(bufferView.Content).Fill(rectData[vertexOffset..(vertexOffset + vertexCount)]);
+            new Vector3Array(bufferView.Content).Fill(deltas);
 
             var acc = model.CreateAccessor();
             acc.Name = morphName;
