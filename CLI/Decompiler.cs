@@ -179,8 +179,8 @@ namespace CLI
             GltfExportFormat = gltf_export_format;
             GltfExportMaterials = gltf_export_materials;
             GltfExportAnimations = gltf_export_animations;
-            GltfAnimationFilter = gltf_animation_list?.Split(',') ?? [];
-            GltfMeshFilter = gltf_mesh_list?.Split(',') ?? [];
+            GltfAnimationFilter = gltf_animation_list?.Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries) ?? [];
+            GltfMeshFilter = gltf_mesh_list?.Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries) ?? [];
             GltfExportAdaptTextures = gltf_textures_adapt;
             GltfExportExtras = gltf_export_extras;
             ToolsAssetInfoShort = tools_asset_info_short;

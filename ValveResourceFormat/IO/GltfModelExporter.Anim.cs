@@ -244,7 +244,7 @@ public partial class GltfModelExporter
 
             var animationName = ClipAnimationName(clip.Name);
 
-            if (animationFilter.Count > 0 && !animationFilter.Contains(animationName))
+            if (!IncludeAnimation(animationFilter, animationName))
             {
                 continue;
             }

@@ -68,9 +68,14 @@ namespace ValveResourceFormat.IO
         public bool ExportExtras { get; set; }
 
         /// <summary>
-        /// Gets the set of animation names to filter during export.
+        /// Gets the set of animation names to filter during export. An entry matches an animation by its
+        /// full name or, for animation graph clips named by resource path, by its leaf name (e.g. "idle_knife"
+        /// matches "animation/anims/.../idle_knife"). Empty means export every animation.
         /// </summary>
         public HashSet<string> AnimationFilter { get; } = [];
+
+        // Filter entries that matched at least one animation, so unmatched ones can be reported after export.
+        private readonly HashSet<string> matchedAnimationFilter = [];
 
         /// <summary>
         /// Gets the set of mesh names to filter during export.
@@ -149,9 +154,11 @@ namespace ValveResourceFormat.IO
             try
             {
                 exportAction();
+                ReportUnmatchedAnimationFilter();
             }
             finally
             {
+                matchedAnimationFilter.Clear();
                 ExportedMeshes.Clear();
                 PhysicsToExport.Clear();
                 TextureExportingTasks.Clear();
@@ -161,6 +168,45 @@ namespace ValveResourceFormat.IO
                 TexturesExportedSoFar = 0;
                 DstDir = string.Empty;
                 IsExporting = false;
+            }
+        }
+
+        // Whether an animation passes AnimationFilter, matching on its full name or, for path-named graph
+        // clips, its leaf name. Records which filter entry matched so misses can be reported afterwards.
+        private bool IncludeAnimation(HashSet<string> filter, string name)
+        {
+            if (filter.Count == 0)
+            {
+                return true;
+            }
+
+            if (filter.Contains(name))
+            {
+                matchedAnimationFilter.Add(name);
+                return true;
+            }
+
+            var leafName = Path.GetFileName(name);
+            if (leafName.Length != name.Length && filter.Contains(leafName))
+            {
+                matchedAnimationFilter.Add(leafName);
+                return true;
+            }
+
+            return false;
+        }
+
+        private void ReportUnmatchedAnimationFilter()
+        {
+            if (AnimationFilter.Count == 0)
+            {
+                return;
+            }
+
+            var unmatched = AnimationFilter.Where(name => !matchedAnimationFilter.Contains(name)).ToList();
+            if (unmatched.Count > 0)
+            {
+                ProgressReporter?.Report($"glTF animation filter matched no animations for: {string.Join(", ", unmatched)}");
             }
         }
 
@@ -676,7 +722,7 @@ namespace ValveResourceFormat.IO
 
                 foreach (var animation in animations)
                 {
-                    if (animationFilter.Count > 0 && !animationFilter.Contains(animation.Name))
+                    if (!IncludeAnimation(animationFilter, animation.Name))
                     {
                         continue;
                     }
