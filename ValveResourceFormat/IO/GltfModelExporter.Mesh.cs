@@ -533,7 +533,9 @@ public partial class GltfModelExporter
             CreateMeshFromDrawCall(drawCall, mesh, vbib, vertexBufferAccessors, exportedModel, skinMaterialPath: null, tintColor);
 
             var newNode = scene.CreateNode(name).WithMesh(mesh);
-            newNode.WorldMatrix = transform * TransformSourceToGltf;
+            // The conversion is baked into the geometry (CreateVertexBufferAccessors), so the placement
+            // transform is conjugated by it rather than multiplied on top - otherwise it applies twice.
+            newNode.WorldMatrix = GetPlacementTransform(transform);
         }
 
         return true;
