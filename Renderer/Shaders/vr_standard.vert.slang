@@ -78,7 +78,9 @@ void main()
     ObjectData_t object = GetObjectData();
 
     mat4 skinTransform = object.transform * getSkinMatrix();
-    vFragPosition = (skinTransform * vec4(vPOSITION + getMorphOffset(), 1.0)).xyz;
+    vec4 fragPosition = skinTransform * vec4(vPOSITION + getMorphOffset(), 1.0);
+    gl_Position = g_matWorldToProjection * fragPosition;
+    vFragPosition = fragPosition.xyz / fragPosition.w;
 
     vec3 normal;
     vec4 tangent;
@@ -88,8 +90,6 @@ void main()
     vNormalOut = normalize(normalTransform * normal);
     vTangentOut = normalize(normalTransform * tangent.xyz);
     vBitangentOut = tangent.w * cross(vNormalOut, vTangentOut);
-
-    gl_Position = g_matWorldToProjection * vec4(vFragPosition, 1.0);
 
     vTexCoordOut = GetAnimatedUVs(vTEXCOORD.xy);
 
