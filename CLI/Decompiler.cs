@@ -179,8 +179,8 @@ namespace CLI
             GltfExportFormat = gltf_export_format;
             GltfExportMaterials = gltf_export_materials;
             GltfExportAnimations = gltf_export_animations;
-            GltfAnimationFilter = gltf_animation_list?.Split(',') ?? [];
-            GltfMeshFilter = gltf_mesh_list?.Split(',') ?? [];
+            GltfAnimationFilter = gltf_animation_list?.Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries) ?? [];
+            GltfMeshFilter = gltf_mesh_list?.Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries) ?? [];
             GltfExportAdaptTextures = gltf_textures_adapt;
             GltfExportExtras = gltf_export_extras;
             ToolsAssetInfoShort = tools_asset_info_short;
@@ -1422,7 +1422,7 @@ namespace CLI
             return highestByShader.Values.Select(x => x.FilePath).ToHashSet();
         }
 
-        private static void DumpContentFile(string path, ContentFile contentFile, bool dumpSubFiles = true)
+        private void DumpContentFile(string path, ContentFile contentFile, bool dumpSubFiles = true)
         {
             if (contentFile.Data != null)
             {
@@ -1431,7 +1431,14 @@ namespace CLI
 
             foreach (var additionalFile in contentFile.AdditionalFiles)
             {
-                DumpContentFile(Path.Combine(Path.GetDirectoryName(path)!, Path.GetFileName(additionalFile.FileName)), additionalFile);
+                // Additional files (animation-graph clips) carry their full resource path. With a real output
+                // directory we keep it; otherwise we flatten to the leaf name next to the parent file, which can
+                // collide on shared names. Resolving these relative to the parent's output path properly needs a
+                // bigger rework of the extract path handling (also in the GUI's ExtractProgressForm).
+                var additionalPath = additionalFile.KeepFullPath && OutputFile != null && (IsInputFolder || Directory.Exists(OutputFile))
+                    ? Path.Combine(OutputFile, additionalFile.FileName)
+                    : Path.Combine(Path.GetDirectoryName(path)!, Path.GetFileName(additionalFile.FileName));
+                DumpContentFile(additionalPath, additionalFile);
             }
 
             if (dumpSubFiles)

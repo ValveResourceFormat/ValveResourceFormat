@@ -3,6 +3,7 @@ using Datamodel;
 using ValveResourceFormat.IO.ContentFormats.DmxModel;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.ResourceTypes.ModelAnimation;
+using ValveResourceFormat.ResourceTypes.ModelAnimation2;
 using ValveResourceFormat.ResourceTypes.ModelFlex;
 
 namespace ValveResourceFormat.IO;
@@ -21,6 +22,36 @@ partial class ModelExtract
             foreach (var anim in model.GetEmbeddedAnimations())
             {
                 AnimationsToExtract.Add((anim, GetDmxFileName_ForAnimation(anim.Name)));
+            }
+        }
+    }
+
+    private void AddAnimationGraphClips(ContentFile vmdl)
+    {
+        if (Type != ModelExtractType.Default || model == null || fileLoader == null)
+        {
+            return;
+        }
+
+        foreach (var clipName in AnimationGraphLoader.GetClipNames(model, fileLoader))
+        {
+            var clipResource = fileLoader.LoadFileCompiled(clipName);
+            if (clipResource?.DataBlock is not AnimationClip)
+            {
+                continue;
+            }
+
+            try
+            {
+                var clipContent = new NmClipExtract(clipResource, fileLoader).ToContentFile();
+                clipContent.FileName = clipName;
+                clipContent.KeepFullPath = true;
+                vmdl.AdditionalFiles.Add(clipContent);
+            }
+            catch (Exception e)
+            {
+                // A single malformed clip shouldn't fail the whole model export.
+                ProgressReporter?.Report($"Skipping animation graph clip '{clipName}': {e.Message}");
             }
         }
     }

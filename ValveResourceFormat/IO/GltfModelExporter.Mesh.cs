@@ -144,10 +144,12 @@ public partial class GltfModelExporter
                 {
                     var (normals, tangents) = VBIB.GetNormalTangentArray(vertexBuffer, attribute);
                     FixZeroLengthVectors(normals);
+                    BakeDirections(normals);
 
                     if (tangents.Length > 0)
                     {
                         FixZeroLengthVectors(tangents);
+                        BakeTangents(tangents);
                         accessors["NORMAL"] = CreateAccessor(exportedModel, normals);
                         accessors["TANGENT"] = CreateAccessor(exportedModel, tangents);
                     }
@@ -180,6 +182,10 @@ public partial class GltfModelExporter
                         case 3:
                             {
                                 var vectors = VBIB.GetVector3AttributeArray(vertexBuffer, attribute);
+                                if (accessorName == "POSITION")
+                                {
+                                    BakePositions(vectors);
+                                }
                                 accessors[accessorName] = CreateAccessor(exportedModel, vectors);
                                 break;
                             }
@@ -190,6 +196,7 @@ public partial class GltfModelExporter
                                 if (accessorName == "TANGENT")
                                 {
                                     FixZeroLengthVectors(vectors);
+                                    BakeTangents(vectors);
                                 }
 
                                 accessors[accessorName] = CreateAccessor(exportedModel, vectors);
@@ -526,7 +533,9 @@ public partial class GltfModelExporter
             CreateMeshFromDrawCall(drawCall, mesh, vbib, vertexBufferAccessors, exportedModel, skinMaterialPath: null, tintColor);
 
             var newNode = scene.CreateNode(name).WithMesh(mesh);
-            newNode.WorldMatrix = transform * TRANSFORMSOURCETOGLTF;
+            // The conversion is baked into the geometry (CreateVertexBufferAccessors), so the placement
+            // transform is conjugated by it rather than multiplied on top - otherwise it applies twice.
+            newNode.WorldMatrix = GetPlacementTransform(transform);
         }
 
         return true;
@@ -544,8 +553,12 @@ public partial class GltfModelExporter
                 continue;
             }
 
+            // Morph deltas share the base mesh's vertex space, which is baked into glTF units, so bake them too.
+            var deltas = rectData[vertexOffset..(vertexOffset + vertexCount)];
+            BakePositions(deltas);
+
             var bufferView = model.CreateBufferView(3 * sizeof(float) * vertexCount, 0, BufferMode.ARRAY_BUFFER);
-            new Vector3Array(bufferView.Content).Fill(rectData[vertexOffset..(vertexOffset + vertexCount)]);
+            new Vector3Array(bufferView.Content).Fill(deltas);
 
             var acc = model.CreateAccessor();
             acc.Name = morphName;
