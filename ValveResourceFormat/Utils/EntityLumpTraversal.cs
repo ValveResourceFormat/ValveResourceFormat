@@ -29,15 +29,17 @@ namespace ValveResourceFormat.Utils
             Matrix4x4 rootTransform,
             Action<string>? onMissingChildLump = null)
         {
-            return Traverse(lump, resolveChildLump, rootTransform, fromTemplate: false, [], onMissingChildLump);
+            return Traverse(lump, resolveChildLump, rootTransform, fromTemplate: false, [], [], onMissingChildLump);
         }
 
+        // Lazily mutates childLumps/visited during enumeration; safe because both consumers materialize the result.
         private static IEnumerable<TraversedEntity> Traverse(
             VEntityLump lump,
             Func<string, VEntityLump?> resolveChildLump,
             Matrix4x4 parentTransform,
             bool fromTemplate,
             Dictionary<string, VEntityLump> childLumps,
+            HashSet<string> visited,
             Action<string>? onMissingChildLump)
         {
             foreach (var childLumpName in lump.GetChildEntityNames())
@@ -70,9 +72,15 @@ namespace ValveResourceFormat.Utils
 
                 if (childLumps.TryGetValue(entityLumpName, out var templateLump))
                 {
+                    // guard against a malformed template cycle (A's lump references B's, B's back to A)
+                    if (!visited.Add(entityLumpName))
+                    {
+                        continue;
+                    }
+
                     var childTransform = EntityTransformHelper.CalculateRigidTransformationMatrix(entity) * parentTransform;
 
-                    foreach (var nested in Traverse(templateLump, resolveChildLump, childTransform, fromTemplate: true, childLumps, onMissingChildLump))
+                    foreach (var nested in Traverse(templateLump, resolveChildLump, childTransform, fromTemplate: true, childLumps, visited, onMissingChildLump))
                     {
                         yield return nested;
                     }

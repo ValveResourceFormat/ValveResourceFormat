@@ -25,6 +25,11 @@ namespace ValveResourceFormat.Renderer.World
         private readonly Scene scene;
         private readonly RendererContext RendererContext;
 
+        // Need these lookups until entities are reworked into a proper hierarchy.
+        private readonly Dictionary<string, ModelSceneNode> entityModelNodesByName = new(StringComparer.OrdinalIgnoreCase);
+        private readonly List<SceneNode> attachmentChildNodes = [];
+        private readonly List<SceneNode> attachmentDefaultNodes = [];
+
         /// <summary>The directory path of the map, e.g. <c>maps/de_dust2</c>.</summary>
         public string MapName { get; }
 
@@ -217,6 +222,8 @@ namespace ValveResourceFormat.Renderer.World
                 LoadEntitiesFromLump(entityLump, "Entities", Matrix4x4.Identity);
             }
 
+            ResolveAttachmentParenting();
+
             Action<List<SceneLight>> lightEntityStore = (scene.LightingInfo.LightmapVersionNumber, scene.LightingInfo.LightmapGameVersionNumber) switch
             {
                 (6, 0) or (8, 0) or (8, 1) => scene.LightingInfo.StoreLightMappedLights_V1,
@@ -227,6 +234,57 @@ namespace ValveResourceFormat.Renderer.World
                 scene.AllNodes.Where(static n => n is SceneLight).Cast<SceneLight>().ToList()
             );
         }
+
+        /// <summary>
+        /// Snaps attachment-parented entities (<c>parentname</c> + <c>parentattachmentname</c>) onto the
+        /// parent's attachment, the way the engine does at spawn — the attachment's position and rotation
+        /// with the child's own scale, never the parent's scale, and regardless of <c>uselocaloffset</c>
+        /// (the engine ignores it here too). Model-less default-entity icons only follow its position.
+        /// </summary>
+        private void ResolveAttachmentParenting()
+        {
+            foreach (var node in attachmentChildNodes)
+            {
+                if (TryResolveAttachment(node, out var attachment))
+                {
+                    var scale = node.EntityData!.GetVector3Property("scales", Vector3.One);
+                    node.Transform = EntityTransformHelper.RebuildWithScale(attachment, scale);
+                }
+            }
+
+            foreach (var node in attachmentDefaultNodes)
+            {
+                if (TryResolveAttachment(node, out var attachment))
+                {
+                    var transform = node.Transform;
+                    transform.Translation = attachment.Translation;
+                    node.Transform = transform;
+                }
+            }
+        }
+
+        private bool TryResolveAttachment(SceneNode node, out Matrix4x4 attachment)
+        {
+            attachment = Matrix4x4.Identity;
+            var entity = node.EntityData!;
+
+            var parentName = entity.GetStringProperty("parentname");
+            var attachmentName = entity.GetStringProperty("parentattachmentname");
+
+            if (parentName is null || attachmentName is null
+                || !entityModelNodesByName.TryGetValue(parentName, out var parentNode)
+                || !parentNode.Attachments.ContainsKey(attachmentName))
+            {
+                return false;
+            }
+
+            attachment = parentNode.GetAttachmentTransform(attachmentName);
+            return true;
+        }
+
+        private static bool IsAttachmentParented(Entity entity)
+            => !string.IsNullOrEmpty(entity.GetStringProperty("parentname"))
+            && !string.IsNullOrEmpty(entity.GetStringProperty("parentattachmentname"));
 
         /// <summary>
         /// Loads all world nodes (<c>.vwnod_c</c>) referenced by the world into the scene.
@@ -417,32 +475,8 @@ namespace ValveResourceFormat.Renderer.World
 
         internal const string ToolEntitiesLayerName = "Tool Entities";
 
-        private void LoadEntitiesFromLump(EntityLump entityLump, string originalLayerName, Matrix4x4 parentTransform)
+        private void LoadEntitiesFromLump(EntityLump entityLump, string originalLayerName, Matrix4x4 rootTransform)
         {
-            var childEntities = entityLump.GetChildEntityNames();
-            var childEntityLumps = new Dictionary<string, EntityLump>(childEntities.Length);
-
-            foreach (var childEntityName in childEntities)
-            {
-                var newResource = RendererContext.FileLoader.LoadFileCompiled(childEntityName);
-
-                if (newResource == null)
-                {
-                    continue;
-                }
-
-                var childLump = (EntityLump?)newResource.DataBlock;
-
-                if (childLump == null)
-                {
-                    continue;
-                }
-
-                var childName = childLump.Name;
-
-                childEntityLumps.Add(childName, childLump);
-            }
-
             static bool IsCubemapOrProbe(string cls)
                 => cls == "env_combined_light_probe_volume"
                 || cls == "env_light_probe_volume"
@@ -452,16 +486,22 @@ namespace ValveResourceFormat.Renderer.World
             static bool IsFog(string cls)
                 => cls is "env_cubemap_fog" or "env_gradient_fog";
 
-            var entities = entityLump.GetEntities().ToList();
-            var entitiesReordered = entities
-                .Select(e => (Entity: e, Classname: e.GetStringProperty("classname")))
+            var traversed = EntityLumpTraversal.EnumerateEntities(
+                entityLump,
+                name => RendererContext.FileLoader.LoadFileCompiled(name)?.DataBlock as EntityLump,
+                rootTransform,
+                onMissingChildLump: name => RendererContext.Logger.LogWarning("Failed to find child entity lump with name {EntityLumpName}", name))
+                .ToList();
+
+            var entitiesReordered = traversed
+                .Select(t => (t.Entity, t.ParentTransform, t.FromTemplate, Classname: t.Entity.GetStringProperty("classname")))
                 .Where(x => x.Classname != null)
-                .Select(x => (x.Entity, Classname: x.Classname!))
+                .Select(x => (x.Entity, x.ParentTransform, x.FromTemplate, Classname: x.Classname!))
                 .OrderByDescending(x => IsCubemapOrProbe(x.Classname) || IsFog(x.Classname));
 
-            Entities.AddRange(entities);
+            Entities.AddRange(traversed.Select(t => t.Entity));
 
-            void LoadEntity(string classname, Entity entity)
+            void LoadEntity(string classname, Entity entity, Matrix4x4 parentTransform, bool fromTemplate)
             {
                 if (classname == "worldspawn")
                 {
@@ -469,6 +509,7 @@ namespace ValveResourceFormat.Renderer.World
                 }
 
                 var transformationMatrix = EntityTransformHelper.CalculateTransformationMatrix(entity) * parentTransform;
+                var isAttachmentParented = IsAttachmentParented(entity);
                 var light = SceneLight.IsAccepted(classname);
 
                 if (entity.Connections != null)
@@ -476,7 +517,11 @@ namespace ValveResourceFormat.Renderer.World
                     CreateEntityConnectionLines(entity, transformationMatrix.Translation);
                 }
 
-                var layerName = originalLayerName;
+                var layerName = fromTemplate ? "Template Entities" : originalLayerName;
+
+                // group the point_template marker and its spawned children under the same layer
+                var toolEntityLayer = fromTemplate || classname == "point_template" ? "Template Entities" : ToolEntitiesLayerName;
+
                 var disabled = entity.GetBooleanProperty("startdisabled");
 
                 if (!disabled)
@@ -511,19 +556,6 @@ namespace ValveResourceFormat.Renderer.World
                     lightNode.LayerName = layerName;
                     lightNode.Flags |= ObjectTypeFlags.NoShadows;
                     scene.Add(lightNode, true);
-                }
-                else if (classname == "point_template")
-                {
-                    var entityLumpName = entity.GetStringProperty("entitylumpname");
-
-                    if (entityLumpName != null && childEntityLumps.TryGetValue(entityLumpName, out var childLump))
-                    {
-                        LoadEntitiesFromLump(childLump, entityLumpName, transformationMatrix);
-                    }
-                    else
-                    {
-                        RendererContext.Logger.LogWarning("Failed to find child entity lump with name {EntityLumpName}", entityLumpName);
-                    }
                 }
                 else if (classname == "env_sky" || classname == "env_global_light")
                 {
@@ -1043,7 +1075,7 @@ namespace ValveResourceFormat.Renderer.World
 
                 if (model == null)
                 {
-                    CreateDefaultEntity(entity, classname, transformationMatrix, entityFlags);
+                    CreateDefaultEntity(entity, classname, transformationMatrix, entityFlags, toolEntityLayer);
                     return;
                 }
 
@@ -1094,6 +1126,12 @@ namespace ValveResourceFormat.Renderer.World
 
                 modelNode.Flags |= entityFlags;
 
+                var modelTargetName = entity.GetStringProperty("targetname");
+                if (!string.IsNullOrEmpty(modelTargetName))
+                {
+                    entityModelNodesByName[modelTargetName] = modelNode;
+                }
+
                 if (modelNode.HasMeshes)
                 {
                     // Animation
@@ -1118,6 +1156,11 @@ namespace ValveResourceFormat.Renderer.World
                     }
 
                     scene.Add(modelNode, true);
+
+                    if (isAttachmentParented)
+                    {
+                        attachmentChildNodes.Add(modelNode);
+                    }
                 }
 
                 var phys = newModel?.GetEmbeddedPhys();
@@ -1143,20 +1186,25 @@ namespace ValveResourceFormat.Renderer.World
                         physSceneNode.EntityData = entity;
 
                         scene.Add(physSceneNode, true);
+
+                        if (isAttachmentParented)
+                        {
+                            attachmentChildNodes.Add(physSceneNode);
+                        }
                     }
                 }
                 else if (!modelNode.HasMeshes)
                 {
                     // If the loaded model has no meshes and has no physics, fallback to default entity
-                    CreateDefaultEntity(entity, classname, transformationMatrix);
+                    CreateDefaultEntity(entity, classname, transformationMatrix, layerName: toolEntityLayer);
                 }
             }
 
-            foreach (var (entity, classname) in entitiesReordered)
+            foreach (var (entity, parentTransform, fromTemplate, classname) in entitiesReordered)
             {
                 try
                 {
-                    LoadEntity(classname, entity);
+                    LoadEntity(classname, entity, parentTransform, fromTemplate);
                 }
                 catch (Exception e)
                 {
@@ -1299,9 +1347,10 @@ namespace ValveResourceFormat.Renderer.World
             }
         }
 
-        private void CreateDefaultEntity(Entity entity, string classname, Matrix4x4 transformationMatrix, ObjectTypeFlags flags = ObjectTypeFlags.None)
+        private void CreateDefaultEntity(Entity entity, string classname, Matrix4x4 transformationMatrix, ObjectTypeFlags flags = ObjectTypeFlags.None, string layerName = ToolEntitiesLayerName)
         {
             var hammerEntity = HammerEntities.Get(classname);
+            var attachmentParented = IsAttachmentParented(entity);
             string? filename = null;
             Resource? resource = null;
 
@@ -1330,12 +1379,17 @@ namespace ValveResourceFormat.Renderer.World
                 var boxNode = new SimpleBoxSceneNode(scene, color, new Vector3(16f))
                 {
                     Transform = rotationMatrix * Matrix4x4.CreateTranslation(positionVector),
-                    LayerName = ToolEntitiesLayerName,
+                    LayerName = layerName,
                     Name = filename,
                     EntityData = entity,
                     Flags = flags,
                 };
                 scene.Add(boxNode, true);
+
+                if (attachmentParented)
+                {
+                    attachmentDefaultNodes.Add(boxNode);
+                }
             }
             else if (resource.ResourceType == ResourceType.Model && resource.DataBlock is Model modelData)
             {
@@ -1344,24 +1398,34 @@ namespace ValveResourceFormat.Renderer.World
                     : new ModelSceneNode(scene, modelData, null, isWorldPreview: true) { Name = filename };
 
                 modelNode.Transform = transformationMatrix;
-                modelNode.LayerName = ToolEntitiesLayerName;
+                modelNode.LayerName = layerName;
                 modelNode.EntityData = entity;
                 modelNode.Flags |= flags;
 
                 var isAnimated = modelNode.SetAnimationForWorldPreview("tools_preview");
 
                 scene.Add(modelNode, true);
+
+                if (attachmentParented)
+                {
+                    attachmentDefaultNodes.Add(modelNode);
+                }
             }
             else if (resource.ResourceType == ResourceType.Material)
             {
                 var spriteNode = new SpriteSceneNode(scene, RendererContext, resource, transformationMatrix.Translation)
                 {
-                    LayerName = ToolEntitiesLayerName,
+                    LayerName = layerName,
                     Name = filename,
                     EntityData = entity,
                     Flags = flags,
                 };
                 scene.Add(spriteNode, true);
+
+                if (attachmentParented)
+                {
+                    attachmentDefaultNodes.Add(spriteNode);
+                }
             }
             else
             {
@@ -1410,7 +1474,7 @@ namespace ValveResourceFormat.Renderer.World
 
                     var lineNode = new LineSceneNode(scene, start, end, line.Color, line.Color)
                     {
-                        LayerName = ToolEntitiesLayerName,
+                        LayerName = layerName,
                         Transform = Matrix4x4.CreateTranslation(origin)
                     };
                     scene.Add(lineNode, true);

@@ -1222,6 +1222,11 @@ public sealed class MapExtract
     }
 
     #region Entities
+    // Child lumps discovered while walking, keyed by name so a point_template can claim its own lump by
+    // entitylumpname (see GatherEntitiesFromLump below). Whatever is left once the root walk finishes was
+    // not referenced by any template, i.e. orphans to emit at their stored positions.
+    // The renderer and glTF exporter share EntityLumpTraversal for the same walk; we keep a separate copy
+    // here because extraction additionally needs orphan emission and parent-transform threading.
     private readonly Dictionary<string, EntityLump> ChildEntityLumps = [];
 
     private void GatherEntitiesFromLump(EntityLump entityLump)
@@ -1282,7 +1287,8 @@ public sealed class MapExtract
             var worldTransform = parentTransform is { } parent ? localTransform * parent : localTransform;
             if (parentTransform is not null)
             {
-                // parent transform is rigid (only rotation and translation)
+                // parent transform is rigid (rotation and translation only), so worldTransform is affine and
+                // decomposes cleanly unless the child itself shears (non-uniform scale + rotation)
                 _ = Matrix4x4.Decompose(worldTransform, out var scales, out var rotation, out var translation);
                 mapEntity.Origin = translation;
                 mapEntity.Angles = ModelExtract.ToEulerAngles(rotation);
