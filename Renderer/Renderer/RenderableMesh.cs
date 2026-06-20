@@ -371,10 +371,13 @@ namespace ValveResourceFormat.Renderer
             {
                 var indexBufferObject = objectDrawCall.GetSubCollection("m_indexBuffer");
                 var bufferIndex = indexBufferObject.GetUInt32Property("m_hBuffer");
+                var indexBindOffset = indexBufferObject.GetUInt32Property("m_nBindOffsetBytes");
+                Debug.Assert(indexBindOffset == 0, "Non-zero index buffer bind offset is not currently applied at draw time");
+
                 var indexBuffer = new IndexDrawBuffer
                 {
                     Handle = gpuVbib.IndexBuffers[(int)bufferIndex],
-                    Offset = indexBufferObject.GetUInt32Property("m_nBindOffsetBytes")
+                    Offset = indexBindOffset
                 };
                 drawCall.IndexBuffer = indexBuffer;
 
@@ -443,10 +446,13 @@ namespace ValveResourceFormat.Renderer
                         inputLayoutFields = [.. newInputLayout];
                     }
 
+                    var vertexBindOffset = vertexBufferObject.GetUInt32Property("m_nBindOffsetBytes");
+                    Debug.Assert(vertexBindOffset == 0, "Non-zero vertex buffer bind offset is not currently applied at draw time");
+
                     var vertexBuffer = new VertexDrawBuffer
                     {
                         Handle = gpuVbib.VertexBuffers[(int)bufferIndex],
-                        Offset = vertexBufferObject.GetUInt32Property("m_nBindOffsetBytes"),
+                        Offset = vertexBindOffset,
                         ElementSizeInBytes = vertexBufferVbib.ElementSizeInBytes,
                         InputLayoutFields = inputLayoutFields,
                     };
