@@ -91,8 +91,6 @@ void main()
     vTangentOut = normalize(normalTransform * tangent.xyz);
     vBitangentOut = tangent.w * cross(vNormalOut, vTangentOut);
 
-    gl_Position = g_matWorldToProjection * vec4(vFragPosition, 1.0);
-
     vTexCoordOut = GetAnimatedUVs(vTEXCOORD.xy);
 
 #if (D_BAKED_LIGHTING_FROM_LIGHTMAP == 1)
