@@ -161,7 +161,7 @@ namespace GUI.Types.Viewers
                 case ResourceType.AnimationGraph:
                     if (resource.DataBlock is AnimGraph animGraphData)
                     {
-                        GLViewer = new GLAnimGraphViewer(vrfGuiContext, rendererContext, animGraphData);
+                        GLViewer = new AG1GraphViewer(vrfGuiContext, rendererContext, animGraphData.Data);
                         GLViewerTabName = "ANIMATION GRAPH";
                     }
                     break;
