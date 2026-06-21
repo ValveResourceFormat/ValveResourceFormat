@@ -385,6 +385,7 @@ public class ViewmodelSceneNode : ModelSceneNode
 
         Span<string> resources = [
             "agents/models/ctm_st6/ctm_st6_varianti.vmdl",
+            "weapons/models/shared/stattrak/stattrak_module.vmdl",
             "weapons/models/m4a1_silencer/weapon_rif_m4a1_silencer.vmdl",
             "weapons/models/usp_silencer/weapon_pist_usp_silencer.vmdl",
             "weapons/models/knife/knife_karambit/weapon_knife_karambit.vmdl",
@@ -403,10 +404,20 @@ public class ViewmodelSceneNode : ModelSceneNode
         }
 
         var viewmodel = new ViewmodelSceneNode(scene, models[0]);
-        foreach (var item in models[1..])
+        foreach (var item in models[2..])
         {
             viewmodel.AddItem(item);
         }
+
+        var primary = viewmodel.Items[0]!;
+        var stattrakModule = new ModelSceneNode(scene, models[1])
+        {
+            LayerName = WorldLayerName,
+            Flags = ObjectTypeFlags.DisableVisCulling,
+        };
+
+        scene.Add(stattrakModule, true);
+        primary.AttachNode(stattrakModule, "stattrak");
 
         viewmodel.SelectedItemIndex = 2;
         viewmodel.SelectedItemIndex = 3;
