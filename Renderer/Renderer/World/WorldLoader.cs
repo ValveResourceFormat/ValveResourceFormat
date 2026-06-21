@@ -231,30 +231,38 @@ namespace ValveResourceFormat.Renderer.World
         }
 
         /// <summary>
-        /// Parents attachment-parented entities (<c>parentname</c> + <c>parentattachmentname</c>) to the
-        /// parent's attachment, the way the engine does — the child follows the attachment's position and
-        /// rotation each frame, regardless of <c>uselocaloffset</c> (the engine ignores it here too).
-        /// Done after all entities are loaded so the parent is registered regardless of spawn order.
+        /// Parents entities with a <c>parentname</c> to that parent each frame — snapping onto the
+        /// <c>parentattachmentname</c> attachment when one is given, otherwise following the parent's
+        /// transform. <c>uselocaloffset</c> is ignored, as the engine does here too. Done after all
+        /// entities are loaded so the parent is registered regardless of spawn order.
         /// </summary>
         private void ResolveAttachmentParenting()
         {
             foreach (var node in scene.AllNodes)
             {
                 var parentName = node.EntityData?.GetStringProperty("parentname");
-                var attachmentName = node.EntityData?.GetStringProperty("parentattachmentname");
 
-                if (parentName is null || attachmentName is null)
+                if (parentName is null)
                 {
                     continue;
                 }
 
                 var parentNode = FindModelNodeByTargetName(parentName);
 
-                if (parentNode != null && parentNode.Attachments.ContainsKey(attachmentName))
+                if (parentNode is null)
                 {
-                    var scale = node.EntityData!.GetVector3Property("scales", Vector3.One);
-                    parentNode.AttachNode(node, attachmentName, scale: scale);
+                    continue;
                 }
+
+                // with an attachment the child snaps onto it; without one it just follows the parent
+                var attachmentName = node.EntityData!.GetStringProperty("parentattachmentname");
+
+                if (attachmentName != null && !parentNode.Attachments.ContainsKey(attachmentName))
+                {
+                    continue;
+                }
+
+                parentNode.AttachNode(node, attachmentName ?? "");
             }
         }
 

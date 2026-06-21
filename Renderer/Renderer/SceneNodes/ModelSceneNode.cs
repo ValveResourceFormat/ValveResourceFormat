@@ -53,7 +53,7 @@ namespace ValveResourceFormat.Renderer.SceneNodes
         public Dictionary<string, Attachment> Attachments { get; }
 
         /// <summary>Gets the list of nodes attached to this model and the attachment points used.</summary>
-        public List<(SceneNode Node, string AttachmentName, Vector3 Offset, Quaternion Rotation, Vector3 Scale)> AttachedNodes { get; } = [];
+        public List<(SceneNode Node, string AttachmentName, Vector3 Offset, Quaternion Rotation)> AttachedNodes { get; } = [];
 
         /// <summary>Gets the name of the currently active material group (skin).</summary>
         public string ActiveMaterialGroup => activeMaterialGroup.Name;
@@ -315,8 +315,9 @@ namespace ValveResourceFormat.Renderer.SceneNodes
                 var child = attachment.Node;
                 var oldBounds = child.BoundingBox;
 
-                var localTransform = Matrix4x4.CreateScale(attachment.Scale) * Matrix4x4.CreateFromQuaternion(attachment.Rotation) * Matrix4x4.CreateTranslation(attachment.Offset);
-                child.Transform = localTransform * GetAttachmentTransform(attachment.AttachmentName);
+                // keep the child's own scale; the parent drives the rest of its transform
+                var localTransform = Matrix4x4.CreateScale(GetScale(child.Transform)) * Matrix4x4.CreateFromQuaternion(attachment.Rotation) * Matrix4x4.CreateTranslation(attachment.Offset);
+                child.Transform = localTransform * GetAttachmentOrSelfTransform(attachment.AttachmentName);
                 child.Update(context);
 
                 if (child.LayerEnabled)
@@ -324,6 +325,25 @@ namespace ValveResourceFormat.Renderer.SceneNodes
                     child.Scene.DynamicOctree.Update(child, oldBounds);
                 }
             }
+        }
+
+        // The parent anchor for an attached child: the attachment point's world transform, or the model's
+        // own transform when no attachment is named. Rigid (no scale) because Source 2 does not propagate the
+        // parent's scale to attachment-parented children.
+        private Matrix4x4 GetAttachmentOrSelfTransform(string attachmentName)
+            => GetRigidTransform(string.IsNullOrEmpty(attachmentName) ? Transform : GetAttachmentTransform(attachmentName));
+
+        // Rotation and translation only, with scale removed.
+        private static Matrix4x4 GetRigidTransform(Matrix4x4 transform)
+        {
+            Matrix4x4.Decompose(transform, out _, out var rotation, out var translation);
+            return Matrix4x4.CreateFromQuaternion(rotation) * Matrix4x4.CreateTranslation(translation);
+        }
+
+        private static Vector3 GetScale(Matrix4x4 transform)
+        {
+            Matrix4x4.Decompose(transform, out var scale, out _, out _);
+            return scale;
         }
 
         /// <inheritdoc/>
@@ -528,22 +548,20 @@ namespace ValveResourceFormat.Renderer.SceneNodes
         }
 
         /// <summary>
-        /// Attaches another <see cref="SceneNode"/> to this model with optional attachment point, offset, rotation and scale.
+        /// Attaches another <see cref="SceneNode"/> to this model with optional attachment point, offset and rotation.
         /// </summary>
         /// <param name="node">The child model to attach.</param>
         /// <param name="attachmentName">The attachment point name.</param>
         /// <param name="offset">The local offset from the attachment point.</param>
         /// <param name="rotation">The local rotation from the attachment point.</param>
-        /// <param name="scale">The local scale to keep on the child, defaults to no scaling.</param>
         public void AttachNode(SceneNode node,
             string attachmentName = "",
             Vector3 offset = default,
-            Quaternion rotation = default,
-            Vector3? scale = null)
+            Quaternion rotation = default)
         {
             node.Parent = this;
             AttachedNodes.RemoveAll(entry => entry.Node == node);
-            AttachedNodes.Add((node, attachmentName, offset, rotation, scale ?? Vector3.One));
+            AttachedNodes.Add((node, attachmentName, offset, rotation));
         }
 
         /// <summary>
