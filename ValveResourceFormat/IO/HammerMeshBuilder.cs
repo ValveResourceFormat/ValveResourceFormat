@@ -647,7 +647,7 @@ namespace ValveResourceFormat.IO
             return mesh;
         }
 
-        public void AddVertices(VertexStreams streams, Vector3 positionOffset)
+        public void AddVertices(VertexStreams streams, Vector3 positionOffset = new Vector3())
         {
             vertexStreams = streams;
 
@@ -1228,13 +1228,20 @@ namespace ValveResourceFormat.IO
             }
         }
 
-        public void AddRenderMesh(DmeMesh shape, Vector3 positionOffset)
+        public void AddRenderMesh(DmeMesh shape, Matrix4x4 transform)
         {
             var facesets = shape.FaceSets;
 
             var vertexdata = (DmeVertexData)shape.BaseStates[0];
 
             var baseVertex = Vertices.Count;
+
+            var hasTransform = !transform.IsIdentity;
+            var normalMatrix = Matrix4x4.Identity;
+            if (hasTransform && Matrix4x4.Invert(transform, out var inverse))
+            {
+                normalMatrix = Matrix4x4.Transpose(inverse);
+            }
 
             var positions = GetElementArraySafe<Vector3>(vertexdata, "position$0");
             var texcoords = GetElementArraySafe<Vector2>(vertexdata, "texcoord$0");
@@ -1347,6 +1354,11 @@ namespace ValveResourceFormat.IO
                 }
             }
 
+            if (hasTransform)
+            {
+                TransformVertexStreams(newVertices, newNormals, newTangents, transform, normalMatrix);
+            }
+
             VertexStreams streams = new()
             {
                 positions = newVertices,
@@ -1358,11 +1370,31 @@ namespace ValveResourceFormat.IO
                 VertexPaintTintColor = newVertexPaintTintColor,
             };
 
-            AddVertices(streams, positionOffset);
+            AddVertices(streams);
 
             foreach (var face in faceList)
             {
                 AddFace(CollectionsMarshal.AsSpan(face.Item1), face.Item2.Material.MaterialName);
+            }
+        }
+
+        private static void TransformVertexStreams(List<Vector3> positions, List<Vector3> normals, List<Vector4> tangents, Matrix4x4 transform, Matrix4x4 normalMatrix)
+        {
+            for (var i = 0; i < positions.Count; i++)
+            {
+                positions[i] = Vector3.Transform(positions[i], transform);
+            }
+
+            for (var i = 0; i < normals.Count; i++)
+            {
+                normals[i] = Vector3.Normalize(Vector3.TransformNormal(normals[i], normalMatrix));
+            }
+
+            for (var i = 0; i < tangents.Count; i++)
+            {
+                var tangent = tangents[i];
+                var direction = Vector3.Normalize(Vector3.TransformNormal(new Vector3(tangent.X, tangent.Y, tangent.Z), transform));
+                tangents[i] = new Vector4(direction, tangent.W);
             }
         }
 
