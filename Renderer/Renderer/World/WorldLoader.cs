@@ -254,15 +254,21 @@ namespace ValveResourceFormat.Renderer.World
                     continue;
                 }
 
-                // with an attachment the child snaps onto it; without one it just follows the parent
                 var attachmentName = node.EntityData!.GetStringProperty("parentattachmentname");
 
-                if (attachmentName != null && !parentNode.Attachments.ContainsKey(attachmentName))
+                if (attachmentName != null)
                 {
-                    continue;
+                    // attachment parenting snaps the child onto the attachment point
+                    if (parentNode.Attachments.ContainsKey(attachmentName))
+                    {
+                        parentNode.AttachNode(node, attachmentName);
+                    }
                 }
-
-                parentNode.AttachNode(node, attachmentName ?? "");
+                else
+                {
+                    // plain parenting keeps the child where it is, so it only moves if the parent does
+                    parentNode.AttachNodeKeepingTransform(node);
+                }
             }
         }
 

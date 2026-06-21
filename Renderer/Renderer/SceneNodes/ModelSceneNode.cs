@@ -565,6 +565,20 @@ namespace ValveResourceFormat.Renderer.SceneNodes
         }
 
         /// <summary>
+        /// Attaches <paramref name="node"/> so it keeps its current world position relative to this model,
+        /// following the model if it later moves. Used for plain <c>parentname</c> parenting (no attachment point),
+        /// where the child stays where it was authored instead of snapping onto the parent.
+        /// </summary>
+        /// <param name="node">The child to attach.</param>
+        public void AttachNodeKeepingTransform(SceneNode node)
+        {
+            Matrix4x4.Invert(GetRigidTransform(Transform), out var anchorInverse);
+            var local = GetRigidTransform(node.Transform) * anchorInverse;
+            Matrix4x4.Decompose(local, out _, out var rotation, out var offset);
+            AttachNode(node, offset: offset, rotation: rotation);
+        }
+
+        /// <summary>
         /// Gets the world transform for the specified attachment point.
         /// </summary>
         public Matrix4x4 GetAttachmentTransform(string attachmentName)
