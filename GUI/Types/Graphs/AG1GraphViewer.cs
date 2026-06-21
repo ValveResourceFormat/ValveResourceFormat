@@ -23,6 +23,7 @@ internal class AG1GraphViewer : GLNodeGraphViewer
     private readonly Dictionary<int, Node> nodeMap = new();
     private readonly Dictionary<int, KVObject> parameterIndexToObject = new();
     private readonly Dictionary<int, string> parameterIndexToName = new();
+    private readonly Dictionary<KVObject, int> parameterObjectToIndex = new();
     private readonly Dictionary<string, List<KVObject>> typeToParameters = new();
     private List<KVObject> tags = new();
     private Dictionary<int, string> tagIndexToName = new();
@@ -65,6 +66,38 @@ internal class AG1GraphViewer : GLNodeGraphViewer
     private static SKColor StateMachineColor { get; set; } = new SKColor(44, 57, 89);
     private static SKColor FinalPoseColor { get; set; } = new SKColor(149, 121, 65);
     private static SKColor PoseColor { get; set; } = new SKColor(173, 255, 47);          // Default fallback
+
+    private static readonly SKColor ParamBoolColor = new SKColor(25, 78, 101);
+    private static readonly SKColor ParamIntColor = new SKColor(145, 102, 54);
+    private static readonly SKColor ParamFloatColor = new SKColor(163, 171, 37);
+    private static readonly SKColor ParamEnumColor = new SKColor(89, 27, 111);
+    private static readonly SKColor ParamVectorColor = new SKColor(26, 122, 59);
+    private static readonly SKColor ParamQuaternionColor = new SKColor(123, 58, 60);
+    private static readonly SKColor ParamSymbolColor = new SKColor(200, 200, 200);
+    private static readonly SKColor ParamVirtualColor = new SKColor(150, 150, 150);
+    private static readonly SKColor ParamUnknownColor = new SKColor(128, 128, 128);
+    private static readonly SKColor TagColor = new SKColor(100, 200, 200);
+
+    private static readonly Dictionary<string, SKColor> TagClassColors = new(StringComparer.Ordinal)
+    {
+        ["CAudioAnimTag"] = new SKColor(141, 59, 9),
+        ["CBodyGroupAnimTag"] = new SKColor(26, 122, 59),
+        ["CClothSettingsAnimTag"] = new SKColor(117, 124, 136),
+        ["CFootFallAnimTag"] = new SKColor(150, 255, 150),
+        ["CFootstepLandedAnimTag"] = new SKColor(71, 71, 34),
+        ["CMaterialAttributeAnimTag"] = new SKColor(16, 157, 205),
+        ["CParticleAnimTag"] = new SKColor(118, 78, 153),
+        ["CRagdollAnimTag"] = new SKColor(221, 209, 34),
+        ["CSequenceFinishedAnimTag"] = new SKColor(200, 180, 255),
+        ["CStringAnimTag"] = new SKColor(163, 22, 99),
+        ["CTaskStatusAnimTag"] = new SKColor(38, 111, 118),
+        ["CWarpSectionAnimTag"] = new SKColor(200, 220, 150),
+    };
+
+    private static SKColor GetTagClassColor(string className)
+    {
+        return TagClassColors.TryGetValue(className, out var color) ? color : TagColor;
+    }
 
     // ---- Dictionaries for class-based lookups ----
     private static readonly Dictionary<string, string> ClassDisplayName = new(StringComparer.Ordinal)
@@ -152,7 +185,7 @@ internal class AG1GraphViewer : GLNodeGraphViewer
     };
     private static readonly HashSet<string> GlobalPropertySkips = new(StringComparer.Ordinal)
     {
-        "m_name",          // Displayed as node title
+        "m_name",
     };
 
     private static readonly Dictionary<string, string> PropertyDisplayNames = new(StringComparer.Ordinal)
@@ -199,6 +232,8 @@ internal class AG1GraphViewer : GLNodeGraphViewer
         }
 
         CreateGraph();
+        AddParameterAndTagNodes();
+        nodeGraph.LayoutNodes();
     }
 
     private void LoadParameters()
@@ -234,6 +269,7 @@ internal class AG1GraphViewer : GLNodeGraphViewer
             {
                 parameterIndexToName[i] = name;
                 parameterIndexToObject[i] = param;
+                parameterObjectToIndex[param] = i;
 
                 var className = param.GetStringProperty("_class");
                 var type = ClassNameToParamType(className);
@@ -523,7 +559,6 @@ internal class AG1GraphViewer : GLNodeGraphViewer
 
             var childIndices = new HashSet<int>();
 
-            // --- m_children array ---
             if (compiledNode.ContainsKey("m_children"))
             {
                 var children = compiledNode.GetArray("m_children");
@@ -542,7 +577,6 @@ internal class AG1GraphViewer : GLNodeGraphViewer
                 }
             }
 
-            // --- Single child properties ---
             foreach (var prop in ChildProperties)
             {
                 if (compiledNode.ContainsKey(prop))
@@ -556,7 +590,6 @@ internal class AG1GraphViewer : GLNodeGraphViewer
                 }
             }
 
-            // --- Blend 2D items ---
             if (className == "CBlend2DUpdateNode" && compiledNode.ContainsKey("m_items"))
             {
                 var items = compiledNode.GetArray("m_items");
@@ -574,7 +607,6 @@ internal class AG1GraphViewer : GLNodeGraphViewer
                 }
             }
 
-            // --- State machine children ---
             if (className == "CStateMachineUpdateNode" && compiledNode.ContainsKey("m_stateData"))
             {
                 var stateDataArray = compiledNode.GetArray("m_stateData");
@@ -593,7 +625,6 @@ internal class AG1GraphViewer : GLNodeGraphViewer
                 }
             }
 
-            // ---- For Choice nodes, prepare weight/blendTime map ----
             Dictionary<int, (float weight, float blendTime)>? choiceWeightMap = null;
             if (className == "CChoiceUpdateNode")
             {
@@ -625,11 +656,11 @@ internal class AG1GraphViewer : GLNodeGraphViewer
                     }
                 }
             }
-            // ---- For Selector nodes, build enum option map ----
+
             Dictionary<int, string>? selectorOptionMap = null;
             if (className == "CSelectorUpdateNode")
             {
-                // Try to get the parameter handle
+
                 KVObject? paramHandle = null;
                 if (compiledNode.ContainsKey("m_hParameter"))
                     paramHandle = compiledNode.GetSubCollection("m_hParameter");
@@ -648,8 +679,7 @@ internal class AG1GraphViewer : GLNodeGraphViewer
                             if (enumOptions.Length > 0)
                             {
                                 selectorOptionMap = new Dictionary<int, string>();
-                                // If the number of children matches the number of options, map them directly.
-                                // Otherwise, we fall back to "Option X".
+
                                 var children = compiledNode.GetArray("m_children");
                                 for (int c = 0; c < children.Count; c++)
                                 {
@@ -669,10 +699,8 @@ internal class AG1GraphViewer : GLNodeGraphViewer
                         }
                     }
                 }
-                // If no enum options, we'll fallback to default labelling later.
             }
 
-            // Now connect each child
             foreach (int childIdx in childIndices)
             {
                 if (!nodeMap.TryGetValue(childIdx, out var childNode))
@@ -685,7 +713,7 @@ internal class AG1GraphViewer : GLNodeGraphViewer
                 }
 
                 string inputLabel = $"Child {childIdx}";
-                // Special labelling
+
                 if (className == "CStateMachineUpdateNode")
                 {
                     if (compiledNode.ContainsKey("m_stateData") && compiledNode.ContainsKey("m_stateMachine"))
@@ -771,33 +799,28 @@ internal class AG1GraphViewer : GLNodeGraphViewer
             node.HeaderColor = color;
         else
             node.HeaderColor = PoseColor;
-        // ---- Detect NetworkMode and color the body ----
+
         string networkMode = compiledNode.GetStringProperty("m_networkMode", "");
         if (networkMode.Equals("ClientSimulate", StringComparison.Ordinal))
         {
-            // Change the body (gray part) to the client‑simulate color
+
             node.SetBaseColor(ClientSimulateColor);
         }
 
-        // ---- Determine which keys to skip for this class ----
         HashSet<string>? skipKeys = null;
         if (className != null)
             ClassPropertySkips.TryGetValue(className, out skipKeys);
 
-        // --- Add simple properties as text ---
         foreach (var kv in compiledNode.Children)
         {
             string key = kv.Key;
-            // Global skips for structural fields
             if (key == "_class" || key == "m_nodePath" || key == "m_children" || key.StartsWith("m_pChild") ||
                 key == "m_tags" || key == "m_paramSpans" || key == "m_stateMachine" || key == "m_stateData" || key == "m_transitionData")
                 continue;
 
-            // Global property skips
             if (GlobalPropertySkips.Contains(key))
                 continue;
 
-            // Class-specific skips
             if (skipKeys != null && skipKeys.Contains(key))
                 continue;
 
@@ -810,10 +833,8 @@ internal class AG1GraphViewer : GLNodeGraphViewer
                 node.AddText($"{displayKey}: {valueStr}");
         }
 
-        // --- Universal parameter display ---
         DisplayUniversalParameters(compiledNode, node);
 
-        // --- Tag handling ---
         if (compiledNode.ContainsKey("m_nTagIndex"))
         {
             int tagIndex = compiledNode.GetInt32Property("m_nTagIndex");
@@ -843,9 +864,7 @@ internal class AG1GraphViewer : GLNodeGraphViewer
             }
         }
 
-        // --- Node-specific details (mostly for display purposes) ---
-
-        // Choice node – keep a small summary but weights/blendTimes are already on each socket, so we might keep it minimal.
+        // Choice node
         if (className == "CChoiceUpdateNode")
         {
             if (compiledNode.ContainsKey("m_choiceMethod"))
@@ -860,7 +879,6 @@ internal class AG1GraphViewer : GLNodeGraphViewer
                 node.AddText($"ResetChosen: {compiledNode.GetBooleanProperty("m_bResetChosen")}");
             if (compiledNode.ContainsKey("m_bDontResetSameSelection"))
                 node.AddText($"DontResetSameSelection: {compiledNode.GetBooleanProperty("m_bDontResetSameSelection")}");
-            // Optionally show a compact list of (weight, blendTime) but it's redundant now, so we can omit.
         }
 
         // Sequence node
@@ -968,6 +986,70 @@ internal class AG1GraphViewer : GLNodeGraphViewer
         nodeGraph.AddNode(node);
         return node;
     }
+
+    private static SKColor GetParameterTypeColor(string type)
+    {
+        return type switch
+        {
+            "BOOL" => ParamBoolColor,
+            "INT" => ParamIntColor,
+            "FLOAT" => ParamFloatColor,
+            "ENUM" => ParamEnumColor,
+            "VECTOR" => ParamVectorColor,
+            "QUATERNION" => ParamQuaternionColor,
+            "SYMBOL" => ParamSymbolColor,
+            "VIRTUAL" => ParamVirtualColor,
+            _ => ParamUnknownColor,
+        };
+    }
+
+    private void AddParameterAndTagNodes()
+    {
+        var typeOrder = new[] { "BOOL", "INT", "FLOAT", "ENUM", "VECTOR", "QUATERNION", "SYMBOL", "VIRTUAL", "UNKNOWN" };
+        foreach (var type in typeOrder)
+        {
+            if (!typeToParameters.TryGetValue(type, out var list)) continue;
+            if (list.Count == 0) continue;
+
+            var ordered = list.OrderBy(p => parameterObjectToIndex.TryGetValue(p, out var idx) ? idx : int.MaxValue).ToList();
+
+            var node = new Node(null)
+            {
+                Name = type,
+                NodeType = "Parameter Group",
+                HeaderColor = GetParameterTypeColor(type),
+            };
+            foreach (var p in ordered)
+                node.AddText(GetParameterDescriptionFromObject(p));
+            nodeGraph.AddNode(node);
+        }
+
+        if (tags.Count > 0)
+        {
+            var tagIndexMap = tags.Select((t, i) => new { t, i }).ToDictionary(x => x.t, x => x.i);
+
+            var tagGroups = tags.GroupBy(t => t.GetStringProperty("_class") ?? "Unknown");
+            foreach (var group in tagGroups)
+            {
+                var ordered = group.OrderBy(t => tagIndexMap.TryGetValue(t, out var idx) ? idx : int.MaxValue).ToList();
+                var className = group.Key;
+
+                var node = new Node(null)
+                {
+                    Name = className,
+                    NodeType = "Tag Group",
+                    HeaderColor = GetTagClassColor(className),
+                };
+                foreach (var t in ordered)
+                {
+                    var name = t.GetStringProperty("m_name") ?? "Unnamed";
+                    node.AddText(name);
+                }
+                nodeGraph.AddNode(node);
+            }
+        }
+    }
+
     #region Node class
 
     private class Node : AbstractNode
@@ -1000,5 +1082,6 @@ internal class AG1GraphViewer : GLNodeGraphViewer
         }
     }
     #endregion
+
     private struct Pose { }
 }
