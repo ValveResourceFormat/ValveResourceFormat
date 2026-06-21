@@ -1,3 +1,4 @@
+using ValveResourceFormat.IO;
 using ValveResourceFormat.Serialization.KeyValues;
 using static ValveResourceFormat.ResourceTypes.EntityLump;
 using VEntityLump = ValveResourceFormat.ResourceTypes.EntityLump;
@@ -19,23 +20,23 @@ namespace ValveResourceFormat.Utils
         /// <c>point_template</c> entities reference. Template children inherit the template's rigid transform (no scale).
         /// </summary>
         /// <param name="lump">The root entity lump.</param>
-        /// <param name="resolveChildLump">Resolves a referenced child lump by name, or <see langword="null"/> if it can't be loaded.</param>
+        /// <param name="fileLoader">Loads referenced child lumps by name.</param>
         /// <param name="rootTransform">Transform applied to top-level entities.</param>
         /// <param name="onMissingChildLump">Called with the lump name when a referenced child lump can't be resolved.</param>
         /// <returns>Each entity with its parent transform.</returns>
         public static IEnumerable<TraversedEntity> EnumerateEntities(
             VEntityLump lump,
-            Func<string, VEntityLump?> resolveChildLump,
+            IFileLoader fileLoader,
             Matrix4x4 rootTransform,
             Action<string>? onMissingChildLump = null)
         {
-            return Traverse(lump, resolveChildLump, rootTransform, fromTemplate: false, [], [], onMissingChildLump);
+            return Traverse(lump, fileLoader, rootTransform, fromTemplate: false, [], [], onMissingChildLump);
         }
 
         // Lazily mutates childLumps/visited during enumeration; safe because both consumers materialize the result.
         private static IEnumerable<TraversedEntity> Traverse(
             VEntityLump lump,
-            Func<string, VEntityLump?> resolveChildLump,
+            IFileLoader fileLoader,
             Matrix4x4 parentTransform,
             bool fromTemplate,
             Dictionary<string, VEntityLump> childLumps,
@@ -44,7 +45,7 @@ namespace ValveResourceFormat.Utils
         {
             foreach (var childLumpName in lump.GetChildEntityNames())
             {
-                var childLump = resolveChildLump(childLumpName);
+                var childLump = fileLoader.LoadFileCompiled(childLumpName)?.DataBlock as VEntityLump;
 
                 if (childLump != null)
                 {
@@ -80,7 +81,7 @@ namespace ValveResourceFormat.Utils
 
                     var childTransform = EntityTransformHelper.CalculateRigidTransformationMatrix(entity) * parentTransform;
 
-                    foreach (var nested in Traverse(templateLump, resolveChildLump, childTransform, fromTemplate: true, childLumps, visited, onMissingChildLump))
+                    foreach (var nested in Traverse(templateLump, fileLoader, childTransform, fromTemplate: true, childLumps, visited, onMissingChildLump))
                     {
                         yield return nested;
                     }

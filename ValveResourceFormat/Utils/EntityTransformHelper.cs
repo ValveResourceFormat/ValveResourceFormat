@@ -67,18 +67,6 @@ namespace ValveResourceFormat.Utils
         }
 
         /// <summary>
-        /// Keeps the rotation and translation of <paramref name="transform"/> but replaces its scale with
-        /// <paramref name="scale"/> — used to snap a child onto an attachment with its own scale, not the parent's.
-        /// </summary>
-        public static Matrix4x4 RebuildWithScale(Matrix4x4 transform, Vector3 scale)
-        {
-            // attachment transforms are rigid (or uniformly scaled), so they decompose cleanly
-            Matrix4x4.Decompose(transform, out _, out var rotation, out var translation);
-
-            return Matrix4x4.CreateScale(scale) * Matrix4x4.CreateFromQuaternion(rotation) * Matrix4x4.CreateTranslation(translation);
-        }
-
-        /// <summary>
         /// Parses a string representation of a Vector2.
         /// </summary>
         /// <param name="input">The input string.</param>

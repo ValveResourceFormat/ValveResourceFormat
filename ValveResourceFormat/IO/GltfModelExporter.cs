@@ -393,7 +393,7 @@ namespace ValveResourceFormat.IO
         {
             var traversed = EntityLumpTraversal.EnumerateEntities(
                 entityLump,
-                name => FileLoader.LoadFileCompiled(name)?.DataBlock as VEntityLump,
+                FileLoader,
                 rootTransform,
                 onMissingChildLump: name => ProgressReporter?.Report($"Failed to find child entity lump with name {name}."));
 

@@ -25,11 +25,6 @@ namespace ValveResourceFormat.Renderer.World
         private readonly Scene scene;
         private readonly RendererContext RendererContext;
 
-        // Need these lookups until entities are reworked into a proper hierarchy.
-        private readonly Dictionary<string, ModelSceneNode> entityModelNodesByName = new(StringComparer.OrdinalIgnoreCase);
-        private readonly List<SceneNode> attachmentChildNodes = [];
-        private readonly List<SceneNode> attachmentDefaultNodes = [];
-
         /// <summary>The directory path of the map, e.g. <c>maps/de_dust2</c>.</summary>
         public string MapName { get; }
 
@@ -236,55 +231,36 @@ namespace ValveResourceFormat.Renderer.World
         }
 
         /// <summary>
-        /// Snaps attachment-parented entities (<c>parentname</c> + <c>parentattachmentname</c>) onto the
-        /// parent's attachment, the way the engine does at spawn — the attachment's position and rotation
-        /// with the child's own scale, never the parent's scale, and regardless of <c>uselocaloffset</c>
-        /// (the engine ignores it here too). Model-less default-entity icons only follow its position.
+        /// Parents attachment-parented entities (<c>parentname</c> + <c>parentattachmentname</c>) to the
+        /// parent's attachment, the way the engine does — the child follows the attachment's position and
+        /// rotation each frame, regardless of <c>uselocaloffset</c> (the engine ignores it here too).
+        /// Done after all entities are loaded so the parent is registered regardless of spawn order.
         /// </summary>
         private void ResolveAttachmentParenting()
         {
-            foreach (var node in attachmentChildNodes)
+            foreach (var node in scene.AllNodes)
             {
-                if (TryResolveAttachment(node, out var attachment))
+                var parentName = node.EntityData?.GetStringProperty("parentname");
+                var attachmentName = node.EntityData?.GetStringProperty("parentattachmentname");
+
+                if (parentName is null || attachmentName is null)
+                {
+                    continue;
+                }
+
+                var parentNode = FindModelNodeByTargetName(parentName);
+
+                if (parentNode != null && parentNode.Attachments.ContainsKey(attachmentName))
                 {
                     var scale = node.EntityData!.GetVector3Property("scales", Vector3.One);
-                    node.Transform = EntityTransformHelper.RebuildWithScale(attachment, scale);
-                }
-            }
-
-            foreach (var node in attachmentDefaultNodes)
-            {
-                if (TryResolveAttachment(node, out var attachment))
-                {
-                    var transform = node.Transform;
-                    transform.Translation = attachment.Translation;
-                    node.Transform = transform;
+                    parentNode.AttachNode(node, attachmentName, scale: scale);
                 }
             }
         }
 
-        private bool TryResolveAttachment(SceneNode node, out Matrix4x4 attachment)
-        {
-            attachment = Matrix4x4.Identity;
-            var entity = node.EntityData!;
-
-            var parentName = entity.GetStringProperty("parentname");
-            var attachmentName = entity.GetStringProperty("parentattachmentname");
-
-            if (parentName is null || attachmentName is null
-                || !entityModelNodesByName.TryGetValue(parentName, out var parentNode)
-                || !parentNode.Attachments.ContainsKey(attachmentName))
-            {
-                return false;
-            }
-
-            attachment = parentNode.GetAttachmentTransform(attachmentName);
-            return true;
-        }
-
-        private static bool IsAttachmentParented(Entity entity)
-            => !string.IsNullOrEmpty(entity.GetStringProperty("parentname"))
-            && !string.IsNullOrEmpty(entity.GetStringProperty("parentattachmentname"));
+        private ModelSceneNode? FindModelNodeByTargetName(string targetName)
+            => scene.AllNodes.OfType<ModelSceneNode>().FirstOrDefault(
+                model => string.Equals(model.EntityData?.GetStringProperty("targetname"), targetName, StringComparison.OrdinalIgnoreCase));
 
         /// <summary>
         /// Loads all world nodes (<c>.vwnod_c</c>) referenced by the world into the scene.
@@ -488,7 +464,7 @@ namespace ValveResourceFormat.Renderer.World
 
             var traversed = EntityLumpTraversal.EnumerateEntities(
                 entityLump,
-                name => RendererContext.FileLoader.LoadFileCompiled(name)?.DataBlock as EntityLump,
+                RendererContext.FileLoader,
                 rootTransform,
                 onMissingChildLump: name => RendererContext.Logger.LogWarning("Failed to find child entity lump with name {EntityLumpName}", name))
                 .ToList();
@@ -509,7 +485,6 @@ namespace ValveResourceFormat.Renderer.World
                 }
 
                 var transformationMatrix = EntityTransformHelper.CalculateTransformationMatrix(entity) * parentTransform;
-                var isAttachmentParented = IsAttachmentParented(entity);
                 var light = SceneLight.IsAccepted(classname);
 
                 if (entity.Connections != null)
@@ -1126,12 +1101,6 @@ namespace ValveResourceFormat.Renderer.World
 
                 modelNode.Flags |= entityFlags;
 
-                var modelTargetName = entity.GetStringProperty("targetname");
-                if (!string.IsNullOrEmpty(modelTargetName))
-                {
-                    entityModelNodesByName[modelTargetName] = modelNode;
-                }
-
                 if (modelNode.HasMeshes)
                 {
                     // Animation
@@ -1156,11 +1125,6 @@ namespace ValveResourceFormat.Renderer.World
                     }
 
                     scene.Add(modelNode, true);
-
-                    if (isAttachmentParented)
-                    {
-                        attachmentChildNodes.Add(modelNode);
-                    }
                 }
 
                 var phys = newModel?.GetEmbeddedPhys();
@@ -1186,11 +1150,6 @@ namespace ValveResourceFormat.Renderer.World
                         physSceneNode.EntityData = entity;
 
                         scene.Add(physSceneNode, true);
-
-                        if (isAttachmentParented)
-                        {
-                            attachmentChildNodes.Add(physSceneNode);
-                        }
                     }
                 }
                 else if (!modelNode.HasMeshes)
@@ -1350,7 +1309,6 @@ namespace ValveResourceFormat.Renderer.World
         private void CreateDefaultEntity(Entity entity, string classname, Matrix4x4 transformationMatrix, ObjectTypeFlags flags = ObjectTypeFlags.None, string layerName = ToolEntitiesLayerName)
         {
             var hammerEntity = HammerEntities.Get(classname);
-            var attachmentParented = IsAttachmentParented(entity);
             string? filename = null;
             Resource? resource = null;
 
@@ -1385,11 +1343,6 @@ namespace ValveResourceFormat.Renderer.World
                     Flags = flags,
                 };
                 scene.Add(boxNode, true);
-
-                if (attachmentParented)
-                {
-                    attachmentDefaultNodes.Add(boxNode);
-                }
             }
             else if (resource.ResourceType == ResourceType.Model && resource.DataBlock is Model modelData)
             {
@@ -1405,11 +1358,6 @@ namespace ValveResourceFormat.Renderer.World
                 var isAnimated = modelNode.SetAnimationForWorldPreview("tools_preview");
 
                 scene.Add(modelNode, true);
-
-                if (attachmentParented)
-                {
-                    attachmentDefaultNodes.Add(modelNode);
-                }
             }
             else if (resource.ResourceType == ResourceType.Material)
             {
@@ -1421,11 +1369,6 @@ namespace ValveResourceFormat.Renderer.World
                     Flags = flags,
                 };
                 scene.Add(spriteNode, true);
-
-                if (attachmentParented)
-                {
-                    attachmentDefaultNodes.Add(spriteNode);
-                }
             }
             else
             {
