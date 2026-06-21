@@ -38,6 +38,7 @@ namespace GUI.Types.Graphs
                 if (disposing)
                 {
                     _gridPaint?.Dispose();
+                    _checkerPaint?.Dispose();
                 }
 
                 disposed = true;
@@ -82,6 +83,7 @@ namespace GUI.Types.Graphs
         {
             Grid,
             Dots,
+            Checkerboard,
             None
         }
 
@@ -123,6 +125,7 @@ namespace GUI.Types.Graphs
         // grid color
         private SKColor _gridColor = SKColors.LightGray;
         private SKPaint _gridPaint = new() { Color = SKColors.LightGray, StrokeWidth = 1f, IsAntialias = true };
+        private SKPaint _checkerPaint = new() { Color = SKColors.Gray };
 
         public SKColor GridColor
         {
@@ -394,6 +397,32 @@ namespace GUI.Types.Graphs
 
             var largeXOffset = ((float)Math.Round(left / _gridStep) * _gridStep);
             var largeYOffset = ((float)Math.Round(top / _gridStep) * _gridStep);
+
+            //checkerboard
+            if (_gridStyle == EGridStyle.Checkerboard)
+            {
+                int tileSize = 32;
+                using var darkPaint = new SKPaint { Color = SKColors.Black };
+                using var lightPaint = new SKPaint { Color = new SKColor(15, 15, 15) };
+
+                // Loop over the visible area
+                int startX = (int)Math.Floor(left / tileSize) * tileSize;
+                int startY = (int)Math.Floor(top / tileSize) * tileSize;
+                int endX = (int)Math.Ceiling(right / tileSize) * tileSize;
+                int endY = (int)Math.Ceiling(bottom / tileSize) * tileSize;
+
+                for (int x = startX; x < endX; x += tileSize)
+                {
+                    for (int y = startY; y < endY; y += tileSize)
+                    {
+                        bool isDark = ((x / tileSize) + (y / tileSize)) % 2 == 0;
+                        var paint = isDark ? darkPaint : lightPaint;
+                        canvas.DrawRect(x, y, tileSize, tileSize, paint);
+                    }
+                }
+
+                return;
+            }
 
             // grid
             if (_gridStyle == EGridStyle.Grid)

@@ -24,16 +24,19 @@ internal class AG1GraphViewer : GLNodeGraphViewer
     private readonly Dictionary<int, KVObject> parameterIndexToObject = new();
     private readonly Dictionary<int, string> parameterIndexToName = new();
     private readonly Dictionary<string, List<KVObject>> typeToParameters = new();
+    private List<KVObject> tags = new();
+    private Dictionary<int, string> tagIndexToName = new();
 
     // Fixed colors per node type (AG1 specific)
     private static SKColor NodeColor { get; set; } = new SKColor(60, 60, 60);
     private static SKColor NodeTextColor { get; set; } = new SKColor(230, 230, 230);
+    private static readonly SKColor ClientSimulateColor = new SKColor(118, 75, 140);
 
     //Animation
     private static SKColor SequenceColor { get; set; } = new SKColor(62, 43, 89);
     private static SKColor SingleFrameColor { get; set; } = new SKColor(111, 53, 195);
-    private static SKColor ChoiceColor { get; set; } = new SKColor(191, 189, 94);
-    private static SKColor SelectorColor { get; set; } = new SKColor(122, 197, 255);
+    private static SKColor ChoiceColor { get; set; } = new SKColor(102, 111, 49);
+    private static SKColor SelectorColor { get; set; } = new SKColor(34, 84, 135);
     private static SKColor MotionMatchingColor { get; set; } = new SKColor(127, 145, 218);
     //Blend
     private static SKColor BlendColor { get; set; } = new SKColor(45, 102, 82);
@@ -59,9 +62,116 @@ internal class AG1GraphViewer : GLNodeGraphViewer
     private static SKColor SteamVRSkeletalInputColor { get; set; } = new SKColor(15, 101, 144);
     private static SKColor TurnHelperColor { get; set; } = new SKColor(32, 30, 78);
     // Main
-    private static SKColor StateMachineColor { get; set; } = new SKColor(39, 91, 156);
-    private static SKColor FinalPoseColor { get; set; } = new SKColor(211, 175, 55);
+    private static SKColor StateMachineColor { get; set; } = new SKColor(44, 57, 89);
+    private static SKColor FinalPoseColor { get; set; } = new SKColor(149, 121, 65);
     private static SKColor PoseColor { get; set; } = new SKColor(173, 255, 47);          // Default fallback
+
+    // ---- Dictionaries for class-based lookups ----
+    private static readonly Dictionary<string, string> ClassDisplayName = new(StringComparer.Ordinal)
+    {
+        ["CSequenceUpdateNode"] = "Sequence",
+        ["CChoiceUpdateNode"] = "Choice",
+        ["CMotionMatchingUpdateNode"] = "Motion Matching",
+        ["CSelectorUpdateNode"] = "Selector",
+        ["CSingleFrameUpdateNode"] = "Single Frame",
+        ["CDirectionalBlendUpdateNode"] = "Directional Blend",
+        ["CBlendUpdateNode"] = "Blend",
+        ["CBlend2DUpdateNode"] = "Blend 2D",
+        ["CAddUpdateNode"] = "Add",
+        ["CSubtractUpdateNode"] = "Subtract",
+        ["CAimMatrixUpdateNode"] = "Aim Matrix",
+        ["CLeanMatrixUpdateNode"] = "Lean Matrix",
+        ["CBoneMaskUpdateNode"] = "Bone Mask",
+        ["CCycleControlUpdateNode"] = "Cycle Control",
+        ["CCycleControlClipUpdateNode"] = "Cycle Control Clip",
+        ["CFollowAttachmentUpdateNode"] = "Follow Attachment",
+        ["CFollowPathUpdateNode"] = "Follow Path",
+        ["CFootPinningUpdateNode"] = "Foot Pinning",
+        ["CLookAtUpdateNode"] = "Look At",
+        ["CHitReactUpdateNode"] = "Hit React",
+        ["CFootLockUpdateNode"] = "Foot Lock",
+        ["CJiggleBoneUpdateNode"] = "Jiggle Bone",
+        ["CSolveIKChainUpdateNode"] = "Solve IK Chain",
+        ["CTwoBoneIKUpdateNode"] = "Two Bone IK",
+        ["CSpeedScaleUpdateNode"] = "Speed Scale",
+        ["CChoreoUpdateNode"] = "Choreo",
+        ["CDirectPlaybackUpdateNode"] = "Direct Playback",
+        ["CFootStepTriggerUpdateNode"] = "Foot Step Trigger",
+        ["CInputStreamUpdateNode"] = "Input Stream",
+        ["CMoverUpdateNode"] = "Mover",
+        ["CStopAtGoalUpdateNode"] = "Stop At Goal",
+        ["CPathHelperUpdateNode"] = "Path Helper",
+        ["CSetFacingUpdateNode"] = "Set Facing",
+        ["CSlowDownOnSlopesUpdateNode"] = "Slow Down On Slopes",
+        ["CSkeletalInputUpdateNode"] = "Skeletal Input",
+        ["CTurnHelperUpdateNode"] = "Turn Helper",
+        ["CRootUpdateNode"] = "Final Pose",
+        ["CStateMachineUpdateNode"] = "State Machine",
+    };
+
+    private static readonly Dictionary<string, SKColor> ClassColor = new(StringComparer.Ordinal)
+    {
+        ["CSequenceUpdateNode"] = SequenceColor,
+        ["CChoiceUpdateNode"] = ChoiceColor,
+        ["CMotionMatchingUpdateNode"] = MotionMatchingColor,
+        ["CSelectorUpdateNode"] = SelectorColor,
+        ["CSingleFrameUpdateNode"] = SingleFrameColor,
+        ["CDirectionalBlendUpdateNode"] = BlendColor,
+        ["CBlendUpdateNode"] = BlendColor,
+        ["CBlend2DUpdateNode"] = Blend2DColor,
+        ["CAddUpdateNode"] = AddSubtractColor,
+        ["CSubtractUpdateNode"] = AddSubtractColor,
+        ["CAimMatrixUpdateNode"] = AimLeanMatrixColor,
+        ["CLeanMatrixUpdateNode"] = AimLeanMatrixColor,
+        ["CBoneMaskUpdateNode"] = BoneMaskColor,
+        ["CCycleControlUpdateNode"] = CycleControlColor,
+        ["CCycleControlClipUpdateNode"] = CycleControlClipColor,
+        ["CFollowAttachmentUpdateNode"] = FollowAttachmentColor,
+        ["CFollowPathUpdateNode"] = FollowPathColor,
+        ["CFootPinningUpdateNode"] = ConstraintLightGreenColor,
+        ["CLookAtUpdateNode"] = ConstraintLightGreenColor,
+        ["CHitReactUpdateNode"] = ConstraintLightGreenColor,
+        ["CFootLockUpdateNode"] = ConstraintLightGreenColor,
+        ["CJiggleBoneUpdateNode"] = JiggleBoneColor,
+        ["CSolveIKChainUpdateNode"] = ConstraintDarkGreenColor,
+        ["CTwoBoneIKUpdateNode"] = ConstraintDarkGreenColor,
+        ["CSpeedScaleUpdateNode"] = ConstraintDarkGreenColor,
+        ["CChoreoUpdateNode"] = ChoreoColor,
+        ["CDirectPlaybackUpdateNode"] = SystemYellowColor,
+        ["CFootStepTriggerUpdateNode"] = SystemYellowColor,
+        ["CInputStreamUpdateNode"] = InputStreamColor,
+        ["CMoverUpdateNode"] = SystemDarkBlueColor,
+        ["CStopAtGoalUpdateNode"] = SystemDarkBlueColor,
+        ["CPathHelperUpdateNode"] = SystemGrayColor,
+        ["CSetFacingUpdateNode"] = SystemGrayColor,
+        ["CSlowDownOnSlopesUpdateNode"] = SlowDownOnSlopesColor,
+        ["CSkeletalInputUpdateNode"] = SteamVRSkeletalInputColor,
+        ["CTurnHelperUpdateNode"] = TurnHelperColor,
+        ["CRootUpdateNode"] = FinalPoseColor,
+        ["CStateMachineUpdateNode"] = StateMachineColor,
+    };
+    private static readonly HashSet<string> GlobalPropertySkips = new(StringComparer.Ordinal)
+    {
+        "m_name",          // Displayed as node title
+    };
+
+    private static readonly Dictionary<string, string> PropertyDisplayNames = new(StringComparer.Ordinal)
+    {
+        ["m_networkMode"] = "NetworkMode",
+    };
+
+    // ---- Properties to skip in generic display for specific classes ----
+    private static readonly Dictionary<string, HashSet<string>> ClassPropertySkips = new(StringComparer.Ordinal)
+    {
+        ["CChoiceUpdateNode"] = new(StringComparer.Ordinal) { "m_weights", "m_blendTimes", "m_choiceMethod", "m_blendMethod", "m_choiceChangeMethod", "m_bCrossFade", "m_bResetChosen", "m_bDontResetSameSelection" },
+        ["CSelectorUpdateNode"] = new(StringComparer.Ordinal) { "m_hParameter", "m_param" },
+        ["CSequenceUpdateNode"] = new(StringComparer.Ordinal) { "m_hSequence", "m_duration", "m_playbackSpeed", "m_bLoop" },
+        ["CBlend2DUpdateNode"] = new(StringComparer.Ordinal) { "m_blendSourceX", "m_blendSourceY", "m_eBlendMode", "m_bLoop", "m_playbackSpeed", "m_damping", "m_items" },
+        ["CBoneMaskUpdateNode"] = new(StringComparer.Ordinal) { "m_nWeightListIndex", "m_blendSpace", "m_flRootMotionBlend", "m_bUseBlendScale" },
+        ["CStateMachineUpdateNode"] = new(StringComparer.Ordinal) { "m_stateMachine", "m_transitionData" },
+    };
+
+    private static readonly string[] ChildProperties = { "m_pChildNode", "m_pChild1", "m_pChild2", "m_pChild" };
 
     public AG1GraphViewer(VrfGuiContext vrfGuiContext, RendererContext rendererContext, KVObject data)
         : base(vrfGuiContext, rendererContext, CreateAndConfigureNodeGraph(data, out var graphDef))
@@ -69,6 +179,7 @@ internal class AG1GraphViewer : GLNodeGraphViewer
         animGraphData = graphDef;
 
         LoadParameters();
+        LoadTags();
 
         if (animGraphData.ContainsKey("m_pSharedData"))
         {
@@ -134,6 +245,49 @@ internal class AG1GraphViewer : GLNodeGraphViewer
                 list.Add(param);
             }
         }
+    }
+
+    private void LoadTags()
+    {
+        tags.Clear();
+        tagIndexToName.Clear();
+
+        KVObject? tagManager = null;
+
+        if (animGraphData.ContainsKey("m_pSharedData"))
+        {
+            var sharedData = animGraphData.GetSubCollection("m_pSharedData");
+            if (sharedData.ContainsKey("m_pTagManagerUpdater"))
+                tagManager = sharedData.GetSubCollection("m_pTagManagerUpdater");
+        }
+
+        if (tagManager == null && animGraphData.ContainsKey("m_pTagManagerUpdater"))
+            tagManager = animGraphData.GetSubCollection("m_pTagManagerUpdater");
+
+        if (tagManager == null)
+            return;
+
+        if (!tagManager.ContainsKey("m_tags"))
+            return;
+
+        var tagList = tagManager.GetArray("m_tags");
+        for (int i = 0; i < tagList.Count; i++)
+        {
+            var tagObj = tagList[i];
+            tags.Add(tagObj);
+            var name = tagObj.GetStringProperty("m_name");
+            if (!string.IsNullOrEmpty(name))
+            {
+                tagIndexToName[i] = name;
+            }
+        }
+    }
+
+    private string GetTagName(int tagIndex)
+    {
+        if (tagIndex < 0 || tagIndex >= tags.Count)
+            return $"Tag {tagIndex}";
+        return tagIndexToName.TryGetValue(tagIndex, out var name) ? name : $"Tag {tagIndex}";
     }
 
     private static string ClassNameToParamType(string className)
@@ -330,7 +484,7 @@ internal class AG1GraphViewer : GLNodeGraphViewer
         graphDef = data;
         var nodeGraph = new NodeGraphControl
         {
-            GridStyle = NodeGraphControl.EGridStyle.Grid,
+            GridStyle = NodeGraphControl.EGridStyle.Checkerboard,
             CanvasBackgroundColor = new SKColor(40, 40, 40)
         };
 
@@ -349,7 +503,6 @@ internal class AG1GraphViewer : GLNodeGraphViewer
     }
 
     private static SKColor ToSKColor(Color color) => new(color.R, color.G, color.B, color.A);
-
     private void CreateGraph()
     {
         if (compiledNodes == null || compiledNodes.Count == 0)
@@ -370,6 +523,7 @@ internal class AG1GraphViewer : GLNodeGraphViewer
 
             var childIndices = new HashSet<int>();
 
+            // --- m_children array ---
             if (compiledNode.ContainsKey("m_children"))
             {
                 var children = compiledNode.GetArray("m_children");
@@ -388,8 +542,8 @@ internal class AG1GraphViewer : GLNodeGraphViewer
                 }
             }
 
-            string[] childProps = { "m_pChildNode", "m_pChild1", "m_pChild2", "m_pChild" };
-            foreach (var prop in childProps)
+            // --- Single child properties ---
+            foreach (var prop in ChildProperties)
             {
                 if (compiledNode.ContainsKey(prop))
                 {
@@ -402,6 +556,7 @@ internal class AG1GraphViewer : GLNodeGraphViewer
                 }
             }
 
+            // --- Blend 2D items ---
             if (className == "CBlend2DUpdateNode" && compiledNode.ContainsKey("m_items"))
             {
                 var items = compiledNode.GetArray("m_items");
@@ -419,21 +574,10 @@ internal class AG1GraphViewer : GLNodeGraphViewer
                 }
             }
 
+            // --- State machine children ---
             if (className == "CStateMachineUpdateNode" && compiledNode.ContainsKey("m_stateData"))
             {
                 var stateDataArray = compiledNode.GetArray("m_stateData");
-                var stateNames = new List<string>();
-                if (compiledNode.ContainsKey("m_stateMachine"))
-                {
-                    var stateMachine = compiledNode.GetSubCollection("m_stateMachine");
-                    if (stateMachine.ContainsKey("m_states"))
-                    {
-                        var states = stateMachine.GetArray("m_states");
-                        foreach (var state in states)
-                            stateNames.Add(state.GetStringProperty("m_name", "Unnamed"));
-                    }
-                }
-
                 for (int s = 0; s < stateDataArray.Count; s++)
                 {
                     var stateData = stateDataArray[s];
@@ -443,13 +587,92 @@ internal class AG1GraphViewer : GLNodeGraphViewer
                         if (childRef.ContainsKey("m_nodeIndex"))
                         {
                             int idx = childRef.GetInt32Property("m_nodeIndex");
-                            if (idx >= 0)
-                                childIndices.Add(idx);
+                            if (idx >= 0) childIndices.Add(idx);
                         }
                     }
                 }
             }
 
+            // ---- For Choice nodes, prepare weight/blendTime map ----
+            Dictionary<int, (float weight, float blendTime)>? choiceWeightMap = null;
+            if (className == "CChoiceUpdateNode")
+            {
+                float[]? weights = null;
+                float[]? blendTimes = null;
+                if (compiledNode.ContainsKey("m_weights"))
+                    weights = compiledNode.GetFloatArray("m_weights");
+                if (compiledNode.ContainsKey("m_blendTimes"))
+                    blendTimes = compiledNode.GetFloatArray("m_blendTimes");
+
+                choiceWeightMap = new Dictionary<int, (float, float)>();
+                if (compiledNode.ContainsKey("m_children"))
+                {
+                    var children = compiledNode.GetArray("m_children");
+                    for (int c = 0; c < children.Count; c++)
+                    {
+                        var child = children[c];
+                        int idx = -1;
+                        if (child.ValueType == KVValueType.Collection && child.ContainsKey("m_nodeIndex"))
+                            idx = child.GetInt32Property("m_nodeIndex");
+                        else if (child.ValueType == KVValueType.Int32)
+                            idx = child.ToInt32();
+                        if (idx >= 0)
+                        {
+                            float w = (weights != null && c < weights.Length) ? weights[c] : 1.0f;
+                            float bt = (blendTimes != null && c < blendTimes.Length) ? blendTimes[c] : 0.0f;
+                            choiceWeightMap[idx] = (w, bt);
+                        }
+                    }
+                }
+            }
+            // ---- For Selector nodes, build enum option map ----
+            Dictionary<int, string>? selectorOptionMap = null;
+            if (className == "CSelectorUpdateNode")
+            {
+                // Try to get the parameter handle
+                KVObject? paramHandle = null;
+                if (compiledNode.ContainsKey("m_hParameter"))
+                    paramHandle = compiledNode.GetSubCollection("m_hParameter");
+                else if (compiledNode.ContainsKey("m_param"))
+                    paramHandle = compiledNode.GetSubCollection("m_param");
+
+                if (paramHandle != null)
+                {
+                    var paramObj = ResolveParameterHandle(paramHandle);
+                    if (paramObj != null)
+                    {
+                        var paramClass = paramObj.GetStringProperty("_class");
+                        if (paramClass == "CEnumAnimParameter" && paramObj.ContainsKey("m_enumOptions"))
+                        {
+                            var enumOptions = paramObj.GetArray<string>("m_enumOptions");
+                            if (enumOptions.Length > 0)
+                            {
+                                selectorOptionMap = new Dictionary<int, string>();
+                                // If the number of children matches the number of options, map them directly.
+                                // Otherwise, we fall back to "Option X".
+                                var children = compiledNode.GetArray("m_children");
+                                for (int c = 0; c < children.Count; c++)
+                                {
+                                    var child = children[c];
+                                    int idx = -1;
+                                    if (child.ValueType == KVValueType.Collection && child.ContainsKey("m_nodeIndex"))
+                                        idx = child.GetInt32Property("m_nodeIndex");
+                                    else if (child.ValueType == KVValueType.Int32)
+                                        idx = child.ToInt32();
+                                    if (idx >= 0)
+                                    {
+                                        string label = (c < enumOptions.Length) ? enumOptions[c] : $"Option {c}";
+                                        selectorOptionMap[idx] = label;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                // If no enum options, we'll fallback to default labelling later.
+            }
+
+            // Now connect each child
             foreach (int childIdx in childIndices)
             {
                 if (!nodeMap.TryGetValue(childIdx, out var childNode))
@@ -462,6 +685,7 @@ internal class AG1GraphViewer : GLNodeGraphViewer
                 }
 
                 string inputLabel = $"Child {childIdx}";
+                // Special labelling
                 if (className == "CStateMachineUpdateNode")
                 {
                     if (compiledNode.ContainsKey("m_stateData") && compiledNode.ContainsKey("m_stateMachine"))
@@ -506,6 +730,14 @@ internal class AG1GraphViewer : GLNodeGraphViewer
                         }
                     }
                 }
+                else if (className == "CChoiceUpdateNode" && choiceWeightMap != null && choiceWeightMap.TryGetValue(childIdx, out var choiceData))
+                {
+                    inputLabel = $"Item {childIdx} (W:{choiceData.weight:F2} BT:{choiceData.blendTime:F2})";
+                }
+                else if (className == "CSelectorUpdateNode" && selectorOptionMap != null && selectorOptionMap.TryGetValue(childIdx, out var optionName))
+                {
+                    inputLabel = optionName;
+                }
 
                 var inputSocket = new SocketIn(typeof(Pose), inputLabel, parentNode, hub: true);
                 parentNode.Sockets.Add(inputSocket);
@@ -521,7 +753,9 @@ internal class AG1GraphViewer : GLNodeGraphViewer
     private Node CreateNode(KVObject compiledNode, int index)
     {
         var className = compiledNode.GetStringProperty("_class");
-        string displayName = className?.Replace("UpdateNode", "", StringComparison.Ordinal) ?? "Unknown";
+        string displayName = ClassDisplayName.TryGetValue(className, out var display)
+            ? display
+            : className?.Replace("UpdateNode", "") ?? "Unknown";
 
         string nodeName = compiledNode.GetStringProperty("m_name");
         if (string.IsNullOrEmpty(nodeName))
@@ -533,107 +767,100 @@ internal class AG1GraphViewer : GLNodeGraphViewer
             NodeType = displayName,
         };
 
-        //Animation
-        if (className == "CSequenceUpdateNode")
-            node.HeaderColor = SequenceColor;
-        else if (className == "CChoiceUpdateNode")
-            node.HeaderColor = ChoiceColor;
-        else if (className == "CMotionMatchingUpdateNode")
-            node.HeaderColor = MotionMatchingColor;
-        else if (className == "CSelectorUpdateNode")
-            node.HeaderColor = SelectorColor;
-        else if (className == "CSingleFrameUpdateNode")
-            node.HeaderColor = SingleFrameColor;
-        // Blend
-        else if (className == "CDirectionalBlendUpdateNode" || className == "CBlendUpdateNode")
-            node.HeaderColor = BlendColor;
-        else if (className == "CBlend2DUpdateNode")
-            node.HeaderColor = Blend2DColor;
-        else if (className == "CAddUpdateNode" || className == "CSubtractUpdateNode")
-            node.HeaderColor = AddSubtractColor;
-        else if (className == "CAimMatrixUpdateNode" || className == "CLeanMatrixUpdateNode")
-            node.HeaderColor = AimLeanMatrixColor;
-        else if (className == "CBoneMaskUpdateNode")
-            node.HeaderColor = BoneMaskColor;
-        // Constraints and Procedural
-        else if (className == "CCycleControlUpdateNode")
-            node.HeaderColor = CycleControlColor;
-        else if (className == "CCycleControlClipUpdateNode")
-            node.HeaderColor = CycleControlClipColor;
-        else if (className == "CFollowAttachmentUpdateNode")
-            node.HeaderColor = FollowAttachmentColor;
-        else if (className == "CFollowPathUpdateNode")
-            node.HeaderColor = FollowPathColor;
-        else if (className == "CFootPinningUpdateNode" || className == "CLookAtUpdateNode" || className == "CHitReactUpdateNode" || className == "CFootLockUpdateNode")
-            node.HeaderColor = ConstraintLightGreenColor;
-        else if (className == "CJiggleBoneUpdateNode")
-            node.HeaderColor = JiggleBoneColor;
-        else if (className == "CSolveIKChainUpdateNode" || className == "CTwoBoneIKUpdateNode" || className == "CSpeedScaleUpdateNode")
-            node.HeaderColor = ConstraintDarkGreenColor;
-        // System
-        else if (className == "CChoreoUpdateNode")
-            node.HeaderColor = ChoreoColor;
-        else if (className == "CDirectPlaybackUpdateNode" || className == "CFootStepTriggerUpdateNode")
-            node.HeaderColor = SystemYellowColor;
-        else if (className == "CInputStreamUpdateNode")
-            node.HeaderColor = InputStreamColor;
-        else if (className == "CMoverUpdateNode" || className == "CStopAtGoalUpdateNode")
-            node.HeaderColor = SystemDarkBlueColor;
-        else if (className == "CPathHelperUpdateNode" || className == "CSetFacingUpdateNode")
-            node.HeaderColor = SystemGrayColor;
-        else if (className == "CSlowDownOnSlopesUpdateNode")
-            node.HeaderColor = SlowDownOnSlopesColor;
-        else if (className == "CSkeletalInputUpdateNode")
-            node.HeaderColor = SteamVRSkeletalInputColor;
-        else if (className == "CTurnHelperUpdateNode")
-            node.HeaderColor = TurnHelperColor;
-        // Main
-        else if (className == "CRootUpdateNode")
-            node.HeaderColor = FinalPoseColor;
-        else if (className == "CStateMachineUpdateNode")
-            node.HeaderColor = StateMachineColor;
+        if (className != null && ClassColor.TryGetValue(className, out var color))
+            node.HeaderColor = color;
         else
-            node.HeaderColor = PoseColor; // fallback
+            node.HeaderColor = PoseColor;
+        // ---- Detect NetworkMode and color the body ----
+        string networkMode = compiledNode.GetStringProperty("m_networkMode", "");
+        if (networkMode.Equals("ClientSimulate", StringComparison.Ordinal))
+        {
+            // Change the body (gray part) to the client‑simulate color
+            node.SetBaseColor(ClientSimulateColor);
+        }
 
+        // ---- Determine which keys to skip for this class ----
+        HashSet<string>? skipKeys = null;
+        if (className != null)
+            ClassPropertySkips.TryGetValue(className, out skipKeys);
+
+        // --- Add simple properties as text ---
         foreach (var kv in compiledNode.Children)
         {
             string key = kv.Key;
+            // Global skips for structural fields
             if (key == "_class" || key == "m_nodePath" || key == "m_children" || key.StartsWith("m_pChild") ||
                 key == "m_tags" || key == "m_paramSpans" || key == "m_stateMachine" || key == "m_stateData" || key == "m_transitionData")
+                continue;
+
+            // Global property skips
+            if (GlobalPropertySkips.Contains(key))
+                continue;
+
+            // Class-specific skips
+            if (skipKeys != null && skipKeys.Contains(key))
                 continue;
 
             if (kv.Value.ValueType == KVValueType.Collection || kv.Value.ValueType == KVValueType.Array)
                 continue;
 
-            if (className == "CChoiceUpdateNode" && (key == "m_weights" || key == "m_blendTimes"))
-                continue;
-
+            string displayKey = PropertyDisplayNames.TryGetValue(key, out var friendly) ? friendly : key;
             string valueStr = kv.Value.ToString();
             if (!string.IsNullOrEmpty(valueStr))
-                node.AddText($"{key}: {valueStr}");
+                node.AddText($"{displayKey}: {valueStr}");
         }
 
+        // --- Universal parameter display ---
         DisplayUniversalParameters(compiledNode, node);
 
-        // Choice node
+        // --- Tag handling ---
+        if (compiledNode.ContainsKey("m_nTagIndex"))
+        {
+            int tagIndex = compiledNode.GetInt32Property("m_nTagIndex");
+            if (tagIndex >= 0)
+            {
+                var tagName = GetTagName(tagIndex);
+                node.AddText($"Tag: {tagName} (idx {tagIndex})");
+            }
+        }
+
+        if (compiledNode.ContainsKey("m_eTagBehavior"))
+        {
+            node.AddText($"Tag Behavior: {compiledNode.GetStringProperty("m_eTagBehavior")}");
+        }
+
+        if (compiledNode.ContainsKey("m_tags"))
+        {
+            var tagsValue = compiledNode["m_tags"];
+            if (tagsValue.ValueType == KVValueType.Array)
+            {
+                var tagIndices = compiledNode.GetIntegerArray("m_tags");
+                if (tagIndices.Length > 0)
+                {
+                    var tagNames = tagIndices.Select(idx => GetTagName((int)idx));
+                    node.AddText($"Tags: [{string.Join(", ", tagNames)}]");
+                }
+            }
+        }
+
+        // --- Node-specific details (mostly for display purposes) ---
+
+        // Choice node – keep a small summary but weights/blendTimes are already on each socket, so we might keep it minimal.
         if (className == "CChoiceUpdateNode")
         {
-            if (compiledNode.ContainsKey("m_weights"))
-            {
-                var weights = compiledNode.GetFloatArray("m_weights");
-                if (weights.Length > 0)
-                    node.AddText($"Weights: [{string.Join(", ", weights.Select(w => w.ToString("F2")))}]");
-            }
-            if (compiledNode.ContainsKey("m_blendTimes"))
-            {
-                var blendTimes = compiledNode.GetFloatArray("m_blendTimes");
-                if (blendTimes.Length > 0)
-                    node.AddText($"BlendTimes: [{string.Join(", ", blendTimes.Select(b => b.ToString("F2")))}]");
-            }
             if (compiledNode.ContainsKey("m_choiceMethod"))
                 node.AddText($"ChoiceMethod: {compiledNode.GetStringProperty("m_choiceMethod")}");
             if (compiledNode.ContainsKey("m_blendMethod"))
                 node.AddText($"BlendMethod: {compiledNode.GetStringProperty("m_blendMethod")}");
+            if (compiledNode.ContainsKey("m_choiceChangeMethod"))
+                node.AddText($"Choice ChangeMethod: {compiledNode.GetStringProperty("m_choiceChangeMethod")}");
+            if (compiledNode.ContainsKey("m_bCrossFade"))
+                node.AddText($"CrossFade: {compiledNode.GetBooleanProperty("m_bCrossFade")}");
+            if (compiledNode.ContainsKey("m_bResetChosen"))
+                node.AddText($"ResetChosen: {compiledNode.GetBooleanProperty("m_bResetChosen")}");
+            if (compiledNode.ContainsKey("m_bDontResetSameSelection"))
+                node.AddText($"DontResetSameSelection: {compiledNode.GetBooleanProperty("m_bDontResetSameSelection")}");
+            // Optionally show a compact list of (weight, blendTime) but it's redundant now, so we can omit.
         }
 
         // Sequence node
@@ -663,7 +890,6 @@ internal class AG1GraphViewer : GLNodeGraphViewer
             if (compiledNode.ContainsKey("m_playbackSpeed"))
                 node.AddText($"Playback Speed: {compiledNode.GetFloatProperty("m_playbackSpeed"):F2}");
 
-            // Damping info
             if (compiledNode.ContainsKey("m_damping"))
             {
                 var damping = compiledNode.GetSubCollection("m_damping");
@@ -733,9 +959,11 @@ internal class AG1GraphViewer : GLNodeGraphViewer
                 }
             }
         }
-        // Final Pose node
-        if (className == "CRootUpdateNode" && compiledNode.ContainsKey("m_networkMode"))
-            node.AddText($"NetworkMode: {compiledNode.GetStringProperty("m_networkMode")}");
+        if (className == "CSelectorUpdateNode")
+        {
+            if (compiledNode.ContainsKey("m_selectionSource"))
+                node.AddText($"SelectionSource: {compiledNode.GetStringProperty("m_selectionSource")}");
+        }
 
         nodeGraph.AddNode(node);
         return node;
@@ -749,10 +977,14 @@ internal class AG1GraphViewer : GLNodeGraphViewer
         public Node(KVObject? data)
         {
             Data = data;
-            BaseColor = NodeColor;
+            BaseColor = new SKColor(61, 61, 61);
             TextColor = NodeTextColor;
-            HeaderTextColor = new SKColor(5, 5, 5);
-            HeaderTypeColor = new SKColor(25, 25, 25);
+            HeaderTextColor = new SKColor(255, 255, 255);
+            HeaderTypeColor = new SKColor(255, 255, 255);
+        }
+        public void SetBaseColor(SKColor color)
+        {
+            BaseColor = color;
         }
 
         public void AddSpace() => CreateTextSocket<string>(string.Empty);
