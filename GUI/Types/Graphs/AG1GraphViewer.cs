@@ -14,7 +14,7 @@ using ValveResourceFormat.Serialization.KeyValues;
 namespace GUI.Types.Graphs;
 
 /// <summary>
-/// Graph viewer for compiled AG1 (Animation Graph 1) .vanmgrph files.
+/// Graph viewer for compiled AG1 (Animgraph1) files.
 /// </summary>
 internal class AG1GraphViewer : GLNodeGraphViewer
 {
@@ -68,10 +68,8 @@ internal class AG1GraphViewer : GLNodeGraphViewer
     {
         animGraphData = graphDef;
 
-        // Load parameters from m_pParamListUpdater
         LoadParameters();
 
-        // Extract nodes from m_pSharedData (or directly from root if present)
         if (animGraphData.ContainsKey("m_pSharedData"))
         {
             var sharedData = animGraphData.GetSubCollection("m_pSharedData");
@@ -100,7 +98,6 @@ internal class AG1GraphViewer : GLNodeGraphViewer
 
         KVObject? paramListUpdater = null;
 
-        // First try m_pSharedData.m_pParamListUpdater
         if (animGraphData.ContainsKey("m_pSharedData"))
         {
             var sharedData = animGraphData.GetSubCollection("m_pSharedData");
@@ -108,7 +105,6 @@ internal class AG1GraphViewer : GLNodeGraphViewer
                 paramListUpdater = sharedData.GetSubCollection("m_pParamListUpdater");
         }
 
-        // Fallback: direct root
         if (paramListUpdater == null && animGraphData.ContainsKey("m_pParamListUpdater"))
             paramListUpdater = animGraphData.GetSubCollection("m_pParamListUpdater");
 
@@ -128,7 +124,6 @@ internal class AG1GraphViewer : GLNodeGraphViewer
                 parameterIndexToName[i] = name;
                 parameterIndexToObject[i] = param;
 
-                // Also index by type for handle resolution (like AnimationGraphExtract)
                 var className = param.GetStringProperty("_class");
                 var type = ClassNameToParamType(className);
                 if (!typeToParameters.TryGetValue(type, out var list))
@@ -141,9 +136,6 @@ internal class AG1GraphViewer : GLNodeGraphViewer
         }
     }
 
-    /// <summary>
-    /// Maps C++ class name to parameter type string (e.g., "CFloatAnimParameter" -> "FLOAT").
-    /// </summary>
     private static string ClassNameToParamType(string className)
     {
         if (string.IsNullOrEmpty(className))
@@ -163,9 +155,6 @@ internal class AG1GraphViewer : GLNodeGraphViewer
         };
     }
 
-    /// <summary>
-    /// Resolves a CAnimParamHandle (KVObject with m_type and m_index) to a parameter KVObject.
-    /// </summary>
     private KVObject? ResolveParameterHandle(KVObject handle)
     {
         if (handle == null)
@@ -177,7 +166,6 @@ internal class AG1GraphViewer : GLNodeGraphViewer
         if (string.IsNullOrEmpty(type) || index < 0 || index == 255)
             return null;
 
-        // Remove "ANIMPARAM_" prefix to get type name
         var typeName = type.Replace("ANIMPARAM_", "", StringComparison.Ordinal);
         if (!typeToParameters.TryGetValue(typeName, out var paramList))
             return null;
@@ -188,9 +176,6 @@ internal class AG1GraphViewer : GLNodeGraphViewer
         return null;
     }
 
-    /// <summary>
-    /// Gets a detailed parameter description from a raw index (global index, for compatibility).
-    /// </summary>
     private string GetParameterDescriptionFromIndex(int index)
     {
         if (index < 0 || index == 255)
@@ -203,9 +188,6 @@ internal class AG1GraphViewer : GLNodeGraphViewer
         return $"Param {index}";
     }
 
-    /// <summary>
-    /// Gets a detailed parameter description from a parameter KVObject.
-    /// </summary>
     private static string GetParameterDescriptionFromObject(KVObject paramObj)
     {
         var className = paramObj.GetStringProperty("_class");
@@ -214,7 +196,6 @@ internal class AG1GraphViewer : GLNodeGraphViewer
 
         var result = $"{name} ({typeName})";
 
-        // For Enum, show options
         if (className == "CEnumAnimParameter" && paramObj.ContainsKey("m_enumOptions"))
         {
             var enumOptions = paramObj.GetArray<string>("m_enumOptions");
@@ -227,7 +208,6 @@ internal class AG1GraphViewer : GLNodeGraphViewer
             }
         }
 
-        // Show default value if available
         if (paramObj.ContainsKey("m_bDefaultValue"))
         {
             var def = paramObj.GetBooleanProperty("m_bDefaultValue");
@@ -250,9 +230,6 @@ internal class AG1GraphViewer : GLNodeGraphViewer
         return result;
     }
 
-    /// <summary>
-    /// Gets the parameter description from a CAnimParamHandle KVObject.
-    /// </summary>
     private string GetParameterDescriptionFromHandle(KVObject handle)
     {
         if (handle == null)
@@ -267,27 +244,22 @@ internal class AG1GraphViewer : GLNodeGraphViewer
             return $"{desc} (handle: {type} idx {index})";
         }
 
-        // Fallback: show raw handle info
         var typeRaw = handle.GetStringProperty("m_type", "Unknown");
         var indexRaw = handle.GetInt32Property("m_index", -1);
         return $"{typeRaw} idx {indexRaw}";
     }
 
-    /// <summary>
-    /// Universal parameter display: handles m_paramIndex, m_paramX, m_paramY, m_param, m_hParameter, m_hBlendParameter, m_hParam.
-    /// </summary>
     private void DisplayUniversalParameters(KVObject compiledNode, Node node)
     {
-        // List of known parameter field names
         string[] paramFields =
         {
-            "m_paramIndex",        // Direct integer index
-            "m_paramX",            // Blend 2D X axis
-            "m_paramY",            // Blend 2D Y axis
-            "m_param",             // Generic parameter handle
-            "m_hParameter",        // Selector, StanceOverride
-            "m_hBlendParameter",   // BoneMask
-            "m_hParam",            // FollowPath, etc.
+            "m_paramIndex",
+            "m_paramX",
+            "m_paramY",
+            "m_param",
+            "m_hParameter",
+            "m_hBlendParameter",
+            "m_hParam",
         };
 
         foreach (string field in paramFields)
@@ -297,17 +269,14 @@ internal class AG1GraphViewer : GLNodeGraphViewer
 
             var value = compiledNode[field];
 
-            // Case 1: Direct integer (m_paramIndex)
             if (value.ValueType == KVValueType.Int32 || value.ValueType == KVValueType.UInt32)
             {
                 int index = value.ToInt32();
-                // Try to resolve as handle first? In some graphs it's a direct index but we'll treat as global.
                 string display = GetParameterDescriptionFromIndex(index);
                 node.AddText($"{field}: {display}");
                 continue;
             }
 
-            // Case 2: Collection with m_type and m_index (CAnimParamHandle)
             if (value.ValueType == KVValueType.Collection)
             {
                 var handle = compiledNode.GetSubCollection(field);
@@ -319,7 +288,6 @@ internal class AG1GraphViewer : GLNodeGraphViewer
                 continue;
             }
 
-            // Case 3: String (parameter name directly)
             if (value.ValueType == KVValueType.String)
             {
                 string name = value.ToString();
@@ -329,9 +297,6 @@ internal class AG1GraphViewer : GLNodeGraphViewer
         }
     }
 
-    /// <summary>
-    /// Parses a 2D vector from a KVObject that may be an array or a collection with numeric keys.
-    /// </summary>
     private static (float x, float y) ParseVector2(KVObject obj, string key)
     {
         if (!obj.ContainsKey(key))
@@ -339,7 +304,6 @@ internal class AG1GraphViewer : GLNodeGraphViewer
 
         var value = obj[key];
 
-        // Try as a float array first (most common)
         if (value.ValueType == KVValueType.Array)
         {
             var array = obj.GetFloatArray(key);
@@ -347,7 +311,6 @@ internal class AG1GraphViewer : GLNodeGraphViewer
                 return (array[0], array[1]);
         }
 
-        // Fallback: try as a sub-collection with keys "0" and "1"
         if (value.ValueType == KVValueType.Collection)
         {
             var sub = obj.GetSubCollection(key);
@@ -380,7 +343,6 @@ internal class AG1GraphViewer : GLNodeGraphViewer
             nodeGraph.GridColor = ToSKColor(Themer.CurrentThemeColors.ContrastSoft);
         }
 
-        // Register type colors for sockets (optional – doesn't affect node header)
         NodeGraphControl.AddTypeColorPair<Pose>(PoseColor);
 
         return nodeGraph;
@@ -393,7 +355,6 @@ internal class AG1GraphViewer : GLNodeGraphViewer
         if (compiledNodes == null || compiledNodes.Count == 0)
             return;
 
-        // First pass: create all nodes
         for (int i = 0; i < compiledNodes.Count; i++)
         {
             var compiledNode = compiledNodes[i];
@@ -401,17 +362,14 @@ internal class AG1GraphViewer : GLNodeGraphViewer
             nodeMap[i] = node;
         }
 
-        // Second pass: create connections from parent to children
         for (int i = 0; i < compiledNodes.Count; i++)
         {
             var compiledNode = compiledNodes[i];
             var parentNode = nodeMap[i];
             var className = compiledNode.GetStringProperty("_class");
 
-            // Collect all child node indices
             var childIndices = new HashSet<int>();
 
-            // --- m_children array (Choice, Blend, etc.) ---
             if (compiledNode.ContainsKey("m_children"))
             {
                 var children = compiledNode.GetArray("m_children");
@@ -430,7 +388,6 @@ internal class AG1GraphViewer : GLNodeGraphViewer
                 }
             }
 
-            // --- Single child properties (Unary/Binary) ---
             string[] childProps = { "m_pChildNode", "m_pChild1", "m_pChild2", "m_pChild" };
             foreach (var prop in childProps)
             {
@@ -445,7 +402,6 @@ internal class AG1GraphViewer : GLNodeGraphViewer
                 }
             }
 
-            // --- Blend 2D: items may have m_pChild with a node index ---
             if (className == "CBlend2DUpdateNode" && compiledNode.ContainsKey("m_items"))
             {
                 var items = compiledNode.GetArray("m_items");
@@ -463,11 +419,9 @@ internal class AG1GraphViewer : GLNodeGraphViewer
                 }
             }
 
-            // --- State machine: children in m_stateData ---
             if (className == "CStateMachineUpdateNode" && compiledNode.ContainsKey("m_stateData"))
             {
                 var stateDataArray = compiledNode.GetArray("m_stateData");
-                // Get state names for labeling
                 var stateNames = new List<string>();
                 if (compiledNode.ContainsKey("m_stateMachine"))
                 {
@@ -496,24 +450,20 @@ internal class AG1GraphViewer : GLNodeGraphViewer
                 }
             }
 
-            // --- For each child index, create a connection ---
             foreach (int childIdx in childIndices)
             {
                 if (!nodeMap.TryGetValue(childIdx, out var childNode))
                     continue;
 
-                // Create output socket on child if none exists
                 if (!childNode.Sockets.OfType<SocketOut>().Any())
                 {
                     var outSocket = new SocketOut(typeof(Pose), string.Empty, childNode);
                     childNode.Sockets.Add(outSocket);
                 }
 
-                // Label the input socket
                 string inputLabel = $"Child {childIdx}";
                 if (className == "CStateMachineUpdateNode")
                 {
-                    // Find the state name for this child
                     if (compiledNode.ContainsKey("m_stateData") && compiledNode.ContainsKey("m_stateMachine"))
                     {
                         var stateDataArray = compiledNode.GetArray("m_stateData");
@@ -539,7 +489,6 @@ internal class AG1GraphViewer : GLNodeGraphViewer
                 }
                 else if (className == "CBlend2DUpdateNode" && compiledNode.ContainsKey("m_items"))
                 {
-                    // Try to label with the sequence name or position
                     var items = compiledNode.GetArray("m_items");
                     for (int itemIdx = 0; itemIdx < items.Count; itemIdx++)
                     {
@@ -561,16 +510,11 @@ internal class AG1GraphViewer : GLNodeGraphViewer
                 var inputSocket = new SocketIn(typeof(Pose), inputLabel, parentNode, hub: true);
                 parentNode.Sockets.Add(inputSocket);
 
-                // Connect child's output to parent's input
                 var childOutput = childNode.Sockets.OfType<SocketOut>().First();
                 nodeGraph.Connect(childOutput, inputSocket);
             }
-
-            // Recalculate node layout after adding sockets
             parentNode.Calculate();
         }
-
-        // Layout nodes
         nodeGraph.LayoutNodes();
     }
 
@@ -588,8 +532,6 @@ internal class AG1GraphViewer : GLNodeGraphViewer
             Name = $"({index}) {nodeName}",
             NodeType = displayName,
         };
-
-        // --- Fixed header color based on node type (not context) ---
 
         //Animation
         if (className == "CSequenceUpdateNode")
@@ -653,7 +595,6 @@ internal class AG1GraphViewer : GLNodeGraphViewer
         else
             node.HeaderColor = PoseColor; // fallback
 
-        // --- Add key properties as text inside the node ---
         foreach (var kv in compiledNode.Children)
         {
             string key = kv.Key;
@@ -672,10 +613,7 @@ internal class AG1GraphViewer : GLNodeGraphViewer
                 node.AddText($"{key}: {valueStr}");
         }
 
-        // --- Universal parameter display ---
         DisplayUniversalParameters(compiledNode, node);
-
-        // --- Specific node details (non-parameter) ---
 
         // Choice node
         if (className == "CChoiceUpdateNode")
@@ -711,10 +649,9 @@ internal class AG1GraphViewer : GLNodeGraphViewer
                 node.AddText($"Loop: {compiledNode.GetBooleanProperty("m_bLoop")}");
         }
 
-        // Blend 2D node (extra details beyond parameters)
+        // Blend 2D node
         if (className == "CBlend2DUpdateNode")
         {
-            // Show blend source axes (if not already shown by universal parameter display)
             if (compiledNode.ContainsKey("m_blendSourceX"))
                 node.AddText($"Blend X: {compiledNode.GetStringProperty("m_blendSourceX")}");
             if (compiledNode.ContainsKey("m_blendSourceY"))
@@ -738,7 +675,6 @@ internal class AG1GraphViewer : GLNodeGraphViewer
                 }
             }
 
-            // Show all items with positions (no limit)
             if (compiledNode.ContainsKey("m_items"))
             {
                 var items = compiledNode.GetArray("m_items");
@@ -754,7 +690,7 @@ internal class AG1GraphViewer : GLNodeGraphViewer
             }
         }
 
-        // BoneMask node (extra details)
+        // BoneMask node
         if (className == "CBoneMaskUpdateNode")
         {
             if (compiledNode.ContainsKey("m_nWeightListIndex"))
@@ -797,15 +733,13 @@ internal class AG1GraphViewer : GLNodeGraphViewer
                 }
             }
         }
-
-        // Root node
+        // Final Pose node
         if (className == "CRootUpdateNode" && compiledNode.ContainsKey("m_networkMode"))
             node.AddText($"NetworkMode: {compiledNode.GetStringProperty("m_networkMode")}");
 
         nodeGraph.AddNode(node);
         return node;
     }
-
     #region Node class
 
     private class Node : AbstractNode
@@ -819,7 +753,6 @@ internal class AG1GraphViewer : GLNodeGraphViewer
             TextColor = NodeTextColor;
             HeaderTextColor = new SKColor(5, 5, 5);
             HeaderTypeColor = new SKColor(25, 25, 25);
-            // HeaderColor will be set in CreateNode
         }
 
         public void AddSpace() => CreateTextSocket<string>(string.Empty);
@@ -834,9 +767,6 @@ internal class AG1GraphViewer : GLNodeGraphViewer
             Sockets.Add(socket);
         }
     }
-
     #endregion
-
-    // Dummy type for socket coloring (optional)
     private struct Pose { }
 }
