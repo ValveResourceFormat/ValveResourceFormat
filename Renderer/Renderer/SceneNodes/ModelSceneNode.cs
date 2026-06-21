@@ -52,6 +52,9 @@ namespace ValveResourceFormat.Renderer.SceneNodes
         /// </summary>
         public Dictionary<string, Attachment> Attachments { get; }
 
+        /// <summary>Gets the list of nodes attached to this model and the attachment points used.</summary>
+        public List<(SceneNode Node, string AttachmentName, Vector3 Offset, Quaternion Rotation)> AttachedNodes { get; } = [];
+
         /// <summary>Gets the name of the currently active material group (skin).</summary>
         public string ActiveMaterialGroup => activeMaterialGroup.Name;
 
@@ -228,6 +231,7 @@ namespace ValveResourceFormat.Renderer.SceneNodes
         public override void Update(Scene.UpdateContext context)
         {
             UpdateAutoLod(context.Camera);
+            UpdateAttachments(context);
 
             if (!AnimationController.Update(context.Timestep))
             {
@@ -300,6 +304,24 @@ namespace ValveResourceFormat.Renderer.SceneNodes
                         renderableMesh.FlexStateManager.UpdateComposite();
                         renderableMesh.FlexStateManager.MorphComposite.Render();
                     }
+                }
+            }
+        }
+
+        private void UpdateAttachments(Scene.UpdateContext context)
+        {
+            foreach (var attachment in AttachedNodes)
+            {
+                var child = attachment.Node;
+                var oldBounds = child.BoundingBox;
+
+                var localTransform = Matrix4x4.CreateFromQuaternion(attachment.Rotation) * Matrix4x4.CreateTranslation(attachment.Offset);
+                child.Transform = localTransform * GetAttachmentTransform(attachment.AttachmentName);
+                child.Update(context);
+
+                if (child.LayerEnabled)
+                {
+                    child.Scene.DynamicOctree.Update(child, oldBounds);
                 }
             }
         }
@@ -503,6 +525,23 @@ namespace ValveResourceFormat.Renderer.SceneNodes
                     renderer.SetBoneMatricesBuffer(null);
                 }
             }
+        }
+
+        /// <summary>
+        /// Attaches another <see cref="SceneNode"/> to this model with optional attachment point, offset and rotation.
+        /// </summary>
+        /// <param name="node">The child model to attach.</param>
+        /// <param name="attachmentName">The attachment point name.</param>
+        /// <param name="offset">The local offset from the attachment point.</param>
+        /// <param name="rotation">The local rotation from the attachment point.</param>
+        public void AttachNode(SceneNode node,
+            string attachmentName = "",
+            Vector3 offset = default,
+            Quaternion rotation = default)
+        {
+            node.Parent = this;
+            AttachedNodes.RemoveAll(entry => entry.Node == node);
+            AttachedNodes.Add((node, attachmentName, offset, rotation));
         }
 
         /// <summary>
