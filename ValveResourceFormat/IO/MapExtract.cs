@@ -586,7 +586,7 @@ public sealed class MapExtract
         EntitiesSelectionSet = S2VSelectionSet.Children.AddReturn(new CMapSelectionSet("Entities"));
     }
 
-    internal List<CMapMesh> RenderMeshToHammerMesh(Model model, Resource resource, Vector3 offset = new Vector3(), string? entityClassname = null)
+    internal List<CMapMesh> RenderMeshToHammerMesh(Model model, Resource resource, string? entityClassname = null, Matrix4x4? transform = null)
     {
         List<CMapMesh> hammerMeshesToReturn = [];
 
@@ -594,6 +594,8 @@ public sealed class MapExtract
         {
             return hammerMeshesToReturn;
         }
+
+        var meshTransform = transform ?? Matrix4x4.Identity;
 
         var modelExtract = new ModelExtract(resource, FileLoader);
         modelExtract.GrabMaterialInputSignatures(resource);
@@ -624,7 +626,7 @@ public sealed class MapExtract
                 };
                 if (dag.Shape is DmeMesh meshShape)
                 {
-                    builder.AddRenderMesh(meshShape, offset);
+                    builder.AddRenderMesh(meshShape, meshTransform);
                 }
                 var hammerMesh = new CMapMesh() { MeshData = builder.GenerateMesh() };
 
@@ -908,6 +910,8 @@ public sealed class MapExtract
 
             FolderExtractFilter.Add(modelName ?? meshName);
 
+            var objectTransform = sceneObject.GetArray("m_vTransform").ToMatrix4x4();
+
             if (SceneObjectShouldConvertToHammerMesh(modelName))
             {
                 var meshNameCompiled = modelName + GameFileLoader.CompiledFileSuffix;
@@ -919,8 +923,27 @@ public sealed class MapExtract
                 }
 
                 var model = (Model)mesh.DataBlock;
-                foreach (var hammermesh in RenderMeshToHammerMesh(model, mesh))
+
+                // Source 2 bakes a mesh's scale into its vertices, so bake it here and keep only origin/angles on the node.
+                var meshOrigin = Vector3.Zero;
+                var meshAngles = new Datamodel.QAngle();
+                var scaleTransform = Matrix4x4.Identity;
+                if (!objectTransform.IsIdentity)
                 {
+                    if (!Matrix4x4.Decompose(objectTransform, out var scales, out var rotation, out var translation))
+                    {
+                        throw new InvalidOperationException("Matrix decompose failed");
+                    }
+
+                    meshOrigin = translation;
+                    meshAngles = ModelExtract.ToEulerAngles(rotation);
+                    scaleTransform = Matrix4x4.CreateScale(scales);
+                }
+
+                foreach (var hammermesh in RenderMeshToHammerMesh(model, mesh, transform: scaleTransform))
+                {
+                    hammermesh.Origin = meshOrigin;
+                    hammermesh.Angles = meshAngles;
                     MapDocument.World.Children.Add(hammermesh);
                 }
                 return;
@@ -936,7 +959,6 @@ public sealed class MapExtract
                 .WithClassName("prop_static")
                 .WithProperty("model", modelName!);
 
-            var objectTransform = sceneObject.GetArray("m_vTransform").ToMatrix4x4();
             if (!objectTransform.IsIdentity)
             {
                 if (!Matrix4x4.Decompose(objectTransform, out var scales, out var rotation, out var translation))
@@ -1388,7 +1410,7 @@ public sealed class MapExtract
             }
             else
             {
-                foreach (var hammermesh in RenderMeshToHammerMesh(data, model, offset, associatedEntityClass))
+                foreach (var hammermesh in RenderMeshToHammerMesh(data, model, associatedEntityClass, Matrix4x4.CreateTranslation(offset)))
                 {
                     mapEntity.Children.Add(hammermesh);
                 }
