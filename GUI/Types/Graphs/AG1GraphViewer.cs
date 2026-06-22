@@ -8,8 +8,11 @@ using GUI.Types.GLViewers;
 using GUI.Utils;
 using SkiaSharp;
 using ValveKeyValue;
+using ValveResourceFormat;
 using ValveResourceFormat.IO;
 using ValveResourceFormat.Renderer;
+using ValveResourceFormat.ResourceTypes;
+using ValveResourceFormat.ResourceTypes.ModelData.Attachments;
 using ValveResourceFormat.Serialization.KeyValues;
 
 namespace GUI.Types.Graphs;
@@ -29,6 +32,17 @@ internal class AG1GraphViewer : GLNodeGraphViewer
     private List<KVObject> tags = new();
     private Dictionary<int, string> tagIndexToName = new();
     private List<KVObject> components = new();
+
+    private readonly IFileLoader fileLoader;
+    private Resource? modelResource;
+    private bool modelResourceLoaded;
+    private Dictionary<int, string>? sequenceNamesCache;
+    private Dictionary<int, string>? weightListNamesCache;
+    private string[]? boneNamesCache;
+    private Dictionary<string, Attachment>? modelAttachments;
+    private string[]? ikChainNamesCache;
+    private string[]? footNamesCache;
+    private Dictionary<string, List<string>>? ikChainBonesCache;
 
     // Fixed colors per node type (AG1 specific)
     private static SKColor NodeColor { get; set; } = new SKColor(60, 60, 60);
@@ -276,6 +290,9 @@ internal class AG1GraphViewer : GLNodeGraphViewer
         ["CBlend2DUpdateNode"] = new(StringComparer.Ordinal) { "m_blendSourceX", "m_blendSourceY", "m_eBlendMode", "m_bLoop", "m_playbackSpeed", "m_damping", "m_items" },
         ["CBoneMaskUpdateNode"] = new(StringComparer.Ordinal) { "m_nWeightListIndex", "m_blendSpace", "m_flRootMotionBlend", "m_bUseBlendScale" },
         ["CStateMachineUpdateNode"] = new(StringComparer.Ordinal) { "m_stateMachine", "m_transitionData" },
+        ["CAimMatrixUpdateNode"] = new(StringComparer.Ordinal) { "m_opFixedSettings", "m_target", "m_paramIndex", "m_hSequence", "m_bResetChild", "m_bLockWhenWaning" },
+        ["CFollowAttachmentUpdateNode"] = new(StringComparer.Ordinal) { "m_opFixedData" },
+        ["CFootPinningUpdateNode"] = new(StringComparer.Ordinal) { "m_poseOpFixedData", "m_eTimingSource", "m_params", "m_bResetChild" },
     };
 
     private static readonly string[] ChildProperties = { "m_pChildNode", "m_pChild1", "m_pChild2", "m_pChild" };
@@ -283,6 +300,7 @@ internal class AG1GraphViewer : GLNodeGraphViewer
     public AG1GraphViewer(VrfGuiContext vrfGuiContext, RendererContext rendererContext, KVObject data)
         : base(vrfGuiContext, rendererContext, CreateAndConfigureNodeGraph(data, out var graphDef))
     {
+        fileLoader = vrfGuiContext;
         animGraphData = graphDef;
 
         LoadParameters();
@@ -429,6 +447,359 @@ internal class AG1GraphViewer : GLNodeGraphViewer
                 components.Add(comp);
             }
         }
+    }
+
+    // ---------- Model name resolution ----------
+    private Resource? LoadModel()
+    {
+        if (modelResourceLoaded)
+            return modelResource;
+        modelResourceLoaded = true;
+
+        var modelName = animGraphData.GetStringProperty("m_modelName");
+        if (string.IsNullOrEmpty(modelName))
+            return null;
+
+        modelResource = fileLoader.LoadFileCompiled(modelName);
+        return modelResource;
+    }
+
+    private Dictionary<int, string> LoadSequenceNames()
+    {
+        if (sequenceNamesCache != null)
+            return sequenceNamesCache;
+
+        sequenceNamesCache = new Dictionary<int, string>();
+        var modelRes = LoadModel();
+        if (modelRes == null)
+            return sequenceNamesCache;
+
+        // Try ASEQ block
+        var aseqBlock = modelRes.GetBlockByType(BlockType.ASEQ);
+        if (aseqBlock is KeyValuesOrNTRO kv)
+        {
+            var data = kv.Data;
+            if (data is KVObject kvData)
+            {
+                if (kvData.ContainsKey("m_localSequenceNameArray"))
+                {
+                    var names = kvData.GetArray<string>("m_localSequenceNameArray");
+                    for (int i = 0; i < names.Length; i++)
+                    {
+                        if (!string.IsNullOrEmpty(names[i]))
+                            sequenceNamesCache[i] = names[i];
+                    }
+                }
+                else if (kvData.GetStringProperty("m_sName")?.Contains("embedded_sequence_data") == true)
+                {
+                    // Could parse embedded data if needed
+                }
+            }
+        }
+
+        // Fallback: get sequences from model animations
+        if (modelRes.DataBlock is Model modelData)
+        {
+            var animations = modelData.GetReferencedAnimations(fileLoader);
+            var index = sequenceNamesCache.Count;
+            foreach (var anim in animations)
+            {
+                if (!string.IsNullOrEmpty(anim.Name) && !sequenceNamesCache.ContainsValue(anim.Name))
+                {
+                    sequenceNamesCache[index++] = anim.Name;
+                }
+            }
+        }
+
+        return sequenceNamesCache;
+    }
+
+    private Dictionary<int, string> LoadWeightListNames()
+    {
+        if (weightListNamesCache != null)
+            return weightListNamesCache;
+
+        weightListNamesCache = new Dictionary<int, string>();
+        var modelRes = LoadModel();
+        if (modelRes == null)
+        {
+            weightListNamesCache[0] = "default";
+            return weightListNamesCache;
+        }
+
+        var aseqBlock = modelRes.GetBlockByType(BlockType.ASEQ);
+        if (aseqBlock is KeyValuesOrNTRO kv)
+        {
+            var data = kv.Data;
+            if (data is KVObject kvData && kvData.ContainsKey("m_localBoneMaskArray"))
+            {
+                var masks = kvData.GetArray("m_localBoneMaskArray");
+                for (int i = 0; i < masks.Count; i++)
+                {
+                    var name = masks[i].GetStringProperty("m_sName");
+                    if (!string.IsNullOrEmpty(name))
+                        weightListNamesCache[i] = name;
+                    else if (i == 0)
+                        weightListNamesCache[i] = "default";
+                    else
+                        weightListNamesCache[i] = $"weightlist_{i}";
+                }
+            }
+        }
+
+        if (!weightListNamesCache.ContainsKey(0))
+            weightListNamesCache[0] = "default";
+
+        return weightListNamesCache;
+    }
+
+    private string[] LoadBoneNames()
+    {
+        if (boneNamesCache != null)
+            return boneNamesCache;
+
+        var modelRes = LoadModel();
+        if (modelRes?.DataBlock is Model modelData)
+        {
+            boneNamesCache = modelData.Skeleton.Bones.Select(b => b.Name).ToArray();
+        }
+        else
+        {
+            boneNamesCache = Array.Empty<string>();
+        }
+        return boneNamesCache;
+    }
+
+    private string[] LoadIKChainNames()
+    {
+        if (ikChainNamesCache != null)
+            return ikChainNamesCache;
+
+        var modelRes = LoadModel();
+        if (modelRes?.DataBlock is not Model modelData)
+        {
+            ikChainNamesCache = Array.Empty<string>();
+            return ikChainNamesCache;
+        }
+
+        var keyvalues = modelData.KeyValues;
+        if (keyvalues.ContainsKey("ikdata"))
+        {
+            var ikdata = keyvalues.GetSubCollection("ikdata");
+            if (ikdata.ContainsKey("m_IKChains"))
+            {
+                var chains = ikdata.GetArray("m_IKChains");
+                ikChainNamesCache = chains
+                    .Select(c => c.GetStringProperty("m_Name"))
+                    .Where(n => !string.IsNullOrEmpty(n))
+                    .ToArray();
+                return ikChainNamesCache;
+            }
+        }
+
+        ikChainNamesCache = Array.Empty<string>();
+        return ikChainNamesCache;
+    }
+
+    private Dictionary<string, List<string>> LoadIKChainBonesFromModel()
+    {
+        if (ikChainBonesCache != null)
+            return ikChainBonesCache;
+
+        ikChainBonesCache = new Dictionary<string, List<string>>();
+        var modelRes = LoadModel();
+        if (modelRes?.DataBlock is Model modelData)
+        {
+            var keyvalues = modelData.KeyValues;
+            if (keyvalues.ContainsKey("ikdata"))
+            {
+                var ikdata = keyvalues.GetSubCollection("ikdata");
+                if (ikdata.ContainsKey("m_IKChains"))
+                {
+                    var chains = ikdata.GetArray("m_IKChains");
+                    foreach (var chain in chains)
+                    {
+                        var name = chain.GetStringProperty("m_Name");
+                        if (string.IsNullOrEmpty(name))
+                            continue;
+
+                        var boneList = new List<string>();
+                        if (chain.ContainsKey("m_Joints"))
+                        {
+                            foreach (var joint in chain.GetArray("m_Joints"))
+                            {
+                                if (joint.ContainsKey("m_Bone"))
+                                {
+                                    var boneName = joint.GetSubCollection("m_Bone").GetStringProperty("m_Name");
+                                    if (!string.IsNullOrEmpty(boneName))
+                                        boneList.Add(boneName);
+                                }
+                            }
+                        }
+                        ikChainBonesCache[name] = boneList;
+                    }
+                }
+            }
+        }
+        return ikChainBonesCache;
+    }
+
+    private string GetIKChainNameByBoneIndices(int fixedBoneIndex, int middleBoneIndex, int endBoneIndex)
+    {
+        var fixedBoneName = GetBoneName(fixedBoneIndex);
+        var middleBoneName = GetBoneName(middleBoneIndex);
+        var endBoneName = GetBoneName(endBoneIndex);
+
+        if (string.IsNullOrEmpty(fixedBoneName) || string.IsNullOrEmpty(middleBoneName) || string.IsNullOrEmpty(endBoneName))
+            return string.Empty;
+
+        var chains = LoadIKChainBonesFromModel();
+        foreach (var (chainName, bones) in chains)
+        {
+            if (bones.Count == 3 && bones[0] == fixedBoneName && bones[1] == middleBoneName && bones[2] == endBoneName)
+                return chainName;
+        }
+        return string.Empty;
+    }
+
+    private string[] LoadFootNames()
+    {
+        if (footNamesCache != null)
+            return footNamesCache;
+
+        var modelRes = LoadModel();
+        if (modelRes?.DataBlock is not Model modelData)
+        {
+            footNamesCache = Array.Empty<string>();
+            return footNamesCache;
+        }
+
+        var keyvalues = modelData.KeyValues;
+        var footNames = new List<string>();
+        if (keyvalues.ContainsKey("FeetSettings"))
+        {
+            var feetSettings = keyvalues.GetSubCollection("FeetSettings");
+            foreach (var (footKey, _) in feetSettings.Children)
+            {
+                if (!string.IsNullOrEmpty(footKey) && footKey != "_class")
+                {
+                    footNames.Add(footKey);
+                }
+            }
+        }
+        footNamesCache = footNames.ToArray();
+        return footNamesCache;
+    }
+
+    private Dictionary<string, Attachment> LoadModelAttachments()
+    {
+        if (modelAttachments != null)
+            return modelAttachments;
+
+        var modelRes = LoadModel();
+        if (modelRes?.DataBlock is Model modelData)
+        {
+            modelAttachments = modelData.Attachments ?? new Dictionary<string, Attachment>();
+        }
+        else
+        {
+            modelAttachments = new Dictionary<string, Attachment>();
+        }
+        return modelAttachments;
+    }
+
+    private string GetIKChainName(int index)
+    {
+        var names = LoadIKChainNames();
+        return index >= 0 && index < names.Length ? names[index] : $"ikchain_{index}";
+    }
+
+    private string GetFootName(int index)
+    {
+        var names = LoadFootNames();
+        return index >= 0 && index < names.Length ? names[index] : $"foot_{index}";
+    }
+
+    private string FindMatchingAttachmentName(KVObject compiledAttachment)
+    {
+        if (compiledAttachment == null)
+            return string.Empty;
+
+        // If there's a direct name property, use it
+        if (compiledAttachment.ContainsKey("m_attachmentName"))
+            return compiledAttachment.GetStringProperty("m_attachmentName");
+        if (compiledAttachment.ContainsKey("m_name"))
+            return compiledAttachment.GetStringProperty("m_name");
+
+        var attachments = LoadModelAttachments();
+        if (attachments.Count == 0)
+            return string.Empty;
+
+        // Attempt to match by influence data
+        if (!compiledAttachment.ContainsKey("m_influenceIndices"))
+            return string.Empty;
+
+        var influenceIndices = compiledAttachment.GetArray<int>("m_influenceIndices");
+        var influenceRotations = compiledAttachment.GetArray("m_influenceRotations").Select(v => v.ToQuaternion()).ToArray();
+        var influenceOffsets = compiledAttachment.GetArray("m_influenceOffsets").Select(v => v.ToVector3()).ToArray();
+        var influenceWeights = compiledAttachment.GetArray<double>("m_influenceWeights");
+        var influenceCount = compiledAttachment.GetInt32Property("m_numInfluences");
+
+        if (influenceCount == 0 || influenceIndices.Length < influenceCount)
+            return string.Empty;
+
+        var influences = new Attachment.Influence[influenceCount];
+        var boneNames = LoadBoneNames();
+        for (var i = 0; i < influenceCount; i++)
+        {
+            var boneIndex = influenceIndices[i];
+            var boneName = (boneIndex >= 0 && boneIndex < boneNames.Length) ? boneNames[boneIndex] : $"bone_{boneIndex}";
+            influences[i] = new Attachment.Influence
+            {
+                Name = boneName,
+                Rotation = influenceRotations[i],
+                Offset = influenceOffsets[i],
+                Weight = (float)influenceWeights[i]
+            };
+        }
+
+        const float epsilon = 0.001f;
+        foreach (var (name, attachment) in attachments)
+        {
+            if (attachment.Length != influenceCount)
+                continue;
+
+            // Compare first influence offset and rotation (simple heuristic)
+            var posDiff = Vector3.DistanceSquared(attachment[0].Offset, influences[0].Offset);
+            if (posDiff > epsilon)
+                continue;
+
+            var dot = Quaternion.Dot(attachment[0].Rotation, influences[0].Rotation);
+            if (Math.Abs(Math.Abs(dot) - 1.0f) > epsilon)
+                continue;
+
+            return name;
+        }
+
+        return string.Empty;
+    }
+
+    private string GetSequenceName(int index)
+    {
+        var names = LoadSequenceNames();
+        return names.TryGetValue(index, out var name) ? name : $"sequence_{index}";
+    }
+
+    private string GetWeightListName(int index)
+    {
+        var names = LoadWeightListNames();
+        return names.TryGetValue(index, out var name) ? name : $"weightlist_{index}";
+    }
+
+    private string GetBoneName(int index)
+    {
+        var names = LoadBoneNames();
+        return index >= 0 && index < names.Length ? names[index] : $"bone_{index}";
     }
 
     private static string ClassNameToParamType(string className)
@@ -662,26 +1033,31 @@ internal class AG1GraphViewer : GLNodeGraphViewer
             var parentNode = nodeMap[i];
             var className = compiledNode.GetStringProperty("_class");
 
-            var childIndices = new HashSet<int>();
+            var connections = new List<(int childIdx, string label)>();
 
+            // Helper to add a connection
+            void AddConnection(int idx, string label)
+            {
+                if (idx >= 0)
+                    connections.Add((idx, label));
+            }
+
+            // --- m_children array (generic) ---
             if (compiledNode.ContainsKey("m_children"))
             {
                 var children = compiledNode.GetArray("m_children");
                 foreach (var child in children)
                 {
+                    int idx = -1;
                     if (child.ValueType == KVValueType.Collection && child.ContainsKey("m_nodeIndex"))
-                    {
-                        int idx = child.GetInt32Property("m_nodeIndex");
-                        if (idx >= 0) childIndices.Add(idx);
-                    }
+                        idx = child.GetInt32Property("m_nodeIndex");
                     else if (child.ValueType == KVValueType.Int32)
-                    {
-                        int idx = child.ToInt32();
-                        if (idx >= 0) childIndices.Add(idx);
-                    }
+                        idx = child.ToInt32();
+                    AddConnection(idx, $"Child {idx}");
                 }
             }
 
+            // --- Single child properties ---
             foreach (var prop in ChildProperties)
             {
                 if (compiledNode.ContainsKey(prop))
@@ -690,82 +1066,94 @@ internal class AG1GraphViewer : GLNodeGraphViewer
                     if (childRef.ValueType == KVValueType.Collection && childRef.ContainsKey("m_nodeIndex"))
                     {
                         int idx = childRef.GetInt32Property("m_nodeIndex");
-                        if (idx >= 0) childIndices.Add(idx);
+                        AddConnection(idx, $"Child {idx}");
                     }
                 }
             }
 
+            // --- Blend 2D items ---
             if (className == "CBlend2DUpdateNode" && compiledNode.ContainsKey("m_items"))
             {
                 var items = compiledNode.GetArray("m_items");
-                foreach (var item in items)
+                for (int itemIdx = 0; itemIdx < items.Count; itemIdx++)
                 {
+                    var item = items[itemIdx];
                     if (item.ContainsKey("m_pChild"))
                     {
                         var childRef = item.GetSubCollection("m_pChild");
                         if (childRef.ContainsKey("m_nodeIndex"))
                         {
                             int idx = childRef.GetInt32Property("m_nodeIndex");
-                            if (idx >= 0) childIndices.Add(idx);
+                            if (idx >= 0)
+                            {
+                                int seqIdx = item.GetInt32Property("m_hSequence", -1);
+                                string seqDisplay = seqIdx >= 0 ? GetSequenceName(seqIdx) : "None";
+                                var pos = ParseVector2(item, "m_vPos");
+                                string label = $"Item {itemIdx} (Seq: {seqDisplay}) ({pos.x:F1}, {pos.y:F1})";
+                                AddConnection(idx, label);
+                            }
                         }
                     }
                 }
             }
 
+            // --- State machine children ---
             if (className == "CStateMachineUpdateNode" && compiledNode.ContainsKey("m_stateData"))
             {
                 var stateDataArray = compiledNode.GetArray("m_stateData");
-                for (int s = 0; s < stateDataArray.Count; s++)
+                var stateMachine = compiledNode.GetSubCollection("m_stateMachine");
+                if (stateMachine != null && stateMachine.ContainsKey("m_states"))
                 {
-                    var stateData = stateDataArray[s];
-                    if (stateData.ContainsKey("m_pChild"))
+                    var states = stateMachine.GetArray("m_states");
+                    for (int s = 0; s < stateDataArray.Count; s++)
                     {
-                        var childRef = stateData.GetSubCollection("m_pChild");
-                        if (childRef.ContainsKey("m_nodeIndex"))
+                        var stateData = stateDataArray[s];
+                        if (stateData.ContainsKey("m_pChild"))
                         {
-                            int idx = childRef.GetInt32Property("m_nodeIndex");
-                            if (idx >= 0) childIndices.Add(idx);
+                            var childRef = stateData.GetSubCollection("m_pChild");
+                            if (childRef.ContainsKey("m_nodeIndex"))
+                            {
+                                int idx = childRef.GetInt32Property("m_nodeIndex");
+                                if (idx >= 0)
+                                {
+                                    string stateName = states[s].GetStringProperty("m_name", $"State {s}");
+                                    AddConnection(idx, stateName);
+                                }
+                            }
                         }
                     }
                 }
             }
 
-            Dictionary<int, (float weight, float blendTime)>? choiceWeightMap = null;
-            if (className == "CChoiceUpdateNode")
+            // --- Choice node: replace generic children with weighted labels ---
+            if (className == "CChoiceUpdateNode" && compiledNode.ContainsKey("m_children"))
             {
-                float[]? weights = null;
-                float[]? blendTimes = null;
-                if (compiledNode.ContainsKey("m_weights"))
-                    weights = compiledNode.GetFloatArray("m_weights");
-                if (compiledNode.ContainsKey("m_blendTimes"))
-                    blendTimes = compiledNode.GetFloatArray("m_blendTimes");
+                var children = compiledNode.GetArray("m_children");
+                float[]? weights = compiledNode.ContainsKey("m_weights") ? compiledNode.GetFloatArray("m_weights") : null;
+                float[]? blendTimes = compiledNode.ContainsKey("m_blendTimes") ? compiledNode.GetFloatArray("m_blendTimes") : null;
 
-                choiceWeightMap = new Dictionary<int, (float, float)>();
-                if (compiledNode.ContainsKey("m_children"))
+                var newConnections = new List<(int, string)>();
+                for (int c = 0; c < children.Count; c++)
                 {
-                    var children = compiledNode.GetArray("m_children");
-                    for (int c = 0; c < children.Count; c++)
+                    var child = children[c];
+                    int idx = -1;
+                    if (child.ValueType == KVValueType.Collection && child.ContainsKey("m_nodeIndex"))
+                        idx = child.GetInt32Property("m_nodeIndex");
+                    else if (child.ValueType == KVValueType.Int32)
+                        idx = child.ToInt32();
+                    if (idx >= 0)
                     {
-                        var child = children[c];
-                        int idx = -1;
-                        if (child.ValueType == KVValueType.Collection && child.ContainsKey("m_nodeIndex"))
-                            idx = child.GetInt32Property("m_nodeIndex");
-                        else if (child.ValueType == KVValueType.Int32)
-                            idx = child.ToInt32();
-                        if (idx >= 0)
-                        {
-                            float w = (weights != null && c < weights.Length) ? weights[c] : 1.0f;
-                            float bt = (blendTimes != null && c < blendTimes.Length) ? blendTimes[c] : 0.0f;
-                            choiceWeightMap[idx] = (w, bt);
-                        }
+                        float w = (weights != null && c < weights.Length) ? weights[c] : 1.0f;
+                        float bt = (blendTimes != null && c < blendTimes.Length) ? blendTimes[c] : 0.0f;
+                        newConnections.Add((idx, $"Item {c} (W:{w:F2} BT:{bt:F2})"));
                     }
                 }
+                connections = newConnections;
             }
 
-            Dictionary<int, string>? selectorOptionMap = null;
+            // --- Selector node: replace generic children with enum labels ---
             if (className == "CSelectorUpdateNode")
             {
-
                 KVObject? paramHandle = null;
                 if (compiledNode.ContainsKey("m_hParameter"))
                     paramHandle = compiledNode.GetSubCollection("m_hParameter");
@@ -775,109 +1163,53 @@ internal class AG1GraphViewer : GLNodeGraphViewer
                 if (paramHandle != null)
                 {
                     var paramObj = ResolveParameterHandle(paramHandle);
-                    if (paramObj != null)
+                    if (paramObj != null && paramObj.GetStringProperty("_class") == "CEnumAnimParameter" && paramObj.ContainsKey("m_enumOptions"))
                     {
-                        var paramClass = paramObj.GetStringProperty("_class");
-                        if (paramClass == "CEnumAnimParameter" && paramObj.ContainsKey("m_enumOptions"))
+                        var enumOptions = paramObj.GetArray<string>("m_enumOptions");
+                        if (enumOptions.Length > 0 && compiledNode.ContainsKey("m_children"))
                         {
-                            var enumOptions = paramObj.GetArray<string>("m_enumOptions");
-                            if (enumOptions.Length > 0)
+                            var children = compiledNode.GetArray("m_children");
+                            var newConnections = new List<(int, string)>();
+                            for (int c = 0; c < children.Count; c++)
                             {
-                                selectorOptionMap = new Dictionary<int, string>();
-
-                                var children = compiledNode.GetArray("m_children");
-                                for (int c = 0; c < children.Count; c++)
+                                var child = children[c];
+                                int idx = -1;
+                                if (child.ValueType == KVValueType.Collection && child.ContainsKey("m_nodeIndex"))
+                                    idx = child.GetInt32Property("m_nodeIndex");
+                                else if (child.ValueType == KVValueType.Int32)
+                                    idx = child.ToInt32();
+                                if (idx >= 0)
                                 {
-                                    var child = children[c];
-                                    int idx = -1;
-                                    if (child.ValueType == KVValueType.Collection && child.ContainsKey("m_nodeIndex"))
-                                        idx = child.GetInt32Property("m_nodeIndex");
-                                    else if (child.ValueType == KVValueType.Int32)
-                                        idx = child.ToInt32();
-                                    if (idx >= 0)
-                                    {
-                                        string label = (c < enumOptions.Length) ? enumOptions[c] : $"Option {c}";
-                                        selectorOptionMap[idx] = label;
-                                    }
+                                    string label = (c < enumOptions.Length) ? enumOptions[c] : $"Option {c}";
+                                    newConnections.Add((idx, label));
                                 }
                             }
+                            connections = newConnections;
                         }
                     }
                 }
             }
 
-            foreach (int childIdx in childIndices)
+            // --- Now create sockets and connect ---
+            foreach (var (childIdx, label) in connections)
             {
                 if (!nodeMap.TryGetValue(childIdx, out var childNode))
                     continue;
 
+                // Ensure child has an output socket
                 if (!childNode.Sockets.OfType<SocketOut>().Any())
                 {
                     var outSocket = new SocketOut(typeof(Pose), string.Empty, childNode);
                     childNode.Sockets.Add(outSocket);
                 }
 
-                string inputLabel = $"Child {childIdx}";
-
-                if (className == "CStateMachineUpdateNode")
-                {
-                    if (compiledNode.ContainsKey("m_stateData") && compiledNode.ContainsKey("m_stateMachine"))
-                    {
-                        var stateDataArray = compiledNode.GetArray("m_stateData");
-                        var stateMachine = compiledNode.GetSubCollection("m_stateMachine");
-                        if (stateMachine.ContainsKey("m_states"))
-                        {
-                            var states = stateMachine.GetArray("m_states");
-                            for (int s = 0; s < stateDataArray.Count; s++)
-                            {
-                                var stateData = stateDataArray[s];
-                                if (stateData.ContainsKey("m_pChild"))
-                                {
-                                    var childRef = stateData.GetSubCollection("m_pChild");
-                                    if (childRef.ContainsKey("m_nodeIndex") && childRef.GetInt32Property("m_nodeIndex") == childIdx)
-                                    {
-                                        inputLabel = states[s].GetStringProperty("m_name", $"State {s}");
-                                        break;
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-                else if (className == "CBlend2DUpdateNode" && compiledNode.ContainsKey("m_items"))
-                {
-                    var items = compiledNode.GetArray("m_items");
-                    for (int itemIdx = 0; itemIdx < items.Count; itemIdx++)
-                    {
-                        var item = items[itemIdx];
-                        if (item.ContainsKey("m_pChild"))
-                        {
-                            var childRef = item.GetSubCollection("m_pChild");
-                            if (childRef.ContainsKey("m_nodeIndex") && childRef.GetInt32Property("m_nodeIndex") == childIdx)
-                            {
-                                int seqIdx = item.GetInt32Property("m_hSequence", -1);
-                                var pos = ParseVector2(item, "m_vPos");
-                                inputLabel = $"Item {itemIdx} (Seq {seqIdx}) ({pos.x:F1}, {pos.y:F1})";
-                                break;
-                            }
-                        }
-                    }
-                }
-                else if (className == "CChoiceUpdateNode" && choiceWeightMap != null && choiceWeightMap.TryGetValue(childIdx, out var choiceData))
-                {
-                    inputLabel = $"Item {childIdx} (W:{choiceData.weight:F2} BT:{choiceData.blendTime:F2})";
-                }
-                else if (className == "CSelectorUpdateNode" && selectorOptionMap != null && selectorOptionMap.TryGetValue(childIdx, out var optionName))
-                {
-                    inputLabel = optionName;
-                }
-
-                var inputSocket = new SocketIn(typeof(Pose), inputLabel, parentNode, hub: true);
+                var inputSocket = new SocketIn(typeof(Pose), label, parentNode, hub: true);
                 parentNode.Sockets.Add(inputSocket);
 
                 var childOutput = childNode.Sockets.OfType<SocketOut>().First();
                 nodeGraph.Connect(childOutput, inputSocket);
             }
+
             parentNode.Calculate();
         }
         nodeGraph.LayoutNodes();
@@ -893,6 +1225,22 @@ internal class AG1GraphViewer : GLNodeGraphViewer
         string nodeName = compiledNode.GetStringProperty("m_name");
         if (string.IsNullOrEmpty(nodeName))
             nodeName = displayName;
+
+        if (className is "CSequenceUpdateNode" or "CSingleFrameUpdateNode" or "CCycleControlClipUpdateNode")
+        {
+            if (compiledNode.ContainsKey("m_hSequence"))
+            {
+                int seqIdx = compiledNode.GetInt32Property("m_hSequence");
+                if (seqIdx >= 0)
+                {
+                    var seqName = GetSequenceName(seqIdx);
+                    if (!string.IsNullOrEmpty(seqName) && !seqName.StartsWith("sequence_"))
+                    {
+                        nodeName = seqName;
+                    }
+                }
+            }
+        }
 
         var node = new Node(compiledNode)
         {
@@ -932,10 +1280,26 @@ internal class AG1GraphViewer : GLNodeGraphViewer
             if (kv.Value.ValueType == KVValueType.Collection || kv.Value.ValueType == KVValueType.Array)
                 continue;
 
+            if (key == "m_hSequence")
+            {
+                int seqIdx = kv.Value.ToInt32();
+                if (seqIdx >= 0)
+                {
+                    string seqName = GetSequenceName(seqIdx);
+                    node.AddText($"Sequence: {seqName} (idx {seqIdx})");
+                }
+                else
+                {
+                    node.AddText($"Sequence: None");
+                }
+                continue;
+            }
+
             string displayKey = PropertyDisplayNames.TryGetValue(key, out var friendly) ? friendly : key;
             string valueStr = kv.Value.ToString();
             if (!string.IsNullOrEmpty(valueStr))
                 node.AddText($"{displayKey}: {valueStr}");
+
         }
 
         DisplayUniversalParameters(compiledNode, node);
@@ -989,8 +1353,6 @@ internal class AG1GraphViewer : GLNodeGraphViewer
         // Sequence node
         if (className == "CSequenceUpdateNode")
         {
-            if (compiledNode.ContainsKey("m_hSequence"))
-                node.AddText($"Sequence Index: {compiledNode.GetInt32Property("m_hSequence")}");
             if (compiledNode.ContainsKey("m_duration"))
                 node.AddText($"Duration: {compiledNode.GetFloatProperty("m_duration"):F2}");
             if (compiledNode.ContainsKey("m_playbackSpeed"))
@@ -1032,9 +1394,10 @@ internal class AG1GraphViewer : GLNodeGraphViewer
                 {
                     var item = items[i];
                     int seqIdx = item.GetInt32Property("m_hSequence", -1);
+                    string seqDisplay = seqIdx >= 0 ? GetSequenceName(seqIdx) : "None";
                     var pos = ParseVector2(item, "m_vPos");
                     float dur = item.GetFloatProperty("m_flDuration");
-                    node.AddText($"  [{i}] Seq {seqIdx} ({pos.x:F1}, {pos.y:F1}) dur={dur:F2}s");
+                    node.AddText($"  [{i}] Seq: {seqDisplay} ({pos.x:F1}, {pos.y:F1}) dur={dur:F2}s");
                 }
             }
         }
@@ -1043,7 +1406,13 @@ internal class AG1GraphViewer : GLNodeGraphViewer
         if (className == "CBoneMaskUpdateNode")
         {
             if (compiledNode.ContainsKey("m_nWeightListIndex"))
-                node.AddText($"Weight List Index: {compiledNode.GetInt32Property("m_nWeightListIndex")}");
+            {
+                int idx = compiledNode.GetInt32Property("m_nWeightListIndex");
+                if (idx >= 0)
+                    node.AddText($"Bone Mask: {GetWeightListName(idx)} (idx {idx})");
+                else
+                    node.AddText($"Bone Mask: None");
+            }
             if (compiledNode.ContainsKey("m_blendSpace"))
                 node.AddText($"Blend Space: {compiledNode.GetStringProperty("m_blendSpace")}");
             if (compiledNode.ContainsKey("m_flRootMotionBlend"))
@@ -1086,6 +1455,296 @@ internal class AG1GraphViewer : GLNodeGraphViewer
         {
             if (compiledNode.ContainsKey("m_selectionSource"))
                 node.AddText($"SelectionSource: {compiledNode.GetStringProperty("m_selectionSource")}");
+        }
+
+        if (className == "CTwoBoneIKUpdateNode" && compiledNode.ContainsKey("m_opFixedData"))
+        {
+            var opFixedData = compiledNode.GetSubCollection("m_opFixedData");
+
+            if (opFixedData.ContainsKey("m_endEffectorType"))
+                node.AddText($"End Effector Type: {opFixedData.GetStringProperty("m_endEffectorType")}");
+
+            if (opFixedData.ContainsKey("m_targetType"))
+                node.AddText($"Target Type: {opFixedData.GetStringProperty("m_targetType")}");
+
+            if (opFixedData.ContainsKey("m_nFixedBoneIndex"))
+            {
+                int idx = opFixedData.GetInt32Property("m_nFixedBoneIndex");
+            }
+            if (opFixedData.ContainsKey("m_nMiddleBoneIndex"))
+            {
+                int idx = opFixedData.GetInt32Property("m_nMiddleBoneIndex");
+            }
+            if (opFixedData.ContainsKey("m_nEndBoneIndex"))
+            {
+                int idx = opFixedData.GetInt32Property("m_nEndBoneIndex");
+            }
+
+            int fixedIdx = opFixedData.GetInt32Property("m_nFixedBoneIndex", -1);
+            int middleIdx = opFixedData.GetInt32Property("m_nMiddleBoneIndex", -1);
+            int endIdx = opFixedData.GetInt32Property("m_nEndBoneIndex", -1);
+            if (fixedIdx >= 0 && middleIdx >= 0 && endIdx >= 0)
+            {
+                var chainName = GetIKChainNameByBoneIndices(fixedIdx, middleIdx, endIdx);
+                if (!string.IsNullOrEmpty(chainName))
+                    node.AddText($"IK Chain: {chainName}");
+            }
+
+            // Attachments
+            //if (opFixedData.ContainsKey("m_endEffectorAttachment"))
+            //{
+            //var attachObj = opFixedData.GetSubCollection("m_endEffectorAttachment");
+            //var name = FindMatchingAttachmentName(attachObj);
+            //node.AddText($"End Effector Attachment: {(!string.IsNullOrEmpty(name) ? name : "(unresolved)")}");
+            //}
+            //if (opFixedData.ContainsKey("m_targetAttachment"))
+            //{
+            //var attachObj = opFixedData.GetSubCollection("m_targetAttachment");
+            //var name = FindMatchingAttachmentName(attachObj);
+            //node.AddText($"Target Attachment: {(!string.IsNullOrEmpty(name) ? name : "(unresolved)")}");
+            //}
+
+            if (opFixedData.ContainsKey("m_hPositionParam"))
+            {
+                var handle = opFixedData.GetSubCollection("m_hPositionParam");
+                node.AddText($"Position Param: {GetParameterDescriptionFromHandle(handle)}");
+            }
+            if (opFixedData.ContainsKey("m_hRotationParam"))
+            {
+                var handle = opFixedData.GetSubCollection("m_hRotationParam");
+                node.AddText($"Rotation Param: {GetParameterDescriptionFromHandle(handle)}");
+            }
+
+            string[] extraProps = { "m_bAlwaysUseFallbackHinge", "m_vLsFallbackHingeAxis", "m_bMatchTargetOrientation", "m_bConstrainTwist", "m_flMaxTwist" };
+            foreach (var prop in extraProps)
+            {
+                if (opFixedData.ContainsKey(prop))
+                {
+                    var val = opFixedData[prop];
+                    if (!val.IsCollection && !val.IsArray)
+                        node.AddText($"{prop}: {val}");
+                }
+            }
+        }
+        if (className == "CAimMatrixUpdateNode")
+        {
+            if (compiledNode.ContainsKey("m_target"))
+                node.AddText($"Target: {compiledNode.GetStringProperty("m_target")}");
+
+            if (compiledNode.ContainsKey("m_hSequence"))
+            {
+                int seqIdx = compiledNode.GetInt32Property("m_hSequence");
+                if (seqIdx >= 0)
+                    node.AddText($"Sequence: {GetSequenceName(seqIdx)} (idx {seqIdx})");
+                else
+                    node.AddText($"Sequence: None");
+            }
+
+            if (compiledNode.ContainsKey("m_bResetChild"))
+                node.AddText($"Reset Child: {compiledNode.GetBooleanProperty("m_bResetChild")}");
+
+            if (compiledNode.ContainsKey("m_bLockWhenWaning"))
+                node.AddText($"Lock When Waning: {compiledNode.GetBooleanProperty("m_bLockWhenWaning")}");
+
+            if (compiledNode.ContainsKey("m_opFixedSettings"))
+            {
+                var settings = compiledNode.GetSubCollection("m_opFixedSettings");
+
+                if (settings.ContainsKey("m_attachment"))
+                {
+                    var attachObj = settings.GetSubCollection("m_attachment");
+                    var name = FindMatchingAttachmentName(attachObj);
+                    node.AddText($"Attachment: {(!string.IsNullOrEmpty(name) ? name : "(unresolved)")}");
+                }
+
+                if (settings.ContainsKey("m_damping"))
+                {
+                    var damping = settings.GetSubCollection("m_damping");
+                    var speedFunc = damping.GetStringProperty("m_speedFunction", "Unknown");
+                    var speedScale = damping.GetFloatProperty("m_fSpeedScale", 1.0f);
+                    node.AddText($"Damping: {speedFunc} (scale {speedScale:F2})");
+                }
+
+                if (settings.ContainsKey("m_eBlendMode"))
+                    node.AddText($"Blend Mode: {settings.GetStringProperty("m_eBlendMode")}");
+
+                if (settings.ContainsKey("m_flMaxYawAngle"))
+                    node.AddText($"Max Yaw Angle: {settings.GetFloatProperty("m_flMaxYawAngle"):F2}");
+
+                if (settings.ContainsKey("m_flMaxPitchAngle"))
+                    node.AddText($"Max Pitch Angle: {settings.GetFloatProperty("m_flMaxPitchAngle"):F2}");
+
+                if (settings.ContainsKey("m_nBoneMaskIndex"))
+                {
+                    int idx = settings.GetInt32Property("m_nBoneMaskIndex");
+                    if (idx >= 0)
+                        node.AddText($"Bone Mask: {GetWeightListName(idx)} (idx {idx})");
+                    else
+                        node.AddText($"Bone Mask: None");
+                }
+
+                if (settings.ContainsKey("m_bTargetIsPosition"))
+                    node.AddText($"Target Is Position: {settings.GetBooleanProperty("m_bTargetIsPosition")}");
+
+                if (settings.ContainsKey("m_bUseBiasAndClamp"))
+                    node.AddText($"Use Bias And Clamp: {settings.GetBooleanProperty("m_bUseBiasAndClamp")}");
+
+                if (settings.ContainsKey("m_flBiasAndClampYawOffset"))
+                    node.AddText($"Bias/Clamp Yaw Offset: {settings.GetFloatProperty("m_flBiasAndClampYawOffset"):F2}");
+
+                if (settings.ContainsKey("m_flBiasAndClampPitchOffset"))
+                    node.AddText($"Bias/Clamp Pitch Offset: {settings.GetFloatProperty("m_flBiasAndClampPitchOffset"):F2}");
+
+                if (settings.ContainsKey("m_biasAndClampBlendCurve"))
+                {
+                    var curve = settings.GetSubCollection("m_biasAndClampBlendCurve");
+                    var cp1 = curve.GetFloatProperty("m_flControlPoint1", 0f);
+                    var cp2 = curve.GetFloatProperty("m_flControlPoint2", 1f);
+                    node.AddText($"Bias/Clamp Curve: ({cp1:F2}, {cp2:F2})");
+                }
+            }
+        }
+        if (className == "CFollowAttachmentUpdateNode" && compiledNode.ContainsKey("m_opFixedData"))
+        {
+            var opFixedData = compiledNode.GetSubCollection("m_opFixedData");
+
+            // Bone
+            if (opFixedData.ContainsKey("m_boneIndex"))
+            {
+                int idx = opFixedData.GetInt32Property("m_boneIndex");
+                if (idx >= 0)
+                    node.AddText($"Bone: {GetBoneName(idx)} (idx {idx})");
+                else
+                    node.AddText($"Bone: None");
+            }
+
+            // Attachment (via influence matching)
+            if (opFixedData.ContainsKey("m_attachment"))
+            {
+                var attachObj = opFixedData.GetSubCollection("m_attachment");
+                var name = FindMatchingAttachmentName(attachObj);
+                node.AddText($"Attachment: {(!string.IsNullOrEmpty(name) ? name : "(unresolved)")}");
+            }
+
+            // Attachment handle
+            if (opFixedData.ContainsKey("m_attachmentHandle"))
+            {
+                int handle = opFixedData.GetInt32Property("m_attachmentHandle");
+                node.AddText($"Attachment Handle: {handle}");
+            }
+
+            // Matching flags
+            if (opFixedData.ContainsKey("m_bMatchTranslation"))
+                node.AddText($"Match Translation: {opFixedData.GetBooleanProperty("m_bMatchTranslation")}");
+            if (opFixedData.ContainsKey("m_bMatchRotation"))
+                node.AddText($"Match Rotation: {opFixedData.GetBooleanProperty("m_bMatchRotation")}");
+        }
+        // ---------- CFootPinningUpdateNode ----------
+        if (className == "CFootPinningUpdateNode")
+        {
+            // Top-level properties
+            if (compiledNode.ContainsKey("m_eTimingSource"))
+                node.AddText($"Timing Source: {compiledNode.GetStringProperty("m_eTimingSource")}");
+            if (compiledNode.ContainsKey("m_bResetChild"))
+                node.AddText($"Reset Child: {compiledNode.GetBooleanProperty("m_bResetChild")}");
+
+            // Parameters
+            if (compiledNode.ContainsKey("m_params"))
+            {
+                var paramsArray = compiledNode.GetArray("m_params");
+                if (paramsArray != null && paramsArray.Count > 0)
+                {
+                    var paramDescs = paramsArray.Select(h => GetParameterDescriptionFromHandle(h));
+                    node.AddText($"Params: {string.Join(", ", paramDescs)}");
+                }
+            }
+
+            // m_poseOpFixedData
+            if (compiledNode.ContainsKey("m_poseOpFixedData"))
+            {
+                var poseData = compiledNode.GetSubCollection("m_poseOpFixedData");
+
+                if (poseData.ContainsKey("m_flBlendTime"))
+                    node.AddText($"Blend Time: {poseData.GetFloatProperty("m_flBlendTime"):F2}");
+                if (poseData.ContainsKey("m_flLockBreakDistance"))
+                    node.AddText($"Lock Break Distance: {poseData.GetFloatProperty("m_flLockBreakDistance"):F2}");
+                if (poseData.ContainsKey("m_flMaxLegTwist"))
+                    node.AddText($"Max Leg Twist: {poseData.GetFloatProperty("m_flMaxLegTwist"):F2}");
+
+                if (poseData.ContainsKey("m_nHipBoneIndex"))
+                {
+                    int idx = poseData.GetInt32Property("m_nHipBoneIndex");
+                    if (idx >= 0)
+                        node.AddText($"Hip Bone: {GetBoneName(idx)} (idx {idx})");
+                    else
+                        node.AddText($"Hip Bone: None");
+                }
+
+                if (poseData.ContainsKey("m_bApplyLegTwistLimits"))
+                    node.AddText($"Apply Leg Twist Limits: {poseData.GetBooleanProperty("m_bApplyLegTwistLimits")}");
+                if (poseData.ContainsKey("m_bApplyFootRotationLimits"))
+                    node.AddText($"Apply Foot Rotation Limits: {poseData.GetBooleanProperty("m_bApplyFootRotationLimits")}");
+
+                // m_footInfo
+                if (poseData.ContainsKey("m_footInfo"))
+                {
+                    var footInfoArray = poseData.GetArray("m_footInfo");
+                    if (footInfoArray.Count > 0)
+                    {
+                        node.AddText($"Feet ({footInfoArray.Count}):");
+                        for (int i = 0; i < footInfoArray.Count; i++)
+                        {
+                            var foot = footInfoArray[i];
+                            var footLines = new List<string>();
+
+                            if (foot.ContainsKey("m_nFootIndex"))
+                            {
+                                int idx = foot.GetInt32Property("m_nFootIndex");
+                                footLines.Add(idx >= 0 ? $"Foot: {GetFootName(idx)} (idx {idx})" : "Foot: None");
+                            }
+                            if (foot.ContainsKey("m_nTargetBoneIndex"))
+                            {
+                                int idx = foot.GetInt32Property("m_nTargetBoneIndex");
+                                footLines.Add(idx >= 0 ? $"Target Bone: {GetBoneName(idx)} (idx {idx})" : "Target Bone: None");
+                            }
+                            if (foot.ContainsKey("m_nAnkleBoneIndex"))
+                            {
+                                int idx = foot.GetInt32Property("m_nAnkleBoneIndex");
+                                footLines.Add(idx >= 0 ? $"Ankle Bone: {GetBoneName(idx)} (idx {idx})" : "Ankle Bone: None");
+                            }
+                            if (foot.ContainsKey("m_nIKAnchorBoneIndex"))
+                            {
+                                int idx = foot.GetInt32Property("m_nIKAnchorBoneIndex");
+                                footLines.Add(idx >= 0 ? $"IK Anchor Bone: {GetBoneName(idx)} (idx {idx})" : "IK Anchor Bone: None");
+                            }
+                            if (foot.ContainsKey("m_ikChainIndex"))
+                            {
+                                int idx = foot.GetInt32Property("m_ikChainIndex");
+                                footLines.Add(idx >= 0 ? $"IK Chain: {GetIKChainName(idx)} (idx {idx})" : "IK Chain: None");
+                            }
+                            if (foot.ContainsKey("m_nTagIndex"))
+                            {
+                                int idx = foot.GetInt32Property("m_nTagIndex");
+                                if (idx >= 0)
+                                {
+                                    var tagName = GetTagName(idx);
+                                    footLines.Add($"Tag: {tagName} (idx {idx})");
+                                }
+                                else
+                                    footLines.Add("Tag: None");
+                            }
+                            if (foot.ContainsKey("m_flMaxIKLength"))
+                                footLines.Add($"Max IK Length: {foot.GetFloatProperty("m_flMaxIKLength"):F2}");
+                            if (foot.ContainsKey("m_flMaxRotationLeft"))
+                                footLines.Add($"Max Rotation Left: {foot.GetFloatProperty("m_flMaxRotationLeft"):F2}");
+                            if (foot.ContainsKey("m_flMaxRotationRight"))
+                                footLines.Add($"Max Rotation Right: {foot.GetFloatProperty("m_flMaxRotationRight"):F2}");
+
+                            node.AddText($"  [{i}] {string.Join(", ", footLines)}");
+                        }
+                    }
+                }
+            }
         }
 
         nodeGraph.AddNode(node);
