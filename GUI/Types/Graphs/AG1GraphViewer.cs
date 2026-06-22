@@ -33,7 +33,7 @@ internal class AG1GraphViewer : GLNodeGraphViewer
     private Dictionary<int, string> tagIndexToName = new();
     private List<KVObject> components = new();
 
-    private readonly IFileLoader fileLoader;
+    private readonly VrfGuiContext fileLoader;
     private Resource? modelResource;
     private bool modelResourceLoaded;
     private Dictionary<int, string>? sequenceNamesCache;
