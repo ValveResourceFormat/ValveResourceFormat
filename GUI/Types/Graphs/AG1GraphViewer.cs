@@ -1911,5 +1911,15 @@ internal class AG1GraphViewer : GLNodeGraphViewer
     }
     #endregion
 
+    public override void Dispose()
+    {
+        modelResource?.Dispose();
+        modelResource = null;
+        modelResourceLoaded = false;
+
+        base.Dispose();
+        GC.SuppressFinalize(this);
+    }
+
     private struct Pose { }
 }
