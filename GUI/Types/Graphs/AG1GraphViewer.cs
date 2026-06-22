@@ -8,6 +8,7 @@ using GUI.Types.GLViewers;
 using GUI.Utils;
 using SkiaSharp;
 using ValveKeyValue;
+using ValveResourceFormat.IO;
 using ValveResourceFormat.Renderer;
 using ValveResourceFormat.Serialization.KeyValues;
 
@@ -27,6 +28,7 @@ internal class AG1GraphViewer : GLNodeGraphViewer
     private readonly Dictionary<string, List<KVObject>> typeToParameters = new();
     private List<KVObject> tags = new();
     private Dictionary<int, string> tagIndexToName = new();
+    private List<KVObject> components = new();
 
     // Fixed colors per node type (AG1 specific)
     private static SKColor NodeColor { get; set; } = new SKColor(60, 60, 60);
@@ -92,7 +94,31 @@ internal class AG1GraphViewer : GLNodeGraphViewer
         ["CStringAnimTag"] = new SKColor(163, 22, 99),
         ["CTaskStatusAnimTag"] = new SKColor(38, 111, 118),
         ["CWarpSectionAnimTag"] = new SKColor(200, 220, 150),
+        ["CMovementHandshakeAnimTag"] = new SKColor(38, 111, 118),
+        ["CTaskHandshakeAnimTag"] = new SKColor(38, 111, 118),
     };
+
+    private static readonly Dictionary<string, SKColor> ComponentClassColors = new(StringComparer.Ordinal)
+    {
+        ["CActionComponentUpdater"] = new SKColor(230, 180, 120),
+        ["CAnimScriptComponentUpdater"] = new SKColor(180, 200, 230),
+        ["CCPPScriptComponentUpdater"] = new SKColor(200, 180, 230),
+        ["CDampedValueComponentUpdater"] = new SKColor(180, 230, 180),
+        ["CDemoSettingsComponentUpdater"] = new SKColor(230, 200, 180),
+        ["CLODComponentUpdater"] = new SKColor(200, 200, 200),
+        ["CLookComponentUpdater"] = new SKColor(150, 200, 230),
+        ["CMovementComponentUpdater"] = new SKColor(230, 180, 180),
+        ["CPairedSequenceComponentUpdater"] = new SKColor(180, 180, 230),
+        ["CRagdollComponentUpdater"] = new SKColor(200, 150, 150),
+        ["CRemapValueComponentUpdater"] = new SKColor(150, 200, 150),
+        ["CSlopeComponentUpdater"] = new SKColor(200, 200, 150),
+        ["CStateMachineComponentUpdater"] = new SKColor(44, 57, 89),
+    };
+
+    private static SKColor GetComponentClassColor(string className)
+    {
+        return ComponentClassColors.TryGetValue(className, out var color) ? color : new SKColor(128, 128, 128);
+    }
 
     private static SKColor GetTagClassColor(string className)
     {
@@ -140,6 +166,54 @@ internal class AG1GraphViewer : GLNodeGraphViewer
         ["CTurnHelperUpdateNode"] = "Turn Helper",
         ["CRootUpdateNode"] = "Final Pose",
         ["CStateMachineUpdateNode"] = "State Machine",
+    };
+
+    private static readonly Dictionary<string, string> ComponentDisplayName = new(StringComparer.Ordinal)
+    {
+        ["CActionComponentUpdater"] = "Action Component",
+        ["CAnimScriptComponentUpdater"] = "AnimScript Component",
+        ["CCPPScriptComponentUpdater"] = "PPScript Component",
+        ["CDampedValueComponentUpdater"] = "Damped Value Component",
+        ["CDemoSettingsComponentUpdater"] = "Demo Settings Component",
+        ["CLODComponentUpdater"] = "LOD Component",
+        ["CLookComponentUpdater"] = "Look Component",
+        ["CMovementComponentUpdater"] = "Movement Component",
+        ["CPairedSequenceComponentUpdater"] = "Paired Sequence Component",
+        ["CRagdollComponentUpdater"] = "Ragdoll Component",
+        ["CRemapValueComponentUpdater"] = "Remap Value Component",
+        ["CSlopeComponentUpdater"] = "Slope Component",
+        ["CStateMachineComponentUpdater"] = "State Machine Component",
+    };
+
+    private static readonly Dictionary<string, string> TagDisplayName = new(StringComparer.Ordinal)
+    {
+        ["CAudioAnimTag"] = "Audio Tag",
+        ["CBodyGroupAnimTag"] = "Body Group Tag",
+        ["CClothSettingsAnimTag"] = "Cloth Settings Tag",
+        ["CFootFallAnimTag"] = "FootFall Tag",
+        ["CFootstepLandedAnimTag"] = "FootstepLanded Tag",
+        ["CMaterialAttributeAnimTag"] = "Material Attribute Tag",
+        ["CParticleAnimTag"] = "Particle Tag",
+        ["CRagdollAnimTag"] = "Ragdoll Tag",
+        ["CSequenceFinishedAnimTag"] = "Sequence Finished Tag",
+        ["CStringAnimTag"] = "String/Internal Tag",
+        ["CTaskStatusAnimTag"] = "Status Tag",
+        ["CWarpSectionAnimTag"] = "Warp Section Tag",
+        ["CMovementHandshakeAnimTag"] = "Movement Handshake Tag",
+        ["CTaskHandshakeAnimTag"] = "Task Handshake Tag",
+    };
+
+    private static readonly Dictionary<string, string> ParameterTypeDisplayName = new(StringComparer.Ordinal)
+    {
+        ["BOOL"] = "Boolean",
+        ["INT"] = "Integer",
+        ["FLOAT"] = "Float",
+        ["ENUM"] = "Enum",
+        ["VECTOR"] = "Vector",
+        ["QUATERNION"] = "Quaternion",
+        ["SYMBOL"] = "Symbol",
+        ["VIRTUAL"] = "Virtual",
+        ["UNKNOWN"] = "Unknown",
     };
 
     private static readonly Dictionary<string, SKColor> ClassColor = new(StringComparer.Ordinal)
@@ -213,6 +287,7 @@ internal class AG1GraphViewer : GLNodeGraphViewer
 
         LoadParameters();
         LoadTags();
+        LoadComponents();
 
         if (animGraphData.ContainsKey("m_pSharedData"))
         {
@@ -233,6 +308,7 @@ internal class AG1GraphViewer : GLNodeGraphViewer
 
         CreateGraph();
         AddParameterAndTagNodes();
+        AddComponentNodes();
         nodeGraph.LayoutNodes();
     }
 
@@ -324,6 +400,35 @@ internal class AG1GraphViewer : GLNodeGraphViewer
         if (tagIndex < 0 || tagIndex >= tags.Count)
             return $"Tag {tagIndex}";
         return tagIndexToName.TryGetValue(tagIndex, out var name) ? name : $"Tag {tagIndex}";
+    }
+
+    private void LoadComponents()
+    {
+        components.Clear();
+
+        KVObject? componentUpdaters = null;
+
+        if (animGraphData.ContainsKey("m_pSharedData"))
+        {
+            var sharedData = animGraphData.GetSubCollection("m_pSharedData");
+            if (sharedData.ContainsKey("m_components"))
+                componentUpdaters = sharedData;
+        }
+
+        if (componentUpdaters == null && animGraphData.ContainsKey("m_components"))
+            componentUpdaters = animGraphData;
+
+        if (componentUpdaters == null)
+            return;
+
+        if (componentUpdaters.ContainsKey("m_components"))
+        {
+            var compList = componentUpdaters.GetArray("m_components");
+            foreach (var comp in compList)
+            {
+                components.Add(comp);
+            }
+        }
     }
 
     private static string ClassNameToParamType(string className)
@@ -1012,10 +1117,11 @@ internal class AG1GraphViewer : GLNodeGraphViewer
             if (list.Count == 0) continue;
 
             var ordered = list.OrderBy(p => parameterObjectToIndex.TryGetValue(p, out var idx) ? idx : int.MaxValue).ToList();
+            var friendlyName = ParameterTypeDisplayName.TryGetValue(type, out var display) ? display : type;
 
             var node = new Node(null)
             {
-                Name = type,
+                Name = $"{friendlyName} Parameters",
                 NodeType = "Parameter Group",
                 HeaderColor = GetParameterTypeColor(type),
             };
@@ -1031,12 +1137,14 @@ internal class AG1GraphViewer : GLNodeGraphViewer
             var tagGroups = tags.GroupBy(t => t.GetStringProperty("_class") ?? "Unknown");
             foreach (var group in tagGroups)
             {
-                var ordered = group.OrderBy(t => tagIndexMap.TryGetValue(t, out var idx) ? idx : int.MaxValue).ToList();
                 var className = group.Key;
+                var friendlyName = TagDisplayName.TryGetValue(className, out var display) ? display : className;
+
+                var ordered = group.OrderBy(t => tagIndexMap.TryGetValue(t, out var idx) ? idx : int.MaxValue).ToList();
 
                 var node = new Node(null)
                 {
-                    Name = className,
+                    Name = $"{friendlyName}",
                     NodeType = "Tag Group",
                     HeaderColor = GetTagClassColor(className),
                 };
@@ -1047,6 +1155,67 @@ internal class AG1GraphViewer : GLNodeGraphViewer
                 }
                 nodeGraph.AddNode(node);
             }
+        }
+    }
+
+    private void AddComponentNodes()
+    {
+        if (components.Count == 0)
+            return;
+
+        foreach (var comp in components)
+        {
+            var className = comp.GetStringProperty("_class") ?? "Unknown";
+            var friendlyName = ComponentDisplayName.TryGetValue(className, out var display) ? display : className;
+            var name = comp.GetStringProperty("m_name") ?? "";
+            var displayName = string.IsNullOrEmpty(name) ? friendlyName : $"{friendlyName} ({name})";
+
+            var node = new Node(null)
+            {
+                Name = displayName,
+                NodeType = "Component",
+                HeaderColor = GetComponentClassColor(className),
+            };
+
+            if (className == "CStateMachineComponentUpdater")
+            {
+                if (comp.ContainsKey("m_stateMachine"))
+                {
+                    var stateMachine = comp.GetSubCollection("m_stateMachine");
+                    if (stateMachine.ContainsKey("m_states"))
+                    {
+                        var states = stateMachine.GetArray("m_states");
+                        node.AddText($"States ({states.Count}):");
+                        foreach (var state in states)
+                        {
+                            var stateName = state.GetStringProperty("m_name", "Unnamed");
+                            node.AddText($"  {stateName}");
+                        }
+                    }
+                }
+            }
+
+            foreach (var kv in comp.Children)
+            {
+                string key = kv.Key;
+                if (key == "_class" || key == "m_stateMachine" || key == "m_name")
+                    continue;
+                if (kv.Value.ValueType == KVValueType.Collection || kv.Value.ValueType == KVValueType.Array)
+                    continue;
+
+                string displayKey = PropertyDisplayNames.TryGetValue(key, out var friendly) ? friendly : key;
+                string valueStr = kv.Value.ToString();
+                if (!string.IsNullOrEmpty(valueStr))
+                    node.AddText($"{displayKey}: {valueStr}");
+            }
+
+            string networkMode = comp.GetStringProperty("m_networkMode", "");
+            if (networkMode.Equals("ClientSimulate", StringComparison.Ordinal))
+            {
+                node.SetBaseColor(ClientSimulateColor);
+            }
+
+            nodeGraph.AddNode(node);
         }
     }
 
