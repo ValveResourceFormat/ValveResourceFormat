@@ -124,9 +124,10 @@ export default defineConfig({
     },
 
     transformPageData(pageData) {
-        const canonicalUrl = `https://s2v.app/ValveResourceFormat/${pageData.relativePath}`
-            .replace(/index\.md$/, "")
-            .replace(/\.md$/, ".html");
+        const canonicalUrl =
+            `https://s2v.app/ValveResourceFormat/${pageData.relativePath}`
+                .replace(/index\.md$/, "")
+                .replace(/\.md$/, ".html");
 
         pageData.frontmatter.head ??= [];
         pageData.frontmatter.head.push([

@@ -1,6 +1,6 @@
 import { readFileSync, existsSync } from "fs";
 import { resolve, dirname } from "path";
-import yaml from "js-yaml";
+import { load as yamlLoad } from "js-yaml";
 
 /**
  * Parse a DocFX toc.yml file into VitePress sidebar items.
@@ -16,7 +16,7 @@ export function parseToc(tocPath, baseUrl) {
     content = content.replace(/^### YamlMime:\w+\n/, "");
 
     const tocDir = dirname(tocPath);
-    const items = yaml.load(content);
+    const items = yamlLoad(content);
     if (!Array.isArray(items)) return [];
 
     return convertItems(items, baseUrl, tocDir);
