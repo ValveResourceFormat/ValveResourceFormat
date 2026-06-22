@@ -449,7 +449,6 @@ internal class AG1GraphViewer : GLNodeGraphViewer
         }
     }
 
-    // ---------- Model name resolution ----------
     private Resource? LoadModel()
     {
         if (modelResourceLoaded)
@@ -474,7 +473,6 @@ internal class AG1GraphViewer : GLNodeGraphViewer
         if (modelRes == null)
             return sequenceNamesCache;
 
-        // Try ASEQ block
         var aseqBlock = modelRes.GetBlockByType(BlockType.ASEQ);
         if (aseqBlock is KeyValuesOrNTRO kv)
         {
@@ -492,12 +490,10 @@ internal class AG1GraphViewer : GLNodeGraphViewer
                 }
                 else if (kvData.GetStringProperty("m_sName")?.Contains("embedded_sequence_data") == true)
                 {
-                    // Could parse embedded data if needed
                 }
             }
         }
 
-        // Fallback: get sequences from model animations
         if (modelRes.DataBlock is Model modelData)
         {
             var animations = modelData.GetReferencedAnimations(fileLoader);
@@ -725,7 +721,6 @@ internal class AG1GraphViewer : GLNodeGraphViewer
         if (compiledAttachment == null)
             return string.Empty;
 
-        // If there's a direct name property, use it
         if (compiledAttachment.ContainsKey("m_attachmentName"))
             return compiledAttachment.GetStringProperty("m_attachmentName");
         if (compiledAttachment.ContainsKey("m_name"))
@@ -735,7 +730,6 @@ internal class AG1GraphViewer : GLNodeGraphViewer
         if (attachments.Count == 0)
             return string.Empty;
 
-        // Attempt to match by influence data
         if (!compiledAttachment.ContainsKey("m_influenceIndices"))
             return string.Empty;
 
@@ -769,7 +763,6 @@ internal class AG1GraphViewer : GLNodeGraphViewer
             if (attachment.Length != influenceCount)
                 continue;
 
-            // Compare first influence offset and rotation (simple heuristic)
             var posDiff = Vector3.DistanceSquared(attachment[0].Offset, influences[0].Offset);
             if (posDiff > epsilon)
                 continue;
@@ -1035,14 +1028,12 @@ internal class AG1GraphViewer : GLNodeGraphViewer
 
             var connections = new List<(int childIdx, string label)>();
 
-            // Helper to add a connection
             void AddConnection(int idx, string label)
             {
                 if (idx >= 0)
                     connections.Add((idx, label));
             }
 
-            // --- m_children array (generic) ---
             if (compiledNode.ContainsKey("m_children"))
             {
                 var children = compiledNode.GetArray("m_children");
@@ -1057,7 +1048,6 @@ internal class AG1GraphViewer : GLNodeGraphViewer
                 }
             }
 
-            // --- Single child properties ---
             foreach (var prop in ChildProperties)
             {
                 if (compiledNode.ContainsKey(prop))
@@ -1071,7 +1061,6 @@ internal class AG1GraphViewer : GLNodeGraphViewer
                 }
             }
 
-            // --- Blend 2D items ---
             if (className == "CBlend2DUpdateNode" && compiledNode.ContainsKey("m_items"))
             {
                 var items = compiledNode.GetArray("m_items");
@@ -1097,7 +1086,6 @@ internal class AG1GraphViewer : GLNodeGraphViewer
                 }
             }
 
-            // --- State machine children ---
             if (className == "CStateMachineUpdateNode" && compiledNode.ContainsKey("m_stateData"))
             {
                 var stateDataArray = compiledNode.GetArray("m_stateData");
@@ -1125,7 +1113,6 @@ internal class AG1GraphViewer : GLNodeGraphViewer
                 }
             }
 
-            // --- Choice node: replace generic children with weighted labels ---
             if (className == "CChoiceUpdateNode" && compiledNode.ContainsKey("m_children"))
             {
                 var children = compiledNode.GetArray("m_children");
@@ -1151,7 +1138,6 @@ internal class AG1GraphViewer : GLNodeGraphViewer
                 connections = newConnections;
             }
 
-            // --- Selector node: replace generic children with enum labels ---
             if (className == "CSelectorUpdateNode")
             {
                 KVObject? paramHandle = null;
@@ -1190,13 +1176,11 @@ internal class AG1GraphViewer : GLNodeGraphViewer
                 }
             }
 
-            // --- Now create sockets and connect ---
             foreach (var (childIdx, label) in connections)
             {
                 if (!nodeMap.TryGetValue(childIdx, out var childNode))
                     continue;
 
-                // Ensure child has an output socket
                 if (!childNode.Sockets.OfType<SocketOut>().Any())
                 {
                     var outSocket = new SocketOut(typeof(Pose), string.Empty, childNode);
@@ -1333,7 +1317,6 @@ internal class AG1GraphViewer : GLNodeGraphViewer
             }
         }
 
-        // Choice node
         if (className == "CChoiceUpdateNode")
         {
             if (compiledNode.ContainsKey("m_choiceMethod"))
@@ -1350,7 +1333,6 @@ internal class AG1GraphViewer : GLNodeGraphViewer
                 node.AddText($"DontResetSameSelection: {compiledNode.GetBooleanProperty("m_bDontResetSameSelection")}");
         }
 
-        // Sequence node
         if (className == "CSequenceUpdateNode")
         {
             if (compiledNode.ContainsKey("m_duration"))
@@ -1361,7 +1343,6 @@ internal class AG1GraphViewer : GLNodeGraphViewer
                 node.AddText($"Loop: {compiledNode.GetBooleanProperty("m_bLoop")}");
         }
 
-        // Blend 2D node
         if (className == "CBlend2DUpdateNode")
         {
             if (compiledNode.ContainsKey("m_blendSourceX"))
@@ -1402,7 +1383,6 @@ internal class AG1GraphViewer : GLNodeGraphViewer
             }
         }
 
-        // BoneMask node
         if (className == "CBoneMaskUpdateNode")
         {
             if (compiledNode.ContainsKey("m_nWeightListIndex"))
@@ -1421,7 +1401,6 @@ internal class AG1GraphViewer : GLNodeGraphViewer
                 node.AddText($"Use Blend Scale: {compiledNode.GetBooleanProperty("m_bUseBlendScale")}");
         }
 
-        // State machine node
         if (className == "CStateMachineUpdateNode")
         {
             if (compiledNode.ContainsKey("m_stateMachine"))
@@ -1608,7 +1587,6 @@ internal class AG1GraphViewer : GLNodeGraphViewer
         {
             var opFixedData = compiledNode.GetSubCollection("m_opFixedData");
 
-            // Bone
             if (opFixedData.ContainsKey("m_boneIndex"))
             {
                 int idx = opFixedData.GetInt32Property("m_boneIndex");
@@ -1618,7 +1596,6 @@ internal class AG1GraphViewer : GLNodeGraphViewer
                     node.AddText($"Bone: None");
             }
 
-            // Attachment (via influence matching)
             if (opFixedData.ContainsKey("m_attachment"))
             {
                 var attachObj = opFixedData.GetSubCollection("m_attachment");
@@ -1626,29 +1603,19 @@ internal class AG1GraphViewer : GLNodeGraphViewer
                 node.AddText($"Attachment: {(!string.IsNullOrEmpty(name) ? name : "(unresolved)")}");
             }
 
-            // Attachment handle
-            if (opFixedData.ContainsKey("m_attachmentHandle"))
-            {
-                int handle = opFixedData.GetInt32Property("m_attachmentHandle");
-                node.AddText($"Attachment Handle: {handle}");
-            }
-
-            // Matching flags
             if (opFixedData.ContainsKey("m_bMatchTranslation"))
                 node.AddText($"Match Translation: {opFixedData.GetBooleanProperty("m_bMatchTranslation")}");
             if (opFixedData.ContainsKey("m_bMatchRotation"))
                 node.AddText($"Match Rotation: {opFixedData.GetBooleanProperty("m_bMatchRotation")}");
         }
-        // ---------- CFootPinningUpdateNode ----------
+
         if (className == "CFootPinningUpdateNode")
         {
-            // Top-level properties
             if (compiledNode.ContainsKey("m_eTimingSource"))
                 node.AddText($"Timing Source: {compiledNode.GetStringProperty("m_eTimingSource")}");
             if (compiledNode.ContainsKey("m_bResetChild"))
                 node.AddText($"Reset Child: {compiledNode.GetBooleanProperty("m_bResetChild")}");
 
-            // Parameters
             if (compiledNode.ContainsKey("m_params"))
             {
                 var paramsArray = compiledNode.GetArray("m_params");
@@ -1659,7 +1626,6 @@ internal class AG1GraphViewer : GLNodeGraphViewer
                 }
             }
 
-            // m_poseOpFixedData
             if (compiledNode.ContainsKey("m_poseOpFixedData"))
             {
                 var poseData = compiledNode.GetSubCollection("m_poseOpFixedData");
@@ -1685,7 +1651,6 @@ internal class AG1GraphViewer : GLNodeGraphViewer
                 if (poseData.ContainsKey("m_bApplyFootRotationLimits"))
                     node.AddText($"Apply Foot Rotation Limits: {poseData.GetBooleanProperty("m_bApplyFootRotationLimits")}");
 
-                // m_footInfo
                 if (poseData.ContainsKey("m_footInfo"))
                 {
                     var footInfoArray = poseData.GetArray("m_footInfo");
