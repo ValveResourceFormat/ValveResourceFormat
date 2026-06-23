@@ -55,4 +55,27 @@ namespace ValveResourceFormat.Renderer.AnimLib
             return ctx.Controller.VectorParameters[parameterName].AsVector3();
         }
     }
+
+    // A virtual parameter is a graph-computed sub-expression: evaluates its child (cached once per update).
+    partial class VirtualParameterVectorNode
+    {
+        VectorValueNode ChildNode;
+        Vector3 cachedValue;
+
+        public override void Initialize(GraphContext ctx)
+        {
+            ctx.SetNodeFromIndex(ChildNodeIdx, ref ChildNode);
+        }
+
+        public override Vector3 GetValue(GraphContext ctx)
+        {
+            if (!WasUpdated(ctx))
+            {
+                MarkNodeActive(ctx);
+                cachedValue = ChildNode.GetValue(ctx);
+            }
+
+            return cachedValue;
+        }
+    }
 }

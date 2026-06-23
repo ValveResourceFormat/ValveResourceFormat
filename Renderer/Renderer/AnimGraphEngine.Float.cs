@@ -513,12 +513,22 @@ namespace ValveResourceFormat.Renderer.AnimLib
     partial class VirtualParameterFloatNode
     {
         FloatValueNode ChildNode;
+        float cachedValue;
 
         public override void Initialize(GraphContext ctx)
         {
             ctx.SetNodeFromIndex(ChildNodeIdx, ref ChildNode);
         }
 
-        public override float GetValue(GraphContext ctx) => throw new NotImplementedException();
+        public override float GetValue(GraphContext ctx)
+        {
+            if (!WasUpdated(ctx))
+            {
+                MarkNodeActive(ctx);
+                cachedValue = ChildNode.GetValue(ctx);
+            }
+
+            return cachedValue;
+        }
     }
 }

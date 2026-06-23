@@ -22,6 +22,14 @@ namespace ValveResourceFormat.Renderer.AnimLib
     abstract partial class GraphNode
     {
         public abstract void Initialize(GraphContext context);
+
+        private uint lastUpdateID = uint.MaxValue;
+
+        /// <summary>True if this node has already been marked active during the current graph update.</summary>
+        public bool WasUpdated(GraphContext ctx) => lastUpdateID == ctx.UpdateID;
+
+        /// <summary>Marks this node as active/evaluated for the current graph update.</summary>
+        public void MarkNodeActive(GraphContext ctx) => lastUpdateID = ctx.UpdateID;
     }
 
     abstract partial class ValueNode
@@ -45,6 +53,9 @@ namespace ValveResourceFormat.Renderer.AnimLib
 
         public BranchState BranchState { get; set; } = BranchState.Active;
         public float DeltaTime { get; set; }
+
+        /// <summary>Incremented once per graph update; used by nodes to evaluate at most once per frame.</summary>
+        public uint UpdateID { get; private set; }
 
         public Skeleton Skeleton { get; } // => Controller.Skeleton;
         public Transform WorldTransformInverse;
@@ -129,6 +140,7 @@ namespace ValveResourceFormat.Renderer.AnimLib
 
         public GraphPoseNodeResult Update(float timeStep)
         {
+            UpdateID++;
             DeltaTime = timeStep;
             var poseResult = RootNode.Update(this);
             return poseResult;

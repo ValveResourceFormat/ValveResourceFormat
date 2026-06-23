@@ -83,6 +83,23 @@ namespace ValveResourceFormat.Renderer.AnimLib
 
     partial class VirtualParameterTargetNode : TargetValueNode
     {
-        //
+        TargetValueNode ChildNode;
+        Target cachedValue;
+
+        public override void Initialize(GraphContext ctx)
+        {
+            ctx.SetNodeFromIndex(ChildNodeIdx, ref ChildNode);
+        }
+
+        public override Target GetValue(GraphContext ctx)
+        {
+            if (!WasUpdated(ctx))
+            {
+                MarkNodeActive(ctx);
+                cachedValue = ChildNode.GetValue(ctx);
+            }
+
+            return cachedValue;
+        }
     }
 }

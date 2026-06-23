@@ -336,20 +336,27 @@ namespace ValveResourceFormat.Renderer.AnimLib
         }
     }
 
+    // A virtual parameter is a graph-computed sub-expression, not an externally set value: it simply
+    // evaluates its child node (cached once per graph update).
     partial class VirtualParameterBoolNode
     {
-        string parameterName;
+        BoolValueNode ChildNode;
+        bool cachedValue;
 
         public override void Initialize(GraphContext ctx)
         {
-            // todo: virtual params use different collection
-            Debug.Assert(NodeIdx >= 0 && NodeIdx < ctx.Controller.ParameterNames.Length);
-            parameterName = ctx.Controller.ParameterNames[NodeIdx];
+            ctx.SetNodeFromIndex(ChildNodeIdx, ref ChildNode);
         }
 
         public override bool GetValue(GraphContext ctx)
         {
-            return ctx.Controller.BoolParameters[parameterName];
+            if (!WasUpdated(ctx))
+            {
+                MarkNodeActive(ctx);
+                cachedValue = ChildNode.GetValue(ctx);
+            }
+
+            return cachedValue;
         }
     }
 }

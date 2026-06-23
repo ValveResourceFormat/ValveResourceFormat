@@ -220,5 +220,23 @@ namespace ValveResourceFormat.Renderer.AnimLib
 
     partial class VirtualParameterBoneMaskNode
     {
+        BoneMaskValueNode ChildNode;
+        BoneMaskTaskList cachedValue;
+
+        public override void Initialize(GraphContext ctx)
+        {
+            ctx.SetNodeFromIndex(ChildNodeIdx, ref ChildNode);
+        }
+
+        public override BoneMaskTaskList GetValue(GraphContext ctx)
+        {
+            if (!WasUpdated(ctx))
+            {
+                MarkNodeActive(ctx);
+                cachedValue = ChildNode.GetValue(ctx);
+            }
+
+            return cachedValue;
+        }
     }
 }

@@ -56,4 +56,27 @@ namespace ValveResourceFormat.Renderer.AnimLib
             return new GlobalSymbol(ctx.Controller.IdParameters[parameterName]);
         }
     }
+
+    // A virtual parameter is a graph-computed sub-expression: evaluates its child (cached once per update).
+    partial class VirtualParameterIDNode
+    {
+        IDValueNode ChildNode;
+        GlobalSymbol cachedValue;
+
+        public override void Initialize(GraphContext ctx)
+        {
+            ctx.SetNodeFromIndex(ChildNodeIdx, ref ChildNode);
+        }
+
+        public override GlobalSymbol GetValue(GraphContext ctx)
+        {
+            if (!WasUpdated(ctx))
+            {
+                MarkNodeActive(ctx);
+                cachedValue = ChildNode.GetValue(ctx);
+            }
+
+            return cachedValue;
+        }
+    }
 }
