@@ -687,7 +687,8 @@ namespace GUI.Types.GLViewers
 
             if (Svg?.Picture != null)
             {
-                using var svgBitmap = RasterizeSvg(Svg.Picture, OriginalWidth * TextureScale, OriginalHeight * TextureScale);
+                var (svgWidth, svgHeight) = GetSvgExportSize();
+                using var svgBitmap = RasterizeSvg(Svg.Picture, svgWidth, svgHeight);
                 using var pixmap = svgBitmap.PeekPixels();
                 pixmap.Encode(fs, format, 100);
                 return;
@@ -703,7 +704,8 @@ namespace GUI.Types.GLViewers
         {
             if (Svg?.Picture != null)
             {
-                return RasterizeSvg(Svg.Picture, OriginalWidth * TextureScale, OriginalHeight * TextureScale);
+                var (svgWidth, svgHeight) = GetSvgExportSize();
+                return RasterizeSvg(Svg.Picture, svgWidth, svgHeight);
             }
 
             return ReadPixelsToBitmap(hdr: false);
@@ -1238,22 +1240,30 @@ namespace GUI.Types.GLViewers
             InvalidateRender();
         }
 
+        /// <summary>
+        /// Computes the export dimensions for an svg: the long edge is rounded up to the
+        /// nearest power of two within [1024, 4096], the short edge scales proportionally.
+        /// </summary>
+        private (float Width, float Height) GetSvgExportSize()
+        {
+            // TODO: let the user pick an explicit export resolution when the save UI is reworked.
+            // Never export below the svg's native resolution, even when zoomed out to fit the viewport.
+            var exportScale = MathF.Max(1f, TextureScale);
+            var longEdge = (int)MathF.Ceiling(MathF.Max(OriginalWidth, OriginalHeight) * exportScale);
+            longEdge = Math.Clamp(longEdge, 1024, 4096);
+            var target = (int)BitOperations.RoundUpToPowerOf2((uint)longEdge);
+            var scale = target / MathF.Max(OriginalWidth, OriginalHeight);
+            return (MathF.Round(OriginalWidth * scale), MathF.Round(OriginalHeight * scale));
+        }
+
         private static SKBitmap RasterizeSvg(SKPicture picture, float width, float height)
         {
             var imageInfo = new SKImageInfo((int)width, (int)height, SKColorType.Bgra8888, SKAlphaType.Premul, null);
             var bitmap = new SKBitmap(imageInfo);
 
             using var canvas = new SKCanvas(bitmap);
-            var scaleX = width / picture.CullRect.Width;
-            var scaleY = height / picture.CullRect.Height;
-            canvas.Scale(scaleX, scaleY);
-
-            using var paint = new SKPaint
-            {
-                IsAntialias = true,
-            };
-
-            canvas.DrawPicture(picture, paint);
+            canvas.Scale(width / picture.CullRect.Width, height / picture.CullRect.Height);
+            canvas.DrawPicture(picture);
 
             return bitmap;
         }
