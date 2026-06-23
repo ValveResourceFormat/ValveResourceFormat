@@ -13,4 +13,12 @@ class ParameterizedBlendNode__BlendRange
         InputIdx1 = data.GetInt16Property("m_nInputIdx1");
         ParameterValueRange = new(data.GetProperty<KVObject>("m_parameterValueRange"));
     }
+
+    /// <summary>Constructs a blend range directly (used for runtime-built parameterizations).</summary>
+    public ParameterizedBlendNode__BlendRange(short inputIdx0, short inputIdx1, Range parameterValueRange)
+    {
+        InputIdx0 = inputIdx0;
+        InputIdx1 = inputIdx1;
+        ParameterValueRange = parameterValueRange;
+    }
 }

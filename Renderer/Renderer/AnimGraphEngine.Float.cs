@@ -443,7 +443,7 @@ namespace ValveResourceFormat.Renderer.AnimLib
                         var dirN = Vector2.Normalize(dir2);
                         var dotForward = Math.Clamp(Vector2.Dot(dirN, Vector2.UnitX), -1f, 1f);
                         var angle = MathF.Acos(dotForward);
-                        var degrees = MathUtils.ToDegrees(angle);
+                        var degrees = float.RadiansToDegrees(angle);
 
                         var dotRight = Vector2.Dot(dirN, Vector2.UnitY);
                         return dotRight < 0.0f ? -degrees : degrees;
@@ -459,7 +459,7 @@ namespace ValveResourceFormat.Renderer.AnimLib
 
                         var dirN = Vector3.Normalize(dir3);
                         var dotUp = Math.Clamp(Vector3.Dot(Vector3.UnitZ, dirN), -1f, 1f);
-                        return MathUtils.ToDegrees((MathF.PI / 2f) - MathF.Acos(dotUp));
+                        return float.RadiansToDegrees((MathF.PI / 2f) - MathF.Acos(dotUp));
                     }
 
                 case TargetInfoNode__Info.Distance:

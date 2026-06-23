@@ -27,4 +27,14 @@ record struct Range(float Min, float Max)
     {
         return (GetClampedValue(input) - Min) / Length;
     }
+
+    public readonly bool ContainsInclusive(float value)
+    {
+        return value >= Min && value <= Max;
+    }
+
+    public readonly float GetPercentageThrough(float input)
+    {
+        return Length == 0f ? 0f : (input - Min) / Length;
+    }
 }
