@@ -12,7 +12,7 @@ partial class FloatSelectorNode : FloatValueNode
     public FloatSelectorNode(KVObject data) : base(data)
     {
         ConditionNodeIndices = data.GetArray<short>("m_conditionNodeIndices");
-        Values = data.GetArray<float>("m_values");
+        Values = data.GetFloatArray("m_values");
         DefaultValue = data.GetFloatProperty("m_flDefaultValue");
         EaseTime = data.GetFloatProperty("m_flEaseTime");
         EasingOp = data.GetEnumValue<EasingOperation>("m_easingOp");

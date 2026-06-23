@@ -367,4 +367,16 @@ namespace ValveResourceFormat.Renderer.AnimLib
         // Caching is handled once-per-update by the BoolValueNode base.
         protected override bool GetValueInternal(GraphContext ctx) => ChildNode.GetValue(ctx);
     }
+
+    partial class IsTargetSetNode
+    {
+        TargetValueNode InputValueNode;
+
+        public override void Initialize(GraphContext ctx)
+        {
+            ctx.SetNodeFromIndex(InputValueNodeIdx, ref InputValueNode);
+        }
+
+        protected override bool GetValueInternal(GraphContext ctx) => InputValueNode.GetValue(ctx).IsSet;
+    }
 }

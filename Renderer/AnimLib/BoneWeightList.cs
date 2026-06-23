@@ -11,6 +11,6 @@ class BoneWeightList
     {
         SkeletonName = data.GetProperty<string>("m_skeletonName");
         BoneIDs = data.GetSymbolArray("m_boneIDs");
-        Weights = data.GetArray<float>("m_weights");
+        Weights = data.GetFloatArray("m_weights");
     }
 }

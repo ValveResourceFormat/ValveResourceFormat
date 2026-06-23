@@ -86,4 +86,30 @@ namespace ValveResourceFormat.Renderer.AnimLib
         // Caching is handled once-per-update by the VectorValueNode base.
         protected override Vector3 GetValueInternal(GraphContext ctx) => ChildNode.GetValue(ctx);
     }
+
+    partial class TargetPointNode
+    {
+        TargetValueNode TargetNode;
+
+        public override void Initialize(GraphContext ctx)
+        {
+            ctx.SetNodeFromIndex(InputValueNodeIdx, ref TargetNode);
+        }
+
+        protected override Vector3 GetValueInternal(GraphContext ctx)
+        {
+            var target = TargetNode.GetValue(ctx);
+            if (!target.IsSet || !target.TryGetTransform(ctx.Pose, out var transform))
+            {
+                return Vector3.Zero;
+            }
+
+            if (IsWorldSpaceTarget)
+            {
+                transform *= ctx.WorldTransformInverse;
+            }
+
+            return transform.Position;
+        }
+    }
 }

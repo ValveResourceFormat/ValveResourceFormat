@@ -24,6 +24,17 @@ struct Target
         IsSet = data.GetProperty<bool>("m_bIsSet");
     }
 
+    /// <summary>Creates a set, non-bone target from a world/character-space transform.</summary>
+    public Target(Transform transform)
+    {
+        Transform = transform;
+        BoneID = default;
+        IsBoneTarget = false;
+        IsUsingBoneSpaceOffsets = false;
+        HasOffsets = false;
+        IsSet = true;
+    }
+
     public void SetOffsets(Quaternion rotationOffset, Vector3 translationOffset, bool isBoneSpaceOffset)
     {
         Debug.Assert(IsSet && IsBoneTarget); // Offsets only make sense for bone targets

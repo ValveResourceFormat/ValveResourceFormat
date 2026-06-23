@@ -510,14 +510,5 @@ namespace ValveResourceFormat.Renderer.AnimLib
             }
         }
     }
-
-    // what is this
-    partial class TargetSelectorNode
-    {
-        public override void UpdateSelection(GraphContext ctx)
-        {
-            // todo
-        }
-    }
     #endregion
 }

@@ -446,6 +446,19 @@ namespace GUI.Types.GLViewers
                 combo.SelectedIndex = Math.Max(0, combo.Items.IndexOf(value));
             }
 
+            foreach (var (paramName, _) in animGraphController.TargetParameters)
+            {
+                uiControl.AddTargetParameter(paramName, values =>
+                {
+                    var position = new System.Numerics.Vector3(values[0], values[1], values[2]);
+                    var rotation = System.Numerics.Quaternion.CreateFromYawPitchRoll(
+                        float.DegreesToRadians(values[3]),
+                        float.DegreesToRadians(values[4]),
+                        float.DegreesToRadians(values[5]));
+                    animGraphController.TargetParameters[paramName] = new FrameBone(position, 1f, rotation);
+                });
+            }
+
             uiControl.AddDivider();
         }
 

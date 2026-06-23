@@ -299,16 +299,16 @@ namespace ValveResourceFormat.Renderer.AnimLib
         }
 
         // Ported from Esoterica's Blend2DNode::CalculateBlendSpaceWeights.
-        static void CalculateBlendSpaceWeights(Vector2[] points, byte[] indices, byte[] hullIndices, Vector2 point, ref BlendSpaceResult result)
+        static void CalculateBlendSpaceWeights(Vector2[] points, uint[] indices, uint[] hullIndices, Vector2 point, ref BlendSpaceResult result)
         {
             result.Reset();
 
             var enclosingTriangleFound = false;
             for (var i = 0; i + 2 < indices.Length; i += 3)
             {
-                int i0 = indices[i];
-                int i1 = indices[i + 1];
-                int i2 = indices[i + 2];
+                int i0 = (int)indices[i];
+                int i1 = (int)indices[i + 1];
+                int i2 = (int)indices[i + 2];
 
                 if (CalculateBarycentricCoordinates(point, points[i0], points[i1], points[i2], out var bcc))
                 {
@@ -363,8 +363,8 @@ namespace ValveResourceFormat.Renderer.AnimLib
                 }
 
                 Debug.Assert(closestStartHullIdx >= 0);
-                result.Src0 = hullIndices[closestStartHullIdx];
-                result.Src1 = hullIndices[closestStartHullIdx + 1];
+                result.Src0 = (int)hullIndices[closestStartHullIdx];
+                result.Src1 = (int)hullIndices[closestStartHullIdx + 1];
                 result.Src2 = -1;
                 result.Weight01 = closestT;
                 result.Weight12 = 0f;

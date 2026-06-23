@@ -26,8 +26,8 @@ namespace ValveResourceFormat.Renderer
         public Dictionary<string, bool> BoolParameters { get; } = [];
         public Dictionary<string, float> FloatParameters { get; } = [];
         public Dictionary<string, string> IdParameters { get; } = [];
-        // target
         public Dictionary<string, Vector4> VectorParameters { get; } = [];
+        public Dictionary<string, FrameBone> TargetParameters { get; } = [];
         public string[] ParameterNames { get; private set; }
 
         // Bool parameters that were signaled as a one-shot and must be reset to false after the next update.
@@ -158,6 +158,7 @@ namespace ValveResourceFormat.Renderer
                         case "Float": FloatParameters[parameterName] = 0.0f; break;
                         case "ID": IdParameters[parameterName] = string.Empty; break;
                         case "Vector": VectorParameters[parameterName] = Vector4.Zero; break;
+                        case "Target": TargetParameters[parameterName] = FrameBone.Identity; break;
                         default: throw new InvalidDataException($"Unknown control parameter type '{parameterType}' in animation graph.");
                     }
                 }

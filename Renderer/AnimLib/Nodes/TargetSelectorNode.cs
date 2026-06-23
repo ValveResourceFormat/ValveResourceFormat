@@ -1,7 +1,7 @@
 using ValveResourceFormat.Serialization.KeyValues;
 namespace ValveResourceFormat.Renderer.AnimLib;
 
-partial class TargetSelectorNode : ClipReferenceNode
+partial class TargetSelectorNode : TargetValueNode
 {
     public short[] OptionNodeIndices { get; }
     public float OrientationScoreWeight { get; }
