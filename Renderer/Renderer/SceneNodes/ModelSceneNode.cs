@@ -315,8 +315,9 @@ namespace ValveResourceFormat.Renderer.SceneNodes
                 var child = attachment.Node;
                 var oldBounds = child.BoundingBox;
 
-                var localTransform = Matrix4x4.CreateFromQuaternion(attachment.Rotation) * Matrix4x4.CreateTranslation(attachment.Offset);
-                child.Transform = localTransform * GetAttachmentTransform(attachment.AttachmentName);
+                // keep the child's own scale; the parent drives the rest of its transform
+                var localTransform = Matrix4x4.CreateScale(GetScale(child.Transform)) * Matrix4x4.CreateFromQuaternion(attachment.Rotation) * Matrix4x4.CreateTranslation(attachment.Offset);
+                child.Transform = localTransform * GetAttachmentOrSelfTransform(attachment.AttachmentName);
                 child.Update(context);
 
                 if (child.LayerEnabled)
@@ -324,6 +325,25 @@ namespace ValveResourceFormat.Renderer.SceneNodes
                     child.Scene.DynamicOctree.Update(child, oldBounds);
                 }
             }
+        }
+
+        // The parent anchor for an attached child: the attachment point's world transform, or the model's
+        // own transform when no attachment is named. Rigid (no scale) because Source 2 does not propagate the
+        // parent's scale to attachment-parented children.
+        private Matrix4x4 GetAttachmentOrSelfTransform(string attachmentName)
+            => GetRigidTransform(string.IsNullOrEmpty(attachmentName) ? Transform : GetAttachmentTransform(attachmentName));
+
+        // Rotation and translation only, with scale removed.
+        private static Matrix4x4 GetRigidTransform(Matrix4x4 transform)
+        {
+            Matrix4x4.Decompose(transform, out _, out var rotation, out var translation);
+            return Matrix4x4.CreateFromQuaternion(rotation) * Matrix4x4.CreateTranslation(translation);
+        }
+
+        private static Vector3 GetScale(Matrix4x4 transform)
+        {
+            Matrix4x4.Decompose(transform, out var scale, out _, out _);
+            return scale;
         }
 
         /// <inheritdoc/>
@@ -542,6 +562,20 @@ namespace ValveResourceFormat.Renderer.SceneNodes
             node.Parent = this;
             AttachedNodes.RemoveAll(entry => entry.Node == node);
             AttachedNodes.Add((node, attachmentName, offset, rotation));
+        }
+
+        /// <summary>
+        /// Attaches <paramref name="node"/> so it keeps its current world position relative to this model,
+        /// following the model if it later moves. Used for plain <c>parentname</c> parenting (no attachment point),
+        /// where the child stays where it was authored instead of snapping onto the parent.
+        /// </summary>
+        /// <param name="node">The child to attach.</param>
+        public void AttachNodeKeepingTransform(SceneNode node)
+        {
+            Matrix4x4.Invert(GetRigidTransform(Transform), out var anchorInverse);
+            var local = GetRigidTransform(node.Transform) * anchorInverse;
+            Matrix4x4.Decompose(local, out _, out var rotation, out var offset);
+            AttachNode(node, offset: offset, rotation: rotation);
         }
 
         /// <summary>

@@ -17,7 +17,7 @@ namespace ValveResourceFormat.Utils
         /// <param name="positionVector">The position vector.</param>
         public static void DecomposeTransformationMatrix(Entity entity, out Vector3 scaleVector, out Matrix4x4 rotationMatrix, out Vector3 positionVector)
         {
-            scaleVector = entity.GetVector3Property("scales");
+            scaleVector = entity.GetVector3Property("scales", Vector3.One);
             positionVector = entity.GetVector3Property("origin");
             var pitchYawRoll = entity.GetVector3Property("angles");
 
@@ -53,6 +53,17 @@ namespace ValveResourceFormat.Utils
             var positionMatrix = Matrix4x4.CreateTranslation(positionVector);
 
             return scaleMatrix * rotationMatrix * positionMatrix;
+        }
+
+        /// <summary>
+        /// Like <see cref="CalculateTransformationMatrix"/> but without scale — the transform a template passes to its children.
+        /// </summary>
+        /// <returns>The transform without the entity's scale.</returns>
+        public static Matrix4x4 CalculateRigidTransformationMatrix(Entity entity)
+        {
+            DecomposeTransformationMatrix(entity, out _, out var rotationMatrix, out var positionVector);
+
+            return rotationMatrix * Matrix4x4.CreateTranslation(positionVector);
         }
 
         /// <summary>
