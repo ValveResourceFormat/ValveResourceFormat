@@ -28,11 +28,21 @@ namespace ValveResourceFormat.Renderer.AnimLib
     partial class BoneMaskValueNode
     {
         protected BoneMaskTaskList TaskList;
+        BoneMaskTaskList cachedValue;
 
-        public virtual BoneMaskTaskList GetValue(GraphContext ctx)
+        // Returns the node's value, evaluating it at most once per graph update (matches the C++ WasUpdated guard).
+        public BoneMaskTaskList GetValue(GraphContext ctx)
         {
-            return TaskList;
+            if (!WasUpdated(ctx))
+            {
+                MarkNodeActive(ctx);
+                cachedValue = GetValueInternal(ctx);
+            }
+
+            return cachedValue;
         }
+
+        protected virtual BoneMaskTaskList GetValueInternal(GraphContext ctx) => TaskList;
     }
 
     partial class BoneMaskNode
@@ -74,7 +84,7 @@ namespace ValveResourceFormat.Renderer.AnimLib
             ctx.SetNodeFromIndex(BlendWeightValueNodeIdx, ref BlendWeightValueNode);
         }
 
-        public override BoneMaskTaskList GetValue(GraphContext ctx)
+        protected override BoneMaskTaskList GetValueInternal(GraphContext ctx)
         {
             var sourceTaskList = SourceBoneMask.GetValue(ctx);
             var targetTaskList = TargetBoneMask.GetValue(ctx);
@@ -120,7 +130,7 @@ namespace ValveResourceFormat.Renderer.AnimLib
             Blending = false;
         }
 
-        public override BoneMaskTaskList GetValue(GraphContext ctx)
+        protected override BoneMaskTaskList GetValueInternal(GraphContext ctx)
         {
             // Perform selection
             //-------------------------------------------------------------------------
@@ -206,7 +216,7 @@ namespace ValveResourceFormat.Renderer.AnimLib
             ctx.SetNodeFromIndex(FalseValueNodeIdx, ref FalseValueNode);
         }
 
-        public override BoneMaskTaskList GetValue(GraphContext ctx)
+        protected override BoneMaskTaskList GetValueInternal(GraphContext ctx)
         {
             var switchValue = SwitchValueNode.GetValue(ctx);
 
@@ -221,22 +231,13 @@ namespace ValveResourceFormat.Renderer.AnimLib
     partial class VirtualParameterBoneMaskNode
     {
         BoneMaskValueNode ChildNode;
-        BoneMaskTaskList cachedValue;
 
         public override void Initialize(GraphContext ctx)
         {
             ctx.SetNodeFromIndex(ChildNodeIdx, ref ChildNode);
         }
 
-        public override BoneMaskTaskList GetValue(GraphContext ctx)
-        {
-            if (!WasUpdated(ctx))
-            {
-                MarkNodeActive(ctx);
-                cachedValue = ChildNode.GetValue(ctx);
-            }
-
-            return cachedValue;
-        }
+        // Caching is handled once-per-update by the BoneMaskValueNode base.
+        protected override BoneMaskTaskList GetValueInternal(GraphContext ctx) => ChildNode.GetValue(ctx);
     }
 }

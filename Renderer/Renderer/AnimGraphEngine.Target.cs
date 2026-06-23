@@ -4,7 +4,21 @@ namespace ValveResourceFormat.Renderer.AnimLib
 {
     partial class TargetValueNode
     {
-        public virtual Target GetValue(GraphContext ctx) => throw new NotImplementedException();
+        Target cachedValue;
+
+        // Returns the node's value, evaluating it at most once per graph update (matches the C++ WasUpdated guard).
+        public Target GetValue(GraphContext ctx)
+        {
+            if (!WasUpdated(ctx))
+            {
+                MarkNodeActive(ctx);
+                cachedValue = GetValueInternal(ctx);
+            }
+
+            return cachedValue;
+        }
+
+        protected virtual Target GetValueInternal(GraphContext ctx) => throw new NotImplementedException();
     }
 
     partial class CachedTargetNode
@@ -18,7 +32,7 @@ namespace ValveResourceFormat.Renderer.AnimLib
             ctx.SetNodeFromIndex(InputValueNodeIdx, ref InputValueNode);
         }
 
-        public override Target GetValue(GraphContext ctx)
+        protected override Target GetValueInternal(GraphContext ctx)
         {
             if (!HasCachedValue)
             {
@@ -40,7 +54,7 @@ namespace ValveResourceFormat.Renderer.AnimLib
 
     partial class ConstTargetNode
     {
-        public override Target GetValue(GraphContext ctx) => Value;
+        protected override Target GetValueInternal(GraphContext ctx) => Value;
     }
 
     partial class ControlParameterTargetNode
@@ -57,7 +71,7 @@ namespace ValveResourceFormat.Renderer.AnimLib
             ctx.SetNodeFromIndex(InputValueNodeIdx, ref InputValueNode);
         }
 
-        public override Target GetValue(GraphContext ctx)
+        protected override Target GetValueInternal(GraphContext ctx)
         {
             var target = InputValueNode.GetValue(ctx);
 
@@ -84,22 +98,13 @@ namespace ValveResourceFormat.Renderer.AnimLib
     partial class VirtualParameterTargetNode : TargetValueNode
     {
         TargetValueNode ChildNode;
-        Target cachedValue;
 
         public override void Initialize(GraphContext ctx)
         {
             ctx.SetNodeFromIndex(ChildNodeIdx, ref ChildNode);
         }
 
-        public override Target GetValue(GraphContext ctx)
-        {
-            if (!WasUpdated(ctx))
-            {
-                MarkNodeActive(ctx);
-                cachedValue = ChildNode.GetValue(ctx);
-            }
-
-            return cachedValue;
-        }
+        // Caching is handled once-per-update by the TargetValueNode base.
+        protected override Target GetValueInternal(GraphContext ctx) => ChildNode.GetValue(ctx);
     }
 }

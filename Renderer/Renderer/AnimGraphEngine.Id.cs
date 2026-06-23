@@ -3,7 +3,24 @@ using System.Linq;
 
 namespace ValveResourceFormat.Renderer.AnimLib
 {
-    partial class IDValueNode { public virtual GlobalSymbol GetValue(GraphContext ctx) => throw new NotImplementedException(); }
+    partial class IDValueNode
+    {
+        GlobalSymbol cachedValue;
+
+        // Returns the node's value, evaluating it at most once per graph update (matches the C++ WasUpdated guard).
+        public GlobalSymbol GetValue(GraphContext ctx)
+        {
+            if (!WasUpdated(ctx))
+            {
+                MarkNodeActive(ctx);
+                cachedValue = GetValueInternal(ctx);
+            }
+
+            return cachedValue;
+        }
+
+        protected virtual GlobalSymbol GetValueInternal(GraphContext ctx) => throw new NotImplementedException();
+    }
 
     partial class CachedIDNode
     {
@@ -16,7 +33,7 @@ namespace ValveResourceFormat.Renderer.AnimLib
             ctx.SetNodeFromIndex(InputValueNodeIdx, ref InputValueNode);
         }
 
-        public override GlobalSymbol GetValue(GraphContext ctx)
+        protected override GlobalSymbol GetValueInternal(GraphContext ctx)
         {
             if (!HasCachedValue)
             {
@@ -38,7 +55,7 @@ namespace ValveResourceFormat.Renderer.AnimLib
 
     partial class ConstIDNode
     {
-        public override GlobalSymbol GetValue(GraphContext ctx) => Value;
+        protected override GlobalSymbol GetValueInternal(GraphContext ctx) => Value;
     }
 
     partial class ControlParameterIDNode
@@ -51,7 +68,7 @@ namespace ValveResourceFormat.Renderer.AnimLib
             parameterName = ctx.Controller.ParameterNames[NodeIdx];
         }
 
-        public override GlobalSymbol GetValue(GraphContext ctx)
+        protected override GlobalSymbol GetValueInternal(GraphContext ctx)
         {
             return new GlobalSymbol(ctx.Controller.IdParameters[parameterName]);
         }
@@ -61,22 +78,13 @@ namespace ValveResourceFormat.Renderer.AnimLib
     partial class VirtualParameterIDNode
     {
         IDValueNode ChildNode;
-        GlobalSymbol cachedValue;
 
         public override void Initialize(GraphContext ctx)
         {
             ctx.SetNodeFromIndex(ChildNodeIdx, ref ChildNode);
         }
 
-        public override GlobalSymbol GetValue(GraphContext ctx)
-        {
-            if (!WasUpdated(ctx))
-            {
-                MarkNodeActive(ctx);
-                cachedValue = ChildNode.GetValue(ctx);
-            }
-
-            return cachedValue;
-        }
+        // Caching is handled once-per-update by the IDValueNode base.
+        protected override GlobalSymbol GetValueInternal(GraphContext ctx) => ChildNode.GetValue(ctx);
     }
 }

@@ -2,7 +2,24 @@ using System.Diagnostics;
 
 namespace ValveResourceFormat.Renderer.AnimLib
 {
-    partial class VectorValueNode { public virtual Vector3 GetValue(GraphContext ctx) => throw new NotImplementedException(); }
+    partial class VectorValueNode
+    {
+        Vector3 cachedValue;
+
+        // Returns the node's value, evaluating it at most once per graph update (matches the C++ WasUpdated guard).
+        public Vector3 GetValue(GraphContext ctx)
+        {
+            if (!WasUpdated(ctx))
+            {
+                MarkNodeActive(ctx);
+                cachedValue = GetValueInternal(ctx);
+            }
+
+            return cachedValue;
+        }
+
+        protected virtual Vector3 GetValueInternal(GraphContext ctx) => throw new NotImplementedException();
+    }
 
     partial class CachedVectorNode
     {
@@ -15,7 +32,7 @@ namespace ValveResourceFormat.Renderer.AnimLib
             ctx.SetNodeFromIndex(InputValueNodeIdx, ref InputValueNode);
         }
 
-        public override Vector3 GetValue(GraphContext ctx)
+        protected override Vector3 GetValueInternal(GraphContext ctx)
         {
             if (!HasCachedValue)
             {
@@ -37,7 +54,7 @@ namespace ValveResourceFormat.Renderer.AnimLib
 
     partial class ConstVectorNode
     {
-        public override Vector3 GetValue(GraphContext ctx) => Value;
+        protected override Vector3 GetValueInternal(GraphContext ctx) => Value;
     }
 
     partial class ControlParameterVectorNode
@@ -50,7 +67,7 @@ namespace ValveResourceFormat.Renderer.AnimLib
             parameterName = ctx.Controller.ParameterNames[NodeIdx];
         }
 
-        public override Vector3 GetValue(GraphContext ctx)
+        protected override Vector3 GetValueInternal(GraphContext ctx)
         {
             return ctx.Controller.VectorParameters[parameterName].AsVector3();
         }
@@ -60,22 +77,13 @@ namespace ValveResourceFormat.Renderer.AnimLib
     partial class VirtualParameterVectorNode
     {
         VectorValueNode ChildNode;
-        Vector3 cachedValue;
 
         public override void Initialize(GraphContext ctx)
         {
             ctx.SetNodeFromIndex(ChildNodeIdx, ref ChildNode);
         }
 
-        public override Vector3 GetValue(GraphContext ctx)
-        {
-            if (!WasUpdated(ctx))
-            {
-                MarkNodeActive(ctx);
-                cachedValue = ChildNode.GetValue(ctx);
-            }
-
-            return cachedValue;
-        }
+        // Caching is handled once-per-update by the VectorValueNode base.
+        protected override Vector3 GetValueInternal(GraphContext ctx) => ChildNode.GetValue(ctx);
     }
 }

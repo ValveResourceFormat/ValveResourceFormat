@@ -3,7 +3,24 @@ using System.Linq;
 
 namespace ValveResourceFormat.Renderer.AnimLib
 {
-    partial class BoolValueNode { public virtual bool GetValue(GraphContext ctx) => throw new NotImplementedException(); }
+    partial class BoolValueNode
+    {
+        bool cachedValue;
+
+        // Returns the node's value, evaluating it at most once per graph update (matches the C++ WasUpdated guard).
+        public bool GetValue(GraphContext ctx)
+        {
+            if (!WasUpdated(ctx))
+            {
+                MarkNodeActive(ctx);
+                cachedValue = GetValueInternal(ctx);
+            }
+
+            return cachedValue;
+        }
+
+        protected virtual bool GetValueInternal(GraphContext ctx) => throw new NotImplementedException();
+    }
 
     partial class ConstBoolNode
     {
@@ -12,7 +29,7 @@ namespace ValveResourceFormat.Renderer.AnimLib
             // No initialization needed for ConstBoolNode
         }
 
-        public override bool GetValue(GraphContext ctx) => Value;
+        protected override bool GetValueInternal(GraphContext ctx) => Value;
     }
 
     [DebuggerDisplay("{parameterName}")]
@@ -26,7 +43,7 @@ namespace ValveResourceFormat.Renderer.AnimLib
             parameterName = ctx.Controller.ParameterNames[NodeIdx];
         }
 
-        public override bool GetValue(GraphContext ctx)
+        protected override bool GetValueInternal(GraphContext ctx)
         {
             return ctx.Controller.BoolParameters[parameterName];
         }
@@ -43,7 +60,7 @@ namespace ValveResourceFormat.Renderer.AnimLib
             ctx.SetNodeFromIndex(InputValueNodeIdx, ref InputValueNode);
         }
 
-        public override bool GetValue(GraphContext ctx)
+        protected override bool GetValueInternal(GraphContext ctx)
         {
             if (!HasCachedValue)
             {
@@ -72,7 +89,7 @@ namespace ValveResourceFormat.Renderer.AnimLib
             ctx.SetNodesFromIndexArray(ConditionNodeIndices, ref conditionNodes);
         }
 
-        public override bool GetValue(GraphContext ctx)
+        protected override bool GetValueInternal(GraphContext ctx)
         {
             return conditionNodes.All(node => node.GetValue(ctx));
         }
@@ -89,7 +106,7 @@ namespace ValveResourceFormat.Renderer.AnimLib
             ctx.SetOptionalNodeFromIndex(ComparandValueNodeIdx, ref ComparandNode);
         }
 
-        public override bool GetValue(GraphContext ctx)
+        protected override bool GetValueInternal(GraphContext ctx)
         {
             var a = InputNode.GetValue(ctx);
             var b = ComparandNode?.GetValue(ctx) ?? ComparisonValue;
@@ -115,7 +132,7 @@ namespace ValveResourceFormat.Renderer.AnimLib
             ctx.SetNodeFromIndex(InputValueNodeIdx, ref InputValueNode);
         }
 
-        public override bool GetValue(GraphContext ctx)
+        protected override bool GetValueInternal(GraphContext ctx)
         {
             var inputValue = InputValueNode.GetValue(ctx);
             var inRangeInclusive = inputValue >= Range.Min && inputValue <= Range.Max;
@@ -145,7 +162,7 @@ namespace ValveResourceFormat.Renderer.AnimLib
             ctx.SetNodeFromIndex(InputValueNodeIdx, ref InputValueNode);
         }
 
-        public override bool GetValue(GraphContext ctx)
+        protected override bool GetValueInternal(GraphContext ctx)
         {
             var inputValue = InputValueNode.GetValue(ctx);
 
@@ -175,7 +192,7 @@ namespace ValveResourceFormat.Renderer.AnimLib
             ctx.SetNodeFromIndex(InputValueNodeIdx, ref InputValueNode);
         }
 
-        public override bool GetValue(GraphContext ctx)
+        protected override bool GetValueInternal(GraphContext ctx)
         {
             return !InputValueNode.GetValue(ctx);
         }
@@ -190,7 +207,7 @@ namespace ValveResourceFormat.Renderer.AnimLib
             ctx.SetNodesFromIndexArray(ConditionNodeIndices, ref conditionNodes);
         }
 
-        public override bool GetValue(GraphContext ctx)
+        protected override bool GetValueInternal(GraphContext ctx)
         {
             return conditionNodes.Any(node => node.GetValue(ctx));
         }
@@ -205,7 +222,7 @@ namespace ValveResourceFormat.Renderer.AnimLib
             ctx.SetNodeFromIndex(SourceStateNodeIdx, ref SourceStateNode);
         }
 
-        public override bool GetValue(GraphContext ctx)
+        protected override bool GetValueInternal(GraphContext ctx)
         {
             var sourceDuration = SourceStateNode.Duration;
 
@@ -247,7 +264,7 @@ namespace ValveResourceFormat.Renderer.AnimLib
             };
         }
 
-        public override bool GetValue(GraphContext ctx)
+        protected override bool GetValueInternal(GraphContext ctx)
         {
             var comparisonValue = InputValueNode?.GetValue(ctx) ?? Comparand;
 
@@ -271,7 +288,7 @@ namespace ValveResourceFormat.Renderer.AnimLib
             ctx.SetOptionalNodeFromIndex(SourceStateNodeIdx, ref SourceStateNode);
         }
 
-        public override bool GetValue(GraphContext ctx)
+        protected override bool GetValueInternal(GraphContext ctx)
         {
             var eventFound = false;
             var mostRestrictiveMarkerFound = TransitionRule.AllowTransition;
@@ -341,22 +358,13 @@ namespace ValveResourceFormat.Renderer.AnimLib
     partial class VirtualParameterBoolNode
     {
         BoolValueNode ChildNode;
-        bool cachedValue;
 
         public override void Initialize(GraphContext ctx)
         {
             ctx.SetNodeFromIndex(ChildNodeIdx, ref ChildNode);
         }
 
-        public override bool GetValue(GraphContext ctx)
-        {
-            if (!WasUpdated(ctx))
-            {
-                MarkNodeActive(ctx);
-                cachedValue = ChildNode.GetValue(ctx);
-            }
-
-            return cachedValue;
-        }
+        // Caching is handled once-per-update by the BoolValueNode base.
+        protected override bool GetValueInternal(GraphContext ctx) => ChildNode.GetValue(ctx);
     }
 }

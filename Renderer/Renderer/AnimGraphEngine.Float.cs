@@ -5,7 +5,21 @@ namespace ValveResourceFormat.Renderer.AnimLib
 {
     partial class FloatValueNode
     {
-        public virtual float GetValue(GraphContext ctx) => throw new NotImplementedException();
+        float cachedValue;
+
+        // Returns the node's value, evaluating it at most once per graph update (matches the C++ WasUpdated guard).
+        public float GetValue(GraphContext ctx)
+        {
+            if (!WasUpdated(ctx))
+            {
+                MarkNodeActive(ctx);
+                cachedValue = GetValueInternal(ctx);
+            }
+
+            return cachedValue;
+        }
+
+        protected virtual float GetValueInternal(GraphContext ctx) => throw new NotImplementedException();
     }
 
     partial class CachedFloatNode
@@ -19,7 +33,7 @@ namespace ValveResourceFormat.Renderer.AnimLib
             ctx.SetNodeFromIndex(InputValueNodeIdx, ref InputValueNode);
         }
 
-        public override float GetValue(GraphContext ctx)
+        protected override float GetValueInternal(GraphContext ctx)
         {
             if (!HasCachedValue)
             {
@@ -41,7 +55,7 @@ namespace ValveResourceFormat.Renderer.AnimLib
 
     partial class ConstFloatNode
     {
-        public override float GetValue(GraphContext ctx) => Value;
+        protected override float GetValueInternal(GraphContext ctx) => Value;
     }
 
     partial class ControlParameterFloatNode
@@ -54,7 +68,7 @@ namespace ValveResourceFormat.Renderer.AnimLib
             parameterName = ctx.Controller.ParameterNames[NodeIdx];
         }
 
-        public override float GetValue(GraphContext ctx)
+        protected override float GetValueInternal(GraphContext ctx)
         {
             return ctx.Controller.FloatParameters[parameterName];
         }
@@ -69,7 +83,7 @@ namespace ValveResourceFormat.Renderer.AnimLib
             ctx.SetNodeFromIndex(SourceStateNodeIdx, ref SourceStateNode);
         }
 
-        public override float GetValue(GraphContext ctx) => throw new NotImplementedException();
+        protected override float GetValueInternal(GraphContext ctx) => throw new NotImplementedException();
     }
 
     partial class FloatAngleMathNode
@@ -81,7 +95,7 @@ namespace ValveResourceFormat.Renderer.AnimLib
             ctx.SetNodeFromIndex(InputValueNodeIdx, ref InputValueNode);
         }
 
-        public override float GetValue(GraphContext ctx)
+        protected override float GetValueInternal(GraphContext ctx)
         {
             var input = InputValueNode.GetValue(ctx);
             return Operation switch
@@ -131,7 +145,7 @@ namespace ValveResourceFormat.Renderer.AnimLib
             ctx.SetNodeFromIndex(InputValueNodeIdx, ref InputValueNode);
         }
 
-        public override float GetValue(GraphContext ctx)
+        protected override float GetValueInternal(GraphContext ctx)
         {
             var input = InputValueNode.GetValue(ctx);
             return ClampRange.GetClampedValue(input);
@@ -147,7 +161,7 @@ namespace ValveResourceFormat.Renderer.AnimLib
             ctx.SetNodeFromIndex(DefaultNodeIdx, ref DefaultNode);
         }
 
-        public override float GetValue(GraphContext ctx) => throw new NotImplementedException();
+        protected override float GetValueInternal(GraphContext ctx) => throw new NotImplementedException();
     }
 
     partial class FloatCurveNode
@@ -159,7 +173,7 @@ namespace ValveResourceFormat.Renderer.AnimLib
             ctx.SetNodeFromIndex(InputValueNodeIdx, ref InputValueNode);
         }
 
-        public override float GetValue(GraphContext ctx)
+        protected override float GetValueInternal(GraphContext ctx)
         {
             var input = InputValueNode.GetValue(ctx);
             return Curve.Evaluate(input);
@@ -188,7 +202,7 @@ namespace ValveResourceFormat.Renderer.AnimLib
             CurrentEaseTime = 0;
         }
 
-        public override float GetValue(GraphContext ctx)
+        protected override float GetValueInternal(GraphContext ctx)
         {
             var inputTargetValue = InputValueNode.GetValue(ctx);
             PerformRangeEase(ctx.DeltaTime, inputTargetValue,
@@ -240,7 +254,7 @@ namespace ValveResourceFormat.Renderer.AnimLib
             ctx.SetOptionalNodeFromIndex(InputValueNodeIdxB, ref InputValueNodeB);
         }
 
-        public override float GetValue(GraphContext ctx)
+        protected override float GetValueInternal(GraphContext ctx)
         {
             var a = InputValueNodeA.GetValue(ctx);
             var b = InputValueNodeB?.GetValue(ctx) ?? ValueB;
@@ -290,7 +304,7 @@ namespace ValveResourceFormat.Renderer.AnimLib
             ctx.SetNodeFromIndex(InputValueNodeIdx, ref InputValueNode);
         }
 
-        public override float GetValue(GraphContext ctx)
+        protected override float GetValueInternal(GraphContext ctx)
         {
             var input = InputValueNode.GetValue(ctx);
             return MathUtils.RemapRange(input, InputRange.Begin, InputRange.End, OutputRange.Begin, OutputRange.End);
@@ -309,7 +323,7 @@ namespace ValveResourceFormat.Renderer.AnimLib
             ctx.SetNodesFromIndexArray(ConditionNodeIndices, ref ConditionNodes);
         }
 
-        public override float GetValue(GraphContext ctx)
+        protected override float GetValueInternal(GraphContext ctx)
         {
             // Select value
             //-------------------------------------------------------------------------
@@ -355,7 +369,7 @@ namespace ValveResourceFormat.Renderer.AnimLib
             ctx.SetNodeFromIndex(FalseValueNodeIdx, ref FalseValueNode);
         }
 
-        public override float GetValue(GraphContext ctx)
+        protected override float GetValueInternal(GraphContext ctx)
         {
             var switchValue = SwitchValueNode.GetValue(ctx);
             return switchValue ? TrueValueNode.GetValue(ctx) : FalseValueNode.GetValue(ctx);
@@ -371,7 +385,7 @@ namespace ValveResourceFormat.Renderer.AnimLib
             ctx.SetNodeFromIndex(SourceStateNodeIdx, ref SourceStateNode);
         }
 
-        public override float GetValue(GraphContext ctx) => throw new NotImplementedException();
+        protected override float GetValueInternal(GraphContext ctx) => throw new NotImplementedException();
     }
 
     partial class IDToFloatNode
@@ -384,7 +398,7 @@ namespace ValveResourceFormat.Renderer.AnimLib
             Debug.Assert(IDs.Length == Values.Length);
         }
 
-        public override float GetValue(GraphContext ctx)
+        protected override float GetValueInternal(GraphContext ctx)
         {
             var inputId = InputValueNode.GetValue(ctx);
 
@@ -407,7 +421,7 @@ namespace ValveResourceFormat.Renderer.AnimLib
             ctx.SetNodeFromIndex(InputValueNodeIdx, ref TargetNode);
         }
 
-        public override float GetValue(GraphContext ctx)
+        protected override float GetValueInternal(GraphContext ctx)
         {
             var target = TargetNode.GetValue(ctx);
 
@@ -504,7 +518,7 @@ namespace ValveResourceFormat.Renderer.AnimLib
             ctx.SetNodeFromIndex(InputValueNodeIdx, ref TargetNode);
         }
 
-        public override float GetValue(GraphContext ctx)
+        protected override float GetValueInternal(GraphContext ctx)
         {
             return 1f;
         }
@@ -513,22 +527,13 @@ namespace ValveResourceFormat.Renderer.AnimLib
     partial class VirtualParameterFloatNode
     {
         FloatValueNode ChildNode;
-        float cachedValue;
 
         public override void Initialize(GraphContext ctx)
         {
             ctx.SetNodeFromIndex(ChildNodeIdx, ref ChildNode);
         }
 
-        public override float GetValue(GraphContext ctx)
-        {
-            if (!WasUpdated(ctx))
-            {
-                MarkNodeActive(ctx);
-                cachedValue = ChildNode.GetValue(ctx);
-            }
-
-            return cachedValue;
-        }
+        // Caching is handled once-per-update by the FloatValueNode base.
+        protected override float GetValueInternal(GraphContext ctx) => ChildNode.GetValue(ctx);
     }
 }

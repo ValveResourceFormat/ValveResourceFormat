@@ -14,6 +14,7 @@ namespace ValveResourceFormat.Renderer.AnimLib
         PoseNode? blendSource0;
         PoseNode? blendSource1;
         float blendWeight;
+        uint blendSpaceUpdateID = uint.MaxValue;
 
         public override void Initialize(GraphContext ctx)
         {
@@ -45,6 +46,14 @@ namespace ValveResourceFormat.Renderer.AnimLib
 
         protected void EvaluateBlendSpace(GraphContext ctx)
         {
+            // Only evaluate the blend space once per graph update.
+            if (blendSpaceUpdateID == ctx.UpdateID)
+            {
+                return;
+            }
+
+            blendSpaceUpdateID = ctx.UpdateID;
+
             blendSource0 = null;
             blendSource1 = null;
             blendWeight = 0f;
@@ -186,6 +195,7 @@ namespace ValveResourceFormat.Renderer.AnimLib
         public FloatValueNode InputParameterNode1;
 
         BlendSpaceResult bsr;
+        uint blendSpaceUpdateID = uint.MaxValue;
 
         public override void Initialize(GraphContext ctx)
         {
@@ -221,6 +231,14 @@ namespace ValveResourceFormat.Renderer.AnimLib
 
         void EvaluateBlendSpace(GraphContext ctx)
         {
+            // Only evaluate the blend space once per graph update.
+            if (blendSpaceUpdateID == ctx.UpdateID)
+            {
+                return;
+            }
+
+            blendSpaceUpdateID = ctx.UpdateID;
+
             var point = new Vector2(InputParameterNode0.GetValue(ctx), InputParameterNode1.GetValue(ctx));
             CalculateBlendSpaceWeights(Values, Indices, HullIndices, point, ref bsr);
 
