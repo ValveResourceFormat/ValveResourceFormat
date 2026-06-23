@@ -443,7 +443,7 @@ namespace GUI.Types.GLViewers
                 }, horizontal: true);
 
                 combo.Items.AddRange([.. animGraphController.GetParameterIdOptions(paramName)]);
-                combo.SelectedIndex = Math.Max(0, combo.Items.IndexOf(value));
+                combo.SelectedIndex = combo.Items.IndexOf(value);
             }
 
             foreach (var (paramName, _) in animGraphController.TargetParameters)

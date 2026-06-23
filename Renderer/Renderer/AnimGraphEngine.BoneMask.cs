@@ -49,7 +49,9 @@ namespace ValveResourceFormat.Renderer.AnimLib
     {
         public override void Initialize(GraphContext ctx)
         {
-            var maskIndex = ctx.Skeleton.GetBoneMaskIndex(BoneMaskID);
+            // ctx.Skeleton (AnimLib.Skeleton, holding the mask definitions) is not wired up yet, so it can
+            // be null — fall back to a uniform-weight mask rather than crashing at graph load.
+            var maskIndex = ctx.Skeleton?.GetBoneMaskIndex(BoneMaskID) ?? -1;
             if (maskIndex != -1)
             {
                 Debug.Assert(maskIndex >= 0 && maskIndex < 255);

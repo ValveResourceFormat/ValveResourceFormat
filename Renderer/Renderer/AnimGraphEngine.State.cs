@@ -239,7 +239,14 @@ namespace ValveResourceFormat.Renderer.AnimLib
             ctx.SetOptionalNodeFromIndex(StartBoneMaskNodeIdx, ref StartBoneMaskNode);
             ctx.SetOptionalNodeFromIndex(TargetSyncIDNodeIdx, ref TargetSyncIDNode);
 
-            Start(ctx);
+            // Defaults only. The real Start() runs when the transition is actually taken — evaluating the
+            // duration-override value node here is both premature (its inputs aren't initialized yet at
+            // graph-construction time, as nodes initialize in array order) and stale (it would never be
+            // re-evaluated when the transition fires).
+            TransitionProgress = 0f;
+            BlendWeight = 0f;
+            SyncEventOffset = 0f;
+            TransitionDuration = DurationSeconds;
         }
 
         public void Start(GraphContext ctx)
@@ -294,6 +301,10 @@ namespace ValveResourceFormat.Renderer.AnimLib
 
             SourceNode = options.SourceNode;
             Type = options.IsSourceTransition ? SourceType.Transition : SourceType.State;
+
+            // The transition is being taken now (all value nodes are initialized): evaluate the duration
+            // override and reset transition state before TransitionDuration is used below.
+            Start(ctx);
 
             if (options.StartCachingSourcePose)
             {

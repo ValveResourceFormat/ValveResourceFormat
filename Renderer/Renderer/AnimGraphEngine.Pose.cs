@@ -241,25 +241,34 @@ namespace ValveResourceFormat.Renderer.AnimLib
     #region Animation Source Nodes
     partial class ClipNode
     {
-        public override AnimationController GetAnimation(GraphContext ctx) => Animation;
+        public override AnimationController? GetAnimation(GraphContext ctx) => Animation;
         public override bool IsLooping => AllowLooping;
         public override bool DisableRootMotionSampling => !SampleRootMotion;
 
-        public AnimationController Animation;
+        public AnimationController? Animation;
 
         public BoolValueNode? ResetTimeValueNode;
         public BoolValueNode? PlayInReverseValueNode;
 
+        public override bool IsValid => Animation?.ActiveAnimation != null;
+
         public override void Initialize(GraphContext ctx)
         {
             base.Initialize(ctx);
-            Animation = ctx.Controller.Sequences[DataSlotIdx];
-
-            Debug.Assert(Animation.ActiveAnimation != null);
-            Duration = Animation.ActiveAnimation.Duration;
 
             ctx.SetOptionalNodeFromIndex(ResetTimeValueNodeIdx, ref ResetTimeValueNode);
             ctx.SetOptionalNodeFromIndex(PlayInReverseValueNodeIdx, ref PlayInReverseValueNode);
+
+            // DataSlotIdx can be -1 (no clip bound) — leave the node invalid in that case.
+            if (DataSlotIdx < 0 || DataSlotIdx >= ctx.Controller.Sequences.Length)
+            {
+                Animation = null;
+                Duration = 0f;
+                return;
+            }
+
+            Animation = ctx.Controller.Sequences[DataSlotIdx];
+            Duration = Animation.ActiveAnimation?.Duration ?? 0f;
         }
 
         public override void UpdateSelection(GraphContext ctx)
@@ -271,14 +280,19 @@ namespace ValveResourceFormat.Renderer.AnimLib
         {
             var result = base.Update(ctx);
 
+            var animation = Animation;
+            if (animation?.ActiveAnimation == null)
+            {
+                return result;
+            }
+
             Debug.Assert(CurrentTime >= 0f && CurrentTime <= 1f);
-            Debug.Assert(Animation.ActiveAnimation != null);
 
             // Unsynchronized Update
 
-            if (Animation.ActiveAnimation.FrameCount == 1)
+            if (animation.ActiveAnimation.FrameCount == 1)
             {
-                Animation.SamplePoseAtFrame(0, result.Pose);
+                animation.SamplePoseAtFrame(0, result.Pose);
                 return result;
             }
 
@@ -314,7 +328,7 @@ namespace ValveResourceFormat.Renderer.AnimLib
             }
 
             // sample animation pose at current time
-            var frame = Animation.SamplePoseAtPercentage(CurrentTime, result.Pose);
+            var frame = animation.SamplePoseAtPercentage(CurrentTime, result.Pose);
 
             // root motion
             // frame.Movement.Position;

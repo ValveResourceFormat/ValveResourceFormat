@@ -164,8 +164,19 @@ namespace ValveResourceFormat.Renderer
                 }
                 else if (type == "IDComparison")
                 {
-                    var parameterName = ParameterNames[node.GetInt32Property("m_nInputValueNodeIdx")];
+                    var inputValueIdx = node.GetInt32Property("m_nInputValueNodeIdx");
+                    if (inputValueIdx < 0 || inputValueIdx >= ParameterNames.Length)
+                    {
+                        continue;
+                    }
+
+                    var parameterName = ParameterNames[inputValueIdx];
                     var idsToCompare = node.GetArray<string>("m_comparisionIDs");
+
+                    if (idsToCompare == null || idsToCompare.Length == 0)
+                    {
+                        continue;
+                    }
 
                     KnownIds.UnionWith(idsToCompare);
                     IdOptions.TryAdd(parameterName, [.. idsToCompare]);
