@@ -63,6 +63,40 @@ partial class RendererControl : UserControl
         return checkbox.CheckBox;
     }
 
+    /// <summary>
+    /// Adds a checkbox (for persistent toggles) alongside a momentary "Signal" button (for one-shot
+    /// triggers). The checkbox writes its state via <paramref name="changeCallback"/>; the button invokes
+    /// <paramref name="signalCallback"/>, which pulses the value true for a single graph update.
+    /// </summary>
+    public CheckBox AddCheckBoxWithSignal(string name, bool defaultChecked, Action<bool> changeCallback, Action signalCallback)
+    {
+        var flowPanel = new FlowLayoutPanel
+        {
+            AutoSize = true,
+            FlowDirection = FlowDirection.LeftToRight,
+            WrapContents = false,
+            Dock = DockStyle.Top,
+            Margin = new Padding(0, 0, 0, 0),
+        };
+
+        var checkbox = CreateCheckBox(name, defaultChecked, changeCallback);
+
+        var signalButton = new ThemedButton
+        {
+            Text = "Signal",
+            AutoSize = true,
+            Margin = new Padding(8, 0, 0, 0),
+        };
+        signalButton.Click += (_, __) => signalCallback();
+
+        flowPanel.Controls.Add(checkbox);
+        flowPanel.Controls.Add(signalButton);
+        ControlsPanel.Controls.Add(flowPanel);
+        SetControlLocation(flowPanel);
+
+        return checkbox.CheckBox;
+    }
+
     public ThemedFloatNumeric AddNumericField(string name, float startingValue, Action<float> changeCallback)
     {
         // Use FlowLayoutPanel for horizontal layout

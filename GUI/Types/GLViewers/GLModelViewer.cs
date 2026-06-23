@@ -416,10 +416,15 @@ namespace GUI.Types.GLViewers
 
             foreach (var (paramName, _) in animGraphController.BoolParameters)
             {
-                uiControl.AddCheckBox(paramName, animGraphController.BoolParameters[paramName], isChecked =>
-                {
-                    animGraphController.BoolParameters[paramName] = isChecked;
-                });
+                uiControl.AddCheckBoxWithSignal(paramName, animGraphController.BoolParameters[paramName],
+                    isChecked =>
+                    {
+                        animGraphController.BoolParameters[paramName] = isChecked;
+                    },
+                    () =>
+                    {
+                        animGraphController.SignalBoolParameter(paramName);
+                    });
             }
 
             foreach (var (paramName, value) in animGraphController.FloatParameters)

@@ -30,6 +30,10 @@ namespace ValveResourceFormat.Renderer
         public Dictionary<string, Vector4> VectorParameters { get; } = [];
         public string[] ParameterNames { get; private set; }
 
+        // Bool parameters that were signaled as a one-shot and must be reset to false after the next update.
+        private readonly HashSet<string> signaledBoolParameters = [];
+        private readonly object signalLock = new();
+
         private readonly HashSet<string> KnownIds = [];
         private readonly Dictionary<string, HashSet<string>> IdOptions = [];
         public IEnumerable<string> GetParameterIdOptions(string parameterName)
@@ -171,6 +175,20 @@ namespace ValveResourceFormat.Renderer
             }
         }
 
+        /// <summary>
+        /// Pulses a boolean control parameter as a one-shot "signal": the value reads as <c>true</c> for the
+        /// next graph update, then is automatically reset to <c>false</c>. Use for trigger parameters
+        /// (e.g. <c>action_reset</c>) that would otherwise re-fire every frame while held <c>true</c>.
+        /// </summary>
+        public void SignalBoolParameter(string name)
+        {
+            lock (signalLock)
+            {
+                BoolParameters[name] = true;
+                signaledBoolParameters.Add(name);
+            }
+        }
+
         private int SequenceIndex { get; set; } = -1;
         public override void SetAnimation(Animation? animation)
         {
@@ -198,6 +216,20 @@ namespace ValveResourceFormat.Renderer
 
                 // If bone not found, fallback to bind pose or leave unchanged
                 // Pose[i] = Sequences[0].BindPose.Length > i ? Sequences[0].BindPose[i] : Pose[i];
+            }
+
+            // Reset one-shot signaled bool parameters now that the graph has consumed them this frame.
+            if (signaledBoolParameters.Count > 0)
+            {
+                lock (signalLock)
+                {
+                    foreach (var name in signaledBoolParameters)
+                    {
+                        BoolParameters[name] = false;
+                    }
+
+                    signaledBoolParameters.Clear();
+                }
             }
 
             return true;
