@@ -356,6 +356,33 @@ namespace ValveResourceFormat.Renderer.AnimLib
         }
     }
 
+    partial class FloatSpringNode
+    {
+        FloatValueNode InputValueNode;
+        float CurrentValue;
+        float CurrentVelocity;
+
+        public override void Initialize(GraphContext ctx)
+        {
+            ctx.SetNodeFromIndex(InputValueNodeIdx, ref InputValueNode);
+            CurrentValue = UseStartValue ? StartValue : InputValueNode.GetValue(ctx);
+            CurrentVelocity = 0f;
+        }
+
+        protected override float GetValueInternal(GraphContext ctx)
+        {
+            var target = InputValueNode.GetValue(ctx);
+            var omega = 2f * MathF.PI * Hertz;
+            var dt = ctx.DeltaTime;
+
+            // Semi-implicit Euler spring integration
+            CurrentVelocity += (-omega * omega * (CurrentValue - target) - 2f * DampingRatio * omega * CurrentVelocity) * dt;
+            CurrentValue += CurrentVelocity * dt;
+
+            return CurrentValue;
+        }
+    }
+
     partial class FloatSwitchNode
     {
         BoolValueNode SwitchValueNode;
