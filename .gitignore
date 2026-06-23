@@ -222,3 +222,4 @@ _Pvt_Extensions
 Tests/lcov.info
 /docs/_site/
 /docs/api/
+Misc/SchemaConverter/source2-schema.json
