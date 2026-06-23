@@ -238,43 +238,47 @@ namespace ValveResourceFormat.Renderer.World
         /// </summary>
         private void ResolveAttachmentParenting()
         {
+            var modelsByTargetName = new Dictionary<string, ModelSceneNode>(StringComparer.OrdinalIgnoreCase);
+
+            foreach (var model in scene.AllNodes.OfType<ModelSceneNode>())
+            {
+                var targetName = model.EntityData?.GetStringProperty("targetname");
+
+                if (targetName != null)
+                {
+                    // first registered wins, matching the previous FirstOrDefault lookup
+                    modelsByTargetName.TryAdd(targetName, model);
+                }
+            }
+
             foreach (var node in scene.AllNodes)
             {
                 var parentName = node.EntityData?.GetStringProperty("parentname");
 
-                if (parentName is null)
-                {
-                    continue;
-                }
-
-                var parentNode = FindModelNodeByTargetName(parentName);
-
-                if (parentNode is null)
+                if (parentName is null || !modelsByTargetName.TryGetValue(parentName, out var parentNode))
                 {
                     continue;
                 }
 
                 var attachmentName = node.EntityData!.GetStringProperty("parentattachmentname");
 
-                if (attachmentName != null)
-                {
-                    // attachment parenting snaps the child onto the attachment point
-                    if (parentNode.Attachments.ContainsKey(attachmentName))
-                    {
-                        parentNode.AttachNode(node, attachmentName);
-                    }
-                }
-                else
+                if (attachmentName is null)
                 {
                     // plain parenting keeps the child where it is, so it only moves if the parent does
                     parentNode.AttachNodeKeepingTransform(node);
+                    continue;
                 }
+
+                if (!parentNode.Attachments.ContainsKey(attachmentName))
+                {
+                    RendererContext.Logger.LogWarning("Parent {ParentName} has no attachment {AttachmentName} to parent {NodeName} to", parentName, attachmentName, node.Name);
+                    continue;
+                }
+
+                // attachment parenting snaps the child onto the attachment point
+                parentNode.AttachNode(node, attachmentName);
             }
         }
-
-        private ModelSceneNode? FindModelNodeByTargetName(string targetName)
-            => scene.AllNodes.OfType<ModelSceneNode>().FirstOrDefault(
-                model => string.Equals(model.EntityData?.GetStringProperty("targetname"), targetName, StringComparison.OrdinalIgnoreCase));
 
         /// <summary>
         /// Loads all world nodes (<c>.vwnod_c</c>) referenced by the world into the scene.
