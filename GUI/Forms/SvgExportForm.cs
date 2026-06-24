@@ -33,12 +33,15 @@ namespace GUI.Forms
 
         public SvgExportFormat SelectedFormat => formats[formatComboBox.SelectedIndex];
 
+        // Guard against a degenerate zero-size svg so the scale math never divides by zero.
+        private float SourceLongEdge => MathF.Max(MathF.Max(sourceWidth, sourceHeight), 1f);
+
         /// <summary>The scale to rasterize at, relative to the svg's native resolution (1 = native).</summary>
-        public float SelectedScale => ChosenLongEdge / MathF.Max(sourceWidth, sourceHeight);
+        public float SelectedScale => ChosenLongEdge / SourceLongEdge;
 
         private float ChosenLongEdge => itemLongEdges[presetComboBox.SelectedIndex] switch
         {
-            0 => MathF.Max(sourceWidth, sourceHeight),
+            0 => SourceLongEdge,
             -1 => customNumeric.Value,
             var longEdge => longEdge,
         };
@@ -63,7 +66,8 @@ namespace GUI.Forms
             AutoSizeMode = AutoSizeMode.GrowAndShrink;
 
             var nativeLongEdge = (int)MathF.Ceiling(MathF.Max(sourceWidth, sourceHeight));
-            var minLongEdge = Math.Min(nativeLongEdge, 8192);
+            var minLongEdge = nativeLongEdge;
+            var maxLongEdge = Math.Max(nativeLongEdge, 8192);
 
             formatComboBox = MakeComboBox();
             foreach (var (format, label) in BuildFormats(canExportSvg))
@@ -96,9 +100,9 @@ namespace GUI.Forms
             customNumeric = new ThemedIntNumeric
             {
                 MinValue = minLongEdge,
-                MaxValue = 8192,
+                MaxValue = maxLongEdge,
                 Increment = 1,
-                Value = Math.Clamp(1024, minLongEdge, 8192),
+                Value = Math.Clamp(1024, minLongEdge, maxLongEdge),
                 Width = 72,
                 Margin = new Padding(0, 0, 8, 0),
             };
@@ -150,8 +154,10 @@ namespace GUI.Forms
                 Anchor = AnchorStyles.Right,
                 Margin = new Padding(0, 18, 0, 0),
             };
-            buttonRow.Controls.Add(MakeButton("Save", DialogResult.OK, out var saveButton));
-            buttonRow.Controls.Add(MakeButton("Cancel", DialogResult.Cancel, out var cancelButton));
+            var saveButton = MakeButton("Save", DialogResult.OK);
+            var cancelButton = MakeButton("Cancel", DialogResult.Cancel);
+            buttonRow.Controls.Add(saveButton);
+            buttonRow.Controls.Add(cancelButton);
 
             layout.Controls.Add(buttonRow, 0, 4);
             layout.SetColumnSpan(buttonRow, 2);
@@ -191,17 +197,13 @@ namespace GUI.Forms
             Margin = new Padding(0, 0, 12, 0),
         };
 
-        private static ThemedButton MakeButton(string text, DialogResult result, out ThemedButton button)
+        private static ThemedButton MakeButton(string text, DialogResult result) => new()
         {
-            button = new ThemedButton
-            {
-                Text = text,
-                DialogResult = result,
-                Size = new Size(90, 30),
-                Margin = new Padding(8, 0, 0, 0),
-            };
-            return button;
-        }
+            Text = text,
+            DialogResult = result,
+            Size = new Size(90, 30),
+            Margin = new Padding(8, 0, 0, 0),
+        };
 
         private void OnFormatChanged(object? sender, EventArgs e) => UpdateResolutionVisibility();
 
@@ -231,23 +233,8 @@ namespace GUI.Forms
         // Output dimensions when the svg is scaled so its long edge becomes longEdge, preserving aspect ratio.
         private (int Width, int Height) DimensionsForLongEdge(float longEdge)
         {
-            var scale = longEdge / MathF.Max(sourceWidth, sourceHeight);
-            return ((int)MathF.Round(sourceWidth * scale), (int)MathF.Round(sourceHeight * scale));
-        }
-
-        protected override void Dispose(bool disposing)
-        {
-            if (disposing)
-            {
-                formatComboBox.Dispose();
-                presetComboBox.Dispose();
-                customNumeric.Dispose();
-                resolutionLabel.Dispose();
-                customRow.Dispose();
-                outputLabel.Dispose();
-            }
-
-            base.Dispose(disposing);
+            var scale = longEdge / SourceLongEdge;
+            return ((int)(sourceWidth * scale), (int)(sourceHeight * scale));
         }
     }
 }
