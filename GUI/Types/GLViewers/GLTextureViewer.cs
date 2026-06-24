@@ -5,6 +5,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 using GUI.Controls;
+using GUI.Forms;
 using GUI.Utils;
 using OpenTK.Graphics.OpenGL;
 using SkiaSharp;
@@ -621,25 +622,27 @@ namespace GUI.Types.GLViewers
                 return;
             }
 
+            var fileName = (Resource != null
+                ? Path.GetFileNameWithoutExtension(Resource.FileName)
+                : Path.GetFileNameWithoutExtension(VrfGuiContext.FileName)) ?? string.Empty;
+
+            // The svg export picks format (and raster resolution) up front, before the file dialog.
+            if (Svg?.Picture != null)
+            {
+                SaveSvg(fileName);
+                return;
+            }
+
             var filter = "PNG Image|*.png|JPG Image|*.jpg";
             var alternativeImageFormatIndex = 2;
 
             var isHdrTexture = Resource?.DataBlock is Texture textureData && textureData.IsHighDynamicRange;
 
-            if (Svg != null)
-            {
-                filter = $"SVG (Scalable Vector Graphics)|*.svg|{filter}";
-                alternativeImageFormatIndex++;
-            }
-            else if (isHdrTexture)
+            if (isHdrTexture)
             {
                 filter = "EXR Image|*.exr|" + filter;
                 alternativeImageFormatIndex++;
             }
-
-            var fileName = Resource != null
-                ? Path.GetFileNameWithoutExtension(Resource.FileName)
-                : Path.GetFileNameWithoutExtension(VrfGuiContext.FileName);
 
             using var saveFileDialog = new SaveFileDialog
             {
@@ -663,12 +666,6 @@ namespace GUI.Types.GLViewers
 
             using var fs = saveFileDialog.OpenFile();
 
-            if (Svg != null && saveFileDialog.FilterIndex == 1 && Resource?.DataBlock is Panorama panoramaData)
-            {
-                fs.Write(panoramaData.Data);
-                return;
-            }
-
             if (isHdrTexture && saveFileDialog.FilterIndex == 1)
             {
                 using var hdrBitmap = ReadPixelsToBitmap(hdr: true);
@@ -685,19 +682,63 @@ namespace GUI.Types.GLViewers
                     break;
             }
 
-            if (Svg?.Picture != null)
-            {
-                var (svgWidth, svgHeight) = GetSvgExportSize();
-                using var svgBitmap = RasterizeSvg(Svg.Picture, svgWidth, svgHeight);
-                using var pixmap = svgBitmap.PeekPixels();
-                pixmap.Encode(fs, format, 100);
-                return;
-            }
-
             // TODO: nonpow2 sizes?
             using var bitmap = ReadPixelsToBitmap();
             using var bitmapPixmap = bitmap.PeekPixels();
             bitmapPixmap.Encode(fs, format, 100);
+        }
+
+        private void SaveSvg(string fileName)
+        {
+            Debug.Assert(Svg?.Picture != null);
+
+            using var exportForm = new SvgExportForm(OriginalWidth, OriginalHeight, Resource?.DataBlock is Panorama);
+            if (exportForm.ShowDialog(UiControl) != DialogResult.OK)
+            {
+                return;
+            }
+
+            var (filter, extension) = exportForm.SelectedFormat switch
+            {
+                SvgExportFormat.Svg => ("SVG (Scalable Vector Graphics)|*.svg", "svg"),
+                SvgExportFormat.Jpg => ("JPG Image|*.jpg", "jpg"),
+                _ => ("PNG Image|*.png", "png"),
+            };
+
+            using var saveFileDialog = new SaveFileDialog
+            {
+                InitialDirectory = Settings.Config.SaveDirectory,
+                Filter = filter,
+                Title = "Save an Image File",
+                FileName = $"{fileName}.{extension}",
+                AddToRecent = true,
+            };
+
+            if (saveFileDialog.ShowDialog(UiControl) != DialogResult.OK)
+            {
+                return;
+            }
+
+            var directory = Path.GetDirectoryName(saveFileDialog.FileName);
+            if (directory != null)
+            {
+                Settings.Config.SaveDirectory = directory;
+            }
+
+            using var fs = saveFileDialog.OpenFile();
+
+            if (exportForm.SelectedFormat == SvgExportFormat.Svg && Resource?.DataBlock is Panorama panoramaData)
+            {
+                fs.Write(panoramaData.Data);
+                return;
+            }
+
+            var scale = exportForm.SelectedScale;
+            var format = exportForm.SelectedFormat == SvgExportFormat.Jpg ? SKEncodedImageFormat.Jpeg : SKEncodedImageFormat.Png;
+
+            using var svgBitmap = RasterizeSvg(Svg.Picture, OriginalWidth * scale, OriginalHeight * scale);
+            using var pixmap = svgBitmap.PeekPixels();
+            pixmap.Encode(fs, format, 100);
         }
 
         protected override SKBitmap ReadPixelsToBitmap()
@@ -1241,12 +1282,12 @@ namespace GUI.Types.GLViewers
         }
 
         /// <summary>
-        /// Computes the export dimensions for an svg: the long edge is rounded up to the
-        /// nearest power of two within [1024, 4096], the short edge scales proportionally.
+        /// Auto export dimensions for an svg, used when copying to the clipboard: the long edge is rounded
+        /// up to the nearest power of two within [1024, 4096], the short edge scales proportionally. Saving
+        /// to a file instead asks the user for an explicit multiple of the native resolution.
         /// </summary>
         private (float Width, float Height) GetSvgExportSize()
         {
-            // TODO: let the user pick an explicit export resolution when the save UI is reworked.
             // Never export below the svg's native resolution, even when zoomed out to fit the viewport.
             var exportScale = MathF.Max(1f, TextureScale);
             var longEdge = (int)MathF.Ceiling(MathF.Max(OriginalWidth, OriginalHeight) * exportScale);
