@@ -236,5 +236,20 @@ namespace GUI.Forms
             var scale = longEdge / SourceLongEdge;
             return ((int)(sourceWidth * scale), (int)(sourceHeight * scale));
         }
+
+        protected override void Dispose(bool disposing)
+        {
+            if (disposing)
+            {
+                formatComboBox.Dispose();
+                presetComboBox.Dispose();
+                customNumeric.Dispose();
+                resolutionLabel.Dispose();
+                customRow.Dispose();
+                outputLabel.Dispose();
+            }
+
+            base.Dispose(disposing);
+        }
     }
 }
