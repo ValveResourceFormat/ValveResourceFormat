@@ -352,6 +352,12 @@ namespace ValveResourceFormat.Serialization.KeyValues
             => obj.GetArray<long>(name) ?? [];
 
         /// <summary>
+        /// Gets an array of 32-bit integers by name.
+        /// </summary>
+        public static int[] GetInt32Array(this KVObject obj, string name)
+            => obj.GetArray<int>(name) ?? [];
+
+        /// <summary>
         /// Gets an array of floats by name.
         /// </summary>
         public static float[] GetFloatArray(this KVObject obj, string name)

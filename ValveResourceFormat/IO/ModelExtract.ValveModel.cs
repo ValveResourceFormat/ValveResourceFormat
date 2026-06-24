@@ -7,6 +7,7 @@ using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.ResourceTypes.ModelAnimation;
 using ValveResourceFormat.ResourceTypes.ModelData;
 using ValveResourceFormat.ResourceTypes.RubikonPhysics;
+using ValveResourceFormat.ResourceTypes.SoftbodyPhysics;
 using ValveResourceFormat.Serialization.KeyValues;
 using static ValveResourceFormat.IO.KVHelpers;
 
@@ -252,6 +253,338 @@ partial class ModelExtract
         return Vector3.RadiansToDegrees(angles);
     }
 
+    /// <summary>
+    /// Builds a modeldoc <c>ClothNode</c> property set from a softbody node.
+    /// </summary>
+    static KVObject MakeClothNode(PhysFeModel.FeModelNode node)
+    {
+        var clothNode = KVObject.Collection();
+        clothNode.Add("cloth_node_root_bone", node.ControlBone);
+        clothNode.Add("has_stray_radius", node.HasStrayRadius);
+        clothNode.Add("has_world_collision", false); // TODO
+        clothNode.Add("lock_translation", false); // TODO
+        clothNode.Add("gravity_z", node.Gravity);
+        clothNode.Add("goal_strength", node.GoalStrength);
+        clothNode.Add("goal_damping", node.GoalDamping);
+        clothNode.Add("mass", node.Mass);
+        clothNode.Add("friction", node.Friction);
+        clothNode.Add("stray_radius", node.StrayRadius);
+        clothNode.Add("stray_radius_relaxation_factor", node.StrayStretchiness);
+        clothNode.Add("collision_radius", node.CollisionRadius);
+        clothNode.Add("is_static_node", node.IsStatic);
+        clothNode.Add("allow_rotation", node.AllowRotation);
+        clothNode.Add("super_damping", 0f); // TODO
+        return clothNode;
+    }
+
+    /// <summary>
+    /// Builds a modeldoc <c>ClothChain</c> joint from a softbody node.
+    /// </summary>
+    static KVObject MakeClothChainJoint(PhysFeModel.FeModelNode node)
+    {
+        var joint = KVObject.Collection();
+        joint.Add("joint_name", node.ControlBone);
+        joint.Add("gravity_z", node.Gravity);
+        joint.Add("goal_strength", node.GoalStrength);
+        joint.Add("goal_damping", node.GoalDamping);
+        joint.Add("mass", node.Mass);
+        joint.Add("friction", node.Friction);
+        joint.Add("stray_radius", node.StrayRadius);
+        joint.Add("stray_radius_stretchiness", node.StrayStretchiness);
+        joint.Add("collision_radius", node.CollisionRadius);
+        joint.Add("simulate", !node.IsStatic);
+        joint.Add("allow_rotation", node.AllowRotation);
+        if (node.ControlParent is not null)
+        {
+            joint.Add("joint_parent", node.ControlParent);
+        }
+        return joint;
+    }
+
+    /// <summary>
+    /// Builds a modeldoc <c>ClothChain</c> node from a sequence of softbody nodes.
+    /// </summary>
+    sealed class ClothChainBuilder
+    {
+        private readonly Dictionary<string, float> globalAttributes = [];
+        private readonly List<PhysFeModel.FeModelNode> joints = [];
+
+        /// <summary>
+        /// Sets a global default value for the named chain attribute.
+        /// </summary>
+        public void SetAttribute(string property, float value)
+        {
+            globalAttributes[property] = value;
+        }
+
+        /// <summary>
+        /// Appends a joint to the chain.
+        /// </summary>
+        public void AddJoint(PhysFeModel.FeModelNode node)
+        {
+            joints.Add(node);
+        }
+
+        /// <summary>
+        /// Builds the modeldoc <c>ClothChain</c> node.
+        /// </summary>
+        public KVObject Build()
+        {
+            var node = KVObject.Collection();
+            node.Add("_class", "ClothChain");
+            node.Add("root_bone", joints.Count > 0 ? joints[0].ControlBone : "");
+
+            var chain = KVObject.Collection();
+            node.Add("chain", chain);
+
+            var jointsList = KVObject.Array();
+            chain.Add("joints", jointsList);
+
+            foreach (var joint in joints)
+            {
+                jointsList.Add(MakeClothChainJoint(joint));
+            }
+
+            var attributeList = KVObject.Collection();
+            chain.Add("attr", attributeList);
+
+            foreach (var attribute in defaultAttributeNodes)
+            {
+                var attributeNode = KVObject.Collection();
+                foreach (var (key, value) in attribute.Params)
+                {
+                    attributeNode.Add(key, value);
+                }
+                if (globalAttributes.TryGetValue(attribute.Name, out var overrideValue))
+                {
+                    attributeNode.Add("default", overrideValue);
+                }
+                attributeList.Add(attribute.Name, attributeNode);
+            }
+
+            node.Add("selection", KVObject.Array());
+            node.Add("version", 1);
+
+            return node;
+        }
+
+        private readonly static (string Name, (string Key, KVObject Value)[] Params)[] defaultAttributeNodes = [
+            ("joint_name", [
+                ("display", "Joint Name"),
+                ("show", true),
+                ("ui_order", 1),
+                ("default", ""),
+                ("lock", true)]),
+            ("joint_parent", [
+                ("display", "Parent Joint"),
+                ("show", false),
+                ("ui_order", 2),
+                ("default", "")]),
+            ("simulate", [
+                ("display", "Simulate"),
+                ("show", true),
+                ("ui_order", 3),
+                ("default", true)]),
+            ("allow_rotation", [
+                ("display", "Allow Rotation"),
+                ("show", true),
+                ("ui_order", 4),
+                ("default", true)]),
+            ("stretch_spring", [
+                ("display", "Stretch Spring"),
+                ("show", false),
+                ("ui_order", 5),
+                ("default", 1.0f),
+                ("min", 0.0f),
+                ("max", 1.0f)]),
+            ("child_sibling_spring", [
+                ("display", "Spring Between Children"),
+                ("show", false),
+                ("ui_order", 6),
+                ("default", 0.0f),
+                ("min", 0.0f),
+                ("max", 1.0f)]),
+            ("bend_spring", [
+                ("display", "Bend Spring"),
+                ("show", false),
+                ("ui_order", 7),
+                ("default", 1.0f),
+                ("min", 0.0f),
+                ("max", 1.0f)]),
+            ("torsion_spring", [
+                ("display", "Torsion Spring"),
+                ("show", false),
+                ("ui_order", 8),
+                ("default", 0.0f),
+                ("min", 0.0f),
+                ("max", 1.0f)]),
+            ("explicit_length", [
+                ("display", "Explicit Length"),
+                ("show", false),
+                ("ui_order", 9),
+                ("default", 0.0f),
+                ("min", 0.0f)]),
+            ("world_collision", [
+                ("display", "World Collision"),
+                ("show", false),
+                ("ui_order", 10),
+                ("default", false)]),
+            ("animated_length", [
+                ("display", "Animated Length"),
+                ("show", false),
+                ("ui_order", 11),
+                ("default", false)]),
+            ("goal_strength", [
+                ("display", "Goal Strength"),
+                ("show", true),
+                ("ui_order", 12),
+                ("default", 0.0f),
+                ("min", 0.0f),
+                ("max", 1.0f)]),
+            ("goal_damping", [
+                ("display", "Goal Damping"),
+                ("show", false),
+                ("ui_order", 13),
+                ("default", 0.0f),
+                ("min", 0.0f),
+                ("max", 1.0f)]),
+            ("drag", [
+                ("display", "Extra Drag"),
+                ("show", false),
+                ("ui_order", 14),
+                ("default", 0.0f),
+                ("min", 0.0f),
+                ("max", 1.0f)]),
+            ("mass", [
+                ("display", "Mass"),
+                ("show", false),
+                ("ui_order", 15),
+                ("default", 1.0f),
+                ("min", 0.0f)]),
+            ("gravity_z", [
+                ("display", "Gravity"),
+                ("show", true),
+                ("ui_order", 16),
+                ("default", 1.0f)]),
+            ("collision_radius", [
+                ("display", "Collision Radius"),
+                ("show", true),
+                ("ui_order", 17),
+                ("default", 0.0f),
+                ("min", 0.0f)]),
+            ("lock_translation", [
+                ("display", "Lock Translation"),
+                ("show", false),
+                ("ui_order", 18),
+                ("default", false)]),
+            ("suspender", [
+                ("display", "Suspender Spring"),
+                ("show", false),
+                ("ui_order", 19),
+                ("default", 0.0f)]),
+            ("antishrink", [
+                ("display", "Antishrink Strength"),
+                ("show", false),
+                ("ui_order", 20),
+                ("default", 1.0f),
+                ("min", 0.0f),
+                ("max", 1.0f)]),
+            ("stray_radius", [
+                ("display", "Stray Radius"),
+                ("show", true),
+                ("ui_order", 21),
+                ("default", 0.0f),
+                ("min", 0.0f)]),
+            ("stray_radius_stretchiness", [
+                ("display", "Stray Radius Stretchiness"),
+                ("show", true),
+                ("ui_order", 22),
+                ("default", 0.0f),
+                ("min", 0.0f)]),
+            ("friction", [
+                ("display", "Friction"),
+                ("show", true),
+                ("ui_order", 23),
+                ("default", 0.0f),
+                ("min", 0.0f),
+                ("max", 1.0f)]),
+            ("vertex_map", [
+                ("display", "Vertex Map"),
+                ("show", false),
+                ("ui_order", 24),
+                ("default", ""),
+                ("verify", "vertex_map")]),
+            ("end_effector", [
+                ("display", "End Effector"),
+                ("show", false),
+                ("ui_order", 25),
+                ("default", 0.0f),
+                ("lock_default_value", true)]),
+            ("stiff_hinge", [
+                ("display", "Stiff Hinge"),
+                ("show", false),
+                ("ui_order", 26),
+                ("default", 0.0f),
+                ("min", 0.0f),
+                ("max", 1.0f),
+                ("lock_root2", true)]),
+            ("stiff_hinge_angle", [
+                ("display", "Stiff Hinge Angle"),
+                ("show", true),
+                ("ui_order", 27),
+                ("default", 0.0f),
+                ("min", 0.0f),
+                ("max", 180.0f),
+                ("lock_root2", true)]),
+            ("motion_bias", [
+                ("display", "Motion Bias"),
+                ("show", false),
+                ("ui_order", 28),
+                ("default", 0.0f),
+                ("min", -1.0f),
+                ("max", 1.0f),
+                ("lock_root", true)]),
+            ("extra_iterations", [
+                ("display", "Extra Iterations"),
+                ("show", false),
+                ("ui_order", 29),
+                ("default", 0),
+                ("min", 0),
+                ("max", 1000)]),
+            ("twist_relax", [
+                ("display", "Twist Relax"),
+                ("show", false),
+                ("ui_order", 30),
+                ("default", 0.0f),
+                ("min", 0.0f),
+                ("max", 1.0f)]),
+            ("extrude_sides", [
+                ("display", "Extrude Sides"),
+                ("show", false),
+                ("ui_order", 31),
+                ("default", 0),
+                ("min", 0),
+                ("max", 4)]),
+            ("extrude_radius", [
+                ("display", "Extrude Radius"),
+                ("show", false),
+                ("ui_order", 32),
+                ("default", 5.0f),
+                ("min", 0.0f)]),
+            ("extrude_twist", [
+                ("display", "Extrude Twist"),
+                ("show", false),
+                ("ui_order", 33),
+                ("default", 0.0f)]),
+            ("extrude_forward_axis", [
+                ("display", "Extrude Forward Axis"),
+                ("show", false),
+                ("ui_order", 34),
+                ("default", ""),
+                ("verify", "extrude_forward_axis")])
+            ];
+    }
+
     static void AddBonesRecursive(IEnumerable<Bone> bones, KVObject parent)
     {
         foreach (var bone in bones)
@@ -346,6 +679,7 @@ partial class ModelExtract
         var lodGroupList = MakeLazyList("LODGroupList");
         var animationList = MakeLazyList("AnimationList");
         var physicsShapeList = MakeLazyList("PhysicsShapeList");
+        var softbody = MakeLazyList("Softbody");
         var attachmentList = MakeLazyList("AttachmentList");
         var skeleton = MakeLazyList("Skeleton");
         var modelModifierList = MakeLazyList("ModelModifierList");
@@ -838,6 +1172,122 @@ partial class ModelExtract
 
                     physicsShapeList.Value.Add(physicsShapeCapsule);
                 }
+            }
+
+            var feModel = physAggregateData.FeModel;
+
+            if (feModel is not null)
+            {
+                var controlNames = feModel.CtrlName;
+
+                foreach (var capsule in feModel.TaperedCapsuleRigids)
+                {
+                    var taperedCapsuleRigid = MakeNode(
+                        "ClothShapeCapsule",
+                        ("parent_bone", controlNames[capsule.Node]),
+                        ("cloth_collision_priority", 0), // TODO nFlags (assumed)
+                        ("vertex_map", ""), // TODO read from nVertexMapIndex
+                        ("inverted_collision", false), // TODO nFlags (assumed)
+                        ("planarize", false), // TODO nFlags (assumed)
+                        ("radius0", capsule.Spheres[0].W),
+                        ("point0", ToKVArray(new Vector3(capsule.Spheres[0].X, capsule.Spheres[0].Y, capsule.Spheres[0].Z))),
+                        ("radius1", capsule.Spheres[1].W),
+                        ("point1", ToKVArray(new Vector3(capsule.Spheres[1].X, capsule.Spheres[1].Y, capsule.Spheres[1].Z)))
+                    );
+
+                    for (var i = 0; i < 4; i++)
+                    {
+                        taperedCapsuleRigid.Add("cloth_collision_layer" + i, capsule.CollisionMask[i]);
+                    }
+
+                    softbody.Value.Add(taperedCapsuleRigid);
+                }
+
+                foreach (var sphere in feModel.SphereRigids)
+                {
+                    var sphereRigid = MakeNode(
+                        "ClothShapeSphere",
+                        ("parent_bone", controlNames[sphere.Node]),
+                        ("cloth_collision_priority", 0), // TODO nFlags (assumed)
+                        ("vertex_map", ""), // TODO read from nVertexMapIndex
+                        ("inverted_collision", false), // TODO nFlags (assumed)
+                        ("planarize", false), // TODO nFlags (assumed)
+                        ("radius0", sphere.Sphere.W),
+                        ("point0", ToKVArray(new Vector3(sphere.Sphere.X, sphere.Sphere.Y, sphere.Sphere.Z)))
+                    );
+
+                    for (var i = 0; i < 4; i++)
+                    {
+                        sphereRigid.Add("cloth_collision_layer" + i, sphere.CollisionMask[i]);
+                    }
+
+                    softbody.Value.Add(sphereRigid);
+                }
+
+                foreach (var box in feModel.BoxRigids)
+                {
+                    var boxRigid = MakeNode(
+                        "ClothShapeBox",
+                        ("parent_bone", controlNames[box.Node]),
+                        ("cloth_collision_priority", 0), // TODO nFlags (assumed)
+                        ("vertex_map", ""), // TODO read from nVertexMapIndex
+                        ("inverted_collision", false), // TODO nFlags (assumed)
+                        ("planarize", false), // TODO nFlags (assumed)
+                        ("dimensions", ToKVArray(box.Size * 2.0f)),
+                        ("origin", ToKVArray(box.Origin)),
+                        ("angles", ToKVArray(ToEulerAngles(box.Orientation)))
+                    );
+
+                    for (var i = 0; i < 4; i++)
+                    {
+                        boxRigid.Add("cloth_collision_layer" + i, box.CollisionMask[i]);
+                    }
+
+                    softbody.Value.Add(boxRigid);
+                }
+
+                foreach (var nodeIndex in feModel.FreeNodes)
+                {
+                    var node = feModel.Nodes[nodeIndex];
+                    var clothNode = MakeClothNode(node);
+                    clothNode.Add("_class", "ClothNode");
+                    clothNode.Add("origin", ToKVArray(Vector3.Zero));
+                    clothNode.Add("angles", ToKVArray(Vector3.Zero));
+                    clothNode.Add("transform_alignment", 0);
+                    clothNode.Add("node_base_y1", "");
+                    clothNode.Add("node_base_x1", "");
+                    clothNode.Add("node_base_y0", "");
+                    clothNode.Add("node_base_x0", "");
+
+                    for (var i = 0; i < 4; i++)
+                    {
+                        clothNode.Add("cloth_collision_layer" + i, true); // TODO
+                    }
+
+                    softbody.Value.Add(clothNode);
+                }
+
+                foreach (var rope in feModel.Ropes)
+                {
+                    var clothChain = new ClothChainBuilder();
+
+                    foreach (var nodeIndex in rope)
+                    {
+                        clothChain.AddJoint(feModel.Nodes[nodeIndex]);
+                    }
+
+                    softbody.Value.Add(clothChain.Build());
+                }
+
+                /*
+                 * `m_NodeBases`: Data for generated cloth nodes. Nodes for bones that are
+                 * directly part of a ClothChain do not show up here, but `Extrude Sides` for
+                 * example will generate nodes that do.
+                 *
+                 * `m_Rods`: Some basic data for springs, both manual and generated ones.
+                 * `nNode` contains the endpoints. There is no known way to tell apart generated
+                 * nodes here either.
+                */
             }
         }
 

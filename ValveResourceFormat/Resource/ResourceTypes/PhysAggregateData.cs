@@ -2,6 +2,7 @@ using System.Globalization;
 using System.Linq;
 using ValveKeyValue;
 using ValveResourceFormat.ResourceTypes.RubikonPhysics;
+using ValveResourceFormat.ResourceTypes.SoftbodyPhysics;
 using ValveResourceFormat.Serialization.KeyValues;
 
 namespace ValveResourceFormat.ResourceTypes
@@ -56,7 +57,16 @@ namespace ValveResourceFormat.ResourceTypes
         public IReadOnlyList<KVObject> CollisionAttributes
             => collisionAttributes ??= Data.GetArray("m_collisionAttributes");
 
+        /// <summary>
+        /// Gets the softbody / cloth finite-element model (<c>m_pFeModel</c>), or <see langword="null"/> if absent.
+        /// </summary>
+        public PhysFeModel? FeModel => feModel ??=
+            Data.GetSubCollection("m_pFeModel") is KVObject feModelData
+                ? new PhysFeModel(feModelData)
+                : null;
+
         private Matrix4x4[]? bindPose;
+        private PhysFeModel? feModel;
         private Part[]? parts;
         private uint[]? surfacePropertyHashes;
         private IReadOnlyList<KVObject>? collisionAttributes;
