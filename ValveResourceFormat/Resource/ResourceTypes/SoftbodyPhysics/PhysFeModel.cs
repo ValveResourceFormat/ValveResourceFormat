@@ -17,6 +17,28 @@ public class PhysFeModel
     public PhysFeModel(KVObject data)
     {
         Data = data;
+
+        StaticNodeFlags = data.GetUInt32Property("m_nStaticNodeFlags");
+        DynamicNodeFlags = data.GetUInt32Property("m_nDynamicNodeFlags");
+        LocalForce = data.GetFloatProperty("m_flLocalForce");
+        LocalRotation = data.GetFloatProperty("m_flLocalRotation");
+        NodeCount = data.GetInt32Property("m_nNodeCount");
+        StaticNodes = data.GetInt32Property("m_nStaticNodes");
+        RotLockStaticNodes = data.GetInt32Property("m_nRotLockStaticNodes");
+        FirstPositionDrivenNode = data.GetInt32Property("m_nFirstPositionDrivenNode");
+        TreeDepth = data.GetInt32Property("m_nTreeDepth");
+        Windage = data.GetFloatProperty("m_flWindage");
+        WindDrag = data.GetFloatProperty("m_flWindDrag");
+        InternalPressure = data.GetFloatProperty("m_flInternalPressure");
+        DefaultSurfaceStretch = data.GetFloatProperty("m_flDefaultSurfaceStretch");
+        DefaultThreadStretch = data.GetFloatProperty("m_flDefaultThreadStretch");
+        DefaultGravityScale = data.GetFloatProperty("m_flDefaultGravityScale");
+        DefaultVelAirDrag = data.GetFloatProperty("m_flDefaultVelAirDrag");
+        DefaultExpAirDrag = data.GetFloatProperty("m_flDefaultExpAirDrag");
+        DefaultVelQuadAirDrag = data.GetFloatProperty("m_flDefaultVelQuadAirDrag");
+        DefaultExpQuadAirDrag = data.GetFloatProperty("m_flDefaultExpQuadAirDrag");
+        AddWorldCollisionRadius = data.GetFloatProperty("m_flAddWorldCollisionRadius");
+        DefaultVolumetricSolveAmount = data.GetFloatProperty("m_flDefaultVolumetricSolveAmount");
     }
 
     private readonly KVObject Data;
@@ -24,67 +46,67 @@ public class PhysFeModel
     #region Scalars
 
     /// <summary>Bitmask of which nodes are static.</summary>
-    public uint StaticNodeFlags => Data.GetUInt32Property("m_nStaticNodeFlags");
+    public uint StaticNodeFlags { get; }
 
     /// <summary>Bitmask of which nodes are dynamic.</summary>
-    public uint DynamicNodeFlags => Data.GetUInt32Property("m_nDynamicNodeFlags");
+    public uint DynamicNodeFlags { get; }
 
     /// <summary>Local force applied to the simulation.</summary>
-    public float LocalForce => Data.GetFloatProperty("m_flLocalForce");
+    public float LocalForce { get; }
 
     /// <summary>Local rotation applied to the simulation.</summary>
-    public float LocalRotation => Data.GetFloatProperty("m_flLocalRotation");
+    public float LocalRotation { get; }
 
     /// <summary>Total number of nodes.</summary>
-    public int NodeCount => Data.GetInt32Property("m_nNodeCount");
+    public int NodeCount { get; }
 
     /// <summary>Number of static (non-simulated) nodes at the start of the node list.</summary>
-    public int StaticNodes => Data.GetInt32Property("m_nStaticNodes");
+    public int StaticNodes { get; }
 
     /// <summary>Number of rotation-locked static nodes at the start of the node list.</summary>
-    public int RotLockStaticNodes => Data.GetInt32Property("m_nRotLockStaticNodes");
+    public int RotLockStaticNodes { get; }
 
     /// <summary>Index of the first position-driven node.</summary>
-    public int FirstPositionDrivenNode => Data.GetInt32Property("m_nFirstPositionDrivenNode");
+    public int FirstPositionDrivenNode { get; }
 
     /// <summary>Depth of the collision bounding-volume tree.</summary>
-    public int TreeDepth => Data.GetInt32Property("m_nTreeDepth");
+    public int TreeDepth { get; }
 
     /// <summary>Windage applied to the simulation.</summary>
-    public float Windage => Data.GetFloatProperty("m_flWindage");
+    public float Windage { get; }
 
     /// <summary>Wind drag applied to the simulation.</summary>
-    public float WindDrag => Data.GetFloatProperty("m_flWindDrag");
+    public float WindDrag { get; }
 
     /// <summary>Default internal (volumetric) pressure.</summary>
-    public float InternalPressure => Data.GetFloatProperty("m_flInternalPressure");
+    public float InternalPressure { get; }
 
     /// <summary>Default surface stretch.</summary>
-    public float DefaultSurfaceStretch => Data.GetFloatProperty("m_flDefaultSurfaceStretch");
+    public float DefaultSurfaceStretch { get; }
 
     /// <summary>Default thread stretch.</summary>
-    public float DefaultThreadStretch => Data.GetFloatProperty("m_flDefaultThreadStretch");
+    public float DefaultThreadStretch { get; }
 
     /// <summary>Default gravity scale.</summary>
-    public float DefaultGravityScale => Data.GetFloatProperty("m_flDefaultGravityScale");
+    public float DefaultGravityScale { get; }
 
     /// <summary>Default linear velocity air drag.</summary>
-    public float DefaultVelAirDrag => Data.GetFloatProperty("m_flDefaultVelAirDrag");
+    public float DefaultVelAirDrag { get; }
 
     /// <summary>Default exponential air drag.</summary>
-    public float DefaultExpAirDrag => Data.GetFloatProperty("m_flDefaultExpAirDrag");
+    public float DefaultExpAirDrag { get; }
 
     /// <summary>Default quad linear velocity air drag.</summary>
-    public float DefaultVelQuadAirDrag => Data.GetFloatProperty("m_flDefaultVelQuadAirDrag");
+    public float DefaultVelQuadAirDrag { get; }
 
     /// <summary>Default quad exponential air drag.</summary>
-    public float DefaultExpQuadAirDrag => Data.GetFloatProperty("m_flDefaultExpQuadAirDrag");
+    public float DefaultExpQuadAirDrag { get; }
 
     /// <summary>Radius added to nodes when testing world collision.</summary>
-    public float AddWorldCollisionRadius => Data.GetFloatProperty("m_flAddWorldCollisionRadius");
+    public float AddWorldCollisionRadius { get; }
 
     /// <summary>Default volumetric solve amount.</summary>
-    public float DefaultVolumetricSolveAmount => Data.GetFloatProperty("m_flDefaultVolumetricSolveAmount");
+    public float DefaultVolumetricSolveAmount { get; }
 
     #endregion
 
@@ -96,7 +118,7 @@ public class PhysFeModel
     */
 
     /// <summary>Names of all bones and procedural nodes involved in the simulation.</summary>
-    public string[] CtrlName => Data.GetArray<string>("m_CtrlName") ?? [];
+    public string[] CtrlName => ctrlName ??= Data.GetArray<string>("m_CtrlName") ?? [];
 
     /// <summary>Murmur hashes of <see cref="CtrlName"/>.</summary>
     public uint[] CtrlHash => ctrlHash ??= [.. (Data.GetArray<object>("m_CtrlHash") ?? []).Select(Convert.ToUInt32)];
@@ -105,7 +127,7 @@ public class PhysFeModel
     public FeModelNode[] Nodes => nodes ??= GetNodes();
 
     /// <summary>Inverse mass for each node (0 means immovable).</summary>
-    public float[] NodeInvMasses => Data.GetFloatArray("m_NodeInvMasses");
+    public float[] NodeInvMasses => nodeInvMasses ??= Data.GetFloatArray("m_NodeInvMasses");
 
     /*
      * Describes ClothChains. The first `m_nRopeCount` entries of `m_Ropes` are index
@@ -117,7 +139,7 @@ public class PhysFeModel
     public int[][] Ropes => ropes ??= GetRopes();
 
     /// <summary>Indices of free (unparented) cloth nodes.</summary>
-    public int[] FreeNodes => Data.GetInt32Array("m_FreeNodes");
+    public int[] FreeNodes => freeNodes ??= Data.GetInt32Array("m_FreeNodes");
 
     /// <summary>Basis frames for procedurally generated cloth nodes.</summary>
     public FeNodeBase[] NodeBases => nodeBases ??= Build("m_NodeBases", d => new FeNodeBase(d));
@@ -149,13 +171,13 @@ public class PhysFeModel
         => worldCollisionParams ??= Build("m_WorldCollisionParams", d => new FeWorldCollisionParams(d));
 
     /// <summary>Node indices that participate in world collision.</summary>
-    public int[] WorldCollisionNodes => Data.GetInt32Array("m_WorldCollisionNodes");
+    public int[] WorldCollisionNodes => worldCollisionNodes ??= Data.GetInt32Array("m_WorldCollisionNodes");
 
     /// <summary>Parent index of each node in the collision bounding-volume tree.</summary>
-    public int[] TreeParents => Data.GetInt32Array("m_TreeParents");
+    public int[] TreeParents => treeParents ??= Data.GetInt32Array("m_TreeParents");
 
     /// <summary>Collision mask of each node in the collision bounding-volume tree.</summary>
-    public int[] TreeCollisionMasks => Data.GetInt32Array("m_TreeCollisionMasks");
+    public int[] TreeCollisionMasks => treeCollisionMasks ??= Data.GetInt32Array("m_TreeCollisionMasks");
 
     /// <summary>Children of each internal node of the collision bounding-volume tree.</summary>
     public FeTreeChildren[] TreeChildren => treeChildren ??= Build("m_TreeChildren", d => new FeTreeChildren(d));
@@ -201,12 +223,12 @@ public class PhysFeModel
 
     private FeModelNode[] GetNodes()
     {
-        var staticNodeCount = Data.GetInt32Property("m_nStaticNodes");
-        var rotLockedNodeCount = Data.GetInt32Property("m_nRotLockStaticNodes");
-        var ctrlNames = Data.GetArray<string>("m_CtrlName") ?? [];
+        var staticNodeCount = StaticNodes;
+        var rotLockedNodeCount = RotLockStaticNodes;
+        var ctrlNames = CtrlName;
         var ctrlParents = Data.GetInt32Array("m_SkelParents");
         var nodeIntegrator = Data.GetArray("m_NodeIntegrator") ?? [];
-        var nodeInvMasses = Data.GetFloatArray("m_NodeInvMasses");
+        var invMasses = NodeInvMasses;
 
         // These arrays skip static nodes and are completely empty when every node uses default values.
         var collisionRadii = Data.GetFloatArray("m_NodeCollisionRadii");
@@ -248,7 +270,7 @@ public class PhysFeModel
             GoalDamping = 0f, // TODO reverse this from flAnimationVertexAttraction
             Gravity = i < nodeIntegrator.Count ? nodeIntegrator[i].GetFloatProperty("flGravity") / 360f : 0f,
             Mass = 1f, // TODO
-            InvMass = nodeInvMasses.ElementAtOrDefault(i),
+            InvMass = invMasses.ElementAtOrDefault(i),
             CollisionRadius = collisionRadii.ElementAtOrDefault(i - staticNodeCount),
             Friction = nodeFrictions.ElementAtOrDefault(i - staticNodeCount),
             HasStrayRadius = strayParameters[i].Has,
@@ -259,8 +281,14 @@ public class PhysFeModel
         })];
     }
 
+    private string[]? ctrlName;
     private uint[]? ctrlHash;
     private FeModelNode[]? nodes;
+    private float[]? nodeInvMasses;
+    private int[]? freeNodes;
+    private int[]? worldCollisionNodes;
+    private int[]? treeParents;
+    private int[]? treeCollisionMasks;
     private int[][]? ropes;
     private FeNodeBase[]? nodeBases;
     private FeRod[]? rods;
