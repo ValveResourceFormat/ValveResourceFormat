@@ -229,7 +229,7 @@ namespace GUI.Types.GLViewers
             }
 
             sounds = new WorldSoundPlayer(GuiContext);
-            sounds.AddSoundEventsFile("soundevents/ambience/game_sounds_overpass.vsndevts");
+            sounds.LoadSoundEvents("game_sounds");
 
             foreach (var item in Scene.AllNodes.Where(IsSoundEntity))
             {

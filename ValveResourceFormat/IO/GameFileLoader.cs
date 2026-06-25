@@ -463,6 +463,29 @@ namespace ValveResourceFormat.IO
         }
 
         /// <summary>
+        /// Finds all soundevent collection files listed in the soundevents manifest.
+        /// </summary>
+        /// <returns>Paths to the matching soundevent files (without the compiled "_c" suffix).</returns>
+        public IEnumerable<string> GetSoundEventFiles()
+        {
+            using var manifestResource = LoadFileCompiled("soundevents/soundevents_manifest.vrman");
+
+            if (manifestResource?.DataBlock is not ResourceManifest manifest)
+            {
+                yield break;
+            }
+
+            foreach (var resourceGroup in manifest.Resources)
+            {
+                // resourceManifest, resourceManifest1
+                foreach (var soundEventsFile in resourceGroup)
+                {
+                    yield return soundEventsFile;
+                }
+            }
+        }
+
+        /// <summary>
         /// Adds a disk path to the search paths.
         /// </summary>
         public bool AddDiskPathToSearch(string searchPath)

@@ -79,13 +79,31 @@ namespace ValveResourceFormat.Renderer.Audio
             return soundEvent;
         }
 
-        public void AddSoundEventsFile(string fileName)
+        /// <summary>
+        /// Loads soundevent files.
+        /// </summary>
+        public void LoadSoundEvents(string filter = "")
         {
-            var soundEventsFile = fileLoader.LoadFileCompiled(fileName);
-            if (soundEventsFile == null)
+            if (fileLoader is not GameFileLoader gameLoader)
             {
                 return;
             }
+
+            foreach (var soundEventsFile in gameLoader.GetSoundEventFiles()
+                .Where(x => x.Contains(filter, StringComparison.OrdinalIgnoreCase)))
+            {
+                LoadSoundEventsFile(soundEventsFile);
+            }
+        }
+
+        public void LoadSoundEventsFile(string fileName)
+        {
+            var soundEventsFile = fileLoader.LoadFileCompiled(fileName);
+            if (soundEventsFile?.DataBlock == null)
+            {
+                return;
+            }
+
             SoundEventBank.AddSoundEvents(soundEventsFile.DataBlock.AsKeyValueCollection());
         }
 
