@@ -74,13 +74,39 @@ public class GameFileTests
             var nodes = feModel.Nodes;
             var ropes = feModel.Ropes;
             var freeNodes = feModel.FreeNodes;
+
+            var nodeBases = feModel.NodeBases;
+            var rods = feModel.Rods;
+            var springIntegrators = feModel.SpringIntegrators;
+            var axialEdges = feModel.AxialEdges;
+            var followNodes = feModel.FollowNodes;
+            var ctrlOffsets = feModel.CtrlOffsets;
+            var ctrlOsOffsets = feModel.CtrlOsOffsets;
+            var nodeStrayBoxes = feModel.NodeStrayBoxes;
+            var treeChildren = feModel.TreeChildren;
+
             var spheres = feModel.SphereRigids;
             var capsules = feModel.TaperedCapsuleRigids;
             var boxes = feModel.BoxRigids;
 
+            // Poke the remaining getters without keeping their results.
+            _ = feModel.CtrlHash;
+            _ = feModel.NodeInvMasses;
+            _ = feModel.WorldCollisionParams;
+            _ = feModel.WorldCollisionNodes;
+            _ = feModel.TreeParents;
+            _ = feModel.TreeCollisionMasks;
+            _ = feModel.StaticNodeFlags;
+            _ = feModel.DynamicNodeFlags;
+            _ = feModel.NodeCount;
+            _ = feModel.DefaultGravityScale;
+            _ = feModel.AddWorldCollisionRadius;
+
             TestContext.Out.WriteLine($"{testCase.assetName}: ctrlNames={ctrlNames.Length} nodes={nodes.Length} " +
-                $"ropes={ropes.Length} freeNodes={freeNodes.Length} spheres={spheres.Length} " +
-                $"capsules={capsules.Length} boxes={boxes.Length}");
+                $"ropes={ropes.Length} freeNodes={freeNodes.Length} nodeBases={nodeBases.Length} rods={rods.Length} " +
+                $"followNodes={followNodes.Length} ctrlOffsets={ctrlOffsets.Length} ctrlOsOffsets={ctrlOsOffsets.Length} " +
+                $"strayBoxes={nodeStrayBoxes.Length} springs={springIntegrators.Length} axialEdges={axialEdges.Length} " +
+                $"treeChildren={treeChildren.Length} spheres={spheres.Length} capsules={capsules.Length} boxes={boxes.Length}");
         }, testCase.assetName);
     }
 }
