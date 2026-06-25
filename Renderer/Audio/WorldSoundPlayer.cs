@@ -34,6 +34,7 @@ namespace ValveResourceFormat.Renderer.Audio
         private readonly WorldSoundMixer worldSoundProvider;
 
         private WorldSoundEvent SoundscapeEvent = null;
+        private string currentSoundscapeName;
 
         public WorldSoundPlayer(IFileLoader fileLoader)
         {
@@ -106,12 +107,20 @@ namespace ValveResourceFormat.Renderer.Audio
                                          .ToArray();
             if (soundscapes.Length == 0)
             {
+                // Camera left every soundscape radius, stop the currently playing one.
+                if (SoundscapeEvent != null)
+                {
+                    SoundscapeEvent.Stop();
+                    SoundscapeEvent = null;
+                    currentSoundscapeName = null;
+                }
                 return;
             }
 
             var targetSoundscape = soundscapes[0];
 
-            if (SoundscapeEvent != null && SoundscapeEvent.SoundName == targetSoundscape.Soundscape.Name)
+            // Sound event names are hashed case-insensitively (see StringToken), so compare them the same way.
+            if (SoundscapeEvent != null && string.Equals(currentSoundscapeName, targetSoundscape.Soundscape.Name, StringComparison.OrdinalIgnoreCase))
             {
                 return;
             }
@@ -122,6 +131,8 @@ namespace ValveResourceFormat.Renderer.Audio
                 SoundscapeEvent = null;
             }
 
+            // Set before playing so a missing sound event doesn't retrigger the lookup every frame.
+            currentSoundscapeName = targetSoundscape.Soundscape.Name;
             SoundscapeEvent = PlaySoundEvent(targetSoundscape.Soundscape.Name, targetSoundscape.Soundscape.Position, true);
         }
     }

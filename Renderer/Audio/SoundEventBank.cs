@@ -11,7 +11,8 @@ namespace ValveResourceFormat.Renderer.Audio
 {
     public class SoundEventBank
     {
-        private Dictionary<string, KVObject> soundEvents = [];
+        // Sound event names are hashed case-insensitively by the engine (see StringToken), match that here.
+        private Dictionary<string, KVObject> soundEvents = new(StringComparer.OrdinalIgnoreCase);
         public SoundEventBank() { }
         public void AddSoundEvent(string name, KVObject soundEventData)
         {
