@@ -2,6 +2,7 @@ using System.IO;
 using System.Linq;
 using NUnit.Framework;
 using SteamDatabase.ValvePak;
+using ValveResourceFormat;
 using ValveResourceFormat.IO;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.ResourceTypes.SoftbodyPhysics;
@@ -17,6 +18,21 @@ public class GameFileTests
         (730, "game/csgo", "models/props/de_mirage/tarp_a.vmdl"),
         (730, "game/csgo", "weapons/keychains/missinglink/vmdl/kc_missinglink_cat.vmdl"),
     ];
+
+    [Test]
+    public void ParseFeModelFromPhysicsFile()
+    {
+        using var resource = new Resource();
+        var physPath = Path.Combine(TestContext.CurrentContext.TestDirectory, "Files", "juggernaut.vphys_c");
+        resource.Read(physPath);
+
+        Assert.That(resource.DataBlock, Is.InstanceOf<PhysAggregateData>());
+        var phys = (PhysAggregateData)resource.DataBlock!;
+
+        Assert.That(phys.FeModel, Is.Not.Null, "juggernaut.vphys_c should contain an FeModel.");
+
+        SoftbodyPhysicsParse(phys.FeModel!, "juggernaut.vphys_c");
+    }
 
     [Test, TestCaseSource(nameof(JiggleOrClothModels))]
     public void ParseFeModel((int appId, string gameFolder, string assetName) testCase)
@@ -67,6 +83,11 @@ public class GameFileTests
             return;
         }
 
+        SoftbodyPhysicsParse(feModel, testCase.assetName);
+    }
+
+    static void SoftbodyPhysicsParse(PhysFeModel feModel, string assetName)
+    {
         // Poke every getter so the whole parse runs without throwing.
         Assert.DoesNotThrow(() =>
         {
@@ -102,11 +123,11 @@ public class GameFileTests
             _ = feModel.DefaultGravityScale;
             _ = feModel.AddWorldCollisionRadius;
 
-            TestContext.Out.WriteLine($"{testCase.assetName}: ctrlNames={ctrlNames.Length} nodes={nodes.Length} " +
+            TestContext.Out.WriteLine($"{assetName}: ctrlNames={ctrlNames.Length} nodes={nodes.Length} " +
                 $"ropes={ropes.Length} freeNodes={freeNodes.Length} nodeBases={nodeBases.Length} rods={rods.Length} " +
                 $"followNodes={followNodes.Length} ctrlOffsets={ctrlOffsets.Length} ctrlOsOffsets={ctrlOsOffsets.Length} " +
                 $"strayBoxes={nodeStrayBoxes.Length} springs={springIntegrators.Length} axialEdges={axialEdges.Length} " +
                 $"treeChildren={treeChildren.Length} spheres={spheres.Length} capsules={capsules.Length} boxes={boxes.Length}");
-        }, testCase.assetName);
+        }, assetName);
     }
 }
