@@ -36,6 +36,43 @@ namespace Tests
         }
 
         [Test]
+        public void TestSentenceExport()
+        {
+            var sentence = new Sentence
+            {
+                RunTimePhonemes =
+                [
+                    new PhonemeTag { StartTime = 0f, EndTime = 0.048f, PhonemeCode = 240 },
+                    new PhonemeTag { StartTime = 0.048f, EndTime = 0.1f, PhonemeCode = 115 },
+                ]
+            };
+
+            var expected = string.Join('\n',
+                "VERSION 1.0",
+                "PLAINTEXT",
+                "{",
+                "}",
+                "WORDS",
+                "{",
+                "\tWORD ðs 0.000 0.100",
+                "\t{",
+                "\t\t240 ð 0.000 0.048 1",
+                "\t\t115 s 0.048 0.100 1",
+                "\t}",
+                "}",
+                "EMPHASIS",
+                "{",
+                "}",
+                "OPTIONS",
+                "{",
+                "\tvoice_duck 0",
+                "}",
+                "");
+
+            Assert.That(sentence.ToValveSentence(), Is.EqualTo(expected));
+        }
+
+        [Test]
         public void TestSoundNoFileName()
         {
             var file = Path.Combine(TestContext.CurrentContext.TestDirectory, "Files", "beep.vsnd_c");

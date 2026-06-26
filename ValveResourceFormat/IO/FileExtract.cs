@@ -209,6 +209,16 @@ namespace ValveResourceFormat.IO
                         soundStream.TryGetBuffer(out var buffer);
                         contentFile.Data = [.. buffer];
 
+                        // Lip-sync phoneme data; the compiler bakes this back in when the txt sits next to the source sound.
+                        if (soundData.Sentence != null)
+                        {
+                            contentFile.AdditionalFiles.Add(new ContentFile
+                            {
+                                FileName = Path.ChangeExtension(resource.FileName, "txt") ?? "exported.txt",
+                                Data = Encoding.UTF8.GetBytes(soundData.Sentence.ToValveSentence())
+                            });
+                        }
+
                         // TODO: Refactor this into a SoundExtract?
                         if (resource.GetBlockByType(BlockType.CTRL) is BinaryKV3 ctrlData)
                         {
