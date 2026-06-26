@@ -776,6 +776,10 @@ namespace GUI.Types.Viewers
         {
             switch (resource.ResourceType)
             {
+                case ResourceType.Sound when resource.DataBlock is Sound { Sentence: { } sentence }:
+                    IViewer.AddContentTab(resTabs, "Reconstructed phonemes", sentence.ToValveSentence());
+                    break;
+
                 case ResourceType.Material:
                     var vmatTab = IViewer.AddContentTab(resTabs, "Reconstructed vmat", new MaterialExtract(resource, vrfGuiContext).ToValveMaterial);
                     break;
