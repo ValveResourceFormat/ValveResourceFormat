@@ -13,6 +13,18 @@ float CalculateLuminance(vec3 color) {
     return dot(color, LUMINANCE_WEIGHTS);
 }
 
+float KarisWeight(vec3 color) {
+    return 1.0 / (1.0 + CalculateLuminance(color));
+}
+
+vec3 KarisAverage(vec3 a, vec3 b, vec3 c, vec3 d) {
+    float wa = KarisWeight(a);
+    float wb = KarisWeight(b);
+    float wc = KarisWeight(c);
+    float wd = KarisWeight(d);
+    return (a * wa + b * wb + c * wc + d * wd) / (wa + wb + wc + wd);
+}
+
 vec3 ApplyThreshold(vec3 color) {
     float luminance = CalculateLuminance(color);
     float thresholdFactor = g_flToneMapScalarLinear * luminance * thresholdParams.y + thresholdParams.x;
@@ -38,14 +50,13 @@ vec4 DownsampleJimenez(vec2 uv) {
     vec4 bottomLeftFar = textureLodOffset(inputTexture, uv, 0.0, ivec2(-2, 2));
     vec4 bottomRightFar = textureLodOffset(inputTexture, uv, 0.0, ivec2(2, 2));
 
-    vec4 centerGroup = (topLeft + topRight + bottomLeft + bottomRight) * 0.25;
+    vec3 centerBox = KarisAverage(topLeft.rgb, topRight.rgb, bottomLeft.rgb, bottomRight.rgb);
+    vec3 topLeftBox = KarisAverage(topLeftFar.rgb, top.rgb, left.rgb, center.rgb);
+    vec3 topRightBox = KarisAverage(topRightFar.rgb, top.rgb, right.rgb, center.rgb);
+    vec3 bottomLeftBox = KarisAverage(bottomLeftFar.rgb, bottom.rgb, left.rgb, center.rgb);
+    vec3 bottomRightBox = KarisAverage(bottomRightFar.rgb, bottom.rgb, right.rgb, center.rgb);
 
-    vec4 topCross = (topLeftFar + top + center + topRightFar) * 0.25;
-    vec4 rightCross = (topRightFar + right + center + bottomRightFar) * 0.25;
-    vec4 bottomCross = (bottomLeftFar + bottom + center + bottomRightFar) * 0.25;
-    vec4 leftCross = (topLeftFar + left + center + bottomLeftFar) * 0.25;
-
-    return centerGroup * 0.5 + (topCross + rightCross + bottomCross + leftCross) * 0.125;
+    return vec4(centerBox * 0.5 + (topLeftBox + topRightBox + bottomLeftBox + bottomRightBox) * 0.125, 1.0);
 }
 
 void main() {
