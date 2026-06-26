@@ -362,6 +362,7 @@ namespace GUI.Types.GLViewers
                         }
                     }, groups =>
                     {
+                        using var lockedGl = MakeCurrent();
                         modelSceneNode.SetActiveMeshGroups(groups);
                         modelStatsDirty = true;
                     });
