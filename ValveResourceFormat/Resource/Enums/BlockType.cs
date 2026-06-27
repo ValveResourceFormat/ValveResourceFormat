@@ -146,7 +146,7 @@ namespace ValveResourceFormat
         MADJ = 'M' | ('A' << 8) | ('D' << 16) | ('J' << 24),
 
         /// <summary>
-        /// Meshlet buffer. Contains packed vertex and index buffer data for meshes.
+        /// Meshlet buffer. Contains local vertex and triangle index data for meshlet rendering.
         /// </summary>
         MSLT = 'M' | ('S' << 8) | ('L' << 16) | ('T' << 24),
     }

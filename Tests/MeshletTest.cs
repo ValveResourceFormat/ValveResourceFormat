@@ -65,9 +65,12 @@ namespace Tests
         {
             using var resource = Read(out var meshlets, out var mslt);
 
-            Assert.That(meshlets, Is.Not.Empty);
-            Assert.That(meshlets[0], Is.EqualTo(new MeshletDesc(0, 0, 66, 48)));
-            Assert.That(mslt, Has.Length.EqualTo(1736));
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(meshlets, Is.Not.Empty);
+                Assert.That(meshlets[0], Is.EqualTo(new MeshletDesc(0, 0, 66, 48)));
+                Assert.That(mslt, Has.Length.EqualTo(1736));
+            }
         }
 
         // The MSLT buffer is pre-decoded packed indices: per-meshlet vertexCount uint32 entries,
@@ -122,8 +125,11 @@ namespace Tests
                 var m = meshlets[i];
                 var (vertices, indices) = block.DecodeMeshlet(entryOffset, m.VertexCount, m.TriangleCount);
 
-                Assert.That(vertices, Has.Length.EqualTo(m.VertexCount));
-                Assert.That(indices, Has.Length.EqualTo(m.TriangleCount * 3));
+                using (Assert.EnterMultipleScope())
+                {
+                    Assert.That(vertices, Has.Length.EqualTo(m.VertexCount));
+                    Assert.That(indices, Has.Length.EqualTo(m.TriangleCount * 3));
+                }
 
                 // Vertex list is a 14-bit per-entry field.
                 foreach (var v in vertices)
@@ -150,9 +156,12 @@ namespace Tests
                 Assert.That(firstVertices[j], Is.EqualTo(j), $"vertex {j}");
             }
 
-            Assert.That(firstVertices[firstIndices[0]], Is.Zero);
-            Assert.That(firstVertices[firstIndices[1]], Is.EqualTo(1));
-            Assert.That(firstVertices[firstIndices[2]], Is.EqualTo(2));
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(firstVertices[firstIndices[0]], Is.Zero);
+                Assert.That(firstVertices[firstIndices[1]], Is.EqualTo(1));
+                Assert.That(firstVertices[firstIndices[2]], Is.EqualTo(2));
+            }
         }
 
         // Ground truth: meshlet 0 has an identity vertex list, so resolving its local indices through the

@@ -1,25 +1,20 @@
 namespace ValveResourceFormat.Blocks;
 
 /// <summary>
-/// "MSLT" block. Holds pre-decoded, packed per-meshlet local index data.
+/// "MSLT" block. Holds packed per-meshlet local index data. There is one <see cref="uint"/> entry per meshlet vertex.
 /// </summary>
 /// <remarks>
-/// One <see cref="uint"/> entry per meshlet vertex, with each meshlet's entries concatenated in order.
-/// Each entry holds a 14-bit per-vertex field in the high bits. The first <c>triangleCount</c> entries also
-/// hold a triangle in the low 18 bits (three 6-bit meshlet-local indices). The global index buffer is the
-/// separate MIDX block.
+/// How a shader uses this:
+///   1. Transform each meshlet vertex once.
+///   2. Emit the local index buffer (values 0..vertexCount-1) as primitives over those vertices.
+///   3. Fetch a position with vertexBuffer[vertexList[localIndex]], or MVTX[vertexOffset + localIndex]
+///      when vertices are stored per-meshlet.
+/// The vertexList comes from MIDX. The classic path ignores this block and draws MIDX ranges directly.
 /// </remarks>
 public class MeshletBuffer : RawBinary
 {
     /// <inheritdoc/>
     public override BlockType Type => BlockType.MSLT;
-
-    // How a shader uses this:
-    //   1. Transform each meshlet vertex once.
-    //   2. Emit the local index buffer (values 0..vertexCount-1) as primitives over those vertices.
-    //   3. Fetch a position with vertexBuffer[vertexList[localIndex]], or MVTX[vertexOffset + localIndex]
-    //      when vertices are stored per-meshlet.
-    // The vertexList comes from MIDX. The classic path ignores this block and draws MIDX ranges directly.
 
     /// <summary>
     /// Decodes a single meshlet into its vertex list and its local triangle index buffer.
@@ -46,7 +41,7 @@ public class MeshletBuffer : RawBinary
     {
         if (Resource?.Reader == null)
         {
-            throw new InvalidOperationException("Resource reader is required to decode meshlet data.");
+            throw new InvalidOperationException("Resource reader is required to lazily read meshlet data.");
         }
 
         var entries = new uint[vertexCount];
