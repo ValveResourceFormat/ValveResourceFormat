@@ -31,6 +31,27 @@ public abstract class RawBinary : Block
     /// <inheritdoc/>
     public override void WriteText(IndentedTextWriter writer)
     {
-        writer.WriteLine("Not yet.");
+        ArgumentNullException.ThrowIfNull(Resource?.Reader);
+
+        var data = new byte[Size];
+        Resource.Reader.BaseStream.Position = Offset;
+        Resource.Reader.Read(data);
+
+        for (var i = 0; i < data.Length; i += 16)
+        {
+            var lineLength = Math.Min(16, data.Length - i);
+
+            for (var j = 0; j < lineLength; j++)
+            {
+                if (j > 0)
+                {
+                    writer.Write(' ');
+                }
+
+                writer.Write(data[i + j].ToString("X2", System.Globalization.CultureInfo.InvariantCulture));
+            }
+
+            writer.WriteLine();
+        }
     }
 }
