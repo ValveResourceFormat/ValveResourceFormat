@@ -71,7 +71,7 @@ namespace Tests
         }
 
         // The MSLT buffer is pre-decoded packed indices: per-meshlet vertexCount uint32 entries,
-        // each = (localVertex << 18) | triangle, triangle = three 6-bit references.
+        // each = (vertexListValue << 18) | triangle, triangle = three 6-bit references.
         [Test]
         public void ValidatesPackedIndexLayout()
         {
@@ -92,23 +92,16 @@ namespace Tests
                 // First entry is the canonical (0,1,2) first triangle => packed low-18 == 0x2040.
                 Assert.That(seg[0] & 0x3FFFFu, Is.EqualTo(0x2040u), $"meshlet {i} does not start with the (0,1,2) marker");
 
-                var maxLocal = 0u;
-                for (var j = 0; j < m.VertexCount; j++)
+                for (var j = 0; j < m.TriangleCount; j++)
                 {
-                    var low = seg[j] & 0x3FFFFu;
-
-                    if (j < m.TriangleCount)
-                    {
-                        Assert.That(low, Is.Not.Zero, $"meshlet {i} triangle {j} is unexpectedly zero");
-                        maxLocal = Max(maxLocal, Max(low & 0x3F, Max((low >> 6) & 0x3F, (low >> 12) & 0x3F)));
-                    }
-                    else
-                    {
-                        Assert.That(low, Is.Zero, $"meshlet {i} padding entry {j} is non-zero");
-                    }
+                    Assert.That(seg[j] & 0x3FFFFu, Is.Not.Zero, $"meshlet {i} triangle {j} is unexpectedly zero");
                 }
 
-                Assert.That(maxLocal, Is.LessThan((uint)m.VertexCount), $"meshlet {i} triangle index out of range");
+                for (var j = m.TriangleCount; j < m.VertexCount; j++)
+                {
+                    Assert.That(seg[j] & 0x3FFFFu, Is.Zero, $"meshlet {i} padding entry {j} is non-zero");
+                }
+
                 cursor += m.VertexCount;
             }
 
@@ -116,7 +109,7 @@ namespace Tests
         }
 
         [Test]
-        public void DecodesLocalMeshletIndices()
+        public void DecodesMeshlets()
         {
             using var resource = Read(out var meshlets, out _);
             var block = (MeshletBuffer)resource.GetBlockByType(BlockType.MSLT)!;
@@ -127,31 +120,43 @@ namespace Tests
             for (var i = 0; i < meshlets.Count; i++)
             {
                 var m = meshlets[i];
+                var (vertices, indices) = block.DecodeMeshlet(entryOffset, m.VertexCount, m.TriangleCount);
 
-                var indices = block.DecodeMeshletIndices(entryOffset, m.TriangleCount);
+                Assert.That(vertices, Has.Length.EqualTo(m.VertexCount));
                 Assert.That(indices, Has.Length.EqualTo(m.TriangleCount * 3));
 
-                // Indices are meshlet-local: 0 .. vertexCount-1.
+                // Vertex list is a 14-bit per-entry field.
+                foreach (var v in vertices)
+                {
+                    Assert.That(v, Is.InRange(0, 0x3FFF), $"meshlet {i} vertex out of 14-bit range");
+                }
+
+                // Interop: every index addresses the vertex list, so vertices[index] is in bounds.
                 foreach (var index in indices)
                 {
-                    Assert.That(index, Is.InRange(0, m.VertexCount - 1), $"meshlet {i} index out of local range");
+                    Assert.That(index, Is.InRange(0, vertices.Length - 1), $"meshlet {i} index does not address the vertex list");
                 }
 
                 totalIndices += indices.Length;
                 entryOffset += m.VertexCount;
             }
 
-            // Meshlet 0 has an identity vertex list, so its first triangle is (0,1,2).
-            var firstMeshlet = block.DecodeMeshletIndices(0, meshlets[0].TriangleCount);
-            Assert.That(firstMeshlet[0], Is.Zero);
-            Assert.That(firstMeshlet[1], Is.EqualTo(1));
-            Assert.That(firstMeshlet[2], Is.EqualTo(2));
-
             Assert.That(totalIndices, Is.EqualTo(meshlets.Sum(m => m.TriangleCount) * 3));
+
+            // The first meshlet has the identity vertex list, so its first triangle resolves to (0,1,2).
+            var (firstVertices, firstIndices) = block.DecodeMeshlet(0, meshlets[0].VertexCount, meshlets[0].TriangleCount);
+            for (var j = 0; j < firstVertices.Length; j++)
+            {
+                Assert.That(firstVertices[j], Is.EqualTo(j), $"vertex {j}");
+            }
+
+            Assert.That(firstVertices[firstIndices[0]], Is.Zero);
+            Assert.That(firstVertices[firstIndices[1]], Is.EqualTo(1));
+            Assert.That(firstVertices[firstIndices[2]], Is.EqualTo(2));
         }
 
-        // Meshlet 0 has an identity vertex list (local index == global index), so its decoded local
-        // triangles must match the real index buffer (MIDX) exactly - this validates the window/wrap.
+        // Ground truth: meshlet 0 has an identity vertex list, so resolving its local indices through the
+        // vertex list must reproduce the real index buffer (MIDX). Validates the window/wrap and the interop.
         [Test]
         public void DecodesMeshlet0AgainstIndexBuffer()
         {
@@ -160,20 +165,18 @@ namespace Tests
             var indexBuffer = ((Model)resource.DataBlock!).GetEmbeddedMeshes().First().Mesh.VBIB.IndexBuffers[0];
 
             var m = meshlets[0];
-            var decoded = block.DecodeMeshletIndices(0, m.TriangleCount);
+            var (vertices, indices) = block.DecodeMeshlet(0, m.VertexCount, m.TriangleCount);
             var expected = GltfModelExporter.ReadIndices(indexBuffer, m.TriangleOffset * 3, m.TriangleCount * 3, 0);
 
             for (var t = 0; t < m.TriangleCount; t++)
             {
-                // Compare as sorted triples so winding/rotation differences don't matter.
-                var d = new[] { decoded[t * 3], decoded[t * 3 + 1], decoded[t * 3 + 2] };
+                // Resolve local indices through the vertex list, compare as sorted triples (ignore winding).
+                var d = new[] { vertices[indices[t * 3]], vertices[indices[t * 3 + 1]], vertices[indices[t * 3 + 2]] };
                 var e = new[] { expected[t * 3], expected[t * 3 + 1], expected[t * 3 + 2] };
                 Array.Sort(d);
                 Array.Sort(e);
                 Assert.That(d, Is.EqualTo(e), $"triangle {t}");
             }
         }
-
-        private static uint Max(uint a, uint b) => a > b ? a : b;
     }
 }

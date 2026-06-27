@@ -4,47 +4,72 @@ namespace ValveResourceFormat.Blocks;
 /// "MSLT" block. Holds pre-decoded, packed per-meshlet local index data.
 /// </summary>
 /// <remarks>
-/// The buffer is a concatenation of per-meshlet segments, one <see cref="uint"/> entry per meshlet vertex.
-/// The low 18 bits of the first <c>triangleCount</c> entries store a triangle as three 6-bit meshlet-local
-/// vertex indices; the high 14 bits of every entry are a separate per-vertex field (the meshlet's vertex
-/// list / local-to-global remap). The triangles index the meshlet's own vertex buffer, not the global one -
-/// the global index buffer lives in the MIDX block.
+/// One <see cref="uint"/> entry per meshlet vertex, with each meshlet's entries concatenated in order.
+/// Each entry holds a 14-bit per-vertex field in the high bits. The first <c>triangleCount</c> entries also
+/// hold a triangle in the low 18 bits (three 6-bit meshlet-local indices). The global index buffer is the
+/// separate MIDX block.
 /// </remarks>
 public class MeshletBuffer : RawBinary
 {
     /// <inheritdoc/>
     public override BlockType Type => BlockType.MSLT;
 
+    // How a shader uses this:
+    //   1. Transform each meshlet vertex once.
+    //   2. Emit the local index buffer (values 0..vertexCount-1) as primitives over those vertices.
+    //   3. Fetch a position with vertexBuffer[vertexList[localIndex]], or MVTX[vertexOffset + localIndex]
+    //      when vertices are stored per-meshlet.
+    // The vertexList comes from MIDX. The classic path ignores this block and draws MIDX ranges directly.
+
     /// <summary>
-    /// Decodes a single meshlet into its local triangle index buffer.
+    /// Decodes a single meshlet into its vertex list and its local triangle index buffer.
     /// </summary>
     /// <param name="entryOffset">
     /// Entry (uint) offset of the meshlet within the buffer. Segments tile by vertex count, so this is the
     /// summed <c>m_nVertexCount</c> of the preceding meshlets - not the descriptor's <c>m_nVertexOffset</c>.
     /// </param>
+    /// <param name="vertexCount">Number of vertices/entries in the meshlet (its <c>m_nVertexCount</c>).</param>
     /// <param name="triangleCount">Number of triangles in the meshlet (its <c>m_nTriangleCount</c>).</param>
-    /// <returns>An array of <c>triangleCount * 3</c> meshlet-local vertex indices.</returns>
+    /// <returns>
+    /// <c>Indices</c>: <c>triangleCount * 3</c> meshlet-local vertex indices (the triangle topology).
+    /// <c>Vertices</c>: the raw per-entry 14-bit field. For the first (identity) meshlet it equals the
+    /// vertex list; for other meshlets it can contain duplicates, so treat it as raw data and take the
+    /// vertex list from MIDX.
+    /// </returns>
     /// <remarks>
-    /// Each triangle stores three 6-bit references. Vertices are introduced in increasing order through a
-    /// 64-entry sliding window: a reference equal to <c>(maxIntroduced + 1) &amp; 63</c> introduces the next
-    /// vertex, otherwise it reuses the vertex with that value within the current window. This lets meshlets
-    /// with more than 64 vertices address indices 64 and above.
+    /// Triangle references are 6-bit. Vertices are introduced in increasing order through a 64-entry sliding
+    /// window: a reference equal to <c>(maxIntroduced + 1) &amp; 63</c> introduces the next vertex, otherwise
+    /// it reuses the vertex with that value within the current window. This lets meshlets with more than 64
+    /// vertices address indices 64 and above.
     /// </remarks>
-    public int[] DecodeMeshletIndices(int entryOffset, int triangleCount)
+    public (int[] Vertices, int[] Indices) DecodeMeshlet(int entryOffset, int vertexCount, int triangleCount)
     {
         if (Resource?.Reader == null)
         {
-            throw new InvalidOperationException("Resource reader is required to decode meshlet indices.");
+            throw new InvalidOperationException("Resource reader is required to decode meshlet data.");
+        }
+
+        var entries = new uint[vertexCount];
+        Resource.Reader.BaseStream.Position = Offset + (long)entryOffset * sizeof(uint);
+
+        for (var i = 0; i < vertexCount; i++)
+        {
+            entries[i] = Resource.Reader.ReadUInt32();
+        }
+
+        var vertices = new int[vertexCount];
+
+        for (var i = 0; i < vertexCount; i++)
+        {
+            vertices[i] = (int)(entries[i] >> 18);
         }
 
         var indices = new int[triangleCount * 3];
-        Resource.Reader.BaseStream.Position = Offset + (long)entryOffset * sizeof(uint);
-
         var maxIntroduced = -1;
 
         for (var t = 0; t < triangleCount; t++)
         {
-            var triangle = Resource.Reader.ReadUInt32() & 0x3FFFFu;
+            var triangle = entries[t] & 0x3FFFFu;
 
             for (var k = 0; k < 3; k++)
             {
@@ -63,6 +88,6 @@ public class MeshletBuffer : RawBinary
             }
         }
 
-        return indices;
+        return (vertices, indices);
     }
 }
