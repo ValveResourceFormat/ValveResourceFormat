@@ -32,7 +32,7 @@ namespace Tests
 
             foreach (var file in files)
             {
-                using var resource = new Resource
+                var resource = new Resource
                 {
                     FileName = file,
                 };
@@ -114,7 +114,7 @@ namespace Tests
                 ms.Position = 0;
 
                 // Now try to parse what we just wrote
-                using var resource = new Resource
+                var resource = new Resource
                 {
                     FileName = file,
                 };
