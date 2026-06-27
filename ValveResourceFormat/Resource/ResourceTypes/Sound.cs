@@ -52,12 +52,10 @@ namespace ValveResourceFormat.ResourceTypes
     /// <seealso href="https://s2v.app/SchemaExplorer/cs2/soundsystem_voicecontainers/CAudioSentence">CAudioSentence</seealso>
     public partial class Sentence
     {
-        /*
         /// <summary>
         /// Gets a value indicating whether voice ducking should be applied.
         /// </summary>
         public bool ShouldVoiceDuck { get; init; }
-        */
 
         /// <summary>
         /// Gets the phoneme tags for lip-sync.

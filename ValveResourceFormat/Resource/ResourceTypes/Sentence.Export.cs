@@ -63,7 +63,7 @@ namespace ValveResourceFormat.ResourceTypes
             writer.WriteLine("OPTIONS");
             writer.WriteLine("{");
             writer.Indent++;
-            writer.WriteLine("voice_duck 0");
+            writer.WriteLine("voice_duck {0}", ShouldVoiceDuck ? 1 : 0);
             writer.Indent--;
             writer.WriteLine("}");
 
