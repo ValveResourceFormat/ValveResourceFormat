@@ -1,4 +1,3 @@
-using System.Globalization;
 using System.Text;
 
 namespace ValveResourceFormat.ResourceTypes
@@ -19,14 +18,20 @@ namespace ValveResourceFormat.ResourceTypes
         /// </remarks>
         public string ToValveSentence()
         {
-            var sb = new StringBuilder();
+            using var writer = new IndentedTextWriter();
+            writer.NewLine = "\n";
 
-            sb.Append("VERSION 1.0\n");
-            sb.Append("PLAINTEXT\n{\n}\n");
-            sb.Append("WORDS\n{\n");
+            writer.WriteLine("VERSION 1.0");
+            writer.WriteLine("PLAINTEXT");
+            writer.WriteLine("{");
+            writer.WriteLine("}");
+            writer.WriteLine("WORDS");
+            writer.WriteLine("{");
 
             if (RunTimePhonemes.Length > 0)
             {
+                writer.Indent++;
+
                 var word = new StringBuilder(RunTimePhonemes.Length);
                 foreach (var phoneme in RunTimePhonemes)
                 {
@@ -36,22 +41,33 @@ namespace ValveResourceFormat.ResourceTypes
                 var start = RunTimePhonemes[0].StartTime;
                 var end = RunTimePhonemes[^1].EndTime;
 
-                sb.Append("\tWORD ").Append(word).Append(CultureInfo.InvariantCulture, $" {start:0.000} {end:0.000}\n\t{{\n");
+                writer.WriteLine("WORD {0} {1:0.000} {2:0.000}", word, start, end);
+                writer.WriteLine("{");
+                writer.Indent++;
 
                 foreach (var phoneme in RunTimePhonemes)
                 {
                     var symbol = (char)phoneme.PhonemeCode;
-                    sb.Append(CultureInfo.InvariantCulture, $"\t\t{phoneme.PhonemeCode} {symbol} {phoneme.StartTime:0.000} {phoneme.EndTime:0.000} 1\n");
+                    writer.WriteLine("{0} {1} {2:0.000} {3:0.000} 1", phoneme.PhonemeCode, symbol, phoneme.StartTime, phoneme.EndTime);
                 }
 
-                sb.Append("\t}\n");
+                writer.Indent--;
+                writer.WriteLine("}");
+                writer.Indent--;
             }
 
-            sb.Append("}\n");
-            sb.Append("EMPHASIS\n{\n}\n");
-            sb.Append("OPTIONS\n{\n\tvoice_duck 0\n}\n");
+            writer.WriteLine("}");
+            writer.WriteLine("EMPHASIS");
+            writer.WriteLine("{");
+            writer.WriteLine("}");
+            writer.WriteLine("OPTIONS");
+            writer.WriteLine("{");
+            writer.Indent++;
+            writer.WriteLine("voice_duck 0");
+            writer.Indent--;
+            writer.WriteLine("}");
 
-            return sb.ToString();
+            return writer.ToString();
         }
     }
 }
