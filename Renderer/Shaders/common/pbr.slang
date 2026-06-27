@@ -23,7 +23,7 @@ vec3 diffuseWrapped(vec3 vNormal, vec3 vLightVector)
 {
     float NoL = dot(vNormal, vLightVector);
     float diffuseWrapDenom = ClampToPositive((NoL + g_flDiffuseWrap) / (1.0 + g_flDiffuseWrap));
-    float DiffuseWrapLighting = pow(diffuseWrapDenom, g_flDiffuseExponent) * (1.0 + g_flDiffuseExponent) / (2.0 + 2.0 * g_flDiffuseWrap);
+    float DiffuseWrapLighting = SafePow(diffuseWrapDenom, g_flDiffuseExponent) * (1.0 + g_flDiffuseExponent) / (2.0 + 2.0 * g_flDiffuseWrap);
     return mix(vec3(saturate(NoL)), vec3(DiffuseWrapLighting), g_vDiffuseWrapColor.rgb);
 }
 #endif

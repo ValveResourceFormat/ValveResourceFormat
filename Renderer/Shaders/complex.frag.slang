@@ -353,7 +353,7 @@ MaterialProperties_t GetMaterial(vec2 texCoord, vec3 vertexNormals)
 
     // Emissive
     vec3 layer1Emissive = (layer1Color.rgb * g_vLayer1EmissiveTint * g_flLayer1EmissiveLevel) * tintFactor;
-    float emissiveFresnel = clamp(pow(NdotV, g_flLayer2EmissiveFresnel), 0.0, 1.0);
+    float emissiveFresnel = clamp(SafePow(NdotV, g_flLayer2EmissiveFresnel), 0.0, 1.0);
     vec3 layer2Emissive = (layer2Color * emissiveFresnel * g_vLayer2EmissiveTint * g_flLayer2EmissiveLevel) * tintFactor;
     mat.IllumColor = mix(layer2Emissive, layer1Emissive, layer1Color.a) * (1.0 - mask);
 
@@ -610,7 +610,7 @@ MaterialProperties_t GetMaterial(vec2 texCoord, vec3 vertexNormals)
 
     #if defined(foliage_vfx_common)
         vec4 vFoliageParams = clamp(vFoliageParamsOut, vec4(0.001), vec4(1.0));
-        mat.AmbientOcclusion *= mix(1.0, pow(vFoliageParams.w, g_flVertexAmbientOcclusionPower), g_flVertexAmbientOcclusionAmount);
+        mat.AmbientOcclusion *= mix(1.0, SafePow(vFoliageParams.w, g_flVertexAmbientOcclusionPower), g_flVertexAmbientOcclusionAmount);
     #endif
 
     #if (F_TRANSMISSIVE_BACKFACE_NDOTL == 1) && (GameVfx_csgo_simple_3layer_parallax == 0)

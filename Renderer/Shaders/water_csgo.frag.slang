@@ -493,7 +493,7 @@ void main()
     vec3 sunDir = GetEnvLightDirection(0);
 
     float cosNormAngle = saturate(dot(viewDirInv, finalPerturbedSurfaceNormal.xyz));
-    float fresnel = pow(1.0 - cosNormAngle, g_flFresnelExponent);
+    float fresnel = SafePow(1.0 - cosNormAngle, g_flFresnelExponent);
     vec3 finalFoamColor = g_vFoamColor.rgb * fma(combinedfinalFoamIntensity, 0.5, 1.0);
 
     vec3 combinedRefractedColor = vec3(0);
@@ -636,7 +636,7 @@ void main()
                 float factor = clamp(mix(mix(fma(debrisDisturbanceForWaves, 0.1, g_flLowFreqWeight), g_flMedFreqWeight + debrisDisturbanceForWaves, saturate(causticIterProgress * 2.0)), fma(g_flHighFreqWeight, currentWaterRoughness, debrisDisturbanceForWaves), saturate(fma(causticIterProgress, 2.0, -1.0))), 0.1, 0.4);
 
                 float waveSampleCausticDepthFalloff = causticDepthFalloff * g_flCausticSharpness;
-                currWaveSampleSum1 += (((((pow(rawSample, exponent) * factor) * (vec3(1.0) + (currWaveSampleSum1 * 2.0))) * causticDepthFalloff) * waveSampleCausticDepthFalloff) * 2.0);
+                currWaveSampleSum1 += (((((SafePow(rawSample, exponent) * factor) * (vec3(1.0) + (currWaveSampleSum1 * 2.0))) * causticDepthFalloff) * waveSampleCausticDepthFalloff) * 2.0);
 
                 currWaveScale1 *= g_flWavesPhaseOffset;
                 currWaveDir += (3.5 / (i + 1));
@@ -688,7 +688,7 @@ void main()
     vec3 finalDirToCam = -normalize(finalSurfacePos.xyz - g_vCameraPositionWs.xyz);
     float specularCosAlpha = clamp(dot(-sunDir, reflect(finalDirToCam, normalize(mix(normalize(mat.GeometricNormal).xyz, finalPerturbedSurfaceNormal.xyz, vec3(g_flSpecularNormalMultiple * fma(distanceToFrag, 0.0005, 1.0)))))), 0.0, 1.0);
     float specularExponent = mix(g_flSpecularPower, g_flDebrisReflectance * 8.0, debrisEdgeFactor) * mix(2.0, 0.2, saturate(currentWaterRoughness));
-    float specularFactor = fma(pow(specularCosAlpha, specularExponent), 0.1, pow(specularCosAlpha, specularExponent * 10.0));
+    float specularFactor = fma(SafePow(specularCosAlpha, specularExponent), 0.1, SafePow(specularCosAlpha, specularExponent * 10.0));
 
     float inverseWaterFogAlpha = 1.0 - waterFogAlpha;
     float waterOpacity = (saturate((1.0 - debrisEdgeFactor) + noClue) * saturate(fma(-combinedfinalFoamIntensity, 4.0, 1.0))) * inverseWaterFogAlpha;

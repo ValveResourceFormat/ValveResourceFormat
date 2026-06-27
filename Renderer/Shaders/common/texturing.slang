@@ -185,7 +185,7 @@ void SetDiffuseColorBleed(inout MaterialProperties_t mat)
 #if (F_SSS_MASK == 1)
     vAmbientOcclusionExponent = mix(vec3(1.0), vAmbientOcclusionExponent, mat.SSSMask);
 #endif
-    mat.DiffuseAO = pow(mat.DiffuseAO, vAmbientOcclusionExponent);
+    mat.DiffuseAO = SafePow(mat.DiffuseAO, vAmbientOcclusionExponent);
 }
 
 #endif
@@ -345,7 +345,7 @@ void applyDetailTexture(inout vec3 Albedo, inout vec3 NormalMap, vec2 detailMask
     vec4 GetGlassMaterial(MaterialProperties_t mat)
     {
         float viewDotNormalInv = saturate(1.0 - (dot(mat.ViewDir, mat.Normal) - g_flEdgeColorThickness));
-        float fresnel = saturate(pow(viewDotNormalInv, g_flEdgeColorFalloff)) * g_flEdgeColorMaxOpacity;
+        float fresnel = saturate(SafePow(viewDotNormalInv, g_flEdgeColorFalloff)) * g_flEdgeColorMaxOpacity;
         vec4 fresnelColor = vec4(g_vEdgeColor.xyz, g_bFresnel ? fresnel : 0.0);
 
         return mix(vec4(mat.Albedo, mat.Opacity), fresnelColor, g_flOpacityScale);

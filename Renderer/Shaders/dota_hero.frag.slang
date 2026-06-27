@@ -128,7 +128,7 @@ void main()
 
 #if F_MASKS_2 && !F_SPECULAR_CUBE_MAP
     //Calculate final specular based on specular exponent - mask 2 channel A
-    float specular = pow(specularAngle, mask2.a * g_flSpecularExponent);
+    float specular = SafePow(specularAngle, mask2.a * g_flSpecularExponent);
     //Multiply by mapped specular intensity - mask 2 channel R
     specular = illumination * specular * mask2.r;
 

@@ -99,17 +99,17 @@ void main()
         float flFragmentToSceneDistance = distance(vFragPosition, vScenePosition);
 
         feather = saturate(flFragmentToSceneDistance / g_flFeatherDistance);
-        feather = pow(feather, g_flFeatherFalloff);
+        feather = SafePow(feather, g_flFeatherFalloff);
     #endif
 
     float fresnel = saturate(dot(-normalize(vCameraRay), normalize(vGeometricNormal).xyz));
-    fresnel = pow(fresnel, g_flFresnelExponent) * g_flFresnelFalloff;
+    fresnel = SafePow(fresnel, g_flFresnelExponent) * g_flFresnelFalloff;
     fresnel = saturate(fresnel);
     fresnel = mix(g_flFresnelMin, g_flFresnelMax, fresnel);
 
     float fade = saturate(length(vCameraRay / vec3(g_flFadeDistance)));
     fade = mix(g_flFadeMin, g_flFadeMax, fade);
-    fade = pow(fade, g_flFadeFalloff);
+    fade = SafePow(fade, g_flFadeFalloff);
 
     opacity *= fresnel;
     opacity *= feather;
