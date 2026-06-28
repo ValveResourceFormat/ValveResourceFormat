@@ -212,8 +212,6 @@ public class Renderer
         depthOnlyShaders[(int)DepthOnlyProgram.Animated] = Scene.RendererContext.ShaderLoader.LoadShader("vrf.depth_only", ("D_ANIMATED", 1));
         depthOnlyShaders[(int)DepthOnlyProgram.AnimatedEightBones] = Scene.RendererContext.ShaderLoader.LoadShader("vrf.depth_only", ("D_ANIMATED", 1), ("D_EIGHT_BONE_BLENDING", 1));
 
-        depthOnlyShaders[(int)DepthOnlyProgram.OcclusionQueryAABBProxy] = Scene.RendererContext.ShaderLoader.LoadShader("vrf.depth_only_aabb");
-
         histogramShaders[0] = Scene.RendererContext.ShaderLoader.LoadShader("vrf.histogram");
         histogramShaders[1] = Scene.RendererContext.ShaderLoader.LoadShader("vrf.histogram", ("D_HISTOGRAM_MODE", 1));
 
@@ -472,11 +470,6 @@ public class Renderer
         {
             renderContext.Scene = Scene;
             Scene.RenderOpaqueLayer(renderContext, isStandardPass ? depthOnlyShaders : Span<Shader>.Empty);
-        }
-
-        if (isStandardPass && Scene.EnableOcclusionQueries)
-        {
-            Scene.RenderOcclusionProxies(renderContext, depthOnlyShaders[(int)DepthOnlyProgram.OcclusionQueryAABBProxy]);
         }
 
         //using (new GLDebugGroup("Sky Render"))
@@ -842,11 +835,6 @@ public class Renderer
         if (ViewBuffer.Data.ExperimentalLightsEnabled)
         {
             Scene.LightingInfo.BinBarnLights(Camera.ViewFrustum, Camera.Location);
-        }
-
-        if (LockedCullFrustum == null)
-        {
-            Scene.GetOcclusionTestResults();
         }
 
         if (Scene is { EnablePvsCulling: true, VoxelVisibility: not null })

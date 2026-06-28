@@ -12,8 +12,6 @@ public enum DepthOnlyProgram
     Animated,
     /// <summary>Skinned geometry with up to 8 bone weights.</summary>
     AnimatedEightBones,
-    /// <summary>AABB proxy used for hardware occlusion queries.</summary>
-    OcclusionQueryAABBProxy,
     /// <summary>Unspecified program type.</summary>
     Unspecified,
 }
