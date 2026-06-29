@@ -344,8 +344,8 @@ void applyDetailTexture(inout vec3 Albedo, inout vec3 NormalMap, vec2 detailMask
     // todo2: inout mat properties
     vec4 GetGlassMaterial(MaterialProperties_t mat)
     {
-        float viewDotNormalInv = saturate(1.0 - (dot(mat.ViewDir, mat.Normal) - g_flEdgeColorThickness));
-        float fresnel = saturate(SafePow(viewDotNormalInv, g_flEdgeColorFalloff)) * g_flEdgeColorMaxOpacity;
+        float viewDotNormalInv = clamp(1.0 - (dot(mat.ViewDir, mat.Normal) - g_flEdgeColorThickness), 0.0001, 1.0);
+        float fresnel = saturate(pow(viewDotNormalInv, g_flEdgeColorFalloff)) * g_flEdgeColorMaxOpacity;
         vec4 fresnelColor = vec4(g_vEdgeColor.xyz, g_bFresnel ? fresnel : 0.0);
 
         return mix(vec4(mat.Albedo, mat.Opacity), fresnelColor, g_flOpacityScale);

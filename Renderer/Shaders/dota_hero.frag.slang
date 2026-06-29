@@ -124,11 +124,11 @@ void main()
 
     //Calculate Blinn specular based on reflected light
     vec3 halfDir = normalize(lightDirection + viewDirection);
-    float specularAngle = max(dot(halfDir, worldNormal), 0.0);
+    float specularAngle = max(dot(halfDir, worldNormal), 0.0001);
 
 #if F_MASKS_2 && !F_SPECULAR_CUBE_MAP
     //Calculate final specular based on specular exponent - mask 2 channel A
-    float specular = SafePow(specularAngle, mask2.a * g_flSpecularExponent);
+    float specular = pow(specularAngle, mask2.a * g_flSpecularExponent);
     //Multiply by mapped specular intensity - mask 2 channel R
     specular = illumination * specular * mask2.r;
 

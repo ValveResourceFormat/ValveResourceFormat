@@ -98,12 +98,12 @@ void main()
 
         float flFragmentToSceneDistance = distance(vFragPosition, vScenePosition);
 
-        feather = saturate(flFragmentToSceneDistance / g_flFeatherDistance);
-        feather = SafePow(feather, g_flFeatherFalloff);
+        feather = clamp(flFragmentToSceneDistance / g_flFeatherDistance, 0.0001, 1.0);
+        feather = pow(feather, g_flFeatherFalloff);
     #endif
 
-    float fresnel = saturate(dot(-normalize(vCameraRay), normalize(vGeometricNormal).xyz));
-    fresnel = SafePow(fresnel, g_flFresnelExponent) * g_flFresnelFalloff;
+    float fresnel = clamp(dot(-normalize(vCameraRay), normalize(vGeometricNormal).xyz), 0.0001, 1.0);
+    fresnel = pow(fresnel, g_flFresnelExponent) * g_flFresnelFalloff;
     fresnel = saturate(fresnel);
     fresnel = mix(g_flFresnelMin, g_flFresnelMax, fresnel);
 

@@ -686,9 +686,9 @@ void main()
     vec3 baseFogColor = mix(g_vWaterFogColor.rgb, finalFoamColor, vec3(foamDebrisForFogMix * 0.1)) * mix(waterDecayColorFactor, vec3(1.0), vec3(saturate(totalFogStrength * 0.04)));
 
     vec3 finalDirToCam = -normalize(finalSurfacePos.xyz - g_vCameraPositionWs.xyz);
-    float specularCosAlpha = clamp(dot(-sunDir, reflect(finalDirToCam, normalize(mix(normalize(mat.GeometricNormal).xyz, finalPerturbedSurfaceNormal.xyz, vec3(g_flSpecularNormalMultiple * fma(distanceToFrag, 0.0005, 1.0)))))), 0.0, 1.0);
+    float specularCosAlpha = clamp(dot(-sunDir, reflect(finalDirToCam, normalize(mix(normalize(mat.GeometricNormal).xyz, finalPerturbedSurfaceNormal.xyz, vec3(g_flSpecularNormalMultiple * fma(distanceToFrag, 0.0005, 1.0)))))), 0.0001, 1.0);
     float specularExponent = mix(g_flSpecularPower, g_flDebrisReflectance * 8.0, debrisEdgeFactor) * mix(2.0, 0.2, saturate(currentWaterRoughness));
-    float specularFactor = fma(SafePow(specularCosAlpha, specularExponent), 0.1, SafePow(specularCosAlpha, specularExponent * 10.0));
+    float specularFactor = fma(pow(specularCosAlpha, specularExponent), 0.1, pow(specularCosAlpha, specularExponent * 10.0));
 
     float inverseWaterFogAlpha = 1.0 - waterFogAlpha;
     float waterOpacity = (saturate((1.0 - debrisEdgeFactor) + noClue) * saturate(fma(-combinedfinalFoamIntensity, 4.0, 1.0))) * inverseWaterFogAlpha;
