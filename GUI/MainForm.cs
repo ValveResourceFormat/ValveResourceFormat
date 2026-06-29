@@ -1299,22 +1299,13 @@ namespace GUI
             };
             progressDialog.OnProcess += (_, __) =>
             {
-                OpenTK.Windowing.Desktop.NativeWindow window;
-
-                using (GLBaseControl.GlLifecycleLock.EnterScope())
+                var window = GLBaseControl.CreateContext(new OpenTK.Windowing.Desktop.NativeWindowSettings
                 {
-                    window = new OpenTK.Windowing.Desktop.NativeWindow(new()
-                    {
-                        APIVersion = ValveResourceFormat.Renderer.GLEnvironment.RequiredVersion,
-                        Flags = GLBaseControl.Flags | OpenTK.Windowing.Common.ContextFlags.Offscreen,
-                        StartVisible = false,
-                        Title = "Source 2 Viewer Shader Validator",
-                        AutoLoadBindings = false,
-                    });
-
-                    window.MakeCurrent();
-                    GLBaseControl.EnsureBindingsLoaded();
-                }
+                    APIVersion = ValveResourceFormat.Renderer.GLEnvironment.RequiredVersion,
+                    Flags = GLBaseControl.Flags | OpenTK.Windowing.Common.ContextFlags.Offscreen,
+                    StartVisible = false,
+                    Title = "Source 2 Viewer Shader Validator",
+                }, VrfGuiContext.Logger, setDefaultRenderState: false);
 
                 try
                 {
@@ -1322,10 +1313,7 @@ namespace GUI
                 }
                 finally
                 {
-                    using (GLBaseControl.GlLifecycleLock.EnterScope())
-                    {
-                        window.Dispose();
-                    }
+                    GLBaseControl.DestroyContext(window);
                 }
             };
             progressDialog.ShowDialog();

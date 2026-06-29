@@ -819,6 +819,42 @@ internal abstract class GLBaseControl : IDisposable
         loadedBindings = true;
     }
 
+    // Creates an offscreen GL context, serialized against every other context's lifecycle and init.
+    internal static OpenTK.Windowing.Desktop.NativeWindow CreateContext(OpenTK.Windowing.Desktop.NativeWindowSettings settings, Microsoft.Extensions.Logging.ILogger logger, bool setDefaultRenderState)
+    {
+        settings.AutoLoadBindings = false;
+
+        using var lifecycleLock = GlLifecycleLock.EnterScope();
+
+        var window = new OpenTK.Windowing.Desktop.NativeWindow(settings);
+
+        try
+        {
+            window.MakeCurrent();
+            EnsureBindingsLoaded();
+            GLEnvironment.Initialize(logger);
+
+            if (setDefaultRenderState)
+            {
+                GLEnvironment.SetDefaultRenderState();
+            }
+        }
+        catch
+        {
+            window.Dispose();
+            throw;
+        }
+
+        return window;
+    }
+
+    // Destroys a context's window under the lifecycle lock.
+    internal static void DestroyContext(OpenTK.Windowing.Desktop.NativeWindow? window)
+    {
+        using var lifecycleLock = GlLifecycleLock.EnterScope();
+        window?.Dispose();
+    }
+
     protected virtual SkiaSharp.SKBitmap? ReadPixelsToBitmap()
     {
         if (GLDefaultFramebuffer is null)
