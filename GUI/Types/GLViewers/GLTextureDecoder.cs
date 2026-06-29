@@ -127,7 +127,7 @@ public class GLTextureDecoder : IHardwareTextureDecoder, IDisposable
     {
         RendererContext.Logger.LogInformation("Initializing GPU texture decoder...");
 
-        GLWindowContext = GLBaseControl.CreateContext(new NativeWindowSettings
+        GLWindowContext = new NativeWindow(new()
         {
             APIVersion = GLEnvironment.RequiredVersion,
             Flags = GLBaseControl.Flags | OpenTK.Windowing.Common.ContextFlags.Offscreen,
@@ -137,8 +137,11 @@ public class GLTextureDecoder : IHardwareTextureDecoder, IDisposable
             DepthBits = null,
             StencilBits = null,
             Title = "Source 2 Viewer Texture Decoder",
-        }, RendererContext.Logger, setDefaultRenderState: false);
+        });
 
+        GLWindowContext.MakeCurrent();
+
+        GLEnvironment.Initialize(RendererContext.Logger);
         Framebuffer = Framebuffer.Prepare(nameof(GLTextureDecoder), 4, 4, 0, LDRFormat.Value, null);
         Framebuffer.Initialize();
         Framebuffer.CheckStatus_ThrowIfIncomplete(nameof(GLTextureDecoder));
@@ -261,7 +264,7 @@ public class GLTextureDecoder : IHardwareTextureDecoder, IDisposable
 
     private void Dispose_ThreadResources()
     {
-        GLBaseControl.DestroyContext(GLWindowContext);
+        GLWindowContext?.Dispose();
     }
 
     private void Exit()

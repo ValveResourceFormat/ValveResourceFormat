@@ -12,20 +12,10 @@ public readonly ref struct GLLockScope
 
     public GLLockScope(Lock glLock, IGLFWGraphicsContext context)
     {
-        var scope = glLock.EnterScope();
-
-        try
-        {
-            context.MakeCurrent();
-        }
-        catch
-        {
-            scope.Dispose();
-            throw;
-        }
-
-        lockScope = scope;
+        lockScope = glLock.EnterScope();
         this.context = context;
+
+        context.MakeCurrent();
     }
 
     public readonly void Dispose()

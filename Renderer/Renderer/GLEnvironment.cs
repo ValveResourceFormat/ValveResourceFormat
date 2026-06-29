@@ -1,3 +1,4 @@
+using System.Threading;
 using Microsoft.Extensions.Logging;
 using OpenTK.Graphics.OpenGL;
 
@@ -118,7 +119,7 @@ public static class GLEnvironment
         GL.ClearDepth(0.0f);
 
         // Process-global driver setting; configure exactly once (re-issuing it mid-compile crashes some drivers).
-        if (System.Threading.Interlocked.CompareExchange(ref parallelShaderCompileConfigured, 1, 0) == 0)
+        if (Interlocked.CompareExchange(ref parallelShaderCompileConfigured, 1, 0) == 0)
         {
             if (ParallelShaderCompileSupport == ParallelShaderCompileType.Khr)
             {

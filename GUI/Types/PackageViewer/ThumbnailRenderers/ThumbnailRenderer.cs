@@ -1,7 +1,6 @@
 using System.Diagnostics;
 using System.Drawing;
 using System.Threading;
-using GUI.Types.GLViewers;
 using GUI.Utils;
 using Microsoft.Extensions.Logging;
 using OpenTK.Graphics.OpenGL;
@@ -57,12 +56,16 @@ internal abstract class ThumbnailRenderer : IDisposable
             StartFocused = false,
         };
 
-        NativeWindow = GLBaseControl.CreateContext(nativeWindowSettings, VrfGuiContext.Logger, setDefaultRenderState: true);
-
+        NativeWindow = new NativeWindow(nativeWindowSettings);
         RendererContext = new RendererContext(context, VrfGuiContext.Logger)
         {
             FieldOfView = 75,
         };
+
+        NativeWindow.MakeCurrent();
+
+        GLEnvironment.Initialize(RendererContext.Logger);
+        GLEnvironment.SetDefaultRenderState();
 
         SceneRenderer = new Renderer(RendererContext);
 
@@ -231,7 +234,7 @@ internal abstract class ThumbnailRenderer : IDisposable
         {
             RendererContext?.Dispose();
             SceneRenderer?.Dispose();
-            GLBaseControl.DestroyContext(NativeWindow);
+            NativeWindow?.Dispose();
         }
 
         Loaded = false;
