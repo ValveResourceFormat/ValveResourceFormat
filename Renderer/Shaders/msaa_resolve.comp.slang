@@ -47,7 +47,10 @@ void main()
     for (int i = 0; i < D_MSAA_SAMPLES; i++)
     {
         vec4 texel = texelFetch(g_tSourceMsaa, sampleCoord, i);
-        vec3 s = clamp(texel.rgb, vec3(0.0), vec3(65504.0));
+        // Flush NaN/+Inf to 0; clamp(NaN/+Inf, ...) otherwise returns 65504 (white) on NVIDIA and blows up bloom.
+        // The range test catches both and survives the fast-math no-NaN folding that would defeat isnan().
+        bvec3 valid = lessThanEqual(texel.rgb, vec3(65504.0));
+        vec3 s = mix(vec3(0.0), clamp(texel.rgb, vec3(0.0), vec3(65504.0)), valid);
         // Karis average: weight by inverse luminance to reduce fireflies
         resolved += s * (invNumSamples / (max(s.r, max(s.g, s.b)) + 1.0));
 

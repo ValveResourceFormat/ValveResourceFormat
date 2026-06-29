@@ -218,7 +218,7 @@ vec4 GetTintColorLinear(vec4 vTint)
 #if F_NOTINT == 0
     TintFade.rgb = mix(vec3(1.0), SrgbGammaToLinear(vTint.rgb) * g_vColorTint.rgb, g_flModelTintAmount);
 #endif
-    TintFade.a = pow(vTint.a, g_flFadeExponent);
+    TintFade.a = SafePow(vTint.a, g_flFadeExponent);
     return TintFade;
 }
 

@@ -45,6 +45,20 @@ float pow5(float val)
     return pow(val, 5.0); // Should get optimized
 }
 
+// Guards against pow(0, 0) = NaN by clamping the base off zero.
+float SafePow(float base, float exponent)
+{
+    return pow(max(base, 1e-9), exponent);
+}
+vec2 SafePow(vec2 base, vec2 exponent)
+{
+    return pow(max(base, vec2(1e-9)), exponent);
+}
+vec3 SafePow(vec3 base, vec3 exponent)
+{
+    return pow(max(base, vec3(1e-9)), exponent);
+}
+
 float Random2D(vec2 Seed)
 {
     return fract(sin( dot(Seed, vec2(12.9898, 78.233)) ) * 43758.5469);
@@ -96,7 +110,7 @@ float LevelsAdjust(float component, vec3 L_BlackWhiteGamma)
         2.0 - L_BlackWhiteGamma.z
     );
 
-    return mix(levels.x, levels.y, pow(component, levels.z));
+    return mix(levels.x, levels.y, SafePow(component, levels.z));
 }
 
 float SrgbGammaToLinear(float color)
