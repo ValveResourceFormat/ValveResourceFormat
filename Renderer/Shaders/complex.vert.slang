@@ -299,8 +299,8 @@ void main()
         // Calculate strengths
         animParams.swayStrength = 150.0 * g_flSwayAmount;
         animParams.flutterStrength = 25.0 * g_flFlutterAmount;
-        animParams.swayFalloff = SafePow(foliageParams.x, g_flSwayFalloff);
-        animParams.flutterFalloff = SafePow(foliageParams.z, g_flFlutterFalloff);
+        animParams.swayFalloff = pow(foliageParams.x, g_flSwayFalloff);
+        animParams.flutterFalloff = pow(foliageParams.z, g_flFlutterFalloff);
 
         // Calculate height blend and offset
         animParams.heightBlend = (2.0 * foliageParams.y) - 1.0;

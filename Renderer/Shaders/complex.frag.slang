@@ -610,7 +610,7 @@ MaterialProperties_t GetMaterial(vec2 texCoord, vec3 vertexNormals)
 
     #if defined(foliage_vfx_common)
         vec4 vFoliageParams = clamp(vFoliageParamsOut, vec4(0.001), vec4(1.0));
-        mat.AmbientOcclusion *= mix(1.0, SafePow(vFoliageParams.w, g_flVertexAmbientOcclusionPower), g_flVertexAmbientOcclusionAmount);
+        mat.AmbientOcclusion *= mix(1.0, pow(vFoliageParams.w, g_flVertexAmbientOcclusionPower), g_flVertexAmbientOcclusionAmount);
     #endif
 
     #if (F_TRANSMISSIVE_BACKFACE_NDOTL == 1) && (GameVfx_csgo_simple_3layer_parallax == 0)
