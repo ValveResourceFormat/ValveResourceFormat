@@ -58,6 +58,9 @@ internal abstract class GLBaseControl : IDisposable
 
     protected readonly Lock glLock = new();
 
+    // Serializes GL context creation/init/disposal across all contexts (GLFW lifecycle is not thread-safe); always acquire before glLock.
+    internal static readonly Lock GlLifecycleLock = new();
+
     private int MaxSamples;
     protected int NumSamples => Math.Max(1, Math.Min(Settings.Config.AntiAliasingSamples, MaxSamples));
 
@@ -292,6 +295,7 @@ internal abstract class GLBaseControl : IDisposable
 
     public virtual void Dispose()
     {
+        using var lifecycleLock = GlLifecycleLock.EnterScope();
         using var lockedGl = glLock.EnterScope();
 
         if (GLControl is not null)
@@ -589,6 +593,7 @@ internal abstract class GLBaseControl : IDisposable
         // makes the context current.
         Program.MainForm.Invoke(() =>
         {
+            using var lifecycleLock = GlLifecycleLock.EnterScope();
             Debug.Assert(GLNativeWindow is null);
 
             var settings = new NativeWindowSettings()
@@ -617,6 +622,8 @@ internal abstract class GLBaseControl : IDisposable
 
         Debug.Assert(GLNativeWindow is not null);
 
+        // Held only across context creation/init; released before OnGLLoad to avoid a UI-Invoke deadlock (see below).
+        var lifecycleLock = GlLifecycleLock.EnterScope();
         using var lockedGl = MakeCurrent();
 
         GLNativeWindow.Context.SwapInterval = Settings.Config.Vsync;
@@ -646,6 +653,9 @@ internal abstract class GLBaseControl : IDisposable
 
         GLEnvironment.Initialize(VrfGuiContext.Logger);
         GLEnvironment.SetDefaultRenderState();
+
+        // Release before OnGLLoad, which can synchronously Invoke the UI thread and would deadlock against another context's creation.
+        lifecycleLock.Dispose();
 
         MaxSamples = GL.GetInteger(GetPName.MaxSamples);
         GLDefaultFramebuffer = Framebuffer.GLDefaultFramebuffer;

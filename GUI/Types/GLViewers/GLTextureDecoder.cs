@@ -127,26 +127,30 @@ public class GLTextureDecoder : IHardwareTextureDecoder, IDisposable
     {
         RendererContext.Logger.LogInformation("Initializing GPU texture decoder...");
 
-        GLWindowContext = new NativeWindow(new()
+        // Serialize context creation + global init with every other GL context.
+        using (GLBaseControl.GlLifecycleLock.EnterScope())
         {
-            APIVersion = GLEnvironment.RequiredVersion,
-            Flags = GLBaseControl.Flags | OpenTK.Windowing.Common.ContextFlags.Offscreen,
-            StartVisible = false,
-            StartFocused = false,
-            ClientSize = new(4, 4),
-            DepthBits = null,
-            StencilBits = null,
-            Title = "Source 2 Viewer Texture Decoder",
-        });
+            GLWindowContext = new NativeWindow(new()
+            {
+                APIVersion = GLEnvironment.RequiredVersion,
+                Flags = GLBaseControl.Flags | OpenTK.Windowing.Common.ContextFlags.Offscreen,
+                StartVisible = false,
+                StartFocused = false,
+                ClientSize = new(4, 4),
+                DepthBits = null,
+                StencilBits = null,
+                Title = "Source 2 Viewer Texture Decoder",
+            });
 
-        GLWindowContext.MakeCurrent();
+            GLWindowContext.MakeCurrent();
 
-        GLEnvironment.Initialize(RendererContext.Logger);
-        Framebuffer = Framebuffer.Prepare(nameof(GLTextureDecoder), 4, 4, 0, LDRFormat.Value, null);
-        Framebuffer.Initialize();
-        Framebuffer.CheckStatus_ThrowIfIncomplete(nameof(GLTextureDecoder));
-        Framebuffer.ClearMask = ClearBufferMask.ColorBufferBit;
-        Framebuffer.ClearColor = new OpenTK.Mathematics.Color4(0, 0, 255, 255);
+            GLEnvironment.Initialize(RendererContext.Logger);
+            Framebuffer = Framebuffer.Prepare(nameof(GLTextureDecoder), 4, 4, 0, LDRFormat.Value, null);
+            Framebuffer.Initialize();
+            Framebuffer.CheckStatus_ThrowIfIncomplete(nameof(GLTextureDecoder));
+            Framebuffer.ClearMask = ClearBufferMask.ColorBufferBit;
+            Framebuffer.ClearColor = new OpenTK.Mathematics.Color4(0, 0, 255, 255);
+        }
 
         foreach (var decodeRequest in decodeQueue.GetConsumingEnumerable())
         {
@@ -264,7 +268,10 @@ public class GLTextureDecoder : IHardwareTextureDecoder, IDisposable
 
     private void Dispose_ThreadResources()
     {
-        GLWindowContext?.Dispose();
+        using (GLBaseControl.GlLifecycleLock.EnterScope())
+        {
+            GLWindowContext?.Dispose();
+        }
     }
 
     private void Exit()
