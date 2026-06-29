@@ -140,9 +140,12 @@ public class GLTextureDecoder : IHardwareTextureDecoder, IDisposable
                 DepthBits = null,
                 StencilBits = null,
                 Title = "Source 2 Viewer Texture Decoder",
+                AutoLoadBindings = false,
             });
 
             GLWindowContext.MakeCurrent();
+
+            GLBaseControl.EnsureBindingsLoaded();
 
             GLEnvironment.Initialize(RendererContext.Logger);
             Framebuffer = Framebuffer.Prepare(nameof(GLTextureDecoder), 4, 4, 0, LDRFormat.Value, null);

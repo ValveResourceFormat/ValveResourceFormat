@@ -1299,17 +1299,34 @@ namespace GUI
             };
             progressDialog.OnProcess += (_, __) =>
             {
-                using var window = new OpenTK.Windowing.Desktop.NativeWindow(new()
+                OpenTK.Windowing.Desktop.NativeWindow window;
+
+                using (GLBaseControl.GlLifecycleLock.EnterScope())
                 {
-                    APIVersion = ValveResourceFormat.Renderer.GLEnvironment.RequiredVersion,
-                    Flags = GLBaseControl.Flags | OpenTK.Windowing.Common.ContextFlags.Offscreen,
-                    StartVisible = false,
-                    Title = "Source 2 Viewer Shader Validator"
-                });
+                    window = new OpenTK.Windowing.Desktop.NativeWindow(new()
+                    {
+                        APIVersion = ValveResourceFormat.Renderer.GLEnvironment.RequiredVersion,
+                        Flags = GLBaseControl.Flags | OpenTK.Windowing.Common.ContextFlags.Offscreen,
+                        StartVisible = false,
+                        Title = "Source 2 Viewer Shader Validator",
+                        AutoLoadBindings = false,
+                    });
 
-                window.MakeCurrent();
+                    window.MakeCurrent();
+                    GLBaseControl.EnsureBindingsLoaded();
+                }
 
-                ValveResourceFormat.Renderer.Shaders.ShaderLoader.ValidateShaders(new Progress<string>(progressDialog.SetProgress), VrfGuiContext.Logger);
+                try
+                {
+                    ValveResourceFormat.Renderer.Shaders.ShaderLoader.ValidateShaders(new Progress<string>(progressDialog.SetProgress), VrfGuiContext.Logger);
+                }
+                finally
+                {
+                    using (GLBaseControl.GlLifecycleLock.EnterScope())
+                    {
+                        window.Dispose();
+                    }
+                }
             };
             progressDialog.ShowDialog();
         }

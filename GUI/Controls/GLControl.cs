@@ -168,8 +168,7 @@ public class GLControl : Control
     {
         if (_nativeWindow != null)
         {
-            // Acquire GlLifecycleLock before glLock (consistent order) so window destruction is serialized
-            // against context creation/init on other threads.
+            // Serialize window destruction against context creation (acquire before glLock).
             using var lifecycleLock = GLBaseControl.GlLifecycleLock.EnterScope();
             using var lockedGl = glLock.EnterScope();
 

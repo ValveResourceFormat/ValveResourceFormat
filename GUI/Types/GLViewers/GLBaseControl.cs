@@ -622,9 +622,7 @@ internal abstract class GLBaseControl : IDisposable
 
         Debug.Assert(GLNativeWindow is not null);
 
-        // GlLifecycleLock serializes context creation + global init across all GL contexts. It is acquired
-        // before glLock (the same order Dispose uses) and released before OnGLLoad, which can synchronously
-        // Invoke the UI thread and would otherwise deadlock against another context being created.
+        // Acquired before glLock; released before OnGLLoad to avoid a UI-Invoke deadlock.
         var lifecycleLock = GlLifecycleLock.EnterScope();
 
         GLLockScope lockedGl;
@@ -808,10 +806,7 @@ internal abstract class GLBaseControl : IDisposable
 
     static bool loadedBindings;
 
-    // GL.LoadBindings mutates OpenTK's process-global function-pointer table. It must run exactly once
-    // for the whole process: reloading it while another thread executes GL calls reads a half-updated
-    // pointer and crashes the driver. Every GL context creator (viewers, decoder, thumbnails) calls this
-    // instead of letting NativeWindow.AutoLoadBindings reload per context. Callers must hold GlLifecycleLock.
+    // Load OpenTK's process-global GL bindings once; never reload per context (callers hold GlLifecycleLock).
     internal static void EnsureBindingsLoaded()
     {
         if (loadedBindings)
