@@ -31,6 +31,7 @@ public static class GLEnvironment
     }
 
     private static ParallelShaderCompileType ParallelShaderCompileSupport = ParallelShaderCompileType.None;
+    private static bool parallelShaderCompileConfigured;
 
     /// <summary>
     /// Indicates whether indirect count draw calls are supported by the current driver.
@@ -116,14 +117,22 @@ public static class GLEnvironment
         GL.DepthFunc(DepthFunction.Greater);
         GL.ClearDepth(0.0f);
 
-        // Parallel shader compilation, 0xFFFFFFFF requests an implementation-specific maximum
-        if (GLEnvironment.ParallelShaderCompileSupport == GLEnvironment.ParallelShaderCompileType.Khr)
+        // Parallel shader compilation is a process-global driver setting; 0xFFFFFFFF requests an
+        // implementation-specific maximum. It must be configured exactly once: re-issuing it on every
+        // context init crashes some drivers (NVIDIA) when another context is compiling shaders at the
+        // time. Callers hold GlLifecycleLock, so this check-and-set is serialized.
+        if (!parallelShaderCompileConfigured)
         {
-            GL.Khr.MaxShaderCompilerThreads(uint.MaxValue);
-        }
-        else if (GLEnvironment.ParallelShaderCompileSupport == GLEnvironment.ParallelShaderCompileType.Arb)
-        {
-            GL.Arb.MaxShaderCompilerThreads(uint.MaxValue);
+            parallelShaderCompileConfigured = true;
+
+            if (ParallelShaderCompileSupport == ParallelShaderCompileType.Khr)
+            {
+                GL.Khr.MaxShaderCompilerThreads(uint.MaxValue);
+            }
+            else if (ParallelShaderCompileSupport == ParallelShaderCompileType.Arb)
+            {
+                GL.Arb.MaxShaderCompilerThreads(uint.MaxValue);
+            }
         }
     }
 

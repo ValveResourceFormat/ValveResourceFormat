@@ -622,67 +622,86 @@ internal abstract class GLBaseControl : IDisposable
 
         Debug.Assert(GLNativeWindow is not null);
 
-        // Held only across context creation/init; released before OnGLLoad to avoid a UI-Invoke deadlock (see below).
+        // GlLifecycleLock serializes context creation + global init across all GL contexts. It is acquired
+        // before glLock (the same order Dispose uses) and released before OnGLLoad, which can synchronously
+        // Invoke the UI thread and would otherwise deadlock against another context being created.
         var lifecycleLock = GlLifecycleLock.EnterScope();
-        using var lockedGl = MakeCurrent();
 
-        GLNativeWindow.Context.SwapInterval = Settings.Config.Vsync;
-
-        if (!loadedBindings)
+        GLLockScope lockedGl;
+        try
         {
-            LoadOpenGLBindings();
-            loadedBindings = true;
+            lockedGl = MakeCurrent();
+        }
+        catch
+        {
+            lifecycleLock.Dispose();
+            throw;
         }
 
-        GL.Enable(EnableCap.DebugOutput);
-        GL.DebugMessageCallback(OpenGLDebugMessageDelegate, IntPtr.Zero);
+        try
+        {
+            try
+            {
+                GLNativeWindow.Context.SwapInterval = Settings.Config.Vsync;
+
+                EnsureBindingsLoaded();
+
+                GL.Enable(EnableCap.DebugOutput);
+                GL.DebugMessageCallback(OpenGLDebugMessageDelegate, IntPtr.Zero);
 
 #if DEBUG
-        GL.Enable(EnableCap.DebugOutputSynchronous);
+                GL.Enable(EnableCap.DebugOutputSynchronous);
 
-        // Filter out performance warnings
-        GL.DebugMessageControl(DebugSourceControl.DebugSourceApi, DebugTypeControl.DebugTypeOther, DebugSeverityControl.DebugSeverityNotification, 0, Array.Empty<int>(), false);
+                // Filter out performance warnings
+                GL.DebugMessageControl(DebugSourceControl.DebugSourceApi, DebugTypeControl.DebugTypeOther, DebugSeverityControl.DebugSeverityNotification, 0, Array.Empty<int>(), false);
 
-        // Filter out debug group push/pops
-        GL.DebugMessageControl(DebugSourceControl.DebugSourceApplication, DebugTypeControl.DontCare, DebugSeverityControl.DebugSeverityNotification, 0, Array.Empty<int>(), false);
+                // Filter out debug group push/pops
+                GL.DebugMessageControl(DebugSourceControl.DebugSourceApplication, DebugTypeControl.DontCare, DebugSeverityControl.DebugSeverityNotification, 0, Array.Empty<int>(), false);
 #else
-        // Only log high severity messages in release builds
-        GL.DebugMessageControl(DebugSourceControl.DontCare, DebugTypeControl.DontCare, DebugSeverityControl.DontCare, 0, Array.Empty<int>(), false);
-        GL.DebugMessageControl(DebugSourceControl.DontCare, DebugTypeControl.DontCare, DebugSeverityControl.DebugSeverityHigh, 0, Array.Empty<int>(), true);
+                // Only log high severity messages in release builds
+                GL.DebugMessageControl(DebugSourceControl.DontCare, DebugTypeControl.DontCare, DebugSeverityControl.DontCare, 0, Array.Empty<int>(), false);
+                GL.DebugMessageControl(DebugSourceControl.DontCare, DebugTypeControl.DontCare, DebugSeverityControl.DebugSeverityHigh, 0, Array.Empty<int>(), true);
 #endif
 
-        GLEnvironment.Initialize(VrfGuiContext.Logger);
-        GLEnvironment.SetDefaultRenderState();
+                GLEnvironment.Initialize(VrfGuiContext.Logger);
+                GLEnvironment.SetDefaultRenderState();
+            }
+            finally
+            {
+                lifecycleLock.Dispose();
+            }
 
-        // Release before OnGLLoad, which can synchronously Invoke the UI thread and would deadlock against another context's creation.
-        lifecycleLock.Dispose();
+            MaxSamples = GL.GetInteger(GetPName.MaxSamples);
+            GLDefaultFramebuffer = Framebuffer.GLDefaultFramebuffer;
 
-        MaxSamples = GL.GetInteger(GetPName.MaxSamples);
-        GLDefaultFramebuffer = Framebuffer.GLDefaultFramebuffer;
+            // Framebuffer used to draw geometry
+            MainFramebuffer = Framebuffer.Prepare(nameof(MainFramebuffer),
+                4, 4,
+                NumSamples,
+                new(PixelInternalFormat.Rgba16f, PixelFormat.Rgba, PixelType.HalfFloat),
+                Framebuffer.DepthAttachmentFormat.Depth32FStencil8
+            );
 
-        // Framebuffer used to draw geometry
-        MainFramebuffer = Framebuffer.Prepare(nameof(MainFramebuffer),
-            4, 4,
-            NumSamples,
-            new(PixelInternalFormat.Rgba16f, PixelFormat.Rgba, PixelType.HalfFloat),
-            Framebuffer.DepthAttachmentFormat.Depth32FStencil8
-        );
+            var status = MainFramebuffer.Initialize();
 
-        var status = MainFramebuffer.Initialize();
+            if (status != FramebufferErrorCode.FramebufferComplete)
+            {
+                Log.Error(nameof(GLBaseControl), $"Framebuffer failed to initialize with error: {status}");
+                Log.Info(nameof(GLBaseControl), "Falling back to default framebuffer.");
 
-        if (status != FramebufferErrorCode.FramebufferComplete)
-        {
-            Log.Error(nameof(GLBaseControl), $"Framebuffer failed to initialize with error: {status}");
-            Log.Info(nameof(GLBaseControl), "Falling back to default framebuffer.");
+                MainFramebuffer.Delete();
+                MainFramebuffer = GLDefaultFramebuffer;
+                GL.Enable(EnableCap.FramebufferSrgb);
+            }
 
-            MainFramebuffer.Delete();
-            MainFramebuffer = GLDefaultFramebuffer;
-            GL.Enable(EnableCap.FramebufferSrgb);
+            MainFramebuffer.ClearMask |= ClearBufferMask.StencilBufferBit;
+
+            OnGLLoad();
         }
-
-        MainFramebuffer.ClearMask |= ClearBufferMask.StencilBufferBit;
-
-        OnGLLoad();
+        finally
+        {
+            lockedGl.Dispose();
+        }
     }
 
     protected virtual void OnGLLoad()
@@ -788,10 +807,21 @@ internal abstract class GLBaseControl : IDisposable
     }
 
     static bool loadedBindings;
-    private static void LoadOpenGLBindings()
+
+    // GL.LoadBindings mutates OpenTK's process-global function-pointer table. It must run exactly once
+    // for the whole process: reloading it while another thread executes GL calls reads a half-updated
+    // pointer and crashes the driver. Every GL context creator (viewers, decoder, thumbnails) calls this
+    // instead of letting NativeWindow.AutoLoadBindings reload per context. Callers must hold GlLifecycleLock.
+    internal static void EnsureBindingsLoaded()
     {
+        if (loadedBindings)
+        {
+            return;
+        }
+
         var provider = new OpenTK.Windowing.GraphicsLibraryFramework.GLFWBindingsContext();
         GL.LoadBindings(provider);
+        loadedBindings = true;
     }
 
     protected virtual SkiaSharp.SKBitmap? ReadPixelsToBitmap()

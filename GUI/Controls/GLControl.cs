@@ -3,6 +3,7 @@ using System.Diagnostics;
 using System.Runtime.InteropServices;
 using System.Threading;
 using System.Windows.Forms;
+using GUI.Types.GLViewers;
 using OpenTK.Mathematics;
 using OpenTK.Windowing.Common;
 using OpenTK.Windowing.Desktop;
@@ -167,6 +168,9 @@ public class GLControl : Control
     {
         if (_nativeWindow != null)
         {
+            // Acquire GlLifecycleLock before glLock (consistent order) so window destruction is serialized
+            // against context creation/init on other threads.
+            using var lifecycleLock = GLBaseControl.GlLifecycleLock.EnterScope();
             using var lockedGl = glLock.EnterScope();
 
             _nativeWindow.Dispose();

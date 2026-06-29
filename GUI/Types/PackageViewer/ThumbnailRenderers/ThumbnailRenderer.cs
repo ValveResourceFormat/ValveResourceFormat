@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using System.Drawing;
 using System.Threading;
+using GUI.Types.GLViewers;
 using GUI.Utils;
 using Microsoft.Extensions.Logging;
 using OpenTK.Graphics.OpenGL;
@@ -54,18 +55,25 @@ internal abstract class ThumbnailRenderer : IDisposable
             Profile = ContextProfile.Core,
             StartVisible = false,
             StartFocused = false,
+            AutoLoadBindings = false, // bindings are loaded once process-wide; never reload per context
         };
 
-        NativeWindow = new NativeWindow(nativeWindowSettings);
-        RendererContext = new RendererContext(context, VrfGuiContext.Logger)
+        // Serialize context creation + global init with every other GL context (GLFW lifecycle is not thread-safe).
+        using (GLBaseControl.GlLifecycleLock.EnterScope())
         {
-            FieldOfView = 75,
-        };
+            NativeWindow = new NativeWindow(nativeWindowSettings);
+            RendererContext = new RendererContext(context, VrfGuiContext.Logger)
+            {
+                FieldOfView = 75,
+            };
 
-        NativeWindow.MakeCurrent();
+            NativeWindow.MakeCurrent();
 
-        GLEnvironment.Initialize(RendererContext.Logger);
-        GLEnvironment.SetDefaultRenderState();
+            GLBaseControl.EnsureBindingsLoaded();
+
+            GLEnvironment.Initialize(RendererContext.Logger);
+            GLEnvironment.SetDefaultRenderState();
+        }
 
         SceneRenderer = new Renderer(RendererContext);
 
@@ -234,7 +242,12 @@ internal abstract class ThumbnailRenderer : IDisposable
         {
             RendererContext?.Dispose();
             SceneRenderer?.Dispose();
-            NativeWindow?.Dispose();
+
+            // Serialize GLFW window destruction with context creation/init on other threads.
+            using (GLBaseControl.GlLifecycleLock.EnterScope())
+            {
+                NativeWindow?.Dispose();
+            }
         }
 
         Loaded = false;
