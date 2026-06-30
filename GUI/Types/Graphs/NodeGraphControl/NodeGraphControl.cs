@@ -82,6 +82,7 @@ namespace GUI.Types.Graphs
         {
             Grid,
             Dots,
+            Checkerboard,
             None
         }
 
@@ -380,6 +381,16 @@ namespace GUI.Types.Graphs
             return path;
         }
 
+        private static SKColor BlendColor(SKColor from, SKColor to, float t)
+        {
+            static byte Lerp(byte a, byte b, float t) => (byte)(a + (b - a) * t);
+            return new SKColor(
+                Lerp(from.Red, to.Red, t),
+                Lerp(from.Green, to.Green, t),
+                Lerp(from.Blue, to.Blue, t),
+                from.Alpha);
+        }
+
         private void OnDrawBackground(SKCanvas canvas, SKPoint topLeft, SKPoint bottomRight)
         {
             if (_gridStyle == EGridStyle.None)
@@ -394,6 +405,32 @@ namespace GUI.Types.Graphs
 
             var largeXOffset = ((float)Math.Round(left / _gridStep) * _gridStep);
             var largeYOffset = ((float)Math.Round(top / _gridStep) * _gridStep);
+
+            //checkerboard
+            if (_gridStyle == EGridStyle.Checkerboard)
+            {
+                var tileSize = 32;
+                using var darkPaint = new SKPaint { Color = _canvasBackgroundColor };
+                using var lightPaint = new SKPaint { Color = BlendColor(_canvasBackgroundColor, _gridColor, 0.08f) };
+
+                // Loop over the visible area
+                var startX = (int)Math.Floor(left / tileSize) * tileSize;
+                var startY = (int)Math.Floor(top / tileSize) * tileSize;
+                var endX = (int)Math.Ceiling(right / tileSize) * tileSize;
+                var endY = (int)Math.Ceiling(bottom / tileSize) * tileSize;
+
+                for (var x = startX; x < endX; x += tileSize)
+                {
+                    for (var y = startY; y < endY; y += tileSize)
+                    {
+                        bool isDark = ((x / tileSize) + (y / tileSize)) % 2 == 0;
+                        var paint = isDark ? darkPaint : lightPaint;
+                        canvas.DrawRect(x, y, tileSize, tileSize, paint);
+                    }
+                }
+
+                return;
+            }
 
             // grid
             if (_gridStyle == EGridStyle.Grid)
