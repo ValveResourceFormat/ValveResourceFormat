@@ -38,7 +38,6 @@ namespace GUI.Types.Graphs
                 if (disposing)
                 {
                     _gridPaint?.Dispose();
-                    _checkerPaint?.Dispose();
                 }
 
                 disposed = true;
@@ -125,7 +124,6 @@ namespace GUI.Types.Graphs
         // grid color
         private SKColor _gridColor = SKColors.LightGray;
         private SKPaint _gridPaint = new() { Color = SKColors.LightGray, StrokeWidth = 1f, IsAntialias = true };
-        private SKPaint _checkerPaint = new() { Color = SKColors.Gray };
 
         public SKColor GridColor
         {
@@ -383,6 +381,16 @@ namespace GUI.Types.Graphs
             return path;
         }
 
+        private static SKColor BlendColor(SKColor from, SKColor to, float t)
+        {
+            static byte Lerp(byte a, byte b, float t) => (byte)(a + (b - a) * t);
+            return new SKColor(
+                Lerp(from.Red, to.Red, t),
+                Lerp(from.Green, to.Green, t),
+                Lerp(from.Blue, to.Blue, t),
+                from.Alpha);
+        }
+
         private void OnDrawBackground(SKCanvas canvas, SKPoint topLeft, SKPoint bottomRight)
         {
             if (_gridStyle == EGridStyle.None)
@@ -401,19 +409,19 @@ namespace GUI.Types.Graphs
             //checkerboard
             if (_gridStyle == EGridStyle.Checkerboard)
             {
-                int tileSize = 32;
-                using var darkPaint = new SKPaint { Color = SKColors.Black };
-                using var lightPaint = new SKPaint { Color = new SKColor(15, 15, 15) };
+                var tileSize = 32;
+                using var darkPaint = new SKPaint { Color = _canvasBackgroundColor };
+                using var lightPaint = new SKPaint { Color = BlendColor(_canvasBackgroundColor, _gridColor, 0.08f) };
 
                 // Loop over the visible area
-                int startX = (int)Math.Floor(left / tileSize) * tileSize;
-                int startY = (int)Math.Floor(top / tileSize) * tileSize;
-                int endX = (int)Math.Ceiling(right / tileSize) * tileSize;
-                int endY = (int)Math.Ceiling(bottom / tileSize) * tileSize;
+                var startX = (int)Math.Floor(left / tileSize) * tileSize;
+                var startY = (int)Math.Floor(top / tileSize) * tileSize;
+                var endX = (int)Math.Ceiling(right / tileSize) * tileSize;
+                var endY = (int)Math.Ceiling(bottom / tileSize) * tileSize;
 
-                for (int x = startX; x < endX; x += tileSize)
+                for (var x = startX; x < endX; x += tileSize)
                 {
-                    for (int y = startY; y < endY; y += tileSize)
+                    for (var y = startY; y < endY; y += tileSize)
                     {
                         bool isDark = ((x / tileSize) + (y / tileSize)) % 2 == 0;
                         var paint = isDark ? darkPaint : lightPaint;
