@@ -303,6 +303,13 @@ internal class AG1GraphViewer : GLNodeGraphViewer
         fileLoader = vrfGuiContext;
         animGraphData = graphDef;
 
+        var isUncompiledAnimationGraph = animGraphData.GetStringProperty("_class") == "CAnimationGraph";
+        if (isUncompiledAnimationGraph)
+        {
+            compiledNodes = Array.Empty<KVObject>();
+            return;
+        }
+
         LoadParameters();
         LoadTags();
         LoadComponents();
