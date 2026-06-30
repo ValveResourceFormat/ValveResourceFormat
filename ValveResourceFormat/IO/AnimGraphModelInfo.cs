@@ -93,19 +93,7 @@ public sealed class AnimGraphModelInfo
 
     private string[] LoadBoneNames()
     {
-        if (boneNamesCache is not null)
-        {
-            return boneNamesCache;
-        }
-        try
-        {
-            boneNamesCache = ModelData?.Skeleton.Bones.Select(b => b.Name).ToArray() ?? [];
-        }
-        catch (Exception)
-        {
-            boneNamesCache = [];
-        }
-        return boneNamesCache;
+        return boneNamesCache ??= ModelData?.Skeleton.Bones.Select(b => b.Name).ToArray() ?? [];
     }
 
     private static IReadOnlyList<KVObject>? GetIKChainsFromModel(Model? modelData)
@@ -127,22 +115,10 @@ public sealed class AnimGraphModelInfo
 
     private string[] LoadIKChainNames()
     {
-        if (ikChainNamesCache is not null)
-        {
-            return ikChainNamesCache;
-        }
-        try
-        {
-            ikChainNamesCache = GetIKChainsFromModel(ModelData)?
-                .Select(c => c.GetStringProperty("m_Name"))
-                .Where(n => !string.IsNullOrEmpty(n))
-                .ToArray() ?? [];
-        }
-        catch (Exception)
-        {
-            ikChainNamesCache = [];
-        }
-        return ikChainNamesCache;
+        return ikChainNamesCache ??= GetIKChainsFromModel(ModelData)?
+            .Select(c => c.GetStringProperty("m_Name"))
+            .Where(n => !string.IsNullOrEmpty(n))
+            .ToArray() ?? [];
     }
 
     private Dictionary<string, List<string>> LoadIKChainBones()
@@ -151,47 +127,40 @@ public sealed class AnimGraphModelInfo
         {
             return ikChainBonesCache;
         }
-        var chainBones = new Dictionary<string, List<string>>();
-        try
+
+        ikChainBonesCache = new Dictionary<string, List<string>>();
+        var ikChains = GetIKChainsFromModel(ModelData);
+        if (ikChains is null)
         {
-            var ikChains = GetIKChainsFromModel(ModelData);
-            if (ikChains is null)
+            return ikChainBonesCache;
+        }
+
+        foreach (var chain in ikChains)
+        {
+            var name = chain.GetStringProperty("m_Name");
+            if (string.IsNullOrEmpty(name))
             {
-                return chainBones;
+                continue;
             }
 
-            foreach (var chain in ikChains)
+            var boneList = new List<string>();
+            if (chain.ContainsKey("m_Joints"))
             {
-                var name = chain.GetStringProperty("m_Name");
-                if (string.IsNullOrEmpty(name))
+                foreach (var joint in chain.GetArray("m_Joints"))
                 {
-                    continue;
-                }
-
-                var boneList = new List<string>();
-                if (chain.ContainsKey("m_Joints"))
-                {
-                    foreach (var joint in chain.GetArray("m_Joints"))
+                    if (joint.ContainsKey("m_Bone"))
                     {
-                        if (joint.ContainsKey("m_Bone"))
+                        var boneName = joint.GetSubCollection("m_Bone").GetStringProperty("m_Name");
+                        if (!string.IsNullOrEmpty(boneName))
                         {
-                            var boneName = joint.GetSubCollection("m_Bone").GetStringProperty("m_Name");
-                            if (!string.IsNullOrEmpty(boneName))
-                            {
-                                boneList.Add(boneName);
-                            }
+                            boneList.Add(boneName);
                         }
                     }
                 }
-                chainBones[name] = boneList;
             }
+            ikChainBonesCache[name] = boneList;
         }
-        catch (Exception)
-        {
-            chainBones.Clear();
-        }
-        ikChainBonesCache = chainBones;
-        return chainBones;
+        return ikChainBonesCache;
     }
 
     /// <summary>Finds the IK chain whose three joints match the given fixed/middle/end bone indices.</summary>
@@ -222,24 +191,18 @@ public sealed class AnimGraphModelInfo
         {
             return footNamesCache;
         }
+
         var footNames = new List<string>();
-        try
+        var keyvalues = ModelData?.KeyValues;
+        if (keyvalues?.ContainsKey("FeetSettings") == true)
         {
-            var keyvalues = ModelData?.KeyValues;
-            if (keyvalues?.ContainsKey("FeetSettings") == true)
+            foreach (var (footKey, _) in keyvalues.GetSubCollection("FeetSettings").Children)
             {
-                foreach (var (footKey, _) in keyvalues.GetSubCollection("FeetSettings").Children)
+                if (!string.IsNullOrEmpty(footKey) && footKey != "_class")
                 {
-                    if (!string.IsNullOrEmpty(footKey) && footKey != "_class")
-                    {
-                        footNames.Add(footKey);
-                    }
+                    footNames.Add(footKey);
                 }
             }
-        }
-        catch (Exception)
-        {
-            footNames.Clear();
         }
         footNamesCache = [.. footNames];
         return footNamesCache;
@@ -248,24 +211,18 @@ public sealed class AnimGraphModelInfo
     private Dictionary<int, string> LoadWeightListNames()
     {
         var weightListNames = new Dictionary<int, string>();
-        try
+        var localBoneMaskArray = ModelResource is not null
+            ? GetAseqDataFromResource(ModelResource)?.GetArray("m_localBoneMaskArray")
+            : null;
+        if (localBoneMaskArray is { Count: > 0 })
         {
-            var localBoneMaskArray = ModelResource is not null
-                ? GetAseqDataFromResource(ModelResource)?.GetArray("m_localBoneMaskArray")
-                : null;
-            if (localBoneMaskArray is { Count: > 0 })
+            for (var i = 0; i < localBoneMaskArray.Count; i++)
             {
-                for (var i = 0; i < localBoneMaskArray.Count; i++)
-                {
-                    var weightListName = localBoneMaskArray[i].GetStringProperty("m_sName");
-                    weightListNames[i] = !string.IsNullOrEmpty(weightListName)
-                        ? weightListName
-                        : i == 0 ? "default" : $"weightlist_{i}";
-                }
+                var weightListName = localBoneMaskArray[i].GetStringProperty("m_sName");
+                weightListNames[i] = !string.IsNullOrEmpty(weightListName)
+                    ? weightListName
+                    : i == 0 ? "default" : $"weightlist_{i}";
             }
-        }
-        catch
-        {
         }
 
         weightListNames.TryAdd(0, "default");
@@ -275,39 +232,33 @@ public sealed class AnimGraphModelInfo
     private Dictionary<int, string> LoadSequenceNames()
     {
         var sequenceNames = new Dictionary<int, string>();
-        try
+        var modelResource = ModelResource;
+        if (modelResource is null)
         {
-            var modelResource = ModelResource;
-            if (modelResource is null)
-            {
-                return sequenceNames;
-            }
+            return sequenceNames;
+        }
 
-            var index = 0;
-            var localSequenceNameArray = GetAseqDataFromResource(modelResource)?.GetArray<string>("m_localSequenceNameArray");
-            if (localSequenceNameArray is not null)
+        var index = 0;
+        var localSequenceNameArray = GetAseqDataFromResource(modelResource)?.GetArray<string>("m_localSequenceNameArray");
+        if (localSequenceNameArray is not null)
+        {
+            foreach (var sequenceName in localSequenceNameArray)
             {
-                foreach (var sequenceName in localSequenceNameArray)
+                if (!string.IsNullOrEmpty(sequenceName))
                 {
-                    if (!string.IsNullOrEmpty(sequenceName))
-                    {
-                        sequenceNames[index++] = sequenceName;
-                    }
-                }
-            }
-            if (modelResource.DataBlock is Model modelData)
-            {
-                foreach (var animation in modelData.GetReferencedAnimations(fileLoader))
-                {
-                    if (!string.IsNullOrEmpty(animation.Name))
-                    {
-                        sequenceNames[index++] = animation.Name;
-                    }
+                    sequenceNames[index++] = sequenceName;
                 }
             }
         }
-        catch
+        if (modelResource.DataBlock is Model modelData)
         {
+            foreach (var animation in modelData.GetReferencedAnimations(fileLoader))
+            {
+                if (!string.IsNullOrEmpty(animation.Name))
+                {
+                    sequenceNames[index++] = animation.Name;
+                }
+            }
         }
         return sequenceNames;
     }
@@ -459,35 +410,29 @@ public sealed class AnimGraphModelInfo
         {
             return lookAtChainInfoCache;
         }
+
         var lookAtChains = new List<LookAtChainInfo>();
-        try
+        var keyvalues = ModelData?.KeyValues;
+        if (keyvalues?.ContainsKey("LookAtList") == true)
         {
-            var keyvalues = ModelData?.KeyValues;
-            if (keyvalues?.ContainsKey("LookAtList") == true)
+            foreach (var (_, chainEntryValue) in keyvalues.GetSubCollection("LookAtList").Children)
             {
-                foreach (var (_, chainEntryValue) in keyvalues.GetSubCollection("LookAtList").Children)
+                if (chainEntryValue.ValueType != KVValueType.Collection)
                 {
-                    if (chainEntryValue.ValueType != KVValueType.Collection)
-                    {
-                        continue;
-                    }
-                    var chain = new LookAtChainInfo
-                    {
-                        Name = chainEntryValue.GetStringProperty("name"),
-                    };
-                    if (chainEntryValue.ContainsKey("bones"))
-                    {
-                        var bones = chainEntryValue.GetArray("bones");
-                        chain.BoneNames = bones.Select(b => b.GetStringProperty("name")).ToArray();
-                        chain.BoneWeights = bones.Select(b => b.GetFloatProperty("weight")).ToArray();
-                    }
-                    lookAtChains.Add(chain);
+                    continue;
                 }
+                var chain = new LookAtChainInfo
+                {
+                    Name = chainEntryValue.GetStringProperty("name"),
+                };
+                if (chainEntryValue.ContainsKey("bones"))
+                {
+                    var bones = chainEntryValue.GetArray("bones");
+                    chain.BoneNames = bones.Select(b => b.GetStringProperty("name")).ToArray();
+                    chain.BoneWeights = bones.Select(b => b.GetFloatProperty("weight")).ToArray();
+                }
+                lookAtChains.Add(chain);
             }
-        }
-        catch (Exception)
-        {
-            lookAtChains.Clear();
         }
         lookAtChainInfoCache = [.. lookAtChains];
         return lookAtChainInfoCache;

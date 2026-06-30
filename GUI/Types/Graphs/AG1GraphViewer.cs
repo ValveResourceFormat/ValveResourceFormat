@@ -11,8 +11,6 @@ using ValveKeyValue;
 using ValveResourceFormat;
 using ValveResourceFormat.IO;
 using ValveResourceFormat.Renderer;
-using ValveResourceFormat.ResourceTypes;
-using ValveResourceFormat.ResourceTypes.ModelData.Attachments;
 using ValveResourceFormat.Serialization.KeyValues;
 
 namespace GUI.Types.Graphs;
