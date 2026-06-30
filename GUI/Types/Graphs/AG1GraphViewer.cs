@@ -1719,11 +1719,12 @@ internal class AG1GraphViewer : GLNodeGraphViewer
         public Node(KVObject? data)
         {
             Data = data;
-            BaseColor = new SKColor(61, 61, 61);
+            BaseColor = NodeColor;
             TextColor = new SKColor(230, 230, 230);
             HeaderTextColor = new SKColor(255, 255, 255);
             HeaderTypeColor = new SKColor(255, 255, 255);
         }
+
         public void SetBaseColor(SKColor color)
         {
             BaseColor = color;
