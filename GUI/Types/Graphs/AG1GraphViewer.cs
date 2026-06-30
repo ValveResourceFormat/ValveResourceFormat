@@ -307,27 +307,28 @@ internal class AG1GraphViewer : GLNodeGraphViewer
         LoadTags();
         LoadComponents();
 
-        if (animGraphData.ContainsKey("m_pSharedData"))
-        {
-            var sharedData = animGraphData.GetSubCollection("m_pSharedData");
-            if (sharedData.ContainsKey("m_nodes"))
-                compiledNodes = sharedData.GetArray("m_nodes");
-            else
-                compiledNodes = Array.Empty<KVObject>();
-        }
-        else if (animGraphData.ContainsKey("m_nodes"))
-        {
-            compiledNodes = animGraphData.GetArray("m_nodes");
-        }
-        else
-        {
-            compiledNodes = Array.Empty<KVObject>();
-        }
+        var nodesContainer = ResolveContainer("m_nodes");
+        compiledNodes = nodesContainer?.GetArray("m_nodes") ?? Array.Empty<KVObject>();
 
         CreateGraph();
         AddParameterAndTagNodes();
         AddComponentNodes();
         nodeGraph.LayoutNodes();
+    }
+
+    /// <summary>
+    /// Returns the container (shared data if present, otherwise the graph root) that holds the given key.
+    /// </summary>
+    private KVObject? ResolveContainer(string key)
+    {
+        if (animGraphData.ContainsKey("m_pSharedData"))
+        {
+            var sharedData = animGraphData.GetSubCollection("m_pSharedData");
+            if (sharedData.ContainsKey(key))
+                return sharedData;
+        }
+
+        return animGraphData.ContainsKey(key) ? animGraphData : null;
     }
 
     private void LoadParameters()
@@ -336,18 +337,7 @@ internal class AG1GraphViewer : GLNodeGraphViewer
         parameterIndexToObject.Clear();
         typeToParameters.Clear();
 
-        KVObject? paramListUpdater = null;
-
-        if (animGraphData.ContainsKey("m_pSharedData"))
-        {
-            var sharedData = animGraphData.GetSubCollection("m_pSharedData");
-            if (sharedData.ContainsKey("m_pParamListUpdater"))
-                paramListUpdater = sharedData.GetSubCollection("m_pParamListUpdater");
-        }
-
-        if (paramListUpdater == null && animGraphData.ContainsKey("m_pParamListUpdater"))
-            paramListUpdater = animGraphData.GetSubCollection("m_pParamListUpdater");
-
+        var paramListUpdater = ResolveContainer("m_pParamListUpdater")?.GetSubCollection("m_pParamListUpdater");
         if (paramListUpdater == null)
             return;
 
@@ -382,18 +372,7 @@ internal class AG1GraphViewer : GLNodeGraphViewer
         tags.Clear();
         tagIndexToName.Clear();
 
-        KVObject? tagManager = null;
-
-        if (animGraphData.ContainsKey("m_pSharedData"))
-        {
-            var sharedData = animGraphData.GetSubCollection("m_pSharedData");
-            if (sharedData.ContainsKey("m_pTagManagerUpdater"))
-                tagManager = sharedData.GetSubCollection("m_pTagManagerUpdater");
-        }
-
-        if (tagManager == null && animGraphData.ContainsKey("m_pTagManagerUpdater"))
-            tagManager = animGraphData.GetSubCollection("m_pTagManagerUpdater");
-
+        var tagManager = ResolveContainer("m_pTagManagerUpdater")?.GetSubCollection("m_pTagManagerUpdater");
         if (tagManager == null)
             return;
 
@@ -424,29 +403,11 @@ internal class AG1GraphViewer : GLNodeGraphViewer
     {
         components.Clear();
 
-        KVObject? componentUpdaters = null;
-
-        if (animGraphData.ContainsKey("m_pSharedData"))
-        {
-            var sharedData = animGraphData.GetSubCollection("m_pSharedData");
-            if (sharedData.ContainsKey("m_components"))
-                componentUpdaters = sharedData;
-        }
-
-        if (componentUpdaters == null && animGraphData.ContainsKey("m_components"))
-            componentUpdaters = animGraphData;
-
+        var componentUpdaters = ResolveContainer("m_components");
         if (componentUpdaters == null)
             return;
 
-        if (componentUpdaters.ContainsKey("m_components"))
-        {
-            var compList = componentUpdaters.GetArray("m_components");
-            foreach (var comp in compList)
-            {
-                components.Add(comp);
-            }
-        }
+        components.AddRange(componentUpdaters.GetArray("m_components"));
     }
 
     private Resource? LoadModel()
@@ -1008,6 +969,20 @@ internal class AG1GraphViewer : GLNodeGraphViewer
     }
 
     private static SKColor ToSKColor(Color color) => new(color.R, color.G, color.B, color.A);
+
+    /// <summary>
+    /// Extracts a child node index from a child reference, which may be either an inline
+    /// collection holding <c>m_nodeIndex</c> or a bare integer. Returns -1 when absent.
+    /// </summary>
+    private static int GetChildNodeIndex(KVObject child)
+    {
+        if (child.ValueType == KVValueType.Collection && child.ContainsKey("m_nodeIndex"))
+            return child.GetInt32Property("m_nodeIndex");
+        if (child.ValueType == KVValueType.Int32)
+            return child.ToInt32();
+        return -1;
+    }
+
     private void CreateGraph()
     {
         if (compiledNodes == null || compiledNodes.Count == 0)
@@ -1039,11 +1014,7 @@ internal class AG1GraphViewer : GLNodeGraphViewer
                 var children = compiledNode.GetArray("m_children");
                 foreach (var child in children)
                 {
-                    int idx = -1;
-                    if (child.ValueType == KVValueType.Collection && child.ContainsKey("m_nodeIndex"))
-                        idx = child.GetInt32Property("m_nodeIndex");
-                    else if (child.ValueType == KVValueType.Int32)
-                        idx = child.ToInt32();
+                    int idx = GetChildNodeIndex(child);
                     AddConnection(idx, $"Child {idx}");
                 }
             }
@@ -1122,12 +1093,7 @@ internal class AG1GraphViewer : GLNodeGraphViewer
                 var newConnections = new List<(int, string)>();
                 for (int c = 0; c < children.Count; c++)
                 {
-                    var child = children[c];
-                    int idx = -1;
-                    if (child.ValueType == KVValueType.Collection && child.ContainsKey("m_nodeIndex"))
-                        idx = child.GetInt32Property("m_nodeIndex");
-                    else if (child.ValueType == KVValueType.Int32)
-                        idx = child.ToInt32();
+                    int idx = GetChildNodeIndex(children[c]);
                     if (idx >= 0)
                     {
                         float w = (weights != null && c < weights.Length) ? weights[c] : 1.0f;
@@ -1158,12 +1124,7 @@ internal class AG1GraphViewer : GLNodeGraphViewer
                             var newConnections = new List<(int, string)>();
                             for (int c = 0; c < children.Count; c++)
                             {
-                                var child = children[c];
-                                int idx = -1;
-                                if (child.ValueType == KVValueType.Collection && child.ContainsKey("m_nodeIndex"))
-                                    idx = child.GetInt32Property("m_nodeIndex");
-                                else if (child.ValueType == KVValueType.Int32)
-                                    idx = child.ToInt32();
+                                int idx = GetChildNodeIndex(children[c]);
                                 if (idx >= 0)
                                 {
                                     string label = (c < enumOptions.Length) ? enumOptions[c] : $"Option {c}";
@@ -1197,6 +1158,34 @@ internal class AG1GraphViewer : GLNodeGraphViewer
             parentNode.Calculate();
         }
         nodeGraph.LayoutNodes();
+    }
+
+    /// <summary>
+    /// Formats an index-to-name lookup as "Label: name (idx N)", or "Label: None" for negative indices.
+    /// </summary>
+    private static string FormatIndexed(string label, int index, Func<int, string> resolver)
+        => index >= 0 ? $"{label}: {resolver(index)} (idx {index})" : $"{label}: None";
+
+    /// <summary>
+    /// Adds a "Label: name (idx N)" text line for an integer property naming a resolvable resource.
+    /// </summary>
+    private static void AddIndexedName(Node node, KVObject obj, string key, string label, Func<int, string> resolver)
+    {
+        if (obj.ContainsKey(key))
+            node.AddText(FormatIndexed(label, obj.GetInt32Property(key), resolver));
+    }
+
+    private static void ApplyNetworkMode(Node node, KVObject obj)
+    {
+        if (obj.GetStringProperty("m_networkMode", "").Equals("ClientSimulate", StringComparison.Ordinal))
+            node.SetBaseColor(ClientSimulateColor);
+    }
+
+    private static string FormatDamping(KVObject damping)
+    {
+        var speedFunc = damping.GetStringProperty("m_speedFunction", "Unknown");
+        var speedScale = damping.GetFloatProperty("m_fSpeedScale", 1.0f);
+        return $"{speedFunc} (scale {speedScale:F2})";
     }
 
     private Node CreateNode(KVObject compiledNode, int index)
@@ -1237,12 +1226,7 @@ internal class AG1GraphViewer : GLNodeGraphViewer
         else
             node.HeaderColor = PoseColor;
 
-        string networkMode = compiledNode.GetStringProperty("m_networkMode", "");
-        if (networkMode.Equals("ClientSimulate", StringComparison.Ordinal))
-        {
-
-            node.SetBaseColor(ClientSimulateColor);
-        }
+        ApplyNetworkMode(node, compiledNode);
 
         HashSet<string>? skipKeys = null;
         if (className != null)
@@ -1266,16 +1250,7 @@ internal class AG1GraphViewer : GLNodeGraphViewer
 
             if (key == "m_hSequence")
             {
-                int seqIdx = kv.Value.ToInt32();
-                if (seqIdx >= 0)
-                {
-                    string seqName = GetSequenceName(seqIdx);
-                    node.AddText($"Sequence: {seqName} (idx {seqIdx})");
-                }
-                else
-                {
-                    node.AddText($"Sequence: None");
-                }
+                node.AddText(FormatIndexed("Sequence", kv.Value.ToInt32(), GetSequenceName));
                 continue;
             }
 
@@ -1361,9 +1336,7 @@ internal class AG1GraphViewer : GLNodeGraphViewer
                 var damping = compiledNode.GetSubCollection("m_damping");
                 if (damping != null)
                 {
-                    string speedFunc = damping.GetStringProperty("m_speedFunction");
-                    float speedScale = damping.GetFloatProperty("m_fSpeedScale");
-                    node.AddText($"Damping: {speedFunc} (scale {speedScale:F2})");
+                    node.AddText($"Damping: {FormatDamping(damping)}");
                 }
             }
 
@@ -1385,14 +1358,7 @@ internal class AG1GraphViewer : GLNodeGraphViewer
 
         if (className == "CBoneMaskUpdateNode")
         {
-            if (compiledNode.ContainsKey("m_nWeightListIndex"))
-            {
-                int idx = compiledNode.GetInt32Property("m_nWeightListIndex");
-                if (idx >= 0)
-                    node.AddText($"Bone Mask: {GetWeightListName(idx)} (idx {idx})");
-                else
-                    node.AddText($"Bone Mask: None");
-            }
+            AddIndexedName(node, compiledNode, "m_nWeightListIndex", "Bone Mask", GetWeightListName);
             if (compiledNode.ContainsKey("m_blendSpace"))
                 node.AddText($"Blend Space: {compiledNode.GetStringProperty("m_blendSpace")}");
             if (compiledNode.ContainsKey("m_flRootMotionBlend"))
@@ -1446,19 +1412,6 @@ internal class AG1GraphViewer : GLNodeGraphViewer
             if (opFixedData.ContainsKey("m_targetType"))
                 node.AddText($"Target Type: {opFixedData.GetStringProperty("m_targetType")}");
 
-            if (opFixedData.ContainsKey("m_nFixedBoneIndex"))
-            {
-                int idx = opFixedData.GetInt32Property("m_nFixedBoneIndex");
-            }
-            if (opFixedData.ContainsKey("m_nMiddleBoneIndex"))
-            {
-                int idx = opFixedData.GetInt32Property("m_nMiddleBoneIndex");
-            }
-            if (opFixedData.ContainsKey("m_nEndBoneIndex"))
-            {
-                int idx = opFixedData.GetInt32Property("m_nEndBoneIndex");
-            }
-
             int fixedIdx = opFixedData.GetInt32Property("m_nFixedBoneIndex", -1);
             int middleIdx = opFixedData.GetInt32Property("m_nMiddleBoneIndex", -1);
             int endIdx = opFixedData.GetInt32Property("m_nEndBoneIndex", -1);
@@ -1510,14 +1463,7 @@ internal class AG1GraphViewer : GLNodeGraphViewer
             if (compiledNode.ContainsKey("m_target"))
                 node.AddText($"Target: {compiledNode.GetStringProperty("m_target")}");
 
-            if (compiledNode.ContainsKey("m_hSequence"))
-            {
-                int seqIdx = compiledNode.GetInt32Property("m_hSequence");
-                if (seqIdx >= 0)
-                    node.AddText($"Sequence: {GetSequenceName(seqIdx)} (idx {seqIdx})");
-                else
-                    node.AddText($"Sequence: None");
-            }
+            AddIndexedName(node, compiledNode, "m_hSequence", "Sequence", GetSequenceName);
 
             if (compiledNode.ContainsKey("m_bResetChild"))
                 node.AddText($"Reset Child: {compiledNode.GetBooleanProperty("m_bResetChild")}");
@@ -1538,10 +1484,7 @@ internal class AG1GraphViewer : GLNodeGraphViewer
 
                 if (settings.ContainsKey("m_damping"))
                 {
-                    var damping = settings.GetSubCollection("m_damping");
-                    var speedFunc = damping.GetStringProperty("m_speedFunction", "Unknown");
-                    var speedScale = damping.GetFloatProperty("m_fSpeedScale", 1.0f);
-                    node.AddText($"Damping: {speedFunc} (scale {speedScale:F2})");
+                    node.AddText($"Damping: {FormatDamping(settings.GetSubCollection("m_damping"))}");
                 }
 
                 if (settings.ContainsKey("m_eBlendMode"))
@@ -1553,14 +1496,7 @@ internal class AG1GraphViewer : GLNodeGraphViewer
                 if (settings.ContainsKey("m_flMaxPitchAngle"))
                     node.AddText($"Max Pitch Angle: {settings.GetFloatProperty("m_flMaxPitchAngle"):F2}");
 
-                if (settings.ContainsKey("m_nBoneMaskIndex"))
-                {
-                    int idx = settings.GetInt32Property("m_nBoneMaskIndex");
-                    if (idx >= 0)
-                        node.AddText($"Bone Mask: {GetWeightListName(idx)} (idx {idx})");
-                    else
-                        node.AddText($"Bone Mask: None");
-                }
+                AddIndexedName(node, settings, "m_nBoneMaskIndex", "Bone Mask", GetWeightListName);
 
                 if (settings.ContainsKey("m_bTargetIsPosition"))
                     node.AddText($"Target Is Position: {settings.GetBooleanProperty("m_bTargetIsPosition")}");
@@ -1587,14 +1523,7 @@ internal class AG1GraphViewer : GLNodeGraphViewer
         {
             var opFixedData = compiledNode.GetSubCollection("m_opFixedData");
 
-            if (opFixedData.ContainsKey("m_boneIndex"))
-            {
-                int idx = opFixedData.GetInt32Property("m_boneIndex");
-                if (idx >= 0)
-                    node.AddText($"Bone: {GetBoneName(idx)} (idx {idx})");
-                else
-                    node.AddText($"Bone: None");
-            }
+            AddIndexedName(node, opFixedData, "m_boneIndex", "Bone", GetBoneName);
 
             if (opFixedData.ContainsKey("m_attachment"))
             {
@@ -1637,14 +1566,7 @@ internal class AG1GraphViewer : GLNodeGraphViewer
                 if (poseData.ContainsKey("m_flMaxLegTwist"))
                     node.AddText($"Max Leg Twist: {poseData.GetFloatProperty("m_flMaxLegTwist"):F2}");
 
-                if (poseData.ContainsKey("m_nHipBoneIndex"))
-                {
-                    int idx = poseData.GetInt32Property("m_nHipBoneIndex");
-                    if (idx >= 0)
-                        node.AddText($"Hip Bone: {GetBoneName(idx)} (idx {idx})");
-                    else
-                        node.AddText($"Hip Bone: None");
-                }
+                AddIndexedName(node, poseData, "m_nHipBoneIndex", "Hip Bone", GetBoneName);
 
                 if (poseData.ContainsKey("m_bApplyLegTwistLimits"))
                     node.AddText($"Apply Leg Twist Limits: {poseData.GetBooleanProperty("m_bApplyLegTwistLimits")}");
@@ -1663,41 +1585,17 @@ internal class AG1GraphViewer : GLNodeGraphViewer
                             var footLines = new List<string>();
 
                             if (foot.ContainsKey("m_nFootIndex"))
-                            {
-                                int idx = foot.GetInt32Property("m_nFootIndex");
-                                footLines.Add(idx >= 0 ? $"Foot: {GetFootName(idx)} (idx {idx})" : "Foot: None");
-                            }
+                                footLines.Add(FormatIndexed("Foot", foot.GetInt32Property("m_nFootIndex"), GetFootName));
                             if (foot.ContainsKey("m_nTargetBoneIndex"))
-                            {
-                                int idx = foot.GetInt32Property("m_nTargetBoneIndex");
-                                footLines.Add(idx >= 0 ? $"Target Bone: {GetBoneName(idx)} (idx {idx})" : "Target Bone: None");
-                            }
+                                footLines.Add(FormatIndexed("Target Bone", foot.GetInt32Property("m_nTargetBoneIndex"), GetBoneName));
                             if (foot.ContainsKey("m_nAnkleBoneIndex"))
-                            {
-                                int idx = foot.GetInt32Property("m_nAnkleBoneIndex");
-                                footLines.Add(idx >= 0 ? $"Ankle Bone: {GetBoneName(idx)} (idx {idx})" : "Ankle Bone: None");
-                            }
+                                footLines.Add(FormatIndexed("Ankle Bone", foot.GetInt32Property("m_nAnkleBoneIndex"), GetBoneName));
                             if (foot.ContainsKey("m_nIKAnchorBoneIndex"))
-                            {
-                                int idx = foot.GetInt32Property("m_nIKAnchorBoneIndex");
-                                footLines.Add(idx >= 0 ? $"IK Anchor Bone: {GetBoneName(idx)} (idx {idx})" : "IK Anchor Bone: None");
-                            }
+                                footLines.Add(FormatIndexed("IK Anchor Bone", foot.GetInt32Property("m_nIKAnchorBoneIndex"), GetBoneName));
                             if (foot.ContainsKey("m_ikChainIndex"))
-                            {
-                                int idx = foot.GetInt32Property("m_ikChainIndex");
-                                footLines.Add(idx >= 0 ? $"IK Chain: {GetIKChainName(idx)} (idx {idx})" : "IK Chain: None");
-                            }
+                                footLines.Add(FormatIndexed("IK Chain", foot.GetInt32Property("m_ikChainIndex"), GetIKChainName));
                             if (foot.ContainsKey("m_nTagIndex"))
-                            {
-                                int idx = foot.GetInt32Property("m_nTagIndex");
-                                if (idx >= 0)
-                                {
-                                    var tagName = GetTagName(idx);
-                                    footLines.Add($"Tag: {tagName} (idx {idx})");
-                                }
-                                else
-                                    footLines.Add("Tag: None");
-                            }
+                                footLines.Add(FormatIndexed("Tag", foot.GetInt32Property("m_nTagIndex"), GetTagName));
                             if (foot.ContainsKey("m_flMaxIKLength"))
                                 footLines.Add($"Max IK Length: {foot.GetFloatProperty("m_flMaxIKLength"):F2}");
                             if (foot.ContainsKey("m_flMaxRotationLeft"))
@@ -1833,11 +1731,7 @@ internal class AG1GraphViewer : GLNodeGraphViewer
                     node.AddText($"{displayKey}: {valueStr}");
             }
 
-            string networkMode = comp.GetStringProperty("m_networkMode", "");
-            if (networkMode.Equals("ClientSimulate", StringComparison.Ordinal))
-            {
-                node.SetBaseColor(ClientSimulateColor);
-            }
+            ApplyNetworkMode(node, comp);
 
             nodeGraph.AddNode(node);
         }
