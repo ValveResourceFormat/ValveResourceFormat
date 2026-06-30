@@ -34,15 +34,9 @@ internal class AG1GraphViewer : GLNodeGraphViewer
     private List<KVObject> components = new();
 
     private readonly VrfGuiContext fileLoader;
+    private readonly AnimGraphModelInfo modelInfo;
     private Resource? modelResource;
     private bool modelResourceLoaded;
-    private Dictionary<int, string>? sequenceNamesCache;
-    private Dictionary<int, string>? weightListNamesCache;
-    private string[]? boneNamesCache;
-    private Dictionary<string, Attachment>? modelAttachments;
-    private string[]? ikChainNamesCache;
-    private string[]? footNamesCache;
-    private Dictionary<string, List<string>>? ikChainBonesCache;
 
     // Fixed colors per node type (AG1 specific)
     private static SKColor NodeColor { get; set; } = new SKColor(60, 60, 60);
@@ -268,6 +262,7 @@ internal class AG1GraphViewer : GLNodeGraphViewer
     {
         fileLoader = vrfGuiContext;
         animGraphData = graphDef;
+        modelInfo = new AnimGraphModelInfo(vrfGuiContext, LoadModel);
 
         var isUncompiledAnimationGraph = animGraphData.GetStringProperty("_class") == "CAnimationGraph";
         if (isUncompiledAnimationGraph)
@@ -397,337 +392,32 @@ internal class AG1GraphViewer : GLNodeGraphViewer
         return modelResource;
     }
 
-    private Dictionary<int, string> LoadSequenceNames()
+    private string GetSequenceName(int index) => modelInfo.GetSequenceName(index);
+
+    private string GetWeightListName(int index) => modelInfo.GetWeightListName(index);
+
+    private string GetBoneName(int index)
     {
-        if (sequenceNamesCache != null)
-            return sequenceNamesCache;
-
-        sequenceNamesCache = new Dictionary<int, string>();
-        var modelRes = LoadModel();
-        if (modelRes == null)
-            return sequenceNamesCache;
-
-        var aseqBlock = modelRes.GetBlockByType(BlockType.ASEQ);
-        if (aseqBlock is KeyValuesOrNTRO kv)
-        {
-            var data = kv.Data;
-            if (data is KVObject kvData)
-            {
-                if (kvData.ContainsKey("m_localSequenceNameArray"))
-                {
-                    var names = kvData.GetArray<string>("m_localSequenceNameArray");
-                    for (int i = 0; i < names.Length; i++)
-                    {
-                        if (!string.IsNullOrEmpty(names[i]))
-                            sequenceNamesCache[i] = names[i];
-                    }
-                }
-                else if (kvData.GetStringProperty("m_sName")?.Contains("embedded_sequence_data") == true)
-                {
-                }
-            }
-        }
-
-        if (modelRes.DataBlock is Model modelData)
-        {
-            var animations = modelData.GetReferencedAnimations(fileLoader);
-            var index = sequenceNamesCache.Count;
-            foreach (var anim in animations)
-            {
-                if (!string.IsNullOrEmpty(anim.Name) && !sequenceNamesCache.ContainsValue(anim.Name))
-                {
-                    sequenceNamesCache[index++] = anim.Name;
-                }
-            }
-        }
-
-        return sequenceNamesCache;
-    }
-
-    private Dictionary<int, string> LoadWeightListNames()
-    {
-        if (weightListNamesCache != null)
-            return weightListNamesCache;
-
-        weightListNamesCache = new Dictionary<int, string>();
-        var modelRes = LoadModel();
-        if (modelRes == null)
-        {
-            weightListNamesCache[0] = "default";
-            return weightListNamesCache;
-        }
-
-        var aseqBlock = modelRes.GetBlockByType(BlockType.ASEQ);
-        if (aseqBlock is KeyValuesOrNTRO kv)
-        {
-            var data = kv.Data;
-            if (data is KVObject kvData && kvData.ContainsKey("m_localBoneMaskArray"))
-            {
-                var masks = kvData.GetArray("m_localBoneMaskArray");
-                for (int i = 0; i < masks.Count; i++)
-                {
-                    var name = masks[i].GetStringProperty("m_sName");
-                    if (!string.IsNullOrEmpty(name))
-                        weightListNamesCache[i] = name;
-                    else if (i == 0)
-                        weightListNamesCache[i] = "default";
-                    else
-                        weightListNamesCache[i] = $"weightlist_{i}";
-                }
-            }
-        }
-
-        if (!weightListNamesCache.ContainsKey(0))
-            weightListNamesCache[0] = "default";
-
-        return weightListNamesCache;
-    }
-
-    private string[] LoadBoneNames()
-    {
-        if (boneNamesCache != null)
-            return boneNamesCache;
-
-        var modelRes = LoadModel();
-        if (modelRes?.DataBlock is Model modelData)
-        {
-            boneNamesCache = modelData.Skeleton.Bones.Select(b => b.Name).ToArray();
-        }
-        else
-        {
-            boneNamesCache = Array.Empty<string>();
-        }
-        return boneNamesCache;
-    }
-
-    private string[] LoadIKChainNames()
-    {
-        if (ikChainNamesCache != null)
-            return ikChainNamesCache;
-
-        var modelRes = LoadModel();
-        if (modelRes?.DataBlock is not Model modelData)
-        {
-            ikChainNamesCache = Array.Empty<string>();
-            return ikChainNamesCache;
-        }
-
-        var keyvalues = modelData.KeyValues;
-        if (keyvalues.ContainsKey("ikdata"))
-        {
-            var ikdata = keyvalues.GetSubCollection("ikdata");
-            if (ikdata.ContainsKey("m_IKChains"))
-            {
-                var chains = ikdata.GetArray("m_IKChains");
-                ikChainNamesCache = chains
-                    .Select(c => c.GetStringProperty("m_Name"))
-                    .Where(n => !string.IsNullOrEmpty(n))
-                    .ToArray();
-                return ikChainNamesCache;
-            }
-        }
-
-        ikChainNamesCache = Array.Empty<string>();
-        return ikChainNamesCache;
-    }
-
-    private Dictionary<string, List<string>> LoadIKChainBonesFromModel()
-    {
-        if (ikChainBonesCache != null)
-            return ikChainBonesCache;
-
-        ikChainBonesCache = new Dictionary<string, List<string>>();
-        var modelRes = LoadModel();
-        if (modelRes?.DataBlock is Model modelData)
-        {
-            var keyvalues = modelData.KeyValues;
-            if (keyvalues.ContainsKey("ikdata"))
-            {
-                var ikdata = keyvalues.GetSubCollection("ikdata");
-                if (ikdata.ContainsKey("m_IKChains"))
-                {
-                    var chains = ikdata.GetArray("m_IKChains");
-                    foreach (var chain in chains)
-                    {
-                        var name = chain.GetStringProperty("m_Name");
-                        if (string.IsNullOrEmpty(name))
-                            continue;
-
-                        var boneList = new List<string>();
-                        if (chain.ContainsKey("m_Joints"))
-                        {
-                            foreach (var joint in chain.GetArray("m_Joints"))
-                            {
-                                if (joint.ContainsKey("m_Bone"))
-                                {
-                                    var boneName = joint.GetSubCollection("m_Bone").GetStringProperty("m_Name");
-                                    if (!string.IsNullOrEmpty(boneName))
-                                        boneList.Add(boneName);
-                                }
-                            }
-                        }
-                        ikChainBonesCache[name] = boneList;
-                    }
-                }
-            }
-        }
-        return ikChainBonesCache;
-    }
-
-    private string GetIKChainNameByBoneIndices(int fixedBoneIndex, int middleBoneIndex, int endBoneIndex)
-    {
-        var fixedBoneName = GetBoneName(fixedBoneIndex);
-        var middleBoneName = GetBoneName(middleBoneIndex);
-        var endBoneName = GetBoneName(endBoneIndex);
-
-        if (string.IsNullOrEmpty(fixedBoneName) || string.IsNullOrEmpty(middleBoneName) || string.IsNullOrEmpty(endBoneName))
-            return string.Empty;
-
-        var chains = LoadIKChainBonesFromModel();
-        foreach (var (chainName, bones) in chains)
-        {
-            if (bones.Count == 3 && bones[0] == fixedBoneName && bones[1] == middleBoneName && bones[2] == endBoneName)
-                return chainName;
-        }
-        return string.Empty;
-    }
-
-    private string[] LoadFootNames()
-    {
-        if (footNamesCache != null)
-            return footNamesCache;
-
-        var modelRes = LoadModel();
-        if (modelRes?.DataBlock is not Model modelData)
-        {
-            footNamesCache = Array.Empty<string>();
-            return footNamesCache;
-        }
-
-        var keyvalues = modelData.KeyValues;
-        var footNames = new List<string>();
-        if (keyvalues.ContainsKey("FeetSettings"))
-        {
-            var feetSettings = keyvalues.GetSubCollection("FeetSettings");
-            foreach (var (footKey, _) in feetSettings.Children)
-            {
-                if (!string.IsNullOrEmpty(footKey) && footKey != "_class")
-                {
-                    footNames.Add(footKey);
-                }
-            }
-        }
-        footNamesCache = footNames.ToArray();
-        return footNamesCache;
-    }
-
-    private Dictionary<string, Attachment> LoadModelAttachments()
-    {
-        if (modelAttachments != null)
-            return modelAttachments;
-
-        var modelRes = LoadModel();
-        if (modelRes?.DataBlock is Model modelData)
-        {
-            modelAttachments = modelData.Attachments ?? new Dictionary<string, Attachment>();
-        }
-        else
-        {
-            modelAttachments = new Dictionary<string, Attachment>();
-        }
-        return modelAttachments;
+        var name = modelInfo.GetBoneName(index);
+        return string.IsNullOrEmpty(name) ? $"bone_{index}" : name;
     }
 
     private string GetIKChainName(int index)
     {
-        var names = LoadIKChainNames();
-        return index >= 0 && index < names.Length ? names[index] : $"ikchain_{index}";
+        var name = modelInfo.GetIKChainName(index);
+        return string.IsNullOrEmpty(name) ? $"ikchain_{index}" : name;
     }
 
     private string GetFootName(int index)
     {
-        var names = LoadFootNames();
-        return index >= 0 && index < names.Length ? names[index] : $"foot_{index}";
+        var name = modelInfo.GetFootName(index);
+        return string.IsNullOrEmpty(name) ? $"foot_{index}" : name;
     }
 
-    private string FindMatchingAttachmentName(KVObject compiledAttachment)
-    {
-        if (compiledAttachment == null)
-            return string.Empty;
+    private string GetIKChainNameByBoneIndices(int fixedBoneIndex, int middleBoneIndex, int endBoneIndex)
+        => modelInfo.GetIKChainNameByBoneIndices(fixedBoneIndex, middleBoneIndex, endBoneIndex);
 
-        if (compiledAttachment.ContainsKey("m_attachmentName"))
-            return compiledAttachment.GetStringProperty("m_attachmentName");
-        if (compiledAttachment.ContainsKey("m_name"))
-            return compiledAttachment.GetStringProperty("m_name");
-
-        var attachments = LoadModelAttachments();
-        if (attachments.Count == 0)
-            return string.Empty;
-
-        if (!compiledAttachment.ContainsKey("m_influenceIndices"))
-            return string.Empty;
-
-        var influenceIndices = compiledAttachment.GetArray<int>("m_influenceIndices");
-        var influenceRotations = compiledAttachment.GetArray("m_influenceRotations").Select(v => v.ToQuaternion()).ToArray();
-        var influenceOffsets = compiledAttachment.GetArray("m_influenceOffsets").Select(v => v.ToVector3()).ToArray();
-        var influenceWeights = compiledAttachment.GetArray<double>("m_influenceWeights");
-        var influenceCount = compiledAttachment.GetInt32Property("m_numInfluences");
-
-        if (influenceCount == 0 || influenceIndices.Length < influenceCount)
-            return string.Empty;
-
-        var influences = new Attachment.Influence[influenceCount];
-        var boneNames = LoadBoneNames();
-        for (var i = 0; i < influenceCount; i++)
-        {
-            var boneIndex = influenceIndices[i];
-            var boneName = (boneIndex >= 0 && boneIndex < boneNames.Length) ? boneNames[boneIndex] : $"bone_{boneIndex}";
-            influences[i] = new Attachment.Influence
-            {
-                Name = boneName,
-                Rotation = influenceRotations[i],
-                Offset = influenceOffsets[i],
-                Weight = (float)influenceWeights[i]
-            };
-        }
-
-        const float epsilon = 0.001f;
-        foreach (var (name, attachment) in attachments)
-        {
-            if (attachment.Length != influenceCount)
-                continue;
-
-            var posDiff = Vector3.DistanceSquared(attachment[0].Offset, influences[0].Offset);
-            if (posDiff > epsilon)
-                continue;
-
-            var dot = Quaternion.Dot(attachment[0].Rotation, influences[0].Rotation);
-            if (Math.Abs(Math.Abs(dot) - 1.0f) > epsilon)
-                continue;
-
-            return name;
-        }
-
-        return string.Empty;
-    }
-
-    private string GetSequenceName(int index)
-    {
-        var names = LoadSequenceNames();
-        return names.TryGetValue(index, out var name) ? name : $"sequence_{index}";
-    }
-
-    private string GetWeightListName(int index)
-    {
-        var names = LoadWeightListNames();
-        return names.TryGetValue(index, out var name) ? name : $"weightlist_{index}";
-    }
-
-    private string GetBoneName(int index)
-    {
-        var names = LoadBoneNames();
-        return index >= 0 && index < names.Length ? names[index] : $"bone_{index}";
-    }
+    private string FindMatchingAttachmentName(KVObject compiledAttachment) => modelInfo.FindMatchingAttachmentName(compiledAttachment);
 
     private static string ClassNameToParamType(string className)
     {

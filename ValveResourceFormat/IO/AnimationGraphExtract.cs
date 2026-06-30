@@ -19,16 +19,9 @@ public class AnimationGraphExtract : IDisposable
     private KVObject Graph => resourceData.Data;
     private readonly string? outputFileName;
     private readonly IFileLoader fileLoader;
-    private Dictionary<int, string>? weightListNamesCache;
-    private Dictionary<int, string>? sequenceNamesCache;
+    private readonly AnimGraphModelInfo modelInfo;
     private Dictionary<long, KVObject>? compiledNodeIndexMap;
     private Dictionary<long, long>? nodeIndexToIdMap;
-    private Dictionary<string, Attachment>? modelAttachments;
-    private string[]? modelBoneNamesCache;
-    private string[]? modelIKChainNamesCache;
-    private string[]? modelFootNamesCache;
-    private LookAtChainInfo[]? modelLookAtChainInfoCache;
-    private Dictionary<string, List<string>>? modelIKChainBonesCache;
     private List<KVObject>? footPinningItems;
     private KVObject? scriptManager;
 
@@ -51,8 +44,6 @@ public class AnimationGraphExtract : IDisposable
             return modelResourceCache;
         }
     }
-
-    private Model? ModelData => ModelResource?.DataBlock as Model;
 
     private enum PropAction
     {
@@ -443,6 +434,7 @@ public class AnimationGraphExtract : IDisposable
 
         resourceData = kv3;
         this.fileLoader = fileLoader;
+        modelInfo = new AnimGraphModelInfo(fileLoader, () => ModelResource);
 
         if (resource.FileName is not null)
         {
@@ -606,219 +598,16 @@ public class AnimationGraphExtract : IDisposable
         }
     }
 
-    private string FindMatchingAttachmentName(KVObject compiledAttachment)
-    {
-        if (compiledAttachment is null)
-        {
-            return string.Empty;
-        }
+    private string FindMatchingAttachmentName(KVObject compiledAttachment) => modelInfo.FindMatchingAttachmentName(compiledAttachment);
 
-        // Try to get attachment name directly if stored as a string property
-        if (compiledAttachment.ContainsKey("m_attachmentName"))
-        {
-            return compiledAttachment.GetStringProperty("m_attachmentName");
-        }
-
-        if (compiledAttachment.ContainsKey("m_name"))
-        {
-            return compiledAttachment.GetStringProperty("m_name");
-        }
-
-        if (modelAttachments == null || modelAttachments.Count == 0)
-        {
-            return string.Empty;
-        }
-
-        // not exactly the same keys as model attachment.
-        var influenceIndices = compiledAttachment.GetArray<int>("m_influenceIndices");
-        var influenceRotations = compiledAttachment.GetArray("m_influenceRotations").Select(v => v.ToQuaternion()).ToArray();
-        var influenceOffsets = compiledAttachment.GetArray("m_influenceOffsets").Select(v => v.ToVector3()).ToArray();
-        var influenceWeights = compiledAttachment.GetArray<double>("m_influenceWeights");
-
-        var influenceCount = compiledAttachment.GetInt32Property("m_numInfluences");
-
-        var influences = new Attachment.Influence[influenceCount];
-        for (var i = 0; i < influenceCount; i++)
-        {
-            var boneName = GetBoneName(influenceIndices![i]);
-            influences[i] = new Attachment.Influence
-            {
-                Name = boneName,
-                Rotation = influenceRotations![i],
-                Offset = influenceOffsets![i],
-                Weight = (float)influenceWeights![i]
-            };
-        }
-
-        foreach (var (name, attachment) in modelAttachments)
-        {
-            if (attachment.Length != influenceCount)
-            {
-                continue;
-            }
-
-            // Some rudamentary attachment matching
-            const float epsilon = 0.001f;
-            var posDiff = Vector3.DistanceSquared(attachment[0].Offset, influences[0].Offset);
-
-            if (posDiff > epsilon)
-            {
-                continue;
-            }
-
-            var dot = Quaternion.Dot(attachment[0].Rotation, influences[0].Rotation);
-            var absDot = Math.Abs(dot);
-
-            if (Math.Abs(absDot - 1.0f) > epsilon)
-            {
-                continue;
-            }
-
-            return name;
-        }
-
-        return string.Empty;
-    }
-
-    private string[] LoadBoneNamesFromModel()
-    {
-        if (modelBoneNamesCache is not null)
-        {
-            return modelBoneNamesCache;
-        }
-        try
-        {
-            modelBoneNamesCache = ModelData?.Skeleton.Bones.Select(b => b.Name).ToArray() ?? [];
-        }
-        catch (Exception)
-        {
-            modelBoneNamesCache = [];
-        }
-        return modelBoneNamesCache;
-    }
-    private static string GetNameByIndex(string[] names, int index)
-    {
-        return index >= 0 && index < names.Length ? names[index] : string.Empty;
-    }
-
-    private static IReadOnlyList<KVObject>? GetIKChainsFromModel(Model? modelData)
-    {
-        if (modelData is null)
-        {
-            return null;
-        }
-
-        var keyvalues = modelData.KeyValues;
-        if (!keyvalues.ContainsKey("ikdata"))
-        {
-            return null;
-        }
-
-        var ikdata = keyvalues.GetSubCollection("ikdata");
-        return ikdata.ContainsKey("m_IKChains") ? ikdata.GetArray("m_IKChains") : null;
-    }
-
-    private string GetBoneName(int boneIndex)
-    {
-        return GetNameByIndex(LoadBoneNamesFromModel(), boneIndex);
-    }
-    private string[] LoadIKChainNamesFromModel()
-    {
-        if (modelIKChainNamesCache is not null)
-        {
-            return modelIKChainNamesCache;
-        }
-        try
-        {
-            modelIKChainNamesCache = GetIKChainsFromModel(ModelData)?
-                .Select(c => c.GetStringProperty("m_Name"))
-                .Where(n => !string.IsNullOrEmpty(n))
-                .ToArray() ?? [];
-        }
-        catch (Exception)
-        {
-            modelIKChainNamesCache = [];
-        }
-        return modelIKChainNamesCache;
-    }
-
-    private Dictionary<string, List<string>> LoadIKChainBonesFromModel()
-    {
-        if (modelIKChainBonesCache is not null)
-        {
-            return modelIKChainBonesCache;
-        }
-        var chainBones = new Dictionary<string, List<string>>();
-        try
-        {
-            var ikChains = GetIKChainsFromModel(ModelData);
-            if (ikChains is null)
-            {
-                return chainBones;
-            }
-
-            foreach (var chain in ikChains)
-            {
-                var name = chain.GetStringProperty("m_Name");
-                if (string.IsNullOrEmpty(name))
-                {
-                    continue;
-                }
-
-                var boneList = new List<string>();
-                if (chain.ContainsKey("m_Joints"))
-                {
-                    foreach (var joint in chain.GetArray("m_Joints"))
-                    {
-                        if (joint.ContainsKey("m_Bone"))
-                        {
-                            var boneName = joint.GetSubCollection("m_Bone").GetStringProperty("m_Name");
-                            if (!string.IsNullOrEmpty(boneName))
-                            {
-                                boneList.Add(boneName);
-                            }
-                        }
-                    }
-                }
-                chainBones[name] = boneList;
-            }
-        }
-        catch (Exception)
-        {
-            chainBones.Clear();
-        }
-        modelIKChainBonesCache = chainBones;
-        return chainBones;
-    }
+    private string GetBoneName(int boneIndex) => modelInfo.GetBoneName(boneIndex);
 
     private string GetIKChainNameByBoneIndices(int fixedBoneIndex, int middleBoneIndex, int endBoneIndex)
-    {
-        var fixedBoneName = GetBoneName(fixedBoneIndex);
-        var middleBoneName = GetBoneName(middleBoneIndex);
-        var endBoneName = GetBoneName(endBoneIndex);
+        => modelInfo.GetIKChainNameByBoneIndices(fixedBoneIndex, middleBoneIndex, endBoneIndex);
 
-        if (string.IsNullOrEmpty(fixedBoneName) || string.IsNullOrEmpty(middleBoneName) || string.IsNullOrEmpty(endBoneName))
-        {
-            return string.Empty;
-        }
+    private string GetIKChainName(int ikChainIndex) => modelInfo.GetIKChainName(ikChainIndex);
 
-        foreach (var (chainName, bones) in LoadIKChainBonesFromModel())
-        {
-            if (bones.Count == 3 && bones[0] == fixedBoneName && bones[1] == middleBoneName && bones[2] == endBoneName)
-            {
-                return chainName;
-            }
-        }
-        return string.Empty;
-    }
-    private string GetIKChainName(int ikChainIndex)
-    {
-        return GetNameByIndex(LoadIKChainNamesFromModel(), ikChainIndex);
-    }
-    private string GetFootName(int footIndex)
-    {
-        return GetNameByIndex(LoadFootNamesFromModel(), footIndex);
-    }
+    private string GetFootName(int footIndex) => modelInfo.GetFootName(footIndex);
 
     private void AddFeetProperty(KVObject target, KVObject compiledSource)
     {
@@ -837,137 +626,14 @@ public class AnimationGraphExtract : IDisposable
         target.Add("m_feet", feetArray);
     }
 
-    private string[] LoadFootNamesFromModel()
-    {
-        if (modelFootNamesCache is not null)
-        {
-            return modelFootNamesCache;
-        }
-        var footNames = new List<string>();
-        try
-        {
-            var keyvalues = ModelData?.KeyValues;
-            if (keyvalues?.ContainsKey("FeetSettings") == true)
-            {
-                foreach (var (footKey, _) in keyvalues.GetSubCollection("FeetSettings").Children)
-                {
-                    if (!string.IsNullOrEmpty(footKey) && footKey != "_class")
-                    {
-                        footNames.Add(footKey);
-                    }
-                }
-            }
-        }
-        catch (Exception)
-        {
-            footNames.Clear();
-        }
-        modelFootNamesCache = [.. footNames];
-        return modelFootNamesCache;
-    }
+    private string FindMatchingLookAtChainName(KVObject compiledBones) => modelInfo.FindMatchingLookAtChainName(compiledBones);
 
-    private sealed class LookAtChainInfo
-    {
-        public string Name { get; set; } = string.Empty;
-        public string[] BoneNames { get; set; } = [];
-        public float[] BoneWeights { get; set; } = [];
-    }
-
-    private string[] GetBoneNamesFromIndices(KVObject compiledBones)
-    {
-        if (compiledBones is null || !compiledBones.ContainsKey("m_bones"))
-        {
-            return [];
-        }
-        var compiledBonesArray = compiledBones.GetArray("m_bones");
-        var boneNames = new string[compiledBonesArray.Count];
-
-        for (var i = 0; i < compiledBonesArray.Count; i++)
-        {
-            var boneIndex = (int)compiledBonesArray[i].GetIntegerProperty("m_index");
-            boneNames[i] = GetBoneName(boneIndex);
-        }
-        return boneNames;
-    }
-    private LookAtChainInfo[] LoadLookAtChainInfoFromModel()
-    {
-        if (modelLookAtChainInfoCache is not null)
-        {
-            return modelLookAtChainInfoCache;
-        }
-        var lookAtChains = new List<LookAtChainInfo>();
-        try
-        {
-            var keyvalues = ModelData?.KeyValues;
-            if (keyvalues?.ContainsKey("LookAtList") == true)
-            {
-                foreach (var (_, chainEntryValue) in keyvalues.GetSubCollection("LookAtList").Children)
-                {
-                    if (chainEntryValue.ValueType != KVValueType.Collection)
-                    {
-                        continue;
-                    }
-                    var chain = new LookAtChainInfo
-                    {
-                        Name = chainEntryValue.GetStringProperty("name"),
-                    };
-                    if (chainEntryValue.ContainsKey("bones"))
-                    {
-                        var bones = chainEntryValue.GetArray("bones");
-                        chain.BoneNames = bones.Select(b => b.GetStringProperty("name")).ToArray();
-                        chain.BoneWeights = bones.Select(b => b.GetFloatProperty("weight")).ToArray();
-                    }
-                    lookAtChains.Add(chain);
-                }
-            }
-        }
-        catch (Exception)
-        {
-            lookAtChains.Clear();
-        }
-        modelLookAtChainInfoCache = [.. lookAtChains];
-        return modelLookAtChainInfoCache;
-    }
-    private string FindMatchingLookAtChainName(KVObject compiledBones)
-    {
-        if (compiledBones is null || !compiledBones.ContainsKey("m_bones"))
-        {
-            return string.Empty;
-        }
-        var lookAtChains = LoadLookAtChainInfoFromModel();
-        if (lookAtChains.Length == 0)
-        {
-            return string.Empty;
-        }
-        var compiledBoneNames = GetBoneNamesFromIndices(compiledBones);
-
-        foreach (var chain in lookAtChains)
-        {
-            if (chain.BoneNames.SequenceEqual(compiledBoneNames))
-            {
-                return chain.Name;
-            }
-        }
-
-        // Fall back to unordered set equality
-        var compiledSet = new HashSet<string>(compiledBoneNames);
-        foreach (var chain in lookAtChains)
-        {
-            if (compiledSet.SetEquals(chain.BoneNames))
-            {
-                return chain.Name;
-            }
-        }
-        return string.Empty;
-    }
     /// <summary>
     /// Converts the compiled animation graph to editable version 19 format.
     /// </summary>
     /// <returns>The animation graph as a KV3 string in version 19 format.</returns>
     public string ToEditableAnimGraphVersion19()
     {
-        modelAttachments = ModelData?.Attachments ?? [];
-
         var data = Graph.GetSubCollection("m_pSharedData");
         var compiledNodes = data.GetArray("m_nodes");
         BuildNodeIdMap(compiledNodes);
@@ -1073,105 +739,6 @@ public class AnimationGraphExtract : IDisposable
         return kv.ToKV3String(format: KV3IDLookup.Get("animgraph19"));
     }
 
-    private Dictionary<int, string> LoadWeightListNamesFromModel()
-    {
-        var weightListNames = new Dictionary<int, string>();
-        try
-        {
-            var localBoneMaskArray = ModelResource is not null
-                ? GetAseqDataFromResource(ModelResource)?.GetArray("m_localBoneMaskArray")
-                : null;
-            if (localBoneMaskArray is { Count: > 0 })
-            {
-                for (var i = 0; i < localBoneMaskArray.Count; i++)
-                {
-                    var weightListName = localBoneMaskArray[i].GetStringProperty("m_sName");
-                    weightListNames[i] = !string.IsNullOrEmpty(weightListName)
-                        ? weightListName
-                        : i == 0 ? "default" : $"weightlist_{i}";
-                }
-            }
-        }
-        catch
-        {
-        }
-
-        weightListNames.TryAdd(0, "default");
-        return weightListNames;
-    }
-
-    private Dictionary<int, string> LoadSequenceNamesFromModel()
-    {
-        var sequenceNames = new Dictionary<int, string>();
-        try
-        {
-            var modelResource = ModelResource;
-            if (modelResource is null)
-            {
-                return sequenceNames;
-            }
-
-            var index = 0;
-            var localSequenceNameArray = GetAseqDataFromResource(modelResource)?.GetArray<string>("m_localSequenceNameArray");
-            if (localSequenceNameArray is not null)
-            {
-                foreach (var sequenceName in localSequenceNameArray)
-                {
-                    if (!string.IsNullOrEmpty(sequenceName))
-                    {
-                        sequenceNames[index++] = sequenceName;
-                    }
-                }
-            }
-            if (modelResource.DataBlock is Model modelData)
-            {
-                foreach (var animation in modelData.GetReferencedAnimations(fileLoader))
-                {
-                    if (!string.IsNullOrEmpty(animation.Name))
-                    {
-                        sequenceNames[index++] = animation.Name;
-                    }
-                }
-            }
-        }
-        catch
-        {
-        }
-        return sequenceNames;
-    }
-
-    private static KVObject? GetAseqDataFromResource(Resource modelResource)
-    {
-        if (!modelResource.ContainsBlockType(BlockType.ASEQ))
-        {
-            return null;
-        }
-
-        var aseqBlock = modelResource.GetBlockByType(BlockType.ASEQ);
-
-        if (aseqBlock is not KeyValuesOrNTRO keyValuesOrNTRO)
-        {
-            return null;
-        }
-
-        var data = keyValuesOrNTRO.Data;
-
-        if (data is not KVObject kvData)
-        {
-            return null;
-        }
-
-        if (kvData.ContainsKey("m_localBoneMaskArray") ||
-            kvData.ContainsKey("m_localSequenceNameArray") ||
-            kvData.GetStringProperty("m_sName")?.Contains("embedded_sequence_data", StringComparison.Ordinal) == true)
-        {
-            return kvData;
-        }
-
-        return kvData.ContainsKey("ASEQ")
-            ? kvData.GetSubCollection("ASEQ")
-            : null;
-    }
 
     private KVObject ConvertClipDataManager(IReadOnlyList<KVObject> sequenceTagSpans)
     {
@@ -1436,22 +1003,9 @@ public class AnimationGraphExtract : IDisposable
         return blendDuration;
     }
 
-    private string GetWeightListName(long weightListIndex)
-    {
-        weightListNamesCache ??= LoadWeightListNamesFromModel();
+    private string GetWeightListName(long weightListIndex) => modelInfo.GetWeightListName(weightListIndex);
 
-        return weightListNamesCache.TryGetValue((int)weightListIndex, out var name)
-            ? name
-            : weightListIndex == 0 ? "default" : $"weightlist_{weightListIndex}";
-    }
-
-    private string GetSequenceName(long sequenceIndex)
-    {
-        sequenceNamesCache ??= LoadSequenceNamesFromModel();
-        return sequenceNamesCache.TryGetValue((int)sequenceIndex, out var name)
-            ? name
-            : $"sequence_{sequenceIndex}";
-    }
+    private string GetSequenceName(long sequenceIndex) => modelInfo.GetSequenceName(sequenceIndex);
     private KVObject[] ConvertStateMachine(KVObject compiledStateMachine, IReadOnlyList<KVObject>? stateDataArray, IReadOnlyList<KVObject>? transitionDataArray, bool isComponent = false)
     {
         var compiledStates = compiledStateMachine.GetArray("m_states");
