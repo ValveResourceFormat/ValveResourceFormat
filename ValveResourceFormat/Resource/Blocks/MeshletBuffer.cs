@@ -1,7 +1,11 @@
+using System.Buffers;
+using System.Runtime.InteropServices;
+
 namespace ValveResourceFormat.Blocks;
 
 /// <summary>
-/// "MSLT" block. Holds packed per-meshlet local index data. There is one <see cref="uint"/> entry per meshlet vertex.
+/// "MSLT" block. Holds packed per-meshlet local index data. Each meshlet vertex is one <see cref="uint"/>
+/// entry, so a meshlet spans <c>vertexCount</c> consecutive entries and the meshlets are concatenated.
 /// </summary>
 /// <remarks>
 /// A mesh shader transforms each meshlet vertex once, then emits the local index buffer (0..vertexCount-1)
@@ -20,61 +24,62 @@ public class MeshletBuffer : RawBinary
     /// <param name="entryOffset">Uint offset of the meshlet's entries: the summed <c>m_nVertexCount</c> of preceding meshlets (distinct from <c>m_nVertexOffset</c>).</param>
     /// <param name="vertexCount">Number of vertices/entries in the meshlet (its <c>m_nVertexCount</c>).</param>
     /// <param name="triangleCount">Number of triangles in the meshlet (its <c>m_nTriangleCount</c>).</param>
-    /// <returns>
-    /// <c>Indices</c>: <c>triangleCount * 3</c> meshlet-local vertex indices. <c>Vertices</c>: the raw
-    /// per-entry 14-bit field (equals the vertex list only for the identity meshlet; use MIDX otherwise).
-    /// </returns>
+    /// <param name="vertices">Receives <c>vertexCount</c> values: the raw per-entry 14-bit field.</param>
+    /// <param name="indices">Receives <c>triangleCount * 3</c> meshlet-local vertex indices.</param>
     /// <remarks>
     /// 6-bit references over a 64-entry sliding window: a reference of <c>(maxIntroduced + 1) &amp; 63</c>
     /// introduces the next vertex, any other value reuses one already in the window. Lets meshlets exceed 64
     /// vertices.
     /// </remarks>
-    public (int[] Vertices, int[] Indices) DecodeMeshlet(int entryOffset, int vertexCount, int triangleCount)
+    public void DecodeMeshlet(int entryOffset, int vertexCount, int triangleCount, Span<int> vertices, Span<int> indices)
     {
         if (Resource?.Reader == null)
         {
             throw new InvalidOperationException("Resource reader is required to lazily read meshlet data.");
         }
 
-        var entries = new uint[vertexCount];
-        Resource.Reader.BaseStream.Position = Offset + (long)entryOffset * sizeof(uint);
+        var byteCount = vertexCount * sizeof(uint);
+        var rented = ArrayPool<byte>.Shared.Rent(byteCount);
 
-        for (var i = 0; i < vertexCount; i++)
+        try
         {
-            entries[i] = Resource.Reader.ReadUInt32();
-        }
+            var buffer = rented.AsSpan(0, byteCount);
+            Resource.Reader.BaseStream.Position = Offset + (long)entryOffset * sizeof(uint);
+            Resource.Reader.Read(buffer);
 
-        var vertices = new int[vertexCount];
+            var entries = MemoryMarshal.Cast<byte, uint>(buffer);
 
-        for (var i = 0; i < vertexCount; i++)
-        {
-            vertices[i] = (int)(entries[i] >> 18);
-        }
-
-        var indices = new int[triangleCount * 3];
-        var maxIntroduced = -1;
-
-        for (var t = 0; t < triangleCount; t++)
-        {
-            var triangle = entries[t] & 0x3FFFFu;
-
-            for (var k = 0; k < 3; k++)
+            for (var i = 0; i < vertexCount; i++)
             {
-                var reference = (int)((triangle >> (6 * k)) & 0x3F);
+                vertices[i] = (int)(entries[i] >> 18);
+            }
 
-                if (reference == ((maxIntroduced + 1) & 0x3F))
+            var maxIntroduced = -1;
+
+            for (var t = 0; t < triangleCount; t++)
+            {
+                var triangle = entries[t] & 0x3FFFFu;
+
+                for (var k = 0; k < 3; k++)
                 {
-                    // Next vertex in introduction order.
-                    indices[t * 3 + k] = ++maxIntroduced;
-                }
-                else
-                {
-                    // Reuse: the vertex congruent to the reference within the current 64-entry window.
-                    indices[t * 3 + k] = reference + 64 * ((maxIntroduced - reference) / 64);
+                    var reference = (int)((triangle >> (6 * k)) & 0x3F);
+
+                    if (reference == ((maxIntroduced + 1) & 0x3F))
+                    {
+                        // Next vertex in introduction order.
+                        indices[t * 3 + k] = ++maxIntroduced;
+                    }
+                    else
+                    {
+                        // Reuse: the vertex congruent to the reference within the current 64-entry window.
+                        indices[t * 3 + k] = reference + 64 * ((maxIntroduced - reference) / 64);
+                    }
                 }
             }
         }
-
-        return (vertices, indices);
+        finally
+        {
+            ArrayPool<byte>.Shared.Return(rented);
+        }
     }
 }

@@ -123,13 +123,9 @@ namespace Tests
             for (var i = 0; i < meshlets.Count; i++)
             {
                 var m = meshlets[i];
-                var (vertices, indices) = block.DecodeMeshlet(entryOffset, m.VertexCount, m.TriangleCount);
-
-                using (Assert.EnterMultipleScope())
-                {
-                    Assert.That(vertices, Has.Length.EqualTo(m.VertexCount));
-                    Assert.That(indices, Has.Length.EqualTo(m.TriangleCount * 3));
-                }
+                var vertices = new int[m.VertexCount];
+                var indices = new int[m.TriangleCount * 3];
+                block.DecodeMeshlet(entryOffset, m.VertexCount, m.TriangleCount, vertices, indices);
 
                 // Vertex list is a 14-bit per-entry field.
                 foreach (var v in vertices)
@@ -150,7 +146,9 @@ namespace Tests
             Assert.That(totalIndices, Is.EqualTo(meshlets.Sum(m => m.TriangleCount) * 3));
 
             // The first meshlet has the identity vertex list, so its first triangle resolves to (0,1,2).
-            var (firstVertices, firstIndices) = block.DecodeMeshlet(0, meshlets[0].VertexCount, meshlets[0].TriangleCount);
+            var firstVertices = new int[meshlets[0].VertexCount];
+            var firstIndices = new int[meshlets[0].TriangleCount * 3];
+            block.DecodeMeshlet(0, meshlets[0].VertexCount, meshlets[0].TriangleCount, firstVertices, firstIndices);
             for (var j = 0; j < firstVertices.Length; j++)
             {
                 Assert.That(firstVertices[j], Is.EqualTo(j), $"vertex {j}");
@@ -174,7 +172,9 @@ namespace Tests
             var indexBuffer = ((Model)resource.DataBlock!).GetEmbeddedMeshes().First().Mesh.VBIB.IndexBuffers[0];
 
             var m = meshlets[0];
-            var (vertices, indices) = block.DecodeMeshlet(0, m.VertexCount, m.TriangleCount);
+            var vertices = new int[m.VertexCount];
+            var indices = new int[m.TriangleCount * 3];
+            block.DecodeMeshlet(0, m.VertexCount, m.TriangleCount, vertices, indices);
             var expected = GltfModelExporter.ReadIndices(indexBuffer, m.TriangleOffset * 3, m.TriangleCount * 3, 0);
 
             for (var t = 0; t < m.TriangleCount; t++)
