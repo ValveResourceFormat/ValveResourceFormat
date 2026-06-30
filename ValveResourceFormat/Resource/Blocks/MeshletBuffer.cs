@@ -4,12 +4,10 @@ namespace ValveResourceFormat.Blocks;
 /// "MSLT" block. Holds packed per-meshlet local index data. There is one <see cref="uint"/> entry per meshlet vertex.
 /// </summary>
 /// <remarks>
-/// How a shader uses this:
-///   1. Transform each meshlet vertex once.
-///   2. Emit the local index buffer (values 0..vertexCount-1) as primitives over those vertices.
-///   3. Fetch a position with vertexBuffer[vertexList[localIndex]], or MVTX[vertexOffset + localIndex]
-///      when vertices are stored per-meshlet.
-/// The vertexList comes from MIDX. The classic path ignores this block and draws MIDX ranges directly.
+/// A mesh shader transforms each meshlet vertex once, then emits the local index buffer (0..vertexCount-1)
+/// as primitives over those vertices. A vertex's attributes are fetched from MVTX at index
+/// (m_nVertexOffset + localIndex). MIDX, the global index buffer, is only used by the classic vertex/fragment
+/// draw path; the meshlet path does not need it.
 /// </remarks>
 public class MeshletBuffer : RawBinary
 {
@@ -19,23 +17,17 @@ public class MeshletBuffer : RawBinary
     /// <summary>
     /// Decodes a single meshlet into its vertex list and its local triangle index buffer.
     /// </summary>
-    /// <param name="entryOffset">
-    /// Entry (uint) offset of the meshlet within the buffer. Segments tile by vertex count, so this is the
-    /// summed <c>m_nVertexCount</c> of the preceding meshlets - not the descriptor's <c>m_nVertexOffset</c>.
-    /// </param>
+    /// <param name="entryOffset">Uint offset of the meshlet's entries: the summed <c>m_nVertexCount</c> of preceding meshlets (distinct from <c>m_nVertexOffset</c>).</param>
     /// <param name="vertexCount">Number of vertices/entries in the meshlet (its <c>m_nVertexCount</c>).</param>
     /// <param name="triangleCount">Number of triangles in the meshlet (its <c>m_nTriangleCount</c>).</param>
     /// <returns>
-    /// <c>Indices</c>: <c>triangleCount * 3</c> meshlet-local vertex indices (the triangle topology).
-    /// <c>Vertices</c>: the raw per-entry 14-bit field. For the first (identity) meshlet it equals the
-    /// vertex list; for other meshlets it can contain duplicates, so treat it as raw data and take the
-    /// vertex list from MIDX.
+    /// <c>Indices</c>: <c>triangleCount * 3</c> meshlet-local vertex indices. <c>Vertices</c>: the raw
+    /// per-entry 14-bit field (equals the vertex list only for the identity meshlet; use MIDX otherwise).
     /// </returns>
     /// <remarks>
-    /// Triangle references are 6-bit. Vertices are introduced in increasing order through a 64-entry sliding
-    /// window: a reference equal to <c>(maxIntroduced + 1) &amp; 63</c> introduces the next vertex, otherwise
-    /// it reuses the vertex with that value within the current window. This lets meshlets with more than 64
-    /// vertices address indices 64 and above.
+    /// 6-bit references over a 64-entry sliding window: a reference of <c>(maxIntroduced + 1) &amp; 63</c>
+    /// introduces the next vertex, any other value reuses one already in the window. Lets meshlets exceed 64
+    /// vertices.
     /// </remarks>
     public (int[] Vertices, int[] Indices) DecodeMeshlet(int entryOffset, int vertexCount, int triangleCount)
     {
