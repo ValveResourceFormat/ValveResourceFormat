@@ -46,53 +46,19 @@ internal class AG1GraphViewer : GLNodeGraphViewer
 
     // Fixed colors per node type (AG1 specific)
     private static SKColor NodeColor { get; set; } = new SKColor(60, 60, 60);
-    private static SKColor NodeTextColor { get; set; } = new SKColor(230, 230, 230);
-    private static readonly SKColor ClientSimulateColor = new SKColor(118, 75, 140);
-
-    //Animation
-    private static SKColor SequenceColor { get; set; } = new SKColor(62, 43, 89);
-    private static SKColor SingleFrameColor { get; set; } = new SKColor(111, 53, 195);
-    private static SKColor ChoiceColor { get; set; } = new SKColor(102, 111, 49);
-    private static SKColor SelectorColor { get; set; } = new SKColor(34, 84, 135);
-    private static SKColor MotionMatchingColor { get; set; } = new SKColor(127, 145, 218);
     //Blend
     private static SKColor BlendColor { get; set; } = new SKColor(45, 102, 82);
-    private static SKColor Blend2DColor { get; set; } = new SKColor(7, 62, 42);
-    private static SKColor BoneMaskColor { get; set; } = new SKColor(116, 51, 75);
     private static SKColor AddSubtractColor { get; set; } = new SKColor(126, 60, 55);
     private static SKColor AimLeanMatrixColor { get; set; } = new SKColor(99, 43, 87);
     // Constraints and Procedural
-    private static SKColor CycleControlColor { get; set; } = new SKColor(108, 138, 61);
-    private static SKColor CycleControlClipColor { get; set; } = new SKColor(87, 52, 127);
-    private static SKColor FollowAttachmentColor { get; set; } = new SKColor(0, 161, 143);
-    private static SKColor FollowPathColor { get; set; } = new SKColor(27, 61, 82);
     private static SKColor ConstraintLightGreenColor { get; set; } = new SKColor(91, 143, 56);
-    private static SKColor JiggleBoneColor { get; set; } = new SKColor(87, 175, 122);
     private static SKColor ConstraintDarkGreenColor { get; set; } = new SKColor(44, 106, 31);
     // System
-    private static SKColor ChoreoColor { get; set; } = new SKColor(123, 78, 35);
     private static SKColor SystemYellowColor { get; set; } = new SKColor(78, 73, 29);
-    private static SKColor InputStreamColor { get; set; } = new SKColor(166, 0, 207);
     private static SKColor SystemDarkBlueColor { get; set; } = new SKColor(24, 54, 72);
     private static SKColor SystemGrayColor { get; set; } = new SKColor(65, 90, 114);
-    private static SKColor SlowDownOnSlopesColor { get; set; } = new SKColor(26, 59, 18);
-    private static SKColor SteamVRSkeletalInputColor { get; set; } = new SKColor(15, 101, 144);
-    private static SKColor TurnHelperColor { get; set; } = new SKColor(32, 30, 78);
     // Main
-    private static SKColor StateMachineColor { get; set; } = new SKColor(44, 57, 89);
-    private static SKColor FinalPoseColor { get; set; } = new SKColor(149, 121, 65);
     private static SKColor PoseColor { get; set; } = new SKColor(173, 255, 47);          // Default fallback
-
-    private static readonly SKColor ParamBoolColor = new SKColor(25, 78, 101);
-    private static readonly SKColor ParamIntColor = new SKColor(145, 102, 54);
-    private static readonly SKColor ParamFloatColor = new SKColor(163, 171, 37);
-    private static readonly SKColor ParamEnumColor = new SKColor(89, 27, 111);
-    private static readonly SKColor ParamVectorColor = new SKColor(26, 122, 59);
-    private static readonly SKColor ParamQuaternionColor = new SKColor(123, 58, 60);
-    private static readonly SKColor ParamSymbolColor = new SKColor(200, 200, 200);
-    private static readonly SKColor ParamVirtualColor = new SKColor(150, 150, 150);
-    private static readonly SKColor ParamUnknownColor = new SKColor(128, 128, 128);
-    private static readonly SKColor TagColor = new SKColor(100, 200, 200);
 
     private static readonly Dictionary<string, SKColor> TagClassColors = new(StringComparer.Ordinal)
     {
@@ -136,7 +102,7 @@ internal class AG1GraphViewer : GLNodeGraphViewer
 
     private static SKColor GetTagClassColor(string className)
     {
-        return TagClassColors.TryGetValue(className, out var color) ? color : TagColor;
+        return TagClassColors.TryGetValue(className, out var color) ? color : new SKColor(100, 200, 200);
     }
 
     // ---- Dictionaries for class-based lookups ----
@@ -232,44 +198,44 @@ internal class AG1GraphViewer : GLNodeGraphViewer
 
     private static readonly Dictionary<string, SKColor> ClassColor = new(StringComparer.Ordinal)
     {
-        ["CSequenceUpdateNode"] = SequenceColor,
-        ["CChoiceUpdateNode"] = ChoiceColor,
-        ["CMotionMatchingUpdateNode"] = MotionMatchingColor,
-        ["CSelectorUpdateNode"] = SelectorColor,
-        ["CSingleFrameUpdateNode"] = SingleFrameColor,
+        ["CSequenceUpdateNode"] = new SKColor(62, 43, 89),
+        ["CChoiceUpdateNode"] = new SKColor(102, 111, 49),
+        ["CMotionMatchingUpdateNode"] = new SKColor(127, 145, 218),
+        ["CSelectorUpdateNode"] = new SKColor(34, 84, 135),
+        ["CSingleFrameUpdateNode"] = new SKColor(111, 53, 195),
         ["CDirectionalBlendUpdateNode"] = BlendColor,
         ["CBlendUpdateNode"] = BlendColor,
-        ["CBlend2DUpdateNode"] = Blend2DColor,
+        ["CBlend2DUpdateNode"] = new SKColor(7, 62, 42),
         ["CAddUpdateNode"] = AddSubtractColor,
         ["CSubtractUpdateNode"] = AddSubtractColor,
         ["CAimMatrixUpdateNode"] = AimLeanMatrixColor,
         ["CLeanMatrixUpdateNode"] = AimLeanMatrixColor,
-        ["CBoneMaskUpdateNode"] = BoneMaskColor,
-        ["CCycleControlUpdateNode"] = CycleControlColor,
-        ["CCycleControlClipUpdateNode"] = CycleControlClipColor,
-        ["CFollowAttachmentUpdateNode"] = FollowAttachmentColor,
-        ["CFollowPathUpdateNode"] = FollowPathColor,
+        ["CBoneMaskUpdateNode"] = new SKColor(116, 51, 75),
+        ["CCycleControlUpdateNode"] = new SKColor(108, 138, 61),
+        ["CCycleControlClipUpdateNode"] = new SKColor(87, 52, 127),
+        ["CFollowAttachmentUpdateNode"] = new SKColor(0, 161, 143),
+        ["CFollowPathUpdateNode"] = new SKColor(27, 61, 82),
         ["CFootPinningUpdateNode"] = ConstraintLightGreenColor,
         ["CLookAtUpdateNode"] = ConstraintLightGreenColor,
         ["CHitReactUpdateNode"] = ConstraintLightGreenColor,
         ["CFootLockUpdateNode"] = ConstraintLightGreenColor,
-        ["CJiggleBoneUpdateNode"] = JiggleBoneColor,
+        ["CJiggleBoneUpdateNode"] = new SKColor(87, 175, 122),
         ["CSolveIKChainUpdateNode"] = ConstraintDarkGreenColor,
         ["CTwoBoneIKUpdateNode"] = ConstraintDarkGreenColor,
         ["CSpeedScaleUpdateNode"] = ConstraintDarkGreenColor,
-        ["CChoreoUpdateNode"] = ChoreoColor,
+        ["CChoreoUpdateNode"] = new SKColor(123, 78, 35),
         ["CDirectPlaybackUpdateNode"] = SystemYellowColor,
         ["CFootStepTriggerUpdateNode"] = SystemYellowColor,
-        ["CInputStreamUpdateNode"] = InputStreamColor,
+        ["CInputStreamUpdateNode"] = new SKColor(166, 0, 207),
         ["CMoverUpdateNode"] = SystemDarkBlueColor,
         ["CStopAtGoalUpdateNode"] = SystemDarkBlueColor,
         ["CPathHelperUpdateNode"] = SystemGrayColor,
         ["CSetFacingUpdateNode"] = SystemGrayColor,
-        ["CSlowDownOnSlopesUpdateNode"] = SlowDownOnSlopesColor,
-        ["CSkeletalInputUpdateNode"] = SteamVRSkeletalInputColor,
-        ["CTurnHelperUpdateNode"] = TurnHelperColor,
-        ["CRootUpdateNode"] = FinalPoseColor,
-        ["CStateMachineUpdateNode"] = StateMachineColor,
+        ["CSlowDownOnSlopesUpdateNode"] = new SKColor(26, 59, 18),
+        ["CSkeletalInputUpdateNode"] = new SKColor(15, 101, 144),
+        ["CTurnHelperUpdateNode"] = new SKColor(32, 30, 78),
+        ["CRootUpdateNode"] = new SKColor(149, 121, 65),
+        ["CStateMachineUpdateNode"] = new SKColor(44, 57, 89),
     };
     private static readonly HashSet<string> GlobalPropertySkips = new(StringComparer.Ordinal)
     {
@@ -1185,7 +1151,7 @@ internal class AG1GraphViewer : GLNodeGraphViewer
     private static void ApplyNetworkMode(Node node, KVObject obj)
     {
         if (obj.GetStringProperty("m_networkMode", "").Equals("ClientSimulate", StringComparison.Ordinal))
-            node.SetBaseColor(ClientSimulateColor);
+            node.SetBaseColor(new SKColor(118, 75, 140));
     }
 
     private static string FormatDamping(KVObject damping)
@@ -1625,15 +1591,15 @@ internal class AG1GraphViewer : GLNodeGraphViewer
     {
         return type switch
         {
-            "BOOL" => ParamBoolColor,
-            "INT" => ParamIntColor,
-            "FLOAT" => ParamFloatColor,
-            "ENUM" => ParamEnumColor,
-            "VECTOR" => ParamVectorColor,
-            "QUATERNION" => ParamQuaternionColor,
-            "SYMBOL" => ParamSymbolColor,
-            "VIRTUAL" => ParamVirtualColor,
-            _ => ParamUnknownColor,
+            "BOOL" => new SKColor(25, 78, 101),
+            "INT" => new SKColor(145, 102, 54),
+            "FLOAT" => new SKColor(163, 171, 37),
+            "ENUM" => new SKColor(89, 27, 111),
+            "VECTOR" => new SKColor(26, 122, 59),
+            "QUATERNION" => new SKColor(123, 58, 60),
+            "SYMBOL" => new SKColor(200, 200, 200),
+            "VIRTUAL" => new SKColor(150, 150, 150),
+            _ => new SKColor(128, 128, 128),
         };
     }
 
@@ -1754,7 +1720,7 @@ internal class AG1GraphViewer : GLNodeGraphViewer
         {
             Data = data;
             BaseColor = new SKColor(61, 61, 61);
-            TextColor = NodeTextColor;
+            TextColor = new SKColor(230, 230, 230);
             HeaderTextColor = new SKColor(255, 255, 255);
             HeaderTypeColor = new SKColor(255, 255, 255);
         }
