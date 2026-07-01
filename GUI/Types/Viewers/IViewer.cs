@@ -11,6 +11,12 @@ namespace GUI.Types.Viewers
         public Task LoadAsync(Stream? stream);
         public void Create(TabPage containerTabPage);
 
+        /// <summary>
+        /// Called after the viewer has been made visible (the loading panel was removed). Viewers that render
+        /// lazily (e.g. GL viewers) use this to force their first draw. No-op by default.
+        /// </summary>
+        public void NotifyVisible() { }
+
         public static TabPage AddContentTab<T>(ThemedTabControl resTabs, string name, T content, bool preSelect = false, HighlightLanguage highlightSyntax = HighlightLanguage.Default)
         {
             var extract = string.Empty;

@@ -51,6 +51,8 @@ namespace GUI.Types.Viewers
             textureControl.InitializeRenderLoop();
         }
 
+        public void NotifyVisible() => textureControl?.NotifyVisible();
+
         public void Dispose()
         {
             svg?.Dispose();

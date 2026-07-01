@@ -811,6 +811,8 @@ namespace GUI
                 packageTreeView.ReplaceListViewWithControl(tab);
             }
 
+            Types.Viewers.IViewer? createdViewer = null;
+
             var taskLoad = Task.Run(() => ProcessFile(vrfGuiContext, file, viewMode));
 
             taskLoad.ContinueWith(t =>
@@ -853,6 +855,7 @@ namespace GUI
                     }
 
                     viewer.Create(tab);
+                    createdViewer = viewer;
 
                     if (mainTabs.SelectedTab == tab)
                     {
@@ -896,6 +899,10 @@ namespace GUI
                 BeginInvoke(() =>
                 {
                     loadingFile.Dispose();
+
+                    // Removing the loading panel that was covering the viewer does not reliably deliver a paint to
+                    // the underlying GL control, so tell the viewer to redraw now that it is visible.
+                    createdViewer?.NotifyVisible();
                 });
             });
         }
