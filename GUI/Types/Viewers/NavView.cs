@@ -93,6 +93,8 @@ namespace GUI.Types.Viewers
             }
         }
 
+        public void NotifyVisible() => glViewer?.NotifyVisible();
+
         public void Dispose()
         {
             glViewer?.Dispose();

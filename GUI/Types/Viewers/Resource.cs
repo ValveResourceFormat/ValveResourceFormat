@@ -235,6 +235,8 @@ namespace GUI.Types.Viewers
             GLViewer?.InitializeLoad();
         }
 
+        public void NotifyVisible() => GLViewer?.NotifyVisible();
+
         public void Create(TabPage containerTabPage)
         {
             Debug.Assert(resource is not null);

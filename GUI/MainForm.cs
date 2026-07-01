@@ -802,17 +802,16 @@ namespace GUI
                 tabTemp?.Dispose();
             }
 
-            Control? loadingFile = null;
+            var loadingFile = new LoadingFile(vrfGuiContext.FileName);
+            tab.Controls.Add(loadingFile);
 
-            if (!isPreview)
+            if (isPreview)
             {
-                loadingFile = new LoadingFile();
-                tab.Controls.Add(loadingFile);
+                Debug.Assert(packageTreeView != null);
+                packageTreeView.ReplaceListViewWithControl(tab);
             }
-            else
-            {
-                Cursor.Current = Cursors.WaitCursor;
-            }
+
+            Types.Viewers.IViewer? createdViewer = null;
 
             var taskLoad = Task.Run(() => ProcessFile(vrfGuiContext, file, viewMode));
 
@@ -824,11 +823,6 @@ namespace GUI
                 {
                     BeginInvoke(() =>
                     {
-                        if (isPreview)
-                        {
-                            Cursor.Current = Cursors.Default;
-                        }
-
                         var control = CodeTextBox.CreateFromException(ex, tab.ToolTipText);
 
                         tab.Controls.Add(control);
@@ -843,37 +837,29 @@ namespace GUI
             {
                 BeginInvoke(() =>
                 {
-                    Cursor.Current = Cursors.WaitCursor;
+                    var viewer = t.Result;
 
-                    try
+                    if (tab.IsDisposed)
                     {
-                        var viewer = t.Result;
-
-                        if (tab.IsDisposed)
-                        {
-                            viewer.Dispose();
-                            return; // closed tab before it loaded
-                        }
-
-                        if (tab.Tag is ExportData exportData)
-                        {
-                            exportData.DisposableContents = viewer;
-                        }
-                        else
-                        {
-                            Debug.Assert(false);
-                        }
-
-                        viewer.Create(tab);
-
-                        if (mainTabs.SelectedTab == tab)
-                        {
-                            UpdateBottomPanelKeybindings();
-                        }
+                        viewer.Dispose();
+                        return; // closed tab before it loaded
                     }
-                    finally
+
+                    if (tab.Tag is ExportData exportData)
                     {
-                        Cursor.Current = Cursors.Default;
+                        exportData.DisposableContents = viewer;
+                    }
+                    else
+                    {
+                        Debug.Assert(false);
+                    }
+
+                    viewer.Create(tab);
+                    createdViewer = viewer;
+
+                    if (mainTabs.SelectedTab == tab)
+                    {
+                        UpdateBottomPanelKeybindings();
                     }
                 });
             },
@@ -912,13 +898,11 @@ namespace GUI
             {
                 BeginInvoke(() =>
                 {
-                    loadingFile?.Dispose();
+                    loadingFile.Dispose();
 
-                    if (isPreview)
-                    {
-                        Debug.Assert(packageTreeView != null);
-                        packageTreeView.ReplaceListViewWithControl(tab);
-                    }
+                    // Removing the loading panel that was covering the viewer does not reliably deliver a paint to
+                    // the underlying GL control, so tell the viewer to redraw now that it is visible.
+                    createdViewer?.NotifyVisible();
                 });
             });
         }

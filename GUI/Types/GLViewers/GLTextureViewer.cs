@@ -559,6 +559,14 @@ namespace GUI.Types.GLViewers
             }
         }
 
+        public override void NotifyVisible()
+        {
+            if (GLControl?.Visible == true)
+            {
+                InvalidateRender();
+            }
+        }
+
         private void SetInitialDecodeFlagsState(CheckedListBox listBox)
         {
             listBox.Items.Clear();

@@ -149,6 +149,15 @@ internal abstract class GLBaseControl : IDisposable
         }
     }
 
+    /// <summary>
+    /// Force the GL control to redraw. Used when the viewer becomes visible after being obscured (e.g. by a
+    /// loading panel), which does not reliably deliver a paint message to the underlying GL control on its own.
+    /// </summary>
+    public virtual void NotifyVisible()
+    {
+        GLControl?.Invalidate();
+    }
+
     protected virtual void AddUiControls()
     {
         // Implemented in derived classes

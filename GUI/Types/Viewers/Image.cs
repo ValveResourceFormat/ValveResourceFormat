@@ -53,6 +53,8 @@ namespace GUI.Types.Viewers
             glViewer.InitializeRenderLoop();
         }
 
+        public void NotifyVisible() => glViewer?.NotifyVisible();
+
         public void Dispose()
         {
             bitmap?.Dispose();

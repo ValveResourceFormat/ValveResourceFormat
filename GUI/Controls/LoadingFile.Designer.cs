@@ -33,44 +33,45 @@ namespace GUI.Controls
             tableLayoutPanel1 = new System.Windows.Forms.TableLayoutPanel();
             tableLayoutPanel1.SuspendLayout();
             SuspendLayout();
-            // 
-            // progressBar1
-            // 
-            progressBar1.Dock = System.Windows.Forms.DockStyle.Fill;
-            progressBar1.Location = new System.Drawing.Point(4, 3);
-            progressBar1.Margin = new System.Windows.Forms.Padding(4, 3, 4, 3);
-            progressBar1.MarqueeAnimationSpeed = 30;
-            progressBar1.Name = "progressBar1";
-            progressBar1.Size = new System.Drawing.Size(192, 14);
-            progressBar1.Style = System.Windows.Forms.ProgressBarStyle.Marquee;
-            progressBar1.TabIndex = 0;
-            // 
+            //
             // label1
-            // 
+            //
+            label1.Anchor = System.Windows.Forms.AnchorStyles.None;
+            label1.AutoEllipsis = true;
             label1.AutoSize = true;
-            label1.Dock = System.Windows.Forms.DockStyle.Fill;
-            label1.Location = new System.Drawing.Point(4, 20);
-            label1.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
+            label1.Margin = new System.Windows.Forms.Padding(4, 0, 4, 8);
+            label1.MaximumSize = new System.Drawing.Size(560, 0);
             label1.Name = "label1";
             label1.Size = new System.Drawing.Size(192, 20);
             label1.TabIndex = 1;
             label1.Text = "Loading file, please wait…";
             label1.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
-            // 
+            //
+            // progressBar1
+            //
+            progressBar1.Anchor = System.Windows.Forms.AnchorStyles.None;
+            progressBar1.Margin = new System.Windows.Forms.Padding(4, 3, 4, 3);
+            progressBar1.MarqueeAnimationSpeed = 30;
+            progressBar1.Name = "progressBar1";
+            progressBar1.Size = new System.Drawing.Size(300, 14);
+            progressBar1.Style = System.Windows.Forms.ProgressBarStyle.Marquee;
+            progressBar1.TabIndex = 0;
+            //
             // tableLayoutPanel1
             // 
             tableLayoutPanel1.Anchor = System.Windows.Forms.AnchorStyles.None;
+            tableLayoutPanel1.AutoSize = true;
+            tableLayoutPanel1.AutoSizeMode = System.Windows.Forms.AutoSizeMode.GrowAndShrink;
             tableLayoutPanel1.ColumnCount = 1;
-            tableLayoutPanel1.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Percent, 50F));
-            tableLayoutPanel1.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Percent, 50F));
-            tableLayoutPanel1.Controls.Add(progressBar1, 0, 0);
-            tableLayoutPanel1.Controls.Add(label1, 0, 1);
-            tableLayoutPanel1.Location = new System.Drawing.Point(200, 130);
+            tableLayoutPanel1.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.AutoSize));
+            tableLayoutPanel1.Controls.Add(label1, 0, 0);
+            tableLayoutPanel1.Controls.Add(progressBar1, 0, 1);
+            tableLayoutPanel1.Location = new System.Drawing.Point(150, 130);
+            tableLayoutPanel1.MinimumSize = new System.Drawing.Size(300, 0);
             tableLayoutPanel1.Name = "tableLayoutPanel1";
             tableLayoutPanel1.RowCount = 2;
-            tableLayoutPanel1.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Percent, 50F));
-            tableLayoutPanel1.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Percent, 50F));
-            tableLayoutPanel1.Size = new System.Drawing.Size(200, 40);
+            tableLayoutPanel1.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.AutoSize));
+            tableLayoutPanel1.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.AutoSize));
             tableLayoutPanel1.TabIndex = 2;
             // 
             // LoadingFile
@@ -85,6 +86,7 @@ namespace GUI.Controls
             tableLayoutPanel1.ResumeLayout(false);
             tableLayoutPanel1.PerformLayout();
             ResumeLayout(false);
+            PerformLayout();
 
         }
 
