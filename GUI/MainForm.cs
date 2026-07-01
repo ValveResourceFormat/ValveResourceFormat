@@ -802,16 +802,13 @@ namespace GUI
                 tabTemp?.Dispose();
             }
 
-            Control? loadingFile = null;
+            var loadingFile = new LoadingFile(vrfGuiContext.FileName);
+            tab.Controls.Add(loadingFile);
 
-            if (!isPreview)
+            if (isPreview)
             {
-                loadingFile = new LoadingFile();
-                tab.Controls.Add(loadingFile);
-            }
-            else
-            {
-                Cursor.Current = Cursors.WaitCursor;
+                Debug.Assert(packageTreeView != null);
+                packageTreeView.ReplaceListViewWithControl(tab);
             }
 
             var taskLoad = Task.Run(() => ProcessFile(vrfGuiContext, file, viewMode));
@@ -824,11 +821,6 @@ namespace GUI
                 {
                     BeginInvoke(() =>
                     {
-                        if (isPreview)
-                        {
-                            Cursor.Current = Cursors.Default;
-                        }
-
                         var control = CodeTextBox.CreateFromException(ex, tab.ToolTipText);
 
                         tab.Controls.Add(control);
@@ -912,13 +904,7 @@ namespace GUI
             {
                 BeginInvoke(() =>
                 {
-                    loadingFile?.Dispose();
-
-                    if (isPreview)
-                    {
-                        Debug.Assert(packageTreeView != null);
-                        packageTreeView.ReplaceListViewWithControl(tab);
-                    }
+                    loadingFile.Dispose();
                 });
             });
         }
