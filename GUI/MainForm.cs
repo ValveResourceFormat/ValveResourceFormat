@@ -835,37 +835,28 @@ namespace GUI
             {
                 BeginInvoke(() =>
                 {
-                    Cursor.Current = Cursors.WaitCursor;
+                    var viewer = t.Result;
 
-                    try
+                    if (tab.IsDisposed)
                     {
-                        var viewer = t.Result;
-
-                        if (tab.IsDisposed)
-                        {
-                            viewer.Dispose();
-                            return; // closed tab before it loaded
-                        }
-
-                        if (tab.Tag is ExportData exportData)
-                        {
-                            exportData.DisposableContents = viewer;
-                        }
-                        else
-                        {
-                            Debug.Assert(false);
-                        }
-
-                        viewer.Create(tab);
-
-                        if (mainTabs.SelectedTab == tab)
-                        {
-                            UpdateBottomPanelKeybindings();
-                        }
+                        viewer.Dispose();
+                        return; // closed tab before it loaded
                     }
-                    finally
+
+                    if (tab.Tag is ExportData exportData)
                     {
-                        Cursor.Current = Cursors.Default;
+                        exportData.DisposableContents = viewer;
+                    }
+                    else
+                    {
+                        Debug.Assert(false);
+                    }
+
+                    viewer.Create(tab);
+
+                    if (mainTabs.SelectedTab == tab)
+                    {
+                        UpdateBottomPanelKeybindings();
                     }
                 });
             },

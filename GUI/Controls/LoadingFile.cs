@@ -10,6 +10,9 @@ namespace GUI.Controls
             InitializeComponent();
             Themer.ThemeControl(this);
 
+            // Show the wait cursor for the whole time the file is loading, but only when hovering this panel
+            Cursor = Cursors.WaitCursor;
+
             if (!string.IsNullOrEmpty(fileName))
             {
                 label1.Text = fileName;
