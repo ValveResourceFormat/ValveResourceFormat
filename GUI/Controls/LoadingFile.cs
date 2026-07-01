@@ -5,10 +5,15 @@ namespace GUI.Controls
 {
     partial class LoadingFile : UserControl
     {
-        public LoadingFile()
+        public LoadingFile(string? fileName = null)
         {
             InitializeComponent();
             Themer.ThemeControl(this);
+
+            if (!string.IsNullOrEmpty(fileName))
+            {
+                label1.Text = fileName;
+            }
         }
 
         protected override void OnCreateControl()
