@@ -35,7 +35,20 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
         public RenderTrails(ParticleDefinitionParser parse, RendererContext rendererContext) : base(parse)
         {
             RendererContext = rendererContext;
-            shader = RendererContext.ShaderLoader.LoadShader(ShaderName);
+
+            blendMode = parse.Enum<ParticleBlendMode>("m_nOutputBlendMode", blendMode);
+
+            var shaderParams = new Dictionary<string, byte>();
+            if (blendMode == ParticleBlendMode.PARTICLE_OUTPUT_BLEND_MODE_ADD)
+            {
+                shaderParams["F_ADDITIVE_BLEND"] = 1;
+            }
+            else if (blendMode == ParticleBlendMode.PARTICLE_OUTPUT_BLEND_MODE_MOD2X)
+            {
+                shaderParams["F_MOD2X"] = 1;
+            }
+
+            shader = RendererContext.ShaderLoader.LoadShader(ShaderName, shaderParams);
 
             // The same quad is reused for all particles
             var (quadVao, quadBuffer) = SetupQuadBuffer();
@@ -73,7 +86,6 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
             GL.ObjectLabel(ObjectLabelIdentifier.Buffer, quadBuffer, Math.Min(GLEnvironment.MaxLabelLength, vaoLabel.Length), vaoLabel);
 #endif
 
-            blendMode = parse.Enum<ParticleBlendMode>("m_nOutputBlendMode", blendMode);
             overbrightFactor = parse.NumberProvider("m_flOverbrightFactor", overbrightFactor);
             orientationType = parse.Enum("m_nOrientationType", orientationType);
             animationRate = parse.Float("m_flAnimationRate", animationRate);

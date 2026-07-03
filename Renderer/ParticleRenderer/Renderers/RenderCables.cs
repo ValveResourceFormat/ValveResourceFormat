@@ -460,13 +460,6 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
                     shader.SetTexture((int)ReservedTextureSlots.Probe2, "g_tLPV_Shadows", lightProbe.DirectLightShadows);
                 }
             }
-            // The cubemap fog texture is per-scene (FogInfo), not in the scene's global reserved-texture
-            // list, so this pass binds it itself. Gradient fog needs no texture.
-            var fogCube = scene.FogInfo.CubemapFog?.CubemapFogTexture;
-            if (fogCube != null)
-            {
-                shader.SetTexture((int)ReservedTextureSlots.FogCubeTexture, "g_tFogCubeTexture", fogCube);
-            }
 
             // The tube is opaque geometry drawn in the translucent pass: disable blending and write depth so
             // it self-occludes correctly, then restore the translucent defaults.

@@ -29,7 +29,7 @@ void ApplyGradientFog(inout vec3 pixelColor, vec3 positionWS, vec3 cameraCentere
 
 // ExposureBias is actually a separate param, but Z is unused and exposurebias stupidly only uses x
 
-uniform samplerCube g_tFogCubeTexture;
+uniform layout(binding = 2) samplerCube g_tFogCubeTexture; // ReservedTextureSlots.FogCubeTexture, bound globally by the scene
 
 void ApplyCubemapFog(inout vec3 pixelColor, vec3 positionWS, vec3 posRelativeToCamera)
 {
@@ -135,6 +135,18 @@ void ApplyFog(inout vec3 pixelColor, vec3 positionWS)
 #endif
 
     }
+}
+
+// Fog attenuation factor for additive/mod2x contributions, which must fade with fog density rather
+// than tint toward the fog color (tinting would add the fog color to the scene). ApplyFog is affine
+// in the input color, so probing it at white and black recovers the pure attenuation term.
+float GetFogAttenuation(vec3 positionWS)
+{
+    vec3 fogWhite = vec3(1.0);
+    vec3 fogBlack = vec3(0.0);
+    ApplyFog(fogWhite, positionWS);
+    ApplyFog(fogBlack, positionWS);
+    return saturate(fogWhite.g - fogBlack.g);
 }
 
 #endif

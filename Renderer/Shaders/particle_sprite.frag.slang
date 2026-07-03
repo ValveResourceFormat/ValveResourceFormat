@@ -2,6 +2,7 @@
 
 #include "common/utils.slang"
 #include "common/ViewConstants.slang"
+#include "common/fog.slang"
 
 // Render modes -- Switched on/off by code
 #define renderMode_Color 0
@@ -17,6 +18,7 @@ uniform int uTextureChannels = 0;
 
 in vec2 vTexCoordOut;
 in vec4 vColor;
+in vec3 vFragPosition;
 
 out vec4 fragColor;
 
@@ -35,6 +37,17 @@ void main(void) {
     // Texture alpha remap, then the per-particle alpha.
     float alpha = saturate(color.a * uAlphaRemapScaleBias.x + uAlphaRemapScaleBias.y);
     alpha *= vColor.a;
+
+#if (F_ADDITIVE_BLEND == 1) || (F_MOD2X == 1)
+    // Additive and mod2x contributions fade with fog density instead of tinting toward the fog color.
+    #if F_MOD2X
+    alpha *= GetFogAttenuation(vFragPosition); // fades the output toward the blend-neutral 0.5
+    #else
+    finalColor *= GetFogAttenuation(vFragPosition);
+    #endif
+#else
+    ApplyFog(finalColor, vFragPosition);
+#endif
 
 #if F_MOD2X
     fragColor = vec4(mix(vec3(0.5), finalColor, vec3(alpha)), alpha);
