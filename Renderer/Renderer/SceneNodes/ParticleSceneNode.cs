@@ -220,13 +220,7 @@ namespace ValveResourceFormat.Renderer.SceneNodes
                 : Vector3.Zero;
         }
 
-        /// <summary>
-        /// Full transform driving control point 0 (position + rotation, e.g. a map entity's origin and
-        /// angles). Kept separate from <see cref="SceneNode.Transform"/> because the simulation runs in
-        /// world space: the rotation is baked into spawn velocities via the control point, so the node
-        /// transform itself must stay translation-only or the bounding box rotates away from the particles.
-        /// </summary>
-        public Matrix4x4 ControlPointTransform { get; init; } = Matrix4x4.Identity;
+        private Matrix4x4? seededTransform;
 
         /// <inheritdoc/>
         public override void Update(Scene.UpdateContext context)
@@ -236,19 +230,27 @@ namespace ValveResourceFormat.Renderer.SceneNodes
                 return;
             }
 
-            particleRenderer.MainControlPoint.Position = Transform.Translation;
-
-            // The control point also carries the entity's rotation (full frame, plus its transformed +X as
-            // the forward direction) so orientation-driven functions read the entity's frame; a degenerate
-            // rotation leaves the orientation unset. Preview drives it separately.
-            if (!Preview)
+            // Control point 0 is seeded from the node transform (position, full rotation frame, and its
+            // transformed +X as the forward direction) whenever the transform changes from outside, like a
+            // non-follow attachment in game. Between seeds the control point belongs to the simulation:
+            // particle functions may move it, and the node transform reflects it back after each step.
+            // Preview drives the control point separately.
+            if (seededTransform != Transform)
             {
-                var controlPointForward = Vector3.TransformNormal(Vector3.UnitX, ControlPointTransform);
-                if (controlPointForward.LengthSquared() > 1e-12f)
+                var controlPoint = particleRenderer.MainControlPoint;
+                controlPoint.Position = Transform.Translation;
+
+                if (!Preview)
                 {
-                    particleRenderer.MainControlPoint.Orientation = Vector3.Normalize(controlPointForward);
-                    particleRenderer.MainControlPoint.Rotation = Quaternion.Normalize(Quaternion.CreateFromRotationMatrix(ControlPointTransform));
+                    var controlPointForward = Vector3.TransformNormal(Vector3.UnitX, Transform);
+                    if (controlPointForward.LengthSquared() > 1e-12f)
+                    {
+                        controlPoint.Orientation = Vector3.Normalize(controlPointForward);
+                        controlPoint.Rotation = Quaternion.Normalize(Quaternion.CreateFromRotationMatrix(Transform));
+                    }
                 }
+
+                seededTransform = Transform;
             }
 
             if (PreviewModel != null && !string.IsNullOrEmpty(PreviewModelAttachmentPoint))
@@ -261,7 +263,13 @@ namespace ValveResourceFormat.Renderer.SceneNodes
             if (frameTime > 0f)
             {
                 particleRenderer.Update(frameTime);
-                LocalBoundingBox = particleRenderer.LocalBoundingBox;
+
+                if (!Preview)
+                {
+                    ReflectControlPointTransform();
+                }
+
+                UpdateBounds();
             }
 
             // Restart if all emitters are done and all particles expired
@@ -269,6 +277,33 @@ namespace ValveResourceFormat.Renderer.SceneNodes
             {
                 particleRenderer.Restart();
             }
+        }
+
+        // The node transform mirrors control point 0 after simulation, so movement applied by particle
+        // functions carries the node along. The reflected matrix is also recorded as the seeded transform:
+        // only an external transform write differs from it and triggers a re-seed.
+        private void ReflectControlPointTransform()
+        {
+            var controlPoint = particleRenderer.MainControlPoint;
+            var reflected = controlPoint.Rotation is { } rotation
+                ? Matrix4x4.CreateFromQuaternion(rotation) * Matrix4x4.CreateTranslation(controlPoint.Position)
+                : Matrix4x4.CreateTranslation(controlPoint.Position);
+
+            Transform = reflected;
+            seededTransform = reflected;
+        }
+
+        // The simulation runs in world space with bounds kept relative to control point 0, so the world
+        // box is exact and set directly; the local box is derived so consumers composing
+        // LocalBoundingBox with Transform still get a box containing the particles.
+        private void UpdateBounds()
+        {
+            var worldBounds = particleRenderer.LocalBoundingBox.Translate(particleRenderer.MainControlPoint.Position);
+
+            LocalBoundingBox = Matrix4x4.Invert(Transform, out var inverseTransform)
+                ? worldBounds.Transform(inverseTransform)
+                : particleRenderer.LocalBoundingBox;
+            BoundingBox = worldBounds;
         }
 
         /// <inheritdoc/>

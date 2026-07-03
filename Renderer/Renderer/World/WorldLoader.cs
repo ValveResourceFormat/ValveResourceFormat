@@ -974,14 +974,10 @@ namespace ValveResourceFormat.Renderer.World
                                 }
                             }
 
-                            // The simulation runs in world space (the entity rotation reaches it through
-                            // control point 0), so the node transform must stay translation-only to keep
-                            // the bounding box wrapping the actual particles.
                             var particleNode = new ParticleSceneNode(scene, particleSystem, particleSnapshot)
                             {
                                 Name = particle,
-                                Transform = Matrix4x4.CreateTranslation(transformationMatrix.Translation),
-                                ControlPointTransform = transformationMatrix,
+                                Transform = transformationMatrix,
                                 LayerName = "Particles",
                                 EntityData = entity,
                             };
