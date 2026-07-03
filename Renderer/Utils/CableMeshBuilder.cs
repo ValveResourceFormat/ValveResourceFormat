@@ -1,7 +1,8 @@
 using System.Buffers;
 using System.Runtime.InteropServices;
+using ValveResourceFormat.Renderer.SceneNodes;
 
-namespace ValveResourceFormat.Renderer.SceneNodes
+namespace ValveResourceFormat.Renderer.Utils
 {
     /// <summary>
     /// A single sample along a cable spline: the initial (un-sagged) spline position plus the per-sample
