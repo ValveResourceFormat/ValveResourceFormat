@@ -40,28 +40,10 @@ namespace ValveResourceFormat.Renderer.Particles
             Curve,
             /// <summary>Returns one of two output values depending on whether the input is within a range.</summary>
             Notched,
-            /// <summary>Rounds the input value using the configured rounding mode.</summary>
-            Round,
         };
-
-        /// <summary>
-        /// Rounding modes for <see cref="PfMapType.Round"/>.
-        /// </summary>
-        public enum PfRoundType
-        {
-            /// <summary>Invalid rounding mode.</summary>
-            Invalid = -1,
-            /// <summary>Round to the nearest integer.</summary>
-            Nearest,
-            /// <summary>Round down.</summary>
-            Floor,
-            /// <summary>Round up.</summary>
-            Ceil,
-        }
 
         private readonly PfMapType MapType;
         private readonly PfInputMode InputMode = PfInputMode.Clamped;
-        private readonly PfRoundType roundType = PfRoundType.Nearest;
 
         private readonly float multFactor;
 
@@ -69,11 +51,6 @@ namespace ValveResourceFormat.Renderer.Particles
         private readonly float input1;
         private readonly float output0;
         private readonly float output1;
-
-        private readonly float notchedRangeMin;
-        private readonly float notchedRangeMax;
-        private readonly float notchedOutputOutside;
-        private readonly float notchedOutputInside;
 
         //private readonly ParticleFloatBiasType biasType;
         //private readonly float biasParameter;
@@ -102,9 +79,13 @@ namespace ValveResourceFormat.Renderer.Particles
                     output0 = parse.Float("m_flOutput0");
                     output1 = parse.Float("m_flOutput1");
 
-                    // Only the input range is ordered; the outputs are lerp endpoints and may
-                    // deliberately descend (e.g. an emit rate ramping down over the system age).
-                    MathUtils.MinMaxFixUp(ref input0, ref input1);
+                    // Sort the input range, swapping the outputs with it so inverting
+                    // remaps (e.g. output 1 -> 0) keep their direction
+                    if (input0 > input1)
+                    {
+                        (input0, input1) = (input1, input0);
+                        (output0, output1) = (output1, output0);
+                    }
 
                     break;
 
@@ -114,14 +95,12 @@ namespace ValveResourceFormat.Renderer.Particles
                     break;
 
                 case PfMapType.Notched:
-                    notchedRangeMin = parse.Float("m_flNotchedRangeMin");
-                    notchedRangeMax = parse.Float("m_flNotchedRangeMax");
-                    notchedOutputOutside = parse.Float("m_flNotchedOutputOutside");
-                    notchedOutputInside = parse.Float("m_flNotchedOutputInside");
-                    break;
-
-                case PfMapType.Round:
-                    roundType = parse.EnumNormalized<PfRoundType>("m_nRoundType", roundType);
+                    /* NOTCHED PARAMS:
+                    * m_flNotchedRangeMin
+                    * m_flNotchedRangeMax
+                    * m_flNotchedOutputOutside
+                    * m_flNotchedOutputInside
+                    */
                     break;
 
                 default:
@@ -158,7 +137,9 @@ namespace ValveResourceFormat.Renderer.Particles
                 case PfMapType.RemapBiased:
                     var remappedTo0_1RangeBiased = MathUtils.Remap(value, input0, input1);
 
-                    if (InputMode == PfInputMode.Looped) { remappedTo0_1RangeBiased = MathUtils.Fract(remappedTo0_1RangeBiased); }
+                    remappedTo0_1RangeBiased = InputMode == PfInputMode.Looped
+                        ? MathUtils.Fract(remappedTo0_1RangeBiased)
+                        : MathUtils.Saturate(remappedTo0_1RangeBiased);
 
                     // TODO: Insert bias processing here. Shared with randombiased mode in INumberProvider
 
@@ -166,19 +147,6 @@ namespace ValveResourceFormat.Renderer.Particles
 
                 case PfMapType.Curve:
                     return curve!.Evaluate(value);
-
-                case PfMapType.Notched:
-                    return value >= notchedRangeMin && value <= notchedRangeMax
-                        ? notchedOutputInside
-                        : notchedOutputOutside;
-
-                case PfMapType.Round:
-                    return roundType switch
-                    {
-                        PfRoundType.Floor => MathF.Floor(value),
-                        PfRoundType.Ceil => MathF.Ceiling(value),
-                        _ => MathF.Round(value),
-                    };
 
                 default:
                     return value;

@@ -211,7 +211,8 @@ namespace ValveResourceFormat.Renderer.Particles
         public PerParticleCountNormalizedNumberProvider(ParticleDefinitionParser parse) { attributeMapping = new AttributeMapping(parse); }
         public float NextNumber(ref Particle particle, ParticleSystemRenderState renderState)
         {
-            return attributeMapping.ApplyMapping(particle.ParticleID) / Math.Max(renderState.ParticleCount, 1);
+            // Mapping input ranges for this provider type are authored in normalized 0-1 space
+            return attributeMapping.ApplyMapping(particle.ParticleID / (float)Math.Max(renderState.ParticleCount, 1));
         }
     }
 

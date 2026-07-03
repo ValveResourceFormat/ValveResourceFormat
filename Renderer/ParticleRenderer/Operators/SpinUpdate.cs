@@ -16,8 +16,8 @@ namespace ValveResourceFormat.Renderer.Particles.Operators
         {
             foreach (ref var particle in particles.Current)
             {
-                var rotationRadians = Vector3.DegreesToRadians(particle.RotationSpeed);
-                particle.Rotation += rotationRadians * frameTime;
+                // RotationSpeed is stored in radians per second by everything that writes it
+                particle.Rotation += particle.RotationSpeed * frameTime;
             }
         }
     }

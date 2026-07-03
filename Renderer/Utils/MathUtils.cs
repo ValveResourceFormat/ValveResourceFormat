@@ -62,7 +62,7 @@ namespace ValveResourceFormat.Renderer.Utils
         /// Returns the fractional part of a value (x - floor(x)).
         /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static float Fract(float x) => x % 1f;
+        public static float Fract(float x) => x - MathF.Floor(x);
 
         /// <summary>
         /// Wraps a value into the half-open range [lowBounds, highBounds).

@@ -15,7 +15,11 @@ namespace ValveResourceFormat.Renderer.Particles.Utils
         /// Yes I know it's not actually a proper LCG but I need it to work without knowing the last value.
         /// </summary>
         private static float PseudoRandom(float t)
-            => ((1013904223517 * t) % 1664525) / 1664525f;
+        {
+            // Compute in double and wrap into [0, 1) so large or negative inputs stay well distributed
+            var value = 1013904223517.0 * t % 1664525.0 / 1664525.0;
+            return (float)(value < 0 ? value + 1 : value);
+        }
 
         private static float CosineInterpolate(float start, float end, float mu)
         {

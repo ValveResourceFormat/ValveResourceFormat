@@ -46,57 +46,68 @@ namespace ValveResourceFormat.Renderer.Particles.Operators
 
         public override void Operate(ParticleCollection particles, float frameTime, ParticleSystemRenderState particleSystemState)
         {
+            // The transform delta must be computed once per frame, not per particle,
+            // otherwise only the first particle ever observes the transform moving
+            var transform = transformInput.NextTransform(particleSystemState);
+            var transformPosition = Vector3.Multiply(transform.Translation, componentScale.NextVector(particleSystemState));
+
+            if (previousTransformPosition.X == float.MaxValue)
+            {
+                previousTransformPosition = transformPosition;
+            }
+
+            var delta = transformPosition - previousTransformPosition;
+            previousTransformPosition = transformPosition;
+
+            // A jump beyond the threshold teleports particles with the transform at full strength
+            var instantJump = delta.Length() > instantJumpThreshold;
+
+            if (delta == Vector3.Zero && !lockRotation)
+            {
+                return;
+            }
+
             foreach (ref var particle in particles.Current)
             {
-                var transform = transformInput.NextTransform(ref particle, particleSystemState);
-                var transformPosition = Vector3.Multiply(transform.Translation, componentScale.NextVector(ref particle, particleSystemState));
+                var startTime = ParticleCollection.RandomWithExponentBetween(particle.ParticleID, startTimeExp, startTimeMin, startTimeMax);
+                var endTime = ParticleCollection.RandomWithExponentBetween(particle.ParticleID, endTimeExp, endTimeMin, endTimeMax);
 
-                if (previousTransformPosition.X == float.MaxValue)
+                // Fully locked until startTime, fading the lock out until endTime
+                var lockStrength = particle.Age <= startTime
+                    ? 1f
+                    : 1f - MathUtils.Saturate(MathUtils.Remap(particle.Age, startTime, endTime));
+
+                if (instantJump)
                 {
-                    previousTransformPosition = transformPosition;
+                    lockStrength = 1f;
                 }
 
-                var delta = (transformPosition - previousTransformPosition) * prevPosScale;
-                var targetPosition = transformPosition + delta;
+                if (lockStrength <= 0f)
+                {
+                    continue;
+                }
+
+                var currentPosition = particle.GetVector(outputField);
 
                 if (fadeRange > 0f)
                 {
-                    var currentPosition = particle.GetVector(outputField);
                     var distance = Vector3.Distance(transformPosition, currentPosition);
                     var normalizedDistance = MathUtils.Saturate(distance / fadeRange);
                     var bias = rangeBias.NextNumber(ref particle, particleSystemState);
                     var remapped = bias <= 0f
                         ? normalizedDistance
                         : MathF.Pow(normalizedDistance, 1f / MathF.Max(0.0001f, bias));
-                    var fadeWeight = 1f - remapped;
-                    targetPosition = Vector3.Lerp(currentPosition, targetPosition, fadeWeight);
+                    lockStrength *= 1f - remapped;
                 }
 
-                if (Vector3.Distance(transformPosition, previousTransformPosition) > instantJumpThreshold)
-                {
-                    targetPosition = transformPosition;
-                }
-
-                var startTime = ParticleCollection.RandomWithExponentBetween(particle.ParticleID, startTimeExp, startTimeMin, startTimeMax);
-                var endTime = ParticleCollection.RandomWithExponentBetween(particle.ParticleID, endTimeExp, endTimeMin, endTimeMax);
-
-                if (particle.Age < startTime || particle.Age > endTime)
-                {
-                    previousTransformPosition = transformPosition;
-                    continue;
-                }
-
-                var previousOutput = particle.GetVector(outputField);
-                particle.SetVector(outputFieldPrev, previousOutput);
-                particle.SetVector(outputField, targetPosition);
+                // Translate the particle with the transform, preserving its offset from it
+                particle.SetVector(outputFieldPrev, particle.GetVector(outputFieldPrev) + delta * (lockStrength * prevPosScale));
+                particle.SetVector(outputField, currentPosition + delta * lockStrength);
 
                 if (lockRotation)
                 {
-                    var orientation = transformInput.GetOrientation(ref particle, particleSystemState);
-                    particle.Normal = orientation;
+                    particle.Normal = transformInput.GetOrientation(ref particle, particleSystemState);
                 }
-
-                previousTransformPosition = transformPosition;
             }
         }
     }

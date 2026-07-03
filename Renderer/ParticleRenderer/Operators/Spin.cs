@@ -51,7 +51,8 @@ namespace ValveResourceFormat.Renderer.Particles.Operators
         {
             foreach (ref var particle in particles.Current)
             {
-                particle.SetScalar(ParticleField.Roll, particle.Rotation.Z + GetSpinRate(particle.Age) * frameTime);
+                // Rotation is stored in radians, the spin rate in degrees per second
+                particle.SetScalar(ParticleField.Roll, particle.Rotation.Z + float.DegreesToRadians(GetSpinRate(particle.Age)) * frameTime);
             }
         }
     }
@@ -71,7 +72,8 @@ namespace ValveResourceFormat.Renderer.Particles.Operators
         {
             foreach (ref var particle in particles.Current)
             {
-                particle.SetScalar(ParticleField.Yaw, particle.Rotation.X + GetSpinRate(particle.Age) * frameTime);
+                // Rotation is stored in radians, the spin rate in degrees per second
+                particle.SetScalar(ParticleField.Yaw, particle.Rotation.X + float.DegreesToRadians(GetSpinRate(particle.Age)) * frameTime);
             }
         }
     }

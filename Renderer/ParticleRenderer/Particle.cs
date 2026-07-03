@@ -45,7 +45,7 @@ namespace ValveResourceFormat.Renderer.Particles
         public float ForceScale { get; set; } = 1.0f;
 
         /// <summary>
-        /// Gets or sets (Yaw, Pitch, Roll) Euler angles.
+        /// Gets or sets (Yaw, Pitch, Roll) Euler angles in radians.
         /// </summary>
         public Vector3 Rotation { get; set; } = Vector3.Zero;
 
@@ -53,6 +53,7 @@ namespace ValveResourceFormat.Renderer.Particles
         /// Gets or sets (Yaw, Pitch, Roll) Euler angles rotation speed.
         /// </summary>
         public Vector3 RotationSpeed { get; set; } = Vector3.Zero;
+
         /// <summary>Gets or sets the current velocity of the particle.</summary>
         public Vector3 Velocity { get; set; } = Vector3.Zero;
 
@@ -138,8 +139,9 @@ namespace ValveResourceFormat.Renderer.Particles
 
             Radius = parse.Float("m_flConstantRadius", Radius);
             Lifetime = parse.Float("m_flConstantLifespan", Lifetime);
-            Rotation = Rotation with { Z = parse.Float("m_flConstantRotation", Rotation.Z) };
-            RotationSpeed = RotationSpeed with { Z = parse.Float("m_flConstantRotationSpeed", RotationSpeed.Z) };
+            // Rotation fields are stored in radians, but the constants are authored in degrees
+            Rotation = Rotation with { Z = float.DegreesToRadians(parse.Float("m_flConstantRotation", 0f)) };
+            RotationSpeed = RotationSpeed with { Z = float.DegreesToRadians(parse.Float("m_flConstantRotationSpeed", 0f)) };
             Normal = parse.Vector3("m_ConstantNormal", Normal);
             Sequence = parse.Int32("m_nConstantSequenceNumber", Sequence);
             Sequence2 = parse.Int32("m_nConstantSequenceNumber1", Sequence2);

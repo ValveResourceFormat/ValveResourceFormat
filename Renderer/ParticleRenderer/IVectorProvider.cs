@@ -39,7 +39,8 @@ namespace ValveResourceFormat.Renderer.Particles
 
         public LiteralColorVectorProvider(Vector3 value)
         {
-            this.value = value;
+            // Literal colors are authored as 0-255; providers return normalized 0-1 colors
+            this.value = value / 255.0f;
         }
 
         public LiteralColorVectorProvider(int[] value)

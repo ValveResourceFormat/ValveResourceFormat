@@ -68,7 +68,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
         private void UpdateLight(SceneLight light, ref Particle particle, ParticleSystemRenderState systemRenderState)
         {
             // Should we use the particle color?
-            var color = colorScale.NextVector(ref particle, systemRenderState) / 255f;
+            var color = colorScale.NextVector(ref particle, systemRenderState);
             var radius = particle.Radius;
             var range = radius * radiusMultiplier.NextNumber(ref particle, systemRenderState);
             var brightness = MathF.Max(0f, intensity.NextNumber(ref particle, systemRenderState));

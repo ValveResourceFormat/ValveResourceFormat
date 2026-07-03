@@ -57,7 +57,12 @@ namespace ValveResourceFormat.Renderer.Particles.PreEmissionOperators
                 GenerateNewPosition();
 
                 particleSystemState.SetControlPointValue(cp, currentPosition + controlPointOffset);
-                particleSystemState.SetControlPointOrientation(cp, orientation);
+
+                if (orient)
+                {
+                    particleSystemState.SetControlPointOrientation(cp, orientation);
+                }
+
                 HasRunBefore = true;
             }
 
@@ -75,7 +80,11 @@ namespace ValveResourceFormat.Renderer.Particles.PreEmissionOperators
                 // orientation doesn't lerp in the same way that position does
 
                 particleSystemState.SetControlPointValue(cp, positionBlended);
-                particleSystemState.SetControlPointOrientation(cp, orientation);
+
+                if (orient)
+                {
+                    particleSystemState.SetControlPointOrientation(cp, orientation);
+                }
 
                 // If we need to generate a new position
                 if (timeSinceLastRun > reRandomRate)

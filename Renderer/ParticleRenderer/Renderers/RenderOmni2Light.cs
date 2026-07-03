@@ -104,7 +104,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
 
         private void UpdateLight(SceneLight light, ref Particle particle, ParticleSystemRenderState systemRenderState)
         {
-            var baseColor = colorBlend.NextVector(ref particle, systemRenderState) / 255f;
+            var baseColor = colorBlend.NextVector(ref particle, systemRenderState);
             var color = Vector3.Clamp(baseColor, Vector3.Zero, Vector3.One);
 
             var brightness = brightnessUnit switch
@@ -118,7 +118,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
 
             light.Color = color;
             light.Brightness = MathF.Max(0f, brightness);
-            light.BrightnessScale = 1 - particle.NormalizedAge;
+            light.BrightnessScale = MathF.Max(0f, 1 - particle.NormalizedAge);
             light.Range = lightRange;
             light.FallOff = skirtValue;
             light.Position = particle.Position;

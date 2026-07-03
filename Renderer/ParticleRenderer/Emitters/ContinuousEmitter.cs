@@ -59,6 +59,13 @@ namespace ValveResourceFormat.Renderer.Particles.Emitters
                 var rate = emitRate.NextNumber(particleSystemState);
                 if (rate > 0f)
                 {
+                    // Don't count time before the start time as pending emission,
+                    // otherwise the first emitting frame bursts all of it at once
+                    if (lastEmissionTime < nextStartTime)
+                    {
+                        lastEmissionTime = nextStartTime;
+                    }
+
                     var emitInterval = 1.0f / rate;
                     var numToEmit = (int)MathF.Floor((time - lastEmissionTime) / emitInterval);
                     for (var i = 0; i < numToEmit; i++)

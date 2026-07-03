@@ -143,6 +143,9 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
                 GL.BlendFunc(BlendingFactor.SrcAlpha, BlendingFactor.OneMinusSrcAlpha);
             }
 
+            // Trail quads are oriented by motion direction, so either side can face the camera
+            GL.Disable(EnableCap.CullFace);
+
             shader.Use();
 
             GL.BindVertexArray(vaoHandle);
@@ -153,15 +156,6 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
             // also todo: pass all of these as vertex parameters (probably just color/alpha combined)
             shader.SetUniform1("uOverbrightFactor", (float)overbrightFactor.NextNumber(systemRenderState));
 
-            // Create billboarding rotation (always facing camera)
-            if (!Matrix4x4.Decompose(camera.CameraViewMatrix, out _, out var modelViewRotation, out _))
-            {
-                throw new InvalidOperationException("Matrix decompose failed");
-            }
-
-            modelViewRotation = Quaternion.Inverse(modelViewRotation);
-            var billboardMatrix = Matrix4x4.CreateFromQuaternion(modelViewRotation);
-
             // Todo: this could be adapted into renderropes without much difficulty
             foreach (ref var particle in particles)
             {
@@ -170,12 +164,10 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
                 var difference = previousPosition - position;
                 var direction = difference == Vector3.Zero ? Vector3.UnitY : Vector3.Normalize(difference);
 
-                var midPoint = position + (0.5f * difference);
-
                 // Trail width = radius
                 // Trail length = distance between current and previous times trail length divided by 2 (because the base particle is 2 wide)
                 var length = Math.Min(maxLength, particle.TrailLength * difference.Length() / 2f);
-                var t = particle.NormalizedAge;
+                var t = particle.Age; // Fade-in time is in seconds
                 var animatedLength = t >= lengthFadeInTime
                     ? length
                     : t * length / lengthFadeInTime;
@@ -192,7 +184,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
                     : Matrix4x4.CreateFromAxisAngle(Vector3.Normalize(cross), MathF.Acos(Math.Clamp(direction.Y, -1f, 1f)));
 
                 var modelMatrix = orientationType == ParticleOrientation.PARTICLE_ORIENTATION_SCREEN_ALIGNED
-                    ? Matrix4x4.Multiply(scaleMatrix, Matrix4x4.Multiply(translationMatrix, rotationMatrix))
+                    ? scaleMatrix * translationMatrix * rotationMatrix * Matrix4x4.CreateTranslation(position)
                     : particle.GetTransformationMatrix();
 
                 // Position/Radius uniform
@@ -225,7 +217,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
                 }
                 else
                 {
-                    shader.SetUniform2("uUvOffset", Vector2.One);
+                    shader.SetUniform2("uUvOffset", Vector2.Zero);
                     shader.SetUniform2("uUvScale", new Vector2(finalTextureScaleU, finalTextureScaleV));
                 }
 
@@ -238,6 +230,8 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
 
             GL.UseProgram(0);
             GL.BindVertexArray(0);
+
+            GL.Enable(EnableCap.CullFace);
         }
 
         public override IEnumerable<string> GetSupportedRenderModes() => shader.RenderModes;

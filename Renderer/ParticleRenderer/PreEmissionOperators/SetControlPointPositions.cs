@@ -12,7 +12,7 @@ namespace ValveResourceFormat.Renderer.Particles.PreEmissionOperators
         private readonly int CP3 = 3;
         private readonly int CP4 = 4;
         private readonly Vector3 CP1Pos = new(128, 0, 0);
-        private readonly Vector3 CP2Pos = new(0, -128, 0);
+        private readonly Vector3 CP2Pos = new(0, 128, 0);
         private readonly Vector3 CP3Pos = new(-128, 0, 0);
         private readonly Vector3 CP4Pos = new(0, -128, 0);
 
