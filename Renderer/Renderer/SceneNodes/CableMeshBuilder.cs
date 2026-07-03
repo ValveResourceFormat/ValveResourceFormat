@@ -1,3 +1,4 @@
+using System.Buffers;
 using System.Runtime.InteropServices;
 
 namespace ValveResourceFormat.Renderer.SceneNodes
@@ -129,36 +130,55 @@ namespace ValveResourceFormat.Renderer.SceneNodes
             return samples;
         }
 
+        private const int MaxRoundnessLevel = 3;
+
+        /// <summary>The widest cross-section <see cref="SideCount"/> can return (roundness level 3).</summary>
+        internal const int MaxSides = (1 << MaxRoundnessLevel) * 4;
+
+        /// <summary>
+        /// m_nRoundness is a discrete power-of-two level clamped to [0, 3], giving {4, 8, 16, 32} sides
+        /// (roundness 0 is a real 4-gon prism, not a billboard ribbon).
+        /// </summary>
+        internal static int SideCount(int roundness) => (1 << Math.Clamp(roundness, 0, MaxRoundnessLevel)) * 4;
+
         /// <summary>
         /// Tessellates the round tube through <paramref name="positions"/> (index-aligned with
-        /// <paramref name="samples"/> for per-point radius/colour/U) into caller-provided vertex/index lists.
-        /// Returns false for degenerate input.
+        /// <paramref name="samples"/> for per-point radius/colour/U) into exactly-sized caller buffers:
+        /// <c>ringCount * (sides + 1)</c> vertices and <c>(ringCount - 1) * sides * 6</c> indices, with
+        /// <paramref name="sides"/> from <see cref="SideCount"/>. Returns false for degenerate input.
         /// </summary>
-        internal static bool BuildTubeMesh(IReadOnlyList<Vector3> positions, IReadOnlyList<RopeSample> samples,
-            int roundness, float circumferenceRepeats, List<Vertex> vertices, List<uint> indices)
+        internal static bool BuildTubeMesh(ReadOnlySpan<Vector3> positions, ReadOnlySpan<RopeSample> samples,
+            int sides, float circumferenceRepeats, Span<Vertex> vertices, Span<uint> indices)
         {
-            if (positions.Count < 2 || positions.Count != samples.Count)
+            if (positions.Length < 2 || positions.Length != samples.Length)
             {
                 return false;
             }
 
-            BuildFrames(positions, out _, out var normals, out var bitangents);
+            var count = positions.Length;
+            var pool = ArrayPool<Vector3>.Shared;
+            var tangents = pool.Rent(count);
+            var normals = pool.Rent(count);
+            var bitangents = pool.Rent(count);
+            try
+            {
+                BuildFrames(positions, tangents, normals, bitangents);
+                BuildTubeGeometry(positions, samples, circumferenceRepeats, normals, bitangents, sides, vertices, indices);
+            }
+            finally
+            {
+                pool.Return(tangents);
+                pool.Return(normals);
+                pool.Return(bitangents);
+            }
 
-            // m_nRoundness is a discrete power-of-two level clamped to [0, 3],
-            // giving {4, 8, 16, 32} sides (roundness 0 is a real 4-gon prism, not a billboard ribbon).
-            var level = Math.Clamp(roundness, 0, 3);
-            var sides = (1 << level) * 4;
-            BuildTubeGeometry(positions, samples, circumferenceRepeats, normals, bitangents, sides, vertices, indices);
-
-            return indices.Count > 0;
+            return true;
         }
 
-        private static void BuildFrames(IReadOnlyList<Vector3> positions, out Vector3[] tangents, out Vector3[] normals, out Vector3[] bitangents)
+        // Fills the first positions.Length entries of the (pooled, possibly larger) frame arrays.
+        private static void BuildFrames(ReadOnlySpan<Vector3> positions, Vector3[] tangents, Vector3[] normals, Vector3[] bitangents)
         {
-            var count = positions.Count;
-            tangents = new Vector3[count];
-            normals = new Vector3[count];
-            bitangents = new Vector3[count];
+            var count = positions.Length;
 
             for (var i = 0; i < count; i++)
             {
@@ -178,9 +198,9 @@ namespace ValveResourceFormat.Renderer.SceneNodes
             }
         }
 
-        private static Vector3 SampleTangent(IReadOnlyList<Vector3> positions, int i)
+        private static Vector3 SampleTangent(ReadOnlySpan<Vector3> positions, int i)
         {
-            var count = positions.Count;
+            var count = positions.Length;
 
             Vector3 dir;
             if (i == 0)
@@ -213,16 +233,17 @@ namespace ValveResourceFormat.Renderer.SceneNodes
             return projected.LengthSquared() > 1e-8f ? Vector3.Normalize(projected) : InitialNormal(tangent);
         }
 
-        private static void BuildTubeGeometry(IReadOnlyList<Vector3> positions, IReadOnlyList<RopeSample> samples,
+        private static void BuildTubeGeometry(ReadOnlySpan<Vector3> positions, ReadOnlySpan<RopeSample> samples,
             float circumferenceRepeats,
-            Vector3[] normals, Vector3[] bitangents, int sides, List<Vertex> vertices, List<uint> indices)
+            Vector3[] normals, Vector3[] bitangents, int sides, Span<Vertex> vertices, Span<uint> indices)
         {
-            var ringCount = positions.Count;
+            var ringCount = positions.Length;
 
             // Emit a duplicate seam vertex per ring (sides + 1): the extra vertex sits at the j == 0 position
             // but carries v == CircumferenceRepeats, so the closing quad interpolates the texture forward to
             // the full repeat instead of wrapping v back to 0.
             var vertsPerRing = sides + 1;
+            var vertexCursor = 0;
 
             for (var i = 0; i < ringCount; i++)
             {
@@ -236,11 +257,12 @@ namespace ValveResourceFormat.Renderer.SceneNodes
                     var radial = (normals[i] * MathF.Cos(angle)) + (bitangents[i] * MathF.Sin(angle));
                     var pos = center + (radial * sample.Radius);
                     var v = j / (float)sides * circumferenceRepeats;
-                    vertices.Add(new Vertex(pos, Normalize(radial), new Vector2(sample.U, v), color));
+                    vertices[vertexCursor++] = new Vertex(pos, Normalize(radial), new Vector2(sample.U, v), color);
                 }
             }
 
             var segments = ringCount - 1;
+            var indexCursor = 0;
             for (var i = 0; i < segments; i++)
             {
                 var a = (uint)(i * vertsPerRing);
@@ -250,19 +272,19 @@ namespace ValveResourceFormat.Renderer.SceneNodes
                     var jn = j + 1;
                     // Outward-facing quad (CCW from outside); the tube is opaque, so backface culling hides
                     // the interior.
-                    AddQuad(indices, a + (uint)j, a + (uint)jn, b + (uint)jn, b + (uint)j);
+                    AddQuad(indices, ref indexCursor, a + (uint)j, a + (uint)jn, b + (uint)jn, b + (uint)j);
                 }
             }
         }
 
-        private static void AddQuad(List<uint> indices, uint a, uint b, uint c, uint d)
+        private static void AddQuad(Span<uint> indices, ref int cursor, uint a, uint b, uint c, uint d)
         {
-            indices.Add(a);
-            indices.Add(b);
-            indices.Add(c);
-            indices.Add(a);
-            indices.Add(c);
-            indices.Add(d);
+            indices[cursor++] = a;
+            indices[cursor++] = b;
+            indices[cursor++] = c;
+            indices[cursor++] = a;
+            indices[cursor++] = c;
+            indices[cursor++] = d;
         }
 
         // Approximates the arc length of a cubic Bezier by summing a fixed set of straight chords. Used to

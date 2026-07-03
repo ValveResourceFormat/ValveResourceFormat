@@ -1,3 +1,4 @@
+using System.Buffers;
 using System.Runtime.InteropServices;
 using OpenTK.Graphics.OpenGL;
 using ValveResourceFormat.Renderer.SceneEnvironment;
@@ -59,6 +60,15 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
         private Vector3[] colorsScratch = [];
         private int[] levelsScratch = [];
         private Vector3[] directionsScratch = [];
+
+        // The tube is re-tessellated whenever the positions or tessellation levels change (every frame
+        // while the camera moves or the rope sways), so the transient ring/vertex/index buffers come from
+        // pools shared across all cable instances. The index buffer gets its own pool because its worst
+        // case exceeds ArrayPool<uint>.Shared's largest bucket (2^20 elements), which would otherwise turn
+        // every rebuild of a max-size tube into a fresh multi-megabyte allocation.
+        private static readonly ArrayPool<uint> IndexArrayPool = ArrayPool<uint>.Create(
+            maxArrayLength: (MaxTubeRings - 1) * CableMeshBuilder.MaxSides * 6,
+            maxArraysPerBucket: 2);
 
         private static readonly IComparer<(int Id, Vector3 Position, float Radius, Vector3 Color)> ChainComparer =
             Comparer<(int Id, Vector3 Position, float Radius, Vector3 Color)>.Create(static (a, b) => a.Id.CompareTo(b.Id));
@@ -195,23 +205,41 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
                 ? repeatsPerSegment / (chain.Length - 1)
                 : repeatsPerSegment;
 
-            BuildRings(positions, chain, levels, repeats, out var ringPositions, out var ringSamples);
+            // Exact buffer sizes are known up front, so the transient build buffers are rented, filled by
+            // index and returned; the rented arrays may be larger, so sizes are threaded through explicitly.
+            var ringCount = TotalRings(positions.Length, levels);
+            var sides = CableMeshBuilder.SideCount(roundness);
+            var vertexCount = ringCount * (sides + 1);
+            var tubeIndexCount = (ringCount - 1) * sides * 6;
 
-            var vertices = new List<CableMeshBuilder.Vertex>();
-            var indices = new List<uint>();
+            var ringPositions = ArrayPool<Vector3>.Shared.Rent(ringCount);
+            var ringSamples = ArrayPool<RopeSample>.Shared.Rent(ringCount);
+            var vertexArray = ArrayPool<CableMeshBuilder.Vertex>.Shared.Rent(vertexCount);
+            var indexArray = IndexArrayPool.Rent(tubeIndexCount);
 
-            if (!CableMeshBuilder.BuildTubeMesh(ringPositions, ringSamples, roundness, circumference, vertices, indices))
+            try
             {
-                indexCount = 0;
-                return;
-            }
+                BuildRings(positions, chain, levels, repeats, ringPositions, ringSamples);
 
-            var stride = Marshal.SizeOf<CableMeshBuilder.Vertex>();
-            var vertexArray = vertices.ToArray();
-            var indexArray = indices.ToArray();
-            GL.NamedBufferData(vertexBufferHandle, vertexArray.Length * stride, vertexArray, BufferUsageHint.DynamicDraw);
-            GL.NamedBufferData(indexBufferHandle, indexArray.Length * sizeof(uint), indexArray, BufferUsageHint.DynamicDraw);
-            indexCount = indexArray.Length;
+                if (!CableMeshBuilder.BuildTubeMesh(ringPositions.AsSpan(0, ringCount), ringSamples.AsSpan(0, ringCount),
+                    sides, circumference, vertexArray.AsSpan(0, vertexCount), indexArray.AsSpan(0, tubeIndexCount)))
+                {
+                    indexCount = 0;
+                    return;
+                }
+
+                var stride = Marshal.SizeOf<CableMeshBuilder.Vertex>();
+                GL.NamedBufferData(vertexBufferHandle, vertexCount * stride, vertexArray, BufferUsageHint.DynamicDraw);
+                GL.NamedBufferData(indexBufferHandle, tubeIndexCount * sizeof(uint), indexArray, BufferUsageHint.DynamicDraw);
+                indexCount = tubeIndexCount;
+            }
+            finally
+            {
+                ArrayPool<Vector3>.Shared.Return(ringPositions);
+                ArrayPool<RopeSample>.Shared.Return(ringSamples);
+                ArrayPool<CableMeshBuilder.Vertex>.Shared.Return(vertexArray);
+                IndexArrayPool.Return(indexArray);
+            }
 
             DrawTube();
         }
@@ -293,12 +321,11 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
         }
 
         // Expands each particle segment into 2^level rings, interpolating position/radius/colour/U.
+        // Fills exactly TotalRings entries of the (pooled, possibly larger) output arrays.
         private static void BuildRings(Vector3[] positions, (int Id, Vector3 Position, float Radius, Vector3 Color)[] chain,
-            int[] levels, float repeats, out List<Vector3> ringPositions, out List<RopeSample> ringSamples)
+            int[] levels, float repeats, Vector3[] ringPositions, RopeSample[] ringSamples)
         {
-            var total = TotalRings(positions.Length, levels);
-            ringPositions = new List<Vector3>(total);
-            ringSamples = new List<RopeSample>(total);
+            var cursor = 0;
 
             for (var i = 0; i < levels.Length; i++)
             {
@@ -307,19 +334,20 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
                 {
                     var t = s / (float)subdivisions;
                     var position = Vector3.Lerp(positions[i], positions[i + 1], t);
-                    ringPositions.Add(position);
+                    ringPositions[cursor] = position;
 
                     // Particles are roughly evenly spaced, so index-based U tracks arc length.
-                    ringSamples.Add(new RopeSample(position,
+                    ringSamples[cursor] = new RopeSample(position,
                         float.Lerp(chain[i].Radius, chain[i + 1].Radius, t),
                         Vector3.Lerp(chain[i].Color, chain[i + 1].Color, t),
-                        (i + t) * repeats, false));
+                        (i + t) * repeats, false);
+                    cursor++;
                 }
             }
 
             var last = positions.Length - 1;
-            ringPositions.Add(positions[last]);
-            ringSamples.Add(new RopeSample(positions[last], chain[last].Radius, chain[last].Color, last * repeats, false));
+            ringPositions[cursor] = positions[last];
+            ringSamples[cursor] = new RopeSample(positions[last], chain[last].Radius, chain[last].Color, last * repeats, false);
         }
 
         // Prefers the probe volume containing the cable midpoint, falling back to the binding the
