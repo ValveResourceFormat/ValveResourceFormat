@@ -30,7 +30,7 @@ namespace ValveResourceFormat.Blocks
         /// nodes. The attribute arrays are looked up by name; <c>float[]</c> and <c>Vector3[]</c> are
         /// the supported element types.
         /// </summary>
-        public static ParticleSnapshot CreateRuntime(uint numParticles, IReadOnlyDictionary<(string Name, string Type), IEnumerable> attributeData)
+        public static ParticleSnapshot Create(uint numParticles, IReadOnlyDictionary<(string Name, string Type), IEnumerable> attributeData)
             => new()
             {
                 Resource = null!,

@@ -154,7 +154,7 @@ namespace ValveResourceFormat.Renderer.SceneNodes
                 [("force_scale", "float")] = forceScale,
             };
 
-            return ParticleSnapshot.CreateRuntime((uint)count, attributes);
+            return ParticleSnapshot.Create((uint)count, attributes);
         }
 
         private static (ParticleSystem? System, int MaxParticles) LoadEffect(Scene scene, Entity entity)

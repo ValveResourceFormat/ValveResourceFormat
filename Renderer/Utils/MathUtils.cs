@@ -92,8 +92,6 @@ namespace ValveResourceFormat.Renderer.Utils
 
         /// <summary>
         /// Evaluates a cubic Bezier curve at <paramref name="t"/> in [0, 1].
-        /// Used for the authored <c>path_particle_rope</c> spline, with control points
-        /// <c>(pos_i, pos_i + outTangent_i, pos_{i+1} + inTangent_{i+1}, pos_{i+1})</c>.
         /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static Vector3 CubicBezier(Vector3 p0, Vector3 p1, Vector3 p2, Vector3 p3, float t)
