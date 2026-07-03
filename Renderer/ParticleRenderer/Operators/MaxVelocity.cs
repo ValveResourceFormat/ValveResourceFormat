@@ -32,11 +32,11 @@ namespace ValveResourceFormat.Renderer.Particles.Operators
                 var speed = particle.Velocity.Length();
                 if (speed > maxVelocity)
                 {
-                    particle.Velocity = Vector3.Normalize(particle.Velocity) * maxVelocity;
+                    particle.Velocity *= maxVelocity / speed;
                 }
-                else if (speed < minVelocity)
+                else if (speed > 0f && speed < minVelocity)
                 {
-                    particle.Velocity = Vector3.Normalize(particle.Velocity) * minVelocity;
+                    particle.Velocity *= minVelocity / speed;
                 }
                 else
                 {

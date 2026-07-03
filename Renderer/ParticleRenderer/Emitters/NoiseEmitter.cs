@@ -38,6 +38,7 @@ namespace ValveResourceFormat.Renderer.Particles.Emitters
             this.particleEmitCallback = particleEmitCallback;
 
             time = 0f;
+            particlesToEmit = 0f;
 
             IsFinished = false;
         }
@@ -68,8 +69,9 @@ namespace ValveResourceFormat.Renderer.Particles.Emitters
                 var emissionMaxValue = emissionMax.NextNumber(particleSystemState);
                 var emissionRate = emissionMinValue + noise * (emissionMaxValue - emissionMinValue);
 
-                // Aggregate emission into num of particles to emit
-                particlesToEmit += Math.Clamp(emissionRate, 0, emissionMaxValue) * frameTime; // Limit the amount of particles to emit at once in case of refocus
+                // Aggregate emission into num of particles to emit.
+                // Min/Max instead of Clamp because a negative m_flOutputMax must not throw.
+                particlesToEmit += Math.Max(0f, Math.Min(emissionRate, emissionMaxValue)) * frameTime; // Limit the amount of particles to emit at once in case of refocus
 
                 // If nr of particles to emit is > 0, emit it
                 while (particlesToEmit > 1.0f)

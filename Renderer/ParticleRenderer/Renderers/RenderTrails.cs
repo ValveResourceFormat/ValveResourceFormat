@@ -168,7 +168,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
                 var position = particle.Position;
                 var previousPosition = particle.GetVector(prevPositionSource);
                 var difference = previousPosition - position;
-                var direction = Vector3.Normalize(difference);
+                var direction = difference == Vector3.Zero ? Vector3.UnitY : Vector3.Normalize(difference);
 
                 var midPoint = position + (0.5f * difference);
 
@@ -184,11 +184,12 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
                 // Center the particle at the midpoint between the two points
                 var translationMatrix = Matrix4x4.CreateTranslation(Vector3.UnitY * animatedLength);
 
-                // Calculate rotation matrix
-
-                var axis = Vector3.Normalize(Vector3.Cross(Vector3.UnitY, direction));
-                var angle = MathF.Acos(direction.Y);
-                var rotationMatrix = Matrix4x4.CreateFromAxisAngle(axis, angle);
+                // Rotate the quad from its default +Y orientation to the trail direction. When they
+                // are parallel the cross product is zero and there is no unique rotation axis.
+                var cross = Vector3.Cross(Vector3.UnitY, direction);
+                var rotationMatrix = cross == Vector3.Zero
+                    ? (direction.Y < 0f ? Matrix4x4.CreateFromAxisAngle(Vector3.UnitX, MathF.PI) : Matrix4x4.Identity)
+                    : Matrix4x4.CreateFromAxisAngle(Vector3.Normalize(cross), MathF.Acos(Math.Clamp(direction.Y, -1f, 1f)));
 
                 var modelMatrix = orientationType == ParticleOrientation.PARTICLE_ORIENTATION_SCREEN_ALIGNED
                     ? Matrix4x4.Multiply(scaleMatrix, Matrix4x4.Multiply(translationMatrix, rotationMatrix))

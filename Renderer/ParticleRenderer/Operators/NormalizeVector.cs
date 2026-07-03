@@ -20,6 +20,13 @@ namespace ValveResourceFormat.Renderer.Particles.Operators
             foreach (ref var particle in particles.Current)
             {
                 var vector = particle.GetVector(OutputField);
+
+                // A zero vector has no direction to normalize
+                if (vector == Vector3.Zero)
+                {
+                    continue;
+                }
+
                 vector = Vector3.Normalize(vector) * Scale;
 
                 particle.SetVector(OutputField, vector);

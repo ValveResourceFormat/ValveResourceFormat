@@ -69,30 +69,24 @@ namespace ValveResourceFormat.Renderer.Particles.Initializers
             {
                 var relativeParticleNumber = currentNumber++ % numPointsOnPath;
 
-                var numPathNodes = closedLoop
-                    ? pointList.Count + 1
-                    : pointList.Count;
+                // An open path interpolates across Count - 1 segments; a closed loop has one
+                // extra segment wrapping back to the first point
+                var numPathSegments = closedLoop
+                    ? pointList.Count
+                    : pointList.Count - 1;
 
-                // Percentage of path completed / 100
+                // Percentage of path completed
                 var pathCompletion = relativeParticleNumber / (float)numPointsOnPath;
 
-                // Get the ID of the first of the two points we're interpolating between. A closed loop
-                // treats the segment past the last node as wrapping back to node 0; an open path clamps.
-                var firstPointID = (int)MathF.Floor(pathCompletion * numPathNodes);
+                var scaledCompletion = pathCompletion * numPathSegments;
 
-                var pos1 = closedLoop
-                    ? pointList[firstPointID % pointList.Count].GetPosition(particleSystem)
-                    : pointList[Math.Min(firstPointID, pointList.Count - 1)].GetPosition(particleSystem);
+                // Get the ID of the first of the two points we're interpolating between
+                var firstPointID = (int)MathF.Floor(scaledCompletion);
 
-                var pos2 = closedLoop
-                    ? pointList[(firstPointID + 1) % pointList.Count].GetPosition(particleSystem)
-                    : pointList[Math.Min(firstPointID + 1, pointList.Count - 1)].GetPosition(particleSystem);
+                var pos1 = pointList[firstPointID].GetPosition(particleSystem);
+                var pos2 = pointList[(firstPointID + 1) % pointList.Count].GetPosition(particleSystem);
 
-                // I think this is right?
-                var point1Percent = (float)firstPointID / numPathNodes;
-                var point2Percent = (float)(firstPointID + 1) / numPathNodes;
-
-                var relativeBlend = MathUtils.Remap(pathCompletion, point1Percent, point2Percent);
+                var relativeBlend = scaledCompletion - firstPointID;
 
                 return Vector3.Lerp(pos1, pos2, relativeBlend);
             }

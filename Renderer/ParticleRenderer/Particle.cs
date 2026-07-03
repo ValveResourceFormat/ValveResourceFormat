@@ -64,12 +64,12 @@ namespace ValveResourceFormat.Renderer.Particles
             readonly get => Vector3.Transform(new Vector3(0, 0, 1), GetRotationMatrix());
             set
             {
-                var normal = Vector3.Normalize(value);
-
-                if (normal == Vector3.Zero)
+                if (value == Vector3.Zero)
                 {
                     return;
                 }
+
+                var normal = Vector3.Normalize(value);
 
                 var yaw = MathF.Atan2(normal.X, normal.Z);
                 var pitch = MathF.Asin(Math.Clamp(normal.Y, -1f, 1f));
