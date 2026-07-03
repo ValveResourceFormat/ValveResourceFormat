@@ -279,15 +279,6 @@ namespace ValveResourceFormat.Renderer.SceneNodes
                 return;
             }
 
-            foreach (var reserved in context.Textures)
-            {
-                if (reserved.Slot == ReservedTextureSlots.ShadowDepthBufferDepth)
-                {
-                    particleRenderer.SunShadowDepth = reserved.Texture;
-                    break;
-                }
-            }
-
             particleRenderer.Render(context.Camera);
         }
 

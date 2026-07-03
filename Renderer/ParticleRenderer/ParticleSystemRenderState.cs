@@ -21,9 +21,6 @@ namespace ValveResourceFormat.Renderer.Particles
         /// </summary>
         public SceneNode? OwnerNode => Data?.OwnerNode ?? ParentSystem?.OwnerNode;
 
-        /// <summary>The sun shadow-map depth texture, inherited from the parent system.</summary>
-        public RenderTexture? SunShadowDepth => Data?.SunShadowDepth ?? ParentSystem?.SunShadowDepth;
-
         private int detailLevel = 3;
 
         /// <summary>

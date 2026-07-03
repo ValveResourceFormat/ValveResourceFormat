@@ -55,9 +55,6 @@ namespace ValveResourceFormat.Renderer.Particles
         /// </summary>
         public SceneNode? OwnerNode { get; set; }
 
-        /// <summary>The sun shadow-map depth texture for the current frame, set by the owning scene node.</summary>
-        public RenderTexture? SunShadowDepth { get; set; }
-
         public string Name { get; set; }
         public int BehaviorVersion { get; }
 

@@ -78,7 +78,11 @@ namespace ValveResourceFormat.Renderer.Materials
     [DebuggerDisplay("{Material.Name} ({Shader.Name})")]
     public class RenderMaterial
     {
-        private const int TextureUnitStart = (int)ReservedTextureSlots.Last + 1;
+        /// <summary>
+        /// First non-reserved texture unit. Material (per-draw) textures bind here and above so the
+        /// globally bound <see cref="ReservedTextureSlots"/> textures stay intact.
+        /// </summary>
+        public const int TextureUnitStart = (int)ReservedTextureSlots.Last + 1;
 
         /// <summary>Gets a value used to bucket this material into draw-call sort bins; derived from the shader program handle and a random offset.</summary>
         public int SortId { get; }

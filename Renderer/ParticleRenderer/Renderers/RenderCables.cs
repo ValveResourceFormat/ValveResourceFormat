@@ -31,7 +31,6 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
         // scene computes the bindings after all nodes are loaded.
         private SceneLightProbe? lightProbe;
         private bool lightProbeResolved;
-        private RenderTexture? sunShadowDepth;
 
         private const int MaxTessellationLevel = 7;
         private const int MaxTubeRings = 8192;
@@ -158,8 +157,6 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
             {
                 ResolveLightProbe(systemRenderState, chain[chain.Length / 2].Position);
             }
-
-            sunShadowDepth = systemRenderState.SunShadowDepth;
 
             positionsScratch = EnsureSize(positionsScratch, count);
             radiiScratch = EnsureSize(radiiScratch, count);
@@ -442,7 +439,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
 
             shader.Use();
             GL.BindVertexArray(vaoHandle);
-            shader.SetTexture(0, "g_tColor", texture);
+            shader.SetTexture(RenderMaterial.TextureUnitStart, "g_tColor", texture);
             shader.SetUniform1("g_flRoughness", roughness);
             shader.SetUniform1("g_flDiffuseAmount", diffuseAmount);
             shader.SetUniform1("g_flSelfIllumAmount", selfIllumAmount);
@@ -463,15 +460,8 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
                     shader.SetTexture((int)ReservedTextureSlots.Probe2, "g_tLPV_Shadows", lightProbe.DirectLightShadows);
                 }
             }
-
-            // Dynamic sun shadow map (bound per frame by the owning scene node); lets moving casters shadow the cable.
-            if (sunShadowDepth is { } sunShadow)
-            {
-                shader.SetTexture((int)ReservedTextureSlots.ShadowDepthBufferDepth, "g_tShadowDepthBufferDepth", sunShadow);
-            }
-
-            // Cubemap fog samples a reserved-slot texture the mesh pass binds per shader; this pass must
-            // bind it itself. Gradient fog needs no texture.
+            // The cubemap fog texture is per-scene (FogInfo), not in the scene's global reserved-texture
+            // list, so this pass binds it itself. Gradient fog needs no texture.
             var fogCube = scene.FogInfo.CubemapFog?.CubemapFogTexture;
             if (fogCube != null)
             {
