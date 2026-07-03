@@ -73,7 +73,8 @@ namespace ValveResourceFormat.Renderer.Particles
                 var normal = Vector3.Normalize(value);
 
                 var yaw = MathF.Atan2(normal.X, normal.Z);
-                var pitch = MathF.Asin(Math.Clamp(normal.Y, -1f, 1f));
+                // The getter yields Y = -sin(pitch), so the pitch must be negated here for get/set round trips
+                var pitch = MathF.Asin(-Math.Clamp(normal.Y, -1f, 1f));
                 Rotation = new Vector3(yaw, pitch, Rotation.Z);
             }
         }
