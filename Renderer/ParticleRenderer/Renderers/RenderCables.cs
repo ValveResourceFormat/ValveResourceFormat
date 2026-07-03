@@ -43,15 +43,17 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
         private readonly int minTessellation = 1;
         private readonly int maxTessellation = 128;
 
-        // Cached tube so a settled/static cable is not re-tessellated every frame.
+        // Cached tube so a settled/static cable is not re-tessellated every frame. The arrays are
+        // grow-only; only the first lastCount (lastCount - 1 for levels) entries are valid.
         private int indexCount;
+        private int lastCount;
         private Vector3[] lastPositions = [];
         private int[] lastLevels = [];
         private float[] lastRadii = [];
         private Vector3[] lastColors = [];
 
-        // Per-frame scratch reused across frames so a settled cable allocates nothing; each is sized to the
-        // live particle (or segment) count and only reallocated when that count changes.
+        // Per-frame scratch reused across frames so a settled cable allocates nothing. Grow-only,
+        // sliced to the live particle (or segment) count each frame.
         private (int Id, Vector3 Position, float Radius, Vector3 Color)[] chainScratch = [];
         private Vector3[] positionsScratch = [];
         private float[] radiiScratch = [];
@@ -134,37 +136,34 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
             if (particles.Count < 2)
             {
                 indexCount = 0;
-                lastPositions = [];
-                lastLevels = [];
-                lastRadii = [];
-                lastColors = [];
+                lastCount = 0;
                 return;
             }
 
             // Order the live particles along the rope by particle id; prune compaction can reshuffle slots.
             var count = particles.Count;
-            chainScratch = EnsureSize(chainScratch, count);
-            var chain = chainScratch;
+            chainScratch = EnsureCapacity(chainScratch, count);
+            var chain = chainScratch.AsSpan(0, count);
             var index = 0;
             foreach (ref var particle in particles.Current)
             {
                 chain[index++] = (particle.ParticleID, particle.Position, particle.Radius, particle.Color);
             }
 
-            Array.Sort(chain, ChainComparer);
+            chain.Sort(ChainComparer);
 
             if (!lightProbeResolved)
             {
-                ResolveLightProbe(systemRenderState, chain[chain.Length / 2].Position);
+                ResolveLightProbe(systemRenderState, chain[count / 2].Position);
             }
 
-            positionsScratch = EnsureSize(positionsScratch, count);
-            radiiScratch = EnsureSize(radiiScratch, count);
-            colorsScratch = EnsureSize(colorsScratch, count);
-            var positions = positionsScratch;
-            var radii = radiiScratch;
-            var colors = colorsScratch;
-            for (var i = 0; i < chain.Length; i++)
+            positionsScratch = EnsureCapacity(positionsScratch, count);
+            radiiScratch = EnsureCapacity(radiiScratch, count);
+            colorsScratch = EnsureCapacity(colorsScratch, count);
+            var positions = positionsScratch.AsSpan(0, count);
+            var radii = radiiScratch.AsSpan(0, count);
+            var colors = colorsScratch.AsSpan(0, count);
+            for (var i = 0; i < count; i++)
             {
                 positions[i] = chain[i].Position;
                 radii[i] = chain[i].Radius;
@@ -179,10 +178,15 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
                 return;
             }
 
-            lastPositions = CopyInto(lastPositions, positions);
-            lastLevels = CopyInto(lastLevels, levels);
-            lastRadii = CopyInto(lastRadii, radii);
-            lastColors = CopyInto(lastColors, colors);
+            lastCount = count;
+            lastPositions = EnsureCapacity(lastPositions, count);
+            lastLevels = EnsureCapacity(lastLevels, count - 1);
+            lastRadii = EnsureCapacity(lastRadii, count);
+            lastColors = EnsureCapacity(lastColors, count);
+            positions.CopyTo(lastPositions);
+            levels.CopyTo(lastLevels);
+            radii.CopyTo(lastRadii);
+            colors.CopyTo(lastColors);
 
             var repeatsPerSegment = textureRepeatsPerSegment.NextNumber(systemRenderState);
             if (repeatsPerSegment == 0f)
@@ -245,17 +249,18 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
         /// power-of-two subdivision count within [m_nMinTesselation, m_nMaxTesselation], bumped one or two
         /// levels where adjacent segments bend sharply.
         /// </summary>
-        private int[] ComputeTessellationLevels(Vector3[] positions, (int Id, Vector3 Position, float Radius, Vector3 Color)[] chain, Camera camera)
+        private Span<int> ComputeTessellationLevels(ReadOnlySpan<Vector3> positions,
+            ReadOnlySpan<(int Id, Vector3 Position, float Radius, Vector3 Color)> chain, Camera camera)
         {
             var segmentCount = positions.Length - 1;
-            levelsScratch = EnsureSize(levelsScratch, segmentCount);
-            var levels = levelsScratch;
+            levelsScratch = EnsureCapacity(levelsScratch, segmentCount);
+            var levels = levelsScratch.AsSpan(0, segmentCount);
 
             // Scaled against a 1920 reference resolution, in integer math.
             var resolutionScale = (int)camera.WindowSize.Y * 64 / 1920;
 
-            directionsScratch = EnsureSize(directionsScratch, segmentCount);
-            var directions = directionsScratch;
+            directionsScratch = EnsureCapacity(directionsScratch, segmentCount);
+            var directions = directionsScratch.AsSpan(0, segmentCount);
             for (var i = 0; i < segmentCount; i++)
             {
                 var direction = positions[i + 1] - positions[i];
@@ -305,7 +310,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
             return levels;
         }
 
-        private static int TotalRings(int nodeCount, int[] levels)
+        private static int TotalRings(int nodeCount, ReadOnlySpan<int> levels)
         {
             var total = nodeCount;
             foreach (var level in levels)
@@ -318,8 +323,8 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
 
         // Expands each particle segment into 2^level rings, interpolating position/radius/colour/U.
         // Fills exactly TotalRings entries of the (pooled, possibly larger) output arrays.
-        private static void BuildRings(Vector3[] positions, (int Id, Vector3 Position, float Radius, Vector3 Color)[] chain,
-            int[] levels, float repeats, Vector3[] ringPositions, RopeSample[] ringSamples)
+        private static void BuildRings(ReadOnlySpan<Vector3> positions, ReadOnlySpan<(int Id, Vector3 Position, float Radius, Vector3 Color)> chain,
+            ReadOnlySpan<int> levels, float repeats, Vector3[] ringPositions, RopeSample[] ringSamples)
         {
             var cursor = 0;
 
@@ -398,37 +403,18 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
             return best;
         }
 
-        private bool GeometryChanged(Vector3[] positions, int[] levels, float[] radii, Vector3[] colors)
+        private bool GeometryChanged(ReadOnlySpan<Vector3> positions, ReadOnlySpan<int> levels, ReadOnlySpan<float> radii, ReadOnlySpan<Vector3> colors)
         {
-            if (positions.Length != lastPositions.Length || !levels.AsSpan().SequenceEqual(lastLevels)
-                || !radii.AsSpan().SequenceEqual(lastRadii) || !colors.AsSpan().SequenceEqual(lastColors))
-            {
-                return true;
-            }
-
-            for (var i = 0; i < positions.Length; i++)
-            {
-                if (positions[i] != lastPositions[i])
-                {
-                    return true;
-                }
-            }
-
-            return false;
+            // The count check guards the slices below: when it passes, lastCount >= 2.
+            return positions.Length != lastCount
+                || !levels.SequenceEqual(lastLevels.AsSpan(0, lastCount - 1))
+                || !radii.SequenceEqual(lastRadii.AsSpan(0, lastCount))
+                || !colors.SequenceEqual(lastColors.AsSpan(0, lastCount))
+                || !positions.SequenceEqual(lastPositions.AsSpan(0, lastCount));
         }
 
-        private static T[] EnsureSize<T>(T[] buffer, int size) => buffer.Length == size ? buffer : new T[size];
-
-        private static T[] CopyInto<T>(T[] target, T[] source)
-        {
-            if (target.Length != source.Length)
-            {
-                target = new T[source.Length];
-            }
-
-            Array.Copy(source, target, source.Length);
-            return target;
-        }
+        // Grow-only: reused buffers are sliced to the live count, so shrinking never reallocates.
+        private static T[] EnsureCapacity<T>(T[] buffer, int size) => buffer.Length >= size ? buffer : new T[size];
 
         private void DrawTube()
         {
@@ -444,6 +430,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
             shader.SetUniform1("g_flDiffuseAmount", diffuseAmount);
             shader.SetUniform1("g_flSelfIllumAmount", selfIllumAmount);
 
+            // todo: not hardcode this here.
             if (lightProbe?.Irradiance is { } irradiance)
             {
                 shader.SetUniform1("uLightProbeIndex", (uint)lightProbe.ShaderIndex);
