@@ -2,7 +2,7 @@ namespace ValveResourceFormat.Renderer.Particles.Operators
 {
     /// <summary>
     /// Linearly ramps a scalar particle attribute by a constant rate per second within a
-    /// specified age window.
+    /// normalized-age window.
     /// </summary>
     /// <seealso href="https://s2v.app/SchemaExplorer/cs2/particles/C_OP_RampScalarLinearSimple">C_OP_RampScalarLinearSimple</seealso>
     class RampScalarLinearSimple : ParticleFunctionOperator
@@ -24,9 +24,9 @@ namespace ValveResourceFormat.Renderer.Particles.Operators
         {
             foreach (ref var particle in particles.Current)
             {
-                if (particle.Age > startTime && particle.Age < endTime)
+                // The start/end window is in normalized age, like FadeInSimple.
+                if (particle.NormalizedAge > startTime && particle.NormalizedAge < endTime)
                 {
-                    // Yeah this would change exponentially. Blame valve
                     particle.SetScalar(field, particle.GetScalar(field) + rate * frameTime);
                 }
             }

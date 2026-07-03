@@ -17,7 +17,7 @@ namespace ValveResourceFormat.Renderer.Particles.Emitters
         public abstract void Stop();
 
         /// <summary>Called each frame to emit particles based on elapsed time.</summary>
-        public abstract void Emit(float frameTime);
+        public abstract void Emit(float frameTime, ParticleSystemRenderState particleSystemState);
 
         /// <summary>Gets whether the emitter has finished emitting and will produce no more particles.</summary>
         public abstract bool IsFinished { get; protected set; }

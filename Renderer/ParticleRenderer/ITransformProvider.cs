@@ -55,7 +55,19 @@ namespace ValveResourceFormat.Renderer.Particles
             var cp = renderState.GetControlPoint(controlPoint);
             var position = cp.Position;
 
-            if (!useOrientation || cp.Orientation == Vector3.Zero)
+            if (!useOrientation)
+            {
+                return Matrix4x4.CreateTranslation(position);
+            }
+
+            // A full rotation (e.g. from a map entity's angles) can express frames a bare forward
+            // vector cannot; prefer it when the control point carries one.
+            if (cp.Rotation is { } fullRotation)
+            {
+                return Matrix4x4.CreateFromQuaternion(fullRotation) * Matrix4x4.CreateTranslation(position);
+            }
+
+            if (cp.Orientation == Vector3.Zero)
             {
                 return Matrix4x4.CreateTranslation(position);
             }
@@ -74,6 +86,18 @@ namespace ValveResourceFormat.Renderer.Particles
 
             return rotation * Matrix4x4.CreateTranslation(position);
         }
+
+        /// <summary>
+        /// Transforms a local offset into control point <paramref name="cp"/>'s frame (rotation + translation).
+        /// </summary>
+        public static Vector3 TransformPosition(ParticleSystemRenderState state, int cp, Vector3 localOffset)
+            => Vector3.Transform(localOffset, new ControlPointTransformProvider(cp, true).NextTransform(ref Particle.Default, state));
+
+        /// <summary>
+        /// Rotates a local direction into control point <paramref name="cp"/>'s frame (rotation only, no translation).
+        /// </summary>
+        public static Vector3 TransformDirection(ParticleSystemRenderState state, int cp, Vector3 localDir)
+            => Vector3.TransformNormal(localDir, new ControlPointTransformProvider(cp, true).NextTransform(ref Particle.Default, state));
     }
 
     /// <summary>

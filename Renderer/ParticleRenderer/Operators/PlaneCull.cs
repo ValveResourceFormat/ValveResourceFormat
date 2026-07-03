@@ -9,21 +9,19 @@ namespace ValveResourceFormat.Renderer.Particles.Operators
     {
         private readonly int cp;
         private readonly float planeOffset;
-        private readonly Vector3 planeNormal = new(0, 0, 1);
+        private readonly IVectorProvider planeDirection = new LiteralVectorProvider(new Vector3(0, 0, 1));
         private readonly bool localSpace;
 
         public PlaneCull(ParticleDefinitionParser parse) : base(parse)
         {
             cp = parse.Int32("m_nPlaneControlPoint", cp);
 
-            planeNormal = Vector3.Normalize(parse.Vector3("m_vecPlaneDirection", planeNormal));
+            planeDirection = parse.VectorProvider("m_vecPlaneDirection", planeDirection);
 
             planeOffset = parse.Float("m_flPlaneOffset", planeOffset);
-
-            // currently does nothing
             localSpace = parse.Boolean("m_bLocalSpace", localSpace);
         }
-        private bool CulledByPlane(Vector3 position, ParticleSystemRenderState particleSystemState)
+        private bool CulledByPlane(Vector3 position, Vector3 planeNormal, ParticleSystemRenderState particleSystemState)
         {
             var pointOnPlane = particleSystemState.GetControlPoint(cp).Position;
 
@@ -35,9 +33,23 @@ namespace ValveResourceFormat.Renderer.Particles.Operators
         }
         public override void Operate(ParticleCollection particles, float frameTime, ParticleSystemRenderState particleSystemState)
         {
+            var direction = planeDirection.NextVector(particleSystemState);
+            if (direction == Vector3.Zero)
+            {
+                return;
+            }
+
+            // In local space the plane direction is authored in the control point's frame.
+            if (localSpace)
+            {
+                direction = ControlPointTransformProvider.TransformDirection(particleSystemState, cp, direction);
+            }
+
+            var planeNormal = Vector3.Normalize(direction);
+
             foreach (ref var particle in particles.Current)
             {
-                if (CulledByPlane(particle.Position, particleSystemState))
+                if (CulledByPlane(particle.Position, planeNormal, particleSystemState))
                 {
                     particle.Kill();
                 }

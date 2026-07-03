@@ -13,8 +13,8 @@ namespace ValveResourceFormat.Renderer.Particles.Operators
         private readonly Vector3 RateMax;
         private readonly Vector3 FrequencyMin = Vector3.One;
         private readonly Vector3 FrequencyMax = Vector3.One;
-        private readonly float oscillationMultiplier = 2.0f;
-        private readonly float oscillationOffset = 0.5f;
+        private readonly INumberProvider oscillationMultiplier = new LiteralNumberProvider(2.0f);
+        private readonly INumberProvider oscillationOffset = new LiteralNumberProvider(0.5f);
         private readonly bool proportional = true;
         private readonly bool proportionalOp = true;
 
@@ -30,8 +30,8 @@ namespace ValveResourceFormat.Renderer.Particles.Operators
             RateMax = parse.Vector3("m_RateMax", RateMax);
             FrequencyMin = parse.Vector3("m_FrequencyMin", FrequencyMin);
             FrequencyMax = parse.Vector3("m_FrequencyMax", FrequencyMax);
-            oscillationMultiplier = parse.Float("m_flOscMult", oscillationMultiplier);
-            oscillationOffset = parse.Float("m_flOscAdd", oscillationOffset);
+            oscillationMultiplier = parse.NumberProvider("m_flOscMult", oscillationMultiplier);
+            oscillationOffset = parse.NumberProvider("m_flOscAdd", oscillationOffset);
             proportional = parse.Boolean("m_bProportional", proportional);
             proportionalOp = parse.Boolean("m_bProportionalOp", proportionalOp);
             startTimeMin = parse.Float("m_flStartTime_min", startTimeMin);
@@ -42,15 +42,6 @@ namespace ValveResourceFormat.Renderer.Particles.Operators
 
         public override void Operate(ParticleCollection particles, float frameTime, ParticleSystemRenderState particleSystemState)
         {
-            // Remove expired particles
-            /*var particlesToRemove = particleRates.Keys.Except(particle).ToList();
-            foreach (var p in particlesToRemove)
-            {
-                particleRates.Remove(p);
-                particleFrequencies.Remove(p);
-            }*/
-
-            // Update remaining particles
             foreach (ref var particle in particles.Current)
             {
                 var rate = ParticleCollection.RandomBetweenPerComponent(particle.ParticleID, RateMin, RateMax);
@@ -65,25 +56,17 @@ namespace ValveResourceFormat.Renderer.Particles.Operators
                     var startTime = ParticleCollection.RandomBetween(particle.ParticleID, startTimeMin, startTimeMax);
                     var endTime = ParticleCollection.RandomBetween(particle.ParticleID, endTimeMin, endTimeMax);
 
-                    if (t < startTime)
-                    {
-                        t = startTime;
-                    }
-                    else if (t > endTime)
-                    {
-                        t = endTime;
-                    }
-                    else
-                    {
-
-                    }
-                    // todo. refer to fadeandkill
+                    // The randomized window bounds can come out inverted.
+                    t = Math.Clamp(t, Math.Min(startTime, endTime), Math.Max(startTime, endTime));
                 }
 
+                var multiplier = oscillationMultiplier.NextNumber(ref particle, particleSystemState);
+                var offset = oscillationOffset.NextNumber(ref particle, particleSystemState);
+
                 Vector3 delta;
-                delta.X = float.SinPi((t * frequency.X * oscillationMultiplier) + oscillationOffset);
-                delta.Y = float.SinPi((t * frequency.Y * oscillationMultiplier) + oscillationOffset);
-                delta.Z = float.SinPi((t * frequency.Z * oscillationMultiplier) + oscillationOffset);
+                delta.X = float.SinPi((t * frequency.X * multiplier) + offset);
+                delta.Y = float.SinPi((t * frequency.Y * multiplier) + offset);
+                delta.Z = float.SinPi((t * frequency.Z * multiplier) + offset);
 
                 var value = rate * frameTime * delta;
 

@@ -1,4 +1,4 @@
-using ValveKeyValue;
+﻿using ValveKeyValue;
 using ValveResourceFormat.Serialization.KeyValues;
 
 namespace ValveResourceFormat.Renderer.Particles.Utils
@@ -24,32 +24,6 @@ namespace ValveResourceFormat.Renderer.Particles.Utils
     }
     internal static class CurveFitting
     {
-        public static SplineCurve GetCoefficients(Vector2 pos1, Vector2 pos2)
-        {
-            /*var newVec = new Vector4(pos1.X, 0, pos2.X, 0);
-            Matrix4x4 matrix = new();
-
-            matrix.M11 = pos1.Y;
-            matrix.M12 = pos1.X;
-            matrix.M13 = pos2.Y;
-            matrix.M14 = pos1.X;
-
-            Matrix4x4.Invert(matrix, out var newMat);
-
-            var Coefficients = Vector4.Multiply(newVec * newMat);
-            */
-            // TODO
-            return new SplineCurve
-            {
-                Start = pos1,
-                End = pos2,
-                a = 0,
-                b = 0,
-                c = 0,
-                d = 0,
-            };
-        }
-
         public static SplineCurve GetCoefficients(CurvePoint p0, CurvePoint p1)
         {
             // Here we have to find the coefficients to use to interpolate between p0 and p1.
@@ -100,7 +74,8 @@ namespace ValveResourceFormat.Renderer.Particles.Utils
                 "CURVE_TANGENT_FREE" => TangentType.Free,
                 "CURVE_TANGENT_MIRROR" => TangentType.Mirror,
                 "CURVE_TANGENT_SINE" => TangentType.Sine,
-                _ => throw new NotImplementedException()
+                // Unknown tangent modes interpolate linearly.
+                _ => TangentType.Linear,
             };
         }
 
@@ -130,15 +105,17 @@ namespace ValveResourceFormat.Renderer.Particles.Utils
             var domainMax = curveInfo.GetFloatArray("m_vDomainMaxs");
 
             CurveDomainMin = new Vector2(domainMin[0], domainMin[1]);
-            CurveDomainMax = new Vector2(domainMax[0], domainMin[1]);
+            CurveDomainMax = new Vector2(domainMax[0], domainMax[1]);
 
-            // Gather curve points
+            // Gather curve points. The engine truncates both arrays to the shorter count when their
+            // lengths differ (m_tangents can be missing or short in old content).
             var splines = curveInfo.GetArray("m_spline");
-            var tangents = curveInfo.GetArray("m_tangents");
+            var tangents = curveInfo.ContainsKey("m_tangents") ? curveInfo.GetArray("m_tangents") : [];
+            var pointCount = Math.Min(splines.Count, tangents.Count);
 
-            var CurvePoints = new CurvePoint[splines.Count];
+            var CurvePoints = new CurvePoint[pointCount];
 
-            for (var i = 0; i < splines.Count; i++)
+            for (var i = 0; i < pointCount; i++)
             {
                 CurvePoints[i] = new CurvePoint
                 {
@@ -151,7 +128,7 @@ namespace ValveResourceFormat.Renderer.Particles.Utils
                 };
             }
 
-            CurveSegments = new SplineCurve[splines.Count - 1];
+            CurveSegments = new SplineCurve[Math.Max(0, pointCount - 1)];
 
             for (var i = 0; i < CurvePoints.Length - 1; i++)
             {
@@ -176,6 +153,11 @@ namespace ValveResourceFormat.Renderer.Particles.Utils
         }
         public float Evaluate(float value)
         {
+            if (CurveSegments.Length == 0)
+            {
+                return 0f;
+            }
+
             value = ClampToDomainSpace(value);
 
             // If coordinate is on/before the first point

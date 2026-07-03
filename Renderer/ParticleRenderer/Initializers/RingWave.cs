@@ -10,6 +10,8 @@ namespace ValveResourceFormat.Renderer.Particles.Initializers
         private readonly INumberProvider initialRadius = new LiteralNumberProvider(0);
         private readonly INumberProvider thickness = new LiteralNumberProvider(0);
         private readonly INumberProvider particlesPerOrbit = new LiteralNumberProvider(-1);
+        private readonly INumberProvider initialSpeedMin = new LiteralNumberProvider(0);
+        private readonly INumberProvider initialSpeedMax = new LiteralNumberProvider(0);
 
         private float orbitCount;
 
@@ -19,8 +21,10 @@ namespace ValveResourceFormat.Renderer.Particles.Initializers
             particlesPerOrbit = parse.NumberProvider("m_flParticlesPerOrbit", particlesPerOrbit);
             initialRadius = parse.NumberProvider("m_flInitialRadius", initialRadius);
             thickness = parse.NumberProvider("m_flThickness", thickness);
+            initialSpeedMin = parse.NumberProvider("m_flInitialSpeedMin", initialSpeedMin);
+            initialSpeedMax = parse.NumberProvider("m_flInitialSpeedMax", initialSpeedMax);
 
-            // other properties: m_vInitialSpeedMin/Max, m_flRoll
+            // other properties: m_flRoll
         }
 
         public override Particle Initialize(ref Particle particle, ParticleCollection particles, ParticleSystemRenderState particleSystemState)
@@ -30,20 +34,32 @@ namespace ValveResourceFormat.Renderer.Particles.Initializers
 
             var radius = initialRadius.NextNumber(ref particle, particleSystemState) + (Random.Shared.NextSingle() * thickness);
 
-            var angle = GetNextAngle(particlesPerOrbit);
+            var angle = GetNextAngle(particlesPerOrbit, particles.Capacity);
+            var radialDirection = new Vector3(MathF.Cos(angle), MathF.Sin(angle), 0);
 
-            particle.Position += radius * new Vector3(MathF.Cos(angle), MathF.Sin(angle), 0);
+            particle.Position += radius * radialDirection;
+
+            // Initial speed pushes outward along the ring direction (positive = outward).
+            var speedMin = initialSpeedMin.NextNumber(ref particle, particleSystemState);
+            var speedMax = initialSpeedMax.NextNumber(ref particle, particleSystemState);
+            if (speedMin != 0f || speedMax != 0f)
+            {
+                particle.Velocity += radialDirection * ParticleSystemRenderState.RandomFloat(speedMin, speedMax);
+            }
 
             return particle;
         }
 
-        private float GetNextAngle(int particlesPerOrbit)
+        private float GetNextAngle(int particlesPerOrbit, int maxParticles)
         {
             if (evenDistribution)
             {
-                var offset = orbitCount / particlesPerOrbit;
+                // -1 falls back to the collection's maximum particle count.
+                var perOrbit = Math.Max(1, particlesPerOrbit == -1 ? maxParticles : particlesPerOrbit);
 
-                orbitCount = (orbitCount + 1) % particlesPerOrbit;
+                var offset = orbitCount / perOrbit;
+
+                orbitCount = (orbitCount + 1) % perOrbit;
 
                 return offset * MathF.Tau;
             }

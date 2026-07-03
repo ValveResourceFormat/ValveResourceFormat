@@ -1,5 +1,3 @@
-using ValveResourceFormat.Renderer.Particles.Operators;
-
 namespace ValveResourceFormat.Renderer.Particles.ForceGenerators;
 
 /// <summary>
@@ -7,10 +5,10 @@ namespace ValveResourceFormat.Renderer.Particles.ForceGenerators;
 /// Noise frequency, amplitude, and overall strength are configurable.
 /// </summary>
 /// <seealso href="https://s2v.app/SchemaExplorer/cs2/particles/C_OP_CurlNoiseForce">C_OP_CurlNoiseForce</seealso>
-class CurlNoiseForce : ParticleFunctionOperator
+class CurlNoiseForce : ParticleFunctionForceGenerator
 {
-    private readonly IVectorProvider NoiseFrequency = new LiteralVectorProvider(Vector3.One);
-    private readonly IVectorProvider NoiseScale = new LiteralVectorProvider(Vector3.One);
+    private readonly IVectorProvider NoiseFrequency = new LiteralVectorProvider(new Vector3(0.02f));
+    private readonly IVectorProvider NoiseScale = new LiteralVectorProvider(new Vector3(1000f));
     private readonly INumberProvider Strength = new LiteralNumberProvider(1.0f);
 
     public CurlNoiseForce(ParticleDefinitionParser parse) : base(parse)
@@ -20,11 +18,11 @@ class CurlNoiseForce : ParticleFunctionOperator
         Strength = parse.NumberProvider("m_flOpStrength", Strength);
     }
 
-    public override void Operate(ParticleCollection particles, float frameTime, ParticleSystemRenderState particleSystemState)
+    public override void GenerateForces(ParticleCollection particles, float frameTime, ParticleSystemRenderState particleSystemState, float strength)
     {
         var freq = NoiseFrequency.NextVector(particleSystemState);
         var scale = NoiseScale.NextVector(particleSystemState);
-        var strength = Strength.NextNumber(particleSystemState);
+        strength *= Strength.NextNumber(particleSystemState);
 
         foreach (ref var particle in particles.Current)
         {
@@ -37,7 +35,7 @@ class CurlNoiseForce : ParticleFunctionOperator
             // Apply scale and strength
             var force = curl * scale * strength;
 
-            particle.Velocity += force * frameTime;
+            particle.ForceAccumulator += force;
         }
     }
 

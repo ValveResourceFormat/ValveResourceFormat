@@ -23,7 +23,8 @@ namespace ValveResourceFormat.Renderer.Particles.Initializers
         public CreateAlongPath(ParticleDefinitionParser parse) : base(parse)
         {
             UseRandomCPs = parse.Boolean("m_bUseRandomCPs", UseRandomCPs);
-            MaxDistance = parse.Float("m_flMaxDistance", MaxDistance);
+            // Modern schema names it m_fMaxDistance; older content uses m_flMaxDistance.
+            MaxDistance = parse.Float("m_fMaxDistance", parse.Float("m_flMaxDistance", MaxDistance));
 
             // The functionality of this initializer relies on path params existing
             parse = new ParticleDefinitionParser(parse.Data.GetSubCollection("m_PathParams"), parse.Logger);

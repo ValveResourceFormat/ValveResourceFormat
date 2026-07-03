@@ -19,7 +19,6 @@ namespace ValveResourceFormat.Renderer.Particles.PreEmissionOperators
         private readonly bool setOnce;
         private readonly bool useWorldLocation;
         private readonly int CPOffset;
-        // The m_bUseWorldLocation parameter would set the CP positions in world space instead of object space. How do we do that?
 
         private bool HasRunBefore;
 

@@ -26,6 +26,13 @@ namespace ValveResourceFormat.Renderer.Particles
         public int Count { get; private set; }
 
         /// <summary>
+        /// Duration of the previous simulation step. BasicMovement scales the Verlet inertia
+        /// term by the current-to-previous step ratio so momentum stays framerate-independent; 0 until
+        /// the first step completes.
+        /// </summary>
+        public float PreviousFrameTime { get; internal set; }
+
+        /// <summary>
         /// Initializes a new <see cref="ParticleCollection"/> with the given constant particle template and capacity.
         /// </summary>
         public ParticleCollection(Particle constants, int maxParticles)

@@ -25,14 +25,19 @@ namespace ValveResourceFormat.Renderer.Particles.Initializers
 
         public override Particle Initialize(ref Particle particle, ParticleCollection particles, ParticleSystemRenderState particleSystemState)
         {
-            if (particleSystemState.ParentSystem == null || particleSystemState.ParentSystem.ParticleCount <= 0)
+            var parentData = particleSystemState.ParentSystem?.Data;
+            if (parentData == null)
             {
                 return particle;
             }
 
-            var parentCount = (int)particleSystemState.ParentSystem.ParticleCount;
-            var parentIndex = GetParentIndex(parentCount, particle.ParticleID);
+            var parentParticles = parentData.CurrentParticles;
+            if (parentParticles.Length == 0)
+            {
+                return particle;
+            }
 
+            var parentIndex = Math.Clamp(GetParentIndex(parentParticles.Length, particle.ParticleID), 0, parentParticles.Length - 1);
             particle.ParentParticleIndex = parentIndex;
 
             if (setRopeSegmentID)
@@ -40,7 +45,15 @@ namespace ValveResourceFormat.Renderer.Particles.Initializers
                 particle.Sequence2 = parentIndex;
             }
 
-            particle.Velocity *= velocityScale;
+            // The child spawns at the parent particle and inherits its velocity, derived from the parent's
+            // Verlet step; the emit path encodes it back into Position/PositionPrevious after initializers.
+            ref var parent = ref parentParticles[parentIndex];
+            var parentStep = parent.Position - parent.PositionPrevious;
+            var parentFrameTime = parentData.CurrentFrameTime;
+            particle.Position = parent.Position;
+            particle.Velocity = parentFrameTime > 0f
+                ? (parentStep / parentFrameTime) * velocityScale
+                : parent.Velocity * velocityScale;
 
             // Subframe interpolation is not supported yet in this renderer.
             _ = subFrame;
@@ -61,8 +74,10 @@ namespace ValveResourceFormat.Renderer.Particles.Initializers
                 return Math.Clamp((int)MathF.Floor(randomIndex), 0, parentCount - 1);
             }
 
-            var step = Math.Max(1, (int)MathF.Floor(increment));
-            return (particleId * step) % parentCount;
+            // Walk the parent list by the raw (possibly fractional) increment; the running
+            // index uses % which keeps the dividend's sign, so wrap explicitly.
+            var index = (int)MathF.Floor(particleId * increment);
+            return ((index % parentCount) + parentCount) % parentCount;
         }
     }
 }

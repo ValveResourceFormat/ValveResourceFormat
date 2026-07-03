@@ -1,4 +1,4 @@
-namespace ValveResourceFormat.Renderer.Particles.Initializers
+﻿namespace ValveResourceFormat.Renderer.Particles.Initializers
 {
     /// <summary>
     /// Places particles at random positions within a sphere defined by a minimum and maximum radius,
@@ -47,7 +47,6 @@ namespace ValveResourceFormat.Renderer.Particles.Initializers
                 localCoordinateSystemSpeedMax.NextVector(ref particle, particleSystemState));
 
             particle.Position += direction * distance;
-            particle.PositionPrevious = particle.Position;
             particle.Velocity = (direction * speed) + localCoordinateSystemSpeed;
 
             return particle;

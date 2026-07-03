@@ -923,6 +923,35 @@ namespace ValveResourceFormat.Renderer.World
                     WorldOffset = positionVector;
                 }
 
+                if (classname is "path_particle_rope" or "path_particle_rope_clientside")
+                {
+                    try
+                    {
+                        if (CableSceneNode.TryCreate(scene, entity, parentTransform, out var cable) && cable != null)
+                        {
+                            // The snapshot positions are already world-space (pathnodes placed by the parent
+                            // transform), so the node keeps an identity transform.
+                            cable.LayerName = "Particles";
+                            cable.EntityData = entity;
+                            scene.Add(cable, true);
+                        }
+                        else
+                        {
+                            RendererContext.Logger.LogWarning("Skipped degenerate path_particle_rope '{Target}' at ({Origin})",
+                                entity.GetStringProperty("targetname"), entity.GetStringProperty("origin"));
+                        }
+                    }
+                    catch (Exception e)
+                    {
+                        RendererContext.Logger.LogError(e, "Failed to setup path_particle_rope '{Target}'", entity.GetStringProperty("targetname"));
+                    }
+
+                    // A degenerate or failed cable renders nothing. Never fall through to the
+                    // generic effect_name path: without a runtime snapshot the cable vpcf loads its m_hSnapshot
+                    // editor-preview placeholder and draws a rope at the world origin.
+                    return;
+                }
+
                 if (particle != null)
                 {
                     var particleResource = RendererContext.FileLoader.LoadFileCompiled(particle);
@@ -930,8 +959,6 @@ namespace ValveResourceFormat.Renderer.World
 
                     if (particleSystem != null)
                     {
-                        var origin = new Vector3(positionVector.X, positionVector.Y, positionVector.Z);
-
                         try
                         {
                             ParticleSnapshot? particleSnapshot = null;
@@ -947,10 +974,14 @@ namespace ValveResourceFormat.Renderer.World
                                 }
                             }
 
+                            // The simulation runs in world space (the entity rotation reaches it through
+                            // control point 0), so the node transform must stay translation-only to keep
+                            // the bounding box wrapping the actual particles.
                             var particleNode = new ParticleSceneNode(scene, particleSystem, particleSnapshot)
                             {
                                 Name = particle,
-                                Transform = Matrix4x4.CreateTranslation(origin),
+                                Transform = Matrix4x4.CreateTranslation(transformationMatrix.Translation),
+                                ControlPointTransform = transformationMatrix,
                                 LayerName = "Particles",
                                 EntityData = entity,
                             };

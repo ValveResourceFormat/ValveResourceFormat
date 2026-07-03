@@ -13,7 +13,6 @@ namespace ValveResourceFormat.Renderer.Particles.PreEmissionOperators
         private readonly bool SetOnce;
         private readonly bool UseWorldLocation;
         private readonly int CPOffset;
-        // The m_bUseWorldLocation parameter would set the CP positions in world space instead of object space. How do we do that?
 
         private bool HasRunBefore;
 
@@ -30,12 +29,15 @@ namespace ValveResourceFormat.Renderer.Particles.PreEmissionOperators
         {
             if (!(SetOnce && HasRunBefore))
             {
-                // not fully accurate, as it's still in local space, but it's closer to correct
-                var controlPointOffset = UseWorldLocation
-                    ? Vector3.Zero
-                    : particleSystemState.GetControlPoint(CPOffset).Position;
+                var position = CP1Pos.NextVector(particleSystemState);
 
-                particleSystemState.SetControlPointValue(CP1, CP1Pos.NextVector(particleSystemState) + controlPointOffset);
+                if (!UseWorldLocation)
+                {
+                    // The position is an offset in the head control point's frame.
+                    position = ControlPointTransformProvider.TransformPosition(particleSystemState, CPOffset, position);
+                }
+
+                particleSystemState.SetControlPointValue(CP1, position);
 
                 HasRunBefore = true;
             }

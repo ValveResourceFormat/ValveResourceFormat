@@ -16,6 +16,26 @@ namespace ValveResourceFormat.Renderer.Particles
 
         public ParticleRenderer? Data { get; init; }
 
+        /// <summary>
+        /// The scene node the root system renders under; child systems inherit it from their parent.
+        /// </summary>
+        public SceneNode? OwnerNode => Data?.OwnerNode ?? ParentSystem?.OwnerNode;
+
+        /// <summary>The sun shadow-map depth texture, inherited from the parent system.</summary>
+        public RenderTexture? SunShadowDepth => Data?.SunShadowDepth ?? ParentSystem?.SunShadowDepth;
+
+        private int detailLevel = 3;
+
+        /// <summary>
+        /// Active particle detail tier (0 = Low .. 3 = Ultra) used by <c>PF_TYPE_PARTICLE_DETAIL_LEVEL</c>
+        /// inputs; child systems inherit the root system's level.
+        /// </summary>
+        public int DetailLevel
+        {
+            get => ParentSystem?.DetailLevel ?? detailLevel;
+            set => detailLevel = value;
+        }
+
         // Properties
         public long ParticleCount { get; set; }
         public float Age { get; set; }
@@ -57,6 +77,15 @@ namespace ValveResourceFormat.Renderer.Particles
             return point;
         }
 
+        /// <summary>
+        /// Gets the snapshot bound to a control point, preferring this system's own binding and
+        /// falling back to an ancestor so a child can read a snapshot inherited from a parent control point.
+        /// </summary>
+        public ValveResourceFormat.Blocks.ParticleSnapshot? GetControlPointSnapshot(int cp)
+        {
+            return Data?.GetControlPointSnapshot(cp) ?? ParentSystem?.GetControlPointSnapshot(cp);
+        }
+
         public void SetControlPoint(int cp, ControlPoint point)
         {
             if (ParentSystem != null)
@@ -83,13 +112,29 @@ namespace ValveResourceFormat.Renderer.Particles
         }
 
         /// <summary>
+        /// Records every control point's current position as its previous-step position. The root
+        /// system calls this once per simulation step, after all consumers have run.
+        /// </summary>
+        internal void SnapshotControlPointHistory()
+        {
+            foreach (var point in controlPoints.Values)
+            {
+                point.PositionPrevious = point.Position;
+            }
+        }
+
+        /// <summary>
         /// Set the orientation/direction of a control point in the particle system.
         /// </summary>
         /// <param name="cp">Control point index.</param>
         /// <param name="orientation">Orientation direction to assign.</param>
         public void SetControlPointOrientation(int cp, Vector3 orientation)
         {
-            GetControlPoint(cp).Orientation = orientation;
+            var point = GetControlPoint(cp);
+            point.Orientation = orientation;
+            // The setter only expresses a forward direction; drop any stale full rotation so
+            // consumers don't keep preferring an outdated frame.
+            point.Rotation = null;
         }
 
         /// <summary>
@@ -114,9 +159,22 @@ namespace ValveResourceFormat.Renderer.Particles
         public Vector3 Position { get; set; }
 
         /// <summary>
+        /// The position this control point had on the previous simulation step, used to derive the
+        /// control point's velocity.
+        /// </summary>
+        public Vector3 PositionPrevious { get; set; }
+
+        /// <summary>
         /// The orientation/direction of this control point.
         /// </summary>
         public Vector3 Orientation { get; set; }
+
+        /// <summary>
+        /// The full rotation of this control point, when the source supplies one (e.g. a map entity's
+        /// angles). Consumers fall back to synthesizing a frame from <see cref="Orientation"/> when unset,
+        /// since most operators only drive the forward direction.
+        /// </summary>
+        public Quaternion? Rotation { get; set; }
 
 
         /// <summary>
@@ -134,9 +192,9 @@ namespace ValveResourceFormat.Renderer.Particles
             component = Math.Clamp(component, 0, 2);
             Position = component switch
             {
-                0 => Position = new Vector3(value, Position.Y, Position.Z),
-                1 => Position = new Vector3(Position.X, value, Position.Z),
-                _ => Position = new Vector3(Position.X, Position.Y, value),
+                0 => new Vector3(value, Position.Y, Position.Z),
+                1 => new Vector3(Position.X, value, Position.Z),
+                _ => new Vector3(Position.X, Position.Y, value),
             };
         }
     }

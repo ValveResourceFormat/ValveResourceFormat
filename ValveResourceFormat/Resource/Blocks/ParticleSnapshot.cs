@@ -25,6 +25,19 @@ namespace ValveResourceFormat.Blocks
         /// </summary>
         public IReadOnlyDictionary<(string Name, string Type), IEnumerable> AttributeData { get; private set; } = new Dictionary<(string Name, string Type), IEnumerable>();
 
+        /// <summary>
+        /// Builds a snapshot in memory (not backed by a resource file), e.g. from a map entity's path
+        /// nodes. The attribute arrays are looked up by name; <c>float[]</c> and <c>Vector3[]</c> are
+        /// the supported element types.
+        /// </summary>
+        public static ParticleSnapshot CreateRuntime(uint numParticles, IReadOnlyDictionary<(string Name, string Type), IEnumerable> attributeData)
+            => new()
+            {
+                Resource = null!,
+                NumParticles = numParticles,
+                AttributeData = attributeData,
+            };
+
         /// <inheritdoc/>
         public override void WriteText(IndentedTextWriter writer)
         {

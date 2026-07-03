@@ -1,4 +1,4 @@
-using ValveResourceFormat.Serialization.KeyValues;
+﻿using ValveResourceFormat.Serialization.KeyValues;
 
 namespace ValveResourceFormat.Renderer.Particles.Initializers
 {
@@ -63,7 +63,6 @@ namespace ValveResourceFormat.Renderer.Particles.Initializers
 
             var position = particleSystemState.GetControlPoint(controlPoint).Position;
             particle.Position = position;
-            particle.PositionPrevious = position;
             particle.Velocity = Vector3.Zero;
 
             return particle;

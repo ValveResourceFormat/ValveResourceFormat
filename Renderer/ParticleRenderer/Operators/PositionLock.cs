@@ -19,7 +19,7 @@ namespace ValveResourceFormat.Renderer.Particles.Operators
         private readonly float instantJumpThreshold = 512f;
         private readonly float prevPosScale = 1f;
         private readonly bool lockRotation;
-        private readonly Vector3 componentScale = Vector3.One;
+        private readonly IVectorProvider componentScale = new LiteralVectorProvider(Vector3.One);
         private readonly ParticleField outputField = ParticleField.Position;
         private readonly ParticleField outputFieldPrev = ParticleField.PositionPrevious;
 
@@ -39,7 +39,7 @@ namespace ValveResourceFormat.Renderer.Particles.Operators
             instantJumpThreshold = parse.Float("m_flJumpThreshold", instantJumpThreshold);
             prevPosScale = parse.Float("m_flPrevPosScale", prevPosScale);
             lockRotation = parse.Boolean("m_bLockRot", lockRotation);
-            componentScale = parse.Vector3("m_vecScale", componentScale);
+            componentScale = parse.VectorProvider("m_vecScale", componentScale);
             outputField = parse.ParticleField("m_nFieldOutput", outputField);
             outputFieldPrev = parse.ParticleField("m_nFieldOutputPrev", outputFieldPrev);
         }
@@ -49,7 +49,7 @@ namespace ValveResourceFormat.Renderer.Particles.Operators
             foreach (ref var particle in particles.Current)
             {
                 var transform = transformInput.NextTransform(ref particle, particleSystemState);
-                var transformPosition = Vector3.Multiply(transform.Translation, componentScale);
+                var transformPosition = Vector3.Multiply(transform.Translation, componentScale.NextVector(ref particle, particleSystemState));
 
                 if (previousTransformPosition.X == float.MaxValue)
                 {

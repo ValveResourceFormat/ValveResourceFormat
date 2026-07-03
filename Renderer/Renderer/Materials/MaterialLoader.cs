@@ -23,6 +23,7 @@ namespace ValveResourceFormat.Renderer.Materials
         private RenderTexture? ErrorTexture;
         private RenderTexture? DefaultNormal;
         private RenderTexture? DefaultMask;
+        private RenderTexture? DefaultColor;
         /// <summary>Gets or sets the maximum anisotropy level applied to newly loaded textures when anisotropic filtering is enabled.</summary>
         public static float MaxTextureMaxAnisotropy { get; set; }
 
@@ -477,6 +478,9 @@ namespace ValveResourceFormat.Renderer.Materials
 
         /// <summary>Returns a lazily created 1×1 solid white mask texture.</summary>
         public RenderTexture GetDefaultMask() => DefaultMask ??= CreateSolidTexture(255, 255, 255);
+
+        /// <summary>Returns a lazily created 1×1 solid white colour texture, a neutral fallback albedo.</summary>
+        public RenderTexture GetDefaultColor() => DefaultColor ??= CreateSolidTexture(255, 255, 255);
 
         /// <summary>Returns the OpenGL format triple appropriate for exporting a rendered image, choosing between 8-bit BGRA and 32-bit float RGBA.</summary>
         /// <param name="hdr">Whether to use the HDR (32-bit float) format.</param>

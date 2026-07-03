@@ -26,6 +26,11 @@ public static class ParticleSupportInfo
     public static bool IsForceGeneratorSupported(string name) => ParticleControllerFactory.ForceGeneratorDictionary.ContainsKey(name);
 
     /// <summary>
+    /// Checks whether the given Source 2 class name is a supported constraint.
+    /// </summary>
+    public static bool IsConstraintSupported(string name) => ParticleControllerFactory.ConstraintDictionary.ContainsKey(name);
+
+    /// <summary>
     /// Checks whether the given Source 2 class name is a supported renderer.
     /// </summary>
     public static bool IsRendererSupported(string name) => ParticleControllerFactory.RendererDictionary.ContainsKey(name);

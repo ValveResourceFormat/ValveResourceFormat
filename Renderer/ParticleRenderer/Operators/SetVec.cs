@@ -1,4 +1,4 @@
-namespace ValveResourceFormat.Renderer.Particles.Operators
+﻿namespace ValveResourceFormat.Renderer.Particles.Operators
 {
     /// <summary>
     /// Sets a vector particle attribute to a per-particle vector value, with an optional
@@ -19,7 +19,6 @@ namespace ValveResourceFormat.Renderer.Particles.Operators
             setMethod = parse.Enum<ParticleSetMethod>("m_nSetMethod", setMethod);
             lerp = parse.NumberProvider("m_Lerp", lerp);
 
-            // there's also a Lerp value that will fade it in when at low values. Further testing is needed to know anything more
         }
         public override void Operate(ParticleCollection particles, float frameTime, ParticleSystemRenderState particleSystemState)
         {

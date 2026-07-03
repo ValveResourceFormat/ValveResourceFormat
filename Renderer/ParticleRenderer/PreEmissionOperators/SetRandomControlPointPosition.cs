@@ -1,4 +1,4 @@
-namespace ValveResourceFormat.Renderer.Particles.PreEmissionOperators
+﻿namespace ValveResourceFormat.Renderer.Particles.PreEmissionOperators
 {
     /// <summary>
     /// Sets a control point to a random position within a bounding box, optionally re-randomizing
@@ -11,7 +11,6 @@ namespace ValveResourceFormat.Renderer.Particles.PreEmissionOperators
         private readonly Vector3 minPos = Vector3.Zero;
         private readonly Vector3 maxPos = Vector3.Zero;
 
-        // The m_bUseWorldLocation parameter would set the CP positions in world space instead of object space. How do we do that?
         private readonly bool useWorldLocation;
         private readonly bool orient;
         private readonly int offsetCP;
@@ -62,17 +61,16 @@ namespace ValveResourceFormat.Renderer.Particles.PreEmissionOperators
                 HasRunBefore = true;
             }
 
-            timeSinceLastRun += frameTime; // should we do this before or after?
+            timeSinceLastRun += frameTime;
 
-            // just assuming that they wont take any negative number
-            var reRandomRate = this.reRandomRate.NextNumber();
+            var reRandomRate = this.reRandomRate.NextNumber(particleSystemState);
             if (reRandomRate > 0f)
             {
                 var lerpOld = particleSystemState.GetControlPoint(cp).Position;
                 var lerpNew = currentPosition + controlPointOffset;
 
                 // exponential fade like all the other lerps
-                var positionBlended = Vector3.Lerp(lerpOld, lerpNew, interpolation.NextNumber());
+                var positionBlended = Vector3.Lerp(lerpOld, lerpNew, interpolation.NextNumber(particleSystemState));
 
                 // orientation doesn't lerp in the same way that position does
 

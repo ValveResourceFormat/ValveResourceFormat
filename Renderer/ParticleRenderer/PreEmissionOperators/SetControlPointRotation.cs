@@ -1,4 +1,4 @@
-namespace ValveResourceFormat.Renderer.Particles.PreEmissionOperators
+﻿namespace ValveResourceFormat.Renderer.Particles.PreEmissionOperators
 {
     /// <summary>
     /// Rotates a control point's orientation around a configurable axis at a specified angular rate.
@@ -8,7 +8,7 @@ namespace ValveResourceFormat.Renderer.Particles.PreEmissionOperators
     {
         private readonly IVectorProvider axis = new LiteralVectorProvider(new Vector3(0, 0, 1));
         private readonly int cp;
-        private readonly int localCP = -1; // ??
+        private readonly int localCP = -1;
         private readonly INumberProvider rotationRate = new LiteralNumberProvider(180);
 
         public SetControlPointRotation(ParticleDefinitionParser parse) : base(parse)
@@ -29,10 +29,9 @@ namespace ValveResourceFormat.Renderer.Particles.PreEmissionOperators
         {
             var axis = this.axis.NextVector(particleSystemState);
             var rotationRate = this.rotationRate.NextNumber(particleSystemState);
-            // probably slow but who knows???
             var rotatedVector = MatrixMul(new Vector3(1, 0, 0), Matrix4x4.CreateFromAxisAngle(axis, rotationRate * frameTime));
 
-            particleSystemState.GetControlPoint(cp).Orientation = Vector3.Normalize(rotatedVector);
+            particleSystemState.SetControlPointOrientation(cp, Vector3.Normalize(rotatedVector));
         }
     }
 }

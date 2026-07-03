@@ -15,8 +15,14 @@ namespace ValveResourceFormat.Renderer.Particles.Initializers
             public Vector3 Offset = Vector3.Zero;
             public Vector3 GetPosition(ParticleSystemRenderState particleSystem)
             {
+                if (UseLocalOffset)
+                {
+                    // The offset is authored in the control point's frame.
+                    return ControlPointTransformProvider.TransformPosition(particleSystem, ControlPointID, Offset);
+                }
+
                 var origin = particleSystem.GetControlPoint(ControlPointID).Position;
-                return origin + Offset; // temp: doesn't account for local offset (whatever that does).
+                return origin + Offset;
             }
         }
 
@@ -54,6 +60,11 @@ namespace ValveResourceFormat.Renderer.Particles.Initializers
         private int currentNumber;
         private Vector3 GetParticlePosition(ParticleSystemRenderState particleSystem)
         {
+            if (pointList.Count == 0)
+            {
+                return Vector3.Zero;
+            }
+
             if (usePath)
             {
                 var relativeParticleNumber = currentNumber++ % numPointsOnPath;
@@ -65,27 +76,17 @@ namespace ValveResourceFormat.Renderer.Particles.Initializers
                 // Percentage of path completed / 100
                 var pathCompletion = relativeParticleNumber / (float)numPointsOnPath;
 
-                // Shortcut so we don't index out of bounds
-                if (pathCompletion == 1.0f)
-                {
-                    return pointList[numPathNodes - 1].GetPosition(particleSystem);
-                }
-
-                // Get the ID first of the two points we're interpolating between
+                // Get the ID of the first of the two points we're interpolating between. A closed loop
+                // treats the segment past the last node as wrapping back to node 0; an open path clamps.
                 var firstPointID = (int)MathF.Floor(pathCompletion * numPathNodes);
 
-                var pos1 = pointList[firstPointID].GetPosition(particleSystem);
+                var pos1 = closedLoop
+                    ? pointList[firstPointID % pointList.Count].GetPosition(particleSystem)
+                    : pointList[Math.Min(firstPointID, pointList.Count - 1)].GetPosition(particleSystem);
 
-                Vector3 pos2;
-                // If we need to loop around and sample the first point, just take the first point so we don't index out of bounds
-                if (closedLoop && firstPointID == pointList.Count - 1)
-                {
-                    pos2 = pointList[0].GetPosition(particleSystem);
-                }
-                else
-                {
-                    pos2 = pointList[firstPointID + 1].GetPosition(particleSystem);
-                }
+                var pos2 = closedLoop
+                    ? pointList[(firstPointID + 1) % pointList.Count].GetPosition(particleSystem)
+                    : pointList[Math.Min(firstPointID + 1, pointList.Count - 1)].GetPosition(particleSystem);
 
                 // I think this is right?
                 var point1Percent = (float)firstPointID / numPathNodes;

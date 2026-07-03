@@ -31,18 +31,21 @@ namespace ValveResourceFormat.Renderer.Particles.Initializers
 
             var speed = Math.Max(1.0f, ParticleCollection.RandomBetween(particle.ParticleID, speedmin, speedmax));
 
+            // With the flag set the authored value is a raw per-step displacement, not units/second.
             if (ignoreDelta)
             {
-                // We can't currently access the delta time in initializers, so we have a template here.
-                var deltaTimeFake = 1.0f;
-                speed /= deltaTimeFake;
+                var frameTime = particleSystemState.Data?.CurrentFrameTime ?? 0f;
+                if (frameTime > 0f)
+                {
+                    speed /= frameTime;
+                }
             }
 
             var scale = vectorScale.NextVector(ref particle, particleSystemState);
 
             var direction = Vector3.Normalize(particle.Position - particleSystemState.GetControlPoint(controlPoint).Position);
 
-            particle.Velocity = direction * speed * scale;
+            particle.Velocity += direction * speed * scale;
 
             return particle;
         }

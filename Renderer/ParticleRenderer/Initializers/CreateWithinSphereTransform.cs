@@ -1,4 +1,4 @@
-namespace ValveResourceFormat.Renderer.Particles.Initializers
+﻿namespace ValveResourceFormat.Renderer.Particles.Initializers
 {
     /// <summary>
     /// Extends <see cref="CreateWithinSphere"/> by positioning particles relative to a transform
@@ -80,7 +80,6 @@ namespace ValveResourceFormat.Renderer.Particles.Initializers
             }
 
             particle.Position = worldOffset;
-            particle.PositionPrevious = particle.Position;
 
             Vector3 velocityDirection;
             Vector3 velocityLocal;

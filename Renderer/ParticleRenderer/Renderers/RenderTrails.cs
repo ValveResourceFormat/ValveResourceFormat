@@ -1,4 +1,4 @@
-using OpenTK.Graphics.OpenGL;
+﻿using OpenTK.Graphics.OpenGL;
 using ValveResourceFormat.Serialization.KeyValues;
 
 namespace ValveResourceFormat.Renderer.Particles.Renderers
@@ -113,9 +113,14 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
             return (vao, buffer);
         }
 
-        public override void Render(ParticleCollection particleBag, ParticleSystemRenderState systemRenderState, Matrix4x4 modelViewMatrix)
+        public override void Render(ParticleCollection particleBag, ParticleSystemRenderState systemRenderState, Camera camera)
         {
             var particles = particleBag.Current;
+
+            // The translucent pass leaves blend/depth state to each custom draw; enable blending and stop depth
+            // writes here or trails render opaque (matching the sprite renderer; cables draw opaque with depth writes instead).
+            GL.Enable(EnableCap.Blend);
+            GL.DepthMask(false);
 
             if (blendMode == ParticleBlendMode.PARTICLE_OUTPUT_BLEND_MODE_ADD)
             {
@@ -135,10 +140,10 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
 
             // TODO: This formula is a guess but still seems too bright compared to valve particles
             // also todo: pass all of these as vertex parameters (probably just color/alpha combined)
-            shader.SetUniform1("uOverbrightFactor", (float)overbrightFactor.NextNumber());
+            shader.SetUniform1("uOverbrightFactor", (float)overbrightFactor.NextNumber(systemRenderState));
 
             // Create billboarding rotation (always facing camera)
-            if (!Matrix4x4.Decompose(modelViewMatrix, out _, out var modelViewRotation, out _))
+            if (!Matrix4x4.Decompose(camera.CameraViewMatrix, out _, out var modelViewRotation, out _))
             {
                 throw new InvalidOperationException("Matrix decompose failed");
             }
@@ -229,7 +234,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
         {
         }
 
-        public void Delete()
+        public override void Delete()
         {
             GL.DeleteVertexArray(vaoHandle);
             GL.DeleteBuffer(bufferHandle);

@@ -65,12 +65,12 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
             UpdateLight(light, ref particle, systemRenderState);
         }
 
-        public override void Render(ParticleCollection particles, ParticleSystemRenderState systemRenderState, Matrix4x4 modelViewMatrix)
+        public override void Render(ParticleCollection particles, ParticleSystemRenderState systemRenderState, Camera camera)
         {
             // Light rendering is handled by the scene/light system.
         }
 
-        public void Delete()
+        public override void Delete()
         {
             scene.LightingInfo.BarnLights.Remove(light);
         }

@@ -17,6 +17,9 @@ namespace ValveResourceFormat.Renderer.Particles.Initializers
         private readonly int LocalSpaceCP = -1;
         private readonly bool Random;
         private readonly bool Reverse;
+        // The manual index defaults to -1 = none; negative values fall back to the plain mapping.
+        private readonly INumberProvider StartIndex = new LiteralNumberProvider(-1);
+        private readonly INumberProvider Increment = new LiteralNumberProvider(1);
 
         // Cached snapshot lookup
         private ParticleSnapshot? cachedSnapshot;
@@ -32,6 +35,8 @@ namespace ValveResourceFormat.Renderer.Particles.Initializers
             LocalSpaceCP = parse.Int32("m_nLocalSpaceCP", LocalSpaceCP);
             Random = parse.Boolean("m_bRandom", false);
             Reverse = parse.Boolean("m_bReverse", false);
+            StartIndex = parse.NumberProvider("m_nManualSnapshotIndex", StartIndex);
+            Increment = parse.NumberProvider("m_nSnapShotIncrement", Increment);
         }
 
         public override Particle Initialize(ref Particle particle, ParticleCollection particles, ParticleSystemRenderState particleSystemState)
@@ -53,43 +58,12 @@ namespace ValveResourceFormat.Renderer.Particles.Initializers
                 return particle;
             }
 
-            int idx;
-
-            if (Random)
-            {
-                idx = (int)ParticleCollection.RandomBetween(particle.ParticleID, 0, numParticles - 1);
-            }
-            else if (Reverse)
-            {
-                idx = (numParticles - 1 - particle.ParticleID % numParticles) % numParticles;
-            }
-            else
-            {
-                idx = particle.ParticleID % numParticles;
-            }
-
-            var fieldType = AttributeToWrite.FieldType();
-
-            if (fieldType == "vector" && readAttributeData is Vector3[] vectorArray && idx < vectorArray.Length)
-            {
-                var value = vectorArray[idx];
-
-                if (LocalSpaceCP >= 0)
-                {
-                    value += particleSystemState.GetControlPoint(LocalSpaceCP).Position;
-                }
-
-                particle.SetVector(AttributeToWrite, value);
-
-                if (AttributeToWrite == ParticleField.Position)
-                {
-                    particle.PositionPrevious = value;
-                }
-            }
-            else if (fieldType == "float" && readAttributeData is float[] floatArray && idx < floatArray.Length)
-            {
-                particle.SetScalar(AttributeToWrite, floatArray[idx]);
-            }
+            var startPoint = Math.Max(0, StartIndex.NextInt(ref particle, particleSystemState));
+            var increment = Increment.NextInt(ref particle, particleSystemState);
+            var idx = Utils.CPSnapshotSampler.SelectIndex(particle.ParticleID, numParticles, Random, Reverse, startPoint, increment);
+            // A Position write is always mirrored into PositionPrevious. A PREV_XYZ
+            // (velocity) write goes through Particle.Velocity for the emit path's Verlet encoding.
+            Utils.CPSnapshotSampler.WriteAttribute(ref particle, AttributeToWrite, readAttributeData, idx, LocalSpaceCP, true, atSpawn: true, 0f, particleSystemState);
 
             return particle;
         }
@@ -97,14 +71,14 @@ namespace ValveResourceFormat.Renderer.Particles.Initializers
         private void ResolveSnapshot(ParticleSystemRenderState particleSystemState)
         {
             snapshotResolved = true;
-            cachedSnapshot = particleSystemState.Data?.GetControlPointSnapshot(ControlPointNumber);
+            cachedSnapshot = particleSystemState.GetControlPointSnapshot(ControlPointNumber);
 
             if (cachedSnapshot == null)
             {
                 return;
             }
 
-            readAttributeName = GetSnapshotAttributeName(AttributeToRead);
+            readAttributeName = Utils.CPSnapshotFields.GetSnapshotAttributeName(AttributeToRead);
 
             if (readAttributeName == null)
             {
@@ -120,37 +94,5 @@ namespace ValveResourceFormat.Renderer.Particles.Initializers
                 }
             }
         }
-
-        private static string? GetSnapshotAttributeName(ParticleField field) => field switch
-        {
-            ParticleField.Position => "position",
-            ParticleField.LifeDuration => "lifespan",
-            ParticleField.PositionPrevious => "velocity",
-            ParticleField.Radius => "radius",
-            ParticleField.Roll => "rotation",
-            ParticleField.RollSpeed => "rotation_speed",
-            ParticleField.Color => "color",
-            ParticleField.Alpha => "opacity",
-            ParticleField.CreationTime => "creation_time",
-            ParticleField.SequenceNumber => "sequence_number",
-            ParticleField.TrailLength => "trail_length",
-            ParticleField.ParticleId => "particle_id",
-            ParticleField.Yaw => "yaw",
-            ParticleField.SecondSequenceNumber => "sequence_number1",
-            ParticleField.HitboxIndex => "hitbox",
-            ParticleField.HitboxOffsetPosition => "hitbox_offset",
-            ParticleField.AlphaAlternate => "alpha2",
-            ParticleField.ScratchVector => "scratch_vec",
-            ParticleField.ScratchFloat => "scratch_float",
-            ParticleField.Pitch => "pitch",
-            ParticleField.Normal => "normal",
-            ParticleField.GlowRgb => "glow_rgb",
-            ParticleField.GlowAlpha => "glow_alpha",
-            ParticleField.ForceScale => "force_scale",
-            ParticleField.ManualAnimationFrame => "manual_animation_frame",
-            ParticleField.ShaderExtraData1 => "shader_extra_data_1",
-            ParticleField.ShaderExtraData2 => "shader_extra_data_2",
-            _ => null,
-        };
     }
 }

@@ -1,4 +1,4 @@
-namespace ValveResourceFormat.Renderer.Particles.Operators
+﻿namespace ValveResourceFormat.Renderer.Particles.Operators
 {
     /// <summary>
     /// Writes the orientation direction of a control point, scaled by a factor, into a vector
@@ -18,7 +18,6 @@ namespace ValveResourceFormat.Renderer.Particles.Operators
             cp = parse.Int32("m_nControlPointNumber", cp);
         }
 
-        // is this particle id or total particle count?
         public override void Operate(ParticleCollection particles, float frameTime, ParticleSystemRenderState particleSystemState)
         {
             foreach (ref var particle in particles.Current)
