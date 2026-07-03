@@ -142,7 +142,7 @@ namespace ValveResourceFormat.Renderer.Particles
             RotationSpeed = RotationSpeed with { Z = parse.Float("m_flConstantRotationSpeed", RotationSpeed.Z) };
             Normal = parse.Vector3("m_ConstantNormal", Normal);
             Sequence = parse.Int32("m_nConstantSequenceNumber", Sequence);
-            Sequence2 = parse.Int32("m_nConstantSequenceNumber1", Sequence);
+            Sequence2 = parse.Int32("m_nConstantSequenceNumber1", Sequence2);
         }
 
         /// <summary>
