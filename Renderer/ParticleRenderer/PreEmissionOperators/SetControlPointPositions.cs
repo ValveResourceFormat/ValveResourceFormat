@@ -41,15 +41,15 @@ namespace ValveResourceFormat.Renderer.Particles.PreEmissionOperators
         {
             if (!(setOnce && HasRunBefore))
             {
-                // not fully accurate, as it is still in local space, but it's closer to correct
-                var controlPointOffset = useWorldLocation
-                    ? Vector3.Zero
-                    : particleSystemState.GetControlPoint(CPOffset).Position;
+                // Object-space positions are rotated and translated by the head control point
+                var headTransform = useWorldLocation
+                    ? Matrix4x4.Identity
+                    : new ControlPointTransformProvider(CPOffset, true).NextTransform(ref Particle.Default, particleSystemState);
 
-                particleSystemState.SetControlPointValue(CP1, CP1Pos + controlPointOffset);
-                particleSystemState.SetControlPointValue(CP2, CP2Pos + controlPointOffset);
-                particleSystemState.SetControlPointValue(CP3, CP3Pos + controlPointOffset);
-                particleSystemState.SetControlPointValue(CP4, CP4Pos + controlPointOffset);
+                particleSystemState.SetControlPointValue(CP1, Vector3.Transform(CP1Pos, headTransform));
+                particleSystemState.SetControlPointValue(CP2, Vector3.Transform(CP2Pos, headTransform));
+                particleSystemState.SetControlPointValue(CP3, Vector3.Transform(CP3Pos, headTransform));
+                particleSystemState.SetControlPointValue(CP4, Vector3.Transform(CP4Pos, headTransform));
 
                 HasRunBefore = true;
             }

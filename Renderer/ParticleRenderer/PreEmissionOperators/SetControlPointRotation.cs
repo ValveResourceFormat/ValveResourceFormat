@@ -45,7 +45,8 @@ namespace ValveResourceFormat.Renderer.Particles.PreEmissionOperators
             // Rotate the current orientation by this frame's increment so the rotation accumulates
             var rotatedVector = MatrixMul(orientation, Matrix4x4.CreateFromAxisAngle(axis, rotationRate * frameTime));
 
-            controlPoint.Orientation = Vector3.Normalize(rotatedVector);
+            // Goes through the state setter to keep the control point's full rotation in sync
+            particleSystemState.SetControlPointOrientation(cp, Vector3.Normalize(rotatedVector));
         }
     }
 }

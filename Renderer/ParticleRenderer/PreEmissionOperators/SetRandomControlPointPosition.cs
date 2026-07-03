@@ -39,24 +39,26 @@ namespace ValveResourceFormat.Renderer.Particles.PreEmissionOperators
         {
             currentPosition = ParticleCollection.RandomBetweenPerComponent(Random.Shared.Next(), minPos, maxPos);
         }
+
+        /// <summary>
+        /// The current object-space position rotated and translated by the head control point.
+        /// </summary>
+        private Vector3 GetTargetPosition(ParticleSystemRenderState particleSystemState) => useWorldLocation
+            ? currentPosition
+            : ControlPointTransformProvider.TransformPosition(particleSystemState, offsetCP, currentPosition);
+
         public override void Operate(ref ParticleSystemRenderState particleSystemState, float frameTime)
         {
-            // not fully accurate, as it is still in local space, but it's closer to correct
-            var controlPointOffset = useWorldLocation
-                ? Vector3.Zero
-                : particleSystemState.GetControlPoint(offsetCP).Position;
-
             var orientation = orient
                 ? particleSystemState.GetControlPoint(offsetCP).Orientation
                 : Vector3.Zero;
-
 
             // We need to start off with an initial value, regardless of interpolation
             if (!HasRunBefore)
             {
                 GenerateNewPosition();
 
-                particleSystemState.SetControlPointValue(cp, currentPosition + controlPointOffset);
+                particleSystemState.SetControlPointValue(cp, GetTargetPosition(particleSystemState));
 
                 if (orient)
                 {
@@ -72,7 +74,7 @@ namespace ValveResourceFormat.Renderer.Particles.PreEmissionOperators
             if (reRandomRate > 0f)
             {
                 var lerpOld = particleSystemState.GetControlPoint(cp).Position;
-                var lerpNew = currentPosition + controlPointOffset;
+                var lerpNew = GetTargetPosition(particleSystemState);
 
                 // exponential fade like all the other lerps
                 var positionBlended = Vector3.Lerp(lerpOld, lerpNew, interpolation.NextNumber(particleSystemState));
