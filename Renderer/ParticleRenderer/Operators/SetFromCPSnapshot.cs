@@ -75,7 +75,7 @@ namespace ValveResourceFormat.Renderer.Particles.Operators
                 return;
             }
 
-            var readAttributeName = CPSnapshotFields.GetSnapshotAttributeName(AttributeToRead);
+            var readAttributeName = ParticleSnapshot.GetSnapshotAttributeName(AttributeToRead);
             if (readAttributeName == null)
             {
                 return;
