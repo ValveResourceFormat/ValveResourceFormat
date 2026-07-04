@@ -9,8 +9,8 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
 {
     /// <summary>
     /// Renders the ordered particle chain as a lit round tube. The tube tessellation is shared with the
-    /// map <c>path_particle_rope</c> path via <see cref="CableMeshBuilder"/>; geometry is rebuilt only when
-    /// the particle positions or the per-segment tessellation levels change.
+    /// map <c>path_particle_rope</c> rendering path via <see cref="CableMeshBuilder"/>. Geometry is rebuilt
+    /// only when the particle positions or the per-segment tessellation levels change.
     /// </summary>
     /// <seealso href="https://s2v.app/SchemaExplorer/cs2/particles/C_OP_RenderCables">C_OP_RenderCables</seealso>
     internal class RenderCables : ParticleFunctionRenderer

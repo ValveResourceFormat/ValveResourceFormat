@@ -1,4 +1,4 @@
-﻿using System.Globalization;
+using System.Globalization;
 using System.Linq;
 using Microsoft.Extensions.Logging;
 using ValveKeyValue;

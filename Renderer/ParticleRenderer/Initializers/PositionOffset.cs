@@ -1,4 +1,4 @@
-﻿namespace ValveResourceFormat.Renderer.Particles.Initializers
+namespace ValveResourceFormat.Renderer.Particles.Initializers
 {
     /// <summary>
     /// Adds a per-component random offset to the particle position. When the proportional flag is

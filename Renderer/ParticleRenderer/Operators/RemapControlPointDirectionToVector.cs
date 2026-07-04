@@ -1,4 +1,4 @@
-﻿namespace ValveResourceFormat.Renderer.Particles.Operators
+namespace ValveResourceFormat.Renderer.Particles.Operators
 {
     /// <summary>
     /// Writes the orientation direction of a control point, scaled by a factor, into a vector

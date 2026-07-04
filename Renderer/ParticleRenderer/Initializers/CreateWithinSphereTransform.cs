@@ -1,4 +1,4 @@
-﻿namespace ValveResourceFormat.Renderer.Particles.Initializers
+namespace ValveResourceFormat.Renderer.Particles.Initializers
 {
     /// <summary>
     /// Extends <see cref="CreateWithinSphere"/> by positioning particles relative to a transform

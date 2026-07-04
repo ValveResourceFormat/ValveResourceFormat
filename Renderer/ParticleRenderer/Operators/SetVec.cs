@@ -1,4 +1,4 @@
-﻿namespace ValveResourceFormat.Renderer.Particles.Operators
+namespace ValveResourceFormat.Renderer.Particles.Operators
 {
     /// <summary>
     /// Sets a vector particle attribute to a per-particle vector value, with an optional

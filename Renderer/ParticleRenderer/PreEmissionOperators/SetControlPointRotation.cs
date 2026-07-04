@@ -1,4 +1,4 @@
-﻿namespace ValveResourceFormat.Renderer.Particles.PreEmissionOperators
+namespace ValveResourceFormat.Renderer.Particles.PreEmissionOperators
 {
     /// <summary>
     /// Rotates a control point's orientation around a configurable axis at a specified angular rate.

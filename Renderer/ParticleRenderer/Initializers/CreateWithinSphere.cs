@@ -1,4 +1,4 @@
-﻿namespace ValveResourceFormat.Renderer.Particles.Initializers
+namespace ValveResourceFormat.Renderer.Particles.Initializers
 {
     /// <summary>
     /// Places particles at random positions within a sphere defined by a minimum and maximum radius,

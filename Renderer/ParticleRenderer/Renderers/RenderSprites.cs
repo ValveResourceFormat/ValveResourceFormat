@@ -1,4 +1,4 @@
-﻿using System.Buffers;
+using System.Buffers;
 using OpenTK.Graphics.OpenGL;
 using ValveResourceFormat.Serialization.KeyValues;
 

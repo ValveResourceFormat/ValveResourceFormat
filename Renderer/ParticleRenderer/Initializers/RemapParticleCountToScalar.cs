@@ -1,4 +1,4 @@
-﻿using ValveResourceFormat.Renderer.Particles.Utils;
+using ValveResourceFormat.Renderer.Particles.Utils;
 
 namespace ValveResourceFormat.Renderer.Particles.Initializers
 {

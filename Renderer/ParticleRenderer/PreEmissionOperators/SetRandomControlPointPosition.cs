@@ -1,4 +1,4 @@
-﻿namespace ValveResourceFormat.Renderer.Particles.PreEmissionOperators
+namespace ValveResourceFormat.Renderer.Particles.PreEmissionOperators
 {
     /// <summary>
     /// Sets a control point to a random position within a bounding box, optionally re-randomizing

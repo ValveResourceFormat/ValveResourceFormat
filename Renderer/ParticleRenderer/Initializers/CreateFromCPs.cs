@@ -1,4 +1,4 @@
-﻿using ValveResourceFormat.Serialization.KeyValues;
+using ValveResourceFormat.Serialization.KeyValues;
 
 namespace ValveResourceFormat.Renderer.Particles.Initializers
 {
