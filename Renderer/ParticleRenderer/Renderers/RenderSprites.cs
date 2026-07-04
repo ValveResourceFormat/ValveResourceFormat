@@ -26,7 +26,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
 
         private readonly INumberProvider radiusScale = new LiteralNumberProvider(1f);
         private readonly INumberProvider alphaScale = new LiteralNumberProvider(1f);
-        private readonly int textureChannelMode;
+        private readonly SpriteCardTextureChannel textureChannels = SpriteCardTextureChannel.SPRITECARD_TEXTURE_CHANNEL_MIX_RGBA;
 
         private readonly bool animateInFps;
         private readonly ParticleBlendMode blendMode = ParticleBlendMode.PARTICLE_OUTPUT_BLEND_MODE_ALPHA;
@@ -77,10 +77,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
                     }
 
                     textureName = textureInput.Data.GetStringProperty("m_hTexture");
-
-                    // MIX_RALPHA: the red channel is the alpha and the color comes from the particle.
-                    var channels = textureInput.Data.GetStringProperty("m_nTextureChannels");
-                    textureChannelMode = channels == "SPRITECARD_TEXTURE_CHANNEL_MIX_RALPHA" ? 1 : 0;
+                    textureChannels = textureInput.Enum("m_nTextureChannels", textureChannels);
                     break;
                 }
             }
@@ -417,7 +414,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
                 ? new Vector2(1f / alphaRemapRange, -mapToZero / alphaRemapRange)
                 : new Vector2(1f, 0f);
             shader.SetUniform2("uAlphaRemapScaleBias", alphaRemapScaleBias);
-            shader.SetUniform1("uTextureChannels", textureChannelMode);
+            shader.SetUniform1("uTextureChannels", (int)textureChannels);
 
             // DRAW
             GL.DrawElements(PrimitiveType.Triangles, particleBag.Count * 6, DrawElementsType.UnsignedShort, 0);
