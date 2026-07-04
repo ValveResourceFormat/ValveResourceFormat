@@ -704,7 +704,22 @@ partial class ModelExtract
                     ("hidden", animation.Anim.Hidden)
                 );
 
-                if (animation.Anim.Activities.Length > 0)
+                // The sequence's m_activityArray is the authoritative source for activity + modifiers:
+                // entry [0] is the activity (ACT_*), entries [1..] are activity modifiers ("injured", "ether", ...).
+                // VRF previously only read the activity from the anim block and dropped the modifiers entirely.
+                IReadOnlyList<KVObject>? seqActivityArray = null;
+                if (additionalSequenceData.TryGetValue(animation.Anim.Name, out var seqDescForActivity))
+                {
+                    seqActivityArray = seqDescForActivity.GetArray("m_activityArray");
+                }
+
+                if (seqActivityArray is { Count: > 0 })
+                {
+                    var activity = seqActivityArray[0];
+                    animationFile.Add("activity_name", activity.GetStringProperty("m_name"));
+                    animationFile.Add("activity_weight", activity.GetInt32Property("m_nWeight"));
+                }
+                else if (animation.Anim.Activities.Length > 0)
                 {
                     var activity = animation.Anim.Activities[0];
                     animationFile.Add("activity_name", activity.Name);
@@ -712,6 +727,22 @@ partial class ModelExtract
                 }
 
                 var childrenKV = KVObject.Array();
+
+                // Activity modifiers are entries [1..] of the sequence m_activityArray. ModelDoc represents
+                // each as an "ActivityModifier" child node of the AnimFile (activity_name = the modifier tag);
+                // the compiler merges them back into the ASEQ m_activityArray. A field-level
+                // "activity_modifiers" array is silently ignored by the compiler, so it must be child nodes.
+                if (seqActivityArray is { Count: > 1 })
+                {
+                    for (var modifierIndex = 1; modifierIndex < seqActivityArray.Count; modifierIndex++)
+                    {
+                        var modifier = seqActivityArray[modifierIndex];
+                        childrenKV.Add(MakeNode("ActivityModifier",
+                            ("activity_name", modifier.GetStringProperty("m_name")),
+                            ("activity_weight", modifier.GetInt32Property("m_nWeight"))
+                        ));
+                    }
+                }
 
                 foreach (var localHierarchy in animation.Anim.LocalHierarchy)
                 {
