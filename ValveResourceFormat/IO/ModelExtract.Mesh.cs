@@ -168,6 +168,13 @@ partial class ModelExtract
         var i = 0;
         foreach (var embedded in model.GetEmbeddedMeshes())
         {
+            // Decode the morph (face flex) atlas now while the FileLoader is available so that
+            // ConvertMeshToDatamodelMesh can emit DMX delta states from embedded.Mesh.MorphData.
+            if (fileLoader is not null)
+            {
+                embedded.Mesh.LoadExternalMorphData(fileLoader);
+            }
+
             var remapTable = model.GetRemapTable(embedded.MeshIndex);
             RenderMeshesToExtract.Add(new(embedded.Mesh, embedded.Name, embedded.MeshIndex, GetDmxFileName_ForEmbeddedMesh(embedded.Name, i++), remapTable, model.Skeleton));
         }
@@ -191,6 +198,7 @@ partial class ModelExtract
             }
 
             model.SetExternalMeshData(mesh);
+            mesh.LoadExternalMorphData(fileLoader);
 
             var remapTable = model.GetRemapTable(reference.MeshIndex);
             var meshKey = Path.GetFileNameWithoutExtension(reference.MeshName);
@@ -486,6 +494,14 @@ partial class ModelExtract
         var materialInputSignature = Material.VsInputSignature.Empty;
         var drawCallIndex = 0;
 
+        // Per draw call ranges used to map morph deltas (indexed in mesh vertex order) onto the
+        // DMX vertex buffers. GlobalOffset is the cumulative vertex offset across draw calls (the
+        // index space the morph atlas uses); BaseVertex is where the draw call's verts start in the
+        // DMX vertex buffer (== GlobalOffset for single-buffer meshes such as hero face models).
+        var morphDrawCalls = new List<(DmeMesh DmeMesh, int BaseVertex, int VertexCount, int GlobalOffset)>();
+        var morphVertexOffset = 0;
+        var hasMorphData = mesh.MorphData is not null;
+
         foreach (var sceneObject in mdat.GetArray("m_sceneObjects"))
         {
             foreach (var drawCall in sceneObject.GetArray("m_drawCalls"))
@@ -550,6 +566,13 @@ partial class ModelExtract
                     $"{startIndex}..{startIndex + indexCount}"
                 );
 
+                if (hasMorphData && dag.Shape is DmeMesh morphTargetMesh)
+                {
+                    var vertexCount = drawCall.GetInt32Property("m_nVertexCount");
+                    morphDrawCalls.Add((morphTargetMesh, baseVertex, vertexCount, morphVertexOffset));
+                    morphVertexOffset += vertexCount;
+                }
+
                 drawCallIndex++;
             }
         }
@@ -566,8 +589,232 @@ partial class ModelExtract
             }
         }
 
-        TieElementRoot(datamodel, dmeModel);
+        // Emit face-flex morph targets as DMX delta states so a recompile rebuilds the MRPH block
+        // (morph atlas + flex controllers/rules). Without this the model loses all face flex.
+        DmeCombinationOperator? combinationOperator = null;
+        if (mesh.MorphData is { } morphData && morphDrawCalls.Count > 0)
+        {
+            combinationOperator = AddMorphDeltaStates(morphData, morphDrawCalls);
+        }
+
+        TieElementRoot(datamodel, dmeModel, combinationOperator);
         return datamodel;
+    }
+
+    /// <summary>
+    /// Adds morph (face flex) delta states to the DMX meshes and builds the flex controller setup.
+    /// Each flex descriptor becomes a <see cref="DmeVertexDeltaData"/> holding the sparse per-vertex
+    /// position deltas (only changed vertices), plus a parallel zero entry in the mesh's delta-state
+    /// weight arrays. A <see cref="DmeCombinationOperator"/> is built with one input control per raw
+    /// (non-combo) flex; <c>a__b</c> corrective delta states are left for the compiler to synthesise
+    /// combination rules from. Returns the combination operator to attach to the DMX root, or null
+    /// when the mesh has no usable morph data.
+    /// </summary>
+    private static DmeCombinationOperator? AddMorphDeltaStates(Morph morphData,
+        List<(DmeMesh DmeMesh, int BaseVertex, int VertexCount, int GlobalOffset)> morphDrawCalls)
+    {
+        var flexData = morphData.GetFlexVertexData();
+        if (flexData.Count == 0)
+        {
+            return null;
+        }
+
+        // Preserve the original flex descriptor order so delta-state indices line up with the
+        // compiled morph descriptors.
+        var flexNames = morphData.GetFlexDescriptors();
+
+        var targetMeshes = new List<DmeMesh>();
+        var rawControlNames = new List<string>();
+        var seenControls = new HashSet<string>(StringComparer.Ordinal);
+
+        foreach (var meshGroup in morphDrawCalls.GroupBy(static d => d.DmeMesh))
+        {
+            var dmeMesh = meshGroup.Key;
+            var ranges = meshGroup.ToArray();
+            var meshGotDelta = false;
+
+            foreach (var morphName in flexNames)
+            {
+                if (string.IsNullOrEmpty(morphName) || !flexData.TryGetValue(morphName, out var deltas))
+                {
+                    continue;
+                }
+
+                var indices = new List<int>();
+                var values = new List<Vector3>();
+
+                foreach (var (_, baseVertex, vertexCount, globalOffset) in ranges)
+                {
+                    for (var v = 0; v < vertexCount; v++)
+                    {
+                        var srcIndex = globalOffset + v;
+                        if (srcIndex >= deltas.Length)
+                        {
+                            break;
+                        }
+
+                        var delta = deltas[srcIndex];
+                        if (delta == Vector3.Zero)
+                        {
+                            continue;
+                        }
+
+                        indices.Add(baseVertex + v);
+                        values.Add(delta);
+                    }
+                }
+
+                if (values.Count == 0)
+                {
+                    continue;
+                }
+
+                var deltaState = new DmeVertexDeltaData { Name = morphName };
+                deltaState.AddIndexedStream("position$0", values.ToArray(), indices.ToArray());
+
+                dmeMesh.DeltaStates.Add(deltaState);
+                dmeMesh.DeltaStateWeights.Add(Vector2.Zero);
+                dmeMesh.DeltaStateWeightsLagged.Add(Vector2.Zero);
+                meshGotDelta = true;
+
+                // Raw (non-combo) flexes get an input control so they are drivable/scrubbable.
+                // Combo correctives ("a__b") are derived by the compiler from the constituent controls.
+                if (!morphName.Contains("__", StringComparison.Ordinal) && seenControls.Add(morphName))
+                {
+                    rawControlNames.Add(morphName);
+                }
+            }
+
+            if (meshGotDelta)
+            {
+                targetMeshes.Add(dmeMesh);
+            }
+        }
+
+        if (rawControlNames.Count == 0 || targetMeshes.Count == 0)
+        {
+            return null;
+        }
+
+        var combinationOperator = new DmeCombinationOperator { Name = "combinationOperator" };
+
+        // Original controller ranges, matched by name against the model's compiled flex controllers:
+        // paired controllers (eyeDownAndUp, jawSideways, ...) are authored [-1, 1], not [0, 1].
+        var controllerRanges = new Dictionary<string, (float Min, float Max)>(StringComparer.Ordinal);
+        foreach (var controller in morphData.FlexControllers)
+        {
+            controllerRanges.TryAdd(controller.Name, (controller.Min, controller.Max));
+        }
+
+        // Reconstruct PAIRED input controls: an original [-1, 1] controller with no raw flex of its own
+        // name drives one raw flex on the positive half and one on the negative half (eyeDownAndUp ->
+        // eyeUp / eyeDown via min/max rules). Probing the compiled flex rules with the controller at
+        // +max / at min recovers that mapping, letting the control round-trip with its original range
+        // instead of two split 0..1 sliders.
+        var pairedByControl = new List<(string Name, string NegativeRaw, string PositiveRaw, float Min, float Max)>();
+        var pairedRaws = new HashSet<string>(StringComparer.Ordinal);
+
+        if (morphData.FlexRules.Length > 0 && morphData.FlexControllers.Length > 0)
+        {
+            var rawControlSet = new HashSet<string>(rawControlNames, StringComparer.Ordinal);
+            var probe = new float[morphData.FlexControllers.Length];
+
+            List<string> DrivenRaws(int controllerIndex, float value)
+            {
+                Array.Clear(probe);
+                probe[controllerIndex] = value;
+                var driven = new List<string>();
+                foreach (var rule in morphData.FlexRules)
+                {
+                    if (rule.FlexID < 0 || rule.FlexID >= flexNames.Count)
+                    {
+                        continue;
+                    }
+
+                    try
+                    {
+                        if (rule.Evaluate(probe) > 0.25f)
+                        {
+                            driven.Add(flexNames[rule.FlexID]);
+                        }
+                    }
+                    catch (Exception e) when (e is InvalidOperationException or NotImplementedException)
+                    {
+                        // Unsupported flex op - skip this rule.
+                    }
+                }
+
+                return driven;
+            }
+
+            for (var i = 0; i < morphData.FlexControllers.Length; i++)
+            {
+                var controller = morphData.FlexControllers[i];
+                if (controller.Min >= 0f || rawControlSet.Contains(controller.Name))
+                {
+                    continue;
+                }
+
+                var positive = DrivenRaws(i, controller.Max).Where(rawControlSet.Contains).Except(pairedRaws).ToList();
+                var negative = DrivenRaws(i, controller.Min).Where(rawControlSet.Contains).Except(pairedRaws).ToList();
+
+                if (positive.Count == 1 && negative.Count == 1 && positive[0] != negative[0])
+                {
+                    pairedByControl.Add((controller.Name, negative[0], positive[0], controller.Min, controller.Max));
+                    pairedRaws.Add(positive[0]);
+                    pairedRaws.Add(negative[0]);
+                }
+            }
+        }
+
+        void AddControlValueSlots()
+        {
+            combinationOperator.ControlValues.Add(new Vector3(0f, 0f, 0.5f));
+            combinationOperator.ControlValuesLagged.Add(new Vector3(0f, 0f, 0.5f));
+        }
+
+        foreach (var (pairName, negativeRaw, positiveRaw, flexMin, flexMax) in pairedByControl)
+        {
+            var control = new DmeCombinationInputControl { Name = pairName, FlexMin = flexMin, FlexMax = flexMax };
+            control.RawControlNames.Add(negativeRaw);
+            control.RawControlNames.Add(positiveRaw);
+            control.WrinkleScales.Add(0f);
+            control.WrinkleScales.Add(0f);
+
+            combinationOperator.Controls.Add(control);
+            AddControlValueSlots();
+        }
+
+        // Single-raw controls are NOT emitted: the compiler creates them implicitly from the delta
+        // states themselves (verified: stripping all 21 of them recompiles a byte-identical rule set),
+        // and an explicit control stamps its name into ModelDoc's otherwise-empty morph rule display.
+        // Controls whose ORIGINAL controller has a non-default range still need an explicit entry.
+        foreach (var controlName in rawControlNames)
+        {
+            if (pairedRaws.Contains(controlName))
+            {
+                continue;
+            }
+
+            if (!controllerRanges.TryGetValue(controlName, out var range) || range == (0f, 1f))
+            {
+                continue;
+            }
+
+            var control = new DmeCombinationInputControl { Name = controlName, FlexMin = range.Min, FlexMax = range.Max };
+            control.RawControlNames.Add(controlName);
+            control.WrinkleScales.Add(0f);
+
+            combinationOperator.Controls.Add(control);
+            AddControlValueSlots();
+        }
+
+        foreach (var dmeMesh in targetMeshes)
+        {
+            combinationOperator.Targets.Add(dmeMesh);
+        }
+
+        return combinationOperator;
     }
 
     /// <summary>
@@ -754,6 +1001,11 @@ partial class ModelExtract
         var shape = new DmeMesh
         {
             Name = name,
+            // bindState is the rest pose that morph (flex) delta states are applied on top of. Valve's
+            // authored morph meshes set bindState == currentState == baseStates[0] (the 'bind' vertex
+            // data); without bindState ModelDoc's flex editor has no base to add the weighted deltas to,
+            // so dragging a flex slider does not deform the mesh even though the compiled MRPH is exact.
+            BindState = vertexData,
             CurrentState = vertexData
         };
         shape.BaseStates.Add(vertexData);
@@ -764,7 +1016,9 @@ partial class ModelExtract
 
     private static (DmeDag, DmeVertexData) CreateDmxDagVertexData(DmeModel dmeModel, string name)
     {
-        // dmx requires one dag per vertex buffer
+        // dmx requires one dag per vertex buffer. Compiled UVs are exported verbatim with
+        // flipVCoordinates=false: the compiler round-trips them correctly (a V-mirrored look in
+        // Blender is that importer's convention, not an export defect).
         var vertexData = new DmeVertexData { Name = "bind" };
         var dag = CreateDmxDag(dmeModel, vertexData, name);
 
@@ -810,9 +1064,9 @@ partial class ModelExtract
         faceSet.Material.MaterialName = material;
     }
 
-    private static void TieElementRoot(Datamodel.Datamodel dmx, DmeModel dmeModel)
+    private static void TieElementRoot(Datamodel.Datamodel dmx, DmeModel dmeModel, DmeCombinationOperator? combinationOperator = null)
     {
-        dmx.Root = new Element(dmx, "root", null, "DmElement")
+        var root = new Element(dmx, "root", null, "DmElement")
         {
             ["skeleton"] = dmeModel,
             ["model"] = dmeModel,
@@ -821,5 +1075,14 @@ partial class ModelExtract
                 ["source"] = $"Generated with {StringToken.VRF_GENERATOR}",
             }
         };
+
+        // The flex controller setup hangs off the root so ModelDoc/the compiler can build the
+        // MRPH flex controllers and rules from the mesh delta states.
+        if (combinationOperator != null)
+        {
+            root["combinationOperator"] = combinationOperator;
+        }
+
+        dmx.Root = root;
     }
 }

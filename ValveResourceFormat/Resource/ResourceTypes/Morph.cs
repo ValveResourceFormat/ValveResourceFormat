@@ -15,12 +15,23 @@ namespace ValveResourceFormat.ResourceTypes
         /// <summary>
         /// Gets the flex rules that define how controllers affect morphs.
         /// </summary>
-        public FlexRule[] FlexRules { get; private set; } = [];
+        /// <remarks>
+        /// Parsed directly from the block data: rules and controllers exist even for morphs with no
+        /// vertex deltas (e.g. CS2 agent models whose flex channels only drive bone constraints).
+        /// </remarks>
+        public FlexRule[] FlexRules => flexRules ??= GetMorphKeyValueCollection(Data, "m_FlexRules")
+            .Select(kv => ParseFlexRule(kv))
+            .ToArray();
 
         /// <summary>
         /// Gets the flex controllers that drive morph animations.
         /// </summary>
-        public FlexController[] FlexControllers { get; private set; } = [];
+        public FlexController[] FlexControllers => flexControllers ??= GetMorphKeyValueCollection(Data, "m_FlexControllers")
+            .Select(kv => ParseFlexController(kv))
+            .ToArray();
+
+        private FlexRule[]? flexRules;
+        private FlexController[]? flexControllers;
 
         /// <summary>
         /// Gets the texture containing encoded morph deltas.
@@ -181,18 +192,6 @@ namespace ValveResourceFormat.ResourceTypes
             }
 
             Texture = TextureResource.DataBlock as Texture;
-            if (Texture == null)
-            {
-                return;
-            }
-
-            FlexRules = GetMorphKeyValueCollection(Data, "m_FlexRules")
-                .Select(kv => ParseFlexRule(kv))
-                .ToArray();
-
-            FlexControllers = GetMorphKeyValueCollection(Data, "m_FlexControllers")
-                .Select(kv => ParseFlexController(kv))
-                .ToArray();
         }
 
         private static FlexController ParseFlexController(KVObject kv)
