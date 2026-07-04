@@ -235,6 +235,26 @@ namespace ValveResourceFormat.Renderer.Particles
         }
     }
 
+    // Control Point Speed
+    class ControlPointSpeedNumberProvider : INumberProvider
+    {
+        private readonly AttributeMapping attributeMapping;
+        private readonly int cp;
+
+        public ControlPointSpeedNumberProvider(ParticleDefinitionParser parse)
+        {
+            attributeMapping = new AttributeMapping(parse);
+            cp = parse.Int32("m_nControlPoint");
+        }
+
+        public float NextNumber(ref Particle particle, ParticleSystemRenderState renderState)
+        {
+            var frameTime = renderState.Data?.CurrentFrameTime ?? 0f;
+            var speed = renderState.GetControlPoint(cp).GetVelocity(frameTime).Length();
+            return attributeMapping.ApplyMapping(speed);
+        }
+    }
+
     /* Unaccounted for params:
      * m_NamedValue
      * m_flRandomMin

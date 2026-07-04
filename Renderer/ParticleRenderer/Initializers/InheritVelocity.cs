@@ -27,14 +27,13 @@ namespace ValveResourceFormat.Renderer.Particles.Initializers
 
             // The inherited velocity comes from the control point's motion over the last step; a step
             // of 100+ units is treated as a teleport and skipped.
-            var controlPoint = particleSystemState.GetControlPoint(controlPointNumber);
-            var step = controlPoint.Position - controlPoint.PositionPrevious;
-            if (step.Length() >= 100f)
+            var velocity = particleSystemState.GetControlPoint(controlPointNumber).GetVelocity(frameTime);
+            if (velocity.Length() * frameTime >= 100f)
             {
                 return particle;
             }
 
-            particle.Velocity += (step / frameTime) * velocityScale;
+            particle.Velocity += velocity * velocityScale;
             return particle;
         }
     }

@@ -158,9 +158,7 @@ record struct ParticleDefinitionParser(KVObject Data, ILogger Logger)
                 case "PF_TYPE_PARTICLE_NUMBER_NORMALIZED":
                     return new PerParticleCountNormalizedNumberProvider(parse);
                 case "PF_TYPE_CONTROL_POINT_SPEED":
-                    // Control points do not move in this renderer, so their speed is zero.
-                    Logger.LogWarning("Number provider PF_TYPE_CONTROL_POINT_SPEED evaluates to 0 (control points are static here)");
-                    return new LiteralNumberProvider(0f);
+                    return new ControlPointSpeedNumberProvider(parse);
                 // KNOWN TYPES WE DON'T SUPPORT:
                 // PF_TYPE_ENDCAP_AGE - unsupported because we don't support endcaps
                 // PF_TYPE_CONTROL_POINT_CHANGE_AGE - no way.

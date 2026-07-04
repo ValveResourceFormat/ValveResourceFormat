@@ -162,6 +162,13 @@ namespace ValveResourceFormat.Renderer.Particles
         public Vector3 PositionPrevious { get; set; }
 
         /// <summary>
+        /// The control point's velocity over the current simulation step in units per second, derived
+        /// from <see cref="PositionPrevious"/>. Zero when the step duration is unknown.
+        /// </summary>
+        public Vector3 GetVelocity(float frameTime)
+            => frameTime > 0f ? (Position - PositionPrevious) / frameTime : Vector3.Zero;
+
+        /// <summary>
         /// The orientation/direction of this control point.
         /// </summary>
         public Vector3 Orientation { get; set; }
