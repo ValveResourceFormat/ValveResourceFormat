@@ -670,6 +670,19 @@ partial class ModelExtract
                 }
 
                 var childrenKV = KVObject.Array();
+
+                foreach (var localHierarchy in animation.Anim.LocalHierarchy)
+                {
+                    childrenKV.Add(MakeNode("LocalHierarchy",
+                        ("bone_name", localHierarchy.Bone),
+                        ("new_parent_bone_name", localHierarchy.NewParent),
+                        ("start_frame", localHierarchy.StartFrame),
+                        ("peak_frame", localHierarchy.PeakFrame),
+                        ("tail_frame", localHierarchy.TailFrame),
+                        ("end_frame", localHierarchy.EndFrame)
+                    ));
+                }
+
                 if (animation.Anim.HasMovementData())
                 {
                     var flags = animation.Anim.Movements[0].MotionFlags;

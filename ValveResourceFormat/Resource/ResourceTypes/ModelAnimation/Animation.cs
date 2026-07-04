@@ -77,6 +77,12 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
         public AnimationActivity[] Activities { get; }
 
         /// <summary>
+        /// Gets the local-hierarchy overrides of this animation (bones interpolated in another bone's
+        /// or model space for a frame range, e.g. a weapon detaching in a death animation).
+        /// </summary>
+        public AnimationLocalHierarchy[] LocalHierarchy { get; } = [];
+
+        /// <summary>
         /// Gets the sequence parameters for this animation.
         /// </summary>
         public AnimationSequenceParams SequenceParams { get; }
@@ -95,6 +101,9 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
         /// Gets whether this animation was constructed from sequence data.
         /// </summary>
         public bool FromSequence { get; }
+
+        private static AnimationLocalHierarchy[] GetLocalHierarchy(KVObject animDesc)
+            => animDesc.GetArray("m_hierarchyArray")?.Select(static x => new AnimationLocalHierarchy(x)).ToArray() ?? [];
 
         private Animation(KVObject animDesc, AnimationSegmentDecoder?[] segmentArray)
         {
@@ -134,6 +143,8 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
                                     .Select(x => new AnimationActivity(x))
                                     .ToArray();
 
+            LocalHierarchy = GetLocalHierarchy(animDesc);
+
             var sequenceParams = animDesc.GetSubCollection("m_sequenceParams");
             SequenceParams = new AnimationSequenceParams(sequenceParams);
 
@@ -160,6 +171,8 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
             Activities = seqDesc.GetArray("m_activityArray")
                 .Select(x => new AnimationActivity(x))
                 .ToArray();
+
+            LocalHierarchy = GetLocalHierarchy(animDesc);
 
             // Transition params from sequence descriptor
             var transition = seqDesc.GetSubCollection("m_transition");
