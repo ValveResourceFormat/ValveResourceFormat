@@ -15,6 +15,13 @@ partial class ModelExtract
     /// </summary>
     public List<(Animation Anim, string FileName)> AnimationsToExtract { get; } = [];
 
+    /// <summary>
+    /// Gets the names of animations whose DMX files are not written out: compiler-generated data that a
+    /// recompile rebuilds from other emitted source (e.g. turn-layer lookFrame deltas and baked turn blends,
+    /// regenerated from the AnimTurn node's 3-frame source animation). Populated while building the vmdl.
+    /// </summary>
+    public HashSet<string> AnimationsExcludedFromDmxExport { get; } = new(StringComparer.Ordinal);
+
     private void EnqueueAnimations()
     {
         if (model != null)
