@@ -61,6 +61,8 @@ partial class ModelExtract
         var fileName = ModelName;
         return (Path.GetDirectoryName(fileName)
             + Path.DirectorySeparatorChar
+            + Path.GetFileNameWithoutExtension(fileName) // so models in same directory do not override each other anims
+            + "_"
             + animationName
             + ".dmx")
             .Replace('\\', '/');
