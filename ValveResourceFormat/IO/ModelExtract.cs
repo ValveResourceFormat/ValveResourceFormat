@@ -149,6 +149,13 @@ public partial class ModelExtract
 
         foreach (var anim in AnimationsToExtract)
         {
+            // Compiler-generated anims (turn lookFrames / baked turn blends) are rebuilt from the
+            // AnimTurn source on recompile; ToValveModel() above marks them while emitting that node.
+            if (AnimationsExcludedFromDmxExport.Contains(anim.Anim.Name))
+            {
+                continue;
+            }
+
             vmdl.AddSubFile(
                 Path.GetFileName(anim.FileName),
                 () =>
