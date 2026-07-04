@@ -18,6 +18,10 @@ layout (location = 4) in vec4 aVertexColor;
     out vec3 vPerVertexLightingOut;
 #endif
 
+#if (S_SCENE_CUBEMAP_TYPE > 0)
+    flat out uvec4 g_nEnvMapVisibility;
+#endif
+
 out vec3 vFragPosition;
 out vec3 vNormalOut;
 out vec2 vTexCoordOut;
@@ -40,6 +44,10 @@ void main(void)
     vLightmapUVScaled = vec3(0.0);
 #elif (D_BAKED_LIGHTING_FROM_VERTEX_STREAM == 1)
     vPerVertexLightingOut = vec3(0.0);
+#endif
+
+#if (S_SCENE_CUBEMAP_TYPE > 0)
+    g_nEnvMapVisibility = uvec4(0u);
 #endif
 
     gl_Position = g_matWorldToProjection * vec4(aVertexPosition, 1.0);
