@@ -37,10 +37,11 @@ record struct ParticleDefinitionParser(KVObject Data, ILogger Logger)
 
     private readonly float Float(string k)
     {
-        // Newer content authors many scalar fields as full float-input structures; evaluate those.
+        // Newer content authors many scalar fields as full float-input structures; the call site
+        // must read those with NumberProvider instead of as a literal.
         if (Data.GetSubCollection(k) is { IsCollection: true })
         {
-            return NumberProvider(k)?.NextNumber() ?? default;
+            Logger.LogWarning("Field {Key} is authored as a number provider, but is parsed as a literal float; it should be read with NumberProvider", k);
         }
 
         return Data.GetFloatProperty(k);
@@ -53,7 +54,7 @@ record struct ParticleDefinitionParser(KVObject Data, ILogger Logger)
     {
         if (Data.GetSubCollection(k) is { IsCollection: true })
         {
-            return (int)(NumberProvider(k)?.NextNumber() ?? default);
+            Logger.LogWarning("Field {Key} is authored as a number provider, but is parsed as a literal int; it should be read with NumberProvider", k);
         }
 
         return Data.GetInt32Property(k);
@@ -80,10 +81,11 @@ record struct ParticleDefinitionParser(KVObject Data, ILogger Logger)
 
         var sub = Data.GetSubCollection(k);
 
-        // Newer content authors some vector fields as full vector-input structures; evaluate those.
+        // Newer content authors some vector fields as full vector-input structures; the call site
+        // must read those with VectorProvider instead of as a literal.
         if (sub.ContainsKey("m_nType"))
         {
-            return VectorProvider(k).NextVector(ref Particle.Default, ParticleSystemRenderState.Default);
+            Logger.LogWarning("Field {Key} is authored as a vector provider, but is parsed as a literal vector; it should be read with VectorProvider", k);
         }
 
         return sub.ToVector3();
