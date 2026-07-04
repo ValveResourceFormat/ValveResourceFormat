@@ -1007,9 +1007,13 @@ namespace GUI.Types.PackageViewer
 
             var node = BetterTreeView.AddFileNode(root, file);
 
+            // Realizing a folder in CreateTreeNodes already creates nodes for all of its files,
+            // so only add the file node when the folder was realized before this call.
+            var folderWasCreated = node.CreatedNode != null;
+
             CreateTreeNodes(node, true);
 
-            if (node.CreatedNode != null)
+            if (folderWasCreated && node.CreatedNode != null)
             {
                 CreateFileNode(node.CreatedNode, file, true);
             }

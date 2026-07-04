@@ -193,6 +193,9 @@ namespace GUI.Types.PackageViewer
 
             TreeView.EndUpdate();
 
+            // Reveal the added entries under the folder the context menu was opened on
+            LastContextTreeNode?.Expand();
+
             Cursor.Current = Cursors.Default;
 
 #if DEBUG
