@@ -577,6 +577,48 @@ partial class ModelExtract
             }
         }
 
+        // Material groups / skins.
+        if (model.GetMaterialGroups().ToList() is { Count: > 0 } materialGroups)
+        {
+            var defaultMaterials = materialGroups[0].Materials;
+
+            materialGroupList.Value.Add(MakeNode("DefaultMaterialGroup",
+                ("name", materialGroups[0].Name ?? "default"),
+                ("remaps", KVObject.Array())
+            ));
+
+            for (var groupIndex = 1; groupIndex < materialGroups.Count; groupIndex++)
+            {
+                var variantMaterials = materialGroups[groupIndex].Materials;
+                if (variantMaterials.Length == 0)
+                {
+                    continue;
+                }
+
+                var remaps = KVObject.Array();
+                var pairCount = Math.Min(defaultMaterials.Length, variantMaterials.Length);
+                for (var i = 0; i < pairCount; i++)
+                {
+                    var fromMaterial = defaultMaterials[i];
+                    var toMaterial = variantMaterials[i];
+                    if (string.Equals(fromMaterial, toMaterial, StringComparison.OrdinalIgnoreCase))
+                    {
+                        continue;
+                    }
+
+                    remaps.Add(MakeNode("BaseMaterialRemap",
+                        ("from", fromMaterial),
+                        ("to", toMaterial)
+                    ));
+                }
+
+                materialGroupList.Value.Add(MakeNode("MaterialGroup",
+                    ("name", materialGroups[groupIndex].Name ?? groupIndex.ToString(CultureInfo.InvariantCulture)),
+                    ("remaps", remaps)
+                ));
+            }
+        }
+
         var modelSequenceData = model?.Resource?.GetBlockByType(BlockType.ASEQ) as KeyValuesOrNTRO;
         var additionalSequenceData = new Dictionary<string, KVObject>();
         string[]? sequenceLocalReferenceArray = null;
