@@ -275,6 +275,60 @@ partial class ModelExtract
         }
     }
 
+    // Decompiles a compiled flex rule (RPN op program) back into the expression string ModelDoc's
+    // MorphRule node accepts (verified: the compiler parses "max( x, 0 ) * 0.5" back into the exact
+    // FETCH/CONST/MAX/MUL ops). Returns null for programs using ops with no expression equivalent.
+    static string? DecompileFlexRule(ValveResourceFormat.ResourceTypes.ModelFlex.FlexRule rule,
+        ValveResourceFormat.ResourceTypes.ModelFlex.FlexController[] controllers)
+    {
+        var stack = new Stack<string>();
+
+        bool Binary(string format)
+        {
+            if (stack.Count < 2)
+            {
+                return false;
+            }
+
+            var b = stack.Pop();
+            var a = stack.Pop();
+            stack.Push(string.Format(CultureInfo.InvariantCulture, format, a, b));
+            return true;
+        }
+
+        foreach (var op in rule.FlexOps)
+        {
+            var handled = op switch
+            {
+                ValveResourceFormat.ResourceTypes.ModelFlex.FlexOps.FlexOpFetch1 fetch
+                    when fetch.ControllerId >= 0 && fetch.ControllerId < controllers.Length
+                    => PushValue(controllers[fetch.ControllerId].Name),
+                ValveResourceFormat.ResourceTypes.ModelFlex.FlexOps.FlexOpConst c
+                    => PushValue(c.Data.ToString(CultureInfo.InvariantCulture)),
+                ValveResourceFormat.ResourceTypes.ModelFlex.FlexOps.FlexOpAdd => Binary("( {0} + {1} )"),
+                ValveResourceFormat.ResourceTypes.ModelFlex.FlexOps.FlexOpSub => Binary("( {0} - {1} )"),
+                ValveResourceFormat.ResourceTypes.ModelFlex.FlexOps.FlexOpMul => Binary("( {0} * {1} )"),
+                ValveResourceFormat.ResourceTypes.ModelFlex.FlexOps.FlexOpDiv => Binary("( {0} / {1} )"),
+                ValveResourceFormat.ResourceTypes.ModelFlex.FlexOps.FlexOpMin => Binary("min( {0}, {1} )"),
+                ValveResourceFormat.ResourceTypes.ModelFlex.FlexOps.FlexOpMax => Binary("max( {0}, {1} )"),
+                _ => false,
+            };
+
+            if (!handled)
+            {
+                return null;
+            }
+        }
+
+        return stack.Count == 1 ? stack.Pop() : null;
+
+        bool PushValue(string value)
+        {
+            stack.Push(value);
+            return true;
+        }
+    }
+
     static KVObject ProcessAnimationAutoLayer(Animation animation, AnimationAutoLayer autoLayer, string[] localSequenceNameArray, string[] poseParamNames)
     {
         var animName = localSequenceNameArray[autoLayer.LocalReference];
@@ -615,6 +669,66 @@ partial class ModelExtract
                 materialGroupList.Value.Add(MakeNode("MaterialGroup",
                     ("name", materialGroups[groupIndex].Name ?? groupIndex.ToString(CultureInfo.InvariantCulture)),
                     ("remaps", remaps)
+                ));
+            }
+        }
+
+        // Morph controls + rules: the compiled MRPH stores the flex controllers (with their ranges) and
+        // the flex rules as RPN op programs. ModelDoc authors these as MorphControl nodes and MorphRule
+        // nodes whose `expression` STRING the compiler parses back into the same ops - so decompiling
+        // each rule program into an expression makes controllers, ranges AND formulas (split pairs,
+        // phoneme dominators, ...) round-trip exactly. Explicit definitions override the implicit ones
+        // generated from the mesh DMX combination operator.
+        if (model?.Resource?.GetBlockByType(BlockType.MRPH) is Morph morphBlock
+            && morphBlock.FlexControllers.Length > 0)
+        {
+            var morphControlList = MakeLazyList("MorphControlList");
+            var morphRuleList = MakeLazyList("MorphRuleList");
+            var flexDescriptorSet = morphBlock.GetFlexDescriptors().ToHashSet(StringComparer.Ordinal);
+
+            foreach (var controller in morphBlock.FlexControllers)
+            {
+                // A plain 0..1 controller matching a raw flex of the same name is fully implicit (the
+                // mesh's combination controls recreate it); an explicit node would only clutter ModelDoc
+                // and stamp its name into the otherwise-empty rule display. Only controllers the
+                // implicit path cannot produce (paired eyeDownAndUp-style, custom ranges) are emitted.
+                var isTrivial = controller.Min == 0f && controller.Max == 1f && flexDescriptorSet.Contains(controller.Name);
+                if (isTrivial)
+                {
+                    continue;
+                }
+
+                morphControlList.Value.Add(MakeNode("MorphControl",
+                    ("name", controller.Name),
+                    ("min_value", controller.Min),
+                    ("max_value", controller.Max)
+                ));
+            }
+
+            var flexDescriptors = morphBlock.GetFlexDescriptors();
+            foreach (var rule in morphBlock.FlexRules)
+            {
+                if (rule.FlexID < 0 || rule.FlexID >= flexDescriptors.Count)
+                {
+                    continue;
+                }
+
+                var target = flexDescriptors[rule.FlexID];
+                var expression = DecompileFlexRule(rule, morphBlock.FlexControllers);
+
+                // A trivial identity rule (the flex just fetches the controller of its own name) stays
+                // IMPLICIT: no explicit MorphRule node, so its rule shows empty in ModelDoc like
+                // authored content, and the compiler regenerates the plain fetch on its own.
+                if (expression is null || expression == target)
+                {
+                    continue;
+                }
+
+                morphRuleList.Value.Add(MakeNode("MorphRule",
+                    ("name", target),
+                    ("target", target),
+                    ("expression", expression),
+                    ("implicit", false)
                 ));
             }
         }

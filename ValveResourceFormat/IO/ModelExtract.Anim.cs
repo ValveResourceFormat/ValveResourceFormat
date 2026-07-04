@@ -319,6 +319,9 @@ partial class ModelExtract
 
     private static void ProcessFlexChannels(FlexController[] flexControllers, Animation anim, DmeChannelsClip clip, Frame[] frames)
     {
+        // Channels are named after the ORIGINAL flex controllers: the vmdl emits explicit MorphControl +
+        // MorphRule nodes decompiled from the MRPH block, so a recompile carries the same controller set
+        // and these channels bind directly.
         for (var flexId = 0; flexId < flexControllers.Length; flexId++)
         {
             var flexController = flexControllers[flexId];
