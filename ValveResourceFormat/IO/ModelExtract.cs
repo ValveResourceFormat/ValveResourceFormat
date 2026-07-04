@@ -147,6 +147,24 @@ public partial class ModelExtract
             );
         }
 
+        foreach (var clothProxy in ClothProxyMeshesToExtract)
+        {
+            var proxyMesh = clothProxy.Proxy;
+            vmdl.AddSubFile(
+                Path.GetFileName(clothProxy.FileName),
+                () => BuildClothProxyMeshDmx(proxyMesh, Path.GetFileNameWithoutExtension(clothProxy.FileName))
+            );
+        }
+
+        foreach (var clothGrid in ClothChainGridsToExtract)
+        {
+            var grid = clothGrid.Grid;
+            vmdl.AddSubFile(
+                Path.GetFileName(clothGrid.FileName),
+                () => BuildClothChainGridDmx(grid, Path.GetFileNameWithoutExtension(clothGrid.FileName))
+            );
+        }
+
         foreach (var anim in AnimationsToExtract)
         {
             // Compiler-generated anims (turn lookFrames / baked turn blends) are rebuilt from the

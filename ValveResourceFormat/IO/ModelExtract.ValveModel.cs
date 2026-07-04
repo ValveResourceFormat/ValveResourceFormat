@@ -275,6 +275,584 @@ partial class ModelExtract
         }
     }
 
+    #region Cloth (ClothChain)
+
+    // A ClothProxyMeshFile referencing the cloth-sheet DMX. With backSolveJoints=true the compiler
+    // back-solves the skinned bone-chain joints from the simulated sheet, regenerating the bone-chain
+    // FeModel nodes (so the proxy covers the WHOLE cloth and ClothChain is not needed - and must not be
+    // emitted, or the bones would be driven twice). Generated chain grids use backSolveJoints=false:
+    // there the ClothChains simulate the bones and the sheet only drives the render mesh between them.
+    //
+    // back_solve_joints_drive_meshes must track backSolveJoints, NOT be a blanket true/false: verified on
+    // meepo_naruto_set's own hand-authored source (back_solve_joints=false AND
+    // back_solve_joints_drive_meshes=false together on its one real jaket proxy) that leaving it true
+    // while back_solve_joints is false makes the compiler back-solve fit matrices for UNRELATED bones
+    // elsewhere in the model (5 standalone ClothNode neck bones + 1 real ancestor bone all wrongly turned
+    // "position driven", m_FitMatrices 0->6) - i.e. this flag is not scoped to just this proxy's own
+    // nodes when it disagrees with back_solve_joints. The disabled ready-made grid is a deliberate
+    // exception: it always passes backSolveJoints=false itself but wants driveMeshes=true regardless (a
+    // future re-author enables it to drive the mesh directly, per its own call sites below) - verified
+    // harmless since disabling the grid node entirely changes nothing in the compiled FeModel.
+    //
+    // back_solve_influence_threshold's real display name (extracted via Ghidra schema analysis of
+    // physicsbuilder.dll) is "Back-solve Min Weight" - a minimum skin-weight cutoff for which vertices
+    // contribute to a joint's back-solved fit. The value is now DERIVED per model from the original's own
+    // compiled fit data (FeModel.RecoveredBackSolveThreshold - the compiled fit ranges omit weights below
+    // the original's own threshold while m_CtrlSoftOffsets still carries them, bounding the value from
+    // both sides), passed in by the caller; 0.0 remains the default for models with no such signal.
+    // Do not substitute a guessed constant here: a nonzero threshold computes each fit from a smaller,
+    // filtered subset of vertices, which shifts the solved rigid transform (bone bind pose) even while the
+    // fit-matrix COUNT stays 8/8 - so validate any value against the resulting per-bone transform, not just
+    // that a fit matrix still exists.
+    static KVObject MakeClothProxyMeshFile(string name, string fileName, bool backSolveJoints, bool driveMeshes, bool addBonesToRenderMesh = false, float backSolveInfluenceThreshold = 0.0f)
+    {
+        var node = MakeNode("ClothProxyMeshFile",
+            ("name", name),
+            ("filename", fileName),
+            ("import_scale", 1.0f),
+            ("back_solve_joints", backSolveJoints),
+            ("back_solve_joints_drive_meshes", driveMeshes),
+            ("flex_cloth_borders", false),
+            ("add_bones_to_render_mesh", addBonesToRenderMesh),
+            ("back_solve_influence_threshold", backSolveInfluenceThreshold),
+            ("cloth_friction_bias", 0.0f),
+            ("cloth_friction_scale", 1.0f),
+            ("lock_friction_0", false),
+            ("lock_friction_1", false),
+            ("cloth_goal_strength_bias", 0.0f),
+            ("cloth_goal_strength_scale", 1.0f),
+            ("lock_goal_strength_0", false),
+            ("lock_goal_strength_1", false),
+            ("cloth_drag_scale", 1.0f),
+            ("cloth_mass_scale", 1.0f),
+            ("cloth_gravity_scale", 1.0f),
+            ("cloth_collision_radius_scale", 1.0f),
+            ("cloth_ground_collision_scale", 1.0f),
+            ("cloth_ground_friction_scale", 1.0f),
+            ("cloth_use_rods_scale", 1.0f),
+            ("cloth_make_rods_scale", 1.0f),
+            ("cloth_anchor_free_rotate_scale", 1.0f),
+            ("cloth_volumetric_scale", 1.0f),
+            ("cloth_suspenders_scale", 1.0f),
+            ("cloth_bend_stiffness_scale", 1.0f),
+            ("cloth_stray_radius_inv_scale", 1.0f),
+            ("cloth_stray_radius_scale", 1.0f),
+            ("cloth_stray_radius_stretchiness_scale", 1.0f));
+
+        // envelope_inches (how far the sheet reaches when DRIVING render meshes) is deliberately NOT
+        // emitted - the compiler default matches how hand-authored proxies ship (they omit the field), and
+        // it keeps dark_willow's fit matrices byte-exact. A large value (e.g. 1000in) drive-binds
+        // essentially the entire render mesh to the sheet - a real stiffness source, and the drive bindings
+        // live in the compiled vmesh, invisible to any PHYS comparison.
+
+        var importFilter = KVObject.Collection();
+        importFilter.Add("exclude_by_default", false);
+        importFilter.Add("exception_list", KVObject.Array());
+        node.Add("import_filter", importFilter);
+        return node;
+    }
+
+    // Global cloth solver parameters, populated from the FeModel scalars. Field names match the compiled
+    // ClothParams source node (e.g. siren_legs.vmdl). Boolean/style fields use the modern Source 2 defaults
+    // (the originals are not recoverable from the compiled FeModel); the compiler re-derives the rest.
+    static KVObject MakeClothParams(FeModel fe)
+    {
+        return MakeNode("ClothParams",
+            ("default_stretch", fe.DefaultSurfaceStretch),
+            // Mirrors default_stretch's own recovery (fe.DefaultSurfaceStretch <- m_flDefaultSurfaceStretch):
+            // additional_shear_stretch reads the already-parsed-but-previously-unused m_flDefaultThreadStretch
+            // instead of a hardcoded 0 - both dark_willow and meepo_naruto_set ship 0.0 for this field so
+            // there's no live signal to verify a nonzero case against yet, but the old hardcoded 0 silently
+            // discarded a real value on any model that DOES ship a nonzero m_flDefaultThreadStretch.
+            ("additional_shear_stretch", fe.DefaultThreadStretch),
+            ("extra_iterations", fe.ExtraIterations),
+            ("extra_goal_iterations", fe.ExtraGoalIterations),
+            ("extra_pressure_iterations", fe.ExtraPressureIterations),
+            ("goal_strength_bias", 0.0f),
+            ("default_gravity_scale", fe.DefaultGravityScale),
+            ("default_vel_air_drag", fe.DefaultVelAirDrag),
+            ("default_exp_air_drag", fe.DefaultExpAirDrag),
+            ("velocity_smooth_rate", 0.0f),
+            ("internal_pressure", fe.InternalPressure),
+            ("windage", fe.Windage),
+            ("wind_drag", fe.WindDrag),
+            ("velocity_smooth_iterations", 0),
+            ("default_ground_friction", 0.0f),
+            ("default_world_collision_penetration", 0.0f),
+            ("add_world_collision_radius", fe.AddWorldCollisionRadius),
+            ("local_force", fe.LocalForce),
+            ("local_rotation", fe.LocalRotation),
+            ("add_curvature", 0.0f),
+            ("quad_bend_tolerance", 0.05f),
+            ("local_drag1", fe.LocalDrag1),
+            // follow_the_lead=false matches the original compiled node flags (bit 5 clear on shipped Dota cloth).
+            ("follow_the_lead", false),
+            ("use_per_node_local_force_and_rotation", false),
+            ("uninertial_rods", false),
+            ("explicit_masses", false),
+            ("unitless_damping", true),
+            ("force_world_collision_on_all_nodes", false),
+            ("new_style", true),
+            ("can_collide_with_world_hulls", false),
+            ("can_collide_with_world_meshes", false),
+            ("can_collide_with_world_capsule_and_spheres", false),
+            ("add_stiffness_rods", false),
+            ("rigid_edge_hinges", false),
+            ("add_bend_only_rods", false),
+            ("immovable", false));
+    }
+
+    const float ClothSourceBaseGravity = FeModel.ClothSourceBaseGravity;
+
+    // Explicitly declares a two-node distance constraint (a "rod") by NODE NAME. CModelDocClothSpring in
+    // physicsbuilder.dll - a real, direct analogue of ClothQuad for edges instead of faces.
+    // is_length_explicit=false (the compiler's own default) pins min_length=max_length=rest distance
+    // EXACTLY - a fully rigid edge. BOTH is_length_explicit=true AND enable_advanced_parameters=true are
+    // required together for min_length/max_length to take effect at all (neither alone works).
+    //
+    // weight0/relaxation_factor are NOT re-authorable ClothSpring inputs: CModelDocClothSpring's complete
+    // registered attribute set (Ghidra GetStaticAttributes extraction from physicsbuilder.dll - the same
+    // method that found min_length/max_length/stiffness) is exactly m_Node0, m_Node1, m_flStiffness,
+    // m_bEnableAdvancedParameters, m_bIsLengthExplicit, m_flMinLength, m_flMaxLength, m_nExtraIterations,
+    // m_Color - no m_flWeight0/m_flRelaxationFactor. An authored weight0 compiles clean but the resulting
+    // m_Rods entry reads back the compiler's default (0.5), while min_length/max_length on the same rod stay
+    // exact. See FeModel.Rod.Weight0.
+    static KVObject MakeClothSpring(string name, string n0, string n1, float minLength, float maxLength)
+        => MakeNode("ClothSpring",
+            ("name", name),
+            ("cloth_node_0", n0),
+            ("cloth_node_1", n1),
+            ("stiffness", 1.0f),
+            ("enable_advanced_parameters", true),
+            ("is_length_explicit", true),
+            ("min_length", minLength),
+            ("max_length", maxLength));
+
+    // m_Rods is NOT derivable from the surface: verified on dark_willow that all 61 original rods match
+    // neither a Quads/Tris edge nor a quad diagonal (0/61 either way) - guessing a geometric placement rule
+    // (every edge, then quad diagonals) both measurably missed real vs. added wrong structure. m_Rods is
+    // just another compiled array like m_Quads/m_NodeIntegrator: read it directly off the FeModel and
+    // re-declare it as explicit ClothSpring nodes by NAME.
+    //
+    // Resolve every "$cloth_*" endpoint through our OWN global-node-index -> "$cloth_m{proxy}p{local}" map
+    // (built from proxy.NodeIndices, the same one MakeClothQuad's proxy.Faces uses), NOT the original's
+    // literal CtrlNames string: our re-exported proxy DMX re-sorts vertices (FeModel.BuildProxyMesh sorts
+    // referenced nodes ascending), so the original's local index would compile fine but silently resolve to
+    // the wrong vertex in our export - rods crossing to unrelated points. Real bone names need no
+    // translation (skeleton bone names are not proxy-mesh-local).
+    static void AddClothProxySprings(KVObject softbodyChildren, FeModel feModel,
+        List<(string FileName, string Name, FeModel.ProxyMesh Proxy)> proxies, HashSet<int> chainJointNodes)
+    {
+        // Islands the cloth importer is expected to prune vertices from (see FeModel.ComputeDropRisk):
+        // emitting explicit rods into them would orphan a ClothSpring on a vertex the compiler never creates
+        // ("Cannot find node $cloth_mXpY", a hard failure). Skip their explicit rods entirely and let the
+        // importer auto-derive the network from the surface instead - guaranteed to compile, at the cost of
+        // exact rod topology for that one island. Clean islands keep their exact reconstructed rods.
+        var riskyNodes = new HashSet<int>();
+        foreach (var (_, _, proxyMesh) in proxies)
+        {
+            if (proxyMesh.IsDropRisk)
+            {
+                foreach (var node in proxyMesh.NodeIndices)
+                {
+                    riskyNodes.Add(node);
+                }
+            }
+        }
+
+        var proxyNodeNames = new Dictionary<int, string>();
+        for (var proxyIndex = 0; proxyIndex < proxies.Count; proxyIndex++)
+        {
+            var proxy = proxies[proxyIndex].Proxy;
+            var nodeIndices = proxy.NodeIndices;
+
+            // Only proxy vertices actually referenced by at least one face are registered as FeModel
+            // control nodes by the compiler - an unfaced vertex is silently dropped (see
+            // TriangulateDominantPlane remarks: "a vertex not referenced by ANY face is NOT registered as
+            // a valid FeModel control node"). A rod-only island whose triangulation leaves some vertices
+            // unfaced (e.g. snapfire's two proxy panels) would otherwise get ClothSprings pointing at
+            // "$cloth_mXpY" bones the compile never creates ("Cannot find node") - a HARD compile failure.
+            // Map only the faced vertices; the null-guard in the rod loop then drops any rod touching an
+            // unfaced one. dark_willow/meepo/legion fully triangulate, so none of their rods are affected.
+            var faced = new HashSet<int>();
+            foreach (var face in proxy.Faces)
+            {
+                foreach (var localIndex in face)
+                {
+                    faced.Add(localIndex);
+                }
+            }
+
+            for (var localIndex = 0; localIndex < nodeIndices.Length; localIndex++)
+            {
+                if (faced.Contains(localIndex))
+                {
+                    proxyNodeNames[nodeIndices[localIndex]] = $"$cloth_m{proxyIndex}p{localIndex}";
+                }
+            }
+        }
+
+        string? ResolveName(int node)
+            => FeModel.IsProxyNodeName(feModel.CtrlNames[node])
+                ? proxyNodeNames.GetValueOrDefault(node)
+                : feModel.CtrlNames[node];
+
+        var seen = new HashSet<(int, int)>();
+        foreach (var rod in feModel.Rods)
+        {
+            var edge = rod.NodeA < rod.NodeB ? (rod.NodeA, rod.NodeB) : (rod.NodeB, rod.NodeA);
+            if (!seen.Add(edge))
+            {
+                continue;
+            }
+
+            // A rod inside a drop-risk island is skipped (the whole island falls back to compiler-derived
+            // rods) - see the riskyNodes remarks above.
+            if (riskyNodes.Contains(edge.Item1) || riskyNodes.Contains(edge.Item2))
+            {
+                continue;
+            }
+
+            // A ClothChain's own joint hierarchy compiles to a fully-connected local rod mesh among ITS
+            // OWN joints automatically (verified: meepo_naruto_set's m_Rods includes every pairing of
+            // e.g. hed_cloth_l_1/2/3/3_end, not just parent-child) - re-declaring one of these via an
+            // explicit ClothSpring is both redundant AND rejected outright by the compiler ("Cannot find
+            // Fx Bone"/"Cannot find node": a bone that is ONLY a ClothChain joint_name, with no fit-matrix
+            // back-solve or ClothNode registration of its own, is not a valid ClothSpring endpoint).
+            if (chainJointNodes.Contains(edge.Item1) || chainJointNodes.Contains(edge.Item2))
+            {
+                continue;
+            }
+
+            var name0 = ResolveName(edge.Item1);
+            var name1 = ResolveName(edge.Item2);
+            if (name0 is null || name1 is null)
+            {
+                // A rod-only proxy node dropped by BuildProxyMeshesFromRodsOnly's 3-member minimum (see
+                // its own remarks) has no corresponding exported vertex to reference at all - skip rather
+                // than author a dangling reference the compiler would reject outright.
+                continue;
+            }
+
+            // Re-declare every rod directly. (No rod-skip heuristic: dark_willow/meepo_naruto_set/
+            // legion_commander all compile every rod, so any static "skip risky pair" filter only risks
+            // wrongly excluding a valid rod.)
+            softbodyChildren.Add(MakeClothSpring($"rod_{edge.Item1}_{edge.Item2}", name0, name1, rod.MinDist, rod.MaxDist));
+        }
+    }
+
+    // Emits cloth collision shapes (capsules/spheres) recovered from the FeModel rigids into a Softbody.
+    // Most Dota cloth (including dark_willow) has none - then this is a no-op. Shapes are how the engine
+    // keeps the cloth off the body for models that use them (e.g. primal_beast).
+    static void AddClothCollisionShapes(KVObject softbodyChildren, FeModel feModel)
+    {
+        foreach (var capsule in feModel.BuildCollisionCapsules())
+        {
+            softbodyChildren.Add(MakeClothShapeCapsule(capsule));
+        }
+
+        foreach (var sphere in feModel.BuildCollisionSpheres())
+        {
+            softbodyChildren.Add(MakeClothShapeSphere(sphere));
+        }
+    }
+
+    static KVObject MakeClothShapeCapsule(FeModel.CollisionCapsule capsule)
+    {
+        var node = MakeNode("ClothShapeCapsule",
+            ("name", (capsule.ParentBone ?? "cloth") + "_clothCapsule"),
+            ("parent_bone", capsule.ParentBone ?? string.Empty));
+        AddClothCollisionLayers(node, capsule.CollisionMask);
+        node.Add("cloth_collision_priority", 0);
+        node.Add("vertex_map", "");
+        node.Add("inverted_collision", false);
+        node.Add("planarize", false);
+        node.Add("bounciness", 0.0f);
+        node.Add("radius0", capsule.Radius0);
+        node.Add("radius1", capsule.Radius1);
+        node.Add("point0", ToKVArray(capsule.Point0));
+        node.Add("point1", ToKVArray(capsule.Point1));
+        return node;
+    }
+
+    static KVObject MakeClothShapeSphere(FeModel.CollisionSphere sphere)
+    {
+        var node = MakeNode("ClothShapeSphere",
+            ("name", (sphere.ParentBone ?? "cloth") + "_clothSphere"),
+            ("parent_bone", sphere.ParentBone ?? string.Empty));
+        AddClothCollisionLayers(node, sphere.CollisionMask);
+        node.Add("cloth_collision_priority", 0);
+        node.Add("vertex_map", "");
+        node.Add("inverted_collision", false);
+        node.Add("planarize", false);
+        node.Add("bounciness", 0.0f);
+        node.Add("radius", sphere.Radius);
+        node.Add("center", ToKVArray(sphere.Center));
+        return node;
+    }
+
+    // The 4-bit collision mask maps to four boolean layer flags. An all-zero mask (no mask recorded) is
+    // treated as "all layers" to match the tools' default fully-colliding capsule.
+    static void AddClothCollisionLayers(KVObject node, int collisionMask)
+    {
+        var mask = collisionMask == 0 ? 0xF : collisionMask;
+        node.Add("cloth_collision_layer0", (mask & 1) != 0);
+        node.Add("cloth_collision_layer1", (mask & 2) != 0);
+        node.Add("cloth_collision_layer2", (mask & 4) != 0);
+        node.Add("cloth_collision_layer3", (mask & 8) != 0);
+    }
+
+    static KVObject MakeClothChainNode(FeModel feModel, FeModel.BoneChain chain)
+    {
+        var joints = KVObject.Array();
+        foreach (var joint in chain.Joints)
+        {
+            joints.Add(MakeClothJoint(feModel, joint, chainExtrudes: chain.ExtrudeSides >= 1));
+        }
+
+        var chainData = KVObject.Collection();
+        chainData.Add("joints", joints);
+        chainData.Add("attrs", MakeClothChainAttrs(chain.ExtrudeSides, chain.ExtrudeRadius));
+        chainData.Add("selection", KVObject.Array());
+        // Version 2 is the current ModelDoc chain format (v1 shows an "Update version 1->2" banner);
+        // the compiled FeModel is identical for both (verified byte-level on the PHYS block).
+        chainData.Add("version", 2);
+
+        return MakeNode("ClothChain",
+            ("name", chain.RootBone),
+            ("root_bone", chain.RootBone),
+            ("chain", chainData));
+    }
+
+    static KVObject MakeClothJoint(FeModel feModel, FeModel.BoneChainJoint joint, bool chainExtrudes = false)
+    {
+        var kv = KVObject.Collection();
+        kv.Add("joint_name", joint.Name);
+
+        if (joint.ParentName is not null)
+        {
+            kv.Add("joint_parent", joint.ParentName);
+        }
+
+        // Recover the per-node attraction/damping/gravity so a bone-chain joint follows the body as tightly
+        // as the original (anti-clip). The compiler CUBES the joint goal_strength into
+        // flAnimationForceAttraction (same as the painted cloth_goal_strength_v2 on proxy meshes -
+        // measured on dark_carnival_legion_commander: goal_strength 0.125 compiled to fa=0.001953=0.125^3),
+        // so emit the cube ROOT of the recovered attraction; anything else leaves the cloth ~64x looser
+        // than the original and the skirt hangs like a stiff pendulum.
+        //
+        // Recover it regardless of joint.Simulated: a chain ROOT is routinely authored `simulate = false`
+        // with a real nonzero goal_strength anyway (meepo_naruto_set's `hed_cloth_l_1` ships
+        // `simulate = false, goal_strength = 0.6`, compiling to flAnimationForceAttraction 0.216 = 0.6^3,
+        // not 0). Gating this to 0 for non-simulated joints would zero goal_strength on every chain root.
+        var integrator = feModel.GetIntegrator(joint.Node);
+        var goalStrength = MathF.Cbrt(Math.Clamp(integrator.ForceAttraction, 0f, 1f));
+
+        kv.Add("simulate", joint.Simulated);
+        kv.Add("goal_strength", goalStrength);
+        kv.Add("goal_damping", FeModel.GoalDampingFromAttraction(goalStrength, integrator.VertexAttraction - integrator.ForceAttraction));
+        kv.Add("gravity_z", integrator.Gravity / ClothSourceBaseGravity);
+
+        // Everything below is recovered per node; NO invented stiffness defaults. Emitting non-zero
+        // twist_relax / stiff_hinge / motion_bias makes the compiler build a Twist/KelagerBend constraint
+        // network instead of the plain ropes some chains compile to (dark_carnival original: 5 ropes,
+        // 0 twists - twist_relax must stay 0 there). But this is NOT a universal default: meepo_naruto_set's
+        // own source authors twist_relax=1.0 uniformly on every joint of its 4 real ClothChains, and its
+        // compiled FeModel has a real m_Twists network (24 entries, 0 ropes) to match - hardcoding 0 there
+        // instead produces a bogus 4-node "Rope" fallback constraint per chain (m_Ropes, entirely absent
+        // from the original). Recover per-joint from the ORIGINAL's own m_Twists participation
+        // (FeModel.TwistNodes) rather than guessing a single constant for every model.
+        kv.Add("twist_relax", feModel.TwistNodes.Contains(joint.Node) ? 1.0f : 0.0f);
+
+        // World collision membership + radius (m_WorldCollisionNodes / m_NodeCollisionRadii); without
+        // them the recompiled tail/leg chains clip into the ground.
+        kv.Add("world_collision", feModel.IsWorldCollisionNode(joint.Node));
+        kv.Add("collision_radius", feModel.GetCollisionRadius(joint.Node));
+
+        // Stray radius (m_AnimStrayRadii): the max distance the node may stray from its animated position.
+        kv.Add("stray_radius", feModel.GetStrayRadius(joint.Node));
+
+        // Per-joint extrude width. The chain-level extrude_sides (MakeClothChainAttrs) is one uniform value,
+        // so it cannot reproduce a ribbon whose END-CAP joint fans wider than its body (primal_beast
+        // back_chain body 2 / tip 4, hoodwink ear/tail/cape_front tips). Overriding extrude_sides PER JOINT
+        // recovers that fan. For a chain that extrudes at all, emit EVERY joint's own width - INCLUDING an
+        // explicit 0 for a joint that carries no proxies (hoodwink pendant's anchor is [0,1]; without the
+        // explicit 0 it would inherit the chain-level default and gain a phantom proxy). A chain that does
+        // not extrude (chainExtrudes false: meepo/dark_willow's genuine 0-proxy ropes) emits nothing and
+        // stays byte-identical.
+        if (chainExtrudes)
+        {
+            kv.Add("extrude_sides", joint.ExtrudeSides);
+        }
+
+        kv.Add("extra_iterations", 0);
+        return kv;
+    }
+
+    // Emits a standalone ClothNode for a simulated real bone that is NOT part of any multi-joint
+    // BoneChain and NOT back-solved by a proxy mesh (e.g. meepo_naruto_set's source "neck_nodes" folder:
+    // individual ribbon-tie points connected only by explicit ClothSpring, not a parent-child chain - a
+    // real bone with no real-bone descendants of its own never forms a BoneChain, see BuildBoneChains).
+    // Mirrors MakeClothJoint's integrator recovery (goal_strength/damping/gravity/stray_radius/collision
+    // radius) - without this, the bone's rods still round-trip via AddClothProxySprings (a plain
+    // skeleton bone name not claimed by any ClothChain is a valid ClothSpring endpoint on its own, see
+    // its remarks), but its per-node cloth paint silently reverts to compiler defaults instead of the
+    // recovered original values.
+    //
+    // node_base_x0/x1/y0/y1: read feModel.NodeBases directly and re-declare it by NAME, the same
+    // "read the compiled array, don't guess a geometric rule" fix as m_Rods/ClothSpring. Verified this
+    // matters, not cosmetic: omitting it (leaving these empty, the previous behaviour) left
+    // meepo_naruto_set's "neck_middle" bone (decoration_neck_r_m, the one source node with an explicit
+    // node_base_x1/y1) mis-registering as a "position-driven" node (m_nFirstPositionDrivenNode moved
+    // from 106/none in the original to 101, exactly this bone's block of 5) driven via a synthesized
+    // m_Ropes fallback (12 ropes vs the original's 0) instead of a normal simulated node - i.e. a real
+    // dynamical difference, not just a missing cosmetic orientation hint.
+    static KVObject MakeClothNode(FeModel feModel, string boneName, int node, bool isStaticNode = false)
+    {
+        var integrator = feModel.GetIntegrator(node);
+        var goalStrength = MathF.Cbrt(Math.Clamp(integrator.ForceAttraction, 0f, 1f));
+        var goalDamping = FeModel.GoalDampingFromAttraction(goalStrength, integrator.VertexAttraction - integrator.ForceAttraction);
+        var strayRadius = feModel.GetStrayRadius(node);
+
+        var hasBasis = feModel.NodeBases.TryGetValue(node, out var basis);
+        string BasisName(int basisNode) => hasBasis ? feModel.CtrlNames[basisNode] : string.Empty;
+
+        return MakeNode("ClothNode",
+            ("name", boneName),
+            ("origin", ToKVArray(Vector3.Zero)),
+            ("angles", ToKVArray(Vector3.Zero)),
+            ("cloth_node_root_bone", boneName),
+            ("has_stray_radius", strayRadius > 0f),
+            ("has_world_collision", feModel.IsWorldCollisionNode(node)),
+            ("cloth_collision_layer0", true),
+            ("cloth_collision_layer1", true),
+            ("cloth_collision_layer2", true),
+            ("cloth_collision_layer3", true),
+            ("transform_alignment", 0),
+            ("node_base_y1", BasisName(basis.NodeY1)),
+            ("node_base_x1", BasisName(basis.NodeX1)),
+            ("node_base_y0", BasisName(basis.NodeY0)),
+            ("node_base_x0", BasisName(basis.NodeX0)),
+            ("lock_translation", false),
+            ("gravity_z", integrator.Gravity / ClothSourceBaseGravity),
+            ("goal_strength", goalStrength),
+            ("goal_damping", goalDamping),
+            ("mass", 1.0f),
+            ("friction", 0.0f),
+            ("stray_radius", strayRadius),
+            ("stray_radius_relaxation_factor", 1.0f),
+            ("collision_radius", feModel.GetCollisionRadius(node)),
+            ("is_static_node", isStaticNode),
+            ("allow_rotation", false),
+            ("super_damping", 0.0f));
+    }
+
+    // The cloth-chain joint datatable schema (per-column UI metadata + defaults), matched to the editable
+    // ModelDoc source produced by the tools. The compiler uses the "default" values for any joint field not
+    // explicitly written above, so this block is included verbatim to keep cloth defaults correct.
+    static KVObject MakeClothChainAttrs(int extrudeSides = 0, float extrudeRadius = 0f)
+    {
+        var attrs = KVObject.Collection();
+
+        KVObject AddAttr(string key, string display, bool show, int uiOrder)
+        {
+            var attr = KVObject.Collection();
+            attr.Add("display", display);
+            attr.Add("show", show);
+            attr.Add("ui_order", uiOrder);
+            attrs.Add(key, attr);
+            return attr;
+        }
+
+        KVObject FloatAttr(string key, string display, bool show, int uiOrder, float def, float? min = null, float? max = null)
+        {
+            var attr = AddAttr(key, display, show, uiOrder);
+            attr.Add("default", def);
+            if (min.HasValue) { attr.Add("min", min.Value); }
+            if (max.HasValue) { attr.Add("max", max.Value); }
+            return attr;
+        }
+
+        KVObject IntAttr(string key, string display, bool show, int uiOrder, int def, int? min = null, int? max = null)
+        {
+            var attr = AddAttr(key, display, show, uiOrder);
+            attr.Add("default", def);
+            if (min.HasValue) { attr.Add("min", min.Value); }
+            if (max.HasValue) { attr.Add("max", max.Value); }
+            return attr;
+        }
+
+        KVObject BoolAttr(string key, string display, bool show, int uiOrder, bool def)
+        {
+            var attr = AddAttr(key, display, show, uiOrder);
+            attr.Add("default", def);
+            return attr;
+        }
+
+        KVObject StringAttr(string key, string display, bool show, int uiOrder)
+        {
+            var attr = AddAttr(key, display, show, uiOrder);
+            attr.Add("default", "");
+            return attr;
+        }
+
+        // The COMPLETE version-2 attr set, captured from a vmdl saved by current ModelDoc (an incomplete
+        // v1-era key list makes the v2 joint grid ignore the table and fall back to default columns).
+        // Attrs with values recovered from the compiled FeModel are shown; the rest keep stock visibility.
+        StringAttr("joint_name", "Joint Name", true, 1).Add("lock", true);
+        StringAttr("joint_parent", "Parent Joint", false, 2);
+        BoolAttr("simulate", "Simulate", true, 3, true);
+        BoolAttr("allow_rotation", "Allow Rotation", false, 4, true);
+        // Display names corrected against the real ClothChainAttrEditor schema (extracted via Ghidra from
+        // physicsbuilder.dll's own registration code) - "Stiffness" not "Spring", and world_collision's
+        // real display is "World Ground Collision". Cosmetic only (ModelDoc re-editing UI labels), no
+        // effect on compiled physics - defaults/ranges already matched the real schema exactly.
+        FloatAttr("stretch_spring", "Stretch Stiffness", false, 5, 1.0f, 0.0f, 1.0f);
+        FloatAttr("child_sibling_spring", "Spring Between Children", false, 6, 0.0f, 0.0f, 1.0f);
+        FloatAttr("bend_spring", "Bend Stiffness", false, 7, 1.0f, 0.0f, 1.0f);
+        FloatAttr("torsion_spring", "Torsion Stiffness", false, 8, 0.0f, 0.0f, 1.0f);
+        FloatAttr("explicit_length", "Explicit Length", false, 9, 0.0f, 0.0f);
+        BoolAttr("world_collision", "World Ground Collision", true, 10, false);
+        BoolAttr("animated_length", "Animated Length", false, 11, false);
+        FloatAttr("goal_strength", "Goal Strength", true, 12, 0.0f, 0.0f, 1.0f);
+        FloatAttr("goal_damping", "Goal Damping", true, 13, 0.0f, 0.0f, 1.0f);
+        FloatAttr("drag", "Extra Drag", false, 14, 0.0f, 0.0f, 1.0f);
+        FloatAttr("mass", "Mass", false, 15, 1.0f, 0.0f);
+        FloatAttr("gravity_z", "Gravity", true, 16, 1.0f);
+        FloatAttr("collision_radius", "Collision Radius", true, 17, 0.0f, 0.0f);
+        BoolAttr("lock_translation", "Lock Translation", false, 18, false);
+        FloatAttr("suspender", "Suspender Spring", false, 19, 0.0f);
+        FloatAttr("antishrink", "Antishrink Strength", false, 20, 1.0f, 0.0f, 1.0f);
+        FloatAttr("stray_radius", "Stray Radius", true, 21, 0.0f, 0.0f);
+        FloatAttr("stray_radius_stretchiness", "Stray Radius Stretchiness", false, 22, 0.0f, 0.0f);
+        FloatAttr("friction", "Friction", false, 23, 0.0f, 0.0f, 1.0f);
+        StringAttr("vertex_map", "Vertex Map", false, 24).Add("verify", "vertex_map");
+        FloatAttr("end_effector", "End Effector", false, 25, 0.0f).Add("lock_default_value", true);
+        FloatAttr("stiff_hinge", "Stiff Hinge", true, 26, 0.0f, 0.0f, 1.0f).Add("lock_root2", true);
+        FloatAttr("stiff_hinge_angle", "Stiff Hinge Angle", true, 27, 0.0f, 0.0f, 180.0f).Add("lock_root2", true);
+        FloatAttr("motion_bias", "Motion Bias", true, 28, 0.0f, -1.0f, 1.0f).Add("lock_root", true);
+        IntAttr("extra_iterations", "Extra Iterations", true, 29, 0, 0, 1000);
+        FloatAttr("twist_relax", "Twist Relax", true, 30, 0.0f, 0.0f, 1.0f);
+        // Recovered per-chain from the compiled $cc proxy width (see FeModel.BuildBoneChains): a 2-wide
+        // strip / N-sided tube regenerates its proxies only if the ClothChain re-declares the extrude.
+        // extrudeSides 0 keeps the stock default (plain rope) so genuine 1-wide chains are byte-identical.
+        IntAttr("extrude_sides", "Extrude Sides", false, 31, extrudeSides, 0, 4);
+        FloatAttr("extrude_radius", "Extrude Radius", false, 32, extrudeSides >= 1 ? extrudeRadius : 5.0f, 0.0f);
+        FloatAttr("extrude_twist", "Extrude Twist", false, 33, 0.0f);
+        StringAttr("extrude_forward_axis", "Extrude Forward Axis", false, 34).Add("verify", "extrude_forward_axis");
+        FloatAttr("world_friction", "Ground Softness (\"world friction\" in Source1)", false, 35, 0.0f, 0.0f, 1.0f);
+        FloatAttr("ground_friction", "Ground Friction", false, 36, 0.0f, 0.0f, 1.0f);
+        StringAttr("stray_box", "Stray Box", false, 37).Add("verify", "stray_box");
+        BoolAttr("collision_layer_0", "Collision Layer 0", false, 38, true);
+        BoolAttr("collision_layer_1", "Collision Layer 1", false, 39, true);
+        BoolAttr("collision_layer_2", "Collision Layer 2", false, 40, true);
+        BoolAttr("collision_layer_3", "Collision Layer 3", false, 41, true);
+
+        return attrs;
+    }
+
+    #endregion
+
     // Decompiles a compiled flex rule (RPN op program) back into the expression string ModelDoc's
     // MorphRule node accepts (verified: the compiler parses "max( x, 0 ) * 0.5" back into the exact
     // FETCH/CONST/MAX/MUL ops). Returns null for programs using ops with no expression equivalent.
@@ -1109,9 +1687,6 @@ partial class ModelExtract
                     var sequenceKeys = animSequenceData.GetSubCollection("m_SequenceKeys");
                     if (sequenceKeys != null)
                     {
-                        // other keys seen:
-                        // bind_pose = true
-
                         if (sequenceKeys.GetSubCollection("AnimGameplayTiming") is KVObject animGameplayTiming)
                         {
                             childrenKV.Add(MakeNode("AnimGameplayTiming", animGameplayTiming));
@@ -1206,6 +1781,260 @@ partial class ModelExtract
                     physicsShapeList.Value.Add(physicsShapeCapsule);
                 }
             }
+        }
+
+        // Soft-body / cloth physics (m_pFeModel): reconstruct editable ModelDoc cloth source so the model
+        // recompiles into a working FeModel PHYS block AND opens in ModelDoc (no binary transplant).
+        // Phase 1 recovers bone-chain cloth as ClothChain nodes. Phase 2 recovers the cloth SHEET as a
+        // ClothProxyMeshFile + proxy DMX.
+        var clothEmitted = false;
+        if (physAggregateData?.FeModel is { } feModel)
+        {
+            var boneChains = feModel.BuildBoneChains();
+
+            if (ClothProxyMeshesToExtract.Count > 0)
+            {
+                // Phase 2 (preferred): the cloth sheet ships as a proxy mesh. With back_solve_joints the
+                // compiler regenerates the $cloth_* sheet nodes AND back-solves the bone-chain follower
+                // nodes that the sheet is skinned to - i.e. the full FeModel - so a chain whose joints
+                // appear in the FeModel's own m_FitMatrices IS driven by the proxy and must not also get
+                // an explicit ClothChain (double-driving). But a proxy mesh does not by itself mean EVERY
+                // bone chain in the model is back-solved: a model can ship independent cloth (e.g. a
+                // decorative ClothChain simulated on its own) alongside an unrelated proxy-mesh panel with
+                // back_solve_joints=false and zero m_FitMatrices entries (verified on meepo_naruto_set: 4
+                // ClothChains + a jaket cloth panel, m_FitMatrices empty) - such chains still need the
+                // same explicit ClothChain emission Phase 1 uses below, or their joints never get
+                // registered as cloth nodes at all (breaks compile: rods between them read as "Cannot find
+                // Fx Bone"/"Cannot find node" since the bones were never wired into ANY cloth construct).
+                // back_solve_joints must be on whenever the cloth drives real bones - not only the
+                // fit-matrix case (dark_willow) but also the CtrlOffsets-only case with m_FitMatrices empty
+                // (primal_beast's leg/back/neck chains), or those bones' render mesh stays frozen while the
+                // proxy sim moves. DrivesRealBones is a superset of FitMatrixNodes; verified it leaves
+                // willow/meepo/legion/snapfire's flag unchanged and only flips primal_beast on.
+                var backSolveJoints = feModel.FitMatrixNodes.Count > 0 || feModel.DrivesRealBones;
+                var independentChains = boneChains
+                    .Where(chain => !chain.Joints.Any(joint => feModel.FitMatrixNodes.Contains(joint.Node)))
+                    .ToList();
+
+                // The bones an independent ClothChain already simulates and drives on its own. The compiler
+                // regenerates those bones' proxy nodes from the chain, so a reconstructed proxy mesh that
+                // ONLY re-drives such bones is redundant - and back-solving a tiny one crashes the compiler:
+                // kez's capeLeafA/B/C are 3-vertex leaf strips, each skinned across a 3-joint chain (one
+                // vertex "most-bound" per joint), which is degenerate for a back-solved fit and makes
+                // resourcecompiler AV in its most-bound-joint search ("Cannot find most-bound-joint for
+                // position N in mesh cloth_proxyK_shape" -> accessviolation). back_solve is therefore
+                // decided PER PROXY below: on only when the proxy drives a real bone no ClothChain covers
+                // (primal_beast's leg/back/neck proxies drive chain-less bones, so they keep it; dark_willow's
+                // proxy drives fit-matrix Coattail/HairStrand bones, which are excluded from independentChains
+                // above and so are NOT treated as chain-driven - its back_solve stays on and byte-exact).
+                // Names compared case-insensitively (compiled control-node vs skeleton casing can disagree -
+                // the same kez quirk that also broke the proxy skin resolution, see BuildClothProxyMeshDmx).
+                var chainDrivenBones = new HashSet<string>(
+                    independentChains.SelectMany(static chain => chain.Joints).Select(joint => feModel.CtrlNames[joint.Node]),
+                    StringComparer.OrdinalIgnoreCase);
+
+                bool ProxyDrivesUnchainedBone(FeModel.ProxyMesh proxy)
+                {
+                    for (var v = 0; v < proxy.ClothEnable.Length; v++)
+                    {
+                        // Only simulated vertices back-solve a bone; a pinned vertex just follows its anchor.
+                        if (proxy.ClothEnable[v] == 0f)
+                        {
+                            continue;
+                        }
+
+                        foreach (var (bone, _) in proxy.SkinInfluences[v])
+                        {
+                            if (!chainDrivenBones.Contains(bone))
+                            {
+                                return true;
+                            }
+                        }
+                    }
+
+                    return false;
+                }
+
+                // add_bones_to_render_mesh is recoverable, not a guess: the compiler adds a model-space
+                // skeleton "Bone" per cloth PROXY vertex, named with the RAW "$cloth_m{proxy}p{vertex}"
+                // control-node name (GetExportBoneName only sanitizes '$'->'_' for OUR OWN vmdl text
+                // output - the compiled skeleton itself still carries the literal '$' name, verified
+                // directly in meepo's own MDAT dump), when the render mesh is actually skinned directly to
+                // individual proxy nodes - which only happens when the original was compiled with this
+                // flag on.
+                //
+                // `Bone.IsProceduralCloth` ALONE is NOT sufficient to detect this - it's `Cloth |
+                // Procedural`, a broad combination set on ANY procedurally-driven cloth bone, including
+                // REAL back-solved bones with real names (dark_willow's own Coattail/HairStrand bones -
+                // simulated real bones, not synthetic proxy vertices - carry this same flag combination).
+                // Checking the flag alone makes `addBonesToRenderMesh` wrongly true for dark_willow,
+                // regressing its m_NodeBases from an exact 1/1 to 50. The correct, narrow signal is a bone
+                // that is BOTH flagged procedural-cloth AND named like the synthetic proxy convention
+                // ("$cloth_m{proxy}p{vertex}", matching FeModel.IsProxyNodeName's own '$' check).
+                var addBonesToRenderMesh = model?.Skeleton.Bones.Any(static b =>
+                    b.IsProceduralCloth && FeModel.IsProxyNodeName(b.Name)) ?? false;
+
+                var (clothProxyList, clothProxyChildren) = MakeListNode("ClothProxyMeshList");
+                foreach (var proxyFile in ClothProxyMeshesToExtract)
+                {
+                    // The threshold is derived from the ORIGINAL's own compiled fit data (see
+                    // FeModel.RecoveredBackSolveThreshold): with the authored weights recovered verbatim,
+                    // the sub-threshold weights the original's compile dropped from its fit ranges must be
+                    // dropped by ours too, or they show up as extra m_FitWeights entries and shift the fits.
+                    // Per-vertex gravity rides the cloth_gravity$0 paint in the proxy DMX instead of any
+                    // KV field here (the cloth_gravity_scale KV was tested and does not reach flGravity).
+                    var proxyBackSolve = backSolveJoints && ProxyDrivesUnchainedBone(proxyFile.Proxy);
+                    clothProxyChildren.Add(MakeClothProxyMeshFile(proxyFile.Name, proxyFile.FileName, proxyBackSolve, driveMeshes: proxyBackSolve, addBonesToRenderMesh,
+                        backSolveInfluenceThreshold: feModel.RecoveredBackSolveThreshold ?? 0.0f));
+                }
+
+                // Clean regular grids generated over the bone chains, shipped DISABLED next to the
+                // recovered surface: a ready-made editable sheet for re-authoring the cloth.
+                foreach (var clothGrid in ClothChainGridsToExtract)
+                {
+                    var gridNode = MakeClothProxyMeshFile(clothGrid.Name, clothGrid.FileName, backSolveJoints: false, driveMeshes: true);
+                    gridNode.Add("disabled", true);
+                    clothProxyChildren.Add(gridNode);
+                }
+
+                root.Children.Add(clothProxyList);
+
+                // The proxy mesh ships the global solver scalars + any collision shapes via a Softbody.
+                // Independent (non-back-solved) chains, if any, are emitted alongside it - see above.
+                var (softbody, softbodyChildren) = MakeListNode("Softbody");
+                softbodyChildren.Add(MakeClothParams(feModel));
+
+                // Simulated real bones that are NEITHER back-solved NOR part of any multi-joint BoneChain -
+                // standalone goal-attraction points wired together only by ClothSpring (see MakeClothNode
+                // remarks). A real bone with no real-bone descendants of its own never forms a BoneChain
+                // (BuildBoneChains skips it), so these would otherwise carry correct rods/connectivity
+                // (a plain bone name is a valid ClothSpring endpoint) but compiler-default paint instead
+                // of the recovered original goal_strength/damping/gravity/stray_radius.
+                var chainNodes = boneChains.SelectMany(static chain => chain.Joints).Select(static joint => joint.Node).ToHashSet();
+                var loneClothNodes = new List<(string Name, int Node)>();
+
+                // Real, STATIC (invMass == 0) bones the compiler still registers as FeModel control nodes
+                // purely for orientation bookkeeping - no rods, no integrator role, no fit-matrix, no
+                // ClothChain/capsule/sphere authoring of their own (e.g. meepo_naruto_set's "head_0": a
+                // plain real ancestor of a ClothChain root two hops up, not referenced by anything cloth
+                // explicitly authors). Verified this is exactly what the compiled Skeleton's plain `Cloth`
+                // bone flag (Bone.IsClothControlNode, NOT the stricter IsProceduralCloth) predicts, with
+                // zero false positives/negatives across meepo_naruto_set/dark_willow/legion_commander -
+                // emit one as a static ClothNode (mirrors MakeClothNode, is_static_node=true) for every
+                // Cloth-flagged real bone not already covered by a chain/fit-matrix/shape/lone-node above.
+                // A capsule/sphere parent bone is excluded (direct-parent-only): the compiler auto-walks a
+                // collision bone's ancestor chain and registers them itself, so an explicit ClothNode there
+                // is redundant.
+                var boneByName = model?.Skeleton.Bones.ToDictionary(static b => b.Name, StringComparer.Ordinal);
+                var shapeParentBones = feModel.BuildCollisionCapsules().Select(static c => c.ParentBone)
+                    .Concat(feModel.BuildCollisionSpheres().Select(static s => s.ParentBone))
+                    .Where(static n => n is not null)
+                    .ToHashSet();
+                var leftoverStaticNodes = new List<(string Name, int Node)>();
+
+                for (var node = 0; node < feModel.CtrlNames.Length; node++)
+                {
+                    var name = feModel.CtrlNames[node];
+                    if (FeModel.IsProxyNodeName(name) || feModel.FitMatrixNodes.Contains(node) || chainNodes.Contains(node))
+                    {
+                        continue;
+                    }
+
+                    if (feModel.NodeInvMasses[node] != 0f)
+                    {
+                        loneClothNodes.Add((name, node));
+                    }
+                    else if (!shapeParentBones.Contains(name)
+                        && boneByName is not null && boneByName.TryGetValue(name, out var bone) && bone.IsClothControlNode)
+                    {
+                        leftoverStaticNodes.Add((name, node));
+                    }
+                }
+
+                if (independentChains.Count > 0 || loneClothNodes.Count > 0 || leftoverStaticNodes.Count > 0)
+                {
+                    var (clothFolder, clothFolderChildren) = MakeListNode("Folder");
+                    clothFolder.Add("name", "cloth");
+                    softbodyChildren.Add(clothFolder);
+
+                    foreach (var boneChain in independentChains)
+                    {
+                        clothFolderChildren.Add(MakeClothChainNode(feModel, boneChain));
+                    }
+
+                    foreach (var (name, node) in loneClothNodes)
+                    {
+                        clothFolderChildren.Add(MakeClothNode(feModel, name, node));
+                    }
+
+                    foreach (var (name, node) in leftoverStaticNodes)
+                    {
+                        clothFolderChildren.Add(MakeClothNode(feModel, name, node, isStaticNode: true));
+                    }
+                }
+
+                var independentChainNodes = independentChains
+                    .SelectMany(static chain => chain.Joints)
+                    .Select(static joint => joint.Node)
+                    .ToHashSet();
+                AddClothProxySprings(softbodyChildren, feModel, ClothProxyMeshesToExtract, independentChainNodes);
+                AddClothCollisionShapes(softbodyChildren, feModel);
+
+                root.Children.Add(softbody);
+
+                clothEmitted = true;
+            }
+            else if (boneChains.Count > 0)
+            {
+                // Phase 1 fallback (no recoverable sheet): bone-chain cloth, plus a GENERATED sheet grid
+                // over each group of neighbouring chains (skirts/capes). The grid mirrors hand-authored
+                // item proxies: with back_solve_joints=false the chains keep simulating the bones while
+                // the sheet simulates the surface between them and drives the render mesh directly.
+                var (softbody, softbodyChildren) = MakeListNode("Softbody");
+                var (clothFolder, clothFolderChildren) = MakeListNode("Folder");
+                clothFolder.Add("name", "cloth");
+                softbodyChildren.Add(clothFolder);
+
+                foreach (var boneChain in boneChains)
+                {
+                    clothFolderChildren.Add(MakeClothChainNode(feModel, boneChain));
+                }
+
+                foreach (var clothGrid in ClothChainGridsToExtract)
+                {
+                    // The grid ships DISABLED: the chains alone reproduce the original physics, and with
+                    // drive_meshes the sheet would fight the chain-driven skinning of the same region.
+                    // It is a ready-made starting sheet the author can enable/retarget in ModelDoc
+                    // (like hand-authored cape proxies that drive otherwise boneless render regions).
+                    var gridNode = MakeClothProxyMeshFile(clothGrid.Name, clothGrid.FileName, backSolveJoints: false, driveMeshes: true);
+                    gridNode.Add("disabled", true);
+                    clothFolderChildren.Add(gridNode);
+                }
+
+                AddClothCollisionShapes(softbodyChildren, feModel);
+                root.Children.Add(softbody);
+                clothEmitted = true;
+            }
+        }
+
+        // Other embedded physics that VRF cannot reconstruct from source (e.g. ragdoll-only aggregates) still
+        // ship as a PHYS block in the compiled model. When the model has such a block but no rigid shapes or
+        // cloth were emitted above, drop a minimal placeholder PhysicsShapeList so the compiler allocates a
+        // PHYS block plus the CTRL embedded_physics reference. A post-compile step can then replace the PHYS
+        // payload in-place with the original block, keeping the block index the CTRL ref points at.
+        if (!clothEmitted
+            && !physicsShapeList.IsValueCreated
+            && model?.Resource?.GetBlockByType(BlockType.PHYS) is not null
+            && model.Skeleton.Bones.Length > 0)
+        {
+            physicsShapeList.Value.Add(MakeNode("PhysicsShapeSphere",
+                ("parent_bone", GetExportBoneName(model.Skeleton.Bones[0])),
+                ("surface_prop", "default"),
+                ("collision_tags", "solid"),
+                ("radius", 1.0f),
+                ("center", ToKVArray(Vector3.Zero)),
+                ("name", "vrf_phys_transplant_placeholder")
+            ));
         }
 
         if (Translation != Vector3.Zero)
