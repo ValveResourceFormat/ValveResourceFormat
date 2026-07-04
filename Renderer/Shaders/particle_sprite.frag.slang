@@ -40,17 +40,17 @@ void main(void) {
 
     switch (uTextureChannels)
     {
-        // Colour-only: colour from a channel (or RGB), texture alpha dropped (opaque texel).
+        // todo: is this right?
+        // todo: support more modes
         case SPRITECARD_TEXTURE_CHANNEL_MIX_RGB: color = vec4(color.rgb, 1.0); break;
         case SPRITECARD_TEXTURE_CHANNEL_MIX_R:   color = vec4(color.rrr, 1.0); break;
         case SPRITECARD_TEXTURE_CHANNEL_MIX_G:   color = vec4(color.ggg, 1.0); break;
         case SPRITECARD_TEXTURE_CHANNEL_MIX_B:   color = vec4(color.bbb, 1.0); break;
-        // Coverage-only: colour from the particle, a single channel supplies alpha.
         case SPRITECARD_TEXTURE_CHANNEL_MIX_A:      color = vec4(1.0, 1.0, 1.0, color.a); break;
         case SPRITECARD_TEXTURE_CHANNEL_MIX_RALPHA: color = vec4(1.0, 1.0, 1.0, color.r); break;
         case SPRITECARD_TEXTURE_CHANNEL_MIX_GALPHA: color = vec4(1.0, 1.0, 1.0, color.g); break;
         case SPRITECARD_TEXTURE_CHANNEL_MIX_BALPHA: color = vec4(1.0, 1.0, 1.0, color.b); break;
-        default: break; // MIX_RGBA and the unsupported dual-texture modes use the texel as-is
+        default: break;
     }
 
     // spritecard shading: brightness from diffuse+selfillum, saturated before the alpha blend.
