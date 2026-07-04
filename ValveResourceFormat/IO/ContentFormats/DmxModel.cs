@@ -229,6 +229,95 @@ public class DmeVertexData : DMElement
 }
 
 /// <summary>
+/// Represents a morph/flex delta state: sparse per-vertex position (and optionally normal/wrinkle)
+/// deltas relative to the base mesh. Streams mirror the base <see cref="DmeVertexData"/> naming
+/// (<c>position$0</c> with a parallel <c>position$0Indices</c>); only changed vertices are stored.
+/// The element <c>name</c> is the flex/morph name; ModelDoc treats a <c>base__combo</c> name as a
+/// corrective shape and auto-generates the flex controller/rule for it on compile.
+/// </summary>
+[CamelCaseProperties]
+public class DmeVertexDeltaData : DMElement
+{
+    /// <summary>
+    /// Gets the vertex format specification (the stream names present in this delta state).
+    /// </summary>
+    public Datamodel.StringArray VertexFormat { get; } = [];
+
+    /// <summary>
+    /// Gets or sets a value indicating whether to flip V texture coordinates.
+    /// </summary>
+    public bool FlipVCoordinates { get; set; }
+
+    /// <summary>
+    /// Adds an indexed delta stream: the delta values plus the base-mesh vertex indices they apply to.
+    /// </summary>
+    public void AddIndexedStream<T>(string name, T[] data, int[] indices)
+    {
+        VertexFormat.Add(name);
+        this[name] = data;
+        this[name + "Indices"] = indices;
+    }
+}
+
+/// <summary>
+/// A single flex/morph input control (slider). <c>rawControlNames</c> lists the delta state(s) it
+/// drives directly (one for a mono control, two for a stereo left/right control). The compiler turns
+/// each control into an MRPH flex controller plus a fetch rule, and synthesises combination rules for
+/// any <c>a__b</c> corrective delta states whose constituents are present in the control set.
+/// </summary>
+[CamelCaseProperties]
+public class DmeCombinationInputControl : DMElement
+{
+    /// <summary>Gets the raw control (delta state) names driven by this control.</summary>
+    public Datamodel.StringArray RawControlNames { get; } = [];
+
+    /// <summary>Gets or sets a value indicating whether this is a stereo (left/right) control.</summary>
+    public bool Stereo { get; set; }
+
+    /// <summary>Gets or sets a value indicating whether this control drives eyelids.</summary>
+    public bool Eyelid { get; set; }
+
+    /// <summary>
+    /// Gets or sets the slider's upper bound. Maps to the compiled flex controller's <c>max</c>; the
+    /// flex range MUST be non-empty or ModelDoc's slider produces a zero morph weight (no deformation).
+    /// </summary>
+    public float FlexMax { get; set; } = 1f;
+
+    /// <summary>Gets or sets the slider's lower bound. Maps to the compiled flex controller's <c>min</c>.</summary>
+    public float FlexMin { get; set; }
+
+    /// <summary>Gets the per-raw-control wrinkle scale factors.</summary>
+    public Datamodel.FloatArray WrinkleScales { get; } = [];
+}
+
+/// <summary>
+/// The flex/morph controller setup for a model. Holds the list of input controls and the meshes
+/// (<c>targets</c>) whose delta states they drive. Referenced from the DMX root via the
+/// <c>combinationOperator</c> attribute; ModelDoc reads it to build the MRPH flex controllers/rules.
+/// </summary>
+[CamelCaseProperties]
+public class DmeCombinationOperator : DMElement
+{
+    /// <summary>Gets the input controls (<see cref="DmeCombinationInputControl"/>).</summary>
+    public Datamodel.ElementArray Controls { get; } = [];
+
+    /// <summary>Gets the per-control current values.</summary>
+    public Datamodel.Vector3Array ControlValues { get; } = [];
+
+    /// <summary>Gets the per-control lagged values.</summary>
+    public Datamodel.Vector3Array ControlValuesLagged { get; } = [];
+
+    /// <summary>Gets or sets a value indicating whether lagged values are used.</summary>
+    public bool UsesLaggedValues { get; set; }
+
+    /// <summary>Gets the domination rules.</summary>
+    public Datamodel.ElementArray Dominators { get; } = [];
+
+    /// <summary>Gets the target meshes (<see cref="DmeMesh"/>) this operator drives.</summary>
+    public Datamodel.ElementArray Targets { get; } = [];
+}
+
+/// <summary>
 /// Represents a list of animations.
 /// </summary>
 [CamelCaseProperties]
