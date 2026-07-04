@@ -11,6 +11,11 @@ layout (location = 4) in vec4 aVertexColor;
 #if (D_BAKED_LIGHTING_FROM_PROBE == 1)
     uniform uint uLightProbeIndex = 0u;
     flat out uint g_nVisibleLPV;
+#elif (D_BAKED_LIGHTING_FROM_LIGHTMAP == 1)
+    // Cables carry no lightmap coordinates; these combos exist only so the shared lighting include links.
+    centroid out vec3 vLightmapUVScaled;
+#elif (D_BAKED_LIGHTING_FROM_VERTEX_STREAM == 1)
+    out vec3 vPerVertexLightingOut;
 #endif
 
 out vec3 vFragPosition;
@@ -31,6 +36,10 @@ void main(void)
 
 #if (D_BAKED_LIGHTING_FROM_PROBE == 1)
     g_nVisibleLPV = uLightProbeIndex;
+#elif (D_BAKED_LIGHTING_FROM_LIGHTMAP == 1)
+    vLightmapUVScaled = vec3(0.0);
+#elif (D_BAKED_LIGHTING_FROM_VERTEX_STREAM == 1)
+    vPerVertexLightingOut = vec3(0.0);
 #endif
 
     gl_Position = g_matWorldToProjection * vec4(aVertexPosition, 1.0);
