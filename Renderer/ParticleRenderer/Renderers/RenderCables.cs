@@ -19,10 +19,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
 
         private Shader shader;
         private readonly Scene scene;
-        private readonly RenderTexture texture;
-        private readonly float roughness = 1f;
-        private readonly float diffuseAmount = 1f;
-        private readonly float selfIllumAmount;
+        private readonly RenderMaterial material;
         private readonly int vaoHandle;
         private int vertexBufferHandle;
         private int indexBufferHandle;
@@ -89,13 +86,16 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
             circumferenceRepeats = parse.NumberProvider("m_flTextureRepeatsCircumference", circumferenceRepeats);
 
             var materialName = parse.Data.ContainsKey("m_hMaterial") ? parse.Data.GetStringProperty("m_hMaterial") : null;
-            var material = materialName != null ? rendererContext.MaterialLoader.GetMaterial(materialName, null) : null;
-            // A cable without a material uses a default white texture; show the vertex colour rather
-            // than the error checker.
-            texture = material?.Textures.GetValueOrDefault("g_tColor") ?? rendererContext.MaterialLoader.GetDefaultColor();
-            roughness = material?.Material.FloatParams.GetValueOrDefault("g_flRoughness", roughness) ?? roughness;
-            diffuseAmount = material?.Material.FloatParams.GetValueOrDefault("g_flDiffuseAmount", diffuseAmount) ?? diffuseAmount;
-            selfIllumAmount = material?.Material.FloatParams.GetValueOrDefault("g_flSelfIllumAmount", selfIllumAmount) ?? selfIllumAmount;
+            material = materialName != null
+                ? rendererContext.MaterialLoader.GetMaterial(materialName, null)
+                : new RenderMaterial(shader);
+
+            // A cable without an authored colour texture uses a default white one, showing the vertex
+            // colour rather than the shader-default error checker.
+            if (!material.Textures.ContainsKey("g_tColor"))
+            {
+                material.Textures["g_tColor"] = rendererContext.MaterialLoader.GetDefaultColor();
+            }
 
             vaoHandle = SetupBuffers();
         }
@@ -425,27 +425,15 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
 
             shader.Use();
             GL.BindVertexArray(vaoHandle);
-            shader.SetTexture(RenderMaterial.TextureUnitStart, "g_tColor", texture);
-            shader.SetUniform1("g_flRoughness", roughness);
-            shader.SetUniform1("g_flDiffuseAmount", diffuseAmount);
-            shader.SetUniform1("g_flSelfIllumAmount", selfIllumAmount);
+            material.Render(shader);
 
-            // todo: not hardcode this here.
-            if (lightProbe?.Irradiance is { } irradiance)
+            // todo: batch tube draws and call this less often
+            scene.LightingInfo.SetLightmapTextures(shader);
+
+            if (lightProbe is not null)
             {
                 shader.SetUniform1("uLightProbeIndex", (uint)lightProbe.ShaderIndex);
-                shader.SetTexture((int)ReservedTextureSlots.Probe1, "g_tLPV_Irradiance", irradiance);
-
-                // Baked sun-visibility inputs; the lightmap version picks which set the shader variant declares.
-                if (scene.LightingInfo.LightmapGameVersionNumber == 1)
-                {
-                    shader.SetTexture((int)ReservedTextureSlots.Probe2, "g_tLPV_Indices", lightProbe.DirectLightIndices);
-                    shader.SetTexture((int)ReservedTextureSlots.Probe3, "g_tLPV_Scalars", lightProbe.DirectLightScalars);
-                }
-                else if (scene.LightingInfo.LightmapGameVersionNumber >= 2)
-                {
-                    shader.SetTexture((int)ReservedTextureSlots.Probe2, "g_tLPV_Shadows", lightProbe.DirectLightShadows);
-                }
+                scene.LightingInfo.SetInstanceLightProbeTextures(shader, lightProbe);
             }
 
             // The tube is opaque geometry drawn in the translucent pass: disable blending and write depth so
@@ -455,6 +443,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
 
             GL.DrawElements(PrimitiveType.Triangles, indexCount, DrawElementsType.UnsignedInt, 0);
 
+            material.PostRender();
             GL.DepthMask(false);
             GL.Enable(EnableCap.Blend);
             GL.BindVertexArray(0);
