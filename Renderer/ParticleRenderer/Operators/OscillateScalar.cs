@@ -25,7 +25,7 @@ namespace ValveResourceFormat.Renderer.Particles.Operators
             frequencyMax = parse.Float("m_FrequencyMax", frequencyMax);
             oscillationMultiplier = parse.Float("m_flOscMult", oscillationMultiplier);
             oscillationOffset = parse.Float("m_flOscAdd", oscillationOffset);
-            proportional = parse.Boolean("m_bProportional", proportional);
+            proportional = parse.Boolean("m_bProportionalOp", proportional);
         }
 
         public override void Operate(ParticleCollection particles, float frameTime, ParticleSystemRenderState particleSystemState)
