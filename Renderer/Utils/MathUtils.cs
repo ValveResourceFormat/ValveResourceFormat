@@ -89,5 +89,17 @@ namespace ValveResourceFormat.Renderer.Utils
 
             return from + shortestPath * amount;
         }
+
+        /// <summary>
+        /// Evaluates a cubic Bezier curve at <paramref name="t"/> in [0, 1].
+        /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static Vector3 CubicBezier(Vector3 p0, Vector3 p1, Vector3 p2, Vector3 p3, float t)
+        {
+            var u = 1.0f - t;
+            var uu = u * u;
+            var tt = t * t;
+            return (uu * u * p0) + (3.0f * uu * t * p1) + (3.0f * u * tt * p2) + (tt * t * p3);
+        }
     }
 }

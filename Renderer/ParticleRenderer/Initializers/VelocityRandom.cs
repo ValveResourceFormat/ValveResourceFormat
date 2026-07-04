@@ -10,6 +10,7 @@ namespace ValveResourceFormat.Renderer.Particles.Initializers
         private readonly IVectorProvider vectorMax = new LiteralVectorProvider(Vector3.Zero);
         private readonly INumberProvider speedMin = new LiteralNumberProvider(0.1f);
         private readonly INumberProvider speedMax = new LiteralNumberProvider(0.1f);
+        private readonly bool ignoreDT;
 
         public VelocityRandom(ParticleDefinitionParser parse) : base(parse)
         {
@@ -17,6 +18,7 @@ namespace ValveResourceFormat.Renderer.Particles.Initializers
             vectorMax = parse.VectorProvider("m_LocalCoordinateSystemSpeedMax", vectorMax);
             speedMin = parse.NumberProvider("m_fSpeedMin", speedMin);
             speedMax = parse.NumberProvider("m_fSpeedMax", speedMax);
+            ignoreDT = parse.Boolean("m_bIgnoreDT", ignoreDT);
         }
 
         public override Particle Initialize(ref Particle particle, ParticleCollection particles, ParticleSystemRenderState particleSystemState)
@@ -30,9 +32,19 @@ namespace ValveResourceFormat.Renderer.Particles.Initializers
             var vecMin = vectorMin.NextVector(ref particle, particleSystemState);
             var vecMax = vectorMax.NextVector(ref particle, particleSystemState);
 
-            var velocity = ParticleCollection.RandomBetweenPerComponent(particle.ParticleID, vecMin, vecMax);
+            var velocity = ParticleCollection.RandomBetweenPerComponent(particle.ParticleID, vecMin, vecMax) * speed;
 
-            particle.Velocity = velocity * speed;
+            // With the flag set the authored value is a raw per-step displacement, not units/second.
+            if (ignoreDT)
+            {
+                var frameTime = particleSystemState.Data?.CurrentFrameTime ?? 0f;
+                if (frameTime > 0f)
+                {
+                    velocity /= frameTime;
+                }
+            }
+
+            particle.Velocity += velocity;
 
             return particle;
         }

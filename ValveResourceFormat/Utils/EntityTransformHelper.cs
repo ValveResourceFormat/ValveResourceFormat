@@ -41,6 +41,17 @@ namespace ValveResourceFormat.Utils
         }
 
         /// <summary>
+        /// Converts Euler angles (pitch, yaw, roll) to a normalized forward direction vector.
+        /// </summary>
+        /// <param name="pitchYawRoll">The Euler angles.</param>
+        /// <returns>The normalized forward direction.</returns>
+        public static Vector3 QAngleToForwardDirection(Vector3 pitchYawRoll)
+        {
+            var rotationMatrix = CreateRotationMatrixFromEulerAngles(pitchYawRoll);
+            return Vector3.Normalize(Vector3.Transform(new Vector3(1, 0, 0), rotationMatrix));
+        }
+
+        /// <summary>
         /// Calculates the full transformation matrix for an entity.
         /// </summary>
         /// <param name="entity">The entity.</param>

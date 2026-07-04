@@ -40,7 +40,6 @@ namespace ValveResourceFormat.Renderer.Particles.Operators
             {
                 var distance = Vector3.Distance(cpPos, particle.Position);
 
-                // presumably triggered by activerange. untested but consistent with other modules behavior
                 if (activeRange && (distance < distanceMin || distance > distanceMax))
                 {
                     continue;

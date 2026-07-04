@@ -48,7 +48,7 @@ namespace ValveResourceFormat.Renderer.Particles.Emitters
             particleEmitCallback = null;
         }
 
-        public override void Emit(float frameTime)
+        public override void Emit(float frameTime, ParticleSystemRenderState particleSystemState)
         {
             if (IsFinished)
             {
@@ -57,19 +57,19 @@ namespace ValveResourceFormat.Renderer.Particles.Emitters
 
             time += frameTime;
 
-            var nextStartTime = startTime.NextNumber();
-            var nextEmissionDuration = emissionDuration.NextNumber();
+            var nextStartTime = startTime.NextNumber(particleSystemState);
+            var nextEmissionDuration = emissionDuration.NextNumber(particleSystemState);
 
             if (time >= nextStartTime && (nextEmissionDuration == 0f || time <= nextStartTime + nextEmissionDuration))
             {
                 // Calculate current emission rate based on noise
-                var noise = Noise.Simplex1D(time * noiseScale.NextNumber());
-                var valueScale = emissionMax.NextNumber() - emissionMin.NextNumber();
-                var valueBase = emissionMin.NextNumber();
-                var emissionRate = valueBase + noise * valueScale;
+                var noise = Noise.Simplex1D(time * noiseScale.NextNumber(particleSystemState));
+                var emissionMinValue = emissionMin.NextNumber(particleSystemState);
+                var emissionMaxValue = emissionMax.NextNumber(particleSystemState);
+                var emissionRate = emissionMinValue + noise * (emissionMaxValue - emissionMinValue);
 
                 // Aggregate emission into num of particles to emit
-                particlesToEmit += Math.Clamp(emissionRate, 0, emissionMax.NextNumber()) * frameTime; // Limit the amount of particles to emit at once in case of refocus
+                particlesToEmit += Math.Clamp(emissionRate, 0, emissionMaxValue) * frameTime; // Limit the amount of particles to emit at once in case of refocus
 
                 // If nr of particles to emit is > 0, emit it
                 while (particlesToEmit > 1.0f)

@@ -31,12 +31,18 @@ namespace ValveResourceFormat.Renderer.Particles
         public float AlphaAlternate { get; set; } = 1.0f;
 
         /// <summary>Gets or sets the RGB color of the particle, with each component in the range [0, 1].</summary>
-        public Vector3 Color { get; set; } = Vector3.One; // ??
+        public Vector3 Color { get; set; } = Vector3.One;
         /// <summary>Gets or sets the radius of the particle.</summary>
         public float Radius { get; set; } = 1.0f;
 
         /// <summary>Gets or sets the trail length multiplier for trail-based renderers.</summary>
         public float TrailLength { get; set; } = 0f;
+
+        /// <summary>
+        /// Gets or sets the scale factor applied to forces acting on this particle. 1 = full force,
+        /// 0 = immovable (pinned). Used by movement/force operators to mask or weight forces per particle.
+        /// </summary>
+        public float ForceScale { get; set; } = 1.0f;
 
         /// <summary>
         /// Gets or sets (Yaw, Pitch, Roll) Euler angles.
@@ -79,6 +85,12 @@ namespace ValveResourceFormat.Renderer.Particles
             readonly get => Velocity.Length();
             set => Velocity = Vector3.Normalize(Velocity) * value;
         }
+        /// <summary>
+        /// Gets or sets the acceleration accumulated by force generators this frame; consumed and
+        /// cleared by <see cref="Operators.BasicMovement"/>.
+        /// </summary>
+        public Vector3 ForceAccumulator { get; set; } = Vector3.Zero;
+
         /// <summary>Gets or sets the sprite sheet sequence number.</summary>
         public int Sequence { get; set; } = 0;
 

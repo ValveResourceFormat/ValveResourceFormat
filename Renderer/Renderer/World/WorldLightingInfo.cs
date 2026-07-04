@@ -162,6 +162,42 @@ namespace ValveResourceFormat.Renderer.World
         }
 
         /// <summary>
+        /// Binds the per-draw light-probe volume textures for a draw bound to <paramref name="lightProbe"/>:
+        /// the probe's irradiance plus the lightmap-version specific direct-light data. Only applies to
+        /// individual-probe scenes; in probe-atlas scenes the shared atlas textures are bound per shader by
+        /// <see cref="SetLightmapTextures"/> and the shader picks the probe by its index. Slots bound here
+        /// are queued into <paramref name="boundSlots"/> when provided, so the caller can unbind them after
+        /// the draw.
+        /// </summary>
+        public void SetInstanceLightProbeTextures(Shader shader, SceneLightProbe lightProbe, Queue<int>? boundSlots = null)
+        {
+            if (LightProbeType != LightProbeType.IndividualProbes)
+            {
+                return;
+            }
+
+            BindProbeTexture(shader, ReservedTextureSlots.Probe1, "g_tLPV_Irradiance", lightProbe.Irradiance, boundSlots);
+
+            if (LightmapGameVersionNumber == 1)
+            {
+                BindProbeTexture(shader, ReservedTextureSlots.Probe2, "g_tLPV_Indices", lightProbe.DirectLightIndices, boundSlots);
+                BindProbeTexture(shader, ReservedTextureSlots.Probe3, "g_tLPV_Scalars", lightProbe.DirectLightScalars, boundSlots);
+            }
+            else if (LightmapGameVersionNumber >= 2)
+            {
+                BindProbeTexture(shader, ReservedTextureSlots.Probe2, "g_tLPV_Shadows", lightProbe.DirectLightShadows, boundSlots);
+            }
+        }
+
+        private static void BindProbeTexture(Shader shader, ReservedTextureSlots slot, string name, RenderTexture? texture, Queue<int>? boundSlots)
+        {
+            if (texture != null && shader.SetTexture((int)slot, name, texture))
+            {
+                boundSlots?.Enqueue((int)slot);
+            }
+        }
+
+        /// <summary>
         /// Registers an environment map with the scene, setting the cubemap type on the first entry.
         /// </summary>
         /// <param name="envmap">The environment map to add.</param>

@@ -10,6 +10,7 @@ namespace ValveResourceFormat.Renderer.Particles.PreEmissionOperators
         private readonly int OutputCP = 1;
         private readonly IVectorProvider Input1 = new LiteralVectorProvider(Vector3.Zero);
         private readonly IVectorProvider Input2 = new LiteralVectorProvider(Vector3.Zero);
+        private readonly INumberProvider Lerp = new LiteralNumberProvider(0f);
         private readonly VectorExpression Expression = VectorExpression.VECTOR_EXPRESSION_ADD;
 
         public SetControlPointToVectorExpression(ParticleDefinitionParser parse) : base(parse)
@@ -17,6 +18,7 @@ namespace ValveResourceFormat.Renderer.Particles.PreEmissionOperators
             OutputCP = parse.Int32("m_nOutputCP", OutputCP);
             Input1 = parse.VectorProvider("m_vInput1", Input1);
             Input2 = parse.VectorProvider("m_vInput2", Input2);
+            Lerp = parse.NumberProvider("m_flLerp", Lerp);
             Expression = parse.Enum<VectorExpression>("m_nExpression", Expression);
         }
 
@@ -36,6 +38,7 @@ namespace ValveResourceFormat.Renderer.Particles.PreEmissionOperators
                 VectorExpression.VECTOR_EXPRESSION_MIN => Vector3.Min(vec1, vec2),
                 VectorExpression.VECTOR_EXPRESSION_MAX => Vector3.Max(vec1, vec2),
                 VectorExpression.VECTOR_EXPRESSION_CROSSPRODUCT => Vector3.Cross(vec1, vec2),
+                VectorExpression.VECTOR_EXPRESSION_LERP => Vector3.Lerp(vec1, vec2, Lerp.NextNumber(particleSystemState)),
                 // "VECTOR_EXPRESSION_NORMALIZE_INPUT_1" // Not in latest dota version
                 _ => throw new NotImplementedException($"Unrecognized vector expression type ({Expression})")
             };

@@ -47,9 +47,10 @@ namespace ValveResourceFormat.Renderer
         } = true;
 
         /// <summary>
-        /// Gets the world-space axis-aligned bounding box, computed from <see cref="LocalBoundingBox"/> and <see cref="Transform"/>.
+        /// Gets the world-space axis-aligned bounding box. Recomputed from <see cref="LocalBoundingBox"/> and
+        /// <see cref="Transform"/> when either is set; nodes whose content lives in world space set it directly.
         /// </summary>
-        public AABB BoundingBox { get; private set; }
+        public AABB BoundingBox { get; protected set; }
 
         /// <summary>
         /// Gets or sets the local-space axis-aligned bounding box. Setting this also updates <see cref="BoundingBox"/>.

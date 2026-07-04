@@ -8,6 +8,7 @@ namespace ValveResourceFormat.Renderer.Particles.Initializers
     class RemapSpeedToScalar : ParticleFunctionInitializer
     {
         private readonly ParticleField FieldOutput = ParticleField.Radius;
+        private readonly int controlPointNumber;
         private readonly float inputMin;
         private readonly float inputMax = 10;
         private readonly float outputMin;
@@ -19,6 +20,7 @@ namespace ValveResourceFormat.Renderer.Particles.Initializers
         public RemapSpeedToScalar(ParticleDefinitionParser parse) : base(parse)
         {
             FieldOutput = parse.ParticleField("m_nFieldOutput", FieldOutput);
+            controlPointNumber = parse.Int32("m_nControlPointNumber", controlPointNumber);
             inputMin = parse.Float("m_flInputMin", inputMin);
             inputMax = parse.Float("m_flInputMax", inputMax);
             outputMin = parse.Float("m_flOutputMin", outputMin);
@@ -29,15 +31,26 @@ namespace ValveResourceFormat.Renderer.Particles.Initializers
 
         public override Particle Initialize(ref Particle particle, ParticleCollection particles, ParticleSystemRenderState particleSystemState)
         {
-            if (!perParticle)
+            float speed;
+            if (perParticle)
             {
-                // I think it depends on the speed of the control point, which we don't track.
-                return particle;
+                speed = particle.Velocity.Length();
             }
-            var particleCount = Math.Clamp(particle.ParticleID, inputMin, inputMax);
+            else
+            {
+                var frameTime = particleSystemState.Data?.CurrentFrameTime ?? 0f;
+                if (frameTime <= 0f)
+                {
+                    return particle;
+                }
 
-            var output = MathUtils.RemapRange(particleCount, inputMin, inputMax, outputMin, outputMax);
+                speed = particleSystemState.GetControlPoint(controlPointNumber).GetVelocity(frameTime).Length();
+            }
 
+            speed = Math.Clamp(speed, inputMin, inputMax);
+            var output = MathUtils.RemapRange(speed, inputMin, inputMax, outputMin, outputMax);
+
+            output = particle.ModifyScalarBySetMethod(particles, FieldOutput, output, setMethod);
             particle.SetScalar(FieldOutput, output);
 
             return particle;

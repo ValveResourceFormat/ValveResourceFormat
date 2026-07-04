@@ -2,6 +2,7 @@ using System.Diagnostics.CodeAnalysis;
 using Microsoft.Extensions.Logging;
 using ValveKeyValue;
 using ValveResourceFormat.Renderer;
+using ValveResourceFormat.Renderer.Particles.Constraints;
 using ValveResourceFormat.Renderer.Particles.Emitters;
 using ValveResourceFormat.Renderer.Particles.ForceGenerators;
 using ValveResourceFormat.Renderer.Particles.Initializers;
@@ -17,6 +18,24 @@ namespace ValveResourceFormat.Renderer.Particles
     static class ParticleControllerFactory
     {
         // These can all be found in particle.dll
+
+        // Below, dictionaries and TryCreateX methods are ordered to match the CS2 particle editor (PET):
+        // pre-emission first, then emit/init/operate, forces, constraints, and renderers last.
+
+        // Register particle pre-emission operators (mostly stuff with control points)
+        internal static readonly Dictionary<string, Func<ParticleDefinitionParser, ParticleFunctionPreEmissionOperator>> PreEmissionOperatorDictionary
+            = new()
+            {
+                ["C_OP_DistanceBetweenCPsToCP"] = preEmissionOperatorInfo => new DistanceBetweenCPsToCP(preEmissionOperatorInfo),
+                ["C_OP_RampCPLinearRandom"] = preEmissionOperatorInfo => new RampCPLinearRandom(preEmissionOperatorInfo),
+                ["C_OP_SetControlPointPositions"] = preEmissionOperatorInfo => new SetControlPointPositions(preEmissionOperatorInfo),
+                ["C_OP_SetControlPointRotation"] = preEmissionOperatorInfo => new SetControlPointRotation(preEmissionOperatorInfo),
+                ["C_OP_SetControlPointToVectorExpression"] = preEmissionOperatorInfo => new SetControlPointToVectorExpression(preEmissionOperatorInfo),
+                ["C_OP_SetControlPointOrientation"] = preEmissionOperatorInfo => new SetControlPointOrientation(preEmissionOperatorInfo),
+                ["C_OP_SetRandomControlPointPosition"] = preEmissionOperatorInfo => new SetRandomControlPointPosition(preEmissionOperatorInfo),
+                ["C_OP_SetSingleControlPointPosition"] = preEmissionOperatorInfo => new SetSingleControlPointPosition(preEmissionOperatorInfo),
+                ["C_OP_StopAfterCPDuration"] = preEmissionOperatorInfo => new StopAfterDuration(preEmissionOperatorInfo),
+            };
 
         // Register particle emitters
         internal static readonly Dictionary<string, Func<ParticleDefinitionParser, ParticleFunctionEmitter>> EmitterDictionary
@@ -39,6 +58,7 @@ namespace ValveResourceFormat.Renderer.Particles
                 ["C_INIT_CreateWithinSphereTransform"] = initializerInfo => new CreateWithinSphereTransform(initializerInfo),
                 ["C_INIT_CreateFromCPs"] = initializerInfo => new CreateFromCPs(initializerInfo),
                 ["C_INIT_CreateFromParentParticles"] = initializerInfo => new CreateFromParentParticles(initializerInfo),
+                ["C_INIT_CreationNoise"] = initializerInfo => new CreationNoise(initializerInfo),
                 ["C_INIT_InitFromCPSnapshot"] = initializerInfo => new InitFromCPSnapshot(initializerInfo),
                 ["C_INIT_InitFloat"] = initializerInfo => new InitFloat(initializerInfo),
                 ["C_INIT_InitFloatCollection"] = initializerInfo => new InitFloat(initializerInfo), // initfloat but the numberprovider has fewer options
@@ -47,6 +67,7 @@ namespace ValveResourceFormat.Renderer.Particles
                 ["C_INIT_OffsetVectorToVector"] = initializerInfo => new OffsetVectorToVector(initializerInfo),
                 ["C_INIT_PointList"] = initializerInfo => new PointList(initializerInfo),
                 ["C_INIT_PositionOffset"] = initializerInfo => new PositionOffset(initializerInfo),
+                ["C_INIT_PositionWarp"] = initializerInfo => new PositionWarp(initializerInfo),
                 ["C_INIT_RandomAlpha"] = initializerInfo => new RandomAlpha(initializerInfo),
                 ["C_INIT_RandomColor"] = initializerInfo => new RandomColor(initializerInfo),
                 ["C_INIT_RandomLifeTime"] = initializerInfo => new RandomLifeTime(initializerInfo),
@@ -62,6 +83,7 @@ namespace ValveResourceFormat.Renderer.Particles
                 ["C_INIT_RandomVectorComponent"] = initializerInfo => new RandomVectorComponent(initializerInfo),
                 ["C_INIT_RandomYaw"] = initializerInfo => new RandomRotation(initializerInfo), // Same as RandomRotation
                 ["C_INIT_RandomYawFlip"] = initializerInfo => new RandomYawFlip(initializerInfo),
+                ["C_INIT_NormalAlignToCP"] = initializerInfo => new NormalAlignToCP(initializerInfo),
                 ["C_INIT_NormalOffset"] = initializerInfo => new NormalOffset(initializerInfo),
                 ["C_INIT_RemapScalar"] = initializerInfo => new RemapScalar(initializerInfo),
                 ["C_INIT_RemapSpeedToScalar"] = initializerInfo => new RemapSpeedToScalar(initializerInfo),
@@ -116,6 +138,7 @@ namespace ValveResourceFormat.Renderer.Particles
                 ["C_OP_SetAttributeToScalarExpression"] = operatorInfo => new SetAttributeToScalarExpression(operatorInfo),
                 ["C_OP_SetFloat"] = operatorInfo => new SetFloat(operatorInfo),
                 ["C_OP_SetFloatCollection"] = operatorInfo => new SetFloat(operatorInfo), // same as initfloatcollection
+                ["C_OP_SetFromCPSnapshot"] = operatorInfo => new SetFromCPSnapshot(operatorInfo),
                 ["C_OP_SetVec"] = operatorInfo => new SetVec(operatorInfo),
                 ["C_OP_Spin"] = operatorInfo => new Spin(operatorInfo),
                 ["C_OP_SpinUpdate"] = operatorInfo => new SpinUpdate(operatorInfo),
@@ -124,7 +147,7 @@ namespace ValveResourceFormat.Renderer.Particles
             };
 
         // Register particle force generators
-        internal static readonly Dictionary<string, Func<ParticleDefinitionParser, ParticleFunctionOperator>> ForceGeneratorDictionary
+        internal static readonly Dictionary<string, Func<ParticleDefinitionParser, ParticleFunctionForceGenerator>> ForceGeneratorDictionary
             = new()
             {
                 ["C_OP_AttractToControlPoint"] = forceGeneratorInfo => new AttractToControlPoint(forceGeneratorInfo),
@@ -132,94 +155,88 @@ namespace ValveResourceFormat.Renderer.Particles
                 ["C_OP_RandomForce"] = forceGeneratorInfo => new RandomForce(forceGeneratorInfo),
             };
 
+        // Register particle constraints (run after operators each frame to relax particle positions)
+        internal static readonly Dictionary<string, Func<ParticleDefinitionParser, ParticleFunctionConstraint>> ConstraintDictionary
+            = new()
+            {
+                ["C_OP_RopeSpringConstraint"] = constraintInfo => new RopeSpringConstraint(constraintInfo),
+            };
+
         // Register particle renderers
         internal static readonly Dictionary<string, Func<ParticleDefinitionParser, RendererContext, Scene, ParticleFunctionRenderer>> RendererDictionary
             = new()
             {
                 ["C_OP_RenderSprites"] = (rendererInfo, rendererContext, scene) => new RenderSprites(rendererInfo, rendererContext),
+                ["C_OP_RenderCables"] = (rendererInfo, rendererContext, scene) => new RenderCables(rendererInfo, rendererContext, scene),
+                ["C_OP_RenderRopes"] = (rendererInfo, rendererContext, scene) => new RenderCables(rendererInfo, rendererContext, scene), // Rope renderer variant, drawn with RenderCables as a tube approximation.
+
                 ["C_OP_RenderTrails"] = (rendererInfo, rendererContext, scene) => new RenderTrails(rendererInfo, rendererContext),
                 ["C_OP_RenderStandardLight"] = (rendererInfo, rendererContext, scene) => new RenderStandardLight(rendererInfo, rendererContext, scene),
                 ["C_OP_RenderOmni2Light"] = (rendererInfo, rendererContext, scene) => new RenderOmni2Light(rendererInfo, rendererContext, scene),
             };
 
-        // Register particle pre-emission operators (mostly stuff with control points)
-        internal static readonly Dictionary<string, Func<ParticleDefinitionParser, ParticleFunctionPreEmissionOperator>> PreEmissionOperatorDictionary
-            = new()
+        /// <summary>
+        /// Shared lookup+construct logic behind every TryCreateX method below except <see cref="TryCreateRender"/>,
+        /// which needs extra renderer-only constructor arguments.
+        /// </summary>
+        private static bool TryCreate<TFunction>(
+            Dictionary<string, Func<ParticleDefinitionParser, TFunction>> dictionary,
+            string name,
+            KVObject info,
+            ILogger logger,
+            [MaybeNullWhen(false)] out TFunction function)
+        {
+            if (dictionary.TryGetValue(name, out var factory))
             {
-                ["C_OP_DistanceBetweenCPsToCP"] = preEmissionOperatorInfo => new DistanceBetweenCPsToCP(preEmissionOperatorInfo),
-                ["C_OP_RampCPLinearRandom"] = preEmissionOperatorInfo => new RampCPLinearRandom(preEmissionOperatorInfo),
-                ["C_OP_SetControlPointPositions"] = preEmissionOperatorInfo => new SetControlPointPositions(preEmissionOperatorInfo),
-                ["C_OP_SetControlPointRotation"] = preEmissionOperatorInfo => new SetControlPointRotation(preEmissionOperatorInfo),
-                ["C_OP_SetControlPointToVectorExpression"] = preEmissionOperatorInfo => new SetControlPointToVectorExpression(preEmissionOperatorInfo),
-                ["C_OP_SetControlPointOrientation"] = preEmissionOperatorInfo => new SetControlPointOrientation(preEmissionOperatorInfo),
-                ["C_OP_SetRandomControlPointPosition"] = preEmissionOperatorInfo => new SetRandomControlPointPosition(preEmissionOperatorInfo),
-                ["C_OP_SetSingleControlPointPosition"] = preEmissionOperatorInfo => new SetSingleControlPointPosition(preEmissionOperatorInfo),
-                ["C_OP_StopAfterCPDuration"] = preEmissionOperatorInfo => new StopAfterDuration(preEmissionOperatorInfo),
-            };
+                function = factory(new ParticleDefinitionParser(info, logger));
+                return true;
+            }
+
+            function = default;
+            return false;
+        }
+
+        /// <summary>
+        /// Attempts to create a particle pre-emission operator by its Source 2 class name.
+        /// </summary>
+        /// <returns><see langword="true"/> if the pre-emission operator type is supported; otherwise <see langword="false"/>.</returns>
+        public static bool TryCreatePreEmissionOperator(string name, KVObject preEmissionOperatorInfo, ILogger logger, [MaybeNullWhen(false)] out ParticleFunctionPreEmissionOperator preEmissionOperator)
+            => TryCreate(PreEmissionOperatorDictionary, name, preEmissionOperatorInfo, logger, out preEmissionOperator);
 
         /// <summary>
         /// Attempts to create a particle emitter by its Source 2 class name.
         /// </summary>
         /// <returns><see langword="true"/> if the emitter type is supported; otherwise <see langword="false"/>.</returns>
         public static bool TryCreateEmitter(string name, KVObject emitterInfo, ILogger logger, [MaybeNullWhen(false)] out ParticleFunctionEmitter emitter)
-        {
-            if (EmitterDictionary.TryGetValue(name, out var factory))
-            {
-                emitter = factory(new ParticleDefinitionParser(emitterInfo, logger));
-                return true;
-            }
-
-            emitter = default;
-            return false;
-        }
+            => TryCreate(EmitterDictionary, name, emitterInfo, logger, out emitter);
 
         /// <summary>
         /// Attempts to create a particle initializer by its Source 2 class name.
         /// </summary>
         /// <returns><see langword="true"/> if the initializer type is supported; otherwise <see langword="false"/>.</returns>
         public static bool TryCreateInitializer(string name, KVObject initializerInfo, ILogger logger, [MaybeNullWhen(false)] out ParticleFunctionInitializer initializer)
-        {
-            if (InitializerDictionary.TryGetValue(name, out var factory))
-            {
-                initializer = factory(new ParticleDefinitionParser(initializerInfo, logger));
-                return true;
-            }
-
-            initializer = default;
-            return false;
-        }
+            => TryCreate(InitializerDictionary, name, initializerInfo, logger, out initializer);
 
         /// <summary>
         /// Attempts to create a particle operator by its Source 2 class name.
         /// </summary>
         /// <returns><see langword="true"/> if the operator type is supported; otherwise <see langword="false"/>.</returns>
         public static bool TryCreateOperator(string name, KVObject operatorInfo, ILogger logger, [MaybeNullWhen(false)] out ParticleFunctionOperator @operator)
-        {
-            if (OperatorDictionary.TryGetValue(name, out var factory))
-            {
-                @operator = factory(new ParticleDefinitionParser(operatorInfo, logger));
-                return true;
-            }
-
-            @operator = default;
-            return false;
-        }
+            => TryCreate(OperatorDictionary, name, operatorInfo, logger, out @operator);
 
         /// <summary>
         /// Attempts to create a particle force generator by its Source 2 class name.
         /// </summary>
         /// <returns><see langword="true"/> if the force generator type is supported; otherwise <see langword="false"/>.</returns>
-        public static bool TryCreateForceGenerator(string name, KVObject forceGeneratorInfo, ILogger logger, [MaybeNullWhen(false)] out ParticleFunctionOperator @operator)
-        {
-            if (ForceGeneratorDictionary.TryGetValue(name, out var factory))
-            {
-                @operator = factory(new ParticleDefinitionParser(forceGeneratorInfo, logger));
-                return true;
-            }
+        public static bool TryCreateForceGenerator(string name, KVObject forceGeneratorInfo, ILogger logger, [MaybeNullWhen(false)] out ParticleFunctionForceGenerator forceGenerator)
+            => TryCreate(ForceGeneratorDictionary, name, forceGeneratorInfo, logger, out forceGenerator);
 
-            @operator = default;
-            return false;
-        }
+        /// <summary>
+        /// Attempts to create a particle constraint by its Source 2 class name.
+        /// </summary>
+        /// <returns><see langword="true"/> if the constraint type is supported; otherwise <see langword="false"/>.</returns>
+        public static bool TryCreateConstraint(string name, KVObject constraintInfo, ILogger logger, [MaybeNullWhen(false)] out ParticleFunctionConstraint constraint)
+            => TryCreate(ConstraintDictionary, name, constraintInfo, logger, out constraint);
 
         /// <summary>
         /// Attempts to create a particle renderer by its Source 2 class name.
@@ -234,21 +251,6 @@ namespace ValveResourceFormat.Renderer.Particles
             }
 
             renderer = default;
-            return false;
-        }
-        /// <summary>
-        /// Attempts to create a particle pre-emission operator by its Source 2 class name.
-        /// </summary>
-        /// <returns><see langword="true"/> if the pre-emission operator type is supported; otherwise <see langword="false"/>.</returns>
-        public static bool TryCreatePreEmissionOperator(string name, KVObject preEmissionOperatorInfo, ILogger logger, [MaybeNullWhen(false)] out ParticleFunctionPreEmissionOperator preEmissionOperator)
-        {
-            if (PreEmissionOperatorDictionary.TryGetValue(name, out var factory))
-            {
-                preEmissionOperator = factory(new ParticleDefinitionParser(preEmissionOperatorInfo, logger));
-                return true;
-            }
-
-            preEmissionOperator = default;
             return false;
         }
     }

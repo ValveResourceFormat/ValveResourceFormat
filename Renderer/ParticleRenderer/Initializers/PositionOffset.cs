@@ -10,7 +10,6 @@ namespace ValveResourceFormat.Renderer.Particles.Initializers
         private readonly IVectorProvider offsetMin = new LiteralVectorProvider(Vector3.Zero);
         private readonly IVectorProvider offsetMax = new LiteralVectorProvider(Vector3.Zero);
 
-        //private readonly int controlPoint; // unknown what this does
 
         private readonly bool proportional; // offset proportional to radius 0/1
 

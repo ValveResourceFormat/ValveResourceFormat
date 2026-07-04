@@ -13,8 +13,26 @@ namespace ValveResourceFormat.Renderer.Particles.Operators
         protected CGeneralSpin(ParticleDefinitionParser parse) : base(parse)
         {
             spinRateDegrees = parse.Int32("m_nSpinRateDegrees", spinRateDegrees);
-            spinRateMinDegrees = parse.Int32("m_nSpinRateMinDegrees", spinRateMinDegrees); // what is this
+            spinRateMinDegrees = parse.Int32("m_nSpinRateMinDegrees", spinRateMinDegrees);
             spinRateStopTime = parse.Float("m_fSpinRateStopTime", spinRateStopTime);
+        }
+
+        /// <summary>
+        /// Spin rate in degrees per second at the given particle age: the rate decays linearly from
+        /// the main rate to the min floor over the stop time; a stop time of 0 means no decay.
+        /// </summary>
+        protected float GetSpinRate(float age)
+        {
+            if (spinRateStopTime == 0f)
+            {
+                return spinRateDegrees;
+            }
+
+            var decayed = spinRateDegrees * MathF.Max(0f, 1f - (age / spinRateStopTime));
+
+            return spinRateDegrees >= 0
+                ? MathF.Max(decayed, spinRateMinDegrees)
+                : MathF.Min(decayed, spinRateMinDegrees);
         }
     }
 
@@ -33,10 +51,7 @@ namespace ValveResourceFormat.Renderer.Particles.Operators
         {
             foreach (ref var particle in particles.Current)
             {
-                if (particle.Age < spinRateStopTime)
-                {
-                    particle.SetScalar(ParticleField.Roll, particle.Rotation.Z + spinRateDegrees * frameTime);
-                }
+                particle.SetScalar(ParticleField.Roll, particle.Rotation.Z + GetSpinRate(particle.Age) * frameTime);
             }
         }
     }
@@ -56,10 +71,7 @@ namespace ValveResourceFormat.Renderer.Particles.Operators
         {
             foreach (ref var particle in particles.Current)
             {
-                if (particle.Age < spinRateStopTime)
-                {
-                    particle.SetScalar(ParticleField.Yaw, particle.Rotation.X + spinRateDegrees * frameTime);
-                }
+                particle.SetScalar(ParticleField.Yaw, particle.Rotation.X + GetSpinRate(particle.Age) * frameTime);
             }
         }
     }

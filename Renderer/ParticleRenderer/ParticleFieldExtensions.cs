@@ -94,6 +94,7 @@ namespace ValveResourceFormat.Renderer.Particles
                 ParticleField.ScratchFloat => particle.ScratchFloat0,
                 ParticleField.ScratchFloat1 => particle.ScratchFloat1,
                 ParticleField.ScratchFloat2 => particle.ScratchFloat2,
+                ParticleField.ForceScale => particle.ForceScale,
                 _ => 0f,
             };
         }
@@ -154,6 +155,9 @@ namespace ValveResourceFormat.Renderer.Particles
                     break;
                 case ParticleField.ScratchFloat2:
                     particle.ScratchFloat2 = value;
+                    break;
+                case ParticleField.ForceScale:
+                    particle.ForceScale = value;
                     break;
                 default:
                     break;

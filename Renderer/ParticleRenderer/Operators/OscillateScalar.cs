@@ -30,15 +30,6 @@ namespace ValveResourceFormat.Renderer.Particles.Operators
 
         public override void Operate(ParticleCollection particles, float frameTime, ParticleSystemRenderState particleSystemState)
         {
-            // Remove expired particles
-            /*var particlesToRemove = particleRates.Keys.Except(particle).ToList();
-            foreach (var p in particlesToRemove)
-            {
-                particleRates.Remove(p);
-                particleFrequencies.Remove(p);
-            }*/
-
-            // Update remaining particles
             foreach (ref var particle in particles.Current)
             {
                 var rate = ParticleCollection.RandomBetween(particle.ParticleID, rateMin, rateMax);

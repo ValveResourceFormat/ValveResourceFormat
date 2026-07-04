@@ -14,8 +14,6 @@ namespace ValveResourceFormat.Renderer.Particles.Operators
         {
             OutputField = parse.ParticleField("m_nFieldOutput", OutputField);
             Scale = parse.Float("m_flScale", Scale);
-
-            // there's also a Lerp value that will fade it in when at low values. Further testing is needed to know anything more
         }
         public override void Operate(ParticleCollection particles, float frameTime, ParticleSystemRenderState particleSystemState)
         {

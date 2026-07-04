@@ -40,7 +40,7 @@ namespace ValveResourceFormat.Renderer.Particles.Operators
                     ScalarExpressionType.SCALAR_EXPRESSION_MUL
                         => value1 * value2,
                     ScalarExpressionType.SCALAR_EXPRESSION_DIVIDE
-                        => value1 / value2,
+                        => value2 == 0f ? 0f : value1 / value2,
                     ScalarExpressionType.SCALAR_EXPRESSION_INPUT_1
                         => value1,
                     ScalarExpressionType.SCALAR_EXPRESSION_MIN
@@ -49,6 +49,12 @@ namespace ValveResourceFormat.Renderer.Particles.Operators
                         => Math.Max(value1, value2),
                     ScalarExpressionType.SCALAR_EXPRESSION_MOD // new in CS2
                         => (float)(value1 % value2),
+                    ScalarExpressionType.SCALAR_EXPRESSION_EQUAL
+                        => value1 == value2 ? 1f : 0f,
+                    ScalarExpressionType.SCALAR_EXPRESSION_GT
+                        => value1 > value2 ? 1f : 0f,
+                    ScalarExpressionType.SCALAR_EXPRESSION_LT
+                        => value1 < value2 ? 1f : 0f,
                     _ => throw new NotImplementedException($"Unrecognized scalar expression type ({expression})")
                 };
 

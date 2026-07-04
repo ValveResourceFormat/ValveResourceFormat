@@ -1,5 +1,3 @@
-using ValveResourceFormat.Renderer.Particles.Operators;
-
 namespace ValveResourceFormat.Renderer.Particles.ForceGenerators;
 
 /// <summary>
@@ -7,34 +5,50 @@ namespace ValveResourceFormat.Renderer.Particles.ForceGenerators;
 /// and distance-based falloff power.
 /// </summary>
 /// <seealso href="https://s2v.app/SchemaExplorer/cs2/particles/C_OP_AttractToControlPoint">C_OP_AttractToControlPoint</seealso>
-class AttractToControlPoint : ParticleFunctionOperator
+class AttractToControlPoint : ParticleFunctionForceGenerator
 {
     private readonly Vector3 ComponentScale = Vector3.One;
     private readonly INumberProvider ForceAmount = new LiteralNumberProvider(100);
+    private readonly INumberProvider ForceAmountMin = new LiteralNumberProvider(0);
+    private readonly bool ApplyMinForce;
     private readonly float Falloff = 2;
-    private readonly int ControlPoint;
+    private readonly ITransformProvider transformInput;
 
     public AttractToControlPoint(ParticleDefinitionParser parse) : base(parse)
     {
         ComponentScale = parse.Vector3("m_vecComponentScale", ComponentScale);
         ForceAmount = parse.NumberProvider("m_fForceAmount", ForceAmount);
-        Falloff = parse.Float("m_fFalloffPower");
-        ControlPoint = parse.Int32("m_nControlPointNumber");
+        ForceAmountMin = parse.NumberProvider("m_fForceAmountMin", ForceAmountMin);
+        ApplyMinForce = parse.Boolean("m_bApplyMinForce", ApplyMinForce);
+        Falloff = parse.Float("m_fFalloffPower", Falloff);
+        // The target is m_TransformInput (a transform input defaulting to control point 1); older content
+        // stores it as the legacy m_nControlPointNumber field instead.
+        var legacyControlPoint = parse.Data.ContainsKey("m_nControlPointNumber") ? parse.Int32("m_nControlPointNumber") : 1;
+        transformInput = parse.TransformInput("m_TransformInput", new ControlPointTransformProvider(legacyControlPoint, false));
     }
 
-    public override void Operate(ParticleCollection particles, float frameTime, ParticleSystemRenderState particleSystemState)
+    public override void GenerateForces(ParticleCollection particles, float frameTime, ParticleSystemRenderState particleSystemState, float strength)
     {
+        var target = transformInput.NextTransform(particleSystemState).Translation;
+        var scale = ComponentScale * strength;
+
         foreach (ref var particle in particles.Current)
         {
-            var target = particleSystemState.GetControlPoint(ControlPoint).Position;
             var diff = target - particle.Position;
             var distance = diff.Length();
-            var direction = Vector3.Normalize(diff);
+            if (distance < 1e-6f)
+            {
+                continue;
+            }
 
-            var strength = distance == 0.0f ? 1f : ForceAmount.NextNumber() / MathF.Pow(distance, Falloff);
-            var force = direction * (float)strength;
+            var amount = ForceAmount.NextNumber(ref particle, particleSystemState);
+            if (ApplyMinForce)
+            {
+                amount = MathF.Max(amount, ForceAmountMin.NextNumber(ref particle, particleSystemState));
+            }
 
-            particle.Velocity += force * ComponentScale * frameTime;
+            var forceMagnitude = amount / MathF.Pow(distance, Falloff);
+            particle.ForceAccumulator += (diff / distance) * forceMagnitude * scale;
         }
     }
 }

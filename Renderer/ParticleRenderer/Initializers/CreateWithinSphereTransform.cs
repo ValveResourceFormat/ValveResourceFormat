@@ -80,7 +80,6 @@ namespace ValveResourceFormat.Renderer.Particles.Initializers
             }
 
             particle.Position = worldOffset;
-            particle.PositionPrevious = particle.Position;
 
             Vector3 velocityDirection;
             Vector3 velocityLocal;

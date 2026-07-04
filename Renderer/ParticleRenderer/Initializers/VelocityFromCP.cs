@@ -31,7 +31,7 @@ namespace ValveResourceFormat.Renderer.Particles.Initializers
             velocity *= velocityScale;
             velocity = Vector3.TransformNormal(velocity, transformInput.NextTransform(ref particle, particleSystemRenderState));
 
-            particle.Velocity = velocity;
+            particle.Velocity += velocity;
             return particle;
         }
     }

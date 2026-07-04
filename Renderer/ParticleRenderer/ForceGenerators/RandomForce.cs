@@ -1,5 +1,3 @@
-using ValveResourceFormat.Renderer.Particles.Operators;
-
 namespace ValveResourceFormat.Renderer.Particles.ForceGenerators;
 
 /// <summary>
@@ -7,7 +5,7 @@ namespace ValveResourceFormat.Renderer.Particles.ForceGenerators;
 /// each frame.
 /// </summary>
 /// <seealso href="https://s2v.app/SchemaExplorer/cs2/particles/C_OP_RandomForce">C_OP_RandomForce</seealso>
-class RandomForce : ParticleFunctionOperator
+class RandomForce : ParticleFunctionForceGenerator
 {
     private readonly Vector3 Min = Vector3.Zero;
     private readonly Vector3 Max = Vector3.Zero;
@@ -19,12 +17,12 @@ class RandomForce : ParticleFunctionOperator
         Max = parse.Vector3("m_MaxForce");
     }
 
-    public override void Operate(ParticleCollection particles, float frameTime, ParticleSystemRenderState particleSystemState)
+    public override void GenerateForces(ParticleCollection particles, float frameTime, ParticleSystemRenderState particleSystemState, float strength)
     {
         foreach (ref var particle in particles.Current)
         {
             var force = ParticleCollection.RandomBetweenPerComponent(Random.Shared.Next(), Min, Max);
-            particle.Velocity += force * frameTime;
+            particle.ForceAccumulator += force * strength;
         }
     }
 }

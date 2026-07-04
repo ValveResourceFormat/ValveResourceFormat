@@ -29,6 +29,13 @@ namespace ValveResourceFormat.ResourceTypes
             => Data.GetArray("m_ForceGenerators") ?? Enumerable.Empty<KVObject>();
 
         /// <summary>
+        /// Gets the constraints in the particle system. Constraints run after operators each frame and
+        /// relax particle positions (e.g. distance/rope/plane/world-collision constraints).
+        /// </summary>
+        public IEnumerable<KVObject> GetConstraints()
+            => Data.GetArray("m_Constraints") ?? Enumerable.Empty<KVObject>();
+
+        /// <summary>
         /// Gets the initializers in the particle system.
         /// </summary>
         public IEnumerable<KVObject> GetInitializers()

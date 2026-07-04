@@ -19,7 +19,6 @@ namespace ValveResourceFormat.Renderer.Particles.Operators
             setMethod = parse.Enum<ParticleSetMethod>("m_nSetMethod", setMethod);
             lerp = parse.NumberProvider("m_Lerp", lerp);
 
-            // there's also a Lerp value that will fade it in when at low values. Further testing is needed to know anything more
         }
         public override void Operate(ParticleCollection particles, float frameTime, ParticleSystemRenderState particleSystemState)
         {

@@ -35,11 +35,31 @@ record struct ParticleDefinitionParser(KVObject Data, ILogger Logger)
         return [.. Data.GetArray(k).Select(item => new ParticleDefinitionParser(item, logger))];
     }
 
-    private readonly float Float(string k) => Data.GetFloatProperty(k);
+    private readonly float Float(string k)
+    {
+        // Newer content authors many scalar fields as full float-input structures; the call site
+        // must read those with NumberProvider instead of as a literal.
+        if (Data.GetSubCollection(k) is { IsCollection: true })
+        {
+            Logger.LogWarning("Field {Key} is authored as a number provider, but is parsed as a literal float; it should be read with NumberProvider", k);
+        }
+
+        return Data.GetFloatProperty(k);
+    }
+
     /// <summary>Reads a float property, returning <paramref name="default"/> if the key is absent.</summary>
     public readonly float Float(string key, float @default = default) => GetValueOrDefault(key, Float, @default);
 
-    private readonly int Int32(string k) => Data.GetInt32Property(k);
+    private readonly int Int32(string k)
+    {
+        if (Data.GetSubCollection(k) is { IsCollection: true })
+        {
+            Logger.LogWarning("Field {Key} is authored as a number provider, but is parsed as a literal int; it should be read with NumberProvider", k);
+        }
+
+        return Data.GetInt32Property(k);
+    }
+
     /// <summary>Reads an int property, returning <paramref name="default"/> if the key is absent.</summary>
     public readonly int Int32(string key, int @default = default) => GetValueOrDefault(key, Int32, @default);
 
@@ -51,7 +71,25 @@ record struct ParticleDefinitionParser(KVObject Data, ILogger Logger)
     /// <summary>Reads a bool property, returning <paramref name="default"/> if the key is absent.</summary>
     public readonly bool Boolean(string key, bool @default = default) => GetValueOrDefault(key, Boolean, @default);
 
-    private readonly Vector3 Vector3(string k) => Data.GetSubCollection(k).ToVector3();
+    private readonly Vector3 Vector3(string k)
+    {
+        // Some content authors vectors as space-separated strings ("0.7 0.5 0.25").
+        if (Data.TryGetValue(k, out var value) && value.ValueType == KVValueType.String)
+        {
+            return EntityTransformHelper.ParseVector(Data.GetStringProperty(k));
+        }
+
+        var sub = Data.GetSubCollection(k);
+
+        // Newer content authors some vector fields as full vector-input structures; the call site
+        // must read those with VectorProvider instead of as a literal.
+        if (sub.ContainsKey("m_nType"))
+        {
+            Logger.LogWarning("Field {Key} is authored as a vector provider, but is parsed as a literal vector; it should be read with VectorProvider", k);
+        }
+
+        return sub.ToVector3();
+    }
     /// <summary>Reads a <see cref="System.Numerics.Vector3"/> sub-collection property, returning <paramref name="default"/> if the key is absent.</summary>
     public readonly Vector3 Vector3(string key, Vector3 @default = default) => GetValueOrDefault(key, Vector3, @default);
 
@@ -102,7 +140,7 @@ record struct ParticleDefinitionParser(KVObject Data, ILogger Logger)
                 case "PF_TYPE_RANDOM_BIASED":
                     return new RandomNumberProvider(parse, true);
                 case "PF_TYPE_COLLECTION_AGE":
-                    return new CollectionAgeNumberProvider();
+                    return new CollectionAgeNumberProvider(parse);
                 case "PF_TYPE_CONTROL_POINT_COMPONENT":
                     return new ControlPointComponentNumberProvider(parse);
                 case "PF_TYPE_PARTICLE_DETAIL_LEVEL":
@@ -121,11 +159,11 @@ record struct ParticleDefinitionParser(KVObject Data, ILogger Logger)
                     return new PerParticleCountNumberProvider(parse);
                 case "PF_TYPE_PARTICLE_NUMBER_NORMALIZED":
                     return new PerParticleCountNormalizedNumberProvider(parse);
+                case "PF_TYPE_CONTROL_POINT_SPEED":
+                    return new ControlPointSpeedNumberProvider(parse);
                 // KNOWN TYPES WE DON'T SUPPORT:
                 // PF_TYPE_ENDCAP_AGE - unsupported because we don't support endcaps
-                // PF_TYPE_CONTROL_POINT_COMPONENT - todo?
                 // PF_TYPE_CONTROL_POINT_CHANGE_AGE - no way.
-                // PF_TYPE_CONTROL_POINT_SPEED - new in cs2? def not going to support this
                 // PF_TYPE_PARTICLE_NOISE - exists only in deskjob and CS2. Likely added in behavior version 11 or 12.
                 // PF_TYPE_NAMED_VALUE - seen in dota's particle.dll?? not in deskjob's, so in behavior version 13+?
                 default:
@@ -133,6 +171,14 @@ record struct ParticleDefinitionParser(KVObject Data, ILogger Logger)
                     {
                         Logger.LogWarning("Number provider of type {Type} is not directly supported, but it has m_flLiteralValue", type);
                         return new LiteralNumberProvider(pfParameters.GetFloatProperty("m_flLiteralValue"));
+                    }
+
+                    if (type == null)
+                    {
+                        // Old serialization omits every default-valued key, including m_nType; fall back to the
+                        // caller-supplied default.
+                        Logger.LogWarning("Number provider has no m_nType and no m_flLiteralValue, using the caller default");
+                        return null;
                     }
 
                     throw new InvalidCastException($"Could not create number provider of type {type}.");
@@ -167,6 +213,8 @@ record struct ParticleDefinitionParser(KVObject Data, ILogger Logger)
                     return new ParticleVelocityVectorProvider();
                 case "PVEC_TYPE_CP_VALUE":
                     return new CPValueVectorProvider(parse);
+                case "PVEC_TYPE_CP_DELTA":
+                    return new CPDeltaVectorProvider(parse);
                 case "PVEC_TYPE_CP_RELATIVE_POSITION":
                     return new CPRelativePositionProvider(parse);
                 case "PVEC_TYPE_CP_RELATIVE_DIR":

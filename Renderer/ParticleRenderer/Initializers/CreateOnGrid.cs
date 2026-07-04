@@ -21,7 +21,6 @@ namespace ValveResourceFormat.Renderer.Particles.Initializers
         private readonly int controlPointNumber;
         private readonly bool center = true;
         private readonly bool hollow; // misery
-        //private readonly bool localSpace;
 
         public CreateOnGrid(ParticleDefinitionParser parse) : base(parse)
         {
@@ -160,8 +159,7 @@ namespace ValveResourceFormat.Renderer.Particles.Initializers
             }
 
             particle.Position = position;
-            particle.PositionPrevious = position; // reset velocity
-            particle.Velocity = Vector3.Zero; // because positionprevious isn't used for velocity yet
+            particle.Velocity = Vector3.Zero;
 
             return particle;
         }

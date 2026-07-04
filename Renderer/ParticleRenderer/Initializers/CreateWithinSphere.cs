@@ -47,7 +47,6 @@ namespace ValveResourceFormat.Renderer.Particles.Initializers
                 localCoordinateSystemSpeedMax.NextVector(ref particle, particleSystemState));
 
             particle.Position += direction * distance;
-            particle.PositionPrevious = particle.Position;
             particle.Velocity = (direction * speed) + localCoordinateSystemSpeed;
 
             return particle;

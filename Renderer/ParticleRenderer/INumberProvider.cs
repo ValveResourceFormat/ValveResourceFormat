@@ -103,33 +103,36 @@ namespace ValveResourceFormat.Renderer.Particles
     // Collection Age
     class CollectionAgeNumberProvider : INumberProvider
     {
-        public CollectionAgeNumberProvider() { }
-        public float NextNumber(ref Particle particle, ParticleSystemRenderState renderState) => renderState.Age;
+        private readonly AttributeMapping attributeMapping;
+        public CollectionAgeNumberProvider(ParticleDefinitionParser parse) { attributeMapping = new AttributeMapping(parse); }
+        public float NextNumber(ref Particle particle, ParticleSystemRenderState renderState) => attributeMapping.ApplyMapping(renderState.Age);
     }
 
     class DetailLevelNumberProvider : INumberProvider
     {
-        private readonly float lod0;
-#if false
-        private readonly float lod1;
-        private readonly float lod2;
-        private readonly float lod3;
-#endif
+        private readonly float[] tiers = new float[4];
 
         public DetailLevelNumberProvider(ParticleDefinitionParser parse)
         {
-            lod0 = parse.Float("m_flLOD0");
-#if false
-            lod1 = parse.Float("m_flLOD1");
-            lod2 = parse.Float("m_flLOD2");
-            lod3 = parse.Float("m_flLOD3");
-#endif
+            // Absent tiers fall back to the nearest lower authored tier.
+            var value = parse.Float("m_flLOD0");
+            tiers[0] = value;
+
+            var tier = 1;
+            foreach (var key in (ReadOnlySpan<string>)["m_flLOD1", "m_flLOD2", "m_flLOD3"])
+            {
+                if (parse.Data.ContainsKey(key))
+                {
+                    value = parse.Float(key);
+                }
+
+                tiers[tier++] = value;
+            }
         }
 
-        // Just assume detail level is Ultra
         public float NextNumber(ref Particle particle, ParticleSystemRenderState renderState)
         {
-            return lod0;
+            return tiers[Math.Clamp(renderState.DetailLevel, 0, 3)];
         }
     }
 
@@ -229,6 +232,26 @@ namespace ValveResourceFormat.Renderer.Particles
         public float NextNumber(ref Particle particle, ParticleSystemRenderState renderState)
         {
             return renderState.GetControlPoint(cp).Position.GetComponent(vectorComponent);
+        }
+    }
+
+    // Control Point Speed
+    class ControlPointSpeedNumberProvider : INumberProvider
+    {
+        private readonly AttributeMapping attributeMapping;
+        private readonly int cp;
+
+        public ControlPointSpeedNumberProvider(ParticleDefinitionParser parse)
+        {
+            attributeMapping = new AttributeMapping(parse);
+            cp = parse.Int32("m_nControlPoint");
+        }
+
+        public float NextNumber(ref Particle particle, ParticleSystemRenderState renderState)
+        {
+            var frameTime = renderState.Data?.CurrentFrameTime ?? 0f;
+            var speed = renderState.GetControlPoint(cp).GetVelocity(frameTime).Length();
+            return attributeMapping.ApplyMapping(speed);
         }
     }
 

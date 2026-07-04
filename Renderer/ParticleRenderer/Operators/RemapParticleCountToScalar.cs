@@ -19,8 +19,9 @@ namespace ValveResourceFormat.Renderer.Particles.Operators
         public OpRemapParticleCountToScalar(ParticleDefinitionParser parse) : base(parse)
         {
             OutputField = parse.ParticleField("m_nFieldOutput", OutputField);
-            inputMin = parse.NumberProvider("m_flInputMin", inputMin);
-            inputMax = parse.NumberProvider("m_flInputMax", inputMax);
+            // Modern schema names the index range m_nInputMin/Max; older content uses m_flInputMin/Max.
+            inputMin = parse.NumberProvider("m_nInputMin", parse.NumberProvider("m_flInputMin", inputMin));
+            inputMax = parse.NumberProvider("m_nInputMax", parse.NumberProvider("m_flInputMax", inputMax));
             outputMin = parse.NumberProvider("m_flOutputMin", outputMin);
             outputMax = parse.NumberProvider("m_flOutputMax", outputMax);
             activeRange = parse.Boolean("m_bActiveRange", activeRange);

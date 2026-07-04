@@ -35,7 +35,20 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
         public RenderTrails(ParticleDefinitionParser parse, RendererContext rendererContext) : base(parse)
         {
             RendererContext = rendererContext;
-            shader = RendererContext.ShaderLoader.LoadShader(ShaderName);
+
+            blendMode = parse.Enum<ParticleBlendMode>("m_nOutputBlendMode", blendMode);
+
+            var shaderParams = new Dictionary<string, byte>();
+            if (blendMode == ParticleBlendMode.PARTICLE_OUTPUT_BLEND_MODE_ADD)
+            {
+                shaderParams["F_ADDITIVE_BLEND"] = 1;
+            }
+            else if (blendMode == ParticleBlendMode.PARTICLE_OUTPUT_BLEND_MODE_MOD2X)
+            {
+                shaderParams["F_MOD2X"] = 1;
+            }
+
+            shader = RendererContext.ShaderLoader.LoadShader(ShaderName, shaderParams);
 
             // The same quad is reused for all particles
             var (quadVao, quadBuffer) = SetupQuadBuffer();
@@ -73,7 +86,6 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
             GL.ObjectLabel(ObjectLabelIdentifier.Buffer, quadBuffer, Math.Min(GLEnvironment.MaxLabelLength, vaoLabel.Length), vaoLabel);
 #endif
 
-            blendMode = parse.Enum<ParticleBlendMode>("m_nOutputBlendMode", blendMode);
             overbrightFactor = parse.NumberProvider("m_flOverbrightFactor", overbrightFactor);
             orientationType = parse.Enum("m_nOrientationType", orientationType);
             animationRate = parse.Float("m_flAnimationRate", animationRate);
@@ -113,9 +125,14 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
             return (vao, buffer);
         }
 
-        public override void Render(ParticleCollection particleBag, ParticleSystemRenderState systemRenderState, Matrix4x4 modelViewMatrix)
+        public override void Render(ParticleCollection particleBag, ParticleSystemRenderState systemRenderState, Camera camera)
         {
             var particles = particleBag.Current;
+
+            // The translucent pass leaves blend/depth state to each custom draw; enable blending and stop depth
+            // writes here or trails render opaque (matching the sprite renderer; cables draw opaque with depth writes instead).
+            GL.Enable(EnableCap.Blend);
+            GL.DepthMask(false);
 
             if (blendMode == ParticleBlendMode.PARTICLE_OUTPUT_BLEND_MODE_ADD)
             {
@@ -130,15 +147,14 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
 
             GL.BindVertexArray(vaoHandle);
 
-            // set texture unit 0 as uTexture uniform
-            shader.SetTexture(0, "uTexture", texture);
+            shader.SetTexture(RenderMaterial.TextureUnitStart, "uTexture", texture);
 
             // TODO: This formula is a guess but still seems too bright compared to valve particles
             // also todo: pass all of these as vertex parameters (probably just color/alpha combined)
-            shader.SetUniform1("uOverbrightFactor", (float)overbrightFactor.NextNumber());
+            shader.SetUniform1("uOverbrightFactor", (float)overbrightFactor.NextNumber(systemRenderState));
 
             // Create billboarding rotation (always facing camera)
-            if (!Matrix4x4.Decompose(modelViewMatrix, out _, out var modelViewRotation, out _))
+            if (!Matrix4x4.Decompose(camera.CameraViewMatrix, out _, out var modelViewRotation, out _))
             {
                 throw new InvalidOperationException("Matrix decompose failed");
             }
@@ -229,7 +245,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
         {
         }
 
-        public void Delete()
+        public override void Delete()
         {
             GL.DeleteVertexArray(vaoHandle);
             GL.DeleteBuffer(bufferHandle);

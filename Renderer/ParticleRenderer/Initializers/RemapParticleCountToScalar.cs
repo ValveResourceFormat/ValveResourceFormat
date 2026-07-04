@@ -43,7 +43,6 @@ namespace ValveResourceFormat.Renderer.Particles.Initializers
 
         public override Particle Initialize(ref Particle particle, ParticleCollection particles, ParticleSystemRenderState particleSystemState)
         {
-            // system state currently doesn't track total count, so we can't access that yet
             var count = invert
                 ? particleSystemState.ParticleCount - particle.ParticleID
                 : particle.ParticleID;
@@ -75,7 +74,6 @@ namespace ValveResourceFormat.Renderer.Particles.Initializers
 
             particle.SetScalar(FieldOutput, output);
 
-            // Why are we returning an object that we already use a ref for?
             return particle;
         }
     }

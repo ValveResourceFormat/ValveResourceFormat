@@ -65,6 +65,21 @@ namespace GUI.Types.GLViewers
             Debug.Assert(SelectedNodeRenderer != null);
 
             AddRenderModeSelectionControl();
+
+            var detailLevelComboBox = UiControl.AddSelection("Detail Level", (_, i) =>
+            {
+                if (i < 0)
+                {
+                    return;
+                }
+
+                using var lockedGl = MakeCurrent();
+                particleSceneNode?.SetDetailLevel(i);
+                particleSceneNode?.Restart();
+            }, horizontal: true, fill: true);
+            detailLevelComboBox.Items.AddRange(["Low", "Medium", "High", "Ultra"]);
+            detailLevelComboBox.SelectedIndex = 3;
+
             AddBaseGridControl();
 
             restartButton = new ThemedButton
@@ -104,12 +119,15 @@ namespace GUI.Types.GLViewers
 
             var unsupportedColor = Color.FromArgb(224, 80, 80);
 
+            // Order matches the CS2 particle editor (PET): pre-emission first, then emit/init/operate,
+            // forces, constraints, and renderers last.
+            AddFunctionGroup("Pre-Emission Operators", particleSystem.GetPreEmissionOperators(), ParticleSupportInfo.IsPreEmissionOperatorSupported, unsupportedColor);
             AddFunctionGroup("Emitters", particleSystem.GetEmitters(), ParticleSupportInfo.IsEmitterSupported, unsupportedColor);
             AddFunctionGroup("Initializers", particleSystem.GetInitializers(), ParticleSupportInfo.IsInitializerSupported, unsupportedColor);
             AddFunctionGroup("Operators", particleSystem.GetOperators(), ParticleSupportInfo.IsOperatorSupported, unsupportedColor);
             AddFunctionGroup("Force Generators", particleSystem.GetForceGenerators(), ParticleSupportInfo.IsForceGeneratorSupported, unsupportedColor);
+            AddFunctionGroup("Constraints", particleSystem.GetConstraints(), ParticleSupportInfo.IsConstraintSupported, unsupportedColor);
             AddFunctionGroup("Renderers", particleSystem.GetRenderers(), ParticleSupportInfo.IsRendererSupported, unsupportedColor);
-            AddFunctionGroup("Pre-Emission Operators", particleSystem.GetPreEmissionOperators(), ParticleSupportInfo.IsPreEmissionOperatorSupported, unsupportedColor);
         }
 
         private void AddFunctionGroup(string groupName, IEnumerable<KVObject> functions, Func<string, bool> isSupported, Color unsupportedColor)

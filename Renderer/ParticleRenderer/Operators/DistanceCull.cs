@@ -17,11 +17,11 @@ namespace ValveResourceFormat.Renderer.Particles.Operators
             distance = parse.NumberProvider("m_flDistance", distance);
             cullInside = parse.Boolean("m_bCullInside", cullInside);
         }
-        private bool CulledBySphere(Vector3 position, ParticleSystemRenderState particleSystemState)
+        private bool CulledBySphere(Vector3 position, float radius, ParticleSystemRenderState particleSystemState)
         {
             var sphereOrigin = particleSystemState.GetControlPoint(cp).Position + PointOffset;
 
-            var distanceFromEdge = Vector3.Distance(sphereOrigin, position) - distance.NextNumber();
+            var distanceFromEdge = Vector3.Distance(sphereOrigin, position) - radius;
 
             return cullInside
                 ? distanceFromEdge < 0
@@ -29,9 +29,11 @@ namespace ValveResourceFormat.Renderer.Particles.Operators
         }
         public override void Operate(ParticleCollection particles, float frameTime, ParticleSystemRenderState particleSystemState)
         {
+            var radius = distance.NextNumber(particleSystemState);
+
             foreach (ref var particle in particles.Current)
             {
-                if (CulledBySphere(particle.Position, particleSystemState))
+                if (CulledBySphere(particle.Position, radius, particleSystemState))
                 {
                     particle.Kill();
                 }

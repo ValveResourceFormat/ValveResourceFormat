@@ -123,6 +123,23 @@ namespace ValveResourceFormat.Renderer.Particles
         }
     }
 
+    // CP Delta: the difference between two control point positions.
+    readonly struct CPDeltaVectorProvider : IVectorProvider
+    {
+        private readonly int cp;
+        private readonly int deltaCP;
+        public CPDeltaVectorProvider(ParticleDefinitionParser parse)
+        {
+            cp = parse.Int32("m_nControlPoint");
+            deltaCP = parse.Int32("m_nDeltaControlPoint");
+        }
+
+        public Vector3 NextVector(ref Particle particle, ParticleSystemRenderState renderState)
+        {
+            return renderState.GetControlPoint(cp).Position - renderState.GetControlPoint(deltaCP).Position;
+        }
+    }
+
     // CP Relative Position
     readonly struct CPRelativePositionProvider : IVectorProvider
     {

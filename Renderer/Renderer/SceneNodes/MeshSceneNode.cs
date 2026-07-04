@@ -165,7 +165,6 @@ namespace ValveResourceFormat.Renderer.SceneNodes
                 InputLayoutFields = []
             });
 
-
             var renderableMesh = RenderableMesh.CreateMesh("MaterialPreviewQuad", material, vbib, bounds, scene.RendererContext);
             return new MeshSceneNode(scene, renderableMesh);
         }
