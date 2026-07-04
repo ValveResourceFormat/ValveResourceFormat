@@ -8,7 +8,7 @@ namespace ValveResourceFormat.Renderer.Particles.PreEmissionOperators
     {
         private readonly IVectorProvider axis = new LiteralVectorProvider(new Vector3(0, 0, 1));
         private readonly int cp;
-        private readonly int localCP = -1; // ??
+        private readonly int localCP = -1;
         private readonly INumberProvider rotationRate = new LiteralNumberProvider(180);
 
         public SetControlPointRotation(ParticleDefinitionParser parse) : base(parse)
