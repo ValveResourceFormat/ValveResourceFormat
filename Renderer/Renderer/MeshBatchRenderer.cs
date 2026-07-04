@@ -350,7 +350,10 @@ namespace ValveResourceFormat.Renderer
             if (uniforms.Tint > -1)
             {
                 var instanceTint = (request.Node is SceneAggregate.Fragment fragment) ? fragment.Tint : Vector4.One;
-                var tint = request.Mesh.Tint * request.Call.TintColor * instanceTint;
+
+                // Content can author out-of-range tints (e.g. renderamt above 255 baked into the draw call
+                // alpha); the packed byte color can only represent [0, 1].
+                var tint = Vector4.Clamp(request.Mesh.Tint * request.Call.TintColor * instanceTint, Vector4.Zero, Vector4.One);
 
                 GL.ProgramUniform1((uint)shader.Program, uniforms.Tint, Color32.FromVector4(tint).PackedValue);
             }

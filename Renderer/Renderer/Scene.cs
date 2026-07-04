@@ -448,7 +448,8 @@ namespace ValveResourceFormat.Renderer
                 var instanceTint = Vector4.One;
                 if (node is SceneAggregate.Fragment fragment)
                 {
-                    instanceTint = fragment.RenderMesh.Tint * fragment.DrawCall.TintColor * fragment.Tint;
+                    // Content can author out-of-range tints; the packed byte color can only represent [0, 1].
+                    instanceTint = Vector4.Clamp(fragment.RenderMesh.Tint * fragment.DrawCall.TintColor * fragment.Tint, Vector4.Zero, Vector4.One);
                 }
 
                 uint transformIndex;
