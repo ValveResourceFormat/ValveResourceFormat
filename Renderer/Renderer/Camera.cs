@@ -21,6 +21,11 @@ namespace ValveResourceFormat.Renderer
         public float Yaw { get; set; }
 
         /// <summary>
+        /// Clockwise rotation angle around the camera's forward axis in radians.
+        /// </summary>
+        public float Roll { get; set; }
+
+        /// <summary>
         /// Unit vector pointing in the camera's look direction.
         /// </summary>
         public Vector3 Forward { get; private set; }
@@ -88,7 +93,7 @@ namespace ValveResourceFormat.Renderer
 
             RecalculateDirectionVectors();
 
-            CameraViewMatrix = Matrix4x4.CreateLookAt(location, location + Forward, Vector3.UnitZ);
+            CameraViewMatrix = Matrix4x4.CreateLookAt(location, location + Forward, Up);
             ViewProjectionMatrix = CameraViewMatrix * ProjectionMatrix;
             ViewFrustum.Update(ViewProjectionMatrix);
         }
@@ -109,6 +114,13 @@ namespace ValveResourceFormat.Renderer
 
             Right = new Vector3(piOver2Cos, piOver2Sin, 0);
             // Right = Vector3.Cross(Forward, Up);
+
+            if (Roll != 0f)
+            {
+                var qRoll = Quaternion.CreateFromAxisAngle(Forward, Roll);
+                Up = Vector3.Transform(Up, qRoll);
+                Right = Vector3.Transform(Right, qRoll);
+            }
         }
 
         /// <summary>
@@ -190,6 +202,7 @@ namespace ValveResourceFormat.Renderer
             Location = fromOther.Location;
             Pitch = fromOther.Pitch;
             Yaw = fromOther.Yaw;
+            Roll = fromOther.Roll;
             ProjectionMatrix = fromOther.ProjectionMatrix;
             CameraViewMatrix = fromOther.CameraViewMatrix;
             ViewProjectionMatrix = fromOther.ViewProjectionMatrix;
@@ -218,6 +231,7 @@ namespace ValveResourceFormat.Renderer
             var dir = Vector3.Normalize(target - Location);
             Yaw = MathF.Atan2(dir.Y, dir.X);
             Pitch = MathF.Asin(dir.Z);
+            Roll = 0f;
 
             ClampRotation();
         }
