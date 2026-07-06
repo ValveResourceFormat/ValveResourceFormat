@@ -47,8 +47,7 @@ namespace ValveResourceFormat.Renderer.Particles.Initializers
                 speed = particleSystemState.GetControlPoint(controlPointNumber).GetVelocity(frameTime).Length();
             }
 
-            speed = Math.Clamp(speed, inputMin, inputMax);
-            var output = MathUtils.RemapRange(speed, inputMin, inputMax, outputMin, outputMax);
+            var output = MathUtils.RemapValClamped(speed, inputMin, inputMax, outputMin, outputMax);
 
             output = particle.ModifyScalarBySetMethod(particles, FieldOutput, output, setMethod);
             particle.SetScalar(FieldOutput, output);
