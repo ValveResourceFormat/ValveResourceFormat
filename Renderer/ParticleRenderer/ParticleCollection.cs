@@ -92,7 +92,8 @@ namespace ValveResourceFormat.Renderer.Particles
         /// </summary>
         public static float RandomSingle(int particleId)
         {
-            return RandomFloats.List[particleId % RandomFloats.List.Length]; // TODO: Add seed
+            // Unsigned modulo keeps the index valid for any id, including ids that wrapped negative
+            return RandomFloats.List[(uint)particleId % RandomFloats.List.Length]; // TODO: Add seed
         }
 
         /// <summary>
