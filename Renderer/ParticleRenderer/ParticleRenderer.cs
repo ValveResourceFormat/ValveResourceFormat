@@ -604,7 +604,7 @@ namespace ValveResourceFormat.Renderer.Particles
                 var pos = particle.Position - worldCenter;
                 var radius = new Vector3(particle.Radius);
 
-                var particleBounds = new AABB(pos - radius - additionalBounds.Min, pos + radius + additionalBounds.Max);
+                var particleBounds = new AABB(pos + additionalBounds.Min - radius, pos + additionalBounds.Max + radius);
                 newBounds = hasBounds ? newBounds.Union(particleBounds) : particleBounds;
                 hasBounds = true;
             }
