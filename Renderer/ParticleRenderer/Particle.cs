@@ -35,8 +35,8 @@ namespace ValveResourceFormat.Renderer.Particles
         /// <summary>Gets or sets the radius of the particle.</summary>
         public float Radius { get; set; } = 1.0f;
 
-        /// <summary>Gets or sets the trail length multiplier for trail-based renderers.</summary>
-        public float TrailLength { get; set; } = 0f;
+        /// <summary>Gets or sets the trail length multiplier for trail-based renderers. The engine seeds this attribute with 0.1.</summary>
+        public float TrailLength { get; set; } = 0.1f;
 
         /// <summary>
         /// Gets or sets the scale factor applied to forces acting on this particle. 1 = full force,

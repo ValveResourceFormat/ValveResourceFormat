@@ -30,6 +30,8 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
         private readonly float finalTextureScaleV = 1f;
 
         private readonly float maxLength = 2000f;
+        private readonly float minLength;
+        private readonly float lengthScale = 1f;
         private readonly float lengthFadeInTime;
         private readonly bool ignoreDeltaTime;
 
@@ -93,6 +95,8 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
             finalTextureScaleU = parse.Float("m_flFinalTextureScaleU", finalTextureScaleU);
             finalTextureScaleV = parse.Float("m_flFinalTextureScaleV", finalTextureScaleV);
             maxLength = parse.Float("m_flMaxLength", maxLength);
+            minLength = parse.Float("m_flMinLength", minLength);
+            lengthScale = parse.Float("m_flLengthScale", lengthScale);
             lengthFadeInTime = parse.Float("m_flLengthFadeInTime", lengthFadeInTime);
             ignoreDeltaTime = parse.Boolean("m_bIgnoreDT", ignoreDeltaTime);
             animationType = parse.Enum<ParticleAnimationType>("m_nAnimationType", animationType);
@@ -169,31 +173,52 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
             {
                 var position = particle.Position;
                 var previousPosition = particle.GetVector(prevPositionSource);
+                // The trail extends from the particle back toward its previous position
                 var difference = previousPosition - position;
                 var direction = difference == Vector3.Zero ? Vector3.UnitY : Vector3.Normalize(difference);
 
-                // Trail width = radius
-                // Trail length = distance between current and previous times trail length divided by 2 (because the base particle is 2 wide)
-                var length = Math.Min(maxLength, particle.TrailLength * difference.Length() * oneOverDt / 2f);
-                var t = particle.Age; // Fade-in time is in seconds
-                var animatedLength = t >= lengthFadeInTime
-                    ? length
-                    : t * length / lengthFadeInTime;
-                var scaleMatrix = Matrix4x4.CreateScale(particle.Radius, animatedLength, 1);
+                var length = lengthScale * particle.TrailLength * difference.Length() * oneOverDt;
 
-                // Center the particle at the midpoint between the two points
-                var translationMatrix = Matrix4x4.CreateTranslation(Vector3.UnitY * animatedLength);
+                // The length fades in before clamping so clamped trails still reach full length on time
+                if (particle.Age < lengthFadeInTime)
+                {
+                    length *= particle.Age / lengthFadeInTime;
+                }
 
-                // Rotate the quad from its default +Y orientation to the trail direction. When they
-                // are parallel the cross product is zero and there is no unique rotation axis.
-                var cross = Vector3.Cross(Vector3.UnitY, direction);
-                var rotationMatrix = cross == Vector3.Zero
-                    ? (direction.Y < 0f ? Matrix4x4.CreateFromAxisAngle(Vector3.UnitX, MathF.PI) : Matrix4x4.Identity)
-                    : Matrix4x4.CreateFromAxisAngle(Vector3.Normalize(cross), MathF.Acos(Math.Clamp(direction.Y, -1f, 1f)));
+                if (length <= 0f)
+                {
+                    continue;
+                }
 
-                var modelMatrix = orientationType == ParticleOrientation.PARTICLE_ORIENTATION_SCREEN_ALIGNED
-                    ? scaleMatrix * translationMatrix * rotationMatrix * Matrix4x4.CreateTranslation(position)
-                    : particle.GetTransformationMatrix();
+                // The engine clamps the full extent of the trail
+                length = Math.Clamp(length, minLength, maxLength);
+
+                Matrix4x4 modelMatrix;
+                if (orientationType == ParticleOrientation.PARTICLE_ORIENTATION_SCREEN_ALIGNED)
+                {
+                    // The quad's width axis stays perpendicular to the eye ray, its length axis follows the motion
+                    var widthAxis = Vector3.Cross(position - camera.Location, direction);
+                    widthAxis = widthAxis.LengthSquared() > 1e-12f
+                        ? Vector3.Normalize(widthAxis)
+                        : Vector3.Normalize(Vector3.Cross(direction, MathF.Abs(direction.Z) < 0.999f ? Vector3.UnitZ : Vector3.UnitX));
+                    var normal = Vector3.Cross(widthAxis, direction);
+
+                    var halfWidth = particle.Radius * 0.5f;
+                    var halfLength = length * 0.5f;
+                    var center = position + direction * halfLength;
+
+                    modelMatrix = new Matrix4x4(
+                        widthAxis.X * halfWidth, widthAxis.Y * halfWidth, widthAxis.Z * halfWidth, 0f,
+                        direction.X * halfLength, direction.Y * halfLength, direction.Z * halfLength, 0f,
+                        normal.X, normal.Y, normal.Z, 0f,
+                        center.X, center.Y, center.Z, 1f);
+                }
+                else
+                {
+                    // TODO: Other orientation types render as plain unstretched sprites here; the engine
+                    // still stretches them along the motion, constrained to the ground/normal plane
+                    modelMatrix = particle.GetTransformationMatrix();
+                }
 
                 // Position/Radius uniform
                 shader.SetUniform4x4("uModelMatrix", modelMatrix);
