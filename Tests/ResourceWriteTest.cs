@@ -74,6 +74,35 @@ namespace Tests
             Assert.That(newModelInfo.Name, Is.EqualTo(NewName));
         }
 
+        [Test]
+        public void SerializePanoramaLayout()
+        {
+            using var resource = GetTestResource("dashboard_page_credits.vxml_c");
+            var block = (Panorama)resource.DataBlock!;
+
+            var ms = new MemoryStream();
+            block.Serialize(ms);
+            ms.Position = 0;
+
+            using var reader = new BinaryReader(ms);
+            var reparsed = new PanoramaLayout { Resource = resource, Size = (uint)ms.Length };
+            reparsed.Read(reader);
+
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(reparsed.CRC32, Is.EqualTo(block.CRC32));
+                Assert.That(reparsed.Data, Is.EqualTo(block.Data));
+                Assert.That(reparsed.Names, Has.Count.EqualTo(block.Names.Count));
+
+                for (var i = 0; i < block.Names.Count; i++)
+                {
+                    Assert.That(reparsed.Names[i].Name, Is.EqualTo(block.Names[i].Name));
+                    Assert.That(reparsed.Names[i].Unknown1, Is.EqualTo(block.Names[i].Unknown1));
+                    Assert.That(reparsed.Names[i].Unknown2, Is.EqualTo(block.Names[i].Unknown2));
+                }
+            }
+        }
+
         private static Resource GetTestResource(string resourceName)
         {
             var file = Path.Combine(TestContext.CurrentContext.TestDirectory, "Files", resourceName);
