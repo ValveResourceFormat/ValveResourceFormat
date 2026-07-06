@@ -46,12 +46,17 @@ namespace ValveResourceFormat.ResourceTypes
         /// <inheritdoc/>
         public override BlockType Type => BlockType.DATA;
 
-        /// <inheritdoc />
+        /// <summary>
+        /// Initializes a new instance of the <see cref="Panorama"/> class.
+        /// </summary>
         public Panorama() { }
 
         /// <summary>
-        /// Initializes a new instance.
+        /// Initializes a new instance of the <see cref="Panorama"/> class with the given content.
+        /// The <see cref="CRC32"/> checksum is computed from the data.
         /// </summary>
+        /// <param name="data">The content as UTF-8 encoded text, such as layout, style, or script source.</param>
+        /// <param name="names">The name entries to store in the block header.</param>
         public Panorama(byte[] data, List<NameEntry> names)
         {
             Data = data;
