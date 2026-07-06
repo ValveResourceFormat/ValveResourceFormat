@@ -29,14 +29,15 @@ namespace ValveResourceFormat.Renderer.Particles.Operators
             foreach (ref var particle in particles.Current)
             {
                 var time = particle.NormalizedAge;
+                var initialAlpha = particle.GetInitialScalar(particles, ParticleField.Alpha);
 
                 // If fading in
                 if (time >= startFadeInTime && time <= endFadeInTime)
                 {
                     var blend = MathUtils.Remap(time, startFadeInTime, endFadeInTime);
 
-                    // Interpolate from startAlpha to constantAlpha
-                    particle.Alpha = float.Lerp(startAlpha, particle.GetInitialScalar(particles, ParticleField.Alpha), blend);
+                    // Interpolate from initialAlpha * startAlpha up to initialAlpha
+                    particle.Alpha = float.Lerp(initialAlpha * startAlpha, initialAlpha, blend);
                 }
 
                 // If fading out
@@ -44,8 +45,8 @@ namespace ValveResourceFormat.Renderer.Particles.Operators
                 {
                     var blend = MathUtils.Remap(time, startFadeOutTime, endFadeOutTime);
 
-                    // Interpolate from constantAlpha to end alpha
-                    particle.Alpha = float.Lerp(particle.GetInitialScalar(particles, ParticleField.Alpha), endAlpha, blend);
+                    // Interpolate from initialAlpha down to initialAlpha * endAlpha
+                    particle.Alpha = float.Lerp(initialAlpha, initialAlpha * endAlpha, blend);
                 }
 
                 if (time >= endFadeOutTime)

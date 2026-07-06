@@ -2,13 +2,13 @@ namespace ValveResourceFormat.Renderer.Particles.Utils
 {
     static class Noise
     {
-        // Simple perlin noise implementation
+        // Simple perlin noise implementation, returns a value in [-1, 1] to match Source's NoiseSIMD.
         public static float Simplex1D(float t)
         {
             var previous = PseudoRandom(MathF.Floor(t));
             var next = PseudoRandom(MathF.Ceiling(t));
 
-            return CosineInterpolate(previous, next, MathUtils.Fract(t));
+            return (2f * CosineInterpolate(previous, next, MathUtils.Fract(t))) - 1f;
         }
 
         /// <summary>

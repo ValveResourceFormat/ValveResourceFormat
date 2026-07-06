@@ -67,28 +67,53 @@ namespace ValveResourceFormat.Renderer.Particles.Initializers
 
             if (usePath)
             {
-                var relativeParticleNumber = currentNumber++ % numPointsOnPath;
+                var pointCount = pointList.Count;
 
                 // An open path interpolates across Count - 1 segments; a closed loop has one
                 // extra segment wrapping back to the first point
-                var numPathSegments = closedLoop
-                    ? pointList.Count
-                    : pointList.Count - 1;
+                var numPathSegments = closedLoop ? pointCount : pointCount - 1;
 
-                // Percentage of path completed
-                var pathCompletion = relativeParticleNumber / (float)numPointsOnPath;
+                if (numPathSegments < 1)
+                {
+                    return pointList[0].GetPosition(particleSystem);
+                }
 
-                var scaledCompletion = pathCompletion * numPathSegments;
+                // An open path must place the last particle on the final point; a closed loop
+                // wraps, so full completion is one step past the last particle
+                var divisor = closedLoop ? numPointsOnPath : Math.Max(1, numPointsOnPath - 1);
+                var pathCompletion = (currentNumber++ % numPointsOnPath) / (float)divisor;
 
-                // Get the ID of the first of the two points we're interpolating between
-                var firstPointID = (int)MathF.Floor(scaledCompletion);
+                // Particles are spaced by arc length so unequal segments don't clump them
+                Span<float> segmentLengths = numPathSegments <= 64 ? stackalloc float[numPathSegments] : new float[numPathSegments];
+                var totalLength = 0f;
 
-                var pos1 = pointList[firstPointID].GetPosition(particleSystem);
-                var pos2 = pointList[(firstPointID + 1) % pointList.Count].GetPosition(particleSystem);
+                for (var i = 0; i < numPathSegments; i++)
+                {
+                    var a = pointList[i].GetPosition(particleSystem);
+                    var b = pointList[(i + 1) % pointCount].GetPosition(particleSystem);
+                    segmentLengths[i] = Vector3.Distance(a, b);
+                    totalLength += segmentLengths[i];
+                }
 
-                var relativeBlend = scaledCompletion - firstPointID;
+                if (totalLength <= 0f)
+                {
+                    return pointList[0].GetPosition(particleSystem);
+                }
 
-                return Vector3.Lerp(pos1, pos2, relativeBlend);
+                var targetLength = pathCompletion * totalLength;
+                var segment = 0;
+
+                while (segment < numPathSegments - 1 && targetLength > segmentLengths[segment])
+                {
+                    targetLength -= segmentLengths[segment];
+                    segment++;
+                }
+
+                var pos1 = pointList[segment].GetPosition(particleSystem);
+                var pos2 = pointList[(segment + 1) % pointCount].GetPosition(particleSystem);
+                var blend = segmentLengths[segment] > 0f ? targetLength / segmentLengths[segment] : 0f;
+
+                return Vector3.Lerp(pos1, pos2, blend);
             }
             else
             {

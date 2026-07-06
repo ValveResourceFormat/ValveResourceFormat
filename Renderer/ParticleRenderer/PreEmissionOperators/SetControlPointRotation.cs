@@ -18,12 +18,6 @@ namespace ValveResourceFormat.Renderer.Particles.PreEmissionOperators
             cp = parse.Int32("m_nCP", cp);
             localCP = parse.Int32("m_nLocalCP", localCP);
         }
-        private static Vector3 MatrixMul(Vector3 vector, Matrix4x4 rotatedMatrix)
-        {
-            return vector.X * new Vector3(rotatedMatrix.M11, rotatedMatrix.M12, rotatedMatrix.M13) +
-                vector.Y * new Vector3(rotatedMatrix.M21, rotatedMatrix.M22, rotatedMatrix.M23) +
-                vector.Z * new Vector3(rotatedMatrix.M31, rotatedMatrix.M32, rotatedMatrix.M33);
-        }
 
         public override void Operate(ref ParticleSystemRenderState particleSystemState, float frameTime)
         {
@@ -35,18 +29,20 @@ namespace ValveResourceFormat.Renderer.Particles.PreEmissionOperators
             }
 
             axis = Vector3.Normalize(axis);
-            var rotationRate = float.DegreesToRadians(this.rotationRate.NextNumber(particleSystemState));
 
+            if (localCP > -1)
+            {
+                axis = Vector3.Transform(axis, particleSystemState.GetControlPoint(localCP).GetRotation());
+            }
+
+            var angle = float.DegreesToRadians(rotationRate.NextNumber(particleSystemState)) * frameTime;
+
+            // Accumulate this frame's increment onto the control point's current rotation so it spins continuously
             var controlPoint = particleSystemState.GetControlPoint(cp);
-            var orientation = controlPoint.Orientation == Vector3.Zero
-                ? new Vector3(1, 0, 0)
-                : controlPoint.Orientation;
+            var increment = Quaternion.CreateFromAxisAngle(axis, angle);
+            var rotation = Quaternion.Normalize(controlPoint.GetRotation() * increment);
 
-            // Rotate the current orientation by this frame's increment so the rotation accumulates
-            var rotatedVector = MatrixMul(orientation, Matrix4x4.CreateFromAxisAngle(axis, rotationRate * frameTime));
-
-            // Goes through the state setter to keep the control point's full rotation in sync
-            particleSystemState.SetControlPointOrientation(cp, Vector3.Normalize(rotatedVector));
+            particleSystemState.SetControlPointRotation(cp, rotation);
         }
     }
 }

@@ -48,16 +48,14 @@ namespace ValveResourceFormat.Renderer.Particles.Operators
 
                 if (timeLeft <= fadeOutTime)
                 {
-                    var fadeFraction = timeLeft / fadeOutTime;
+                    var elapsedFraction = Math.Clamp(1f - timeLeft / fadeOutTime, 0f, 1f);
 
-                    // Bias the fade curve before scaling by the spawn alpha,
-                    // so the fade starts exactly at the spawn alpha
                     if (fadeBias != 0.5f)
                     {
-                        fadeFraction /= ((1f / fadeBias - 2f) * (1 - fadeFraction) + 1f);
+                        elapsedFraction /= ((1f / fadeBias - 2f) * (1f - elapsedFraction) + 1f);
                     }
 
-                    particle.Alpha = fadeFraction * particle.GetInitialScalar(particles, ParticleField.Alpha);
+                    particle.Alpha = (1f - elapsedFraction) * particle.GetInitialScalar(particles, ParticleField.Alpha);
                 }
             }
         }

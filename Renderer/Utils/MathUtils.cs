@@ -50,6 +50,12 @@ namespace ValveResourceFormat.Renderer.Utils
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static float RemapValClamped(float x, float inputMin, float inputMax, float outputMin, float outputMax)
         {
+            // Source treats a degenerate input range as a threshold
+            if (inputMin == inputMax)
+            {
+                return x >= inputMax ? outputMax : outputMin;
+            }
+
             return float.Lerp(outputMin, outputMax, Saturate(Remap(x, inputMin, inputMax)));
         }
 

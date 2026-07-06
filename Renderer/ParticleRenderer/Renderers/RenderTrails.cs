@@ -31,6 +31,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
 
         private readonly float maxLength = 2000f;
         private readonly float lengthFadeInTime;
+        private readonly bool ignoreDeltaTime;
 
         public RenderTrails(ParticleDefinitionParser parse, RendererContext rendererContext) : base(parse)
         {
@@ -93,6 +94,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
             finalTextureScaleV = parse.Float("m_flFinalTextureScaleV", finalTextureScaleV);
             maxLength = parse.Float("m_flMaxLength", maxLength);
             lengthFadeInTime = parse.Float("m_flLengthFadeInTime", lengthFadeInTime);
+            ignoreDeltaTime = parse.Boolean("m_bIgnoreDT", ignoreDeltaTime);
             animationType = parse.Enum<ParticleAnimationType>("m_nAnimationType", animationType);
             prevPositionSource = parse.ParticleField("m_nPrevPntSource", prevPositionSource);
         }
@@ -156,6 +158,12 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
             // also todo: pass all of these as vertex parameters (probably just color/alpha combined)
             shader.SetUniform1("uOverbrightFactor", (float)overbrightFactor.NextNumber(systemRenderState));
 
+            // The moved distance is converted back to a velocity (distance / dt) before scaling by
+            // the trail-length attribute, unless the operator opts out of the delta-time division.
+            var oneOverDt = ignoreDeltaTime || particleBag.PreviousFrameTime == 0f
+                ? 1f
+                : 1f / particleBag.PreviousFrameTime;
+
             // Todo: this could be adapted into renderropes without much difficulty
             foreach (ref var particle in particles)
             {
@@ -166,7 +174,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
 
                 // Trail width = radius
                 // Trail length = distance between current and previous times trail length divided by 2 (because the base particle is 2 wide)
-                var length = Math.Min(maxLength, particle.TrailLength * difference.Length() / 2f);
+                var length = Math.Min(maxLength, particle.TrailLength * difference.Length() * oneOverDt / 2f);
                 var t = particle.Age; // Fade-in time is in seconds
                 var animatedLength = t >= lengthFadeInTime
                     ? length

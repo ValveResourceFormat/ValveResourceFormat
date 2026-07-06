@@ -32,24 +32,23 @@ namespace ValveResourceFormat.Renderer.Particles.Initializers
                 new Vector3(-1),
                 new Vector3(1));
 
-            var direction = Vector3.Normalize(randomVector);
+            // Absolute value per axis folds the sphere into a hemisphere/ovoid.
+            if (distanceBiasAbs.X != 0)
+            {
+                randomVector.X = MathF.Abs(randomVector.X);
+            }
+            if (distanceBiasAbs.Y != 0)
+            {
+                randomVector.Y = MathF.Abs(randomVector.Y);
+            }
+            if (distanceBiasAbs.Z != 0)
+            {
+                randomVector.Z = MathF.Abs(randomVector.Z);
+            }
 
             var bias = distanceBias.NextVector(ref particle, particleSystemState);
 
-            if (distanceBiasAbs != Vector3.Zero)
-            {
-                bias = new Vector3(
-                    Math.Abs(bias.X) * (distanceBiasAbs.X != 0 ? Math.Sign(distanceBiasAbs.X) : 1),
-                    Math.Abs(bias.Y) * (distanceBiasAbs.Y != 0 ? Math.Sign(distanceBiasAbs.Y) : 1),
-                    Math.Abs(bias.Z) * (distanceBiasAbs.Z != 0 ? Math.Sign(distanceBiasAbs.Z) : 1)
-                );
-            }
-
-            var biasedDirection = direction * bias;
-            if (bias != Vector3.One)
-            {
-                biasedDirection = Vector3.Normalize(biasedDirection);
-            }
+            var biasedDirection = Vector3.Normalize(randomVector * bias);
 
             var distance = ParticleCollection.RandomBetween(
                 particle.ParticleID,

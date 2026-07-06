@@ -54,8 +54,8 @@ namespace ValveResourceFormat.Renderer.Particles.Initializers
         {
             if (evenDistribution)
             {
-                // Unset (-1) or invalid counts fall back to the collection's maximum particle count.
-                var perOrbit = Math.Max(1, particlesPerOrbit <= 0 ? maxParticles : particlesPerOrbit);
+                // -1 is the sentinel for using the collection's maximum particle count.
+                var perOrbit = Math.Max(1, particlesPerOrbit == -1 ? maxParticles : particlesPerOrbit);
 
                 var offset = orbitCount / perOrbit;
 

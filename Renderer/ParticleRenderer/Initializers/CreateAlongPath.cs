@@ -37,36 +37,23 @@ namespace ValveResourceFormat.Renderer.Particles.Initializers
             EndOffset = parse.Vector3("m_vEndOffset", EndOffset);
         }
 
-        private Vector3 GetParticlePosition(ParticleSystemRenderState particleSystem)
+        private Vector3 GetParticlePosition(ParticleSystemRenderState particleSystem, int particleId)
         {
-            var progress = Random.Shared.NextSingle();
+            var startCp = StartControlPointNumber;
+            var endCp = EndControlPointNumber;
+
             if (UseRandomCPs)
             {
-                Vector3 cpPos0;
-                Vector3 cpPos1;
-                for (var cp = StartControlPointNumber; cp <= EndControlPointNumber - 1; cp++)
-                {
-                    cpPos0 = particleSystem.GetControlPoint(cp).Position;
-                    cpPos1 = particleSystem.GetControlPoint(cp + 1).Position;
-
-                    var startProgression = MathUtils.Remap(cp, StartControlPointNumber, EndControlPointNumber);
-                    var endProgression = MathUtils.Remap(cp + 1, StartControlPointNumber, EndControlPointNumber);
-
-                    if (progress < startProgression || progress > endProgression)
-                    {
-                        continue;
-                    }
-
-                    var localProgress = MathUtils.Remap(progress, startProgression, endProgression);
-                    return InterpolatePositions(localProgress, cpPos0, cpPos1);
-                }
-            }
-            else
-            {
-                return InterpolatePositions(progress, particleSystem.GetControlPoint(StartControlPointNumber).Position, particleSystem.GetControlPoint(EndControlPointNumber).Position);
+                endCp = startCp + 1 + (int)(Random.Shared.NextSingle() * (endCp - startCp));
+                startCp = endCp - 1;
             }
 
-            throw new NotImplementedException($"Invalid path progression {progress}");
+            var progress = Random.Shared.NextSingle();
+            var position = InterpolatePositions(progress, particleSystem.GetControlPoint(startCp).Position, particleSystem.GetControlPoint(endCp).Position);
+
+            position += ParticleCollection.RandomBetweenPerComponent(particleId, new Vector3(-MaxDistance), new Vector3(MaxDistance));
+
+            return position;
         }
 
         private Vector3 InterpolatePositions(float relativeProgression, Vector3 position0, Vector3 position1)
@@ -77,7 +64,7 @@ namespace ValveResourceFormat.Renderer.Particles.Initializers
 
         public override Particle Initialize(ref Particle particle, ParticleCollection particles, ParticleSystemRenderState particleSystemState)
         {
-            var particlePosition = GetParticlePosition(particleSystemState);
+            var particlePosition = GetParticlePosition(particleSystemState, particle.ParticleID);
 
             particle.SetVector(ParticleField.Position, particlePosition);
 

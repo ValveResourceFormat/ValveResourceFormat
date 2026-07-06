@@ -2,7 +2,7 @@ namespace ValveResourceFormat.Renderer.Particles.Operators
 {
     /// <summary>
     /// Lerps a vector particle attribute from its initial value toward a target vector over a
-    /// specified time window of the particle's absolute age.
+    /// specified time window of the particle's normalized lifetime age.
     /// </summary>
     /// <seealso href="https://s2v.app/SchemaExplorer/cs2/particles/C_OP_LerpVector">C_OP_LerpVector</seealso>
     class LerpVector : ParticleFunctionOperator
@@ -29,7 +29,7 @@ namespace ValveResourceFormat.Renderer.Particles.Operators
                 // The set method affects the value the vector is interpolating to, instead of the current interpolated value.
                 var lerpTarget = particle.ModifyVectorBySetMethod(particles, FieldOutput, output, setMethod);
 
-                var lerpWeight = MathUtils.Saturate(MathUtils.Remap(particle.Age, startTime, endTime));
+                var lerpWeight = MathUtils.Saturate(MathUtils.Remap(particle.NormalizedAge, startTime, endTime));
 
                 var scalarOutput = Vector3.Lerp(particle.GetInitialVector(particles, FieldOutput), lerpTarget, lerpWeight);
 
