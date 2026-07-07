@@ -46,6 +46,24 @@ namespace ValveResourceFormat.ResourceTypes
         /// <inheritdoc/>
         public override BlockType Type => BlockType.DATA;
 
+        /// <summary>
+        /// Initializes a new instance of the <see cref="Panorama"/> class.
+        /// </summary>
+        public Panorama() { }
+
+        /// <summary>
+        /// Initializes a new instance of the <see cref="Panorama"/> class with the given content.
+        /// The <see cref="CRC32"/> checksum is computed from the data.
+        /// </summary>
+        /// <param name="data">The content as UTF-8 encoded text, such as layout, style, or script source.</param>
+        /// <param name="names">The name entries to store in the block header.</param>
+        public Panorama(byte[] data, List<NameEntry> names)
+        {
+            Data = data;
+            Names = names;
+            CRC32 = Crc32.HashToUInt32(data);
+        }
+
         /// <inheritdoc/>
         public override void Read(BinaryReader reader)
         {
@@ -97,7 +115,20 @@ namespace ValveResourceFormat.ResourceTypes
                 return;
             }
 
-            throw new NotImplementedException("Serializing this block is not yet supported. If you need this, send us a pull request!");
+            using var writer = new BinaryWriter(stream, Encoding.UTF8, leaveOpen: true);
+
+            writer.Write(CRC32);
+            writer.Write((ushort)Names.Count);
+
+            foreach (var entry in Names)
+            {
+                writer.Write(Encoding.UTF8.GetBytes(entry.Name));
+                writer.Write((byte)0); // null terminator
+                writer.Write(entry.Unknown1);
+                writer.Write(entry.Unknown2);
+            }
+
+            writer.Write(Data);
         }
 
         /// <inheritdoc/>
