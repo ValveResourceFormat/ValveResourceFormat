@@ -611,16 +611,8 @@ namespace GUI.Types.PackageViewer
                 return;
             }
 
-            if (((Settings.QuickPreviewFlags)Settings.Config.QuickFilePreview & Settings.QuickPreviewFlags.Enabled) == 0)
+            if (!TreeViewWithSearchResults.CanQuickPreviewFile(entry))
             {
-                return;
-            }
-
-            var extension = entry.TypeName;
-
-            if (extension is "vpk" or "vmap_c")
-            {
-                // Not ideal to check by file extension, but do not nest vpk previewss
                 return;
             }
 

@@ -244,6 +244,8 @@ namespace GUI.Types.PackageViewer
             {
                 OpenPackageEntry?.Invoke(sender, node.PackageEntry);
             }
+
+            DisplayMainListView();
         }
 
         private void MainTreeView_AfterSelect(object? sender, TreeViewEventArgs e)
@@ -252,6 +254,15 @@ namespace GUI.Types.PackageViewer
             {
                 return;
             }
+
+            if (PreviewTokenSource is not null)
+            {
+                PreviewTokenSource.Cancel();
+                PreviewTokenSource.Dispose();
+            }
+
+            PreviewTokenSource = new CancellationTokenSource();
+            var token = PreviewTokenSource.Token;
 
             var realNode = (BetterTreeNode)e.Node;
 
@@ -264,31 +275,24 @@ namespace GUI.Types.PackageViewer
                 {
                     MainListView_DisplayNodes(realNode.PkgNode);
                 }
+
+                return;
             }
-            else
+
+            if (realNode.PackageEntry != null)
             {
-                PreviewTokenSource?.Dispose();
-                PreviewTokenSource = new CancellationTokenSource();
+                // Blank the list view right away on a mouse click to minimize flashing
+                if (CanQuickPreviewFile(realNode.PackageEntry))
+                {
+                    ShowPreviewPlaceholder();
+                }
 
                 Task.Run(async () =>
                 {
-                    var token = PreviewTokenSource.Token;
-
                     // The default double-click time in windows (500) is too long to wait entirely.
-                    var mouseDoubleClickIntervalMs = 200;
-                    await Task.Delay(mouseDoubleClickIntervalMs).ConfigureAwait(false);
-
-                    // double-clicked or started previewing a different file
-                    if (token.IsCancellationRequested)
-                    {
-                        return;
-                    }
-
-                    if (realNode.PackageEntry != null)
-                    {
-                        await InvokeAsync(() => PreviewFile?.Invoke(sender, realNode.PackageEntry)).ConfigureAwait(false);
-                    }
-                });
+                    await Task.Delay(200, token).ConfigureAwait(false);
+                    await InvokeAsync(() => PreviewFile?.Invoke(sender, realNode.PackageEntry), token).ConfigureAwait(false);
+                }, token);
             }
         }
 
@@ -1511,6 +1515,58 @@ namespace GUI.Types.PackageViewer
             foreach (Control old in parentControl.Controls)
             {
                 if (old == tabs || old == mainListView) // TODO: dumb
+                {
+                    continue;
+                }
+
+                old.Dispose();
+            }
+        }
+
+        /// <summary>
+        /// Whether a quick file preview should be shown for the given entry: quick preview must be enabled, and
+        /// the file must not be one we deliberately don't preview inline (vpk to avoid nesting, vmap_c).
+        /// </summary>
+        public static bool CanQuickPreviewFile(PackageEntry entry)
+        {
+            if (((Settings.QuickPreviewFlags)Settings.Config.QuickFilePreview & Settings.QuickPreviewFlags.Enabled) == 0)
+            {
+                return false;
+            }
+
+            // Not ideal to check by file extension, but do not nest vpk previews
+            return entry.TypeName is not ("vpk" or "vmap_c");
+        }
+
+        /// <summary>
+        /// Immediately blanks the list view area with an empty themed panel. Used to give a preview instant
+        /// visual feedback on click, before the double-click debounce elapses and the real loading panel is shown.
+        /// The blank panel matches the loading panel background so the later swap is seamless. It is disposed by
+        /// <see cref="ReplaceListViewWithControl"/> when the preview loads, or by <see cref="DisplayMainListView"/>.
+        /// </summary>
+        private void ShowPreviewPlaceholder()
+        {
+            var parentControl = mainListView.Parent;
+
+            if (parentControl == null)
+            {
+                return;
+            }
+
+            mainListView.Visible = false;
+            SetGridModeToolbarVisible(false);
+
+            var placeholder = new Panel
+            {
+                Dock = DockStyle.Fill,
+                BackColor = Themer.CurrentThemeColors.AppMiddle,
+            };
+
+            parentControl.Controls.Add(placeholder);
+
+            foreach (Control old in parentControl.Controls)
+            {
+                if (old == placeholder || old == mainListView)
                 {
                     continue;
                 }
