@@ -107,7 +107,7 @@ namespace ValveResourceFormat.Renderer
             var (pitchSin, pitchCos) = MathF.SinCos(Pitch);
 
             Forward = new Vector3(yawCos * pitchCos, yawSin * pitchCos, pitchSin);
-            Up = new Vector3(yawCos * pitchSin, yawSin * pitchSin, pitchCos);
+            Up = new Vector3(-yawCos * pitchSin, -yawSin * pitchSin, pitchCos);
 
             const float PiOver2 = MathF.PI / 2f;
             var (piOver2Sin, piOver2Cos) = MathF.SinCos(Yaw - PiOver2);
