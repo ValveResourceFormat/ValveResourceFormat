@@ -139,6 +139,12 @@ public readonly record struct HalfEdgeHandle
     public override string ToString() => $"{Index}";
 }
 
+/// <summary>
+/// Half-Edge mesh typically used in Hammer.
+/// </summary>
+/// <remarks>
+/// Taken from <see href="https://github.com/Facepunch/sbox-public/tree/master/engine/Sandbox.Engine/Scene/Components/Mesh/HalfEdgeMesh">Sbox</see>.
+/// </remarks>
 internal sealed partial class HalfEdgeMesh
 {
     private ComponentList<Vertex> VertexList { get; set; } = new();
@@ -151,8 +157,6 @@ internal sealed partial class HalfEdgeMesh
     internal int VertexCount => VertexList.Count;
     internal int FaceCount => FaceList.Count;
     internal int HalfEdgeCount => HalfEdgeList.Count;
-
-    private bool IsVertexInMesh(VertexHandle hVertex) => hVertex.IsValid;
 
     private VertexHandle AllocateVertex(Vertex vertex, int sourceIndex = -1) => new(VertexList.Allocate(vertex, sourceIndex), this);
     private FaceHandle AllocateFace(Face face, int sourceIndex = -1) => new(FaceList.Allocate(face, sourceIndex), this);
@@ -346,6 +350,27 @@ internal sealed partial class HalfEdgeMesh
         }
 
         return hEdgeAB;
+    }
+
+    public HalfEdgeHandle FindHalfEdgeConnectingVertices(VertexHandle hVertexA, VertexHandle hVertexB)
+    {
+        if (!hVertexA.IsValid)
+            return HalfEdgeHandle.Invalid;
+
+        var hEdge = hVertexA.Edge;
+        if (!hEdge.IsValid)
+            return HalfEdgeHandle.Invalid;
+
+        do
+        {
+            if (hEdge.Vertex == hVertexB)
+                return hEdge;
+
+            hEdge = GetOppositeHalfEdge(hEdge).NextEdge;
+        }
+        while (hEdge != hVertexA.Edge);
+
+        return HalfEdgeHandle.Invalid;
     }
 
     private bool AllocateHalfEdgePair(out HalfEdgeHandle hHalfEdgeA, out HalfEdgeHandle hHalfEdgeB, int sourceIndexA = -1, int sourceIndexB = -1)
@@ -578,61 +603,25 @@ internal sealed partial class HalfEdgeMesh
         public HalfEdgeHandle OutgoingEdge;
     };
 
-    private void ClearEdgeData(HalfEdgeHandle hEdge)
+    public void GetVerticesConnectedToHalfEdge(HalfEdgeHandle hEdge, out VertexHandle hVertexA, out VertexHandle hVertexB)
     {
         if (!hEdge.IsValid)
-            return;
-
-        OnClearFaceVertexData?.Invoke(hEdge);
-    }
-
-    private void CopyFaceVertexData(HalfEdgeHandle hDstHalfEdge, HalfEdgeHandle hSrcHalfEdge)
-    {
-        if (!hDstHalfEdge.IsValid)
-            return;
-
-        if (!hSrcHalfEdge.IsValid)
-            return;
-
-        OnCopyFaceVertexData?.Invoke(hDstHalfEdge, hSrcHalfEdge);
-    }
-
-    private bool IsLooseEdge(HalfEdgeHandle hFullEdge)
-    {
-        GetHalfEdgesConnectedToFullEdge(hFullEdge, out var hHalfEdgeA, out var hHalfEdgeB);
-
-        if ((this[hHalfEdgeA].OppositeEdge == this[hHalfEdgeA].NextEdge) ||
-             (this[hHalfEdgeB].OppositeEdge == this[hHalfEdgeB].NextEdge))
-            return true;
-
-        return false;
-    }
-
-    private HalfEdgeHandle FindFirstLooseEdgeInFaceLoop(HalfEdgeHandle hStartEdge)
-    {
-        if (hStartEdge.IsValid)
         {
-            var hCurrentEdge = hStartEdge;
-            do
-            {
-                if (hCurrentEdge.OppositeEdge == hCurrentEdge.NextEdge)
-                    return hCurrentEdge;
-
-                hCurrentEdge = hCurrentEdge.NextEdge;
-            }
-            while (hCurrentEdge != hStartEdge);
+            hVertexA = VertexHandle.Invalid;
+            hVertexB = VertexHandle.Invalid;
+            return;
         }
 
-        return HalfEdgeHandle.Invalid;
+        hVertexA = GetOppositeHalfEdge(hEdge).Vertex;
+        hVertexB = hEdge.Vertex;
     }
 
-    private void FreeHalfEdgePair(HalfEdgeHandle hHalfEdge)
+    public HalfEdgeHandle GetOppositeHalfEdge(HalfEdgeHandle hEdge)
     {
-        if (!hHalfEdge.IsValid)
-            return;
+        if (!hEdge.IsValid)
+            return HalfEdgeHandle.Invalid;
 
-        FreeHalfEdge(hHalfEdge.OppositeEdge);
-        FreeHalfEdge(hHalfEdge);
+        return hEdge.OppositeEdge;
     }
 
     private void FreeHalfEdge(HalfEdgeHandle hHalfEdge)
@@ -643,54 +632,6 @@ internal sealed partial class HalfEdgeMesh
         this[hHalfEdge] = HalfEdge.Invalid;
 
         HalfEdgeList.Deallocate(hHalfEdge.Index);
-    }
-
-    private void FreeFace(FaceHandle hFace)
-    {
-        if (!hFace.IsValid)
-            return;
-
-        this[hFace] = Face.Invalid;
-        FaceList.Deallocate(hFace.Index);
-    }
-
-    private void FreeVertex(VertexHandle hVertex)
-    {
-        if (!hVertex.IsValid)
-            return;
-
-        this[hVertex] = Vertex.Invalid;
-        VertexList.Deallocate(hVertex.Index);
-    }
-
-    private bool IsHalfEdgeInMesh(HalfEdgeHandle hHalfEdge)
-    {
-        return hHalfEdge.IsValid;
-    }
-
-    public HalfEdgeHandle FindConnectedHalfEdgeInSet(HalfEdgeHandle hEdge, IReadOnlyList<HalfEdgeHandle> pEdges, int nNumEdges)
-    {
-        if (!hEdge.IsValid)
-            return HalfEdgeHandle.Invalid;
-
-        var hStartEdge = hEdge.NextEdge;
-        var hCurrentEdge = hStartEdge;
-
-        do
-        {
-            // Is the edge in the provided list
-            for (int iEdge = 0; iEdge < nNumEdges; ++iEdge)
-            {
-                if (hCurrentEdge == pEdges[iEdge])
-                    return hCurrentEdge;
-            }
-
-            // Get the next edge connected to the vertex
-            hCurrentEdge = GetNextEdgeInVertexLoop(hCurrentEdge);
-        }
-        while (hCurrentEdge != hStartEdge);
-
-        return HalfEdgeHandle.Invalid;
     }
 
     internal void SetEdgeVertex(HalfEdgeHandle hEdge, VertexHandle hVertex)
