@@ -216,6 +216,7 @@ namespace ValveResourceFormat.IO
                     MasterStreamIndex = Builder.Vertices.Count
                 };
                 Builder.Vertices.Add(newVertex);
+                Builder.AddExtractedVertexToMesh(Builder.vertexStreams.positions[vertex]);
 
                 var vertexStreams = Builder.vertexStreams;
 
@@ -470,9 +471,15 @@ namespace ValveResourceFormat.IO
         public PhysicsVertexMatcher? PhysicsVertexMatcher { get; init; }
         public IProgress<string>? ProgressReporter { get; init; }
 
+        private ContentFormats.HalfEdgeMesh.HalfEdgeMesh HalfEdgeMesh = new ContentFormats.HalfEdgeMesh.HalfEdgeMesh();
+        private ContentFormats.HalfEdgeMesh.VertexData<Vector3> Positions;
+        private readonly List<ContentFormats.HalfEdgeMesh.VertexHandle> Verts = [];
+
         public HammerMeshBuilder()
         {
             halfEdgeModifier = new(this);
+
+            Positions = this.HalfEdgeMesh.CreateVertexData<Vector3>("position");
         }
 
         public CDmePolygonMesh GenerateMesh()
@@ -647,11 +654,19 @@ namespace ValveResourceFormat.IO
             return mesh;
         }
 
+        internal void AddExtractedVertexToMesh(Vector3 position)
+        {
+            var handle = HalfEdgeMesh.AddVertex();
+            Positions[handle] = position;
+            Verts.Add(handle);
+        }
+
         public void AddVertices(VertexStreams streams, Vector3 positionOffset = new Vector3())
         {
             vertexStreams = streams;
 
             Vertices.EnsureCapacity(streams.positions.Count);
+            Verts.AddRange(HalfEdgeMesh.AddVertices(streams.positions.Count));
 
             for (var i = 0; i < streams.positions.Count; i++)
             {
@@ -661,6 +676,8 @@ namespace ValveResourceFormat.IO
                     MasterStreamIndex = i
                 };
                 Vertices.Add(newVertex);
+
+                Positions[Verts[i]] = streams.positions[i];
             }
         }
 
@@ -693,6 +710,8 @@ namespace ValveResourceFormat.IO
             var face = new Face();
             face.Indices.AddRange(indices);
             face.MaterialName = material;
+
+            ContentFormats.HalfEdgeMesh.VertexHandle[] verts = new ContentFormats.HalfEdgeMesh.VertexHandle[indices.Length];
 
             halfEdgeModifier.SetNewFaceContext(face);
 
@@ -732,6 +751,21 @@ namespace ValveResourceFormat.IO
                     FacesRemoved++;
                     return;
                 }
+            }
+
+            try
+            {
+                for (int i = 0; i < indices.Length; i++)
+                {
+                    verts[i] = Verts[indices[i]];
+                }
+
+                HalfEdgeMesh.AddFace(out var f1, verts);
+            }
+            catch (Exception)
+            {
+
+                throw;
             }
 
             var firstHalfEdgeId = -1;
