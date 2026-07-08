@@ -617,7 +617,7 @@ public class Renderer
             return;
         }
 
-        if (Scene.LightingInfo.BinnedShadowCasters.Count == 0)
+        if (Scene.LightingInfo.ShadowMapper.ShadowCasters.Count == 0)
         {
             return;
         }
@@ -634,8 +634,7 @@ public class Renderer
 
         BarnLightShadowBuffer.Bind(FramebufferTarget.Framebuffer);
 
-        var atlasSize = ShadowTextureSize;
-        Scene.LightingInfo.BarnLightShadowAtlasSize = atlasSize;
+        var atlasSize = Scene.LightingInfo.BarnLightShadowAtlasSize;
 
         if (BarnLightShadowBuffer.Resize(atlasSize, atlasSize))
         {
@@ -649,7 +648,7 @@ public class Renderer
         GL.Scissor(0, 0, BarnLightShadowBuffer.Width, BarnLightShadowBuffer.Height);
         GL.Clear(ClearBufferMask.DepthBufferBit);
 
-        foreach (var caster in Scene.LightingInfo.BinnedShadowCasters)
+        foreach (var caster in Scene.LightingInfo.ShadowMapper.ShadowCasters)
         {
             var region = caster.Region;
 
@@ -842,7 +841,7 @@ public class Renderer
 
         if (ViewBuffer.Data.ExperimentalLightsEnabled)
         {
-            Scene.LightingInfo.BinBarnLights(Camera.ViewFrustum, Camera.Location);
+            Scene.LightingInfo.BinBarnLights(Camera, ShadowTextureSize);
         }
 
         if (Scene is { EnablePvsCulling: true, VoxelVisibility: not null })
