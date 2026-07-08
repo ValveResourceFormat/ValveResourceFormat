@@ -165,6 +165,7 @@ namespace ValveResourceFormat.IO
     }
 
     // Most of the work is handled by HalfEdgeMesh.cs, it handles building and making sure the half edge mesh is valid
+    // All attribute data lives in data streams attached to the mesh components (position per vertex, corner data per half edge, material per face)
     // GenerateMesh() loops through the mesh and writes the data to the vmap in the correct format
     internal class HammerMeshBuilder
     {
@@ -190,15 +191,59 @@ namespace ValveResourceFormat.IO
         public int FacesRemoved;
         public int OriginalFaceCount;
 
-        // Vertex handle index, Vertices index and vertexStreams index are always 1:1
-        public VertexStreams vertexStreams = new();
-
         private readonly HalfEdgeMesh HalfEdgeMesh = new();
         private readonly List<VertexHandle> Vertices = [];
-        private readonly List<string> FaceMaterials = [];
+
+        private readonly VertexData<Vector3> Positions;
+        private readonly HalfEdgeData<Vector2> TextureCoords;
+        private readonly HalfEdgeData<Vector2> TextureCoords1;
+        private readonly HalfEdgeData<Vector3> Normals;
+        private readonly HalfEdgeData<Vector4> Tangents;
+        private readonly HalfEdgeData<Vector4> VertexPaintBlendParams;
+        private readonly HalfEdgeData<Vector4> VertexPaintTintColor;
+        private readonly FaceData<int> MaterialIndex;
+
+        private readonly List<string> Materials = [];
+        private readonly Dictionary<string, int> MaterialIds = [];
+
+        // Source data for the vertices added through AddVertices(), indexed by input vertex index
+        // read in order to propagate the vertex data onto the half edges
+        private VertexStreams SourceStreams = new();
 
         public PhysicsVertexMatcher? PhysicsVertexMatcher { get; init; }
         public IProgress<string>? ProgressReporter { get; init; }
+
+        public HammerMeshBuilder()
+        {
+            Positions = HalfEdgeMesh.CreateVertexData<Vector3>(nameof(Positions));
+            TextureCoords = HalfEdgeMesh.CreateHalfEdgeData<Vector2>(nameof(TextureCoords));
+            TextureCoords1 = HalfEdgeMesh.CreateHalfEdgeData<Vector2>(nameof(TextureCoords1));
+            Normals = HalfEdgeMesh.CreateHalfEdgeData<Vector3>(nameof(Normals));
+            Tangents = HalfEdgeMesh.CreateHalfEdgeData<Vector4>(nameof(Tangents));
+            VertexPaintBlendParams = HalfEdgeMesh.CreateHalfEdgeData<Vector4>(nameof(VertexPaintBlendParams));
+            VertexPaintTintColor = HalfEdgeMesh.CreateHalfEdgeData<Vector4>(nameof(VertexPaintTintColor));
+            MaterialIndex = HalfEdgeMesh.CreateFaceData<int>(nameof(MaterialIndex));
+
+            HalfEdgeMesh.OnCopyFaceVertexData = (dst, src) =>
+            {
+                TextureCoords[dst] = TextureCoords[src];
+                TextureCoords1[dst] = TextureCoords1[src];
+                Normals[dst] = Normals[src];
+                Tangents[dst] = Tangents[src];
+                VertexPaintBlendParams[dst] = VertexPaintBlendParams[src];
+                VertexPaintTintColor[dst] = VertexPaintTintColor[src];
+            };
+
+            HalfEdgeMesh.OnClearFaceVertexData = (hEdge) =>
+            {
+                TextureCoords[hEdge] = default;
+                TextureCoords1[hEdge] = default;
+                Normals[hEdge] = default;
+                Tangents[hEdge] = default;
+                VertexPaintBlendParams[hEdge] = default;
+                VertexPaintTintColor[hEdge] = default;
+            };
+        }
 
         public CDmePolygonMesh GenerateMesh()
         {
@@ -244,7 +289,7 @@ namespace ValveResourceFormat.IO
                 mesh.VertexDataIndices.Add(vertexDataIndex);
                 mesh.VertexData.Size++;
 
-                vertexPositions.Data.Add(vertexStreams.positions[i]);
+                vertexPositions.Data.Add(Positions[Vertices[i]]);
             }
 
             for (var i = 0; i < HalfEdgeMesh.HalfEdgeCount / 2; i++)
@@ -269,70 +314,19 @@ namespace ValveResourceFormat.IO
 
                 mesh.FaceVertexData.Size += 1;
 
-                var normal = Vector3.Zero;
-                var tangent = Vector4.Zero;
-                var uv = Vector2.Zero;
-                var uv1 = Vector2.Zero;
-                var vertexPaintBlendParams = Vector4.Zero;
-                var vertexPaintTintColor = Vector4.Zero;
+                // corner data was fanned onto the half edge streams in WriteFaceData(),
+                // boundary half edges keep the stream defaults (zero)
+                normals.Data.Add(Normals[hEdge]);
+                tangents.Data.Add(Tangents[hEdge]);
+                texcoords.Data.Add(TextureCoords[hEdge]);
+                texcoords1.Data.Add(TextureCoords1[hEdge]);
+                vertexpaintblendparams.Data.Add(VertexPaintBlendParams[hEdge]);
+                vertexpainttintcolor.Data.Add(VertexPaintTintColor[hEdge]);
+            }
 
-                if (hEdge.Face.Index != -1)
-                {
-                    var startVertex = hEdge.Vertex.Index;
-
-                    if (vertexStreams.normals.Count == 0)
-                    {
-                        normal = CalculateNormal(hEdge);
-                    }
-                    else
-                    {
-                        normal = vertexStreams.normals[startVertex];
-                    }
-
-                    if (vertexStreams.tangents.Count == 0)
-                    {
-                        tangent = CalculateTangentFromNormal(normal);
-                    }
-                    else
-                    {
-                        tangent = vertexStreams.tangents[startVertex];
-                    }
-
-                    if (vertexStreams.texcoords.Count == 0)
-                    {
-                        uv = CalculateTriplanarUVs(vertexStreams.positions[startVertex], normal);
-                    }
-                    else
-                    {
-                        uv = vertexStreams.texcoords[startVertex];
-                    }
-
-                    if (vertexStreams.texcoords1.Count == 0)
-                    {
-                        uv1 = CalculateTriplanarUVs(vertexStreams.positions[startVertex], normal);
-                    }
-                    else
-                    {
-                        uv1 = vertexStreams.texcoords1[startVertex];
-                    }
-
-                    if (vertexStreams.VertexPaintBlendParams.Count != 0)
-                    {
-                        vertexPaintBlendParams = vertexStreams.VertexPaintBlendParams[startVertex];
-                    }
-
-                    if (vertexStreams.VertexPaintTintColor.Count != 0)
-                    {
-                        vertexPaintTintColor = vertexStreams.VertexPaintTintColor[startVertex];
-                    }
-                }
-
-                normals.Data.Add(normal);
-                tangents.Data.Add(tangent);
-                texcoords.Data.Add(uv);
-                texcoords1.Data.Add(uv1);
-                vertexpaintblendparams.Data.Add(vertexPaintBlendParams);
-                vertexpainttintcolor.Data.Add(vertexPaintTintColor);
+            foreach (var material in Materials)
+            {
+                mesh.Materials.Add(material);
             }
 
             for (var i = 0; i < HalfEdgeMesh.FaceCount; i++)
@@ -343,16 +337,7 @@ namespace ValveResourceFormat.IO
                 mesh.FaceDataIndices.Add(faceDataIndex);
                 mesh.FaceData.Size++;
 
-                var mat = FaceMaterials[i];
-                var materialIndex = mesh.Materials.IndexOf(mat);
-                if (materialIndex == -1 && mat != null)
-                {
-                    materialIndex = mesh.Materials.Count;
-                    mesh.Materials.Add(mat);
-                }
-                faceMaterialIndices.Data.Add(materialIndex);
-
-
+                faceMaterialIndices.Data.Add(MaterialIndex[hFace]);
                 faceFlags.Data.Add(0);
 
                 mesh.FaceEdgeIndices.Add(hFace.Edge.Index);
@@ -365,14 +350,15 @@ namespace ValveResourceFormat.IO
 
         public void AddVertices(VertexStreams streams, Vector3 positionOffset = new Vector3())
         {
-            vertexStreams = streams;
+            SourceStreams = streams;
 
-            Vertices.EnsureCapacity(Vertices.Count + streams.positions.Count);
+            var baseVertex = Vertices.Count;
+            Vertices.EnsureCapacity(baseVertex + streams.positions.Count);
             Vertices.AddRange(HalfEdgeMesh.AddVertices(streams.positions.Count));
 
             for (var i = 0; i < streams.positions.Count; i++)
             {
-                streams.positions[i] += positionOffset;
+                Positions[Vertices[baseVertex + i]] = streams.positions[i] + positionOffset;
             }
         }
 
@@ -401,9 +387,9 @@ namespace ValveResourceFormat.IO
             if (indices.Length == 3)
             {
                 if (AreVerticesCollinear(
-                    vertexStreams.positions[indices[0]],
-                    vertexStreams.positions[indices[1]],
-                    vertexStreams.positions[indices[2]]))
+                    Positions[Vertices[indices[0]]],
+                    Positions[Vertices[indices[1]]],
+                    Positions[Vertices[indices[2]]]))
                 {
                     //ProgressReporter?.Report($"{nameof(HammerMeshBuilder)}: Error! Failed to add face '{HalfEdgeMesh.FaceCount}', face had 0 area");
                     FacesRemoved++;
@@ -418,13 +404,80 @@ namespace ValveResourceFormat.IO
             }
 
             // AddFace will validate the face against all topology rules, if it fails, we dumplicate its vertices, extracting the face
-            if (HalfEdgeMesh.AddFace(out _, vertices))
+            if (HalfEdgeMesh.AddFace(out var hFace, vertices))
             {
-                FaceMaterials.Add(material);
+                WriteFaceData(hFace, indices, material);
                 return;
             }
 
             ExtractFace(indices, material);
+        }
+
+        // writes the per vertex source data into the half edges
+        private void WriteFaceData(FaceHandle hFace, ReadOnlySpan<int> sourceIndices, string material)
+        {
+            MaterialIndex[hFace] = AddMaterial(material);
+
+            // the face edge points at the half edge ending at the first input vertex,
+            // so walking the loop visits the corners in input order
+            var hEdge = hFace.Edge;
+
+            for (var i = 0; i < sourceIndices.Length; i++)
+            {
+                var sourceIndex = sourceIndices[i];
+
+                var normal = SourceStreams.normals.Count > 0
+                    ? SourceStreams.normals[sourceIndex]
+                    : CalculateNormal(hEdge);
+
+                var tangent = SourceStreams.tangents.Count > 0
+                    ? SourceStreams.tangents[sourceIndex]
+                    : CalculateTangentFromNormal(normal);
+
+                var position = Positions[hEdge.Vertex];
+
+                Normals[hEdge] = normal;
+                Tangents[hEdge] = tangent;
+
+                TextureCoords[hEdge] = SourceStreams.texcoords.Count > 0
+                    ? SourceStreams.texcoords[sourceIndex]
+                    : CalculateTriplanarUVs(position, normal);
+
+                TextureCoords1[hEdge] = SourceStreams.texcoords1.Count > 0
+                    ? SourceStreams.texcoords1[sourceIndex]
+                    : CalculateTriplanarUVs(position, normal);
+
+                if (SourceStreams.VertexPaintBlendParams.Count > 0)
+                {
+                    VertexPaintBlendParams[hEdge] = SourceStreams.VertexPaintBlendParams[sourceIndex];
+                }
+
+                if (SourceStreams.VertexPaintTintColor.Count > 0)
+                {
+                    VertexPaintTintColor[hEdge] = SourceStreams.VertexPaintTintColor[sourceIndex];
+                }
+
+                hEdge = hEdge.NextEdge;
+            }
+        }
+
+        private int AddMaterial(string material)
+        {
+            if (material is null)
+            {
+                return -1;
+            }
+
+            if (MaterialIds.TryGetValue(material, out var id))
+            {
+                return id;
+            }
+
+            id = Materials.Count;
+            Materials.Add(material);
+            MaterialIds[material] = id;
+
+            return id;
         }
 
         // Faces which cant be integrated into the existing topology (they would create a nonmanifold edge or vertex)
@@ -437,46 +490,21 @@ namespace ValveResourceFormat.IO
             ProgressReporter?.Report($"{nameof(HammerMeshBuilder)}: Face '{HalfEdgeMesh.FaceCount}' did not fit into the mesh topology, extracting it with duplicated vertices");
 #endif
 
-            var indexCount = indices.Length;
+            var vertices = new VertexHandle[indices.Length];
 
-            // possible speedup for small meshes, maybe
-            var newIndices = indexCount < 64 ? stackalloc int[indexCount] : new int[indexCount];
-
-            for (var i = 0; i < indexCount; i++)
+            for (var i = 0; i < indices.Length; i++)
             {
-                var vertex = indices[i];
-
-                newIndices[i] = Vertices.Count;
-                Vertices.Add(HalfEdgeMesh.AddVertex());
-
-                vertexStreams.positions.Add(vertexStreams.positions[vertex]);
-                if (vertexStreams.texcoords.Count > 0)
-                {
-                    vertexStreams.texcoords.Add(vertexStreams.texcoords[vertex]);
-                }
-                if (vertexStreams.texcoords1.Count > 0)
-                {
-                    vertexStreams.texcoords1.Add(vertexStreams.texcoords1[vertex]);
-                }
-                if (vertexStreams.normals.Count > 0)
-                {
-                    vertexStreams.normals.Add(vertexStreams.normals[vertex]);
-                }
-                if (vertexStreams.tangents.Count > 0)
-                {
-                    vertexStreams.tangents.Add(vertexStreams.tangents[vertex]);
-                }
-                if (vertexStreams.VertexPaintBlendParams.Count > 0)
-                {
-                    vertexStreams.VertexPaintBlendParams.Add(vertexStreams.VertexPaintBlendParams[vertex]);
-                }
-                if (vertexStreams.VertexPaintTintColor.Count > 0)
-                {
-                    vertexStreams.VertexPaintTintColor.Add(vertexStreams.VertexPaintTintColor[vertex]);
-                }
+                var hVertex = HalfEdgeMesh.AddVertex();
+                Positions[hVertex] = Positions[Vertices[indices[i]]];
+                Vertices.Add(hVertex);
+                vertices[i] = hVertex;
             }
 
-            AddFace(newIndices, material);
+            // the duplicated vertices are isolated, so this cant fail
+            HalfEdgeMesh.AddFace(out var hFace, vertices);
+
+            // need to write new half edge stream data
+            WriteFaceData(hFace, indices, material);
         }
 
         public void AddPhysHull(HullDescriptor desc, PhysAggregateData phys, Func<string, string> materialNameProvider, Vector3 positionOffset = new Vector3(), string? materialOverride = null)
@@ -504,7 +532,6 @@ namespace ValveResourceFormat.IO
             var hullFaces = hull.GetFaces();
             var hullEdges = hull.GetEdges();
 
-            FaceMaterials.EnsureCapacity(hullFaces.Length);
             Span<int> inds = stackalloc int[byte.MaxValue];
 
             foreach (var face in hullFaces)
@@ -564,7 +591,6 @@ namespace ValveResourceFormat.IO
             };
             AddVertices(streams, positionOffset);
 
-            FaceMaterials.EnsureCapacity(newMesh.NewTriangles.Count);
             Span<int> inds = stackalloc int[3];
 
             var removed = 0;
@@ -797,9 +823,9 @@ namespace ValveResourceFormat.IO
 
         private Vector3 CalculateNormal(HalfEdgeHandle hEdge)
         {
-            var v1 = vertexStreams.positions[hEdge.Vertex.Index];
-            var v2 = vertexStreams.positions[hEdge.NextEdge.Vertex.Index];
-            var v3 = vertexStreams.positions[hEdge.OppositeEdge.Vertex.Index];
+            var v1 = Positions[hEdge.Vertex];
+            var v2 = Positions[hEdge.NextEdge.Vertex];
+            var v3 = Positions[hEdge.OppositeEdge.Vertex];
 
             var normal = Vector3.Normalize(Vector3.Cross(v2 - v1, v3 - v1));
 
