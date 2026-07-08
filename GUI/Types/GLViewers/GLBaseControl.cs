@@ -30,9 +30,13 @@ internal abstract class GLBaseControl : IDisposable
     protected TrackedKeys CurrentlyPressedKeys;
     public Point LastMouseDelta { get; protected set; }
 
+    /// <summary>Whether the mouse has moved while a button was held since the last mouse down.</summary>
+    protected bool MouseDragged;
+
     private readonly Lock inputStateLock = new();
     private Point pendingMouseDelta;
     private int pendingMouseWheelDelta;
+    private bool cursorHiddenForDrag;
 
     public bool GrabbedMouse
     {
@@ -252,6 +256,7 @@ internal abstract class GLBaseControl : IDisposable
         CurrentlyPressedKeys = TrackedKeys.None;
         MouseDelta = Point.Empty;
         GrabbedMouse = false;
+        RestoreCursorAfterDrag();
     }
 
     private static TrackedKeys RemapKey(Keys key) => key switch
@@ -343,6 +348,7 @@ internal abstract class GLBaseControl : IDisposable
 
         InitialMousePosition = new Point(e.X, e.Y);
         MouseDelta = Point.Empty;
+        MouseDragged = false;
 
         if (GLControl != null)
         {
@@ -377,12 +383,32 @@ internal abstract class GLBaseControl : IDisposable
         {
             pendingMouseDelta = Point.Empty;
             MouseDelta = Point.Empty;
+            RestoreCursorAfterDrag();
+        }
+    }
+
+    private void RestoreCursorAfterDrag()
+    {
+        if (!cursorHiddenForDrag)
+        {
+            return;
+        }
+
+        cursorHiddenForDrag = false;
+
+        if (GLControl != null)
+        {
+            // Put the cursor back where the drag started so it doesn't appear to jump.
+            Cursor.Position = GLControl.PointToScreen(InitialMousePosition);
+            GLControl.BeginInvoke(Cursor.Show);
         }
     }
 
     protected virtual void OnMouseMove(object? sender, MouseEventArgs e)
     {
-        if (!GrabbedMouse && (CurrentlyPressedKeys & TrackedKeys.MouseLeftOrRight) == 0)
+        var dragging = (CurrentlyPressedKeys & TrackedKeys.MouseLeftOrRight) != 0;
+
+        if (!GrabbedMouse && !dragging)
         {
             return;
         }
@@ -395,66 +421,35 @@ internal abstract class GLBaseControl : IDisposable
         using var _ = inputStateLock.EnterScope();
 
         var position = GLControl.PointToScreen(new Point(e.X, e.Y));
-        var topLeft = GLControl.PointToScreen(Point.Empty);
-        var bottomRight = topLeft + GLControl.Size;
 
-        // Windows has a 1px edge on bottom and right of the screen where cursor can't reach
-        // (assuming that there is no secondary screen past these edges)
-        bottomRight.X -= 1;
-        bottomRight.Y -= 1;
-
-        var positionWrapped = position;
-
-        var delta = Point.Empty;
-
-        if (position.X <= topLeft.X)
-        {
-            delta.X--;
-            positionWrapped.X = bottomRight.X - 1;
-        }
-        else if (position.X >= bottomRight.X)
-        {
-            delta.X++;
-            positionWrapped.X = topLeft.X + 1;
-        }
-
-        if (position.Y <= topLeft.Y)
-        {
-            delta.Y--;
-            positionWrapped.Y = bottomRight.Y - 1;
-        }
-        else if (position.Y >= bottomRight.Y)
-        {
-            delta.Y++;
-            positionWrapped.Y = topLeft.Y + 1;
-        }
-
-        if (positionWrapped != position)
-        {
-            // When wrapping cursor, add only 1px delta movement above
-            pendingMouseDelta.X += delta.X;
-            pendingMouseDelta.Y += delta.Y;
-
-            MousePreviousPosition = positionWrapped;
-            Cursor.Position = positionWrapped;
-            return;
-        }
-
-        delta.X += position.X - MousePreviousPosition.X;
-        delta.Y += position.Y - MousePreviousPosition.Y;
+        var delta = new Point(
+            position.X - MousePreviousPosition.X,
+            position.Y - MousePreviousPosition.Y
+        );
 
         pendingMouseDelta.X += delta.X;
         pendingMouseDelta.Y += delta.Y;
 
-        MousePreviousPosition = position;
-
-        if (GrabbedMouse)
+        if (delta != Point.Empty)
         {
-            var centerPoint = new Point(GLControl.Width / 2, GLControl.Height / 2);
-            var screenCenter = GLControl.PointToScreen(centerPoint);
-            MousePreviousPosition = screenCenter;
-            Cursor.Position = screenCenter;
+            MouseDragged = true;
+
+            // Hide the cursor once dragging the camera starts so it isn't distracting and doesn't drift.
+            if (dragging && !GrabbedMouse && !cursorHiddenForDrag)
+            {
+                cursorHiddenForDrag = true;
+                GLControl.BeginInvoke(Cursor.Hide);
+            }
         }
+
+        // Keep the cursor pinned in place while looking around: centered in grabbed (noclip) mode,
+        // otherwise locked to where the drag started so it stays hidden and doesn't move.
+        var lockPoint = GrabbedMouse
+            ? GLControl.PointToScreen(new Point(GLControl.Width / 2, GLControl.Height / 2))
+            : GLControl.PointToScreen(InitialMousePosition);
+
+        MousePreviousPosition = lockPoint;
+        Cursor.Position = lockPoint;
     }
 
     protected virtual void OnMouseWheel(object? sender, MouseEventArgs e)
