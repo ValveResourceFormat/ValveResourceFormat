@@ -158,6 +158,8 @@ internal sealed partial class HalfEdgeMesh
     internal int FaceCount => FaceList.Count;
     internal int HalfEdgeCount => HalfEdgeList.Count;
 
+    private bool IsVertexInMesh(VertexHandle hVertex) => hVertex.IsValid;
+
     private VertexHandle AllocateVertex(Vertex vertex, int sourceIndex = -1) => new(VertexList.Allocate(vertex, sourceIndex), this);
     private FaceHandle AllocateFace(Face face, int sourceIndex = -1) => new(FaceList.Allocate(face, sourceIndex), this);
     private HalfEdgeHandle AllocateHalfEdge(HalfEdge halfEdge, int sourceIndex = -1) => new(HalfEdgeList.Allocate(halfEdge, sourceIndex), this);
@@ -352,23 +354,32 @@ internal sealed partial class HalfEdgeMesh
         return hEdgeAB;
     }
 
-    public HalfEdgeHandle FindHalfEdgeConnectingVertices(VertexHandle hVertexA, VertexHandle hVertexB)
+    private bool IsHalfEdgeInMesh(HalfEdgeHandle hHalfEdge)
     {
-        if (!hVertexA.IsValid)
-            return HalfEdgeHandle.Invalid;
+        return hHalfEdge.IsValid;
+    }
 
-        var hEdge = hVertexA.Edge;
+    public HalfEdgeHandle FindConnectedHalfEdgeInSet(HalfEdgeHandle hEdge, IReadOnlyList<HalfEdgeHandle> pEdges, int nNumEdges)
+    {
         if (!hEdge.IsValid)
             return HalfEdgeHandle.Invalid;
 
+        var hStartEdge = hEdge.NextEdge;
+        var hCurrentEdge = hStartEdge;
+
         do
         {
-            if (hEdge.Vertex == hVertexB)
-                return hEdge;
+            // Is the edge in the provided list
+            for (int iEdge = 0; iEdge < nNumEdges; ++iEdge)
+            {
+                if (hCurrentEdge == pEdges[iEdge])
+                    return hCurrentEdge;
+            }
 
-            hEdge = GetOppositeHalfEdge(hEdge).NextEdge;
+            // Get the next edge connected to the vertex
+            hCurrentEdge = GetNextEdgeInVertexLoop(hCurrentEdge);
         }
-        while (hEdge != hVertexA.Edge);
+        while (hCurrentEdge != hStartEdge);
 
         return HalfEdgeHandle.Invalid;
     }
@@ -603,27 +614,6 @@ internal sealed partial class HalfEdgeMesh
         public HalfEdgeHandle OutgoingEdge;
     };
 
-    public void GetVerticesConnectedToHalfEdge(HalfEdgeHandle hEdge, out VertexHandle hVertexA, out VertexHandle hVertexB)
-    {
-        if (!hEdge.IsValid)
-        {
-            hVertexA = VertexHandle.Invalid;
-            hVertexB = VertexHandle.Invalid;
-            return;
-        }
-
-        hVertexA = GetOppositeHalfEdge(hEdge).Vertex;
-        hVertexB = hEdge.Vertex;
-    }
-
-    public HalfEdgeHandle GetOppositeHalfEdge(HalfEdgeHandle hEdge)
-    {
-        if (!hEdge.IsValid)
-            return HalfEdgeHandle.Invalid;
-
-        return hEdge.OppositeEdge;
-    }
-
     private void FreeHalfEdge(HalfEdgeHandle hHalfEdge)
     {
         if (!hHalfEdge.IsValid)
@@ -632,6 +622,32 @@ internal sealed partial class HalfEdgeMesh
         this[hHalfEdge] = HalfEdge.Invalid;
 
         HalfEdgeList.Deallocate(hHalfEdge.Index);
+    }
+
+    private void FreeHalfEdgePair(HalfEdgeHandle hHalfEdge)
+    {
+        if (!hHalfEdge.IsValid)
+            return;
+
+        FreeHalfEdge(hHalfEdge.OppositeEdge);
+        FreeHalfEdge(hHalfEdge);
+    }
+
+    private void FreeFace(FaceHandle hFace)
+    {
+        if (!hFace.IsValid)
+            return;
+
+        this[hFace] = Face.Invalid;
+        FaceList.Deallocate(hFace.Index);
+    }
+
+    private void ClearEdgeData(HalfEdgeHandle hEdge)
+    {
+        if (!hEdge.IsValid)
+            return;
+
+        OnClearFaceVertexData?.Invoke(hEdge);
     }
 
     internal void SetEdgeVertex(HalfEdgeHandle hEdge, VertexHandle hVertex)
@@ -674,6 +690,85 @@ internal sealed partial class HalfEdgeMesh
         var face = this[hFace];
         face.Edge = hEdge.Index;
         this[hFace] = face;
+    }
+
+    // Removes an interior edge, merging the two faces connected to it into a single face
+    // The face of the given half edge survives, the opposite face is freed together with the edge pair
+    public bool DissolveEdge(HalfEdgeHandle hEdge, out FaceHandle hOutFace)
+    {
+        hOutFace = FaceHandle.Invalid;
+
+        if (!hEdge.IsValid)
+            return false;
+
+        var hEdgeA = hEdge;
+        var hEdgeB = GetOppositeHalfEdge(hEdge);
+
+        var hFaceA = hEdgeA.Face; // kept
+        var hFaceB = hEdgeB.Face; // merged into face A
+
+        // must be an interior edge connecting two distinct faces
+        if (hFaceA == FaceHandle.Invalid || hFaceB == FaceHandle.Invalid || hFaceA == hFaceB)
+            return false;
+
+        // faces connected by more than one edge can't be merged by dissolving a single edge,
+        // that would leave the second shared edge as a degenerate interior edge
+        var sharedEdges = 0;
+        var hCurrentEdge = hFaceA.Edge;
+        do
+        {
+            if (hCurrentEdge.OppositeEdge.Face == hFaceB)
+            {
+                ++sharedEdges;
+            }
+
+            hCurrentEdge = hCurrentEdge.NextEdge;
+        }
+        while (hCurrentEdge != hFaceA.Edge);
+
+        if (sharedEdges != 1)
+            return false;
+
+        var hPrevA = FindPreviousEdgeInFaceLoop(hEdgeA);
+        var hPrevB = FindPreviousEdgeInFaceLoop(hEdgeB);
+        var hNextA = hEdgeA.NextEdge;
+        var hNextB = hEdgeB.NextEdge;
+
+        // move all of face B's edges over to face A
+        hCurrentEdge = hNextB;
+        do
+        {
+            hCurrentEdge.Face = hFaceA;
+            hCurrentEdge = hCurrentEdge.NextEdge;
+        }
+        while (hCurrentEdge != hEdgeB);
+
+        // splice the two face loops together, bypassing the dissolved edge pair
+        hPrevA.NextEdge = hNextB;
+        hPrevB.NextEdge = hNextA;
+
+        // repoint the end vertices if their outgoing edge is one of the freed half edges
+        var hVertexA = hEdgeB.Vertex; // hEdgeA emanates from this vertex
+        var hVertexB = hEdgeA.Vertex; // hEdgeB emanates from this vertex
+
+        if (hVertexA.Edge == hEdgeA)
+            hVertexA.Edge = hNextB;
+
+        if (hVertexB.Edge == hEdgeB)
+            hVertexB.Edge = hNextA;
+
+        // repoint the surviving face if its edge is being freed
+        if (hFaceA.Edge == hEdgeA)
+            hFaceA.Edge = hPrevA;
+
+        ClearEdgeData(hEdgeA);
+        ClearEdgeData(hEdgeB);
+
+        FreeHalfEdgePair(hEdgeA);
+        FreeFace(hFaceB);
+
+        hOutFace = hFaceA;
+        return true;
     }
 
     public Vertex this[VertexHandle hVertex]

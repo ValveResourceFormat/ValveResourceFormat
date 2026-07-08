@@ -1,7 +1,6 @@
 using System.Globalization;
 using System.IO;
 using System.Linq;
-using System.Runtime.InteropServices;
 using Datamodel;
 using ValveResourceFormat.IO.ContentFormats.DmxModel;
 using ValveResourceFormat.IO.ContentFormats.HalfEdgeMesh;
@@ -254,6 +253,34 @@ namespace ValveResourceFormat.IO
             }
 #endif
 
+            // merge coplanar triangle pairs into quads before writing to the vmap
+            // currently merging faces by material, if materials differ the triangles wont be merget into a quad
+            // TODO: there may possibly be smarter heuristics to merge by
+            var quadsMerged = HalfEdgeMesh.UntriangulateMesh(Positions, (hFaceA, hFaceB) => MaterialIndex[hFaceA] == MaterialIndex[hFaceB]);
+
+#if DEBUG
+            if (quadsMerged > 0)
+            {
+                ProgressReporter?.Report($"{nameof(HammerMeshBuilder)}: Untriangulated '{quadsMerged}' triangle pairs into quads");
+            }
+#endif
+
+            // dissolving edges leaves holes in the component lists, build remap tables so the vmap gets dense indices
+            // twin half edges are freed in whole pairs, so surviving pairs stay adjacent and both halves map to newIndex / 2
+            var halfEdgeRemap = new int[HalfEdgeMesh.HalfEdgeCount];
+            var activeHalfEdgeCount = 0;
+            for (var i = 0; i < HalfEdgeMesh.HalfEdgeCount; i++)
+            {
+                halfEdgeRemap[i] = HalfEdgeMesh.IsHalfEdgeAllocated(i) ? activeHalfEdgeCount++ : -1;
+            }
+
+            var faceRemap = new int[HalfEdgeMesh.FaceCount];
+            var activeFaceCount = 0;
+            for (var i = 0; i < HalfEdgeMesh.FaceCount; i++)
+            {
+                faceRemap[i] = HalfEdgeMesh.IsFaceAllocated(i) ? activeFaceCount++ : -1;
+            }
+
             var mesh = new CDmePolygonMesh();
 
             var faceMaterialIndices = CreateStream<IntArray, int>(8, "materialindex:0");
@@ -284,7 +311,8 @@ namespace ValveResourceFormat.IO
             {
                 var vertexDataIndex = mesh.VertexData.Size;
 
-                mesh.VertexEdgeIndices.Add(Vertices[i].Edge.Index);
+                var vertexEdge = Vertices[i].Edge.Index;
+                mesh.VertexEdgeIndices.Add(vertexEdge == -1 ? -1 : halfEdgeRemap[vertexEdge]);
 
                 mesh.VertexDataIndices.Add(vertexDataIndex);
                 mesh.VertexData.Size++;
@@ -292,7 +320,7 @@ namespace ValveResourceFormat.IO
                 vertexPositions.Data.Add(Positions[Vertices[i]]);
             }
 
-            for (var i = 0; i < HalfEdgeMesh.HalfEdgeCount / 2; i++)
+            for (var i = 0; i < activeHalfEdgeCount / 2; i++)
             {
                 mesh.EdgeData.Size++;
                 edgeFlags.Data.Add((int)EdgeFlag.None);
@@ -300,17 +328,25 @@ namespace ValveResourceFormat.IO
 
             for (var i = 0; i < HalfEdgeMesh.HalfEdgeCount; i++)
             {
+                var newIndex = halfEdgeRemap[i];
+                if (newIndex == -1)
+                {
+                    continue;
+                }
+
                 var hEdge = new HalfEdgeHandle(i, HalfEdgeMesh);
 
                 // EdgeData refers to a single edge, so its half of the total of half edges, both halves of the edge should have the same EdgeData Index
-                // Twin half edges are always allocated as adjacent pairs, so both map to edge i / 2
-                mesh.EdgeDataIndices.Add(i / 2);
+                // Twin half edges are always allocated (and freed) as pairs, so both map to edge newIndex / 2
+                mesh.EdgeDataIndices.Add(newIndex / 2);
 
                 mesh.EdgeVertexIndices.Add(hEdge.Vertex.Index);
-                mesh.EdgeOppositeIndices.Add(hEdge.OppositeEdge.Index);
-                mesh.EdgeNextIndices.Add(hEdge.NextEdge.Index);
-                mesh.EdgeFaceIndices.Add(hEdge.Face.Index);
-                mesh.EdgeVertexDataIndices.Add(i);
+                mesh.EdgeOppositeIndices.Add(halfEdgeRemap[hEdge.OppositeEdge.Index]);
+                mesh.EdgeNextIndices.Add(halfEdgeRemap[hEdge.NextEdge.Index]);
+
+                var faceIndex = hEdge.Face.Index;
+                mesh.EdgeFaceIndices.Add(faceIndex == -1 ? -1 : faceRemap[faceIndex]);
+                mesh.EdgeVertexDataIndices.Add(newIndex);
 
                 mesh.FaceVertexData.Size += 1;
 
@@ -331,6 +367,11 @@ namespace ValveResourceFormat.IO
 
             for (var i = 0; i < HalfEdgeMesh.FaceCount; i++)
             {
+                if (faceRemap[i] == -1)
+                {
+                    continue;
+                }
+
                 var hFace = new FaceHandle(i, HalfEdgeMesh);
 
                 var faceDataIndex = mesh.FaceData.Size;
@@ -340,7 +381,7 @@ namespace ValveResourceFormat.IO
                 faceMaterialIndices.Data.Add(MaterialIndex[hFace]);
                 faceFlags.Data.Add(0);
 
-                mesh.FaceEdgeIndices.Add(hFace.Edge.Index);
+                mesh.FaceEdgeIndices.Add(halfEdgeRemap[hFace.Edge.Index]);
             }
 
             mesh.SubdivisionData.SubdivisionLevels.AddRange(Enumerable.Repeat(0, 8));
@@ -666,7 +707,7 @@ namespace ValveResourceFormat.IO
                 throw new InvalidDataException("AddRenderMesh() trying to process a mesh with no vertices!");
             }
 
-            List<Tuple<List<int>, DmeFaceSet>> faceList = [];
+            List<(int[] Indices, DmeFaceSet FaceSet)> faceList = [];
             Dictionary<int, int> newVertexStreamsIndexDict = [];
             List<Vector3> newVertices = [];
             List<Vector2> newTexcoords = [];
@@ -721,7 +762,7 @@ namespace ValveResourceFormat.IO
                         newFaceInds.Add(newIndex);
                     }
 
-                    faceList.Add(new Tuple<List<int>, DmeFaceSet>(newFaceInds, faceset));
+                    faceList.Add(([.. newFaceInds], faceset));
                     inds.Clear();
                 }
             }
@@ -782,9 +823,9 @@ namespace ValveResourceFormat.IO
 
             AddVertices(streams);
 
-            foreach (var face in faceList)
+            foreach (var (faceIndices, faceSet) in faceList)
             {
-                AddFace(CollectionsMarshal.AsSpan(face.Item1), face.Item2.Material.MaterialName);
+                AddFace(faceIndices, faceSet.Material.MaterialName);
             }
         }
 
