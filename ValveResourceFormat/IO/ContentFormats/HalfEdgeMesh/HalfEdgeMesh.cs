@@ -40,7 +40,7 @@ internal enum EdgeConnectivityType
     Any,    // Edge is open or closed (connected to 1 or 2 faces)
 }
 
-public enum ComponentConnectivityType
+internal enum ComponentConnectivityType
 {
     None,   // None of the edges in the set are connected to any other edges
     Mixed,  // Some of the edges are connected but not all edges are connected to a single group
@@ -52,12 +52,12 @@ public enum ComponentConnectivityType
 // Handles are basically just wrappers over raw integer indices into topology data lists (verts, half edges, faces)
 // It offers a nicer and saver way to interact with the data structure
 
-public readonly record struct VertexHandle
+internal readonly record struct VertexHandle
 {
     public int Index { get; private init; }
     internal HalfEdgeMesh? Mesh { get; private init; }
 
-    internal VertexHandle(int index, HalfEdgeMesh mesh)
+    internal VertexHandle(int index, HalfEdgeMesh? mesh)
     {
         Index = index;
         Mesh = index >= 0 ? mesh : null;
@@ -75,12 +75,12 @@ public readonly record struct VertexHandle
     public override string ToString() => $"{Index}";
 }
 
-public readonly record struct FaceHandle
+internal readonly record struct FaceHandle
 {
     public int Index { get; private init; }
-    internal HalfEdgeMesh Mesh { get; private init; }
+    internal HalfEdgeMesh? Mesh { get; private init; }
 
-    internal FaceHandle(int index, HalfEdgeMesh mesh)
+    internal FaceHandle(int index, HalfEdgeMesh? mesh)
     {
         Index = index;
         Mesh = index >= 0 ? mesh : null;
@@ -98,12 +98,12 @@ public readonly record struct FaceHandle
     public override string ToString() => $"{Index}";
 }
 
-public readonly record struct HalfEdgeHandle
+internal readonly record struct HalfEdgeHandle
 {
     public int Index { get; private init; }
-    internal HalfEdgeMesh Mesh { get; private init; }
+    internal HalfEdgeMesh? Mesh { get; private init; }
 
-    internal HalfEdgeHandle(int index, HalfEdgeMesh mesh)
+    internal HalfEdgeHandle(int index, HalfEdgeMesh? mesh)
     {
         Index = index;
         Mesh = index >= 0 ? mesh : null;
@@ -151,14 +151,14 @@ internal sealed partial class HalfEdgeMesh
     private ComponentList<Face> FaceList { get; set; } = new();
     private ComponentList<HalfEdge> HalfEdgeList { get; set; } = new();
 
-    public Action<HalfEdgeHandle, HalfEdgeHandle> OnCopyFaceVertexData { get; set; }
-    public Action<HalfEdgeHandle> OnClearFaceVertexData { get; set; }
+    public Action<HalfEdgeHandle, HalfEdgeHandle>? OnCopyFaceVertexData { get; set; }
+    public Action<HalfEdgeHandle>? OnClearFaceVertexData { get; set; }
 
     internal int VertexCount => VertexList.Count;
     internal int FaceCount => FaceList.Count;
     internal int HalfEdgeCount => HalfEdgeList.Count;
 
-    private bool IsVertexInMesh(VertexHandle hVertex) => hVertex.IsValid;
+    private static bool IsVertexInMesh(VertexHandle hVertex) => hVertex.IsValid;
 
     private VertexHandle AllocateVertex(Vertex vertex, int sourceIndex = -1) => new(VertexList.Allocate(vertex, sourceIndex), this);
     private FaceHandle AllocateFace(Face face, int sourceIndex = -1) => new(FaceList.Allocate(face, sourceIndex), this);
@@ -267,7 +267,7 @@ internal sealed partial class HalfEdgeMesh
         return true;
     }
 
-    public int ComputeNumOpenEdgesInVertexLoop(VertexHandle hVertex)
+    public static int ComputeNumOpenEdgesInVertexLoop(VertexHandle hVertex)
     {
         if (!hVertex.IsValid)
             return 0;
@@ -292,7 +292,7 @@ internal sealed partial class HalfEdgeMesh
         return nNumOpenEdges;
     }
 
-    public HalfEdgeHandle FindOpenOppositeEdgeInVertexLoop(VertexHandle hVertex)
+    public static HalfEdgeHandle FindOpenOppositeEdgeInVertexLoop(VertexHandle hVertex)
     {
         if (!hVertex.IsValid)
             return HalfEdgeHandle.Invalid;
@@ -315,7 +315,7 @@ internal sealed partial class HalfEdgeMesh
         return HalfEdgeHandle.Invalid;
     }
 
-    public HalfEdgeHandle FindOppositeEdgeWithNextEdgeInVertexLoop(VertexHandle hVertex, HalfEdgeHandle hNextEdge)
+    public static HalfEdgeHandle FindOppositeEdgeWithNextEdgeInVertexLoop(VertexHandle hVertex, HalfEdgeHandle hNextEdge)
     {
         if (!hVertex.IsValid)
             return HalfEdgeHandle.Invalid;
@@ -354,12 +354,12 @@ internal sealed partial class HalfEdgeMesh
         return hEdgeAB;
     }
 
-    private bool IsHalfEdgeInMesh(HalfEdgeHandle hHalfEdge)
+    private static bool IsHalfEdgeInMesh(HalfEdgeHandle hHalfEdge)
     {
         return hHalfEdge.IsValid;
     }
 
-    public HalfEdgeHandle FindConnectedHalfEdgeInSet(HalfEdgeHandle hEdge, IReadOnlyList<HalfEdgeHandle> pEdges, int nNumEdges)
+    public static HalfEdgeHandle FindConnectedHalfEdgeInSet(HalfEdgeHandle hEdge, IReadOnlyList<HalfEdgeHandle> pEdges, int nNumEdges)
     {
         if (!hEdge.IsValid)
             return HalfEdgeHandle.Invalid;
@@ -410,7 +410,7 @@ internal sealed partial class HalfEdgeMesh
         return true;
     }
 
-    private void AttachEdgesToFace(FaceHandle hFace, HalfEdgeHandle[] pAllEdges, int nNumEdges)
+    private static void AttachEdgesToFace(FaceHandle hFace, HalfEdgeHandle[] pAllEdges, int nNumEdges)
     {
         Debug.Assert(hFace.IsValid);
 
@@ -476,7 +476,7 @@ internal sealed partial class HalfEdgeMesh
         Debug.Assert(CheckFaceIntegrity(hFace));
     }
 
-    private bool CheckFaceIntegrity(FaceHandle hFace, bool bAssert = true)
+    private static bool CheckFaceIntegrity(FaceHandle hFace, bool bAssert = true)
     {
         Debug.Assert(hFace.IsValid || (bAssert == false));
         if (!hFace.IsValid)
@@ -606,13 +606,6 @@ internal sealed partial class HalfEdgeMesh
 
         return true;
     }
-
-    private struct FaceEdgePair
-    {
-        public FaceHandle Face;
-        public HalfEdgeHandle IncomingEdge;
-        public HalfEdgeHandle OutgoingEdge;
-    };
 
     private void FreeHalfEdge(HalfEdgeHandle hHalfEdge)
     {

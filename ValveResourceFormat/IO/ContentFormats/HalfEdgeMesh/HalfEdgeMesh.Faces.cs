@@ -5,7 +5,7 @@ namespace ValveResourceFormat.IO.ContentFormats.HalfEdgeMesh;
 
 partial class HalfEdgeMesh
 {
-    public int ComputeNumEdgesInFace(FaceHandle hFace)
+    public static int ComputeNumEdgesInFace(FaceHandle hFace)
     {
         var nNumEdges = 0;
 
@@ -23,7 +23,7 @@ partial class HalfEdgeMesh
         return nNumEdges;
     }
 
-    public HalfEdgeHandle GetFirstEdgeInFaceLoop(FaceHandle hFace)
+    public static HalfEdgeHandle GetFirstEdgeInFaceLoop(FaceHandle hFace)
     {
         if (!hFace.IsValid)
             return HalfEdgeHandle.Invalid;
@@ -31,7 +31,7 @@ partial class HalfEdgeMesh
         return hFace.Edge;
     }
 
-    public HalfEdgeHandle GetNextEdgeInFaceLoop(HalfEdgeHandle hEdge)
+    public static HalfEdgeHandle GetNextEdgeInFaceLoop(HalfEdgeHandle hEdge)
     {
         if (!hEdge.IsValid)
             return HalfEdgeHandle.Invalid;
@@ -39,7 +39,7 @@ partial class HalfEdgeMesh
         return hEdge.NextEdge;
     }
 
-    public HalfEdgeHandle FindPreviousEdgeInFaceLoop(HalfEdgeHandle hEdge)
+    public static HalfEdgeHandle FindPreviousEdgeInFaceLoop(HalfEdgeHandle hEdge)
     {
         if (!hEdge.IsValid)
             return HalfEdgeHandle.Invalid;
@@ -57,7 +57,7 @@ partial class HalfEdgeMesh
         return HalfEdgeHandle.Invalid;
     }
 
-    public HalfEdgeHandle FindEdgeConnectedToFaceEndingAtVertex(FaceHandle hFace, VertexHandle hVertex)
+    public static HalfEdgeHandle FindEdgeConnectedToFaceEndingAtVertex(FaceHandle hFace, VertexHandle hVertex)
     {
         if (!hVertex.IsValid)
             return HalfEdgeHandle.Invalid;
@@ -96,7 +96,7 @@ partial class HalfEdgeMesh
         return HalfEdgeHandle.Invalid;
     }
 
-    public bool GetHalfEdgesConnectedToFace(FaceHandle hFace, out HalfEdgeHandle[] hEdges)
+    public static bool GetHalfEdgesConnectedToFace(FaceHandle hFace, out HalfEdgeHandle[]? hEdges)
     {
         hEdges = null;
 
@@ -146,7 +146,7 @@ partial class HalfEdgeMesh
         return edges.Count == nNumEdges;
     }
 
-    public bool GetVerticesConnectedToFace(FaceHandle hFace, out VertexHandle[] vertices)
+    public static bool GetVerticesConnectedToFace(FaceHandle hFace, out VertexHandle[]? vertices)
     {
         vertices = null;
 
@@ -171,7 +171,7 @@ partial class HalfEdgeMesh
         return i == nNumVertices;
     }
 
-    public void FindVerticesConnectedToFaces(IReadOnlyList<FaceHandle> pFaceList, int nNumFaces, out VertexHandle[] outVertices)
+    public static void FindVerticesConnectedToFaces(IReadOnlyList<FaceHandle> pFaceList, int nNumFaces, out VertexHandle[] outVertices)
     {
         var uniqueVertices = new Dictionary<VertexHandle, int>();
         var i = 0;
@@ -260,7 +260,7 @@ partial class HalfEdgeMesh
         }
     }
 
-    public bool GetFacesConnectedToFace(FaceHandle hFace, out List<FaceHandle> faces)
+    public static bool GetFacesConnectedToFace(FaceHandle hFace, out List<FaceHandle> faces)
     {
         faces = [];
 
@@ -289,7 +289,7 @@ partial class HalfEdgeMesh
         return true;
     }
 
-    public void FindClosedFaces(IReadOnlyList<FaceHandle> faceList, out List<FaceHandle> outClosedFaces)
+    public static void FindClosedFaces(IReadOnlyList<FaceHandle> faceList, out List<FaceHandle> outClosedFaces)
     {
         outClosedFaces = new List<FaceHandle>(faceList.Count);
 
