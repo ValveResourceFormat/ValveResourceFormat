@@ -651,10 +651,10 @@ public partial class GltfModelExporter
         {
             var vec = vectorArray[i];
 
-            if (!(Math.Abs(new Vector3(vec.X, vec.Y, vec.Z).Length() - 1.0f) <= UnitLengthThresholdVec3))
+            if (Math.Abs(new Vector3(vec.X, vec.Y, vec.Z).Length() - 1.0f) > UnitLengthThresholdVec3)
             {
                 vectorArray[i] = -Vector4.UnitZ;
-                vectorArray[i].W = float.IsFinite(vec.W) ? vec.W : 1f;
+                vectorArray[i].W = vec.W;
             }
         }
     }
@@ -663,7 +663,7 @@ public partial class GltfModelExporter
     {
         for (var i = 0; i < vectorArray.Length; i++)
         {
-            if (!(Math.Abs(vectorArray[i].Length() - 1.0f) <= UnitLengthThresholdVec3))
+            if (Math.Abs(vectorArray[i].Length() - 1.0f) > UnitLengthThresholdVec3)
             {
                 vectorArray[i] = -Vector3.UnitZ;
             }
