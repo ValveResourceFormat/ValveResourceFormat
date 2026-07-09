@@ -71,4 +71,15 @@ public partial class GltfModelExporter
             tangents[i] = new Vector4(rotated, tangents[i].W);
         }
     }
+
+    private static void SanitizeNonFinite(Span<float> values)
+    {
+        for (var i = 0; i < values.Length; i++)
+        {
+            if (!float.IsFinite(values[i]))
+            {
+                values[i] = 0f;
+            }
+        }
+    }
 }

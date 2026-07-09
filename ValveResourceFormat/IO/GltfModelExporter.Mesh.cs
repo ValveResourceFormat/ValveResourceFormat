@@ -165,6 +165,7 @@ public partial class GltfModelExporter
                         case 1:
                             {
                                 var buffer = VBIB.GetScalarAttributeArray(vertexBuffer, attribute);
+                                SanitizeNonFinite(buffer);
                                 var bufferView = exportedModel.CreateBufferView(4 * buffer.Length, 0, BufferMode.ARRAY_BUFFER);
                                 new ScalarArray(bufferView.Content).Fill(buffer);
                                 var accessor = exportedModel.CreateAccessor();
@@ -607,6 +608,8 @@ public partial class GltfModelExporter
 
     private static Accessor CreateAccessor(ModelRoot exportedModel, Vector2[] vectors)
     {
+        SanitizeNonFinite(MemoryMarshal.Cast<Vector2, float>(vectors.AsSpan()));
+
         var bufferView = exportedModel.CreateBufferView(2 * sizeof(float) * vectors.Length, 0, BufferMode.ARRAY_BUFFER);
         new Vector2Array(bufferView.Content).Fill(vectors);
 
@@ -618,6 +621,8 @@ public partial class GltfModelExporter
 
     private static Accessor CreateAccessor(ModelRoot exportedModel, Vector3[] vectors)
     {
+        SanitizeNonFinite(MemoryMarshal.Cast<Vector3, float>(vectors.AsSpan()));
+
         var bufferView = exportedModel.CreateBufferView(3 * sizeof(float) * vectors.Length, 0, BufferMode.ARRAY_BUFFER);
         new Vector3Array(bufferView.Content).Fill(vectors);
 
@@ -629,6 +634,8 @@ public partial class GltfModelExporter
 
     private static Accessor CreateAccessor(ModelRoot exportedModel, Vector4[] vectors)
     {
+        SanitizeNonFinite(MemoryMarshal.Cast<Vector4, float>(vectors.AsSpan()));
+
         var bufferView = exportedModel.CreateBufferView(4 * sizeof(float) * vectors.Length, 0, BufferMode.ARRAY_BUFFER);
         new Vector4Array(bufferView.Content).Fill(vectors);
 
@@ -644,10 +651,10 @@ public partial class GltfModelExporter
         {
             var vec = vectorArray[i];
 
-            if (Math.Abs(new Vector3(vec.X, vec.Y, vec.Z).Length() - 1.0f) > UnitLengthThresholdVec3)
+            if (!(Math.Abs(new Vector3(vec.X, vec.Y, vec.Z).Length() - 1.0f) <= UnitLengthThresholdVec3))
             {
                 vectorArray[i] = -Vector4.UnitZ;
-                vectorArray[i].W = vec.W;
+                vectorArray[i].W = float.IsFinite(vec.W) ? vec.W : 1f;
             }
         }
     }
@@ -656,7 +663,7 @@ public partial class GltfModelExporter
     {
         for (var i = 0; i < vectorArray.Length; i++)
         {
-            if (Math.Abs(vectorArray[i].Length() - 1.0f) > UnitLengthThresholdVec3)
+            if (!(Math.Abs(vectorArray[i].Length() - 1.0f) <= UnitLengthThresholdVec3))
             {
                 vectorArray[i] = -Vector3.UnitZ;
             }
