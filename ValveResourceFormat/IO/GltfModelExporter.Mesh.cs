@@ -165,6 +165,7 @@ public partial class GltfModelExporter
                         case 1:
                             {
                                 var buffer = VBIB.GetScalarAttributeArray(vertexBuffer, attribute);
+                                SanitizeNonFinite(buffer);
                                 var bufferView = exportedModel.CreateBufferView(4 * buffer.Length, 0, BufferMode.ARRAY_BUFFER);
                                 new ScalarArray(bufferView.Content).Fill(buffer);
                                 var accessor = exportedModel.CreateAccessor();
@@ -607,6 +608,8 @@ public partial class GltfModelExporter
 
     private static Accessor CreateAccessor(ModelRoot exportedModel, Vector2[] vectors)
     {
+        SanitizeNonFinite(MemoryMarshal.Cast<Vector2, float>(vectors.AsSpan()));
+
         var bufferView = exportedModel.CreateBufferView(2 * sizeof(float) * vectors.Length, 0, BufferMode.ARRAY_BUFFER);
         new Vector2Array(bufferView.Content).Fill(vectors);
 
@@ -618,6 +621,8 @@ public partial class GltfModelExporter
 
     private static Accessor CreateAccessor(ModelRoot exportedModel, Vector3[] vectors)
     {
+        SanitizeNonFinite(MemoryMarshal.Cast<Vector3, float>(vectors.AsSpan()));
+
         var bufferView = exportedModel.CreateBufferView(3 * sizeof(float) * vectors.Length, 0, BufferMode.ARRAY_BUFFER);
         new Vector3Array(bufferView.Content).Fill(vectors);
 
@@ -629,6 +634,8 @@ public partial class GltfModelExporter
 
     private static Accessor CreateAccessor(ModelRoot exportedModel, Vector4[] vectors)
     {
+        SanitizeNonFinite(MemoryMarshal.Cast<Vector4, float>(vectors.AsSpan()));
+
         var bufferView = exportedModel.CreateBufferView(4 * sizeof(float) * vectors.Length, 0, BufferMode.ARRAY_BUFFER);
         new Vector4Array(bufferView.Content).Fill(vectors);
 
