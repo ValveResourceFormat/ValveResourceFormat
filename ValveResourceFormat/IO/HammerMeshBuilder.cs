@@ -1,260 +1,17 @@
 using System.Globalization;
 using System.IO;
 using System.Linq;
-using System.Runtime.InteropServices;
 using Datamodel;
 using ValveResourceFormat.IO.ContentFormats.DmxModel;
+using ValveResourceFormat.IO.ContentFormats.HalfEdgeMesh;
 using ValveResourceFormat.IO.ContentFormats.ValveMap;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.ResourceTypes.RubikonPhysics;
 using ValveResourceFormat.Serialization.KeyValues;
-using static ValveResourceFormat.IO.HammerMeshBuilder;
 using static ValveResourceFormat.ResourceTypes.RubikonPhysics.Shapes.Mesh;
-using HalfEdgeSlim = (int SrcVertexId, int DstVertexId);
 
 namespace ValveResourceFormat.IO
 {
-    class HalfEdgeMeshModifier(HammerMeshBuilder Builder)
-    {
-        interface BaseModification
-        {
-            public abstract void Apply();
-            public abstract void Revert();
-        }
-
-        struct HalfEdgeModification(HalfEdge HalfEdge, HalfEdgeProperty Property, int NewValue) : BaseModification
-        {
-            public HalfEdge HalfEdge { get; } = HalfEdge;
-            public int OldValue { get; private set; } = -1;
-
-            public void Apply()
-            {
-                if (Property == HalfEdgeProperty.Face)
-                {
-                    OldValue = HalfEdge.Face;
-                    HalfEdge.Face = NewValue;
-                }
-                else if (Property == HalfEdgeProperty.Previous)
-                {
-                    OldValue = HalfEdge.Previous;
-                    HalfEdge.Previous = NewValue;
-                }
-                else if (Property == HalfEdgeProperty.Next)
-                {
-                    OldValue = HalfEdge.Next;
-                    HalfEdge.Next = NewValue;
-                }
-                else
-                {
-                    throw new NotImplementedException(nameof(Property));
-                }
-            }
-
-            public readonly void Revert()
-            {
-                if (Property == HalfEdgeProperty.Face)
-                {
-                    HalfEdge.Face = OldValue;
-                }
-                else if (Property == HalfEdgeProperty.Previous)
-                {
-                    HalfEdge.Previous = OldValue;
-                }
-                else if (Property == HalfEdgeProperty.Next)
-                {
-                    HalfEdge.Next = OldValue;
-                }
-                else
-                {
-                    throw new NotImplementedException(nameof(Property));
-                }
-            }
-        }
-
-        struct VertexModification(Vertex Vertex, VertexProperty Property, int NewValue) : BaseModification
-        {
-            public Vertex Vertex { get; } = Vertex;
-            public int OldValue { get; private set; } = -1;
-
-            public void Apply()
-            {
-                switch (Property)
-                {
-                    case VertexProperty.OutGoingHalfEdge:
-                        OldValue = Vertex.OutGoingHalfEdge;
-                        Vertex.OutGoingHalfEdge = NewValue;
-                        break;
-
-                    case VertexProperty.RelatedEdge:
-                        OldValue = Vertex.RelatedEdges.Count;
-                        Vertex.RelatedEdges.Add(NewValue);
-                        break;
-                }
-            }
-
-            public readonly void Revert()
-            {
-                switch (Property)
-                {
-                    case VertexProperty.OutGoingHalfEdge:
-                        Vertex.OutGoingHalfEdge = OldValue;
-                        break;
-
-                    case VertexProperty.RelatedEdge:
-                        Vertex.RelatedEdges.Remove(NewValue);
-                        break;
-                }
-            }
-        }
-
-        private readonly Stack<HalfEdgeModification> HalfEdgeModifications = [];
-        private readonly Stack<HalfEdgeSlim> VertsToEdgeDictModifications = [];
-        private readonly Stack<HalfEdge> HalfEdgeAdditions = [];
-        private readonly Stack<VertexModification> VertexModifications = [];
-
-        private Face? CurrentFace;
-
-        public void SetNewFaceContext(Face face)
-        {
-            HalfEdgeModifications.Clear();
-            VertsToEdgeDictModifications.Clear();
-            HalfEdgeAdditions.Clear();
-            VertexModifications.Clear();
-            CurrentFace = face;
-        }
-
-        public enum HalfEdgeProperty
-        {
-            Face,
-            Previous,
-            Next
-        }
-
-        public enum VertexProperty
-        {
-            OutGoingHalfEdge,
-            RelatedEdge
-        }
-
-        private void ChangeHalfEdgeProperty(HalfEdge he, HalfEdgeProperty property, int newValue)
-        {
-            var change = new HalfEdgeModification(he, property, newValue);
-            change.Apply();
-            HalfEdgeModifications.Push(change);
-        }
-
-        public void ChangeHalfEdgeFace(HalfEdge he, int face) => ChangeHalfEdgeProperty(he, HalfEdgeProperty.Face, face);
-        public void ChangeHalfEdgePrev(HalfEdge he, int prev) => ChangeHalfEdgeProperty(he, HalfEdgeProperty.Previous, prev);
-        public void ChangeHalfEdgeNext(HalfEdge he, int next) => ChangeHalfEdgeProperty(he, HalfEdgeProperty.Next, next);
-
-        private void ChangeVertexProperty(Vertex vertex, VertexProperty property, int newValue)
-        {
-            var change = new VertexModification(vertex, property, newValue);
-            change.Apply();
-            VertexModifications.Push(change);
-        }
-
-        public void ChangeVertexOutGoing(Vertex vertex, int outGoingHalfEdge) => ChangeVertexProperty(vertex, VertexProperty.OutGoingHalfEdge, outGoingHalfEdge);
-        public void AddVertexRelatedEdge(Vertex vertex, int relatedHalfEdge) => ChangeVertexProperty(vertex, VertexProperty.RelatedEdge, relatedHalfEdge);
-
-        public bool TryAddVertsToEdgeDict(HalfEdgeSlim heKey, int heIndex)
-        {
-            var added = Builder.VertsToEdgeDict.TryAdd(heKey, heIndex);
-            if (added)
-            {
-                VertsToEdgeDictModifications.Push(heKey);
-            }
-
-            return added;
-        }
-
-        public void AddHalfEdgeToHalfEdgesList(HalfEdge he)
-        {
-            HalfEdgeAdditions.Push(he);
-            Builder.HalfEdges.Add(he);
-        }
-
-        // roll back
-        public void RollBack(string error)
-        {
-            ArgumentNullException.ThrowIfNull(CurrentFace);
-            Builder.FacesRemoved++;
-
-            while (VertexModifications.TryPop(out var VertexModification))
-            {
-                VertexModification.Revert();
-            }
-
-            while (HalfEdgeModifications.TryPop(out var HalfEdgeModification))
-            {
-                HalfEdgeModification.Revert();
-            }
-
-            while (HalfEdgeAdditions.TryPop(out var HalfEdge))
-            {
-                Builder.HalfEdges.RemoveAt(HalfEdge.id);
-            }
-
-            while (VertsToEdgeDictModifications.TryPop(out var VertsToEdgeDictModification))
-            {
-                Builder.VertsToEdgeDict.Remove(VertsToEdgeDictModification);
-            }
-
-#if DEBUG
-            Builder.ProgressReporter?.Report($"{nameof(HammerMeshBuilder)}: Extracting face due to complicated error: {error}");
-#endif
-
-            var baseVertex = Builder.Vertices.Count;
-            var indexCount = CurrentFace.Indices.Count;
-            var newIndices = indexCount < 32 ? stackalloc int[indexCount] : new int[indexCount];
-
-            for (var i = 0; i < CurrentFace.Indices.Count; i++)
-            {
-                var vertex = CurrentFace.Indices[i];
-                Vertex newVertex = new()
-                {
-                    MasterStreamIndex = Builder.Vertices.Count
-                };
-                Builder.Vertices.Add(newVertex);
-
-                var vertexStreams = Builder.vertexStreams;
-
-                vertexStreams.positions.Add(vertexStreams.positions[vertex]);
-                if (vertexStreams.texcoords.Count > 0)
-                {
-                    vertexStreams.texcoords.Add(vertexStreams.texcoords[vertex]);
-                }
-                if (vertexStreams.texcoords1.Count > 0)
-                {
-                    vertexStreams.texcoords1.Add(vertexStreams.texcoords1[vertex]);
-                }
-                if (vertexStreams.normals.Count > 0)
-                {
-                    vertexStreams.normals.Add(vertexStreams.normals[vertex]);
-                }
-                if (vertexStreams.tangents.Count > 0)
-                {
-                    vertexStreams.tangents.Add(vertexStreams.tangents[vertex]);
-                }
-                if (vertexStreams.VertexPaintBlendParams.Count > 0)
-                {
-                    vertexStreams.VertexPaintBlendParams.Add(vertexStreams.VertexPaintBlendParams[vertex]);
-                }
-                if (vertexStreams.VertexPaintTintColor.Count > 0)
-                {
-                    vertexStreams.VertexPaintTintColor.Add(vertexStreams.VertexPaintTintColor[vertex]);
-                }
-            }
-
-            for (var i = 0; i < newIndices.Length; i++)
-            {
-                newIndices[i] = baseVertex + i;
-            }
-
-            Builder.AddFace(newIndices, CurrentFace.MaterialName);
-        }
-    }
-
     /// <summary>
     /// Matches vertices between render meshes and physics meshes.
     /// </summary>
@@ -405,10 +162,10 @@ namespace ValveResourceFormat.IO
             }
         }
     }
-    //the bulk of the work is done in the AddFace() function
-    //GenerateMesh() just loops through the vertex, halfedge and face lists and writes their data to the vmap in the correct format
-    //we could technically get rid of this function and write data to the vmap as it's generated
-    //but that seems quite inelegant since if the AddFace() algo changes, the code for writing to vmap has to change/move
+
+    // Most of the work is handled by HalfEdgeMesh.cs, it handles building and making sure the half edge mesh is valid
+    // All attribute data lives in data streams attached to the mesh components (position per vertex, corner data per half edge, material per face)
+    // GenerateMesh() loops through the mesh and writes the data to the vmap in the correct format
     internal class HammerMeshBuilder
     {
         [Flags]
@@ -417,32 +174,6 @@ namespace ValveResourceFormat.IO
             None = 0x0,
             SoftNormals = 0x1,
             HardNormals = 0x2,
-        }
-
-        public class Vertex
-        {
-            public int OutGoingHalfEdge = -1;
-            public int MasterStreamIndex = -1;
-            public List<int> RelatedEdges = [];
-        }
-
-        public class HalfEdge
-        {
-            public int Face = -1;
-            public int Twin = -1;
-            public int Next = -1;
-            public int Previous = -1;
-            public int destVert = -1;
-            public int origVert = -1;
-            public int id = -1;
-            public bool OverrideOuter;
-        }
-
-        public class Face
-        {
-            public int HalfEdge = -1;
-            public List<int> Indices = [];
-            public string MaterialName = "unassigned";
         }
 
         public class VertexStreams
@@ -459,20 +190,58 @@ namespace ValveResourceFormat.IO
         public int FacesRemoved;
         public int OriginalFaceCount;
 
-        public List<Vertex> Vertices = [];
-        public List<HalfEdge> HalfEdges = [];
-        public List<Face> Faces = [];
+        private readonly HalfEdgeMesh HalfEdgeMesh = new();
+        private readonly List<VertexHandle> Vertices = [];
 
-        public VertexStreams vertexStreams = new();
-        public Dictionary<HalfEdgeSlim, int> VertsToEdgeDict = [];
+        private readonly VertexData<Vector3> Positions;
+        private readonly HalfEdgeData<Vector2> TextureCoords;
+        private readonly HalfEdgeData<Vector2> TextureCoords1;
+        private readonly HalfEdgeData<Vector3> Normals;
+        private readonly HalfEdgeData<Vector4> Tangents;
+        private readonly HalfEdgeData<Vector4> VertexPaintBlendParams;
+        private readonly HalfEdgeData<Vector4> VertexPaintTintColor;
+        private readonly FaceData<int> MaterialIndex;
 
-        private readonly HalfEdgeMeshModifier halfEdgeModifier;
+        private readonly List<string> Materials = [];
+        private readonly Dictionary<string, int> MaterialIds = [];
+
+        // Source data for the vertices added through AddVertices(), indexed by input vertex index
+        // read in order to propagate the vertex data onto the half edges
+        private VertexStreams SourceStreams = new();
+
         public PhysicsVertexMatcher? PhysicsVertexMatcher { get; init; }
         public IProgress<string>? ProgressReporter { get; init; }
 
         public HammerMeshBuilder()
         {
-            halfEdgeModifier = new(this);
+            Positions = HalfEdgeMesh.CreateVertexData<Vector3>(nameof(Positions));
+            TextureCoords = HalfEdgeMesh.CreateHalfEdgeData<Vector2>(nameof(TextureCoords));
+            TextureCoords1 = HalfEdgeMesh.CreateHalfEdgeData<Vector2>(nameof(TextureCoords1));
+            Normals = HalfEdgeMesh.CreateHalfEdgeData<Vector3>(nameof(Normals));
+            Tangents = HalfEdgeMesh.CreateHalfEdgeData<Vector4>(nameof(Tangents));
+            VertexPaintBlendParams = HalfEdgeMesh.CreateHalfEdgeData<Vector4>(nameof(VertexPaintBlendParams));
+            VertexPaintTintColor = HalfEdgeMesh.CreateHalfEdgeData<Vector4>(nameof(VertexPaintTintColor));
+            MaterialIndex = HalfEdgeMesh.CreateFaceData<int>(nameof(MaterialIndex));
+
+            HalfEdgeMesh.OnCopyFaceVertexData = (dst, src) =>
+            {
+                TextureCoords[dst] = TextureCoords[src];
+                TextureCoords1[dst] = TextureCoords1[src];
+                Normals[dst] = Normals[src];
+                Tangents[dst] = Tangents[src];
+                VertexPaintBlendParams[dst] = VertexPaintBlendParams[src];
+                VertexPaintTintColor[dst] = VertexPaintTintColor[src];
+            };
+
+            HalfEdgeMesh.OnClearFaceVertexData = (hEdge) =>
+            {
+                TextureCoords[hEdge] = default;
+                TextureCoords1[hEdge] = default;
+                Normals[hEdge] = default;
+                Tangents[hEdge] = default;
+                VertexPaintBlendParams[hEdge] = default;
+                VertexPaintTintColor[hEdge] = default;
+            };
         }
 
         public CDmePolygonMesh GenerateMesh()
@@ -484,19 +253,47 @@ namespace ValveResourceFormat.IO
             }
 #endif
 
+            // merge coplanar triangle pairs into quads before writing to the vmap
+            // currently merging faces by material, if materials differ the triangles wont be merget into a quad
+            // TODO: there may possibly be smarter heuristics to merge by
+            var quadsMerged = HalfEdgeMesh.UntriangulateMesh(Positions, (hFaceA, hFaceB) => MaterialIndex[hFaceA] == MaterialIndex[hFaceB]);
+
+#if DEBUG
+            if (quadsMerged > 0)
+            {
+                ProgressReporter?.Report($"{nameof(HammerMeshBuilder)}: Untriangulated '{quadsMerged}' triangle pairs into quads");
+            }
+#endif
+
+            // dissolving edges leaves holes in the component lists, build remap tables so the vmap gets dense indices
+            // twin half edges are freed in whole pairs, so surviving pairs stay adjacent and both halves map to newIndex / 2
+            var halfEdgeRemap = new int[HalfEdgeMesh.HalfEdgeCount];
+            var activeHalfEdgeCount = 0;
+            for (var i = 0; i < HalfEdgeMesh.HalfEdgeCount; i++)
+            {
+                halfEdgeRemap[i] = HalfEdgeMesh.IsHalfEdgeAllocated(i) ? activeHalfEdgeCount++ : -1;
+            }
+
+            var faceRemap = new int[HalfEdgeMesh.FaceCount];
+            var activeFaceCount = 0;
+            for (var i = 0; i < HalfEdgeMesh.FaceCount; i++)
+            {
+                faceRemap[i] = HalfEdgeMesh.IsFaceAllocated(i) ? activeFaceCount++ : -1;
+            }
+
             var mesh = new CDmePolygonMesh();
 
-            var faceMaterialIndices = CreateStream<Datamodel.IntArray, int>(8, "materialindex:0");
-            var faceFlags = CreateStream<Datamodel.IntArray, int>(3, "flags:0");
+            var faceMaterialIndices = CreateStream<IntArray, int>(8, "materialindex:0");
+            var faceFlags = CreateStream<IntArray, int>(3, "flags:0");
             mesh.FaceData.Streams.Add(faceMaterialIndices);
             mesh.FaceData.Streams.Add(faceFlags);
 
-            var texcoords = CreateStream<Datamodel.Vector2Array, Vector2>(1, "texcoord:0");
-            var texcoords1 = CreateStream<Datamodel.Vector2Array, Vector2>(1, "texcoord:1", "texcoord1");
-            var vertexpaintblendparams = CreateStream<Datamodel.Vector4Array, Vector4>(1, "VertexPaintBlendParams:0");
-            var vertexpainttintcolor = CreateStream<Datamodel.Vector4Array, Vector4>(1, "VertexPaintTintColor:0");
-            var normals = CreateStream<Datamodel.Vector3Array, Vector3>(1, "normal:0");
-            var tangents = CreateStream<Datamodel.Vector4Array, Vector4>(1, "tangent:0");
+            var texcoords = CreateStream<Vector2Array, Vector2>(1, "texcoord:0");
+            var texcoords1 = CreateStream<Vector2Array, Vector2>(1, "texcoord:1", "texcoord1");
+            var vertexpaintblendparams = CreateStream<Vector4Array, Vector4>(1, "VertexPaintBlendParams:0");
+            var vertexpainttintcolor = CreateStream<Vector4Array, Vector4>(1, "VertexPaintTintColor:0");
+            var normals = CreateStream<Vector3Array, Vector3>(1, "normal:0");
+            var tangents = CreateStream<Vector4Array, Vector4>(1, "tangent:0");
             mesh.FaceVertexData.Streams.Add(texcoords);
             mesh.FaceVertexData.Streams.Add(texcoords1);
             mesh.FaceVertexData.Streams.Add(vertexpaintblendparams);
@@ -504,142 +301,87 @@ namespace ValveResourceFormat.IO
             mesh.FaceVertexData.Streams.Add(normals);
             mesh.FaceVertexData.Streams.Add(tangents);
 
-            var vertexPositions = CreateStream<Datamodel.Vector3Array, Vector3>(3, "position:0");
+            var vertexPositions = CreateStream<Vector3Array, Vector3>(3, "position:0");
             mesh.VertexData.Streams.Add(vertexPositions);
 
-            var edgeFlags = CreateStream<Datamodel.IntArray, int>(3, "flags:0");
+            var edgeFlags = CreateStream<IntArray, int>(3, "flags:0");
             mesh.EdgeData.Streams.Add(edgeFlags);
 
-            foreach (var Vertex in Vertices)
+            for (var i = 0; i < HalfEdgeMesh.VertexCount; i++)
             {
                 var vertexDataIndex = mesh.VertexData.Size;
 
-                mesh.VertexEdgeIndices.Add(Vertex.OutGoingHalfEdge);
+                var vertexEdge = Vertices[i].Edge.Index;
+                mesh.VertexEdgeIndices.Add(vertexEdge == -1 ? -1 : halfEdgeRemap[vertexEdge]);
 
                 mesh.VertexDataIndices.Add(vertexDataIndex);
                 mesh.VertexData.Size++;
 
-                vertexPositions.Data.Add(vertexStreams.positions[Vertex.MasterStreamIndex]);
+                vertexPositions.Data.Add(Positions[Vertices[i]]);
             }
 
-            for (var i = 0; i < HalfEdges.Count / 2; i++)
+            for (var i = 0; i < activeHalfEdgeCount / 2; i++)
             {
                 mesh.EdgeData.Size++;
                 edgeFlags.Data.Add((int)EdgeFlag.None);
             }
 
-            var prevHalfEdge = -1;
-            for (var i = 0; i < HalfEdges.Count; i++)
+            for (var i = 0; i < HalfEdgeMesh.HalfEdgeCount; i++)
             {
-                var halfEdge = HalfEdges[i];
-                //EdgeData refers to a single edge, so its half of the total
-                //of half edges and both halfs of the edge should have the same EdgeData Index
-                if (halfEdge.Twin == prevHalfEdge)
+                var newIndex = halfEdgeRemap[i];
+                if (newIndex == -1)
                 {
-                    mesh.EdgeDataIndices.Add(prevHalfEdge / 2);
-                }
-                else
-                {
-                    mesh.EdgeDataIndices.Add(i / 2);
+                    continue;
                 }
 
-                mesh.EdgeVertexIndices.Add(halfEdge.destVert);
-                mesh.EdgeOppositeIndices.Add(halfEdge.Twin);
-                mesh.EdgeNextIndices.Add(halfEdge.Next);
-                mesh.EdgeFaceIndices.Add(halfEdge.Face);
-                mesh.EdgeVertexDataIndices.Add(i);
+                var hEdge = new HalfEdgeHandle(i, HalfEdgeMesh);
 
-                prevHalfEdge = i;
+                // EdgeData refers to a single edge, so its half of the total of half edges, both halves of the edge should have the same EdgeData Index
+                // Twin half edges are always allocated (and freed) as pairs, so both map to edge newIndex / 2
+                mesh.EdgeDataIndices.Add(newIndex / 2);
+
+                mesh.EdgeVertexIndices.Add(hEdge.Vertex.Index);
+                mesh.EdgeOppositeIndices.Add(halfEdgeRemap[hEdge.OppositeEdge.Index]);
+                mesh.EdgeNextIndices.Add(halfEdgeRemap[hEdge.NextEdge.Index]);
+
+                var faceIndex = hEdge.Face.Index;
+                mesh.EdgeFaceIndices.Add(faceIndex == -1 ? -1 : faceRemap[faceIndex]);
+                mesh.EdgeVertexDataIndices.Add(newIndex);
 
                 mesh.FaceVertexData.Size += 1;
 
-                var normal = Vector3.Zero;
-                var tangent = Vector4.Zero;
-                var uv = Vector2.Zero;
-                var uv1 = Vector2.Zero;
-                var vertexPaintBlendParams = Vector4.Zero;
-                var vertexPaintTintColor = Vector4.Zero;
-
-                if (halfEdge.Face != -1)
-                {
-                    var firstHalfEdgeInFace = Faces[halfEdge.Face].HalfEdge == i;
-
-                    var startVertex = Vertices[halfEdge.destVert];
-
-                    if (vertexStreams.normals.Count == 0)
-                    {
-                        normal = CalculateNormal(halfEdge.Next);
-                    }
-                    else
-                    {
-                        normal = vertexStreams.normals[startVertex.MasterStreamIndex];
-                    }
-
-                    if (vertexStreams.tangents.Count == 0)
-                    {
-                        tangent = CalculateTangentFromNormal(normal);
-                    }
-                    else
-                    {
-                        tangent = vertexStreams.tangents[startVertex.MasterStreamIndex];
-                    }
-
-                    if (vertexStreams.texcoords.Count == 0)
-                    {
-                        uv = CalculateTriplanarUVs(vertexStreams.positions[startVertex.MasterStreamIndex], normal);
-                    }
-                    else
-                    {
-                        uv = vertexStreams.texcoords[startVertex.MasterStreamIndex];
-                    }
-
-                    if (vertexStreams.texcoords1.Count == 0)
-                    {
-                        uv1 = CalculateTriplanarUVs(vertexStreams.positions[startVertex.MasterStreamIndex], normal);
-                    }
-                    else
-                    {
-                        uv1 = vertexStreams.texcoords1[startVertex.MasterStreamIndex];
-                    }
-
-                    if (vertexStreams.VertexPaintBlendParams.Count != 0)
-                    {
-                        vertexPaintBlendParams = vertexStreams.VertexPaintBlendParams[startVertex.MasterStreamIndex];
-                    }
-
-                    if (vertexStreams.VertexPaintTintColor.Count != 0)
-                    {
-                        vertexPaintTintColor = vertexStreams.VertexPaintTintColor[startVertex.MasterStreamIndex];
-                    }
-                }
-
-                normals.Data.Add(normal);
-                tangents.Data.Add(tangent);
-                texcoords.Data.Add(uv);
-                texcoords1.Data.Add(uv1);
-                vertexpaintblendparams.Data.Add(vertexPaintBlendParams);
-                vertexpainttintcolor.Data.Add(vertexPaintTintColor);
+                // corner data was fanned onto the half edge streams in WriteFaceData(),
+                // boundary half edges keep the stream defaults (zero)
+                normals.Data.Add(Normals[hEdge]);
+                tangents.Data.Add(Tangents[hEdge]);
+                texcoords.Data.Add(TextureCoords[hEdge]);
+                texcoords1.Data.Add(TextureCoords1[hEdge]);
+                vertexpaintblendparams.Data.Add(VertexPaintBlendParams[hEdge]);
+                vertexpainttintcolor.Data.Add(VertexPaintTintColor[hEdge]);
             }
 
-            foreach (var face in Faces)
+            foreach (var material in Materials)
             {
+                mesh.Materials.Add(material);
+            }
+
+            for (var i = 0; i < HalfEdgeMesh.FaceCount; i++)
+            {
+                if (faceRemap[i] == -1)
+                {
+                    continue;
+                }
+
+                var hFace = new FaceHandle(i, HalfEdgeMesh);
+
                 var faceDataIndex = mesh.FaceData.Size;
                 mesh.FaceDataIndices.Add(faceDataIndex);
                 mesh.FaceData.Size++;
 
-                var mat = face.MaterialName;
-                var materialIndex = mesh.Materials.IndexOf(mat);
-                if (materialIndex == -1 && mat != null)
-                {
-                    materialIndex = mesh.Materials.Count;
-                    mesh.Materials.Add(mat);
-                }
-                faceMaterialIndices.Data.Add(materialIndex);
-
-
+                faceMaterialIndices.Data.Add(MaterialIndex[hFace]);
                 faceFlags.Data.Add(0);
 
-                mesh.FaceEdgeIndices.Add(face.HalfEdge);
+                mesh.FaceEdgeIndices.Add(halfEdgeRemap[hFace.Edge.Index]);
             }
 
             mesh.SubdivisionData.SubdivisionLevels.AddRange(Enumerable.Repeat(0, 8));
@@ -649,60 +391,25 @@ namespace ValveResourceFormat.IO
 
         public void AddVertices(VertexStreams streams, Vector3 positionOffset = new Vector3())
         {
-            vertexStreams = streams;
+            SourceStreams = streams;
 
-            Vertices.EnsureCapacity(streams.positions.Count);
+            var baseVertex = Vertices.Count;
+            Vertices.EnsureCapacity(baseVertex + streams.positions.Count);
+            Vertices.AddRange(HalfEdgeMesh.AddVertices(streams.positions.Count));
 
             for (var i = 0; i < streams.positions.Count; i++)
             {
-                streams.positions[i] = streams.positions[i] + positionOffset;
-                Vertex newVertex = new()
-                {
-                    MasterStreamIndex = i
-                };
-                Vertices.Add(newVertex);
+                Positions[Vertices[baseVertex + i]] = streams.positions[i] + positionOffset;
             }
         }
-
-        public IEnumerable<int> VertexCirculator(int heIdx, bool forward)
-        {
-            //ArgumentOutOfRangeException.ThrowIfNegative(heIdx);
-            if (heIdx < 0)
-            {
-                yield break;
-            }
-
-            var h = heIdx;
-            var count = 0;
-            do
-            {
-                yield return h;
-
-                var twin = HalfEdges[HalfEdges[h].Twin];
-                h = forward ? twin.Next : twin.Previous;
-
-                if (h < 0) { throw new InvalidOperationException("Vertex circulator returned an invalid half edge index"); }
-                if (count++ > 999) { throw new InvalidOperationException("Runaway vertex circulator"); }
-            }
-            while (h != heIdx);
-        }
-
 
         public void AddFace(ReadOnlySpan<int> indices, string material)
         {
-            var face = new Face();
-            face.Indices.AddRange(indices);
-            face.MaterialName = material;
-
-            halfEdgeModifier.SetNewFaceContext(face);
-
-            List<HalfEdge> newBoundaryHalfEdges = new(capacity: indices.Length);
-
             OriginalFaceCount++;
 
             if (!VerifyIndicesWithinBounds(indices))
             {
-                //ProgressReporter?.Report($"{nameof(HammerMeshBuilder)}: Error! Failed to add face '{Faces.Count}', face has an index that is out of bounds.");
+                //ProgressReporter?.Report($"{nameof(HammerMeshBuilder)}: Error! Failed to add face '{HalfEdgeMesh.FaceCount}', face has an index that is out of bounds.");
                 FacesRemoved++;
                 return;
             }
@@ -710,7 +417,7 @@ namespace ValveResourceFormat.IO
             // don't allow degenerate faces
             if (indices.Length < 3)
             {
-                //ProgressReporter?.Report($"{nameof(HammerMeshBuilder)}: Error! Failed to add face '{Faces.Count}', face has less than 3 vertices.");
+                //ProgressReporter?.Report($"{nameof(HammerMeshBuilder)}: Error! Failed to add face '{HalfEdgeMesh.FaceCount}', face has less than 3 vertices.");
                 FacesRemoved++;
                 return;
             }
@@ -720,377 +427,125 @@ namespace ValveResourceFormat.IO
             // and I doubt we'll ever get n-gons that are this fucked up
             if (indices.Length == 3)
             {
-                Span<Vector3> vertexPositions = [
-                    vertexStreams.positions[Vertices[indices[0]].MasterStreamIndex],
-                    vertexStreams.positions[Vertices[indices[1]].MasterStreamIndex],
-                    vertexStreams.positions[Vertices[indices[2]].MasterStreamIndex]
-                ];
-
-                if (AreVerticesCollinear(vertexPositions[0], vertexPositions[1], vertexPositions[2]))
+                if (AreVerticesCollinear(
+                    Positions[Vertices[indices[0]]],
+                    Positions[Vertices[indices[1]]],
+                    Positions[Vertices[indices[2]]]))
                 {
-                    //ProgressReporter?.Report($"{nameof(HammerMeshBuilder)}: Error! Failed to add face '{Faces.Count}', face had 0 area");
+                    //ProgressReporter?.Report($"{nameof(HammerMeshBuilder)}: Error! Failed to add face '{HalfEdgeMesh.FaceCount}', face had 0 area");
                     FacesRemoved++;
                     return;
                 }
             }
 
-            var firstHalfEdgeId = -1;
-            var previousHalfEdgeId = -1;
+            var vertices = new VertexHandle[indices.Length];
+            for (var i = 0; i < indices.Length; i++)
+            {
+                vertices[i] = Vertices[indices[i]];
+            }
 
-            Span<Vertex> currentVertices = [null!, null!];
+            // AddFace will validate the face against all topology rules, if it fails, we dumplicate its vertices, extracting the face
+            if (HalfEdgeMesh.AddFace(out var hFace, vertices))
+            {
+                WriteFaceData(hFace, indices, material);
+                return;
+            }
+
+            ExtractFace(indices, material);
+        }
+
+        // writes the per vertex source data into the half edges
+        private void WriteFaceData(FaceHandle hFace, ReadOnlySpan<int> sourceIndices, string material)
+        {
+            MaterialIndex[hFace] = AddMaterial(material);
+
+            // the face edge points at the half edge ending at the first input vertex,
+            // so walking the loop visits the corners in input order
+            var hEdge = hFace.Edge;
+
+            for (var i = 0; i < sourceIndices.Length; i++)
+            {
+                var sourceIndex = sourceIndices[i];
+
+                var normal = SourceStreams.normals.Count > 0
+                    ? SourceStreams.normals[sourceIndex]
+                    : CalculateNormal(hEdge);
+
+                var tangent = SourceStreams.tangents.Count > 0
+                    ? SourceStreams.tangents[sourceIndex]
+                    : CalculateTangentFromNormal(normal);
+
+                var position = Positions[hEdge.Vertex];
+
+                Normals[hEdge] = normal;
+                Tangents[hEdge] = tangent;
+
+                TextureCoords[hEdge] = SourceStreams.texcoords.Count > 0
+                    ? SourceStreams.texcoords[sourceIndex]
+                    : CalculateTriplanarUVs(position, normal);
+
+                TextureCoords1[hEdge] = SourceStreams.texcoords1.Count > 0
+                    ? SourceStreams.texcoords1[sourceIndex]
+                    : CalculateTriplanarUVs(position, normal);
+
+                if (SourceStreams.VertexPaintBlendParams.Count > 0)
+                {
+                    VertexPaintBlendParams[hEdge] = SourceStreams.VertexPaintBlendParams[sourceIndex];
+                }
+
+                if (SourceStreams.VertexPaintTintColor.Count > 0)
+                {
+                    VertexPaintTintColor[hEdge] = SourceStreams.VertexPaintTintColor[sourceIndex];
+                }
+
+                hEdge = hEdge.NextEdge;
+            }
+        }
+
+        private int AddMaterial(string material)
+        {
+            if (material is null)
+            {
+                return -1;
+            }
+
+            if (MaterialIds.TryGetValue(material, out var id))
+            {
+                return id;
+            }
+
+            id = Materials.Count;
+            Materials.Add(material);
+            MaterialIds[material] = id;
+
+            return id;
+        }
+
+        // Faces which cant be integrated into the existing topology (they would create a nonmanifold edge or vertex)
+        // are added as a disconnected island with duplicated vertices, so no geometry is lost
+        private void ExtractFace(ReadOnlySpan<int> indices, string material)
+        {
+            FacesRemoved++;
+
+#if DEBUG
+            ProgressReporter?.Report($"{nameof(HammerMeshBuilder)}: Face '{HalfEdgeMesh.FaceCount}' did not fit into the mesh topology, extracting it with duplicated vertices");
+#endif
+
+            var vertices = new VertexHandle[indices.Length];
 
             for (var i = 0; i < indices.Length; i++)
             {
-                var faceidx = Faces.Count;
-
-                var v1idx = indices[i];
-                var v2idx = indices[(i + 1) % indices.Length]; // will cause v2idx to wrap around
-
-                currentVertices[0] = Vertices[v1idx];
-                currentVertices[1] = Vertices[v2idx];
-
-                var innerHeIndex = HalfEdges.Count; // since we haven't yet added this edge, its index is just the count of the list + newHalfEdges list
-                var outerHeIndex = HalfEdges.Count + 1;
-
-                var innerHeKey = new HalfEdgeSlim(v1idx, v2idx);
-                var outerHeKey = new HalfEdgeSlim(v2idx, v1idx);
-
-                HalfEdge? innerHe = null;
-                HalfEdge? outerHe = null;
-
-                var isFirstIteration = i == 0;
-                var isLastIteration = i == indices.Length - 1;
-
-                for (var j = 0; j < 2; j++)
-                {
-                    var openEdge = currentVertices[j].OutGoingHalfEdge == -1;
-
-                    if (!openEdge)
-                    {
-                        foreach (var he in currentVertices[j].RelatedEdges)
-                        {
-                            if (HalfEdges[he].Face == -1)
-                            {
-                                openEdge = true;
-                                //break;
-                            }
-                        }
-
-                        if (!openEdge)
-                        {
-                            halfEdgeModifier.RollBack("Face specified a vertex which had edges attached, but none that were open.");
-                            return;
-                        }
-                    }
-                }
-
-                // check if the inner already exists
-                if (!halfEdgeModifier.TryAddVertsToEdgeDict(innerHeKey, innerHeIndex))
-                {
-                    // failed to add the key to the dict, this either means we hit a set of inner twins
-                    // or that the face being added is wrong
-
-                    VertsToEdgeDict.TryGetValue(innerHeKey, out innerHeIndex); // get the half edge that already exists and assign to innerHeIndex
-
-                    innerHe = HalfEdges[innerHeIndex];
-
-                    if (innerHe.Face != -1)
-                    {
-                        halfEdgeModifier.RollBack("Face specified an edge which already had two faces attached.");
-                        return;
-                    }
-
-                    if (previousHalfEdgeId != -1)
-                    {
-                        var failsPrevious = HalfEdges[previousHalfEdgeId].OverrideOuter && innerHe.Previous != previousHalfEdgeId && HalfEdges[previousHalfEdgeId].Next != innerHeIndex;
-                        var failsFirst = isLastIteration && HalfEdges[firstHalfEdgeId].OverrideOuter && innerHe.Next != firstHalfEdgeId && HalfEdges[firstHalfEdgeId].Previous != innerHeIndex;
-
-                        if (failsPrevious || failsFirst)
-                        {
-                            halfEdgeModifier.RollBack("Face specified two edges that are connected by a vertex but have one or more existing edges separating them.");
-                            return;
-                        }
-                    }
-
-                    // already existing half edge doesn't have a face, which means this is a boundary, don't add a new half edge
-                    // but instead just set its face to be the current face (turning it into an inner)
-                    halfEdgeModifier.ChangeHalfEdgeFace(innerHe, faceidx);
-                    innerHe.OverrideOuter = true;
-                }
-                else
-                {
-                    innerHe = new HalfEdge
-                    {
-                        Face = faceidx,
-                        origVert = v1idx,
-                        destVert = v2idx,
-                        Twin = outerHeIndex,
-                        id = innerHeIndex
-                    };
-
-                    outerHe = new HalfEdge
-                    {
-                        origVert = v2idx,
-                        destVert = v1idx,
-                        Twin = innerHeIndex,
-                        id = outerHeIndex
-                    };
-
-                    halfEdgeModifier.TryAddVertsToEdgeDict(outerHeKey, outerHeIndex);
-
-                    halfEdgeModifier.AddHalfEdgeToHalfEdgesList(innerHe);
-                    halfEdgeModifier.AddHalfEdgeToHalfEdgesList(outerHe);
-
-                    halfEdgeModifier.AddVertexRelatedEdge(currentVertices[0], innerHeIndex);
-                    halfEdgeModifier.AddVertexRelatedEdge(currentVertices[0], outerHeIndex);
-                    halfEdgeModifier.AddVertexRelatedEdge(currentVertices[1], innerHeIndex);
-                    halfEdgeModifier.AddVertexRelatedEdge(currentVertices[1], outerHeIndex);
-
-                    halfEdgeModifier.ChangeVertexOutGoing(currentVertices[1], outerHeIndex);
-
-                    newBoundaryHalfEdges.Add(outerHe);
-                }
-
-                //link inners
-                halfEdgeModifier.ChangeHalfEdgePrev(innerHe, previousHalfEdgeId);
-                halfEdgeModifier.ChangeHalfEdgeNext(innerHe, firstHalfEdgeId);
-
-                // link current inner with the previous half edge
-                if (previousHalfEdgeId != -1)
-                {
-                    var lastinnerFaceHe = HalfEdges[previousHalfEdgeId];
-                    halfEdgeModifier.ChangeHalfEdgeNext(lastinnerFaceHe, innerHeIndex);
-                }
-
-                // remember the first inner of the face
-                if (isFirstIteration)
-                {
-                    firstHalfEdgeId = innerHeIndex;
-                    face.HalfEdge = firstHalfEdgeId;
-                }
-
-                // if this is the end of the loop, link current inner with the first
-                if (isLastIteration)
-                {
-                    var firstinnerFaceHe = HalfEdges[firstHalfEdgeId];
-                    halfEdgeModifier.ChangeHalfEdgePrev(firstinnerFaceHe, innerHeIndex);
-                    halfEdgeModifier.ChangeHalfEdgeNext(innerHe, firstHalfEdgeId);
-                }
-
-                previousHalfEdgeId = innerHeIndex;
+                var hVertex = HalfEdgeMesh.AddVertex();
+                Positions[hVertex] = Positions[Vertices[indices[i]]];
+                Vertices.Add(hVertex);
+                vertices[i] = hVertex;
             }
 
-            // link boundary half edges
-            // TODO: it would be nice to find a way to generalize this code so there's no code duplication for
-            // linking prev/next boundaries, maybe even find a way to only have to link next with some smart logic
-            // because right now if you have a triangle, processing 2/3 of its edges will also link the 3rd edge
-            // but then the algorithm still goes over the 3rd edge linking it, couldn't figure out nice logic to avoid that
-            // but i have obsessed over this too much for now
-            foreach (var boundary in newBoundaryHalfEdges)
-            {
-                var origVert = Vertices[boundary.origVert];
-                var destVert = Vertices[boundary.destVert];
-                var boundaryIdx = boundary.id;
+            // the duplicated vertices are isolated, so this cant fail
+            HalfEdgeMesh.AddFace(out var hFace, vertices);
 
-                //
-                // link prev boundary
-                //
-                var totalPotentialPrevBoundary = 0;
-                var potentialBoundaryWithAnInnerAsNextIdx = -1;
-                var oppositePrevBoundary = -1;
-
-                foreach (var heIdx in origVert.RelatedEdges)
-                {
-                    var he = HalfEdges[heIdx];
-
-                    // dont loop over ourselves
-                    if (he == boundary)
-                    {
-                        continue;
-                    }
-
-                    // only loop over boundaries
-                    if (he.Face != -1)
-                    {
-                        continue;
-                    }
-
-                    // TODO: im sure there has to be a smarter way of writing this code, since currently we loop over all boundaries associated with a vertex
-                    // but we only end up actually using less than half, the issue is that vertex circulation doesn't work here
-                    // because while building the data structure, some half edges won't have data filled out yet, causing it to fail
-
-                    // store the edge that opposes our current edge (they point into eachother)
-                    // this will be useful for some trickery later
-                    if (he.origVert == boundary.origVert)
-                    {
-                        oppositePrevBoundary = heIdx;
-                    }
-
-                    // if the destvert of the half edge related with the vertex is the same as our origin vertex
-                    // and it doesn't have a next (valid prev)
-                    // and it's next HAS A FACE (boundary that got overridden as inner)
-                    // store the boundary with an inner as next for later
-                    if (he.destVert == boundary.origVert)
-                    {
-                        totalPotentialPrevBoundary++;
-
-                        if (he.Next != -1)
-                        {
-                            if (HalfEdges[he.Next].Face != -1)
-                            {
-                                potentialBoundaryWithAnInnerAsNextIdx = heIdx;
-                            }
-                        }
-                    }
-                }
-
-                // more than two prev boundaries to choose here means we got more than 4 half edges on one vertex, invalid
-                if (totalPotentialPrevBoundary > 2)
-                {
-                    halfEdgeModifier.RollBack("A vertex specified by the face has multiple boundary edges but shares no existing edge.");
-                    return;
-                }
-
-                // TODO: im sure theres a way to unify this logic, but i havent found one
-
-                if (totalPotentialPrevBoundary == 2)
-                {
-                    // if totalPotentialPrevBoundary == 2 and we got a boundary that has an inner as next
-                    // it means at least one edge merge happened (two faces sharing an edge) while adding this face
-                    // we can use this information to get our prev for this boundary, since the boundary that has a next that has a face
-                    // will always be our prev
-                    if (potentialBoundaryWithAnInnerAsNextIdx != -1)
-                    {
-                        halfEdgeModifier.ChangeHalfEdgePrev(boundary, potentialBoundaryWithAnInnerAsNextIdx);
-                        halfEdgeModifier.ChangeHalfEdgeNext(HalfEdges[potentialBoundaryWithAnInnerAsNextIdx], boundaryIdx);
-                    }
-                    // if no face merge happened, we can still get prev, but it's a bit trickier
-                    // we have to circulate away from the opposite boundary, until we find another boundary
-                    // checking for twin here because of how the circulator works
-                    else
-                    {
-                        foreach (var heidx in VertexCirculator(oppositePrevBoundary, forward: true))
-                        {
-                            var possiblePrev = HalfEdges[heidx];
-                            if (HalfEdges[possiblePrev.Twin].Face == -1)
-                            {
-                                halfEdgeModifier.ChangeHalfEdgePrev(boundary, possiblePrev.Twin);
-                                halfEdgeModifier.ChangeHalfEdgeNext(HalfEdges[possiblePrev.Twin], boundaryIdx);
-                                break;
-                            }
-                        }
-                    }
-                }
-
-                // if there is only one potential prev, it means that this either a single separate face being added
-                // or that this is the junction of two faces being merged
-                if (totalPotentialPrevBoundary == 1)
-                {
-                    // if this is just a single face, we can hard code the prev
-                    if (potentialBoundaryWithAnInnerAsNextIdx == -1)
-                    {
-                        var prev = HalfEdges[HalfEdges[boundary.Twin].Next].Twin;
-                        halfEdgeModifier.ChangeHalfEdgePrev(boundary, prev);
-                        halfEdgeModifier.ChangeHalfEdgeNext(HalfEdges[prev], boundaryIdx);
-                    }
-                    // else if its two faces joining, just use the boundary with inner as next as before
-                    else
-                    {
-                        halfEdgeModifier.ChangeHalfEdgePrev(boundary, potentialBoundaryWithAnInnerAsNextIdx);
-                        halfEdgeModifier.ChangeHalfEdgeNext(HalfEdges[potentialBoundaryWithAnInnerAsNextIdx], boundaryIdx);
-                    }
-                }
-
-                //
-                // link next boundary
-                //
-
-                // same awful logic as obove just flipped in order to connect nexts, but with the joy of code duplication
-                var totalPotentialNextBoundary = 0;
-                var potentialBoundaryWithAnInnerAsPrevIdx = -1;
-                var oppositeNextBoundary = -1;
-
-                foreach (var heIdx in destVert.RelatedEdges)
-                {
-                    var he = HalfEdges[heIdx];
-
-                    // dont loop over ourselves
-                    if (he == boundary)
-                    {
-                        continue;
-                    }
-
-                    // only loop over boundaries
-                    if (he.Face != -1)
-                    {
-                        continue;
-                    }
-
-                    if (he.destVert == boundary.destVert)
-                    {
-                        oppositeNextBoundary = heIdx;
-                    }
-
-                    if (he.origVert == boundary.destVert)
-                    {
-                        totalPotentialNextBoundary++;
-
-                        if (he.Previous != -1)
-                        {
-                            if (HalfEdges[he.Previous].Face != -1)
-                            {
-                                potentialBoundaryWithAnInnerAsPrevIdx = heIdx;
-                            }
-                        }
-                    }
-                }
-
-                // more than two prev boundaries to choose here means we got more than 4 half edges on one vertex, invalid
-                if (totalPotentialNextBoundary > 2)
-                {
-                    halfEdgeModifier.RollBack("A vertex specified by the face has multiple boundary edges but shares no existing edge.");
-                    return;
-                }
-
-                if (totalPotentialNextBoundary == 2)
-                {
-                    if (potentialBoundaryWithAnInnerAsPrevIdx != -1)
-                    {
-                        halfEdgeModifier.ChangeHalfEdgeNext(boundary, potentialBoundaryWithAnInnerAsPrevIdx);
-                        halfEdgeModifier.ChangeHalfEdgePrev(HalfEdges[potentialBoundaryWithAnInnerAsPrevIdx], boundaryIdx);
-                    }
-                    else
-                    {
-                        foreach (var heidx in VertexCirculator(oppositeNextBoundary, forward: false))
-                        {
-                            var possibleNext = HalfEdges[heidx];
-                            if (HalfEdges[possibleNext.Twin].Face == -1)
-                            {
-                                halfEdgeModifier.ChangeHalfEdgeNext(boundary, possibleNext.Twin);
-                                halfEdgeModifier.ChangeHalfEdgePrev(HalfEdges[possibleNext.Twin], boundaryIdx);
-                                break;
-                            }
-                        }
-                    }
-                }
-
-                if (totalPotentialNextBoundary == 1)
-                {
-                    if (potentialBoundaryWithAnInnerAsPrevIdx == -1)
-                    {
-                        var next = HalfEdges[HalfEdges[boundary.Twin].Previous].Twin;
-                        halfEdgeModifier.ChangeHalfEdgeNext(boundary, next);
-                        halfEdgeModifier.ChangeHalfEdgePrev(HalfEdges[next], boundaryIdx);
-                    }
-                    else
-                    {
-                        halfEdgeModifier.ChangeHalfEdgeNext(boundary, potentialBoundaryWithAnInnerAsPrevIdx);
-                        halfEdgeModifier.ChangeHalfEdgePrev(HalfEdges[potentialBoundaryWithAnInnerAsPrevIdx], boundaryIdx);
-                    }
-                }
-            }
-
-            Faces.Add(face);
+            // need to write new half edge stream data
+            WriteFaceData(hFace, indices, material);
         }
 
         public void AddPhysHull(HullDescriptor desc, PhysAggregateData phys, Func<string, string> materialNameProvider, Vector3 positionOffset = new Vector3(), string? materialOverride = null)
@@ -1118,7 +573,6 @@ namespace ValveResourceFormat.IO
             var hullFaces = hull.GetFaces();
             var hullEdges = hull.GetEdges();
 
-            Faces.EnsureCapacity(hullFaces.Length);
             Span<int> inds = stackalloc int[byte.MaxValue];
 
             foreach (var face in hullFaces)
@@ -1178,7 +632,6 @@ namespace ValveResourceFormat.IO
             };
             AddVertices(streams, positionOffset);
 
-            Faces.EnsureCapacity(meshTriangles.Length);
             Span<int> inds = stackalloc int[3];
 
             var removed = 0;
@@ -1195,6 +648,7 @@ namespace ValveResourceFormat.IO
                  || deletedIndices.Contains(inds[1])
                  || deletedIndices.Contains(inds[2]))
                 {
+                    removed++;
                     continue;
                 }
 
@@ -1234,8 +688,6 @@ namespace ValveResourceFormat.IO
 
             var vertexdata = (DmeVertexData)shape.BaseStates[0];
 
-            var baseVertex = Vertices.Count;
-
             var hasTransform = !transform.IsIdentity;
             var normalMatrix = Matrix4x4.Identity;
             if (hasTransform && Matrix4x4.Invert(transform, out var inverse))
@@ -1256,7 +708,7 @@ namespace ValveResourceFormat.IO
                 throw new InvalidDataException("AddRenderMesh() trying to process a mesh with no vertices!");
             }
 
-            List<Tuple<List<int>, DmeFaceSet>> faceList = [];
+            List<(int[] Indices, DmeFaceSet FaceSet)> faceList = [];
             Dictionary<int, int> newVertexStreamsIndexDict = [];
             List<Vector3> newVertices = [];
             List<Vector2> newTexcoords = [];
@@ -1311,7 +763,7 @@ namespace ValveResourceFormat.IO
                         newFaceInds.Add(newIndex);
                     }
 
-                    faceList.Add(new Tuple<List<int>, DmeFaceSet>(newFaceInds, faceset));
+                    faceList.Add(([.. newFaceInds], faceset));
                     inds.Clear();
                 }
             }
@@ -1372,9 +824,9 @@ namespace ValveResourceFormat.IO
 
             AddVertices(streams);
 
-            foreach (var face in faceList)
+            foreach (var (faceIndices, faceSet) in faceList)
             {
-                AddFace(CollectionsMarshal.AsSpan(face.Item1), face.Item2.Material.MaterialName);
+                AddFace(faceIndices, faceSet.Material.MaterialName);
             }
         }
 
@@ -1411,12 +863,11 @@ namespace ValveResourceFormat.IO
             return true;
         }
 
-        private Vector3 CalculateNormal(int halfEdge)
+        private Vector3 CalculateNormal(HalfEdgeHandle hEdge)
         {
-            Span<int> normalHalfEdges = [halfEdge, HalfEdges[halfEdge].Next, HalfEdges[halfEdge].Previous];
-            var v1 = vertexStreams.positions[Vertices[HalfEdges[normalHalfEdges[0]].origVert].MasterStreamIndex];
-            var v2 = vertexStreams.positions[Vertices[HalfEdges[normalHalfEdges[1]].origVert].MasterStreamIndex];
-            var v3 = vertexStreams.positions[Vertices[HalfEdges[normalHalfEdges[2]].origVert].MasterStreamIndex];
+            var v1 = Positions[hEdge.Vertex];
+            var v2 = Positions[hEdge.NextEdge.Vertex];
+            var v3 = Positions[hEdge.OppositeEdge.Vertex];
 
             var normal = Vector3.Normalize(Vector3.Cross(v2 - v1, v3 - v1));
 
@@ -1503,7 +954,7 @@ namespace ValveResourceFormat.IO
         }
 
         public static CDmePolygonMeshDataStream<T> CreateStream<TArray, T>(int dataStateFlags, string name, string? standardAttributeName = null, params T[] data)
-            where TArray : Datamodel.Array<T>, new()
+            where TArray : Array<T>, new()
             where T : notnull
         {
 
