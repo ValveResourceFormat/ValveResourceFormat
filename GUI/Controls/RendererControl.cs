@@ -28,7 +28,36 @@ partial class RendererControl : UserControl
             splitContainer.Panel2.Controls.Add(controlsPanel);
             splitContainer.FixedPanel = FixedPanel.Panel2;
             splitContainer.ResumeLayout();
+
+            // The panels are swapped so the controls now live in Panel2, but the design SplitterDistance still
+            // sizes them as if they were Panel1, leaving the controls taking up most of the viewer. FixedPanel.Panel2
+            // then pins that width on the first layout pass, so the result depends on the size the control happens to
+            // have when first shown. Pin the controls to their intended width once we know a real size instead.
+            splitContainer.SizeChanged += PreviewControlsWidth_Init;
         }
+    }
+
+    private bool previewControlsWidthInitialized;
+
+    private void PreviewControlsWidth_Init(object? sender, EventArgs e)
+    {
+        if (previewControlsWidthInitialized)
+        {
+            return;
+        }
+
+        // Matches the non-preview sidebar width (design SplitterDistance / controlsPanel width).
+        var controlsWidth = this.AdjustForDPI(220);
+        var distance = splitContainer.Width - controlsWidth - splitContainer.SplitterWidth;
+
+        if (distance <= splitContainer.Panel1MinSize)
+        {
+            return; // not sized sensibly yet, try again on the next resize
+        }
+
+        splitContainer.SplitterDistance = distance;
+        previewControlsWidthInitialized = true;
+        splitContainer.SizeChanged -= PreviewControlsWidth_Init;
     }
 
     protected override void OnCreateControl()
