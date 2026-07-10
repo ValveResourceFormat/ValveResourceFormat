@@ -92,7 +92,8 @@ namespace ValveResourceFormat.Renderer.Particles
         /// </summary>
         public static float RandomSingle(int particleId)
         {
-            return RandomFloats.List[particleId % RandomFloats.List.Length]; // TODO: Add seed
+            // Unsigned modulo keeps the index valid for any id, including ids that wrapped negative
+            return RandomFloats.List[(uint)particleId % RandomFloats.List.Length]; // TODO: Add seed
         }
 
         /// <summary>
@@ -120,6 +121,14 @@ namespace ValveResourceFormat.Renderer.Particles
                 RandomBetween(particleId, min.X, max.X),
                 RandomBetween(particleId + 1, min.Y, max.Y),
                 RandomBetween(particleId + 2, min.Z, max.Z));
+        }
+
+        /// <summary>
+        /// Returns a non-deterministic random vector with each component independently interpolated between the corresponding components of <paramref name="min"/> and <paramref name="max"/>.
+        /// </summary>
+        public static Vector3 RandomBetweenPerComponent(Vector3 min, Vector3 max)
+        {
+            return RandomBetweenPerComponent(Random.Shared.Next(), min, max);
         }
 
         /// <summary>

@@ -39,7 +39,8 @@ namespace ValveResourceFormat.Renderer.Particles
 
         public LiteralColorVectorProvider(Vector3 value)
         {
-            this.value = value;
+            // Literal colors are authored as 0-255; providers return normalized 0-1 colors
+            this.value = value / 255.0f;
         }
 
         public LiteralColorVectorProvider(int[] value)
@@ -190,7 +191,7 @@ namespace ValveResourceFormat.Renderer.Particles
             max = parse.Vector3("m_vRandomMax");
         }
 
-        public Vector3 NextVector(ref Particle particle, ParticleSystemRenderState renderState)
+        public virtual Vector3 NextVector(ref Particle particle, ParticleSystemRenderState renderState)
         {
             return new Vector3(
                 ParticleSystemRenderState.RandomFloat(min.X, max.X),
@@ -210,7 +211,7 @@ namespace ValveResourceFormat.Renderer.Particles
             VectorAttributeScale = parse.Vector3("m_vVectorAttributeScale", VectorAttributeScale);
         }
 
-        public new Vector3 NextVector(ref Particle particle, ParticleSystemRenderState renderState)
+        public override Vector3 NextVector(ref Particle particle, ParticleSystemRenderState renderState)
         {
             var baseValue = VectorAttributeScale * particle.GetVector(VectorAttribute);
             return baseValue + base.NextVector(ref particle, renderState);

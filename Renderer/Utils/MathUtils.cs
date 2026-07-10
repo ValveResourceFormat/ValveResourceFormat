@@ -38,6 +38,28 @@ namespace ValveResourceFormat.Renderer.Utils
         }
 
         /// <summary>
+        /// Remaps a value from one range to another, holding the output at the range ends
+        /// for inputs outside the input range. Mirrors Source's RemapValClamped.
+        /// </summary>
+        /// <param name="x">Value to remap.</param>
+        /// <param name="inputMin">Input range minimum.</param>
+        /// <param name="inputMax">Input range maximum.</param>
+        /// <param name="outputMin">Output range minimum.</param>
+        /// <param name="outputMax">Output range maximum.</param>
+        /// <returns>Value remapped to the output range, clamped to it.</returns>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static float RemapValClamped(float x, float inputMin, float inputMax, float outputMin, float outputMax)
+        {
+            // Source treats a degenerate input range as a threshold
+            if (inputMin == inputMax)
+            {
+                return x >= inputMax ? outputMax : outputMin;
+            }
+
+            return float.Lerp(outputMin, outputMax, Saturate(Remap(x, inputMin, inputMax)));
+        }
+
+        /// <summary>
         /// Swaps min and max if min > max.
         /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -62,7 +84,7 @@ namespace ValveResourceFormat.Renderer.Utils
         /// Returns the fractional part of a value (x - floor(x)).
         /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static float Fract(float x) => x % 1f;
+        public static float Fract(float x) => x - MathF.Floor(x);
 
         /// <summary>
         /// Wraps a value into the half-open range [lowBounds, highBounds).

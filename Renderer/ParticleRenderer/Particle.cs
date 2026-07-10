@@ -35,8 +35,8 @@ namespace ValveResourceFormat.Renderer.Particles
         /// <summary>Gets or sets the radius of the particle.</summary>
         public float Radius { get; set; } = 1.0f;
 
-        /// <summary>Gets or sets the trail length multiplier for trail-based renderers.</summary>
-        public float TrailLength { get; set; } = 0f;
+        /// <summary>Gets or sets the trail length multiplier for trail-based renderers. The engine seeds this attribute with 0.1.</summary>
+        public float TrailLength { get; set; } = 0.1f;
 
         /// <summary>
         /// Gets or sets the scale factor applied to forces acting on this particle. 1 = full force,
@@ -45,7 +45,7 @@ namespace ValveResourceFormat.Renderer.Particles
         public float ForceScale { get; set; } = 1.0f;
 
         /// <summary>
-        /// Gets or sets (Yaw, Pitch, Roll) Euler angles.
+        /// Gets or sets (Yaw, Pitch, Roll) Euler angles in radians.
         /// </summary>
         public Vector3 Rotation { get; set; } = Vector3.Zero;
 
@@ -53,6 +53,7 @@ namespace ValveResourceFormat.Renderer.Particles
         /// Gets or sets (Yaw, Pitch, Roll) Euler angles rotation speed.
         /// </summary>
         public Vector3 RotationSpeed { get; set; } = Vector3.Zero;
+
         /// <summary>Gets or sets the current velocity of the particle.</summary>
         public Vector3 Velocity { get; set; } = Vector3.Zero;
 
@@ -64,15 +65,16 @@ namespace ValveResourceFormat.Renderer.Particles
             readonly get => Vector3.Transform(new Vector3(0, 0, 1), GetRotationMatrix());
             set
             {
-                var normal = Vector3.Normalize(value);
-
-                if (normal == Vector3.Zero)
+                if (value == Vector3.Zero)
                 {
                     return;
                 }
 
+                var normal = Vector3.Normalize(value);
+
                 var yaw = MathF.Atan2(normal.X, normal.Z);
-                var pitch = MathF.Asin(Math.Clamp(normal.Y, -1f, 1f));
+                // The getter yields Y = -sin(pitch), so the pitch must be negated here for get/set round trips
+                var pitch = MathF.Asin(-Math.Clamp(normal.Y, -1f, 1f));
                 Rotation = new Vector3(yaw, pitch, Rotation.Z);
             }
         }
@@ -138,11 +140,12 @@ namespace ValveResourceFormat.Renderer.Particles
 
             Radius = parse.Float("m_flConstantRadius", Radius);
             Lifetime = parse.Float("m_flConstantLifespan", Lifetime);
-            Rotation = Rotation with { Z = parse.Float("m_flConstantRotation", Rotation.Z) };
-            RotationSpeed = RotationSpeed with { Z = parse.Float("m_flConstantRotationSpeed", RotationSpeed.Z) };
+            // Rotation fields are stored in radians, but the constants are authored in degrees
+            Rotation = Rotation with { Z = float.DegreesToRadians(parse.Float("m_flConstantRotation", 0f)) };
+            RotationSpeed = RotationSpeed with { Z = float.DegreesToRadians(parse.Float("m_flConstantRotationSpeed", 0f)) };
             Normal = parse.Vector3("m_ConstantNormal", Normal);
             Sequence = parse.Int32("m_nConstantSequenceNumber", Sequence);
-            Sequence2 = parse.Int32("m_nConstantSequenceNumber1", Sequence);
+            Sequence2 = parse.Int32("m_nConstantSequenceNumber1", Sequence2);
         }
 
         /// <summary>

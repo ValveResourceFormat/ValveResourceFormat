@@ -3,6 +3,11 @@ namespace ValveResourceFormat.Renderer.Particles.Operators
     /// <summary>
     /// Fades a particle's alpha field out linearly over a proportional fade-out time at the end of the particle's life.
     /// </summary>
+    /// <remarks>
+    /// The fade-out time is a fraction of the particle's lifetime in the 0–1 range: a setting of
+    /// 0.25 on a particle with a 4-second lifetime starts fading 3 seconds after emission and
+    /// takes 1 second to fade out completely.
+    /// </remarks>
     /// <seealso href="https://s2v.app/SchemaExplorer/cs2/particles/C_OP_FadeOutSimple">C_OP_FadeOutSimple</seealso>
     class FadeOutSimple : ParticleFunctionOperator
     {

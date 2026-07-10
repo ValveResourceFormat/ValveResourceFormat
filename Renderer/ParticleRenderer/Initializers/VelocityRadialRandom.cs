@@ -8,7 +8,7 @@ namespace ValveResourceFormat.Renderer.Particles.Initializers
     class VelocityRadialRandom : ParticleFunctionInitializer
     {
         // unsure if this is actually a vector provider
-        private readonly IVectorProvider vectorScale = new LiteralVectorProvider(Vector3.Zero);
+        private readonly IVectorProvider vectorScale = new LiteralVectorProvider(Vector3.One);
         private readonly INumberProvider speedMin = new LiteralNumberProvider(0.1f);
         private readonly INumberProvider speedMax = new LiteralNumberProvider(0.1f);
 
@@ -29,7 +29,7 @@ namespace ValveResourceFormat.Renderer.Particles.Initializers
             var speedmin = speedMin.NextNumber(ref particle, particleSystemState);
             var speedmax = speedMax.NextNumber(ref particle, particleSystemState);
 
-            var speed = Math.Max(1.0f, ParticleCollection.RandomBetween(particle.ParticleID, speedmin, speedmax));
+            var speed = ParticleCollection.RandomBetween(particle.ParticleID, speedmin, speedmax);
 
             // With the flag set the authored value is a raw per-step displacement, not units/second.
             if (ignoreDelta)

@@ -25,7 +25,7 @@ namespace ValveResourceFormat.Renderer.Particles.Operators
             frequencyMax = parse.Float("m_FrequencyMax", frequencyMax);
             oscillationMultiplier = parse.Float("m_flOscMult", oscillationMultiplier);
             oscillationOffset = parse.Float("m_flOscAdd", oscillationOffset);
-            proportional = parse.Boolean("m_bProportionalOp", proportional);
+            proportional = parse.Boolean("m_bProportional", proportional);
         }
 
         public override void Operate(ParticleCollection particles, float frameTime, ParticleSystemRenderState particleSystemState)
@@ -59,6 +59,8 @@ namespace ValveResourceFormat.Renderer.Particles.Operators
         private readonly float frequency = 1f;
         private readonly float oscillationMultiplier = 2f;
         private readonly float oscillationOffset = 0.5f;
+        private readonly float clampMin;
+        private readonly float clampMax;
 
         public OscillateScalarSimple(ParticleDefinitionParser parse) : base(parse)
         {
@@ -67,6 +69,13 @@ namespace ValveResourceFormat.Renderer.Particles.Operators
             frequency = parse.Float("m_Frequency", frequency);
             oscillationMultiplier = parse.Float("m_flOscMult", oscillationMultiplier);
             oscillationOffset = parse.Float("m_flOscAdd", oscillationOffset);
+
+            (clampMin, clampMax) = outputField switch
+            {
+                ParticleField.Alpha or ParticleField.AlphaAlternate => (0f, 1f),
+                ParticleField.Radius or ParticleField.TrailLength => (0f, float.MaxValue),
+                _ => (-float.MaxValue, float.MaxValue),
+            };
         }
 
         public override void Operate(ParticleCollection particles, float frameTime, ParticleSystemRenderState particleSystemState)
@@ -78,7 +87,8 @@ namespace ValveResourceFormat.Renderer.Particles.Operators
 
                 var finalScalar = delta * rate * frameTime;
 
-                particle.SetScalar(outputField, particle.GetScalar(outputField) + finalScalar);
+                var oscillated = particle.GetScalar(outputField) + finalScalar;
+                particle.SetScalar(outputField, Math.Clamp(oscillated, clampMin, clampMax));
             }
         }
     }

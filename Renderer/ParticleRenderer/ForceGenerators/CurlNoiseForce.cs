@@ -8,6 +8,8 @@ namespace ValveResourceFormat.Renderer.Particles.ForceGenerators;
 class CurlNoiseForce : ParticleFunctionForceGenerator
 {
     private readonly IVectorProvider NoiseFrequency = new LiteralVectorProvider(new Vector3(0.02f));
+
+    /// <summary>Amplitude of the noise.</summary>
     private readonly IVectorProvider NoiseScale = new LiteralVectorProvider(new Vector3(1000f));
     private readonly INumberProvider Strength = new LiteralNumberProvider(1.0f);
 
@@ -70,12 +72,46 @@ class CurlNoiseForce : ParticleFunctionForceGenerator
 
     private static Vector3 NoiseField(Vector3 pos)
     {
-        // Simple 3D noise vector field using the existing pseudo-random function
-        // Each component uses different frequency combinations for variation
-        var fx = Utils.Noise.Simplex1D(pos.X * 0.01f + pos.Y * 0.005f + pos.Z * 0.002f);
-        var fy = Utils.Noise.Simplex1D(pos.X * 0.007f + pos.Y * 0.01f + pos.Z * 0.003f);
-        var fz = Utils.Noise.Simplex1D(pos.X * 0.004f + pos.Y * 0.008f + pos.Z * 0.01f);
+        // Three decorrelated samples of the 3D value-noise lattice form the vector field.
+        return new Vector3(
+            Noise3D(pos),
+            Noise3D(pos + new Vector3(31.416f, 0f, 0f)),
+            Noise3D(pos + new Vector3(0f, 0f, 47.853f))
+        );
+    }
 
-        return new Vector3(fx, fy, fz);
+    // Trilinear value noise over an integer lattice, returning [-1, 1] to match Source's DNoiseSIMD.
+    private static float Noise3D(Vector3 pos)
+    {
+        var ix = (int)MathF.Floor(pos.X);
+        var iy = (int)MathF.Floor(pos.Y);
+        var iz = (int)MathF.Floor(pos.Z);
+
+        var u = Fade(pos.X - ix);
+        var v = Fade(pos.Y - iy);
+        var w = Fade(pos.Z - iz);
+
+        var c00 = float.Lerp(Hash(ix, iy, iz), Hash(ix + 1, iy, iz), u);
+        var c10 = float.Lerp(Hash(ix, iy + 1, iz), Hash(ix + 1, iy + 1, iz), u);
+        var c01 = float.Lerp(Hash(ix, iy, iz + 1), Hash(ix + 1, iy, iz + 1), u);
+        var c11 = float.Lerp(Hash(ix, iy + 1, iz + 1), Hash(ix + 1, iy + 1, iz + 1), u);
+
+        var c0 = float.Lerp(c00, c10, v);
+        var c1 = float.Lerp(c01, c11, v);
+
+        return (2f * float.Lerp(c0, c1, w)) - 1f;
+    }
+
+    private static float Fade(float t) => t * t * t * (t * ((t * 6f) - 15f) + 10f);
+
+    private static float Hash(int x, int y, int z)
+    {
+        unchecked
+        {
+            var h = (x * 374761393) + (y * 668265263) + (z * 1274126177);
+            h = (h ^ (h >> 13)) * 1274126177;
+            h ^= h >> 16;
+            return (h & 0x7fffffff) / (float)int.MaxValue;
+        }
     }
 }

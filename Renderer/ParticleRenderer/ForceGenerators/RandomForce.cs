@@ -1,8 +1,8 @@
 namespace ValveResourceFormat.Renderer.Particles.ForceGenerators;
 
 /// <summary>
-/// Applies a per-particle random force vector chosen uniformly between a minimum and maximum bound
-/// each frame.
+/// Generates a random force within the specified range that's applied uniformly to all
+/// particles within the effect.
 /// </summary>
 /// <seealso href="https://s2v.app/SchemaExplorer/cs2/particles/C_OP_RandomForce">C_OP_RandomForce</seealso>
 class RandomForce : ParticleFunctionForceGenerator
@@ -19,10 +19,12 @@ class RandomForce : ParticleFunctionForceGenerator
 
     public override void GenerateForces(ParticleCollection particles, float frameTime, ParticleSystemRenderState particleSystemState, float strength)
     {
+        // One force is chosen per frame and applied uniformly to every particle
+        var force = ParticleCollection.RandomBetweenPerComponent(Min, Max) * strength;
+
         foreach (ref var particle in particles.Current)
         {
-            var force = ParticleCollection.RandomBetweenPerComponent(Random.Shared.Next(), Min, Max);
-            particle.ForceAccumulator += force * strength;
+            particle.ForceAccumulator += force;
         }
     }
 }

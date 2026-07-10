@@ -7,6 +7,11 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
     /// Renders particles as trail segments stretched between the particle's current and previous
     /// positions, with configurable length, fade-in, texture scaling, and blend modes.
     /// </summary>
+    /// <remarks>
+    /// Trails are sprites that stretch based on their speed over time. Traditional use cases
+    /// include bullet tracers and sparks; they are also useful when particles need to be oriented
+    /// in 3D space, which regular sprites handle poorly.
+    /// </remarks>
     /// <seealso href="https://s2v.app/SchemaExplorer/cs2/particles/C_OP_RenderTrails">C_OP_RenderTrails</seealso>
     internal class RenderTrails : ParticleFunctionRenderer
     {
@@ -30,7 +35,10 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
         private readonly float finalTextureScaleV = 1f;
 
         private readonly float maxLength = 2000f;
+        private readonly float minLength;
+        private readonly float lengthScale = 1f;
         private readonly float lengthFadeInTime;
+        private readonly bool ignoreDeltaTime;
 
         public RenderTrails(ParticleDefinitionParser parse, RendererContext rendererContext) : base(parse)
         {
@@ -92,7 +100,10 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
             finalTextureScaleU = parse.Float("m_flFinalTextureScaleU", finalTextureScaleU);
             finalTextureScaleV = parse.Float("m_flFinalTextureScaleV", finalTextureScaleV);
             maxLength = parse.Float("m_flMaxLength", maxLength);
+            minLength = parse.Float("m_flMinLength", minLength);
+            lengthScale = parse.Float("m_flLengthScale", lengthScale);
             lengthFadeInTime = parse.Float("m_flLengthFadeInTime", lengthFadeInTime);
+            ignoreDeltaTime = parse.Boolean("m_bIgnoreDT", ignoreDeltaTime);
             animationType = parse.Enum<ParticleAnimationType>("m_nAnimationType", animationType);
             prevPositionSource = parse.ParticleField("m_nPrevPntSource", prevPositionSource);
         }
@@ -143,6 +154,9 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
                 GL.BlendFunc(BlendingFactor.SrcAlpha, BlendingFactor.OneMinusSrcAlpha);
             }
 
+            // Trail quads are oriented by motion direction, so either side can face the camera
+            GL.Disable(EnableCap.CullFace);
+
             shader.Use();
 
             GL.BindVertexArray(vaoHandle);
@@ -153,46 +167,63 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
             // also todo: pass all of these as vertex parameters (probably just color/alpha combined)
             shader.SetUniform1("uOverbrightFactor", (float)overbrightFactor.NextNumber(systemRenderState));
 
-            // Create billboarding rotation (always facing camera)
-            if (!Matrix4x4.Decompose(camera.CameraViewMatrix, out _, out var modelViewRotation, out _))
-            {
-                throw new InvalidOperationException("Matrix decompose failed");
-            }
-
-            modelViewRotation = Quaternion.Inverse(modelViewRotation);
-            var billboardMatrix = Matrix4x4.CreateFromQuaternion(modelViewRotation);
+            // The moved distance is converted back to a velocity (distance / dt) before scaling by
+            // the trail-length attribute, unless the operator opts out of the delta-time division.
+            var oneOverDt = ignoreDeltaTime || particleBag.PreviousFrameTime == 0f
+                ? 1f
+                : 1f / particleBag.PreviousFrameTime;
 
             // Todo: this could be adapted into renderropes without much difficulty
             foreach (ref var particle in particles)
             {
                 var position = particle.Position;
                 var previousPosition = particle.GetVector(prevPositionSource);
+                // The trail extends from the particle back toward its previous position
                 var difference = previousPosition - position;
-                var direction = Vector3.Normalize(difference);
+                var direction = difference == Vector3.Zero ? Vector3.UnitY : Vector3.Normalize(difference);
 
-                var midPoint = position + (0.5f * difference);
+                var length = lengthScale * particle.TrailLength * difference.Length() * oneOverDt;
 
-                // Trail width = radius
-                // Trail length = distance between current and previous times trail length divided by 2 (because the base particle is 2 wide)
-                var length = Math.Min(maxLength, particle.TrailLength * difference.Length() / 2f);
-                var t = particle.NormalizedAge;
-                var animatedLength = t >= lengthFadeInTime
-                    ? length
-                    : t * length / lengthFadeInTime;
-                var scaleMatrix = Matrix4x4.CreateScale(particle.Radius, animatedLength, 1);
+                // The length fades in before clamping so clamped trails still reach full length on time
+                if (particle.Age < lengthFadeInTime)
+                {
+                    length *= particle.Age / lengthFadeInTime;
+                }
 
-                // Center the particle at the midpoint between the two points
-                var translationMatrix = Matrix4x4.CreateTranslation(Vector3.UnitY * animatedLength);
+                if (length <= 0f)
+                {
+                    continue;
+                }
 
-                // Calculate rotation matrix
+                // The engine clamps the full extent of the trail
+                length = Math.Clamp(length, minLength, maxLength);
 
-                var axis = Vector3.Normalize(Vector3.Cross(Vector3.UnitY, direction));
-                var angle = MathF.Acos(direction.Y);
-                var rotationMatrix = Matrix4x4.CreateFromAxisAngle(axis, angle);
+                Matrix4x4 modelMatrix;
+                if (orientationType == ParticleOrientation.PARTICLE_ORIENTATION_SCREEN_ALIGNED)
+                {
+                    // The quad's width axis stays perpendicular to the eye ray, its length axis follows the motion
+                    var widthAxis = Vector3.Cross(position - camera.Location, direction);
+                    widthAxis = widthAxis.LengthSquared() > 1e-12f
+                        ? Vector3.Normalize(widthAxis)
+                        : Vector3.Normalize(Vector3.Cross(direction, MathF.Abs(direction.Z) < 0.999f ? Vector3.UnitZ : Vector3.UnitX));
+                    var normal = Vector3.Cross(widthAxis, direction);
 
-                var modelMatrix = orientationType == ParticleOrientation.PARTICLE_ORIENTATION_SCREEN_ALIGNED
-                    ? Matrix4x4.Multiply(scaleMatrix, Matrix4x4.Multiply(translationMatrix, rotationMatrix))
-                    : particle.GetTransformationMatrix();
+                    var halfWidth = particle.Radius * 0.5f;
+                    var halfLength = length * 0.5f;
+                    var center = position + direction * halfLength;
+
+                    modelMatrix = new Matrix4x4(
+                        widthAxis.X * halfWidth, widthAxis.Y * halfWidth, widthAxis.Z * halfWidth, 0f,
+                        direction.X * halfLength, direction.Y * halfLength, direction.Z * halfLength, 0f,
+                        normal.X, normal.Y, normal.Z, 0f,
+                        center.X, center.Y, center.Z, 1f);
+                }
+                else
+                {
+                    // TODO: Other orientation types render as plain unstretched sprites here; the engine
+                    // still stretches them along the motion, constrained to the ground/normal plane
+                    modelMatrix = particle.GetTransformationMatrix();
+                }
 
                 // Position/Radius uniform
                 shader.SetUniform4x4("uModelMatrix", modelMatrix);
@@ -224,7 +255,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
                 }
                 else
                 {
-                    shader.SetUniform2("uUvOffset", Vector2.One);
+                    shader.SetUniform2("uUvOffset", Vector2.Zero);
                     shader.SetUniform2("uUvScale", new Vector2(finalTextureScaleU, finalTextureScaleV));
                 }
 
@@ -237,6 +268,8 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
 
             GL.UseProgram(0);
             GL.BindVertexArray(0);
+
+            GL.Enable(EnableCap.CullFace);
         }
 
         public override IEnumerable<string> GetSupportedRenderModes() => shader.RenderModes;

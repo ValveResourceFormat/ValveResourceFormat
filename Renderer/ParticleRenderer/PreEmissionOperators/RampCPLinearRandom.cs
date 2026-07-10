@@ -16,7 +16,7 @@ namespace ValveResourceFormat.Renderer.Particles.PreEmissionOperators
             var rateMin = parse.Vector3("m_vecRateMin", Vector3.Zero);
             var rateMax = parse.Vector3("m_vecRateMax", Vector3.Zero);
 
-            rampRate = ParticleCollection.RandomBetweenPerComponent(Random.Shared.Next(), rateMin, rateMax);
+            rampRate = ParticleCollection.RandomBetweenPerComponent(rateMin, rateMax);
         }
 
         public override void Operate(ref ParticleSystemRenderState particleSystemState, float frameTime)

@@ -27,7 +27,7 @@ namespace ValveResourceFormat.Renderer.Particles.Initializers
         {
             var value = particle.GetScalar(FieldInput);
 
-            value = MathUtils.RemapRange(value, inputMin, inputMax, outputMin, outputMax);
+            value = MathUtils.RemapValClamped(value, inputMin, inputMax, outputMin, outputMax);
 
             particle.SetScalar(FieldOutput, value);
 

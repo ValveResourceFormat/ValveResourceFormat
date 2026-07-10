@@ -1,7 +1,7 @@
 namespace ValveResourceFormat.Renderer.Particles.Initializers
 {
     /// <summary>
-    /// Initializes particle normals from a control point orientation with an added random offset.
+    /// Adds a random offset to a particle's existing normal, optionally rotated into control point local space.
     /// </summary>
     /// <seealso href="https://s2v.app/SchemaExplorer/cs2/particles/C_INIT_NormalOffset">C_INIT_NormalOffset</seealso>
     class NormalOffset : ParticleFunctionInitializer
@@ -10,7 +10,7 @@ namespace ValveResourceFormat.Renderer.Particles.Initializers
         private readonly Vector3 offsetMax = Vector3.Zero;
         private readonly int controlPointNumber;
         private readonly bool localCoords;
-        private readonly bool normalize = true;
+        private readonly bool normalize;
 
         public NormalOffset(ParticleDefinitionParser parse) : base(parse)
         {
@@ -24,23 +24,13 @@ namespace ValveResourceFormat.Renderer.Particles.Initializers
         public override Particle Initialize(ref Particle particle, ParticleCollection particles, ParticleSystemRenderState particleSystemState)
         {
             var offset = ParticleCollection.RandomBetweenPerComponent(particle.ParticleID, offsetMin, offsetMax);
-            var controlPoint = particleSystemState.GetControlPoint(controlPointNumber);
-            var baseNormal = controlPoint.Orientation;
 
-            Vector3 normal;
-            if (localCoords && baseNormal != Vector3.Zero)
+            if (localCoords)
             {
-                normal = TransformLocalOffset(offset, baseNormal);
-                normal += baseNormal;
+                offset = ControlPointTransformProvider.TransformDirection(particleSystemState, controlPointNumber, offset);
             }
-            else if (baseNormal != Vector3.Zero)
-            {
-                normal = baseNormal + offset;
-            }
-            else
-            {
-                normal = offset;
-            }
+
+            var normal = particle.GetVector(ParticleField.Normal) + offset;
 
             if (normalize && normal != Vector3.Zero)
             {
@@ -49,16 +39,6 @@ namespace ValveResourceFormat.Renderer.Particles.Initializers
 
             particle.SetVector(ParticleField.Normal, normal);
             return particle;
-        }
-
-        private static Vector3 TransformLocalOffset(Vector3 offset, Vector3 forward)
-        {
-            var z = Vector3.Normalize(forward);
-            var reference = Math.Abs(z.X) < 0.9f ? Vector3.UnitX : Vector3.UnitY;
-            var x = Vector3.Normalize(Vector3.Cross(reference, z));
-            var y = Vector3.Cross(z, x);
-
-            return (offset.X * x) + (offset.Y * y) + (offset.Z * z);
         }
     }
 }

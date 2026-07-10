@@ -7,11 +7,22 @@ namespace ValveResourceFormat.Renderer.Particles.Initializers
     /// </summary>
     class CreateWithinSphere : ParticleFunctionInitializer
     {
+        /// <summary>Minimum distance to spawn from the center of the sphere.</summary>
         protected readonly INumberProvider radiusMin = new LiteralNumberProvider(0);
+
+        /// <summary>Maximum distance to spawn from the center of the sphere.</summary>
         protected readonly INumberProvider radiusMax = new LiteralNumberProvider(0);
+
+        /// <summary>Minimum initial speed of the particle emitted outward from the sphere.</summary>
         protected readonly INumberProvider speedMin = new LiteralNumberProvider(0);
+
+        /// <summary>Maximum initial speed of the particle emitted outward from the sphere.</summary>
         protected readonly INumberProvider speedMax = new LiteralNumberProvider(0);
+
+        /// <summary>Local space minimum initial speed of the particle in x y z.</summary>
         protected readonly IVectorProvider localCoordinateSystemSpeedMin = new LiteralVectorProvider(Vector3.Zero);
+
+        /// <summary>Local space maximum initial speed of the particle in x y z.</summary>
         protected readonly IVectorProvider localCoordinateSystemSpeedMax = new LiteralVectorProvider(Vector3.Zero);
 
         public CreateWithinSphere(ParticleDefinitionParser parse) : base(parse)

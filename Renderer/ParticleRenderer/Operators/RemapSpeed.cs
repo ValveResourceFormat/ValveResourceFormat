@@ -34,7 +34,7 @@ namespace ValveResourceFormat.Renderer.Particles.Operators
                 var outputMin = this.outputMin.NextNumber(ref particle, particleSystemState);
                 var outputMax = this.outputMax.NextNumber(ref particle, particleSystemState);
 
-                var finalValue = MathUtils.RemapRange(particle.Speed, inputMin, inputMax, outputMin, outputMax);
+                var finalValue = MathUtils.RemapValClamped(particle.Speed, inputMin, inputMax, outputMin, outputMax);
                 finalValue = particle.ModifyScalarBySetMethod(particles, OutputField, finalValue, setMethod);
 
                 particle.SetScalar(OutputField, finalValue);

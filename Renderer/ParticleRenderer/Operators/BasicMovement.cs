@@ -3,6 +3,10 @@ namespace ValveResourceFormat.Renderer.Particles.Operators
     /// <summary>
     /// Moves particles each frame by integrating velocity, applying a gravity vector and an exponential drag factor.
     /// </summary>
+    /// <remarks>
+    /// "Movement Basic" in the particle editor — "basic" in the sense of fundamental rather than
+    /// simplistic: without it (or another movement operator) particles are spatially static.
+    /// </remarks>
     /// <seealso href="https://s2v.app/SchemaExplorer/cs2/particles/C_OP_BasicMovement">C_OP_BasicMovement</seealso>
     class BasicMovement : ParticleFunctionOperator
     {

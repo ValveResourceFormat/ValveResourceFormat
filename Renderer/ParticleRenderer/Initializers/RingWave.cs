@@ -3,6 +3,10 @@ namespace ValveResourceFormat.Renderer.Particles.Initializers
     /// <summary>
     /// Positions particles in a ring pattern around a transform, with configurable initial radius, thickness, and even or random angular distribution.
     /// </summary>
+    /// <remarks>
+    /// "Position Along Ring" in the particle editor. Like "Position Within Sphere Random", it can
+    /// also impart radial force to particles via the min/max initial speed.
+    /// </remarks>
     /// <seealso href="https://s2v.app/SchemaExplorer/cs2/particles/C_INIT_RingWave">C_INIT_RingWave</seealso>
     class RingWave : ParticleFunctionInitializer
     {
@@ -54,7 +58,7 @@ namespace ValveResourceFormat.Renderer.Particles.Initializers
         {
             if (evenDistribution)
             {
-                // -1 falls back to the collection's maximum particle count.
+                // -1 is the sentinel for using the collection's maximum particle count.
                 var perOrbit = Math.Max(1, particlesPerOrbit == -1 ? maxParticles : particlesPerOrbit);
 
                 var offset = orbitCount / perOrbit;

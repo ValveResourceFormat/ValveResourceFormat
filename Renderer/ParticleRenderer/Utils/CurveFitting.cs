@@ -14,7 +14,9 @@ namespace ValveResourceFormat.Renderer.Particles.Utils
 
         public float Evaluate(float x)
         {
-            return a + x * (b + x * (c + x * d));
+            // Coefficients are relative to the segment start
+            var t = x - Start.X;
+            return a + t * (b + t * (c + t * d));
         }
 
         public bool IsInCurve(float x)
@@ -174,7 +176,7 @@ namespace ValveResourceFormat.Renderer.Particles.Utils
             else
             {
                 // Find the two points that we want to interpolate between
-                for (var i = 0; i < CurveSegments.Length - 1; i++)
+                for (var i = 0; i < CurveSegments.Length; i++)
                 {
                     // If the coordinate is in between two points (the biggie!)
                     if (CurveSegments[i].IsInCurve(value))

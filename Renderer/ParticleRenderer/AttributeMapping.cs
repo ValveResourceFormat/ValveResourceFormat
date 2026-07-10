@@ -102,9 +102,13 @@ namespace ValveResourceFormat.Renderer.Particles
                     output0 = parse.Float("m_flOutput0");
                     output1 = parse.Float("m_flOutput1");
 
-                    // Only the input range is ordered; the outputs are lerp endpoints and may
-                    // deliberately descend (e.g. an emit rate ramping down over the system age).
-                    MathUtils.MinMaxFixUp(ref input0, ref input1);
+                    // Sort the input range, swapping the outputs with it so the authored
+                    // input->output pairing (which may deliberately descend) is preserved
+                    if (input0 > input1)
+                    {
+                        (input0, input1) = (input1, input0);
+                        (output0, output1) = (output1, output0);
+                    }
 
                     break;
 
@@ -158,7 +162,9 @@ namespace ValveResourceFormat.Renderer.Particles
                 case PfMapType.RemapBiased:
                     var remappedTo0_1RangeBiased = MathUtils.Remap(value, input0, input1);
 
-                    if (InputMode == PfInputMode.Looped) { remappedTo0_1RangeBiased = MathUtils.Fract(remappedTo0_1RangeBiased); }
+                    remappedTo0_1RangeBiased = InputMode == PfInputMode.Looped
+                        ? MathUtils.Fract(remappedTo0_1RangeBiased)
+                        : MathUtils.Saturate(remappedTo0_1RangeBiased);
 
                     // TODO: Insert bias processing here. Shared with randombiased mode in INumberProvider
 

@@ -44,16 +44,18 @@ namespace ValveResourceFormat.Renderer.Particles.Initializers
             var sampleTime = (particleSystemState.Age + offset) * noiseScale;
             var noise = Noise.Simplex1D((samplePosition.X * 0.7f) + (samplePosition.Y * 1.3f) + (samplePosition.Z * 2.1f) + sampleTime);
 
-            var normalized = absVal || absValInv
-                ? MathF.Abs(noise)
-                : (noise * 0.5f) + 0.5f;
+            // abs folds the signed noise into the full output range; otherwise the half-span
+            // scale centers it in the range. absValInv inverts either way.
+            var absScale = absVal ? 1f : 0.5f;
+            var normalized = absVal ? MathF.Abs(noise) : noise;
 
             if (absValInv)
             {
                 normalized = 1f - normalized;
             }
 
-            particle.SetScalar(fieldOutput, float.Lerp(outputMin, outputMax, normalized));
+            var span = outputMax - outputMin;
+            particle.SetScalar(fieldOutput, outputMin + ((1f - absScale) * span) + (absScale * span * normalized));
 
             return particle;
         }

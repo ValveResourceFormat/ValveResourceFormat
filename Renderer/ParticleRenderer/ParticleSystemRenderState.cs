@@ -135,6 +135,18 @@ namespace ValveResourceFormat.Renderer.Particles
         }
 
         /// <summary>
+        /// Set the full rotation of a control point, keeping its forward direction in sync.
+        /// </summary>
+        /// <param name="cp">Control point index.</param>
+        /// <param name="rotation">Full rotation to assign.</param>
+        public void SetControlPointRotation(int cp, Quaternion rotation)
+        {
+            var point = GetControlPoint(cp);
+            point.Rotation = rotation;
+            point.Orientation = Vector3.Transform(Vector3.UnitZ, rotation);
+        }
+
+        /// <summary>
         /// Return a random float in the range [flLow, flHigh). The distribution is uniform.
         /// </summary>
         internal static float RandomFloat(float flLow, float flHigh)
@@ -180,6 +192,36 @@ namespace ValveResourceFormat.Renderer.Particles
         /// </summary>
         public Quaternion? Rotation { get; set; }
 
+        /// <summary>
+        /// The control point's full rotation, using <see cref="Rotation"/> when present and otherwise
+        /// synthesizing a frame from the forward <see cref="Orientation"/> direction.
+        /// </summary>
+        public Quaternion GetRotation()
+        {
+            if (Rotation is { } rotation)
+            {
+                return rotation;
+            }
+
+            if (Orientation == Vector3.Zero)
+            {
+                return Quaternion.Identity;
+            }
+
+            var forward = Vector3.Normalize(Orientation);
+            var up = MathF.Abs(forward.Y) < 0.999f ? Vector3.UnitY : Vector3.UnitZ;
+            var right = Vector3.Normalize(Vector3.Cross(up, forward));
+            up = Vector3.Cross(forward, right);
+
+            var matrix = new Matrix4x4(
+                right.X, right.Y, right.Z, 0,
+                up.X, up.Y, up.Z, 0,
+                forward.X, forward.Y, forward.Z, 0,
+                0, 0, 0, 1
+            );
+
+            return Quaternion.CreateFromRotationMatrix(matrix);
+        }
 
         /// <summary>
         /// Different attachment styles.

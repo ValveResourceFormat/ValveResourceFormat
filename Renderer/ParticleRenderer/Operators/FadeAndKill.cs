@@ -3,6 +3,10 @@ namespace ValveResourceFormat.Renderer.Particles.Operators
     /// <summary>
     /// Fades a particle's alpha in over a configurable time window and then fades it out, killing the particle at the end of the fade-out.
     /// </summary>
+    /// <remarks>
+    /// "Alpha Fade and Decay" in the particle editor: essentially combines the operators
+    /// "Lifespan Decay", "Alpha Fade In Simple" and "Alpha Fade Out Simple".
+    /// </remarks>
     /// <seealso href="https://s2v.app/SchemaExplorer/cs2/particles/C_OP_FadeAndKill">C_OP_FadeAndKill</seealso>
     class FadeAndKill : ParticleFunctionOperator
     {
@@ -29,14 +33,15 @@ namespace ValveResourceFormat.Renderer.Particles.Operators
             foreach (ref var particle in particles.Current)
             {
                 var time = particle.NormalizedAge;
+                var initialAlpha = particle.GetInitialScalar(particles, ParticleField.Alpha);
 
                 // If fading in
                 if (time >= startFadeInTime && time <= endFadeInTime)
                 {
                     var blend = MathUtils.Remap(time, startFadeInTime, endFadeInTime);
 
-                    // Interpolate from startAlpha to constantAlpha
-                    particle.Alpha = float.Lerp(startAlpha, particle.GetInitialScalar(particles, ParticleField.Alpha), blend);
+                    // Interpolate from initialAlpha * startAlpha up to initialAlpha
+                    particle.Alpha = float.Lerp(initialAlpha * startAlpha, initialAlpha, blend);
                 }
 
                 // If fading out
@@ -44,8 +49,8 @@ namespace ValveResourceFormat.Renderer.Particles.Operators
                 {
                     var blend = MathUtils.Remap(time, startFadeOutTime, endFadeOutTime);
 
-                    // Interpolate from constantAlpha to end alpha
-                    particle.Alpha = float.Lerp(particle.GetInitialScalar(particles, ParticleField.Alpha), endAlpha, blend);
+                    // Interpolate from initialAlpha down to initialAlpha * endAlpha
+                    particle.Alpha = float.Lerp(initialAlpha, initialAlpha * endAlpha, blend);
                 }
 
                 if (time >= endFadeOutTime)

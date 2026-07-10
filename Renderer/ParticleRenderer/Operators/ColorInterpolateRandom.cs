@@ -41,7 +41,7 @@ namespace ValveResourceFormat.Renderer.Particles.Operators
                     }
 
                     // Interpolate from constant color to fade color
-                    particle.SetVector(FieldOutput, Vector3.Lerp(particle.GetInitialVector(particles, ParticleField.Color), newColor, t));
+                    particle.SetVector(FieldOutput, Vector3.Lerp(particle.GetInitialVector(particles, FieldOutput), newColor, t));
                 }
             }
         }
