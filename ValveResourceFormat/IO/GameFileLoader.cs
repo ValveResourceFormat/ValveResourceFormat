@@ -48,13 +48,13 @@ namespace ValveResourceFormat.IO
         private readonly Lock CachedShadersLock = new();
         private readonly HashSet<string> CurrentGameSearchPaths = [];
         private readonly HashSet<string> CurrentGameOfficialAddonsPaths = [];
+        private readonly HashSet<string> CurrentGameAddonsPaths = [];
         private readonly List<Package> CurrentGamePackages = [];
         private readonly string? CurrentFileName;
         private string? PreferredAddonFolderOnDisk;
         private bool ShaderPackagesScanned;
         private bool AttemptToLoadWorkshopDependencies;
         private bool StoredSurfacePropertyStringTokens;
-        private string? SteamVRDir;
 
         /// <summary>
         /// Gets or sets the current package being processed.
@@ -190,10 +190,11 @@ namespace ValveResourceFormat.IO
                         {
                             foreach (var (_, dependency) in dependencies)
                             {
-                                if (dependency.ToString() == "steamvr_home")
+                                uint addon = 0;
+                                bool workshopAddon = uint.TryParse((string?)dependency, out addon);
+                                if (workshopAddon == false)
                                 {
-                                    var svrHome = Path.Join((SteamVRDir + "_addons"), $"steamvr_home", $"pak01_dir.vpk");
-                                    AddPackageToSearch(svrHome);
+                                    FindAndLoadGameAddonPackage(dependency.ToString());
                                 }
                                 else
                                 {
@@ -440,6 +441,10 @@ namespace ValveResourceFormat.IO
                 else if (key == "OfficialAddonRoot")
                 {
                     CurrentGameOfficialAddonsPaths.Add(Path.Combine(gameRoot, searchPath.ToString()!));
+                }
+                else if (key == "AddonRoot")
+                {
+                    CurrentGameAddonsPaths.Add(Path.Combine(gameRoot, searchPath.ToString()!));
                 }
             }
         }
@@ -715,6 +720,43 @@ namespace ValveResourceFormat.IO
             }
         }
 
+        private void FindAndLoadGameAddonPackage(string fileName)
+        {
+            if (CurrentFileName == null || CurrentGameAddonsPaths.Count == 0)
+            {
+                return;
+            }
+
+            foreach (var addonPath in CurrentGameAddonsPaths)
+            {
+                var addonFolder = Path.Combine(addonPath, fileName);
+                if (!Directory.Exists(addonFolder))
+                {
+                    continue;
+                }
+
+                for (var i = 1; i < 99; i++)
+                {
+                    var vpk = Path.Combine(addonFolder, $"pak{i:D2}_dir.vpk");
+
+                    if (!File.Exists(vpk))
+                    {
+                        break;
+                    }
+
+                    if (CurrentFileName == vpk)
+                    {
+#if DEBUG_FILE_LOAD
+                        Console.WriteLine($"VPK \"{vpk}\" is the same we just opened, skipping");
+#endif
+                        continue;
+                    }
+
+                    AddPackageToSearch(vpk);
+                }
+            }
+        }
+
         private HashSet<string> FindGameFoldersForWorkshopFile()
         {
             // If we're loading a file from steamapps/workshop folder, attempt to discover gameinfos and load vpks for the game
@@ -799,7 +841,6 @@ namespace ValveResourceFormat.IO
             foreach (var gameInfo in gameInfos)
             {
                 var directory = Path.GetDirectoryName(gameInfo);
-                SteamVRDir = directory;
                 var modName = Path.GetFileName(directory);
                 var assumedGameRoot = Path.GetDirectoryName(directory)!;
 
