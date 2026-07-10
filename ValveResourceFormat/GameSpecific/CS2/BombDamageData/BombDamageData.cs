@@ -5,21 +5,44 @@ using ValveResourceFormat.Serialization.KeyValues;
 
 namespace ValveResourceFormat.GameSpecific.CS2.BombDamageData;
 
+/// <summary>
+/// Parsed data class for CS2 baked bomb damage data stored in baked_bomb_damage.vdata_c files.
+/// </summary>
 public class BombDamageData
 {
-    public BombDamageDataBombsite[] Bombsites { get; set; }
-    public Vector3[] Positions { get; set; }
-    public BombDamageDataDamageValue[] DamageValues { get; set; }
+    /// <summary>
+    /// Stores information about each bombsite on the map, such as AABB and bomb power.
+    /// </summary>
+    public BombDamageDataBombsite[] Bombsites { get; set; } = [];
+    /// <summary>
+    /// Contains points on the map that have associated baked damage information.
+    /// </summary>
+    public Vector3[] Positions { get; set; } = [];
+    /// <summary>
+    /// Contains baked damage information, such as yaw, angle, and phase. The length of this array should be equal to the number of positions multiplied by the number of bombsites.
+    /// To retreive the damage information for a given position and bombsite, use <see cref="GetBombsiteDamageValue(int, int)"/>.
+    /// </summary>
+    public BombDamageDataDamageValue[] DamageValues { get; set; } = [];
 
+    /// <summary>
+    /// Parses a baked bomb damage file.
+    /// </summary>
+    /// <param name="resource">The baked_bomb_damage.vdata_c file to parse.</param>
+    /// <exception cref="ArgumentException">Thrown if <paramref name="resource"/> is not a valid baked bomb damage file.</exception>
+    /// <exception cref="UnexpectedMagicException">Thrown if version of baked damage data stored in <paramref name="resource"/> is unexpected.</exception>
     public void Read(Resource resource)
     {
-        var dataBlock = (BinaryKV3?)resource.DataBlock;
-        if (dataBlock == null)
+        if (resource.DataBlock is not BinaryKV3 dataBlock)
         {
-            throw new ArgumentNullException("resource.DataBlock");
+            throw new ArgumentException("Resource provided does not contain a binary KV3 data block.", nameof(resource));
         }
 
         var kvRoot = dataBlock.Data.Root;
+        if (!kvRoot.ContainsKey("header") || !kvRoot.ContainsKey("data"))
+        {
+            throw new ArgumentException("Resource provided does not contain expected KV3 data structure.", nameof(resource));
+        }
+
         var header = kvRoot.GetSubCollection("header");
         var version = header.GetInt32Property("version");
         if (version != 1)
@@ -28,6 +51,11 @@ public class BombDamageData
         }
 
         var data = kvRoot.GetSubCollection("data");
+        if (!data.ContainsKey("bombsites") || !data.ContainsKey("positions") || !data.ContainsKey("damage_values"))
+        {
+            throw new ArgumentException("Resource provided does not contain expected KV3 data structure.", nameof(resource));
+        }
+
         var bombsites = data["bombsites"].AsBlob();
         var positions = data["positions"].AsBlob();
         var damageValues = data["damage_values"].AsBlob();
@@ -37,9 +65,23 @@ public class BombDamageData
         ReadDamageValues(damageValues);
     }
 
+    /// <summary>
+    /// Returns the damage information for a given position and bombsite.
+    /// </summary>
+    /// <param name="positionIndex">Position index to retrieve damage information for.</param>
+    /// <param name="bombsiteIndex">Bombsite index to retrieve damage information for. Index 0 is not guaranteed to be bombsite A.</param>
+    /// <exception cref="ArgumentOutOfRangeException">Thrown if <paramref name="positionIndex"/> or <paramref name="bombsiteIndex"/> are out of range (see <seealso cref="Positions"/> and <seealso cref="Bombsites"/>).</exception>
+    /// <returns></returns>
     public BombDamageDataDamageValue GetBombsiteDamageValue(int positionIndex, int bombsiteIndex)
     {
-        //return DamageValues[positionIndex * Bombsites.Length + bombsiteIndex];
+        if (bombsiteIndex < 0 || bombsiteIndex >= Bombsites.Length)
+        {
+            throw new ArgumentOutOfRangeException(nameof(bombsiteIndex), $"Bombsite index is out of range.");
+        }
+        if (positionIndex < 0 || positionIndex >= Positions.Length)
+        {
+            throw new ArgumentOutOfRangeException(nameof(positionIndex), $"Position index is out of range.");
+        }
         return DamageValues[Positions.Length * bombsiteIndex + positionIndex];
     }
 
@@ -109,15 +151,14 @@ public class BombDamageData
         var reader = BlobToReader(blob);
         for (var i = 0; i < damageValueCount; i++)
         {
-            var distanceUnk1 = reader.ReadByte();
-            var distanceUnk2 = reader.ReadByte();
+            var phaseFract = reader.ReadByte() / 255.0f;
+            var phase = reader.ReadByte();
             var yaw = reader.ReadByte();
             var pitch = reader.ReadByte();
 
             DamageValues[i] = new BombDamageDataDamageValue
             {
-                DistanceUnk1 = distanceUnk1,
-                DistanceUnk2 = distanceUnk2,
+                Phase = phase + phaseFract,
                 Yaw = yaw * 360.0f / 255.0f,
                 Pitch = pitch * 360.0f / 255.0f
             };

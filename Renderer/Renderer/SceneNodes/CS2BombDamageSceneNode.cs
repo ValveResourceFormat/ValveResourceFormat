@@ -7,23 +7,23 @@ using ValveResourceFormat.GameSpecific.CS2.BombDamageData;
 
 namespace ValveResourceFormat.Renderer.SceneNodes;
 
+/// <summary>
+/// Scene node visualizing CS2 baked bomb damage data.
+/// </summary>
 public class CS2BombDamageSceneNode : SceneNode
 {
-    private RenderTexture renderTexture;
+    private const float HalfQuadSize = 12.0f;
 
-    private const float QuadSize = 12.0f;
-    private const float HalfQuadSize = QuadSize / 2.0f;
+    private static readonly Vector3[] VertexOffsets =
+    [
+        new(-HalfQuadSize, -HalfQuadSize, 0.0f),
+        new(HalfQuadSize, -HalfQuadSize, 0.0f),
+        new(HalfQuadSize, HalfQuadSize, 0.0f),
+        new(-HalfQuadSize, HalfQuadSize, 0.0f),
+    ];
 
-    private static Vector3[] VertexOffsets =
-    {
-        new Vector3(-HalfQuadSize, -HalfQuadSize, 0.0f),
-        new Vector3(HalfQuadSize, -HalfQuadSize, 0.0f),
-        new Vector3(HalfQuadSize, HalfQuadSize, 0.0f),
-        new Vector3(-HalfQuadSize, HalfQuadSize, 0.0f),
-    };
-
-    /// <summary>Gets the shader used to render this shape.</summary>
-    protected Shader shader { get; init; }
+    private readonly Shader shader;
+    private readonly RenderTexture renderTexture;
     private readonly int vaoHandle;
     private readonly int vboHandle;
     private readonly int iboHandle;
@@ -39,7 +39,7 @@ public class CS2BombDamageSceneNode : SceneNode
     private Vector3 boundsMin;
     private Vector3 boundsMax;
 
-    private DateTime creationTime;
+    private readonly DateTime creationTime;
 
     [StructLayout(LayoutKind.Explicit, Size = VertexSize)]
     private struct VertexFormat
@@ -54,6 +54,12 @@ public class CS2BombDamageSceneNode : SceneNode
         public float Phase;
     }
 
+    /// <summary>
+    /// Initializes a baked bomb damage visualization scene node for a specific bombsite.
+    /// </summary>
+    /// <param name="scene">The scene this node belongs to.</param>
+    /// <param name="bombDamageData">Baked bomb damage data.</param>
+    /// <param name="bombsiteIndex">Index of the bombsite. Index 0 is not guaranteed to be bombsite A.</param>
     public CS2BombDamageSceneNode(Scene scene, BombDamageData bombDamageData, int bombsiteIndex) : base(scene)
     {
         creationTime = DateTime.Now;
@@ -67,14 +73,14 @@ public class CS2BombDamageSceneNode : SceneNode
         iboHandle = buffers[0];
         vboHandle = buffers[1];
 
-        LayerName = $"Bombsite {(char)('A' + bombsiteIndex)} baked damage data";
+        LayerName = $"Bombsite {bombsiteIndex} baked damage data";
 
         InitializeVAO(shader.Program);
         Initialize(bombDamageData, bombsiteIndex);
-        InitializeTexture();
+        renderTexture = InitializeTexture();
     }
 
-    private void InitializeTexture()
+    private RenderTexture InitializeTexture()
     {
         using var stream = Assembly.GetExecutingAssembly().GetManifestResourceStream($"Renderer.Resources.arrow.vtex_c");
         using var resource = new Resource()
@@ -85,8 +91,9 @@ public class CS2BombDamageSceneNode : SceneNode
         Debug.Assert(stream != null);
         resource.Read(stream);
 
-        renderTexture = Scene.RendererContext.MaterialLoader.LoadTexture(resource, isViewerRequest: true);
+        var renderTexture = Scene.RendererContext.MaterialLoader.LoadTexture(resource, isViewerRequest: true);
         renderTexture.SetWrapMode(TextureWrapMode.Clamp);
+        return renderTexture;
     }
 
     private void InitializeVAO(int shaderProgram)
@@ -153,42 +160,43 @@ public class CS2BombDamageSceneNode : SceneNode
 #endif
     }
 
+    private void AddFaceIndices(int[] indices, ref int indicesCount, int baseFaceIndex)
+    {
+        indices[indicesCount++] = baseFaceIndex + 0;
+        indices[indicesCount++] = baseFaceIndex + 1;
+        indices[indicesCount++] = baseFaceIndex + 2;
+        indices[indicesCount++] = baseFaceIndex + 0;
+        indices[indicesCount++] = baseFaceIndex + 2;
+        indices[indicesCount++] = baseFaceIndex + 3;
+    }
+
     private void AddFace(VertexFormat[] vertices, ref int verticesCount, int[] indices, ref int indicesCount, BombDamageData bombDamageData, int bombPositionIndex, int bombsiteIndex)
     {
         var basePosition = bombDamageData.Positions[bombPositionIndex];
         var damage = bombDamageData.GetBombsiteDamageValue(bombPositionIndex, bombsiteIndex);
 
-        var phase = damage.DistanceUnk1 / 255.0f + damage.DistanceUnk2;
-
         var color = GetFaceColor(damage);
 
-        indices[indicesCount++] = verticesCount + 0;
-        indices[indicesCount++] = verticesCount + 1;
-        indices[indicesCount++] = verticesCount + 2;
-        indices[indicesCount++] = verticesCount + 0;
-        indices[indicesCount++] = verticesCount + 2;
-        indices[indicesCount++] = verticesCount + 3;
+        AddFaceIndices(indices, ref indicesCount, verticesCount);
 
-        var rotation = Quaternion.CreateFromAxisAngle(Vector3.UnitZ, float.DegreesToRadians(damage.Yaw)) * Quaternion.CreateFromAxisAngle(Vector3.UnitY, float.DegreesToRadians(damage.Pitch));
+        var yawRad = float.DegreesToRadians(damage.Yaw);
+        var pitchRad = float.DegreesToRadians(damage.Pitch);
+        var rotation = Quaternion.CreateFromAxisAngle(Vector3.UnitZ, yawRad) * Quaternion.CreateFromAxisAngle(Vector3.UnitY, pitchRad);
+
         Span<Vector3> faceVertices = stackalloc Vector3[4];
         VertexOffsets.AsSpan().CopyTo(faceVertices);
-        RotateVectors(faceVertices, rotation);
-
-        AddVertex(vertices, ref verticesCount, indices, ref indicesCount, basePosition + faceVertices[0], Vector2.Zero, color, phase);
-        AddVertex(vertices, ref verticesCount, indices, ref indicesCount, basePosition + faceVertices[1], Vector2.UnitX, color, phase);
-        AddVertex(vertices, ref verticesCount, indices, ref indicesCount, basePosition + faceVertices[2], Vector2.One, color, phase);
-        AddVertex(vertices, ref verticesCount, indices, ref indicesCount, basePosition + faceVertices[3], Vector2.UnitY, color, phase);
-    }
-
-    private static void RotateVectors(Span<Vector3> vectors, Quaternion quaternion)
-    {
-        for (var i = 0; i < vectors.Length; i++)
+        for (var i = 0; i < faceVertices.Length; i++)
         {
-            vectors[i] = Vector3.Transform(vectors[i], quaternion);
+            faceVertices[i] = Vector3.Transform(faceVertices[i], rotation);
         }
+
+        AddVertex(vertices, ref verticesCount, basePosition + faceVertices[0], Vector2.Zero, color, damage.Phase);
+        AddVertex(vertices, ref verticesCount, basePosition + faceVertices[1], Vector2.UnitX, color, damage.Phase);
+        AddVertex(vertices, ref verticesCount, basePosition + faceVertices[2], Vector2.One, color, damage.Phase);
+        AddVertex(vertices, ref verticesCount, basePosition + faceVertices[3], Vector2.UnitY, color, damage.Phase);
     }
 
-    private void AddVertex(VertexFormat[] vertices, ref int verticesCount, int[] indices, ref int indicesCount, Vector3 position, Vector2 uvs, int color, float phase)
+    private void AddVertex(VertexFormat[] vertices, ref int verticesCount, Vector3 position, Vector2 uvs, int color, float phase)
     {
         boundsMax = Vector3.Max(boundsMax, position);
         boundsMin = Vector3.Min(boundsMin, position);
@@ -201,7 +209,7 @@ public class CS2BombDamageSceneNode : SceneNode
 
     private static int GetFaceColor(BombDamageDataDamageValue damage)
     {
-        if (damage.DistanceUnk1 + damage.DistanceUnk2 == 0)
+        if (damage.Phase == 0.0f)
         {
             return RGBAColor(255, 255, 255, 255);
         }
@@ -216,15 +224,16 @@ public class CS2BombDamageSceneNode : SceneNode
         return a << 24 | b << 16 | g << 8 | r << 0;
     }
 
+    /// <inheritdoc/>
     public override void Render(Scene.RenderContext context)
     {
         GL.Disable(EnableCap.DepthTest);
-
-        GL.BindVertexArray(vaoHandle);
-        GL.Enable(EnableCap.Blend);
         GL.Disable(EnableCap.CullFace);
+
+        GL.Enable(EnableCap.Blend);
         GL.BlendFunc(BlendingFactor.SrcAlpha, BlendingFactor.OneMinusSrcAlpha);
 
+        GL.BindVertexArray(vaoHandle);
         var renderShader = context.ReplacementShader ?? shader;
         renderShader.Use();
         var time = (float)(DateTime.Now - creationTime).TotalSeconds;
@@ -234,10 +243,11 @@ public class CS2BombDamageSceneNode : SceneNode
 
         GL.DrawElementsInstancedBaseInstance(PrimitiveType.Triangles, indicesCount, DrawElementsType.UnsignedInt, 0, 1, Id);
 
-        GL.Enable(EnableCap.CullFace);
         GL.UseProgram(0);
         GL.BindVertexArray(0);
+
         GL.Enable(EnableCap.DepthTest);
+        GL.Enable(EnableCap.CullFace);
     }
 
     /// <summary>
