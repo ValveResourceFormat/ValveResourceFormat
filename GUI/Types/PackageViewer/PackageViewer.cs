@@ -111,6 +111,8 @@ namespace GUI.Types.PackageViewer
             TreeView.OpenContextMenu += VPK_OnContextMenu;
             TreeView.PreviewFile += VPK_PreviewFile;
             TreeView.PreviewCleared += VPK_PreviewCleared;
+            TreeView.PreviewFocused += VPK_PreviewFocused;
+            TreeView.PreviewBlurred += VPK_PreviewBlurred;
             TreeView.Disposed += VPK_Disposed;
         }
 
@@ -589,6 +591,8 @@ namespace GUI.Types.PackageViewer
                 treeViewWithSearch.OpenContextMenu -= VPK_OnContextMenu;
                 treeViewWithSearch.PreviewFile -= VPK_PreviewFile;
                 treeViewWithSearch.PreviewCleared -= VPK_PreviewCleared;
+                treeViewWithSearch.PreviewFocused -= VPK_PreviewFocused;
+                treeViewWithSearch.PreviewBlurred -= VPK_PreviewBlurred;
                 treeViewWithSearch.Disposed -= VPK_Disposed;
                 TreeView = null;
                 LastContextTreeNode = null;
@@ -610,6 +614,16 @@ namespace GUI.Types.PackageViewer
         {
             // A folder is shown instead of a file preview, so the window title should no longer reflect a file.
             Program.MainForm.ResetPreviewTitle();
+        }
+
+        private void VPK_PreviewFocused(object? sender, TabPage previewTab)
+        {
+            Program.MainForm.ShowPreviewKeybindings(previewTab);
+        }
+
+        private void VPK_PreviewBlurred(object? sender, EventArgs e)
+        {
+            Program.MainForm.ShowSelectedTabKeybindings();
         }
 
         private void VPK_PreviewFile(object? sender, PackageEntry entry)

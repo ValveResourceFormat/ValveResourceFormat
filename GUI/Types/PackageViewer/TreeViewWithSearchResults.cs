@@ -74,6 +74,8 @@ namespace GUI.Types.PackageViewer
 
         // Raised when the file list (a folder) is shown, i.e. no file is being previewed anymore.
         public event EventHandler? PreviewCleared;
+        public event EventHandler<TabPage>? PreviewFocused;
+        public event EventHandler? PreviewBlurred;
 
         private readonly NavigationHistory navigationHistory = new();
         private bool suppressHistoryRecording;
@@ -1532,6 +1534,9 @@ namespace GUI.Types.PackageViewer
             tabs.Controls.Add(tab);
             parentControl.Controls.Add(tabs);
 
+            tabs.Enter += PreviewControl_Enter;
+            tabs.Leave += PreviewControl_Leave;
+
             currentPreviewType = typeName;
 
             foreach (Control old in parentControl.Controls)
@@ -1544,6 +1549,16 @@ namespace GUI.Types.PackageViewer
                 old.Dispose();
             }
         }
+
+        private void PreviewControl_Enter(object? sender, EventArgs e)
+        {
+            if (sender is TabControl { SelectedTab: { } tab })
+            {
+                PreviewFocused?.Invoke(this, tab);
+            }
+        }
+
+        private void PreviewControl_Leave(object? sender, EventArgs e) => PreviewBlurred?.Invoke(this, EventArgs.Empty);
 
         /// <summary>
         /// Whether the given file type is the one currently shown in the preview area, in which case the previous view

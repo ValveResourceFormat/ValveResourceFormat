@@ -521,6 +521,20 @@ namespace GUI
             mainFormBottomPanel.UpdateKeybindings(keybindings);
         }
 
+        /// <summary>
+        /// Shows the keybindings for a previewed viewer
+        /// </summary>
+        public void ShowPreviewKeybindings(TabPage previewTab)
+        {
+            var keybindings = KeybindingRegistry.GetKeybindingsForViewer(KeybindingRegistry.GetViewerTypeFromTab(previewTab));
+            mainFormBottomPanel.UpdateKeybindings(keybindings);
+        }
+
+        /// <summary>
+        /// Shows the keybindings of the selected tab.
+        /// </summary>
+        public void ShowSelectedTabKeybindings() => UpdateBottomPanelKeybindings();
+
         private void CloseAndReOpenActiveTab()
         {
             var tab = mainTabs.SelectedTab;
