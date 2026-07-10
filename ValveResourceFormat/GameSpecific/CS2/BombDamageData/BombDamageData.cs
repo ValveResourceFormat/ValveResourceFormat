@@ -8,7 +8,7 @@ namespace ValveResourceFormat.GameSpecific.CS2.BombDamageData;
 public class BombDamageData
 {
     public BombDamageDataBombsite[] Bombsites { get; set; }
-    public BombDamageDataPosition[] Positions { get; set; }
+    public Vector3[] Positions { get; set; }
     public BombDamageDataDamageValue[] DamageValues { get; set; }
 
     public void Read(Resource resource)
@@ -84,7 +84,7 @@ public class BombDamageData
             return;
         }
 
-        Positions = new BombDamageDataPosition[positionCount];
+        Positions = new Vector3[positionCount];
         var reader = BlobToReader(blob);
         for (var i = 0; i < positionCount; i++)
         {
@@ -92,10 +92,7 @@ public class BombDamageData
             var y = reader.ReadInt16();
             var z = reader.ReadInt16();
 
-            Positions[i] = new BombDamageDataPosition
-            {
-                Position = new Vector3(x, y, z),
-            };
+            Positions[i] = new Vector3(x, y, z);
         }
     }
 
@@ -114,15 +111,15 @@ public class BombDamageData
         {
             var distanceUnk1 = reader.ReadByte();
             var distanceUnk2 = reader.ReadByte();
-            var unk3 = reader.ReadByte();
-            var unk4 = reader.ReadByte();
+            var yaw = reader.ReadByte();
+            var pitch = reader.ReadByte();
 
             DamageValues[i] = new BombDamageDataDamageValue
             {
                 DistanceUnk1 = distanceUnk1,
                 DistanceUnk2 = distanceUnk2,
-                Yaw = unk3,
-                Pitch = unk4
+                Yaw = yaw * 360.0f / 255.0f,
+                Pitch = pitch * 360.0f / 255.0f
             };
         }
     }

@@ -1371,12 +1371,12 @@ namespace ValveResourceFormat.Renderer.World
                 {
                     BombDamageData = new BombDamageData();
                     BombDamageData.Read(bombDamageFile);
-                    RendererContext.Logger.LogInformation("CS2 baked bomb damage data from '{NavFilePath}'", bombDamagePath);
+                    RendererContext.Logger.LogInformation("CS2 baked bomb damage data from '{BakedBombDamagePath}'", bombDamagePath);
                 }
             }
             catch (Exception e)
             {
-                RendererContext.Logger.LogError(e, "Couldn't load CS2 baked bomb damage data from '{NavFilePath}'", bombDamagePath);
+                RendererContext.Logger.LogError(e, "Couldn't load CS2 baked bomb damage data from '{BakedBombDamagePath}'", bombDamagePath);
             }
         }
 

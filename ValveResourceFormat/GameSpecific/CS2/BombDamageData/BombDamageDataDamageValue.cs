@@ -4,6 +4,6 @@ public struct BombDamageDataDamageValue
 {
     public byte DistanceUnk1 { get; set; }
     public byte DistanceUnk2 { get; set; }
-    public byte Yaw { get; set; }
-    public byte Pitch { get; set; }
+    public float Yaw { get; set; }
+    public float Pitch { get; set; }
 }
