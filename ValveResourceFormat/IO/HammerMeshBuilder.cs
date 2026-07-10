@@ -648,6 +648,7 @@ namespace ValveResourceFormat.IO
                  || deletedIndices.Contains(inds[1])
                  || deletedIndices.Contains(inds[2]))
                 {
+                    removed++;
                     continue;
                 }
 
