@@ -1954,6 +1954,7 @@ namespace GUI.Types.PackageViewer
                 ThumbnailRenderQueue.CompleteAdding();
                 ThumbnailRenderQueue.Dispose();
                 RenderLoopCancelationTokenSource.Dispose();
+                PreviewTokenSource?.Dispose();
 
                 foreach (var renderer in ThumbnailRenderers.Values)
                 {
