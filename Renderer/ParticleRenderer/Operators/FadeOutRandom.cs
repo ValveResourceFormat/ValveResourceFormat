@@ -3,6 +3,10 @@ namespace ValveResourceFormat.Renderer.Particles.Operators
     /// <summary>
     /// Fades a particle's alpha out over a per-particle randomly chosen duration drawn from a min/max range, with an optional bias curve applied to the fade.
     /// </summary>
+    /// <remarks>
+    /// "Alpha Fade Out Random" in the particle editor. Unlike "Alpha Fade Out Simple", the range
+    /// can be defined in seconds rather than a fraction of the lifespan by turning proportional off.
+    /// </remarks>
     class FadeOutRandom : CGeneralRandomFade
     {
         private readonly float fadeBias = 0.5f;

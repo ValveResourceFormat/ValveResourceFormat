@@ -8,6 +8,10 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
     /// Renders particles as camera-facing or orientation-aligned textured quads (sprites),
     /// with support for sprite sheet animation, blend modes, and per-particle color and alpha.
     /// </summary>
+    /// <remarks>
+    /// The workhorse renderer used by most effects. Multi-frame sequences can be animated or
+    /// used to provide visual variation.
+    /// </remarks>
     /// <seealso href="https://s2v.app/SchemaExplorer/cs2/particles/C_OP_RenderSprites">C_OP_RenderSprites</seealso>
     internal class RenderSprites : ParticleFunctionRenderer
     {

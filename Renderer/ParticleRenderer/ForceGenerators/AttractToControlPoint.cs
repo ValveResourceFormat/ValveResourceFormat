@@ -4,6 +4,10 @@ namespace ValveResourceFormat.Renderer.Particles.ForceGenerators;
 /// Applies a gravitational pull force toward a control point, with configurable strength
 /// and distance-based falloff power.
 /// </summary>
+/// <remarks>
+/// "Pull Towards Control Point" in the particle editor. Can also be used to repel particles
+/// by using negative values for the amount of force.
+/// </remarks>
 /// <seealso href="https://s2v.app/SchemaExplorer/cs2/particles/C_OP_AttractToControlPoint">C_OP_AttractToControlPoint</seealso>
 class AttractToControlPoint : ParticleFunctionForceGenerator
 {

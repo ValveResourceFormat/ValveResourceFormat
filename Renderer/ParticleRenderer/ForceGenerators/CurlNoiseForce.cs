@@ -8,6 +8,8 @@ namespace ValveResourceFormat.Renderer.Particles.ForceGenerators;
 class CurlNoiseForce : ParticleFunctionForceGenerator
 {
     private readonly IVectorProvider NoiseFrequency = new LiteralVectorProvider(new Vector3(0.02f));
+
+    /// <summary>Amplitude of the noise.</summary>
     private readonly IVectorProvider NoiseScale = new LiteralVectorProvider(new Vector3(1000f));
     private readonly INumberProvider Strength = new LiteralNumberProvider(1.0f);
 

@@ -1,9 +1,12 @@
 namespace ValveResourceFormat.Renderer.Particles.Operators
 {
     /// <summary>
-    /// Locks particle positions to follow a transform input, optionally updating a previous position
-    /// output field and locking orientation to the transform.
+    /// Causes particles to inherit the movement (and optionally rotation) of a transform input,
+    /// optionally updating a previous position output field.
     /// </summary>
+    /// <remarks>
+    /// "Movement Lock to Control Point" in the particle editor.
+    /// </remarks>
     /// <seealso href="https://s2v.app/SchemaExplorer/cs2/particles/C_OP_PositionLock">C_OP_PositionLock</seealso>
     class PositionLock : ParticleFunctionOperator
     {

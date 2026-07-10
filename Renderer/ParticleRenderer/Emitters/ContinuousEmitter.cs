@@ -1,15 +1,21 @@
 namespace ValveResourceFormat.Renderer.Particles.Emitters
 {
     /// <summary>
-    /// Emits particles continuously at a fixed rate over an optional duration window.
+    /// Emits particles at the specified rate over time. By default (a duration of 0), the emitter
+    /// continues to emit forever.
     /// </summary>
     /// <seealso href="https://s2v.app/SchemaExplorer/cs2/particles/C_OP_ContinuousEmitter">C_OP_ContinuousEmitter</seealso>
     class ContinuousEmitter : ParticleFunctionEmitter
     {
         public override bool IsFinished { get; protected set; }
 
+        /// <summary>Length of time to continue emitting particles (seconds).</summary>
         private readonly INumberProvider emissionDuration = new LiteralNumberProvider(0);
+
+        /// <summary>Time at which to begin emitting particles (seconds).</summary>
         private readonly INumberProvider startTime = new LiteralNumberProvider(0);
+
+        /// <summary>Number of particles to spawn (per second).</summary>
         private readonly INumberProvider emitRate = new LiteralNumberProvider(100);
 
         private Action? particleEmitCallback;

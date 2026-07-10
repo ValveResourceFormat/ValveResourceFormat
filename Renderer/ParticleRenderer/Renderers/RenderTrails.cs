@@ -7,6 +7,11 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
     /// Renders particles as trail segments stretched between the particle's current and previous
     /// positions, with configurable length, fade-in, texture scaling, and blend modes.
     /// </summary>
+    /// <remarks>
+    /// Trails are sprites that stretch based on their speed over time. Traditional use cases
+    /// include bullet tracers and sparks; they are also useful when particles need to be oriented
+    /// in 3D space, which regular sprites handle poorly.
+    /// </remarks>
     /// <seealso href="https://s2v.app/SchemaExplorer/cs2/particles/C_OP_RenderTrails">C_OP_RenderTrails</seealso>
     internal class RenderTrails : ParticleFunctionRenderer
     {

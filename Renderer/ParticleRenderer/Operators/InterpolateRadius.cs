@@ -5,6 +5,10 @@ namespace ValveResourceFormat.Renderer.Particles.Operators
     /// specified time window of the particle's normalized lifetime, with an optional bias applied
     /// to the interpolation curve.
     /// </summary>
+    /// <remarks>
+    /// "Radius Scale" in the particle editor. Multiple instances can be used in one effect as
+    /// long as their time windows don't overlap.
+    /// </remarks>
     /// <seealso href="https://s2v.app/SchemaExplorer/cs2/particles/C_OP_InterpolateRadius">C_OP_InterpolateRadius</seealso>
     class InterpolateRadius : ParticleFunctionOperator
     {
