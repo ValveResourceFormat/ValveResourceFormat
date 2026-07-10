@@ -1,12 +1,16 @@
 using System;
 using System.Drawing;
+using System.IO;
 using System.Windows.Forms;
+using GUI.Types.PackageViewer;
 using GUI.Utils;
 
 namespace GUI.Controls
 {
     partial class LoadingFile : UserControl
     {
+        private Bitmap? iconBitmap;
+
         public LoadingFile(string? fileName = null)
         {
             InitializeComponent();
@@ -18,6 +22,7 @@ namespace GUI.Controls
             if (!string.IsNullOrEmpty(fileName))
             {
                 label1.Text = fileName;
+                AddLargeIcon(fileName);
             }
 
             // The panel auto-sizes to fit the file name label. Anchor=None only keeps it centered when the
@@ -42,6 +47,28 @@ namespace GUI.Controls
             {
                 tableLayoutPanel1.Location = location;
             }
+        }
+
+        // Show the file-type icon large (the same SVG icon the grid view uses), above the file name.
+        private void AddLargeIcon(string fileName)
+        {
+            var typeName = Path.GetExtension(fileName).TrimStart('.').ToLowerInvariant();
+            iconBitmap = TreeViewWithSearchResults.GetTypeIconBitmap(typeName, this.AdjustForDPI(72));
+
+            var iconBox = new PictureBox
+            {
+                Image = iconBitmap,
+                SizeMode = PictureBoxSizeMode.AutoSize,
+                Anchor = AnchorStyles.None,
+                Margin = new Padding(4, 0, 4, 8),
+            };
+
+            // Insert a new top row for the icon and push the label/progress bar down into the rows below it.
+            tableLayoutPanel1.RowCount = 3;
+            tableLayoutPanel1.RowStyles.Insert(0, new RowStyle(SizeType.AutoSize));
+            tableLayoutPanel1.SetRow(label1, 1);
+            tableLayoutPanel1.SetRow(progressBar1, 2);
+            tableLayoutPanel1.Controls.Add(iconBox, 0, 0);
         }
 
         protected override void OnCreateControl()

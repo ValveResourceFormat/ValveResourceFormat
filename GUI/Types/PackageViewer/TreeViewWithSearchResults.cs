@@ -689,6 +689,17 @@ namespace GUI.Types.PackageViewer
             return "File";
         }
 
+        /// <summary>
+        /// Renders the file-type SVG icon at the given size — the same icon the grid view falls back to when a
+        /// file has no rendered thumbnail.
+        /// </summary>
+        internal static Bitmap GetTypeIconBitmap(string typeName, int size)
+        {
+            var svg = MainForm.ExtensionSVGS.GetValueOrDefault(ResolveExtension(typeName))
+                ?? MainForm.ExtensionSVGS.GetValueOrDefault("File");
+            return Themer.SvgToBitmap(svg!, size, size);
+        }
+
         private ImageList InitThumbnailImageList()
         {
             var currentThumbnailSize = (int)CurrentThumbnailSizes;
@@ -1756,11 +1767,8 @@ namespace GUI.Types.PackageViewer
 
                 if (!BigIconImageCache.TryGetValue(extension, out var iconImageCacheEntry) || iconImageCacheEntry == null)
                 {
-                    MainForm.ExtensionSVGS.TryGetValue(extension, out var svgFile);
-                    svgFile ??= MainForm.ExtensionSVGS.GetValueOrDefault("File");
-
 #pragma warning disable CA2000 // Bitmap lifetime is managed by ImageList, when ImageList is disposed it disposes all images too
-                    var bitmap = Themer.SvgToBitmap(svgFile!, currentThumbnailSizeInt, currentThumbnailSizeInt);
+                    var bitmap = GetTypeIconBitmap(entry.TypeName, currentThumbnailSizeInt);
 
                     lock (ImageListLock)
                     {
