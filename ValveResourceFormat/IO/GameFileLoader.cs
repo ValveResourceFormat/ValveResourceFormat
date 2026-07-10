@@ -54,7 +54,7 @@ namespace ValveResourceFormat.IO
         private bool ShaderPackagesScanned;
         private bool AttemptToLoadWorkshopDependencies;
         private bool StoredSurfacePropertyStringTokens;
-        private string SteamVRDir;
+        private string? SteamVRDir;
 
         /// <summary>
         /// Gets or sets the current package being processed.
