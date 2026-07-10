@@ -68,10 +68,11 @@ public class CS2BombDamageSceneNode : SceneNode
 
         GL.CreateVertexArrays(1, out vaoHandle);
 
-        var buffers = new int[2];
+        var buffers = ArrayPool<int>.Shared.Rent(2);
         GL.CreateBuffers(buffers.Length, buffers);
         iboHandle = buffers[0];
         vboHandle = buffers[1];
+        ArrayPool<int>.Shared.Return(buffers);
 
         LayerName = $"Bombsite {bombsiteIndex} baked damage data";
 
@@ -134,33 +135,41 @@ public class CS2BombDamageSceneNode : SceneNode
         var vertices = ArrayPool<VertexFormat>.Shared.Rent(bombDamageData.Positions.Length * 4);
         var indices = ArrayPool<int>.Shared.Rent(bombDamageData.Positions.Length * 6);
 
-        var verticesCount = 0;
-        for (var i = 0; i < bombDamageData.Positions.Length; i++)
+        try
         {
-            if (verticesCount == 0)
+            var verticesCount = 0;
+            for (var i = 0; i < bombDamageData.Positions.Length; i++)
             {
-                boundsMin = boundsMax = bombDamageData.Positions[i];
+                if (verticesCount == 0)
+                {
+                    boundsMin = boundsMax = bombDamageData.Positions[i];
+                }
+                AddFace(vertices, ref verticesCount, indices, ref indicesCount, bombDamageData, i, bombsiteIndex);
             }
-            AddFace(vertices, ref verticesCount, indices, ref indicesCount, bombDamageData, i, bombsiteIndex);
-        }
 
-        BoundingBox = new AABB(boundsMin, boundsMax);
+            BoundingBox = new AABB(boundsMin, boundsMax);
 
-        GL.VertexArrayVertexBuffer(vaoHandle, 0, vboHandle, 0, VertexSize);
-        GL.NamedBufferData(vboHandle, verticesCount * VertexSize, vertices, BufferUsageHint.StaticDraw);
+            GL.VertexArrayVertexBuffer(vaoHandle, 0, vboHandle, 0, VertexSize);
+            GL.NamedBufferData(vboHandle, verticesCount * VertexSize, vertices, BufferUsageHint.StaticDraw);
 
-        GL.VertexArrayElementBuffer(vaoHandle, iboHandle);
-        GL.NamedBufferData(iboHandle, indicesCount * sizeof(int), indices, BufferUsageHint.StaticDraw);
+            GL.VertexArrayElementBuffer(vaoHandle, iboHandle);
+            GL.NamedBufferData(iboHandle, indicesCount * sizeof(int), indices, BufferUsageHint.StaticDraw);
 
 #if DEBUG
-        var vaoLabel = nameof(CS2BombDamageSceneNode);
-        GL.ObjectLabel(ObjectLabelIdentifier.VertexArray, vaoHandle, vaoLabel.Length, vaoLabel);
-        GL.ObjectLabel(ObjectLabelIdentifier.Buffer, vboHandle, vaoLabel.Length, vaoLabel);
-        GL.ObjectLabel(ObjectLabelIdentifier.Buffer, iboHandle, vaoLabel.Length, vaoLabel);
+            var vaoLabel = nameof(CS2BombDamageSceneNode);
+            GL.ObjectLabel(ObjectLabelIdentifier.VertexArray, vaoHandle, vaoLabel.Length, vaoLabel);
+            GL.ObjectLabel(ObjectLabelIdentifier.Buffer, vboHandle, vaoLabel.Length, vaoLabel);
+            GL.ObjectLabel(ObjectLabelIdentifier.Buffer, iboHandle, vaoLabel.Length, vaoLabel);
 #endif
+        }
+        finally
+        {
+            ArrayPool<VertexFormat>.Shared.Return(vertices);
+            ArrayPool<int>.Shared.Return(indices);
+        }
     }
 
-    private void AddFaceIndices(int[] indices, ref int indicesCount, int baseFaceIndex)
+    private static void AddFaceIndices(int[] indices, ref int indicesCount, int baseFaceIndex)
     {
         indices[indicesCount++] = baseFaceIndex + 0;
         indices[indicesCount++] = baseFaceIndex + 1;
@@ -265,5 +274,18 @@ public class CS2BombDamageSceneNode : SceneNode
             var sceneNode = new CS2BombDamageSceneNode(scene, bombDamageData, i);
             scene.Add(sceneNode, false);
         }
+    }
+
+    /// <inheritdoc/>
+    public override void Delete()
+    {
+        base.Delete();
+        GL.DeleteVertexArray(vaoHandle);
+
+        var buffers = ArrayPool<int>.Shared.Rent(2);
+        buffers[0] = iboHandle;
+        buffers[1] = vboHandle;
+        GL.DeleteBuffers(buffers.Length, buffers);
+        ArrayPool<int>.Shared.Return(buffers);
     }
 }
