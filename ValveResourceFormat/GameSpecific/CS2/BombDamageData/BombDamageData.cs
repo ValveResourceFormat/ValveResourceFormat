@@ -95,7 +95,7 @@ public class BombDamageData
         }
 
         Bombsites = new BombDamageDataBombsite[bombsiteCount];
-        var reader = BlobToReader(blob);
+        using var reader = BlobToReader(blob);
         for (var i = 0; i < bombsiteCount; i++)
         {
             var minX = reader.ReadSingle();
@@ -127,7 +127,7 @@ public class BombDamageData
         }
 
         Positions = new Vector3[positionCount];
-        var reader = BlobToReader(blob);
+        using var reader = BlobToReader(blob);
         for (var i = 0; i < positionCount; i++)
         {
             var x = reader.ReadInt16();
@@ -148,7 +148,7 @@ public class BombDamageData
         }
 
         DamageValues = new BombDamageDataDamageValue[damageValueCount];
-        var reader = BlobToReader(blob);
+        using var reader = BlobToReader(blob);
         for (var i = 0; i < damageValueCount; i++)
         {
             var phaseFract = reader.ReadByte() / 255.0f;

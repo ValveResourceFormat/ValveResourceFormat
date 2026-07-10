@@ -1356,6 +1356,10 @@ namespace ValveResourceFormat.Renderer.World
             }
         }
 
+        /// <summary>
+        /// Loads CS2 baked bomb damage data for this world. Populates <see cref="BombDamageData"/>.
+        /// Skips loading if <see cref="BombDamageData"/> is already set.
+        /// </summary>
         public void LoadBombDamageData()
         {
             if (BombDamageData is not null)
