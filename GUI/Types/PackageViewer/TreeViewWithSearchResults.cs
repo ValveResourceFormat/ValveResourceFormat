@@ -281,8 +281,9 @@ namespace GUI.Types.PackageViewer
 
             if (realNode.PackageEntry != null)
             {
-                // Blank the list view right away on a mouse click to minimize flashing
-                if (CanQuickPreviewFile(realNode.PackageEntry))
+                // Blank the list view right away on a mouse click to minimize flashing, but if the next file is the
+                // same type as the one currently shown, keep that view as the background instead of flashing to blank.
+                if (CanQuickPreviewFile(realNode.PackageEntry) && realNode.PackageEntry.TypeName != currentPreviewType)
                 {
                     ShowPreviewPlaceholder();
                 }
@@ -1501,7 +1502,11 @@ namespace GUI.Types.PackageViewer
             ListViewItems.Add(item);
         }
 
-        public void ReplaceListViewWithControl(TabPage tab)
+        // The file type currently shown in the preview area, so a same-type preview can keep the previous view frozen
+        // instead of flashing to a blank page. Null when the area shows a blank page or the list.
+        private string? currentPreviewType;
+
+        public void ReplaceListViewWithControl(TabPage tab, string? typeName = null)
         {
             var parentControl = mainListView.Parent;
 
@@ -1524,6 +1529,8 @@ namespace GUI.Types.PackageViewer
             tabs.Controls.Add(tab);
             parentControl.Controls.Add(tabs);
 
+            currentPreviewType = typeName;
+
             foreach (Control old in parentControl.Controls)
             {
                 if (old == tabs || old == mainListView)
@@ -1534,6 +1541,12 @@ namespace GUI.Types.PackageViewer
                 old.Dispose();
             }
         }
+
+        /// <summary>
+        /// Whether the given file type is the one currently shown in the preview area, in which case the previous view
+        /// can be kept frozen while the next file of the same type loads.
+        /// </summary>
+        public bool IsSamePreviewType(string? typeName) => typeName != null && typeName == currentPreviewType;
 
         /// <summary>
         /// Whether a quick file preview should be shown for the given entry: quick preview must be enabled, and
@@ -1576,6 +1589,8 @@ namespace GUI.Types.PackageViewer
 
             parentControl.Controls.Add(placeholder);
 
+            currentPreviewType = null;
+
             foreach (Control old in parentControl.Controls)
             {
                 if (old == placeholder || old == mainListView)
@@ -1599,6 +1614,8 @@ namespace GUI.Types.PackageViewer
             {
                 return;
             }
+
+            currentPreviewType = null;
 
             foreach (Control old in mainListView.Parent.Controls)
             {

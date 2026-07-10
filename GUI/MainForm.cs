@@ -802,13 +802,25 @@ namespace GUI
                 tabTemp?.Dispose();
             }
 
-            var loadingFile = new LoadingFile(vrfGuiContext.FileName);
-            tab.Controls.Add(loadingFile);
+            // For a preview of the same type as the one already shown, keep that view frozen while the new file loads
+            // and show no loading panel; the new viewer is swapped in once ready. Otherwise show the loading panel.
+            var keepFrozen = isPreview && packageTreeView!.IsSamePreviewType(file?.TypeName);
 
-            if (isPreview)
+            LoadingFile? loadingFile = null;
+
+            if (!keepFrozen)
             {
-                Debug.Assert(packageTreeView != null);
-                packageTreeView.ReplaceListViewWithControl(tab);
+#pragma warning disable CA2000 // Ownership is transferred to the tab, which disposes it
+                loadingFile = new LoadingFile(vrfGuiContext.FileName);
+#pragma warning restore CA2000
+                tab.Controls.Add(loadingFile);
+
+                if (isPreview)
+                {
+                    // Show the loading panel in the preview area right away (replacing the blank page).
+                    Debug.Assert(packageTreeView != null);
+                    packageTreeView.ReplaceListViewWithControl(tab, file?.TypeName);
+                }
             }
 
             Types.Viewers.IViewer? createdViewer = null;
@@ -898,10 +910,20 @@ namespace GUI
             {
                 BeginInvoke(() =>
                 {
-                    loadingFile.Dispose();
+                    if (keepFrozen)
+                    {
+                        // Same-type preview: swap the frozen previous view for the newly loaded viewer.
+                        Debug.Assert(packageTreeView != null);
+                        packageTreeView.ReplaceListViewWithControl(tab, file?.TypeName);
+                    }
+                    else
+                    {
+                        // The tab is already shown; disposing the loading panel reveals the viewer behind it.
+                        loadingFile?.Dispose();
+                    }
 
-                    // Removing the loading panel that was covering the viewer does not reliably deliver a paint to
-                    // the underlying GL control, so tell the viewer to redraw now that it is visible.
+                    // Revealing the viewer does not reliably deliver a paint to the underlying GL control, so tell
+                    // the viewer to redraw now that it is visible.
                     createdViewer?.NotifyVisible();
                 });
             });
