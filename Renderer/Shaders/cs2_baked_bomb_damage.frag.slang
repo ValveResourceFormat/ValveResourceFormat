@@ -2,6 +2,11 @@
 
 #define MIN_ALPHA 0.2
 #define FADE_OUT_DISTANCE 1024
+#define PULSE_STRENGTH 3.0
+
+#define DITHER_BLOCK_SIZE 4
+#define DITHER_THRESHOLD 2
+
 #define UV_SCALE 2.0
 
 uniform sampler2D tColor;
@@ -22,7 +27,7 @@ out vec4 outputColor;
 bool dither()
 {
     vec2 screenPos = (vtxClipPos.xy / vtxClipPos.w * 0.5 + 0.5) * g_vViewportSize;
-    return mod(screenPos.x, 4) < 2 != mod(screenPos.y, 4) < 2;
+    return mod(screenPos.x, DITHER_BLOCK_SIZE) < DITHER_THRESHOLD != mod(screenPos.y, DITHER_BLOCK_SIZE) < DITHER_THRESHOLD;
 }
 
 void main(void)
@@ -35,7 +40,7 @@ void main(void)
     float distanceToCamera = length(vtxWorldPos - g_vCameraPositionWs);
 
     float phase = time - vtxPhase;
-    float unitPhase = mod(time - vtxPhase / 3.0, 1.0);
+    float unitPhase = mod(time - vtxPhase / PULSE_STRENGTH, 1.0);
 
     float alpha = max(0.0, 1.0 - distanceToCamera / FADE_OUT_DISTANCE);
     alpha *= 1.0 - (unitPhase * unitPhase);
