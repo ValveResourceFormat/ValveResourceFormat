@@ -3,21 +3,12 @@ namespace ValveResourceFormat.Renderer.Particles.Operators
     /// <summary>
     /// Fades a particle's alpha out over a per-particle randomly chosen duration drawn from a min/max range, with an optional bias curve applied to the fade.
     /// </summary>
-    class FadeOutRandom : ParticleFunctionOperator
+    class FadeOutRandom : CGeneralRandomFade
     {
-        private readonly float fadeOutTimeMin = 0.25f;
-        private readonly float fadeOutTimeMax = 0.25f;
         private readonly float fadeBias = 0.5f;
-        private readonly float randomExponent = 1f;
-        private readonly bool proportional = true;
 
-        public FadeOutRandom(ParticleDefinitionParser parse) : base(parse)
+        public FadeOutRandom(ParticleDefinitionParser parse) : base(parse, "m_flFadeOutTime")
         {
-            fadeOutTimeMin = parse.Float("m_flFadeOutTimeMin", fadeOutTimeMin);
-            fadeOutTimeMax = parse.Float("m_flFadeOutTimeMax", fadeOutTimeMax);
-            randomExponent = parse.Float("m_flFadeOutTimeExp", randomExponent);
-            proportional = parse.Boolean("m_bProportional", proportional);
-
             var bias = parse.Float("m_flFadeBias", fadeBias);
 
             if (bias == 0.0f)
@@ -35,12 +26,7 @@ namespace ValveResourceFormat.Renderer.Particles.Operators
         {
             foreach (ref var particle in particles.Current)
             {
-                var fadeOutTime = fadeOutTimeMin;
-
-                if (fadeOutTimeMin != fadeOutTimeMax)
-                {
-                    fadeOutTime = ParticleCollection.RandomWithExponentBetween(particle.ParticleID, randomExponent, fadeOutTimeMin, fadeOutTimeMax);
-                }
+                var fadeOutTime = GetFadeTime(ref particle);
 
                 var timeLeft = proportional
                     ? 1.0f - particle.NormalizedAge

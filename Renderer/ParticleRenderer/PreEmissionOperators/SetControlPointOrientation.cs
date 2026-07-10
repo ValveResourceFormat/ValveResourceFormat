@@ -37,7 +37,7 @@ namespace ValveResourceFormat.Renderer.Particles.PreEmissionOperators
             }
 
             var targetRotation = randomize
-                ? ParticleCollection.RandomBetweenPerComponent(Random.Shared.Next(), rotation, rotationB)
+                ? ParticleCollection.RandomBetweenPerComponent(rotation, rotationB)
                 : rotation;
 
             var targetOrientation = EntityTransformHelper.QAngleToForwardDirection(targetRotation);

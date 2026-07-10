@@ -124,6 +124,14 @@ namespace ValveResourceFormat.Renderer.Particles
         }
 
         /// <summary>
+        /// Returns a non-deterministic random vector with each component independently interpolated between the corresponding components of <paramref name="min"/> and <paramref name="max"/>.
+        /// </summary>
+        public static Vector3 RandomBetweenPerComponent(Vector3 min, Vector3 max)
+        {
+            return RandomBetweenPerComponent(Random.Shared.Next(), min, max);
+        }
+
+        /// <summary>
         /// Returns a deterministic pseudo-random float in [<paramref name="min"/>, <paramref name="max"/>] biased by raising the random value to <paramref name="exponent"/>.
         /// </summary>
         public static float RandomWithExponentBetween(int particleId, float exponent, float min, float max)

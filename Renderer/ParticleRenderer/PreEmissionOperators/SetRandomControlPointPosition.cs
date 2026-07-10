@@ -37,7 +37,7 @@ namespace ValveResourceFormat.Renderer.Particles.PreEmissionOperators
 
         private void GenerateNewPosition()
         {
-            currentPosition = ParticleCollection.RandomBetweenPerComponent(Random.Shared.Next(), minPos, maxPos);
+            currentPosition = ParticleCollection.RandomBetweenPerComponent(minPos, maxPos);
         }
 
         /// <summary>
