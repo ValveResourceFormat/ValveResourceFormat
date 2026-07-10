@@ -1,5 +1,6 @@
 #version 460
 
+#define MIN_ALPHA 0.2
 #define FADE_OUT_DISTANCE 1024
 #define UV_SCALE 2.0
 
@@ -32,16 +33,13 @@ void main(void)
     }
     
     float distanceToCamera = length(vtxWorldPos - g_vCameraPositionWs);
-    if (distanceToCamera > FADE_OUT_DISTANCE)
-    {
-        discard;
-    }
 
     float phase = time - vtxPhase;
     float unitPhase = mod(time - vtxPhase / 3.0, 1.0);
 
-    float alpha = 1.0 - distanceToCamera / FADE_OUT_DISTANCE;
+    float alpha = max(0.0, 1.0 - distanceToCamera / FADE_OUT_DISTANCE);
     alpha *= 1.0 - (unitPhase * unitPhase);
+    alpha = mix(MIN_ALPHA, 1.0, alpha);
 
     vec2 uv = vtxUv * UV_SCALE + vec2(-unitPhase, 0.0);
     outputColor = texture(tColor, uv) * vtxColor;
