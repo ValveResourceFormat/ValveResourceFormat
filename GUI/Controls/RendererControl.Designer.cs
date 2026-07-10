@@ -21,7 +21,7 @@ partial class RendererControl
         if (disposing)
         {
             namedGroups.Clear();
-            splitContainer.SizeChanged -= PreviewControlsWidth_Init;
+            splitContainer.SizeChanged -= PreviewControls_HandleResize;
         }
 
         base.Dispose(disposing);

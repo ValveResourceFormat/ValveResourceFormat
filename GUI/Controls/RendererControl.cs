@@ -29,35 +29,32 @@ partial class RendererControl : UserControl
             splitContainer.FixedPanel = FixedPanel.Panel2;
             splitContainer.ResumeLayout();
 
-            // The panels are swapped so the controls now live in Panel2, but the design SplitterDistance still
-            // sizes them as if they were Panel1, leaving the controls taking up most of the viewer. FixedPanel.Panel2
-            // then pins that width on the first layout pass, so the result depends on the size the control happens to
-            // have when first shown. Pin the controls to their intended width once we know a real size instead.
-            splitContainer.SizeChanged += PreviewControlsWidth_Init;
+            splitContainer.SizeChanged += PreviewControls_HandleResize;
+            PreviewControls_HandleResize(splitContainer, EventArgs.Empty);
         }
     }
 
-    private bool previewControlsWidthInitialized;
-
-    private void PreviewControlsWidth_Init(object? sender, EventArgs e)
+    private void PreviewControls_HandleResize(object? sender, EventArgs e)
     {
-        if (previewControlsWidthInitialized)
+        // Respect an explicit HideSidebar() (e.g. node graph previews), which fixes the splitter and collapses it.
+        if (splitContainer.IsSplitterFixed)
         {
             return;
         }
 
         // Matches the non-preview sidebar width (design SplitterDistance / controlsPanel width).
         var controlsWidth = this.AdjustForDPI(220);
-        var distance = splitContainer.Width - controlsWidth - splitContainer.SplitterWidth;
+        var available = splitContainer.Width - splitContainer.SplitterWidth;
 
-        if (distance <= splitContainer.Panel1MinSize)
+        // Collapse the controls when the viewer (Panel1, left) would be narrower than the controls (Panel2, right).
+        if (available - controlsWidth < controlsWidth)
         {
-            return; // not sized sensibly yet, try again on the next resize
+            splitContainer.Panel2Collapsed = true;
+            return;
         }
 
-        splitContainer.SplitterDistance = distance;
-        previewControlsWidthInitialized = true;
-        splitContainer.SizeChanged -= PreviewControlsWidth_Init;
+        splitContainer.Panel2Collapsed = false;
+        splitContainer.SplitterDistance = available - controlsWidth;
     }
 
     protected override void OnCreateControl()
