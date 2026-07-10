@@ -70,6 +70,67 @@ partial class RendererControl : UserControl
         SetControlLocation(control);
     }
 
+    /// <summary>
+    /// Shows the previewed file's icon and name as the first item in the controls panel. Used in preview mode,
+    /// where there is no tab header to display the file name. Long names are ellipsized.
+    /// </summary>
+    public void AddPreviewFileName(string fileName, int imageIndex)
+    {
+        var header = new Panel
+        {
+            Dock = DockStyle.Top,
+            Height = this.AdjustForDPI(32),
+            Padding = new Padding(0, 0, splitContainer.SplitterWidth, 0),
+        };
+
+        var content = new Panel
+        {
+            Dock = DockStyle.Fill,
+            Padding = new Padding(0, this.AdjustForDPI(2), 0, this.AdjustForDPI(2)),
+        };
+
+        var nameLabel = new Label
+        {
+            Dock = DockStyle.Fill,
+            Text = fileName,
+            AutoEllipsis = true,
+            TextAlign = ContentAlignment.MiddleLeft,
+            Padding = new Padding(0, 0, this.AdjustForDPI(4), 0),
+        };
+
+        var iconLabel = new Label
+        {
+            Dock = DockStyle.Left,
+            Width = this.AdjustForDPI(28),
+            ImageList = MainForm.ImageList,
+            ImageAlign = ContentAlignment.MiddleCenter,
+        };
+
+        if (imageIndex >= 0 && imageIndex < MainForm.ImageList.Images.Count)
+        {
+            iconLabel.ImageIndex = imageIndex;
+        }
+
+        // Accent underline along the bottom, matching the selected tab's underline.
+        var underline = new UnstyledPanel
+        {
+            Dock = DockStyle.Bottom,
+            Height = this.AdjustForDPI(2),
+            BackColor = Themer.CurrentThemeColors.Accent,
+        };
+
+        content.Controls.Add(nameLabel);
+        content.Controls.Add(iconLabel);
+
+        header.Controls.Add(content);
+        header.Controls.Add(underline);
+
+        // Pin the header above the scrollable controls panel (in its non-scrolling parent)
+        var host = controlsPanel.Parent ?? controlsPanel;
+        host.Controls.Add(header);
+        header.SendToBack();
+    }
+
     public static GLViewerCheckboxControl CreateCheckBox(string name, bool defaultChecked, Action<bool> changeCallback)
     {
         var checkbox = new GLViewerCheckboxControl(name, defaultChecked);

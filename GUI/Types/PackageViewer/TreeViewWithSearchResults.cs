@@ -1492,29 +1492,30 @@ namespace GUI.Types.PackageViewer
 
         public void ReplaceListViewWithControl(TabPage tab)
         {
-            mainListView.Visible = false;
-            SetGridModeToolbarVisible(false);
-
-            var tabs = new ThemedTabControl
-            {
-                ImageList = MainForm.ImageList,
-                Dock = DockStyle.Fill
-            };
-            tabs.Controls.Add(tab);
-
             var parentControl = mainListView.Parent;
 
             if (parentControl == null)
             {
-                tabs.Dispose();
                 return;
             }
 
+            mainListView.Visible = false;
+            SetGridModeToolbarVisible(false);
+
+            // A TabPage can only render inside a TabControl, so host it in one with the tab strip hidden. There is
+            // no visible tab header; the file name is shown in the viewer's side control panel instead
+            // (see RendererControl.AddPreviewFileName).
+            var tabs = new ThemedTabControl
+            {
+                Dock = DockStyle.Fill,
+                HideTabHeader = true,
+            };
+            tabs.Controls.Add(tab);
             parentControl.Controls.Add(tabs);
 
             foreach (Control old in parentControl.Controls)
             {
-                if (old == tabs || old == mainListView) // TODO: dumb
+                if (old == tabs || old == mainListView)
                 {
                     continue;
                 }

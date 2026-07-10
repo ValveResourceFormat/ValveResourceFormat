@@ -428,6 +428,18 @@ namespace GUI.Types.Viewers
 
                 var glViewerControl = GLViewer.InitializeUiControls(isPreview);
 
+                if (isPreview && glViewerControl is RendererControl rendererControl)
+                {
+                    // No tab header in preview, so show the file name (and icon) at the top of the side control panel.
+                    var iconExtension = Path.GetExtension(vrfGuiContext.FileName.AsSpan());
+                    if (iconExtension.Length > 0)
+                    {
+                        iconExtension = iconExtension[1..];
+                    }
+
+                    rendererControl.AddPreviewFileName(Path.GetFileName(vrfGuiContext.FileName), MainForm.GetImageIndexForExtension(iconExtension));
+                }
+
                 var specialTabPage = new ThemedTabPage(GLViewerTabName);
                 resTabs.TabPages.Add(specialTabPage);
                 specialTabPage.Controls.Add(glViewerControl);
