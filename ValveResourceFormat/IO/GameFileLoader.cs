@@ -54,6 +54,7 @@ namespace ValveResourceFormat.IO
         private bool ShaderPackagesScanned;
         private bool AttemptToLoadWorkshopDependencies;
         private bool StoredSurfacePropertyStringTokens;
+        private string SteamVRDir;
 
         /// <summary>
         /// Gets or sets the current package being processed.
@@ -189,12 +190,19 @@ namespace ValveResourceFormat.IO
                         {
                             foreach (var (_, dependency) in dependencies)
                             {
-                                var dependencyId = (uint)dependency;
-                                var dependencyVpkPath = Path.Join(workshopRoot, $"{dependencyId}", $"{dependencyId}.vpk");
-
-                                if (File.Exists(dependencyVpkPath))
+                                if (dependency.ToString() == "steamvr_home")
                                 {
-                                    AddPackageToSearch(dependencyVpkPath);
+                                    var svrHome = Path.Join((SteamVRDir + "_addons"), $"steamvr_home", $"pak01_dir.vpk");
+                                    AddPackageToSearch(svrHome);
+                                }
+                                else
+                                {
+                                    var dependencyId = (uint)dependency;
+                                    var dependencyVpkPath = Path.Join(workshopRoot, $"{dependencyId}", $"{dependencyId}.vpk");
+                                    if (File.Exists(dependencyVpkPath))
+                                    {
+                                        AddPackageToSearch(dependencyVpkPath);
+                                    }
                                 }
                             }
                         }
@@ -791,6 +799,7 @@ namespace ValveResourceFormat.IO
             foreach (var gameInfo in gameInfos)
             {
                 var directory = Path.GetDirectoryName(gameInfo);
+                SteamVRDir = directory;
                 var modName = Path.GetFileName(directory);
                 var assumedGameRoot = Path.GetDirectoryName(directory)!;
 
