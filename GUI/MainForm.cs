@@ -494,18 +494,25 @@ namespace GUI
         private void OnMainSelectedTabChanged(object? sender, EventArgs e)
         {
 #if !SCREENSHOT_MODE
-            if (string.IsNullOrEmpty(mainTabs.SelectedTab?.ToolTipText))
-            {
-                Text = "Source 2 Viewer";
-            }
-            else
-            {
-                Text = $"Source 2 Viewer - {mainTabs.SelectedTab.ToolTipText}";
-            }
-
+            UpdateWindowTitle(mainTabs.SelectedTab?.ToolTipText);
             UpdateBottomPanelKeybindings();
 #endif
         }
+
+        private void UpdateWindowTitle(string? toolTipText)
+        {
+#if !SCREENSHOT_MODE
+            Text = string.IsNullOrEmpty(toolTipText)
+                ? "Source 2 Viewer"
+                : $"Source 2 Viewer - {toolTipText}";
+#endif
+        }
+
+        /// <summary>
+        /// Resets the window title to the selected tab. Called when a package preview is cleared (e.g. a folder is
+        /// shown) so the title stops reflecting the file that was being previewed.
+        /// </summary>
+        public void ResetPreviewTitle() => UpdateWindowTitle(mainTabs.SelectedTab?.ToolTipText);
 
         private void UpdateBottomPanelKeybindings()
         {
@@ -800,6 +807,12 @@ namespace GUI
             finally
             {
                 tabTemp?.Dispose();
+            }
+
+            if (isPreview)
+            {
+                // The preview tab is not in mainTabs, so update the window title to the previewed file ourselves.
+                UpdateWindowTitle(tab.ToolTipText);
             }
 
             // For a preview of the same type as the one already shown, keep that view frozen while the new file loads

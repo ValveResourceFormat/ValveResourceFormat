@@ -72,6 +72,9 @@ namespace GUI.Types.PackageViewer
         public event EventHandler<PackageContextMenuEventArgs>? OpenContextMenu;
         public event EventHandler<PackageEntry>? PreviewFile;
 
+        // Raised when the file list (a folder) is shown, i.e. no file is being previewed anymore.
+        public event EventHandler? PreviewCleared;
+
         private readonly NavigationHistory navigationHistory = new();
         private bool suppressHistoryRecording;
 
@@ -1627,6 +1630,8 @@ namespace GUI.Types.PackageViewer
 
             SetGridModeToolbarVisible(true);
             mainListView.Visible = true;
+
+            PreviewCleared?.Invoke(this, EventArgs.Empty);
         }
 
         private void UpdateSearchTextBoxToCurrentPath(VirtualPackageNode node)
