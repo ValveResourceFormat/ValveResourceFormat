@@ -494,18 +494,25 @@ namespace GUI
         private void OnMainSelectedTabChanged(object? sender, EventArgs e)
         {
 #if !SCREENSHOT_MODE
-            if (string.IsNullOrEmpty(mainTabs.SelectedTab?.ToolTipText))
-            {
-                Text = "Source 2 Viewer";
-            }
-            else
-            {
-                Text = $"Source 2 Viewer - {mainTabs.SelectedTab.ToolTipText}";
-            }
-
+            UpdateWindowTitle(mainTabs.SelectedTab?.ToolTipText);
             UpdateBottomPanelKeybindings();
 #endif
         }
+
+        private void UpdateWindowTitle(string? toolTipText)
+        {
+#if !SCREENSHOT_MODE
+            Text = string.IsNullOrEmpty(toolTipText)
+                ? "Source 2 Viewer"
+                : $"Source 2 Viewer - {toolTipText}";
+#endif
+        }
+
+        /// <summary>
+        /// Resets the window title to the selected tab. Called when a package preview is cleared (e.g. a folder is
+        /// shown) so the title stops reflecting the file that was being previewed.
+        /// </summary>
+        public void ResetPreviewTitle() => UpdateWindowTitle(mainTabs.SelectedTab?.ToolTipText);
 
         private void UpdateBottomPanelKeybindings()
         {
@@ -513,6 +520,20 @@ namespace GUI
             var keybindings = KeybindingRegistry.GetKeybindingsForViewer(viewerType);
             mainFormBottomPanel.UpdateKeybindings(keybindings);
         }
+
+        /// <summary>
+        /// Shows the keybindings for a previewed viewer
+        /// </summary>
+        public void ShowPreviewKeybindings(TabPage previewTab)
+        {
+            var keybindings = KeybindingRegistry.GetKeybindingsForViewer(KeybindingRegistry.GetViewerTypeFromTab(previewTab));
+            mainFormBottomPanel.UpdateKeybindings(keybindings);
+        }
+
+        /// <summary>
+        /// Shows the keybindings of the selected tab.
+        /// </summary>
+        public void ShowSelectedTabKeybindings() => UpdateBottomPanelKeybindings();
 
         private void CloseAndReOpenActiveTab()
         {
@@ -802,17 +823,34 @@ namespace GUI
                 tabTemp?.Dispose();
             }
 
-            Control? loadingFile = null;
+            if (isPreview)
+            {
+                // The preview tab is not in mainTabs, so update the window title to the previewed file ourselves.
+                UpdateWindowTitle(tab.ToolTipText);
+            }
 
-            if (!isPreview)
+            // For a preview of the same type as the one already shown, keep that view frozen while the new file loads
+            // and show no loading panel; the new viewer is swapped in once ready. Otherwise show the loading panel.
+            var keepFrozen = isPreview && packageTreeView!.IsSamePreviewType(file?.TypeName);
+
+            LoadingFile? loadingFile = null;
+
+            if (!keepFrozen)
             {
-                loadingFile = new LoadingFile();
+#pragma warning disable CA2000 // Ownership is transferred to the tab, which disposes it
+                loadingFile = new LoadingFile(vrfGuiContext.FileName);
+#pragma warning restore CA2000
                 tab.Controls.Add(loadingFile);
+
+                if (isPreview)
+                {
+                    // Show the loading panel in the preview area right away (replacing the blank page).
+                    Debug.Assert(packageTreeView != null);
+                    packageTreeView.ReplaceListViewWithControl(tab, file?.TypeName);
+                }
             }
-            else
-            {
-                Cursor.Current = Cursors.WaitCursor;
-            }
+
+            Types.Viewers.IViewer? createdViewer = null;
 
             var taskLoad = Task.Run(() => ProcessFile(vrfGuiContext, file, viewMode));
 
@@ -824,11 +862,6 @@ namespace GUI
                 {
                     BeginInvoke(() =>
                     {
-                        if (isPreview)
-                        {
-                            Cursor.Current = Cursors.Default;
-                        }
-
                         var control = CodeTextBox.CreateFromException(ex, tab.ToolTipText);
 
                         tab.Controls.Add(control);
@@ -865,6 +898,7 @@ namespace GUI
                         }
 
                         viewer.Create(tab);
+                        createdViewer = viewer;
 
                         if (mainTabs.SelectedTab == tab)
                         {
@@ -912,13 +946,21 @@ namespace GUI
             {
                 BeginInvoke(() =>
                 {
-                    loadingFile?.Dispose();
-
-                    if (isPreview)
+                    if (keepFrozen)
                     {
+                        // Same-type preview: swap the frozen previous view for the newly loaded viewer.
                         Debug.Assert(packageTreeView != null);
-                        packageTreeView.ReplaceListViewWithControl(tab);
+                        packageTreeView.ReplaceListViewWithControl(tab, file?.TypeName);
                     }
+                    else
+                    {
+                        // The tab is already shown; disposing the loading panel reveals the viewer behind it.
+                        loadingFile?.Dispose();
+                    }
+
+                    // Revealing the viewer does not reliably deliver a paint to the underlying GL control, so tell
+                    // the viewer to redraw now that it is visible.
+                    createdViewer?.NotifyVisible();
                 });
             });
         }

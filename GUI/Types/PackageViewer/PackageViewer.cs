@@ -110,6 +110,9 @@ namespace GUI.Types.PackageViewer
             TreeView.OpenPackageEntry += VPK_OpenFile;
             TreeView.OpenContextMenu += VPK_OnContextMenu;
             TreeView.PreviewFile += VPK_PreviewFile;
+            TreeView.PreviewCleared += VPK_PreviewCleared;
+            TreeView.PreviewFocused += VPK_PreviewFocused;
+            TreeView.PreviewBlurred += VPK_PreviewBlurred;
             TreeView.Disposed += VPK_Disposed;
         }
 
@@ -590,6 +593,9 @@ namespace GUI.Types.PackageViewer
                 treeViewWithSearch.OpenPackageEntry -= VPK_OpenFile;
                 treeViewWithSearch.OpenContextMenu -= VPK_OnContextMenu;
                 treeViewWithSearch.PreviewFile -= VPK_PreviewFile;
+                treeViewWithSearch.PreviewCleared -= VPK_PreviewCleared;
+                treeViewWithSearch.PreviewFocused -= VPK_PreviewFocused;
+                treeViewWithSearch.PreviewBlurred -= VPK_PreviewBlurred;
                 treeViewWithSearch.Disposed -= VPK_Disposed;
                 TreeView = null;
                 LastContextTreeNode = null;
@@ -607,6 +613,22 @@ namespace GUI.Types.PackageViewer
             Program.MainForm.OpenFile(newVrfGuiContext, entry);
         }
 
+        private void VPK_PreviewCleared(object? sender, EventArgs e)
+        {
+            // A folder is shown instead of a file preview, so the window title should no longer reflect a file.
+            Program.MainForm.ResetPreviewTitle();
+        }
+
+        private void VPK_PreviewFocused(object? sender, TabPage previewTab)
+        {
+            Program.MainForm.ShowPreviewKeybindings(previewTab);
+        }
+
+        private void VPK_PreviewBlurred(object? sender, EventArgs e)
+        {
+            Program.MainForm.ShowSelectedTabKeybindings();
+        }
+
         private void VPK_PreviewFile(object? sender, PackageEntry entry)
         {
             if (TreeView == null)
@@ -614,16 +636,8 @@ namespace GUI.Types.PackageViewer
                 return;
             }
 
-            if (((Settings.QuickPreviewFlags)Settings.Config.QuickFilePreview & Settings.QuickPreviewFlags.Enabled) == 0)
+            if (!TreeViewWithSearchResults.CanQuickPreviewFile(entry))
             {
-                return;
-            }
-
-            var extension = entry.TypeName;
-
-            if (extension is "vpk" or "vmap_c")
-            {
-                // Not ideal to check by file extension, but do not nest vpk previewss
                 return;
             }
 

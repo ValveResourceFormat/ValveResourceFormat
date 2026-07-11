@@ -28,7 +28,33 @@ partial class RendererControl : UserControl
             splitContainer.Panel2.Controls.Add(controlsPanel);
             splitContainer.FixedPanel = FixedPanel.Panel2;
             splitContainer.ResumeLayout();
+
+            splitContainer.SizeChanged += PreviewControls_HandleResize;
+            PreviewControls_HandleResize(splitContainer, EventArgs.Empty);
         }
+    }
+
+    private void PreviewControls_HandleResize(object? sender, EventArgs e)
+    {
+        // Respect an explicit HideSidebar() (e.g. node graph previews), which fixes the splitter and collapses it.
+        if (splitContainer.IsSplitterFixed)
+        {
+            return;
+        }
+
+        // Matches the non-preview sidebar width (design SplitterDistance / controlsPanel width).
+        var controlsWidth = this.AdjustForDPI(220);
+        var available = splitContainer.Width - splitContainer.SplitterWidth;
+
+        // Collapse the controls when the viewer (Panel1, left) would be narrower than the controls (Panel2, right).
+        if (available - controlsWidth < controlsWidth)
+        {
+            splitContainer.Panel2Collapsed = true;
+            return;
+        }
+
+        splitContainer.Panel2Collapsed = false;
+        splitContainer.SplitterDistance = available - controlsWidth;
     }
 
     protected override void OnCreateControl()
@@ -42,6 +68,67 @@ partial class RendererControl : UserControl
     {
         ControlsPanel.Controls.Add(control);
         SetControlLocation(control);
+    }
+
+    /// <summary>
+    /// Shows the previewed file's icon and name as the first item in the controls panel. Used in preview mode,
+    /// where there is no tab header to display the file name. Long names are ellipsized.
+    /// </summary>
+    public void AddPreviewFileName(string fileName, int imageIndex)
+    {
+        var header = new Panel
+        {
+            Dock = DockStyle.Top,
+            Height = this.AdjustForDPI(32),
+            Padding = new Padding(0, 0, splitContainer.SplitterWidth, 0),
+        };
+
+        var content = new Panel
+        {
+            Dock = DockStyle.Fill,
+            Padding = new Padding(0, this.AdjustForDPI(2), 0, this.AdjustForDPI(2)),
+        };
+
+        var nameLabel = new Label
+        {
+            Dock = DockStyle.Fill,
+            Text = fileName,
+            AutoEllipsis = true,
+            TextAlign = ContentAlignment.MiddleLeft,
+            Padding = new Padding(0, 0, this.AdjustForDPI(4), 0),
+        };
+
+        var iconLabel = new Label
+        {
+            Dock = DockStyle.Left,
+            Width = this.AdjustForDPI(28),
+            ImageList = MainForm.ImageList,
+            ImageAlign = ContentAlignment.MiddleCenter,
+        };
+
+        if (imageIndex >= 0 && imageIndex < MainForm.ImageList.Images.Count)
+        {
+            iconLabel.ImageIndex = imageIndex;
+        }
+
+        // Accent underline along the bottom, matching the selected tab's underline.
+        var underline = new UnstyledPanel
+        {
+            Dock = DockStyle.Bottom,
+            Height = this.AdjustForDPI(2),
+            BackColor = Themer.CurrentThemeColors.Accent,
+        };
+
+        content.Controls.Add(nameLabel);
+        content.Controls.Add(iconLabel);
+
+        header.Controls.Add(content);
+        header.Controls.Add(underline);
+
+        // Pin the header above the scrollable controls panel (in its non-scrolling parent)
+        var host = controlsPanel.Parent ?? controlsPanel;
+        host.Controls.Add(header);
+        header.SendToBack();
     }
 
     public static GLViewerCheckboxControl CreateCheckBox(string name, bool defaultChecked, Action<bool> changeCallback)
