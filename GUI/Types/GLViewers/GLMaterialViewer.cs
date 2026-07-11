@@ -732,7 +732,7 @@ namespace GUI.Types.GLViewers
 
             if (Tabs == null || vcsShader == null)
             {
-                // todo: open in new tab when we're in preivew
+                // todo: open in new tab when we're in preview
                 return;
             }
 

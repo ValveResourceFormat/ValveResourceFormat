@@ -232,8 +232,7 @@ namespace ValveResourceFormat.ToolsAssetInfo
         public ValveKeyValue.KVObject? KV3Segment { get; private set; }
 
         /// <summary>
-        /// Opens and reads the given filename.
-        /// The file is held open until the object is disposed.
+        /// Opens the given file, reads its contents into this instance, and closes the file before returning.
         /// </summary>
         /// <param name="filename">The file to open and read.</param>
         public void Read(string filename)

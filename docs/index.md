@@ -83,7 +83,7 @@ This demonstrates VRF's reliability—even developers with official Source 2 SDK
 
 ### Does Source 2 Viewer work on Mac and Linux?
 
-Source 2 Viewer is currently a .NET Winforms Forms application, as a result it only works on Windows. However you can run it using Wine.
+Source 2 Viewer is currently a .NET WinForms application, as a result it only works on Windows. However you can run it using Wine.
 The command-line utility is completely cross-platform.
 
 ### How do I open VPK files?

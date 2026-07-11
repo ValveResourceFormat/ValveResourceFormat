@@ -98,7 +98,7 @@ public class VfxStaticComboVcsEntry
                 throw new NotImplementedException("Uncompressed block");
 
             case 2:
-                throw new NotImplementedException("ZSTD compresed without dict");
+                throw new NotImplementedException("ZSTD compressed without dict");
 
             case 3: // ZStd with dictionary 1
             case 5: // ZStd with dictionary 2

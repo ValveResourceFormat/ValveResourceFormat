@@ -15,7 +15,7 @@ namespace ValveResourceFormat
         Radius,
         /// <summary>Roll rotation angle in radians.</summary>
         Roll,
-        /// <summary>Roll rotation speed in degrees per second.</summary>
+        /// <summary>Roll rotation speed in radians per second.</summary>
         RollSpeed,
         /// <summary>RGB color of the particle.</summary>
         Color,

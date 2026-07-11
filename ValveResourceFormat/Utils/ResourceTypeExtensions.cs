@@ -39,7 +39,7 @@ public static class ResourceTypeExtensions
     }
 
     /// <summary>
-    /// Return <see cref="ExtensionAttribute"/> for given <see cref="ResourceType"/>.
+    /// Return the file extension string for the given <see cref="ResourceType"/>, or null if unknown.
     /// </summary>
     /// <param name="value">Resource type.</param>
     /// <returns>Extension type string.</returns>

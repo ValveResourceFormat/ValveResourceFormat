@@ -55,7 +55,7 @@ vec3 CubemapParallaxCorrection(vec3 envMapLocalPos, vec3 localReflectionVector, 
     vec3 FirstPlaneIntersect = (envMapBoxMin - envMapLocalPos) / localReflectionVector;
     vec3 SecondPlaneIntersect = (envMapBoxMax - envMapLocalPos) / localReflectionVector;
     // Get the furthest of these intersections along the ray
-    // (Ok because x/0 give +inf and -x/0 give -inf )
+    // (Ok because x/0 gives +inf and -x/0 gives -inf )
     vec3 FurthestPlane = max(FirstPlaneIntersect, SecondPlaneIntersect);
     // Find the closest far intersection
     float Distance = abs(min3(FurthestPlane));

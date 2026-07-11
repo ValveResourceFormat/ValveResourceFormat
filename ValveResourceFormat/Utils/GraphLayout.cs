@@ -40,8 +40,8 @@ public static class GraphLayout
     /// <param name="getSize">Function to get a node's size.</param>
     /// <param name="getSourceNode">Function to get the source node from a connection.</param>
     /// <param name="getTargetNode">Function to get the target node from a connection.</param>
-    /// <param name="getInputConnections">Function to get connections where this node is the target (optional, for barycenter calculation).</param>
-    /// <param name="getOutputConnections">Function to get connections where this node is the source (optional, for barycenter calculation).</param>
+    /// <param name="getInputConnections">Function to get connections where this node is the target (used for barycenter calculation).</param>
+    /// <param name="getOutputConnections">Function to get connections where this node is the source (used for barycenter calculation).</param>
     /// <param name="options">Layout options (uses defaults if null).</param>
     public static void LayoutNodes<TNode, TConnection>(
         IEnumerable<TNode> nodes,

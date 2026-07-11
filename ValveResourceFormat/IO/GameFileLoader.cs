@@ -742,7 +742,7 @@ namespace ValveResourceFormat.IO
             var steamPath = filePath[..(contentIndex + "steamapps/".Length)];
             var appManifestPath = Path.Join(steamPath, $"appmanifest_{appId}.acf");
 
-            // SteamVR addons have addoninfo.txt file which contain dependency workshop ids,
+            // SteamVR addons have an addoninfo.txt file which contains dependency workshop ids,
             // seemingly other games do not have this.
             AttemptToLoadWorkshopDependencies = appId == 250820;
 

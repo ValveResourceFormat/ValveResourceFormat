@@ -65,7 +65,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation2
         public TrackCompressionSetting[] TrackCompressionSettings { get; private set; } = [];
 
         /// <summary>
-        /// Gets the byte offsets for each compressed pose frame.
+        /// Gets the offsets (in 16-bit / ushort units) into the compressed pose data for each frame.
         /// </summary>
         public long[] CompressedPoseOffsets { get; private set; } = [];
 

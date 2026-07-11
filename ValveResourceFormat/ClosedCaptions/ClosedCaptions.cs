@@ -107,7 +107,7 @@ namespace ValveResourceFormat.ClosedCaptions
                 Captions.Add(caption);
             }
 
-            // Probably could be inside the for loop above, but I'm unsure what the performance costs are of moving the position head manually a bunch compared to reading sequentually
+            // Probably could be inside the for loop above, but I'm unsure what the performance costs are of moving the position head manually a bunch compared to reading sequentially
             foreach (var caption in Captions)
             {
                 reader.BaseStream.Position = dataoffset + (caption.Blocknum * blocksize) + caption.Offset;

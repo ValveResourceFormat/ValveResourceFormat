@@ -254,7 +254,7 @@ namespace ValveResourceFormat.IO
 #endif
 
             // merge coplanar triangle pairs into quads before writing to the vmap
-            // currently merging faces by material, if materials differ the triangles wont be merget into a quad
+            // currently merging faces by material, if materials differ the triangles won't be merged into a quad
             // TODO: there may possibly be smarter heuristics to merge by
             var quadsMerged = HalfEdgeMesh.UntriangulateMesh(Positions, (hFaceA, hFaceB) => MaterialIndex[hFaceA] == MaterialIndex[hFaceB]);
 
@@ -444,7 +444,7 @@ namespace ValveResourceFormat.IO
                 vertices[i] = Vertices[indices[i]];
             }
 
-            // AddFace will validate the face against all topology rules, if it fails, we dumplicate its vertices, extracting the face
+            // AddFace will validate the face against all topology rules, if it fails, we duplicate its vertices, extracting the face
             if (HalfEdgeMesh.AddFace(out var hFace, vertices))
             {
                 WriteFaceData(hFace, indices, material);
@@ -521,7 +521,7 @@ namespace ValveResourceFormat.IO
             return id;
         }
 
-        // Faces which cant be integrated into the existing topology (they would create a nonmanifold edge or vertex)
+        // Faces which can't be integrated into the existing topology (they would create a nonmanifold edge or vertex)
         // are added as a disconnected island with duplicated vertices, so no geometry is lost
         private void ExtractFace(ReadOnlySpan<int> indices, string material)
         {
@@ -541,7 +541,7 @@ namespace ValveResourceFormat.IO
                 vertices[i] = hVertex;
             }
 
-            // the duplicated vertices are isolated, so this cant fail
+            // the duplicated vertices are isolated, so this can't fail
             HalfEdgeMesh.AddFace(out var hFace, vertices);
 
             // need to write new half edge stream data
@@ -662,7 +662,7 @@ namespace ValveResourceFormat.IO
                 if (group == "Default")
                 {
                     var physicsSurfaces = mesh.Materials;
-                    // + triangleStart because physicsSurfaces didnt also get reindexed
+                    // + triangleStart because physicsSurfaces didn't also get reindexed
                     var surfacePropertyIndex = physicsSurfaces.Length > 0 ? physicsSurfaces[i + triangleStart] : desc.SurfacePropertyIndex;
                     var surfaceProperty = physicsSurfaceNames[surfacePropertyIndex];
 

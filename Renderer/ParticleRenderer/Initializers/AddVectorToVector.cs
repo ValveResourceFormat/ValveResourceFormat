@@ -1,8 +1,8 @@
 namespace ValveResourceFormat.Renderer.Particles.Initializers
 {
     /// <summary>
-    /// Reads a vector from an input field, adds a per-component random offset to it, and writes the
-    /// result into an output field.
+    /// Reads a vector from an input field, adds it to the existing output field vector plus a
+    /// per-component random offset, and writes the sum back into the output field.
     /// </summary>
     /// <seealso href="https://s2v.app/SchemaExplorer/cs2/particles/C_INIT_AddVectorToVector">C_INIT_AddVectorToVector</seealso>
     class AddVectorToVector : ParticleFunctionInitializer

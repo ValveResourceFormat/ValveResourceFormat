@@ -22,7 +22,7 @@ namespace ValveResourceFormat
 
         /// <summary>
         /// Gets the binary reader. USE AT YOUR OWN RISK!
-        /// It is exposed publicly to ease of reading the same file.
+        /// It is exposed publicly to ease reading the same file.
         /// </summary>
         /// <value>The binary reader.</value>
         public BinaryReader? Reader { get; private set; }
@@ -265,7 +265,7 @@ namespace ValveResourceFormat
                     block.Read(Reader);
                     EditInfo = (ResourceEditInfo)block;
 
-                    // Try to determine resource type by looking at the compiler indentifiers
+                    // Try to determine resource type by looking at the compiler identifiers
                     // This must be done right after reading EditInfo because future DATA block
                     // will depend on knowing the resource type to construct the correct block in ConstructResourceType()
                     if (ResourceType == ResourceType.Unknown)
@@ -351,7 +351,7 @@ namespace ValveResourceFormat
         /// Serialize resource to binary.
         /// </summary>
         /// <remarks>NOT PRODUCTION READY! Not all blocks support serialization and will throw. The total file size must not exceed <see cref="uint"/>.</remarks>
-        /// <param name="stream">Stream to write to. The stream support seeking.</param>
+        /// <param name="stream">Stream to write to. The stream must support seeking.</param>
         public void Serialize(Stream stream)
         {
             if (!stream.CanSeek)

@@ -24,7 +24,7 @@ namespace ValveResourceFormat.ResourceTypes
         /// <summary>
         /// Magic number for VKV3 format.
         /// </summary>
-        public const int MAGIC0 = 0x03564B56; // VKV3 (3 isn't ascii, its 0x03)
+        public const int MAGIC0 = 0x03564B56; // VKV3 (3 isn't ascii, it's 0x03)
 
         /// <summary>
         /// Magic number for KV3 version 1.

@@ -29,7 +29,7 @@ namespace GUI.Forms
         }
 
         /// <summary>
-        /// Gets whatever options was selected by the user in the search type combobox.
+        /// Gets whatever option was selected by the user in the search type combobox.
         /// </summary>
         public SearchType SelectedSearchType => searchTypeComboBox.SelectedItem is SearchTypeItem item ? item.Type : SearchType.FileNamePartialMatch;
 
@@ -167,7 +167,7 @@ namespace GUI.Forms
         }
 
         /// <summary>
-        /// On form load, setup the combo box search options and set the textbox as the focused control.
+        /// On form load, set the search textbox as the focused control.
         /// </summary>
         /// <param name="sender">Object which raised event.</param>
         /// <param name="e">Event data.</param>

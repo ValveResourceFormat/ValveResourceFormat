@@ -211,7 +211,7 @@ public static class KV3IDLookup
     }.ToFrozenDictionary();
 
     /// <summary>
-    /// Lookups a <see cref="KV3ID"/> in the lookup table, will throw <see cref="ArgumentException"/> if not found.
+    /// Looks up a <see cref="KV3ID"/> in the lookup table, will throw <see cref="ArgumentException"/> if not found.
     /// </summary>
     public static KV3ID Get(string name)
     {

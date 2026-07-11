@@ -89,7 +89,7 @@ void main()
             // bloomSample += ((bloomSample * textureLod(g_tDirt, fragCoord.xy, 0.0).xyz) * g_flBloomLensDirtIntensity);
 
             // BLUR bloom
-            // this looks just wrong and im not sure why
+            // this looks just wrong and I'm not sure why
             // very few maps use this anyways, it looks weird to begin with
             vColor.rgb *= 1.0 - g_vUnNormalizedBloomStrengths.z;
             vColor.rgb += bloomSample.xyz * g_vNormalizedBloomStrengths.z * vRawColor.rgb;

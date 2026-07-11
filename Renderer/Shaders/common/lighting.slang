@@ -266,7 +266,7 @@ void ApplyAmbientOcclusion(inout LightingTerms_t o, MaterialProperties_t mat)
 #endif
 
     // In non-lightmap shaders, SpecularAO always does a min(1.0, specularAO) in the same place where lightmap
-    // shaders does min(bakedAO, specularAO). That means that bakedAO exists and is a constant 1.0 in those shaders!
+    // shaders do min(bakedAO, specularAO). That means that bakedAO exists and is a constant 1.0 in those shaders!
     mat.SpecularAO = min(o.SpecularOcclusion, mat.SpecularAO);
 
     vec3 DirectAODiffuse = mix(vec3(1.0), mat.DiffuseAO, g_flAmbientOcclusionDirectDiffuse);

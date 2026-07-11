@@ -8,7 +8,7 @@ namespace ValveResourceFormat.Utils;
 public static class SequentialGraphLayout
 {
     /// <summary>
-    /// Layouts nodes by grouping connected components and laying sequential chains in a single row.
+    /// Lays out nodes by grouping connected components and laying sequential chains in a single row.
     /// Disconnected single nodes are placed in a right-side column.
     /// </summary>
     public static void LayoutNodes<TNode, TConnection>(

@@ -472,7 +472,7 @@ internal class PulseGraphViewer : GLNodeGraphViewer
         return loopInstructionMap;
     }
 
-    // Returns pairs of chunk and instruction for all potential outflows of the provied cell.
+    // Returns pairs of chunk and instruction for all potential outflows of the provided cell.
     private List<PulseOutflowConnection> GetCellOutflows(int cellIdx)
     {
         List<PulseOutflowConnection> outflows = [];
@@ -703,7 +703,7 @@ internal class PulseGraphViewer : GLNodeGraphViewer
         }
         else
         {
-            // Some nodes have outputs but they might not be not used anywhere, connect node as sequential action if so.
+            // Some nodes have outputs but they might not be used anywhere, connect node as sequential action if so.
             var outParams = registerMap["m_Outparams"];
             var hasNoUsedOutputs = true;
             foreach (var (paramName, regIdx) in outParams)
@@ -1529,7 +1529,7 @@ internal class PulseGraphViewer : GLNodeGraphViewer
         }
     }
 
-    // Retrives m_nFlowNodeID from m_InstructionDebugInfos for a particular instruction
+    // Retrieves m_nFlowNodeID from m_InstructionDebugInfos for a particular instruction
     // For older files retrieve the ID from m_InstructionEditorIDs
     private int GetInstructionFlowId(int chunkId, int instructionIdx)
     {
@@ -1563,7 +1563,7 @@ internal class PulseGraphViewer : GLNodeGraphViewer
         {
             case CellCategory.Inflow:
                 {
-                    // here we assume that wait is going to be processed sequentially, not out of order, even though it's theorithically possible.
+                    // here we assume that wait is going to be processed sequentially, not out of order, even though it's theoretically possible.
                     if (cellType == CellType.Wait)
                     {
                         var wakeResume = cells[cellIdx]["m_WakeResume"];

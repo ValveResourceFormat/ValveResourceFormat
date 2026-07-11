@@ -40,7 +40,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
         }
 
         /// <summary>
-        /// Clears interpolated frame bones and frame cache.
+        /// Clears the cached frames (previous and next) and resets the frame cache.
         /// Should be used on animation change.
         /// </summary>
         public void Clear()

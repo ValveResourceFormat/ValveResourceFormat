@@ -609,7 +609,7 @@ namespace ValveResourceFormat.Renderer.World
 
                         // Some maps don't have these properties.
                         var useHeightFog = entity.ContainsKey("fogverticalexponent"); // The oldest versions lack these values, so disable it there
-                        var useHeightFog2 = entity.ContainsKey("fogstartheight"); // Robot Repair lack these values, so disable it there
+                        var useHeightFog2 = entity.ContainsKey("fogstartheight"); // Robot Repair lacks these values, so disable it there
                         useHeightFog = entity.GetBooleanProperty("heightfog", useHeightFog); // New in CS2
 
                         // TODO: find the correct behavior under this condition
@@ -1242,7 +1242,7 @@ namespace ValveResourceFormat.Renderer.World
             // Load the skybox map vpk and make it searchable in the file loader
             if (vpkFound.PathOnDisk != null)
             {
-                // TODO: Due to the way gui contexts works, we're preloading the vpk into parent context
+                // TODO: Due to the way gui contexts work, we're preloading the vpk into parent context
                 package = RendererContext.FileLoader.AddPackageToSearch(vpkFound.PathOnDisk);
             }
             else if (vpkFound.PackageEntry != null)
@@ -1542,7 +1542,7 @@ namespace ValveResourceFormat.Renderer.World
         }
 
         /// <summary>
-        /// Returns the path to the world resource (<c>.vwrld_c</c>) for a given map name.
+        /// Returns the path to the world resource (<c>.vwrld</c>) for a given map name.
         /// </summary>
         /// <param name="mapName">Path to the map, with or without the compiled file suffix.</param>
         public static string GetWorldNameFromMap(string mapName)

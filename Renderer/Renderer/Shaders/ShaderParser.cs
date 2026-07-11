@@ -106,7 +106,7 @@ namespace ValveResourceFormat.Renderer.Shaders
 #if DEBUG
                     if (!line.All(static c => char.IsAscii(c)))
                     {
-                        // At least on nvidia, trying to compile GLSL with non ascii characters will throw bizzare errors like
+                        // At least on nvidia, trying to compile GLSL with non ascii characters will throw bizarre errors like
                         // wrong #line source-line error, or EOF.
                         throw new ShaderCompilerException($"Line {lineNum} in '{shaderFileToLoad}' contains non-ASCII characters.");
                     }

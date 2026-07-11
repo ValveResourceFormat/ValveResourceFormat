@@ -3,7 +3,7 @@
 // in regards to float weight:
 // change the weight to be wider (+1 ... +5)
 // or change the weight to be slimmer (-1 ... -5)
-// if you pass weight as varying, then the bottom calculation can reduced to
+// if you pass weight as varying, then the bottom calculation can be reduced to
 // (0.5 - weight)
 #define WEIGHT 1.0
 #define OUTLINE_OFFSET 0.7

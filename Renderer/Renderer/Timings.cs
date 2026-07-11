@@ -253,7 +253,7 @@ public class Timings
     }
 
     /// <summary>
-    /// Clears all collected timing results and transfers ownership to the calling thread.
+    /// Clears all collected timing results for the frame.
     /// </summary>
     public void MarkFrameEnd()
     {

@@ -36,7 +36,7 @@ namespace ValveResourceFormat.Renderer.SceneEnvironment
         public float ToeDenom { get; init; }
 
         /// <summary>Gets the white point value; passed through the tonemapper before GPU upload.</summary>
-        public float WhitePoint { get; init; } // This is ran through the tonemapper before being given to the shader
+        public float WhitePoint { get; init; } // This is run through the tonemapper before being given to the shader
         // The following params aren't used, I think?
         /*float LuminanceSource; // CS2
         float ExposureBiasShadows; // CS2
@@ -346,7 +346,7 @@ namespace ValveResourceFormat.Renderer.SceneEnvironment
         /// <summary>Gets or sets the model used as the trigger volume shape.</summary>
         public Model? ModelVolume { get; set; } // dumb
 
-        /// <summary>Gets or sets whether this post-processing resource uses the HLA-era format.</summary>
+        /// <summary>Gets or sets whether this post-processing resource uses the newer post-Half-Life: Alyx format (detected via the presence of local contrast parameters).</summary>
         public bool IsPostHLA { get; set; }
 
         /// <summary>Gets or sets whether this volume has bloom data.</summary>

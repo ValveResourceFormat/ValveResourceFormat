@@ -1,6 +1,6 @@
 # Command-line utility
 
-While Source 2 Viewer is a GUI application for Windows, there is also a command-line utility available for all Windows, Linux, and macOS.
+While Source 2 Viewer is a GUI application for Windows, there is also a command-line utility available for all of Windows, Linux, and macOS.
 
 The binary name is `Source2Viewer-CLI`.
 
@@ -10,7 +10,7 @@ The binary name is `Source2Viewer-CLI`.
 | ---------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **Input**                    |                                                                                                                                                                 |
 | `--input` (or `-i`)          | Input file to be processed. With no additional arguments, a summary of the input(s) will be displayed.                                                          |
-| `--recursive`                | If specified and given input is a folder, all sub directories will be scanned too.                                                                              |
+| `--recursive`                | If specified and given input is a folder, all subdirectories will be scanned too.                                                                              |
 | `--recursive_vpk`            | If specified along with `--recursive`, will also recurse into VPK archives.                                                                                     |
 | `--vpk_extensions` (or `-e`) | File extension(s) filter, example: "vcss_c,vjs_c,vxml_c".                                                                                                       |
 | `--vpk_filepath` (or `-f`)   | File path filter(s), supports comma-separated values. Example: "panorama/,sounds/" or "scripts/items/items_game.txt".                                           |

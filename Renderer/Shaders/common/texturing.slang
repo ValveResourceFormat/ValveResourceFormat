@@ -270,7 +270,7 @@ vec3 calculateWorldNormal(vec3 normalMap, vec3 normal, vec3 tangent, vec3 bitang
 
 #if (F_DETAIL_TEXTURE > 0)
 
-// Xen foliage detail textures always has both color and normal
+// Xen foliage detail textures always have both color and normal
 #define DETAIL_COLOR_MOD2X (F_DETAIL_TEXTURE == 1) && (GameVfx_vr_xen_foliage == 0)
 #define DETAIL_COLOR_OVERLAY ((F_DETAIL_TEXTURE == 2) || (F_DETAIL_TEXTURE == 4)) || (GameVfx_vr_xen_foliage != 0)
 #define DETAIL_NORMALS ((F_DETAIL_TEXTURE == 3) || (F_DETAIL_TEXTURE == 4)) || (GameVfx_vr_xen_foliage != 0)
@@ -323,7 +323,7 @@ void applyDetailTexture(inout vec3 Albedo, inout vec3 NormalMap, vec2 detailMask
     #if (DETAIL_NORMALS)
         vec3 DetailNormal = DecodeHemiOctahedronNormal(texture(g_tNormalDetail, vDetailTexCoords).xy);
         DetailNormal = mix(vec3(0, 0, 1), DetailNormal, detailMask * g_flDetailNormalStrength);
-        // literally i dont even know
+        // literally i don't even know
         NormalMap = NormalMap * DetailNormal.z + vec3(NormalMap.z * DetailNormal.z * DetailNormal.xy, 0.0);
     #endif
 }

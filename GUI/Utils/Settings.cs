@@ -310,8 +310,8 @@ namespace GUI.Utils
         }
 
         /// <summary>
-        /// Adds <paramref name="path"/> to the top of the recent files list, removing any duplicate
-        /// entry, trimming the list to <see cref="RecentFilesLimit"/>, then saves.
+        /// Appends <paramref name="path"/> to the end of the recent files list (most recent last),
+        /// removing any duplicate entry, trimming the oldest entries to <see cref="RecentFilesLimit"/>, then saves.
         /// </summary>
         /// <param name="path">The absolute file path to record as recently opened.</param>
         public static void TrackRecentFile(string path)

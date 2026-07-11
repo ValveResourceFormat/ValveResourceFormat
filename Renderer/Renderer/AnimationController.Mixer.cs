@@ -79,7 +79,7 @@ namespace ValveResourceFormat.Renderer
         private float currentBlendTime;
 
         /// <summary>
-        /// Bone masks be used by clips to weigh transforms on a per-bone basis.
+        /// Bone masks are used by clips to weigh transforms on a per-bone basis.
         /// </summary>
         public Dictionary<string, Half[]> BoneMaskDefinitions { get; } = [];
 
@@ -406,7 +406,7 @@ namespace ValveResourceFormat.Renderer
         /// </summary>
         /// <param name="name">The name of the animation.</param>
         /// <param name="weight">The weight value (0.0 to 1.0).</param>
-        /// <param name="restartIfNew">Whether to restart the animation if its just now fading in.</param>
+        /// <param name="restartIfNew">Whether to restart the animation if it's just now fading in.</param>
         public void SetAnimationWeight(string name, float weight, bool restartIfNew = false)
         {
             if (clips.TryGetValue(name, out var clip))

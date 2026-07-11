@@ -30,11 +30,11 @@ namespace GUI.Types.PackageViewer
         }
 
         /// <summary>
-        /// Performs a breadth-first-search on the TreeView's nodes in search of the passed value. The matching conditions are based on the passed search type parameter.
+        /// Performs a depth-first search on the tree's nodes in search of the passed value. The matching conditions are based on the passed search type parameter.
         /// </summary>
         /// <param name="value">Value to search for in the TreeView. Matching on this value is based on the search type.</param>
         /// <param name="searchType">Determines the matching of the value. For example, full/partial text search or full path search.</param>
-        /// <returns>A collection of nodes who match the conditions based on the search type.</returns>
+        /// <returns>A collection of package entries that match the conditions based on the search type.</returns>
         public List<PackageEntry> Search(string value, SearchType searchType)
         {
             var results = new List<PackageEntry>();
@@ -98,10 +98,9 @@ namespace GUI.Types.PackageViewer
         }
 
         /// <summary>
-        /// Performs a breadth-first-search on the TreeView's nodes in search of the passed value. The matching conditions are based the passed function.
+        /// Performs a depth-first search on the virtual package node tree, adding entries for which the match function returns true. The matching conditions are based on the passed function.
         /// </summary>
-        /// <param name="matchFunction">Function which performs matching on the TreeNode. Returns true if there's a match.</param>
-        /// <returns>Returns matched nodes.</returns>
+        /// <param name="matchFunction">Function which performs matching on each PackageEntry. Returns true if there's a match.</param>
         private static void Search(VirtualPackageNode node, List<PackageEntry> results, Func<PackageEntry, bool> matchFunction)
         {
             foreach (var entry in node.Files)

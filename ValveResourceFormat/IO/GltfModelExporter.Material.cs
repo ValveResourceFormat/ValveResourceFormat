@@ -293,7 +293,7 @@ public partial class GltfModelExporter
             // Not being disposed because ORM may use same texture multiple times and there's issues with concurrency
             Resource? textureResource;
 
-            // Our file loader is not specified to be safe for concurrency, even though it will work fine on most cases
+            // Our file loader is not specified to be safe for concurrency, even though it will work fine in most cases
             // because we use memory mapped files or read new files from disk. But some cases may read into memory stream,
             // and the tracking file loader has a hash set that is not concurrent.
             lock (TextureReadLock)
@@ -512,7 +512,8 @@ public partial class GltfModelExporter
     }
 
     /// <summary>
-    /// Links the image to the model and saves it to disk if <see cref="SatelliteImages"/> is true.
+    /// In embedded mode links the PNG bytes into the glTF <see cref="Image"/>; in satellite mode
+    /// (<see cref="SatelliteImages"/> true) instead writes the PNG to a separate file on disk and leaves the <see cref="Image"/> object untouched.
     /// </summary>
     private async Task LinkAndSaveImage(Image image, byte[] pngBytes)
     {

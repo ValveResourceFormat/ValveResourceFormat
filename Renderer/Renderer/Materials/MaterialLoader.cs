@@ -49,7 +49,7 @@ namespace ValveResourceFormat.Renderer.Materials
         private static readonly byte[] NewLineArray = "\n"u8.ToArray();
 
         /// <summary>
-        /// Disposes any caches materials and textures.
+        /// Clears the material cache and disposes any cached textures and samplers.
         /// </summary>
         public void Clear()
         {

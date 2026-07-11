@@ -203,7 +203,7 @@ namespace GUI.Types.PackageViewer
 
 #if DEBUG
             if (resourceEntries.Count > 0 && MessageBox.Show(
-                "Would you like to scan and all dependencies of the compiled file (ending in \"_c\") you just added?",
+                "Would you like to scan for all dependencies of the compiled file (ending in \"_c\") you just added?",
                 "Detected a compiled resource",
                 MessageBoxButtons.YesNo,
                 MessageBoxIcon.Question) == DialogResult.Yes)
@@ -603,10 +603,10 @@ namespace GUI.Types.PackageViewer
         }
 
         /// <summary>
-        /// Opens a file based on a double clicked list view item. Does nothing if the double clicked item contains a non-TreeNode object.
+        /// Opens the given package entry in a new tab.
         /// </summary>
         /// <param name="sender">Object which raised event.</param>
-        /// <param name="e">Event data.</param>
+        /// <param name="entry">The package entry to open.</param>
         private void VPK_OpenFile(object? sender, PackageEntry entry)
         {
             var newVrfGuiContext = new VrfGuiContext(entry.GetFullPath(), vrfGuiContext);

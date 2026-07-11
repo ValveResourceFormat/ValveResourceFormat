@@ -93,7 +93,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
         public AnimationAutoLayer[] AutoLayers { get; } = [];
 
         /// <summary>
-        /// Gets fetch data for this animation. Null animations that were constructed without sequence data.
+        /// Gets fetch data for this animation. Null for animations that were constructed without sequence data.
         /// </summary>
         public AnimationFetch? Fetch { get; }
 
@@ -549,7 +549,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
             // Read all frame blocks
             foreach (var frameBlock in FrameBlocks)
             {
-                // Only consider blocks that actual contain info for this frame
+                // Only consider blocks that actually contain info for this frame
                 if (outFrame.FrameIndex >= frameBlock.StartFrame && outFrame.FrameIndex <= frameBlock.EndFrame)
                 {
                     foreach (var segmentIndex in frameBlock.SegmentIndexArray)

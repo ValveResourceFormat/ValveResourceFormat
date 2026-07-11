@@ -339,7 +339,7 @@ namespace ValveResourceFormat.Serialization.VfxEval
 
                 if (nrArguments > Expressions.Count)
                 {
-                    throw new InvalidDataException($"Error parsing dynamic expression, insufficient expressions evaluatuating function {funcName} (position: {dataReader.BaseStream.Position})");
+                    throw new InvalidDataException($"Error parsing dynamic expression, insufficient expressions evaluating function {funcName} (position: {dataReader.BaseStream.Position})");
                 }
 
                 ApplyFunction(funcName, nrArguments);

@@ -19,7 +19,7 @@ public class PickingTexture : Framebuffer
         Select,
         /// <summary>Open the picked object for viewing.</summary>
         Open,
-        /// <summary>Show detail information about the picked object.</summary>
+        /// <summary>Show detailed information about the picked object.</summary>
         Details,
     }
 

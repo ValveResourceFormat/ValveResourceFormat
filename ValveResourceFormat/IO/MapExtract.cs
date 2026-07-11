@@ -470,7 +470,7 @@ public sealed class MapExtract
                 if (additionalMaps.Count < thresholdCrossedTimes)
                 {
                     additionalMaps.Add([]);
-                    ProgressReporter?.Report("Creating additional map document due large editable mesh size.");
+                    ProgressReporter?.Report("Creating additional map document due to large editable mesh size.");
                 }
 
                 additionalMaps[^1].World.Children.Add(mesh);
@@ -651,7 +651,7 @@ public sealed class MapExtract
                 var tint = Vector3.One * 255f;
                 var alpha = 255f;
 
-                //this is fine because i think the scene objects we exports are never more than one draw
+                //this is fine because i think the scene objects we export are never more than one draw
                 var fragment = drawCalls[0];
 
                 if (fragment.ContainsKey("m_vTintColor"))

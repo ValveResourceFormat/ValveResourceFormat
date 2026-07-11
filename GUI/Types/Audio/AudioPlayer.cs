@@ -28,7 +28,7 @@ namespace GUI.Types.Audio
                     Sound.AudioFileType.WAV => new WaveFileReader(stream),
                     Sound.AudioFileType.MP3 => new Mp3FileReaderBase(stream, wf => new Mp3FrameDecompressor(wf)),
                     Sound.AudioFileType.AAC => new StreamMediaFoundationReader(stream),
-                    _ => throw new UnexpectedMagicException("Dont know how to play", (int)soundData.SoundType, nameof(soundData.SoundType)),
+                    _ => throw new UnexpectedMagicException("Don't know how to play", (int)soundData.SoundType, nameof(soundData.SoundType)),
                 };
 
                 try

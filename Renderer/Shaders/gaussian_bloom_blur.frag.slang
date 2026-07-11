@@ -1,6 +1,6 @@
 #version 460
 
-// D_BLUR_PASS = 1 -> separable gaussian blur for bluring mips while downsampling
+// D_BLUR_PASS = 1 -> separable gaussian blur for blurring mips while downsampling
 // D_BLUR_PASS = 2 -> 9 sample tent filter upsampling for summing up mips after blurring + apply strength and tint
 // D_BLUR_PASS = 3 -> same as 2 but takes a pair of strength and tint for first and second mip
 
@@ -22,7 +22,7 @@ layout(location = 0) out vec4 outputColor;
         uniform vec3 g_vPrevMipBlurTint;
     #endif
     uniform vec3 g_vCurMipBlurTint = vec3(1.0f);
-    // we dont need this, can reuse texel size, uv clamp is needed because they keep the bloom buffer at a fixed 512x512 at 1080p
+    // we don't need this, can reuse texel size, uv clamp is needed because they keep the bloom buffer at a fixed 512x512 at 1080p
     //uniform vec4 g_vCombineUVScaleAndClamp;
 #endif
 
@@ -50,7 +50,7 @@ void main()
 
     return;
 
-    // blur pass 2 is actually a tent upsampling filter used to upsample the blured mips to the final bloom image
+    // blur pass 2 is actually a tent upsampling filter used to upsample the blurred mips to the final bloom image
 #elif D_BLUR_PASS >= 2
 
     vec2 uvScale = g_vTexelSize.xy;
@@ -68,7 +68,7 @@ void main()
     vec2 uv_center = min(currentUV, uvClamp);
     
     // tent filter, weighted sum of 9 samples
-    // centrer sample
+    // center sample
     vec3 higherMipColor = textureLod(g_tSource, uv_center, g_nCurrentMip - 1.0).xyz * g_vCurMipBlurTint;
 
     vec3 g_nCurrentMipColor = textureLod(g_tSource, uv_center, g_nCurrentMip).xyz * 0.25;
@@ -86,7 +86,7 @@ void main()
     g_nCurrentMipColor += textureLod(g_tSource, vec2(uv_bottomRight.x, currentUV.y), g_nCurrentMip).xyz * 0.125;
 
     // on first pass we want to multiply with previous mip blur tint
-    // since the first mip wont get tinted otherwise
+    // since the first mip won't get tinted otherwise
     #if D_BLUR_PASS == 3
         g_nCurrentMipColor *= g_vPrevMipBlurTint;
     #endif

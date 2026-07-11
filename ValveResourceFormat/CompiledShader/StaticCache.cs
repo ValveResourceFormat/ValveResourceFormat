@@ -25,7 +25,7 @@ namespace ValveResourceFormat.CompiledShader
         }
 
         /// <summary>
-        ///  A ZFrame file cache with a set maximum size, trimmed on a LRU basis.
+        ///  A ZFrame file cache with a set maximum size, trimmed on an LRU basis.
         /// </summary>
         /// <param name="program">Shader file to read zframes from. This reference will be used as a reading lock.</param>
         public StaticCache(VfxProgramData program)

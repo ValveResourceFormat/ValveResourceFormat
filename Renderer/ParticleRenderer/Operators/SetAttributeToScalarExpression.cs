@@ -1,8 +1,9 @@
 namespace ValveResourceFormat.Renderer.Particles.Operators
 {
     /// <summary>
-    /// Evaluates a scalar expression (add, subtract, multiply, divide, min, max, or mod) on two
-    /// per-particle float inputs and writes the result to a scalar particle attribute.
+    /// Evaluates a scalar expression (add, subtract, multiply, divide, min, max, mod, input passthrough,
+    /// or comparisons such as equal/greater-than/less-than) on two per-particle float inputs and writes
+    /// the result to a scalar particle attribute.
     /// </summary>
     /// <seealso href="https://s2v.app/SchemaExplorer/cs2/particles/C_OP_SetAttributeToScalarExpression">C_OP_SetAttributeToScalarExpression</seealso>
     class SetAttributeToScalarExpression : ParticleFunctionOperator

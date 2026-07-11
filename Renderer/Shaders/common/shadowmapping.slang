@@ -14,7 +14,7 @@ float CalculateSunShadowMapVisibility(vec3 vPosition)
 
     vec2 shadowCoords = clamp(projCoords.xy * 0.5 + 0.5, vec2(-1), vec2(2));
 
-    // Note: Bias is added of clamp, so that the value is never zero (or negative)
+    // Note: Bias is added after clamp, so that the value is never zero (or negative)
     // as the comparison with <= 0 values produces shadow
     float currentDepth = saturate(projCoords.z) + g_flSunShadowBias;
 

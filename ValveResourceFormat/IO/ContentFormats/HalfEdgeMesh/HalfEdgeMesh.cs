@@ -50,7 +50,7 @@ internal enum ComponentConnectivityType
 }
 
 // Handles are basically just wrappers over raw integer indices into topology data lists (verts, half edges, faces)
-// It offers a nicer and saver way to interact with the data structure
+// It offers a nicer and safer way to interact with the data structure
 
 internal readonly record struct VertexHandle
 {
@@ -469,7 +469,7 @@ internal sealed partial class HalfEdgeMesh
             hEdge = hNextEdge;
         }
 
-        // Make the face points to the last edge so that that when a face is created 
+        // Make the face point to the last edge so that when a face is created
         // the vertex ordering will match the order of the provided vertices.
         hFace.Edge = pAllEdges[nNumEdges - 1];
 
@@ -540,7 +540,7 @@ internal sealed partial class HalfEdgeMesh
                 int nNumOpenEdges = ComputeNumOpenEdgesInVertexLoop(pVerticesB[iVertex]);
 
                 // If a new edge is being added to a vertex which already has edges attached there
-                // must be at least on open edge, otherwise there is nowhere to insert the new edge.
+                // must be at least an open edge, otherwise there is nowhere to insert the new edge.
                 if (nNumOpenEdges == 0)
                 {
                     return false;

@@ -39,7 +39,7 @@ namespace GUI
         };
 
         /// <summary>
-        /// Lookup an UI icon from GUI/Icons/ folder.
+        /// Lookup a UI icon from GUI/Icons/ folder.
         /// </summary>
         public static Dictionary<string, int> Icons { get; private set; } = [];
 
@@ -54,7 +54,7 @@ namespace GUI
         public static Dictionary<string, SKSvg> ExtensionSVGS { get; private set; } = [];
 
         /// <summary>
-        /// Lookup a game icon by appid that are loaded by the Explorer control from Steam.
+        /// Lookup a game icon by appid that is loaded by the Explorer control from Steam.
         /// </summary>
         public static ConcurrentDictionary<int, int> GameIcons { get; private set; } = new();
 

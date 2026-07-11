@@ -37,7 +37,7 @@ namespace ValveResourceFormat.TextureDecoders
         YCoCg = 1 << 0,
 
         /// <summary>
-        /// HDR content stored in 8 bit by muliplying colors with alpha
+        /// HDR content stored in 8 bit by multiplying colors with alpha
         /// and another constant (typically 16)
         /// </summary>
         RGBM = 1 << 1, // todo

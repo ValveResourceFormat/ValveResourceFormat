@@ -968,7 +968,7 @@ public sealed class ShaderExtract
             }
             else
             {
-                throw new InvalidOperationException("Whats the value of this attribute then?");
+                throw new InvalidOperationException("What's the value of this attribute then?");
             }
 
             var attributeType = attribute.VfxType switch

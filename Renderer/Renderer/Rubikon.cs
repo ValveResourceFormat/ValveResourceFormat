@@ -622,7 +622,7 @@ public class Rubikon
         ref Vector3 normal,
         ref float distance)
     {
-        //goal: figure out the 1 in 8 corners that can actually hit the tri (its the one whos 3 axis signs is equal to signs(triangle normal) * sign(dot(normal, movedirection))
+        //goal: figure out the 1 in 8 corners that can actually hit the tri (its the one whose 3 axis signs is equal to signs(triangle normal) * sign(dot(normal, movedirection))
         //thats the only corner that could collide without having intersection beforehand.
 
         var edge1 = v1 - v0;
@@ -740,10 +740,10 @@ public class Rubikon
 
                 var DirToStart = EdgeStart - AABBEdgeCenter;
 
-                //if true, we are moving away from the edge here and that means we can skip all further attemps to intersect it
+                //if true, we are moving away from the edge here and that means we can skip all further attempts to intersect it
                 if (Vector3.Dot(DirToStart, hitNormal) > 0)
                 {
-                    //actually this needs commmenting out because we have no check to see if we are already within the box here. If the line is outside the box on this axis, we can't hit it, but we might be alright inside, where this would be wrong.
+                    //actually this needs commenting out because we have no check to see if we are already within the box here. If the line is outside the box on this axis, we can't hit it, but we might be alright inside, where this would be wrong.
 
                     //MissesOnAxis = true;
                     continue;

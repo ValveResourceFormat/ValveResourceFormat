@@ -69,7 +69,7 @@ namespace ValveResourceFormat.CompiledShader
                 vcsPlatformType == VcsPlatformType.Undetermined ||
                 vcsShaderModelType == VcsShaderModelType.Undetermined)
             {
-                throw new ShaderParserException($"Filetype type unknown or not supported {filenamepath}");
+                throw new ShaderParserException($"File type unknown or not supported {filenamepath}");
             }
             else
             {

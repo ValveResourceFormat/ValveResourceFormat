@@ -356,7 +356,7 @@ public sealed class AnimGraphModelInfo
                 continue;
             }
 
-            // Some rudamentary attachment matching
+            // Some rudimentary attachment matching
             const float epsilon = 0.001f;
             var posDiff = Vector3.DistanceSquared(attachment[0].Offset, influences[0].Offset);
 

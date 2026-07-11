@@ -141,7 +141,7 @@ public static class GLEnvironment
     }
 
     /// <summary>
-    /// Converts a <see cref="Matrix4x4"/> to an OpenTK Matrix3x4 by dropping the last row.
+    /// Converts a <see cref="Matrix4x4"/> to an OpenTK Matrix3x4, transposing the matrix and dropping the last (M14/M24/M34/M44) column.
     /// </summary>
     public static OpenTK.Mathematics.Matrix3x4 To3x4(this Matrix4x4 m)
     {

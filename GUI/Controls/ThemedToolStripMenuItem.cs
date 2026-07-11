@@ -82,7 +82,7 @@ public class ThemedToolStripMenuItem : ToolStripMenuItem
         var resourceName = SVGImageResourceName;
         Stream? svgResource = null;
 
-        // Sip svg icons in decign mode, program.assembly and themer dont exist
+        // Skip svg icons in design mode, program.assembly and themer don't exist
 
         // Try loading light variant if in light mode
         if (!DesignMode)

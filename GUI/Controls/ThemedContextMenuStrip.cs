@@ -10,7 +10,7 @@ internal class ThemedContextMenuStrip : ContextMenuStrip
 {
     public ThemedContextMenuStrip(IContainer container) : base()
     {
-        // this constructor ensures ContextMenuStrip is disposed properly since its not parented to the form.
+        // this constructor ensures ContextMenuStrip is disposed properly since it's not parented to the form.
         ArgumentNullException.ThrowIfNull(container);
 
         container.Add(this);

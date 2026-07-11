@@ -7,7 +7,7 @@ namespace ValveResourceFormat.CompiledShader
      * ----------------------------------------
      *
      * During parsing, the configuration mapping is applied to all vcs files that contain zframes
-     * to identify the configuration that each zframes belongs to.
+     * to identify the configuration that each zframe belongs to.
      * The basic idea for mapping zframe-Ids to static configurations is by enumerating all possible
      * legal states and writing them (in order) next to the zframes.
      *
@@ -222,7 +222,7 @@ namespace ValveResourceFormat.CompiledShader
         */
 
         /*
-         * possible zframe values are upto this value,
+         * possible zframe values are up to this value,
          * but not equal or exceeding
          *
          */

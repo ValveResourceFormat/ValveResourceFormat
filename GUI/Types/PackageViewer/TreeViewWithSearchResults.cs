@@ -82,7 +82,6 @@ namespace GUI.Types.PackageViewer
 
         /// <summary>
         /// Initializes a new instance of the <see cref="TreeViewWithSearchResults"/> class.
-        /// Require a default constructor for the designer.
         /// </summary>
         public TreeViewWithSearchResults(PackageViewer viewer)
         {

@@ -24,7 +24,7 @@ namespace ValveResourceFormat.Renderer.SceneNodes
         public float FrametimeMultiplier { get; set; } = 1.0f;
 
         /// <summary>
-        /// Whether to load preview control point state. And loop playback when finished.
+        /// Whether to load preview control point state, and loop playback when finished.
         /// </summary>
         public bool Preview { get; set; }
 
@@ -34,7 +34,7 @@ namespace ValveResourceFormat.Renderer.SceneNodes
         /// <param name="scene">The scene this node belongs to.</param>
         /// <param name="particleSystem">The particle system resource to simulate and render.</param>
         /// <param name="particleSnapshot">Optional snapshot to provide initial particle data (e.g. from a map entity).</param>
-        /// <param name="preview">Whether to load preview control point state. And loop playback when finished.</param>
+        /// <param name="preview">Whether to load preview control point state, and loop playback when finished.</param>
         public ParticleSceneNode(Scene scene, ParticleSystem particleSystem, ParticleSnapshot? particleSnapshot = null, bool preview = false)
             : base(scene)
         {
@@ -63,7 +63,9 @@ namespace ValveResourceFormat.Renderer.SceneNodes
         /// <summary>Sets the particle detail tier (0 = Low .. 3 = Ultra) used by detail-tiered inputs.</summary>
         public void SetDetailLevel(int level) => particleRenderer.SetDetailLevel(level);
 
-        /// <inheritdoc/>
+        /// <summary>Gets the control point at the given index from the particle renderer.</summary>
+        /// <param name="index">The index of the control point to retrieve.</param>
+        /// <returns>The control point at the specified index.</returns>
         public ControlPoint GetControlPoint(int index) => particleRenderer.GetControlPoint(index);
 
         private ModelSceneNode? CreatePreviewModel(ParticleSystem particleSystem)

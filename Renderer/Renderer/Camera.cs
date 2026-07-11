@@ -85,7 +85,7 @@ namespace ValveResourceFormat.Renderer
         }
 
         /// <summary>
-        /// Recomputes view, projection, and view-projection matrices from the current location, pitch, and yaw.
+        /// Recomputes the view and view-projection matrices (and updates the view frustum) from the current location and orientation. The projection matrix is not rebuilt here (see <see cref="CreateProjectionMatrix"/>).
         /// </summary>
         public void RecalculateMatrices()
         {
@@ -99,7 +99,7 @@ namespace ValveResourceFormat.Renderer
         }
 
         /// <summary>
-        /// Recomputes <see cref="Forward"/>, <see cref="Up"/>, and <see cref="Right"/> vectors from the current pitch and yaw.
+        /// Recomputes <see cref="Forward"/>, <see cref="Up"/>, and <see cref="Right"/> vectors from the current pitch, yaw, and roll.
         /// </summary>
         public void RecalculateDirectionVectors()
         {
@@ -268,7 +268,7 @@ namespace ValveResourceFormat.Renderer
             var halfHeight = height * 0.5f;
             var halfDepth = depth * 0.5f;
 
-            // this calculate the apparent size in screen space by projecting onto camera axis
+            // this calculates the apparent size in screen space by projecting onto camera axis
             var maxHorizontalExtent = 0f;
             var maxVerticalExtent = 0f;
 

@@ -35,9 +35,9 @@ public class GLControl : Control
     private readonly Lock glLock;
 
     /// <summary>
-    /// Constructs a new instance with the specified GLControlSettings.
+    /// Constructs a new instance using the specified lock to guard the native OpenGL window.
     /// </summary>
-    /// <param name="glControlSettings">The preferred configuration for the OpenGL  renderer.</param>
+    /// <param name="glLock">The lock used to synchronize access to the OpenGL/GLFW native window.</param>
     public GLControl(Lock glLock)
     {
         SetStyle(ControlStyles.Opaque, true);

@@ -63,7 +63,7 @@ namespace ValveResourceFormat.Renderer.World
             // Recalculate post process state
             var newState = PostProcessState.Default;
 
-            // For we SHOULD find the weight of each volume, then blend the values together, and finally blend the remaining values with the Master
+            // First we SHOULD find the weight of each volume, then blend the values together, and finally blend the remaining values with the Master
 
             // instead we just take the master only
             if (MasterPostProcessVolume != null)

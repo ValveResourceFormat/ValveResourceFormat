@@ -258,7 +258,7 @@ public class Framebuffer
     }
 
     /// <summary>
-    /// Resizes the framebuffer and changes the MSAA sample count, recreating attachments if anything changed.
+    /// Updates the MSAA sample count and resizes the framebuffer; attachments are recreated only when the width or height changes.
     /// </summary>
     public void Resize(int width, int height, int msaa)
     {
@@ -364,7 +364,7 @@ public class Framebuffer
     {
         if (InitialStatus != FramebufferErrorCode.FramebufferComplete)
         {
-            throw new InvalidOperationException($"Fbo '{name} failed to initialize with error: {InitialStatus}");
+            throw new InvalidOperationException($"Fbo '{name}' failed to initialize with error: {InitialStatus}");
         }
     }
 

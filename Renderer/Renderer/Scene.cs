@@ -652,7 +652,7 @@ namespace ValveResourceFormat.Renderer
             lpvBuffer.Update();
         }
 
-        /// <summary>Updates and binds the lighting, environment map, light probe, and barn light buffers to their reserved GPU binding slots.</summary>
+        /// <summary>Updates the lighting buffer, then binds the lighting, environment map, light probe, and barn light buffers to their reserved GPU binding slots.</summary>
         public void SetSceneBuffers()
         {
             Debug.Assert(lightingBuffer is not null && envMapBuffer is not null && lpvBuffer is not null);
@@ -1676,7 +1676,7 @@ namespace ValveResourceFormat.Renderer
                     else
                     {
 #if DEBUG
-                        RendererContext.Logger.LogDebug("A envmap with handshake [{Handshake}] does not exist for node at {Center}", precomputedHandshake, node.BoundingBox.Center);
+                        RendererContext.Logger.LogDebug("An envmap with handshake [{Handshake}] does not exist for node at {Center}", precomputedHandshake, node.BoundingBox.Center);
 #endif
                     }
                 }

@@ -61,7 +61,7 @@ partial class ModelExtract
         var fileName = ModelName;
         return (Path.GetDirectoryName(fileName)
             + Path.DirectorySeparatorChar
-            + Path.GetFileNameWithoutExtension(fileName) // so models in same directory do not override each other anims
+            + Path.GetFileNameWithoutExtension(fileName) // so models in the same directory do not override each other's anims
             + "_"
             + animationName
             + ".dmx")

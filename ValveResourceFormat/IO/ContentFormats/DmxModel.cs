@@ -27,7 +27,7 @@ internal class DmeModel : DMElement
 public class DmeShape : DMElement
 {
     /// <summary>
-    /// Gets or sets a value indicating whether this mesh is visible.
+    /// Gets or sets a value indicating whether this shape is visible.
     /// </summary>
     public bool Visible { get; set; } = true;
 }

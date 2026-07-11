@@ -111,7 +111,7 @@ namespace ValveResourceFormat.Renderer
                 modelBones[i] = InverseBindPose[i] * Pose[i];
             }
 
-            // Copy procedural cloth node transforms from a animated root bone
+            // Copy procedural cloth node transforms from an animated root bone
             var clothSimRoot = Skeleton.ClothSimulationRoot;
             if (clothSimRoot is not null)
             {

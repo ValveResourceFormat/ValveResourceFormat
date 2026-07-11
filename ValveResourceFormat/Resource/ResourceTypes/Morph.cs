@@ -106,7 +106,7 @@ namespace ValveResourceFormat.ResourceTypes
                 var morphName = morphData.GetStringProperty("m_name");
                 if (string.IsNullOrEmpty(morphName))
                 {
-                    //Exist some empty names may need skip.
+                    //Some empty names exist and may need to be skipped.
                     continue;
                 }
 

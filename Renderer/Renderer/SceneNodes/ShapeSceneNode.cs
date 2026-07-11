@@ -152,7 +152,7 @@ namespace ValveResourceFormat.Renderer.SceneNodes
                 var a = baseVert0 + segment;
                 var b = baseVert0 + (segment + 1) % SphereSegments;
 
-                // second sphere has indices in reverse order (since its rotated the other way)
+                // second sphere has indices in reverse order (since it's rotated the other way)
                 var c = baseVert1 + (SphereSegments - segment) % SphereSegments;
                 var d = baseVert1 + (SphereSegments - (segment + 1)) % SphereSegments;
 

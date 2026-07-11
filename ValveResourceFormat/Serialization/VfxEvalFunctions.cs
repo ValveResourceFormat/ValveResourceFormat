@@ -19,7 +19,7 @@ namespace ValveResourceFormat.Serialization.VfxEval
         /// Builds a 4x4 color correction matrix that applies contrast, saturation, and brightness adjustments.
         /// </summary>
         /// <param name="CSB">Color correction parameters: X = contrast, Y = saturation, Z = brightness.</param>
-        /// <param name="colorOffset">Pivot point for the brightness gain.</param>
+        /// <param name="colorOffset">Pivot point for the contrast adjustment.</param>
         public static Matrix4x4 MatrixColorCorrect2(Vector3 CSB, Vector3 colorOffset)
         {
             var cross = Vector3.Cross(LuminanceCoefficientsNormalised, Vector3.UnitZ);

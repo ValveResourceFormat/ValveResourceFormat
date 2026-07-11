@@ -10,7 +10,7 @@ namespace ValveResourceFormat.Renderer.World
         //private const int VOLFOG_BBOX_LIMIT = 128;
 
         // If we were to do this correctly, we would bin all of these entities and pick the best one at runtime.
-        // We don't use triggers though, so there's isn't much of a need. So we're only storing one.
+        // We don't use triggers though, so there isn't much of a need. So we're only storing one.
         /// <summary>Gets or sets a value indicating whether gradient fog is active.</summary>
         public bool GradientFogActive { get; set; }
         /// <summary>Gets or sets a value indicating whether cubemap fog is active.</summary>

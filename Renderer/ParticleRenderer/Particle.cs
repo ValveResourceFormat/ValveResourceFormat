@@ -81,7 +81,7 @@ namespace ValveResourceFormat.Renderer.Particles
 
         /// <summary>Gets the particle's age as a fraction of its lifetime. May exceed 1 if the particle outlives its lifetime.</summary>
         public readonly float NormalizedAge => Age / Math.Max(0.0001f, Lifetime); //Old version: 1 - (Lifetime / ConstantLifetime);
-        /// <summary>Gets or sets the scalar speed of the particle, adjusting velocity direction when set.</summary>
+        /// <summary>Gets or sets the scalar speed (magnitude) of the particle; setting it rescales the velocity to the new length while preserving its direction.</summary>
         public float Speed
         {
             readonly get => Velocity.Length();

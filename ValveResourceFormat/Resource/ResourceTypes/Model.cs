@@ -122,7 +122,7 @@ namespace ValveResourceFormat.ResourceTypes
         }
 
         /// <summary>
-        /// Populates cached mesh-related data (flex controllers, hitboxes, attachments) from an external mesh resource.
+        /// Populates cached flex controller data from an external mesh resource's morph data.
         /// </summary>
         /// <param name="mesh">The mesh providing supplemental data.</param>
         public void SetExternalMeshData(Mesh mesh)

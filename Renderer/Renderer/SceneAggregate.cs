@@ -58,7 +58,10 @@ namespace ValveResourceFormat.Renderer
             /// <summary>Gets or sets the per-fragment tint color.</summary>
             public Vector4 Tint { get; set; } = Vector4.One;
 
-            /// <inheritdoc/>
+            /// <summary>Initializes a new fragment of the given aggregate with the specified local bounds.</summary>
+            /// <param name="scene">Owning scene.</param>
+            /// <param name="parent">The scene aggregate this fragment belongs to.</param>
+            /// <param name="bounds">The local bounding box of the fragment.</param>
             public Fragment(Scene scene, SceneAggregate parent, AABB bounds) : base(scene)
             {
                 Parent = parent;

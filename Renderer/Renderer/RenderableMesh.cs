@@ -109,7 +109,7 @@ namespace ValveResourceFormat.Renderer
             }
         }
 
-        /// <summary>Returns the union of all render mode names supported by the materials in this mesh.</summary>
+        /// <summary>Returns the render mode names supported by the materials in this mesh, concatenated across draw calls (may contain duplicates).</summary>
         public IEnumerable<string> GetSupportedRenderModes()
             => DrawCalls
                 .SelectMany(static drawCall => drawCall.Material.Shader.RenderModes);

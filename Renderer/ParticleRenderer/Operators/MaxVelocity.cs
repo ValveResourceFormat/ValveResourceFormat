@@ -1,8 +1,8 @@
 namespace ValveResourceFormat.Renderer.Particles.Operators
 {
     /// <summary>
-    /// Clamps each particle's velocity to a maximum speed, optionally reading the maximum velocity
-    /// from a component of a control point.
+    /// Clamps each particle's velocity to a maximum speed and raises it to a minimum speed,
+    /// optionally reading the maximum velocity from a component of a control point.
     /// </summary>
     /// <seealso href="https://s2v.app/SchemaExplorer/cs2/particles/C_OP_MaxVelocity">C_OP_MaxVelocity</seealso>
     class MaxVelocity : ParticleFunctionOperator

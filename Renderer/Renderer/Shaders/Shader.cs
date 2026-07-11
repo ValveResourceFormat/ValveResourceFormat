@@ -208,7 +208,7 @@ namespace ValveResourceFormat.Renderer.Shaders
             GL.UseProgram(Program);
         }
 
-        /// <summary>Enumerates all active uniforms in the program, populating the internal uniform location cache.</summary>
+        /// <summary>Enumerates all active non-block uniforms in the program (uniforms belonging to uniform blocks are skipped), populating the internal uniform location cache.</summary>
         /// <returns>A sequence of tuples with each uniform's name, index, type, and array size.</returns>
         public IEnumerable<(string Name, int Index, ActiveUniformType Type, int Size)> GetAllUniformNames()
         {

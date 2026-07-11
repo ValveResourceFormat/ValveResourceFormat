@@ -131,7 +131,7 @@ namespace ValveResourceFormat.Renderer.Materials
         /// <summary>Initializes a new instance of the <see cref="RenderMaterial"/> class from a parsed material resource, loading its shader and applying render state.</summary>
         /// <param name="material">The parsed Source 2 material data.</param>
         /// <param name="rendererContext">The renderer context used to load shaders and textures.</param>
-        /// <param name="shaderArguments">Optional caller-supplied static combo overrides that take precedence over the material's own arguments.</param>
+        /// <param name="shaderArguments">Optional caller-supplied static combo values used as a base; the material's own shader arguments are merged in afterward and take precedence on conflicting keys.</param>
         [SetsRequiredMembers]
         public RenderMaterial(Material material, RendererContext rendererContext, Dictionary<string, byte>? shaderArguments)
             : this(material)

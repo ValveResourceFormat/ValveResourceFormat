@@ -65,7 +65,10 @@ public class RendererContext : IDisposable
         GC.SuppressFinalize(this);
     }
 
-    /// <inheritdoc/>
+    /// <summary>
+    /// Releases resources owned by the context.
+    /// </summary>
+    /// <param name="disposing">True to release managed resources.</param>
     protected virtual void Dispose(bool disposing)
     {
         if (!disposing)

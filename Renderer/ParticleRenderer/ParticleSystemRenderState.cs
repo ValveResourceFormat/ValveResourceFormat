@@ -163,7 +163,7 @@ namespace ValveResourceFormat.Renderer.Particles
     public class ControlPoint
     {
         /// <summary>
-        /// The position of this control point. Some times this is used for things other than position.
+        /// The position of this control point. Sometimes this is used for things other than position.
         /// </summary>
         public Vector3 Position { get; set; }
 

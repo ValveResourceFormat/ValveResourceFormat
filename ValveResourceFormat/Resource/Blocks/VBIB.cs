@@ -840,7 +840,7 @@ namespace ValveResourceFormat.Blocks
                 var derivedNormalZ = 1.0f - MathF.Abs(nPackedFrameX) - MathF.Abs(nPackedFrameY); // Project onto x+y+z=1
                 var unpackedNormal = new Vector3(nPackedFrameX, nPackedFrameY, derivedNormalZ);
 
-                // If Z is negative, X and Y has had extra amounts (TODO: find the logic behind this value) added into them so they would add up to over 1.0
+                // If Z is negative, X and Y have had extra amounts (TODO: find the logic behind this value) added into them so they would add up to over 1.0
                 // Thus, we take the negative components of Z and add them back into XY to get the correct original values.
                 var negativeZCompensation = Math.Clamp(-derivedNormalZ, 0.0f, 1.0f); // Isolate the negative 0..1 range of derived Z
 

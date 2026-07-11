@@ -5,7 +5,8 @@ namespace ValveResourceFormat.Renderer
     public partial class AnimationController
     {
         /// <summary>
-        /// Gets or sets the tilt-twist skeleton constraints that are applied after animation.
+        /// Gets or sets the tilt-twist skeleton constraints. These are not yet evaluated at runtime;
+        /// only hardcoded first-person viewmodel constraints are currently applied (see <see cref="ApplyConstraints"/>).
         /// </summary>
         public TiltTwistConstraint[] TwistConstraints { get; set; } = [];
 
@@ -25,7 +26,7 @@ namespace ValveResourceFormat.Renderer
         }
 
         /// <summary>
-        /// Hides bones from pelvis and up.
+        /// Hides bones from spine_0 and up (keeping the pelvis and legs visible).
         /// </summary>
         public void ApplyFirstpersonLegs()
         {
@@ -42,7 +43,9 @@ namespace ValveResourceFormat.Renderer
         }
 
         /// <summary>
-        /// Applies tilt-twist constraints configured in the controller to the current pose.
+        /// Applies twist constraints to the current pose. Currently only hardcoded first-person
+        /// viewmodel arm-twist constraints are applied (when <see cref="EnableFirstPersonConstraints"/>
+        /// is set); the configured <see cref="TwistConstraints"/> array is not yet evaluated.
         /// </summary>
         public void ApplyConstraints()
         {

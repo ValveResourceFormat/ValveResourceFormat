@@ -17,9 +17,9 @@ namespace GUI.Utils
         {
             /// <summary>For background elements like the window itself and titlebars.</summary>
             public required Color App { get; init; }
-            /// <summary>For element which need to stand out from the background.</summary>
+            /// <summary>For elements which need to stand out from the background.</summary>
             public required Color AppMiddle { get; init; }
-            /// <summary>For element which need to sit between App and AppSoft colors.</summary>
+            /// <summary>For elements which need to sit between AppMiddle and the foreground, standing out most from the background.</summary>
             public required Color AppSoft { get; init; }
 
             /// <summary>For borders meant to visually separate parts of the interface.</summary>
@@ -119,7 +119,7 @@ namespace GUI.Utils
             ThemeControl(Form);
         }
 
-        /// <summary>Recursively apply the Colors from 'ThemeColors' to the Control and all its childs.</summary>
+        /// <summary>Recursively apply the Colors from 'ThemeColors' to the Control and all its children.</summary>
         public static void ThemeControl(Control control)
         {
             control.SuspendLayout();
