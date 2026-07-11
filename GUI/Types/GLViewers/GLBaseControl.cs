@@ -485,7 +485,7 @@ internal abstract class GLBaseControl : IDisposable
     private const long MouseEventFromTouchOrPen = 0xFF515700;
 
     private static bool IsTouchOrPenInput()
-        => ((long)(nint)PInvoke.GetMessageExtraInfo() & 0xFFFFFF00) == MouseEventFromTouchOrPen;
+        => ((nint)PInvoke.GetMessageExtraInfo() & 0xFFFFFF00) == MouseEventFromTouchOrPen;
 
     protected virtual void OnMouseWheel(object? sender, MouseEventArgs e)
     {
