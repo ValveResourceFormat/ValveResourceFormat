@@ -1,7 +1,6 @@
 using System.Diagnostics;
 using System.Drawing;
 using System.IO;
-using System.Runtime.InteropServices;
 using System.Threading;
 using System.Windows.Forms;
 using GUI.Controls;
@@ -11,10 +10,11 @@ using OpenTK.Windowing.Common;
 using OpenTK.Windowing.Desktop;
 using ValveResourceFormat.Renderer;
 using ValveResourceFormat.Renderer.Input;
+using Windows.Win32;
 
 namespace GUI.Types.GLViewers;
 
-internal abstract partial class GLBaseControl : IDisposable
+internal abstract class GLBaseControl : IDisposable
 {
     protected RendererControl? UiControl;
 
@@ -484,11 +484,8 @@ internal abstract partial class GLBaseControl : IDisposable
     // See "Distinguishing Pen and Touch Input from Mouse Input" in the Windows docs.
     private const long MouseEventFromTouchOrPen = 0xFF515700;
 
-    [LibraryImport("user32.dll")]
-    private static partial IntPtr GetMessageExtraInfo();
-
     private static bool IsTouchOrPenInput()
-        => ((long)GetMessageExtraInfo() & 0xFFFFFF00) == MouseEventFromTouchOrPen;
+        => ((long)(nint)PInvoke.GetMessageExtraInfo() & 0xFFFFFF00) == MouseEventFromTouchOrPen;
 
     protected virtual void OnMouseWheel(object? sender, MouseEventArgs e)
     {

@@ -7,6 +7,7 @@ FindWindowEx
 DwmGetWindowAttribute
 DwmSetWindowAttribute
 GetComboBoxInfo
+GetMessageExtraInfo
 GetSystemMenu
 GetWindowThreadProcessId
 GetSystemMetricsForDpi
