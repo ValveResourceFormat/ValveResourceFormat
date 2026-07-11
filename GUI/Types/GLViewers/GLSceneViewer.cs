@@ -253,9 +253,9 @@ namespace GUI.Types.GLViewers
                 return;
             }
 
-            if (InitialMousePosition == new Point(e.X, e.Y))
+            if (!MouseDragged)
             {
-                Picker?.RequestNextFrame(e.X, e.Y, PickingIntent.Select);
+                Picker?.RequestNextFrame(InitialMousePosition.X, InitialMousePosition.Y, PickingIntent.Select);
             }
         }
 

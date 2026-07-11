@@ -10,6 +10,7 @@ using OpenTK.Windowing.Common;
 using OpenTK.Windowing.Desktop;
 using ValveResourceFormat.Renderer;
 using ValveResourceFormat.Renderer.Input;
+using Windows.Win32;
 
 namespace GUI.Types.GLViewers;
 
@@ -30,9 +31,15 @@ internal abstract class GLBaseControl : IDisposable
     protected TrackedKeys CurrentlyPressedKeys;
     public Point LastMouseDelta { get; protected set; }
 
+    /// <summary>Whether the mouse has moved while a button was held since the last mouse down.</summary>
+    protected bool MouseDragged;
+
     private readonly Lock inputStateLock = new();
     private Point pendingMouseDelta;
     private int pendingMouseWheelDelta;
+    private bool cursorHiddenForDrag;
+    private bool currentDragIsTouch;
+    private bool mouseLookNeedsRebase;
 
     public bool GrabbedMouse
     {
@@ -41,8 +48,14 @@ internal abstract class GLBaseControl : IDisposable
         {
             if (field != value)
             {
-                Action changeCursorVisibility = value ? Cursor.Hide : Cursor.Show;
-                GLControl?.BeginInvoke(changeCursorVisibility);
+                if (value)
+                {
+                    mouseLookNeedsRebase = true;
+                }
+                else
+                {
+                    GLControl?.BeginInvoke(RestoreCursorAfterDrag);
+                }
             }
 
             field = value;
@@ -260,7 +273,10 @@ internal abstract class GLBaseControl : IDisposable
     {
         CurrentlyPressedKeys = TrackedKeys.None;
         MouseDelta = Point.Empty;
+        currentDragIsTouch = false;
+        mouseLookNeedsRebase = true;
         GrabbedMouse = false;
+        RestoreCursorAfterDrag();
     }
 
     private static TrackedKeys RemapKey(Keys key) => key switch
@@ -302,6 +318,12 @@ internal abstract class GLBaseControl : IDisposable
     public virtual void Dispose()
     {
         using var lockedGl = glLock.EnterScope();
+
+        if (cursorHiddenForDrag)
+        {
+            cursorHiddenForDrag = false;
+            Cursor.Show();
+        }
 
         if (GLControl is not null)
         {
@@ -352,6 +374,9 @@ internal abstract class GLBaseControl : IDisposable
 
         InitialMousePosition = new Point(e.X, e.Y);
         MouseDelta = Point.Empty;
+        MouseDragged = false;
+        currentDragIsTouch = IsTouchOrPenInput();
+        mouseLookNeedsRebase = true;
 
         if (GLControl != null)
         {
@@ -386,17 +411,39 @@ internal abstract class GLBaseControl : IDisposable
         {
             pendingMouseDelta = Point.Empty;
             MouseDelta = Point.Empty;
+            currentDragIsTouch = false;
+            mouseLookNeedsRebase = true;
+
+            if (!GrabbedMouse)
+            {
+                RestoreCursorAfterDrag();
+            }
         }
     }
 
-    protected virtual void OnMouseMove(object? sender, MouseEventArgs e)
+    private void RestoreCursorAfterDrag()
     {
-        if (!GrabbedMouse && (CurrentlyPressedKeys & TrackedKeys.MouseLeftOrRight) == 0)
+        if (!cursorHiddenForDrag)
         {
             return;
         }
 
+        cursorHiddenForDrag = false;
+        Cursor.Position = MousePreviousPosition;
+        Cursor.Show();
+    }
+
+    protected virtual void OnMouseMove(object? sender, MouseEventArgs e)
+    {
         if (GLControl == null)
+        {
+            return;
+        }
+
+        var dragging = (CurrentlyPressedKeys & TrackedKeys.MouseLeftOrRight) != 0;
+        var touch = currentDragIsTouch || IsTouchOrPenInput();
+
+        if (!dragging && !(GrabbedMouse && !touch))
         {
             return;
         }
@@ -404,67 +451,50 @@ internal abstract class GLBaseControl : IDisposable
         using var _ = inputStateLock.EnterScope();
 
         var position = GLControl.PointToScreen(new Point(e.X, e.Y));
-        var topLeft = GLControl.PointToScreen(Point.Empty);
-        var bottomRight = topLeft + GLControl.Size;
 
-        // Windows has a 1px edge on bottom and right of the screen where cursor can't reach
-        // (assuming that there is no secondary screen past these edges)
-        bottomRight.X -= 1;
-        bottomRight.Y -= 1;
-
-        var positionWrapped = position;
-
-        var delta = Point.Empty;
-
-        if (position.X <= topLeft.X)
+        if (mouseLookNeedsRebase)
         {
-            delta.X--;
-            positionWrapped.X = bottomRight.X - 1;
-        }
-        else if (position.X >= bottomRight.X)
-        {
-            delta.X++;
-            positionWrapped.X = topLeft.X + 1;
-        }
-
-        if (position.Y <= topLeft.Y)
-        {
-            delta.Y--;
-            positionWrapped.Y = bottomRight.Y - 1;
-        }
-        else if (position.Y >= bottomRight.Y)
-        {
-            delta.Y++;
-            positionWrapped.Y = topLeft.Y + 1;
-        }
-
-        if (positionWrapped != position)
-        {
-            // When wrapping cursor, add only 1px delta movement above
-            pendingMouseDelta.X += delta.X;
-            pendingMouseDelta.Y += delta.Y;
-
-            MousePreviousPosition = positionWrapped;
-            Cursor.Position = positionWrapped;
+            mouseLookNeedsRebase = false;
+            MousePreviousPosition = position;
             return;
         }
 
-        delta.X += position.X - MousePreviousPosition.X;
-        delta.Y += position.Y - MousePreviousPosition.Y;
+        var delta = new Point(
+            position.X - MousePreviousPosition.X,
+            position.Y - MousePreviousPosition.Y
+        );
 
         pendingMouseDelta.X += delta.X;
         pendingMouseDelta.Y += delta.Y;
 
-        MousePreviousPosition = position;
-
-        if (GrabbedMouse)
+        if (delta != Point.Empty)
         {
-            var centerPoint = new Point(GLControl.Width / 2, GLControl.Height / 2);
-            var screenCenter = GLControl.PointToScreen(centerPoint);
-            MousePreviousPosition = screenCenter;
-            Cursor.Position = screenCenter;
+            MouseDragged = true;
+
+            if (!cursorHiddenForDrag)
+            {
+                cursorHiddenForDrag = true;
+                Cursor.Hide();
+            }
         }
+
+        // Touch and pen are absolute digitizers: warping the cursor doesn't move the contact point
+        if (touch)
+        {
+            MousePreviousPosition = position;
+            return;
+        }
+
+        // Relative mouse: pin the cursor so the look can continue past the screen edges
+        Cursor.Position = MousePreviousPosition;
     }
+
+    // Signature Windows stamps onto mouse messages synthesized from touch or pen input.
+    // See "Distinguishing Pen and Touch Input from Mouse Input" in the Windows docs.
+    private const long MouseEventFromTouchOrPen = 0xFF515700;
+
+    private static bool IsTouchOrPenInput()
+        => ((nint)PInvoke.GetMessageExtraInfo() & 0xFFFFFF00) == MouseEventFromTouchOrPen;
 
     protected virtual void OnMouseWheel(object? sender, MouseEventArgs e)
     {
