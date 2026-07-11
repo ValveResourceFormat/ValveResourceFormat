@@ -310,7 +310,6 @@ internal abstract partial class GLBaseControl : IDisposable
     {
         using var lockedGl = glLock.EnterScope();
 
-        // Restore the cursor if we're torn down mid-drag, otherwise the process-wide hide count leaks.
         if (cursorHiddenForDrag)
         {
             cursorHiddenForDrag = false;
