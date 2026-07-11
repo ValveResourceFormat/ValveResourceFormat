@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using System.Drawing;
 using System.IO;
+using System.Runtime.InteropServices;
 using System.Threading;
 using System.Windows.Forms;
 using GUI.Controls;
@@ -13,7 +14,7 @@ using ValveResourceFormat.Renderer.Input;
 
 namespace GUI.Types.GLViewers;
 
-internal abstract class GLBaseControl : IDisposable
+internal abstract partial class GLBaseControl : IDisposable
 {
     protected RendererControl? UiControl;
 
@@ -37,6 +38,8 @@ internal abstract class GLBaseControl : IDisposable
     private Point pendingMouseDelta;
     private int pendingMouseWheelDelta;
     private bool cursorHiddenForDrag;
+    private bool currentDragIsTouch;
+    private bool mouseLookNeedsRebase;
 
     public bool GrabbedMouse
     {
@@ -45,8 +48,14 @@ internal abstract class GLBaseControl : IDisposable
         {
             if (field != value)
             {
-                Action changeCursorVisibility = value ? Cursor.Hide : Cursor.Show;
-                GLControl?.BeginInvoke(changeCursorVisibility);
+                if (value)
+                {
+                    mouseLookNeedsRebase = true;
+                }
+                else
+                {
+                    GLControl?.BeginInvoke(RestoreCursorAfterDrag);
+                }
             }
 
             field = value;
@@ -255,6 +264,8 @@ internal abstract class GLBaseControl : IDisposable
     {
         CurrentlyPressedKeys = TrackedKeys.None;
         MouseDelta = Point.Empty;
+        currentDragIsTouch = false;
+        mouseLookNeedsRebase = true;
         GrabbedMouse = false;
         RestoreCursorAfterDrag();
     }
@@ -298,6 +309,13 @@ internal abstract class GLBaseControl : IDisposable
     public virtual void Dispose()
     {
         using var lockedGl = glLock.EnterScope();
+
+        // Restore the cursor if we're torn down mid-drag, otherwise the process-wide hide count leaks.
+        if (cursorHiddenForDrag)
+        {
+            cursorHiddenForDrag = false;
+            Cursor.Show();
+        }
 
         if (GLControl is not null)
         {
@@ -349,6 +367,8 @@ internal abstract class GLBaseControl : IDisposable
         InitialMousePosition = new Point(e.X, e.Y);
         MouseDelta = Point.Empty;
         MouseDragged = false;
+        currentDragIsTouch = IsTouchOrPenInput();
+        mouseLookNeedsRebase = true;
 
         if (GLControl != null)
         {
@@ -383,7 +403,13 @@ internal abstract class GLBaseControl : IDisposable
         {
             pendingMouseDelta = Point.Empty;
             MouseDelta = Point.Empty;
-            RestoreCursorAfterDrag();
+            currentDragIsTouch = false;
+            mouseLookNeedsRebase = true;
+
+            if (!GrabbedMouse)
+            {
+                RestoreCursorAfterDrag();
+            }
         }
     }
 
@@ -395,25 +421,21 @@ internal abstract class GLBaseControl : IDisposable
         }
 
         cursorHiddenForDrag = false;
-
-        if (GLControl != null)
-        {
-            // Put the cursor back where the drag started so it doesn't appear to jump.
-            Cursor.Position = GLControl.PointToScreen(InitialMousePosition);
-            GLControl.BeginInvoke(Cursor.Show);
-        }
+        Cursor.Position = MousePreviousPosition;
+        Cursor.Show();
     }
 
     protected virtual void OnMouseMove(object? sender, MouseEventArgs e)
     {
-        var dragging = (CurrentlyPressedKeys & TrackedKeys.MouseLeftOrRight) != 0;
-
-        if (!GrabbedMouse && !dragging)
+        if (GLControl == null)
         {
             return;
         }
 
-        if (GLControl == null)
+        var dragging = (CurrentlyPressedKeys & TrackedKeys.MouseLeftOrRight) != 0;
+        var touch = currentDragIsTouch || IsTouchOrPenInput();
+
+        if (!dragging && !(GrabbedMouse && !touch))
         {
             return;
         }
@@ -421,6 +443,13 @@ internal abstract class GLBaseControl : IDisposable
         using var _ = inputStateLock.EnterScope();
 
         var position = GLControl.PointToScreen(new Point(e.X, e.Y));
+
+        if (mouseLookNeedsRebase)
+        {
+            mouseLookNeedsRebase = false;
+            MousePreviousPosition = position;
+            return;
+        }
 
         var delta = new Point(
             position.X - MousePreviousPosition.X,
@@ -434,23 +463,33 @@ internal abstract class GLBaseControl : IDisposable
         {
             MouseDragged = true;
 
-            // Hide the cursor once dragging the camera starts so it isn't distracting and doesn't drift.
-            if (dragging && !GrabbedMouse && !cursorHiddenForDrag)
+            if (!cursorHiddenForDrag)
             {
                 cursorHiddenForDrag = true;
-                GLControl.BeginInvoke(Cursor.Hide);
+                Cursor.Hide();
             }
         }
 
-        // Keep the cursor pinned in place while looking around: centered in grabbed (noclip) mode,
-        // otherwise locked to where the drag started so it stays hidden and doesn't move.
-        var lockPoint = GrabbedMouse
-            ? GLControl.PointToScreen(new Point(GLControl.Width / 2, GLControl.Height / 2))
-            : GLControl.PointToScreen(InitialMousePosition);
+        // Touch and pen are absolute digitizers: warping the cursor doesn't move the contact point
+        if (touch)
+        {
+            MousePreviousPosition = position;
+            return;
+        }
 
-        MousePreviousPosition = lockPoint;
-        Cursor.Position = lockPoint;
+        // Relative mouse: pin the cursor so the look can continue past the screen edges
+        Cursor.Position = MousePreviousPosition;
     }
+
+    // Signature Windows stamps onto mouse messages synthesized from touch or pen input.
+    // See "Distinguishing Pen and Touch Input from Mouse Input" in the Windows docs.
+    private const long MouseEventFromTouchOrPen = 0xFF515700;
+
+    [LibraryImport("user32.dll")]
+    private static partial IntPtr GetMessageExtraInfo();
+
+    private static bool IsTouchOrPenInput()
+        => ((long)GetMessageExtraInfo() & 0xFFFFFF00) == MouseEventFromTouchOrPen;
 
     protected virtual void OnMouseWheel(object? sender, MouseEventArgs e)
     {
