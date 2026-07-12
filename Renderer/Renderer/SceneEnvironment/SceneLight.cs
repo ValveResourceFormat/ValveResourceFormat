@@ -189,7 +189,6 @@ public class SceneLight(Scene scene) : SceneNode(scene)
     public bool IsDirty { get; set; } = true;
 
     internal int AdaptiveShadowSize { get; set; }
-    internal bool WasDropped { get; set; }
 
     /// <summary>
     /// Returns whether this light will produce energy based on its properties.
