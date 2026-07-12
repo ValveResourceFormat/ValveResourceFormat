@@ -100,7 +100,6 @@ namespace ValveResourceFormat.Renderer.World
         public ShadowMapper ShadowMapper { get; } = new();
 
         private readonly BarnLightConstants[] BinnedBarnLightGpuData = new BarnLightConstants[BarnLightConstants.MAX_BARN_LIGHTS];
-        private bool barnLightBudgetWarned;
 
         private Dictionary<string, int> BarnLightCookiePaths { get; } = new(StringComparer.OrdinalIgnoreCase);
         private StorageBuffer? BarnLightStorageBuffer;
@@ -409,17 +408,32 @@ namespace ValveResourceFormat.Renderer.World
             {
                 var light = binned.Light;
 
-                if (LightingData.NumBarnLights + light.BarnFaces.Length > BarnLightConstants.MAX_BARN_LIGHTS)
+                // Wanted shadows but got no placements, don't render the light.
+                if (binned.WantsShadows && !binned.HasShadows)
                 {
-                    if (!barnLightBudgetWarned)
+                    if (!light.WasDropped)
                     {
-                        barnLightBudgetWarned = true;
-                        scene.RendererContext.Logger.LogWarning(
-                            "Max barn light count ({Max}) reached, some lights will be dropped", BarnLightConstants.MAX_BARN_LIGHTS);
+                        light.WasDropped = true;
+                        scene.RendererContext.Logger.LogWarning("Too many shadow casting lights, dropping light '{LightName}'", light.Name);
                     }
 
                     continue;
                 }
+
+                if (LightingData.NumBarnLights + light.BarnFaces.Length > BarnLightConstants.MAX_BARN_LIGHTS)
+                {
+                    if (!light.WasDropped)
+                    {
+                        light.WasDropped = true;
+                        scene.RendererContext.Logger.LogWarning(
+                            "Max barn light count ({Max}) reached, dropping light '{LightName}'",
+                            BarnLightConstants.MAX_BARN_LIGHTS, light.Name);
+                    }
+
+                    continue;
+                }
+
+                var anyFaceDropped = false;
 
                 for (var faceIndex = 0; faceIndex < light.BarnFaces.Length; faceIndex++)
                 {
@@ -429,15 +443,27 @@ namespace ValveResourceFormat.Renderer.World
                     {
                         var placement = ShadowMapper.GetFacePlacement(binned.FirstFaceIndex + faceIndex);
 
-                        if (placement.Region.IsValid)
+                        if (!placement.Region.IsValid)
                         {
-                            data.BarnLightShadowOffsetScale = placement.OffsetScale;
-                            data.BarnLightShadowScale = 1.0f;
+                            if (!light.WasDropped && !anyFaceDropped)
+                            {
+                                scene.RendererContext.Logger.LogWarning(
+                                    "Barn light shadow atlas is full, skipping shadow face of light '{LightName}' (size {Size})",
+                                    light.Name, binned.FaceWidth);
+                            }
+
+                            anyFaceDropped = true;
+                            continue;
                         }
+
+                        data.BarnLightShadowOffsetScale = placement.OffsetScale;
+                        data.BarnLightShadowScale = 1.0f;
                     }
 
                     BinnedBarnLightGpuData[LightingData.NumBarnLights++] = data;
                 }
+
+                light.WasDropped = anyFaceDropped;
             }
 
             BarnLightStorageBuffer?.Update(BinnedBarnLightGpuData, 0, (int)LightingData.NumBarnLights * Unsafe.SizeOf<BarnLightConstants>());
