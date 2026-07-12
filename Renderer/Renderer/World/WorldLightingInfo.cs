@@ -1,7 +1,6 @@
 using System.Diagnostics;
 using System.Linq;
 using System.Runtime.CompilerServices;
-using System.Runtime.InteropServices;
 using Microsoft.Extensions.Logging;
 using OpenTK.Graphics.OpenGL;
 using ValveResourceFormat.Renderer.Buffers;
@@ -33,19 +32,6 @@ namespace ValveResourceFormat.Renderer.World
         IndividualProbes,
         /// <summary>All probe irradiance data is packed into a single atlas texture.</summary>
         ProbeAtlas,
-    }
-
-    /// <summary>A single shadow-casting barn light face queued for rendering into the shadow atlas.</summary>
-    public struct BinnedShadowCaster
-    {
-        /// <summary>Gets or sets the world-to-frustum transform for this shadow face.</summary>
-        public Matrix4x4 WorldToFrustum { get; set; }
-        /// <summary>Gets or sets the atlas region allocated for this shadow face.</summary>
-        public ShadowAtlasRegion Region { get; set; }
-        /// <summary>Gets or sets the scene light that owns this shadow caster.</summary>
-        public SceneLight Light { get; set; }
-        /// <summary>Gets or sets the face index within the light's barn faces array.</summary>
-        public int FaceIndex { get; set; }
     }
 
     /// <summary>
@@ -107,24 +93,16 @@ namespace ValveResourceFormat.Renderer.World
         public bool UseSceneBoundsForSunLightFrustum { get; set; }
 
         // Barn lights
-        /// <summary>Gets or sets the pixel size of the barn light shadow atlas texture.</summary>
-        public int BarnLightShadowAtlasSize { get; set; } = 4096;
-        private static readonly (float MaxDistance, int MaxResolution)[] ShadowTiers =
-        [
-            (384f, 1536),
-            (768f, 512),
-            (2048f, 256),
-        ];
+        /// <summary>Gets the size of the barn light shadow atlas texture, as recorded by the last <see cref="BinBarnLights"/> call.</summary>
+        public int BarnLightShadowAtlasSize { get; private set; } = 4096;
 
-        private const int OmniShadowBorder = 2;
+        /// <summary>Gets the shadow mapper that culls and packs light shadow faces each frame.</summary>
+        public ShadowMapper ShadowMapper { get; } = new();
+
         private readonly BarnLightConstants[] BinnedBarnLightGpuData = new BarnLightConstants[BarnLightConstants.MAX_BARN_LIGHTS];
-        private readonly List<ShadowRequest> ShadowRequests = [];
-        private readonly ShadowAtlasPacker ShadowAtlas = new(64);
 
         private Dictionary<string, int> BarnLightCookiePaths { get; } = new(StringComparer.OrdinalIgnoreCase);
         private StorageBuffer? BarnLightStorageBuffer;
-        /// <summary>Gets the list of shadow casters produced by the most recent <see cref="BinBarnLights"/> call.</summary>
-        public List<BinnedShadowCaster> BinnedShadowCasters { get; } = [];
         private RenderTexture? BarnLightCookieAtlas { get; set; }
         private int CookieSamplerClampBorder;
         private int CookieSamplerWrap;
@@ -414,173 +392,78 @@ namespace ValveResourceFormat.Renderer.World
             RebuildCookieAtlas();
         }
 
-        private static int GetResolutionCap(float distance)
-        {
-            for (var i = 0; i < ShadowTiers.Length; i++)
-            {
-                if (distance <= ShadowTiers[i].MaxDistance)
-                {
-                    return ShadowTiers[i].MaxResolution;
-                }
-            }
-
-            return ShadowTiers.Length > 0 ? ShadowTiers[^1].MaxResolution : int.MaxValue;
-        }
-
-        private static (int W, int H) ApplyDistanceCap(int w, int h, float distance)
-        {
-            var cap = GetResolutionCap(distance);
-            var maxDim = Math.Max(w, h);
-            return maxDim <= cap
-                ? (w, h)
-                : (w * cap / maxDim, h * cap / maxDim);
-        }
-
-        private bool barnLightsLoggedOnce;
         /// <summary>
         /// Culls and bins visible barn lights for the current frame, packing their shadow faces into the atlas.
         /// </summary>
-        /// <param name="cameraFrustum">The camera frustum used to cull lights not in view.</param>
-        /// <param name="cameraPosition">The camera world position used to select shadow map resolution tiers.</param>
-        public void BinBarnLights(Frustum cameraFrustum, Vector3 cameraPosition)
+        /// <param name="camera">The camera used for culling and shadow resolution selection.</param>
+        /// <param name="atlasSize">Pixel size of the shadow atlas texture.</param>
+        public void BinBarnLights(Camera camera, int atlasSize)
         {
+            BarnLightShadowAtlasSize = atlasSize;
             LightingData.NumBarnLights = 0;
-            BinnedShadowCasters.Clear();
 
-            if (BarnLights is null || BarnLights.Count == 0)
+            ShadowMapper.Bin(BarnLights, camera, atlasSize, BarnLightCookiePaths);
+
+            foreach (ref readonly var binned in ShadowMapper.BinnedLights)
             {
-                LightingData.NumBarnLights = 0;
-                return;
-            }
+                var light = binned.Light;
 
-            ShadowRequests.Clear();
-            ShadowRequests.Capacity = ShadowAtlas.MaxShadowMaps;
-
-            foreach (var light in BarnLights)
-            {
-                if (light.PrecomputedFieldsValid && !cameraFrustum.Intersects(light.PrecomputedBounds))
+                // Wanted shadows but got no placements, don't render the light.
+                if (binned.WantsShadows && !binned.HasShadows)
                 {
-                    continue;
-                }
-
-                if (light.IsDirty)
-                {
-                    light.ComputeBarnFaces(BarnLightCookiePaths!);
-                    light.IsDirty = false;
-                }
-
-                if (!light.IsVisible)
-                {
-                    continue;
-                }
-
-                light.WillDrawShadows = false;
-
-                if (light.CastShadows > 0)
-                {
-                    var (w, h) = light.GetShadowFaceDimensions();
-                    var distance = Vector3.Distance(cameraPosition, light.Position);
-                    (w, h) = ApplyDistanceCap(w, h, distance);
-
-                    w = Math.Max(w, 64);
-                    h = Math.Max(h, 64);
-
-                    if (ShadowRequests.Count + light.BarnFaces.Length > ShadowAtlas.MaxShadowMaps)
+                    if (!light.WasDropped)
                     {
-                        continue;
+                        light.WasDropped = true;
+                        scene.RendererContext.Logger.LogWarning("Too many shadow casting lights, dropping light '{LightName}'", light.Name);
                     }
 
-                    light.WillDrawShadows = true;
+                    continue;
+                }
 
-                    var border = light.Entity == SceneLight.EntityType.Omni2 ? OmniShadowBorder * 2 : 0;
-                    for (var i = 0; i < light.BarnFaces.Length; i++)
+                if (LightingData.NumBarnLights + light.BarnFaces.Length > BarnLightConstants.MAX_BARN_LIGHTS)
+                {
+                    if (!light.WasDropped)
                     {
-                        ShadowRequests.Add(new ShadowRequest(w + border, h + border));
+                        light.WasDropped = true;
+                        scene.RendererContext.Logger.LogWarning(
+                            "Max barn light count ({Max}) reached, dropping light '{LightName}'",
+                            BarnLightConstants.MAX_BARN_LIGHTS, light.Name);
                     }
-                }
-            }
 
-            var atlasRegions = ShadowAtlas.Pack(BarnLightShadowAtlasSize, CollectionsMarshal.AsSpan(ShadowRequests));
-
-            var requestIndex = 0;
-            foreach (var light in BarnLights)
-            {
-                if (light.PrecomputedFieldsValid && !cameraFrustum.Intersects(light.PrecomputedBounds))
-                {
                     continue;
                 }
 
-                if (!light.IsVisible)
-                {
-                    continue;
-                }
-
-                if (LightingData.NumBarnLights >= BarnLightConstants.MAX_BARN_LIGHTS)
-                {
-                    break;
-                }
+                var anyFaceDropped = false;
 
                 for (var faceIndex = 0; faceIndex < light.BarnFaces.Length; faceIndex++)
                 {
-                    if (LightingData.NumBarnLights >= BarnLightConstants.MAX_BARN_LIGHTS)
+                    var data = light.BarnFaces[faceIndex].GpuData;
+
+                    if (binned.HasShadows)
                     {
-                        break;
-                    }
+                        var placement = ShadowMapper.GetFacePlacement(binned.FirstFaceIndex + faceIndex);
 
-                    var face = light.BarnFaces[faceIndex];
-                    var data = face.GpuData;
-
-                    if (light.WillDrawShadows && atlasRegions.Length > 0)
-                    {
-                        var region = atlasRegions[requestIndex++];
-
-                        if (region.IsValid)
+                        if (!placement.Region.IsValid)
                         {
-                            var shadowMatrix = face.WorldToFrustum;
-                            var bakedScale = new Vector2(region.Width, region.Height) / BarnLightShadowAtlasSize * 0.5f;
-                            var bakedOffset = new Vector2(region.X + region.Width / 2f, region.Y + region.Height / 2f) / BarnLightShadowAtlasSize;
-
-                            if (light.Entity == SceneLight.EntityType.Omni2)
+                            if (!light.WasDropped && !anyFaceDropped)
                             {
-                                var shrink = new Vector2(
-                                    (float)(region.Width - OmniShadowBorder * 2) / region.Width,
-                                    (float)(region.Height - OmniShadowBorder * 2) / region.Height
-                                );
-                                bakedScale *= shrink;
-                                shadowMatrix *= Matrix4x4.CreateScale(shrink.X, shrink.Y, 1f);
+                                scene.RendererContext.Logger.LogWarning(
+                                    "Barn light shadow atlas is full, skipping shadow face of light '{LightName}' (size {Size})",
+                                    light.Name, binned.FaceWidth);
                             }
 
-                            data.BarnLightShadowOffsetScale = new Vector4(
-                                bakedOffset.X, bakedOffset.Y,
-                                bakedScale.X, bakedScale.Y
-                            );
-                            data.BarnLightShadowScale = 1.0f;
-
-                            BinnedShadowCasters.Add(new BinnedShadowCaster
-                            {
-                                WorldToFrustum = shadowMatrix,
-                                Region = region,
-                                Light = light,
-                                FaceIndex = faceIndex,
-                            });
-                        }
-                        else
-                        {
-                            scene.RendererContext.Logger.LogWarning(
-                                "Barn light shadow atlas is full, skipping light '{LightName}' (size {Size})",
-                                light.Name, light.ShadowMapSize);
+                            anyFaceDropped = true;
                             continue;
                         }
+
+                        data.BarnLightShadowOffsetScale = placement.OffsetScale;
+                        data.BarnLightShadowScale = 1.0f;
                     }
 
                     BinnedBarnLightGpuData[LightingData.NumBarnLights++] = data;
                 }
-            }
 
-            if (LightingData.NumBarnLights == BarnLightConstants.MAX_BARN_LIGHTS && !barnLightsLoggedOnce)
-            {
-                scene.RendererContext.Logger.LogWarning("Max barn light count ({Max}) reached, some lights will be missing", BarnLightConstants.MAX_BARN_LIGHTS);
-                barnLightsLoggedOnce = true;
+                light.WasDropped = anyFaceDropped;
             }
 
             BarnLightStorageBuffer?.Update(BinnedBarnLightGpuData, 0, (int)LightingData.NumBarnLights * Unsafe.SizeOf<BarnLightConstants>());
