@@ -122,6 +122,8 @@ namespace ValveResourceFormat.Renderer
             public int LightmapGameVersionNumber;
             public bool IndirectDraw;
             public LightProbeType LightProbeType;
+            public PerfStats? Stats;
+            public bool CountTrianglesOnGpu;
         }
 
         private static readonly Queue<int> instanceBoundTextures = new(capacity: 4);
@@ -153,7 +155,19 @@ namespace ValveResourceFormat.Renderer
                 LightmapGameVersionNumber = context.Scene.LightingInfo.LightmapGameVersionNumber,
                 LightProbeType = context.Scene.LightingInfo.LightProbeType,
                 IndirectDraw = context.Scene.DrawMeshletsIndirect && context.RenderPass < RenderPass.Opaque,
+                // Shadow and depth prepass draws are excluded from render stats
+                Stats = context.RenderPass == RenderPass.DepthOnly ? null : PerfStats.Active,
             };
+
+            // Indirect draws are culled on the GPU, so the CPU does not know how many triangles they
+            // produce. Measure the whole batch with a primitives-generated query instead.
+            var gpuTriangleQuery = config.IndirectDraw && config.Stats != null && requests.Count > 0;
+            config.CountTrianglesOnGpu = gpuTriangleQuery;
+
+            if (gpuTriangleQuery)
+            {
+                config.Stats!.BeginPrimitiveQuery();
+            }
 
             foreach (var request in requests)
             {
@@ -162,6 +176,7 @@ namespace ValveResourceFormat.Renderer
                     if (context.RenderPass is RenderPass.Opaque or RenderPass.Translucent or RenderPass.Outline)
                     {
                         material?.PostRender();
+                        config.Stats?.CountCustomNode(request.Node);
                         request.Node.Render(context);
                         shader = null;
                         material = null;
@@ -175,6 +190,8 @@ namespace ValveResourceFormat.Renderer
 
                 if (material != requestMaterial)
                 {
+                    config.Stats?.CountMaterialChange();
+
                     if (context.ReplacementShader?.IgnoreMaterialData != true)
                     {
                         material?.PostRender();
@@ -259,6 +276,11 @@ namespace ValveResourceFormat.Renderer
                 Draw(shader!, ref uniforms, ref config, new(request.Mesh, request.Call, request.Node));
             }
 
+            if (gpuTriangleQuery)
+            {
+                PerfStats.EndPrimitiveQuery();
+            }
+
             if (vao > -1)
             {
                 material!.PostRender();
@@ -281,6 +303,8 @@ namespace ValveResourceFormat.Renderer
             {
                 if (request.Node is SceneAggregate agg && agg.IndirectDrawCount > 0 && agg.CompactionIndex >= 0)
                 {
+                    config.Stats?.CountIndirectDraw(agg);
+
                     var scene = agg.Scene;
                     if (scene.CompactMeshletDraws)
                     {
@@ -369,6 +393,9 @@ namespace ValveResourceFormat.Renderer
             {
                 GL.ProgramUniform1((uint)shader.Program, uniforms.IsInstancing, instanceCount > 1 ? 1 : 0);
             }
+
+            // When a primitive query is active it already measures these triangles on the GPU
+            config.Stats?.CountDrawCall(request.Node, config.CountTrianglesOnGpu ? 0 : request.Call.IndexCount / 3 * instanceCount);
 
             GL.DrawElementsInstancedBaseVertexBaseInstance(
                 request.Call.PrimitiveType,

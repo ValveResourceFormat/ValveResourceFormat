@@ -874,6 +874,11 @@ namespace ValveResourceFormat.Renderer
                 }
                 else
                 {
+                    if (node is SceneLight light)
+                    {
+                        PerfStats.Active?.CountLightInView(light);
+                    }
+
                     var customRender = new MeshBatchRenderer.Request
                     {
                         DistanceFromCamera = node is PhysSceneNode

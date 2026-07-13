@@ -115,7 +115,7 @@ namespace GUI.Types.GLViewers
                     }
                 }
 
-                UiControl.AddCheckBox("Show Render Timings", Renderer.Timings.Capture, (v) => Renderer.Timings.Capture = v);
+                UiControl.AddCheckBox("Show Perf Stats", Renderer.PerfStats.Capture, (v) => Renderer.PerfStats.Capture = v);
             }
 
             base.AddUiControls();
@@ -424,7 +424,7 @@ namespace GUI.Types.GLViewers
             Debug.Assert(Picker != null);
             Debug.Assert(SelectedNodeRenderer != null);
 
-            Renderer.Timings.MarkFrameBegin();
+            Renderer.PerfStats.MarkFrameBegin();
             GL.BeginQuery(QueryTarget.TimeElapsed, frametimeQuery1);
 
             var renderContext = new Scene.RenderContext
@@ -589,15 +589,15 @@ namespace GUI.Types.GLViewers
                 }
             }
 
-            if (Renderer.Timings.Capture)
+            if (Renderer.PerfStats.Capture)
             {
-                Renderer.Timings.DisplayTimings(TextRenderer, Renderer.Camera);
+                Renderer.PerfStats.Display(TextRenderer, Renderer.Camera, Scene, SkyboxScene);
             }
 
             TextRenderer.Render(Renderer.Camera, Renderer.ResolvedSceneDepth);
             Picker?.TriggerEventIfAny();
 
-            Renderer.Timings.MarkFrameEnd();
+            Renderer.PerfStats.MarkFrameEnd();
         }
 
         protected void AddBaseGridControl()

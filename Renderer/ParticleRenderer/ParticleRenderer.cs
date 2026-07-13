@@ -540,6 +540,8 @@ namespace ValveResourceFormat.Renderer.Particles
 
             if (particleCollection.Count > 0)
             {
+                var rendered = false;
+
                 foreach (var renderer in Renderers)
                 {
                     if (renderer.GetOperatorRunStrength(systemRenderState) <= 0.0f)
@@ -548,6 +550,12 @@ namespace ValveResourceFormat.Renderer.Particles
                     }
 
                     renderer.Render(particleCollection, systemRenderState, camera);
+                    rendered = true;
+                }
+
+                if (rendered)
+                {
+                    PerfStats.Active?.CountParticleSystem();
                 }
             }
         }

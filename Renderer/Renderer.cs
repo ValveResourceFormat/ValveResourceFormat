@@ -34,9 +34,9 @@ public class Renderer
     public Camera Camera { get; set; }
 
     /// <summary>
-    /// GPU timing queries for profiling render passes.
+    /// CPU/GPU renderer profiling and statistics
     /// </summary>
-    public Timings Timings { get; } = new();
+    public PerfStats PerfStats { get; } = new();
 
     /// <summary>
     /// The main scene to render.
@@ -604,6 +604,7 @@ public class Renderer
 
         using (new GLDebugGroup("Direct Light Shadows"))
         {
+            PerfStats.Active?.CountShadowMap();
             Scene.RenderOpaqueShadows(renderContext, depthOnlyShaders, Scene.CulledShadowDrawCalls);
         }
     }
@@ -656,6 +657,8 @@ public class Renderer
             {
                 continue;
             }
+
+            PerfStats.Active?.CountShadowMap();
 
             GL.Viewport(region.X, region.Y, region.Width, region.Height);
             GL.Scissor(region.X, region.Y, region.Width, region.Height);
@@ -811,7 +814,7 @@ public class Renderer
         ViewBuffer?.Dispose();
         Scene?.Dispose();
         SkyboxScene?.Dispose();
-        Timings?.Dispose();
+        PerfStats?.Dispose();
         ResolvedSceneColor?.Delete();
         ResolvedSceneDepth?.Delete();
     }
