@@ -1,7 +1,7 @@
 #version 460
 
-#define MIN_ALPHA 0.2
-#define FADE_OUT_DISTANCE 1024
+#define MIN_ALPHA 0.4
+#define FADE_OUT_DISTANCE 2048
 #define PULSE_STRENGTH 3.0
 
 #define DITHER_BLOCK_SIZE 4
