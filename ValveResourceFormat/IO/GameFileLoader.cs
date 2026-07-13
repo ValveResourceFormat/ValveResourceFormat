@@ -190,9 +190,7 @@ namespace ValveResourceFormat.IO
                         {
                             foreach (var (_, dependency) in dependencies)
                             {
-                                uint addon = 0;
-                                bool workshopAddon = uint.TryParse((string?)dependency, out addon);
-                                if (workshopAddon == false)
+                                if (dependency.ValueType == KVValueType.String)
                                 {
                                     FindAndLoadGameAddonPackage(dependency.ToString());
                                 }
