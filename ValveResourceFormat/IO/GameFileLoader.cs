@@ -192,7 +192,7 @@ namespace ValveResourceFormat.IO
                             {
                                 if (dependency.ValueType == KVValueType.String)
                                 {
-                                    FindAndLoadGameAddonPackage(dependency.ToString());
+                                    FindAndLoadGameAddonPackage(CurrentGameAddonsPaths, dependency.ToString());
                                 }
                                 else
                                 {
@@ -587,31 +587,7 @@ namespace ValveResourceFormat.IO
                 }
             }
 
-            foreach (var folder in folders)
-            {
-                // Scan for vpks in folder, same logic as in source engine
-                for (var i = 1; i < 99; i++)
-                {
-                    var vpk = Path.Combine(folder, $"pak{i:D2}_dir.vpk");
-
-                    if (!File.Exists(vpk))
-                    {
-                        break;
-                    }
-
-                    if (CurrentFileName == vpk)
-                    {
-#if DEBUG_FILE_LOAD
-                        Console.WriteLine($"VPK \"{vpk}\" is the same we just opened, skipping");
-#endif
-                        continue;
-                    }
-
-                    AddPackageToSearch(vpk);
-                }
-
-                AddDiskPathToSearch(folder);
-            }
+            FindAndLoadGameAddonPackage(folders, null);
         }
 
         private string? GetModIdentifierFile()
@@ -718,21 +694,23 @@ namespace ValveResourceFormat.IO
             }
         }
 
-        private void FindAndLoadGameAddonPackage(string fileName)
+        private void FindAndLoadGameAddonPackage(HashSet<string> folders, string? fileName = null)
         {
-            if (CurrentFileName == null || CurrentGameAddonsPaths.Count == 0)
+            foreach (var folder in folders)
             {
-                return;
-            }
+                string addonFolder;
 
-            foreach (var addonPath in CurrentGameAddonsPaths)
-            {
-                var addonFolder = Path.Combine(addonPath, fileName);
+                if (fileName == null)
+                    addonFolder = folder;
+                else
+                    addonFolder = Path.Combine(folder, fileName);
+
                 if (!Directory.Exists(addonFolder))
                 {
                     continue;
                 }
 
+                // Scan for vpks in folder, same logic as in source engine
                 for (var i = 1; i < 99; i++)
                 {
                     var vpk = Path.Combine(addonFolder, $"pak{i:D2}_dir.vpk");
@@ -752,6 +730,8 @@ namespace ValveResourceFormat.IO
 
                     AddPackageToSearch(vpk);
                 }
+
+                AddDiskPathToSearch(folder);
             }
         }
 
