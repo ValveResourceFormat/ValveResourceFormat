@@ -236,6 +236,11 @@ public class CS2BombDamageSceneNode : SceneNode
     /// <inheritdoc/>
     public override void Render(Scene.RenderContext context)
     {
+        if (context.RenderPass != RenderPass.Translucent)
+        {
+            return;
+        }
+
         GL.Disable(EnableCap.DepthTest);
         GL.Disable(EnableCap.CullFace);
 
