@@ -123,7 +123,6 @@ namespace ValveResourceFormat.Renderer
             public bool IndirectDraw;
             public LightProbeType LightProbeType;
             public PerfStats? Stats;
-            public bool CountTrianglesOnGpu;
         }
 
         private static readonly Queue<int> instanceBoundTextures = new(capacity: 4);
@@ -159,10 +158,10 @@ namespace ValveResourceFormat.Renderer
                 Stats = context.RenderPass == RenderPass.DepthOnly ? null : PerfStats.Active,
             };
 
-            // Indirect draws are culled on the GPU, so the CPU does not know how many triangles they
-            // produce. Measure the whole batch with a primitives-generated query instead.
-            var gpuTriangleQuery = config.IndirectDraw && config.Stats != null && requests.Count > 0;
-            config.CountTrianglesOnGpu = gpuTriangleQuery;
+            // Rendered triangles are measured on the GPU with a primitives-generated query around each
+            // batch. The CPU cannot count them itself: indirect draws are culled GPU-side, and custom
+            // nodes issue their own draws internally.
+            var gpuTriangleQuery = config.Stats != null && requests.Count > 0;
 
             if (gpuTriangleQuery)
             {
@@ -394,8 +393,7 @@ namespace ValveResourceFormat.Renderer
                 GL.ProgramUniform1((uint)shader.Program, uniforms.IsInstancing, instanceCount > 1 ? 1 : 0);
             }
 
-            // When a primitive query is active it already measures these triangles on the GPU
-            config.Stats?.CountDrawCall(request.Node, config.CountTrianglesOnGpu ? 0 : request.Call.IndexCount / 3 * instanceCount);
+            config.Stats?.CountDrawCall(request.Node);
 
             GL.DrawElementsInstancedBaseVertexBaseInstance(
                 request.Call.PrimitiveType,

@@ -9,8 +9,7 @@ using QueryId = System.Int32;
 namespace ValveResourceFormat.Renderer;
 
 /// <summary>
-/// Collects per-frame performance statistics for on-screen display: CPU and GPU timings of render passes,
-/// and rendering statistics (triangles, draw calls, materials, lights, shadow maps, particles).
+/// Collects per frame CPU/GPU performance statistics 
 /// </summary>
 public class PerfStats
 {
@@ -260,7 +259,6 @@ public class PerfStats
     internal static PerfStats? Active { get; private set; }
 
     // Per-frame counters
-    private long trianglesRendered;
     private int drawCalls;
     private int meshletDispatches;
     private int materialChanges;
@@ -271,11 +269,11 @@ public class PerfStats
     private readonly int[] staticLightsInView = new int[LightGroupNames.Length];
     private readonly HashSet<SceneNode> drawnNodes = [];
 
-    // GPU primitive queries measure triangles actually rendered by indirect draws (after GPU
-    // frustum/occlusion culling). Results are read back with one frame of latency.
+    // GPU primitive queries measure the triangles actually rendered (including GPU-culled indirect
+    // draws and particle effects). Results are read back with one frame of latency.
     private readonly List<int> primitiveQueries = [];
     private int primitiveQueriesUsed;
-    private long gpuTrianglesRendered;
+    private long trianglesRendered;
 
     // Cached scene totals, recomputed once per second
     private long totalTriangles;
@@ -288,10 +286,9 @@ public class PerfStats
     private long lastTotalsUpdate;
 
     /// <summary>Counts a direct GL draw call for the given node.</summary>
-    internal void CountDrawCall(SceneNode node, int triangles)
+    internal void CountDrawCall(SceneNode node)
     {
         drawCalls++;
-        trianglesRendered += triangles;
         drawnNodes.Add(node);
     }
 
@@ -303,9 +300,8 @@ public class PerfStats
     }
 
     /// <summary>
-    /// Begins a GL primitives-generated query so triangles rendered by the following draws (including
-    /// GPU-culled indirect draws) are measured on the GPU. Must be paired with <see cref="EndPrimitiveQuery"/>,
-    /// and queries must not nest.
+    /// Begins a GL primitives-generated query so triangles rasterized by the following draws are
+    /// measured on the GPU. Must be paired with <see cref="EndPrimitiveQuery"/>, and queries must not nest.
     /// </summary>
     internal void BeginPrimitiveQuery()
     {
@@ -367,10 +363,9 @@ public class PerfStats
     }
 
     /// <summary>Counts a GL draw call issued by a particle renderer.</summary>
-    internal void CountParticleDraw(int triangles)
+    internal void CountParticleDraw()
     {
         particleDrawCalls++;
-        trianglesRendered += triangles;
     }
 
     private static LightGroup GetLightGroup(SceneLight light) => light.Entity switch
@@ -515,7 +510,7 @@ public class PerfStats
 
         AddLine("Render Stats", new Color32(255, 200, 0));
 
-        AddLine($"Triangles:        rendered {trianglesRendered + gpuTrianglesRendered:N0} of {totalTriangles:N0}", valueColor);
+        AddLine($"Triangles:        rendered {trianglesRendered:N0} of {totalTriangles:N0}", valueColor);
         AddLine($"Scene objects:    drawn {drawnNodes.Count:N0} of {totalSceneObjects:N0} scene objects in {drawCalls:N0} draw calls and {meshletDispatches:N0} meshlet dispatches ({totalDrawCalls:N0} total draw calls)", valueColor);
         AddLine($"Materials:        {materialChanges:N0} changes between drawcalls, {totalMaterials:N0} total materials in scene", valueColor);
         AddLine($"Dynamic Lights:   in view {FormatLightCounts(lightsInView, totalLights)} out of total {FormatLightCounts(totalLights, totalLights)}", valueColor);
@@ -570,16 +565,15 @@ public class PerfStats
         }
 
         // Collect the primitive query results submitted last frame
-        gpuTrianglesRendered = 0;
+        trianglesRendered = 0;
         for (var i = 0; i < primitiveQueriesUsed; i++)
         {
             GL.GetQueryObject(primitiveQueries[i], GetQueryObjectParam.QueryResult, out long result);
-            gpuTrianglesRendered += result;
+            trianglesRendered += result;
         }
 
         primitiveQueriesUsed = 0;
 
-        trianglesRendered = 0;
         drawCalls = 0;
         meshletDispatches = 0;
         materialChanges = 0;
