@@ -102,7 +102,7 @@ public class ShadowMapper
 
             var candidate = new BinnedLight { Light = light, FirstFaceIndex = -1 };
 
-            if (light.CastShadows > 0)
+            if (light.CastShadows == 1)
             {
                 // TODO: demote omni faces that don't face the camera.
                 var importance = ComputeShadowFaceSize(ref candidate, camera.Location, pixelsPerUnit, atlasSize);
