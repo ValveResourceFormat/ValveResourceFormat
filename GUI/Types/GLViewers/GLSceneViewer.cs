@@ -33,6 +33,7 @@ namespace GUI.Types.GLViewers
         private bool showStaticOctree;
         private bool showDynamicOctree;
         private bool showVisDebug;
+        private bool showPerfStats;
 
         private readonly List<RenderModes.RenderMode> renderModes = new(RenderModes.Items.Count);
         private int renderModeCurrentIndex;
@@ -115,7 +116,7 @@ namespace GUI.Types.GLViewers
                     }
                 }
 
-                UiControl.AddCheckBox("Show Perf Stats", Renderer.PerfStats.Capture, (v) => Renderer.PerfStats.Capture = v);
+                UiControl.AddCheckBox("Show Perf Stats", showPerfStats, (v) => showPerfStats = v);
             }
 
             base.AddUiControls();
@@ -423,6 +424,10 @@ namespace GUI.Types.GLViewers
             Debug.Assert(MainFramebuffer != null);
             Debug.Assert(Picker != null);
             Debug.Assert(SelectedNodeRenderer != null);
+
+            // Holding Tab inverts the perf stats visibility while held
+            var tabHeld = (CurrentlyPressedKeys & TrackedKeys.Tab) != 0;
+            Renderer.PerfStats.Capture = showPerfStats ^ tabHeld;
 
             Renderer.PerfStats.MarkFrameBegin();
             GL.BeginQuery(QueryTarget.TimeElapsed, frametimeQuery1);

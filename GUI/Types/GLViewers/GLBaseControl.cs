@@ -300,6 +300,7 @@ internal abstract class GLBaseControl : IDisposable
         Keys.D2 => TrackedKeys.Slot2,
         Keys.D3 => TrackedKeys.Slot3,
         Keys.F => TrackedKeys.F,
+        Keys.Tab => TrackedKeys.Tab,
         Keys.Escape => TrackedKeys.Escape,
         _ => TrackedKeys.None,
     };
