@@ -69,7 +69,7 @@ public class CS2BombDamageSceneNode : SceneNode
         GL.CreateVertexArrays(1, out vaoHandle);
 
         var buffers = ArrayPool<int>.Shared.Rent(2);
-        GL.CreateBuffers(buffers.Length, buffers);
+        GL.CreateBuffers(2, buffers);
         iboHandle = buffers[0];
         vboHandle = buffers[1];
         ArrayPool<int>.Shared.Return(buffers);
@@ -285,7 +285,7 @@ public class CS2BombDamageSceneNode : SceneNode
         var buffers = ArrayPool<int>.Shared.Rent(2);
         buffers[0] = iboHandle;
         buffers[1] = vboHandle;
-        GL.DeleteBuffers(buffers.Length, buffers);
+        GL.DeleteBuffers(2, buffers);
         ArrayPool<int>.Shared.Return(buffers);
     }
 }
