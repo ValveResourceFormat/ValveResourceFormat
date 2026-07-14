@@ -1,6 +1,3 @@
-using System.Windows.Forms;
-using GUI.Controls;
-using GUI.Utils;
 using NAudio.Wave;
 using NLayer.NAudioSupport;
 using ValveResourceFormat;
@@ -8,22 +5,27 @@ using ValveResourceFormat.ResourceTypes;
 
 namespace GUI.Types.Audio
 {
-    internal class AudioPlayer
+    internal static class AudioPlayer
     {
-        public AudioPlayer(Resource resource, TabPage tab, bool autoPlay)
+        /// <summary>
+        /// Creates a decoded <see cref="WaveStream"/> and loop markers for the streaming sound
+        /// data of a compiled sound resource, or null when the resource has no sound data.
+        /// The caller takes ownership of the returned stream.
+        /// </summary>
+        public static (WaveStream Stream, (int Start, int End) LoopMarkers)? CreateWaveStream(Resource resource)
         {
             var soundData = (Sound?)resource.DataBlock;
 
             if (soundData == null || soundData.StreamingDataSize == 0)
             {
-                return;
+                return null;
             }
 
             var stream = soundData.GetSoundStream();
 
             try
             {
-                WaveStream? waveStream = soundData.SoundType switch
+                WaveStream waveStream = soundData.SoundType switch
                 {
                     Sound.AudioFileType.WAV => new WaveFileReader(stream),
                     Sound.AudioFileType.MP3 => new Mp3FileReaderBase(stream, wf => new Mp3FrameDecompressor(wf)),
@@ -31,28 +33,12 @@ namespace GUI.Types.Audio
                     _ => throw new UnexpectedMagicException("Don't know how to play", (int)soundData.SoundType, nameof(soundData.SoundType)),
                 };
 
-                try
-                {
-                    var audio = new AudioPlaybackPanel(waveStream, autoPlay, (soundData.LoopStart, soundData.LoopEnd));
-                    tab.Controls.Add(audio);
-                    waveStream = null;
-                }
-                finally
-                {
-                    waveStream?.Dispose();
-                }
+                return (waveStream, (soundData.LoopStart, soundData.LoopEnd));
             }
-            catch (Exception e)
+            catch
             {
-                Log.Error(nameof(AudioPlayer), e.ToString());
-
-                var msg = new Label
-                {
-                    Text = $"NAudio Exception: {e}",
-                    Dock = DockStyle.Fill,
-                };
-
-                tab.Controls.Add(msg);
+                stream.Dispose();
+                throw;
             }
         }
     }

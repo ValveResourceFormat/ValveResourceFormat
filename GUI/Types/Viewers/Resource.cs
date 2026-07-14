@@ -501,7 +501,38 @@ namespace GUI.Types.Viewers
                     {
                         var specialTabPage = new ThemedTabPage("SOUND");
                         var autoPlay = ((Settings.QuickPreviewFlags)Settings.Config.QuickFilePreview & Settings.QuickPreviewFlags.AutoPlaySounds) != 0;
-                        var ap = new AudioPlayer(resource, specialTabPage, isPreview && autoPlay);
+
+                        try
+                        {
+                            if (AudioPlayer.CreateWaveStream(resource) is var (waveStream, loopMarkers))
+                            {
+                                var ownedStream = waveStream;
+
+                                try
+                                {
+                                    var audio = new AudioPlaybackPanel(ownedStream, isPreview && autoPlay, loopMarkers);
+                                    specialTabPage.Controls.Add(audio);
+                                    ownedStream = null;
+                                }
+                                finally
+                                {
+                                    ownedStream?.Dispose();
+                                }
+                            }
+                        }
+                        catch (Exception e)
+                        {
+                            Log.Error(nameof(AudioPlayer), e.ToString());
+
+                            var msg = new Label
+                            {
+                                Text = $"NAudio Exception: {e}",
+                                Dock = DockStyle.Fill,
+                            };
+
+                            specialTabPage.Controls.Add(msg);
+                        }
+
                         resTabs.TabPages.Add(specialTabPage);
                         return true;
                     }
