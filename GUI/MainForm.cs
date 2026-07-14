@@ -62,7 +62,9 @@ namespace GUI
         internal ExplorerControl? explorerControl;
 
         private SearchForm? searchForm;
+#pragma warning disable CA2213 // Disposed in OnFormClosing
         private Ipc.IpcWindow? ipcWindow;
+#pragma warning restore CA2213
 
         static MainForm()
         {
@@ -427,7 +429,17 @@ namespace GUI
                 OpenExplorer();
             }
 
-            ipcWindow = new();
+            ipcWindow = new(args => BeginInvoke(() =>
+            {
+                OpenCommandLineArgFiles(args);
+
+                if (WindowState == FormWindowState.Minimized)
+                {
+                    WindowState = FormWindowState.Normal;
+                }
+
+                Activate();
+            }));
         }
 
         protected override void OnFormClosing(FormClosingEventArgs e)
@@ -448,7 +460,7 @@ namespace GUI
             }
 #endif
 
-            ipcWindow?.DestroyHandle();
+            ipcWindow?.Dispose();
 
             Settings.Save();
             base.OnFormClosing(e);

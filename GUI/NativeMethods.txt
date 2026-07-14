@@ -1,6 +1,12 @@
 AllowSetForegroundWindow
 AppendMenu
 CreateDIBSection
+CreateWindowEx
+DefWindowProc
+DestroyWindow
+GetModuleHandle
+RegisterClassEx
+UnregisterClass
 DWM_WINDOW_CORNER_PREFERENCE
 DwmDefWindowProc
 FindWindowEx

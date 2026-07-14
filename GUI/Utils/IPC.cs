@@ -1,7 +1,6 @@
 using System.IO;
 using System.Runtime.InteropServices;
 using System.Text;
-using System.Windows.Forms;
 using Windows.Win32;
 using Windows.Win32.Foundation;
 using Windows.Win32.UI.WindowsAndMessaging;
@@ -78,45 +77,120 @@ internal class Ipc
         return true;
     }
 
-    public sealed class IpcWindow : NativeWindow
+    /// <summary>
+    /// Hidden message-only window that receives command line arguments forwarded by
+    /// <see cref="TryForwardToExistingInstance"/> from secondary processes.
+    /// Raw Win32, no WinForms. Must be created on a thread that pumps messages;
+    /// the callback is invoked on that thread while the sender is blocked waiting,
+    /// so it should return quickly (e.g. only schedule work).
+    /// </summary>
+    public sealed unsafe class IpcWindow : IDisposable
     {
-        public IpcWindow()
+        private const string ClassName = "Source2Viewer_IPC_Window";
+
+        // The window class holds a delegate to the static WndProc, and there is only
+        // ever one IpcWindow per process, so the callback is stored statically.
+        private static Action<string[]>? OnArgsReceived;
+
+        // Rooted so the marshaled callback outlives the native window class registration
+        private static readonly WNDPROC WndProcDelegate = WndProc;
+
+        private readonly HINSTANCE hInstance;
+        private HWND hwnd;
+        private ushort classAtom;
+
+        public IpcWindow(Action<string[]> onArgsReceived)
         {
-            CreateHandle(new CreateParams
+            OnArgsReceived = onArgsReceived;
+
+            // Marshal.GetHINSTANCE is not single file publish compatible
+            using (var exeModule = PInvoke.GetModuleHandle((string?)null))
             {
-                Caption = IpcWindowTitle,
-                Parent = HWND.HWND_MESSAGE
-            });
-        }
-
-        protected override unsafe void WndProc(ref Message m)
-        {
-            if (m.Msg == PInvoke.WM_COPYDATA)
-            {
-                var cds = Marshal.PtrToStructure<Windows.Win32.System.DataExchange.COPYDATASTRUCT>(m.LParam);
-                var message = Marshal.PtrToStringUTF8((IntPtr)cds.lpData, (int)cds.cbData);
-                var args = message.Split('\0', StringSplitOptions.RemoveEmptyEntries);
-
-                if (args.Length > 0)
-                {
-                    Program.MainForm.BeginInvoke(() =>
-                    {
-                        Program.MainForm.OpenCommandLineArgFiles(args);
-
-                        if (Program.MainForm.WindowState == FormWindowState.Minimized)
-                        {
-                            Program.MainForm.WindowState = FormWindowState.Normal;
-                        }
-
-                        Program.MainForm.Activate();
-                    });
-                }
-
-                m.Result = 1;
-                return;
+                hInstance = (HINSTANCE)exeModule.DangerousGetHandle();
             }
 
-            base.WndProc(ref m);
+            fixed (char* className = ClassName)
+            {
+                var wndClass = new WNDCLASSEXW
+                {
+                    cbSize = (uint)Marshal.SizeOf<WNDCLASSEXW>(),
+                    lpfnWndProc = WndProcDelegate,
+                    hInstance = hInstance,
+                    lpszClassName = className,
+                };
+
+                classAtom = PInvoke.RegisterClassEx(in wndClass);
+            }
+
+            if (classAtom == 0)
+            {
+                throw new InvalidOperationException($"Failed to register IPC window class, error {Marshal.GetLastPInvokeError()}");
+            }
+
+            hwnd = PInvoke.CreateWindowEx(
+                0,
+                ClassName,
+                IpcWindowTitle,
+                0,
+                0, 0, 0, 0,
+                HWND.HWND_MESSAGE,
+                null,
+                null,
+                null
+            );
+
+            if (hwnd.IsNull)
+            {
+                throw new InvalidOperationException($"Failed to create IPC window, error {Marshal.GetLastPInvokeError()}");
+            }
+        }
+
+        private static LRESULT WndProc(HWND hwnd, uint msg, WPARAM wParam, LPARAM lParam)
+        {
+            if (msg == PInvoke.WM_COPYDATA)
+            {
+                // An exception escaping a native callback would crash the process
+                try
+                {
+                    var cds = *(Windows.Win32.System.DataExchange.COPYDATASTRUCT*)(nint)lParam.Value;
+                    var message = Marshal.PtrToStringUTF8((IntPtr)cds.lpData, (int)cds.cbData);
+                    var args = message.Split('\0', StringSplitOptions.RemoveEmptyEntries);
+
+                    if (args.Length > 0)
+                    {
+                        OnArgsReceived?.Invoke(args);
+                    }
+                }
+                catch (Exception e)
+                {
+                    Log.Error(nameof(IpcWindow), $"Failed to handle forwarded arguments: {e}");
+                }
+
+                return (LRESULT)1;
+            }
+
+            return PInvoke.DefWindowProc(hwnd, msg, wParam, lParam);
+        }
+
+        public void Dispose()
+        {
+            if (!hwnd.IsNull)
+            {
+                PInvoke.DestroyWindow(hwnd);
+                hwnd = HWND.Null;
+            }
+
+            if (classAtom != 0)
+            {
+                fixed (char* className = ClassName)
+                {
+                    PInvoke.UnregisterClass(className, hInstance);
+                }
+
+                classAtom = 0;
+            }
+
+            OnArgsReceived = null;
         }
     }
 }
