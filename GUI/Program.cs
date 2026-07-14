@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.Globalization;
+using System.IO;
 using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Text;
@@ -15,37 +16,8 @@ namespace GUI
 #nullable disable
         public static MainForm MainForm { get; private set; }
         public static Assembly Assembly { get; private set; }
+        public static string ProductVersion { get; private set; }
 #nullable enable
-
-        // from winforms dep: Program.ProductVersion
-        private static string? _productVersion;
-        public static string ProductVersion
-        {
-            get
-            {
-                if (_productVersion is null)
-                {
-                    // Custom attribute
-                    Assembly? entryAssembly = Assembly.GetEntryAssembly();
-                    if (entryAssembly is not null)
-                    {
-                        object[] attrs = entryAssembly.GetCustomAttributes(typeof(AssemblyInformationalVersionAttribute), false);
-                        if (attrs is not null && attrs.Length > 0)
-                        {
-                            _productVersion = ((AssemblyInformationalVersionAttribute)attrs[0]).InformationalVersion;
-                        }
-                    }
-
-                    // fake it
-                    if (_productVersion is null || _productVersion.Length == 0)
-                    {
-                        _productVersion = "unknown";
-                    }
-                }
-
-                return _productVersion;
-            }
-        }
 
         /// <summary>
         /// The main entry point for the application.
@@ -70,6 +42,24 @@ namespace GUI
             }
 
             Assembly = Assembly.GetExecutingAssembly();
+
+            // from winforms dep: Application.ProductVersion
+            // Custom attribute
+            Assembly? entryAssembly = Assembly.GetEntryAssembly();
+            if (entryAssembly is not null)
+            {
+                object[] attrs = entryAssembly.GetCustomAttributes(typeof(AssemblyInformationalVersionAttribute), false);
+                if (attrs is not null && attrs.Length > 0)
+                {
+                    ProductVersion = ((AssemblyInformationalVersionAttribute)attrs[0]).InformationalVersion;
+                }
+            }
+
+            if (ProductVersion is null || ProductVersion.Length == 0)
+            {
+                throw new InvalidDataException("Failed to find version number");
+            }
+
             MainForm = new MainForm(args);
 
             Application.Run(MainForm);
