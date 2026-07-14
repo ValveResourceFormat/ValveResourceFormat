@@ -115,7 +115,7 @@ namespace GUI
 
             // Display version
             {
-                var version = Application.ProductVersion;
+                var version = Program.ProductVersion;
                 var versionPlus = version.IndexOf('+', StringComparison.InvariantCulture);
                 string versionDisplay;
 

@@ -17,6 +17,36 @@ namespace GUI
         public static Assembly Assembly { get; private set; }
 #nullable enable
 
+        // from winforms dep: Program.ProductVersion
+        private static string? _productVersion;
+        public static string ProductVersion
+        {
+            get
+            {
+                if (_productVersion is null)
+                {
+                    // Custom attribute
+                    Assembly? entryAssembly = Assembly.GetEntryAssembly();
+                    if (entryAssembly is not null)
+                    {
+                        object[] attrs = entryAssembly.GetCustomAttributes(typeof(AssemblyInformationalVersionAttribute), false);
+                        if (attrs is not null && attrs.Length > 0)
+                        {
+                            _productVersion = ((AssemblyInformationalVersionAttribute)attrs[0]).InformationalVersion;
+                        }
+                    }
+
+                    // fake it
+                    if (_productVersion is null || _productVersion.Length == 0)
+                    {
+                        _productVersion = "unknown";
+                    }
+                }
+
+                return _productVersion;
+            }
+        }
+
         /// <summary>
         /// The main entry point for the application.
         /// </summary>
@@ -118,7 +148,7 @@ namespace GUI
                 },
                 Footnote = new TaskDialogFootnote
                 {
-                    Text = $"S2V {Application.ProductVersion[..16].Replace('+', ' ')}{Environment.NewLine}Try using latest dev build to see if the issue persists.",
+                    Text = $"S2V {Program.ProductVersion[..16].Replace('+', ' ')}{Environment.NewLine}Try using latest dev build to see if the issue persists.",
                     Icon = TaskDialogIcon.Information
                 }
             };
@@ -140,7 +170,7 @@ namespace GUI
 
         public static void AppendExceptionWithVersion(StringBuilder output, Exception exception)
         {
-            var version = Application.ProductVersion;
+            var version = Program.ProductVersion;
 
             output.AppendLine("```");
             output.AppendLine(exception.ToString());

@@ -179,7 +179,7 @@ namespace GUI.Utils
             };
             control.VisibleChanged += VisibleChanged;
 
-            control.AppendText($"- Welcome to Source 2 Viewer v{Application.ProductVersion}{Environment.NewLine}", TextStyleDebug);
+            control.AppendText($"- Welcome to Source 2 Viewer v{Program.ProductVersion}{Environment.NewLine}", TextStyleDebug);
             control.AppendText($"- If you are experiencing an issue, try using latest dev build from https://valveresourceformat.github.io/{Environment.NewLine}{Environment.NewLine}");
 
             const string CONSOLE = "Console";

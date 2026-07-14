@@ -284,9 +284,9 @@ namespace GUI.Utils
             }
 
             // If the version changed, force an update check (if enabled)
-            if (Config.Update.Version != Application.ProductVersion)
+            if (Config.Update.Version != Program.ProductVersion)
             {
-                Config.Update.Version = Application.ProductVersion;
+                Config.Update.Version = Program.ProductVersion;
                 Config.Update.UpdateAvailable = false;
                 Config.Update.LastCheck = string.Empty;
             }

@@ -32,7 +32,7 @@ namespace GUI.Forms
                 decoder.StartThread();
             }
 
-            currentVersionLabel.Text = Application.ProductVersion[..16].Replace('+', ' ');
+            currentVersionLabel.Text = Program.ProductVersion[..16].Replace('+', ' ');
             newVersionLabel.Text = "Checking for updates…";
 
             checkForUpdatesCheckbox.Checked = Settings.Config.Update.CheckAutomatically;
@@ -122,7 +122,7 @@ namespace GUI.Forms
         private void OnCopyVersionClick(object sender, EventArgs e)
         {
             var output = new StringBuilder(192);
-            var version = Application.ProductVersion;
+            var version = Program.ProductVersion;
             var versionPlus = version.IndexOf('+', StringComparison.Ordinal);
 
             if (versionPlus > 0)
