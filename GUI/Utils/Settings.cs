@@ -1,5 +1,4 @@
 using System.IO;
-using System.Windows.Forms;
 using ValveKeyValue;
 using ValveResourceFormat.IO;
 using ValveResourceFormat.Renderer.Utils;
@@ -160,14 +159,16 @@ namespace GUI.Utils
 
             if (currentVersion > SettingsFileCurrentVersion)
             {
-                var result = MessageBox.Show(
+                // Blocking on the task is only safe here because this runs at startup before
+                // the UI exists, when we switch to pangui, this will need to be correctly awaited
+                // to not block the UI thread
+                var continueAnyway = AppDialogs.ConfirmAsync(
                     $"Your current settings.vdf has a higher version ({currentVersion}) than currently supported ({SettingsFileCurrentVersion}). You likely ran an older version of Source 2 Viewer and your settings may get reset.\n\nDo you want to continue?",
                     "Source 2 Viewer downgraded",
-                    MessageBoxButtons.YesNo,
-                    MessageBoxIcon.Question
-                );
+                    buttons: ConfirmButtons.YesNo
+                ).GetAwaiter().GetResult();
 
-                if (result != DialogResult.Yes)
+                if (!continueAnyway)
                 {
                     Environment.Exit(1);
                     return;

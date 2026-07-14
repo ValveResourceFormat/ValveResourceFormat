@@ -14,7 +14,7 @@ namespace GUI.Types.Exporter
 {
     static class ExportFile
     {
-        public static void ExtractFileFromPackageEntry(PackageEntry file, VrfGuiContext vrfGuiContext, bool decompile)
+        public static async Task ExtractFileFromPackageEntry(PackageEntry file, VrfGuiContext vrfGuiContext, bool decompile)
         {
             var currentPackage = vrfGuiContext.CurrentPackage;
             if (currentPackage == null)
@@ -25,12 +25,12 @@ namespace GUI.Types.Exporter
 
             var stream = GameFileLoader.GetPackageEntryStream(currentPackage, file);
 
-            ExtractFileFromStream(file.GetFullPath(), stream, vrfGuiContext, decompile);
+            await ExtractFileFromStream(file.GetFullPath(), stream, vrfGuiContext, decompile).ConfigureAwait(true);
         }
 
-        public static void ExtractFileFromStream(string fileName, Stream stream, VrfGuiContext vrfGuiContext, bool decompile)
+        public static async Task ExtractFileFromStream(string fileName, Stream stream, VrfGuiContext vrfGuiContext, bool decompile)
         {
-            if (!PreExportDisclaimer(Path.GetExtension(fileName)))
+            if (!await PreExportDisclaimer(Path.GetExtension(fileName)).ConfigureAwait(true))
             {
                 return;
             }
@@ -57,7 +57,7 @@ namespace GUI.Types.Exporter
 
                     if (extension == null)
                     {
-                        stream.Dispose();
+                        await stream.DisposeAsync().ConfigureAwait(true);
                         Log.Error(nameof(ExportFile), $"Export for \"{fileName}\" has no suitable extension");
                         return;
                     }
@@ -133,7 +133,7 @@ namespace GUI.Types.Exporter
 
                 try
                 {
-                    extractDialog.ShowDialog();
+                    await extractDialog.ShowDialogAsync().ConfigureAwait(true);
                     extractDialog = null;
                 }
                 finally
@@ -150,14 +150,14 @@ namespace GUI.Types.Exporter
                     {
                         // Content has no data to extract, only potentially subfiles
                         content.Dispose();
-                        stream.Dispose();
+                        await stream.DisposeAsync().ConfigureAwait(true);
                         Log.Info(nameof(ExportFile), $"File \"{fileName}\" has no extractable data");
                         return;
                     }
 
                     var extension = Path.GetExtension(content.FileName);
                     fileName = Path.ChangeExtension(fileName, extension);
-                    stream.Dispose();
+                    await stream.DisposeAsync().ConfigureAwait(true);
 
                     stream = new MemoryStream(content.Data);
                     content.Dispose();
@@ -184,21 +184,21 @@ namespace GUI.Types.Exporter
                     Log.Info(nameof(ExportFile), $"Saved \"{Path.GetFileName(dialog.FileName)}\"");
 
                     using var streamOutput = dialog.OpenFile();
-                    stream.CopyTo(streamOutput);
+                    await stream.CopyToAsync(streamOutput).ConfigureAwait(true);
                 }
 
-                stream.Dispose();
+                await stream.DisposeAsync().ConfigureAwait(true);
             }
         }
 
-        public static void ExtractFilesFromTreeNode(IBetterBaseItem selectedNode, VrfGuiContext vrfGuiContext, bool decompile)
+        public static async Task ExtractFilesFromTreeNode(IBetterBaseItem selectedNode, VrfGuiContext vrfGuiContext, bool decompile)
         {
             if (!selectedNode.IsFolder)
             {
                 var file = selectedNode.PackageEntry;
                 Debug.Assert(file != null);
                 // We are a file
-                ExtractFileFromPackageEntry(file, vrfGuiContext, decompile);
+                await ExtractFileFromPackageEntry(file, vrfGuiContext, decompile).ConfigureAwait(true);
             }
             else
             {
@@ -250,7 +250,7 @@ namespace GUI.Types.Exporter
             }
         }
 
-        public static bool PreExportDisclaimer(string fileExtension)
+        public static async Task<bool> PreExportDisclaimer(string fileExtension)
         {
             var messageString = "";
 
@@ -279,12 +279,7 @@ namespace GUI.Types.Exporter
 
             if (!string.IsNullOrEmpty(messageString))
             {
-                var result = MessageBox.Show(messageString, "Decompile warning", MessageBoxButtons.OKCancel);
-
-                if (result == DialogResult.Cancel)
-                {
-                    return false;
-                }
+                return await AppDialogs.ConfirmAsync(messageString, "Decompile warning", MessageIcon.Warning).ConfigureAwait(true);
             }
 
             return true;

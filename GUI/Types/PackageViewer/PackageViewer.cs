@@ -202,13 +202,20 @@ namespace GUI.Types.PackageViewer
             Cursor.Current = Cursors.Default;
 
 #if DEBUG
-            if (resourceEntries.Count > 0 && MessageBox.Show(
-                "Would you like to scan for all dependencies of the compiled file (ending in \"_c\") you just added?",
-                "Detected a compiled resource",
-                MessageBoxButtons.YesNo,
-                MessageBoxIcon.Question) == DialogResult.Yes)
+            ScanForResourceDependencies();
+
+            // Fire-and-forget on purpose: this is a dev-only prompt, and AddFiles has no reason to wait for it.
+            async void ScanForResourceDependencies()
             {
-                MessageBox.Show("This is not yet implemented.");
+                if (resourceEntries.Count == 0 || !await AppDialogs.ConfirmAsync(
+                    "Would you like to scan for all dependencies of the compiled file (ending in \"_c\") you just added?",
+                    "Detected a compiled resource",
+                    buttons: ConfirmButtons.YesNo).ConfigureAwait(true))
+                {
+                    return;
+                }
+
+                await AppDialogs.ShowMessageAsync("This is not yet implemented.", "Not implemented").ConfigureAwait(true);
 
                 while (resourceEntries.TryDequeue(out var entry))
                 {
@@ -331,12 +338,7 @@ namespace GUI.Types.PackageViewer
 
             Log.Info(nameof(PackageViewer), result);
 
-            MessageBox.Show(
-                result,
-                "VPK created",
-                MessageBoxButtons.OK,
-                MessageBoxIcon.Information
-            );
+            _ = AppDialogs.ShowMessageAsync(result, "VPK created");
         }
 
         internal static List<PackageEntry> RecoverDeletedFiles(Package package, Action<string> setProgress)

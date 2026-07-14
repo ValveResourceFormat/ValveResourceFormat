@@ -88,7 +88,7 @@ namespace GUI.Forms
         {
             if (filesToExtract.Count == 0 && filesToExtractSorted.Sum(x => x.Value.Count) == 0)
             {
-                MessageBox.Show("There are no files to extract", "Failed to extract");
+                _ = AppDialogs.ShowMessageAsync("There are no files to extract", "Failed to extract", MessageIcon.Warning);
                 return;
             }
 

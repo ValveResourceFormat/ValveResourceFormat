@@ -81,7 +81,11 @@ namespace GUI
 
             if (exception is ValveResourceFormat.Renderer.Shaders.ShaderLoader.ShaderCompilerException)
             {
+#pragma warning disable RS0030
+                // cant use the new api here because this must work when UI is broken or not yet initialized due to the callbacks
+                // finding a real fix here is a problem for future us when we know how the new UI works.
                 MessageBox.Show(exception.Message, "Failed to compile shader", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+#pragma warning restore RS0030
                 return;
             }
 

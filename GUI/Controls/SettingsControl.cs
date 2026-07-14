@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using System.Globalization;
 using System.IO;
+using System.Threading.Tasks;
 using System.Windows.Forms;
 using GUI.Utils;
 using Microsoft.Win32;
@@ -283,9 +284,9 @@ namespace GUI.Controls
             //Application.SetColorMode(Settings.GetSystemColor());
         }
 
-        private void OnRegisterAssociationButtonClick(object sender, EventArgs e) => RegisterFileAssociation();
+        private async void OnRegisterAssociationButtonClick(object sender, EventArgs e) => await RegisterFileAssociationAsync().ConfigureAwait(true);
 
-        public static void RegisterFileAssociation()
+        public static async Task RegisterFileAssociationAsync()
         {
             const string extension = ".vpk";
             const string progId = $"VRF.Source2Viewer{extension}";
@@ -300,7 +301,7 @@ namespace GUI.Controls
                 using var iconStream = Program.Assembly.GetManifestResourceStream("GUI.Utils.vpk.ico");
                 Debug.Assert(iconStream != null);
                 using var iconDiskStream = File.OpenWrite(vpkIconPath);
-                iconStream.CopyTo(iconDiskStream);
+                await iconStream.CopyToAsync(iconDiskStream).ConfigureAwait(true);
             }
 
             // .vpk file extension
@@ -329,12 +330,10 @@ namespace GUI.Controls
                 Windows.Win32.PInvoke.SHChangeNotify(Windows.Win32.UI.Shell.SHCNE_ID.SHCNE_ASSOCCHANGED, Windows.Win32.UI.Shell.SHCNF_FLAGS.SHCNF_FLUSH, null, null);
             }
 
-            MessageBox.Show(
+            await AppDialogs.ShowMessageAsync(
                 $"Registered .vpk file association as well as \"vpk:\" protocol link handling.{Environment.NewLine}{Environment.NewLine}If you move {Path.GetFileName(applicationPath)}, you will have to register it again.",
-                "File association registered",
-                MessageBoxButtons.OK,
-                MessageBoxIcon.Information
-            );
+                "File association registered"
+            ).ConfigureAwait(false);
         }
 
         private void OnSmoothCameraChanged(object sender, EventArgs e)

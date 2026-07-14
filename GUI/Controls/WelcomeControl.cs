@@ -19,9 +19,9 @@ namespace GUI.Controls
             BackColor = Themer.CurrentThemeColors.AppMiddle;
         }
 
-        private void fileAssociationButton_Click(object sender, EventArgs e)
+        private async void fileAssociationButton_Click(object sender, EventArgs e)
         {
-            SettingsControl.RegisterFileAssociation();
+            await SettingsControl.RegisterFileAssociationAsync().ConfigureAwait(true);
 
             fileAssociationButton.Text = "File association has been registered";
         }

@@ -3,6 +3,7 @@ using System.Drawing;
 using System.IO;
 using System.Linq;
 using System.Text;
+using System.Threading.Tasks;
 using System.Windows.Forms;
 using GUI.Controls;
 using GUI.Forms;
@@ -213,7 +214,7 @@ namespace GUI
             OpenFile(newContext, selectedNode.PackageEntry, null, withoutViewer: true);
         }
 
-        private void OpenWithDefaultAppToolStripMenuItem_Click(object sender, EventArgs e)
+        private async void OpenWithDefaultAppToolStripMenuItem_Click(object sender, EventArgs e)
         {
             if (sender is not ToolStripMenuItem { Owner: ContextMenuStrip { SourceControl: var control } })
             {
@@ -277,12 +278,11 @@ namespace GUI
                 return;
             }
 
-            if (selectedFiles.Count > 5 && MessageBox.Show(
+            if (selectedFiles.Count > 5 && !await AppDialogs.ConfirmAsync(
                 $"You are trying to open {selectedFiles.Count} files in the default app for each of these files, are you sure you want to continue?",
                 "Trying to open many files in the default app",
-                MessageBoxButtons.YesNo,
-                MessageBoxIcon.Question
-            ) != DialogResult.Yes)
+                buttons: ConfirmButtons.YesNo
+            ).ConfigureAwait(true))
             {
                 return;
             }
@@ -369,17 +369,17 @@ namespace GUI
             return (guiContext, selectedNode);
         }
 
-        private void DecompileToolStripMenuItem_Click(object sender, EventArgs e)
+        private async void DecompileToolStripMenuItem_Click(object sender, EventArgs e)
         {
-            ExtractFiles(sender, true);
+            await ExtractFiles(sender, true).ConfigureAwait(true);
         }
 
-        private void ExtractToolStripMenuItem_Click(object sender, EventArgs e)
+        private async void ExtractToolStripMenuItem_Click(object sender, EventArgs e)
         {
-            ExtractFiles(sender, false);
+            await ExtractFiles(sender, false).ConfigureAwait(true);
         }
 
-        private static void ExtractFiles(object sender, bool decompile)
+        private static async Task ExtractFiles(object sender, bool decompile)
         {
             if (sender is not ToolStripMenuItem { Owner: ContextMenuStrip { SourceControl: var owner } })
             {
@@ -391,7 +391,7 @@ namespace GUI
             {
                 if (tree.SelectedNode is IBetterBaseItem treeNode && tree.VrfGuiContext != null)
                 {
-                    ExportFile.ExtractFilesFromTreeNode(treeNode, tree.VrfGuiContext, decompile);
+                    await ExportFile.ExtractFilesFromTreeNode(treeNode, tree.VrfGuiContext, decompile).ConfigureAwait(true);
                 }
             }
             // Clicking context menu item in right side of the package view
@@ -411,7 +411,7 @@ namespace GUI
                 }
                 else if (selectedItems.Count == 1)
                 {
-                    ExportFile.ExtractFilesFromTreeNode((IBetterBaseItem)selectedItems[0], listView.VrfGuiContext, decompile);
+                    await ExportFile.ExtractFilesFromTreeNode((IBetterBaseItem)selectedItems[0], listView.VrfGuiContext, decompile).ConfigureAwait(true);
                 }
             }
             // Clicking context menu item when right clicking a tab
@@ -426,7 +426,7 @@ namespace GUI
 
                 if (exportData.PackageEntry != null)
                 {
-                    ExportFile.ExtractFileFromPackageEntry(exportData.PackageEntry, exportData.VrfGuiContext, decompile);
+                    await ExportFile.ExtractFileFromPackageEntry(exportData.PackageEntry, exportData.VrfGuiContext, decompile).ConfigureAwait(true);
                 }
                 else
                 {
@@ -434,12 +434,15 @@ namespace GUI
 
                     try
                     {
-                        ExportFile.ExtractFileFromStream(Path.GetFileName(exportData.VrfGuiContext.FileName), fileStream, exportData.VrfGuiContext, decompile);
+                        await ExportFile.ExtractFileFromStream(Path.GetFileName(exportData.VrfGuiContext.FileName), fileStream, exportData.VrfGuiContext, decompile).ConfigureAwait(true);
                         fileStream = null; // ExtractFileFromStream should dispose it when done, not `using` here in case there's some threading
                     }
                     finally
                     {
-                        fileStream?.Dispose();
+                        if (fileStream != null)
+                        {
+                            await fileStream.DisposeAsync().ConfigureAwait(true);
+                        }
                     }
                 }
             }
@@ -493,7 +496,7 @@ namespace GUI
 
         }
 
-        private void RegisterVpkFileAssociationToolStripMenuItem_Click(object sender, EventArgs e) => SettingsControl.RegisterFileAssociation();
+        private async void RegisterVpkFileAssociationToolStripMenuItem_Click(object sender, EventArgs e) => await SettingsControl.RegisterFileAssociationAsync().ConfigureAwait(true);
 
         private void OnVpkCreateFolderToolStripMenuItem_Click(object sender, EventArgs e)
         {
@@ -508,7 +511,7 @@ namespace GUI
 
             if (directory.IndexOfAny(Path.GetInvalidPathChars()) != -1)
             {
-                MessageBox.Show("Entered folder name contains invalid characters.", "Invalid characters");
+                _ = AppDialogs.ShowMessageAsync("Entered folder name contains invalid characters.", "Invalid characters", MessageIcon.Warning);
                 return;
             }
 

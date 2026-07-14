@@ -21,6 +21,10 @@
     <PackageReference Include="FCTB" Version="2.16.24">
         <NoWarn>NU1701</NoWarn>
     </PackageReference>
+    <PackageReference Include="Microsoft.CodeAnalysis.BannedApiAnalyzers" Version="5.6.0">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
     <PackageReference Include="Microsoft.Extensions.Logging" Version="10.0.8" />
     <PackageReference Include="Microsoft.Windows.CsWin32" Version="0.3.275">
       <PrivateAssets>all</PrivateAssets>
@@ -32,6 +36,9 @@
     <PackageReference Include="NLayer.NAudioSupport" Version="1.4.0" />
     <PackageReference Include="OpenTK" Version="4.9.4" />
     <PackageReference Include="Svg.Skia" Version="5.0.0" />
+  </ItemGroup>
+  <ItemGroup>
+    <AdditionalFiles Include="BannedSymbols.txt" />
   </ItemGroup>
   <ItemGroup>
     <EmbeddedResource Include="Icons\**" />
