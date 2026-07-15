@@ -106,12 +106,6 @@ namespace ValveResourceFormat.Renderer.World
                     };
 
                     scene.Add(modelNode, false);
-
-                    foreach (var modelParticleNode in ParticleSceneNode.CreateModelParticles(scene, model, modelNode))
-                    {
-                        modelParticleNode.LayerName = "Particles";
-                        scene.Add(modelParticleNode, true);
-                    }
                 }
 
                 var renderable = sceneObject.GetStringProperty("m_renderable");
