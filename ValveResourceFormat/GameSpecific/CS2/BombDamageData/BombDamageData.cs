@@ -11,13 +11,20 @@ namespace ValveResourceFormat.GameSpecific.CS2.BombDamageData;
 public class BombDamageData
 {
     /// <summary>
+    /// Version of the baked bomb damage data format.
+    /// </summary>
+    public int Version { get; private set; }
+
+    /// <summary>
     /// Stores information about each bombsite on the map, such as AABB and bomb power.
     /// </summary>
     public BombDamageDataBombsite[] Bombsites { get; set; } = [];
+
     /// <summary>
     /// Contains points on the map that have associated baked damage information.
     /// </summary>
     public Vector3[] Positions { get; set; } = [];
+
     /// <summary>
     /// Contains baked damage information, such as yaw, angle, and phase. The length of this array should be equal to the number of positions multiplied by the number of bombsites.
     /// To retreive the damage information for a given position and bombsite, use <see cref="GetBombsiteDamageValue(int, int)"/>.
@@ -38,16 +45,23 @@ public class BombDamageData
         }
 
         var kvRoot = dataBlock.Data.Root;
+
+        var genericDataType = kvRoot.GetStringProperty("generic_data_type");
+        if (genericDataType != "CS2_BOMB_DAMAGE_DATA")
+        {
+            throw new ArgumentException($"Resource provided is not CS2 baked bomb damage data (generic_data_type = '{genericDataType}').", nameof(resource));
+        }
+
         if (!kvRoot.ContainsKey("header") || !kvRoot.ContainsKey("data"))
         {
             throw new ArgumentException("Resource provided does not contain expected KV3 data structure.", nameof(resource));
         }
 
         var header = kvRoot.GetSubCollection("header");
-        var version = header.GetInt32Property("version");
-        if (version != 1)
+        Version = header.GetInt32Property("version");
+        if (Version != 1)
         {
-            throw new UnexpectedMagicException($"Unexpected version for baked bomb damage data", version, nameof(version));
+            throw new UnexpectedMagicException($"Unexpected version for baked bomb damage data", Version, nameof(Version));
         }
 
         var data = kvRoot.GetSubCollection("data");
