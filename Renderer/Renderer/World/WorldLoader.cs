@@ -11,8 +11,8 @@ using ValveResourceFormat.NavMesh;
 using ValveResourceFormat.Renderer.SceneEnvironment;
 using ValveResourceFormat.Renderer.SceneNodes;
 using ValveResourceFormat.ResourceTypes;
-using ValveResourceFormat.Serialization.KeyValues;
 using ValveResourceFormat.ResourceTypes.GenericData.CS2;
+using ValveResourceFormat.Serialization.KeyValues;
 using static ValveResourceFormat.ResourceTypes.EntityLump;
 using WorldResource = ValveResourceFormat.ResourceTypes.World;
 

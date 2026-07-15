@@ -63,6 +63,30 @@ public sealed class BombDamage : GenericData
         return DamageValues[Positions.Length * bombsiteIndex + positionIndex];
     }
 
+    /// <summary>
+    /// Calculates the damage dealt by the bomb for a given damage value, replicating the game's formula.
+    /// This is approximately <c>100 * BombPower / Phase</c> when <see cref="BombDamageDamageValue.Phase"/> is at most 1800.
+    /// </summary>
+    /// <param name="bombsite">The bombsite the bomb is planted at.</param>
+    /// <param name="damageValue">The baked damage value for a position, see <see cref="GetBombsiteDamageValue(int, int)"/>.</param>
+    /// <returns>Damage in the range [0, 255].</returns>
+    public static float CalculateDamage(in BombDamageBombsite bombsite, in BombDamageDamageValue damageValue)
+    {
+        const float MaxDamage = 100f;
+        const float MaxPhase = 1800f;
+
+        float phase = damageValue.Phase;
+        var clampedPhase = Math.Clamp(phase, 0f, MaxPhase);
+
+        if (clampedPhase == 0f)
+        {
+            return phase >= bombsite.BombPower ? 0f : MaxDamage;
+        }
+
+        var damage = MaxDamage - MaxDamage * (phase - bombsite.BombPower) / clampedPhase;
+        return Math.Clamp(damage, 0f, 255f);
+    }
+
     private void ParseData()
     {
         var kvRoot = Data.Root;
@@ -88,6 +112,11 @@ public sealed class BombDamage : GenericData
         ReadBombsites(data["bombsites"].AsBlob());
         ReadPositions(data["positions"].AsBlob());
         ReadDamageValues(data["damage_values"].AsBlob());
+
+        if (DamageValues.Length != Bombsites.Length * Positions.Length)
+        {
+            throw new InvalidDataException("Baked bomb damage value count does not match bombsite count multiplied by position count.");
+        }
     }
 
     private void ReadBombsites(byte[] blob)
@@ -156,16 +185,11 @@ public sealed class BombDamage : GenericData
         using var reader = BlobToReader(blob);
         for (var i = 0; i < damageValueCount; i++)
         {
-            var phaseFract = reader.ReadByte() / 255.0f;
-            var phase = reader.ReadByte();
-            var yaw = reader.ReadByte();
-            var pitch = reader.ReadByte();
-
             DamageValues[i] = new BombDamageDamageValue
             {
-                Phase = phase + phaseFract,
-                Yaw = yaw * 360.0f / 255.0f,
-                Pitch = pitch * 360.0f / 255.0f
+                Phase = reader.ReadUInt16(),
+                Yaw = reader.ReadByte(),
+                Pitch = reader.ReadByte()
             };
         }
     }

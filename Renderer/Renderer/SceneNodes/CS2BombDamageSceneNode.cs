@@ -170,13 +170,11 @@ public class CS2BombDamageSceneNode : SceneNode
         var basePosition = bombDamageData.Positions[bombPositionIndex];
         var damage = bombDamageData.GetBombsiteDamageValue(bombPositionIndex, bombsiteIndex);
 
-        var color = GetFaceColor(damage);
+        var color = GetFaceColor(bombDamageData.Bombsites[bombsiteIndex], damage, basePosition);
 
         AddFaceIndices(indices, vertices.Count);
 
-        var yawRad = float.DegreesToRadians(damage.Yaw);
-        var pitchRad = float.DegreesToRadians(damage.Pitch);
-        var rotation = Quaternion.CreateFromAxisAngle(Vector3.UnitZ, yawRad) * Quaternion.CreateFromAxisAngle(Vector3.UnitY, pitchRad);
+        var rotation = damage.Rotation;
 
         Span<Vector3> faceVertices = stackalloc Vector3[4];
         VertexOffsets.AsSpan().CopyTo(faceVertices);
@@ -204,9 +202,18 @@ public class CS2BombDamageSceneNode : SceneNode
         });
     }
 
-    private static Color32 GetFaceColor(BombDamageDamageValue damage)
+    // White inside the bombsite, otherwise a gradient from green (lethal, 100+ damage) through yellow to red (no damage)
+    private static Color32 GetFaceColor(in BombDamageBombsite bombsite, in BombDamageDamageValue damage, Vector3 position)
     {
-        return damage.Phase == 0.0f ? Color32.White : Color32.Yellow;
+        if (position == Vector3.Clamp(position, bombsite.BoundsMin, bombsite.BoundsMax))
+        {
+            return Color32.White;
+        }
+
+        var t = Math.Clamp(BombDamage.CalculateDamage(bombsite, damage) / 100f, 0f, 1f);
+        var r = Math.Min(1f, 2f * (1f - t));
+        var g = Math.Min(1f, 2f * t);
+        return new Color32(r, g, 0f, 1f);
     }
 
     /// <inheritdoc/>

@@ -1,8 +1,10 @@
 #version 460
 
-#define MIN_ALPHA 0.4
-#define FADE_OUT_DISTANCE 2048
-#define PULSE_STRENGTH 3.0
+#define MIN_ALPHA 0.6
+#define FADE_START_DISTANCE 1024
+#define FADE_OUT_DISTANCE 4096
+#define PULSE_STRENGTH 768.0
+#define PULSE_DIM 0.35
 
 #define DITHER_BLOCK_SIZE 4
 #define DITHER_THRESHOLD 2
@@ -40,9 +42,9 @@ void main(void)
 
     float unitPhase = mod(g_flTime - vtxPhase / PULSE_STRENGTH, 1.0);
 
-    float alpha = max(0.0, 1.0 - distanceToCamera / FADE_OUT_DISTANCE);
-    alpha *= 1.0 - (unitPhase * unitPhase);
-    alpha = mix(MIN_ALPHA, 1.0, alpha);
+    float fade = 1.0 - smoothstep(FADE_START_DISTANCE, FADE_OUT_DISTANCE, distanceToCamera);
+    float alpha = mix(MIN_ALPHA, 1.0, fade);
+    alpha *= 1.0 - PULSE_DIM * unitPhase * unitPhase;
 
     vec2 uv = vtxUv * UV_SCALE + vec2(-unitPhase, 0.0);
     outputColor = texture(tColor, uv) * vtxColor;
