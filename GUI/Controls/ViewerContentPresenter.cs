@@ -8,23 +8,7 @@ static class ViewerContentPresenter
 {
     public static void Present(TabPage container, ViewerContent content)
     {
-        if (content is ViewerContent.Tabs tabs)
-        {
-            var tabControl = new ThemedTabControl
-            {
-                Dock = DockStyle.Fill,
-            };
-            container.Controls.Add(tabControl);
-
-            foreach (var tab in tabs.Items)
-            {
-                AddContentTab(tabControl, tab);
-            }
-
-            return;
-        }
-
-        container.Controls.Add(CreateControl(content));
+        container.Controls.Add(CreateControl(content, out _));
     }
 
     public static TabPage AddContentTab(ThemedTabControl tabControl, string name, ViewerContent content, bool select = false)
@@ -35,10 +19,11 @@ static class ViewerContentPresenter
     public static TabPage AddContentTab(ThemedTabControl tabControl, ViewerTab tab)
     {
         var page = new ThemedTabPage(tab.Name);
-        page.Controls.Add(CreateControl(tab.Content));
+        page.Controls.Add(CreateControl(tab.Content, out var contentFailed));
         tabControl.TabPages.Add(page);
 
-        if (tab.Select)
+        // Do not focus a tab whose content failed to produce, it only contains the error text
+        if (tab.Select && !contentFailed)
         {
             tabControl.SelectTab(page);
         }
@@ -46,49 +31,71 @@ static class ViewerContentPresenter
         return page;
     }
 
-    private static Control CreateControl(ViewerContent content) => content switch
+    private static Control CreateControl(ViewerContent content, out bool contentFailed)
     {
-        ViewerContent.Text text => CodeTextBox.Create(text.Content, text.Language, text.SourceMap),
-        ViewerContent.LazyText lazy => CreateLazyText(lazy),
-        ViewerContent.HexDump hex => CreateHexDump(hex),
-        ViewerContent.Grid grid => CreateGrid(grid),
-        _ => throw new NotSupportedException($"Unknown content type {content.GetType().Name}"),
-    };
+        contentFailed = false;
 
-    private static System.ComponentModel.Design.ByteViewer CreateHexDump(ViewerContent.HexDump hex)
-    {
-        var control = new System.ComponentModel.Design.ByteViewer
+        switch (content)
         {
-            Dock = DockStyle.Fill,
-        };
-        control.SetBytes(hex.Bytes);
-        return control;
-    }
+            case ViewerContent.Text text:
+                return CodeTextBox.Create(text.Content, text.Language, text.SourceMap);
 
-    private static Control CreateLazyText(ViewerContent.LazyText lazy)
-    {
-        string text;
+            case ViewerContent.LazyText lazy:
+            {
+                string producedText;
 
-        try
-        {
-            text = lazy.GetContent();
+                try
+                {
+                    producedText = lazy.GetContent();
+                }
+                catch (Exception e)
+                {
+                    producedText = e.ToString();
+                    contentFailed = true;
+                }
+
+                return CodeTextBox.Create(producedText, lazy.Language);
+            }
+
+            case ViewerContent.HexDump hex:
+            {
+                var control = new System.ComponentModel.Design.ByteViewer
+                {
+                    Dock = DockStyle.Fill,
+                };
+                control.SetBytes(hex.Bytes);
+                return control;
+            }
+
+            case ViewerContent.Grid grid:
+                return new DataGridView
+                {
+                    Dock = DockStyle.Fill,
+                    AutoSize = true,
+                    ReadOnly = true,
+                    AllowUserToAddRows = false,
+                    AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill,
+                    DataSource = new BindingSource(grid.Rows, string.Empty),
+                    ScrollBars = ScrollBars.Both,
+                };
+
+            case ViewerContent.Tabs tabs:
+            {
+                var tabControl = new ThemedTabControl
+                {
+                    Dock = DockStyle.Fill,
+                };
+
+                foreach (var tab in tabs.Items)
+                {
+                    AddContentTab(tabControl, tab);
+                }
+
+                return tabControl;
+            }
+
+            default:
+                throw new NotSupportedException($"Unknown content type {content.GetType().Name}");
         }
-        catch (Exception e)
-        {
-            text = e.ToString();
-        }
-
-        return CodeTextBox.Create(text, lazy.Language);
     }
-
-    private static DataGridView CreateGrid(ViewerContent.Grid grid) => new()
-    {
-        Dock = DockStyle.Fill,
-        AutoSize = true,
-        ReadOnly = true,
-        AllowUserToAddRows = false,
-        AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill,
-        DataSource = new BindingSource(grid.Rows, string.Empty),
-        ScrollBars = ScrollBars.Both,
-    };
 }

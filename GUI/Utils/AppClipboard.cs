@@ -20,9 +20,8 @@ public static class AppClipboard
 
         using var pngStream = new MemoryStream();
         using var pixels = bitmap.PeekPixels();
-        var png = pixels.Encode(pngStream, new SkiaSharp.SKPngEncoderOptions(SkiaSharp.SKPngEncoderFilterFlags.Sub, zLibLevel: 1));
+        pixels.Encode(pngStream, new SkiaSharp.SKPngEncoderOptions(SkiaSharp.SKPngEncoderFilterFlags.Sub, zLibLevel: 1));
 
-        bitmapWindows.Save(pngStream, System.Drawing.Imaging.ImageFormat.Png);
         data.SetData("PNG", false, pngStream);
 
         Clipboard.SetDataObject(data, copy: true);

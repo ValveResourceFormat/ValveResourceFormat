@@ -15,8 +15,8 @@ namespace GUI.Utils;
 // Global icon cache for the app, loaded from embedded resources at startup.
 static class AppIcons
 {
-    // Disposable fields should be disposed
-    // for some reason disposing it makes closing GUI very slow
+    // This list intentionally lives for the entire process lifetime and is never disposed,
+    // disposing it makes closing the GUI very slow.
     //
     // Never lookup icons from this list, use Icons and ExtensionIcons properties.
     public static ImageList ImageList { get; } = new ImageList
@@ -35,7 +35,8 @@ static class AppIcons
     public static Dictionary<string, int> ExtensionIcons { get; } = [];
 
     /// <summary>
-    /// Lookup a file extension icon as SVG from GUI/Icons/AssetTypes/ folder.
+    /// Lookup any loaded icon as SVG by name. Contains both UI icons (GUI/Icons/) and
+    /// file extension icons (GUI/Icons/AssetTypes/).
     /// </summary>
     public static Dictionary<string, SKSvg> ExtensionSVGS { get; } = [];
 

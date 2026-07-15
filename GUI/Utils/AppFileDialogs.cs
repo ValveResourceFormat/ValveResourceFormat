@@ -15,7 +15,9 @@ public static class AppFileDialogs
         SaveDirectory,
     }
 
-    public static string? PickFolder(string? title, RememberIn remember = RememberIn.None)
+    // updateRemembered: set to false when the caller validates the picked path first and
+    // wants to remember the directory only when the pick is actually accepted.
+    public static string? PickFolder(string? title, RememberIn remember = RememberIn.None, bool updateRemembered = true)
     {
         using var dialog = new FolderBrowserDialog
         {
@@ -30,23 +32,26 @@ public static class AppFileDialogs
             return null;
         }
 
-        SetRememberedDirectory(remember, dialog.SelectedPath);
+        if (updateRemembered)
+        {
+            SetRememberedDirectory(remember, dialog.SelectedPath);
+        }
 
         return dialog.SelectedPath;
     }
 
-    public static string? OpenFile(string? title, string? filter, RememberIn remember = RememberIn.OpenDirectory)
+    public static string? OpenFile(string? title, string? filter, RememberIn remember = RememberIn.OpenDirectory, bool updateRemembered = true)
     {
-        var files = OpenFilesCore(title, filter, multiselect: false, remember);
+        var files = OpenFilesCore(title, filter, multiselect: false, remember, updateRemembered);
         return files is { Length: > 0 } ? files[0] : null;
     }
 
-    public static string[]? OpenFiles(string? title, string? filter, RememberIn remember = RememberIn.OpenDirectory)
+    public static string[]? OpenFiles(string? title, string? filter, RememberIn remember = RememberIn.OpenDirectory, bool updateRemembered = true)
     {
-        return OpenFilesCore(title, filter, multiselect: true, remember);
+        return OpenFilesCore(title, filter, multiselect: true, remember, updateRemembered);
     }
 
-    private static string[]? OpenFilesCore(string? title, string? filter, bool multiselect, RememberIn remember)
+    private static string[]? OpenFilesCore(string? title, string? filter, bool multiselect, RememberIn remember, bool updateRemembered)
     {
         using var dialog = new OpenFileDialog
         {
@@ -62,7 +67,7 @@ public static class AppFileDialogs
             return null;
         }
 
-        if (Path.GetDirectoryName(dialog.FileNames[0]) is { Length: > 0 } directory)
+        if (updateRemembered && Path.GetDirectoryName(dialog.FileNames[0]) is { Length: > 0 } directory)
         {
             SetRememberedDirectory(remember, directory);
         }

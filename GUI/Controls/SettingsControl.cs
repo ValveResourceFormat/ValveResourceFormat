@@ -92,7 +92,7 @@ namespace GUI.Controls
 
         private void GamePathAdd(object sender, EventArgs e)
         {
-            var fileName = AppFileDialogs.OpenFile(null, "Valve Pak (*.vpk) or gameinfo.gi|*.vpk;gameinfo.gi|All files (*.*)|*.*");
+            var fileName = AppFileDialogs.OpenFile(null, "Valve Pak (*.vpk) or gameinfo.gi|*.vpk;gameinfo.gi|All files (*.*)|*.*", updateRemembered: false);
 
             if (fileName == null)
             {
@@ -109,6 +109,11 @@ namespace GUI.Controls
                 return;
             }
 
+            if (Path.GetDirectoryName(fileName) is { Length: > 0 } directory)
+            {
+                Settings.Config.OpenDirectory = directory;
+            }
+
             Settings.Config.GameSearchPaths.Add(fileName);
 
             gamePaths.Items.Add(fileName);
@@ -116,7 +121,7 @@ namespace GUI.Controls
 
         private void GamePathAddFolder(object sender, EventArgs e)
         {
-            var selectedPath = AppFileDialogs.PickFolder(null, AppFileDialogs.RememberIn.OpenDirectory);
+            var selectedPath = AppFileDialogs.PickFolder(null, AppFileDialogs.RememberIn.OpenDirectory, updateRemembered: false);
 
             if (selectedPath == null)
             {
@@ -128,6 +133,7 @@ namespace GUI.Controls
                 return;
             }
 
+            Settings.Config.OpenDirectory = selectedPath;
             Settings.Config.GameSearchPaths.Add(selectedPath);
 
             gamePaths.Items.Add(selectedPath);

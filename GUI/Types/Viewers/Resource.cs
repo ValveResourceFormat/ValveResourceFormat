@@ -825,7 +825,7 @@ namespace GUI.Types.Viewers
             switch (resource.ResourceType)
             {
                 case ResourceType.Sound when resource.DataBlock is Sound { Sentence: { } sentence }:
-                    ViewerContentPresenter.AddContentTab(resTabs, "Reconstructed phonemes", new ViewerContent.Text(sentence.ToValveSentence(), HighlightLanguage.Default));
+                    ViewerContentPresenter.AddContentTab(resTabs, "Reconstructed phonemes", new ViewerContent.Text(sentence.ToValveSentence()));
                     break;
 
                 case ResourceType.Material:
@@ -835,8 +835,8 @@ namespace GUI.Types.Viewers
                 case ResourceType.EntityLump:
                     if (resource.DataBlock is EntityLump entityLump)
                     {
-                        ViewerContentPresenter.AddContentTab(resTabs, "FGD", new ViewerContent.Text(entityLump.ToForgeGameData(), HighlightLanguage.Default));
-                        ViewerContentPresenter.AddContentTab(resTabs, "Entities-Text", new ViewerContent.Text(entityLump.ToEntityDumpString(), HighlightLanguage.Default), select: true);
+                        ViewerContentPresenter.AddContentTab(resTabs, "FGD", new ViewerContent.Text(entityLump.ToForgeGameData()));
+                        ViewerContentPresenter.AddContentTab(resTabs, "Entities-Text", new ViewerContent.Text(entityLump.ToEntityDumpString()), select: true);
                         // force select the new entities tab for now
                         resTabs.SelectedTab = resTabs.TabPages[0];
                     }
@@ -845,7 +845,7 @@ namespace GUI.Types.Viewers
                 case ResourceType.PostProcessing:
                     if (resource.DataBlock is PostProcessing postProcessingData)
                     {
-                        ViewerContentPresenter.AddContentTab(resTabs, "Reconstructed vpost", new ViewerContent.Text(postProcessingData.ToValvePostProcessing(), HighlightLanguage.Default));
+                        ViewerContentPresenter.AddContentTab(resTabs, "Reconstructed vpost", new ViewerContent.Text(postProcessingData.ToValvePostProcessing()));
                     }
                     break;
 
@@ -857,11 +857,11 @@ namespace GUI.Types.Viewers
                         }
 
                         var textureExtract = new TextureExtract(resource);
-                        ViewerContentPresenter.AddContentTab(resTabs, "Reconstructed vtex", new ViewerContent.Text(textureExtract.ToValveTexture(), HighlightLanguage.Default));
+                        ViewerContentPresenter.AddContentTab(resTabs, "Reconstructed vtex", new ViewerContent.Text(textureExtract.ToValveTexture()));
 
                         if (textureExtract.TryGetMksData(out var _, out var mks))
                         {
-                            ViewerContentPresenter.AddContentTab(resTabs, "Reconstructed mks", new ViewerContent.Text(mks, HighlightLanguage.Default));
+                            ViewerContentPresenter.AddContentTab(resTabs, "Reconstructed mks", new ViewerContent.Text(mks));
                         }
 
                         break;
@@ -871,7 +871,7 @@ namespace GUI.Types.Viewers
                     {
                         if (!FileExtract.IsChildResource(resource))
                         {
-                            ViewerContentPresenter.AddContentTab(resTabs, "Reconstructed vsnap", new ViewerContent.Text(new SnapshotExtract(resource).ToValveSnap(), HighlightLanguage.Default));
+                            ViewerContentPresenter.AddContentTab(resTabs, "Reconstructed vsnap", new ViewerContent.Text(new SnapshotExtract(resource).ToValveSnap()));
                         }
 
                         break;

@@ -9,7 +9,7 @@ namespace GUI.Types.Viewers;
 abstract record ViewerContent
 {
     // Plain or syntax highlighted text
-    public sealed record Text(string Content, HighlightLanguage Language = HighlightLanguage.KeyValues, IReadOnlyList<KvSourceSpan>? SourceMap = null) : ViewerContent;
+    public sealed record Text(string Content, HighlightLanguage Language = HighlightLanguage.Default, IReadOnlyList<KvSourceSpan>? SourceMap = null) : ViewerContent;
 
     // Text that is produced on demand, rendering the exception text if producing it fails
     public sealed record LazyText(Func<string> GetContent, HighlightLanguage Language = HighlightLanguage.Default) : ViewerContent;
