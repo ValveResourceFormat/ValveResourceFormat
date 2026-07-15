@@ -43,18 +43,18 @@ namespace GUI.Controls
 
             filterTextBox.BackColor = Themer.CurrentThemeColors.AppMiddle;
 
-            treeView.ImageList = MainForm.ImageList;
+            treeView.ImageList = AppIcons.ImageList;
 
             Scan();
         }
 
         private void Scan()
         {
-            var recentImage = MainForm.Icons["History"];
+            var recentImage = AppIcons.Icons["History"];
 
             // Bookmarks
             {
-                var bookmarkImage = MainForm.Icons["Bookmarks"];
+                var bookmarkImage = AppIcons.Icons["Bookmarks"];
                 var bookmarkedFilesTreeNode = new TreeNode("Bookmarks")
                 {
                     ImageIndex = bookmarkImage,
@@ -136,11 +136,11 @@ namespace GUI.Controls
                 return;
             }
 
-            var vpkImage = MainForm.ExtensionIcons["vpk"];
-            var vcsImage = MainForm.Icons["FolderShaders"];
-            var mapImage = MainForm.Icons["FolderMap"];
-            var pluginImage = MainForm.Icons["FolderPlugin"];
-            var folderImage = MainForm.Icons["Folder"];
+            var vpkImage = AppIcons.ExtensionIcons["vpk"];
+            var vcsImage = AppIcons.Icons["FolderShaders"];
+            var mapImage = AppIcons.Icons["FolderMap"];
+            var pluginImage = AppIcons.Icons["FolderPlugin"];
+            var folderImage = AppIcons.Icons["Folder"];
 
             int GetSortPriorityForImage(int image)
             {
@@ -579,7 +579,7 @@ namespace GUI.Controls
 
                 if (WorkshopAddons.TryGetValue(path, out var displayTitle))
                 {
-                    imageIndexFile = MainForm.Icons["FolderPlugin"];
+                    imageIndexFile = AppIcons.Icons["FolderPlugin"];
                     pathDisplay = $"{pathDisplay} {displayTitle}";
                 }
                 else
@@ -589,11 +589,11 @@ namespace GUI.Controls
 
                     if (isVpk && Path.GetFileName(path.AsSpan()).StartsWith("shaders_", StringComparison.Ordinal))
                     {
-                        imageIndexFile = MainForm.Icons["FolderShaders"];
+                        imageIndexFile = AppIcons.Icons["FolderShaders"];
                     }
                     else if (isVpk && pathDisplay.Contains("/maps/", StringComparison.Ordinal))
                     {
-                        imageIndexFile = MainForm.Icons["FolderMap"];
+                        imageIndexFile = AppIcons.Icons["FolderMap"];
                     }
                     else
                     {
@@ -602,7 +602,7 @@ namespace GUI.Controls
                             extension = extension[1..];
                         }
 
-                        imageIndexFile = MainForm.GetImageIndexForExtension(extension);
+                        imageIndexFile = AppIcons.GetImageIndexForExtension(extension);
                     }
                 }
 
@@ -614,7 +614,7 @@ namespace GUI.Controls
 
                         if (isVpk)
                         {
-                            if (!MainForm.GameIcons.TryGetValue(game.AppID, out imageIndexGame))
+                            if (!AppIcons.GameIcons.TryGetValue(game.AppID, out imageIndexGame))
                             {
                                 imageIndexGame = -1;
                             }
@@ -726,7 +726,7 @@ namespace GUI.Controls
 
         private async Task<int> GetOrLoadAppImage(int appID, KVDocument? libraryAssetsKv, string libraryCachePath)
         {
-            if (MainForm.GameIcons.TryGetValue(appID, out var treeNodeImage))
+            if (AppIcons.GameIcons.TryGetValue(appID, out var treeNodeImage))
             {
                 return treeNodeImage;
             }
@@ -761,9 +761,9 @@ namespace GUI.Controls
                     await handleCreated.Task.ConfigureAwait(false);
                     treeNodeImage = await treeView.InvokeAsync(() =>
                     {
-                        var imageIndex = MainForm.ImageList.Images.Count;
-                        MainForm.AddFixedImageToImageList(appIcon, MainForm.ImageList);
-                        MainForm.GameIcons.TryAdd(appID, imageIndex);
+                        var imageIndex = AppIcons.ImageList.Images.Count;
+                        AppIcons.AddFixedImageToImageList(appIcon, AppIcons.ImageList);
+                        AppIcons.GameIcons.TryAdd(appID, imageIndex);
                         return imageIndex;
                     }).ConfigureAwait(false);
                 }
@@ -780,7 +780,7 @@ namespace GUI.Controls
         {
             using var originalImage = Image.FromFile(path);
 
-            var destRect = new Rectangle(0, 0, MainForm.ImageList.ImageSize.Width, MainForm.ImageList.ImageSize.Height);
+            var destRect = new Rectangle(0, 0, AppIcons.ImageList.ImageSize.Width, AppIcons.ImageList.ImageSize.Height);
             var destImage = new Bitmap(destRect.Width, destRect.Height, System.Drawing.Imaging.PixelFormat.Format32bppArgb);
 
             destImage.SetResolution(originalImage.HorizontalResolution, originalImage.VerticalResolution);
@@ -800,7 +800,7 @@ namespace GUI.Controls
             // TODO: Look for resources in Renderer assembly
             var embeddedResources = Program.Assembly.GetManifestResourceNames().Where(n => n.StartsWith("GUI.Utils.", StringComparison.Ordinal) && n.EndsWith(GameFileLoader.CompiledFileSuffix, StringComparison.Ordinal));
 
-            var imageIndex = MainForm.Icons["Folder"];
+            var imageIndex = AppIcons.Icons["Folder"];
             var embeddedFilesTreeNode = new TreeNode("Embedded Resources")
             {
                 ImageIndex = imageIndex,
@@ -810,7 +810,7 @@ namespace GUI.Controls
             foreach (var embeddedResource in embeddedResources)
             {
                 var extension = Path.GetExtension(embeddedResource.AsSpan());
-                imageIndex = MainForm.GetImageIndexForExtension(extension[1..]);
+                imageIndex = AppIcons.GetImageIndexForExtension(extension[1..]);
 
                 var debugTreeNode = new TreeNode(embeddedResource)
                 {
@@ -822,14 +822,14 @@ namespace GUI.Controls
             }
 
             // Icons
-            var iconsImageIndex = MainForm.Icons["Folder"];
+            var iconsImageIndex = AppIcons.Icons["Folder"];
             var iconsTreeNode = new TreeNode("Icons")
             {
                 ImageIndex = iconsImageIndex,
                 SelectedImageIndex = iconsImageIndex,
             };
 
-            foreach (var iconEntry in MainForm.Icons)
+            foreach (var iconEntry in AppIcons.Icons)
             {
                 var iconNode = new TreeNode(iconEntry.Key)
                 {
@@ -842,14 +842,14 @@ namespace GUI.Controls
             embeddedFilesTreeNode.Nodes.Add(iconsTreeNode);
 
             // Extensions
-            var extensionsImageIndex = MainForm.Icons["Folder"];
+            var extensionsImageIndex = AppIcons.Icons["Folder"];
             var extensionsTreeNode = new TreeNode("Extensions")
             {
                 ImageIndex = extensionsImageIndex,
                 SelectedImageIndex = extensionsImageIndex,
             };
 
-            foreach (var extEntry in MainForm.ExtensionIcons)
+            foreach (var extEntry in AppIcons.ExtensionIcons)
             {
                 var extNode = new TreeNode(extEntry.Key)
                 {

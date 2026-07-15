@@ -102,8 +102,8 @@ namespace GUI.Types.PackageViewer
 
             searchTextBox.BackColor = Themer.CurrentThemeColors.AppMiddle;
 
-            backButton.Image = MainForm.ImageList.Images[MainForm.Icons["NavigateBack"]];
-            forwardButton.Image = MainForm.ImageList.Images[MainForm.Icons["NavigateForward"]];
+            backButton.Image = AppIcons.ImageList.Images[AppIcons.Icons["NavigateBack"]];
+            forwardButton.Image = AppIcons.ImageList.Images[AppIcons.Icons["NavigateForward"]];
 
             if (SplitterWidth > 0)
             {
@@ -664,7 +664,7 @@ namespace GUI.Types.PackageViewer
 
         private static string ResolveExtension(string typeName)
         {
-            if (MainForm.ExtensionSVGS.ContainsKey(typeName))
+            if (AppIcons.ExtensionSVGS.ContainsKey(typeName))
             {
                 return typeName;
             }
@@ -676,7 +676,7 @@ namespace GUI.Types.PackageViewer
                 ext = ext[..^2];
             }
 
-            if (MainForm.ExtensionSVGS.ContainsKey(ext))
+            if (AppIcons.ExtensionSVGS.ContainsKey(ext))
             {
                 return ext;
             }
@@ -686,7 +686,7 @@ namespace GUI.Types.PackageViewer
                 ext = ext[1..];
             }
 
-            if (MainForm.ExtensionSVGS.ContainsKey(ext))
+            if (AppIcons.ExtensionSVGS.ContainsKey(ext))
             {
                 return ext;
             }
@@ -700,8 +700,8 @@ namespace GUI.Types.PackageViewer
         /// </summary>
         internal static Bitmap GetTypeIconBitmap(string typeName, int size)
         {
-            var svg = MainForm.ExtensionSVGS.GetValueOrDefault(ResolveExtension(typeName))
-                ?? MainForm.ExtensionSVGS.GetValueOrDefault("File");
+            var svg = AppIcons.ExtensionSVGS.GetValueOrDefault(ResolveExtension(typeName))
+                ?? AppIcons.ExtensionSVGS.GetValueOrDefault("File");
             return Themer.SvgToBitmap(svg!, size, size);
         }
 
@@ -714,8 +714,8 @@ namespace GUI.Types.PackageViewer
                 ColorDepth = ColorDepth.Depth32Bit
             };
 
-            MainForm.ExtensionSVGS.TryGetValue("Folder", out var folderSvgFile);
-            MainForm.ExtensionSVGS.TryGetValue("FolderUp", out var folderUpSvgFile);
+            AppIcons.ExtensionSVGS.TryGetValue("Folder", out var folderSvgFile);
+            AppIcons.ExtensionSVGS.TryGetValue("FolderUp", out var folderUpSvgFile);
             var folderBitmap = Themer.SvgToBitmap(folderSvgFile!, currentThumbnailSize, currentThumbnailSize);
             var folderUpBitmap = Themer.SvgToBitmap(folderUpSvgFile!, currentThumbnailSize, currentThumbnailSize);
             bigIconsImageList.Images.Add(folderBitmap);
@@ -834,7 +834,7 @@ namespace GUI.Types.PackageViewer
             control.Name = "treeViewVpk";
             control.VrfGuiContext = vrfGuiContext;
             control.Dock = DockStyle.Fill;
-            control.ImageList = MainForm.ImageList;
+            control.ImageList = AppIcons.ImageList;
             control.BeforeExpand += Control_BeforeExpand;
             control.ShowRootLines = false;
 
@@ -853,7 +853,7 @@ namespace GUI.Types.PackageViewer
             var fileName = Path.GetFileName(fullFilePath);
             var parentFolder = Path.GetFileName(Path.GetDirectoryName(fullFilePath));
             var name = fullFilePath.Length > 0 ? $"{parentFolder}/{fileName}" : fileName.ToString();
-            var vpkImage = MainForm.ExtensionIcons["vpk"];
+            var vpkImage = AppIcons.ExtensionIcons["vpk"];
 
             var root = new BetterTreeNode(name, rootVirtual)
             {
@@ -944,11 +944,11 @@ namespace GUI.Types.PackageViewer
 
             if (isCreating)
             {
-                image = MainForm.GetImageIndexForExtension(file.TypeName.ToLowerInvariant());
+                image = AppIcons.GetImageIndexForExtension(file.TypeName.ToLowerInvariant());
             }
             else if (!mainTreeView.ExtensionIconList.TryGetValue(file.TypeName, out image))
             {
-                image = MainForm.Icons["File"];
+                image = AppIcons.Icons["File"];
             }
 
             var newNode = new BetterTreeNode(fileName, file)
@@ -1061,7 +1061,7 @@ namespace GUI.Types.PackageViewer
 
                 Invoke((MethodInvoker)(() =>
                 {
-                    var deletedImage = MainForm.Icons["Recover"];
+                    var deletedImage = AppIcons.Icons["Recover"];
 
                     if (foundFiles.Count == 0)
                     {
@@ -1485,7 +1485,7 @@ namespace GUI.Types.PackageViewer
         {
             if (!mainTreeView.ExtensionIconList.TryGetValue(file.TypeName, out var image))
             {
-                image = MainForm.Icons["File"];
+                image = AppIcons.Icons["File"];
             }
 
             var item = new BetterListViewItem(file.GetFileName())
@@ -1991,7 +1991,7 @@ namespace GUI.Types.PackageViewer
                 DrainThumbnailQueue();
 
                 mainListView.View = View.Details;
-                mainListView.SmallImageList = MainForm.ImageList;
+                mainListView.SmallImageList = AppIcons.ImageList;
 
                 AssignIcons();
 
@@ -2012,7 +2012,7 @@ namespace GUI.Types.PackageViewer
                 if (betterItem.IsFolder)
                 {
                     betterItem.ImageIndex = betterItem.Tag is BetterListViewItem.ParentNavigationTag
-                        ? MainForm.Icons["FolderUp"]
+                        ? AppIcons.Icons["FolderUp"]
                         : mainTreeView.FolderImage;
                 }
                 else if (betterItem.PackageEntry != null
@@ -2022,7 +2022,7 @@ namespace GUI.Types.PackageViewer
                 }
                 else
                 {
-                    betterItem.ImageIndex = MainForm.Icons["File"];
+                    betterItem.ImageIndex = AppIcons.Icons["File"];
                 }
             }
         }

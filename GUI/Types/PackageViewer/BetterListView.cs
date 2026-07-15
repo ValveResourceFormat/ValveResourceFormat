@@ -184,12 +184,12 @@ namespace GUI.Types.PackageViewer
             {
                 var iconName = sorter.Order == SortOrder.Ascending ? "SortUp" : "SortDown";
 
-                var icon = MainForm.Icons[iconName];
-                var size = MainForm.ImageList.ImageSize;
+                var icon = AppIcons.Icons[iconName];
+                var size = AppIcons.ImageList.ImageSize;
                 var x = e.Bounds.Right - size.Width - this.AdjustForDPI(4);
                 var y = e.Bounds.Top + (e.Bounds.Height - size.Height) / 2;
 
-                MainForm.ImageList.Draw(e.Graphics, x, y, size.Width, size.Height, icon);
+                AppIcons.ImageList.Draw(e.Graphics, x, y, size.Width, size.Height, icon);
             }
         }
     }

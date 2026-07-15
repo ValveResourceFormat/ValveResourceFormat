@@ -437,7 +437,7 @@ namespace GUI.Types.Viewers
                         iconExtension = iconExtension[1..];
                     }
 
-                    rendererControl.AddPreviewFileName(Path.GetFileName(vrfGuiContext.FileName), MainForm.GetImageIndexForExtension(iconExtension));
+                    rendererControl.AddPreviewFileName(Path.GetFileName(vrfGuiContext.FileName), AppIcons.GetImageIndexForExtension(iconExtension));
                 }
 
                 var specialTabPage = new ThemedTabPage(GLViewerTabName);
@@ -601,7 +601,7 @@ namespace GUI.Types.Viewers
             var treeView = new TreeViewDoubleBuffered
             {
                 Dock = DockStyle.Fill,
-                ImageList = MainForm.ImageList,
+                ImageList = AppIcons.ImageList,
                 HideSelection = false,
                 ShowRootLines = true,
             };
@@ -610,7 +610,7 @@ namespace GUI.Types.Viewers
 
             var rootNodes = new Dictionary<string, TreeNode>();
             var rootLookup = rootNodes.GetAlternateLookup<ReadOnlySpan<char>>();
-            var folderIcon = MainForm.Icons["Folder"];
+            var folderIcon = AppIcons.Icons["Folder"];
 
             foreach (var refInfo in references)
             {
@@ -634,7 +634,7 @@ namespace GUI.Types.Viewers
                     extensionSpan = extensionSpan[1..];
                 }
 
-                var fileIcon = MainForm.GetImageIndexForExtension(extensionSpan);
+                var fileIcon = AppIcons.GetImageIndexForExtension(extensionSpan);
                 var fileNode = new TreeNode(refInfo.Name)
                 {
                     ImageIndex = fileIcon,

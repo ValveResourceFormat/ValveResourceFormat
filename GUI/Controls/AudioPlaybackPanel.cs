@@ -41,10 +41,10 @@ namespace GUI.Controls
 
         private readonly (int Start, int End) LoopMarkers;
 
-        private readonly Image PlayImage = MainForm.ImageList.Images[MainForm.Icons["AudioPlay"]];
-        private readonly Image PauseImage = MainForm.ImageList.Images[MainForm.Icons["AudioPause"]];
-        private readonly Image RepeatImage = MainForm.ImageList.Images[MainForm.Icons["AudioRepeat"]];
-        private readonly Image RepeatImagePressed = MainForm.ImageList.Images[MainForm.Icons["AudioRepeatPressed"]];
+        private readonly Image PlayImage = AppIcons.ImageList.Images[AppIcons.Icons["AudioPlay"]];
+        private readonly Image PauseImage = AppIcons.ImageList.Images[AppIcons.Icons["AudioPause"]];
+        private readonly Image RepeatImage = AppIcons.ImageList.Images[AppIcons.Icons["AudioRepeat"]];
+        private readonly Image RepeatImagePressed = AppIcons.ImageList.Images[AppIcons.Icons["AudioRepeatPressed"]];
 
         public AudioPlaybackPanel(WaveStream inputStream, bool autoPlay, (int start, int end) loopMarkers)
         {
@@ -69,7 +69,7 @@ namespace GUI.Controls
                 Looping = false;
             }
 
-            volumePictureBox.Image = MainForm.ImageList.Images[MainForm.Icons["AudioVolume"]];
+            volumePictureBox.Image = AppIcons.ImageList.Images[AppIcons.Icons["AudioVolume"]];
 
             WaveStream.Position = 0;
             audioData = new MemoryStream((int)WaveStream.Length);
@@ -85,7 +85,7 @@ namespace GUI.Controls
 
             loopButton.Image = Looping ? RepeatImagePressed : RepeatImage;
             loopButton.Text = "";
-            rewindLeftButton.Image = MainForm.ImageList.Images[MainForm.Icons["AudioRewindLeft"]];
+            rewindLeftButton.Image = AppIcons.ImageList.Images[AppIcons.Icons["AudioRewindLeft"]];
             rewindLeftButton.Text = "";
 
             playbackSlider.ValueChanged = Value =>

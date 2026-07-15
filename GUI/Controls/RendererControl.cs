@@ -102,11 +102,11 @@ partial class RendererControl : UserControl
         {
             Dock = DockStyle.Left,
             Width = this.AdjustForDPI(28),
-            ImageList = MainForm.ImageList,
+            ImageList = AppIcons.ImageList,
             ImageAlign = ContentAlignment.MiddleCenter,
         };
 
-        if (imageIndex >= 0 && imageIndex < MainForm.ImageList.Images.Count)
+        if (imageIndex >= 0 && imageIndex < AppIcons.ImageList.Images.Count)
         {
             iconLabel.ImageIndex = imageIndex;
         }

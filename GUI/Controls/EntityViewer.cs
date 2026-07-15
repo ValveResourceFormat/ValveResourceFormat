@@ -50,23 +50,23 @@ namespace GUI.Types.Viewers
             EntityIconImageList = new ImageList
             {
                 ColorDepth = ColorDepth.Depth32Bit,
-                ImageSize = MainForm.ImageList.ImageSize,
+                ImageSize = AppIcons.ImageList.ImageSize,
             };
 
-            if (MainForm.ExtensionIcons.TryGetValue("ents", out var entsIconIndex) &&
-                MainForm.ImageList.Images[entsIconIndex] is Bitmap entsIcon)
+            if (AppIcons.ExtensionIcons.TryGetValue("ents", out var entsIconIndex) &&
+                AppIcons.ImageList.Images[entsIconIndex] is Bitmap entsIcon)
             {
                 EntityIconImageList.Images.Add(entsIcon);
             }
 
-            if (MainForm.ExtensionIcons.TryGetValue("mdl", out var mdlIconIndex) &&
-                MainForm.ImageList.Images[mdlIconIndex] is Bitmap mdlIcon)
+            if (AppIcons.ExtensionIcons.TryGetValue("mdl", out var mdlIconIndex) &&
+                AppIcons.ImageList.Images[mdlIconIndex] is Bitmap mdlIcon)
             {
                 EntityIconImageList.Images.Add(mdlIcon);
             }
 
-            if (MainForm.ExtensionIcons.TryGetValue("pcf", out var pcfIconIndex) &&
-                MainForm.ImageList.Images[pcfIconIndex] is Bitmap pcfIcon)
+            if (AppIcons.ExtensionIcons.TryGetValue("pcf", out var pcfIconIndex) &&
+                AppIcons.ImageList.Images[pcfIconIndex] is Bitmap pcfIcon)
             {
                 EntityIconImageList.Images.Add(pcfIcon);
             }
@@ -552,7 +552,7 @@ namespace GUI.Types.Viewers
             InvokeWorkaround(() =>
             {
                 index = EntityIconImageList.Images.Count;
-                MainForm.AddFixedImageToImageList(bitmap, EntityIconImageList);
+                AppIcons.AddFixedImageToImageList(bitmap, EntityIconImageList);
             });
 
             return index;
