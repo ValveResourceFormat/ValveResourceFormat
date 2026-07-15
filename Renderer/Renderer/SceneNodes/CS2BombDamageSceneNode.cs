@@ -46,7 +46,7 @@ public class CS2BombDamageSceneNode : SceneNode
         [FieldOffset(VertexUVOffset)]
         public Vector2 UVs;
         [FieldOffset(VertexColorOffset)]
-        public int Color;
+        public Color32 Color;
         [FieldOffset(VertexPhaseOffset)]
         public float Phase;
     }
@@ -191,7 +191,7 @@ public class CS2BombDamageSceneNode : SceneNode
         AddVertex(vertices, basePosition + faceVertices[3], Vector2.UnitY, color, damage.Phase);
     }
 
-    private void AddVertex(List<VertexFormat> vertices, Vector3 position, Vector2 uvs, int color, float phase)
+    private void AddVertex(List<VertexFormat> vertices, Vector3 position, Vector2 uvs, Color32 color, float phase)
     {
         boundsMax = Vector3.Max(boundsMax, position);
         boundsMin = Vector3.Min(boundsMin, position);
@@ -204,21 +204,9 @@ public class CS2BombDamageSceneNode : SceneNode
         });
     }
 
-    private static int GetFaceColor(BombDamageDataDamageValue damage)
+    private static Color32 GetFaceColor(BombDamageDataDamageValue damage)
     {
-        if (damage.Phase == 0.0f)
-        {
-            return RGBAColor(255, 255, 255, 255);
-        }
-        else
-        {
-            return RGBAColor(255, 255, 0, 255);
-        }
-    }
-
-    private static int RGBAColor(byte r, byte g, byte b, byte a)
-    {
-        return a << 24 | b << 16 | g << 8 | r << 0;
+        return damage.Phase == 0.0f ? Color32.White : Color32.Yellow;
     }
 
     /// <inheritdoc/>

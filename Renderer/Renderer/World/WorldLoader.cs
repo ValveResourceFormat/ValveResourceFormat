@@ -51,7 +51,7 @@ namespace ValveResourceFormat.Renderer.World
         public SceneSkybox2D? Skybox2D { get; set; }
         /// <summary>The loaded navigation mesh, populated by <see cref="LoadNavigationMesh"/>.</summary>
         public NavMeshFile? NavMesh { get; set; }
-        /// <summary>Baked bomb damage data for CS2, null if doesn't exist Populated by <see cref="LoadBombDamageData"/>.</summary>
+        /// <summary>Baked bomb damage data for CS2, null if it doesn't exist. Populated by <see cref="LoadBombDamageData"/>.</summary>
         public BombDamageData? BombDamageData { get; set; }
 
         /// <summary>Translation offset applied to the world, used when compositing multiple maps.</summary>
@@ -1375,7 +1375,7 @@ namespace ValveResourceFormat.Renderer.World
                 {
                     BombDamageData = new BombDamageData();
                     BombDamageData.Read(bombDamageFile);
-                    RendererContext.Logger.LogInformation("CS2 baked bomb damage data from '{BakedBombDamagePath}'", bombDamagePath);
+                    RendererContext.Logger.LogInformation("Loaded CS2 baked bomb damage data from '{BakedBombDamagePath}'", bombDamagePath);
                 }
             }
             catch (Exception e)
