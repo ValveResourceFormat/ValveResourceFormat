@@ -231,9 +231,10 @@ namespace ValveResourceFormat.Renderer.SceneNodes
         public override void Update(Scene.UpdateContext context)
         {
             UpdateAutoLod(context.Camera);
+            var animationUpdated = AnimationController.Update(context.Timestep);
             UpdateAttachments(context);
 
-            if (!AnimationController.Update(context.Timestep))
+            if (!animationUpdated)
             {
                 return;
             }
@@ -327,11 +328,35 @@ namespace ValveResourceFormat.Renderer.SceneNodes
             }
         }
 
-        // The parent anchor for an attached child: the attachment point's world transform, or the model's
-        // own transform when no attachment is named. Rigid (no scale) because Source 2 does not propagate the
+        // The parent anchor for an attached child: the attachment point's world transform, the world
+        // transform of a bone with that name when no attachment matches, or the model's own transform when
+        // no name is given or it matches neither. Rigid (no scale) because Source 2 does not propagate the
         // parent's scale to attachment-parented children.
         private Matrix4x4 GetAttachmentOrSelfTransform(string attachmentName)
-            => GetRigidTransform(string.IsNullOrEmpty(attachmentName) ? Transform : GetAttachmentTransform(attachmentName));
+        {
+            if (!string.IsNullOrEmpty(attachmentName))
+            {
+                if (Attachments.ContainsKey(attachmentName))
+                {
+                    return GetRigidTransform(GetAttachmentTransform(attachmentName));
+                }
+
+                var boneIndex = AnimationController.Skeleton.GetBoneIndex(attachmentName);
+                if (boneIndex != -1)
+                {
+                    return GetRigidTransform(AnimationController.Pose[boneIndex] * Transform);
+                }
+            }
+
+            return GetRigidTransform(Transform);
+        }
+
+        /// <summary>
+        /// Whether the given name resolves to an anchor on this model: an attachment point,
+        /// or a bone when no attachment has that name.
+        /// </summary>
+        public bool HasAttachmentOrBone(string name)
+            => Attachments.ContainsKey(name) || AnimationController.Skeleton.GetBoneIndex(name) != -1;
 
         // Rotation and translation only, with scale removed.
         private static Matrix4x4 GetRigidTransform(Matrix4x4 transform)
@@ -562,6 +587,16 @@ namespace ValveResourceFormat.Renderer.SceneNodes
             node.Parent = this;
             AttachedNodes.RemoveAll(entry => entry.Node == node);
             AttachedNodes.Add((node, attachmentName, offset, rotation));
+        }
+
+        /// <summary>
+        /// Places <paramref name="child"/> once at the named attachment point or bone (or the model's own
+        /// transform when no name is given), with <paramref name="offset"/> applied in that anchor's frame.
+        /// Unlike <c>AttachNode</c>, the child does not track the model afterwards. Works for any scene node.
+        /// </summary>
+        public void PlaceNode(SceneNode child, string attachmentName, Vector3 offset)
+        {
+            child.Transform = Matrix4x4.CreateTranslation(offset) * GetAttachmentOrSelfTransform(attachmentName);
         }
 
         /// <summary>
