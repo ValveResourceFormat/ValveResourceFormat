@@ -49,7 +49,7 @@ namespace GUI.Types.Viewers
             tab.Controls.Add(resTabs);
 
             var sourceTab = new ThemedTabPage("SPIR-V Cross");
-            var codeBox = new CodeTextBox(code, CodeTextBox.HighlightLanguage.Shaders);
+            var codeBox = new CodeTextBox(code, HighlightLanguage.Shaders);
             sourceTab.Controls.Add(codeBox);
             resTabs.TabPages.Add(sourceTab);
         }

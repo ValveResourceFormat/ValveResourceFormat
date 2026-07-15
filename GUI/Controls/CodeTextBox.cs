@@ -10,17 +10,6 @@ namespace GUI.Controls
 {
     internal partial class CodeTextBox : FastColoredTextBox
     {
-        internal enum HighlightLanguage
-        {
-            Default = -1,
-            None,
-            KeyValues,
-            XML,
-            JS,
-            CSS,
-            Shaders,
-        }
-
         private string? LazyText;
 
         public static Font GetMonospaceFont()

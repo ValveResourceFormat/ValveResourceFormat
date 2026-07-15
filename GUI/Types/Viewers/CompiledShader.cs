@@ -55,7 +55,7 @@ namespace GUI.Types.Viewers
             exportBytecodeMenuItem.Click += OnExportBytecodeClick;
             shaderFileContextMenu.Items.Add(exportBytecodeMenuItem);
 
-            control = new TextControl(CodeTextBox.HighlightLanguage.Shaders);
+            control = new TextControl(HighlightLanguage.Shaders);
             control.AddControl(fileListView);
         }
 
@@ -304,7 +304,7 @@ namespace GUI.Types.Viewers
                 var reflectedSource = AttemptSpirvReflection(vulkanSource, Backend.GLSL);
 
                 var textTab = new TabPage("SPIR-V");
-                var textBox = new CodeTextBox(reflectedSource, CodeTextBox.HighlightLanguage.Shaders);
+                var textBox = new CodeTextBox(reflectedSource, HighlightLanguage.Shaders);
                 textTab.Controls.Add(textBox);
                 resTabs.TabPages.Add(textTab);
                 resTabs.SelectedTab = textTab;

@@ -763,23 +763,23 @@ namespace GUI.Types.Viewers
             }
 
             var text = block.ToString();
-            var language = CodeTextBox.HighlightLanguage.KeyValues;
+            var language = HighlightLanguage.KeyValues;
 
             if (resourceType == ResourceType.PanoramaLayout && block.Type == BlockType.DATA)
             {
-                language = CodeTextBox.HighlightLanguage.XML;
+                language = HighlightLanguage.XML;
             }
             else if (resourceType == ResourceType.PanoramaVectorGraphic && block.Type == BlockType.DATA)
             {
-                language = CodeTextBox.HighlightLanguage.XML;
+                language = HighlightLanguage.XML;
             }
             else if (resourceType == ResourceType.PanoramaStyle && block.Type == BlockType.DATA)
             {
-                language = CodeTextBox.HighlightLanguage.CSS;
+                language = HighlightLanguage.CSS;
             }
             else if ((resourceType == ResourceType.PanoramaScript || resourceType == ResourceType.PanoramaTypescript) && block.Type == BlockType.DATA)
             {
-                language = CodeTextBox.HighlightLanguage.JS;
+                language = HighlightLanguage.JS;
             }
 
             var textBox = CodeTextBox.Create(text, language);

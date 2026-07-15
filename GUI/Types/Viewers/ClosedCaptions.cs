@@ -1,9 +1,6 @@
-using System.ComponentModel;
 using System.Diagnostics;
 using System.IO;
 using System.Threading.Tasks;
-using System.Windows.Forms;
-using GUI.Controls;
 using GUI.Utils;
 using ValveResourceFormat.ClosedCaptions;
 
@@ -32,34 +29,15 @@ namespace GUI.Types.Viewers
             }
         }
 
-        public void Create(TabPage tabOuterPage)
+        public ViewerContent GetContent()
         {
             Debug.Assert(captions is not null);
 
-            var tabControl = new ThemedTabControl
-            {
-                Dock = DockStyle.Fill,
-            };
-            tabOuterPage.Controls.Add(tabControl);
-
-            var tabPage = new ThemedTabPage("Captions");
-            var control = new DataGridView
-            {
-                Dock = DockStyle.Fill,
-                AutoSize = true,
-                ReadOnly = true,
-                AllowUserToAddRows = false,
-                AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill,
-                DataSource = new BindingSource(new BindingList<ClosedCaption>(captions.Captions), string.Empty),
-                ScrollBars = ScrollBars.Both,
-            };
-            tabPage.Controls.Add(control);
-            tabControl.Controls.Add(tabPage);
-
-            tabPage = new ThemedTabPage("Text");
-            var textControl = CodeTextBox.Create(captions.ToString());
-            tabPage.Controls.Add(textControl);
-            tabControl.Controls.Add(tabPage);
+            return new ViewerContent.Tabs(
+            [
+                new("Captions", new ViewerContent.Grid(captions.Captions)),
+                new("Text", new ViewerContent.Text(captions.ToString())),
+            ]);
         }
 
         public void Dispose()

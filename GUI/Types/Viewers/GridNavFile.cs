@@ -43,7 +43,7 @@ namespace GUI.Types.Viewers
             tabOuterPage.Controls.Add(tabControl);
 
             var infoPage = new ThemedTabPage("GRID NAV");
-            var infoTextControl = CodeTextBox.Create(infoText, CodeTextBox.HighlightLanguage.None);
+            var infoTextControl = CodeTextBox.Create(infoText, HighlightLanguage.None);
             infoPage.Controls.Add(infoTextControl);
             tabControl.Controls.Add(infoPage);
 
