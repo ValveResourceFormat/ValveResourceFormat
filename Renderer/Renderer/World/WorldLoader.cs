@@ -11,6 +11,7 @@ using ValveResourceFormat.NavMesh;
 using ValveResourceFormat.Renderer.SceneEnvironment;
 using ValveResourceFormat.Renderer.SceneNodes;
 using ValveResourceFormat.ResourceTypes;
+using ValveResourceFormat.ResourceTypes.GenericData.CS2;
 using ValveResourceFormat.Serialization.KeyValues;
 using static ValveResourceFormat.ResourceTypes.EntityLump;
 using WorldResource = ValveResourceFormat.ResourceTypes.World;
@@ -50,6 +51,8 @@ namespace ValveResourceFormat.Renderer.World
         public SceneSkybox2D? Skybox2D { get; set; }
         /// <summary>The loaded navigation mesh, populated by <see cref="LoadNavigationMesh"/>.</summary>
         public NavMeshFile? NavMesh { get; set; }
+        /// <summary>Baked bomb damage data for CS2, null if it doesn't exist. Populated by <see cref="LoadBombDamageData"/>.</summary>
+        public BombDamage? BombDamage { get; set; }
 
         /// <summary>Translation offset applied to the world, used when compositing multiple maps.</summary>
         public Vector3 WorldOffset { get; set; } = Vector3.Zero;
@@ -177,6 +180,7 @@ namespace ValveResourceFormat.Renderer.World
         /// <param name="mapResourceReferences">Optional external reference list from the map resource, used to preload assets in parallel.</param>
         public void Load(ResourceExtRefList? mapResourceReferences = null)
         {
+            // Non resource files not covered by ParallelPreloadResources
             var navMeshTask = Task.Run(LoadNavigationMesh);
 
             ParallelPreloadResources(mapResourceReferences);
@@ -185,6 +189,7 @@ namespace ValveResourceFormat.Renderer.World
             LoadWorldNodes();
             LoadWorldPhysics();
             LoadWorldVisibility();
+            LoadBombDamageData();
 
             navMeshTask.Wait();
         }
@@ -1362,6 +1367,33 @@ namespace ValveResourceFormat.Renderer.World
             catch (Exception e)
             {
                 RendererContext.Logger.LogError(e, "Couldn't load navigation mesh from '{NavFilePath}'", navFilePath);
+            }
+        }
+
+        /// <summary>
+        /// Loads CS2 baked bomb damage data for this world. Populates <see cref="BombDamage"/>.
+        /// Skips loading if <see cref="BombDamage"/> is already set.
+        /// </summary>
+        public void LoadBombDamageData()
+        {
+            if (BombDamage is not null)
+            {
+                return;
+            }
+
+            var bombDamagePath = Path.Combine(MapName, "baked_bomb_damage.vdata_c");
+            try
+            {
+                using var bombDamageFile = RendererContext.FileLoader.LoadFile(bombDamagePath);
+                if (bombDamageFile?.DataBlock is BombDamage bombDamage)
+                {
+                    BombDamage = bombDamage;
+                    RendererContext.Logger.LogInformation("Loaded CS2 baked bomb damage data from '{BakedBombDamagePath}'", bombDamagePath);
+                }
+            }
+            catch (Exception e)
+            {
+                RendererContext.Logger.LogError(e, "Couldn't load CS2 baked bomb damage data from '{BakedBombDamagePath}'", bombDamagePath);
             }
         }
 
