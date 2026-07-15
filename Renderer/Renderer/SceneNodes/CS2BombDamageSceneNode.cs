@@ -39,8 +39,6 @@ public class CS2BombDamageSceneNode : SceneNode
     private Vector3 boundsMin;
     private Vector3 boundsMax;
 
-    private readonly DateTime creationTime;
-
     [StructLayout(LayoutKind.Explicit, Size = VertexSize)]
     private struct VertexFormat
     {
@@ -62,8 +60,6 @@ public class CS2BombDamageSceneNode : SceneNode
     /// <param name="bombsiteIndex">Index of the bombsite. Index 0 is not guaranteed to be bombsite A.</param>
     public CS2BombDamageSceneNode(Scene scene, BombDamageData bombDamageData, int bombsiteIndex) : base(scene)
     {
-        creationTime = DateTime.Now;
-
         shader = Scene.RendererContext.ShaderLoader.LoadShader("vrf.cs2_baked_bomb_damage");
 
         GL.CreateVertexArrays(1, out vaoHandle);
@@ -250,8 +246,6 @@ public class CS2BombDamageSceneNode : SceneNode
         GL.BindVertexArray(vaoHandle);
         var renderShader = context.ReplacementShader ?? shader;
         renderShader.Use();
-        var time = (float)(DateTime.Now - creationTime).TotalSeconds;
-        renderShader.SetUniform1("time", time);
         renderShader.SetUniform3x4("transform", Matrix4x4.Identity);
         renderShader.SetTexture(0, 0, renderTexture);
 

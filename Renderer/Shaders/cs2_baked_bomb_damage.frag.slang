@@ -10,7 +10,6 @@
 #define UV_SCALE 2.0
 
 uniform sampler2D tColor;
-uniform float time;
 
 flat in vec4 vtxColor;
 in vec2 vtxUv;
@@ -39,8 +38,7 @@ void main(void)
     
     float distanceToCamera = length(vtxWorldPos - g_vCameraPositionWs);
 
-    float phase = time - vtxPhase;
-    float unitPhase = mod(time - vtxPhase / PULSE_STRENGTH, 1.0);
+    float unitPhase = mod(g_flTime - vtxPhase / PULSE_STRENGTH, 1.0);
 
     float alpha = max(0.0, 1.0 - distanceToCamera / FADE_OUT_DISTANCE);
     alpha *= 1.0 - (unitPhase * unitPhase);
