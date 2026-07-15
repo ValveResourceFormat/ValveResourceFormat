@@ -125,6 +125,7 @@ namespace ValveResourceFormat.Renderer.Materials
         private BlendMode blendMode;
         private bool isRenderBackfaces;
         private bool hasDepthBias;
+        private bool disableDepthTest;
         private int textureUnit;
         private readonly List<int> boundSamplerUnits = [];
 
@@ -230,6 +231,7 @@ namespace ValveResourceFormat.Renderer.Materials
             IsToolsMaterial = material.IntAttributes.ContainsKey("tools.toolsmaterial");
             DoNotCastShadows = material.IntAttributes.GetValueOrDefault("F_DO_NOT_CAST_SHADOWS") == 1;
             isRenderBackfaces = material.IntParams.GetValueOrDefault("F_RENDER_BACKFACES") == 1;
+            disableDepthTest = material.IntParams.GetValueOrDefault("F_DISABLE_Z_BUFFERING") == 1;
 
             if (material.ShaderName == "csgo_water_fancy.vfx")
             {
@@ -499,6 +501,11 @@ namespace ValveResourceFormat.Renderer.Materials
             {
                 GL.Disable(EnableCap.CullFace);
             }
+
+            if (disableDepthTest)
+            {
+                GL.Disable(EnableCap.DepthTest);
+            }
         }
 
         private void ResetRenderState()
@@ -527,6 +534,11 @@ namespace ValveResourceFormat.Renderer.Materials
             if (isRenderBackfaces)
             {
                 GL.Enable(EnableCap.CullFace);
+            }
+
+            if (disableDepthTest)
+            {
+                GL.Enable(EnableCap.DepthTest);
             }
         }
     }

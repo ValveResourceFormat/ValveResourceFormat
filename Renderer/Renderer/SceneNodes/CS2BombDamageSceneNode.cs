@@ -2,6 +2,7 @@ using System.Diagnostics;
 using System.Reflection;
 using System.Runtime.InteropServices;
 using OpenTK.Graphics.OpenGL;
+using ValveResourceFormat.Blocks;
 using ValveResourceFormat.ResourceTypes.GenericData.CS2;
 
 namespace ValveResourceFormat.Renderer.SceneNodes;
@@ -29,17 +30,25 @@ public class CS2BombDamageSceneNode : SceneNode
         Vector2.UnitY,
     ];
 
-    private readonly Shader shader;
-    private readonly RenderTexture renderTexture;
-    private readonly int vaoHandle;
-    private readonly int vboHandle;
-    private readonly int iboHandle;
+    private readonly RenderMaterial material;
+    private readonly string meshName;
+    private int vaoHandle;
 
     private const int VertexPositionOffset = 0;
     private const int VertexUVOffset = 12;
     private const int VertexColorOffset = 20;
     private const int VertexPhaseOffset = 24;
     private const int VertexSize = 28;
+
+    // Describes the VertexFormat layout for the mesh buffer cache. Semantic names map to the
+    // shader attributes as "v" + SemanticName (vPOSITION, vTEXCOORD, vCOLOR, vPHASE).
+    private static readonly VBIB.RenderInputLayoutField[] InputLayout =
+    [
+        new() { SemanticName = "POSITION", Format = DXGI_FORMAT.R32G32B32_FLOAT, Offset = VertexPositionOffset },
+        new() { SemanticName = "TEXCOORD", Format = DXGI_FORMAT.R32G32_FLOAT, Offset = VertexUVOffset },
+        new() { SemanticName = "COLOR", Format = DXGI_FORMAT.R8G8B8A8_UNORM, Offset = VertexColorOffset },
+        new() { SemanticName = "PHASE", Format = DXGI_FORMAT.R32_FLOAT, Offset = VertexPhaseOffset },
+    ];
 
     private int indicesCount;
 
@@ -68,19 +77,18 @@ public class CS2BombDamageSceneNode : SceneNode
     /// <param name="renderTexture">Texture drawn on each damage value quad.</param>
     public CS2BombDamageSceneNode(Scene scene, BombDamage bombDamageData, int bombsiteIndex, RenderTexture renderTexture) : base(scene)
     {
-        shader = Scene.RendererContext.ShaderLoader.LoadShader("vrf.cs2_baked_bomb_damage");
-        this.renderTexture = renderTexture;
+        var shader = Scene.RendererContext.ShaderLoader.LoadShader("vrf.cs2_baked_bomb_damage");
+        meshName = $"{bombDamageData.Resource.FileName}:site{bombsiteIndex}";
 
-        GL.CreateVertexArrays(1, out vaoHandle);
+        material = new RenderMaterial(shader);
+        material.Material.IntParams["F_TRANSLUCENT"] = 1;
+        material.Material.IntParams["F_RENDER_BACKFACES"] = 1;
+        material.Material.IntParams["F_DISABLE_Z_BUFFERING"] = 1;
+        material.LoadRenderState();
+        material.Textures["g_tColor"] = renderTexture;
 
-        var buffers = new int[2];
-        GL.CreateBuffers(2, buffers);
-        iboHandle = buffers[0];
-        vboHandle = buffers[1];
+        LayerName = $"Bombsite {bombsiteIndex} blast flow map";
 
-        LayerName = $"Bombsite {bombsiteIndex} baked damage data";
-
-        InitializeVAO(shader.Program);
         Initialize(bombDamageData, bombsiteIndex);
     }
 
@@ -95,42 +103,9 @@ public class CS2BombDamageSceneNode : SceneNode
         Debug.Assert(stream != null);
         resource.Read(stream);
 
-        var renderTexture = scene.RendererContext.MaterialLoader.LoadTexture(resource, isViewerRequest: true);
+        var renderTexture = scene.RendererContext.MaterialLoader.LoadTexture(resource, srgbRead: true, isViewerRequest: true);
         renderTexture.SetWrapMode(TextureWrapMode.ClampToEdge);
         return renderTexture;
-    }
-
-    private void InitializeVAO(int shaderProgram)
-    {
-        var positionAttributeLocation = GL.GetAttribLocation(shaderProgram, "aVertexPosition");
-        var colorAttributeLocation = GL.GetAttribLocation(shaderProgram, "aVertexColor");
-        var uvAttributeLocation = GL.GetAttribLocation(shaderProgram, "aTexCoords");
-        var phaseAttributeLocation = GL.GetAttribLocation(shaderProgram, "aPhase");
-
-        if (positionAttributeLocation >= 0)
-        {
-            GL.EnableVertexArrayAttrib(vaoHandle, positionAttributeLocation);
-            GL.VertexArrayAttribFormat(vaoHandle, positionAttributeLocation, 3, VertexAttribType.Float, false, VertexPositionOffset);
-            GL.VertexArrayAttribBinding(vaoHandle, positionAttributeLocation, 0);
-        }
-        if (uvAttributeLocation >= 0)
-        {
-            GL.EnableVertexArrayAttrib(vaoHandle, uvAttributeLocation);
-            GL.VertexArrayAttribFormat(vaoHandle, uvAttributeLocation, 2, VertexAttribType.Float, false, VertexUVOffset);
-            GL.VertexArrayAttribBinding(vaoHandle, uvAttributeLocation, 0);
-        }
-        if (colorAttributeLocation >= 0)
-        {
-            GL.EnableVertexArrayAttrib(vaoHandle, colorAttributeLocation);
-            GL.VertexArrayAttribFormat(vaoHandle, colorAttributeLocation, 4, VertexAttribType.UnsignedByte, true, VertexColorOffset);
-            GL.VertexArrayAttribBinding(vaoHandle, colorAttributeLocation, 0);
-        }
-        if (phaseAttributeLocation >= 0)
-        {
-            GL.EnableVertexArrayAttrib(vaoHandle, phaseAttributeLocation);
-            GL.VertexArrayAttribFormat(vaoHandle, phaseAttributeLocation, 1, VertexAttribType.Float, false, VertexPhaseOffset);
-            GL.VertexArrayAttribBinding(vaoHandle, phaseAttributeLocation, 0);
-        }
     }
 
     private void Initialize(BombDamage bombDamageData, int bombsiteIndex)
@@ -140,8 +115,14 @@ public class CS2BombDamageSceneNode : SceneNode
         var bombsiteBounds = new AABB(bombsite.BoundsMin, bombsite.BoundsMax);
         var damageValuesOffset = positions.Length * bombsiteIndex;
 
-        var vertices = new VertexFormat[positions.Length * 4];
-        var indices = new int[positions.Length * 6];
+        var vertexCount = positions.Length * 4;
+        var indexCount = positions.Length * 6;
+
+        // Write straight into the byte buffers that back the GPU upload, avoiding an intermediate typed array + copy.
+        var vertexData = new byte[vertexCount * VertexSize];
+        var indexData = new byte[indexCount * sizeof(int)];
+        var vertices = MemoryMarshal.Cast<byte, VertexFormat>(vertexData.AsSpan());
+        var indices = MemoryMarshal.Cast<byte, int>(indexData.AsSpan());
 
         if (positions.Length > 0)
         {
@@ -153,24 +134,42 @@ public class CS2BombDamageSceneNode : SceneNode
             AddFace(vertices, indices, i, positions[i], bombDamageData.DamageValues[damageValuesOffset + i], bombsite, bombsiteBounds);
         }
 
-        indicesCount = indices.Length;
+        indicesCount = indexCount;
         BoundingBox = new AABB(boundsMin, boundsMax);
 
-        GL.VertexArrayVertexBuffer(vaoHandle, 0, vboHandle, 0, VertexSize);
-        GL.NamedBufferData(vboHandle, vertices.Length * VertexSize, vertices, BufferUsageHint.StaticDraw);
+        var vbib = new VBIB { Resource = null! };
+        vbib.VertexBuffers.Add(new VBIB.OnDiskBufferData
+        {
+            ElementCount = (uint)vertexCount,
+            ElementSizeInBytes = VertexSize,
+            InputLayoutFields = InputLayout,
+            Data = vertexData,
+        });
+        vbib.IndexBuffers.Add(new VBIB.OnDiskBufferData
+        {
+            ElementCount = (uint)indexCount,
+            ElementSizeInBytes = sizeof(int),
+            InputLayoutFields = [],
+            Data = indexData,
+        });
 
-        GL.VertexArrayElementBuffer(vaoHandle, iboHandle);
-        GL.NamedBufferData(iboHandle, indices.Length * sizeof(int), indices, BufferUsageHint.StaticDraw);
+        var meshBufferCache = Scene.RendererContext.MeshBufferCache;
+        var gpuBuffers = meshBufferCache.CreateVertexIndexBuffers(meshName, vbib);
 
-#if DEBUG
-        var vaoLabel = nameof(CS2BombDamageSceneNode);
-        GL.ObjectLabel(ObjectLabelIdentifier.VertexArray, vaoHandle, vaoLabel.Length, vaoLabel);
-        GL.ObjectLabel(ObjectLabelIdentifier.Buffer, vboHandle, vaoLabel.Length, vaoLabel);
-        GL.ObjectLabel(ObjectLabelIdentifier.Buffer, iboHandle, vaoLabel.Length, vaoLabel);
-#endif
+        VertexDrawBuffer[] vertexDrawBuffers =
+        [
+            new VertexDrawBuffer
+            {
+                Handle = gpuBuffers.VertexBuffers[0],
+                ElementSizeInBytes = VertexSize,
+                InputLayoutFields = InputLayout,
+            },
+        ];
+
+        vaoHandle = meshBufferCache.GetVertexArrayObject(meshName, vertexDrawBuffers, material, gpuBuffers.IndexBuffers[0]);
     }
 
-    private void AddFace(VertexFormat[] vertices, int[] indices, int positionIndex, Vector3 basePosition, in BombDamageDamageValue damage, in BombDamageBombsite bombsite, in AABB bombsiteBounds)
+    private void AddFace(Span<VertexFormat> vertices, Span<int> indices, int positionIndex, Vector3 basePosition, in BombDamageDamageValue damage, in BombDamageBombsite bombsite, in AABB bombsiteBounds)
     {
         var baseVertex = positionIndex * 4;
         var baseIndex = positionIndex * 6;
@@ -223,25 +222,17 @@ public class CS2BombDamageSceneNode : SceneNode
             return;
         }
 
-        GL.Disable(EnableCap.DepthTest);
-        GL.Disable(EnableCap.CullFace);
-
-        GL.Enable(EnableCap.Blend);
-        GL.BlendFunc(BlendingFactor.SrcAlpha, BlendingFactor.OneMinusSrcAlpha);
-
-        GL.BindVertexArray(vaoHandle);
-        var renderShader = context.ReplacementShader ?? shader;
+        var renderShader = context.ReplacementShader ?? material.Shader;
         renderShader.Use();
+        GL.BindVertexArray(vaoHandle);
+        material.Render(renderShader);
         renderShader.SetUniform3x4("transform", Matrix4x4.Identity);
-        renderShader.SetTexture(0, 0, renderTexture);
 
         GL.DrawElementsInstancedBaseInstance(PrimitiveType.Triangles, indicesCount, DrawElementsType.UnsignedInt, 0, 1, Id);
 
-        GL.UseProgram(0);
+        material.PostRender();
         GL.BindVertexArray(0);
-
-        GL.Enable(EnableCap.DepthTest);
-        GL.Enable(EnableCap.CullFace);
+        GL.UseProgram(0);
     }
 
     /// <summary>
@@ -277,8 +268,6 @@ public class CS2BombDamageSceneNode : SceneNode
     public override void Delete()
     {
         base.Delete();
-        GL.DeleteVertexArray(vaoHandle);
-
-        GL.DeleteBuffers(2, [iboHandle, vboHandle]);
+        Scene.RendererContext.MeshBufferCache.DeleteVertexIndexBuffers(meshName);
     }
 }

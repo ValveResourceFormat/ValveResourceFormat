@@ -11,7 +11,7 @@
 
 #define UV_SCALE 2.0
 
-uniform sampler2D tColor;
+uniform sampler2D g_tColor; // SrgbRead(true)
 
 flat in vec4 vtxColor;
 in vec2 vtxUv;
@@ -45,7 +45,7 @@ void main(void)
     alpha *= 1.0 - PULSE_DIM * unitPhase * unitPhase;
 
     vec2 uv = vtxUv * UV_SCALE + vec2(-unitPhase, 0.0);
-    outputColor = texture(tColor, uv) * vtxColor;
+    outputColor = texture(g_tColor, uv) * vtxColor;
     if (outputColor.a <= 0.1)
     {
         discard;
