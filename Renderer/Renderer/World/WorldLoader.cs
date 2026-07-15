@@ -12,7 +12,7 @@ using ValveResourceFormat.Renderer.SceneEnvironment;
 using ValveResourceFormat.Renderer.SceneNodes;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.Serialization.KeyValues;
-using ValveResourceFormat.GameSpecific.CS2.BombDamageData;
+using ValveResourceFormat.ResourceTypes.GenericData.CS2;
 using static ValveResourceFormat.ResourceTypes.EntityLump;
 using WorldResource = ValveResourceFormat.ResourceTypes.World;
 
@@ -52,7 +52,7 @@ namespace ValveResourceFormat.Renderer.World
         /// <summary>The loaded navigation mesh, populated by <see cref="LoadNavigationMesh"/>.</summary>
         public NavMeshFile? NavMesh { get; set; }
         /// <summary>Baked bomb damage data for CS2, null if it doesn't exist. Populated by <see cref="LoadBombDamageData"/>.</summary>
-        public BombDamageData? BombDamageData { get; set; }
+        public BombDamage? BombDamage { get; set; }
 
         /// <summary>Translation offset applied to the world, used when compositing multiple maps.</summary>
         public Vector3 WorldOffset { get; set; } = Vector3.Zero;
@@ -1357,12 +1357,12 @@ namespace ValveResourceFormat.Renderer.World
         }
 
         /// <summary>
-        /// Loads CS2 baked bomb damage data for this world. Populates <see cref="BombDamageData"/>.
-        /// Skips loading if <see cref="BombDamageData"/> is already set.
+        /// Loads CS2 baked bomb damage data for this world. Populates <see cref="BombDamage"/>.
+        /// Skips loading if <see cref="BombDamage"/> is already set.
         /// </summary>
         public void LoadBombDamageData()
         {
-            if (BombDamageData is not null)
+            if (BombDamage is not null)
             {
                 return;
             }
@@ -1371,10 +1371,9 @@ namespace ValveResourceFormat.Renderer.World
             try
             {
                 using var bombDamageFile = RendererContext.FileLoader.LoadFile(bombDamagePath);
-                if (bombDamageFile != null)
+                if (bombDamageFile?.DataBlock is BombDamage bombDamage)
                 {
-                    BombDamageData = new BombDamageData();
-                    BombDamageData.Read(bombDamageFile);
+                    BombDamage = bombDamage;
                     RendererContext.Logger.LogInformation("Loaded CS2 baked bomb damage data from '{BakedBombDamagePath}'", bombDamagePath);
                 }
             }

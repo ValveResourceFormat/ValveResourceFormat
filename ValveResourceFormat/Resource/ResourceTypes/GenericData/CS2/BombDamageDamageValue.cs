@@ -1,9 +1,9 @@
-namespace ValveResourceFormat.GameSpecific.CS2.BombDamageData;
+namespace ValveResourceFormat.ResourceTypes.GenericData.CS2;
 
 /// <summary>
 /// Baked bomb damage information for a specific position and bombsite on the map.
 /// </summary>
-public struct BombDamageDataDamageValue
+public struct BombDamageDamageValue
 {
     /// <summary>
     /// A value that increases with distance to the bombsite.

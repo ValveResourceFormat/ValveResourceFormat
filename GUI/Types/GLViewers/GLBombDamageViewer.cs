@@ -2,7 +2,7 @@ using System.Diagnostics;
 using System.Linq;
 using System.Windows.Forms;
 using GUI.Utils;
-using ValveResourceFormat.GameSpecific.CS2.BombDamageData;
+using ValveResourceFormat.ResourceTypes.GenericData.CS2;
 using ValveResourceFormat.Renderer;
 using ValveResourceFormat.Renderer.SceneNodes;
 using static ValveResourceFormat.Renderer.PickingTexture;
@@ -11,10 +11,10 @@ namespace GUI.Types.GLViewers
 {
     class GLBombDamageViewer : GLSceneViewer
     {
-        private readonly BombDamageData bombDamageData;
+        private readonly BombDamage bombDamageData;
         private CheckedListBox? worldLayersComboBox;
 
-        public GLBombDamageViewer(VrfGuiContext vrfGuiContext, RendererContext rendererContext, BombDamageData bombDamageData)
+        public GLBombDamageViewer(VrfGuiContext vrfGuiContext, RendererContext rendererContext, BombDamage bombDamageData)
             : base(vrfGuiContext, rendererContext)
         {
             this.bombDamageData = bombDamageData;

@@ -2,7 +2,7 @@ using System.Diagnostics;
 using System.Reflection;
 using System.Runtime.InteropServices;
 using OpenTK.Graphics.OpenGL;
-using ValveResourceFormat.GameSpecific.CS2.BombDamageData;
+using ValveResourceFormat.ResourceTypes.GenericData.CS2;
 
 namespace ValveResourceFormat.Renderer.SceneNodes;
 
@@ -57,7 +57,7 @@ public class CS2BombDamageSceneNode : SceneNode
     /// <param name="scene">The scene this node belongs to.</param>
     /// <param name="bombDamageData">Baked bomb damage data.</param>
     /// <param name="bombsiteIndex">Index of the bombsite. Index 0 is not guaranteed to be bombsite A.</param>
-    public CS2BombDamageSceneNode(Scene scene, BombDamageData bombDamageData, int bombsiteIndex) : base(scene)
+    public CS2BombDamageSceneNode(Scene scene, BombDamage bombDamageData, int bombsiteIndex) : base(scene)
     {
         shader = Scene.RendererContext.ShaderLoader.LoadShader("vrf.cs2_baked_bomb_damage");
 
@@ -124,7 +124,7 @@ public class CS2BombDamageSceneNode : SceneNode
         }
     }
 
-    private void Initialize(BombDamageData bombDamageData, int bombsiteIndex)
+    private void Initialize(BombDamage bombDamageData, int bombsiteIndex)
     {
         var vertices = new List<VertexFormat>(bombDamageData.Positions.Length * 4);
         var indices = new List<int>(bombDamageData.Positions.Length * 6);
@@ -165,7 +165,7 @@ public class CS2BombDamageSceneNode : SceneNode
         indices.Add(baseFaceIndex + 3);
     }
 
-    private void AddFace(List<VertexFormat> vertices, List<int> indices, BombDamageData bombDamageData, int bombPositionIndex, int bombsiteIndex)
+    private void AddFace(List<VertexFormat> vertices, List<int> indices, BombDamage bombDamageData, int bombPositionIndex, int bombsiteIndex)
     {
         var basePosition = bombDamageData.Positions[bombPositionIndex];
         var damage = bombDamageData.GetBombsiteDamageValue(bombPositionIndex, bombsiteIndex);
@@ -204,7 +204,7 @@ public class CS2BombDamageSceneNode : SceneNode
         });
     }
 
-    private static Color32 GetFaceColor(BombDamageDataDamageValue damage)
+    private static Color32 GetFaceColor(BombDamageDamageValue damage)
     {
         return damage.Phase == 0.0f ? Color32.White : Color32.Yellow;
     }
@@ -239,9 +239,9 @@ public class CS2BombDamageSceneNode : SceneNode
     }
 
     /// <summary>
-    /// Adds visualization scene nodes of a <see cref="BombDamageData"/> to a <see cref="Scene"/>. Each bombsite gets its own <see cref="CS2BombDamageSceneNode"/>.
+    /// Adds visualization scene nodes of a <see cref="BombDamage"/> to a <see cref="Scene"/>. Each bombsite gets its own <see cref="CS2BombDamageSceneNode"/>.
     /// </summary>
-    public static void AddBakedBombDamageToScene(BombDamageData? bombDamageData, Scene scene)
+    public static void AddBakedBombDamageToScene(BombDamage? bombDamageData, Scene scene)
     {
         if (bombDamageData == null || scene == null)
         {

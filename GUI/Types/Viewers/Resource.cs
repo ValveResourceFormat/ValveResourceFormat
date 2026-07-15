@@ -14,11 +14,11 @@ using GUI.Utils;
 using ValveKeyValue;
 using ValveResourceFormat;
 using ValveResourceFormat.Blocks;
-using ValveResourceFormat.GameSpecific.CS2.BombDamageData;
 using ValveResourceFormat.IO;
 using ValveResourceFormat.Renderer;
 using ValveResourceFormat.Renderer.World;
 using ValveResourceFormat.ResourceTypes;
+using ValveResourceFormat.ResourceTypes.GenericData.CS2;
 using ValveResourceFormat.Serialization.KeyValues;
 
 namespace GUI.Types.Viewers
@@ -234,11 +234,9 @@ namespace GUI.Types.Viewers
                     break;
 
                 case ResourceType.VData:
-                    if (BombDamageData.IsBombDamageData(resource))
+                    if (resource.DataBlock is BombDamage bombDamage)
                     {
-                        var bombDamageData = new BombDamageData();
-                        bombDamageData.Read(resource);
-                        GLViewer = new GLBombDamageViewer(vrfGuiContext, rendererContext, bombDamageData);
+                        GLViewer = new GLBombDamageViewer(vrfGuiContext, rendererContext, bombDamage);
                         GLViewerTabName = "BOMB DAMAGE";
                     }
                     break;

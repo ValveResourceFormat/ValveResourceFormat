@@ -61,7 +61,7 @@ namespace ValveResourceFormat.ResourceTypes
         /// <summary>
         /// Gets the deserialized KeyValues3 data.
         /// </summary>
-        public KVDocument Data { get; private set; } = null!;
+        public KVDocument Data { get; protected set; } = null!;
 
         private class Buffers
         {

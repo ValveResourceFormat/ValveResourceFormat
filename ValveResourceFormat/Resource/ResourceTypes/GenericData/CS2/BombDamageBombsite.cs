@@ -1,9 +1,9 @@
-namespace ValveResourceFormat.GameSpecific.CS2.BombDamageData;
+namespace ValveResourceFormat.ResourceTypes.GenericData.CS2;
 
 /// <summary>
 /// Stores information about a bombsite on the map, such as AABB and bomb power.
 /// </summary>
-public struct BombDamageDataBombsite
+public struct BombDamageBombsite
 {
     /// <summary>
     /// Minimum worldspace bounds of the bombsite.
