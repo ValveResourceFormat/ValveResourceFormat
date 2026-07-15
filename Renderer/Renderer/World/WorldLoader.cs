@@ -798,7 +798,7 @@ namespace ValveResourceFormat.Renderer.World
                     var handShakeString = entity.GetStringProperty("handshake");
                     if (!int.TryParse(handShakeString, out var handShake))
                     {
-                        handShake = 0;
+                        handShake = entity.GetInt32Property("handshake");
                     }
 
                     AABB bounds = default;
