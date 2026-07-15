@@ -11,9 +11,24 @@ namespace ValveResourceFormat.GameSpecific.CS2.BombDamageData;
 public class BombDamageData
 {
     /// <summary>
+    /// The <c>generic_data_type</c> value identifying a baked bomb damage resource.
+    /// </summary>
+    public const string GenericDataType = "CS2_BOMB_DAMAGE_DATA";
+
+    /// <summary>
     /// Version of the baked bomb damage data format.
     /// </summary>
     public int Version { get; private set; }
+
+    /// <summary>
+    /// Returns whether the given resource is CS2 baked bomb damage data.
+    /// </summary>
+    /// <param name="resource">The resource to check.</param>
+    public static bool IsBombDamageData(Resource resource)
+    {
+        return resource.DataBlock is BinaryKV3 dataBlock
+            && dataBlock.Data.Root.GetStringProperty("generic_data_type") == GenericDataType;
+    }
 
     /// <summary>
     /// Stores information about each bombsite on the map, such as AABB and bomb power.
@@ -47,7 +62,7 @@ public class BombDamageData
         var kvRoot = dataBlock.Data.Root;
 
         var genericDataType = kvRoot.GetStringProperty("generic_data_type");
-        if (genericDataType != "CS2_BOMB_DAMAGE_DATA")
+        if (genericDataType != GenericDataType)
         {
             throw new ArgumentException($"Resource provided is not CS2 baked bomb damage data (generic_data_type = '{genericDataType}').", nameof(resource));
         }

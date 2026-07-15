@@ -14,10 +14,12 @@ using GUI.Utils;
 using ValveKeyValue;
 using ValveResourceFormat;
 using ValveResourceFormat.Blocks;
+using ValveResourceFormat.GameSpecific.CS2.BombDamageData;
 using ValveResourceFormat.IO;
 using ValveResourceFormat.Renderer;
 using ValveResourceFormat.Renderer.World;
 using ValveResourceFormat.ResourceTypes;
+using ValveResourceFormat.Serialization.KeyValues;
 
 namespace GUI.Types.Viewers
 {
@@ -228,6 +230,16 @@ namespace GUI.Types.Viewers
                     {
                         GLViewer = new GLTextureViewer(vrfGuiContext, rendererContext, resource);
                         GLViewerTabName = "LUT";
+                    }
+                    break;
+
+                case ResourceType.VData:
+                    if (BombDamageData.IsBombDamageData(resource))
+                    {
+                        var bombDamageData = new BombDamageData();
+                        bombDamageData.Read(resource);
+                        GLViewer = new GLBombDamageViewer(vrfGuiContext, rendererContext, bombDamageData);
+                        GLViewerTabName = "BOMB DAMAGE";
                     }
                     break;
             }

@@ -87,7 +87,7 @@ public class CS2BombDamageSceneNode : SceneNode
         resource.Read(stream);
 
         var renderTexture = Scene.RendererContext.MaterialLoader.LoadTexture(resource, isViewerRequest: true);
-        renderTexture.SetWrapMode(TextureWrapMode.Clamp);
+        renderTexture.SetWrapMode(TextureWrapMode.ClampToEdge);
         return renderTexture;
     }
 
