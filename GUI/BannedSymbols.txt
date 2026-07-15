@@ -1,5 +1,7 @@
 // here in order to help keep codebase clean for removing winforms in the future
 
+P:System.Windows.Forms.Application.ProductVersion;Use Program.ProductVersion instead
+
 T:System.Windows.Forms.MessageBox;Use GUI.Utils.AppDialogs instead
 
 T:System.Windows.Forms.FolderBrowserDialog;Use GUI.Utils.AppFileDialogs.PickFolder instead
