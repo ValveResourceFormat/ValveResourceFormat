@@ -232,9 +232,10 @@ namespace ValveResourceFormat.Renderer.World
 
         /// <summary>
         /// Parents entities with a <c>parentname</c> to that parent each frame — snapping onto the
-        /// <c>parentattachmentname</c> attachment when one is given, otherwise following the parent's
-        /// transform. <c>uselocaloffset</c> is ignored, as the engine does here too. Done after all
-        /// entities are loaded so the parent is registered regardless of spawn order.
+        /// <c>parentattachmentname</c> attachment (or the bone with that name when no attachment matches)
+        /// when one is given, otherwise following the parent's transform. <c>uselocaloffset</c> is ignored,
+        /// as the engine does here too. Done after all entities are loaded so the parent is registered
+        /// regardless of spawn order.
         /// </summary>
         private void ResolveAttachmentParenting()
         {
@@ -269,13 +270,13 @@ namespace ValveResourceFormat.Renderer.World
                     continue;
                 }
 
-                if (!parentNode.Attachments.ContainsKey(attachmentName))
+                if (!parentNode.HasAttachmentOrBone(attachmentName))
                 {
-                    RendererContext.Logger.LogWarning("Parent {ParentName} has no attachment {AttachmentName} to parent {NodeName} to", parentName, attachmentName, node.Name);
+                    RendererContext.Logger.LogWarning("Parent {ParentName} has no attachment or bone {AttachmentName} to parent {NodeName} to", parentName, attachmentName, node.Name);
                     continue;
                 }
 
-                // attachment parenting snaps the child onto the attachment point
+                // attachment parenting snaps the child onto the attachment point or bone
                 parentNode.AttachNode(node, attachmentName);
             }
         }
@@ -1168,8 +1169,21 @@ namespace ValveResourceFormat.Renderer.World
                         var groups = modelNode.GetMeshGroups();
                         modelNode.SetActiveMeshGroups(groups.Skip((int)body).Take(1));
                     }
+                }
 
+                // Model-referenced particles spawn regardless of meshes; a particle-only model is
+                // still added so its follow attachments get updated (the scene skips parented nodes).
+                var modelParticleNodes = ParticleSceneNode.CreateModelParticles(scene, newModel, modelNode);
+
+                if (modelNode.HasMeshes || modelParticleNodes.Count > 0)
+                {
                     scene.Add(modelNode, true);
+
+                    foreach (var modelParticleNode in modelParticleNodes)
+                    {
+                        modelParticleNode.LayerName = "Particles";
+                        scene.Add(modelParticleNode, true);
+                    }
                 }
 
                 var phys = newModel?.GetEmbeddedPhys();
@@ -1197,9 +1211,9 @@ namespace ValveResourceFormat.Renderer.World
                         scene.Add(physSceneNode, true);
                     }
                 }
-                else if (!modelNode.HasMeshes)
+                else if (!modelNode.HasMeshes && modelParticleNodes.Count == 0)
                 {
-                    // If the loaded model has no meshes and has no physics, fallback to default entity
+                    // If the loaded model has no meshes, particles, or physics, fallback to default entity
                     CreateDefaultEntity(entity, classname, transformationMatrix, layerName: toolEntityLayer);
                 }
             }

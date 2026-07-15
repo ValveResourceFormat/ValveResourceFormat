@@ -26,6 +26,7 @@ namespace GUI.Types.GLViewers
         protected CheckBox? animationPlayPause;
         private CheckBox? rootMotionCheckBox;
         private CheckBox? showSkeletonCheckbox;
+        private CheckBox? showParticlesCheckbox;
         private ComboBox? hitboxComboBox;
         private Label? animationTimeLabel;
         private GLViewerSliderControl? animationTrackBar;
@@ -41,6 +42,7 @@ namespace GUI.Types.GLViewers
         protected AnimationController? animationController;
         protected SkeletonSceneNode? skeletonSceneNode;
         private HitboxSetSceneNode? hitboxSetSceneNode;
+        private List<ParticleSceneNode> modelParticleNodes = [];
         private CheckedListBox? physicsGroupsComboBox;
         private int animationComboBoxCurrentIndex = -1;
 
@@ -74,6 +76,7 @@ namespace GUI.Types.GLViewers
             physicsGroupsComboBox?.Dispose();
             rootMotionCheckBox?.Dispose();
             showSkeletonCheckbox?.Dispose();
+            showParticlesCheckbox?.Dispose();
             hitboxComboBox?.Dispose();
         }
 
@@ -213,6 +216,12 @@ namespace GUI.Types.GLViewers
                     Scene.Add(hitboxSetSceneNode, true);
                 }
 
+                modelParticleNodes = ParticleSceneNode.CreateModelParticles(Scene, model, modelSceneNode);
+                foreach (var particleNode in modelParticleNodes)
+                {
+                    Scene.Add(particleNode, true);
+                }
+
                 phys = model.GetEmbeddedPhys();
                 if (phys == null)
                 {
@@ -290,6 +299,21 @@ namespace GUI.Types.GLViewers
                     {
                         using var lockedGl = MakeCurrent();
                         skeletonSceneNode?.Enabled = isChecked;
+                    });
+                }
+
+                if (modelParticleNodes.Count > 0)
+                {
+                    using var _ = UiControl.BeginGroup("Model");
+
+                    showParticlesCheckbox = UiControl.AddCheckBox("Show particles", true, isChecked =>
+                    {
+                        using var lockedGl = MakeCurrent();
+
+                        foreach (var particleNode in modelParticleNodes)
+                        {
+                            particleNode.LayerEnabled = isChecked;
+                        }
                     });
                 }
 

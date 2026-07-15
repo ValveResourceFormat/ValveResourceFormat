@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Logging;
 using ValveKeyValue;
 using ValveResourceFormat.Blocks;
 using ValveResourceFormat.Renderer.Particles;
@@ -52,6 +53,102 @@ namespace ValveResourceFormat.Renderer.SceneNodes
                 {
                     Scene.Add(PreviewModel, true);
                 }
+            }
+        }
+
+        /// <summary>
+        /// Creates particle nodes for the particle systems referenced by a model's keyvalues
+        /// (<c>particles_list</c>) and wires each one to the given model node according to the entry's
+        /// <c>attachment_type</c>. Follow types track the model or attachment point while it animates;
+        /// the other types are placed once at spawn. Entries with an unknown type are skipped.
+        /// </summary>
+        /// <param name="scene">The scene the nodes belong to.</param>
+        /// <param name="model">The model referencing the particle systems.</param>
+        /// <param name="modelNode">The model node providing the attachment points.</param>
+        /// <returns>The created particle nodes. The caller adds them to the scene.</returns>
+        public static List<ParticleSceneNode> CreateModelParticles(Scene scene, Model model, ModelSceneNode modelNode)
+        {
+            var particlesList = model.KeyValues.GetArray("particles_list");
+            if (particlesList == null)
+            {
+                return [];
+            }
+
+            var nodes = new List<ParticleSceneNode>(particlesList.Count);
+
+            foreach (var entry in particlesList)
+            {
+                var particleName = entry.GetStringProperty("name");
+                if (string.IsNullOrEmpty(particleName))
+                {
+                    continue;
+                }
+
+                try
+                {
+                    if (scene.RendererContext.FileLoader.LoadFileCompiled(particleName)?.DataBlock is not ParticleSystem particleSystem)
+                    {
+                        continue;
+                    }
+
+                    var attachmentPoint = entry.GetStringProperty("attachment_point") ?? string.Empty;
+                    var attachmentTypeName = entry.GetStringProperty("attachment_type");
+                    // The keyvalue name is the enum member without the PATTACH_ prefix (e.g. point_follow).
+                    var attachmentType = Enum.TryParse<ParticleAttachment>("PATTACH_" + attachmentTypeName, ignoreCase: true, out var parsedType)
+                        ? parsedType
+                        : ParticleAttachment.PATTACH_INVALID;
+                    var offset = ReadDriverVector(entry, "attachment_offset");
+
+                    if (attachmentType == ParticleAttachment.PATTACH_INVALID)
+                    {
+                        scene.RendererContext.Logger.LogWarning("Unknown attachment type '{Type}' for model particle '{Particle}'", attachmentTypeName, particleName);
+                        continue;
+                    }
+
+                    var particleNode = new ParticleSceneNode(scene, particleSystem)
+                    {
+                        Name = particleName,
+                    };
+
+                    AttachOnModel(modelNode, particleNode, attachmentType, attachmentPoint, offset);
+                    nodes.Add(particleNode);
+                }
+                catch (Exception e)
+                {
+                    scene.RendererContext.Logger.LogError(e, "Failed to setup model particle '{Particle}'", particleName);
+                }
+            }
+
+            return nodes;
+        }
+
+        // Maps a ParticleAttachment_t kind onto the model's generic attach primitives (no placement math
+        // of its own): *_follow kinds track the model or a named attachment point, the rest are placed once,
+        // and kinds with no distinct viewer anchor (eyes/overhead/rootbone/center/...) fall back to the model origin.
+        private static void AttachOnModel(ModelSceneNode modelNode, SceneNode node, ParticleAttachment attachType, string attachmentName, Vector3 offset)
+        {
+            switch (attachType)
+            {
+                case ParticleAttachment.PATTACH_POINT_FOLLOW:
+                    modelNode.AttachNode(node, attachmentName, offset);
+                    break;
+
+                case ParticleAttachment.PATTACH_POINT:
+                    modelNode.PlaceNode(node, attachmentName, offset);
+                    break;
+
+                case ParticleAttachment.PATTACH_WORLDORIGIN:
+                    node.Transform = Matrix4x4.CreateTranslation(offset);
+                    break;
+
+                case ParticleAttachment.PATTACH_ABSORIGIN:
+                case ParticleAttachment.PATTACH_CUSTOMORIGIN:
+                    modelNode.PlaceNode(node, string.Empty, offset);
+                    break;
+
+                default:
+                    modelNode.AttachNode(node, string.Empty, offset);
+                    break;
             }
         }
 
