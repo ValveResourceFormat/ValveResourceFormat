@@ -40,8 +40,6 @@ public class CS2BombDamageSceneNode : SceneNode
     private const int VertexPhaseOffset = 24;
     private const int VertexSize = 28;
 
-    // Describes the VertexFormat layout for the mesh buffer cache. Semantic names map to the
-    // shader attributes as "v" + SemanticName (vPOSITION, vTEXCOORD, vCOLOR, vPHASE).
     private static readonly VBIB.RenderInputLayoutField[] InputLayout =
     [
         new() { SemanticName = "POSITION", Format = DXGI_FORMAT.R32G32B32_FLOAT, Offset = VertexPositionOffset },
@@ -118,7 +116,6 @@ public class CS2BombDamageSceneNode : SceneNode
         var vertexCount = positions.Length * 4;
         var indexCount = positions.Length * 6;
 
-        // Write straight into the byte buffers that back the GPU upload, avoiding an intermediate typed array + copy.
         var vertexData = new byte[vertexCount * VertexSize];
         var indexData = new byte[indexCount * sizeof(int)];
         var vertices = MemoryMarshal.Cast<byte, VertexFormat>(vertexData.AsSpan());
@@ -156,6 +153,7 @@ public class CS2BombDamageSceneNode : SceneNode
         var meshBufferCache = Scene.RendererContext.MeshBufferCache;
         var gpuBuffers = meshBufferCache.CreateVertexIndexBuffers(meshName, vbib);
 
+        // why do we have to create this
         VertexDrawBuffer[] vertexDrawBuffers =
         [
             new VertexDrawBuffer
