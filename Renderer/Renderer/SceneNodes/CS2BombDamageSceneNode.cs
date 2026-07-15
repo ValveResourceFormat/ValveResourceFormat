@@ -252,6 +252,46 @@ public class CS2BombDamageSceneNode : SceneNode
         {
             var sceneNode = new CS2BombDamageSceneNode(scene, bombDamageData, i);
             scene.Add(sceneNode, false);
+
+            var bombsite = bombDamageData.Bombsites[i];
+            AddBoundsLines(scene, new AABB(bombsite.BoundsMin, bombsite.BoundsMax), Color32.Red, sceneNode.LayerName);
+        }
+    }
+
+    /// <summary>
+    /// Adds the 12 wireframe edges of an AABB to the scene as <see cref="LineSceneNode"/> segments.
+    /// </summary>
+    private static void AddBoundsLines(Scene scene, in AABB box, Color32 color, string? layerName)
+    {
+        var min = box.Min;
+        var max = box.Max;
+
+        Span<Vector3> corners =
+        [
+            new(min.X, min.Y, min.Z),
+            new(max.X, min.Y, min.Z),
+            new(max.X, max.Y, min.Z),
+            new(min.X, max.Y, min.Z),
+            new(min.X, min.Y, max.Z),
+            new(max.X, min.Y, max.Z),
+            new(max.X, max.Y, max.Z),
+            new(min.X, max.Y, max.Z),
+        ];
+
+        ReadOnlySpan<int> edges =
+        [
+            0, 1, 1, 2, 2, 3, 3, 0, // bottom face
+            4, 5, 5, 6, 6, 7, 7, 4, // top face
+            0, 4, 1, 5, 2, 6, 3, 7, // vertical edges
+        ];
+
+        for (var i = 0; i < edges.Length; i += 2)
+        {
+            var line = new LineSceneNode(scene, corners[edges[i]], corners[edges[i + 1]], color, color)
+            {
+                LayerName = layerName,
+            };
+            scene.Add(line, false);
         }
     }
 
@@ -261,7 +301,6 @@ public class CS2BombDamageSceneNode : SceneNode
         base.Delete();
         GL.DeleteVertexArray(vaoHandle);
 
-        var buffers = new[] { iboHandle, vboHandle };
-        GL.DeleteBuffers(2, buffers);
+        GL.DeleteBuffers(2, [iboHandle, vboHandle]);
     }
 }

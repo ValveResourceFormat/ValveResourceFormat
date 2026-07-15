@@ -44,7 +44,7 @@ namespace GUI.Types.GLViewers
             });
 
             worldLayersComboBox.BeginUpdate();
-            var layerNames = Scene.AllNodes.Select(static x => x.LayerName).OfType<string>().ToList();
+            var layerNames = Scene.AllNodes.Select(static x => x.LayerName).OfType<string>().Distinct().ToList();
             for (var i = 0; i < layerNames.Count; i++)
             {
                 // Only enable the first bombsite by default to avoid overlapping visualizations
