@@ -180,8 +180,8 @@ namespace ValveResourceFormat.Renderer.World
         /// <param name="mapResourceReferences">Optional external reference list from the map resource, used to preload assets in parallel.</param>
         public void Load(ResourceExtRefList? mapResourceReferences = null)
         {
+            // Non resource files not covered by ParallelPreloadResources
             var navMeshTask = Task.Run(LoadNavigationMesh);
-            var bombDamageTask = Task.Run(LoadBombDamageData);
 
             ParallelPreloadResources(mapResourceReferences);
             LoadWorldLightingInfo();
@@ -189,9 +189,9 @@ namespace ValveResourceFormat.Renderer.World
             LoadWorldNodes();
             LoadWorldPhysics();
             LoadWorldVisibility();
+            LoadBombDamageData();
 
             navMeshTask.Wait();
-            bombDamageTask.Wait();
         }
 
         /// <summary>

@@ -15,7 +15,7 @@ namespace GUI.Types.GLViewers
             this.navMeshFile = navMeshFile;
         }
 
-        protected override string LayersControlName => "World Layers";
+        protected override string LayersControlName => "Navigation Layers";
 
         protected override void LoadScene()
         {
