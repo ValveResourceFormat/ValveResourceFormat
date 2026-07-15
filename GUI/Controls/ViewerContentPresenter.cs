@@ -27,6 +27,11 @@ static class ViewerContentPresenter
         container.Controls.Add(CreateControl(content));
     }
 
+    public static TabPage AddContentTab(ThemedTabControl tabControl, string name, ViewerContent content, bool select = false)
+    {
+        return AddContentTab(tabControl, new ViewerTab(name, content, select));
+    }
+
     public static TabPage AddContentTab(ThemedTabControl tabControl, ViewerTab tab)
     {
         var page = new ThemedTabPage(tab.Name);

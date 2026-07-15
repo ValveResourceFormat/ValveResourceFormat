@@ -754,12 +754,16 @@ namespace GUI.Types.Viewers
 
         private static void AddTextViewControl(ResourceType resourceType, Block block, TabPage blockTab)
         {
+            ViewerContentPresenter.Present(blockTab, GetTextViewContent(resourceType, block));
+        }
+
+        private static ViewerContent.Text GetTextViewContent(ResourceType resourceType, Block block)
+        {
             if (TryGetKvDataBlock(block, out var kvRoot, out var kvHeader))
             {
                 var doc = new KVDocument(kvHeader, name: null, kvRoot);
                 var (kv3Text, sourceMap) = KVSerializer.Create(KVSerializationFormat.KeyValues3Text).SerializeWithSourceMap(doc);
-                blockTab.Controls.Add(CodeTextBox.Create(kv3Text, sourceMap: sourceMap));
-                return;
+                return new ViewerContent.Text(kv3Text, SourceMap: sourceMap);
             }
 
             var text = block.ToString();
@@ -782,8 +786,7 @@ namespace GUI.Types.Viewers
                 language = HighlightLanguage.JS;
             }
 
-            var textBox = CodeTextBox.Create(text, language);
-            blockTab.Controls.Add(textBox);
+            return new ViewerContent.Text(text, language);
         }
 
         private static bool TryGetKvDataBlock(Block block, [MaybeNullWhen(false)] out KVObject root, out KVHeader? header)
@@ -822,18 +825,18 @@ namespace GUI.Types.Viewers
             switch (resource.ResourceType)
             {
                 case ResourceType.Sound when resource.DataBlock is Sound { Sentence: { } sentence }:
-                    IViewer.AddContentTab(resTabs, "Reconstructed phonemes", sentence.ToValveSentence());
+                    ViewerContentPresenter.AddContentTab(resTabs, "Reconstructed phonemes", new ViewerContent.Text(sentence.ToValveSentence(), HighlightLanguage.Default));
                     break;
 
                 case ResourceType.Material:
-                    var vmatTab = IViewer.AddContentTab(resTabs, "Reconstructed vmat", new MaterialExtract(resource, vrfGuiContext).ToValveMaterial);
+                    ViewerContentPresenter.AddContentTab(resTabs, "Reconstructed vmat", new ViewerContent.LazyText(new MaterialExtract(resource, vrfGuiContext).ToValveMaterial));
                     break;
 
                 case ResourceType.EntityLump:
                     if (resource.DataBlock is EntityLump entityLump)
                     {
-                        IViewer.AddContentTab(resTabs, "FGD", entityLump.ToForgeGameData());
-                        IViewer.AddContentTab(resTabs, "Entities-Text", entityLump.ToEntityDumpString(), true);
+                        ViewerContentPresenter.AddContentTab(resTabs, "FGD", new ViewerContent.Text(entityLump.ToForgeGameData(), HighlightLanguage.Default));
+                        ViewerContentPresenter.AddContentTab(resTabs, "Entities-Text", new ViewerContent.Text(entityLump.ToEntityDumpString(), HighlightLanguage.Default), select: true);
                         // force select the new entities tab for now
                         resTabs.SelectedTab = resTabs.TabPages[0];
                     }
@@ -842,7 +845,7 @@ namespace GUI.Types.Viewers
                 case ResourceType.PostProcessing:
                     if (resource.DataBlock is PostProcessing postProcessingData)
                     {
-                        IViewer.AddContentTab(resTabs, "Reconstructed vpost", postProcessingData.ToValvePostProcessing());
+                        ViewerContentPresenter.AddContentTab(resTabs, "Reconstructed vpost", new ViewerContent.Text(postProcessingData.ToValvePostProcessing(), HighlightLanguage.Default));
                     }
                     break;
 
@@ -854,11 +857,11 @@ namespace GUI.Types.Viewers
                         }
 
                         var textureExtract = new TextureExtract(resource);
-                        IViewer.AddContentTab(resTabs, "Reconstructed vtex", textureExtract.ToValveTexture());
+                        ViewerContentPresenter.AddContentTab(resTabs, "Reconstructed vtex", new ViewerContent.Text(textureExtract.ToValveTexture(), HighlightLanguage.Default));
 
                         if (textureExtract.TryGetMksData(out var _, out var mks))
                         {
-                            IViewer.AddContentTab(resTabs, "Reconstructed mks", mks);
+                            ViewerContentPresenter.AddContentTab(resTabs, "Reconstructed mks", new ViewerContent.Text(mks, HighlightLanguage.Default));
                         }
 
                         break;
@@ -868,7 +871,7 @@ namespace GUI.Types.Viewers
                     {
                         if (!FileExtract.IsChildResource(resource))
                         {
-                            IViewer.AddContentTab(resTabs, "Reconstructed vsnap", new SnapshotExtract(resource).ToValveSnap());
+                            ViewerContentPresenter.AddContentTab(resTabs, "Reconstructed vsnap", new ViewerContent.Text(new SnapshotExtract(resource).ToValveSnap(), HighlightLanguage.Default));
                         }
 
                         break;

@@ -2,7 +2,6 @@ using System.IO;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 using GUI.Controls;
-using GUI.Utils;
 
 namespace GUI.Types.Viewers
 {
@@ -30,38 +29,5 @@ namespace GUI.Types.Viewers
         /// lazily (e.g. GL viewers) use this to force their first draw. No-op by default.
         /// </summary>
         public void NotifyVisible() { }
-
-        public static TabPage AddContentTab<T>(ThemedTabControl resTabs, string name, T content, bool preSelect = false, HighlightLanguage highlightSyntax = HighlightLanguage.Default)
-        {
-            var extract = string.Empty;
-            if (content is Func<string> exceptionless)
-            {
-                try
-                {
-                    extract = exceptionless();
-                }
-                catch (Exception e)
-                {
-                    extract = e.ToString();
-                    preSelect = false;
-                }
-            }
-            else
-            {
-                extract = content?.ToString() ?? string.Empty;
-            }
-
-            var control = CodeTextBox.Create(extract, highlightSyntax);
-            var tab = new ThemedTabPage(name);
-            tab.Controls.Add(control);
-            resTabs.TabPages.Add(tab);
-
-            if (preSelect)
-            {
-                resTabs.SelectTab(tab);
-            }
-
-            return tab;
-        }
     }
 }
