@@ -153,11 +153,11 @@ namespace GUI
             {
                 if (MainForm != null && MainForm.InvokeRequired)
                 {
-                    MainForm.BeginInvoke(() => Clipboard.SetText(outputText));
+                    MainForm.BeginInvoke(() => AppClipboard.SetText(outputText));
                 }
                 else
                 {
-                    Clipboard.SetText(outputText);
+                    AppClipboard.SetText(outputText);
                 }
             }
         }

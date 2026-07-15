@@ -99,12 +99,12 @@ namespace GUI.Types.GLViewers
                 pitch = -1.0f * float.RadiansToDegrees(Renderer.Camera.Pitch);
                 yaw = float.RadiansToDegrees(Renderer.Camera.Yaw);
 
-                Clipboard.SetText($"setpos {loc.X:F6} {loc.Y:F6} {loc.Z:F6}; setang {pitch:F6} {yaw:F6} 0.0");
+                AppClipboard.SetText($"setpos {loc.X:F6} {loc.Y:F6} {loc.Z:F6}; setang {pitch:F6} {yaw:F6} 0.0");
 
                 return;
             }
 
-            var text = Clipboard.GetText();
+            var text = AppClipboard.GetText();
             var pos = Regexes.SetPos().Match(text);
             var ang = Regexes.SetAng().Match(text);
 

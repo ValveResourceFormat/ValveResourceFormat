@@ -5,3 +5,4 @@ TSystem.Windows.Forms.MessageBox;Use GUI.Utils.AppDialogs instead
 T:System.Windows.Forms.FolderBrowserDialog;Use GUI.Utils.AppFileDialogs.PickFolder instead
 T:System.Windows.Forms.OpenFileDialog;Use GUI.Utils.AppFileDialogs.OpenFile/OpenFiles instead
 T:System.Windows.Forms.SaveFileDialog;Use GUI.Utils.AppFileDialogs.SaveFile instead
+T:System.Windows.Forms.Clipboard;Use GUI.Utils.AppClipboard instead

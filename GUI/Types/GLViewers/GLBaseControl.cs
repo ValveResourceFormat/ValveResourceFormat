@@ -205,7 +205,7 @@ internal abstract class GLBaseControl : IDisposable
             }
             else
             {
-                ClipboardSetImage(bitmap);
+                AppClipboard.SetImage(bitmap);
             }
 
             Program.MainForm.Text = title;
@@ -848,20 +848,4 @@ internal abstract class GLBaseControl : IDisposable
         return bitmap;
     }
 
-    private static void ClipboardSetImage(SkiaSharp.SKBitmap bitmap)
-    {
-        var data = new DataObject();
-
-        using var bitmapWindows = bitmap.ToBitmap();
-        data.SetData(DataFormats.Bitmap, true, bitmapWindows);
-
-        using var pngStream = new MemoryStream();
-        using var pixels = bitmap.PeekPixels();
-        var png = pixels.Encode(pngStream, new SkiaSharp.SKPngEncoderOptions(SkiaSharp.SKPngEncoderFilterFlags.Sub, zLibLevel: 1));
-
-        bitmapWindows.Save(pngStream, System.Drawing.Imaging.ImageFormat.Png);
-        data.SetData("PNG", false, pngStream);
-
-        Clipboard.SetDataObject(data, copy: true);
-    }
 }

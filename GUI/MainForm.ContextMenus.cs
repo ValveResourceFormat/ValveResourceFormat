@@ -198,7 +198,7 @@ namespace GUI
 
             if (sb.Length > 0)
             {
-                Clipboard.SetText(sb.ToString());
+                AppClipboard.SetText(sb.ToString());
             }
         }
 

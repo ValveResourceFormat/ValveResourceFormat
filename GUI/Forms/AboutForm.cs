@@ -143,7 +143,7 @@ namespace GUI.Forms
                 output.Append(CultureInfo.InvariantCulture, $" ({GLEnvironment.GpuRendererAndDriver})");
             }
 
-            Clipboard.SetText(output.ToString());
+            AppClipboard.SetText(output.ToString());
 
             copyVersion.Text = "Copied!";
         }
