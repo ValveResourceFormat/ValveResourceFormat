@@ -1,8 +1,6 @@
 using System.Diagnostics;
 using System.IO;
 using System.Threading.Tasks;
-using System.Windows.Forms;
-using GUI.Controls;
 using GUI.Utils;
 
 namespace GUI.Types.Viewers
@@ -32,22 +30,18 @@ namespace GUI.Types.Viewers
             infoText = navMeshFile.ToString();
         }
 
-        public void Create(TabPage tabOuterPage)
+        public ViewerContent GetContent()
         {
             Debug.Assert(infoText is not null);
 
-            var tabControl = new ThemedTabControl
-            {
-                Dock = DockStyle.Fill,
-            };
-            tabOuterPage.Controls.Add(tabControl);
-
-            var infoPage = new ThemedTabPage("GRID NAV");
-            var infoTextControl = CodeTextBox.Create(infoText, HighlightLanguage.None);
-            infoPage.Controls.Add(infoTextControl);
-            tabControl.Controls.Add(infoPage);
+            var content = new ViewerContent.Tabs(
+            [
+                new("GRID NAV", new ViewerContent.Text(infoText, HighlightLanguage.None)),
+            ]);
 
             infoText = null;
+
+            return content;
         }
 
         public void Dispose()

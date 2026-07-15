@@ -45,9 +45,20 @@ static class ViewerContentPresenter
     {
         ViewerContent.Text text => CodeTextBox.Create(text.Content, text.Language, text.SourceMap),
         ViewerContent.LazyText lazy => CreateLazyText(lazy),
+        ViewerContent.HexDump hex => CreateHexDump(hex),
         ViewerContent.Grid grid => CreateGrid(grid),
         _ => throw new NotSupportedException($"Unknown content type {content.GetType().Name}"),
     };
+
+    private static System.ComponentModel.Design.ByteViewer CreateHexDump(ViewerContent.HexDump hex)
+    {
+        var control = new System.ComponentModel.Design.ByteViewer
+        {
+            Dock = DockStyle.Fill,
+        };
+        control.SetBytes(hex.Bytes);
+        return control;
+    }
 
     private static Control CreateLazyText(ViewerContent.LazyText lazy)
     {

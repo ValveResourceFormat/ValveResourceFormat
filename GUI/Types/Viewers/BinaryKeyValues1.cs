@@ -2,8 +2,6 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Threading.Tasks;
-using System.Windows.Forms;
-using GUI.Controls;
 using GUI.Utils;
 using ValveKeyValue;
 using ValveResourceFormat.ResourceTypes;
@@ -46,16 +44,17 @@ namespace GUI.Types.Viewers
             (text, sourceMap) = KVSerializer.Create(KVSerializationFormat.KeyValues1Text).SerializeWithSourceMap(kv);
         }
 
-        public void Create(TabPage tab)
+        public ViewerContent GetContent()
         {
             Debug.Assert(text is not null);
             Debug.Assert(sourceMap is not null);
 
-            var control = CodeTextBox.Create(text, sourceMap: sourceMap);
-            tab.Controls.Add(control);
+            var content = new ViewerContent.Text(text, SourceMap: sourceMap);
 
             text = null;
             sourceMap = null;
+
+            return content;
         }
 
         public void Dispose()

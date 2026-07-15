@@ -1,7 +1,5 @@
 using System.IO;
 using System.Threading.Tasks;
-using System.Windows.Forms;
-using GUI.Controls;
 using GUI.Utils;
 
 namespace GUI.Types.Viewers
@@ -39,19 +37,12 @@ namespace GUI.Types.Viewers
             code = shaderFileVulkan.GetDecompiledFile();
         }
 
-        public void Create(TabPage tab)
+        public ViewerContent GetContent()
         {
-            var resTabs = new ThemedTabControl
-            {
-                Dock = DockStyle.Fill,
-            };
-
-            tab.Controls.Add(resTabs);
-
-            var sourceTab = new ThemedTabPage("SPIR-V Cross");
-            var codeBox = new CodeTextBox(code, HighlightLanguage.Shaders);
-            sourceTab.Controls.Add(codeBox);
-            resTabs.TabPages.Add(sourceTab);
+            return new ViewerContent.Tabs(
+            [
+                new("SPIR-V Cross", new ViewerContent.Text(code, HighlightLanguage.Shaders)),
+            ]);
         }
 
         public void Dispose()

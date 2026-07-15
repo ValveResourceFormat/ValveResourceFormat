@@ -1,7 +1,5 @@
 using System.IO;
 using System.Threading.Tasks;
-using System.Windows.Forms;
-using GUI.Controls;
 using GUI.Utils;
 
 namespace GUI.Types.Viewers
@@ -28,34 +26,19 @@ namespace GUI.Types.Viewers
             text = GetTextFromBytes(input.AsSpan());
         }
 
-        public void Create(TabPage tab)
+        public ViewerContent GetContent()
         {
-            var resTabs = new ThemedTabControl
-            {
-                Dock = DockStyle.Fill,
-            };
-            tab.Controls.Add(resTabs);
-
-            var bvTab = new ThemedTabPage("Hex");
-            var bv = new System.ComponentModel.Design.ByteViewer
-            {
-                Dock = DockStyle.Fill,
-            };
-            bvTab.Controls.Add(bv);
-            resTabs.TabPages.Add(bvTab);
+            List<ViewerTab> tabs = [new("Hex", new ViewerContent.HexDump(input))];
 
             if (!string.IsNullOrEmpty(text))
             {
-                var textTab = new ThemedTabPage("Text");
-                var textBox = CodeTextBox.Create(text);
-                textTab.Controls.Add(textBox);
-                resTabs.TabPages.Add(textTab);
-                resTabs.SelectedTab = textTab;
+                tabs.Add(new("Text", new ViewerContent.Text(text), Select: true));
                 text = null;
             }
 
-            bv.SetBytes(input);
             input = [];
+
+            return new ViewerContent.Tabs(tabs);
         }
 
         public static string? GetTextFromBytes(ReadOnlySpan<byte> span)

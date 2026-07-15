@@ -14,6 +14,9 @@ abstract record ViewerContent
     // Text that is produced on demand, rendering the exception text if producing it fails
     public sealed record LazyText(Func<string> GetContent, HighlightLanguage Language = HighlightLanguage.Default) : ViewerContent;
 
+    // Raw bytes displayed as a hex dump
+    public sealed record HexDump(byte[] Bytes) : ViewerContent;
+
     // A table of objects, one row per item, one column per public property
     public sealed record Grid(IList Rows) : ViewerContent;
 

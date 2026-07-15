@@ -1,8 +1,6 @@
 using System.Diagnostics;
 using System.IO;
 using System.Threading.Tasks;
-using System.Windows.Forms;
-using GUI.Controls;
 using GUI.Utils;
 
 namespace GUI.Types.Viewers
@@ -32,22 +30,18 @@ namespace GUI.Types.Viewers
             vfeText = vfe.ToString();
         }
 
-        public void Create(TabPage tabOuterPage)
+        public ViewerContent GetContent()
         {
             Debug.Assert(vfeText is not null);
 
-            var tabControl = new ThemedTabControl
-            {
-                Dock = DockStyle.Fill,
-            };
-            tabOuterPage.Controls.Add(tabControl);
-
-            var tabPage = new ThemedTabPage("Text");
-            var textControl = CodeTextBox.Create(vfeText);
-            tabPage.Controls.Add(textControl);
-            tabControl.Controls.Add(tabPage);
+            var content = new ViewerContent.Tabs(
+            [
+                new("Text", new ViewerContent.Text(vfeText)),
+            ]);
 
             vfeText = null;
+
+            return content;
         }
 
         public void Dispose()
