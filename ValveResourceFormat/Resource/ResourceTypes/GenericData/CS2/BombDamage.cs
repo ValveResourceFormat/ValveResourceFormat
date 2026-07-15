@@ -1,5 +1,7 @@
+using System.Buffers.Binary;
+using System.Diagnostics.CodeAnalysis;
 using System.IO;
-using System.Text;
+using System.Runtime.InteropServices;
 using ValveResourceFormat.Serialization.KeyValues;
 
 namespace ValveResourceFormat.ResourceTypes.GenericData.CS2;
@@ -39,6 +41,7 @@ public sealed class BombDamage : GenericData
     /// Wraps an already-read <see cref="BinaryKV3"/> DATA block and parses the bomb damage payload from it.
     /// </summary>
     /// <param name="kv3">The KV3 DATA block that has already been read.</param>
+    [SetsRequiredMembers]
     public BombDamage(BinaryKV3 kv3) : base(kv3)
     {
         ParseData();
@@ -52,14 +55,11 @@ public sealed class BombDamage : GenericData
     /// <exception cref="ArgumentOutOfRangeException">Thrown if <paramref name="positionIndex"/> or <paramref name="bombsiteIndex"/> are out of range (see <seealso cref="Positions"/> and <seealso cref="Bombsites"/>).</exception>
     public BombDamageDamageValue GetBombsiteDamageValue(int positionIndex, int bombsiteIndex)
     {
-        if (bombsiteIndex < 0 || bombsiteIndex >= Bombsites.Length)
-        {
-            throw new ArgumentOutOfRangeException(nameof(bombsiteIndex), "Bombsite index is out of range.");
-        }
-        if (positionIndex < 0 || positionIndex >= Positions.Length)
-        {
-            throw new ArgumentOutOfRangeException(nameof(positionIndex), "Position index is out of range.");
-        }
+        ArgumentOutOfRangeException.ThrowIfNegative(bombsiteIndex);
+        ArgumentOutOfRangeException.ThrowIfGreaterThanOrEqual(bombsiteIndex, Bombsites.Length);
+        ArgumentOutOfRangeException.ThrowIfNegative(positionIndex);
+        ArgumentOutOfRangeException.ThrowIfGreaterThanOrEqual(positionIndex, Positions.Length);
+
         return DamageValues[Positions.Length * bombsiteIndex + positionIndex];
     }
 
@@ -76,9 +76,9 @@ public sealed class BombDamage : GenericData
         const float MaxPhase = 1800f;
 
         float phase = damageValue.Phase;
-        var clampedPhase = Math.Clamp(phase, 0f, MaxPhase);
+        var clampedPhase = MathF.Min(phase, MaxPhase);
 
-        if (clampedPhase == 0f)
+        if (phase == 0f)
         {
             return phase >= bombsite.BombPower ? 0f : MaxDamage;
         }
@@ -121,82 +121,45 @@ public sealed class BombDamage : GenericData
 
     private void ReadBombsites(byte[] blob)
     {
-        var bombsiteCount = blob.Length / (4 * 7); // 7 floats per bombsite
-        if (bombsiteCount == 0)
+        var floats = MemoryMarshal.Cast<byte, float>(blob);
+        Bombsites = new BombDamageBombsite[floats.Length / 7]; // 7 floats per bombsite
+
+        for (var i = 0; i < Bombsites.Length; i++)
         {
-            Bombsites = [];
-            return;
-        }
-
-        Bombsites = new BombDamageBombsite[bombsiteCount];
-        using var reader = BlobToReader(blob);
-        for (var i = 0; i < bombsiteCount; i++)
-        {
-            var minX = reader.ReadSingle();
-            var minY = reader.ReadSingle();
-            var minZ = reader.ReadSingle();
-
-            var maxX = reader.ReadSingle();
-            var maxY = reader.ReadSingle();
-            var maxZ = reader.ReadSingle();
-
-            var bombPower = reader.ReadSingle();
-
+            var bombsite = floats.Slice(i * 7, 7);
             Bombsites[i] = new BombDamageBombsite
             {
-                BoundsMin = new Vector3(minX, minY, minZ),
-                BoundsMax = new Vector3(maxX, maxY, maxZ),
-                BombPower = bombPower
+                BoundsMin = new Vector3(bombsite[0], bombsite[1], bombsite[2]),
+                BoundsMax = new Vector3(bombsite[3], bombsite[4], bombsite[5]),
+                BombPower = bombsite[6]
             };
         }
     }
 
     private void ReadPositions(byte[] blob)
     {
-        var positionCount = blob.Length / (2 * 3); // 3 shorts per position
-        if (positionCount == 0)
-        {
-            Positions = [];
-            return;
-        }
+        var coords = MemoryMarshal.Cast<byte, short>(blob);
+        Positions = new Vector3[coords.Length / 3]; // 3 shorts per position
 
-        Positions = new Vector3[positionCount];
-        using var reader = BlobToReader(blob);
-        for (var i = 0; i < positionCount; i++)
+        for (var i = 0; i < Positions.Length; i++)
         {
-            var x = reader.ReadInt16();
-            var y = reader.ReadInt16();
-            var z = reader.ReadInt16();
-
-            Positions[i] = new Vector3(x, y, z);
+            Positions[i] = new Vector3(coords[i * 3], coords[i * 3 + 1], coords[i * 3 + 2]);
         }
     }
 
     private void ReadDamageValues(byte[] blob)
     {
-        var damageValueCount = blob.Length / 4; // 4 bytes per damage value
-        if (damageValueCount == 0)
-        {
-            DamageValues = [];
-            return;
-        }
+        DamageValues = new BombDamageDamageValue[blob.Length / 4]; // 4 bytes per damage value
 
-        DamageValues = new BombDamageDamageValue[damageValueCount];
-        using var reader = BlobToReader(blob);
-        for (var i = 0; i < damageValueCount; i++)
+        for (var i = 0; i < DamageValues.Length; i++)
         {
+            var packed = blob.AsSpan(i * 4, 4);
             DamageValues[i] = new BombDamageDamageValue
             {
-                Phase = reader.ReadUInt16(),
-                Yaw = reader.ReadByte(),
-                Pitch = reader.ReadByte()
+                Phase = BinaryPrimitives.ReadUInt16LittleEndian(packed),
+                Yaw = packed[2],
+                Pitch = packed[3]
             };
         }
-    }
-
-    private static BinaryReader BlobToReader(byte[] blob)
-    {
-        var stream = new MemoryStream(blob);
-        return new BinaryReader(stream, Encoding.ASCII, false);
     }
 }

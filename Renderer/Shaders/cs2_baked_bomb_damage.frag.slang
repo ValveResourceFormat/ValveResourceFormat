@@ -15,14 +15,12 @@ uniform sampler2D tColor;
 
 flat in vec4 vtxColor;
 in vec2 vtxUv;
-in vec3 vtxPos;
 in vec4 vtxClipPos;
 in vec3 vtxWorldPos;
 flat in float vtxPhase;
 
 out vec4 outputColor;
 
-#include "common/utils.slang"
 #include "common/ViewConstants.slang"
 
 bool dither()

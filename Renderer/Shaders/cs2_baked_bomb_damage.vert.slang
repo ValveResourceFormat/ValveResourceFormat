@@ -7,7 +7,6 @@ layout (location = 3) in float aPhase;
 
 out vec4 vtxColor;
 out vec2 vtxUv;
-out vec3 vtxPos;
 out vec4 vtxClipPos;
 out vec3 vtxWorldPos;
 out float vtxPhase;
@@ -18,7 +17,6 @@ out float vtxPhase;
 void main(void) {
     vtxColor = aVertexColor;
     vtxUv = aTexCoords;
-    vtxPos = aVertexPosition;
     vtxPhase = aPhase;
 
     vec4 worldPos = CalculateObjectToWorldMatrix() * vec4(aVertexPosition, 1.0);

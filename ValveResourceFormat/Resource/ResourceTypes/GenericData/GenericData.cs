@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using ValveResourceFormat.ResourceTypes.GenericData.CS2;
 using ValveResourceFormat.Serialization.KeyValues;
 
@@ -18,8 +19,10 @@ public abstract class GenericData : BinaryKV3
     /// <summary>
     /// Adopts the state of an already-read <see cref="BinaryKV3"/> DATA block.
     /// </summary>
+    [SetsRequiredMembers]
     protected GenericData(BinaryKV3 kv3)
     {
+        Resource = kv3.Resource;
         Offset = kv3.Offset;
         Size = kv3.Size;
         Data = kv3.Data;
@@ -43,7 +46,7 @@ public abstract class GenericData : BinaryKV3
     {
         return GetGenericDataType(kv3) switch
         {
-            BombDamage.DataType => new BombDamage(kv3) { Resource = kv3.Resource },
+            BombDamage.DataType => new BombDamage(kv3),
             _ => null,
         };
     }

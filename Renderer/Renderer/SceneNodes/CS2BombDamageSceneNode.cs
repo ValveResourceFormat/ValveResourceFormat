@@ -21,6 +21,14 @@ public class CS2BombDamageSceneNode : SceneNode
         new(-HalfQuadSize, HalfQuadSize, 0.0f),
     ];
 
+    private static readonly Vector2[] VertexUVs =
+    [
+        Vector2.Zero,
+        Vector2.UnitX,
+        Vector2.One,
+        Vector2.UnitY,
+    ];
+
     private readonly Shader shader;
     private readonly RenderTexture renderTexture;
     private readonly int vaoHandle;
@@ -57,9 +65,11 @@ public class CS2BombDamageSceneNode : SceneNode
     /// <param name="scene">The scene this node belongs to.</param>
     /// <param name="bombDamageData">Baked bomb damage data.</param>
     /// <param name="bombsiteIndex">Index of the bombsite. Index 0 is not guaranteed to be bombsite A.</param>
-    public CS2BombDamageSceneNode(Scene scene, BombDamage bombDamageData, int bombsiteIndex) : base(scene)
+    /// <param name="renderTexture">Texture drawn on each damage value quad.</param>
+    public CS2BombDamageSceneNode(Scene scene, BombDamage bombDamageData, int bombsiteIndex, RenderTexture renderTexture) : base(scene)
     {
         shader = Scene.RendererContext.ShaderLoader.LoadShader("vrf.cs2_baked_bomb_damage");
+        this.renderTexture = renderTexture;
 
         GL.CreateVertexArrays(1, out vaoHandle);
 
@@ -72,12 +82,11 @@ public class CS2BombDamageSceneNode : SceneNode
 
         InitializeVAO(shader.Program);
         Initialize(bombDamageData, bombsiteIndex);
-        renderTexture = InitializeTexture();
     }
 
-    private RenderTexture InitializeTexture()
+    private static RenderTexture LoadArrowTexture(Scene scene)
     {
-        using var stream = Assembly.GetExecutingAssembly().GetManifestResourceStream($"Renderer.Resources.arrow.vtex_c");
+        using var stream = Assembly.GetExecutingAssembly().GetManifestResourceStream("Renderer.Resources.arrow.vtex_c");
         using var resource = new Resource()
         {
             FileName = "arrow.vtex_c"
@@ -86,7 +95,7 @@ public class CS2BombDamageSceneNode : SceneNode
         Debug.Assert(stream != null);
         resource.Read(stream);
 
-        var renderTexture = Scene.RendererContext.MaterialLoader.LoadTexture(resource, isViewerRequest: true);
+        var renderTexture = scene.RendererContext.MaterialLoader.LoadTexture(resource, isViewerRequest: true);
         renderTexture.SetWrapMode(TextureWrapMode.ClampToEdge);
         return renderTexture;
     }
@@ -126,26 +135,32 @@ public class CS2BombDamageSceneNode : SceneNode
 
     private void Initialize(BombDamage bombDamageData, int bombsiteIndex)
     {
-        var vertices = new List<VertexFormat>(bombDamageData.Positions.Length * 4);
-        var indices = new List<int>(bombDamageData.Positions.Length * 6);
+        var positions = bombDamageData.Positions;
+        var bombsite = bombDamageData.Bombsites[bombsiteIndex];
+        var bombsiteBounds = new AABB(bombsite.BoundsMin, bombsite.BoundsMax);
+        var damageValuesOffset = positions.Length * bombsiteIndex;
 
-        for (var i = 0; i < bombDamageData.Positions.Length; i++)
+        var vertices = new VertexFormat[positions.Length * 4];
+        var indices = new int[positions.Length * 6];
+
+        if (positions.Length > 0)
         {
-            if (vertices.Count == 0)
-            {
-                boundsMin = boundsMax = bombDamageData.Positions[i];
-            }
-            AddFace(vertices, indices, bombDamageData, i, bombsiteIndex);
+            boundsMin = boundsMax = positions[0];
         }
 
-        indicesCount = indices.Count;
+        for (var i = 0; i < positions.Length; i++)
+        {
+            AddFace(vertices, indices, i, positions[i], bombDamageData.DamageValues[damageValuesOffset + i], bombsite, bombsiteBounds);
+        }
+
+        indicesCount = indices.Length;
         BoundingBox = new AABB(boundsMin, boundsMax);
 
         GL.VertexArrayVertexBuffer(vaoHandle, 0, vboHandle, 0, VertexSize);
-        GL.NamedBufferData(vboHandle, vertices.Count * VertexSize, ListAccessors<VertexFormat>.GetBackingArray(vertices), BufferUsageHint.StaticDraw);
+        GL.NamedBufferData(vboHandle, vertices.Length * VertexSize, vertices, BufferUsageHint.StaticDraw);
 
         GL.VertexArrayElementBuffer(vaoHandle, iboHandle);
-        GL.NamedBufferData(iboHandle, indices.Count * sizeof(int), ListAccessors<int>.GetBackingArray(indices), BufferUsageHint.StaticDraw);
+        GL.NamedBufferData(iboHandle, indices.Length * sizeof(int), indices, BufferUsageHint.StaticDraw);
 
 #if DEBUG
         var vaoLabel = nameof(CS2BombDamageSceneNode);
@@ -155,62 +170,46 @@ public class CS2BombDamageSceneNode : SceneNode
 #endif
     }
 
-    private static void AddFaceIndices(List<int> indices, int baseFaceIndex)
+    private void AddFace(VertexFormat[] vertices, int[] indices, int positionIndex, Vector3 basePosition, in BombDamageDamageValue damage, in BombDamageBombsite bombsite, in AABB bombsiteBounds)
     {
-        indices.Add(baseFaceIndex + 0);
-        indices.Add(baseFaceIndex + 1);
-        indices.Add(baseFaceIndex + 2);
-        indices.Add(baseFaceIndex + 0);
-        indices.Add(baseFaceIndex + 2);
-        indices.Add(baseFaceIndex + 3);
-    }
+        var baseVertex = positionIndex * 4;
+        var baseIndex = positionIndex * 6;
 
-    private void AddFace(List<VertexFormat> vertices, List<int> indices, BombDamage bombDamageData, int bombPositionIndex, int bombsiteIndex)
-    {
-        var basePosition = bombDamageData.Positions[bombPositionIndex];
-        var damage = bombDamageData.GetBombsiteDamageValue(bombPositionIndex, bombsiteIndex);
+        indices[baseIndex + 0] = baseVertex + 0;
+        indices[baseIndex + 1] = baseVertex + 1;
+        indices[baseIndex + 2] = baseVertex + 2;
+        indices[baseIndex + 3] = baseVertex + 0;
+        indices[baseIndex + 4] = baseVertex + 2;
+        indices[baseIndex + 5] = baseVertex + 3;
 
-        var color = GetFaceColor(bombDamageData.Bombsites[bombsiteIndex], damage, basePosition);
-
-        AddFaceIndices(indices, vertices.Count);
-
+        var color = GetFaceColor(bombsite, bombsiteBounds, damage, basePosition);
         var rotation = damage.Rotation;
 
-        Span<Vector3> faceVertices = stackalloc Vector3[4];
-        VertexOffsets.AsSpan().CopyTo(faceVertices);
-        for (var i = 0; i < faceVertices.Length; i++)
+        for (var i = 0; i < 4; i++)
         {
-            faceVertices[i] = Vector3.Transform(faceVertices[i], rotation);
+            var position = basePosition + Vector3.Transform(VertexOffsets[i], rotation);
+            boundsMax = Vector3.Max(boundsMax, position);
+            boundsMin = Vector3.Min(boundsMin, position);
+
+            vertices[baseVertex + i] = new VertexFormat
+            {
+                Position = position,
+                UVs = VertexUVs[i],
+                Color = color,
+                Phase = damage.Phase,
+            };
         }
-
-        AddVertex(vertices, basePosition + faceVertices[0], Vector2.Zero, color, damage.Phase);
-        AddVertex(vertices, basePosition + faceVertices[1], Vector2.UnitX, color, damage.Phase);
-        AddVertex(vertices, basePosition + faceVertices[2], Vector2.One, color, damage.Phase);
-        AddVertex(vertices, basePosition + faceVertices[3], Vector2.UnitY, color, damage.Phase);
-    }
-
-    private void AddVertex(List<VertexFormat> vertices, Vector3 position, Vector2 uvs, Color32 color, float phase)
-    {
-        boundsMax = Vector3.Max(boundsMax, position);
-        boundsMin = Vector3.Min(boundsMin, position);
-        vertices.Add(new VertexFormat
-        {
-            Position = position,
-            UVs = uvs,
-            Color = color,
-            Phase = phase,
-        });
     }
 
     // White inside the bombsite, otherwise a gradient from green (lethal, 100+ damage) through yellow to red (no damage)
-    private static Color32 GetFaceColor(in BombDamageBombsite bombsite, in BombDamageDamageValue damage, Vector3 position)
+    private static Color32 GetFaceColor(in BombDamageBombsite bombsite, in AABB bombsiteBounds, in BombDamageDamageValue damage, Vector3 position)
     {
-        if (position == Vector3.Clamp(position, bombsite.BoundsMin, bombsite.BoundsMax))
+        if (bombsiteBounds.Contains(position))
         {
             return Color32.White;
         }
 
-        var t = Math.Clamp(BombDamage.CalculateDamage(bombsite, damage) / 100f, 0f, 1f);
+        var t = MathUtils.Saturate(BombDamage.CalculateDamage(bombsite, damage) / 100f);
         var r = Math.Min(1f, 2f * (1f - t));
         var g = Math.Min(1f, 2f * t);
         return new Color32(r, g, 0f, 1f);
@@ -255,50 +254,22 @@ public class CS2BombDamageSceneNode : SceneNode
             return;
         }
 
+        var arrowTexture = LoadArrowTexture(scene);
+
         for (var i = 0; i < bombDamageData.Bombsites.Length; i++)
         {
-            var sceneNode = new CS2BombDamageSceneNode(scene, bombDamageData, i);
+            var sceneNode = new CS2BombDamageSceneNode(scene, bombDamageData, i, arrowTexture);
             scene.Add(sceneNode, false);
 
             var bombsite = bombDamageData.Bombsites[i];
-            AddBoundsLines(scene, new AABB(bombsite.BoundsMin, bombsite.BoundsMax), Color32.Red, sceneNode.LayerName);
-        }
-    }
+            var boundsVertices = new List<SimpleVertex>(2 * 12);
+            ShapeSceneNode.AddBox(boundsVertices, new AABB(bombsite.BoundsMin, bombsite.BoundsMax), Color32.Red);
 
-    /// <summary>
-    /// Adds the 12 wireframe edges of an AABB to the scene as <see cref="LineSceneNode"/> segments.
-    /// </summary>
-    private static void AddBoundsLines(Scene scene, in AABB box, Color32 color, string? layerName)
-    {
-        var min = box.Min;
-        var max = box.Max;
-
-        Span<Vector3> corners =
-        [
-            new(min.X, min.Y, min.Z),
-            new(max.X, min.Y, min.Z),
-            new(max.X, max.Y, min.Z),
-            new(min.X, max.Y, min.Z),
-            new(min.X, min.Y, max.Z),
-            new(max.X, min.Y, max.Z),
-            new(max.X, max.Y, max.Z),
-            new(min.X, max.Y, max.Z),
-        ];
-
-        ReadOnlySpan<int> edges =
-        [
-            0, 1, 1, 2, 2, 3, 3, 0, // bottom face
-            4, 5, 5, 6, 6, 7, 7, 4, // top face
-            0, 4, 1, 5, 2, 6, 3, 7, // vertical edges
-        ];
-
-        for (var i = 0; i < edges.Length; i += 2)
-        {
-            var line = new LineSceneNode(scene, corners[edges[i]], corners[edges[i + 1]], color, color)
+            var boundsNode = new LineSceneNode(scene, [.. boundsVertices])
             {
-                LayerName = layerName,
+                LayerName = sceneNode.LayerName,
             };
-            scene.Add(line, false);
+            scene.Add(boundsNode, false);
         }
     }
 
