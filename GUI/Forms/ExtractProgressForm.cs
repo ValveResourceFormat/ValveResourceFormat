@@ -88,7 +88,7 @@ namespace GUI.Forms
         {
             if (filesToExtract.Count == 0 && filesToExtractSorted.Sum(x => x.Value.Count) == 0)
             {
-                _ = AppDialogs.ShowMessageAsync("There are no files to extract", "Failed to extract", MessageIcon.Warning);
+                _ = AppMessageDialogs.ShowMessageAsync("There are no files to extract", "Failed to extract", MessageIcon.Warning);
                 return;
             }
 
@@ -97,21 +97,14 @@ namespace GUI.Forms
                 return;
             }
 
-            using var dialog = new FolderBrowserDialog
-            {
-                Description = "Choose which folder to extract files to",
-                UseDescriptionForTitle = true,
-                SelectedPath = Settings.Config.SaveDirectory,
-                AddToRecent = true,
-            };
+            var selectedPath = AppFileDialogs.PickFolder("Choose which folder to extract files to", AppFileDialogs.RememberIn.SaveDirectory);
 
-            if (dialog.ShowDialog() != DialogResult.OK)
+            if (selectedPath == null)
             {
                 return;
             }
 
-            path = dialog.SelectedPath;
-            Settings.Config.SaveDirectory = dialog.SelectedPath;
+            path = selectedPath;
 
             ShowDialog();
         }

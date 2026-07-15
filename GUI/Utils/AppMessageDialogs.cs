@@ -19,7 +19,7 @@ public enum ConfirmButtons
     YesNo
 }
 
-public static class AppDialogs
+public static class AppMessageDialogs
 {
     public static Task ShowMessageAsync(string message, string title, MessageIcon icon = MessageIcon.Info)
     {

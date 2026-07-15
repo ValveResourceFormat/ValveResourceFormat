@@ -696,30 +696,14 @@ namespace GUI
 
         private void OpenToolStripMenuItem_Click(object sender, EventArgs e)
         {
-            using var openDialog = new OpenFileDialog
-            {
-                InitialDirectory = Settings.Config.OpenDirectory,
-                Filter = "Valve Resource Format (*.*_c, *.vpk)|*.*_c;*.vpk;*.vcs|All files (*.*)|*.*",
-                Multiselect = true,
-                AddToRecent = true,
-            };
-            var userOK = openDialog.ShowDialog();
+            var files = AppFileDialogs.OpenFiles(null, "Valve Resource Format (*.*_c, *.vpk)|*.*_c;*.vpk;*.vcs|All files (*.*)|*.*");
 
-            if (userOK != DialogResult.OK)
+            if (files == null)
             {
                 return;
             }
 
-            if (openDialog.FileNames.Length > 0)
-            {
-                var directory = Path.GetDirectoryName(openDialog.FileNames[0]);
-                if (directory != null)
-                {
-                    Settings.Config.OpenDirectory = directory;
-                }
-            }
-
-            foreach (var file in openDialog.FileNames)
+            foreach (var file in files)
             {
                 OpenFile(file);
             }

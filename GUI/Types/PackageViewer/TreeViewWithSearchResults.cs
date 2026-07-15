@@ -1190,7 +1190,7 @@ namespace GUI.Types.PackageViewer
                             progressDialog.SetBarValue(maximum);
                         });
 
-                        _ = AppDialogs.ShowMessageAsync("Successfully verified package contents.", "Verified package contents");
+                        _ = AppMessageDialogs.ShowMessageAsync("Successfully verified package contents.", "Verified package contents");
                     }
                 }
                 catch (Exception e)
@@ -1202,7 +1202,7 @@ namespace GUI.Types.PackageViewer
                         return;
                     }
 
-                    _ = AppDialogs.ShowMessageAsync(e.Message, "Failed to verify package contents", MessageIcon.Warning);
+                    _ = AppMessageDialogs.ShowMessageAsync(e.Message, "Failed to verify package contents", MessageIcon.Warning);
                 }
             };
             progressDialog.ShowDialog();

@@ -278,7 +278,7 @@ namespace GUI
                 return;
             }
 
-            if (selectedFiles.Count > 5 && !await AppDialogs.ConfirmAsync(
+            if (selectedFiles.Count > 5 && !await AppMessageDialogs.ConfirmAsync(
                 $"You are trying to open {selectedFiles.Count} files in the default app for each of these files, are you sure you want to continue?",
                 "Trying to open many files in the default app",
                 buttons: ConfirmButtons.YesNo
@@ -511,7 +511,7 @@ namespace GUI
 
             if (directory.IndexOfAny(Path.GetInvalidPathChars()) != -1)
             {
-                _ = AppDialogs.ShowMessageAsync("Entered folder name contains invalid characters.", "Invalid characters", MessageIcon.Warning);
+                _ = AppMessageDialogs.ShowMessageAsync("Entered folder name contains invalid characters.", "Invalid characters", MessageIcon.Warning);
                 return;
             }
 
@@ -523,21 +523,12 @@ namespace GUI
 
         private void OnVpkAddNewFolderToolStripMenuItem_Click(object sender, EventArgs e)
         {
-            using var openDialog = new FolderBrowserDialog
-            {
-                Description = "Choose which folder to pack into a VPK",
-                UseDescriptionForTitle = true,
-                SelectedPath = Settings.Config.OpenDirectory,
-                AddToRecent = true,
-            };
+            var inputDirectory = AppFileDialogs.PickFolder("Choose which folder to pack into a VPK", AppFileDialogs.RememberIn.OpenDirectory);
 
-            if (openDialog.ShowDialog() != DialogResult.OK)
+            if (inputDirectory == null)
             {
                 return;
             }
-
-            var inputDirectory = openDialog.SelectedPath;
-            Settings.Config.OpenDirectory = inputDirectory;
 
             if (mainTabs.SelectedTab?.Controls[nameof(TreeViewWithSearchResults)] is TreeViewWithSearchResults treeViewWithSearchResults)
             {
@@ -547,29 +538,16 @@ namespace GUI
 
         private void OnVpkAddNewFileToolStripMenuItem_Click(object sender, EventArgs e)
         {
-            using var openDialog = new OpenFileDialog
-            {
-                Title = "Choose which files to add to the VPK",
-                InitialDirectory = Settings.Config.OpenDirectory,
-                AddToRecent = true,
-                Multiselect = true,
-            };
+            var files = AppFileDialogs.OpenFiles("Choose which files to add to the VPK", null);
 
-            if (openDialog.ShowDialog() != DialogResult.OK || openDialog.FileNames.Length < 1)
+            if (files == null)
             {
                 return;
             }
 
-            var inputDirectory = openDialog.FileNames;
-            var directory = Path.GetDirectoryName(openDialog.FileName);
-            if (directory != null)
-            {
-                Settings.Config.OpenDirectory = directory;
-            }
-
             if (mainTabs.SelectedTab?.Controls[nameof(TreeViewWithSearchResults)] is TreeViewWithSearchResults treeViewWithSearchResults)
             {
-                treeViewWithSearchResults.Viewer.AddFiles(openDialog.FileNames);
+                treeViewWithSearchResults.Viewer.AddFiles(files);
             }
         }
 
@@ -583,31 +561,18 @@ namespace GUI
 
         private void OnSaveVPKToDiskToolStripMenuItem_Click(object sender, EventArgs e)
         {
-            using var saveDialog = new SaveFileDialog
-            {
-                InitialDirectory = Settings.Config.SaveDirectory,
-                AddToRecent = true,
-                Title = "Save VPK package",
-                DefaultExt = "vpk",
-                Filter = "Valve Pak|*.vpk"
-            };
+            var fileName = AppFileDialogs.SaveFile("Save VPK package", null, "vpk", "Valve Pak|*.vpk");
 
-            if (saveDialog.ShowDialog() != DialogResult.OK)
+            if (fileName == null)
             {
                 return;
             }
 
-            var directory = Path.GetDirectoryName(saveDialog.FileName);
-            if (directory != null)
-            {
-                Settings.Config.SaveDirectory = directory;
-            }
-
-            Log.Info(nameof(MainForm), $"Packing to '{saveDialog.FileName}'...");
+            Log.Info(nameof(MainForm), $"Packing to '{fileName}'...");
 
             if (mainTabs.SelectedTab?.Controls[nameof(TreeViewWithSearchResults)] is TreeViewWithSearchResults treeViewWithSearchResults)
             {
-                treeViewWithSearchResults.Viewer.SaveToFile(saveDialog.FileName);
+                treeViewWithSearchResults.Viewer.SaveToFile(fileName);
             }
         }
 

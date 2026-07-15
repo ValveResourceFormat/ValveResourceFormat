@@ -92,17 +92,12 @@ namespace GUI.Controls
 
         private void GamePathAdd(object sender, EventArgs e)
         {
-            using var dlg = new OpenFileDialog
-            {
-                InitialDirectory = Settings.Config.OpenDirectory,
-                Filter = "Valve Pak (*.vpk) or gameinfo.gi|*.vpk;gameinfo.gi|All files (*.*)|*.*",
-            };
-            if (dlg.ShowDialog() != DialogResult.OK)
+            var fileName = AppFileDialogs.OpenFile(null, "Valve Pak (*.vpk) or gameinfo.gi|*.vpk;gameinfo.gi|All files (*.*)|*.*");
+
+            if (fileName == null)
             {
                 return;
             }
-
-            var fileName = dlg.FileName;
 
             if (Regexes.VpkNumberArchive().IsMatch(fileName))
             {
@@ -114,12 +109,6 @@ namespace GUI.Controls
                 return;
             }
 
-            var directory = Path.GetDirectoryName(fileName);
-            if (directory != null)
-            {
-                Settings.Config.OpenDirectory = directory;
-            }
-
             Settings.Config.GameSearchPaths.Add(fileName);
 
             gamePaths.Items.Add(fileName);
@@ -127,24 +116,21 @@ namespace GUI.Controls
 
         private void GamePathAddFolder(object sender, EventArgs e)
         {
-            using var dlg = new FolderBrowserDialog
-            {
-                SelectedPath = Settings.Config.OpenDirectory,
-            };
-            if (dlg.ShowDialog() != DialogResult.OK)
+            var selectedPath = AppFileDialogs.PickFolder(null, AppFileDialogs.RememberIn.OpenDirectory);
+
+            if (selectedPath == null)
             {
                 return;
             }
 
-            if (Settings.Config.GameSearchPaths.Contains(dlg.SelectedPath))
+            if (Settings.Config.GameSearchPaths.Contains(selectedPath))
             {
                 return;
             }
 
-            Settings.Config.OpenDirectory = dlg.SelectedPath;
-            Settings.Config.GameSearchPaths.Add(dlg.SelectedPath);
+            Settings.Config.GameSearchPaths.Add(selectedPath);
 
-            gamePaths.Items.Add(dlg.SelectedPath);
+            gamePaths.Items.Add(selectedPath);
         }
 
         private void OnMaxTextureSizeValueChanged(object sender, EventArgs e)
@@ -330,7 +316,7 @@ namespace GUI.Controls
                 Windows.Win32.PInvoke.SHChangeNotify(Windows.Win32.UI.Shell.SHCNE_ID.SHCNE_ASSOCCHANGED, Windows.Win32.UI.Shell.SHCNF_FLAGS.SHCNF_FLUSH, null, null);
             }
 
-            await AppDialogs.ShowMessageAsync(
+            await AppMessageDialogs.ShowMessageAsync(
                 $"Registered .vpk file association as well as \"vpk:\" protocol link handling.{Environment.NewLine}{Environment.NewLine}If you move {Path.GetFileName(applicationPath)}, you will have to register it again.",
                 "File association registered"
             ).ConfigureAwait(false);

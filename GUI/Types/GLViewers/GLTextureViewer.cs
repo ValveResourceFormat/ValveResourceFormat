@@ -652,29 +652,16 @@ namespace GUI.Types.GLViewers
                 alternativeImageFormatIndex++;
             }
 
-            using var saveFileDialog = new SaveFileDialog
-            {
-                InitialDirectory = Settings.Config.SaveDirectory,
-                Filter = filter,
-                Title = "Save an Image File",
-                FileName = fileName,
-                AddToRecent = true,
-            };
+            var savePath = AppFileDialogs.SaveFile("Save an Image File", fileName, null, filter, out var selectedFilterIndex);
 
-            if (saveFileDialog.ShowDialog(UiControl) != DialogResult.OK)
+            if (savePath == null)
             {
                 return;
             }
 
-            var directory = Path.GetDirectoryName(saveFileDialog.FileName);
-            if (directory != null)
-            {
-                Settings.Config.SaveDirectory = directory;
-            }
+            using var fs = File.Create(savePath);
 
-            using var fs = saveFileDialog.OpenFile();
-
-            if (isHdrTexture && saveFileDialog.FilterIndex == 1)
+            if (isHdrTexture && selectedFilterIndex == 1)
             {
                 using var hdrBitmap = ReadPixelsToBitmap(hdr: true);
                 fs.Write(ValveResourceFormat.IO.TextureExtract.ToExrImage(hdrBitmap));
@@ -683,7 +670,7 @@ namespace GUI.Types.GLViewers
 
             var format = SKEncodedImageFormat.Png;
 
-            switch (saveFileDialog.FilterIndex - alternativeImageFormatIndex)
+            switch (selectedFilterIndex - alternativeImageFormatIndex)
             {
                 case 0:
                     format = SKEncodedImageFormat.Jpeg;
@@ -713,27 +700,14 @@ namespace GUI.Types.GLViewers
                 _ => ("PNG Image|*.png", "png"),
             };
 
-            using var saveFileDialog = new SaveFileDialog
-            {
-                InitialDirectory = Settings.Config.SaveDirectory,
-                Filter = filter,
-                Title = "Save an Image File",
-                FileName = $"{fileName}.{extension}",
-                AddToRecent = true,
-            };
+            var savePath = AppFileDialogs.SaveFile("Save an Image File", $"{fileName}.{extension}", null, filter);
 
-            if (saveFileDialog.ShowDialog(UiControl) != DialogResult.OK)
+            if (savePath == null)
             {
                 return;
             }
 
-            var directory = Path.GetDirectoryName(saveFileDialog.FileName);
-            if (directory != null)
-            {
-                Settings.Config.SaveDirectory = directory;
-            }
-
-            using var fs = saveFileDialog.OpenFile();
+            using var fs = File.Create(savePath);
 
             if (exportForm.SelectedFormat == SvgExportFormat.Svg && Resource?.DataBlock is Panorama panoramaData)
             {

@@ -162,7 +162,7 @@ namespace GUI.Utils
                 // Blocking on the task is only safe here because this runs at startup before
                 // the UI exists, when we switch to pangui, this will need to be correctly awaited
                 // to not block the UI thread
-                var continueAnyway = AppDialogs.ConfirmAsync(
+                var continueAnyway = AppMessageDialogs.ConfirmAsync(
                     $"Your current settings.vdf has a higher version ({currentVersion}) than currently supported ({SettingsFileCurrentVersion}). You likely ran an older version of Source 2 Viewer and your settings may get reset.\n\nDo you want to continue?",
                     "Source 2 Viewer downgraded",
                     buttons: ConfirmButtons.YesNo

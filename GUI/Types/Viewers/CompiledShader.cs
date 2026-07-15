@@ -413,27 +413,19 @@ namespace GUI.Types.Viewers
             Debug.Assert(combo.ParentProgramData != null);
 
             var extension = shaderFile.BlockName == "VULKAN" ? "spv" : shaderFile.BlockName.ToLowerInvariant();
-            using var dialog = new SaveFileDialog
-            {
-                Title = "Export bytecode",
-                FileName = $"{combo.ParentProgramData.ShaderName}_{combo.StaticComboId:x08}_{shaderFile.ShaderFileId:x02}",
-                InitialDirectory = Settings.Config.SaveDirectory,
-                DefaultExt = extension,
-                Filter = $"{shaderFile.BlockName} bytecode (*.{extension})|*.{extension}|All files (*.*)|*.*",
-                AddToRecent = true,
-            };
 
-            if (dialog.ShowDialog() != DialogResult.OK)
+            var fileName = AppFileDialogs.SaveFile(
+                "Export bytecode",
+                $"{combo.ParentProgramData.ShaderName}_{combo.StaticComboId:x08}_{shaderFile.ShaderFileId:x02}",
+                extension,
+                $"{shaderFile.BlockName} bytecode (*.{extension})|*.{extension}|All files (*.*)|*.*");
+
+            if (fileName == null)
             {
                 return;
             }
 
-            if (Path.GetDirectoryName(dialog.FileName) is { } directory)
-            {
-                Settings.Config.SaveDirectory = directory;
-            }
-
-            File.WriteAllBytes(dialog.FileName, shaderFile.Bytecode);
+            File.WriteAllBytes(fileName, shaderFile.Bytecode);
         }
     }
 }

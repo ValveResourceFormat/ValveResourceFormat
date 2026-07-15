@@ -81,24 +81,14 @@ namespace GUI.Types.Exporter
                         fileNameForSave += "_d";
                     }
 
-                    using var dialog = new SaveFileDialog
-                    {
-                        Title = "Choose where to save the file",
-                        FileName = fileNameForSave,
-                        InitialDirectory = Settings.Config.SaveDirectory,
-                        DefaultExt = extension,
-                        Filter = filter,
-                        AddToRecent = true,
-                    };
+                    var pickedFileName = AppFileDialogs.SaveFile("Choose where to save the file", fileNameForSave, extension, filter);
 
-                    var result = dialog.ShowDialog();
-
-                    if (result != DialogResult.OK)
+                    if (pickedFileName == null)
                     {
                         return;
                     }
 
-                    filaNameToSave = dialog.FileName;
+                    filaNameToSave = pickedFileName;
                     resourceTemp = null;
                 }
                 finally
@@ -107,10 +97,6 @@ namespace GUI.Types.Exporter
                 }
 
                 var directory = Path.GetDirectoryName(filaNameToSave);
-                if (directory != null)
-                {
-                    Settings.Config.SaveDirectory = directory;
-                }
 
                 var extractDialog = new ExtractProgressForm(exportData, directory ?? string.Empty, true)
                 {
@@ -163,27 +149,13 @@ namespace GUI.Types.Exporter
                     content.Dispose();
                 }
 
-                using var dialog = new SaveFileDialog
+                var saveFileName = AppFileDialogs.SaveFile("Choose where to save the file", Path.GetFileName(fileName), null, "All files (*.*)|*.*");
+
+                if (saveFileName != null)
                 {
-                    Title = "Choose where to save the file",
-                    InitialDirectory = Settings.Config.SaveDirectory,
-                    Filter = "All files (*.*)|*.*",
-                    FileName = Path.GetFileName(fileName),
-                    AddToRecent = true,
-                };
-                var userOK = dialog.ShowDialog();
+                    Log.Info(nameof(ExportFile), $"Saved \"{Path.GetFileName(saveFileName)}\"");
 
-                if (userOK == DialogResult.OK)
-                {
-                    var directory = Path.GetDirectoryName(dialog.FileName);
-                    if (directory != null)
-                    {
-                        Settings.Config.SaveDirectory = directory;
-                    }
-
-                    Log.Info(nameof(ExportFile), $"Saved \"{Path.GetFileName(dialog.FileName)}\"");
-
-                    using var streamOutput = dialog.OpenFile();
+                    using var streamOutput = File.Create(saveFileName);
                     await stream.CopyToAsync(streamOutput).ConfigureAwait(true);
                 }
 
@@ -279,7 +251,7 @@ namespace GUI.Types.Exporter
 
             if (!string.IsNullOrEmpty(messageString))
             {
-                return await AppDialogs.ConfirmAsync(messageString, "Decompile warning", MessageIcon.Warning).ConfigureAwait(true);
+                return await AppMessageDialogs.ConfirmAsync(messageString, "Decompile warning", MessageIcon.Warning).ConfigureAwait(true);
             }
 
             return true;
