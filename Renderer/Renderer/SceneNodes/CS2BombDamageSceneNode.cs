@@ -1,4 +1,3 @@
-using System.Buffers;
 using System.Diagnostics;
 using System.Reflection;
 using System.Runtime.InteropServices;
@@ -64,11 +63,10 @@ public class CS2BombDamageSceneNode : SceneNode
 
         GL.CreateVertexArrays(1, out vaoHandle);
 
-        var buffers = ArrayPool<int>.Shared.Rent(2);
+        var buffers = new int[2];
         GL.CreateBuffers(2, buffers);
         iboHandle = buffers[0];
         vboHandle = buffers[1];
-        ArrayPool<int>.Shared.Return(buffers);
 
         LayerName = $"Bombsite {bombsiteIndex} baked damage data";
 
@@ -128,61 +126,53 @@ public class CS2BombDamageSceneNode : SceneNode
 
     private void Initialize(BombDamageData bombDamageData, int bombsiteIndex)
     {
-        var vertices = ArrayPool<VertexFormat>.Shared.Rent(bombDamageData.Positions.Length * 4);
-        var indices = ArrayPool<int>.Shared.Rent(bombDamageData.Positions.Length * 6);
+        var vertices = new List<VertexFormat>(bombDamageData.Positions.Length * 4);
+        var indices = new List<int>(bombDamageData.Positions.Length * 6);
 
-        try
+        for (var i = 0; i < bombDamageData.Positions.Length; i++)
         {
-            var verticesCount = 0;
-            for (var i = 0; i < bombDamageData.Positions.Length; i++)
+            if (vertices.Count == 0)
             {
-                if (verticesCount == 0)
-                {
-                    boundsMin = boundsMax = bombDamageData.Positions[i];
-                }
-                AddFace(vertices, ref verticesCount, indices, ref indicesCount, bombDamageData, i, bombsiteIndex);
+                boundsMin = boundsMax = bombDamageData.Positions[i];
             }
+            AddFace(vertices, indices, bombDamageData, i, bombsiteIndex);
+        }
 
-            BoundingBox = new AABB(boundsMin, boundsMax);
+        indicesCount = indices.Count;
+        BoundingBox = new AABB(boundsMin, boundsMax);
 
-            GL.VertexArrayVertexBuffer(vaoHandle, 0, vboHandle, 0, VertexSize);
-            GL.NamedBufferData(vboHandle, verticesCount * VertexSize, vertices, BufferUsageHint.StaticDraw);
+        GL.VertexArrayVertexBuffer(vaoHandle, 0, vboHandle, 0, VertexSize);
+        GL.NamedBufferData(vboHandle, vertices.Count * VertexSize, ListAccessors<VertexFormat>.GetBackingArray(vertices), BufferUsageHint.StaticDraw);
 
-            GL.VertexArrayElementBuffer(vaoHandle, iboHandle);
-            GL.NamedBufferData(iboHandle, indicesCount * sizeof(int), indices, BufferUsageHint.StaticDraw);
+        GL.VertexArrayElementBuffer(vaoHandle, iboHandle);
+        GL.NamedBufferData(iboHandle, indices.Count * sizeof(int), ListAccessors<int>.GetBackingArray(indices), BufferUsageHint.StaticDraw);
 
 #if DEBUG
-            var vaoLabel = nameof(CS2BombDamageSceneNode);
-            GL.ObjectLabel(ObjectLabelIdentifier.VertexArray, vaoHandle, vaoLabel.Length, vaoLabel);
-            GL.ObjectLabel(ObjectLabelIdentifier.Buffer, vboHandle, vaoLabel.Length, vaoLabel);
-            GL.ObjectLabel(ObjectLabelIdentifier.Buffer, iboHandle, vaoLabel.Length, vaoLabel);
+        var vaoLabel = nameof(CS2BombDamageSceneNode);
+        GL.ObjectLabel(ObjectLabelIdentifier.VertexArray, vaoHandle, vaoLabel.Length, vaoLabel);
+        GL.ObjectLabel(ObjectLabelIdentifier.Buffer, vboHandle, vaoLabel.Length, vaoLabel);
+        GL.ObjectLabel(ObjectLabelIdentifier.Buffer, iboHandle, vaoLabel.Length, vaoLabel);
 #endif
-        }
-        finally
-        {
-            ArrayPool<VertexFormat>.Shared.Return(vertices);
-            ArrayPool<int>.Shared.Return(indices);
-        }
     }
 
-    private static void AddFaceIndices(int[] indices, ref int indicesCount, int baseFaceIndex)
+    private static void AddFaceIndices(List<int> indices, int baseFaceIndex)
     {
-        indices[indicesCount++] = baseFaceIndex + 0;
-        indices[indicesCount++] = baseFaceIndex + 1;
-        indices[indicesCount++] = baseFaceIndex + 2;
-        indices[indicesCount++] = baseFaceIndex + 0;
-        indices[indicesCount++] = baseFaceIndex + 2;
-        indices[indicesCount++] = baseFaceIndex + 3;
+        indices.Add(baseFaceIndex + 0);
+        indices.Add(baseFaceIndex + 1);
+        indices.Add(baseFaceIndex + 2);
+        indices.Add(baseFaceIndex + 0);
+        indices.Add(baseFaceIndex + 2);
+        indices.Add(baseFaceIndex + 3);
     }
 
-    private void AddFace(VertexFormat[] vertices, ref int verticesCount, int[] indices, ref int indicesCount, BombDamageData bombDamageData, int bombPositionIndex, int bombsiteIndex)
+    private void AddFace(List<VertexFormat> vertices, List<int> indices, BombDamageData bombDamageData, int bombPositionIndex, int bombsiteIndex)
     {
         var basePosition = bombDamageData.Positions[bombPositionIndex];
         var damage = bombDamageData.GetBombsiteDamageValue(bombPositionIndex, bombsiteIndex);
 
         var color = GetFaceColor(damage);
 
-        AddFaceIndices(indices, ref indicesCount, verticesCount);
+        AddFaceIndices(indices, vertices.Count);
 
         var yawRad = float.DegreesToRadians(damage.Yaw);
         var pitchRad = float.DegreesToRadians(damage.Pitch);
@@ -195,21 +185,23 @@ public class CS2BombDamageSceneNode : SceneNode
             faceVertices[i] = Vector3.Transform(faceVertices[i], rotation);
         }
 
-        AddVertex(vertices, ref verticesCount, basePosition + faceVertices[0], Vector2.Zero, color, damage.Phase);
-        AddVertex(vertices, ref verticesCount, basePosition + faceVertices[1], Vector2.UnitX, color, damage.Phase);
-        AddVertex(vertices, ref verticesCount, basePosition + faceVertices[2], Vector2.One, color, damage.Phase);
-        AddVertex(vertices, ref verticesCount, basePosition + faceVertices[3], Vector2.UnitY, color, damage.Phase);
+        AddVertex(vertices, basePosition + faceVertices[0], Vector2.Zero, color, damage.Phase);
+        AddVertex(vertices, basePosition + faceVertices[1], Vector2.UnitX, color, damage.Phase);
+        AddVertex(vertices, basePosition + faceVertices[2], Vector2.One, color, damage.Phase);
+        AddVertex(vertices, basePosition + faceVertices[3], Vector2.UnitY, color, damage.Phase);
     }
 
-    private void AddVertex(VertexFormat[] vertices, ref int verticesCount, Vector3 position, Vector2 uvs, int color, float phase)
+    private void AddVertex(List<VertexFormat> vertices, Vector3 position, Vector2 uvs, int color, float phase)
     {
         boundsMax = Vector3.Max(boundsMax, position);
         boundsMin = Vector3.Min(boundsMin, position);
-        vertices[verticesCount].Position = position;
-        vertices[verticesCount].UVs = uvs;
-        vertices[verticesCount].Color = color;
-        vertices[verticesCount].Phase = phase;
-        verticesCount++;
+        vertices.Add(new VertexFormat
+        {
+            Position = position,
+            UVs = uvs,
+            Color = color,
+            Phase = phase,
+        });
     }
 
     private static int GetFaceColor(BombDamageDataDamageValue damage)
@@ -281,10 +273,7 @@ public class CS2BombDamageSceneNode : SceneNode
         base.Delete();
         GL.DeleteVertexArray(vaoHandle);
 
-        var buffers = ArrayPool<int>.Shared.Rent(2);
-        buffers[0] = iboHandle;
-        buffers[1] = vboHandle;
+        var buffers = new[] { iboHandle, vboHandle };
         GL.DeleteBuffers(2, buffers);
-        ArrayPool<int>.Shared.Return(buffers);
     }
 }
