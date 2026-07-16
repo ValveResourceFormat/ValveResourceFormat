@@ -799,6 +799,8 @@ namespace ValveResourceFormat.Renderer
             var frustum = cullFrustum ??= camera.ViewFrustum;
             var cullResults = GetFrustumCullResults(frustum);
 
+            Counters.Active.Count(Counter.SceneObjectInView, cullResults.Count);
+
             // Collect mesh calls
             foreach (var node in cullResults)
             {
@@ -1263,11 +1265,15 @@ namespace ValveResourceFormat.Renderer
         {
             renderContext.RenderPass = RenderPass.DepthOnly;
 
+            Counters.Active.SuspendTriangleCounter();
+
             foreach (var (program, calls) in drawCalls)
             {
                 renderContext.ReplacementShader = depthOnlyShaders[(int)program];
                 MeshBatchRenderer.Render(calls, renderContext);
             }
+
+            Counters.Active.ResumeTriangleCounter();
         }
 
         /// <summary>
@@ -1293,12 +1299,16 @@ namespace ValveResourceFormat.Renderer
                 {
                     GL.ColorMask(false, false, false, false);
 
+                    Counters.Active.SuspendTriangleCounter();
+
                     renderContext.RenderPass = RenderPass.DepthOnly;
                     foreach (var (program, calls) in depthOnlyDraws)
                     {
                         renderContext.ReplacementShader = depthOnlyShaders[(int)program];
                         MeshBatchRenderer.Render(calls, renderContext);
                     }
+
+                    Counters.Active.ResumeTriangleCounter();
 
                     GL.ColorMask(true, true, true, true);
                 }

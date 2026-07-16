@@ -263,7 +263,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
                 shader.SetUniform3("uColor", particle.Color);
                 shader.SetUniform1("uAlpha", particle.Alpha * particle.AlphaAlternate);
 
-                Counters.Active.CountParticleDraw();
+                Counters.Active.Count(Counter.ParticleDraw);
                 GL.DrawArrays(PrimitiveType.TriangleStrip, 0, 4);
             }
 

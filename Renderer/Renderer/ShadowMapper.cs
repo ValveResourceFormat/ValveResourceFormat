@@ -286,6 +286,7 @@ public class ShadowMapper
     {
         shadowAtlas.Begin(atlasSize);
 
+        var usedTexels = 0L;
         var assignedFaces = 0;
         for (var i = order.Length - 1; i >= 0; i--)
         {
@@ -324,6 +325,10 @@ public class ShadowMapper
                         Light = light,
                         FaceIndex = face,
                     });
+
+                    // Each submitted face is a separate GPU shadow render; an omni light contributes up to 6.
+                    Counters.Active.Count(Counter.ShadowFaceSubmitted);
+                    usedTexels += (long)region.Width * region.Height;
                 }
                 else
                 {
@@ -333,5 +338,10 @@ public class ShadowMapper
                 assignedFaces++;
             }
         }
+
+        var atlasTexels = (long)atlasSize * atlasSize;
+        var atlasUsage = atlasTexels > 0 ? (float)usedTexels / atlasTexels : 0f;
+
+        Counters.Active.Set(Metric.ShadowAtlasUsage, atlasUsage);
     }
 }
