@@ -109,11 +109,28 @@ internal class PulseGraphViewer : GLNodeGraphViewer
         public Node node;
     }
 
-    struct PulseOutflowConnection
+    class PulseOutflowConnection
     {
-        public string sourceOutflowName;
+        public required string sourceOutflowName;
         public int destChunk;
         public int destInstructionIdx;
+
+        public static explicit operator PulseOutflowConnection?(KVObject obj)
+        {
+            if (obj.TryGetValue("sourceOutflowName", out var sourceOutflowName) &&
+               obj.TryGetValue("destChunk", out var destChunk) &&
+               obj.TryGetValue("destInstructionIdx", out var destInstructionIdx))
+            {
+                return new PulseOutflowConnection
+                {
+                    sourceOutflowName = sourceOutflowName.ToString(CultureInfo.InvariantCulture),
+                    destChunk = destChunk.ToInt32(CultureInfo.InvariantCulture),
+                    destInstructionIdx = destInstructionIdx.ToInt32(CultureInfo.InvariantCulture)
+                };
+            }
+
+            return null;
+        }
     }
 
     #region Socket types
@@ -248,22 +265,20 @@ internal class PulseGraphViewer : GLNodeGraphViewer
 
     private void AddOutflowSocket(
         Node node,
-        KVObject outflow,
+        PulseOutflowConnection outflow,
         string socketLabel,
         Dictionary<int, KVObject> registerConstValueMap,
         Dictionary<int, SocketOut> registerOutputSocketMap,
         int maxInstructionIdx
     )
     {
-        var destChunk = outflow.GetInt32Property("m_nDestChunk");
-        var destInstructionIdx = outflow.GetInt32Property("m_nInstruction");
-        if (destChunk == -1 || destInstructionIdx == -1)
+        if (outflow.destChunk == -1 || outflow.destInstructionIdx == -1)
         {
             return;
         }
 
         var outputSocket = node.CreateSocketOut<Flow>(socketLabel);
-        TraverseOutflow(destChunk, destInstructionIdx, maxInstructionIdx, outputSocket, registerConstValueMap, registerOutputSocketMap);
+        TraverseOutflow(outflow.destChunk, outflow.destInstructionIdx, maxInstructionIdx, outputSocket, registerConstValueMap, registerOutputSocketMap);
     }
 
     private static NodeGraphControl CreateAndConfigureNodeGraph(KVObject data, out KVObject graphDef)
@@ -852,9 +867,8 @@ internal class PulseGraphViewer : GLNodeGraphViewer
 
                         if (instrJumpComp == null)
                         {
-                            Log.Warn(nameof(PulseGraphViewer), $"Could not find conditional jump instruction for loop starting at instruction {loopStart} to {loopEndInstr} in chunk {chunkIndex}");
                             // Loop can happen with async calls, but it's safe to proceed.
-                            //instructionIdx = loopEnd + 1;
+                            Log.Warn(nameof(PulseGraphViewer), $"Could not find conditional jump instruction for loop starting at instruction {loopStart} to {loopEnd} in chunk {chunkIndex}. Possibly asynchronous loop?");
                             break;
                         }
 
@@ -1193,7 +1207,7 @@ internal class PulseGraphViewer : GLNodeGraphViewer
 
                             AddFilteredCellDetails(node, cellIndex);
                             CreateInputsFromRegisterMap(node, chunkIndex, registerConstValueMap, registerOutputSocketMap, registerMap);
-                            PopulateSpecificCell(node, cellIndex, registerConstValueMap, registerOutputSocketMap, finalEndingInstructionIdx);
+                            PopulateCellAndTraverseOutflows(node, cellIndex, registerConstValueMap, registerOutputSocketMap, finalEndingInstructionIdx);
 
                             node.Calculate();
                             nodeGraph.AddNode(node);
@@ -1516,15 +1530,16 @@ internal class PulseGraphViewer : GLNodeGraphViewer
         int cellIdx,
         Dictionary<int, KVObject> registerConstValueMap,
         Dictionary<int, SocketOut> registerOutputSocketMap,
-        int maxInstructionIdx
+        int maxInstructionIdx,
+        HashSet<string> ignoredNames // if we want to handle some outflows explicitly
     )
     {
-        var cell = cells[cellIdx];
-        foreach (var outflow in cell.Values)
+        var outflows = GetCellOutflows(cellIdx);
+        foreach (var outflow in outflows)
         {
-            if (outflow.TryGetValue("m_SourceOutflowName", out var outflowName))
+            if (!ignoredNames.Contains(outflow.sourceOutflowName))
             {
-                AddOutflowSocket(node, outflow, outflowName.ToString(CultureInfo.InvariantCulture), registerConstValueMap, registerOutputSocketMap, maxInstructionIdx);
+                AddOutflowSocket(node, outflow, outflow.sourceOutflowName, registerConstValueMap, registerOutputSocketMap, maxInstructionIdx);
             }
         }
     }
@@ -1548,7 +1563,10 @@ internal class PulseGraphViewer : GLNodeGraphViewer
             $"Failed to retrieve flow node ID for chunk {chunkId} instruction {instructionIdx}. No m_InstructionDebugInfos, or m_InstructionEditorIDs found in chunk definition.");
         return -1; // Fine to return -1, as it is not fully necessary to make everything work and that value can also appear normally.
     }
-    private void PopulateSpecificCell(
+
+    // Generates outflows and labels for specific cells, this is needed as each one can have very different meaning or behavior.
+    // Additionally, handle outflows. Explicitly, or automatically.
+    private void PopulateCellAndTraverseOutflows(
         Node node,
         int cellIdx,
         Dictionary<int, KVObject> registerConstValueMap,
@@ -1556,6 +1574,7 @@ internal class PulseGraphViewer : GLNodeGraphViewer
         int maxInstructionIdx
     )
     {
+        HashSet<string> processedOutflowNames = [];
         var cellCategory = GetCellCategory(cellIdx);
         var cellType = GetCellType(cellIdx, out var cellName);
 
@@ -1572,29 +1591,8 @@ internal class PulseGraphViewer : GLNodeGraphViewer
 
                         var outputSocket = node.CreateSocketOut<Flow>("OnFinished");
                         TraverseOutflow(destChunk, destInstructionIdx, maxInstructionIdx, outputSocket, registerConstValueMap, registerOutputSocketMap);
+                        processedOutflowNames.Add("m_WakeResume");
                     }
-                    break;
-                }
-            case CellCategory.Outflow:
-                {
-                    switch (cellType)
-                    {
-                        case CellType.CycleRandom:
-                        case CellType.CycleShuffled:
-                        case CellType.CycleOrdered:
-                            {
-                                var outputs = cells[cellIdx].GetArray("m_Outputs");
-                                foreach (var output in outputs)
-                                {
-                                    var outflowName = output.GetStringProperty("m_SourceOutflowName");
-                                    AddOutflowSocket(node, output, outflowName, registerConstValueMap, registerOutputSocketMap, maxInstructionIdx);
-                                }
-                                break;
-                            }
-
-                    }
-                    GeneratePossibleOutflowsForCell(node, cellIdx, registerConstValueMap, registerOutputSocketMap, maxInstructionIdx);
-
                     break;
                 }
             case CellCategory.Step:
@@ -1630,27 +1628,25 @@ internal class PulseGraphViewer : GLNodeGraphViewer
                                 var timelineEvents = cells[cellIdx].GetArray("m_TimelineEvents");
                                 foreach (var timelineEvent in timelineEvents)
                                 {
-                                    var eventOutflow = timelineEvent["m_EventOutflow"];
-                                    var destChunk = eventOutflow.GetInt32Property("m_nDestChunk");
-                                    if (destChunk == -1)
+                                    var eventOutflow = (PulseOutflowConnection?)timelineEvent["m_EventOutflow"];
+                                    if (eventOutflow is null || eventOutflow.destChunk == -1)
                                     {
                                         continue;
                                     }
 
-                                    var outflowName = eventOutflow.GetStringProperty("m_SourceOutflowName");
-
                                     var timeFromPrevious = timelineEvent.GetFloatProperty("m_flTimeFromPrevious");
-                                    var socketLabel = $"(Time from prev: {timeFromPrevious}s) | {outflowName}";
+                                    var socketLabel = $"(Time from prev: {timeFromPrevious}s) | {eventOutflow.sourceOutflowName}";
                                     AddOutflowSocket(node, eventOutflow, socketLabel, registerConstValueMap, registerOutputSocketMap, maxInstructionIdx);
+                                    processedOutflowNames.Add(eventOutflow.sourceOutflowName);
                                 }
                                 break;
                             }
                     }
-                    // Some cells don't have Outflow in the name, but still have outflows.
-                    GeneratePossibleOutflowsForCell(node, cellIdx, registerConstValueMap, registerOutputSocketMap, maxInstructionIdx);
                     break;
                 }
         }
+
+        GeneratePossibleOutflowsForCell(node, cellIdx, registerConstValueMap, registerOutputSocketMap, maxInstructionIdx, processedOutflowNames);
     }
 
     private void CreateGraph()
