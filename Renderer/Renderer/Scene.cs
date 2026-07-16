@@ -876,7 +876,7 @@ namespace ValveResourceFormat.Renderer
                 {
                     if (node is SceneLight light)
                     {
-                        PerfStats.Active?.CountLightInView(light);
+                        Counters.Active.CountLightInView(light);
                     }
 
                     var customRender = new MeshBatchRenderer.Request

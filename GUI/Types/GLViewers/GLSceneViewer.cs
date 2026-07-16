@@ -33,8 +33,16 @@ namespace GUI.Types.GLViewers
         private bool showStaticOctree;
         private bool showDynamicOctree;
         private bool showVisDebug;
-        private bool showPerfStats;
-        private CheckBox? perfStatsCheckBox;
+
+        private enum PerfDisplay
+        {
+            Off,
+            Stats,
+            Timings,
+        }
+
+        private PerfDisplay perfDisplay;
+        private ComboBox? perfDisplayComboBox;
 
         private readonly List<RenderModes.RenderMode> renderModes = new(RenderModes.Items.Count);
         private int renderModeCurrentIndex;
@@ -117,7 +125,9 @@ namespace GUI.Types.GLViewers
                     }
                 }
 
-                perfStatsCheckBox = UiControl.AddCheckBox("Show Perf Stats", showPerfStats, (v) => showPerfStats = v);
+                perfDisplayComboBox = UiControl.AddSelection("Perf Stats", (_, i) => perfDisplay = (PerfDisplay)i);
+                perfDisplayComboBox.Items.AddRange([nameof(PerfDisplay.Off), nameof(PerfDisplay.Stats), nameof(PerfDisplay.Timings)]);
+                perfDisplayComboBox.SelectedIndex = (int)perfDisplay;
             }
 
             base.AddUiControls();
@@ -426,9 +436,11 @@ namespace GUI.Types.GLViewers
             Debug.Assert(Picker != null);
             Debug.Assert(SelectedNodeRenderer != null);
 
-            Renderer.PerfStats.Capture = showPerfStats;
+            Renderer.Counters.Capture = perfDisplay == PerfDisplay.Stats;
+            Renderer.Timings.Capture = perfDisplay == PerfDisplay.Timings;
 
-            Renderer.PerfStats.MarkFrameBegin();
+            Renderer.Timings.MarkFrameBegin();
+            Renderer.Counters.MarkFrameBegin();
             GL.BeginQuery(QueryTarget.TimeElapsed, frametimeQuery1);
 
             var renderContext = new Scene.RenderContext
@@ -593,15 +605,19 @@ namespace GUI.Types.GLViewers
                 }
             }
 
-            if (Renderer.PerfStats.Capture)
+            if (perfDisplay == PerfDisplay.Stats)
             {
-                Renderer.PerfStats.Display(TextRenderer, Renderer.Camera, Scene, SkyboxScene);
+                Renderer.Counters.DisplayStats(TextRenderer, Renderer.Camera, Scene, SkyboxScene);
+            }
+            else if (perfDisplay == PerfDisplay.Timings)
+            {
+                Renderer.Timings.DisplayTimings(TextRenderer, Renderer.Camera);
             }
 
             TextRenderer.Render(Renderer.Camera, Renderer.ResolvedSceneDepth);
             Picker?.TriggerEventIfAny();
 
-            Renderer.PerfStats.MarkFrameEnd();
+            Renderer.Timings.MarkFrameEnd();
         }
 
         protected void AddBaseGridControl()
@@ -785,10 +801,10 @@ namespace GUI.Types.GLViewers
                 SelectedNodeRenderer.SelectNode(null);
             }
 
-            if (e.KeyData == Keys.Tab && perfStatsCheckBox != null)
+            if (e.KeyData == Keys.Tab && perfDisplayComboBox != null)
             {
-                // Toggle perf stats visibility (the callback updates showPerfStats)
-                perfStatsCheckBox.Checked = !perfStatsCheckBox.Checked;
+                // Cycle through the perf display modes (the callback updates perfDisplay)
+                perfDisplayComboBox.SelectedIndex = (perfDisplayComboBox.SelectedIndex + 1) % perfDisplayComboBox.Items.Count;
             }
 
             base.OnKeyDown(sender, e);

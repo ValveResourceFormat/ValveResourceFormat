@@ -555,7 +555,7 @@ namespace ValveResourceFormat.Renderer.Particles
 
                 if (rendered)
                 {
-                    PerfStats.Active?.CountParticleSystem();
+                    Counters.Active.CountParticleSystem();
                 }
             }
         }
