@@ -34,6 +34,7 @@ namespace GUI.Types.GLViewers
         private bool showDynamicOctree;
         private bool showVisDebug;
         private bool showPerfStats;
+        private CheckBox? perfStatsCheckBox;
 
         private readonly List<RenderModes.RenderMode> renderModes = new(RenderModes.Items.Count);
         private int renderModeCurrentIndex;
@@ -116,7 +117,7 @@ namespace GUI.Types.GLViewers
                     }
                 }
 
-                UiControl.AddCheckBox("Show Perf Stats", showPerfStats, (v) => showPerfStats = v);
+                perfStatsCheckBox = UiControl.AddCheckBox("Show Perf Stats", showPerfStats, (v) => showPerfStats = v);
             }
 
             base.AddUiControls();
@@ -425,9 +426,7 @@ namespace GUI.Types.GLViewers
             Debug.Assert(Picker != null);
             Debug.Assert(SelectedNodeRenderer != null);
 
-            // Holding Tab inverts the perf stats visibility while held
-            var tabHeld = (CurrentlyPressedKeys & TrackedKeys.Tab) != 0;
-            Renderer.PerfStats.Capture = showPerfStats ^ tabHeld;
+            Renderer.PerfStats.Capture = showPerfStats;
 
             Renderer.PerfStats.MarkFrameBegin();
             GL.BeginQuery(QueryTarget.TimeElapsed, frametimeQuery1);
@@ -784,6 +783,12 @@ namespace GUI.Types.GLViewers
             if (e.KeyData == Keys.Escape)
             {
                 SelectedNodeRenderer.SelectNode(null);
+            }
+
+            if (e.KeyData == Keys.Tab && perfStatsCheckBox != null)
+            {
+                // Toggle perf stats visibility (the callback updates showPerfStats)
+                perfStatsCheckBox.Checked = !perfStatsCheckBox.Checked;
             }
 
             base.OnKeyDown(sender, e);
