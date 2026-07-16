@@ -111,24 +111,31 @@ internal class PulseGraphViewer : GLNodeGraphViewer
 
     class PulseOutflowConnection
     {
-        public required string sourceOutflowName;
-        public int destChunk;
-        public int destInstructionIdx;
-        public KVObject? outflowRegisterMap;
+        public string sourceOutflowName { get; private set; }
+        public int destChunk { get; private set; }
+        public int destInstructionIdx { get; private set; }
+        public KVObject? outflowRegisterMap { get; private set; }
+
+        public PulseOutflowConnection(string sourceOutflowName, int destChunk, int destInstructionIdx, KVObject? outflowRegisterMap)
+        {
+            this.sourceOutflowName = sourceOutflowName;
+            this.destChunk = destChunk;
+            this.destInstructionIdx = destInstructionIdx;
+            this.outflowRegisterMap = outflowRegisterMap;
+        }
 
         public static explicit operator PulseOutflowConnection?(KVObject obj)
         {
-            if (obj.TryGetValue("sourceOutflowName", out var sourceOutflowName) &&
-               obj.TryGetValue("destChunk", out var destChunk) &&
-               obj.TryGetValue("destInstructionIdx", out var destInstructionIdx))
+            if (obj.TryGetValue("m_SourceOutflowName", out var sourceOutflowName) &&
+               obj.TryGetValue("m_nDestChunk", out var destChunk) &&
+               obj.TryGetValue("m_nInstruction", out var destInstructionIdx))
             {
-                return new PulseOutflowConnection
-                {
-                    sourceOutflowName = sourceOutflowName.ToString(CultureInfo.InvariantCulture),
-                    destChunk = destChunk.ToInt32(CultureInfo.InvariantCulture),
-                    destInstructionIdx = destInstructionIdx.ToInt32(CultureInfo.InvariantCulture),
-                    outflowRegisterMap = obj.TryGetValue("m_OutflowRegisterMap", out var outflowRegisterMap) ? outflowRegisterMap : null
-                };
+                return new PulseOutflowConnection(
+                    sourceOutflowName.ToString(CultureInfo.InvariantCulture),
+                    destChunk.ToInt32(CultureInfo.InvariantCulture),
+                    destInstructionIdx.ToInt32(CultureInfo.InvariantCulture),
+                    obj.TryGetValue("m_OutflowRegisterMap", out var outflowRegisterMap) ? outflowRegisterMap : null
+                );
             }
 
             return null;
@@ -499,16 +506,10 @@ internal class PulseGraphViewer : GLNodeGraphViewer
         List<PulseOutflowConnection> outflows = [];
         static void GetCellOutflowsRecurse(KVObject obj, List<PulseOutflowConnection> outflowList)
         {
-            if (obj.TryGetValue("m_SourceOutflowName", out var sourceOutflowName)
-                && obj.TryGetValue("m_nDestChunk", out var destChunk)
-                && obj.TryGetValue("m_nInstruction", out var destInstruction))
+            var outflow = (PulseOutflowConnection?)obj;
+            if (outflow is not null)
             {
-                outflowList.Add(new PulseOutflowConnection
-                {
-                    sourceOutflowName = sourceOutflowName.ToString(CultureInfo.InvariantCulture),
-                    destChunk = destChunk.ToInt32(CultureInfo.InvariantCulture),
-                    destInstructionIdx = destInstruction.ToInt32(CultureInfo.InvariantCulture),
-                });
+                outflowList.Add(outflow);
                 return;
             }
 
