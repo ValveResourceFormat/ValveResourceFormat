@@ -114,6 +114,7 @@ internal class PulseGraphViewer : GLNodeGraphViewer
         public required string sourceOutflowName;
         public int destChunk;
         public int destInstructionIdx;
+        public KVObject? outflowRegisterMap;
 
         public static explicit operator PulseOutflowConnection?(KVObject obj)
         {
@@ -125,7 +126,8 @@ internal class PulseGraphViewer : GLNodeGraphViewer
                 {
                     sourceOutflowName = sourceOutflowName.ToString(CultureInfo.InvariantCulture),
                     destChunk = destChunk.ToInt32(CultureInfo.InvariantCulture),
-                    destInstructionIdx = destInstructionIdx.ToInt32(CultureInfo.InvariantCulture)
+                    destInstructionIdx = destInstructionIdx.ToInt32(CultureInfo.InvariantCulture),
+                    outflowRegisterMap = obj.TryGetValue("m_OutflowRegisterMap", out var outflowRegisterMap) ? outflowRegisterMap : null
                 };
             }
 
@@ -277,6 +279,10 @@ internal class PulseGraphViewer : GLNodeGraphViewer
             return;
         }
 
+        if (outflow.outflowRegisterMap is not null)
+        {
+            TryAddRegisterMapOutParams(node, outflow.destChunk, registerOutputSocketMap, outflow.outflowRegisterMap);
+        }
         var outputSocket = node.CreateSocketOut<Flow>(socketLabel);
         TraverseOutflow(outflow.destChunk, outflow.destInstructionIdx, maxInstructionIdx, outputSocket, registerConstValueMap, registerOutputSocketMap);
     }
