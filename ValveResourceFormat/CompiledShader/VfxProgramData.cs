@@ -344,7 +344,7 @@ namespace ValveResourceFormat.CompiledShader
             StaticComboArray = new VfxCombo[staticCombosCount];
             for (var i = 0; i < staticCombosCount; i++)
             {
-                VfxCombo nextSfBlock = new(DataReader, i);
+                VfxCombo nextSfBlock = new(DataReader, i, VcsVersion);
                 StaticComboArray[i] = nextSfBlock;
             }
 
@@ -362,7 +362,7 @@ namespace ValveResourceFormat.CompiledShader
             DynamicComboArray = new VfxCombo[dynamicCombosCount];
             for (var i = 0; i < dynamicCombosCount; i++)
             {
-                VfxCombo nextDBlock = new(DataReader, i);
+                VfxCombo nextDBlock = new(DataReader, i, VcsVersion);
                 DynamicComboArray[i] = nextDBlock;
             }
 
@@ -495,7 +495,7 @@ namespace ValveResourceFormat.CompiledShader
             StaticComboArray = new VfxCombo[staticCombos.Count];
             for (var i = 0; i < staticCombos.Count; i++)
             {
-                StaticComboArray[i] = new VfxCombo(staticCombos[i], i);
+                StaticComboArray[i] = new VfxCombo(staticCombos[i], i, VcsVersion);
             }
 
             // CalculateComboIds(StaticComboArray);
@@ -511,7 +511,7 @@ namespace ValveResourceFormat.CompiledShader
             DynamicComboArray = new VfxCombo[dynamicCombos.Count];
             for (var i = 0; i < dynamicCombos.Count; i++)
             {
-                DynamicComboArray[i] = new VfxCombo(dynamicCombos[i], i);
+                DynamicComboArray[i] = new VfxCombo(dynamicCombos[i], i, VcsVersion);
             }
 
             // CalculateComboIds(DynamicComboArray);
