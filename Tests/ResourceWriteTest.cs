@@ -58,7 +58,7 @@ namespace Tests
 
             modelInfo.Data["m_name"] = new KVObject(NewName);
 
-            using (var fs = new FileStream(outputPath, FileMode.OpenOrCreate, FileAccess.Write))
+            using (var fs = new FileStream(outputPath, FileMode.Create, FileAccess.Write))
             {
                 resource.Serialize(fs);
             }

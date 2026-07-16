@@ -372,7 +372,7 @@ namespace GUI.Forms
                 if (!decompile || !packageFile.TypeName.EndsWith(GameFileLoader.CompiledFileSuffix, StringComparison.Ordinal))
                 {
                     // Extract as is
-                    using var outStream = File.OpenWrite(outFilePath);
+                    using var outStream = File.Create(outFilePath);
                     await stream.CopyToAsync(outStream).ConfigureAwait(false);
 
                     continue;

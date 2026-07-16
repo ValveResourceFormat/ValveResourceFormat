@@ -292,7 +292,7 @@ namespace GUI.Controls
             {
                 using var iconStream = Program.Assembly.GetManifestResourceStream("GUI.Utils.vpk.ico");
                 Debug.Assert(iconStream != null);
-                using var iconDiskStream = File.OpenWrite(vpkIconPath);
+                using var iconDiskStream = File.Create(vpkIconPath);
                 await iconStream.CopyToAsync(iconDiskStream).ConfigureAwait(true);
             }
 
