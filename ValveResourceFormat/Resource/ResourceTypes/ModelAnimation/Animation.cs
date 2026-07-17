@@ -66,6 +66,9 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
         /// </summary>
         public AnimationMovement[] Movements { get; }
 
+        // Per-frame accumulated root motion for clip-backed animations (AG2 m_rootMotion).
+        private readonly AnimationMovement.MovementData[] clipMovements = [];
+
         /// <summary>
         /// Gets the events defined in this animation.
         /// </summary>
@@ -449,7 +452,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
         /// </summary>
         public bool HasMovementData()
         {
-            return Movements.Length > 0;
+            return Movements.Length > 0 || clipMovements.Length > 0;
         }
 
         /// <summary>
@@ -457,6 +460,19 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
         /// </summary>
         public AnimationMovement.MovementData GetMovementOffsetData(float time)
         {
+            if (clipMovements.Length > 0)
+            {
+                var frame = time * Fps % FrameCount;
+                var lower = Math.Clamp((int)MathF.Floor(frame), 0, clipMovements.Length - 1);
+                var upper = Math.Min(lower + 1, clipMovements.Length - 1);
+                var a = clipMovements[lower];
+                var b = clipMovements[upper];
+
+                return new AnimationMovement.MovementData(
+                    Vector3.Lerp(a.Position, b.Position, frame - lower),
+                    float.Lerp(a.Angle, b.Angle, frame - lower));
+            }
+
             if (!HasMovementData())
             {
                 return new();
@@ -471,6 +487,11 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
         /// </summary>
         public AnimationMovement.MovementData GetMovementOffsetData(int frame)
         {
+            if (clipMovements.Length > 0)
+            {
+                return clipMovements[Math.Clamp(frame, 0, clipMovements.Length - 1)];
+            }
+
             if (!HasMovementData())
             {
                 return new();
@@ -521,16 +542,125 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
         public AnimationClip? Clip { get; }
 
         /// <summary>
+        /// Gets or sets whether this animation is composed additively over the skeleton bind pose rather
+        /// than applied as an absolute pose. For AG2 clips this comes from the clip's own additive flag;
+        /// AG1 sequences have no such flag, so the model loader sets it from the animation graph.
+        /// </summary>
+        public bool IsAdditive { get; set; }
+
+        [Flags]
+        private enum AnimatedChannels : byte
+        {
+            None = 0,
+            Position = 1,
+            Angle = 2,
+        }
+
+        /// <summary>
+        /// Composes an already-decoded additive frame over the skeleton bind pose, in place. AG2 clips store
+        /// an identity delta for un-animated bones, so every bone can be composed. AG1 clips only decode the
+        /// channels they actually write and leave the rest at bind pose (see <see cref="GetAnimatedChannels"/>),
+        /// so those channels are held at bind rather than added onto the bind pose a second time.
+        /// </summary>
+        public void ComposeAdditiveOverBindPose(FrameBone[] bones, Skeleton skeleton)
+        {
+            var isLegacy = Clip is null;
+            var animatedChannels = isLegacy ? GetAnimatedChannels(bones.Length) : null;
+
+            for (var i = 0; i < bones.Length; i++)
+            {
+                var bindPose = new FrameBone(skeleton.Bones[i].Position, 1f, skeleton.Bones[i].Angle);
+                var frameBone = bones[i];
+
+                if (!isLegacy)
+                {
+                    bones[i] = frameBone.BlendAdd(bindPose, 1f);
+                    continue;
+                }
+
+                // Compose per channel: a channel the animation does not write still holds the bind value from
+                // Frame.Clear, so adding the bind pose onto it (a rotation-only bone's translation, or a
+                // translation-only bone's rotation) would double it. Add only the channels actually animated.
+                var channels = animatedChannels![i];
+
+                var position = (channels & AnimatedChannels.Position) != 0
+                    ? frameBone.Position + bindPose.Position
+                    : bindPose.Position;
+
+                var angle = (channels & AnimatedChannels.Angle) != 0
+                    ? bindPose.Angle * frameBone.Angle
+                    : bindPose.Angle;
+
+                // Scale is always kept at bind: BlendAdd sums scale too, so a unit delta scale would otherwise
+                // compound multiplicatively up the bone hierarchy.
+                bones[i] = new FrameBone(position, bindPose.Scale, angle);
+            }
+        }
+
+        private AnimatedChannels[]? animatedChannelsCache;
+
+        /// <summary>
+        /// Returns, per bone, which transform channels this legacy (AG1) animation actually writes, derived from
+        /// the segment decoders' bone targets and channel attributes. Used to leave the channels an additive
+        /// layer does not touch at bind pose, rather than comparing decoded frame values against the bind pose
+        /// (which is unreliable once frames are interpolated).
+        /// </summary>
+        private AnimatedChannels[] GetAnimatedChannels(int boneCount)
+        {
+            if (animatedChannelsCache != null && animatedChannelsCache.Length == boneCount)
+            {
+                return animatedChannelsCache;
+            }
+
+            var animated = new AnimatedChannels[boneCount];
+
+            foreach (var segment in SegmentArray)
+            {
+                if (segment is null)
+                {
+                    continue;
+                }
+
+                var channel = segment.ChannelAttribute switch
+                {
+                    AnimationChannelAttribute.Position => AnimatedChannels.Position,
+                    AnimationChannelAttribute.Angle => AnimatedChannels.Angle,
+                    _ => AnimatedChannels.None,
+                };
+
+                if (channel == AnimatedChannels.None)
+                {
+                    continue;
+                }
+
+                foreach (var boneIndex in segment.RemapTable)
+                {
+                    if (boneIndex >= 0 && boneIndex < boneCount)
+                    {
+                        animated[boneIndex] |= channel;
+                    }
+                }
+            }
+
+            animatedChannelsCache = animated;
+            return animated;
+        }
+
+        /// <summary>
         /// Initializes a new instance of the <see cref="Animation"/> class from an animation clip.
         /// </summary>
         public Animation(AnimationClip clip)
         {
             Name = clip.Name;
             FrameCount = clip.NumFrames;
-            Fps = clip.Duration > 0 ? clip.NumFrames / clip.Duration : 1;
+
+            // NumFrames samples span Duration, so the frame rate counts the intervals between them.
+            Fps = clip.Duration > 0 && clip.NumFrames > 1 ? (clip.NumFrames - 1) / clip.Duration : 1;
 
             Clip = clip;
+            IsAdditive = clip.IsAdditive;
             Movements = [];
+            clipMovements = clip.RootMotion;
             Events = [];
             Activities = [];
         }

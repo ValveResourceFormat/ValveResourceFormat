@@ -102,6 +102,8 @@ namespace GUI.Types.GLViewers
 
                     // Set trackbar length to the animation length
                     animationController.SetAnimation(animationController.ActiveAnimation);
+
+                    SyncAnimationToggles();
                 }
 
                 if (animationPlayPause != null)

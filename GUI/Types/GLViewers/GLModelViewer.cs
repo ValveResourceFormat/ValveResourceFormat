@@ -25,6 +25,7 @@ namespace GUI.Types.GLViewers
         public ComboBox? animationComboBox { get; protected set; }
         protected CheckBox? animationPlayPause;
         private CheckBox? rootMotionCheckBox;
+        private CheckBox? additiveCheckBox;
         private CheckBox? showSkeletonCheckbox;
         private CheckBox? showParticlesCheckbox;
         private ComboBox? hitboxComboBox;
@@ -75,6 +76,7 @@ namespace GUI.Types.GLViewers
             lodComboBox?.Dispose();
             physicsGroupsComboBox?.Dispose();
             rootMotionCheckBox?.Dispose();
+            additiveCheckBox?.Dispose();
             showSkeletonCheckbox?.Dispose();
             showParticlesCheckbox?.Dispose();
             hitboxComboBox?.Dispose();
@@ -124,8 +126,7 @@ namespace GUI.Types.GLViewers
                     }
                 }
 
-                rootMotionCheckBox!.Enabled = animationController.ActiveAnimation?.HasMovementData() ?? false;
-                enableRootMotion = rootMotionCheckBox.Enabled && rootMotionCheckBox.Checked;
+                SyncAnimationToggles();
             });
 
             animationTimeLabel = new Label()
@@ -170,15 +171,41 @@ namespace GUI.Types.GLViewers
                 animationController.IsPaused = previousPaused;
             };
 
+            additiveCheckBox = UiControl.AddCheckBox("Additive (over bind pose)", false, isChecked =>
+            {
+                if (animationController != null)
+                {
+                    animationController.ApplyAdditive = isChecked;
+                }
+            });
+
+            additiveCheckBox.Enabled = false;
+
             rootMotionCheckBox = UiControl.AddCheckBox("Show Root Motion", enableRootMotion, (isChecked) =>
             {
                 enableRootMotion = isChecked;
-                Debug.Assert(modelSceneNode != null);
-                LastRootMotionPosition = modelSceneNode.Transform.Translation;
+                LastRootMotionPosition = modelSceneNode?.Transform.Translation ?? Vector3.Zero;
             });
 
             rootMotionCheckBox.Checked = false;
             rootMotionCheckBox.Enabled = false;
+        }
+
+        // Reflect the per-animation defaults after the active animation changes: root motion turns on
+        // whenever the animation has movement data, and the additive checkbox mirrors the state the
+        // controller seeded from Animation.IsAdditive; both remain manual overrides.
+        protected void SyncAnimationToggles()
+        {
+            Debug.Assert(animationController != null);
+
+            var hasRootMotion = animationController.ActiveAnimation?.HasMovementData() ?? false;
+            rootMotionCheckBox!.Enabled = hasRootMotion;
+            rootMotionCheckBox.Checked = hasRootMotion;
+            enableRootMotion = hasRootMotion;
+            LastRootMotionPosition = modelSceneNode?.Transform.Translation ?? Vector3.Zero;
+
+            additiveCheckBox!.Enabled = animationController.ActiveAnimation != null;
+            additiveCheckBox.Checked = animationController.ApplyAdditive;
         }
 
         protected override void LoadScene()
@@ -494,7 +521,7 @@ namespace GUI.Types.GLViewers
                 var time = animationController.Time % totalTime;
                 var frameNumber = animationController.Frame + 1;
 
-                var additive = animationController.ActiveAnimation.Clip is { IsAdditive: true }
+                var additive = animationController.ActiveAnimation.IsAdditive
                     ? "Additive: true\n"
                     : string.Empty;
 
@@ -635,14 +662,25 @@ namespace GUI.Types.GLViewers
 
         protected override void OnPaint(float frameTime)
         {
-            if (enableRootMotion && animationController != null && animationController.AnimationFrame is Frame animationFrame && modelSceneNode != null)
+            if (enableRootMotion && animationController != null && animationController.AnimationFrame is Frame animationFrame)
             {
                 var rootMotionDelta = animationFrame.Movement.Position - LastRootMotionPosition;
 
-                modelSceneNode.Transform = modelSceneNode.Transform with
+                if (modelSceneNode != null)
                 {
-                    Translation = modelSceneNode.Transform.Translation + rootMotionDelta,
-                };
+                    modelSceneNode.Transform = modelSceneNode.Transform with
+                    {
+                        Translation = modelSceneNode.Transform.Translation + rootMotionDelta,
+                    };
+                }
+
+                if (skeletonSceneNode != null)
+                {
+                    skeletonSceneNode.Transform = skeletonSceneNode.Transform with
+                    {
+                        Translation = skeletonSceneNode.Transform.Translation + rootMotionDelta,
+                    };
+                }
 
                 Input.Camera.Location += rootMotionDelta;
                 LastRootMotionPosition = animationFrame.Movement.Position;

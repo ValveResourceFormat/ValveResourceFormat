@@ -314,8 +314,11 @@ namespace ValveResourceFormat.Renderer
             // Check if clip already exists
             if (!clips.TryGetValue(animName, out var newClip))
             {
-                var isAdditive = animation.Clip?.IsAdditive == true;
-                newClip = new Clip(animation) { Looping = Looping, BlendTime = blendTime, IsAdditive = isAdditive };
+                // Only AG2 clips store per-bone deltas the mixer's additive BlendAdd can apply directly.
+                // Legacy (AG1) frames are absolute poses, so their additive layer is composed over the bind
+                // pose in the non-mixer path instead; blending them additively here would double the bind pose.
+                var mixerAdditive = animation.IsAdditive && animation.Clip is not null;
+                newClip = new Clip(animation) { Looping = Looping, BlendTime = blendTime, IsAdditive = mixerAdditive };
                 clips[animName] = newClip;
             }
             else

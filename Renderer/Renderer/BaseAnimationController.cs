@@ -100,6 +100,31 @@ namespace ValveResourceFormat.Renderer
         }
 
         /// <summary>
+        /// Procedural cloth root bones are excluded from pose evaluation because there is no cloth
+        /// simulation. Instead of leaving them frozen at bind pose, rigidly attach them to the cloth
+        /// simulation root so they follow the body. This mirrors how <see cref="GetSkinningMatrices"/>
+        /// skins the cloth mesh, and keeps the skeleton overlay consistent with the rendered mesh.
+        /// </summary>
+        protected void ApplyClothRootPose()
+        {
+            var clothSimRoot = Skeleton.ClothSimulationRoot;
+            if (clothSimRoot is null)
+            {
+                return;
+            }
+
+            var delta = InverseBindPose[clothSimRoot.Index] * Pose[clothSimRoot.Index];
+
+            foreach (var root in Skeleton.Roots)
+            {
+                if (root.IsProceduralCloth)
+                {
+                    Pose[root.Index] = root.BindPose * delta;
+                }
+            }
+        }
+
+        /// <summary>
         /// Get bone matrices in bindpose space.
         /// Bones that do not move from the original location will have an identity matrix.
         /// Thus there will be no transformation in the vertex shader.

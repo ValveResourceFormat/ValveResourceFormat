@@ -719,6 +719,8 @@ namespace ValveResourceFormat.IO
 
             var skinMaterialPath = skinName != null ? GetSkinPathFromModel(model, skinName) : null;
 
+            var morphedMeshNodes = new List<(Node Node, VMesh Mesh)>();
+
             foreach (var m in LoadModelMeshes(model, name))
             {
                 var meshName = m.Name;
@@ -735,13 +737,25 @@ namespace ValveResourceFormat.IO
                 }
 
                 var boneRemapTable = model.GetRemapTable(m.MeshIndex);
-                var node = AddMeshNode(exportedModel, scene, meshName, tintColor, m.Mesh, m.Mesh.VBIB, joints, boneRemapTable, skinMaterialPath, entity);
+                var node = AddMeshNode(exportedModel, scene, meshName, tintColor, m.Mesh, m.Mesh.VBIB, joints, out var meshNode, boneRemapTable, skinMaterialPath, entity);
                 if (node != null)
                 {
                     node.WorldMatrix = nodeTransform;
-
                     DebugValidateGLTF();
                 }
+
+                // meshNode is set even for skinned meshes (where node is returned null), so collect it here.
+                if (skeletonNode != null && meshNode != null && m.Mesh.MorphData?.FlexRules.Length > 0)
+                {
+                    morphedMeshNodes.Add((meshNode, m.Mesh));
+                }
+            }
+
+            // Morph target weights are driven by flex controllers, which aren't bone channels, so add them
+            // after the meshes exist (their nodes are created above) as a second pass over the animations.
+            if (skeletonNode != null && morphedMeshNodes.Count > 0)
+            {
+                WriteMorphAnimations(exportedModel, model, morphedMeshNodes);
             }
 
             // Even though that's not documented, order matters.
@@ -793,21 +807,24 @@ namespace ValveResourceFormat.IO
         {
             var exportedModel = CreateModelRoot(resourceName, out var scene);
             var name = Path.GetFileName(resourceName);
-            AddMeshNode(exportedModel, scene, name, Vector4.One, mesh, mesh.VBIB, joints: null);
+            AddMeshNode(exportedModel, scene, name, Vector4.One, mesh, mesh.VBIB, joints: null, meshNode: out _);
 
             WriteModelFile(exportedModel, fileName);
         }
 
         private Node? AddMeshNode(ModelRoot exportedModel, Scene scene, string name, Vector4 tintColor,
-            VMesh mesh, Blocks.VBIB vbib, Node[]? joints, int[]? boneRemapTable = null,
+            VMesh mesh, Blocks.VBIB vbib, Node[]? joints, out Node? meshNode, int[]? boneRemapTable = null,
             string? skinMaterialPath = null, EntityLump.Entity? entity = null)
         {
+            meshNode = null;
+
             if (mesh.Data.GetArray("m_sceneObjects").Count == 0)
             {
                 return null;
             }
 
             var newNode = scene.CreateNode(name);
+            meshNode = newNode;
             if (ExportedMeshes.TryGetValue(name, out var exportedMesh))
             {
                 // Make a new node that uses the existing mesh

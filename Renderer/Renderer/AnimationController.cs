@@ -23,8 +23,11 @@ namespace ValveResourceFormat.Renderer
         /// <summary>Gets or sets whether animations should loop when reaching the end.</summary>
         public bool Looping { get; set; } = true;
 
-        /// <summary>Gets the currently active animation, or <see langword="null"/> if none is set.</summary>
-        public Animation? ActiveAnimation => activeClip?.Animation;
+        /// <summary>
+        /// Gets the currently active animation, or <see langword="null"/> if none is set. While a
+        /// sub-controller is driving playback (AG2 external skeletons) this reports its animation.
+        /// </summary>
+        public Animation? ActiveAnimation => CurrentSubController is { } subController ? subController.Handler.ActiveAnimation : activeClip?.Animation;
 
         /// <summary>Gets the frame cache used to retrieve and interpolate animation frames.</summary>
         public AnimationFrameCache FrameCache { get; }
@@ -47,10 +50,18 @@ namespace ValveResourceFormat.Renderer
         /// <summary>Gets or sets the current frame index of the active animation.</summary>
         public int Frame
         {
-            get => activeClip?.Frame ?? 0;
+            get => CurrentSubController is { } subController ? subController.Handler.Frame : activeClip?.Frame ?? 0;
             set
             {
-                activeClip?.Frame = value;
+                if (CurrentSubController is { } subController)
+                {
+                    subController.Handler.Frame = value;
+                }
+                else
+                {
+                    activeClip?.Frame = value;
+                }
+
                 forceUpdate = true;
             }
         }
@@ -58,10 +69,18 @@ namespace ValveResourceFormat.Renderer
         /// <summary>Gets or sets the current playback time in seconds.</summary>
         public float Time
         {
-            get => activeClip?.Time ?? 0f;
+            get => CurrentSubController is { } subController ? subController.Handler.Time : activeClip?.Time ?? 0f;
             set
             {
-                activeClip?.Time = value;
+                if (CurrentSubController is { } subController)
+                {
+                    subController.Handler.Time = value;
+                }
+                else
+                {
+                    activeClip?.Time = value;
+                }
+
                 forceUpdate = true;
             }
         }
@@ -91,12 +110,12 @@ namespace ValveResourceFormat.Renderer
                 return false;
             }
 
-            timeStep *= FrametimeMultiplier;
-
             if (CurrentSubController is { } subController)
             {
+                // The sub-controller applies the multiplier itself in its own Update.
                 subController.Handler.IsPaused = IsPaused;
                 subController.Handler.Looping = Looping;
+                subController.Handler.FrametimeMultiplier = FrametimeMultiplier;
                 subController.Handler.forceUpdate = forceUpdate;
 
                 var updated = subController.Handler.Update(timeStep);
@@ -140,6 +159,7 @@ namespace ValveResourceFormat.Renderer
                     ComputePoseRecursive(root, Transform, subController, Pose);
                 }
 
+                ApplyClothRootPose();
 
                 AnimationFrame = GetFrame();
                 updateHandler(ActiveAnimation, Frame);
@@ -148,6 +168,8 @@ namespace ValveResourceFormat.Renderer
                 ApplyInverseKinematics();
                 return true;
             }
+
+            timeStep *= FrametimeMultiplier;
 
             if (!IsPaused && activeClip != null)
             {
@@ -164,18 +186,22 @@ namespace ValveResourceFormat.Renderer
                 return true;
             }
 
-            if (!IsUsingMixer && ActiveAnimation?.Clip is { IsAdditive: true })
+            // Additive clips are composed over the skeleton bind pose instead of applied as an absolute
+            // pose. Whether an animation is additive is decided by Animation.IsAdditive (AG2 clip flag or
+            // AG1 graph); the compose itself lives on Animation so the exporter shares it.
+            if (!IsUsingMixer && ApplyAdditive && ActiveAnimation != null)
             {
-                // We need a frame we can write to without ruining the frame cache
-                AnimationFrame.Bones.CopyTo(FrameCache.InterpolatedFrame.Bones);
-                AnimationFrame = FrameCache.InterpolatedFrame;
+                // Compose into the scratch interpolated frame so the frame cache is not mutated. Only the
+                // bones are recomputed here, so carry the flex (Datas) and movement across as well: the
+                // sampled frame may be an exact cached frame whose values would otherwise be left stale.
+                var scratch = FrameCache.InterpolatedFrame;
+                AnimationFrame.Bones.CopyTo(scratch.Bones);
+                AnimationFrame.Datas.CopyTo(scratch.Datas);
+                scratch.Movement = AnimationFrame.Movement;
+                scratch.FrameIndex = AnimationFrame.FrameIndex;
+                AnimationFrame = scratch;
 
-                // Add over bind pose
-                for (var i = 0; i < AnimationFrame.Bones.Length; i++)
-                {
-                    var bindPose = new FrameBone(Skeleton.Bones[i].Position, 1f, Skeleton.Bones[i].Angle);
-                    AnimationFrame.Bones[i] = AnimationFrame.Bones[i].BlendAdd(bindPose, 1f);
-                }
+                ActiveAnimation.ComposeAdditiveOverBindPose(AnimationFrame.Bones, Skeleton);
             }
 
             foreach (var root in Skeleton.Roots)
@@ -188,8 +214,37 @@ namespace ValveResourceFormat.Renderer
                 GetBoneMatricesRecursive(root, Transform, AnimationFrame, Pose);
             }
 
+            ApplyClothRootPose();
+
             ApplyInverseKinematics();
             return true;
+        }
+
+        /// <summary>
+        /// Gets or sets whether the active animation is composed additively over the skeleton bind pose
+        /// rather than applied as an absolute pose. <see cref="SetAnimation(Animation?, float)"/> seeds this
+        /// from <see cref="Animation.IsAdditive"/>. While a sub-controller is driving playback (AG2 external
+        /// skeletons) this delegates to it, so it always reflects what is actually being applied. Changing
+        /// the value forces a pose update.
+        /// </summary>
+        public bool ApplyAdditive
+        {
+            get => CurrentSubController is { } subController ? subController.Handler.ApplyAdditive : field;
+            set
+            {
+                // Force an update when the effective value changes. The getter reports the sub-controller's
+                // value while one is driving, so compare against that (not the parent's own field), otherwise
+                // Update's early-out swallows the toggle and the sub-controller never re-poses.
+                var effective = CurrentSubController is { } current ? current.Handler.ApplyAdditive : field;
+                forceUpdate = forceUpdate || effective != value;
+
+                if (CurrentSubController is { } subController)
+                {
+                    subController.Handler.ApplyAdditive = value;
+                }
+
+                field = value;
+            }
         }
 
         /// <summary>
@@ -216,6 +271,13 @@ namespace ValveResourceFormat.Renderer
                     subController.Handler.Looping = Looping;
                     subController.Handler.FrametimeMultiplier = FrametimeMultiplier;
                     subController.Handler.SetAnimation(animation, blendTime);
+
+                    // The parent's own mixer state is no longer what is playing; clear it so a later
+                    // switch back to a model-skeleton animation cannot blend from a stale clip.
+                    activeClip = null;
+                    previousClip = null;
+                    clips.Clear();
+
                     CurrentSubController = subController;
                     forceUpdate = true;
                     updateHandler(ActiveAnimation, -1);
@@ -225,6 +287,9 @@ namespace ValveResourceFormat.Renderer
 
             CurrentSubController = null;
             FrameCache.PurgeCache();
+
+            // Animation.IsAdditive already resolves AG2 (clip flag) and AG1 (animation graph) additive.
+            ApplyAdditive = animation?.IsAdditive ?? false;
 
             if (animation != null)
             {

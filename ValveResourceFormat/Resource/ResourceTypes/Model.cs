@@ -497,6 +497,29 @@ namespace ValveResourceFormat.ResourceTypes
             var referencedAnims = GetReferencedAnimations(fileLoader);
             animations.AddRange(referencedAnims);
 
+            // AG1 sequences carry no additive flag; mark the ones the animation graph applies additively.
+            // The graph is arbitrary third-party data walked on every model load, so an unexpected shape
+            // must never take down animation loading.
+            HashSet<string> additiveSequences;
+            try
+            {
+                additiveSequences = AnimationGraph1Additive.GetAdditiveSequences(this, fileLoader);
+            }
+            catch (Exception e)
+            {
+                Console.Error.WriteLine(e.ToString());
+                additiveSequences = [];
+            }
+
+            // Assign (not just set true) so the flag is deterministic per model: animations are shared
+            // between models via the resource cache, so a stale mark from another model's graph is cleared.
+            // '@'-prefixed autoplay aliases inherit the additive-ness of the sequence they wrap.
+            foreach (var animation in animations)
+            {
+                var sequenceName = animation.Name.StartsWith('@') ? animation.Name[1..] : animation.Name;
+                animation.IsAdditive = (animation.Clip?.IsAdditive ?? false) || additiveSequences.Contains(sequenceName);
+            }
+
             CachedAnimations = [.. animations];
 
             return CachedAnimations;
