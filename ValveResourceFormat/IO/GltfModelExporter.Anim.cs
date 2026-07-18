@@ -402,12 +402,15 @@ public partial class GltfModelExporter
 
             foreach (var animation in animations)
             {
-                // Graph clips animate an NM skeleton and carry no flex data this exporter decodes;
-                // decoding one would also leave stale Datas from the previous animation in the frame.
+                // Graph clips animate an NM skeleton and carry no flex data this exporter decodes.
                 if (animation.RequiresRetarget || animation.FrameCount == 0 || !IncludeAnimation(AnimationFilter, animation.Name))
                 {
                     continue;
                 }
+
+                // The frame is shared across animations and each animation only writes the flex
+                // channels it animates, so stale values would otherwise leak between animations.
+                Array.Clear(frame.Datas);
 
                 var fps = animation.Fps <= 0f ? 1f : animation.Fps;
                 var keyframes = new Dictionary<float, float[]>();
