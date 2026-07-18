@@ -60,19 +60,14 @@ namespace ValveResourceFormat.Renderer
         /// <summary>
         /// Gets whether the active animation clip has finished playing (is not looping and has reached the end).
         /// </summary>
-        public bool ActiveClipFinished => activeClip != null && !activeClip.Looping && activeClip.IsPaused;
+        public bool ActiveClipFinished => driver.ActiveClipFinished;
 
         /// <summary>
         /// Gets the current clips.
         /// </summary>
         public Dictionary<string, Clip> Clips => clips;
 
-        private Clip? activeClip
-        {
-            get => CurrentSubController.HasValue ? CurrentSubController.Value.Handler.activeClip : field;
-            set => field = value;
-        }
-
+        private Clip? activeClip;
         private Clip? previousClip;
         private readonly Dictionary<string, Clip> clips = [];
         private readonly Frame BlendedFrame;
@@ -411,24 +406,7 @@ namespace ValveResourceFormat.Renderer
         /// <param name="weight">The weight value (0.0 to 1.0).</param>
         /// <param name="restartIfNew">Whether to restart the animation if it's just now fading in.</param>
         public void SetAnimationWeight(string name, float weight, bool restartIfNew = false)
-        {
-            if (clips.TryGetValue(name, out var clip))
-            {
-                var wasZero = clip.Weight == 0f;
-                clip.Weight = weight;
-
-                if (restartIfNew && wasZero && weight > 0f)
-                {
-                    clip.Time = 0f;
-                    clip.IsPaused = false;
-                }
-            }
-
-            if (CurrentSubController is { } subController)
-            {
-                subController.Handler.SetAnimationWeight(name, weight, restartIfNew);
-            }
-        }
+            => driver.SetAnimationWeight(name, weight, restartIfNew);
 
         /// <summary>
         /// Sets properties for a clip with the specified animation name.
@@ -438,30 +416,6 @@ namespace ValveResourceFormat.Renderer
         /// <param name="looping">Optional looping flag to set.</param>
         /// <param name="boneMask">Optional bone mask name to set.</param>
         public void SetAnimationProperties(string name, float? time = null, bool? looping = null, string? boneMask = null)
-        {
-            if (clips.TryGetValue(name, out var clip))
-            {
-                if (time.HasValue)
-                {
-                    clip.Time = time.Value;
-                    clip.IsPaused = false;
-                }
-
-                if (looping.HasValue)
-                {
-                    clip.Looping = looping.Value;
-                }
-
-                if (boneMask != null)
-                {
-                    clip.BoneMask = boneMask;
-                }
-            }
-
-            if (CurrentSubController is { } subController)
-            {
-                subController.Handler.SetAnimationProperties(name, time, looping, boneMask);
-            }
-        }
+            => driver.SetAnimationProperties(name, time, looping, boneMask);
     }
 }
