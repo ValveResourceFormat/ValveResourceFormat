@@ -39,7 +39,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
 
             foreach (var root in skeleton.Roots)
             {
-                GetBoneMatricesRecursive(root, Matrix4x4.Identity, null, BindPose);
+                FramePose.ComputeWorldSubtree(root, Matrix4x4.Identity, null, BindPose);
                 GetInverseBindPoseRecursive(root, Matrix4x4.Identity, InverseBindPose);
             }
 
@@ -52,34 +52,6 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
         /// <param name="timeStep">Elapsed time in seconds since the last update.</param>
         /// <returns><see langword="true"/> if the pose was updated; <see langword="false"/> otherwise.</returns>
         public virtual bool Update(float timeStep) => false;
-
-        /// <summary>
-        /// Recursively computes the world-space transformation matrix for each bone in the hierarchy.
-        /// </summary>
-        /// <param name="bone">The current bone to process.</param>
-        /// <param name="parent">The parent's world-space transformation matrix.</param>
-        /// <param name="frame">The animation frame containing bone transforms, or <see langword="null"/> to use bind pose.</param>
-        /// <param name="boneMatrices">The output array to store computed bone matrices.</param>
-        protected static void GetBoneMatricesRecursive(Bone bone, Matrix4x4 parent, Frame? frame, Span<Matrix4x4> boneMatrices)
-        {
-            var boneTransform = bone.BindPose;
-
-            if (frame != null)
-            {
-                var frameBone = frame.Bones[bone.Index];
-                boneTransform = Matrix4x4.CreateScale(frameBone.Scale)
-                    * Matrix4x4.CreateFromQuaternion(frameBone.Angle)
-                    * Matrix4x4.CreateTranslation(frameBone.Position);
-            }
-
-            boneTransform *= parent;
-            boneMatrices[bone.Index] = boneTransform;
-
-            foreach (var child in bone.Children)
-            {
-                GetBoneMatricesRecursive(child, boneTransform, frame, boneMatrices);
-            }
-        }
 
         /// <summary>
         /// Recursively computes the inverse bind pose matrix for each bone in the hierarchy.

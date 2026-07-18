@@ -189,9 +189,9 @@ namespace ValveResourceFormat.Renderer
         /// Represents a sub-animation controller that drives animation from an external skeleton.
         /// </summary>
         /// <param name="Handler">The animation controller managing the external skeleton.</param>
-        /// <param name="RemapTable">Bone index mapping from parent to child skeleton.</param>
+        /// <param name="Retargeter">Maps the external skeleton's poses onto the model skeleton by bone name.</param>
         /// <param name="DebugMap">Bone name mapping for debugging purposes.</param>
-        public readonly record struct SubController(AnimationController Handler, int[] RemapTable, Dictionary<string, string?> DebugMap)
+        public readonly record struct SubController(AnimationController Handler, SkeletonRetargeter Retargeter, Dictionary<string, string?> DebugMap)
         {
             /// <summary>The sub controller skeleton.</summary>
             public Skeleton Skeleton => Handler.Skeleton;
@@ -209,33 +209,13 @@ namespace ValveResourceFormat.Renderer
         /// <param name="skeleton">The external skeleton to register.</param>
         public void RegisterExternalSkeleton(string skeletonName, Skeleton skeleton)
         {
-            var sourceBoneCount = skeleton.Bones.Length;
-            var destinationBoneCount = Skeleton.Bones.Length;
+            var retargeter = new SkeletonRetargeter(Skeleton, skeleton);
 
-            var remapTable = new int[destinationBoneCount];
-            var debugMap = new Dictionary<string, string?>(destinationBoneCount);
-
-            var nameToIndex = new Dictionary<uint, int>(sourceBoneCount);
-
-            for (var i = 0; i < sourceBoneCount; i++)
+            var debugMap = new Dictionary<string, string?>(Skeleton.Bones.Length);
+            for (var i = 0; i < Skeleton.Bones.Length; i++)
             {
-                var name = skeleton.Bones[i].Name;
-                nameToIndex[StringToken.Store(name)] = i;
-            }
-
-            for (var i = 0; i < destinationBoneCount; i++)
-            {
-                var name = Skeleton.Bones[i].Name;
-                var hash = StringToken.Store(name);
-
-                remapTable[i] = -1;
-                debugMap[name] = null;
-
-                if (nameToIndex.TryGetValue(hash, out var idx))
-                {
-                    remapTable[i] = idx;
-                    debugMap[name] = skeleton.Bones[idx].Name;
-                }
+                var sourceIndex = retargeter.ModelToSource[i];
+                debugMap[Skeleton.Bones[i].Name] = sourceIndex != -1 ? skeleton.Bones[sourceIndex].Name : null;
             }
 
             var controller = new AnimationController(skeleton, [])
@@ -243,7 +223,7 @@ namespace ValveResourceFormat.Renderer
                 Looping = Looping,
             };
 
-            var subController = new SubController(controller, remapTable, debugMap);
+            var subController = new SubController(controller, retargeter, debugMap);
             ExternalSkeletons[skeletonName] = subController;
             retargetRunners[skeletonName] = new RetargetPlaybackRunner(this, subController);
         }

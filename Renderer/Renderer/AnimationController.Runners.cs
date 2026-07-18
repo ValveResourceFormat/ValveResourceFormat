@@ -173,7 +173,7 @@ namespace ValveResourceFormat.Renderer
                         continue;
                     }
 
-                    GetBoneMatricesRecursive(root, controller.Transform, animationFrame, controller.Pose);
+                    FramePose.ComputeWorldSubtree(root, controller.Transform, animationFrame, controller.Pose);
                 }
 
                 controller.ApplyClothRootPose();
@@ -247,6 +247,8 @@ namespace ValveResourceFormat.Renderer
                     return false;
                 }
 
+                // A mapped model bone takes the external skeleton's live pose (including its cloth
+                // and IK); unmapped bones follow their parent at bind pose.
                 foreach (var root in controller.Skeleton.Roots)
                 {
                     if (root.IsProceduralCloth)
@@ -254,7 +256,7 @@ namespace ValveResourceFormat.Renderer
                         continue;
                     }
 
-                    ComputePoseRecursive(root, controller.Transform, controller.Pose);
+                    sub.Retargeter.RetargetSubtree(root, controller.Transform, Handler.Pose, controller.Pose);
                 }
 
                 controller.ApplyClothRootPose();
@@ -262,22 +264,6 @@ namespace ValveResourceFormat.Renderer
 
                 animationFrame = Handler.AnimationFrame;
                 return true;
-            }
-
-            // A remapped model bone takes the external skeleton's live pose (including its cloth and
-            // IK); unmapped bones follow their parent at bind pose.
-            private void ComputePoseRecursive(Bone bone, Matrix4x4 parentTransform, Span<Matrix4x4> pose)
-            {
-                var remapIndex = sub.RemapTable[bone.Index];
-
-                pose[bone.Index] = remapIndex != -1
-                    ? Handler.Pose[remapIndex]
-                    : bone.BindPose * parentTransform;
-
-                foreach (var child in bone.Children)
-                {
-                    ComputePoseRecursive(child, pose[bone.Index], pose);
-                }
             }
         }
     }

@@ -496,16 +496,21 @@ namespace ValveResourceFormat.ResourceTypes
                 }
             }
 
-            var referencedAnims = GetReferencedAnimations(fileLoader);
-            animations.AddRange(referencedAnims);
-
             // Animation graph (AG2) clips are part of the model's animation set. They animate an NM
             // skeleton and are retargeted onto the model skeleton by consumers (RequiresRetarget).
+            // A malformed clip must not take down the rest of the animation set.
             foreach (var clipName in AnimationGraphLoader.GetClipNames(this, fileLoader))
             {
-                if (fileLoader.LoadFileCompiled(clipName)?.DataBlock is AnimationClip clip)
+                try
                 {
-                    animations.Add(new ClipAnimation(clip));
+                    if (fileLoader.LoadFileCompiled(clipName)?.DataBlock is AnimationClip clip)
+                    {
+                        animations.Add(new ClipAnimation(clip));
+                    }
+                }
+                catch (Exception e)
+                {
+                    Console.Error.WriteLine(e.ToString());
                 }
             }
 
@@ -534,8 +539,9 @@ namespace ValveResourceFormat.ResourceTypes
                 }
             }
 
-            // Assign (not just set true) so the flag is deterministic per model: animations are shared
-            // between models via the resource cache, so a stale mark from another model's graph is cleared.
+            // Assign (not just set true) so the flag is deterministic per model. Only this model's own
+            // animations are stamped here; referenced animations are shared instances whose flags were
+            // stamped by their owning model, so they are appended after the loop untouched.
             // '@'-prefixed autoplay aliases inherit the additive-ness of the sequence they wrap.
             foreach (var animation in animations)
             {
@@ -550,7 +556,9 @@ namespace ValveResourceFormat.ResourceTypes
                     || sequenceAnimation.AnimGraphAdditive;
             }
 
-            CachedAnimations = [.. animations];
+            var referencedAnims = GetReferencedAnimations(fileLoader);
+
+            CachedAnimations = [.. animations, .. referencedAnims];
 
             return CachedAnimations;
         }
