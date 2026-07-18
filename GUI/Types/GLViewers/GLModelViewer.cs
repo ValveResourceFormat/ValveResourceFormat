@@ -184,7 +184,7 @@ namespace GUI.Types.GLViewers
             rootMotionCheckBox = UiControl.AddCheckBox("Show Root Motion", enableRootMotion, (isChecked) =>
             {
                 enableRootMotion = isChecked;
-                LastRootMotionPosition = modelSceneNode?.Transform.Translation ?? Vector3.Zero;
+                rootMotionLatched = false;
             });
 
             rootMotionCheckBox.Checked = false;
@@ -202,7 +202,7 @@ namespace GUI.Types.GLViewers
             rootMotionCheckBox!.Enabled = hasRootMotion;
             rootMotionCheckBox.Checked = hasRootMotion;
             enableRootMotion = hasRootMotion;
-            LastRootMotionPosition = modelSceneNode?.Transform.Translation ?? Vector3.Zero;
+            rootMotionLatched = false;
 
             additiveCheckBox!.Enabled = animationController.ActiveAnimation != null;
             additiveCheckBox.Checked = animationController.ApplyAdditive;
@@ -633,6 +633,8 @@ namespace GUI.Types.GLViewers
         }
 
         private Vector3 LastRootMotionPosition;
+        private float LastRootMotionAngle;
+        private bool rootMotionLatched;
         private bool enableRootMotion;
 
         /// <summary>
@@ -664,26 +666,44 @@ namespace GUI.Types.GLViewers
         {
             if (enableRootMotion && animationController != null && animationController.AnimationFrame is Frame animationFrame)
             {
-                var rootMotionDelta = animationFrame.Movement.Position - LastRootMotionPosition;
+                var movement = animationFrame.Movement;
 
-                if (modelSceneNode != null)
+                if (!rootMotionLatched)
                 {
-                    modelSceneNode.Transform = modelSceneNode.Transform with
-                    {
-                        Translation = modelSceneNode.Transform.Translation + rootMotionDelta,
-                    };
+                    // First frame after enabling or switching: latch without moving anything.
+                    LastRootMotionPosition = movement.Position;
+                    LastRootMotionAngle = movement.Angle;
+                    rootMotionLatched = true;
                 }
-
-                if (skeletonSceneNode != null)
+                else if (movement.Position != LastRootMotionPosition || movement.Angle != LastRootMotionAngle)
                 {
-                    skeletonSceneNode.Transform = skeletonSceneNode.Transform with
-                    {
-                        Translation = skeletonSceneNode.Transform.Translation + rootMotionDelta,
-                    };
-                }
+                    // Movement data is the accumulated root transform (yaw about Z plus translation);
+                    // advance the nodes by the rigid step between the previous and current samples.
+                    var previous = Matrix4x4.CreateRotationZ(float.DegreesToRadians(LastRootMotionAngle))
+                        * Matrix4x4.CreateTranslation(LastRootMotionPosition);
+                    var current = Matrix4x4.CreateRotationZ(float.DegreesToRadians(movement.Angle))
+                        * Matrix4x4.CreateTranslation(movement.Position);
 
-                Input.Camera.Location += rootMotionDelta;
-                LastRootMotionPosition = animationFrame.Movement.Position;
+                    if (Matrix4x4.Invert(previous, out var inversePrevious))
+                    {
+                        var delta = inversePrevious * current;
+
+                        if (modelSceneNode != null)
+                        {
+                            modelSceneNode.Transform *= delta;
+                        }
+
+                        if (skeletonSceneNode != null)
+                        {
+                            skeletonSceneNode.Transform *= delta;
+                        }
+
+                        Input.Camera.Location += movement.Position - LastRootMotionPosition;
+                    }
+
+                    LastRootMotionPosition = movement.Position;
+                    LastRootMotionAngle = movement.Angle;
+                }
             }
 
             // The stats overlay reflects whatever meshes are currently drawn, so it only needs rebuilding
