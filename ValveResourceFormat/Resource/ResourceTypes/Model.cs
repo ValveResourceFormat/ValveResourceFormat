@@ -523,6 +523,17 @@ namespace ValveResourceFormat.ResourceTypes
                 additiveSequences = [];
             }
 
+            // Compiled (AG2) graphs carry no per-sequence additive marks; additive-ness lives on the
+            // clips themselves. Legacy sequences sharing an additive clip's name (retarget sources)
+            // inherit its flag through the same name set.
+            foreach (var animation in animations)
+            {
+                if (animation is ClipAnimation { IsAdditive: true })
+                {
+                    additiveSequences.Add(Path.GetFileNameWithoutExtension(animation.Name));
+                }
+            }
+
             // Assign (not just set true) so the flag is deterministic per model: animations are shared
             // between models via the resource cache, so a stale mark from another model's graph is cleared.
             // '@'-prefixed autoplay aliases inherit the additive-ness of the sequence they wrap.
