@@ -60,7 +60,7 @@ namespace ValveResourceFormat.Renderer
         /// <summary>
         /// Gets whether the active animation clip has finished playing (is not looping and has reached the end).
         /// </summary>
-        public bool ActiveClipFinished => driver.ActiveClipFinished;
+        public bool ActiveClipFinished => runner.ActiveClipFinished;
 
         /// <summary>
         /// Gets the current clips.
@@ -406,7 +406,7 @@ namespace ValveResourceFormat.Renderer
         /// <param name="weight">The weight value (0.0 to 1.0).</param>
         /// <param name="restartIfNew">Whether to restart the animation if it's just now fading in.</param>
         public void SetAnimationWeight(string name, float weight, bool restartIfNew = false)
-            => driver.SetAnimationWeight(name, weight, restartIfNew);
+            => runner.SetAnimationWeight(name, weight, restartIfNew);
 
         /// <summary>
         /// Sets properties for a clip with the specified animation name.
@@ -416,6 +416,6 @@ namespace ValveResourceFormat.Renderer
         /// <param name="looping">Optional looping flag to set.</param>
         /// <param name="boneMask">Optional bone mask name to set.</param>
         public void SetAnimationProperties(string name, float? time = null, bool? looping = null, string? boneMask = null)
-            => driver.SetAnimationProperties(name, time, looping, boneMask);
+            => runner.SetAnimationProperties(name, time, looping, boneMask);
     }
 }

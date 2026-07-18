@@ -6,16 +6,16 @@ namespace ValveResourceFormat.Renderer
     {
         // Chosen once per SetAnimation. Every stateful public member forwards through this single
         // reference, so playback state cannot be read from or written to the wrong backend.
-        private PlaybackDriver driver;
+        private PlaybackRunner runner;
 
-        private readonly DirectPlaybackDriver directDriver;
-        private readonly Dictionary<string, RetargetPlaybackDriver> retargetDrivers = [];
+        private readonly DirectPlaybackRunner directRunner;
+        private readonly Dictionary<string, RetargetPlaybackRunner> retargetRunners = [];
 
         /// <summary>
         /// Produces the pose for one playback arrangement: directly on the model skeleton, or
         /// retargeted from an external skeleton driven by a nested controller.
         /// </summary>
-        private abstract class PlaybackDriver
+        private abstract class PlaybackRunner
         {
             public abstract Animation? ActiveAnimation { get; }
             public abstract int Frame { get; set; }
@@ -38,7 +38,7 @@ namespace ValveResourceFormat.Renderer
         /// <summary>
         /// Plays animations decoded directly on the model skeleton through the clip mixer.
         /// </summary>
-        private sealed class DirectPlaybackDriver(AnimationController controller) : PlaybackDriver
+        private sealed class DirectPlaybackRunner(AnimationController controller) : PlaybackRunner
         {
             private bool applyAdditive;
 
@@ -85,7 +85,7 @@ namespace ValveResourceFormat.Renderer
             }
 
             /// <summary>
-            /// Clears the mixer state when another driver takes over, so a later switch back cannot
+            /// Clears the mixer state when another runner takes over, so a later switch back cannot
             /// blend from a stale clip.
             /// </summary>
             public void ClearClips()
@@ -189,7 +189,7 @@ namespace ValveResourceFormat.Renderer
         /// Plays animation graph (NM) clips through a nested controller that owns the external
         /// skeleton, remapping its pose onto the model skeleton by bone name.
         /// </summary>
-        private sealed class RetargetPlaybackDriver(AnimationController controller, SubController sub) : PlaybackDriver
+        private sealed class RetargetPlaybackRunner(AnimationController controller, SubController sub) : PlaybackRunner
         {
             /// <summary>Gets the sub-controller driving the external skeleton.</summary>
             public SubController Sub => sub;
@@ -218,7 +218,7 @@ namespace ValveResourceFormat.Renderer
 
             public override bool ActiveClipFinished => Handler.ActiveClipFinished;
 
-            public override Frame? GetFrame() => Handler.driver.GetFrame();
+            public override Frame? GetFrame() => Handler.runner.GetFrame();
 
             public override void SetAnimation(Animation? animation, float blendTime)
             {
@@ -265,7 +265,7 @@ namespace ValveResourceFormat.Renderer
                 controller.ApplyClothRootPose();
                 controller.ApplyInverseKinematics();
 
-                animationFrame = Handler.driver.GetFrame();
+                animationFrame = Handler.runner.GetFrame();
                 return true;
             }
 

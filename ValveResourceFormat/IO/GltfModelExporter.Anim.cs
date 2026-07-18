@@ -222,10 +222,10 @@ public partial class GltfModelExporter
         }
     }
 
-    // Animation-graph (AG2) clips aren't part of GetAllAnimations. They animate a separate NM skeleton, so
-    // they can't be written by copying local transforms onto the model joints - the two skeletons differ in
-    // the root coordinate frame. Retarget instead: reproduce the clip's world poses on the model skeleton,
-    // matching how the renderer plays them (BaseAnimationController external-skeleton remap).
+    // Animation-graph (AG2) clips animate a separate NM skeleton, so they can't be written by copying
+    // local transforms onto the model joints - the two skeletons differ in the root coordinate frame.
+    // Retarget instead: reproduce the clip's world poses on the model skeleton, matching how the
+    // renderer plays them.
     private void WriteAnimationGraphClips(ModelRoot exportedModel, VModel model, Node?[] joints, HashSet<string> animationFilter)
     {
         var clipSkeletons = new Dictionary<string, Skeleton?>();

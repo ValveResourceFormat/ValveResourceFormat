@@ -27,7 +27,7 @@ namespace ValveResourceFormat.Renderer
         /// Gets the currently active animation, or <see langword="null"/> if none is set. While a
         /// sub-controller is driving playback (AG2 external skeletons) this reports its animation.
         /// </summary>
-        public Animation? ActiveAnimation => driver.ActiveAnimation;
+        public Animation? ActiveAnimation => runner.ActiveAnimation;
 
         /// <summary>Gets the frame cache used to retrieve and interpolate animation frames.</summary>
         public AnimationFrameCache FrameCache { get; }
@@ -50,10 +50,10 @@ namespace ValveResourceFormat.Renderer
         /// <summary>Gets or sets the current frame index of the active animation.</summary>
         public int Frame
         {
-            get => driver.Frame;
+            get => runner.Frame;
             set
             {
-                driver.Frame = value;
+                runner.Frame = value;
                 forceUpdate = true;
             }
         }
@@ -61,10 +61,10 @@ namespace ValveResourceFormat.Renderer
         /// <summary>Gets or sets the current playback time in seconds.</summary>
         public float Time
         {
-            get => driver.Time;
+            get => runner.Time;
             set
             {
-                driver.Time = value;
+                runner.Time = value;
                 forceUpdate = true;
             }
         }
@@ -80,8 +80,8 @@ namespace ValveResourceFormat.Renderer
         {
             FrameCache = new(skeleton, flexControllers);
             BlendedFrame = new(skeleton, flexControllers);
-            directDriver = new DirectPlaybackDriver(this);
-            driver = directDriver;
+            directRunner = new DirectPlaybackRunner(this);
+            runner = directRunner;
         }
 
         /// <summary>
@@ -96,7 +96,7 @@ namespace ValveResourceFormat.Renderer
                 return false;
             }
 
-            if (!driver.Update(timeStep, out var animationFrame) && !forceUpdate)
+            if (!runner.Update(timeStep, out var animationFrame) && !forceUpdate)
             {
                 return false;
             }
@@ -116,13 +116,13 @@ namespace ValveResourceFormat.Renderer
         /// </summary>
         public bool ApplyAdditive
         {
-            get => driver.ApplyAdditive;
+            get => runner.ApplyAdditive;
             set
             {
                 // Force an update when the effective value changes, otherwise Update's early-out
                 // swallows the toggle and the pose is never recomputed.
-                forceUpdate = forceUpdate || driver.ApplyAdditive != value;
-                driver.ApplyAdditive = value;
+                forceUpdate = forceUpdate || runner.ApplyAdditive != value;
+                runner.ApplyAdditive = value;
             }
         }
 
@@ -142,20 +142,20 @@ namespace ValveResourceFormat.Renderer
         /// <param name="blendTime">The time in seconds to blend from previous animations to the new animation.</param>
         public void SetAnimation(Animation? animation, float blendTime)
         {
-            var newDriver = animation is { RequiresRetarget: true, TargetSkeletonName: { } targetSkeletonName }
-                && retargetDrivers.TryGetValue(targetSkeletonName, out var retargetDriver)
-                ? retargetDriver
-                : (PlaybackDriver)directDriver;
+            var newRunner = animation is { RequiresRetarget: true, TargetSkeletonName: { } targetSkeletonName }
+                && retargetRunners.TryGetValue(targetSkeletonName, out var retargetRunner)
+                ? retargetRunner
+                : (PlaybackRunner)directRunner;
 
-            if (newDriver != directDriver)
+            if (newRunner != directRunner)
             {
                 // The mixer state is no longer what is playing; clear it so a later switch back to a
                 // model-skeleton animation cannot blend from a stale clip.
-                directDriver.ClearClips();
+                directRunner.ClearClips();
             }
 
-            driver = newDriver;
-            driver.SetAnimation(animation, blendTime);
+            runner = newRunner;
+            runner.SetAnimation(animation, blendTime);
 
             forceUpdate = true;
             updateHandler(ActiveAnimation, -1);
@@ -182,7 +182,7 @@ namespace ValveResourceFormat.Renderer
         /// The current sub animation controller that is driving animation updates, or
         /// <see langword="null"/> while an animation plays directly on the model skeleton.
         /// </summary>
-        public SubController? CurrentSubController => (driver as RetargetPlaybackDriver)?.Sub;
+        public SubController? CurrentSubController => (runner as RetargetPlaybackRunner)?.Sub;
 
         /// <summary>
         /// Represents a sub-animation controller that drives animation from an external skeleton.
@@ -247,7 +247,7 @@ namespace ValveResourceFormat.Renderer
 
             var subController = new SubController(controller, remapTable, debugMap);
             ExternalSkeletons[skeletonName] = subController;
-            retargetDrivers[skeletonName] = new RetargetPlaybackDriver(this, subController);
+            retargetRunners[skeletonName] = new RetargetPlaybackRunner(this, subController);
         }
 
     }
