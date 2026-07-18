@@ -115,14 +115,14 @@ public class NmClipExtract
 
             var docEventTrack = BuildDocEventBasedOnEventClass(ev, ev.GetStringProperty("_class"), isSyncTrack);
             var startTimeObj = ev.GetSubCollection("m_flStartTime");
-            var startTimeSeconds = startTimeObj?.GetFloatProperty("m_flValue") ?? 0f;
+            var startTimeFraction = startTimeObj?.GetFloatProperty("m_flValue") ?? 0f;
             var durationObj = ev.GetSubCollection("m_flDuration");
-            var durationSeconds = durationObj?.GetFloatProperty("m_flValue") ?? 0f;
+            var durationFraction = durationObj?.GetFloatProperty("m_flValue") ?? 0f;
             var eventList = docEventTrack!.GetArray("m_events")![0];
-            // Doc file event time stamps are given in frames they can be technically floats, but based on recompilation tests
-            // these seem inconsistent, unless they're floored to int, then it matches up.
-            eventList["m_flStartTime"] = Math.Floor(startTimeSeconds * animation.FrameCount);
-            eventList["m_flDuration"] = Math.Floor(durationSeconds * animation.FrameCount);
+            // Compiled event times are fractions of the clip, denominated in its frame intervals
+            // (FrameCount - 1); doc files give them in frames. The product is exact on shipped data.
+            eventList["m_flStartTime"] = Math.Round(startTimeFraction * (animation.FrameCount - 1));
+            eventList["m_flDuration"] = Math.Round(durationFraction * (animation.FrameCount - 1));
             docEventTracks.Add(docEventTrack);
         }
 
