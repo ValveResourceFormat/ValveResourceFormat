@@ -183,6 +183,10 @@ uniform sampler2D g_tTintMask;
     uniform float g_flOpacityScale = 1.0;
 #endif
 
+#if defined(static_overlay_vfx_common)
+    uniform mat4 g_mTextureColorAdjust; // evaluated on the CPU from g_fTextureColor* params
+#endif
+
 #if (selfillum)
     #if (GameVfx_vr_skin == 0) // Shaders that pack the mask into another texture
         uniform sampler2D g_tSelfIllumMask;
@@ -360,6 +364,10 @@ MaterialProperties_t GetMaterial(vec2 texCoord, vec3 vertexNormals)
 #else
     vec4 color = texture(g_tColor, texCoord);
     vec4 normalTexture = texture(g_tNormal, texCoord);
+
+#if defined(static_overlay_vfx_common)
+    color.rgb = (vec4(color.rgb, 1.0) * g_mTextureColorAdjust).rgb;
+#endif
 
     // Blending
 #if defined(terrain_blend_common)
@@ -745,13 +753,12 @@ void main()
         outputColor.rgb = SrgbGammaToLinear(outputColor.rgb);
     }
 
-#if (blendMod2x || blendModThenAdd)
-    vec3 gammaOutput = SrgbLinearToGamma(outputColor.rgb);
-    #if (blendMod2x)
-        outputColor = vec4(mix(vec3(0.5), gammaOutput, vec3(outputColor.a)), outputColor.a);
-    #elif (blendModThenAdd)
-        outputColor = vec4(mix(vec3(0), outputColor.rgb, vec3(0.5)), outputColor.a);
-    #endif
+#if (GameVfx_csgo_decalmodulate != 0)
+    outputColor = vec4(mix(vec3(0.5), SrgbLinearToGamma(outputColor.rgb), vec3(outputColor.a)), outputColor.a);
+#elif (blendMod2x)
+    outputColor.rgb = mix(vec3(0.5), outputColor.rgb, vec3(outputColor.a));
+#elif (blendModThenAdd)
+    outputColor.rgb = mix(vec3(0.0), outputColor.rgb, vec3(outputColor.a));
 #endif
 
     if (HandleMaterialRenderModes(outputColor, mat)
