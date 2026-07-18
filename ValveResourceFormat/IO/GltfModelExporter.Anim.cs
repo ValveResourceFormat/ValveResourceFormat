@@ -110,7 +110,12 @@ public partial class GltfModelExporter
                 if (applyRootMotion)
                 {
                     var movement = animation.GetMovementOffsetData(f);
-                    var movementPosition = new Vector3(movement.Position.X, movement.Position.Y, 0f);
+
+                    // Legacy movement data is planar; NM clip root motion natively carries vertical travel.
+                    var movementPosition = animation is ClipAnimation
+                        ? movement.Position
+                        : new Vector3(movement.Position.X, movement.Position.Y, 0f);
+
                     rootMotion = Matrix4x4.CreateRotationZ(float.DegreesToRadians(movement.Angle))
                         * Matrix4x4.CreateTranslation(movementPosition);
                 }
