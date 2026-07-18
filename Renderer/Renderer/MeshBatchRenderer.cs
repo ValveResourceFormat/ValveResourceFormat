@@ -155,6 +155,8 @@ namespace ValveResourceFormat.Renderer
                 IndirectDraw = context.Scene.DrawMeshletsIndirect && context.RenderPass < RenderPass.Opaque,
             };
 
+            var counters = PerfStats.Active;
+
             foreach (var request in requests)
             {
                 if (request.Call == null)
@@ -162,7 +164,11 @@ namespace ValveResourceFormat.Renderer
                     if (context.RenderPass is RenderPass.Opaque or RenderPass.Translucent or RenderPass.Outline)
                     {
                         material?.PostRender();
+
+                        // Custom nodes render themselves and may issue several draws internally; count them as one draw call.
+                        counters.Count(Counter.DrawCall);
                         request.Node.Render(context);
+
                         shader = null;
                         material = null;
                         vao = -1;
@@ -175,6 +181,8 @@ namespace ValveResourceFormat.Renderer
 
                 if (material != requestMaterial)
                 {
+                    counters.Count(Counter.MaterialChange);
+
                     if (context.ReplacementShader?.IgnoreMaterialData != true)
                     {
                         material?.PostRender();
@@ -281,6 +289,8 @@ namespace ValveResourceFormat.Renderer
             {
                 if (request.Node is SceneAggregate agg && agg.IndirectDrawCount > 0 && agg.CompactionIndex >= 0)
                 {
+                    PerfStats.Active.CountIndirectDraw(agg);
+
                     var scene = agg.Scene;
                     if (scene.CompactMeshletDraws)
                     {
@@ -369,6 +379,8 @@ namespace ValveResourceFormat.Renderer
             {
                 GL.ProgramUniform1((uint)shader.Program, uniforms.IsInstancing, instanceCount > 1 ? 1 : 0);
             }
+
+            PerfStats.Active.CountDrawCall(request.Node);
 
             GL.DrawElementsInstancedBaseVertexBaseInstance(
                 request.Call.PrimitiveType,

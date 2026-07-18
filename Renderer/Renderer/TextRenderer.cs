@@ -219,6 +219,8 @@ namespace ValveResourceFormat.Renderer
 
             using var _ = new GLDebugGroup("Text Render");
 
+            PerfStats.Active.SuspendTriangleCounter();
+
             verticesSize *= Vertex.Size * 4;
             var vertexBuffer = ArrayPool<float>.Shared.Rent(verticesSize);
 
@@ -352,6 +354,8 @@ namespace ValveResourceFormat.Renderer
 
             GL.Disable(EnableCap.Blend);
             GL.Enable(EnableCap.DepthTest);
+
+            PerfStats.Active.ResumeTriangleCounter();
 
             TextRenderRequests.Clear();
         }

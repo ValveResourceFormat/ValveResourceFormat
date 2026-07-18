@@ -34,9 +34,9 @@ public class Renderer
     public Camera Camera { get; set; }
 
     /// <summary>
-    /// GPU timing queries for profiling render passes.
+    /// Per-frame rendering statistics, including CPU/GPU profiling timings
     /// </summary>
-    public Timings Timings { get; } = new();
+    public PerfStats PerfStats { get; } = new();
 
     /// <summary>
     /// The main scene to render.
@@ -457,6 +457,11 @@ public class Renderer
         var isMainFramebuffer = ReferenceEquals(renderContext.Framebuffer, MainFramebuffer);
         var isStandardPass = renderContext.ReplacementShader == null && isMainFramebuffer;
 
+        if (!isStandardPass)
+        {
+            PerfStats.Active.SuspendTriangleCounter();
+        }
+
         var isWireframe = IsWireframe && isStandardPass; // To avoid toggling it mid frame
         var computeFramebufferLuminance = Postprocess.State.ExposureSettings.AutoExposureEnabled;
 
@@ -576,6 +581,10 @@ public class Renderer
                 RenderOutlineLayer(renderContext);
             }
         }
+        else
+        {
+            PerfStats.Active.ResumeTriangleCounter();
+        }
     }
 
     /// <summary>
@@ -604,6 +613,7 @@ public class Renderer
 
         using (new GLDebugGroup("Direct Light Shadows"))
         {
+            PerfStats.Active.Count(Counter.DirectionalShadowMap);
             Scene.RenderOpaqueShadows(renderContext, depthOnlyShaders, Scene.CulledShadowDrawCalls);
         }
     }
@@ -656,6 +666,8 @@ public class Renderer
             {
                 continue;
             }
+
+            PerfStats.Active.Count(Counter.BarnShadowMap);
 
             GL.Viewport(region.X, region.Y, region.Width, region.Height);
             GL.Scissor(region.X, region.Y, region.Width, region.Height);
@@ -811,7 +823,7 @@ public class Renderer
         ViewBuffer?.Dispose();
         Scene?.Dispose();
         SkyboxScene?.Dispose();
-        Timings?.Dispose();
+        PerfStats?.Dispose();
         ResolvedSceneColor?.Delete();
         ResolvedSceneDepth?.Delete();
     }
