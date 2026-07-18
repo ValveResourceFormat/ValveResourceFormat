@@ -539,13 +539,15 @@ namespace ValveResourceFormat.ResourceTypes
             // '@'-prefixed autoplay aliases inherit the additive-ness of the sequence they wrap.
             foreach (var animation in animations)
             {
-                if (animation is not SequenceAnimation)
+                if (animation is not SequenceAnimation sequenceAnimation)
                 {
                     continue;
                 }
 
                 var sequenceName = animation.Name.StartsWith('@') ? animation.Name[1..] : animation.Name;
-                animation.IsAdditive = additiveSequences.Contains(sequenceName);
+                animation.IsAdditive = additiveSequences.Contains(sequenceName)
+                    || sequenceAnimation.Delta
+                    || sequenceAnimation.AnimGraphAdditive;
             }
 
             CachedAnimations = [.. animations];

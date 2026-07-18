@@ -43,6 +43,12 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
         /// </summary>
         public bool Autoplay { get; init; }
 
+        /// <summary>
+        /// Gets whether the animation data marks this clip additive for the animation graph
+        /// (<c>m_bAnimGraphAdditive</c>, present in newer engine branches).
+        /// </summary>
+        public bool AnimGraphAdditive { get; }
+
         private AnimationFrameBlock[] FrameBlocks { get; } = [];
         private AnimationSegmentDecoder?[] SegmentArray { get; } = [];
 
@@ -102,6 +108,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
             Hidden = flags.GetBooleanProperty("m_bHidden");
             Delta = flags.GetBooleanProperty("m_bDelta");
             Worldspace = flags.GetBooleanProperty("m_bLegacyWorldspace");
+            AnimGraphAdditive = flags.GetBooleanProperty("m_bAnimGraphAdditive");
 
             var pData = animDesc.GetSubCollection("m_pData");
             FrameCount = pData.GetInt32Property("m_nFrames");
@@ -151,6 +158,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
             Worldspace = seqFlags.GetBooleanProperty("m_bLegacyWorldspace");
             Realtime = seqFlags.GetBooleanProperty("m_bLegacyRealtime");
             Autoplay = seqFlags.GetBooleanProperty("m_bAutoplay");
+            AnimGraphAdditive = animDesc.GetSubCollection("m_flags").GetBooleanProperty("m_bAnimGraphAdditive");
 
             // Activities from sequence descriptor
             Activities = seqDesc.GetArray("m_activityArray")
