@@ -286,17 +286,8 @@ public partial class GltfModelExporter
         // system, NM root motion natively carries vertical travel, so Z is kept here.
         var applyRootMotion = animation.HasMovementData();
 
-        // model bone -> clip bone by name (-1 when the clip does not drive that bone)
-        var modelToClip = new int[modelSkeleton.Bones.Length];
-        var anyMatch = false;
-        for (var m = 0; m < modelSkeleton.Bones.Length; m++)
-        {
-            var clipBone = clipSkeleton[modelSkeleton.Bones[m].Name];
-            modelToClip[m] = clipBone?.Index ?? -1;
-            anyMatch |= clipBone != null;
-        }
-
-        if (!anyMatch)
+        var retargeter = new SkeletonRetargeter(modelSkeleton, clipSkeleton);
+        if (!retargeter.HasMappedBones)
         {
             return;
         }
@@ -307,7 +298,6 @@ public partial class GltfModelExporter
         var scaleWriter = AnimationChannelWriter<Vector3>.Create(modelSkeleton.Bones.Length);
 
         var clipFrame = new Frame(clipSkeleton, model.FlexControllers);
-        var clipWorld = new Matrix4x4[clipSkeleton.Bones.Length];
         var modelWorld = new Matrix4x4[modelSkeleton.Bones.Length];
 
         for (var f = 0; f < animation.FrameCount; f++)
@@ -320,15 +310,7 @@ public partial class GltfModelExporter
                 animation.ComposeAdditiveOverBindPose(clipFrame.Bones, clipSkeleton);
             }
 
-            foreach (var root in clipSkeleton.Roots)
-            {
-                ComputeFrameWorld(root, Matrix4x4.Identity, clipFrame, clipWorld);
-            }
-
-            foreach (var root in modelSkeleton.Roots)
-            {
-                RetargetWorld(root, Matrix4x4.Identity, modelToClip, clipWorld, modelWorld);
-            }
+            retargeter.Retarget(clipFrame, modelWorld);
 
             var time = f / fps;
             var previousTime = (f - 1) / fps;
@@ -380,33 +362,6 @@ public partial class GltfModelExporter
             outputAnimation.CreateRotationChannel(jointNode, rotationWriter.Channels[m], true);
             outputAnimation.CreateTranslationChannel(jointNode, positionWriter.Channels[m], true);
             outputAnimation.CreateScaleChannel(jointNode, scaleWriter.Channels[m], true);
-        }
-    }
-
-    // Accumulates each bone's world-space transform from the frame's local transforms, down the hierarchy.
-    private static void ComputeFrameWorld(Bone bone, Matrix4x4 parentWorld, Frame frame, Matrix4x4[] world)
-    {
-        var frameBone = frame.Bones[bone.Index];
-        var local = Matrix4x4.CreateScale(frameBone.Scale)
-            * Matrix4x4.CreateFromQuaternion(frameBone.Angle)
-            * Matrix4x4.CreateTranslation(frameBone.Position);
-        world[bone.Index] = local * parentWorld;
-
-        foreach (var child in bone.Children)
-        {
-            ComputeFrameWorld(child, world[bone.Index], frame, world);
-        }
-    }
-
-    // A mapped model bone takes the clip bone's world pose; unmapped bones follow their parent at bind pose.
-    private static void RetargetWorld(Bone bone, Matrix4x4 parentWorld, int[] modelToClip, Matrix4x4[] clipWorld, Matrix4x4[] modelWorld)
-    {
-        var clipIndex = modelToClip[bone.Index];
-        modelWorld[bone.Index] = clipIndex >= 0 ? clipWorld[clipIndex] : bone.BindPose * parentWorld;
-
-        foreach (var child in bone.Children)
-        {
-            RetargetWorld(child, modelWorld[bone.Index], modelToClip, clipWorld, modelWorld);
         }
     }
 
