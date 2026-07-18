@@ -229,7 +229,7 @@ public class Timings
         }, camera);
     }
 
-    /// <summary>Resets the query index for the new frame. Marked by <see cref="Counters"/>, which owns the thread policy.</summary>
+    /// <summary>Resets the query index for the new frame. Marked by <see cref="PerfStats"/>, which owns the thread policy.</summary>
     internal void MarkFrameBegin()
     {
         if (Capture)

@@ -27,9 +27,9 @@ internal enum Metric
 }
 
 /// <summary>
-/// Collects per frame rendering statistics (draw calls, triangles, lights, etc).
+/// Collects per frame rendering statistics.
 /// </summary>
-public class Counters
+public class PerfStats
 {
     private enum LightGroup
     {
@@ -44,7 +44,7 @@ public class Counters
 
     // Declared after LightGroupNames so the instance created here sees it initialized (static initializers run in textual order).
     /// <summary>Counters for the frame currently being rendered. Cllects nothing while <see cref="Capture"/> is off.</summary>
-    internal static Counters Active { get; private set; } = new();
+    internal static PerfStats Active { get; private set; } = new();
 
     /// <summary>Gets or sets whether statistics are actively collected this frame.</summary>
     public bool Capture { get; set; }
@@ -62,8 +62,8 @@ public class Counters
     private readonly Lock threadLock = new();
     private int owningThreadId;
 
-    /// <summary>Initializes a new <see cref="Counters"/> owned by the current thread until a frame is marked.</summary>
-    public Counters()
+    /// <summary>Initializes a new <see cref="PerfStats"/> owned by the current thread until a frame is marked.</summary>
+    public PerfStats()
     {
         owningThreadId = Environment.CurrentManagedThreadId;
     }

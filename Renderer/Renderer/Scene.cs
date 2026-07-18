@@ -799,7 +799,7 @@ namespace ValveResourceFormat.Renderer
             var frustum = cullFrustum ??= camera.ViewFrustum;
             var cullResults = GetFrustumCullResults(frustum);
 
-            Counters.Active.Count(Counter.SceneObjectInView, cullResults.Count);
+            PerfStats.Active.Count(Counter.SceneObjectInView, cullResults.Count);
 
             // Collect mesh calls
             foreach (var node in cullResults)
@@ -878,7 +878,7 @@ namespace ValveResourceFormat.Renderer
                 {
                     if (node is SceneLight light)
                     {
-                        Counters.Active.CountLightInView(light);
+                        PerfStats.Active.CountLightInView(light);
                     }
 
                     var customRender = new MeshBatchRenderer.Request
@@ -1265,7 +1265,7 @@ namespace ValveResourceFormat.Renderer
         {
             renderContext.RenderPass = RenderPass.DepthOnly;
 
-            Counters.Active.SuspendTriangleCounter();
+            PerfStats.Active.SuspendTriangleCounter();
 
             foreach (var (program, calls) in drawCalls)
             {
@@ -1273,7 +1273,7 @@ namespace ValveResourceFormat.Renderer
                 MeshBatchRenderer.Render(calls, renderContext);
             }
 
-            Counters.Active.ResumeTriangleCounter();
+            PerfStats.Active.ResumeTriangleCounter();
         }
 
         /// <summary>
@@ -1299,7 +1299,7 @@ namespace ValveResourceFormat.Renderer
                 {
                     GL.ColorMask(false, false, false, false);
 
-                    Counters.Active.SuspendTriangleCounter();
+                    PerfStats.Active.SuspendTriangleCounter();
 
                     renderContext.RenderPass = RenderPass.DepthOnly;
                     foreach (var (program, calls) in depthOnlyDraws)
@@ -1308,7 +1308,7 @@ namespace ValveResourceFormat.Renderer
                         MeshBatchRenderer.Render(calls, renderContext);
                     }
 
-                    Counters.Active.ResumeTriangleCounter();
+                    PerfStats.Active.ResumeTriangleCounter();
 
                     GL.ColorMask(true, true, true, true);
                 }

@@ -16,7 +16,7 @@ public ref struct GLDebugGroup
     /// <param name="name">Name of the debug group to display in profiling tools.</param>
     public GLDebugGroup(string name)
     {
-        TimeQueryId = Counters.Active.BeginTimingQuery(name);
+        TimeQueryId = PerfStats.Active.BeginTimingQuery(name);
 #if DEBUG
         OpenTK.Graphics.OpenGL.GL.PushDebugGroup(OpenTK.Graphics.OpenGL.DebugSourceExternal.DebugSourceApplication, 0, name.Length, name);
 #endif
@@ -32,6 +32,6 @@ public ref struct GLDebugGroup
 #if DEBUG
         OpenTK.Graphics.OpenGL.GL.PopDebugGroup();
 #endif
-        Counters.Active.EndTimingQuery(TimeQueryId);
+        PerfStats.Active.EndTimingQuery(TimeQueryId);
     }
 }

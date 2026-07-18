@@ -83,11 +83,11 @@ namespace GUI.Types.GLViewers
 
             Renderer?.Dispose();
 
-            if (renderModeComboBox != null)
-            {
-                renderModeComboBox.Dispose();
-                renderModeComboBox = null;
-            }
+            perfDisplayComboBox?.Dispose();
+            perfDisplayComboBox = null;
+
+            renderModeComboBox?.Dispose();
+            renderModeComboBox = null;
 
 #if DEBUG
             ShaderHotReload.ShadersReloaded -= OnHotReload;
@@ -436,10 +436,10 @@ namespace GUI.Types.GLViewers
             Debug.Assert(Picker != null);
             Debug.Assert(SelectedNodeRenderer != null);
 
-            Renderer.PerformanceCounters.Capture = perfDisplay == PerfDisplay.Stats;
-            Renderer.PerformanceCounters.Timings.Capture = perfDisplay == PerfDisplay.Timings;
+            Renderer.PerfStats.Capture = perfDisplay == PerfDisplay.Stats;
+            Renderer.PerfStats.Timings.Capture = perfDisplay == PerfDisplay.Timings;
 
-            Renderer.PerformanceCounters.MarkFrameBegin();
+            Renderer.PerfStats.MarkFrameBegin();
             GL.BeginQuery(QueryTarget.TimeElapsed, frametimeQuery1);
 
             var renderContext = new Scene.RenderContext
@@ -606,17 +606,17 @@ namespace GUI.Types.GLViewers
 
             if (perfDisplay == PerfDisplay.Stats)
             {
-                Renderer.PerformanceCounters.DisplayStats(TextRenderer, Renderer.Camera, Scene, SkyboxScene);
+                Renderer.PerfStats.DisplayStats(TextRenderer, Renderer.Camera, Scene, SkyboxScene);
             }
             else if (perfDisplay == PerfDisplay.Timings)
             {
-                Renderer.PerformanceCounters.Timings.DisplayTimings(TextRenderer, Renderer.Camera);
+                Renderer.PerfStats.Timings.DisplayTimings(TextRenderer, Renderer.Camera);
             }
 
             TextRenderer.Render(Renderer.Camera, Renderer.ResolvedSceneDepth);
             Picker?.TriggerEventIfAny();
 
-            Renderer.PerformanceCounters.MarkFrameEnd();
+            Renderer.PerfStats.MarkFrameEnd();
         }
 
         protected void AddBaseGridControl()

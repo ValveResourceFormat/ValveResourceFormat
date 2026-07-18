@@ -441,7 +441,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
             GL.Disable(EnableCap.Blend);
             GL.DepthMask(true);
 
-            Counters.Active.Count(Counter.ParticleDraw);
+            PerfStats.Active.Count(Counter.ParticleDraw);
             GL.DrawElements(PrimitiveType.Triangles, indexCount, DrawElementsType.UnsignedInt, 0);
 
             material.PostRender();

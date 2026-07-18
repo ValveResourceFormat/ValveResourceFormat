@@ -155,7 +155,7 @@ namespace ValveResourceFormat.Renderer
                 IndirectDraw = context.Scene.DrawMeshletsIndirect && context.RenderPass < RenderPass.Opaque,
             };
 
-            var counters = Counters.Active;
+            var counters = PerfStats.Active;
 
             foreach (var request in requests)
             {
@@ -289,7 +289,7 @@ namespace ValveResourceFormat.Renderer
             {
                 if (request.Node is SceneAggregate agg && agg.IndirectDrawCount > 0 && agg.CompactionIndex >= 0)
                 {
-                    Counters.Active.CountIndirectDraw(agg);
+                    PerfStats.Active.CountIndirectDraw(agg);
 
                     var scene = agg.Scene;
                     if (scene.CompactMeshletDraws)
@@ -380,7 +380,7 @@ namespace ValveResourceFormat.Renderer
                 GL.ProgramUniform1((uint)shader.Program, uniforms.IsInstancing, instanceCount > 1 ? 1 : 0);
             }
 
-            Counters.Active.CountDrawCall(request.Node);
+            PerfStats.Active.CountDrawCall(request.Node);
 
             GL.DrawElementsInstancedBaseVertexBaseInstance(
                 request.Call.PrimitiveType,

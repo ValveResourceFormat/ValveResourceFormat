@@ -36,7 +36,7 @@ public class Renderer
     /// <summary>
     /// Per-frame rendering statistics, including CPU/GPU profiling timings
     /// </summary>
-    public Counters PerformanceCounters { get; } = new();
+    public PerfStats PerfStats { get; } = new();
 
     /// <summary>
     /// The main scene to render.
@@ -459,7 +459,7 @@ public class Renderer
 
         if (!isStandardPass)
         {
-            Counters.Active.SuspendTriangleCounter();
+            PerfStats.Active.SuspendTriangleCounter();
         }
 
         var isWireframe = IsWireframe && isStandardPass; // To avoid toggling it mid frame
@@ -583,7 +583,7 @@ public class Renderer
         }
         else
         {
-            Counters.Active.ResumeTriangleCounter();
+            PerfStats.Active.ResumeTriangleCounter();
         }
     }
 
@@ -613,7 +613,7 @@ public class Renderer
 
         using (new GLDebugGroup("Direct Light Shadows"))
         {
-            Counters.Active.Count(Counter.DirectionalShadowMap);
+            PerfStats.Active.Count(Counter.DirectionalShadowMap);
             Scene.RenderOpaqueShadows(renderContext, depthOnlyShaders, Scene.CulledShadowDrawCalls);
         }
     }
@@ -667,7 +667,7 @@ public class Renderer
                 continue;
             }
 
-            Counters.Active.Count(Counter.BarnShadowMap);
+            PerfStats.Active.Count(Counter.BarnShadowMap);
 
             GL.Viewport(region.X, region.Y, region.Width, region.Height);
             GL.Scissor(region.X, region.Y, region.Width, region.Height);
@@ -823,7 +823,7 @@ public class Renderer
         ViewBuffer?.Dispose();
         Scene?.Dispose();
         SkyboxScene?.Dispose();
-        PerformanceCounters?.Dispose();
+        PerfStats?.Dispose();
         ResolvedSceneColor?.Delete();
         ResolvedSceneDepth?.Delete();
     }

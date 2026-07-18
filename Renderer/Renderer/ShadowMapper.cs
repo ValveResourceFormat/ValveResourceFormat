@@ -327,7 +327,7 @@ public class ShadowMapper
                     });
 
                     // Each submitted face is a separate GPU shadow render; an omni light contributes up to 6.
-                    Counters.Active.Count(Counter.ShadowFaceSubmitted);
+                    PerfStats.Active.Count(Counter.ShadowFaceSubmitted);
                     usedTexels += (long)region.Width * region.Height;
                 }
                 else
@@ -342,6 +342,6 @@ public class ShadowMapper
         var atlasTexels = (long)atlasSize * atlasSize;
         var atlasUsage = atlasTexels > 0 ? (float)usedTexels / atlasTexels : 0f;
 
-        Counters.Active.Set(Metric.ShadowAtlasUsage, atlasUsage);
+        PerfStats.Active.Set(Metric.ShadowAtlasUsage, atlasUsage);
     }
 }
