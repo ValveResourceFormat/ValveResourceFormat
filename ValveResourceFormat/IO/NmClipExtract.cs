@@ -50,7 +50,7 @@ public class NmClipExtract
             kv.Add("m_nAdditiveBaseFrameIdx", 0L);
         }
 
-        var animation = new ResourceTypes.ModelAnimation.Animation(clip);
+        var animation = new ResourceTypes.ModelAnimation.ClipAnimation(clip);
         var skeletonResource = fileLoader.LoadFileCompiled(clip.SkeletonName);
         if (skeletonResource != null)
         {

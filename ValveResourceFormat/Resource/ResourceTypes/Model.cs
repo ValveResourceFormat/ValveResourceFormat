@@ -383,7 +383,7 @@ namespace ValveResourceFormat.ResourceTypes
         /// Gets embedded animations from the model.
         /// </summary>
         /// <returns>Enumerable of animations.</returns>
-        public IEnumerable<Animation> GetEmbeddedAnimations()
+        public IEnumerable<SequenceAnimation> GetEmbeddedAnimations()
         {
             var ctrl = Resource.GetBlockByType(BlockType.CTRL) as BinaryKV3;
             var embeddedAnimation = ctrl?.Data.Root.GetSubCollection("embedded_animation");
@@ -409,7 +409,7 @@ namespace ValveResourceFormat.ResourceTypes
                 var sequenceDataBlock = Resource.GetBlockByIndex((int)seqGroupDataBlockIndex) as KeyValuesOrNTRO;
                 if (sequenceDataBlock?.Data != null)
                 {
-                    return Animation.FromSequenceData(
+                    return SequenceAnimation.FromSequenceData(
                         sequenceDataBlock.Data,
                         animationDataBlock.Data,
                         decodeKey,
@@ -418,7 +418,7 @@ namespace ValveResourceFormat.ResourceTypes
                 }
             }
 
-            return Animation.FromData(animationDataBlock.Data, decodeKey, Skeleton, FlexControllers);
+            return SequenceAnimation.FromData(animationDataBlock.Data, decodeKey, Skeleton, FlexControllers);
         }
 
         /// <summary>
@@ -484,7 +484,7 @@ namespace ValveResourceFormat.ResourceTypes
             }
 
             var animGroupPaths = GetReferencedAnimationGroupNames();
-            var animations = GetEmbeddedAnimations().ToList();
+            var animations = GetEmbeddedAnimations().ToList<Animation>();
 
             // Load animations from referenced animation groups
             foreach (var animGroupPath in animGroupPaths)
@@ -505,7 +505,7 @@ namespace ValveResourceFormat.ResourceTypes
             {
                 if (fileLoader.LoadFileCompiled(clipName)?.DataBlock is AnimationClip clip)
                 {
-                    animations.Add(new Animation(clip));
+                    animations.Add(new ClipAnimation(clip));
                 }
             }
 
@@ -528,8 +528,13 @@ namespace ValveResourceFormat.ResourceTypes
             // '@'-prefixed autoplay aliases inherit the additive-ness of the sequence they wrap.
             foreach (var animation in animations)
             {
+                if (animation is not SequenceAnimation)
+                {
+                    continue;
+                }
+
                 var sequenceName = animation.Name.StartsWith('@') ? animation.Name[1..] : animation.Name;
-                animation.IsAdditive = (animation.Clip?.IsAdditive ?? false) || additiveSequences.Contains(sequenceName);
+                animation.IsAdditive = additiveSequences.Contains(sequenceName);
             }
 
             CachedAnimations = [.. animations];

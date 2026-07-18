@@ -13,7 +13,7 @@ partial class ModelExtract
     /// <summary>
     /// Gets the list of animations to be extracted with their output file names.
     /// </summary>
-    public List<(Animation Anim, string FileName)> AnimationsToExtract { get; } = [];
+    public List<(SequenceAnimation Anim, string FileName)> AnimationsToExtract { get; } = [];
 
     private void EnqueueAnimations()
     {
@@ -35,7 +35,7 @@ partial class ModelExtract
 
         foreach (var animation in model.GetAllAnimations(fileLoader))
         {
-            if (animation.Clip is not { } clip)
+            if (animation is not ClipAnimation { Clip: var clip })
             {
                 continue;
             }

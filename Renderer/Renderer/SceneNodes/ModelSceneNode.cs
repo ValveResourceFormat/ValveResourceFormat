@@ -443,7 +443,7 @@ namespace ValveResourceFormat.Renderer.SceneNodes
         /// </summary>
         public void LoadAnimationClip(AnimationClip clip)
         {
-            var anim = new Animation(clip);
+            var anim = new ClipAnimation(clip);
             Animations[anim.Name] = anim;
         }
 
