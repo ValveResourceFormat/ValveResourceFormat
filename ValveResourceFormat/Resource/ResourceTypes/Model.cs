@@ -7,6 +7,7 @@ using ValveKeyValue;
 using ValveResourceFormat.Blocks;
 using ValveResourceFormat.IO;
 using ValveResourceFormat.ResourceTypes.ModelAnimation;
+using ValveResourceFormat.ResourceTypes.ModelAnimation2;
 using ValveResourceFormat.ResourceTypes.ModelData;
 using ValveResourceFormat.ResourceTypes.ModelData.Attachments;
 using ValveResourceFormat.ResourceTypes.ModelFlex;
@@ -462,8 +463,9 @@ namespace ValveResourceFormat.ResourceTypes
                     continue;
                 }
 
+                // Graph clips come from a model's own graphs, not from its animation include models.
                 var anims = GetEmbeddedAnimationsWithSkeleton(fileLoader, Skeleton, model);
-                allAnims.AddRange(anims);
+                allAnims.AddRange(anims.Where(a => !a.RequiresRetarget));
             }
 
             return allAnims;
@@ -496,6 +498,16 @@ namespace ValveResourceFormat.ResourceTypes
 
             var referencedAnims = GetReferencedAnimations(fileLoader);
             animations.AddRange(referencedAnims);
+
+            // Animation graph (AG2) clips are part of the model's animation set. They animate an NM
+            // skeleton and are retargeted onto the model skeleton by consumers (RequiresRetarget).
+            foreach (var clipName in AnimationGraphLoader.GetClipNames(this, fileLoader))
+            {
+                if (fileLoader.LoadFileCompiled(clipName)?.DataBlock is AnimationClip clip)
+                {
+                    animations.Add(new Animation(clip));
+                }
+            }
 
             // AG1 sequences carry no additive flag; mark the ones the animation graph applies additively.
             // The graph is arbitrary third-party data walked on every model load, so an unexpected shape

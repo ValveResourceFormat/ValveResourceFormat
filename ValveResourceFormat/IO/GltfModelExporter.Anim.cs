@@ -6,7 +6,6 @@ using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.ResourceTypes.ModelAnimation;
 using ValveResourceFormat.ResourceTypes.ModelFlex;
 using VAnim = ValveResourceFormat.ResourceTypes.ModelAnimation.Animation;
-using VAnimationClip = ValveResourceFormat.ResourceTypes.ModelAnimation2.AnimationClip;
 using VModel = ValveResourceFormat.ResourceTypes.Model;
 using VMesh = ValveResourceFormat.ResourceTypes.Mesh;
 
@@ -235,16 +234,16 @@ public partial class GltfModelExporter
         // animation (embedded, or an earlier clip) would merge its channels onto it. Keep the first, skip the rest.
         var writtenNames = exportedModel.LogicalAnimations.Select(a => a.Name).ToHashSet();
 
-        foreach (var clipName in AnimationGraphLoader.GetClipNames(model, FileLoader))
+        foreach (var animation in model.GetAllAnimations(FileLoader))
         {
-            CancellationToken.ThrowIfCancellationRequested();
-
-            if (FileLoader.LoadFileCompiled(clipName)?.DataBlock is not VAnimationClip clip)
+            if (animation is not { RequiresRetarget: true, TargetSkeletonName: { } targetSkeletonName })
             {
                 continue;
             }
 
-            var animationName = ClipAnimationName(clip.Name);
+            CancellationToken.ThrowIfCancellationRequested();
+
+            var animationName = ClipAnimationName(animation.Name);
 
             if (!IncludeAnimation(animationFilter, animationName))
             {
@@ -257,17 +256,17 @@ public partial class GltfModelExporter
                 continue;
             }
 
-            if (!clipSkeletons.TryGetValue(clip.SkeletonName, out var clipSkeleton))
+            if (!clipSkeletons.TryGetValue(targetSkeletonName, out var clipSkeleton))
             {
-                clipSkeleton = FileLoader.LoadFileCompiled(clip.SkeletonName)?.DataBlock is BinaryKV3 skeletonData
+                clipSkeleton = FileLoader.LoadFileCompiled(targetSkeletonName)?.DataBlock is BinaryKV3 skeletonData
                     ? Skeleton.FromSkeletonData(skeletonData.Data)
                     : null;
-                clipSkeletons[clip.SkeletonName] = clipSkeleton;
+                clipSkeletons[targetSkeletonName] = clipSkeleton;
             }
 
             if (clipSkeleton != null)
             {
-                WriteRetargetedClip(exportedModel, model, joints, clip, animationName, clipSkeleton);
+                WriteRetargetedClip(exportedModel, model, joints, animation, animationName, clipSkeleton);
                 writtenNames.Add(animationName);
             }
         }
@@ -278,10 +277,9 @@ public partial class GltfModelExporter
     private static string ClipAnimationName(string clipName) => Path.ChangeExtension(clipName, null)!;
 
     // Retargets one NM clip onto the model skeleton by world pose, then writes its animation channels.
-    private static void WriteRetargetedClip(ModelRoot exportedModel, VModel model, Node?[] joints, VAnimationClip clip, string animationName, Skeleton clipSkeleton)
+    private static void WriteRetargetedClip(ModelRoot exportedModel, VModel model, Node?[] joints, VAnim animation, string animationName, Skeleton clipSkeleton)
     {
         var modelSkeleton = model.Skeleton;
-        var animation = new VAnim(clip);
         var fps = animation.Fps <= 0f ? 1f : animation.Fps;
 
         // Bake root motion into the root bones like WriteAnimation. Unlike the legacy movement
@@ -449,7 +447,9 @@ public partial class GltfModelExporter
 
             foreach (var animation in animations)
             {
-                if (animation.FrameCount == 0 || !IncludeAnimation(AnimationFilter, animation.Name))
+                // Graph clips animate an NM skeleton and carry no flex data this exporter decodes;
+                // decoding one would also leave stale Datas from the previous animation in the frame.
+                if (animation.RequiresRetarget || animation.FrameCount == 0 || !IncludeAnimation(AnimationFilter, animation.Name))
                 {
                     continue;
                 }

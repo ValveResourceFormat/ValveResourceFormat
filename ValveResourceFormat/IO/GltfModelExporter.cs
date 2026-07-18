@@ -699,7 +699,7 @@ namespace ValveResourceFormat.IO
 
                 foreach (var animation in animations)
                 {
-                    if (!IncludeAnimation(animationFilter, animation.Name))
+                    if (animation.RequiresRetarget || !IncludeAnimation(animationFilter, animation.Name))
                     {
                         continue;
                     }

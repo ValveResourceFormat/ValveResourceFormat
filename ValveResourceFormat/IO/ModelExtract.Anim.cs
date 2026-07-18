@@ -33,25 +33,24 @@ partial class ModelExtract
             return;
         }
 
-        foreach (var clipName in AnimationGraphLoader.GetClipNames(model, fileLoader))
+        foreach (var animation in model.GetAllAnimations(fileLoader))
         {
-            var clipResource = fileLoader.LoadFileCompiled(clipName);
-            if (clipResource?.DataBlock is not AnimationClip)
+            if (animation.Clip is not { } clip)
             {
                 continue;
             }
 
             try
             {
-                var clipContent = new NmClipExtract(clipResource, fileLoader).ToContentFile();
-                clipContent.FileName = clipName;
+                var clipContent = new NmClipExtract(clip.Resource, fileLoader).ToContentFile();
+                clipContent.FileName = animation.Name;
                 clipContent.KeepFullPath = true;
                 vmdl.AdditionalFiles.Add(clipContent);
             }
             catch (Exception e)
             {
                 // A single malformed clip shouldn't fail the whole model export.
-                ProgressReporter?.Report($"Skipping animation graph clip '{clipName}': {e.Message}");
+                ProgressReporter?.Report($"Skipping animation graph clip '{animation.Name}': {e.Message}");
             }
         }
     }

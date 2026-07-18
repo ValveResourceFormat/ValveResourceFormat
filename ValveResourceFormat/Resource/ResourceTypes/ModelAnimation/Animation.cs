@@ -542,6 +542,18 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
         public AnimationClip? Clip { get; }
 
         /// <summary>
+        /// Gets whether this animation targets a foreign NM skeleton and must be retargeted onto the
+        /// model skeleton by bone name for playback or export.
+        /// </summary>
+        public bool RequiresRetarget => Clip is not null;
+
+        /// <summary>
+        /// Gets the skeleton resource name this animation targets, or <see langword="null"/> when it
+        /// animates the model skeleton directly.
+        /// </summary>
+        public string? TargetSkeletonName => Clip?.SkeletonName;
+
+        /// <summary>
         /// Gets or sets whether this animation is composed additively over the skeleton bind pose rather
         /// than applied as an absolute pose. For AG2 clips this comes from the clip's own additive flag;
         /// AG1 sequences have no such flag, so the model loader sets it from the animation graph.

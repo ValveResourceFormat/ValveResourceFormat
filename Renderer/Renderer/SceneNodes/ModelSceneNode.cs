@@ -2,7 +2,6 @@ using System.Buffers;
 using System.Diagnostics;
 using System.Linq;
 using System.Runtime.InteropServices;
-using ValveResourceFormat.IO;
 using ValveResourceFormat.Renderer.Buffers;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.ResourceTypes.ModelAnimation;
@@ -119,11 +118,6 @@ namespace ValveResourceFormat.Renderer.SceneNodes
 
                     var skeleton = Skeleton.FromSkeletonData(skeletonData.Data);
                     AnimationController.RegisterExternalSkeleton(skeletonName, skeleton);
-                }
-
-                foreach (var clipName in AnimationGraphLoader.GetClipNames(model, Scene.RendererContext.FileLoader))
-                {
-                    LoadAnimationClip(clipName);
                 }
             }
 
