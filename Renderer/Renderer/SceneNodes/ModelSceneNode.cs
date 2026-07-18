@@ -157,7 +157,7 @@ namespace ValveResourceFormat.Renderer.SceneNodes
 
             public CharacterEyeParameters(AnimationController animationController)
             {
-                var skeleton = animationController.FrameCache.Skeleton;
+                var skeleton = animationController.Skeleton;
 
                 LeftEyeBoneIndex = skeleton.Bones.FirstOrDefault(b => b.Name == "eyeball_l")?.Index ?? -1;
                 RightEyeBoneIndex = skeleton.Bones.FirstOrDefault(b => b.Name == "eyeball_r")?.Index ?? -1;
@@ -620,7 +620,7 @@ namespace ValveResourceFormat.Renderer.SceneNodes
                 for (var i = 0; i < attachment.Length; i++)
                 {
                     var influence = attachment[i];
-                    var boneIndex = AnimationController.FrameCache.Skeleton.GetBoneIndex(influence.Name);
+                    var boneIndex = AnimationController.Skeleton.GetBoneIndex(influence.Name);
                     if (boneIndex != -1)
                     {
                         var boneTransform = AnimationController.Pose[boneIndex];

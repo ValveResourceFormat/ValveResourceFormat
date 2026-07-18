@@ -99,7 +99,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
         }
 
         /// <summary>
-        /// Resets frame bones to their bind pose.
+        /// Resets the frame: bones to their bind pose, flex data to zero, and movement to none.
         /// Should be used on animation change.
         /// </summary>
         /// <param name="skeleton">The same skeleton that was passed to the constructor.</param>
@@ -113,6 +113,9 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
                 Bones[i].Angle = skeleton.Bones[i].Angle;
                 Bones[i].Scale = 1;
             }
+
+            Array.Clear(Datas);
+            Movement = default;
         }
     }
 }

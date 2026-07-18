@@ -43,6 +43,13 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
         public virtual string? TargetSkeletonName => null;
 
         /// <summary>
+        /// Gets whether the mixer can blend this animation additively: its frames are per-bone deltas
+        /// that <see cref="FrameBone.BlendAdd"/> applies directly. Legacy sequence frames are absolute
+        /// poses composed over the bind pose in the non-mixer path instead.
+        /// </summary>
+        public virtual bool SupportsMixerAdditive => false;
+
+        /// <summary>
         /// Decodes animation data for the frame selected by <see cref="Frame.FrameIndex"/> into the
         /// given frame's bones.
         /// </summary>

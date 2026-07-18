@@ -39,6 +39,9 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
         public override string? TargetSkeletonName => Clip.SkeletonName;
 
         /// <inheritdoc/>
+        public override bool SupportsMixerAdditive => IsAdditive;
+
+        /// <inheritdoc/>
         public override void DecodeFrame(Frame outFrame)
         {
             Clip.ReadFrame(outFrame.FrameIndex, outFrame.Bones);

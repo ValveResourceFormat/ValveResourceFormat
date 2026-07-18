@@ -71,6 +71,9 @@ namespace ValveResourceFormat.Renderer
         private Clip? previousClip;
         private readonly Dictionary<string, Clip> clips = [];
         private readonly Frame BlendedFrame;
+
+        // Scratch for composing additive frames over the bind pose without mutating cached frames.
+        private readonly Frame AdditiveFrame;
         private float currentBlendTime;
 
         /// <summary>
@@ -199,10 +202,11 @@ namespace ValveResourceFormat.Renderer
         /// <summary>
         /// Returns the animation frame for the current time, blending multiple clips if needed.
         /// </summary>
+        /// <param name="usingMixer">Whether the returned frame is a blend of multiple clips.</param>
         /// <returns>The current animation frame, or <see langword="null"/> if no animation is active.</returns>
-        private Frame? GetBlendedFrame()
+        private Frame? GetBlendedFrame(out bool usingMixer)
         {
-            IsUsingMixer = false;
+            usingMixer = false;
 
             if (activeClip == null)
             {
@@ -225,7 +229,7 @@ namespace ValveResourceFormat.Renderer
                 return SampleFrame(activeClip);
             }
 
-            IsUsingMixer = true;
+            usingMixer = true;
             BlendedFrame.FrameIndex = -1;
             BlendedFrame.Bones.AsSpan().Clear();
             BlendedFrame.Datas.AsSpan().Clear();
@@ -309,11 +313,7 @@ namespace ValveResourceFormat.Renderer
             // Check if clip already exists
             if (!clips.TryGetValue(animName, out var newClip))
             {
-                // Only AG2 clips store per-bone deltas the mixer's additive BlendAdd can apply directly.
-                // Legacy (AG1) frames are absolute poses, so their additive layer is composed over the bind
-                // pose in the non-mixer path instead; blending them additively here would double the bind pose.
-                var mixerAdditive = animation is ClipAnimation { IsAdditive: true };
-                newClip = new Clip(animation) { Looping = Looping, BlendTime = blendTime, IsAdditive = mixerAdditive };
+                newClip = new Clip(animation) { Looping = Looping, BlendTime = blendTime, IsAdditive = animation.SupportsMixerAdditive };
                 clips[animName] = newClip;
             }
             else

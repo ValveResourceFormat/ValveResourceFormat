@@ -410,7 +410,7 @@ public partial class GltfModelExporter
 
                 // The frame is shared across animations and each animation only writes the flex
                 // channels it animates, so stale values would otherwise leak between animations.
-                Array.Clear(frame.Datas);
+                frame.Clear(model.Skeleton);
 
                 var fps = animation.Fps <= 0f ? 1f : animation.Fps;
                 var keyframes = new Dictionary<float, float[]>();

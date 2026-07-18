@@ -80,6 +80,7 @@ namespace ValveResourceFormat.Renderer
         {
             FrameCache = new(skeleton, flexControllers);
             BlendedFrame = new(skeleton, flexControllers);
+            AdditiveFrame = new(skeleton, flexControllers);
             directRunner = new DirectPlaybackRunner(this);
             runner = directRunner;
         }
@@ -190,13 +191,10 @@ namespace ValveResourceFormat.Renderer
         /// <param name="Handler">The animation controller managing the external skeleton.</param>
         /// <param name="RemapTable">Bone index mapping from parent to child skeleton.</param>
         /// <param name="DebugMap">Bone name mapping for debugging purposes.</param>
-        public record struct SubController(AnimationController Handler, int[] RemapTable, Dictionary<string, string?> DebugMap)
+        public readonly record struct SubController(AnimationController Handler, int[] RemapTable, Dictionary<string, string?> DebugMap)
         {
             /// <summary>The sub controller skeleton.</summary>
-            public readonly Skeleton Skeleton => Handler.Skeleton;
-
-            /// <summary>Bone name mapping for debugging.</summary>
-            public readonly Dictionary<string, string?> DebugMap { get; } = DebugMap;
+            public Skeleton Skeleton => Handler.Skeleton;
         }
 
         /// <summary>

@@ -22,7 +22,6 @@ namespace ValveResourceFormat.Renderer
             public abstract float Time { get; set; }
             public abstract bool ApplyAdditive { get; set; }
             public abstract bool ActiveClipFinished { get; }
-            public abstract Frame? GetFrame();
             public abstract void SetAnimation(Animation? animation, float blendTime);
             public abstract void SetAnimationWeight(string name, float weight, bool restartIfNew);
             public abstract void SetAnimationProperties(string name, float? time, bool? looping, string? boneMask);
@@ -64,8 +63,6 @@ namespace ValveResourceFormat.Renderer
 
             public override bool ActiveClipFinished
                 => controller.activeClip is { Looping: false, IsPaused: true };
-
-            public override Frame? GetFrame() => controller.GetBlendedFrame();
 
             public override void SetAnimation(Animation? animation, float blendTime)
             {
@@ -141,7 +138,8 @@ namespace ValveResourceFormat.Renderer
                     controller.UpdateClips(timeStep);
                 }
 
-                animationFrame = controller.GetBlendedFrame();
+                animationFrame = controller.GetBlendedFrame(out var usingMixer);
+                controller.IsUsingMixer = usingMixer;
 
                 if (animationFrame == null)
                 {
@@ -153,13 +151,12 @@ namespace ValveResourceFormat.Renderer
                 // absolute pose. Whether an animation is additive is decided by Animation.IsAdditive
                 // (AG2 clip flag or AG1 graph); the compose itself lives on Animation so the exporter
                 // shares it.
-                if (!controller.IsUsingMixer && applyAdditive && ActiveAnimation is { } activeAnimation)
+                if (!usingMixer && applyAdditive && ActiveAnimation is { } activeAnimation)
                 {
-                    // Compose into the scratch interpolated frame so the frame cache is not mutated.
-                    // Only the bones are recomputed here, so carry the flex (Datas) and movement across
-                    // as well: the sampled frame may be an exact cached frame whose values would
-                    // otherwise be left stale.
-                    var scratch = controller.FrameCache.InterpolatedFrame;
+                    // Compose into the controller's own scratch frame so neither the frame cache nor
+                    // the sampled frame is mutated. Only the bones are recomputed here, so carry the
+                    // flex (Datas) and movement across as well.
+                    var scratch = controller.AdditiveFrame;
                     animationFrame.Bones.CopyTo(scratch.Bones);
                     animationFrame.Datas.CopyTo(scratch.Datas);
                     scratch.Movement = animationFrame.Movement;
@@ -218,8 +215,6 @@ namespace ValveResourceFormat.Renderer
 
             public override bool ActiveClipFinished => Handler.ActiveClipFinished;
 
-            public override Frame? GetFrame() => Handler.runner.GetFrame();
-
             public override void SetAnimation(Animation? animation, float blendTime)
             {
                 Handler.Looping = controller.Looping;
@@ -265,7 +260,7 @@ namespace ValveResourceFormat.Renderer
                 controller.ApplyClothRootPose();
                 controller.ApplyInverseKinematics();
 
-                animationFrame = Handler.runner.GetFrame();
+                animationFrame = Handler.AnimationFrame;
                 return true;
             }
 
