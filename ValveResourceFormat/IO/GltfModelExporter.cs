@@ -672,6 +672,21 @@ namespace ValveResourceFormat.IO
 
             CancellationToken.ThrowIfCancellationRequested();
 
+            var animationFilter = AnimationFilter;
+
+            // When exporting map entities, only export the default animation
+            if (entity != null)
+            {
+                var entityAnimation = entity.GetStringProperty("defaultanim") ?? entity.GetStringProperty("idleanim");
+                if (entityAnimation != null)
+                {
+                    animationFilter = [
+                        entityAnimation,
+                        $"@{entityAnimation}"
+                    ];
+                }
+            }
+
             var (skeletonNode, joints) = ExportAnimations
                 ? CreateGltfSkeleton(scene, model.Skeleton, name)
                 : (null, null);
@@ -682,20 +697,6 @@ namespace ValveResourceFormat.IO
 
                 var animations = model.GetAllAnimations(FileLoader);
                 var animationWriter = new AnimationWriter(model.Skeleton, model.FlexControllers);
-                var animationFilter = AnimationFilter;
-
-                // When exporting map entities, only export the default animation
-                if (entity != null)
-                {
-                    var entityAnimation = entity.GetStringProperty("defaultanim") ?? entity.GetStringProperty("idleanim");
-                    if (entityAnimation != null)
-                    {
-                        animationFilter = [
-                            entityAnimation,
-                            $"@{entityAnimation}"
-                        ];
-                    }
-                }
 
                 foreach (var animation in animations)
                 {
@@ -755,7 +756,7 @@ namespace ValveResourceFormat.IO
             // after the meshes exist (their nodes are created above) as a second pass over the animations.
             if (skeletonNode != null && morphedMeshNodes.Count > 0)
             {
-                WriteMorphAnimations(exportedModel, model, morphedMeshNodes);
+                WriteMorphAnimations(exportedModel, model, morphedMeshNodes, animationFilter);
             }
 
             // Even though that's not documented, order matters.

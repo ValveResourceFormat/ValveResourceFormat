@@ -372,7 +372,7 @@ public partial class GltfModelExporter
 
     // Writes morph-target weight animation. glTF has no flex controllers, so evaluate each mesh's flex rules
     // per frame from the animation's controller values (Frame.Datas) and bake the resulting morph weights.
-    private void WriteMorphAnimations(ModelRoot exportedModel, VModel model, List<(Node Node, VMesh Mesh)> morphedMeshes)
+    private void WriteMorphAnimations(ModelRoot exportedModel, VModel model, List<(Node Node, VMesh Mesh)> morphedMeshes, HashSet<string> animationFilter)
     {
         var animations = model.GetAllAnimations(FileLoader);
 
@@ -408,7 +408,7 @@ public partial class GltfModelExporter
             foreach (var animation in animations)
             {
                 // Graph clips animate an NM skeleton and carry no flex data this exporter decodes.
-                if (animation.RequiresRetarget || animation.FrameCount == 0 || !IncludeAnimation(AnimationFilter, animation.Name))
+                if (animation.RequiresRetarget || animation.FrameCount == 0 || !IncludeAnimation(animationFilter, animation.Name))
                 {
                     continue;
                 }
