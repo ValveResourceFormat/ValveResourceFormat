@@ -86,6 +86,11 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation2
         /// </summary>
         public AnimationMovement.MovementData[] RootMotion { get; private set; } = [];
 
+        /// <summary>
+        /// Gets the clip's named scalar channels (float curves), decoded per frame.
+        /// </summary>
+        public AnimationFloatCurve[] FloatCurves { get; private set; } = [];
+
         /// <inheritdoc/>
         public override void Read(BinaryReader reader)
         {
@@ -126,6 +131,46 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation2
                     previousYaw = yaw;
 
                     RootMotion[t] = new AnimationMovement.MovementData(position, yaw);
+                }
+            }
+
+            var floatCurveIds = clipData.GetArray<string>("m_floatCurveIDs");
+            if (floatCurveIds is { Length: > 0 })
+            {
+                var curveDefs = clipData.GetArray("m_floatCurveDefs");
+                var curveData = clipData.GetIntegerArray("m_compressedFloatCurveData");
+                var curveOffsets = clipData.GetIntegerArray("m_compressedFloatCurveOffsets");
+
+                FloatCurves = new AnimationFloatCurve[floatCurveIds.Length];
+
+                // Dynamic curves are packed densely per frame in declaration order; static curves
+                // hold their range start and store no samples.
+                var dynamicRank = 0;
+                for (var c = 0; c < floatCurveIds.Length; c++)
+                {
+                    var def = curveDefs[c];
+                    var range = def.GetSubCollection("m_range");
+                    var rangeStart = range.GetFloatProperty("m_flRangeStart");
+                    var rangeLength = range.GetFloatProperty("m_flRangeLength");
+
+                    var values = new float[NumFrames];
+
+                    if (def.GetBooleanProperty("m_bIsStatic"))
+                    {
+                        Array.Fill(values, rangeStart);
+                    }
+                    else
+                    {
+                        for (var f = 0; f < NumFrames; f++)
+                        {
+                            var raw = (ushort)curveData[curveOffsets[f] + dynamicRank];
+                            values[f] = DecodeFloat(raw, rangeStart, rangeLength);
+                        }
+
+                        dynamicRank++;
+                    }
+
+                    FloatCurves[c] = new AnimationFloatCurve(floatCurveIds[c], values);
                 }
             }
 
