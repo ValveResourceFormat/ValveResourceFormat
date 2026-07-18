@@ -1,6 +1,4 @@
-using ValveResourceFormat.ResourceTypes.ModelAnimation;
-
-namespace ValveResourceFormat.Renderer
+namespace ValveResourceFormat.ResourceTypes.ModelAnimation
 {
     /// <summary>
     /// Base class for computing animated bone poses
