@@ -799,6 +799,8 @@ namespace ValveResourceFormat.Renderer
             var frustum = cullFrustum ??= camera.ViewFrustum;
             var cullResults = GetFrustumCullResults(frustum);
 
+            PerfStats.Active.Count(Counter.SceneObjectInView, cullResults.Count);
+
             // Collect mesh calls
             foreach (var node in cullResults)
             {
@@ -874,6 +876,11 @@ namespace ValveResourceFormat.Renderer
                 }
                 else
                 {
+                    if (node is SceneLight light)
+                    {
+                        PerfStats.Active.CountLightInView(light);
+                    }
+
                     var customRender = new MeshBatchRenderer.Request
                     {
                         DistanceFromCamera = node is PhysSceneNode
@@ -1258,11 +1265,15 @@ namespace ValveResourceFormat.Renderer
         {
             renderContext.RenderPass = RenderPass.DepthOnly;
 
+            PerfStats.Active.SuspendTriangleCounter();
+
             foreach (var (program, calls) in drawCalls)
             {
                 renderContext.ReplacementShader = depthOnlyShaders[(int)program];
                 MeshBatchRenderer.Render(calls, renderContext);
             }
+
+            PerfStats.Active.ResumeTriangleCounter();
         }
 
         /// <summary>
@@ -1288,12 +1299,16 @@ namespace ValveResourceFormat.Renderer
                 {
                     GL.ColorMask(false, false, false, false);
 
+                    PerfStats.Active.SuspendTriangleCounter();
+
                     renderContext.RenderPass = RenderPass.DepthOnly;
                     foreach (var (program, calls) in depthOnlyDraws)
                     {
                         renderContext.ReplacementShader = depthOnlyShaders[(int)program];
                         MeshBatchRenderer.Render(calls, renderContext);
                     }
+
+                    PerfStats.Active.ResumeTriangleCounter();
 
                     GL.ColorMask(true, true, true, true);
                 }

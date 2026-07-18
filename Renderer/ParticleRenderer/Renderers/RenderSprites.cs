@@ -421,6 +421,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
             shader.SetUniform1("uTextureChannels", (int)textureChannels);
 
             // DRAW
+            PerfStats.Active.Count(Counter.ParticleDraw);
             GL.DrawElements(PrimitiveType.Triangles, particleBag.Count * 6, DrawElementsType.UnsignedShort, 0);
 
             GL.UseProgram(0);
