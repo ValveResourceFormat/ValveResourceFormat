@@ -1,7 +1,6 @@
 using System.Diagnostics;
 using System.Windows.Forms;
-using GUI.Controls;
-using GUI.Types.Graphs;
+using GUI.Types.Graphs.Core;
 using GUI.Utils;
 using OpenTK.Graphics.OpenGL;
 using SkiaSharp;
@@ -9,9 +8,13 @@ using ValveResourceFormat.Renderer;
 
 namespace GUI.Types.GLViewers
 {
-    class GLNodeGraphViewer : GLTextureViewer
+    /// <summary>
+    /// OpenGL host for <see cref="GraphView"/>: provides a GL-backed Skia surface, pan/zoom,
+    /// raster copy/save and double click to open node resource references.
+    /// </summary>
+    class GLGraphViewer : GLTextureViewer
     {
-        protected readonly NodeGraphControl nodeGraph;
+        protected readonly GraphView View;
         private SKRect graphBounds;
         private bool needsFit = true;
 
@@ -22,12 +25,12 @@ namespace GUI.Types.GLViewers
         private SKSurface? surface;
         private SKSizeI lastSize;
 
-        public GLNodeGraphViewer(VrfGuiContext vrfGuiContext, RendererContext rendererContext, NodeGraphControl graph)
+        public GLGraphViewer(VrfGuiContext vrfGuiContext, RendererContext rendererContext, GraphView view)
             : base(vrfGuiContext, rendererContext, (SKBitmap?)null)
         {
-            nodeGraph = graph;
-            nodeGraph.GraphChanged += OnGraphChanged;
-            graphBounds = nodeGraph.GetGraphBounds();
+            View = view;
+            View.GraphChanged += OnGraphChanged;
+            graphBounds = View.GetGraphBounds();
         }
 
         private void OnGraphChanged(object? sender, System.EventArgs e)
@@ -35,13 +38,47 @@ namespace GUI.Types.GLViewers
             InvalidateRender();
         }
 
+        protected virtual bool ShowSidebar => false;
+
         protected override void AddUiControls()
         {
             Debug.Assert(UiControl != null);
 
             base.AddUiControls();
 
-            UiControl.HideSidebar();
+            if (!ShowSidebar)
+            {
+                UiControl.HideSidebar();
+            }
+
+            if (GLControl != null)
+            {
+                GLControl.MouseDoubleClick += OnMouseDoubleClick;
+            }
+        }
+
+        /// <summary>Refits the view to the current graph bounds on the next frame.</summary>
+        public void RefitToGraph()
+        {
+            needsFit = true;
+            InvalidateRender();
+        }
+
+        private void OnMouseDoubleClick(object? sender, MouseEventArgs e)
+        {
+            var screenPoint = new SKPoint(e.Location.X, e.Location.Y);
+            var graphPoint = ScreenToGraph(screenPoint);
+            var element = View.FindElementAt(graphPoint);
+
+            if (element is GraphNode { ExternalResourceName: not null } node)
+            {
+                var foundFile = VrfGuiContext.FindFileWithContext(node.ExternalResourceName + ValveResourceFormat.IO.GameFileLoader.CompiledFileSuffix);
+                if (foundFile.Context != null)
+                {
+                    Debug.Assert(foundFile.PackageEntry != null);
+                    Program.MainForm.OpenFile(foundFile.Context, foundFile.PackageEntry);
+                }
+            }
         }
 
         protected override void OnGLLoad()
@@ -54,7 +91,7 @@ namespace GUI.Types.GLViewers
 
             Debug.Assert(MainFramebuffer != null);
 
-            var bgColor = nodeGraph.CanvasBackgroundColor;
+            var bgColor = View.Palette.Canvas;
             MainFramebuffer.ClearColor = new OpenTK.Mathematics.Color4(
                 bgColor.Red / 255f,
                 bgColor.Green / 255f,
@@ -64,7 +101,7 @@ namespace GUI.Types.GLViewers
             MainFramebuffer.ClearMask = ClearBufferMask.ColorBufferBit;
 
             // Set texture size to graph bounds for zoom calculations
-            graphBounds = nodeGraph.GetGraphBounds();
+            graphBounds = View.GetGraphBounds();
             OriginalWidth = (int)graphBounds.Width;
             OriginalHeight = (int)graphBounds.Height;
         }
@@ -78,7 +115,7 @@ namespace GUI.Types.GLViewers
         {
             Debug.Assert(MainFramebuffer != null);
 
-            var bgColor = nodeGraph.CanvasBackgroundColor;
+            var bgColor = View.Palette.Canvas;
             GL.ClearColor(bgColor.Red / 255f, bgColor.Green / 255f, bgColor.Blue / 255f, bgColor.Alpha / 255f);
             GL.Clear(ClearBufferMask.ColorBufferBit);
 
@@ -117,7 +154,7 @@ namespace GUI.Types.GLViewers
 
             if (needsFit)
             {
-                graphBounds = nodeGraph.GetGraphBounds();
+                graphBounds = View.GetGraphBounds();
                 OriginalWidth = (int)graphBounds.Width;
                 OriginalHeight = (int)graphBounds.Height;
                 FitToViewport();
@@ -126,22 +163,20 @@ namespace GUI.Types.GLViewers
             else
             {
                 // Update graphBounds and compensate Position for any origin shift
-                var newGraphBounds = nodeGraph.GetGraphBounds();
+                var newGraphBounds = View.GetGraphBounds();
 
-                // Compensate for changes in graph origin to prevent visual jumps
                 var deltaLeft = newGraphBounds.Left - graphBounds.Left;
                 var deltaTop = newGraphBounds.Top - graphBounds.Top;
 
                 if (deltaLeft != 0 || deltaTop != 0)
                 {
-                    Position = new System.Numerics.Vector2(
+                    Position = new Vector2(
                         Position.X - deltaLeft * TextureScale,
                         Position.Y - deltaTop * TextureScale
                     );
                     TextureScaleChangeTime = 10f; // Skip interpolation for instant compensation
                 }
 
-                // Update dimensions only if size changed
                 if ((int)newGraphBounds.Width != OriginalWidth || (int)newGraphBounds.Height != OriginalHeight)
                 {
                     OriginalWidth = (int)newGraphBounds.Width;
@@ -153,7 +188,6 @@ namespace GUI.Types.GLViewers
 
             var (scale, position) = GetCurrentPositionAndScale();
 
-            canvas.Clear(nodeGraph.CanvasBackgroundColor);
             canvas.Save();
 
             // Apply pan/zoom transform
@@ -161,8 +195,15 @@ namespace GUI.Types.GLViewers
             canvas.Scale(scale, scale);
             canvas.Translate(-graphBounds.Left, -graphBounds.Top);
 
-            // Render the node graph
-            nodeGraph.RenderToCanvas(canvas, graphBounds.Location, new SKPoint(graphBounds.Right, graphBounds.Bottom));
+            var visibleRect = new SKRect(
+                position.X / scale + graphBounds.Left,
+                position.Y / scale + graphBounds.Top,
+                (position.X + MainFramebuffer.Width) / scale + graphBounds.Left,
+                (position.Y + MainFramebuffer.Height) / scale + graphBounds.Top
+            );
+            visibleRect.Inflate(50f / scale, 50f / scale);
+
+            View.RenderToCanvas(canvas, visibleRect, scale);
 
             canvas.Restore();
             canvas.Flush();
@@ -176,14 +217,12 @@ namespace GUI.Types.GLViewers
                 return;
             }
 
-            // Calculate zoom to fit graph in viewport with padding
             var scaleX = (GLControl.Width * 0.9f) / graphBounds.Width;
             var scaleY = (GLControl.Height * 0.9f) / graphBounds.Height;
             TextureScale = Math.Min(scaleX, scaleY);
-            TextureScale = Math.Max(0.1f, Math.Min(TextureScale, 10f));
+            TextureScale = Math.Max(0.1f, Math.Min(TextureScale, 2f));
 
-            // Center the view
-            Position = new System.Numerics.Vector2(
+            Position = new Vector2(
                 -(GLControl.Width - graphBounds.Width * TextureScale) / 2f,
                 -(GLControl.Height - graphBounds.Height * TextureScale) / 2f
             );
@@ -203,11 +242,11 @@ namespace GUI.Types.GLViewers
             var screenPoint = new SKPoint(e.Location.X, e.Location.Y);
             var graphPoint = ScreenToGraph(screenPoint);
 
-            nodeGraph.HandleMouseDown(graphPoint, e.Button, Control.ModifierKeys);
+            View.HandleMouseDown(graphPoint, e.Button, Control.ModifierKeys);
 
             if (e.Button == MouseButtons.Left && Control.ModifierKeys == Keys.None)
             {
-                var element = nodeGraph.FindElementAt(graphPoint);
+                var element = View.FindElementAt(graphPoint);
 
                 if (element == null)
                 {
@@ -227,7 +266,7 @@ namespace GUI.Types.GLViewers
                 return;
             }
 
-            nodeGraph.HandleMouseMove(graphPoint, Control.ModifierKeys);
+            View.HandleMouseMove(graphPoint, Control.ModifierKeys);
         }
 
         protected override void OnMouseUp(object? sender, MouseEventArgs e)
@@ -235,31 +274,28 @@ namespace GUI.Types.GLViewers
             // Always call base first to clear ClickPosition for panning
             base.OnMouseUp(sender, e);
 
-            // Forward to node graph for node interaction
             var screenPoint = new SKPoint(e.Location.X, e.Location.Y);
             var graphPoint = ScreenToGraph(screenPoint);
 
-            nodeGraph.HandleMouseUp(graphPoint);
+            View.HandleMouseUp(graphPoint);
         }
 
         protected SKPoint ScreenToGraph(SKPoint screenPoint)
         {
-            // Convert screen to canvas coordinates (accounting for pan/zoom)
-            var canvasX = (screenPoint.X + Position.X) / TextureScale;
-            var canvasY = (screenPoint.Y + Position.Y) / TextureScale;
+            // Hit-test with the same animated transform the frame is drawn with.
+            var (scale, position) = GetCurrentPositionAndScale();
 
-            // Convert canvas to graph coordinates (accounting for graph bounds offset)
-            var graphX = canvasX + graphBounds.Left;
-            var graphY = canvasY + graphBounds.Top;
+            var canvasX = (screenPoint.X + position.X) / scale;
+            var canvasY = (screenPoint.Y + position.Y) / scale;
 
-            return new SKPoint(graphX, graphY);
+            return new SKPoint(canvasX + graphBounds.Left, canvasY + graphBounds.Top);
         }
 
         // The graph is drawn through Skia, not the texture/shader pipeline the base capture
         // path assumes, so render the whole graph into a raster bitmap for Ctrl+C / saving.
         protected override SKBitmap ReadPixelsToBitmap()
         {
-            var bounds = nodeGraph.GetGraphBounds();
+            var bounds = View.GetGraphBounds();
 
             const float maxDimension = 8192f;
             var scale = Math.Min(1f, maxDimension / Math.Max(bounds.Width, bounds.Height));
@@ -275,7 +311,7 @@ namespace GUI.Types.GLViewers
                 canvas.Scale(scale, scale);
                 canvas.Translate(-bounds.Left, -bounds.Top);
 
-                nodeGraph.RenderToCanvas(canvas, bounds.Location, new SKPoint(bounds.Right, bounds.Bottom));
+                View.RenderToCanvas(canvas, bounds, 1f);
 
                 var bitmapToReturn = bitmap;
                 bitmap = null;
@@ -289,15 +325,24 @@ namespace GUI.Types.GLViewers
 
         public override void Dispose()
         {
-            nodeGraph.GraphChanged -= OnGraphChanged;
-            nodeGraph?.Dispose();
+            if (GLControl != null)
+            {
+                GLControl.MouseDoubleClick -= OnMouseDoubleClick;
+            }
 
+            View.GraphChanged -= OnGraphChanged;
+
+            // Stops the render loop first; afterwards the GL context may no longer be
+            // current, so abandon it to make Skia skip GL calls during disposal.
+            base.Dispose();
+
+            grContext?.AbandonContext();
             surface?.Dispose();
             renderTarget?.Dispose();
             grContext?.Dispose();
             glInterface?.Dispose();
 
-            base.Dispose();
+            View.Dispose();
         }
     }
 }

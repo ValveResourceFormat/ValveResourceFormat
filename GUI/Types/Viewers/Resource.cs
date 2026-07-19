@@ -194,6 +194,14 @@ namespace GUI.Types.Viewers
                     }
                     break;
 
+                case ResourceType.EntityLump:
+                    if (resource.DataBlock is EntityLump entityLumpData)
+                    {
+                        GLViewer = new EntityIOGraphViewer(vrfGuiContext, rendererContext, entityLumpData);
+                        GLViewerTabName = "ENTITY I/O GRAPH";
+                    }
+                    break;
+
                 case ResourceType.Material:
                     {
                         if (resource.DataBlock is Material { ShaderName: "sky.vfx" })

@@ -1,24 +1,22 @@
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
-using System.Drawing;
 using System.Linq;
-using System.Windows.Forms;
 using GUI.Types.GLViewers;
+using GUI.Types.Graphs.Core;
 using GUI.Utils;
-using SkiaSharp;
 using ValveKeyValue;
 using ValveResourceFormat;
 using ValveResourceFormat.IO;
 using ValveResourceFormat.Renderer;
 using ValveResourceFormat.Serialization.KeyValues;
+using Node = GUI.Types.Graphs.KVGraphNode;
 
 namespace GUI.Types.Graphs;
 
 /// <summary>
 /// Graph viewer for compiled AG1 (Animgraph1) files.
 /// </summary>
-internal class AG1GraphViewer : GLNodeGraphViewer
+internal class AG1GraphViewer : GLGraphViewer
 {
     private readonly KVObject animGraphData;
     private readonly IReadOnlyList<KVObject> compiledNodes;
@@ -36,65 +34,52 @@ internal class AG1GraphViewer : GLNodeGraphViewer
     private Resource? modelResource;
     private bool modelResourceLoaded;
 
-    // Fixed colors per node type (AG1 specific)
-    private static SKColor NodeColor { get; set; } = new SKColor(60, 60, 60);
-    //Blend
-    private static SKColor BlendColor { get; set; } = new SKColor(45, 102, 82);
-    private static SKColor AddSubtractColor { get; set; } = new SKColor(126, 60, 55);
-    private static SKColor AimLeanMatrixColor { get; set; } = new SKColor(99, 43, 87);
-    // Constraints and Procedural
-    private static SKColor ConstraintLightGreenColor { get; set; } = new SKColor(91, 143, 56);
-    private static SKColor ConstraintDarkGreenColor { get; set; } = new SKColor(44, 106, 31);
-    // System
-    private static SKColor SystemYellowColor { get; set; } = new SKColor(78, 73, 29);
-    private static SKColor SystemDarkBlueColor { get; set; } = new SKColor(24, 54, 72);
-    private static SKColor SystemGrayColor { get; set; } = new SKColor(65, 90, 114);
-    // Main
-    private static SKColor PoseColor { get; set; } = new SKColor(173, 255, 47);          // Default fallback
+    // Hue slots per node type (AG1 specific)
+    private const GraphHue PoseHue = GraphHue.Green;
 
-    private static readonly Dictionary<string, SKColor> TagClassColors = new(StringComparer.Ordinal)
+    private static readonly Dictionary<string, GraphHue> TagClassHues = new(StringComparer.Ordinal)
     {
-        ["CAudioAnimTag"] = new SKColor(141, 59, 9),
-        ["CBodyGroupAnimTag"] = new SKColor(26, 122, 59),
-        ["CClothSettingsAnimTag"] = new SKColor(117, 124, 136),
-        ["CFootFallAnimTag"] = new SKColor(150, 255, 150),
-        ["CFootstepLandedAnimTag"] = new SKColor(71, 71, 34),
-        ["CMaterialAttributeAnimTag"] = new SKColor(16, 157, 205),
-        ["CParticleAnimTag"] = new SKColor(118, 78, 153),
-        ["CRagdollAnimTag"] = new SKColor(221, 209, 34),
-        ["CSequenceFinishedAnimTag"] = new SKColor(200, 180, 255),
-        ["CStringAnimTag"] = new SKColor(163, 22, 99),
-        ["CTaskStatusAnimTag"] = new SKColor(38, 111, 118),
-        ["CWarpSectionAnimTag"] = new SKColor(200, 220, 150),
-        ["CMovementHandshakeAnimTag"] = new SKColor(38, 111, 118),
-        ["CTaskHandshakeAnimTag"] = new SKColor(38, 111, 118),
+        ["CAudioAnimTag"] = GraphHue.Orange,
+        ["CBodyGroupAnimTag"] = GraphHue.Green,
+        ["CClothSettingsAnimTag"] = GraphHue.Neutral,
+        ["CFootFallAnimTag"] = GraphHue.Green,
+        ["CFootstepLandedAnimTag"] = GraphHue.Olive,
+        ["CMaterialAttributeAnimTag"] = GraphHue.Cyan,
+        ["CParticleAnimTag"] = GraphHue.Purple,
+        ["CRagdollAnimTag"] = GraphHue.Amber,
+        ["CSequenceFinishedAnimTag"] = GraphHue.Indigo,
+        ["CStringAnimTag"] = GraphHue.Magenta,
+        ["CTaskStatusAnimTag"] = GraphHue.Teal,
+        ["CWarpSectionAnimTag"] = GraphHue.Olive,
+        ["CMovementHandshakeAnimTag"] = GraphHue.Teal,
+        ["CTaskHandshakeAnimTag"] = GraphHue.Teal,
     };
 
-    private static readonly Dictionary<string, SKColor> ComponentClassColors = new(StringComparer.Ordinal)
+    private static readonly Dictionary<string, GraphHue> ComponentClassHues = new(StringComparer.Ordinal)
     {
-        ["CActionComponentUpdater"] = new SKColor(230, 180, 120),
-        ["CAnimScriptComponentUpdater"] = new SKColor(180, 200, 230),
-        ["CCPPScriptComponentUpdater"] = new SKColor(200, 180, 230),
-        ["CDampedValueComponentUpdater"] = new SKColor(180, 230, 180),
-        ["CDemoSettingsComponentUpdater"] = new SKColor(230, 200, 180),
-        ["CLODComponentUpdater"] = new SKColor(200, 200, 200),
-        ["CLookComponentUpdater"] = new SKColor(150, 200, 230),
-        ["CMovementComponentUpdater"] = new SKColor(230, 180, 180),
-        ["CPairedSequenceComponentUpdater"] = new SKColor(180, 180, 230),
-        ["CRagdollComponentUpdater"] = new SKColor(200, 150, 150),
-        ["CRemapValueComponentUpdater"] = new SKColor(150, 200, 150),
-        ["CSlopeComponentUpdater"] = new SKColor(200, 200, 150),
-        ["CStateMachineComponentUpdater"] = new SKColor(44, 57, 89),
+        ["CActionComponentUpdater"] = GraphHue.Orange,
+        ["CAnimScriptComponentUpdater"] = GraphHue.Slate,
+        ["CCPPScriptComponentUpdater"] = GraphHue.Purple,
+        ["CDampedValueComponentUpdater"] = GraphHue.Green,
+        ["CDemoSettingsComponentUpdater"] = GraphHue.Orange,
+        ["CLODComponentUpdater"] = GraphHue.Neutral,
+        ["CLookComponentUpdater"] = GraphHue.Cyan,
+        ["CMovementComponentUpdater"] = GraphHue.Maroon,
+        ["CPairedSequenceComponentUpdater"] = GraphHue.Indigo,
+        ["CRagdollComponentUpdater"] = GraphHue.Maroon,
+        ["CRemapValueComponentUpdater"] = GraphHue.Green,
+        ["CSlopeComponentUpdater"] = GraphHue.Olive,
+        ["CStateMachineComponentUpdater"] = GraphHue.Slate,
     };
 
-    private static SKColor GetComponentClassColor(string className)
+    private static GraphHue GetComponentClassHue(string className)
     {
-        return ComponentClassColors.TryGetValue(className, out var color) ? color : new SKColor(128, 128, 128);
+        return ComponentClassHues.TryGetValue(className, out var hue) ? hue : GraphHue.Neutral;
     }
 
-    private static SKColor GetTagClassColor(string className)
+    private static GraphHue GetTagClassHue(string className)
     {
-        return TagClassColors.TryGetValue(className, out var color) ? color : new SKColor(100, 200, 200);
+        return TagClassHues.TryGetValue(className, out var hue) ? hue : GraphHue.Teal;
     }
 
     // ---- Dictionaries for class-based lookups ----
@@ -188,46 +173,46 @@ internal class AG1GraphViewer : GLNodeGraphViewer
         ["UNKNOWN"] = "Unknown",
     };
 
-    private static readonly Dictionary<string, SKColor> ClassColor = new(StringComparer.Ordinal)
+    private static readonly Dictionary<string, GraphHue> ClassHue = new(StringComparer.Ordinal)
     {
-        ["CSequenceUpdateNode"] = new SKColor(62, 43, 89),
-        ["CChoiceUpdateNode"] = new SKColor(102, 111, 49),
-        ["CMotionMatchingUpdateNode"] = new SKColor(127, 145, 218),
-        ["CSelectorUpdateNode"] = new SKColor(34, 84, 135),
-        ["CSingleFrameUpdateNode"] = new SKColor(111, 53, 195),
-        ["CDirectionalBlendUpdateNode"] = BlendColor,
-        ["CBlendUpdateNode"] = BlendColor,
-        ["CBlend2DUpdateNode"] = new SKColor(7, 62, 42),
-        ["CAddUpdateNode"] = AddSubtractColor,
-        ["CSubtractUpdateNode"] = AddSubtractColor,
-        ["CAimMatrixUpdateNode"] = AimLeanMatrixColor,
-        ["CLeanMatrixUpdateNode"] = AimLeanMatrixColor,
-        ["CBoneMaskUpdateNode"] = new SKColor(116, 51, 75),
-        ["CCycleControlUpdateNode"] = new SKColor(108, 138, 61),
-        ["CCycleControlClipUpdateNode"] = new SKColor(87, 52, 127),
-        ["CFollowAttachmentUpdateNode"] = new SKColor(0, 161, 143),
-        ["CFollowPathUpdateNode"] = new SKColor(27, 61, 82),
-        ["CFootPinningUpdateNode"] = ConstraintLightGreenColor,
-        ["CLookAtUpdateNode"] = ConstraintLightGreenColor,
-        ["CHitReactUpdateNode"] = ConstraintLightGreenColor,
-        ["CFootLockUpdateNode"] = ConstraintLightGreenColor,
-        ["CJiggleBoneUpdateNode"] = new SKColor(87, 175, 122),
-        ["CSolveIKChainUpdateNode"] = ConstraintDarkGreenColor,
-        ["CTwoBoneIKUpdateNode"] = ConstraintDarkGreenColor,
-        ["CSpeedScaleUpdateNode"] = ConstraintDarkGreenColor,
-        ["CChoreoUpdateNode"] = new SKColor(123, 78, 35),
-        ["CDirectPlaybackUpdateNode"] = SystemYellowColor,
-        ["CFootStepTriggerUpdateNode"] = SystemYellowColor,
-        ["CInputStreamUpdateNode"] = new SKColor(166, 0, 207),
-        ["CMoverUpdateNode"] = SystemDarkBlueColor,
-        ["CStopAtGoalUpdateNode"] = SystemDarkBlueColor,
-        ["CPathHelperUpdateNode"] = SystemGrayColor,
-        ["CSetFacingUpdateNode"] = SystemGrayColor,
-        ["CSlowDownOnSlopesUpdateNode"] = new SKColor(26, 59, 18),
-        ["CSkeletalInputUpdateNode"] = new SKColor(15, 101, 144),
-        ["CTurnHelperUpdateNode"] = new SKColor(32, 30, 78),
-        ["CRootUpdateNode"] = new SKColor(149, 121, 65),
-        ["CStateMachineUpdateNode"] = new SKColor(44, 57, 89),
+        ["CSequenceUpdateNode"] = GraphHue.Purple,
+        ["CChoiceUpdateNode"] = GraphHue.Olive,
+        ["CMotionMatchingUpdateNode"] = GraphHue.Indigo,
+        ["CSelectorUpdateNode"] = GraphHue.Blue,
+        ["CSingleFrameUpdateNode"] = GraphHue.Purple,
+        ["CDirectionalBlendUpdateNode"] = GraphHue.Emerald,
+        ["CBlendUpdateNode"] = GraphHue.Emerald,
+        ["CBlend2DUpdateNode"] = GraphHue.Emerald,
+        ["CAddUpdateNode"] = GraphHue.Maroon,
+        ["CSubtractUpdateNode"] = GraphHue.Maroon,
+        ["CAimMatrixUpdateNode"] = GraphHue.Magenta,
+        ["CLeanMatrixUpdateNode"] = GraphHue.Magenta,
+        ["CBoneMaskUpdateNode"] = GraphHue.Maroon,
+        ["CCycleControlUpdateNode"] = GraphHue.Olive,
+        ["CCycleControlClipUpdateNode"] = GraphHue.Purple,
+        ["CFollowAttachmentUpdateNode"] = GraphHue.Teal,
+        ["CFollowPathUpdateNode"] = GraphHue.Slate,
+        ["CFootPinningUpdateNode"] = GraphHue.Green,
+        ["CLookAtUpdateNode"] = GraphHue.Green,
+        ["CHitReactUpdateNode"] = GraphHue.Green,
+        ["CFootLockUpdateNode"] = GraphHue.Green,
+        ["CJiggleBoneUpdateNode"] = GraphHue.Green,
+        ["CSolveIKChainUpdateNode"] = GraphHue.Emerald,
+        ["CTwoBoneIKUpdateNode"] = GraphHue.Emerald,
+        ["CSpeedScaleUpdateNode"] = GraphHue.Emerald,
+        ["CChoreoUpdateNode"] = GraphHue.Orange,
+        ["CDirectPlaybackUpdateNode"] = GraphHue.Amber,
+        ["CFootStepTriggerUpdateNode"] = GraphHue.Amber,
+        ["CInputStreamUpdateNode"] = GraphHue.Magenta,
+        ["CMoverUpdateNode"] = GraphHue.Slate,
+        ["CStopAtGoalUpdateNode"] = GraphHue.Slate,
+        ["CPathHelperUpdateNode"] = GraphHue.Neutral,
+        ["CSetFacingUpdateNode"] = GraphHue.Neutral,
+        ["CSlowDownOnSlopesUpdateNode"] = GraphHue.Green,
+        ["CSkeletalInputUpdateNode"] = GraphHue.Cyan,
+        ["CTurnHelperUpdateNode"] = GraphHue.Indigo,
+        ["CRootUpdateNode"] = GraphHue.Amber,
+        ["CStateMachineUpdateNode"] = GraphHue.Slate,
     };
     private static readonly HashSet<string> GlobalPropertySkips = new(StringComparer.Ordinal)
     {
@@ -256,10 +241,10 @@ internal class AG1GraphViewer : GLNodeGraphViewer
     private static readonly string[] ChildProperties = { "m_pChildNode", "m_pChild1", "m_pChild2", "m_pChild" };
 
     public AG1GraphViewer(VrfGuiContext vrfGuiContext, RendererContext rendererContext, KVObject data)
-        : base(vrfGuiContext, rendererContext, CreateAndConfigureNodeGraph(data, out var graphDef))
+        : base(vrfGuiContext, rendererContext, new GraphView())
     {
         fileLoader = vrfGuiContext;
-        animGraphData = graphDef;
+        animGraphData = data;
         modelInfo = new AnimGraphModelInfo(vrfGuiContext, LoadModel);
 
         var isUncompiledAnimationGraph = animGraphData.GetStringProperty("_class") == "CAnimationGraph";
@@ -279,7 +264,7 @@ internal class AG1GraphViewer : GLNodeGraphViewer
         CreateGraph();
         AddParameterAndTagNodes();
         AddComponentNodes();
-        nodeGraph.LayoutNodes();
+        View.LayoutNodes();
     }
 
     /// <summary>
@@ -606,31 +591,6 @@ internal class AG1GraphViewer : GLNodeGraphViewer
         return (0f, 0f);
     }
 
-    private static NodeGraphControl CreateAndConfigureNodeGraph(KVObject data, out KVObject graphDef)
-    {
-        graphDef = data;
-        var nodeGraph = new NodeGraphControl
-        {
-            GridStyle = NodeGraphControl.EGridStyle.Checkerboard,
-            CanvasBackgroundColor = new SKColor(40, 40, 40)
-        };
-
-        nodeGraph.GridColor = SKColors.White;
-
-        if (Themer.CurrentTheme == Themer.AppTheme.Dark)
-        {
-            nodeGraph.CanvasBackgroundColor = ToSKColor(Themer.CurrentThemeColors.AppMiddle);
-            NodeColor = ToSKColor(Themer.CurrentThemeColors.AppSoft);
-            nodeGraph.GridColor = ToSKColor(Themer.CurrentThemeColors.ContrastSoft);
-        }
-
-        NodeGraphControl.AddTypeColorPair<Pose>(PoseColor);
-
-        return nodeGraph;
-    }
-
-    private static SKColor ToSKColor(Color color) => new(color.R, color.G, color.B, color.A);
-
     /// <summary>
     /// Extracts a child node index from a child reference, which may be either an inline
     /// collection holding <c>m_nodeIndex</c> or a bare integer. Returns -1 when absent.
@@ -803,22 +763,16 @@ internal class AG1GraphViewer : GLNodeGraphViewer
                 if (!nodeMap.TryGetValue(childIdx, out var childNode))
                     continue;
 
-                if (!childNode.Sockets.OfType<SocketOut>().Any())
+                if (childNode.Outputs.Count == 0)
                 {
-                    var outSocket = new SocketOut(typeof(Pose), string.Empty, childNode);
-                    childNode.Sockets.Add(outSocket);
+                    childNode.AddOutput(string.Empty, PoseHue);
                 }
 
-                var inputSocket = new SocketIn(typeof(Pose), label, parentNode, hub: true);
-                parentNode.Sockets.Add(inputSocket);
-
-                var childOutput = childNode.Sockets.OfType<SocketOut>().First();
-                nodeGraph.Connect(childOutput, inputSocket);
+                var inputSocket = parentNode.AddInput(label, PoseHue, allowMultiple: true);
+                View.Connect(childNode.Outputs[0], inputSocket);
             }
-
-            parentNode.Calculate();
         }
-        nodeGraph.LayoutNodes();
+        View.LayoutNodes();
     }
 
     /// <summary>
@@ -839,7 +793,7 @@ internal class AG1GraphViewer : GLNodeGraphViewer
     private static void ApplyNetworkMode(Node node, KVObject obj)
     {
         if (obj.GetStringProperty("m_networkMode", "").Equals("ClientSimulate", StringComparison.Ordinal))
-            node.SetBaseColor(new SKColor(118, 75, 140));
+            node.BodyTint = GraphHue.Purple;
     }
 
     private static string FormatDamping(KVObject damping)
@@ -882,10 +836,7 @@ internal class AG1GraphViewer : GLNodeGraphViewer
             NodeType = displayName,
         };
 
-        if (className != null && ClassColor.TryGetValue(className, out var color))
-            node.HeaderColor = color;
-        else
-            node.HeaderColor = PoseColor;
+        node.Category = className != null && ClassHue.TryGetValue(className, out var hue) ? hue : PoseHue;
 
         ApplyNetworkMode(node, compiledNode);
 
@@ -1271,23 +1222,23 @@ internal class AG1GraphViewer : GLNodeGraphViewer
             }
         }
 
-        nodeGraph.AddNode(node);
+        View.AddNode(node);
         return node;
     }
 
-    private static SKColor GetParameterTypeColor(string type)
+    private static GraphHue GetParameterTypeHue(string type)
     {
         return type switch
         {
-            "BOOL" => new SKColor(25, 78, 101),
-            "INT" => new SKColor(145, 102, 54),
-            "FLOAT" => new SKColor(163, 171, 37),
-            "ENUM" => new SKColor(89, 27, 111),
-            "VECTOR" => new SKColor(26, 122, 59),
-            "QUATERNION" => new SKColor(123, 58, 60),
-            "SYMBOL" => new SKColor(200, 200, 200),
-            "VIRTUAL" => new SKColor(150, 150, 150),
-            _ => new SKColor(128, 128, 128),
+            "BOOL" => GraphHue.Blue,
+            "INT" => GraphHue.Orange,
+            "FLOAT" => GraphHue.Olive,
+            "ENUM" => GraphHue.Purple,
+            "VECTOR" => GraphHue.Green,
+            "QUATERNION" => GraphHue.Maroon,
+            "SYMBOL" => GraphHue.Neutral,
+            "VIRTUAL" => GraphHue.Neutral,
+            _ => GraphHue.Neutral,
         };
     }
 
@@ -1306,11 +1257,11 @@ internal class AG1GraphViewer : GLNodeGraphViewer
             {
                 Name = $"{friendlyName} Parameters",
                 NodeType = "Parameter Group",
-                HeaderColor = GetParameterTypeColor(type),
+                Category = GetParameterTypeHue(type),
             };
             foreach (var p in ordered)
                 node.AddText(GetParameterDescriptionFromObject(p));
-            nodeGraph.AddNode(node);
+            View.AddNode(node);
         }
 
         if (tags.Count > 0)
@@ -1329,14 +1280,14 @@ internal class AG1GraphViewer : GLNodeGraphViewer
                 {
                     Name = $"{friendlyName}",
                     NodeType = "Tag Group",
-                    HeaderColor = GetTagClassColor(className),
+                    Category = GetTagClassHue(className),
                 };
                 foreach (var t in ordered)
                 {
                     var name = t.GetStringProperty("m_name") ?? "Unnamed";
                     node.AddText(name);
                 }
-                nodeGraph.AddNode(node);
+                View.AddNode(node);
             }
         }
     }
@@ -1357,7 +1308,7 @@ internal class AG1GraphViewer : GLNodeGraphViewer
             {
                 Name = displayName,
                 NodeType = "Component",
-                HeaderColor = GetComponentClassColor(className),
+                Category = GetComponentClassHue(className),
             };
 
             if (className == "CStateMachineComponentUpdater")
@@ -1394,43 +1345,9 @@ internal class AG1GraphViewer : GLNodeGraphViewer
 
             ApplyNetworkMode(node, comp);
 
-            nodeGraph.AddNode(node);
+            View.AddNode(node);
         }
     }
-
-    #region Node class
-
-    private class Node : AbstractNode
-    {
-        public KVObject? Data { get; set; }
-
-        public Node(KVObject? data)
-        {
-            Data = data;
-            BaseColor = NodeColor;
-            TextColor = new SKColor(230, 230, 230);
-            HeaderTextColor = new SKColor(255, 255, 255);
-            HeaderTypeColor = new SKColor(255, 255, 255);
-        }
-
-        public void SetBaseColor(SKColor color)
-        {
-            BaseColor = color;
-        }
-
-        public void AddSpace() => CreateTextSocket<string>(string.Empty);
-        public void AddText(string text) => CreateTextSocket<string>(text);
-
-        private void CreateTextSocket<T>(string text)
-        {
-            var socket = new SocketIn(typeof(T), text, this, false)
-            {
-                DisplayOnly = true
-            };
-            Sockets.Add(socket);
-        }
-    }
-    #endregion
 
     public override void Dispose()
     {
@@ -1441,6 +1358,4 @@ internal class AG1GraphViewer : GLNodeGraphViewer
         base.Dispose();
         GC.SuppressFinalize(this);
     }
-
-    private struct Pose { }
 }

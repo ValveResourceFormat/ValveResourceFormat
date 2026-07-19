@@ -1,28 +1,17 @@
-using System.Diagnostics;
-using System.Drawing;
 using System.Globalization;
 using System.Linq;
-using System.Runtime.CompilerServices;
 using System.Text;
-using System.Windows.Forms;
-using System.Xml.Linq;
 using GUI.Types.GLViewers;
+using GUI.Types.Graphs.Core;
 using GUI.Utils;
-using SkiaSharp;
-using Svg.Skia;
 using ValveKeyValue;
 using ValveResourceFormat.Renderer;
 using ValveResourceFormat.Serialization.KeyValues;
-using static ValveResourceFormat.Blocks.ResourceIntrospectionManifest.ResourceDiskEnum;
 
 namespace GUI.Types.Graphs;
 
-internal class PulseGraphViewer : GLNodeGraphViewer
+internal class PulseGraphViewer : GLGraphViewer
 {
-    private static SKColor ToSKColor(Color color) => new(color.R, color.G, color.B, color.A);
-    public static SKColor NodeColor { get; set; }
-    public static SKColor NodeTextColor { get; set; }
-
     private readonly KVObject graphDefinition;
 
     enum CellCategory
@@ -99,7 +88,7 @@ internal class PulseGraphViewer : GLNodeGraphViewer
     private readonly IReadOnlyList<KVObject> variables;
     private readonly IReadOnlyList<KVObject> publicOutputs;
     private readonly IReadOnlyList<KVObject> callInfos;
-    private readonly Dictionary<int, Dictionary<int, SocketIn>> instructionInputActionSocketMap = [];
+    private readonly Dictionary<int, Dictionary<int, GraphSocket>> instructionInputActionSocketMap = [];
     private readonly List<NodeCallInfo> callNodesToResolve = [];
     private Dictionary<int, HashSet<List<int>>> loopInstructionMap = [];
 
@@ -143,22 +132,50 @@ internal class PulseGraphViewer : GLNodeGraphViewer
     }
 
     #region Socket types
-    private static SKColor FlowColor { get; set; }
     private struct Flow;
-    private static SKColor ValueStringColor { get; set; }
     private struct ValueString;
-    private static SKColor ValueNumberColor { get; set; }
     private struct ValueNumber;
-    private static SKColor ValueBoolColor { get; set; }
     private struct ValueBool;
-    private static SKColor ValueOtherColor { get; set; }
     private struct ValueOther;
+
+    private static GraphHue HueOf(Type type)
+    {
+        if (type == typeof(ValueString))
+        {
+            return GraphHue.Green;
+        }
+
+        if (type == typeof(ValueNumber))
+        {
+            return GraphHue.Amber;
+        }
+
+        if (type == typeof(ValueBool))
+        {
+            return GraphHue.Orange;
+        }
+
+        if (type == typeof(ValueOther))
+        {
+            return GraphHue.Slate;
+        }
+
+        return GraphHue.Neutral;
+    }
+
+    private static GraphHue HueOfPval(PulseValueType valueType) => valueType switch
+    {
+        PulseValueType.PVAL_INT or PulseValueType.PVAL_FLOAT => GraphHue.Amber,
+        PulseValueType.PVAL_STRING => GraphHue.Green,
+        PulseValueType.PVAL_BOOL => GraphHue.Orange,
+        _ => GraphHue.Slate,
+    };
     #endregion Socket types
 
     public PulseGraphViewer(VrfGuiContext vrfGuiContext, RendererContext rendererContext, KVObject data)
-        : base(vrfGuiContext, rendererContext, CreateAndConfigureNodeGraph(data, out var graphDef))
+        : base(vrfGuiContext, rendererContext, new GraphView())
     {
-        graphDefinition = graphDef;
+        graphDefinition = data;
 
         cells = graphDefinition.GetArray("m_Cells");
         chunks = graphDefinition.GetArray("m_Chunks");
@@ -216,7 +233,7 @@ internal class PulseGraphViewer : GLNodeGraphViewer
     private bool TryAddRegisterMapOutParams(
         Node node,
         int chunkIndex,
-        Dictionary<int, SocketOut> registerOutputSocketMap,
+        Dictionary<int, GraphSocket> registerOutputSocketMap,
         KVObject registerMap)
     {
         var outParams = registerMap["m_Outparams"];
@@ -248,9 +265,9 @@ internal class PulseGraphViewer : GLNodeGraphViewer
         int destChunk,
         int destInstructionIdx,
         int maxInstructionIdx, // non-inclusive, use when there's a need to limit the range inside a loop
-        SocketOut outputSocket,
+        GraphSocket outputSocket,
         Dictionary<int, KVObject> registerConstValueMap,
-        Dictionary<int, SocketOut> registerOutputSocketMap)
+        Dictionary<int, GraphSocket> registerOutputSocketMap)
     {
         if (destChunk == -1)
         {
@@ -266,7 +283,7 @@ internal class PulseGraphViewer : GLNodeGraphViewer
             destChunk,
             outputSocket,
             new Dictionary<int, KVObject>(registerConstValueMap),
-            new Dictionary<int, SocketOut>(registerOutputSocketMap),
+            new Dictionary<int, GraphSocket>(registerOutputSocketMap),
             destInstructionIdx,
             maxInstructionIdx
         );
@@ -277,7 +294,7 @@ internal class PulseGraphViewer : GLNodeGraphViewer
         PulseOutflowConnection outflow,
         string socketLabel,
         Dictionary<int, KVObject> registerConstValueMap,
-        Dictionary<int, SocketOut> registerOutputSocketMap,
+        Dictionary<int, GraphSocket> registerOutputSocketMap,
         int maxInstructionIdx
     )
     {
@@ -292,41 +309,6 @@ internal class PulseGraphViewer : GLNodeGraphViewer
         }
         var outputSocket = node.CreateSocketOut<Flow>(socketLabel);
         TraverseOutflow(outflow.destChunk, outflow.destInstructionIdx, maxInstructionIdx, outputSocket, registerConstValueMap, registerOutputSocketMap);
-    }
-
-    private static NodeGraphControl CreateAndConfigureNodeGraph(KVObject data, out KVObject graphDef)
-    {
-        graphDef = data;
-        var nodeGraph = new NodeGraphControl
-        {
-            GridStyle = NodeGraphControl.EGridStyle.Dots,
-
-            CanvasBackgroundColor = new SKColor(10, 10, 10)
-        };
-        // referencing pulse_scene_styles_v2.vdata, slightly modified:
-        NodeColor = new SKColor(80, 80, 80);
-        NodeTextColor = SKColor.Parse("#FFFFFF");
-        FlowColor = SKColor.Parse("#999999"); // $data_type_flow
-        ValueStringColor = SKColor.Parse("#7AD691"); // $data_type_string
-        ValueNumberColor = SKColor.Parse("#DDB85D"); // $data_type_number
-        ValueBoolColor = SKColor.Parse("#D15226"); // $data_type_bool
-        ValueOtherColor = SKColor.Parse("#32505D"); // $data_type_other
-
-        nodeGraph.GridColor = SKColors.White;
-        if (Themer.CurrentTheme == Themer.AppTheme.Dark)
-        {
-            nodeGraph.CanvasBackgroundColor = ToSKColor(Themer.CurrentThemeColors.AppMiddle);
-            NodeColor = ToSKColor(Themer.CurrentThemeColors.AppSoft);
-            nodeGraph.GridColor = ToSKColor(Themer.CurrentThemeColors.ContrastSoft);
-        }
-
-        NodeGraphControl.AddTypeColorPair<Flow>(FlowColor);
-        NodeGraphControl.AddTypeColorPair<ValueString>(ValueStringColor);
-        NodeGraphControl.AddTypeColorPair<ValueNumber>(ValueNumberColor);
-        NodeGraphControl.AddTypeColorPair<ValueBool>(ValueBoolColor);
-        NodeGraphControl.AddTypeColorPair<ValueOther>(ValueOtherColor);
-
-        return nodeGraph;
     }
 
     private CellCategory GetCellCategory(int cellIdx)
@@ -448,10 +430,10 @@ internal class PulseGraphViewer : GLNodeGraphViewer
         return filteredCell;
     }
 
-    private SocketOut CreateSequentialActionSockets(Node node, SocketOut previousActionOutSocket, int chunkIdx, int instructionIdx)
+    private GraphSocket CreateSequentialActionSockets(Node node, GraphSocket previousActionOutSocket, int chunkIdx, int instructionIdx)
     {
         var socketIn = node.CreateSocketIn<Flow>("");
-        nodeGraph.Connect(previousActionOutSocket, socketIn);
+        View.Connect(previousActionOutSocket, socketIn);
         instructionInputActionSocketMap[chunkIdx][instructionIdx] = socketIn;
 
         var socketOut = node.CreateSocketOut<Flow>("");
@@ -462,14 +444,14 @@ internal class PulseGraphViewer : GLNodeGraphViewer
         Node node,
         int chunkIndex,
         Dictionary<int, KVObject> registerConstValueMap,
-        Dictionary<int, SocketOut> registerSocketOutputMap,
+        Dictionary<int, GraphSocket> registerSocketOutputMap,
         int regIndex,
         string name)
     {
         if (registerSocketOutputMap.TryGetValue(regIndex, out var regOutSocket))
         {
             var argInputSocket = node.CreateSocketInFromValueType(name, GetValueTypeFromRegister(chunkIndex, regIndex));
-            nodeGraph.Connect(regOutSocket, argInputSocket);
+            View.Connect(regOutSocket, argInputSocket);
             return;
         }
         else if (registerConstValueMap.TryGetValue(regIndex, out var obj))
@@ -710,12 +692,12 @@ internal class PulseGraphViewer : GLNodeGraphViewer
 
         return false;
     }
-    private SocketOut? SetupNodeOutputsFromRegisterMap(
+    private GraphSocket? SetupNodeOutputsFromRegisterMap(
         Node node,
         int chunkIndex,
         int instructionIdx,
-        Dictionary<int, SocketOut> registerOutputSocketMap,
-        SocketOut previousActionOutSocket,
+        Dictionary<int, GraphSocket> registerOutputSocketMap,
+        GraphSocket previousActionOutSocket,
         KVObject registerMap)
     {
         // If node has no outputs
@@ -749,7 +731,7 @@ internal class PulseGraphViewer : GLNodeGraphViewer
         Node node,
         int chunkIndex,
         Dictionary<int, KVObject> registerConstValueMap,
-        Dictionary<int, SocketOut> registerSocketOutputMap,
+        Dictionary<int, GraphSocket> registerSocketOutputMap,
         KVObject registerMap)
     {
         var inParams = registerMap["m_Inparams"];
@@ -770,7 +752,7 @@ internal class PulseGraphViewer : GLNodeGraphViewer
             else if (registerSocketOutputMap.TryGetValue(regIdx, out var regOutSocket))
             {
                 var argInputSocket = node.CreateSocketInFromValueType(regName, GetValueTypeFromRegister(chunkIndex, regIdx));
-                nodeGraph.Connect(regOutSocket, argInputSocket);
+                View.Connect(regOutSocket, argInputSocket);
             }
             else
             {
@@ -780,11 +762,11 @@ internal class PulseGraphViewer : GLNodeGraphViewer
         }
     }
 
-    private SocketOut? TraverseNodesForChunk(
+    private GraphSocket? TraverseNodesForChunk(
         int chunkIndex,
-        SocketOut sourceActionOutSocket,
+        GraphSocket sourceActionOutSocket,
         Dictionary<int, KVObject> registerConstValueMap,
-        Dictionary<int, SocketOut> registerOutputSocketMap,
+        Dictionary<int, GraphSocket> registerOutputSocketMap,
         int startingInstructionIdx = 0,
         int endingInstructionIdx = int.MaxValue /* non-inclusive */)
     {
@@ -835,7 +817,7 @@ internal class PulseGraphViewer : GLNodeGraphViewer
                         previousActionOutSocket = CreateSequentialActionSockets(doWhileNode, previousActionOutSocket, chunkIndex, instructionIdx);
 
                         var newRegisterConstValueMap = new Dictionary<int, KVObject>(registerConstValueMap);
-                        var newRegisterOutputSocketMap = new Dictionary<int, SocketOut>(registerOutputSocketMap);
+                        var newRegisterOutputSocketMap = new Dictionary<int, GraphSocket>(registerOutputSocketMap);
                         var outSocket = TraverseNodesForChunk(
                             chunkIndex,
                             previousActionOutSocket,
@@ -852,7 +834,7 @@ internal class PulseGraphViewer : GLNodeGraphViewer
 
                         var condRegister = loopEndInstr.GetInt32Property("m_nReg0");
                         AddNodeRegisterInput(doWhileNode, chunkIndex, newRegisterConstValueMap, newRegisterOutputSocketMap, condRegister, "Condition");
-                        nodeGraph.AddNode(doWhileNode);
+                        View.AddNode(doWhileNode);
                         instructionIdx = loopEnd + 1;
                     }
                     else
@@ -996,137 +978,127 @@ internal class PulseGraphViewer : GLNodeGraphViewer
                             }
                         }
 
-                        Node? forLoopNode = null;
-                        try
+                        var forLoopNode = new Node(null)
                         {
-                            forLoopNode = new Node(null)
-                            {
-                                Name = "Loop",
-                                NodeType = "Flow control",
-                            };
+                            Name = "Loop",
+                            NodeType = "Flow control",
+                        };
 
-                            // No info? One last try, but this is an assumption already.
-                            // If the latest condition instruction is LT*/LTE* or GT*/GTE* then in theory we can connect the start and end condition sockets
-                            if (regStop == -1 && regStart == -1)
-                            {
-                                var instrCompName = instrComp.GetStringProperty("m_nCode");
-                                if (instrCompName.StartsWith("LT", StringComparison.InvariantCultureIgnoreCase))
-                                {
-                                    regStart = instrComp.GetInt32Property("m_nReg1");
-                                    regStop = instrComp.GetInt32Property("m_nReg2");
-                                }
-                                else if (instrCompName.StartsWith("GT", StringComparison.InvariantCultureIgnoreCase))
-                                {
-                                    forLoopNode.AddMessage("Iteration may go higher to lower value");
-                                    regStart = instrComp.GetInt32Property("m_nReg1");
-                                    regStop = instrComp.GetInt32Property("m_nReg2");
-                                }
-                                forLoopNode.AddMessage("Loop range may not be accurate (missing debug info)");
-                            }
-
-                            var loopSocketIn = forLoopNode.CreateSocketIn<Flow>("");
-                            nodeGraph.Connect(previousActionOutSocket, loopSocketIn);
-                            instructionInputActionSocketMap[chunkIndex][instructionIdx] = loopSocketIn;
-
-                            if (regStart != -1)
-                            {
-                                AddNodeRegisterInput(forLoopNode, chunkIndex, registerConstValueMap, registerOutputSocketMap, regStart, "First index");
-                                // add the index output
-                                // this will be remembered when we do a loop iteration (should also handle foreach type of loop)
-                                registerOutputSocketMap[regStart] = forLoopNode.CreateSocketOut<ValueNumber>("Index");
-                            }
-                            else
-                            {
-                                forLoopNode.AddMessage("Could not find start index");
-                            }
-
-                            if (regStop != -1)
-                            {
-                                AddNodeRegisterInput(forLoopNode, chunkIndex, registerConstValueMap, registerOutputSocketMap, regStop, "Last index");
-                            }
-                            else
-                            {
-                                forLoopNode.AddMessage("Could not find end index");
-                            }
-
-                            var regIncrementLate = -1;
-                            var loopOperationEndInstructionIdx = loopEnd;
-                            if (!isIncrementLoadedInitially)
-                            {
-                                var instrLastInLoop = instructions[loopEnd - 1];
-                                var instrNameStr = instrLastInLoop.GetStringProperty("m_nCode");
-
-                                // A bit crude, but otherwise we do not really have a good way of determining the increment
-                                if (instrNameStr.StartsWith("ADD", StringComparison.InvariantCultureIgnoreCase)
-                                    || instrNameStr.StartsWith("SUB", StringComparison.InvariantCultureIgnoreCase)
-                                    || instrNameStr.StartsWith("MUL", StringComparison.InvariantCultureIgnoreCase)
-                                    || instrNameStr.StartsWith("DIV", StringComparison.InvariantCultureIgnoreCase))
-                                {
-                                    var opReg0 = instrLastInLoop.GetInt32Property("m_nReg0");
-                                    var opReg1 = instrLastInLoop.GetInt32Property("m_nReg1");
-                                    var opReg2 = instrLastInLoop.GetInt32Property("m_nReg2");
-
-                                    // use the value that's not the output one, so the increment
-                                    var incrementReg = opReg2;
-                                    if (opReg1 != opReg0)
-                                    {
-                                        incrementReg = opReg1;
-                                    }
-
-                                    // Traversing the inside of the loop is required first to determine how the increment connects.
-                                    // Increment will be added after traversing.
-                                    regIncrementLate = incrementReg;
-                                    loopOperationEndInstructionIdx = loopEnd - 1;
-                                }
-                            }
-                            else if (regStep != -1)
-                            {
-                                loopOperationEndInstructionIdx = loopEnd - 1; // The ADD/SUB instruction
-                                AddNodeRegisterInput(forLoopNode, chunkIndex, registerConstValueMap, registerOutputSocketMap, regStep, "Increment");
-                            }
-                            else
-                            {
-                                loopOperationEndInstructionIdx = loopEnd; // No increment?
-                                forLoopNode.AddMessage("Could not find the increment");
-                            }
-
-                            AddNodeRegisterInput(forLoopNode, chunkIndex, registerConstValueMap, registerOutputSocketMap, condRegister, "Loop condition");
-
-                            if (loopOperationEndInstructionIdx == loopJumpOutInstructionIdx)
-                            {
-                                Log.Info(nameof(PulseGraphViewer), $"Potentially empty loop (chunk={chunkIndex}, instruction={loopOperationEndInstructionIdx})");
-                            }
-
-                            //Log.Info(nameof(PulseGraphViewer), $"Chunk: {chunkIndex} loopJumpOutInstructionId={loopJumpOutInstructionIdx} -> {loopJumpOutInstruction.GetInt32Property("m_nDestInstruction")} | loopOperationEndInstructionId={loopOperationEndInstructionIdx}");
-
-                            var socketOutLoopAction = forLoopNode.CreateSocketOut<Flow>("Loop");
-
-                            var newRegisterConstValueMap = new Dictionary<int, KVObject>(registerConstValueMap);
-                            var newRegisterOutputSocketMap = new Dictionary<int, SocketOut>(registerOutputSocketMap);
-                            TraverseNodesForChunk(
-                                chunkIndex,
-                                socketOutLoopAction,
-                                newRegisterConstValueMap,
-                                newRegisterOutputSocketMap,
-                                loopJumpOutInstructionIdx + 1,
-                                loopOperationEndInstructionIdx
-                            );
-
-                            if (regIncrementLate != -1)
-                            {
-                                AddNodeRegisterInput(forLoopNode, chunkIndex, newRegisterConstValueMap, newRegisterOutputSocketMap, regIncrementLate, "Increment");
-                            }
-
-                            previousActionOutSocket = forLoopNode.CreateSocketOut<Flow>("Finished");
-
-                            forLoopNode.Calculate();
-                            nodeGraph.AddNode(forLoopNode);
-                            forLoopNode = null;
-                        }
-                        finally
+                        // No info? One last try, but this is an assumption already.
+                        // If the latest condition instruction is LT*/LTE* or GT*/GTE* then in theory we can connect the start and end condition sockets
+                        if (regStop == -1 && regStart == -1)
                         {
-                            forLoopNode?.Dispose();
+                            var instrCompName = instrComp.GetStringProperty("m_nCode");
+                            if (instrCompName.StartsWith("LT", StringComparison.InvariantCultureIgnoreCase))
+                            {
+                                regStart = instrComp.GetInt32Property("m_nReg1");
+                                regStop = instrComp.GetInt32Property("m_nReg2");
+                            }
+                            else if (instrCompName.StartsWith("GT", StringComparison.InvariantCultureIgnoreCase))
+                            {
+                                forLoopNode.AddMessage("Iteration may go higher to lower value");
+                                regStart = instrComp.GetInt32Property("m_nReg1");
+                                regStop = instrComp.GetInt32Property("m_nReg2");
+                            }
+                            forLoopNode.AddMessage("Loop range may not be accurate (missing debug info)");
                         }
+
+                        var loopSocketIn = forLoopNode.CreateSocketIn<Flow>("");
+                        View.Connect(previousActionOutSocket, loopSocketIn);
+                        instructionInputActionSocketMap[chunkIndex][instructionIdx] = loopSocketIn;
+
+                        if (regStart != -1)
+                        {
+                            AddNodeRegisterInput(forLoopNode, chunkIndex, registerConstValueMap, registerOutputSocketMap, regStart, "First index");
+                            // add the index output
+                            // this will be remembered when we do a loop iteration (should also handle foreach type of loop)
+                            registerOutputSocketMap[regStart] = forLoopNode.CreateSocketOut<ValueNumber>("Index");
+                        }
+                        else
+                        {
+                            forLoopNode.AddMessage("Could not find start index");
+                        }
+
+                        if (regStop != -1)
+                        {
+                            AddNodeRegisterInput(forLoopNode, chunkIndex, registerConstValueMap, registerOutputSocketMap, regStop, "Last index");
+                        }
+                        else
+                        {
+                            forLoopNode.AddMessage("Could not find end index");
+                        }
+
+                        var regIncrementLate = -1;
+                        var loopOperationEndInstructionIdx = loopEnd;
+                        if (!isIncrementLoadedInitially)
+                        {
+                            var instrLastInLoop = instructions[loopEnd - 1];
+                            var instrNameStr = instrLastInLoop.GetStringProperty("m_nCode");
+
+                            // A bit crude, but otherwise we do not really have a good way of determining the increment
+                            if (instrNameStr.StartsWith("ADD", StringComparison.InvariantCultureIgnoreCase)
+                                || instrNameStr.StartsWith("SUB", StringComparison.InvariantCultureIgnoreCase)
+                                || instrNameStr.StartsWith("MUL", StringComparison.InvariantCultureIgnoreCase)
+                                || instrNameStr.StartsWith("DIV", StringComparison.InvariantCultureIgnoreCase))
+                            {
+                                var opReg0 = instrLastInLoop.GetInt32Property("m_nReg0");
+                                var opReg1 = instrLastInLoop.GetInt32Property("m_nReg1");
+                                var opReg2 = instrLastInLoop.GetInt32Property("m_nReg2");
+
+                                // use the value that's not the output one, so the increment
+                                var incrementReg = opReg2;
+                                if (opReg1 != opReg0)
+                                {
+                                    incrementReg = opReg1;
+                                }
+
+                                // Traversing the inside of the loop is required first to determine how the increment connects.
+                                // Increment will be added after traversing.
+                                regIncrementLate = incrementReg;
+                                loopOperationEndInstructionIdx = loopEnd - 1;
+                            }
+                        }
+                        else if (regStep != -1)
+                        {
+                            loopOperationEndInstructionIdx = loopEnd - 1; // The ADD/SUB instruction
+                            AddNodeRegisterInput(forLoopNode, chunkIndex, registerConstValueMap, registerOutputSocketMap, regStep, "Increment");
+                        }
+                        else
+                        {
+                            loopOperationEndInstructionIdx = loopEnd; // No increment?
+                            forLoopNode.AddMessage("Could not find the increment");
+                        }
+
+                        AddNodeRegisterInput(forLoopNode, chunkIndex, registerConstValueMap, registerOutputSocketMap, condRegister, "Loop condition");
+
+                        if (loopOperationEndInstructionIdx == loopJumpOutInstructionIdx)
+                        {
+                            Log.Info(nameof(PulseGraphViewer), $"Potentially empty loop (chunk={chunkIndex}, instruction={loopOperationEndInstructionIdx})");
+                        }
+
+                        //Log.Info(nameof(PulseGraphViewer), $"Chunk: {chunkIndex} loopJumpOutInstructionId={loopJumpOutInstructionIdx} -> {loopJumpOutInstruction.GetInt32Property("m_nDestInstruction")} | loopOperationEndInstructionId={loopOperationEndInstructionIdx}");
+
+                        var socketOutLoopAction = forLoopNode.CreateSocketOut<Flow>("Loop");
+
+                        var newRegisterConstValueMap = new Dictionary<int, KVObject>(registerConstValueMap);
+                        var newRegisterOutputSocketMap = new Dictionary<int, GraphSocket>(registerOutputSocketMap);
+                        TraverseNodesForChunk(
+                            chunkIndex,
+                            socketOutLoopAction,
+                            newRegisterConstValueMap,
+                            newRegisterOutputSocketMap,
+                            loopJumpOutInstructionIdx + 1,
+                            loopOperationEndInstructionIdx
+                        );
+
+                        if (regIncrementLate != -1)
+                        {
+                            AddNodeRegisterInput(forLoopNode, chunkIndex, newRegisterConstValueMap, newRegisterOutputSocketMap, regIncrementLate, "Increment");
+                        }
+
+                        previousActionOutSocket = forLoopNode.CreateSocketOut<Flow>("Finished");
+
+                        View.AddNode(forLoopNode);
                         // do stuff outside the loop
                         instructionIdx = outsideLoopTargetInstructionIdx;
                     }
@@ -1150,34 +1122,22 @@ internal class PulseGraphViewer : GLNodeGraphViewer
                         var registerMap = binding["m_RegisterMap"];
 
                         var funcName = binding.GetStringProperty("m_FuncName");
-                        Node? node = null;
-                        try
+                        var node = new Node(null)
                         {
-                            node = new Node(null)
-                            {
-                                Name = funcName,
-                                NodeType = "Function",
-                            };
+                            Name = funcName,
+                            NodeType = "Function",
+                        };
 
-                            var newActionOutSocket = SetupNodeOutputsFromRegisterMap(node, chunkIndex, instructionIdx, registerOutputSocketMap, previousActionOutSocket, registerMap);
-                            if (newActionOutSocket != null)
-                            {
-                                previousActionOutSocket = newActionOutSocket;
-                            }
-
-                            // it will be the color of the first output socket
-                            node.UpdateTypeColorFromOutput();
-
-                            CreateInputsFromRegisterMap(node, chunkIndex, registerConstValueMap, registerOutputSocketMap, registerMap);
-
-                            node.Calculate();
-                            nodeGraph.AddNode(node);
-                            node = null;
-                        }
-                        finally
+                        var newActionOutSocket = SetupNodeOutputsFromRegisterMap(node, chunkIndex, instructionIdx, registerOutputSocketMap, previousActionOutSocket, registerMap);
+                        if (newActionOutSocket != null)
                         {
-                            node?.Dispose();
+                            previousActionOutSocket = newActionOutSocket;
                         }
+
+
+                        CreateInputsFromRegisterMap(node, chunkIndex, registerConstValueMap, registerOutputSocketMap, registerMap);
+
+                        View.AddNode(node);
                         break;
                     }
                 case InstructionCode.CELL_INVOKE:
@@ -1193,37 +1153,25 @@ internal class PulseGraphViewer : GLNodeGraphViewer
                         var cellCategory = GetCellCategory(cellIndex);
 
                         var funcNameSplitIdx = funcName.IndexOf("::", StringComparison.InvariantCulture);
-                        Node? node = null;
-                        try
+                        var node = new Node(null)
                         {
-                            node = new Node(null)
-                            {
-                                Name = cellName,
-                                // show name after '::' separator, if can't find then show full name
-                                NodeType = funcName[(funcNameSplitIdx >= 0 ? (funcNameSplitIdx + 2) : 0)..],
-                            };
+                            Name = cellName,
+                            // show name after '::' separator, if can't find then show full name
+                            NodeType = funcName[(funcNameSplitIdx >= 0 ? (funcNameSplitIdx + 2) : 0)..],
+                        };
 
-                            var newActionOutSocket = SetupNodeOutputsFromRegisterMap(node, chunkIndex, instructionIdx, registerOutputSocketMap, previousActionOutSocket, registerMap);
-                            if (newActionOutSocket != null)
-                            {
-                                previousActionOutSocket = newActionOutSocket;
-                            }
-
-                            // it will be the color of the first output socket
-                            node.UpdateTypeColorFromOutput();
-
-                            AddFilteredCellDetails(node, cellIndex);
-                            CreateInputsFromRegisterMap(node, chunkIndex, registerConstValueMap, registerOutputSocketMap, registerMap);
-                            PopulateCellAndTraverseOutflows(node, cellIndex, registerConstValueMap, registerOutputSocketMap, finalEndingInstructionIdx);
-
-                            node.Calculate();
-                            nodeGraph.AddNode(node);
-                            node = null;
-                        }
-                        finally
+                        var newActionOutSocket = SetupNodeOutputsFromRegisterMap(node, chunkIndex, instructionIdx, registerOutputSocketMap, previousActionOutSocket, registerMap);
+                        if (newActionOutSocket != null)
                         {
-                            node?.Dispose();
+                            previousActionOutSocket = newActionOutSocket;
                         }
+
+
+                        AddFilteredCellDetails(node, cellIndex);
+                        CreateInputsFromRegisterMap(node, chunkIndex, registerConstValueMap, registerOutputSocketMap, registerMap);
+                        PopulateCellAndTraverseOutflows(node, cellIndex, registerConstValueMap, registerOutputSocketMap, finalEndingInstructionIdx);
+
+                        View.AddNode(node);
                         break;
                     }
                 case InstructionCode.GET_CONST:
@@ -1274,10 +1222,8 @@ internal class PulseGraphViewer : GLNodeGraphViewer
                         }
                         var outSocket = node.CreateSocketOutFromValueType("retval", GetValueTypeFromRegister(chunkIndex, regIndex));
                         registerOutputSocketMap[regIndex] = outSocket;
-                        node.UpdateTypeColorFromOutput();
 
-                        node.Calculate();
-                        nodeGraph.AddNode(node);
+                        View.AddNode(node);
                         break;
                     }
                 case InstructionCode.SET_VAR:
@@ -1302,8 +1248,7 @@ internal class PulseGraphViewer : GLNodeGraphViewer
                         }
                         AddNodeRegisterInput(node, chunkIndex, registerConstValueMap, registerOutputSocketMap, regIndex, "value");
 
-                        node.Calculate();
-                        nodeGraph.AddNode(node);
+                        View.AddNode(node);
                         break;
                     }
                 case InstructionCode.PULSE_CALL_SYNC:
@@ -1343,7 +1288,7 @@ internal class PulseGraphViewer : GLNodeGraphViewer
                                 chunkIndex,
                                 previousActionOutSocket,
                                 new Dictionary<int, KVObject>(registerConstValueMap),
-                                new Dictionary<int, SocketOut>(registerOutputSocketMap),
+                                new Dictionary<int, GraphSocket>(registerOutputSocketMap),
                                 callDestInstructionIdx
                             );
 
@@ -1357,24 +1302,14 @@ internal class PulseGraphViewer : GLNodeGraphViewer
                 case InstructionCode.RETURN_VALUE:
                     {
                         var regIndex = instruction.GetInt32Property("m_nReg0");
-                        Node? node = null;
-                        try
+                        var node = new Node(null)
                         {
-                            node = new Node(null)
-                            {
-                                Name = "Return Value",
-                                NodeType = "Flow",
-                            };
-                            previousActionOutSocket = CreateSequentialActionSockets(node, previousActionOutSocket, chunkIndex, instructionIdx);
-                            AddNodeRegisterInput(node, chunkIndex, registerConstValueMap, registerOutputSocketMap, regIndex, "value");
-                            node.Calculate();
-                            nodeGraph.AddNode(node);
-                            node = null;
-                        }
-                        finally
-                        {
-                            node?.Dispose();
-                        }
+                            Name = "Return Value",
+                            NodeType = "Flow",
+                        };
+                        previousActionOutSocket = CreateSequentialActionSockets(node, previousActionOutSocket, chunkIndex, instructionIdx);
+                        AddNodeRegisterInput(node, chunkIndex, registerConstValueMap, registerOutputSocketMap, regIndex, "value");
+                        View.AddNode(node);
                         break;
                     }
                 case InstructionCode.RETURN_VOID:
@@ -1391,7 +1326,7 @@ internal class PulseGraphViewer : GLNodeGraphViewer
                             chunkIndex,
                             previousActionOutSocket,
                             new Dictionary<int, KVObject>(registerConstValueMap),
-                            new Dictionary<int, SocketOut>(registerOutputSocketMap),
+                            new Dictionary<int, GraphSocket>(registerOutputSocketMap),
                             destInstructionIdx,
                             finalEndingInstructionIdx);
                         break;
@@ -1399,85 +1334,75 @@ internal class PulseGraphViewer : GLNodeGraphViewer
                 case InstructionCode.JUMP_COND:
                     {
                         var reg0 = instruction.GetInt32Property("m_nReg0");
-                        Node? node = null;
-                        try
+                        var node = new Node(null)
                         {
-                            node = new Node(null)
+                            Name = "If",
+                            NodeType = "Flow control",
+                        };
+                        var socketIn = node.CreateSocketIn<Flow>("");
+                        View.Connect(previousActionOutSocket, socketIn);
+                        instructionInputActionSocketMap[chunkIndex][instructionIdx] = socketIn;
+
+                        if (reg0 != -1)
+                        {
+                            AddNodeRegisterInput(node, chunkIndex, registerConstValueMap, registerOutputSocketMap, reg0, "Condition");
+                        }
+
+                        // If false we don't take the jump. So traverse starting from currentinstr + 1
+                        var destInstructionIdxFalse = instructionIdx + 1;
+
+                        // Find out the jump out instruction after the True case is finished.
+                        // Whether the graph code run through true or false, it will end up at one, unless it's just a return
+                        // in which case we don't have to worry about anything
+                        var firstInsturctionAfterBranches = -1;
+                        if (GetInstructionType(instructions[destInstructionIdxFalse]) == InstructionCode.JUMP)
+                        {
+                            var falseJumpTarget = instructions[destInstructionIdxFalse].GetInt32Property("m_nDestInstruction");
+
+                            if (falseJumpTarget > 0)
                             {
-                                Name = "If",
-                                NodeType = "Flow control",
-                            };
-                            var socketIn = node.CreateSocketIn<Flow>("");
-                            nodeGraph.Connect(previousActionOutSocket, socketIn);
-                            instructionInputActionSocketMap[chunkIndex][instructionIdx] = socketIn;
-
-                            if (reg0 != -1)
-                            {
-                                AddNodeRegisterInput(node, chunkIndex, registerConstValueMap, registerOutputSocketMap, reg0, "Condition");
-                            }
-
-                            // If false we don't take the jump. So traverse starting from currentinstr + 1
-                            var destInstructionIdxFalse = instructionIdx + 1;
-
-                            // Find out the jump out instruction after the True case is finished.
-                            // Whether the graph code run through true or false, it will end up at one, unless it's just a return
-                            // in which case we don't have to worry about anything
-                            var firstInsturctionAfterBranches = -1;
-                            if (GetInstructionType(instructions[destInstructionIdxFalse]) == InstructionCode.JUMP)
-                            {
-                                var falseJumpTarget = instructions[destInstructionIdxFalse].GetInt32Property("m_nDestInstruction");
-
-                                if (falseJumpTarget > 0)
+                                var instrTypeBefore = GetInstructionType(instructions[falseJumpTarget - 1]);
+                                if (instrTypeBefore == InstructionCode.JUMP)
                                 {
-                                    var instrTypeBefore = GetInstructionType(instructions[falseJumpTarget - 1]);
-                                    if (instrTypeBefore == InstructionCode.JUMP)
-                                    {
-                                        firstInsturctionAfterBranches = instructions[falseJumpTarget - 1].GetInt32Property("m_nDestInstruction");
-                                    }
+                                    firstInsturctionAfterBranches = instructions[falseJumpTarget - 1].GetInt32Property("m_nDestInstruction");
                                 }
                             }
-
-                            var socketOutTrue = node.CreateSocketOut<Flow>("True");
-                            var destInstructionIdxTrue = instruction.GetInt32Property("m_nDestInstruction");
-                            TraverseNodesForChunk(
-                                chunkIndex,
-                                socketOutTrue,
-                                new Dictionary<int, KVObject>(registerConstValueMap),
-                                new Dictionary<int, SocketOut>(registerOutputSocketMap),
-                                destInstructionIdxTrue,
-                                firstInsturctionAfterBranches == -1 ? finalEndingInstructionIdx : firstInsturctionAfterBranches
-                            );
-
-                            var socketOutFalse = node.CreateSocketOut<Flow>("False");
-                            TraverseNodesForChunk(
-                                chunkIndex,
-                                socketOutFalse,
-                                new Dictionary<int, KVObject>(registerConstValueMap),
-                                new Dictionary<int, SocketOut>(registerOutputSocketMap),
-                                destInstructionIdxFalse,
-                                firstInsturctionAfterBranches == -1 ? finalEndingInstructionIdx : firstInsturctionAfterBranches
-                            );
-
-                            // create even if we're returning, cause the socket still could be connected to further actions
-                            // if the current flow was a subroutine
-                            previousActionOutSocket = node.CreateSocketOut<Flow>("Finished");
-                            if (firstInsturctionAfterBranches != -1)
-                            {
-                                instructionIdx = firstInsturctionAfterBranches - 1; // next iteration will +1 this
-                            }
-                            else
-                            {
-                                stopProcessing = true;
-                            }
-
-                            node.Calculate();
-                            nodeGraph.AddNode(node);
-                            node = null;
                         }
-                        finally
+
+                        var socketOutTrue = node.CreateSocketOut<Flow>("True");
+                        var destInstructionIdxTrue = instruction.GetInt32Property("m_nDestInstruction");
+                        TraverseNodesForChunk(
+                            chunkIndex,
+                            socketOutTrue,
+                            new Dictionary<int, KVObject>(registerConstValueMap),
+                            new Dictionary<int, GraphSocket>(registerOutputSocketMap),
+                            destInstructionIdxTrue,
+                            firstInsturctionAfterBranches == -1 ? finalEndingInstructionIdx : firstInsturctionAfterBranches
+                        );
+
+                        var socketOutFalse = node.CreateSocketOut<Flow>("False");
+                        TraverseNodesForChunk(
+                            chunkIndex,
+                            socketOutFalse,
+                            new Dictionary<int, KVObject>(registerConstValueMap),
+                            new Dictionary<int, GraphSocket>(registerOutputSocketMap),
+                            destInstructionIdxFalse,
+                            firstInsturctionAfterBranches == -1 ? finalEndingInstructionIdx : firstInsturctionAfterBranches
+                        );
+
+                        // create even if we're returning, cause the socket still could be connected to further actions
+                        // if the current flow was a subroutine
+                        previousActionOutSocket = node.CreateSocketOut<Flow>("Finished");
+                        if (firstInsturctionAfterBranches != -1)
                         {
-                            node?.Dispose();
+                            instructionIdx = firstInsturctionAfterBranches - 1; // next iteration will +1 this
                         }
+                        else
+                        {
+                            stopProcessing = true;
+                        }
+
+                        View.AddNode(node);
 
                         break;
                     }
@@ -1519,9 +1444,7 @@ internal class PulseGraphViewer : GLNodeGraphViewer
                             // create output socket for this node, and store it for future connections
                             var socketOut = node.CreateSocketOutFromValueType("retval", GetValueTypeFromRegister(chunkIndex, reg0));
                             registerOutputSocketMap[reg0] = socketOut;
-                            node.UpdateTypeColorFromOutput();
-                            node.Calculate();
-                            nodeGraph.AddNode(node);
+                            View.AddNode(node);
                         }
 
                         break;
@@ -1536,7 +1459,7 @@ internal class PulseGraphViewer : GLNodeGraphViewer
         Node node,
         int cellIdx,
         Dictionary<int, KVObject> registerConstValueMap,
-        Dictionary<int, SocketOut> registerOutputSocketMap,
+        Dictionary<int, GraphSocket> registerOutputSocketMap,
         int maxInstructionIdx,
         HashSet<string> ignoredNames // if we want to handle some outflows explicitly
     )
@@ -1577,7 +1500,7 @@ internal class PulseGraphViewer : GLNodeGraphViewer
         Node node,
         int cellIdx,
         Dictionary<int, KVObject> registerConstValueMap,
-        Dictionary<int, SocketOut> registerOutputSocketMap,
+        Dictionary<int, GraphSocket> registerOutputSocketMap,
         int maxInstructionIdx
     )
     {
@@ -1668,54 +1591,44 @@ internal class PulseGraphViewer : GLNodeGraphViewer
         {
             var cellCategory = GetCellCategory(cellIdx);
             var cellType = GetCellType(cellIdx, out var cellName);
-            Node? cellNode = null;
-            try
+            var cellNode = new Node(null)
             {
-                cellNode = new Node(null)
-                {
-                    Name = cellName,
-                    NodeType = cellCategory.ToString(),
-                };
+                Name = cellName,
+                NodeType = cellCategory.ToString(),
+            };
 
-                switch (cellCategory)
-                {
-                    case CellCategory.Inflow:
+            switch (cellCategory)
+            {
+                case CellCategory.Inflow:
+                    {
+                        if (!cells[cellIdx].ContainsKey("m_EntryChunk"))
                         {
-                            if (!cells[cellIdx].ContainsKey("m_EntryChunk"))
-                            {
-                                continue;
-                            }
-
-                            Dictionary<int, SocketOut> registerSocketOutputMap = [];
-                            var entryChunkIdx = cells[cellIdx].GetInt32Property("m_EntryChunk");
-
-                            var outputSocket = cellNode.CreateSocketOut<Flow>("");
-
-                            if (cells[cellIdx].TryGetValue("m_RegisterMap", out var registerMap))
-                            {
-                                TryAddRegisterMapOutParams(cellNode, entryChunkIdx, registerSocketOutputMap, registerMap);
-                            }
-
-                            TraverseNodesForChunk(
-                                entryChunkIdx,
-                                outputSocket,
-                                [],
-                                registerSocketOutputMap
-                            );
-                            chunkFunctionName.Add(entryChunkIdx, cells[cellIdx].GetStringProperty("m_MethodName"));
-
-                            AddFilteredCellDetails(cellNode, cellIdx);
-
-                            cellNode.Calculate();
-                            nodeGraph.AddNode(cellNode);
-                            cellNode = null;
-                            break;
+                            continue;
                         }
-                }
-            }
-            finally
-            {
-                cellNode?.Dispose();
+
+                        Dictionary<int, GraphSocket> registerSocketOutputMap = [];
+                        var entryChunkIdx = cells[cellIdx].GetInt32Property("m_EntryChunk");
+
+                        var outputSocket = cellNode.CreateSocketOut<Flow>("");
+
+                        if (cells[cellIdx].TryGetValue("m_RegisterMap", out var registerMap))
+                        {
+                            TryAddRegisterMapOutParams(cellNode, entryChunkIdx, registerSocketOutputMap, registerMap);
+                        }
+
+                        TraverseNodesForChunk(
+                            entryChunkIdx,
+                            outputSocket,
+                            [],
+                            registerSocketOutputMap
+                        );
+                        chunkFunctionName.Add(entryChunkIdx, cells[cellIdx].GetStringProperty("m_MethodName"));
+
+                        AddFilteredCellDetails(cellNode, cellIdx);
+
+                        View.AddNode(cellNode);
+                        break;
+                    }
             }
         }
 
@@ -1738,8 +1651,7 @@ internal class PulseGraphViewer : GLNodeGraphViewer
                     cellNode.AddText(newName);
 
                     TraverseNodesForChunk(chunkId, outputSocket, [], []);
-                    cellNode.Calculate();
-                    nodeGraph.AddNode(cellNode);
+                    View.AddNode(cellNode);
                 }
             }
         }
@@ -1771,7 +1683,7 @@ internal class PulseGraphViewer : GLNodeGraphViewer
             var keyText = prettyNameMap.GetValueOrDefault(key, key);
             graphInfoNode.AddText($"{keyText}: {value}");
         }
-        nodeGraph.AddNode(graphInfoNode);
+        View.AddNode(graphInfoNode);
 
         // Variable definitions as separate nodes, cause there's no specific pane for displaying them.
         foreach (var variable in variables)
@@ -1794,8 +1706,7 @@ internal class PulseGraphViewer : GLNodeGraphViewer
             {
                 node.AddText(description);
             }
-            node.Calculate();
-            nodeGraph.AddNode(node);
+            View.AddNode(node);
         }
 
         // Resolve call nodes to display the target function name
@@ -1804,191 +1715,23 @@ internal class PulseGraphViewer : GLNodeGraphViewer
             var targetChunk = callNodeInfo.targetChunk;
             var methodNameToCall = chunkFunctionName[targetChunk];
             callNodeInfo.node.AddText($"Method: {methodNameToCall}");
-            callNodeInfo.node.Calculate();
-            nodeGraph.AddNode(callNodeInfo.node);
+            View.AddNode(callNodeInfo.node);
         }
 
-        nodeGraph.LayoutNodesSequential();
+        View.LayoutNodesSequential();
     }
     #region Nodes
-    class Node : AbstractNode
+    class Node : KVGraphNode
     {
-        public KVObject? Data { get; set; }
-        private List<string> Messages { get; set; } = [];
-        private static readonly SKFont ArialFont = SKTypeface.FromFamilyName("Arial", SKFontStyle.Normal).ToFont(15f);
-        public Node(KVObject? data)
+        public Node(KVObject? data) : base(data)
         {
-            Data = data;
-            BaseColor = NodeColor;
-            TextColor = NodeTextColor;
-            HeaderColor = FlowColor;
-            HeaderTextColor = new SKColor(5, 5, 5);
-            HeaderTypeColor = new SKColor(25, 25, 25);
         }
 
-        protected override void CalculateWidth()
-        {
-            base.CalculateWidth();
-            if (Messages.Count > 0)
-            {
-                var longestMessageWidth = Messages.Max(message =>
-                {
-                    ArialFont.MeasureText(message, out var messageWidth);
-                    return messageWidth.Width;
-                });
-
-                // If longer than existing, then have to recalculate output names to fit properly.
-                if (longestMessageWidth > NodeWidth)
-                {
-                    var longestOutputCation = string.Empty;
-                    foreach (var sock in Sockets.OfType<SocketOut>())
-                    {
-                        if (sock.SocketName?.Length > longestOutputCation.Length)
-                        {
-                            longestOutputCation = sock.SocketName;
-                        }
-                    }
-                    SocketCaptionFont.MeasureText(longestOutputCation, out var maxSockOutBounds);
-                    NodeWidth = maxSockOutBounds.Width + longestMessageWidth + 40; // Add some padding for the icon and spacing
-                }
-            }
-        }
-
-        public void AddMessage(string message)
-        {
-            Messages.Add(message);
-            AddSpace();
-        }
-
-        public void UpdateTypeColorFromOutput()
-        {
-            var outputSocket = Sockets.OfType<SocketOut>().FirstOrDefault();
-
-            if (outputSocket != null)
-            {
-                var typeColor = NodeGraphControl.GetColorByType(outputSocket.ValueType);
-                if (typeColor != SKColor.Empty)
-                {
-                    HeaderColor = typeColor;
-                }
-            }
-        }
-
-        public void AddSpace() => CreateTextSocket<string>(string.Empty);
-        public void AddText(string text) => CreateTextSocket<string>(text);
-
-        private void CreateTextSocket<T>(string text)
-        {
-            var socket = new SocketIn(typeof(T), text, this, false)
-            {
-                DisplayOnly = true
-            };
-            Sockets.Add(socket);
-        }
-        private static Type SocketValueTypeFromPvalType(PulseValueType valueType)
-        {
-            return valueType switch
-            {
-                PulseValueType.PVAL_INT or PulseValueType.PVAL_FLOAT => typeof(ValueNumber),
-                PulseValueType.PVAL_STRING => typeof(ValueString),
-                PulseValueType.PVAL_BOOL => typeof(ValueBool),
-                PulseValueType.PVAL_VOID => typeof(ValueOther),
-                _ => typeof(ValueOther)
-            };
-        }
-
-        public SocketIn CreateSocketIn<T>(string text) where T : struct
-        {
-            var socket = new SocketIn(typeof(T), text, this, hub: true);
-            Sockets.Add(socket);
-            return socket;
-        }
-        public SocketOut CreateSocketOut<T>(string text) where T : struct
-        {
-            var socket = new SocketOut(typeof(T), text, this);
-            Sockets.Add(socket);
-            return socket;
-        }
-        public SocketIn CreateSocketInFromValueType(string text, PulseValueType valueType)
-        {
-            var type = SocketValueTypeFromPvalType(valueType);
-            var socket = new SocketIn(type, text, this, hub: true);
-            Sockets.Add(socket);
-            return socket;
-        }
-        public SocketOut CreateSocketOutFromValueType(string text, PulseValueType valueType)
-        {
-            var type = SocketValueTypeFromPvalType(valueType);
-            var socket = new SocketOut(type, text, this);
-            Sockets.Add(socket);
-            return socket;
-        }
-
-        public override void Draw(SKCanvas canvas, bool isPrimarySelected, bool isConnected, bool isHovered)
-        {
-            base.Draw(canvas, isPrimarySelected, isConnected, isHovered);
-            // Display messages
-
-            if (Messages.Count == 0)
-            {
-                return;
-            }
-
-            // Get icon from cache
-            IconCache.TryGetValue("About", out var iconToUse);
-            const int iconSize = 16;
-            for (var i = 0; i < Messages.Count; i++)
-            {
-                var yOffset = (Sockets.Count > 1 ? 55 : 45) + (i * 25);
-                var position = new SKPoint
-                {
-                    X = Location.X + 3,
-                    Y = Location.Y + yOffset
-                };
-
-                // Draw the icon
-                if (iconToUse != null)
-                {
-                    var picture = iconToUse.Picture;
-                    Debug.Assert(picture is not null);
-
-                    var scaleMatrix = SKMatrix.CreateScale(iconSize / picture.CullRect.Width, iconSize / picture.CullRect.Height);
-                    canvas.DrawPicture(picture, position);
-                }
-
-                // Draw the text next to the icon
-                var textPosition = new SKPoint
-                {
-                    X = position.X + iconSize + 6,
-                    Y = position.Y + ArialFont.Size + 2
-                };
-
-                using var paint = new SKPaint { Color = new(78, 145, 217), IsAntialias = true };
-                canvas.DrawText(Messages[i], textPosition.X, textPosition.Y, ArialFont, paint);
-            }
-        }
-
-        private static readonly Dictionary<string, SKSvg> IconCache = [];
-
-        static Node()
-        {
-            string[] icons =
-            [
-                "About",
-            ];
-
-            foreach (var iconName in icons)
-            {
-                using var svgResource = Program.Assembly.GetManifestResourceStream($"GUI.Icons.{iconName}.svg");
-                Debug.Assert(svgResource is not null);
-
-                var svg = new SKSvg();
-                svg.Load(svgResource);
-                IconCache[iconName] = svg;
-            }
-        }
+        public GraphSocket CreateSocketIn<T>(string text) where T : struct => AddInput(text, HueOf(typeof(T)));
+        public GraphSocket CreateSocketOut<T>(string text) where T : struct => AddOutput(text, HueOf(typeof(T)));
+        public GraphSocket CreateSocketInFromValueType(string text, PulseValueType valueType) => AddInput(text, HueOfPval(valueType));
+        public GraphSocket CreateSocketOutFromValueType(string text, PulseValueType valueType) => AddOutput(text, HueOfPval(valueType));
     }
 
     #endregion Nodes
-
 }

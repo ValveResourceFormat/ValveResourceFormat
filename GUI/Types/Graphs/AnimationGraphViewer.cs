@@ -1,99 +1,63 @@
-using System.Diagnostics;
-using System.Drawing;
-using System.Linq;
-using System.Windows.Forms;
+﻿using System.Linq;
 using GUI.Types.GLViewers;
+using GUI.Types.Graphs.Core;
 using GUI.Utils;
-using SkiaSharp;
-using Svg.Skia;
 using ValveKeyValue;
 using ValveResourceFormat.Renderer;
 using ValveResourceFormat.Serialization.KeyValues;
+using Node = GUI.Types.Graphs.KVGraphNode;
 
 namespace GUI.Types.Graphs;
 
-internal class AnimationGraphViewer : GLNodeGraphViewer
+internal class AnimationGraphViewer : GLGraphViewer
 {
+    private const GraphHue PoseHue = GraphHue.Green;
+    private const GraphHue ValueHue = GraphHue.Cyan;
+
     private readonly KVObject graphDefinition;
 
     public AnimationGraphViewer(VrfGuiContext vrfGuiContext, RendererContext rendererContext, KVObject data)
-        : base(vrfGuiContext, rendererContext, CreateAndConfigureNodeGraph(data, out var graphDef))
+        : base(vrfGuiContext, rendererContext, new GraphView())
     {
-        graphDefinition = graphDef;
+        graphDefinition = data;
 
         CreateGraph();
-    }
-
-    public override void Dispose()
-    {
-        GLControl?.MouseDoubleClick -= OnMouseDoubleClick;
-        base.Dispose();
-    }
-
-    protected override void AddUiControls()
-    {
-        base.AddUiControls();
-
-        GLControl?.MouseDoubleClick += OnMouseDoubleClick;
-    }
-
-    private void OnMouseDoubleClick(object? sender, MouseEventArgs e)
-    {
-        var screenPoint = new SKPoint(e.Location.X, e.Location.Y);
-        var graphPoint = ScreenToGraph(screenPoint);
-        var element = nodeGraph.FindElementAt(graphPoint);
-
-        if (element is Node { ExternalResourceName: not null } node)
-        {
-            var foundFile = VrfGuiContext.FindFileWithContext(node.ExternalResourceName + ValveResourceFormat.IO.GameFileLoader.CompiledFileSuffix);
-            if (foundFile.Context != null)
-            {
-                Debug.Assert(foundFile.PackageEntry != null);
-                Program.MainForm.OpenFile(foundFile.Context, foundFile.PackageEntry);
-            }
-        }
-    }
-
-    private static NodeGraphControl CreateAndConfigureNodeGraph(KVObject data, out KVObject graphDef)
-    {
-        graphDef = data;
-        var nodeGraph = new NodeGraphControl
-        {
-            GridStyle = NodeGraphControl.EGridStyle.Grid,
-
-            CanvasBackgroundColor = new SKColor(40, 40, 40)
-        };
-        NodeColor = new SKColor(60, 60, 60);
-        NodeTextColor = new SKColor(230, 230, 230);
-        nodeGraph.GridColor = SKColors.White;
-
-        PoseColor = new SKColor(173, 255, 47);
-        ValueColor = new SKColor(0, 191, 255);
-
-        if (Themer.CurrentTheme == Themer.AppTheme.Dark)
-        {
-            nodeGraph.CanvasBackgroundColor = ToSKColor(Themer.CurrentThemeColors.AppMiddle);
-            NodeColor = ToSKColor(Themer.CurrentThemeColors.AppSoft);
-            nodeGraph.GridColor = ToSKColor(Themer.CurrentThemeColors.ContrastSoft);
-            //PoseColor = ToSKColor(ControlPaint.Dark(Color.LightGreen, 0f));
-            //ValueColor = ToSKColor(ControlPaint.Dark(Color.LightBlue, 0f));
-        }
-
-        NodeGraphControl.AddTypeColorPair<Pose>(PoseColor);
-        NodeGraphControl.AddTypeColorPair<Value>(ValueColor);
-
-        return nodeGraph;
     }
 
     private struct Pose;
     private struct Value;
 
-    private static SKColor ToSKColor(Color color) => new(color.R, color.G, color.B, color.A);
+    private static GraphHue HueOf(Type type) => type == typeof(Value) ? ValueHue : PoseHue;
 
-    public static SKColor NodeColor { get; set; }
-    public static SKColor NodeTextColor { get; set; }
-    public static SKColor PoseColor { get; set; }
-    public static SKColor ValueColor { get; set; }
+    private static void SetResourceReference(GraphNode node, string resourceName)
+    {
+        node.ExternalResourceName = resourceName;
+
+        var isGraphFile = resourceName.Contains(".vnmgraph", StringComparison.OrdinalIgnoreCase);
+        var icon = isGraphFile ? "anmgrph" : "anim";
+
+        var display = resourceName;
+        var fileExtensionStart = display.LastIndexOf('.');
+        if (fileExtensionStart >= 0)
+        {
+            display = display[..fileExtensionStart];
+        }
+
+        display = display.Replace(".vnmgraph", string.Empty, StringComparison.Ordinal);
+
+        var lastSlashIndex = display.LastIndexOf('/');
+        if (lastSlashIndex >= 0)
+        {
+            display = display[(lastSlashIndex + 1)..];
+        }
+
+        if (display.Length > 23)
+        {
+            display = '…' + display[^22..];
+        }
+
+        node.AddResourceRow(display, icon, PoseHue);
+    }
 
     private void CreateGraph()
     {
@@ -131,35 +95,31 @@ internal class AnimationGraphViewer : GLNodeGraphViewer
                 NodeType = GetType(nodeIdx),
             };
 
-            nodeGraph.AddNode(node);
+            View.AddNode(node);
             createdNodes[nodeIdx] = node;
             return node;
         }
 
 
-        (Node, SocketIn) CreateInputAndChild<ValueType>(Node parent, int totalChildren, int nodeIdx, string? parentInputName = null, string? childOutputName = null, bool hub = false)
+        (Node, GraphSocket) CreateInputAndChild<ValueType>(Node parent, int totalChildren, int nodeIdx, string? parentInputName = null, string? childOutputName = null, bool hub = false)
             where ValueType : struct
         {
             var (childNode, childNodeOutput) = CreateChild<ValueType>(parent, totalChildren, nodeIdx, childOutputName);
 
-            var input = new SocketIn(typeof(ValueType), parentInputName ?? childNode.Name, parent, hub: hub);
-            parent.Sockets.Add(input);
-            nodeGraph.Connect(childNodeOutput, input);
+            var input = parent.AddInput(parentInputName ?? childNode.Name ?? string.Empty, HueOf(typeof(ValueType)), hub);
+            View.Connect(childNodeOutput, input);
 
             return (childNode, input);
         }
 
-        (Node, SocketOut) CreateChild<ValueType>(Node parent, int totalChildren, int nodeIdx, string? childOutputName = null)
+        (Node, GraphSocket) CreateChild<ValueType>(Node parent, int totalChildren, int nodeIdx, string? childOutputName = null)
         {
             var childNode = CreateNode(nodePaths, nodes, nodeIdx);
 
             // child node already exists, all we do is connect to its existing output.
-            if (childNode.Sockets.Count > 0)
+            if (childNode.Outputs.Count > 0)
             {
-                if (childNode.Sockets.FirstOrDefault(s => s is SocketOut) is SocketOut output)
-                {
-                    return (childNode, output);
-                }
+                return (childNode, childNode.Outputs[0]);
             }
 
             if (childNode.NodeType is "Clip" or "ReferencedGraph")
@@ -167,8 +127,7 @@ internal class AnimationGraphViewer : GLNodeGraphViewer
                 childOutputName = string.Empty;
             }
 
-            var childNodeOutput = new SocketOut(typeof(ValueType), childOutputName ?? string.Empty, childNode);
-            childNode.Sockets.Add(childNodeOutput);
+            var childNodeOutput = childNode.AddOutput(childOutputName ?? string.Empty, HueOf(typeof(ValueType)));
 
             try
             {
@@ -179,8 +138,6 @@ internal class AnimationGraphViewer : GLNodeGraphViewer
                 Log.Error(nameof(AnimationGraphViewer), $"Error creating children for {childNode.Name} (idx = {nodeIdx}).");
             }
 
-            childNode.UpdateTypeColorFromOutput();
-            childNode.Calculate(); // node and wire position
             return (childNode, childNodeOutput);
         }
 
@@ -201,19 +158,18 @@ internal class AnimationGraphViewer : GLNodeGraphViewer
                     var stateNode = nodes[stateNodeIdx];
                     var stateInputIdx = stateNode.GetInt32Property("m_nChildNodeIdx");
 
-                    var input = new SocketIn(typeof(Pose), stateName, node, hub: true);
-                    node.Sockets.Add(input);
+                    var input = node.AddInput(stateName, PoseHue, allowMultiple: true);
 
                     if (stateInputIdx != -1)
                     {
                         var (_, stateNodeOut) = CreateChild<Pose>(node, children.Count, stateInputIdx);
-                        nodeGraph.Connect(stateNodeOut, input);
+                        View.Connect(stateNodeOut, input);
                     }
 
                     if (entryConditionNodeIdx != -1)
                     {
                         var (_, childOutput) = CreateChild<Value>(node, children.Count, entryConditionNodeIdx, stateName);
-                        nodeGraph.Connect(childOutput, input);
+                        View.Connect(childOutput, input);
                     }
                 }
             }
@@ -260,7 +216,7 @@ internal class AnimationGraphViewer : GLNodeGraphViewer
                 {
                     var (_, optionInput) = CreateInputAndChild<Pose>(node, options.Length, optionNodeIdx, hub: true);
                     var (_, conditionOutput) = CreateChild<Value>(node, options.Length, conditionNodeIdx);
-                    nodeGraph.Connect(conditionOutput, optionInput);
+                    View.Connect(conditionOutput, optionInput);
                     i++;
                 }
             }
@@ -269,22 +225,20 @@ internal class AnimationGraphViewer : GLNodeGraphViewer
                 var baseNodeIdx = data.GetInt32Property("m_nBaseNodeIdx");
                 CreateInputAndChild<Pose>(node, 3, baseNodeIdx, "Base", "Result");
 
-                var layerInput = new SocketIn(typeof(Pose), "Layers", node, true);
-                node.Sockets.Add(layerInput);
+                var layerInput = node.AddInput("Layers", PoseHue, allowMultiple: true);
 
                 var layerDefinition = data.GetArray("m_layerDefinition");
                 var layerIndex = 0;
                 foreach (var layer in layerDefinition)
                 {
-                    var layerNode = nodeGraph.AddNode(new Node(layerDefinition[layerIndex])
+                    var layerNode = View.AddNode(new Node(layerDefinition[layerIndex])
                     {
                         Name = $"Layer{layerIndex}",
                         NodeType = "_LayerDefinition_",
                     });
 
-                    var layerOutput = new SocketOut(typeof(Pose), string.Empty, layerNode);
-                    layerNode.Sockets.Add(layerOutput);
-                    nodeGraph.Connect(layerOutput, layerInput);
+                    var layerOutput = layerNode.AddOutput(string.Empty, PoseHue);
+                    View.Connect(layerOutput, layerInput);
                     CreateInputAndChild<Pose>(layerNode, 1, layer.GetInt32Property("m_nInputNodeIdx"));
 
                     // Optional inputs
@@ -311,8 +265,6 @@ internal class AnimationGraphViewer : GLNodeGraphViewer
                     layerNode.AddText($"Ignore Events: {layer.GetBooleanProperty("m_bIgnoreEvents")}");
                     layerNode.AddText($"Is State Machine Layer: {layer.GetBooleanProperty("m_bIsStateMachineLayer")}");
                     layerNode.AddText($"Blend Mode: {layer.GetStringProperty("m_blendMode")}");
-                    layerNode.UpdateTypeColorFromOutput();
-                    layerNode.Calculate();
                     layerIndex++;
                 }
             }
@@ -618,7 +570,7 @@ internal class AnimationGraphViewer : GLNodeGraphViewer
 
                 if (dataSlotIdx != -1)
                 {
-                    node.ExternalResourceName = resources[dataSlotIdx];
+                    SetResourceReference(node, resources[dataSlotIdx]);
                 }
             }
             else if (node.NodeType.StartsWith("ControlParameter", StringComparison.Ordinal))
@@ -634,26 +586,22 @@ internal class AnimationGraphViewer : GLNodeGraphViewer
                 Log.Error(nameof(AnimationGraphViewer), $"Unhandled node type: {node.NodeType} ({node.Name})");
             }
 
-            node.UpdateTypeColorFromOutput();
-            node.Calculate();
         }
 
         var finalPose = new Node(null)
         {
             Name = "Result",
             NodeType = "FinalPose",
-            HeaderColor = PoseColor,
+            Category = PoseHue,
         };
 
-        var finalPoseInput = new SocketIn(typeof(Pose), "Out", finalPose, hub: false);
-        finalPose.Sockets.Add(finalPoseInput);
-        nodeGraph.AddNode(finalPose);
+        var finalPoseInput = finalPose.AddInput("Out", PoseHue, allowMultiple: false);
+        View.AddNode(finalPose);
 
         var root = CreateNode(nodePaths, nodes, rootNodeIdx);
 
-        var rootOutput = new SocketOut(typeof(Pose), string.Empty, root);
-        root.Sockets.Add(rootOutput);
-        nodeGraph.Connect(rootOutput, finalPoseInput);
+        var rootOutput = root.AddOutput(string.Empty, PoseHue);
+        View.Connect(rootOutput, finalPoseInput);
 
         CreateChildren(root, rootNodeIdx);
 
@@ -675,143 +623,8 @@ internal class AnimationGraphViewer : GLNodeGraphViewer
             }
         }
 
-        nodeGraph.LayoutNodes();
+        View.LayoutNodes();
         Log.Debug(nameof(AnimationGraphViewer), $"Created {createdNodes.Count} nodes (out of {nodes.Count}) or {createdNodes.Count / (float)nodes.Count:P}.");
     }
 
-    #region Nodes
-
-    class Node : AbstractNode
-    {
-        public KVObject? Data { get; set; }
-
-        public string? ExternalResourceName { get; set; }
-
-        public Node(KVObject? data)
-        {
-            Data = data;
-            BaseColor = NodeColor;
-            TextColor = NodeTextColor;
-            HeaderColor = ToSKColor(ControlPaint.Light(Color.FromArgb(NodeColor.Red, NodeColor.Green, NodeColor.Blue)));
-            HeaderTextColor = new SKColor(5, 5, 5);
-            HeaderTypeColor = new SKColor(25, 25, 25);
-        }
-
-        public void UpdateTypeColorFromOutput()
-        {
-            var outputSocket = Sockets.OfType<SocketOut>().FirstOrDefault();
-
-            if (outputSocket != null)
-            {
-                var typeColor = NodeGraphControl.GetColorByType(outputSocket.ValueType);
-                if (typeColor != SKColor.Empty)
-                {
-                    HeaderColor = typeColor;
-                }
-            }
-        }
-
-        public void AddSpace() => CreateTextSocket<string>(string.Empty);
-        public void AddText(string text) => CreateTextSocket<string>(text);
-
-        private void CreateTextSocket<T>(string text)
-        {
-            var socket = new SocketIn(typeof(T), text, this, false)
-            {
-                DisplayOnly = true
-            };
-            Sockets.Add(socket);
-        }
-
-        public SocketIn CreateSocketIn<T>(string text) where T : struct
-        {
-            var socket = new SocketIn(typeof(T), text, this, hub: false);
-            Sockets.Add(socket);
-            return socket;
-        }
-
-        private static readonly SKFont ArialFont = SKTypeface.FromFamilyName("Arial", SKFontStyle.Normal).ToFont(15f);
-
-        public override void Draw(SKCanvas canvas, bool isPrimarySelected, bool isConnected, bool isHovered)
-        {
-            base.Draw(canvas, isPrimarySelected, isConnected, isHovered);
-
-            if (string.IsNullOrEmpty(ExternalResourceName))
-            {
-                return;
-            }
-
-            // Determine which icon to use based on the file extension
-            var isGraphFile = ExternalResourceName.Contains(".vnmgraph", StringComparison.OrdinalIgnoreCase);
-            var iconName = isGraphFile ? "anmgrph" : "anim";
-
-            // Get icon from cache
-            IconCache.TryGetValue(iconName, out var iconToUse);
-
-            const int iconSize = 16;
-
-            var yOffset = Sockets.Count > 1 ? 55 : 45;
-            var position = new SKPoint
-            {
-                X = Location.X + 3,
-                Y = Location.Y + yOffset
-            };
-
-            // Draw the icon
-            if (iconToUse != null)
-            {
-                var picture = iconToUse.Picture;
-                Debug.Assert(picture is not null);
-
-                var scaleMatrix = SKMatrix.CreateScale(iconSize / picture.CullRect.Width, iconSize / picture.CullRect.Height);
-                canvas.DrawPicture(picture, position);
-            }
-
-            // Draw the text next to the icon
-            var textPosition = new SKPoint
-            {
-                X = position.X + iconSize + 6,
-                Y = position.Y + ArialFont.Size + 1
-            };
-
-            var fileExtensionStart = ExternalResourceName.LastIndexOf('.');
-            var trimStr = ExternalResourceName[..fileExtensionStart];
-            trimStr = trimStr.Replace(".vnmgraph", string.Empty, StringComparison.Ordinal);
-            var lastSlashIndex = trimStr.LastIndexOf('/');
-            if (lastSlashIndex >= 0)
-            {
-                trimStr = trimStr[(lastSlashIndex + 1)..];
-            }
-            if (trimStr.Length > 23)
-            {
-                trimStr = '…' + trimStr[^22..];
-            }
-
-            using var paint = new SKPaint { Color = PoseColor, IsAntialias = true };
-            canvas.DrawText(trimStr, textPosition.X, textPosition.Y, ArialFont, paint);
-        }
-
-        private static readonly Dictionary<string, SKSvg> IconCache = [];
-
-        static Node()
-        {
-            string[] icons =
-            [
-                "anim",
-                "anmgrph",
-            ];
-
-            foreach (var iconName in icons)
-            {
-                using var svgResource = Program.Assembly.GetManifestResourceStream($"GUI.Icons.AssetTypes.{iconName}.svg");
-                Debug.Assert(svgResource is not null);
-
-                var svg = new SKSvg();
-                svg.Load(svgResource);
-                IconCache[iconName] = svg;
-            }
-        }
-    }
-
-    #endregion Nodes
 }
