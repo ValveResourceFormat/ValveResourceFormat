@@ -629,7 +629,7 @@ namespace CLI
 
             try
             {
-                resource.Read(stream, GetResourceReadOptions());
+                resource.Read(stream);
 
                 var extension = FileExtract.GetExtension(resource);
 
@@ -752,33 +752,12 @@ namespace CLI
                     {
                         using var stringWriter = new ConsoleStringWriter(ConsoleOutputBuilder, CultureInfo.InvariantCulture);
                         using var writer = new IndentedTextWriter(stringWriter);
-                        block.EnsureRead();
                         block.WriteText(writer);
                         writer.Flush();
                         Console.WriteLine();
                     }
                 }
             }
-        }
-
-        // Decompiling, exporting, and stats collection need every block parsed. The informational
-        // listing only prints the resource type, external references, and the block index, so block
-        // contents stay unparsed; -b additionally parses the requested block type.
-        private ResourceReadOptions GetResourceReadOptions()
-        {
-            if (CollectStats || OutputFile != null || PrintAllBlocks)
-            {
-                return default;
-            }
-
-            if (!string.IsNullOrEmpty(BlockToPrint))
-            {
-                return Enum.TryParse<BlockType>(BlockToPrint, out var blockType)
-                    ? new ResourceReadOptions { IncludeBlocks = [BlockType.RERL, blockType] }
-                    : default;
-            }
-
-            return new ResourceReadOptions { IncludeBlocks = [BlockType.RERL] };
         }
 
         private ContentFile DecompileResource(Resource resource, IFileLoader fileLoader)

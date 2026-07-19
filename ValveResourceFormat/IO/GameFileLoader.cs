@@ -392,46 +392,6 @@ namespace ValveResourceFormat.IO
         public virtual Resource? LoadFileCompiled(string file) => LoadFile(string.Concat(file, CompiledFileSuffix));
 
         /// <inheritdoc/>
-        public virtual Resource? LoadFilePartial(string file, ResourceReadOptions options)
-        {
-            var compiledFile = string.Concat(file, CompiledFileSuffix);
-            var resource = new Resource
-            {
-                FileName = compiledFile,
-            };
-            Resource? resourceToReturn = null;
-
-            // The stream is owned by the returned resource and must stay open with it
-            // so that deferred blocks can be materialized later.
-            options = options with { LeaveOpen = false };
-
-            try
-            {
-                var foundFile = FindFile(compiledFile);
-
-                if (foundFile.PathOnDisk != null)
-                {
-                    resource.Read(foundFile.PathOnDisk, options);
-                    resourceToReturn = resource;
-                    resource = null;
-                }
-                else if (foundFile.PackageEntry != null)
-                {
-                    var stream = GetPackageEntryStream(foundFile.Package!, foundFile.PackageEntry);
-                    resource.Read(stream, options);
-                    resourceToReturn = resource;
-                    resource = null;
-                }
-            }
-            finally
-            {
-                resource?.Dispose();
-            }
-
-            return resourceToReturn;
-        }
-
-        /// <inheritdoc/>
         public virtual Resource? LoadFile(string file)
         {
             var resource = new Resource

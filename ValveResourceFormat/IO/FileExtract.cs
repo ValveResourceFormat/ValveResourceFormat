@@ -147,12 +147,6 @@ namespace ValveResourceFormat.IO
         /// <inheritdoc/>
         public ShaderCollection? LoadShader(string shaderName) => fileLoader.LoadShader(shaderName);
 
-        /// <inheritdoc/>
-        /// <remarks>
-        /// Partial loads are lightweight scans, not extractions, so they are not tracked.
-        /// </remarks>
-        public Resource? LoadFilePartial(string file, ResourceReadOptions options) => fileLoader.LoadFilePartial(file, options);
-
         /// <summary>
         /// Initializes a new instance of the <see cref="TrackingFileLoader"/> class.
         /// </summary>

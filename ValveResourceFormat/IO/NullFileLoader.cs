@@ -24,11 +24,5 @@ namespace ValveResourceFormat.IO
         /// Always returns null.
         /// </remarks>
         public ShaderCollection? LoadShader(string shaderName) => null;
-
-        /// <inheritdoc/>
-        /// <remarks>
-        /// Always returns null.
-        /// </remarks>
-        public Resource? LoadFilePartial(string file, ResourceReadOptions options) => null;
     }
 }

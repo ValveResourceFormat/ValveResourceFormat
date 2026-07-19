@@ -420,10 +420,7 @@ namespace GUI.Types.PackageViewer
                             package.ReadEntry(newEntry, bytes, validateCrc: false);
                             using var stream = new MemoryStream(bytes, 0, (int)newEntry.TotalLength);
                             using var resource = new ValveResourceFormat.Resource();
-
-                            // Only the header, edit info, and streaming sizes are inspected here,
-                            // so block contents other than sound/texture headers stay unparsed.
-                            resource.Read(stream, new ResourceReadOptions { IncludeBlocks = [] });
+                            resource.Read(stream, verifyFileSize: false);
 
                             var fileSize = resource.FullFileSize;
 
