@@ -68,21 +68,16 @@ namespace ValveResourceFormat.Renderer.World
         public static WorldLoader LoadMap(string mapResourceName, Scene scene)
         {
             var renderContext = scene.RendererContext;
-            Resource? mapResource = null;
 
-            if (mapResourceName.EndsWith(GameFileLoader.CompiledFileSuffix, StringComparison.OrdinalIgnoreCase))
+            var mapName = mapResourceName;
+            if (mapName.EndsWith(GameFileLoader.CompiledFileSuffix, StringComparison.OrdinalIgnoreCase))
             {
-                mapResource = renderContext.FileLoader.LoadFile(mapResourceName);
-            }
-            else
-            {
-                mapResource = renderContext.FileLoader.LoadFileCompiled(mapResourceName);
+                mapName = mapName[..^GameFileLoader.CompiledFileSuffix.Length];
             }
 
-            if (mapResource == null)
-            {
-                throw new FileNotFoundException($"Failed to load map file '{mapResourceName}'.");
-            }
+            // Only the map's external references are consumed here; the world resource carries the data.
+            using var mapResource = renderContext.FileLoader.LoadFilePartial(mapName, new ResourceReadOptions { IncludeBlocks = [BlockType.RERL] })
+                ?? throw new FileNotFoundException($"Failed to load map file '{mapResourceName}'.");
 
             var worldPath = GetWorldNameFromMap(mapResourceName);
             var worldResource = renderContext.FileLoader.LoadFileCompiled(worldPath) ?? throw new FileNotFoundException($"Failed to load world file '{worldPath}'.");
@@ -329,27 +324,33 @@ namespace ValveResourceFormat.Renderer.World
         {
             // TODO: Ideally we would use the vrman files to find relevant files.
             PhysAggregateData? phys = null;
-            var physResource = RendererContext.FileLoader.LoadFile($"{MapName}/world_physics.vmdl_c");
+            string? physFileName = null;
 
-            if (physResource != null)
+            // Only the PHYS block of the world physics model is consumed; its mesh and data blocks stay unparsed.
+            using (var physResource = RendererContext.FileLoader.LoadFilePartial($"{MapName}/world_physics.vmdl", new ResourceReadOptions { IncludeBlocks = [BlockType.PHYS] }))
             {
-                phys = (PhysAggregateData?)physResource.GetBlockByType(BlockType.PHYS);
-            }
-            else
-            {
-                physResource = RendererContext.FileLoader.LoadFile($"{MapName}/world_physics.vphys_c");
-
                 if (physResource != null)
                 {
-                    phys = (PhysAggregateData?)physResource.DataBlock;
+                    phys = (PhysAggregateData?)physResource.GetBlockByType(BlockType.PHYS);
+                    physFileName = physResource.FileName;
+                }
+                else
+                {
+                    var vphysResource = RendererContext.FileLoader.LoadFile($"{MapName}/world_physics.vphys_c");
+
+                    if (vphysResource != null)
+                    {
+                        phys = (PhysAggregateData?)vphysResource.DataBlock;
+                        physFileName = vphysResource.FileName;
+                    }
                 }
             }
 
             if (phys != null)
             {
-                Debug.Assert(physResource?.FileName != null);
+                Debug.Assert(physFileName != null);
 
-                foreach (var physSceneNode in PhysSceneNode.CreatePhysSceneNodes(scene, phys, physResource.FileName[..^2]))
+                foreach (var physSceneNode in PhysSceneNode.CreatePhysSceneNodes(scene, phys, physFileName[..^2]))
                 {
                     physSceneNode.LayerName = "world_layer_base";
                     scene.Add(physSceneNode, true);
@@ -364,7 +365,8 @@ namespace ValveResourceFormat.Renderer.World
         /// </summary>
         public void LoadWorldVisibility()
         {
-            var visResource = RendererContext.FileLoader.LoadFile($"{MapName}/world_visibility.vvis_c");
+            // Only the voxel visibility block is consumed.
+            using var visResource = RendererContext.FileLoader.LoadFilePartial($"{MapName}/world_visibility.vvis", new ResourceReadOptions { IncludeBlocks = [BlockType.VXVS] });
             if (visResource == null)
             {
                 return;
