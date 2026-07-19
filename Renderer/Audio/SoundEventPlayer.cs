@@ -208,6 +208,9 @@ public sealed class SoundEventPlayer : IDisposable
         }
     }
 
+    /// <summary>
+    /// Stops the mixing thread and disposes the mixer and the audio device.
+    /// </summary>
     public void Dispose()
     {
         if (Sound.Player == this)

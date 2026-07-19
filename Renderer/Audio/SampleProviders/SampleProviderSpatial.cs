@@ -6,12 +6,17 @@ namespace ValveResourceFormat.Renderer.Audio.SampleProviders;
 /// </summary>
 public abstract class SampleProviderSpatial : SampleProvider2D
 {
+    /// <summary>Gets the current left ear gain.</summary>
     public float LeftVolume { get; protected set; }
+    /// <summary>Gets the current right ear gain.</summary>
     public float RightVolume { get; protected set; }
 
+    /// <summary>Gets or sets the left ear gain used for the previous buffer, for interpolation.</summary>
     protected float LastLeftVolume { get; set; }
+    /// <summary>Gets or sets the right ear gain used for the previous buffer, for interpolation.</summary>
     protected float LastRightVolume { get; set; }
 
+    /// <summary>Creates a spatializer around the given source.</summary>
     protected SampleProviderSpatial(IAudioSampleProvider provider) : base(provider)
     {
     }

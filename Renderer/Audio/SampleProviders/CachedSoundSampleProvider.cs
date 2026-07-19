@@ -8,6 +8,7 @@ public sealed class CachedSoundSampleProvider : AudioSampleProvider
     private readonly CachedSound sound;
     private int position;
 
+    /// <summary>Creates a provider that streams the given cached sound from the beginning.</summary>
     public CachedSoundSampleProvider(CachedSound sound)
     {
         this.sound = sound;

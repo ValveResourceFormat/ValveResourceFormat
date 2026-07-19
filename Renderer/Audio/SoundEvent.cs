@@ -22,7 +22,9 @@ public abstract class SoundEvent : IDisposable
     /// <summary>Raised when the event is removed from the mixer.</summary>
     public event Action<SoundEvent>? OnStop;
 
+    /// <summary>Gets whether the event is currently producing audible samples.</summary>
     public bool Playing { get; protected set; }
+    /// <summary>Gets whether the event is active in the mixer (it may be momentarily silent, e.g. between retriggers).</summary>
     public bool Started { get; private set; }
 
     /// <summary>
@@ -31,15 +33,22 @@ public abstract class SoundEvent : IDisposable
     /// </summary>
     public Vector3? Position { get; set; }
 
+    /// <summary>Gets the sound event definition this instance was built from.</summary>
     public KVObject SoundEventData { get; }
 
+    /// <summary>Gets the combined sample provider for this event, fed to the mixer.</summary>
     public SampleProviderMulti SampleProvider { get; private set; } = null!;
+    /// <summary>Gets the child sound events spawned by this event.</summary>
     protected List<SoundEvent> ChildSoundEvents { get; } = [];
+    /// <summary>Gets the sample providers built by <see cref="DoStart"/>.</summary>
     protected List<AudioSampleProvider> SampleProviders { get; } = [];
 
+    /// <summary>Gets the mixer this event plays through.</summary>
     protected AudioMixer Mixer { get; private set; } = null!;
+    /// <summary>Gets the mixer output sample rate.</summary>
     protected int SampleRate { get; private set; }
 
+    /// <summary>Creates a sound event instance for the given definition.</summary>
     protected SoundEvent(KVObject soundEventData)
     {
         SoundEventData = soundEventData;
@@ -111,6 +120,7 @@ public abstract class SoundEvent : IDisposable
         }
     }
 
+    /// <summary>Starts another sound event as a child of this one, mixed into this event's output.</summary>
     protected void StartAsChild(SoundEvent childSoundEvent)
     {
         childSoundEvent.Position = Position;
@@ -143,12 +153,14 @@ public abstract class SoundEvent : IDisposable
     /// </summary>
     protected abstract void DoStart();
 
+    /// <summary>Marks the event as no longer audible and raises <see cref="OnSoundOver"/>.</summary>
     protected virtual void OnFinished()
     {
         Playing = false;
         OnSoundOver?.Invoke(this);
     }
 
+    /// <summary>Marks the event as audible and raises <see cref="OnSoundStart"/>.</summary>
     protected virtual void OnStarted()
     {
         Playing = true;
@@ -190,6 +202,7 @@ public abstract class SoundEvent : IDisposable
         return anyPlaying;
     }
 
+    /// <inheritdoc/>
     public virtual void Dispose()
     {
         OnSoundOver = null;

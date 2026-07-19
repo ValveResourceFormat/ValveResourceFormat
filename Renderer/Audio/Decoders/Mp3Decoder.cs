@@ -7,6 +7,7 @@ namespace ValveResourceFormat.Renderer.Audio.Decoders;
 /// </summary>
 public static class Mp3Decoder
 {
+    /// <summary>Decodes an MP3 stream, or returns null when it cannot be parsed.</summary>
     public static DecodedAudio? Decode(Stream stream)
     {
         using var mpeg = new NLayer.MpegFile(stream);

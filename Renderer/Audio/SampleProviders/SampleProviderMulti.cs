@@ -10,16 +10,19 @@ public class SampleProviderMulti : AudioSampleProvider
 {
     private readonly LinkedList<IAudioSampleProvider> providers;
 
+    /// <summary>Creates an empty mixer.</summary>
     public SampleProviderMulti()
     {
         providers = new();
     }
 
+    /// <summary>Creates a mixer with an initial set of providers.</summary>
     public SampleProviderMulti(IEnumerable<IAudioSampleProvider> sampleProviders)
     {
         providers = new(sampleProviders);
     }
 
+    /// <summary>Adds a provider to the mix.</summary>
     public void AddProvider(IAudioSampleProvider provider)
     {
         lock (providers)
@@ -28,6 +31,7 @@ public class SampleProviderMulti : AudioSampleProvider
         }
     }
 
+    /// <summary>Removes a provider from the mix.</summary>
     public void RemoveProvider(IAudioSampleProvider provider)
     {
         lock (providers)
@@ -36,6 +40,7 @@ public class SampleProviderMulti : AudioSampleProvider
         }
     }
 
+    /// <summary>Removes all providers from the mix.</summary>
     public void ClearProviders()
     {
         lock (providers)

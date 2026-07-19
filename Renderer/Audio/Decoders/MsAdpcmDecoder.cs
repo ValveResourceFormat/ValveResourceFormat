@@ -14,6 +14,7 @@ public static class MsAdpcmDecoder
     private static readonly int[] AdaptCoeff1 = [256, 512, 0, 192, 240, 460, 392];
     private static readonly int[] AdaptCoeff2 = [0, -256, 0, 64, 0, -208, -232];
 
+    /// <summary>Decodes MS ADPCM blocks into interleaved float samples, or null when the parameters are invalid.</summary>
     public static float[]? Decode(byte[] data, int channels, int blockAlign)
     {
         if (channels < 1 || channels > 2 || blockAlign < 7 * channels)

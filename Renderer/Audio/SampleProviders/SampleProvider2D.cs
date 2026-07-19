@@ -5,8 +5,10 @@ namespace ValveResourceFormat.Renderer.Audio.SampleProviders;
 /// </summary>
 public class SampleProvider2D : AudioSampleProvider
 {
+    /// <summary>Gets the wrapped source provider.</summary>
     protected IAudioSampleProvider Provider { get; }
 
+    /// <summary>Creates a 2D provider around the given source.</summary>
     public SampleProvider2D(IAudioSampleProvider provider)
     {
         Provider = provider;

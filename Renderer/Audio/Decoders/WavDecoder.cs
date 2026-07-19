@@ -16,6 +16,7 @@ public static class WavDecoder
     private const ushort FormatMsAdpcm = 2;
     private const ushort FormatIeeeFloat = 3;
 
+    /// <summary>Decodes a RIFF/WAVE stream, or returns null when the file or its audio format is not supported.</summary>
     public static DecodedAudio? Decode(Stream stream)
     {
         using var reader = new BinaryReader(stream, System.Text.Encoding.ASCII, leaveOpen: true);

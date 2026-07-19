@@ -16,6 +16,7 @@ public sealed class SoundCache
     private readonly int channels;
     private readonly Dictionary<string, CachedSound?> sounds = [];
 
+    /// <summary>Creates a sound cache that decodes into the given output format.</summary>
     public SoundCache(IFileLoader fileLoader, int sampleRate, int channels, ILogger logger)
     {
         this.fileLoader = fileLoader;

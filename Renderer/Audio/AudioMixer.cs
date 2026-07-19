@@ -84,6 +84,7 @@ public sealed class AudioMixer : IDisposable
         root.RemoveProvider(soundEvent.SampleProvider);
     }
 
+    /// <summary>Stops and disposes all active sound events.</summary>
     public void Dispose()
     {
         SoundEvent[] snapshot;
