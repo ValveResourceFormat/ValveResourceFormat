@@ -19,7 +19,6 @@ using GUI.Utils;
 using OpenTK.Windowing.Desktop;
 using SteamDatabase.ValvePak;
 using Svg.Skia;
-using ValveResourceFormat.IO;
 using Windows.Win32;
 using Windows.Win32.Graphics.Gdi;
 using Windows.Win32.UI.WindowsAndMessaging;
@@ -151,88 +150,9 @@ namespace GUI
             {
                 var file = args[i];
 
-                // Handle vpk: protocol
-                if (file.StartsWith("vpk:", StringComparison.InvariantCulture))
+                if (VpkProtocol.IsVpkUri(file))
                 {
-                    file = System.Net.WebUtility.UrlDecode(file[4..]);
-
-                    var innerFilePosition = file.LastIndexOf(".vpk:", StringComparison.InvariantCulture);
-
-                    if (innerFilePosition == -1)
-                    {
-                        Log.Error(nameof(MainForm), $"For vpk: protocol to work, specify a file path inside of the package, for example: \"vpk:C:/path/pak01_dir.vpk:inner/file.vmdl_c\"");
-
-                        OpenFile(file);
-                        continue;
-                    }
-
-                    var innerFile = file[(innerFilePosition + 5)..];
-                    file = file[..(innerFilePosition + 4)];
-
-                    if (!File.Exists(file))
-                    {
-                        var dirFile = file[..innerFilePosition] + "_dir.vpk";
-
-                        if (!File.Exists(dirFile))
-                        {
-                            Log.Error(nameof(MainForm), $"File '{file}' does not exist.");
-                            mainTabs.OpenTab("Console");
-                            continue;
-                        }
-
-                        file = dirFile;
-                    }
-
-                    file = Path.GetFullPath(file);
-                    Log.Info(nameof(MainForm), $"Opening {file}");
-
-                    var package = new Package();
-                    try
-                    {
-                        package.OptimizeEntriesForBinarySearch(StringComparison.OrdinalIgnoreCase);
-                        package.Read(file);
-
-                        var packageFile = package.FindEntry(innerFile);
-
-                        if (packageFile == null)
-                        {
-                            packageFile = package.FindEntry(innerFile + GameFileLoader.CompiledFileSuffix);
-
-                            if (packageFile == null)
-                            {
-                                Log.Error(nameof(MainForm), $"File '{innerFile}' does not exist in package '{file}'.");
-                                mainTabs.OpenTab("Console");
-                                continue;
-                            }
-                        }
-
-                        innerFile = packageFile.GetFullPath();
-
-                        Log.Info(nameof(MainForm), $"Opening {innerFile}");
-
-                        var vrfGuiContext = new VrfGuiContext(file, null)
-                        {
-                            CurrentPackage = package
-                        };
-                        var fileContext = new VrfGuiContext(innerFile, vrfGuiContext);
-                        package = null;
-
-                        try
-                        {
-                            OpenFile(fileContext, packageFile);
-                            fileContext = null;
-                        }
-                        finally
-                        {
-                            fileContext?.Dispose();
-                            vrfGuiContext?.Dispose();
-                        }
-                    }
-                    finally
-                    {
-                        package?.Dispose();
-                    }
-
+                    OpenVpkUri(file);
                     continue;
                 }
 
@@ -248,6 +168,56 @@ namespace GUI
             }
 
             OnMainSelectedTabChanged(null, EventArgs.Empty);
+        }
+
+        private void OpenVpkUri(string uri)
+        {
+            var resolved = VpkProtocol.Resolve(uri, out var plainFilePath);
+
+            if (resolved == null)
+            {
+                if (plainFilePath != null)
+                {
+                    // No inner file path was specified, open the file itself
+                    OpenFile(plainFilePath);
+                }
+                else
+                {
+                    mainTabs.OpenTab("Console");
+                }
+
+                return;
+            }
+
+            var innerFile = resolved.Entry.GetFullPath();
+
+            Log.Info(nameof(MainForm), $"Opening {innerFile}");
+
+            var package = resolved.Package;
+            try
+            {
+                var vrfGuiContext = new VrfGuiContext(resolved.PackagePath, null)
+                {
+                    CurrentPackage = package
+                };
+                var fileContext = new VrfGuiContext(innerFile, vrfGuiContext);
+                package = null;
+
+                try
+                {
+                    OpenFile(fileContext, resolved.Entry);
+                    fileContext = null;
+                }
+                finally
+                {
+                    fileContext?.Dispose();
+                    vrfGuiContext?.Dispose();
+                }
+            }
+            finally
+            {
+                package?.Dispose();
+            }
         }
 
         protected override void OnLoad(EventArgs e)
@@ -590,16 +560,7 @@ namespace GUI
         {
             Log.Info(nameof(MainForm), $"Opening {fileName}");
 
-            if (Regexes.VpkNumberArchive().IsMatch(fileName))
-            {
-                var fixedPackage = $"{fileName[..^8]}_dir.vpk";
-
-                if (File.Exists(fixedPackage))
-                {
-                    Log.Warn(nameof(MainForm), $"You opened \"{Path.GetFileName(fileName)}\" but there is \"{Path.GetFileName(fixedPackage)}\"");
-                    fileName = fixedPackage;
-                }
-            }
+            fileName = VpkProtocol.ResolveDirVpkPath(fileName);
 
             var vrfGuiContext = new VrfGuiContext(fileName, null);
             OpenFile(vrfGuiContext, null);

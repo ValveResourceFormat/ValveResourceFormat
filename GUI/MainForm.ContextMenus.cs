@@ -137,69 +137,59 @@ namespace GUI
 
             foreach (var selectedNode in selectedNodes)
             {
+                var innerPath = GetNodeInnerPath(selectedNode);
+
+                if (innerPath == null)
+                {
+                    continue;
+                }
+
                 if (sb.Length > 0)
                 {
                     sb.AppendLine();
                 }
 
-                if (wantsFullPath)
-                {
-                    sb.Append("vpk:");
-                    sb.Append(context.FileName.Replace('\\', '/'));
-                }
-
-                if (!selectedNode.IsFolder)
-                {
-                    if (wantsFullPath)
-                    {
-                        sb.Append(':');
-                    }
-
-                    var packageEntry = selectedNode.PackageEntry;
-                    if (packageEntry != null)
-                    {
-                        sb.Append(packageEntry.GetFullPath());
-                    }
-                }
-                else
-                {
-                    var stack = new Stack<string>();
-                    var node = selectedNode.PkgNode;
-
-                    if (node == null)
-                    {
-                        continue;
-                    }
-
-                    if (wantsFullPath && node.Parent != null)
-                    {
-                        sb.Append(':');
-                    }
-
-                    do
-                    {
-                        if (node.Parent == null)
-                        {
-                            break;
-                        }
-
-                        stack.Push(node.Name);
-                        node = node.Parent;
-                    }
-                    while (node != null);
-
-                    while (stack.TryPop(out var name))
-                    {
-                        sb.Append(name);
-                        sb.Append(Package.DirectorySeparatorChar);
-                    }
-                }
+                sb.Append(wantsFullPath ? VpkProtocol.FormatUri(context.FileName, innerPath) : innerPath);
             }
 
             if (sb.Length > 0)
             {
                 AppClipboard.SetText(sb.ToString());
             }
+        }
+
+        /// <summary>Returns the path of the node inside of its package, with a trailing separator for folders.</summary>
+        private static string? GetNodeInnerPath(IBetterBaseItem selectedNode)
+        {
+            if (!selectedNode.IsFolder)
+            {
+                return selectedNode.PackageEntry?.GetFullPath() ?? string.Empty;
+            }
+
+            var node = selectedNode.PkgNode;
+
+            if (node == null)
+            {
+                return null;
+            }
+
+            var stack = new Stack<string>();
+
+            while (node.Parent != null)
+            {
+                stack.Push(node.Name);
+                node = node.Parent;
+            }
+
+            var sb = new StringBuilder();
+
+            while (stack.TryPop(out var name))
+            {
+                sb.Append(name);
+                sb.Append(Package.DirectorySeparatorChar);
+            }
+
+            return sb.ToString();
         }
 
         private void OpenWithoutViewerToolStripMenuItem_Click(object sender, EventArgs e)
