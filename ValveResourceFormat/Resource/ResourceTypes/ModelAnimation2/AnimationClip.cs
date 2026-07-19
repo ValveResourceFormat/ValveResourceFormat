@@ -79,6 +79,44 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation2
         /// </summary>
         public bool IsAdditive { get; private set; }
 
+        /// <summary>
+        /// A sound event fired during clip playback (CNmSoundEvent).
+        /// </summary>
+        public sealed record SoundEvent
+        {
+            /// <summary>Gets the time in seconds into the clip at which the sound starts.</summary>
+            public required float StartTime { get; init; }
+
+            /// <summary>Gets the duration in seconds of the event window. 0 means a one-shot with no window.</summary>
+            public required float Duration { get; init; }
+
+            /// <summary>Gets the name of the sound event to play.</summary>
+            public required string Name { get; init; }
+
+            /// <summary>Gets where the sound is positioned: "EntityEyePos", "EntityPos", or "None".</summary>
+            public string Position { get; init; } = "EntityEyePos";
+
+            /// <summary>Gets the attachment the sound follows when set (unused in CS2 data).</summary>
+            public string AttachmentName { get; init; } = string.Empty;
+
+            /// <summary>Gets the network relevance: "ClientOnly" or "ClientAndServer".</summary>
+            public string Relevance { get; init; } = "ClientOnly";
+
+            /// <summary>Gets whether the sound keeps playing to its natural end when the event window closes (otherwise it is stopped).</summary>
+            public bool ContinuePlayingSoundAtDurationEnd { get; init; }
+
+            /// <summary>
+            /// Gets the fraction of <see cref="Duration"/> that must have elapsed for the sound to survive
+            /// an interruption of the animation; interrupted earlier, the sound is stopped.
+            /// </summary>
+            public float DurationInterruptionThreshold { get; init; } = 0.9f;
+        }
+
+        /// <summary>
+        /// Gets the sound events fired during playback of this clip.
+        /// </summary>
+        public SoundEvent[] SoundEvents { get; private set; } = [];
+
         /// <inheritdoc/>
         public override void Read(BinaryReader reader)
         {
@@ -127,6 +165,37 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation2
                     IsScaleStatic = setting.GetBooleanProperty("m_bIsScaleStatic"),
                 };
             }
+
+            var events = clipData.GetArray("m_events") ?? [];
+            var soundEvents = new List<SoundEvent>(events.Count);
+
+            foreach (var clipEvent in events)
+            {
+                if (clipEvent.GetStringProperty("_class") != "CNmSoundEvent")
+                {
+                    continue;
+                }
+
+                var soundName = clipEvent.GetStringProperty("m_name");
+                if (string.IsNullOrEmpty(soundName))
+                {
+                    continue;
+                }
+
+                soundEvents.Add(new SoundEvent
+                {
+                    StartTime = clipEvent.GetSubCollection("m_flStartTime").GetFloatProperty("m_flValue"),
+                    Duration = clipEvent.GetSubCollection("m_flDuration").GetFloatProperty("m_flValue"),
+                    Name = soundName,
+                    Position = clipEvent.GetStringProperty("m_position", "EntityEyePos"),
+                    AttachmentName = clipEvent.GetStringProperty("m_attachmentName", string.Empty),
+                    Relevance = clipEvent.GetStringProperty("m_relevance", "ClientOnly"),
+                    ContinuePlayingSoundAtDurationEnd = clipEvent.GetBooleanProperty("m_bContinuePlayingSoundAtDurationEnd"),
+                    DurationInterruptionThreshold = clipEvent.GetFloatProperty("m_flDurationInterruptionThreshold", 0.9f),
+                });
+            }
+
+            SoundEvents = [.. soundEvents];
 
             CompressedPoseOffsets = clipData.GetIntegerArray("m_compressedPoseOffsets");
             Debug.Assert(CompressedPoseOffsets.Length == NumFrames);

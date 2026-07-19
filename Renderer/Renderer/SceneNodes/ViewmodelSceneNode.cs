@@ -245,7 +245,10 @@ public class ViewmodelSceneNode : ModelSceneNode
         SetState(AnimationState.Idle);
         TargetTransform = Transform;
 
+        AnimationController.PlaySoundEvents = true;
+
         var ag2Controller = AnimationController.CurrentSubController!.Value.Handler;
+        ag2Controller.PlaySoundEvents = true;
         PrimarySkeletonDebug = new SkeletonSceneNode(Scene, ag2Controller, ag2Controller.Skeleton)
         {
             LayerName = WorldLayerName,

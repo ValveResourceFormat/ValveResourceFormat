@@ -112,6 +112,108 @@ namespace ValveResourceFormat.Renderer
         }
 
         /// <summary>
+        /// A clip sound with a duration window that may need to be cut short: either at the end of its
+        /// event window (m_bContinuePlayingSoundAtDurationEnd) or when the animation is interrupted
+        /// before the interruption threshold (m_flDurationInterruptionThreshold).
+        /// </summary>
+        private sealed record ActiveClipSound(
+            Audio.SoundEvent Handle,
+            Clip Clip,
+            ValveResourceFormat.ResourceTypes.ModelAnimation2.AnimationClip.SoundEvent Event,
+            float FireTime);
+
+        private readonly List<ActiveClipSound> activeClipSounds = [];
+
+        /// <summary>
+        /// Fires the clip's sound events (CNmSoundEvent) whose start time was crossed while advancing
+        /// from <paramref name="previousTime"/> to <paramref name="newTime"/>, handling loop wrap-around.
+        /// </summary>
+        private void FireSoundEvents(Clip clip, float previousTime, float newTime)
+        {
+            var soundEvents = clip.Animation.Clip?.SoundEvents;
+            if (soundEvents is not { Length: > 0 })
+            {
+                return;
+            }
+
+            var duration = clip.Animation.Clip!.Duration;
+            if (duration <= 0f)
+            {
+                return;
+            }
+
+            var advancedFullLoop = newTime - previousTime >= duration;
+            var oldTime = previousTime % duration;
+            var currentTime = newTime % duration;
+
+            foreach (var soundEvent in soundEvents)
+            {
+                // Half-open interval [oldTime, currentTime) so events at exactly 0 fire when the clip starts
+                var crossed = advancedFullLoop
+                    || (oldTime <= currentTime
+                        ? soundEvent.StartTime >= oldTime && soundEvent.StartTime < currentTime
+                        : soundEvent.StartTime >= oldTime || soundEvent.StartTime < currentTime);
+
+                if (!crossed || soundEvent.Relevance == "ServerOnly")
+                {
+                    continue;
+                }
+
+                // "EntityEyePos" is the listener itself, play it unspatialized; "EntityPos" plays at the entity
+                Vector3? position = soundEvent.Position == "EntityPos" ? Transform.Translation : null;
+
+                var handle = Sound.Play(soundEvent.Name, position);
+
+                if (handle != null && soundEvent.Duration > 0f)
+                {
+                    activeClipSounds.Add(new ActiveClipSound(handle, clip, soundEvent, newTime));
+                }
+            }
+        }
+
+        /// <summary>
+        /// Enforces the duration windows of playing clip sounds: cuts sounds at the end of their window unless
+        /// they are flagged to continue, and cuts sounds whose animation was interrupted before the threshold.
+        /// </summary>
+        private void UpdateActiveClipSounds()
+        {
+            for (var i = activeClipSounds.Count - 1; i >= 0; i--)
+            {
+                var (handle, clip, soundEvent, fireTime) = activeClipSounds[i];
+
+                if (!handle.Started)
+                {
+                    // The sound already finished on its own
+                    activeClipSounds.RemoveAt(i);
+                    continue;
+                }
+
+                // Clip removed, blended out, or restarted (time jumped backwards) counts as an interruption
+                var interrupted = !clips.ContainsValue(clip) || clip.Weight <= 0f || clip.Time < fireTime;
+                var elapsed = clip.Time - fireTime;
+
+                if (interrupted)
+                {
+                    if (elapsed < soundEvent.Duration * soundEvent.DurationInterruptionThreshold)
+                    {
+                        handle.Stop();
+                    }
+
+                    activeClipSounds.RemoveAt(i);
+                }
+                else if (elapsed >= soundEvent.Duration)
+                {
+                    if (!soundEvent.ContinuePlayingSoundAtDurationEnd)
+                    {
+                        handle.Stop();
+                    }
+
+                    activeClipSounds.RemoveAt(i);
+                }
+            }
+        }
+
+        /// <summary>
         /// Updates time and weights for all active clips during playback.
         /// </summary>
         /// <param name="timeStep">Elapsed time in seconds since the last update.</param>
@@ -139,6 +241,7 @@ namespace ValveResourceFormat.Renderer
             {
                 if (!clip.IsPaused && clip.Animation.FrameCount > 1)
                 {
+                    var previousTime = clip.Time;
                     clip.Time += timeStep;
 
                     if (!clip.Looping)
@@ -152,8 +255,15 @@ namespace ValveResourceFormat.Renderer
                             clip.Frame = lastFrame;
                         }
                     }
+
+                    if (PlaySoundEvents && clip.Weight > 0f)
+                    {
+                        FireSoundEvents(clip, previousTime, clip.Time);
+                    }
                 }
             }
+
+            UpdateActiveClipSounds();
 
             if (activeClip.IsTimeBasedTransition && previousClip != null)
             {
