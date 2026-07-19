@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using ValveResourceFormat.IO;
 using ValveResourceFormat.ResourceTypes.ModelAnimation;
+using ValveResourceFormat.ResourceTypes.ModelAnimation2;
 
 namespace ValveResourceFormat.Renderer
 {
@@ -112,6 +113,12 @@ namespace ValveResourceFormat.Renderer
         }
 
         /// <summary>
+        /// Raised for every clip event (CNmSoundEvent, CNmIDEvent, CNmParticleEvent, ...) whose start time
+        /// is crossed during playback. Consumers filter for the event types they are interested in.
+        /// </summary>
+        public event Action<NmClipEvent>? ClipEventFired;
+
+        /// <summary>
         /// A clip sound with a duration window that may need to be cut short: either at the end of its
         /// event window (m_bContinuePlayingSoundAtDurationEnd) or when the animation is interrupted
         /// before the interruption threshold (m_flDurationInterruptionThreshold).
@@ -119,19 +126,19 @@ namespace ValveResourceFormat.Renderer
         private sealed record ActiveClipSound(
             Audio.SoundEvent Handle,
             Clip Clip,
-            ValveResourceFormat.ResourceTypes.ModelAnimation2.AnimationClip.SoundEvent Event,
+            NmSoundEvent Event,
             float FireTime);
 
         private readonly List<ActiveClipSound> activeClipSounds = [];
 
         /// <summary>
-        /// Fires the clip's sound events (CNmSoundEvent) whose start time was crossed while advancing
+        /// Fires the clip's events whose start time was crossed while advancing
         /// from <paramref name="previousTime"/> to <paramref name="newTime"/>, handling loop wrap-around.
         /// </summary>
-        private void FireSoundEvents(Clip clip, float previousTime, float newTime)
+        private void FireClipEvents(Clip clip, float previousTime, float newTime)
         {
-            var soundEvents = clip.Animation.Clip?.SoundEvents;
-            if (soundEvents is not { Length: > 0 })
+            var clipEvents = clip.Animation.Clip?.Events;
+            if (clipEvents is not { Length: > 0 })
             {
                 return;
             }
@@ -146,28 +153,43 @@ namespace ValveResourceFormat.Renderer
             var oldTime = previousTime % duration;
             var currentTime = newTime % duration;
 
-            foreach (var soundEvent in soundEvents)
+            foreach (var clipEvent in clipEvents)
             {
                 // Half-open interval [oldTime, currentTime) so events at exactly 0 fire when the clip starts
                 var crossed = advancedFullLoop
                     || (oldTime <= currentTime
-                        ? soundEvent.StartTime >= oldTime && soundEvent.StartTime < currentTime
-                        : soundEvent.StartTime >= oldTime || soundEvent.StartTime < currentTime);
+                        ? clipEvent.StartTime >= oldTime && clipEvent.StartTime < currentTime
+                        : clipEvent.StartTime >= oldTime || clipEvent.StartTime < currentTime);
 
-                if (!crossed || soundEvent.Relevance == "ServerOnly")
+                if (!crossed)
                 {
                     continue;
                 }
 
-                // "EntityEyePos" is the listener itself, play it unspatialized; "EntityPos" plays at the entity
-                Vector3? position = soundEvent.Position == "EntityPos" ? Transform.Translation : null;
+                ClipEventFired?.Invoke(clipEvent);
 
-                var handle = Sound.Play(soundEvent.Name, position);
-
-                if (handle != null && soundEvent.Duration > 0f)
+                if (PlaySoundEvents && clipEvent is NmSoundEvent soundEvent)
                 {
-                    activeClipSounds.Add(new ActiveClipSound(handle, clip, soundEvent, newTime));
+                    PlayClipSound(clip, soundEvent, newTime);
                 }
+            }
+        }
+
+        private void PlayClipSound(Clip clip, NmSoundEvent soundEvent, float fireTime)
+        {
+            if (soundEvent.Relevance == "ServerOnly")
+            {
+                return;
+            }
+
+            // "EntityEyePos" is the listener itself, play it unspatialized; "EntityPos" plays at the entity
+            Vector3? position = soundEvent.Position == "EntityPos" ? Transform.Translation : null;
+
+            var handle = Sound.Play(soundEvent.Name, position);
+
+            if (handle != null && soundEvent.Duration > 0f)
+            {
+                activeClipSounds.Add(new ActiveClipSound(handle, clip, soundEvent, fireTime));
             }
         }
 
@@ -256,9 +278,9 @@ namespace ValveResourceFormat.Renderer
                         }
                     }
 
-                    if (PlaySoundEvents && clip.Weight > 0f)
+                    if (clip.Weight > 0f)
                     {
-                        FireSoundEvents(clip, previousTime, clip.Time);
+                        FireClipEvents(clip, previousTime, clip.Time);
                     }
                 }
             }
