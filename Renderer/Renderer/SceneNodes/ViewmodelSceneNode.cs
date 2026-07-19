@@ -213,6 +213,9 @@ public class ViewmodelSceneNode : ModelSceneNode
     private const float KnifeLightRange = 48f; // cs_weapon_knife.cpp: slash (primary) reaches further
     private const float KnifeHeavyRange = 32f; // than the stab (secondary)
 
+    // CKnife::Swing retries a missed line trace with a swept "head hull", making the swipe radial
+    private static readonly AABB KnifeSwingHull = AABB.FromCenteredSize(new Vector3(32f, 32f, 36f));
+
     private void PlayAttackSound(UserInput input, bool heavyKnifeAttack)
     {
         switch (SelectedItemIndex)
@@ -226,11 +229,20 @@ public class ViewmodelSceneNode : ModelSceneNode
                 break;
 
             case 3:
-                // Like CS knife code: trace from the eyes along the view direction,
-                // play the wall swipe at the impact point when geometry is within reach, otherwise the miss swish
+                // Like CKnife::Swing: a line trace from the eyes along the view direction first,
+                // and when that misses, a swept head-hull trace so the swipe has radial reach.
+                // Play the wall swipe at the impact point, otherwise the miss swish.
                 var camera = input.Camera;
                 var range = heavyKnifeAttack ? KnifeHeavyRange : KnifeLightRange;
-                var trace = input.PhysicsWorld?.TraceRay(camera.Location, camera.Location + camera.Forward * range);
+                var from = camera.Location;
+                var to = from + camera.Forward * range;
+
+                var trace = input.PhysicsWorld?.TraceRay(from, to);
+
+                if (trace is not { Hit: true })
+                {
+                    trace = input.PhysicsWorld?.TraceAABB(from, to, KnifeSwingHull, string.Empty);
+                }
 
                 if (trace is { Hit: true } hit)
                 {
