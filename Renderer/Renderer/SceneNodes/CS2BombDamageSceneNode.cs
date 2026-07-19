@@ -76,7 +76,7 @@ public class CS2BombDamageSceneNode : SceneNode
     /// <param name="bombDamageData">Baked bomb damage data.</param>
     /// <param name="bombsiteIndex">Index of the bombsite. Index 0 is not guaranteed to be bombsite A.</param>
     /// <param name="renderTexture">Texture drawn on each damage value quad.</param>
-    /// <param name="bombsiteLabel">Display label for the bombsite ("A", "B", or "?" when unresolved).</param>
+    /// <param name="bombsiteLabel">Display label for the bombsite ("A", "B", or a per-site index when unresolved).</param>
     public CS2BombDamageSceneNode(Scene scene, BombDamage bombDamageData, int bombsiteIndex, RenderTexture renderTexture, string bombsiteLabel) : base(scene)
     {
         var shader = Scene.RendererContext.ShaderLoader.LoadShader("vrf.cs2_baked_bomb_damage");
@@ -248,7 +248,8 @@ public class CS2BombDamageSceneNode : SceneNode
     /// Adds visualization scene nodes of a <see cref="BombDamage"/> to a <see cref="Scene"/>. Each bombsite gets its own <see cref="CS2BombDamageSceneNode"/>.
     /// The baked data carries no site letters; at detonation the first site whose bounds, expanded by 32 units,
     /// contain the bomb position is used, so each site's plant trigger volume must intersect its bounds. Sites are
-    /// labeled from the <c>func_bomb_target</c> volumes intersecting their bounds, "?" unless exactly one designation matches.
+    /// labeled from the <c>func_bomb_target</c> volumes intersecting their bounds, falling back to a per-site
+    /// index unless exactly one designation matches (e.g. when the scene has no entities).
     /// </summary>
     public static void AddBakedBombDamageToScene(BombDamage? bombDamageData, Scene scene)
     {
@@ -272,7 +273,9 @@ public class CS2BombDamageSceneNode : SceneNode
                 .Select(GetBombsiteDesignation)
                 .Distinct()
                 .ToList();
-            var label = designations.Count == 1 ? designations[0] : "?";
+            // Fall back to a per-site index when unresolved (e.g. standalone viewer has no
+            // entities) so each site still gets a distinct scene layer.
+            var label = designations.Count == 1 ? designations[0] : $"#{i + 1}";
 
             var sceneNode = new CS2BombDamageSceneNode(scene, bombDamageData, i, arrowTexture, label);
             scene.Add(sceneNode, false);
