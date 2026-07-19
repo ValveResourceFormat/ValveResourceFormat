@@ -1,37 +1,60 @@
 using System.Buffers;
 using System.Runtime.InteropServices;
 using System.Threading;
+using NAudio.CoreAudioApi;
 using NAudio.Wave;
 using ValveResourceFormat.Renderer.Audio;
 
 namespace GUI.Types.Audio
 {
     /// <summary>
-    /// NAudio-backed <see cref="IAudioDevice"/>. Buffers submitted samples and plays them through the default output device.
-    /// <see cref="SubmitSamples"/> blocks while the buffer is full, which paces the renderer's mixing thread.
+    /// NAudio-backed <see cref="IAudioDevice"/> using event-driven shared mode WASAPI.
+    /// <see cref="SubmitSamples"/> blocks while more than <see cref="MixAhead"/> of audio is queued,
+    /// which paces the renderer's mixing thread and keeps latency low (the equivalent of snd_mixahead).
     /// </summary>
     internal sealed class NAudioDevice : IAudioDevice
     {
-        public int SampleRate => 44100;
+        private const int WasapiLatencyMs = 20;
+
+        public int SampleRate { get; }
         public int Channels => 2;
 
-        private readonly WaveOutEvent output;
+        /// <summary>
+        /// Maximum amount of mixed audio queued ahead of the device. Lower values reduce latency,
+        /// higher values are safer against underruns.
+        /// </summary>
+        public TimeSpan MixAhead { get; set; } = TimeSpan.FromMilliseconds(25);
+
+        private readonly IWavePlayer output;
         private readonly BufferedWaveProvider buffer;
         private volatile bool disposed;
 
         public NAudioDevice()
         {
+            // Use the device mix format's sample rate so WASAPI does not need to insert a resampler
+            var sampleRate = 48000;
+
+            try
+            {
+                using var enumerator = new MMDeviceEnumerator();
+                using var device = enumerator.GetDefaultAudioEndpoint(DataFlow.Render, Role.Multimedia);
+                sampleRate = device.AudioClient.MixFormat.SampleRate;
+            }
+            catch (Exception)
+            {
+                // Fall back to a common rate, WASAPI will resample
+            }
+
+            SampleRate = sampleRate;
+
             var format = WaveFormat.CreateIeeeFloatWaveFormat(SampleRate, Channels);
             buffer = new BufferedWaveProvider(format)
             {
                 BufferDuration = TimeSpan.FromMilliseconds(500),
-                ReadFully = true,
+                ReadFully = true, // produce silence when empty instead of stopping playback
             };
 
-            output = new WaveOutEvent
-            {
-                DesiredLatency = 120,
-            };
+            output = new WasapiOut(AudioClientShareMode.Shared, useEventSync: true, latency: WasapiLatencyMs);
             output.Init(buffer);
             output.Play();
         }
@@ -45,9 +68,10 @@ namespace GUI.Types.Audio
             {
                 MemoryMarshal.AsBytes(samples).CopyTo(bytes);
 
-                while (!disposed && buffer.BufferedBytes + byteCount > buffer.BufferLength)
+                // Wait until the queued audio drops below the mixahead window, keeping the mixer just-in-time
+                while (!disposed && buffer.BufferedDuration > MixAhead)
                 {
-                    Thread.Sleep(10);
+                    Thread.Sleep(1);
                 }
 
                 if (!disposed)
