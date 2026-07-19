@@ -124,9 +124,9 @@ namespace ValveResourceFormat.Renderer
         }
 
         /// <summary>
-        /// Writes camera matrices and direction vectors into the provided view constants struct.
+        /// Writes camera matrices and direction vectors into the provided view constants object.
         /// </summary>
-        /// <param name="viewConstants">View constants struct to populate.</param>
+        /// <param name="viewConstants">View constants object to populate.</param>
         public void SetViewConstants(Buffers.ViewConstants viewConstants)
         {
             viewConstants.WorldToProjection = ViewProjectionMatrix;

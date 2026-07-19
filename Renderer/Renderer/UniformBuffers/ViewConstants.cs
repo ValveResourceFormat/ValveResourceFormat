@@ -24,11 +24,11 @@ namespace ValveResourceFormat.Renderer.Buffers
         public Vector2 ViewportSize;
         /// <summary>World-space position of the camera.</summary>
         public Vector3 CameraPosition = Vector3.Zero;
-        /// <summary>Near plane depth value in normalized device coordinates.</summary>
+        /// <summary>Minimum window-space depth of the viewport depth range (the far plane under reverse-Z).</summary>
         public float ViewportMinZ;
         /// <summary>World-space forward direction of the camera.</summary>
         public Vector3 CameraDirWs;
-        /// <summary>Far plane depth value in normalized device coordinates.</summary>
+        /// <summary>Maximum window-space depth of the viewport depth range (the near plane under reverse-Z).</summary>
         public float ViewportMaxZ;
         /// <summary>World-space up direction of the camera.</summary>
         public Vector3 CameraUpDirWs;
@@ -68,7 +68,7 @@ namespace ValveResourceFormat.Renderer.Buffers
         /// <summary>Cube fog culling parameters, exposure bias, and maximum opacity.</summary>
         public Vector4 CubeFogCullingParams_ExposureBias_MaxOpacity;
 
-        /// <summary>Previous frame's world-to-clip transform, used for motion vectors.</summary>
+        /// <summary>World-to-clip transform from when the depth pyramid was last generated, used for GPU occlusion culling.</summary>
         public Matrix4x4 WorldToProjectionPrev = Matrix4x4.Identity;
 
         /// <summary>Initializes a new <see cref="ViewConstants"/> with identity matrices and default values.</summary>

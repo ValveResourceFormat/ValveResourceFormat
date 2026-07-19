@@ -81,7 +81,7 @@ namespace ValveResourceFormat.Renderer.World
         /// <summary>Gets or sets a value indicating whether dynamic shadow rendering is enabled.</summary>
         public bool EnableDynamicShadows { get; set; } = true;
 
-        /// <summary>Gets or sets the combined view-projection matrix used for sun shadow rendering.</summary>
+        /// <summary>Gets the combined view-projection matrix used for sun shadow rendering.</summary>
         public Matrix4x4 SunViewProjection { get; internal set; }
         /// <summary>Gets the frustum used for sun light shadow culling.</summary>
         public Frustum SunLightFrustum { get; } = new();

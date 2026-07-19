@@ -218,7 +218,7 @@ public class BloomRenderer
     }
 
     /// <summary>
-    /// Render a texture from ping to pong using the provided screenspace shader.
+    /// Render a texture from <paramref name="ping"/> to <paramref name="pong"/> using the provided screenspace shader.
     /// </summary>
     private void RenderTexture(Shader shader, Framebuffer ping, Framebuffer pong, Vector2i size, int mip = 0)
     {

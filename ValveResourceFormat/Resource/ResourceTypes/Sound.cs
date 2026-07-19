@@ -450,7 +450,7 @@ namespace ValveResourceFormat.ResourceTypes
         }
 
         /// <summary>
-        /// Returns a fully playable sound data.
+        /// Returns fully playable sound data.
         /// In case of WAV files, header is automatically generated as Valve removes it when compiling.
         /// </summary>
         /// <returns>Byte array containing sound data.</returns>
@@ -466,7 +466,7 @@ namespace ValveResourceFormat.ResourceTypes
         }
 
         /// <summary>
-        /// Returns a fully playable sound data.
+        /// Returns fully playable sound data.
         /// In case of WAV files, header is automatically generated as Valve removes it when compiling.
         /// </summary>
         /// <returns>Memory stream containing sound data.</returns>

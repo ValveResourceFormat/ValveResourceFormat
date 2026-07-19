@@ -42,7 +42,7 @@ namespace ValveResourceFormat.IO
         /// <summary>
         /// Additional extracted resources. E.g. for a vmat, this would be the vtex files.
         /// You will want to extract the files if data is non null, and also their respective subfiles.
-        /// You might want to ignore further extracts on these files—especially lone extracts,
+        /// You might want to ignore further extracts on these files, especially lone extracts,
         /// since this is most likely their most optimal extract context.
         /// </summary>
         public List<ContentFile> AdditionalFiles { get; init; } = [];

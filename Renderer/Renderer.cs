@@ -134,7 +134,7 @@ public class Renderer
     public bool IsWireframe { get; set; }
 
     /// <summary>
-    /// When <see langword="true"/>, the skybox is included in scene rendering.
+    /// When <see langword="true"/>, the 3D skybox scene is included in scene rendering. Does not affect the 2D skybox.
     /// </summary>
     public bool ShowSkybox { get; set; } = true;
 

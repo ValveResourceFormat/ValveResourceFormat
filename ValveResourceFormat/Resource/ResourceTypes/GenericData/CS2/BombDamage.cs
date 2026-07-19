@@ -32,7 +32,7 @@ public sealed class BombDamage : GenericData
     public Vector3[] Positions { get; private set; } = [];
 
     /// <summary>
-    /// Contains baked damage information, such as yaw, angle, and phase. The length of this array should be equal to the number of positions multiplied by the number of bombsites.
+    /// Contains baked damage information, such as yaw, pitch, and phase. The length of this array should be equal to the number of positions multiplied by the number of bombsites.
     /// To retrieve the damage information for a given position and bombsite, use <see cref="GetBombsiteDamageValue(int, int)"/>.
     /// </summary>
     public BombDamageDamageValue[] DamageValues { get; private set; } = [];

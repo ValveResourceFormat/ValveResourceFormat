@@ -359,7 +359,7 @@ public class PlayerMovement
 
     /// <summary>
     /// Check if player is on ground using swept AABB trace
-    /// Traces down a small fixed distance (2 units) to detect ground contact; only accepts the hit as ground when the surface is walkable and downward velocity is below a threshold
+    /// Traces down a small fixed distance (2 units) to detect ground contact; only accepts the hit as ground when the surface is walkable and upward velocity is below a threshold
     /// </summary>
     private void CategorizePosition(ref Vector3 position, AABB aabb)
     {

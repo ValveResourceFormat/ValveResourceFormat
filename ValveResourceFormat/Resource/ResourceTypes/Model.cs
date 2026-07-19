@@ -135,7 +135,7 @@ namespace ValveResourceFormat.ResourceTypes
 
         /// <summary>
         /// Get the bone remap table of a specific mesh.
-        /// This is used to remap bone indices in the mesh VBIB to bone indices of the model skeleton.
+        /// This is used to remap bone indices in the mesh <see cref="VBIB"/> to bone indices of the model skeleton.
         /// </summary>
         public int[]? GetRemapTable(int meshIndex)
         {

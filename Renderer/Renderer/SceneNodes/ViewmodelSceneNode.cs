@@ -6,7 +6,7 @@ using ValveResourceFormat.ResourceTypes;
 namespace ValveResourceFormat.Renderer.SceneNodes;
 
 /// <summary>
-/// Animgraph 2 model node.
+/// First-person viewmodel scene node (player arms, weapon items and legs) driven by animgraph 2 clips.
 /// </summary>
 public class ViewmodelSceneNode : ModelSceneNode
 {

@@ -32,7 +32,7 @@ namespace ValveResourceFormat.Renderer
         /// <summary>Gets the number of mip levels.</summary>
         public int NumMipLevels { get; private set; }
 
-        /// <summary>Gets or sets the average color reflectivity used for environment lighting calculations.</summary>
+        /// <summary>Gets the average color reflectivity used for environment lighting calculations.</summary>
         public Vector4 Reflectivity { get; internal set; }
 
         RenderTexture(TextureTarget target)

@@ -86,7 +86,7 @@ public class Timings
     /// <summary>
     /// Ends a timing measurement.
     /// </summary>
-    /// <param name="id">Query ID returned from BeginQuery.</param>
+    /// <param name="id">Query ID returned from <see cref="BeginQuery"/>.</param>
     internal void EndQuery(QueryId id)
     {
         if (!Capture || id == 0)

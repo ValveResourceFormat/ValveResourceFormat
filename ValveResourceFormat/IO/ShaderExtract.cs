@@ -40,7 +40,7 @@ public sealed class ShaderExtract
         public bool NoHungarianTypeGuessing { get; init; }
         /// <summary>Gets a value indicating whether to write parameters in raw format.</summary>
         public bool WriteParametersRaw { get; init; }
-        /// <summary>Gets or sets a value indicating whether static combos can be read.</summary>
+        /// <summary>Gets a value indicating whether static combos can be read.</summary>
         public bool CanReadStaticCombos
         {
             get => StaticComboReadingCap != 0;

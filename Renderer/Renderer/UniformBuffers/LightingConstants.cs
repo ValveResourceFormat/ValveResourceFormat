@@ -8,7 +8,7 @@ namespace ValveResourceFormat.Renderer.Buffers
     [StructLayout(LayoutKind.Sequential)]
     public class LightingConstants
     {
-        /// <summary>Maximum number of dynamic lights supported per scene.</summary>
+        /// <summary>Maximum number of lights (static plus dynamic) supported per scene.</summary>
         public const int MAX_LIGHTS = 256;
         /// <summary>Maximum number of environment map probes supported per scene.</summary>
         public const int MAX_ENVMAPS = 128;
@@ -45,7 +45,7 @@ namespace ValveResourceFormat.Renderer.Buffers
         /// <summary>Gets or sets the number of lightmapped lights in the scene.</summary>
         public uint StaticLightCount { get => NumLights[0]; set => NumLights[0] = value; }
 
-        /// <summary>Gets or sets the number of dynamic lights in the scene.</summary>
+        /// <summary>Gets or sets the total light count (static plus dynamic); dynamic lights occupy indices from <see cref="StaticLightCount"/> up to this value.</summary>
         public uint DynamicLightCount { get => NumLights[1]; set => NumLights[1] = value; }
 
         /// <summary>Initializes a new <see cref="LightingConstants"/> with all arrays allocated to their maximum sizes.</summary>

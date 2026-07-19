@@ -10,7 +10,7 @@ namespace ValveResourceFormat.Renderer
         /// </summary>
         public TiltTwistConstraint[] TwistConstraints { get; set; } = [];
 
-        /// <summary>Gets or sets whether first-person legs mode is enabled (zeros bones from pelvis and up).</summary>
+        /// <summary>Gets or sets whether first-person legs mode is enabled (zeros bones from spine_0 and up, keeping the pelvis and legs).</summary>
         internal bool EnableFirstPersonLegs { get; set; }
 
         /// <summary>Gets or sets whether viewmodel-specific twist constraints should be applied.</summary>

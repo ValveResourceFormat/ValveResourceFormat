@@ -174,7 +174,7 @@ namespace ValveResourceFormat.Renderer.World
         }
 
         /// <summary>
-        /// Loads all world components: lighting, entities, world nodes, physics, and navigation mesh.
+        /// Loads all world components: lighting, entities, world nodes, physics, visibility, bomb damage data, and navigation mesh.
         /// Navigation mesh loading is parallelized with resource preloading when references are provided.
         /// </summary>
         /// <param name="mapResourceReferences">Optional external reference list from the map resource, used to preload assets in parallel.</param>
@@ -236,7 +236,7 @@ namespace ValveResourceFormat.Renderer.World
         }
 
         /// <summary>
-        /// Parents entities with a <c>parentname</c> to that parent each frame — snapping onto the
+        /// Parents entities with a <c>parentname</c> to that parent each frame, snapping onto the
         /// <c>parentattachmentname</c> attachment (or the bone with that name when no attachment matches)
         /// when one is given, otherwise following the parent's transform. <c>uselocaloffset</c> is ignored,
         /// as the engine does here too. Done after all entities are loaded so the parent is registered

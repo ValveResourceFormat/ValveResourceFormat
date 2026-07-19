@@ -41,7 +41,7 @@ namespace ValveResourceFormat.Renderer.Particles.PreEmissionOperators
         }
 
         /// <summary>
-        /// The current object-space position rotated and translated by the head control point.
+        /// The current position, rotated and translated by the head control point, unless world location is used, in which case the position is returned as-is.
         /// </summary>
         private Vector3 GetTargetPosition(ParticleSystemRenderState particleSystemState) => useWorldLocation
             ? currentPosition

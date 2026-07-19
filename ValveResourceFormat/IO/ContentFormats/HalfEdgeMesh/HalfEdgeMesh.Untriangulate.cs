@@ -5,14 +5,14 @@ partial class HalfEdgeMesh
     /// <summary>
     /// <para> Untriangulation inspired by blender's "Triangles to Quads" operator </para> 
     /// <para> Joins pairs of adjacent triangles into quads by dissolving their shared edge, processing the candidates with the lowest quad error first </para> 
-    /// <para> A pair is skipped when the angle between the triangle normals exceeds maxFaceAngleDegrees, or if any of its corners deviates from
-    /// 90 degrees by more than maxShapeAngleDegrees </para> 
+    /// <para> A pair is skipped when the angle between the triangle normals exceeds <paramref name="maxFaceAngleDegrees"/>, or if any of its corners deviates from
+    /// 90 degrees by more than <paramref name="maxShapeAngleDegrees"/> </para> 
     /// </summary>
     /// <param name="positions">Mesh Vertex Positions</param>
     /// <param name="canMergeFaces">Function that compares two faces, and returns if the faces should be merged or not</param>
     /// <param name="maxFaceAngleDegrees">Angle between triangle normals to skip this pair</param>
     /// <param name="maxShapeAngleDegrees">Angle deviation of a triangle corner from 90 degrees to skip</param>
-    /// <returns></returns>
+    /// <returns>The number of edges dissolved (pairs of triangles joined into quads)</returns>
     public int UntriangulateMesh(VertexData<Vector3> positions,
         Func<FaceHandle, FaceHandle, bool>? canMergeFaces = null,
         float maxFaceAngleDegrees = 40f,

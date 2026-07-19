@@ -18,11 +18,11 @@ namespace ValveResourceFormat.ResourceTypes
         public class Entity : KVObject
         {
             /// <summary>
-            /// Gets or sets the entity connections (inputs/outputs).
+            /// Gets the entity connections (outputs that fire inputs on other entities, part of the entity I/O system).
             /// </summary>
             public List<KVObject>? Connections { get; internal set; }
             /// <summary>
-            /// Gets or initializes the parent entity lump that contains this entity.
+            /// Gets the parent entity lump that contains this entity.
             /// </summary>
             public required EntityLump ParentLump { get; init; }
 

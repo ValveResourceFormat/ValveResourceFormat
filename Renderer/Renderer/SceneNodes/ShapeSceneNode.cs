@@ -292,7 +292,7 @@ namespace ValveResourceFormat.Renderer.SceneNodes
             vertices.Add(new SimpleVertex(to, color));
         }
 
-        /// <summary>Appends the 12 wireframe edges of an AABB as line segments to the given vertex list.</summary>
+        /// <summary>Appends the 12 wireframe edges of an <see cref="AABB"/> as line segments to the given vertex list.</summary>
         public static void AddBox(List<SimpleVertex> vertices, in AABB box, Color32 color)
         {
             // Adding a box will add many vertices, so ensure the required capacity for it up front

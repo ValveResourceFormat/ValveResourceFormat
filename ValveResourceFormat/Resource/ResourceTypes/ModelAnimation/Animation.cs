@@ -34,27 +34,27 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
         public bool IsLooping { get; }
 
         /// <summary>
-        /// Gets or sets a value indicating whether the animation is hidden.
+        /// Gets a value indicating whether the animation is hidden.
         /// </summary>
         public bool Hidden { get; init; }
 
         /// <summary>
-        /// Gets or sets a value indicating whether this is a delta animation.
+        /// Gets a value indicating whether this is a delta animation.
         /// </summary>
         public bool Delta { get; init; }
 
         /// <summary>
-        /// Gets or sets a value indicating whether this animation is in world space.
+        /// Gets a value indicating whether this animation is in world space.
         /// </summary>
         public bool Worldspace { get; init; }
 
         /// <summary>
-        /// Gets or sets LegacyRealtime value of animation sequence. False for animations constructed without animation sequence data.
+        /// Gets LegacyRealtime value of animation sequence. False for animations constructed without animation sequence data.
         /// </summary>
         public bool Realtime { get; init; }
 
         /// <summary>
-        /// Gets or sets Autoplay value of animation sequence. False for animations constructed without animation sequence data.
+        /// Gets Autoplay value of animation sequence. False for animations constructed without animation sequence data.
         /// </summary>
         public bool Autoplay { get; init; }
 

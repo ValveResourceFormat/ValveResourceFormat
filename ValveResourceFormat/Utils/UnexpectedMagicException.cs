@@ -24,7 +24,7 @@ namespace ValveResourceFormat.Utils
         /// </summary>
         /// <param name="message">The error message.</param>
         /// <param name="magic">The unexpected magic value.</param>
-        /// <param name="nameofMagic">The name of the magic parameter.</param>
+        /// <param name="nameofMagic">The name of the <paramref name="magic"/> parameter.</param>
         public UnexpectedMagicException(string message, int magic, [CallerArgumentExpression(nameof(magic))] string? nameofMagic = null) : base(message)
         {
             Magic = $"{magic} (0x{magic:X})";
@@ -36,7 +36,7 @@ namespace ValveResourceFormat.Utils
         /// </summary>
         /// <param name="message">The error message.</param>
         /// <param name="magic">The unexpected magic value.</param>
-        /// <param name="nameofMagic">The name of the magic parameter.</param>
+        /// <param name="nameofMagic">The name of the <paramref name="magic"/> parameter.</param>
         public UnexpectedMagicException(string message, uint magic, [CallerArgumentExpression(nameof(magic))] string? nameofMagic = null) : base(message)
         {
             Magic = $"{magic} (0x{magic:X})";
@@ -48,7 +48,7 @@ namespace ValveResourceFormat.Utils
         /// </summary>
         /// <param name="message">The error message.</param>
         /// <param name="magic">The unexpected magic value.</param>
-        /// <param name="nameofMagic">The name of the magic parameter.</param>
+        /// <param name="nameofMagic">The name of the <paramref name="magic"/> parameter.</param>
         public UnexpectedMagicException(string message, string magic, [CallerArgumentExpression(nameof(magic))] string? nameofMagic = null) : base(message)
         {
             Magic = magic;

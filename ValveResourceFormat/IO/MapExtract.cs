@@ -75,7 +75,7 @@ public sealed class MapExtract
     }
 
     /// <summary>
-    /// Extract a map from a resource. Accepted types include Map, World. TODO: WorldNode and EntityLump.
+    /// Extract a map from a resource. Accepted types include <see cref="ResourceType.Map"/>, <see cref="ResourceType.World"/>. TODO: <see cref="ResourceType.WorldNode"/> and <see cref="ResourceType.EntityLump"/>.
     /// </summary>
     public MapExtract(Resource resource, IFileLoader? fileLoader)
     {

@@ -12,11 +12,11 @@ public class VfxStaticComboVcsEntry
 {
     private const int LZMA_MAGIC = 0x414D5A4C;
 
-    /// <summary>Gets or sets the parent program data.</summary>
+    /// <summary>Gets the parent program data.</summary>
     public required VfxProgramData ParentProgramData { get; init; }
-    /// <summary>Gets or sets the static combo identifier.</summary>
+    /// <summary>Gets the static combo identifier.</summary>
     public long StaticComboId { get; init; }
-    /// <summary>Gets or sets the file offset.</summary>
+    /// <summary>Gets the file offset.</summary>
     public int FileOffset { get; init; }
 
     /// <summary>
@@ -24,7 +24,7 @@ public class VfxStaticComboVcsEntry
     /// </summary>
     public record ResourceEntry(KVObject ComboData, VfxShaderAttribute[] AllAttributes, IReadOnlyList<KVObject> ByteCodeDescArray);
 
-    /// <summary>Gets or sets the KeyValues entry.</summary>
+    /// <summary>Gets the KeyValues entry.</summary>
     public ResourceEntry? KVEntry { get; init; }
 
     /// <summary>

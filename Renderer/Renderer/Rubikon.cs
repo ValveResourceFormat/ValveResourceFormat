@@ -49,7 +49,7 @@ public class Rubikon
 
     private int[] HullIndices { get; }
 
-    /// <summary>Initializes Rubikon by parsing all mesh and hull shapes from the physics aggregate data.</summary>
+    /// <summary>Initializes <see cref="Rubikon"/> by parsing the mesh and hull shapes from the first part of the physics aggregate data.</summary>
     /// <param name="physicsData">Source physics aggregate containing shapes and collision attributes.</param>
     public Rubikon(PhysAggregateData physicsData)
     {
@@ -116,7 +116,7 @@ public class Rubikon
         public readonly bool IsMinimalDistance => Distance < 0.00001f;
 
         /// <summary>
-        /// Updates this TraceResult if the other is closer. Returns true if updated.
+        /// Updates this <see cref="TraceResult"/> if the <paramref name="other"/> is closer. Returns true if updated.
         /// </summary>
         public bool MinimizeWith(TraceResult other)
         {
@@ -492,7 +492,7 @@ public class Rubikon
 
     private static bool RayIntersectsTriangle(RayTraceContext ray, Vector3 v0, Vector3 v1, Vector3 v2, out (float Distance, Vector3 Normal) intersection)
     {
-        // Möller–Trumbore ray-triangle intersection algorithm
+        // Möller-Trumbore ray-triangle intersection algorithm
         var edge1 = v1 - v0;
         var edge2 = v2 - v0;
         var h = Vector3.Cross(ray.Direction, edge2);

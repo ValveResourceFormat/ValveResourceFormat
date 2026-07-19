@@ -95,7 +95,7 @@ namespace GUI.Utils
             public int TextViewerFontSize { get; set; }
             /// <summary>Gets or sets whether the package file list uses grid view (1) or list view (0).</summary>
             public int PackageGridView { get; set; }
-            /// <summary>Gets or sets the grid thumbnail size index (0–4, mapping to ThumbnailSizes enum).</summary>
+            /// <summary>Gets or sets the grid thumbnail size index (0-4, mapping to <see cref="GUI.Types.PackageViewer.ThumbnailRenderers.ThumbnailSizes"/> enum).</summary>
             public int PackageGridSize { get; set; }
             /// <summary>Internal settings file version used to apply migrations when upgrading from older versions. Do not modify manually.</summary>
             public int _VERSION_DO_NOT_MODIFY { get; set; }
@@ -109,7 +109,7 @@ namespace GUI.Utils
         public static string SettingsFolder { get; private set; } = string.Empty;
         private static string SettingsFilePath = string.Empty;
 
-        /// <summary>Gets or sets the active application configuration.</summary>
+        /// <summary>Gets the active application configuration.</summary>
         public static AppConfig Config { get; private set; } = new AppConfig();
 
         /// <summary>Raised when <see cref="AppConfig.SavedCameras"/> is mutated, signaling subscribers to refresh their camera lists.</summary>

@@ -27,18 +27,18 @@ public class UIFontFilePackage
     public class FontFile
     {
         /// <summary>
-        /// Gets or initializes the file name.
+        /// Gets the file name.
         /// </summary>
         public required string FileName { get; init; }
 
         /// <summary>
-        /// Gets or initializes the OpenType font data.
+        /// Gets the OpenType font data.
         /// </summary>
         public required byte[] OpenTypeFontData { get; init; }
     }
 
     /// <summary>
-    /// Opens and reads the given filename.
+    /// Opens and reads the given <paramref name="filename"/>.
     /// </summary>
     /// <param name="filename">The file to open and read.</param>
     public void Read(string filename)
@@ -48,7 +48,7 @@ public class UIFontFilePackage
     }
 
     /// <summary>
-    /// Read the given data.
+    /// Read the given <paramref name="data"/>.
     /// </summary>
     /// <param name="data">The input data.</param>
     public void Read(ReadOnlySpan<byte> data)

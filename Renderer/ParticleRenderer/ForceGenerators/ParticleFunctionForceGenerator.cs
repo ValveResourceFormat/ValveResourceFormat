@@ -1,7 +1,7 @@
 namespace ValveResourceFormat.Renderer.Particles.ForceGenerators
 {
     /// <summary>
-    /// Base class for particle force generators. The BasicMovement operator invokes every
+    /// Base class for particle force generators. The <see cref="ValveResourceFormat.Renderer.Particles.Operators.BasicMovement"/> operator invokes every
     /// force generator to accumulate an acceleration into each particle's
     /// <see cref="Particle.ForceAccumulator"/>, then integrates it into velocity and clears it. They
     /// are built from the system's <c>m_ForceGenerators</c> block.

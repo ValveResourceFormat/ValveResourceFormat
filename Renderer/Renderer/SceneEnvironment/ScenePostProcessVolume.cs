@@ -61,7 +61,7 @@ namespace ValveResourceFormat.Renderer.SceneEnvironment
             WhitePoint = 4.0f;
         }
 
-        /// <summary>Returns a <see cref="TonemapSettings"/> configured for linear (passthrough) tonemapping.</summary>
+        /// <summary>Returns a <see cref="TonemapSettings"/> intended for linear (non-filmic) tonemapping. Note: <see cref="ApplyTonemapping"/> returns a constant 0 with these values, so they are not a true passthrough curve.</summary>
         public static TonemapSettings Linear()
         {
             return new TonemapSettings()

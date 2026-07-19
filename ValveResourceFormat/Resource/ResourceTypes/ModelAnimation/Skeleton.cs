@@ -31,7 +31,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
         public Bone? ClothSimulationRoot { get; private set; }
 
         /// <summary>
-        /// Gets a bone by its StringToken hash.
+        /// Gets a bone by its <see cref="StringToken"/> hash.
         /// </summary>
         public Bone? this[uint hash]
         {
@@ -49,7 +49,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
 
 
         /// <summary>
-        /// Gets the index of a bone by its StringToken hash, or -1 if not found.
+        /// Gets the index of a bone by its <see cref="StringToken"/> hash, or -1 if not found.
         /// </summary>
         public int GetBoneIndex(uint hash) => boneHashToIndex.TryGetValue(hash, out var index) ? index : -1;
 

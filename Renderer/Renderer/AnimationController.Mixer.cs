@@ -27,7 +27,7 @@ namespace ValveResourceFormat.Renderer
             /// <summary>Gets or sets the blend weight (0.0 to 1.0) for this clip.</summary>
             public float Weight { get; set; } = 1f;
 
-            /// <summary>Gets or sets the blend transition time in seconds. Negative values indicate manual blending.</summary>
+            /// <summary>Gets or sets the blend transition time in seconds. A value of -1 indicates manual blending.</summary>
             public float BlendTime { get; set; }
 
             /// <summary>Gets or sets the bone mask name to apply per-bone weighting. Empty string means no mask.</summary>

@@ -6,7 +6,7 @@ namespace ValveResourceFormat.CompiledShader
     public class ShaderParserException : Exception
     {
         /// <summary>
-        /// Initializes a new instance of the ShaderParserException class.
+        /// Initializes a new instance of the <see cref="ShaderParserException"/> class.
         /// </summary>
         public ShaderParserException() { }
 

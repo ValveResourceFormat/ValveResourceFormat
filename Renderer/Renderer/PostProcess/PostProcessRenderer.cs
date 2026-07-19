@@ -79,8 +79,8 @@ namespace ValveResourceFormat.Renderer.PostProcess
         }
 
         /// <summary>
-        /// Resolves MSAA color and/or depth from source using compute shaders.
-        /// Color and depth are written to standalone RenderTexture targets.
+        /// Resolves MSAA color and/or depth from <paramref name="source"/> using compute shaders.
+        /// Color and depth are written to standalone <see cref="RenderTexture"/> targets.
         /// Uses Karis average for HDR-aware color resolve, min filter for depth (conservative for reverse-Z).
         /// </summary>
         public void ResolveMsaa(Framebuffer source, RenderTexture destColor, RenderTexture destDepth,
