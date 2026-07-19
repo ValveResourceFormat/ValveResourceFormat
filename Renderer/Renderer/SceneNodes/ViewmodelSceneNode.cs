@@ -203,6 +203,51 @@ public class ViewmodelSceneNode : ModelSceneNode
         }
     }
 
+    // Attack sounds. In the game these come from weapons.vdata (m_aShootSounds) and knife weapon code;
+    // our two guns are silenced, so they use their WEAPON_SOUND_SPECIAL1 entries.
+    private const string RifleAttackSound = "Weapon_M4A1.Silenced";      // weapon_m4a1_silencer
+    private const string PistolAttackSound = "Weapon_USP.SilencedShot";  // weapon_usp_silencer
+    private const string KnifeSlashSound = "Weapon_Knife.Slash";
+    private const string KnifeHeavySwishSound = "Weapon_Knife.Swish.Heavy";
+    private const string KnifeHitWallSound = "Weapon_Knife.HitWall";
+    private const float KnifeLightRange = 48f; // cs_weapon_knife.cpp: slash (primary) reaches further
+    private const float KnifeHeavyRange = 32f; // than the stab (secondary)
+
+    private void PlayAttackSound(UserInput input, bool heavyKnifeAttack)
+    {
+        switch (SelectedItemIndex)
+        {
+            case 1:
+                Sound.Play(RifleAttackSound);
+                break;
+
+            case 2:
+                Sound.Play(PistolAttackSound);
+                break;
+
+            case 3:
+                // Like CS knife code: trace from the eyes along the view direction,
+                // play the wall swipe at the impact point when geometry is within reach, otherwise the miss swish
+                var camera = input.Camera;
+                var range = heavyKnifeAttack ? KnifeHeavyRange : KnifeLightRange;
+                var trace = input.PhysicsWorld?.TraceRay(camera.Location, camera.Location + camera.Forward * range);
+
+                if (trace is { Hit: true } hit)
+                {
+                    Sound.Play(KnifeHitWallSound, hit.HitPosition);
+                }
+                else
+                {
+                    Sound.Play(heavyKnifeAttack ? KnifeHeavySwishSound : KnifeSlashSound);
+                }
+
+                break;
+
+            default:
+                break;
+        }
+    }
+
     private (float fire, float altFire) GetWeaponFireDelays()
         => SelectedItemIndex switch
         {
@@ -731,6 +776,7 @@ public class ViewmodelSceneNode : ModelSceneNode
         if (requestedFire && attackCooldown <= 0f)
         {
             SetState(AnimationState.Attack);
+            PlayAttackSound(input, heavyKnifeAttack: false);
             attackCooldown = fireDelay;
             if (SelectedItemIndex != 3 && muzzleFlashParticle != null)
             {
@@ -741,6 +787,13 @@ public class ViewmodelSceneNode : ModelSceneNode
         else if (input.Holding(TrackedKeys.MouseRight) && alternateAttackCooldown <= 0f)
         {
             SetState(AnimationState.AlternateAttack);
+
+            // Rifle/pistol alternate attack is the silencer detach, its sounds come from the clip
+            if (SelectedItemIndex == 3)
+            {
+                PlayAttackSound(input, heavyKnifeAttack: true);
+            }
+
             alternateAttackCooldown = altFireDelay;
         }
 

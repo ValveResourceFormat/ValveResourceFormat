@@ -26,9 +26,9 @@ internal sealed class SoundEventCSGOMega : SoundEvent
             Position = new Vector3(SoundEventData.GetFloatArray("position"));
         }
 
-        if (Position.HasValue && SoundEventData.ContainsKey("position_offset"))
+        if (SoundEventData.ContainsKey("position_offset"))
         {
-            Position += new Vector3(SoundEventData.GetFloatArray("position_offset"));
+            PositionOffset = new Vector3(SoundEventData.GetFloatArray("position_offset"));
         }
 
         if (!wasInitialized && CheckRetrigger())
@@ -66,7 +66,7 @@ internal sealed class SoundEventCSGOMega : SoundEvent
 
                     sampleProvider = new SampleProvider3D(source)
                     {
-                        Position = Position.Value,
+                        Position = Position.Value + PositionOffset,
                         Range = volumeCurve?.MaxX ?? GetRange(),
                         DistanceVolumeCurve = volumeCurve,
                         StereoMixCurve = stereoCurve,

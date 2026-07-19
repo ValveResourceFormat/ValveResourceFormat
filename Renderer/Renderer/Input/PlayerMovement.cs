@@ -97,6 +97,7 @@ public class PlayerMovement
     private const float FallDamageSpeed = 580f;           // PLAYER_MAX_SAFE_FALL_SPEED - faster falls hurt
 
     private float stepSoundTime;
+    private readonly List<Audio.SoundEvent> activeMovementSounds = [];
     private Rubikon? Physics => Input.PhysicsWorld;
 
     /// <summary>
@@ -333,6 +334,8 @@ public class PlayerMovement
         BlendedEyeHeight = ViewHeightStanding + (ViewHeightDucked - ViewHeightStanding) * CrouchBlend;
         EyePosition = Position + Vector3.UnitZ * BlendedEyeHeight;
         camera.Location = EyePosition;
+
+        UpdateMovementSounds();
 
         // Draw player AABB for debugging
         /*
@@ -732,11 +735,37 @@ public class PlayerMovement
         }
     }
 
-    private static void PlaySound(string soundEventName, Vector3 position, AABB playerHull, float? volume = null)
+    private void PlaySound(string soundEventName, Vector3 position, AABB playerHull, float? volume = null)
     {
         // Convert from AABB center to feet position; the sound event applies its own position offset
         var feetPosition = position - new Vector3(0, 0, playerHull.Size.Z / 2);
-        Sound.Play(soundEventName, feetPosition, volume: volume);
+        var handle = Sound.Play(soundEventName, feetPosition, volume: volume);
+
+        if (handle != null)
+        {
+            activeMovementSounds.Add(handle);
+        }
+    }
+
+    /// <summary>
+    /// Keeps our own movement sounds attached to the player while they play ("use_entity_position_if_local_player"
+    /// in the sound event data). Left at their emit position they would fall behind at run speed - and since the
+    /// footstep distance-volume curve peaks at ~116 units, they would get louder while receding.
+    /// </summary>
+    private void UpdateMovementSounds()
+    {
+        for (var i = activeMovementSounds.Count - 1; i >= 0; i--)
+        {
+            var handle = activeMovementSounds[i];
+
+            if (!handle.Playing)
+            {
+                activeMovementSounds.RemoveAt(i);
+                continue;
+            }
+
+            handle.Position = Position;
+        }
     }
 
     /// <summary>

@@ -34,6 +34,13 @@ public abstract class SoundEvent : IDisposable
     public Vector3? Position { get; set; }
 
     /// <summary>
+    /// Gets or sets the offset added to <see cref="Position"/> ("position_offset" in the event data,
+    /// e.g. footsteps play 20 units above the ground). Applied on top of Position so repositioning a
+    /// playing sound keeps the offset.
+    /// </summary>
+    public Vector3 PositionOffset { get; protected set; }
+
+    /// <summary>
     /// Gets or sets a volume passed by game code, replacing the definition's volume property.
     /// </summary>
     public float? VolumeOverride { get; set; }
@@ -192,7 +199,7 @@ public abstract class SoundEvent : IDisposable
             {
                 if (Position.HasValue)
                 {
-                    spatialProvider.Position = Position.Value;
+                    spatialProvider.Position = Position.Value + PositionOffset;
                 }
 
                 if (spatialProvider.Update(listenerPosition, rightEarDirection))
