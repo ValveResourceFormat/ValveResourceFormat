@@ -45,6 +45,8 @@ public abstract class SampleProviderSpatial : SampleProvider2D
         return read;
     }
 
+    private bool volumesInitialized;
+
     /// <summary>
     /// Recomputes the per-ear volumes for the given listener. Returns whether the sound is currently audible.
     /// </summary>
@@ -55,6 +57,20 @@ public abstract class SampleProviderSpatial : SampleProvider2D
         LeftVolume = Math.Max(-dot + 1, 0) * Volume;
         RightVolume = Math.Max(dot + 1, 0) * Volume;
         return true;
+    }
+
+    /// <summary>
+    /// Snaps the interpolation state to the current volumes on the first update,
+    /// so a starting sound does not fade in from silence and lose its attack transient.
+    /// </summary>
+    protected void SnapVolumesOnFirstUpdate()
+    {
+        if (!volumesInitialized)
+        {
+            volumesInitialized = true;
+            LastLeftVolume = LeftVolume;
+            LastRightVolume = RightVolume;
+        }
     }
 
     /// <summary>

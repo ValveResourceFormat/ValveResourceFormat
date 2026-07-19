@@ -51,6 +51,8 @@ internal sealed class SoundEventCSGOMega : SoundEvent
                 var source = new CachedSoundSampleProvider(cachedSound)
                 {
                     Pitch = GetRandomizedPitch(),
+                    // 2 interleaved stereo samples per frame
+                    DelaySamples = (int)(SoundEventData.GetFloatProperty("delay") * SampleRate) * 2,
                 };
 
                 AudioSampleProvider sampleProvider;
@@ -164,7 +166,9 @@ internal sealed class SoundEventCSGOMega : SoundEvent
             volume += float.Lerp(randomMin, randomMax, Random.NextSingle());
         }
 
-        return Math.Clamp(volume, 0f, 1f);
+        var mixGroupVolume = Mixer.Player.GetMixGroupVolume(SoundEventData.GetStringProperty("mixgroup", string.Empty));
+
+        return Math.Clamp(volume, 0f, 1f) * mixGroupVolume;
     }
 
     private float GetRange()

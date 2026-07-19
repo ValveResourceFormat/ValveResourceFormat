@@ -293,11 +293,17 @@ public class PlayerMovement
 
             if (!wasOnGroundBeforeMove && OnGround && fallSpeedBeforeMove > LandMinFallSpeed)
             {
-                // Like CS:GO CheckFalling: land sound (chains Land.Thud) with gear rustle,
-                // and a pain grunt when the fall was fast enough to deal damage
-                PlaySound(LandSoundEvent, position, playerHull);
-                PlaySound(GearSoundEvent, position, playerHull, GearVolume);
+                // A landing that immediately turns into another jump (perfect bhop) skips the land thud
+                var willBunnyHop = RequestedJump || (AutoBunnyHop && Input.Holding(TrackedKeys.Space));
 
+                if (!willBunnyHop)
+                {
+                    // Like CS:GO CheckFalling: land sound (chains Land.Thud) with gear rustle
+                    PlaySound(LandSoundEvent, position, playerHull);
+                    PlaySound(GearSoundEvent, position, playerHull, GearVolume);
+                }
+
+                // The pain grunt plays even when bhopping - a hard fall hurts either way
                 if (fallSpeedBeforeMove >= FallDamageSpeed)
                 {
                     PlaySound(FallDamageSoundEvent, position, playerHull);
@@ -741,6 +747,18 @@ public class PlayerMovement
         var feetPosition = position - new Vector3(0, 0, playerHull.Size.Z / 2);
         var handle = Sound.Play(soundEventName, feetPosition, volume: volume);
 
+        if (handle != null)
+        {
+            activeMovementSounds.Add(handle);
+        }
+    }
+
+    /// <summary>
+    /// Attaches a playing sound to the player so it follows them, like the local player's own sounds do in the game.
+    /// The sound event's own position offset (e.g. +60z for gun shots) stays applied on top.
+    /// </summary>
+    public void AttachSound(Audio.SoundEvent? handle)
+    {
         if (handle != null)
         {
             activeMovementSounds.Add(handle);

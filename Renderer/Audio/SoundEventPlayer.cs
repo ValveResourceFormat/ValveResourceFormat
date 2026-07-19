@@ -42,6 +42,21 @@ public sealed class SoundEventPlayer : IDisposable
     internal SoundRandom Random { get; } = new();
 
     /// <summary>
+    /// Gets the volume multipliers per mix group ("mixgroup" in the sound event data, e.g. "Weapons", "Footsteps").
+    /// A crude stand-in for the game's mix graph: groups without an entry play at full volume.
+    /// Applies to sounds started after the change.
+    /// </summary>
+    public Dictionary<string, float> MixGroupVolumes { get; } = new(StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>
+    /// Gets the volume multiplier for a mix group, 1 when the group has no entry.
+    /// </summary>
+    public float GetMixGroupVolume(string mixGroup)
+    {
+        return mixGroup.Length > 0 && MixGroupVolumes.TryGetValue(mixGroup, out var volume) ? volume : 1f;
+    }
+
+    /// <summary>
     /// Creates a sound event player. Takes ownership of <paramref name="device"/> and starts the mixing thread immediately.
     /// </summary>
     public SoundEventPlayer(IFileLoader fileLoader, IAudioDevice device, ILogger? logger = null)
@@ -152,6 +167,7 @@ public sealed class SoundEventPlayer : IDisposable
         }
 
         soundEvent.Start();
+        mixer.PrimeListener(soundEvent);
         return soundEvent;
     }
 

@@ -55,6 +55,7 @@ public class SampleProvider3D : SampleProviderSpatial
         {
             LeftVolume = 0;
             RightVolume = 0;
+            SnapVolumesOnFirstUpdate();
             return false;
         }
 
@@ -72,6 +73,7 @@ public class SampleProvider3D : SampleProviderSpatial
             RightVolume = float.Lerp(RightVolume, centerVolume, stereoMix);
         }
 
+        SnapVolumesOnFirstUpdate();
         return true;
     }
 

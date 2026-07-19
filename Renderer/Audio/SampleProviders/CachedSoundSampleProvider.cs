@@ -16,6 +16,14 @@ public sealed class CachedSoundSampleProvider : AudioSampleProvider
     /// </summary>
     public float Pitch { get; set; } = 1f;
 
+    private int delaySamples;
+
+    /// <summary>
+    /// Gets or sets the delay before the sound starts, as an interleaved sample count
+    /// ("delay" in the sound event data, e.g. the knife wall hit plays 90ms into the swing).
+    /// </summary>
+    public int DelaySamples { get => delaySamples; set => delaySamples = value; }
+
     /// <summary>
     /// Creates a provider that streams the given cached sound from the beginning.
     /// </summary>
@@ -27,12 +35,25 @@ public sealed class CachedSoundSampleProvider : AudioSampleProvider
     /// <inheritdoc/>
     public override int Read(float[] buffer, int offset, int count)
     {
-        if (Pitch == 1f)
+        var written = 0;
+
+        if (delaySamples > 0)
         {
-            return ReadDirect(buffer, offset, count);
+            written = Math.Min(delaySamples, count);
+            Array.Clear(buffer, offset, written);
+            delaySamples -= written;
+
+            if (written == count)
+            {
+                return count;
+            }
         }
 
-        return ReadResampled(buffer, offset, count);
+        var read = Pitch == 1f
+            ? ReadDirect(buffer, offset + written, count - written)
+            : ReadResampled(buffer, offset + written, count - written);
+
+        return written + read;
     }
 
     private int ReadDirect(float[] buffer, int offset, int count)

@@ -17,6 +17,18 @@ public sealed class AudioMixer : IDisposable
         Player = player;
     }
 
+    private Vector3 listenerPosition;
+    private Vector3 listenerRightEarDirection = Vector3.UnitY;
+
+    /// <summary>
+    /// Applies the current listener state to a sound event immediately. Called when a sound starts, so the
+    /// audio thread never reads it with the initial zero volumes - that would clip the attack transient.
+    /// </summary>
+    internal void PrimeListener(SoundEvent soundEvent)
+    {
+        soundEvent.Update(listenerPosition, listenerRightEarDirection);
+    }
+
     /// <summary>
     /// Updates spatialization for all active sound events. Call once per frame from the render/game thread.
     /// </summary>
@@ -27,6 +39,9 @@ public sealed class AudioMixer : IDisposable
         {
             rightEarDirection = Vector3.Normalize(rightEarDirection);
         }
+
+        this.listenerPosition = listenerPosition;
+        listenerRightEarDirection = rightEarDirection;
 
         SoundEvent[] snapshot;
         lock (soundEvents)
