@@ -4,7 +4,6 @@ using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Drawing;
 using System.Drawing.Imaging;
-using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices;
@@ -965,47 +964,11 @@ namespace GUI
             mainFormBottomPanel.Text = Text;
         }
 
-        private void CheckForUpdatesIfNecessary()
+        private async void CheckForUpdatesIfNecessary()
         {
-            if (!Settings.Config.Update.CheckAutomatically)
-            {
-                return;
-            }
-
-            if (Settings.Config.Update.UpdateAvailable)
+            if (await UpdateChecker.CheckForUpdatesIfNecessary().ConfigureAwait(true))
             {
                 mainFormBottomPanel.SetNewVersionAvailable();
-                return;
-            }
-
-            var now = DateTime.UtcNow;
-
-            if (DateTime.TryParseExact(Settings.Config.Update.LastCheck, "s", CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind, out var lastCheck))
-            {
-                var diff = now.Subtract(lastCheck);
-
-                // Perform auto update check once a day
-                if (diff.TotalDays < 1)
-                {
-                    return;
-                }
-            }
-
-            Settings.Config.Update.LastCheck = now.ToString("s");
-
-            Task.Run(CheckForUpdates);
-        }
-
-        private async Task CheckForUpdates()
-        {
-            await UpdateChecker.CheckForUpdates().ConfigureAwait(false);
-
-            if (UpdateChecker.IsNewVersionAvailable)
-            {
-                await InvokeAsync(() =>
-                {
-                    mainFormBottomPanel.SetNewVersionAvailable();
-                }).ConfigureAwait(false);
             }
         }
 

@@ -52,6 +52,42 @@ static partial class UpdateChecker
         }
     }
 
+    /// <summary>
+    /// Performs the automatic update check if it is enabled and has not been performed recently.
+    /// Returns true if a new version is available, either remembered from an earlier check or found by checking now.
+    /// </summary>
+    public static async Task<bool> CheckForUpdatesIfNecessary()
+    {
+        if (!Settings.Config.Update.CheckAutomatically)
+        {
+            return false;
+        }
+
+        if (Settings.Config.Update.UpdateAvailable)
+        {
+            return true;
+        }
+
+        var now = DateTime.UtcNow;
+
+        if (DateTime.TryParseExact(Settings.Config.Update.LastCheck, "s", CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind, out var lastCheck))
+        {
+            var diff = now.Subtract(lastCheck);
+
+            // Perform auto update check once a day
+            if (diff.TotalDays < 1)
+            {
+                return false;
+            }
+        }
+
+        Settings.Config.Update.LastCheck = now.ToString("s", CultureInfo.InvariantCulture);
+
+        await CheckForUpdates().ConfigureAwait(false);
+
+        return IsNewVersionAvailable;
+    }
+
     private static async Task PerformCheckAsync()
     {
         try
