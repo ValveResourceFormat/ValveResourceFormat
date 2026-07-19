@@ -78,6 +78,19 @@ public class PlayerMovement
     private bool HoldingShift => Input.Holding(TrackedKeys.Shift);
 
     private UserInput Input { get; }
+
+    // Movement sound events (CS2)
+    private const string FootstepSoundEvent = "Base.Footstep";
+    private const string JumpSoundEvent = "Default.WalkJump";
+    private const string LandSoundEvent = "Base.Land";
+
+    private const float FootstepSpeedThreshold = 150f;    // Below this speed no footsteps play (walking with shift is silent, like CS)
+    private const float FootstepRunSpeed = 220f;          // At and above this speed the run cadence is used
+    private const float FootstepRunInterval = 0.3f;       // Seconds between steps at run speed
+    private const float FootstepSlowInterval = 0.4f;      // Seconds between steps below run speed
+    private const float LandMinFallSpeed = 100f;          // Minimum downward speed for the land sound
+
+    private float stepSoundTime;
     private Rubikon? Physics => Input.PhysicsWorld;
 
     /// <summary>
@@ -189,11 +202,20 @@ public class PlayerMovement
             WasDuckingLastFrame = isDucking;
             WasOnGroundLastFrame = OnGround;
 
+            // Capture downward speed before landing zeroes it, for the land sound
+            var fallSpeed = -Velocity.Z;
+
             // Categorize position (check if on ground) - use lerped hull for collision
             CategorizePosition(ref position, playerHull);
 
             // Check if we just landed this frame
             var justLanded = !WasOnGroundLastFrame && OnGround;
+
+            if (justLanded && fallSpeed > LandMinFallSpeed)
+            {
+                PlayMovementSound(LandSoundEvent, position, playerHull);
+                stepSoundTime = FootstepSlowInterval;
+            }
 
             // StartGravity - add gravity at start of frame (like Source does)
             if (!OnGround)
@@ -215,6 +237,7 @@ public class PlayerMovement
                     PreventBunnyJumping();
                 }
                 CheckJump(deltaTime);
+                PlayMovementSound(JumpSoundEvent, position, playerHull);
             }
 
             // Calculate wish velocity from input (with speed modifiers for duck/crouch)
@@ -264,6 +287,8 @@ public class PlayerMovement
 
             // Check velocity again for NaN/bounds
             CheckVelocity(ref position);
+
+            UpdateStepSounds(position, playerHull, deltaTime);
 
             // FinishGravity - add remaining gravity at end of frame
             if (!OnGround)
@@ -663,6 +688,35 @@ public class PlayerMovement
         // FinishGravity is called after jump in Source
         // This subtracts 0.5 * gravity * dt
         Velocity = new Vector3(Velocity.X, Velocity.Y, Velocity.Z - GravityValue * deltaTime * 0.5f);
+    }
+
+    /// <summary>
+    /// Plays footstep sounds periodically based on ground speed, like CS: an immediate step when
+    /// starting to move, then a cadence that speeds up with movement speed.
+    /// </summary>
+    private void UpdateStepSounds(Vector3 position, AABB playerHull, float deltaTime)
+    {
+        stepSoundTime = Math.Max(stepSoundTime - deltaTime, 0f);
+
+        var horizontalSpeed = new Vector2(Velocity.X, Velocity.Y).Length();
+
+        if (!OnGround || horizontalSpeed < FootstepSpeedThreshold)
+        {
+            return;
+        }
+
+        if (stepSoundTime <= 0f)
+        {
+            stepSoundTime = horizontalSpeed >= FootstepRunSpeed ? FootstepRunInterval : FootstepSlowInterval;
+            PlayMovementSound(FootstepSoundEvent, position, playerHull);
+        }
+    }
+
+    private void PlayMovementSound(string soundEventName, Vector3 position, AABB playerHull)
+    {
+        // Convert from AABB center to feet position; the sound event applies its own position offset
+        var feetPosition = position - new Vector3(0, 0, playerHull.Size.Z / 2);
+        Audio.SoundEventPlayer.Instance?.Play(soundEventName, feetPosition);
     }
 
     /// <summary>
