@@ -155,7 +155,7 @@ namespace Tests
             Assert.Multiple(() =>
             {
                 Assert.That(crate.GetStringProperty("classname"), Is.EqualTo("prop_dynamic"));
-                Assert.That(crate.GetStringProperty("targetname"), Is.EqualTo($"[PR#]{targetname}"));
+                Assert.That(crate.TargetName, Is.EqualTo($"[PR#]{targetname}"));
                 Assert.That(crate.GetStringProperty("model"), Is.EqualTo(CrateModel));
             });
 
@@ -174,8 +174,8 @@ namespace Tests
 
             Assert.Multiple(() =>
             {
-                Assert.That(crates[0].GetStringProperty("targetname"), Is.EqualTo("[PR#]crate_multi_a"));
-                Assert.That(crates[1].GetStringProperty("targetname"), Is.EqualTo("[PR#]crate_multi_b"));
+                Assert.That(crates[0].TargetName, Is.EqualTo("[PR#]crate_multi_a"));
+                Assert.That(crates[1].TargetName, Is.EqualTo("[PR#]crate_multi_b"));
                 Assert.That(crates[0].GetStringProperty("_template_lump_ent_index"), Is.EqualTo("0"));
                 Assert.That(crates[1].GetStringProperty("_template_lump_ent_index"), Is.EqualTo("1"));
             });

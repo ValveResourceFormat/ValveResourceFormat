@@ -95,7 +95,9 @@ namespace GUI.Forms
             // 
             // tabPageProperties
             // 
+            tabPageProperties.BackColor = System.Drawing.Color.FromArgb(236, 236, 236);
             tabPageProperties.Controls.Add(dataGridProperties);
+            tabPageProperties.ForeColor = System.Drawing.Color.Black;
             tabPageProperties.Location = new System.Drawing.Point(0, 30);
             tabPageProperties.Name = "tabPageProperties";
             tabPageProperties.Size = new System.Drawing.Size(800, 420);
@@ -126,7 +128,7 @@ namespace GUI.Forms
             dataGridViewCellStyle3.Alignment = DataGridViewContentAlignment.MiddleLeft;
             dataGridViewCellStyle3.BackColor = System.Drawing.Color.FromArgb(236, 236, 236);
             dataGridViewCellStyle3.Font = new System.Drawing.Font("Cascadia Mono", 10F);
-            dataGridViewCellStyle3.ForeColor = System.Drawing.Color.FromArgb(80, 80, 80);
+            dataGridViewCellStyle3.ForeColor = System.Drawing.Color.Black;
             dataGridViewCellStyle3.SelectionBackColor = System.Drawing.Color.FromArgb(99, 161, 255);
             dataGridViewCellStyle3.SelectionForeColor = System.Drawing.Color.Black;
             dataGridViewCellStyle3.WrapMode = DataGridViewTriState.True;
@@ -167,10 +169,12 @@ namespace GUI.Forms
             // 
             // tabPageOutputs
             // 
+            tabPageOutputs.BackColor = System.Drawing.Color.FromArgb(236, 236, 236);
             tabPageOutputs.Controls.Add(dataGridOutputs);
-            tabPageOutputs.Location = new System.Drawing.Point(0, 30);
+            tabPageOutputs.ForeColor = System.Drawing.Color.Black;
+            tabPageOutputs.Location = new System.Drawing.Point(0, 31);
             tabPageOutputs.Name = "tabPageOutputs";
-            tabPageOutputs.Size = new System.Drawing.Size(800, 420);
+            tabPageOutputs.Size = new System.Drawing.Size(200, 69);
             tabPageOutputs.TabIndex = 1;
             tabPageOutputs.Text = "Outputs";
             // 
@@ -197,7 +201,7 @@ namespace GUI.Forms
             dataGridViewCellStyle7.Alignment = DataGridViewContentAlignment.MiddleLeft;
             dataGridViewCellStyle7.BackColor = System.Drawing.Color.FromArgb(236, 236, 236);
             dataGridViewCellStyle7.Font = new System.Drawing.Font("Cascadia Mono", 10F);
-            dataGridViewCellStyle7.ForeColor = System.Drawing.Color.FromArgb(80, 80, 80);
+            dataGridViewCellStyle7.ForeColor = System.Drawing.Color.Black;
             dataGridViewCellStyle7.SelectionBackColor = System.Drawing.Color.FromArgb(99, 161, 255);
             dataGridViewCellStyle7.SelectionForeColor = System.Drawing.Color.Black;
             dataGridViewCellStyle7.WrapMode = DataGridViewTriState.True;
@@ -219,7 +223,7 @@ namespace GUI.Forms
             dataGridOutputs.RowHeadersDefaultCellStyle = dataGridViewCellStyle8;
             dataGridOutputs.RowHeadersVisible = false;
             dataGridOutputs.SelectionMode = DataGridViewSelectionMode.CellSelect;
-            dataGridOutputs.Size = new System.Drawing.Size(800, 420);
+            dataGridOutputs.Size = new System.Drawing.Size(200, 69);
             dataGridOutputs.TabIndex = 0;
             // 
             // OutputsOutput

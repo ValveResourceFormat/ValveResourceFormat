@@ -27,6 +27,15 @@ namespace ValveResourceFormat.ResourceTypes
             public required EntityLump ParentLump { get; init; }
 
             /// <summary>
+            /// Gets the target name of the entity.
+            /// </summary>
+            public string? TargetName => this.GetStringProperty("targetname");
+            /// <summary>
+            /// Gets the target name of the entity without the PR# prefix.
+            /// </summary>
+            public string? FriendlyTargetName => RemoveTargetnamePrefix(this.GetStringProperty("targetname"));
+
+            /// <summary>
             /// Gets a Vector2 property value by name.
             /// </summary>
             /// <param name="name">The property name.</param>
@@ -102,8 +111,7 @@ namespace ValveResourceFormat.ResourceTypes
             /// <returns>A list of input connections targeting this entity.</returns>
             public List<Connection> GetInputConnections(List<Entity>? entities)
             {
-                var targetName = this.GetStringProperty("targetname");
-                if (string.IsNullOrEmpty(targetName))
+                if (string.IsNullOrEmpty(TargetName))
                 {
                     return [];
                 }
@@ -117,7 +125,7 @@ namespace ValveResourceFormat.ResourceTypes
                         continue;
                     }
 
-                    inputConnections.AddRange(sourceEntity.Connections.Where(connection => connection.TargetName == targetName));
+                    inputConnections.AddRange(sourceEntity.Connections.Where(connection => connection.TargetName == TargetName));
                 }
 
                 return inputConnections;
@@ -569,6 +577,28 @@ namespace ValveResourceFormat.ResourceTypes
             }
 
             return valueStr.Trim();
+        }
+
+        /// <summary>
+        /// Return a string without [PR#] prefix.
+        /// </summary>
+        /// <param name="value">Entity targetname.</param>
+        /// <returns>Friendly targetname.</returns>
+        public static string RemoveTargetnamePrefix(string? value)
+        {
+            if (string.IsNullOrEmpty(value))
+            {
+                return string.Empty;
+            }
+
+            const string Prefix = "[PR#]";
+
+            if (!value.StartsWith(Prefix, StringComparison.Ordinal))
+            {
+                return value;
+            }
+
+            return value[Prefix.Length..];
         }
     }
 }

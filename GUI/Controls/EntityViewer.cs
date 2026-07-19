@@ -209,7 +209,7 @@ namespace GUI.Types.Viewers
                     }
                 }
 
-                var targetname = entity.GetStringProperty("targetname", string.Empty);
+                var targetname = entity.TargetName ?? string.Empty;
                 filteredEntities.Add((entity, classname, targetname));
             }
 

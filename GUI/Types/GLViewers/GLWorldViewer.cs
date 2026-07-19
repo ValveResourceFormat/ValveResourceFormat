@@ -701,23 +701,21 @@ namespace GUI.Types.GLViewers
                 return;
             }
 
-            if (e.ColumnIndex != 0)
+            if (e.ColumnIndex != 0 || e.RowIndex < 0)
             {
                 return;
             }
 
-            var entityName = (string)(entityInfoForm.EntityInfoControl.InputsGrid[e.ColumnIndex, e.RowIndex].Value ?? string.Empty);
-
-            if (string.IsNullOrEmpty(entityName))
+            if (entityInfoForm.EntityInfoControl.InputsGrid.Rows[e.RowIndex].Tag is not EntityLump.Entity sourceEntity)
             {
                 return;
             }
 
-            var node = Scene.FindNodeByKeyValue("targetname", entityName);
+            var node = Scene.Find(sourceEntity);
 
             if (node == null && SkyboxScene != null)
             {
-                node = SkyboxScene.FindNodeByKeyValue("targetname", entityName);
+                node = SkyboxScene.Find(sourceEntity);
             }
 
             if (node == null)
@@ -905,7 +903,10 @@ namespace GUI.Types.GLViewers
             }
 
             var classname = sceneNode.EntityData.GetStringProperty("classname");
-            entityInfoForm.Text = $"Entity: {classname}";
+            var targetName = sceneNode.EntityData.FriendlyTargetName;
+            entityInfoForm.Text = string.IsNullOrEmpty(targetName)
+                ? $"Entity: {classname}"
+                : $"Entity: {classname} ({targetName})";
         }
 
         private void SetAvailableLayers(IEnumerable<string> worldLayers)

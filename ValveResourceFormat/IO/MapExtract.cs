@@ -1655,23 +1655,6 @@ public sealed class MapExtract
         };
     }
 
-    private static string RemoveTargetnamePrefix(string? value)
-    {
-        if (string.IsNullOrEmpty(value))
-        {
-            return string.Empty;
-        }
-
-        const string Prefix = "[PR#]";
-
-        if (!value.StartsWith(Prefix, StringComparison.Ordinal))
-        {
-            return value;
-        }
-
-        return value[Prefix.Length..];
-    }
-
     #endregion Entities
 }
 

@@ -135,14 +135,16 @@ namespace GUI.Forms
 
         public void AddInputConnection(Connection connectionData)
         {
-            dataGridInputs.Rows.Add([
-                connectionData.SourceEntity.GetStringProperty("targetname") ?? "",
+            var rowIndex = dataGridInputs.Rows.Add([
+                connectionData.SourceEntity.TargetName ?? "",
                 connectionData.OutputName,
                 connectionData.InputName,
                 connectionData.OverrideParam,
                 connectionData.Delay,
                 GetStringTimesToFire(connectionData.TimesToFire)
             ]);
+
+            dataGridInputs.Rows[rowIndex].Tag = connectionData.SourceEntity;
         }
 
         private static string GetStringTimesToFire(int timesToFire)

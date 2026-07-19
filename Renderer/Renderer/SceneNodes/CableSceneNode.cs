@@ -104,7 +104,7 @@ namespace ValveResourceFormat.Renderer.SceneNodes
             if (capped)
             {
                 scene.RendererContext.Logger.LogWarning("path_particle_rope '{Target}' exceeded the effect particle budget ({Max}) and was truncated",
-                    entity.GetStringProperty("targetname"), maxParticles);
+                    entity.TargetName, maxParticles);
             }
 
             // The rope simulates in world space: the entity-local pathnodes are placed by the entity's own
