@@ -103,7 +103,8 @@ namespace GUI.Types.Viewers
             GuiContext = guiContext;
             Entities = entities;
             SelectEntityFunc = selectAndFocusEntity;
-            EntityInfo.OutputsGrid.CellDoubleClick += EntityInfoGrid_CellDoubleClick;
+            EntityInfo.OutputsGrid.CellDoubleClick += EntityInfoGrid_OutputCellDoubleClick;
+            EntityInfo.InputsGrid.CellDoubleClick += EntityInfoGrid_InputCellDoubleClick;
             EntityInfo.ResourceAddDataGridExternalRef(guiContext);
             EntityViewerGrid.OwnerDraw = true;
 
@@ -402,8 +403,8 @@ namespace GUI.Types.Viewers
         private void ShowEntityProperties(Entity entity)
         {
             EntityInfo.Clear();
-            EntityInfo.PopulateFromEntity(entity);
-            EntityInfo.ShowOutputsTabIfAnyData();
+            EntityInfo.PopulateFromEntity(Entities, entity);
+            EntityInfo.ShowPopulatedTabs();
 
             var groupBoxName = "Entity Properties";
 
@@ -427,11 +428,39 @@ namespace GUI.Types.Viewers
             EntityPropertiesGroup.Text = groupBoxName;
         }
 
-        private void EntityInfoGrid_CellDoubleClick(object? sender, DataGridViewCellEventArgs e)
+        private void EntityInfoGrid_OutputCellDoubleClick(object? sender, DataGridViewCellEventArgs e)
         {
             if (e.ColumnIndex == 1)
             {
                 var entityName = (string)(EntityInfo.OutputsGrid[e.ColumnIndex, e.RowIndex].Value ?? string.Empty);
+
+                if (string.IsNullOrEmpty(entityName))
+                {
+                    return;
+                }
+
+                foreach (var entity in Entities)
+                {
+                    var targetname = entity.GetStringProperty("targetname", string.Empty);
+                    if (string.IsNullOrEmpty(targetname))
+                    {
+                        continue;
+                    }
+
+                    if (entityName == targetname)
+                    {
+                        ShowEntityProperties(entity);
+                        EntityInfo.ShowPropertiesTab();
+                    }
+                }
+            }
+        }
+
+        private void EntityInfoGrid_InputCellDoubleClick(object? sender, DataGridViewCellEventArgs e)
+        {
+            if (e.ColumnIndex == 0)
+            {
+                var entityName = (string)(EntityInfo.InputsGrid[e.ColumnIndex, e.RowIndex].Value ?? string.Empty);
 
                 if (string.IsNullOrEmpty(entityName))
                 {

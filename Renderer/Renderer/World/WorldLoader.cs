@@ -1527,7 +1527,7 @@ namespace ValveResourceFormat.Renderer.World
 
             foreach (var connectionData in entity.Connections)
             {
-                var targetType = connectionData.GetEnumValue<EntityIOTargetType>("m_targetType");
+                var targetType = connectionData.TargetType;
 
                 if (targetType != EntityIOTargetType.EntityNameOrClassName)
                 {
@@ -1535,7 +1535,7 @@ namespace ValveResourceFormat.Renderer.World
                     continue;
                 }
 
-                var targetName = connectionData.GetStringProperty("m_targetName");
+                var targetName = connectionData.TargetName;
                 var endEntity = FindEntityByKeyValue("targetname", targetName);
 
                 if (endEntity == null)

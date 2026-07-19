@@ -9,6 +9,7 @@ namespace GUI.Forms
     partial class EntityInfoControl : UserControl
     {
         public DataGridView OutputsGrid => dataGridOutputs;
+        public DataGridView InputsGrid => dataGridInputs;
 
         public EntityInfoControl()
         {
@@ -16,6 +17,7 @@ namespace GUI.Forms
 
             components ??= new System.ComponentModel.Container();
             components.Add(tabPageOutputs);
+            components.Add(tabPageInputs);
         }
 
         public EntityInfoControl(VrfGuiContext vrfGuiContext) : this()
@@ -33,28 +35,49 @@ namespace GUI.Forms
             tabControl.SelectedIndex = 0;
         }
 
-        public void ShowOutputsTabIfAnyData()
+        private TabPage[] TabPageOrder => [tabPageProperties, tabPageOutputs, tabPageInputs];
+
+        public void ShowPopulatedTabs()
         {
-            if (dataGridOutputs.RowCount > 0)
+            SetTabVisible(tabPageOutputs, dataGridOutputs.RowCount > 0);
+            SetTabVisible(tabPageInputs, dataGridInputs.RowCount > 0);
+        }
+
+        private void SetTabVisible(TabPage page, bool shouldShow)
+        {
+            bool isShown = tabControl.TabPages.Contains(page);
+
+            if (shouldShow && !isShown)
             {
-                if (tabPageOutputs.Parent == null)
+                tabControl.TabPages.Insert(GetInsertIndex(page), page);
+            }
+            else if (!shouldShow && isShown)
+            {
+                tabControl.TabPages.Remove(page);
+            }
+        }
+
+        private int GetInsertIndex(TabPage page)
+        {
+            int targetOrder = Array.IndexOf(TabPageOrder, page);
+            int index = 0;
+
+            for (int i = 0; i < targetOrder; i++)
+            {
+                if (tabControl.TabPages.Contains(TabPageOrder[i]))
                 {
-                    tabControl.TabPages.Add(tabPageOutputs);
+                    index++;
                 }
             }
-            else
-            {
-                if (tabPageOutputs.Parent != null)
-                {
-                    tabControl.TabPages.Remove(tabPageOutputs);
-                }
-            }
+
+            return index;
         }
 
         public void Clear()
         {
             dataGridProperties.Rows.Clear();
             dataGridOutputs.Rows.Clear();
+            dataGridInputs.Rows.Clear();
         }
 
         public void PopulateFromEntity(Entity entity)
@@ -68,8 +91,28 @@ namespace GUI.Forms
             {
                 foreach (var connection in entity.Connections)
                 {
-                    AddConnection(connection);
+                    AddOutputConnection(connection);
                 }
+            }
+        }
+        public void PopulateFromEntity(List<Entity> entities, Entity entity)
+        {
+            foreach (var child in entity.Children)
+            {
+                AddProperty(child.Key, StringifyValue(child.Value));
+            }
+
+            if (entity.Connections != null)
+            {
+                foreach (var connection in entity.Connections)
+                {
+                    AddOutputConnection(connection);
+                }
+            }
+
+            foreach (var connection in entity.GetInputConnections(entities))
+            {
+                AddInputConnection(connection);
             }
         }
 
@@ -78,30 +121,38 @@ namespace GUI.Forms
             dataGridProperties.Rows.Add([name, value]);
         }
 
-        public void AddConnection(KVObject connectionData)
+        public void AddOutputConnection(Connection connectionData)
         {
-            var outputName = connectionData.GetStringProperty("m_outputName");
-            var targetName = connectionData.GetStringProperty("m_targetName");
-            var inputName = connectionData.GetStringProperty("m_inputName");
-            var parameter = connectionData.GetStringProperty("m_overrideParam");
-            var delay = connectionData.GetFloatProperty("m_flDelay");
-            var timesToFire = connectionData.GetInt32Property("m_nTimesToFire");
+            dataGridOutputs.Rows.Add([
+                connectionData.OutputName,
+                connectionData.TargetName,
+                connectionData.InputName,
+                connectionData.OverrideParam,
+                connectionData.Delay,
+                GetStringTimesToFire(connectionData.TimesToFire)
+            ]);
+        }
 
-            var stimesToFire = timesToFire switch
+        public void AddInputConnection(Connection connectionData)
+        {
+            dataGridInputs.Rows.Add([
+                connectionData.SourceEntity.GetStringProperty("targetname") ?? "",
+                connectionData.OutputName,
+                connectionData.InputName,
+                connectionData.OverrideParam,
+                connectionData.Delay,
+                GetStringTimesToFire(connectionData.TimesToFire)
+            ]);
+        }
+
+        private static string GetStringTimesToFire(int timesToFire)
+        {
+            return timesToFire switch
             {
                 1 => "Only Once",
                 >= 2 => $"Only {timesToFire} Times",
                 _ => "Infinite",
             };
-
-            dataGridOutputs.Rows.Add([
-                outputName,
-                targetName,
-                inputName,
-                parameter,
-                delay,
-                stimesToFire
-            ]);
         }
 
         private void AddDataGridExternalRefAction(VrfGuiContext vrfGuiContext, DataGridView dataGrid, string columnName)

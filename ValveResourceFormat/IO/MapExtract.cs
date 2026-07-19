@@ -1535,13 +1535,13 @@ public sealed class MapExtract
             {
                 var dmeConnection = new DmeConnectionData
                 {
-                    OutputName = connection.GetStringProperty("m_outputName"),
-                    TargetType = connection.GetInt32Property("m_targetType"),
-                    TargetName = RemoveTargetnamePrefix(connection.GetStringProperty("m_targetName")),
-                    InputName = connection.GetStringProperty("m_inputName"),
-                    OverrideParam = connection.GetStringProperty("m_overrideParam"),
-                    Delay = connection.GetFloatProperty("m_flDelay"),
-                    TimesToFire = connection.GetInt32Property("m_nTimesToFire"),
+                    OutputName = connection.OutputName,
+                    TargetType = (int)connection.TargetType,
+                    TargetName = RemoveTargetnamePrefix(connection.TargetName),
+                    InputName = connection.InputName,
+                    OverrideParam = connection.OverrideParam,
+                    Delay = connection.Delay,
+                    TimesToFire = connection.TimesToFire,
                 };
 
                 mapEntity.ConnectionsData.Add(dmeConnection);
