@@ -1,6 +1,5 @@
 using OpenTK.Graphics.OpenGL;
 using ValveResourceFormat.ResourceTypes.ModelAnimation;
-using PrimitiveType = OpenTK.Graphics.OpenGL.PrimitiveType;
 
 namespace ValveResourceFormat.Renderer.SceneNodes
 {
@@ -14,10 +13,7 @@ namespace ValveResourceFormat.Renderer.SceneNodes
 
         readonly AnimationController animationController;
         readonly Skeleton skeleton;
-        readonly Shader shader;
-        readonly int vaoHandle;
-        readonly int vboHandle;
-        int vertexCount;
+        readonly LineBuffer lineBuffer;
 
         /// <summary>
         /// Initializes a new instance of the <see cref="SkeletonSceneNode"/> class.
@@ -31,18 +27,7 @@ namespace ValveResourceFormat.Renderer.SceneNodes
             this.animationController = animationController;
             this.skeleton = skeleton;
 
-            shader = Scene.RendererContext.ShaderLoader.LoadShader("vrf.default");
-
-            GL.CreateVertexArrays(1, out vaoHandle);
-            GL.CreateBuffers(1, out vboHandle);
-            GL.VertexArrayVertexBuffer(vaoHandle, 0, vboHandle, 0, SimpleVertex.SizeInBytes);
-            SimpleVertex.BindDefaultShaderLayout(vaoHandle, shader.Program);
-
-#if DEBUG
-            var vaoLabel = nameof(SkeletonSceneNode);
-            GL.ObjectLabel(ObjectLabelIdentifier.VertexArray, vaoHandle, vaoLabel.Length, vaoLabel);
-            GL.ObjectLabel(ObjectLabelIdentifier.Buffer, vboHandle, vaoLabel.Length, vaoLabel);
-#endif
+            lineBuffer = new LineBuffer(Scene.RendererContext, nameof(SkeletonSceneNode));
         }
 
         /// <inheritdoc/>
@@ -78,9 +63,14 @@ namespace ValveResourceFormat.Renderer.SceneNodes
             }
 
             LocalBoundingBox = bounds;
-            vertexCount = vertices.Count;
 
-            GL.NamedBufferData(vboHandle, vertices.Count * SimpleVertex.SizeInBytes, ListAccessors<SimpleVertex>.GetBackingArray(vertices), BufferUsageHint.DynamicDraw);
+            lineBuffer.Upload(vertices);
+        }
+
+        /// <inheritdoc/>
+        public override void Delete()
+        {
+            lineBuffer.Delete();
         }
 
         private void DrawSkeletonRecursive(Bone bone, List<SimpleVertex> vertices, Camera camera, TextRenderer textRenderer, AnimationController animation)
@@ -126,7 +116,7 @@ namespace ValveResourceFormat.Renderer.SceneNodes
                 return;
             }
 
-            var renderShader = context.ReplacementShader ?? shader;
+            var renderShader = context.ReplacementShader ?? lineBuffer.Shader;
 
             GL.DepthFunc(DepthFunction.Always);
 
@@ -134,11 +124,9 @@ namespace ValveResourceFormat.Renderer.SceneNodes
             renderShader.SetUniform3x4("transform", Transform);
             renderShader.SetBoneAnimationData(false);
 
-            GL.BindVertexArray(vaoHandle);
-            GL.DrawArraysInstancedBaseInstance(PrimitiveType.Lines, 0, vertexCount, 1, Id);
+            lineBuffer.Draw(Id);
 
             GL.UseProgram(0);
-            GL.BindVertexArray(0);
             GL.DepthFunc(DepthFunction.Greater);
         }
     }
