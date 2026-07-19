@@ -364,6 +364,10 @@ namespace ValveResourceFormat.Renderer.Materials
             {
                 EvalCsgoEnvironmentColorMatrices(shader);
             }
+            else if (Material.ShaderName.EndsWith("static_overlay.vfx", StringComparison.Ordinal))
+            {
+                EvalStaticOverlayColorAdjust(shader);
+            }
 
             SetRenderState();
         }
@@ -443,6 +447,32 @@ namespace ValveResourceFormat.Renderer.Materials
             }
         }
 
+        private void EvalStaticOverlayColorAdjust(Shader shader)
+        {
+            if (!shader.Default.Matrices.ContainsKey("g_mTextureColorAdjust"))
+            {
+                return;
+            }
+
+            var csb = new Vector3(
+                Material.FloatParams.GetValueOrDefault("g_fTextureColorContrast", 1f),
+                Material.FloatParams.GetValueOrDefault("g_fTextureColorSaturation", 1f),
+                Material.FloatParams.GetValueOrDefault("g_fTextureColorBrightness", 1f));
+
+            var tint = Material.VectorParams.GetValueOrDefault("g_vTextureColorCorrectionTint", Vector4.One);
+
+            var textureAverageColor = Vector3.One;
+            if (Textures.TryGetValue("g_tColor", out var colorTexture))
+            {
+                textureAverageColor = colorTexture.Reflectivity.AsVector3();
+            }
+
+            var ccMatrix = VfxEvalFunctions.MatrixColorCorrect2(csb, textureAverageColor);
+            var tintMatrix = VfxEvalFunctions.MatrixColorTint2(tint.AsVector3(), 1f);
+
+            shader.SetUniform4x4("g_mTextureColorAdjust", Matrix4x4.Multiply(tintMatrix, ccMatrix));
+        }
+
         /// <summary>Restores render state and unbinds textures after the draw call for this material has completed.</summary>
         public void PostRender()
         {
@@ -477,17 +507,23 @@ namespace ValveResourceFormat.Renderer.Materials
                     GL.Enable(EnableCap.Blend);
                 }
 
-                if (blendMode >= BlendMode.Mod2x)
+                switch (blendMode)
                 {
-                    GL.BlendFunc(BlendingFactor.DstColor, BlendingFactor.SrcColor);
-                }
-                else if (blendMode >= BlendMode.Additive)
-                {
-                    GL.BlendFunc(BlendingFactor.SrcAlpha, BlendingFactor.One);
-                }
-                else
-                {
-                    GL.BlendFunc(BlendingFactor.SrcAlpha, BlendingFactor.OneMinusSrcAlpha);
+                    case BlendMode.Additive:
+                        GL.BlendFunc(BlendingFactor.SrcAlpha, BlendingFactor.One);
+                        break;
+                    case BlendMode.Multiply:
+                        GL.BlendFunc(BlendingFactor.Zero, BlendingFactor.SrcColor);
+                        break;
+                    case BlendMode.Mod2x:
+                        GL.BlendFunc(BlendingFactor.DstColor, BlendingFactor.SrcColor);
+                        break;
+                    case BlendMode.ModThenAdd:
+                        GL.BlendFunc(BlendingFactor.DstColor, BlendingFactor.OneMinusSrcAlpha);
+                        break;
+                    default:
+                        GL.BlendFunc(BlendingFactor.SrcAlpha, BlendingFactor.OneMinusSrcAlpha);
+                        break;
                 }
             }
 
