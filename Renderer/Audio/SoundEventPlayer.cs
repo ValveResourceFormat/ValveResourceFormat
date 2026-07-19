@@ -16,12 +16,6 @@ public sealed class SoundEventPlayer : IDisposable
 {
     private const int MixChunkFrames = 512;
 
-    /// <summary>
-    /// Gets the active sound event player, so any code can call <c>SoundEventPlayer.Instance?.Play("event")</c>.
-    /// Set when a player is constructed, cleared when it is disposed.
-    /// </summary>
-    public static SoundEventPlayer? Instance { get; private set; }
-
     /// <summary>Gets the decoded sound cache.</summary>
     public SoundCache Cache { get; }
 
@@ -60,7 +54,7 @@ public sealed class SoundEventPlayer : IDisposable
         };
         mixingThread.Start();
 
-        Instance = this;
+        Sound.Player = this;
     }
 
     private void MixingLoop()
@@ -216,9 +210,9 @@ public sealed class SoundEventPlayer : IDisposable
 
     public void Dispose()
     {
-        if (Instance == this)
+        if (Sound.Player == this)
         {
-            Instance = null;
+            Sound.Player = null;
         }
 
         stopping = true;

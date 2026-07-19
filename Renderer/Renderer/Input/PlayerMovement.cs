@@ -716,7 +716,7 @@ public class PlayerMovement
     {
         // Convert from AABB center to feet position; the sound event applies its own position offset
         var feetPosition = position - new Vector3(0, 0, playerHull.Size.Z / 2);
-        Audio.SoundEventPlayer.Instance?.Play(soundEventName, feetPosition);
+        Sound.Play(soundEventName, feetPosition);
     }
 
     /// <summary>

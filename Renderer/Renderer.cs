@@ -869,7 +869,7 @@ public class Renderer
         Scene.CollectSceneDrawCalls(updateContext.Camera, LockedCullFrustum);
         SkyboxScene?.CollectSceneDrawCalls(updateContext.Camera, LockedCullFrustum);
 
-        Audio.SoundEventPlayer.Instance?.Update(updateContext.Camera);
+        Sound.Player?.Update(updateContext.Camera);
     }
 
     void EnsureDepthPyramidSize(int width, int height)

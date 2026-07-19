@@ -45,7 +45,7 @@ public sealed class SoundCache
     {
         using var resource = fileLoader.LoadFileCompiled(fileName);
 
-        if (resource?.DataBlock is not Sound soundData || soundData.StreamingDataSize == 0)
+        if (resource?.DataBlock is not ResourceTypes.Sound soundData || soundData.StreamingDataSize == 0)
         {
             logger.LogWarning("Could not load sound file {FileName}", fileName);
             return null;
@@ -57,10 +57,10 @@ public sealed class SoundCache
 
         switch (soundData.SoundType)
         {
-            case Sound.AudioFileType.WAV:
+            case ResourceTypes.Sound.AudioFileType.WAV:
                 decoded = WavDecoder.Decode(stream);
                 break;
-            case Sound.AudioFileType.MP3:
+            case ResourceTypes.Sound.AudioFileType.MP3:
                 decoded = Mp3Decoder.Decode(stream);
                 break;
             default:
