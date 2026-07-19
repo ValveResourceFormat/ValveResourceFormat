@@ -75,7 +75,6 @@ namespace GUI.Forms
             // 
             // tabControl
             // 
-            tabControl.AccentColor = System.Drawing.Color.FromArgb(99, 161, 255);
             tabControl.BaseTabWidth = 200;
             tabControl.Controls.Add(tabPageProperties);
             tabControl.Controls.Add(tabPageOutputs);
@@ -84,14 +83,11 @@ namespace GUI.Forms
             tabControl.DrawMode = TabDrawMode.OwnerDrawFixed;
             tabControl.EndEllipsis = false;
             tabControl.HideTabHeader = false;
-            tabControl.HoverColor = System.Drawing.Color.FromArgb(140, 191, 255);
             tabControl.Location = new System.Drawing.Point(0, 0);
             tabControl.Name = "tabControl";
             tabControl.Padding = new System.Drawing.Point(12, 8);
-            tabControl.SelectedForeColor = System.Drawing.Color.Black;
             tabControl.SelectedIndex = 0;
             tabControl.SelectionLine = true;
-            tabControl.SelectTabColor = System.Drawing.Color.FromArgb(251, 251, 251);
             tabControl.Size = new System.Drawing.Size(800, 450);
             tabControl.TabHeight = 32;
             tabControl.TabIndex = 0;
@@ -99,9 +95,7 @@ namespace GUI.Forms
             // 
             // tabPageProperties
             // 
-            tabPageProperties.BackColor = System.Drawing.Color.FromArgb(236, 236, 236);
             tabPageProperties.Controls.Add(dataGridProperties);
-            tabPageProperties.ForeColor = System.Drawing.Color.Black;
             tabPageProperties.Location = new System.Drawing.Point(0, 30);
             tabPageProperties.Name = "tabPageProperties";
             tabPageProperties.Size = new System.Drawing.Size(800, 420);
@@ -132,7 +126,7 @@ namespace GUI.Forms
             dataGridViewCellStyle3.Alignment = DataGridViewContentAlignment.MiddleLeft;
             dataGridViewCellStyle3.BackColor = System.Drawing.Color.FromArgb(236, 236, 236);
             dataGridViewCellStyle3.Font = new System.Drawing.Font("Cascadia Mono", 10F);
-            dataGridViewCellStyle3.ForeColor = System.Drawing.Color.Black;
+            dataGridViewCellStyle3.ForeColor = System.Drawing.Color.FromArgb(80, 80, 80);
             dataGridViewCellStyle3.SelectionBackColor = System.Drawing.Color.FromArgb(99, 161, 255);
             dataGridViewCellStyle3.SelectionForeColor = System.Drawing.Color.Black;
             dataGridViewCellStyle3.WrapMode = DataGridViewTriState.True;
@@ -173,9 +167,7 @@ namespace GUI.Forms
             // 
             // tabPageOutputs
             // 
-            tabPageOutputs.BackColor = System.Drawing.Color.FromArgb(236, 236, 236);
             tabPageOutputs.Controls.Add(dataGridOutputs);
-            tabPageOutputs.ForeColor = System.Drawing.Color.Black;
             tabPageOutputs.Location = new System.Drawing.Point(0, 30);
             tabPageOutputs.Name = "tabPageOutputs";
             tabPageOutputs.Size = new System.Drawing.Size(800, 420);
@@ -205,7 +197,7 @@ namespace GUI.Forms
             dataGridViewCellStyle7.Alignment = DataGridViewContentAlignment.MiddleLeft;
             dataGridViewCellStyle7.BackColor = System.Drawing.Color.FromArgb(236, 236, 236);
             dataGridViewCellStyle7.Font = new System.Drawing.Font("Cascadia Mono", 10F);
-            dataGridViewCellStyle7.ForeColor = System.Drawing.Color.Black;
+            dataGridViewCellStyle7.ForeColor = System.Drawing.Color.FromArgb(80, 80, 80);
             dataGridViewCellStyle7.SelectionBackColor = System.Drawing.Color.FromArgb(99, 161, 255);
             dataGridViewCellStyle7.SelectionForeColor = System.Drawing.Color.Black;
             dataGridViewCellStyle7.WrapMode = DataGridViewTriState.True;
@@ -269,7 +261,6 @@ namespace GUI.Forms
             // tabPageInputs
             // 
             tabPageInputs.Controls.Add(dataGridInputs);
-            tabPageInputs.ForeColor = System.Drawing.Color.Black;
             tabPageInputs.Location = new System.Drawing.Point(0, 30);
             tabPageInputs.Name = "tabPageInputs";
             tabPageInputs.Size = new System.Drawing.Size(800, 420);
@@ -299,7 +290,7 @@ namespace GUI.Forms
             dataGridViewCellStyle11.Alignment = DataGridViewContentAlignment.MiddleLeft;
             dataGridViewCellStyle11.BackColor = System.Drawing.Color.FromArgb(236, 236, 236);
             dataGridViewCellStyle11.Font = new System.Drawing.Font("Cascadia Mono", 10F);
-            dataGridViewCellStyle11.ForeColor = System.Drawing.Color.Black;
+            dataGridViewCellStyle11.ForeColor = System.Drawing.Color.FromArgb(80, 80, 80);
             dataGridViewCellStyle11.SelectionBackColor = System.Drawing.Color.FromArgb(99, 161, 255);
             dataGridViewCellStyle11.SelectionForeColor = System.Drawing.Color.Black;
             dataGridViewCellStyle11.WrapMode = DataGridViewTriState.True;

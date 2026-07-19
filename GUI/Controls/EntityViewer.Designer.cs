@@ -23,7 +23,8 @@ partial class EntityViewer
         if (disposing)
         {
             VisibleChanged -= EntityViewer_VisibleChanged;
-            EntityInfo.OutputsGrid.CellDoubleClick -= EntityInfoGrid_CellDoubleClick;
+            EntityInfo.OutputsGrid.CellDoubleClick -= EntityInfoGrid_OutputCellDoubleClick;
+            EntityInfo.InputsGrid.CellDoubleClick -= EntityInfoGrid_InputCellDoubleClick;
         }
 
         base.Dispose(disposing);
