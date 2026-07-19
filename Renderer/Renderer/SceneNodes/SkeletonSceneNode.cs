@@ -77,14 +77,24 @@ namespace ValveResourceFormat.Renderer.SceneNodes
         {
             var boneMatrix = animation.Pose[bone.Index];
 
+            // todo: bounding box should be from current frame vertices
+            var sizeCap = LocalBoundingBox.Size.Length();
+            if (sizeCap < 1f)
+            {
+                sizeCap = 100f;
+            }
+
+            var distance = Vector3.Distance(camera.Location, Vector3.Transform(boneMatrix.Translation, Transform));
+            var distanceFade = distance > sizeCap ? sizeCap / distance : 1f;
+
             textRenderer.AddTextBillboard(Vector3.Transform(boneMatrix.Translation, Transform), new TextRenderer.TextRenderRequest
             {
-                Scale = 10f,
+                Scale = 10f * distanceFade,
                 Text = bone.Name,
                 Color = (bone.Parent, bone.Children.Count) switch
                 {
                     (null, _) => new Color32(1.0f, 0.8f, 0.8f, 1.0f),
-                    (_, 0) => new Color32(0.3f, 0.8f, 0.3f, 1.0f),
+                    (_, 0) => new Color32(0.8f, 1.0f, 0.8f, 1.0f),
                     _ => Color32.White,
                 },
             }, camera);
@@ -93,9 +103,17 @@ namespace ValveResourceFormat.Renderer.SceneNodes
             {
                 var parentMatrix = animation.Pose[bone.Parent.Index];
 
-                var fade = Random.Shared.NextSingle() * 0.5f + 0.5f;
-                ShapeSceneNode.AddLine(vertices, boneMatrix.Translation, parentMatrix.Translation, new(1f - fade, 1f, fade, 1f));
+                ShapeSceneNode.AddLine(vertices, boneMatrix.Translation, parentMatrix.Translation, Color32.White);
             }
+
+            // Bone space axes, normalized to strip any scale from the pose.
+            // Sized proportionally to camera distance so they stay constant on screen.
+            var origin = boneMatrix.Translation;
+            var axisLength = 0.04f * MathF.Min(distance, sizeCap);
+
+            ShapeSceneNode.AddLine(vertices, origin, origin + Vector3.Normalize(new Vector3(boneMatrix.M11, boneMatrix.M12, boneMatrix.M13)) * axisLength, new(1.0f, 0.2f, 0.2f, 1.0f));
+            ShapeSceneNode.AddLine(vertices, origin, origin + Vector3.Normalize(new Vector3(boneMatrix.M21, boneMatrix.M22, boneMatrix.M23)) * axisLength, new(0.2f, 0.8f, 0.2f, 1.0f));
+            ShapeSceneNode.AddLine(vertices, origin, origin + Vector3.Normalize(new Vector3(boneMatrix.M31, boneMatrix.M32, boneMatrix.M33)) * axisLength, new(0.2f, 0.2f, 1.0f, 1.0f));
 
             foreach (var child in bone.Children)
             {
