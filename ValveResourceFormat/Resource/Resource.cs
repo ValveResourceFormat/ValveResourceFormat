@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using System.IO;
 using System.Text;
+using System.Threading;
 using ValveResourceFormat.Blocks;
 using ValveResourceFormat.Blocks.ResourceEditInfoStructs;
 using ValveResourceFormat.CompiledShader;
@@ -20,6 +21,9 @@ namespace ValveResourceFormat
         public const ushort KnownHeaderVersion = 12;
 
         private FileStream? FileStream;
+
+        // Serializes deferred block materialization; the shared Reader is stateful (seek position).
+        internal readonly Lock BlockReadLock = new();
 
         /// <summary>
         /// Gets the binary reader. USE AT YOUR OWN RISK!
@@ -86,11 +90,8 @@ namespace ValveResourceFormat
             {
                 var size = FileSize;
 
-                if (DataBlock == null)
-                {
-                    return size;
-                }
-
+                // Only touch the DATA block for the types that actually store streaming sizes in it,
+                // so partially read resources of other types do not materialize it here.
                 if (ResourceType == ResourceType.Sound && DataBlock is Sound dataSound)
                 {
                     size += dataSound.StreamingDataSize;
@@ -160,10 +161,21 @@ namespace ValveResourceFormat
         /// <param name="filename">The file to open and read.</param>
         public void Read(string filename)
         {
+            Read(filename, default);
+        }
+
+        /// <summary>
+        /// Opens and reads the given filename with the given <see cref="ResourceReadOptions"/>.
+        /// The file is held open until the object is disposed.
+        /// </summary>
+        /// <param name="filename">The file to open and read.</param>
+        /// <param name="options">Options selecting which blocks to parse. The default value parses everything.</param>
+        public void Read(string filename, in ResourceReadOptions options)
+        {
             FileName = filename;
             FileStream = new FileStream(filename, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
 
-            Read(FileStream);
+            Read(FileStream, options);
         }
 
         /// <summary>
@@ -178,7 +190,29 @@ namespace ValveResourceFormat
         /// </remarks>
         public void Read(Stream input, bool verifyFileSize = true, bool leaveOpen = false)
         {
-            Reader = new BinaryReader(input, Encoding.UTF8, leaveOpen);
+            Read(input, new ResourceReadOptions
+            {
+                SkipFileSizeVerification = !verifyFileSize,
+                LeaveOpen = leaveOpen,
+            });
+        }
+
+        /// <summary>
+        /// Reads the given <see cref="Stream"/> with the given <see cref="ResourceReadOptions"/>.
+        /// Blocks excluded from parsing by the options are indexed but left unparsed;
+        /// they parse on demand through the resource's accessors or <see cref="Block.EnsureRead"/>.
+        /// </summary>
+        /// <param name="input">The input <see cref="Stream"/> to read from.</param>
+        /// <param name="options">Options selecting which blocks to parse. The default value parses everything.</param>
+        /// <remarks>
+        /// The input stream must remain open while accessing data from this resource,
+        /// as some operations may perform reads lazily from the stream at call time.
+        /// </remarks>
+        public void Read(Stream input, in ResourceReadOptions options)
+        {
+            options.Validate();
+
+            Reader = new BinaryReader(input, Encoding.UTF8, options.LeaveOpen);
 
             FileSize = Reader.ReadUInt32();
 
@@ -292,11 +326,21 @@ namespace ValveResourceFormat
                 Reader.BaseStream.Position = position + 8;
             }
 
+            var anyDeferred = false;
+
             foreach (var block in Blocks)
             {
                 if (block.Type is not BlockType.REDI and not BlockType.RED2 and not BlockType.NTRO)
                 {
-                    block.Read(Reader);
+                    if (options.ShouldParse(block.Type))
+                    {
+                        block.Read(Reader);
+                    }
+                    else
+                    {
+                        block.MarkDeferred();
+                        anyDeferred = true;
+                    }
                 }
             }
 
@@ -321,9 +365,15 @@ namespace ValveResourceFormat
                 Blocks[Blocks.IndexOf(vdataBlock)] = specializedData;
             }
 
+            // A partially parsed resource cannot account for all consumed bytes.
+            if (options.SkipFileSizeVerification || anyDeferred)
+            {
+                return;
+            }
+
             var fullFileSize = FullFileSize;
 
-            if (verifyFileSize && Reader.BaseStream.Length != fullFileSize)
+            if (Reader.BaseStream.Length != fullFileSize)
             {
                 if (ResourceType == ResourceType.Texture)
                 {
@@ -468,7 +518,9 @@ namespace ValveResourceFormat
             ArgumentOutOfRangeException.ThrowIfNegative(index);
             ArgumentOutOfRangeException.ThrowIfGreaterThanOrEqual(index, Blocks.Count);
 
-            return Blocks[index];
+            var block = Blocks[index];
+            block.EnsureRead();
+            return block;
         }
 
         /// <summary>
@@ -482,6 +534,7 @@ namespace ValveResourceFormat
             {
                 if (block.Type == type)
                 {
+                    block.EnsureRead();
                     return block;
                 }
             }
