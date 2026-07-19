@@ -49,16 +49,10 @@ public abstract class SoundEvent : IDisposable
     protected List<AudioSampleProvider> SampleProviders { get; } = [];
 
     /// <summary>
-    /// Gets or sets an explicit random seed for this event. When null (the default), every play derives
-    /// a fresh seed from the play time. Set before <see cref="Start"/> for deterministic playback.
+    /// Gets the random source for randomized event properties (track picking, volume/pitch jitter, retrigger intervals).
+    /// Shared by the player and reseeded with the play time on every <see cref="SoundEventPlayer.Play"/>.
     /// </summary>
-    public int? Seed { get; set; }
-
-    /// <summary>
-    /// Gets the random source for this play of the event (track picking, volume/pitch jitter, retrigger intervals).
-    /// Reseeded on every <see cref="Start"/>.
-    /// </summary>
-    protected Random Random { get; private set; } = null!;
+    private protected SoundRandom Random => Mixer.Player.Random;
 
     /// <summary>Gets the mixer this event plays through.</summary>
     protected AudioMixer Mixer { get; private set; } = null!;
@@ -85,11 +79,6 @@ public abstract class SoundEvent : IDisposable
     /// </summary>
     public void Start()
     {
-        // A fresh play time seed for every play (including retriggers)
-        Random = Seed.HasValue
-            ? new Random(Seed.Value)
-            : new Random(unchecked((int)System.Diagnostics.Stopwatch.GetTimestamp()));
-
         SampleProviders.Clear();
         ChildSoundEvents.Clear();
         SampleProvider.ClearProviders();

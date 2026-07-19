@@ -36,6 +36,12 @@ public sealed class SoundEventPlayer : IDisposable
     private volatile bool stopping;
 
     /// <summary>
+    /// Gets the random source used for randomized sound event properties.
+    /// Reseeded in place with the play time on every <see cref="Play"/> - no allocation, no global shared random state.
+    /// </summary>
+    internal SoundRandom Random { get; } = new();
+
+    /// <summary>
     /// Creates a sound event player. Takes ownership of <paramref name="device"/> and starts the mixing thread immediately.
     /// </summary>
     public SoundEventPlayer(IFileLoader fileLoader, IAudioDevice device, ILogger? logger = null)
@@ -131,6 +137,9 @@ public sealed class SoundEventPlayer : IDisposable
             return null;
         }
 
+        // Seed with the play time so each play draws a fresh deterministic sequence
+        Random.Reseed(System.Diagnostics.Stopwatch.GetTimestamp());
+
         soundEvent.Position = position;
         soundEvent.VolumeOverride = volume;
         soundEvent.Init(mixer, SampleRate);
@@ -175,10 +184,9 @@ public sealed class SoundEventPlayer : IDisposable
     }
 
     /// <summary>
-    /// Picks a random track index using the playing event's random source,
-    /// never repeating the previously picked track for the same sound event definition.
+    /// Picks a random track index, never repeating the previously picked track for the same sound event definition.
     /// </summary>
-    internal int PickTrack(KVObject soundEventData, int trackCount, Random random)
+    internal int PickTrack(KVObject soundEventData, int trackCount)
     {
         if (trackCount <= 1)
         {
@@ -190,7 +198,7 @@ public sealed class SoundEventPlayer : IDisposable
         if (lastTrackIndices.TryGetValue(soundEventData, out var last))
         {
             // Pick from the remaining tracks and skip over the last one
-            index = random.Next(trackCount - 1);
+            index = Random.Next(trackCount - 1);
             if (index >= last)
             {
                 index++;
@@ -198,7 +206,7 @@ public sealed class SoundEventPlayer : IDisposable
         }
         else
         {
-            index = random.Next(trackCount);
+            index = Random.Next(trackCount);
         }
 
         lastTrackIndices[soundEventData] = index;
