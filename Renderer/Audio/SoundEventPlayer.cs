@@ -32,6 +32,7 @@ public sealed class SoundEventPlayer : IDisposable
     private readonly Thread mixingThread;
     private readonly Dictionary<string, SoundEvent> channels = new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<string, long> blockTimestamps = new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<KVObject, int> lastTrackIndices = new(ReferenceEqualityComparer.Instance);
     private volatile bool stopping;
 
     /// <summary>
@@ -106,8 +107,9 @@ public sealed class SoundEventPlayer : IDisposable
     /// <param name="soundEventName">Name of the sound event, e.g. "Default.StepLeft".</param>
     /// <param name="position">World position of the sound, or null for non-spatialized playback.</param>
     /// <param name="channel">Optional channel name (e.g. "player"). Playing on a channel stops whatever was playing on that channel before.</param>
+    /// <param name="volume">Optional programmatic volume, replacing the definition's volume property (some events, e.g. gear rustles, expect this).</param>
     /// <returns>A handle to the playing sound, or null when the event is unknown or its type is unsupported.</returns>
-    public SoundEvent? Play(string soundEventName, Vector3? position = null, string? channel = null)
+    public SoundEvent? Play(string soundEventName, Vector3? position = null, string? channel = null, float? volume = null)
     {
         var soundEventData = Bank.GetSoundEvent(soundEventName);
         if (soundEventData == null)
@@ -130,6 +132,7 @@ public sealed class SoundEventPlayer : IDisposable
         }
 
         soundEvent.Position = position;
+        soundEvent.VolumeOverride = volume;
         soundEvent.Init(mixer, SampleRate);
         mixer.Register(soundEvent);
 
@@ -169,6 +172,37 @@ public sealed class SoundEventPlayer : IDisposable
 
         blockTimestamps[soundEventName] = now;
         return false;
+    }
+
+    /// <summary>
+    /// Picks a random track index using the playing event's random source,
+    /// never repeating the previously picked track for the same sound event definition.
+    /// </summary>
+    internal int PickTrack(KVObject soundEventData, int trackCount, Random random)
+    {
+        if (trackCount <= 1)
+        {
+            return 0;
+        }
+
+        int index;
+
+        if (lastTrackIndices.TryGetValue(soundEventData, out var last))
+        {
+            // Pick from the remaining tracks and skip over the last one
+            index = random.Next(trackCount - 1);
+            if (index >= last)
+            {
+                index++;
+            }
+        }
+        else
+        {
+            index = random.Next(trackCount);
+        }
+
+        lastTrackIndices[soundEventData] = index;
+        return index;
     }
 
     /// <summary>

@@ -2,13 +2,23 @@ namespace ValveResourceFormat.Renderer.Audio.SampleProviders;
 
 /// <summary>
 /// Streams samples out of a <see cref="CachedSound"/>, honoring its loop points.
+/// Supports pitch shifting by resampling at a fractional playback rate.
 /// </summary>
 public sealed class CachedSoundSampleProvider : AudioSampleProvider
 {
-    private readonly CachedSound sound;
-    private int position;
+    private const int ChannelCount = 2; // The mixer format is always stereo
 
-    /// <summary>Creates a provider that streams the given cached sound from the beginning.</summary>
+    private readonly CachedSound sound;
+    private double framePosition;
+
+    /// <summary>
+    /// Gets or sets the playback rate multiplier: 1 is normal speed, higher is faster and higher pitched.
+    /// </summary>
+    public float Pitch { get; set; } = 1f;
+
+    /// <summary>
+    /// Creates a provider that streams the given cached sound from the beginning.
+    /// </summary>
     public CachedSoundSampleProvider(CachedSound sound)
     {
         this.sound = sound;
@@ -17,7 +27,18 @@ public sealed class CachedSoundSampleProvider : AudioSampleProvider
     /// <inheritdoc/>
     public override int Read(float[] buffer, int offset, int count)
     {
+        if (Pitch == 1f)
+        {
+            return ReadDirect(buffer, offset, count);
+        }
+
+        return ReadResampled(buffer, offset, count);
+    }
+
+    private int ReadDirect(float[] buffer, int offset, int count)
+    {
         var samples = sound.Samples;
+        var position = (int)framePosition * ChannelCount;
         var read = 0;
 
         while (read < count)
@@ -40,6 +61,55 @@ public sealed class CachedSoundSampleProvider : AudioSampleProvider
             Array.Copy(samples, position, buffer, offset + read, toCopy);
             position += toCopy;
             read += toCopy;
+        }
+
+        framePosition = (double)position / ChannelCount;
+
+        if (read < count)
+        {
+            Over();
+        }
+
+        return read;
+    }
+
+    private int ReadResampled(float[] buffer, int offset, int count)
+    {
+        var samples = sound.Samples;
+        var totalFrames = samples.Length / ChannelCount;
+        var loops = sound.LoopStart >= 0;
+        var loopStartFrame = loops ? sound.LoopStart / ChannelCount : 0;
+        var endFrame = loops ? Math.Min(sound.LoopEnd / ChannelCount, totalFrames) : totalFrames;
+
+        var frames = count / ChannelCount;
+        var read = 0;
+
+        for (var i = 0; i < frames; i++)
+        {
+            if (framePosition >= endFrame)
+            {
+                if (loops && loopStartFrame < endFrame)
+                {
+                    framePosition = loopStartFrame + (framePosition - endFrame);
+                }
+                else
+                {
+                    break;
+                }
+            }
+
+            var frame0 = (int)framePosition;
+            var frame1 = Math.Min(frame0 + 1, endFrame - 1);
+            var t = (float)(framePosition - frame0);
+
+            for (var ch = 0; ch < ChannelCount; ch++)
+            {
+                var s0 = samples[frame0 * ChannelCount + ch];
+                var s1 = samples[frame1 * ChannelCount + ch];
+                buffer[offset + read++] = float.Lerp(s0, s1, t);
+            }
+
+            framePosition += Pitch;
         }
 
         if (read < count)

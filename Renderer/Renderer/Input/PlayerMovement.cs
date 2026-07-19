@@ -1,4 +1,4 @@
-
+﻿
 using System.Diagnostics;
 
 namespace ValveResourceFormat.Renderer.Input;
@@ -79,16 +79,22 @@ public class PlayerMovement
 
     private UserInput Input { get; }
 
-    // Movement sound events (CS2)
-    private const string FootstepSoundEvent = "Base.Footstep";
-    private const string JumpSoundEvent = "Default.WalkJump";
-    private const string LandSoundEvent = "Base.Land";
+    // Movement sound events (CS2, game_sounds_footsteps.vsndevts / game_sounds_player.vsndevts).
+    // Footstep and land events are per-material (CT_<Material>.StepLeft / Land_<Material>.StepLeft);
+    // physics traces do not return surface materials yet, so default to concrete.
+    private const string FootstepSoundEvent = "CT_Concrete.StepLeft";
+    private const string JumpSoundEvent = "Default.WalkJump";           // Quiet launch whoosh
+    private const string LandSoundEvent = "Land_Concrete.StepLeft";     // Chains Land.Thud as a child event
+    private const string GearSoundEvent = "Gear.JumpLand.CT";           // Gear rustle layered on both jump and land
+    private const float GearVolume = 0.1f;                              // Gear events have volume 0 in data, the game supplies it
+    private const string FallDamageSoundEvent = "Player.DamageFall";    // Pain grunt on unsafe falls
 
     private const float FootstepSpeedThreshold = 150f;    // Below this speed no footsteps play (walking with shift is silent, like CS)
     private const float FootstepRunSpeed = 220f;          // At and above this speed the run cadence is used
     private const float FootstepRunInterval = 0.3f;       // Seconds between steps at run speed
     private const float FootstepSlowInterval = 0.4f;      // Seconds between steps below run speed
-    private const float LandMinFallSpeed = 100f;          // Minimum downward speed for the land sound
+    private const float LandMinFallSpeed = 290f;          // PLAYER_MAX_SAFE_FALL_SPEED / 2 - quieter landings are silent (a normal jump lands at ~302)
+    private const float FallDamageSpeed = 580f;           // PLAYER_MAX_SAFE_FALL_SPEED - faster falls hurt
 
     private float stepSoundTime;
     private Rubikon? Physics => Input.PhysicsWorld;
@@ -202,20 +208,11 @@ public class PlayerMovement
             WasDuckingLastFrame = isDucking;
             WasOnGroundLastFrame = OnGround;
 
-            // Capture downward speed before landing zeroes it, for the land sound
-            var fallSpeed = -Velocity.Z;
-
             // Categorize position (check if on ground) - use lerped hull for collision
             CategorizePosition(ref position, playerHull);
 
             // Check if we just landed this frame
             var justLanded = !WasOnGroundLastFrame && OnGround;
-
-            if (justLanded && fallSpeed > LandMinFallSpeed)
-            {
-                PlayMovementSound(LandSoundEvent, position, playerHull);
-                stepSoundTime = FootstepSlowInterval;
-            }
 
             // StartGravity - add gravity at start of frame (like Source does)
             if (!OnGround)
@@ -237,7 +234,11 @@ public class PlayerMovement
                     PreventBunnyJumping();
                 }
                 CheckJump(deltaTime);
-                PlayMovementSound(JumpSoundEvent, position, playerHull);
+
+                // Like CS:GO CheckJumpButton: a footstep plays at takeoff, plus the launch whoosh and gear rustle
+                PlaySound(FootstepSoundEvent, position, playerHull);
+                PlaySound(JumpSoundEvent, position, playerHull);
+                PlaySound(GearSoundEvent, position, playerHull, GearVolume);
             }
 
             // Calculate wish velocity from input (with speed modifiers for duck/crouch)
@@ -273,6 +274,10 @@ public class PlayerMovement
             // Check velocity for NaN/bounds
             CheckVelocity(ref position);
 
+            // Landing happens inside the move below, capture the air state and fall speed before it
+            var wasOnGroundBeforeMove = OnGround;
+            var fallSpeedBeforeMove = -Velocity.Z;
+
             // Update position based on velocity - use lerped hull for collision
             position = TryPlayerMove(position, Velocity * deltaTime, playerHull);
 
@@ -284,6 +289,21 @@ public class PlayerMovement
 
             // Recategorize position after movement (now that position is updated)
             CategorizePosition(ref position, playerHull);
+
+            if (!wasOnGroundBeforeMove && OnGround && fallSpeedBeforeMove > LandMinFallSpeed)
+            {
+                // Like CS:GO CheckFalling: land sound (chains Land.Thud) with gear rustle,
+                // and a pain grunt when the fall was fast enough to deal damage
+                PlaySound(LandSoundEvent, position, playerHull);
+                PlaySound(GearSoundEvent, position, playerHull, GearVolume);
+
+                if (fallSpeedBeforeMove >= FallDamageSpeed)
+                {
+                    PlaySound(FallDamageSoundEvent, position, playerHull);
+                }
+
+                stepSoundTime = FootstepSlowInterval;
+            }
 
             // Check velocity again for NaN/bounds
             CheckVelocity(ref position);
@@ -708,15 +728,15 @@ public class PlayerMovement
         if (stepSoundTime <= 0f)
         {
             stepSoundTime = horizontalSpeed >= FootstepRunSpeed ? FootstepRunInterval : FootstepSlowInterval;
-            PlayMovementSound(FootstepSoundEvent, position, playerHull);
+            PlaySound(FootstepSoundEvent, position, playerHull);
         }
     }
 
-    private void PlayMovementSound(string soundEventName, Vector3 position, AABB playerHull)
+    private static void PlaySound(string soundEventName, Vector3 position, AABB playerHull, float? volume = null)
     {
         // Convert from AABB center to feet position; the sound event applies its own position offset
         var feetPosition = position - new Vector3(0, 0, playerHull.Size.Z / 2);
-        Sound.Play(soundEventName, feetPosition);
+        Sound.Play(soundEventName, feetPosition, volume: volume);
     }
 
     /// <summary>

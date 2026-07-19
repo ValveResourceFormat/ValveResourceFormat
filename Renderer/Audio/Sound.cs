@@ -20,9 +20,10 @@ internal static class Sound
     /// <param name="soundEventName">Name of the sound event, e.g. "Base.Footstep".</param>
     /// <param name="position">World position of the sound, or null for non-spatialized playback.</param>
     /// <param name="channel">Optional channel name (e.g. "player"). Playing on a channel stops whatever was playing on that channel before.</param>
+    /// <param name="volume">Optional programmatic volume, replacing the definition's volume property.</param>
     /// <returns>A handle to the playing sound, or null when no player exists or the event could not be played.</returns>
-    public static SoundEvent? Play(string soundEventName, Vector3? position = null, string? channel = null)
-        => Player?.Play(soundEventName, position, channel);
+    public static SoundEvent? Play(string soundEventName, Vector3? position = null, string? channel = null, float? volume = null)
+        => Player?.Play(soundEventName, position, channel, volume);
 
     /// <summary>
     /// Stops the sound currently playing on the given channel, if any.
