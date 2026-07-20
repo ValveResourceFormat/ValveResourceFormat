@@ -115,7 +115,7 @@ public sealed class AudioMixer : IDisposable
 
         foreach (var soundEvent in snapshot)
         {
-            soundEvent.Dispose();
+            soundEvent.Cleanup();
         }
 
         root.ClearProviders();

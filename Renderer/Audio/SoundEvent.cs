@@ -8,7 +8,7 @@ namespace ValveResourceFormat.Renderer.Audio;
 /// A playing (or pending) instance of a sound event definition.
 /// Returned by <see cref="SoundEventPlayer.Play"/> as a handle to control and reposition the sound.
 /// </summary>
-public abstract class SoundEvent : IDisposable
+public abstract class SoundEvent
 {
     /// <summary>Raised when the event begins producing audible samples.</summary>
     public event Action<SoundEvent>? OnSoundStart;
@@ -228,14 +228,16 @@ public abstract class SoundEvent : IDisposable
         return anyPlaying;
     }
 
-    /// <inheritdoc/>
-    public virtual void Dispose()
+    /// <summary>
+    /// Detaches all event subscribers. Called by the mixer when the player is torn down; the sound event is a
+    /// fire-and-forget handle whose lifetime the mixer owns, so it is not <see cref="IDisposable"/>.
+    /// </summary>
+    internal void Cleanup()
     {
         OnSoundOver = null;
         OnSoundStart = null;
         OnStart = null;
         OnStop = null;
-        GC.SuppressFinalize(this);
     }
 
     /// <summary>

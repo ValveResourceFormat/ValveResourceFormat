@@ -25,7 +25,7 @@ namespace GUI.Types.Audio
         /// </summary>
         public TimeSpan MixAhead { get; set; } = TimeSpan.FromMilliseconds(25);
 
-        private readonly IWavePlayer output;
+        private readonly WasapiOut output;
         private readonly BufferedWaveProvider buffer;
         private volatile bool disposed;
 

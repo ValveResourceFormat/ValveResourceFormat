@@ -376,13 +376,15 @@ namespace GUI.Types.GLViewers
                 return;
             }
 
-            NAudioDevice device;
-
             var timer = Stopwatch.StartNew();
 
             try
             {
-                device = new NAudioDevice();
+                // The player takes ownership of the device and disposes it in its own Dispose (called from ours);
+                // CA2000 cannot see ownership transfer through the constructor, so this is not actually a leak.
+#pragma warning disable CA2000
+                soundPlayer = new SoundEventPlayer(GuiContext, new NAudioDevice(), Scene.RendererContext.Logger);
+#pragma warning restore CA2000
             }
             catch (COMException e)
             {
@@ -394,7 +396,6 @@ namespace GUI.Types.GLViewers
 
             Log.Debug(GetType().Name, $"Sound device init time: {timer.Elapsed}");
 
-            soundPlayer = new SoundEventPlayer(GuiContext, device, Scene.RendererContext.Logger);
             soundPlayer.LoadSoundEvents();
 
             soundPlayer.Volume = Settings.Config.Volume;
