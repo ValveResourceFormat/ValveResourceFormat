@@ -1,4 +1,4 @@
-using System.Runtime.InteropServices;
+using System.Diagnostics;
 using System.Threading;
 using Microsoft.Extensions.Logging;
 using ValveResourceFormat.IO;
@@ -16,21 +16,19 @@ public sealed class SoundCache
     private readonly ILogger logger;
     private readonly int sampleRate;
     private readonly int channels;
-    private readonly Dictionary<string, Entry> sounds = [];
+    private readonly Dictionary<string, CachedSound?> sounds = [];
     private long cachedBytes;
-    private long useCounter;
 
-    private struct Entry
-    {
-        public CachedSound? Sound;
-        public long LastUsed;
-    }
+    // A sound read within this window is treated as still playing and is never evicted, so the budget is soft:
+    // it floats above the limit while long sounds play and trims back down once they finish.
+    private static readonly long GraceTicks = Stopwatch.Frequency; // 1 second
 
     /// <summary>
-    /// Gets or sets the budget for decoded audio in bytes. Decoding is far too expensive to redo per play
-    /// (a second of stereo 48 kHz float is nearly 400 KB and every play would hitch the game thread), so
-    /// sounds are kept decoded, and the least recently used ones are dropped once the budget is exceeded.
-    /// Evicting only drops the cache's reference: a sound still playing holds its own and stays valid.
+    /// Gets or sets the soft cache budget in bytes. Nothing is allocated up front - decoded sounds accumulate as
+    /// they are played (a second of stereo 48 kHz PCM16 is ~190 KB). Once the total exceeds the budget the least
+    /// recently used <em>idle</em> sounds are dropped; sounds that are currently playing are never evicted, so the
+    /// total can float above the limit while several long sounds play. Evicting only drops the cache's reference:
+    /// a sound still playing holds its own and stays valid, so an evicted sound simply re-decodes if played again.
     /// </summary>
     public long MaxCachedBytes { get; set; } = 64L * 1024 * 1024;
 
@@ -53,25 +51,24 @@ public sealed class SoundCache
     {
         lock (sounds)
         {
-            ref var entry = ref CollectionsMarshal.GetValueRefOrAddDefault(sounds, fileName, out var exists);
-
-            if (!exists)
+            if (!sounds.TryGetValue(fileName, out var sound))
             {
-                entry.Sound = LoadSound(fileName);
+                sound = LoadSound(fileName);
+                sounds.Add(fileName, sound);
 
-                if (entry.Sound != null)
+                if (sound != null)
                 {
-                    cachedBytes += (long)entry.Sound.Samples.Length * sizeof(float);
+                    cachedBytes += (long)sound.Samples.Length * sizeof(short);
                 }
             }
 
-            entry.LastUsed = ++useCounter;
-
-            var sound = entry.Sound;
+            if (sound != null)
+            {
+                sound.LastUsed = Stopwatch.GetTimestamp();
+            }
 
             if (cachedBytes > MaxCachedBytes)
             {
-                // entry is a ref into the dictionary, do not touch it past this point
                 Prune();
             }
 
@@ -80,33 +77,44 @@ public sealed class SoundCache
     }
 
     /// <summary>
-    /// Drops least recently used sounds until the cache is back under budget. Failed loads are kept:
-    /// they cost nothing and re-attempting them would mean hitting the disk again.
+    /// Drops least recently used <em>idle</em> sounds until the cache is back under budget, or stops early when
+    /// everything left is still playing (the budget is soft). Failed loads (null) are kept as a negative cache;
+    /// a sound currently playing holds its own reference and stays valid even if evicted.
     /// </summary>
     private void Prune()
     {
+        var now = Stopwatch.GetTimestamp();
+
         while (cachedBytes > MaxCachedBytes)
         {
             string? oldestKey = null;
-            var oldestUse = long.MaxValue;
+            var oldest = long.MaxValue;
 
-            foreach (var (key, entry) in sounds)
+            foreach (var (key, sound) in sounds)
             {
-                if (entry.Sound != null && entry.LastUsed < oldestUse)
+                // Skip failed loads, and skip sounds read within the grace window: they are playing right now, so
+                // evicting them would not free memory (the provider still holds the buffer) and would re-decode.
+                if (sound == null || now - sound.LastUsed < GraceTicks)
                 {
-                    oldestUse = entry.LastUsed;
+                    continue;
+                }
+
+                if (sound.LastUsed < oldest)
+                {
+                    oldest = sound.LastUsed;
                     oldestKey = key;
                 }
             }
 
             if (oldestKey == null)
             {
+                // Everything over budget is still playing - let the total float above the limit until it stops
                 break;
             }
 
-            var evicted = sounds[oldestKey];
+            var evicted = sounds[oldestKey]!;
             sounds.Remove(oldestKey);
-            cachedBytes -= (long)evicted.Sound!.Samples.Length * sizeof(float);
+            cachedBytes -= (long)evicted.Samples.Length * sizeof(short);
 
             logger.LogDebug("Evicted {FileName} from the sound cache", oldestKey);
         }
@@ -145,7 +153,8 @@ public sealed class SoundCache
             return null;
         }
 
-        var samples = AudioConverter.Convert(decoded.Samples, decoded.Channels, decoded.SampleRate, channels, sampleRate);
+        var floatSamples = AudioConverter.Convert(decoded.Samples, decoded.Channels, decoded.SampleRate, channels, sampleRate);
+        var samples = AudioConverter.ToPcm16(floatSamples);
 
         var loopStart = -1;
         var loopEnd = samples.Length;

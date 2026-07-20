@@ -7,6 +7,7 @@ namespace ValveResourceFormat.Renderer.Audio.SampleProviders;
 public sealed class CachedSoundSampleProvider : AudioSampleProvider
 {
     private const int ChannelCount = 2; // The mixer format is always stereo
+    private const float PcmScale = 1f / 32768f; // Converts the cached 16-bit PCM back to float
 
     private readonly CachedSound sound;
     private double framePosition;
@@ -35,6 +36,9 @@ public sealed class CachedSoundSampleProvider : AudioSampleProvider
     /// <inheritdoc/>
     public override int Read(float[] buffer, int offset, int count)
     {
+        // Mark the sound as in use so the cache does not evict it while it is still playing
+        sound.LastUsed = System.Diagnostics.Stopwatch.GetTimestamp();
+
         var written = 0;
 
         if (delaySamples > 0)
@@ -79,7 +83,11 @@ public sealed class CachedSoundSampleProvider : AudioSampleProvider
             }
 
             var toCopy = Math.Min(available, count - read);
-            Array.Copy(samples, position, buffer, offset + read, toCopy);
+            var dst = offset + read;
+            for (var i = 0; i < toCopy; i++)
+            {
+                buffer[dst + i] = samples[position + i] * PcmScale;
+            }
             position += toCopy;
             read += toCopy;
         }
@@ -125,8 +133,8 @@ public sealed class CachedSoundSampleProvider : AudioSampleProvider
 
             for (var ch = 0; ch < ChannelCount; ch++)
             {
-                var s0 = samples[frame0 * ChannelCount + ch];
-                var s1 = samples[frame1 * ChannelCount + ch];
+                var s0 = samples[frame0 * ChannelCount + ch] * PcmScale;
+                var s1 = samples[frame1 * ChannelCount + ch] * PcmScale;
                 buffer[offset + read++] = float.Lerp(s0, s1, t);
             }
 
