@@ -14,6 +14,7 @@ namespace ValveResourceFormat.Renderer;
 public class Rubikon
 {
     private const int STACK_SIZE = 64;
+    private const float Epsilon = 1e-6f;
 
     /// <summary>
     /// Triangle mesh collision data for ray tracing.
@@ -347,7 +348,7 @@ public class Rubikon
                 var v1 = hull.VertexPositions[edge1.Origin];
                 var v2 = hull.VertexPositions[edge2.Origin];
 
-                var hit = AABBTraceTriangle(trace, v0, v1, v2);
+                var hit = AABBTraceTriangle13AxisSat(trace, v0, v1, v2);
                 closestHit.MinimizeWith(hit);
 
                 edgeIndex = edge1.Next;
@@ -585,7 +586,7 @@ public class Rubikon
                 var v1 = mesh.VertexPositions[triangle.Y];
                 var v2 = mesh.VertexPositions[triangle.Z];
 
-                var hit = AABBTraceTriangle(trace, v0, v1, v2);
+                var hit = AABBTraceTriangle13AxisSat(trace, v0, v1, v2);
                 if (closestHit.MinimizeWith_EarlyExit(hit))
                 {
                     return closestHit;
@@ -596,271 +597,115 @@ public class Rubikon
         return closestHit;
     }
 
-    private static TraceResult AABBTraceTriangle(AABBTraceContext trace, Vector3 v0, Vector3 v1, Vector3 v2)
+    private static TraceResult AABBTraceTriangle13AxisSat(AABBTraceContext trace, Vector3 v0, Vector3 v1, Vector3 v2)
     {
-        var hitPoint = Vector3.Zero;
+        //Needs to exist from the start, as it gets updated while running through the axis.
         var hitNormal = Vector3.Zero;
-        var hitDistance = trace.Length;
 
-        var hasHit = false;
-        hasHit = CornerAgainstTri(trace, v0, v1, v2, ref hitPoint, ref hitNormal, ref hitDistance);
-        hasHit = hasHit || EdgeAgainstTri(trace, v0, v1, v2, ref hitPoint, ref hitNormal, ref hitDistance);
-        hasHit = hasHit || AabbAgainstVert(trace, v0, v1, v2, ref hitPoint, ref hitNormal, ref hitDistance);
+        ReadOnlySpan<Vector3> triangle = [v0, v1, v2];
 
-        if (!hasHit)
+        float enter = float.NegativeInfinity, exit = float.PositiveInfinity;
+
+        for (var axis = 0; axis < 13; axis++)
+        {
+            Vector3 axisVector;
+            if (axis == 0)
+            {
+                axisVector = Vector3.Cross(v1 - v0, v2 - v0);
+            }
+            else if (axis < 10)
+            {
+                var localAxisIndex = axis - 1;
+
+                var triangleEdgeIndex = localAxisIndex / 3;
+                var boxAxisIndex = localAxisIndex % 3;
+
+                var edge = triangle[(triangleEdgeIndex + 1) % 3] - triangle[triangleEdgeIndex];
+
+                axisVector = edge;
+                axisVector[boxAxisIndex] = 0;
+                axisVector[(boxAxisIndex + 1) % 3] = -edge[(boxAxisIndex + 2) % 3];
+                axisVector[(boxAxisIndex + 2) % 3] = edge[(boxAxisIndex + 1) % 3];
+
+                if (Math.Abs(axisVector[(boxAxisIndex + 1) % 3]) < Epsilon && Math.Abs(axisVector[(boxAxisIndex + 2) % 3]) < Epsilon)
+                {
+                    continue;
+                }
+            }
+            else
+            {
+                var localAxisIndex = axis - 10;
+                axisVector = Vector3.Zero;
+                axisVector[localAxisIndex] = 1;
+            }
+
+            axisVector = Vector3.Normalize(axisVector);
+            axisVector = Vector3.Dot(trace.Direction, axisVector) > 0 ? axisVector : -axisVector;
+            // cosTheta >= 0 because axisVector was flipped toward the ray above.
+            // The sweep advances the box projection by cosTheta * Length over the trace.
+            var cosTheta = Vector3.Dot(trace.Direction, axisVector);
+
+            var tracedDistanceAlongAxis = cosTheta * trace.Length;
+            var boxExtent = Vector3.Dot(Vector3.Abs(axisVector), trace.HalfExtents);
+
+            //project the triangle onto the axis
+            float min = float.PositiveInfinity, max = float.NegativeInfinity;
+
+            for (var vertexIdx = 0; vertexIdx < 3; vertexIdx++)
+            {
+                var projection = Vector3.Dot(triangle[vertexIdx] - trace.Origin, axisVector);
+
+                min = MathF.Min(min, projection - boxExtent);
+                max = MathF.Max(max, projection + boxExtent);
+            }
+
+            // The axis is (near) perpendicular to the sweep, so the box's projection onto it does
+            // not change over the trace and the divisions below would be by ~0. The axis
+            // either separates for the whole sweep, or never separates and constrains nothing.
+            if (cosTheta <= Epsilon)
+            {
+                if (min > 0f || max < 0f)
+                {
+                    return new TraceResult();
+                }
+
+                continue;
+            }
+
+            //avoids division early
+            if (min > tracedDistanceAlongAxis)
+            {
+                return new TraceResult();
+            }
+
+            min /= tracedDistanceAlongAxis;
+            max /= tracedDistanceAlongAxis;
+
+            if (min > enter)
+            {
+                hitNormal = -axisVector;
+                enter = min;
+            }
+
+            exit = MathF.Min(exit, max);
+
+            if (enter > exit || exit <= 0)
+            {
+                return new TraceResult();
+            }
+        }
+
+        if (enter > 1.0f)
         {
             return new TraceResult();
         }
 
+        var hitDistance = Math.Max(enter * trace.Length, 0);
+        var hitPoint = trace.Origin + trace.Direction * hitDistance;
+
         return new TraceResult(true, hitPoint, hitNormal, hitDistance, -1);
     }
 
-    private static bool CornerAgainstTri(
-        AABBTraceContext trace,
-        Vector3 v0, Vector3 v1, Vector3 v2,
-        ref Vector3 hitPoint,
-        ref Vector3 normal,
-        ref float distance)
-    {
-        //goal: figure out the 1 in 8 corners that can actually hit the tri (its the one whose 3 axis signs is equal to signs(triangle normal) * sign(dot(normal, movedirection))
-        //thats the only corner that could collide without having intersection beforehand.
-
-        var edge1 = v1 - v0;
-        var edge2 = v2 - v0;
-        var triangleNormal = Vector3.Normalize(Vector3.Cross(edge1, edge2));
-        var triNormSign = new Vector3(
-            triangleNormal.X < 0 ? -1f : 1f,
-            triangleNormal.Y < 0 ? -1f : 1f,
-            triangleNormal.Z < 0 ? -1f : 1f);
-        var cornerCoords = trace.Origin + Vector3.Multiply(triNormSign, trace.HalfExtents) * Math.Sign(Vector3.Dot(triangleNormal, trace.Direction));
-
-        //RayTraceContext ray = new RayTraceContext(cornerCoords, trace.Direction);
-
-        var ray = new RayTraceContext(cornerCoords, cornerCoords + trace.Direction * trace.Length);
-
-
-        //RayTraceContext ray = new RayTraceContext(new Vector3(0), new Vector3(0, 1, 0));
-
-        //v0 = new Vector3(-1, 1, -1);
-        //v1 = new Vector3(-1, 1, 2);
-        //v2 = new Vector3(2, 1, -1);
-
-        var DoesHit = RayIntersectsTriangle(ray, v0, v1, v2, out var intersection);
-
-        if (DoesHit)
-        {
-            normal = triangleNormal;
-            distance = intersection.Distance;
-            hitPoint = trace.Origin + trace.Direction * distance;
-            return true;
-        }
-        return false;
-    }
-
-    private static bool EdgeAgainstTri(
-        AABBTraceContext trace,
-        Vector3 v0, Vector3 v1, Vector3 v2,
-        ref Vector3 hitPoint,
-        ref Vector3 normal,
-        ref float distance
-        )
-    {
-        //Fundamentally: For each edge on the AABB, we need to do an edge-edge trace against each edge of the triangle.
-        //fortunately, we can prefilter that down to 9 edge-edge traces, as only 3 AABB-edges could ever be the first hit for an AABB-trace.
-
-        var hasHit = false;
-
-        for (var edge = 0; edge < 3; edge++)
-        {
-            var (EdgeStart, EdgeEnd) = edge switch
-            {
-                0 => (v0, v1),
-                1 => (v1, v2),
-                _ => (v2, v0)
-            };
-
-            var EdgeDirection = EdgeEnd - EdgeStart;
-
-            var MissesOnAxis = false;
-
-            //Essentially, for the selection of edges, we just look at the world in 2D along each axis once.
-            for (var axis = 0; axis < 3 && !MissesOnAxis; axis++)
-            {
-                var axis1 = (axis + 1) % 3;
-                var axis2 = (axis + 2) % 3;
-
-                var edgeComp1 = EdgeDirection[axis1];
-                var edgeComp2 = EdgeDirection[axis2];
-
-                if (Math.Abs(edgeComp1) < float.Epsilon && Math.Abs(edgeComp2) < float.Epsilon)
-                {
-                    continue;
-                }
-
-                //just rotate our edge orientation by 90 deg, flatten and normalize it
-                var hitNormal = axis switch
-                {
-                    0 => new Vector3(0, edgeComp2, -edgeComp1),
-                    1 => new Vector3(-edgeComp1, 0, edgeComp2),
-                    _ => new Vector3(edgeComp2, -edgeComp1, 0)
-                };
-
-                var hitNormalLen = hitNormal.Length();
-                if (hitNormalLen < float.Epsilon)
-                {
-                    continue;
-                }
-
-                hitNormal /= hitNormalLen;
-
-                var dotNormalDir = Vector3.Dot(hitNormal, trace.Direction);
-                if (MathF.Abs(dotNormalDir) < float.Epsilon)
-                {
-                    continue;
-                }
-
-                hitNormal *= -Math.Sign(dotNormalDir);
-                dotNormalDir = -MathF.Abs(dotNormalDir); // Negate to match flipped normal
-
-                //now to figure out the AABB edge we care about:
-
-                //example: if normal points up and right, only the bottom left edge can hit
-
-                //This can be zero on one more axis due to alignment. If that happens, we must trace TWO edges
-                //Fortunately it means we can skip that edge from then on, because there can defacto not be any closer collision with it
-                //because it is axis aligned once we projected it.
-
-                var AABBEdgeCenter = trace.HalfExtents;
-                AABBEdgeCenter[axis] = 0;
-                AABBEdgeCenter[axis1] *= hitNormal[axis1] < 0 ? 1f : -1f;
-                AABBEdgeCenter[axis2] *= hitNormal[axis2] < 0 ? 1f : -1f;
-
-
-                AABBEdgeCenter += trace.Origin;
-
-                var DirToStart = EdgeStart - AABBEdgeCenter;
-
-                //if true, we are moving away from the edge here and that means we can skip all further attempts to intersect it
-                if (Vector3.Dot(DirToStart, hitNormal) > 0)
-                {
-                    //actually this needs commenting out because we have no check to see if we are already within the box here. If the line is outside the box on this axis, we can't hit it, but we might be alright inside, where this would be wrong.
-
-                    //MissesOnAxis = true;
-                    continue;
-                }
-
-
-                var zeroAxis = (hitNormal[axis1] == 0 || hitNormal[axis2] == 0) ? (hitNormal[axis1] == 0 ? axis1 : axis2) : -1;
-
-                for (var positive = 0; positive < (zeroAxis >= 0 ? 2 : 1); positive++)
-                {
-                    if (positive == 1)
-                    {
-                        AABBEdgeCenter[zeroAxis] *= -1;
-                        DirToStart = EdgeStart - AABBEdgeCenter;
-                    }
-
-                    //now to figure out the coordinates of where we would land in the extended edge plane
-                    var Distance = Vector3.Dot(DirToStart, hitNormal) / dotNormalDir;
-
-                    //same shit here, if we never reach that edge in the first place on any axis, we are not hitting that edge period
-                    if (Distance > distance)
-                    {
-                        //same as before, this "optimization" breaks shit.
-                        //MissesOnAxis = true;
-                        continue;
-                    }
-
-                    var PlaneHitCoord = AABBEdgeCenter + trace.Direction * Distance;
-
-                    //I promise this is less clusterfuck than it looks
-                    var LongestAxisEdgeDir = Math.Abs(EdgeDirection[axis1]) > Math.Abs(EdgeDirection[axis2]) ? axis1 : axis2;
-
-                    var diff = PlaneHitCoord[LongestAxisEdgeDir] - EdgeStart[LongestAxisEdgeDir];
-
-                    var a = diff / EdgeDirection[LongestAxisEdgeDir];
-
-                    //should be obvious that we can't go beyond the edges bounds
-                    if (a < 0 || a > 1.0f)
-                    {
-                        continue;
-                    }
-
-                    var NearestOnAxis = EdgeStart + EdgeDirection * a;
-
-                    var AxisDistance = Math.Abs(NearestOnAxis[axis] - PlaneHitCoord[axis]);
-
-                    if (AxisDistance < trace.HalfExtents[axis])
-                    {
-                        distance = Distance;
-                        normal = hitNormal;
-                        hitPoint = trace.Origin + trace.Direction * Distance;
-                        hasHit = true;
-                        break;
-                    }
-                }
-            }
-        }
-
-        return hasHit;
-    }
-
-    private static bool AabbAgainstVert(
-        AABBTraceContext trace,
-        Vector3 v0, Vector3 v1, Vector3 v2,
-        ref Vector3 hitPoint,
-        ref Vector3 normal,
-        ref float distance
-        )
-    {
-        var TraceOriginMin = trace.Origin - trace.HalfExtents;
-        var TraceOriginMax = trace.Origin + trace.HalfExtents;
-
-        var intersects = false;
-
-        for (var i = 0; i < 3; i++)
-        {
-            var point = i switch
-            {
-                0 => v0,
-                1 => v1,
-                _ => v2
-            };
-
-            var t1 = (TraceOriginMin - point) / -trace.Direction;
-
-            var t2 = (TraceOriginMax - point) / -trace.Direction;
-
-            var tNear = Vector3.Min(t1, t2);
-
-            var tFar = Vector3.Max(t1, t2);
-
-            var tNearMaxIndex = tNear.X > tNear.Y
-                ? (tNear.X > tNear.Z ? 0 : 2)
-                : (tNear.Y > tNear.Z ? 1 : 2);
-
-            var tNearMax = tNear[tNearMaxIndex];
-
-            var tFarMin = MathF.Min(tFar.X, MathF.Min(tFar.Y, tFar.Z));
-            if (tNearMax <= tFarMin && tFarMin > 0 && tNearMax <= trace.Length)
-            {
-                intersects = true;
-                if (tNearMax < distance)
-                {
-                    distance = tNearMax;
-                    normal = tNearMaxIndex switch
-                    {
-                        0 => new Vector3(-Math.Sign(trace.Direction.X), 0, 0),
-                        1 => new Vector3(0, -Math.Sign(trace.Direction.Y), 0),
-                        _ => new Vector3(0, 0, -Math.Sign(trace.Direction.Z))
-                    };
-                    hitPoint = distance * trace.Direction + trace.Origin;
-                }
-            }
-        }
-
-        return intersects;
-    }
 
     private Node[] BuildHullBVH()
     {
