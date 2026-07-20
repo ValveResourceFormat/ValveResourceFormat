@@ -125,6 +125,9 @@ public sealed class SoundEventPlayer : IDisposable
         {
             IsBackground = true,
             Name = "VRF Sound Mixer",
+            // The mix-ahead is small (~25 ms), so losing the CPU to the render thread for longer
+            // than that underruns the device; audio pump threads conventionally run elevated
+            Priority = ThreadPriority.Highest,
         };
         mixingThread.Start();
 
@@ -367,6 +370,13 @@ public sealed class SoundEventPlayer : IDisposable
     /// TEMP debug: collects the position and vsnd name of every audible positioned sound.
     /// </summary>
     public void CollectDebugSounds(List<(Vector3 Position, string Text)> results) => mixer.CollectDebugSounds(results);
+
+    /// <summary>
+    /// Optional line-of-sight test for sound occlusion: given the listener position and a sound position,
+    /// returns true when solid geometry blocks the segment. When set, events with an "occlusion_intensity"
+    /// are attenuated while blocked (e.g. a distant moped behind buildings); when null nothing is occluded.
+    /// </summary>
+    public Func<Vector3, Vector3, bool>? OcclusionTrace { get; set; }
 
     /// <summary>
     /// Updates listener position and per-frame sound event logic. Call once per frame from the render/game thread.

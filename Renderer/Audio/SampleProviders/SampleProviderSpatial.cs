@@ -54,8 +54,11 @@ public abstract class SampleProviderSpatial : SampleProvider2D
     {
         var dot = GetDirectionMix(listenerPosition, rightEarDirection);
 
-        LeftVolume = Math.Max(-dot + 1, 0) * Volume;
-        RightVolume = Math.Max(dot + 1, 0) * Volume;
+        // The near ear plays at full volume and the far ear falls off with the angle; without the
+        // cap a sound hard to one side would play at double volume in the near ear and sound
+        // closer (louder) than a centered sound at the same distance
+        LeftVolume = Math.Clamp(-dot + 1, 0, 1) * Volume;
+        RightVolume = Math.Clamp(dot + 1, 0, 1) * Volume;
         return true;
     }
 

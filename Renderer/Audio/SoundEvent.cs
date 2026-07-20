@@ -149,6 +149,9 @@ public abstract class SoundEvent
     /// </summary>
     public bool FadingOut { get; private set; }
 
+    /// <summary>Stopwatch timestamp of the next occlusion retrace (see <see cref="Update"/>).</summary>
+    private long nextOcclusionTraceTimestamp;
+
     /// <summary>
     /// Fades the whole event tree out along its "fadetime_volume_mapping_curve" (or linearly over
     /// <paramref name="fallbackSeconds"/> when the event has none) and stops it when the fade completes.
@@ -190,7 +193,12 @@ public abstract class SoundEvent
     /// <summary>Starts another sound event as a child of this one, mixed into this event's output.</summary>
     protected void StartAsChild(SoundEvent childSoundEvent)
     {
-        childSoundEvent.Position = Position;
+        // "set_child_position": the child follows this event (a footstep's gear rustle plays at the player).
+        // Otherwise the child uses its own authored position (a soundscape's birds sit in their own tree).
+        if (Definition.SetChildPosition)
+        {
+            childSoundEvent.Position = Position;
+        }
         childSoundEvent.Init(Mixer, SampleRate);
         ChildSoundEvents.Add(childSoundEvent);
         SampleProviders.Add(childSoundEvent.SampleProvider);
@@ -233,7 +241,7 @@ public abstract class SoundEvent
         return false;
     }
 
-        /// <summary>
+    /// <summary>
     /// Builds the sample providers (and child events) for this event based on its definition.
     /// </summary>
     protected abstract void DoStart();
@@ -266,6 +274,24 @@ public abstract class SoundEvent
     {
         var anyPlaying = false;
 
+        var occlusionTrace = Definition.OcclusionIntensity > 0f ? Mixer.Player.OcclusionTrace : null;
+
+        if (occlusionTrace != null)
+        {
+            // Occlusion is smoothed, so it does not need a ray every frame: retrace ~10 times
+            // a second, with a jittered interval so concurrent events spread across frames
+            var now = System.Diagnostics.Stopwatch.GetTimestamp();
+            if (now < nextOcclusionTraceTimestamp)
+            {
+                occlusionTrace = null;
+            }
+            else
+            {
+                var interval = 0.08f + 0.04f * Random.NextSingle();
+                nextOcclusionTraceTimestamp = now + (long)(interval * System.Diagnostics.Stopwatch.Frequency);
+            }
+        }
+
         foreach (var provider in SampleProviders)
         {
             if (provider is SampleProvider3D spatialProvider)
@@ -273,6 +299,13 @@ public abstract class SoundEvent
                 if (Position.HasValue)
                 {
                     spatialProvider.Position = Position.Value + PositionOffset;
+                }
+
+                if (occlusionTrace != null)
+                {
+                    spatialProvider.OcclusionTarget = occlusionTrace(listenerPosition, spatialProvider.Position)
+                        ? 1f - Definition.OcclusionIntensity
+                        : 1f;
                 }
 
                 if (spatialProvider.Update(listenerPosition, rightEarDirection))

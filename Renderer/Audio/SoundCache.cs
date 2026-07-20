@@ -9,7 +9,7 @@ namespace ValveResourceFormat.Renderer.Audio;
 
 /// <summary>
 /// Loads compiled sound resources (vsnd) and caches them fully decoded in the mixer's output format.
-/// Decoding happens on a background thread: <see cref="GetSound"/> returns a placeholder immediately and
+/// Decoding happens on worker threads: <see cref="GetSound"/> returns a placeholder immediately and
 /// providers play silence until it is ready, so neither the game thread nor the mixing thread ever block on decode.
 /// </summary>
 public sealed class SoundCache : IDisposable
@@ -21,8 +21,14 @@ public sealed class SoundCache : IDisposable
     private readonly int sampleRate;
     private readonly int channels;
     private readonly Dictionary<string, CachedSound> sounds = [];
-    private readonly LinkedList<DecodeRequest> decodeQueue = [];
-    private readonly Thread decodeThread;
+
+    // Two decode lanes: sounds that want to play right now must never wait behind a bulk
+    // pre-cache decode already in flight (a multi-minute ambient takes hundreds of ms to
+    // decode - long enough to audibly delay a footstep), so each lane has its own thread.
+    private readonly LinkedList<DecodeRequest> foregroundQueue = [];
+    private readonly LinkedList<DecodeRequest> backgroundQueue = [];
+    private readonly Thread foregroundThread;
+    private readonly Thread backgroundThread;
     private volatile bool stopping;
     private long cachedBytes;
 
@@ -57,12 +63,20 @@ public sealed class SoundCache : IDisposable
         this.channels = channels;
         this.logger = logger;
 
-        decodeThread = new Thread(DecodeLoop)
+        foregroundThread = new Thread(() => DecodeLoop(foregroundQueue))
         {
             IsBackground = true,
             Name = "VRF Sound Decoder",
         };
-        decodeThread.Start();
+        backgroundThread = new Thread(() => DecodeLoop(backgroundQueue))
+        {
+            IsBackground = true,
+            Name = "VRF Sound Precache",
+            // Bulk pre-cache work (map load, soundscape warm-up) must not compete with the render thread
+            Priority = ThreadPriority.BelowNormal,
+        };
+        foregroundThread.Start();
+        backgroundThread.Start();
     }
 
     /// <summary>
@@ -97,35 +111,38 @@ public sealed class SoundCache : IDisposable
 
             if (background)
             {
-                decodeQueue.AddLast(request);
+                backgroundQueue.AddLast(request);
             }
             else
             {
-                decodeQueue.AddFirst(request);
+                foregroundQueue.AddLast(request);
             }
 
-            Monitor.Pulse(sounds);
+            // Both lane threads wait on the same lock, wake them all so the right one runs
+            Monitor.PulseAll(sounds);
             return sound;
         }
     }
 
     /// <summary>
-    /// Moves a pending decode to the front of the queue. Caller holds the lock.
+    /// Moves a decode that is still pending in the background lane to the front of the foreground lane.
+    /// Caller holds the lock.
     /// </summary>
     private void PrioritizeLocked(CachedSound sound)
     {
-        for (var node = decodeQueue.First; node != null; node = node.Next)
+        for (var node = backgroundQueue.First; node != null; node = node.Next)
         {
             if (ReferenceEquals(node.Value.Sound, sound))
             {
-                decodeQueue.Remove(node);
-                decodeQueue.AddFirst(node.Value);
+                backgroundQueue.Remove(node);
+                foregroundQueue.AddFirst(node.Value);
+                Monitor.PulseAll(sounds);
                 return;
             }
         }
     }
 
-    private void DecodeLoop()
+    private void DecodeLoop(LinkedList<DecodeRequest> queue)
     {
         while (!stopping)
         {
@@ -133,7 +150,7 @@ public sealed class SoundCache : IDisposable
 
             lock (sounds)
             {
-                while (decodeQueue.Count == 0)
+                while (queue.Count == 0)
                 {
                     Monitor.Wait(sounds);
 
@@ -143,8 +160,8 @@ public sealed class SoundCache : IDisposable
                     }
                 }
 
-                request = decodeQueue.First!.Value;
-                decodeQueue.RemoveFirst();
+                request = queue.First!.Value;
+                queue.RemoveFirst();
             }
 
             try
@@ -304,7 +321,7 @@ public sealed class SoundCache : IDisposable
     }
 
     /// <summary>
-    /// Stops the background decode thread.
+    /// Stops the decode threads.
     /// </summary>
     public void Dispose()
     {
@@ -312,9 +329,10 @@ public sealed class SoundCache : IDisposable
 
         lock (sounds)
         {
-            Monitor.Pulse(sounds);
+            Monitor.PulseAll(sounds);
         }
 
-        decodeThread.Join(TimeSpan.FromSeconds(2));
+        foregroundThread.Join(TimeSpan.FromSeconds(2));
+        backgroundThread.Join(TimeSpan.FromSeconds(2));
     }
 }

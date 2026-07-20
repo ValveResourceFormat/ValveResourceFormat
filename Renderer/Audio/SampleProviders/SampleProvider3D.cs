@@ -24,6 +24,15 @@ public class SampleProvider3D : SampleProviderSpatial
     /// <summary>Gets whether the listener was outside the audible range during the last update.</summary>
     public bool OutOfRange { get; private set; }
 
+    /// <summary>
+    /// Gets or sets the attenuation to move towards while geometry blocks the sound
+    /// (1 unoccluded, 0 fully muted). The applied value is smoothed across updates so
+    /// walking past a corner does not gate the sound on and off.
+    /// </summary>
+    public float OcclusionTarget { get; set; } = 1f;
+
+    private float occlusion = -1f; // < 0 means not initialized, the first update snaps to the target
+
     /// <summary>Creates a positional provider around the given source.</summary>
     public SampleProvider3D(IAudioSampleProvider provider) : base(provider)
     {
@@ -33,6 +42,8 @@ public class SampleProvider3D : SampleProviderSpatial
     public override bool Update(Vector3 listenerPosition, Vector3 rightEarDirection)
     {
         var distance = (listenerPosition - Position).Length();
+
+        occlusion = occlusion < 0f ? OcclusionTarget : float.Lerp(occlusion, OcclusionTarget, 0.1f);
 
         float attenuation;
 
@@ -49,6 +60,8 @@ public class SampleProvider3D : SampleProviderSpatial
         {
             attenuation = 0f;
         }
+
+        attenuation *= occlusion;
 
         OutOfRange = attenuation <= 0f;
         if (OutOfRange)

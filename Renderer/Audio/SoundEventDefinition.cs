@@ -28,8 +28,15 @@ public sealed class SoundEventDefinition
     /// <summary>Gets the child sound event names, empty unless "enable_child_events" is set.</summary>
     public string[] ChildEventNames { get; }
 
-    /// <summary>Gets the position baked into the definition, overriding the position passed at play time.</summary>
+    /// <summary>Gets the position baked into the definition, used when no position is passed at play time.
+    /// An all-zero authored position is a placeholder and parses as null.</summary>
     public Vector3? Position { get; }
+
+    /// <summary>
+    /// Gets whether child events play at this event's position ("set_child_position", e.g. a footstep's gear
+    /// rustle follows the player). When false - the common case - children use their own authored positions.
+    /// </summary>
+    public bool SetChildPosition { get; }
 
     /// <summary>Gets the offset added to the position (e.g. footsteps play 20 units above the ground).</summary>
     public Vector3 PositionOffset { get; }
@@ -50,6 +57,12 @@ public sealed class SoundEventDefinition
 
     /// <summary>Gets the delay in seconds before the sound starts.</summary>
     public float Delay { get; }
+
+    /// <summary>
+    /// Gets how strongly geometry between the listener and the sound attenuates it
+    /// ("occlusion_intensity"): 0 (the default) is not occludable, 1 is fully muted when blocked.
+    /// </summary>
+    public float OcclusionIntensity { get; }
 
     /// <summary>Gets the mix group name, empty when the definition has none.</summary>
     public string MixGroup { get; }
@@ -103,10 +116,18 @@ public sealed class SoundEventDefinition
         ChildEventNames = data.GetBooleanProperty("enable_child_events")
             ? GetStringArray(data, "soundevent_01")
             : [];
+        SetChildPosition = data.GetBooleanProperty("set_child_position");
 
         if (data.ContainsKey("position"))
         {
-            Position = new Vector3(data.GetFloatArray("position"));
+            var position = new Vector3(data.GetFloatArray("position"));
+
+            // An all-zero position is an authoring placeholder (see "position_N" metadata) that the
+            // map or game code is expected to fill in, not a real world position
+            if (position != Vector3.Zero)
+            {
+                Position = position;
+            }
         }
 
         if (data.ContainsKey("position_offset"))
@@ -123,19 +144,21 @@ public sealed class SoundEventDefinition
         PitchRandomMax = data.GetFloatProperty("pitch_random_max");
 
         Delay = data.GetFloatProperty("delay");
+        OcclusionIntensity = data.GetFloatProperty("occlusion_intensity");
         MixGroup = data.GetStringProperty("mixgroup", string.Empty);
 
+        // Not gated on the "use_" flags: the vast majority of events carry these curves without the flag
+        // set (e.g. soundscape ambients author a flat 1.0 distance curve and no flag), and the game
+        // audibly honors them - the flag governs a different runtime path.
         var volumeCurve = SoundEventCurve.Parse(data, "distance_volume_mapping_curve");
-        DistanceVolumeCurve = data.GetBooleanProperty("use_distance_volume_mapping_curve") ? volumeCurve : null;
-        StereoMixCurve = data.GetBooleanProperty("use_distance_unfiltered_stereo_mapping_curve")
-            ? SoundEventCurve.Parse(data, "distance_unfiltered_stereo_mapping_curve")
-            : null;
+        DistanceVolumeCurve = volumeCurve;
+        StereoMixCurve = SoundEventCurve.Parse(data, "distance_unfiltered_stereo_mapping_curve");
 
         // Not gated on "use_fadetime_volume_mapping_curve": that flag governs a different runtime path,
         // authored fade curves are used for stop fades whenever present
         FadeTimeVolumeCurve = SoundEventCurve.Parse(data, "fadetime_volume_mapping_curve");
 
-        // The largest distance in the volume curve is the audible range, whether or not the curve itself is used
+        // Only reached by the fallback falloff when the event has no volume curve
         Range = volumeCurve is { MaxX: > 0f } ? volumeCurve.MaxX : 1000f;
 
         BlockMatchingEvents = data.GetBooleanProperty("block_matching_events");

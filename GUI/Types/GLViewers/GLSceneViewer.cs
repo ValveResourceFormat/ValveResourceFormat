@@ -400,6 +400,11 @@ namespace GUI.Types.GLViewers
             // so all initial sounds (e.g. map ambients) fade in on the first frames instead of snapping
             soundPlayer.Suspended = true;
 
+            //const float OcclusionEndMargin = 48f;
+            //soundPlayer.OcclusionTrace = (listener, sound) =>
+            //    Scene.PhysicsWorld?.TraceRay(listener, sound) is { Hit: true } hit
+            //        && Vector3.DistanceSquared(hit.HitPosition, sound) > OcclusionEndMargin * OcclusionEndMargin;
+
             soundPlayer.Volume = Settings.Config.Volume;
             soundPlayer.MixGroupVolumes["Weapons"] = 0.7f;
             soundPlayer.MixGroupVolumes["Foley"] = 0.5f;
