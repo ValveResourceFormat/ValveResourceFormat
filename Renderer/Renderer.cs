@@ -815,6 +815,9 @@ public class Renderer
         Postprocess.Render(inputFramebuffer, outputFramebuffer, ResolvedSceneColor!, Camera, flipY);
     }
 
+    // TEMP debug: reused buffer for the active world sound billboards
+    private readonly List<(Vector3 Position, string Text)> debugWorldSounds = [];
+
     /// <summary>
     /// Releases GPU resources owned by this renderer.
     /// </summary>
@@ -870,6 +873,24 @@ public class Renderer
         SkyboxScene?.CollectSceneDrawCalls(updateContext.Camera, LockedCullFrustum);
 
         Sound.Player?.Update(updateContext.Camera);
+
+        // TEMP debug: billboard the vsnd name of every active positioned sound in the world
+        if (Sound.Player != null)
+        {
+            debugWorldSounds.Clear();
+            Sound.Player.CollectDebugSounds(debugWorldSounds);
+
+            foreach (var (position, text) in debugWorldSounds)
+            {
+                updateContext.TextRenderer.AddTextBillboard(position, new TextRenderer.TextRenderRequest
+                {
+                    Scale = 8f,
+                    Text = text,
+                    CenterHorizontal = true,
+                    Color = new Color32(0.4f, 1f, 0.4f, 1f),
+                }, updateContext.Camera);
+            }
+        }
     }
 
     void EnsureDepthPyramidSize(int width, int height)

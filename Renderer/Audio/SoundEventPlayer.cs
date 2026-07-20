@@ -351,6 +351,11 @@ public sealed class SoundEventPlayer : IDisposable
     }
 
     /// <summary>
+    /// TEMP debug: collects the position and vsnd name of every audible positioned sound.
+    /// </summary>
+    public void CollectDebugSounds(List<(Vector3 Position, string Text)> results) => mixer.CollectDebugSounds(results);
+
+    /// <summary>
     /// Updates listener position and per-frame sound event logic. Call once per frame from the render/game thread.
     /// </summary>
     public void Update(Camera camera)

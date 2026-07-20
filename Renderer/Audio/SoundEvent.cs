@@ -48,6 +48,25 @@ public abstract class SoundEvent
     /// <summary>Gets the sound event definition this instance was built from.</summary>
     public SoundEventDefinition Definition { get; }
 
+    /// <summary>Gets the vsnd file currently playing for this event, for debugging.</summary>
+    public string? PlayingSoundFile { get; protected set; }
+
+    /// <summary>
+    /// TEMP debug: collects the position and vsnd name of every audible positioned sound in this event tree.
+    /// </summary>
+    public void CollectDebugSounds(List<(Vector3 Position, string Text)> results)
+    {
+        if (Playing && Position.HasValue && PlayingSoundFile != null)
+        {
+            results.Add((Position.Value + PositionOffset, PlayingSoundFile));
+        }
+
+        foreach (var child in ChildSoundEvents)
+        {
+            child.CollectDebugSounds(results);
+        }
+    }
+
     /// <summary>Gets the key-values the definition was parsed from.</summary>
     public KVObject SoundEventData => Definition.Data;
 

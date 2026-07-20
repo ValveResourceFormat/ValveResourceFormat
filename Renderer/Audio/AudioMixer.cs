@@ -12,6 +12,20 @@ public sealed class AudioMixer : IDisposable
     private readonly SampleProviderMixer root = new();
     private readonly HashSet<SoundEvent> soundEvents = [];
 
+    /// <summary>
+    /// TEMP debug: collects the position and vsnd name of every audible positioned sound.
+    /// </summary>
+    public void CollectDebugSounds(List<(Vector3 Position, string Text)> results)
+    {
+        lock (soundEvents)
+        {
+            foreach (var soundEvent in soundEvents)
+            {
+                soundEvent.CollectDebugSounds(results);
+            }
+        }
+    }
+
     // Update runs every frame, so it copies into a reused list instead of allocating a snapshot array.
     // The copy is still needed: updating an event can start a retrigger, which mutates the set.
     private readonly List<SoundEvent> updateSnapshot = [];
