@@ -949,6 +949,10 @@ public class Rubikon
     }
 
 
+    // SAT axes entering within this distance of each other count as simultaneous contacts;
+    // used to prefer the face normal over an edge/vertex axis
+    private const float NormalWeldTolerance = 1e-3f;
+
     private static void AABBTraceTriangle13AxisSat(AABBTraceContext trace, Vector3 v0, Vector3 v1, Vector3 v2, ref TraceResult closestHit)
     {
         //Needs to exist from the start, as it gets updated while running through the axis.
@@ -958,11 +962,22 @@ public class Rubikon
 
         float enter = float.NegativeInfinity, exit = float.PositiveInfinity;
 
+        // Face axis entry, kept for normal welding below
+        var faceEnter = float.NegativeInfinity;
+        var faceNormal = Vector3.Zero;
+
         for (var axis = 0; axis < 13; axis++)
         {
             if (!TryGetSatAxis(axis, triangle, skipDegenerateFace: false, out var axisVector))
             {
                 continue;
+            }
+
+            // Degenerate (zero-area) triangle: there is no surface to hit, and normalizing
+            // the zero cross product would poison the interval tests with NaN
+            if (axis == 0 && axisVector.LengthSquared() < Epsilon * Epsilon)
+            {
+                return;
             }
 
             axisVector = Vector3.Normalize(axisVector);
@@ -1015,11 +1030,25 @@ public class Rubikon
             }
             exit = MathF.Min(exit, max);
 
+            if (axis == 0)
+            {
+                faceEnter = min;
+                faceNormal = -axisVector;
+            }
+
             if (enter > exit || exit <= 0)
                 return;
         }
         if (enter > 1.0f)
             return;
+
+        // Normal welding: an edge/vertex entry whose face plane was crossed at essentially the
+        // same instant is a phantom internal-edge contact (the "rampbug"); report the face
+        // normal instead. Genuine exterior edges cross the face plane much earlier, or never.
+        if (faceEnter > float.NegativeInfinity && (enter - faceEnter) * trace.Length <= NormalWeldTolerance)
+        {
+            hitNormal = faceNormal;
+        }
 
         // Already overlapping this triangle at the start position - nothing can be closer,
         // so report start-solid and let the callers early-exit
