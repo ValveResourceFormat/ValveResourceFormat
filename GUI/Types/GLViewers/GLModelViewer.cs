@@ -250,6 +250,16 @@ namespace GUI.Types.GLViewers
 
             if (phys != null)
             {
+                if (phys.Parts.Length > 0)
+                {
+                    Scene.PhysicsWorld = new Rubikon(phys);
+
+                    var isMapPhysics = Path.GetFileNameWithoutExtension(GuiContext.FileName)
+                        .Equals("world_physics", StringComparison.OrdinalIgnoreCase);
+
+                    Input.PlayerMovement.GridPlaneCollisionEnabled = !isMapPhysics;
+                }
+
                 var physSceneNodes = PhysSceneNode.CreatePhysSceneNodes(Scene, phys, null).ToList();
 
                 // Physics are not shown by default unless the model has no meshes

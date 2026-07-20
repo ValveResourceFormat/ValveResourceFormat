@@ -1,65 +1,58 @@
-
-using System.Diagnostics;
-
-namespace ValveResourceFormat.Renderer.Input;
+﻿namespace ValveResourceFormat.Renderer.Input;
 
 /// <summary>
-/// Source engine-style FPS player movement controller with collision detection, gravity, and crouch support.
+/// Source engine-style FPS player movement controller.
 /// </summary>
-public class PlayerMovement
+public partial class PlayerMovement
 {
-    // Player collision hull
-    // Standing hull: 32x32x64 (16 units radius, 64 units tall - about 5'4" at 1 unit = 1 inch)
-    // Ducked hull: 32x32x48 (16 units radius, 48 units tall - 4 feet crouched)
-    // Note: Hull is centered horizontally but extends from feet (Z=0) upward
-    private static readonly AABB PlayerHullStanding = new(new Vector3(-16, -16, 0), new Vector3(16, 16, 72));
-    private static readonly AABB PlayerHullDucked = new(new Vector3(-16, -16, 0), new Vector3(16, 16, 48));
+    // Half-extents around the hull center. Standing 32x32x72, ducked 32x32x48.
+    private static readonly Vector3 StandingHullHalfExtents = new(16, 16, 36);
+    private static readonly Vector3 DuckedHullHalfExtents = new(16, 16, 24);
 
     // Movement constants from Source engine (movevars_shared.cpp)
     private const float GravityValue = 800f;              // sv_gravity
     private const float FrictionValue = 5.2f;             // sv_friction
     private const float StopSpeedValue = 80f;             // sv_stopspeed
     private const float AccelerateValue = 5.5f;           // sv_accelerate
-    private const float AirAccelerateValue = 12f;         // sv_airaccelerate
-    //While sv_maxspeed is 320 in GO, the actual max speed is set by CS_PLAYER_SPEED_RUN, which is 260.
-    private const float MaxSpeedValue = 260f;             // sv_maxspeed
+    private const float AirAccelerateValue = 150f;        // sv_airaccelerate (engine default is 12; raised to allow surfing)
     private const float JumpImpulseValue = 301.993377f;   // sv_jump_impulse = sqrt(2*800*57)
     private const float MaxVelocityValue = 3500f;         // sv_maxvelocity
 
     private const float WalkSpeedModifier = 0.52f;        // CS_PLAYER_SPEED_WALK_MODIFIER
     private const float DuckSpeedModifier = 0.34f;        // CS_PLAYER_SPEED_DUCK_MODIFIER
 
-    private const float ViewHeightOffset = 8f;
-    private static readonly float ViewHeightStanding = PlayerHullStanding.Size.Z - ViewHeightOffset;
-    private static readonly float ViewHeightDucked = PlayerHullDucked.Size.Z - ViewHeightOffset;
+    private const float NonJumpVelocity = 140f;           // Moving up faster than this means airborne (NON_JUMP_VELOCITY)
+    private const float AirMaxWishSpeed = 30f;            // Air-control wishspeed cap (AirAccelerate)
 
-    // Bunnyhopping prevention (CS:GO)
+    private const float ViewHeightOffset = 8f;
+    private static readonly float ViewHeightStanding = StandingHullHalfExtents.Z * 2f - ViewHeightOffset;
+    private static readonly float ViewHeightDucked = DuckedHullHalfExtents.Z * 2f - ViewHeightOffset;
+
     private const float BunnyjumpMaxSpeedFactor = 1.1f;   // Only allow bunny jumping up to 1.1x max speed
 
-    // Collision constants
-    private const float SurfaceEpsilon = 0.03125f;        // Minimum distance from surfaces (1/32 unit) to prevent getting stuck
+    private const float SurfaceEpsilon = 0.03125f;        // Keep-away margin (1/32 unit) maintained by TraceBBox
+    private const float NegligibleMoveDistance = 1e-4f;   // Slide iteration stops once this little move remains
+    private const float ContactNudge = SurfaceEpsilon / 4f; // Clearance kept short of a degenerate opposing surface in the margin-restore push
+    private const float UntraceableDistanceSquared = Rubikon.Epsilon * Rubikon.Epsilon;
     private const float StepSize = 18f;                   // Maximum height of steps/obstacles player can climb
+    private const float GroundProbeDistance = 2f;         // How far below the hull to look for ground contact
+    private const float StepDownTolerance = 2f;           // A step may end at most this far below where it started
 
-    // Crouch blend constants
     private const float CrouchBlendTime = 0.2f;           // Time to complete crouch/uncrouch animation (seconds)
+    private static readonly float CrouchHeightDifference = (StandingHullHalfExtents.Z - DuckedHullHalfExtents.Z) * 2f;
 
-    // Movement state
     /// <summary>Gets the current player velocity in world units per second.</summary>
     public Vector3 Velocity { get; private set; }
-    private Vector3 TracePositionPrevious;
     private Vector3 TracePosition;
     private Vector3 TracePositionSmooth;
-    private float AccumulatedTime;
 
-    /// <summary>
-    /// The desired update rate.
-    /// </summary>
-    public int TickRate { get; set; } = 64;
+    // Cap on a single frame's simulation step (load stalls, breakpoints)
+    private const float MaxFrameDeltaTime = 0.1f;
 
     /// <summary>
     /// Gets the current player position at feet level (where the AABB touches the ground).
     /// </summary>
-    public Vector3 Position => TracePositionSmooth - new Vector3(0, 0, Hull.Size.Z / 2); // Convert from AABB center to feet position
+    public Vector3 Position => TracePositionSmooth - new Vector3(0, 0, HullHalfExtents.Z);
 
     /// <summary>
     /// Gets a value indicating whether the player is currently on the ground.
@@ -70,15 +63,33 @@ public class PlayerMovement
     /// Gets a value indicating whether the player was touching the ground in the previous frame.
     /// </summary>
     public bool WasOnGroundLastFrame { get; private set; }
-    private bool WasDuckingLastFrame;
 
-    private bool RequestedJump;
+    // Last known non-overlapping position, restored when stuck
+    private Vector3 LastValidPosition;
+    private bool HasValidPosition;
+
+    private float SlopeClipNormalZ = 1f;
+
+    private readonly ViewEffects Effects = new();
+
+    /// <summary>
+    /// Gets the current jump stamina, from 0 to 1. Landing drains it, it recovers over roughly
+    /// a second, and jump impulses scale by it, so spammed hops get progressively lower (like
+    /// CS's sv_stamina behavior).
+    /// </summary>
+    public float Stamina => Effects.Stamina;
 
     private bool HoldingCtrl => Input.Holding(TrackedKeys.Control);
     private bool HoldingShift => Input.Holding(TrackedKeys.Shift);
 
     private UserInput Input { get; }
     private Rubikon? Physics => Input.PhysicsWorld;
+
+    /// <summary>
+    /// Gets or sets a value indicating whether traces also collide with
+    /// an infinite ground plane at Z=0.
+    /// </summary>
+    public bool GridPlaneCollisionEnabled { get; set; }
 
     /// <summary>
     /// Linear value from 0 to 1 representing how much the player is crouched.  0 = standing, 1 = fully crouched.
@@ -90,37 +101,32 @@ public class PlayerMovement
     /// </summary>
     public float BlendedEyeHeight { get; private set; }
 
-
     /// <summary>The current eye position</summary>
     public Vector3 EyePosition { get; private set; }
 
-    private float DuckSpeedModifierSmooth => float.Lerp(1f, DuckSpeedModifier, CrouchBlend);
-    private AABB SnappedHull => HoldingCtrl ? PlayerHullDucked : PlayerHullStanding;
+    private float DuckSpeedModifierActive => (HoldingCtrl || CrouchBlend > 0f) ? DuckSpeedModifier : 1f;
+    private Vector3 SnappedHullHalfExtents => HoldingCtrl ? DuckedHullHalfExtents : StandingHullHalfExtents;
 
     /// <summary>
-    /// Gets the current collision hull, centered horizontally and extending from the feet (Z=0)
-    /// upward, with height blended between the standing and ducked hulls by <see cref="CrouchBlend"/>.
+    /// Gets the current collision hull half-extents, with height blended between the standing
+    /// and ducked hulls by <see cref="CrouchBlend"/>.
     /// </summary>
-    public AABB Hull
-    {
-        get
-        {
-            var standingHeight = PlayerHullStanding.Size.Z;
-            var duckedHeight = PlayerHullDucked.Size.Z;
-            var lerpedHeight = standingHeight + (duckedHeight - standingHeight) * CrouchBlend;
-            var lerpedHull = new AABB(new Vector3(-16, -16, 0), new Vector3(16, 16, lerpedHeight));
-            return lerpedHull;
-        }
-    }
+    public Vector3 HullHalfExtents => new(
+        StandingHullHalfExtents.X,
+        StandingHullHalfExtents.Y,
+        float.Lerp(StandingHullHalfExtents.Z, DuckedHullHalfExtents.Z, CrouchBlend));
 
     private const float SurfaceFriction = 1.0f;
     private const float WalkableSlope = 0.7f; // ~45 degrees
 
-    // options
     /// <summary>Gets or sets a value indicating whether the controller should reinitialize its position from the camera on the next tick.</summary>
     public bool Initialize { get; set; }
     /// <summary>Gets or sets a value indicating whether bunny-hopping is allowed by holding the jump key.</summary>
     public bool AutoBunnyHop { get; set; } = true;
+    /// <summary>Gets or sets a value indicating whether ground pre-strafe is allowed.</summary>
+    public bool PrestrafeEnabled { get; set; }
+    /// <summary>Gets or sets a value indicating whether the view glides up and down stair steps instead of popping.</summary>
+    public bool StepSmoothingEnabled { get; set; } = true;
     /// <summary>Gets or sets the base run speed in world units per second.</summary>
     public float RunSpeed { get; set; } = 250f;
 
@@ -142,166 +148,165 @@ public class PlayerMovement
     /// </summary>
     public void ResetPosition(Camera camera)
     {
-        TracePosition = camera.Location - Vector3.UnitZ * ViewHeightStanding + new Vector3(0, 0, PlayerHullStanding.Size.Z / 2);
-        TracePositionPrevious = TracePosition;
+        TracePosition = camera.Location - Vector3.UnitZ * ViewHeightStanding + new Vector3(0, 0, StandingHullHalfExtents.Z);
         Velocity = Vector3.Zero;
+        HasValidPosition = false; // Do not restore positions from before the reset
+        SlopeClipNormalZ = 1f;
+        Effects.Reset();
     }
 
     /// <summary>
-    /// Main movement tick - processes input and updates position/velocity
+    /// Runs the movement simulation once per rendered frame, mirroring Source's frame order.
     /// </summary>
-    public void ProcessMovement(UserInput input, Camera camera, float deltaTime)
+    public void ProcessMovement(Camera camera, float deltaTime)
     {
-        // Initialize character position from camera on first tick
-        // We need to convert from eye height to feet position
         if (Initialize)
         {
             ResetPosition(camera);
-            TryUnstuck(ref TracePosition, SnappedHull);
-            Velocity = input.Velocity;
+            TryUnstuck(ref TracePosition, SnappedHullHalfExtents);
+            Velocity = Input.Velocity;
             Initialize = false;
         }
 
-        RequestedJump = RequestedJump || input.Pressed(TrackedKeys.Space) || input.Holding(TrackedKeys.MouseWheelDown) || input.Holding(TrackedKeys.MouseWheelUp);
-
         var position = TracePosition;
-
-        var pitch = camera.Pitch;
         var yaw = camera.Yaw;
 
-        AccumulatedTime += deltaTime;
-        deltaTime = 1f / TickRate;
+        deltaTime = MathF.Min(deltaTime, MaxFrameDeltaTime);
 
-        AccumulatedTime = Math.Min(AccumulatedTime, deltaTime * 3f);
+        var isDucking = HoldingCtrl;
+        var isWalking = !HoldingCtrl && HoldingShift;
 
-        int ticks = 0;
-        var playerHull = Hull;
-        for (; ticks + 1 < AccumulatedTime * TickRate; ticks++)
+        BlendDuckedHull(deltaTime, ref position, isDucking);
+
+        var playerHull = HullHalfExtents;
+
+        WasOnGroundLastFrame = OnGround;
+
+        // Impact speed to use if this frame turns out to land: ground movement zeroes the
+        // vertical velocity, so it must be sampled while still falling
+        var fallSpeed = MathF.Max(0f, -Velocity.Z);
+
+        CategorizePosition(ref position, playerHull);
+
+        var justLanded = !WasOnGroundLastFrame && OnGround;
+
+        if (justLanded)
         {
-            // Track input state for acceleration modifiers and collision hull
-            var isDucking = HoldingCtrl;
-            var isWalking = !HoldingCtrl && HoldingShift;
-
-            BlendDuckedHull(deltaTime, ref position, isDucking);
-
-            playerHull = Hull;
-
-            WasDuckingLastFrame = isDucking;
-            WasOnGroundLastFrame = OnGround;
-
-            // Categorize position (check if on ground) - use lerped hull for collision
-            CategorizePosition(ref position, playerHull);
-
-            // Check if we just landed this frame
-            var justLanded = !WasOnGroundLastFrame && OnGround;
-
-            // StartGravity - add gravity at start of frame (like Source does)
-            if (!OnGround)
-            {
-                Velocity = new Vector3(Velocity.X, Velocity.Y, Velocity.Z - GravityValue * deltaTime * 0.5f);
-                CheckVelocity(ref position); // StartGravity calls CheckVelocity in Source
-            }
-
-            // Check for jump (auto bunny hop if enabled and holding jump)
-            var wantsToJump = AutoBunnyHop ? input.Holding(TrackedKeys.Space) : false;
-            wantsToJump = wantsToJump || RequestedJump;
-
-            // For auto bhop, also jump immediately when landing while holding jump
-            if (wantsToJump && (OnGround || (AutoBunnyHop && justLanded)))
-            {
-                // Prevent bunnyhopping - cap speed before jumping (only if auto bhop is disabled)
-                if (!AutoBunnyHop)
-                {
-                    PreventBunnyJumping();
-                }
-                CheckJump(deltaTime);
-            }
-
-            // Calculate wish velocity from input (with speed modifiers for duck/crouch)
-            var (wishdir, wishspeed) = CalculateWishVelocity(input, pitch, yaw);
-
-            // Apply walk speed modifier only when near walk speed (CS:GO behavior)
-            // This allows natural deceleration instead of instant capping
-            if (isWalking)
-            {
-                var currentSpeed = Velocity.Length();
-                var walkSpeed = MaxSpeedValue * WalkSpeedModifier;
-                if (currentSpeed < walkSpeed + 25.0f)
-                {
-                    wishspeed = MathF.Min(wishspeed, walkSpeed);
-                }
-            }
-
-            // Ground or air movement - use isDucking (input) for speed modifiers
-            if (OnGround)
-            {
-                // Apply friction before movement
-                Velocity = new Vector3(Velocity.X, Velocity.Y, 0);
-                Friction(deltaTime);
-                CheckVelocity(ref position);
-                WalkMove(wishdir, wishspeed, deltaTime, isDucking, isWalking);
-                CheckVelocity(ref position);
-            }
-            else
-            {
-                AirMove(wishdir, wishspeed, deltaTime);
-            }
-
-            // Check velocity for NaN/bounds
-            CheckVelocity(ref position);
-
-            // Update position based on velocity - use lerped hull for collision
-            position = TryPlayerMove(position, Velocity * deltaTime, playerHull);
-
-            // StayOnGround - keep player stuck to ground when going down slopes/stairs
-            if (OnGround)
-            {
-                StayOnGround(ref position, playerHull);
-            }
-
-            // Recategorize position after movement (now that position is updated)
-            CategorizePosition(ref position, playerHull);
-
-            // Check velocity again for NaN/bounds
-            CheckVelocity(ref position);
-
-            // FinishGravity - add remaining gravity at end of frame
-            if (!OnGround)
-            {
-                Velocity = new Vector3(Velocity.X, Velocity.Y, Velocity.Z - GravityValue * deltaTime * 0.5f);
-                CheckVelocity(ref position); // FinishGravity calls CheckVelocity in Source
-            }
-            // Store the updated position and make SourcePosition the previous DestinationPosition
-            TracePositionPrevious = TracePosition;
-            TracePosition = position;
+            Effects.OnLanded(fallSpeed);
         }
-        //Clear buffered jumps
-        if (ticks != 0)
-            RequestedJump = false;
 
-        AccumulatedTime -= (float)ticks / TickRate;
+        // StartGravity
+        if (!OnGround)
+        {
+            ApplyHalfGravity(deltaTime);
+            CheckVelocity(ref position);
+        }
 
-        //Get interpolated position
-        TracePositionSmooth = TracePositionPrevious + (TracePosition - TracePositionPrevious) * AccumulatedTime * TickRate;
+        var wantsToJump = AutoBunnyHop ? Input.Holding(TrackedKeys.Space) : Input.Pressed(TrackedKeys.Space);
+        wantsToJump = wantsToJump || Input.Holding(TrackedKeys.MouseWheelDown) || Input.Holding(TrackedKeys.MouseWheelUp);
 
-        // Set camera at eye height with smooth crouch blend
-        BlendedEyeHeight = ViewHeightStanding + (ViewHeightDucked - ViewHeightStanding) * CrouchBlend;
+        if (wantsToJump && (OnGround || (AutoBunnyHop && justLanded)))
+        {
+            if (!AutoBunnyHop)
+            {
+                PreventBunnyJumping();
+            }
+            CheckJump(deltaTime);
+        }
+
+        var (wishdir, wishspeed) = CalculateWishVelocity(yaw, isWalking);
+
+        if (OnGround)
+        {
+            ZeroVerticalVelocity();
+            var preFrictionVelocity = Velocity;
+            Friction(deltaTime);
+            WalkMove(wishdir, wishspeed, preFrictionVelocity, deltaTime, isDucking, isWalking);
+        }
+        else
+        {
+            AirMove(wishdir, wishspeed, deltaTime);
+        }
+
+        CheckVelocity(ref position);
+
+        // Falling continued through StartGravity; keep the freshest impact speed for the
+        // landing that the move below may produce
+        fallSpeed = MathF.Max(fallSpeed, -Velocity.Z);
+
+        // Ground movement gets step support; in the air there is nothing to step off
+        position = OnGround
+            ? StepMove(position, Velocity * deltaTime, playerHull)
+            : TryPlayerMove(position, Velocity * deltaTime, playerHull);
+
+        if (OnGround)
+        {
+            StayOnGround(ref position, playerHull);
+        }
+
+        CategorizePosition(ref position, playerHull);
+        CheckVelocity(ref position);
+
+        // FinishGravity
+        if (!OnGround)
+        {
+            ApplyHalfGravity(deltaTime);
+            CheckVelocity(ref position);
+        }
+
+        CheckStuck(ref position, playerHull);
+
+        // The other landing path: airborne at the start of the frame, grounded by the move
+        // above. justLanded already handled the start-of-frame categorize path.
+        if (!justLanded && !WasOnGroundLastFrame && OnGround)
+        {
+            Effects.OnLanded(fallSpeed);
+        }
+
+        TracePosition = position;
+
+        var horizontalSpeed = new Vector2(Velocity.X, Velocity.Y).Length();
+        Effects.Update(deltaTime, horizontalSpeed, StepSmoothingEnabled);
+
+        TracePositionSmooth = TracePosition - new Vector3(0, 0, Effects.StepOffset);
+
+        BlendedEyeHeight = ViewHeightStanding + (ViewHeightDucked - ViewHeightStanding) * CrouchBlend - Effects.LandingDipOffset;
         EyePosition = Position + Vector3.UnitZ * BlendedEyeHeight;
         camera.Location = EyePosition;
-
-        // Draw player AABB for debugging
-        /*
-        if (Physics?.SelectedNodeRenderer != null)
-        {
-            var worldAABB = playerHull.Translate(groundPos);
-            var color = OnGround ? new Color32(0f, 1f, 0f, 1f) : new Color32(1f, 1f, 0f, 1f); // Green when grounded, yellow in air
-            //ShapeSceneNode.AddBox(Physics.SelectedNodeRenderer.Vertices, worldAABB, color);
-        }*/
-
-        return;
+        camera.Roll = float.DegreesToRadians(Effects.LandingRollDegrees);
     }
 
-    static readonly float crouchHeightDifference = PlayerHullStanding.Size.Z - PlayerHullDucked.Size.Z;
+    /// <summary>
+    /// Remembers the last clear position and restores it when a tick ends embedded.
+    /// </summary>
+    private void CheckStuck(ref Vector3 position, Vector3 halfExtents)
+    {
+        if (!IsStuck(position, halfExtents))
+        {
+            LastValidPosition = position;
+            HasValidPosition = true;
+        }
+        else if (HasValidPosition)
+        {
+            position = LastValidPosition;
+            Velocity = Vector3.Zero;
+            Effects.ClearStepOffset(); // deliberate teleport, nothing to glide
+        }
+    }
+
+    /// <summary>
+    /// Half-step gravity (Source's StartGravity/FinishGravity leapfrog).
+    /// </summary>
+    private void ApplyHalfGravity(float deltaTime)
+    {
+        Velocity = new Vector3(Velocity.X, Velocity.Y, Velocity.Z - GravityValue * deltaTime * 0.5f);
+    }
+
+    private void ZeroVerticalVelocity()
+    {
+        Velocity = new Vector3(Velocity.X, Velocity.Y, 0);
+        SlopeClipNormalZ = 1f; // zeroed Z has no slope provenance
+    }
 
     private void BlendDuckedHull(float deltaTime, ref Vector3 position, bool isDucking)
     {
@@ -311,24 +316,31 @@ public class PlayerMovement
         var goalCrouch = MathUtils.Saturate(CrouchBlend + crouchDelta);
         crouchDelta = goalCrouch - CrouchBlend;
 
-        // Handle crouch/uncrouch transitions
+        // On ground the feet stay anchored as the hull resizes; in air the head does
+        var feetAnchored = OnGround;
+
         if (crouchDelta != 0f)
         {
-            // uncrouching
-            if (crouchDelta < 0f && Physics != null)
+            // Uncrouching needs clearance in the direction the hull grows
+            if (crouchDelta < 0f)
             {
-                // do not uncrouch if there is no headroom
-                var traceUp = TraceBBox(position, position + new Vector3(0, 0, crouchHeightDifference), PlayerHullDucked);
-                if (traceUp.Hit)
+                if (UncrouchBlocked(position, feetAnchored))
                 {
-                    crouchDelta = 0f;
+                    // Blocked head-anchored? Try anchoring the feet so the player can still stand up
+                    if (!feetAnchored && !UncrouchBlocked(position, feetAnchored: true))
+                    {
+                        feetAnchored = true;
+                    }
+                    else
+                    {
+                        crouchDelta = 0f;
+                    }
                 }
             }
 
-            // In air, keep head at same level
-            // On ground, keep feet at same level
-            var bboxPositionDelta = crouchHeightDifference * crouchDelta / 2f;
-            bboxPositionDelta *= OnGround ? -1f : 1f;
+            // Move the hull center so the anchored end stays in place
+            var bboxPositionDelta = CrouchHeightDifference * crouchDelta / 2f;
+            bboxPositionDelta *= feetAnchored ? -1f : 1f;
             position += new Vector3(0, 0, bboxPositionDelta);
         }
 
@@ -336,87 +348,133 @@ public class PlayerMovement
     }
 
     /// <summary>
-    /// Keep player stuck to ground when moving down slopes/stairs
-    /// Prevents player from becoming airborne and losing friction
-    /// Ported from gamemovement.cpp StayOnGround()
+    /// Whether a full uncrouch is obstructed, tested by sweeping the ducked hull toward the growth direction.
     /// </summary>
-    private void StayOnGround(ref Vector3 position, AABB aabb)
+    private bool UncrouchBlocked(Vector3 position, bool feetAnchored)
     {
-        if (Physics == null)
+        var growth = new Vector3(0, 0, feetAnchored ? CrouchHeightDifference : -CrouchHeightDifference);
+        return TraceBBox(position, position + growth, DuckedHullHalfExtents).Hit;
+    }
+
+    /// <summary>
+    /// Keeps the player glued to the ground on downward slopes/stairs (Source StayOnGround).
+    /// </summary>
+    private void StayOnGround(ref Vector3 position, Vector3 halfExtents)
+    {
+        var trace = TraceBBox(position, position + new Vector3(0, 0, -StepSize), halfExtents);
+
+        if (IsWalkableGroundHit(trace))
         {
-            return;
-        }
+            var preSnapZ = position.Z;
 
-        // Trace down to find ground (trace extra distance to catch steep slopes)
-        var traceStart = position;
-        var traceEnd = position + new Vector3(0, 0, -StepSize);
+            SnapToGround(ref position, trace, snapDownOnly: true);
 
-        var trace = TraceBBox(traceStart, traceEnd, aabb);
-
-        // If we hit ground, snap down to it
-        if (trace.Hit && trace.HitNormal.Z > 0.7f)
-        {
-            var groundZ = trace.HitPosition.Z + trace.HitNormal.Z * SurfaceEpsilon;
-            position = new Vector3(position.X, position.Y, groundZ);
+            // Feed downward stair snaps into the view smoothing
+            Effects.OnStep(position.Z - preSnapZ);
         }
     }
 
     /// <summary>
-    /// Check if player is on ground using swept AABB trace
-    /// Traces down a small fixed distance (2 units) to detect ground contact; only accepts the hit as ground when the surface is walkable and upward velocity is below a threshold
+    /// Whether a trace landed on a surface flat enough to stand on.
     /// </summary>
-    private void CategorizePosition(ref Vector3 position, AABB aabb)
+    private static bool IsWalkableGroundHit(Rubikon.TraceResult trace)
+        => trace.Hit && trace.HitNormal.Z > WalkableSlope;
+
+    /// <summary>
+    /// Snaps the position's Z onto the ground found by <paramref name="trace"/>, keeping a
+    /// SurfaceEpsilon perpendicular gap. XY is preserved so slopes do not induce sliding.
+    /// </summary>
+    /// <param name="position">The hull center position to adjust.</param>
+    /// <param name="trace">The downward trace whose hit describes the ground.</param>
+    /// <param name="snapDownOnly">When set, the snap may only lower the player (pure ground-following).</param>
+    private static void SnapToGround(ref Vector3 position, Rubikon.TraceResult trace, bool snapDownOnly)
     {
-        if (Physics == null)
+        // A zero-distance hit is the trace start echoed back; nothing to snap
+        if (trace.IsMinimalDistance)
         {
-            // Fallback: simple ground plane at Z=0
-            OnGround = position.Z <= 0.1f;
             return;
         }
 
-        // Trace down from current position to check for ground
-        // Use a small distance (2 units) to check if we're on or very close to ground
-        // This distance should be enough to detect ground contact in Source engine scale
-        var traceStart = position;
-        var traceEnd = position + new Vector3(0, 0, -2f);
+        // The margin trace already stops with the full perpendicular SurfaceEpsilon gap
+        // (a vertical standoff of SurfaceEpsilon / normal.Z on slopes), so the hit
+        // position is the resting height as-is
+        var groundZ = trace.HitPosition.Z;
 
-        var result = TraceBBox(traceStart, traceEnd, aabb);
-
-        if (result.Hit && result.HitNormal.Z > WalkableSlope && Velocity.Z < 140.0f)
+        if (snapDownOnly)
         {
-            OnGround = true;
-            // Snap to ground vertically only, preserve XY position to prevent sliding on slopes
-            var groundZ = result.HitPosition.Z + result.HitNormal.Z * SurfaceEpsilon;
-            position = new Vector3(position.X, position.Y, groundZ);
+            groundZ = MathF.Min(position.Z, groundZ);
         }
-        else
+
+        position = new Vector3(position.X, position.Y, groundZ);
+    }
+
+    /// <summary>
+    /// Checks for walkable ground within the 2-unit probe and snaps onto it.
+    /// </summary>
+    private void CategorizePosition(ref Vector3 position, Vector3 halfExtents)
+    {
+        var result = TraceBBox(position, position + new Vector3(0, 0, -GroundProbeDistance), halfExtents);
+
+        var grounded = IsWalkableGroundHit(result);
+
+        // A steep surface can shadow walkable ground; retry with quarter-footprint hulls
+        if (!grounded && result.Hit)
         {
-            OnGround = false;
+            grounded = ProbeGroundQuadrants(position, halfExtents);
+        }
+
+        // NON_JUMP_VELOCITY guard, on the Z velocity a plain projection would have produced (see SlopeClipNormalZ)
+        OnGround = grounded && Velocity.Z * SlopeClipNormalZ < NonJumpVelocity;
+
+        if (OnGround)
+        {
+            SnapToGround(ref position, result, snapDownOnly: false);
         }
     }
 
     /// <summary>
-    /// Attempt to find a valid position if stuck inside geometry
-    /// We're stuck if traces result in no movement (start pos = end pos, normally we're epsilon units away)
+    /// Retries the ground probe per hull corner, like Source's TryTouchGroundInQuadrants.
     /// </summary>
-    private bool TryUnstuck(ref Vector3 position, AABB aabb)
+    private bool ProbeGroundQuadrants(Vector3 position, Vector3 halfExtents)
     {
-        if (Physics == null)
+        var quarterExtents = new Vector3(halfExtents.X * 0.5f, halfExtents.Y * 0.5f, halfExtents.Z);
+
+        Span<Vector2> corners = stackalloc[]
         {
-            return false;
+            new Vector2(-1, -1),
+            new Vector2(1, -1),
+            new Vector2(-1, 1),
+            new Vector2(1, 1),
+        };
+
+        foreach (var corner in corners)
+        {
+            var center = position + new Vector3(corner.X * quarterExtents.X, corner.Y * quarterExtents.Y, 0);
+            var probe = TraceBBox(center, center + new Vector3(0, 0, -GroundProbeDistance), quarterExtents);
+
+            if (IsWalkableGroundHit(probe))
+            {
+                return true;
+            }
         }
 
-        // Check if we're actually stuck by trying a small downward trace
-        var testTrace = TraceBBox(position, position + new Vector3(0, 0, -0.1f), aabb);
-        if (!testTrace.Hit || (testTrace.HitPosition - position).Length() > 0.01f)
+        return false;
+    }
+
+    /// <summary>
+    /// Attempts to find a valid position if stuck inside geometry.
+    /// </summary>
+    private bool TryUnstuck(ref Vector3 position, Vector3 halfExtents)
+    {
+        if (!IsStuck(position, halfExtents))
         {
-            return true; // Not stuck
+            return true;
         }
 
+        // No downward candidates: don't unstuck into a fall
         Span<Vector3> directions = stackalloc[]
         {
             Vector3.UnitZ,        // Up
-            -Vector3.UnitZ,       // Down
             Vector3.UnitX,        // Right
             -Vector3.UnitX,       // Left
             Vector3.UnitY,        // Forward
@@ -427,90 +485,108 @@ public class PlayerMovement
             Vector3.Normalize(new Vector3(-1, -1, 0)),
         };
 
-        // Try increasingly larger offsets
         for (var distance = 1f; distance <= 100f; distance += 10f)
         {
             foreach (var dir in directions)
             {
                 var testPos = position + dir * distance;
 
-                // Try a trace to this position to see if it's valid
-                var trace = TraceBBox(position, testPos, aabb);
-
-                // If we can move at least halfway there without hitting, it's a good position
-                if (!trace.Hit || trace.Distance > distance * 0.5f)
+                if (!IsStuck(testPos, halfExtents))
                 {
-                    // Found a valid position
                     position = testPos;
-                    Velocity = Vector3.Zero; // Reset velocity when unstucking
+                    Velocity = Vector3.Zero;
                     return true;
                 }
             }
         }
 
-        return false; // Couldn't find a valid position
+        return false;
+    }
+
+    /// <summary>
+    /// Check whether the hull overlaps solid geometry at the given position.
+    /// </summary>
+    private bool IsStuck(Vector3 position, Vector3 halfExtents)
+    {
+        const float StuckProbeShrink = SurfaceEpsilon / 2f;
+        var probe = TraceBBox(position, position + new Vector3(0, 0, 1f), halfExtents - new Vector3(StuckProbeShrink), detectStartSolid: true);
+        return probe.StartSolid;
     }
 
     /// <summary>
     /// Perform swept AABB collision detection for player movement with multi-bounce sliding
     /// </summary>
-    private Vector3 TryPlayerMove(Vector3 start, Vector3 delta, AABB aabb)
+    private Vector3 TryPlayerMove(Vector3 start, Vector3 delta, Vector3 halfExtents)
     {
-        if (Physics == null || delta.LengthSquared() < 1e-6f)
+        if (delta.LengthSquared() < UntraceableDistanceSquared)
         {
-            return start + delta;
+            return start;
         }
 
         const int MaxBumps = 6;
-
-        // Try step climbing immediately if on ground and moving horizontally
 
         var position = start;
         var remainingDelta = delta;
         var remainingDistance = delta.Length();
         var remainingFraction = 1.0f;
 
+        // Stop dead if clipping ever turns the velocity against the entry velocity (corner ping-pong)
+        var entryVelocity = Velocity;
+
+        // Planes hit without making progress; movement must be clipped to parallel all of them
+        Span<Vector3> planes = stackalloc Vector3[MaxBumps];
+        var planeCount = 0;
+
         for (var bump = 0; bump < MaxBumps && remainingFraction > 0; bump++)
         {
-            var result = TraceBBox(position, position + remainingDelta, aabb);
+            var result = TraceBBox(position, position + remainingDelta, halfExtents);
 
             if (!result.Hit)
             {
                 return position + remainingDelta;
             }
-            else if (OnGround && remainingFraction > 0.5f)
+
+            // Advance to the hit point (already margin-adjusted by TraceBBox)
+            var fraction = result.Distance / remainingDistance;
+
+            position = result.HitPosition;
+            remainingFraction *= 1f - fraction;
+
+            // Consume the traveled portion of the move budget (Source: time_left -= time_left * fraction)
+            remainingDelta *= 1f - fraction;
+
+            // Progress invalidates the accumulated planes
+            if (fraction > 0)
             {
-                var obstacle = result.Distance < remainingDistance;
-                if (obstacle)
-                {
-                    var (newPos, stepped) = TryStepMove(position, delta, aabb);
-                    if (stepped && (newPos - position).Length() + SurfaceEpsilon > remainingDistance)
-                    {
-                        return newPos;
-                    }
-                }
+                planeCount = 0;
             }
 
-            // Move to hit point with surface epsilon
-            // The inner Max() and sign changes are for numerical stability
-            var adjustedDistance = Math.Max(result.Distance - Math.Max(SurfaceEpsilon / Vector3.Dot(Vector3.Normalize(-remainingDelta), result.HitNormal), 0.0f), 0.0f);
+            // 2024-11-07 CS2 update
+            if (!OnGround && Velocity.Z < 0f && result.HitNormal.Z > WalkableSlope
+                && new Vector2(Velocity.X, Velocity.Y).LengthSquared() < 1f)
+            {
+                Velocity = Vector3.Zero;
+                break;
+            }
 
-            var fraction = adjustedDistance / remainingDistance;
+            planes[planeCount++] = result.HitNormal;
 
-            position += remainingDelta * fraction;
-            remainingFraction -= fraction * remainingFraction;
+            if (!ClipToPlanes(planes[..planeCount], ref remainingDelta, out var velocity, out var clipNormalZ)
+                || Vector3.Dot(velocity, entryVelocity) <= 0)
+            {
+                // Trapped by three or more planes, or clipping reversed the move
+                Velocity = Vector3.Zero;
+                break;
+            }
 
-            // Clip velocity based on surface type
-            var vel = Velocity;
-            ClipVelocity(ref remainingDelta, ref vel, result.HitNormal, OnGround);
-            Velocity = vel;
+            Velocity = velocity;
+            SlopeClipNormalZ = clipNormalZ;
 
             CheckVelocity(ref position);
 
             remainingDistance = remainingDelta.Length();
-            if (remainingDistance <= SurfaceEpsilon)
+            if (remainingDistance <= NegligibleMoveDistance)
             {
-                // We're stuck
                 break;
             }
         }
@@ -519,67 +595,153 @@ public class PlayerMovement
     }
 
     /// <summary>
-    /// Attempt to step up and over an obstacle (even tiny ones)
+    /// Clips the movement to parallel every accumulated plane, as in Source's TryPlayerMove.
+    /// Returns false when no direction satisfies all planes.
     /// </summary>
-    private (Vector3 StepPos, bool Stepped) TryStepMove(Vector3 start, Vector3 delta, AABB aabb)
+    private bool ClipToPlanes(ReadOnlySpan<Vector3> planes, ref Vector3 delta, out Vector3 velocity, out float clipNormalZ)
     {
-        Debug.Assert(Physics != null);
-
-        // Step 1: Move up by step height
-        var stepUpEnd = start + new Vector3(0, 0, StepSize);
-        var upTrace = TraceBBox(start, stepUpEnd, aabb);
-
-        // Use whatever height we can achieve (even if blocked)
-        var steppedUpPosition = upTrace.Hit
-            ? upTrace.HitPosition + upTrace.HitNormal * SurfaceEpsilon
-            : stepUpEnd;
-
-        // Step 2: Move forward from the stepped-up position
-        var forwardTrace = TraceBBox(steppedUpPosition, steppedUpPosition + delta, aabb);
-        var forwardPosition = forwardTrace.Hit
-            ? forwardTrace.HitPosition + forwardTrace.HitNormal * SurfaceEpsilon
-            : steppedUpPosition + delta;
-
-        // Step 3: Move down to find the ground (trace extra distance to ensure we find it)
-        var downEnd = forwardPosition + new Vector3(0, 0, -(StepSize + 2.0f));
-        var downTrace = TraceBBox(forwardPosition, downEnd, aabb);
-
-        if (!downTrace.Hit)
+        // Prefer a single-plane clip that does not move into any other plane
+        for (var i = 0; i < planes.Length; i++)
         {
-            return (start, false);
+            var candidateVelocity = Velocity;
+            var candidateDelta = delta;
+            var candidateNormalZ = ClipVelocity(ref candidateDelta, ref candidateVelocity, planes[i], OnGround);
+
+            var valid = true;
+            for (var j = 0; j < planes.Length; j++)
+            {
+                if (j != i && Vector3.Dot(candidateVelocity, planes[j]) < 0)
+                {
+                    valid = false;
+                    break;
+                }
+            }
+
+            if (valid)
+            {
+                delta = candidateDelta;
+                velocity = candidateVelocity;
+                clipNormalZ = candidateNormalZ;
+                return true;
+            }
         }
 
-        var finalPosition = downTrace.HitPosition + downTrace.HitNormal * (1f / (downTrace.HitNormal.Z * (StepSize + 2.0f))) * SurfaceEpsilon;
+        clipNormalZ = 1f;
 
-        // Validate the step
-        var stepHeight = finalPosition.Z - start.Z;
-
-        // Accept steps that are reasonable (not too high, not falling off edge)
-        if (stepHeight < -2.0f || stepHeight > StepSize)
+        // Two planes form a crease to slide along
+        if (planes.Length == 2)
         {
-            return (start, false);
+            velocity = Velocity;
+            ClipToCrease(ref delta, ref velocity, planes[0], planes[1]);
+            return true;
         }
 
-        // Clamp the stepped position to not exceed the intended delta distance
-        var steppedDelta = finalPosition - start;
-        var steppedDistance = steppedDelta.Length();
-        var intendedDistance = delta.Length();
-
-        if (steppedDistance > intendedDistance)
-        {
-            // Scale down the stepped delta to match intended distance
-            //finalPosition = start + steppedDelta * (intendedDistance / steppedDistance);
-        }
-
-        return (finalPosition, true);
+        velocity = Vector3.Zero;
+        delta = Vector3.Zero;
+        return false;
     }
 
     /// <summary>
-    /// Clips velocity against a surface normal. Special handling for walkable slopes.
+    /// Constrains movement to the crease line between two planes.
     /// </summary>
-    private static void ClipVelocity(ref Vector3 delta, ref Vector3 velocity, Vector3 normal, bool onGround)
+    private static void ClipToCrease(ref Vector3 delta, ref Vector3 velocity, Vector3 plane1, Vector3 plane2)
     {
-        // Special handling for walkable slopes when on ground - maintain horizontal speed
+        var crease = Vector3.Cross(plane1, plane2);
+        var creaseLengthSquared = crease.LengthSquared();
+
+        // Near-parallel planes have no crease direction; stop dead
+        if (creaseLengthSquared < 1e-12f)
+        {
+            velocity = Vector3.Zero;
+            delta = Vector3.Zero;
+            return;
+        }
+
+        crease /= MathF.Sqrt(creaseLengthSquared);
+        velocity = Vector3.Dot(crease, velocity) * crease;
+        delta = Vector3.Dot(crease, delta) * crease;
+    }
+
+    /// <summary>
+    /// Ground move with step support, like Source's StepMove: run the slide normally and again
+    /// from a stepped-up position, then keep whichever branch traveled farther laterally.
+    /// </summary>
+    private Vector3 StepMove(Vector3 start, Vector3 delta, Vector3 halfExtents)
+    {
+        if (delta.LengthSquared() < UntraceableDistanceSquared)
+        {
+            return start;
+        }
+
+        var entryVelocity = Velocity;
+
+        // Consult the step whenever the direct path is obstructed at all (as Source does)
+        if (!TraceBBox(start, start + delta, halfExtents).Hit)
+        {
+            return start + delta;
+        }
+
+        // Branch 1: plain slide along the ground
+        var downPosition = TryPlayerMove(start, delta, halfExtents);
+        var downVelocity = Velocity;
+        var downClipNormalZ = SlopeClipNormalZ;
+
+        // Branch 2: step up as far as headroom allows, slide at that height, then settle back down
+        Velocity = entryVelocity;
+
+        var stepUpEnd = start + new Vector3(0, 0, StepSize);
+        var upTrace = TraceBBox(start, stepUpEnd, halfExtents);
+        var steppedStart = upTrace.Hit ? upTrace.HitPosition : stepUpEnd;
+
+        var steppedSlidePosition = TryPlayerMove(steppedStart, delta, halfExtents);
+
+        var downEnd = steppedSlidePosition + new Vector3(0, 0, -(StepSize + GroundProbeDistance));
+        var downTrace = TraceBBox(steppedSlidePosition, downEnd, halfExtents);
+
+        // Reject unwalkable or embedded landings, as Source does; the down tolerance
+        // keeps a low ceiling from turning a step into a ledge drop
+        var landingInvalid = !downTrace.Hit
+            || downTrace.IsMinimalDistance
+            || downTrace.HitNormal.Z < WalkableSlope
+            || downTrace.HitPosition.Z - start.Z < -StepDownTolerance;
+
+        if (!landingInvalid)
+        {
+            var steppedPosition = downTrace.HitPosition;
+
+            // Keep whichever branch went farther laterally (Source compares fLateralDist the same way)
+            var downLateral = new Vector2(downPosition.X - start.X, downPosition.Y - start.Y).LengthSquared();
+            var steppedLateral = new Vector2(steppedPosition.X - start.X, steppedPosition.Y - start.Y).LengthSquared();
+
+            if (steppedLateral >= downLateral)
+            {
+                // Vertical velocity comes from the ground branch so stepping does not manufacture upward speed
+                Velocity = new Vector3(Velocity.X, Velocity.Y, downVelocity.Z);
+                SlopeClipNormalZ = downClipNormalZ;
+
+                // Record the lift for view smoothing
+                var stepDist = steppedPosition.Z - downPosition.Z;
+                if (stepDist > 0f)
+                {
+                    Effects.OnStep(stepDist);
+                }
+
+                return steppedPosition;
+            }
+        }
+
+        Velocity = downVelocity;
+        SlopeClipNormalZ = downClipNormalZ;
+        return downPosition;
+    }
+
+    /// <summary>
+    /// Clips velocity against a surface normal. Returns the normal.Z of a walkable-slope clip
+    /// (1 otherwise) so callers can recover the plain-projection vertical velocity.
+    /// </summary>
+    private static float ClipVelocity(ref Vector3 delta, ref Vector3 velocity, Vector3 normal, bool onGround)
+    {
+        // Walkable slopes on ground maintain horizontal speed
         if (onGround && normal.Z > WalkableSlope)
         {
             var horizontalVel = new Vector3(velocity.X, velocity.Y, 0);
@@ -587,7 +749,6 @@ public class PlayerMovement
 
             if (horizontalSpeed > 0.001f)
             {
-                // Project horizontal direction onto slope while maintaining speed
                 var horizontalDir = horizontalVel / horizontalSpeed;
                 var projectedDir = horizontalDir - normal * Vector3.Dot(horizontalDir, normal);
 
@@ -597,7 +758,6 @@ public class PlayerMovement
                 }
             }
 
-            // Same for delta
             var horizontalDelta = new Vector3(delta.X, delta.Y, 0);
             var deltaLength = horizontalDelta.Length();
 
@@ -611,12 +771,14 @@ public class PlayerMovement
                     delta = Vector3.Normalize(projectedDeltaDir) * deltaLength;
                 }
             }
+
+            return normal.Z;
         }
         else
         {
-            // Standard clipping for walls and ceilings
             delta -= normal * Vector3.Dot(delta, normal);
             velocity -= normal * Vector3.Dot(velocity, normal);
+            return 1f;
         }
     }
 
@@ -626,14 +788,7 @@ public class PlayerMovement
     /// </summary>
     private void PreventBunnyJumping()
     {
-        // Speed at which bunny jumping is limited
-        var maxscaledspeed = BunnyjumpMaxSpeedFactor * MaxSpeedValue;
-        if (maxscaledspeed <= 0.0f)
-        {
-            return;
-        }
-
-        // Current player speed
+        var maxscaledspeed = BunnyjumpMaxSpeedFactor * RunSpeed;
         var spd = Velocity.Length();
 
         if (spd <= maxscaledspeed)
@@ -641,10 +796,7 @@ public class PlayerMovement
             return;
         }
 
-        // Apply this cropping fraction to velocity
-        var fraction = maxscaledspeed / spd;
-
-        Velocity *= fraction;
+        Velocity *= maxscaledspeed / spd;
     }
 
     /// <summary>
@@ -653,72 +805,68 @@ public class PlayerMovement
     /// </summary>
     private void CheckJump(float deltaTime)
     {
-        // In the air now (SetGroundEntity NULL in Source)
         OnGround = false;
 
-        // Accelerate upward
-        // v = sqrt( g * 2.0 * jumpheight )
-        Velocity = new Vector3(Velocity.X, Velocity.Y, JumpImpulseValue);
+        // Jump impulse scales by stamina as in CS: drained stamina makes successive jumps lower
+        Velocity = new Vector3(Velocity.X, Velocity.Y, JumpImpulseValue * Stamina);
+        SlopeClipNormalZ = 1f; // jump impulse is genuine vertical velocity
 
         // FinishGravity is called after jump in Source
-        // This subtracts 0.5 * gravity * dt
-        Velocity = new Vector3(Velocity.X, Velocity.Y, Velocity.Z - GravityValue * deltaTime * 0.5f);
+        ApplyHalfGravity(deltaTime);
     }
 
     /// <summary>
     /// Calculate desired movement direction and speed from input
     /// </summary>
-    private (Vector3 wishdir, float wishspeed) CalculateWishVelocity(UserInput input, float pitch, float yaw)
+    private (Vector3 wishdir, float wishspeed) CalculateWishVelocity(float yaw, bool isWalking)
     {
-        // Calculate forward and right vectors from yaw (ignore pitch for horizontal movement)
         var forward = new Vector3(MathF.Cos(yaw), MathF.Sin(yaw), 0);
         var right = new Vector3(MathF.Cos(yaw - MathF.PI / 2f), MathF.Sin(yaw - MathF.PI / 2f), 0);
 
-        // Determine movement amounts
         float forwardMove = 0, sideMove = 0;
 
-        if (input.Holding(TrackedKeys.W))
+        if (Input.Holding(TrackedKeys.W))
         {
-            forwardMove += MaxSpeedValue;
+            forwardMove += RunSpeed;
         }
 
-        if (input.Holding(TrackedKeys.S))
+        if (Input.Holding(TrackedKeys.S))
         {
-            forwardMove -= MaxSpeedValue;
+            forwardMove -= RunSpeed;
         }
 
-        if (input.Holding(TrackedKeys.D))
+        if (Input.Holding(TrackedKeys.D))
         {
-            sideMove += MaxSpeedValue;
+            sideMove += RunSpeed;
         }
 
-        if (input.Holding(TrackedKeys.A))
+        if (Input.Holding(TrackedKeys.A))
         {
-            sideMove -= MaxSpeedValue;
+            sideMove -= RunSpeed;
         }
 
-        // Build wish velocity
         var wishvel = forward * forwardMove + right * sideMove;
-        wishvel = new Vector3(wishvel.X, wishvel.Y, 0); // Zero out Z
+        wishvel = new Vector3(wishvel.X, wishvel.Y, 0);
 
         var wishspeed = wishvel.Length();
         var wishdir = wishspeed > 0 ? Vector3.Normalize(wishvel) : Vector3.Zero;
 
-        // Clamp to max speed
-        if (wishspeed > MaxSpeedValue)
+        // Walking lowers the max speed itself; deceleration to it then comes from friction alone
+        var maxSpeed = RunSpeed;
+        if (isWalking)
         {
-            wishvel *= MaxSpeedValue / wishspeed;
-            wishspeed = MaxSpeedValue;
+            maxSpeed *= WalkSpeedModifier;
         }
 
-        // Apply duck/crouch speed modifier (from CS:GO cs_gamemovement.cpp)
-        wishspeed *= DuckSpeedModifierSmooth;
+        wishspeed = MathF.Min(wishspeed, maxSpeed);
+        wishspeed *= DuckSpeedModifierActive;
 
         return (wishdir, wishspeed);
     }
 
     /// <summary>
-    /// Apply ground friction to slow down the player
+    /// Ground friction in closed form, framerate-independent:
+    /// exponential decay above stopspeed, linear below.
     /// </summary>
     private void Friction(float deltaTime)
     {
@@ -728,9 +876,26 @@ public class PlayerMovement
             return;
         }
 
-        var control = speed < StopSpeedValue ? StopSpeedValue : speed;
-        var drop = control * FrictionValue * SurfaceFriction * deltaTime;
-        var newSpeed = Math.Max(0, speed - drop);
+        var frictionRate = FrictionValue * SurfaceFriction;
+        float newSpeed;
+
+        if (speed <= StopSpeedValue)
+        {
+            newSpeed = speed - StopSpeedValue * frictionRate * deltaTime;
+        }
+        else
+        {
+            newSpeed = speed * MathF.Exp(-frictionRate * deltaTime);
+
+            if (newSpeed < StopSpeedValue)
+            {
+                // Crossed into the constant-drop regime mid-frame
+                var timeToStopSpeed = MathF.Log(speed / StopSpeedValue) / frictionRate;
+                newSpeed = StopSpeedValue - StopSpeedValue * frictionRate * (deltaTime - timeToStopSpeed);
+            }
+        }
+
+        newSpeed = Math.Max(0, newSpeed);
 
         if (newSpeed != speed)
         {
@@ -739,9 +904,9 @@ public class PlayerMovement
     }
 
     /// <summary>
-    /// Accelerate in desired direction using CS:GO acceleration
+    /// Accelerate in desired direction
     /// </summary>
-    private void Accelerate(Vector3 wishdir, float wishspeed, float accel, float deltaTime, bool isDucking, bool isWalking)
+    private void Accelerate(Vector3 wishdir, float wishspeed, Vector3 preFrictionVelocity, float deltaTime, bool isDucking, bool isWalking)
     {
         var currentspeed = Vector3.Dot(Velocity, wishdir);
         var addspeed = wishspeed - currentspeed;
@@ -753,72 +918,84 @@ public class PlayerMovement
 
         currentspeed = Math.Max(0, currentspeed);
 
-        // CS:GO acceleration scaling
-        var accelerationScale = MathF.Max(250.0f, wishspeed);
-        var goalSpeed = accelerationScale;
+        var goalSpeed = AccelerationGoalSpeed(wishspeed, isDucking, isWalking);
+        var frictionRate = FrictionValue * SurfaceFriction;
 
-        // Apply duck/walk modifiers
-        if (isDucking)
+        // Walking tapers acceleration over the last 5 u/s to the goal; that band stays a
+        // linear ODE along wishdir, so it is solved exactly (needs exponential-regime
+        // friction, and for walking wishspeed equals the goal so addspeed never binds)
+        if (isWalking && wishspeed >= goalSpeed - 0.01f && preFrictionVelocity.Length() > StopSpeedValue)
         {
-            accelerationScale *= DuckSpeedModifierSmooth;
-            goalSpeed *= DuckSpeedModifierSmooth;
-        }
-        if (isWalking)
-        {
-            accelerationScale *= WalkSpeedModifier;
-            goalSpeed *= WalkSpeedModifier;
+            Velocity = WalkBandAccelerate(Velocity, wishdir, goalSpeed, preFrictionVelocity, deltaTime, frictionRate, AccelerateValue * goalSpeed * SurfaceFriction);
+            return;
         }
 
-        // Walk speed gradient clamping - gradually reduce acceleration near goal speed
-        var finalAccel = accel;
-        if (isWalking && currentspeed > goalSpeed - 5)
+        // Gradually reduce walk acceleration near goal speed
+        var finalAccel = AccelerateValue;
+        if (isWalking && currentspeed > goalSpeed - WalkTaperBand)
         {
-            var ratio = Math.Max(0.0f, currentspeed - (goalSpeed - 5)) / 5.0f;
+            var ratio = Math.Max(0.0f, currentspeed - (goalSpeed - WalkTaperBand)) / WalkTaperBand;
             finalAccel *= Math.Clamp(1.0f - ratio, 0.0f, 1.0f);
         }
 
-        var accelspeed = Math.Min(finalAccel * deltaTime * accelerationScale * SurfaceFriction, addspeed);
+        // Exact companion to the exponential friction: A*(1-e^(-f*dt))/f completes the
+        // closed-form solution, keeping the friction/acceleration equilibrium framerate-independent
+        var effectiveTime = (1f - MathF.Exp(-frictionRate * deltaTime)) / frictionRate;
+
+        var accelspeed = Math.Min(finalAccel * effectiveTime * goalSpeed * SurfaceFriction, addspeed);
         Velocity += accelspeed * wishdir;
+    }
+
+    /// <summary>
+    /// The speed the acceleration ramp aims for: at least 250, scaled by
+    /// the duck/walk modifiers.
+    /// </summary>
+    private float AccelerationGoalSpeed(float wishspeed, bool isDucking, bool isWalking)
+    {
+        var goalSpeed = MathF.Max(250.0f, wishspeed);
+
+        if (isDucking)
+        {
+            goalSpeed *= DuckSpeedModifierActive;
+        }
+
+        if (isWalking)
+        {
+            goalSpeed *= WalkSpeedModifier;
+        }
+
+        return goalSpeed;
     }
 
     /// <summary>
     /// Ground movement with friction and acceleration
     /// </summary>
-    private void WalkMove(Vector3 wishdir, float wishspeed, float deltaTime, bool isDucking, bool isWalking)
+    private void WalkMove(Vector3 wishdir, float wishspeed, Vector3 preFrictionVelocity, float deltaTime, bool isDucking, bool isWalking)
     {
-        Velocity = new Vector3(Velocity.X, Velocity.Y, 0);
-        Accelerate(wishdir, wishspeed, AccelerateValue, deltaTime, isDucking, isWalking);
-        Velocity = new Vector3(Velocity.X, Velocity.Y, 0);
+        var previousSpeed = Velocity.Length();
+        Accelerate(wishdir, wishspeed, preFrictionVelocity, deltaTime, isDucking, isWalking);
 
-        // Clamp to effective max speed
-        var effectiveMaxSpeed = RunSpeed * DuckSpeedModifierSmooth;
-        if (isWalking)
+        if (!PrestrafeEnabled)
         {
-            effectiveMaxSpeed *= WalkSpeedModifier;
+            var frictionRate = FrictionValue * SurfaceFriction;
+            var accelMagnitude = AccelerateValue * AccelerationGoalSpeed(wishspeed, isDucking, isWalking) * SurfaceFriction;
+            Velocity = CapSpeedNoPrestrafe(Velocity, wishdir, wishspeed, previousSpeed, preFrictionVelocity, deltaTime, frictionRate, accelMagnitude);
         }
 
-        if (Velocity.LengthSquared() > effectiveMaxSpeed * effectiveMaxSpeed)
+        // Come to a complete stop from a crawl, like Source's WalkMove
+        if (Velocity.LengthSquared() < 1f)
         {
-            Velocity *= effectiveMaxSpeed / Velocity.Length();
+            Velocity = Vector3.Zero;
         }
-
-        CheckVelocity(ref TracePosition);
     }
 
     /// <summary>
-    /// Air movement with reduced acceleration
+    /// Air acceleration. Timestep-independent for a fixed wish direction;
+    /// residual framerate sensitivity comes from per-frame input sampling.
     /// </summary>
     private void AirMove(Vector3 wishdir, float wishspeed, float deltaTime)
     {
-        AirAccelerate(wishdir, wishspeed, AirAccelerateValue, deltaTime);
-    }
-
-    /// <summary>
-    /// Air acceleration - different from ground acceleration
-    /// </summary>
-    private void AirAccelerate(Vector3 wishdir, float wishspeed, float accel, float deltaTime)
-    {
-        var wishspd = Math.Min(wishspeed, 30); // Cap at 30 for air control
+        var wishspd = Math.Min(wishspeed, AirMaxWishSpeed);
         var currentspeed = Vector3.Dot(Velocity, wishdir);
         var addspeed = wishspd - currentspeed;
 
@@ -828,7 +1005,7 @@ public class PlayerMovement
         }
 
         // Note: uses original wishspeed, NOT the capped wishspd
-        var accelspeed = Math.Min(accel * wishspeed * deltaTime * SurfaceFriction, addspeed);
+        var accelspeed = Math.Min(AirAccelerateValue * wishspeed * deltaTime * SurfaceFriction, addspeed);
         Velocity += accelspeed * wishdir;
     }
 
@@ -837,35 +1014,232 @@ public class PlayerMovement
     /// </summary>
     private void CheckVelocity(ref Vector3 position)
     {
-        var velUnchecked = Velocity;
-        var posUnchecked = position;
-
         position.X = float.IsNaN(position.X) ? TracePosition.X : position.X;
         position.Y = float.IsNaN(position.Y) ? TracePosition.Y : position.Y;
         position.Z = float.IsNaN(position.Z) ? TracePosition.Z : position.Z;
 
+        Velocity = new Vector3(
+            float.IsNaN(Velocity.X) ? 0f : Velocity.X,
+            float.IsNaN(Velocity.Y) ? 0f : Velocity.Y,
+            float.IsNaN(Velocity.Z) ? 0f : Velocity.Z);
+
         var velocityBounds = new AABB(Vector3.Zero, MaxVelocityValue);
         Velocity = Vector3.Clamp(Velocity, velocityBounds.Min, velocityBounds.Max);
 
-        // max bounds
         var movementBounds = new AABB(Vector3.Zero, 16_000f);
         position = Vector3.Clamp(position, movementBounds.Min, movementBounds.Max);
 
         // sanity check, compare against last position
         movementBounds = new AABB(TracePosition, MathF.Max(StepSize * 2f, Velocity.Length()));
         position = Vector3.Clamp(position, movementBounds.Min, movementBounds.Max);
-
-        var velocityError = Vector3.Distance(Velocity, velUnchecked) > 0.1f;
-        var positionError = Vector3.Distance(position, posUnchecked) > 0.1f;
-        if (velocityError || positionError)
-        {
-            //Debugger.Break();
-        }
     }
 
-    private Rubikon.TraceResult TraceBBox(Vector3 from, Vector3 to, AABB aabb)
+    // How far past the sweep end the raw trace looks so that approaching surfaces are
+    // seen before the hull enters their margin. Grazing surfaces (perpendicular gap
+    // closing slower than SurfaceEpsilon per this many units) escape the lookahead and
+    // are instead handled by the margin-restore push below.
+    private const float MarginLookahead = 4f;
+
+    /// <summary>
+    /// Forward-looking keep-away margin: the raw trace extends a little past the sweep end
+    /// and the move stops where the perpendicular gap to the hit surface equals
+    /// SurfaceEpsilon. Resting against a surface then yields a stable zero-distance hit
+    /// every frame (velocity gets clipped, position holds), instead of the old
+    /// creep-into-the-margin-then-snap-back cycle that made position and speed visibly
+    /// oscillate when pressing against a wall.
+    /// </summary>
+    private Rubikon.TraceResult TraceBBox(Vector3 from, Vector3 to, Vector3 halfExtents, bool detectStartSolid = false)
     {
-        Debug.Assert(Physics != null, "Physics world must be initialized");
-        return Physics.TraceAABB(from, to, aabb, "player");
+        var length = Vector3.Distance(from, to);
+
+        if (length * length < UntraceableDistanceSquared)
+        {
+            return new Rubikon.TraceResult();
+        }
+
+        var direction = (to - from) / length;
+        var raw = TraceBBoxRaw(from, to + direction * MarginLookahead, halfExtents, detectStartSolid);
+
+        if (!raw.Hit || raw.StartSolid)
+        {
+            return raw;
+        }
+
+        // How fast the sweep closes the perpendicular gap; positive because the SAT only
+        // reports surfaces facing the sweep
+        var approach = Vector3.Dot(-direction, raw.HitNormal);
+
+        if (approach <= Rubikon.Epsilon)
+        {
+            return new Rubikon.TraceResult();
+        }
+
+        // Stop where the perpendicular gap reaches SurfaceEpsilon
+        var allowed = raw.Distance - SurfaceEpsilon / approach;
+
+        if (allowed >= length)
+        {
+            return new Rubikon.TraceResult(); // surface too far away to constrain this move
+        }
+
+        if (allowed >= 0f)
+        {
+            raw.Distance = allowed;
+            raw.HitPosition = from + direction * allowed;
+            return raw;
+        }
+
+        // Already inside the margin (a grazing surface past the lookahead): report a
+        // zero-distance hit, staying put along the sweep, and restore the perpendicular
+        // gap along the normal. The push is validated so it cannot embed into an opposing
+        // surface; an opposing corridor is split so both sides keep equal gaps.
+        var deficit = SurfaceEpsilon - raw.Distance * approach;
+        var push = TraceBBoxRaw(from, from + raw.HitNormal * deficit, halfExtents, detectStartSolid: false);
+
+        float pushDistance;
+
+        if (!push.Hit)
+        {
+            pushDistance = deficit;
+        }
+        else
+        {
+            var approachB = Vector3.Dot(-raw.HitNormal, push.HitNormal);
+            pushDistance = approachB > 0f
+                ? MathF.Min(deficit, push.Distance * approachB / (1f + approachB))
+                : MathF.Min(deficit, MathF.Max(push.Distance - ContactNudge, 0f));
+        }
+
+        raw.Distance = 0f;
+        raw.HitPosition = from + raw.HitNormal * pushDistance;
+        return raw;
+    }
+
+    private Rubikon.TraceResult TraceBBoxRaw(Vector3 from, Vector3 to, Vector3 halfExtents, bool detectStartSolid)
+    {
+        var result = Physics != null
+            ? Physics.TraceAABB(from, to, halfExtents, "player", detectStartSolid)
+            : TraceInfiniteGroundPlane(from, to, halfExtents, detectStartSolid);
+
+        if (Physics != null && GridPlaneCollisionEnabled)
+        {
+            result.MinimizeWith(TraceInfiniteGroundPlane(from, to, halfExtents, detectStartSolid));
+        }
+
+        return result;
+    }
+
+    /// <summary>
+    /// Cheap trace against an infinite ground plane at Z=0
+    /// </summary>
+    private static Rubikon.TraceResult TraceInfiniteGroundPlane(Vector3 from, Vector3 to, Vector3 halfExtents, bool detectStartSolid)
+    {
+        var bottomStart = from.Z - halfExtents.Z;
+
+        // Already overlapping the plane at the start: the trace cannot move
+        if (bottomStart < 0f)
+        {
+            return new Rubikon.TraceResult(true, from, Vector3.UnitZ, 0f, -1) { StartSolid = detectStartSolid };
+        }
+
+        var descent = from.Z - to.Z; // positive when the sweep moves down
+
+        if (descent <= 0f)
+        {
+            return new Rubikon.TraceResult(); // moving up or level while above the plane - no hit
+        }
+
+        var fraction = bottomStart / descent;
+
+        if (fraction > 1f)
+        {
+            return new Rubikon.TraceResult(); // the sweep ends before reaching the plane
+        }
+
+        var hitPosition = Vector3.Lerp(from, to, fraction);
+        return new Rubikon.TraceResult(true, hitPosition, Vector3.UnitZ, Vector3.Distance(from, hitPosition), -1);
+    }
+
+    /// <summary>
+    /// Cosmetic view-feel state driven by the simulation: jump stamina, the landing
+    /// dip/roll punch, and stair-step view smoothing.
+    /// </summary>
+    private sealed class ViewEffects
+    {
+        private const float StepSmoothingSlope = 0.6f;    // decay per unit of horizontal speed (~stair rise/run)
+        private const float StepSmoothingMinSpeed = 100f; // decay floor
+
+        /// <summary>Jump stamina from 0 to 1; landing drains it and jump impulses scale by it.</summary>
+        public float Stamina { get; private set; } = 1f;
+
+        /// <summary>Downward eye offset from the landing punch, in units.</summary>
+        public float LandingDipOffset { get; private set; }
+
+        /// <summary>Camera roll from a hard landing, in degrees.</summary>
+        public float LandingRollDegrees { get; private set; }
+
+        // Stair-step view smoothing (Source m_outStepHeight): pending signed view offset
+        // from hull step jumps, decays toward zero
+        public float StepOffset { get; private set; }
+
+        public void Reset()
+        {
+            Stamina = 1f;
+            LandingDipOffset = 0f;
+            LandingRollDegrees = 0f;
+            StepOffset = 0f;
+        }
+
+        /// <summary>
+        /// Touchdown effects, applied once on the frame the player lands: drain stamina and punch
+        /// the view down, scaled by impact speed. Falls past the safe threshold also kick the
+        /// CS 1.6-style camera roll.
+        /// </summary>
+        public void OnLanded(float impactSpeed)
+        {
+            Stamina = MathF.Max(0f, Stamina - 0.1f);
+
+            // Dip starts past 250 u/s at 0.040 units per u/s; roll past 300 u/s (just above a
+            // flat jump's landing speed) at 0.013 deg per u/s (GoldSrc's fall punch factor)
+            LandingDipOffset = Math.Clamp((impactSpeed - 250f) * 0.040f, 0f, 10f);
+            LandingRollDegrees = Math.Clamp((impactSpeed - 300f) * 0.013f, 0f, 10f);
+        }
+
+        /// <summary>
+        /// Accumulates a vertical step displacement (positive = up) into the view-smoothing offset.
+        /// </summary>
+        public void OnStep(float delta)
+        {
+            StepOffset = Math.Clamp(StepOffset + delta, -StepSize, StepSize);
+        }
+
+        public void ClearStepOffset()
+        {
+            StepOffset = 0f;
+        }
+
+        public void Update(float deltaTime, float horizontalSpeed, bool stepSmoothingEnabled)
+        {
+            if (stepSmoothingEnabled)
+            {
+                // Glide the view along recent stair steps; decay tracks horizontal speed
+                var stepDecay = MathF.Max(StepSmoothingMinSpeed, horizontalSpeed * StepSmoothingSlope) * deltaTime;
+                StepOffset = StepOffset >= 0f
+                    ? MathF.Max(0f, StepOffset - stepDecay)
+                    : MathF.Min(0f, StepOffset + stepDecay);
+            }
+            else
+            {
+                StepOffset = 0f;
+            }
+
+            // Stamina recovers toward full (sv_staminarecoveryrate 60 / sv_staminamax 80)
+            Stamina = MathF.Min(1f, Stamina + 0.75f * deltaTime);
+
+            // The landing punch snaps on at impact; recovering it is a fast exponential ease-out
+            var landingRecovery = MathF.Exp(-12f * deltaTime);
+            LandingDipOffset = LandingDipOffset > 0.01f ? LandingDipOffset * landingRecovery : 0f;
+            LandingRollDegrees = LandingRollDegrees > 0.01f ? LandingRollDegrees * landingRecovery : 0f;
+        }
     }
 }
