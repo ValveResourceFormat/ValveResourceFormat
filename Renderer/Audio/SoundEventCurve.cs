@@ -1,5 +1,4 @@
 using System.Globalization;
-using System.Linq;
 using ValveKeyValue;
 using ValveResourceFormat.Serialization.KeyValues;
 
@@ -31,14 +30,25 @@ public sealed class SoundEventCurve
             return null;
         }
 
-        var points = soundEventData.GetArray(name)
-            .Select(point => (
-                X: Convert.ToSingle(point[0], CultureInfo.InvariantCulture),
-                Y: Convert.ToSingle(point[1], CultureInfo.InvariantCulture)))
-            .OrderBy(point => point.X)
-            .ToArray();
+        var array = soundEventData.GetArray(name);
+        if (array == null || array.Count == 0)
+        {
+            return null;
+        }
 
-        return points.Length > 0 ? new SoundEventCurve(points) : null;
+        var points = new (float X, float Y)[array.Count];
+
+        for (var i = 0; i < array.Count; i++)
+        {
+            var point = array[i];
+            points[i] = (
+                Convert.ToSingle(point[0], CultureInfo.InvariantCulture),
+                Convert.ToSingle(point[1], CultureInfo.InvariantCulture));
+        }
+
+        Array.Sort(points, static (a, b) => a.X.CompareTo(b.X));
+
+        return new SoundEventCurve(points);
     }
 
     /// <summary>

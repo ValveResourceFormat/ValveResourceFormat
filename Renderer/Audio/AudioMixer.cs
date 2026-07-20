@@ -12,6 +12,10 @@ public sealed class AudioMixer : IDisposable
     private readonly SampleProviderMixer root = new();
     private readonly HashSet<SoundEvent> soundEvents = [];
 
+    // Update runs every frame, so it copies into a reused list instead of allocating a snapshot array.
+    // The copy is still needed: updating an event can start a retrigger, which mutates the set.
+    private readonly List<SoundEvent> updateSnapshot = [];
+
     internal AudioMixer(SoundEventPlayer player)
     {
         Player = player;
@@ -43,15 +47,15 @@ public sealed class AudioMixer : IDisposable
         this.listenerPosition = listenerPosition;
         listenerRightEarDirection = rightEarDirection;
 
-        SoundEvent[] snapshot;
         lock (soundEvents)
         {
-            snapshot = [.. soundEvents];
+            updateSnapshot.Clear();
+            updateSnapshot.AddRange(soundEvents);
         }
 
-        foreach (var soundEvent in snapshot)
+        for (var i = 0; i < updateSnapshot.Count; i++)
         {
-            soundEvent.Update(listenerPosition, rightEarDirection);
+            updateSnapshot[i].Update(listenerPosition, rightEarDirection);
         }
     }
 

@@ -1,9 +1,9 @@
+using System.Diagnostics;
 using System.Threading;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using ValveResourceFormat.IO;
 using ValveResourceFormat.ResourceTypes;
-using ValveKeyValue;
 using ValveResourceFormat.Serialization.KeyValues;
 
 namespace ValveResourceFormat.Renderer.Audio;
@@ -31,8 +31,6 @@ public sealed class SoundEventPlayer : IDisposable
     private readonly AudioMixer mixer;
     private readonly Thread mixingThread;
     private readonly Dictionary<string, SoundEvent> channels = new(StringComparer.OrdinalIgnoreCase);
-    private readonly Dictionary<string, long> blockTimestamps = new(StringComparer.OrdinalIgnoreCase);
-    private readonly Dictionary<KVObject, int> lastTrackIndices = new(ReferenceEqualityComparer.Instance);
     private volatile bool stopping;
 
     /// <summary>
@@ -132,28 +130,28 @@ public sealed class SoundEventPlayer : IDisposable
     /// <returns>A handle to the playing sound, or null when the event is unknown or its type is unsupported.</returns>
     public SoundEvent? Play(string soundEventName, Vector3? position = null, string? channel = null, float? volume = null)
     {
-        var soundEventData = Bank.GetSoundEvent(soundEventName);
-        if (soundEventData == null)
+        var definition = Bank.GetSoundEvent(soundEventName);
+        if (definition == null)
         {
             logger.LogWarning("Unknown sound event {SoundEventName}", soundEventName);
             return null;
         }
 
-        if (IsBlocked(soundEventName, soundEventData))
+        if (IsBlocked(definition))
         {
             return null;
         }
 
-        var soundEvent = SoundEvent.Build(soundEventData);
+        var soundEvent = SoundEvent.Build(definition);
         if (soundEvent == null)
         {
             logger.LogWarning("Unsupported sound event type {Type} for {SoundEventName}",
-                soundEventData.GetStringProperty("type", string.Empty), soundEventName);
+                definition.Type, soundEventName);
             return null;
         }
 
         // Seed with the play time so each play draws a fresh deterministic sequence
-        Random.Reseed(System.Diagnostics.Stopwatch.GetTimestamp());
+        Random.Reseed(Stopwatch.GetTimestamp());
 
         soundEvent.Position = position;
         soundEvent.VolumeOverride = volume;
@@ -173,44 +171,41 @@ public sealed class SoundEventPlayer : IDisposable
     /// <summary>
     /// Implements "block_matching_events": the same event cannot be played again within its "block_duration".
     /// </summary>
-    private bool IsBlocked(string soundEventName, KVObject soundEventData)
+    private static bool IsBlocked(SoundEventDefinition definition)
     {
-        if (!soundEventData.GetBooleanProperty("block_matching_events"))
+        if (!definition.BlockMatchingEvents || definition.BlockDuration <= 0f)
         {
             return false;
         }
 
-        var blockDuration = soundEventData.GetFloatProperty("block_duration");
-        if (blockDuration <= 0f)
-        {
-            return false;
-        }
+        var now = Stopwatch.GetTimestamp();
 
-        var now = System.Diagnostics.Stopwatch.GetTimestamp();
-
-        if (blockTimestamps.TryGetValue(soundEventName, out var lastPlayed)
-            && (now - lastPlayed) / (double)System.Diagnostics.Stopwatch.Frequency < blockDuration)
+        if (definition.LastPlayedTimestamp != 0
+            && (now - definition.LastPlayedTimestamp) < (double)definition.BlockDuration * Stopwatch.Frequency)
         {
             return true;
         }
 
-        blockTimestamps[soundEventName] = now;
+        definition.LastPlayedTimestamp = now;
         return false;
     }
 
     /// <summary>
     /// Picks a random track index, never repeating the previously picked track for the same sound event definition.
     /// </summary>
-    internal int PickTrack(KVObject soundEventData, int trackCount)
+    internal int PickTrack(SoundEventDefinition definition)
     {
+        var trackCount = definition.TrackNames.Length;
+
         if (trackCount <= 1)
         {
             return 0;
         }
 
         int index;
+        var last = definition.LastTrackIndex;
 
-        if (lastTrackIndices.TryGetValue(soundEventData, out var last))
+        if (last >= 0 && last < trackCount)
         {
             // Pick from the remaining tracks and skip over the last one
             index = Random.Next(trackCount - 1);
@@ -224,7 +219,7 @@ public sealed class SoundEventPlayer : IDisposable
             index = Random.Next(trackCount);
         }
 
-        lastTrackIndices[soundEventData] = index;
+        definition.LastTrackIndex = index;
         return index;
     }
 

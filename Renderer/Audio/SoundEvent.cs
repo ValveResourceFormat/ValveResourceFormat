@@ -46,7 +46,10 @@ public abstract class SoundEvent : IDisposable
     public float? VolumeOverride { get; set; }
 
     /// <summary>Gets the sound event definition this instance was built from.</summary>
-    public KVObject SoundEventData { get; }
+    public SoundEventDefinition Definition { get; }
+
+    /// <summary>Gets the key-values the definition was parsed from.</summary>
+    public KVObject SoundEventData => Definition.Data;
 
     /// <summary>Gets the combined sample provider for this event, fed to the mixer.</summary>
     public SampleProviderMulti SampleProvider { get; private set; } = null!;
@@ -67,9 +70,9 @@ public abstract class SoundEvent : IDisposable
     protected int SampleRate { get; private set; }
 
     /// <summary>Creates a sound event instance for the given definition.</summary>
-    protected SoundEvent(KVObject soundEventData)
+    protected SoundEvent(SoundEventDefinition definition)
     {
-        SoundEventData = soundEventData;
+        Definition = definition;
     }
 
     internal void Init(AudioMixer mixer, int sampleRate)
@@ -77,7 +80,8 @@ public abstract class SoundEvent : IDisposable
         Mixer = mixer;
         SampleRate = sampleRate;
 
-        SampleProvider = new SampleProviderMulti(SampleProviders);
+        // Start() fills the providers in, no point seeding them here
+        SampleProvider = new SampleProviderMulti();
         SampleProvider.OnOver += OnFinished;
     }
 
@@ -237,13 +241,11 @@ public abstract class SoundEvent : IDisposable
     /// <summary>
     /// Creates a sound event instance for the given definition, or null when the event type is not supported.
     /// </summary>
-    public static SoundEvent? Build(KVObject soundEventData)
+    public static SoundEvent? Build(SoundEventDefinition definition)
     {
-        var type = soundEventData.GetStringProperty("type", string.Empty);
-
-        return type switch
+        return definition.Type switch
         {
-            "csgo_mega" => new SoundEventCSGOMega(soundEventData),
+            "csgo_mega" => new SoundEventCSGOMega(definition),
             _ => null,
         };
     }

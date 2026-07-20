@@ -10,6 +10,7 @@ public sealed class SoundEventBank
 {
     // Sound event names are hashed case-insensitively by the engine (see StringToken), match that here
     private readonly Dictionary<string, KVObject> soundEvents = new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<string, SoundEventDefinition> definitions = new(StringComparer.OrdinalIgnoreCase);
 
     /// <summary>Gets the number of loaded sound event definitions.</summary>
     public int Count => soundEvents.Count;
@@ -32,12 +33,26 @@ public sealed class SoundEventBank
         }
     }
 
-    /// <summary>Gets a sound event definition by name (case-insensitive), or null when unknown.</summary>
-    public KVObject? GetSoundEvent(string name)
+    /// <summary>
+    /// Gets a sound event definition by name (case-insensitive), or null when unknown.
+    /// The definition is resolved and parsed on the first call and reused afterwards, so a
+    /// repeat play reads nothing out of the key-values.
+    /// </summary>
+    public SoundEventDefinition? GetSoundEvent(string name)
     {
-        return soundEvents.TryGetValue(name, out var soundEvent)
-            ? ResolveBase(name, soundEvent, depth: 0)
-            : null;
+        if (definitions.TryGetValue(name, out var definition))
+        {
+            return definition;
+        }
+
+        if (!soundEvents.TryGetValue(name, out var soundEvent))
+        {
+            return null;
+        }
+
+        definition = new SoundEventDefinition(name, ResolveBase(name, soundEvent, depth: 0));
+        definitions.Add(name, definition);
+        return definition;
     }
 
     /// <summary>

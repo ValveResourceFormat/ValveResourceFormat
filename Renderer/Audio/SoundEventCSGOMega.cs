@@ -1,7 +1,5 @@
-using System.Globalization;
+using System.Diagnostics;
 using ValveResourceFormat.Renderer.Audio.SampleProviders;
-using ValveKeyValue;
-using ValveResourceFormat.Serialization.KeyValues;
 
 namespace ValveResourceFormat.Renderer.Audio;
 
@@ -13,23 +11,20 @@ internal sealed class SoundEventCSGOMega : SoundEvent
 {
     private bool wasInitialized;
     private bool waitingForRetrigger;
-    private DateTime retriggerTime = DateTime.MinValue;
+    private long retriggerTimestamp;
 
-    public SoundEventCSGOMega(KVObject soundEvent) : base(soundEvent)
+    public SoundEventCSGOMega(SoundEventDefinition definition) : base(definition)
     {
     }
 
     protected override void DoStart()
     {
-        if (SoundEventData.ContainsKey("position"))
+        if (Definition.Position.HasValue)
         {
-            Position = new Vector3(SoundEventData.GetFloatArray("position"));
+            Position = Definition.Position;
         }
 
-        if (SoundEventData.ContainsKey("position_offset"))
-        {
-            PositionOffset = new Vector3(SoundEventData.GetFloatArray("position_offset"));
-        }
+        PositionOffset = Definition.PositionOffset;
 
         if (!wasInitialized && CheckRetrigger())
         {
@@ -40,10 +35,10 @@ internal sealed class SoundEventCSGOMega : SoundEvent
 
         wasInitialized = true;
 
-        var soundNames = GetStringArrayProperty("vsnd_files_track_01");
+        var soundNames = Definition.TrackNames;
         if (soundNames.Length > 0)
         {
-            var soundName = soundNames[Mixer.Player.PickTrack(SoundEventData, soundNames.Length)];
+            var soundName = soundNames[Mixer.Player.PickTrack(Definition)];
             var cachedSound = Mixer.Player.Cache.GetSound(soundName);
 
             if (cachedSound != null)
@@ -52,26 +47,19 @@ internal sealed class SoundEventCSGOMega : SoundEvent
                 {
                     Pitch = GetRandomizedPitch(),
                     // 2 interleaved stereo samples per frame
-                    DelaySamples = (int)(SoundEventData.GetFloatProperty("delay") * SampleRate) * 2,
+                    DelaySamples = (int)(Definition.Delay * SampleRate) * 2,
                 };
 
                 AudioSampleProvider sampleProvider;
 
                 if (Position.HasValue)
                 {
-                    var volumeCurve = SoundEventData.GetBooleanProperty("use_distance_volume_mapping_curve")
-                        ? SoundEventCurve.Parse(SoundEventData, "distance_volume_mapping_curve")
-                        : null;
-                    var stereoCurve = SoundEventData.GetBooleanProperty("use_distance_unfiltered_stereo_mapping_curve")
-                        ? SoundEventCurve.Parse(SoundEventData, "distance_unfiltered_stereo_mapping_curve")
-                        : null;
-
                     sampleProvider = new SampleProvider3D(source)
                     {
                         Position = Position.Value + PositionOffset,
-                        Range = volumeCurve?.MaxX ?? GetRange(),
-                        DistanceVolumeCurve = volumeCurve,
-                        StereoMixCurve = stereoCurve,
+                        Range = Definition.Range,
+                        DistanceVolumeCurve = Definition.DistanceVolumeCurve,
+                        StereoMixCurve = Definition.StereoMixCurve,
                         Volume = GetRandomizedVolume(),
                     };
                 }
@@ -87,20 +75,34 @@ internal sealed class SoundEventCSGOMega : SoundEvent
             }
         }
 
-        if (!SoundEventData.GetBooleanProperty("enable_child_events"))
+        var childNames = Definition.ChildEventNames;
+        if (childNames.Length == 0)
         {
             return;
         }
 
-        foreach (var childName in GetStringArrayProperty("soundevent_01"))
+        // Child definitions are resolved through the bank once and kept on the parent definition
+        var childDefinitions = Definition.ChildDefinitions;
+        if (childDefinitions == null)
         {
-            var childData = Mixer.Player.Bank.GetSoundEvent(childName);
-            if (childData == null)
+            childDefinitions = new SoundEventDefinition?[childNames.Length];
+
+            for (var i = 0; i < childNames.Length; i++)
+            {
+                childDefinitions[i] = Mixer.Player.Bank.GetSoundEvent(childNames[i]);
+            }
+
+            Definition.ChildDefinitions = childDefinitions;
+        }
+
+        foreach (var childDefinition in childDefinitions)
+        {
+            if (childDefinition == null)
             {
                 continue;
             }
 
-            var childSoundEvent = Build(childData);
+            var childSoundEvent = Build(childDefinition);
             if (childSoundEvent != null)
             {
                 StartAsChild(childSoundEvent);
@@ -116,22 +118,20 @@ internal sealed class SoundEventCSGOMega : SoundEvent
 
     private bool CheckRetrigger()
     {
-        if (!SoundEventData.GetBooleanProperty("enable_retrigger"))
+        if (!Definition.EnableRetrigger)
         {
             return false;
         }
 
-        var retriggerMin = SoundEventData.GetFloatProperty("retrigger_interval_min");
-        var retriggerMax = SoundEventData.GetFloatProperty("retrigger_interval_max");
-        var retriggerAt = float.Lerp(retriggerMin, retriggerMax, Random.NextSingle());
-        retriggerTime = DateTime.UtcNow.AddSeconds(retriggerAt);
+        var retriggerAt = float.Lerp(Definition.RetriggerIntervalMin, Definition.RetriggerIntervalMax, Random.NextSingle());
+        retriggerTimestamp = Stopwatch.GetTimestamp() + (long)(retriggerAt * Stopwatch.Frequency);
         waitingForRetrigger = true;
         return true;
     }
 
     public override bool Update(Vector3 listenerPosition, Vector3 rightEarDirection)
     {
-        if (Started && waitingForRetrigger && DateTime.UtcNow >= retriggerTime)
+        if (Started && waitingForRetrigger && Stopwatch.GetTimestamp() >= retriggerTimestamp)
         {
             waitingForRetrigger = false;
             Start();
@@ -142,13 +142,11 @@ internal sealed class SoundEventCSGOMega : SoundEvent
 
     private float GetRandomizedPitch()
     {
-        var pitch = SoundEventData.GetFloatProperty("pitch", 1f);
-        var randomMin = SoundEventData.GetFloatProperty("pitch_random_min");
-        var randomMax = SoundEventData.GetFloatProperty("pitch_random_max");
+        var pitch = Definition.Pitch;
 
-        if (randomMin != 0f || randomMax != 0f)
+        if (Definition.PitchRandomMin != 0f || Definition.PitchRandomMax != 0f)
         {
-            pitch += float.Lerp(randomMin, randomMax, Random.NextSingle());
+            pitch += float.Lerp(Definition.PitchRandomMin, Definition.PitchRandomMax, Random.NextSingle());
         }
 
         return Math.Clamp(pitch, 0.25f, 4f);
@@ -157,49 +155,15 @@ internal sealed class SoundEventCSGOMega : SoundEvent
     private float GetRandomizedVolume()
     {
         // Events like Gear.JumpLand.CT have volume 0.0 in their data: the game passes the volume at play time
-        var volume = VolumeOverride ?? SoundEventData.GetFloatProperty("volume", 1f);
-        var randomMin = SoundEventData.GetFloatProperty("volume_random_min");
-        var randomMax = SoundEventData.GetFloatProperty("volume_random_max");
+        var volume = VolumeOverride ?? Definition.Volume;
 
-        if (randomMin != 0f || randomMax != 0f)
+        if (Definition.VolumeRandomMin != 0f || Definition.VolumeRandomMax != 0f)
         {
-            volume += float.Lerp(randomMin, randomMax, Random.NextSingle());
+            volume += float.Lerp(Definition.VolumeRandomMin, Definition.VolumeRandomMax, Random.NextSingle());
         }
 
-        var mixGroupVolume = Mixer.Player.GetMixGroupVolume(SoundEventData.GetStringProperty("mixgroup", string.Empty));
+        var mixGroupVolume = Mixer.Player.GetMixGroupVolume(Definition.MixGroup);
 
         return Math.Clamp(volume, 0f, 1f) * mixGroupVolume;
-    }
-
-    private float GetRange()
-    {
-        var range = 0f;
-
-        if (SoundEventData.TryGetValue("distance_volume_mapping_curve", out var curveValue) && curveValue.ValueType == KVValueType.Array)
-        {
-            // Curve points are arrays of [distance, volume, ...], the largest distance is the audible range
-            foreach (var point in SoundEventData.GetArray("distance_volume_mapping_curve"))
-            {
-                range = Math.Max(range, Convert.ToSingle(point[0], CultureInfo.InvariantCulture));
-            }
-        }
-
-        return range > 0f ? range : 1000f;
-    }
-
-    private string[] GetStringArrayProperty(string name)
-    {
-        if (!SoundEventData.TryGetValue(name, out var value))
-        {
-            return [];
-        }
-
-        if (value.ValueType == KVValueType.Array)
-        {
-            return SoundEventData.GetArray<string>(name);
-        }
-
-        var single = SoundEventData.GetStringProperty(name);
-        return single != null ? [single] : [];
     }
 }

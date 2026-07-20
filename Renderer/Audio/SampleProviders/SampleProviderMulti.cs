@@ -16,12 +16,6 @@ public class SampleProviderMulti : AudioSampleProvider
         providers = new();
     }
 
-    /// <summary>Creates a mixer with an initial set of providers.</summary>
-    public SampleProviderMulti(IEnumerable<IAudioSampleProvider> sampleProviders)
-    {
-        providers = new(sampleProviders);
-    }
-
     /// <summary>Adds a provider to the mix.</summary>
     public void AddProvider(IAudioSampleProvider provider)
     {

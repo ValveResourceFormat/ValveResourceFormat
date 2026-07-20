@@ -1,3 +1,5 @@
+using System.Runtime.InteropServices;
+using System.Threading;
 using Microsoft.Extensions.Logging;
 using ValveResourceFormat.IO;
 using ValveResourceFormat.Renderer.Audio.Decoders;
@@ -14,7 +16,26 @@ public sealed class SoundCache
     private readonly ILogger logger;
     private readonly int sampleRate;
     private readonly int channels;
-    private readonly Dictionary<string, CachedSound?> sounds = [];
+    private readonly Dictionary<string, Entry> sounds = [];
+    private long cachedBytes;
+    private long useCounter;
+
+    private struct Entry
+    {
+        public CachedSound? Sound;
+        public long LastUsed;
+    }
+
+    /// <summary>
+    /// Gets or sets the budget for decoded audio in bytes. Decoding is far too expensive to redo per play
+    /// (a second of stereo 48 kHz float is nearly 400 KB and every play would hitch the game thread), so
+    /// sounds are kept decoded, and the least recently used ones are dropped once the budget is exceeded.
+    /// Evicting only drops the cache's reference: a sound still playing holds its own and stays valid.
+    /// </summary>
+    public long MaxCachedBytes { get; set; } = 64L * 1024 * 1024;
+
+    /// <summary>Gets the total size of the decoded audio currently held.</summary>
+    public long CachedBytes => Interlocked.Read(ref cachedBytes);
 
     /// <summary>Creates a sound cache that decodes into the given output format.</summary>
     public SoundCache(IFileLoader fileLoader, int sampleRate, int channels, ILogger logger)
@@ -32,13 +53,62 @@ public sealed class SoundCache
     {
         lock (sounds)
         {
-            if (!sounds.TryGetValue(fileName, out var sound))
+            ref var entry = ref CollectionsMarshal.GetValueRefOrAddDefault(sounds, fileName, out var exists);
+
+            if (!exists)
             {
-                sound = LoadSound(fileName);
-                sounds.Add(fileName, sound);
+                entry.Sound = LoadSound(fileName);
+
+                if (entry.Sound != null)
+                {
+                    cachedBytes += (long)entry.Sound.Samples.Length * sizeof(float);
+                }
+            }
+
+            entry.LastUsed = ++useCounter;
+
+            var sound = entry.Sound;
+
+            if (cachedBytes > MaxCachedBytes)
+            {
+                // entry is a ref into the dictionary, do not touch it past this point
+                Prune();
             }
 
             return sound;
+        }
+    }
+
+    /// <summary>
+    /// Drops least recently used sounds until the cache is back under budget. Failed loads are kept:
+    /// they cost nothing and re-attempting them would mean hitting the disk again.
+    /// </summary>
+    private void Prune()
+    {
+        while (cachedBytes > MaxCachedBytes)
+        {
+            string? oldestKey = null;
+            var oldestUse = long.MaxValue;
+
+            foreach (var (key, entry) in sounds)
+            {
+                if (entry.Sound != null && entry.LastUsed < oldestUse)
+                {
+                    oldestUse = entry.LastUsed;
+                    oldestKey = key;
+                }
+            }
+
+            if (oldestKey == null)
+            {
+                break;
+            }
+
+            var evicted = sounds[oldestKey];
+            sounds.Remove(oldestKey);
+            cachedBytes -= (long)evicted.Sound!.Samples.Length * sizeof(float);
+
+            logger.LogDebug("Evicted {FileName} from the sound cache", oldestKey);
         }
     }
 
