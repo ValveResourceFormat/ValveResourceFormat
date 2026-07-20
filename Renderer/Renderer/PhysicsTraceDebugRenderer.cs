@@ -11,9 +11,8 @@ namespace ValveResourceFormat.Renderer
     {
         private const float CameraTraceRange = 10000f;
         private const float ContactBallRadius = 0.5f;
-        private static readonly Vector3 CameraTraceHalfExtents = new(8f, 8f, 8f);
-        private static readonly AABB CameraTraceBox = new(-CameraTraceHalfExtents, CameraTraceHalfExtents);
         private const float NormalLineLength = 16f;
+        private static readonly Vector3 CameraTraceHalfExtents = new(8f, 8f, 8f);
         private static readonly Color32 ContactColor = new(1f, 0.5f, 0f, 1f);
         private static readonly Color32 NormalColor = new(0.25f, 1f, 1f, 1f);
 
@@ -44,15 +43,19 @@ namespace ValveResourceFormat.Renderer
             if (!input.NoClip)
             {
                 var movement = input.PlayerMovement;
-                var hull = movement.Hull.Translate(movement.Position);
+                var halfExtents = movement.HullHalfExtents;
+                var feet = movement.Position;
+                var hull = new AABB(
+                    feet - new Vector3(halfExtents.X, halfExtents.Y, 0f),
+                    feet + new Vector3(halfExtents.X, halfExtents.Y, halfExtents.Z * 2f));
 
                 // Green when grounded, red in air
                 var hullColor = movement.OnGround ? new Color32(0f, 1f, 0f, 1f) : Color32.Red;
                 ShapeSceneNode.AddBox(vertices, hull, hullColor);
 
                 // Sweep the hull down a bit and mark the ground contact point
-                var hullCenter = movement.Position + new Vector3(0f, 0f, movement.Hull.Size.Z * 0.5f);
-                var groundTrace = physics.TraceAABB(hullCenter, hullCenter - Vector3.UnitZ * 2f, movement.Hull, "player", computeContactPoint: true);
+                var hullCenter = feet + new Vector3(0f, 0f, halfExtents.Z);
+                var groundTrace = physics.TraceAABB(hullCenter, hullCenter - Vector3.UnitZ * 2f, halfExtents, "player", computeContactPoint: true);
 
                 if (groundTrace.Hit)
                 {
@@ -64,7 +67,7 @@ namespace ValveResourceFormat.Renderer
             // Sweep a 16x16x16 box from the camera and mark where it ends up
             var from = camera.Location;
             var to = from + camera.Forward * CameraTraceRange;
-            var trace = physics.TraceAABB(from, to, CameraTraceBox, "player", computeContactPoint: true);
+            var trace = physics.TraceAABB(from, to, CameraTraceHalfExtents, "player", computeContactPoint: true);
 
             var end = trace.Hit ? trace.HitPosition : to;
             var endColor = trace.Hit ? new Color32(1f, 1f, 1f, 1f) : new Color32(1f, 0.25f, 0.25f, 1f);

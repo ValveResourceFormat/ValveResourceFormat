@@ -224,6 +224,8 @@ public class UserInput
             CurrentSpeedModifier = 7;
         }
 
+        Camera.Roll = 0f;
+
         if (OrbitMode)
         {
             HandleOrbitControls(deltaTime, keyboardState, !NoClip);
@@ -234,7 +236,7 @@ public class UserInput
         }
         else
         {
-            PlayerMovement.ProcessMovement(this, Camera, deltaTime);
+            PlayerMovement.ProcessMovement(Camera, deltaTime);
             Velocity = PlayerMovement.Velocity;
             Camera.Pitch -= MouseDeltaPitchYaw.X;
             Camera.Yaw -= MouseDeltaPitchYaw.Y;
@@ -247,6 +249,8 @@ public class UserInput
 
         renderCamera.SetLocationPitchYaw(finalCamera.Location, finalCamera.Pitch, finalCamera.Yaw);
         renderCamera.ClampRotation();
+
+        renderCamera.Roll = Camera.Roll;
 
         PreviousKeys = keyboardState;
     }

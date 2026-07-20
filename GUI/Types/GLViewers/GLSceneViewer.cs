@@ -111,8 +111,7 @@ namespace GUI.Types.GLViewers
 
         public override void Dispose()
         {
-            base.Dispose();
-
+            // Delete GL resources before the base disposes the GL context
             physicsTraceRenderer?.Delete();
             physicsTraceRenderer = null;
 
@@ -120,6 +119,8 @@ namespace GUI.Types.GLViewers
             soundPlayer = null;
 
             Renderer?.Dispose();
+
+            base.Dispose();
 
             perfDisplayComboBox?.Dispose();
             perfDisplayComboBox = null;
@@ -161,11 +162,11 @@ namespace GUI.Types.GLViewers
                     {
                         UiControl.AddCheckBox("Show Vis Debug", showVisDebug, v => showVisDebug = v);
                     }
+                }
 
-                    if (Scene.PhysicsWorld != null)
-                    {
-                        UiControl.AddCheckBox("Debug Physics Traces", showPhysicsTraces, v => showPhysicsTraces = v);
-                    }
+                if (Scene.PhysicsWorld != null)
+                {
+                    UiControl.AddCheckBox("Debug Physics Traces", showPhysicsTraces, v => showPhysicsTraces = v);
                 }
 
                 UiControl.AddCheckBox("Debug Sound Sources", Renderer.ShowSoundDebug, v => Renderer.ShowSoundDebug = v);
@@ -489,7 +490,8 @@ namespace GUI.Types.GLViewers
             }
 
             Input.EnableMouseLook = true;
-            if (loadedDefaultLighting && (CurrentlyPressedKeys & TrackedKeys.Control) != 0)
+
+            if (loadedDefaultLighting && Input.NoClip && (CurrentlyPressedKeys & TrackedKeys.Control) != 0)
             {
                 var delta = new Vector2(LastMouseDelta.Y, LastMouseDelta.X);
 
