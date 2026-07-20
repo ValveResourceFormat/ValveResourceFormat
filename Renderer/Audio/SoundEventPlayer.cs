@@ -139,8 +139,9 @@ public sealed class SoundEventPlayer : IDisposable
         // How far the suspend fade can move within a single chunk
         var fadeStep = (float)MixChunkFrames / (device.SampleRate * SuspendFadeSeconds);
 
-        // Ramped 0..1 gain that follows the suspended flag; mixing-thread-only state
-        var fadeGain = 1f;
+        // Ramped 0..1 gain that follows the suspended flag; mixing-thread-only state.
+        // Starts at zero so output always fades in from silence rather than snapping.
+        var fadeGain = 0f;
 
         while (!stopping)
         {

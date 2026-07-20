@@ -223,9 +223,6 @@ namespace GUI.Types.GLViewers
                 Input.Camera.LookAt(Vector3.Zero);
             }
 
-
-            StartMapSoundEvents();
-
             if (worldNode != null)
             {
                 LoadedWorldNode = new WorldNodeLoader(Scene.RendererContext, worldNode, mapExternalReferences);
@@ -236,6 +233,8 @@ namespace GUI.Types.GLViewers
         protected override void OnFirstPaint()
         {
             base.OnFirstPaint();
+
+            StartMapSoundEvents();
 
             Input.MoveCamera(new Vector3(0, -150f, 0));
             Input.MoveCamera(new Vector3(0, 150f, 0), transition: true);
@@ -279,52 +278,53 @@ namespace GUI.Types.GLViewers
 
             foreach (var entityData in pointSoundEvents)
             {
-                if (!entityData.GetBooleanProperty("startonspawn"))
-                {
-                    continue;
-                }
-
                 var soundName = entityData.GetStringProperty("soundname");
-                if (string.IsNullOrEmpty(soundName))
+
+                if (string.IsNullOrEmpty(soundName) || !entityData.GetBooleanProperty("startonspawn"))
                 {
                     continue;
                 }
 
-                Vector3? position = null;
-
-                // "To Local Player" events play unspatialized; everything else emits from the named
-                // source entity when set, otherwise from the point_soundevent itself.
-                // Attachment points (sourceEntityAttachment) are not resolved, the entity origin is used.
-                if (!entityData.GetBooleanProperty("tolocalplayer"))
-                {
-                    var origin = entityData.GetVector3Property("origin");
-
-                    // Emit from the named source entity when set, at its attachment point when one is named
-                    var sourceEntityName = entityData.GetStringProperty("sourceentityname");
-                    if (!string.IsNullOrEmpty(sourceEntityName) && namedEntities.TryGetValue(sourceEntityName, out var sourceNode))
-                    {
-                        var attachmentName = entityData.GetStringProperty("sourceentityattachment");
-
-                        if (!string.IsNullOrEmpty(attachmentName)
-                            && sourceNode is ModelSceneNode sourceModel
-                            && sourceModel.HasAttachmentOrBone(attachmentName))
-                        {
-                            origin = sourceModel.GetAttachmentTransform(attachmentName).Translation;
-                        }
-                        else if (!entityData.GetBooleanProperty("uselocaloffset"))
-                        {
-                            origin = sourceNode.Transform.Translation;
-                        }
-                        // With "Use Local Offset" the sound plays at the source entity plus this entity's
-                        // placement as a local offset; entities do not move in the viewer, so that resolves
-                        // to the point_soundevent's own origin - keep it as parsed
-                    }
-
-                    position = origin;
-                }
-
-                soundPlayer.Play(soundName, position);
+                soundPlayer.Play(soundName, GetSoundEventPosition(entityData, namedEntities));
             }
+        }
+
+        /// <summary>
+        /// Resolves where a point_soundevent emits from: unspatialized for "To Local Player" events,
+        /// otherwise the named source entity (at its attachment point when one is named), falling back
+        /// to the point_soundevent's own origin.
+        /// </summary>
+        private static Vector3? GetSoundEventPosition(EntityLump.Entity entityData, Dictionary<string, SceneNode> namedEntities)
+        {
+            if (entityData.GetBooleanProperty("tolocalplayer"))
+            {
+                return null;
+            }
+
+            var sourceEntityName = entityData.GetStringProperty("sourceentityname");
+
+            if (string.IsNullOrEmpty(sourceEntityName) || !namedEntities.TryGetValue(sourceEntityName, out var sourceNode))
+            {
+                return entityData.GetVector3Property("origin");
+            }
+
+            var attachmentName = entityData.GetStringProperty("sourceentityattachment");
+
+            if (!string.IsNullOrEmpty(attachmentName)
+                && sourceNode is ModelSceneNode sourceModel
+                && sourceModel.HasAttachmentOrBone(attachmentName))
+            {
+                return sourceModel.GetAttachmentTransform(attachmentName).Translation;
+            }
+
+            if (entityData.GetBooleanProperty("uselocaloffset"))
+            {
+                // The sound plays at the source entity plus this entity's placement as a local offset;
+                // entities do not move in the viewer, so that resolves to the point_soundevent's own origin
+                return entityData.GetVector3Property("origin");
+            }
+
+            return sourceNode.Transform.Translation;
         }
 
         protected override void AddUiControls()
