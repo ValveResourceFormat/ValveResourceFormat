@@ -394,21 +394,25 @@ public sealed class SoundEventPlayer : IDisposable
     public readonly record struct Soundscape(Vector3 Position, float Radius, string SoundEventName);
 
     private readonly List<Soundscape> soundscapes = [];
+    private readonly HashSet<string> warmedSoundscapes = new(StringComparer.OrdinalIgnoreCase);
     private SoundEvent? activeSoundscape;
     private string? activeSoundscapeName;
+
+    // How far outside a soundscape's radius its audio starts decoding. At run speed (250 u/s) this
+    // buys the background decoder a few seconds before the soundscape can actually trigger.
+    private const float SoundscapePrecacheMargin = 1024f;
 
     /// <summary>
     /// Registers a soundscape region. The closest in-range soundscape becomes the active ambient
     /// during <see cref="Update"/>; entering another region crossfades by stopping the previous event.
+    /// Audio decoding is queued immediately so the map starts with warm sounds; should any of it get
+    /// evicted later, approaching the soundscape re-warms it (see <see cref="UpdateSoundscape"/>).
     /// </summary>
     public void AddSoundscape(Vector3 position, float radius, string soundEventName)
     {
         if (radius > 0f && !string.IsNullOrEmpty(soundEventName))
         {
-            // Soundscape children retrigger at random times; decode their audio now (at load)
-            // so retriggers never hitch the game thread on a synchronous decode
             Cache(soundEventName);
-
             soundscapes.Add(new Soundscape(position, radius, soundEventName));
         }
     }
@@ -421,6 +425,15 @@ public sealed class SoundEventPlayer : IDisposable
         foreach (var soundscape in soundscapes)
         {
             var distance = Vector3.Distance(soundscape.Position, listenerPosition);
+
+            if (distance < soundscape.Radius + SoundscapePrecacheMargin
+                && warmedSoundscapes.Add(soundscape.SoundEventName))
+            {
+                // Approaching: re-queue the background decode in case the load-time precache got
+                // evicted, so entering the radius (and every later child retrigger) plays warm.
+                // Cached sounds make this a no-op that just refreshes their eviction age.
+                Cache(soundscape.SoundEventName);
+            }
 
             if (distance < soundscape.Radius && distance < closestDistance)
             {

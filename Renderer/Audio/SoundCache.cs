@@ -50,7 +50,7 @@ public sealed class SoundCache : IDisposable
     /// Small one-shots are never evicted (see <see cref="SmallSoundProtectionBytes"/>), so the total also floats
     /// when the small-clip working set alone exceeds the budget.
     /// </summary>
-    public long MaxCachedBytes { get; set; } = 64L * 1024 * 1024;
+    public long MaxCachedBytes { get; set; } = 512L * 1024 * 1024;
 
     /// <summary>Gets the total size of the decoded audio currently held.</summary>
     public long CachedBytes => Interlocked.Read(ref cachedBytes);
@@ -236,7 +236,7 @@ public sealed class SoundCache : IDisposable
             sounds.Remove(oldestKey);
             cachedBytes -= (long)evicted.Samples.Length * sizeof(short);
 
-            logger.LogDebug("Evicted {FileName} from the sound cache", oldestKey);
+            logger.LogInformation("Evicted {FileName} from the sound cache", oldestKey);
         }
     }
 
@@ -291,8 +291,7 @@ public sealed class SoundCache : IDisposable
             }
         }
 
-        var floatSamples = AudioConverter.Convert(decoded.Samples, decoded.Channels, decoded.SampleRate, channels, sampleRate);
-        var samples = AudioConverter.ToPcm16(floatSamples);
+        var samples = AudioConverter.ConvertToPcm16(decoded.Samples, decoded.Channels, decoded.SampleRate, channels, sampleRate);
 
         var loopStart = -1;
         var loopEnd = samples.Length;
