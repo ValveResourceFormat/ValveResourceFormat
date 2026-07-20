@@ -30,12 +30,19 @@ public sealed class SoundCache : IDisposable
     // it floats above the limit while long sounds play and trims back down once they finish.
     private static readonly long GraceTicks = Stopwatch.Frequency; // 1 second
 
+    // Sounds at or below this decoded size are never evicted. Small frequent one-shots (footsteps, gear,
+    // impacts - a ~1s clip is ~190 KB) must never pay a re-decode delay just because large soundscape
+    // ambients churned the cache; the big beds are always the ones pruned, their re-decode is inaudible.
+    private const long SmallSoundProtectionBytes = 512 * 1024;
+
     /// <summary>
     /// Gets or sets the soft cache budget in bytes. Nothing is allocated up front - decoded sounds accumulate as
     /// they are played (a second of stereo 48 kHz PCM16 is ~190 KB). Once the total exceeds the budget the least
     /// recently used <em>idle</em> sounds are dropped; sounds that are currently playing are never evicted, so the
     /// total can float above the limit while several long sounds play. Evicting only drops the cache's reference:
     /// a sound still playing holds its own and stays valid, so an evicted sound simply re-decodes if played again.
+    /// Small one-shots are never evicted (see <see cref="SmallSoundProtectionBytes"/>), so the total also floats
+    /// when the small-clip working set alone exceeds the budget.
     /// </summary>
     public long MaxCachedBytes { get; set; } = 64L * 1024 * 1024;
 
@@ -184,10 +191,13 @@ public sealed class SoundCache : IDisposable
 
             foreach (var (key, sound) in sounds)
             {
-                // Skip sounds that are not decoded yet or failed (zero bytes to reclaim), and skip sounds read
-                // within the grace window: they are playing right now, so evicting them would not free memory
-                // (the provider still holds the buffer) and would re-decode.
-                if (!sound.Ready || sound.Samples.Length == 0 || now - sound.LastUsed < GraceTicks)
+                // Skip sounds that are not decoded yet or failed (zero bytes to reclaim), protected small
+                // one-shots, and sounds read within the grace window: those are playing right now, so evicting
+                // them would not free memory (the provider still holds the buffer) and would re-decode.
+                if (!sound.Ready
+                    || sound.Samples.Length == 0
+                    || (long)sound.Samples.Length * sizeof(short) <= SmallSoundProtectionBytes
+                    || now - sound.LastUsed < GraceTicks)
                 {
                     continue;
                 }
