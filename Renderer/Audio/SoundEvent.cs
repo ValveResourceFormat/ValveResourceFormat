@@ -144,6 +144,28 @@ public abstract class SoundEvent
     }
 
     /// <summary>
+    /// Gets whether the event is fading out towards a stop (see <see cref="FadeOutAndStop"/>).
+    /// Retriggers are suppressed while fading.
+    /// </summary>
+    public bool FadingOut { get; private set; }
+
+    /// <summary>
+    /// Fades the whole event tree out along its "fadetime_volume_mapping_curve" (or linearly over
+    /// <paramref name="fallbackSeconds"/> when the event has none) and stops it when the fade completes.
+    /// Used for soundscape transitions, where the outgoing ambient should linger under the incoming one.
+    /// </summary>
+    public void FadeOutAndStop(float fallbackSeconds = 1f)
+    {
+        if (!Started || FadingOut)
+        {
+            return;
+        }
+
+        FadingOut = true;
+        SampleProvider.BeginFadeOut(Definition.FadeTimeVolumeCurve, fallbackSeconds, SampleRate);
+    }
+
+        /// <summary>
     /// Stops the sound event and any child events it has spawned.
     /// </summary>
     public void Stop()
@@ -179,14 +201,16 @@ public abstract class SoundEvent
 
     private void ChildSoundOver(SoundEvent soundEvent)
     {
-        if (Playing)
-        {
-            OnFinished();
-        }
+        // Nothing to do: one child ending must not silence the container while siblings still play.
+        // The all-quiet case is handled by our own SampleProvider firing OnOver, which calls OnFinished.
     }
 
     private void ChildSoundStarted(SoundEvent soundEvent)
     {
+        // The child's provider was auto-removed from our mix when it ran dry (e.g. between retriggers);
+        // put it back now that it produces samples again (AddProvider is idempotent)
+        SampleProvider.AddProvider(soundEvent.SampleProvider);
+
         if (!Playing)
         {
             OnStarted();
@@ -203,6 +227,12 @@ public abstract class SoundEvent
     {
         Playing = false;
         OnSoundOver?.Invoke(this);
+
+        if (FadingOut)
+        {
+            // The fade ran to completion, finish the stop
+            Stop();
+        }
     }
 
     /// <summary>Marks the event as audible and raises <see cref="OnSoundStart"/>.</summary>

@@ -270,9 +270,23 @@ namespace GUI.Types.GLViewers
                     namedEntities.TryAdd(targetname, node);
                 }
 
-                if (entityData.GetStringProperty("classname") == "point_soundevent")
+                switch (entityData.GetStringProperty("classname"))
                 {
-                    pointSoundEvents.Add(entityData);
+                    case "point_soundevent":
+                        pointSoundEvents.Add(entityData);
+                        break;
+
+                    // Only modern sound event based soundscapes; the old script based system is not supported
+                    case "env_soundscape" when entityData.GetBooleanProperty("enablesoundevent")
+                                            && !entityData.GetBooleanProperty("startdisabled"):
+                        soundPlayer.AddSoundscape(
+                            entityData.GetVector3Property("origin"),
+                            entityData.GetFloatProperty("radius"),
+                            entityData.GetStringProperty("soundevent"));
+                        break;
+
+                    default:
+                        break;
                 }
             }
 

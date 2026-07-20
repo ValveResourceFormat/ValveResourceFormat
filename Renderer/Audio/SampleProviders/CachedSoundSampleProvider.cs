@@ -39,6 +39,13 @@ public sealed class CachedSoundSampleProvider : AudioSampleProvider
         // Mark the sound as in use so the cache does not evict it while it is still playing
         sound.LastUsed = System.Diagnostics.Stopwatch.GetTimestamp();
 
+        if (!sound.Ready)
+        {
+            // Still decoding on the background thread: hold the line with silence until the samples arrive
+            Array.Clear(buffer, offset, count);
+            return count;
+        }
+
         var written = 0;
 
         if (delaySamples > 0)

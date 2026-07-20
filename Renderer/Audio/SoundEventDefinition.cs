@@ -60,6 +60,12 @@ public sealed class SoundEventDefinition
     /// <summary>Gets the distance to unfiltered-stereo mapping curve, null unless the matching "use_" flag is set.</summary>
     public SoundEventCurve? StereoMixCurve { get; }
 
+    /// <summary>
+    /// Gets the fade-out curve (seconds to volume) applied when the event is stopped with a fade,
+    /// e.g. a soundscape being left ("fadetime_volume_mapping_curve").
+    /// </summary>
+    public SoundEventCurve? FadeTimeVolumeCurve { get; }
+
     /// <summary>Gets the audible range: the largest distance in the volume curve, or 1000 when there is none.</summary>
     public float Range { get; }
 
@@ -124,6 +130,10 @@ public sealed class SoundEventDefinition
         StereoMixCurve = data.GetBooleanProperty("use_distance_unfiltered_stereo_mapping_curve")
             ? SoundEventCurve.Parse(data, "distance_unfiltered_stereo_mapping_curve")
             : null;
+
+        // Not gated on "use_fadetime_volume_mapping_curve": that flag governs a different runtime path,
+        // authored fade curves are used for stop fades whenever present
+        FadeTimeVolumeCurve = SoundEventCurve.Parse(data, "fadetime_volume_mapping_curve");
 
         // The largest distance in the volume curve is the audible range, whether or not the curve itself is used
         Range = volumeCurve is { MaxX: > 0f } ? volumeCurve.MaxX : 1000f;

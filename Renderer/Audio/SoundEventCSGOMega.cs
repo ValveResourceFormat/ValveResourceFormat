@@ -135,7 +135,7 @@ internal sealed class SoundEventCSGOMega : SoundEvent
 
     public override bool Update(Vector3 listenerPosition, Vector3 rightEarDirection)
     {
-        if (Started && waitingForRetrigger && Stopwatch.GetTimestamp() >= retriggerTimestamp)
+        if (Started && !FadingOut && waitingForRetrigger && Stopwatch.GetTimestamp() >= retriggerTimestamp)
         {
             waitingForRetrigger = false;
             Start();

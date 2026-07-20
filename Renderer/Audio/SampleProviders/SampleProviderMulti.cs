@@ -21,6 +21,9 @@ public class SampleProviderMulti : AudioSampleProvider
     {
         lock (providers)
         {
+            // Idempotent: providers get auto-removed when they run dry and re-added when they
+            // resume (e.g. retriggered child events), which must not create duplicates
+            providers.Remove(provider);
             providers.AddLast(provider);
         }
     }
@@ -34,7 +37,42 @@ public class SampleProviderMulti : AudioSampleProvider
         }
     }
 
-    /// <summary>Removes all providers from the mix.</summary>
+    private SoundEventCurve? fadeCurve;
+    private float fadeDuration;
+    private int fadeSampleRate;
+    private double fadeElapsedFrames = -1; // < 0 means not fading
+
+    /// <summary>
+    /// Starts fading the mix out: subsequent reads ramp the volume down along <paramref name="curve"/>
+    /// (or linearly over <paramref name="fallbackSeconds"/> when null) and the mix ends when the fade completes.
+    /// </summary>
+    public void BeginFadeOut(SoundEventCurve? curve, float fallbackSeconds, int sampleRate)
+    {
+        lock (providers)
+        {
+            if (fadeElapsedFrames >= 0)
+            {
+                return;
+            }
+
+            fadeCurve = curve;
+            fadeDuration = curve?.MaxX > 0f ? curve.MaxX : fallbackSeconds;
+            fadeSampleRate = sampleRate;
+            fadeElapsedFrames = 0;
+        }
+    }
+
+    private float EvaluateFade(double seconds)
+    {
+        if (fadeCurve != null)
+        {
+            return Math.Max(fadeCurve.Evaluate((float)seconds), 0f);
+        }
+
+        return Math.Clamp(1f - (float)(seconds / fadeDuration), 0f, 1f);
+    }
+
+        /// <summary>Removes all providers from the mix.</summary>
     public void ClearProviders()
     {
         lock (providers)
@@ -50,52 +88,74 @@ public class SampleProviderMulti : AudioSampleProvider
 
         lock (providers)
         {
-            if (providers.Count == 0)
+            if (providers.Count > 0)
             {
-                return 0;
-            }
+                var readBuffer = ArrayPool<float>.Shared.Rent(count);
 
-            var readBuffer = ArrayPool<float>.Shared.Rent(count);
-
-            try
-            {
-                var node = providers.First;
-                while (node != null)
+                try
                 {
-                    var next = node.Next;
-
-                    var read = node.Value.Read(readBuffer, 0, count);
-                    var index = offset;
-                    for (var i = 0; i < read; i++)
+                    var node = providers.First;
+                    while (node != null)
                     {
-                        if (i >= maxRead)
+                        var next = node.Next;
+
+                        var read = node.Value.Read(readBuffer, 0, count);
+                        var index = offset;
+                        for (var i = 0; i < read; i++)
                         {
-                            buffer[index++] = readBuffer[i];
+                            if (i >= maxRead)
+                            {
+                                buffer[index++] = readBuffer[i];
+                            }
+                            else
+                            {
+                                buffer[index++] += readBuffer[i];
+                            }
                         }
-                        else
+
+                        if (read < count && node.List == providers)
                         {
-                            buffer[index++] += readBuffer[i];
+                            providers.Remove(node);
                         }
+
+                        maxRead = Math.Max(maxRead, read);
+
+                        node = next;
                     }
-
-                    if (read < count && node.List == providers)
-                    {
-                        providers.Remove(node);
-                    }
-
-                    maxRead = Math.Max(maxRead, read);
-
-                    node = next;
+                }
+                finally
+                {
+                    ArrayPool<float>.Shared.Return(readBuffer);
                 }
             }
-            finally
+
+            if (fadeElapsedFrames >= 0 && maxRead > 0)
             {
-                ArrayPool<float>.Shared.Return(readBuffer);
+                // Interleaved stereo: two samples per frame
+                var startSeconds = fadeElapsedFrames / fadeSampleRate;
+                var endSeconds = (fadeElapsedFrames + maxRead / 2.0) / fadeSampleRate;
+                var startGain = EvaluateFade(startSeconds);
+                var endGain = EvaluateFade(endSeconds);
+
+                for (var i = 0; i < maxRead; i++)
+                {
+                    buffer[offset + i] *= float.Lerp(startGain, endGain, (float)i / maxRead);
+                }
+
+                fadeElapsedFrames += maxRead / 2.0;
+
+                if (endSeconds >= fadeDuration)
+                {
+                    // Fade finished: drop everything so the next read comes up empty and fires Over
+                    providers.Clear();
+                }
             }
         }
 
         if (maxRead < count)
         {
+            // Fires for an empty mix too (e.g. every child event waiting on its retrigger),
+            // so owners mark themselves silent and get re-added to their mixer when samples resume
             Over();
         }
 

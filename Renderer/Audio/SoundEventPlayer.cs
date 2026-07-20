@@ -285,7 +285,7 @@ public sealed class SoundEventPlayer : IDisposable
 
         foreach (var track in definition.TrackNames)
         {
-            SoundCache.GetSound(track);
+            SoundCache.GetSound(track, background: true);
         }
 
         foreach (var childName in definition.ChildEventNames)
@@ -375,6 +375,75 @@ public sealed class SoundEventPlayer : IDisposable
     public void Update(Camera camera)
     {
         mixer.Update(camera.Location, camera.Forward);
+        UpdateSoundscape(camera.Location);
+    }
+
+    /// <summary>
+    /// A soundscape region (env_soundscape): while the listener is within <paramref name="Radius"/>
+    /// of <paramref name="Position"/>, <paramref name="SoundEventName"/> plays as the ambient bed.
+    /// </summary>
+    public readonly record struct Soundscape(Vector3 Position, float Radius, string SoundEventName);
+
+    private readonly List<Soundscape> soundscapes = [];
+    private SoundEvent? activeSoundscape;
+    private string? activeSoundscapeName;
+
+    /// <summary>
+    /// Registers a soundscape region. The closest in-range soundscape becomes the active ambient
+    /// during <see cref="Update"/>; entering another region crossfades by stopping the previous event.
+    /// </summary>
+    public void AddSoundscape(Vector3 position, float radius, string soundEventName)
+    {
+        if (radius > 0f && !string.IsNullOrEmpty(soundEventName))
+        {
+            // Soundscape children retrigger at random times; decode their audio now (at load)
+            // so retriggers never hitch the game thread on a synchronous decode
+            Cache(soundEventName);
+
+            soundscapes.Add(new Soundscape(position, radius, soundEventName));
+        }
+    }
+
+    private void UpdateSoundscape(Vector3 listenerPosition)
+    {
+        Soundscape? closest = null;
+        var closestDistance = float.MaxValue;
+
+        foreach (var soundscape in soundscapes)
+        {
+            var distance = Vector3.Distance(soundscape.Position, listenerPosition);
+
+            if (distance < soundscape.Radius && distance < closestDistance)
+            {
+                closest = soundscape;
+                closestDistance = distance;
+            }
+        }
+
+        if (closest == null)
+        {
+            // Left every soundscape radius, let the active one fade out
+            activeSoundscape?.FadeOutAndStop();
+            activeSoundscape = null;
+            activeSoundscapeName = null;
+            return;
+        }
+
+        // Compare by name (not handle) so a missing or unsupported event is not retried every frame.
+        // A faded-out event (Started false) no longer counts as active, so re-entering the area restarts it.
+        var currentStillActive = activeSoundscape is { Started: true } || (activeSoundscape == null && activeSoundscapeName != null);
+
+        if (currentStillActive && string.Equals(activeSoundscapeName, closest.Value.SoundEventName, StringComparison.OrdinalIgnoreCase))
+        {
+            return;
+        }
+
+        // Crossfade: the outgoing ambient fades along its curve while the new one starts underneath
+        activeSoundscape?.FadeOutAndStop();
+        activeSoundscapeName = closest.Value.SoundEventName;
+
+        // Soundscapes are the listener's ambient bed, play them unspatialized
+        activeSoundscape = Play(closest.Value.SoundEventName);
     }
 
     private IEnumerable<string> GetSoundEventFiles()
@@ -413,6 +482,7 @@ public sealed class SoundEventPlayer : IDisposable
         }
 
         mixer.Dispose();
+        SoundCache.Dispose();
         device.Dispose();
     }
 }
