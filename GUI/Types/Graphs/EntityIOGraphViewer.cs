@@ -1,7 +1,10 @@
 using System.Linq;
+using System.Windows.Forms;
+using GUI.Controls;
 using GUI.Types.GLViewers;
 using GUI.Types.Graphs.Core;
 using GUI.Utils;
+using SkiaSharp;
 using ValveResourceFormat.Renderer;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.Serialization.KeyValues;
@@ -18,17 +21,198 @@ internal class EntityIOGraphViewer : GLGraphViewer
     private const GraphHue InputHue = GraphHue.Cyan;
 
     private readonly List<List<GraphNode>> islands;
+    private Label? islandLabel;
+    private readonly Action<EntityLump.Entity>? showInMap;
+    private readonly int entityCount;
 
     public EntityIOGraphViewer(VrfGuiContext vrfGuiContext, RendererContext rendererContext, EntityLump entityLump)
+        : this(vrfGuiContext, rendererContext, entityLump.GetEntities(), showInMap: null)
+    {
+    }
+
+    public EntityIOGraphViewer(VrfGuiContext vrfGuiContext, RendererContext rendererContext, List<EntityLump.Entity> entities, Action<EntityLump.Entity>? showInMap)
         : base(vrfGuiContext, rendererContext, new GraphView())
     {
-        BuildGraph(View, entityLump);
+        this.showInMap = showInMap;
+        entityCount = entities.Count;
+        BuildGraph(View, entities);
 
         islands = View.GetComponents();
         islands.Sort(static (a, b) => b.Count.CompareTo(a.Count));
+
+        LoadEntityIcons();
+        View.IconResolver = key => iconCache.GetValueOrDefault(key);
+
+        // Icons widen their nodes, so lay out again with the final geometry.
+        if (iconCache.Count > 0)
+        {
+            View.LayoutNodesPacked();
+        }
     }
 
-    protected override bool ShowSidebar => islands.Count > 1;
+    // Hammer editor icons: convention path materials/editor/<classname>.vmat, plus FGD-derived
+    // aliases for classes whose icon material is named differently.
+    private static readonly Dictionary<string, string> IconAliases = new()
+    {
+        ["filter_multi"] = "filter_multiple",
+        ["filter_activator_name"] = "filter_name",
+        ["filter_activator_context"] = "filter_name",
+        ["filter_activator_class"] = "filter_class",
+        ["filter_activator_model"] = "filter_model",
+        ["filter_damage_type"] = "filter_type",
+        ["filter_activator_team"] = "filter_team",
+        ["filter_activator_mass_greater"] = "filter_class",
+        ["filter_activator_attribute_int"] = "filter_class",
+        ["filter_enemy"] = "filter_class",
+        ["filter_proximity"] = "filter_class",
+        ["filter_los"] = "filter_class",
+        ["filter_modifier"] = "filter_class",
+        ["logic_activityevent"] = "logic_multicompare",
+        ["logic_gamestate_report"] = "logic_case",
+        ["logic_npc_counter_radius"] = "math_counter",
+        ["logic_npc_counter_aabb"] = "math_counter",
+        ["logic_npc_counter_obb"] = "math_counter",
+    };
+
+    private readonly Dictionary<string, SKImage> iconCache = [];
+
+    private void LoadEntityIcons()
+    {
+        var failed = new HashSet<string>();
+
+        foreach (var island in islands)
+        {
+            foreach (var node in island)
+            {
+                if (node.Tag is not EntityLump.Entity entity)
+                {
+                    continue;
+                }
+
+                var classname = entity.GetStringProperty("classname");
+
+                if (string.IsNullOrEmpty(classname) || failed.Contains(classname))
+                {
+                    continue;
+                }
+
+                if (!iconCache.ContainsKey(classname))
+                {
+                    var image = TryLoadIcon(classname);
+
+                    if (image == null)
+                    {
+                        failed.Add(classname);
+                        continue;
+                    }
+
+                    iconCache[classname] = image;
+                }
+
+                node.IconKey = classname;
+                node.GeometryDirty = true;
+            }
+        }
+    }
+
+    private SKImage? TryLoadIcon(string classname)
+    {
+        var iconName = IconAliases.GetValueOrDefault(classname, classname);
+
+        try
+        {
+            if (RendererContext.FileLoader.LoadFileCompiled($"materials/editor/{iconName}.vmat")?.DataBlock is not Material material)
+            {
+                return null;
+            }
+
+            if (!material.TextureParams.TryGetValue("g_tColor", out var texturePath))
+            {
+                texturePath = material.TextureParams.Values.FirstOrDefault();
+            }
+
+            if (texturePath == null || RendererContext.FileLoader.LoadFileCompiled(texturePath)?.DataBlock is not Texture texture)
+            {
+                return null;
+            }
+
+            using var bitmap = texture.GenerateBitmap();
+            return SKImage.FromBitmap(bitmap);
+        }
+        catch (Exception e)
+        {
+            Log.Debug(nameof(EntityIOGraphViewer), $"Failed to load editor icon for {classname}: {e.Message}");
+            return null;
+        }
+    }
+
+    /// <summary>Selects and centers the node of <paramref name="entity"/>. Returns false when the entity has no node in the graph.</summary>
+    public bool ShowEntity(EntityLump.Entity entity)
+    {
+        GraphNode? target = null;
+
+        foreach (var island in islands)
+        {
+            foreach (var node in island)
+            {
+                if (ReferenceEquals(node.Tag, entity))
+                {
+                    target = node;
+                    break;
+                }
+            }
+
+            if (target != null)
+            {
+                break;
+            }
+        }
+
+        if (target == null)
+        {
+            return false;
+        }
+
+        if (target.Hidden)
+        {
+            FocusIslandOf(target);
+        }
+
+        if (UiControl?.Parent is TabPage tabPage && tabPage.Parent is TabControl tabControl)
+        {
+            tabControl.SelectTab(tabPage);
+        }
+
+        FocusNode(target);
+        return true;
+    }
+
+    protected override void AddNodeContextMenuItems(ThemedContextMenuStrip menu, GraphNode node)
+    {
+        if (showInMap != null && node.Tag is EntityLump.Entity entity)
+        {
+            var item = new ToolStripMenuItem("Show in map viewer");
+            item.Click += (_, _) => showInMap(entity);
+            menu.Items.Add(item);
+        }
+    }
+
+    protected override bool ShowSidebar => true;
+
+    protected override string BuildStatsText(int islandCount) => $"{entityCount} entities\n{base.BuildStatsText(islandCount)}";
+
+    public override void Dispose()
+    {
+        base.Dispose();
+        islandLabel?.Dispose();
+
+        foreach (var image in iconCache.Values)
+        {
+            image.Dispose();
+        }
+
+        iconCache.Clear();
+    }
 
     protected override void AddUiControls()
     {
@@ -39,41 +223,39 @@ internal class EntityIOGraphViewer : GLGraphViewer
             return;
         }
 
-        var combo = UiControl.AddSelection("Island", (_, index) => ShowIsland(index - 1));
-
-        combo.BeginUpdate();
-
-        var totalNodes = 0;
-
-        foreach (var island in islands)
+        islandLabel = new Label
         {
-            totalNodes += island.Count;
-        }
-
-        combo.Items.Add($"All islands ({totalNodes} nodes)");
-
-        foreach (var island in islands)
-        {
-            combo.Items.Add(IslandLabel(island));
-        }
-
-        combo.EndUpdate();
-        combo.SelectedIndex = 0;
+            AutoSize = false,
+            AutoEllipsis = true,
+            Height = UiControl.AdjustForDPI(40),
+            Padding = new Padding(3, 6, 3, 0),
+            Text = "Focused Island:\n(None)",
+        };
+        UiControl.AddControl(islandLabel);
     }
 
-    private void ShowIsland(int islandIndex)
+    protected override bool HasMultipleIslands => islands.Count > 1;
+
+    protected override void FocusIslandOf(GraphNode node)
     {
-        for (var i = 0; i < islands.Count; i++)
+        base.FocusIslandOf(node);
+
+        var index = islands.FindIndex(island => island.Contains(node));
+        SetIslandLabel(index >= 0 ? IslandLabel(islands[index]) : null);
+    }
+
+    protected override void ShowAllIslands()
+    {
+        base.ShowAllIslands();
+        SetIslandLabel(null);
+    }
+
+    private void SetIslandLabel(string? islandName)
+    {
+        if (islandLabel != null)
         {
-            var visible = islandIndex < 0 || i == islandIndex;
-
-            foreach (var node in islands[i])
-            {
-                node.Hidden = !visible;
-            }
+            islandLabel.Text = $"Focused Island:\n{islandName ?? "(None)"}";
         }
-
-        RefitToGraph();
     }
 
     private static string IslandLabel(List<GraphNode> island)
@@ -104,54 +286,8 @@ internal class EntityIOGraphViewer : GLGraphViewer
         return value.StartsWith(Prefix, StringComparison.Ordinal) ? value[Prefix.Length..] : value;
     }
 
-    private static GraphHue ClassHue(string classname)
-    {
-        if (classname.StartsWith("trigger_", StringComparison.Ordinal))
-        {
-            return GraphHue.Green;
-        }
+    private static GraphHue ClassHue(string classname) => EntityClassHues.Map.GetValueOrDefault(classname, GraphHue.Neutral);
 
-        if (classname.StartsWith("logic_", StringComparison.Ordinal) ||
-            classname.StartsWith("math_", StringComparison.Ordinal) ||
-            classname.StartsWith("filter_", StringComparison.Ordinal))
-        {
-            return GraphHue.Amber;
-        }
-
-        if (classname.StartsWith("func_", StringComparison.Ordinal))
-        {
-            return GraphHue.Blue;
-        }
-
-        if (classname.StartsWith("point_", StringComparison.Ordinal))
-        {
-            return GraphHue.Purple;
-        }
-
-        if (classname.StartsWith("env_", StringComparison.Ordinal))
-        {
-            return GraphHue.Teal;
-        }
-
-        if (classname.StartsWith("prop_", StringComparison.Ordinal))
-        {
-            return GraphHue.Slate;
-        }
-
-        if (classname.StartsWith("game_", StringComparison.Ordinal) ||
-            classname.StartsWith("player_", StringComparison.Ordinal))
-        {
-            return GraphHue.Maroon;
-        }
-
-        if (classname.StartsWith("snd_", StringComparison.Ordinal) ||
-            classname.StartsWith("ambient_", StringComparison.Ordinal))
-        {
-            return GraphHue.Cyan;
-        }
-
-        return GraphHue.Neutral;
-    }
 
     private static string? FormatConnectionLabel(Connection connection)
     {
@@ -179,9 +315,10 @@ internal class EntityIOGraphViewer : GLGraphViewer
         return parts.Count > 0 ? string.Join(" ", parts) : null;
     }
 
-    internal static void BuildGraph(GraphView view, EntityLump entityLump)
+    internal static void BuildGraph(GraphView view, EntityLump entityLump) => BuildGraph(view, entityLump.GetEntities());
+
+    internal static void BuildGraph(GraphView view, List<EntityLump.Entity> entities)
     {
-        var entities = entityLump.GetEntities();
         var connections = new List<Connection>();
 
         foreach (var entity in entities)
@@ -202,13 +339,6 @@ internal class EntityIOGraphViewer : GLGraphViewer
                     connectionData.GetFloatProperty("m_flDelay"),
                     connectionData.GetInt32Property("m_nTimesToFire")));
             }
-        }
-
-        if (connections.Count == 0)
-        {
-            var infoNode = view.AddNode(new GraphNode { Title = "No entity I/O", Subtitle = "EntityLump" });
-            infoNode.AddText($"{entities.Count} entities, no connections");
-            return;
         }
 
         var entitiesByName = new Dictionary<string, List<EntityLump.Entity>>(StringComparer.OrdinalIgnoreCase);
@@ -248,6 +378,7 @@ internal class EntityIOGraphViewer : GLGraphViewer
                     Title = string.IsNullOrEmpty(name) ? classname : StripTargetnamePrefix(name),
                     Subtitle = classname,
                     Category = ClassHue(classname),
+                    Tag = entity,
                 });
                 entityNodes[entity] = node;
             }
@@ -271,36 +402,80 @@ internal class EntityIOGraphViewer : GLGraphViewer
             return node;
         }
 
-        GraphSocket OutputFor(GraphNode node, string outputName)
+        GraphSocket OutputFor(GraphNode node, string outputName, GraphHue hue)
         {
             if (!outputSockets.TryGetValue((node, outputName), out var socket))
             {
-                socket = node.AddOutput(outputName, OutputHue);
+                socket = node.AddOutput(outputName, hue);
                 outputSockets[(node, outputName)] = socket;
             }
 
             return socket;
         }
 
-        GraphSocket InputFor(GraphNode node, string inputName)
+        GraphSocket InputFor(GraphNode node, string inputName, GraphHue hue)
         {
             if (!inputSockets.TryGetValue((node, inputName), out var socket))
             {
-                socket = node.AddInput(inputName, InputHue, allowMultiple: true);
+                socket = node.AddInput(inputName, hue, allowMultiple: true);
                 inputSockets[(node, inputName)] = socket;
             }
 
             return socket;
         }
 
+        // point_template spawn lists: dashed wires to every templateNN child entity.
+        foreach (var entity in entities)
+        {
+            if (entity.GetStringProperty("classname") != "point_template")
+            {
+                continue;
+            }
+
+            for (var i = 1; i <= 64; i++)
+            {
+                var childName = entity.GetStringProperty($"template{i:D2}");
+
+                if (string.IsNullOrEmpty(childName) || !entitiesByName.TryGetValue(childName, out var childEntities))
+                {
+                    continue;
+                }
+
+                var output = OutputFor(NodeFor(entity), "spawns", GraphHue.Purple);
+
+                foreach (var childEntity in childEntities)
+                {
+                    var input = InputFor(NodeFor(childEntity), "spawned by", GraphHue.Purple);
+
+                    if (!mergedWires.ContainsKey((output, input)))
+                    {
+                        mergedWires[(output, input)] = view.Connect(output, input, dashed: true);
+                    }
+                }
+            }
+        }
+
+        if (connections.Count == 0 && mergedWires.Count == 0)
+        {
+            var infoNode = view.AddNode(new GraphNode { Title = "No entity I/O", Subtitle = "EntityLump" });
+            infoNode.AddText($"{entities.Count} entities, no connections");
+            return;
+        }
+
         foreach (var connection in connections)
         {
             var sourceNode = NodeFor(connection.Source);
-            var output = OutputFor(sourceNode, connection.OutputName);
+            var output = OutputFor(sourceNode, connection.OutputName, OutputHue);
 
             List<GraphNode> targetNodes;
 
-            if (connection.TargetName.StartsWith('!'))
+            if (connection.TargetName.Length == 0)
+            {
+                // Listener registration stubs: the output event is compiled with no target so
+                // scripts (e.g. the map's pulse graph) can subscribe to it at runtime.
+                targetNodes = [SyntheticFor("(event hook)", unresolved: false)];
+            }
+            else if (connection.TargetName.StartsWith('!'))
             {
                 targetNodes = [SyntheticFor(connection.TargetName, unresolved: false)];
             }
@@ -317,7 +492,7 @@ internal class EntityIOGraphViewer : GLGraphViewer
 
             foreach (var targetNode in targetNodes)
             {
-                var input = InputFor(targetNode, connection.InputName);
+                var input = InputFor(targetNode, connection.InputName.Length == 0 ? "event" : connection.InputName, InputHue);
 
                 if (mergedWires.TryGetValue((output, input), out var existing))
                 {

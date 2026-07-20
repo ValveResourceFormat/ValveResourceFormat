@@ -25,6 +25,12 @@ class GraphNode : IGraphElement
     /// <summary>Resource path (without compiled suffix) opened on double click.</summary>
     public string? ExternalResourceName { get; set; }
 
+    /// <summary>
+    /// Key resolved through <see cref="GraphView.IconResolver"/> to an icon image.
+    /// Nodes with one get a neutral left gutter holding the icon.
+    /// </summary>
+    public string? IconKey { get; set; }
+
     public object? Tag { get; set; }
 
     public List<GraphRow> Rows { get; } = [];

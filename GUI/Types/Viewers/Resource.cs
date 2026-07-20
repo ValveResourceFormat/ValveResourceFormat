@@ -34,6 +34,7 @@ namespace GUI.Types.Viewers
     {
         private ValveResourceFormat.Resource? resource;
         private RendererContext? rendererContext;
+        private readonly List<GLGraphViewer> extraGraphViewers = [];
         public GLBaseControl? GLViewer { get; private set; }
         private CodeTextBox? GLViewerError;
         private string? GLViewerTabName;
@@ -289,6 +290,7 @@ namespace GUI.Types.Viewers
                 {
                     GLViewer?.Dispose();
                     GLViewer = null;
+                    DisposeExtraGraphViewers();
                     var errorTab = new ThemedTabPage("Viewer Error");
                     errorTab.Controls.Add(GLViewerError);
                     resTabs.TabPages.Add(errorTab);
@@ -486,12 +488,131 @@ namespace GUI.Types.Viewers
                     var entitiesTabPage = new ThemedTabPage("Entity List");
                     entitiesTabPage.Controls.Add(new EntityViewer(vrfGuiContext, loadedWorld.Entities, glWorldViewer.SelectAndFocusEntity));
                     resTabs.TabPages.Add(entitiesTabPage);
+
+                    var hasConnections = false;
+
+                    foreach (var entity in loadedWorld.Entities)
+                    {
+                        if (entity.Connections is { Count: > 0 })
+                        {
+                            hasConnections = true;
+                            break;
+                        }
+                    }
+
+                    if (hasConnections)
+                    {
+                        Debug.Assert(rendererContext != null);
+                        var entityGraphViewer = new EntityIOGraphViewer(vrfGuiContext, rendererContext, loadedWorld.Entities, glWorldViewer.SelectAndFocusEntity);
+                        AddGraphViewerTab(entityGraphViewer, "ENTITY I/O GRAPH", resTabs);
+                        glWorldViewer.ShowEntityInGraph = entityGraphViewer.ShowEntity;
+                    }
+
+                    AddMapPulseGraphTabs(vrfGuiContext, loadedWorld.Entities, resTabs);
+                }
+
+                if (!isPreview && GLViewer is GLModelViewer && resource.DataBlock is Model modelWithGraphs)
+                {
+                    AddModelAnimGraphTabs(vrfGuiContext, modelWithGraphs, resTabs);
                 }
 
                 GLViewer.InitializeRenderLoop();
                 return true;
             }
 
+            return AddSpecialViewerData(resource, isPreview, resTabs);
+        }
+
+        private void AddGraphViewerTab(GLGraphViewer viewer, string tabName, TabControl resTabs)
+        {
+            viewer.InitializeLoad();
+            var tabPage = new ThemedTabPage(tabName);
+            tabPage.Controls.Add(viewer.InitializeUiControls(isPreview: false));
+            resTabs.TabPages.Add(tabPage);
+            viewer.InitializeRenderLoop();
+            extraGraphViewers.Add(viewer);
+        }
+
+        // Maps bind pulse scripts through point_pulse entities referencing the graph resource.
+        private void AddMapPulseGraphTabs(VrfGuiContext vrfGuiContext, List<EntityLump.Entity> entities, TabControl resTabs)
+        {
+            Debug.Assert(rendererContext != null);
+
+            var scripts = new List<string>();
+
+            foreach (var entity in entities)
+            {
+                if (entity.GetStringProperty("classname") != "point_pulse")
+                {
+                    continue;
+                }
+
+                var graphDef = entity.GetStringProperty("graph_def");
+
+                if (!string.IsNullOrEmpty(graphDef) && !scripts.Contains(graphDef))
+                {
+                    scripts.Add(graphDef);
+                }
+            }
+
+            foreach (var script in scripts)
+            {
+                if (rendererContext.FileLoader.LoadFileCompiled(script)?.DataBlock is BinaryKV3 pulseData)
+                {
+                    var tabName = scripts.Count > 1 ? $"PULSE GRAPH ({Path.GetFileNameWithoutExtension(script)})" : "PULSE GRAPH";
+                    AddGraphViewerTab(new PulseGraphViewer(vrfGuiContext, rendererContext, pulseData.Data), tabName, resTabs);
+                }
+            }
+        }
+
+        private void AddModelAnimGraphTabs(VrfGuiContext vrfGuiContext, Model model, TabControl resTabs)
+        {
+            Debug.Assert(rendererContext != null);
+
+            var graphPaths = new List<string>();
+
+            if (model.Data.ContainsKey("m_animGraph2Refs"))
+            {
+                foreach (var graphRef in model.Data.GetArray("m_animGraph2Refs"))
+                {
+                    var path = graphRef.GetStringProperty("m_hGraph");
+
+                    if (!string.IsNullOrEmpty(path) && !graphPaths.Contains(path))
+                    {
+                        graphPaths.Add(path);
+                    }
+                }
+            }
+
+            if (model.Data.ContainsKey("m_refAnimGraph"))
+            {
+                var path = model.Data.GetStringProperty("m_refAnimGraph");
+
+                if (!string.IsNullOrEmpty(path) && !graphPaths.Contains(path))
+                {
+                    graphPaths.Add(path);
+                }
+            }
+
+            foreach (var path in graphPaths)
+            {
+                var tabName = graphPaths.Count > 1 ? $"ANIMATION GRAPH ({Path.GetFileNameWithoutExtension(path)})" : "ANIMATION GRAPH";
+
+                switch (rendererContext.FileLoader.LoadFileCompiled(path)?.DataBlock)
+                {
+                    case AnimGraph ag1Data:
+                        AddGraphViewerTab(new AG1GraphViewer(vrfGuiContext, rendererContext, ag1Data.Data), tabName, resTabs);
+                        break;
+
+                    case BinaryKV3 nmGraphData:
+                        AddGraphViewerTab(new AnimationGraphViewer(vrfGuiContext, rendererContext, nmGraphData.Data), tabName, resTabs);
+                        break;
+                }
+            }
+        }
+
+        private bool AddSpecialViewerData(ValveResourceFormat.Resource resource, bool isPreview, TabControl resTabs)
+        {
             switch (resource.ResourceType)
             {
                 case ResourceType.Panorama:
@@ -897,11 +1018,22 @@ namespace GUI.Types.Viewers
             }
         }
 
+        private void DisposeExtraGraphViewers()
+        {
+            foreach (var viewer in extraGraphViewers)
+            {
+                viewer.Dispose();
+            }
+
+            extraGraphViewers.Clear();
+        }
+
         public void Dispose()
         {
             resource?.Dispose();
             rendererContext?.Dispose();
             GLViewer?.Dispose();
+            DisposeExtraGraphViewers();
             GLViewerError?.Dispose();
         }
     }

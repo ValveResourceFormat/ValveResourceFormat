@@ -1035,8 +1035,9 @@ namespace GUI.Types.GLViewers
             var scaleMinMax = new Vector2(0.1f, 50f);
             scaleMinMax *= 256 / MathF.Max(ActualTextureSize.X, ActualTextureSize.Y);
 
-            if (this is GLGraphViewer)
+            if (this is GLGraphViewer graphViewer)
             {
+                scaleMinMax.X = graphViewer.MinTextureScale();
                 scaleMinMax.Y = 2f;
             }
 

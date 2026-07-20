@@ -27,6 +27,7 @@ class GraphPalette
     public SKColor MessageText { get; }
     public SKColor WireUnderlay { get; }
     public SKColor SocketOutline { get; }
+    public SKColor IconDock { get; }
 
     private readonly SKColor[] signal;
     private readonly SKColor[] category;
@@ -60,6 +61,7 @@ class GraphPalette
         MessageText = isDark ? ToSK(chrome.Accent) : new SKColor(32, 96, 190);
         WireUnderlay = isDark ? SKColors.Black.WithAlpha(90) : SKColors.Black.WithAlpha(36);
         SocketOutline = isDark ? new SKColor(15, 17, 22, 220) : new SKColor(60, 60, 60, 180);
+        IconDock = isDark ? new SKColor(16, 18, 23) : new SKColor(222, 226, 232);
 
         signal = new SKColor[HueTable.Length];
         category = new SKColor[HueTable.Length];

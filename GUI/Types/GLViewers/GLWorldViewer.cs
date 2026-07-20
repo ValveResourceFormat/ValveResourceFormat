@@ -35,6 +35,10 @@ namespace GUI.Types.GLViewers
         private List<Matrix4x4> CameraMatrices = [];
         private WorldNodeLoader? LoadedWorldNode;
         public WorldLoader? LoadedWorld;
+        private EntityLump.Entity? entityInfoEntity;
+
+        /// <summary>Jump from the entity info popup to the entity's node in the I/O graph tab, when the map has one.</summary>
+        public Func<EntityLump.Entity, bool>? ShowEntityInGraph { get; set; }
 
         public GLWorldViewer(VrfGuiContext vrfGuiContext, RendererContext rendererContext, World world, ResourceExtRefList? externalReferences = null)
             : base(vrfGuiContext, rendererContext)
@@ -564,15 +568,28 @@ namespace GUI.Types.GLViewers
         private void ShowSceneNodeDetails(SceneNode sceneNode)
         {
             var isEntity = sceneNode.EntityData != null;
+            entityInfoEntity = sceneNode.EntityData;
+
             if (entityInfoForm == null)
             {
                 entityInfoForm = new EntityInfoForm(GuiContext);
+
+                if (ShowEntityInGraph != null)
+                {
+                    entityInfoForm.AddShowInGraphButton(OnShowInGraphButtonClick);
+                }
+
                 entityInfoForm.Show();
                 entityInfoForm.EntityInfoControl.OutputsGrid.CellDoubleClick += OnEntityInfoOutputsCellDoubleClick;
                 entityInfoForm.EntityInfoControl.Disposed += OnEntityInfoFormDisposed;
             }
 
             Debug.Assert(entityInfoForm != null);
+
+            if (entityInfoForm.ShowInGraphButton != null)
+            {
+                entityInfoForm.ShowInGraphButton.Visible = isEntity;
+            }
 
             entityInfoForm.EntityInfoControl.Clear();
 
@@ -691,6 +708,14 @@ namespace GUI.Types.GLViewers
 
             SelectAndFocusNode(node);
             ShowSceneNodeDetails(node);
+        }
+
+        private void OnShowInGraphButtonClick(object? sender, EventArgs e)
+        {
+            if (entityInfoEntity != null)
+            {
+                ShowEntityInGraph?.Invoke(entityInfoEntity);
+            }
         }
 
         private void OnEntityInfoFormDisposed(object? sender, EventArgs e)

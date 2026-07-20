@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.Windows.Forms;
+using GUI.Controls;
 using GUI.Types.Graphs.Core;
 using GUI.Utils;
 using OpenTK.Graphics.OpenGL;
@@ -17,6 +18,7 @@ namespace GUI.Types.GLViewers
         protected readonly GraphView View;
         private SKRect graphBounds;
         private bool needsFit = true;
+        private ThemedContextMenuStrip? contextMenu;
 
         // Skia/OpenGL context
         private GRGlInterface? glInterface;
@@ -36,9 +38,19 @@ namespace GUI.Types.GLViewers
         private void OnGraphChanged(object? sender, System.EventArgs e)
         {
             InvalidateRender();
+
+            // Selection only changes on the UI thread; skip label updates from background callers.
+            if (GLControl is { InvokeRequired: false })
+            {
+                UpdateSelectionLabels();
+            }
         }
 
         protected virtual bool ShowSidebar => false;
+
+        private Label? statsLabel;
+        private Label? focusLabel;
+        private Label? connectionsLabel;
 
         protected override void AddUiControls()
         {
@@ -50,11 +62,99 @@ namespace GUI.Types.GLViewers
             {
                 UiControl.HideSidebar();
             }
+            else
+            {
+                var statsText = BuildStatsText(View.GetComponents().Count);
+                var statsLines = statsText.AsSpan().Count('\n') + 1;
+
+                statsLabel = new Label
+                {
+                    AutoSize = false,
+                    AutoEllipsis = true,
+                    Height = UiControl.AdjustForDPI(12 + 16 * statsLines),
+                    Padding = new Padding(3, 8, 3, 0),
+                    Text = statsText,
+                };
+                UiControl.AddControl(statsLabel);
+
+                focusLabel = new Label
+                {
+                    AutoSize = false,
+                    AutoEllipsis = true,
+                    Height = UiControl.AdjustForDPI(40),
+                    Padding = new Padding(3, 6, 3, 0),
+                };
+                UiControl.AddControl(focusLabel);
+
+                connectionsLabel = new Label
+                {
+                    AutoSize = false,
+                    AutoEllipsis = true,
+                    Height = UiControl.AdjustForDPI(40),
+                    Padding = new Padding(3, 6, 3, 0),
+                };
+                UiControl.AddControl(connectionsLabel);
+
+                UpdateSelectionLabels();
+            }
 
             if (GLControl != null)
             {
                 GLControl.MouseDoubleClick += OnMouseDoubleClick;
             }
+        }
+
+        protected virtual string BuildStatsText(int islandCount)
+        {
+            var islandSuffix = islandCount == 1 ? "island" : "islands";
+            return $"{View.NodeCount} nodes\n{View.WireCount} connections\n{islandCount} {islandSuffix}";
+        }
+
+        private void UpdateSelectionLabels()
+        {
+            if (focusLabel == null || connectionsLabel == null)
+            {
+                return;
+            }
+
+            var node = View.PrimarySelectedNode;
+            var wire = View.SelectedWire;
+            string focusText;
+            string connectionsText;
+
+            if (node != null)
+            {
+                var subtitle = string.IsNullOrEmpty(node.Subtitle) ? string.Empty : $" ({node.Subtitle})";
+                focusText = $"Focused Node:\n{node.Title}{subtitle}";
+
+                var inCount = 0;
+                var outCount = 0;
+
+                foreach (var socket in node.Inputs)
+                {
+                    inCount += socket.Wires.Count;
+                }
+
+                foreach (var socket in node.Outputs)
+                {
+                    outCount += socket.Wires.Count;
+                }
+
+                connectionsText = $"Connections:\n{inCount} in / {outCount} out";
+            }
+            else if (wire != null)
+            {
+                focusText = $"Focused Wire:\n{wire.From.Name} → {wire.To.Name}";
+                connectionsText = $"Connections:\n{wire.Label ?? "(no parameters)"}";
+            }
+            else
+            {
+                focusText = "Focused Node:\n(None)";
+                connectionsText = "Connections:\n(None)";
+            }
+
+            focusLabel.Text = focusText;
+            connectionsLabel.Text = connectionsText;
         }
 
         /// <summary>Refits the view to the current graph bounds on the next frame.</summary>
@@ -72,12 +172,121 @@ namespace GUI.Types.GLViewers
 
             if (element is GraphNode { ExternalResourceName: not null } node)
             {
-                var foundFile = VrfGuiContext.FindFileWithContext(node.ExternalResourceName + ValveResourceFormat.IO.GameFileLoader.CompiledFileSuffix);
-                if (foundFile.Context != null)
+                OpenExternalResource(node);
+            }
+        }
+
+        private void OpenExternalResource(GraphNode node)
+        {
+            Debug.Assert(node.ExternalResourceName != null);
+
+            var foundFile = VrfGuiContext.FindFileWithContext(node.ExternalResourceName + ValveResourceFormat.IO.GameFileLoader.CompiledFileSuffix);
+            if (foundFile.Context != null)
+            {
+                Debug.Assert(foundFile.PackageEntry != null);
+                Program.MainForm.OpenFile(foundFile.Context, foundFile.PackageEntry);
+            }
+        }
+
+        /// <summary>Selects <paramref name="node"/> and centers the view on it.</summary>
+        public void FocusNode(GraphNode node)
+        {
+            View.SelectNode(node);
+
+            graphBounds = View.GetGraphBounds();
+            OriginalWidth = (int)graphBounds.Width;
+            OriginalHeight = (int)graphBounds.Height;
+            needsFit = false;
+
+            if (GLControl != null)
+            {
+                if (TextureScale < 0.4f)
                 {
-                    Debug.Assert(foundFile.PackageEntry != null);
-                    Program.MainForm.OpenFile(foundFile.Context, foundFile.PackageEntry);
+                    TextureScale = 1f;
                 }
+
+                var center = node.Position + node.Size / 2f;
+                Position = new Vector2(
+                    (center.X - graphBounds.Left) * TextureScale - GLControl.Width / 2f,
+                    (center.Y - graphBounds.Top) * TextureScale - GLControl.Height / 2f);
+                TextureScaleChangeTime = 10f; // Skip animation
+            }
+
+            InvalidateRender();
+        }
+
+        /// <summary>Lets subclasses prepend their own items to the node right-click menu.</summary>
+        protected virtual void AddNodeContextMenuItems(ThemedContextMenuStrip menu, GraphNode node)
+        {
+        }
+
+        /// <summary>Whether the graph is made of more than one connected component.</summary>
+        protected virtual bool HasMultipleIslands => View.HasMultipleIslands();
+
+        /// <summary>Hides every island except the one containing <paramref name="node"/>.</summary>
+        protected virtual void FocusIslandOf(GraphNode node)
+        {
+            View.FocusIslandOf(node);
+            RefitToGraph();
+        }
+
+        protected virtual void ShowAllIslands()
+        {
+            View.ShowAllNodes();
+            RefitToGraph();
+        }
+
+        private void ShowContextMenu(System.Drawing.Point location)
+        {
+            Debug.Assert(GLControl != null);
+
+            var graphPoint = ScreenToGraph(new SKPoint(location.X, location.Y));
+            var node = View.FindElementAt(graphPoint) switch
+            {
+                GraphNode n => n,
+                GraphSocket socket => socket.Owner,
+                GraphWire wire => wire.From.Owner,
+                _ => null,
+            };
+
+            contextMenu ??= new ThemedContextMenuStrip();
+
+            while (contextMenu.Items.Count > 0)
+            {
+                var item = contextMenu.Items[0];
+                contextMenu.Items.RemoveAt(0);
+                item.Dispose();
+            }
+
+            if (node != null)
+            {
+                AddNodeContextMenuItems(contextMenu, node);
+
+                if (node.ExternalResourceName != null)
+                {
+                    var openItem = new ToolStripMenuItem($"Open {node.ExternalResourceName}");
+                    openItem.Click += (_, _) => OpenExternalResource(node);
+                    contextMenu.Items.Add(openItem);
+                }
+
+                if (HasMultipleIslands)
+                {
+                    var focusItem = new ToolStripMenuItem("Focus on this island");
+                    focusItem.Click += (_, _) => FocusIslandOf(node);
+                    contextMenu.Items.Add(focusItem);
+                }
+            }
+
+            if (View.HasHiddenNodes())
+            {
+                var showAllItem = new ToolStripMenuItem("Show all islands");
+                showAllItem.Click += (_, _) => ShowAllIslands();
+                contextMenu.Items.Add(showAllItem);
+            }
+
+            if (contextMenu.Items.Count > 0)
+            {
+                contextMenu.Show(GLControl, location);
             }
         }
 
@@ -115,14 +324,17 @@ namespace GUI.Types.GLViewers
         {
             Debug.Assert(MainFramebuffer != null);
 
-            var bgColor = View.Palette.Canvas;
-            GL.ClearColor(bgColor.Red / 255f, bgColor.Green / 255f, bgColor.Blue / 255f, bgColor.Alpha / 255f);
-            GL.Clear(ClearBufferMask.ColorBufferBit);
-
             if (grContext == null)
             {
                 glInterface = GRGlInterface.Create();
                 grContext = GRContext.CreateGl(glInterface);
+            }
+            else
+            {
+                // The viewer loop issues its own GL calls (clears, framebuffer binds) between
+                // frames; make Skia re-sync its cached GL state or its offscreen mask/layer
+                // composites break at some zoom levels.
+                grContext.ResetContext();
             }
 
             var newSize = new SKSizeI(MainFramebuffer.Width, MainFramebuffer.Height);
@@ -210,6 +422,21 @@ namespace GUI.Types.GLViewers
             grContext.Flush();
         }
 
+        /// <summary>
+        /// Zoom-out floor: zooming stops once the graph's limiting dimension shrinks
+        /// to 30% of the viewport (never above 1:1 for small graphs).
+        /// </summary>
+        internal float MinTextureScale()
+        {
+            if (GLControl == null || graphBounds.IsEmpty)
+            {
+                return 0.01f;
+            }
+
+            var fitScale = Math.Min(GLControl.Width / graphBounds.Width, GLControl.Height / graphBounds.Height);
+            return Math.Min(1f, 0.3f * fitScale);
+        }
+
         private void FitToViewport()
         {
             if (GLControl == null || graphBounds.IsEmpty)
@@ -220,7 +447,7 @@ namespace GUI.Types.GLViewers
             var scaleX = (GLControl.Width * 0.9f) / graphBounds.Width;
             var scaleY = (GLControl.Height * 0.9f) / graphBounds.Height;
             TextureScale = Math.Min(scaleX, scaleY);
-            TextureScale = Math.Max(0.1f, Math.Min(TextureScale, 2f));
+            TextureScale = Math.Max(MinTextureScale(), Math.Min(TextureScale, 2f));
 
             Position = new Vector2(
                 -(GLControl.Width - graphBounds.Width * TextureScale) / 2f,
@@ -278,6 +505,11 @@ namespace GUI.Types.GLViewers
             var graphPoint = ScreenToGraph(screenPoint);
 
             View.HandleMouseUp(graphPoint);
+
+            if (e.Button == MouseButtons.Right)
+            {
+                ShowContextMenu(e.Location);
+            }
         }
 
         protected SKPoint ScreenToGraph(SKPoint screenPoint)
@@ -292,16 +524,33 @@ namespace GUI.Types.GLViewers
         }
 
         // The graph is drawn through Skia, not the texture/shader pipeline the base capture
-        // path assumes, so render the whole graph into a raster bitmap for Ctrl+C / saving.
+        // path assumes. Captures the current viewport at the current zoom for Ctrl+C / saving,
+        // cropped to the graph bounds so a zoomed-out capture has no empty margins.
         protected override SKBitmap ReadPixelsToBitmap()
         {
-            var bounds = View.GetGraphBounds();
+            Debug.Assert(MainFramebuffer != null);
 
-            const float maxDimension = 8192f;
-            var scale = Math.Min(1f, maxDimension / Math.Max(bounds.Width, bounds.Height));
+            var (scale, position) = GetCurrentPositionAndScale();
 
-            var width = Math.Max(1, (int)(bounds.Width * scale));
-            var height = Math.Max(1, (int)(bounds.Height * scale));
+            var viewportRect = new SKRect(
+                position.X / scale + graphBounds.Left,
+                position.Y / scale + graphBounds.Top,
+                (position.X + MainFramebuffer.Width) / scale + graphBounds.Left,
+                (position.Y + MainFramebuffer.Height) / scale + graphBounds.Top);
+
+            var captureRect = new SKRect(
+                Math.Max(viewportRect.Left, graphBounds.Left),
+                Math.Max(viewportRect.Top, graphBounds.Top),
+                Math.Min(viewportRect.Right, graphBounds.Right),
+                Math.Min(viewportRect.Bottom, graphBounds.Bottom));
+
+            if (captureRect.Width <= 0 || captureRect.Height <= 0)
+            {
+                captureRect = viewportRect;
+            }
+
+            var width = Math.Max(1, (int)(captureRect.Width * scale));
+            var height = Math.Max(1, (int)(captureRect.Height * scale));
 
             var bitmap = new SKBitmap(new SKImageInfo(width, height, SKColorType.Bgra8888, SKAlphaType.Premul));
 
@@ -309,9 +558,9 @@ namespace GUI.Types.GLViewers
             {
                 using var canvas = new SKCanvas(bitmap);
                 canvas.Scale(scale, scale);
-                canvas.Translate(-bounds.Left, -bounds.Top);
+                canvas.Translate(-captureRect.Left, -captureRect.Top);
 
-                View.RenderToCanvas(canvas, bounds, 1f);
+                View.RenderToCanvas(canvas, captureRect, scale);
 
                 var bitmapToReturn = bitmap;
                 bitmap = null;
@@ -330,6 +579,10 @@ namespace GUI.Types.GLViewers
                 GLControl.MouseDoubleClick -= OnMouseDoubleClick;
             }
 
+            contextMenu?.Dispose();
+            statsLabel?.Dispose();
+            focusLabel?.Dispose();
+            connectionsLabel?.Dispose();
             View.GraphChanged -= OnGraphChanged;
 
             // Stops the render loop first; afterwards the GL context may no longer be

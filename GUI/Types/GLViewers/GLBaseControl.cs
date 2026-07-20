@@ -649,7 +649,21 @@ internal abstract class GLBaseControl : IDisposable
                 WindowState = OpenTK.Windowing.Common.WindowState.Normal,
                 Title = "Source 2 Viewer OpenGL",
             };
-            GLNativeWindow = new(settings);
+            // GLFW window creation intermittently fails with spurious WGL pixel format errors
+            // on some drivers; retry before giving up.
+            for (var attempt = 1; ; attempt++)
+            {
+                try
+                {
+                    GLNativeWindow = new(settings);
+                    break;
+                }
+                catch (OpenTK.Windowing.GraphicsLibraryFramework.GLFWException e) when (attempt < 3)
+                {
+                    Log.Warn(nameof(GLBaseControl), $"GL window creation failed (attempt {attempt}): {e.Message}");
+                    System.Threading.Thread.Sleep(50);
+                }
+            }
 
             GLNativeWindow.Context.MakeNoneCurrent();
         });

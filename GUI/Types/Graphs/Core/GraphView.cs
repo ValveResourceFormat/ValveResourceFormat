@@ -12,13 +12,18 @@ partial class GraphView : IDisposable
 {
     public GraphPalette Palette { get; }
 
+    /// <summary>Resolves a node's <see cref="GraphNode.IconKey"/> to the icon drawn in its left gutter.</summary>
+    public Func<string, SKImage?>? IconResolver { get; set; }
+
     private readonly List<GraphNode> nodes = [];
     private readonly List<GraphWire> wires = [];
     private readonly Dictionary<GraphWire, SKPath> wireHitPaths = [];
 
     private IGraphElement? lastHovered;
     private GraphNode? primarySelectedNode;
+    private GraphWire? selectedWire;
     private readonly HashSet<GraphNode> connectedNodes = [];
+    private readonly HashSet<GraphNode> directNodes = [];
 
     public bool IsMoving { get; private set; }
     private SKPoint lastLocation;
@@ -27,6 +32,27 @@ partial class GraphView : IDisposable
     private readonly System.Threading.Lock stateLock = new();
 
     public event EventHandler? GraphChanged;
+
+    public int NodeCount => nodes.Count;
+    public int WireCount => wires.Count;
+
+    public GraphNode? PrimarySelectedNode
+    {
+        get
+        {
+            using var _ = stateLock.EnterScope();
+            return primarySelectedNode;
+        }
+    }
+
+    public GraphWire? SelectedWire
+    {
+        get
+        {
+            using var _ = stateLock.EnterScope();
+            return selectedWire;
+        }
+    }
 
     private void OnGraphChanged() => GraphChanged?.Invoke(this, EventArgs.Empty);
 
@@ -149,6 +175,11 @@ partial class GraphView : IDisposable
             if (element == null && modifiers != Keys.Shift)
             {
                 ClearSelection();
+            }
+
+            if (element is GraphWire wire)
+            {
+                SelectWire(wire);
             }
 
             if (!IsMoving && element is GraphNode selectedNode)
@@ -339,10 +370,46 @@ partial class GraphView : IDisposable
         }
     }
 
+    // Direct wire neighbors of the primary selection; everything else renders dimmed.
+    private void CollectDirectNeighbors(GraphNode node)
+    {
+        directNodes.Clear();
+
+        foreach (var socket in node.Inputs)
+        {
+            foreach (var wire in socket.Wires)
+            {
+                directNodes.Add(wire.From.Owner);
+            }
+        }
+
+        foreach (var socket in node.Outputs)
+        {
+            foreach (var wire in socket.Wires)
+            {
+                directNodes.Add(wire.To.Owner);
+            }
+        }
+
+        directNodes.Remove(node);
+    }
+
+    // Clicking a wire focuses just its two endpoint nodes; clicking it again deselects.
+    private void SelectWire(GraphWire wire)
+    {
+        primarySelectedNode = null;
+        connectedNodes.Clear();
+        directNodes.Clear();
+        selectedWire = selectedWire == wire ? null : wire;
+        OnGraphChanged();
+    }
+
     private void SetPrimarySelection(GraphNode node)
     {
         primarySelectedNode = node;
+        selectedWire = null;
         TraverseConnectedGraph(node);
+        CollectDirectNeighbors(node);
 
         foreach (var connectedNode in connectedNodes)
         {
@@ -363,7 +430,9 @@ partial class GraphView : IDisposable
         if (primarySelectedNode == node || connectedNodes.Contains(node))
         {
             primarySelectedNode = null;
+            selectedWire = null;
             connectedNodes.Clear();
+            directNodes.Clear();
         }
         else
         {
@@ -376,7 +445,9 @@ partial class GraphView : IDisposable
     private void ClearSelection()
     {
         primarySelectedNode = null;
+        selectedWire = null;
         connectedNodes.Clear();
+        directNodes.Clear();
         OnGraphChanged();
     }
 
@@ -444,6 +515,44 @@ partial class GraphView : IDisposable
 
         return components;
     }
+
+    /// <summary>Makes <paramref name="node"/> the primary selection.</summary>
+    public void SelectNode(GraphNode node)
+    {
+        using var _ = stateLock.EnterScope();
+        SetPrimarySelection(node);
+        OnGraphChanged();
+    }
+
+    /// <summary>Hides every island except the one containing <paramref name="node"/>.</summary>
+    public void FocusIslandOf(GraphNode node)
+    {
+        foreach (var component in GetComponents())
+        {
+            var visible = component.Contains(node);
+
+            foreach (var member in component)
+            {
+                member.Hidden = !visible;
+            }
+        }
+
+        OnGraphChanged();
+    }
+
+    public void ShowAllNodes()
+    {
+        foreach (var node in nodes)
+        {
+            node.Hidden = false;
+        }
+
+        OnGraphChanged();
+    }
+
+    public bool HasMultipleIslands() => GetComponents().Count > 1;
+
+    public bool HasHiddenNodes() => nodes.Exists(static n => n.Hidden);
 
     /// <summary>
     /// Lays out each connected component independently and packs the components into rows.
