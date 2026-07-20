@@ -69,6 +69,10 @@ public class ViewmodelSceneNode : ModelSceneNode
     private const float InAirExitFade = 0.1f;
     private float previousUptime;
 
+    // True once the player has entered first-person walk mode (left noclip). Until then the viewmodel is not shown,
+    // so its animations are held paused - otherwise clips advance and fire sound events while nothing is visible.
+    private bool enteredWalkMode;
+
     /// <summary>
     /// Selects the previously selected item (used for quick weapon switching).
     /// </summary>
@@ -517,6 +521,8 @@ public class ViewmodelSceneNode : ModelSceneNode
     /// <param name="uptime"></param>
     public void ProcessInput(UserInput input, float uptime)
     {
+        enteredWalkMode = !input.NoClip;
+
         var distanceFromFirstPersonEyes = Vector3.Distance(input.Camera.Location, input.PlayerMovement.EyePosition);
 
         var showViewmodelDistance = distanceFromFirstPersonEyes < 35f;
@@ -846,6 +852,12 @@ public class ViewmodelSceneNode : ModelSceneNode
         if (!FirstPersonMode)
         {
             Transform *= Matrix4x4.CreateScale(0);
+        }
+
+        if (!enteredWalkMode)
+        {
+            // Not in walk mode yet: keep clips from advancing (and firing sound events) while the viewmodel is hidden
+            return;
         }
 
         if (Legs != null)
