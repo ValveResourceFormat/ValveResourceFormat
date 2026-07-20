@@ -29,4 +29,10 @@ internal static class Sound
     /// Stops the sound currently playing on the given channel, if any.
     /// </summary>
     public static void StopChannel(string channel) => Player?.StopChannel(channel);
+
+    /// <summary>
+    /// Pre-decodes every vsnd a sound event could play so the first <see cref="Play"/> does not hitch.
+    /// Intended to warm the cache for a map's sound events at load time; blocks while decoding.
+    /// </summary>
+    public static void Cache(string soundEventName) => Player?.Cache(soundEventName);
 }

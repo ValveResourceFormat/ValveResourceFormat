@@ -39,7 +39,7 @@ internal sealed class SoundEventCSGOMega : SoundEvent
         if (soundNames.Length > 0)
         {
             var soundName = soundNames[Mixer.Player.PickTrack(Definition)];
-            var cachedSound = Mixer.Player.Cache.GetSound(soundName);
+            var cachedSound = Mixer.Player.SoundCache.GetSound(soundName);
 
             if (cachedSound != null)
             {

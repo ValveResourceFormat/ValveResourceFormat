@@ -14,8 +14,8 @@ namespace ValveResourceFormat.Renderer.Audio;
 /// </summary>
 public sealed class SoundEventPlayer : IDisposable
 {
-    /// <summary>Gets the decoded sound cache.</summary>
-    public SoundCache Cache { get; }
+    /// <summary>Gets the decoded sound store.</summary>
+    public SoundCache SoundCache { get; }
 
     /// <summary>Gets the bank of loaded sound event definitions.</summary>
     public SoundEventBank Bank { get; }
@@ -104,7 +104,7 @@ public sealed class SoundEventPlayer : IDisposable
         this.device = device;
         this.logger = logger ?? NullLogger.Instance;
 
-        Cache = new SoundCache(fileLoader, device.SampleRate, device.Channels, this.logger);
+        SoundCache = new SoundCache(fileLoader, device.SampleRate, device.Channels, this.logger);
         Bank = new SoundEventBank();
         mixer = new AudioMixer(this);
 
@@ -243,6 +243,45 @@ public sealed class SoundEventPlayer : IDisposable
 
         soundEvent.Start();
         return soundEvent;
+    }
+
+    /// <summary>
+    /// Decodes and caches every vsnd a sound event could play - all random track variants and any child events -
+    /// so the first real <see cref="Play"/> does not hitch the game thread on decode. Meant to be called ahead of
+    /// time (e.g. when a map loads) for the sound events it uses; it blocks while decoding, which is fine off the
+    /// hot path. Unknown events are ignored. More thorough than a silent play, which would decode only one of the
+    /// random track variants.
+    /// </summary>
+    public void Cache(string soundEventName)
+    {
+        var definition = Bank.GetSoundEvent(soundEventName);
+        if (definition != null)
+        {
+            Cache(definition, depth: 0);
+        }
+    }
+
+    private void Cache(SoundEventDefinition definition, int depth)
+    {
+        if (depth > 8)
+        {
+            // Matches the base resolution depth limit, guarding against cyclic child references
+            return;
+        }
+
+        foreach (var track in definition.TrackNames)
+        {
+            SoundCache.GetSound(track);
+        }
+
+        foreach (var childName in definition.ChildEventNames)
+        {
+            var child = Bank.GetSoundEvent(childName);
+            if (child != null)
+            {
+                Cache(child, depth + 1);
+            }
+        }
     }
 
     /// <summary>
