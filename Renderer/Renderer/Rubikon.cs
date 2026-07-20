@@ -117,6 +117,13 @@ public class Rubikon
         public readonly bool IsMinimalDistance => Distance < 0.00001f;
 
         /// <summary>
+        /// Gets or sets the point of contact on the hit surface. For swept box traces this is
+        /// the closest point on the hit triangle to the box center at the time of impact,
+        /// while <see cref="HitPosition"/> is the center of the swept shape itself.
+        /// </summary>
+        public Vector3 ContactPoint { get; set; }
+
+        /// <summary>
         /// Updates this <see cref="TraceResult"/> if the <paramref name="other"/> is closer. Returns true if updated.
         /// </summary>
         public bool MinimizeWith(TraceResult other)
@@ -218,17 +225,22 @@ public class Rubikon
         /// <summary>Gets the total sweep length.</summary>
         public float Length { get; }
 
+        /// <summary>Gets a value indicating whether hits also compute <see cref="TraceResult.ContactPoint"/>.</summary>
+        public bool ComputeContactPoint { get; }
+
         /// <summary>Initializes a new AABB trace context from start/end positions and box half-extents.</summary>
         /// <param name="start">Sweep start position.</param>
         /// <param name="end">Sweep end position.</param>
         /// <param name="halfExtents">Half-extents of the swept box.</param>
-        public AABBTraceContext(Vector3 start, Vector3 end, Vector3 halfExtents)
+        /// <param name="computeContactPoint">Whether hits also compute <see cref="TraceResult.ContactPoint"/>.</param>
+        public AABBTraceContext(Vector3 start, Vector3 end, Vector3 halfExtents, bool computeContactPoint = false)
         {
             Origin = start;
             End = end;
             Direction = Vector3.Normalize(end - start);
             HalfExtents = halfExtents;
             Length = Vector3.Distance(start, end);
+            ComputeContactPoint = computeContactPoint;
         }
     }
 
@@ -237,12 +249,13 @@ public class Rubikon
     /// <param name="to">Sweep end position.</param>
     /// <param name="aabb">Box whose size determines the half-extents of the swept volume.</param>
     /// <param name="collisionName">Collision group name used to filter shapes (e.g. "player").</param>
+    /// <param name="computeContactPoint">Whether hits also compute <see cref="TraceResult.ContactPoint"/>.</param>
     /// <returns>The closest <see cref="TraceResult"/>, or an empty result if nothing was hit.</returns>
-    public TraceResult TraceAABB(Vector3 from, Vector3 to, AABB aabb, string collisionName)
+    public TraceResult TraceAABB(Vector3 from, Vector3 to, AABB aabb, string collisionName, bool computeContactPoint = false)
     {
         TraceResult closestHit = new();
         var halfExtents = aabb.Size * 0.5f;
-        var trace = new AABBTraceContext(from, to, halfExtents);
+        var trace = new AABBTraceContext(from, to, halfExtents, computeContactPoint);
 
         // Check against all meshes
         foreach (var mesh in Meshes)
@@ -703,7 +716,61 @@ public class Rubikon
         var hitDistance = Math.Max(enter * trace.Length, 0);
         var hitPoint = trace.Origin + trace.Direction * hitDistance;
 
-        return new TraceResult(true, hitPoint, hitNormal, hitDistance, -1);
+        return new TraceResult(true, hitPoint, hitNormal, hitDistance, -1)
+        {
+            ContactPoint = trace.ComputeContactPoint ? ClosestPointOnTriangle(hitPoint, v0, v1, v2) : hitPoint,
+        };
+    }
+
+    private static Vector3 ClosestPointOnTriangle(Vector3 p, Vector3 a, Vector3 b, Vector3 c)
+    {
+        var ab = b - a;
+        var ac = c - a;
+        var ap = p - a;
+
+        var d1 = Vector3.Dot(ab, ap);
+        var d2 = Vector3.Dot(ac, ap);
+        if (d1 <= 0 && d2 <= 0)
+        {
+            return a;
+        }
+
+        var bp = p - b;
+        var d3 = Vector3.Dot(ab, bp);
+        var d4 = Vector3.Dot(ac, bp);
+        if (d3 >= 0 && d4 <= d3)
+        {
+            return b;
+        }
+
+        var vc = d1 * d4 - d3 * d2;
+        if (vc <= 0 && d1 >= 0 && d3 <= 0)
+        {
+            return a + ab * (d1 / (d1 - d3));
+        }
+
+        var cp = p - c;
+        var d5 = Vector3.Dot(ab, cp);
+        var d6 = Vector3.Dot(ac, cp);
+        if (d6 >= 0 && d5 <= d6)
+        {
+            return c;
+        }
+
+        var vb = d5 * d2 - d1 * d6;
+        if (vb <= 0 && d2 >= 0 && d6 <= 0)
+        {
+            return a + ac * (d2 / (d2 - d6));
+        }
+
+        var va = d3 * d6 - d5 * d4;
+        if (va <= 0 && d4 - d3 >= 0 && d5 - d6 >= 0)
+        {
+            return b + (c - b) * ((d4 - d3) / (d4 - d3 + (d5 - d6)));
+        }
+
+        var denom = 1f / (va + vb + vc);
+        return a + ab * (vb * denom) + ac * (vc * denom);
     }
 
 

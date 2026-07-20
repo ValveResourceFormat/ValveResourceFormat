@@ -97,7 +97,11 @@ public class PlayerMovement
     private float DuckSpeedModifierSmooth => float.Lerp(1f, DuckSpeedModifier, CrouchBlend);
     private AABB SnappedHull => HoldingCtrl ? PlayerHullDucked : PlayerHullStanding;
 
-    private AABB Hull
+    /// <summary>
+    /// Gets the current collision hull, centered horizontally and extending from the feet (Z=0)
+    /// upward, with height blended between the standing and ducked hulls by <see cref="CrouchBlend"/>.
+    /// </summary>
+    public AABB Hull
     {
         get
         {

@@ -33,6 +33,8 @@ namespace GUI.Types.GLViewers
         private bool showStaticOctree;
         private bool showDynamicOctree;
         private bool showVisDebug;
+        private bool showPhysicsTraces;
+        private PhysicsTraceDebugRenderer? physicsTraceRenderer;
 
         private enum PerfDisplay
         {
@@ -81,6 +83,9 @@ namespace GUI.Types.GLViewers
         {
             base.Dispose();
 
+            physicsTraceRenderer?.Delete();
+            physicsTraceRenderer = null;
+
             Renderer?.Dispose();
 
             perfDisplayComboBox?.Dispose();
@@ -122,6 +127,11 @@ namespace GUI.Types.GLViewers
                     if (Scene.VoxelVisibility != null)
                     {
                         UiControl.AddCheckBox("Show Vis Debug", showVisDebug, v => showVisDebug = v);
+                    }
+
+                    if (Scene.PhysicsWorld != null)
+                    {
+                        UiControl.AddCheckBox("Debug Physics Traces", showPhysicsTraces, v => showPhysicsTraces = v);
                     }
                 }
 
@@ -383,8 +393,15 @@ namespace GUI.Types.GLViewers
                 var wheelDelta = ConsumePendingMouseWheelDelta();
 
                 Input.MouseSensitivity = Settings.Config.MouseSensitivity;
+                var wasNoClip = Input.NoClip;
                 Input.Tick(frameTime, pressedKeys, new Vector2(mouseDelta.X, mouseDelta.Y), Renderer.Camera);
                 LastMouseDelta = mouseDelta;
+
+                // cancel unintentional selection
+                if (wasNoClip && !Input.NoClip)
+                {
+                    SelectedNodeRenderer?.SelectNode(null);
+                }
 
                 GrabbedMouse = !Input.NoClip && !Paused;
             }
@@ -502,6 +519,12 @@ namespace GUI.Types.GLViewers
                 if (Scene.OcclusionDebugEnabled && Scene.OcclusionDebug != null)
                 {
                     Scene.OcclusionDebug.Render();
+                }
+
+                if (showPhysicsTraces && Scene.PhysicsWorld != null)
+                {
+                    physicsTraceRenderer ??= new PhysicsTraceDebugRenderer(Scene.RendererContext);
+                    physicsTraceRenderer.Render(Scene.PhysicsWorld, Input, Renderer.Camera);
                 }
 
                 if (ShowBaseGrid && baseGrid != null)
