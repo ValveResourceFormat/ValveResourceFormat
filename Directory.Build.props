@@ -46,8 +46,6 @@
   </PropertyGroup>
 
   <PropertyGroup>
-    <!-- NLayer (MP3 decoder) is not strong-named, and there is no signed build; allow signed assemblies to reference it. -->
-    <NoWarn>$(NoWarn);CS8002</NoWarn>
   </PropertyGroup>
 
   <ItemGroup>
