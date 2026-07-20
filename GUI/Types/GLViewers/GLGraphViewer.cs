@@ -49,8 +49,14 @@ namespace GUI.Types.GLViewers
         protected virtual bool ShowSidebar => false;
 
         private Label? statsLabel;
-        private Label? focusLabel;
-        private Label? connectionsLabel;
+        private ThemedTextBox? searchBox;
+        private ListBox? connectionsList;
+        private readonly List<GraphNode> connectionsListTargets = [];
+        private Panel? legendPanel;
+        private GraphNode? lastSearchResult;
+
+        /// <summary>Sidebar legend rows provided by the frontend; empty hides the legend.</summary>
+        protected virtual IEnumerable<(string Label, SKColor Color)> LegendEntries => [];
 
         protected override void AddUiControls()
         {
@@ -64,37 +70,89 @@ namespace GUI.Types.GLViewers
             }
             else
             {
-                var statsText = BuildStatsText(View.GetComponents().Count);
-                var statsLines = statsText.AsSpan().Count('\n') + 1;
-
                 statsLabel = new Label
                 {
                     AutoSize = false,
                     AutoEllipsis = true,
-                    Height = UiControl.AdjustForDPI(12 + 16 * statsLines),
                     Padding = new Padding(3, 8, 3, 0),
-                    Text = statsText,
                 };
                 UiControl.AddControl(statsLabel);
+                RefreshStatsLabel();
 
-                focusLabel = new Label
+                var suppressLayoutChange = true;
+                var layoutCombo = UiControl.AddSelection("Layout", (_, index) =>
                 {
-                    AutoSize = false,
-                    AutoEllipsis = true,
-                    Height = UiControl.AdjustForDPI(40),
-                    Padding = new Padding(3, 6, 3, 0),
-                };
-                UiControl.AddControl(focusLabel);
+                    if (suppressLayoutChange || index < 0)
+                    {
+                        return;
+                    }
 
-                connectionsLabel = new Label
+                    var style = (GraphLayoutStyle)index;
+                    PrepareForLayoutStyle(style);
+                    View.LayoutNodesPacked(style);
+                    RefitToGraph();
+                });
+                layoutCombo.Items.AddRange(new object[]
                 {
-                    AutoSize = false,
-                    AutoEllipsis = true,
-                    Height = UiControl.AdjustForDPI(40),
-                    Padding = new Padding(3, 6, 3, 0),
-                };
-                UiControl.AddControl(connectionsLabel);
+                    "Layered (v1)",
+                    "Layered v2",
+                    "Compact v2",
+                    "Wide v2",
+                    "Square blocks",
+                    "Fan grids",
+                    "Collapsed fans",
+                    "Sequential chains",
+                    "Grid by class",
+                    "Organic (force)",
+                    "Relaxed (springs)",
+                    "MSAGL (specials inline)",
+                    "MSAGL (specials per node)",
+                    "MSAGL (specials combined)",
+                });
+                layoutCombo.SelectedIndex = 0;
+                suppressLayoutChange = false;
 
+                searchBox = new ThemedTextBox
+                {
+                    PlaceholderText = "Name search (Enter = next)",
+                };
+                searchBox.KeyDown += OnSearchKeyDown;
+                searchBox.TextChanged += (_, _) => View.SetSearchHighlight(searchBox.Text);
+                UiControl.AddControl(searchBox);
+
+                connectionsList = new ListBox
+                {
+                    IntegralHeight = false,
+                    BorderStyle = BorderStyle.None,
+                    Visible = false,
+                };
+                connectionsList.DoubleClick += OnConnectionsListDoubleClick;
+                UiControl.AddControl(connectionsList);
+
+                var subtitles = View.GetDistinctSubtitles();
+
+                if (subtitles.Count > 1)
+                {
+                    var filterList = UiControl.AddMultiSelection("Filter", listBox =>
+                    {
+                        foreach (var subtitle in subtitles)
+                        {
+                            listBox.Items.Add(subtitle, true);
+                        }
+                    }, visible =>
+                    {
+                        View.SetSubtitleFilter(visible);
+                        RefitToGraph();
+                    });
+
+                    // Content-sized section; the sidebar as a whole scrolls instead.
+                    if (filterList.Parent?.Parent is Control filterControl)
+                    {
+                        filterControl.Height = filterList.ItemHeight * filterList.Items.Count + UiControl.AdjustForDPI(34);
+                    }
+                }
+
+                AddLegendPanel();
                 UpdateSelectionLabels();
             }
 
@@ -110,51 +168,133 @@ namespace GUI.Types.GLViewers
             return $"{View.NodeCount} nodes\n{View.WireCount} connections\n{islandCount} {islandSuffix}";
         }
 
+        /// <summary>Recomputes the stats label text and height.</summary>
+        protected void RefreshStatsLabel()
+        {
+            if (statsLabel == null || UiControl == null)
+            {
+                return;
+            }
+
+            var statsText = BuildStatsText(View.GetComponents().Count);
+            var statsLines = statsText.AsSpan().Count('\n') + 1;
+            statsLabel.Height = UiControl.AdjustForDPI(12 + 16 * statsLines);
+            statsLabel.Text = statsText;
+        }
+
         private void UpdateSelectionLabels()
         {
-            if (focusLabel == null || connectionsLabel == null)
+            if (connectionsList == null)
             {
                 return;
             }
 
             var node = View.PrimarySelectedNode;
             var wire = View.SelectedWire;
-            string focusText;
-            string connectionsText;
+
+            static string Suffix(GraphWire wire) => wire.Label == null ? string.Empty : $"  ({wire.Label})";
+
+            connectionsList.BeginUpdate();
+            connectionsList.Items.Clear();
+            connectionsListTargets.Clear();
 
             if (node != null)
             {
-                var subtitle = string.IsNullOrEmpty(node.Subtitle) ? string.Empty : $" ({node.Subtitle})";
-                focusText = $"Focused Node:\n{node.Title}{subtitle}";
-
-                var inCount = 0;
-                var outCount = 0;
-
                 foreach (var socket in node.Inputs)
                 {
-                    inCount += socket.Wires.Count;
+                    foreach (var inWire in socket.Wires)
+                    {
+                        connectionsList.Items.Add($"← {inWire.From.Owner.Title}.{inWire.From.Name}{Suffix(inWire)}");
+                        connectionsListTargets.Add(inWire.From.Owner);
+                    }
                 }
 
                 foreach (var socket in node.Outputs)
                 {
-                    outCount += socket.Wires.Count;
+                    foreach (var outWire in socket.Wires)
+                    {
+                        connectionsList.Items.Add($"→ {outWire.To.Owner.Title}.{outWire.To.Name}{Suffix(outWire)}");
+                        connectionsListTargets.Add(outWire.To.Owner);
+                    }
                 }
-
-                connectionsText = $"Connections:\n{inCount} in / {outCount} out";
             }
             else if (wire != null)
             {
-                focusText = $"Focused Wire:\n{wire.From.Name} → {wire.To.Name}";
-                connectionsText = $"Connections:\n{wire.Label ?? "(no parameters)"}";
-            }
-            else
-            {
-                focusText = "Focused Node:\n(None)";
-                connectionsText = "Connections:\n(None)";
+                connectionsList.Items.Add($"{wire.From.Owner.Title}.{wire.From.Name}");
+                connectionsListTargets.Add(wire.From.Owner);
+                connectionsList.Items.Add($"→ {wire.To.Owner.Title}.{wire.To.Name}{Suffix(wire)}");
+                connectionsListTargets.Add(wire.To.Owner);
             }
 
-            focusLabel.Text = focusText;
-            connectionsLabel.Text = connectionsText;
+            connectionsList.EndUpdate();
+
+            // Content-sized and hidden when empty; the sidebar scrolls as a whole.
+            connectionsList.Visible = connectionsList.Items.Count > 0;
+            connectionsList.Height = connectionsList.Items.Count * connectionsList.ItemHeight + 6;
+        }
+
+        private void OnSearchKeyDown(object? sender, KeyEventArgs e)
+        {
+            if (e.KeyCode != Keys.Enter || searchBox == null)
+            {
+                return;
+            }
+
+            e.SuppressKeyPress = true;
+
+            var match = View.FindNextNode(searchBox.Text, lastSearchResult);
+            lastSearchResult = match;
+
+            if (match == null)
+            {
+                return;
+            }
+
+            if (match.Hidden)
+            {
+                FocusIslandOf(match);
+            }
+
+            FocusNode(match);
+        }
+
+        private void OnConnectionsListDoubleClick(object? sender, EventArgs e)
+        {
+            if (connectionsList is { SelectedIndex: >= 0 } list && list.SelectedIndex < connectionsListTargets.Count)
+            {
+                FocusNode(connectionsListTargets[list.SelectedIndex]);
+            }
+        }
+
+        private void AddLegendPanel()
+        {
+            Debug.Assert(UiControl != null);
+
+            var entries = new List<(string Label, SKColor Color)>(LegendEntries);
+
+            if (entries.Count == 0)
+            {
+                return;
+            }
+
+            legendPanel = new Panel
+            {
+                Height = UiControl.AdjustForDPI(10 + entries.Count * 18),
+            };
+            legendPanel.Paint += (_, e) =>
+            {
+                var y = 6;
+
+                foreach (var (label, color) in entries)
+                {
+                    using var swatch = new System.Drawing.SolidBrush(System.Drawing.Color.FromArgb(color.Red, color.Green, color.Blue));
+                    e.Graphics.FillRectangle(swatch, 6, y + 2, 12, 12);
+                    using var text = new System.Drawing.SolidBrush(Themer.CurrentThemeColors.Contrast);
+                    e.Graphics.DrawString(label, legendPanel!.Font, text, 24, y);
+                    y += 18;
+                }
+            };
+            UiControl.AddControl(legendPanel);
         }
 
         /// <summary>Refits the view to the current graph bounds on the next frame.</summary>
@@ -220,6 +360,19 @@ namespace GUI.Types.GLViewers
         {
         }
 
+        /// <summary>Called before a layout style is applied; frontends may rebuild the graph.</summary>
+        protected virtual void PrepareForLayoutStyle(GraphLayoutStyle style)
+        {
+        }
+
+        private void ExportGraph(string extension, string content)
+        {
+            var name = System.IO.Path.GetFileNameWithoutExtension(VrfGuiContext.FileName);
+            var path = System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "Downloads", $"{name}_graph{extension}");
+            System.IO.File.WriteAllText(path, content);
+            Log.Info(nameof(GLGraphViewer), $"Exported graph to {path}");
+        }
+
         /// <summary>Whether the graph is made of more than one connected component.</summary>
         protected virtual bool HasMultipleIslands => View.HasMultipleIslands();
 
@@ -275,6 +428,14 @@ namespace GUI.Types.GLViewers
                     focusItem.Click += (_, _) => FocusIslandOf(node);
                     contextMenu.Items.Add(focusItem);
                 }
+
+                var isolateItem = new ToolStripMenuItem("Isolate this chain");
+                isolateItem.Click += (_, _) =>
+                {
+                    View.IsolateChainOf(node);
+                    RefitToGraph();
+                };
+                contextMenu.Items.Add(isolateItem);
             }
 
             if (View.HasHiddenNodes())
@@ -283,6 +444,14 @@ namespace GUI.Types.GLViewers
                 showAllItem.Click += (_, _) => ShowAllIslands();
                 contextMenu.Items.Add(showAllItem);
             }
+
+            var exportDotItem = new ToolStripMenuItem("Export graph (.dot)");
+            exportDotItem.Click += (_, _) => ExportGraph(".dot", View.ToDot());
+            contextMenu.Items.Add(exportDotItem);
+
+            var exportGraphMlItem = new ToolStripMenuItem("Export graph (.graphml)");
+            exportGraphMlItem.Click += (_, _) => ExportGraph(".graphml", View.ToGraphMl());
+            contextMenu.Items.Add(exportGraphMlItem);
 
             if (contextMenu.Items.Count > 0)
             {
@@ -581,8 +750,9 @@ namespace GUI.Types.GLViewers
 
             contextMenu?.Dispose();
             statsLabel?.Dispose();
-            focusLabel?.Dispose();
-            connectionsLabel?.Dispose();
+            searchBox?.Dispose();
+            connectionsList?.Dispose();
+            legendPanel?.Dispose();
             View.GraphChanged -= OnGraphChanged;
 
             // Stops the render loop first; afterwards the GL context may no longer be

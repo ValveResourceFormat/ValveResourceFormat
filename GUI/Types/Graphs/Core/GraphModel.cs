@@ -80,6 +80,33 @@ class GraphNode : IGraphElement
         GeometryDirty = true;
     }
 
+    /// <summary>Compact hue-marked note row, e.g. an inlined special-target connection.</summary>
+    public void AddAnnotation(string text, GraphHue hue)
+    {
+        Rows.Add(new AnnotationRow(text, hue));
+        GeometryDirty = true;
+    }
+
+    /// <summary>
+    /// Replaces the rows with paired lines where input i and output i share a row
+    /// (inputs on the left edge, outputs on the right). Drops any non-socket rows.
+    /// </summary>
+    public void PairSocketRows()
+    {
+        Rows.Clear();
+
+        var count = Math.Max(Inputs.Count, Outputs.Count);
+
+        for (var i = 0; i < count; i++)
+        {
+            Rows.Add(new PairedSocketRow(
+                i < Inputs.Count ? Inputs[i] : null,
+                i < Outputs.Count ? Outputs[i] : null));
+        }
+
+        GeometryDirty = true;
+    }
+
     public GraphHue EffectiveCategory => Category
         ?? (Outputs.Count > 0 ? Outputs[0].Hue : Inputs.Count > 0 ? Inputs[0].Hue : GraphHue.Neutral);
 }
@@ -100,10 +127,22 @@ sealed class SocketRow(GraphSocket socket) : GraphRow
     public GraphSocket Socket { get; } = socket;
 }
 
+sealed class PairedSocketRow(GraphSocket? input, GraphSocket? output) : GraphRow
+{
+    public GraphSocket? Input { get; } = input;
+    public GraphSocket? Output { get; } = output;
+}
+
 sealed class ResourceRow(string text, string icon, GraphHue hue) : GraphRow
 {
     public string Text { get; } = text;
     public string Icon { get; } = icon;
+    public GraphHue Hue { get; } = hue;
+}
+
+sealed class AnnotationRow(string text, GraphHue hue) : GraphRow
+{
+    public string Text { get; } = text;
     public GraphHue Hue { get; } = hue;
 }
 
@@ -138,6 +177,15 @@ class GraphWire : IGraphElement
 
     /// <summary>Short text drawn at the wire midpoint (e.g. entity I/O delay/parameter).</summary>
     public string? Label { get; set; }
+
+    /// <summary>
+    /// Optional routing waypoints. For orthogonal routes these are (laneX, levelY) pairs per
+    /// crossed column gap; the last pair's Y is ignored (the wire drops to the target socket).
+    /// </summary>
+    public List<Vector2>? Waypoints { get; set; }
+
+    /// <summary>Whether <see cref="Waypoints"/> describe an orthogonal route instead of curve hints.</summary>
+    public bool OrthogonalWaypoints { get; set; }
 
     internal GraphWire(GraphSocket from, GraphSocket to)
     {

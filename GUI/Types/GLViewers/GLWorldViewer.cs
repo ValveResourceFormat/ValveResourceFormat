@@ -518,6 +518,12 @@ namespace GUI.Types.GLViewers
 
             if (node == null)
             {
+                // Tool entities (logic, sounds, finished particles) have no renderable
+                // scene node; fly to the entity origin instead.
+                var origin = entity.GetVector3Property("origin");
+                Input.SaveCameraForTransition();
+                Input.Camera.SetLocation(origin + new Vector3(96f, 96f, 64f));
+                Input.Camera.LookAt(origin);
                 return;
             }
 
@@ -535,6 +541,16 @@ namespace GUI.Types.GLViewers
             var bbox = node.BoundingBox;
             var size = bbox.Size;
             var maxDimension = Math.Max(Math.Max(size.X, size.Y), size.Z);
+
+            // Empty or degenerate bounds (e.g. a particle system that finished playing)
+            // would put the camera inside the node or at a garbage position.
+            if (float.IsNaN(maxDimension) || maxDimension < 1f)
+            {
+                bbox = new AABB(node.Transform.Translation - new Vector3(32f), node.Transform.Translation + new Vector3(32f));
+                size = bbox.Size;
+                maxDimension = 64f;
+            }
+
             var distance = maxDimension * 1.2f;
             var cameraHeight = bbox.Center.Y + size.Y * 2f;
 

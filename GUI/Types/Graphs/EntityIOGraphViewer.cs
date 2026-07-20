@@ -20,20 +20,52 @@ internal class EntityIOGraphViewer : GLGraphViewer
     private const GraphHue OutputHue = GraphHue.Orange;
     private const GraphHue InputHue = GraphHue.Cyan;
 
-    private readonly List<List<GraphNode>> islands;
-    private Label? islandLabel;
+    internal enum SpecialsMode
+    {
+        Inline,
+        PerSource,
+        Combined,
+    }
+
+    private List<List<GraphNode>> islands;
+    private string? focusedIslandName;
     private readonly Action<EntityLump.Entity>? showInMap;
+    private readonly List<EntityLump.Entity> entities;
     private readonly int entityCount;
+    private SpecialsMode currentSpecialsMode = SpecialsMode.Inline;
 
     public EntityIOGraphViewer(VrfGuiContext vrfGuiContext, RendererContext rendererContext, EntityLump entityLump)
-        : this(vrfGuiContext, rendererContext, entityLump.GetEntities(), showInMap: null)
+        : this(vrfGuiContext, rendererContext, CollectEntities(entityLump, rendererContext), showInMap: null)
     {
+    }
+
+    // A lump opened on its own still references entities of its child lumps (templates,
+    // spawners), so resolve targets across the whole lump tree.
+    private static List<EntityLump.Entity> CollectEntities(EntityLump entityLump, RendererContext rendererContext)
+    {
+        try
+        {
+            var entities = new List<EntityLump.Entity>();
+
+            foreach (var traversed in EntityLumpTraversal.EnumerateEntities(entityLump, rendererContext.FileLoader, Matrix4x4.Identity))
+            {
+                entities.Add(traversed.Entity);
+            }
+
+            return entities;
+        }
+        catch (Exception e)
+        {
+            Log.Warn(nameof(EntityIOGraphViewer), $"Failed to traverse child entity lumps: {e.Message}");
+            return entityLump.GetEntities();
+        }
     }
 
     public EntityIOGraphViewer(VrfGuiContext vrfGuiContext, RendererContext rendererContext, List<EntityLump.Entity> entities, Action<EntityLump.Entity>? showInMap)
         : base(vrfGuiContext, rendererContext, new GraphView())
     {
         this.showInMap = showInMap;
+        this.entities = entities;
         entityCount = entities.Count;
         BuildGraph(View, entities);
 
@@ -199,12 +231,38 @@ internal class EntityIOGraphViewer : GLGraphViewer
 
     protected override bool ShowSidebar => true;
 
-    protected override string BuildStatsText(int islandCount) => $"{entityCount} entities\n{base.BuildStatsText(islandCount)}";
+    // The MSAGL comparison entries differ in how special targets are represented, which is a
+    // graph-build decision; rebuild when the mode changes.
+    protected override void PrepareForLayoutStyle(GraphLayoutStyle style)
+    {
+        var mode = style switch
+        {
+            GraphLayoutStyle.MsaglSpecialNodes => SpecialsMode.PerSource,
+            GraphLayoutStyle.MsaglCombined => SpecialsMode.Combined,
+            _ => SpecialsMode.Inline,
+        };
+
+        if (mode == currentSpecialsMode)
+        {
+            return;
+        }
+
+        currentSpecialsMode = mode;
+        View.ClearGraph();
+        BuildGraph(View, entities, mode);
+
+        islands = View.GetComponents();
+        islands.Sort(static (a, b) => b.Count.CompareTo(a.Count));
+
+        LoadEntityIcons();
+        SetIslandLabel(null);
+    }
+
+    protected override string BuildStatsText(int islandCount) => $"{entityCount} entities\n{base.BuildStatsText(islandCount)}\nIsland: {focusedIslandName ?? "(all)"}";
 
     public override void Dispose()
     {
         base.Dispose();
-        islandLabel?.Dispose();
 
         foreach (var image in iconCache.Values)
         {
@@ -214,25 +272,16 @@ internal class EntityIOGraphViewer : GLGraphViewer
         iconCache.Clear();
     }
 
-    protected override void AddUiControls()
-    {
-        base.AddUiControls();
-
-        if (islands.Count < 2 || UiControl == null)
-        {
-            return;
-        }
-
-        islandLabel = new Label
-        {
-            AutoSize = false,
-            AutoEllipsis = true,
-            Height = UiControl.AdjustForDPI(40),
-            Padding = new Padding(3, 6, 3, 0),
-            Text = "Focused Island:\n(None)",
-        };
-        UiControl.AddControl(islandLabel);
-    }
+    protected override IEnumerable<(string Label, SKColor Color)> LegendEntries =>
+    [
+        ("Output", View.Palette.Signal(OutputHue)),
+        ("Input", View.Palette.Signal(InputHue)),
+        ("point_template", View.Palette.Category(GraphHue.Emerald)),
+        ("Template spawn", View.Palette.Signal(GraphHue.Purple)),
+        ("Sound entity", View.Palette.Category(GraphHue.Pink)),
+        ("Special target", View.Palette.Category(GraphHue.Magenta)),
+        ("Unresolved target", View.Palette.Category(GraphHue.Red)),
+    ];
 
     protected override bool HasMultipleIslands => islands.Count > 1;
 
@@ -252,10 +301,8 @@ internal class EntityIOGraphViewer : GLGraphViewer
 
     private void SetIslandLabel(string? islandName)
     {
-        if (islandLabel != null)
-        {
-            islandLabel.Text = $"Focused Island:\n{islandName ?? "(None)"}";
-        }
+        focusedIslandName = islandName;
+        RefreshStatsLabel();
     }
 
     private static string IslandLabel(List<GraphNode> island)
@@ -317,7 +364,7 @@ internal class EntityIOGraphViewer : GLGraphViewer
 
     internal static void BuildGraph(GraphView view, EntityLump entityLump) => BuildGraph(view, entityLump.GetEntities());
 
-    internal static void BuildGraph(GraphView view, List<EntityLump.Entity> entities)
+    internal static void BuildGraph(GraphView view, List<EntityLump.Entity> entities, SpecialsMode specialsMode = SpecialsMode.Inline)
     {
         var connections = new List<Connection>();
 
@@ -362,6 +409,8 @@ internal class EntityIOGraphViewer : GLGraphViewer
 
         var entityNodes = new Dictionary<EntityLump.Entity, GraphNode>();
         var syntheticNodes = new Dictionary<string, GraphNode>(StringComparer.OrdinalIgnoreCase);
+        var perSourceSpecials = new Dictionary<(EntityLump.Entity Source, string Name), GraphNode>();
+        var annotations = new List<(GraphNode Node, string Text)>();
         var outputSockets = new Dictionary<(GraphNode Node, string Name), GraphSocket>();
         var inputSockets = new Dictionary<(GraphNode Node, string Name), GraphSocket>();
         var mergedWires = new Dictionary<(GraphSocket From, GraphSocket To), GraphWire>();
@@ -465,23 +514,86 @@ internal class EntityIOGraphViewer : GLGraphViewer
         foreach (var connection in connections)
         {
             var sourceNode = NodeFor(connection.Source);
+            var isSpecial = connection.TargetName.Length == 0 || connection.TargetName.StartsWith('!');
+
+            // Relative specials (!self, !activator, ...) and listener hooks are not real map
+            // entities; by default they inline as annotation rows on the firing node.
+            if (isSpecial && specialsMode == SpecialsMode.Inline)
+            {
+                var inlineLabel = FormatConnectionLabel(connection);
+                var inputPart = connection.InputName.Length == 0 ? string.Empty : $".{connection.InputName}";
+                var text = connection.TargetName.Length == 0
+                    ? $"{connection.OutputName} → (hook)"
+                    : $"{connection.OutputName} → {connection.TargetName}{inputPart}{(inlineLabel != null ? $" ({inlineLabel})" : string.Empty)}";
+                annotations.Add((sourceNode, text));
+                continue;
+            }
+
             var output = OutputFor(sourceNode, connection.OutputName, OutputHue);
 
             List<GraphNode> targetNodes;
 
-            if (connection.TargetName.Length == 0)
+            if (isSpecial)
             {
-                // Listener registration stubs: the output event is compiled with no target so
-                // scripts (e.g. the map's pulse graph) can subscribe to it at runtime.
-                targetNodes = [SyntheticFor("(event hook)", unresolved: false)];
-            }
-            else if (connection.TargetName.StartsWith('!'))
-            {
-                targetNodes = [SyntheticFor(connection.TargetName, unresolved: false)];
+                var displayName = connection.TargetName.Length == 0 ? "(event hook)" : connection.TargetName;
+                var subtitle = connection.TargetName.Length == 0 ? "event hook" : "special target";
+
+                if (specialsMode == SpecialsMode.PerSource)
+                {
+                    if (!perSourceSpecials.TryGetValue((connection.Source, displayName), out var specialNode))
+                    {
+                        specialNode = view.AddNode(new GraphNode
+                        {
+                            Title = displayName,
+                            Subtitle = subtitle,
+                            Category = GraphHue.Magenta,
+                        });
+                        perSourceSpecials[(connection.Source, displayName)] = specialNode;
+                    }
+
+                    targetNodes = [specialNode];
+                }
+                else
+                {
+                    if (!syntheticNodes.TryGetValue(displayName, out var sharedNode))
+                    {
+                        sharedNode = view.AddNode(new GraphNode
+                        {
+                            Title = displayName,
+                            Subtitle = subtitle,
+                            Category = GraphHue.Magenta,
+                        });
+                        syntheticNodes[displayName] = sharedNode;
+                    }
+
+                    targetNodes = [sharedNode];
+                }
             }
             else if (entitiesByName.TryGetValue(connection.TargetName, out var targetEntities))
             {
                 targetNodes = targetEntities.Select(NodeFor).ToList();
+            }
+            else if (connection.TargetName.Contains('*'))
+            {
+                // Source 2 target names support trailing-* prefix matching.
+                var prefix = connection.TargetName[..connection.TargetName.IndexOf('*')];
+                targetNodes = [];
+
+                foreach (var (name, namedEntities) in entitiesByName)
+                {
+                    if (name.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
+                    {
+                        foreach (var targetEntity in namedEntities)
+                        {
+                            targetNodes.Add(NodeFor(targetEntity));
+                        }
+                    }
+                }
+
+                if (targetNodes.Count == 0)
+                {
+                    targetNodes = [SyntheticFor(connection.TargetName, unresolved: true)];
+                }
             }
             else
             {
@@ -507,6 +619,22 @@ internal class EntityIOGraphViewer : GLGraphViewer
 
                 mergedWires[(output, input)] = view.Connect(output, input, label: label);
             }
+        }
+
+        foreach (var node in entityNodes.Values)
+        {
+            node.PairSocketRows();
+        }
+
+        foreach (var node in syntheticNodes.Values)
+        {
+            node.PairSocketRows();
+        }
+
+        // After pairing, so the annotation rows sit below the socket lines.
+        foreach (var (node, text) in annotations)
+        {
+            node.AddAnnotation(text, GraphHue.Magenta);
         }
 
         Log.Debug(nameof(EntityIOGraphViewer), $"Created {entityNodes.Count + syntheticNodes.Count} nodes from {connections.Count} connections ({entities.Count} entities).");

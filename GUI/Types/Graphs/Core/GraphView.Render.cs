@@ -16,6 +16,7 @@ partial class GraphView
     private const float WireWidth = 2.5f;
     private const float GutterWidth = 52f;
     private const float GutterIconSize = 44f;
+    private const float PairGap = 28f;
 
     // Below this zoom only header, body and wires are drawn.
     private const float DetailZoomCutoff = 0.2f;
@@ -85,6 +86,9 @@ partial class GraphView
     }
 
     private readonly SKPaint fillPaint = new() { IsAntialias = true, Style = SKPaintStyle.Fill };
+    private readonly SKPaint arrowPaint = new() { IsAntialias = true, Style = SKPaintStyle.Fill };
+    private readonly SKPath arrowPath = new();
+    private readonly SKPaint chainLayerPaint = new() { Color = SKColors.Black.WithAlpha(150) };
     private readonly SKPaint strokePaint = new() { IsAntialias = true, Style = SKPaintStyle.Stroke };
     private readonly SKPaint textPaint = new() { IsAntialias = true };
     private readonly SKPaint gridPaint = new() { IsAntialias = true, Style = SKPaintStyle.Stroke, StrokeCap = SKStrokeCap.Round };
@@ -103,12 +107,15 @@ partial class GraphView
         var to = new SKPoint(wire.To.Pivot.X, wire.To.Pivot.Y);
 
         using var path = new SKPath();
-        BuildWirePath(path, from, to);
+        BuildWirePath(path, wire, from, to);
         return HitTestPaint.GetFillPath(path);
     }
 
     private void DisposeRenderResources()
     {
+        arrowPaint.Dispose();
+        arrowPath.Dispose();
+        chainLayerPaint.Dispose();
         fillPaint.Dispose();
         strokePaint.Dispose();
         textPaint.Dispose();
@@ -158,7 +165,12 @@ partial class GraphView
             {
                 TextRow text => MarginX * 2f + (text.IsMessage ? 19f : 0f) + (text.Text.Length == 0 ? 0f : RowFont.MeasureText(text.Text)),
                 SocketRow socket => MarginX * 2f + (socket.Socket.Name.Length == 0 ? 0f : RowFont.MeasureText(socket.Socket.Name)),
+                // Both names share the line, so the row must fit them side by side.
+                PairedSocketRow paired => MarginX * 2f + PairGap
+                    + (paired.Input is { Name.Length: > 0 } input ? RowFont.MeasureText(input.Name) : 0f)
+                    + (paired.Output is { Name.Length: > 0 } output ? RowFont.MeasureText(output.Name) : 0f),
                 ResourceRow resource => MarginX * 2f + 19f + RowFont.MeasureText(resource.Text),
+                AnnotationRow annotation => MarginX * 2f + 14f + RowFont.MeasureText(annotation.Text),
                 _ => 0f,
             };
 
@@ -181,6 +193,18 @@ partial class GraphView
             {
                 socketRow.Socket.PivotOffset = new Vector2(socketRow.Socket.IsInput ? 0f : width, row.CenterOffsetY);
             }
+            else if (row is PairedSocketRow pairedRow)
+            {
+                if (pairedRow.Input != null)
+                {
+                    pairedRow.Input.PivotOffset = new Vector2(0f, row.CenterOffsetY);
+                }
+
+                if (pairedRow.Output != null)
+                {
+                    pairedRow.Output.PivotOffset = new Vector2(width, row.CenterOffsetY);
+                }
+            }
         }
 
         node.Size = new Vector2(width, height);
@@ -202,35 +226,87 @@ partial class GraphView
 
         EnsureAllGeometry();
 
-        DrawWiresPass(canvas, visibleRect, zoom, focusPass: false);
-        DrawNodesPass(canvas, visibleRect, zoom, focusPass: false);
+        DrawWiresPass(canvas, visibleRect, zoom, RenderTier.Background);
+        DrawNodesPass(canvas, visibleRect, zoom, RenderTier.Background);
 
-        // With a selection, dim everything drawn so far and redraw the selection
-        // (node + direct neighbors + wires, or wire + its two endpoints) on top.
-        if (primarySelectedNode != null || selectedWire != null)
+        // With a selection or an active search, dim everything drawn so far, render the
+        // transitive chain faintly above the dim, then the focused set (selection + direct
+        // neighbors, wire + endpoints, or search matches) at full strength.
+        if (primarySelectedNode != null || selectedWire != null || searchHighlight != null)
         {
             fillPaint.Color = Palette.Canvas.WithAlpha(165);
             canvas.DrawRect(visibleRect, fillPaint);
 
-            DrawWiresPass(canvas, visibleRect, zoom, focusPass: true);
-            DrawNodesPass(canvas, visibleRect, zoom, focusPass: true);
+            if (searchHighlight == null && primarySelectedNode != null && connectedNodes.Count > 1)
+            {
+                canvas.SaveLayer(chainLayerPaint);
+                DrawWiresPass(canvas, visibleRect, zoom, RenderTier.Chain);
+                DrawNodesPass(canvas, visibleRect, zoom, RenderTier.Chain);
+                canvas.Restore();
+            }
+
+            DrawWiresPass(canvas, visibleRect, zoom, RenderTier.Focus);
+            DrawNodesPass(canvas, visibleRect, zoom, RenderTier.Focus);
         }
     }
 
-    private void DrawWiresPass(SKCanvas canvas, SKRect visibleRect, float zoom, bool focusPass)
+    private enum RenderTier
+    {
+        Background,
+        Chain,
+        Focus,
+    }
+
+    private RenderTier WireTier(GraphWire wire)
+    {
+        if (searchHighlight != null)
+        {
+            return MatchesSearchHighlight(wire.From.Owner) && MatchesSearchHighlight(wire.To.Owner)
+                ? RenderTier.Focus
+                : RenderTier.Background;
+        }
+
+        if (wire == selectedWire ||
+            (primarySelectedNode != null && (wire.From.Owner == primarySelectedNode || wire.To.Owner == primarySelectedNode)))
+        {
+            return RenderTier.Focus;
+        }
+
+        if (primarySelectedNode != null && connectedNodes.Contains(wire.From.Owner) && connectedNodes.Contains(wire.To.Owner))
+        {
+            return RenderTier.Chain;
+        }
+
+        return RenderTier.Background;
+    }
+
+    private RenderTier NodeTier(GraphNode node)
+    {
+        if (searchHighlight != null)
+        {
+            return MatchesSearchHighlight(node) ? RenderTier.Focus : RenderTier.Background;
+        }
+
+        if (node == primarySelectedNode ||
+            (primarySelectedNode != null && directNodes.Contains(node)) ||
+            (selectedWire != null && (selectedWire.From.Owner == node || selectedWire.To.Owner == node)))
+        {
+            return RenderTier.Focus;
+        }
+
+        if (primarySelectedNode != null && connectedNodes.Contains(node))
+        {
+            return RenderTier.Chain;
+        }
+
+        return RenderTier.Background;
+    }
+
+    private void DrawWiresPass(SKCanvas canvas, SKRect visibleRect, float zoom, RenderTier tier)
     {
         foreach (var wire in wires)
         {
-            if (wire.From.Owner.Hidden || wire.To.Owner.Hidden)
-            {
-                continue;
-            }
-
-            var touchesSelection = wire == selectedWire ||
-                (primarySelectedNode != null &&
-                (wire.From.Owner == primarySelectedNode || wire.To.Owner == primarySelectedNode));
-
-            if (touchesSelection != focusPass)
+            if (wire.From.Owner.Hidden || wire.To.Owner.Hidden || WireTier(wire) != tier)
             {
                 continue;
             }
@@ -244,6 +320,17 @@ partial class GraphView
                 Math.Max(from.X, to.X) + 260f,
                 Math.Max(from.Y, to.Y) + 10f);
 
+            if (wire.Waypoints is { Count: > 0 } routedPoints)
+            {
+                foreach (var waypoint in routedPoints)
+                {
+                    wireBounds.Left = Math.Min(wireBounds.Left, waypoint.X - 40f);
+                    wireBounds.Top = Math.Min(wireBounds.Top, waypoint.Y - 40f);
+                    wireBounds.Right = Math.Max(wireBounds.Right, waypoint.X + 40f);
+                    wireBounds.Bottom = Math.Max(wireBounds.Bottom, waypoint.Y + 40f);
+                }
+            }
+
             if (!visibleRect.IntersectsWith(wireBounds))
             {
                 continue;
@@ -253,21 +340,11 @@ partial class GraphView
         }
     }
 
-    private void DrawNodesPass(SKCanvas canvas, SKRect visibleRect, float zoom, bool focusPass)
+    private void DrawNodesPass(SKCanvas canvas, SKRect visibleRect, float zoom, RenderTier tier)
     {
         foreach (var node in nodes)
         {
-            if (node.Hidden)
-            {
-                continue;
-            }
-
-            var isPrimarySelected = node == primarySelectedNode;
-            var inFocus = isPrimarySelected
-                || (primarySelectedNode != null && directNodes.Contains(node))
-                || (selectedWire != null && (selectedWire.From.Owner == node || selectedWire.To.Owner == node));
-
-            if (inFocus != focusPass)
+            if (node.Hidden || NodeTier(node) != tier)
             {
                 continue;
             }
@@ -279,10 +356,30 @@ partial class GraphView
                 continue;
             }
 
-            var isConnected = !isPrimarySelected && inFocus;
-            var isHovered = !isPrimarySelected && !isConnected && node == lastHovered;
+            var isPrimarySelected = node == primarySelectedNode;
+            SKColor? connectedColor = null;
 
-            DrawNode(canvas, node, isPrimarySelected, isConnected, isHovered, zoom);
+            if (!isPrimarySelected && tier == RenderTier.Focus)
+            {
+                if (primarySelectedNode != null)
+                {
+                    // Directional highlight: upstream neighbors in the input color,
+                    // downstream in the output color, both directions in accent.
+                    var isIn = directInNodes.Contains(node);
+                    var isOut = directOutNodes.Contains(node);
+                    connectedColor = isIn == isOut ? Palette.SelectionSoft
+                        : isIn ? Palette.Signal(GraphHue.Cyan)
+                        : Palette.Signal(GraphHue.Orange);
+                }
+                else
+                {
+                    connectedColor = Palette.SelectionSoft;
+                }
+            }
+
+            var isHovered = !isPrimarySelected && connectedColor == null && node == lastHovered;
+
+            DrawNode(canvas, node, isPrimarySelected, connectedColor, isHovered, zoom);
         }
     }
 
@@ -365,6 +462,46 @@ partial class GraphView
         path.CubicTo(from.X + offset, from.Y, to.X - offset, to.Y, to.X, to.Y);
     }
 
+    private static void BuildWirePath(SKPath path, GraphWire wire, SKPoint from, SKPoint to)
+    {
+        if (wire.Waypoints is not { Count: > 0 } waypoints)
+        {
+            BuildWirePath(path, from, to);
+            return;
+        }
+
+        if (wire.OrthogonalWaypoints)
+        {
+            path.MoveTo(from);
+
+            foreach (var waypoint in waypoints)
+            {
+                path.LineTo(waypoint.X, waypoint.Y);
+            }
+
+            path.LineTo(to);
+            return;
+        }
+
+        path.MoveTo(from);
+        var previous = from;
+
+        foreach (var waypoint in waypoints)
+        {
+            var point = new SKPoint(waypoint.X, waypoint.Y);
+            AddWireSegment(path, previous, point);
+            previous = point;
+        }
+
+        AddWireSegment(path, previous, to);
+    }
+
+    private static void AddWireSegment(SKPath path, SKPoint from, SKPoint to)
+    {
+        var offset = MathF.Abs(to.X - from.X) * 0.5f;
+        path.CubicTo(from.X + offset, from.Y, to.X - offset, to.Y, to.X, to.Y);
+    }
+
     private void DrawWire(SKCanvas canvas, GraphWire wire, float zoom)
     {
         var fromPivot = wire.From.Pivot;
@@ -378,7 +515,7 @@ partial class GraphView
         }
 
         using var path = new SKPath();
-        BuildWirePath(path, from, to);
+        BuildWirePath(path, wire, from, to);
 
         var width = WireWidth * Math.Max(1f, 1f / zoom);
 
@@ -423,6 +560,16 @@ partial class GraphView
         wirePaint.Shader = null;
         wirePaint.PathEffect?.Dispose();
         wirePaint.PathEffect = null;
+
+        // Arrowhead at the input end; wire handles are horizontal so the tip always points +X.
+        var arrowSize = width * 2.4f;
+        arrowPath.Reset();
+        arrowPath.MoveTo(to.X - SocketRadius - arrowSize, to.Y - arrowSize * 0.65f);
+        arrowPath.LineTo(to.X - SocketRadius + 1f, to.Y);
+        arrowPath.LineTo(to.X - SocketRadius - arrowSize, to.Y + arrowSize * 0.65f);
+        arrowPath.Close();
+        arrowPaint.Color = touchesSelection ? Palette.Selection : Palette.Signal(wire.To.Hue);
+        canvas.DrawPath(arrowPath, arrowPaint);
 
         if (wire.Label != null && zoom >= 0.4f)
         {
@@ -484,7 +631,7 @@ partial class GraphView
 
     private readonly SKRoundRect headerRoundRect = new();
 
-    private void DrawNode(SKCanvas canvas, GraphNode node, bool isPrimarySelected, bool isConnected, bool isHovered, float zoom)
+    private void DrawNode(SKCanvas canvas, GraphNode node, bool isPrimarySelected, SKColor? connectedColor, bool isHovered, float zoom)
     {
         var x = node.Position.X;
         var y = node.Position.Y;
@@ -496,7 +643,7 @@ partial class GraphView
             shadowSelected ??= SKImageFilter.CreateDropShadow(0, 0, 12f, 12f, Palette.Selection.WithAlpha(140));
             shadowConnected ??= SKImageFilter.CreateDropShadow(0, 0, 10f, 10f, Palette.Selection.WithAlpha(80));
 
-            fillPaint.ImageFilter = isPrimarySelected ? shadowSelected : isConnected ? shadowConnected : shadowNormal;
+            fillPaint.ImageFilter = isPrimarySelected ? shadowSelected : connectedColor != null ? shadowConnected : shadowNormal;
         }
 
         fillPaint.Color = node.BodyTint is { } tint
@@ -530,9 +677,9 @@ partial class GraphView
             strokePaint.Color = Palette.Selection;
             strokePaint.StrokeWidth = 2f;
         }
-        else if (isConnected)
+        else if (connectedColor is { } connected)
         {
-            strokePaint.Color = Palette.SelectionSoft;
+            strokePaint.Color = connected;
             strokePaint.StrokeWidth = 1.6f;
         }
         else if (isHovered)
@@ -580,8 +727,25 @@ partial class GraphView
                     DrawSocketRow(canvas, socketRow.Socket, rect, gutter, rowCenterY);
                     break;
 
+                case PairedSocketRow pairedRow:
+                    if (pairedRow.Input != null)
+                    {
+                        DrawSocketRow(canvas, pairedRow.Input, rect, gutter, rowCenterY);
+                    }
+
+                    if (pairedRow.Output != null)
+                    {
+                        DrawSocketRow(canvas, pairedRow.Output, rect, gutter, rowCenterY);
+                    }
+
+                    break;
+
                 case ResourceRow resourceRow:
                     DrawResourceRow(canvas, resourceRow, x + gutter, rowCenterY);
+                    break;
+
+                case AnnotationRow annotationRow:
+                    DrawAnnotationRow(canvas, annotationRow, x + gutter, rowCenterY);
                     break;
             }
         }
@@ -598,6 +762,26 @@ partial class GraphView
 
         textPaint.Color = Palette.Signal(row.Hue);
         canvas.DrawText(row.Text, textX, baseline, RowFont, textPaint);
+    }
+
+    private void DrawAnnotationRow(SKCanvas canvas, AnnotationRow row, float x, float rowCenterY)
+    {
+        var color = Palette.Signal(row.Hue);
+        var markerX = x + MarginX + 4f;
+
+        arrowPath.Reset();
+        arrowPath.MoveTo(markerX, rowCenterY - 4f);
+        arrowPath.LineTo(markerX + 4f, rowCenterY);
+        arrowPath.LineTo(markerX, rowCenterY + 4f);
+        arrowPath.LineTo(markerX - 4f, rowCenterY);
+        arrowPath.Close();
+        arrowPaint.Color = color;
+        canvas.DrawPath(arrowPath, arrowPaint);
+
+        var metrics = RowFont.Metrics;
+        var baseline = rowCenterY - (metrics.Ascent + metrics.Descent) / 2f;
+        textPaint.Color = color;
+        canvas.DrawText(row.Text, x + MarginX + 14f, baseline, RowFont, textPaint);
     }
 
     private void DrawTextRow(SKCanvas canvas, TextRow row, float x, float rowCenterY)

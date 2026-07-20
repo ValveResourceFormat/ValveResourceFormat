@@ -18,6 +18,7 @@
     <NoWarn>$(NoWarn);NU1901;NU1902;NU1903</NoWarn>
   </PropertyGroup>
   <ItemGroup>
+    <PackageReference Include="AutomaticGraphLayout" Version="1.1.12" />
     <PackageReference Include="FCTB" Version="2.16.24">
         <NoWarn>NU1701</NoWarn>
     </PackageReference>

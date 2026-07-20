@@ -35,6 +35,8 @@ namespace GUI.Types.Viewers
         private ValveResourceFormat.Resource? resource;
         private RendererContext? rendererContext;
         private readonly List<GLGraphViewer> extraGraphViewers = [];
+        private readonly List<(GLGraphViewer Viewer, string TabName)> preparedGraphViewers = [];
+        private EntityIOGraphViewer? entityGraphViewer;
         public GLBaseControl? GLViewer { get; private set; }
         private CodeTextBox? GLViewerError;
         private string? GLViewerTabName;
@@ -252,6 +254,7 @@ namespace GUI.Types.Viewers
             }
 
             GLViewer?.InitializeLoad();
+            PrepareExtraGraphViewers(vrfGuiContext, resource);
         }
 
         public void NotifyVisible() => GLViewer?.NotifyVisible();
@@ -488,32 +491,19 @@ namespace GUI.Types.Viewers
                     var entitiesTabPage = new ThemedTabPage("Entity List");
                     entitiesTabPage.Controls.Add(new EntityViewer(vrfGuiContext, loadedWorld.Entities, glWorldViewer.SelectAndFocusEntity));
                     resTabs.TabPages.Add(entitiesTabPage);
-
-                    var hasConnections = false;
-
-                    foreach (var entity in loadedWorld.Entities)
-                    {
-                        if (entity.Connections is { Count: > 0 })
-                        {
-                            hasConnections = true;
-                            break;
-                        }
-                    }
-
-                    if (hasConnections)
-                    {
-                        Debug.Assert(rendererContext != null);
-                        var entityGraphViewer = new EntityIOGraphViewer(vrfGuiContext, rendererContext, loadedWorld.Entities, glWorldViewer.SelectAndFocusEntity);
-                        AddGraphViewerTab(entityGraphViewer, "ENTITY I/O GRAPH", resTabs);
-                        glWorldViewer.ShowEntityInGraph = entityGraphViewer.ShowEntity;
-                    }
-
-                    AddMapPulseGraphTabs(vrfGuiContext, loadedWorld.Entities, resTabs);
                 }
 
-                if (!isPreview && GLViewer is GLModelViewer && resource.DataBlock is Model modelWithGraphs)
+                if (!isPreview)
                 {
-                    AddModelAnimGraphTabs(vrfGuiContext, modelWithGraphs, resTabs);
+                    foreach (var (viewer, tabName) in preparedGraphViewers)
+                    {
+                        AddGraphViewerTab(viewer, tabName, resTabs);
+                    }
+
+                    if (GLViewer is GLWorldViewer worldViewerWithGraph && entityGraphViewer != null)
+                    {
+                        worldViewerWithGraph.ShowEntityInGraph = entityGraphViewer.ShowEntity;
+                    }
                 }
 
                 GLViewer.InitializeRenderLoop();
@@ -523,18 +513,55 @@ namespace GUI.Types.Viewers
             return AddSpecialViewerData(resource, isPreview, resTabs);
         }
 
-        private void AddGraphViewerTab(GLGraphViewer viewer, string tabName, TabControl resTabs)
+        private static void AddGraphViewerTab(GLGraphViewer viewer, string tabName, TabControl resTabs)
         {
             viewer.InitializeLoad();
             var tabPage = new ThemedTabPage(tabName);
             tabPage.Controls.Add(viewer.InitializeUiControls(isPreview: false));
             resTabs.TabPages.Add(tabPage);
             viewer.InitializeRenderLoop();
-            extraGraphViewers.Add(viewer);
+        }
+
+        // Runs on the background load thread: graph construction (entity scans, icon decoding,
+        // layout) is expensive and must not block the UI thread's loading indicator. The UI
+        // thread later only creates the tabs and GL windows in AddSpecialViewer.
+        private void PrepareExtraGraphViewers(VrfGuiContext vrfGuiContext, ValveResourceFormat.Resource resource)
+        {
+            if (rendererContext == null)
+            {
+                return;
+            }
+
+            if (GLViewer is GLWorldViewer { LoadedWorld: { } loadedWorld } glWorldViewer)
+            {
+                var hasConnections = false;
+
+                foreach (var entity in loadedWorld.Entities)
+                {
+                    if (entity.Connections is { Count: > 0 })
+                    {
+                        hasConnections = true;
+                        break;
+                    }
+                }
+
+                if (hasConnections)
+                {
+                    entityGraphViewer = new EntityIOGraphViewer(vrfGuiContext, rendererContext, loadedWorld.Entities, glWorldViewer.SelectAndFocusEntity);
+                    preparedGraphViewers.Add((entityGraphViewer, "ENTITY I/O GRAPH"));
+                }
+
+                PrepareMapPulseGraphViewers(vrfGuiContext, loadedWorld.Entities);
+            }
+
+            if (GLViewer is GLModelViewer && resource.DataBlock is Model model)
+            {
+                PrepareModelAnimGraphViewers(vrfGuiContext, model);
+            }
         }
 
         // Maps bind pulse scripts through point_pulse entities referencing the graph resource.
-        private void AddMapPulseGraphTabs(VrfGuiContext vrfGuiContext, List<EntityLump.Entity> entities, TabControl resTabs)
+        private void PrepareMapPulseGraphViewers(VrfGuiContext vrfGuiContext, List<EntityLump.Entity> entities)
         {
             Debug.Assert(rendererContext != null);
 
@@ -560,12 +587,14 @@ namespace GUI.Types.Viewers
                 if (rendererContext.FileLoader.LoadFileCompiled(script)?.DataBlock is BinaryKV3 pulseData)
                 {
                     var tabName = scripts.Count > 1 ? $"PULSE GRAPH ({Path.GetFileNameWithoutExtension(script)})" : "PULSE GRAPH";
-                    AddGraphViewerTab(new PulseGraphViewer(vrfGuiContext, rendererContext, pulseData.Data), tabName, resTabs);
+                    var viewer = new PulseGraphViewer(vrfGuiContext, rendererContext, pulseData.Data);
+                    extraGraphViewers.Add(viewer);
+                    preparedGraphViewers.Add((viewer, tabName));
                 }
             }
         }
 
-        private void AddModelAnimGraphTabs(VrfGuiContext vrfGuiContext, Model model, TabControl resTabs)
+        private void PrepareModelAnimGraphViewers(VrfGuiContext vrfGuiContext, Model model)
         {
             Debug.Assert(rendererContext != null);
 
@@ -598,15 +627,17 @@ namespace GUI.Types.Viewers
             {
                 var tabName = graphPaths.Count > 1 ? $"ANIMATION GRAPH ({Path.GetFileNameWithoutExtension(path)})" : "ANIMATION GRAPH";
 
-                switch (rendererContext.FileLoader.LoadFileCompiled(path)?.DataBlock)
+                GLGraphViewer? viewer = rendererContext.FileLoader.LoadFileCompiled(path)?.DataBlock switch
                 {
-                    case AnimGraph ag1Data:
-                        AddGraphViewerTab(new AG1GraphViewer(vrfGuiContext, rendererContext, ag1Data.Data), tabName, resTabs);
-                        break;
+                    AnimGraph ag1Data => new AG1GraphViewer(vrfGuiContext, rendererContext, ag1Data.Data),
+                    BinaryKV3 nmGraphData => new AnimationGraphViewer(vrfGuiContext, rendererContext, nmGraphData.Data),
+                    _ => null,
+                };
 
-                    case BinaryKV3 nmGraphData:
-                        AddGraphViewerTab(new AnimationGraphViewer(vrfGuiContext, rendererContext, nmGraphData.Data), tabName, resTabs);
-                        break;
+                if (viewer != null)
+                {
+                    extraGraphViewers.Add(viewer);
+                    preparedGraphViewers.Add((viewer, tabName));
                 }
             }
         }
@@ -1026,6 +1057,9 @@ namespace GUI.Types.Viewers
             }
 
             extraGraphViewers.Clear();
+            preparedGraphViewers.Clear();
+            entityGraphViewer?.Dispose();
+            entityGraphViewer = null;
         }
 
         public void Dispose()
