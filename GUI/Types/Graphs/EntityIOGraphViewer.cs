@@ -20,19 +20,10 @@ internal class EntityIOGraphViewer : GLGraphViewer
     private const GraphHue OutputHue = GraphHue.Orange;
     private const GraphHue InputHue = GraphHue.Cyan;
 
-    internal enum SpecialsMode
-    {
-        Inline,
-        PerSource,
-        Combined,
-    }
-
-    private List<List<GraphNode>> islands;
+    private readonly List<List<GraphNode>> islands;
     private string? focusedIslandName;
     private readonly Action<EntityLump.Entity>? showInMap;
-    private readonly List<EntityLump.Entity> entities;
     private readonly int entityCount;
-    private SpecialsMode currentSpecialsMode = SpecialsMode.Inline;
 
     public EntityIOGraphViewer(VrfGuiContext vrfGuiContext, RendererContext rendererContext, EntityLump entityLump)
         : this(vrfGuiContext, rendererContext, CollectEntities(entityLump, rendererContext), showInMap: null)
@@ -65,7 +56,6 @@ internal class EntityIOGraphViewer : GLGraphViewer
         : base(vrfGuiContext, rendererContext, new GraphView())
     {
         this.showInMap = showInMap;
-        this.entities = entities;
         entityCount = entities.Count;
         BuildGraph(View, entities);
 
@@ -202,6 +192,35 @@ internal class EntityIOGraphViewer : GLGraphViewer
 
         if (target == null)
         {
+            // Merged name-group nodes carry only one member as Tag; match the rest by name+class.
+            var name = entity.GetStringProperty("targetname");
+            var classname = entity.GetStringProperty("classname");
+
+            if (!string.IsNullOrEmpty(name))
+            {
+                foreach (var island in islands)
+                {
+                    foreach (var node in island)
+                    {
+                        if (node.Tag is EntityLump.Entity member &&
+                            string.Equals(member.GetStringProperty("targetname"), name, StringComparison.OrdinalIgnoreCase) &&
+                            member.GetStringProperty("classname") == classname)
+                        {
+                            target = node;
+                            break;
+                        }
+                    }
+
+                    if (target != null)
+                    {
+                        break;
+                    }
+                }
+            }
+        }
+
+        if (target == null)
+        {
             return false;
         }
 
@@ -230,33 +249,6 @@ internal class EntityIOGraphViewer : GLGraphViewer
     }
 
     protected override bool ShowSidebar => true;
-
-    // The MSAGL comparison entries differ in how special targets are represented, which is a
-    // graph-build decision; rebuild when the mode changes.
-    protected override void PrepareForLayoutStyle(GraphLayoutStyle style)
-    {
-        var mode = style switch
-        {
-            GraphLayoutStyle.MsaglSpecialNodes => SpecialsMode.PerSource,
-            GraphLayoutStyle.MsaglCombined => SpecialsMode.Combined,
-            _ => SpecialsMode.Inline,
-        };
-
-        if (mode == currentSpecialsMode)
-        {
-            return;
-        }
-
-        currentSpecialsMode = mode;
-        View.ClearGraph();
-        BuildGraph(View, entities, mode);
-
-        islands = View.GetComponents();
-        islands.Sort(static (a, b) => b.Count.CompareTo(a.Count));
-
-        LoadEntityIcons();
-        SetIslandLabel(null);
-    }
 
     protected override string BuildStatsText(int islandCount) => $"{entityCount} entities\n{base.BuildStatsText(islandCount)}\nIsland: {focusedIslandName ?? "(all)"}";
 
@@ -364,7 +356,7 @@ internal class EntityIOGraphViewer : GLGraphViewer
 
     internal static void BuildGraph(GraphView view, EntityLump entityLump) => BuildGraph(view, entityLump.GetEntities());
 
-    internal static void BuildGraph(GraphView view, List<EntityLump.Entity> entities, SpecialsMode specialsMode = SpecialsMode.Inline)
+    internal static void BuildGraph(GraphView view, List<EntityLump.Entity> entities)
     {
         var connections = new List<Connection>();
 
@@ -408,8 +400,8 @@ internal class EntityIOGraphViewer : GLGraphViewer
         }
 
         var entityNodes = new Dictionary<EntityLump.Entity, GraphNode>();
+        var namedNodes = new Dictionary<(string Name, string Class), GraphNode>();
         var syntheticNodes = new Dictionary<string, GraphNode>(StringComparer.OrdinalIgnoreCase);
-        var perSourceSpecials = new Dictionary<(EntityLump.Entity Source, string Name), GraphNode>();
         var annotations = new List<(GraphNode Node, string Text)>();
         var outputSockets = new Dictionary<(GraphNode Node, string Name), GraphSocket>();
         var inputSockets = new Dictionary<(GraphNode Node, string Name), GraphSocket>();
@@ -417,21 +409,48 @@ internal class EntityIOGraphViewer : GLGraphViewer
 
         GraphNode NodeFor(EntityLump.Entity entity)
         {
-            if (!entityNodes.TryGetValue(entity, out var node))
+            if (entityNodes.TryGetValue(entity, out var node))
             {
-                var classname = entity.GetStringProperty("classname") ?? "unknown";
-                var name = entity.GetStringProperty("targetname");
+                return node;
+            }
 
+            var classname = entity.GetStringProperty("classname") ?? "unknown";
+            var name = entity.GetStringProperty("targetname");
+
+            if (!string.IsNullOrEmpty(name))
+            {
+                // Entities sharing a targetname form one addressable group (inputs fire on all
+                // members at once), so same-name same-class entities merge into one node.
+                var key = (name.ToLowerInvariant(), classname);
+
+                if (!namedNodes.TryGetValue(key, out node))
+                {
+                    var groupSize = entitiesByName.TryGetValue(name, out var group)
+                        ? group.Count(e => (e.GetStringProperty("classname") ?? "unknown") == classname)
+                        : 1;
+
+                    node = view.AddNode(new GraphNode
+                    {
+                        Title = groupSize > 1 ? $"{StripTargetnamePrefix(name)}  ×{groupSize}" : StripTargetnamePrefix(name),
+                        Subtitle = classname,
+                        Category = ClassHue(classname),
+                        Tag = entity,
+                    });
+                    namedNodes[key] = node;
+                }
+            }
+            else
+            {
                 node = view.AddNode(new GraphNode
                 {
-                    Title = string.IsNullOrEmpty(name) ? classname : StripTargetnamePrefix(name),
+                    Title = classname,
                     Subtitle = classname,
                     Category = ClassHue(classname),
                     Tag = entity,
                 });
-                entityNodes[entity] = node;
             }
 
+            entityNodes[entity] = node;
             return node;
         }
 
@@ -514,11 +533,10 @@ internal class EntityIOGraphViewer : GLGraphViewer
         foreach (var connection in connections)
         {
             var sourceNode = NodeFor(connection.Source);
-            var isSpecial = connection.TargetName.Length == 0 || connection.TargetName.StartsWith('!');
 
             // Relative specials (!self, !activator, ...) and listener hooks are not real map
-            // entities; by default they inline as annotation rows on the firing node.
-            if (isSpecial && specialsMode == SpecialsMode.Inline)
+            // entities; they inline as annotation rows on the firing node instead of wires.
+            if (connection.TargetName.Length == 0 || connection.TargetName.StartsWith('!'))
             {
                 var inlineLabel = FormatConnectionLabel(connection);
                 var inputPart = connection.InputName.Length == 0 ? string.Empty : $".{connection.InputName}";
@@ -533,45 +551,10 @@ internal class EntityIOGraphViewer : GLGraphViewer
 
             List<GraphNode> targetNodes;
 
-            if (isSpecial)
+            if (entitiesByName.TryGetValue(connection.TargetName, out var targetEntities))
             {
-                var displayName = connection.TargetName.Length == 0 ? "(event hook)" : connection.TargetName;
-                var subtitle = connection.TargetName.Length == 0 ? "event hook" : "special target";
-
-                if (specialsMode == SpecialsMode.PerSource)
-                {
-                    if (!perSourceSpecials.TryGetValue((connection.Source, displayName), out var specialNode))
-                    {
-                        specialNode = view.AddNode(new GraphNode
-                        {
-                            Title = displayName,
-                            Subtitle = subtitle,
-                            Category = GraphHue.Magenta,
-                        });
-                        perSourceSpecials[(connection.Source, displayName)] = specialNode;
-                    }
-
-                    targetNodes = [specialNode];
-                }
-                else
-                {
-                    if (!syntheticNodes.TryGetValue(displayName, out var sharedNode))
-                    {
-                        sharedNode = view.AddNode(new GraphNode
-                        {
-                            Title = displayName,
-                            Subtitle = subtitle,
-                            Category = GraphHue.Magenta,
-                        });
-                        syntheticNodes[displayName] = sharedNode;
-                    }
-
-                    targetNodes = [sharedNode];
-                }
-            }
-            else if (entitiesByName.TryGetValue(connection.TargetName, out var targetEntities))
-            {
-                targetNodes = targetEntities.Select(NodeFor).ToList();
+                // Name-group members merge into shared nodes; Distinct avoids doubling labels.
+                targetNodes = targetEntities.Select(NodeFor).Distinct().ToList();
             }
             else if (connection.TargetName.Contains('*'))
             {
@@ -604,7 +587,7 @@ internal class EntityIOGraphViewer : GLGraphViewer
 
             foreach (var targetNode in targetNodes)
             {
-                var input = InputFor(targetNode, connection.InputName.Length == 0 ? "event" : connection.InputName, InputHue);
+                var input = InputFor(targetNode, connection.InputName, InputHue);
 
                 if (mergedWires.TryGetValue((output, input), out var existing))
                 {

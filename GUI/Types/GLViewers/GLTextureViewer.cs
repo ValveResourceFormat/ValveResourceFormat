@@ -139,6 +139,8 @@ namespace GUI.Types.GLViewers
 #endif
         }
 
+        protected virtual bool ShowResetZoomButton => true;
+
         protected override void AddUiControls()
         {
             Debug.Assert(UiControl != null);
@@ -153,15 +155,18 @@ namespace GUI.Types.GLViewers
 
             UpdateZoomLabel();
 
-            var resetButton = new ThemedButton
+            if (ShowResetZoomButton)
             {
-                Text = "Reset zoom",
-                AutoSize = true,
-            };
+                var resetButton = new ThemedButton
+                {
+                    Text = "Reset zoom",
+                    AutoSize = true,
+                };
 
-            resetButton.Click += (_, __) => ResetZoom();
+                resetButton.Click += (_, __) => ResetZoom();
 
-            UiControl.AddControl(resetButton);
+                UiControl.AddControl(resetButton);
+            }
 
             AddSaveButton();
 

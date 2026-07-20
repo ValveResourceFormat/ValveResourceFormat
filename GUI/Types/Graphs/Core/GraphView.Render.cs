@@ -14,8 +14,6 @@ partial class GraphView
     private const float MinWidth = 160f;
     private const float SocketRadius = 5f;
     private const float WireWidth = 2.5f;
-    private const float GutterWidth = 52f;
-    private const float GutterIconSize = 44f;
     private const float PairGap = 28f;
 
     // Below this zoom only header, body and wires are drawn.
@@ -181,7 +179,7 @@ partial class GraphView
             ? HeaderHeight + RowStartPad + node.Rows.Count * RowPitch + BottomPad
             : HeaderHeight + 14f;
 
-        // Square header icon dock (comparison variant).
+        // Room for the header entity icon; the title starts after it.
         width += node.IconKey != null ? HeaderHeight : 0f;
 
         for (var i = 0; i < node.Rows.Count; i++)
@@ -470,36 +468,15 @@ partial class GraphView
             return;
         }
 
-        if (wire.OrthogonalWaypoints)
-        {
-            path.MoveTo(from);
-
-            foreach (var waypoint in waypoints)
-            {
-                path.LineTo(waypoint.X, waypoint.Y);
-            }
-
-            path.LineTo(to);
-            return;
-        }
-
+        // Orthogonal route from the layout: straight segments through the corner points.
         path.MoveTo(from);
-        var previous = from;
 
         foreach (var waypoint in waypoints)
         {
-            var point = new SKPoint(waypoint.X, waypoint.Y);
-            AddWireSegment(path, previous, point);
-            previous = point;
+            path.LineTo(waypoint.X, waypoint.Y);
         }
 
-        AddWireSegment(path, previous, to);
-    }
-
-    private static void AddWireSegment(SKPath path, SKPoint from, SKPoint to)
-    {
-        var offset = MathF.Abs(to.X - from.X) * 0.5f;
-        path.CubicTo(from.X + offset, from.Y, to.X - offset, to.Y, to.X, to.Y);
+        path.LineTo(to);
     }
 
     private void DrawWire(SKCanvas canvas, GraphWire wire, float zoom)
@@ -602,31 +579,6 @@ partial class GraphView
         new(0, 0),
     ];
 
-    // With a gutter the header starts inset, so only its top-right corner is rounded.
-    private static readonly SKPoint[] HeaderCornerRadiiWithGutter =
-    [
-        new(0, 0),
-        new(CornerRadius, CornerRadius),
-        new(0, 0),
-        new(0, 0),
-    ];
-
-    private static readonly SKPoint[] GutterCornerRadii =
-    [
-        new(CornerRadius, CornerRadius),
-        new(0, 0),
-        new(0, 0),
-        new(CornerRadius, CornerRadius),
-    ];
-
-    private static readonly SKPoint[] DockCornerRadii =
-    [
-        new(CornerRadius, CornerRadius),
-        new(0, 0),
-        new(0, 0),
-        new(0, 0),
-    ];
-
     private static readonly SKSamplingOptions IconSampling = new(SKFilterMode.Linear, SKMipmapMode.Linear);
 
     private readonly SKRoundRect headerRoundRect = new();
@@ -652,14 +604,12 @@ partial class GraphView
         canvas.DrawRoundRect(rect, CornerRadius, CornerRadius, fillPaint);
         fillPaint.ImageFilter = null;
 
-        // TEMPORARY comparison mode: header icon drawn directly on the colored band.
-        _ = (GutterWidth, GutterIconSize, GutterCornerRadii, HeaderCornerRadiiWithGutter, DockCornerRadii);
-        var gutter = 0f;
-        var titleOffset = 0f;
-
         headerRoundRect.SetRectRadii(new SKRect(x, y, x + node.Size.X, y + HeaderHeight), HeaderCornerRadii);
         fillPaint.Color = Palette.Category(node.EffectiveCategory);
         canvas.DrawRoundRect(headerRoundRect, fillPaint);
+
+        // Hammer entity icon at the left end of the header; the title shifts right of it.
+        var titleOffset = 0f;
 
         if (node.IconKey != null)
         {
@@ -699,7 +649,7 @@ partial class GraphView
         var titleBaseline = y + HeaderHeight / 2f - (titleMetrics.Ascent + titleMetrics.Descent) / 2f;
 
         textPaint.Color = Palette.HeaderText;
-        canvas.DrawText(node.Title, x + gutter + titleOffset + MarginX, titleBaseline, TitleFont, textPaint);
+        canvas.DrawText(node.Title, x + titleOffset + MarginX, titleBaseline, TitleFont, textPaint);
 
         if (!string.IsNullOrEmpty(node.Subtitle))
         {
@@ -720,32 +670,32 @@ partial class GraphView
             switch (row)
             {
                 case TextRow textRow:
-                    DrawTextRow(canvas, textRow, x + gutter, rowCenterY);
+                    DrawTextRow(canvas, textRow, x, rowCenterY);
                     break;
 
                 case SocketRow socketRow:
-                    DrawSocketRow(canvas, socketRow.Socket, rect, gutter, rowCenterY);
+                    DrawSocketRow(canvas, socketRow.Socket, rect, rowCenterY);
                     break;
 
                 case PairedSocketRow pairedRow:
                     if (pairedRow.Input != null)
                     {
-                        DrawSocketRow(canvas, pairedRow.Input, rect, gutter, rowCenterY);
+                        DrawSocketRow(canvas, pairedRow.Input, rect, rowCenterY);
                     }
 
                     if (pairedRow.Output != null)
                     {
-                        DrawSocketRow(canvas, pairedRow.Output, rect, gutter, rowCenterY);
+                        DrawSocketRow(canvas, pairedRow.Output, rect, rowCenterY);
                     }
 
                     break;
 
                 case ResourceRow resourceRow:
-                    DrawResourceRow(canvas, resourceRow, x + gutter, rowCenterY);
+                    DrawResourceRow(canvas, resourceRow, x, rowCenterY);
                     break;
 
                 case AnnotationRow annotationRow:
-                    DrawAnnotationRow(canvas, annotationRow, x + gutter, rowCenterY);
+                    DrawAnnotationRow(canvas, annotationRow, x, rowCenterY);
                     break;
             }
         }
@@ -810,7 +760,7 @@ partial class GraphView
         canvas.DrawText(row.Text, textX, baseline, font, textPaint);
     }
 
-    private void DrawSocketRow(SKCanvas canvas, GraphSocket socket, SKRect nodeRect, float gutter, float rowCenterY)
+    private void DrawSocketRow(SKCanvas canvas, GraphSocket socket, SKRect nodeRect, float rowCenterY)
     {
         var pivotX = socket.IsInput ? nodeRect.Left : nodeRect.Right;
         var color = Palette.Signal(socket.Hue);
@@ -860,7 +810,7 @@ partial class GraphView
 
         if (socket.IsInput)
         {
-            canvas.DrawText(socket.Name, nodeRect.Left + gutter + MarginX, baseline, RowFont, textPaint);
+            canvas.DrawText(socket.Name, nodeRect.Left + MarginX, baseline, RowFont, textPaint);
         }
         else
         {

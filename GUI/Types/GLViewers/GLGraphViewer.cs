@@ -48,6 +48,8 @@ namespace GUI.Types.GLViewers
 
         protected virtual bool ShowSidebar => false;
 
+        protected override bool ShowResetZoomButton => false;
+
         private Label? statsLabel;
         private ThemedTextBox? searchBox;
         private ListBox? connectionsList;
@@ -78,39 +80,6 @@ namespace GUI.Types.GLViewers
                 };
                 UiControl.AddControl(statsLabel);
                 RefreshStatsLabel();
-
-                var suppressLayoutChange = true;
-                var layoutCombo = UiControl.AddSelection("Layout", (_, index) =>
-                {
-                    if (suppressLayoutChange || index < 0)
-                    {
-                        return;
-                    }
-
-                    var style = (GraphLayoutStyle)index;
-                    PrepareForLayoutStyle(style);
-                    View.LayoutNodesPacked(style);
-                    RefitToGraph();
-                });
-                layoutCombo.Items.AddRange(new object[]
-                {
-                    "Layered (v1)",
-                    "Layered v2",
-                    "Compact v2",
-                    "Wide v2",
-                    "Square blocks",
-                    "Fan grids",
-                    "Collapsed fans",
-                    "Sequential chains",
-                    "Grid by class",
-                    "Organic (force)",
-                    "Relaxed (springs)",
-                    "MSAGL (specials inline)",
-                    "MSAGL (specials per node)",
-                    "MSAGL (specials combined)",
-                });
-                layoutCombo.SelectedIndex = 0;
-                suppressLayoutChange = false;
 
                 searchBox = new ThemedTextBox
                 {
@@ -154,6 +123,9 @@ namespace GUI.Types.GLViewers
 
                 AddLegendPanel();
                 UpdateSelectionLabels();
+
+                // Search belongs at the very top of the sidebar, above the base viewer buttons.
+                searchBox.SendToBack();
             }
 
             if (GLControl != null)
@@ -360,18 +332,6 @@ namespace GUI.Types.GLViewers
         {
         }
 
-        /// <summary>Called before a layout style is applied; frontends may rebuild the graph.</summary>
-        protected virtual void PrepareForLayoutStyle(GraphLayoutStyle style)
-        {
-        }
-
-        private void ExportGraph(string extension, string content)
-        {
-            var name = System.IO.Path.GetFileNameWithoutExtension(VrfGuiContext.FileName);
-            var path = System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "Downloads", $"{name}_graph{extension}");
-            System.IO.File.WriteAllText(path, content);
-            Log.Info(nameof(GLGraphViewer), $"Exported graph to {path}");
-        }
 
         /// <summary>Whether the graph is made of more than one connected component.</summary>
         protected virtual bool HasMultipleIslands => View.HasMultipleIslands();
@@ -383,9 +343,20 @@ namespace GUI.Types.GLViewers
             RefitToGraph();
         }
 
+        private bool pendingFullRelayout;
+
         protected virtual void ShowAllIslands()
         {
             View.ShowAllNodes();
+
+            // A chain that was isolated with relayout moved; re-lay everything so the
+            // restored nodes cannot overlap it.
+            if (pendingFullRelayout)
+            {
+                pendingFullRelayout = false;
+                View.LayoutNodesPacked();
+            }
+
             RefitToGraph();
         }
 
@@ -436,6 +407,17 @@ namespace GUI.Types.GLViewers
                     RefitToGraph();
                 };
                 contextMenu.Items.Add(isolateItem);
+
+                // Laying out just the isolated chain gives it room the full-island layout could not.
+                var isolateRelayoutItem = new ToolStripMenuItem("Isolate this chain (relayout)");
+                isolateRelayoutItem.Click += (_, _) =>
+                {
+                    View.IsolateChainOf(node);
+                    View.LayoutNodesPacked();
+                    pendingFullRelayout = true;
+                    RefitToGraph();
+                };
+                contextMenu.Items.Add(isolateRelayoutItem);
             }
 
             if (View.HasHiddenNodes())
@@ -444,14 +426,6 @@ namespace GUI.Types.GLViewers
                 showAllItem.Click += (_, _) => ShowAllIslands();
                 contextMenu.Items.Add(showAllItem);
             }
-
-            var exportDotItem = new ToolStripMenuItem("Export graph (.dot)");
-            exportDotItem.Click += (_, _) => ExportGraph(".dot", View.ToDot());
-            contextMenu.Items.Add(exportDotItem);
-
-            var exportGraphMlItem = new ToolStripMenuItem("Export graph (.graphml)");
-            exportGraphMlItem.Click += (_, _) => ExportGraph(".graphml", View.ToGraphMl());
-            contextMenu.Items.Add(exportGraphMlItem);
 
             if (contextMenu.Items.Count > 0)
             {

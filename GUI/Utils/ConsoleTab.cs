@@ -46,7 +46,8 @@ namespace GUI.Utils
         private CodeTextBox? control;
         private MyLogger? loggerOut;
         private MyLogger? loggerError;
-        private readonly Queue<LogLine> LogQueue = new(16);
+        // Written from any thread that logs; a plain queue corrupts its array under concurrent growth.
+        private readonly System.Collections.Concurrent.ConcurrentQueue<LogLine> LogQueue = new();
 
         public void Dispose()
         {
@@ -84,7 +85,7 @@ namespace GUI.Utils
                 _ => null,
             };
 
-            var queueEmpty = LogQueue.Count == 0;
+            var queueEmpty = LogQueue.IsEmpty;
 
             // If we happen to spam console text somewhere, appending every line to console bogs down performance (yay winforms)
             // so accumulate it into a buffer and append it all at once when visibility changes
@@ -104,7 +105,7 @@ namespace GUI.Utils
 
         private void DrainQueue()
         {
-            if (control == null || LogQueue.Count == 0)
+            if (control == null || LogQueue.IsEmpty)
             {
                 return;
             }

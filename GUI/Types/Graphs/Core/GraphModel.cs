@@ -178,14 +178,8 @@ class GraphWire : IGraphElement
     /// <summary>Short text drawn at the wire midpoint (e.g. entity I/O delay/parameter).</summary>
     public string? Label { get; set; }
 
-    /// <summary>
-    /// Optional routing waypoints. For orthogonal routes these are (laneX, levelY) pairs per
-    /// crossed column gap; the last pair's Y is ignored (the wire drops to the target socket).
-    /// </summary>
+    /// <summary>Corner points of the orthogonal route computed by the layout; null draws a direct curve.</summary>
     public List<Vector2>? Waypoints { get; set; }
-
-    /// <summary>Whether <see cref="Waypoints"/> describe an orthogonal route instead of curve hints.</summary>
-    public bool OrthogonalWaypoints { get; set; }
 
     internal GraphWire(GraphSocket from, GraphSocket to)
     {

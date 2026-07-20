@@ -25,6 +25,47 @@ internal static class MsaglLayoutAdapter
             return;
         }
 
+        var (geometryGraph, msaglNodes, msaglEdges, selfWires) = BuildGeometry(component, componentWires, useCurrentPositions: false);
+
+        var settings = new SugiyamaLayoutSettings
+        {
+            LayerSeparation = 220,
+            NodeSeparation = 36,
+        };
+        settings.EdgeRoutingSettings.EdgeRoutingMode = EdgeRoutingMode.Rectilinear;
+
+        Microsoft.Msagl.Miscellaneous.LayoutHelpers.CalculateLayout(geometryGraph, settings, null);
+
+        // Transpose back: MSAGL (x right, y up, flow top-to-bottom) -> ours (x right = flow, y down).
+        foreach (var (node, msaglNode) in msaglNodes)
+        {
+            var center = msaglNode.Center;
+            node.Position = new Vector2(
+                (float)(-center.Y) - node.Size.X / 2f,
+                (float)center.X - node.Size.Y / 2f);
+        }
+
+        RouteAndApply(geometryGraph, msaglEdges, selfWires);
+    }
+
+    /// <summary>
+    /// Re-routes the wires of a component around the CURRENT node positions without moving any
+    /// node; used after the user drags nodes so routes stay orthogonal and sensible.
+    /// </summary>
+    public static void RouteComponent(List<GraphNode> component, List<GraphWire> componentWires)
+    {
+        if (component.Count == 0)
+        {
+            return;
+        }
+
+        var (geometryGraph, _, msaglEdges, selfWires) = BuildGeometry(component, componentWires, useCurrentPositions: true);
+        RouteAndApply(geometryGraph, msaglEdges, selfWires);
+    }
+
+    private static (GeometryGraph Graph, Dictionary<GraphNode, Node> Nodes, List<(Edge Edge, GraphWire Wire)> Edges, List<GraphWire> SelfWires) BuildGeometry(
+        List<GraphNode> component, List<GraphWire> componentWires, bool useCurrentPositions)
+    {
         var geometryGraph = new GeometryGraph();
         var msaglNodes = new Dictionary<GraphNode, Node>(component.Count);
 
@@ -35,6 +76,13 @@ internal static class MsaglLayoutAdapter
             {
                 UserData = node,
             };
+
+            if (useCurrentPositions)
+            {
+                var center = node.Position + node.Size / 2f;
+                msaglNode.Center = new MsaglPoint(center.Y, -center.X);
+            }
+
             msaglNodes[node] = msaglNode;
             geometryGraph.Nodes.Add(msaglNode);
         }
@@ -51,12 +99,21 @@ internal static class MsaglLayoutAdapter
             return new MsaglPoint(relative.Y, -relative.X);
         }
 
+        var selfWires = new List<GraphWire>();
+
         foreach (var wire in componentWires)
         {
             if (!msaglNodes.TryGetValue(wire.From.Owner, out var fromNode) ||
-                !msaglNodes.TryGetValue(wire.To.Owner, out var toNode) ||
-                fromNode == toNode)
+                !msaglNodes.TryGetValue(wire.To.Owner, out var toNode))
             {
+                continue;
+            }
+
+            // Name-group merging can produce self-referencing wires; the router cannot route
+            // node-to-itself, so they get a synthetic loop over the node instead.
+            if (fromNode == toNode)
+            {
+                selfWires.Add(wire);
                 continue;
             }
 
@@ -69,29 +126,15 @@ internal static class MsaglLayoutAdapter
             msaglEdges.Add((edge, wire));
         }
 
-        var settings = new SugiyamaLayoutSettings
-        {
-            LayerSeparation = 220,
-            NodeSeparation = 36,
-        };
-        settings.EdgeRoutingSettings.EdgeRoutingMode = EdgeRoutingMode.Rectilinear;
+        return (geometryGraph, msaglNodes, msaglEdges, selfWires);
+    }
 
-        Microsoft.Msagl.Miscellaneous.LayoutHelpers.CalculateLayout(geometryGraph, settings, null);
-
+    private static void RouteAndApply(GeometryGraph geometryGraph, List<(Edge Edge, GraphWire Wire)> msaglEdges, List<GraphWire> selfWires)
+    {
         // Sugiyama leaves spline curves regardless of the routing mode; the rectilinear
         // router has to run as its own pass. Corner radius 0 keeps pure right angles.
         var router = new Microsoft.Msagl.Routing.Rectilinear.RectilinearEdgeRouter(geometryGraph, 12, 0, useSparseVisibilityGraph: true);
         router.Run();
-
-        // Transpose back: MSAGL (x right, y up, flow top-to-bottom) -> ours (x right = flow, y down).
-        // our.x = -m.y so earlier layers (higher y) land left; our.y = m.x.
-        foreach (var (node, msaglNode) in msaglNodes)
-        {
-            var center = msaglNode.Center;
-            node.Position = new Vector2(
-                (float)(-center.Y) - node.Size.X / 2f,
-                (float)center.X - node.Size.Y / 2f);
-        }
 
         foreach (var (edge, wire) in msaglEdges)
         {
@@ -103,13 +146,29 @@ internal static class MsaglLayoutAdapter
             }
 
             wire.Waypoints = SnapRouteToSockets(points, wire.From.Pivot, wire.To.Pivot);
-            wire.OrthogonalWaypoints = true;
+        }
+
+        foreach (var wire in selfWires)
+        {
+            // Out the right side, over the top of the node, back into the left side.
+            var owner = wire.From.Owner;
+            var from = wire.From.Pivot;
+            var to = wire.To.Pivot;
+            var top = owner.Position.Y - 26f;
+
+            wire.Waypoints =
+            [
+                new Vector2(from.X + 36f, from.Y),
+                new Vector2(from.X + 36f, top),
+                new Vector2(to.X - 36f, top),
+                new Vector2(to.X - 36f, to.Y),
+            ];
         }
     }
 
     // The router treats ports as suggestions and may slide the attachment along the node edge;
     // rebuild the route's head and tail as horizontal runs at the exact socket rows.
-    private static List<Vector2> SnapRouteToSockets(List<Vector2> points, Vector2 fromPivot, Vector2 toPivot)
+    internal static List<Vector2> SnapRouteToSockets(List<Vector2> points, Vector2 fromPivot, Vector2 toPivot)
     {
         var firstVertical = -1;
         var lastVertical = -1;
