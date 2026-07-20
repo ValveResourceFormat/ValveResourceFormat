@@ -401,6 +401,7 @@ namespace GUI.Types.GLViewers
             soundPlayer.MixGroupVolumes["Foley"] = 0.5f;
             soundPlayer.MixGroupVolumes["Footsteps"] = 0.4f;
             soundPlayer.MixGroupVolumes["PlayerDamage"] = 0.4f;
+            soundPlayer.DefaultMixGroupVolume = 0.1f;
         }
 
         protected override void OnUpdate(float frameTime)

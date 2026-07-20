@@ -223,6 +223,9 @@ namespace GUI.Types.GLViewers
                 Input.Camera.LookAt(Vector3.Zero);
             }
 
+
+            StartMapSoundEvents();
+
             if (worldNode != null)
             {
                 LoadedWorldNode = new WorldNodeLoader(Scene.RendererContext, worldNode, mapExternalReferences);
@@ -236,6 +239,92 @@ namespace GUI.Types.GLViewers
 
             Input.MoveCamera(new Vector3(0, -150f, 0));
             Input.MoveCamera(new Vector3(0, 150f, 0), transition: true);
+        }
+
+        /// <summary>
+        /// Starts the map's point_soundevent entities. Only "Start On Spawn" events play - the rest are triggered
+        /// through entity I/O, which the viewer does not simulate (for the same reason "Re-trigger Stops Last" and
+        /// "Save/Restore" have no effect here).
+        /// </summary>
+        private void StartMapSoundEvents()
+        {
+            if (soundPlayer == null)
+            {
+                return;
+            }
+
+            // Collect named entities first, to resolve "Source Entity Name" emitters
+            var namedEntities = new Dictionary<string, SceneNode>(StringComparer.OrdinalIgnoreCase);
+            var pointSoundEvents = new List<EntityLump.Entity>();
+
+            foreach (var node in Scene.AllNodes)
+            {
+                var entityData = node.EntityData;
+                if (entityData == null)
+                {
+                    continue;
+                }
+
+                var targetname = entityData.GetStringProperty("targetname");
+                if (!string.IsNullOrEmpty(targetname))
+                {
+                    namedEntities.TryAdd(targetname, node);
+                }
+
+                if (entityData.GetStringProperty("classname") == "point_soundevent")
+                {
+                    pointSoundEvents.Add(entityData);
+                }
+            }
+
+            foreach (var entityData in pointSoundEvents)
+            {
+                if (!entityData.GetBooleanProperty("startonspawn"))
+                {
+                    continue;
+                }
+
+                var soundName = entityData.GetStringProperty("soundname");
+                if (string.IsNullOrEmpty(soundName))
+                {
+                    continue;
+                }
+
+                Vector3? position = null;
+
+                // "To Local Player" events play unspatialized; everything else emits from the named
+                // source entity when set, otherwise from the point_soundevent itself.
+                // Attachment points (sourceEntityAttachment) are not resolved, the entity origin is used.
+                if (!entityData.GetBooleanProperty("tolocalplayer"))
+                {
+                    var origin = entityData.GetVector3Property("origin");
+
+                    // Emit from the named source entity when set, at its attachment point when one is named
+                    var sourceEntityName = entityData.GetStringProperty("sourceentityname");
+                    if (!string.IsNullOrEmpty(sourceEntityName) && namedEntities.TryGetValue(sourceEntityName, out var sourceNode))
+                    {
+                        var attachmentName = entityData.GetStringProperty("sourceentityattachment");
+
+                        if (!string.IsNullOrEmpty(attachmentName)
+                            && sourceNode is ModelSceneNode sourceModel
+                            && sourceModel.HasAttachmentOrBone(attachmentName))
+                        {
+                            origin = sourceModel.GetAttachmentTransform(attachmentName).Translation;
+                        }
+                        else if (!entityData.GetBooleanProperty("uselocaloffset"))
+                        {
+                            origin = sourceNode.Transform.Translation;
+                        }
+                        // With "Use Local Offset" the sound plays at the source entity plus this entity's
+                        // placement as a local offset; entities do not move in the viewer, so that resolves
+                        // to the point_soundevent's own origin - keep it as parsed
+                    }
+
+                    position = origin;
+                }
+
+                soundPlayer.Play(soundName, position);
+            }
         }
 
         protected override void AddUiControls()

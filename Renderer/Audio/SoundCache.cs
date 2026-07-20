@@ -153,13 +153,37 @@ public sealed class SoundCache
             return null;
         }
 
+        // Compare against the sample count from the resource: an incomplete decode (e.g. NLayer
+        // silently giving up partway into MPEG-2.5 files) must not be trusted for looping.
+        var decodedTruncated = decoded.Truncated;
+
+        if (soundData.SampleCount > 0 && decoded.SampleRate > 0)
+        {
+            var expectedSeconds = (double)soundData.SampleCount / soundData.SampleRate;
+            var decodedSeconds = (double)decoded.Samples.Length / decoded.Channels / decoded.SampleRate;
+
+            if (decodedSeconds < expectedSeconds * 0.95)
+            {
+                logger.LogWarning(
+                    "Sound {FileName} decoded incompletely: got {DecodedSeconds:F2}s of {ExpectedSeconds:F2}s ({SampleRate} Hz, {SoundType})",
+                    fileName, decodedSeconds, expectedSeconds, soundData.SampleRate, soundData.SoundType);
+                decodedTruncated = true;
+            }
+        }
+
         var floatSamples = AudioConverter.Convert(decoded.Samples, decoded.Channels, decoded.SampleRate, channels, sampleRate);
         var samples = AudioConverter.ToPcm16(floatSamples);
 
         var loopStart = -1;
         var loopEnd = samples.Length;
 
-        if (soundData.LoopStart >= 0)
+        if (soundData.LoopStart >= 0 && decodedTruncated)
+        {
+            // The decode lost samples: looping the incomplete audio would
+            // audibly repeat a fragment, play it through once instead
+            logger.LogWarning("Sound {FileName} decoded incompletely, disabling its loop", fileName);
+        }
+        else if (soundData.LoopStart >= 0)
         {
             // Loop points are sample frame indices in the source sound, scale them to the mixer format
             loopStart = (int)((long)soundData.LoopStart * sampleRate / decoded.SampleRate) * channels;

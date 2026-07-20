@@ -19,7 +19,10 @@ internal sealed class SoundEventCSGOMega : SoundEvent
 
     protected override void DoStart()
     {
-        if (Definition.Position.HasValue)
+        // A position supplied by the caller (e.g. a point_soundevent entity) wins over the definition's
+        // "position" key - ambient events often carry a zero placeholder there (see "position_N" metadata)
+        // that the map is expected to fill in.
+        if (Position == null && Definition.Position.HasValue)
         {
             Position = Definition.Position;
         }

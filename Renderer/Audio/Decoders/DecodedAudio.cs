@@ -11,4 +11,10 @@ public sealed class DecodedAudio
     public required int Channels { get; init; }
     /// <summary>Gets the sample rate in Hz.</summary>
     public required int SampleRate { get; init; }
+
+    /// <summary>
+    /// Gets whether the decode hit damaged data and may be missing samples.
+    /// Loop points from the sound resource must not be trusted on truncated audio.
+    /// </summary>
+    public bool Truncated { get; init; }
 }

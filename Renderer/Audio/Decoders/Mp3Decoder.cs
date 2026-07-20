@@ -19,11 +19,35 @@ public static class Mp3Decoder
 
         var samples = new List<float>(65536);
         var buffer = new float[16384];
+        var failures = 0;
 
-        int read;
-        while ((read = mpeg.ReadSamples(buffer, 0, buffer.Length)) > 0)
+        // Retry on decoder errors so a single bad frame does not lose the rest of the
+        // file, with a cap for streams where the reader cannot advance past the damage.
+        while (failures < 16)
         {
+            int read;
+
+            try
+            {
+                read = mpeg.ReadSamples(buffer, 0, buffer.Length);
+            }
+            catch (Exception e) when (e is IndexOutOfRangeException or ArgumentException or InvalidDataException)
+            {
+                failures++;
+                continue;
+            }
+
+            if (read <= 0)
+            {
+                break;
+            }
+
             samples.AddRange(buffer.AsSpan(0, read));
+        }
+
+        if (samples.Count == 0)
+        {
+            return null;
         }
 
         return new DecodedAudio
@@ -31,6 +55,8 @@ public static class Mp3Decoder
             Samples = [.. samples],
             Channels = mpeg.Channels,
             SampleRate = mpeg.SampleRate,
+            // A decode that hit bad frames may be truncated; loop points must not be trusted
+            Truncated = failures > 0,
         };
     }
 }
