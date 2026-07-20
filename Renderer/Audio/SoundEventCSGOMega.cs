@@ -117,7 +117,25 @@ internal sealed class SoundEventCSGOMega : SoundEvent
     protected override void OnFinished()
     {
         base.OnFinished();
-        CheckRetrigger();
+
+        if (FadingOut)
+        {
+            // The base already completed the stop
+            return;
+        }
+
+        if (CheckRetrigger())
+        {
+            return;
+        }
+
+        // One-shot: fully stop once nothing in the tree can produce samples anymore, so the event
+        // leaves the mixer's active set instead of staying registered (and updated) forever.
+        // A child that is still started may be waiting on its own retrigger and keeps us alive.
+        if (!AnyChildStarted())
+        {
+            Stop();
+        }
     }
 
     private bool CheckRetrigger()

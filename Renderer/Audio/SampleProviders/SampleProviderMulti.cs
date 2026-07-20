@@ -72,7 +72,7 @@ public class SampleProviderMulti : AudioSampleProvider
         return Math.Clamp(1f - (float)(seconds / fadeDuration), 0f, 1f);
     }
 
-        /// <summary>Removes all providers from the mix.</summary>
+    /// <summary>Removes all providers from the mix.</summary>
     public void ClearProviders()
     {
         lock (providers)

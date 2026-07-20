@@ -31,8 +31,8 @@ internal static class Sound
     public static void StopChannel(string channel) => Player?.StopChannel(channel);
 
     /// <summary>
-    /// Pre-decodes every vsnd a sound event could play so the first <see cref="Play"/> does not hitch.
-    /// Intended to warm the cache for a map's sound events at load time; blocks while decoding.
+    /// Queues background decodes for every vsnd a sound event could play, so the first <see cref="Play"/>
+    /// starts with warm audio. Returns immediately; intended for a map's sound events at load time.
     /// </summary>
     public static void Cache(string soundEventName) => Player?.Cache(soundEventName);
 }

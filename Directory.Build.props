@@ -45,9 +45,6 @@
     <NoWarn>$(NoWarn);CA2000</NoWarn>
   </PropertyGroup>
 
-  <PropertyGroup>
-  </PropertyGroup>
-
   <ItemGroup>
     <Using Include="System" />
     <Using Include="System.Numerics" />

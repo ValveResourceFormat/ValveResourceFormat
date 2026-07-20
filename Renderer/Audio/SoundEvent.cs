@@ -165,7 +165,7 @@ public abstract class SoundEvent
         SampleProvider.BeginFadeOut(Definition.FadeTimeVolumeCurve, fallbackSeconds, SampleRate);
     }
 
-        /// <summary>
+    /// <summary>
     /// Stops the sound event and any child events it has spawned.
     /// </summary>
     public void Stop()
@@ -218,6 +218,22 @@ public abstract class SoundEvent
     }
 
     /// <summary>
+    /// Gets whether any child event is still active (e.g. waiting on its own retrigger).
+    /// </summary>
+    protected bool AnyChildStarted()
+    {
+        foreach (var child in ChildSoundEvents)
+        {
+            if (child.Started)
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+        /// <summary>
     /// Builds the sample providers (and child events) for this event based on its definition.
     /// </summary>
     protected abstract void DoStart();

@@ -260,11 +260,10 @@ public sealed class SoundEventPlayer : IDisposable
     }
 
     /// <summary>
-    /// Decodes and caches every vsnd a sound event could play - all random track variants and any child events -
-    /// so the first real <see cref="Play"/> does not hitch the game thread on decode. Meant to be called ahead of
-    /// time (e.g. when a map loads) for the sound events it uses; it blocks while decoding, which is fine off the
-    /// hot path. Unknown events are ignored. More thorough than a silent play, which would decode only one of the
-    /// random track variants.
+    /// Queues background decodes for every vsnd a sound event could play - all random track variants and any
+    /// child events - so the first real <see cref="Play"/> starts with warm audio instead of fading in from
+    /// silence while the decode catches up. Returns immediately; the decode thread works through the queue,
+    /// with sounds that want to play right now taking priority. Unknown events are ignored.
     /// </summary>
     public void Cache(string soundEventName)
     {
@@ -476,6 +475,11 @@ public sealed class SoundEventPlayer : IDisposable
 
         stopping = true;
 
+        // Dispose the device first: it unblocks a SubmitSamples call the mixing thread may be
+        // parked in, so the join below can actually succeed. Only tear down the components the
+        // thread touches after it has exited.
+        device.Dispose();
+
         if (!mixingThread.Join(TimeSpan.FromSeconds(1)))
         {
             logger.LogWarning("Sound mixing thread did not stop in time");
@@ -483,6 +487,5 @@ public sealed class SoundEventPlayer : IDisposable
 
         mixer.Dispose();
         SoundCache.Dispose();
-        device.Dispose();
     }
 }
