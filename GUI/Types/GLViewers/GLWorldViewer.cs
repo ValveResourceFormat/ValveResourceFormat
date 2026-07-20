@@ -235,11 +235,10 @@ namespace GUI.Types.GLViewers
                 soundPlayer = new SoundEventPlayer(GuiContext, new NAudioDevice(), Scene.RendererContext.Logger);
                 soundPlayer.LoadSoundEvents();
 
-                // Per mix group volume tweaks (1 = authored volume)
                 soundPlayer.MixGroupVolumes["Weapons"] = 0.7f;
-                soundPlayer.MixGroupVolumes["Footsteps"] = 0.5f;
                 soundPlayer.MixGroupVolumes["Foley"] = 0.5f;
-                soundPlayer.MixGroupVolumes["PlayerDamage"] = 0.5f;
+                soundPlayer.MixGroupVolumes["Footsteps"] = 0.4f;
+                soundPlayer.MixGroupVolumes["PlayerDamage"] = 0.4f;
             }
             catch (Exception e)
             {

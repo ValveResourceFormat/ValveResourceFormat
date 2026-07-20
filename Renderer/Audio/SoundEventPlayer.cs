@@ -167,7 +167,6 @@ public sealed class SoundEventPlayer : IDisposable
         }
 
         soundEvent.Start();
-        mixer.PrimeListener(soundEvent);
         return soundEvent;
     }
 

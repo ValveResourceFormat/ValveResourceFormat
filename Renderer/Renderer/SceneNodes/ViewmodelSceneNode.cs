@@ -209,9 +209,8 @@ public class ViewmodelSceneNode : ModelSceneNode
     private const string PistolAttackSound = "Weapon_USP.SilencedShot";  // weapon_usp_silencer
     // The shot samples are hot, heavily compressed recordings; play them tamer than their authored volume.
     // Same for the knife wall hit, which is authored at volume 1.0 (a map-audible gameplay cue).
-    // Shots play positioned at the player (+60z from the event data), so their near-field curve (~0.7)
-    // applies on top: 0.7 * 0.7 lands at about the 0.5 target.
-    private const float AttackSoundVolume = 0.7f;
+    // Local player shots play unspatialized (head-relative, like the game presents your own gunfire).
+    private const float AttackSoundVolume = 0.5f;
     private const string KnifeSlashSound = "Weapon_Knife.Slash";
     private const string KnifeHeavySwishSound = "Weapon_Knife.Swish.Heavy";
     private const string KnifeHitWallSound = "Weapon_Knife.HitWall";
@@ -226,11 +225,11 @@ public class ViewmodelSceneNode : ModelSceneNode
         switch (SelectedItemIndex)
         {
             case 1:
-                input.PlayerMovement.AttachSound(Sound.Play(RifleAttackSound, input.PlayerMovement.Position, volume: AttackSoundVolume));
+                Sound.Play(RifleAttackSound, volume: AttackSoundVolume);
                 break;
 
             case 2:
-                input.PlayerMovement.AttachSound(Sound.Play(PistolAttackSound, input.PlayerMovement.Position, volume: AttackSoundVolume));
+                Sound.Play(PistolAttackSound, volume: AttackSoundVolume);
                 break;
 
             case 3:

@@ -94,6 +94,10 @@ public abstract class SoundEvent : IDisposable
 
         if (SampleProviders.Count > 0)
         {
+            // Prime spatialization before the mixer can read the providers,
+            // so the sound does not start with zeroed volumes and lose its attack transient
+            Mixer.PrimeListener(this);
+
             foreach (var provider in SampleProviders)
             {
                 SampleProvider.AddProvider(provider);
