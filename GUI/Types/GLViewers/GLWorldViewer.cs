@@ -185,6 +185,9 @@ namespace GUI.Types.GLViewers
         {
             var cameraSet = false;
 
+            // Bring up the sound player before any models load, so their animation clips can pre-cache sound events
+            InitializeSoundPlayer();
+
             if (world != null)
             {
                 LoadedWorld = new WorldLoader(world, Scene);
@@ -225,8 +228,6 @@ namespace GUI.Types.GLViewers
                 LoadedWorldNode = new WorldNodeLoader(Scene.RendererContext, worldNode, mapExternalReferences);
                 LoadedWorldNode.Load(Scene);
             }
-
-            InitializeSoundPlayer();
         }
 
         protected override void OnFirstPaint()

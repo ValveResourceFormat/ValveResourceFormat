@@ -394,8 +394,6 @@ namespace GUI.Types.GLViewers
                 return;
             }
 
-            Log.Debug(GetType().Name, $"Sound device init time: {timer.Elapsed}");
-
             soundPlayer.LoadSoundEvents();
 
             soundPlayer.Volume = Settings.Config.Volume;

@@ -13,11 +13,29 @@ namespace ValveResourceFormat.Renderer
         /// <summary>Gets or sets the playback speed multiplier applied to the animation timestep.</summary>
         public float FrametimeMultiplier { get; set; } = 1.0f;
 
+        private bool playSoundEvents;
+
         /// <summary>
         /// Gets or sets whether sound events embedded in animation clips (CNmSoundEvent) are played during playback.
-        /// Enabled for the viewmodel; off by default so previewing models stays silent.
+        /// Enabled for the viewmodel; off by default so previewing models stays silent. Turning it on pre-caches the
+        /// sound events of the clips loaded so far, so the first play does not hitch the game thread on decode.
         /// </summary>
-        public bool PlaySoundEvents { get; set; }
+        public bool PlaySoundEvents
+        {
+            get => playSoundEvents;
+            set
+            {
+                playSoundEvents = value;
+
+                if (value)
+                {
+                    foreach (var clip in clips.Values)
+                    {
+                        PreCacheClipSounds(clip.Animation);
+                    }
+                }
+            }
+        }
 
         private bool forceUpdate;
 

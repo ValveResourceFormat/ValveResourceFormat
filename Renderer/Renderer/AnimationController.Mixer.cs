@@ -175,6 +175,27 @@ namespace ValveResourceFormat.Renderer
             }
         }
 
+        /// <summary>
+        /// Pre-decodes every sound event a clip can fire, so the first time it plays does not hitch on decode.
+        /// A no-op when no sound player is active.
+        /// </summary>
+        private static void PreCacheClipSounds(Animation animation)
+        {
+            var events = animation.Clip?.Events;
+            if (events == null)
+            {
+                return;
+            }
+
+            foreach (var clipEvent in events)
+            {
+                if (clipEvent is NmSoundEvent soundEvent)
+                {
+                    Sound.Cache(soundEvent.Name);
+                }
+            }
+        }
+
         private void PlayClipSound(Clip clip, NmSoundEvent soundEvent, float fireTime)
         {
             if (soundEvent.Relevance == "ServerOnly")
@@ -449,6 +470,12 @@ namespace ValveResourceFormat.Renderer
                 var isAdditive = animation.Clip?.IsAdditive == true;
                 newClip = new Clip(animation) { Looping = Looping, BlendTime = blendTime, IsAdditive = isAdditive };
                 clips[animName] = newClip;
+
+                if (PlaySoundEvents)
+                {
+                    // Warm the cache for this clip's sound events when it first loads, so playing it does not hitch
+                    PreCacheClipSounds(animation);
+                }
             }
             else
             {
