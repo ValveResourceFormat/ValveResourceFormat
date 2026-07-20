@@ -4,9 +4,7 @@ using System.Linq;
 using System.Windows.Forms;
 using GUI.Controls;
 using GUI.Forms;
-using GUI.Types.Audio;
 using GUI.Utils;
-using ValveResourceFormat.Renderer.Audio;
 using ValveResourceFormat.Blocks;
 using ValveResourceFormat.IO;
 using ValveResourceFormat.Renderer;
@@ -33,7 +31,6 @@ namespace GUI.Types.GLViewers
         private ComboBox? cameraComboBox;
         private SavedCameraPositionsControl? savedCameraPositionsControl;
         private EntityInfoForm? entityInfoForm;
-        private SoundEventPlayer? soundPlayer;
         private bool ignoreLayersChangeEvents = true;
         private List<Matrix4x4> CameraMatrices = [];
         private WorldNodeLoader? LoadedWorldNode;
@@ -62,7 +59,6 @@ namespace GUI.Types.GLViewers
             cameraComboBox?.Dispose();
             savedCameraPositionsControl?.Dispose();
             entityInfoForm?.Dispose();
-            soundPlayer?.Dispose();
         }
 
         private void AddSceneExposureSlider()
@@ -230,20 +226,7 @@ namespace GUI.Types.GLViewers
                 LoadedWorldNode.Load(Scene);
             }
 
-            try
-            {
-                soundPlayer = new SoundEventPlayer(GuiContext, new NAudioDevice(), Scene.RendererContext.Logger);
-                soundPlayer.LoadSoundEvents();
-
-                soundPlayer.MixGroupVolumes["Weapons"] = 0.7f;
-                soundPlayer.MixGroupVolumes["Foley"] = 0.5f;
-                soundPlayer.MixGroupVolumes["Footsteps"] = 0.4f;
-                soundPlayer.MixGroupVolumes["PlayerDamage"] = 0.4f;
-            }
-            catch (Exception e)
-            {
-                Log.Error(nameof(GLWorldViewer), $"Failed to initialize sound playback: {e.Message}");
-            }
+            InitializeSoundPlayer();
         }
 
         protected override void OnFirstPaint()

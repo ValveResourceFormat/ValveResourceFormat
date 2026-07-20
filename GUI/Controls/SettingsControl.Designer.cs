@@ -65,12 +65,17 @@ namespace GUI.Controls
             groupBox4 = new ThemedGroupBox();
             quickPreviewCheckbox = new System.Windows.Forms.CheckBox();
             quickPreviewSoundsCheckbox = new System.Windows.Forms.CheckBox();
+            groupBoxAudio = new ThemedGroupBox();
+            volumeLabel = new System.Windows.Forms.Label();
+            volumeSlider = new System.Windows.Forms.TrackBar();
+            volumeValueLabel = new System.Windows.Forms.Label();
             footerLabel = new System.Windows.Forms.Label();
             footerPanel = new System.Windows.Forms.Panel();
             groupBox1.SuspendLayout();
             groupBox2.SuspendLayout();
             groupBox3.SuspendLayout();
             groupBox4.SuspendLayout();
+            groupBoxAudio.SuspendLayout();
             footerPanel.SuspendLayout();
             SuspendLayout();
             // 
@@ -494,9 +499,63 @@ namespace GUI.Controls
             quickPreviewSoundsCheckbox.Text = "Auto play sounds";
             quickPreviewSoundsCheckbox.UseVisualStyleBackColor = true;
             quickPreviewSoundsCheckbox.CheckedChanged += OnQuickPreviewSoundsCheckboxChanged;
-            // 
+            //
+            // groupBoxAudio
+            //
+            groupBoxAudio.AutoSize = true;
+            groupBoxAudio.BorderColor = System.Drawing.Color.Black;
+            groupBoxAudio.BorderWidth = 2;
+            groupBoxAudio.Controls.Add(volumeLabel);
+            groupBoxAudio.Controls.Add(volumeSlider);
+            groupBoxAudio.Controls.Add(volumeValueLabel);
+            groupBoxAudio.CornerRadius = 5;
+            groupBoxAudio.Dock = System.Windows.Forms.DockStyle.Top;
+            groupBoxAudio.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
+            groupBoxAudio.Location = new System.Drawing.Point(16, 597);
+            groupBoxAudio.Name = "groupBoxAudio";
+            groupBoxAudio.Padding = new System.Windows.Forms.Padding(16, 8, 16, 8);
+            groupBoxAudio.Size = new System.Drawing.Size(501, 58);
+            groupBoxAudio.TabIndex = 5;
+            groupBoxAudio.TabStop = false;
+            groupBoxAudio.Text = "Audio";
+            //
+            // volumeLabel
+            //
+            volumeLabel.Anchor = System.Windows.Forms.AnchorStyles.Left;
+            volumeLabel.AutoSize = true;
+            volumeLabel.Location = new System.Drawing.Point(15, 26);
+            volumeLabel.Name = "volumeLabel";
+            volumeLabel.Size = new System.Drawing.Size(56, 19);
+            volumeLabel.TabIndex = 0;
+            volumeLabel.Text = "Volume:";
+            //
+            // volumeSlider
+            //
+            volumeSlider.Anchor = System.Windows.Forms.AnchorStyles.Left;
+            volumeSlider.AutoSize = false;
+            volumeSlider.Location = new System.Drawing.Point(170, 22);
+            volumeSlider.Maximum = 100;
+            volumeSlider.Minimum = 0;
+            volumeSlider.SmallChange = 1;
+            volumeSlider.LargeChange = 10;
+            volumeSlider.Size = new System.Drawing.Size(160, 28);
+            volumeSlider.TabIndex = 1;
+            volumeSlider.TickStyle = System.Windows.Forms.TickStyle.None;
+            volumeSlider.Value = 50;
+            volumeSlider.ValueChanged += OnVolumeSliderValueChanged;
+            //
+            // volumeValueLabel
+            //
+            volumeValueLabel.Anchor = System.Windows.Forms.AnchorStyles.Left;
+            volumeValueLabel.AutoSize = true;
+            volumeValueLabel.Location = new System.Drawing.Point(340, 26);
+            volumeValueLabel.Name = "volumeValueLabel";
+            volumeValueLabel.Size = new System.Drawing.Size(36, 19);
+            volumeValueLabel.TabIndex = 2;
+            volumeValueLabel.Text = "50%";
+            //
             // footerLabel
-            // 
+            //
             footerLabel.Dock = System.Windows.Forms.DockStyle.Fill;
             footerLabel.ForeColor = System.Drawing.SystemColors.InactiveCaption;
             footerLabel.Location = new System.Drawing.Point(0, 0);
@@ -522,6 +581,7 @@ namespace GUI.Controls
             AutoScroll = true;
             Controls.Add(footerPanel);
             Controls.Add(groupBox3);
+            Controls.Add(groupBoxAudio);
             Controls.Add(groupBox4);
             Controls.Add(groupBox2);
             Controls.Add(groupBox1);
@@ -540,6 +600,8 @@ namespace GUI.Controls
             groupBox3.PerformLayout();
             groupBox4.ResumeLayout(false);
             groupBox4.PerformLayout();
+            groupBoxAudio.ResumeLayout(false);
+            groupBoxAudio.PerformLayout();
             footerPanel.ResumeLayout(false);
             ResumeLayout(false);
             PerformLayout();
@@ -580,5 +642,9 @@ namespace GUI.Controls
         private ThemedGroupBox groupBox3;
         private ThemedGroupBox groupBox4;
         private System.Windows.Forms.CheckBox smoothCamCheckbox;
+        private ThemedGroupBox groupBoxAudio;
+        private System.Windows.Forms.Label volumeLabel;
+        private System.Windows.Forms.TrackBar volumeSlider;
+        private System.Windows.Forms.Label volumeValueLabel;
     }
 }

@@ -40,9 +40,9 @@ namespace GUI.Types.Audio
                 using var device = enumerator.GetDefaultAudioEndpoint(DataFlow.Render, Role.Multimedia);
                 sampleRate = device.AudioClient.MixFormat.SampleRate;
             }
-            catch (Exception)
+            catch (COMException)
             {
-                // Fall back to a common rate, WASAPI will resample
+                // No default endpoint to probe (no audio hardware, headless session): fall back to a common rate, WASAPI will resample
             }
 
             SampleRate = sampleRate;

@@ -1,11 +1,14 @@
 using System.Diagnostics;
 using System.Drawing;
 using System.Linq;
+using System.Runtime.InteropServices;
 using System.Windows.Forms;
 using GUI.Controls;
+using GUI.Types.Audio;
 using GUI.Utils;
 using OpenTK.Graphics.OpenGL;
 using ValveResourceFormat.Renderer;
+using ValveResourceFormat.Renderer.Audio;
 using ValveResourceFormat.Renderer.Input;
 using ValveResourceFormat.Renderer.Materials;
 using ValveResourceFormat.Renderer.Utils;
@@ -25,6 +28,9 @@ namespace GUI.Types.GLViewers
         public Scene Scene { get; }
         public Scene? SkyboxScene => Renderer.SkyboxScene;
         public VrfGuiContext GuiContext;
+
+        /// <summary>Optional sound event player, created by viewers that play scene audio.</summary>
+        protected SoundEventPlayer? soundPlayer;
 
         private bool ShowBaseGrid;
         private bool ShowLightBackground;
@@ -85,6 +91,9 @@ namespace GUI.Types.GLViewers
 
             physicsTraceRenderer?.Delete();
             physicsTraceRenderer = null;
+
+            soundPlayer?.Dispose();
+            soundPlayer = null;
 
             Renderer?.Dispose();
 
@@ -355,9 +364,55 @@ namespace GUI.Types.GLViewers
             GuiContext.GLPostLoadAction = null;
         }
 
+        /// <summary>
+        /// Creates <see cref="soundPlayer"/> and loads the game's sound events, wiring up the master volume from
+        /// settings and the default mix group volumes. Safe to call once; failures (e.g. no audio device) are logged
+        /// and leave <see cref="soundPlayer"/> null. Intended for scene viewers that want to play scene audio.
+        /// </summary>
+        protected void InitializeSoundPlayer()
+        {
+            if (soundPlayer != null)
+            {
+                return;
+            }
+
+            NAudioDevice device;
+
+            var timer = Stopwatch.StartNew();
+
+            try
+            {
+                device = new NAudioDevice();
+            }
+            catch (COMException e)
+            {
+                // WASAPI has no usable render endpoint (no audio hardware, headless/RDP session, audio service off).
+                // This is an expected environment, not a bug: run without sound rather than failing the viewer.
+                Log.Warn(nameof(GLSceneViewer), $"No audio device available, sound playback disabled: {e.Message}");
+                return;
+            }
+
+            Log.Debug(GetType().Name, $"Sound device init time: {timer.Elapsed}");
+
+            soundPlayer = new SoundEventPlayer(GuiContext, device, Scene.RendererContext.Logger);
+            soundPlayer.LoadSoundEvents();
+
+            soundPlayer.Volume = Settings.Config.Volume;
+            soundPlayer.MixGroupVolumes["Weapons"] = 0.7f;
+            soundPlayer.MixGroupVolumes["Foley"] = 0.5f;
+            soundPlayer.MixGroupVolumes["Footsteps"] = 0.4f;
+            soundPlayer.MixGroupVolumes["PlayerDamage"] = 0.4f;
+        }
+
         protected override void OnUpdate(float frameTime)
         {
             base.OnUpdate(frameTime);
+
+            if (soundPlayer != null)
+            {
+                soundPlayer.Volume = Settings.Config.Volume;
+                soundPlayer.Suspended = Paused;
+            }
 
             Input.EnableMouseLook = true;
             if (loadedDefaultLighting && (CurrentlyPressedKeys & TrackedKeys.Control) != 0)

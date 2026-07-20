@@ -14,8 +14,6 @@ namespace ValveResourceFormat.Renderer.Audio;
 /// </summary>
 public sealed class SoundEventPlayer : IDisposable
 {
-    private const int MixChunkFrames = 512;
-
     /// <summary>Gets the decoded sound cache.</summary>
     public SoundCache Cache { get; }
 
@@ -24,6 +22,49 @@ public sealed class SoundEventPlayer : IDisposable
 
     /// <summary>Gets the mixer output sample rate, taken from the device.</summary>
     public int SampleRate => device.SampleRate;
+
+    private const int MixChunkFrames = 512;
+    // Duration of the fade applied when the player is suspended/resumed (e.g. on focus loss/gain).
+    private const float SuspendFadeSeconds = 0.12f;
+
+    private float volume = 1f;
+
+    // Read on the mixing thread, written from the game/UI thread; volatile so the change is seen promptly.
+    private volatile float volumeMultiplier = 1f;
+    private volatile bool suspended;
+
+    /// <summary>
+    /// Gets or sets whether output is suspended. When set the mix fades to silence over a short ramp and
+    /// stays silent until resumed, then fades back in - so losing and regaining focus does not snap the audio.
+    /// The fade runs on the mixing thread, which keeps going while the render loop is paused.
+    /// Sounds keep advancing while suspended; this only gates whether they are audible.
+    /// </summary>
+    public bool Suspended
+    {
+        get => suspended;
+        set => suspended = value;
+    }
+
+    /// <summary>
+    /// Gets or sets the master output volume (0..1), applied to the final mix on top of per-sound and
+    /// mix group volumes. Mapped onto the same perceptual curve as the per-sound volume controls.
+    /// Safe to set live from any thread; the mixing thread picks it up on its next chunk.
+    /// </summary>
+    public float Volume
+    {
+        get => volume;
+        set
+        {
+            value = Math.Clamp(value, 0f, 1f);
+            if (value == volume)
+            {
+                return;
+            }
+
+            volume = value;
+            volumeMultiplier = (float)((Math.Exp(value) - 1) / (Math.E - 1));
+        }
+    }
 
     private readonly IFileLoader fileLoader;
     private readonly IAudioDevice device;
@@ -79,11 +120,47 @@ public sealed class SoundEventPlayer : IDisposable
 
     private void MixingLoop()
     {
-        var buffer = new float[MixChunkFrames * device.Channels];
+        var channelCount = device.Channels;
+        var buffer = new float[MixChunkFrames * channelCount];
+
+        // How far the suspend fade can move within a single chunk
+        var fadeStep = (float)MixChunkFrames / (device.SampleRate * SuspendFadeSeconds);
+
+        // Ramped 0..1 gain that follows the suspended flag; mixing-thread-only state
+        var fadeGain = 1f;
 
         while (!stopping)
         {
             mixer.Read(buffer, 0, buffer.Length);
+
+            var target = suspended ? 0f : 1f;
+            var startGain = fadeGain;
+            var endGain = startGain < target
+                ? Math.Min(target, startGain + fadeStep)
+                : Math.Max(target, startGain - fadeStep);
+            fadeGain = endGain;
+
+            var master = volumeMultiplier;
+            var startMul = master * startGain;
+            var endMul = master * endGain;
+
+            if (startMul != 1f || endMul != 1f)
+            {
+                // Interpolate the gain across the chunk so a fade (or master volume change) does not step
+                var frames = buffer.Length / channelCount;
+                var index = 0;
+
+                for (var frame = 0; frame < frames; frame++)
+                {
+                    var mul = float.Lerp(startMul, endMul, (float)frame / frames);
+
+                    for (var ch = 0; ch < channelCount; ch++)
+                    {
+                        buffer[index++] *= mul;
+                    }
+                }
+            }
+
             device.SubmitSamples(buffer);
         }
     }
