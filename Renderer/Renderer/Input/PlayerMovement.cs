@@ -89,10 +89,9 @@ public class PlayerMovement
     private const float GearVolume = 0.1f;                              // Gear events have volume 0 in data, the game supplies it
     private const string FallDamageSoundEvent = "Player.DamageFall";    // Pain grunt on unsafe falls
 
-    private const float FootstepSpeedThreshold = 150f;    // Below this speed no footsteps play (walking with shift is silent, like CS)
-    private const float FootstepRunSpeed = 220f;          // At and above this speed the run cadence is used
-    private const float FootstepRunInterval = 0.3f;       // Seconds between steps at run speed
-    private const float FootstepSlowInterval = 0.4f;      // Seconds between steps below run speed
+    private const float StepSoundVelWalk = 90f;           // GetStepSoundVelocities velwalk (standing)
+    private const float StepSoundVelRun = 220f;           // GetStepSoundVelocities velrun (standing)
+    private const float WalkingStepVolume = 0.8f;         // Slightly quieter steps below run speed (the authored volume is 0.9)
     private const float LandMinFallSpeed = 290f;          // PLAYER_MAX_SAFE_FALL_SPEED / 2 - quieter landings are silent (a normal jump lands at ~302)
     private const float FallDamageSpeed = 580f;           // PLAYER_MAX_SAFE_FALL_SPEED - faster falls hurt
 
@@ -309,7 +308,7 @@ public class PlayerMovement
                     PlaySound(FallDamageSoundEvent, position, playerHull);
                 }
 
-                stepSoundTime = FootstepSlowInterval;
+                SetStepSoundTime(walking: false);
             }
 
             // Check velocity again for NaN/bounds
@@ -725,19 +724,56 @@ public class PlayerMovement
     /// </summary>
     private void UpdateStepSounds(Vector3 position, AABB playerHull, float deltaTime)
     {
+        // CCSPlayer::UpdateStepSound gate: no footsteps below walk speed or while shift-walking
+        var speedSqr = Velocity.LengthSquared();
+        var walkSpeed = MaxSpeedValue * WalkSpeedModifier; // CS_PLAYER_SPEED_RUN * CS_PLAYER_SPEED_WALK_MODIFIER
+
+        if (speedSqr < walkSpeed * walkSpeed || (HoldingShift && !HoldingCtrl))
+        {
+            if (speedSqr < 10f)
+            {
+                // Standing still keeps the timer armed, so moving again does not step instantly
+                SetStepSoundTime(walking: false);
+            }
+
+            return;
+        }
+
+        // CBasePlayer::UpdateStepSound
         stepSoundTime = Math.Max(stepSoundTime - deltaTime, 0f);
-
-        var horizontalSpeed = new Vector2(Velocity.X, Velocity.Y).Length();
-
-        if (!OnGround || horizontalSpeed < FootstepSpeedThreshold)
+        if (stepSoundTime > 0f)
         {
             return;
         }
 
-        if (stepSoundTime <= 0f)
+        var speed = MathF.Sqrt(speedSqr);
+        var groundSpeed = new Vector2(Velocity.X, Velocity.Y).Length();
+
+        var movingFastEnough = speed >= StepSoundVelWalk;
+        var movingAlongGround = groundSpeed > 0.0001f;
+
+        if (!movingFastEnough || !OnGround || !movingAlongGround)
         {
-            stepSoundTime = horizontalSpeed >= FootstepRunSpeed ? FootstepRunInterval : FootstepSlowInterval;
-            PlaySound(FootstepSoundEvent, position, playerHull);
+            return;
+        }
+
+        var walking = speed < StepSoundVelRun;
+        SetStepSoundTime(walking);
+
+        // fvol from the original: walking pace plays quiet steps, running full
+        PlaySound(FootstepSoundEvent, position, playerHull, walking ? WalkingStepVolume : null);
+    }
+
+    /// <summary>
+    /// 400ms walking, 300ms running, +100ms ducked.
+    /// </summary>
+    private void SetStepSoundTime(bool walking)
+    {
+        stepSoundTime = walking ? 0.4f : 0.3f;
+
+        if (HoldingCtrl)
+        {
+            stepSoundTime += 0.1f;
         }
     }
 
