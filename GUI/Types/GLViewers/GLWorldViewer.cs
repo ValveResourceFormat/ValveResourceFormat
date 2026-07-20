@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.Globalization;
+using System.IO;
 using System.Linq;
 using System.Windows.Forms;
 using GUI.Controls;
@@ -8,6 +9,7 @@ using GUI.Utils;
 using ValveResourceFormat.Blocks;
 using ValveResourceFormat.IO;
 using ValveResourceFormat.Renderer;
+using ValveResourceFormat.Renderer.Input;
 using ValveResourceFormat.Renderer.SceneEnvironment;
 using ValveResourceFormat.Renderer.SceneNodes;
 using ValveResourceFormat.Renderer.World;
@@ -215,6 +217,16 @@ namespace GUI.Types.GLViewers
                 }
 
                 Input.TryLoadViewmodel(Scene);
+
+                var kzMapPrefixes = new[] { "bhop", "surf", "kz", "dr" };
+                var mapName = Path.GetFileName(LoadedWorld.MapName);
+                var isKzMap = kzMapPrefixes.Any(prefix => mapName.StartsWith(prefix, StringComparison.OrdinalIgnoreCase));
+
+                Input.PlayerMovement.PrestrafeEnabled = isKzMap;
+                Input.PlayerMovement.AutoBunnyHop = isKzMap;
+                Input.PlayerMovement.AirAccelerate = isKzMap
+                    ? PlayerMovement.AirAccelerateMovementMaps
+                    : PlayerMovement.AirAccelerateCompetitive;
             }
 
             if (!cameraSet)

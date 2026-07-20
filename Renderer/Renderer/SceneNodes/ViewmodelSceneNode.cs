@@ -17,6 +17,11 @@ public class ViewmodelSceneNode : ModelSceneNode
     public Vector3 ViewmodelOffset { get; set; } = new Vector3(5, -2, -2);
 
     /// <summary>
+    /// Viewmodel sway, trailing the arms behind the view as it turns.
+    /// </summary>
+    public ViewmodelLag Lag { get; } = new();
+
+    /// <summary>
     /// The player arms.
     /// </summary>
     public ModelSceneNode Arms => this;
@@ -314,6 +319,19 @@ public class ViewmodelSceneNode : ModelSceneNode
             2 => (0.1f, 2f),
             3 => (0.3f, 1f),
             _ => (0.1f, 2f),
+        };
+
+    /// <summary>
+    /// Gets the running speed the equipped item allows, in world units per second.
+    /// These are <c>max_player_speed</c> from the CS weapon scripts: heavier guns slow the player down.
+    /// </summary>
+    public float WeaponMaxSpeed
+        => SelectedItemIndex switch
+        {
+            1 => 225f, // m4a1_silencer
+            2 => 240f, // usp_silencer
+            3 => 250f, // knife
+            _ => 250f,
         };
 
     void SetState(AnimationState newState)
@@ -867,7 +885,19 @@ public class ViewmodelSceneNode : ModelSceneNode
 
         var bobInputRotation = Quaternion.Inverse(viewmodelRotation);
 
-        var targetBob = Vector3.Transform(input.Velocity * 0.005f, bobInputRotation);
+        const float bobReferenceSpeed = 800f;
+        const float bobOvershoot = 0.15f * bobReferenceSpeed; // max extra "speed" past the reference, added exponentially
+
+        var speed = input.Velocity.Length();
+        var bobSpeed = speed <= bobReferenceSpeed
+            ? speed
+            : bobReferenceSpeed + bobOvershoot * (1f - MathF.Exp(-(speed - bobReferenceSpeed) / bobOvershoot));
+
+        // Scale the velocity direction to the clamped magnitude before deriving the bob, so
+        // surf speeds do not throw the viewmodel off screen.
+        var bobVelocity = speed > 1e-4f ? input.Velocity * (bobSpeed / speed) : Vector3.Zero;
+
+        var targetBob = Vector3.Transform(bobVelocity * 0.005f, bobInputRotation);
 
         targetBob.Y = -targetBob.Y; // switch sideways movement to be leading instead of trailing
         targetBob.Z = MathF.Abs(targetBob.Z);
@@ -876,7 +906,6 @@ public class ViewmodelSceneNode : ModelSceneNode
 
         currentBob = Vector3.Lerp(currentBob, targetBob, 0.5f);
 
-        var speed = input.Velocity.Length();
         var bobAmplitude = MathUtils.Saturate((speed - 150f) / 150f) * 0.1f;
 
         if (!input.PlayerMovement.OnGround)
@@ -887,8 +916,11 @@ public class ViewmodelSceneNode : ModelSceneNode
         var bobFrequency = 18;
         var walkBob = new Vector3(1, 0.5f, 1) * MathF.Sin(uptime * bobFrequency) * bobAmplitude;
 
+        // The gun trails the view by cl_wpn_sway_interp seconds as it turns
+        var lag = Lag.Calculate(camera.Yaw, uptime);
+
         var rotationMatrix = Matrix4x4.CreateFromQuaternion(viewmodelRotation);
-        var offset = Vector3.Transform(ViewmodelOffset - currentBob - walkBob, viewmodelRotation);
+        var offset = Vector3.Transform(ViewmodelOffset - currentBob - walkBob + lag, viewmodelRotation);
 
         TargetTransform = rotationMatrix with { Translation = camera.Location + offset };
 
@@ -1000,6 +1032,88 @@ public class ViewmodelSceneNode : ModelSceneNode
                     muzzleFlashParticle.Update(context);
                 }
             }
+        }
+    }
+
+    /// <summary>
+    /// Viewmodel sway.
+    /// </summary>
+    public sealed class ViewmodelLag
+    {
+        /// <summary>How far back the viewmodel trails the view, in seconds (<c>cl_wpn_sway_interp</c>).</summary>
+        public float SwayInterp { get; set; } = 0.1f;
+
+        /// <summary>
+        /// How far the trailing view angle pushes the viewmodel (<c>cl_wpn_sway_scale</c>).
+        /// </summary>
+        public float SwayScale { get; set; } = 0.32f;
+
+        // Past view yaws, newest last. The window only needs one entry per frame, so this reaches
+        // back well past the sway window even at very high framerates; older entries fall off.
+        private readonly (float Time, float Yaw)[] history = new (float, float)[512];
+        private int newest = -1;
+        private int count;
+
+        /// <summary>
+        /// Records this frame's view yaw and returns the sway offset, in viewmodel space
+        /// (forward, left, up).
+        /// </summary>
+        /// <param name="yaw">Current view yaw in radians.</param>
+        /// <param name="currentTime">Seconds since startup.</param>
+        public Vector3 Calculate(float yaw, float currentTime)
+        {
+            Record(currentTime, yaw);
+
+            if (SwayInterp <= 0f)
+            {
+                return Vector3.Zero;
+            }
+
+            // AngleVectors of the yaw the view turned through over the window, measured against
+            // an unturned forward vector. Standing still leaves this at zero.
+            var deltaYaw = MathF.IEEERemainder(yaw - Sample(currentTime - SwayInterp), MathF.Tau);
+            var (yawSin, yawCos) = MathF.SinCos(deltaYaw);
+
+            // Source composes this as forward*x + right*-y + up*z. Right is the negated left axis,
+            // so in a (forward, left, up) basis the components carry over unchanged.
+            return new Vector3(1f - yawCos, -yawSin, 0f) * SwayScale;
+        }
+
+        private void Record(float time, float yaw)
+        {
+            newest = (newest + 1) % history.Length;
+            history[newest] = (time, yaw);
+
+            if (count < history.Length)
+            {
+                count++;
+            }
+        }
+
+        /// <summary>
+        /// Linearly interpolates the recorded yaw at <paramref name="time"/>, holding at the
+        /// ends when it falls outside the history, as Source's CInterpolatedVar does.
+        /// </summary>
+        private float Sample(float time)
+        {
+            var newer = history[newest];
+
+            for (var i = 1; i < count && time < newer.Time; i++)
+            {
+                var older = history[(newest - i + history.Length) % history.Length];
+
+                if (older.Time <= time)
+                {
+                    var span = newer.Time - older.Time;
+                    var t = span > 0f ? (time - older.Time) / span : 0f;
+
+                    return MathUtils.LerpAngle(older.Yaw, newer.Yaw, t);
+                }
+
+                newer = older;
+            }
+
+            return newer.Yaw;
         }
     }
 }

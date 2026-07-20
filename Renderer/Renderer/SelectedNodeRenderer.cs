@@ -182,6 +182,18 @@ namespace ValveResourceFormat.Renderer
         {
             disableDepth = selectedNodes.Count > 1;
 
+            // Draw the debug text even when nothing is selected
+            if (ScreenDebugText.Length > 0)
+            {
+                updateContext.TextRenderer.AddTextRelative(new TextRenderer.TextRenderRequest
+                {
+                    X = 0.005f,
+                    Y = 0.03f,
+                    Scale = 14f,
+                    Text = ScreenDebugText,
+                }, renderContext.Camera);
+            }
+
             if (selectedNodes.Count == 0)
             {
                 // We don't need to reupload an empty array
@@ -310,17 +322,6 @@ namespace ValveResourceFormat.Renderer
                     CenterHorizontal = true,
                     TextOffset = SelectedNodeNameOffset
                 }, renderContext.Camera, fixedScale: false);
-            }
-
-            if (ScreenDebugText.Length > 0)
-            {
-                updateContext.TextRenderer.AddTextRelative(new TextRenderer.TextRenderRequest
-                {
-                    X = 0.005f,
-                    Y = 0.03f,
-                    Scale = 14f,
-                    Text = ScreenDebugText,
-                }, renderContext.Camera);
             }
 
             Upload(vertices);

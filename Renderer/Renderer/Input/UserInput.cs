@@ -212,7 +212,7 @@ public class UserInput
         }
 
         var wasClipping = !NoClip;
-        if (Pressed(TrackedKeys.X) || PressedSuccessive(TrackedKeys.Space, 0.5f))
+        if (Pressed(TrackedKeys.X))
         {
             NoClip = !NoClip;
             PlayerMovement.Initialize = !NoClip;
@@ -224,6 +224,8 @@ public class UserInput
             CurrentSpeedModifier = 7;
         }
 
+        Camera.Roll = 0f;
+
         if (OrbitMode)
         {
             HandleOrbitControls(deltaTime, keyboardState, !NoClip);
@@ -234,7 +236,12 @@ public class UserInput
         }
         else
         {
-            PlayerMovement.ProcessMovement(this, Camera, deltaTime);
+            if (Viewmodel != null)
+            {
+                PlayerMovement.RunSpeed = Viewmodel.WeaponMaxSpeed;
+            }
+
+            PlayerMovement.ProcessMovement(Camera, deltaTime);
             Velocity = PlayerMovement.Velocity;
             Camera.Pitch -= MouseDeltaPitchYaw.X;
             Camera.Yaw -= MouseDeltaPitchYaw.Y;
@@ -245,8 +252,13 @@ public class UserInput
 
         var finalCamera = GetInterpolatedCamera();
 
-        renderCamera.SetLocationPitchYaw(finalCamera.Location, finalCamera.Pitch, finalCamera.Yaw);
+        // The landing punch tilts the rendered view down without touching the stored aim.
+        var viewPunchPitch = float.DegreesToRadians(PlayerMovement.ViewPunchPitchDegrees);
+
+        renderCamera.SetLocationPitchYaw(finalCamera.Location, finalCamera.Pitch - viewPunchPitch, finalCamera.Yaw);
         renderCamera.ClampRotation();
+
+        renderCamera.Roll = Camera.Roll;
 
         PreviousKeys = keyboardState;
     }
