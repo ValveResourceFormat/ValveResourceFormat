@@ -127,7 +127,7 @@ public class GLTextureDecoder : IHardwareTextureDecoder, IDisposable
     {
         RendererContext.Logger.LogInformation("Initializing GPU texture decoder...");
 
-        GLWindowContext = new NativeWindow(new()
+        GLWindowContext = GLWindowFactory.Create(new()
         {
             APIVersion = GLEnvironment.RequiredVersion,
             Flags = GLBaseControl.Flags | OpenTK.Windowing.Common.ContextFlags.Offscreen,
@@ -264,7 +264,7 @@ public class GLTextureDecoder : IHardwareTextureDecoder, IDisposable
 
     private void Dispose_ThreadResources()
     {
-        GLWindowContext?.Dispose();
+        GLWindowFactory.Destroy(GLWindowContext);
     }
 
     private void Exit()
