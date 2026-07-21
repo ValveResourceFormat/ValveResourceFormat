@@ -11,7 +11,7 @@ namespace ValveResourceFormat.Renderer.Shaders
         /// <summary>Gets the shader name (typically a Source 2 <c>.vfx</c> shader name).</summary>
         public string Name { get; }
 
-        /// <summary>Gets the MurmurHash2 hash of <see cref="Name"/>.</summary>
+        /// <summary>Gets the <see cref="MurmurHash2"/> hash of <see cref="Name"/>.</summary>
         public uint NameHash { get; }
 
         /// <summary>Gets or sets the OpenGL program object handle.</summary>
@@ -298,7 +298,7 @@ namespace ValveResourceFormat.Renderer.Shaders
             return location;
         }
 
-        /// <summary>Returns the number of scalar components in the named uniform (1 for scalars, 2–4 for vectors).</summary>
+        /// <summary>Returns the number of scalar components in the named uniform (1 for scalars, 2-4 for vectors).</summary>
         /// <param name="name">The uniform variable name.</param>
         /// <returns>The component count, defaulting to 4 if the uniform is not found in the cache.</returns>
         public int GetRegisterSize(string name)
@@ -456,7 +456,7 @@ namespace ValveResourceFormat.Renderer.Shaders
             }
         }
 
-        /// <summary>Sets a 3×4 matrix uniform (converted from a <see cref="Matrix4x4"/> by dropping the last column).</summary>
+        /// <summary>Sets a 3×4 matrix uniform (converted from a <see cref="Matrix4x4"/> by transposing and dropping the last (M14/M24/M34/M44) column).</summary>
         public void SetUniform3x4(string name, Matrix4x4 value)
         {
             var uniformLocation = GetUniformLocation(name);

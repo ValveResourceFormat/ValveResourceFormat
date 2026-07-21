@@ -97,7 +97,11 @@ public class PlayerMovement
     private float DuckSpeedModifierSmooth => float.Lerp(1f, DuckSpeedModifier, CrouchBlend);
     private AABB SnappedHull => HoldingCtrl ? PlayerHullDucked : PlayerHullStanding;
 
-    private AABB Hull
+    /// <summary>
+    /// Gets the current collision hull, centered horizontally and extending from the feet (Z=0)
+    /// upward, with height blended between the standing and ducked hulls by <see cref="CrouchBlend"/>.
+    /// </summary>
+    public AABB Hull
     {
         get
         {
@@ -359,7 +363,7 @@ public class PlayerMovement
 
     /// <summary>
     /// Check if player is on ground using swept AABB trace
-    /// Traces down a small fixed distance (2 units) to detect ground contact; only accepts the hit as ground when the surface is walkable and downward velocity is below a threshold
+    /// Traces down a small fixed distance (2 units) to detect ground contact; only accepts the hit as ground when the surface is walkable and upward velocity is below a threshold
     /// </summary>
     private void CategorizePosition(ref Vector3 position, AABB aabb)
     {

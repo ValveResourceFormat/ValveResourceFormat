@@ -15,7 +15,7 @@ namespace GUI.Types.GLViewers
 {
     /// <summary>
     /// GL Render control with particle controls (control points? particle counts?).
-    /// Renders a single ParticleSystem via a ParticleSceneNode, with UI controls for playback and an operator/renderer tree.
+    /// Renders a single <see cref="ParticleSystem"/> via a <see cref="ParticleSceneNode"/>, with UI controls for playback and an operator/renderer tree.
     /// </summary>
     class GLParticleViewer : GLSceneViewer
     {

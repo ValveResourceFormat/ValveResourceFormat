@@ -175,10 +175,11 @@ namespace GUI.Types.Graphs
             headerColorPaint.Color = HeaderColor;
 
             // base
-            using (var path = new SKPath())
             {
                 var rect = SKRect.Create(left, top, NodeWidth, FullHeight);
-                path.AddRoundRect(rect, cornerSize / 2f, cornerSize / 2f);
+                using var pathBuilder = new SKPathBuilder();
+                pathBuilder.AddRoundRect(rect, cornerSize / 2f, cornerSize / 2f, SKPathDirection.Clockwise);
+                using var path = pathBuilder.Detach();
 
                 SKColor shadowColor;
                 var shadowBlur = 10f;
@@ -221,16 +222,17 @@ namespace GUI.Types.Graphs
             }
 
             // header
-            using (var path = new SKPath())
             {
-                path.MoveTo(left + cornerSize / 2f, top);
-                path.LineTo(right - cornerSize / 2f, top);
-                path.ArcTo(SKRect.Create(right - cornerSize, top, cornerSize, cornerSize), 270, 90, false);
-                path.LineTo(right, bottomHeader);
-                path.LineTo(left, bottomHeader);
-                path.LineTo(left, top + cornerSize / 2f);
-                path.ArcTo(SKRect.Create(left, top, cornerSize, cornerSize), 180, 90, false);
-                path.Close();
+                using var pathBuilder = new SKPathBuilder();
+                pathBuilder.MoveTo(left + cornerSize / 2f, top);
+                pathBuilder.LineTo(right - cornerSize / 2f, top);
+                pathBuilder.ArcTo(SKRect.Create(right - cornerSize, top, cornerSize, cornerSize), 270, 90, false);
+                pathBuilder.LineTo(right, bottomHeader);
+                pathBuilder.LineTo(left, bottomHeader);
+                pathBuilder.LineTo(left, top + cornerSize / 2f);
+                pathBuilder.ArcTo(SKRect.Create(left, top, cornerSize, cornerSize), 180, 90, false);
+                pathBuilder.Close();
+                using var path = pathBuilder.Detach();
 
                 canvas.DrawPath(path, headerColorPaint);
 
@@ -242,8 +244,8 @@ namespace GUI.Types.Graphs
                 headerTextPaint.Color = HeaderTextColor;
                 headerTypePaint.Color = HeaderTypeColor;
 
-                canvas.DrawText(Name, nodeStringPositionX, nodeTypePositionY + 10f, HeaderNameFont, headerTextPaint);
-                canvas.DrawText(NodeType, nodeStringPositionX, nodeNamePositionY + 7f, HeaderTypeFont, headerTypePaint);
+                canvas.DrawText(Name, nodeStringPositionX, nodeTypePositionY + 10f, SKTextAlign.Left, HeaderNameFont, headerTextPaint);
+                canvas.DrawText(NodeType, nodeStringPositionX, nodeNamePositionY + 7f, SKTextAlign.Left, HeaderTypeFont, headerTypePaint);
             }
 
             // sockets
@@ -356,7 +358,7 @@ namespace GUI.Types.Graphs
             };
             var positionY = center.Y - metrics.Ascent - textHeight / 2;
 
-            canvas.DrawText(text, positionX, positionY, SocketCaptionFont, textPaint);
+            canvas.DrawText(text, positionX, positionY, SKTextAlign.Left, SocketCaptionFont, textPaint);
         }
 
         protected virtual void Dispose(bool disposing)

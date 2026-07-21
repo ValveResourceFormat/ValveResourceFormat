@@ -50,7 +50,7 @@ namespace ValveResourceFormat.Renderer
         /// <summary>Gets the number of bones used by this mesh.</summary>
         public int MeshBoneCount { get; private set; }
 
-        /// <summary>Gets the number of bone weights per vertex (4 or 8).</summary>
+        /// <summary>Gets the number of bone weights per vertex (up to 8, or 0 when the mesh has no skeleton).</summary>
         public int BoneWeightCount { get; private set; }
 
         /// <summary>Gets the name of the source mesh resource.</summary>

@@ -49,7 +49,7 @@ public class VfxShaderFileVulkan : VfxShaderFile
     public HiddenUAVCounter[]? HiddenUAVCounters { get; }
     public int[]? ThreadGroupSize { get; }
     // Static descriptor set entries are kept as raw bytes because the per-entry layout differs by version
-    // (v4 = 96 bytes/entry, v6 = 72 bytes/entry).
+    // (version 4+ = 72 bytes/entry, earlier = 64 bytes/entry).
     public byte[]? StaticDescriptorSetBindingInfoData { get; }
     public int PushConstantSize { get; }
     public bool UseShaderStageName { get; }

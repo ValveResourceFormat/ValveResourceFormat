@@ -15,10 +15,10 @@ public class SceneGradientFog(Scene scene) : SceneNode(scene)
     /// <summary>Gets or sets the exponent controlling the horizontal fog density falloff.</summary>
     public float FalloffExponent { get; set; }
 
-    /// <summary>Gets or sets the world-space height at which height fog begins.</summary>
+    /// <summary>Gets or sets the world-space height at which height fog is at full density.</summary>
     public float HeightStart { get; set; }
 
-    /// <summary>Gets or sets the world-space height at which height fog reaches full density.</summary>
+    /// <summary>Gets or sets the world-space height at which height fog fades to zero.</summary>
     public float HeightEnd { get; set; }
 
     /// <summary>Gets or sets the exponent controlling the vertical fog density falloff.</summary>

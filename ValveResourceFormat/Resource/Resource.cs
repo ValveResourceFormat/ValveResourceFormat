@@ -54,18 +54,18 @@ namespace ValveResourceFormat
         public List<Block> Blocks { get; } = [];
 
         /// <summary>
-        /// Gets or sets the type of the resource.
+        /// Gets the type of the resource.
         /// </summary>
         /// <value>The type of the resource.</value>
         public ResourceType ResourceType { get; private set; }
 
         /// <summary>
-        /// Gets the ResourceEditInfo block.
+        /// Gets the <see cref="ResourceEditInfo"/> block.
         /// </summary>
         public ResourceEditInfo? EditInfo { get; private set; }
 
         /// <summary>
-        /// Gets the ResourceExtRefList block.
+        /// Gets the <see cref="ResourceExtRefList"/> block.
         /// </summary>
         public ResourceExtRefList? ExternalReferences => (ResourceExtRefList?)GetBlockByType(BlockType.RERL);
 
@@ -75,7 +75,7 @@ namespace ValveResourceFormat
         public Block? DataBlock => GetBlockByType(BlockType.DATA);
 
         /// <summary>
-        /// Resource files have a FileSize in the metadata, however
+        /// Resource files have a <see cref="FileSize"/> in the metadata, however
         /// certain file types such as sounds have streaming audio data come
         /// after the resource file, and the size is specified within the DATA block.
         /// This property attempts to return the correct size.

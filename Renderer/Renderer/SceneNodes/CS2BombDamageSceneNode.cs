@@ -1,9 +1,12 @@
 using System.Diagnostics;
+using System.Linq;
 using System.Reflection;
 using System.Runtime.InteropServices;
 using OpenTK.Graphics.OpenGL;
 using ValveResourceFormat.Blocks;
+using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.ResourceTypes.GenericData.CS2;
+using ValveResourceFormat.Serialization.KeyValues;
 
 namespace ValveResourceFormat.Renderer.SceneNodes;
 
@@ -73,7 +76,8 @@ public class CS2BombDamageSceneNode : SceneNode
     /// <param name="bombDamageData">Baked bomb damage data.</param>
     /// <param name="bombsiteIndex">Index of the bombsite. Index 0 is not guaranteed to be bombsite A.</param>
     /// <param name="renderTexture">Texture drawn on each damage value quad.</param>
-    public CS2BombDamageSceneNode(Scene scene, BombDamage bombDamageData, int bombsiteIndex, RenderTexture renderTexture) : base(scene)
+    /// <param name="bombsiteLabel">Display label for the bombsite ("A", "B", or a per-site index when unresolved).</param>
+    public CS2BombDamageSceneNode(Scene scene, BombDamage bombDamageData, int bombsiteIndex, RenderTexture renderTexture, string bombsiteLabel) : base(scene)
     {
         var shader = Scene.RendererContext.ShaderLoader.LoadShader("vrf.cs2_baked_bomb_damage");
         meshName = $"{bombDamageData.Resource.FileName}:site{bombsiteIndex}";
@@ -85,7 +89,7 @@ public class CS2BombDamageSceneNode : SceneNode
         material.LoadRenderState();
         material.Textures["g_tColor"] = renderTexture;
 
-        LayerName = $"Bombsite {bombsiteIndex} blast flow map";
+        LayerName = $"Bombsite {bombsiteLabel} blast flow map";
 
         Initialize(bombDamageData, bombsiteIndex);
     }
@@ -233,8 +237,19 @@ public class CS2BombDamageSceneNode : SceneNode
         GL.UseProgram(0);
     }
 
+    private static string GetBombsiteDesignation(SceneNode bombTarget) => bombTarget.EntityData?.GetStringProperty("bomb_site_designation") switch
+    {
+        "0" => "A",
+        "1" => "B",
+        _ => "?",
+    };
+
     /// <summary>
     /// Adds visualization scene nodes of a <see cref="BombDamage"/> to a <see cref="Scene"/>. Each bombsite gets its own <see cref="CS2BombDamageSceneNode"/>.
+    /// The baked data carries no site letters; at detonation the first site whose bounds, expanded by 32 units,
+    /// contain the bomb position is used, so each site's plant trigger volume must intersect its bounds. Sites are
+    /// labeled from the <c>func_bomb_target</c> volumes intersecting their bounds, falling back to a per-site
+    /// index unless exactly one designation matches (e.g. when the scene has no entities).
     /// </summary>
     public static void AddBakedBombDamageToScene(BombDamage? bombDamageData, Scene scene)
     {
@@ -243,14 +258,27 @@ public class CS2BombDamageSceneNode : SceneNode
             return;
         }
 
+        var bombTargets = scene.AllNodes
+            .Where(static n => n.EntityData?.GetStringProperty("classname") == "func_bomb_target")
+            .ToList();
+
         var arrowTexture = LoadArrowTexture(scene);
 
         for (var i = 0; i < bombDamageData.Bombsites.Length; i++)
         {
-            var sceneNode = new CS2BombDamageSceneNode(scene, bombDamageData, i, arrowTexture);
-            scene.Add(sceneNode, false);
-
             var bombsite = bombDamageData.Bombsites[i];
+            var siteBounds = new AABB(bombsite.BoundsMin - new Vector3(32f), bombsite.BoundsMax + new Vector3(32f));
+            var designations = bombTargets
+                .Where(n => n.BoundingBox.Intersects(siteBounds))
+                .Select(GetBombsiteDesignation)
+                .Distinct()
+                .ToList();
+            // Fall back to a per-site index when unresolved (e.g. standalone viewer has no
+            // entities) so each site still gets a distinct scene layer.
+            var label = designations.Count == 1 ? designations[0] : $"#{i + 1}";
+
+            var sceneNode = new CS2BombDamageSceneNode(scene, bombDamageData, i, arrowTexture, label);
+            scene.Add(sceneNode, false);
             var boundsVertices = new List<SimpleVertex>(2 * 12);
             ShapeSceneNode.AddBox(boundsVertices, new AABB(bombsite.BoundsMin, bombsite.BoundsMax), Color32.Red);
 

@@ -292,7 +292,7 @@ namespace ValveResourceFormat.Renderer.SceneNodes
             vertices.Add(new SimpleVertex(to, color));
         }
 
-        /// <summary>Appends the 12 wireframe edges of an AABB as line segments to the given vertex list.</summary>
+        /// <summary>Appends the 12 wireframe edges of an <see cref="AABB"/> as line segments to the given vertex list.</summary>
         public static void AddBox(List<SimpleVertex> vertices, in AABB box, Color32 color)
         {
             // Adding a box will add many vertices, so ensure the required capacity for it up front
@@ -312,6 +312,37 @@ namespace ValveResourceFormat.Renderer.SceneNodes
             AddLine(vertices, new Vector3(box.Max.X, box.Min.Y, box.Min.Z), new Vector3(box.Max.X, box.Min.Y, box.Max.Z), color);
             AddLine(vertices, new Vector3(box.Max.X, box.Max.Y, box.Min.Z), new Vector3(box.Max.X, box.Max.Y, box.Max.Z), color);
             AddLine(vertices, new Vector3(box.Min.X, box.Max.Y, box.Min.Z), new Vector3(box.Min.X, box.Max.Y, box.Max.Z), color);
+        }
+
+        /// <summary>Appends a wireframe sphere as three orthogonal circles of line segments to the given vertex list.</summary>
+        public static void AddSphere(List<SimpleVertex> vertices, Vector3 center, float radius, Color32 color)
+        {
+            const int Segments = 16;
+
+            vertices.EnsureCapacity(vertices.Count + 2 * 3 * Segments);
+
+            for (var axis = 0; axis < 3; axis++)
+            {
+                var previous = Vector3.Zero;
+
+                for (var i = 0; i <= Segments; i++)
+                {
+                    var (sin, cos) = MathF.SinCos(MathF.Tau * i / Segments);
+                    var point = center + radius * (axis switch
+                    {
+                        0 => new Vector3(0f, cos, sin),
+                        1 => new Vector3(cos, 0f, sin),
+                        _ => new Vector3(cos, sin, 0f),
+                    });
+
+                    if (i > 0)
+                    {
+                        AddLine(vertices, previous, point, color);
+                    }
+
+                    previous = point;
+                }
+            }
         }
 
         /// <inheritdoc/>

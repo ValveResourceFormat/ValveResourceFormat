@@ -345,7 +345,12 @@ void main()
     vVertexColorOut = GetTintColorLinear(object.vTint);
 
 #if !defined(vFoliageParams) && ((F_VERTEX_COLOR == 1) || (F_PAINT_VERTEX_COLORS == 1))
-    vVertexColorOut *= SrgbGammaToLinear(vCOLOR);
+    #if (GameVfx_csgo_static_overlay != 0) || (GameVfx_vr_static_overlay != 0)
+        // Paint is multiplied without sRGB decode, and all-zero paint means unpainted
+        vVertexColorOut *= mix(vec4(1.0), vCOLOR, sign(dot(vCOLOR, vec4(1.0))));
+    #else
+        vVertexColorOut *= SrgbGammaToLinear(vCOLOR);
+    #endif
 #endif
 
 #if (F_SECONDARY_UV == 1) || (F_FORCE_UV2 == 1)

@@ -14,10 +14,10 @@ namespace ValveResourceFormat.Utils
         /// <summary>
         /// This method tries to run through all the code paths for a particular resource,
         /// which allows us to quickly find exceptions when running --stats using Decompiler over an entire game folder,
-        /// as well it is used in tests to quickly verify.
+        /// and it is also used in tests to quickly verify resources.
         /// </summary>
         /// <param name="resource">The resource to test.</param>
-        /// <param name="fileLoader">Optional file loader for loading dependencies. If null, uses NullFileLoader.</param>
+        /// <param name="fileLoader">Optional file loader for loading dependencies. If null, uses <see cref="NullFileLoader"/>.</param>
         internal static void Test(Resource resource, IFileLoader? fileLoader = null)
         {
             switch (resource.ResourceType)

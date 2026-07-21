@@ -1,7 +1,7 @@
 namespace ValveResourceFormat.Renderer.Particles.Initializers
 {
     /// <summary>
-    /// Initializes the particle second animation sequence to a random value between a min and max sequence index.
+    /// Initializes the particle second animation sequence to a value between a min and max sequence index; random when shuffle is enabled, otherwise cycling sequentially through the range.
     /// </summary>
     /// <seealso href="https://s2v.app/SchemaExplorer/cs2/particles/C_INIT_RandomSecondSequence">C_INIT_RandomSecondSequence</seealso>
     class RandomSecondSequence : ParticleFunctionInitializer

@@ -628,7 +628,7 @@ public static partial class ShaderSpirvReflection
     /// <param name="samplerBinding">The sampler binding point.</param>
     /// <param name="set">The descriptor set index.</param>
     /// <param name="config">The binding point configuration.</param>
-    /// <returns>A concatenated sampler state description, or "undetermined" if no sampler is bound at the slot.</returns>
+    /// <returns>A well-known sampler name or a concatenated sampler state description, or "undetermined" if no sampler is bound at the slot.</returns>
     public static string GetNameForSampler(VfxProgramData program, VfxVariableIndexArray writeSequence,
         uint samplerBinding, uint set, BindingPointConfiguration config)
     {
@@ -723,7 +723,7 @@ public static partial class ShaderSpirvReflection
     /// <param name="writeSequence">The write sequence containing variable indices.</param>
     /// <param name="binding">The buffer binding point.</param>
     /// <param name="set">The descriptor set index.</param>
-    /// <returns>The uniform buffer variable name, or null if no matching Cbuffer variable exists.</returns>
+    /// <returns>The uniform buffer variable name, or null if no matching <see cref="VfxVariableType.Cbuffer"/> variable exists.</returns>
     public static string? GetNameForUniformBuffer(VfxProgramData program, VfxVariableIndexArray writeSequence,
         uint binding, uint set)
     {

@@ -22,7 +22,7 @@ internal struct FrustumPlanesGpu
 [StructLayout(LayoutKind.Sequential)]
 public struct MeshletCullInfo
 {
-    /// <summary>Bounding sphere used for meshlet frustum and occlusion culling.</summary>
+    /// <summary>Packed bounding box used for meshlet frustum and occlusion culling.</summary>
     public Meshlet.MeshletBounds Bounds { get; init; }
     /// <summary>Normal cone used for backface culling of the meshlet.</summary>
     public Meshlet.MeshletCone Cone { get; init; }

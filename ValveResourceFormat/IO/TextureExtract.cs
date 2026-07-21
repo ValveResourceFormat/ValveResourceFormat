@@ -18,7 +18,7 @@ namespace ValveResourceFormat.IO;
 public class TextureContentFile : ContentFile
 {
     /// <summary>
-    /// Gets or initializes the bitmap data.
+    /// Gets the bitmap data.
     /// </summary>
     public required SKBitmap Bitmap { get; init; }
 
@@ -55,12 +55,12 @@ public class TextureContentFile : ContentFile
 public sealed class ImageSubFile : SubFile
 {
     /// <summary>
-    /// Gets or initializes the bitmap data.
+    /// Gets the bitmap data.
     /// </summary>
     public required SKBitmap Bitmap { get; init; }
 
     /// <summary>
-    /// Gets or initializes the image extraction function.
+    /// Gets the image extraction function.
     /// </summary>
     public required Func<SKBitmap, byte[]> ImageExtract { get; init; }
 
@@ -96,7 +96,7 @@ public sealed class TextureExtract
     public TextureDecoders.TextureCodec DecodeFlags { get; set; } = TextureDecoders.TextureCodec.Auto;
 
     /// <summary>
-    /// Whether to combine cubemap faces into a single latlong image.
+    /// Whether to combine cubemap faces into a single latlong image. Only applies to high dynamic range cubemaps.
     /// </summary>
     public bool LatLongCombineCubemap { get; set; } = true;
 
@@ -258,7 +258,12 @@ public sealed class TextureExtract
             if (isCubeMap && LatLongCombineCubemap && ExportExr)
             {
                 // use the file name set in material properties
-                vtexContent.SubFiles[0].FileName = Path.GetFileName(mapsToUnpack.First().FileName);
+                var firstUnpackInfo = mapsToUnpack.FirstOrDefault();
+
+                if (firstUnpackInfo.FileName != null)
+                {
+                    vtexContent.SubFiles[0].FileName = Path.GetFileName(firstUnpackInfo.FileName);
+                }
             }
 
             return vtexContent;
@@ -469,7 +474,7 @@ public sealed class TextureExtract
         private static readonly SKSamplingOptions SamplingOptions = new(SKFilterMode.Linear, SKMipmapMode.None);
 
         /// <summary>
-        /// Gets or initializes the default color for unpacked channels.
+        /// Gets the default color for unpacked channels.
         /// </summary>
         public SKColor DefaultColor { get; init; } = SKColors.Black;
 

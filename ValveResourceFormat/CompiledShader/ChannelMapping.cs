@@ -97,13 +97,13 @@ namespace ValveResourceFormat.CompiledShader
         }
 
         /// <summary>
-        /// Converts from uint to ChannelMapping.
+        /// Converts from uint to <see cref="ChannelMapping"/>.
         /// </summary>
         public static explicit operator ChannelMapping(uint value)
             => FromUInt32(value);
 
         /// <summary>
-        /// Creates a ChannelMapping from a packed uint value.
+        /// Creates a <see cref="ChannelMapping"/> from a packed uint value.
         /// </summary>
         public static ChannelMapping FromUInt32(uint packedValue)
             => new(packedValue);
@@ -133,7 +133,7 @@ namespace ValveResourceFormat.CompiledShader
             => channelMapping.Channels[0];
 
         /// <summary>
-        /// Creates a ChannelMapping from channel bytes, filling missing slots with <see cref="Channel.NULL"/>.
+        /// Creates a <see cref="ChannelMapping"/> from channel bytes, filling missing slots with <see cref="Channel.NULL"/>.
         /// </summary>
         public static ChannelMapping FromChannels(byte first, byte second = Channel.NULL, byte third = Channel.NULL, byte fourth = Channel.NULL)
         {
@@ -189,7 +189,7 @@ namespace ValveResourceFormat.CompiledShader
             => Equals(obj as ChannelMapping);
 
         /// <summary>
-        /// Determines whether the specified ChannelMapping is equal to this instance.
+        /// Determines whether the specified <see cref="ChannelMapping"/> is equal to this instance.
         /// </summary>
         public bool Equals(ChannelMapping? other)
             => other is not null && this == other;

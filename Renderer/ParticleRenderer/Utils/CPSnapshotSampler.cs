@@ -35,7 +35,7 @@ namespace ValveResourceFormat.Renderer.Particles.Utils
         /// Writes the snapshot value at <paramref name="idx"/> into <paramref name="particle"/>'s
         /// <paramref name="attributeToWrite"/>, applying an optional local-space control point offset. Does
         /// nothing if the attribute type does not match the snapshot data or the index is out of range.
-        /// When <paramref name="writePositionPrevious"/> is set, a Position write also seeds PositionPrevious
+        /// When <paramref name="writePositionPrevious"/> is set, a <see cref="ParticleField.Position"/> write also seeds <see cref="Particle.PositionPrevious"/>
         /// (the initializer always mirrors it; the operator only when <c>m_bPrev</c> is set).
         /// <paramref name="atSpawn"/> marks the initializer path, where a velocity write goes through
         /// <see cref="Particle.Velocity"/> so the emit path's Verlet encoding picks it up.

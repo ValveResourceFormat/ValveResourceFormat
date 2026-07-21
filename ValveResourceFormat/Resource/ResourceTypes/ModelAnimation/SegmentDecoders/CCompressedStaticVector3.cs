@@ -3,7 +3,7 @@ using System.Runtime.InteropServices;
 namespace ValveResourceFormat.ResourceTypes.ModelAnimation.SegmentDecoders
 {
     /// <summary>
-    /// Decodes static Vector3 data using half-precision floats that doesn't change per frame.
+    /// Decodes static Vector3 data using half-precision floats that don't change per frame.
     /// </summary>
     public class CCompressedStaticVector3 : AnimationSegmentDecoder
     {

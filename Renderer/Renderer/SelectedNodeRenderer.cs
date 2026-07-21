@@ -1,6 +1,5 @@
 using System.Globalization;
 using System.Linq;
-using OpenTK.Graphics.OpenGL;
 using ValveResourceFormat.Renderer.SceneEnvironment;
 using ValveResourceFormat.Renderer.SceneNodes;
 using ValveResourceFormat.Renderer.World;
@@ -11,12 +10,8 @@ namespace ValveResourceFormat.Renderer
     /// <summary>
     /// Renders selection outlines and debug information for selected scene nodes.
     /// </summary>
-    public class SelectedNodeRenderer
+    public class SelectedNodeRenderer : LineDebugRenderer
     {
-        private readonly Shader shader;
-        private readonly int vaoHandle;
-        private readonly int vboHandle;
-        private int vertexCount;
         private bool disableDepth;
         private bool debugCubeMaps;
         private bool debugLightProbes;
@@ -31,19 +26,8 @@ namespace ValveResourceFormat.Renderer
         /// <summary>Initializes the selected node renderer and creates GPU resources.</summary>
         /// <param name="rendererContext">Renderer context for loading shaders.</param>
         public SelectedNodeRenderer(RendererContext rendererContext)
+            : base(rendererContext, nameof(SelectedNodeRenderer))
         {
-            shader = rendererContext.ShaderLoader.LoadShader("vrf.default");
-
-            GL.CreateVertexArrays(1, out vaoHandle);
-            GL.CreateBuffers(1, out vboHandle);
-            GL.VertexArrayVertexBuffer(vaoHandle, 0, vboHandle, 0, SimpleVertex.SizeInBytes);
-            SimpleVertex.BindDefaultShaderLayout(vaoHandle, shader.Program);
-
-#if DEBUG
-            var vaoLabel = nameof(SelectedNodeRenderer);
-            GL.ObjectLabel(ObjectLabelIdentifier.VertexArray, vaoHandle, vaoLabel.Length, vaoLabel);
-            GL.ObjectLabel(ObjectLabelIdentifier.Buffer, vboHandle, vaoLabel.Length, vaoLabel);
-#endif
         }
 
         /// <summary>Toggles selection of the given node, adding it if not selected or removing it if already selected.</summary>
@@ -86,7 +70,7 @@ namespace ValveResourceFormat.Renderer
 
             if (node == null)
             {
-                vertexCount = 0;
+                Clear();
                 return;
             }
 
@@ -201,7 +185,7 @@ namespace ValveResourceFormat.Renderer
             if (selectedNodes.Count == 0)
             {
                 // We don't need to reupload an empty array
-                vertexCount = 0;
+                Clear();
                 return;
             }
 
@@ -339,9 +323,7 @@ namespace ValveResourceFormat.Renderer
                 }, renderContext.Camera);
             }
 
-            vertexCount = vertices.Count;
-
-            GL.NamedBufferData(vboHandle, vertexCount * SimpleVertex.SizeInBytes, ListAccessors<SimpleVertex>.GetBackingArray(vertices), BufferUsageHint.DynamicDraw);
+            Upload(vertices);
 
             vertices.Clear();
         }
@@ -357,31 +339,7 @@ namespace ValveResourceFormat.Renderer
         /// <summary>Renders the wireframe selection overlay for the current frame.</summary>
         public void Render()
         {
-            if (vertexCount == 0)
-            {
-                return;
-            }
-
-            GL.Enable(EnableCap.Blend);
-
-            if (disableDepth)
-            {
-                GL.Disable(EnableCap.DepthTest);
-            }
-
-            GL.DepthMask(false);
-            GL.BlendFunc(BlendingFactor.SrcAlpha, BlendingFactor.OneMinusSrcAlpha);
-
-            shader.Use();
-            shader.SetUniform3x4("transform", Matrix4x4.Identity);
-
-            GL.BindVertexArray(vaoHandle);
-            GL.DrawArrays(PrimitiveType.Lines, 0, vertexCount);
-            GL.UseProgram(0);
-            GL.BindVertexArray(0);
-            GL.DepthMask(true);
-            GL.Disable(EnableCap.Blend);
-            GL.Enable(EnableCap.DepthTest);
+            RenderLines(disableDepth);
         }
 
         /// <summary>Updates which debug overlays (cubemaps, light probes) are drawn based on the active render mode.</summary>

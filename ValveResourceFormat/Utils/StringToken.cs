@@ -25,7 +25,7 @@ namespace ValveResourceFormat.Utils
 #endif
 
         /// <summary>
-        /// MurmurHash2 seed value.
+        /// <see cref="MurmurHash2"/> seed value.
         /// </summary>
         public const uint MURMUR2SEED = 0x31415926; // It's pi!
 
@@ -42,7 +42,7 @@ namespace ValveResourceFormat.Utils
         public static uint Get(string key) => MurmurHash2.Hash(key, MURMUR2SEED);
 
         /// <summary>
-        /// Gets a known string for the given hash, or returns an unknown key placeholder.
+        /// Gets a known string for the given <paramref name="hash"/>, or returns an unknown key placeholder.
         /// </summary>
         /// <param name="hash">The hash to look up.</param>
         /// <returns>The known string or a placeholder.</returns>

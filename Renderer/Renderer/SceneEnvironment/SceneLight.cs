@@ -68,7 +68,7 @@ public class SceneLight(Scene scene) : SceneNode(scene)
 
     /// <summary>
     ///     Light index to a baked lightmap.
-    ///     Range: 0..255 for GameLightmapVersion 1 and 0..3 for GameLightmapVersion 2.
+    ///     Range: 0..255 for LightmapGameVersion 1 and 0..3 for LightmapGameVersion 2.
     /// </summary>
     public int StationaryLightIndex { get; set; } = -1;
 
@@ -181,7 +181,7 @@ public class SceneLight(Scene scene) : SceneNode(scene)
     public Vector3[]? PrecomputedSubObbAngles { get; set; }
 
     // Precomputed barn light faces (1 for a barn light, 1-6 for an omni light)
-    /// <summary>Gets the precomputed face data array (1 face for barn lights, 1–6 for omni lights).</summary>
+    /// <summary>Gets the precomputed face data array (1 face for barn lights, 1-6 for omni lights).</summary>
     public BarnFaceData[] BarnFaces { get; private set; } = [];
 
     // Marks a barn light dirty. This will recalculate all faces.

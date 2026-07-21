@@ -18,7 +18,7 @@ using Resource = ValveResourceFormat.Resource;
 namespace GUI.Types.GLViewers
 {
     /// <summary>
-    /// GL Render control with material controls (render modes maybe at some point?).
+    /// GL Render control with material controls and render mode selection.
     /// </summary>
     class GLMaterialViewer : GLSingleNodeViewer
     {

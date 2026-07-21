@@ -13,7 +13,7 @@ namespace ValveResourceFormat.ValveFont
         private const byte MAGICTRICK = 167;
 
         /// <summary>
-        /// Opens and reads the given filename.
+        /// Opens and reads the given <paramref name="filename"/>.
         /// </summary>
         /// <param name="filename">The file to open and read.</param>
         public byte[] Read(string filename)

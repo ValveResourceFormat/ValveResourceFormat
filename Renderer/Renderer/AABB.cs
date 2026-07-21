@@ -134,7 +134,7 @@ namespace ValveResourceFormat.Renderer
         /// <param name="transform">The transformation matrix.</param>
         /// <returns>A new axis-aligned bounding box that contains the transformed box.</returns>
         /// <remarks>
-        /// The resulting AABB may be larger than the original if rotation is involved.
+        /// The resulting <see cref="AABB"/> may be larger than the original if rotation is involved.
         /// To minimize error accumulation, premultiply matrices before transforming.
         /// </remarks>
         public AABB Transform(in Matrix4x4 transform)

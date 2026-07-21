@@ -158,7 +158,7 @@ namespace ValveResourceFormat.Renderer
             AddText(textRenderRequest);
         }
 
-        /// <summary>Queues text at a viewport-relative position (0–1 range) for rendering.</summary>
+        /// <summary>Queues text at a viewport-relative position (0-1 range) for rendering.</summary>
         /// <param name="text">String to render.</param>
         /// <param name="x">Horizontal position as a fraction of the viewport width.</param>
         /// <param name="y">Vertical position as a fraction of the viewport height.</param>
@@ -179,7 +179,7 @@ namespace ValveResourceFormat.Renderer
             AddTextRelative(req, camera);
         }
 
-        /// <summary>Queues a text render request at a viewport-relative position (0–1 range) for rendering.</summary>
+        /// <summary>Queues a text render request at a viewport-relative position (0-1 range) for rendering.</summary>
         /// <param name="textRenderRequest">Text rendering parameters; <see cref="TextRenderRequest.X"/> and <see cref="TextRenderRequest.Y"/> are treated as fractions of the viewport dimensions.</param>
         /// <param name="camera">Camera providing the viewport dimensions.</param>
         public void AddTextRelative(TextRenderRequest textRenderRequest, Camera camera)

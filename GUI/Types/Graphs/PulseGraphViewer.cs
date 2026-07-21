@@ -1964,7 +1964,7 @@ internal class PulseGraphViewer : GLNodeGraphViewer
                 };
 
                 using var paint = new SKPaint { Color = new(78, 145, 217), IsAntialias = true };
-                canvas.DrawText(Messages[i], textPosition.X, textPosition.Y, ArialFont, paint);
+                canvas.DrawText(Messages[i], textPosition.X, textPosition.Y, SKTextAlign.Left, ArialFont, paint);
             }
         }
 

@@ -67,7 +67,7 @@ namespace ValveResourceFormat.Utils
         }
 
         /// <summary>
-        /// Like <see cref="CalculateTransformationMatrix"/> but without scale — the transform a template passes to its children.
+        /// Like <see cref="CalculateTransformationMatrix"/> but without scale; the transform a template passes to its children.
         /// </summary>
         /// <returns>The transform without the entity's scale.</returns>
         public static Matrix4x4 CalculateRigidTransformationMatrix(Entity entity)

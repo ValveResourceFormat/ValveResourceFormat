@@ -43,7 +43,7 @@ namespace ValveResourceFormat.Renderer.SceneNodes
         public AnimationController AnimationController { get; }
 
         /// <summary>
-        /// A collection of animations available for sequential playback on this model.
+        /// A collection of animations available for playback on this model.
         /// </summary>
         public Dictionary<string, Animation> Animations { get; } = new(StringComparer.OrdinalIgnoreCase);
 
@@ -597,7 +597,7 @@ namespace ValveResourceFormat.Renderer.SceneNodes
         /// <summary>
         /// Places <paramref name="child"/> once at the named attachment point or bone (or the model's own
         /// transform when no name is given), with <paramref name="offset"/> applied in that anchor's frame.
-        /// Unlike <c>AttachNode</c>, the child does not track the model afterwards. Works for any scene node.
+        /// Unlike <see cref="AttachNode"/>, the child does not track the model afterwards. Works for any scene node.
         /// </summary>
         public void PlaceNode(SceneNode child, string attachmentName, Vector3 offset)
         {

@@ -45,7 +45,7 @@ public struct UiGroup
     }
 
     /// <summary>
-    /// Creates a UiGroup from a compact string representation.
+    /// Creates a <see cref="UiGroup"/> from a compact string representation.
     /// </summary>
     public static UiGroup FromCompactString(string compactString)
     {

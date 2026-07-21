@@ -206,8 +206,7 @@ namespace GUI.Types.Graphs
 
                 var wireColor = GetColorByType(wire.From.ValueType);
                 var wireWidth = (wire == lastHoveredNode) ? 5f : 3f;
-                using var wirePaint = new SKPaint { Color = wireColor, StrokeWidth = wireWidth, IsAntialias = true, Style = SKPaintStyle.Stroke };
-                using var wirePath = DrawWire(canvas, wirePaint, xFrom, yFrom, xTo, yTo);
+                using var wirePath = DrawWire(canvas, wireColor, wireWidth, xFrom, yFrom, xTo, yTo);
 
                 using var widerPaint = new SKPaint { Style = SKPaintStyle.Stroke, StrokeWidth = 10f };
                 wire.HitTestPath?.Dispose();
@@ -353,12 +352,10 @@ namespace GUI.Types.Graphs
             lastLocation = graphPoint;
         }
 
-        private static SKPath DrawWire(SKCanvas canvas, SKPaint paint, float xFrom, float yFrom, float xTo, float yTo)
+        private static SKPath DrawWire(SKCanvas canvas, SKColor color, float width, float xFrom, float yFrom, float xTo, float yTo)
         {
             var from = new SKPoint(xFrom, yFrom);
             var to = new SKPoint(xTo, yTo);
-
-            var path = new SKPath();
 
             var dx = to.X - from.X;
             var dy = to.Y - from.Y;
@@ -374,9 +371,12 @@ namespace GUI.Types.Graphs
             var fromControl = new SKPoint(from.X + horizontalOffset, from.Y + verticalOffset);
             var toControl = new SKPoint(to.X - horizontalOffset, to.Y + verticalOffset);
 
-            path.MoveTo(from);
-            path.CubicTo(fromControl, toControl, to);
+            using var pathBuilder = new SKPathBuilder();
+            pathBuilder.MoveTo(from);
+            pathBuilder.CubicTo(fromControl, toControl, to);
+            var path = pathBuilder.Detach();
 
+            using var paint = new SKPaint { Color = color, StrokeWidth = width, IsAntialias = true, Style = SKPaintStyle.Stroke };
             canvas.DrawPath(path, paint);
             return path;
         }

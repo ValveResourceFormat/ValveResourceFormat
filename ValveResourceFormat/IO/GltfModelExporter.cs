@@ -773,7 +773,7 @@ namespace ValveResourceFormat.IO
         /// </summary>
         /// <param name="model">The model to get the meshes from.</param>
         /// <param name="name">The base name used when generating mesh names.</param>
-        /// <returns>A tuple of meshes and their names.</returns>
+        /// <returns>An enumerable of tuples of mesh, mesh index, and name.</returns>
         private IEnumerable<(VMesh Mesh, int MeshIndex, string Name)> LoadModelMeshes(VModel model, string name)
         {
             // Export the lowest LoD level that actually has meshes. Usually LoD0, but some models leave it empty.

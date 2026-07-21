@@ -32,7 +32,7 @@ namespace ValveResourceFormat.Utils
         }
 
         /// <summary>
-        /// Converts an sRGB gamma space to linear RGB color.
+        /// Converts an sRGB gamma space color to linear RGB.
         /// </summary>
         public static Vector3 SrgbGammaToLinear(Vector3 vSrgbGammaColor)
         {

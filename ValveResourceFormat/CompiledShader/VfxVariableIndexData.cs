@@ -10,7 +10,7 @@ public readonly struct VfxVariableIndexData
     /// <summary>Gets the first field containing variable index and layout set.</summary>
     public short Field1 { get; init; }
 
-    /// <summary>Gets the variable index into VariableDescriptions.</summary>
+    /// <summary>Gets the variable index into <see cref="VfxProgramData.VariableDescriptions"/>.</summary>
     public int VariableIndex => Field1 & 0xFFF; // index VariableDescriptions
     /// <summary>Gets the descriptor set ID in the shader layout.</summary>
     public int LayoutSet => Field1 >> 12; // Descriptor set id in the shader layout()

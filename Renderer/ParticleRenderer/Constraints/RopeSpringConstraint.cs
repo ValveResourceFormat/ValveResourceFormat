@@ -125,7 +125,7 @@ namespace ValveResourceFormat.Renderer.Particles.Constraints
         /// <summary>
         /// Resolves the uniform per-segment base length. An explicit non-negative
         /// <c>m_flInitialRestingLength</c> is evaluated every frame; otherwise the base length is captured
-        /// once from the spawn geometry (total chain length over particle count), while PositionPrevious still
+        /// once from the spawn geometry (total chain length over particle count), while <see cref="Particle.PositionPrevious"/> still
         /// holds the spawn positions.
         /// </summary>
         private float ResolveBaseLength(Span<Particle> current, ParticleSystemRenderState particleSystemState)

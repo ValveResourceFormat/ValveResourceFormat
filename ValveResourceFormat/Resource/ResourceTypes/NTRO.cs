@@ -18,7 +18,7 @@ namespace ValveResourceFormat.ResourceTypes
         /// </summary>
         public KVObject Output { get; private set; } = null!;
         /// <summary>
-        /// Gets or sets the struct name.
+        /// Gets the struct name.
         /// </summary>
         public string? StructName { get; init; }
 

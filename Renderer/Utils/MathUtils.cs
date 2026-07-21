@@ -60,7 +60,7 @@ namespace ValveResourceFormat.Renderer.Utils
         }
 
         /// <summary>
-        /// Swaps min and max if min > max.
+        /// Swaps <paramref name="min"/> and <paramref name="max"/> if <paramref name="min"/> > <paramref name="max"/>.
         /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static void MinMaxFixUp<T>(ref T min, ref T max) where T : INumber<T>
@@ -87,7 +87,7 @@ namespace ValveResourceFormat.Renderer.Utils
         public static float Fract(float x) => x - MathF.Floor(x);
 
         /// <summary>
-        /// Wraps a value into the half-open range [lowBounds, highBounds).
+        /// Wraps a value into the half-open range [<paramref name="lowBounds"/>, <paramref name="highBounds"/>).
         /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static float Wrap(float x, float lowBounds, float highBounds)

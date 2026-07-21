@@ -702,7 +702,7 @@ public partial class GltfModelExporter
     /// 2. Merging weights of duplicate joint references
     /// 3. Ensuring valid data is packed into consecutive positions
     /// </summary>
-    /// <param name="joints">Array of joint indices (ushort), organized in groups of size jointCount</param>
+    /// <param name="joints">Array of joint indices (ushort), organized in groups of size <paramref name="jointCount"/></param>
     /// <param name="weights">Array of weight values (float), corresponding to each joint</param>
     /// <param name="jointCount">Number of joints per vertex (typically 4 or 8)</param>
     internal static void FixDuplicateJoints(Span<ushort> joints, Span<float> weights, int jointCount)

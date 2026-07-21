@@ -147,7 +147,7 @@ namespace ValveResourceFormat.Renderer.Particles
         }
 
         /// <summary>
-        /// Return a random float in the range [flLow, flHigh). The distribution is uniform.
+        /// Return a random float in the range [<paramref name="flLow"/>, <paramref name="flHigh"/>). The distribution is uniform.
         /// </summary>
         internal static float RandomFloat(float flLow, float flHigh)
         {

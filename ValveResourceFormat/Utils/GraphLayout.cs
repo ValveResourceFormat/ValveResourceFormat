@@ -29,7 +29,7 @@ public static class GraphLayout
     }
 
     /// <summary>
-    /// Layouts nodes in a hierarchical arrangement using the Sugiyama algorithm.
+    /// Lays out nodes in a hierarchical arrangement using the Sugiyama algorithm.
     /// </summary>
     /// <typeparam name="TNode">Type representing a node.</typeparam>
     /// <typeparam name="TConnection">Type representing a connection between nodes.</typeparam>

@@ -43,7 +43,7 @@ public class PerfStats
     private static readonly string[] LightGroupNames = ["omni", "spot", "barn", "rect", "directional"];
 
     // Declared after LightGroupNames so the instance created here sees it initialized (static initializers run in textual order).
-    /// <summary>Counters for the frame currently being rendered. Cllects nothing while <see cref="Capture"/> is off.</summary>
+    /// <summary>Counters for the frame currently being rendered. Collects nothing while <see cref="Capture"/> is off.</summary>
     internal static PerfStats Active { get; private set; } = new();
 
     /// <summary>Gets or sets whether statistics are actively collected this frame.</summary>

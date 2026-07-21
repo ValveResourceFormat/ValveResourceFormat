@@ -88,11 +88,11 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Shapes
         [StructLayout(LayoutKind.Sequential)]
         public readonly struct Triangle
         {
-            /// <summary>The X component of the triangle.</summary>
+            /// <summary>The first vertex index of the triangle.</summary>
             public readonly int X;
-            /// <summary>The Y component of the triangle.</summary>
+            /// <summary>The second vertex index of the triangle.</summary>
             public readonly int Y;
-            /// <summary>The Z component of the triangle.</summary>
+            /// <summary>The third vertex index of the triangle.</summary>
             public readonly int Z;
 
             /// <summary>
@@ -179,7 +179,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Shapes
         }
 
         /// <summary>
-        /// The mesh triangles with additional topology information similar to the half-edge data structure.
+        /// The mesh triangles as vertex index triples.
         /// </summary>
         public ReadOnlySpan<Triangle> GetTriangles()
         {

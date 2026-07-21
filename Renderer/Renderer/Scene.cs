@@ -121,13 +121,13 @@ namespace ValveResourceFormat.Renderer
 
         private Shader? DepthPyramidShader;
         private Shader? DepthPyramidNpotShader;
-        /// <summary>Gets or sets the hierarchical depth pyramid texture used for GPU occlusion culling.</summary>
+        /// <summary>Gets the hierarchical depth pyramid texture used for GPU occlusion culling.</summary>
         public RenderTexture? DepthPyramid { get; internal set; }
 
-        /// <summary>Gets or sets the view-projection matrix that was used when the depth pyramid was last generated.</summary>
+        /// <summary>Gets the view-projection matrix that was used when the depth pyramid was last generated.</summary>
         public Matrix4x4 DepthPyramidViewProjection { get; internal set; }
 
-        /// <summary>Gets or sets whether the depth pyramid is current and safe to use for occlusion culling this frame.</summary>
+        /// <summary>Gets whether the depth pyramid is current and safe to use for occlusion culling this frame.</summary>
         public bool DepthPyramidValid { get; internal set; }
 
         /// <summary>Gets the renderer context providing shared GPU resources and shader loading.</summary>
