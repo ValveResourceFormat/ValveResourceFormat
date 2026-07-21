@@ -185,7 +185,7 @@ namespace GUI.Types.Viewers
                     if (resource.DataBlock is BinaryKV3 binaryKV3)
                     {
                         GLViewer = new AnimationGraphViewer(vrfGuiContext, rendererContext, binaryKV3.Data);
-                        GLViewerTabName = "ANIMATION GRAPH";
+                        GLViewerTabName = "AG2 ANIMATION GRAPH";
                     }
                     break;
 
@@ -648,7 +648,7 @@ namespace GUI.Types.Viewers
                         break;
                     case BinaryKV3 nmGraphData:
                         viewer = new AnimationGraphViewer(vrfGuiContext, rendererContext, nmGraphData.Data);
-                        baseName = "ANIMATION GRAPH";
+                        baseName = "AG2 ANIMATION GRAPH";
                         break;
                     default:
                         continue;
