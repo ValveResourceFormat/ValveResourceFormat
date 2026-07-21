@@ -234,12 +234,12 @@ partial class GraphView
         // With a selection or an active search, dim everything drawn so far, render the
         // transitive chain faintly above the dim, then the focused set (selection + direct
         // neighbors, wire + endpoints, or search matches) at full strength.
-        if (primarySelectedNode != null || selectedWire != null || searchHighlight != null)
+        if (!Selection.IsEmpty || searchHighlight != null)
         {
             fillPaint.Color = Palette.Canvas.WithAlpha(165);
             canvas.DrawRect(visibleRect, fillPaint);
 
-            if (searchHighlight == null && primarySelectedNode != null && connectedNodes.Count > 1)
+            if (searchHighlight == null && Selection.PrimaryNode != null && Selection.Connected.Count > 1)
             {
                 canvas.SaveLayer(chainLayerPaint);
                 DrawWiresPass(canvas, visibleRect, zoom, RenderTier.Chain);
@@ -268,13 +268,13 @@ partial class GraphView
                 : RenderTier.Background;
         }
 
-        if (wire == selectedWire ||
-            (primarySelectedNode != null && (wire.From.Owner == primarySelectedNode || wire.To.Owner == primarySelectedNode)))
+        if (wire == Selection.Wire ||
+            (Selection.PrimaryNode != null && (wire.From.Owner == Selection.PrimaryNode || wire.To.Owner == Selection.PrimaryNode)))
         {
             return RenderTier.Focus;
         }
 
-        if (primarySelectedNode != null && connectedNodes.Contains(wire.From.Owner) && connectedNodes.Contains(wire.To.Owner))
+        if (Selection.PrimaryNode != null && Selection.Connected.Contains(wire.From.Owner) && Selection.Connected.Contains(wire.To.Owner))
         {
             return RenderTier.Chain;
         }
@@ -289,14 +289,14 @@ partial class GraphView
             return MatchesSearchHighlight(node) ? RenderTier.Focus : RenderTier.Background;
         }
 
-        if (node == primarySelectedNode ||
-            (primarySelectedNode != null && directNodes.Contains(node)) ||
-            (selectedWire != null && (selectedWire.From.Owner == node || selectedWire.To.Owner == node)))
+        if (node == Selection.PrimaryNode ||
+            (Selection.PrimaryNode != null && Selection.Direct.Contains(node)) ||
+            (Selection.Wire != null && (Selection.Wire.From.Owner == node || Selection.Wire.To.Owner == node)))
         {
             return RenderTier.Focus;
         }
 
-        if (primarySelectedNode != null && connectedNodes.Contains(node))
+        if (Selection.PrimaryNode != null && Selection.Connected.Contains(node))
         {
             return RenderTier.Chain;
         }
@@ -358,17 +358,17 @@ partial class GraphView
                 continue;
             }
 
-            var isPrimarySelected = node == primarySelectedNode;
+            var isPrimarySelected = node == Selection.PrimaryNode;
             SKColor? connectedColor = null;
 
             if (!isPrimarySelected && tier == RenderTier.Focus)
             {
-                if (primarySelectedNode != null)
+                if (Selection.PrimaryNode != null)
                 {
                     // Directional highlight: upstream neighbors in the input color,
                     // downstream in the output color, both directions in accent.
-                    var isIn = directInNodes.Contains(node);
-                    var isOut = directOutNodes.Contains(node);
+                    var isIn = Selection.DirectIn.Contains(node);
+                    var isOut = Selection.DirectOut.Contains(node);
                     connectedColor = isIn == isOut ? Palette.SelectionSoft
                         : isIn ? Palette.Signal(GraphHue.Cyan)
                         : Palette.Signal(GraphHue.Orange);
@@ -530,7 +530,7 @@ partial class GraphView
 
         var width = WireWidth * Math.Max(1f, 1f / zoom);
 
-        if (wire == lastHovered || wire == selectedWire)
+        if (wire == lastHovered || wire == Selection.Wire)
         {
             width *= 1.8f;
         }
@@ -539,9 +539,9 @@ partial class GraphView
         wireUnderlayPaint.StrokeWidth = width + 1.6f;
         canvas.DrawPath(path, wireUnderlayPaint);
 
-        var touchesSelection = wire == selectedWire ||
-            (primarySelectedNode != null &&
-            (wire.From.Owner == primarySelectedNode || wire.To.Owner == primarySelectedNode));
+        var touchesSelection = wire == Selection.Wire ||
+            (Selection.PrimaryNode != null &&
+            (wire.From.Owner == Selection.PrimaryNode || wire.To.Owner == Selection.PrimaryNode));
 
         wirePaint.StrokeWidth = width;
         wirePaint.PathEffect = wire.Dashed ? wireDashEffect : null;

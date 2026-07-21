@@ -20,13 +20,10 @@ partial class GraphView : IDisposable
     private readonly Dictionary<GraphWire, (SKPath Path, SKRect Bounds)> wireHitPaths = [];
 
     private IGraphElement? lastHovered;
-    private GraphNode? primarySelectedNode;
-    private GraphWire? selectedWire;
     private string? searchHighlight;
-    private readonly HashSet<GraphNode> connectedNodes = [];
-    private readonly HashSet<GraphNode> directNodes = [];
-    private readonly HashSet<GraphNode> directInNodes = [];
-    private readonly HashSet<GraphNode> directOutNodes = [];
+
+    /// <summary>Current selection; render tiers and the host's focus actions derive from it.</summary>
+    public GraphSelection Selection { get; } = new();
 
     public bool IsMoving { get; private set; }
     private SKPoint lastLocation;
@@ -199,7 +196,7 @@ partial class GraphView : IDisposable
                 }
             }
 
-            if (!IsMoving && element is GraphNode node && primarySelectedNode != null)
+            if (!IsMoving && element is GraphNode node && Selection.PrimaryNode != null)
             {
                 IsMoving = true;
                 dragStarted = false;
@@ -234,20 +231,20 @@ partial class GraphView : IDisposable
             var delta = new Vector2(graphPoint.X - lastLocation.X, graphPoint.Y - lastLocation.Y);
             var moveAllConnected = (modifiers & Keys.Control) != 0;
 
-            if (moveAllConnected && connectedNodes.Count > 0)
+            if (moveAllConnected && Selection.Connected.Count > 0)
             {
                 dragMovedConnected = true;
 
-                foreach (var node in connectedNodes)
+                foreach (var node in Selection.Connected)
                 {
                     node.Position += delta;
                     ReanchorWireWaypoints(node);
                 }
             }
-            else if (primarySelectedNode != null)
+            else if (Selection.PrimaryNode != null)
             {
-                primarySelectedNode.Position += delta;
-                ReanchorWireWaypoints(primarySelectedNode);
+                Selection.PrimaryNode.Position += delta;
+                ReanchorWireWaypoints(Selection.PrimaryNode);
             }
 
             ClearWireHitPaths();
@@ -279,9 +276,9 @@ partial class GraphView : IDisposable
         lastLocation = graphPoint;
 
         // After a real drag, re-route the moved island's wires around the new positions.
-        if (IsMoving && dragStarted && primarySelectedNode != null)
+        if (IsMoving && dragStarted && Selection.PrimaryNode != null)
         {
-            RerouteComponentOf(primarySelectedNode);
+            RerouteComponentOf(Selection.PrimaryNode);
         }
 
         IsMoving = false;
@@ -305,7 +302,7 @@ partial class GraphView : IDisposable
 
         // Only the wires touching the moved nodes need new routes; the rest of the
         // component participates as obstacles but keeps its existing geometry.
-        HashSet<GraphNode> movedNodes = dragMovedConnected ? [.. connectedNodes, start] : [start];
+        HashSet<GraphNode> movedNodes = dragMovedConnected ? [.. Selection.Connected, start] : [start];
 
         var movedWires = wires.Where(w =>
             visited.Contains(w.From.Owner) && visited.Contains(w.To.Owner) &&
@@ -439,123 +436,28 @@ partial class GraphView : IDisposable
         OnGraphChanged();
     }
 
-    private void TraverseConnectedGraph(GraphNode startNode)
-    {
-        TraverseConnectedGraph(startNode, connectedNodes);
-    }
-
-    private static void TraverseConnectedGraph(GraphNode startNode, HashSet<GraphNode> connectedNodes)
-    {
-        connectedNodes.Clear();
-        connectedNodes.Add(startNode);
-
-        // Upstream over inputs, downstream over outputs.
-        var queue = new Queue<GraphNode>();
-        queue.Enqueue(startNode);
-
-        while (queue.Count > 0)
-        {
-            var current = queue.Dequeue();
-
-            foreach (var socket in current.Inputs)
-            {
-                foreach (var wire in socket.Wires)
-                {
-                    if (connectedNodes.Add(wire.From.Owner))
-                    {
-                        queue.Enqueue(wire.From.Owner);
-                    }
-                }
-            }
-        }
-
-        queue.Enqueue(startNode);
-        var downstreamVisited = new HashSet<GraphNode> { startNode };
-
-        while (queue.Count > 0)
-        {
-            var current = queue.Dequeue();
-
-            foreach (var socket in current.Outputs)
-            {
-                foreach (var wire in socket.Wires)
-                {
-                    if (downstreamVisited.Add(wire.To.Owner))
-                    {
-                        connectedNodes.Add(wire.To.Owner);
-                        queue.Enqueue(wire.To.Owner);
-                    }
-                }
-            }
-        }
-    }
-
-    // Direct wire neighbors of the primary selection; everything else renders dimmed.
-    // Upstream and downstream are tracked separately for directional highlighting.
-    private void CollectDirectNeighbors(GraphNode node)
-    {
-        directNodes.Clear();
-        directInNodes.Clear();
-        directOutNodes.Clear();
-
-        foreach (var socket in node.Inputs)
-        {
-            foreach (var wire in socket.Wires)
-            {
-                directNodes.Add(wire.From.Owner);
-                directInNodes.Add(wire.From.Owner);
-            }
-        }
-
-        foreach (var socket in node.Outputs)
-        {
-            foreach (var wire in socket.Wires)
-            {
-                directNodes.Add(wire.To.Owner);
-                directOutNodes.Add(wire.To.Owner);
-            }
-        }
-
-        directNodes.Remove(node);
-        directInNodes.Remove(node);
-        directOutNodes.Remove(node);
-    }
-
-    private void ClearDirectNeighbors()
-    {
-        directNodes.Clear();
-        directInNodes.Clear();
-        directOutNodes.Clear();
-    }
-
-    // Clicking a wire focuses just its two endpoint nodes; clicking it again deselects.
     private void SelectWire(GraphWire wire)
     {
-        primarySelectedNode = null;
-        connectedNodes.Clear();
-        ClearDirectNeighbors();
-        selectedWire = selectedWire == wire ? null : wire;
+        Selection.SelectWire(wire);
         OnGraphChanged();
     }
 
     private void SetPrimarySelection(GraphNode node)
     {
-        primarySelectedNode = node;
-        selectedWire = null;
-        TraverseConnectedGraph(node);
-        CollectDirectNeighbors(node);
+        Selection.SetPrimary(node);
 
-        foreach (var connectedNode in connectedNodes)
+        // Raise the whole chain, primary on top, so the focused nodes draw over the rest.
+        foreach (var connectedNode in Selection.Connected)
         {
-            if (connectedNode != primarySelectedNode && nodes.Remove(connectedNode))
+            if (connectedNode != node && nodes.Remove(connectedNode))
             {
                 nodes.Add(connectedNode);
             }
         }
 
-        if (nodes.Remove(primarySelectedNode))
+        if (nodes.Remove(node))
         {
-            nodes.Add(primarySelectedNode);
+            nodes.Add(node);
         }
 
         MarkVisualDirty();
@@ -563,12 +465,9 @@ partial class GraphView : IDisposable
 
     private void ToggleSelection(GraphNode node)
     {
-        if (primarySelectedNode == node || connectedNodes.Contains(node))
+        if (Selection.PrimaryNode == node || Selection.Connected.Contains(node))
         {
-            primarySelectedNode = null;
-            selectedWire = null;
-            connectedNodes.Clear();
-            ClearDirectNeighbors();
+            Selection.Clear();
         }
         else
         {
@@ -580,10 +479,7 @@ partial class GraphView : IDisposable
 
     private void ClearSelection()
     {
-        primarySelectedNode = null;
-        selectedWire = null;
-        connectedNodes.Clear();
-        ClearDirectNeighbors();
+        Selection.Clear();
         OnGraphChanged();
     }
 
@@ -741,7 +637,7 @@ partial class GraphView : IDisposable
     public void IsolateChainOf(GraphNode node)
     {
         var chain = new HashSet<GraphNode>();
-        TraverseConnectedGraph(node, chain);
+        GraphSelection.TraverseConnected(node, chain);
 
         foreach (var member in nodes)
         {
