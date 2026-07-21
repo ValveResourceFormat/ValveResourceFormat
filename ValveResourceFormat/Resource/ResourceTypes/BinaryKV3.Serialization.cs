@@ -184,7 +184,7 @@ namespace ValveResourceFormat.ResourceTypes
             var blobs = context.BinaryBlobs.ToArray();
             List<ushort> blockCompressedSizes = [];
             var compressedBlobs = context.BinaryBlobLengths.Count > 0
-                ? CompressBinaryBlobs(blobs, out blockCompressedSizes)
+                ? CompressBinaryBlobs(blobs, context.BinaryBlobLengths, out blockCompressedSizes)
                 : [];
             var buffer2 = BuildVersion5Buffer2(context, blockCompressedSizes);
             var compressedBuffer1 = CompressMainBuffer(buffer1);
@@ -318,7 +318,7 @@ namespace ValveResourceFormat.ResourceTypes
             };
         }
 
-        private byte[] CompressBinaryBlobs(byte[] input, out List<ushort> blockCompressedSizes)
+        private byte[] CompressBinaryBlobs(byte[] input, List<int> blobLengths, out List<ushort> blockCompressedSizes)
         {
             blockCompressedSizes = [];
 
@@ -336,19 +336,25 @@ namespace ValveResourceFormat.ResourceTypes
             using var output = new MemoryStream();
             using var encoder = new LZ4FastChainEncoder(frameSize, 0);
             var target = new byte[LZ4Codec.MaximumOutputSize(frameSize)];
+            var inputOffset = 0;
 
-            for (var offset = 0; offset < input.Length; offset += frameSize)
+            foreach (var blobLength in blobLengths)
             {
-                var length = Math.Min(frameSize, input.Length - offset);
-                encoder.TopupAndEncode(input.AsSpan(offset, length), target, true, false, out var loaded, out var encoded);
-
-                if (loaded != length || encoded <= 0 || encoded > ushort.MaxValue)
+                for (var blobOffset = 0; blobOffset < blobLength; blobOffset += frameSize)
                 {
-                    throw new InvalidOperationException("Failed to encode a chained LZ4 binary blob frame.");
+                    var length = Math.Min(frameSize, blobLength - blobOffset);
+                    encoder.TopupAndEncode(input.AsSpan(inputOffset + blobOffset, length), target, true, false, out var loaded, out var encoded);
+
+                    if (loaded != length || encoded <= 0 || encoded > ushort.MaxValue)
+                    {
+                        throw new InvalidOperationException("Failed to encode a chained LZ4 binary blob frame.");
+                    }
+
+                    blockCompressedSizes.Add((ushort)encoded);
+                    output.Write(target, 0, encoded);
                 }
 
-                blockCompressedSizes.Add((ushort)encoded);
-                output.Write(target, 0, encoded);
+                inputOffset += blobLength;
             }
 
             return output.ToArray();

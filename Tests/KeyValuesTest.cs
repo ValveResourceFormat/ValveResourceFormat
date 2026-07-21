@@ -139,6 +139,55 @@ namespace Tests
         }
 
         [Test]
+        public void TestBinaryKV3Version5Lz4BlobFramesRespectBlobBoundaries()
+        {
+            var firstBlob = new byte[] { 1 };
+            var secondBlob = new byte[16385];
+            var thirdBlob = new byte[200];
+
+            for (var i = 0; i < secondBlob.Length; i++)
+            {
+                secondBlob[i] = (byte)(i % 251);
+            }
+
+            Array.Fill(thirdBlob, (byte)0xA5);
+            var root = KVObject.Array([
+                KVObject.Blob(firstBlob),
+                KVObject.Blob(secondBlob),
+                KVObject.Blob(thirdBlob),
+            ]);
+            var binaryKV3 = new BinaryKV3(root, KV3IDLookup.Get("generic"))
+            {
+                Resource = null!,
+                SerializationVersion = KV3BinaryVersion.Version5,
+                SerializationCompressionMethod = KV3BinaryCompressionMethod.Lz4,
+            };
+
+            using var stream = new MemoryStream();
+            binaryKV3.Serialize(stream);
+            var data = stream.ToArray();
+
+            Assert.That(BitConverter.ToInt32(data, 68), Is.EqualTo(4 * sizeof(ushort)));
+
+            stream.Position = 0;
+            var deserializedBinaryKV3 = new BinaryKV3(BlockType.DATA)
+            {
+                Size = (uint)stream.Length,
+                Offset = 0,
+                Resource = null!,
+            };
+            using var reader = new BinaryReader(stream);
+            deserializedBinaryKV3.Read(reader);
+
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(deserializedBinaryKV3.Data.Root[0]!.AsBlob(), Is.EqualTo(firstBlob));
+                Assert.That(deserializedBinaryKV3.Data.Root[1]!.AsBlob(), Is.EqualTo(secondBlob));
+                Assert.That(deserializedBinaryKV3.Data.Root[2]!.AsBlob(), Is.EqualTo(thirdBlob));
+            }
+        }
+
+        [Test]
         public void TestBinaryKV3SerializationDefaultsAndValidation()
         {
             var root = KVObject.Collection();
