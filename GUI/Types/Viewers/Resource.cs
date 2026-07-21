@@ -547,7 +547,7 @@ namespace GUI.Types.Viewers
 
                 if (hasConnections)
                 {
-                    entityGraphViewer = new EntityIOGraphViewer(vrfGuiContext, rendererContext, loadedWorld.Entities, glWorldViewer.SelectAndFocusEntity);
+                    entityGraphViewer = new EntityIOGraphViewer(vrfGuiContext, rendererContext, loadedWorld.Entities, glWorldViewer.SelectAndFocusEntities);
                     preparedGraphViewers.Add((entityGraphViewer, "ENTITY I/O GRAPH"));
                 }
 

@@ -530,6 +530,62 @@ namespace GUI.Types.GLViewers
             SelectAndFocusNode(node);
         }
 
+        public void SelectAndFocusEntities(IReadOnlyList<EntityLump.Entity> entities)
+        {
+            if (entities.Count == 1)
+            {
+                SelectAndFocusEntity(entities[0]);
+                return;
+            }
+
+            if (UiControl != null && UiControl.Parent is TabPage tabPage && tabPage.Parent is TabControl tabControl)
+            {
+                tabControl.SelectTab(tabPage);
+            }
+
+            Debug.Assert(SelectedNodeRenderer != null);
+
+            var hasBounds = false;
+            var bounds = default(AABB);
+            var selectedAny = false;
+
+            foreach (var entity in entities)
+            {
+                var node = Scene.Find(entity) ?? SkyboxScene?.Find(entity);
+
+                AABB entityBounds;
+
+                if (node != null)
+                {
+                    if (selectedAny)
+                    {
+                        SelectedNodeRenderer.ToggleNode(node);
+                    }
+                    else
+                    {
+                        SelectedNodeRenderer.SelectNode(node, forceDisableDepth: true);
+                        selectedAny = true;
+                    }
+
+                    EnsureNodeVisible(node);
+                    entityBounds = SelectionBounds(node);
+                }
+                else
+                {
+                    var origin = entity.GetVector3Property("origin");
+                    entityBounds = new AABB(origin - new Vector3(32f), origin + new Vector3(32f));
+                }
+
+                bounds = hasBounds ? bounds.Union(entityBounds) : entityBounds;
+                hasBounds = true;
+            }
+
+            if (hasBounds)
+            {
+                FocusCameraOnBounds(bounds);
+            }
+        }
+
         private void SelectAndFocusNode(SceneNode node)
         {
             ArgumentNullException.ThrowIfNull(node);
@@ -537,20 +593,29 @@ namespace GUI.Types.GLViewers
             Debug.Assert(SelectedNodeRenderer != null);
 
             SelectedNodeRenderer.SelectNode(node, forceDisableDepth: true);
+            FocusCameraOnBounds(SelectionBounds(node));
+            EnsureNodeVisible(node);
+        }
 
+        private static AABB SelectionBounds(SceneNode node)
+        {
             var bbox = node.BoundingBox;
-            var size = bbox.Size;
-            var maxDimension = Math.Max(Math.Max(size.X, size.Y), size.Z);
+            var maxDimension = Math.Max(Math.Max(bbox.Size.X, bbox.Size.Y), bbox.Size.Z);
 
             // Empty or degenerate bounds (e.g. a particle system that finished playing)
             // would put the camera inside the node or at a garbage position.
             if (float.IsNaN(maxDimension) || maxDimension < 1f)
             {
                 bbox = new AABB(node.Transform.Translation - new Vector3(32f), node.Transform.Translation + new Vector3(32f));
-                size = bbox.Size;
-                maxDimension = 64f;
             }
 
+            return bbox;
+        }
+
+        private void FocusCameraOnBounds(in AABB bbox)
+        {
+            var size = bbox.Size;
+            var maxDimension = Math.Max(Math.Max(size.X, size.Y), size.Z);
             var distance = maxDimension * 1.2f;
             var cameraHeight = bbox.Center.Y + size.Y * 2f;
 
@@ -558,8 +623,10 @@ namespace GUI.Types.GLViewers
             Input.SaveCameraForTransition();
             Input.Camera.SetLocation(location);
             Input.Camera.LookAt(bbox.Center);
+        }
 
-            // Ensure the node is visible
+        private void EnsureNodeVisible(SceneNode node)
+        {
             if (!node.LayerEnabled && worldLayersComboBox != null && node.LayerName != null)
             {
                 var layerId = worldLayersComboBox.Items.IndexOf(node.LayerName);

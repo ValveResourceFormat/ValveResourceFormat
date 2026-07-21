@@ -264,7 +264,22 @@ internal class AG1GraphViewer : GLGraphViewer
         CreateGraph();
         AddParameterAndTagNodes();
         AddComponentNodes();
-        View.LayoutNodes();
+        View.LayoutNodesPacked();
+
+        View.Legend.AddRange(
+        [
+            new("Pose flow", PoseHue, GraphLegendKind.Wire),
+            new("State machine", GraphHue.Slate),
+            new("Sequence / clip", GraphHue.Purple),
+            new("Blend / IK", GraphHue.Emerald),
+            new("Bool parameter", GraphHue.Blue),
+            new("Int parameter", GraphHue.Orange),
+            new("Float parameter", GraphHue.Olive),
+            new("Enum parameter", GraphHue.Purple),
+            new("Tag group", GraphHue.Teal),
+            new("Component", GraphHue.Neutral),
+            new("Client-simulated", GraphHue.Purple, GraphLegendKind.Marker),
+        ]);
     }
 
     /// <summary>
@@ -772,7 +787,6 @@ internal class AG1GraphViewer : GLGraphViewer
                 View.Connect(childNode.Outputs[0], inputSocket);
             }
         }
-        View.LayoutNodes();
     }
 
     /// <summary>

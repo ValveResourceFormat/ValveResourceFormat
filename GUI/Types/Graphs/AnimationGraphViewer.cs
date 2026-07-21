@@ -623,7 +623,15 @@ internal class AnimationGraphViewer : GLGraphViewer
             }
         }
 
-        View.LayoutNodes();
+        View.LayoutNodesPacked();
+
+        View.Legend.AddRange(
+        [
+            new("Pose flow", PoseHue, GraphLegendKind.Wire),
+            new("Value", ValueHue, GraphLegendKind.Wire),
+            new("Clip / graph reference", PoseHue, GraphLegendKind.Marker),
+        ]);
+
         Log.Debug(nameof(AnimationGraphViewer), $"Created {createdNodes.Count} nodes (out of {nodes.Count}) or {createdNodes.Count / (float)nodes.Count:P}.");
     }
 

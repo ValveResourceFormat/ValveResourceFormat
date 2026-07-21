@@ -46,8 +46,6 @@ namespace GUI.Types.GLViewers
             }
         }
 
-        protected virtual bool ShowSidebar => false;
-
         protected override bool ShowResetZoomButton => false;
 
         private Label? statsLabel;
@@ -57,20 +55,12 @@ namespace GUI.Types.GLViewers
         private Panel? legendPanel;
         private GraphNode? lastSearchResult;
 
-        /// <summary>Sidebar legend rows provided by the frontend; empty hides the legend.</summary>
-        protected virtual IEnumerable<(string Label, SKColor Color)> LegendEntries => [];
-
         protected override void AddUiControls()
         {
             Debug.Assert(UiControl != null);
 
             base.AddUiControls();
 
-            if (!ShowSidebar)
-            {
-                UiControl.HideSidebar();
-            }
-            else
             {
                 statsLabel = new Label
                 {
@@ -88,6 +78,22 @@ namespace GUI.Types.GLViewers
                 searchBox.KeyDown += OnSearchKeyDown;
                 searchBox.TextChanged += (_, _) => View.SetSearchHighlight(searchBox.Text);
                 UiControl.AddControl(searchBox);
+
+                var suppressPlacementChange = true;
+                var placementCombo = UiControl.AddSelection("Layout", (_, index) =>
+                {
+                    if (suppressPlacementChange || index < 0)
+                    {
+                        return;
+                    }
+
+                    View.Placement = (GraphPlacement)index;
+                    View.LayoutNodesPacked();
+                    RefitToGraph();
+                });
+                placementCombo.Items.AddRange(new object[] { "Organic (MDS)", "Layered (Sugiyama)" });
+                placementCombo.SelectedIndex = (int)View.Placement;
+                suppressPlacementChange = false;
 
                 connectionsList = new ListBox
                 {
@@ -124,8 +130,19 @@ namespace GUI.Types.GLViewers
                 AddLegendPanel();
                 UpdateSelectionLabels();
 
-                // Search belongs at the very top of the sidebar, above the base viewer buttons.
+                // Top of the sidebar, above the base viewer buttons: search second, the
+                // layout dropdown at the very top (SendToBack order is bottom-up). The combo
+                // is nested inside its selection control; reorder that sidebar child.
                 searchBox.SendToBack();
+
+                Control placementSection = placementCombo;
+
+                while (placementSection.Parent != null && placementSection.Parent != searchBox.Parent)
+                {
+                    placementSection = placementSection.Parent;
+                }
+
+                placementSection.SendToBack();
             }
 
             if (GLControl != null)
@@ -242,25 +259,64 @@ namespace GUI.Types.GLViewers
         {
             Debug.Assert(UiControl != null);
 
-            var entries = new List<(string Label, SKColor Color)>(LegendEntries);
-
-            if (entries.Count == 0)
+            if (View.Legend.Count == 0)
             {
                 return;
             }
 
             legendPanel = new Panel
             {
-                Height = UiControl.AdjustForDPI(10 + entries.Count * 18),
+                Height = UiControl.AdjustForDPI(10 + View.Legend.Count * 18),
             };
             legendPanel.Paint += (_, e) =>
             {
                 var y = 6;
 
-                foreach (var (label, color) in entries)
+                foreach (var (label, hue, kind) in View.Legend)
                 {
-                    using var swatch = new System.Drawing.SolidBrush(System.Drawing.Color.FromArgb(color.Red, color.Green, color.Blue));
-                    e.Graphics.FillRectangle(swatch, 6, y + 2, 12, 12);
+                    // Palette slots resolve at paint time so the legend follows the theme.
+                    var skColor = kind == GraphLegendKind.Category ? View.Palette.Category(hue) : View.Palette.Signal(hue);
+                    var color = System.Drawing.Color.FromArgb(skColor.Red, skColor.Green, skColor.Blue);
+
+                    switch (kind)
+                    {
+                        case GraphLegendKind.Wire:
+                        case GraphLegendKind.DashedWire:
+                            using (var pen = new System.Drawing.Pen(color, 3f))
+                            {
+                                if (kind == GraphLegendKind.DashedWire)
+                                {
+                                    pen.DashStyle = System.Drawing.Drawing2D.DashStyle.Dash;
+                                }
+
+                                e.Graphics.DrawLine(pen, 4, y + 8, 20, y + 8);
+                            }
+
+                            break;
+
+                        case GraphLegendKind.Marker:
+                            using (var marker = new System.Drawing.SolidBrush(color))
+                            {
+                                e.Graphics.FillPolygon(marker,
+                                [
+                                    new System.Drawing.Point(12, y + 3),
+                                    new System.Drawing.Point(17, y + 8),
+                                    new System.Drawing.Point(12, y + 13),
+                                    new System.Drawing.Point(7, y + 8),
+                                ]);
+                            }
+
+                            break;
+
+                        default:
+                            using (var swatch = new System.Drawing.SolidBrush(color))
+                            {
+                                e.Graphics.FillRectangle(swatch, 6, y + 2, 12, 12);
+                            }
+
+                            break;
+                    }
+
                     using var text = new System.Drawing.SolidBrush(Themer.CurrentThemeColors.Contrast);
                     e.Graphics.DrawString(label, legendPanel!.Font, text, 24, y);
                     y += 18;

@@ -62,6 +62,12 @@ partial class GraphView : IDisposable
 
     private void OnGraphChanged() => GraphChanged?.Invoke(this, EventArgs.Empty);
 
+    /// <summary>Node placement engine used by <see cref="LayoutNodesPacked"/>.</summary>
+    public GraphPlacement Placement { get; set; } = GraphPlacement.Organic;
+
+    /// <summary>Legend rows describing this graph's color semantics, declared by the frontend.</summary>
+    public List<GraphLegendEntry> Legend { get; } = [];
+
     public GraphView(GraphPalette? palette = null)
     {
         Palette = palette ?? GraphPalette.ForCurrentTheme();
@@ -398,10 +404,7 @@ partial class GraphView : IDisposable
         {
             foreach (var wire in socket.Wires)
             {
-                if (wire.Waypoints is { Count: > 0 } waypoints)
-                {
-                    wire.Waypoints = MsaglLayoutAdapter.SnapRouteToSockets(waypoints, wire.From.Pivot, wire.To.Pivot);
-                }
+                ReanchorWire(wire);
             }
         }
 
@@ -409,11 +412,23 @@ partial class GraphView : IDisposable
         {
             foreach (var wire in socket.Wires)
             {
-                if (wire.Waypoints is { Count: > 0 } waypoints)
-                {
-                    wire.Waypoints = MsaglLayoutAdapter.SnapRouteToSockets(waypoints, wire.From.Pivot, wire.To.Pivot);
-                }
+                ReanchorWire(wire);
             }
+        }
+
+        static void ReanchorWire(GraphWire wire)
+        {
+            // Self-loops keep their synthetic route pinned to the moving node.
+            if (wire.From.Owner == wire.To.Owner)
+            {
+                MsaglLayoutAdapter.SynthesizeSelfLoop(wire);
+                return;
+            }
+
+            // A bundled curve cannot follow a moving node; fall back to the default
+            // bezier until the drop re-routes the island.
+            wire.CurvePath = null;
+            wire.Waypoints = null;
         }
     }
 
@@ -572,18 +587,6 @@ partial class GraphView : IDisposable
         ClearDirectNeighbors();
         OnGraphChanged();
     }
-
-    private static readonly Func<GraphNode, Vector2> LayoutGetPosition = static n => n.Position;
-    private static readonly Action<GraphNode, Vector2> LayoutSetPosition = static (n, p) => n.Position = p;
-    private static readonly Func<GraphNode, Vector2> LayoutGetSize = static n => n.Size;
-    private static readonly Func<GraphWire, GraphNode> LayoutGetSource = static w => w.From.Owner;
-    private static readonly Func<GraphWire, GraphNode> LayoutGetTarget = static w => w.To.Owner;
-    private static readonly Func<GraphNode, IEnumerable<GraphWire>> LayoutGetInputs = static n => n.Inputs.SelectMany(s => s.Wires);
-    private static readonly Func<GraphNode, IEnumerable<GraphWire>> LayoutGetOutputs = static n => n.Outputs.SelectMany(s => s.Wires);
-
-    public void LayoutNodes() => RunLayout(sequential: false, 100f);
-
-    public void LayoutNodesSequential(float nodeSpacing = 100f) => RunLayout(sequential: true, nodeSpacing);
 
     /// <summary>
     /// Returns the connected components of the graph (each node in exactly one list).
@@ -789,6 +792,7 @@ partial class GraphView : IDisposable
         foreach (var wire in wires)
         {
             wire.Waypoints = null;
+            wire.CurvePath = null;
         }
 
         var components = GetVisibleComponents();
@@ -814,7 +818,7 @@ partial class GraphView : IDisposable
 
             var componentWires = wires.Where(w => componentOf.TryGetValue(w.From.Owner, out var c) && c == i && componentOf.ContainsKey(w.To.Owner)).ToList();
 
-            MsaglLayoutAdapter.Layout(component, componentWires);
+            MsaglLayoutAdapter.Layout(component, componentWires, Placement);
         }
 
         // Shelf-pack component bounding boxes into rows, tallest first.
@@ -859,7 +863,8 @@ partial class GraphView : IDisposable
             {
                 node.Position += offset;
 
-                // Routed wire waypoints live in the same island space and must shift along.
+                // Routed wire waypoints and exact curves live in the same island space and
+                // must shift along.
                 foreach (var socket in node.Outputs)
                 {
                     foreach (var wire in socket.Wires)
@@ -869,6 +874,20 @@ partial class GraphView : IDisposable
                             for (var w = 0; w < waypoints.Count; w++)
                             {
                                 waypoints[w] += offset;
+                            }
+                        }
+
+                        if (wire.CurvePath is { } curvePath)
+                        {
+                            for (var c = 0; c < curvePath.Count; c++)
+                            {
+                                var command = curvePath[c];
+                                curvePath[c] = command with
+                                {
+                                    A = command.A + offset,
+                                    B = command.B + offset,
+                                    End = command.End + offset,
+                                };
                             }
                         }
                     }
@@ -935,42 +954,6 @@ partial class GraphView : IDisposable
         }
 
         return components;
-    }
-
-    private void RunLayout(bool sequential, float nodeSpacing)
-    {
-        if (nodes.Count == 0)
-        {
-            return;
-        }
-
-        using (stateLock.EnterScope())
-        {
-            EnsureAllGeometry();
-        }
-
-        if (sequential)
-        {
-            SequentialGraphLayout.LayoutNodes(
-                nodes, wires,
-                LayoutGetPosition, LayoutSetPosition, LayoutGetSize,
-                LayoutGetSource, LayoutGetTarget, LayoutGetInputs, LayoutGetOutputs,
-                new GraphLayout.LayoutOptions { LayerSpacing = nodeSpacing });
-        }
-        else
-        {
-            GraphLayout.LayoutNodes(
-                nodes, wires,
-                LayoutGetPosition, LayoutSetPosition, LayoutGetSize,
-                LayoutGetSource, LayoutGetTarget, LayoutGetInputs, LayoutGetOutputs);
-        }
-
-        using (stateLock.EnterScope())
-        {
-            ClearWireHitPaths();
-        }
-
-        OnGraphChanged();
     }
 
     private bool disposed;

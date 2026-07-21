@@ -462,6 +462,35 @@ partial class GraphView
 
     private static void BuildWirePath(SKPath path, GraphWire wire, SKPoint from, SKPoint to)
     {
+        // Exact routed curve from the layout library, drawn verbatim; conics carry the
+        // elliptical hub arcs precisely.
+        if (wire.CurvePath is { Count: >= 2 } commands)
+        {
+            foreach (var command in commands)
+            {
+                switch (command.Verb)
+                {
+                    case GraphCurveVerb.MoveTo:
+                        path.MoveTo(command.End.X, command.End.Y);
+                        break;
+
+                    case GraphCurveVerb.LineTo:
+                        path.LineTo(command.End.X, command.End.Y);
+                        break;
+
+                    case GraphCurveVerb.CubicTo:
+                        path.CubicTo(command.A.X, command.A.Y, command.B.X, command.B.Y, command.End.X, command.End.Y);
+                        break;
+
+                    case GraphCurveVerb.ConicTo:
+                        path.ConicTo(command.A.X, command.A.Y, command.End.X, command.End.Y, command.Weight);
+                        break;
+                }
+            }
+
+            return;
+        }
+
         if (wire.Waypoints is not { Count: > 0 } waypoints)
         {
             BuildWirePath(path, from, to);

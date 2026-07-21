@@ -22,7 +22,8 @@ internal class EntityIOGraphViewer : GLGraphViewer
 
     private readonly List<List<GraphNode>> islands;
     private string? focusedIslandName;
-    private readonly Action<EntityLump.Entity>? showInMap;
+    private readonly Action<IReadOnlyList<EntityLump.Entity>>? showInMap;
+    private readonly Dictionary<GraphNode, List<EntityLump.Entity>> nodeMembers = [];
     private readonly int entityCount;
 
     public EntityIOGraphViewer(VrfGuiContext vrfGuiContext, RendererContext rendererContext, EntityLump entityLump)
@@ -52,12 +53,23 @@ internal class EntityIOGraphViewer : GLGraphViewer
         }
     }
 
-    public EntityIOGraphViewer(VrfGuiContext vrfGuiContext, RendererContext rendererContext, List<EntityLump.Entity> entities, Action<EntityLump.Entity>? showInMap)
+    public EntityIOGraphViewer(VrfGuiContext vrfGuiContext, RendererContext rendererContext, List<EntityLump.Entity> entities, Action<IReadOnlyList<EntityLump.Entity>>? showInMap)
         : base(vrfGuiContext, rendererContext, new GraphView())
     {
         this.showInMap = showInMap;
         entityCount = entities.Count;
-        BuildGraph(View, entities);
+        BuildGraph(View, entities, nodeMembers);
+
+        View.Legend.AddRange(
+        [
+            new("Output", OutputHue, GraphLegendKind.Wire),
+            new("Input", InputHue, GraphLegendKind.Wire),
+            new("point_template", GraphHue.Emerald),
+            new("Template spawn", GraphHue.Purple, GraphLegendKind.DashedWire),
+            new("Sound entity", GraphHue.Pink),
+            new("Special target", GraphHue.Magenta),
+            new("Unresolved target", GraphHue.Red),
+        ]);
 
         islands = View.GetComponents();
         islands.Sort(static (a, b) => b.Count.CompareTo(a.Count));
@@ -243,12 +255,10 @@ internal class EntityIOGraphViewer : GLGraphViewer
         if (showInMap != null && node.Tag is EntityLump.Entity entity)
         {
             var item = new ToolStripMenuItem("Show in map viewer");
-            item.Click += (_, _) => showInMap(entity);
+            item.Click += (_, _) => showInMap(nodeMembers.GetValueOrDefault(node) ?? [entity]);
             menu.Items.Add(item);
         }
     }
-
-    protected override bool ShowSidebar => true;
 
     protected override string BuildStatsText(int islandCount) => $"{entityCount} entities\n{base.BuildStatsText(islandCount)}\nIsland: {focusedIslandName ?? "(all)"}";
 
@@ -263,17 +273,6 @@ internal class EntityIOGraphViewer : GLGraphViewer
 
         iconCache.Clear();
     }
-
-    protected override IEnumerable<(string Label, SKColor Color)> LegendEntries =>
-    [
-        ("Output", View.Palette.Signal(OutputHue)),
-        ("Input", View.Palette.Signal(InputHue)),
-        ("point_template", View.Palette.Category(GraphHue.Emerald)),
-        ("Template spawn", View.Palette.Signal(GraphHue.Purple)),
-        ("Sound entity", View.Palette.Category(GraphHue.Pink)),
-        ("Special target", View.Palette.Category(GraphHue.Magenta)),
-        ("Unresolved target", View.Palette.Category(GraphHue.Red)),
-    ];
 
     protected override bool HasMultipleIslands => islands.Count > 1;
 
@@ -356,7 +355,7 @@ internal class EntityIOGraphViewer : GLGraphViewer
 
     internal static void BuildGraph(GraphView view, EntityLump entityLump) => BuildGraph(view, entityLump.GetEntities());
 
-    internal static void BuildGraph(GraphView view, List<EntityLump.Entity> entities)
+    internal static void BuildGraph(GraphView view, List<EntityLump.Entity> entities, Dictionary<GraphNode, List<EntityLump.Entity>>? groupMembers = null)
     {
         var connections = new List<Connection>();
 
@@ -425,18 +424,23 @@ internal class EntityIOGraphViewer : GLGraphViewer
 
                 if (!namedNodes.TryGetValue(key, out node))
                 {
-                    var groupSize = entitiesByName.TryGetValue(name, out var group)
-                        ? group.Count(e => (e.GetStringProperty("classname") ?? "unknown") == classname)
-                        : 1;
+                    List<EntityLump.Entity> members = entitiesByName.TryGetValue(name, out var group)
+                        ? group.Where(e => (e.GetStringProperty("classname") ?? "unknown") == classname).ToList()
+                        : [entity];
 
                     node = view.AddNode(new GraphNode
                     {
-                        Title = groupSize > 1 ? $"{StripTargetnamePrefix(name)}  ×{groupSize}" : StripTargetnamePrefix(name),
+                        Title = members.Count > 1 ? $"{StripTargetnamePrefix(name)}  ×{members.Count}" : StripTargetnamePrefix(name),
                         Subtitle = classname,
                         Category = ClassHue(classname),
                         Tag = entity,
                     });
                     namedNodes[key] = node;
+
+                    if (groupMembers != null && members.Count > 1)
+                    {
+                        groupMembers[node] = members;
+                    }
                 }
             }
             else

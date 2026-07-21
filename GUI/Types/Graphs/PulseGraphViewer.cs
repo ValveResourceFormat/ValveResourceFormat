@@ -1718,7 +1718,16 @@ internal class PulseGraphViewer : GLGraphViewer
             View.AddNode(callNodeInfo.node);
         }
 
-        View.LayoutNodesSequential();
+        View.LayoutNodesPacked();
+
+        View.Legend.AddRange(
+        [
+            new("Flow", GraphHue.Neutral, GraphLegendKind.Wire),
+            new("String value", GraphHue.Green, GraphLegendKind.Wire),
+            new("Number value", GraphHue.Amber, GraphLegendKind.Wire),
+            new("Bool value", GraphHue.Orange, GraphLegendKind.Wire),
+            new("Other value", GraphHue.Slate, GraphLegendKind.Wire),
+        ]);
     }
     #region Nodes
     class Node : KVGraphNode

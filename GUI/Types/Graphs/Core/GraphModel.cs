@@ -169,6 +169,50 @@ class GraphSocket : IGraphElement
     }
 }
 
+enum GraphCurveVerb
+{
+    MoveTo,
+    LineTo,
+    CubicTo,
+
+    /// <summary>Rational quadratic; represents elliptical arc pieces exactly.</summary>
+    ConicTo,
+}
+
+/// <summary>
+/// One drawing command of a wire's exact routed path. A/B are cubic control points;
+/// conics use A as their single control point and Weight as the rational weight.
+/// </summary>
+readonly record struct GraphCurveCommand(GraphCurveVerb Verb, Vector2 A, Vector2 B, Vector2 End, float Weight)
+{
+    public static GraphCurveCommand MoveTo(Vector2 end) => new(GraphCurveVerb.MoveTo, end, end, end, 0f);
+    public static GraphCurveCommand LineTo(Vector2 end) => new(GraphCurveVerb.LineTo, end, end, end, 0f);
+    public static GraphCurveCommand CubicTo(Vector2 c1, Vector2 c2, Vector2 end) => new(GraphCurveVerb.CubicTo, c1, c2, end, 0f);
+    public static GraphCurveCommand ConicTo(Vector2 control, Vector2 end, float weight) => new(GraphCurveVerb.ConicTo, control, control, end, weight);
+}
+
+/// <summary>How a legend row's color sample is drawn.</summary>
+enum GraphLegendKind
+{
+    /// <summary>Filled swatch in the muted node-header palette.</summary>
+    Category,
+
+    /// <summary>Line sample in the bright wire/socket palette.</summary>
+    Wire,
+
+    /// <summary>Dashed line sample in the bright wire/socket palette.</summary>
+    DashedWire,
+
+    /// <summary>Diamond marker in the bright wire/socket palette.</summary>
+    Marker,
+}
+
+/// <summary>
+/// One legend row. Colors are palette slots, never raw ARGB, so the legend adapts to the
+/// active theme like the graph itself; the host resolves them at paint time.
+/// </summary>
+readonly record struct GraphLegendEntry(string Label, GraphHue Hue, GraphLegendKind Kind = GraphLegendKind.Category);
+
 class GraphWire : IGraphElement
 {
     public GraphSocket From { get; }
@@ -180,6 +224,12 @@ class GraphWire : IGraphElement
 
     /// <summary>Corner points of the orthogonal route computed by the layout; null draws a direct curve.</summary>
     public List<Vector2>? Waypoints { get; set; }
+
+    /// <summary>
+    /// Exact routed curve as a path-command stream. When set, rendering prefers it over
+    /// <see cref="Waypoints"/>, which then only serves culling and hit-testing.
+    /// </summary>
+    public List<GraphCurveCommand>? CurvePath { get; set; }
 
     internal GraphWire(GraphSocket from, GraphSocket to)
     {
