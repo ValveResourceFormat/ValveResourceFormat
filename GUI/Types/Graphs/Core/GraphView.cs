@@ -641,20 +641,30 @@ partial class GraphView : IDisposable
             return null;
         }
 
-        var start = after != null ? nodes.IndexOf(after) + 1 : 0;
+        // Matches cycle in stable creation order (Sequence), independent of the z-ordered nodes list.
+        GraphNode? next = null;
+        GraphNode? first = null;
 
-        for (var i = 0; i < nodes.Count; i++)
+        foreach (var node in nodes)
         {
-            var node = nodes[(start + i) % nodes.Count];
-
-            if (node.Title.Contains(query, StringComparison.OrdinalIgnoreCase) ||
-                (node.Subtitle?.Contains(query, StringComparison.OrdinalIgnoreCase) ?? false))
+            if (!node.Title.Contains(query, StringComparison.OrdinalIgnoreCase) &&
+                !(node.Subtitle?.Contains(query, StringComparison.OrdinalIgnoreCase) ?? false))
             {
-                return node;
+                continue;
+            }
+
+            if (first == null || node.Sequence < first.Sequence)
+            {
+                first = node;
+            }
+
+            if (after != null && node.Sequence > after.Sequence && (next == null || node.Sequence < next.Sequence))
+            {
+                next = node;
             }
         }
 
-        return null;
+        return next ?? first;
     }
 
     /// <summary>Hides nodes whose subtitle is not in <paramref name="visibleSubtitles"/>; nodes without a subtitle stay visible.</summary>
