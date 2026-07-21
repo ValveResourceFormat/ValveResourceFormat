@@ -12,6 +12,33 @@ using ValveResourceFormat.Serialization.KeyValues;
 namespace ValveResourceFormat.ResourceTypes
 {
     /// <summary>
+    /// Binary KV3 versions supported for serialization.
+    /// </summary>
+    public enum KV3BinaryVersion
+    {
+        /// <summary>KV3 version 4.</summary>
+        Version4 = 4,
+
+        /// <summary>KV3 version 5.</summary>
+        Version5 = 5,
+    }
+
+    /// <summary>
+    /// Compression methods supported for binary KV3 serialization.
+    /// </summary>
+    public enum KV3BinaryCompressionMethod
+    {
+        /// <summary>Do not compress the serialized data.</summary>
+        Uncompressed = 0,
+
+        /// <summary>Compress the serialized data with LZ4.</summary>
+        Lz4 = 1,
+
+        /// <summary>Compress the serialized data with Zstandard.</summary>
+        Zstd = 2,
+    }
+
+    /// <summary>
     /// Represents a binary KeyValues3 data block.
     /// </summary>
     public partial class BinaryKV3 : Block
@@ -62,6 +89,16 @@ namespace ValveResourceFormat.ResourceTypes
         /// Gets the deserialized KeyValues3 data.
         /// </summary>
         public KVDocument Data { get; protected set; } = null!;
+
+        /// <summary>
+        /// Gets or sets the binary KV3 version used when serializing this block.
+        /// </summary>
+        public KV3BinaryVersion SerializationVersion { get; set; } = KV3BinaryVersion.Version4;
+
+        /// <summary>
+        /// Gets or sets the compression method used when serializing this block.
+        /// </summary>
+        public KV3BinaryCompressionMethod SerializationCompressionMethod { get; set; } = KV3BinaryCompressionMethod.Uncompressed;
 
         private class Buffers
         {
@@ -115,6 +152,9 @@ namespace ValveResourceFormat.ResourceTypes
         /// <inheritdoc/>
         public override void Read(BinaryReader reader)
         {
+            SerializationVersion = KV3BinaryVersion.Version4;
+            SerializationCompressionMethod = KV3BinaryCompressionMethod.Uncompressed;
+
             if (KVBlockType != BlockType.Undefined)
             {
                 reader.BaseStream.Position = Offset;
@@ -196,6 +236,18 @@ namespace ValveResourceFormat.ResourceTypes
             var format = KV3IDLookup.GetByValue(new Guid(reader.ReadBytes(16)));
 
             var compressionMethod = reader.ReadUInt32();
+
+            if (version == 5)
+            {
+                SerializationVersion = KV3BinaryVersion.Version5;
+                SerializationCompressionMethod = compressionMethod switch
+                {
+                    0 => KV3BinaryCompressionMethod.Uncompressed,
+                    1 => KV3BinaryCompressionMethod.Lz4,
+                    2 => KV3BinaryCompressionMethod.Zstd,
+                    _ => throw new UnexpectedMagicException("Unknown compression method", compressionMethod, nameof(compressionMethod)),
+                };
+            }
             ushort compressionDictionaryId = 0;
             ushort compressionFrameSize = 0;
             var countBytes1 = 0;
