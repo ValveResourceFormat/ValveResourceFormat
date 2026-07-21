@@ -232,10 +232,16 @@ public class PlayerMovement
                 {
                     PreventBunnyJumping();
                 }
+
+                var loudTakeoffFootstep = Velocity.Length() > WalkSpeedModifier * MaxSpeedValue;
+
                 CheckJump(deltaTime);
 
-                // Like CS:GO CheckJumpButton: a footstep plays at takeoff, plus the launch whoosh and gear rustle
-                PlaySound(FootstepSoundEvent, position, playerHull);
+                if (loudTakeoffFootstep)
+                {
+                    PlaySound(FootstepSoundEvent, position, playerHull);
+                }
+
                 PlaySound(JumpSoundEvent, position, playerHull);
                 PlaySound(GearSoundEvent, position, playerHull, GearVolume);
             }
