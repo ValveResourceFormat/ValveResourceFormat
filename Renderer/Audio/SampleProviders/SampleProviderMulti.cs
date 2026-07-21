@@ -137,9 +137,12 @@ public class SampleProviderMulti : AudioSampleProvider
                 var startGain = EvaluateFade(startSeconds);
                 var endGain = EvaluateFade(endSeconds);
 
+                // The last sample must land exactly on endGain so consecutive chunks join without a step
+                var lastIndex = Math.Max(maxRead - 1, 1);
+
                 for (var i = 0; i < maxRead; i++)
                 {
-                    buffer[offset + i] *= float.Lerp(startGain, endGain, (float)i / maxRead);
+                    buffer[offset + i] *= float.Lerp(startGain, endGain, (float)i / lastIndex);
                 }
 
                 fadeElapsedFrames += maxRead / 2.0;

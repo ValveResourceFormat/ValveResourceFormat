@@ -173,11 +173,14 @@ public sealed class SoundCache : IDisposable
                 logger.LogError(e, "Failed to decode sound file {FileName}", request.FileName);
             }
 
-            // Publish after the samples and loop points are assigned; the volatile write makes them visible
-            request.Sound.Ready = true;
-
             lock (sounds)
             {
+                // Publish after the samples and loop points are assigned; the volatile write makes them
+                // visible. Published inside the lock so the other decode lane's Prune cannot evict this
+                // sound between the publish and the accounting - the eviction would subtract bytes this
+                // thread has not added yet, permanently inflating the total.
+                request.Sound.Ready = true;
+
                 cachedBytes += (long)request.Sound.Samples.Length * sizeof(short);
 
                 if (cachedBytes > MaxCachedBytes)

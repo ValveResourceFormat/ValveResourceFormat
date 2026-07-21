@@ -36,19 +36,29 @@ public sealed class SoundEventCurve
             return null;
         }
 
-        var points = new (float X, float Y)[array.Count];
+        var points = new List<(float X, float Y)>(array.Count);
 
-        for (var i = 0; i < array.Count; i++)
+        foreach (var point in array)
         {
-            var point = array[i];
-            points[i] = (
+            // Each point is [x, y, tangents...]; skip malformed points instead of throwing on bad data
+            if (point.Count < 2)
+            {
+                continue;
+            }
+
+            points.Add((
                 Convert.ToSingle(point[0], CultureInfo.InvariantCulture),
-                Convert.ToSingle(point[1], CultureInfo.InvariantCulture));
+                Convert.ToSingle(point[1], CultureInfo.InvariantCulture)));
         }
 
-        Array.Sort(points, static (a, b) => a.X.CompareTo(b.X));
+        if (points.Count == 0)
+        {
+            return null;
+        }
 
-        return new SoundEventCurve(points);
+        points.Sort(static (a, b) => a.X.CompareTo(b.X));
+
+        return new SoundEventCurve([.. points]);
     }
 
     /// <summary>

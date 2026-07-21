@@ -385,6 +385,7 @@ public sealed class SoundEventPlayer : IDisposable
     /// </summary>
     public void Update(Camera camera)
     {
+        Sound.Player = this;
         mixer.Update(camera.Location, camera.Forward);
         UpdateSoundscape(camera.Location);
     }

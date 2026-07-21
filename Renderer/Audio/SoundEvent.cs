@@ -137,12 +137,27 @@ public abstract class SoundEvent
             OnFinished();
         }
 
+        if (SampleProviders.Count == 0 && !WaitingToStart)
+        {
+            // Nothing in this event can ever produce samples (e.g. a definition with no tracks and no
+            // children): its provider never reaches the mixer, so no end-of-sound can fire - stop now
+            // instead of sitting in the mixer's active set forever.
+            Stop();
+            return;
+        }
+
         if (!Started)
         {
             Started = true;
             OnStart?.Invoke(this);
         }
     }
+
+    /// <summary>
+    /// Gets whether the event is intentionally silent right now but scheduled to produce sound later
+    /// (e.g. waiting out its first retrigger interval), so an empty start must not stop it.
+    /// </summary>
+    private protected virtual bool WaitingToStart => false;
 
     /// <summary>
     /// Gets whether the event is fading out towards a stop (see <see cref="FadeOutAndStop"/>).

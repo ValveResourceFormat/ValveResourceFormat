@@ -13,6 +13,8 @@ internal sealed class SoundEventCSGOMega : SoundEvent
     private bool waitingForRetrigger;
     private long retriggerTimestamp;
 
+    private protected override bool WaitingToStart => waitingForRetrigger;
+
     public SoundEventCSGOMega(SoundEventDefinition definition) : base(definition)
     {
     }
