@@ -48,6 +48,239 @@ namespace Tests
             AssertKV3Properties(deserializedFile);
         }
 
+        [TestCase(KV3BinaryCompressionMethod.Uncompressed)]
+        [TestCase(KV3BinaryCompressionMethod.Lz4)]
+        [TestCase(KV3BinaryCompressionMethod.Zstd)]
+        public void TestBinaryKV3Version5Serialization(KV3BinaryCompressionMethod compressionMethod)
+        {
+            var originalFile = KVDocumentExtensions.ParseKV3(Path.Combine(TestContext.CurrentContext.TestDirectory, "Files", "KeyValues", "KeyValues3_LF.kv3"));
+            var largeBlob = new byte[32769];
+
+            for (var i = 0; i < largeBlob.Length; i++)
+            {
+                largeBlob[i] = (byte)(i % 251);
+            }
+
+            originalFile.Root["largeBlob"] = KVObject.Blob(largeBlob);
+            originalFile.Root["null"] = KVObject.Null();
+            originalFile.Root["int16"] = new KVObject((short)-123);
+            originalFile.Root["uint16"] = new KVObject((ushort)456);
+            originalFile.Root["int32"] = new KVObject(-789);
+            originalFile.Root["uint32"] = new KVObject(987U);
+            originalFile.Root["float"] = new KVObject(1.25F);
+            originalFile.Root["emptyString"] = new KVObject(string.Empty);
+            originalFile.Root["emptyArray"] = KVObject.Array();
+            originalFile.Root["emptyObject"] = KVObject.Collection();
+            var binaryKV3 = new BinaryKV3(originalFile.Root, KV3IDLookup.Get("generic"))
+            {
+                Resource = null!,
+                SerializationVersion = KV3BinaryVersion.Version5,
+                SerializationCompressionMethod = compressionMethod,
+            };
+
+            var deserializedBinaryKV3 = RoundTrip(binaryKV3);
+
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(deserializedBinaryKV3.SerializationVersion, Is.EqualTo(KV3BinaryVersion.Version5));
+                Assert.That(deserializedBinaryKV3.SerializationCompressionMethod, Is.EqualTo(compressionMethod));
+                Assert.That(deserializedBinaryKV3.Data.Root["largeBlob"].AsBlob(), Is.EqualTo(largeBlob));
+                Assert.That((string)deserializedBinaryKV3.Data.Root["stringValue"], Is.EqualTo("hello world"));
+                Assert.That(deserializedBinaryKV3.Data.Root["stringThatIsAResourceReference"].Flag, Is.EqualTo(KVFlag.Resource));
+                Assert.That(deserializedBinaryKV3.Data.Root["null"].ValueType, Is.EqualTo(KVValueType.Null));
+                Assert.That((short)deserializedBinaryKV3.Data.Root["int16"], Is.EqualTo(-123));
+                Assert.That((ushort)deserializedBinaryKV3.Data.Root["uint16"], Is.EqualTo(456));
+                Assert.That((int)deserializedBinaryKV3.Data.Root["int32"], Is.EqualTo(-789));
+                Assert.That((uint)deserializedBinaryKV3.Data.Root["uint32"], Is.EqualTo(987));
+                Assert.That((float)deserializedBinaryKV3.Data.Root["float"], Is.EqualTo(1.25F));
+                Assert.That((string)deserializedBinaryKV3.Data.Root["emptyString"], Is.Empty);
+                Assert.That(deserializedBinaryKV3.Data.Root["emptyArray"], Is.Empty);
+                Assert.That(deserializedBinaryKV3.Data.Root["emptyObject"], Is.Empty);
+            }
+        }
+
+        [TestCase(KV3BinaryCompressionMethod.Uncompressed)]
+        [TestCase(KV3BinaryCompressionMethod.Lz4)]
+        [TestCase(KV3BinaryCompressionMethod.Zstd)]
+        public void TestBinaryKV3Version5EmptyBlob(KV3BinaryCompressionMethod compressionMethod)
+        {
+            var root = KVObject.Collection();
+            root["emptyBlob"] = KVObject.Blob([]);
+            var binaryKV3 = new BinaryKV3(root, KV3IDLookup.Get("generic"))
+            {
+                Resource = null!,
+                SerializationVersion = KV3BinaryVersion.Version5,
+                SerializationCompressionMethod = compressionMethod,
+            };
+
+            var deserializedBinaryKV3 = RoundTrip(binaryKV3);
+            Assert.That(deserializedBinaryKV3.Data.Root["emptyBlob"].AsBlob(), Is.Empty);
+        }
+
+        [Test]
+        public void TestBinaryKV3Version5NonObjectRoot()
+        {
+            var root = KVObject.Array();
+            root.Add(42);
+            root.Add("root array");
+            root.Add(KVObject.Collection());
+            var binaryKV3 = new BinaryKV3(root, KV3IDLookup.Get("generic"))
+            {
+                Resource = null!,
+                SerializationVersion = KV3BinaryVersion.Version5,
+            };
+
+            var deserializedBinaryKV3 = RoundTrip(binaryKV3);
+
+            Assert.That(deserializedBinaryKV3.Data.Root.IsArray, Is.True);
+            Assert.That((int)deserializedBinaryKV3.Data.Root[0]!, Is.EqualTo(42));
+            Assert.That((string)deserializedBinaryKV3.Data.Root[1]!, Is.EqualTo("root array"));
+            Assert.That(deserializedBinaryKV3.Data.Root[2], Is.Empty);
+        }
+
+        [Test]
+        public void TestBinaryKV3SerializationDefaultsAndValidation()
+        {
+            var root = KVObject.Collection();
+            var binaryKV3 = new BinaryKV3(root, KV3IDLookup.Get("generic")) { Resource = null! };
+
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(binaryKV3.SerializationVersion, Is.EqualTo(KV3BinaryVersion.Version4));
+                Assert.That(binaryKV3.SerializationCompressionMethod, Is.EqualTo(KV3BinaryCompressionMethod.Uncompressed));
+            }
+
+            binaryKV3.SerializationCompressionMethod = KV3BinaryCompressionMethod.Lz4;
+            Assert.That(() => binaryKV3.Serialize(new MemoryStream()), Throws.TypeOf<NotSupportedException>());
+
+            binaryKV3.SerializationVersion = (KV3BinaryVersion)99;
+            Assert.That(() => binaryKV3.Serialize(new MemoryStream()), Throws.TypeOf<NotSupportedException>());
+
+            binaryKV3.SerializationVersion = KV3BinaryVersion.Version5;
+            binaryKV3.SerializationCompressionMethod = (KV3BinaryCompressionMethod)99;
+            Assert.That(() => binaryKV3.Serialize(new MemoryStream()), Throws.TypeOf<NotSupportedException>());
+        }
+
+        [Test]
+        public void TestBinaryKV3Version5ZstdSourceSettingsArePreserved()
+        {
+            var file = Path.Combine(TestContext.CurrentContext.TestDirectory, "Files", "abilities_kv3_v5_zstd.vdata_c");
+            using var resource = new Resource();
+            resource.Read(file);
+            var found = false;
+
+            foreach (var block in resource.Blocks)
+            {
+                if (block is not BinaryKV3 binaryKV3 || binaryKV3.SerializationVersion != KV3BinaryVersion.Version5)
+                {
+                    continue;
+                }
+
+                found = true;
+                Assert.That(binaryKV3.SerializationCompressionMethod, Is.EqualTo(KV3BinaryCompressionMethod.Zstd));
+                var reparsed = RoundTrip(binaryKV3);
+                Assert.That(reparsed.SerializationCompressionMethod, Is.EqualTo(KV3BinaryCompressionMethod.Zstd));
+                Assert.That(reparsed.SerializationVersion, Is.EqualTo(KV3BinaryVersion.Version5));
+            }
+
+            Assert.That(found, Is.True);
+        }
+
+        [Test]
+        public void TestDeadlockBinaryKV3Version5SourceSettingsArePreserved()
+        {
+            var file = Path.Combine(TestContext.CurrentContext.TestDirectory, "Files", "deadlock_tracked_stats_player_staging_kv3_v5.vdata_c");
+            using var resource = new Resource();
+            resource.Read(file);
+            var expectedCompressions = new Dictionary<BlockType, KV3BinaryCompressionMethod>
+            {
+                [BlockType.RED2] = KV3BinaryCompressionMethod.Lz4,
+                [BlockType.DATA] = KV3BinaryCompressionMethod.Uncompressed,
+                [BlockType.FLCI] = KV3BinaryCompressionMethod.Uncompressed,
+            };
+            var expectedText = new Dictionary<BlockType, string>();
+
+            foreach (var block in resource.Blocks)
+            {
+                if (!expectedCompressions.TryGetValue(block.Type, out var expectedCompression))
+                {
+                    continue;
+                }
+
+                var data = block switch
+                {
+                    BinaryKV3 binaryKV3 => binaryKV3.Data,
+                    ValveResourceFormat.Blocks.ResourceEditInfo2 resourceEditInfo => resourceEditInfo.Data!,
+                    _ => throw new AssertionException($"Expected {block.Type} to contain binary KV3 data."),
+                };
+                expectedText[block.Type] = data.ToKV3String();
+
+                if (block is BinaryKV3 sourceBinaryKV3)
+                {
+                    Assert.That(sourceBinaryKV3.SerializationVersion, Is.EqualTo(KV3BinaryVersion.Version5), block.Type.ToString());
+                    Assert.That(sourceBinaryKV3.SerializationCompressionMethod, Is.EqualTo(expectedCompression), block.Type.ToString());
+                }
+            }
+
+            using var stream = new MemoryStream();
+            resource.Serialize(stream);
+            stream.Position = 0;
+            using var reparsedResource = new Resource();
+            reparsedResource.Read(stream);
+            var found = 0;
+
+            foreach (var block in reparsedResource.Blocks)
+            {
+                if (!expectedCompressions.TryGetValue(block.Type, out var expectedCompression))
+                {
+                    continue;
+                }
+
+                found++;
+                var binaryKV3 = block as BinaryKV3 ?? ReadBinaryKV3Block(stream, block);
+
+                using (Assert.EnterMultipleScope())
+                {
+                    Assert.That(binaryKV3.SerializationVersion, Is.EqualTo(KV3BinaryVersion.Version5), block.Type.ToString());
+                    Assert.That(binaryKV3.SerializationCompressionMethod, Is.EqualTo(expectedCompression), block.Type.ToString());
+                    Assert.That(binaryKV3.Data.ToKV3String(), Is.EqualTo(expectedText[block.Type]), block.Type.ToString());
+                }
+            }
+
+            Assert.That(found, Is.EqualTo(expectedCompressions.Count));
+        }
+
+        private static BinaryKV3 ReadBinaryKV3Block(Stream stream, Block block)
+        {
+            var binaryKV3 = new BinaryKV3(block.Type)
+            {
+                Size = block.Size,
+                Offset = block.Offset,
+                Resource = block.Resource,
+            };
+
+            using var reader = new BinaryReader(stream, Encoding.UTF8, leaveOpen: true);
+            binaryKV3.Read(reader);
+            return binaryKV3;
+        }
+
+        private static BinaryKV3 RoundTrip(BinaryKV3 binaryKV3)
+        {
+            using var stream = new MemoryStream();
+            binaryKV3.Serialize(stream);
+            stream.Position = 0;
+            var deserializedBinaryKV3 = new BinaryKV3(BlockType.DATA)
+            {
+                Size = (uint)stream.Length,
+                Offset = 0,
+                Resource = null!,
+            };
+
+            using var reader = new BinaryReader(stream);
+            deserializedBinaryKV3.Read(reader);
+            return deserializedBinaryKV3;
+        }
+
         private static void AssertKV3Properties(KVDocument file)
         {
             using (Assert.EnterMultipleScope())
