@@ -148,11 +148,14 @@ internal class AnimationGraphViewer : GLGraphViewer
             if (node.NodeType == "StateMachine")
             {
                 var children = data.GetArray("m_stateDefinitions");
+
+                // States materialize as their own nodes so transitions render as a statechart.
+                var stateGraphNodes = new List<Node>(children.Count);
+
                 foreach (var stateDefinition in children)
                 {
                     var stateNodeIdx = stateDefinition.GetInt32Property("m_nStateNodeIdx");
                     var entryConditionNodeIdx = stateDefinition.GetInt32Property("m_nEntryConditionNodeIdx"); // can be -1
-                    // m_transitionDefinitions
 
                     var stateName = GetName(stateNodeIdx);
                     var stateNode = nodes[stateNodeIdx];
@@ -160,16 +163,60 @@ internal class AnimationGraphViewer : GLGraphViewer
 
                     var input = node.AddInput(stateName, PoseHue, allowMultiple: true);
 
+                    var stateGraphNode = View.AddNode(new Node(stateNode)
+                    {
+                        Name = stateName,
+                        NodeType = "State",
+                        Category = GraphHue.Slate,
+                    });
+                    View.Connect(stateGraphNode.AddOutput(string.Empty, PoseHue), input);
+                    stateGraphNodes.Add(stateGraphNode);
+
                     if (stateInputIdx != -1)
                     {
                         var (_, stateNodeOut) = CreateChild<Pose>(stateInputIdx);
-                        View.Connect(stateNodeOut, input);
+                        View.Connect(stateNodeOut, stateGraphNode.AddInput(string.Empty, PoseHue, allowMultiple: true));
                     }
 
                     if (entryConditionNodeIdx != -1)
                     {
                         var (_, childOutput) = CreateChild<Value>(entryConditionNodeIdx, stateName);
-                        View.Connect(childOutput, input);
+                        View.Connect(childOutput, stateGraphNode.AddInput("Entry condition", ValueHue, allowMultiple: true));
+                    }
+                }
+
+                // Dashed state-to-state transition wires labeled with their condition.
+                for (var stateIndex = 0; stateIndex < children.Count; stateIndex++)
+                {
+                    var transitions = children[stateIndex].GetArray("m_transitionDefinitions");
+
+                    if (transitions == null)
+                    {
+                        continue;
+                    }
+
+                    var source = stateGraphNodes[stateIndex];
+
+                    foreach (var transition in transitions)
+                    {
+                        var targetStateIdx = transition.GetInt32Property("m_nTargetStateIdx");
+
+                        if (targetStateIdx < 0 || targetStateIdx >= stateGraphNodes.Count)
+                        {
+                            continue;
+                        }
+
+                        var conditionNodeIdx = transition.GetInt32Property("m_nConditionNodeIdx");
+                        var label = conditionNodeIdx != -1 ? GetName(conditionNodeIdx) : null;
+
+                        var target = stateGraphNodes[targetStateIdx];
+                        var from = source.Outputs.Find(static o => o.Name == "Transitions") ?? source.AddOutput("Transitions", GraphHue.Slate);
+                        var to = target.Inputs.Find(static i => i.Name == "From") ?? target.AddInput("From", GraphHue.Slate, allowMultiple: true);
+
+                        if (!to.Wires.Any(w => w.From == from))
+                        {
+                            View.Connect(from, to, dashed: true, label: label);
+                        }
                     }
                 }
             }

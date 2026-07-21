@@ -334,6 +334,27 @@ internal class PulseGraphViewer : GLGraphViewer
         return false;
     }
 
+    private readonly Dictionary<int, Node> variableNodes = [];
+
+    // One hub node per graph variable; SET_VAR instructions wire into it, GET_VAR out of it,
+    // so a variable's reads and writes are visible connectivity.
+    private Node VariableNodeFor(int varIndex, string name)
+    {
+        if (!variableNodes.TryGetValue(varIndex, out var node))
+        {
+            node = new Node(varIndex >= 0 && varIndex < variables.Count ? variables[varIndex] : null)
+            {
+                Name = name,
+                NodeType = "Variable",
+                Category = GraphHue.Indigo,
+            };
+            View.AddNode(node);
+            variableNodes[varIndex] = node;
+        }
+
+        return node;
+    }
+
     private bool TryGetVariableNameFromId(int variableId, out string value)
     {
         if ((variableId >= 0 && variableId < variables.Count))
@@ -1140,19 +1161,21 @@ internal class PulseGraphViewer : GLGraphViewer
                             Name = "Get Variable",
                             NodeType = "Instruction",
                         };
-                        if (TryGetVariableNameFromId(varIndex, out var name))
+                        if (!TryGetVariableNameFromId(varIndex, out var name))
                         {
-                            node.AddText(name);
-                        }
-                        else
-                        {
-                            node.AddText($"<UNKNOWN m_nVar={varIndex}>");
+                            name = $"<UNKNOWN m_nVar={varIndex}>";
                             Log.Warn(nameof(PulseGraphViewer), $"Failed to retrieve variable name of ID={varIndex}. Invalid graph definition?");
                         }
+
+                        node.AddText(name);
                         var outSocket = node.CreateSocketOutFromValueType("retval", GetValueTypeFromRegister(chunkIndex, regIndex));
                         registerOutputSocketMap[regIndex] = outSocket;
 
                         View.AddNode(node);
+
+                        var variableHub = VariableNodeFor(varIndex, name);
+                        var readsOutput = variableHub.Outputs.Find(static o => o.Name == "reads") ?? variableHub.AddOutput("reads", GraphHue.Indigo);
+                        View.Connect(readsOutput, node.AddInput("var", GraphHue.Indigo, allowMultiple: true), dashed: true);
                         break;
                     }
                 case InstructionCode.SET_VAR:
@@ -1166,18 +1189,20 @@ internal class PulseGraphViewer : GLGraphViewer
                         };
                         previousActionOutSocket = CreateSequentialActionSockets(node, previousActionOutSocket, chunkIndex, instructionIdx);
 
-                        if (TryGetVariableNameFromId(varIndex, out var name))
+                        if (!TryGetVariableNameFromId(varIndex, out var name))
                         {
-                            node.AddText(name);
-                        }
-                        else
-                        {
-                            node.AddText($"<UNKNOWN m_nVar={varIndex}>");
+                            name = $"<UNKNOWN m_nVar={varIndex}>";
                             Log.Warn(nameof(PulseGraphViewer), $"Failed to retrieve variable name of ID={varIndex}. Invalid graph definition?");
                         }
+
+                        node.AddText(name);
                         AddNodeRegisterInput(node, chunkIndex, registerConstValueMap, registerOutputSocketMap, regIndex, "value");
 
                         View.AddNode(node);
+
+                        var variableHub = VariableNodeFor(varIndex, name);
+                        var writesInput = variableHub.Inputs.Find(static i => i.Name == "writes") ?? variableHub.AddInput("writes", GraphHue.Indigo, allowMultiple: true);
+                        View.Connect(node.AddOutput("var", GraphHue.Indigo), writesInput, dashed: true);
                         break;
                     }
                 case InstructionCode.PULSE_CALL_SYNC:
@@ -1656,6 +1681,7 @@ internal class PulseGraphViewer : GLGraphViewer
             new("Number value", GraphHue.Amber, GraphLegendKind.Wire),
             new("Bool value", GraphHue.Orange, GraphLegendKind.Wire),
             new("Other value", GraphHue.Slate, GraphLegendKind.Wire),
+            new("Variable link", GraphHue.Indigo, GraphLegendKind.DashedWire),
         ]);
     }
     #region Nodes

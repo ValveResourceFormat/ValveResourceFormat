@@ -22,6 +22,7 @@ internal class AG1GraphViewer : GLGraphViewer
     private readonly IReadOnlyList<KVObject> compiledNodes;
     private readonly Dictionary<int, Node> nodeMap = new();
     private readonly Dictionary<int, KVObject> parameterIndexToObject = new();
+    private readonly Dictionary<KVObject, List<Node>> parameterConsumers = new();
     private readonly Dictionary<int, string> parameterIndexToName = new();
     private readonly Dictionary<KVObject, int> parameterObjectToIndex = new();
     private readonly Dictionary<string, List<KVObject>> typeToParameters = new();
@@ -276,6 +277,7 @@ internal class AG1GraphViewer : GLGraphViewer
             new("Int parameter", GraphHue.Orange),
             new("Float parameter", GraphHue.Olive),
             new("Enum parameter", GraphHue.Purple),
+            new("Parameter link", GraphHue.Olive, GraphLegendKind.DashedWire),
             new("Tag group", GraphHue.Teal),
             new("Component", GraphHue.Neutral),
             new("Client-simulated", GraphHue.Purple, GraphLegendKind.Marker),
@@ -555,6 +557,12 @@ internal class AG1GraphViewer : GLGraphViewer
                 int index = value.ToInt32();
                 string display = GetParameterDescriptionFromIndex(index);
                 node.AddText($"{field}: {display}");
+
+                if (parameterIndexToObject.TryGetValue(index, out var paramFromIndex))
+                {
+                    RecordParameterConsumer(paramFromIndex, node);
+                }
+
                 continue;
             }
 
@@ -565,6 +573,7 @@ internal class AG1GraphViewer : GLGraphViewer
                 {
                     string info = GetParameterDescriptionFromHandle(handle);
                     node.AddText($"{field}: {info}");
+                    RecordParameterConsumer(ResolveParameterHandle(handle), node);
                 }
                 continue;
             }
@@ -700,20 +709,55 @@ internal class AG1GraphViewer : GLGraphViewer
                 if (stateMachine != null && stateMachine.ContainsKey("m_states"))
                 {
                     var states = stateMachine.GetArray("m_states");
+
+                    int StateChildNodeIndex(int stateIndex)
+                    {
+                        if (stateIndex < 0 || stateIndex >= stateDataArray.Count)
+                        {
+                            return -1;
+                        }
+
+                        var stateData = stateDataArray[stateIndex];
+
+                        if (!stateData.ContainsKey("m_pChild"))
+                        {
+                            return -1;
+                        }
+
+                        var childRef = stateData.GetSubCollection("m_pChild");
+                        return childRef.ContainsKey("m_nodeIndex") ? childRef.GetInt32Property("m_nodeIndex") : -1;
+                    }
+
                     for (int s = 0; s < stateDataArray.Count; s++)
                     {
-                        var stateData = stateDataArray[s];
-                        if (stateData.ContainsKey("m_pChild"))
+                        int idx = StateChildNodeIndex(s);
+                        if (idx >= 0)
                         {
-                            var childRef = stateData.GetSubCollection("m_pChild");
-                            if (childRef.ContainsKey("m_nodeIndex"))
+                            string stateName = states[s].GetStringProperty("m_name", $"State {s}");
+                            AddConnection(idx, stateName);
+                        }
+                    }
+
+                    // Dashed state-to-state transition wires between the states' subtrees.
+                    if (stateMachine.ContainsKey("m_transitions"))
+                    {
+                        foreach (var transition in stateMachine.GetArray("m_transitions"))
+                        {
+                            var srcIdx = StateChildNodeIndex(transition.GetInt32Property("m_srcStateIndex"));
+                            var destIdx = StateChildNodeIndex(transition.GetInt32Property("m_destStateIndex"));
+
+                            if (srcIdx < 0 || destIdx < 0 || srcIdx == destIdx ||
+                                !nodeMap.TryGetValue(srcIdx, out var srcNode) || !nodeMap.TryGetValue(destIdx, out var destNode))
                             {
-                                int idx = childRef.GetInt32Property("m_nodeIndex");
-                                if (idx >= 0)
-                                {
-                                    string stateName = states[s].GetStringProperty("m_name", $"State {s}");
-                                    AddConnection(idx, stateName);
-                                }
+                                continue;
+                            }
+
+                            var from = srcNode.Outputs.Find(static o => o.Name == "Transitions") ?? srcNode.AddOutput("Transitions", GraphHue.Slate);
+                            var to = destNode.Inputs.Find(static i => i.Name == "From") ?? destNode.AddInput("From", GraphHue.Slate, allowMultiple: true);
+
+                            if (!to.Wires.Exists(w => w.From == from))
+                            {
+                                View.Connect(from, to, dashed: true);
                             }
                         }
                     }
@@ -1256,6 +1300,25 @@ internal class AG1GraphViewer : GLGraphViewer
         };
     }
 
+    private void RecordParameterConsumer(KVObject? paramObj, Node node)
+    {
+        if (paramObj == null)
+        {
+            return;
+        }
+
+        if (!parameterConsumers.TryGetValue(paramObj, out var list))
+        {
+            list = [];
+            parameterConsumers[paramObj] = list;
+        }
+
+        if (!list.Contains(node))
+        {
+            list.Add(node);
+        }
+    }
+
     private void AddParameterAndTagNodes()
     {
         var typeOrder = new[] { "BOOL", "INT", "FLOAT", "ENUM", "VECTOR", "QUATERNION", "SYMBOL", "VIRTUAL", "UNKNOWN" };
@@ -1274,7 +1337,25 @@ internal class AG1GraphViewer : GLGraphViewer
                 Category = GetParameterTypeHue(type),
             };
             foreach (var p in ordered)
-                node.AddText(GetParameterDescriptionFromObject(p));
+            {
+                if (parameterConsumers.TryGetValue(p, out var consumers))
+                {
+                    // Consumed parameters become output sockets wired to their readers, making
+                    // "what does this parameter drive" visible.
+                    var output = node.AddOutput(GetParameterDescriptionFromObject(p), GetParameterTypeHue(type));
+
+                    foreach (var consumer in consumers)
+                    {
+                        var input = consumer.Inputs.Find(static i => i.Name == "Params") ?? consumer.AddInput("Params", GraphHue.Neutral, allowMultiple: true);
+                        View.Connect(output, input, dashed: true);
+                    }
+                }
+                else
+                {
+                    node.AddText(GetParameterDescriptionFromObject(p));
+                }
+            }
+
             View.AddNode(node);
         }
 
