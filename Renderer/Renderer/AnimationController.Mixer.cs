@@ -134,8 +134,11 @@ namespace ValveResourceFormat.Renderer
         /// <summary>
         /// Fires the clip's events whose start time was crossed while advancing
         /// from <paramref name="previousTime"/> to <paramref name="newTime"/>, handling loop wrap-around.
+        /// <paramref name="clipFinished"/> marks the final update of a non-looping clip: the interval is
+        /// treated as closed so events authored at the clip's exact end still fire (the end time is
+        /// clamped to the last frame, which a half-open interval would exclude forever).
         /// </summary>
-        private void FireClipEvents(Clip clip, float previousTime, float newTime)
+        private void FireClipEvents(Clip clip, float previousTime, float newTime, bool clipFinished = false)
         {
             var clipEvents = clip.Animation.Clip?.Events;
             if (clipEvents is not { Length: > 0 })
@@ -157,6 +160,7 @@ namespace ValveResourceFormat.Renderer
             {
                 // Half-open interval [oldTime, currentTime) so events at exactly 0 fire when the clip starts
                 var crossed = advancedFullLoop
+                    || (clipFinished && clipEvent.StartTime >= oldTime)
                     || (oldTime <= currentTime
                         ? clipEvent.StartTime >= oldTime && clipEvent.StartTime < currentTime
                         : clipEvent.StartTime >= oldTime || clipEvent.StartTime < currentTime);
@@ -173,7 +177,12 @@ namespace ValveResourceFormat.Renderer
                     // The event fired somewhere inside (previousTime, newTime]: reconstruct its actual
                     // time on the clip's unwrapped timeline so duration windows measure from the event
                     // itself, not from the end of the frame that crossed it
-                    var fireTime = newTime - ((currentTime - clipEvent.StartTime + duration) % duration);
+                    var fireTime = clipFinished && clipEvent.StartTime >= currentTime
+                        // An end-of-clip event fires at the moment the clip finishes; the wrap formula
+                        // below would place it a whole loop in the past
+                        ? newTime
+                        : newTime - ((currentTime - clipEvent.StartTime + duration) % duration);
+
                     PlayClipSound(clip, soundEvent, fireTime);
                 }
             }
@@ -291,6 +300,8 @@ namespace ValveResourceFormat.Renderer
                     var previousTime = clip.Time;
                     clip.Time += timeStep;
 
+                    var clipFinished = false;
+
                     if (!clip.Looping)
                     {
                         var lastFrame = clip.Animation!.FrameCount - 1;
@@ -303,12 +314,13 @@ namespace ValveResourceFormat.Renderer
                             // Clamp the overshoot: FireClipEvents wraps time modulo the clip duration,
                             // so time past the end would re-fire events near the start of the clip
                             clip.Time = maxTime;
+                            clipFinished = true;
                         }
                     }
 
                     if (clip.Weight > 0f)
                     {
-                        FireClipEvents(clip, previousTime, clip.Time);
+                        FireClipEvents(clip, previousTime, clip.Time, clipFinished);
                     }
                 }
             }
