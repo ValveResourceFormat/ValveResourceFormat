@@ -251,7 +251,19 @@ internal class AG1GraphViewer : GLGraphViewer
         var isUncompiledAnimationGraph = animGraphData.GetStringProperty("_class") == "CAnimationGraph";
         if (isUncompiledAnimationGraph)
         {
+            // HLA and SteamVR Home ship standalone vanmgrph files in the editor format;
+            // it even carries the authored canvas positions, so no layout pass runs.
             compiledNodes = Array.Empty<KVObject>();
+            BuildEditorGraph();
+
+            View.Legend.AddRange(
+            [
+                new("Pose flow", PoseHue, GraphLegendKind.Wire),
+                new("State machine", GraphHue.Slate),
+                new("Sequence / clip", GraphHue.Purple),
+                new("Blend / IK", GraphHue.Emerald),
+                new("Transition", GraphHue.Slate, GraphLegendKind.DashedWire),
+            ]);
             return;
         }
 
@@ -280,8 +292,204 @@ internal class AG1GraphViewer : GLGraphViewer
             new("Parameter link", GraphHue.Olive, GraphLegendKind.DashedWire),
             new("Tag group", GraphHue.Teal),
             new("Component", GraphHue.Neutral),
+            new("Transition", GraphHue.Slate, GraphLegendKind.DashedWire),
             new("Client-simulated", GraphHue.Purple, GraphLegendKind.Marker),
         ]);
+    }
+
+    private static readonly (string Field, string Label)[] EditorChildFields =
+    [
+        ("m_childID", "child"),
+        ("m_baseChildID", "base"),
+        ("m_additiveChildID", "additive"),
+        ("m_subtractChildID", "subtract"),
+        ("m_child1ID", "child 1"),
+        ("m_child2ID", "child 2"),
+    ];
+
+    private static readonly HashSet<string> EditorSkippedDetailFields = new(StringComparer.Ordinal)
+    {
+        "_class", "m_sName", "m_vecPosition", "m_nNodeID", "m_networkMode",
+    };
+
+    // Builds the graph straight from the uncompiled CAnimationGraph editor schema:
+    // m_nodes is a key/value list of id to node, children reference ids, states carry
+    // their transitions inline.
+    private void BuildEditorGraph()
+    {
+        var nodePairs = animGraphData.GetArray("m_nodes");
+
+        if (nodePairs == null || nodePairs.Count == 0)
+        {
+            View.AddNode(new Node(null) { Name = "Empty animation graph", NodeType = "CAnimationGraph" });
+            return;
+        }
+
+        var paramNames = new Dictionary<long, string>();
+
+        if (animGraphData.GetSubCollection("m_pParameterList")?.GetArray("m_Parameters") is { } parameters)
+        {
+            foreach (var parameter in parameters)
+            {
+                if (parameter.GetSubCollection("m_id") is { } paramId)
+                {
+                    paramNames[paramId.GetIntegerProperty("m_id")] = parameter.GetStringProperty("m_name") ?? "?";
+                }
+            }
+        }
+
+        var editorNodes = new Dictionary<long, Node>();
+        var editorData = new Dictionary<long, KVObject>();
+
+        foreach (var pair in nodePairs)
+        {
+            var key = pair.GetSubCollection("key");
+            var value = pair.GetSubCollection("value");
+
+            if (key == null || value == null)
+            {
+                continue;
+            }
+
+            var id = key.GetIntegerProperty("m_id");
+            var className = value.GetStringProperty("_class") ?? "Unknown";
+            var compiledClass = className.Replace("AnimNode", "UpdateNode", StringComparison.Ordinal);
+            var friendly = ClassDisplayName.TryGetValue(compiledClass, out var display) ? display : className;
+            var authoredName = value.GetStringProperty("m_sName");
+            var (x, y) = ParseVector2(value, "m_vecPosition");
+
+            var node = new Node(value)
+            {
+                Name = string.IsNullOrEmpty(authoredName) || authoredName == "Unnamed" ? friendly : authoredName,
+                NodeType = friendly,
+                Category = ClassHue.TryGetValue(compiledClass, out var hue) ? hue : GraphHue.Neutral,
+                Position = new Vector2(x, y),
+            };
+
+            AddEditorDetailRows(node, value);
+            View.AddNode(node);
+            editorNodes[id] = node;
+            editorData[id] = value;
+        }
+
+        foreach (var (id, value) in editorData)
+        {
+            var parent = editorNodes[id];
+
+            void ConnectChild(long childId, string inputName)
+            {
+                if (!editorNodes.TryGetValue(childId, out var child) || child == parent)
+                {
+                    return;
+                }
+
+                var output = child.Outputs.Count > 0 ? child.Outputs[0] : child.AddOutput(string.Empty, PoseHue);
+                View.Connect(output, parent.AddInput(inputName, PoseHue, allowMultiple: true));
+            }
+
+            foreach (var (field, label) in EditorChildFields)
+            {
+                if (value.ContainsKey(field) && value.GetSubCollection(field) is { } childRef)
+                {
+                    ConnectChild(childRef.GetIntegerProperty("m_id"), label);
+                }
+            }
+
+            if (value.ContainsKey("m_children"))
+            {
+                foreach (var childEntry in value.GetArray("m_children"))
+                {
+                    if (childEntry.GetSubCollection("m_nodeID") is { } childRef)
+                    {
+                        var childName = childEntry.GetStringProperty("m_name");
+                        ConnectChild(childRef.GetIntegerProperty("m_id"), string.IsNullOrEmpty(childName) ? "child" : childName);
+                    }
+                }
+            }
+
+            if (value.ContainsKey("m_states"))
+            {
+                var states = value.GetArray("m_states");
+                var stateChildren = new Dictionary<long, long>();
+
+                foreach (var state in states)
+                {
+                    var stateName = state.GetStringProperty("m_name") ?? "state";
+                    var childId = state.GetSubCollection("m_childNodeID")?.GetIntegerProperty("m_id");
+                    var stateId = state.GetSubCollection("m_stateID")?.GetIntegerProperty("m_id");
+
+                    if (childId is { } cid)
+                    {
+                        ConnectChild(cid, state.GetBooleanProperty("m_bIsStartState") ? $"{stateName} (start)" : stateName);
+
+                        if (stateId is { } sid)
+                        {
+                            stateChildren[sid] = cid;
+                        }
+                    }
+                }
+
+                // Dashed state-to-state transitions between the state subtrees, labeled by
+                // their first condition parameter.
+                foreach (var state in states)
+                {
+                    if (state.GetSubCollection("m_stateID")?.GetIntegerProperty("m_id") is not { } src ||
+                        !stateChildren.TryGetValue(src, out var srcChildId) ||
+                        !editorNodes.TryGetValue(srcChildId, out var srcNode) ||
+                        !state.ContainsKey("m_transitions"))
+                    {
+                        continue;
+                    }
+
+                    foreach (var transition in state.GetArray("m_transitions"))
+                    {
+                        if (transition.GetSubCollection("m_destState")?.GetIntegerProperty("m_id") is not { } dest ||
+                            !stateChildren.TryGetValue(dest, out var destChildId) ||
+                            !editorNodes.TryGetValue(destChildId, out var destNode) ||
+                            destNode == srcNode)
+                        {
+                            continue;
+                        }
+
+                        string? label = null;
+
+                        if (transition.GetArray("m_conditions") is { Count: > 0 } conditions &&
+                            conditions[0].GetSubCollection("m_paramID") is { } conditionParam)
+                        {
+                            label = paramNames.GetValueOrDefault(conditionParam.GetIntegerProperty("m_id"));
+                        }
+
+                        var from = srcNode.Outputs.Find(static o => o.Name == "Transitions") ?? srcNode.AddOutput("Transitions", GraphHue.Slate);
+                        var to = destNode.Inputs.Find(static i => i.Name == "From") ?? destNode.AddInput("From", GraphHue.Slate, allowMultiple: true);
+
+                        if (!to.Wires.Exists(w => w.From == from))
+                        {
+                            View.Connect(from, to, dashed: true, label: label);
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    private static void AddEditorDetailRows(Node node, KVObject value)
+    {
+        var rows = 0;
+
+        foreach (var (name, child) in value)
+        {
+            if (EditorSkippedDetailFields.Contains(name) || child.ValueType is KVValueType.Collection or KVValueType.Array)
+            {
+                continue;
+            }
+
+            node.AddText($"{name}: {KVGraphNode.StringifyValue(child)}");
+
+            if (++rows >= 8)
+            {
+                break;
+            }
+        }
     }
 
     /// <summary>
