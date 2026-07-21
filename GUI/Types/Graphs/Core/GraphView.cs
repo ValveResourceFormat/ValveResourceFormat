@@ -912,7 +912,12 @@ partial class GraphView : IDisposable
             }
         }
 
-        // Residual overlaps (coincident centers, extreme ratios) get pushed apart directly.
+        // Residual tight pairs (coincident centers, extreme ratios, authored cards that
+        // merely sit close) get pushed apart directly. This phase enforces a wider
+        // clearance than the scale-out so near-touching neighbors gain breathing room
+        // locally, without inflating the rest of the arrangement.
+        const float PushPad = 70f;
+
         for (var pass = 0; pass < 64; pass++)
         {
             var moved = false;
@@ -927,8 +932,8 @@ partial class GraphView : IDisposable
                     var b = nodes[j];
                     var bSize = Geometry.SizeOf(b);
 
-                    var overlapX = Math.Min(a.Position.X + aSize.X, b.Position.X + bSize.X) - Math.Max(a.Position.X, b.Position.X) + Pad;
-                    var overlapY = Math.Min(a.Position.Y + aSize.Y, b.Position.Y + bSize.Y) - Math.Max(a.Position.Y, b.Position.Y) + Pad;
+                    var overlapX = Math.Min(a.Position.X + aSize.X, b.Position.X + bSize.X) - Math.Max(a.Position.X, b.Position.X) + PushPad;
+                    var overlapY = Math.Min(a.Position.Y + aSize.Y, b.Position.Y + bSize.Y) - Math.Max(a.Position.Y, b.Position.Y) + PushPad;
 
                     if (overlapX <= 0 || overlapY <= 0)
                     {
