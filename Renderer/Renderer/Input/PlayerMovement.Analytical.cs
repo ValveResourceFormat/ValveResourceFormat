@@ -455,163 +455,155 @@ public partial class PlayerMovement
     /// Tickless air strafe: the frame's uniform view rotation is integrated exactly by a
     /// three-regime state machine (per H7perus' CSGO-Tickless-Movement analysis), so
     /// strafe gain depends on degrees turned and the accel rate, not framerate.
-    /// Regimes, in the rotation-normalized frame (g = wishdir velocity component,
-    /// q = component ahead of the rotation):
-    ///  - frozen: g above the cap, gate closed, velocity constant while the wishdir
-    ///    swings until it leads the velocity by acos(cap/speed);
-    ///  - pinned: g held at the cap; |q| grows at cap per radian, needing accel
-    ///    cap-per-radian rate |q| — holds while that stays within the available rate;
-    ///  - full accel: g below the cap (or the pin unaffordable); the constant accel
-    ///    rate along the rotating wishdir integrates as a spiral, and g follows
-    ///    R·sin(θ+φ), giving the re-pinning angle in closed form.
-    /// Returns null for zero-rotation frames (the caller's discrete update is exact) or
-    /// if the state machine fails to advance (degenerate tangency).
+    ///
+    /// The machine runs in the rotation-normalized (g, q) state space — g the wishdir
+    /// velocity component, q the component ahead of the rotation — in double precision,
+    /// and reconstructs the velocity vector once at frame end. Regime transitions land on
+    /// their boundaries symbolically (a spiral stepping to the cap crossing sets g = cap
+    /// as a fact, a pin exiting on the rate bound sets q = -A), so no intra-frame regime
+    /// membership is ever re-measured through an epsilon window; the only measured
+    /// classification is at frame entry, where all branches agree at a boundary.
+    ///
+    /// Regimes: frozen (g above the cap, gate closed, velocity constant while the wishdir
+    /// swings until it leads by acos(cap/speed)); pinned (g held at the cap, |q| growing
+    /// at cap per radian, holding while the required rate |q| stays within the available
+    /// rate A); full accel (the spiral: g = R·sin(xi) with dxi = dtheta, whose upward cap
+    /// crossing is xi = asin(cap/R)).
+    ///
+    /// Returns null for near-zero rotation frames, where the caller's discrete update is
+    /// the continuous limit and 1/turn would amplify float noise pointlessly.
     /// </summary>
     private static Vector3? TicklessAirStrafe(Vector3 velocity, Vector3 wishdirEnd, float cap, float yawDelta, float accelRate, float deltaTime)
     {
-        var turnSign = MathF.Sign(yawDelta);
-        var turn = MathF.Abs(yawDelta);
+        var turnSign = (double)MathF.Sign(yawDelta);
+        var turn = (double)MathF.Abs(yawDelta);
 
-        // Below this rotation the discrete update matches the continuous model to O(turn²)
-        // anyway, and accelPerRadian (~1/turn) would amplify float noise pointlessly
-        if (turnSign == 0 || turn <= 2e-4f)
+        if (turnSign == 0 || turn <= 2e-4)
         {
             return null;
         }
 
-        // Accel available per radian of rotation
-        var accelPerRadian = accelRate * deltaTime / turn;
+        var c = (double)cap;
 
-        var endAngle = MathF.Atan2(wishdirEnd.Y, wishdirEnd.X);
+        // Accel available per radian of rotation
+        var accelPerRadian = (double)accelRate * deltaTime / turn;
+
+        var endAngle = Math.Atan2(wishdirEnd.Y, wishdirEnd.X);
         var startAngle = endAngle - yawDelta;
 
-        var vx = velocity.X;
-        var vy = velocity.Y;
-        var theta = 0f;
+        // Initial classification: the only measured (g, q) of the frame
+        var (sin0, cos0) = Math.SinCos(startAngle);
+        double vx = velocity.X, vy = velocity.Y;
+        var g = vx * cos0 + vy * sin0;
+        var q = turnSign * (cos0 * vy - sin0 * vx);
 
-        const int MaxPhases = 10;
-        const float AngleEpsilon = 1e-7f;
+        var theta = 0.0;
+        const int MaxPhases = 12;
 
-
-        for (var phase = 0; phase < MaxPhases; phase++)
+        for (var phase = 0; phase < MaxPhases && theta < turn - 1e-9; phase++)
         {
-            if (theta >= turn - AngleEpsilon)
+            if (g > c || (g == c && q > 0))
             {
-                return new Vector3(vx, vy, velocity.Z);
-            }
+                // Frozen: gate closed, speed constant; (g, q) just rotate in the relative
+                // frame until the wishdir leads by acos(cap/speed)
+                var speed = Math.Sqrt(g * g + q * q);
+                var lead = Math.Atan2(q, g);
+                var phiCap = Math.Acos(Math.Min(1.0, c / speed));
+                var step = lead + phiCap;
 
-            //TODO: Maybe rename this here, idk
-            var stepEndAngle = (float)NormalizeAngle(startAngle + turnSign * theta);
-
-
-
-            var sinR = MathF.Sin(stepEndAngle);
-            var cosR = MathF.Sin(stepEndAngle > 0 ? MathF.PI / 2 - stepEndAngle : stepEndAngle + MathF.PI / 2);
-
-            var g = vx * cosR + vy * sinR;
-            var q = turnSign * (cosR * vy - sinR * vx);
-
-            const float CapEpsilon = 1e-3f;
-
-            if (g > cap + CapEpsilon || (g >= cap - CapEpsilon && q > 0f))
-            {
-                // Frozen: gate closed (component above the cap, or the rotation is moving
-                // toward the velocity), velocity constant while the wishdir rotates until
-                // it leads the velocity by acos(cap/speed)
-                var speed = MathF.Sqrt(vx * vx + vy * vy);
-                var phi = MathF.Atan2(q, g);
-                var phiCap = MathF.Acos(Math.Clamp(cap / speed, -1f, 1f));
-                var step = MathF.Min(turn - theta, phi + phiCap);
-
-                if (step <= AngleEpsilon)
-                {
-                    return null;
-                }
-
-                theta += step;
-                continue;
-            }
-
-            if (g >= cap - CapEpsilon && -q < accelPerRadian)
-            {
-                // Pinned: hold g at the cap until the required rate |q| reaches the
-                // available rate or the frame ends
-
-                //TODO: Second part of this min(a, b) has to be explained properly
-                var step = MathF.Min(turn - theta, (accelPerRadian + q) / cap);
-
-                theta += step;
-                q -= cap * step;
-
-                stepEndAngle = (float)NormalizeAngle(startAngle + turnSign * theta);
-
-                sinR = MathF.Sin(stepEndAngle);
-                cosR = MathF.Sin(stepEndAngle > 0 ? MathF.PI / 2 - stepEndAngle : stepEndAngle + MathF.PI / 2);
-
-                vx = cap * cosR - q * turnSign * sinR;
-                vy = cap * sinR + q * turnSign * cosR;
-                continue;
-            }
-
-            // Below the cap, or at it with the pin unaffordable: full accel
-            {
-                // Full accel along the rotating wishdir: g(θ) = R·sin(θ+φ) with
-                // g' = q + A', so the upward crossing of the cap is in closed form
-                var gRate = q + accelPerRadian;
-                var amplitude = MathF.Sqrt(g * g + gRate * gRate);
-                float step;
-
-                if (amplitude <= cap + 1e-4f)
+                if (step >= turn - theta)
                 {
                     step = turn - theta;
+                    lead -= step;
+                    g = speed * Math.Cos(lead);
+                    q = speed * Math.Sin(lead);
                 }
                 else
                 {
-                    var phi = MathF.Atan2(g, gRate);
-                    var hit = MathF.Asin(Math.Clamp(cap / amplitude, -1f, 1f)) - phi;
-
-                    // Already at the crossing: the previous spiral step's landing error
-                    // scales with the amplitude, so g can miss the pin window and re-enter
-                    // here with the crossing solve reporting ~zero. Wrapping that by a full
-                    // circle would integrate full accel through the gate for the rest of
-                    // the frame; instead snap the wishdir component to the cap and let the
-                    // dispatcher re-classify the regime
-                    if (MathF.Abs(hit) <= 1e-5f)
-                    {
-                        vx += (cap - g) * cosR;
-                        vy += (cap - g) * sinR;
-                        continue;
-                    }
-
-                    // Genuinely past the crossing (falling off the pin): next crossing is
-                    // a full period away
-                    if (hit < 0f)
-                    {
-                        hit += MathF.Tau;
-                    }
-
-                    step = MathF.Min(turn - theta, hit);
+                    // Symbolic landing on the pin boundary
+                    g = c;
+                    q = -Math.Sqrt(Math.Max(0.0, speed * speed - c * c));
                 }
 
-                if (step <= AngleEpsilon)
-                {
-                    return null;
-                }
-
-                // Spiral integral of the constant accel rate over the rotation
                 theta += step;
+                continue;
+            }
 
-                stepEndAngle = (float)NormalizeAngle(startAngle + turnSign * theta);
+            if (g == c && -q < accelPerRadian)
+            {
+                // Pinned: g held at the cap, |q| grows at cap per radian; exits when the
+                // required rate |q| reaches the available rate (symbolically q = -A)
+                var exit = (accelPerRadian + q) / c;
+                var step = Math.Min(turn - theta, exit);
+                q -= c * step;
 
-                var sinR2 = MathF.Sin(stepEndAngle);
-                var cosR2 = MathF.Sin(stepEndAngle > 0 ? MathF.PI / 2 - stepEndAngle : stepEndAngle + MathF.PI / 2);
+                if (step == exit)
+                {
+                    q = -accelPerRadian;
+                }
 
-                vx += accelPerRadian * turnSign * (sinR2 - sinR);
-                vy += accelPerRadian * turnSign * (cosR - cosR2);
+                theta += step;
+                continue;
+            }
+
+            {
+                // Full accel: g = R·sin(xi), q = R·cos(xi) - A, with xi advancing with
+                // the rotation; the upward cap crossing sits at xi = asin(cap/R)
+                var gRate = q + accelPerRadian;
+                var amplitude = Math.Sqrt(g * g + gRate * gRate);
+
+                if (amplitude <= c)
+                {
+                    // Never reaches the cap: run out the frame
+                    var xiEnd = Math.Atan2(g, gRate) + (turn - theta);
+                    g = amplitude * Math.Sin(xiEnd);
+                    q = amplitude * Math.Cos(xiEnd) - accelPerRadian;
+                    theta = turn;
+                    continue;
+                }
+
+                var xi = Math.Atan2(g, gRate);
+                var xiHit = Math.Asin(c / amplitude);
+
+                // Angle to the next upward crossing; entry states are symbolic, so a
+                // non-positive difference means the crossing genuinely lies a period ahead
+                var toCross = xiHit - xi;
+
+                if (toCross <= 0)
+                {
+                    toCross += Math.Tau;
+                }
+
+                if (toCross >= turn - theta)
+                {
+                    var xiEnd = xi + (turn - theta);
+                    g = amplitude * Math.Sin(xiEnd);
+                    q = amplitude * Math.Cos(xiEnd) - accelPerRadian;
+                    theta = turn;
+                }
+                else
+                {
+                    // Symbolic landing on the cap
+                    g = c;
+                    q = Math.Sqrt(amplitude * amplitude - c * c) - accelPerRadian;
+                    theta += toCross;
+                }
+
+                continue;
             }
         }
 
-        return null;
+        if (theta < turn - 1e-9)
+        {
+            // Failed to consume the frame (degenerate cycling): let the discrete update run
+            return null;
+        }
+
+        // Reconstruct the velocity once, at the end-of-frame wishdir
+        var (sinEnd, cosEnd) = Math.SinCos(endAngle);
+        var outX = g * cosEnd - q * turnSign * sinEnd;
+        var outY = g * sinEnd + q * turnSign * cosEnd;
+        return new Vector3((float)outX, (float)outY, velocity.Z);
     }
 
     /// <summary>
