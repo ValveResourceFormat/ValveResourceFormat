@@ -472,7 +472,9 @@ public partial class PlayerMovement
         var turnSign = MathF.Sign(yawDelta);
         var turn = MathF.Abs(yawDelta);
 
-        if (turnSign == 0 || turn <= 1e-6f)
+        // Below this rotation the discrete update matches the continuous model to O(turn²)
+        // anyway, and accelPerRadian (~1/turn) would amplify float noise pointlessly
+        if (turnSign == 0 || turn <= 2e-4f)
         {
             return null;
         }
@@ -568,7 +570,22 @@ public partial class PlayerMovement
                     var phi = MathF.Atan2(g, gRate);
                     var hit = MathF.Asin(Math.Clamp(cap / amplitude, -1f, 1f)) - phi;
 
-                    while (hit < AngleEpsilon)
+                    // Already at the crossing: the previous spiral step's landing error
+                    // scales with the amplitude, so g can miss the pin window and re-enter
+                    // here with the crossing solve reporting ~zero. Wrapping that by a full
+                    // circle would integrate full accel through the gate for the rest of
+                    // the frame; instead snap the wishdir component to the cap and let the
+                    // dispatcher re-classify the regime
+                    if (MathF.Abs(hit) <= 1e-5f)
+                    {
+                        vx += (cap - g) * cosR;
+                        vy += (cap - g) * sinR;
+                        continue;
+                    }
+
+                    // Genuinely past the crossing (falling off the pin): next crossing is
+                    // a full period away
+                    if (hit < 0f)
                     {
                         hit += MathF.Tau;
                     }
