@@ -293,50 +293,90 @@ public partial class PlayerMovement
     }
 
     /// <summary>
-    /// Frame starting below stopspeed under acceleration: constant net acceleration
-    /// A·wishdir - stopspeed·k·v̂ (linear-regime friction) until the speed crosses
-    /// stopspeed, then the exponential ODE for the rest of the frame.
+    /// Frame starting below stopspeed under acceleration. The constant-magnitude friction
+    /// there opposes the (rotating) velocity direction, so with a misaligned wishdir the
+    /// ODE has no elementary closed form; instead the continuous model — thrust gated at
+    /// wishspeed along wishdir, friction -stopspeed·k·v̂ below stopspeed and -k·v above —
+    /// is integrated with fixed-size RK4 substeps. The substep is small enough that the
+    /// result tracks the continuous trajectory (and therefore composes across any frame
+    /// partitioning) far below float noise.
     /// </summary>
-    private static (Vector3 Velocity, Vector3 Displacement) SubStopSpeedAccelerate(Vector3 v0, Vector3 wishdir, float accelMagnitude, float deltaTime, float frictionRate)
+    private static (Vector3 Velocity, Vector3 Displacement) SubStopSpeedAccelerate(Vector3 v0, Vector3 wishdir, float wishspeed, float accelMagnitude, float deltaTime, float frictionRate)
     {
-        var frictionDirection = v0.LengthSquared() > 0.01f ? Vector3.Normalize(v0) : wishdir;
-        var acceleration = accelMagnitude * wishdir - StopSpeedValue * frictionRate * frictionDirection;
+        const float MaxSubstep = 1f / 2048f;
 
-        // Crossing time: |v0 + a·t| = stopspeed. Starting inside the stopspeed circle
-        // there is exactly one positive root
-        var tCross = deltaTime;
-        var a2 = acceleration.LengthSquared();
+        var steps = Math.Max(1, (int)MathF.Ceiling(deltaTime / MaxSubstep));
+        var h = deltaTime / steps;
+        var v = v0;
+        var displacement = Vector3.Zero;
 
-        if (a2 > 1e-6f)
+        for (var i = 0; i < steps; i++)
         {
-            var b = 2f * Vector3.Dot(v0, acceleration);
-            var c = v0.LengthSquared() - StopSpeedValue * StopSpeedValue;
-            var discriminant = b * b - 4f * a2 * c;
+            var k1 = SubStopSpeedAcceleration(v, wishdir, wishspeed, accelMagnitude, frictionRate);
+            var v2 = v + h / 2f * k1;
+            var k2 = SubStopSpeedAcceleration(v2, wishdir, wishspeed, accelMagnitude, frictionRate);
+            var v3 = v + h / 2f * k2;
+            var k3 = SubStopSpeedAcceleration(v3, wishdir, wishspeed, accelMagnitude, frictionRate);
+            var v4 = v + h * k3;
+            var k4 = SubStopSpeedAcceleration(v4, wishdir, wishspeed, accelMagnitude, frictionRate);
 
-            if (discriminant >= 0f)
+            // Simpson displacement over the same stages
+            displacement += h / 6f * (v + 2f * v2 + 2f * v3 + v4);
+            v += h / 6f * (k1 + 2f * k2 + 2f * k3 + k4);
+        }
+
+        return (v, displacement);
+    }
+
+    /// <summary>
+    /// dv/dt of the continuous sub-stopspeed model: regime-aware friction plus wishdir
+    /// thrust gated at wishspeed.
+    /// </summary>
+    private static Vector3 SubStopSpeedAcceleration(Vector3 velocity, Vector3 wishdir, float wishspeed, float accelMagnitude, float frictionRate)
+    {
+        var speed = velocity.Length();
+
+        // At rest the friction direction is undefined; it opposes the impending
+        // motion along wishdir, and cannot push backwards
+        if (speed <= 1e-6f)
+        {
+            return MathF.Max(0f, accelMagnitude - StopSpeedValue * frictionRate) * wishdir;
+        }
+
+        var friction = speed > StopSpeedValue
+            ? -frictionRate * velocity
+            : -(StopSpeedValue * frictionRate / speed) * velocity;
+
+        // The addspeed gate as a continuous constraint
+        var thrust = Vector3.Dot(velocity, wishdir) < wishspeed ? accelMagnitude * wishdir : Vector3.Zero;
+        return friction + thrust;
+    }
+
+    /// <summary>
+    /// Minimum of |v(t)|² along the friction+acceleration ODE over the frame, where
+    /// |v(u)|² is a quadratic in u = e^(-kt) falling from 1 to <paramref name="decayEnd"/>.
+    /// Used to prove a frame never leaves the exponential friction regime.
+    /// </summary>
+    private static float OdeMinSpeedSquared(Vector3 v0, Vector3 equilibrium, float decayEnd)
+    {
+        var offset = v0 - equilibrium;
+        var j = offset.LengthSquared();
+        var o = 2f * Vector3.Dot(offset, equilibrium);
+        var e2 = equilibrium.LengthSquared();
+
+        var min = MathF.Min(j + o + e2, j * decayEnd * decayEnd + o * decayEnd + e2);
+
+        if (j > 1e-12f)
+        {
+            var uStar = -o / (2f * j);
+
+            if (uStar > decayEnd && uStar < 1f)
             {
-                var root = (-b + MathF.Sqrt(discriminant)) / (2f * a2);
-
-                if (root >= 0f)
-                {
-                    tCross = MathF.Min(root, deltaTime);
-                }
+                min = MathF.Min(min, e2 - o * o / (4f * j));
             }
         }
 
-        var velocity = v0 + acceleration * tCross;
-        var displacement = v0 * tCross + acceleration * (tCross * tCross / 2f);
-
-        var remaining = deltaTime - tCross;
-
-        if (remaining > 0f)
-        {
-            var equilibrium = wishdir * (accelMagnitude / frictionRate);
-            displacement += LinearOdeDisplacement(velocity, equilibrium, remaining, frictionRate);
-            velocity = equilibrium + (velocity - equilibrium) * MathF.Exp(-frictionRate * remaining);
-        }
-
-        return (velocity, displacement);
+        return min;
     }
 
     /// <summary>

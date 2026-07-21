@@ -975,49 +975,35 @@ public partial class PlayerMovement
         var preFrictionSpeed = preFrictionVelocity.Length();
         var accelMagnitude = finalAccel * goalSpeed * SurfaceFriction;
 
-        // Below stopspeed the friction+acceleration frame is solved analytically from the
-        // pre-friction velocity (linear friction regime, split at the stopspeed crossing),
-        // superseding the friction step already applied
+        // Below stopspeed the friction+acceleration frame is integrated from the
+        // pre-friction velocity (no elementary closed form there), superseding the
+        // friction step already applied
         if (preFrictionSpeed <= StopSpeedValue)
         {
-            var (velocity, displacement) = SubStopSpeedAccelerate(preFrictionVelocity, wishdir, accelMagnitude, deltaTime, frictionRate);
-
-            // The addspeed gate binding mid-frame keeps the discrete update instead
-            if (Vector3.Dot(velocity, wishdir) > wishspeed)
-            {
-                Velocity += Math.Min(accelMagnitude * deltaTime, addspeed) * wishdir;
-                GroundMoveDelta = TrapezoidDisplacement(preFrictionVelocity, Velocity, deltaTime);
-            }
-            else
-            {
-                Velocity = velocity;
-                GroundMoveDelta = displacement;
-            }
-
+            (Velocity, GroundMoveDelta) = SubStopSpeedAccelerate(preFrictionVelocity, wishdir, wishspeed, accelMagnitude, deltaTime, frictionRate);
             return;
         }
 
-        // Exact companion to the exponential friction: A*(1-e^(-f*dt))/f completes the
-        // closed-form solution, keeping the friction/acceleration equilibrium framerate-independent
-        var effectiveTime = (1f - MathF.Exp(-frictionRate * deltaTime)) / frictionRate;
+        var equilibrium = wishdir * (accelMagnitude / frictionRate);
+        var decay = MathF.Exp(-frictionRate * deltaTime);
+        var odeVelocity = equilibrium + (preFrictionVelocity - equilibrium) * decay;
 
-        var accelspeed = Math.Min(accelMagnitude * effectiveTime, addspeed);
-        var clamped = accelspeed >= addspeed;
-        Velocity += accelspeed * wishdir;
-
-        // Exact displacement while the frame is the pure friction+acceleration ODE
-        // (exponential regime throughout, addspeed gate never binding); otherwise the
-        // trapezoid, which is itself exact below stopspeed where velocity is linear in time
-        if (!clamped && preFrictionSpeed > StopSpeedValue
-            && preFrictionSpeed * MathF.Exp(-frictionRate * deltaTime) > StopSpeedValue)
+        // Pure friction+acceleration ODE frame: the addspeed gate stays open (wishdir
+        // component ends at or below wishspeed) and the trajectory never leaves the
+        // exponential friction regime. Exact and composing across any frame partition
+        if (Vector3.Dot(odeVelocity, wishdir) <= wishspeed
+            && OdeMinSpeedSquared(preFrictionVelocity, equilibrium, decay) > StopSpeedValue * StopSpeedValue)
         {
-            var equilibrium = wishdir * (accelMagnitude / frictionRate);
+            Velocity = odeVelocity;
             GroundMoveDelta = LinearOdeDisplacement(preFrictionVelocity, equilibrium, deltaTime, frictionRate);
+            return;
         }
-        else
-        {
-            GroundMoveDelta = TrapezoidDisplacement(preFrictionVelocity, Velocity, deltaTime);
-        }
+
+        // Gate-bound or regime-crossing frame: the discrete update, whose clamp lands the
+        // wishdir component exactly on wishspeed — matching the continuous pinned constraint
+        var effectiveTime = (1f - decay) / frictionRate;
+        Velocity += Math.Min(accelMagnitude * effectiveTime, addspeed) * wishdir;
+        GroundMoveDelta = TrapezoidDisplacement(preFrictionVelocity, Velocity, deltaTime);
     }
 
     /// <summary>
