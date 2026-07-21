@@ -214,9 +214,9 @@ namespace GUI.Types.GLViewers
 
                 Input.TryLoadViewmodel(Scene);
 
-                var kzMapPrefixes = new string[] { "bhop", "surf", "kz", "dr" };
-                var mapNameLower = Path.GetFileName(LoadedWorld.MapName).ToLowerInvariant();
-                Input.PlayerMovement.PrestrafeEnabled = kzMapPrefixes.Any(mapNameLower.StartsWith);
+var kzMapPrefixes = new[] { "bhop", "surf", "kz", "dr" };
+var mapName = Path.GetFileName(LoadedWorld.MapName);
+Input.PlayerMovement.PrestrafeEnabled = kzMapPrefixes.Any(prefix => mapName.StartsWith(prefix, StringComparison.OrdinalIgnoreCase));
             }
 
             if (!cameraSet)
