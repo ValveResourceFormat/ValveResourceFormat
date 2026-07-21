@@ -1,8 +1,10 @@
+using Microsoft.Msagl.Core.Geometry;
 using Microsoft.Msagl.Core.Geometry.Curves;
 using Microsoft.Msagl.Core.Layout;
 using Microsoft.Msagl.Core.Routing;
 using Microsoft.Msagl.Layout.Layered;
 using MsaglPoint = Microsoft.Msagl.Core.Geometry.Point;
+using MsaglRectangle = Microsoft.Msagl.Core.Geometry.Rectangle;
 
 namespace GUI.Types.Graphs.Core;
 
@@ -127,6 +129,37 @@ internal static class MsaglLayoutAdapter
         EdgeSeparation = 0.0,
         InkImportance = 0.2,
     };
+
+    // Packed island cloud targets a wide-screen shape so first fit-to-view wastes little space.
+    private const double PackingAspect = 16.0 / 9.0;
+
+    /// <summary>
+    /// Packs component bounding boxes of the given sizes and returns each box's packed
+    /// top-left origin. Boxes end up <paramref name="padding"/> apart.
+    /// </summary>
+    public static Vector2[] PackComponents(IReadOnlyList<Vector2> sizes, float padding)
+    {
+        var rectangles = new List<RectangleToPack<int>>(sizes.Count);
+
+        for (var i = 0; i < sizes.Count; i++)
+        {
+            var corner = new MsaglPoint(sizes[i].X + padding, sizes[i].Y + padding);
+            rectangles.Add(new RectangleToPack<int>(new MsaglRectangle(new MsaglPoint(0, 0), corner), i));
+        }
+
+        new OptimalRectanglePacking<int>(rectangles, PackingAspect).Run();
+
+        var origins = new Vector2[sizes.Count];
+
+        foreach (var rectangle in rectangles)
+        {
+            origins[rectangle.Data] = new Vector2(
+                (float)rectangle.Rectangle.Left + padding / 2f,
+                (float)rectangle.Rectangle.Bottom + padding / 2f);
+        }
+
+        return origins;
+    }
 
     private static (GeometryGraph Graph, Dictionary<GraphNode, Node> Nodes, List<(Edge Edge, GraphWire Wire)> Edges, List<GraphWire> SelfWires) BuildGeometry(
         List<GraphNode> component, List<GraphWire> componentWires, bool useCurrentPositions)

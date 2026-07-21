@@ -301,36 +301,7 @@ partial class GraphView : IDisposable
     {
         var component = new List<GraphNode>();
         var visited = new HashSet<GraphNode> { start };
-        var stack = new Stack<GraphNode>();
-        stack.Push(start);
-
-        while (stack.Count > 0)
-        {
-            var current = stack.Pop();
-            component.Add(current);
-
-            foreach (var socket in current.Inputs)
-            {
-                foreach (var wire in socket.Wires)
-                {
-                    if (!wire.From.Owner.Hidden && visited.Add(wire.From.Owner))
-                    {
-                        stack.Push(wire.From.Owner);
-                    }
-                }
-            }
-
-            foreach (var socket in current.Outputs)
-            {
-                foreach (var wire in socket.Wires)
-                {
-                    if (!wire.To.Owner.Hidden && visited.Add(wire.To.Owner))
-                    {
-                        stack.Push(wire.To.Owner);
-                    }
-                }
-            }
-        }
+        WalkComponent(start, visited, component, includeHidden: false);
 
         // Only the wires touching the moved nodes need new routes; the rest of the
         // component participates as obstacles but keeps its existing geometry.
@@ -619,54 +590,64 @@ partial class GraphView : IDisposable
     /// <summary>
     /// Returns the connected components of the graph (each node in exactly one list).
     /// </summary>
-    public List<List<GraphNode>> GetComponents()
+    public List<List<GraphNode>> GetComponents() => CollectComponents(includeHidden: true);
+
+    private List<List<GraphNode>> GetVisibleComponents() => CollectComponents(includeHidden: false);
+
+    private List<List<GraphNode>> CollectComponents(bool includeHidden)
     {
         var visited = new HashSet<GraphNode>();
         var components = new List<List<GraphNode>>();
 
         foreach (var start in nodes)
         {
-            if (!visited.Add(start))
+            if ((!includeHidden && start.Hidden) || !visited.Add(start))
             {
                 continue;
             }
 
             var component = new List<GraphNode>();
-            var stack = new Stack<GraphNode>();
-            stack.Push(start);
-
-            while (stack.Count > 0)
-            {
-                var node = stack.Pop();
-                component.Add(node);
-
-                foreach (var socket in node.Inputs)
-                {
-                    foreach (var wire in socket.Wires)
-                    {
-                        if (visited.Add(wire.From.Owner))
-                        {
-                            stack.Push(wire.From.Owner);
-                        }
-                    }
-                }
-
-                foreach (var socket in node.Outputs)
-                {
-                    foreach (var wire in socket.Wires)
-                    {
-                        if (visited.Add(wire.To.Owner))
-                        {
-                            stack.Push(wire.To.Owner);
-                        }
-                    }
-                }
-            }
-
+            WalkComponent(start, visited, component, includeHidden);
             components.Add(component);
         }
 
         return components;
+    }
+
+    // Undirected flood fill across socket wires; appends every newly visited node to component.
+    // Callers seed visited with start.
+    private static void WalkComponent(GraphNode start, HashSet<GraphNode> visited, List<GraphNode> component, bool includeHidden)
+    {
+        var stack = new Stack<GraphNode>();
+        stack.Push(start);
+
+        while (stack.Count > 0)
+        {
+            var node = stack.Pop();
+            component.Add(node);
+
+            foreach (var socket in node.Inputs)
+            {
+                foreach (var wire in socket.Wires)
+                {
+                    if ((includeHidden || !wire.From.Owner.Hidden) && visited.Add(wire.From.Owner))
+                    {
+                        stack.Push(wire.From.Owner);
+                    }
+                }
+            }
+
+            foreach (var socket in node.Outputs)
+            {
+                foreach (var wire in socket.Wires)
+                {
+                    if ((includeHidden || !wire.To.Owner.Hidden) && visited.Add(wire.To.Owner))
+                    {
+                        stack.Push(wire.To.Owner);
+                    }
+                }
+            }
+        }
     }
 
     /// <summary>Makes <paramref name="node"/> the primary selection.</summary>
@@ -834,6 +815,21 @@ partial class GraphView : IDisposable
             }
         }
 
+        var componentWires = new List<GraphWire>[components.Count];
+
+        for (var i = 0; i < components.Count; i++)
+        {
+            componentWires[i] = [];
+        }
+
+        foreach (var wire in wires)
+        {
+            if (componentOf.TryGetValue(wire.From.Owner, out var c) && componentOf.ContainsKey(wire.To.Owner))
+            {
+                componentWires[c].Add(wire);
+            }
+        }
+
         for (var i = 0; i < components.Count; i++)
         {
             var component = components[i];
@@ -844,50 +840,36 @@ partial class GraphView : IDisposable
                 continue;
             }
 
-            var componentWires = wires.Where(w => componentOf.TryGetValue(w.From.Owner, out var c) && c == i && componentOf.ContainsKey(w.To.Owner)).ToList();
-
-            MsaglLayoutAdapter.Layout(component, componentWires, Placement);
+            MsaglLayoutAdapter.Layout(component, componentWires[i], Placement);
         }
 
-        // Shelf-pack component bounding boxes into rows, tallest first.
-        var boxes = new List<(List<GraphNode> Component, Vector2 Min, Vector2 Size)>(components.Count);
-        var totalArea = 0f;
+        // Pack the island bounding boxes toward a screen-like aspect so large graphs open
+        // dense instead of in sparse rows.
+        var mins = new Vector2[components.Count];
+        var sizes = new Vector2[components.Count];
 
-        foreach (var component in components)
+        for (var i = 0; i < components.Count; i++)
         {
             var min = new Vector2(float.MaxValue);
             var max = new Vector2(float.MinValue);
 
-            foreach (var node in component)
+            foreach (var node in components[i])
             {
                 min = Vector2.Min(min, node.Position);
                 max = Vector2.Max(max, node.Position + node.Size);
             }
 
-            var size = max - min;
-            boxes.Add((component, min, size));
-            totalArea += (size.X + padding) * (size.Y + padding);
+            mins[i] = min;
+            sizes[i] = max - min;
         }
 
-        boxes.Sort(static (a, b) => b.Size.Y.CompareTo(a.Size.Y));
+        var origins = MsaglLayoutAdapter.PackComponents(sizes, padding);
 
-        var targetWidth = MathF.Max(3000f, MathF.Sqrt(totalArea * 2f));
-        var x = 0f;
-        var y = 0f;
-        var rowHeight = 0f;
-
-        foreach (var (component, min, size) in boxes)
+        for (var i = 0; i < components.Count; i++)
         {
-            if (x > 0f && x + size.X > targetWidth)
-            {
-                x = 0f;
-                y += rowHeight + padding;
-                rowHeight = 0f;
-            }
+            var offset = origins[i] - mins[i];
 
-            var offset = new Vector2(x, y) - min;
-
-            foreach (var node in component)
+            foreach (var node in components[i])
             {
                 node.Position += offset;
 
@@ -921,9 +903,6 @@ partial class GraphView : IDisposable
                     }
                 }
             }
-
-            x += size.X + padding;
-            rowHeight = MathF.Max(rowHeight, size.Y);
         }
 
         using (stateLock.EnterScope())
@@ -932,56 +911,6 @@ partial class GraphView : IDisposable
         }
 
         OnGraphChanged();
-    }
-
-    private List<List<GraphNode>> GetVisibleComponents()
-    {
-        var visited = new HashSet<GraphNode>();
-        var components = new List<List<GraphNode>>();
-
-        foreach (var start in nodes)
-        {
-            if (start.Hidden || !visited.Add(start))
-            {
-                continue;
-            }
-
-            var component = new List<GraphNode>();
-            var stack = new Stack<GraphNode>();
-            stack.Push(start);
-
-            while (stack.Count > 0)
-            {
-                var node = stack.Pop();
-                component.Add(node);
-
-                foreach (var socket in node.Inputs)
-                {
-                    foreach (var wire in socket.Wires)
-                    {
-                        if (!wire.From.Owner.Hidden && visited.Add(wire.From.Owner))
-                        {
-                            stack.Push(wire.From.Owner);
-                        }
-                    }
-                }
-
-                foreach (var socket in node.Outputs)
-                {
-                    foreach (var wire in socket.Wires)
-                    {
-                        if (!wire.To.Owner.Hidden && visited.Add(wire.To.Owner))
-                        {
-                            stack.Push(wire.To.Owner);
-                        }
-                    }
-                }
-            }
-
-            components.Add(component);
-        }
-
-        return components;
     }
 
     private bool disposed;
