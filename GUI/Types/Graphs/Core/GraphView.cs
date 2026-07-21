@@ -520,7 +520,8 @@ partial class GraphView : IDisposable
         OnGraphChanged();
     }
 
-    private void ClearSelection()
+    /// <summary>Clears the current node or wire selection.</summary>
+    public void ClearSelection()
     {
         Selection.Clear();
         OnSelectionChanged();
@@ -609,18 +610,6 @@ partial class GraphView : IDisposable
         }
 
         searchHighlight = normalized;
-        OnGraphChanged();
-    }
-
-    private HashSet<GraphHue>? categoryHighlight;
-
-    /// <summary>
-    /// Dims everything whose category is not in <paramref name="hues"/> (OR-filter driven by
-    /// legend clicks). Null or empty clears. Search takes precedence while active.
-    /// </summary>
-    public void SetCategoryHighlight(HashSet<GraphHue>? hues)
-    {
-        categoryHighlight = hues is { Count: > 0 } ? hues : null;
         OnGraphChanged();
     }
 

@@ -310,12 +310,12 @@ partial class GraphView
         // With a selection or an active search, dim everything drawn so far, render the
         // transitive chain faintly above the dim, then the focused set (selection + direct
         // neighbors, wire + endpoints, or search matches) at full strength.
-        if (!Selection.IsEmpty || searchHighlight != null || categoryHighlight != null)
+        if (!Selection.IsEmpty || searchHighlight != null)
         {
             fillPaint.Color = Palette.Canvas.WithAlpha(165);
             canvas.DrawRect(visibleRect, fillPaint);
 
-            if (searchHighlight == null && categoryHighlight == null && Selection.PrimaryNode != null && Selection.Connected.Count > 1)
+            if (searchHighlight == null && Selection.PrimaryNode != null && Selection.Connected.Count > 1)
             {
                 canvas.SaveLayer(chainLayerPaint);
                 DrawWiresPass(canvas, visibleRect, zoom, RenderTier.Chain);
@@ -344,13 +344,6 @@ partial class GraphView
                 : RenderTier.Background;
         }
 
-        if (categoryHighlight != null)
-        {
-            return categoryHighlight.Contains(wire.From.Owner.EffectiveCategory) && categoryHighlight.Contains(wire.To.Owner.EffectiveCategory)
-                ? RenderTier.Focus
-                : RenderTier.Background;
-        }
-
         if (wire == Selection.Wire ||
             (Selection.PrimaryNode != null && (wire.From.Owner == Selection.PrimaryNode || wire.To.Owner == Selection.PrimaryNode)))
         {
@@ -370,11 +363,6 @@ partial class GraphView
         if (searchHighlight != null)
         {
             return MatchesSearchHighlight(node) ? RenderTier.Focus : RenderTier.Background;
-        }
-
-        if (categoryHighlight != null)
-        {
-            return categoryHighlight.Contains(node.EffectiveCategory) ? RenderTier.Focus : RenderTier.Background;
         }
 
         if (node == Selection.PrimaryNode ||

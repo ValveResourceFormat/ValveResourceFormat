@@ -50,7 +50,7 @@ namespace GUI.Types.GLViewers
         private ThemedTextBox? searchBox;
         private Panel? legendPanel;
         private GraphNode? lastSearchResult;
-        private readonly HashSet<GraphHue> legendFilter = [];
+        private CheckedListBox? subtitleFilter;
 
         protected override void AddUiControls()
         {
@@ -127,6 +127,8 @@ namespace GUI.Types.GLViewers
                         RefitToGraph();
                     });
 
+                    subtitleFilter = filterList;
+
                     // Content-sized section; the sidebar as a whole scrolls instead.
                     if (filterList.Parent?.Parent is Control filterControl)
                     {
@@ -149,6 +151,23 @@ namespace GUI.Types.GLViewers
                 }
 
                 placementSection.SendToBack();
+
+                // Added last so it docks at the very bottom of the sidebar, below the legend.
+                var resetSection = new Panel
+                {
+                    Padding = new Padding(4, 8, 4, 8),
+                    Height = UiControl.AdjustForDPI(48),
+                };
+
+                var resetButton = new ThemedButton
+                {
+                    Text = "Reset view",
+                    Dock = DockStyle.Fill,
+                };
+                resetButton.Click += (_, _) => ResetGraph();
+
+                resetSection.Controls.Add(resetButton);
+                UiControl.AddControl(resetSection);
             }
 
             if (GLControl != null)
@@ -156,6 +175,33 @@ namespace GUI.Types.GLViewers
                 GLControl.MouseDoubleClick += OnMouseDoubleClick;
                 GLControl.LostFocus += OnGlControlLostFocus;
             }
+        }
+
+        /// <summary>
+        /// Clears the search, selection and subtitle filter, restores every isolated node
+        /// and island, then refits the view to the whole graph.
+        /// </summary>
+        private void ResetGraph()
+        {
+            lastSearchResult = null;
+
+            if (searchBox != null)
+            {
+                searchBox.Text = string.Empty;
+            }
+
+            View.SetSearchHighlight(null);
+            View.ClearSelection();
+
+            if (subtitleFilter != null)
+            {
+                for (var i = 0; i < subtitleFilter.Items.Count; i++)
+                {
+                    subtitleFilter.SetItemChecked(i, true);
+                }
+            }
+
+            ShowAllIslands();
         }
 
         private void OnGlControlLostFocus(object? sender, System.EventArgs e)
@@ -238,16 +284,12 @@ namespace GUI.Types.GLViewers
             {
                 var y = 6;
                 using var text = new System.Drawing.SolidBrush(Themer.CurrentThemeColors.Contrast);
-                using var dimmedText = new System.Drawing.SolidBrush(Themer.CurrentThemeColors.ContrastSoft);
 
                 foreach (var (label, hue, kind) in View.Legend)
                 {
                     // Palette slots resolve at paint time so the legend follows the theme.
                     var skColor = kind == GraphLegendKind.Category ? View.Palette.Category(hue) : View.Palette.Signal(hue);
                     using var brush = new System.Drawing.SolidBrush(System.Drawing.Color.FromArgb(skColor.Red, skColor.Green, skColor.Blue));
-
-                    // Category rows act as a click filter; rows filtered out paint dimmed.
-                    var dimmed = legendFilter.Count > 0 && kind == GraphLegendKind.Category && !legendFilter.Contains(hue);
 
                     if (kind is GraphLegendKind.Wire or GraphLegendKind.DashedWire)
                     {
@@ -269,35 +311,9 @@ namespace GUI.Types.GLViewers
                         e.Graphics.FillRectangle(brush, 6, y + 2, 12, 12);
                     }
 
-                    e.Graphics.DrawString(label, legendPanel!.Font, dimmed ? dimmedText : text, 24, y);
+                    e.Graphics.DrawString(label, legendPanel!.Font, text, 24, y);
                     y += 18;
                 }
-            };
-
-            // Clicking a category row toggles it in an OR-filter that dims everything else.
-            legendPanel.MouseClick += (_, e) =>
-            {
-                var index = (e.Y - 6) / 18;
-
-                if (index < 0 || index >= View.Legend.Count)
-                {
-                    return;
-                }
-
-                var entry = View.Legend[index];
-
-                if (entry.Kind != GraphLegendKind.Category)
-                {
-                    return;
-                }
-
-                if (!legendFilter.Add(entry.Hue))
-                {
-                    legendFilter.Remove(entry.Hue);
-                }
-
-                View.SetCategoryHighlight(legendFilter);
-                legendPanel!.Invalidate();
             };
 
             UiControl.AddControl(legendPanel);
@@ -823,6 +839,7 @@ namespace GUI.Types.GLViewers
             statsLabel?.Dispose();
             searchBox?.Dispose();
             legendPanel?.Dispose();
+            subtitleFilter?.Dispose();
             View.GraphChanged -= OnGraphChanged;
 
             // Stops the render loop first; afterwards the GL context may no longer be
