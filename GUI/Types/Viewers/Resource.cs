@@ -493,6 +493,14 @@ namespace GUI.Types.Viewers
                     resTabs.TabPages.Add(entitiesTabPage);
                 }
 
+                // Standalone entity lumps get the same browsable grid a map's world viewer provides.
+                if (!isPreview && GLViewer is EntityIOGraphViewer && resource.DataBlock is EntityLump standaloneLump)
+                {
+                    var entitiesTabPage = new ThemedTabPage("Entity List");
+                    entitiesTabPage.Controls.Add(new EntityViewer(vrfGuiContext, standaloneLump.GetEntities()));
+                    resTabs.TabPages.Add(entitiesTabPage);
+                }
+
                 if (!isPreview)
                 {
                     foreach (var (viewer, tabName) in preparedGraphViewers)
@@ -600,9 +608,9 @@ namespace GUI.Types.Viewers
 
             var graphPaths = new List<string>();
 
-            if (model.Data.ContainsKey("m_animGraph2Refs"))
+            if (model.Data.GetArray("m_animGraph2Refs") is { } animGraph2Refs)
             {
-                foreach (var graphRef in model.Data.GetArray("m_animGraph2Refs"))
+                foreach (var graphRef in animGraph2Refs)
                 {
                     var path = graphRef.GetStringProperty("m_hGraph");
 
@@ -611,6 +619,10 @@ namespace GUI.Types.Viewers
                         graphPaths.Add(path);
                     }
                 }
+            }
+            else if (model.Data.ContainsKey("m_animGraph2Refs"))
+            {
+                Log.Warn(nameof(Resource), "Model has a non-array m_animGraph2Refs value, skipping its animation graph tabs.");
             }
 
             if (model.Data.ContainsKey("m_refAnimGraph"))
@@ -625,20 +637,26 @@ namespace GUI.Types.Viewers
 
             foreach (var path in graphPaths)
             {
-                var tabName = graphPaths.Count > 1 ? $"ANIMATION GRAPH ({Path.GetFileNameWithoutExtension(path)})" : "ANIMATION GRAPH";
+                GLGraphViewer viewer;
+                string baseName;
 
-                GLGraphViewer? viewer = rendererContext.FileLoader.LoadFileCompiled(path)?.DataBlock switch
+                switch (rendererContext.FileLoader.LoadFileCompiled(path)?.DataBlock)
                 {
-                    AnimGraph ag1Data => new AG1GraphViewer(vrfGuiContext, rendererContext, ag1Data.Data),
-                    BinaryKV3 nmGraphData => new AnimationGraphViewer(vrfGuiContext, rendererContext, nmGraphData.Data),
-                    _ => null,
-                };
-
-                if (viewer != null)
-                {
-                    extraGraphViewers.Add(viewer);
-                    preparedGraphViewers.Add((viewer, tabName));
+                    case AnimGraph ag1Data:
+                        viewer = new AG1GraphViewer(vrfGuiContext, rendererContext, ag1Data.Data);
+                        baseName = "AG1 ANIMATION GRAPH";
+                        break;
+                    case BinaryKV3 nmGraphData:
+                        viewer = new AnimationGraphViewer(vrfGuiContext, rendererContext, nmGraphData.Data);
+                        baseName = "ANIMATION GRAPH";
+                        break;
+                    default:
+                        continue;
                 }
+
+                var tabName = graphPaths.Count > 1 ? $"{baseName} ({Path.GetFileNameWithoutExtension(path)})" : baseName;
+                extraGraphViewers.Add(viewer);
+                preparedGraphViewers.Add((viewer, tabName));
             }
         }
 
@@ -703,16 +721,6 @@ namespace GUI.Types.Viewers
                             specialTabPage.Controls.Add(msg);
                         }
 
-                        resTabs.TabPages.Add(specialTabPage);
-                        return true;
-                    }
-                    break;
-
-                case ResourceType.EntityLump:
-                    if (resource.DataBlock is EntityLump entityLumpData)
-                    {
-                        var specialTabPage = new ThemedTabPage("Entities");
-                        specialTabPage.Controls.Add(new EntityViewer(vrfGuiContext, entityLumpData.GetEntities()));
                         resTabs.TabPages.Add(specialTabPage);
                         return true;
                     }

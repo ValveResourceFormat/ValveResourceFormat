@@ -366,11 +366,22 @@ internal class EntityIOGraphViewer : GLGraphViewer
 
             foreach (var connectionData in entity.Connections)
             {
+                var outputName = connectionData.GetStringProperty("m_outputName");
+                var inputName = connectionData.GetStringProperty("m_inputName");
+                var targetName = connectionData.GetStringProperty("m_targetName");
+
+                if (outputName == null || inputName == null || targetName == null)
+                {
+                    var owner = entity.GetStringProperty("targetname") ?? entity.GetStringProperty("classname") ?? "unknown entity";
+                    Log.Warn(nameof(EntityIOGraphViewer), $"Skipping connection with a missing or non-string name field on '{owner}'.");
+                    continue;
+                }
+
                 connections.Add(new Connection(
                     entity,
-                    connectionData.GetStringProperty("m_outputName"),
-                    connectionData.GetStringProperty("m_inputName"),
-                    connectionData.GetStringProperty("m_targetName"),
+                    outputName,
+                    inputName,
+                    targetName,
                     connectionData.GetStringProperty("m_overrideParam"),
                     connectionData.GetFloatProperty("m_flDelay"),
                     connectionData.GetInt32Property("m_nTimesToFire")));
@@ -574,6 +585,9 @@ internal class EntityIOGraphViewer : GLGraphViewer
                         }
                     }
                 }
+
+                // Name-group members merge into shared nodes; Distinct avoids doubling labels.
+                targetNodes = targetNodes.Distinct().ToList();
 
                 if (targetNodes.Count == 0)
                 {
