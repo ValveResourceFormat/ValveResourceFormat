@@ -32,10 +32,16 @@ public sealed class CachedSound
     /// </summary>
     public bool Ready { get => ready; internal set => ready = value; }
 
+    private long lastUsed;
+
     /// <summary>
     /// Stopwatch timestamp of the last time this sound was requested or read by the mixer. The cache uses it to
-    /// avoid evicting sounds that are currently playing. Written from the mixing thread on every read and read by
-    /// the cache; a plain long, which is atomic on 64-bit and only feeds an eviction heuristic.
+    /// avoid evicting sounds that are currently playing. Written from the mixing thread on every read and read
+    /// by the cache; volatile so the 64-bit value cannot tear on 32-bit runtimes.
     /// </summary>
-    internal long LastUsed;
+    internal long LastUsed
+    {
+        get => System.Threading.Volatile.Read(ref lastUsed);
+        set => System.Threading.Volatile.Write(ref lastUsed, value);
+    }
 }

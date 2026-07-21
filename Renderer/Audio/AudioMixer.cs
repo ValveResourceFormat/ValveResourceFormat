@@ -13,7 +13,7 @@ public sealed class AudioMixer : IDisposable
     private readonly HashSet<SoundEvent> soundEvents = [];
 
     /// <summary>
-    /// TEMP debug: collects the position and vsnd name of every audible positioned sound.
+    /// Collects the position and vsnd name of every audible positioned sound, for the sound debug display.
     /// </summary>
     public void CollectDebugSounds(List<(Vector3 Position, string Text)> results)
     {

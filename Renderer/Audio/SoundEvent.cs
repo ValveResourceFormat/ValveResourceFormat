@@ -52,7 +52,8 @@ public abstract class SoundEvent
     public string? PlayingSoundFile { get; protected set; }
 
     /// <summary>
-    /// TEMP debug: collects the position and vsnd name of every audible positioned sound in this event tree.
+    /// Collects the position and vsnd name of every audible positioned sound in this event tree,
+    /// for the sound debug display.
     /// </summary>
     public void CollectDebugSounds(List<(Vector3 Position, string Text)> results)
     {

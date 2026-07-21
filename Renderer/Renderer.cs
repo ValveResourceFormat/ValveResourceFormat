@@ -815,7 +815,12 @@ public class Renderer
         Postprocess.Render(inputFramebuffer, outputFramebuffer, ResolvedSceneColor!, Camera, flipY);
     }
 
-    // TEMP debug: reused buffer for the active world sound billboards
+    /// <summary>
+    /// Gets or sets whether the vsnd name of every active positioned sound is billboarded in the world.
+    /// </summary>
+    public bool ShowSoundDebug { get; set; }
+
+    // Reused buffer for the sound debug billboards
     private readonly List<(Vector3 Position, string Text)> debugWorldSounds = [];
 
     /// <summary>
@@ -874,8 +879,7 @@ public class Renderer
 
         Sound.Player?.Update(updateContext.Camera);
 
-        // TEMP debug: billboard the vsnd name of every active positioned sound in the world
-        if (Sound.Player != null)
+        if (ShowSoundDebug && Sound.Player != null)
         {
             debugWorldSounds.Clear();
             Sound.Player.CollectDebugSounds(debugWorldSounds);

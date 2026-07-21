@@ -26,12 +26,16 @@ public abstract class SampleProviderSpatial : SampleProvider2D
     {
         var read = Provider.Read(buffer, offset, count);
 
+        // Interpolate across the samples actually returned, so the final written sample reaches the
+        // target volume even when the provider ends mid-buffer
+        var lastIndex = Math.Max(read - 1, 1);
+
         for (var i = 0; i < read; i++)
         {
             var left = i % 2 == 0;
             var lastVolume = left ? LastLeftVolume : LastRightVolume;
             var volume = left ? LeftVolume : RightVolume;
-            buffer[offset + i] = float.Lerp(buffer[offset + i] * lastVolume, buffer[offset + i] * volume, (float)i / count);
+            buffer[offset + i] = float.Lerp(buffer[offset + i] * lastVolume, buffer[offset + i] * volume, (float)i / lastIndex);
         }
 
         LastLeftVolume = LeftVolume;

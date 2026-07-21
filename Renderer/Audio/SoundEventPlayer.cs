@@ -163,13 +163,15 @@ public sealed class SoundEventPlayer : IDisposable
 
             if (startMul != 1f || endMul != 1f)
             {
-                // Interpolate the gain across the chunk so a fade (or master volume change) does not step
+                // Interpolate the gain across the chunk so a fade (or master volume change) does not step;
+                // the last frame must land exactly on endMul so chunks join without a gain step
                 var frames = buffer.Length / channelCount;
+                var lastFrame = Math.Max(frames - 1, 1);
                 var index = 0;
 
                 for (var frame = 0; frame < frames; frame++)
                 {
-                    var mul = float.Lerp(startMul, endMul, (float)frame / frames);
+                    var mul = float.Lerp(startMul, endMul, (float)frame / lastFrame);
 
                     for (var ch = 0; ch < channelCount; ch++)
                     {
@@ -367,7 +369,7 @@ public sealed class SoundEventPlayer : IDisposable
     }
 
     /// <summary>
-    /// TEMP debug: collects the position and vsnd name of every audible positioned sound.
+    /// Collects the position and vsnd name of every audible positioned sound, for the sound debug display.
     /// </summary>
     public void CollectDebugSounds(List<(Vector3 Position, string Text)> results) => mixer.CollectDebugSounds(results);
 

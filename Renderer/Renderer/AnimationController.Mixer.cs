@@ -170,7 +170,11 @@ namespace ValveResourceFormat.Renderer
 
                 if (PlaySoundEvents && clipEvent is NmSoundEvent soundEvent)
                 {
-                    PlayClipSound(clip, soundEvent, newTime);
+                    // The event fired somewhere inside (previousTime, newTime]: reconstruct its actual
+                    // time on the clip's unwrapped timeline so duration windows measure from the event
+                    // itself, not from the end of the frame that crossed it
+                    var fireTime = newTime - ((currentTime - clipEvent.StartTime + duration) % duration);
+                    PlayClipSound(clip, soundEvent, fireTime);
                 }
             }
         }
@@ -296,6 +300,9 @@ namespace ValveResourceFormat.Renderer
                         {
                             clip.IsPaused = true;
                             clip.Frame = lastFrame;
+                            // Clamp the overshoot: FireClipEvents wraps time modulo the clip duration,
+                            // so time past the end would re-fire events near the start of the clip
+                            clip.Time = maxTime;
                         }
                     }
 

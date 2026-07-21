@@ -106,7 +106,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation2
         private static float GetTimeValue(KVObject eventData, string name)
         {
             return eventData.TryGetValue(name, out _)
-                ? eventData.GetSubCollection(name).GetFloatProperty("m_flValue")
+                ? eventData.GetSubCollection(name)?.GetFloatProperty("m_flValue") ?? 0f
                 : 0f;
         }
     }
