@@ -635,6 +635,14 @@ namespace GUI.Types.Viewers
                 }
             }
 
+            // HLA/SteamVR-era models and compiled Deadlock AG1 bind their graph through the keyvalues block.
+            var kvGraphPath = model.KeyValues.GetStringProperty("anim_graph_resource");
+
+            if (!string.IsNullOrEmpty(kvGraphPath) && !graphPaths.Contains(kvGraphPath))
+            {
+                graphPaths.Add(kvGraphPath);
+            }
+
             foreach (var path in graphPaths)
             {
                 GLGraphViewer viewer;
