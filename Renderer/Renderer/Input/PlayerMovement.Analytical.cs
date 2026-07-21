@@ -380,6 +380,52 @@ public partial class PlayerMovement
     }
 
     /// <summary>
+    /// Exact displacement of a gate-bound frame in the exponential regime: the ODE runs
+    /// until the wishdir component reaches wishspeed, then the pinned phase holds it there
+    /// while the perpendicular component keeps decaying under friction.
+    /// </summary>
+    private static Vector3 GateBoundDisplacement(Vector3 v0, Vector3 wishdir, float wishspeed, Vector3 equilibrium, float deltaTime, float frictionRate)
+    {
+        var along0 = Vector3.Dot(v0, wishdir);
+        var equilibriumAlong = Vector3.Dot(equilibrium, wishdir);
+
+        // Time the wishdir component crosses wishspeed: u* = e^(-k·t*)
+        var pinTime = 0f;
+
+        if (along0 < wishspeed)
+        {
+            var denominator = along0 - equilibriumAlong;
+
+            if (MathF.Abs(denominator) < 1e-6f)
+            {
+                return TrapezoidDisplacement(v0, wishspeed * wishdir + (v0 - along0 * wishdir) * MathF.Exp(-frictionRate * deltaTime), deltaTime);
+            }
+
+            var uCross = (wishspeed - equilibriumAlong) / denominator;
+
+            if (uCross <= 0f || uCross >= 1f)
+            {
+                return TrapezoidDisplacement(v0, wishspeed * wishdir + (v0 - along0 * wishdir) * MathF.Exp(-frictionRate * deltaTime), deltaTime);
+            }
+
+            pinTime = MathF.Min(MathF.Log(uCross) / -frictionRate, deltaTime);
+        }
+
+        var displacement = LinearOdeDisplacement(v0, equilibrium, pinTime, frictionRate);
+
+        var pinned = deltaTime - pinTime;
+
+        if (pinned > 0f)
+        {
+            var perp0 = v0 - along0 * wishdir;
+            displacement += wishspeed * pinned * wishdir
+                + perp0 * ((MathF.Exp(-frictionRate * pinTime) - MathF.Exp(-frictionRate * deltaTime)) / frictionRate);
+        }
+
+        return displacement;
+    }
+
+    /// <summary>
     /// Second-order fallback displacement for trajectories without an implemented closed
     /// form; exact whenever velocity is linear in time over the frame.
     /// </summary>
