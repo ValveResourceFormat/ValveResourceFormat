@@ -435,6 +435,23 @@ public partial class PlayerMovement
     }
 
     /// <summary>
+    /// Normalizes an angle to +-pi.
+    /// </summary>
+    private static double NormalizeAngle(double angle)
+    {
+        // Reduce angle to [-2pi, 2pi]
+        double normalized = angle % (2 * Math.PI);
+
+        // Shift to [-pi, pi]
+        if (normalized > Math.PI)
+            normalized -= 2 * Math.PI;
+        else if (normalized < -Math.PI)
+            normalized += 2 * Math.PI;
+
+        return normalized;
+    }
+
+    /// <summary>
     /// Tickless air strafe: the frame's uniform view rotation is integrated exactly by a
     /// three-regime state machine (per H7perus' CSGO-Tickless-Movement analysis), so
     /// strafe gain depends on degrees turned and the accel rate, not framerate.
@@ -473,6 +490,7 @@ public partial class PlayerMovement
         const int MaxPhases = 10;
         const float AngleEpsilon = 1e-7f;
 
+
         for (var phase = 0; phase < MaxPhases; phase++)
         {
             if (theta >= turn - AngleEpsilon)
@@ -480,7 +498,14 @@ public partial class PlayerMovement
                 return new Vector3(vx, vy, velocity.Z);
             }
 
-            var (sinR, cosR) = MathF.SinCos(startAngle + turnSign * theta);
+            //TODO: Maybe rename this here, idk
+            var stepEndAngle = (float)NormalizeAngle(startAngle + turnSign * theta);
+
+
+
+            var sinR = MathF.Sin(stepEndAngle);
+            var cosR = MathF.Sin(stepEndAngle > 0 ? MathF.PI / 2 - stepEndAngle : stepEndAngle + MathF.PI / 2);
+
             var g = vx * cosR + vy * sinR;
             var q = turnSign * (cosR * vy - sinR * vx);
 
@@ -509,18 +534,24 @@ public partial class PlayerMovement
             {
                 // Pinned: hold g at the cap until the required rate |q| reaches the
                 // available rate or the frame ends
+
+                //TODO: Second part of this min(a, b) has to be explained properly
                 var step = MathF.Min(turn - theta, (accelPerRadian + q) / cap);
+
                 theta += step;
                 q -= cap * step;
 
-                (sinR, cosR) = MathF.SinCos(startAngle + turnSign * theta);
+                stepEndAngle = (float)NormalizeAngle(startAngle + turnSign * theta);
+
+                sinR = MathF.Sin(stepEndAngle);
+                cosR = MathF.Sin(stepEndAngle > 0 ? MathF.PI / 2 - stepEndAngle : stepEndAngle + MathF.PI / 2);
+
                 vx = cap * cosR - q * turnSign * sinR;
                 vy = cap * sinR + q * turnSign * cosR;
                 continue;
             }
 
             // Below the cap, or at it with the pin unaffordable: full accel
-
             {
                 // Full accel along the rotating wishdir: g(θ) = R·sin(θ+φ) with
                 // g' = q + A', so the upward crossing of the cap is in closed form
@@ -551,10 +582,15 @@ public partial class PlayerMovement
                 }
 
                 // Spiral integral of the constant accel rate over the rotation
-                var (sinR2, cosR2) = MathF.SinCos(startAngle + turnSign * (theta + step));
+                theta += step;
+
+                stepEndAngle = (float)NormalizeAngle(startAngle + turnSign * theta);
+
+                var sinR2 = MathF.Sin(stepEndAngle);
+                var cosR2 = MathF.Sin(stepEndAngle > 0 ? MathF.PI / 2 - stepEndAngle : stepEndAngle + MathF.PI / 2);
+
                 vx += accelPerRadian * turnSign * (sinR2 - sinR);
                 vy += accelPerRadian * turnSign * (cosR - cosR2);
-                theta += step;
             }
         }
 
