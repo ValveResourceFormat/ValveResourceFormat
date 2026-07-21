@@ -1076,10 +1076,10 @@ public partial class PlayerMovement
 
         var cap = Math.Min(wishspeed, AirMaxWishSpeed);
 
-        // Note: the budget uses original wishspeed, NOT the capped value
-        var budget = AirAccelerateValue * wishspeed * deltaTime * SurfaceFriction;
+        // Note: the accel rate uses original wishspeed, NOT the capped value
+        var accelRate = AirAccelerateValue * wishspeed * SurfaceFriction;
 
-        if (TicklessAirStrafe(Velocity, wishdir, cap, yawDelta, budget) is Vector3 strafed)
+        if (TicklessAirStrafe(Velocity, wishdir, cap, yawDelta, accelRate, deltaTime) is Vector3 strafed)
         {
             Velocity = strafed;
             return;
@@ -1093,7 +1093,7 @@ public partial class PlayerMovement
             return;
         }
 
-        Velocity += Math.Min(budget, addspeed) * wishdir;
+        Velocity += Math.Min(accelRate * deltaTime, addspeed) * wishdir;
     }
 
     /// <summary>
