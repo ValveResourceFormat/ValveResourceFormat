@@ -45,6 +45,9 @@ partial class GraphView : IDisposable
     public int NodeCount => nodes.Count;
     public int WireCount => wires.Count;
 
+    /// <summary>Live node list in z-order; do not mutate.</summary>
+    public IReadOnlyList<GraphNode> Nodes => nodes;
+
     /// <summary>Monotonic counter of visual state changes; the host skips repainting while it is stable.</summary>
     public int VisualVersion { get; private set; }
 

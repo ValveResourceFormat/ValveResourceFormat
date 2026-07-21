@@ -266,6 +266,35 @@ internal class EntityIOGraphViewer : GLGraphViewer
     protected override string? DescribeNodeData(GraphNode node)
         => node.Tag is EntityLump.Entity entity ? KVGraphNode.DumpTree(entity) : base.DescribeNodeData(node);
 
+    // Map-spawn logic entities first, then the generic no-upstream roots.
+    protected override List<GraphNode> GetEntryPoints()
+    {
+        var result = new List<GraphNode>();
+
+        foreach (var node in View.Nodes)
+        {
+            if (node.Subtitle == "logic_auto" || node.Outputs.Exists(static o => o.Name.StartsWith("OnMapSpawn", StringComparison.OrdinalIgnoreCase)))
+            {
+                result.Add(node);
+            }
+        }
+
+        foreach (var node in base.GetEntryPoints())
+        {
+            if (!result.Contains(node))
+            {
+                result.Add(node);
+            }
+        }
+
+        if (result.Count > 20)
+        {
+            result.RemoveRange(20, result.Count - 20);
+        }
+
+        return result;
+    }
+
     public override void Dispose()
     {
         base.Dispose();
@@ -465,6 +494,9 @@ internal class EntityIOGraphViewer : GLGraphViewer
                     Tag = entity,
                 });
             }
+
+            // Double click and the context menu jump to the asset the entity references.
+            node.ExternalResourceName ??= entity.GetStringProperty("model") ?? entity.GetStringProperty("effect_name");
 
             entityNodes[entity] = node;
             return node;

@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Linq;
 using System.Text;
 using System.Windows.Forms;
 using GUI.Controls;
@@ -123,6 +124,7 @@ namespace GUI.Types.GLViewers
                 AddXrefPanel();
                 AddInspectorPanel();
                 AddHubsPanel();
+                AddEntryPointsPanel();
                 AddLegendPanel();
 
                 View.SelectionChanged += OnViewSelectionChanged;
@@ -355,6 +357,80 @@ namespace GUI.Types.GLViewers
             };
             hubsList.Height = hubsList.ItemHeight * hubsList.Items.Count + 6;
             UiControl.AddControl(hubsList);
+        }
+
+        /// <summary>Nodes execution originates from: wired outputs but nothing incoming.</summary>
+        protected virtual List<GraphNode> GetEntryPoints()
+        {
+            var roots = new List<(GraphNode Node, int OutDegree)>();
+
+            foreach (var node in View.Nodes)
+            {
+                var hasIncoming = false;
+
+                foreach (var socket in node.Inputs)
+                {
+                    hasIncoming |= socket.Wires.Count > 0;
+                }
+
+                if (hasIncoming)
+                {
+                    continue;
+                }
+
+                var outDegree = 0;
+
+                foreach (var socket in node.Outputs)
+                {
+                    outDegree += socket.Wires.Count;
+                }
+
+                if (outDegree > 0)
+                {
+                    roots.Add((node, outDegree));
+                }
+            }
+
+            roots.Sort(static (a, b) => b.OutDegree.CompareTo(a.OutDegree));
+            return [.. roots.Select(static r => r.Node).Take(20)];
+        }
+
+        private ListBox? entryPointsList;
+        private readonly List<GraphNode> entryPointTargets = [];
+
+        // Where execution starts: map-spawn logic, inflow cells, unreferenced roots.
+        private void AddEntryPointsPanel()
+        {
+            Debug.Assert(UiControl != null);
+
+            var entryPoints = GetEntryPoints();
+
+            if (entryPoints.Count == 0)
+            {
+                return;
+            }
+
+            entryPointsList = new ListBox
+            {
+                IntegralHeight = false,
+                HorizontalScrollbar = true,
+            };
+
+            foreach (var node in entryPoints)
+            {
+                entryPointsList.Items.Add(node.Subtitle != null ? $"{node.Title}  ({node.Subtitle})" : node.Title);
+                entryPointTargets.Add(node);
+            }
+
+            entryPointsList.Click += (_, _) =>
+            {
+                if (entryPointsList.SelectedIndex >= 0 && entryPointsList.SelectedIndex < entryPointTargets.Count)
+                {
+                    FocusNode(entryPointTargets[entryPointsList.SelectedIndex]);
+                }
+            };
+            entryPointsList.Height = entryPointsList.ItemHeight * entryPointsList.Items.Count + 6;
+            UiControl.AddControl(entryPointsList);
         }
 
         private static string BuildNodeText(GraphNode node)
@@ -1006,6 +1082,7 @@ namespace GUI.Types.GLViewers
             xrefList?.Dispose();
             inspectorBox?.Dispose();
             hubsList?.Dispose();
+            entryPointsList?.Dispose();
             View.SelectionChanged -= OnViewSelectionChanged;
             View.GraphChanged -= OnGraphChanged;
 
