@@ -8,6 +8,7 @@ partial class GraphView
     private const float HeaderHeight = 26f;
     private const float CornerRadius = 5f;
     private const float RowPitch = 22f;
+    private const float CompactRowPitch = 14f;
     private const float RowStartPad = 6f;
     private const float BottomPad = 8f;
     private const float MarginX = 10f;
@@ -156,6 +157,9 @@ partial class GraphView
             return false;
         }
 
+        BuildLayoutRows(node, geometry);
+        var layoutRows = geometry.LayoutRows;
+
         var width = MarginX * 2f + TitleFont.MeasureText(node.Title);
 
         if (!string.IsNullOrEmpty(node.Subtitle))
@@ -165,7 +169,7 @@ partial class GraphView
 
         width = Math.Max(MinWidth, width);
 
-        foreach (var row in node.Rows)
+        foreach (var row in layoutRows)
         {
             var rowWidth = row switch
             {
@@ -183,18 +187,30 @@ partial class GraphView
             width = Math.Max(width, rowWidth);
         }
 
-        var height = node.Rows.Count > 0
-            ? HeaderHeight + RowStartPad + node.Rows.Count * RowPitch + BottomPad
+        var rowsHeight = 0f;
+
+        foreach (var row in layoutRows)
+        {
+            rowsHeight += PitchOf(row);
+        }
+
+        var height = layoutRows.Count > 0
+            ? HeaderHeight + RowStartPad + rowsHeight + BottomPad
             : HeaderHeight + 14f;
 
         // Room for the header entity icon; the title starts after it.
         width += node.IconKey != null ? HeaderHeight : 0f;
 
-        for (var i = 0; i < node.Rows.Count; i++)
+        geometry.RowCenters = new float[layoutRows.Count];
+        var rowTop = HeaderHeight + RowStartPad;
+
+        for (var i = 0; i < layoutRows.Count; i++)
         {
-            var row = node.Rows[i];
-            var centerOffsetY = HeaderHeight + RowStartPad + i * RowPitch + RowPitch * 0.5f;
-            Geometry.SetRowCenter(row, centerOffsetY);
+            var row = layoutRows[i];
+            var pitch = PitchOf(row);
+            var centerOffsetY = rowTop + pitch * 0.5f;
+            rowTop += pitch;
+            geometry.RowCenters[i] = centerOffsetY;
 
             if (row is SocketRow socketRow)
             {
@@ -217,6 +233,64 @@ partial class GraphView
         geometry.Size = new Vector2(width, height);
         geometry.ComputedVersion = node.ContentVersion;
         return true;
+    }
+
+    // Socket rows without any name carry only the dot; they stack tighter than text rows.
+    private static float PitchOf(GraphRow row) => row switch
+    {
+        SocketRow socket when socket.Socket.Name.Length == 0 => CompactRowPitch,
+        PairedSocketRow paired when paired.Input is not { Name.Length: > 0 } &&
+                                    paired.Output is not { Name.Length: > 0 } => CompactRowPitch,
+        _ => RowPitch,
+    };
+
+    // Consecutive socket rows collapse into shared input|output lines; anything else keeps
+    // its own row. Frontend-declared paired rows pass through untouched.
+    private static void BuildLayoutRows(GraphNode node, NodeGeometry geometry)
+    {
+        var layoutRows = geometry.LayoutRows;
+        layoutRows.Clear();
+
+        var runInputs = new List<GraphSocket>();
+        var runOutputs = new List<GraphSocket>();
+
+        void FlushRun()
+        {
+            var count = Math.Max(runInputs.Count, runOutputs.Count);
+
+            for (var i = 0; i < count; i++)
+            {
+                var input = i < runInputs.Count ? runInputs[i] : null;
+                var output = i < runOutputs.Count ? runOutputs[i] : null;
+
+                if (input != null && output != null)
+                {
+                    layoutRows.Add(new PairedSocketRow(input, output));
+                }
+                else
+                {
+                    layoutRows.Add(new SocketRow((input ?? output)!));
+                }
+            }
+
+            runInputs.Clear();
+            runOutputs.Clear();
+        }
+
+        foreach (var row in node.Rows)
+        {
+            if (row is SocketRow socketRow)
+            {
+                (socketRow.Socket.IsInput ? runInputs : runOutputs).Add(socketRow.Socket);
+            }
+            else
+            {
+                FlushRun();
+                layoutRows.Add(row);
+            }
+        }
+
+        FlushRun();
     }
 
     public void RenderToCanvas(SKCanvas canvas, SKRect visibleRect, float zoom)
@@ -542,9 +616,19 @@ partial class GraphView
             return;
         }
 
+        var route = Geometry.TryRouteOf(wire);
+
+        // A self-wire without a route would draw straight through its own card; give it
+        // the deterministic synthetic loop instead.
+        if (wire.From.Owner == wire.To.Owner && (route == null || (route.Waypoints == null && route.CurvePath == null)))
+        {
+            GraphLayout.SynthesizeSelfLoop(wire, Geometry);
+            route = Geometry.TryRouteOf(wire);
+        }
+
         var path = wirePath;
         path.Reset();
-        BuildWirePath(path, Geometry.TryRouteOf(wire), from, to);
+        BuildWirePath(path, route, from, to);
 
         var width = WireWidth * Math.Max(1f, 1f / zoom);
 
@@ -705,9 +789,12 @@ partial class GraphView
             return;
         }
 
-        foreach (var row in node.Rows)
+        var geometry = Geometry.NodeOf(node);
+
+        for (var rowIndex = 0; rowIndex < geometry.LayoutRows.Count; rowIndex++)
         {
-            var rowCenterY = y + Geometry.RowCenterOf(row);
+            var row = geometry.LayoutRows[rowIndex];
+            var rowCenterY = y + geometry.RowCenters[rowIndex];
 
             switch (row)
             {

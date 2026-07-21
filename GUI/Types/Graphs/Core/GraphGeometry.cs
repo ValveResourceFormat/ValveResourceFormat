@@ -7,6 +7,15 @@ sealed class NodeGeometry
 
     /// <summary>The <see cref="GraphNode.ContentVersion"/> the size and offsets were computed for.</summary>
     public int ComputedVersion = -1;
+
+    /// <summary>
+    /// Presentation rows: consecutive socket rows collapse into shared input|output lines;
+    /// text rows pass through. Parallel to <see cref="RowCenters"/>.
+    /// </summary>
+    public List<GraphRow> LayoutRows = [];
+
+    /// <summary>Row baselines as offsets from the node top, parallel to <see cref="LayoutRows"/>.</summary>
+    public float[] RowCenters = [];
 }
 
 /// <summary>Routed geometry of one wire; both stay null for a plain socket-to-socket curve.</summary>
@@ -31,7 +40,6 @@ internal sealed class GraphGeometry
 {
     private readonly Dictionary<GraphNode, NodeGeometry> nodes = [];
     private readonly Dictionary<GraphSocket, Vector2> pivotOffsets = [];
-    private readonly Dictionary<GraphRow, float> rowCenters = [];
     private readonly Dictionary<GraphWire, WireRoute> routes = [];
 
     public NodeGeometry NodeOf(GraphNode node)
@@ -53,11 +61,6 @@ internal sealed class GraphGeometry
 
     /// <summary>Absolute canvas position of a socket.</summary>
     public Vector2 PivotOf(GraphSocket socket) => socket.Owner.Position + PivotOffsetOf(socket);
-
-    public void SetRowCenter(GraphRow row, float centerOffsetY) => rowCenters[row] = centerOffsetY;
-
-    /// <summary>Row baseline as an offset from the node top.</summary>
-    public float RowCenterOf(GraphRow row) => rowCenters.GetValueOrDefault(row);
 
     public WireRoute RouteOf(GraphWire wire)
     {

@@ -18,7 +18,6 @@
     <NoWarn>$(NoWarn);NU1901;NU1902;NU1903</NoWarn>
   </PropertyGroup>
   <ItemGroup>
-    <PackageReference Include="Msagl" Version="1.2.1" />
     <PackageReference Include="FCTB" Version="2.16.24">
         <NoWarn>NU1701</NoWarn>
     </PackageReference>

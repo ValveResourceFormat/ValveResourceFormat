@@ -64,7 +64,7 @@ partial class GraphView : IDisposable
     }
 
     /// <summary>Node placement engine used by <see cref="LayoutNodesPacked"/>.</summary>
-    public GraphPlacement Placement { get; set; } = GraphPlacement.Organic;
+    public GraphPlacement Placement { get; set; } = GraphPlacement.Layered;
 
     /// <summary>Legend rows describing this graph's color semantics, declared by the frontend.</summary>
     public List<GraphLegendEntry> Legend { get; } = [];
@@ -74,8 +74,11 @@ partial class GraphView : IDisposable
         Palette = palette ?? GraphPalette.ForCurrentTheme();
     }
 
+    private int nextNodeSequence;
+
     public T AddNode<T>(T node) where T : GraphNode
     {
+        node.Sequence = nextNodeSequence++;
         nodes.Add(node);
         return node;
     }
@@ -321,7 +324,25 @@ partial class GraphView : IDisposable
             !w.From.Owner.Hidden && !w.To.Owner.Hidden &&
             (movedNodes.Contains(w.From.Owner) || movedNodes.Contains(w.To.Owner))).ToList();
 
-        MsaglLayoutAdapter.RouteComponent(component, movedWires, Geometry);
+        // Dropped wires re-anchor as plain curves; only self-loops carry a synthetic
+        // route that must be rebuilt around the new position.
+        foreach (var wire in movedWires)
+        {
+            if (wire.From.Owner == wire.To.Owner)
+            {
+                GraphLayout.SynthesizeSelfLoop(wire, Geometry);
+                continue;
+            }
+
+            var route = Geometry.TryRouteOf(wire);
+
+            if (route != null)
+            {
+                route.CurvePath = null;
+                route.Waypoints = null;
+            }
+        }
+
         ClearWireHitPaths();
         OnGraphChanged();
     }
@@ -429,12 +450,12 @@ partial class GraphView : IDisposable
             // Self-loops keep their synthetic route pinned to the moving node.
             if (wire.From.Owner == wire.To.Owner)
             {
-                MsaglLayoutAdapter.SynthesizeSelfLoop(wire, Geometry);
+                GraphLayout.SynthesizeSelfLoop(wire, Geometry);
                 return;
             }
 
-            // A bundled curve cannot follow a moving node; fall back to the default
-            // bezier until the drop re-routes the island.
+            // A routed curve cannot follow a moving node; fall back to the default
+            // bezier until the drop re-anchors the island.
             var route = Geometry.TryRouteOf(wire);
 
             if (route != null)
@@ -824,9 +845,126 @@ partial class GraphView : IDisposable
     }
 
     /// <summary>
-    /// Lays out each connected component independently with MSAGL and packs the components into
-    /// rows. Suited for graphs made of many disjoint islands, like entity I/O. Hidden nodes keep
-    /// their positions and do not participate in layout or packing.
+    /// Keeps an authored node arrangement but scales it out from its centroid until no cards
+    /// overlap; editor formats store positions that assume smaller cards than ours.
+    /// </summary>
+    public void SpreadAuthoredLayout()
+    {
+        using var _ = stateLock.EnterScope();
+
+        EnsureAllGeometry();
+
+        const float Pad = 40f;
+        var centroid = Vector2.Zero;
+
+        foreach (var node in nodes)
+        {
+            centroid += node.Position + Geometry.SizeOf(node) / 2f;
+        }
+
+        centroid /= Math.Max(1, nodes.Count);
+
+        var scale = 1f;
+
+        for (var i = 0; i < nodes.Count; i++)
+        {
+            var a = nodes[i];
+            var aSize = Geometry.SizeOf(a);
+            var aCenter = a.Position + aSize / 2f;
+
+            for (var j = i + 1; j < nodes.Count; j++)
+            {
+                var b = nodes[j];
+                var bSize = Geometry.SizeOf(b);
+                var bCenter = b.Position + bSize / 2f;
+
+                var dx = Math.Abs(bCenter.X - aCenter.X);
+                var dy = Math.Abs(bCenter.Y - aCenter.Y);
+                var needX = (aSize.X + bSize.X) / 2f + Pad;
+                var needY = (aSize.Y + bSize.Y) / 2f + Pad;
+
+                if (dx >= needX || dy >= needY)
+                {
+                    continue;
+                }
+
+                // Scale along whichever axis separates this pair cheapest.
+                var scaleX = dx > 1f ? needX / dx : float.MaxValue;
+                var scaleY = dy > 1f ? needY / dy : float.MaxValue;
+                var pairScale = Math.Min(scaleX, scaleY);
+
+                if (pairScale < float.MaxValue)
+                {
+                    scale = Math.Max(scale, pairScale);
+                }
+            }
+        }
+
+        scale = Math.Min(scale, 6f);
+
+        if (scale > 1f)
+        {
+            foreach (var node in nodes)
+            {
+                var size = Geometry.SizeOf(node);
+                var center = node.Position + size / 2f;
+                node.Position = centroid + (center - centroid) * scale - size / 2f;
+            }
+        }
+
+        // Residual overlaps (coincident centers, extreme ratios) get pushed apart directly.
+        for (var pass = 0; pass < 64; pass++)
+        {
+            var moved = false;
+
+            for (var i = 0; i < nodes.Count; i++)
+            {
+                var a = nodes[i];
+                var aSize = Geometry.SizeOf(a);
+
+                for (var j = i + 1; j < nodes.Count; j++)
+                {
+                    var b = nodes[j];
+                    var bSize = Geometry.SizeOf(b);
+
+                    var overlapX = Math.Min(a.Position.X + aSize.X, b.Position.X + bSize.X) - Math.Max(a.Position.X, b.Position.X) + Pad;
+                    var overlapY = Math.Min(a.Position.Y + aSize.Y, b.Position.Y + bSize.Y) - Math.Max(a.Position.Y, b.Position.Y) + Pad;
+
+                    if (overlapX <= 0 || overlapY <= 0)
+                    {
+                        continue;
+                    }
+
+                    moved = true;
+
+                    if (overlapX < overlapY)
+                    {
+                        var push = overlapX / 2f * (a.Position.X <= b.Position.X ? 1f : -1f);
+                        a.Position -= new Vector2(push, 0f);
+                        b.Position += new Vector2(push, 0f);
+                    }
+                    else
+                    {
+                        var push = overlapY / 2f * (a.Position.Y <= b.Position.Y ? 1f : -1f);
+                        a.Position -= new Vector2(0f, push);
+                        b.Position += new Vector2(0f, push);
+                    }
+                }
+            }
+
+            if (!moved)
+            {
+                break;
+            }
+        }
+
+        MarkVisualDirty();
+    }
+
+    /// <summary>
+    /// Lays out each connected component independently and packs the components toward a
+    /// screen-like aspect. Suited for graphs made of many disjoint islands, like entity I/O.
+    /// Hidden nodes keep their positions and do not participate in layout or packing.
     /// </summary>
     public void LayoutNodesPacked(float padding = 150f)
     {
@@ -842,6 +980,17 @@ partial class GraphView : IDisposable
         Geometry.ClearAllRoutes();
 
         var components = GetVisibleComponents();
+
+        // Component discovery walks the z-ordered node list, which mutates as nodes are
+        // clicked; layout runs on the stable creation order instead so a relayout always
+        // reproduces the load-time picture.
+        foreach (var component in components)
+        {
+            component.Sort(static (a, b) => a.Sequence.CompareTo(b.Sequence));
+        }
+
+        components.Sort(static (a, b) => a[0].Sequence.CompareTo(b[0].Sequence));
+
         var componentOf = new Dictionary<GraphNode, int>();
 
         for (var i = 0; i < components.Count; i++)
@@ -877,7 +1026,7 @@ partial class GraphView : IDisposable
                 continue;
             }
 
-            MsaglLayoutAdapter.Layout(component, componentWires[i], Placement, Geometry);
+            GraphLayout.Layout(component, componentWires[i], Placement, Geometry);
         }
 
         // Pack the island bounding boxes toward a screen-like aspect so large graphs open
@@ -900,7 +1049,7 @@ partial class GraphView : IDisposable
             sizes[i] = max - min;
         }
 
-        var origins = MsaglLayoutAdapter.PackComponents(sizes, padding);
+        var origins = GraphLayout.PackComponents(sizes, padding);
 
         for (var i = 0; i < components.Count; i++)
         {

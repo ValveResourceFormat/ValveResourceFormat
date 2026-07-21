@@ -252,9 +252,12 @@ internal class AG1GraphViewer : GLGraphViewer
         if (isUncompiledAnimationGraph)
         {
             // HLA and SteamVR Home ship standalone vanmgrph files in the editor format;
-            // it even carries the authored canvas positions, so no layout pass runs.
+            // it even carries the authored canvas positions, so no layout pass runs. Our
+            // cards are bigger than the editor's, so the arrangement gets spread out until
+            // nothing overlaps.
             compiledNodes = Array.Empty<KVObject>();
             BuildEditorGraph();
+            View.SpreadAuthoredLayout();
 
             View.Legend.AddRange(
             [

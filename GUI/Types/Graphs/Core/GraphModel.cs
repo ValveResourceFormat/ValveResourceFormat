@@ -15,6 +15,9 @@ class GraphNode : IGraphElement
     public string Title { get; set; } = string.Empty;
     public string? Subtitle { get; set; }
 
+    /// <summary>Stable creation order; layout runs in this order, independent of z-order.</summary>
+    public int Sequence { get; internal set; }
+
     /// <summary>Header band hue. When null, the hue of the first output (or first input) socket is used.</summary>
     public GraphHue? Category { get; set; }
 

@@ -30,46 +30,6 @@ class KVGraphNode : GraphNode
         set => Subtitle = value;
     }
 
-    /// <summary>Indented text dump of the backing data for the inspector panel and clipboard.</summary>
-    public string? DumpData() => Data == null ? null : DumpTree(Data);
-
-    /// <summary>Indented text dump of any KV tree.</summary>
-    internal static string DumpTree(KVObject obj)
-    {
-        if (obj.ValueType != KVValueType.Collection)
-        {
-            return StringifyValue(obj);
-        }
-
-        var sb = new StringBuilder();
-
-        foreach (var (name, value) in obj)
-        {
-            AppendTree(sb, name, value, 0);
-        }
-
-        return sb.ToString();
-    }
-
-    private static void AppendTree(StringBuilder sb, string name, KVObject value, int indent)
-    {
-        sb.Append(' ', indent * 4).Append(name);
-
-        if (value.ValueType == KVValueType.Collection)
-        {
-            sb.AppendLine();
-
-            foreach (var (childName, childValue) in value)
-            {
-                AppendTree(sb, childName, childValue, indent + 1);
-            }
-        }
-        else
-        {
-            sb.Append(" = ").AppendLine(StringifyValue(value));
-        }
-    }
-
     /// <summary>Single-line display form of a KV value.</summary>
     internal static string StringifyValue(KVObject obj)
     {

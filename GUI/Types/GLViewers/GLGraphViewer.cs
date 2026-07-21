@@ -1,6 +1,5 @@
 using System.Diagnostics;
 using System.Linq;
-using System.Text;
 using System.Windows.Forms;
 using GUI.Controls;
 using GUI.Types.Graphs;
@@ -51,11 +50,6 @@ namespace GUI.Types.GLViewers
         private ThemedTextBox? searchBox;
         private Panel? legendPanel;
         private GraphNode? lastSearchResult;
-        private ListBox? xrefList;
-        private readonly List<GraphNode> xrefTargets = [];
-        private ThemedTextBox? inspectorBox;
-        private ListBox? hubsList;
-        private readonly List<GraphNode> hubTargets = [];
         private readonly HashSet<GraphHue> legendFilter = [];
 
         protected override void AddUiControls()
@@ -77,10 +71,29 @@ namespace GUI.Types.GLViewers
                 searchBox = new ThemedTextBox
                 {
                     PlaceholderText = "Name search (Enter = next)",
+                    BorderStyle = BorderStyle.None,
+                    Dock = DockStyle.Fill,
                 };
                 searchBox.KeyDown += OnSearchKeyDown;
                 searchBox.TextChanged += (_, _) => View.SetSearchHighlight(searchBox.Text);
-                UiControl.AddControl(searchBox);
+
+                // The themed textbox melts into the sidebar; a one-pixel outline panel plus
+                // vertical breathing room keeps the search field visible below the dropdown.
+                var searchOutline = new Panel
+                {
+                    Padding = new Padding(1),
+                    BackColor = Themer.CurrentThemeColors.ContrastSoft,
+                    Dock = DockStyle.Fill,
+                };
+                searchOutline.Controls.Add(searchBox);
+
+                var searchSection = new Panel
+                {
+                    Padding = new Padding(0, 8, 0, 8),
+                    Height = UiControl.AdjustForDPI(40),
+                };
+                searchSection.Controls.Add(searchOutline);
+                UiControl.AddControl(searchSection);
 
                 var suppressPlacementChange = true;
                 var placementCombo = UiControl.AddSelection("Layout", (_, index) =>
@@ -94,7 +107,7 @@ namespace GUI.Types.GLViewers
                     View.LayoutNodesPacked();
                     RefitToGraph();
                 });
-                placementCombo.Items.AddRange(new object[] { "Organic (MDS)", "Layered (Sugiyama)" });
+                placementCombo.Items.AddRange(new object[] { "Layered (Sugiyama)", "Organic (MDS)" });
                 placementCombo.SelectedIndex = (int)View.Placement;
                 suppressPlacementChange = false;
 
@@ -121,22 +134,16 @@ namespace GUI.Types.GLViewers
                     }
                 }
 
-                AddXrefPanel();
-                AddInspectorPanel();
-                AddHubsPanel();
-                AddEntryPointsPanel();
                 AddLegendPanel();
-
-                View.SelectionChanged += OnViewSelectionChanged;
 
                 // Top of the sidebar, above the base viewer buttons: search second, the
                 // layout dropdown at the very top (SendToBack order is bottom-up). The combo
                 // is nested inside its selection control; reorder that sidebar child.
-                searchBox.SendToBack();
+                searchSection.SendToBack();
 
                 Control placementSection = placementCombo;
 
-                while (placementSection.Parent != null && placementSection.Parent != searchBox.Parent)
+                while (placementSection.Parent != null && placementSection.Parent != searchSection.Parent)
                 {
                     placementSection = placementSection.Parent;
                 }
@@ -212,264 +219,6 @@ namespace GUI.Types.GLViewers
             }
 
             FocusNode(match);
-        }
-
-        private void OnViewSelectionChanged(object? sender, System.EventArgs e)
-        {
-            RefreshXrefPanel();
-            RefreshInspectorPanel();
-        }
-
-        // Incoming and outgoing wires of the selected node as clickable jump rows.
-        private void AddXrefPanel()
-        {
-            Debug.Assert(UiControl != null);
-
-            xrefList = new ListBox
-            {
-                IntegralHeight = false,
-                HorizontalScrollbar = true,
-                Visible = false,
-            };
-            xrefList.Click += (_, _) =>
-            {
-                if (xrefList.SelectedIndex >= 0 && xrefList.SelectedIndex < xrefTargets.Count)
-                {
-                    FocusNode(xrefTargets[xrefList.SelectedIndex]);
-                }
-            };
-            UiControl.AddControl(xrefList);
-        }
-
-        private void RefreshXrefPanel()
-        {
-            if (xrefList == null || UiControl == null)
-            {
-                return;
-            }
-
-            xrefList.BeginUpdate();
-            xrefList.Items.Clear();
-            xrefTargets.Clear();
-
-            void AddRow(string text, GraphNode target)
-            {
-                xrefList.Items.Add(text);
-                xrefTargets.Add(target);
-            }
-
-            static string LabelSuffix(GraphWire wire) => wire.Label != null ? $"  ({wire.Label})" : string.Empty;
-
-            if (View.Selection.PrimaryNode is { } node)
-            {
-                foreach (var socket in node.Inputs)
-                {
-                    foreach (var wire in socket.Wires)
-                    {
-                        AddRow($"◀ {wire.From.Owner.Title}.{wire.From.Name}{LabelSuffix(wire)}", wire.From.Owner);
-                    }
-                }
-
-                foreach (var socket in node.Outputs)
-                {
-                    foreach (var wire in socket.Wires)
-                    {
-                        AddRow($"▶ {wire.To.Owner.Title}.{wire.To.Name}{LabelSuffix(wire)}", wire.To.Owner);
-                    }
-                }
-            }
-            else if (View.Selection.Wire is { } wire)
-            {
-                AddRow($"◀ {wire.From.Owner.Title}.{wire.From.Name}", wire.From.Owner);
-                AddRow($"▶ {wire.To.Owner.Title}.{wire.To.Name}", wire.To.Owner);
-            }
-
-            xrefList.EndUpdate();
-            xrefList.Visible = xrefTargets.Count > 0;
-            xrefList.Height = Math.Min(
-                xrefList.ItemHeight * Math.Max(1, xrefList.Items.Count) + 6,
-                UiControl.AdjustForDPI(240));
-        }
-
-        // Raw backing data of the selected node, including the fields the node rows omit.
-        private void AddInspectorPanel()
-        {
-            Debug.Assert(UiControl != null);
-
-            inspectorBox = new ThemedTextBox
-            {
-                Multiline = true,
-                ReadOnly = true,
-                WordWrap = false,
-                ScrollBars = ScrollBars.Both,
-                Visible = false,
-                Height = UiControl.AdjustForDPI(220),
-            };
-            UiControl.AddControl(inspectorBox);
-        }
-
-        private void RefreshInspectorPanel()
-        {
-            if (inspectorBox == null)
-            {
-                return;
-            }
-
-            var text = View.Selection.PrimaryNode is { } node ? DescribeNodeData(node) : null;
-            inspectorBox.Text = text ?? string.Empty;
-            inspectorBox.Visible = text != null;
-        }
-
-        /// <summary>Raw backing-data dump of a node for the inspector panel and clipboard; null hides both.</summary>
-        protected virtual string? DescribeNodeData(GraphNode node)
-            => node is KVGraphNode { Data: not null } kvNode ? kvNode.DumpData() : null;
-
-        // Most connected nodes; degree centrality points at the hub worth reading first.
-        private void AddHubsPanel()
-        {
-            Debug.Assert(UiControl != null);
-
-            var hubs = View.GetTopConnectedNodes(10);
-
-            if (hubs.Count < 2)
-            {
-                return;
-            }
-
-            hubsList = new ListBox
-            {
-                IntegralHeight = false,
-                HorizontalScrollbar = true,
-            };
-
-            foreach (var (node, degree) in hubs)
-            {
-                hubsList.Items.Add($"{degree} × {node.Title}");
-                hubTargets.Add(node);
-            }
-
-            hubsList.Click += (_, _) =>
-            {
-                if (hubsList.SelectedIndex >= 0 && hubsList.SelectedIndex < hubTargets.Count)
-                {
-                    FocusNode(hubTargets[hubsList.SelectedIndex]);
-                }
-            };
-            hubsList.Height = hubsList.ItemHeight * hubsList.Items.Count + 6;
-            UiControl.AddControl(hubsList);
-        }
-
-        /// <summary>Nodes execution originates from: wired outputs but nothing incoming.</summary>
-        protected virtual List<GraphNode> GetEntryPoints()
-        {
-            var roots = new List<(GraphNode Node, int OutDegree)>();
-
-            foreach (var node in View.Nodes)
-            {
-                var hasIncoming = false;
-
-                foreach (var socket in node.Inputs)
-                {
-                    hasIncoming |= socket.Wires.Count > 0;
-                }
-
-                if (hasIncoming)
-                {
-                    continue;
-                }
-
-                var outDegree = 0;
-
-                foreach (var socket in node.Outputs)
-                {
-                    outDegree += socket.Wires.Count;
-                }
-
-                if (outDegree > 0)
-                {
-                    roots.Add((node, outDegree));
-                }
-            }
-
-            roots.Sort(static (a, b) => b.OutDegree.CompareTo(a.OutDegree));
-            return [.. roots.Select(static r => r.Node).Take(20)];
-        }
-
-        private ListBox? entryPointsList;
-        private readonly List<GraphNode> entryPointTargets = [];
-
-        // Where execution starts: map-spawn logic, inflow cells, unreferenced roots.
-        private void AddEntryPointsPanel()
-        {
-            Debug.Assert(UiControl != null);
-
-            var entryPoints = GetEntryPoints();
-
-            if (entryPoints.Count == 0)
-            {
-                return;
-            }
-
-            entryPointsList = new ListBox
-            {
-                IntegralHeight = false,
-                HorizontalScrollbar = true,
-            };
-
-            foreach (var node in entryPoints)
-            {
-                entryPointsList.Items.Add(node.Subtitle != null ? $"{node.Title}  ({node.Subtitle})" : node.Title);
-                entryPointTargets.Add(node);
-            }
-
-            entryPointsList.Click += (_, _) =>
-            {
-                if (entryPointsList.SelectedIndex >= 0 && entryPointsList.SelectedIndex < entryPointTargets.Count)
-                {
-                    FocusNode(entryPointTargets[entryPointsList.SelectedIndex]);
-                }
-            };
-            entryPointsList.Height = entryPointsList.ItemHeight * entryPointsList.Items.Count + 6;
-            UiControl.AddControl(entryPointsList);
-        }
-
-        private static string BuildNodeText(GraphNode node)
-        {
-            var sb = new StringBuilder();
-            sb.AppendLine(node.Subtitle != null ? $"{node.Title} ({node.Subtitle})" : node.Title);
-
-            foreach (var row in node.Rows)
-            {
-                switch (row)
-                {
-                    case TextRow { Text.Length: > 0 } text:
-                        sb.AppendLine(text.Text);
-                        break;
-                    case SocketRow socket:
-                        sb.AppendLine($"{(socket.Socket.IsInput ? "in" : "out")} {socket.Socket.Name}");
-                        break;
-                    case PairedSocketRow paired:
-                        if (paired.Input is { Name.Length: > 0 })
-                        {
-                            sb.AppendLine($"in {paired.Input.Name}");
-                        }
-
-                        if (paired.Output is { Name.Length: > 0 })
-                        {
-                            sb.AppendLine($"out {paired.Output.Name}");
-                        }
-
-                        break;
-                    case ResourceRow resource:
-                        sb.AppendLine(resource.Text);
-                        break;
-                    case AnnotationRow annotation:
-                        sb.AppendLine(annotation.Text);
-                        break;
-                }
-            }
-
-            return sb.ToString();
         }
 
         private void AddLegendPanel()
@@ -629,6 +378,38 @@ namespace GUI.Types.GLViewers
 
         private bool pendingFullRelayout;
 
+        private void AddShowEverything(ThemedContextMenuStrip menu)
+        {
+            var showAllItem = new ToolStripMenuItem("Show everything");
+            showAllItem.Click += (_, _) => ShowAllIslands();
+            menu.Items.Add(showAllItem);
+        }
+
+        /// <summary>
+        /// Adds a node filtering action twice: keeping the surviving nodes where they are,
+        /// and a re-layout variant that lays out just the survivors.
+        /// </summary>
+        private void AddFilterAction(ThemedContextMenuStrip menu, string label, Action filter)
+        {
+            var keepItem = new ToolStripMenuItem(label);
+            keepItem.Click += (_, _) =>
+            {
+                filter();
+                RefitToGraph();
+            };
+            menu.Items.Add(keepItem);
+
+            var relayoutItem = new ToolStripMenuItem($"{label} (re-layout)");
+            relayoutItem.Click += (_, _) =>
+            {
+                filter();
+                View.LayoutNodesPacked();
+                pendingFullRelayout = true;
+                RefitToGraph();
+            };
+            menu.Items.Add(relayoutItem);
+        }
+
         protected virtual void ShowAllIslands()
         {
             View.ShowAllNodes();
@@ -657,6 +438,13 @@ namespace GUI.Types.GLViewers
                 _ => null,
             };
 
+            // Selecting the node dims the rest of the graph, so it is unambiguous which
+            // node the menu actions will apply to.
+            if (node != null)
+            {
+                View.SelectNode(node);
+            }
+
             contextMenu ??= new ThemedContextMenuStrip();
 
             while (contextMenu.Items.Count > 0)
@@ -684,60 +472,16 @@ namespace GUI.Types.GLViewers
                     contextMenu.Items.Add(focusItem);
                 }
 
-                var isolateItem = new ToolStripMenuItem("Isolate this chain");
-                isolateItem.Click += (_, _) =>
-                {
-                    View.IsolateChainOf(node);
-                    RefitToGraph();
-                };
-                contextMenu.Items.Add(isolateItem);
-
-                // Laying out just the isolated chain gives it room the full-island layout could not.
-                var isolateRelayoutItem = new ToolStripMenuItem("Isolate this chain (relayout)");
-                isolateRelayoutItem.Click += (_, _) =>
-                {
-                    View.IsolateChainOf(node);
-                    View.LayoutNodesPacked();
-                    pendingFullRelayout = true;
-                    RefitToGraph();
-                };
-                contextMenu.Items.Add(isolateRelayoutItem);
-
-                var upstreamItem = new ToolStripMenuItem("Trace what triggers this");
-                upstreamItem.Click += (_, _) =>
-                {
-                    View.IsolateUpstreamOf(node);
-                    RefitToGraph();
-                };
-                contextMenu.Items.Add(upstreamItem);
-
-                var downstreamItem = new ToolStripMenuItem("Trace what this triggers");
-                downstreamItem.Click += (_, _) =>
-                {
-                    View.IsolateDownstreamOf(node);
-                    RefitToGraph();
-                };
-                contextMenu.Items.Add(downstreamItem);
-
+                AddShowEverything(contextMenu);
                 contextMenu.Items.Add(new ToolStripSeparator());
 
-                var copyTextItem = new ToolStripMenuItem("Copy node text");
-                copyTextItem.Click += (_, _) => AppClipboard.SetText(BuildNodeText(node));
-                contextMenu.Items.Add(copyTextItem);
-
-                if (DescribeNodeData(node) is { } rawData)
-                {
-                    var copyRawItem = new ToolStripMenuItem("Copy raw data");
-                    copyRawItem.Click += (_, _) => AppClipboard.SetText(rawData);
-                    contextMenu.Items.Add(copyRawItem);
-                }
+                AddFilterAction(contextMenu, "Isolate chain", () => View.IsolateChainOf(node));
+                AddFilterAction(contextMenu, "Isolate upstream", () => View.IsolateUpstreamOf(node));
+                AddFilterAction(contextMenu, "Isolate downstream", () => View.IsolateDownstreamOf(node));
             }
-
-            if (View.HasHiddenNodes())
+            else
             {
-                var showAllItem = new ToolStripMenuItem("Show all islands");
-                showAllItem.Click += (_, _) => ShowAllIslands();
-                contextMenu.Items.Add(showAllItem);
+                AddShowEverything(contextMenu);
             }
 
             if (contextMenu.Items.Count > 0)
@@ -1079,11 +823,6 @@ namespace GUI.Types.GLViewers
             statsLabel?.Dispose();
             searchBox?.Dispose();
             legendPanel?.Dispose();
-            xrefList?.Dispose();
-            inspectorBox?.Dispose();
-            hubsList?.Dispose();
-            entryPointsList?.Dispose();
-            View.SelectionChanged -= OnViewSelectionChanged;
             View.GraphChanged -= OnGraphChanged;
 
             // Stops the render loop first; afterwards the GL context may no longer be
