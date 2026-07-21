@@ -262,6 +262,10 @@ internal class EntityIOGraphViewer : GLGraphViewer
 
     protected override string BuildStatsText(int islandCount) => $"{entityCount} entities\n{base.BuildStatsText(islandCount)}\nIsland: {focusedIslandName ?? "(all)"}";
 
+    // Entities are KV objects themselves; dump their full compiled keyvalues.
+    protected override string? DescribeNodeData(GraphNode node)
+        => node.Tag is EntityLump.Entity entity ? KVGraphNode.DumpTree(entity) : base.DescribeNodeData(node);
+
     public override void Dispose()
     {
         base.Dispose();

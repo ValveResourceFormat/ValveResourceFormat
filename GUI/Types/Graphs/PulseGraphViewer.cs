@@ -163,47 +163,6 @@ internal class PulseGraphViewer : GLGraphViewer
         CreateGraph();
     }
 
-    // Stringify a KVObject for our purposes
-    private static string StringifyKVObject(KVObject obj)
-    {
-        switch (obj.ValueType)
-        {
-            case KVValueType.String:
-                return $"\"{obj}\"";
-            case KVValueType.Boolean:
-                return obj.ToBoolean(CultureInfo.InvariantCulture) ? "true" : "false";
-            case KVValueType.Array:
-                {
-                    var list = obj.AsArraySpan();
-                    StringBuilder sb = new();
-                    sb.Append('[');
-                    var firstElem = true;
-                    foreach (var elem in list)
-                    {
-                        if (!firstElem)
-                        {
-                            sb.Append(", ");
-                        }
-                        firstElem = false;
-
-                        sb.Append(StringifyKVObject(elem));
-                    }
-                    sb.Append(']');
-                    return sb.ToString();
-                }
-            case KVValueType.Int16:
-            case KVValueType.UInt16:
-            case KVValueType.Int32:
-            case KVValueType.UInt32:
-            case KVValueType.Int64:
-            case KVValueType.UInt64:
-            case KVValueType.FloatingPoint:
-            case KVValueType.FloatingPoint64:
-            default:
-                return obj.ToString(CultureInfo.InvariantCulture);
-        }
-    }
-
     private bool TryAddRegisterMapOutParams(
         Node node,
         int chunkIndex,
@@ -231,7 +190,7 @@ internal class PulseGraphViewer : GLGraphViewer
         var filteredCell = FilterBaseCellFieldsForDisplay(cellIndex);
         foreach (var kvPair in filteredCell)
         {
-            node.AddText($"{kvPair.Key} = {StringifyKVObject(kvPair.Value)}");
+            node.AddText($"{kvPair.Key} = {KVGraphNode.StringifyValue(kvPair.Value)}");
         }
     }
 
@@ -430,7 +389,7 @@ internal class PulseGraphViewer : GLGraphViewer
         }
         else if (registerConstValueMap.TryGetValue(regIndex, out var obj))
         {
-            node.AddText($"{name} = {StringifyKVObject(obj)}");
+            node.AddText($"{name} = {KVGraphNode.StringifyValue(obj)}");
             return;
         }
         else
@@ -721,7 +680,7 @@ internal class PulseGraphViewer : GLGraphViewer
 
             if (registerConstValueMap.TryGetValue(regIdx, out var regValue))
             {
-                node.AddText($"{regName} = {StringifyKVObject(regValue)}");
+                node.AddText($"{regName} = {KVGraphNode.StringifyValue(regValue)}");
             }
             else if (registerSocketOutputMap.TryGetValue(regIdx, out var regOutSocket))
             {

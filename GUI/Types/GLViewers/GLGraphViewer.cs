@@ -1,6 +1,8 @@
 using System.Diagnostics;
+using System.Text;
 using System.Windows.Forms;
 using GUI.Controls;
+using GUI.Types.Graphs;
 using GUI.Types.Graphs.Core;
 using GUI.Utils;
 using OpenTK.Graphics.OpenGL;
@@ -48,6 +50,12 @@ namespace GUI.Types.GLViewers
         private ThemedTextBox? searchBox;
         private Panel? legendPanel;
         private GraphNode? lastSearchResult;
+        private ListBox? xrefList;
+        private readonly List<GraphNode> xrefTargets = [];
+        private ThemedTextBox? inspectorBox;
+        private ListBox? hubsList;
+        private readonly List<GraphNode> hubTargets = [];
+        private readonly HashSet<GraphHue> legendFilter = [];
 
         protected override void AddUiControls()
         {
@@ -112,7 +120,12 @@ namespace GUI.Types.GLViewers
                     }
                 }
 
+                AddXrefPanel();
+                AddInspectorPanel();
+                AddHubsPanel();
                 AddLegendPanel();
+
+                View.SelectionChanged += OnViewSelectionChanged;
 
                 // Top of the sidebar, above the base viewer buttons: search second, the
                 // layout dropdown at the very top (SendToBack order is bottom-up). The combo
@@ -144,7 +157,20 @@ namespace GUI.Types.GLViewers
         protected virtual string BuildStatsText(int islandCount)
         {
             var islandSuffix = islandCount == 1 ? "island" : "islands";
-            return $"{View.NodeCount} nodes\n{View.WireCount} connections\n{islandCount} {islandSuffix}";
+            var text = $"{View.NodeCount} nodes\n{View.WireCount} connections\n{islandCount} {islandSuffix}";
+            var (selfLoops, orphans) = View.GetGraphHealthCounts();
+
+            if (selfLoops > 0)
+            {
+                text += $"\n{selfLoops} self-loop{(selfLoops == 1 ? "" : "s")}";
+            }
+
+            if (orphans > 0)
+            {
+                text += $"\n{orphans} unconnected node{(orphans == 1 ? "" : "s")}";
+            }
+
+            return text;
         }
 
         /// <summary>Recomputes the stats label text and height.</summary>
@@ -186,6 +212,190 @@ namespace GUI.Types.GLViewers
             FocusNode(match);
         }
 
+        private void OnViewSelectionChanged(object? sender, System.EventArgs e)
+        {
+            RefreshXrefPanel();
+            RefreshInspectorPanel();
+        }
+
+        // Incoming and outgoing wires of the selected node as clickable jump rows.
+        private void AddXrefPanel()
+        {
+            Debug.Assert(UiControl != null);
+
+            xrefList = new ListBox
+            {
+                IntegralHeight = false,
+                HorizontalScrollbar = true,
+                Visible = false,
+            };
+            xrefList.Click += (_, _) =>
+            {
+                if (xrefList.SelectedIndex >= 0 && xrefList.SelectedIndex < xrefTargets.Count)
+                {
+                    FocusNode(xrefTargets[xrefList.SelectedIndex]);
+                }
+            };
+            UiControl.AddControl(xrefList);
+        }
+
+        private void RefreshXrefPanel()
+        {
+            if (xrefList == null || UiControl == null)
+            {
+                return;
+            }
+
+            xrefList.BeginUpdate();
+            xrefList.Items.Clear();
+            xrefTargets.Clear();
+
+            void AddRow(string text, GraphNode target)
+            {
+                xrefList.Items.Add(text);
+                xrefTargets.Add(target);
+            }
+
+            static string LabelSuffix(GraphWire wire) => wire.Label != null ? $"  ({wire.Label})" : string.Empty;
+
+            if (View.Selection.PrimaryNode is { } node)
+            {
+                foreach (var socket in node.Inputs)
+                {
+                    foreach (var wire in socket.Wires)
+                    {
+                        AddRow($"◀ {wire.From.Owner.Title}.{wire.From.Name}{LabelSuffix(wire)}", wire.From.Owner);
+                    }
+                }
+
+                foreach (var socket in node.Outputs)
+                {
+                    foreach (var wire in socket.Wires)
+                    {
+                        AddRow($"▶ {wire.To.Owner.Title}.{wire.To.Name}{LabelSuffix(wire)}", wire.To.Owner);
+                    }
+                }
+            }
+            else if (View.Selection.Wire is { } wire)
+            {
+                AddRow($"◀ {wire.From.Owner.Title}.{wire.From.Name}", wire.From.Owner);
+                AddRow($"▶ {wire.To.Owner.Title}.{wire.To.Name}", wire.To.Owner);
+            }
+
+            xrefList.EndUpdate();
+            xrefList.Visible = xrefTargets.Count > 0;
+            xrefList.Height = Math.Min(
+                xrefList.ItemHeight * Math.Max(1, xrefList.Items.Count) + 6,
+                UiControl.AdjustForDPI(240));
+        }
+
+        // Raw backing data of the selected node, including the fields the node rows omit.
+        private void AddInspectorPanel()
+        {
+            Debug.Assert(UiControl != null);
+
+            inspectorBox = new ThemedTextBox
+            {
+                Multiline = true,
+                ReadOnly = true,
+                WordWrap = false,
+                ScrollBars = ScrollBars.Both,
+                Visible = false,
+                Height = UiControl.AdjustForDPI(220),
+            };
+            UiControl.AddControl(inspectorBox);
+        }
+
+        private void RefreshInspectorPanel()
+        {
+            if (inspectorBox == null)
+            {
+                return;
+            }
+
+            var text = View.Selection.PrimaryNode is { } node ? DescribeNodeData(node) : null;
+            inspectorBox.Text = text ?? string.Empty;
+            inspectorBox.Visible = text != null;
+        }
+
+        /// <summary>Raw backing-data dump of a node for the inspector panel and clipboard; null hides both.</summary>
+        protected virtual string? DescribeNodeData(GraphNode node)
+            => node is KVGraphNode { Data: not null } kvNode ? kvNode.DumpData() : null;
+
+        // Most connected nodes; degree centrality points at the hub worth reading first.
+        private void AddHubsPanel()
+        {
+            Debug.Assert(UiControl != null);
+
+            var hubs = View.GetTopConnectedNodes(10);
+
+            if (hubs.Count < 2)
+            {
+                return;
+            }
+
+            hubsList = new ListBox
+            {
+                IntegralHeight = false,
+                HorizontalScrollbar = true,
+            };
+
+            foreach (var (node, degree) in hubs)
+            {
+                hubsList.Items.Add($"{degree} × {node.Title}");
+                hubTargets.Add(node);
+            }
+
+            hubsList.Click += (_, _) =>
+            {
+                if (hubsList.SelectedIndex >= 0 && hubsList.SelectedIndex < hubTargets.Count)
+                {
+                    FocusNode(hubTargets[hubsList.SelectedIndex]);
+                }
+            };
+            hubsList.Height = hubsList.ItemHeight * hubsList.Items.Count + 6;
+            UiControl.AddControl(hubsList);
+        }
+
+        private static string BuildNodeText(GraphNode node)
+        {
+            var sb = new StringBuilder();
+            sb.AppendLine(node.Subtitle != null ? $"{node.Title} ({node.Subtitle})" : node.Title);
+
+            foreach (var row in node.Rows)
+            {
+                switch (row)
+                {
+                    case TextRow { Text.Length: > 0 } text:
+                        sb.AppendLine(text.Text);
+                        break;
+                    case SocketRow socket:
+                        sb.AppendLine($"{(socket.Socket.IsInput ? "in" : "out")} {socket.Socket.Name}");
+                        break;
+                    case PairedSocketRow paired:
+                        if (paired.Input is { Name.Length: > 0 })
+                        {
+                            sb.AppendLine($"in {paired.Input.Name}");
+                        }
+
+                        if (paired.Output is { Name.Length: > 0 })
+                        {
+                            sb.AppendLine($"out {paired.Output.Name}");
+                        }
+
+                        break;
+                    case ResourceRow resource:
+                        sb.AppendLine(resource.Text);
+                        break;
+                    case AnnotationRow annotation:
+                        sb.AppendLine(annotation.Text);
+                        break;
+                }
+            }
+
+            return sb.ToString();
+        }
+
         private void AddLegendPanel()
         {
             Debug.Assert(UiControl != null);
@@ -203,12 +413,16 @@ namespace GUI.Types.GLViewers
             {
                 var y = 6;
                 using var text = new System.Drawing.SolidBrush(Themer.CurrentThemeColors.Contrast);
+                using var dimmedText = new System.Drawing.SolidBrush(Themer.CurrentThemeColors.ContrastSoft);
 
                 foreach (var (label, hue, kind) in View.Legend)
                 {
                     // Palette slots resolve at paint time so the legend follows the theme.
                     var skColor = kind == GraphLegendKind.Category ? View.Palette.Category(hue) : View.Palette.Signal(hue);
                     using var brush = new System.Drawing.SolidBrush(System.Drawing.Color.FromArgb(skColor.Red, skColor.Green, skColor.Blue));
+
+                    // Category rows act as a click filter; rows filtered out paint dimmed.
+                    var dimmed = legendFilter.Count > 0 && kind == GraphLegendKind.Category && !legendFilter.Contains(hue);
 
                     if (kind is GraphLegendKind.Wire or GraphLegendKind.DashedWire)
                     {
@@ -230,10 +444,37 @@ namespace GUI.Types.GLViewers
                         e.Graphics.FillRectangle(brush, 6, y + 2, 12, 12);
                     }
 
-                    e.Graphics.DrawString(label, legendPanel!.Font, text, 24, y);
+                    e.Graphics.DrawString(label, legendPanel!.Font, dimmed ? dimmedText : text, 24, y);
                     y += 18;
                 }
             };
+
+            // Clicking a category row toggles it in an OR-filter that dims everything else.
+            legendPanel.MouseClick += (_, e) =>
+            {
+                var index = (e.Y - 6) / 18;
+
+                if (index < 0 || index >= View.Legend.Count)
+                {
+                    return;
+                }
+
+                var entry = View.Legend[index];
+
+                if (entry.Kind != GraphLegendKind.Category)
+                {
+                    return;
+                }
+
+                if (!legendFilter.Add(entry.Hue))
+                {
+                    legendFilter.Remove(entry.Hue);
+                }
+
+                View.SetCategoryHighlight(legendFilter);
+                legendPanel!.Invalidate();
+            };
+
             UiControl.AddControl(legendPanel);
         }
 
@@ -385,6 +626,35 @@ namespace GUI.Types.GLViewers
                     RefitToGraph();
                 };
                 contextMenu.Items.Add(isolateRelayoutItem);
+
+                var upstreamItem = new ToolStripMenuItem("Trace what triggers this");
+                upstreamItem.Click += (_, _) =>
+                {
+                    View.IsolateUpstreamOf(node);
+                    RefitToGraph();
+                };
+                contextMenu.Items.Add(upstreamItem);
+
+                var downstreamItem = new ToolStripMenuItem("Trace what this triggers");
+                downstreamItem.Click += (_, _) =>
+                {
+                    View.IsolateDownstreamOf(node);
+                    RefitToGraph();
+                };
+                contextMenu.Items.Add(downstreamItem);
+
+                contextMenu.Items.Add(new ToolStripSeparator());
+
+                var copyTextItem = new ToolStripMenuItem("Copy node text");
+                copyTextItem.Click += (_, _) => AppClipboard.SetText(BuildNodeText(node));
+                contextMenu.Items.Add(copyTextItem);
+
+                if (DescribeNodeData(node) is { } rawData)
+                {
+                    var copyRawItem = new ToolStripMenuItem("Copy raw data");
+                    copyRawItem.Click += (_, _) => AppClipboard.SetText(rawData);
+                    contextMenu.Items.Add(copyRawItem);
+                }
             }
 
             if (View.HasHiddenNodes())
@@ -733,6 +1003,10 @@ namespace GUI.Types.GLViewers
             statsLabel?.Dispose();
             searchBox?.Dispose();
             legendPanel?.Dispose();
+            xrefList?.Dispose();
+            inspectorBox?.Dispose();
+            hubsList?.Dispose();
+            View.SelectionChanged -= OnViewSelectionChanged;
             View.GraphChanged -= OnGraphChanged;
 
             // Stops the render loop first; afterwards the GL context may no longer be

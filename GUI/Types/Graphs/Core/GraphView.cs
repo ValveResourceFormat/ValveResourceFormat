@@ -37,6 +37,11 @@ partial class GraphView : IDisposable
 
     public event EventHandler? GraphChanged;
 
+    /// <summary>Raised when the selection (primary node or wire) changes.</summary>
+    public event EventHandler? SelectionChanged;
+
+    private void OnSelectionChanged() => SelectionChanged?.Invoke(this, EventArgs.Empty);
+
     public int NodeCount => nodes.Count;
     public int WireCount => wires.Count;
 
@@ -439,6 +444,7 @@ partial class GraphView : IDisposable
     private void SelectWire(GraphWire wire)
     {
         Selection.SelectWire(wire);
+        OnSelectionChanged();
         OnGraphChanged();
     }
 
@@ -461,6 +467,7 @@ partial class GraphView : IDisposable
         }
 
         MarkVisualDirty();
+        OnSelectionChanged();
     }
 
     private void ToggleSelection(GraphNode node)
@@ -468,6 +475,7 @@ partial class GraphView : IDisposable
         if (Selection.PrimaryNode == node || Selection.Connected.Contains(node))
         {
             Selection.Clear();
+            OnSelectionChanged();
         }
         else
         {
@@ -480,6 +488,7 @@ partial class GraphView : IDisposable
     private void ClearSelection()
     {
         Selection.Clear();
+        OnSelectionChanged();
         OnGraphChanged();
     }
 
@@ -568,6 +577,18 @@ partial class GraphView : IDisposable
         OnGraphChanged();
     }
 
+    private HashSet<GraphHue>? categoryHighlight;
+
+    /// <summary>
+    /// Dims everything whose category is not in <paramref name="hues"/> (OR-filter driven by
+    /// legend clicks). Null or empty clears. Search takes precedence while active.
+    /// </summary>
+    public void SetCategoryHighlight(HashSet<GraphHue>? hues)
+    {
+        categoryHighlight = hues is { Count: > 0 } ? hues : null;
+        OnGraphChanged();
+    }
+
     private bool MatchesSearchHighlight(GraphNode node) => searchHighlight == null
         || node.Title.Contains(searchHighlight, StringComparison.OrdinalIgnoreCase)
         || (node.Subtitle?.Contains(searchHighlight, StringComparison.OrdinalIgnoreCase) ?? false);
@@ -647,6 +668,44 @@ partial class GraphView : IDisposable
         OnGraphChanged();
     }
 
+    /// <summary>Hides everything outside the directed cone of nodes that can trigger <paramref name="node"/>.</summary>
+    public void IsolateUpstreamOf(GraphNode node) => IsolateCone(node, upstream: true);
+
+    /// <summary>Hides everything outside the directed cone of nodes that <paramref name="node"/> can trigger.</summary>
+    public void IsolateDownstreamOf(GraphNode node) => IsolateCone(node, upstream: false);
+
+    private void IsolateCone(GraphNode node, bool upstream)
+    {
+        var cone = new HashSet<GraphNode> { node };
+        var queue = new Queue<GraphNode>();
+        queue.Enqueue(node);
+
+        while (queue.Count > 0)
+        {
+            var current = queue.Dequeue();
+
+            foreach (var socket in upstream ? current.Inputs : current.Outputs)
+            {
+                foreach (var wire in socket.Wires)
+                {
+                    var next = upstream ? wire.From.Owner : wire.To.Owner;
+
+                    if (cone.Add(next))
+                    {
+                        queue.Enqueue(next);
+                    }
+                }
+            }
+        }
+
+        foreach (var member in nodes)
+        {
+            member.Hidden = !cone.Contains(member);
+        }
+
+        OnGraphChanged();
+    }
+
     /// <summary>Hides every island except the one containing <paramref name="node"/>.</summary>
     public void FocusIslandOf(GraphNode node)
     {
@@ -676,6 +735,79 @@ partial class GraphView : IDisposable
     public bool HasMultipleIslands() => GetComponents().Count > 1;
 
     public bool HasHiddenNodes() => nodes.Exists(static n => n.Hidden);
+
+    /// <summary>The most connected nodes with their wire counts, descending.</summary>
+    public List<(GraphNode Node, int Degree)> GetTopConnectedNodes(int count)
+    {
+        var result = new List<(GraphNode Node, int Degree)>(nodes.Count);
+
+        foreach (var node in nodes)
+        {
+            var degree = 0;
+
+            foreach (var socket in node.Inputs)
+            {
+                degree += socket.Wires.Count;
+            }
+
+            foreach (var socket in node.Outputs)
+            {
+                degree += socket.Wires.Count;
+            }
+
+            if (degree > 0)
+            {
+                result.Add((node, degree));
+            }
+        }
+
+        result.Sort(static (a, b) => b.Degree.CompareTo(a.Degree));
+
+        if (result.Count > count)
+        {
+            result.RemoveRange(count, result.Count - count);
+        }
+
+        return result;
+    }
+
+    /// <summary>Self-loop wire count and the number of nodes no wire touches.</summary>
+    public (int SelfLoops, int Orphans) GetGraphHealthCounts()
+    {
+        var selfLoops = 0;
+
+        foreach (var wire in wires)
+        {
+            if (wire.From.Owner == wire.To.Owner)
+            {
+                selfLoops++;
+            }
+        }
+
+        var orphans = 0;
+
+        foreach (var node in nodes)
+        {
+            var connected = false;
+
+            foreach (var socket in node.Inputs)
+            {
+                connected |= socket.Wires.Count > 0;
+            }
+
+            foreach (var socket in node.Outputs)
+            {
+                connected |= socket.Wires.Count > 0;
+            }
+
+            if (!connected)
+            {
+                orphans++;
+            }
+        }
+
+        return (selfLoops, orphans);
+    }
 
     /// <summary>
     /// Lays out each connected component independently with MSAGL and packs the components into
