@@ -912,10 +912,10 @@ partial class GraphView : IDisposable
             }
         }
 
-        // Residual tight pairs (coincident centers, extreme ratios, authored cards that
-        // merely sit close) get pushed apart directly. This phase enforces a wider
-        // clearance than the scale-out so near-touching neighbors gain breathing room
-        // locally, without inflating the rest of the arrangement.
+        // Residual tight pairs (authored cards that merely sit close) get room by seam
+        // insertion: side-by-side pairs open horizontally, moving the right card and every
+        // card at or beyond it along with it; stacked pairs open downward the same way.
+        // The pair's own arrangement stays intact and nothing else compresses.
         const float PushPad = 70f;
 
         for (var pass = 0; pass < 64; pass++)
@@ -942,17 +942,38 @@ partial class GraphView : IDisposable
 
                     moved = true;
 
-                    if (overlapX < overlapY)
+                    var aCenter = a.Position + aSize / 2f;
+                    var bCenter = b.Position + bSize / 2f;
+                    var needX = (aSize.X + bSize.X) / 2f + PushPad;
+                    var needY = (aSize.Y + bSize.Y) / 2f + PushPad;
+
+                    // Whichever axis the pair is proportionally more separated on defines
+                    // its arrangement; the seam opens along that axis.
+                    if (Math.Abs(bCenter.X - aCenter.X) / needX >= Math.Abs(bCenter.Y - aCenter.Y) / needY)
                     {
-                        var push = overlapX / 2f * (a.Position.X <= b.Position.X ? 1f : -1f);
-                        a.Position -= new Vector2(push, 0f);
-                        b.Position += new Vector2(push, 0f);
+                        var rightNode = aCenter.X <= bCenter.X ? b : a;
+                        var seamX = rightNode.Position.X - 0.5f;
+
+                        foreach (var node in nodes)
+                        {
+                            if (node.Position.X >= seamX)
+                            {
+                                node.Position += new Vector2(overlapX, 0f);
+                            }
+                        }
                     }
                     else
                     {
-                        var push = overlapY / 2f * (a.Position.Y <= b.Position.Y ? 1f : -1f);
-                        a.Position -= new Vector2(0f, push);
-                        b.Position += new Vector2(0f, push);
+                        var lowerNode = aCenter.Y <= bCenter.Y ? b : a;
+                        var seamY = lowerNode.Position.Y - 0.5f;
+
+                        foreach (var node in nodes)
+                        {
+                            if (node.Position.Y >= seamY)
+                            {
+                                node.Position += new Vector2(0f, overlapY);
+                            }
+                        }
                     }
                 }
             }
