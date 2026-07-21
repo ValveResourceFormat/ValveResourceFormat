@@ -70,6 +70,11 @@ public partial class PlayerMovement
 
     private float SlopeClipNormalZ = 1f;
 
+    // Analytically integrated displacement of the current ground frame (set by
+    // Friction/Accelerate/WalkMove); ground moves use it instead of Velocity * dt so
+    // distance traveled is framerate-independent while speed is changing
+    private Vector3 GroundMoveDelta;
+
     private readonly ViewEffects Effects = new();
 
     /// <summary>
@@ -234,9 +239,11 @@ public partial class PlayerMovement
         // landing that the move below may produce
         fallSpeed = MathF.Max(fallSpeed, -Velocity.Z);
 
-        // Ground movement gets step support; in the air there is nothing to step off
+        // Ground movement gets step support; in the air there is nothing to step off.
+        // The air delta is exact as-is: the half-gravity leapfrog makes Velocity * dt the
+        // midpoint integral
         position = OnGround
-            ? StepMove(position, Velocity * deltaTime, playerHull)
+            ? StepMove(position, GroundMoveDelta, playerHull)
             : TryPlayerMove(position, Velocity * deltaTime, playerHull);
 
         if (OnGround)
@@ -871,6 +878,11 @@ public partial class PlayerMovement
     private void Friction(float deltaTime)
     {
         var speed = Velocity.Length();
+
+        // Provisional frame displacement under friction alone; Accelerate/the cap
+        // overwrite it when they change the trajectory
+        GroundMoveDelta = FrictionDisplacement(Velocity, deltaTime, FrictionValue * SurfaceFriction);
+
         if (speed < 0.1f)
         {
             return;
@@ -927,6 +939,7 @@ public partial class PlayerMovement
         if (isWalking && wishspeed >= goalSpeed - 0.01f && preFrictionVelocity.Length() > StopSpeedValue)
         {
             Velocity = WalkBandAccelerate(Velocity, wishdir, goalSpeed, preFrictionVelocity, deltaTime, frictionRate, AccelerateValue * goalSpeed * SurfaceFriction);
+            GroundMoveDelta = TrapezoidDisplacement(preFrictionVelocity, Velocity, deltaTime);
             return;
         }
 
@@ -938,12 +951,52 @@ public partial class PlayerMovement
             finalAccel *= Math.Clamp(1.0f - ratio, 0.0f, 1.0f);
         }
 
+        var preFrictionSpeed = preFrictionVelocity.Length();
+        var accelMagnitude = finalAccel * goalSpeed * SurfaceFriction;
+
+        // Below stopspeed the friction+acceleration frame is solved analytically from the
+        // pre-friction velocity (linear friction regime, split at the stopspeed crossing),
+        // superseding the friction step already applied
+        if (preFrictionSpeed <= StopSpeedValue)
+        {
+            var (velocity, displacement) = SubStopSpeedAccelerate(preFrictionVelocity, wishdir, accelMagnitude, deltaTime, frictionRate);
+
+            // The addspeed gate binding mid-frame keeps the discrete update instead
+            if (Vector3.Dot(velocity, wishdir) > wishspeed)
+            {
+                Velocity += Math.Min(accelMagnitude * deltaTime, addspeed) * wishdir;
+                GroundMoveDelta = TrapezoidDisplacement(preFrictionVelocity, Velocity, deltaTime);
+            }
+            else
+            {
+                Velocity = velocity;
+                GroundMoveDelta = displacement;
+            }
+
+            return;
+        }
+
         // Exact companion to the exponential friction: A*(1-e^(-f*dt))/f completes the
         // closed-form solution, keeping the friction/acceleration equilibrium framerate-independent
         var effectiveTime = (1f - MathF.Exp(-frictionRate * deltaTime)) / frictionRate;
 
-        var accelspeed = Math.Min(finalAccel * effectiveTime * goalSpeed * SurfaceFriction, addspeed);
+        var accelspeed = Math.Min(accelMagnitude * effectiveTime, addspeed);
+        var clamped = accelspeed >= addspeed;
         Velocity += accelspeed * wishdir;
+
+        // Exact displacement while the frame is the pure friction+acceleration ODE
+        // (exponential regime throughout, addspeed gate never binding); otherwise the
+        // trapezoid, which is itself exact below stopspeed where velocity is linear in time
+        if (!clamped && preFrictionSpeed > StopSpeedValue
+            && preFrictionSpeed * MathF.Exp(-frictionRate * deltaTime) > StopSpeedValue)
+        {
+            var equilibrium = wishdir * (accelMagnitude / frictionRate);
+            GroundMoveDelta = LinearOdeDisplacement(preFrictionVelocity, equilibrium, deltaTime, frictionRate);
+        }
+        else
+        {
+            GroundMoveDelta = TrapezoidDisplacement(preFrictionVelocity, Velocity, deltaTime);
+        }
     }
 
     /// <summary>
@@ -972,6 +1025,14 @@ public partial class PlayerMovement
     /// </summary>
     private void WalkMove(Vector3 wishdir, float wishspeed, Vector3 preFrictionVelocity, float deltaTime, bool isDucking, bool isWalking)
     {
+        // Come to a complete stop from a crawl. Source runs this before Accelerate; after
+        // it, high framerates would re-zero every frame's sub-unit acceleration gain and
+        // the player could never start moving
+        if (Velocity.LengthSquared() < 1f)
+        {
+            Velocity = Vector3.Zero;
+        }
+
         var previousSpeed = Velocity.Length();
         Accelerate(wishdir, wishspeed, preFrictionVelocity, deltaTime, isDucking, isWalking);
 
@@ -979,13 +1040,14 @@ public partial class PlayerMovement
         {
             var frictionRate = FrictionValue * SurfaceFriction;
             var accelMagnitude = AccelerateValue * AccelerationGoalSpeed(wishspeed, isDucking, isWalking) * SurfaceFriction;
+            var preCapVelocity = Velocity;
             Velocity = CapSpeedNoPrestrafe(Velocity, wishdir, wishspeed, previousSpeed, preFrictionVelocity, deltaTime, frictionRate, accelMagnitude);
-        }
 
-        // Come to a complete stop from a crawl, like Source's WalkMove
-        if (Velocity.LengthSquared() < 1f)
-        {
-            Velocity = Vector3.Zero;
+            // A cap intervention changes the trajectory mid-frame; fall back to the trapezoid
+            if ((Velocity - preCapVelocity).LengthSquared() > 1e-8f)
+            {
+                GroundMoveDelta = TrapezoidDisplacement(preFrictionVelocity, Velocity, deltaTime);
+            }
         }
     }
 

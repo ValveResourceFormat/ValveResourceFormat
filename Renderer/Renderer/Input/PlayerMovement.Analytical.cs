@@ -236,6 +236,119 @@ public partial class PlayerMovement
     }
 
     /// <summary>
+    /// Displacement over a frame of pure friction: exponential decay above stopspeed
+    /// (d = v·(1-e^(-kt))/k), constant deceleration below it, split at the crossing.
+    /// </summary>
+    private static Vector3 FrictionDisplacement(Vector3 velocity, float deltaTime, float frictionRate)
+    {
+        var speed = velocity.Length();
+
+        if (speed < 0.1f)
+        {
+            return velocity * deltaTime;
+        }
+
+        var direction = velocity / speed;
+        float distance;
+
+        if (speed <= StopSpeedValue)
+        {
+            distance = LinearFrictionDistance(speed, deltaTime, frictionRate);
+        }
+        else
+        {
+            var timeToStopSpeed = MathF.Log(speed / StopSpeedValue) / frictionRate;
+
+            if (deltaTime <= timeToStopSpeed)
+            {
+                distance = speed * (1f - MathF.Exp(-frictionRate * deltaTime)) / frictionRate;
+            }
+            else
+            {
+                distance = (speed - StopSpeedValue) / frictionRate
+                    + LinearFrictionDistance(StopSpeedValue, deltaTime - timeToStopSpeed, frictionRate);
+            }
+        }
+
+        return direction * distance;
+    }
+
+    /// <summary>
+    /// Distance covered under the constant stopspeed·k deceleration, halting at zero.
+    /// </summary>
+    private static float LinearFrictionDistance(float speed, float time, float frictionRate)
+    {
+        var deceleration = StopSpeedValue * frictionRate;
+        time = MathF.Min(time, speed / deceleration);
+        return speed * time - deceleration * time * time / 2f;
+    }
+
+    /// <summary>
+    /// Exact displacement of the friction+acceleration ODE dv/dt = -k·v + A·wishdir:
+    /// d = E·t + (v0 - E)·(1-e^(-kt))/k with E the equilibrium velocity A/k·wishdir.
+    /// </summary>
+    private static Vector3 LinearOdeDisplacement(Vector3 velocity, Vector3 equilibrium, float deltaTime, float frictionRate)
+    {
+        return equilibrium * deltaTime + (velocity - equilibrium) * ((1f - MathF.Exp(-frictionRate * deltaTime)) / frictionRate);
+    }
+
+    /// <summary>
+    /// Frame starting below stopspeed under acceleration: constant net acceleration
+    /// A·wishdir - stopspeed·k·v̂ (linear-regime friction) until the speed crosses
+    /// stopspeed, then the exponential ODE for the rest of the frame.
+    /// </summary>
+    private static (Vector3 Velocity, Vector3 Displacement) SubStopSpeedAccelerate(Vector3 v0, Vector3 wishdir, float accelMagnitude, float deltaTime, float frictionRate)
+    {
+        var frictionDirection = v0.LengthSquared() > 0.01f ? Vector3.Normalize(v0) : wishdir;
+        var acceleration = accelMagnitude * wishdir - StopSpeedValue * frictionRate * frictionDirection;
+
+        // Crossing time: |v0 + a·t| = stopspeed. Starting inside the stopspeed circle
+        // there is exactly one positive root
+        var tCross = deltaTime;
+        var a2 = acceleration.LengthSquared();
+
+        if (a2 > 1e-6f)
+        {
+            var b = 2f * Vector3.Dot(v0, acceleration);
+            var c = v0.LengthSquared() - StopSpeedValue * StopSpeedValue;
+            var discriminant = b * b - 4f * a2 * c;
+
+            if (discriminant >= 0f)
+            {
+                var root = (-b + MathF.Sqrt(discriminant)) / (2f * a2);
+
+                if (root >= 0f)
+                {
+                    tCross = MathF.Min(root, deltaTime);
+                }
+            }
+        }
+
+        var velocity = v0 + acceleration * tCross;
+        var displacement = v0 * tCross + acceleration * (tCross * tCross / 2f);
+
+        var remaining = deltaTime - tCross;
+
+        if (remaining > 0f)
+        {
+            var equilibrium = wishdir * (accelMagnitude / frictionRate);
+            displacement += LinearOdeDisplacement(velocity, equilibrium, remaining, frictionRate);
+            velocity = equilibrium + (velocity - equilibrium) * MathF.Exp(-frictionRate * remaining);
+        }
+
+        return (velocity, displacement);
+    }
+
+    /// <summary>
+    /// Second-order fallback displacement for trajectories without an implemented closed
+    /// form; exact whenever velocity is linear in time over the frame.
+    /// </summary>
+    private static Vector3 TrapezoidDisplacement(Vector3 startVelocity, Vector3 endVelocity, float deltaTime)
+    {
+        return (startVelocity + endVelocity) * (0.5f * deltaTime);
+    }
+
+    /// <summary>
     /// Rescales the velocity down to the cap when it exceeds it.
     /// </summary>
     private static Vector3 RescaleToCap(Vector3 velocity, float cap)
