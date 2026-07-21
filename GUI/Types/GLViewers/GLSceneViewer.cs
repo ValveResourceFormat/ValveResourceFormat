@@ -398,21 +398,24 @@ namespace GUI.Types.GLViewers
 
             soundPlayer.LoadSoundEvents();
 
-            // Stay silent through scene load; the per-frame update unsuspends once rendering starts,
-            // so all initial sounds (e.g. map ambients) fade in on the first frames instead of snapping
-            soundPlayer.Suspended = true;
-
             //const float OcclusionEndMargin = 48f;
             //soundPlayer.OcclusionTrace = (listener, sound) =>
             //    Scene.PhysicsWorld?.TraceRay(listener, sound) is { Hit: true } hit
             //        && Vector3.DistanceSquared(hit.HitPosition, sound) > OcclusionEndMargin * OcclusionEndMargin;
 
+            soundPlayer.Suspended = true; // start with fade-in
             soundPlayer.Volume = Settings.Config.Volume;
             soundPlayer.MixGroupVolumes["Weapons"] = 0.7f;
             soundPlayer.MixGroupVolumes["Foley"] = 0.5f;
             soundPlayer.MixGroupVolumes["Footsteps"] = 0.4f;
             soundPlayer.MixGroupVolumes["PlayerDamage"] = 0.4f;
             soundPlayer.DefaultMixGroupVolume = 0.1f;
+        }
+
+        public override void OnDetachedFromRenderLoop()
+        {
+            base.OnDetachedFromRenderLoop();
+            soundPlayer?.Suspended = true;
         }
 
         protected override void OnUpdate(float frameTime)

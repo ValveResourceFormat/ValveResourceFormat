@@ -77,6 +77,14 @@ internal abstract class GLBaseControl : IDisposable
     private bool FirstPaint = true;
     public long LastUpdate { get; protected set; }
     public bool Paused = true;
+
+    /// <summary>
+    /// Called by the render loop when it stops drawing this control (tab hidden, or another GL control took over the loop).
+    /// </summary>
+    public virtual void OnDetachedFromRenderLoop()
+    {
+        Paused = true;
+    }
     protected long lastFpsUpdate;
 
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Usage", "CA2213:Disposable fields should be disposed", Justification = "RendererContext is disposed in Dispose method")]
