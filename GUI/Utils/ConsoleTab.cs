@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using System.Drawing;
 using System.Globalization;
 using System.IO;
@@ -47,7 +48,7 @@ namespace GUI.Utils
         private MyLogger? loggerOut;
         private MyLogger? loggerError;
         // Written from any thread that logs; a plain queue corrupts its array under concurrent growth.
-        private readonly System.Collections.Concurrent.ConcurrentQueue<LogLine> LogQueue = new();
+        private readonly ConcurrentQueue<LogLine> LogQueue = new();
 
         public void Dispose()
         {

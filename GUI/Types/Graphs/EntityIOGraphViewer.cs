@@ -326,7 +326,6 @@ internal class EntityIOGraphViewer : GLGraphViewer
 
     private static GraphHue ClassHue(string classname) => EntityClassHues.For(classname);
 
-
     private static string? FormatConnectionLabel(Connection connection)
     {
         var parts = new List<string>(3);

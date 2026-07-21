@@ -43,7 +43,7 @@ internal static class MsaglLayoutAdapter
         LayoutAlgorithmSettings.ShowGraph = _ => { };
     }
 
-    public static void Layout(List<GraphNode> component, List<GraphWire> componentWires, GraphPlacement placement = GraphPlacement.Layered)
+    public static void Layout(List<GraphNode> component, List<GraphWire> componentWires, GraphPlacement placement)
     {
         if (component.Count == 0)
         {

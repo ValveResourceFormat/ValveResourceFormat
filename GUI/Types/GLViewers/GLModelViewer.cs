@@ -138,6 +138,7 @@ namespace GUI.Types.GLViewers
             {
                 AddAnimationListComboBox();
             }
+
             animationTimeLabel = new Label()
             {
                 AutoSize = true,

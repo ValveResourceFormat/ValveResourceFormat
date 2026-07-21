@@ -1050,8 +1050,6 @@ internal class PulseGraphViewer : GLGraphViewer
                             Log.Info(nameof(PulseGraphViewer), $"Potentially empty loop (chunk={chunkIndex}, instruction={loopOperationEndInstructionIdx})");
                         }
 
-                        //Log.Info(nameof(PulseGraphViewer), $"Chunk: {chunkIndex} loopJumpOutInstructionId={loopJumpOutInstructionIdx} -> {loopJumpOutInstruction.GetInt32Property("m_nDestInstruction")} | loopOperationEndInstructionId={loopOperationEndInstructionIdx}");
-
                         var socketOutLoopAction = forLoopNode.CreateSocketOut<Flow>("Loop");
 
                         var newRegisterConstValueMap = new Dictionary<int, KVObject>(registerConstValueMap);

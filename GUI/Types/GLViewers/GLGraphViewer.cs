@@ -300,7 +300,6 @@ namespace GUI.Types.GLViewers
         {
         }
 
-
         /// <summary>Whether the graph is made of more than one connected component.</summary>
         protected virtual bool HasMultipleIslands => View.HasMultipleIslands();
 
