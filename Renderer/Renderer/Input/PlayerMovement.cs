@@ -441,7 +441,11 @@ public partial class PlayerMovement
 
         var grounded = IsWalkableGroundHit(result);
 
-        // A steep surface can shadow walkable ground; retry with quarter-footprint hulls
+        // A steep surface can shadow walkable ground; retry with quarter-footprint hulls.
+        // The quadrant probes only decide groundedness: their hit positions are quarter-hull
+        // standoffs, and snapping the full hull to one embeds it into the shadowing surface
+        var snapToHit = grounded;
+
         if (!grounded && result.Hit)
         {
             grounded = ProbeGroundQuadrants(position, halfExtents);
@@ -450,7 +454,7 @@ public partial class PlayerMovement
         // NON_JUMP_VELOCITY guard, on the Z velocity a plain projection would have produced (see SlopeClipNormalZ)
         OnGround = grounded && Velocity.Z * SlopeClipNormalZ < NonJumpVelocity;
 
-        if (OnGround)
+        if (OnGround && snapToHit)
         {
             SnapToGround(ref position, result, snapDownOnly: false);
         }
