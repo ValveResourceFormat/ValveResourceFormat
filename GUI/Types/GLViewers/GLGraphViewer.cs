@@ -26,6 +26,8 @@ namespace GUI.Types.GLViewers
         private GRBackendRenderTarget? renderTarget;
         private SKSurface? surface;
         private SKSizeI lastSize;
+        private int lastRenderHash;
+        private int numRendersLastHash;
 
         public GLGraphViewer(VrfGuiContext vrfGuiContext, RendererContext rendererContext, GraphView view)
             : base(vrfGuiContext, rendererContext, (SKBitmap?)null)
@@ -130,7 +132,13 @@ namespace GUI.Types.GLViewers
             if (GLControl != null)
             {
                 GLControl.MouseDoubleClick += OnMouseDoubleClick;
+                GLControl.LostFocus += OnGlControlLostFocus;
             }
+        }
+
+        private void OnGlControlLostFocus(object? sender, System.EventArgs e)
+        {
+            View.CancelDrag();
         }
 
         protected virtual string BuildStatsText(int islandCount)
@@ -427,6 +435,28 @@ namespace GUI.Types.GLViewers
         {
             Debug.Assert(MainFramebuffer != null);
 
+            var renderHash = HashCode.Combine(
+                GetCurrentPositionAndScale(),
+                View.VisualVersion,
+                MainFramebuffer.Width,
+                MainFramebuffer.Height,
+                needsFit);
+
+            if (renderHash != lastRenderHash)
+            {
+                lastRenderHash = renderHash;
+                numRendersLastHash = 0;
+            }
+
+            // Once both back buffers hold the current content, swapping them is free.
+            const int NumBackBuffers = 2;
+            if (numRendersLastHash >= NumBackBuffers)
+            {
+                return;
+            }
+
+            numRendersLastHash++;
+
             if (grContext == null)
             {
                 glInterface = GRGlInterface.Create();
@@ -562,6 +592,13 @@ namespace GUI.Types.GLViewers
 
         protected override void OnMouseDown(object? sender, MouseEventArgs e)
         {
+            // A live node drag owns the gesture; chorded buttons must not start panning
+            // or reach the view mid-drag.
+            if (View.IsMoving && e.Button != MouseButtons.Left)
+            {
+                return;
+            }
+
             // Middle mouse = pan (let GLTextureViewer handle it)
             if (e.Button == MouseButtons.Middle)
             {
@@ -604,12 +641,13 @@ namespace GUI.Types.GLViewers
             // Always call base first to clear ClickPosition for panning
             base.OnMouseUp(sender, e);
 
+            var wasDragging = View.IsMoving;
             var screenPoint = new SKPoint(e.Location.X, e.Location.Y);
             var graphPoint = ScreenToGraph(screenPoint);
 
-            View.HandleMouseUp(graphPoint);
+            View.HandleMouseUp(graphPoint, e.Button);
 
-            if (e.Button == MouseButtons.Right)
+            if (e.Button == MouseButtons.Right && !wasDragging)
             {
                 ShowContextMenu(e.Location);
             }
@@ -675,11 +713,21 @@ namespace GUI.Types.GLViewers
             }
         }
 
+        private bool disposed;
+
         public override void Dispose()
         {
+            if (disposed)
+            {
+                return;
+            }
+
+            disposed = true;
+
             if (GLControl != null)
             {
                 GLControl.MouseDoubleClick -= OnMouseDoubleClick;
+                GLControl.LostFocus -= OnGlControlLostFocus;
             }
 
             contextMenu?.Dispose();

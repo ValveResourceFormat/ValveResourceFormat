@@ -17,7 +17,7 @@ partial class GraphView : IDisposable
 
     private readonly List<GraphNode> nodes = [];
     private readonly List<GraphWire> wires = [];
-    private readonly Dictionary<GraphWire, SKPath> wireHitPaths = [];
+    private readonly Dictionary<GraphWire, (SKPath Path, SKRect Bounds)> wireHitPaths = [];
 
     private IGraphElement? lastHovered;
     private GraphNode? primarySelectedNode;
@@ -32,6 +32,7 @@ partial class GraphView : IDisposable
     private SKPoint lastLocation;
     private SKPoint dragOrigin;
     private bool dragStarted;
+    private bool dragMovedConnected;
     private const float DragThreshold = 4f;
 
     // Synchronizes graph state between the render thread and UI mouse handlers.
@@ -42,7 +43,17 @@ partial class GraphView : IDisposable
     public int NodeCount => nodes.Count;
     public int WireCount => wires.Count;
 
-    private void OnGraphChanged() => GraphChanged?.Invoke(this, EventArgs.Empty);
+    /// <summary>Monotonic counter of visual state changes; the host skips repainting while it is stable.</summary>
+    public int VisualVersion { get; private set; }
+
+    /// <summary>Marks the rendered output stale without raising <see cref="GraphChanged"/>.</summary>
+    public void MarkVisualDirty() => VisualVersion++;
+
+    private void OnGraphChanged()
+    {
+        VisualVersion++;
+        GraphChanged?.Invoke(this, EventArgs.Empty);
+    }
 
     /// <summary>Node placement engine used by <see cref="LayoutNodesPacked"/>.</summary>
     public GraphPlacement Placement { get; set; } = GraphPlacement.Organic;
@@ -94,17 +105,17 @@ partial class GraphView : IDisposable
         wire.To.Wires.Remove(wire);
         wires.Remove(wire);
 
-        if (wireHitPaths.Remove(wire, out var path))
+        if (wireHitPaths.Remove(wire, out var entry))
         {
-            path.Dispose();
+            entry.Path.Dispose();
         }
     }
 
     private void ClearWireHitPaths()
     {
-        foreach (var path in wireHitPaths.Values)
+        foreach (var entry in wireHitPaths.Values)
         {
-            path.Dispose();
+            entry.Path.Dispose();
         }
 
         wireHitPaths.Clear();
@@ -188,10 +199,11 @@ partial class GraphView : IDisposable
                 }
             }
 
-            if (element is GraphNode node && primarySelectedNode != null)
+            if (!IsMoving && element is GraphNode node && primarySelectedNode != null)
             {
                 IsMoving = true;
                 dragStarted = false;
+                dragMovedConnected = false;
                 dragOrigin = graphPoint;
                 BringNodeToFront(node);
             }
@@ -224,6 +236,8 @@ partial class GraphView : IDisposable
 
             if (moveAllConnected && connectedNodes.Count > 0)
             {
+                dragMovedConnected = true;
+
                 foreach (var node in connectedNodes)
                 {
                     node.Position += delta;
@@ -251,9 +265,16 @@ partial class GraphView : IDisposable
         }
     }
 
-    public void HandleMouseUp(SKPoint graphPoint)
+    public void HandleMouseUp(SKPoint graphPoint, MouseButtons button)
     {
         using var _ = stateLock.EnterScope();
+
+        // Only the button that started the drag may end it; a chorded right/middle
+        // release mid-drag would otherwise tear the gesture down.
+        if ((button & MouseButtons.Left) == 0)
+        {
+            return;
+        }
 
         lastLocation = graphPoint;
 
@@ -262,6 +283,15 @@ partial class GraphView : IDisposable
         {
             RerouteComponentOf(primarySelectedNode);
         }
+
+        IsMoving = false;
+        dragStarted = false;
+    }
+
+    /// <summary>Abandons a live node drag, e.g. when focus is lost mid-gesture and the mouse-up will never arrive.</summary>
+    public void CancelDrag()
+    {
+        using var _ = stateLock.EnterScope();
 
         IsMoving = false;
         dragStarted = false;
@@ -302,11 +332,16 @@ partial class GraphView : IDisposable
             }
         }
 
-        var componentWires = wires.Where(w =>
-            visited.Contains(w.From.Owner) && visited.Contains(w.To.Owner) &&
-            !w.From.Owner.Hidden && !w.To.Owner.Hidden).ToList();
+        // Only the wires touching the moved nodes need new routes; the rest of the
+        // component participates as obstacles but keeps its existing geometry.
+        HashSet<GraphNode> movedNodes = dragMovedConnected ? [.. connectedNodes, start] : [start];
 
-        MsaglLayoutAdapter.RouteComponent(component, componentWires);
+        var movedWires = wires.Where(w =>
+            visited.Contains(w.From.Owner) && visited.Contains(w.To.Owner) &&
+            !w.From.Owner.Hidden && !w.To.Owner.Hidden &&
+            (movedNodes.Contains(w.From.Owner) || movedNodes.Contains(w.To.Owner))).ToList();
+
+        MsaglLayoutAdapter.RouteComponent(component, movedWires);
         ClearWireHitPaths();
         OnGraphChanged();
     }
@@ -326,6 +361,14 @@ partial class GraphView : IDisposable
             var node = nodes[i];
 
             if (node.Hidden)
+            {
+                continue;
+            }
+
+            // Socket pivots sit on the node border, so a bounds check inflated by the
+            // socket hit radius rejects the node and all its sockets in one comparison.
+            if (point.X < node.Position.X - socketHitRadius || point.X > node.Position.X + node.Size.X + socketHitRadius ||
+                point.Y < node.Position.Y - socketHitRadius || point.Y > node.Position.Y + node.Size.Y + socketHitRadius)
             {
                 continue;
             }
@@ -364,13 +407,14 @@ partial class GraphView : IDisposable
                 continue;
             }
 
-            if (!wireHitPaths.TryGetValue(wire, out var path))
+            if (!wireHitPaths.TryGetValue(wire, out var entry))
             {
-                path = BuildWireHitPath(wire);
-                wireHitPaths[wire] = path;
+                var path = BuildWireHitPath(wire);
+                entry = (path, path.Bounds);
+                wireHitPaths[wire] = entry;
             }
 
-            if (path.Contains(point.X, point.Y))
+            if (entry.Bounds.Contains(point.X, point.Y) && entry.Path.Contains(point.X, point.Y))
             {
                 return wire;
             }
@@ -542,6 +586,8 @@ partial class GraphView : IDisposable
         {
             nodes.Add(primarySelectedNode);
         }
+
+        MarkVisualDirty();
     }
 
     private void ToggleSelection(GraphNode node)
@@ -946,12 +992,7 @@ partial class GraphView : IDisposable
         {
             if (disposing)
             {
-                foreach (var path in wireHitPaths.Values)
-                {
-                    path.Dispose();
-                }
-
-                wireHitPaths.Clear();
+                ClearWireHitPaths();
                 DisposeRenderResources();
             }
 

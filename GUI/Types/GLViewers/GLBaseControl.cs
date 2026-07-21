@@ -315,9 +315,20 @@ internal abstract class GLBaseControl : IDisposable
         FullScreenForm = null;
     }
 
+    private bool disposed;
+
     public virtual void Dispose()
     {
         using var lockedGl = glLock.EnterScope();
+
+        // A second dispose must not run UnregisterInstance again; an unbalanced
+        // instance count shuts down the render loop shared by every other viewer.
+        if (disposed)
+        {
+            return;
+        }
+
+        disposed = true;
 
         if (cursorHiddenForDrag)
         {

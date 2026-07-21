@@ -92,6 +92,8 @@ partial class GraphView
     private readonly SKPaint gridPaint = new() { IsAntialias = true, Style = SKPaintStyle.Stroke, StrokeCap = SKStrokeCap.Round };
     private readonly SKPaint wirePaint = new() { IsAntialias = true, Style = SKPaintStyle.Stroke };
     private readonly SKPaint wireUnderlayPaint = new() { IsAntialias = true, Style = SKPaintStyle.Stroke };
+    private readonly SKPath wirePath = new();
+    private readonly SKPathEffect wireDashEffect = SKPathEffect.CreateDash([10f, 7f], 0f);
 
     private SKImageFilter? shadowNormal;
     private SKImageFilter? shadowSelected;
@@ -120,6 +122,8 @@ partial class GraphView
         gridPaint.Dispose();
         wirePaint.Dispose();
         wireUnderlayPaint.Dispose();
+        wirePath.Dispose();
+        wireDashEffect.Dispose();
         shadowNormal?.Dispose();
         shadowSelected?.Dispose();
         shadowConnected?.Dispose();
@@ -520,7 +524,8 @@ partial class GraphView
             return;
         }
 
-        using var path = new SKPath();
+        var path = wirePath;
+        path.Reset();
         BuildWirePath(path, wire, from, to);
 
         var width = WireWidth * Math.Max(1f, 1f / zoom);
@@ -539,7 +544,7 @@ partial class GraphView
             (wire.From.Owner == primarySelectedNode || wire.To.Owner == primarySelectedNode));
 
         wirePaint.StrokeWidth = width;
-        wirePaint.PathEffect = wire.Dashed ? SKPathEffect.CreateDash([10f, 7f], 0f) : null;
+        wirePaint.PathEffect = wire.Dashed ? wireDashEffect : null;
 
         if (touchesSelection)
         {
@@ -564,18 +569,7 @@ partial class GraphView
 
         wirePaint.Shader?.Dispose();
         wirePaint.Shader = null;
-        wirePaint.PathEffect?.Dispose();
         wirePaint.PathEffect = null;
-
-        // Arrowhead at the input end; wire handles are horizontal so the tip always points +X.
-        var arrowSize = width * 2.4f;
-        arrowPath.Reset();
-        arrowPath.MoveTo(to.X - SocketRadius - arrowSize, to.Y - arrowSize * 0.65f);
-        arrowPath.LineTo(to.X - SocketRadius + 1f, to.Y);
-        arrowPath.LineTo(to.X - SocketRadius - arrowSize, to.Y + arrowSize * 0.65f);
-        arrowPath.Close();
-        arrowPaint.Color = touchesSelection ? Palette.Selection : Palette.Signal(wire.To.Hue);
-        canvas.DrawPath(arrowPath, arrowPaint);
 
         if (wire.Label != null && zoom >= 0.4f)
         {
