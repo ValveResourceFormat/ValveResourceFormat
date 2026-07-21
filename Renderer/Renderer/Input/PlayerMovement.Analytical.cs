@@ -435,74 +435,130 @@ public partial class PlayerMovement
     }
 
     /// <summary>
-    /// Closed-form "tickless" air strafe. In the continuous limit the addspeed gate acts
-    /// as a constraint: while view rotation pulls the wishdir ahead of the velocity, the
-    /// wishdir component stays pinned at the air cap and the perpendicular component
-    /// grows at exactly cap units per radian turned — so strafe gain depends on total
-    /// rotation, not framerate. The frame solves in three phases: an instantaneous top-up
-    /// of the wishdir component to the cap (key changes), a frozen phase while the
-    /// component still exceeds the cap (gate closed, velocity unchanged), and the pinned
-    /// rotation phase. Returns null when the acceleration budget cannot cover the frame
-    /// (very high fps or low air accelerate), where the caller's discrete update is
-    /// already linear in dt and framerate-independent.
+    /// Tickless air strafe: the frame's uniform view rotation is integrated exactly by a
+    /// three-regime state machine (per H7perus' CSGO-Tickless-Movement analysis), so
+    /// strafe gain depends on degrees turned and the accel rate, not framerate.
+    /// Regimes, in the rotation-normalized frame (g = wishdir velocity component,
+    /// q = component ahead of the rotation):
+    ///  - frozen: g above the cap, gate closed, velocity constant while the wishdir
+    ///    swings until it leads the velocity by acos(cap/speed);
+    ///  - pinned: g held at the cap; |q| grows at cap per radian, needing accel
+    ///    cap-per-radian rate |q| — holds while that stays within the available rate;
+    ///  - full accel: g below the cap (or the pin unaffordable); the constant accel
+    ///    rate along the rotating wishdir integrates as a spiral, and g follows
+    ///    R·sin(θ+φ), giving the re-pinning angle in closed form.
+    /// Returns null for zero-rotation frames (the caller's discrete update is exact) or
+    /// if the state machine fails to advance (degenerate tangency).
     /// </summary>
-    private static Vector3? TicklessAirStrafe(Vector3 velocity, Vector3 wishdirEnd, float cap, float yawDelta, float budget)
+    private static Vector3? TicklessAirStrafe(Vector3 velocity, Vector3 wishdirEnd, float cap, float yawDelta, float accelRate, float deltaTime)
     {
-        // Wishdir at the start of the frame's rotation
-        var (sinBack, cosBack) = MathF.SinCos(-yawDelta);
-        var wishdirStart = new Vector3(
-            wishdirEnd.X * cosBack - wishdirEnd.Y * sinBack,
-            wishdirEnd.X * sinBack + wishdirEnd.Y * cosBack,
-            0f);
-
-        var horizontal = new Vector3(velocity.X, velocity.Y, 0f);
-
-        // Instantaneous top-up of the wishdir component to the cap
-        var along = Vector3.Dot(horizontal, wishdirStart);
-        var topUp = MathF.Max(0f, cap - along);
-        var spent = topUp;
-        horizontal += topUp * wishdirStart;
-
         var turnSign = MathF.Sign(yawDelta);
         var turn = MathF.Abs(yawDelta);
 
-        if (turnSign != 0 && turn > 1e-6f)
-        {
-            var speed = horizontal.Length();
-            along = Vector3.Dot(horizontal, wishdirStart);
-
-            // Perpendicular component, normalized so positive means the rotation is
-            // moving the wishdir toward the velocity
-            var perp = turnSign * (wishdirStart.X * horizontal.Y - wishdirStart.Y * horizontal.X);
-
-            var phi0 = MathF.Atan2(perp, along);
-            var phiCap = MathF.Acos(Math.Clamp(cap / speed, -1f, 1f));
-
-            // Gate closed while the wishdir component exceeds the cap: the wishdir swings
-            // past the velocity and pinning starts once it leads by phiCap
-            var pinStart = MathF.Max(0f, phi0 + phiCap);
-
-            if (turn > pinStart)
-            {
-                var pinnedTurn = turn - pinStart;
-                var perpAtPin = MathF.Sqrt(MathF.Max(0f, speed * speed - cap * cap));
-                var perpMagnitude = perpAtPin + cap * pinnedTurn;
-
-                // Acceleration spent pinning: ∫p dθ
-                spent += perpAtPin * pinnedTurn + cap * pinnedTurn * pinnedTurn / 2f;
-
-                // Reconstruct in end-of-frame axes; the velocity trails the rotation
-                var perpDir = new Vector3(-wishdirEnd.Y, wishdirEnd.X, 0f);
-                horizontal = cap * wishdirEnd - turnSign * perpMagnitude * perpDir;
-            }
-        }
-
-        if (spent > budget)
+        if (turnSign == 0 || turn <= 1e-6f)
         {
             return null;
         }
 
-        return new Vector3(horizontal.X, horizontal.Y, velocity.Z);
+        // Accel available per radian of rotation
+        var accelPerRadian = accelRate * deltaTime / turn;
+
+        var endAngle = MathF.Atan2(wishdirEnd.Y, wishdirEnd.X);
+        var startAngle = endAngle - yawDelta;
+
+        var vx = velocity.X;
+        var vy = velocity.Y;
+        var theta = 0f;
+
+        const int MaxPhases = 10;
+        const float AngleEpsilon = 1e-7f;
+
+        for (var phase = 0; phase < MaxPhases; phase++)
+        {
+            if (theta >= turn - AngleEpsilon)
+            {
+                return new Vector3(vx, vy, velocity.Z);
+            }
+
+            var (sinR, cosR) = MathF.SinCos(startAngle + turnSign * theta);
+            var g = vx * cosR + vy * sinR;
+            var q = turnSign * (cosR * vy - sinR * vx);
+
+            const float CapEpsilon = 1e-3f;
+
+            if (g > cap + CapEpsilon || (g >= cap - CapEpsilon && q > 0f))
+            {
+                // Frozen: gate closed (component above the cap, or the rotation is moving
+                // toward the velocity), velocity constant while the wishdir rotates until
+                // it leads the velocity by acos(cap/speed)
+                var speed = MathF.Sqrt(vx * vx + vy * vy);
+                var phi = MathF.Atan2(q, g);
+                var phiCap = MathF.Acos(Math.Clamp(cap / speed, -1f, 1f));
+                var step = MathF.Min(turn - theta, phi + phiCap);
+
+                if (step <= AngleEpsilon)
+                {
+                    return null;
+                }
+
+                theta += step;
+                continue;
+            }
+
+            if (g >= cap - CapEpsilon && -q < accelPerRadian)
+            {
+                // Pinned: hold g at the cap until the required rate |q| reaches the
+                // available rate or the frame ends
+                var step = MathF.Min(turn - theta, (accelPerRadian + q) / cap);
+                theta += step;
+                q -= cap * step;
+
+                (sinR, cosR) = MathF.SinCos(startAngle + turnSign * theta);
+                vx = cap * cosR - q * turnSign * sinR;
+                vy = cap * sinR + q * turnSign * cosR;
+                continue;
+            }
+
+            // Below the cap, or at it with the pin unaffordable: full accel
+
+            {
+                // Full accel along the rotating wishdir: g(θ) = R·sin(θ+φ) with
+                // g' = q + A', so the upward crossing of the cap is in closed form
+                var gRate = q + accelPerRadian;
+                var amplitude = MathF.Sqrt(g * g + gRate * gRate);
+                float step;
+
+                if (amplitude <= cap + 1e-4f)
+                {
+                    step = turn - theta;
+                }
+                else
+                {
+                    var phi = MathF.Atan2(g, gRate);
+                    var hit = MathF.Asin(Math.Clamp(cap / amplitude, -1f, 1f)) - phi;
+
+                    while (hit < AngleEpsilon)
+                    {
+                        hit += MathF.Tau;
+                    }
+
+                    step = MathF.Min(turn - theta, hit);
+                }
+
+                if (step <= AngleEpsilon)
+                {
+                    return null;
+                }
+
+                // Spiral integral of the constant accel rate over the rotation
+                var (sinR2, cosR2) = MathF.SinCos(startAngle + turnSign * (theta + step));
+                vx += accelPerRadian * turnSign * (sinR2 - sinR);
+                vy += accelPerRadian * turnSign * (cosR - cosR2);
+                theta += step;
+            }
+        }
+
+        return null;
     }
 
     /// <summary>
