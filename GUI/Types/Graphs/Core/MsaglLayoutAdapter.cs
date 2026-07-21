@@ -54,17 +54,13 @@ internal static class MsaglLayoutAdapter
 
         if (placement == GraphPlacement.Organic)
         {
-            var mds = new Microsoft.Msagl.Layout.MDS.MdsLayoutSettings
-            {
-                RemoveOverlaps = true,
-                NodeSeparation = 36,
-            };
-            mds.EdgeRoutingSettings.EdgeRoutingMode = EdgeRoutingMode.SplineBundling;
-            mds.EdgeRoutingSettings.BundlingSettings = CreateBundlingSettings();
-
             try
             {
-                Microsoft.Msagl.Miscellaneous.LayoutHelpers.CalculateLayout(geometryGraph, mds, null);
+                CalculateLayout(geometryGraph, new Microsoft.Msagl.Layout.MDS.MdsLayoutSettings
+                {
+                    RemoveOverlaps = true,
+                    NodeSeparation = 36,
+                });
                 WriteBackAndRoute(msaglNodes, msaglEdges, selfWires);
                 return;
             }
@@ -76,17 +72,19 @@ internal static class MsaglLayoutAdapter
             }
         }
 
-        var settings = new SugiyamaLayoutSettings
+        CalculateLayout(geometryGraph, new SugiyamaLayoutSettings
         {
             LayerSeparation = 220,
             NodeSeparation = 36,
-        };
+        });
+        WriteBackAndRoute(msaglNodes, msaglEdges, selfWires);
+    }
+
+    private static void CalculateLayout(GeometryGraph geometryGraph, LayoutAlgorithmSettings settings)
+    {
         settings.EdgeRoutingSettings.EdgeRoutingMode = EdgeRoutingMode.SplineBundling;
         settings.EdgeRoutingSettings.BundlingSettings = CreateBundlingSettings();
-
         Microsoft.Msagl.Miscellaneous.LayoutHelpers.CalculateLayout(geometryGraph, settings, null);
-
-        WriteBackAndRoute(msaglNodes, msaglEdges, selfWires);
     }
 
     private static void WriteBackAndRoute(Dictionary<GraphNode, Node> msaglNodes, List<(Edge Edge, GraphWire Wire)> msaglEdges, List<GraphWire> selfWires)
@@ -185,10 +183,7 @@ internal static class MsaglLayoutAdapter
     {
         foreach (var (edge, wire) in msaglEdges)
         {
-            // The exact library geometry draws; the sampled polyline only serves culling,
-            // hit-testing and metrics.
             wire.CurvePath = ExtractPath(edge.Curve);
-            wire.Waypoints = SampleCurve(edge.Curve);
             SpliceTerminals(wire);
         }
 
@@ -225,8 +220,9 @@ internal static class MsaglLayoutAdapter
     {
         var path = wire.CurvePath;
 
-        if (path == null || path.Count < 2)
+        if (path == null)
         {
+            wire.Waypoints = null;
             return;
         }
 
@@ -464,21 +460,13 @@ internal static class MsaglLayoutAdapter
                 }
             }
 
-            // Unknown segment kinds: dense cubic Hermite chunks, sub-pixel at any zoom.
-            var chunks = Math.Clamp((int)(segment.Length / 15.0), 2, 32);
+            // Unknown segment kinds: dense line samples, sub-pixel at any zoom.
+            var steps = Math.Clamp((int)(segment.Length / 15.0), 2, 32);
+            EnsureStart(segment[segment.ParStart]);
 
-            for (var i = 0; i < chunks; i++)
+            for (var i = 1; i <= steps; i++)
             {
-                var t0 = segment.ParStart + (segment.ParEnd - segment.ParStart) * i / chunks;
-                var t1 = segment.ParStart + (segment.ParEnd - segment.ParStart) * (i + 1) / chunks;
-                var h = (float)((t1 - t0) / 3.0);
-                var p0 = segment[t0];
-
-                EnsureStart(p0);
-                commands.Add(GraphCurveCommand.CubicTo(
-                    Transpose(p0) + Transpose(segment.Derivative(t0)) * h,
-                    Transpose(segment[t1]) - Transpose(segment.Derivative(t1)) * h,
-                    Transpose(segment[t1])));
+                commands.Add(GraphCurveCommand.LineTo(Transpose(segment[segment.ParStart + (segment.ParEnd - segment.ParStart) * i / steps])));
             }
         }
 
@@ -512,47 +500,4 @@ internal static class MsaglLayoutAdapter
         return true;
     }
 
-    // Flatten a routed curve into a dense polyline for culling, hit-testing and metrics.
-    // Composite curves (bundled routes are many short segments) sample per segment with
-    // length-proportional step counts; uniform whole-curve sampling cuts their corners.
-    private static List<Vector2>? SampleCurve(ICurve? curve)
-    {
-        if (curve == null)
-        {
-            return null;
-        }
-
-        var points = new List<Vector2>();
-
-        void SampleSegment(ICurve segment)
-        {
-            var steps = Math.Clamp((int)(segment.Length / 10.0), 2, 64);
-
-            for (var i = 0; i <= steps; i++)
-            {
-                var t = segment.ParStart + (segment.ParEnd - segment.ParStart) * i / steps;
-                var p = segment[t];
-                var converted = new Vector2((float)-p.Y, (float)p.X);
-
-                if (points.Count == 0 || Vector2.DistanceSquared(points[^1], converted) > 0.25f)
-                {
-                    points.Add(converted);
-                }
-            }
-        }
-
-        if (curve is Curve composite)
-        {
-            foreach (var segment in composite.Segments)
-            {
-                SampleSegment(segment);
-            }
-        }
-        else
-        {
-            SampleSegment(curve);
-        }
-
-        return points.Count >= 2 ? points : null;
-    }
 }

@@ -42,24 +42,6 @@ partial class GraphView : IDisposable
     public int NodeCount => nodes.Count;
     public int WireCount => wires.Count;
 
-    public GraphNode? PrimarySelectedNode
-    {
-        get
-        {
-            using var _ = stateLock.EnterScope();
-            return primarySelectedNode;
-        }
-    }
-
-    public GraphWire? SelectedWire
-    {
-        get
-        {
-            using var _ = stateLock.EnterScope();
-            return selectedWire;
-        }
-    }
-
     private void OnGraphChanged() => GraphChanged?.Invoke(this, EventArgs.Empty);
 
     /// <summary>Node placement engine used by <see cref="LayoutNodesPacked"/>.</summary>

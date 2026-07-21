@@ -101,10 +101,10 @@ internal class AnimationGraphViewer : GLGraphViewer
         }
 
 
-        (Node, GraphSocket) CreateInputAndChild<ValueType>(Node parent, int totalChildren, int nodeIdx, string? parentInputName = null, string? childOutputName = null, bool hub = false)
+        (Node, GraphSocket) CreateInputAndChild<ValueType>(Node parent, int nodeIdx, string? parentInputName = null, string? childOutputName = null, bool hub = false)
             where ValueType : struct
         {
-            var (childNode, childNodeOutput) = CreateChild<ValueType>(parent, totalChildren, nodeIdx, childOutputName);
+            var (childNode, childNodeOutput) = CreateChild<ValueType>(nodeIdx, childOutputName);
 
             var input = parent.AddInput(parentInputName ?? childNode.Name ?? string.Empty, HueOf(typeof(ValueType)), hub);
             View.Connect(childNodeOutput, input);
@@ -112,7 +112,7 @@ internal class AnimationGraphViewer : GLGraphViewer
             return (childNode, input);
         }
 
-        (Node, GraphSocket) CreateChild<ValueType>(Node parent, int totalChildren, int nodeIdx, string? childOutputName = null)
+        (Node, GraphSocket) CreateChild<ValueType>(int nodeIdx, string? childOutputName = null)
         {
             var childNode = CreateNode(nodePaths, nodes, nodeIdx);
 
@@ -162,13 +162,13 @@ internal class AnimationGraphViewer : GLGraphViewer
 
                     if (stateInputIdx != -1)
                     {
-                        var (_, stateNodeOut) = CreateChild<Pose>(node, children.Count, stateInputIdx);
+                        var (_, stateNodeOut) = CreateChild<Pose>(stateInputIdx);
                         View.Connect(stateNodeOut, input);
                     }
 
                     if (entryConditionNodeIdx != -1)
                     {
-                        var (_, childOutput) = CreateChild<Value>(node, children.Count, entryConditionNodeIdx, stateName);
+                        var (_, childOutput) = CreateChild<Value>(entryConditionNodeIdx, stateName);
                         View.Connect(childOutput, input);
                     }
                 }
@@ -178,7 +178,7 @@ internal class AnimationGraphViewer : GLGraphViewer
                 var options = data.GetArray<int>("m_optionNodeIndices");
 
                 var parameterNodeIdx = data.GetInt32Property("m_parameterNodeIdx");
-                CreateInputAndChild<Value>(node, options.Length + 1, parameterNodeIdx);
+                CreateInputAndChild<Value>(node, parameterNodeIdx);
 
                 var hasWeightsSet = data.GetBooleanProperty("m_bHasWeightsSet");
                 var totalWeight = 0;
@@ -202,7 +202,7 @@ internal class AnimationGraphViewer : GLGraphViewer
                         weightDesc = $"Weight: {weight} ({weightPercentage:F2}%)";
                     }
 
-                    CreateInputAndChild<Pose>(node, options.Length + 1, optionNodeIdx, $"Option {++i} {weightDesc}");
+                    CreateInputAndChild<Pose>(node, optionNodeIdx, $"Option {++i} {weightDesc}");
                 }
             }
             else if (node.NodeType is "Selector" or "ClipSelector")
@@ -211,19 +211,17 @@ internal class AnimationGraphViewer : GLGraphViewer
                 var options = data.GetArray<int>("m_optionNodeIndices");
                 var conditions = data.GetArray<int>("m_conditionNodeIndices");
 
-                var i = 0;
                 foreach (var (optionNodeIdx, conditionNodeIdx) in options.Zip(conditions))
                 {
-                    var (_, optionInput) = CreateInputAndChild<Pose>(node, options.Length, optionNodeIdx, hub: true);
-                    var (_, conditionOutput) = CreateChild<Value>(node, options.Length, conditionNodeIdx);
+                    var (_, optionInput) = CreateInputAndChild<Pose>(node, optionNodeIdx, hub: true);
+                    var (_, conditionOutput) = CreateChild<Value>(conditionNodeIdx);
                     View.Connect(conditionOutput, optionInput);
-                    i++;
                 }
             }
             else if (node.NodeType is "LayerBlend")
             {
                 var baseNodeIdx = data.GetInt32Property("m_nBaseNodeIdx");
-                CreateInputAndChild<Pose>(node, 3, baseNodeIdx, "Base", "Result");
+                CreateInputAndChild<Pose>(node, baseNodeIdx, "Base", "Result");
 
                 var layerInput = node.AddInput("Layers", PoseHue, allowMultiple: true);
 
@@ -239,7 +237,7 @@ internal class AnimationGraphViewer : GLGraphViewer
 
                     var layerOutput = layerNode.AddOutput(string.Empty, PoseHue);
                     View.Connect(layerOutput, layerInput);
-                    CreateInputAndChild<Pose>(layerNode, 1, layer.GetInt32Property("m_nInputNodeIdx"));
+                    CreateInputAndChild<Pose>(layerNode, layer.GetInt32Property("m_nInputNodeIdx"));
 
                     // Optional inputs
                     var weightNodeIdx = layer.GetInt32Property("m_nWeightValueNodeIdx");
@@ -248,17 +246,17 @@ internal class AnimationGraphViewer : GLGraphViewer
 
                     if (weightNodeIdx != -1)
                     {
-                        CreateInputAndChild<Value>(layerNode, 1, weightNodeIdx, parentInputName: "Weight");
+                        CreateInputAndChild<Value>(layerNode, weightNodeIdx, parentInputName: "Weight");
                     }
 
                     if (boneMaskNodeIdx != -1)
                     {
-                        CreateInputAndChild<Pose>(layerNode, 1, boneMaskNodeIdx, parentInputName: "Bone Mask");
+                        CreateInputAndChild<Pose>(layerNode, boneMaskNodeIdx, parentInputName: "Bone Mask");
                     }
 
                     if (rootMotionNodeIdx != -1)
                     {
-                        CreateInputAndChild<Pose>(layerNode, 1, rootMotionNodeIdx, parentInputName: "Root Motion");
+                        CreateInputAndChild<Pose>(layerNode, rootMotionNodeIdx, parentInputName: "Root Motion");
                     }
 
                     layerNode.AddText($"Is Synchronized: {layer.GetBooleanProperty("m_bIsSynchronized")}");
@@ -276,7 +274,7 @@ internal class AnimationGraphViewer : GLGraphViewer
                 if (node.NodeType == "Blend1D")
                 {
                     var inputNodeIdx = data.GetInt32Property("m_nInputParameterValueNodeIdx");
-                    CreateInputAndChild<Value>(node, childCount, inputNodeIdx, "Parameter");
+                    CreateInputAndChild<Value>(node, inputNodeIdx, "Parameter");
                 }
                 else if (node.NodeType == "Blend2D")
                 {
@@ -284,14 +282,14 @@ internal class AnimationGraphViewer : GLGraphViewer
                     var inputNodeIdxB = data.GetInt32Property("m_nInputParameterNodeIdx1");
 
                     childCount += 1;
-                    CreateInputAndChild<Value>(node, childCount, inputNodeIdxA, "Parameter A");
-                    CreateInputAndChild<Value>(node, childCount, inputNodeIdxB, "Parameter B");
+                    CreateInputAndChild<Value>(node, inputNodeIdxA, "Parameter A");
+                    CreateInputAndChild<Value>(node, inputNodeIdxB, "Parameter B");
                 }
 
                 var optionIndex = 0;
                 foreach (var sourceNodeIdx in sourceNodeIndices)
                 {
-                    CreateInputAndChild<Pose>(node, childCount, sourceNodeIdx, $"Option {++optionIndex}");
+                    CreateInputAndChild<Pose>(node, sourceNodeIdx, $"Option {++optionIndex}");
                 }
 
                 node.AddText($"Allow Looping: {data.GetBooleanProperty("m_bAllowLooping")}");
@@ -302,7 +300,7 @@ internal class AnimationGraphViewer : GLGraphViewer
             }
             else if (node.NodeType is "CachedFloat")
             {
-                CreateInputAndChild<Value>(node, 1, data.GetInt32Property("m_nInputValueNodeIdx"), "Input");
+                CreateInputAndChild<Value>(node, data.GetInt32Property("m_nInputValueNodeIdx"), "Input");
                 node.AddText($"Mode: {data.GetStringProperty("m_mode")}");
             }
             else if (node.NodeType is "ConstTarget")
@@ -322,19 +320,19 @@ internal class AnimationGraphViewer : GLGraphViewer
             }
             else if (node.NodeType is "SpeedScale")
             {
-                CreateInputAndChild<Pose>(node, 3, data.GetInt32Property("m_nChildNodeIdx"), "Input");
-                CreateInputAndChild<Value>(node, 3, data.GetInt32Property("m_nInputValueNodeIdx"), "Scale Value");
+                CreateInputAndChild<Pose>(node, data.GetInt32Property("m_nChildNodeIdx"), "Input");
+                CreateInputAndChild<Value>(node, data.GetInt32Property("m_nInputValueNodeIdx"), "Scale Value");
                 node.AddText($"Default Scale: {data.GetFloatProperty("m_flDefaultInputValue")}");
             }
             else if (node.NodeType is "Not" or "FloatCurve")
             {
-                CreateInputAndChild<Value>(node, 1, data.GetInt32Property("m_nInputValueNodeIdx"), "Value");
+                CreateInputAndChild<Value>(node, data.GetInt32Property("m_nInputValueNodeIdx"), "Value");
 
                 // curve
             }
             else if (node.NodeType is "FloatRemap")
             {
-                CreateInputAndChild<Value>(node, 1, data.GetInt32Property("m_nInputValueNodeIdx"), "Value");
+                CreateInputAndChild<Value>(node, data.GetInt32Property("m_nInputValueNodeIdx"), "Value");
                 var inputRange = data.GetSubCollection("m_inputRange");
                 var outputRange = data.GetSubCollection("m_outputRange");
                 node.AddText($"InputBegin: {inputRange.GetFloatProperty("m_flBegin")} InputEnd: {inputRange.GetFloatProperty("m_flEnd")}");
@@ -359,14 +357,14 @@ internal class AnimationGraphViewer : GLGraphViewer
                 var inputNodeIdxA = data.GetInt32Property("m_nInputValueNodeIdxA", -1);
                 var inputNodeIdxB = data.GetInt32Property("m_nInputValueNodeIdxB", -1);
 
-                CreateInputAndChild<Value>(node, 2, inputNodeIdxA, "A");
+                CreateInputAndChild<Value>(node, inputNodeIdxA, "A");
 
                 var @operator = data.GetStringProperty("m_operator");
                 node.AddText(@operator);
 
                 if (inputNodeIdxB != -1)
                 {
-                    CreateInputAndChild<Value>(node, 2, inputNodeIdxB, "B");
+                    CreateInputAndChild<Value>(node, inputNodeIdxB, "B");
                 }
                 else
                 {
@@ -379,7 +377,7 @@ internal class AnimationGraphViewer : GLGraphViewer
             else if (node.NodeType.EndsWith("Comparison", StringComparison.Ordinal))
             {
                 var childNodeIdx = data.GetInt32Property("m_nInputValueNodeIdx");
-                CreateInputAndChild<Value>(node, 1, childNodeIdx, GetName(childNodeIdx));
+                CreateInputAndChild<Value>(node, childNodeIdx, GetName(childNodeIdx));
 
                 if (data.ContainsKey("m_comparison"))
                 {
@@ -400,7 +398,7 @@ internal class AnimationGraphViewer : GLGraphViewer
                     var comparandNodeIdx = data.GetInt32Property("m_nComparandValueNodeIdx");
                     if (comparandNodeIdx != -1)
                     {
-                        CreateInputAndChild<Value>(node, 1, comparandNodeIdx, "Comparand");
+                        CreateInputAndChild<Value>(node, comparandNodeIdx, "Comparand");
                     }
                     else
                     {
@@ -417,7 +415,7 @@ internal class AnimationGraphViewer : GLGraphViewer
                 var conditions = data.GetArray<int>("m_conditionNodeIndices");
                 foreach (var condition in conditions)
                 {
-                    CreateInputAndChild<Value>(node, conditions.Length + 1, condition);
+                    CreateInputAndChild<Value>(node, condition);
                 }
             }
             else if (node.Data?.ContainsKey("m_nChildNodeIdx") ?? false)
@@ -428,25 +426,25 @@ internal class AnimationGraphViewer : GLGraphViewer
                 {
                     if (idx != -1)
                     {
-                        CreateInputAndChild<Value>(node, childCount, idx, name);
+                        CreateInputAndChild<Value>(node, idx, name);
                     }
                 }
 
                 if (node.NodeType == "Scale")
                 {
                     childCount = 3;
-                    CreateInputAndChild<Pose>(node, childCount, data.GetInt32Property("m_nMaskNodeIdx"), "Mask");
-                    CreateInputAndChild<Value>(node, childCount, data.GetInt32Property("m_nEnableNodeIdx"), "Enable");
+                    CreateInputAndChild<Pose>(node, data.GetInt32Property("m_nMaskNodeIdx"), "Mask");
+                    CreateInputAndChild<Value>(node, data.GetInt32Property("m_nEnableNodeIdx"), "Enable");
                 }
                 else if (node.NodeType == "TwoBoneIK")
                 {
                     childCount = 2;
                     node.AddText($"Bone: {data.GetStringProperty("m_effectorBoneID")}");
-                    CreateInputAndChild<Pose>(node, childCount, data.GetInt32Property("m_nEffectorTargetNodeIdx"), "Effector");
+                    CreateInputAndChild<Pose>(node, data.GetInt32Property("m_nEffectorTargetNodeIdx"), "Effector");
                     var enabledNodeIdx = data.GetInt32Property("m_nEnabledNodeIdx");
                     if (enabledNodeIdx != -1)
                     {
-                        CreateInputAndChild<Value>(node, childCount, enabledNodeIdx, "Enabled");
+                        CreateInputAndChild<Value>(node, enabledNodeIdx, "Enabled");
                     }
                     else
                     {
@@ -466,13 +464,13 @@ internal class AnimationGraphViewer : GLGraphViewer
                     var leftTargetIdx = data.GetInt32Property("m_nLeftTargetNodeIdx");
                     var rightTargetIdx = data.GetInt32Property("m_nRightTargetNodeIdx");
 
-                    CreateInputAndChild<Pose>(node, childCount, leftTargetIdx, "Left Target");
-                    CreateInputAndChild<Pose>(node, childCount, rightTargetIdx, "Right Target");
+                    CreateInputAndChild<Pose>(node, leftTargetIdx, "Left Target");
+                    CreateInputAndChild<Pose>(node, rightTargetIdx, "Right Target");
 
                     var enabledNodeIdx = data.GetInt32Property("m_nEnabledNodeIdx", -1);
                     if (enabledNodeIdx != -1)
                     {
-                        CreateInputAndChild<Value>(node, childCount, enabledNodeIdx, "Enabled");
+                        CreateInputAndChild<Value>(node, enabledNodeIdx, "Enabled");
                     }
 
                     node.AddText($"Blend Time: {data.GetFloatProperty("m_flBlendTimeSeconds"):F2}");
@@ -504,7 +502,7 @@ internal class AnimationGraphViewer : GLGraphViewer
                 }
 
                 var childNodeIdx = data.GetInt32Property("m_nChildNodeIdx");
-                CreateInputAndChild<Pose>(node, childCount, childNodeIdx, "Input", "Result");
+                CreateInputAndChild<Pose>(node, childNodeIdx, "Input", "Result");
             }
             else if (node.NodeType is "Clip" or "AnimationPose" or "ReferencedGraph")
             {
@@ -523,7 +521,7 @@ internal class AnimationGraphViewer : GLGraphViewer
                     if (fallbackNodeIdx != -1)
                     {
                         node.AddSpace();
-                        CreateInputAndChild<Pose>(node, 1, fallbackNodeIdx, "Fallback");
+                        CreateInputAndChild<Pose>(node, fallbackNodeIdx, "Fallback");
                     }
                 }
                 else if (node.NodeType is "Clip")
@@ -537,13 +535,13 @@ internal class AnimationGraphViewer : GLGraphViewer
                     var playInReverseNodeIdx = data.GetInt32Property("m_nPlayInReverseValueNodeIdx");
                     if (playInReverseNodeIdx != -1)
                     {
-                        CreateInputAndChild<Value>(node, 1, playInReverseNodeIdx, "Play in reverse");
+                        CreateInputAndChild<Value>(node, playInReverseNodeIdx, "Play in reverse");
                     }
 
                     var resetTimeValueNodeIdx = data.GetInt32Property("m_nResetTimeValueNodeIdx");
                     if (resetTimeValueNodeIdx != -1)
                     {
-                        CreateInputAndChild<Value>(node, 1, resetTimeValueNodeIdx, "Reset time");
+                        CreateInputAndChild<Value>(node, resetTimeValueNodeIdx, "Reset time");
                     }
 
                 }
@@ -554,7 +552,7 @@ internal class AnimationGraphViewer : GLGraphViewer
                     var poseTimeNodeIdx = data.GetInt32Property("m_nPoseTimeValueNodeIdx");
                     if (poseTimeNodeIdx != -1)
                     {
-                        CreateInputAndChild<Value>(node, 1, poseTimeNodeIdx, "Time");
+                        CreateInputAndChild<Value>(node, poseTimeNodeIdx, "Time");
                     }
 
                     var timeRemapRange = data.GetSubCollection("m_inputTimeRemapRange");

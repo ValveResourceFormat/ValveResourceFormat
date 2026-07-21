@@ -324,7 +324,7 @@ internal class EntityIOGraphViewer : GLGraphViewer
         return value.StartsWith(Prefix, StringComparison.Ordinal) ? value[Prefix.Length..] : value;
     }
 
-    private static GraphHue ClassHue(string classname) => EntityClassHues.Map.GetValueOrDefault(classname, GraphHue.Neutral);
+    private static GraphHue ClassHue(string classname) => EntityClassHues.For(classname);
 
 
     private static string? FormatConnectionLabel(Connection connection)
@@ -352,8 +352,6 @@ internal class EntityIOGraphViewer : GLGraphViewer
 
         return parts.Count > 0 ? string.Join(" ", parts) : null;
     }
-
-    internal static void BuildGraph(GraphView view, EntityLump entityLump) => BuildGraph(view, entityLump.GetEntities());
 
     internal static void BuildGraph(GraphView view, List<EntityLump.Entity> entities, Dictionary<GraphNode, List<EntityLump.Entity>>? groupMembers = null)
     {

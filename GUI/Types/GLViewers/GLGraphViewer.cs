@@ -38,20 +38,12 @@ namespace GUI.Types.GLViewers
         private void OnGraphChanged(object? sender, System.EventArgs e)
         {
             InvalidateRender();
-
-            // Selection only changes on the UI thread; skip label updates from background callers.
-            if (GLControl is { InvokeRequired: false })
-            {
-                UpdateSelectionLabels();
-            }
         }
 
         protected override bool ShowResetZoomButton => false;
 
         private Label? statsLabel;
         private ThemedTextBox? searchBox;
-        private ListBox? connectionsList;
-        private readonly List<GraphNode> connectionsListTargets = [];
         private Panel? legendPanel;
         private GraphNode? lastSearchResult;
 
@@ -95,15 +87,6 @@ namespace GUI.Types.GLViewers
                 placementCombo.SelectedIndex = (int)View.Placement;
                 suppressPlacementChange = false;
 
-                connectionsList = new ListBox
-                {
-                    IntegralHeight = false,
-                    BorderStyle = BorderStyle.None,
-                    Visible = false,
-                };
-                connectionsList.DoubleClick += OnConnectionsListDoubleClick;
-                UiControl.AddControl(connectionsList);
-
                 var subtitles = View.GetDistinctSubtitles();
 
                 if (subtitles.Count > 1)
@@ -128,7 +111,6 @@ namespace GUI.Types.GLViewers
                 }
 
                 AddLegendPanel();
-                UpdateSelectionLabels();
 
                 // Top of the sidebar, above the base viewer buttons: search second, the
                 // layout dropdown at the very top (SendToBack order is bottom-up). The combo
@@ -171,57 +153,6 @@ namespace GUI.Types.GLViewers
             statsLabel.Text = statsText;
         }
 
-        private void UpdateSelectionLabels()
-        {
-            if (connectionsList == null)
-            {
-                return;
-            }
-
-            var node = View.PrimarySelectedNode;
-            var wire = View.SelectedWire;
-
-            static string Suffix(GraphWire wire) => wire.Label == null ? string.Empty : $"  ({wire.Label})";
-
-            connectionsList.BeginUpdate();
-            connectionsList.Items.Clear();
-            connectionsListTargets.Clear();
-
-            if (node != null)
-            {
-                foreach (var socket in node.Inputs)
-                {
-                    foreach (var inWire in socket.Wires)
-                    {
-                        connectionsList.Items.Add($"← {inWire.From.Owner.Title}.{inWire.From.Name}{Suffix(inWire)}");
-                        connectionsListTargets.Add(inWire.From.Owner);
-                    }
-                }
-
-                foreach (var socket in node.Outputs)
-                {
-                    foreach (var outWire in socket.Wires)
-                    {
-                        connectionsList.Items.Add($"→ {outWire.To.Owner.Title}.{outWire.To.Name}{Suffix(outWire)}");
-                        connectionsListTargets.Add(outWire.To.Owner);
-                    }
-                }
-            }
-            else if (wire != null)
-            {
-                connectionsList.Items.Add($"{wire.From.Owner.Title}.{wire.From.Name}");
-                connectionsListTargets.Add(wire.From.Owner);
-                connectionsList.Items.Add($"→ {wire.To.Owner.Title}.{wire.To.Name}{Suffix(wire)}");
-                connectionsListTargets.Add(wire.To.Owner);
-            }
-
-            connectionsList.EndUpdate();
-
-            // Content-sized and hidden when empty; the sidebar scrolls as a whole.
-            connectionsList.Visible = connectionsList.Items.Count > 0;
-            connectionsList.Height = connectionsList.Items.Count * connectionsList.ItemHeight + 6;
-        }
-
         private void OnSearchKeyDown(object? sender, KeyEventArgs e)
         {
             if (e.KeyCode != Keys.Enter || searchBox == null)
@@ -247,14 +178,6 @@ namespace GUI.Types.GLViewers
             FocusNode(match);
         }
 
-        private void OnConnectionsListDoubleClick(object? sender, EventArgs e)
-        {
-            if (connectionsList is { SelectedIndex: >= 0 } list && list.SelectedIndex < connectionsListTargets.Count)
-            {
-                FocusNode(connectionsListTargets[list.SelectedIndex]);
-            }
-        }
-
         private void AddLegendPanel()
         {
             Debug.Assert(UiControl != null);
@@ -271,53 +194,34 @@ namespace GUI.Types.GLViewers
             legendPanel.Paint += (_, e) =>
             {
                 var y = 6;
+                using var text = new System.Drawing.SolidBrush(Themer.CurrentThemeColors.Contrast);
 
                 foreach (var (label, hue, kind) in View.Legend)
                 {
                     // Palette slots resolve at paint time so the legend follows the theme.
                     var skColor = kind == GraphLegendKind.Category ? View.Palette.Category(hue) : View.Palette.Signal(hue);
-                    var color = System.Drawing.Color.FromArgb(skColor.Red, skColor.Green, skColor.Blue);
+                    using var brush = new System.Drawing.SolidBrush(System.Drawing.Color.FromArgb(skColor.Red, skColor.Green, skColor.Blue));
 
-                    switch (kind)
+                    if (kind is GraphLegendKind.Wire or GraphLegendKind.DashedWire)
                     {
-                        case GraphLegendKind.Wire:
-                        case GraphLegendKind.DashedWire:
-                            using (var pen = new System.Drawing.Pen(color, 3f))
-                            {
-                                if (kind == GraphLegendKind.DashedWire)
-                                {
-                                    pen.DashStyle = System.Drawing.Drawing2D.DashStyle.Dash;
-                                }
+                        using var pen = new System.Drawing.Pen(brush.Color, 3f);
 
-                                e.Graphics.DrawLine(pen, 4, y + 8, 20, y + 8);
-                            }
+                        if (kind == GraphLegendKind.DashedWire)
+                        {
+                            pen.DashStyle = System.Drawing.Drawing2D.DashStyle.Dash;
+                        }
 
-                            break;
-
-                        case GraphLegendKind.Marker:
-                            using (var marker = new System.Drawing.SolidBrush(color))
-                            {
-                                e.Graphics.FillPolygon(marker,
-                                [
-                                    new System.Drawing.Point(12, y + 3),
-                                    new System.Drawing.Point(17, y + 8),
-                                    new System.Drawing.Point(12, y + 13),
-                                    new System.Drawing.Point(7, y + 8),
-                                ]);
-                            }
-
-                            break;
-
-                        default:
-                            using (var swatch = new System.Drawing.SolidBrush(color))
-                            {
-                                e.Graphics.FillRectangle(swatch, 6, y + 2, 12, 12);
-                            }
-
-                            break;
+                        e.Graphics.DrawLine(pen, 4, y + 8, 20, y + 8);
+                    }
+                    else if (kind == GraphLegendKind.Marker)
+                    {
+                        e.Graphics.FillPolygon(brush, [new(12, y + 3), new(17, y + 8), new(12, y + 13), new(7, y + 8)]);
+                    }
+                    else
+                    {
+                        e.Graphics.FillRectangle(brush, 6, y + 2, 12, 12);
                     }
 
-                    using var text = new System.Drawing.SolidBrush(Themer.CurrentThemeColors.Contrast);
                     e.Graphics.DrawString(label, legendPanel!.Font, text, 24, y);
                     y += 18;
                 }
@@ -781,7 +685,6 @@ namespace GUI.Types.GLViewers
             contextMenu?.Dispose();
             statsLabel?.Dispose();
             searchBox?.Dispose();
-            connectionsList?.Dispose();
             legendPanel?.Dispose();
             View.GraphChanged -= OnGraphChanged;
 

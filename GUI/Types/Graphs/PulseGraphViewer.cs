@@ -133,35 +133,9 @@ internal class PulseGraphViewer : GLGraphViewer
 
     #region Socket types
     private struct Flow;
-    private struct ValueString;
     private struct ValueNumber;
-    private struct ValueBool;
-    private struct ValueOther;
 
-    private static GraphHue HueOf(Type type)
-    {
-        if (type == typeof(ValueString))
-        {
-            return GraphHue.Green;
-        }
-
-        if (type == typeof(ValueNumber))
-        {
-            return GraphHue.Amber;
-        }
-
-        if (type == typeof(ValueBool))
-        {
-            return GraphHue.Orange;
-        }
-
-        if (type == typeof(ValueOther))
-        {
-            return GraphHue.Slate;
-        }
-
-        return GraphHue.Neutral;
-    }
+    private static GraphHue HueOf(Type type) => type == typeof(ValueNumber) ? GraphHue.Amber : GraphHue.Neutral;
 
     private static GraphHue HueOfPval(PulseValueType valueType) => valueType switch
     {
@@ -1148,9 +1122,7 @@ internal class PulseGraphViewer : GLGraphViewer
 
                         var funcName = binding.GetStringProperty("m_FuncName");
                         var cellIndex = binding.GetInt32Property("m_nCellIndex");
-                        var cell = cells[cellIndex];
-                        var cellType = GetCellType(cellIndex, out var cellName);
-                        var cellCategory = GetCellCategory(cellIndex);
+                        GetCellType(cellIndex, out var cellName);
 
                         var funcNameSplitIdx = funcName.IndexOf("::", StringComparison.InvariantCulture);
                         var node = new Node(null)
