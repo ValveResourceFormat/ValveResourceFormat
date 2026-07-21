@@ -5,8 +5,10 @@ interface IGraphElement
 }
 
 /// <summary>
-/// Renderer-agnostic node description. Content is an ordered list of rows (sockets and text);
-/// all colors are expressed as <see cref="GraphHue"/> slots resolved by the palette at draw time.
+/// Renderer-agnostic node description: pure content with no derived geometry. Content is an
+/// ordered list of rows (sockets and text); all colors are expressed as <see cref="GraphHue"/>
+/// slots resolved by the palette at draw time. <see cref="Position"/> is document state (the
+/// layout's or the user's placement); everything measured lives in <see cref="GraphGeometry"/>.
 /// </summary>
 class GraphNode : IGraphElement
 {
@@ -25,11 +27,21 @@ class GraphNode : IGraphElement
     /// <summary>Resource path (without compiled suffix) opened on double click.</summary>
     public string? ExternalResourceName { get; set; }
 
+    private string? iconKey;
+
     /// <summary>
     /// Key resolved through <see cref="GraphView.IconResolver"/> to an icon image.
     /// Nodes with one get a neutral left gutter holding the icon.
     /// </summary>
-    public string? IconKey { get; set; }
+    public string? IconKey
+    {
+        get => iconKey;
+        set
+        {
+            iconKey = value;
+            ContentVersion++;
+        }
+    }
 
     public object? Tag { get; set; }
 
@@ -39,15 +51,15 @@ class GraphNode : IGraphElement
 
     public Vector2 Position { get; set; }
 
-    internal Vector2 Size;
-    internal bool GeometryDirty = true;
+    /// <summary>Bumped by every content mutation; views compare it against their measured geometry.</summary>
+    public int ContentVersion { get; private set; }
 
     public GraphSocket AddInput(string name, GraphHue hue, bool allowMultiple = true)
     {
         var socket = new GraphSocket(this, name, hue, isInput: true, allowMultiple);
         Inputs.Add(socket);
         Rows.Add(new SocketRow(socket));
-        GeometryDirty = true;
+        ContentVersion++;
         return socket;
     }
 
@@ -56,14 +68,14 @@ class GraphNode : IGraphElement
         var socket = new GraphSocket(this, name, hue, isInput: false, allowMultiple: true);
         Outputs.Add(socket);
         Rows.Add(new SocketRow(socket));
-        GeometryDirty = true;
+        ContentVersion++;
         return socket;
     }
 
     public void AddText(string text)
     {
         Rows.Add(new TextRow(text, message: false));
-        GeometryDirty = true;
+        ContentVersion++;
     }
 
     public void AddSpace() => AddText(string.Empty);
@@ -71,20 +83,20 @@ class GraphNode : IGraphElement
     public void AddMessage(string text)
     {
         Rows.Add(new TextRow(text, message: true));
-        GeometryDirty = true;
+        ContentVersion++;
     }
 
     public void AddResourceRow(string text, string icon, GraphHue hue)
     {
         Rows.Add(new ResourceRow(text, icon, hue));
-        GeometryDirty = true;
+        ContentVersion++;
     }
 
     /// <summary>Compact hue-marked note row, e.g. an inlined special-target connection.</summary>
     public void AddAnnotation(string text, GraphHue hue)
     {
         Rows.Add(new AnnotationRow(text, hue));
-        GeometryDirty = true;
+        ContentVersion++;
     }
 
     /// <summary>
@@ -104,7 +116,7 @@ class GraphNode : IGraphElement
                 i < Outputs.Count ? Outputs[i] : null));
         }
 
-        GeometryDirty = true;
+        ContentVersion++;
     }
 
     public GraphHue EffectiveCategory => Category
@@ -113,7 +125,6 @@ class GraphNode : IGraphElement
 
 abstract class GraphRow
 {
-    internal float CenterOffsetY;
 }
 
 sealed class TextRow(string text, bool message) : GraphRow
@@ -155,8 +166,6 @@ class GraphSocket : IGraphElement
     public bool AllowMultiple { get; }
     public List<GraphWire> Wires { get; } = [];
 
-    internal Vector2 PivotOffset;
-    public Vector2 Pivot => Owner.Position + PivotOffset;
     public bool IsConnected => Wires.Count > 0;
 
     internal GraphSocket(GraphNode owner, string name, GraphHue hue, bool isInput, bool allowMultiple)
@@ -221,15 +230,6 @@ class GraphWire : IGraphElement
 
     /// <summary>Short text drawn at the wire midpoint (e.g. entity I/O delay/parameter).</summary>
     public string? Label { get; set; }
-
-    /// <summary>Corner points of the orthogonal route computed by the layout; null draws a direct curve.</summary>
-    public List<Vector2>? Waypoints { get; set; }
-
-    /// <summary>
-    /// Exact routed curve as a path-command stream. When set, rendering prefers it over
-    /// <see cref="Waypoints"/>, which then only serves culling and hit-testing.
-    /// </summary>
-    public List<GraphCurveCommand>? CurvePath { get; set; }
 
     internal GraphWire(GraphSocket from, GraphSocket to)
     {

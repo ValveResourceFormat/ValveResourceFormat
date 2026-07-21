@@ -25,6 +25,9 @@ partial class GraphView : IDisposable
     /// <summary>Current selection; render tiers and the host's focus actions derive from it.</summary>
     public GraphSelection Selection { get; } = new();
 
+    /// <summary>All geometry this view derived from the model: sizes, pivots, routed wires.</summary>
+    internal GraphGeometry Geometry { get; } = new();
+
     public bool IsMoving { get; private set; }
     private SKPoint lastLocation;
     private SKPoint dragOrigin;
@@ -151,10 +154,11 @@ partial class GraphView : IDisposable
             }
 
             anyVisible = true;
+            var size = Geometry.SizeOf(node);
             minX = Math.Min(minX, node.Position.X);
             minY = Math.Min(minY, node.Position.Y);
-            maxX = Math.Max(maxX, node.Position.X + node.Size.X);
-            maxY = Math.Max(maxY, node.Position.Y + node.Size.Y);
+            maxX = Math.Max(maxX, node.Position.X + size.X);
+            maxY = Math.Max(maxY, node.Position.Y + size.Y);
         }
 
         if (!anyVisible)
@@ -317,7 +321,7 @@ partial class GraphView : IDisposable
             !w.From.Owner.Hidden && !w.To.Owner.Hidden &&
             (movedNodes.Contains(w.From.Owner) || movedNodes.Contains(w.To.Owner))).ToList();
 
-        MsaglLayoutAdapter.RouteComponent(component, movedWires);
+        MsaglLayoutAdapter.RouteComponent(component, movedWires, Geometry);
         ClearWireHitPaths();
         OnGraphChanged();
     }
@@ -341,17 +345,19 @@ partial class GraphView : IDisposable
                 continue;
             }
 
+            var size = Geometry.SizeOf(node);
+
             // Socket pivots sit on the node border, so a bounds check inflated by the
             // socket hit radius rejects the node and all its sockets in one comparison.
-            if (point.X < node.Position.X - socketHitRadius || point.X > node.Position.X + node.Size.X + socketHitRadius ||
-                point.Y < node.Position.Y - socketHitRadius || point.Y > node.Position.Y + node.Size.Y + socketHitRadius)
+            if (point.X < node.Position.X - socketHitRadius || point.X > node.Position.X + size.X + socketHitRadius ||
+                point.Y < node.Position.Y - socketHitRadius || point.Y > node.Position.Y + size.Y + socketHitRadius)
             {
                 continue;
             }
 
             foreach (var socket in node.Inputs)
             {
-                var pivot = socket.Pivot;
+                var pivot = Geometry.PivotOf(socket);
                 if (Math.Abs(point.X - pivot.X) <= socketHitRadius && Math.Abs(point.Y - pivot.Y) <= socketHitRadius)
                 {
                     return socket;
@@ -360,15 +366,15 @@ partial class GraphView : IDisposable
 
             foreach (var socket in node.Outputs)
             {
-                var pivot = socket.Pivot;
+                var pivot = Geometry.PivotOf(socket);
                 if (Math.Abs(point.X - pivot.X) <= socketHitRadius && Math.Abs(point.Y - pivot.Y) <= socketHitRadius)
                 {
                     return socket;
                 }
             }
 
-            if (point.X >= node.Position.X && point.X <= node.Position.X + node.Size.X &&
-                point.Y >= node.Position.Y && point.Y <= node.Position.Y + node.Size.Y)
+            if (point.X >= node.Position.X && point.X <= node.Position.X + size.X &&
+                point.Y >= node.Position.Y && point.Y <= node.Position.Y + size.Y)
             {
                 return node;
             }
@@ -400,7 +406,7 @@ partial class GraphView : IDisposable
     }
 
     // Dragging keeps routes orthogonal: terminal runs re-anchor live to the moving sockets.
-    private static void ReanchorWireWaypoints(GraphNode node)
+    private void ReanchorWireWaypoints(GraphNode node)
     {
         foreach (var socket in node.Inputs)
         {
@@ -418,19 +424,24 @@ partial class GraphView : IDisposable
             }
         }
 
-        static void ReanchorWire(GraphWire wire)
+        void ReanchorWire(GraphWire wire)
         {
             // Self-loops keep their synthetic route pinned to the moving node.
             if (wire.From.Owner == wire.To.Owner)
             {
-                MsaglLayoutAdapter.SynthesizeSelfLoop(wire);
+                MsaglLayoutAdapter.SynthesizeSelfLoop(wire, Geometry);
                 return;
             }
 
             // A bundled curve cannot follow a moving node; fall back to the default
             // bezier until the drop re-routes the island.
-            wire.CurvePath = null;
-            wire.Waypoints = null;
+            var route = Geometry.TryRouteOf(wire);
+
+            if (route != null)
+            {
+                route.CurvePath = null;
+                route.Waypoints = null;
+            }
         }
     }
 
@@ -828,12 +839,7 @@ partial class GraphView : IDisposable
         using var _ = stateLock.EnterScope();
 
         EnsureAllGeometry();
-
-        foreach (var wire in wires)
-        {
-            wire.Waypoints = null;
-            wire.CurvePath = null;
-        }
+        Geometry.ClearAllRoutes();
 
         var components = GetVisibleComponents();
         var componentOf = new Dictionary<GraphNode, int>();
@@ -871,7 +877,7 @@ partial class GraphView : IDisposable
                 continue;
             }
 
-            MsaglLayoutAdapter.Layout(component, componentWires[i], Placement);
+            MsaglLayoutAdapter.Layout(component, componentWires[i], Placement, Geometry);
         }
 
         // Pack the island bounding boxes toward a screen-like aspect so large graphs open
@@ -887,7 +893,7 @@ partial class GraphView : IDisposable
             foreach (var node in components[i])
             {
                 min = Vector2.Min(min, node.Position);
-                max = Vector2.Max(max, node.Position + node.Size);
+                max = Vector2.Max(max, node.Position + Geometry.SizeOf(node));
             }
 
             mins[i] = min;
@@ -910,7 +916,14 @@ partial class GraphView : IDisposable
                 {
                     foreach (var wire in socket.Wires)
                     {
-                        if (wire.Waypoints is { } waypoints)
+                        var route = Geometry.TryRouteOf(wire);
+
+                        if (route == null)
+                        {
+                            continue;
+                        }
+
+                        if (route.Waypoints is { } waypoints)
                         {
                             for (var w = 0; w < waypoints.Count; w++)
                             {
@@ -918,7 +931,7 @@ partial class GraphView : IDisposable
                             }
                         }
 
-                        if (wire.CurvePath is { } curvePath)
+                        if (route.CurvePath is { } curvePath)
                         {
                             for (var c = 0; c < curvePath.Count; c++)
                             {

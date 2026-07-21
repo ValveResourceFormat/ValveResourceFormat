@@ -144,7 +144,6 @@ internal class EntityIOGraphViewer : GLGraphViewer
                 }
 
                 node.IconKey = classname;
-                node.GeometryDirty = true;
             }
         }
     }

@@ -45,14 +45,14 @@ internal static class MsaglLayoutAdapter
         LayoutAlgorithmSettings.ShowGraph = _ => { };
     }
 
-    public static void Layout(List<GraphNode> component, List<GraphWire> componentWires, GraphPlacement placement)
+    public static void Layout(List<GraphNode> component, List<GraphWire> componentWires, GraphPlacement placement, GraphGeometry geometry)
     {
         if (component.Count == 0)
         {
             return;
         }
 
-        var (geometryGraph, msaglNodes, msaglEdges, selfWires) = BuildGeometry(component, componentWires, useCurrentPositions: false);
+        var (geometryGraph, msaglNodes, msaglEdges, selfWires) = BuildGeometry(component, componentWires, useCurrentPositions: false, geometry);
 
         if (placement == GraphPlacement.Organic)
         {
@@ -63,7 +63,7 @@ internal static class MsaglLayoutAdapter
                     RemoveOverlaps = true,
                     NodeSeparation = 36,
                 });
-                WriteBackAndRoute(msaglNodes, msaglEdges, selfWires);
+                WriteBackAndRoute(msaglNodes, msaglEdges, selfWires, geometry);
                 return;
             }
             catch (Exception e)
@@ -79,7 +79,7 @@ internal static class MsaglLayoutAdapter
             LayerSeparation = 220,
             NodeSeparation = 36,
         });
-        WriteBackAndRoute(msaglNodes, msaglEdges, selfWires);
+        WriteBackAndRoute(msaglNodes, msaglEdges, selfWires, geometry);
     }
 
     private static void CalculateLayout(GeometryGraph geometryGraph, LayoutAlgorithmSettings settings)
@@ -89,37 +89,38 @@ internal static class MsaglLayoutAdapter
         Microsoft.Msagl.Miscellaneous.LayoutHelpers.CalculateLayout(geometryGraph, settings, null);
     }
 
-    private static void WriteBackAndRoute(Dictionary<GraphNode, Node> msaglNodes, List<(Edge Edge, GraphWire Wire)> msaglEdges, List<GraphWire> selfWires)
+    private static void WriteBackAndRoute(Dictionary<GraphNode, Node> msaglNodes, List<(Edge Edge, GraphWire Wire)> msaglEdges, List<GraphWire> selfWires, GraphGeometry geometry)
     {
         // Transpose back: MSAGL (x right, y up, flow top-to-bottom) -> ours (x right = flow, y down).
         foreach (var (node, msaglNode) in msaglNodes)
         {
             var center = msaglNode.Center;
+            var size = geometry.SizeOf(node);
             node.Position = new Vector2(
-                (float)(-center.Y) - node.Size.X / 2f,
-                (float)center.X - node.Size.Y / 2f);
+                (float)(-center.Y) - size.X / 2f,
+                (float)center.X - size.Y / 2f);
         }
 
-        ApplyRoutes(msaglEdges, selfWires);
+        ApplyRoutes(msaglEdges, selfWires, geometry);
     }
 
     /// <summary>
     /// Re-routes the wires of a component around the CURRENT node positions without moving
     /// any node; used after the user drags nodes so bundles reform around the new layout.
     /// </summary>
-    public static void RouteComponent(List<GraphNode> component, List<GraphWire> componentWires)
+    public static void RouteComponent(List<GraphNode> component, List<GraphWire> componentWires, GraphGeometry geometry)
     {
         if (component.Count == 0)
         {
             return;
         }
 
-        var (geometryGraph, _, msaglEdges, selfWires) = BuildGeometry(component, componentWires, useCurrentPositions: true);
+        var (geometryGraph, _, msaglEdges, selfWires) = BuildGeometry(component, componentWires, useCurrentPositions: true, geometry);
 
         var router = new Microsoft.Msagl.Routing.SplineRouter(geometryGraph, 12, 20, Math.PI / 6, CreateBundlingSettings());
         router.Run();
 
-        ApplyRoutes(msaglEdges, selfWires);
+        ApplyRoutes(msaglEdges, selfWires, geometry);
     }
 
     // Zero separation collapses a bundle's parallel metro lines into one visually merged
@@ -162,22 +163,24 @@ internal static class MsaglLayoutAdapter
     }
 
     private static (GeometryGraph Graph, Dictionary<GraphNode, Node> Nodes, List<(Edge Edge, GraphWire Wire)> Edges, List<GraphWire> SelfWires) BuildGeometry(
-        List<GraphNode> component, List<GraphWire> componentWires, bool useCurrentPositions)
+        List<GraphNode> component, List<GraphWire> componentWires, bool useCurrentPositions, GraphGeometry geometry)
     {
         var geometryGraph = new GeometryGraph();
         var msaglNodes = new Dictionary<GraphNode, Node>(component.Count);
 
         foreach (var node in component)
         {
+            var size = geometry.SizeOf(node);
+
             // Transposed: our width separates layers (vertical in MSAGL), our height stacks in-layer.
-            var msaglNode = new Node(CurveFactory.CreateRectangle(node.Size.Y, node.Size.X, new MsaglPoint()))
+            var msaglNode = new Node(CurveFactory.CreateRectangle(size.Y, size.X, new MsaglPoint()))
             {
                 UserData = node,
             };
 
             if (useCurrentPositions)
             {
-                var center = node.Position + node.Size / 2f;
+                var center = node.Position + size / 2f;
                 msaglNode.Center = new MsaglPoint(center.Y, -center.X);
             }
 
@@ -212,31 +215,32 @@ internal static class MsaglLayoutAdapter
         return (geometryGraph, msaglNodes, msaglEdges, selfWires);
     }
 
-    private static void ApplyRoutes(List<(Edge Edge, GraphWire Wire)> msaglEdges, List<GraphWire> selfWires)
+    private static void ApplyRoutes(List<(Edge Edge, GraphWire Wire)> msaglEdges, List<GraphWire> selfWires, GraphGeometry geometry)
     {
         foreach (var (edge, wire) in msaglEdges)
         {
-            wire.CurvePath = ExtractPath(edge.Curve);
-            SpliceTerminals(wire);
+            geometry.RouteOf(wire).CurvePath = ExtractPath(edge.Curve);
+            SpliceTerminals(wire, geometry);
         }
 
         foreach (var wire in selfWires)
         {
-            SynthesizeSelfLoop(wire);
+            SynthesizeSelfLoop(wire, geometry);
         }
     }
 
     /// <summary>Rebuilds the synthetic loop route of a self-referencing wire from its current pivots.</summary>
-    public static void SynthesizeSelfLoop(GraphWire wire)
+    public static void SynthesizeSelfLoop(GraphWire wire, GraphGeometry geometry)
     {
         // Out the right side, over the top of the node, back into the left side.
         var owner = wire.From.Owner;
-        var from = wire.From.Pivot;
-        var to = wire.To.Pivot;
+        var from = geometry.PivotOf(wire.From);
+        var to = geometry.PivotOf(wire.To);
         var top = owner.Position.Y - 26f;
 
-        wire.CurvePath = null;
-        wire.Waypoints =
+        var route = geometry.RouteOf(wire);
+        route.CurvePath = null;
+        route.Waypoints =
         [
             new Vector2(from.X + 36f, from.Y),
             new Vector2(from.X + 36f, top),
@@ -249,24 +253,26 @@ internal static class MsaglLayoutAdapter
     // cut the curve where it leaves the inflated node boxes and graft tangent-continuous
     // cubics that dock horizontally into the real socket pivots. The library trunk between
     // the cuts stays verbatim.
-    private static void SpliceTerminals(GraphWire wire)
+    private static void SpliceTerminals(GraphWire wire, GraphGeometry geometry)
     {
-        var path = wire.CurvePath;
+        var route = geometry.RouteOf(wire);
+        var path = route.CurvePath;
 
         if (path == null)
         {
-            wire.Waypoints = null;
+            route.Waypoints = null;
             return;
         }
 
-        var fromPivot = wire.From.Pivot;
-        var toPivot = wire.To.Pivot;
+        var fromPivot = geometry.PivotOf(wire.From);
+        var toPivot = geometry.PivotOf(wire.To);
 
-        static bool Outside(Vector2 p, GraphNode node)
+        bool Outside(Vector2 p, GraphNode node)
         {
             const float Inflate = 24f;
+            var size = geometry.SizeOf(node);
             return p.X < node.Position.X - Inflate || p.Y < node.Position.Y - Inflate ||
-                   p.X > node.Position.X + node.Size.X + Inflate || p.Y > node.Position.Y + node.Size.Y + Inflate;
+                   p.X > node.Position.X + size.X + Inflate || p.Y > node.Position.Y + size.Y + Inflate;
         }
 
         static Vector2 SafeNormalize(Vector2 v, Vector2 fallback)
@@ -294,8 +300,8 @@ internal static class MsaglLayoutAdapter
         if (firstOutside < 0 || lastOutside < 0 || firstOutside > lastOutside)
         {
             // Nodes are adjacent; a plain socket-to-socket bezier reads better than a splice.
-            wire.CurvePath = null;
-            wire.Waypoints = null;
+            route.CurvePath = null;
+            route.Waypoints = null;
             return;
         }
 
@@ -331,8 +337,8 @@ internal static class MsaglLayoutAdapter
             toPivot - new Vector2(tailHandle, 0f),
             toPivot));
 
-        wire.CurvePath = spliced;
-        wire.Waypoints = FlattenPath(spliced);
+        route.CurvePath = spliced;
+        route.Waypoints = FlattenPath(spliced);
     }
 
     // Tangent hints for the splice: the control point a command leaves its start toward,

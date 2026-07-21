@@ -101,13 +101,15 @@ partial class GraphView
 
     private static readonly SKPaint HitTestPaint = new() { Style = SKPaintStyle.Stroke, StrokeWidth = 10f };
 
-    private static SKPath BuildWireHitPath(GraphWire wire)
+    private SKPath BuildWireHitPath(GraphWire wire)
     {
-        var from = new SKPoint(wire.From.Pivot.X, wire.From.Pivot.Y);
-        var to = new SKPoint(wire.To.Pivot.X, wire.To.Pivot.Y);
+        var fromPivot = Geometry.PivotOf(wire.From);
+        var toPivot = Geometry.PivotOf(wire.To);
+        var from = new SKPoint(fromPivot.X, fromPivot.Y);
+        var to = new SKPoint(toPivot.X, toPivot.Y);
 
         using var path = new SKPath();
-        BuildWirePath(path, wire, from, to);
+        BuildWirePath(path, Geometry.TryRouteOf(wire), from, to);
         return HitTestPaint.GetFillPath(path);
     }
 
@@ -145,9 +147,11 @@ partial class GraphView
         }
     }
 
-    private static bool EnsureGeometry(GraphNode node)
+    private bool EnsureGeometry(GraphNode node)
     {
-        if (!node.GeometryDirty)
+        var geometry = Geometry.NodeOf(node);
+
+        if (geometry.ComputedVersion == node.ContentVersion)
         {
             return false;
         }
@@ -189,28 +193,29 @@ partial class GraphView
         for (var i = 0; i < node.Rows.Count; i++)
         {
             var row = node.Rows[i];
-            row.CenterOffsetY = HeaderHeight + RowStartPad + i * RowPitch + RowPitch * 0.5f;
+            var centerOffsetY = HeaderHeight + RowStartPad + i * RowPitch + RowPitch * 0.5f;
+            Geometry.SetRowCenter(row, centerOffsetY);
 
             if (row is SocketRow socketRow)
             {
-                socketRow.Socket.PivotOffset = new Vector2(socketRow.Socket.IsInput ? 0f : width, row.CenterOffsetY);
+                Geometry.SetPivotOffset(socketRow.Socket, new Vector2(socketRow.Socket.IsInput ? 0f : width, centerOffsetY));
             }
             else if (row is PairedSocketRow pairedRow)
             {
                 if (pairedRow.Input != null)
                 {
-                    pairedRow.Input.PivotOffset = new Vector2(0f, row.CenterOffsetY);
+                    Geometry.SetPivotOffset(pairedRow.Input, new Vector2(0f, centerOffsetY));
                 }
 
                 if (pairedRow.Output != null)
                 {
-                    pairedRow.Output.PivotOffset = new Vector2(width, row.CenterOffsetY);
+                    Geometry.SetPivotOffset(pairedRow.Output, new Vector2(width, centerOffsetY));
                 }
             }
         }
 
-        node.Size = new Vector2(width, height);
-        node.GeometryDirty = false;
+        geometry.Size = new Vector2(width, height);
+        geometry.ComputedVersion = node.ContentVersion;
         return true;
     }
 
@@ -325,8 +330,8 @@ partial class GraphView
                 continue;
             }
 
-            var from = wire.From.Pivot;
-            var to = wire.To.Pivot;
+            var from = Geometry.PivotOf(wire.From);
+            var to = Geometry.PivotOf(wire.To);
 
             var wireBounds = new SKRect(
                 Math.Min(from.X, to.X) - 260f,
@@ -334,7 +339,7 @@ partial class GraphView
                 Math.Max(from.X, to.X) + 260f,
                 Math.Max(from.Y, to.Y) + 10f);
 
-            if (wire.Waypoints is { Count: > 0 } routedPoints)
+            if (Geometry.TryRouteOf(wire)?.Waypoints is { Count: > 0 } routedPoints)
             {
                 foreach (var waypoint in routedPoints)
                 {
@@ -363,7 +368,8 @@ partial class GraphView
                 continue;
             }
 
-            var nodeRect = new SKRect(node.Position.X - 14f, node.Position.Y - 14f, node.Position.X + node.Size.X + 14f, node.Position.Y + node.Size.Y + 14f);
+            var size = Geometry.SizeOf(node);
+            var nodeRect = new SKRect(node.Position.X - 14f, node.Position.Y - 14f, node.Position.X + size.X + 14f, node.Position.Y + size.Y + 14f);
 
             if (!visibleRect.IntersectsWith(nodeRect))
             {
@@ -476,11 +482,11 @@ partial class GraphView
         path.CubicTo(from.X + offset, from.Y, to.X - offset, to.Y, to.X, to.Y);
     }
 
-    private static void BuildWirePath(SKPath path, GraphWire wire, SKPoint from, SKPoint to)
+    private static void BuildWirePath(SKPath path, WireRoute? route, SKPoint from, SKPoint to)
     {
         // Exact routed curve from the layout library, drawn verbatim; conics carry the
         // elliptical hub arcs precisely.
-        if (wire.CurvePath is { Count: >= 2 } commands)
+        if (route?.CurvePath is { Count: >= 2 } commands)
         {
             foreach (var command in commands)
             {
@@ -507,7 +513,7 @@ partial class GraphView
             return;
         }
 
-        if (wire.Waypoints is not { Count: > 0 } waypoints)
+        if (route?.Waypoints is not { Count: > 0 } waypoints)
         {
             BuildWirePath(path, from, to);
             return;
@@ -526,8 +532,8 @@ partial class GraphView
 
     private void DrawWire(SKCanvas canvas, GraphWire wire, float zoom)
     {
-        var fromPivot = wire.From.Pivot;
-        var toPivot = wire.To.Pivot;
+        var fromPivot = Geometry.PivotOf(wire.From);
+        var toPivot = Geometry.PivotOf(wire.To);
         var from = new SKPoint(fromPivot.X, fromPivot.Y);
         var to = new SKPoint(toPivot.X, toPivot.Y);
 
@@ -538,7 +544,7 @@ partial class GraphView
 
         var path = wirePath;
         path.Reset();
-        BuildWirePath(path, wire, from, to);
+        BuildWirePath(path, Geometry.TryRouteOf(wire), from, to);
 
         var width = WireWidth * Math.Max(1f, 1f / zoom);
 
@@ -622,7 +628,8 @@ partial class GraphView
     {
         var x = node.Position.X;
         var y = node.Position.Y;
-        var rect = new SKRect(x, y, x + node.Size.X, y + node.Size.Y);
+        var size = Geometry.SizeOf(node);
+        var rect = new SKRect(x, y, x + size.X, y + size.Y);
 
         if (zoom >= DetailZoomCutoff)
         {
@@ -639,7 +646,7 @@ partial class GraphView
         canvas.DrawRoundRect(rect, CornerRadius, CornerRadius, fillPaint);
         fillPaint.ImageFilter = null;
 
-        headerRoundRect.SetRectRadii(new SKRect(x, y, x + node.Size.X, y + HeaderHeight), HeaderCornerRadii);
+        headerRoundRect.SetRectRadii(new SKRect(x, y, x + size.X, y + HeaderHeight), HeaderCornerRadii);
         fillPaint.Color = Palette.Category(node.EffectiveCategory);
         canvas.DrawRoundRect(headerRoundRect, fillPaint);
 
@@ -700,7 +707,7 @@ partial class GraphView
 
         foreach (var row in node.Rows)
         {
-            var rowCenterY = y + row.CenterOffsetY;
+            var rowCenterY = y + Geometry.RowCenterOf(row);
 
             switch (row)
             {
