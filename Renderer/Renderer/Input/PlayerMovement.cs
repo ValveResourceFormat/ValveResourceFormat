@@ -1003,7 +1003,10 @@ public partial class PlayerMovement
         // wishdir component exactly on wishspeed — matching the continuous pinned constraint
         var effectiveTime = (1f - decay) / frictionRate;
         Velocity += Math.Min(accelMagnitude * effectiveTime, addspeed) * wishdir;
-        GroundMoveDelta = TrapezoidDisplacement(preFrictionVelocity, Velocity, deltaTime);
+
+        GroundMoveDelta = OdeMinSpeedSquared(preFrictionVelocity, equilibrium, decay) > StopSpeedValue * StopSpeedValue
+            ? GateBoundDisplacement(preFrictionVelocity, wishdir, wishspeed, equilibrium, deltaTime, frictionRate)
+            : TrapezoidDisplacement(preFrictionVelocity, Velocity, deltaTime);
     }
 
     /// <summary>
