@@ -75,6 +75,10 @@ public partial class PlayerMovement
     // distance traveled is framerate-independent while speed is changing
     private Vector3 GroundMoveDelta;
 
+    // Yaw at the previous simulated frame, for the frame's view rotation (tickless air strafe)
+    private float PreviousYaw;
+    private bool HasPreviousYaw;
+
     private readonly ViewEffects Effects = new();
 
     /// <summary>
@@ -157,6 +161,7 @@ public partial class PlayerMovement
         Velocity = Vector3.Zero;
         HasValidPosition = false; // Do not restore positions from before the reset
         SlopeClipNormalZ = 1f;
+        HasPreviousYaw = false;
         Effects.Reset();
     }
 
@@ -175,6 +180,11 @@ public partial class PlayerMovement
 
         var position = TracePosition;
         var yaw = camera.Yaw;
+
+        // Signed view rotation over this frame, wrapped to (-pi, pi]
+        var yawDelta = HasPreviousYaw ? MathF.IEEERemainder(yaw - PreviousYaw, MathF.Tau) : 0f;
+        PreviousYaw = yaw;
+        HasPreviousYaw = true;
 
         deltaTime = MathF.Min(deltaTime, MaxFrameDeltaTime);
 
@@ -220,6 +230,7 @@ public partial class PlayerMovement
         }
 
         var (wishdir, wishspeed) = CalculateWishVelocity(yaw, isWalking);
+        var airMoveDelta = Vector3.Zero;
 
         if (OnGround)
         {
@@ -230,7 +241,15 @@ public partial class PlayerMovement
         }
         else
         {
-            AirMove(wishdir, wishspeed, deltaTime);
+            var preAirVelocity = Velocity;
+            AirMove(wishdir, wishspeed, deltaTime, yawDelta);
+
+            // Horizontal strafe gain accrues across the frame, so integrate it as the
+            // trapezoid; Z keeps Velocity * dt, the half-gravity leapfrog's exact midpoint
+            airMoveDelta = new Vector3(
+                (preAirVelocity.X + Velocity.X) * 0.5f,
+                (preAirVelocity.Y + Velocity.Y) * 0.5f,
+                Velocity.Z) * deltaTime;
         }
 
         CheckVelocity(ref position);
@@ -239,12 +258,10 @@ public partial class PlayerMovement
         // landing that the move below may produce
         fallSpeed = MathF.Max(fallSpeed, -Velocity.Z);
 
-        // Ground movement gets step support; in the air there is nothing to step off.
-        // The air delta is exact as-is: the half-gravity leapfrog makes Velocity * dt the
-        // midpoint integral
+        // Ground movement gets step support; in the air there is nothing to step off
         position = OnGround
             ? StepMove(position, GroundMoveDelta, playerHull)
-            : TryPlayerMove(position, Velocity * deltaTime, playerHull);
+            : TryPlayerMove(position, airMoveDelta, playerHull);
 
         if (OnGround)
         {
@@ -1052,23 +1069,38 @@ public partial class PlayerMovement
     }
 
     /// <summary>
-    /// Air acceleration. Timestep-independent for a fixed wish direction;
-    /// residual framerate sensitivity comes from per-frame input sampling.
+    /// Air acceleration, tickless: the frame's view rotation is integrated in closed form
+    /// so strafe gain depends on degrees turned, not framerate. Key-change wishdir jumps
+    /// stay discrete events (instant top-up). Falls back to the plain discrete update
+    /// when the acceleration budget binds, which is linear in dt and already invariant.
     /// </summary>
-    private void AirMove(Vector3 wishdir, float wishspeed, float deltaTime)
+    private void AirMove(Vector3 wishdir, float wishspeed, float deltaTime, float yawDelta)
     {
-        var wishspd = Math.Min(wishspeed, AirMaxWishSpeed);
+        if (wishspeed <= 0f)
+        {
+            return;
+        }
+
+        var cap = Math.Min(wishspeed, AirMaxWishSpeed);
+
+        // Note: the budget uses original wishspeed, NOT the capped value
+        var budget = AirAccelerateValue * wishspeed * deltaTime * SurfaceFriction;
+
+        if (TicklessAirStrafe(Velocity, wishdir, cap, yawDelta, budget) is Vector3 strafed)
+        {
+            Velocity = strafed;
+            return;
+        }
+
         var currentspeed = Vector3.Dot(Velocity, wishdir);
-        var addspeed = wishspd - currentspeed;
+        var addspeed = cap - currentspeed;
 
         if (addspeed <= 0)
         {
             return;
         }
 
-        // Note: uses original wishspeed, NOT the capped wishspd
-        var accelspeed = Math.Min(AirAccelerateValue * wishspeed * deltaTime * SurfaceFriction, addspeed);
-        Velocity += accelspeed * wishdir;
+        Velocity += Math.Min(budget, addspeed) * wishdir;
     }
 
     /// <summary>

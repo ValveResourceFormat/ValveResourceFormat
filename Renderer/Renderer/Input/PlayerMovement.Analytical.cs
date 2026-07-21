@@ -349,6 +349,77 @@ public partial class PlayerMovement
     }
 
     /// <summary>
+    /// Closed-form "tickless" air strafe. In the continuous limit the addspeed gate acts
+    /// as a constraint: while view rotation pulls the wishdir ahead of the velocity, the
+    /// wishdir component stays pinned at the air cap and the perpendicular component
+    /// grows at exactly cap units per radian turned — so strafe gain depends on total
+    /// rotation, not framerate. The frame solves in three phases: an instantaneous top-up
+    /// of the wishdir component to the cap (key changes), a frozen phase while the
+    /// component still exceeds the cap (gate closed, velocity unchanged), and the pinned
+    /// rotation phase. Returns null when the acceleration budget cannot cover the frame
+    /// (very high fps or low air accelerate), where the caller's discrete update is
+    /// already linear in dt and framerate-independent.
+    /// </summary>
+    private static Vector3? TicklessAirStrafe(Vector3 velocity, Vector3 wishdirEnd, float cap, float yawDelta, float budget)
+    {
+        // Wishdir at the start of the frame's rotation
+        var (sinBack, cosBack) = MathF.SinCos(-yawDelta);
+        var wishdirStart = new Vector3(
+            wishdirEnd.X * cosBack - wishdirEnd.Y * sinBack,
+            wishdirEnd.X * sinBack + wishdirEnd.Y * cosBack,
+            0f);
+
+        var horizontal = new Vector3(velocity.X, velocity.Y, 0f);
+
+        // Instantaneous top-up of the wishdir component to the cap
+        var along = Vector3.Dot(horizontal, wishdirStart);
+        var topUp = MathF.Max(0f, cap - along);
+        var spent = topUp;
+        horizontal += topUp * wishdirStart;
+
+        var turnSign = MathF.Sign(yawDelta);
+        var turn = MathF.Abs(yawDelta);
+
+        if (turnSign != 0 && turn > 1e-6f)
+        {
+            var speed = horizontal.Length();
+            along = Vector3.Dot(horizontal, wishdirStart);
+
+            // Perpendicular component, normalized so positive means the rotation is
+            // moving the wishdir toward the velocity
+            var perp = turnSign * (wishdirStart.X * horizontal.Y - wishdirStart.Y * horizontal.X);
+
+            var phi0 = MathF.Atan2(perp, along);
+            var phiCap = MathF.Acos(Math.Clamp(cap / speed, -1f, 1f));
+
+            // Gate closed while the wishdir component exceeds the cap: the wishdir swings
+            // past the velocity and pinning starts once it leads by phiCap
+            var pinStart = MathF.Max(0f, phi0 + phiCap);
+
+            if (turn > pinStart)
+            {
+                var pinnedTurn = turn - pinStart;
+                var perpAtPin = MathF.Sqrt(MathF.Max(0f, speed * speed - cap * cap));
+                var perpMagnitude = perpAtPin + cap * pinnedTurn;
+
+                // Acceleration spent pinning: ∫p dθ
+                spent += perpAtPin * pinnedTurn + cap * pinnedTurn * pinnedTurn / 2f;
+
+                // Reconstruct in end-of-frame axes; the velocity trails the rotation
+                var perpDir = new Vector3(-wishdirEnd.Y, wishdirEnd.X, 0f);
+                horizontal = cap * wishdirEnd - turnSign * perpMagnitude * perpDir;
+            }
+        }
+
+        if (spent > budget)
+        {
+            return null;
+        }
+
+        return new Vector3(horizontal.X, horizontal.Y, velocity.Z);
+    }
+
+    /// <summary>
     /// Rescales the velocity down to the cap when it exceeds it.
     /// </summary>
     private static Vector3 RescaleToCap(Vector3 velocity, float cap)
