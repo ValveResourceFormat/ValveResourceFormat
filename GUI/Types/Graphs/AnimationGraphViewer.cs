@@ -1,4 +1,4 @@
-﻿using System.Linq;
+using System.Linq;
 using GUI.Types.GLViewers;
 using GUI.Types.Graphs.Core;
 using GUI.Utils;

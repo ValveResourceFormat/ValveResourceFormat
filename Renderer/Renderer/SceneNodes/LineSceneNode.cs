@@ -1,5 +1,4 @@
 using OpenTK.Graphics.OpenGL;
-using PrimitiveType = OpenTK.Graphics.OpenGL.PrimitiveType;
 
 namespace ValveResourceFormat.Renderer.SceneNodes
 {
@@ -8,9 +7,7 @@ namespace ValveResourceFormat.Renderer.SceneNodes
     /// </summary>
     public class LineSceneNode : SceneNode
     {
-        readonly Shader shader;
-        readonly int vaoHandle;
-        readonly int vertexCount;
+        readonly LineBuffer lineBuffer;
 
         /// <summary>
         /// Initializes a new instance of the <see cref="LineSceneNode"/> class rendering a single line segment.
@@ -33,8 +30,6 @@ namespace ValveResourceFormat.Renderer.SceneNodes
         public LineSceneNode(Scene scene, SimpleVertex[] vertices)
             : base(scene)
         {
-            vertexCount = vertices.Length;
-
             var boundsMin = vertices.Length > 0 ? vertices[0].Position : Vector3.Zero;
             var boundsMax = boundsMin;
             foreach (var vertex in vertices)
@@ -45,20 +40,14 @@ namespace ValveResourceFormat.Renderer.SceneNodes
 
             LocalBoundingBox = new AABB(boundsMin, boundsMax);
 
-            shader = Scene.RendererContext.ShaderLoader.LoadShader("vrf.default");
+            lineBuffer = new LineBuffer(Scene.RendererContext, nameof(LineSceneNode));
+            lineBuffer.Upload(vertices, BufferUsageHint.StaticDraw);
+        }
 
-            GL.CreateVertexArrays(1, out vaoHandle);
-            GL.CreateBuffers(1, out int vboHandle);
-            GL.VertexArrayVertexBuffer(vaoHandle, 0, vboHandle, 0, SimpleVertex.SizeInBytes);
-            SimpleVertex.BindDefaultShaderLayout(vaoHandle, shader.Program);
-
-            GL.NamedBufferData(vboHandle, vertexCount * SimpleVertex.SizeInBytes, vertices, BufferUsageHint.StaticDraw);
-
-#if DEBUG
-            var vaoLabel = nameof(LineSceneNode);
-            GL.ObjectLabel(ObjectLabelIdentifier.VertexArray, vaoHandle, vaoLabel.Length, vaoLabel);
-            GL.ObjectLabel(ObjectLabelIdentifier.Buffer, vboHandle, vaoLabel.Length, vaoLabel);
-#endif
+        /// <inheritdoc/>
+        public override void Delete()
+        {
+            lineBuffer.Delete();
         }
 
         /// <inheritdoc/>
@@ -69,16 +58,14 @@ namespace ValveResourceFormat.Renderer.SceneNodes
                 return;
             }
 
-            var renderShader = context.ReplacementShader ?? shader;
+            var renderShader = context.ReplacementShader ?? lineBuffer.Shader;
             renderShader.Use();
             renderShader.SetUniform3x4("transform", Transform);
             renderShader.SetBoneAnimationData(false);
 
-            GL.BindVertexArray(vaoHandle);
-            GL.DrawArraysInstancedBaseInstance(PrimitiveType.Lines, 0, vertexCount, 1, Id);
+            lineBuffer.Draw(Id);
 
             GL.UseProgram(0);
-            GL.BindVertexArray(0);
         }
     }
 }

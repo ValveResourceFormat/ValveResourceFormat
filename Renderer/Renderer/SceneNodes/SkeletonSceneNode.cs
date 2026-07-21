@@ -1,6 +1,5 @@
 using OpenTK.Graphics.OpenGL;
 using ValveResourceFormat.ResourceTypes.ModelAnimation;
-using PrimitiveType = OpenTK.Graphics.OpenGL.PrimitiveType;
 
 namespace ValveResourceFormat.Renderer.SceneNodes
 {
@@ -14,10 +13,7 @@ namespace ValveResourceFormat.Renderer.SceneNodes
 
         readonly AnimationController animationController;
         readonly Skeleton skeleton;
-        readonly Shader shader;
-        readonly int vaoHandle;
-        readonly int vboHandle;
-        int vertexCount;
+        readonly LineBuffer lineBuffer;
 
         /// <summary>
         /// Initializes a new instance of the <see cref="SkeletonSceneNode"/> class.
@@ -31,18 +27,7 @@ namespace ValveResourceFormat.Renderer.SceneNodes
             this.animationController = animationController;
             this.skeleton = skeleton;
 
-            shader = Scene.RendererContext.ShaderLoader.LoadShader("vrf.default");
-
-            GL.CreateVertexArrays(1, out vaoHandle);
-            GL.CreateBuffers(1, out vboHandle);
-            GL.VertexArrayVertexBuffer(vaoHandle, 0, vboHandle, 0, SimpleVertex.SizeInBytes);
-            SimpleVertex.BindDefaultShaderLayout(vaoHandle, shader.Program);
-
-#if DEBUG
-            var vaoLabel = nameof(SkeletonSceneNode);
-            GL.ObjectLabel(ObjectLabelIdentifier.VertexArray, vaoHandle, vaoLabel.Length, vaoLabel);
-            GL.ObjectLabel(ObjectLabelIdentifier.Buffer, vboHandle, vaoLabel.Length, vaoLabel);
-#endif
+            lineBuffer = new LineBuffer(Scene.RendererContext, nameof(SkeletonSceneNode));
         }
 
         /// <inheritdoc/>
@@ -78,23 +63,38 @@ namespace ValveResourceFormat.Renderer.SceneNodes
             }
 
             LocalBoundingBox = bounds;
-            vertexCount = vertices.Count;
 
-            GL.NamedBufferData(vboHandle, vertices.Count * SimpleVertex.SizeInBytes, ListAccessors<SimpleVertex>.GetBackingArray(vertices), BufferUsageHint.DynamicDraw);
+            lineBuffer.Upload(vertices);
+        }
+
+        /// <inheritdoc/>
+        public override void Delete()
+        {
+            lineBuffer.Delete();
         }
 
         private void DrawSkeletonRecursive(Bone bone, List<SimpleVertex> vertices, Camera camera, TextRenderer textRenderer, AnimationController animation)
         {
             var boneMatrix = animation.Pose[bone.Index];
 
+            // todo: bounding box should be from current frame vertices
+            var sizeCap = LocalBoundingBox.Size.Length();
+            if (sizeCap < 1f)
+            {
+                sizeCap = 100f;
+            }
+
+            var distance = Vector3.Distance(camera.Location, Vector3.Transform(boneMatrix.Translation, Transform));
+            var distanceFade = distance > sizeCap ? sizeCap / distance : 1f;
+
             textRenderer.AddTextBillboard(Vector3.Transform(boneMatrix.Translation, Transform), new TextRenderer.TextRenderRequest
             {
-                Scale = 10f,
+                Scale = 10f * distanceFade,
                 Text = bone.Name,
                 Color = (bone.Parent, bone.Children.Count) switch
                 {
                     (null, _) => new Color32(1.0f, 0.8f, 0.8f, 1.0f),
-                    (_, 0) => new Color32(0.3f, 0.8f, 0.3f, 1.0f),
+                    (_, 0) => new Color32(0.8f, 1.0f, 0.8f, 1.0f),
                     _ => Color32.White,
                 },
             }, camera);
@@ -103,9 +103,17 @@ namespace ValveResourceFormat.Renderer.SceneNodes
             {
                 var parentMatrix = animation.Pose[bone.Parent.Index];
 
-                var fade = Random.Shared.NextSingle() * 0.5f + 0.5f;
-                ShapeSceneNode.AddLine(vertices, boneMatrix.Translation, parentMatrix.Translation, new(1f - fade, 1f, fade, 1f));
+                ShapeSceneNode.AddLine(vertices, boneMatrix.Translation, parentMatrix.Translation, Color32.White);
             }
+
+            // Bone space axes, normalized to strip any scale from the pose.
+            // Sized proportionally to camera distance so they stay constant on screen.
+            var origin = boneMatrix.Translation;
+            var axisLength = 0.04f * MathF.Min(distance, sizeCap);
+
+            ShapeSceneNode.AddLine(vertices, origin, origin + Vector3.Normalize(new Vector3(boneMatrix.M11, boneMatrix.M12, boneMatrix.M13)) * axisLength, new(1.0f, 0.2f, 0.2f, 1.0f));
+            ShapeSceneNode.AddLine(vertices, origin, origin + Vector3.Normalize(new Vector3(boneMatrix.M21, boneMatrix.M22, boneMatrix.M23)) * axisLength, new(0.2f, 0.8f, 0.2f, 1.0f));
+            ShapeSceneNode.AddLine(vertices, origin, origin + Vector3.Normalize(new Vector3(boneMatrix.M31, boneMatrix.M32, boneMatrix.M33)) * axisLength, new(0.2f, 0.2f, 1.0f, 1.0f));
 
             foreach (var child in bone.Children)
             {
@@ -126,7 +134,7 @@ namespace ValveResourceFormat.Renderer.SceneNodes
                 return;
             }
 
-            var renderShader = context.ReplacementShader ?? shader;
+            var renderShader = context.ReplacementShader ?? lineBuffer.Shader;
 
             GL.DepthFunc(DepthFunction.Always);
 
@@ -134,11 +142,9 @@ namespace ValveResourceFormat.Renderer.SceneNodes
             renderShader.SetUniform3x4("transform", Transform);
             renderShader.SetBoneAnimationData(false);
 
-            GL.BindVertexArray(vaoHandle);
-            GL.DrawArraysInstancedBaseInstance(PrimitiveType.Lines, 0, vertexCount, 1, Id);
+            lineBuffer.Draw(Id);
 
             GL.UseProgram(0);
-            GL.BindVertexArray(0);
             GL.DepthFunc(DepthFunction.Greater);
         }
     }

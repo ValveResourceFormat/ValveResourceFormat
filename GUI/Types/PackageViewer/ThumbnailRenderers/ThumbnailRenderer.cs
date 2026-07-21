@@ -133,7 +133,7 @@ internal abstract class ThumbnailRenderer : IDisposable
         // Flip y
         using var canvas = new SkiaSharp.SKCanvas(bitmap);
         canvas.Scale(1, -1, 0, bitmap.Height / 2f);
-        canvas.DrawBitmap(bitmap, new SkiaSharp.SKPoint());
+        canvas.DrawBitmap(bitmap, new SkiaSharp.SKPoint(), SkiaSharp.SKSamplingOptions.Default);
 
         return bitmap.ToBitmap();
     }

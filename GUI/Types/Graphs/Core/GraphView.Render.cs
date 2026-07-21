@@ -86,14 +86,12 @@ partial class GraphView
 
     private readonly SKPaint fillPaint = new() { IsAntialias = true, Style = SKPaintStyle.Fill };
     private readonly SKPaint arrowPaint = new() { IsAntialias = true, Style = SKPaintStyle.Fill };
-    private readonly SKPath arrowPath = new();
     private readonly SKPaint chainLayerPaint = new() { Color = SKColors.Black.WithAlpha(150) };
     private readonly SKPaint strokePaint = new() { IsAntialias = true, Style = SKPaintStyle.Stroke };
     private readonly SKPaint textPaint = new() { IsAntialias = true };
     private readonly SKPaint gridPaint = new() { IsAntialias = true, Style = SKPaintStyle.Stroke, StrokeCap = SKStrokeCap.Round };
     private readonly SKPaint wirePaint = new() { IsAntialias = true, Style = SKPaintStyle.Stroke };
     private readonly SKPaint wireUnderlayPaint = new() { IsAntialias = true, Style = SKPaintStyle.Stroke };
-    private readonly SKPath wirePath = new();
     private readonly SKPathEffect wireDashEffect = SKPathEffect.CreateDash([10f, 7f], 0f);
 
     private SKImageFilter? shadowNormal;
@@ -109,15 +107,15 @@ partial class GraphView
         var from = new SKPoint(fromPivot.X, fromPivot.Y);
         var to = new SKPoint(toPivot.X, toPivot.Y);
 
-        using var path = new SKPath();
-        BuildWirePath(path, Geometry.TryRouteOf(wire), from, to);
+        using var pathBuilder = new SKPathBuilder();
+        BuildWirePath(pathBuilder, Geometry.TryRouteOf(wire), from, to);
+        using var path = pathBuilder.Detach();
         return HitTestPaint.GetFillPath(path);
     }
 
     private void DisposeRenderResources()
     {
         arrowPaint.Dispose();
-        arrowPath.Dispose();
         chainLayerPaint.Dispose();
         fillPaint.Dispose();
         strokePaint.Dispose();
@@ -125,7 +123,6 @@ partial class GraphView
         gridPaint.Dispose();
         wirePaint.Dispose();
         wireUnderlayPaint.Dispose();
-        wirePath.Dispose();
         wireDashEffect.Dispose();
         shadowNormal?.Dispose();
         shadowSelected?.Dispose();
@@ -548,18 +545,18 @@ partial class GraphView
         return Math.Min(0.5f * distX + 40f, 250f);
     }
 
-    private static void BuildWirePath(SKPath path, SKPoint from, SKPoint to)
+    private static void BuildWirePath(SKPathBuilder path, SKPoint from, SKPoint to)
     {
         var offset = WireHandleOffset(from, to);
 
         path.MoveTo(from);
-        path.CubicTo(from.X + offset, from.Y, to.X - offset, to.Y, to.X, to.Y);
+        path.CubicTo(new SKPoint(from.X + offset, from.Y), new SKPoint(to.X - offset, to.Y), to);
     }
 
-    private static void BuildWirePath(SKPath path, WireRoute? route, SKPoint from, SKPoint to)
+    private static void BuildWirePath(SKPathBuilder path, WireRoute? route, SKPoint from, SKPoint to)
     {
-        // Exact routed curve from the layout library, drawn verbatim; conics carry the
-        // elliptical hub arcs precisely.
+        // Exact routed curve from the layout, drawn verbatim; conics carry the rounded
+        // segment corners precisely.
         if (route?.CurvePath is { Count: >= 2 } commands)
         {
             foreach (var command in commands)
@@ -567,19 +564,25 @@ partial class GraphView
                 switch (command.Verb)
                 {
                     case GraphCurveVerb.MoveTo:
-                        path.MoveTo(command.End.X, command.End.Y);
+                        path.MoveTo(new SKPoint(command.End.X, command.End.Y));
                         break;
 
                     case GraphCurveVerb.LineTo:
-                        path.LineTo(command.End.X, command.End.Y);
+                        path.LineTo(new SKPoint(command.End.X, command.End.Y));
                         break;
 
                     case GraphCurveVerb.CubicTo:
-                        path.CubicTo(command.A.X, command.A.Y, command.B.X, command.B.Y, command.End.X, command.End.Y);
+                        path.CubicTo(
+                            new SKPoint(command.A.X, command.A.Y),
+                            new SKPoint(command.B.X, command.B.Y),
+                            new SKPoint(command.End.X, command.End.Y));
                         break;
 
                     case GraphCurveVerb.ConicTo:
-                        path.ConicTo(command.A.X, command.A.Y, command.End.X, command.End.Y, command.Weight);
+                        path.ConicTo(
+                            new SKPoint(command.A.X, command.A.Y),
+                            new SKPoint(command.End.X, command.End.Y),
+                            command.Weight);
                         break;
                 }
             }
@@ -598,7 +601,7 @@ partial class GraphView
 
         foreach (var waypoint in waypoints)
         {
-            path.LineTo(waypoint.X, waypoint.Y);
+            path.LineTo(new SKPoint(waypoint.X, waypoint.Y));
         }
 
         path.LineTo(to);
@@ -626,9 +629,9 @@ partial class GraphView
             route = Geometry.TryRouteOf(wire);
         }
 
-        var path = wirePath;
-        path.Reset();
-        BuildWirePath(path, route, from, to);
+        using var pathBuilder = new SKPathBuilder();
+        BuildWirePath(pathBuilder, route, from, to);
+        using var path = pathBuilder.Detach();
 
         var width = WireWidth * Math.Max(1f, 1f / zoom);
 
@@ -693,7 +696,7 @@ partial class GraphView
         canvas.DrawRoundRect(rect, 4f, 4f, fillPaint);
 
         textPaint.Color = Palette.TextDim;
-        canvas.DrawText(label, midX - textWidth / 2f, midY - (metrics.Ascent + metrics.Descent) / 2f, WireLabelFont, textPaint);
+        canvas.DrawText(label, midX - textWidth / 2f, midY - (metrics.Ascent + metrics.Descent) / 2f, SKTextAlign.Left, WireLabelFont, textPaint);
     }
 
     private static readonly SKPoint[] HeaderCornerRadii =
@@ -775,13 +778,13 @@ partial class GraphView
         var titleBaseline = y + HeaderHeight / 2f - (titleMetrics.Ascent + titleMetrics.Descent) / 2f;
 
         textPaint.Color = Palette.HeaderText;
-        canvas.DrawText(node.Title, x + titleOffset + MarginX, titleBaseline, TitleFont, textPaint);
+        canvas.DrawText(node.Title, x + titleOffset + MarginX, titleBaseline, SKTextAlign.Left, TitleFont, textPaint);
 
         if (!string.IsNullOrEmpty(node.Subtitle))
         {
             var subtitleWidth = SubtitleFont.MeasureText(node.Subtitle);
             textPaint.Color = Palette.HeaderTextDim;
-            canvas.DrawText(node.Subtitle, rect.Right - MarginX - subtitleWidth, titleBaseline, SubtitleFont, textPaint);
+            canvas.DrawText(node.Subtitle, rect.Right - MarginX - subtitleWidth, titleBaseline, SKTextAlign.Left, SubtitleFont, textPaint);
         }
 
         if (zoom < DetailZoomCutoff)
@@ -840,7 +843,7 @@ partial class GraphView
         var baseline = rowCenterY - (metrics.Ascent + metrics.Descent) / 2f;
 
         textPaint.Color = Palette.Signal(row.Hue);
-        canvas.DrawText(row.Text, textX, baseline, RowFont, textPaint);
+        canvas.DrawText(row.Text, textX, baseline, SKTextAlign.Left, RowFont, textPaint);
     }
 
     private void DrawAnnotationRow(SKCanvas canvas, AnnotationRow row, float x, float rowCenterY)
@@ -848,19 +851,20 @@ partial class GraphView
         var color = Palette.Signal(row.Hue);
         var markerX = x + MarginX + 4f;
 
-        arrowPath.Reset();
-        arrowPath.MoveTo(markerX, rowCenterY - 4f);
-        arrowPath.LineTo(markerX + 4f, rowCenterY);
-        arrowPath.LineTo(markerX, rowCenterY + 4f);
-        arrowPath.LineTo(markerX - 4f, rowCenterY);
-        arrowPath.Close();
+        using var markerBuilder = new SKPathBuilder();
+        markerBuilder.MoveTo(new SKPoint(markerX, rowCenterY - 4f));
+        markerBuilder.LineTo(new SKPoint(markerX + 4f, rowCenterY));
+        markerBuilder.LineTo(new SKPoint(markerX, rowCenterY + 4f));
+        markerBuilder.LineTo(new SKPoint(markerX - 4f, rowCenterY));
+        markerBuilder.Close();
+        using var markerPath = markerBuilder.Detach();
         arrowPaint.Color = color;
-        canvas.DrawPath(arrowPath, arrowPaint);
+        canvas.DrawPath(markerPath, arrowPaint);
 
         var metrics = RowFont.Metrics;
         var baseline = rowCenterY - (metrics.Ascent + metrics.Descent) / 2f;
         textPaint.Color = color;
-        canvas.DrawText(row.Text, x + MarginX + 14f, baseline, RowFont, textPaint);
+        canvas.DrawText(row.Text, x + MarginX + 14f, baseline, SKTextAlign.Left, RowFont, textPaint);
     }
 
     private void DrawTextRow(SKCanvas canvas, TextRow row, float x, float rowCenterY)
@@ -886,7 +890,7 @@ partial class GraphView
 
         var metrics = font.Metrics;
         var baseline = rowCenterY - (metrics.Ascent + metrics.Descent) / 2f;
-        canvas.DrawText(row.Text, textX, baseline, font, textPaint);
+        canvas.DrawText(row.Text, textX, baseline, SKTextAlign.Left, font, textPaint);
     }
 
     private void DrawSocketRow(SKCanvas canvas, GraphSocket socket, SKRect nodeRect, float rowCenterY)
@@ -939,12 +943,12 @@ partial class GraphView
 
         if (socket.IsInput)
         {
-            canvas.DrawText(socket.Name, nodeRect.Left + MarginX, baseline, RowFont, textPaint);
+            canvas.DrawText(socket.Name, nodeRect.Left + MarginX, baseline, SKTextAlign.Left, RowFont, textPaint);
         }
         else
         {
             var textWidth = RowFont.MeasureText(socket.Name);
-            canvas.DrawText(socket.Name, nodeRect.Right - MarginX - textWidth, baseline, RowFont, textPaint);
+            canvas.DrawText(socket.Name, nodeRect.Right - MarginX - textWidth, baseline, SKTextAlign.Left, RowFont, textPaint);
         }
     }
 }

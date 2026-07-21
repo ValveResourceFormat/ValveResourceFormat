@@ -473,7 +473,7 @@ namespace ValveResourceFormat.Renderer.World
             || cls == "point_camera_vertical_fov"
             || cls == "point_camera";
 
-        internal const string ToolEntitiesLayerName = "Tool Entities";
+        internal const string ToolEntitiesLayerName = "Entities (editor only)";
 
         private void LoadEntitiesFromLump(EntityLump entityLump, string originalLayerName, Matrix4x4 rootTransform)
         {
@@ -530,7 +530,7 @@ namespace ValveResourceFormat.Renderer.World
 
                 if (disabled && layerName == "Entities")
                 {
-                    layerName = "Disabled Entities";
+                    layerName = "Entities (disabled)";
                 }
 
                 if (classname == "info_world_layer")
@@ -1321,7 +1321,7 @@ namespace ValveResourceFormat.Renderer.World
 
             foreach (var node in SkyboxScene.AllNodes)
             {
-                if (node.LayerName == "Tool Entities")
+                if (node.LayerName == ToolEntitiesLayerName)
                 {
                     node.Transform *= offsetTransform;
                 }

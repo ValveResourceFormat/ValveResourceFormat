@@ -73,7 +73,7 @@ internal class ThumbnailTextureRenderer : ThumbnailRenderer
         var canvas = surface.Canvas;
         var offsetX = (size - renderWidth) / 2;
         var offsetY = (size - renderHeight) / 2;
-        canvas.DrawBitmap(resizedBitmap, offsetX, offsetY);
+        canvas.DrawBitmap(resizedBitmap, offsetX, offsetY, SKSamplingOptions.Default);
 
         using var snapshot = surface.Snapshot();
         using var finalBitmap = SKBitmap.FromImage(snapshot);
@@ -87,7 +87,7 @@ internal class ThumbnailTextureRenderer : ThumbnailRenderer
         using var canvas = new SKCanvas(rotated);
         canvas.Translate(rotated.Width, 0);
         canvas.RotateDegrees(90);
-        canvas.DrawBitmap(source, 0, 0);
+        canvas.DrawBitmap(source, 0, 0, SKSamplingOptions.Default);
 
         return rotated;
     }
