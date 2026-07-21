@@ -358,8 +358,6 @@ namespace GUI.Types.Graphs
             var from = new SKPoint(xFrom, yFrom);
             var to = new SKPoint(xTo, yTo);
 
-            var path = new SKPath();
-
             var dx = to.X - from.X;
             var dy = to.Y - from.Y;
             var absDx = Math.Abs(dx);
@@ -374,8 +372,10 @@ namespace GUI.Types.Graphs
             var fromControl = new SKPoint(from.X + horizontalOffset, from.Y + verticalOffset);
             var toControl = new SKPoint(to.X - horizontalOffset, to.Y + verticalOffset);
 
-            path.MoveTo(from);
-            path.CubicTo(fromControl, toControl, to);
+            using var pathBuilder = new SKPathBuilder();
+            pathBuilder.MoveTo(from);
+            pathBuilder.CubicTo(fromControl, toControl, to);
+            var path = pathBuilder.Detach();
 
             canvas.DrawPath(path, paint);
             return path;
