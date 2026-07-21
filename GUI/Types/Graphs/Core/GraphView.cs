@@ -1131,6 +1131,38 @@ partial class GraphView : IDisposable
         OnGraphChanged();
     }
 
+    /// <summary>
+    /// Atomically discards the current graph document and derived state, then runs
+    /// <paramref name="build"/> to repopulate it, holding the state lock across the whole
+    /// swap so a concurrent render never sees a half-built graph.
+    /// </summary>
+    public void Rebuild(Action build)
+    {
+        using var _ = stateLock.EnterScope();
+
+        foreach (var entry in wireHitPaths.Values)
+        {
+            entry.Path.Dispose();
+        }
+
+        wireHitPaths.Clear();
+        nodes.Clear();
+        wires.Clear();
+        Legend.Clear();
+        Selection.Clear();
+        Geometry.Clear();
+
+        lastHovered = null;
+        searchHighlight = null;
+        nextNodeSequence = 0;
+        IsMoving = false;
+        dragStarted = false;
+
+        build();
+
+        OnGraphChanged();
+    }
+
     private bool disposed;
 
     protected virtual void Dispose(bool disposing)

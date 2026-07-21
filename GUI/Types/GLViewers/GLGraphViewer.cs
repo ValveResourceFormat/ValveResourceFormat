@@ -46,6 +46,14 @@ namespace GUI.Types.GLViewers
 
         protected override bool ShowResetZoomButton => false;
 
+        /// <summary>Frontends that build state machines expose a checkbox to draw them as a statechart.</summary>
+        protected virtual bool HasStateMachineToggle => false;
+
+        /// <summary>Rebuilds the graph with state machines drawn as a statechart (true) or flattened (false).</summary>
+        protected virtual void SetDrawStateMachines(bool draw)
+        {
+        }
+
         private Label? statsLabel;
         private ThemedTextBox? searchBox;
         private Panel? legendPanel;
@@ -110,6 +118,11 @@ namespace GUI.Types.GLViewers
                 placementCombo.Items.AddRange(new object[] { "Layered (Sugiyama)", "Organic (MDS)" });
                 placementCombo.SelectedIndex = (int)View.Placement;
                 suppressPlacementChange = false;
+
+                if (HasStateMachineToggle)
+                {
+                    UiControl.AddCheckBox("Draw state machines", false, SetDrawStateMachines);
+                }
 
                 var subtitles = View.GetDistinctSubtitles();
 

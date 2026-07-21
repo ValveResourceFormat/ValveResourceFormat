@@ -83,4 +83,12 @@ internal sealed class GraphGeometry
             route.CurvePath = null;
         }
     }
+
+    /// <summary>Drops all measured node, socket and wire geometry.</summary>
+    public void Clear()
+    {
+        nodes.Clear();
+        pivotOffsets.Clear();
+        routes.Clear();
+    }
 }

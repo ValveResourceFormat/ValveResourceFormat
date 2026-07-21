@@ -24,6 +24,28 @@ internal class AnimationGraphViewer : GLGraphViewer
         CreateGraph();
     }
 
+    private bool drawStateMachines;
+
+    protected override bool HasStateMachineToggle => true;
+
+    protected override void SetDrawStateMachines(bool draw)
+    {
+        if (drawStateMachines == draw)
+        {
+            return;
+        }
+
+        drawStateMachines = draw;
+        RebuildGraph();
+    }
+
+    private void RebuildGraph()
+    {
+        View.Rebuild(CreateGraph);
+        RefreshStatsLabel();
+        RefitToGraph();
+    }
+
     private struct Pose;
     private struct Value;
 
@@ -164,7 +186,7 @@ internal class AnimationGraphViewer : GLGraphViewer
         {
             var data = nodes[nodeIdx];
 
-            if (node.NodeType == "StateMachine")
+            if (node.NodeType == "StateMachine" && drawStateMachines)
             {
                 var children = data.GetArray("m_stateDefinitions");
 
@@ -184,7 +206,7 @@ internal class AnimationGraphViewer : GLGraphViewer
 
                     var stateGraphNode = View.AddNode(new Node(stateNode)
                     {
-                        Name = stateName,
+                        Name = $"({stateNodeIdx}) {stateName}",
                         NodeType = "State",
                         Category = GraphHue.Slate,
                     });
@@ -236,6 +258,36 @@ internal class AnimationGraphViewer : GLGraphViewer
                         {
                             View.Connect(from, to, dashed: true, label: label);
                         }
+                    }
+                }
+            }
+            else if (node.NodeType == "StateMachine")
+            {
+                // Flattened form: each state is an input socket on the state machine node,
+                // with no separate state nodes and no transition wires.
+                var children = data.GetArray("m_stateDefinitions");
+
+                foreach (var stateDefinition in children)
+                {
+                    var stateNodeIdx = stateDefinition.GetInt32Property("m_nStateNodeIdx");
+                    var entryConditionNodeIdx = stateDefinition.GetInt32Property("m_nEntryConditionNodeIdx"); // can be -1
+
+                    var stateName = GetName(stateNodeIdx);
+                    var stateNode = nodes[stateNodeIdx];
+                    var stateInputIdx = stateNode.GetInt32Property("m_nChildNodeIdx");
+
+                    var input = node.AddInput(stateName, PoseHue, allowMultiple: true);
+
+                    if (stateInputIdx != -1)
+                    {
+                        var (_, stateNodeOut) = CreateChild<Pose>(stateInputIdx);
+                        View.Connect(stateNodeOut, input);
+                    }
+
+                    if (entryConditionNodeIdx != -1)
+                    {
+                        var (_, childOutput) = CreateChild<Value>(entryConditionNodeIdx, stateName);
+                        View.Connect(childOutput, input);
                     }
                 }
             }
