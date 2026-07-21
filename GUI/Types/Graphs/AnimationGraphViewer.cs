@@ -89,11 +89,27 @@ internal class AnimationGraphViewer : GLGraphViewer
                 return existingNode;
             }
 
-            var node = new Node(nodes[nodeIdx])
+            Node node;
+
+            if (nodeIdx < 0 || nodeIdx >= nodes.Count)
             {
-                Name = $"({nodeIdx}) {GetName(nodeIdx)}",
-                NodeType = GetType(nodeIdx),
-            };
+                Log.Warn(nameof(AnimationGraphViewer), $"Node index {nodeIdx} is out of range ({nodes.Count} nodes), adding a placeholder node.");
+
+                node = new Node(null)
+                {
+                    Name = $"({nodeIdx}) missing node",
+                    NodeType = "Missing",
+                    Category = GraphHue.Red,
+                };
+            }
+            else
+            {
+                node = new Node(nodes[nodeIdx])
+                {
+                    Name = $"({nodeIdx}) {GetName(nodeIdx)}",
+                    NodeType = GetType(nodeIdx),
+                };
+            }
 
             View.AddNode(node);
             createdNodes[nodeIdx] = node;
@@ -129,13 +145,16 @@ internal class AnimationGraphViewer : GLGraphViewer
 
             var childNodeOutput = childNode.AddOutput(childOutputName ?? string.Empty, HueOf(typeof(ValueType)));
 
-            try
+            if (childNode.NodeType != "Missing")
             {
-                CreateChildren(childNode, nodeIdx);
-            }
-            catch (IndexOutOfRangeException)
-            {
-                Log.Error(nameof(AnimationGraphViewer), $"Error creating children for {childNode.Name} (idx = {nodeIdx}).");
+                try
+                {
+                    CreateChildren(childNode, nodeIdx);
+                }
+                catch (Exception e) when (e is IndexOutOfRangeException or ArgumentOutOfRangeException)
+                {
+                    Log.Error(nameof(AnimationGraphViewer), $"Error creating children for {childNode.Name} (idx = {nodeIdx}).");
+                }
             }
 
             return (childNode, childNodeOutput);
@@ -368,7 +387,13 @@ internal class AnimationGraphViewer : GLGraphViewer
             else if (node.NodeType is "SpeedScale")
             {
                 CreateInputAndChild<Pose>(node, data.GetInt32Property("m_nChildNodeIdx"), "Input");
-                CreateInputAndChild<Value>(node, data.GetInt32Property("m_nInputValueNodeIdx"), "Scale Value");
+
+                var inputValueNodeIdx = data.GetInt32Property("m_nInputValueNodeIdx"); // can be -1
+                if (inputValueNodeIdx != -1)
+                {
+                    CreateInputAndChild<Value>(node, inputValueNodeIdx, "Scale Value");
+                }
+
                 node.AddText($"Default Scale: {data.GetFloatProperty("m_flDefaultInputValue")}");
             }
             else if (node.NodeType is "Not" or "FloatCurve")
@@ -648,7 +673,10 @@ internal class AnimationGraphViewer : GLGraphViewer
         var rootOutput = root.AddOutput(string.Empty, PoseHue);
         View.Connect(rootOutput, finalPoseInput);
 
-        CreateChildren(root, rootNodeIdx);
+        if (root.NodeType != "Missing")
+        {
+            CreateChildren(root, rootNodeIdx);
+        }
 
         // create some unreferenced nodes
         for (var i = 0; i < nodes.Count; i++)
