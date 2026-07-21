@@ -72,6 +72,32 @@ namespace Tests
             Assert.That(materialExtract.ToValveMaterial(), Is.Not.Empty);
         }
 
+        [Test]
+        public void ToMaterialMapsHdrCubemap([Values] bool withUnpackInfo)
+        {
+            var file = Path.Combine(TestContext.CurrentContext.TestDirectory, "Files", "Textures", "cubemap.vtex_c");
+            using var resource = new Resource
+            {
+                FileName = file,
+            };
+            resource.Read(file);
+
+            MaterialExtract.UnpackInfo[] mapsToUnpack = withUnpackInfo
+                ? [new MaterialExtract.UnpackInfo
+                {
+                    TextureType = "TextureEnvironmentMap",
+                    FileName = "materials/env_map.exr",
+                    Channel = ChannelMapping.RGBA,
+                }]
+                : [];
+
+            using var contentFile = new TextureExtract(resource).ToMaterialMaps(mapsToUnpack);
+
+            Assert.That(contentFile.SubFiles, Has.Count.EqualTo(1));
+            Assert.That(contentFile.SubFiles[0].FileName, Is.EqualTo(withUnpackInfo ? "env_map.exr" : "cubemap.exr"));
+            Assert.That(contentFile.SubFiles[0].Extract?.Invoke(), Is.Not.Null.And.Not.Empty);
+        }
+
         private static IEnumerable<TestCaseData> PngImageChannelsSource()
         {
             var c1234 = new SKColor(1, 2, 3, 4);

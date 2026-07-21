@@ -258,7 +258,12 @@ public sealed class TextureExtract
             if (isCubeMap && LatLongCombineCubemap && ExportExr)
             {
                 // use the file name set in material properties
-                vtexContent.SubFiles[0].FileName = Path.GetFileName(mapsToUnpack.First().FileName);
+                var firstUnpackInfo = mapsToUnpack.FirstOrDefault();
+
+                if (firstUnpackInfo.FileName != null)
+                {
+                    vtexContent.SubFiles[0].FileName = Path.GetFileName(firstUnpackInfo.FileName);
+                }
             }
 
             return vtexContent;
