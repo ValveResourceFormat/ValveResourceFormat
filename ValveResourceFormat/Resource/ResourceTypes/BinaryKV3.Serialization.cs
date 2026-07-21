@@ -196,7 +196,7 @@ namespace ValveResourceFormat.ResourceTypes
 
             foreach (var str in context.Strings)
             {
-                stringBytesLength += System.Text.Encoding.UTF8.GetByteCount(str) + 1;
+                stringBytesLength = checked(stringBytesLength + System.Text.Encoding.UTF8.GetByteCount(str) + 1);
             }
 
             using var writer = new BinaryWriter(stream, System.Text.Encoding.UTF8, leaveOpen: true);
