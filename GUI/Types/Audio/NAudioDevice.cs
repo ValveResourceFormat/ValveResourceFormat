@@ -57,6 +57,7 @@ namespace GUI.Types.Audio
             output = new WasapiOut(AudioClientShareMode.Shared, useEventSync: true, latency: WasapiLatencyMs);
             output.Init(buffer);
             output.Play();
+            _ = Windows.Win32.PInvoke.timeBeginPeriod(1); // need this - SubmitSamples paces the mixing thread with Thread.Sleep(1)
         }
 
         public void SubmitSamples(ReadOnlySpan<float> samples)
@@ -89,6 +90,7 @@ namespace GUI.Types.Audio
         {
             disposed = true;
             output.Dispose();
+            _ = Windows.Win32.PInvoke.timeEndPeriod(1);
         }
     }
 }
