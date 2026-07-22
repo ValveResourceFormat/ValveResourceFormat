@@ -861,9 +861,16 @@ public class AnimationGraphExtract : IDisposable
         return MakeArray(tagSpans);
     }
 
-    private KVObject ExtractParameterID(KVObject paramHandle, bool requireFloat = false)
+    private KVObject ExtractParameterID(KVObject? paramHandle, bool requireFloat = false)
     {
-        var paramType = paramHandle.GetStringProperty("m_type");
+        // Graphs from before the handle was mandatory leave it out wherever the parameter is
+        // optional, which reads the same as a handle bound to nothing.
+        if (paramHandle == null)
+        {
+            return MakeNodeIdObjectValue(-1);
+        }
+
+        var paramType = paramHandle.GetStringProperty("m_type", string.Empty);
         var paramIndex = paramHandle.GetIntegerProperty("m_index");
         return ParameterIDFromIndex(paramType, paramIndex, requireFloat);
     }
@@ -2222,7 +2229,7 @@ public class AnimationGraphExtract : IDisposable
 
         if (className == "CDampedValueComponentUpdater")
         {
-            component.Add("m_name", compiledComponent.GetStringProperty("m_name"));
+            component.Add("m_name", compiledComponent.GetStringProperty("m_name", string.Empty));
 
             if (compiledComponent.ContainsKey("m_items"))
             {
@@ -2271,7 +2278,7 @@ public class AnimationGraphExtract : IDisposable
 
         if (className == "CRemapValueComponentUpdater")
         {
-            component.Add("m_name", compiledComponent.GetStringProperty("m_name"));
+            component.Add("m_name", compiledComponent.GetStringProperty("m_name", string.Empty));
 
             if (compiledComponent.ContainsKey("m_items"))
             {
@@ -2304,7 +2311,7 @@ public class AnimationGraphExtract : IDisposable
 
         if (className == "CAnimScriptComponentUpdater")
         {
-            component.Add("m_sName", compiledComponent.GetStringProperty("m_name"));
+            component.Add("m_sName", compiledComponent.GetStringProperty("m_name", string.Empty));
             component.Add("m_scriptFilename", "");
 
             return component;
@@ -2312,7 +2319,7 @@ public class AnimationGraphExtract : IDisposable
 
         if (className == "CCPPScriptComponentUpdater")
         {
-            component.Add("m_sName", compiledComponent.GetStringProperty("m_name"));
+            component.Add("m_sName", compiledComponent.GetStringProperty("m_name", string.Empty));
             var scripts = compiledComponent.ContainsKey("m_scriptsToRun")
                 ? compiledComponent.GetArray("m_scriptsToRun").Select(s => (KVObject)(s.GetStringProperty("") ?? string.Empty)).ToArray()
                 : [];
@@ -2322,7 +2329,7 @@ public class AnimationGraphExtract : IDisposable
 
         if (className == "CStateMachineComponentUpdater")
         {
-            component.Add("m_sName", compiledComponent.GetStringProperty("m_name"));
+            component.Add("m_sName", compiledComponent.GetStringProperty("m_name", string.Empty));
 
             if (compiledComponent.ContainsKey("m_stateMachine"))
             {
