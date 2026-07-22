@@ -4,7 +4,6 @@ using System.Linq;
 using Microsoft.Extensions.Logging;
 using ValveKeyValue;
 using ValveResourceFormat.Blocks;
-using ValveResourceFormat.Renderer;
 using ValveResourceFormat.Renderer.Particles.Constraints;
 using ValveResourceFormat.Renderer.Particles.Emitters;
 using ValveResourceFormat.Renderer.Particles.ForceGenerators;
@@ -558,6 +557,49 @@ namespace ValveResourceFormat.Renderer.Particles
                     PerfStats.Active.Count(Counter.ParticleSystem);
                 }
             }
+        }
+
+        /// <summary>
+        /// Force-renders each active sub-renderer once with temporary particles.
+        /// </summary>
+        public void Prewarm(Camera camera)
+        {
+            foreach (var childParticleRenderer in childParticleRenderers)
+            {
+                childParticleRenderer.Prewarm(camera);
+            }
+
+            if (Renderers.Count == 0 || particleCollection.Count > 0)
+            {
+                return;
+            }
+
+            // Cables need 2 particles to render
+            const int PrewarmParticleCount = 2;
+
+            // EmitParticle mutates emission-order state that real spawns rely on for determinism -
+            // restore it after so these synthetic particles leave no trace once the real simulation starts.
+            var savedParticlesEmitted = particlesEmitted;
+            var savedParticleCount = systemRenderState.ParticleCount;
+
+            for (var i = 0; i < PrewarmParticleCount; i++)
+            {
+                EmitParticle();
+            }
+
+            foreach (var renderer in Renderers)
+            {
+                if (renderer.GetOperatorRunStrength(systemRenderState) <= 0.0f)
+                {
+                    continue;
+                }
+
+                renderer.Render(particleCollection, systemRenderState, camera);
+            }
+
+            particleCollection.Clear();
+            particlesEmitted = savedParticlesEmitted;
+            systemRenderState.ParticleCount = savedParticleCount;
         }
 
         public IEnumerable<string> GetSupportedRenderModes()

@@ -335,7 +335,7 @@ public class Framebuffer
                 throw new InvalidOperationException("Multisample textures do not support mipmaps");
             }
 
-            GL.TextureStorage2DMultisample(attachment.Handle, NumSamples, (SizedInternalFormat)format.InternalFormat, width, height, fixedsamplelocations: false);
+            GL.TextureStorage2DMultisample(attachment.Handle, NumSamples, (SizedInternalFormat)format.InternalFormat, width, height, fixedsamplelocations: true);
         }
         else
         {

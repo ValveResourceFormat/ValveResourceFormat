@@ -74,7 +74,12 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
         {
             this.scene = scene;
 
-            shader = rendererContext.ShaderLoader.LoadShader(ShaderName);
+            var shaderArguments = new Dictionary<string, byte>(scene.RenderAttributes)
+            {
+                ["D_BAKED_LIGHTING_FROM_PROBE"] = scene.LightingInfo.HasValidLightProbes ? (byte)1 : (byte)0,
+            };
+
+            shader = rendererContext.ShaderLoader.LoadShader(ShaderName, shaderArguments);
 
             roundness = parse.Int32("m_nRoundness", roundness);
             textureRepetitionMode = parse.Enum("m_nTextureRepetitionMode", textureRepetitionMode);
@@ -352,8 +357,8 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
         }
 
         // Prefers the probe volume containing the cable midpoint, falling back to the binding the
-        // scene assigned to the owning node. When one exists the shader is swapped for the
-        // probe-sampling variant (same vertex layout, so the VAO is kept).
+        // scene assigned to the owning node. Failing to find one is a lighting problem and the
+        // cable renders unlit, the same way a model with a bad probe binding would.
         private void ResolveLightProbe(ParticleSystemRenderState systemRenderState, Vector3 cablePosition)
         {
             lightProbeResolved = true;
@@ -364,18 +369,6 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
             }
 
             lightProbe = FindContainingProbe(cablePosition) ?? systemRenderState.OwnerNode?.LightProbeBinding;
-            if (lightProbe?.Irradiance == null)
-            {
-                lightProbe = null;
-                return;
-            }
-
-            var arguments = new Dictionary<string, byte>(scene.RenderAttributes)
-            {
-                ["D_BAKED_LIGHTING_FROM_PROBE"] = 1,
-            };
-
-            shader = scene.RendererContext.ShaderLoader.LoadShader(ShaderName, arguments);
         }
 
         // Highest-priority (then smallest) complete probe volume containing the given position,

@@ -43,6 +43,13 @@ public class Renderer
     }
 
     /// <summary>
+    /// Occlusion culling is held off until <see cref="Uptime"/> passes this, since the geometry, shader
+    /// specialization, and camera position are all still settling right after load; culling against a
+    /// depth pyramid from those first frames risks hiding things that should be visible.
+    /// </summary>
+    private const float OcclusionCullWarmupSeconds = 1f;
+
+    /// <summary>
     /// Total time elapsed since the renderer was started, in seconds.
     /// </summary>
     public float Uptime { get; set; }
@@ -583,7 +590,8 @@ public class Renderer
             {
                 var generateDepthPyramid = Scene.EnableOcclusionCulling
                     && Scene.DrawMeshletsIndirect
-                    && LockedCullFrustum == null;
+                    && LockedCullFrustum == null
+                    && Uptime >= OcclusionCullWarmupSeconds;
 
                 copyDepth |= generateDepthPyramid;
                 Scene.DepthPyramidValid = generateDepthPyramid || LockedCullFrustum != null;

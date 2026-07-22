@@ -8,6 +8,7 @@ using OpenTK.Graphics.OpenGL;
 using ValveResourceFormat.Renderer;
 using ValveResourceFormat.Renderer.Input;
 using ValveResourceFormat.Renderer.Materials;
+using ValveResourceFormat.Renderer.SceneNodes;
 using ValveResourceFormat.Renderer.Utils;
 using static ValveResourceFormat.Renderer.PickingTexture;
 
@@ -344,18 +345,76 @@ namespace GUI.Types.GLViewers
 
             PostSceneLoad();
 
-            if (GLNativeWindow != null)
+            if (this is GLWorldViewer)
             {
-                // try to compile shaders?
-                Renderer.Camera.SetLocationPitchYaw(Vector3.UnitZ * 20_000f, -90, 0f);
-                Renderer.Camera.SetViewportSize(64, 64);
-                OnPaint(0f);
-                GLNativeWindow.Context.SwapBuffers();
+                PrewarmDrawCalls();
             }
 
             GuiContext.ClearCache();
             GuiContext.GLPostLoadAction?.Invoke(this);
             GuiContext.GLPostLoadAction = null;
+        }
+
+        /// <summary>
+        /// Draws the scene and shadows with culling disabled so the driver specializes every
+        /// (program, vertex layout, framebuffer) combination once.
+        /// </summary>
+        private void PrewarmDrawCalls()
+        {
+            Debug.Assert(MainFramebuffer != null);
+
+            Scene.SetupSceneShadows(Renderer.Camera, -1);
+            Renderer.RenderSceneShadows(new Scene.RenderContext
+            {
+                Camera = Renderer.Camera,
+                Framebuffer = MainFramebuffer,
+                Textures = Renderer.Textures,
+                Scene = Scene,
+            });
+
+            MainFramebuffer.Bind(FramebufferTarget.Framebuffer);
+            GL.Viewport(0, 0, MainFramebuffer.Width, MainFramebuffer.Height);
+            Scene.CollectSceneDrawCalls(Renderer.Camera, Frustum.CreateEmpty());
+            Renderer.DrawMainScene();
+
+            foreach (var particleNode in Scene.AllNodes.OfType<ParticleSceneNode>())
+            {
+                particleNode.Prewarm(Renderer.Camera);
+            }
+
+            if (SkyboxScene != null)
+            {
+                SkyboxScene.CollectSceneDrawCalls(Renderer.Camera, Frustum.CreateEmpty());
+                SkyboxScene.SetSceneBuffers();
+
+                var skyboxContext = new Scene.RenderContext
+                {
+                    Camera = Renderer.Camera,
+                    Framebuffer = MainFramebuffer,
+                    Textures = Renderer.Textures,
+                    Scene = SkyboxScene,
+                };
+
+                SkyboxScene.RenderOpaqueLayer(skyboxContext);
+                SkyboxScene.RenderTranslucentLayer(skyboxContext);
+
+                Scene.SetSceneBuffers();
+            }
+
+            OnPaint(0);
+        }
+
+        protected override void OnFirstPaint()
+        {
+            base.OnFirstPaint();
+
+            if (this is GLWorldViewer)
+            {
+                // Fixes compile stutters, but performance is lower!
+                // PrewarmDrawCalls();
+                // var elapsed = Stopwatch.GetElapsedTime(LastUpdate, Stopwatch.GetTimestamp());
+                // Log.Debug(GetType().Name, $"Prewarm time: {elapsed}");
+            }
         }
 
         protected override void OnUpdate(float frameTime)

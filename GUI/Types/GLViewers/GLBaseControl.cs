@@ -607,7 +607,7 @@ internal abstract class GLBaseControl : IDisposable, IMessageFilter
         var elapsed = Stopwatch.GetElapsedTime(LastUpdate, current);
         LastUpdate = current;
 
-        Log.Debug(nameof(GLBaseControl), $"First Paint: {elapsed}");
+        Log.Debug(nameof(GLBaseControl), $"First paint: {elapsed}");
     }
 
     protected virtual void OnUpdate(float frameTime)
@@ -767,6 +767,13 @@ internal abstract class GLBaseControl : IDisposable, IMessageFilter
         var message = System.Runtime.InteropServices.Marshal.PtrToStringUTF8(pMessage, length);
         var error = $"[{severityStr} {sourceStr} {typeStr}] {message}";
 
+#if DEBUG
+        if (type is DebugType.DebugTypePerformance or DebugType.DebugTypeUndefinedBehavior)
+        {
+            error += $" ({DescribeObject(ObjectLabelIdentifier.Program, GL.GetInteger(GetPName.CurrentProgram))}, {DescribeObject(ObjectLabelIdentifier.Framebuffer, GL.GetInteger(GetPName.DrawFramebufferBinding))})";
+        }
+#endif
+
         switch (type)
         {
             case DebugType.DebugTypeError: Log.Error("OpenGL", error); break;
@@ -780,6 +787,21 @@ internal abstract class GLBaseControl : IDisposable, IMessageFilter
         }
 #endif
     }
+
+#if DEBUG
+    private static string DescribeObject(ObjectLabelIdentifier identifier, int name)
+    {
+        var kind = identifier == ObjectLabelIdentifier.Program ? "program" : "framebuffer";
+
+        if (name == 0)
+        {
+            return $"{kind} 0";
+        }
+
+        GL.GetObjectLabel(identifier, name, 256, out _, out string label);
+        return string.IsNullOrEmpty(label) ? $"{kind} {name}" : $"{kind} {name} '{label}'";
+    }
+#endif
 
     protected static readonly DebugProc OpenGLDebugMessageDelegate = OnDebugMessage;
 

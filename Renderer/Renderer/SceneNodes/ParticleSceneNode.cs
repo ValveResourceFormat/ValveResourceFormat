@@ -157,6 +157,11 @@ namespace ValveResourceFormat.Renderer.SceneNodes
         /// </summary>
         public void Restart() => particleRenderer.Restart();
 
+        /// <summary>
+        /// Forces this system's renderers to draw once with temporary particles.
+        /// </summary>
+        public void Prewarm(Camera camera) => particleRenderer.Prewarm(camera);
+
         /// <summary>Sets the particle detail tier (0 = Low .. 3 = Ultra) used by detail-tiered inputs.</summary>
         public void SetDetailLevel(int level) => particleRenderer.SetDetailLevel(level);
 

@@ -272,7 +272,13 @@ namespace ValveResourceFormat.Renderer
                     if (attributeLocation == -1)
                     {
 #if DEBUG
-                        RendererContext.Logger.LogDebug("Attribute {SemanticName} ({SemanticIndex}) could not be bound in shader {ShaderName} (insg: {InsgElemName})", attribute.SemanticName, attribute.SemanticIndex, shader.Name, insgElemName);
+                        // Only worth flagging when the shader's own input signature declared this attribute
+                        // (i.e. it expects it) but binding still failed. Utility passes such as depth-only
+                        // and picking intentionally ignore most attributes, so skip those too.
+                        if (!string.IsNullOrEmpty(insgElemName) && !shader.IgnoreMaterialData)
+                        {
+                            RendererContext.Logger.LogDebug("Attribute {SemanticName} ({SemanticIndex}) could not be bound in shader {ShaderName} (insg: {InsgElemName})", attribute.SemanticName, attribute.SemanticIndex, shader.Name, insgElemName);
+                        }
 #endif
                         continue;
                     }
