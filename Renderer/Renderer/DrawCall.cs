@@ -51,8 +51,8 @@ namespace ValveResourceFormat.Renderer
         /// <summary>Gets or sets the name of the mesh this draw call belongs to.</summary>
         public string MeshName { get; set; } = string.Empty;
 
-        /// <summary>Gets or sets the OpenGL vertex array object handle, or -1 if not yet created.</summary>
-        public int VertexArrayObject { get; set; } = -1;
+        /// <summary>Vertex array state for this draw call's geometry. Created lazily; owned by <see cref="MeshBuffers"/>.</summary>
+        private RenderVao? vao;
 
         /// <summary>Gets the vertex buffer bindings used by this draw call.</summary>
         public required VertexDrawBuffer[] VertexBuffers { get; init; }
@@ -76,42 +76,34 @@ namespace ValveResourceFormat.Renderer
         };
 
 
-        /// <summary>Replaces the material and rebuilds the vertex array object if the shader is ready.</summary>
+        /// <summary>Replaces the material and rebuilds the vertex array state.</summary>
         /// <param name="newMaterial">The new material to assign.</param>
         public void SetNewMaterial(RenderMaterial newMaterial)
         {
-            VertexArrayObject = -1;
             Material = newMaterial;
-
-            if (newMaterial.Shader.IsLoaded)
-            {
-                UpdateVertexArrayObject();
-            }
+            UpdateVertexArrayObject();
         }
 
-        /// <summary>Creates or refreshes the vertex array object for the current material shader.</summary>
+        /// <summary>Returns the VAO matching the shader this draw call is about to be rendered with,
+        /// creating it if necessary. Replacement shaders (depth only, outline, picking) get their own
+        /// VAOs since their attribute locations differ from the material shader's.</summary>
+        /// <param name="shader">The shader the draw call will be rendered with.</param>
         /// <returns>The OpenGL VAO handle.</returns>
-        public int UpdateVertexArrayObject()
+        public int GetVertexArrayObject(Shader shader)
         {
-            Debug.Assert(Material.Shader.IsLoaded, "Shader must be loaded (more specifically the attribute locations) before creating a VAO");
-
-            VertexArrayObject = MeshBuffers.GetVertexArrayObject(
-                   MeshName,
-                   VertexBuffers,
-                   Material,
-                   IndexBuffer.Handle);
-
-#if DEBUG
-            var vaoName = $"{MeshName}+{Material.Material.Name}";
-            GL.ObjectLabel(ObjectLabelIdentifier.VertexArray, VertexArrayObject, Math.Min(GLEnvironment.MaxLabelLength, vaoName.Length), vaoName);
-#endif
-            return VertexArrayObject;
+            vao ??= new RenderVao(MeshBuffers, VertexBuffers, IndexBuffer.Handle, Material.Material.InputSignature, MeshName);
+            return vao.Get(shader);
         }
 
-        /// <summary>Deletes the OpenGL VAO for this draw call.</summary>
-        public void DeleteVertexArrayObject()
+        /// <summary>Resets the vertex array state and recreates the material shader VAO if the shader is ready.</summary>
+        public void UpdateVertexArrayObject()
         {
-            GL.DeleteVertexArray(VertexArrayObject);
+            vao = null;
+
+            if (Material.Shader.IsLoaded)
+            {
+                GetVertexArrayObject(Material.Shader);
+            }
         }
     }
 
@@ -134,6 +126,9 @@ namespace ValveResourceFormat.Renderer
     {
         /// <summary>Gets the OpenGL buffer object handle.</summary>
         public int Handle { get; init; }
+
+        /// <summary>Gets the index of this buffer within the mesh's vertex buffer list (0 for single-buffer geometry).</summary>
+        public int BufferIndex { get; init; }
 
         /// <summary>Gets the byte offset within the buffer.</summary>
         public uint Offset { get; init; }

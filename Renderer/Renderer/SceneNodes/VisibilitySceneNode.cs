@@ -12,7 +12,7 @@ namespace ValveResourceFormat.Renderer.SceneNodes
         private readonly record struct ClusterDrawRange(int Start, int Count, ushort ClusterId);
 
         private readonly Shader shader;
-        private readonly int vaoHandle;
+        private readonly RenderVao vao;
         private readonly int totalVertexCount;
         private readonly ClusterDrawRange[] clusterDrawRanges;
 
@@ -45,17 +45,15 @@ namespace ValveResourceFormat.Renderer.SceneNodes
             clusterDrawRanges = [.. ranges];
             totalVertexCount = vertices.Count;
 
-            GL.CreateVertexArrays(1, out vaoHandle);
             GL.CreateBuffers(1, out int vboHandle);
-            GL.VertexArrayVertexBuffer(vaoHandle, 0, vboHandle, 0, SimpleVertex.SizeInBytes);
-            SimpleVertex.BindDefaultShaderLayout(vaoHandle, shader.Program);
 
             GL.NamedBufferData(vboHandle, totalVertexCount * SimpleVertex.SizeInBytes,
                 ListAccessors<SimpleVertex>.GetBackingArray(vertices), BufferUsageHint.StaticDraw);
 
+            vao = new RenderVao(Scene.RendererContext.MeshBufferCache, nameof(VisibilitySceneNode), vboHandle, SimpleVertex.SizeInBytes, SimpleVertex.InputLayout);
+
 #if DEBUG
             var label = nameof(VisibilitySceneNode);
-            GL.ObjectLabel(ObjectLabelIdentifier.VertexArray, vaoHandle, label.Length, label);
             GL.ObjectLabel(ObjectLabelIdentifier.Buffer, vboHandle, label.Length, label);
 #endif
 
@@ -77,7 +75,7 @@ namespace ValveResourceFormat.Renderer.SceneNodes
 
             GL.DepthMask(false);
             GL.BlendFunc(BlendingFactor.SrcAlpha, BlendingFactor.OneMinusSrcAlpha);
-            GL.BindVertexArray(vaoHandle);
+            GL.BindVertexArray(vao.Get(renderShader));
 
             if (Scene.CurrentFramePvs == null)
             {

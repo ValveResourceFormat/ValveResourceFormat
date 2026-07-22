@@ -238,6 +238,11 @@ namespace ValveResourceFormat.ResourceTypes
             public InputSignatureElement[] Elements { get; }
 
             /// <summary>
+            /// Gets a hash of all elements, usable as a cheap identity for caching. Zero when empty.
+            /// </summary>
+            public int Hash { get; }
+
+            /// <summary>
             /// Initializes a new instance of the <see cref="VsInputSignature"/> struct with no elements.
             /// </summary>
             public VsInputSignature()
@@ -252,6 +257,17 @@ namespace ValveResourceFormat.ResourceTypes
             public VsInputSignature(KVObject data)
             {
                 Elements = [.. data.GetArray("m_elems").Select(x => new InputSignatureElement(x))];
+
+                var hash = new HashCode();
+
+                foreach (var element in Elements)
+                {
+                    hash.Add(element.Name);
+                    hash.Add(element.D3DSemanticName);
+                    hash.Add(element.D3DSemanticIndex);
+                }
+
+                Hash = hash.ToHashCode();
             }
         }
 

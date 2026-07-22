@@ -142,7 +142,7 @@ namespace ValveResourceFormat.Renderer.SceneNodes
             renderShader.SetUniform3x4("transform", Transform);
             renderShader.SetBoneAnimationData(false);
 
-            lineBuffer.Draw(Id);
+            lineBuffer.Draw(Id, context.ReplacementShader);
 
             GL.UseProgram(0);
             GL.DepthFunc(DepthFunction.Greater);

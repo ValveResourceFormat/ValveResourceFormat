@@ -68,6 +68,18 @@ namespace ValveResourceFormat.Blocks
         /// <seealso href="https://s2v.app/SchemaExplorer/cs2/modellib/RenderInputLayoutField_t">RenderInputLayoutField_t</seealso>
         public struct RenderInputLayoutField
         {
+            /// <summary>Initializes a field for hand-built vertex layouts.</summary>
+            /// <param name="semanticName">Semantic name of the attribute (e.g., "POSITION", "NORMAL", "TEXCOORD").</param>
+            /// <param name="format">Data format of the attribute.</param>
+            /// <param name="offset">Byte offset of the attribute within the vertex.</param>
+            public RenderInputLayoutField(string semanticName, DXGI_FORMAT format, uint offset)
+            {
+                SemanticName = semanticName;
+                Format = format;
+                Offset = offset;
+                ShaderSemantic = string.Empty;
+            }
+
             /// <summary>
             /// Semantic name of the attribute (e.g., "POSITION", "NORMAL", "TEXCOORD").
             /// </summary>

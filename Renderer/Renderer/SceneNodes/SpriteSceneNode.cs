@@ -1,4 +1,3 @@
-using System.Linq;
 using OpenTK.Graphics.OpenGL;
 using PrimitiveType = OpenTK.Graphics.OpenGL.PrimitiveType;
 
@@ -17,7 +16,17 @@ namespace ValveResourceFormat.Renderer.SceneNodes
 #pragma warning restore format
         ];
 
-        private readonly int vaoHandle;
+        private static readonly ValveResourceFormat.Blocks.VBIB.RenderInputLayoutField[] InputLayout =
+        [
+            new("POSITION", DXGI_FORMAT.R32G32B32_FLOAT, offset: 0),
+            new("NORMAL", DXGI_FORMAT.R32G32B32A32_FLOAT, offset: 12),
+            new("TEXCOORD", DXGI_FORMAT.R32G32_FLOAT, offset: 28),
+            new("TANGENT", DXGI_FORMAT.R32G32B32A32_FLOAT, offset: 36),
+            new("BLENDINDICES", DXGI_FORMAT.R32G32B32A32_FLOAT, offset: 52),
+            new("BLENDWEIGHT", DXGI_FORMAT.R32G32B32A32_FLOAT, offset: 68),
+        ];
+
+        private readonly RenderVao vao;
         private readonly RenderMaterial material;
 
         public SpriteSceneNode(Scene scene, RendererContext renderContext, Resource resource, Vector3 position)
@@ -31,38 +40,15 @@ namespace ValveResourceFormat.Renderer.SceneNodes
                 texture.SetWrapMode(TextureWrapMode.ClampToEdge);
             }
 
-            var attributes = new List<(string Name, int Size)>
-            {
-                ("vPOSITION", 3),
-                ("vNORMAL", 4),
-                ("vTEXCOORD", 2),
-                ("vTANGENT", 4),
-                ("vBLENDINDICES", 4),
-                ("vBLENDWEIGHT", 4),
-            };
-            var stride = sizeof(float) * attributes.Sum(x => x.Size);
-            var offset = 0;
+            const int stride = sizeof(float) * 21;
 
-            GL.CreateVertexArrays(1, out vaoHandle);
             GL.CreateBuffers(1, out int vboHandle);
-            GL.VertexArrayVertexBuffer(vaoHandle, 0, vboHandle, 0, stride);
             GL.NamedBufferData(vboHandle, Vertices.Length * sizeof(float), Vertices, BufferUsageHint.StaticDraw);
 
-            foreach (var (name, size) in attributes)
-            {
-                var attributeLocation = GL.GetAttribLocation(material.Shader.Program, name);
-                if (attributeLocation > -1)
-                {
-                    GL.EnableVertexArrayAttrib(vaoHandle, attributeLocation);
-                    GL.VertexArrayAttribFormat(vaoHandle, attributeLocation, size, VertexAttribType.Float, false, offset);
-                    GL.VertexArrayAttribBinding(vaoHandle, attributeLocation, 0);
-                }
-                offset += sizeof(float) * size;
-            }
+            vao = new RenderVao(renderContext.MeshBufferCache, nameof(SpriteSceneNode), vboHandle, stride, InputLayout, inputSignature: material.Material.InputSignature);
 
 #if DEBUG
             var vaoLabel = $"{nameof(SpriteSceneNode)}: {System.IO.Path.GetFileName(resource.FileName)}";
-            GL.ObjectLabel(ObjectLabelIdentifier.VertexArray, vaoHandle, Math.Min(GLEnvironment.MaxLabelLength, vaoLabel.Length), vaoLabel);
             GL.ObjectLabel(ObjectLabelIdentifier.Buffer, vboHandle, Math.Min(GLEnvironment.MaxLabelLength, vaoLabel.Length), vaoLabel);
 #endif
 
@@ -83,7 +69,7 @@ namespace ValveResourceFormat.Renderer.SceneNodes
             var renderShader = context.ReplacementShader ?? material.Shader;
             renderShader.Use();
 
-            GL.BindVertexArray(vaoHandle);
+            GL.BindVertexArray(vao.Get(renderShader));
 
             // Create billboarding rotation (always facing camera)
             if (!Matrix4x4.Decompose(context.Camera.CameraViewMatrix, out _, out var modelViewRotation, out _))

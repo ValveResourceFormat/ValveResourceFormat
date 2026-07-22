@@ -36,8 +36,8 @@ namespace ValveResourceFormat.Renderer.SceneNodes
         /// <summary>Gets the number of indices uploaded to the GPU index buffer.</summary>
         protected int indexCount { get; private set; }
 
-        /// <summary>Gets the OpenGL vertex array object handle.</summary>
-        protected int vaoHandle { get; private set; }
+        /// <summary>Gets the vertex array state for this shape.</summary>
+        protected RenderVao vao { get; private set; } = null!;
 
         /// <summary>Gets whether this shape uses normal-based shading.</summary>
         protected virtual bool Shaded { get; } = true;
@@ -109,20 +109,16 @@ namespace ValveResourceFormat.Renderer.SceneNodes
         {
             indexCount = inds.Count;
 
-            GL.CreateVertexArrays(1, out int vaoHandleLocal);
-            vaoHandle = vaoHandleLocal;
             GL.CreateBuffers(1, out int vboHandle);
             GL.CreateBuffers(1, out int iboHandle);
-            GL.VertexArrayVertexBuffer(vaoHandle, 0, vboHandle, 0, SimpleVertexNormal.SizeInBytes);
-            GL.VertexArrayElementBuffer(vaoHandle, iboHandle);
-            SimpleVertexNormal.BindDefaultShaderLayout(vaoHandle, shader.Program);
 
             GL.NamedBufferData(vboHandle, verts.Count * SimpleVertexNormal.SizeInBytes, ListAccessors<SimpleVertexNormal>.GetBackingArray(verts), BufferUsageHint.StaticDraw);
             GL.NamedBufferData(iboHandle, inds.Count * sizeof(int), ListAccessors<int>.GetBackingArray(inds), BufferUsageHint.StaticDraw);
 
+            vao = new RenderVao(Scene.RendererContext.MeshBufferCache, nameof(ShapeSceneNode), vboHandle, SimpleVertexNormal.SizeInBytes, SimpleVertexNormal.InputLayout, iboHandle);
+
 #if DEBUG
             var vaoLabel = nameof(PhysSceneNode);
-            GL.ObjectLabel(ObjectLabelIdentifier.VertexArray, vaoHandle, vaoLabel.Length, vaoLabel);
             GL.ObjectLabel(ObjectLabelIdentifier.Buffer, vboHandle, vaoLabel.Length, vaoLabel);
             GL.ObjectLabel(ObjectLabelIdentifier.Buffer, iboHandle, vaoLabel.Length, vaoLabel);
 #endif
@@ -369,7 +365,7 @@ namespace ValveResourceFormat.Renderer.SceneNodes
                 renderShader.SetTexture(0, "g_tColor", ToolTexture);
             }
 
-            GL.BindVertexArray(vaoHandle);
+            GL.BindVertexArray(vao.Get(renderShader));
 
             GL.DepthFunc(DepthFunction.Gequal);
 
