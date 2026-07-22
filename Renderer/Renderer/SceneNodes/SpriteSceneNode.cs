@@ -92,9 +92,6 @@ namespace ValveResourceFormat.Renderer.SceneNodes
             GL.DrawArraysInstancedBaseInstance(PrimitiveType.TriangleStrip, 0, 4, 1, Id);
 
             material.PostRender();
-
-            GL.BindVertexArray(0);
-            GL.UseProgram(0);
         }
     }
 }

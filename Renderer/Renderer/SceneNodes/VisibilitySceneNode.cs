@@ -92,8 +92,6 @@ namespace ValveResourceFormat.Renderer.SceneNodes
                 }
             }
 
-            GL.UseProgram(0);
-            GL.BindVertexArray(0);
             GL.DepthMask(true);
         }
 

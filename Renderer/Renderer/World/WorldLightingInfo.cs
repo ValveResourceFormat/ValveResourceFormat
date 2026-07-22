@@ -143,35 +143,33 @@ namespace ValveResourceFormat.Renderer.World
         /// Binds the per-draw light-probe volume textures for a draw bound to <paramref name="lightProbe"/>:
         /// the probe's irradiance plus the lightmap-version specific direct-light data. Only applies to
         /// individual-probe scenes; in probe-atlas scenes the shared atlas textures are bound per shader by
-        /// <see cref="SetLightmapTextures"/> and the shader picks the probe by its index. Slots bound here
-        /// are queued into <paramref name="boundSlots"/> when provided, so the caller can unbind them after
-        /// the draw.
+        /// <see cref="SetLightmapTextures"/> and the shader picks the probe by its index.
         /// </summary>
-        public void SetInstanceLightProbeTextures(Shader shader, SceneLightProbe lightProbe, Queue<int>? boundSlots = null)
+        public void SetInstanceLightProbeTextures(Shader shader, SceneLightProbe lightProbe)
         {
             if (LightProbeType != LightProbeType.IndividualProbes)
             {
                 return;
             }
 
-            BindProbeTexture(shader, ReservedTextureSlots.Probe1, "g_tLPV_Irradiance", lightProbe.Irradiance, boundSlots);
+            BindProbeTexture(shader, ReservedTextureSlots.Probe1, "g_tLPV_Irradiance", lightProbe.Irradiance);
 
             if (LightmapGameVersionNumber == 1)
             {
-                BindProbeTexture(shader, ReservedTextureSlots.Probe2, "g_tLPV_Indices", lightProbe.DirectLightIndices, boundSlots);
-                BindProbeTexture(shader, ReservedTextureSlots.Probe3, "g_tLPV_Scalars", lightProbe.DirectLightScalars, boundSlots);
+                BindProbeTexture(shader, ReservedTextureSlots.Probe2, "g_tLPV_Indices", lightProbe.DirectLightIndices);
+                BindProbeTexture(shader, ReservedTextureSlots.Probe3, "g_tLPV_Scalars", lightProbe.DirectLightScalars);
             }
             else if (LightmapGameVersionNumber >= 2)
             {
-                BindProbeTexture(shader, ReservedTextureSlots.Probe2, "g_tLPV_Shadows", lightProbe.DirectLightShadows, boundSlots);
+                BindProbeTexture(shader, ReservedTextureSlots.Probe2, "g_tLPV_Shadows", lightProbe.DirectLightShadows);
             }
         }
 
-        private static void BindProbeTexture(Shader shader, ReservedTextureSlots slot, string name, RenderTexture? texture, Queue<int>? boundSlots)
+        private static void BindProbeTexture(Shader shader, ReservedTextureSlots slot, string name, RenderTexture? texture)
         {
-            if (texture != null && shader.SetTexture((int)slot, name, texture))
+            if (texture != null)
             {
-                boundSlots?.Enqueue((int)slot);
+                shader.SetTexture((int)slot, name, texture);
             }
         }
 

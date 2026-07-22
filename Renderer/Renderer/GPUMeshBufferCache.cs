@@ -283,8 +283,6 @@ namespace ValveResourceFormat.Renderer
                 bindingIndex++;
             }
 
-            GL.BindVertexArray(0);
-
 #if DEBUG
             if (debugLabel != null)
             {

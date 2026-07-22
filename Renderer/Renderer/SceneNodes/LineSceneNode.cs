@@ -64,8 +64,6 @@ namespace ValveResourceFormat.Renderer.SceneNodes
             renderShader.SetBoneAnimationData(false);
 
             lineBuffer.Draw(Id, context.ReplacementShader);
-
-            GL.UseProgram(0);
         }
     }
 }

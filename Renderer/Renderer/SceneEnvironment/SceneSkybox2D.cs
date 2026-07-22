@@ -46,7 +46,6 @@ namespace ValveResourceFormat.Renderer.SceneEnvironment
             GL.DrawArrays(PrimitiveType.Triangles, 0, 36);
             Material.PostRender();
 
-            GL.UseProgram(0);
             GL.DepthFunc(DepthFunction.Greater);
         }
     }

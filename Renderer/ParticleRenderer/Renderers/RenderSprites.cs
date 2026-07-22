@@ -424,9 +424,6 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
             PerfStats.Active.Count(Counter.ParticleDraw);
             GL.DrawElements(PrimitiveType.Triangles, particleBag.Count * 6, DrawElementsType.UnsignedShort, 0);
 
-            GL.UseProgram(0);
-            GL.BindVertexArray(0);
-
             GL.Enable(EnableCap.CullFace);
         }
 

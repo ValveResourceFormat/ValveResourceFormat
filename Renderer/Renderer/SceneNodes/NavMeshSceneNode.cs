@@ -113,9 +113,6 @@ namespace ValveResourceFormat.Renderer.SceneNodes
             GL.Disable(EnableCap.PolygonOffsetLine);
             GL.Disable(EnableCap.PolygonOffsetFill);
             GL.PolygonOffsetClamp(0, 0, 0);
-
-            GL.UseProgram(0);
-            GL.BindVertexArray(0);
         }
 
         /// <inheritdoc/>

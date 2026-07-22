@@ -267,9 +267,6 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
                 GL.DrawArrays(PrimitiveType.TriangleStrip, 0, 4);
             }
 
-            GL.UseProgram(0);
-            GL.BindVertexArray(0);
-
             GL.Enable(EnableCap.CullFace);
         }
 

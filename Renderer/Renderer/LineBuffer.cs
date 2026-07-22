@@ -60,7 +60,6 @@ namespace ValveResourceFormat.Renderer
         {
             GL.BindVertexArray(vao.Get(replacementShader ?? Shader));
             GL.DrawArraysInstancedBaseInstance(PrimitiveType.Lines, 0, VertexCount, 1, objectId);
-            GL.BindVertexArray(0);
         }
 
         /// <summary>Deletes the GL objects.</summary>

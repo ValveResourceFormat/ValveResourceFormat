@@ -227,9 +227,6 @@ namespace ValveResourceFormat.Renderer.PostProcess
                 Outline.Render(colorBufferRead.Stencil, colorBufferRead.NumSamples, flipY);
             }
 
-            GL.UseProgram(0);
-            GL.BindVertexArray(0);
-
             GL.DepthMask(true);
             GL.Enable(EnableCap.DepthTest);
         }

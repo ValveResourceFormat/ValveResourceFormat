@@ -506,9 +506,6 @@ namespace ValveResourceFormat.Renderer
             GL.BindVertexArray(vao);
             GL.DrawElements(PrimitiveType.Triangles, letters * 6, DrawElementsType.UnsignedShort, 0);
 
-            GL.UseProgram(0);
-            GL.BindVertexArray(0);
-
             GL.Disable(EnableCap.Blend);
             GL.Enable(EnableCap.DepthTest);
 

@@ -447,8 +447,6 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
             material.PostRender();
             GL.DepthMask(false);
             GL.Enable(EnableCap.Blend);
-            GL.BindVertexArray(0);
-            GL.UseProgram(0);
         }
 
         public override IEnumerable<string> GetSupportedRenderModes() => shader.RenderModes;

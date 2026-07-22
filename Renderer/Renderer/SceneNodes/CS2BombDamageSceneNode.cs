@@ -219,8 +219,6 @@ public class CS2BombDamageSceneNode : SceneNode
         GL.DrawElementsInstancedBaseInstance(PrimitiveType.Triangles, indicesCount, DrawElementsType.UnsignedInt, 0, 1, Id);
 
         material.PostRender();
-        GL.BindVertexArray(0);
-        GL.UseProgram(0);
     }
 
     private static string GetBombsiteDesignation(SceneNode bombTarget) => bombTarget.EntityData?.GetStringProperty("bomb_site_designation") switch

@@ -124,21 +124,9 @@ namespace ValveResourceFormat.Renderer
             public LightProbeType LightProbeType;
         }
 
-        private static readonly Queue<int> instanceBoundTextures = new(capacity: 4);
-
         private static void SetInstanceTexture(Shader shader, ReservedTextureSlots slot, int location, RenderTexture texture)
         {
-            var slotIndex = (int)slot;
-            instanceBoundTextures.Enqueue(slotIndex);
-            shader.SetTexture(slotIndex, location, texture);
-        }
-
-        private static void UnbindInstanceTextures()
-        {
-            while (instanceBoundTextures.TryDequeue(out var slot))
-            {
-                GL.BindTextureUnit(slot, 0);
-            }
+            shader.SetTexture((int)slot, location, texture);
         }
 
         private static void DrawBatch(List<Request> requests, Scene.RenderContext context)
@@ -267,8 +255,6 @@ namespace ValveResourceFormat.Renderer
             if (vao > -1)
             {
                 material!.PostRender();
-                GL.BindVertexArray(0);
-                GL.UseProgram(0);
             }
         }
 
@@ -321,7 +307,7 @@ namespace ValveResourceFormat.Renderer
             if (config.LightProbeType == LightProbeType.IndividualProbes && uniforms.LPVIrradianceTexture != -1
                 && request.Node.LightProbeBinding is { } lightProbe)
             {
-                request.Node.Scene.LightingInfo.SetInstanceLightProbeTextures(shader, lightProbe, instanceBoundTextures);
+                request.Node.Scene.LightingInfo.SetInstanceLightProbeTextures(shader, lightProbe);
             }
 
             if (uniforms.AnimationData != -1)
@@ -394,8 +380,6 @@ namespace ValveResourceFormat.Renderer
                 request.Call.BaseVertex,
                 request.Node.Id
             );
-
-            UnbindInstanceTextures();
         }
     }
 }

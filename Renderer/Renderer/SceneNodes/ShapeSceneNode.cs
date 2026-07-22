@@ -399,9 +399,6 @@ namespace ValveResourceFormat.Renderer.SceneNodes
             }
 
             GL.DepthFunc(DepthFunction.Greater);
-
-            GL.UseProgram(0);
-            GL.BindVertexArray(0);
         }
 
         /// <inheritdoc/>

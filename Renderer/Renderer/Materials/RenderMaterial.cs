@@ -473,15 +473,10 @@ namespace ValveResourceFormat.Renderer.Materials
             shader.SetUniform4x4("g_mTextureColorAdjust", Matrix4x4.Multiply(tintMatrix, ccMatrix));
         }
 
-        /// <summary>Restores render state and unbinds textures after the draw call for this material has completed.</summary>
+        /// <summary>Restores render state after the draw call for this material has completed.</summary>
         public void PostRender()
         {
             ResetRenderState();
-
-            for (var i = TextureUnitStart; i <= textureUnit; i++)
-            {
-                GL.BindTextureUnit(i, 0);
-            }
 
             foreach (var unit in boundSamplerUnits)
             {

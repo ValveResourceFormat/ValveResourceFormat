@@ -55,9 +55,6 @@ namespace ValveResourceFormat.Renderer
 
             GL.DrawArrays(PrimitiveType.Triangles, 0, 6);
 
-            GL.UseProgram(0);
-            GL.BindVertexArray(0);
-
             GL.Disable(EnableCap.Blend);
         }
     }

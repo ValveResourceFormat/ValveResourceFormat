@@ -144,7 +144,6 @@ namespace ValveResourceFormat.Renderer.SceneNodes
 
             lineBuffer.Draw(Id, context.ReplacementShader);
 
-            GL.UseProgram(0);
             GL.DepthFunc(DepthFunction.Greater);
         }
     }
