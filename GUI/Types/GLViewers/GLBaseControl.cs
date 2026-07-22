@@ -315,20 +315,9 @@ internal abstract class GLBaseControl : IDisposable
         FullScreenForm = null;
     }
 
-    private bool disposed;
-
     public virtual void Dispose()
     {
         using var lockedGl = glLock.EnterScope();
-
-        // A second dispose must not run UnregisterInstance again; an unbalanced
-        // instance count shuts down the render loop shared by every other viewer.
-        if (disposed)
-        {
-            return;
-        }
-
-        disposed = true;
 
         if (cursorHiddenForDrag)
         {
@@ -362,7 +351,7 @@ internal abstract class GLBaseControl : IDisposable
 #endif
 
         FullScreenForm?.Dispose();
-        GLWindowFactory.Destroy(GLNativeWindow);
+        NativeWindowFactory.Destroy(GLNativeWindow);
         RendererContext.Dispose();
     }
 
@@ -660,7 +649,7 @@ internal abstract class GLBaseControl : IDisposable
                 WindowState = OpenTK.Windowing.Common.WindowState.Normal,
                 Title = "Source 2 Viewer OpenGL",
             };
-            GLNativeWindow = GLWindowFactory.Create(settings);
+            GLNativeWindow = NativeWindowFactory.Create(settings);
 
             GLNativeWindow.Context.MakeNoneCurrent();
         });

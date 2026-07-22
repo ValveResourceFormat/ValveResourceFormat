@@ -4,11 +4,9 @@ namespace GUI.Types.GLViewers;
 
 /// <summary>
 /// Serializes every GLFW window created or destroyed in the process. GLFW and the lazy
-/// WGL initialization inside its first window creation are not thread-safe, and windows
-/// are created concurrently from the UI thread, the texture decoder thread and the
-/// thumbnail renderer.
+/// WGL initialization inside its first window creation are not thread-safe.
 /// </summary>
-static class GLWindowFactory
+static class NativeWindowFactory
 {
     private static readonly System.Threading.Lock GlfwLock = new();
 

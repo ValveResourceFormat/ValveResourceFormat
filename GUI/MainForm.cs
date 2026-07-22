@@ -1057,9 +1057,7 @@ namespace GUI
             };
             progressDialog.OnProcess += (_, __) =>
             {
-                // Runs on a background thread; route through the factory so it stays serialized
-                // against the viewer, texture decoder and thumbnail window creation.
-                var window = GLWindowFactory.Create(new()
+                var window = NativeWindowFactory.Create(new()
                 {
                     APIVersion = ValveResourceFormat.Renderer.GLEnvironment.RequiredVersion,
                     Flags = GLBaseControl.Flags | OpenTK.Windowing.Common.ContextFlags.Offscreen,
@@ -1075,7 +1073,7 @@ namespace GUI
                 }
                 finally
                 {
-                    GLWindowFactory.Destroy(window);
+                    NativeWindowFactory.Destroy(window);
                 }
             };
             progressDialog.ShowDialog();

@@ -56,7 +56,7 @@ internal abstract class ThumbnailRenderer : IDisposable
             StartFocused = false,
         };
 
-        NativeWindow = GLViewers.GLWindowFactory.Create(nativeWindowSettings);
+        NativeWindow = GLViewers.NativeWindowFactory.Create(nativeWindowSettings);
         RendererContext = new RendererContext(context, VrfGuiContext.Logger)
         {
             FieldOfView = 75,
@@ -234,7 +234,7 @@ internal abstract class ThumbnailRenderer : IDisposable
         {
             RendererContext?.Dispose();
             SceneRenderer?.Dispose();
-            GLViewers.GLWindowFactory.Destroy(NativeWindow);
+            GLViewers.NativeWindowFactory.Destroy(NativeWindow);
         }
 
         Loaded = false;
