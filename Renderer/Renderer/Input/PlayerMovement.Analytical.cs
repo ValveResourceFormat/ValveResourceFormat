@@ -301,28 +301,67 @@ public partial class PlayerMovement
     /// result tracks the continuous trajectory (and therefore composes across any frame
     /// partitioning) far below float noise.
     /// </summary>
-    private static (Vector3 Velocity, Vector3 Displacement) SubStopSpeedAccelerate(Vector3 v0, Vector3 wishdir, float wishspeed, float accelMagnitude, float deltaTime, float frictionRate)
+    private static (Vector3 Velocity, Vector3 Displacement) SubStopSpeedAccelerate(Vector3 v0, Vector3 wishdir, float wishspeed, float accelMagnitude, float deltaTime, float frictionRate, float kickSpeed)
     {
         const float MaxSubstep = 1f / 2048f;
 
-        var steps = Math.Max(1, (int)MathF.Ceiling(deltaTime / MaxSubstep));
-        var h = deltaTime / steps;
-        var v = v0;
-        var displacement = Vector3.Zero;
-
-        for (var i = 0; i < steps; i++)
+        (Vector3 Velocity, Vector3 Displacement) Rk4(Vector3 v, float h, float kickBoost)
         {
-            var k1 = SubStopSpeedAcceleration(v, wishdir, wishspeed, accelMagnitude, frictionRate);
+            var k1 = SubStopSpeedAcceleration(v, wishdir, wishspeed, accelMagnitude, frictionRate, kickBoost);
             var v2 = v + h / 2f * k1;
-            var k2 = SubStopSpeedAcceleration(v2, wishdir, wishspeed, accelMagnitude, frictionRate);
+            var k2 = SubStopSpeedAcceleration(v2, wishdir, wishspeed, accelMagnitude, frictionRate, kickBoost);
             var v3 = v + h / 2f * k2;
-            var k3 = SubStopSpeedAcceleration(v3, wishdir, wishspeed, accelMagnitude, frictionRate);
+            var k3 = SubStopSpeedAcceleration(v3, wishdir, wishspeed, accelMagnitude, frictionRate, kickBoost);
             var v4 = v + h * k3;
-            var k4 = SubStopSpeedAcceleration(v4, wishdir, wishspeed, accelMagnitude, frictionRate);
+            var k4 = SubStopSpeedAcceleration(v4, wishdir, wishspeed, accelMagnitude, frictionRate, kickBoost);
 
             // Simpson displacement over the same stages
-            displacement += h / 6f * (v + 2f * v2 + 2f * v3 + v4);
-            v += h / 6f * (k1 + 2f * k2 + 2f * k3 + k4);
+            return (v + h / 6f * (k1 + 2f * k2 + 2f * k3 + k4), h / 6f * (v + 2f * v2 + 2f * v3 + v4));
+        }
+
+        var kickAccel = StopSpeedValue * frictionRate;
+        var v = v0;
+        var displacement = Vector3.Zero;
+        var timeLeft = deltaTime;
+
+        while (timeLeft > 1e-9f)
+        {
+            var h = MathF.Min(MaxSubstep, timeLeft);
+
+            // The kick boost switches off at |v| = kickSpeed, a kink in the ODE. Hold it
+            // constant across each step (decided by the step-start speed, not re-tested per
+            // RK4 stage) so no step mixes boost-on and boost-off stages, then land a boost-on
+            // step that reaches the kink exactly on it (bisected). Both keep the substep grid
+            // from leaking dt into the result across the crossing
+            var kickBoost = v.Length() < kickSpeed ? kickAccel : 0f;
+            var (vNext, disp) = Rk4(v, h, kickBoost);
+
+            if (kickBoost > 0f && vNext.Length() > kickSpeed)
+            {
+                var lo = 0f;
+                var hi = h;
+
+                for (var iter = 0; iter < 30 && hi - lo > 1e-9f; iter++)
+                {
+                    var mid = 0.5f * (lo + hi);
+
+                    if (Rk4(v, mid, kickBoost).Velocity.Length() > kickSpeed)
+                    {
+                        hi = mid;
+                    }
+                    else
+                    {
+                        lo = mid;
+                    }
+                }
+
+                h = hi;
+                (vNext, disp) = Rk4(v, h, kickBoost);
+            }
+
+            v = vNext;
+            displacement += disp;
+            timeLeft -= h;
         }
 
         return (v, displacement);
@@ -332,24 +371,25 @@ public partial class PlayerMovement
     /// dv/dt of the continuous sub-stopspeed model: regime-aware friction plus wishdir
     /// thrust gated at wishspeed.
     /// </summary>
-    private static Vector3 SubStopSpeedAcceleration(Vector3 velocity, Vector3 wishdir, float wishspeed, float accelMagnitude, float frictionRate)
+    private static Vector3 SubStopSpeedAcceleration(Vector3 velocity, Vector3 wishdir, float wishspeed, float accelMagnitude, float frictionRate, float kickBoost)
     {
         var speed = velocity.Length();
 
         // At rest the friction direction is undefined; it opposes the impending
-        // motion along wishdir, and cannot push backwards
+        // motion along wishdir, and cannot push backwards. The kick boost (offsetting the
+        // constant sub-stopspeed friction while below kickSpeed) is decided by the caller
         if (speed <= 1e-6f)
         {
-            return MathF.Max(0f, accelMagnitude - StopSpeedValue * frictionRate) * wishdir;
+            return MathF.Max(0f, accelMagnitude + kickBoost - StopSpeedValue * frictionRate) * wishdir;
         }
 
         var friction = speed > StopSpeedValue
             ? -frictionRate * velocity
             : -(StopSpeedValue * frictionRate / speed) * velocity;
 
-        // The addspeed gate as a continuous constraint
-        var thrust = Vector3.Dot(velocity, wishdir) < wishspeed ? accelMagnitude * wishdir : Vector3.Zero;
-        return friction + thrust;
+        // The addspeed gate as a continuous constraint, plus the kick boost
+        var thrust = (Vector3.Dot(velocity, wishdir) < wishspeed ? accelMagnitude : 0f) + kickBoost;
+        return friction + thrust * wishdir;
     }
 
     /// <summary>
