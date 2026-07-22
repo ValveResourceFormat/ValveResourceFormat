@@ -141,6 +141,11 @@ internal sealed class CrossingRepair
 
             foreach (var column in columns)
             {
+                if (Spent)
+                {
+                    break;
+                }
+
                 if (column.Count < 2)
                 {
                     continue;
@@ -148,7 +153,7 @@ internal sealed class CrossingRepair
 
                 column.Sort(static (a, b) => a.Position.Y.CompareTo(b.Position.Y));
 
-                for (var i = 0; i + 1 < column.Count; i++)
+                for (var i = 0; i + 1 < column.Count && !Spent; i++)
                 {
                     if (TrySwap(column[i], column[i + 1]))
                     {
@@ -162,6 +167,11 @@ internal sealed class CrossingRepair
             // often far apart in the column, where an adjacency sweep can never reach them.
             foreach (var (a, b) in Crossings(options.CrossingRepairBudget))
             {
+                if (Spent)
+                {
+                    break;
+                }
+
                 if (TrySwap(wires[a].From.Owner, wires[b].From.Owner) || TrySwap(wires[a].To.Owner, wires[b].To.Owner)
                     || TrySwapBranches(a, b))
                 {
@@ -339,7 +349,20 @@ internal sealed class CrossingRepair
             return false;
         }
 
+        // Sliding further than a card is a relayout, not a nudge, and costs more in stretched
+        // wires elsewhere than the crossing it buys, so out-of-range heights are never generated.
+        // Heights are also collected at whole-pixel resolution: a hub card produces one candidate
+        // per crossing partner per wire, and on a dense island the vast majority repeat.
         var shifts = new List<float>();
+        var seen = new HashSet<int>();
+
+        void Consider(float shift)
+        {
+            if (Math.Abs(shift) <= options.CrossingSlideLimit && Math.Abs(shift) >= 0.5f && seen.Add((int)MathF.Round(shift)))
+            {
+                shifts.Add(shift);
+            }
+        }
 
         // A level wire is not the goal, fewest crossings is, so the search is not restricted to
         // heights that straighten something. Alongside the meaningful positions it also sweeps a
@@ -347,8 +370,8 @@ internal sealed class CrossingRepair
         // "a bit further down" and no wire ends up level at all.
         for (var offset = options.CrossingSlideStep; offset <= options.CrossingSlideLimit; offset += options.CrossingSlideStep)
         {
-            shifts.Add(offset);
-            shifts.Add(-offset);
+            Consider(offset);
+            Consider(-offset);
         }
 
         foreach (var wire in touching)
@@ -358,7 +381,7 @@ internal sealed class CrossingRepair
             var mine = geometry.PivotOf(mineSocket);
 
             // The height that makes this wire run dead level.
-            shifts.Add(geometry.PivotOf(theirsSocket).Y - mine.Y);
+            Consider(geometry.PivotOf(theirsSocket).Y - mine.Y);
 
             // Levelling a wire often lands just short of clearing the wire it crosses, because
             // what actually matters is being on the correct side of the other wire's endpoints,
@@ -373,19 +396,20 @@ internal sealed class CrossingRepair
 
                 foreach (var target in (float[])[from[other].Y, to[other].Y])
                 {
-                    shifts.Add(target - mine.Y + options.CrossingClearance);
-                    shifts.Add(target - mine.Y - options.CrossingClearance);
+                    Consider(target - mine.Y + options.CrossingClearance);
+                    Consider(target - mine.Y - options.CrossingClearance);
                 }
             }
         }
 
         foreach (var shift in shifts)
         {
-            // Sliding further than a card is a relayout, not a nudge, and costs more in stretched
-            // wires elsewhere than the crossing it buys.
-            if (Math.Abs(shift) > options.CrossingSlideLimit || Math.Abs(shift) < 0.5f)
+            // Scoring one height costs a pass over every wire this card can reach, so a card with
+            // many wires is where the budget runs out; it is checked here rather than only between
+            // cards so one hub cannot overrun it.
+            if (Spent)
             {
-                continue;
+                break;
             }
 
             Move(node, originalY + shift);
