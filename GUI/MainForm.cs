@@ -1057,7 +1057,7 @@ namespace GUI
             };
             progressDialog.OnProcess += (_, __) =>
             {
-                using var window = new OpenTK.Windowing.Desktop.NativeWindow(new()
+                var window = NativeWindowFactory.Create(new()
                 {
                     APIVersion = ValveResourceFormat.Renderer.GLEnvironment.RequiredVersion,
                     Flags = GLBaseControl.Flags | OpenTK.Windowing.Common.ContextFlags.Offscreen,
@@ -1065,9 +1065,16 @@ namespace GUI
                     Title = "Source 2 Viewer Shader Validator"
                 });
 
-                window.MakeCurrent();
+                try
+                {
+                    window.MakeCurrent();
 
-                ValveResourceFormat.Renderer.Shaders.ShaderLoader.ValidateShaders(new Progress<string>(progressDialog.SetProgress), VrfGuiContext.Logger);
+                    ValveResourceFormat.Renderer.Shaders.ShaderLoader.ValidateShaders(new Progress<string>(progressDialog.SetProgress), VrfGuiContext.Logger);
+                }
+                finally
+                {
+                    NativeWindowFactory.Destroy(window);
+                }
             };
             progressDialog.ShowDialog();
         }

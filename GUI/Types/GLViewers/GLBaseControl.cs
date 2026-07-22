@@ -351,7 +351,7 @@ internal abstract class GLBaseControl : IDisposable
 #endif
 
         FullScreenForm?.Dispose();
-        GLNativeWindow?.Dispose();
+        NativeWindowFactory.Destroy(GLNativeWindow);
         RendererContext.Dispose();
     }
 
@@ -649,7 +649,7 @@ internal abstract class GLBaseControl : IDisposable
                 WindowState = OpenTK.Windowing.Common.WindowState.Normal,
                 Title = "Source 2 Viewer OpenGL",
             };
-            GLNativeWindow = new(settings);
+            GLNativeWindow = NativeWindowFactory.Create(settings);
 
             GLNativeWindow.Context.MakeNoneCurrent();
         });
