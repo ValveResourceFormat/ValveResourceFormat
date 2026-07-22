@@ -1,3 +1,5 @@
+using System.Linq;
+
 namespace GUI.Types.Graphs.Core;
 
 interface IGraphElement
@@ -122,6 +124,105 @@ class GraphNode : IGraphElement
         ContentVersion++;
     }
 
+    /// <summary>
+    /// Whether the socket order carries meaning from the asset, like a blend weight index or a
+    /// declaration order. Nodes that clear this let the layout permute their rows to shorten
+    /// the wires; ordered ones are left exactly as the frontend built them.
+    /// </summary>
+    public bool SocketOrderFixed { get; set; } = true;
+
+    /// <summary>
+    /// Sorts both socket sides by <paramref name="key"/> and refills the existing socket rows in
+    /// the new order. The row structure is untouched, so interleaved text and annotation rows
+    /// stay exactly where the frontend put them. Does nothing while
+    /// <see cref="SocketOrderFixed"/> holds. Returns whether the order actually changed.
+    /// </summary>
+    public bool ReorderSockets(Func<GraphSocket, float> key)
+    {
+        if (SocketOrderFixed || (Inputs.Count < 2 && Outputs.Count < 2))
+        {
+            return false;
+        }
+
+        // The header hue falls back to the first socket, so a permutation must not repaint the
+        // card; pinning the category up front keeps the node looking like itself.
+        Category ??= EffectiveCategory;
+
+        if (!(SortStable(Inputs, key) | SortStable(Outputs, key)))
+        {
+            return false;
+        }
+
+        var inputs = new Queue<GraphSocket>(Inputs);
+        var outputs = new Queue<GraphSocket>(Outputs);
+
+        for (var i = 0; i < Rows.Count; i++)
+        {
+            switch (Rows[i])
+            {
+                case SocketRow row:
+                    Rows[i] = new SocketRow(row.Socket.IsInput ? inputs.Dequeue() : outputs.Dequeue());
+                    break;
+
+                case PairedSocketRow row:
+                    Rows[i] = new PairedSocketRow(
+                        row.Input != null ? inputs.Dequeue() : null,
+                        row.Output != null ? outputs.Dequeue() : null);
+                    break;
+            }
+        }
+
+        ContentVersion++;
+        return true;
+    }
+
+    // Sorts every socket by the key, then restores the original relative order of the pinned
+    // ones. A pinned pin may therefore move past a free one, which reorders nothing meaningful,
+    // but two pinned pins can never trade places, so a True branch stays above its False.
+    // OrderBy is stable, so equal keys keep their current order and layout stays reproducible.
+    private static bool SortStable(List<GraphSocket> sockets, Func<GraphSocket, float> key)
+    {
+        if (sockets.Count < 2)
+        {
+            return false;
+        }
+
+        var pinned = sockets.Where(static s => s.OrderFixed).ToList();
+        var sorted = sockets.OrderBy(key).ToList();
+
+        if (pinned.Count > 1)
+        {
+            var slot = 0;
+
+            for (var i = 0; i < sorted.Count; i++)
+            {
+                if (sorted[i].OrderFixed)
+                {
+                    sorted[i] = pinned[slot++];
+                }
+            }
+        }
+
+        var changed = false;
+
+        for (var i = 0; i < sockets.Count; i++)
+        {
+            if (sockets[i] != sorted[i])
+            {
+                changed = true;
+                break;
+            }
+        }
+
+        if (changed)
+        {
+            sockets.Clear();
+            sockets.AddRange(sorted);
+        }
+
+        return changed;
+    }
+
     public GraphHue EffectiveCategory => Category
         ?? (Outputs.Count > 0 ? Outputs[0].Hue : Inputs.Count > 0 ? Inputs[0].Hue : GraphHue.Neutral);
 }
@@ -167,6 +268,13 @@ class GraphSocket : IGraphElement
     public GraphHue Hue { get; }
     public bool IsInput { get; }
     public bool AllowMultiple { get; }
+
+    /// <summary>
+    /// Whether this row's place in the node carries meaning. Control flow pins are pinned so a
+    /// reorder can never swap a True branch with a False one; value pins are free to move.
+    /// </summary>
+    public bool OrderFixed { get; set; } = true;
+
     public List<GraphWire> Wires { get; } = [];
 
     public bool IsConnected => Wires.Count > 0;

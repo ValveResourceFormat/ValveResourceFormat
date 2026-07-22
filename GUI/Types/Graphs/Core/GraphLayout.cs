@@ -19,21 +19,29 @@ enum GraphPlacement
 /// </summary>
 internal static class GraphLayout
 {
-    private const float NodeSeparation = 36f;
-    private const float LayerSeparation = 220f;
+
+
     private const float PackingAspect = 16f / 9f;
 
-    public static void Layout(List<GraphNode> component, List<GraphWire> componentWires, GraphPlacement placement, GraphGeometry geometry)
+    /// <summary>Gap between the wrapped sub-columns of one oversized rank.</summary>
+    private const float SubColumnSeparation = 64f;
+
+    public static void Layout(
+        List<GraphNode> component,
+        List<GraphWire> componentWires,
+        GraphPlacement placement,
+        GraphGeometry geometry,
+        GraphLayoutOptions options)
     {
         if (component.Count > 1)
         {
             if (placement == GraphPlacement.Organic)
             {
-                LayoutOrganic(component, componentWires, geometry);
+                LayoutOrganic(component, componentWires, geometry, options);
             }
             else
             {
-                LayoutLayered(component, componentWires, geometry);
+                new LayeredSolver(component, componentWires, geometry, options).Run();
             }
         }
 
@@ -44,6 +52,8 @@ internal static class GraphLayout
                 SynthesizeSelfLoop(wire, geometry);
             }
         }
+
+        AssignSocketFans(component, geometry, options);
     }
 
     /// <summary>Rebuilds the synthetic loop route of a self-referencing wire from its current pivots.</summary>
@@ -66,8 +76,104 @@ internal static class GraphLayout
         ];
     }
 
+    /// <summary>
+    /// Swaps vertically adjacent nodes in a column whenever that removes a crossing, measured on
+    /// the straight run between the real socket pivots.
+    /// </summary>
+    /// <remarks>
+    /// Every other ordering pass reasons about nodes: it sees that two producers both feed one
+    /// consumer and has no reason to prefer either order. The crossing is created further down,
+    /// by which socket row each wire lands on, and is only visible once the cards have real
+    /// coordinates. So this runs last, on geometry, and is the only pass that can fix the case
+    /// where two wires into one node cross because its input rows are in the opposite order to
+    /// their sources.
+    /// </remarks>
+    public static void RepairCrossings(List<GraphNode> component, List<GraphWire> componentWires, GraphGeometry geometry, GraphLayoutOptions options)
+    {
+        if (options.Has(GraphLayoutFeature.CrossingSwap) && component.Count > 1)
+        {
+            new CrossingRepair(component, componentWires, geometry, options).Run();
+        }
+    }
+
+    internal static bool OverlapsColumn(GraphNode node, List<GraphNode> column, GraphGeometry geometry)
+    {
+        var top = node.Position.Y;
+        var bottom = top + geometry.SizeOf(node).Y;
+
+        foreach (var other in column)
+        {
+            if (other == node)
+            {
+                continue;
+            }
+
+            var otherTop = other.Position.Y;
+
+            if (top < otherTop + geometry.SizeOf(other).Y && otherTop < bottom)
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /// <summary>
+    /// Spreads the wires sharing a socket into a nested fan ordered by the height of their far
+    /// end, so a hub stops drawing its wires on top of one another.
+    /// </summary>
+    private static void AssignSocketFans(List<GraphNode> component, GraphGeometry geometry, GraphLayoutOptions options)
+    {
+        if (!options.Has(GraphLayoutFeature.SocketFanSpread))
+        {
+            return;
+        }
+
+        var reach = new Dictionary<GraphWire, float>();
+
+        foreach (var node in component)
+        {
+            foreach (var socket in node.Inputs.Concat(node.Outputs))
+            {
+                if (socket.Wires.Count < 2)
+                {
+                    continue;
+                }
+
+                var ordered = socket.Wires
+                    .OrderBy(w => FarPivot(geometry, socket, w).Y)
+                    .ThenBy(w => FarPivot(geometry, socket, w).X)
+                    .ThenBy(w => Other(socket, w).Owner.Sequence)
+                    .ToList();
+
+                for (var i = 0; i < ordered.Count; i++)
+                {
+                    var offset = GraphWireGeometry.FanOffset(options, i, ordered.Count);
+                    reach[ordered[i]] = Math.Max(reach.GetValueOrDefault(ordered[i]), offset);
+                }
+            }
+        }
+
+        foreach (var (wire, offset) in reach)
+        {
+            var route = geometry.RouteOf(wire);
+
+            // An explicitly routed wire already has its own separation built in.
+            if (route.Waypoints == null && route.CurvePath == null)
+            {
+                route.FanReach = offset;
+            }
+        }
+
+        static GraphSocket Other(GraphSocket socket, GraphWire wire) => wire.From == socket ? wire.To : wire.From;
+
+        static Vector2 FarPivot(GraphGeometry geometry, GraphSocket socket, GraphWire wire)
+            => geometry.PivotOf(Other(socket, wire));
+    }
+
     // Stress majorization over graph-theoretic hop distances, then pairwise overlap removal.
-    private static void LayoutOrganic(List<GraphNode> component, List<GraphWire> componentWires, GraphGeometry geometry)
+    private static void LayoutOrganic(List<GraphNode> component, List<GraphWire> componentWires, GraphGeometry geometry, GraphLayoutOptions options)
     {
         var n = component.Count;
         var index = new Dictionary<GraphNode, int>(n);
@@ -184,8 +290,8 @@ internal static class GraphLayout
             {
                 for (var j = i + 1; j < n; j++)
                 {
-                    var needX = halfSizes[i].X + halfSizes[j].X + NodeSeparation;
-                    var needY = halfSizes[i].Y + halfSizes[j].Y + NodeSeparation;
+                    var needX = halfSizes[i].X + halfSizes[j].X + options.NodeSpacing;
+                    var needY = halfSizes[i].Y + halfSizes[j].Y + options.NodeSpacing;
                     var delta = positions[j] - positions[i];
                     var overlapX = needX - Math.Abs(delta.X);
                     var overlapY = needY - Math.Abs(delta.Y);
@@ -237,7 +343,7 @@ internal static class GraphLayout
 
                 while (OverlapsAny(i) && guard++ < 4000)
                 {
-                    positions[i] += direction * NodeSeparation;
+                    positions[i] += direction * options.NodeSpacing;
                 }
             }
 
@@ -252,8 +358,8 @@ internal static class GraphLayout
 
                     var delta = positions[j] - positions[i];
 
-                    if (Math.Abs(delta.X) < halfSizes[i].X + halfSizes[j].X + NodeSeparation &&
-                        Math.Abs(delta.Y) < halfSizes[i].Y + halfSizes[j].Y + NodeSeparation)
+                    if (Math.Abs(delta.X) < halfSizes[i].X + halfSizes[j].X + options.NodeSpacing &&
+                        Math.Abs(delta.Y) < halfSizes[i].Y + halfSizes[j].Y + options.NodeSpacing)
                     {
                         return true;
                     }
@@ -267,374 +373,96 @@ internal static class GraphLayout
         {
             component[i].Position = positions[i] - halfSizes[i];
         }
+
+        if (options.Has(GraphLayoutFeature.PortAwareAlignment))
+        {
+            SnapOrganicPivots(component, componentWires, geometry, index, halfSizes, options);
+        }
+
+        RepairCrossings(component, componentWires, geometry, options);
+    }
+
+    // Majorization places node centers; the wires dock at socket pivots. Nudging each card so
+    // its busiest wire runs level costs nothing in stress terms and removes the small diagonal
+    // every wire otherwise picks up.
+    private static void SnapOrganicPivots(
+        List<GraphNode> component,
+        List<GraphWire> componentWires,
+        GraphGeometry geometry,
+        Dictionary<GraphNode, int> index,
+        Vector2[] halfSizes,
+        GraphLayoutOptions options)
+    {
+        var shifts = new List<(float Offset, float Weight)>[component.Count];
+
+        for (var i = 0; i < component.Count; i++)
+        {
+            shifts[i] = [];
+        }
+
+        foreach (var wire in componentWires)
+        {
+            if (wire.From.Owner == wire.To.Owner)
+            {
+                continue;
+            }
+
+            var weight = wire.Dashed ? options.DashedWireWeight : options.SolidWireWeight;
+            var delta = geometry.PivotOf(wire.From).Y - geometry.PivotOf(wire.To).Y;
+
+            shifts[index[wire.To.Owner]].Add((delta, weight));
+            shifts[index[wire.From.Owner]].Add((-delta, weight));
+        }
+
+        for (var i = 0; i < component.Count; i++)
+        {
+            if (shifts[i].Count == 0)
+            {
+                continue;
+            }
+
+            var shift = WeightedMedian(shifts[i]);
+
+            // Only take the nudge when it cannot reintroduce an overlap.
+            if (Math.Abs(shift) > halfSizes[i].Y + options.NodeSpacing)
+            {
+                continue;
+            }
+
+            component[i].Position += new Vector2(0f, shift);
+        }
+    }
+
+    private static float WeightedMedian(List<(float Value, float Weight)> samples)
+    {
+        samples.Sort(static (a, b) => a.Value.CompareTo(b.Value));
+
+        var total = 0f;
+
+        foreach (var (_, weight) in samples)
+        {
+            total += weight;
+        }
+
+        var running = 0f;
+
+        foreach (var (value, weight) in samples)
+        {
+            running += weight;
+
+            if (running >= total / 2f)
+            {
+                return value;
+            }
+        }
+
+        return samples[^1].Value;
     }
 
     private static Vector2 DirectionFor(int seed)
     {
         var angle = seed * 2.3999632f;
         return new Vector2(MathF.Cos(angle), MathF.Sin(angle));
-    }
-
-    // Sugiyama-style layered placement: cycle break, longest-path ranks, barycenter crossing
-    // reduction, then vertical alignment of each node on the median of its neighbors.
-    private static void LayoutLayered(List<GraphNode> component, List<GraphWire> componentWires, GraphGeometry geometry)
-    {
-        var n = component.Count;
-        var index = new Dictionary<GraphNode, int>(n);
-
-        for (var i = 0; i < n; i++)
-        {
-            index[component[i]] = i;
-        }
-
-        var crossWires = componentWires.Where(static w => w.From.Owner != w.To.Owner).ToList();
-        var reversed = FindBackWires(component, crossWires, index);
-
-        (int From, int To) Effective(GraphWire wire)
-            => reversed.Contains(wire)
-                ? (index[wire.To.Owner], index[wire.From.Owner])
-                : (index[wire.From.Owner], index[wire.To.Owner]);
-
-        // Longest-path ranks over the acyclic orientation.
-        var rankOf = new int[n];
-        var incomingCount = new int[n];
-        var outgoing = new List<int>[n];
-        var neighbors = new List<int>[n];
-
-        for (var i = 0; i < n; i++)
-        {
-            outgoing[i] = [];
-            neighbors[i] = [];
-        }
-
-        foreach (var wire in crossWires)
-        {
-            var (from, to) = Effective(wire);
-            outgoing[from].Add(to);
-            incomingCount[to]++;
-            neighbors[from].Add(to);
-            neighbors[to].Add(from);
-        }
-
-        var queue = new Queue<int>();
-
-        for (var i = 0; i < n; i++)
-        {
-            if (incomingCount[i] == 0)
-            {
-                queue.Enqueue(i);
-            }
-        }
-
-        while (queue.Count > 0)
-        {
-            var current = queue.Dequeue();
-
-            foreach (var target in outgoing[current])
-            {
-                rankOf[target] = Math.Max(rankOf[target], rankOf[current] + 1);
-
-                if (--incomingCount[target] == 0)
-                {
-                    queue.Enqueue(target);
-                }
-            }
-        }
-
-        var rankCount = rankOf.Max() + 1;
-        var ranks = new List<int>[rankCount];
-
-        for (var r = 0; r < rankCount; r++)
-        {
-            ranks[r] = [];
-        }
-
-        var orderOf = new float[n];
-
-        for (var i = 0; i < n; i++)
-        {
-            orderOf[i] = ranks[rankOf[i]].Count;
-            ranks[rankOf[i]].Add(i);
-        }
-
-        // Barycenter sweeps: order every rank by the average order of its neighbors.
-        for (var sweep = 0; sweep < 12; sweep++)
-        {
-            for (var r = 0; r < rankCount; r++)
-            {
-                var rank = ranks[r];
-
-                var keyed = rank
-                    .Select(i => (Index: i, Key: neighbors[i].Count == 0 ? orderOf[i] : (float)neighbors[i].Average(other => orderOf[other])))
-                    .OrderBy(static entry => entry.Key)
-                    .ToList();
-
-                for (var order = 0; order < keyed.Count; order++)
-                {
-                    orderOf[keyed[order].Index] = order;
-                }
-
-                ranks[r] = keyed.Select(static entry => entry.Index).ToList();
-            }
-        }
-
-        // Oversized ranks wrap into several height-capped columns so hub-heavy graphs come
-        // out block-shaped instead of as one enormous strip.
-        var heights = new float[n];
-        var area = 0f;
-
-        for (var i = 0; i < n; i++)
-        {
-            var size = geometry.SizeOf(component[i]);
-            heights[i] = size.Y;
-            area += (size.Y + NodeSeparation) * (size.X + LayerSeparation);
-        }
-
-        var heightCap = Math.Max(1200f, MathF.Sqrt(area / PackingAspect));
-        var columns = new List<List<int>>();
-        var columnOf = new int[n];
-
-        foreach (var rank in ranks)
-        {
-            var column = new List<int>();
-            columns.Add(column);
-            var height = 0f;
-
-            foreach (var i in rank)
-            {
-                if (column.Count > 0 && height + heights[i] > heightCap)
-                {
-                    column = [];
-                    columns.Add(column);
-                    height = 0f;
-                }
-
-                columnOf[i] = columns.Count - 1;
-                column.Add(i);
-                height += heights[i] + NodeSeparation;
-            }
-        }
-
-        // Horizontal: each column wide enough for its widest card.
-        var columnX = new float[columns.Count];
-        var x = 0f;
-
-        for (var c = 0; c < columns.Count; c++)
-        {
-            columnX[c] = x;
-            x += columns[c].Max(i => geometry.SizeOf(component[i]).X) + LayerSeparation;
-        }
-
-        // Vertical: stack, then align every node on the median of its neighbor centers and
-        // re-impose the order with minimum gaps.
-        var centerY = new float[n];
-
-        foreach (var column in columns)
-        {
-            var y = 0f;
-
-            foreach (var i in column)
-            {
-                centerY[i] = y + heights[i] / 2f;
-                y += heights[i] + NodeSeparation;
-            }
-        }
-
-        var desired = new List<float>();
-
-        for (var sweep = 0; sweep < 8; sweep++)
-        {
-            var forward = sweep % 2 == 0;
-
-            for (var c = forward ? 0 : columns.Count - 1; forward ? c < columns.Count : c >= 0; c += forward ? 1 : -1)
-            {
-                var column = columns[c];
-                var anchored = 0;
-                var drift = 0f;
-
-                foreach (var i in column)
-                {
-                    if (neighbors[i].Count == 0)
-                    {
-                        continue;
-                    }
-
-                    desired.Clear();
-
-                    foreach (var other in neighbors[i])
-                    {
-                        desired.Add(centerY[other]);
-                    }
-
-                    desired.Sort();
-                    centerY[i] = desired[desired.Count / 2];
-                }
-
-                for (var pass = 0; pass < 2; pass++)
-                {
-                    for (var j = 1; j < column.Count; j++)
-                    {
-                        var upper = column[j - 1];
-                        var lower = column[j];
-                        var overlap = centerY[upper] + heights[upper] / 2f + NodeSeparation - (centerY[lower] - heights[lower] / 2f);
-
-                        if (overlap > 0f)
-                        {
-                            centerY[upper] -= overlap / 2f;
-                            centerY[lower] += overlap / 2f;
-                        }
-                    }
-                }
-
-                EnforceColumnGaps(column, centerY, heights);
-
-                // Overlap resolution biases downward; re-centering each column on its
-                // neighbors stops the drift from compounding into a staircase.
-                foreach (var i in column)
-                {
-                    if (neighbors[i].Count > 0)
-                    {
-                        drift += centerY[i] - neighbors[i].Average(other => centerY[other]);
-                        anchored++;
-                    }
-                }
-
-                if (anchored > 0)
-                {
-                    drift /= anchored;
-
-                    foreach (var i in column)
-                    {
-                        centerY[i] -= drift;
-                    }
-                }
-            }
-        }
-
-        // Chain staircases climb one row per hop and drag the canvas out; compress
-        // everything beyond the dense band, then restore hard separation per column.
-        SquashOutliers(columns, centerY, heights);
-
-        for (var i = 0; i < n; i++)
-        {
-            var size = geometry.SizeOf(component[i]);
-            component[i].Position = new Vector2(columnX[columnOf[i]], centerY[i] - size.Y / 2f);
-        }
-    }
-
-    // Top-down pass guaranteeing minimum vertical gaps within a column, preserving order.
-    private static void EnforceColumnGaps(List<int> column, float[] centerY, float[] heights)
-    {
-        for (var j = 1; j < column.Count; j++)
-        {
-            var upper = column[j - 1];
-            var lower = column[j];
-            var overlap = centerY[upper] + heights[upper] / 2f + NodeSeparation - (centerY[lower] - heights[lower] / 2f);
-
-            if (overlap > 0f)
-            {
-                centerY[lower] += overlap;
-            }
-        }
-    }
-
-    private static void SquashOutliers(List<List<int>> columns, float[] centerY, float[] heights)
-    {
-        const float Slack = 600f;
-        const float Squash = 0.25f;
-
-        var centers = new List<float>();
-
-        foreach (var column in columns)
-        {
-            foreach (var i in column)
-            {
-                centers.Add(centerY[i]);
-            }
-        }
-
-        if (centers.Count < 8)
-        {
-            return;
-        }
-
-        centers.Sort();
-        var top = centers[(int)(centers.Count * 0.08f)] - Slack;
-        var bottom = centers[(int)(centers.Count * 0.92f)] + Slack;
-
-        foreach (var column in columns)
-        {
-            foreach (var i in column)
-            {
-                if (centerY[i] < top)
-                {
-                    centerY[i] = top - (top - centerY[i]) * Squash;
-                }
-                else if (centerY[i] > bottom)
-                {
-                    centerY[i] = bottom + (centerY[i] - bottom) * Squash;
-                }
-            }
-
-            EnforceColumnGaps(column, centerY, heights);
-        }
-    }
-
-    private static HashSet<GraphWire> FindBackWires(List<GraphNode> component, List<GraphWire> crossWires, Dictionary<GraphNode, int> index)
-    {
-        var outgoing = new List<GraphWire>[component.Count];
-
-        for (var i = 0; i < component.Count; i++)
-        {
-            outgoing[i] = [];
-        }
-
-        foreach (var wire in crossWires)
-        {
-            outgoing[index[wire.From.Owner]].Add(wire);
-        }
-
-        var reversed = new HashSet<GraphWire>();
-        var state = new byte[component.Count]; // 0 unvisited, 1 on stack, 2 done
-        var stack = new Stack<(int NodeIdx, int EdgeIdx)>();
-
-        for (var start = 0; start < component.Count; start++)
-        {
-            if (state[start] != 0)
-            {
-                continue;
-            }
-
-            state[start] = 1;
-            stack.Push((start, 0));
-
-            while (stack.Count > 0)
-            {
-                var (nodeIdx, edgeIdx) = stack.Pop();
-
-                if (edgeIdx >= outgoing[nodeIdx].Count)
-                {
-                    state[nodeIdx] = 2;
-                    continue;
-                }
-
-                stack.Push((nodeIdx, edgeIdx + 1));
-
-                var target = index[outgoing[nodeIdx][edgeIdx].To.Owner];
-
-                if (state[target] == 0)
-                {
-                    state[target] = 1;
-                    stack.Push((target, 0));
-                }
-                else if (state[target] == 1)
-                {
-                    reversed.Add(outgoing[nodeIdx][edgeIdx]);
-                }
-            }
-        }
-
-        return reversed;
     }
 
     /// <summary>
@@ -706,5 +534,948 @@ internal static class GraphLayout
         }
 
         return origins;
+    }
+
+    /// <summary>
+    /// Sugiyama-style layered placement. Real nodes and the dummies standing in for long wires
+    /// share one index space so ordering, spacing and alignment treat them alike.
+    /// </summary>
+    private sealed class LayeredSolver(
+        List<GraphNode> component,
+        List<GraphWire> componentWires,
+        GraphGeometry geometry,
+        GraphLayoutOptions options)
+    {
+        /// <summary>
+        /// One entry of a node's adjacency. <paramref name="Far"/> and <paramref name="Near"/> are
+        /// the two socket heights relative to their own node centers, so the height this node wants
+        /// in order to draw the wire level is <c>centerY[Other] + Far - Near</c>.
+        /// </summary>
+        private readonly record struct Link(int Other, float Far, float Near, float Weight);
+
+        private readonly int realCount = component.Count;
+        private readonly Dictionary<GraphNode, int> index = BuildIndex(component);
+
+        private int count;
+        private int[] rankOf = [];
+        private float[] height = [];
+        private float[] width = [];
+
+        private List<int>[] ranks = [];
+        private List<Link>[] up = [];
+        private List<Link>[] down = [];
+        private int[] positionInRank = [];
+        private float[] centerY = [];
+        private int[] columnOf = [];
+        private float[] columnX = [];
+
+        /// <summary>Dummy chains keyed by the wire they stand in for, source to target order.</summary>
+        private readonly Dictionary<GraphWire, List<int>> chains = [];
+        private readonly HashSet<GraphWire> reversed = [];
+
+        private static Dictionary<GraphNode, int> BuildIndex(List<GraphNode> component)
+        {
+            var map = new Dictionary<GraphNode, int>(component.Count);
+
+            for (var i = 0; i < component.Count; i++)
+            {
+                map[component[i]] = i;
+            }
+
+            return map;
+        }
+
+        public void Run()
+        {
+            var crossWires = componentWires.Where(static w => w.From.Owner != w.To.Owner).ToList();
+            FindBackWires(crossWires);
+            AssignRanks(crossWires);
+            BuildLayers(crossWires);
+            OrderLayers();
+            AssignColumns();
+            AssignHeights();
+            ApplyPositions();
+
+            // Runs on the placed cards, before the routes are built from them.
+            RepairCrossings(component, componentWires, geometry, options);
+
+            EmitRoutes(crossWires);
+        }
+
+        // DFS back-edge detection; the edges it finds are reversed for ranking so the rest of
+        // the pipeline sees an acyclic graph.
+        private void FindBackWires(List<GraphWire> crossWires)
+        {
+            var outgoing = new List<GraphWire>[realCount];
+
+            for (var i = 0; i < realCount; i++)
+            {
+                outgoing[i] = [];
+            }
+
+            foreach (var wire in crossWires)
+            {
+                outgoing[index[wire.From.Owner]].Add(wire);
+            }
+
+            var state = new byte[realCount]; // 0 unvisited, 1 on stack, 2 done
+            var stack = new Stack<(int NodeIdx, int EdgeIdx)>();
+
+            for (var start = 0; start < realCount; start++)
+            {
+                if (state[start] != 0)
+                {
+                    continue;
+                }
+
+                state[start] = 1;
+                stack.Push((start, 0));
+
+                while (stack.Count > 0)
+                {
+                    var (nodeIdx, edgeIdx) = stack.Pop();
+
+                    if (edgeIdx >= outgoing[nodeIdx].Count)
+                    {
+                        state[nodeIdx] = 2;
+                        continue;
+                    }
+
+                    stack.Push((nodeIdx, edgeIdx + 1));
+
+                    var target = index[outgoing[nodeIdx][edgeIdx].To.Owner];
+
+                    if (state[target] == 0)
+                    {
+                        state[target] = 1;
+                        stack.Push((target, 0));
+                    }
+                    else if (state[target] == 1)
+                    {
+                        reversed.Add(outgoing[nodeIdx][edgeIdx]);
+                    }
+                }
+            }
+        }
+
+        private (int From, int To) Effective(GraphWire wire)
+            => reversed.Contains(wire)
+                ? (index[wire.To.Owner], index[wire.From.Owner])
+                : (index[wire.From.Owner], index[wire.To.Owner]);
+
+        // Longest-path ranks over the acyclic orientation, then a tightening pass that pulls
+        // every node as far right as its successors allow so wires span as few ranks as possible.
+        private void AssignRanks(List<GraphWire> crossWires)
+        {
+            rankOf = new int[realCount];
+
+            var incomingCount = new int[realCount];
+            var outgoing = new List<int>[realCount];
+
+            for (var i = 0; i < realCount; i++)
+            {
+                outgoing[i] = [];
+            }
+
+            foreach (var wire in crossWires)
+            {
+                var (from, to) = Effective(wire);
+                outgoing[from].Add(to);
+                incomingCount[to]++;
+            }
+
+            var pending = new int[realCount];
+            Array.Copy(incomingCount, pending, realCount);
+
+            var queue = new Queue<int>();
+
+            for (var i = 0; i < realCount; i++)
+            {
+                if (pending[i] == 0)
+                {
+                    queue.Enqueue(i);
+                }
+            }
+
+            var topological = new List<int>(realCount);
+
+            while (queue.Count > 0)
+            {
+                var current = queue.Dequeue();
+                topological.Add(current);
+
+                foreach (var target in outgoing[current])
+                {
+                    rankOf[target] = Math.Max(rankOf[target], rankOf[current] + 1);
+
+                    if (--pending[target] == 0)
+                    {
+                        queue.Enqueue(target);
+                    }
+                }
+            }
+
+            if (!options.Has(GraphLayoutFeature.LongWireDummies))
+            {
+                return;
+            }
+
+            // Longest-path ranking maximises span, and every extra rank a wire crosses is a
+            // dummy and a chance to cross something. Walking the order backwards and pulling
+            // each node up against its nearest successor removes most of that slack.
+            for (var i = topological.Count - 1; i >= 0; i--)
+            {
+                var node = topological[i];
+
+                if (outgoing[node].Count == 0)
+                {
+                    continue;
+                }
+
+                var tightest = int.MaxValue;
+
+                foreach (var target in outgoing[node])
+                {
+                    tightest = Math.Min(tightest, rankOf[target]);
+                }
+
+                if (tightest != int.MaxValue && tightest - 1 > rankOf[node])
+                {
+                    rankOf[node] = tightest - 1;
+                }
+            }
+        }
+
+        // Builds the per-rank membership lists plus the up/down adjacency the ordering and
+        // alignment passes run on, inserting a dummy per intermediate rank for long wires.
+        private void BuildLayers(List<GraphWire> crossWires)
+        {
+            var rankCount = realCount == 0 ? 1 : rankOf.Max() + 1;
+            var wantDummies = options.Has(GraphLayoutFeature.LongWireDummies);
+            var portAware = options.Has(GraphLayoutFeature.PortAwareAlignment);
+
+            var dummyRanks = new List<int>();
+
+            if (wantDummies)
+            {
+                foreach (var wire in crossWires)
+                {
+                    var (from, to) = Effective(wire);
+
+                    for (var r = rankOf[from] + 1; r < rankOf[to]; r++)
+                    {
+                        dummyRanks.Add(r);
+                    }
+                }
+            }
+
+            count = realCount + dummyRanks.Count;
+            height = new float[count];
+            width = new float[count];
+            centerY = new float[count];
+            columnOf = new int[count];
+            positionInRank = new int[count];
+
+            var fullRanks = new int[count];
+            Array.Copy(rankOf, fullRanks, realCount);
+
+            for (var i = 0; i < realCount; i++)
+            {
+                var size = geometry.SizeOf(component[i]);
+                width[i] = size.X;
+                height[i] = size.Y;
+            }
+
+            for (var d = 0; d < dummyRanks.Count; d++)
+            {
+                var i = realCount + d;
+                fullRanks[i] = dummyRanks[d];
+                width[i] = 0f;
+                height[i] = options.DummyLaneHeight;
+            }
+
+            rankOf = fullRanks;
+
+            ranks = new List<int>[rankCount];
+
+            for (var r = 0; r < rankCount; r++)
+            {
+                ranks[r] = [];
+            }
+
+            up = new List<Link>[count];
+            down = new List<Link>[count];
+
+            for (var i = 0; i < count; i++)
+            {
+                up[i] = [];
+                down[i] = [];
+            }
+
+            var nextDummy = realCount;
+
+            foreach (var wire in crossWires)
+            {
+                var (from, to) = Effective(wire);
+                var weight = wire.Dashed ? options.DashedWireWeight : options.SolidWireWeight;
+
+                // A reversed wire still docks at its real sockets, so the anchors follow the
+                // wire's own direction rather than the ranking direction.
+                var sourceAnchor = portAware ? AnchorOf(wire.From) : 0f;
+                var targetAnchor = portAware ? AnchorOf(wire.To) : 0f;
+                var fromAnchor = reversed.Contains(wire) ? targetAnchor : sourceAnchor;
+                var toAnchor = reversed.Contains(wire) ? sourceAnchor : targetAnchor;
+
+                var span = rankOf[to] - rankOf[from];
+
+                if (!wantDummies || span <= 1)
+                {
+                    Join(from, to, fromAnchor, toAnchor, weight);
+                    continue;
+                }
+
+                var chain = new List<int>(span - 1);
+                var previous = from;
+                var previousAnchor = fromAnchor;
+
+                for (var r = rankOf[from] + 1; r < rankOf[to]; r++)
+                {
+                    var dummy = nextDummy++;
+                    chain.Add(dummy);
+                    Join(previous, dummy, previousAnchor, 0f, weight);
+                    previous = dummy;
+                    previousAnchor = 0f;
+                }
+
+                Join(previous, to, previousAnchor, toAnchor, weight);
+
+                if (reversed.Contains(wire))
+                {
+                    chain.Reverse();
+                }
+
+                chains[wire] = chain;
+            }
+
+            for (var i = 0; i < count; i++)
+            {
+                positionInRank[i] = ranks[rankOf[i]].Count;
+                ranks[rankOf[i]].Add(i);
+            }
+
+            void Join(int from, int to, float fromAnchor, float toAnchor, float weight)
+            {
+                down[from].Add(new Link(to, toAnchor, fromAnchor, weight));
+                up[to].Add(new Link(from, fromAnchor, toAnchor, weight));
+            }
+        }
+
+        /// <summary>Height of a socket's pivot relative to its node's vertical center.</summary>
+        private float AnchorOf(GraphSocket socket)
+            => geometry.PivotOffsetOf(socket).Y - geometry.SizeOf(socket.Owner).Y / 2f;
+
+        // Layer-by-layer barycentre ordering. The repaired version normalises the keys so ranks
+        // of different sizes compare, alternates sweep direction, runs an adjacent-swap pass and
+        // keeps whichever sweep actually measured fewest crossings.
+        private void OrderLayers()
+        {
+            if (!options.Has(GraphLayoutFeature.BarycentreRepair))
+            {
+                OrderLayersLegacy();
+                return;
+            }
+
+            var best = Snapshot();
+            var bestCrossings = CountCrossings();
+
+            for (var sweep = 0; sweep < 12; sweep++)
+            {
+                var forward = sweep % 2 == 0;
+
+                for (var step = 0; step < ranks.Length; step++)
+                {
+                    var r = forward ? step : ranks.Length - 1 - step;
+                    var reference = forward ? up : down;
+
+                    if ((forward && r == 0) || (!forward && r == ranks.Length - 1))
+                    {
+                        continue;
+                    }
+
+                    SortRankBy(r, reference);
+                }
+
+                Transpose();
+
+                var crossings = CountCrossings();
+
+                if (crossings < bestCrossings)
+                {
+                    bestCrossings = crossings;
+                    best = Snapshot();
+                }
+            }
+
+            Restore(best);
+        }
+
+        private void SortRankBy(int r, List<Link>[] reference)
+        {
+            var rank = ranks[r];
+
+            var keyed = rank
+                .Select(i => (Index: i, Key: BarycentreOf(i, reference), Fallback: positionInRank[i]))
+                .OrderBy(static entry => entry.Key)
+                .ThenBy(static entry => entry.Fallback)
+                .ToList();
+
+            for (var order = 0; order < keyed.Count; order++)
+            {
+                var node = keyed[order].Index;
+                rank[order] = node;
+                positionInRank[node] = order;
+            }
+        }
+
+        // Positions are normalised into [0,1] within their own rank so a node in a rank of three
+        // and a node in a rank of forty produce comparable keys.
+        private float BarycentreOf(int node, List<Link>[] reference)
+        {
+            if (reference[node].Count == 0)
+            {
+                return NormalisedPosition(node);
+            }
+
+            var sum = 0f;
+            var weight = 0f;
+
+            foreach (var link in reference[node])
+            {
+                sum += NormalisedPosition(link.Other) * link.Weight;
+                weight += link.Weight;
+            }
+
+            return weight > 0f ? sum / weight : NormalisedPosition(node);
+        }
+
+        private float NormalisedPosition(int node)
+        {
+            var size = ranks[rankOf[node]].Count;
+            return size <= 1 ? 0.5f : positionInRank[node] / (float)(size - 1);
+        }
+
+        // Adjacent-swap refinement: barycentre ordering leaves pairs that trade places for a
+        // strict win, and checking them directly is cheap.
+        private void Transpose()
+        {
+            for (var pass = 0; pass < 4; pass++)
+            {
+                var improved = false;
+
+                foreach (var rank in ranks)
+                {
+                    for (var i = 0; i + 1 < rank.Count; i++)
+                    {
+                        var a = rank[i];
+                        var b = rank[i + 1];
+
+                        if (LocalCrossings(a, b) <= LocalCrossings(b, a))
+                        {
+                            continue;
+                        }
+
+                        rank[i] = b;
+                        rank[i + 1] = a;
+                        positionInRank[a] = i + 1;
+                        positionInRank[b] = i;
+                        improved = true;
+                    }
+                }
+
+                if (!improved)
+                {
+                    return;
+                }
+            }
+        }
+
+        // Crossings contributed by the wires of two neighbours when left sits before right.
+        // Deliberately counted on node order alone: folding the socket height into the key was
+        // measurably worse on the crossbar fixture, because the ordering that minimises it is
+        // not the one that minimises the crossings actually drawn.
+        private int LocalCrossings(int left, int right)
+        {
+            return Count(up) + Count(down);
+
+            int Count(List<Link>[] reference)
+            {
+                var crossings = 0;
+
+                foreach (var a in reference[left])
+                {
+                    foreach (var b in reference[right])
+                    {
+                        if (positionInRank[a.Other] > positionInRank[b.Other])
+                        {
+                            crossings++;
+                        }
+                    }
+                }
+
+                return crossings;
+            }
+        }
+
+        // Inversions between consecutive ranks, counted with a Fenwick tree so hub-heavy ranks
+        // stay affordable.
+        private int CountCrossings()
+        {
+            var total = 0;
+
+            for (var r = 0; r + 1 < ranks.Length; r++)
+            {
+                var edges = new List<(int Upper, int Lower)>();
+
+                foreach (var node in ranks[r])
+                {
+                    foreach (var link in down[node])
+                    {
+                        if (rankOf[link.Other] == r + 1)
+                        {
+                            edges.Add((positionInRank[node], positionInRank[link.Other]));
+                        }
+                    }
+                }
+
+                if (edges.Count < 2)
+                {
+                    continue;
+                }
+
+                edges.Sort(static (a, b) => a.Upper != b.Upper ? a.Upper.CompareTo(b.Upper) : a.Lower.CompareTo(b.Lower));
+
+                var size = ranks[r + 1].Count + 1;
+                var tree = new int[size + 1];
+                var seen = 0;
+
+                foreach (var (_, lower) in edges)
+                {
+                    // Everything already inserted strictly to the right of this edge crosses it.
+                    var greater = seen - Query(lower + 1);
+                    total += greater;
+                    Add(lower + 1);
+                    seen++;
+                }
+
+                int Query(int position)
+                {
+                    var sum = 0;
+
+                    for (var i = position; i > 0; i -= i & -i)
+                    {
+                        sum += tree[i];
+                    }
+
+                    return sum;
+                }
+
+                void Add(int position)
+                {
+                    for (var i = position; i <= size; i += i & -i)
+                    {
+                        tree[i]++;
+                    }
+                }
+            }
+
+            return total;
+        }
+
+        private int[][] Snapshot() => [.. ranks.Select(static rank => rank.ToArray())];
+
+        private void Restore(int[][] snapshot)
+        {
+            for (var r = 0; r < ranks.Length; r++)
+            {
+                ranks[r].Clear();
+                ranks[r].AddRange(snapshot[r]);
+
+                for (var i = 0; i < ranks[r].Count; i++)
+                {
+                    positionInRank[ranks[r][i]] = i;
+                }
+            }
+        }
+
+        // The shipped ordering: one direction, unnormalised keys, no crossing measurement.
+        private void OrderLayersLegacy()
+        {
+            var neighbors = new List<int>[count];
+
+            for (var i = 0; i < count; i++)
+            {
+                neighbors[i] = [.. up[i].Select(static l => l.Other), .. down[i].Select(static l => l.Other)];
+            }
+
+            for (var sweep = 0; sweep < 12; sweep++)
+            {
+                for (var r = 0; r < ranks.Length; r++)
+                {
+                    var rank = ranks[r];
+
+                    var keyed = rank
+                        .Select(i => (Index: i, Key: neighbors[i].Count == 0 ? positionInRank[i] : (float)neighbors[i].Average(other => positionInRank[other])))
+                        .OrderBy(static entry => entry.Key)
+                        .ToList();
+
+                    for (var order = 0; order < keyed.Count; order++)
+                    {
+                        positionInRank[keyed[order].Index] = order;
+                    }
+
+                    ranks[r] = [.. keyed.Select(static entry => entry.Index)];
+                }
+            }
+        }
+
+        // Oversized ranks wrap into several height-capped columns so hub-heavy graphs come out
+        // block-shaped instead of as one enormous strip.
+        private void AssignColumns()
+        {
+            var area = 0f;
+
+            for (var i = 0; i < count; i++)
+            {
+                area += (height[i] + options.NodeSpacing) * (width[i] + options.LayerSpacing);
+            }
+
+            var heightCap = Math.Max(1200f, MathF.Sqrt(area / PackingAspect));
+            var columns = new List<List<int>>();
+            var rankOfColumn = new List<int>();
+            var preserving = options.Has(GraphLayoutFeature.RankPreservingWrap);
+
+            for (var r = 0; r < ranks.Length; r++)
+            {
+                // The rank order is the crossing-minimised one; wrapping must chunk it, never
+                // re-sort it. Reordering a wrapped rank by flow affinity was tried and tripled
+                // the crossings on a1_intro_world, because it discards that ordering wholesale.
+                var members = ranks[r];
+
+                var column = new List<int>();
+                columns.Add(column);
+                rankOfColumn.Add(r);
+                var stack = 0f;
+
+                foreach (var i in members)
+                {
+                    if (column.Count > 0 && stack + height[i] > heightCap)
+                    {
+                        column = [];
+                        columns.Add(column);
+                        rankOfColumn.Add(r);
+                        stack = 0f;
+                    }
+
+                    columnOf[i] = columns.Count - 1;
+                    column.Add(i);
+                    stack += height[i] + options.NodeSpacing;
+                }
+            }
+
+            // Horizontal: each column wide enough for its widest card. Sub-columns of one rank
+            // sit closer together than real rank boundaries so wrapping costs less travel.
+            columnX = new float[columns.Count];
+            var x = 0f;
+
+            for (var c = 0; c < columns.Count; c++)
+            {
+                columnX[c] = x;
+                var widest = columns[c].Count == 0 ? 0f : columns[c].Max(i => width[i]);
+                var sameRank = preserving && c + 1 < columns.Count && rankOfColumn[c + 1] == rankOfColumn[c];
+                x += widest + (sameRank ? SubColumnSeparation : options.LayerSpacing);
+            }
+
+            this.columns = columns;
+        }
+
+        private List<List<int>> columns = [];
+
+
+        // Vertical: stack, then align every node on the weighted median of where its wires want
+        // it, and re-impose the order with minimum gaps.
+        private void AssignHeights()
+        {
+            foreach (var column in columns)
+            {
+                var y = 0f;
+
+                foreach (var i in column)
+                {
+                    centerY[i] = y + height[i] / 2f;
+                    y += height[i] + options.NodeSpacing;
+                }
+            }
+
+            var desired = new List<(float Value, float Weight)>();
+
+            for (var sweep = 0; sweep < 8; sweep++)
+            {
+                var forward = sweep % 2 == 0;
+
+                for (var c = forward ? 0 : columns.Count - 1; forward ? c < columns.Count : c >= 0; c += forward ? 1 : -1)
+                {
+                    var column = columns[c];
+                    var anchored = 0;
+                    var drift = 0f;
+
+                    foreach (var i in column)
+                    {
+                        desired.Clear();
+                        Collect(i, desired);
+
+                        if (desired.Count > 0)
+                        {
+                            centerY[i] = WeightedMedian(desired);
+                        }
+                    }
+
+                    for (var pass = 0; pass < 2; pass++)
+                    {
+                        for (var j = 1; j < column.Count; j++)
+                        {
+                            var upper = column[j - 1];
+                            var lower = column[j];
+                            var overlap = centerY[upper] + height[upper] / 2f + options.NodeSpacing - (centerY[lower] - height[lower] / 2f);
+
+                            if (overlap > 0f)
+                            {
+                                centerY[upper] -= overlap / 2f;
+                                centerY[lower] += overlap / 2f;
+                            }
+                        }
+                    }
+
+                    EnforceColumnGaps(column);
+
+                    // Overlap resolution biases downward; re-centering each column on its
+                    // neighbors stops the drift from compounding into a staircase.
+                    foreach (var i in column)
+                    {
+                        desired.Clear();
+                        Collect(i, desired);
+
+                        if (desired.Count == 0)
+                        {
+                            continue;
+                        }
+
+                        var mean = 0f;
+
+                        foreach (var (value, _) in desired)
+                        {
+                            mean += value;
+                        }
+
+                        // Measured against the same anchored targets the alignment aims at, so
+                        // re-centering the column cannot undo the alignment it just applied.
+                        drift += centerY[i] - mean / desired.Count;
+                        anchored++;
+                    }
+
+                    if (anchored > 0)
+                    {
+                        drift /= anchored;
+
+                        foreach (var i in column)
+                        {
+                            centerY[i] -= drift;
+                        }
+                    }
+                }
+            }
+
+            // Chain staircases climb one row per hop and drag the canvas out; compress
+            // everything beyond the dense band, then restore hard separation per column.
+            SquashOutliers();
+        }
+
+        /// <summary>Where each of a node's wires wants that node to sit, and how hard it pulls.</summary>
+        private void Collect(int node, List<(float Value, float Weight)> into)
+        {
+            foreach (var link in up[node])
+            {
+                into.Add((centerY[link.Other] + link.Far - link.Near, link.Weight));
+            }
+
+            foreach (var link in down[node])
+            {
+                into.Add((centerY[link.Other] + link.Far - link.Near, link.Weight));
+            }
+        }
+
+        // Top-down pass guaranteeing minimum vertical gaps within a column, preserving order.
+        private void EnforceColumnGaps(List<int> column)
+        {
+            for (var j = 1; j < column.Count; j++)
+            {
+                var upper = column[j - 1];
+                var lower = column[j];
+                var gap = rankOf[upper] == rankOf[lower] && width[upper] == 0f && width[lower] == 0f
+                    ? options.DummyLaneHeight
+                    : options.NodeSpacing;
+                var overlap = centerY[upper] + height[upper] / 2f + gap - (centerY[lower] - height[lower] / 2f);
+
+                if (overlap > 0f)
+                {
+                    centerY[lower] += overlap;
+                }
+            }
+        }
+
+        private void SquashOutliers()
+        {
+            const float Slack = 600f;
+            const float Squash = 0.25f;
+
+            var centers = new List<float>();
+
+            foreach (var column in columns)
+            {
+                foreach (var i in column)
+                {
+                    centers.Add(centerY[i]);
+                }
+            }
+
+            if (centers.Count < 8)
+            {
+                return;
+            }
+
+            centers.Sort();
+            var top = centers[(int)(centers.Count * 0.08f)] - Slack;
+            var bottom = centers[(int)(centers.Count * 0.92f)] + Slack;
+
+            foreach (var column in columns)
+            {
+                foreach (var i in column)
+                {
+                    if (centerY[i] < top)
+                    {
+                        centerY[i] = top - (top - centerY[i]) * Squash;
+                    }
+                    else if (centerY[i] > bottom)
+                    {
+                        centerY[i] = bottom + (centerY[i] - bottom) * Squash;
+                    }
+                }
+
+                EnforceColumnGaps(column);
+            }
+        }
+
+        private void ApplyPositions()
+        {
+            for (var i = 0; i < realCount; i++)
+            {
+                var size = geometry.SizeOf(component[i]);
+                component[i].Position = new Vector2(columnX[columnOf[i]], centerY[i] - size.Y / 2f);
+            }
+        }
+
+        // Turns the dummy chains into waypoints and gives the cycle-breaking wires a route that
+        // leaves and enters on the correct sides instead of one long backward curve.
+        private void EmitRoutes(List<GraphWire> crossWires)
+        {
+            var laneOrdered = options.Has(GraphLayoutFeature.GutterLanes);
+
+            foreach (var (wire, chain) in chains)
+            {
+                if (reversed.Contains(wire))
+                {
+                    continue;
+                }
+
+                var route = geometry.RouteOf(wire);
+                route.CurvePath = null;
+                route.Waypoints = [.. chain.Select(d => new Vector2(
+                    columnX[columnOf[d]] + (laneOrdered ? LaneOffsetOf(d) : 0f),
+                    centerY[d]))];
+            }
+
+            if (!options.Has(GraphLayoutFeature.BackWireRouting))
+            {
+                return;
+            }
+
+            foreach (var wire in crossWires)
+            {
+                if (!reversed.Contains(wire))
+                {
+                    continue;
+                }
+
+                SynthesizeBackWire(wire);
+            }
+        }
+
+        // Spreads the dummies sharing one gutter across its width so their wires run in parallel
+        // lanes rather than all down the same line.
+        private float LaneOffsetOf(int dummy)
+        {
+            var column = columns[columnOf[dummy]];
+            var lanes = column.Count;
+
+            if (lanes < 2)
+            {
+                return 0f;
+            }
+
+            var slot = column.IndexOf(dummy);
+            var usable = Math.Min(options.LayerSpacing * 0.6f, lanes * 18f);
+
+            return (slot / (float)(lanes - 1) - 0.5f) * usable;
+        }
+
+        // Out of the source's right edge, along a channel clear of both cards, into the target's
+        // left edge. A cycle-breaking wire then reads as a deliberate loop.
+        private void SynthesizeBackWire(GraphWire wire)
+        {
+            var source = wire.From.Owner;
+            var target = wire.To.Owner;
+            var from = geometry.PivotOf(wire.From);
+            var to = geometry.PivotOf(wire.To);
+
+            var sourceSize = geometry.SizeOf(source);
+            var targetSize = geometry.SizeOf(target);
+
+            var top = Math.Min(source.Position.Y, target.Position.Y);
+            var bottom = Math.Max(source.Position.Y + sourceSize.Y, target.Position.Y + targetSize.Y);
+
+            // A wire whose ends already clear both cards vertically has room to curve back on its
+            // own; sending it out to a channel would only make it longer and cross more.
+            if (from.X - to.X < 40f || (from.Y < top + 4f && to.Y < top + 4f) || (from.Y > bottom - 4f && to.Y > bottom - 4f))
+            {
+                return;
+            }
+
+            var exit = from.X + 34f;
+            var entry = to.X - 34f;
+
+            // Whichever side is the shorter detour from where the two ends already sit.
+            var above = bottom - Math.Min(from.Y, to.Y);
+            var channel = above < Math.Max(from.Y, to.Y) - top ? bottom + 30f : top - 30f;
+
+            var route = geometry.RouteOf(wire);
+            route.CurvePath = null;
+            route.FanReach = 0f;
+            route.Waypoints =
+            [
+                new Vector2(exit, from.Y),
+                new Vector2(exit, channel),
+                new Vector2(entry, channel),
+                new Vector2(entry, to.Y),
+            ];
+        }
     }
 }

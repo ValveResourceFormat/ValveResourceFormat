@@ -18,6 +18,9 @@ namespace GUI.Types.GLViewers
     class GLGraphViewer : GLTextureViewer
     {
         protected readonly GraphView View;
+
+        /// <summary>The built graph, for headless tooling that never shows the viewer.</summary>
+        internal GraphView Graph => View;
         private SKRect graphBounds;
         private bool needsFit = true;
         private ThemedContextMenuStrip? contextMenu;
@@ -119,6 +122,15 @@ namespace GUI.Types.GLViewers
                 placementCombo.SelectedIndex = (int)View.Placement;
                 suppressPlacementChange = false;
 
+                UiControl.AddCheckBox("Straight wires", View.StraightWires, straight =>
+                {
+                    View.StraightWires = straight;
+                    View.MarkVisualDirty();
+                    InvalidateRender();
+                });
+
+                AddComplexityReduction();
+
                 if (HasStateMachineToggle)
                 {
                     UiControl.AddCheckBox("Draw state machines", false, SetDrawStateMachines);
@@ -188,6 +200,62 @@ namespace GUI.Types.GLViewers
                 GLControl.MouseDoubleClick += OnMouseDoubleClick;
                 GLControl.LostFocus += OnGlControlLostFocus;
             }
+        }
+
+        /// <summary>
+        /// Sidebar command that re-runs the crossing repair with no time limit. The automatic
+        /// pass is capped so opening a graph stays quick, which means a large graph keeps
+        /// crossings the full pass would have removed; this is how the user asks for those.
+        /// </summary>
+        private void AddComplexityReduction()
+        {
+            if (UiControl == null)
+            {
+                return;
+            }
+
+            var section = new Panel
+            {
+                Padding = new Padding(4, 10, 4, 4),
+                Height = UiControl.AdjustForDPI(72),
+            };
+
+            var caption = new Label
+            {
+                Text = "Wires are untangled up to a time limit when the graph opens.",
+                Dock = DockStyle.Top,
+                AutoSize = false,
+                Height = UiControl.AdjustForDPI(30),
+            };
+
+            var button = new ThemedButton
+            {
+                Text = "Reduce Visual Graph Complexity",
+                Dock = DockStyle.Fill,
+            };
+
+            button.Click += (_, _) =>
+            {
+                button.Enabled = false;
+                var previous = button.Text;
+                button.Text = "Working...";
+
+                try
+                {
+                    Application.DoEvents();
+                    View.ReduceVisualComplexity();
+                    InvalidateRender();
+                }
+                finally
+                {
+                    button.Text = previous;
+                    button.Enabled = true;
+                }
+            };
+
+            section.Controls.Add(button);
+            section.Controls.Add(caption);
+            UiControl.AddControl(section);
         }
 
         /// <summary>

@@ -1691,10 +1691,23 @@ internal class PulseGraphViewer : GLGraphViewer
         {
         }
 
-        public GraphSocket CreateSocketIn<T>(string text) where T : struct => AddInput(text, HueOf(typeof(T)));
-        public GraphSocket CreateSocketOut<T>(string text) where T : struct => AddOutput(text, HueOf(typeof(T)));
-        public GraphSocket CreateSocketInFromValueType(string text, PulseValueType valueType) => AddInput(text, HueOfPval(valueType));
-        public GraphSocket CreateSocketOutFromValueType(string text, PulseValueType valueType) => AddOutput(text, HueOfPval(valueType));
+        public GraphSocket CreateSocketIn<T>(string text) where T : struct => Movable(AddInput(text, HueOf(typeof(T))), typeof(T));
+        public GraphSocket CreateSocketOut<T>(string text) where T : struct => Movable(AddOutput(text, HueOf(typeof(T))), typeof(T));
+        public GraphSocket CreateSocketInFromValueType(string text, PulseValueType valueType) => Movable(AddInput(text, HueOfPval(valueType)), typeof(ValueNumber));
+        public GraphSocket CreateSocketOutFromValueType(string text, PulseValueType valueType) => Movable(AddOutput(text, HueOfPval(valueType)), typeof(ValueNumber));
+
+        // Value pins may be reordered to shorten their wires. Flow pins may not: their order is
+        // the branch order, and swapping True with False would misread the graph.
+        private GraphSocket Movable(GraphSocket socket, Type type)
+        {
+            if (type != typeof(Flow))
+            {
+                socket.OrderFixed = false;
+                SocketOrderFixed = false;
+            }
+
+            return socket;
+        }
     }
 
     #endregion Nodes

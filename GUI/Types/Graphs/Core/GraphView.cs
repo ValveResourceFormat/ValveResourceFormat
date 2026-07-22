@@ -51,6 +51,9 @@ partial class GraphView : IDisposable
     /// <summary>Live node list in z-order; do not mutate.</summary>
     public IReadOnlyList<GraphNode> Nodes => nodes;
 
+    /// <summary>Live wire list in creation order; do not mutate.</summary>
+    public IReadOnlyList<GraphWire> Wires => wires;
+
     /// <summary>Monotonic counter of visual state changes; the host skips repainting while it is stable.</summary>
     public int VisualVersion { get; private set; }
 
@@ -65,6 +68,15 @@ partial class GraphView : IDisposable
 
     /// <summary>Node placement engine used by <see cref="LayoutNodesPacked"/>.</summary>
     public GraphPlacement Placement { get; set; } = GraphPlacement.Layered;
+
+    /// <summary>Which layout improvements the placement engines apply.</summary>
+    internal GraphLayoutOptions LayoutOptions { get; set; } = GraphLayoutOptions.Default;
+
+    /// <summary>
+    /// Draws wires as straight segments leaving each socket on a short stub instead of as
+    /// curves, and squares off the corners of routed wires.
+    /// </summary>
+    public bool StraightWires { get; set; }
 
     /// <summary>Legend rows describing this graph's color semantics, declared by the frontend.</summary>
     public List<GraphLegendEntry> Legend { get; } = [];
@@ -1001,6 +1013,115 @@ partial class GraphView : IDisposable
         // The render thread enumerates nodes/wires under this lock.
         using var _ = stateLock.EnterScope();
 
+        var components = LayoutPass(padding);
+
+        // Socket order decides where a wire docks, so it can only be judged once the cards have
+        // somewhere to be. The first pass is what tells the second one which rows to swap.
+        if (LayoutOptions.Has(GraphLayoutFeature.PortOrdering) && ReorderPorts(components))
+        {
+            LayoutPass(padding);
+        }
+
+        ClearWireHitPaths();
+        OnGraphChanged();
+    }
+
+    /// <summary>
+    /// Places the nodes with an outside algorithm, then refreshes everything derived from their
+    /// positions. Lets the library layouts be measured in this renderer on equal terms.
+    /// </summary>
+    /// <summary>
+    /// Re-runs the crossing repair with no time limit, so a graph the budgeted pass gave up on
+    /// gets the full treatment when the user explicitly asks for it.
+    /// </summary>
+    public void ReduceVisualComplexity()
+    {
+        using (stateLock.EnterScope())
+        {
+            EnsureAllGeometry();
+
+            var previous = LayoutOptions;
+
+            LayoutOptions = new GraphLayoutOptions
+            {
+                Features = previous.Features | GraphLayoutFeature.CrossingSwap,
+                LayerSpacing = previous.LayerSpacing,
+                NodeSpacing = previous.NodeSpacing,
+                CrossingRepairBudgetMs = 0,
+            };
+
+            foreach (var component in GetVisibleComponents())
+            {
+                var componentNodes = new HashSet<GraphNode>(component);
+                var componentWires = wires.Where(w => componentNodes.Contains(w.From.Owner) && componentNodes.Contains(w.To.Owner)).ToList();
+
+                GraphLayout.RepairCrossings(component, componentWires, Geometry, LayoutOptions);
+            }
+
+            LayoutOptions = previous;
+            ClearWireHitPaths();
+        }
+
+        OnGraphChanged();
+    }
+
+    internal void LayoutWith(Action<IReadOnlyList<GraphNode>, IReadOnlyList<GraphWire>> place)
+    {
+        using var _ = stateLock.EnterScope();
+
+        EnsureAllGeometry();
+        Geometry.ClearAllRoutes();
+
+        place(nodes, wires);
+
+        foreach (var wire in wires)
+        {
+            if (wire.From.Owner == wire.To.Owner)
+            {
+                GraphLayout.SynthesizeSelfLoop(wire, Geometry);
+            }
+        }
+
+        ClearWireHitPaths();
+        OnGraphChanged();
+    }
+
+    /// <summary>
+    /// Orders the socket rows of every node that allows it by where its wires come from and go
+    /// to, so incident wires stop crossing inside the gutter. Returns whether anything moved.
+    /// </summary>
+    private bool ReorderPorts(List<List<GraphNode>> components)
+    {
+        var changed = false;
+
+        foreach (var component in components)
+        {
+            foreach (var node in component)
+            {
+                changed |= node.ReorderSockets(socket =>
+                {
+                    if (socket.Wires.Count == 0)
+                    {
+                        return Geometry.PivotOf(socket).Y;
+                    }
+
+                    var sum = 0f;
+
+                    foreach (var wire in socket.Wires)
+                    {
+                        sum += Geometry.PivotOf(wire.From == socket ? wire.To : wire.From).Y;
+                    }
+
+                    return sum / socket.Wires.Count;
+                });
+            }
+        }
+
+        return changed;
+    }
+
+    private List<List<GraphNode>> LayoutPass(float padding)
+    {
         EnsureAllGeometry();
         Geometry.ClearAllRoutes();
 
@@ -1051,7 +1172,7 @@ partial class GraphView : IDisposable
                 continue;
             }
 
-            GraphLayout.Layout(component, componentWires[i], Placement, Geometry);
+            GraphLayout.Layout(component, componentWires[i], Placement, Geometry, LayoutOptions);
         }
 
         // Pack the island bounding boxes toward a screen-like aspect so large graphs open
@@ -1123,12 +1244,7 @@ partial class GraphView : IDisposable
             }
         }
 
-        using (stateLock.EnterScope())
-        {
-            ClearWireHitPaths();
-        }
-
-        OnGraphChanged();
+        return components;
     }
 
     /// <summary>

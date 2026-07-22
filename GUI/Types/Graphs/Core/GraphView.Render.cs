@@ -517,31 +517,61 @@ partial class GraphView
     }
 
     // Bezier with horizontal handles; handle length grows with horizontal distance and is damped
-    // when the endpoints are nearly level so straight runs stay straight.
-    private static float WireHandleOffset(SKPoint from, SKPoint to)
+    // when the endpoints are nearly level so straight runs stay straight. The fan reach pushes
+    // wires sharing one socket apart so they do not draw on top of each other.
+    private static void BuildWirePath(SKPathBuilder path, SKPoint from, SKPoint to, float fanReach)
     {
-        var dx = to.X - from.X;
-        var distX = Math.Abs(dx);
-        var distY = Math.Abs(to.Y - from.Y);
-
-        if (dx >= 0f)
-        {
-            var clampFactor = distX <= 0f ? 1f : Math.Min(1f, 3.5f * distY / distX);
-            return 0.4f * distX * clampFactor;
-        }
-
-        return Math.Min(0.5f * distX + 40f, 250f);
-    }
-
-    private static void BuildWirePath(SKPathBuilder path, SKPoint from, SKPoint to)
-    {
-        var offset = WireHandleOffset(from, to);
+        var offset = GraphWireGeometry.HandleOffset(new Vector2(from.X, from.Y), new Vector2(to.X, to.Y)) + fanReach;
 
         path.MoveTo(from);
         path.CubicTo(new SKPoint(from.X + offset, from.Y), new SKPoint(to.X - offset, to.Y), to);
     }
 
-    private static void BuildWirePath(SKPathBuilder path, WireRoute? route, SKPoint from, SKPoint to)
+    /// <summary>How much of the neighbouring span each spline tangent reaches across.</summary>
+    private const float RouteTension = 1f / 5f;
+
+    // A routed wire draws as one continuous curve through its waypoints rather than as straight
+    // runs joined by fillets, so a wire detouring around a card still reads as the same kind of
+    // line as every other wire. Catmull-Rom tangents converted to cubic segments, with the end
+    // points duplicated so the curve starts and finishes exactly on the sockets.
+    private static void BuildSmoothRoute(SKPathBuilder path, SKPoint from, List<Vector2> waypoints, SKPoint to)
+    {
+        var points = new List<Vector2>(waypoints.Count + 2) { new(from.X, from.Y) };
+        points.AddRange(waypoints);
+        points.Add(new Vector2(to.X, to.Y));
+
+        path.MoveTo(from);
+
+        for (var i = 0; i + 1 < points.Count; i++)
+        {
+            var p0 = points[Math.Max(i - 1, 0)];
+            var p1 = points[i];
+            var p2 = points[i + 1];
+            var p3 = points[Math.Min(i + 2, points.Count - 1)];
+
+            var c1 = p1 + (p2 - p0) * RouteTension;
+            var c2 = p2 - (p3 - p1) * RouteTension;
+
+            path.CubicTo(new SKPoint(c1.X, c1.Y), new SKPoint(c2.X, c2.Y), new SKPoint(p2.X, p2.Y));
+        }
+    }
+
+    /// <summary>Horizontal run a straight wire leaves its socket on before angling away.</summary>
+    private const float StraightStub = 14f;
+
+    // Straight mode: a short horizontal stub at each end so the wire visibly belongs to its
+    // socket, and one plain segment between them.
+    private static void BuildStraightWirePath(SKPathBuilder path, SKPoint from, SKPoint to, float fanReach)
+    {
+        var stub = StraightStub + fanReach;
+
+        path.MoveTo(from);
+        path.LineTo(new SKPoint(from.X + stub, from.Y));
+        path.LineTo(new SKPoint(to.X - stub, to.Y));
+        path.LineTo(to);
+    }
+
+    private void BuildWirePath(SKPathBuilder path, WireRoute? route, SKPoint from, SKPoint to)
     {
         // Exact routed curve from the layout, drawn verbatim; conics carry the rounded
         // segment corners precisely.
@@ -580,19 +610,33 @@ partial class GraphView
 
         if (route?.Waypoints is not { Count: > 0 } waypoints)
         {
-            BuildWirePath(path, from, to);
+            if (StraightWires)
+            {
+                BuildStraightWirePath(path, from, to, route?.FanReach ?? 0f);
+            }
+            else
+            {
+                BuildWirePath(path, from, to, route?.FanReach ?? 0f);
+            }
+
             return;
         }
 
-        // Orthogonal route from the layout: straight segments through the corner points.
-        path.MoveTo(from);
-
-        foreach (var waypoint in waypoints)
+        if (StraightWires)
         {
-            path.LineTo(new SKPoint(waypoint.X, waypoint.Y));
+            // Squared-off corners match the rest of the straight presentation.
+            path.MoveTo(from);
+
+            foreach (var waypoint in waypoints)
+            {
+                path.LineTo(new SKPoint(waypoint.X, waypoint.Y));
+            }
+
+            path.LineTo(to);
+            return;
         }
 
-        path.LineTo(to);
+        BuildSmoothRoute(path, from, waypoints, to);
     }
 
     private void DrawWire(SKCanvas canvas, GraphWire wire, float zoom)

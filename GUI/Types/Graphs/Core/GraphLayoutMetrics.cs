@@ -1,0 +1,340 @@
+using System.Globalization;
+using System.Linq;
+
+namespace GUI.Types.Graphs.Core;
+
+/// <summary>Measured readability of one laid-out graph. Lower is better for every count.</summary>
+readonly record struct GraphLayoutMetrics(
+    int Nodes,
+    int Wires,
+    int WireCrossings,
+    int WiresOverNodes,
+    int BackwardWires,
+    int StraightWires,
+    float TotalWireLength,
+    float MeanDockOffset,
+    Vector2 Extent)
+{
+    /// <summary>Wall time to parse the asset and build the node model, including its first layout.</summary>
+    public double BuildMilliseconds { get; init; }
+
+    /// <summary>Wall time the placement itself took.</summary>
+    public double LayoutMilliseconds { get; init; }
+
+    /// <summary>Wall time to draw the whole graph to a raster canvas once.</summary>
+    public double RenderMilliseconds { get; init; }
+
+    /// <summary>Canvas area in megapixels; lower is a more compact drawing.</summary>
+    public float Area => Extent.X * Extent.Y / 1_000_000f;
+
+    public static string CsvHeader
+        => "variant,nodes,wires,crossings,wires_over_cards,backward,straight,total_length,mean_dock_offset,"
+            + "width,height,area_mpx,build_ms,layout_ms,render_ms";
+
+    public string ToCsvRow(string stage) => string.Join(',',
+    [
+        stage,
+        Nodes.ToString(CultureInfo.InvariantCulture),
+        Wires.ToString(CultureInfo.InvariantCulture),
+        WireCrossings.ToString(CultureInfo.InvariantCulture),
+        WiresOverNodes.ToString(CultureInfo.InvariantCulture),
+        BackwardWires.ToString(CultureInfo.InvariantCulture),
+        StraightWires.ToString(CultureInfo.InvariantCulture),
+        TotalWireLength.ToString("F0", CultureInfo.InvariantCulture),
+        MeanDockOffset.ToString("F1", CultureInfo.InvariantCulture),
+        Extent.X.ToString("F0", CultureInfo.InvariantCulture),
+        Extent.Y.ToString("F0", CultureInfo.InvariantCulture),
+        Area.ToString("F2", CultureInfo.InvariantCulture),
+        BuildMilliseconds.ToString("F0", CultureInfo.InvariantCulture),
+        LayoutMilliseconds.ToString("F0", CultureInfo.InvariantCulture),
+        RenderMilliseconds.ToString("F1", CultureInfo.InvariantCulture),
+    ]);
+}
+
+/// <summary>
+/// Scores a laid-out graph so a layout change can be compared against the one before it rather
+/// than judged by eye.
+/// </summary>
+internal static class GraphLayoutScorer
+{
+    /// <summary>A wire counts as straight when its two ends sit within this many pixels.</summary>
+    private const float StraightTolerance = 1.5f;
+
+    /// <summary>
+    /// Every crossing wire pair, named, with where both ends sit. This is the only way to tell
+    /// whether a given crossing is a socket-order problem, a node-order problem or unavoidable.
+    /// </summary>
+    public static List<string> DescribeCrossings(IReadOnlyList<GraphNode> nodes, IReadOnlyList<GraphWire> wires, GraphGeometry geometry, bool straight = false)
+    {
+        var visibleWires = wires.Where(static w => !w.From.Owner.Hidden && !w.To.Owner.Hidden).ToList();
+        var paths = new List<Vector2>[visibleWires.Count];
+        var bounds = new (Vector2 Min, Vector2 Max)[visibleWires.Count];
+        var buffer = new List<Vector2>();
+        var described = new List<string>();
+
+        for (var i = 0; i < visibleWires.Count; i++)
+        {
+            GraphWireGeometry.Sample(buffer, geometry, visibleWires[i], straight);
+            paths[i] = [.. buffer];
+            bounds[i] = BoundsOf(paths[i]);
+        }
+
+        for (var i = 0; i < visibleWires.Count; i++)
+        {
+            for (var j = i + 1; j < visibleWires.Count; j++)
+            {
+                if (visibleWires[i].From == visibleWires[j].From || visibleWires[i].To == visibleWires[j].To
+                    || visibleWires[i].From == visibleWires[j].To || visibleWires[i].To == visibleWires[j].From)
+                {
+                    continue;
+                }
+
+                if (Overlaps(bounds[i], bounds[j]) && PathsIntersect(paths[i], paths[j]))
+                {
+                    described.Add($"{Describe(visibleWires[i], geometry)}\n      X {Describe(visibleWires[j], geometry)}");
+                }
+            }
+        }
+
+        return described;
+
+        static string Describe(GraphWire wire, GraphGeometry geometry)
+        {
+            var from = geometry.PivotOf(wire.From);
+            var to = geometry.PivotOf(wire.To);
+
+            return $"{Trim(wire.From.Owner.Title)}.{Trim(wire.From.Name)} @({from.X:F0},{from.Y:F0})"
+                + $" -> {Trim(wire.To.Owner.Title)}.{Trim(wire.To.Name)} @({to.X:F0},{to.Y:F0})";
+        }
+
+        static string Trim(string text) => text.Length > 34 ? text[..34] : text;
+    }
+
+    public static GraphLayoutMetrics Measure(IReadOnlyList<GraphNode> nodes, IReadOnlyList<GraphWire> wires, GraphGeometry geometry, bool straight = false)
+    {
+        var visibleNodes = nodes.Where(static n => !n.Hidden).ToList();
+        var visibleWires = wires.Where(static w => !w.From.Owner.Hidden && !w.To.Owner.Hidden).ToList();
+
+        var paths = new List<Vector2>[visibleWires.Count];
+        var bounds = new (Vector2 Min, Vector2 Max)[visibleWires.Count];
+        var buffer = new List<Vector2>();
+
+        var totalLength = 0f;
+        var dockOffsetSum = 0f;
+        var backward = 0;
+        var levelWires = 0;
+        var dockCounted = 0;
+
+        for (var i = 0; i < visibleWires.Count; i++)
+        {
+            var wire = visibleWires[i];
+            GraphWireGeometry.Sample(buffer, geometry, wire, straight);
+            paths[i] = [.. buffer];
+            bounds[i] = BoundsOf(paths[i]);
+
+            for (var p = 1; p < paths[i].Count; p++)
+            {
+                totalLength += Vector2.Distance(paths[i][p - 1], paths[i][p]);
+            }
+
+            if (wire.From.Owner == wire.To.Owner)
+            {
+                continue;
+            }
+
+            var from = geometry.PivotOf(wire.From);
+            var to = geometry.PivotOf(wire.To);
+            var dockOffset = Math.Abs(to.Y - from.Y);
+
+            dockOffsetSum += dockOffset;
+            dockCounted++;
+
+            if (to.X < from.X)
+            {
+                backward++;
+            }
+            else if (dockOffset <= StraightTolerance)
+            {
+                levelWires++;
+            }
+        }
+
+        return new GraphLayoutMetrics(
+            visibleNodes.Count,
+            visibleWires.Count,
+            CountCrossings(visibleWires, paths, bounds),
+            CountWiresOverNodes(visibleNodes, visibleWires, paths, bounds, geometry),
+            backward,
+            levelWires,
+            totalLength,
+            dockCounted > 0 ? dockOffsetSum / dockCounted : 0f,
+            ExtentOf(visibleNodes, geometry));
+    }
+
+    // Pairwise over wire polylines with an AABB reject. Wires meeting at a shared socket are
+    // touching by construction, not crossing, so those pairs are skipped.
+    private static int CountCrossings(List<GraphWire> wires, List<Vector2>[] paths, (Vector2 Min, Vector2 Max)[] bounds)
+    {
+        var crossings = 0;
+
+        for (var i = 0; i < wires.Count; i++)
+        {
+            for (var j = i + 1; j < wires.Count; j++)
+            {
+                if (wires[i].From == wires[j].From || wires[i].To == wires[j].To
+                    || wires[i].From == wires[j].To || wires[i].To == wires[j].From)
+                {
+                    continue;
+                }
+
+                if (!Overlaps(bounds[i], bounds[j]))
+                {
+                    continue;
+                }
+
+                if (PathsIntersect(paths[i], paths[j]))
+                {
+                    crossings++;
+                }
+            }
+        }
+
+        return crossings;
+    }
+
+    // A wire running across a card it is not attached to is the most damaging overlap there is,
+    // so it is counted separately from wire-on-wire crossings.
+    private static int CountWiresOverNodes(
+        List<GraphNode> nodes,
+        List<GraphWire> wires,
+        List<Vector2>[] paths,
+        (Vector2 Min, Vector2 Max)[] bounds,
+        GraphGeometry geometry)
+    {
+        var offences = 0;
+
+        for (var i = 0; i < wires.Count; i++)
+        {
+            foreach (var node in nodes)
+            {
+                if (node == wires[i].From.Owner || node == wires[i].To.Owner)
+                {
+                    continue;
+                }
+
+                var min = node.Position;
+                var max = node.Position + geometry.SizeOf(node);
+
+                if (!Overlaps(bounds[i], (min, max)))
+                {
+                    continue;
+                }
+
+                if (PathEntersRect(paths[i], min, max))
+                {
+                    offences++;
+                }
+            }
+        }
+
+        return offences;
+    }
+
+    private static Vector2 ExtentOf(List<GraphNode> nodes, GraphGeometry geometry)
+    {
+        if (nodes.Count == 0)
+        {
+            return Vector2.Zero;
+        }
+
+        var min = new Vector2(float.MaxValue);
+        var max = new Vector2(float.MinValue);
+
+        foreach (var node in nodes)
+        {
+            min = Vector2.Min(min, node.Position);
+            max = Vector2.Max(max, node.Position + geometry.SizeOf(node));
+        }
+
+        return max - min;
+    }
+
+    private static (Vector2 Min, Vector2 Max) BoundsOf(List<Vector2> path)
+    {
+        var min = new Vector2(float.MaxValue);
+        var max = new Vector2(float.MinValue);
+
+        foreach (var point in path)
+        {
+            min = Vector2.Min(min, point);
+            max = Vector2.Max(max, point);
+        }
+
+        return (min, max);
+    }
+
+    private static bool Overlaps((Vector2 Min, Vector2 Max) a, (Vector2 Min, Vector2 Max) b)
+        => a.Min.X <= b.Max.X && b.Min.X <= a.Max.X && a.Min.Y <= b.Max.Y && b.Min.Y <= a.Max.Y;
+
+    private static bool PathsIntersect(List<Vector2> a, List<Vector2> b)
+    {
+        for (var i = 1; i < a.Count; i++)
+        {
+            for (var j = 1; j < b.Count; j++)
+            {
+                if (SegmentsIntersect(a[i - 1], a[i], b[j - 1], b[j]))
+                {
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
+
+    private static bool PathEntersRect(List<Vector2> path, Vector2 min, Vector2 max)
+    {
+        foreach (var point in path)
+        {
+            if (point.X >= min.X && point.X <= max.X && point.Y >= min.Y && point.Y <= max.Y)
+            {
+                return true;
+            }
+        }
+
+        var corners = new[]
+        {
+            min,
+            new Vector2(max.X, min.Y),
+            max,
+            new Vector2(min.X, max.Y),
+        };
+
+        for (var i = 1; i < path.Count; i++)
+        {
+            for (var c = 0; c < 4; c++)
+            {
+                if (SegmentsIntersect(path[i - 1], path[i], corners[c], corners[(c + 1) % 4]))
+                {
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
+
+    private static bool SegmentsIntersect(Vector2 p1, Vector2 p2, Vector2 p3, Vector2 p4)
+    {
+        var d1 = Cross(p3, p4, p1);
+        var d2 = Cross(p3, p4, p2);
+        var d3 = Cross(p1, p2, p3);
+        var d4 = Cross(p1, p2, p4);
+
+        return ((d1 > 0f && d2 < 0f) || (d1 < 0f && d2 > 0f))
+            && ((d3 > 0f && d4 < 0f) || (d3 < 0f && d4 > 0f));
+    }
+
+    private static float Cross(Vector2 a, Vector2 b, Vector2 point)
+        => (b.X - a.X) * (point.Y - a.Y) - (b.Y - a.Y) * (point.X - a.X);
+}
