@@ -30,10 +30,6 @@ sealed class WireRoute
     /// </summary>
     public List<GraphCurveCommand>? CurvePath;
 
-    /// <summary>
-    /// Extra horizontal reach that peels this wire away from the others sharing its socket.
-    /// </summary>
-    public float FanReach;
 }
 
 /// <summary>
@@ -80,7 +76,6 @@ internal sealed class GraphGeometry
 
     public WireRoute? TryRouteOf(GraphWire wire) => routes.GetValueOrDefault(wire);
 
-    public float FanReachOf(GraphWire wire) => routes.TryGetValue(wire, out var route) ? route.FanReach : 0f;
 
     public void ClearAllRoutes()
     {
@@ -88,7 +83,6 @@ internal sealed class GraphGeometry
         {
             route.Waypoints = null;
             route.CurvePath = null;
-            route.FanReach = 0f;
         }
     }
 

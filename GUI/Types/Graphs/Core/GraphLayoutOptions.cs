@@ -18,54 +18,28 @@ enum GraphLayoutFeature
     PortAwareAlignment = 1 << 0,
 
     /// <summary>
-    /// Give cycle-breaking wires an explicit route out of the source's right edge, along a
-    /// clear channel and back into the target's left edge, instead of one long backward curve.
-    /// </summary>
-    BackWireRouting = 1 << 1,
-
-    /// <summary>
-    /// Spread the wires leaving or entering one socket so a fan does not draw as a single
-    /// overlapping bundle.
-    /// </summary>
-    SocketFanSpread = 1 << 2,
-
-    /// <summary>
     /// Normalized barycenter keys, alternating sweep direction, an adjacent-swap transpose
     /// pass and best-of-sweeps selection by measured crossing count.
     /// </summary>
-    BarycentreRepair = 1 << 3,
-
-    /// <summary>
-    /// Sit the wrapped sub-columns of one oversized rank closer together than real rank
-    /// boundaries, so wrapping costs the wires crossing it far less travel.
-    /// </summary>
-    RankPreservingWrap = 1 << 4,
+    BarycentreRepair = 1 << 1,
 
     /// <summary>
     /// Insert a dummy node per intermediate rank for every wire spanning more than one rank,
     /// so long wires participate in ordering and route between cards instead of over them.
+    /// Worth it on one connected animation graph and harmful on many-island entity graphs, so
+    /// the frontends choose rather than it being on by default.
     /// </summary>
-    LongWireDummies = 1 << 5,
-
-    /// <summary>Order the dummy slots inside each gutter into lanes that do not cross.</summary>
-    GutterLanes = 1 << 6,
+    LongWireDummies = 1 << 2,
 
     /// <summary>
-    /// Permute the socket rows of nodes that opted in, ordering each side by the barycentre of
-    /// what it connects to.
-    /// </summary>
-    PortOrdering = 1 << 7,
-
-    /// <summary>
-    /// Swap nodes vertically whenever doing so removes a crossing, judged on the wires actually
+    /// Move cards after placement wherever that removes a crossing, judged on the wires actually
     /// drawn between socket pivots. This is the only pass that sees which socket a wire lands
     /// on, so it catches inversions every node-level heuristic is blind to.
     /// </summary>
-    CrossingSwap = 1 << 8,
+    CrossingSwap = 1 << 3,
 
-    /// <summary>Every improvement.</summary>
-    All = PortAwareAlignment | BackWireRouting | SocketFanSpread | BarycentreRepair
-        | RankPreservingWrap | LongWireDummies | GutterLanes | PortOrdering | CrossingSwap,
+    /// <summary>Everything that earns its place on every graph shape.</summary>
+    All = PortAwareAlignment | BarycentreRepair | CrossingSwap,
 }
 
 /// <summary>Layout tuning shared by the placement engines.</summary>
@@ -103,15 +77,6 @@ sealed class GraphLayoutOptions
     /// </summary>
     public float DashedWireWeight { get; set; } = 0.25f;
 
-    /// <summary>Horizontal step between successive wires leaving or entering one socket.</summary>
-    public float SocketFanStep { get; set; } = 9f;
-
-    /// <summary>
-    /// Largest fan offset. The reach lengthens the curve's handles, so letting it grow without
-    /// bound just bows the wires out across neighbouring cards.
-    /// </summary>
-    public float SocketFanLimit { get; set; } = 48f;
-
     /// <summary>Vertical room reserved for one long-wire dummy slot inside a gutter.</summary>
     public float DummyLaneHeight { get; set; } = 14f;
 
@@ -131,19 +96,17 @@ sealed class GraphLayoutOptions
     /// Wall-clock milliseconds the whole repair may spend before it stops and keeps what it has.
     /// Zero removes the limit, which is what the manual full-quality command uses.
     /// </summary>
-    public int CrossingRepairBudgetMs { get; set; } = 1000;
+    public int CrossingRepairBudgetMs { get; set; } = 4000;
 
     /// <summary>
-    /// How far beyond a column's own width its cards are checked against wires. A wire passing
-    /// nowhere near a column cannot be crossed by moving that column's cards.
+    /// Clock the budget is measured against, shared by every island of one layout. Without this
+    /// each island would start its own, so a map with a hundred islands would be allowed a
+    /// hundred times the budget rather than the one the caller asked for.
     /// </summary>
-    public float CrossingNeighbourhood { get; set; } = 700f;
+    internal System.Diagnostics.Stopwatch? RepairClock { get; set; }
 
     /// <summary>Relocations tried per column per pass.</summary>
     public int CrossingReinsertBudget { get; set; } = 240;
-
-    /// <summary>Up to this many wires, every move is scored against the whole graph.</summary>
-    public int CrossingExactWireLimit { get; set; } = 4000;
 
     /// <summary>Largest island on which cards may be relocated by restacking their column.</summary>
     public int CrossingReinsertMaxNodes { get; set; } = 200;

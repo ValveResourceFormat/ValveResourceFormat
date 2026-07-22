@@ -93,7 +93,7 @@ namespace GUI.Types.GLViewers
                 var searchOutline = new Panel
                 {
                     Padding = new Padding(1),
-                    BackColor = Themer.CurrentThemeColors.ContrastSoft,
+                    BackColor = Themer.CurrentThemeColors.Border,
                     Dock = DockStyle.Fill,
                 };
                 searchOutline.Controls.Add(searchBox);
@@ -122,14 +122,23 @@ namespace GUI.Types.GLViewers
                 placementCombo.SelectedIndex = (int)View.Placement;
                 suppressPlacementChange = false;
 
-                UiControl.AddCheckBox("Straight wires", View.StraightWires, straight =>
+                var suppressWireChange = true;
+                var wireCombo = UiControl.AddSelection("Wires", (_, index) =>
                 {
-                    View.StraightWires = straight;
+                    if (suppressWireChange || index < 0)
+                    {
+                        return;
+                    }
+
+                    View.StraightWires = index == 1;
                     View.MarkVisualDirty();
                     InvalidateRender();
                 });
+                wireCombo.Items.AddRange(new object[] { "Curved", "Straight" });
+                wireCombo.SelectedIndex = View.StraightWires ? 1 : 0;
+                suppressWireChange = false;
 
-                AddComplexityReduction();
+                var complexitySection = AddComplexityReduction();
 
                 if (HasStateMachineToggle)
                 {
@@ -163,19 +172,13 @@ namespace GUI.Types.GLViewers
 
                 AddLegendPanel();
 
-                // Top of the sidebar, above the base viewer buttons: search second, the
-                // layout dropdown at the very top (SendToBack order is bottom-up). The combo
-                // is nested inside its selection control; reorder that sidebar child.
+                // SendToBack docks a child at the top, so calling it in reverse leaves the sidebar
+                // reading Layout, Wires, Reduce, then the search box. A combo is nested inside its
+                // own selection control, so the sidebar child that owns it is what has to move.
                 searchSection.SendToBack();
-
-                Control placementSection = placementCombo;
-
-                while (placementSection.Parent != null && placementSection.Parent != searchSection.Parent)
-                {
-                    placementSection = placementSection.Parent;
-                }
-
-                placementSection.SendToBack();
+                complexitySection?.SendToBack();
+                SidebarSectionOf(wireCombo, searchSection.Parent)?.SendToBack();
+                SidebarSectionOf(placementCombo, searchSection.Parent)?.SendToBack();
 
                 // Added last so it docks at the very bottom of the sidebar, below the legend.
                 var resetSection = new Panel
@@ -193,6 +196,9 @@ namespace GUI.Types.GLViewers
 
                 resetSection.Controls.Add(resetButton);
                 UiControl.AddControl(resetSection);
+
+                // Saving is the least used control here, so it goes under everything else.
+                SaveSection?.BringToFront();
             }
 
             if (GLControl != null)
@@ -207,31 +213,47 @@ namespace GUI.Types.GLViewers
         /// pass is capped so opening a graph stays quick, which means a large graph keeps
         /// crossings the full pass would have removed; this is how the user asks for those.
         /// </summary>
-        private void AddComplexityReduction()
+        /// <summary>Walks up from a control to the sidebar child that owns it, so it can be reordered.</summary>
+        private static Control? SidebarSectionOf(Control control, Control? sidebar)
+        {
+            Control? section = control;
+
+            while (section != null && section.Parent != sidebar)
+            {
+                section = section.Parent;
+            }
+
+            return section;
+        }
+
+        private Panel? AddComplexityReduction()
         {
             if (UiControl == null)
             {
-                return;
+                return null;
             }
 
             var section = new Panel
             {
-                Padding = new Padding(4, 10, 4, 4),
-                Height = UiControl.AdjustForDPI(72),
+                Padding = new Padding(4, 10, 4, 6),
+                Height = UiControl.AdjustForDPI(94),
             };
 
             var caption = new Label
             {
-                Text = "Wires are untangled up to a time limit when the graph opens.",
+                Text = "Wires are untangled for up to four seconds when the graph opens.",
                 Dock = DockStyle.Top,
                 AutoSize = false,
-                Height = UiControl.AdjustForDPI(30),
+                Height = UiControl.AdjustForDPI(42),
             };
 
+            // Docked to the bottom with its own height rather than filling: a Fill button competes
+            // with the caption for the same space and ends up drawn over the last line of it.
             var button = new ThemedButton
             {
                 Text = "Reduce Visual Graph Complexity",
-                Dock = DockStyle.Fill,
+                Dock = DockStyle.Bottom,
+                Height = UiControl.AdjustForDPI(30),
             };
 
             button.Click += (_, _) =>
@@ -256,6 +278,7 @@ namespace GUI.Types.GLViewers
             section.Controls.Add(button);
             section.Controls.Add(caption);
             UiControl.AddControl(section);
+            return section;
         }
 
         /// <summary>

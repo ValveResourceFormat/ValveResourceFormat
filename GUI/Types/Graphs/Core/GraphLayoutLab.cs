@@ -30,48 +30,40 @@ internal static class GraphLayoutLab
     /// </summary>
     private static readonly Variant[] Variants =
     [
-        new("1-main-layered", "Upstream library Sugiyama (xPaw), used by the AG1 and AG2 viewers",
-            static view => view.LayoutWith(static (nodes, wires) => ValveResourceFormat.Utils.GraphLayout.LayoutNodes(
-                nodes, wires, Position, SetPosition, Size, Source, Target, Inputs, Outputs))),
-
-        new("2-main-sequential", "Upstream library chain-collapsing layout (LionDoge), used by the Pulse viewer",
-            static view => view.LayoutWith(static (nodes, wires) => ValveResourceFormat.Utils.SequentialGraphLayout.LayoutNodes(
-                nodes, wires, Position, SetPosition, Size, Source, Target, Inputs, Outputs))),
-
-        new("3-branch-shipped", "This branch as it stands on the branch tip, no improvements enabled",
+        new("2-branch-shipped", "This branch as it stands on the branch tip, no improvements enabled",
             static view =>
             {
-                view.LayoutOptions = new GraphLayoutOptions { Features = GraphLayoutFeature.None, LayerSpacing = 220f, NodeSpacing = 36f };
+                view.LayoutOptions = Tune(new GraphLayoutOptions { Features = GraphLayoutFeature.None, LayerSpacing = 220f, NodeSpacing = 36f });
                 view.LayoutNodesPacked();
             }),
 
-        new("4-branch-swaponly", "Shipped layout plus only the crossing repair: swap, reinsert and slide cards",
+        new("3-branch-swaponly", "Shipped layout plus only the crossing repair: swap, reinsert and slide cards",
             static view =>
             {
-                view.LayoutOptions = new GraphLayoutOptions
+                view.LayoutOptions = Tune(new GraphLayoutOptions
                 {
                     Features = GraphLayoutFeature.CrossingSwap,
                     LayerSpacing = 220f,
                     NodeSpacing = 36f,
-                };
+                });
                 view.LayoutNodesPacked();
             }),
 
-        new("5-branch-tight", "All nine improvements, at this branch's original tighter spacing",
+        new("4-branch-tight", "Every general-purpose improvement, at this branch's original tighter spacing",
             static view =>
             {
-                view.LayoutOptions = new GraphLayoutOptions { LayerSpacing = 220f, NodeSpacing = 36f };
+                view.LayoutOptions = Tune(new GraphLayoutOptions { LayerSpacing = 220f, NodeSpacing = 36f });
                 view.LayoutNodesPacked();
             }),
 
-        new("6-branch-wide", "All nine improvements, at the settled spacing (320 / 44)",
+        new("5-branch-wide", "Every general-purpose improvement, at the settled spacing (320 / 44)",
             static view =>
             {
-                view.LayoutOptions = new GraphLayoutOptions();
+                view.LayoutOptions = Tune(new GraphLayoutOptions());
                 view.LayoutNodesPacked();
             }),
 
-        new("7-branch-final", "The kept set: alignment, barycentre, crossing repair, and dummies only on animation graphs",
+        new("6-branch-final", "The kept set: alignment, barycentre, crossing repair, and dummies only on animation graphs",
             static view =>
             {
                 var features = GraphLayoutFeature.PortAwareAlignment
@@ -85,7 +77,7 @@ internal static class GraphLayoutLab
                     features |= GraphLayoutFeature.LongWireDummies;
                 }
 
-                view.LayoutOptions = new GraphLayoutOptions { Features = features };
+                view.LayoutOptions = Tune(new GraphLayoutOptions { Features = features });
                 view.LayoutNodesPacked();
             }),
     ];
@@ -93,17 +85,27 @@ internal static class GraphLayoutLab
     /// <summary>Whether the case being measured is an animation graph rather than entity or pulse.</summary>
     private static bool animationGraph;
 
+    /// <summary>Restricts the --node diagnostic to cards whose title contains this.</summary>
+    private static string? nodeFilter;
+
+    private static int budgetOverride = -1;
+
+    private static GraphLayoutOptions Tune(GraphLayoutOptions options)
+    {
+        if (budgetOverride >= 0)
+        {
+            options.CrossingRepairBudgetMs = budgetOverride;
+        }
+
+        return options;
+    }
+
     /// <summary>The improvements, for the leave-one-out study.</summary>
     private static readonly (GraphLayoutFeature Feature, string Name)[] Features =
     [
         (GraphLayoutFeature.PortAwareAlignment, "port-align"),
-        (GraphLayoutFeature.BackWireRouting, "back-wires"),
-        (GraphLayoutFeature.SocketFanSpread, "socket-fan"),
         (GraphLayoutFeature.BarycentreRepair, "barycentre"),
-        (GraphLayoutFeature.RankPreservingWrap, "rank-wrap"),
         (GraphLayoutFeature.LongWireDummies, "dummies"),
-        (GraphLayoutFeature.GutterLanes, "gutter-lanes"),
-        (GraphLayoutFeature.PortOrdering, "port-order"),
         (GraphLayoutFeature.CrossingSwap, "swap-nodes"),
     ];
 
@@ -150,7 +152,7 @@ internal static class GraphLayoutLab
 
                 try
                 {
-                    view.LayoutOptions = new GraphLayoutOptions { Features = features };
+                    view.LayoutOptions = Tune(new GraphLayoutOptions { Features = features });
                     var clock = System.Diagnostics.Stopwatch.StartNew();
                     view.LayoutNodesPacked();
                     clock.Stop();
@@ -206,15 +208,6 @@ internal static class GraphLayoutLab
     }
 
     // Delegates the library layout needs; it is deliberately ignorant of this graph model.
-    private static Vector2 Position(GraphNode node) => node.Position;
-    private static void SetPosition(GraphNode node, Vector2 position) => node.Position = position;
-    private static GraphNode Source(GraphWire wire) => wire.From.Owner;
-    private static GraphNode Target(GraphWire wire) => wire.To.Owner;
-    private static IEnumerable<GraphWire> Inputs(GraphNode node) => node.Inputs.SelectMany(static s => s.Wires);
-    private static IEnumerable<GraphWire> Outputs(GraphNode node) => node.Outputs.SelectMany(static s => s.Wires);
-
-    private static GraphGeometry? sizeSource;
-    private static Vector2 Size(GraphNode node) => sizeSource?.SizeOf(node) ?? new Vector2(200f, 80f);
 
     /// <summary>Largest edge of a rendered image, in pixels; raise it with --maxedge.</summary>
     private static int maxImageEdge = 2600;
@@ -284,6 +277,12 @@ internal static class GraphLayoutLab
 
         pathFilters = ArgValue(args, "--match")?.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries) ?? [];
         var explain = args.Contains("--explain");
+        nodeFilter = ArgValue(args, "--node");
+
+        if (int.TryParse(ArgValue(args, "--budget"), out var budget))
+        {
+            budgetOverride = budget;
+        }
 
         foreach (var input in inputs)
         {
@@ -321,6 +320,7 @@ internal static class GraphLayoutLab
                 var title = placements.Length > 1 ? $"{name} ({placement})" : name;
                 animationGraph = name.Contains("nmgraph", StringComparison.OrdinalIgnoreCase)
                     || name.Contains("vagrp", StringComparison.OrdinalIgnoreCase);
+
                 Console.WriteLine($"=== {title} ===");
 
                 var shots = new List<Shot>();
@@ -353,7 +353,6 @@ internal static class GraphLayoutLab
                     try
                     {
                         view.Placement = placement;
-                        sizeSource = view.Geometry;
 
                         var clock = System.Diagnostics.Stopwatch.StartNew();
                         variant.Apply(view);
@@ -373,10 +372,21 @@ internal static class GraphLayoutLab
                         shots.Add(new Shot(variant.Name, variant.Description, metrics, curved, straight));
                         csv.AppendLine(metrics.ToCsvRow($"{title}/{variant.Name}"));
 
+                        var islands = view.GetComponents();
+
                         Console.WriteLine(
-                            $"  {variant.Name,-18} crossings {metrics.WireCrossings,6}  over-cards {metrics.WiresOverNodes,6}  " +
+                            $"  {variant.Name,-18} islands {islands.Count,4} (largest {islands.Max(static i => i.Count),5})  " +
+                            $"crossings {metrics.WireCrossings,6}  over-cards {metrics.WiresOverNodes,6}  " +
                             $"area {metrics.Area,7:F1}Mpx  build {metrics.BuildMilliseconds,6:F0}ms  " +
                             $"layout {metrics.LayoutMilliseconds,6:F0}ms  draw {metrics.RenderMilliseconds,7:F1}ms");
+
+                        if (nodeFilter != null)
+                        {
+                            foreach (var line in GraphLayoutScorer.DescribeNodes(view.Nodes, view.Geometry, nodeFilter))
+                            {
+                                Console.WriteLine($"      {line}");
+                            }
+                        }
 
                         if (explain)
                         {
@@ -388,7 +398,6 @@ internal static class GraphLayoutLab
                     }
                     finally
                     {
-                        sizeSource = null;
 
                         if (owner != null)
                         {

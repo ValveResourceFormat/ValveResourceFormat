@@ -189,7 +189,6 @@ internal static class GraphLayoutLabFixtures
         foreach (var node in left.Concat(right))
         {
             node.PairSocketRows();
-            node.SocketOrderFixed = false;
         }
 
         return view;
@@ -236,7 +235,6 @@ internal static class GraphLayoutLabFixtures
             foreach (var node in view.Nodes)
             {
                 node.PairSocketRows();
-                node.SocketOrderFixed = false;
             }
         }
 

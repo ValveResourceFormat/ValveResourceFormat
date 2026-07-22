@@ -53,7 +53,7 @@ internal static class GraphLayout
             }
         }
 
-        AssignSocketFans(component, geometry, options);
+
     }
 
     /// <summary>Rebuilds the synthetic loop route of a self-referencing wire from its current pivots.</summary>
@@ -117,59 +117,6 @@ internal static class GraphLayout
         }
 
         return false;
-    }
-
-    /// <summary>
-    /// Spreads the wires sharing a socket into a nested fan ordered by the height of their far
-    /// end, so a hub stops drawing its wires on top of one another.
-    /// </summary>
-    private static void AssignSocketFans(List<GraphNode> component, GraphGeometry geometry, GraphLayoutOptions options)
-    {
-        if (!options.Has(GraphLayoutFeature.SocketFanSpread))
-        {
-            return;
-        }
-
-        var reach = new Dictionary<GraphWire, float>();
-
-        foreach (var node in component)
-        {
-            foreach (var socket in node.Inputs.Concat(node.Outputs))
-            {
-                if (socket.Wires.Count < 2)
-                {
-                    continue;
-                }
-
-                var ordered = socket.Wires
-                    .OrderBy(w => FarPivot(geometry, socket, w).Y)
-                    .ThenBy(w => FarPivot(geometry, socket, w).X)
-                    .ThenBy(w => Other(socket, w).Owner.Sequence)
-                    .ToList();
-
-                for (var i = 0; i < ordered.Count; i++)
-                {
-                    var offset = GraphWireGeometry.FanOffset(options, i, ordered.Count);
-                    reach[ordered[i]] = Math.Max(reach.GetValueOrDefault(ordered[i]), offset);
-                }
-            }
-        }
-
-        foreach (var (wire, offset) in reach)
-        {
-            var route = geometry.RouteOf(wire);
-
-            // An explicitly routed wire already has its own separation built in.
-            if (route.Waypoints == null && route.CurvePath == null)
-            {
-                route.FanReach = offset;
-            }
-        }
-
-        static GraphSocket Other(GraphSocket socket, GraphWire wire) => wire.From == socket ? wire.To : wire.From;
-
-        static Vector2 FarPivot(GraphGeometry geometry, GraphSocket socket, GraphWire wire)
-            => geometry.PivotOf(Other(socket, wire));
     }
 
     // Stress majorization over graph-theoretic hop distances, then pairwise overlap removal.
@@ -599,7 +546,7 @@ internal static class GraphLayout
             // Runs on the placed cards, before the routes are built from them.
             RepairCrossings(component, componentWires, geometry, options);
 
-            EmitRoutes(crossWires);
+            EmitRoutes();
         }
 
         // DFS back-edge detection; the edges it finds are reversed for ranking so the rest of
@@ -1152,7 +1099,6 @@ internal static class GraphLayout
             var heightCap = Math.Max(1200f, MathF.Sqrt(area / PackingAspect));
             var columns = new List<List<int>>();
             var rankOfColumn = new List<int>();
-            var preserving = options.Has(GraphLayoutFeature.RankPreservingWrap);
 
             for (var r = 0; r < ranks.Length; r++)
             {
@@ -1191,7 +1137,9 @@ internal static class GraphLayout
             {
                 columnX[c] = x;
                 var widest = columns[c].Count == 0 ? 0f : columns[c].Max(i => width[i]);
-                var sameRank = preserving && c + 1 < columns.Count && rankOfColumn[c + 1] == rankOfColumn[c];
+                // Sub-columns of one wrapped rank sit closer than a real rank boundary, so wires
+                // crossing the wrap travel less than a full layer to do it.
+                var sameRank = c + 1 < columns.Count && rankOfColumn[c + 1] == rankOfColumn[c];
                 x += widest + (sameRank ? SubColumnSeparation : options.LayerSpacing);
             }
 
@@ -1383,14 +1331,16 @@ internal static class GraphLayout
             }
         }
 
-        // Turns the dummy chains into waypoints and gives the cycle-breaking wires a route that
-        // leaves and enters on the correct sides instead of one long backward curve.
-        private void EmitRoutes(List<GraphWire> crossWires)
+        /// <summary>
+        /// Turns each long wire's dummy chain into the waypoints it is drawn through, so the wire
+        /// runs between the cards of the ranks it spans rather than over them.
+        /// </summary>
+        private void EmitRoutes()
         {
-            var laneOrdered = options.Has(GraphLayoutFeature.GutterLanes);
-
             foreach (var (wire, chain) in chains)
             {
+                // A reversed wire's chain runs against the direction it is drawn in, so leave it
+                // to the plain curve rather than routing it backwards through its own dummies.
                 if (reversed.Contains(wire))
                 {
                     continue;
@@ -1398,84 +1348,8 @@ internal static class GraphLayout
 
                 var route = geometry.RouteOf(wire);
                 route.CurvePath = null;
-                route.Waypoints = [.. chain.Select(d => new Vector2(
-                    columnX[columnOf[d]] + (laneOrdered ? LaneOffsetOf(d) : 0f),
-                    centerY[d]))];
+                route.Waypoints = [.. chain.Select(d => new Vector2(columnX[columnOf[d]], centerY[d]))];
             }
-
-            if (!options.Has(GraphLayoutFeature.BackWireRouting))
-            {
-                return;
-            }
-
-            foreach (var wire in crossWires)
-            {
-                if (!reversed.Contains(wire))
-                {
-                    continue;
-                }
-
-                SynthesizeBackWire(wire);
-            }
-        }
-
-        // Spreads the dummies sharing one gutter across its width so their wires run in parallel
-        // lanes rather than all down the same line.
-        private float LaneOffsetOf(int dummy)
-        {
-            var column = columns[columnOf[dummy]];
-            var lanes = column.Count;
-
-            if (lanes < 2)
-            {
-                return 0f;
-            }
-
-            var slot = column.IndexOf(dummy);
-            var usable = Math.Min(options.LayerSpacing * 0.6f, lanes * 18f);
-
-            return (slot / (float)(lanes - 1) - 0.5f) * usable;
-        }
-
-        // Out of the source's right edge, along a channel clear of both cards, into the target's
-        // left edge. A cycle-breaking wire then reads as a deliberate loop.
-        private void SynthesizeBackWire(GraphWire wire)
-        {
-            var source = wire.From.Owner;
-            var target = wire.To.Owner;
-            var from = geometry.PivotOf(wire.From);
-            var to = geometry.PivotOf(wire.To);
-
-            var sourceSize = geometry.SizeOf(source);
-            var targetSize = geometry.SizeOf(target);
-
-            var top = Math.Min(source.Position.Y, target.Position.Y);
-            var bottom = Math.Max(source.Position.Y + sourceSize.Y, target.Position.Y + targetSize.Y);
-
-            // A wire whose ends already clear both cards vertically has room to curve back on its
-            // own; sending it out to a channel would only make it longer and cross more.
-            if (from.X - to.X < 40f || (from.Y < top + 4f && to.Y < top + 4f) || (from.Y > bottom - 4f && to.Y > bottom - 4f))
-            {
-                return;
-            }
-
-            var exit = from.X + 34f;
-            var entry = to.X - 34f;
-
-            // Whichever side is the shorter detour from where the two ends already sit.
-            var above = bottom - Math.Min(from.Y, to.Y);
-            var channel = above < Math.Max(from.Y, to.Y) - top ? bottom + 30f : top - 30f;
-
-            var route = geometry.RouteOf(wire);
-            route.CurvePath = null;
-            route.FanReach = 0f;
-            route.Waypoints =
-            [
-                new Vector2(exit, from.Y),
-                new Vector2(exit, channel),
-                new Vector2(entry, channel),
-                new Vector2(entry, to.Y),
-            ];
         }
     }
 }

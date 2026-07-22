@@ -110,6 +110,39 @@ internal static class GraphLayoutScorer
         static string Trim(string text) => text.Length > 34 ? text[..34] : text;
     }
 
+    /// <summary>
+    /// Where one card sits and where each of its wires docks, with the height that would make
+    /// each wire run level. Answers "why is this node here and not lower" with numbers.
+    /// </summary>
+    public static List<string> DescribeNodes(IReadOnlyList<GraphNode> nodes, GraphGeometry geometry, string filter)
+    {
+        var lines = new List<string>();
+
+        foreach (var node in nodes.Where(n => n.Title.Contains(filter, StringComparison.OrdinalIgnoreCase)))
+        {
+            var size = geometry.SizeOf(node);
+            lines.Add($"{node.Title} at ({node.Position.X:F0},{node.Position.Y:F0}) size {size.X:F0}x{size.Y:F0}");
+
+            foreach (var socket in node.Inputs.Concat(node.Outputs))
+            {
+                foreach (var wire in socket.Wires)
+                {
+                    var mine = geometry.PivotOf(socket);
+                    var other = wire.From == socket ? wire.To : wire.From;
+                    var theirs = geometry.PivotOf(other);
+
+                    lines.Add($"    {(socket.IsInput ? "in " : "out")} {Pad(socket.Name)} @y{mine.Y:F0}"
+                        + $" <-> {Pad(other.Owner.Title)}.{Pad(other.Name)} @y{theirs.Y:F0}"
+                        + $"   level would need dy {theirs.Y - mine.Y:+0;-0;0}");
+                }
+            }
+        }
+
+        return lines;
+
+        static string Pad(string text) => (text.Length > 26 ? text[..26] : text).PadRight(26);
+    }
+
     public static GraphLayoutMetrics Measure(IReadOnlyList<GraphNode> nodes, IReadOnlyList<GraphWire> wires, GraphGeometry geometry, bool straight = false)
     {
         var visibleNodes = nodes.Where(static n => !n.Hidden).ToList();
@@ -274,7 +307,7 @@ internal static class GraphLayoutScorer
     }
 
     private static bool Overlaps((Vector2 Min, Vector2 Max) a, (Vector2 Min, Vector2 Max) b)
-        => a.Min.X <= b.Max.X && b.Min.X <= a.Max.X && a.Min.Y <= b.Max.Y && b.Min.Y <= a.Max.Y;
+        => GraphWireGeometry.BoxesOverlap(a.Min.X, a.Max.X, a.Min.Y, a.Max.Y, b.Min.X, b.Max.X, b.Min.Y, b.Max.Y);
 
     private static bool PathsIntersect(List<Vector2> a, List<Vector2> b)
     {
@@ -325,16 +358,5 @@ internal static class GraphLayoutScorer
     }
 
     private static bool SegmentsIntersect(Vector2 p1, Vector2 p2, Vector2 p3, Vector2 p4)
-    {
-        var d1 = Cross(p3, p4, p1);
-        var d2 = Cross(p3, p4, p2);
-        var d3 = Cross(p1, p2, p3);
-        var d4 = Cross(p1, p2, p4);
-
-        return ((d1 > 0f && d2 < 0f) || (d1 < 0f && d2 > 0f))
-            && ((d3 > 0f && d4 < 0f) || (d3 < 0f && d4 > 0f));
-    }
-
-    private static float Cross(Vector2 a, Vector2 b, Vector2 point)
-        => (b.X - a.X) * (point.Y - a.Y) - (b.Y - a.Y) * (point.X - a.X);
+        => GraphWireGeometry.SegmentsIntersect(p1, p2, p3, p4);
 }

@@ -519,9 +519,9 @@ partial class GraphView
     // Bezier with horizontal handles; handle length grows with horizontal distance and is damped
     // when the endpoints are nearly level so straight runs stay straight. The fan reach pushes
     // wires sharing one socket apart so they do not draw on top of each other.
-    private static void BuildWirePath(SKPathBuilder path, SKPoint from, SKPoint to, float fanReach)
+    private static void BuildWirePath(SKPathBuilder path, SKPoint from, SKPoint to)
     {
-        var offset = GraphWireGeometry.HandleOffset(new Vector2(from.X, from.Y), new Vector2(to.X, to.Y)) + fanReach;
+        var offset = GraphWireGeometry.HandleOffset(new Vector2(from.X, from.Y), new Vector2(to.X, to.Y));
 
         path.MoveTo(from);
         path.CubicTo(new SKPoint(from.X + offset, from.Y), new SKPoint(to.X - offset, to.Y), to);
@@ -556,14 +556,12 @@ partial class GraphView
         }
     }
 
-    /// <summary>Horizontal run a straight wire leaves its socket on before angling away.</summary>
-    private const float StraightStub = 14f;
 
     // Straight mode: a short horizontal stub at each end so the wire visibly belongs to its
     // socket, and one plain segment between them.
-    private static void BuildStraightWirePath(SKPathBuilder path, SKPoint from, SKPoint to, float fanReach)
+    private static void BuildStraightWirePath(SKPathBuilder path, SKPoint from, SKPoint to)
     {
-        var stub = StraightStub + fanReach;
+        const float stub = GraphWireGeometry.StraightStub;
 
         path.MoveTo(from);
         path.LineTo(new SKPoint(from.X + stub, from.Y));
@@ -612,11 +610,11 @@ partial class GraphView
         {
             if (StraightWires)
             {
-                BuildStraightWirePath(path, from, to, route?.FanReach ?? 0f);
+                BuildStraightWirePath(path, from, to);
             }
             else
             {
-                BuildWirePath(path, from, to, route?.FanReach ?? 0f);
+                BuildWirePath(path, from, to);
             }
 
             return;

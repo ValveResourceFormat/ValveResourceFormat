@@ -1,3 +1,5 @@
+using System.Runtime.CompilerServices;
+
 namespace GUI.Types.Graphs.Core;
 
 /// <summary>
@@ -8,6 +10,36 @@ internal static class GraphWireGeometry
 {
     /// <summary>Longest a backward wire's handle may grow.</summary>
     private const float BackwardHandleLimit = 250f;
+
+    /// <summary>Horizontal run a straight wire leaves its socket on before angling away.</summary>
+    public const float StraightStub = 14f;
+
+    /// <summary>
+    /// Whether two axis-aligned boxes overlap, taken as separate min/max floats so the callers
+    /// that keep wire bounds in parallel arrays do not have to build a struct per test. This runs
+    /// tens of millions of times inside the crossing repair.
+    /// </summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static bool BoxesOverlap(
+        float minXA, float maxXA, float minYA, float maxYA,
+        float minXB, float maxXB, float minYB, float maxYB)
+        => minXA <= maxXB && minXB <= maxXA && minYA <= maxYB && minYB <= maxYA;
+
+    /// <summary>Whether two segments properly cross, by the sign of the four orientation tests.</summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static bool SegmentsIntersect(Vector2 p1, Vector2 p2, Vector2 p3, Vector2 p4)
+    {
+        var d1 = Cross(p3, p4, p1);
+        var d2 = Cross(p3, p4, p2);
+        var d3 = Cross(p1, p2, p3);
+        var d4 = Cross(p1, p2, p4);
+
+        return ((d1 > 0f && d2 < 0f) || (d1 < 0f && d2 > 0f))
+            && ((d3 > 0f && d4 < 0f) || (d3 < 0f && d4 > 0f));
+
+        static float Cross(Vector2 a, Vector2 b, Vector2 point)
+            => (b.X - a.X) * (point.Y - a.Y) - (b.Y - a.Y) * (point.X - a.X);
+    }
 
     /// <summary>
     /// Length of the horizontal bezier handles. It grows with horizontal distance and is damped
@@ -26,21 +58,6 @@ internal static class GraphWireGeometry
         }
 
         return Math.Min(0.5f * distX + 40f, BackwardHandleLimit);
-    }
-
-    /// <summary>
-    /// Extra horizontal reach for one wire of a fan, so wires sharing a socket peel off at
-    /// visibly different distances instead of overlapping. Index is the wire's rank among the
-    /// socket's wires sorted by the height of their far end.
-    /// </summary>
-    public static float FanOffset(GraphLayoutOptions options, int index, int count)
-    {
-        if (count <= 1 || !options.Has(GraphLayoutFeature.SocketFanSpread))
-        {
-            return 0f;
-        }
-
-        return Math.Min(index * options.SocketFanStep, options.SocketFanLimit);
     }
 
     /// <summary>
@@ -63,11 +80,9 @@ internal static class GraphWireGeometry
             return;
         }
 
-        var fan = geometry.FanReachOf(wire);
-
         if (straight)
         {
-            var stub = 14f + fan;
+            const float stub = StraightStub;
             into.Add(from);
             into.Add(new Vector2(from.X + stub, from.Y));
             into.Add(new Vector2(to.X - stub, to.Y));
@@ -75,7 +90,7 @@ internal static class GraphWireGeometry
             return;
         }
 
-        var offset = HandleOffset(from, to) + fan;
+        var offset = HandleOffset(from, to);
         var c1 = new Vector2(from.X + offset, from.Y);
         var c2 = new Vector2(to.X - offset, to.Y);
 

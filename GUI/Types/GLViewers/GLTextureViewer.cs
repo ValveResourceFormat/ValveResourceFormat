@@ -188,6 +188,9 @@ namespace GUI.Types.GLViewers
             base.AddUiControls();
         }
 
+        /// <summary>The save/copy row, exposed so a viewer can reorder it within its sidebar.</summary>
+        protected Control? SaveSection { get; private set; }
+
         private void AddSaveButton()
         {
             Debug.Assert(UiControl != null);
@@ -220,6 +223,7 @@ namespace GUI.Types.GLViewers
             saveTable.Controls.Add(saveButton, 0, 0);
             saveTable.Controls.Add(copyLabel, 1, 0);
             UiControl.AddControl(saveTable);
+            SaveSection = saveTable;
         }
 
         private void InitializeUIControlsForResource()

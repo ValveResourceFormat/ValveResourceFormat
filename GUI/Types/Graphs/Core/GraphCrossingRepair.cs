@@ -1,4 +1,6 @@
 using System.Linq;
+using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
 
 namespace GUI.Types.Graphs.Core;
 
@@ -29,12 +31,18 @@ internal sealed class CrossingRepair
     private readonly float[] minX;
     private readonly float[] maxX;
 
+    /// <summary>
+    /// Vertical extent of each wire, kept alongside the horizontal one. Islands are packed in two
+    /// dimensions, so most pairs of wires are separated in y rather than in x; rejecting on y as
+    /// well as x is what actually discards the bulk of the pairs before the intersection test.
+    /// </summary>
+    private readonly float[] minY;
+    private readonly float[] maxY;
+
     private readonly Dictionary<GraphNode, List<int>> incident = [];
     private readonly Dictionary<GraphNode, List<GraphNode>> columnOf = [];
     private readonly List<List<GraphNode>> columns = [];
 
-    /// <summary>Wires close enough in x to a column that its cards can cross them.</summary>
-    private readonly Dictionary<List<GraphNode>, int[]> nearby = [];
 
     public CrossingRepair(List<GraphNode> component, List<GraphWire> componentWires, GraphGeometry geometry, GraphLayoutOptions options)
     {
@@ -47,13 +55,19 @@ internal sealed class CrossingRepair
         to = new Vector2[wires.Length];
         minX = new float[wires.Length];
         maxX = new float[wires.Length];
+        minY = new float[wires.Length];
+        maxY = new float[wires.Length];
 
         for (var i = 0; i < wires.Length; i++)
         {
             Refresh(i);
             Track(wires[i].From.Owner, i);
             Track(wires[i].To.Owner, i);
+
         }
+
+        unionMarks = new int[wires.Length];
+        allWires = [.. Enumerable.Range(0, wires.Length)];
 
         var buckets = new Dictionary<int, List<GraphNode>>();
 
@@ -71,27 +85,6 @@ internal sealed class CrossingRepair
             columnOf[node] = column;
         }
 
-        // Judging a move against only the wires near its column is an approximation, and on a
-        // graph whose wires span the whole canvas it is a bad one: it will happily accept a move
-        // that fixes a local crossing and creates several out of view. Compare against every wire
-        // whenever that is affordable, and only fall back to the neighbourhood when it is not.
-        var exact = wires.Length <= options.CrossingExactWireLimit
-            ? Enumerable.Range(0, wires.Length).ToArray()
-            : null;
-
-        foreach (var column in columns)
-        {
-            if (exact != null)
-            {
-                nearby[column] = exact;
-                continue;
-            }
-
-            var left = column.Min(n => n.Position.X) - options.CrossingNeighbourhood;
-            var right = column.Max(n => n.Position.X + geometry.SizeOf(n).X) + options.CrossingNeighbourhood;
-
-            nearby[column] = [.. Enumerable.Range(0, wires.Length).Where(i => maxX[i] >= left && minX[i] <= right)];
-        }
     }
 
     private void Track(GraphNode node, int wire)
@@ -110,6 +103,8 @@ internal sealed class CrossingRepair
         to[wire] = geometry.PivotOf(wires[wire].To);
         minX[wire] = Math.Min(from[wire].X, to[wire].X);
         maxX[wire] = Math.Max(from[wire].X, to[wire].X);
+        minY[wire] = Math.Min(from[wire].Y, to[wire].Y);
+        maxY[wire] = Math.Max(from[wire].Y, to[wire].Y);
     }
 
     private void RefreshNode(GraphNode node)
@@ -138,7 +133,7 @@ internal sealed class CrossingRepair
             return;
         }
 
-        clock = System.Diagnostics.Stopwatch.StartNew();
+        clock = options.RepairClock ?? System.Diagnostics.Stopwatch.StartNew();
 
         for (var pass = 0; pass < options.CrossingRepairPasses && !Spent; pass++)
         {
@@ -212,13 +207,18 @@ internal sealed class CrossingRepair
         }
 
         var subset = Union(x, y);
-        var before = Count(subset, nearby[column]);
+
+        // Deliberately scored against every wire rather than a filtered set. Narrowing costs a
+        // pass over all of them, which only pays back when the same subset is then scored many
+        // times over; a swap scores twice, so filtering here measured slower than not.
+        var candidates = allWires;
+        var before = Count(subset, candidates);
         Exchange(x, y);
 
         // Cards of different heights can land on a neighbour when they trade places, and the
         // layout guarantees no overlapping cards, so such a swap is refused outright.
         if (GraphLayout.OverlapsColumn(x, column, geometry) || GraphLayout.OverlapsColumn(y, column, geometry)
-            || Count(subset, nearby[column]) >= before)
+            || Count(subset, candidates) >= before)
         {
             Exchange(x, y);
             return false;
@@ -239,7 +239,6 @@ internal sealed class CrossingRepair
 
         column.Sort(static (a, b) => a.Position.Y.CompareTo(b.Position.Y));
 
-        var candidates = nearby[column];
         var subset = new List<int>();
 
         foreach (var node in column)
@@ -255,7 +254,11 @@ internal sealed class CrossingRepair
             return false;
         }
 
+        // Reinsertion restacks the column, so a card can travel the column's whole height.
         var top = column[0].Position.Y;
+        var last = column[^1];
+        var candidates = LocalCandidates(subset, last.Position.Y + geometry.SizeOf(last).Y - top);
+
         var best = Count(subset, candidates);
         var bestOrder = new List<GraphNode>(column);
         var order = new List<GraphNode>(column);
@@ -310,7 +313,12 @@ internal sealed class CrossingRepair
             return false;
         }
 
-        var candidates = nearby[column];
+        // A slide moves this card by at most the slide limit, so anything outside its wires'
+        // bounding box grown by that much can never be crossed no matter which shift is chosen.
+        // Filtering once here instead of inside the per-shift loop is the difference between
+        // scanning every wire in the graph tens of times per card and scanning it once.
+        var candidates = LocalCandidates(touching, options.CrossingSlideLimit);
+
         var originalY = node.Position.Y;
         var bestY = originalY;
         var best = Count(touching, candidates);
@@ -347,7 +355,7 @@ internal sealed class CrossingRepair
             foreach (var other in candidates)
             {
                 if (other == wire || SharesSocket(wires[wire], wires[other])
-                    || !Intersects(from[wire], to[wire], from[other], to[other]))
+                    || !GraphWireGeometry.SegmentsIntersect(from[wire], to[wire], from[other], to[other]))
                 {
                     continue;
                 }
@@ -417,34 +425,91 @@ internal sealed class CrossingRepair
         }
     }
 
+    /// <summary>
+    /// The wires of both cards, deduplicated. Uses a stamp array rather than a fresh list and a
+    /// linear Contains, because a swap is the most frequently attempted move in the whole repair.
+    /// </summary>
     private List<int> Union(GraphNode a, GraphNode b)
     {
-        var subset = new List<int>();
+        var subset = unionScratch;
+        subset.Clear();
 
-        if (incident.TryGetValue(a, out var first))
-        {
-            subset.AddRange(first);
-        }
+        var stamp = ++unionMark;
 
-        if (incident.TryGetValue(b, out var second))
+        Take(a);
+        Take(b);
+
+        return subset;
+
+        void Take(GraphNode node)
         {
-            foreach (var wire in second)
+            if (!incident.TryGetValue(node, out var list))
             {
-                if (!subset.Contains(wire))
+                return;
+            }
+
+            foreach (var wire in list)
+            {
+                if (unionMarks[wire] != stamp)
                 {
+                    unionMarks[wire] = stamp;
                     subset.Add(wire);
                 }
             }
         }
-
-        return subset;
     }
 
-    private bool Crosses(GraphNode node, int[] candidates)
+    private bool Crosses(GraphNode node, ReadOnlySpan<int> candidates)
         => incident.TryGetValue(node, out var list) && Count(list, candidates) > 0;
 
-    /// <summary>Crossings between the given wires and the wires near their column.</summary>
-    private int Count(List<int> subset, int[] candidates)
+    private readonly List<int> localScratch = [];
+    private int[] allWires = [];
+    private readonly List<int> unionScratch = [];
+    private int[] unionMarks = [];
+    private int unionMark;
+
+    /// <summary>
+    /// The wires that could still cross <paramref name="subset"/> once its cards move by up to
+    /// <paramref name="slack"/> vertically. Conservative, so the score it feeds is exact.
+    /// </summary>
+    /// <remarks>
+    /// Returns a shared buffer that the next call overwrites: every caller filters once, then
+    /// scores many candidate positions against the result, so handing back the buffer avoids an
+    /// allocation on a path that runs thousands of times per pass.
+    /// </remarks>
+    private ReadOnlySpan<int> LocalCandidates(List<int> subset, float slack)
+    {
+        var left = float.MaxValue;
+        var right = float.MinValue;
+        var top = float.MaxValue;
+        var bottom = float.MinValue;
+
+        foreach (var wire in subset)
+        {
+            left = Math.Min(left, minX[wire]);
+            right = Math.Max(right, maxX[wire]);
+            top = Math.Min(top, minY[wire]);
+            bottom = Math.Max(bottom, maxY[wire]);
+        }
+
+        top -= slack;
+        bottom += slack;
+
+        localScratch.Clear();
+
+        for (var i = 0; i < wires.Length; i++)
+        {
+            if (minX[i] <= right && maxX[i] >= left && minY[i] <= bottom && maxY[i] >= top)
+            {
+                localScratch.Add(i);
+            }
+        }
+
+        return CollectionsMarshal.AsSpan(localScratch);
+    }
+
+    /// <summary>Crossings between the given wires and the given candidates.</summary>
+    private int Count(List<int> subset, ReadOnlySpan<int> candidates)
     {
         var crossings = 0;
 
@@ -452,13 +517,12 @@ internal sealed class CrossingRepair
         {
             foreach (var other in candidates)
             {
-                if (other == wire || SharesSocket(wires[wire], wires[other])
-                    || minX[wire] > maxX[other] || minX[other] > maxX[wire])
+                if (other == wire || !Overlaps(wire, other) || SharesSocket(wires[wire], wires[other]))
                 {
                     continue;
                 }
 
-                if (Intersects(from[wire], to[wire], from[other], to[other]))
+                if (GraphWireGeometry.SegmentsIntersect(from[wire], to[wire], from[other], to[other]))
                 {
                     crossings++;
                 }
@@ -476,12 +540,12 @@ internal sealed class CrossingRepair
         {
             for (var j = i + 1; j < wires.Length && found.Count < budget; j++)
             {
-                if (SharesSocket(wires[i], wires[j]) || minX[i] > maxX[j] || minX[j] > maxX[i])
+                if (!Overlaps(i, j) || SharesSocket(wires[i], wires[j]))
                 {
                     continue;
                 }
 
-                if (Intersects(from[i], to[i], from[j], to[j]))
+                if (GraphWireGeometry.SegmentsIntersect(from[i], to[i], from[j], to[j]))
                 {
                     found.Add((i, j));
                 }
@@ -494,17 +558,8 @@ internal sealed class CrossingRepair
     private static bool SharesSocket(GraphWire a, GraphWire b)
         => a.From == b.From || a.To == b.To || a.From == b.To || a.To == b.From;
 
-    private static bool Intersects(Vector2 p1, Vector2 p2, Vector2 p3, Vector2 p4)
-    {
-        var d1 = Cross(p3, p4, p1);
-        var d2 = Cross(p3, p4, p2);
-        var d3 = Cross(p1, p2, p3);
-        var d4 = Cross(p1, p2, p4);
-
-        return ((d1 > 0f && d2 < 0f) || (d1 < 0f && d2 > 0f))
-            && ((d3 > 0f && d4 < 0f) || (d3 < 0f && d4 > 0f));
-
-        static float Cross(Vector2 a, Vector2 b, Vector2 point)
-            => (b.X - a.X) * (point.Y - a.Y) - (b.Y - a.Y) * (point.X - a.X);
-    }
+    /// <summary>Whether two wires overlap in both axes, and so could possibly cross.</summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private bool Overlaps(int a, int b)
+        => GraphWireGeometry.BoxesOverlap(minX[a], maxX[a], minY[a], maxY[a], minX[b], maxX[b], minY[b], maxY[b]);
 }

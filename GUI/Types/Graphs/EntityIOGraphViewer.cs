@@ -621,17 +621,9 @@ internal class EntityIOGraphViewer : GLGraphViewer
             }
         }
 
-        // Socket order here is the order the entity lump happened to list the connections in,
-        // so the layout is free to reorder the rows to shorten the wires.
         foreach (var node in entityNodes.Values.Concat(syntheticNodes.Values))
         {
             node.PairSocketRows();
-            node.SocketOrderFixed = false;
-
-            foreach (var socket in node.Inputs.Concat(node.Outputs))
-            {
-                socket.OrderFixed = false;
-            }
         }
 
         // After pairing, so the annotation rows sit below the socket lines.

@@ -1013,23 +1013,12 @@ partial class GraphView : IDisposable
         // The render thread enumerates nodes/wires under this lock.
         using var _ = stateLock.EnterScope();
 
-        var components = LayoutPass(padding);
-
-        // Socket order decides where a wire docks, so it can only be judged once the cards have
-        // somewhere to be. The first pass is what tells the second one which rows to swap.
-        if (LayoutOptions.Has(GraphLayoutFeature.PortOrdering) && ReorderPorts(components))
-        {
-            LayoutPass(padding);
-        }
+        LayoutPass(padding);
 
         ClearWireHitPaths();
         OnGraphChanged();
     }
 
-    /// <summary>
-    /// Places the nodes with an outside algorithm, then refreshes everything derived from their
-    /// positions. Lets the library layouts be measured in this renderer on equal terms.
-    /// </summary>
     /// <summary>
     /// Re-runs the crossing repair with no time limit, so a graph the budgeted pass gave up on
     /// gets the full treatment when the user explicitly asks for it.
@@ -1085,42 +1074,7 @@ partial class GraphView : IDisposable
         ClearWireHitPaths();
         OnGraphChanged();
     }
-
-    /// <summary>
-    /// Orders the socket rows of every node that allows it by where its wires come from and go
-    /// to, so incident wires stop crossing inside the gutter. Returns whether anything moved.
-    /// </summary>
-    private bool ReorderPorts(List<List<GraphNode>> components)
-    {
-        var changed = false;
-
-        foreach (var component in components)
-        {
-            foreach (var node in component)
-            {
-                changed |= node.ReorderSockets(socket =>
-                {
-                    if (socket.Wires.Count == 0)
-                    {
-                        return Geometry.PivotOf(socket).Y;
-                    }
-
-                    var sum = 0f;
-
-                    foreach (var wire in socket.Wires)
-                    {
-                        sum += Geometry.PivotOf(wire.From == socket ? wire.To : wire.From).Y;
-                    }
-
-                    return sum / socket.Wires.Count;
-                });
-            }
-        }
-
-        return changed;
-    }
-
-    private List<List<GraphNode>> LayoutPass(float padding)
+    private void LayoutPass(float padding)
     {
         EnsureAllGeometry();
         Geometry.ClearAllRoutes();
@@ -1162,6 +1116,10 @@ partial class GraphView : IDisposable
             }
         }
 
+        // One clock for the whole graph: the repair budget is what the caller is prepared to wait
+        // for a layout, not what it will wait for each of a hundred islands.
+        LayoutOptions.RepairClock = System.Diagnostics.Stopwatch.StartNew();
+
         for (var i = 0; i < components.Count; i++)
         {
             var component = components[i];
@@ -1173,6 +1131,23 @@ partial class GraphView : IDisposable
             }
 
             GraphLayout.Layout(component, componentWires[i], Placement, Geometry, LayoutOptions);
+        }
+
+        LayoutOptions.RepairClock = null;
+
+        // Nodes with no wires at all carry no structure to read, so mixing them into the packing
+        // just pushes the parts that do connect further apart and buries them among the rest.
+        // They go in their own column off to the right instead, the way the viewer this replaces
+        // parked them, leaving the packed area to the graphs that actually have edges.
+        var loose = components.Where(static c => c.Count == 1 && c[0].Inputs.Concat(c[0].Outputs).All(static s => s.Wires.Count == 0)).ToList();
+
+        if (loose.Count > 0 && loose.Count < components.Count)
+        {
+            components = [.. components.Where(c => !loose.Contains(c))];
+        }
+        else
+        {
+            loose.Clear();
         }
 
         // Pack the island bounding boxes toward a screen-like aspect so large graphs open
@@ -1244,7 +1219,38 @@ partial class GraphView : IDisposable
             }
         }
 
-        return components;
+        StackLooseNodes(loose, padding);
+    }
+
+    /// <summary>
+    /// Puts the wireless nodes in a single column past the right edge of everything else, stacked
+    /// in creation order.
+    /// </summary>
+    private void StackLooseNodes(List<List<GraphNode>> loose, float padding)
+    {
+        if (loose.Count == 0)
+        {
+            return;
+        }
+
+        var right = float.MinValue;
+
+        foreach (var node in nodes)
+        {
+            if (!node.Hidden && !loose.Any(c => c[0] == node))
+            {
+                right = Math.Max(right, node.Position.X + Geometry.SizeOf(node).X);
+            }
+        }
+
+        var x = right > float.MinValue ? right + padding * 2f : 0f;
+        var y = 0f;
+
+        foreach (var node in loose.Select(static c => c[0]).OrderBy(static n => n.Sequence))
+        {
+            node.Position = new Vector2(x, y);
+            y += Geometry.SizeOf(node).Y + LayoutOptions.NodeSpacing;
+        }
     }
 
     /// <summary>

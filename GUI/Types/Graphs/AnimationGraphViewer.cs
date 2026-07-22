@@ -748,6 +748,10 @@ internal class AnimationGraphViewer : GLGraphViewer
             }
         }
 
+        // One connected pose graph, so routing long wires through dummy ranks pays here. Entity
+        // graphs are many small islands where it costs more than it saves, which is why this is
+        // not on by default.
+        View.LayoutOptions.Features |= GraphLayoutFeature.LongWireDummies;
         View.LayoutNodesPacked();
 
         View.Legend.AddRange(
