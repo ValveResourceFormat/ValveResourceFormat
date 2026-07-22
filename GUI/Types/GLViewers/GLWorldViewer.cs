@@ -360,6 +360,11 @@ namespace GUI.Types.GLViewers
 
                     CheckBox? occlusionCullingCheckBox = null;
 
+                    if (GLEnvironment.SlowMultiDrawIndirect)
+                    {
+                        Scene.EnableIndirectDraws = false;
+                    }
+
                     UiControl.AddCheckBox("GPU Culling", Scene.EnableIndirectDraws, v =>
                     {
                         Scene.EnableIndirectDraws = v;

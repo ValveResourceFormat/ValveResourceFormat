@@ -62,7 +62,7 @@ namespace ValveResourceFormat.Renderer.Utils
         /// <param name="g">Green component (0.0-1.0).</param>
         /// <param name="b">Blue component (0.0-1.0).</param>
         /// <param name="a">Alpha component (0.0-1.0).</param>
-        public Color32(float r, float g, float b, float a) : this((byte)(r * 255), (byte)(g * 255), (byte)(b * 255), (byte)(a * 255))
+        public Color32(float r, float g, float b, float a) : this((byte)(r * 255f + 0.5f), (byte)(g * 255f + 0.5f), (byte)(b * 255f + 0.5f), (byte)(a * 255f + 0.5f))
         {
             Debug.Assert(
                 r >= 0.0f && r <= 1.0f && g >= 0.0f && g <= 1.0f && b >= 0.0f && b <= 1.0f && a >= 0.0f && a <= 1.0f,

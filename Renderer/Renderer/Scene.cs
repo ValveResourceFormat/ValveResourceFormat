@@ -374,12 +374,6 @@ namespace ValveResourceFormat.Renderer
                 node.Update(updateContext);
             }
 
-            if (StaticOctree.Dirty)
-            {
-                // we disabled or enabled some static node
-                CreateIndirectDrawBuffers(true);
-            }
-
             foreach (var node in dynamicNodes)
             {
                 if (node.Parent != null)
@@ -398,9 +392,18 @@ namespace ValveResourceFormat.Renderer
 
             if (StaticOctree.Dirty || DynamicOctree.Dirty)
             {
+                // Indirect draw commands bake node ids, so recreate them only after reindexing
+                var staticDirty = StaticOctree.Dirty;
+
                 UpdateOctrees();
                 UpdateNodeIndices();
                 CreateInstanceTransformBuffers(deletePrevious: true);
+
+                if (staticDirty)
+                {
+                    // a static node was disabled, enabled, added, or removed
+                    CreateIndirectDrawBuffers(true);
+                }
             }
         }
 
@@ -536,17 +539,22 @@ namespace ValveResourceFormat.Renderer
                 var meshletDataGpu = new MeshletCullInfo[aggregateMeshletCount];
                 var indirectDrawsGpu = new DrawElementsIndirectCommand[aggregateMeshletCount];
 
+                // Commands are laid out by meshlet index, so each draw call multidraws its
+                // [FirstMeshlet, FirstMeshlet + NumMeshlets) range within the aggregate
                 var sceneDrawCount = 0;
                 var sceneMeshletCount = 0;
-                var aggregateIndex = 0;
+                var compactionRequestList = new List<uint>();
+
                 foreach (var agg in aggregateSceneNodes)
                 {
                     agg.IndirectDrawByteOffset = sceneMeshletCount * Unsafe.SizeOf<DrawElementsIndirectCommand>();
                     agg.IndirectDrawCount = agg.RenderMesh.Meshlets.Count;
-                    agg.CompactionIndex = aggregateIndex++;
+
+                    agg.CompactionIndex = compactionRequestList.Count / 2;
+                    compactionRequestList.Add((uint)agg.RenderMesh.Meshlets.Count);
+                    compactionRequestList.Add((uint)sceneMeshletCount);
 
                     var drawIndex = 0;
-                    var indirectDrawCount = 0;
                     foreach (var fragment in agg.Fragments)
                     {
                         var fragmentInstanceId = fragment.Id;
@@ -558,7 +566,9 @@ namespace ValveResourceFormat.Renderer
                         for (var drawMeshletIndex = start; drawMeshletIndex < stop; drawMeshletIndex++)
                         {
                             var meshlet = agg.RenderMesh.Meshlets[drawMeshletIndex];
-                            meshletDataGpu[sceneMeshletCount] = new MeshletCullInfo
+                            var commandIndex = sceneMeshletCount + drawMeshletIndex;
+
+                            meshletDataGpu[commandIndex] = new MeshletCullInfo
                             {
                                 Bounds = meshlet.PackedAABB,
                                 Cone = meshlet.CullingData,
@@ -586,7 +596,7 @@ namespace ValveResourceFormat.Renderer
 
                             // what is meshlet.VertexOffset used for?
 
-                            indirectDrawsGpu[sceneMeshletCount] = new DrawElementsIndirectCommand
+                            indirectDrawsGpu[commandIndex] = new DrawElementsIndirectCommand
                             {
                                 Count = count,
                                 InstanceCount = 1,
@@ -594,17 +604,12 @@ namespace ValveResourceFormat.Renderer
                                 BaseVertex = drawCall.BaseVertex,
                                 BaseInstance = fragmentInstanceId,
                             };
-
-                            sceneMeshletCount++;
-                            indirectDrawCount++;
                         }
 
                         drawIndex++;
                     }
 
-                    // can be smaller than serialized meshlets due to LoD filtering
-                    agg.IndirectDrawCount = indirectDrawCount;
-
+                    sceneMeshletCount += agg.RenderMesh.Meshlets.Count;
                     sceneDrawCount += agg.Fragments.Count;
                 }
 
@@ -620,22 +625,10 @@ namespace ValveResourceFormat.Renderer
                 CompactedDrawsGpu = new StorageBuffer(ReservedBufferSlots.CompactedDraws);
                 CompactedDrawsGpu.Create(indirectDrawsGpu, BufferUsageHint.DynamicDraw);
 
-                CompactedCountsGpu = StorageBuffer.Allocate<uint>(ReservedBufferSlots.CompactedCounts, aggregateSceneNodes.Count, BufferUsageHint.DynamicDraw);
-
-                // Create compaction requests (one per aggregate)
-                var compactionRequests = new uint[aggregateSceneNodes.Count * 2];
-                for (var i = 0; i < aggregateSceneNodes.Count; i++)
-                {
-                    var agg = aggregateSceneNodes[i];
-                    var startIndex = agg.IndirectDrawByteOffset / Unsafe.SizeOf<DrawElementsIndirectCommand>();
-                    var drawCount = agg.IndirectDrawCount;
-
-                    compactionRequests[i * 2 + 0] = (uint)drawCount;
-                    compactionRequests[i * 2 + 1] = (uint)startIndex;
-                }
+                CompactedCountsGpu = StorageBuffer.Allocate<uint>(ReservedBufferSlots.CompactedCounts, compactionRequestList.Count / 2, BufferUsageHint.DynamicDraw);
 
                 CompactionRequestsGpu = new StorageBuffer(ReservedBufferSlots.CompactionRequests);
-                CompactionRequestsGpu.Create(compactionRequests, BufferUsageHint.StaticDraw);
+                CompactionRequestsGpu.Create(compactionRequestList);
             }
 
             OcclusionDebug = new OcclusionDebugRenderer(this, RendererContext);

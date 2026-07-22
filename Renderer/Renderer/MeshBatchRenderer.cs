@@ -287,12 +287,18 @@ namespace ValveResourceFormat.Renderer
 
             if (config.IndirectDraw)
             {
-                if (request.Node is SceneAggregate agg && agg.IndirectDrawCount > 0 && agg.CompactionIndex >= 0)
+                if (request.Node is SceneAggregate agg && agg.IndirectDrawCount > 0)
                 {
-                    PerfStats.Active.CountIndirectDraw(agg);
+                    // Non-indirect draws below reset this program uniform
+                    if (uniforms.IsInstancing > -1)
+                    {
+                        GL.ProgramUniform1((uint)shader.Program, uniforms.IsInstancing, 1);
+                    }
+
+                    PerfStats.Active.CountIndirectDraw(agg.IndirectDrawCount);
 
                     var scene = agg.Scene;
-                    if (scene.CompactMeshletDraws)
+                    if (scene.CompactMeshletDraws && agg.CompactionIndex >= 0)
                     {
                         GL.MultiDrawElementsIndirectCount(
                             request.Call.PrimitiveType,

@@ -214,14 +214,14 @@ public class PerfStats
         counts[(int)Counter.DrawCall]++;
     }
 
-    internal void CountIndirectDraw(SceneAggregate aggregate)
+    internal void CountIndirectDraw(int indirectDrawCount)
     {
         if (!Counting)
         {
             return;
         }
 
-        counts[(int)Counter.MeshletDispatch] += aggregate.IndirectDrawCount;
+        counts[(int)Counter.MeshletDispatch] += indirectDrawCount;
     }
 
     /// <summary>Counts a light that passed frustum culling this frame.</summary>
