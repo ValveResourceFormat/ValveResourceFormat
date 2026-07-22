@@ -30,6 +30,10 @@ layout(binding = 7, std430) buffer OccludedBoundsDebugBuffer
 {
     uint occludedCount;
     uint padding[3];
+    uint indirectVertexCount;
+    uint indirectInstanceCount;
+    uint indirectFirst;
+    uint indirectBaseInstance;
     DrawBounds occludedBounds[];
 };
 

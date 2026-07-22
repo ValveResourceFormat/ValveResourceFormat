@@ -1178,17 +1178,29 @@ namespace ValveResourceFormat.Renderer
             DrawBoundsGpu.BindBufferBase();
             IndirectDrawsGpu.BindBufferBase();
 
+            var occlusionDebugEnabled = OcclusionDebugEnabled && OcclusionDebug != null;
+
             // Bind debug buffer for occluded bounds visualization
-            if (OcclusionDebugEnabled)
+            if (occlusionDebugEnabled)
             {
                 OcclusionDebug!.BindAndClearBuffer();
             }
-            FrustumCullShader.SetUniform1("g_bOcclusionDebugEnabled", OcclusionDebugEnabled);
+            FrustumCullShader.SetUniform1("g_bOcclusionDebugEnabled", occlusionDebugEnabled);
 
             var workGroups = (SceneMeshletCount + 63) / 64;
             GL.DispatchCompute(workGroups, 1, 1);
 
             GL.MemoryBarrier(MemoryBarrierFlags.ShaderStorageBarrierBit);
+
+            if (occlusionDebugEnabled)
+            {
+                // Converts occludedCount into a DrawArraysIndirectCommand on the GPU so
+                // OcclusionDebugRenderer.Render() can draw without a CPU readback/stall.
+                // The barrier above makes occludedCount visible to this dispatch; the
+                // CommandBarrierBit barrier in RenderOpaqueLayer covers its own output
+                // being visible to the later indirect draw.
+                OcclusionDebug!.DispatchFinalize();
+            }
         }
 
         /// <summary>
