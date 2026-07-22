@@ -323,6 +323,72 @@ internal class AnimationGraphViewer : GLGraphViewer
                     CreateInputAndChild<Pose>(node, optionNodeIdx, $"Option {++i} {weightDesc}");
                 }
             }
+            else if (node.NodeType is "IDBasedSelector" or "IDBasedClipSelector")
+            {
+                CreateInputAndChild<Value>(node, data.GetInt32Property("m_nParameterNodeIdx", -1), "Parameter");
+
+                var fallbackNodeIdx = data.GetInt32Property("m_nFallbackNodeIdx", -1);
+
+                if (fallbackNodeIdx != -1)
+                {
+                    CreateInputAndChild<Pose>(node, fallbackNodeIdx, "Fallback");
+                }
+
+                // The option a given ID selects is positional, so the label carries the ID it matches.
+                var options = data.GetArray<int>("m_optionNodeIndices");
+                var optionIds = data.GetArray<string>("m_optionIDs");
+
+                for (var i = 0; i < options.Length; i++)
+                {
+                    var label = i < optionIds.Length ? optionIds[i] : $"Option {i + 1}";
+                    CreateInputAndChild<Pose>(node, options[i], label);
+                }
+            }
+            else if (node.NodeType is "FloatSwitch" or "IDSwitch" or "BoneMaskSwitch")
+            {
+                CreateInputAndChild<Value>(node, data.GetInt32Property("m_nSwitchValueNodeIdx", -1), "Switch");
+
+                // Either branch may be a constant instead of a wired node, in which case the
+                // constant it falls back to is worth showing in its place.
+                var trueNodeIdx = data.GetInt32Property("m_nTrueValueNodeIdx", -1);
+                var falseNodeIdx = data.GetInt32Property("m_nFalseValueNodeIdx", -1);
+
+                if (trueNodeIdx != -1)
+                {
+                    CreateInputAndChild<Value>(node, trueNodeIdx, "True");
+                }
+
+                if (falseNodeIdx != -1)
+                {
+                    CreateInputAndChild<Value>(node, falseNodeIdx, "False");
+                }
+
+                if (node.NodeType is "FloatSwitch")
+                {
+                    if (trueNodeIdx == -1) { node.AddText($"True: {data.GetFloatProperty("m_flTrueValue"):f}"); }
+                    if (falseNodeIdx == -1) { node.AddText($"False: {data.GetFloatProperty("m_flFalseValue"):f}"); }
+                }
+                else if (node.NodeType is "IDSwitch")
+                {
+                    if (trueNodeIdx == -1) { node.AddText($"True: '{data.GetStringProperty("m_trueValue")}'"); }
+                    if (falseNodeIdx == -1) { node.AddText($"False: '{data.GetStringProperty("m_falseValue")}'"); }
+                }
+                else
+                {
+                    node.AddText($"Blend Time: {data.GetFloatProperty("m_flBlendTimeSeconds"):F2}");
+                    node.AddText($"Switch Dynamically: {data.GetBooleanProperty("m_bSwitchDynamically")}");
+                }
+            }
+            else if (node.NodeType is "OrientationWarp")
+            {
+                CreateInputAndChild<Pose>(node, data.GetInt32Property("m_nClipReferenceNodeIdx", -1), "Clip");
+                CreateInputAndChild<Value>(node, data.GetInt32Property("m_nTargetValueNodeIdx", -1), "Target");
+
+                node.AddText($"Offset: {data.GetBooleanProperty("m_bIsOffsetNode")}");
+                node.AddText($"Relative To Character: {data.GetBooleanProperty("m_bIsOffsetRelativeToCharacter")}");
+                node.AddText($"Warp Translation: {data.GetBooleanProperty("m_bWarpTranslation")}");
+                node.AddText($"Sampling: {data.GetStringProperty("m_samplingMode")}");
+            }
             else if (node.NodeType is "Selector" or "ClipSelector")
             {
                 // Select the first option for which the condition passes?
@@ -529,6 +595,15 @@ internal class AnimationGraphViewer : GLGraphViewer
                         node.AddText($"{data.GetFloatProperty("m_flComparisonValue"):f}");
                     }
                 }
+                else if (node.NodeType is "FloatRangeComparison")
+                {
+                    var range = data.GetSubCollection("m_range");
+                    var inclusive = data.GetBooleanProperty("m_bIsInclusiveCheck");
+
+                    node.AddText(inclusive
+                        ? $"{range.GetFloatProperty("m_flMin"):f} <= x <= {range.GetFloatProperty("m_flMax"):f}"
+                        : $"{range.GetFloatProperty("m_flMin"):f} < x < {range.GetFloatProperty("m_flMax"):f}");
+                }
                 else
                 {
                     Log.Error(nameof(AnimationGraphViewer), $"Generic handled node: {node.NodeType} ({node.Name})");
@@ -603,15 +678,17 @@ internal class AnimationGraphViewer : GLGraphViewer
                 }
                 else if (node.NodeType is "AimCS")
                 {
-                    childCount = 8;
+                    childCount = 10;
 
                     AddMaybeOptionalInput("Vertical Angle", data.GetInt32Property("m_nVerticalAngleNodeIdx"));
                     AddMaybeOptionalInput("Horizontal Angle", data.GetInt32Property("m_nHorizontalAngleNodeIdx"));
                     AddMaybeOptionalInput("Weapon Category", data.GetInt32Property("m_nWeaponCategoryNodeIdx"));
                     AddMaybeOptionalInput("Weapon Type", data.GetInt32Property("m_nWeaponTypeNodeIdx"));
-                    AddMaybeOptionalInput("Is Weapon Action Active", data.GetInt32Property("m_nIsWeaponActionActiveNodeIdx"));
-                    AddMaybeOptionalInput("Weapon Drop", data.GetInt32Property("m_nWeaponDropNodeIdx"));
-                    AddMaybeOptionalInput("Disable Hand IK", data.GetInt32Property("m_nDisableHandIKNodeIdx"));
+                    AddMaybeOptionalInput("Is Weapon Action Active", data.GetInt32Property("m_nIsWeaponActionActiveNodeIdx", -1));
+                    AddMaybeOptionalInput("Weapon Action", data.GetInt32Property("m_nWeaponActionNodeIdx", -1));
+                    AddMaybeOptionalInput("Weapon Drop", data.GetInt32Property("m_nWeaponDropNodeIdx", -1));
+                    AddMaybeOptionalInput("Is Defusing", data.GetInt32Property("m_nIsDefusingNodeIdx", -1));
+                    AddMaybeOptionalInput("Disable Hand IK", data.GetInt32Property("m_nDisableHandIKNodeIdx", -1));
                     AddMaybeOptionalInput("Crouch Weight", data.GetInt32Property("m_nCrouchWeightNodeIdx"));
 
                     node.AddText($"Hand IK Blend In: {data.GetFloatProperty("m_flHandIKBlendInTimeSeconds"):F2}");
