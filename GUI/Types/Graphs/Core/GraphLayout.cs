@@ -77,16 +77,11 @@ internal static class GraphLayout
     }
 
     /// <summary>
-    /// Swaps vertically adjacent nodes in a column whenever that removes a crossing, measured on
-    /// the straight run between the real socket pivots.
+    /// Moves placed cards to remove wire crossings and to clear wires that run across them,
+    /// judged on the straight run between the real socket pivots.
     /// </summary>
     /// <remarks>
-    /// Every other ordering pass reasons about nodes: it sees that two producers both feed one
-    /// consumer and has no reason to prefer either order. The crossing is created further down,
-    /// by which socket row each wire lands on, and is only visible once the cards have real
-    /// coordinates. So this runs last, on geometry, and is the only pass that can fix the case
-    /// where two wires into one node cross because its input rows are in the opposite order to
-    /// their sources.
+    /// Runs last, on geometry, and is the only pass that sees which socket row a wire docks at.
     /// </remarks>
     public static void RepairCrossings(List<GraphNode> component, List<GraphWire> componentWires, GraphGeometry geometry, GraphLayoutOptions options)
     {
@@ -662,14 +657,20 @@ internal static class GraphLayout
                 }
             }
 
-            if (!options.Has(GraphLayoutFeature.LongWireDummies))
+            if (!options.Has(GraphLayoutFeature.TightenRanks))
             {
                 return;
             }
 
-            // Longest-path ranking maximises span, and every extra rank a wire crosses is a
-            // dummy and a chance to cross something. Walking the order backwards and pulling
-            // each node up against its nearest successor removes most of that slack.
+            // Longest-path ranking maximises span: a sourceless chain lands at the left edge no
+            // matter how far right the node it feeds sits. Walking the order backwards and pulling
+            // each node up against its nearest successor moves the whole chain beside its consumer,
+            // and because the walk is in reverse topological order the whole chain follows.
+            //
+            // Only spans past the threshold are closed. Slack of a rank or two is what gives the
+            // ordering and repair passes room to work, so compressing it costs more crossings than
+            // the shorter wires save; the pathological case this targets is a chain that sits at
+            // the left edge with one wire reaching the far side of the graph.
             for (var i = topological.Count - 1; i >= 0; i--)
             {
                 var node = topological[i];
@@ -686,7 +687,7 @@ internal static class GraphLayout
                     tightest = Math.Min(tightest, rankOf[target]);
                 }
 
-                if (tightest != int.MaxValue && tightest - 1 > rankOf[node])
+                if (tightest != int.MaxValue && tightest - rankOf[node] > options.TightenMinSpan)
                 {
                     rankOf[node] = tightest - 1;
                 }
@@ -1102,9 +1103,8 @@ internal static class GraphLayout
 
             for (var r = 0; r < ranks.Length; r++)
             {
-                // The rank order is the crossing-minimised one; wrapping must chunk it, never
-                // re-sort it. Reordering a wrapped rank by flow affinity was tried and tripled
-                // the crossings on a1_intro_world, because it discards that ordering wholesale.
+                // The rank order is the crossing-minimised one, so wrapping chunks it rather than
+                // re-sorting it; any reordering here would discard that ordering wholesale.
                 var members = ranks[r];
 
                 var column = new List<int>();

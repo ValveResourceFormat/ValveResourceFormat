@@ -143,6 +143,122 @@ internal static class GraphLayoutScorer
         static string Pad(string text) => (text.Length > 26 ? text[..26] : text).PadRight(26);
     }
 
+    /// <summary>
+    /// For each card matching the filter, every wire into it in dock order alongside the source's
+    /// position and how many cards feed that source exclusively. Shows whether two crossing wires
+    /// into one card could be uncrossed by exchanging the branches behind them.
+    /// </summary>
+    public static List<string> DescribeInputOrder(IReadOnlyList<GraphNode> nodes, GraphGeometry geometry, string filter)
+    {
+        var lines = new List<string>();
+
+        foreach (var node in nodes.Where(n => n.Title.Contains(filter, StringComparison.OrdinalIgnoreCase)))
+        {
+            lines.Add($"{node.Title} at ({node.Position.X:F0},{node.Position.Y:F0})");
+
+            foreach (var socket in node.Inputs)
+            {
+                foreach (var wire in socket.Wires)
+                {
+                    var source = wire.From.Owner;
+                    var branch = new HashSet<GraphNode>();
+                    Upstream(source, node, branch);
+
+                    lines.Add($"    dock y{geometry.PivotOf(socket).Y:F0} '{socket.Name}'"
+                        + $" <- {source.Title} out y{geometry.PivotOf(wire.From).Y:F0}"
+                        + $" at x{source.Position.X:F0}, exclusive upstream {branch.Count}");
+                }
+            }
+
+            // Wires drawn across this card, with the move that would clear each one and whatever
+            // in the same column stands in the way of taking it.
+            var box = (Min: node.Position, Max: node.Position + geometry.SizeOf(node));
+
+            foreach (var other in nodes)
+            {
+                foreach (var wire in other.Outputs.SelectMany(static s => s.Wires))
+                {
+                    if (wire.From.Owner == node || wire.To.Owner == node)
+                    {
+                        continue;
+                    }
+
+                    var a = geometry.PivotOf(wire.From);
+                    var b = geometry.PivotOf(wire.To);
+
+                    if (!GraphWireGeometry.SegmentCrossesBox(a, b, box.Min, box.Max))
+                    {
+                        continue;
+                    }
+
+                    var span = Math.Abs(b.X - a.X);
+                    var t = span > 0.01f ? Math.Clamp(((box.Min.X + box.Max.X) / 2f - Math.Min(a.X, b.X)) / span, 0f, 1f) : 0f;
+                    var left = a.X <= b.X ? a : b;
+                    var right = a.X <= b.X ? b : a;
+                    var height = left.Y + ((right.Y - left.Y) * t);
+
+                    var blockers = nodes.Where(n => n != node
+                        && Math.Abs(n.Position.X - node.Position.X) < 8f
+                        && Math.Abs((n.Position.Y + geometry.SizeOf(n).Y / 2f) - (box.Min.Y + box.Max.Y) / 2f) < 400f)
+                        .Select(n => $"{n.Title}@y{n.Position.Y:F0}");
+
+                    lines.Add($"    CROSSED BY {wire.From.Owner.Title} -> {wire.To.Owner.Title}"
+                        + $" at y{height:F0}; card y{box.Min.Y:F0}..{box.Max.Y:F0};"
+                        + $" down {height + 32f - box.Min.Y:+0;-0;0} up {height - 32f - box.Max.Y:+0;-0;0};"
+                        + $" column neighbours: {string.Join(", ", blockers)}");
+                }
+            }
+
+            // Pairwise, on both the chord the repair scores and the curve the renderer draws, so
+            // a disagreement between the two shows up here rather than as a mismatch with the eye.
+            var incoming = node.Inputs.SelectMany(static s => s.Wires).ToList();
+            var buffer = new List<Vector2>();
+            var sampled = new List<List<Vector2>>();
+
+            foreach (var wire in incoming)
+            {
+                GraphWireGeometry.Sample(buffer, geometry, wire);
+                sampled.Add([.. buffer]);
+            }
+
+            for (var i = 0; i < incoming.Count; i++)
+            {
+                for (var j = i + 1; j < incoming.Count; j++)
+                {
+                    var a1 = geometry.PivotOf(incoming[i].From);
+                    var a2 = geometry.PivotOf(incoming[i].To);
+                    var b1 = geometry.PivotOf(incoming[j].From);
+                    var b2 = geometry.PivotOf(incoming[j].To);
+
+                    lines.Add($"    pair {incoming[i].From.Owner.Title} x {incoming[j].From.Owner.Title}:"
+                        + $" chord {GraphWireGeometry.SegmentsIntersect(a1, a2, b1, b2)}"
+                        + $", curve {PathsIntersect(sampled[i], sampled[j])}"
+                        + $"  [({a1.X:F0},{a1.Y:F0})->({a2.X:F0},{a2.Y:F0})]"
+                        + $" [({b1.X:F0},{b1.Y:F0})->({b2.X:F0},{b2.Y:F0})]");
+                }
+            }
+        }
+
+        return lines;
+
+        // Everything reachable backwards from source without passing through the consumer.
+        static void Upstream(GraphNode node, GraphNode stop, HashSet<GraphNode> seen)
+        {
+            if (node == stop || !seen.Add(node))
+            {
+                return;
+            }
+
+            foreach (var socket in node.Inputs)
+            {
+                foreach (var wire in socket.Wires)
+                {
+                    Upstream(wire.From.Owner, stop, seen);
+                }
+            }
+        }
+    }
+
     public static GraphLayoutMetrics Measure(IReadOnlyList<GraphNode> nodes, IReadOnlyList<GraphWire> wires, GraphGeometry geometry, bool straight = false)
     {
         var visibleNodes = nodes.Where(static n => !n.Hidden).ToList();

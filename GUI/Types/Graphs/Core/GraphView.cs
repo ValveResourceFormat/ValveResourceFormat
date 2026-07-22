@@ -1,4 +1,6 @@
-﻿using System.Linq;
+﻿using System.Globalization;
+using System.Linq;
+using System.Text;
 using System.Windows.Forms;
 using SkiaSharp;
 
@@ -1052,6 +1054,53 @@ partial class GraphView : IDisposable
         }
 
         OnGraphChanged();
+    }
+
+    /// <summary>
+    /// The whole graph as text: every card's placement and every wire's two dock points, plus the
+    /// crossing and over-card counts. Captures an arrangement made by hand so it can be compared
+    /// against what the layout produces.
+    /// </summary>
+    public string DescribeLayout(string title)
+    {
+        using var _ = stateLock.EnterScope();
+
+        EnsureAllGeometry();
+
+        var metrics = GraphLayoutScorer.Measure(nodes, wires, Geometry, StraightWires);
+        var text = new StringBuilder();
+
+        text.Append("graph ").AppendLine(title);
+
+        text.AppendLine(CultureInfo.InvariantCulture,
+            $"nodes {metrics.Nodes}  wires {metrics.Wires}  crossings {metrics.WireCrossings}  wires over cards {metrics.WiresOverNodes}  extent {metrics.Extent.X:F0}x{metrics.Extent.Y:F0}");
+
+        text.AppendLine();
+        text.AppendLine("[cards]  title | left | top | width | height");
+
+        foreach (var node in nodes.Where(static n => !n.Hidden).OrderBy(static n => n.Position.X).ThenBy(static n => n.Position.Y))
+        {
+            var size = Geometry.SizeOf(node);
+
+            text.AppendLine(CultureInfo.InvariantCulture,
+                $"{node.Title} | {node.Position.X:F0} | {node.Position.Y:F0} | {size.X:F0} | {size.Y:F0}");
+        }
+
+        text.AppendLine();
+        text.AppendLine("[wires]  source.socket @x,y -> target.socket @x,y");
+
+        foreach (var wire in wires.Where(static w => !w.From.Owner.Hidden && !w.To.Owner.Hidden))
+        {
+            var from = Geometry.PivotOf(wire.From);
+            var to = Geometry.PivotOf(wire.To);
+
+            text.AppendLine(CultureInfo.InvariantCulture,
+                $"{wire.From.Owner.Title}.{SocketLabel(wire.From)} @{from.X:F0},{from.Y:F0} -> {wire.To.Owner.Title}.{SocketLabel(wire.To)} @{to.X:F0},{to.Y:F0}");
+        }
+
+        return text.ToString();
+
+        static string SocketLabel(GraphSocket socket) => socket.Name.Length == 0 ? "<flow>" : socket.Name;
     }
 
     internal void LayoutWith(Action<IReadOnlyList<GraphNode>, IReadOnlyList<GraphWire>> place)

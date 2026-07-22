@@ -748,10 +748,11 @@ internal class AnimationGraphViewer : GLGraphViewer
             }
         }
 
-        // One connected pose graph, so routing long wires through dummy ranks pays here. Entity
-        // graphs are many small islands where it costs more than it saves, which is why this is
-        // not on by default.
+        // A pose graph is one connected DAG, where routing a long wire through dummy ranks keeps
+        // it between the cards of the ranks it spans rather than over them, and where closing
+        // every rank of slack pays off instead of costing the room the repair moves cards in.
         View.LayoutOptions.Features |= GraphLayoutFeature.LongWireDummies;
+        View.LayoutOptions.TightenMinSpan = 1;
         View.LayoutNodesPacked();
 
         View.Legend.AddRange(

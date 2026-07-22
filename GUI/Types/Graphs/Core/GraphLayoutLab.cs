@@ -56,28 +56,31 @@ internal static class GraphLayoutLab
                 view.LayoutNodesPacked();
             }),
 
-        new("5-branch-wide", "Every general-purpose improvement, at the settled spacing (320 / 44)",
+        new("5-branch-wide", "Every general-purpose improvement, at the settled spacing",
             static view =>
             {
                 view.LayoutOptions = Tune(new GraphLayoutOptions());
                 view.LayoutNodesPacked();
             }),
 
-        new("6-branch-final", "The kept set: alignment, barycentre, crossing repair, and dummies only on animation graphs",
+        new("6-branch-final", "The kept set: every general-purpose pass, and dummies only on animation graphs",
             static view =>
             {
-                var features = GraphLayoutFeature.PortAwareAlignment
-                    | GraphLayoutFeature.BarycentreRepair
-                    | GraphLayoutFeature.CrossingSwap;
+                var features = GraphLayoutFeature.All;
 
-                // Dummies are the one feature whose value flips with graph shape: essential on a
-                // single connected animation DAG, actively harmful on many-island entity graphs.
+                // Dummies and full rank tightening both flip with graph shape: they pay off on a
+                // single connected animation DAG and cost crossings on many-island entity graphs,
+                // so this mirrors what the animation graph viewers ask for.
+                var options = new GraphLayoutOptions();
+
                 if (animationGraph)
                 {
                     features |= GraphLayoutFeature.LongWireDummies;
+                    options.TightenMinSpan = 1;
                 }
 
-                view.LayoutOptions = Tune(new GraphLayoutOptions { Features = features });
+                options.Features = features;
+                view.LayoutOptions = Tune(options);
                 view.LayoutNodesPacked();
             }),
     ];
@@ -88,7 +91,19 @@ internal static class GraphLayoutLab
     /// <summary>Restricts the --node diagnostic to cards whose title contains this.</summary>
     private static string? nodeFilter;
 
+    /// <summary>Writes each variant's card and wire coordinates beside its image, for diffing against a hand-made arrangement.</summary>
+    private static bool dumpLayouts;
+
+    /// <summary>Features --drop removes from every variant, so one pass can be scored against the same run without it.</summary>
+    private static GraphLayoutFeature droppedFeatures;
+
+    private static int tightenSpanOverride = -1;
+
     private static int budgetOverride = -1;
+
+    private static float clearanceOverride = -1f;
+    private static float nodeSpacingOverride = -1f;
+    private static int toleranceOverride = -1;
 
     private static GraphLayoutOptions Tune(GraphLayoutOptions options)
     {
@@ -96,6 +111,28 @@ internal static class GraphLayoutLab
         {
             options.CrossingRepairBudgetMs = budgetOverride;
         }
+
+        if (clearanceOverride >= 0f)
+        {
+            options.WireClearance = clearanceOverride;
+        }
+
+        if (toleranceOverride >= 0)
+        {
+            options.ClearCrossingTolerance = toleranceOverride;
+        }
+
+        if (nodeSpacingOverride >= 0f)
+        {
+            options.NodeSpacing = nodeSpacingOverride;
+        }
+
+        if (tightenSpanOverride >= 0)
+        {
+            options.TightenMinSpan = tightenSpanOverride;
+        }
+
+        options.Features &= ~droppedFeatures;
 
         return options;
     }
@@ -107,6 +144,7 @@ internal static class GraphLayoutLab
         (GraphLayoutFeature.BarycentreRepair, "barycentre"),
         (GraphLayoutFeature.LongWireDummies, "dummies"),
         (GraphLayoutFeature.CrossingSwap, "swap-nodes"),
+        (GraphLayoutFeature.TightenRanks, "tighten-ranks"),
     ];
 
     /// <summary>
@@ -207,8 +245,6 @@ internal static class GraphLayoutLab
         return trimmed.Length > 8 ? trimmed[..8] : trimmed;
     }
 
-    // Delegates the library layout needs; it is deliberately ignorant of this graph model.
-
     /// <summary>Largest edge of a rendered image, in pixels; raise it with --maxedge.</summary>
     private static int maxImageEdge = 2600;
 
@@ -277,7 +313,35 @@ internal static class GraphLayoutLab
 
         pathFilters = ArgValue(args, "--match")?.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries) ?? [];
         var explain = args.Contains("--explain");
+        dumpLayouts = args.Contains("--dump");
+        droppedFeatures = GraphLayoutFeature.None;
+
+        foreach (var dropped in ArgValue(args, "--drop")?.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries) ?? [])
+        {
+            droppedFeatures |= Features.First(f => f.Name == dropped).Feature;
+        }
+
         nodeFilter = ArgValue(args, "--node");
+
+        if (int.TryParse(ArgValue(args, "--tightenspan"), out var tightenSpan))
+        {
+            tightenSpanOverride = tightenSpan;
+        }
+
+        if (int.TryParse(ArgValue(args, "--cleartolerance"), out var tolerance))
+        {
+            toleranceOverride = tolerance;
+        }
+
+        if (float.TryParse(ArgValue(args, "--clearance"), System.Globalization.CultureInfo.InvariantCulture, out var clearance))
+        {
+            clearanceOverride = clearance;
+        }
+
+        if (float.TryParse(ArgValue(args, "--nodespacing"), System.Globalization.CultureInfo.InvariantCulture, out var spacing))
+        {
+            nodeSpacingOverride = spacing;
+        }
 
         if (int.TryParse(ArgValue(args, "--budget"), out var budget))
         {
@@ -362,6 +426,11 @@ internal static class GraphLayoutLab
                         var curved = Render(view, Path.Combine(outputDir, $"{slug}.png"), straight: false, out var canvasMs);
                         var straight = Render(view, Path.Combine(outputDir, $"{slug}-straight.png"), straight: true);
 
+                        if (dumpLayouts)
+                        {
+                            File.WriteAllText(Path.Combine(outputDir, $"{slug}.txt"), view.DescribeLayout(title));
+                        }
+
                         var metrics = GraphLayoutScorer.Measure(view.Nodes, view.Wires, view.Geometry) with
                         {
                             BuildMilliseconds = buildClock.Elapsed.TotalMilliseconds,
@@ -383,6 +452,11 @@ internal static class GraphLayoutLab
                         if (nodeFilter != null)
                         {
                             foreach (var line in GraphLayoutScorer.DescribeNodes(view.Nodes, view.Geometry, nodeFilter))
+                            {
+                                Console.WriteLine($"      {line}");
+                            }
+
+                            foreach (var line in GraphLayoutScorer.DescribeInputOrder(view.Nodes, view.Geometry, nodeFilter))
                             {
                                 Console.WriteLine($"      {line}");
                             }

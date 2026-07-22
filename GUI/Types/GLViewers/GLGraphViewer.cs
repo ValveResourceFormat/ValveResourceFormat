@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.IO;
 using System.Linq;
 using System.Windows.Forms;
 using GUI.Controls;
@@ -197,6 +198,10 @@ namespace GUI.Types.GLViewers
                 resetSection.Controls.Add(resetButton);
                 UiControl.AddControl(resetSection);
 
+#if DEBUG
+                AddLayoutDump();
+#endif
+
                 // Saving is the least used control here, so it goes under everything else.
                 SaveSection?.BringToFront();
             }
@@ -208,11 +213,6 @@ namespace GUI.Types.GLViewers
             }
         }
 
-        /// <summary>
-        /// Sidebar command that re-runs the crossing repair with no time limit. The automatic
-        /// pass is capped so opening a graph stays quick, which means a large graph keeps
-        /// crossings the full pass would have removed; this is how the user asks for those.
-        /// </summary>
         /// <summary>Walks up from a control to the sidebar child that owns it, so it can be reordered.</summary>
         private static Control? SidebarSectionOf(Control control, Control? sidebar)
         {
@@ -226,6 +226,11 @@ namespace GUI.Types.GLViewers
             return section;
         }
 
+        /// <summary>
+        /// Sidebar command that re-runs the crossing repair with no time limit. The automatic
+        /// pass is capped so opening a graph stays quick, which means a large graph keeps
+        /// crossings the full pass would have removed; this is how the user asks for those.
+        /// </summary>
         private Panel? AddComplexityReduction()
         {
             if (UiControl == null)
@@ -280,6 +285,62 @@ namespace GUI.Types.GLViewers
             UiControl.AddControl(section);
             return section;
         }
+
+#if DEBUG
+        /// <summary>
+        /// Sidebar command that writes the graph exactly as it is currently arranged, cards and
+        /// wire dock points alike, to a text file in the user's Downloads folder. Dragging cards
+        /// by hand and dumping the result gives an arrangement to compare the layout against.
+        /// </summary>
+        private void AddLayoutDump()
+        {
+            if (UiControl == null)
+            {
+                return;
+            }
+
+            var section = new Panel
+            {
+                Padding = new Padding(4, 0, 4, 8),
+                Height = UiControl.AdjustForDPI(40),
+            };
+
+            var button = new ThemedButton
+            {
+                Text = "Log layout to file",
+                Dock = DockStyle.Fill,
+            };
+
+            button.Click += (_, _) =>
+            {
+                var name = Path.GetFileNameWithoutExtension(VrfGuiContext.FileName);
+
+                if (string.IsNullOrEmpty(name))
+                {
+                    name = "graph";
+                }
+
+                var folder = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "Downloads");
+                Directory.CreateDirectory(folder);
+
+                // Each click writes a new file so an arrangement can be dumped, changed, and dumped again.
+                var path = Path.Combine(folder, $"graph-layout-{name}.txt");
+
+                for (var i = 2; File.Exists(path); i++)
+                {
+                    path = Path.Combine(folder, $"graph-layout-{name}-{i}.txt");
+                }
+
+                File.WriteAllText(path, View.DescribeLayout(VrfGuiContext.FileName));
+                Log.Info(nameof(GLGraphViewer), $"Wrote graph layout to {path}");
+
+                button.Text = Path.GetFileName(path);
+            };
+
+            section.Controls.Add(button);
+            UiControl.AddControl(section);
+        }
+#endif
 
         /// <summary>
         /// Clears the search, selection and subtitle filter, restores every isolated node

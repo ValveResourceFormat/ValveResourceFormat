@@ -9,13 +9,12 @@ namespace GUI.Types.Graphs.Core;
 /// pivots.
 /// </summary>
 /// <remarks>
-/// Every ordering pass before this one reasons about nodes, so when two producers feed one
-/// consumer it has no reason to prefer either order. The crossing is decided one level lower, by
-/// which socket row each wire lands on, and only becomes visible once the cards have coordinates.
-/// Three moves are tried, cheapest first: exchange two cards in a column, lift a card out of its
-/// column and reinsert it elsewhere, and slide a card to the height that levels one of its wires.
-/// Endpoints are cached and refreshed per moved card, because the inner loop runs often enough
-/// that a dictionary lookup per pivot dominates everything else.
+/// Node ordering alone cannot see which socket row a wire lands on, so a crossing between two
+/// wires into the same card is only visible once the cards have coordinates. This pass works on
+/// those coordinates, trying four moves in increasing cost: exchange two cards in a column,
+/// reinsert a card at another slot, slide a card to a height that clears a crossing, and move a
+/// card out from under a wire that passes across it. Wire endpoints are cached in parallel arrays
+/// and refreshed per moved card, since the scoring loop runs tens of millions of times.
 /// </remarks>
 internal sealed class CrossingRepair
 {
@@ -68,6 +67,7 @@ internal sealed class CrossingRepair
 
         unionMarks = new int[wires.Length];
         allWires = [.. Enumerable.Range(0, wires.Length)];
+        allWireList.AddRange(allWires);
 
         var buckets = new Dictionary<int, List<GraphNode>>();
 
@@ -162,7 +162,8 @@ internal sealed class CrossingRepair
             // often far apart in the column, where an adjacency sweep can never reach them.
             foreach (var (a, b) in Crossings(options.CrossingRepairBudget))
             {
-                if (TrySwap(wires[a].From.Owner, wires[b].From.Owner) || TrySwap(wires[a].To.Owner, wires[b].To.Owner))
+                if (TrySwap(wires[a].From.Owner, wires[b].From.Owner) || TrySwap(wires[a].To.Owner, wires[b].To.Owner)
+                    || TrySwapBranches(a, b))
                 {
                     improved = true;
                 }
@@ -190,6 +191,17 @@ internal sealed class CrossingRepair
                 improved |= TrySlide(node);
             }
 
+            // Last, because it only makes sense once the cards have stopped moving for crossings.
+            foreach (var node in component)
+            {
+                if (Spent)
+                {
+                    break;
+                }
+
+                improved |= TryClearWires(node);
+            }
+
             if (!improved)
             {
                 return;
@@ -208,9 +220,8 @@ internal sealed class CrossingRepair
 
         var subset = Union(x, y);
 
-        // Deliberately scored against every wire rather than a filtered set. Narrowing costs a
-        // pass over all of them, which only pays back when the same subset is then scored many
-        // times over; a swap scores twice, so filtering here measured slower than not.
+        // Scored against every wire. Narrowing the set first costs a pass over all of them, which
+        // only pays back when the same subset is scored many times over; a swap scores twice.
         var candidates = allWires;
         var before = Count(subset, candidates);
         Exchange(x, y);
@@ -431,30 +442,45 @@ internal sealed class CrossingRepair
     /// </summary>
     private List<int> Union(GraphNode a, GraphNode b)
     {
-        var subset = unionScratch;
-        subset.Clear();
-
-        var stamp = ++unionMark;
-
+        var subset = BeginUnion();
         Take(a);
         Take(b);
+        return subset;
+    }
+
+    /// <summary>The same union over a whole branch, for the moves that shift many cards at once.</summary>
+    private List<int> Union(IEnumerable<GraphNode> nodes)
+    {
+        var subset = BeginUnion();
+
+        foreach (var node in nodes)
+        {
+            Take(node);
+        }
 
         return subset;
+    }
 
-        void Take(GraphNode node)
+    private List<int> BeginUnion()
+    {
+        unionScratch.Clear();
+        unionStamp = ++unionMark;
+        return unionScratch;
+    }
+
+    private void Take(GraphNode node)
+    {
+        if (!incident.TryGetValue(node, out var list))
         {
-            if (!incident.TryGetValue(node, out var list))
-            {
-                return;
-            }
+            return;
+        }
 
-            foreach (var wire in list)
+        foreach (var wire in list)
+        {
+            if (unionMarks[wire] != unionStamp)
             {
-                if (unionMarks[wire] != stamp)
-                {
-                    unionMarks[wire] = stamp;
-                    subset.Add(wire);
-                }
+                unionMarks[wire] = unionStamp;
+                unionScratch.Add(wire);
             }
         }
     }
@@ -464,8 +490,10 @@ internal sealed class CrossingRepair
 
     private readonly List<int> localScratch = [];
     private int[] allWires = [];
+    private readonly List<int> allWireList = [];
     private readonly List<int> unionScratch = [];
     private int[] unionMarks = [];
+    private int unionStamp;
     private int unionMark;
 
     /// <summary>
@@ -557,6 +585,244 @@ internal sealed class CrossingRepair
 
     private static bool SharesSocket(GraphWire a, GraphWire b)
         => a.From == b.From || a.To == b.To || a.From == b.To || a.To == b.From;
+
+    /// <summary>
+    /// Moves a card out from under any wire that merely passes across it. Unlike the other moves
+    /// this is not a search: covering a long near-horizontal wire barely changes with a small
+    /// step, so scoring nudges never finds the way out. Instead the exact distance that clears
+    /// every offending wire is computed and taken in one move, if it is allowed.
+    /// </summary>
+    private bool TryClearWires(GraphNode node)
+    {
+        if (!columnOf.TryGetValue(node, out var column))
+        {
+            return false;
+        }
+
+        var size = geometry.SizeOf(node);
+        var top = node.Position.Y;
+        var bottom = top + size.Y;
+        var middle = node.Position.X + size.X / 2f;
+
+        var lowest = float.MinValue;
+        var highest = float.MaxValue;
+        var offenders = 0;
+
+        foreach (var wire in allWires)
+        {
+            if (wires[wire].From.Owner == node || wires[wire].To.Owner == node
+                || !GraphWireGeometry.BoxesOverlap(minX[wire], maxX[wire], minY[wire], maxY[wire],
+                    node.Position.X, node.Position.X + size.X, top, bottom)
+                || !GraphWireGeometry.SegmentCrossesBox(from[wire], to[wire],
+                    node.Position, node.Position + size))
+            {
+                continue;
+            }
+
+            // Where the wire sits at the card's own centre line is what decides which side to
+            // leave by; its overall extent could be dominated by a far-away end.
+            var span = maxX[wire] - minX[wire];
+            var t = span > 0.01f ? Math.Clamp((middle - minX[wire]) / span, 0f, 1f) : 0f;
+            var lower = from[wire].X <= to[wire].X ? from[wire] : to[wire];
+            var upper = from[wire].X <= to[wire].X ? to[wire] : from[wire];
+            var height = lower.Y + ((upper.Y - lower.Y) * t);
+
+            lowest = Math.Max(lowest, height);
+            highest = Math.Min(highest, height);
+            offenders++;
+        }
+
+        if (offenders == 0)
+        {
+            return false;
+        }
+
+        // Under everything, or over everything. The shorter move is tried first, but leaving on
+        // one side can force this card's own wires across the very wire it is escaping, so both
+        // directions get a turn before giving up.
+        var down = lowest + options.WireClearance - top;
+        var up = highest - options.WireClearance - bottom;
+
+        var touching = incident.GetValueOrDefault(node) ?? [];
+        var before = Count(touching, allWires);
+        var originalY = node.Position.Y;
+
+        foreach (var shift in Math.Abs(down) <= Math.Abs(up) ? (float[])[down, up] : [up, down])
+        {
+            if (Math.Abs(shift) < 1f || Math.Abs(shift) > options.WireClearLimit)
+            {
+                continue;
+            }
+
+            Move(node, originalY + shift);
+
+            // Getting clear is not worth trading a crossing for, and the card still may not land
+            // on one of its own column neighbours.
+            var overlaps = GraphLayout.OverlapsColumn(node, column, geometry);
+            var after = Count(touching, allWires);
+
+
+            if (overlaps || after > before + options.ClearCrossingTolerance)
+            {
+                Move(node, originalY);
+                continue;
+            }
+
+            return true;
+        }
+
+        return false;
+    }
+
+    /// <summary>
+    /// Reorders two wires arriving at the same card by shifting the whole branch behind one of
+    /// them. Exchanging the two sources on their own only moves the crossing when their own
+    /// feeders dock in the opposite order, so the fix has to travel with everything upstream:
+    /// the pair swaps vertical order without disturbing the shape of either branch.
+    /// </summary>
+    private bool TrySwapBranches(int wireA, int wireB)
+    {
+        var target = wires[wireA].To.Owner;
+
+        if (target != wires[wireB].To.Owner)
+        {
+            return false;
+        }
+
+        if (wires[wireA].From.Owner == wires[wireB].From.Owner)
+        {
+            return false;
+        }
+
+        // The wire docking higher should come from the higher source.
+        var upperDock = to[wireA].Y <= to[wireB].Y ? wireA : wireB;
+        var lowerDock = upperDock == wireA ? wireB : wireA;
+
+        if (from[upperDock].Y <= from[lowerDock].Y)
+        {
+            return false;
+        }
+
+        var upperSource = wires[upperDock].From.Owner;
+        var lowerSource = wires[lowerDock].From.Owner;
+
+        var branchUpper = Branch(upperSource, target);
+        var branchLower = Branch(lowerSource, target);
+
+        // A card feeding both branches cannot move with either of them.
+        branchUpper.ExceptWith(branchLower);
+
+
+        if (branchUpper.Count == 0 || branchUpper.Count > options.BranchShiftMaxNodes)
+        {
+            return false;
+        }
+
+        var shift = from[lowerDock].Y - from[upperDock].Y - options.WireClearance;
+
+        // Sharing a column makes the two sources stacked cards as well as inverted docks, so the
+        // branch has to travel far enough to clear the other card rather than just its socket.
+        if (columnOf.GetValueOrDefault(upperSource) == columnOf.GetValueOrDefault(lowerSource))
+        {
+            shift = Math.Min(shift, lowerSource.Position.Y - geometry.SizeOf(upperSource).Y - options.NodeSpacing - upperSource.Position.Y);
+        }
+
+        // Only wires touching the branch can change, so scoring the whole island per candidate
+        // would repeat an identical count over every wire that cannot move.
+        var subset = Union(branchUpper);
+        var before = Count(subset, allWires);
+
+        // Just clearing the other source is the smallest move and is tried first, but a packed
+        // layout usually leaves the branch landing on top of whatever else occupies those columns.
+        // Parking it clear of the island entirely always has room, at the cost of a taller graph.
+        foreach (var candidate in (float[])[shift, ParkingShift(branchUpper, above: shift < 0f)])
+        {
+            if (Math.Abs(candidate) < 1f || Math.Abs(candidate) > options.BranchShiftLimit)
+            {
+                continue;
+            }
+
+            foreach (var node in branchUpper)
+            {
+                Move(node, node.Position.Y + candidate);
+            }
+
+            var blocked = branchUpper.Any(n => columnOf.TryGetValue(n, out var column) && GraphLayout.OverlapsColumn(n, column, geometry));
+            var after = Count(subset, allWires);
+
+
+            if (!blocked && after < before)
+            {
+                return true;
+            }
+
+            foreach (var node in branchUpper)
+            {
+                Move(node, node.Position.Y - candidate);
+            }
+        }
+
+        return false;
+    }
+
+    /// <summary>
+    /// Distance that lifts a branch clear above, or drops it clear below, everything it is not
+    /// part of. Nothing occupies the space outside the island, so a shift this far always fits.
+    /// </summary>
+    private float ParkingShift(HashSet<GraphNode> branch, bool above)
+    {
+        var branchEdge = above ? float.MinValue : float.MaxValue;
+        var restEdge = above ? float.MaxValue : float.MinValue;
+
+        foreach (var node in component)
+        {
+            var top = node.Position.Y;
+            var bottom = top + geometry.SizeOf(node).Y;
+
+            if (branch.Contains(node))
+            {
+                branchEdge = above ? Math.Max(branchEdge, bottom) : Math.Min(branchEdge, top);
+            }
+            else
+            {
+                restEdge = above ? Math.Min(restEdge, top) : Math.Max(restEdge, bottom);
+            }
+        }
+
+        if (branchEdge == float.MinValue || branchEdge == float.MaxValue
+            || restEdge == float.MaxValue || restEdge == float.MinValue)
+        {
+            return 0f;
+        }
+
+        return above
+            ? restEdge - options.NodeSpacing - branchEdge
+            : restEdge + options.NodeSpacing - branchEdge;
+    }
+
+    /// <summary>Everything upstream of a card, stopping before the consumer it feeds.</summary>
+    private static HashSet<GraphNode> Branch(GraphNode node, GraphNode stop)
+    {
+        var branch = new HashSet<GraphNode>();
+        Walk(node);
+        return branch;
+
+        void Walk(GraphNode current)
+        {
+            if (current == stop || !branch.Add(current))
+            {
+                return;
+            }
+
+            foreach (var socket in current.Inputs)
+            {
+                foreach (var wire in socket.Wires)
+                {
+                    Walk(wire.From.Owner);
+                }
+            }
+        }
+    }
 
     /// <summary>Whether two wires overlap in both axes, and so could possibly cross.</summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]

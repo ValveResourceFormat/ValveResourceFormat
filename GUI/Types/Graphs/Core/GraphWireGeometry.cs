@@ -25,6 +25,28 @@ internal static class GraphWireGeometry
         float minXB, float maxXB, float minYB, float maxYB)
         => minXA <= maxXB && minXB <= maxXA && minYA <= maxYB && minYB <= maxYA;
 
+    /// <summary>
+    /// Whether a segment enters an axis-aligned box, by ending inside it or cutting an edge.
+    /// A bounding-box overlap is not enough: a long diagonal wire can span a card's box while
+    /// passing well clear of the card itself.
+    /// </summary>
+    public static bool SegmentCrossesBox(Vector2 a, Vector2 b, Vector2 min, Vector2 max)
+    {
+        if ((a.X >= min.X && a.X <= max.X && a.Y >= min.Y && a.Y <= max.Y)
+            || (b.X >= min.X && b.X <= max.X && b.Y >= min.Y && b.Y <= max.Y))
+        {
+            return true;
+        }
+
+        var topRight = new Vector2(max.X, min.Y);
+        var bottomLeft = new Vector2(min.X, max.Y);
+
+        return SegmentsIntersect(a, b, min, topRight)
+            || SegmentsIntersect(a, b, topRight, max)
+            || SegmentsIntersect(a, b, max, bottomLeft)
+            || SegmentsIntersect(a, b, bottomLeft, min);
+    }
+
     /// <summary>Whether two segments properly cross, by the sign of the four orientation tests.</summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static bool SegmentsIntersect(Vector2 p1, Vector2 p2, Vector2 p3, Vector2 p4)
