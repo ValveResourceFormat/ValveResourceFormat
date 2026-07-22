@@ -21,6 +21,8 @@ public partial class PlayerMovement
     private const float WalkSpeedModifier = 0.52f;        // CS_PLAYER_SPEED_WALK_MODIFIER
     private const float DuckSpeedModifier = 0.34f;        // CS_PLAYER_SPEED_DUCK_MODIFIER
 
+    private const float TickInterval = 1f / 64f;          // Reference tick; the low-speed accel kick reaches its floor within one
+
     private const float NonJumpVelocity = 140f;           // Moving up faster than this means airborne (NON_JUMP_VELOCITY)
     private const float AirMaxWishSpeed = 30f;            // Air-control wishspeed cap (AirAccelerate)
 
@@ -980,7 +982,11 @@ public partial class PlayerMovement
         // friction step already applied
         if (preFrictionSpeed <= StopSpeedValue)
         {
-            (Velocity, GroundMoveDelta) = SubStopSpeedAccelerate(preFrictionVelocity, wishdir, wishspeed, accelMagnitude, deltaTime, frictionRate);
+            // Kick accel: below accel·wishspeed/64 the sub-stopspeed friction is cancelled so
+            // the wishdir component reaches this floor within one 1/64s tick (like the engine's
+            // discrete accelspeed jump), keeping starts from rest snappy
+            var kickSpeed = AccelerateValue * wishspeed * SurfaceFriction * TickInterval;
+            (Velocity, GroundMoveDelta) = SubStopSpeedAccelerate(preFrictionVelocity, wishdir, wishspeed, accelMagnitude, deltaTime, frictionRate, kickSpeed);
             return;
         }
 
