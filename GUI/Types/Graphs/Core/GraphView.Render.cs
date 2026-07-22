@@ -108,7 +108,7 @@ partial class GraphView
         var to = new SKPoint(toPivot.X, toPivot.Y);
 
         using var pathBuilder = new SKPathBuilder();
-        BuildWirePath(pathBuilder, Geometry.TryRouteOf(wire), from, to);
+        BuildWirePath(pathBuilder, wire, Geometry.TryRouteOf(wire), from, to);
         using var path = pathBuilder.Detach();
         return HitTestPaint.GetFillPath(path);
     }
@@ -571,7 +571,7 @@ partial class GraphView
         path.LineTo(to);
     }
 
-    private void BuildWirePath(SKPathBuilder path, WireRoute? route, SKPoint from, SKPoint to)
+    private void BuildWirePath(SKPathBuilder path, GraphWire wire, WireRoute? route, SKPoint from, SKPoint to)
     {
         // Exact routed curve from the layout, drawn verbatim; conics carry the rounded
         // segment corners precisely.
@@ -622,9 +622,10 @@ partial class GraphView
             return;
         }
 
-        if (StraightWires)
+        // Straight mode squares off everything; otherwise only a self-loop keeps its right
+        // angles, because the boxy orbit is what identifies it as looping back into its own card.
+        if (StraightWires || wire.From.Owner == wire.To.Owner)
         {
-            // Squared-off corners match the rest of the straight presentation.
             path.MoveTo(from);
 
             foreach (var waypoint in waypoints)
@@ -662,7 +663,7 @@ partial class GraphView
         }
 
         using var pathBuilder = new SKPathBuilder();
-        BuildWirePath(pathBuilder, route, from, to);
+        BuildWirePath(pathBuilder, wire, route, from, to);
         using var path = pathBuilder.Detach();
 
         var width = WireWidth * Math.Max(1f, 1f / zoom);
