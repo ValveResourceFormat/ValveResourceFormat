@@ -274,7 +274,12 @@ namespace GUI.Types.GLViewers
                         pointSoundEvents.Add(entityData);
                         break;
 
-                    case "env_soundscape" when !entityData.GetBooleanProperty("startdisabled"):
+                    case "env_soundscape" or "snd_soundscape":
+                        if (entityData.GetBooleanProperty("startdisabled"))
+                        {
+                            break;
+                        }
+
                         if (entityData.GetBooleanProperty("enablesoundevent"))
                         {
                             soundPlayer.AddSoundscape(

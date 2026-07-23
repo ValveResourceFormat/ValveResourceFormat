@@ -24,7 +24,7 @@ public sealed class SoundEventPlayer : IDisposable
     public SoundEventBank Bank { get; }
 
     /// <summary>Gets the bank of loaded scripted soundscape definitions (see <see cref="LoadSoundscapes"/>).</summary>
-    public SoundscapeBank Soundscapes { get; } = new();
+    public SoundscapeBank Soundscapes { get; }
 
     /// <summary>Gets the mixer output sample rate, taken from the device.</summary>
     public int SampleRate => device.SampleRate;
@@ -130,6 +130,7 @@ public sealed class SoundEventPlayer : IDisposable
 
         SoundCache = new SoundCache(fileLoader, device.SampleRate, device.Channels, this.logger);
         Bank = new SoundEventBank();
+        Soundscapes = new SoundscapeBank(Bank);
         mixer = new AudioMixer(this);
 
         mixingThread = new Thread(MixingLoop)
@@ -274,6 +275,11 @@ public sealed class SoundEventPlayer : IDisposable
 
             var fileName = (string)entry.Value;
 
+            if (string.IsNullOrEmpty(fileName))
+            {
+                continue;
+            }
+
             if (fileName.EndsWith(".txt", StringComparison.OrdinalIgnoreCase))
             {
                 var script = ReadKeyValues1(fileName);
@@ -293,10 +299,12 @@ public sealed class SoundEventPlayer : IDisposable
     }
 
     /// <summary>
-    /// Reads and parses a loose KeyValues1 ("VDF") text file, or null when it does not exist. The raw
-    /// content is wrapped in a synthetic root object before parsing: soundscape scripts author several
-    /// sibling top-level blocks with no single enclosing key, which the deserializer otherwise silently
-    /// folds into (and loses the name of) the first block instead of treating as siblings.
+    /// Reads and parses a loose KeyValues1 ("VDF") text file, or null when it does not exist or fails to
+    /// parse. The raw content is wrapped in a synthetic root object before parsing: soundscape scripts
+    /// author several sibling top-level blocks with no single enclosing key, which the deserializer
+    /// otherwise silently folds into (and loses the name of) the first block instead of treating as
+    /// siblings. Hand-authored script files do show up with encoding quirks or syntax errors, so a
+    /// failure here is logged and skipped rather than allowed to take down the whole load.
     /// </summary>
     private KVObject? ReadKeyValues1(string file)
     {
@@ -307,13 +315,21 @@ public sealed class SoundEventPlayer : IDisposable
             return null;
         }
 
-        using var wrapped = new MemoryStream();
-        wrapped.Write("\"__root\"\n{\n"u8);
-        stream.CopyTo(wrapped);
-        wrapped.Write("\n}\n"u8);
-        wrapped.Position = 0;
+        try
+        {
+            using var wrapped = new MemoryStream();
+            wrapped.Write("\"__root\"\n{\n"u8);
+            stream.CopyTo(wrapped);
+            wrapped.Write("\n}\n"u8);
+            wrapped.Position = 0;
 
-        return KVSerializer.Create(KVSerializationFormat.KeyValues1Text).Deserialize(wrapped);
+            return KVSerializer.Create(KVSerializationFormat.KeyValues1Text).Deserialize(wrapped);
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "Failed to parse KeyValues1 file {File}", file);
+            return null;
+        }
     }
 
     /// <summary>

@@ -431,6 +431,8 @@ public abstract class SoundEvent
             "citadel_default_2d" or "citadel_ambient_3d" => new SoundEventCitadelAmbient(definition),
             "hlvr_default_3d" or "hlvr_2d_w_occlusion" or "src1_3d" or "src1_2d" => new SoundEventHLVRDefault(definition),
             "hlvr_start_multi" => new SoundEventHLVRMulti(definition),
+            "script_playrandom" => new SoundEventScriptedRandom(definition),
+            "script_playlooping" => new SoundEventScriptedLoop(definition),
             _ => null,
         };
     }

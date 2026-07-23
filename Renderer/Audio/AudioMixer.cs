@@ -39,6 +39,9 @@ public sealed class AudioMixer : IDisposable
     private Vector3 listenerPosition;
     private Vector3 listenerRightEarDirection = Vector3.UnitY;
 
+    /// <summary>Gets the listener position from the most recent <see cref="Update"/>.</summary>
+    internal Vector3 ListenerPosition => listenerPosition;
+
     /// <summary>
     /// Applies the current listener state to a sound event immediately.
     /// </summary>
