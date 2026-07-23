@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.IO;
+using System.Linq;
 using System.Text;
 using NUnit.Framework;
 using ValveKeyValue;
@@ -144,6 +145,52 @@ namespace Tests
                 Assert.That(deserializedBinaryKV3.Data.Root["secondBlob"].AsBlob(), Is.EqualTo(secondBlob));
                 Assert.That(deserializedBinaryKV3.Data.Root["emptyBlob"].AsBlob(), Is.Empty);
                 Assert.That(deserializedBinaryKV3.Data.ToKV3String(), Is.EqualTo(originalFile.ToKV3String()));
+            }
+        }
+
+        [TestCaseSource(nameof(BinaryKV3Version4FixtureCases))]
+        public void TestBinaryKV3Version4FixtureSerialization(
+            string fileName,
+            BlockType blockType,
+            int expectedBlobCount,
+            int expectedBlobBytes,
+            KV3BinaryCompressionMethod compressionMethod)
+        {
+            var file = Path.Combine(TestContext.CurrentContext.TestDirectory, "Files", fileName);
+            using var resource = new Resource();
+            resource.Read(file);
+
+            var block = resource.Blocks.Single(block => block.Type == blockType);
+            using var sourceStream = File.OpenRead(file);
+            var binaryKV3 = ReadBinaryKV3Block(sourceStream, block);
+            var expectedBlobs = CollectBinaryBlobs(binaryKV3.Data.Root);
+
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(expectedBlobs, Has.Count.EqualTo(expectedBlobCount));
+                Assert.That(expectedBlobs.Sum(blob => blob.Length), Is.EqualTo(expectedBlobBytes));
+            }
+
+            binaryKV3.SerializationVersion = KV3BinaryVersion.Version4;
+            binaryKV3.SerializationCompressionMethod = compressionMethod;
+            using var stream = new MemoryStream();
+            binaryKV3.Serialize(stream);
+            var data = stream.ToArray();
+            Assert.That(BitConverter.ToUInt32(data, 20), Is.EqualTo((uint)compressionMethod));
+
+            stream.Position = 0;
+            var deserializedBinaryKV3 = ReadBinaryKV3(stream);
+            var actualBlobs = CollectBinaryBlobs(deserializedBinaryKV3.Data.Root);
+
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(actualBlobs, Has.Count.EqualTo(expectedBlobs.Count));
+                Assert.That(deserializedBinaryKV3.Data.ToKV3String(), Is.EqualTo(binaryKV3.Data.ToKV3String()));
+
+                for (var i = 0; i < expectedBlobs.Count; i++)
+                {
+                    Assert.That(actualBlobs[i], Is.EqualTo(expectedBlobs[i]), $"Blob {i}");
+                }
             }
         }
 
@@ -378,6 +425,50 @@ namespace Tests
             using var reader = new BinaryReader(stream);
             deserializedBinaryKV3.Read(reader);
             return deserializedBinaryKV3;
+        }
+
+        private static IEnumerable<TestCaseData> BinaryKV3Version4FixtureCases()
+        {
+            var fixtures = new[]
+            {
+                ("basepostprocess_kv3_v4_uncompressed.vpost_c", BlockType.DATA, 1, 131072),
+                ("piece_kv3_v4.vmdl_c", BlockType.PHYS, 7, 1378),
+            };
+
+            foreach (var (fileName, blockType, blobCount, blobBytes) in fixtures)
+            {
+                foreach (var compressionMethod in Enum.GetValues<KV3BinaryCompressionMethod>())
+                {
+                    yield return new TestCaseData(fileName, blockType, blobCount, blobBytes, compressionMethod)
+                        .SetName($"{{m}}({Path.GetFileNameWithoutExtension(fileName)}, {compressionMethod})");
+                }
+            }
+        }
+
+        private static List<byte[]> CollectBinaryBlobs(KVObject value)
+        {
+            List<byte[]> blobs = [];
+            CollectBinaryBlobs(value, blobs);
+            return blobs;
+        }
+
+        private static void CollectBinaryBlobs(KVObject value, List<byte[]> blobs)
+        {
+            if (value.ValueType == KVValueType.BinaryBlob)
+            {
+                blobs.Add(value.AsBlob());
+                return;
+            }
+
+            if (value.ValueType is not (KVValueType.Collection or KVValueType.Array))
+            {
+                return;
+            }
+
+            foreach (var (_, child) in value)
+            {
+                CollectBinaryBlobs(child, blobs);
+            }
         }
 
         private static void AssertKV3Properties(KVDocument file)
