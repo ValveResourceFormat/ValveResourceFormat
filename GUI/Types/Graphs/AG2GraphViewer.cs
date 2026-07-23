@@ -214,6 +214,16 @@ internal class AG2GraphViewer : GLGraphViewer
                         var (_, childOutput) = CreateChild<Value>(entryConditionNodeIdx, stateName);
                         View.Connect(childOutput, stateGraphNode.AddInput("Entry condition", ValueHue, allowMultiple: true));
                     }
+
+                    // A state inside a state machine layer can carry the bone mask that layer
+                    // blends with; the other per-state layer fields ship unused.
+                    var layerBoneMaskNodeIdx = stateNode.GetInt32Property("m_nLayerBoneMaskNodeIdx", -1);
+
+                    if (layerBoneMaskNodeIdx != -1)
+                    {
+                        var (_, maskOutput) = CreateChild<Value>(layerBoneMaskNodeIdx, stateName);
+                        View.Connect(maskOutput, stateGraphNode.AddInput("Layer bone mask", ValueHue, allowMultiple: true));
+                    }
                 }
 
                 // Dashed state-to-state transition wires labeled with their condition.
@@ -244,9 +254,17 @@ internal class AG2GraphViewer : GLGraphViewer
                         var from = source.Outputs.Find(static o => o.Name == "Transitions") ?? source.AddOutput("Transitions", GraphHue.Slate);
                         var to = target.Inputs.Find(static i => i.Name == "From") ?? target.AddInput("From", GraphHue.Slate, allowMultiple: true);
 
-                        if (!to.Wires.Any(w => w.From == from))
+                        // Parallel transitions between the same pair of states share one dashed
+                        // wire; every condition keeps its label on it.
+                        var existing = to.Wires.Find(w => w.From == from);
+
+                        if (existing == null)
                         {
                             View.Connect(from, to, dashed: true, label: label);
+                        }
+                        else if (label != null)
+                        {
+                            existing.Label = existing.Label == null ? label : $"{existing.Label} | {label}";
                         }
                     }
                 }
@@ -278,6 +296,14 @@ internal class AG2GraphViewer : GLGraphViewer
                     {
                         var (_, childOutput) = CreateChild<Value>(entryConditionNodeIdx, stateName);
                         View.Connect(childOutput, input);
+                    }
+
+                    var layerBoneMaskNodeIdx = stateNode.GetInt32Property("m_nLayerBoneMaskNodeIdx", -1);
+
+                    if (layerBoneMaskNodeIdx != -1)
+                    {
+                        var (_, maskOutput) = CreateChild<Value>(layerBoneMaskNodeIdx, stateName);
+                        View.Connect(maskOutput, input);
                     }
                 }
             }
