@@ -36,14 +36,6 @@ namespace GUI
             Application.SetUnhandledExceptionMode(UnhandledExceptionMode.CatchException);
             Application.SetHighDpiMode(HighDpiMode.PerMonitorV2);
 
-            // Headless graph layout comparison; renders to files and exits without a window.
-            if (args.Length > 0 && args[0] == "--graphlab")
-            {
-                Windows.Win32.PInvoke.AttachConsole(unchecked((uint)-1));
-                Types.Graphs.Core.GraphLayoutLab.Run(args[1..]);
-                return;
-            }
-
             if (args.Length > 0 && Ipc.TryForwardToExistingInstance(args))
             {
                 return;

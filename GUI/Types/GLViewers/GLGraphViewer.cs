@@ -18,9 +18,6 @@ namespace GUI.Types.GLViewers
     class GLGraphViewer : GLTextureViewer
     {
         protected readonly GraphView View;
-
-        /// <summary>The built graph, for headless tooling that never shows the viewer.</summary>
-        internal GraphView Graph => View;
         private SKRect graphBounds;
         private bool needsFit = true;
         private ThemedContextMenuStrip? contextMenu;

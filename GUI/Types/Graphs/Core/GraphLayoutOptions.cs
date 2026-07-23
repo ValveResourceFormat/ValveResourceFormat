@@ -1,8 +1,8 @@
 namespace GUI.Types.Graphs.Core;
 
 /// <summary>
-/// Individually toggleable layout passes. Each flag targets one cause of wire overlap, and
-/// <see cref="GraphLayoutLab"/> can enable them one at a time to score each in isolation.
+/// Individually toggleable layout passes. Each flag targets one cause of wire overlap and can
+/// be enabled on its own, so a pass can be scored in isolation.
 /// </summary>
 [Flags]
 enum GraphLayoutFeature
