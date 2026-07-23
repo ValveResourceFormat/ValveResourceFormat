@@ -11,40 +11,44 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation2
     public class NmClipEvent
     {
         /// <summary>Gets the runtime class name, e.g. "CNmSoundEvent".</summary>
-        public required string ClassName { get; init; }
+        public string ClassName { get; }
 
         /// <summary>Gets the time in seconds into the clip at which the event starts.</summary>
-        public required float StartTime { get; init; }
+        public float StartTime { get; }
 
         /// <summary>Gets the duration in seconds of the event window. 0 means a single point in time.</summary>
-        public required float Duration { get; init; }
+        public float Duration { get; }
 
         /// <summary>Gets the sync ID used by the animation system to align clips, empty when unused.</summary>
-        public string SyncId { get; init; } = string.Empty;
+        public string SyncId { get; }
 
         /// <summary>Gets the raw event data, for properties not surfaced by the typed subclasses.</summary>
-        public required KVObject Data { get; init; }
+        public KVObject Data { get; }
 
         /// <summary>
-        /// Creates a typed clip event from its resource data. Event times are stored in the resource as
+        /// Creates the base clip event from its resource data. Event times are stored in the resource as
         /// normalized fractions of the clip; they are converted to seconds using <paramref name="clipDuration"/>.
+        /// </summary>
+        protected NmClipEvent(KVObject eventData, float clipDuration)
+        {
+            ClassName = eventData.GetStringProperty("_class", string.Empty);
+            StartTime = GetTimeValue(eventData, "m_flStartTime") * clipDuration;
+            Duration = GetTimeValue(eventData, "m_flDuration") * clipDuration;
+            SyncId = eventData.GetStringProperty("m_syncID", string.Empty);
+            Data = eventData;
+        }
+
+        /// <summary>
+        /// Creates a typed clip event from its resource data.
         /// </summary>
         public static NmClipEvent Build(KVObject eventData, float clipDuration)
         {
             var className = eventData.GetStringProperty("_class", string.Empty);
-            var startTime = GetTimeValue(eventData, "m_flStartTime") * clipDuration;
-            var duration = GetTimeValue(eventData, "m_flDuration") * clipDuration;
-            var syncId = eventData.GetStringProperty("m_syncID", string.Empty);
 
             return className switch
             {
-                "CNmSoundEvent" => new NmSoundEvent
+                "CNmSoundEvent" => new NmSoundEvent(eventData, clipDuration)
                 {
-                    ClassName = className,
-                    StartTime = startTime,
-                    Duration = duration,
-                    SyncId = syncId,
-                    Data = eventData,
                     Name = eventData.GetStringProperty("m_name", string.Empty),
                     Position = eventData.GetStringProperty("m_position", "EntityEyePos"),
                     AttachmentName = eventData.GetStringProperty("m_attachmentName", string.Empty),
@@ -52,23 +56,13 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation2
                     ContinuePlayingSoundAtDurationEnd = eventData.GetBooleanProperty("m_bContinuePlayingSoundAtDurationEnd"),
                     DurationInterruptionThreshold = eventData.GetFloatProperty("m_flDurationInterruptionThreshold", 0.9f),
                 },
-                "CNmIDEvent" => new NmIDEvent
+                "CNmIDEvent" => new NmIDEvent(eventData, clipDuration)
                 {
-                    ClassName = className,
-                    StartTime = startTime,
-                    Duration = duration,
-                    SyncId = syncId,
-                    Data = eventData,
                     ID = eventData.GetStringProperty("m_ID", string.Empty),
                     SecondaryID = eventData.GetStringProperty("m_secondaryID", string.Empty),
                 },
-                "CNmParticleEvent" => new NmParticleEvent
+                "CNmParticleEvent" => new NmParticleEvent(eventData, clipDuration)
                 {
-                    ClassName = className,
-                    StartTime = startTime,
-                    Duration = duration,
-                    SyncId = syncId,
-                    Data = eventData,
                     Type = eventData.GetStringProperty("m_type", string.Empty),
                     Target = eventData.GetStringProperty("m_target", string.Empty),
                     ParticleSystemName = eventData.GetStringProperty("m_hParticleSystem", string.Empty),
@@ -81,24 +75,12 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation2
                     AttachmentPoint1 = eventData.GetStringProperty("m_attachmentPoint1", string.Empty),
                     AttachmentType1 = eventData.GetStringProperty("m_attachmentType1", string.Empty),
                 },
-                "CNmLegacyEvent" => new NmLegacyEvent
+                "CNmLegacyEvent" => new NmLegacyEvent(eventData, clipDuration)
                 {
-                    ClassName = className,
-                    StartTime = startTime,
-                    Duration = duration,
-                    SyncId = syncId,
-                    Data = eventData,
                     AnimEventClassName = eventData.GetStringProperty("m_animEventClassName", string.Empty),
                 },
                 // CNmOrientationWarpEvent, CNmFloatCurveEvent, CNmMaterialAttributeEvent, and future classes
-                _ => new NmClipEvent
-                {
-                    ClassName = className,
-                    StartTime = startTime,
-                    Duration = duration,
-                    SyncId = syncId,
-                    Data = eventData,
-                },
+                _ => new NmClipEvent(eventData, clipDuration),
             };
         }
 
@@ -113,7 +95,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation2
     /// <summary>
     /// A sound event fired during clip playback (CNmSoundEvent).
     /// </summary>
-    public sealed class NmSoundEvent : NmClipEvent
+    public sealed class NmSoundEvent(KVObject eventData, float clipDuration) : NmClipEvent(eventData, clipDuration)
     {
         /// <summary>Gets the name of the sound event to play.</summary>
         public required string Name { get; init; }
@@ -139,19 +121,19 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation2
     /// <summary>
     /// A named marker window in an animation clip (CNmIDEvent).
     /// </summary>
-    public sealed class NmIDEvent : NmClipEvent
+    public sealed class NmIDEvent(KVObject eventData, float clipDuration) : NmClipEvent(eventData, clipDuration)
     {
-        /// <summary>Gets the primary ID, e.g. "WPN_INSPECT_INTRO".</summary>
+        /// <summary>The ID of the event.</summary>
         public required string ID { get; init; }
 
-        /// <summary>Gets the secondary ID, usually empty.</summary>
+        /// <summary>The secondary ID of the event.</summary>
         public string SecondaryID { get; init; } = string.Empty;
     }
 
     /// <summary>
-    /// A particle effect event (CNmParticleEvent), e.g. the C4 LED pulse on the viewmodel.
+    /// A particle effect event (CNmParticleEvent).
     /// </summary>
-    public sealed class NmParticleEvent : NmClipEvent
+    public sealed class NmParticleEvent(KVObject eventData, float clipDuration) : NmClipEvent(eventData, clipDuration)
     {
         /// <summary>Gets the operation, e.g. "Create".</summary>
         public required string Type { get; init; }
@@ -188,10 +170,9 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation2
     }
 
     /// <summary>
-    /// A legacy animation event carried over from the old animation system (CNmLegacyEvent),
-    /// e.g. "AE_WEAPON_PERFORM_ATTACK".
+    /// A legacy animation event carried over from the old animation system (CNmLegacyEvent).
     /// </summary>
-    public sealed class NmLegacyEvent : NmClipEvent
+    public sealed class NmLegacyEvent(KVObject eventData, float clipDuration) : NmClipEvent(eventData, clipDuration)
     {
         /// <summary>Gets the legacy animation event class name.</summary>
         public required string AnimEventClassName { get; init; }
