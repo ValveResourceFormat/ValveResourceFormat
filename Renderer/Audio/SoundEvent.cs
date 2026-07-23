@@ -202,6 +202,16 @@ public abstract class SoundEvent
     }
 
     /// <summary>
+    /// Fades the whole event tree in from silence over <paramref name="seconds"/>, so it doesn't jump
+    /// straight to full volume the moment it starts. Call right after <see cref="Start"/>; harmless to
+    /// call on an event that isn't started yet or already mid-fade-in.
+    /// </summary>
+    public void FadeIn(float seconds)
+    {
+        SampleProvider.BeginFadeIn(seconds, SampleRate);
+    }
+
+    /// <summary>
     /// Stops the sound event and any child events it has spawned.
     /// </summary>
     public void Stop()

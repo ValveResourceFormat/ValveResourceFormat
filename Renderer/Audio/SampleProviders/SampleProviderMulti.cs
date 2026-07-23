@@ -42,6 +42,10 @@ public class SampleProviderMulti : AudioSampleProvider
     private int fadeSampleRate;
     private double fadeElapsedFrames = -1; // < 0 means not fading
 
+    private float fadeInDuration;
+    private int fadeInSampleRate;
+    private double fadeInElapsedFrames = -1; // < 0 means not fading in / already finished
+
     /// <summary>
     /// Starts fading the mix out: subsequent reads ramp the volume down along <paramref name="curve"/>
     /// (or linearly over <paramref name="fallbackSeconds"/> when null) and the mix ends when the fade completes.
@@ -62,6 +66,26 @@ public class SampleProviderMulti : AudioSampleProvider
         }
     }
 
+    /// <summary>
+    /// Starts fading the mix in from silence over <paramref name="seconds"/>, eased rather than linear so
+    /// a freshly started event (e.g. entering a soundscape with none previously active) doesn't jump
+    /// straight to full volume. Harmless to call more than once; only the first call takes effect.
+    /// </summary>
+    public void BeginFadeIn(float seconds, int sampleRate)
+    {
+        lock (providers)
+        {
+            if (fadeInElapsedFrames >= 0 || seconds <= 0f)
+            {
+                return;
+            }
+
+            fadeInDuration = seconds;
+            fadeInSampleRate = sampleRate;
+            fadeInElapsedFrames = 0;
+        }
+    }
+
     private float EvaluateFade(double seconds)
     {
         if (fadeCurve != null)
@@ -70,6 +94,12 @@ public class SampleProviderMulti : AudioSampleProvider
         }
 
         return Math.Clamp(1f - (float)(seconds / fadeDuration), 0f, 1f);
+    }
+
+    private float EvaluateFadeIn(double seconds)
+    {
+        var t = Math.Clamp((float)(seconds / fadeInDuration), 0f, 1f);
+        return t * t * (3f - 2f * t);
     }
 
     /// <summary>Removes all providers from the mix.</summary>
@@ -151,6 +181,29 @@ public class SampleProviderMulti : AudioSampleProvider
                 {
                     // Fade finished: drop everything so the next read comes up empty and fires Over
                     providers.Clear();
+                }
+            }
+
+            if (fadeInElapsedFrames >= 0 && maxRead > 0)
+            {
+                var startSeconds = fadeInElapsedFrames / fadeInSampleRate;
+                var endSeconds = (fadeInElapsedFrames + maxRead / 2.0) / fadeInSampleRate;
+                var startGain = EvaluateFadeIn(startSeconds);
+                var endGain = EvaluateFadeIn(endSeconds);
+
+                var lastIndex = Math.Max(maxRead - 1, 1);
+
+                for (var i = 0; i < maxRead; i++)
+                {
+                    buffer[offset + i] *= float.Lerp(startGain, endGain, (float)i / lastIndex);
+                }
+
+                fadeInElapsedFrames += maxRead / 2.0;
+
+                if (endSeconds >= fadeInDuration)
+                {
+                    // Fade-in finished: stop applying it, unlike fade-out this never touches providers
+                    fadeInElapsedFrames = -1;
                 }
             }
         }

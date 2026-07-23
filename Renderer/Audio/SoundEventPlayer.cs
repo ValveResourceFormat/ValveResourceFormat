@@ -527,6 +527,10 @@ public sealed class SoundEventPlayer : IDisposable
     // buys the background decoder a few seconds before the soundscape can actually trigger.
     private const float SoundscapePrecacheMargin = 1024f;
 
+    // Softer/longer than the ~1 second default fade-out: entering a soundscape (especially from total
+    // silence, e.g. right after load) should ease in rather than jump straight to full volume.
+    private const float SoundscapeFadeInSeconds = 2.5f;
+
     /// <summary>
     /// Registers a soundscape region playing a single sound event directly (a modern
     /// <c>env_soundscape</c> with "enablesoundevent" set). The closest in-range soundscape becomes the
@@ -642,6 +646,7 @@ public sealed class SoundEventPlayer : IDisposable
 
                     if (soundEvent != null)
                     {
+                        soundEvent.FadeIn(SoundscapeFadeInSeconds);
                         activeSoundscapeEvents.Add(soundEvent);
                     }
                 }
@@ -653,6 +658,7 @@ public sealed class SoundEventPlayer : IDisposable
 
             if (soundEvent != null)
             {
+                //soundEvent.FadeIn(SoundscapeFadeInSeconds);
                 activeSoundscapeEvents.Add(soundEvent);
             }
         }
