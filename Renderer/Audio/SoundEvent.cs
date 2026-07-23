@@ -83,6 +83,7 @@ public abstract class SoundEvent
         Definition = definition;
     }
 
+    [System.Diagnostics.CodeAnalysis.MemberNotNull(nameof(SampleProvider))]
     internal void Init(AudioMixer mixer, int sampleRate)
     {
         Mixer = mixer;
@@ -190,7 +191,11 @@ public abstract class SoundEvent
         }
     }
 
-    /// <summary>Starts another sound event as a child of this one, mixed into this event's output.</summary>
+    /// <summary>
+    /// Starts another sound event as a child of this one, mixed into this event's output. Callers may pass
+    /// the same instance again on a later retrigger (e.g. cached by child index) instead of building a new
+    /// one - already-wired instances are recognized and only restarted, not rebuilt.
+    /// </summary>
     protected void StartAsChild(SoundEvent childSoundEvent)
     {
         // "set_child_position": the child follows this event (a footstep's gear rustle plays at the player).
@@ -199,11 +204,16 @@ public abstract class SoundEvent
         {
             childSoundEvent.Position = Position;
         }
-        childSoundEvent.Init(Mixer, SampleRate);
+
+        if (childSoundEvent.SampleProvider is null)
+        {
+            childSoundEvent.Init(Mixer, SampleRate);
+            childSoundEvent.OnSoundStart += ChildSoundStarted;
+            childSoundEvent.OnSoundOver += ChildSoundOver;
+        }
+
         ChildSoundEvents.Add(childSoundEvent);
         SampleProviders.Add(childSoundEvent.SampleProvider);
-        childSoundEvent.OnSoundStart += ChildSoundStarted;
-        childSoundEvent.OnSoundOver += ChildSoundOver;
         childSoundEvent.Start();
     }
 

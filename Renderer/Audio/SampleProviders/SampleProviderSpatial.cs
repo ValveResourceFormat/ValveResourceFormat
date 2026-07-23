@@ -80,6 +80,17 @@ public abstract class SampleProviderSpatial : SampleProvider2D
     }
 
     /// <summary>
+    /// Resets the interpolation state so the next update snaps to its target instead of fading in from
+    /// wherever this provider last left off. Call when reusing this instance for a new (e.g. retriggered) sound.
+    /// </summary>
+    public virtual void ResetInterpolation()
+    {
+        volumesInitialized = false;
+        LastLeftVolume = 0f;
+        LastRightVolume = 0f;
+    }
+
+    /// <summary>
     /// Returns how much the sound leans towards the right ear (-1 fully left, 1 fully right).
     /// </summary>
     protected abstract float GetDirectionMix(Vector3 listenerPosition, Vector3 rightEarDirection);

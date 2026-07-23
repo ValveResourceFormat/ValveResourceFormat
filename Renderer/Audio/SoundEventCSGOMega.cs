@@ -13,6 +13,12 @@ internal sealed class SoundEventCSGOMega : SoundEvent
     private bool waitingForRetrigger;
     private long retriggerTimestamp;
 
+    // Reused across retriggers instead of rebuilding the provider/child tree from scratch every time.
+    private CachedSoundSampleProvider? source;
+    private SampleProvider2D? unspatializedSource;
+    private SampleProvider3D? spatializedSource;
+    private SoundEvent?[]? children;
+
     private protected override bool WaitingToStart => waitingForRetrigger;
 
     public SoundEventCSGOMega(SoundEventDefinition definition) : base(definition)
@@ -48,32 +54,32 @@ internal sealed class SoundEventCSGOMega : SoundEvent
 
             if (cachedSound != null)
             {
-                var source = new CachedSoundSampleProvider(cachedSound)
-                {
-                    Pitch = GetRandomizedPitch(),
-                    // 2 interleaved stereo samples per frame
-                    DelaySamples = (int)(Definition.Delay * SampleRate) * 2,
-                };
+                // Reuse the same leaf provider(s) across retriggers instead of allocating a fresh chain
+                // every time - only the underlying CachedSound and its playback state actually change.
+                source ??= new CachedSoundSampleProvider(cachedSound);
+                source.Reset(cachedSound);
+                source.Pitch = GetRandomizedPitch();
+                // 2 interleaved stereo samples per frame
+                source.DelaySamples = (int)(Definition.Delay * SampleRate) * 2;
 
                 AudioSampleProvider sampleProvider;
 
                 if (Position.HasValue)
                 {
-                    sampleProvider = new SampleProvider3D(source)
-                    {
-                        Position = Position.Value + PositionOffset,
-                        Range = Definition.Range,
-                        DistanceVolumeCurve = Definition.DistanceVolumeCurve,
-                        StereoMixCurve = Definition.StereoMixCurve,
-                        Volume = GetRandomizedVolume(),
-                    };
+                    var spatial = spatializedSource ??= new SampleProvider3D(source);
+                    spatial.Position = Position.Value + PositionOffset;
+                    spatial.Range = Definition.Range;
+                    spatial.DistanceVolumeCurve = Definition.DistanceVolumeCurve;
+                    spatial.StereoMixCurve = Definition.StereoMixCurve;
+                    spatial.Volume = GetRandomizedVolume();
+                    spatial.ResetInterpolation();
+                    sampleProvider = spatial;
                 }
                 else
                 {
-                    sampleProvider = new SampleProvider2D(source)
-                    {
-                        Volume = GetRandomizedVolume(),
-                    };
+                    var unspatial = unspatializedSource ??= new SampleProvider2D(source);
+                    unspatial.Volume = GetRandomizedVolume();
+                    sampleProvider = unspatial;
                 }
 
                 SampleProviders.Add(sampleProvider);
@@ -100,14 +106,19 @@ internal sealed class SoundEventCSGOMega : SoundEvent
             Definition.ChildDefinitions = childDefinitions;
         }
 
-        foreach (var childDefinition in childDefinitions)
+        // One persistent slot per child definition, reused across retriggers instead of rebuilding
+        // the whole child (and its own provider tree) from scratch every time.
+        children ??= new SoundEvent?[childDefinitions.Length];
+
+        for (var i = 0; i < childDefinitions.Length; i++)
         {
+            var childDefinition = childDefinitions[i];
             if (childDefinition == null)
             {
                 continue;
             }
 
-            var childSoundEvent = Build(childDefinition);
+            var childSoundEvent = children[i] ??= Build(childDefinition);
             if (childSoundEvent != null)
             {
                 StartAsChild(childSoundEvent);

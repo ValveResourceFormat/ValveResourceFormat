@@ -1,3 +1,5 @@
+using ValveResourceFormat.Renderer.Utils;
+
 namespace ValveResourceFormat.Renderer.Audio.SampleProviders;
 
 /// <summary>
@@ -33,7 +35,7 @@ public abstract class AudioSampleProvider : IAudioSampleProvider
         set
         {
             volume = value;
-            VolumeMultiplier = (float)((Math.Exp(value) - 1) / (Math.E - 1));
+            VolumeMultiplier = MathUtils.ToPerceptualVolume(value);
         }
     }
 

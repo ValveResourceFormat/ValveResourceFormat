@@ -9,7 +9,7 @@ public sealed class CachedSoundSampleProvider : AudioSampleProvider
     private const int ChannelCount = 2; // The mixer format is always stereo
     private const float PcmScale = 1f / 32768f;
 
-    private readonly CachedSound sound;
+    private CachedSound sound;
     private double framePosition;
 
     /// <summary>
@@ -30,6 +30,16 @@ public sealed class CachedSoundSampleProvider : AudioSampleProvider
     public CachedSoundSampleProvider(CachedSound sound)
     {
         this.sound = sound;
+    }
+
+    /// <summary>
+    /// Rebinds this provider to <paramref name="newSound"/> and restarts playback from the beginning.
+    /// Lets a retriggering sound event reuse the same provider instead of allocating a new one every time.
+    /// </summary>
+    public void Reset(CachedSound newSound)
+    {
+        sound = newSound;
+        framePosition = 0;
     }
 
     /// <inheritdoc/>

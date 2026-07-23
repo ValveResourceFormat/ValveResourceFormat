@@ -1,3 +1,5 @@
+using ValveResourceFormat.Renderer.Utils;
+
 namespace ValveResourceFormat.Renderer.Audio.SampleProviders;
 
 /// <summary>
@@ -38,6 +40,13 @@ public class SampleProvider3D : SampleProviderSpatial
     }
 
     /// <inheritdoc/>
+    public override void ResetInterpolation()
+    {
+        base.ResetInterpolation();
+        occlusion = -1f;
+    }
+
+    /// <inheritdoc/>
     public override bool Update(Vector3 listenerPosition, Vector3 rightEarDirection)
     {
         var distance = (listenerPosition - Position).Length();
@@ -53,7 +62,7 @@ public class SampleProvider3D : SampleProviderSpatial
         else if (distance <= Range)
         {
             var multiplier = 1f - distance / Range;
-            attenuation = (float)((Math.Exp(multiplier) - 1) / (Math.E - 1));
+            attenuation = MathUtils.ToPerceptualVolume(multiplier);
         }
         else
         {

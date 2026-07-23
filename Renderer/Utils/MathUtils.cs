@@ -81,6 +81,16 @@ namespace ValveResourceFormat.Renderer.Utils
         }
 
         /// <summary>
+        /// Maps a linear 0-1 value onto an exponential curve approximating perceptual loudness, so the
+        /// middle of a volume control (or a linear distance falloff) does not sound louder than it should.
+        /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static float ToPerceptualVolume(float linear)
+        {
+            return (float)((Math.Exp(linear) - 1) / (Math.E - 1));
+        }
+
+        /// <summary>
         /// Returns the fractional part of a value (x - floor(x)).
         /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]

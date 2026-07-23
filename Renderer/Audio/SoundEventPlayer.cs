@@ -3,6 +3,7 @@ using System.Threading;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using ValveResourceFormat.IO;
+using ValveResourceFormat.Renderer.Utils;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.Serialization.KeyValues;
 
@@ -65,7 +66,7 @@ public sealed class SoundEventPlayer : IDisposable
             }
 
             volume = value;
-            volumeMultiplier = (float)((Math.Exp(value) - 1) / (Math.E - 1));
+            volumeMultiplier = MathUtils.ToPerceptualVolume(value);
         }
     }
 
