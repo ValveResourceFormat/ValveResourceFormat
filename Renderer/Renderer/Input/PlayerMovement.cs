@@ -986,7 +986,15 @@ public partial class PlayerMovement
             // the wishdir component reaches this floor within one 1/64s tick (like the engine's
             // discrete accelspeed jump), keeping starts from rest snappy
             var kickSpeed = AccelerateValue * wishspeed * SurfaceFriction * TickInterval;
-            (Velocity, GroundMoveDelta) = SubStopSpeedAccelerate(preFrictionVelocity, wishdir, wishspeed, accelMagnitude, deltaTime, frictionRate, kickSpeed);
+            var (kickVelocity, _, kickEndVelocity, kickEndTime) = SubStopSpeedAccelerate(preFrictionVelocity, wishdir, wishspeed, accelMagnitude, deltaTime, frictionRate, kickSpeed);
+            Velocity = kickVelocity;
+
+            // The boost switching off is a jump in acceleration; chording the whole frame across
+            // it is where the trapezoid loses the most. Integrate the boosted and unboosted
+            // stretches separately when the crossing falls inside this frame
+            GroundMoveDelta = kickEndTime >= 0f
+                ? TrapezoidDisplacement(preFrictionVelocity, kickEndVelocity, kickEndTime) + TrapezoidDisplacement(kickEndVelocity, Velocity, deltaTime - kickEndTime)
+                : TrapezoidDisplacement(preFrictionVelocity, Velocity, deltaTime);
             return;
         }
 
@@ -1001,7 +1009,7 @@ public partial class PlayerMovement
             && OdeMinSpeedSquared(preFrictionVelocity, equilibrium, decay) > StopSpeedValue * StopSpeedValue)
         {
             Velocity = odeVelocity;
-            GroundMoveDelta = LinearOdeDisplacement(preFrictionVelocity, equilibrium, deltaTime, frictionRate);
+            GroundMoveDelta = TrapezoidDisplacement(preFrictionVelocity, Velocity, deltaTime);
             return;
         }
 
@@ -1010,9 +1018,7 @@ public partial class PlayerMovement
         var effectiveTime = (1f - decay) / frictionRate;
         Velocity += Math.Min(accelMagnitude * effectiveTime, addspeed) * wishdir;
 
-        GroundMoveDelta = OdeMinSpeedSquared(preFrictionVelocity, equilibrium, decay) > StopSpeedValue * StopSpeedValue
-            ? GateBoundDisplacement(preFrictionVelocity, wishdir, wishspeed, equilibrium, deltaTime, frictionRate)
-            : TrapezoidDisplacement(preFrictionVelocity, Velocity, deltaTime);
+        GroundMoveDelta = TrapezoidDisplacement(preFrictionVelocity, Velocity, deltaTime);
     }
 
     /// <summary>
