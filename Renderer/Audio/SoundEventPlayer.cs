@@ -210,8 +210,18 @@ public sealed class SoundEventPlayer : IDisposable
     }
 
     /// <summary>
-    /// Loads sound event definitions from all soundevent files listed in the game's soundevents manifest.
-    /// An optional filter matches against the file name (e.g. "game_sounds").
+    /// Conventional path for an addon/workshop map's own extra sound events. Unlike the rest of a base
+    /// game's content, an addon's own files are not necessarily reachable from
+    /// "soundevents/soundevents_manifest.vrman" (that manifest ships with the base game, not the addon),
+    /// so this is always attempted directly in <see cref="LoadSoundEvents"/> regardless of what is loaded -
+    /// most content (anything that is not an addon) simply does not have the file.
+    /// </summary>
+    private const string AddonSoundEventsFile = "soundevents/soundevents_addon.vsndevts";
+
+    /// <summary>
+    /// Loads sound event definitions from all soundevent files listed in the game's soundevents manifest,
+    /// plus <see cref="AddonSoundEventsFile"/> when present. An optional filter matches against the file
+    /// name (e.g. "game_sounds").
     /// </summary>
     public void LoadSoundEvents(string filter = "")
     {
@@ -225,17 +235,29 @@ public sealed class SoundEventPlayer : IDisposable
             }
         }
 
+        if (filter.Length == 0 || AddonSoundEventsFile.Contains(filter, StringComparison.OrdinalIgnoreCase))
+        {
+            LoadSoundEventsFile(AddonSoundEventsFile, optional: true);
+        }
+
         stopwatch.Stop();
         logger.LogInformation("Loaded {Count} sound events in {ElapsedMs} ms", Bank.Count, stopwatch.ElapsedMilliseconds);
     }
 
-    /// <summary>Loads sound event definitions from a single soundevent (vsndevts) file.</summary>
-    public void LoadSoundEventsFile(string fileName)
+    /// <summary>
+    /// Loads sound event definitions from a single soundevent (vsndevts) file. When <paramref name="optional"/>
+    /// is set, a missing file is skipped quietly instead of logging a warning (see <see cref="AddonSoundEventsFile"/>).
+    /// </summary>
+    public void LoadSoundEventsFile(string fileName, bool optional = false)
     {
         using var soundEventsFile = fileLoader.LoadFileCompiled(fileName);
         if (soundEventsFile?.DataBlock == null)
         {
-            logger.LogWarning("Could not load sound events file {FileName}", fileName);
+            if (!optional)
+            {
+                logger.LogWarning("Could not load sound events file {FileName}", fileName);
+            }
+
             return;
         }
 
