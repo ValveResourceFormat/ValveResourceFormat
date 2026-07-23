@@ -1,4 +1,4 @@
-using System.Linq;
+﻿using System.Linq;
 using GUI.Types.GLViewers;
 using GUI.Types.Graphs.Core;
 using GUI.Utils;
@@ -301,8 +301,8 @@ internal class AG2GraphViewer : GLGraphViewer
                         var label = conditionNodeIdx != -1 ? GetName(conditionNodeIdx) : null;
 
                         var target = stateGraphNodes[targetStateIdx];
-                        var from = source.Outputs.Find(static o => o.Name == "Transitions") ?? source.AddOutput("Transitions", GraphHue.Slate);
-                        var to = target.Inputs.Find(static i => i.Name == "From") ?? target.AddInput("From", GraphHue.Slate, allowMultiple: true);
+                        var from = source.GetOrAddOutput("Transitions", GraphHue.Slate);
+                        var to = target.GetOrAddInput("From", GraphHue.Slate);
 
                         // Parallel transitions between the same pair of states share one dashed
                         // wire; every condition keeps its label on it.
@@ -899,7 +899,7 @@ internal class AG2GraphViewer : GLGraphViewer
         // A pose graph is one connected DAG, where routing a long wire through dummy ranks keeps
         // it between the cards of the ranks it spans rather than over them, and where closing
         // every rank of slack pays off instead of costing the room the repair moves cards in.
-        View.LayoutOptions.Features |= GraphLayoutFeature.LongWireDummies;
+        View.LayoutOptions.LongWireDummies = true;
         View.LayoutOptions.TightenMinSpan = 1;
         View.LayoutNodesPacked();
 

@@ -18,18 +18,11 @@ sealed class NodeGeometry
     public float[] RowCenters = [];
 }
 
-/// <summary>Routed geometry of one wire; both stay null for a plain socket-to-socket curve.</summary>
+/// <summary>Routed geometry of one wire; stays null for a plain socket-to-socket curve.</summary>
 sealed class WireRoute
 {
     /// <summary>Corner points of the orthogonal route computed by the layout.</summary>
     public List<Vector2>? Waypoints;
-
-    /// <summary>
-    /// Exact routed curve as a path-command stream. When set, rendering prefers it over
-    /// <see cref="Waypoints"/>, which then only serves culling and hit-testing.
-    /// </summary>
-    public List<GraphCurveCommand>? CurvePath;
-
 }
 
 /// <summary>
@@ -76,13 +69,11 @@ internal sealed class GraphGeometry
 
     public WireRoute? TryRouteOf(GraphWire wire) => routes.GetValueOrDefault(wire);
 
-
     public void ClearAllRoutes()
     {
         foreach (var route in routes.Values)
         {
             route.Waypoints = null;
-            route.CurvePath = null;
         }
     }
 

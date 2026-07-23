@@ -61,6 +61,21 @@ class GraphNode : IGraphElement
     public List<GraphSocket> Inputs { get; } = [];
     public List<GraphSocket> Outputs { get; } = [];
 
+    /// <summary>
+    /// Nodes one wire away, walking the inputs upstream or the outputs downstream. Repeats a
+    /// neighbour once per wire that reaches it.
+    /// </summary>
+    public IEnumerable<GraphNode> Neighbors(bool upstream)
+    {
+        foreach (var socket in upstream ? Inputs : Outputs)
+        {
+            foreach (var wire in socket.Wires)
+            {
+                yield return upstream ? wire.From.Owner : wire.To.Owner;
+            }
+        }
+    }
+
     public Vector2 Position { get; set; }
 
     /// <summary>Bumped by every content mutation; views compare it against their measured geometry.</summary>
@@ -83,6 +98,14 @@ class GraphNode : IGraphElement
         ContentVersion++;
         return socket;
     }
+
+    /// <summary>The named input, added with the given hue if the node does not have one yet.</summary>
+    public GraphSocket GetOrAddInput(string name, GraphHue hue, bool allowMultiple = true)
+        => Inputs.Find(socket => socket.Name == name) ?? AddInput(name, hue, allowMultiple);
+
+    /// <summary>The named output, added with the given hue if the node does not have one yet.</summary>
+    public GraphSocket GetOrAddOutput(string name, GraphHue hue)
+        => Outputs.Find(socket => socket.Name == name) ?? AddOutput(name, hue);
 
     public void AddText(string text)
     {
@@ -229,26 +252,23 @@ class GraphSocket : IGraphElement
     }
 }
 
-enum GraphCurveVerb
+/// <summary>Which nodes around a target an isolate command keeps visible.</summary>
+enum GraphIsolateMode
 {
-    MoveTo,
-    LineTo,
-    CubicTo,
+    /// <summary>The transitive upstream and downstream chain of the node.</summary>
+    Chain,
 
-    /// <summary>Rational quadratic; represents elliptical arc pieces exactly.</summary>
-    ConicTo,
-}
+    /// <summary>Everything that can reach the node.</summary>
+    Upstream,
 
-/// <summary>
-/// One drawing command of a wire's exact routed path. A/B are cubic control points;
-/// conics use A as their single control point and Weight as the rational weight.
-/// </summary>
-readonly record struct GraphCurveCommand(GraphCurveVerb Verb, Vector2 A, Vector2 B, Vector2 End, float Weight)
-{
-    public static GraphCurveCommand MoveTo(Vector2 end) => new(GraphCurveVerb.MoveTo, end, end, end, 0f);
-    public static GraphCurveCommand LineTo(Vector2 end) => new(GraphCurveVerb.LineTo, end, end, end, 0f);
-    public static GraphCurveCommand CubicTo(Vector2 c1, Vector2 c2, Vector2 end) => new(GraphCurveVerb.CubicTo, c1, c2, end, 0f);
-    public static GraphCurveCommand ConicTo(Vector2 control, Vector2 end, float weight) => new(GraphCurveVerb.ConicTo, control, control, end, weight);
+    /// <summary>Everything the node can reach.</summary>
+    Downstream,
+
+    /// <summary>The node's authored group, nested sub-groups included.</summary>
+    Group,
+
+    /// <summary>The connected component the node sits in.</summary>
+    Island,
 }
 
 /// <summary>How a legend row's color sample is drawn.</summary>

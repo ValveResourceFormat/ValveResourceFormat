@@ -119,7 +119,6 @@ internal class PulseGraphViewer : GLGraphViewer
     private readonly IReadOnlyList<KVObject> variables;
     private readonly IReadOnlyList<KVObject> publicOutputs;
     private readonly IReadOnlyList<KVObject> callInfos;
-    private readonly Dictionary<int, Dictionary<int, GraphSocket>> instructionInputActionSocketMap = [];
     private readonly List<NodeCallInfo> callNodesToResolve = [];
     private Dictionary<int, HashSet<List<int>>> loopInstructionMap = [];
 
@@ -462,14 +461,12 @@ internal class PulseGraphViewer : GLGraphViewer
         return filteredCell;
     }
 
-    private GraphSocket CreateSequentialActionSockets(Node node, GraphSocket previousActionOutSocket, int chunkIdx, int instructionIdx)
+    private GraphSocket CreateSequentialActionSockets(Node node, GraphSocket previousActionOutSocket)
     {
         var socketIn = node.CreateSocketIn<Flow>("");
         View.Connect(previousActionOutSocket, socketIn);
-        instructionInputActionSocketMap[chunkIdx][instructionIdx] = socketIn;
 
-        var socketOut = node.CreateSocketOut<Flow>("");
-        return socketOut;
+        return node.CreateSocketOut<Flow>("");
     }
 
     private void AddNodeRegisterInput(
@@ -735,7 +732,7 @@ internal class PulseGraphViewer : GLGraphViewer
         // If node has no outputs
         if (!TryAddRegisterMapOutParams(node, chunkIndex, registerOutputSocketMap, registerMap))
         {
-            return CreateSequentialActionSockets(node, previousActionOutSocket, chunkIndex, instructionIdx);
+            return CreateSequentialActionSockets(node, previousActionOutSocket);
         }
         else
         {
@@ -752,7 +749,7 @@ internal class PulseGraphViewer : GLGraphViewer
             }
             if (hasNoUsedOutputs)
             {
-                return CreateSequentialActionSockets(node, previousActionOutSocket, chunkIndex, instructionIdx);
+                return CreateSequentialActionSockets(node, previousActionOutSocket);
             }
         }
 
@@ -807,17 +804,9 @@ internal class PulseGraphViewer : GLGraphViewer
             return null;
         }
 
-        instructionInputActionSocketMap.TryAdd(chunkIndex, []);
-
         var chunk = chunks[chunkIndex];
         var instructions = chunk.GetArray("m_Instructions");
         var registers = chunk.GetArray("m_Registers");
-
-        var instructionStartIdx = startingInstructionIdx;
-        while (instructionStartIdx < instructions.Count && GetInstructionType(instructions[instructionStartIdx]) == InstructionCode.NOP)
-        {
-            instructionStartIdx++;
-        }
 
         var finalEndingInstructionIdx = Math.Min(instructions.Count, endingInstructionIdx);
         var previousActionOutSocket = sourceActionOutSocket;
@@ -847,7 +836,7 @@ internal class PulseGraphViewer : GLGraphViewer
                             Category = ControlFlowHue,
                         };
 
-                        previousActionOutSocket = CreateSequentialActionSockets(doWhileNode, previousActionOutSocket, chunkIndex, instructionIdx);
+                        previousActionOutSocket = CreateSequentialActionSockets(doWhileNode, previousActionOutSocket);
 
                         var newRegisterConstValueMap = new Dictionary<int, KVObject>(registerConstValueMap);
                         var newRegisterOutputSocketMap = new Dictionary<int, GraphSocket>(registerOutputSocketMap);
@@ -1039,7 +1028,6 @@ internal class PulseGraphViewer : GLGraphViewer
 
                         var loopSocketIn = forLoopNode.CreateSocketIn<Flow>("");
                         View.Connect(previousActionOutSocket, loopSocketIn);
-                        instructionInputActionSocketMap[chunkIndex][instructionIdx] = loopSocketIn;
 
                         if (regStart != -1)
                         {
@@ -1255,7 +1243,7 @@ internal class PulseGraphViewer : GLGraphViewer
                         View.AddNode(node);
 
                         var variableHub = VariableNodeFor(varIndex, name);
-                        var readsOutput = variableHub.Outputs.Find(static o => o.Name == "reads") ?? variableHub.AddOutput("reads", GraphHue.Indigo);
+                        var readsOutput = variableHub.GetOrAddOutput("reads", GraphHue.Indigo);
                         View.Connect(readsOutput, node.AddInput("var", GraphHue.Indigo, allowMultiple: true), dashed: true);
                         break;
                     }
@@ -1268,7 +1256,7 @@ internal class PulseGraphViewer : GLGraphViewer
                             Name = "Set Variable",
                             NodeType = "Instruction",
                         };
-                        previousActionOutSocket = CreateSequentialActionSockets(node, previousActionOutSocket, chunkIndex, instructionIdx);
+                        previousActionOutSocket = CreateSequentialActionSockets(node, previousActionOutSocket);
 
                         if (!TryGetVariableNameFromId(varIndex, out var name))
                         {
@@ -1282,7 +1270,7 @@ internal class PulseGraphViewer : GLGraphViewer
                         View.AddNode(node);
 
                         var variableHub = VariableNodeFor(varIndex, name);
-                        var writesInput = variableHub.Inputs.Find(static i => i.Name == "writes") ?? variableHub.AddInput("writes", GraphHue.Indigo, allowMultiple: true);
+                        var writesInput = variableHub.GetOrAddInput("writes", GraphHue.Indigo);
                         View.Connect(node.AddOutput("var", GraphHue.Indigo), writesInput, dashed: true);
                         break;
                     }
@@ -1299,7 +1287,7 @@ internal class PulseGraphViewer : GLGraphViewer
                                 Name = instrType == InstructionCode.PULSE_CALL_SYNC ? "Call" : "Call Asynchronously",
                                 NodeType = "Flow",
                             };
-                            previousActionOutSocket = CreateSequentialActionSockets(node, previousActionOutSocket, chunkIndex, instructionIdx);
+                            previousActionOutSocket = CreateSequentialActionSockets(node, previousActionOutSocket);
                             var callInfo = callInfos.ElementAtOrDefault(callInfoIndex);
                             if (callInfo != null)
                             {
@@ -1342,7 +1330,7 @@ internal class PulseGraphViewer : GLGraphViewer
                             Name = "Return Value",
                             NodeType = "Flow",
                         };
-                        previousActionOutSocket = CreateSequentialActionSockets(node, previousActionOutSocket, chunkIndex, instructionIdx);
+                        previousActionOutSocket = CreateSequentialActionSockets(node, previousActionOutSocket);
                         AddNodeRegisterInput(node, chunkIndex, registerConstValueMap, registerOutputSocketMap, regIndex, "value");
                         View.AddNode(node);
                         break;
@@ -1377,7 +1365,6 @@ internal class PulseGraphViewer : GLGraphViewer
                         };
                         var socketIn = node.CreateSocketIn<Flow>("");
                         View.Connect(previousActionOutSocket, socketIn);
-                        instructionInputActionSocketMap[chunkIndex][instructionIdx] = socketIn;
 
                         if (reg0 != -1)
                         {
@@ -1473,7 +1460,7 @@ internal class PulseGraphViewer : GLGraphViewer
 
                             if (reg1 == -1 && reg2 == -1)
                             {
-                                previousActionOutSocket = CreateSequentialActionSockets(node, previousActionOutSocket, chunkIndex, instructionIdx);
+                                previousActionOutSocket = CreateSequentialActionSockets(node, previousActionOutSocket);
                                 AddNodeRegisterInput(node, chunkIndex, registerConstValueMap, registerOutputSocketMap, reg0, "arg");
                             }
 

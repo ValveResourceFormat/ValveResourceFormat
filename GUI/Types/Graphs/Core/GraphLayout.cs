@@ -1,4 +1,4 @@
-using System.Linq;
+﻿using System.Linq;
 
 namespace GUI.Types.Graphs.Core;
 
@@ -66,7 +66,6 @@ internal static class GraphLayout
         var top = owner.Position.Y - 26f;
 
         var route = geometry.RouteOf(wire);
-        route.CurvePath = null;
         route.Waypoints =
         [
             new Vector2(from.X + 36f, from.Y),
@@ -85,7 +84,7 @@ internal static class GraphLayout
     /// </remarks>
     public static void RepairCrossings(List<GraphNode> component, List<GraphWire> componentWires, GraphGeometry geometry, GraphLayoutOptions options)
     {
-        if (options.Has(GraphLayoutFeature.CrossingSwap) && component.Count > 1)
+        if (component.Count > 1)
         {
             new CrossingRepair(component, componentWires, geometry, options).Run();
         }
@@ -316,10 +315,7 @@ internal static class GraphLayout
             component[i].Position = positions[i] - halfSizes[i];
         }
 
-        if (options.Has(GraphLayoutFeature.PortAwareAlignment))
-        {
-            SnapOrganicPivots(component, componentWires, geometry, index, halfSizes, options);
-        }
+        SnapOrganicPivots(component, componentWires, geometry, index, halfSizes, options);
 
         RepairCrossings(component, componentWires, geometry, options);
     }
@@ -657,11 +653,6 @@ internal static class GraphLayout
                 }
             }
 
-            if (!options.Has(GraphLayoutFeature.TightenRanks))
-            {
-                return;
-            }
-
             // Longest-path ranking maximises span: a sourceless chain lands at the left edge no
             // matter how far right the node it feeds sits. Walking the order backwards and pulling
             // each node up against its nearest successor moves the whole chain beside its consumer,
@@ -699,8 +690,7 @@ internal static class GraphLayout
         private void BuildLayers(List<GraphWire> crossWires)
         {
             var rankCount = realCount == 0 ? 1 : rankOf.Max() + 1;
-            var wantDummies = options.Has(GraphLayoutFeature.LongWireDummies);
-            var portAware = options.Has(GraphLayoutFeature.PortAwareAlignment);
+            var wantDummies = options.LongWireDummies;
 
             var dummyRanks = new List<int>();
 
@@ -769,8 +759,8 @@ internal static class GraphLayout
 
                 // A reversed wire still docks at its real sockets, so the anchors follow the
                 // wire's own direction rather than the ranking direction.
-                var sourceAnchor = portAware ? AnchorOf(wire.From) : 0f;
-                var targetAnchor = portAware ? AnchorOf(wire.To) : 0f;
+                var sourceAnchor = AnchorOf(wire.From);
+                var targetAnchor = AnchorOf(wire.To);
                 var fromAnchor = reversed.Contains(wire) ? targetAnchor : sourceAnchor;
                 var toAnchor = reversed.Contains(wire) ? sourceAnchor : targetAnchor;
 
@@ -827,12 +817,6 @@ internal static class GraphLayout
         // keeps whichever sweep actually measured fewest crossings.
         private void OrderLayers()
         {
-            if (!options.Has(GraphLayoutFeature.BarycentreRepair))
-            {
-                OrderLayersLegacy();
-                return;
-            }
-
             var best = Snapshot();
             var bestCrossings = CountCrossings();
 
@@ -1051,37 +1035,6 @@ internal static class GraphLayout
                 for (var i = 0; i < ranks[r].Count; i++)
                 {
                     positionInRank[ranks[r][i]] = i;
-                }
-            }
-        }
-
-        // The shipped ordering: one direction, unnormalised keys, no crossing measurement.
-        private void OrderLayersLegacy()
-        {
-            var neighbors = new List<int>[count];
-
-            for (var i = 0; i < count; i++)
-            {
-                neighbors[i] = [.. up[i].Select(static l => l.Other), .. down[i].Select(static l => l.Other)];
-            }
-
-            for (var sweep = 0; sweep < 12; sweep++)
-            {
-                for (var r = 0; r < ranks.Length; r++)
-                {
-                    var rank = ranks[r];
-
-                    var keyed = rank
-                        .Select(i => (Index: i, Key: neighbors[i].Count == 0 ? positionInRank[i] : (float)neighbors[i].Average(other => positionInRank[other])))
-                        .OrderBy(static entry => entry.Key)
-                        .ToList();
-
-                    for (var order = 0; order < keyed.Count; order++)
-                    {
-                        positionInRank[keyed[order].Index] = order;
-                    }
-
-                    ranks[r] = [.. keyed.Select(static entry => entry.Index)];
                 }
             }
         }
@@ -1347,7 +1300,6 @@ internal static class GraphLayout
                 }
 
                 var route = geometry.RouteOf(wire);
-                route.CurvePath = null;
                 route.Waypoints = [.. chain.Select(d => new Vector2(columnX[columnOf[d]], centerY[d]))];
             }
         }

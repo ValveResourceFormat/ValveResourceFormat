@@ -1,4 +1,4 @@
-using System.ComponentModel;
+﻿using System.ComponentModel;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
@@ -34,7 +34,6 @@ namespace GUI.Types.Viewers
     {
         private ValveResourceFormat.Resource? resource;
         private RendererContext? rendererContext;
-        private readonly List<GLGraphViewer> extraGraphViewers = [];
         private readonly List<(GLGraphViewer Viewer, string TabName)> preparedGraphViewers = [];
         private EntityIOGraphViewer? entityGraphViewer;
         public GLBaseControl? GLViewer { get; private set; }
@@ -596,7 +595,6 @@ namespace GUI.Types.Viewers
                 {
                     var tabName = scripts.Count > 1 ? $"PULSE GRAPH ({Path.GetFileNameWithoutExtension(script)})" : "PULSE GRAPH";
                     var viewer = new PulseGraphViewer(vrfGuiContext, rendererContext, pulseData.Data);
-                    extraGraphViewers.Add(viewer);
                     preparedGraphViewers.Add((viewer, tabName));
                 }
             }
@@ -608,16 +606,19 @@ namespace GUI.Types.Viewers
 
             var graphPaths = new List<string>();
 
+            void AddGraphPath(string? path)
+            {
+                if (!string.IsNullOrEmpty(path) && !graphPaths.Contains(path))
+                {
+                    graphPaths.Add(path);
+                }
+            }
+
             if (model.Data.GetArray("m_animGraph2Refs") is { } animGraph2Refs)
             {
                 foreach (var graphRef in animGraph2Refs)
                 {
-                    var path = graphRef.GetStringProperty("m_hGraph");
-
-                    if (!string.IsNullOrEmpty(path) && !graphPaths.Contains(path))
-                    {
-                        graphPaths.Add(path);
-                    }
+                    AddGraphPath(graphRef.GetStringProperty("m_hGraph"));
                 }
             }
             else if (model.Data.ContainsKey("m_animGraph2Refs"))
@@ -627,21 +628,11 @@ namespace GUI.Types.Viewers
 
             if (model.Data.ContainsKey("m_refAnimGraph"))
             {
-                var path = model.Data.GetStringProperty("m_refAnimGraph");
-
-                if (!string.IsNullOrEmpty(path) && !graphPaths.Contains(path))
-                {
-                    graphPaths.Add(path);
-                }
+                AddGraphPath(model.Data.GetStringProperty("m_refAnimGraph"));
             }
 
             // HLA/SteamVR-era models and compiled Deadlock AG1 bind their graph through the keyvalues block.
-            var kvGraphPath = model.KeyValues.GetStringProperty("anim_graph_resource");
-
-            if (!string.IsNullOrEmpty(kvGraphPath) && !graphPaths.Contains(kvGraphPath))
-            {
-                graphPaths.Add(kvGraphPath);
-            }
+            AddGraphPath(model.KeyValues.GetStringProperty("anim_graph_resource"));
 
             foreach (var path in graphPaths)
             {
@@ -663,7 +654,6 @@ namespace GUI.Types.Viewers
                 }
 
                 var tabName = graphPaths.Count > 1 ? $"{baseName} ({Path.GetFileNameWithoutExtension(path)})" : baseName;
-                extraGraphViewers.Add(viewer);
                 preparedGraphViewers.Add((viewer, tabName));
             }
         }
@@ -1067,12 +1057,11 @@ namespace GUI.Types.Viewers
 
         private void DisposeExtraGraphViewers()
         {
-            foreach (var viewer in extraGraphViewers)
+            foreach (var (viewer, _) in preparedGraphViewers)
             {
                 viewer.Dispose();
             }
 
-            extraGraphViewers.Clear();
             preparedGraphViewers.Clear();
             entityGraphViewer?.Dispose();
             entityGraphViewer = null;

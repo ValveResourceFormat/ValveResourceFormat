@@ -40,11 +40,6 @@ partial class GraphView : IDisposable
 
     public event EventHandler? GraphChanged;
 
-    /// <summary>Raised when the selection (primary node or wire) changes.</summary>
-    public event EventHandler? SelectionChanged;
-
-    private void OnSelectionChanged() => SelectionChanged?.Invoke(this, EventArgs.Empty);
-
     public int NodeCount => nodes.Count;
     public int WireCount => wires.Count;
 
@@ -70,7 +65,7 @@ partial class GraphView : IDisposable
     public GraphPlacement Placement { get; set; } = GraphPlacement.Layered;
 
     /// <summary>Which layout improvements the placement engines apply.</summary>
-    internal GraphLayoutOptions LayoutOptions { get; set; } = GraphLayoutOptions.Default;
+    internal GraphLayoutOptions LayoutOptions { get; } = new();
 
     /// <summary>
     /// Draws wires as straight segments leaving each socket on a short stub instead of as
@@ -353,7 +348,6 @@ partial class GraphView : IDisposable
 
             if (route != null)
             {
-                route.CurvePath = null;
                 route.Waypoints = null;
             }
         }
@@ -475,7 +469,6 @@ partial class GraphView : IDisposable
 
             if (route != null)
             {
-                route.CurvePath = null;
                 route.Waypoints = null;
             }
         }
@@ -494,7 +487,6 @@ partial class GraphView : IDisposable
     private void SelectWire(GraphWire wire)
     {
         Selection.SelectWire(wire);
-        OnSelectionChanged();
         OnGraphChanged();
     }
 
@@ -517,7 +509,6 @@ partial class GraphView : IDisposable
         }
 
         MarkVisualDirty();
-        OnSelectionChanged();
     }
 
     private void ToggleSelection(GraphNode node)
@@ -525,7 +516,6 @@ partial class GraphView : IDisposable
         if (Selection.PrimaryNode == node || Selection.Connected.Contains(node))
         {
             Selection.Clear();
-            OnSelectionChanged();
         }
         else
         {
@@ -539,7 +529,6 @@ partial class GraphView : IDisposable
     public void ClearSelection()
     {
         Selection.Clear();
-        OnSelectionChanged();
         OnGraphChanged();
     }
 
@@ -582,25 +571,19 @@ partial class GraphView : IDisposable
             var node = stack.Pop();
             component.Add(node);
 
-            foreach (var socket in node.Inputs)
+            foreach (var neighbor in node.Neighbors(upstream: true))
             {
-                foreach (var wire in socket.Wires)
+                if ((includeHidden || !neighbor.Hidden) && visited.Add(neighbor))
                 {
-                    if ((includeHidden || !wire.From.Owner.Hidden) && visited.Add(wire.From.Owner))
-                    {
-                        stack.Push(wire.From.Owner);
-                    }
+                    stack.Push(neighbor);
                 }
             }
 
-            foreach (var socket in node.Outputs)
+            foreach (var neighbor in node.Neighbors(upstream: false))
             {
-                foreach (var wire in socket.Wires)
+                if ((includeHidden || !neighbor.Hidden) && visited.Add(neighbor))
                 {
-                    if ((includeHidden || !wire.To.Owner.Hidden) && visited.Add(wire.To.Owner))
-                    {
-                        stack.Push(wire.To.Owner);
-                    }
+                    stack.Push(neighbor);
                 }
             }
         }
@@ -703,94 +686,50 @@ partial class GraphView : IDisposable
         return [.. subtitles];
     }
 
-    /// <summary>Hides every node outside the transitive up/downstream chain of <paramref name="node"/>.</summary>
-    public void IsolateChainOf(GraphNode node)
-    {
-        var chain = new HashSet<GraphNode>();
-        GraphSelection.TraverseConnected(node, chain);
-
-        foreach (var member in nodes)
-        {
-            member.Hidden = !chain.Contains(member);
-        }
-
-        OnGraphChanged();
-    }
-
-    /// <summary>Hides everything outside the directed cone of nodes that can trigger <paramref name="node"/>.</summary>
-    public void IsolateUpstreamOf(GraphNode node) => IsolateCone(node, upstream: true);
-
-    /// <summary>Hides everything outside the directed cone of nodes that <paramref name="node"/> can trigger.</summary>
-    public void IsolateDownstreamOf(GraphNode node) => IsolateCone(node, upstream: false);
-
-    private void IsolateCone(GraphNode node, bool upstream)
-    {
-        var cone = new HashSet<GraphNode> { node };
-        var queue = new Queue<GraphNode>();
-        queue.Enqueue(node);
-
-        while (queue.Count > 0)
-        {
-            var current = queue.Dequeue();
-
-            foreach (var socket in upstream ? current.Inputs : current.Outputs)
-            {
-                foreach (var wire in socket.Wires)
-                {
-                    var next = upstream ? wire.From.Owner : wire.To.Owner;
-
-                    if (cone.Add(next))
-                    {
-                        queue.Enqueue(next);
-                    }
-                }
-            }
-        }
-
-        foreach (var member in nodes)
-        {
-            member.Hidden = !cone.Contains(member);
-        }
-
-        OnGraphChanged();
-    }
-
     /// <summary>
-    /// Hides every node outside the authored group of <paramref name="node"/>, nested
-    /// sub-groups included. No-op for a node at the graph root.
+    /// Hides every node outside the set <paramref name="mode"/> selects around
+    /// <paramref name="node"/>. Isolating a group is a no-op for a node at the graph root.
     /// </summary>
-    public void IsolateGroupOf(GraphNode node)
+    public void Isolate(GraphNode node, GraphIsolateMode mode)
     {
-        if (node.GroupPath == null)
+        if (mode == GraphIsolateMode.Group && node.GroupPath == null)
         {
             return;
         }
 
-        var prefix = node.GroupPath + "/";
+        var keep = NodesToKeep(node, mode);
 
         foreach (var member in nodes)
         {
-            member.Hidden = member.GroupPath == null
-                || (member.GroupPath != node.GroupPath && !member.GroupPath.StartsWith(prefix, StringComparison.Ordinal));
+            member.Hidden = !keep.Contains(member);
         }
 
         OnGraphChanged();
     }
 
-    /// <summary>Hides every island except the one containing <paramref name="node"/>.</summary>
-    public void FocusIslandOf(GraphNode node)
+    private HashSet<GraphNode> NodesToKeep(GraphNode node, GraphIsolateMode mode)
     {
-        foreach (var component in GetComponents())
+        switch (mode)
         {
-            var visible = component.Contains(node);
+            case GraphIsolateMode.Chain:
+                var chain = new HashSet<GraphNode>();
+                GraphSelection.TraverseConnected(node, chain);
+                return chain;
 
-            foreach (var member in component)
-            {
-                member.Hidden = !visible;
-            }
+            case GraphIsolateMode.Upstream:
+            case GraphIsolateMode.Downstream:
+                var cone = new HashSet<GraphNode> { node };
+                GraphSelection.TraverseDirection(node, cone, mode == GraphIsolateMode.Upstream);
+                return cone;
+
+            case GraphIsolateMode.Group:
+                var prefix = node.GroupPath + "/";
+                return [.. nodes.Where(member => member.GroupPath != null
+                    && (member.GroupPath == node.GroupPath || member.GroupPath.StartsWith(prefix, StringComparison.Ordinal)))];
+
+            default:
+                return [.. GetComponents().Find(component => component.Contains(node)) ?? [node]];
         }
-
-        OnGraphChanged();
     }
 
     public void ShowAllNodes()
@@ -804,43 +743,6 @@ partial class GraphView : IDisposable
     }
 
     public bool HasMultipleIslands() => GetComponents().Count > 1;
-
-    public bool HasHiddenNodes() => nodes.Exists(static n => n.Hidden);
-
-    /// <summary>The most connected nodes with their wire counts, descending.</summary>
-    public List<(GraphNode Node, int Degree)> GetTopConnectedNodes(int count)
-    {
-        var result = new List<(GraphNode Node, int Degree)>(nodes.Count);
-
-        foreach (var node in nodes)
-        {
-            var degree = 0;
-
-            foreach (var socket in node.Inputs)
-            {
-                degree += socket.Wires.Count;
-            }
-
-            foreach (var socket in node.Outputs)
-            {
-                degree += socket.Wires.Count;
-            }
-
-            if (degree > 0)
-            {
-                result.Add((node, degree));
-            }
-        }
-
-        result.Sort(static (a, b) => b.Degree.CompareTo(a.Degree));
-
-        if (result.Count > count)
-        {
-            result.RemoveRange(count, result.Count - count);
-        }
-
-        return result;
-    }
 
     /// <summary>Self-loop wire count and the number of nodes no wire touches.</summary>
     public (int SelfLoops, int Orphans) GetGraphHealthCounts()
@@ -911,25 +813,24 @@ partial class GraphView : IDisposable
         {
             EnsureAllGeometry();
 
-            var previous = LayoutOptions;
+            var previousBudget = LayoutOptions.CrossingRepairBudgetMs;
+            LayoutOptions.CrossingRepairBudgetMs = 0;
 
-            LayoutOptions = new GraphLayoutOptions
+            try
             {
-                Features = previous.Features | GraphLayoutFeature.CrossingSwap,
-                LayerSpacing = previous.LayerSpacing,
-                NodeSpacing = previous.NodeSpacing,
-                CrossingRepairBudgetMs = 0,
-            };
+                foreach (var component in GetVisibleComponents())
+                {
+                    var componentNodes = new HashSet<GraphNode>(component);
+                    var componentWires = wires.Where(w => componentNodes.Contains(w.From.Owner) && componentNodes.Contains(w.To.Owner)).ToList();
 
-            foreach (var component in GetVisibleComponents())
+                    GraphLayout.RepairCrossings(component, componentWires, Geometry, LayoutOptions);
+                }
+            }
+            finally
             {
-                var componentNodes = new HashSet<GraphNode>(component);
-                var componentWires = wires.Where(w => componentNodes.Contains(w.From.Owner) && componentNodes.Contains(w.To.Owner)).ToList();
-
-                GraphLayout.RepairCrossings(component, componentWires, Geometry, LayoutOptions);
+                LayoutOptions.CrossingRepairBudgetMs = previousBudget;
             }
 
-            LayoutOptions = previous;
             ClearWireHitPaths();
         }
 
@@ -1042,38 +943,16 @@ partial class GraphView : IDisposable
             {
                 node.Position += offset;
 
-                // Routed wire waypoints and exact curves live in the same island space and
-                // must shift along.
+                // Routed wire waypoints live in the same island space and must shift along.
                 foreach (var socket in node.Outputs)
                 {
                     foreach (var wire in socket.Wires)
                     {
-                        var route = Geometry.TryRouteOf(wire);
-
-                        if (route == null)
-                        {
-                            continue;
-                        }
-
-                        if (route.Waypoints is { } waypoints)
+                        if (Geometry.TryRouteOf(wire)?.Waypoints is { } waypoints)
                         {
                             for (var w = 0; w < waypoints.Count; w++)
                             {
                                 waypoints[w] += offset;
-                            }
-                        }
-
-                        if (route.CurvePath is { } curvePath)
-                        {
-                            for (var c = 0; c < curvePath.Count; c++)
-                            {
-                                var command = curvePath[c];
-                                curvePath[c] = command with
-                                {
-                                    A = command.A + offset,
-                                    B = command.B + offset,
-                                    End = command.End + offset,
-                                };
                             }
                         }
                     }

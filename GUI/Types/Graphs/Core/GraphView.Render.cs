@@ -571,41 +571,6 @@ partial class GraphView
 
     private void BuildWirePath(SKPathBuilder path, GraphWire wire, WireRoute? route, SKPoint from, SKPoint to)
     {
-        // Exact routed curve from the layout, drawn verbatim; conics carry the rounded
-        // segment corners precisely.
-        if (route?.CurvePath is { Count: >= 2 } commands)
-        {
-            foreach (var command in commands)
-            {
-                switch (command.Verb)
-                {
-                    case GraphCurveVerb.MoveTo:
-                        path.MoveTo(new SKPoint(command.End.X, command.End.Y));
-                        break;
-
-                    case GraphCurveVerb.LineTo:
-                        path.LineTo(new SKPoint(command.End.X, command.End.Y));
-                        break;
-
-                    case GraphCurveVerb.CubicTo:
-                        path.CubicTo(
-                            new SKPoint(command.A.X, command.A.Y),
-                            new SKPoint(command.B.X, command.B.Y),
-                            new SKPoint(command.End.X, command.End.Y));
-                        break;
-
-                    case GraphCurveVerb.ConicTo:
-                        path.ConicTo(
-                            new SKPoint(command.A.X, command.A.Y),
-                            new SKPoint(command.End.X, command.End.Y),
-                            command.Weight);
-                        break;
-                }
-            }
-
-            return;
-        }
-
         if (route?.Waypoints is not { Count: > 0 } waypoints)
         {
             if (StraightWires)
@@ -654,7 +619,7 @@ partial class GraphView
 
         // A self-wire without a route would draw straight through its own card; give it
         // the deterministic synthetic loop instead.
-        if (wire.From.Owner == wire.To.Owner && (route == null || (route.Waypoints == null && route.CurvePath == null)))
+        if (wire.From.Owner == wire.To.Owner && route?.Waypoints == null)
         {
             GraphLayout.SynthesizeSelfLoop(wire, Geometry);
             route = Geometry.TryRouteOf(wire);

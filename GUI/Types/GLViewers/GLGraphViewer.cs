@@ -1,4 +1,4 @@
-using System.Diagnostics;
+﻿using System.Diagnostics;
 using System.IO;
 using System.Windows.Forms;
 using GUI.Controls;
@@ -564,8 +564,7 @@ namespace GUI.Types.GLViewers
 
         private void OnMouseDoubleClick(object? sender, MouseEventArgs e)
         {
-            var screenPoint = new SKPoint(e.Location.X, e.Location.Y);
-            var graphPoint = ScreenToGraph(screenPoint);
+            var graphPoint = ScreenToGraph(e.Location);
             var element = View.FindElementAt(graphPoint);
 
             if (element is GraphNode { ExternalResourceName: not null } node)
@@ -672,7 +671,7 @@ namespace GUI.Types.GLViewers
         /// <summary>Hides every island except the one containing <paramref name="node"/>.</summary>
         protected virtual void FocusIslandOf(GraphNode node)
         {
-            View.FocusIslandOf(node);
+            View.Isolate(node, GraphIsolateMode.Island);
             RefitToGraph();
         }
 
@@ -729,7 +728,7 @@ namespace GUI.Types.GLViewers
         {
             Debug.Assert(GLControl != null);
 
-            var graphPoint = ScreenToGraph(new SKPoint(location.X, location.Y));
+            var graphPoint = ScreenToGraph(location);
             var node = View.FindElementAt(graphPoint) switch
             {
                 GraphNode n => n,
@@ -775,14 +774,14 @@ namespace GUI.Types.GLViewers
                 AddShowEverything(contextMenu);
                 contextMenu.Items.Add(new ToolStripSeparator());
 
-                AddFilterAction(contextMenu, "Isolate chain", () => View.IsolateChainOf(node));
-                AddFilterAction(contextMenu, "Isolate upstream", () => View.IsolateUpstreamOf(node));
-                AddFilterAction(contextMenu, "Isolate downstream", () => View.IsolateDownstreamOf(node));
+                AddFilterAction(contextMenu, "Isolate chain", () => View.Isolate(node, GraphIsolateMode.Chain));
+                AddFilterAction(contextMenu, "Isolate upstream", () => View.Isolate(node, GraphIsolateMode.Upstream));
+                AddFilterAction(contextMenu, "Isolate downstream", () => View.Isolate(node, GraphIsolateMode.Downstream));
 
                 if (node.GroupPath != null)
                 {
                     var groupName = node.GroupPath[(node.GroupPath.LastIndexOf('/') + 1)..];
-                    AddFilterAction(contextMenu, $"Isolate group '{groupName}'", () => View.IsolateGroupOf(node));
+                    AddFilterAction(contextMenu, $"Isolate group '{groupName}'", () => View.Isolate(node, GraphIsolateMode.Group));
                 }
             }
             else
@@ -1001,8 +1000,7 @@ namespace GUI.Types.GLViewers
                 return;
             }
 
-            var screenPoint = new SKPoint(e.Location.X, e.Location.Y);
-            var graphPoint = ScreenToGraph(screenPoint);
+            var graphPoint = ScreenToGraph(e.Location);
 
             View.HandleMouseDown(graphPoint, e.Button, Control.ModifierKeys);
 
@@ -1019,8 +1017,7 @@ namespace GUI.Types.GLViewers
 
         protected override void OnMouseMove(object? sender, MouseEventArgs e)
         {
-            var screenPoint = new SKPoint(e.Location.X, e.Location.Y);
-            var graphPoint = ScreenToGraph(screenPoint);
+            var graphPoint = ScreenToGraph(e.Location);
 
             if (ClickPosition.HasValue)
             {
@@ -1037,8 +1034,7 @@ namespace GUI.Types.GLViewers
             base.OnMouseUp(sender, e);
 
             var wasDragging = View.IsMoving;
-            var screenPoint = new SKPoint(e.Location.X, e.Location.Y);
-            var graphPoint = ScreenToGraph(screenPoint);
+            var graphPoint = ScreenToGraph(e.Location);
 
             View.HandleMouseUp(graphPoint, e.Button);
 
@@ -1047,6 +1043,9 @@ namespace GUI.Types.GLViewers
                 ShowContextMenu(e.Location);
             }
         }
+
+        protected SKPoint ScreenToGraph(System.Drawing.Point screenPoint)
+            => ScreenToGraph(new SKPoint(screenPoint.X, screenPoint.Y));
 
         protected SKPoint ScreenToGraph(SKPoint screenPoint)
         {

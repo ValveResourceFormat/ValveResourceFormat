@@ -67,7 +67,6 @@ internal sealed class CrossingRepair
 
         unionMarks = new int[wires.Length];
         allWires = [.. Enumerable.Range(0, wires.Length)];
-        allWireList.AddRange(allWires);
 
         var buckets = new Dictionary<int, List<GraphNode>>();
 
@@ -514,7 +513,6 @@ internal sealed class CrossingRepair
 
     private readonly List<int> localScratch = [];
     private int[] allWires = [];
-    private readonly List<int> allWireList = [];
     private readonly List<int> unionScratch = [];
     private int[] unionMarks = [];
     private int unionStamp;

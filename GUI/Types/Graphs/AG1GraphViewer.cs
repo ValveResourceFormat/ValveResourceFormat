@@ -40,50 +40,48 @@ internal class AG1GraphViewer : GLGraphViewer
     // rather than any category or data type colour.
     private static readonly GraphHue SubGraphHue = AnimGraphHues.HueOf(AnimGraphCategory.ExternalReference);
 
-    private static readonly Dictionary<string, GraphHue> TagClassHues = new(StringComparer.Ordinal)
+    // Anim tag and component classes each render with a friendly label and a category hue;
+    // the two travel together, so one table carries both.
+    private static readonly Dictionary<string, (string Name, GraphHue Hue)> TagClasses = new(StringComparer.Ordinal)
     {
-        ["CAudioAnimTag"] = GraphHue.Orange,
-        ["CBodyGroupAnimTag"] = GraphHue.Green,
-        ["CClothSettingsAnimTag"] = GraphHue.Neutral,
-        ["CFootFallAnimTag"] = GraphHue.Green,
-        ["CFootstepLandedAnimTag"] = GraphHue.Olive,
-        ["CMaterialAttributeAnimTag"] = GraphHue.Cyan,
-        ["CParticleAnimTag"] = GraphHue.Purple,
-        ["CRagdollAnimTag"] = GraphHue.Amber,
-        ["CSequenceFinishedAnimTag"] = GraphHue.Indigo,
-        ["CStringAnimTag"] = GraphHue.Magenta,
-        ["CTaskStatusAnimTag"] = GraphHue.Teal,
-        ["CWarpSectionAnimTag"] = GraphHue.Olive,
-        ["CMovementHandshakeAnimTag"] = GraphHue.Teal,
-        ["CTaskHandshakeAnimTag"] = GraphHue.Teal,
+        ["CAudioAnimTag"] = ("Audio Tag", GraphHue.Orange),
+        ["CBodyGroupAnimTag"] = ("Body Group Tag", GraphHue.Green),
+        ["CClothSettingsAnimTag"] = ("Cloth Settings Tag", GraphHue.Neutral),
+        ["CFootFallAnimTag"] = ("FootFall Tag", GraphHue.Green),
+        ["CFootstepLandedAnimTag"] = ("FootstepLanded Tag", GraphHue.Olive),
+        ["CMaterialAttributeAnimTag"] = ("Material Attribute Tag", GraphHue.Cyan),
+        ["CMovementHandshakeAnimTag"] = ("Movement Handshake Tag", GraphHue.Teal),
+        ["CParticleAnimTag"] = ("Particle Tag", GraphHue.Purple),
+        ["CRagdollAnimTag"] = ("Ragdoll Tag", GraphHue.Amber),
+        ["CSequenceFinishedAnimTag"] = ("Sequence Finished Tag", GraphHue.Indigo),
+        ["CStringAnimTag"] = ("String/Internal Tag", GraphHue.Magenta),
+        ["CTaskHandshakeAnimTag"] = ("Task Handshake Tag", GraphHue.Teal),
+        ["CTaskStatusAnimTag"] = ("Status Tag", GraphHue.Teal),
+        ["CWarpSectionAnimTag"] = ("Warp Section Tag", GraphHue.Olive),
     };
 
-    private static readonly Dictionary<string, GraphHue> ComponentClassHues = new(StringComparer.Ordinal)
+    private static readonly Dictionary<string, (string Name, GraphHue Hue)> ComponentClasses = new(StringComparer.Ordinal)
     {
-        ["CActionComponentUpdater"] = GraphHue.Orange,
-        ["CAnimScriptComponentUpdater"] = GraphHue.Slate,
-        ["CCPPScriptComponentUpdater"] = GraphHue.Purple,
-        ["CDampedValueComponentUpdater"] = GraphHue.Green,
-        ["CDemoSettingsComponentUpdater"] = GraphHue.Orange,
-        ["CLODComponentUpdater"] = GraphHue.Neutral,
-        ["CLookComponentUpdater"] = GraphHue.Cyan,
-        ["CMovementComponentUpdater"] = GraphHue.Maroon,
-        ["CPairedSequenceComponentUpdater"] = GraphHue.Indigo,
-        ["CRagdollComponentUpdater"] = GraphHue.Maroon,
-        ["CRemapValueComponentUpdater"] = GraphHue.Green,
-        ["CSlopeComponentUpdater"] = GraphHue.Olive,
-        ["CStateMachineComponentUpdater"] = GraphHue.Slate,
+        ["CActionComponentUpdater"] = ("Action Component", GraphHue.Orange),
+        ["CAnimScriptComponentUpdater"] = ("AnimScript Component", GraphHue.Slate),
+        ["CCPPScriptComponentUpdater"] = ("PPScript Component", GraphHue.Purple),
+        ["CDampedValueComponentUpdater"] = ("Damped Value Component", GraphHue.Green),
+        ["CDemoSettingsComponentUpdater"] = ("Demo Settings Component", GraphHue.Orange),
+        ["CLODComponentUpdater"] = ("LOD Component", GraphHue.Neutral),
+        ["CLookComponentUpdater"] = ("Look Component", GraphHue.Cyan),
+        ["CMovementComponentUpdater"] = ("Movement Component", GraphHue.Maroon),
+        ["CPairedSequenceComponentUpdater"] = ("Paired Sequence Component", GraphHue.Indigo),
+        ["CRagdollComponentUpdater"] = ("Ragdoll Component", GraphHue.Maroon),
+        ["CRemapValueComponentUpdater"] = ("Remap Value Component", GraphHue.Green),
+        ["CSlopeComponentUpdater"] = ("Slope Component", GraphHue.Olive),
+        ["CStateMachineComponentUpdater"] = ("State Machine Component", GraphHue.Slate),
     };
 
-    private static GraphHue GetComponentClassHue(string className)
-    {
-        return ComponentClassHues.TryGetValue(className, out var hue) ? hue : GraphHue.Neutral;
-    }
+    private static (string Name, GraphHue Hue) TagClassInfo(string className)
+        => TagClasses.TryGetValue(className, out var info) ? info : (className, GraphHue.Teal);
 
-    private static GraphHue GetTagClassHue(string className)
-    {
-        return TagClassHues.TryGetValue(className, out var hue) ? hue : GraphHue.Teal;
-    }
+    private static (string Name, GraphHue Hue) ComponentClassInfo(string className)
+        => ComponentClasses.TryGetValue(className, out var info) ? info : (className, GraphHue.Neutral);
 
     // ---- Dictionaries for class-based lookups ----
     private static readonly Dictionary<string, string> ClassDisplayName = new(StringComparer.Ordinal)
@@ -128,41 +126,6 @@ internal class AG1GraphViewer : GLGraphViewer
         ["CStateMachineUpdateNode"] = "State Machine",
     };
 
-    private static readonly Dictionary<string, string> ComponentDisplayName = new(StringComparer.Ordinal)
-    {
-        ["CActionComponentUpdater"] = "Action Component",
-        ["CAnimScriptComponentUpdater"] = "AnimScript Component",
-        ["CCPPScriptComponentUpdater"] = "PPScript Component",
-        ["CDampedValueComponentUpdater"] = "Damped Value Component",
-        ["CDemoSettingsComponentUpdater"] = "Demo Settings Component",
-        ["CLODComponentUpdater"] = "LOD Component",
-        ["CLookComponentUpdater"] = "Look Component",
-        ["CMovementComponentUpdater"] = "Movement Component",
-        ["CPairedSequenceComponentUpdater"] = "Paired Sequence Component",
-        ["CRagdollComponentUpdater"] = "Ragdoll Component",
-        ["CRemapValueComponentUpdater"] = "Remap Value Component",
-        ["CSlopeComponentUpdater"] = "Slope Component",
-        ["CStateMachineComponentUpdater"] = "State Machine Component",
-    };
-
-    private static readonly Dictionary<string, string> TagDisplayName = new(StringComparer.Ordinal)
-    {
-        ["CAudioAnimTag"] = "Audio Tag",
-        ["CBodyGroupAnimTag"] = "Body Group Tag",
-        ["CClothSettingsAnimTag"] = "Cloth Settings Tag",
-        ["CFootFallAnimTag"] = "FootFall Tag",
-        ["CFootstepLandedAnimTag"] = "FootstepLanded Tag",
-        ["CMaterialAttributeAnimTag"] = "Material Attribute Tag",
-        ["CParticleAnimTag"] = "Particle Tag",
-        ["CRagdollAnimTag"] = "Ragdoll Tag",
-        ["CSequenceFinishedAnimTag"] = "Sequence Finished Tag",
-        ["CStringAnimTag"] = "String/Internal Tag",
-        ["CTaskStatusAnimTag"] = "Status Tag",
-        ["CWarpSectionAnimTag"] = "Warp Section Tag",
-        ["CMovementHandshakeAnimTag"] = "Movement Handshake Tag",
-        ["CTaskHandshakeAnimTag"] = "Task Handshake Tag",
-    };
-
     private static readonly Dictionary<string, string> ParameterTypeDisplayName = new(StringComparer.Ordinal)
     {
         ["BOOL"] = "Boolean",
@@ -182,6 +145,57 @@ internal class AG1GraphViewer : GLGraphViewer
     {
         "m_name",
     };
+
+    // Structural keys of a compiled node: they are already drawn as wires, sockets or their own
+    // rows, so the generic property dump leaves them out.
+    private static readonly HashSet<string> CompiledStructureKeys = new(StringComparer.Ordinal)
+    {
+        "_class", "m_nodePath", "m_children", "m_tags", "m_paramSpans", "m_stateMachine", "m_stateData", "m_transitionData",
+    };
+
+    /// <summary>
+    /// Adds one "key: value" row per scalar child, skipping collections, arrays and whatever
+    /// <paramref name="skip"/> rejects. <paramref name="renderRow"/> may claim a key and supply
+    /// the whole row itself.
+    /// </summary>
+    private static void AddScalarRows(Node node, KVObject source, Func<string, bool> skip, int maxRows = int.MaxValue, Func<string, KVObject, string?>? renderRow = null)
+    {
+        var rows = 0;
+
+        foreach (var (key, child) in source)
+        {
+            if (skip(key))
+            {
+                continue;
+            }
+
+            var text = renderRow?.Invoke(key, child);
+
+            if (text == null)
+            {
+                if (child.ValueType is KVValueType.Collection or KVValueType.Array)
+                {
+                    continue;
+                }
+
+                if (string.IsNullOrEmpty(child.ToString()))
+                {
+                    continue;
+                }
+
+                var value = Node.StringifyValue(child);
+
+                text = $"{(PropertyDisplayNames.TryGetValue(key, out var friendly) ? friendly : key)}: {value}";
+            }
+
+            node.AddText(text);
+
+            if (++rows >= maxRows)
+            {
+                break;
+            }
+        }
+    }
 
     private static readonly Dictionary<string, string> PropertyDisplayNames = new(StringComparer.Ordinal)
     {
@@ -246,7 +260,7 @@ internal class AG1GraphViewer : GLGraphViewer
             // authors its player graphs the same way in vanmgrph/vsubgrph. The graph is laid out
             // from its wires like the compiled path; the authored canvas positions are ignored.
             BuildEditorGraph();
-            View.LayoutOptions.Features |= GraphLayoutFeature.LongWireDummies;
+            View.LayoutOptions.LongWireDummies = true;
             View.LayoutOptions.TightenMinSpan = 1;
             View.LayoutNodesPacked();
 
@@ -267,7 +281,7 @@ internal class AG1GraphViewer : GLGraphViewer
         // A pose graph is one connected DAG, where routing a long wire through dummy ranks keeps
         // it between the cards of the ranks it spans rather than over them, and where closing
         // every rank of slack pays off instead of costing the room the repair moves cards in.
-        View.LayoutOptions.Features |= GraphLayoutFeature.LongWireDummies;
+        View.LayoutOptions.LongWireDummies = true;
         View.LayoutOptions.TightenMinSpan = 1;
         View.LayoutNodesPacked();
 
@@ -502,7 +516,7 @@ internal class AG1GraphViewer : GLGraphViewer
                 }
 
                 var outputName = outputNames.GetValueOrDefault((sourceId, outputId), string.Empty);
-                var output = source.Outputs.Find(o => o.Name == outputName) ?? source.AddOutput(outputName, PoseHue);
+                var output = source.GetOrAddOutput(outputName, PoseHue);
                 var input = parent.AddInput(inputName, PoseHue, allowMultiple: true);
 
                 if (!input.Wires.Exists(w => w.From == output))
@@ -650,8 +664,8 @@ internal class AG1GraphViewer : GLGraphViewer
                     label = paramNames.GetValueOrDefault(conditionParam.GetIntegerProperty("m_id"));
                 }
 
-                var from = srcNode.Outputs.Find(static o => o.Name == "Transitions") ?? srcNode.AddOutput("Transitions", GraphHue.Slate);
-                var to = destNode.Inputs.Find(static i => i.Name == "From") ?? destNode.AddInput("From", GraphHue.Slate, allowMultiple: true);
+                var from = srcNode.GetOrAddOutput("Transitions", GraphHue.Slate);
+                var to = destNode.GetOrAddInput("From", GraphHue.Slate);
 
                 if (!to.Wires.Exists(w => w.From == from))
                 {
@@ -662,24 +676,7 @@ internal class AG1GraphViewer : GLGraphViewer
     }
 
     private static void AddEditorDetailRows(Node node, KVObject value)
-    {
-        var rows = 0;
-
-        foreach (var (name, child) in value)
-        {
-            if (EditorSkippedDetailFields.Contains(name) || child.ValueType is KVValueType.Collection or KVValueType.Array)
-            {
-                continue;
-            }
-
-            node.AddText($"{name}: {KVGraphNode.StringifyValue(child)}");
-
-            if (++rows >= 8)
-            {
-                break;
-            }
-        }
-    }
+        => AddScalarRows(node, value, EditorSkippedDetailFields.Contains, maxRows: 8);
 
     /// <summary>
     /// Returns the container (shared data if present, otherwise the graph root) that holds the given key.
@@ -1149,8 +1146,8 @@ internal class AG1GraphViewer : GLGraphViewer
                                 continue;
                             }
 
-                            var from = srcNode.Outputs.Find(static o => o.Name == "Transitions") ?? srcNode.AddOutput("Transitions", GraphHue.Slate);
-                            var to = destNode.Inputs.Find(static i => i.Name == "From") ?? destNode.AddInput("From", GraphHue.Slate, allowMultiple: true);
+                            var from = srcNode.GetOrAddOutput("Transitions", GraphHue.Slate);
+                            var to = destNode.GetOrAddInput("From", GraphHue.Slate);
 
                             if (!to.Wires.Exists(w => w.From == from))
                             {
@@ -1299,34 +1296,16 @@ internal class AG1GraphViewer : GLGraphViewer
         if (className != null)
             ClassPropertySkips.TryGetValue(className, out skipKeys);
 
-        foreach (var kv in compiledNode.Children)
-        {
-            string key = kv.Key;
-            if (key == "_class" || key == "m_nodePath" || key == "m_children" || key.StartsWith("m_pChild") ||
-                key == "m_tags" || key == "m_paramSpans" || key == "m_stateMachine" || key == "m_stateData" || key == "m_transitionData")
-                continue;
-
-            if (GlobalPropertySkips.Contains(key))
-                continue;
-
-            if (skipKeys != null && skipKeys.Contains(key))
-                continue;
-
-            if (kv.Value.ValueType == KVValueType.Collection || kv.Value.ValueType == KVValueType.Array)
-                continue;
-
-            if (key == "m_hSequence")
-            {
-                node.AddText(FormatIndexed("Sequence", kv.Value.ToInt32(), GetSequenceName));
-                continue;
-            }
-
-            string displayKey = PropertyDisplayNames.TryGetValue(key, out var friendly) ? friendly : key;
-            string valueStr = kv.Value.ToString();
-            if (!string.IsNullOrEmpty(valueStr))
-                node.AddText($"{displayKey}: {valueStr}");
-
-        }
+        AddScalarRows(
+            node,
+            compiledNode,
+            key => CompiledStructureKeys.Contains(key)
+                || key.StartsWith("m_pChild", StringComparison.Ordinal)
+                || GlobalPropertySkips.Contains(key)
+                || (skipKeys != null && skipKeys.Contains(key)),
+            renderRow: (key, child) => key == "m_hSequence"
+                ? FormatIndexed("Sequence", child.ToInt32(), GetSequenceName)
+                : null);
 
         DisplayUniversalParameters(compiledNode, node);
 
@@ -1488,20 +1467,6 @@ internal class AG1GraphViewer : GLGraphViewer
                 if (!string.IsNullOrEmpty(chainName))
                     node.AddText($"IK Chain: {chainName}");
             }
-
-            // Attachments
-            //if (opFixedData.ContainsKey("m_endEffectorAttachment"))
-            //{
-            //var attachObj = opFixedData.GetSubCollection("m_endEffectorAttachment");
-            //var name = FindMatchingAttachmentName(attachObj);
-            //node.AddText($"End Effector Attachment: {(!string.IsNullOrEmpty(name) ? name : "(unresolved)")}");
-            //}
-            //if (opFixedData.ContainsKey("m_targetAttachment"))
-            //{
-            //var attachObj = opFixedData.GetSubCollection("m_targetAttachment");
-            //var name = FindMatchingAttachmentName(attachObj);
-            //node.AddText($"Target Attachment: {(!string.IsNullOrEmpty(name) ? name : "(unresolved)")}");
-            //}
 
             if (opFixedData.ContainsKey("m_hPositionParam"))
             {
@@ -1743,7 +1708,7 @@ internal class AG1GraphViewer : GLGraphViewer
 
                     foreach (var consumer in consumers)
                     {
-                        var input = consumer.Inputs.Find(static i => i.Name == "Params") ?? consumer.AddInput("Params", GraphHue.Neutral, allowMultiple: true);
+                        var input = consumer.GetOrAddInput("Params", GraphHue.Neutral);
                         View.Connect(output, input, dashed: true);
                     }
                 }
@@ -1764,7 +1729,7 @@ internal class AG1GraphViewer : GLGraphViewer
             foreach (var group in tagGroups)
             {
                 var className = group.Key;
-                var friendlyName = TagDisplayName.TryGetValue(className, out var display) ? display : className;
+                var (friendlyName, tagHue) = TagClassInfo(className);
 
                 var ordered = group.OrderBy(t => tagIndexMap.TryGetValue(t, out var idx) ? idx : int.MaxValue).ToList();
 
@@ -1772,7 +1737,7 @@ internal class AG1GraphViewer : GLGraphViewer
                 {
                     Name = $"{friendlyName}",
                     NodeType = "Tag Group",
-                    Category = GetTagClassHue(className),
+                    Category = tagHue,
                 };
                 foreach (var t in ordered)
                 {
@@ -1792,7 +1757,7 @@ internal class AG1GraphViewer : GLGraphViewer
         foreach (var comp in components)
         {
             var className = comp.GetStringProperty("_class") ?? "Unknown";
-            var friendlyName = ComponentDisplayName.TryGetValue(className, out var display) ? display : className;
+            var (friendlyName, componentHue) = ComponentClassInfo(className);
             var name = comp.GetStringProperty("m_name") ?? "";
             var displayName = string.IsNullOrEmpty(name) ? friendlyName : $"{friendlyName} ({name})";
 
@@ -1800,7 +1765,7 @@ internal class AG1GraphViewer : GLGraphViewer
             {
                 Name = displayName,
                 NodeType = "Component",
-                Category = GetComponentClassHue(className),
+                Category = componentHue,
             };
 
             if (className == "CStateMachineComponentUpdater")
@@ -1821,19 +1786,7 @@ internal class AG1GraphViewer : GLGraphViewer
                 }
             }
 
-            foreach (var kv in comp.Children)
-            {
-                string key = kv.Key;
-                if (key == "_class" || key == "m_stateMachine" || key == "m_name")
-                    continue;
-                if (kv.Value.ValueType == KVValueType.Collection || kv.Value.ValueType == KVValueType.Array)
-                    continue;
-
-                string displayKey = PropertyDisplayNames.TryGetValue(key, out var friendly) ? friendly : key;
-                string valueStr = kv.Value.ToString();
-                if (!string.IsNullOrEmpty(valueStr))
-                    node.AddText($"{displayKey}: {valueStr}");
-            }
+            AddScalarRows(node, comp, static key => key is "_class" or "m_stateMachine" or "m_name");
 
             ApplyNetworkMode(node, comp);
 

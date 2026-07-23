@@ -1,63 +1,14 @@
 namespace GUI.Types.Graphs.Core;
 
-/// <summary>
-/// Individually toggleable layout passes. Each flag targets one cause of wire overlap and can
-/// be enabled on its own, so a pass can be scored in isolation.
-/// </summary>
-[Flags]
-enum GraphLayoutFeature
+/// <summary>Layout tuning shared by the placement engines.</summary>
+sealed class GraphLayoutOptions
 {
-    /// <summary>Plain layered placement: node-centre alignment, no routing, no repair.</summary>
-    None = 0,
-
-    /// <summary>
-    /// Align each node so its socket pivots line up with the pivots it wires to, instead of
-    /// aligning node centers. Straight chains come out straight.
-    /// </summary>
-    PortAwareAlignment = 1 << 0,
-
-    /// <summary>
-    /// Normalized barycenter keys, alternating sweep direction, an adjacent-swap transpose
-    /// pass and best-of-sweeps selection by measured crossing count.
-    /// </summary>
-    BarycentreRepair = 1 << 1,
-
     /// <summary>
     /// Insert a dummy node per intermediate rank for every wire spanning more than one rank,
     /// so long wires participate in ordering and route between cards instead of over them. Suits
     /// one connected DAG; the frontends that have that shape opt in.
     /// </summary>
-    LongWireDummies = 1 << 2,
-
-    /// <summary>
-    /// Move cards after placement wherever that removes a crossing, judged on the wires actually
-    /// drawn between socket pivots. This is the only pass that sees which socket a wire lands
-    /// on, so it catches inversions every node-level heuristic is blind to.
-    /// </summary>
-    CrossingSwap = 1 << 3,
-
-    /// <summary>
-    /// Rank each node by its nearest consumer rather than by its distance from a source, so a
-    /// chain that feeds something far downstream sits beside what it feeds instead of at the
-    /// left edge with one wire spanning the whole graph.
-    /// </summary>
-    TightenRanks = 1 << 4,
-
-    /// <summary>The passes that apply to every graph shape.</summary>
-    All = PortAwareAlignment | BarycentreRepair | CrossingSwap | TightenRanks,
-}
-
-/// <summary>Layout tuning shared by the placement engines.</summary>
-sealed class GraphLayoutOptions
-{
-    /// <summary>
-    /// What a newly created <see cref="GraphView"/> starts with. Frontends lay their graph out
-    /// from their own constructor, so anything choosing non-default passes must set this before
-    /// the view is built.
-    /// </summary>
-    public static GraphLayoutOptions Default { get; set; } = new();
-
-    public GraphLayoutFeature Features { get; set; } = GraphLayoutFeature.All;
+    public bool LongWireDummies { get; set; }
 
     /// <summary>
     /// Horizontal gap between layers. Wider gutters cost canvas and buy back wires that would
@@ -73,14 +24,12 @@ sealed class GraphLayoutOptions
     public float NodeSpacing { get; set; } = 60f;
 
     /// <summary>
-    /// Ranks a wire may span before <see cref="GraphLayoutFeature.TightenRanks"/> pulls its source
+    /// Ranks a wire may span before the rank-tightening pass pulls its source
     /// forward. A rank or two of slack is the room the ordering and repair passes move cards in, so
     /// a many-island graph keeps it and closes only the long hauls. One connected DAG has the
     /// opposite balance and sets this to 1; see the animation graph viewers.
     /// </summary>
     public int TightenMinSpan { get; set; } = 2;
-
-    public bool Has(GraphLayoutFeature feature) => (Features & feature) == feature;
 
     /// <summary>Weight a solid wire pulls with during alignment.</summary>
     public float SolidWireWeight { get; set; } = 1f;

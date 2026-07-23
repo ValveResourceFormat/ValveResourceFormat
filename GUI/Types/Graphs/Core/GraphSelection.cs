@@ -61,22 +61,16 @@ internal sealed class GraphSelection
     {
         ClearDirect();
 
-        foreach (var socket in node.Inputs)
+        foreach (var neighbor in node.Neighbors(upstream: true))
         {
-            foreach (var wire in socket.Wires)
-            {
-                Direct.Add(wire.From.Owner);
-                DirectIn.Add(wire.From.Owner);
-            }
+            Direct.Add(neighbor);
+            DirectIn.Add(neighbor);
         }
 
-        foreach (var socket in node.Outputs)
+        foreach (var neighbor in node.Neighbors(upstream: false))
         {
-            foreach (var wire in socket.Wires)
-            {
-                Direct.Add(wire.To.Owner);
-                DirectOut.Add(wire.To.Owner);
-            }
+            Direct.Add(neighbor);
+            DirectOut.Add(neighbor);
         }
 
         Direct.Remove(node);
@@ -90,42 +84,29 @@ internal sealed class GraphSelection
         connectedNodes.Clear();
         connectedNodes.Add(startNode);
 
-        // Upstream over inputs, downstream over outputs.
+        TraverseDirection(startNode, connectedNodes, upstream: true);
+        TraverseDirection(startNode, connectedNodes, upstream: false);
+    }
+
+    /// <summary>
+    /// Adds every node reachable from <paramref name="startNode"/> in one direction to
+    /// <paramref name="reached"/>. Each direction tracks its own visited set, so a node already
+    /// reached the other way is still walked through rather than cutting the cone short.
+    /// </summary>
+    public static void TraverseDirection(GraphNode startNode, HashSet<GraphNode> reached, bool upstream)
+    {
+        var visited = new HashSet<GraphNode> { startNode };
         var queue = new Queue<GraphNode>();
         queue.Enqueue(startNode);
 
         while (queue.Count > 0)
         {
-            var current = queue.Dequeue();
-
-            foreach (var socket in current.Inputs)
+            foreach (var next in queue.Dequeue().Neighbors(upstream))
             {
-                foreach (var wire in socket.Wires)
+                if (visited.Add(next))
                 {
-                    if (connectedNodes.Add(wire.From.Owner))
-                    {
-                        queue.Enqueue(wire.From.Owner);
-                    }
-                }
-            }
-        }
-
-        queue.Enqueue(startNode);
-        var downstreamVisited = new HashSet<GraphNode> { startNode };
-
-        while (queue.Count > 0)
-        {
-            var current = queue.Dequeue();
-
-            foreach (var socket in current.Outputs)
-            {
-                foreach (var wire in socket.Wires)
-                {
-                    if (downstreamVisited.Add(wire.To.Owner))
-                    {
-                        connectedNodes.Add(wire.To.Owner);
-                        queue.Enqueue(wire.To.Owner);
-                    }
+                    reached.Add(next);
+                    queue.Enqueue(next);
                 }
             }
         }
