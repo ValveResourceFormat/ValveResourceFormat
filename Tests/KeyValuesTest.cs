@@ -199,8 +199,14 @@ namespace Tests
         [TestCase(KV3BinaryCompressionMethod.Zstd)]
         public void TestBinaryKV3Version5EmptyBlob(KV3BinaryCompressionMethod compressionMethod)
         {
+            var child = KVObject.Collection();
+            child["duplicate"] = "same";
+            child["emptyValue"] = string.Empty;
             var root = KVObject.Collection();
             root["emptyBlob"] = KVObject.Blob([]);
+            root["duplicate"] = "same";
+            root["child"] = child;
+            root[string.Empty] = "same";
             var binaryKV3 = new BinaryKV3(root, KV3IDLookup.Get("generic"))
             {
                 Resource = null!,
@@ -208,8 +214,18 @@ namespace Tests
                 SerializationCompressionMethod = compressionMethod,
             };
 
-            var deserializedBinaryKV3 = RoundTrip(binaryKV3);
-            Assert.That(deserializedBinaryKV3.Data.Root["emptyBlob"].AsBlob(), Is.Empty);
+            using var stream = new MemoryStream();
+            binaryKV3.Serialize(stream);
+            var data = stream.ToArray();
+            stream.Position = 0;
+            var deserializedBinaryKV3 = ReadBinaryKV3(stream);
+
+            using (Assert.EnterMultipleScope())
+            {
+                // The table contains: "emptyBlob", "duplicate", "same", "child", and "emptyValue".
+                Assert.That(BitConverter.ToInt32(data, 104), Is.EqualTo(5));
+                Assert.That(deserializedBinaryKV3.Data.Root["emptyBlob"].AsBlob(), Is.Empty);
+            }
         }
 
         [Test]
@@ -300,6 +316,35 @@ namespace Tests
             binaryKV3.SerializationVersion = KV3BinaryVersion.Version5;
             binaryKV3.SerializationCompressionMethod = (KV3BinaryCompressionMethod)99;
             Assert.That(() => binaryKV3.Serialize(new MemoryStream()), Throws.TypeOf<NotSupportedException>());
+        }
+
+        [TestCase("ar_dizzy_kv3_v3_uncompressed.vpost_c", BlockType.DATA, KV3BinaryCompressionMethod.Uncompressed)]
+        [TestCase("aw_ti9_gargoyle_collision_kv3_v3_zstd.vmdl_c", BlockType.ANIM, KV3BinaryCompressionMethod.Zstd)]
+        [TestCase("compute_reactive_mask_kv3_v3_lz4.vmat_c", BlockType.DATA, KV3BinaryCompressionMethod.Lz4)]
+        [TestCase("panorama_world_panel_default_kv3_v3_lz4.vmat_c", BlockType.DATA, KV3BinaryCompressionMethod.Lz4)]
+        [TestCase("piece_kv3_v4.vmdl_c", BlockType.PHYS, KV3BinaryCompressionMethod.Lz4)]
+        [TestCase("default_ents_kv3_v4_zstd.vents_c", BlockType.DATA, KV3BinaryCompressionMethod.Zstd)]
+        public void TestBinaryKV3SourceCompressionIsPreserved(
+            string fileName,
+            BlockType blockType,
+            KV3BinaryCompressionMethod expectedCompressionMethod)
+        {
+            var file = Path.Combine(TestContext.CurrentContext.TestDirectory, "Files", fileName);
+            using var resource = new Resource();
+            resource.Read(file);
+
+            var block = resource.Blocks.Single(block => block.Type == blockType);
+            using var sourceStream = File.OpenRead(file);
+            var binaryKV3 = ReadBinaryKV3Block(sourceStream, block);
+            using var output = new MemoryStream();
+            binaryKV3.Serialize(output);
+            var serializedData = output.ToArray();
+
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(binaryKV3.SerializationCompressionMethod, Is.EqualTo(expectedCompressionMethod));
+                Assert.That(BitConverter.ToUInt32(serializedData, 20), Is.EqualTo((uint)expectedCompressionMethod));
+            }
         }
 
         [Test]
