@@ -69,6 +69,13 @@ public abstract class SoundEvent
     /// <summary>Gets the sample providers built by <see cref="DoStart"/>.</summary>
     protected List<AudioSampleProvider> SampleProviders { get; } = [];
 
+    // Backing state for BuildTrackProvider/StartChildren: reused across retriggers instead of
+    // rebuilding the provider/child tree from scratch every time DoStart() runs.
+    private CachedSoundSampleProvider? trackSource;
+    private SampleProvider2D? unspatializedTrackSource;
+    private SampleProvider3D? spatializedTrackSource;
+    private SoundEvent?[]? children;
+
     /// <summary>Gets the random source for randomized event properties (track picking, volume/pitch jitter, retrigger intervals).</summary>
     private protected SoundRandom Random => Mixer.Player.Random;
 
@@ -215,6 +222,57 @@ public abstract class SoundEvent
         ChildSoundEvents.Add(childSoundEvent);
         SampleProviders.Add(childSoundEvent.SampleProvider);
         childSoundEvent.Start();
+    }
+
+    /// <summary>
+    /// Builds (or reuses, on a later retrigger) a leaf provider streaming <paramref name="cachedSound"/>,
+    /// wrapped for 3D playback at <paramref name="position"/> when given, otherwise unspatialized. The
+    /// returned provider's <see cref="AudioSampleProvider.Volume"/> (and, for a <see cref="SampleProvider3D"/>,
+    /// its Range/DistanceVolumeCurve/StereoMixCurve) are left at their defaults - callers set those afterwards.
+    /// For definitions that play one track at a time; call once per <see cref="DoStart"/>.
+    /// </summary>
+    protected AudioSampleProvider BuildTrackProvider(CachedSound cachedSound, Vector3? position, float pitch, int delaySamples)
+    {
+        trackSource ??= new CachedSoundSampleProvider(cachedSound);
+        trackSource.Reset(cachedSound);
+        trackSource.Pitch = pitch;
+        trackSource.DelaySamples = delaySamples;
+
+        if (position.HasValue)
+        {
+            var spatial = spatializedTrackSource ??= new SampleProvider3D(trackSource);
+            spatial.Position = position.Value;
+            spatial.ResetInterpolation();
+            return spatial;
+        }
+
+        return unspatializedTrackSource ??= new SampleProvider2D(trackSource);
+    }
+
+    /// <summary>
+    /// Starts (or restarts, on a later retrigger) one child per entry in <paramref name="definitions"/>: builds
+    /// each the first time and reuses the same instance afterwards instead of rebuilding its whole provider
+    /// subtree from scratch every time. Null entries (unresolved definitions) are skipped.
+    /// Call once per <see cref="DoStart"/> when a definition plays a fixed set of child events.
+    /// </summary>
+    protected void StartChildren(SoundEventDefinition?[] definitions)
+    {
+        children ??= new SoundEvent?[definitions.Length];
+
+        for (var i = 0; i < definitions.Length; i++)
+        {
+            var definition = definitions[i];
+            if (definition == null)
+            {
+                continue;
+            }
+
+            var child = children[i] ??= Build(definition);
+            if (child != null)
+            {
+                StartAsChild(child);
+            }
+        }
     }
 
     private void ChildSoundOver(SoundEvent soundEvent)
