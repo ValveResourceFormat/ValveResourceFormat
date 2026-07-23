@@ -43,6 +43,43 @@ internal static class SoundscapeOperatorParsing
     }
 
     /// <summary>
+    /// Parses a classic soundscape operator's "origin" ("x, y, z", occasionally with a stray trailing
+    /// semicolon left over from hand-authored scripts) into a world position, or null when the key is
+    /// missing or malformed. Unlike the modern vsndevt schema's "position" (a KV3 float array), this is a
+    /// single comma-separated string.
+    /// </summary>
+    public static Vector3? ParseOrigin(KVObject data, string key = "origin")
+    {
+        var text = data.GetStringProperty(key);
+
+        if (string.IsNullOrEmpty(text))
+        {
+            return null;
+        }
+
+        var parts = text.Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
+
+        if (parts.Length != 3)
+        {
+            return null;
+        }
+
+        Span<float> values = stackalloc float[3];
+
+        for (var i = 0; i < 3; i++)
+        {
+            var part = parts[i].TrimEnd(';', ' ');
+
+            if (!float.TryParse(part, NumberStyles.Float, CultureInfo.InvariantCulture, out values[i]))
+            {
+                return null;
+            }
+        }
+
+        return new Vector3(values[0], values[1], values[2]);
+    }
+
+    /// <summary>
     /// Collects every "wave" entry under a "rndwave" sub-block (repeated sibling keys, not a KV3 array),
     /// or an empty list when there is no rndwave block.
     /// </summary>

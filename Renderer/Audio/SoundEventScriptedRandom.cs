@@ -8,9 +8,10 @@ namespace ValveResourceFormat.Renderer.Audio;
 /// Implements a classic soundscape script's "playrandom" operator (see <see cref="SoundscapeBank"/>):
 /// picks a track from "rndwave", plays it once at a volume/pitch drawn from an authored min/max range,
 /// then reschedules itself on a random "time" interval for as long as the soundscape stays active.
-/// Unlike the modern event types the range here is the whole value, not an offset added to a base, and
-/// "position" "random" places the sound at a fresh random point around the listener on every retrigger
-/// instead of at an authored or caller-supplied position.
+/// Unlike the modern event types the range here is the whole value, not an offset added to a base.
+/// "position" "random" places the sound at a fresh random point around the listener on every retrigger;
+/// otherwise an authored "origin" (a literal world position) is used as a fixed spot, or the sound plays
+/// unspatialized when neither is present.
 /// </summary>
 internal sealed class SoundEventScriptedRandom : SoundEvent
 {
@@ -19,6 +20,7 @@ internal sealed class SoundEventScriptedRandom : SoundEvent
     private readonly (float Min, float Max) pitchRange;
     private readonly (float Min, float Max) timeRange;
     private readonly bool randomPosition;
+    private readonly Vector3? origin;
     private readonly float range;
 
     private bool wasInitialized;
@@ -36,6 +38,7 @@ internal sealed class SoundEventScriptedRandom : SoundEvent
         pitchRange = SoundscapeOperatorParsing.ParseRange(data, "pitch", 100f);
         timeRange = SoundscapeOperatorParsing.ParseRange(data, "time", 10f);
         randomPosition = string.Equals(data.GetStringProperty("position"), "random", StringComparison.OrdinalIgnoreCase);
+        origin = SoundscapeOperatorParsing.ParseOrigin(data);
         range = SoundscapeOperatorParsing.SoundLevelToRange(data.GetStringProperty("soundlevel"), 1000f);
     }
 
@@ -55,7 +58,7 @@ internal sealed class SoundEventScriptedRandom : SoundEvent
             return;
         }
 
-        Position = randomPosition ? PickRandomPosition() : null;
+        Position = randomPosition ? PickRandomPosition() : origin;
 
         var soundName = trackNames[Mixer.Player.PickTrack(Definition, trackNames.Length)];
         var cachedSound = Mixer.Player.SoundCache.GetSound(soundName);
