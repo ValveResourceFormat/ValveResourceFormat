@@ -301,7 +301,13 @@ public partial class PlayerMovement
     /// result tracks the continuous trajectory (and therefore composes across any frame
     /// partitioning) far below float noise.
     /// </summary>
-    private static (Vector3 Velocity, Vector3 Displacement) SubStopSpeedAccelerate(Vector3 v0, Vector3 wishdir, float wishspeed, float accelMagnitude, float deltaTime, float frictionRate, float kickSpeed)
+    /// <remarks>
+    /// Also reports the kick-boost crossing (velocity and elapsed time at the moment the boost
+    /// switches off), so a caller integrating the frame with a low-order rule can split its
+    /// quadrature on the kink instead of chording across it. KickEndTime is negative when the
+    /// frame contains no crossing.
+    /// </remarks>
+    private static (Vector3 Velocity, Vector3 Displacement, Vector3 KickEndVelocity, float KickEndTime) SubStopSpeedAccelerate(Vector3 v0, Vector3 wishdir, float wishspeed, float accelMagnitude, float deltaTime, float frictionRate, float kickSpeed)
     {
         const float MaxSubstep = 1f / 2048f;
 
@@ -323,6 +329,8 @@ public partial class PlayerMovement
         var v = v0;
         var displacement = Vector3.Zero;
         var timeLeft = deltaTime;
+        var kickEndVelocity = Vector3.Zero;
+        var kickEndTime = -1f;
 
         while (timeLeft > 1e-9f)
         {
@@ -336,7 +344,10 @@ public partial class PlayerMovement
             var kickBoost = v.Length() < kickSpeed ? kickAccel : 0f;
             var (vNext, disp) = Rk4(v, h, kickBoost);
 
-            if (kickBoost > 0f && vNext.Length() > kickSpeed)
+            // >=, not >: the boost ends at exactly 1/64s, an integer multiple of the substep, so
+            // a frame boundary aligned with it lands the step end exactly on kickSpeed. A strict
+            // test would then leave the crossing unreported and the boost would just switch off
+            if (kickBoost > 0f && vNext.Length() >= kickSpeed)
             {
                 var lo = 0f;
                 var hi = h;
@@ -357,6 +368,9 @@ public partial class PlayerMovement
 
                 h = hi;
                 (vNext, disp) = Rk4(v, h, kickBoost);
+
+                kickEndVelocity = vNext;
+                kickEndTime = deltaTime - timeLeft + h;
             }
 
             v = vNext;
@@ -364,7 +378,7 @@ public partial class PlayerMovement
             timeLeft -= h;
         }
 
-        return (v, displacement);
+        return (v, displacement, kickEndVelocity, kickEndTime);
     }
 
     /// <summary>
