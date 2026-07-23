@@ -1,4 +1,4 @@
-using System.Globalization;
+﻿using System.Globalization;
 using System.Linq;
 using System.Text;
 using GUI.Types.GLViewers;
@@ -58,14 +58,45 @@ internal class PulseGraphViewer : GLGraphViewer
         // More exist, but we don't need any specific code for them.
     }
 
-    // For now these are used for visual coloring purposes
+    // The full EPulseValueType set (pulse_system). A register names one of these, optionally with
+    // a ":subtype" the parser strips. Drives socket/wire colour and is shown on variable nodes.
     enum PulseValueType
     {
+        PVAL_INVALID,
         PVAL_VOID,
         PVAL_BOOL,
         PVAL_INT,
         PVAL_FLOAT,
-        PVAL_STRING
+        PVAL_STRING,
+        PVAL_VEC2,
+        PVAL_VEC3,
+        PVAL_VEC3_WORLDSPACE,
+        PVAL_VEC4,
+        PVAL_QANGLE,
+        PVAL_TRANSFORM,
+        PVAL_TRANSFORM_WORLDSPACE,
+        PVAL_COLOR_RGB,
+        PVAL_EHANDLE,
+        PVAL_PARTICLE_EHANDLE,
+        PVAL_RESOURCE,
+        PVAL_RESOURCE_NAME,
+        PVAL_SNDEVT_NAME,
+        PVAL_SNDEVT_GUID,
+        PVAL_ENTITY_NAME,
+        PVAL_TYPESAFE_INT,
+        PVAL_TYPESAFE_INT64,
+        PVAL_GAMETIME,
+        PVAL_SCHEMA_ENUM,
+        PVAL_PANORAMA_PANEL_HANDLE,
+        PVAL_MODEL_MATERIAL_GROUP,
+        PVAL_OPAQUE_HANDLE,
+        PVAL_TEST_HANDLE,
+        PVAL_ARRAY,
+        PVAL_VARIANT,
+        PVAL_ANY,
+        PVAL_CURSOR_FLOW,
+        PVAL_UNKNOWN,
+        PVAL_COUNT,
     }
 
     private readonly HashSet<InstructionCode> flowInstructions =
@@ -137,12 +168,42 @@ internal class PulseGraphViewer : GLGraphViewer
 
     private static GraphHue HueOf(Type type) => type == typeof(ValueNumber) ? GraphHue.Amber : GraphHue.Neutral;
 
+    // The roles the pulse editor gives its own node bodies a palette for (pulse_scene_styles_v2
+    // $bgColorBase): a cell reads as an entry point, a value, a yielding step or a state cell.
+    private const GraphHue EntryHue = GraphHue.Green;
+    private const GraphHue ValueCellHue = GraphHue.Teal;
+    private const GraphHue ControlFlowHue = GraphHue.Neutral;
+    private const GraphHue YieldingHue = GraphHue.Amber;
+    private const GraphHue StateCellHue = GraphHue.Maroon;
+
+    /// <summary>The role colour for a cell, or null to keep deriving the header from its sockets.</summary>
+    private static GraphHue? HueOfCellRole(CellCategory category, CellType type)
+    {
+        if (type == CellType.Wait)
+        {
+            return YieldingHue;
+        }
+
+        return category switch
+        {
+            CellCategory.Inflow => EntryHue,
+            CellCategory.Value => ValueCellHue,
+            CellCategory.Outflow => StateCellHue,
+            _ => null,
+        };
+    }
+
+    // Buckets match the ones the pulse editor itself binds wires by (pulse_scene_styles_v2):
+    // string, number, bool, flow, and one "other" bucket for every remaining type.
     private static GraphHue HueOfPval(PulseValueType valueType) => valueType switch
     {
-        PulseValueType.PVAL_INT or PulseValueType.PVAL_FLOAT => GraphHue.Amber,
+        PulseValueType.PVAL_INT or PulseValueType.PVAL_FLOAT
+            or PulseValueType.PVAL_TYPESAFE_INT or PulseValueType.PVAL_TYPESAFE_INT64
+            or PulseValueType.PVAL_GAMETIME => GraphHue.Amber,
         PulseValueType.PVAL_STRING => GraphHue.Green,
         PulseValueType.PVAL_BOOL => GraphHue.Orange,
-        _ => GraphHue.Slate,
+        PulseValueType.PVAL_CURSOR_FLOW => GraphHue.Neutral,
+        _ => GraphHue.Teal,
     };
     #endregion Socket types
 
@@ -281,12 +342,29 @@ internal class PulseGraphViewer : GLGraphViewer
     {
         var chunk = chunks[chunkIdx];
         var regInfo = chunk.GetArray("m_Registers")[regIdx];
-        var strRegType = regInfo.GetStringProperty("m_Type");
-        if (Enum.TryParse(strRegType, out PulseValueType valueType))
+        return ParseValueType(regInfo.GetStringProperty("m_Type"));
+    }
+
+    /// <summary>
+    /// Reads a register or variable type name. Handle and enum types name their subject after a
+    /// colon (PVAL_EHANDLE:func_button), which is not part of the type itself.
+    /// </summary>
+    private static PulseValueType ParseValueType(string? typeName)
+    {
+        if (string.IsNullOrEmpty(typeName))
+        {
+            return PulseValueType.PVAL_VOID;
+        }
+
+        var subtype = typeName.IndexOf(':', StringComparison.Ordinal);
+        var baseType = subtype >= 0 ? typeName[..subtype] : typeName;
+
+        if (Enum.TryParse(baseType, out PulseValueType valueType))
         {
             return valueType;
         }
 
+        Log.Warn(nameof(PulseGraphViewer), $"Unknown pulse value type \"{baseType}\".");
         return PulseValueType.PVAL_VOID;
     }
     private CellType GetCellType(int cellIdx, out string cellTypeString)
@@ -766,6 +844,7 @@ internal class PulseGraphViewer : GLGraphViewer
                         {
                             Name = "Do-While Loop",
                             NodeType = "Flow control",
+                            Category = ControlFlowHue,
                         };
 
                         previousActionOutSocket = CreateSequentialActionSockets(doWhileNode, previousActionOutSocket, chunkIndex, instructionIdx);
@@ -936,6 +1015,7 @@ internal class PulseGraphViewer : GLGraphViewer
                         {
                             Name = "Loop",
                             NodeType = "Flow control",
+                            Category = ControlFlowHue,
                         };
 
                         // No info? One last try, but this is an assumption already.
@@ -1100,7 +1180,7 @@ internal class PulseGraphViewer : GLGraphViewer
 
                         var funcName = binding.GetStringProperty("m_FuncName");
                         var cellIndex = binding.GetInt32Property("m_nCellIndex");
-                        GetCellType(cellIndex, out var cellName);
+                        var invokedCellType = GetCellType(cellIndex, out var cellName);
 
                         var funcNameSplitIdx = funcName.IndexOf("::", StringComparison.InvariantCulture);
                         var node = new Node(null)
@@ -1108,6 +1188,7 @@ internal class PulseGraphViewer : GLGraphViewer
                             Name = cellName,
                             // show name after '::' separator, if can't find then show full name
                             NodeType = funcName[(funcNameSplitIdx >= 0 ? (funcNameSplitIdx + 2) : 0)..],
+                            Category = HueOfCellRole(GetCellCategory(cellIndex), invokedCellType),
                         };
 
                         var newActionOutSocket = SetupNodeOutputsFromRegisterMap(node, chunkIndex, instructionIdx, registerOutputSocketMap, previousActionOutSocket, registerMap);
@@ -1292,6 +1373,7 @@ internal class PulseGraphViewer : GLGraphViewer
                         {
                             Name = "If",
                             NodeType = "Flow control",
+                            Category = ControlFlowHue,
                         };
                         var socketIn = node.CreateSocketIn<Flow>("");
                         View.Connect(previousActionOutSocket, socketIn);
@@ -1549,6 +1631,7 @@ internal class PulseGraphViewer : GLGraphViewer
             {
                 Name = cellName,
                 NodeType = cellCategory.ToString(),
+                Category = HueOfCellRole(cellCategory, cellType),
             };
 
             switch (cellCategory)
@@ -1680,8 +1763,14 @@ internal class PulseGraphViewer : GLGraphViewer
             new("String value", GraphHue.Green, GraphLegendKind.Wire),
             new("Number value", GraphHue.Amber, GraphLegendKind.Wire),
             new("Bool value", GraphHue.Orange, GraphLegendKind.Wire),
-            new("Other value", GraphHue.Slate, GraphLegendKind.Wire),
+            new("Other value", GraphHue.Teal, GraphLegendKind.Wire),
             new("Variable link", GraphHue.Indigo, GraphLegendKind.DashedWire),
+            new("Entry point", EntryHue),
+            new("Value cell", ValueCellHue),
+            new("Control flow", ControlFlowHue),
+            new("Yielding (wait)", YieldingHue),
+            new("State cell", StateCellHue),
+            new("Variable", GraphHue.Indigo),
         ]);
     }
     #region Nodes
