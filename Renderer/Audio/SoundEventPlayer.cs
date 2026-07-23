@@ -224,6 +224,15 @@ public sealed class SoundEventPlayer : IDisposable
             return;
         }
 
+        if (soundEventsFile.DataBlock is not (BinaryKV3 or NTRO))
+        {
+            logger.LogWarning(
+                "Sound events file {FileName} has unexpected data block type {BlockType}, skipping",
+                fileName,
+                soundEventsFile.DataBlock.GetType().Name);
+            return;
+        }
+
         Bank.AddSoundEvents(soundEventsFile.DataBlock.AsKeyValueCollection());
     }
 
