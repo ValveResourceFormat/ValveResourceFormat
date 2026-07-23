@@ -1,6 +1,5 @@
 using System.Diagnostics;
 using System.Diagnostics.Tracing;
-using System.Linq;
 using System.Threading;
 
 namespace ValveResourceFormat.Renderer;
@@ -160,6 +159,7 @@ public class AllocStats
                 sampler ??= new AllocationSampler();
                 sampler.Start();
                 captureStart = Stopwatch.GetTimestamp();
+                displayLines.Clear();
             }
             else
             {
@@ -245,6 +245,12 @@ public class AllocStats
         _ => new Color32(150, 255, 150),
     };
 
+    // Display lines are rebuilt once per second and rendered from this cache, so the overlay
+    // itself allocates (strings, GCMemoryInfoData) at 1 Hz instead of every frame.
+    private readonly List<(string Text, Color32 Color)> displayLines = [];
+    private readonly List<(string Name, long Bytes, long Samples)> typeSnapshot = [];
+    private long lastDisplayRebuild;
+
     /// <summary>
     /// Renders allocation and GC statistics to screen using the provided text renderer.
     /// </summary>
@@ -260,23 +266,40 @@ public class AllocStats
             return;
         }
 
+        if (displayLines.Count == 0 || Stopwatch.GetElapsedTime(lastDisplayRebuild).TotalSeconds >= 1.0)
+        {
+            lastDisplayRebuild = Stopwatch.GetTimestamp();
+            RebuildDisplayLines();
+        }
+
         var lineHeight = scale * 1.5f / camera.WindowSize.Y;
-        var valueColor = new Color32(150, 255, 150);
         var offset = y;
 
-        void AddLine(string text, Color32 color)
+        foreach (var (text, color) in displayLines)
         {
-            textRenderer.AddTextRelative(new TextRenderer.TextRenderRequest
+            if (text.Length > 0)
             {
-                X = x,
-                Y = offset,
-                Scale = scale,
-                Color = color,
-                Text = text,
-            }, camera);
+                textRenderer.AddTextRelative(new TextRenderer.TextRenderRequest
+                {
+                    X = x,
+                    Y = offset,
+                    Scale = scale,
+                    Color = color,
+                    Text = text,
+                }, camera);
+            }
 
             offset += lineHeight;
         }
+    }
+
+    private void RebuildDisplayLines()
+    {
+        displayLines.Clear();
+
+        var valueColor = new Color32(150, 255, 150);
+
+        void AddLine(string text, Color32 color) => displayLines.Add((text, color));
 
         AddLine("GC Allocations", new Color32(255, 200, 0));
 
@@ -331,21 +354,23 @@ public class AllocStats
             return;
         }
 
-        (string Name, long Bytes, long Samples)[] allTypes;
         long sampledBytes;
+        typeSnapshot.Clear();
 
         using (sampler.Sync.EnterScope())
         {
             sampledBytes = sampler.SampledBytes;
-            allTypes = sampler.Types
-                .Select(kv => (kv.Key, kv.Value.Bytes, kv.Value.Samples))
-                .ToArray();
+
+            foreach (var (name, total) in sampler.Types)
+            {
+                typeSnapshot.Add((name, total.Bytes, total.Samples));
+            }
         }
 
         var selfBytes = 0L;
         var stringBytes = 0L;
 
-        foreach (var (name, bytes, _) in allTypes)
+        foreach (var (name, bytes, _) in typeSnapshot)
         {
             if (IsSelfType(name))
             {
@@ -357,7 +382,9 @@ public class AllocStats
             }
         }
 
-        offset += lineHeight;
+        typeSnapshot.Sort(static (a, b) => b.Bytes.CompareTo(a.Bytes));
+
+        AddLine(string.Empty, default);
 
         var captureSeconds = Stopwatch.GetElapsedTime(captureStart).TotalSeconds;
         AddLine($"Top allocated types over {captureSeconds:0} s ({FormatBytes(sampledBytes)} sampled at ~100 KB granularity)", new Color32(255, 200, 0));
@@ -373,17 +400,40 @@ public class AllocStats
             AddLine($"{FormatBytes(bytes),10} {share,6:0.0%} {samples,6:N0}  {displayName}", color);
         }
 
-        foreach (var (name, bytes, samples) in allTypes.Where(t => !IsSelfType(t.Name)).OrderByDescending(t => t.Bytes).Take(MaxTypesShown))
+        var shown = 0;
+
+        foreach (var (name, bytes, samples) in typeSnapshot)
         {
+            if (IsSelfType(name))
+            {
+                continue;
+            }
+
             AddTypeLine(name, bytes, samples, null);
+
+            if (++shown == MaxTypesShown)
+            {
+                break;
+            }
         }
 
         // The display's own allocations, greyed out at the bottom.
         var greyColor = new Color32(140, 140, 140);
+        shown = 0;
 
-        foreach (var (name, bytes, samples) in allTypes.Where(t => IsSelfType(t.Name)).OrderByDescending(t => t.Bytes).Take(MaxSelfTypesShown))
+        foreach (var (name, bytes, samples) in typeSnapshot)
         {
+            if (!IsSelfType(name))
+            {
+                continue;
+            }
+
             AddTypeLine(name, bytes, samples, greyColor);
+
+            if (++shown == MaxSelfTypesShown)
+            {
+                break;
+            }
         }
     }
 

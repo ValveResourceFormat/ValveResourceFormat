@@ -92,7 +92,6 @@ namespace ValveResourceFormat.Renderer
             GL.TextureSubImage2D(fontTexture.Handle, 0, 0, 0, bitmap.Width, bitmap.Height, PixelFormat.Bgra, PixelType.UnsignedByte, bitmap.GetPixels());
 
             // Create VAO
-            // Order matters: the offset is accumulated in sequence and must match the Vertex struct layout.
             var attributes = new List<(string Name, int Size, VertexAttribType Type, bool Normalized)>
             {
                 ("vPOSITION", 2, VertexAttribType.Float, false),

@@ -113,19 +113,52 @@ public class ViewmodelSceneNode : ModelSceneNode
         NorthWest,
     }
 
-    private static readonly Dictionary<Heading, Vector2> HeadingVectors = new()
+    private static readonly Posture[] Postures = Enum.GetValues<Posture>();
+
+    /// <summary>Direction vector per heading, indexed by <see cref="Heading"/>.</summary>
+    private static readonly Vector2[] HeadingVectors = BuildHeadingVectors();
+
+    private static Vector2[] BuildHeadingVectors()
     {
-        [Heading.North] = new(0, 1),
-        [Heading.NorthEast] = Vector2.Normalize(new(1, 1)),
-        [Heading.East] = new(1, 0),
-        [Heading.SouthEast] = Vector2.Normalize(new(1, -1)),
-        [Heading.South] = new(0, -1),
-        [Heading.SouthWest] = Vector2.Normalize(new(-1, -1)),
-        [Heading.West] = new(-1, 0),
-        [Heading.NorthWest] = Vector2.Normalize(new(-1, 1)),
-    };
+        var vectors = new Vector2[Enum.GetValues<Heading>().Length];
+        vectors[(int)Heading.North] = new(0, 1);
+        vectors[(int)Heading.NorthEast] = Vector2.Normalize(new(1, 1));
+        vectors[(int)Heading.East] = new(1, 0);
+        vectors[(int)Heading.SouthEast] = Vector2.Normalize(new(1, -1));
+        vectors[(int)Heading.South] = new(0, -1);
+        vectors[(int)Heading.SouthWest] = Vector2.Normalize(new(-1, -1));
+        vectors[(int)Heading.West] = new(-1, 0);
+        vectors[(int)Heading.NorthWest] = Vector2.Normalize(new(-1, 1));
+        return vectors;
+    }
+
+    /// <summary>Clip names precomputed for every state so the per-frame blend never builds strings.</summary>
+    private static readonly string[,,] ThirdpersonAnims = BuildThirdpersonAnims();
+
+    private static string[,,] BuildThirdpersonAnims()
+    {
+        var movements = Enum.GetValues<MovementState>();
+        var headings = Enum.GetValues<Heading>();
+        var anims = new string[Postures.Length, movements.Length, headings.Length];
+
+        foreach (var posture in Postures)
+        {
+            foreach (var movement in movements)
+            {
+                foreach (var heading in headings)
+                {
+                    anims[(int)posture, (int)movement, (int)heading] = BuildThirdpersonAnim(posture, movement, heading);
+                }
+            }
+        }
+
+        return anims;
+    }
 
     private static string GetThirdpersonAnim(Posture posture, MovementState movement, Heading heading = Heading.West)
+        => ThirdpersonAnims[(int)posture, (int)movement, (int)heading];
+
+    private static string BuildThirdpersonAnim(Posture posture, MovementState movement, Heading heading)
     {
         const string item = "rifle";
         const string path = $"animation/anims/world/{item}/_default_{item}/";
@@ -589,7 +622,7 @@ public class ViewmodelSceneNode : ModelSceneNode
                 restartInAirAnim = restartInAirAnim || justJumped;
                 var restartedInAirAnim = false;
 
-                foreach (var posture in Enum.GetValues<Posture>())
+                foreach (var posture in Postures)
                 {
                     var jumpingAnimName = GetThirdpersonAnim(posture, MovementState.Jumping);
 
@@ -666,24 +699,24 @@ public class ViewmodelSceneNode : ModelSceneNode
                 }
             }
 
-            var headingWeights = new Dictionary<Heading, float>();
+            Span<float> headingWeights = stackalloc float[HeadingVectors.Length];
             var headingTotal = 0f;
-            foreach (var heading in HeadingVectors.Keys)
+            for (var i = 0; i < HeadingVectors.Length; i++)
             {
-                var weight = MathF.Max(0f, Vector2.Dot(currentWalkDirection, HeadingVectors[heading]));
-                headingWeights[heading] = weight;
+                var weight = MathF.Max(0f, Vector2.Dot(currentWalkDirection, HeadingVectors[i]));
+                headingWeights[i] = weight;
                 headingTotal += weight;
             }
 
             if (headingTotal > 0f)
             {
-                foreach (var heading in headingWeights.Keys.ToList())
+                for (var i = 0; i < headingWeights.Length; i++)
                 {
-                    headingWeights[heading] /= headingTotal;
+                    headingWeights[i] /= headingTotal;
                 }
             }
 
-            foreach (var posture in Enum.GetValues<Posture>())
+            foreach (var posture in Postures)
             {
                 var t = posture == Posture.Standing ? standing : crouched;
 
@@ -700,9 +733,10 @@ public class ViewmodelSceneNode : ModelSceneNode
             ];
 
             // 8 way blend
-            foreach (var heading in HeadingVectors.Keys)
+            for (var headingIndex = 0; headingIndex < HeadingVectors.Length; headingIndex++)
             {
-                var headingWeight = headingWeights.TryGetValue(heading, out var w) ? w : 0f;
+                var heading = (Heading)headingIndex;
+                var headingWeight = headingWeights[headingIndex];
 
                 foreach (var (posture, movement) in locomotionStates)
                 {

@@ -67,8 +67,8 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
             maxArrayLength: (MaxTubeRings - 1) * CableMeshBuilder.MaxSides * 6,
             maxArraysPerBucket: 2);
 
-        private static readonly IComparer<(int Id, Vector3 Position, float Radius, Vector3 Color)> ChainComparer =
-            Comparer<(int Id, Vector3 Position, float Radius, Vector3 Color)>.Create(static (a, b) => a.Id.CompareTo(b.Id));
+        private static readonly Comparison<(int Id, Vector3 Position, float Radius, Vector3 Color)> ChainComparer =
+            static (a, b) => a.Id.CompareTo(b.Id);
 
         public RenderCables(ParticleDefinitionParser parse, RendererContext rendererContext, Scene scene) : base(parse)
         {
