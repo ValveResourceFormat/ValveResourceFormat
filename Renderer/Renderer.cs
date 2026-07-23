@@ -877,8 +877,6 @@ public class Renderer
         Scene.CollectSceneDrawCalls(updateContext.Camera, LockedCullFrustum);
         SkyboxScene?.CollectSceneDrawCalls(updateContext.Camera, LockedCullFrustum);
 
-        Sound.Player?.Update(updateContext.Camera);
-
         if (ShowSoundDebug && Sound.Player != null)
         {
             debugWorldSounds.Clear();

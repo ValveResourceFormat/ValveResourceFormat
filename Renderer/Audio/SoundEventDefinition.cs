@@ -8,6 +8,9 @@ namespace ValveResourceFormat.Renderer.Audio;
 /// A sound event definition with its properties parsed out of the key-values once, on first play,
 /// since reading a property off a <see cref="KVObject"/> allocates or boxes on every access.
 /// Also carries mutable per-event playback state (last picked track, last play time).
+/// Only holds properties genuinely shared across event types (same key name and meaning in every game's
+/// schema) plus properties the base <see cref="SoundEvent"/>/<see cref="SoundEventPlayer"/> machinery itself
+/// reads directly - everything else belongs on the type that understands it (e.g. <see cref="SoundEventCSGOMega"/>).
 /// </summary>
 public sealed class SoundEventDefinition
 {
@@ -20,37 +23,27 @@ public sealed class SoundEventDefinition
     /// <summary>Gets the sound event type ("csgo_mega"), empty when the definition has none.</summary>
     public string Type { get; }
 
-    /// <summary>Gets the vsnd files to pick a track from ("vsnd_files_track_01").</summary>
-    public string[] TrackNames { get; }
-
-    /// <summary>Gets the child sound event names, empty unless "enable_child_events" is set.</summary>
-    public string[] ChildEventNames { get; }
-
     /// <summary>Gets the position baked into the definition. An all-zero authored position is a placeholder and parses as null.</summary>
     public Vector3? Position { get; }
 
     /// <summary>
     /// Gets whether child events play at this event's position ("set_child_position", e.g. a footstep's gear
     /// rustle follows the player). When false - the common case - children use their own authored positions.
+    /// Read by the base <see cref="SoundEvent.StartAsChild"/>, so it lives here regardless of event type.
     /// </summary>
     public bool SetChildPosition { get; }
 
     /// <summary>Gets the offset added to the position (e.g. footsteps play 20 units above the ground).</summary>
     public Vector3 PositionOffset { get; }
 
-    /// <summary>Gets the base volume, replaced by <see cref="SoundEvent.VolumeOverride"/> when set.</summary>
+    /// <summary>
+    /// Gets the base volume, replaced by <see cref="SoundEvent.VolumeOverride"/> when set. Unit depends on the
+    /// event type: CS2 events author this linear (0-1); Deadlock events author it in decibels.
+    /// </summary>
     public float Volume { get; }
-    /// <summary>Gets the lower bound of the random volume offset.</summary>
-    public float VolumeRandomMin { get; }
-    /// <summary>Gets the upper bound of the random volume offset.</summary>
-    public float VolumeRandomMax { get; }
 
     /// <summary>Gets the base playback rate multiplier.</summary>
     public float Pitch { get; }
-    /// <summary>Gets the lower bound of the random pitch offset.</summary>
-    public float PitchRandomMin { get; }
-    /// <summary>Gets the upper bound of the random pitch offset.</summary>
-    public float PitchRandomMax { get; }
 
     /// <summary>Gets the delay in seconds before the sound starts.</summary>
     public float Delay { get; }
@@ -61,25 +54,9 @@ public sealed class SoundEventDefinition
     /// </summary>
     public float OcclusionIntensity { get; }
 
-    /// <summary>Gets the mix group name, empty when the definition has none.</summary>
-    public string MixGroup { get; }
-
-    /// <summary>Gets the distance to volume mapping curve, null unless the matching "use_" flag is set.</summary>
-    public SoundEventCurve? DistanceVolumeCurve { get; }
-
-    /// <summary>Gets the distance to unfiltered-stereo mapping curve, null unless the matching "use_" flag is set.</summary>
-    public SoundEventCurve? StereoMixCurve { get; }
-
     /// <summary>
-    /// Gets the fade-out curve (seconds to volume) applied when the event is stopped with a fade,
-    /// e.g. a soundscape being left ("fadetime_volume_mapping_curve").
+    /// Gets whether replays within <see cref="BlockDuration"/> are dropped ("block_matching_events").
     /// </summary>
-    public SoundEventCurve? FadeTimeVolumeCurve { get; }
-
-    /// <summary>Gets the audible range: the largest distance in the volume curve, or 1000 when there is none.</summary>
-    public float Range { get; }
-
-    /// <summary>Gets whether replays within <see cref="BlockDuration"/> are dropped ("block_matching_events").</summary>
     public bool BlockMatchingEvents { get; }
     /// <summary>Gets how long replays are blocked for, in seconds.</summary>
     public float BlockDuration { get; }
@@ -100,7 +77,10 @@ public sealed class SoundEventDefinition
     /// <summary>Stopwatch timestamp of the last play, for <see cref="BlockMatchingEvents"/>.</summary>
     internal long LastPlayedTimestamp;
 
-    /// <summary>Child definitions, resolved through the bank on first play.</summary>
+    /// <summary>
+    /// Child definitions, resolved through the bank on first play and cached here so every instance/retrigger
+    /// of this definition reuses the same resolution.
+    /// </summary>
     internal SoundEventDefinition?[]? ChildDefinitions;
 
     internal SoundEventDefinition(string name, KVObject data)
@@ -109,10 +89,6 @@ public sealed class SoundEventDefinition
         Data = data;
 
         Type = data.GetStringProperty("type", string.Empty);
-        TrackNames = GetStringArray(data, "vsnd_files_track_01");
-        ChildEventNames = data.GetBooleanProperty("enable_child_events")
-            ? GetStringArray(data, "soundevent_01")
-            : [];
         SetChildPosition = data.GetBooleanProperty("set_child_position");
 
         if (data.ContainsKey("position"))
@@ -133,30 +109,9 @@ public sealed class SoundEventDefinition
         }
 
         Volume = data.GetFloatProperty("volume", 1f);
-        VolumeRandomMin = data.GetFloatProperty("volume_random_min");
-        VolumeRandomMax = data.GetFloatProperty("volume_random_max");
-
         Pitch = data.GetFloatProperty("pitch", 1f);
-        PitchRandomMin = data.GetFloatProperty("pitch_random_min");
-        PitchRandomMax = data.GetFloatProperty("pitch_random_max");
-
         Delay = data.GetFloatProperty("delay");
         OcclusionIntensity = data.GetFloatProperty("occlusion_intensity");
-        MixGroup = data.GetStringProperty("mixgroup", string.Empty);
-
-        // Not gated on the "use_" flags: the vast majority of events carry these curves without the flag
-        // set (e.g. soundscape ambients author a flat 1.0 distance curve and no flag), and the game
-        // audibly honors them - the flag governs a different runtime path.
-        var volumeCurve = SoundEventCurve.Parse(data, "distance_volume_mapping_curve");
-        DistanceVolumeCurve = volumeCurve;
-        StereoMixCurve = SoundEventCurve.Parse(data, "distance_unfiltered_stereo_mapping_curve");
-
-        // Not gated on "use_fadetime_volume_mapping_curve": that flag governs a different runtime path,
-        // authored fade curves are used for stop fades whenever present
-        FadeTimeVolumeCurve = SoundEventCurve.Parse(data, "fadetime_volume_mapping_curve");
-
-        // Only reached by the fallback falloff when the event has no volume curve
-        Range = volumeCurve is { MaxX: > 0f } ? volumeCurve.MaxX : 1000f;
 
         BlockMatchingEvents = data.GetBooleanProperty("block_matching_events");
         BlockDuration = data.GetFloatProperty("block_duration");
@@ -164,23 +119,6 @@ public sealed class SoundEventDefinition
         EnableRetrigger = data.GetBooleanProperty("enable_retrigger");
         RetriggerIntervalMin = data.GetFloatProperty("retrigger_interval_min");
         RetriggerIntervalMax = data.GetFloatProperty("retrigger_interval_max");
-    }
-
-    /// <summary>Reads a property that is either an array of strings or a single string.</summary>
-    private static string[] GetStringArray(KVObject data, string name)
-    {
-        if (!data.TryGetValue(name, out var value))
-        {
-            return [];
-        }
-
-        if (value.ValueType == KVValueType.Array)
-        {
-            return data.GetArray<string>(name) ?? [];
-        }
-
-        var single = data.GetStringProperty(name);
-        return single != null ? [single] : [];
     }
 
     /// <inheritdoc/>

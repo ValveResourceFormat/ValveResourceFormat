@@ -81,6 +81,15 @@ namespace ValveResourceFormat.Renderer.Utils
         }
 
         /// <summary>
+        /// Converts a decibel value to a linear amplitude multiplier (0 dB is 1.0, -6 dB is roughly half).
+        /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static float DecibelsToLinear(float decibels)
+        {
+            return MathF.Pow(10f, decibels / 20f);
+        }
+
+        /// <summary>
         /// Maps a linear 0-1 value onto an exponential curve approximating perceptual loudness, so the
         /// middle of a volume control (or a linear distance falloff) does not sound louder than it should.
         /// </summary>

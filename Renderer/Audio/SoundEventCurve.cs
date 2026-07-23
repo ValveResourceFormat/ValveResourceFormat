@@ -20,6 +20,17 @@ public sealed class SoundEventCurve
         this.points = points;
     }
 
+    /// <summary>
+    /// Creates a two-point linear curve directly, e.g. to represent an authored distance range
+    /// ("spread_min"/"spread_max") as a curve without going through <see cref="Parse"/>.
+    /// </summary>
+    internal static SoundEventCurve Linear(float x0, float y0, float x1, float y1)
+    {
+        return x0 <= x1
+            ? new SoundEventCurve([(x0, y0), (x1, y1)])
+            : new SoundEventCurve([(x1, y1), (x0, y0)]);
+    }
+
     /// <summary>Parses a mapping curve property from sound event data, or returns null when it is missing or empty.</summary>
     public static SoundEventCurve? Parse(KVObject soundEventData, string name)
     {

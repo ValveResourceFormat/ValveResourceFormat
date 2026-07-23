@@ -35,7 +35,11 @@ public sealed class SoundEventPlayer : IDisposable
     private volatile bool suspended;
     private volatile bool mute;
 
-    /// <summary>Gets or sets whether output is suspended, fading to silence and back so focus/tab changes don't snap the audio. Stops ticking like <see cref="Mute"/> once the fade-out finishes.</summary>
+    /// <summary>
+    /// Gets or sets whether output is suspended, fading to silence and back so focus/tab changes don't snap
+    /// the audio. Unlike <see cref="Mute"/>, sounds keep advancing in real time while suspended (just
+    /// inaudible) so a sound triggered mid-suspend is at the correct position, not frame 0, once resumed.
+    /// </summary>
     public bool Suspended
     {
         get => suspended;
@@ -132,8 +136,6 @@ public sealed class SoundEventPlayer : IDisposable
             Priority = ThreadPriority.Highest,
         };
         mixingThread.Start();
-
-        Sound.Player = this;
     }
 
     private void MixingLoop()
@@ -155,7 +157,11 @@ public sealed class SoundEventPlayer : IDisposable
         {
             // Nothing to hear: skip decoding/mixing instead of just discarding silence. The device
             // gets nothing (BufferedWaveProvider's ReadFully plays silence on its own when starved).
-            if (mute || volumeMultiplier == 0f || (suspended && fadeGain == 0f))
+            // Deliberately NOT extended to "suspended && fadeGain == 0f": Suspended is driven by things
+            // like tab-switching, which happens far more often and for far less predictable durations than
+            // an explicit mute - a sound triggered while suspended must keep advancing in real time so it
+            // doesn't play back "late" (from frame 0) whenever the tab becomes active again.
+            if (mute || volumeMultiplier == 0f)
             {
                 Thread.Sleep(chunkMilliseconds);
                 continue;
@@ -203,6 +209,8 @@ public sealed class SoundEventPlayer : IDisposable
     /// </summary>
     public void LoadSoundEvents(string filter = "")
     {
+        var stopwatch = Stopwatch.StartNew();
+
         foreach (var soundEventsFile in GetSoundEventFiles())
         {
             if (filter.Length == 0 || soundEventsFile.Contains(filter, StringComparison.OrdinalIgnoreCase))
@@ -211,7 +219,8 @@ public sealed class SoundEventPlayer : IDisposable
             }
         }
 
-        logger.LogInformation("Loaded {Count} sound events", Bank.Count);
+        stopwatch.Stop();
+        logger.LogInformation("Loaded {Count} sound events in {ElapsedMs} ms", Bank.Count, stopwatch.ElapsedMilliseconds);
     }
 
     /// <summary>Loads sound event definitions from a single soundevent (vsndevts) file.</summary>
@@ -224,7 +233,7 @@ public sealed class SoundEventPlayer : IDisposable
             return;
         }
 
-        if (soundEventsFile.DataBlock is not (BinaryKV3 or NTRO))
+        if (soundEventsFile.DataBlock is not BinaryKV3)
         {
             logger.LogWarning(
                 "Sound events file {FileName} has unexpected data block type {BlockType}, skipping",
@@ -306,17 +315,24 @@ public sealed class SoundEventPlayer : IDisposable
             return;
         }
 
-        foreach (var track in definition.TrackNames)
+        // Only "csgo_mega"'s key names are understood here - pre-caching is a heuristic optimization,
+        // not authoritative playback logic, so it's fine for other event types to just not pre-warm yet.
+        var data = definition.Data;
+
+        foreach (var track in SoundEvent.GetStringOrArrayProperty(data, "vsnd_files_track_01"))
         {
             SoundCache.GetSound(track, background: true);
         }
 
-        foreach (var childName in definition.ChildEventNames)
+        if (data.GetBooleanProperty("enable_child_events"))
         {
-            var child = Bank.GetSoundEvent(childName);
-            if (child != null)
+            foreach (var childName in SoundEvent.GetStringOrArrayProperty(data, "soundevent_01"))
             {
-                Cache(child, depth + 1);
+                var child = Bank.GetSoundEvent(childName);
+                if (child != null)
+                {
+                    Cache(child, depth + 1);
+                }
             }
         }
     }
@@ -341,11 +357,9 @@ public sealed class SoundEventPlayer : IDisposable
         return false;
     }
 
-    /// <summary>Picks a random track index, never repeating the previously picked track for the same sound event definition.</summary>
-    internal int PickTrack(SoundEventDefinition definition)
+    /// <summary>Picks a random track index out of <paramref name="trackCount"/>, never repeating the previously picked track for the same sound event definition.</summary>
+    internal int PickTrack(SoundEventDefinition definition, int trackCount)
     {
-        var trackCount = definition.TrackNames.Length;
-
         if (trackCount <= 1)
         {
             return 0;
@@ -391,7 +405,12 @@ public sealed class SoundEventPlayer : IDisposable
     /// </summary>
     public Func<Vector3, Vector3, bool>? OcclusionTrace { get; set; }
 
-    /// <summary>Updates listener position and per-frame sound event logic. Call once per frame.</summary>
+    /// <summary>
+    /// Updates listener position and per-frame sound event logic, and claims <see cref="Sound.Player"/> as
+    /// the active global listener. Call once per frame, only for the viewer currently active/visible -
+    /// calling this from every open viewer's own renderer, active or not, would have each one stomp on
+    /// whichever is the current global listener.
+    /// </summary>
     public void Update(Camera camera)
     {
         Sound.Player = this;
@@ -480,7 +499,23 @@ public sealed class SoundEventPlayer : IDisposable
 
     private IEnumerable<string> GetSoundEventFiles()
     {
-        using var manifestResource = fileLoader.LoadFileCompiled("soundevents/soundevents_manifest.vrman");
+        var visitedManifests = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        return CollectSoundEventFiles("soundevents/soundevents_manifest.vrman", visitedManifests);
+    }
+
+    /// <summary>
+    /// Manifests can reference other manifests (e.g. a top-level .vrman listing per-game .vrman
+    /// files, which in turn list the actual .vsndevts files), so entries are recursed into rather
+    /// than assumed to all be sound event files. Guards against cycles with <paramref name="visitedManifests"/>.
+    /// </summary>
+    private IEnumerable<string> CollectSoundEventFiles(string manifestFileName, HashSet<string> visitedManifests)
+    {
+        if (!visitedManifests.Add(manifestFileName))
+        {
+            yield break;
+        }
+
+        using var manifestResource = fileLoader.LoadFileCompiled(manifestFileName);
 
         if (manifestResource?.DataBlock is not ResourceManifest manifest)
         {
@@ -489,9 +524,19 @@ public sealed class SoundEventPlayer : IDisposable
 
         foreach (var resourceGroup in manifest.Resources)
         {
-            foreach (var soundEventsFile in resourceGroup)
+            foreach (var fileName in resourceGroup)
             {
-                yield return soundEventsFile;
+                if (fileName.EndsWith(".vrman", StringComparison.OrdinalIgnoreCase))
+                {
+                    foreach (var nestedFile in CollectSoundEventFiles(fileName, visitedManifests))
+                    {
+                        yield return nestedFile;
+                    }
+                }
+                else
+                {
+                    yield return fileName;
+                }
             }
         }
     }

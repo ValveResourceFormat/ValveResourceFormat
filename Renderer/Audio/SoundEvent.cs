@@ -153,6 +153,12 @@ public abstract class SoundEvent
     private protected virtual bool WaitingToStart => false;
 
     /// <summary>
+    /// Gets the curve <see cref="FadeOutAndStop"/> fades along, or null to always use its linear fallback.
+    /// Types that author a stop-fade curve (e.g. CS:GO's "fadetime_volume_mapping_curve") override this.
+    /// </summary>
+    private protected virtual SoundEventCurve? FadeOutCurve => null;
+
+    /// <summary>
     /// Gets whether the event is fading out towards a stop (see <see cref="FadeOutAndStop"/>).
     /// Retriggers are suppressed while fading.
     /// </summary>
@@ -162,7 +168,7 @@ public abstract class SoundEvent
     private long nextOcclusionTraceTimestamp;
 
     /// <summary>
-    /// Fades the whole event tree out along its "fadetime_volume_mapping_curve" (or linearly over
+    /// Fades the whole event tree out along <see cref="FadeOutCurve"/> (or linearly over
     /// <paramref name="fallbackSeconds"/> when the event has none) and stops it when the fade completes.
     /// </summary>
     public void FadeOutAndStop(float fallbackSeconds = 1f)
@@ -173,7 +179,7 @@ public abstract class SoundEvent
         }
 
         FadingOut = true;
-        SampleProvider.BeginFadeOut(Definition.FadeTimeVolumeCurve, fallbackSeconds, SampleRate);
+        SampleProvider.BeginFadeOut(FadeOutCurve, fallbackSeconds, SampleRate);
     }
 
     /// <summary>
@@ -411,7 +417,28 @@ public abstract class SoundEvent
         return definition.Type switch
         {
             "csgo_mega" => new SoundEventCSGOMega(definition),
+            "citadel_default_2d" or "citadel_ambient_3d" => new SoundEventCitadelAmbient(definition),
             _ => null,
         };
+    }
+
+    /// <summary>
+    /// Reads a property that is either an array of strings or a single string (a common shorthand in
+    /// Source 2 script data for "one or more of these", e.g. a track list with only one entry).
+    /// </summary>
+    internal static string[] GetStringOrArrayProperty(KVObject data, string name)
+    {
+        if (!data.TryGetValue(name, out var value))
+        {
+            return [];
+        }
+
+        if (value.ValueType == KVValueType.Array)
+        {
+            return data.GetArray<string>(name) ?? [];
+        }
+
+        var single = data.GetStringProperty(name);
+        return single != null ? [single] : [];
     }
 }

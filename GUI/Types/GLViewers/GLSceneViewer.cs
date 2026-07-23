@@ -474,6 +474,11 @@ namespace GUI.Types.GLViewers
 
                 GrabbedMouse = !Input.NoClip && !Paused;
             }
+
+            if (soundPlayer != null && !Paused)
+            {
+                soundPlayer.Update(Renderer.Camera);
+            }
         }
 
         protected void DrawLowerCornerText(string text, Color32 color, int lineFromBottom = 0)

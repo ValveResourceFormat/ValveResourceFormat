@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using ValveResourceFormat.Renderer.Audio.SampleProviders;
+using ValveResourceFormat.Serialization.KeyValues;
 
 namespace ValveResourceFormat.Renderer.Audio;
 
@@ -9,14 +10,53 @@ namespace ValveResourceFormat.Renderer.Audio;
 /// </summary>
 internal sealed class SoundEventCSGOMega : SoundEvent
 {
+    private readonly string[] trackNames;
+    private readonly string[] childEventNames;
+    private readonly float volumeRandomMin;
+    private readonly float volumeRandomMax;
+    private readonly float pitchRandomMin;
+    private readonly float pitchRandomMax;
+    private readonly string mixGroup;
+    private readonly SoundEventCurve? distanceVolumeCurve;
+    private readonly SoundEventCurve? stereoMixCurve;
+    private readonly SoundEventCurve? fadeOutCurve;
+    private readonly float range;
+
     private bool wasInitialized;
     private bool waitingForRetrigger;
     private long retriggerTimestamp;
 
     private protected override bool WaitingToStart => waitingForRetrigger;
+    private protected override SoundEventCurve? FadeOutCurve => fadeOutCurve;
 
     public SoundEventCSGOMega(SoundEventDefinition definition) : base(definition)
     {
+        var data = definition.Data;
+
+        trackNames = GetStringOrArrayProperty(data, "vsnd_files_track_01");
+        childEventNames = data.GetBooleanProperty("enable_child_events")
+            ? GetStringOrArrayProperty(data, "soundevent_01")
+            : [];
+
+        volumeRandomMin = data.GetFloatProperty("volume_random_min");
+        volumeRandomMax = data.GetFloatProperty("volume_random_max");
+        pitchRandomMin = data.GetFloatProperty("pitch_random_min");
+        pitchRandomMax = data.GetFloatProperty("pitch_random_max");
+        mixGroup = data.GetStringProperty("mixgroup", string.Empty);
+
+        // Not gated on the "use_" flags: the vast majority of events carry these curves without the flag
+        // set (e.g. soundscape ambients author a flat 1.0 distance curve and no flag), and the game
+        // audibly honors them - the flag governs a different runtime path.
+        var volumeCurve = SoundEventCurve.Parse(data, "distance_volume_mapping_curve");
+        distanceVolumeCurve = volumeCurve;
+        stereoMixCurve = SoundEventCurve.Parse(data, "distance_unfiltered_stereo_mapping_curve");
+
+        // Not gated on "use_fadetime_volume_mapping_curve": that flag governs a different runtime path,
+        // authored fade curves are used for stop fades whenever present
+        fadeOutCurve = SoundEventCurve.Parse(data, "fadetime_volume_mapping_curve");
+
+        // Only reached by the fallback falloff when the event has no volume curve
+        range = volumeCurve is { MaxX: > 0f } ? volumeCurve.MaxX : 1000f;
     }
 
     protected override void DoStart()
@@ -39,10 +79,9 @@ internal sealed class SoundEventCSGOMega : SoundEvent
 
         wasInitialized = true;
 
-        var soundNames = Definition.TrackNames;
-        if (soundNames.Length > 0)
+        if (trackNames.Length > 0)
         {
-            var soundName = soundNames[Mixer.Player.PickTrack(Definition)];
+            var soundName = trackNames[Mixer.Player.PickTrack(Definition, trackNames.Length)];
             var cachedSound = Mixer.Player.SoundCache.GetSound(soundName);
             PlayingSoundFile = soundName;
 
@@ -57,17 +96,16 @@ internal sealed class SoundEventCSGOMega : SoundEvent
 
                 if (sampleProvider is SampleProvider3D spatial)
                 {
-                    spatial.Range = Definition.Range;
-                    spatial.DistanceVolumeCurve = Definition.DistanceVolumeCurve;
-                    spatial.StereoMixCurve = Definition.StereoMixCurve;
+                    spatial.Range = range;
+                    spatial.DistanceVolumeCurve = distanceVolumeCurve;
+                    spatial.StereoMixCurve = stereoMixCurve;
                 }
 
                 SampleProviders.Add(sampleProvider);
             }
         }
 
-        var childNames = Definition.ChildEventNames;
-        if (childNames.Length == 0)
+        if (childEventNames.Length == 0)
         {
             return;
         }
@@ -76,11 +114,11 @@ internal sealed class SoundEventCSGOMega : SoundEvent
         var childDefinitions = Definition.ChildDefinitions;
         if (childDefinitions == null)
         {
-            childDefinitions = new SoundEventDefinition?[childNames.Length];
+            childDefinitions = new SoundEventDefinition?[childEventNames.Length];
 
-            for (var i = 0; i < childNames.Length; i++)
+            for (var i = 0; i < childEventNames.Length; i++)
             {
-                childDefinitions[i] = Mixer.Player.Bank.GetSoundEvent(childNames[i]);
+                childDefinitions[i] = Mixer.Player.Bank.GetSoundEvent(childEventNames[i]);
             }
 
             Definition.ChildDefinitions = childDefinitions;
@@ -141,9 +179,9 @@ internal sealed class SoundEventCSGOMega : SoundEvent
     {
         var pitch = Definition.Pitch;
 
-        if (Definition.PitchRandomMin != 0f || Definition.PitchRandomMax != 0f)
+        if (pitchRandomMin != 0f || pitchRandomMax != 0f)
         {
-            pitch += float.Lerp(Definition.PitchRandomMin, Definition.PitchRandomMax, Random.NextSingle());
+            pitch += float.Lerp(pitchRandomMin, pitchRandomMax, Random.NextSingle());
         }
 
         return Math.Clamp(pitch, 0.25f, 4f);
@@ -154,12 +192,12 @@ internal sealed class SoundEventCSGOMega : SoundEvent
         // Events like Gear.JumpLand.CT have volume 0.0 in their data: the game passes the volume at play time
         var volume = VolumeOverride ?? Definition.Volume;
 
-        if (Definition.VolumeRandomMin != 0f || Definition.VolumeRandomMax != 0f)
+        if (volumeRandomMin != 0f || volumeRandomMax != 0f)
         {
-            volume += float.Lerp(Definition.VolumeRandomMin, Definition.VolumeRandomMax, Random.NextSingle());
+            volume += float.Lerp(volumeRandomMin, volumeRandomMax, Random.NextSingle());
         }
 
-        var mixGroupVolume = Mixer.Player.GetMixGroupVolume(Definition.MixGroup);
+        var mixGroupVolume = Mixer.Player.GetMixGroupVolume(mixGroup);
 
         return Math.Clamp(volume, 0f, 1f) * mixGroupVolume;
     }
