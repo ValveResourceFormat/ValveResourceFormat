@@ -13,15 +13,16 @@ public sealed class AudioMixer : IDisposable
     private readonly HashSet<SoundEvent> soundEvents = [];
 
     /// <summary>
-    /// Collects the position and vsnd name of every audible positioned sound.
+    /// Collects the position and vsnd name of every audible positioned sound into <paramref name="positioned"/>,
+    /// and the vsnd name of every audible non-positioned (2D) sound into <paramref name="flat"/>.
     /// </summary>
-    public void CollectDebugSounds(List<(Vector3 Position, string Text)> results)
+    public void CollectDebugSounds(List<(Vector3 Position, string Text)> positioned, List<string> flat)
     {
         lock (soundEvents)
         {
             foreach (var soundEvent in soundEvents)
             {
-                soundEvent.CollectDebugSounds(results);
+                soundEvent.CollectDebugSounds(positioned, flat);
             }
         }
     }

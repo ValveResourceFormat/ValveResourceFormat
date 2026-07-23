@@ -820,8 +820,9 @@ public class Renderer
     /// </summary>
     public bool ShowSoundDebug { get; set; }
 
-    // Reused buffer for the sound debug billboards
+    // Reused buffers for the sound debug billboards and 2D (non-positioned) sound list
     private readonly List<(Vector3 Position, string Text)> debugWorldSounds = [];
+    private readonly List<string> debugFlatSounds = [];
 
     /// <summary>
     /// Releases GPU resources owned by this renderer.
@@ -880,7 +881,8 @@ public class Renderer
         if (ShowSoundDebug && Sound.Player != null)
         {
             debugWorldSounds.Clear();
-            Sound.Player.CollectDebugSounds(debugWorldSounds);
+            debugFlatSounds.Clear();
+            Sound.Player.CollectDebugSounds(debugWorldSounds, debugFlatSounds);
 
             foreach (var (position, text) in debugWorldSounds)
             {
@@ -891,6 +893,39 @@ public class Renderer
                     CenterHorizontal = true,
                     Color = new Color32(0.4f, 1f, 0.4f, 1f),
                 }, updateContext.Camera);
+            }
+
+            if (debugFlatSounds.Count > 0)
+            {
+                const float scale = 13f;
+                const float lineHeight = scale * 1.5f;
+                const float marginX = 8f;
+                const float marginBottom = 8f;
+
+                var maxWidth = 0f;
+
+                foreach (var text in debugFlatSounds)
+                {
+                    maxWidth = Math.Max(maxWidth, TextRenderer.MeasureTextWidth(text, scale));
+                }
+
+                // Right edge every line is aligned to, so the ".vsnd" suffix lines up regardless of name length.
+                var cornerX = marginX + maxWidth;
+                var y = updateContext.Camera.WindowSize.Y - marginBottom - (debugFlatSounds.Count * lineHeight);
+
+                foreach (var text in debugFlatSounds)
+                {
+                    updateContext.TextRenderer.AddText(new TextRenderer.TextRenderRequest
+                    {
+                        X = cornerX - TextRenderer.MeasureTextWidth(text, scale),
+                        Y = y,
+                        Scale = scale,
+                        Text = text,
+                        Color = new Color32(0.4f, 1f, 1f, 1f),
+                    });
+
+                    y += lineHeight;
+                }
             }
         }
     }

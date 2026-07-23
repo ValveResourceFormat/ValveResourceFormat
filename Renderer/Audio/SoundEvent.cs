@@ -45,17 +45,28 @@ public abstract class SoundEvent
     /// <summary>Gets the vsnd file currently playing for this event.</summary>
     public string? PlayingSoundFile { get; protected set; }
 
-    /// <summary>Collects the position and vsnd name of every audible positioned sound in this event tree.</summary>
-    public void CollectDebugSounds(List<(Vector3 Position, string Text)> results)
+    /// <summary>
+    /// Collects the position and vsnd name of every audible positioned sound in this event tree into
+    /// <paramref name="positioned"/>, and the vsnd name of every audible non-positioned (2D) sound into
+    /// <paramref name="flat"/>.
+    /// </summary>
+    public void CollectDebugSounds(List<(Vector3 Position, string Text)> positioned, List<string> flat)
     {
-        if (Playing && Position.HasValue && PlayingSoundFile != null)
+        if (Playing && PlayingSoundFile != null)
         {
-            results.Add((Position.Value + PositionOffset, PlayingSoundFile));
+            if (Position.HasValue)
+            {
+                positioned.Add((Position.Value + PositionOffset, PlayingSoundFile));
+            }
+            else
+            {
+                flat.Add(PlayingSoundFile);
+            }
         }
 
         foreach (var child in ChildSoundEvents)
         {
-            child.CollectDebugSounds(results);
+            child.CollectDebugSounds(positioned, flat);
         }
     }
 

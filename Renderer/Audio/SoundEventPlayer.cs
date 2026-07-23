@@ -466,8 +466,11 @@ public sealed class SoundEventPlayer : IDisposable
         }
     }
 
-    /// <summary>Collects the position and vsnd name of every audible positioned sound.</summary>
-    public void CollectDebugSounds(List<(Vector3 Position, string Text)> results) => mixer.CollectDebugSounds(results);
+    /// <summary>
+    /// Collects the position and vsnd name of every audible positioned sound into <paramref name="positioned"/>,
+    /// and the vsnd name of every audible non-positioned (2D) sound into <paramref name="flat"/>.
+    /// </summary>
+    public void CollectDebugSounds(List<(Vector3 Position, string Text)> positioned, List<string> flat) => mixer.CollectDebugSounds(positioned, flat);
 
     /// <summary>
     /// Optional line-of-sight test for sound occlusion: given the listener position and a sound position,
