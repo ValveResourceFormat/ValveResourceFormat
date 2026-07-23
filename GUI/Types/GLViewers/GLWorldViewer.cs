@@ -326,7 +326,7 @@ namespace GUI.Types.GLViewers
 
             if (!string.IsNullOrEmpty(attachmentName)
                 && sourceNode is ModelSceneNode sourceModel
-                && sourceModel.HasAttachmentOrBone(attachmentName))
+                && sourceModel.Attachments.ContainsKey(attachmentName))
             {
                 return sourceModel.GetAttachmentTransform(attachmentName).Translation;
             }
