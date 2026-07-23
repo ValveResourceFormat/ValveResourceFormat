@@ -20,9 +20,37 @@ public sealed class CachedSoundSampleProvider : AudioSampleProvider
     private int delaySamples;
 
     /// <summary>
-    /// Gets or sets the delay before the sound starts, as an interleaved sample count.
+    /// Gets or sets the delay before the sound starts, as an interleaved sample count. A negative value
+    /// instead seeks that many samples ahead into the track (wrapping within its loop region, or its full
+    /// length when it does not loop) - used to phase-stagger otherwise-identical looping tracks (e.g.
+    /// quad-channel ambient beds) so they do not all loop in lockstep.
     /// </summary>
-    public int DelaySamples { get => delaySamples; set => delaySamples = value; }
+    public int DelaySamples
+    {
+        get => delaySamples;
+        set
+        {
+            if (value >= 0)
+            {
+                delaySamples = value;
+                return;
+            }
+
+            delaySamples = 0;
+
+            var totalFrames = sound.Samples.Length / ChannelCount;
+            if (totalFrames <= 0)
+            {
+                return;
+            }
+
+            var loopStartFrame = sound.LoopStart >= 0 ? sound.LoopStart / ChannelCount : 0;
+            var loopEndFrame = sound.LoopStart >= 0 ? Math.Min(sound.LoopEnd / ChannelCount, totalFrames) : totalFrames;
+            var loopLength = Math.Max(loopEndFrame - loopStartFrame, 1);
+
+            framePosition = loopStartFrame + ((-value / ChannelCount) % loopLength);
+        }
+    }
 
     /// <summary>
     /// Creates a provider that streams the given cached sound from the beginning.

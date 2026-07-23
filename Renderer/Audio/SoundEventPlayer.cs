@@ -612,11 +612,10 @@ public sealed class SoundEventPlayer : IDisposable
             return;
         }
 
-        // Compare by name (not handle) so a missing or unsupported event is not retried every frame.
-        // An active soundscape with no event still started (e.g. all one-shots finished without
-        // retriggering) no longer counts as active, so re-entering the area restarts it.
-        var currentStillActive = activeSoundscapeEvents.Exists(static e => e.Started)
-            || (activeSoundscapeEvents.Count == 0 && activeSoundscapeName != null);
+        // Compare by name (not handle): an active soundscape with no event still started (e.g. every
+        // one-shot finished without retriggering, or every event failed to resolve/play) no longer
+        // counts as active, so re-entering the area retries it instead of staying silent forever.
+        var currentStillActive = activeSoundscapeEvents.Exists(static e => e.Started);
 
         if (currentStillActive
             && activeSoundscapeScripted == closest.Value.Scripted

@@ -897,20 +897,13 @@ public class Renderer
 
             if (debugFlatSounds.Count > 0)
             {
-                const float scale = 13f;
+                const float scale = 10f;
                 const float lineHeight = scale * 1.5f;
-                const float marginX = 8f;
+                const float marginRight = 8f;
                 const float marginBottom = 8f;
 
-                var maxWidth = 0f;
-
-                foreach (var text in debugFlatSounds)
-                {
-                    maxWidth = Math.Max(maxWidth, TextRenderer.MeasureTextWidth(text, scale));
-                }
-
-                // Right edge every line is aligned to, so the ".vsnd" suffix lines up regardless of name length.
-                var cornerX = marginX + maxWidth;
+                // Right edge every line is aligned to, so the ".vsnd" suffix lines up flush against the screen corner.
+                var cornerX = updateContext.Camera.WindowSize.X - marginRight;
                 var y = updateContext.Camera.WindowSize.Y - marginBottom - (debugFlatSounds.Count * lineHeight);
 
                 foreach (var text in debugFlatSounds)

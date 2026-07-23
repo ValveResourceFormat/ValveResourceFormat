@@ -39,6 +39,14 @@ public abstract class SoundEvent
     /// <summary>Gets or sets a volume passed by game code, replacing the definition's volume property.</summary>
     public float? VolumeOverride { get; set; }
 
+    /// <summary>
+    /// Gets or sets a playback start delay in seconds, passed by a container, replacing the definition's
+    /// "delay" property. Used to stagger otherwise-identical children (e.g. quad-channel ambient beds) so
+    /// they do not all loop in phase lock; a negative value seeks ahead into the track instead of adding
+    /// silence (see <see cref="SampleProviders.CachedSoundSampleProvider.DelaySamples"/>).
+    /// </summary>
+    public float? DelayOverride { get; set; }
+
     /// <summary>Gets the sound event definition this instance was built from.</summary>
     public SoundEventDefinition Definition { get; }
 
@@ -272,7 +280,13 @@ public abstract class SoundEvent
     /// subtree from scratch every time. Null entries (unresolved definitions) are skipped.
     /// Call once per <see cref="DoStart"/> when a definition plays a fixed set of child events.
     /// </summary>
-    protected void StartChildren(SoundEventDefinition?[] definitions)
+    /// <param name="definitions">The child definitions to start, by index.</param>
+    /// <param name="beforeStart">
+    /// Optional per-child customization (e.g. <see cref="DelayOverride"/>), invoked right after a child is
+    /// built/resolved but before it starts. Not invoked again for a child already started on an earlier
+    /// call - set values that must survive every retrigger directly on the child's definition instead.
+    /// </param>
+    protected void StartChildren(SoundEventDefinition?[] definitions, Action<SoundEvent, int>? beforeStart = null)
     {
         children ??= new SoundEvent?[definitions.Length];
 
@@ -287,6 +301,7 @@ public abstract class SoundEvent
             var child = children[i] ??= Build(definition);
             if (child != null)
             {
+                beforeStart?.Invoke(child, i);
                 StartAsChild(child);
             }
         }
@@ -430,7 +445,9 @@ public abstract class SoundEvent
             "csgo_mega" => new SoundEventCSGOMega(definition),
             "citadel_default_2d" or "citadel_ambient_3d" => new SoundEventCitadelAmbient(definition),
             "hlvr_default_3d" or "hlvr_2d_w_occlusion" or "src1_3d" or "src1_2d" => new SoundEventHLVRDefault(definition),
-            "hlvr_start_multi" => new SoundEventHLVRMulti(definition),
+            "hlvr_start_multi" or "hlvr_start_multi_quad" => new SoundEventHLVRMulti(definition),
+            "hlvr_ambient_rand" => new SoundEventHLVRAmbientRand(definition),
+            "hlvr_ambient_fixed_rotation_multi_vsnd" => new SoundEventHLVRAmbientMultiVsnd(definition),
             "script_playrandom" => new SoundEventScriptedRandom(definition),
             "script_playlooping" => new SoundEventScriptedLoop(definition),
             _ => null,
