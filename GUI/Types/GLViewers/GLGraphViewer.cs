@@ -507,11 +507,59 @@ namespace GUI.Types.GLViewers
         {
             Debug.Assert(node.ExternalResourceName != null);
 
-            var foundFile = VrfGuiContext.FindFileWithContext(node.ExternalResourceName + ValveResourceFormat.IO.GameFileLoader.CompiledFileSuffix);
+            var name = node.ExternalResourceName;
+
+            // A subgraph an uncompiled animation graph points at is itself an uncompiled loose
+            // file that never ships compiled, so it resolves without the _c suffix and next to
+            // the graph on disk rather than through the compiled-resource path.
+            if (name.EndsWith(".vsubgrph", StringComparison.OrdinalIgnoreCase) || name.EndsWith(".vanmgrph", StringComparison.OrdinalIgnoreCase))
+            {
+                OpenLooseGraphReference(name);
+                return;
+            }
+
+            var foundFile = VrfGuiContext.FindFileWithContext(name + ValveResourceFormat.IO.GameFileLoader.CompiledFileSuffix);
             if (foundFile.Context != null)
             {
                 Debug.Assert(foundFile.PackageEntry != null);
                 Program.MainForm.OpenFile(foundFile.Context, foundFile.PackageEntry);
+            }
+        }
+
+        // Resolves an uncompiled graph reference against the loaded content and then, when the
+        // graph was opened straight from a folder, next to it and up its parent directories.
+        // Opens the referenced file in a new tab if found, otherwise does nothing.
+        private void OpenLooseGraphReference(string referencePath)
+        {
+            var found = VrfGuiContext.FindFileWithContext(referencePath);
+            if (found.Context != null && found.PackageEntry != null)
+            {
+                Program.MainForm.OpenFile(found.Context, found.PackageEntry);
+                return;
+            }
+
+            var openPath = VrfGuiContext.FileName;
+            if (string.IsNullOrEmpty(openPath))
+            {
+                return;
+            }
+
+            var relative = referencePath.Replace('/', Path.DirectorySeparatorChar);
+            var baseName = Path.GetFileName(relative);
+            var directory = Path.GetDirectoryName(Path.GetFullPath(openPath));
+
+            while (!string.IsNullOrEmpty(directory))
+            {
+                foreach (var candidate in new[] { Path.Combine(directory, relative), Path.Combine(directory, baseName) })
+                {
+                    if (File.Exists(candidate) && !string.Equals(Path.GetFullPath(candidate), Path.GetFullPath(openPath), StringComparison.OrdinalIgnoreCase))
+                    {
+                        Program.MainForm.OpenFile(candidate);
+                        return;
+                    }
+                }
+
+                directory = Path.GetDirectoryName(directory);
             }
         }
 

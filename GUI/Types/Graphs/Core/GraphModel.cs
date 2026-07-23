@@ -32,6 +32,13 @@ class GraphNode : IGraphElement
     /// <summary>Resource path (without compiled suffix) opened on double click.</summary>
     public string? ExternalResourceName { get; set; }
 
+    /// <summary>
+    /// Slash separated path of the authored containers this node sits in, outermost first,
+    /// or null for a node at the graph root. Editor animation graphs nest node managers in
+    /// groups and compiled AG2 graphs carry the same shape in m_nodePaths.
+    /// </summary>
+    public string? GroupPath { get; set; }
+
     private string? iconKey;
 
     /// <summary>
@@ -95,6 +102,37 @@ class GraphNode : IGraphElement
     {
         Rows.Add(new ResourceRow(text, icon, hue));
         ContentVersion++;
+    }
+
+    /// <summary>
+    /// Marks this node as referencing an external file: sets the double-click target and adds a
+    /// resource row with the asset <paramref name="icon"/> and the file's trimmed display name.
+    /// Shared by the graph frontends so a referenced file reads and opens the same way in each.
+    /// </summary>
+    public void AddResourceReference(string resourcePath, string icon, GraphHue hue)
+    {
+        ExternalResourceName = resourcePath;
+        AddResourceRow(TrimResourceName(resourcePath), icon, hue);
+    }
+
+    /// <summary>Basename without extension, capped with a leading ellipsis when long.</summary>
+    private static string TrimResourceName(string resourcePath)
+    {
+        var display = resourcePath;
+
+        var extension = display.LastIndexOf('.');
+        if (extension >= 0)
+        {
+            display = display[..extension];
+        }
+
+        var lastSlash = display.LastIndexOf('/');
+        if (lastSlash >= 0)
+        {
+            display = display[(lastSlash + 1)..];
+        }
+
+        return display.Length > 23 ? '…' + display[^22..] : display;
     }
 
     /// <summary>Compact hue-marked note row, e.g. an inlined special-target connection.</summary>

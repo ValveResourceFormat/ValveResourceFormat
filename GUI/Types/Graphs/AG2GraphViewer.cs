@@ -9,14 +9,17 @@ using Node = GUI.Types.Graphs.KVGraphNode;
 
 namespace GUI.Types.Graphs;
 
-internal class AnimationGraphViewer : GLGraphViewer
+internal class AG2GraphViewer : GLGraphViewer
 {
-    private const GraphHue PoseHue = GraphHue.Green;
-    private const GraphHue ValueHue = GraphHue.Cyan;
+    private static readonly GraphHue PoseHue = AnimGraphHues.HueOf(AnimGraphValueKind.Pose);
+
+    // AG2 tracks pose against value generically rather than per pin type, so every non-pose wire
+    // takes the float colour, the commonest of the value kinds it carries.
+    private static readonly GraphHue ValueHue = AnimGraphHues.HueOf(AnimGraphValueKind.Float);
 
     private readonly KVObject graphDefinition;
 
-    public AnimationGraphViewer(VrfGuiContext vrfGuiContext, RendererContext rendererContext, KVObject data)
+    public AG2GraphViewer(VrfGuiContext vrfGuiContext, RendererContext rendererContext, KVObject data)
         : base(vrfGuiContext, rendererContext, new GraphView())
     {
         graphDefinition = data;
@@ -53,32 +56,10 @@ internal class AnimationGraphViewer : GLGraphViewer
 
     private static void SetResourceReference(GraphNode node, string resourceName)
     {
-        node.ExternalResourceName = resourceName;
-
         var isGraphFile = resourceName.Contains(".vnmgraph", StringComparison.OrdinalIgnoreCase);
         var icon = isGraphFile ? "anmgrph" : "anim";
 
-        var display = resourceName;
-        var fileExtensionStart = display.LastIndexOf('.');
-        if (fileExtensionStart >= 0)
-        {
-            display = display[..fileExtensionStart];
-        }
-
-        display = display.Replace(".vnmgraph", string.Empty, StringComparison.Ordinal);
-
-        var lastSlashIndex = display.LastIndexOf('/');
-        if (lastSlashIndex >= 0)
-        {
-            display = display[(lastSlashIndex + 1)..];
-        }
-
-        if (display.Length > 23)
-        {
-            display = '…' + display[^22..];
-        }
-
-        node.AddResourceRow(display, icon, PoseHue);
+        node.AddResourceReference(resourceName, icon, AnimGraphHues.HueOf(AnimGraphCategory.ExternalReference));
     }
 
     private void CreateGraph()
@@ -115,7 +96,7 @@ internal class AnimationGraphViewer : GLGraphViewer
 
             if (nodeIdx < 0 || nodeIdx >= nodes.Count)
             {
-                Log.Warn(nameof(AnimationGraphViewer), $"Node index {nodeIdx} is out of range ({nodes.Count} nodes), adding a placeholder node.");
+                Log.Warn(nameof(AG2GraphViewer), $"Node index {nodeIdx} is out of range ({nodes.Count} nodes), adding a placeholder node.");
 
                 node = new Node(null)
                 {
@@ -131,6 +112,15 @@ internal class AnimationGraphViewer : GLGraphViewer
                     Name = $"({nodeIdx}) {GetName(nodeIdx)}",
                     NodeType = GetType(nodeIdx),
                 };
+
+                // Nodes the shared table buckets get the category colour; the rest keep deriving
+                // their header from their first socket.
+                var category = AnimGraphHues.CategoryOfAG2(node.NodeType);
+
+                if (category != AnimGraphCategory.Other)
+                {
+                    node.Category = AnimGraphHues.HueOf(category);
+                }
             }
 
             View.AddNode(node);
@@ -175,7 +165,7 @@ internal class AnimationGraphViewer : GLGraphViewer
                 }
                 catch (Exception e) when (e is IndexOutOfRangeException or ArgumentOutOfRangeException)
                 {
-                    Log.Error(nameof(AnimationGraphViewer), $"Error creating children for {childNode.Name} (idx = {nodeIdx}).");
+                    Log.Error(nameof(AG2GraphViewer), $"Error creating children for {childNode.Name} (idx = {nodeIdx}).");
                 }
             }
 
@@ -606,7 +596,7 @@ internal class AnimationGraphViewer : GLGraphViewer
                 }
                 else
                 {
-                    Log.Error(nameof(AnimationGraphViewer), $"Generic handled node: {node.NodeType} ({node.Name})");
+                    Log.Error(nameof(AG2GraphViewer), $"Generic handled node: {node.NodeType} ({node.Name})");
                 }
             }
             else if (node.Data?.ContainsKey("m_conditionNodeIndices") ?? false) // Conditional node
@@ -782,7 +772,7 @@ internal class AnimationGraphViewer : GLGraphViewer
             }
             else
             {
-                Log.Error(nameof(AnimationGraphViewer), $"Unhandled node type: {node.NodeType} ({node.Name})");
+                Log.Error(nameof(AG2GraphViewer), $"Unhandled node type: {node.NodeType} ({node.Name})");
             }
 
         }
@@ -832,14 +822,14 @@ internal class AnimationGraphViewer : GLGraphViewer
         View.LayoutOptions.TightenMinSpan = 1;
         View.LayoutNodesPacked();
 
+        View.Legend.AddRange(AnimGraphHues.Legend());
         View.Legend.AddRange(
         [
-            new("Pose flow", PoseHue, GraphLegendKind.Wire),
             new("Value", ValueHue, GraphLegendKind.Wire),
-            new("Clip / graph reference", PoseHue, GraphLegendKind.Marker),
+            new("Missing node", GraphHue.Red),
         ]);
 
-        Log.Debug(nameof(AnimationGraphViewer), $"Created {createdNodes.Count} nodes (out of {nodes.Count}) or {createdNodes.Count / (float)nodes.Count:P}.");
+        Log.Debug(nameof(AG2GraphViewer), $"Created {createdNodes.Count} nodes (out of {nodes.Count}) or {createdNodes.Count / (float)nodes.Count:P}.");
     }
 
 }

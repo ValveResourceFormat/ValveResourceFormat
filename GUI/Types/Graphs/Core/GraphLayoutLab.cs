@@ -600,6 +600,7 @@ internal static class GraphLayoutLab
     private static readonly HashSet<string> GraphExtensions = new(StringComparer.OrdinalIgnoreCase)
     {
         ".vents_c", ".vpulse_c", ".vanmgrph_c", ".vnmgraph_c", ".vagrp_c",
+        ".vanmgrph", ".vsubgrph",
     };
 
     // Mirrors the dispatch in Types/Viewers/Resource.cs. The viewers are plain classes, not
@@ -607,6 +608,19 @@ internal static class GraphLayoutLab
     // one headless just yields its graph.
     private static (GraphView View, IDisposable? Owner) BuildFromFile(string path)
     {
+        // Uncompiled graphs are a KV3 text document rather than a resource with blocks.
+        if (Path.GetExtension(path.AsSpan()) is ".vanmgrph" or ".vsubgrph")
+        {
+            using var textStream = File.OpenRead(path);
+            var document = ValveKeyValue.KVSerializer
+                .Create(ValveKeyValue.KVSerializationFormat.KeyValues3Text)
+                .Deserialize(textStream);
+
+            var (guiContext, rendererContext) = ContextFor(path, null);
+            var editorViewer = new AG1GraphViewer(guiContext, rendererContext, document);
+            return (editorViewer.Graph, editorViewer);
+        }
+
         var resource = new Resource { FileName = path };
         Shared.Add(resource);
         resource.Read(path);
@@ -625,7 +639,7 @@ internal static class GraphLayoutLab
         {
             ResourceType.EntityLump => new EntityIOGraphViewer(guiContext, rendererContext, (EntityLump)resource.DataBlock!),
             ResourceType.PulseGraphDef => new PulseGraphViewer(guiContext, rendererContext, ((BinaryKV3)resource.DataBlock!).Data),
-            ResourceType.NmGraph => new AnimationGraphViewer(guiContext, rendererContext, ((BinaryKV3)resource.DataBlock!).Data),
+            ResourceType.NmGraph => new AG2GraphViewer(guiContext, rendererContext, ((BinaryKV3)resource.DataBlock!).Data),
             ResourceType.AnimationGraph => new AG1GraphViewer(guiContext, rendererContext, ((AnimGraph)resource.DataBlock!).Data),
             _ => throw new NotSupportedException($"{resource.ResourceType} is not a graph resource."),
         };
