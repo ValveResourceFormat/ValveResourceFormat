@@ -958,6 +958,76 @@ namespace ValveResourceFormat.Renderer.World
                     return;
                 }
 
+                if (classname == "xen_flora_animatedmover" && model != null)
+                {
+                    var moverResource = RendererContext.FileLoader.LoadFileCompiled(model);
+
+                    if (moverResource?.DataBlock is not Model moverModel)
+                    {
+                        RendererContext.Logger.LogWarning("xen_flora_animatedmover '{Target}' failed to load model \"{Model}\"",
+                            entity.GetStringProperty("targetname"), model);
+                        return;
+                    }
+
+                    var (moverPath, moverLoopBackIndex) = ResolveFloraMoverPath(entity.GetStringProperty("path_start"));
+
+                    if (moverPath.Count == 0)
+                    {
+                        RendererContext.Logger.LogWarning("xen_flora_animatedmover '{Target}' has no valid path starting at '{PathStart}', it will not move",
+                            entity.GetStringProperty("targetname"), entity.GetStringProperty("path_start"));
+                    }
+
+                    var moverRendercolor = entity.GetColor32Property("rendercolor");
+                    var moverRenderamt = entity.GetFloatProperty("renderamt", 1.0f);
+
+                    if (moverRenderamt > 1f)
+                    {
+                        moverRenderamt /= 255f;
+                    }
+
+                    var moverNode = new XenFloraAnimatedMoverSceneNode(
+                        scene,
+                        moverModel,
+                        skin,
+                        entity,
+                        moverPath,
+                        moverLoopBackIndex,
+                        authoredTransform: transformationMatrix)
+                    {
+                        Tint = new Vector4(moverRendercolor, moverRenderamt),
+                        LayerName = layerName,
+                        Name = model,
+                    };
+
+                    if (entity.GetBooleanProperty("disable_shadows"))
+                    {
+                        moverNode.Flags |= ObjectTypeFlags.NoShadows;
+                    }
+
+                    scene.Add(moverNode, true);
+
+                    var moverParticleName = entity.GetStringProperty("particle_effect");
+
+                    if (moverParticleName != null)
+                    {
+                        var moverParticleResource = RendererContext.FileLoader.LoadFileCompiled(moverParticleName);
+
+                        if (moverParticleResource?.DataBlock is ParticleSystem moverParticleSystem)
+                        {
+                            var moverParticleNode = new ParticleSceneNode(scene, moverParticleSystem)
+                            {
+                                Name = moverParticleName,
+                                LayerName = "Particles",
+                            };
+
+                            scene.Add(moverParticleNode, true);
+                            moverNode.AttachNode(moverParticleNode, rotation: Quaternion.Identity);
+                        }
+                    }
+
+                    return;
+                }
+
                 if (particle != null)
                 {
                     var particleResource = RendererContext.FileLoader.LoadFileCompiled(particle);
@@ -1565,6 +1635,44 @@ namespace ValveResourceFormat.Renderer.World
                 };
                 scene.Add(lineNode, true);
             }
+        }
+
+        // Walks the target chain starting at the path_corner named startName, in the same way path_track/
+        // func_tracktrain follow theirs. LoopBackIndex is set when the chain itself points back to an
+        // already-visited node (an authored closed loop), so a looping mover can honor that entry point
+        // instead of always restarting from the first node.
+        private (List<FloraMoverPathNode> Nodes, int LoopBackIndex) ResolveFloraMoverPath(string? startName)
+        {
+            var nodes = new List<FloraMoverPathNode>();
+            var loopBackIndex = -1;
+
+            if (string.IsNullOrEmpty(startName))
+            {
+                return (nodes, loopBackIndex);
+            }
+
+            var visited = new Dictionary<Entity, int>();
+            var current = FindEntityByKeyValue("targetname", startName);
+
+            while (current != null && current.GetStringProperty("classname") == "path_corner")
+            {
+                if (visited.TryGetValue(current, out var existingIndex))
+                {
+                    loopBackIndex = existingIndex;
+                    break;
+                }
+
+                visited[current] = nodes.Count;
+                nodes.Add(new FloraMoverPathNode(
+                    EntityTransformHelper.CalculateTransformationMatrix(current).Translation,
+                    current.GetFloatProperty("speed"),
+                    current.GetFloatProperty("wait")));
+
+                var nextName = current.GetStringProperty("target");
+                current = string.IsNullOrEmpty(nextName) ? null : FindEntityByKeyValue("targetname", nextName);
+            }
+
+            return (nodes, loopBackIndex);
         }
 
         private Entity? FindEntityByKeyValue(string keyToFind, string valueToFind)
