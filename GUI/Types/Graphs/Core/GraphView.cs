@@ -21,6 +21,11 @@ partial class GraphView : IDisposable
     private readonly List<GraphWire> wires = [];
     private readonly Dictionary<GraphWire, (SKPath Path, SKRect Bounds)> wireHitPaths = [];
 
+    // The arrangement the first automatic layout produced, kept so a reset can reproduce it
+    // exactly; a budgeted relayout would land somewhere else.
+    private Dictionary<GraphNode, Vector2>? openingPositions;
+    private Dictionary<GraphWire, (List<Vector2>? Waypoints, List<GraphCurveCommand>? CurvePath)>? openingRoutes;
+
     private IGraphElement? lastHovered;
     private string? searchHighlight;
 
@@ -874,6 +879,73 @@ partial class GraphView : IDisposable
 
         LayoutPass(padding);
 
+        if (openingPositions == null)
+        {
+            CaptureOpeningLayout();
+        }
+
+        ClearWireHitPaths();
+        OnGraphChanged();
+    }
+
+    private void CaptureOpeningLayout()
+    {
+        openingPositions = new Dictionary<GraphNode, Vector2>(nodes.Count);
+
+        foreach (var node in nodes)
+        {
+            openingPositions[node] = node.Position;
+        }
+
+        openingRoutes = [];
+
+        foreach (var wire in wires)
+        {
+            var route = Geometry.TryRouteOf(wire);
+
+            if (route?.Waypoints != null || route?.CurvePath != null)
+            {
+                openingRoutes[wire] = (
+                    route.Waypoints == null ? null : [.. route.Waypoints],
+                    route.CurvePath == null ? null : [.. route.CurvePath]);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Puts every node and routed wire back to the arrangement the first automatic layout
+    /// produced, undoing manual drags and later relayouts. No-op before the first layout.
+    /// </summary>
+    public void RestoreOpeningLayout()
+    {
+        using var _ = stateLock.EnterScope();
+
+        if (openingPositions == null)
+        {
+            return;
+        }
+
+        foreach (var (node, position) in openingPositions)
+        {
+            node.Position = position;
+        }
+
+        Geometry.ClearAllRoutes();
+
+        foreach (var wire in wires)
+        {
+            if (openingRoutes != null && openingRoutes.TryGetValue(wire, out var stored))
+            {
+                var route = Geometry.RouteOf(wire);
+                route.Waypoints = stored.Waypoints == null ? null : [.. stored.Waypoints];
+                route.CurvePath = stored.CurvePath == null ? null : [.. stored.CurvePath];
+            }
+            else if (wire.From.Owner == wire.To.Owner)
+            {
+                GraphLayout.SynthesizeSelfLoop(wire, Geometry);
+            }
+        }
+
         ClearWireHitPaths();
         OnGraphChanged();
     }
@@ -1179,6 +1251,8 @@ partial class GraphView : IDisposable
         Legend.Clear();
         Selection.Clear();
         Geometry.Clear();
+        openingPositions = null;
+        openingRoutes = null;
 
         lastHovered = null;
         searchHighlight = null;
