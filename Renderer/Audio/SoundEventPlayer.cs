@@ -1,7 +1,9 @@
 using System.Diagnostics;
+using System.IO;
 using System.Threading;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
+using ValveKeyValue;
 using ValveResourceFormat.IO;
 using ValveResourceFormat.Renderer.Utils;
 using ValveResourceFormat.ResourceTypes;
@@ -20,6 +22,9 @@ public sealed class SoundEventPlayer : IDisposable
 
     /// <summary>Gets the bank of loaded sound event definitions.</summary>
     public SoundEventBank Bank { get; }
+
+    /// <summary>Gets the bank of loaded scripted soundscape definitions (see <see cref="LoadSoundscapes"/>).</summary>
+    public SoundscapeBank Soundscapes { get; } = new();
 
     /// <summary>Gets the mixer output sample rate, taken from the device.</summary>
     public int SampleRate => device.SampleRate;
@@ -246,6 +251,72 @@ public sealed class SoundEventPlayer : IDisposable
     }
 
     /// <summary>
+    /// Loads scripted soundscape definitions (see <see cref="SoundscapeBank"/>) from the game's
+    /// "scripts/soundscapes_manifest.txt", when present. Most modern titles only use the newer
+    /// single-sound-event soundscapes (see <see cref="AddSoundscape"/>), which need no separate loading
+    /// step, so a missing manifest is not an error.
+    /// </summary>
+    public void LoadSoundscapes()
+    {
+        var manifest = ReadKeyValues1("scripts/soundscapes_manifest.txt");
+
+        if (manifest == null || !manifest.TryGetValue("soundscapes_manifest", out var fileList))
+        {
+            return;
+        }
+
+        foreach (var entry in fileList)
+        {
+            if (!entry.Key.Equals("file", StringComparison.OrdinalIgnoreCase))
+            {
+                continue;
+            }
+
+            var fileName = (string)entry.Value;
+
+            if (fileName.EndsWith(".txt", StringComparison.OrdinalIgnoreCase))
+            {
+                var script = ReadKeyValues1(fileName);
+
+                if (script != null)
+                {
+                    Soundscapes.AddSoundscapes(script);
+                }
+            }
+            else
+            {
+                // Additional sound events used only by the soundscape script (e.g. an ambience .vsndevts)
+                // that may not otherwise be reachable from soundevents_manifest.vrman
+                LoadSoundEventsFile(fileName);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Reads and parses a loose KeyValues1 ("VDF") text file, or null when it does not exist. The raw
+    /// content is wrapped in a synthetic root object before parsing: soundscape scripts author several
+    /// sibling top-level blocks with no single enclosing key, which the deserializer otherwise silently
+    /// folds into (and loses the name of) the first block instead of treating as siblings.
+    /// </summary>
+    private KVObject? ReadKeyValues1(string file)
+    {
+        using var stream = fileLoader.GetFileStream(file);
+
+        if (stream == null)
+        {
+            return null;
+        }
+
+        using var wrapped = new MemoryStream();
+        wrapped.Write("\"__root\"\n{\n"u8);
+        stream.CopyTo(wrapped);
+        wrapped.Write("\n}\n"u8);
+        wrapped.Position = 0;
+
+        return KVSerializer.Create(KVSerializationFormat.KeyValues1Text).Deserialize(wrapped);
+    }
+
+    /// <summary>
     /// Plays a sound event by name.
     /// </summary>
     /// <param name="soundEventName">Name of the sound event, e.g. "Default.StepLeft".</param>
@@ -420,29 +491,65 @@ public sealed class SoundEventPlayer : IDisposable
 
     /// <summary>
     /// A soundscape region (env_soundscape): while the listener is within <paramref name="Radius"/>
-    /// of <paramref name="Position"/>, <paramref name="SoundEventName"/> plays as the ambient bed.
+    /// of <paramref name="Position"/>, <paramref name="Name"/> plays as the ambient bed - either
+    /// directly as a single sound event (see <see cref="AddSoundscape"/>), or, when
+    /// <paramref name="Scripted"/>, as every sound event a <see cref="SoundscapeBank"/> scripted
+    /// soundscape resolves to (see <see cref="AddScriptedSoundscape"/>).
     /// </summary>
-    public readonly record struct Soundscape(Vector3 Position, float Radius, string SoundEventName);
+    public readonly record struct Soundscape(Vector3 Position, float Radius, string Name, bool Scripted);
 
     private readonly List<Soundscape> soundscapes = [];
     private readonly HashSet<string> warmedSoundscapes = new(StringComparer.OrdinalIgnoreCase);
-    private SoundEvent? activeSoundscape;
+    private readonly List<SoundEvent> activeSoundscapeEvents = [];
     private string? activeSoundscapeName;
+    private bool activeSoundscapeScripted;
 
     // How far outside a soundscape's radius its audio starts decoding. At run speed (250 u/s) this
     // buys the background decoder a few seconds before the soundscape can actually trigger.
     private const float SoundscapePrecacheMargin = 1024f;
 
     /// <summary>
-    /// Registers a soundscape region. The closest in-range soundscape becomes the active ambient
-    /// during <see cref="Update"/>; entering another region crossfades by stopping the previous event.
+    /// Registers a soundscape region playing a single sound event directly (a modern
+    /// <c>env_soundscape</c> with "enablesoundevent" set). The closest in-range soundscape becomes the
+    /// active ambient during <see cref="Update"/>; entering another region crossfades by stopping the
+    /// previous event(s).
     /// </summary>
     public void AddSoundscape(Vector3 position, float radius, string soundEventName)
     {
         if (radius > 0f && !string.IsNullOrEmpty(soundEventName))
         {
             Cache(soundEventName);
-            soundscapes.Add(new Soundscape(position, radius, soundEventName));
+            soundscapes.Add(new Soundscape(position, radius, soundEventName, Scripted: false));
+        }
+    }
+
+    /// <summary>
+    /// Registers a soundscape region playing a "scripted" soundscape (a classic <c>env_soundscape</c>
+    /// without "enablesoundevent" set): every sound event <paramref name="soundscapeName"/> resolves to,
+    /// via <see cref="Soundscapes"/>, starts together when the region becomes active. Requires
+    /// <see cref="LoadSoundscapes"/> to have been called first; an unknown name is silently ignored.
+    /// </summary>
+    public void AddScriptedSoundscape(Vector3 position, float radius, string soundscapeName)
+    {
+        if (radius > 0f && !string.IsNullOrEmpty(soundscapeName))
+        {
+            CacheScripted(soundscapeName);
+            soundscapes.Add(new Soundscape(position, radius, soundscapeName, Scripted: true));
+        }
+    }
+
+    private void CacheScripted(string soundscapeName)
+    {
+        var eventNames = Soundscapes.GetSoundEvents(soundscapeName);
+
+        if (eventNames == null)
+        {
+            return;
+        }
+
+        foreach (var eventName in eventNames)
+        {
+            Cache(eventName);
         }
     }
 
@@ -456,12 +563,19 @@ public sealed class SoundEventPlayer : IDisposable
             var distance = Vector3.Distance(soundscape.Position, listenerPosition);
 
             if (distance < soundscape.Radius + SoundscapePrecacheMargin
-                && warmedSoundscapes.Add(soundscape.SoundEventName))
+                && warmedSoundscapes.Add(soundscape.Name))
             {
                 // Approaching: re-queue the background decode in case the load-time precache got
                 // evicted, so entering the radius (and every later child retrigger) plays warm.
                 // Cached sounds make this a no-op that just refreshes their eviction age.
-                Cache(soundscape.SoundEventName);
+                if (soundscape.Scripted)
+                {
+                    CacheScripted(soundscape.Name);
+                }
+                else
+                {
+                    Cache(soundscape.Name);
+                }
             }
 
             if (distance < soundscape.Radius && distance < closestDistance)
@@ -473,28 +587,67 @@ public sealed class SoundEventPlayer : IDisposable
 
         if (closest == null)
         {
-            // Left every soundscape radius, let the active one fade out
-            activeSoundscape?.FadeOutAndStop();
-            activeSoundscape = null;
+            // Left every soundscape radius, let the active one(s) fade out
+            FadeOutActiveSoundscape();
             activeSoundscapeName = null;
             return;
         }
 
         // Compare by name (not handle) so a missing or unsupported event is not retried every frame.
-        // A faded-out event (Started false) no longer counts as active, so re-entering the area restarts it.
-        var currentStillActive = activeSoundscape is { Started: true } || (activeSoundscape == null && activeSoundscapeName != null);
+        // An active soundscape with no event still started (e.g. all one-shots finished without
+        // retriggering) no longer counts as active, so re-entering the area restarts it.
+        var currentStillActive = activeSoundscapeEvents.Exists(static e => e.Started)
+            || (activeSoundscapeEvents.Count == 0 && activeSoundscapeName != null);
 
-        if (currentStillActive && string.Equals(activeSoundscapeName, closest.Value.SoundEventName, StringComparison.OrdinalIgnoreCase))
+        if (currentStillActive
+            && activeSoundscapeScripted == closest.Value.Scripted
+            && string.Equals(activeSoundscapeName, closest.Value.Name, StringComparison.OrdinalIgnoreCase))
         {
             return;
         }
 
         // Crossfade: the outgoing ambient fades along its curve while the new one starts underneath
-        activeSoundscape?.FadeOutAndStop();
-        activeSoundscapeName = closest.Value.SoundEventName;
+        FadeOutActiveSoundscape();
+        activeSoundscapeName = closest.Value.Name;
+        activeSoundscapeScripted = closest.Value.Scripted;
 
-        // Soundscapes are the listener's ambient bed, play them unspatialized
-        activeSoundscape = Play(closest.Value.SoundEventName);
+        if (closest.Value.Scripted)
+        {
+            var eventNames = Soundscapes.GetSoundEvents(closest.Value.Name);
+
+            if (eventNames != null)
+            {
+                foreach (var eventName in eventNames)
+                {
+                    // Soundscapes are the listener's ambient bed, play them unspatialized
+                    var soundEvent = Play(eventName);
+
+                    if (soundEvent != null)
+                    {
+                        activeSoundscapeEvents.Add(soundEvent);
+                    }
+                }
+            }
+        }
+        else
+        {
+            var soundEvent = Play(closest.Value.Name);
+
+            if (soundEvent != null)
+            {
+                activeSoundscapeEvents.Add(soundEvent);
+            }
+        }
+    }
+
+    private void FadeOutActiveSoundscape()
+    {
+        foreach (var soundEvent in activeSoundscapeEvents)
+        {
+            soundEvent.FadeOutAndStop();
+        }
+
+        activeSoundscapeEvents.Clear();
     }
 
     private IEnumerable<string> GetSoundEventFiles()

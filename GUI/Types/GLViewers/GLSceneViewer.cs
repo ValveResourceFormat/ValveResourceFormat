@@ -397,6 +397,7 @@ namespace GUI.Types.GLViewers
             }
 
             soundPlayer.LoadSoundEvents();
+            soundPlayer.LoadSoundscapes();
 
             //const float OcclusionEndMargin = 48f;
             //soundPlayer.OcclusionTrace = (listener, sound) =>

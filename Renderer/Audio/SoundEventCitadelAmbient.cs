@@ -5,8 +5,9 @@ using ValveResourceFormat.Serialization.KeyValues;
 namespace ValveResourceFormat.Renderer.Audio;
 
 /// <summary>
-/// Implements"citadel_default_2d" and "citadel_ambient_3d" sound event types:
-/// a single looping ambience track, decibel volume, and an optional fade-in on start.
+/// Implements "citadel_default_2d" and "citadel_ambient_3d" sound event types: a single track -
+/// either a looping ambience bed, or (when "enable_retrigger" is set) a oneshot that replays itself
+/// on a randomized interval - with decibel volume and an optional fade-in on start.
 /// </summary>
 internal sealed class SoundEventCitadelAmbient : SoundEvent
 {
@@ -21,6 +22,11 @@ internal sealed class SoundEventCitadelAmbient : SoundEvent
     private float targetVolume;
     private float fadeInSecondsRemaining;
     private long startTimestamp;
+    private bool wasInitialized;
+    private bool waitingForRetrigger;
+    private long retriggerTimestamp;
+
+    private protected override bool WaitingToStart => waitingForRetrigger;
 
     public SoundEventCitadelAmbient(SoundEventDefinition definition) : base(definition)
     {
@@ -49,6 +55,15 @@ internal sealed class SoundEventCitadelAmbient : SoundEvent
         }
 
         PositionOffset = Definition.PositionOffset;
+
+        if (!wasInitialized && CheckRetrigger())
+        {
+            // Retriggered events wait out their first interval before playing
+            wasInitialized = true;
+            return;
+        }
+
+        wasInitialized = true;
 
         if (trackNames.Length == 0)
         {
@@ -88,9 +103,49 @@ internal sealed class SoundEventCitadelAmbient : SoundEvent
         SampleProviders.Add(trackProvider);
     }
 
+    protected override void OnFinished()
+    {
+        base.OnFinished();
+
+        if (FadingOut)
+        {
+            // The base already completed the stop
+            return;
+        }
+
+        if (CheckRetrigger())
+        {
+            return;
+        }
+
+        // One-shot (no retrigger): fully stop once nothing in the tree can produce samples anymore, so
+        // the event leaves the mixer's active set instead of staying registered (and updated) forever.
+        // A genuinely looping track (baked-in loop points) never reaches here.
+        Stop();
+    }
+
+    private bool CheckRetrigger()
+    {
+        if (!Definition.EnableRetrigger)
+        {
+            return false;
+        }
+
+        var retriggerAt = float.Lerp(Definition.RetriggerIntervalMin, Definition.RetriggerIntervalMax, Random.NextSingle());
+        retriggerTimestamp = Stopwatch.GetTimestamp() + (long)(retriggerAt * Stopwatch.Frequency);
+        waitingForRetrigger = true;
+        return true;
+    }
+
     /// <inheritdoc/>
     public override bool Update(Vector3 listenerPosition, Vector3 rightEarDirection)
     {
+        if (Started && !FadingOut && waitingForRetrigger && Stopwatch.GetTimestamp() >= retriggerTimestamp)
+        {
+            waitingForRetrigger = false;
+            Start();
+        }
+
         if (trackProvider != null && fadeInSecondsRemaining > 0f)
         {
             var elapsed = (float)Stopwatch.GetElapsedTime(startTimestamp).TotalSeconds;

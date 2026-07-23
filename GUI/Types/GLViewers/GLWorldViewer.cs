@@ -274,13 +274,22 @@ namespace GUI.Types.GLViewers
                         pointSoundEvents.Add(entityData);
                         break;
 
-                    // Only modern sound event based soundscapes; the old script based system is not supported
-                    case "env_soundscape" when entityData.GetBooleanProperty("enablesoundevent")
-                                            && !entityData.GetBooleanProperty("startdisabled"):
-                        soundPlayer.AddSoundscape(
-                            entityData.GetVector3Property("origin"),
-                            entityData.GetFloatProperty("radius"),
-                            entityData.GetStringProperty("soundevent"));
+                    case "env_soundscape" when !entityData.GetBooleanProperty("startdisabled"):
+                        if (entityData.GetBooleanProperty("enablesoundevent"))
+                        {
+                            soundPlayer.AddSoundscape(
+                                entityData.GetVector3Property("origin"),
+                                entityData.GetFloatProperty("radius"),
+                                entityData.GetStringProperty("soundevent"));
+                        }
+                        else
+                        {
+                            // Classic script-based soundscape (see SoundscapeBank), e.g. "amb.park"
+                            soundPlayer.AddScriptedSoundscape(
+                                entityData.GetVector3Property("origin"),
+                                entityData.GetFloatProperty("radius"),
+                                entityData.GetStringProperty("soundscape"));
+                        }
                         break;
 
                     default:

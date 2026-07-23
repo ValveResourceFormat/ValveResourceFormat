@@ -1,3 +1,4 @@
+using System.IO;
 using ValveResourceFormat.CompiledShader;
 
 namespace ValveResourceFormat.IO
@@ -37,5 +38,12 @@ namespace ValveResourceFormat.IO
         /// <param name="shaderName">Name of the shader to load.</param>
         /// <returns>Loaded shader collection, or null if not found.</returns>
         public ShaderCollection? LoadShader(string shaderName);
+
+        /// <summary>
+        /// Opens a stream for reading a raw (uncompiled) file, such as a loose script text file.
+        /// </summary>
+        /// <param name="file">Path to the file to read.</param>
+        /// <returns>A readable stream, or null if not found.</returns>
+        public Stream? GetFileStream(string file);
     }
 }
