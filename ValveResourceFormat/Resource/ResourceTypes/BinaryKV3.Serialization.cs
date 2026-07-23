@@ -21,7 +21,6 @@ namespace ValveResourceFormat.ResourceTypes
             public MemoryStream BinaryBlobs = new();
             public List<int> BinaryBlobLengths = [];
             public int CountArrays;
-            public int CountStringIds;
 
             public BinaryWriter Bytes1Writer;
             public BinaryWriter Bytes2Writer;
@@ -44,8 +43,6 @@ namespace ValveResourceFormat.ResourceTypes
 
             public int GetStringId(string str)
             {
-                CountStringIds++;
-
                 if (string.IsNullOrEmpty(str))
                 {
                     return -1;
@@ -234,7 +231,7 @@ namespace ValveResourceFormat.ResourceTypes
             writer.Write((int)context.Bytes2.Length / 2);
             writer.Write((int)context.Bytes4.Length / 4 - 1);
             writer.Write((int)context.Bytes8.Length / 8);
-            writer.Write(context.CountStringIds);
+            writer.Write(context.StringMap.Count);
             writer.Write((int)countObjects);
             writer.Write((int)countArrays);
             writer.Write(0);
