@@ -151,6 +151,39 @@ static class AnimGraphHues
     };
 
     /// <summary>
+    /// The value kind an AG2 value node produces, from its type name (CNm prefix and
+    /// Node::CDefinition suffix already stripped). Every constructor bakes its pin's value type;
+    /// this mirrors the recovered table for the names shipped graphs use, and falls back to
+    /// Float, the commonest kind, when a name is not recognised.
+    /// </summary>
+    public static AnimGraphValueKind AG2ValueKindOf(string nodeType)
+    {
+        if (nodeType.EndsWith("Comparison", StringComparison.Ordinal) || nodeType.EndsWith("Condition", StringComparison.Ordinal))
+        {
+            return AnimGraphValueKind.Bool;
+        }
+
+        return nodeType switch
+        {
+            "ConstBool" or "ControlParameterBool" or "VirtualParameterBool"
+                or "Not" or "And" or "Or" or "IsTargetSet" => AnimGraphValueKind.Bool,
+
+            "ConstID" or "CachedID" or "ControlParameterID" or "VirtualParameterID"
+                or "IDSwitch" or "CurrentSyncEventID" => AnimGraphValueKind.Id,
+
+            "ConstTarget" or "ControlParameterTarget" or "VirtualParameterTarget"
+                or "TargetOffset" or "TargetPoint" => AnimGraphValueKind.Target,
+
+            "ConstVector" or "ControlParameterVector" or "VirtualParameterVector" => AnimGraphValueKind.Vector,
+
+            "BoneMask" or "FixedWeightBoneMask" or "BoneMaskSwitch"
+                or "BoneMaskSelector" => AnimGraphValueKind.BoneMask,
+
+            _ => AnimGraphValueKind.Float,
+        };
+    }
+
+    /// <summary>
     /// Buckets an AG2 node type, the class name with its CNm prefix and Node::CDefinition suffix
     /// already stripped by the viewer.
     /// </summary>

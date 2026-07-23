@@ -306,9 +306,9 @@ namespace GUI.Types.GLViewers
         }
 
         /// <summary>
-        /// Restores the graph to how it opened: search, selection and filters cleared, the
-        /// rebuild toggles off, the layout and wire combos back at their opening values, every
-        /// node back at its opening position, and the view refit to the whole graph.
+        /// Resets every option to its default and lays the whole graph out fresh: search,
+        /// selection and filters cleared, layout and wire combos back to their opening values,
+        /// rebuild toggles off, then a full relayout and a refit.
         /// </summary>
         private void ResetGraph()
         {
@@ -322,18 +322,7 @@ namespace GUI.Types.GLViewers
             View.SetSearchHighlight(null);
             View.ClearSelection();
 
-            // Unchecking a rebuild toggle rebuilds the graph and recaptures its opening
-            // arrangement, so both happen before that arrangement is restored.
-            if (stateMachinesCheckBox != null)
-            {
-                stateMachinesCheckBox.Checked = false;
-            }
-
-            if (parameterWiresCheckBox != null)
-            {
-                parameterWiresCheckBox.Checked = false;
-            }
-
+            // The options go back first so a toggle rebuild below already lays out with them.
             if (placementCombo != null)
             {
                 suppressPlacementChange = true;
@@ -350,6 +339,16 @@ namespace GUI.Types.GLViewers
                 View.StraightWires = openingStraightWires;
             }
 
+            if (stateMachinesCheckBox != null)
+            {
+                stateMachinesCheckBox.Checked = false;
+            }
+
+            if (parameterWiresCheckBox != null)
+            {
+                parameterWiresCheckBox.Checked = false;
+            }
+
             if (subtitleFilter != null)
             {
                 for (var i = 0; i < subtitleFilter.Items.Count; i++)
@@ -358,10 +357,9 @@ namespace GUI.Types.GLViewers
                 }
             }
 
-            // Restoring positions supersedes the relayout an isolate-with-relayout queued.
             pendingFullRelayout = false;
             View.ShowAllNodes();
-            View.RestoreOpeningLayout();
+            View.LayoutNodesPacked();
             RefitToGraph();
         }
 
@@ -454,18 +452,9 @@ namespace GUI.Types.GLViewers
             return sections;
         }
 
-        /// <summary>Rebuilds the legend rows after a graph rebuild changed the legend.</summary>
-        protected void RefreshLegendPanel()
-        {
-            if (legendSection == null)
-            {
-                return;
-            }
-
-            legendSection.ClearRows();
-            PopulateLegendRows();
-        }
-
+        // The legend is built once and survives graph rebuilds: the frontends emit the same
+        // rows on every rebuild (toggle-dependent entries are always listed), so nothing has
+        // to resize when a toggle rebuilds the graph.
         private GLViewerGroupedSectionControl? legendSection;
 
         private void AddLegendPanel()
@@ -792,6 +781,12 @@ namespace GUI.Types.GLViewers
                 AddFilterAction(contextMenu, "Isolate chain", () => View.IsolateChainOf(node));
                 AddFilterAction(contextMenu, "Isolate upstream", () => View.IsolateUpstreamOf(node));
                 AddFilterAction(contextMenu, "Isolate downstream", () => View.IsolateDownstreamOf(node));
+
+                if (node.GroupPath != null)
+                {
+                    var groupName = node.GroupPath[(node.GroupPath.LastIndexOf('/') + 1)..];
+                    AddFilterAction(contextMenu, $"Isolate group '{groupName}'", () => View.IsolateGroupOf(node));
+                }
             }
             else
             {

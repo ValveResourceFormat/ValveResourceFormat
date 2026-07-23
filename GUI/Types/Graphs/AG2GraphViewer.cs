@@ -13,10 +13,6 @@ internal class AG2GraphViewer : GLGraphViewer
 {
     private static readonly GraphHue PoseHue = AnimGraphHues.HueOf(AnimGraphValueKind.Pose);
 
-    // AG2 tracks pose against value generically rather than per pin type, so every non-pose wire
-    // takes the float colour, the commonest of the value kinds it carries.
-    private static readonly GraphHue ValueHue = AnimGraphHues.HueOf(AnimGraphValueKind.Float);
-
     private readonly KVObject graphDefinition;
 
     public AG2GraphViewer(VrfGuiContext vrfGuiContext, RendererContext rendererContext, KVObject data)
@@ -42,6 +38,25 @@ internal class AG2GraphViewer : GLGraphViewer
         RebuildGraph();
     }
 
+    // Control parameters fan one output into consumers all over the graph, so by default their
+    // wires stay off the canvas: each consumer gets an annotation naming its parameter and the
+    // parameter nodes park as loose reference cards. The sidebar checkbox rebuilds with wires.
+    private bool drawParameterWires;
+    private bool hasControlParameters;
+
+    protected override bool HasParameterWireToggle => hasControlParameters;
+
+    protected override void SetDrawParameterWires(bool draw)
+    {
+        if (drawParameterWires == draw)
+        {
+            return;
+        }
+
+        drawParameterWires = draw;
+        RebuildGraph();
+    }
+
     private void RebuildGraph()
     {
         View.Rebuild(CreateGraph);
@@ -52,7 +67,8 @@ internal class AG2GraphViewer : GLGraphViewer
     private struct Pose;
     private struct Value;
 
-    private static GraphHue HueOf(Type type) => type == typeof(Value) ? ValueHue : PoseHue;
+    /// <summary>The value kinds wires actually carry in this graph, for the legend.</summary>
+    private readonly HashSet<AnimGraphValueKind> usedValueKinds = [];
 
     private static void SetResourceReference(GraphNode node, string resourceName)
     {
@@ -67,6 +83,18 @@ internal class AG2GraphViewer : GLGraphViewer
         var rootNodeIdx = graphDefinition.GetInt32Property("m_nRootNodeIdx");
         var nodePaths = graphDefinition.GetArray<string>("m_nodePaths");
         var nodes = graphDefinition.GetArray("m_nodes");
+
+        usedValueKinds.Clear();
+        hasControlParameters = false;
+
+        foreach (var definition in nodes)
+        {
+            if (definition.GetStringProperty("_class").StartsWith("CNmControlParameter", StringComparison.Ordinal))
+            {
+                hasControlParameters = true;
+                break;
+            }
+        }
 
         string GetName(int nodeIdx)
         {
@@ -113,6 +141,11 @@ internal class AG2GraphViewer : GLGraphViewer
                     NodeType = GetType(nodeIdx),
                 };
 
+                // The authored container path feeds the right-click "Isolate group" action.
+                var path = nodePaths[nodeIdx];
+                var lastSlash = path.LastIndexOf('/');
+                node.GroupPath = lastSlash > 0 ? path[..lastSlash] : null;
+
                 // Nodes the shared table buckets get the category colour; the rest keep deriving
                 // their header from their first socket.
                 var category = AnimGraphHues.CategoryOfAG2(node.NodeType);
@@ -134,7 +167,9 @@ internal class AG2GraphViewer : GLGraphViewer
         {
             var (childNode, childNodeOutput) = CreateChild<ValueType>(nodeIdx, childOutputName);
 
-            var input = parent.AddInput(parentInputName ?? childNode.Name ?? string.Empty, HueOf(typeof(ValueType)), hub);
+            // The input takes the created output's hue so both ends of the wire agree on the
+            // value kind the child produces.
+            var input = parent.AddInput(parentInputName ?? childNode.Name ?? string.Empty, childNodeOutput.Hue, hub);
             View.Connect(childNodeOutput, input);
 
             return (childNode, input);
@@ -155,7 +190,22 @@ internal class AG2GraphViewer : GLGraphViewer
                 childOutputName = string.Empty;
             }
 
-            var childNodeOutput = childNode.AddOutput(childOutputName ?? string.Empty, HueOf(typeof(ValueType)));
+            GraphHue outputHue;
+
+            if (typeof(ValueType) == typeof(Value))
+            {
+                // Every AG2 node constructor bakes its pin's value type; the type name tells
+                // which one, so value wires carry their real kind's colour.
+                var kind = AnimGraphHues.AG2ValueKindOf(childNode.NodeType ?? string.Empty);
+                usedValueKinds.Add(kind);
+                outputHue = AnimGraphHues.HueOf(kind);
+            }
+            else
+            {
+                outputHue = PoseHue;
+            }
+
+            var childNodeOutput = childNode.AddOutput(childOutputName ?? string.Empty, outputHue);
 
             if (childNode.NodeType != "Missing")
             {
@@ -212,7 +262,7 @@ internal class AG2GraphViewer : GLGraphViewer
                     if (entryConditionNodeIdx != -1)
                     {
                         var (_, childOutput) = CreateChild<Value>(entryConditionNodeIdx, stateName);
-                        View.Connect(childOutput, stateGraphNode.AddInput("Entry condition", ValueHue, allowMultiple: true));
+                        View.Connect(childOutput, stateGraphNode.AddInput("Entry condition", childOutput.Hue, allowMultiple: true));
                     }
 
                     // A state inside a state machine layer can carry the bone mask that layer
@@ -222,7 +272,7 @@ internal class AG2GraphViewer : GLGraphViewer
                     if (layerBoneMaskNodeIdx != -1)
                     {
                         var (_, maskOutput) = CreateChild<Value>(layerBoneMaskNodeIdx, stateName);
-                        View.Connect(maskOutput, stateGraphNode.AddInput("Layer bone mask", ValueHue, allowMultiple: true));
+                        View.Connect(maskOutput, stateGraphNode.AddInput("Layer bone mask", maskOutput.Hue, allowMultiple: true));
                     }
                 }
 
@@ -841,6 +891,11 @@ internal class AG2GraphViewer : GLGraphViewer
             }
         }
 
+        if (!drawParameterWires)
+        {
+            SuppressParameterWires();
+        }
+
         // A pose graph is one connected DAG, where routing a long wire through dummy ranks keeps
         // it between the cards of the ranks it spans rather than over them, and where closing
         // every rank of slack pays off instead of costing the room the repair moves cards in.
@@ -849,13 +904,66 @@ internal class AG2GraphViewer : GLGraphViewer
         View.LayoutNodesPacked();
 
         View.Legend.AddRange(AnimGraphHues.Legend());
-        View.Legend.AddRange(
-        [
-            new("Value", ValueHue, GraphLegendKind.Wire),
-            new("Missing node", GraphHue.Red),
-        ]);
+
+        foreach (var kind in Enum.GetValues<AnimGraphValueKind>())
+        {
+            if (usedValueKinds.Contains(kind))
+            {
+                View.Legend.Add(new($"{ValueKindLabel(kind)} value", AnimGraphHues.HueOf(kind), GraphLegendKind.Wire));
+            }
+        }
+
+        View.Legend.Add(new("Missing node", GraphHue.Red));
 
         Log.Debug(nameof(AG2GraphViewer), $"Created {createdNodes.Count} nodes (out of {nodes.Count}) or {createdNodes.Count / (float)nodes.Count:P}.");
     }
 
+    private static string ValueKindLabel(AnimGraphValueKind kind) => kind switch
+    {
+        AnimGraphValueKind.Id => "ID",
+        AnimGraphValueKind.BoneMask => "Bone mask",
+        _ => kind.ToString(),
+    };
+
+    /// <summary>
+    /// Replaces every wire leaving a control parameter node with an annotation on its consumer
+    /// naming the parameter, and drops the sockets that end up bare. The parameter nodes stay
+    /// as loose reference cards, parked beside the graph like the AG1 parameter hubs.
+    /// </summary>
+    private void SuppressParameterWires()
+    {
+        foreach (var graphNode in View.Nodes)
+        {
+            if (graphNode is not Node node || node.NodeType?.StartsWith("ControlParameter", StringComparison.Ordinal) != true)
+            {
+                continue;
+            }
+
+            var name = node.Name ?? string.Empty;
+            var closingParen = name.IndexOf(") ", StringComparison.Ordinal);
+            var parameterName = closingParen >= 0 ? name[(closingParen + 2)..] : name;
+            var kind = AnimGraphHues.AG2ValueKindOf(node.NodeType);
+
+            foreach (var output in node.Outputs.ToArray())
+            {
+                foreach (var wire in output.Wires.ToArray())
+                {
+                    var input = wire.To;
+                    var consumer = input.Owner;
+                    View.Disconnect(wire);
+                    consumer.AddAnnotation($"{(input.Name.Length > 0 ? input.Name : "Parameter")}: {parameterName}", AnimGraphHues.HueOf(kind));
+
+                    if (input.Wires.Count == 0)
+                    {
+                        consumer.RemoveSocket(input);
+                    }
+                }
+
+                if (output.Wires.Count == 0)
+                {
+                    node.RemoveSocket(output);
+                }
+            }
+        }
+    }
 }

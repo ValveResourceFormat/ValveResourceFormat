@@ -90,6 +90,14 @@ class GraphNode : IGraphElement
         ContentVersion++;
     }
 
+    /// <summary>Removes a socket and its row, e.g. after its last wire was disconnected.</summary>
+    public void RemoveSocket(GraphSocket socket)
+    {
+        (socket.IsInput ? Inputs : Outputs).Remove(socket);
+        Rows.RemoveAll(row => row is SocketRow socketRow && socketRow.Socket == socket);
+        ContentVersion++;
+    }
+
     public void AddSpace() => AddText(string.Empty);
 
     public void AddMessage(string text)

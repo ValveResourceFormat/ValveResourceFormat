@@ -231,7 +231,6 @@ internal class AG1GraphViewer : GLGraphViewer
         drawParameterWires = draw;
         View.Rebuild(BuildGraph);
         RefreshStatsLabel();
-        RefreshLegendPanel();
         RefitToGraph();
     }
 
@@ -274,13 +273,10 @@ internal class AG1GraphViewer : GLGraphViewer
 
         View.Legend.AddRange(AnimGraphHues.Legend());
 
-        if (drawParameterWires)
-        {
-            View.Legend.Add(new("Parameter link", GraphHue.Olive, GraphLegendKind.DashedWire));
-        }
-
+        // Always listed, wires drawn or not, so toggling never resizes the legend.
         View.Legend.AddRange(
         [
+            new("Parameter link", GraphHue.Olive, GraphLegendKind.DashedWire),
             new("Tag group", GraphHue.Teal),
             new("Component", GraphHue.Neutral),
             new("Client-simulated", GraphHue.Purple, GraphLegendKind.Marker),
