@@ -98,12 +98,6 @@ namespace ValveResourceFormat.ResourceTypes
                 throw new NotSupportedException($"Unsupported binary KV3 compression method: {(int)SerializationCompressionMethod}");
             }
 
-            if (SerializationVersion == KV3BinaryVersion.Version4
-                && SerializationCompressionMethod != KV3BinaryCompressionMethod.Uncompressed)
-            {
-                throw new NotSupportedException("Binary KV3 version 4 serialization only supports uncompressed output.");
-            }
-
             using var context = new SerializationContext();
 
             context.Bytes4Writer.Write(0xDEADBEEF); // string count, will be updated
@@ -124,58 +118,73 @@ namespace ValveResourceFormat.ResourceTypes
 
         private void SerializeVersion4(Stream stream, SerializationContext context)
         {
+            var blobs = context.BinaryBlobs.ToArray();
+            List<ushort> blockCompressedSizes = [];
+            var compressedBlobs = SerializationCompressionMethod == KV3BinaryCompressionMethod.Lz4 && blobs.Length > 0
+                ? CompressLz4BinaryBlobs(blobs, [blobs.Length], out blockCompressedSizes)
+                : [];
+            var buffer = BuildVersion4Buffer(context, blockCompressedSizes, out var countTypes);
+            var compressedBuffer = SerializationCompressionMethod switch
+            {
+                KV3BinaryCompressionMethod.Uncompressed => buffer,
+                KV3BinaryCompressionMethod.Lz4 => CompressLz4(buffer),
+                KV3BinaryCompressionMethod.Zstd => CompressZstd(ConcatBuffers(buffer, blobs)),
+                _ => throw new NotSupportedException(),
+            };
+
             using var writer = new BinaryWriter(stream, System.Text.Encoding.UTF8, leaveOpen: true);
 
             writer.Write(MAGIC4);
             writer.Write(Data.Header!.Format.Id.ToByteArray());
-            writer.Write(0); // 0 = no compression
+            writer.Write((uint)SerializationCompressionMethod);
             writer.Write((ushort)0); // compressionDictionaryId
-            writer.Write((ushort)0); // compressionFrameSize
+            writer.Write(SerializationCompressionMethod == KV3BinaryCompressionMethod.Lz4 ? (ushort)16384 : (ushort)0);
             writer.Write((int)context.Bytes1.Length);
             writer.Write((int)context.Bytes4.Length / 4);
             writer.Write((int)context.Bytes8.Length / 8);
-
-            var countTypesOffset = stream.Position;
-            writer.Write(0); // countTypes, will be overwritten
+            writer.Write(countTypes);
             writer.Write((ushort)0); // countObjects
             writer.Write((ushort)0); // countArrays
-
-            var sizeUncompressedTotalOffset = stream.Position;
-            writer.Write(0xDEADBEEF); // uncompressed size, will be overwritten
-            writer.Write(0xDEADBEEF); // compressed size, will be overwritten
-
+            writer.Write(buffer.Length);
+            writer.Write(compressedBuffer.Length);
             writer.Write(context.BinaryBlobLengths.Count);
-            writer.Write((int)context.BinaryBlobs.Length);
+            writer.Write(blobs.Length);
             writer.Write((int)context.Bytes2.Length / 2);
             writer.Write(0); // sizeBlockCompressedSizesBytes
+            writer.Write(compressedBuffer);
 
-            var start = stream.Position;
-            var countTypes = WriteData(writer, context);
+            if (context.BinaryBlobLengths.Count > 0)
+            {
+                if (SerializationCompressionMethod == KV3BinaryCompressionMethod.Uncompressed)
+                {
+                    writer.Write(blobs);
+                }
+                else if (SerializationCompressionMethod == KV3BinaryCompressionMethod.Lz4)
+                {
+                    writer.Write(compressedBlobs);
+                }
 
-            // If there are no binary blobs, write the trailer in the main buffer
+                writer.Write(0xFFEEDD00);
+            }
+        }
+
+        private static byte[] BuildVersion4Buffer(SerializationContext context, List<ushort> blockCompressedSizes, out int countTypes)
+        {
+            using var stream = new MemoryStream();
+            using var writer = new BinaryWriter(stream);
+            countTypes = WriteData(writer, context);
+
             if (context.BinaryBlobLengths.Count == 0)
             {
                 writer.Write(0xFFEEDD00);
             }
 
-            var end = stream.Position;
-
-            // Go back and write uncompressed size (only the main data, including trailer when no binary blobs)
-            var dataSize = (uint)(end - start);
-            stream.Position = countTypesOffset;
-            writer.Write(countTypes);
-            stream.Position = sizeUncompressedTotalOffset;
-            writer.Write(dataSize);
-            writer.Write(dataSize);
-            stream.Position = end;
-
-            if (context.BinaryBlobLengths.Count > 0)
+            foreach (var size in blockCompressedSizes)
             {
-                context.BinaryBlobs.WriteTo(writer.BaseStream);
-
-                // Finish with a trailer after binary blobs
-                writer.Write(0xFFEEDD00);
+                writer.Write(size);
             }
+
+            return stream.ToArray();
         }
 
         private void SerializeVersion5(Stream stream, SerializationContext context)
@@ -184,7 +193,7 @@ namespace ValveResourceFormat.ResourceTypes
             var blobs = context.BinaryBlobs.ToArray();
             List<ushort> blockCompressedSizes = [];
             var compressedBlobs = context.BinaryBlobLengths.Count > 0
-                ? CompressBinaryBlobs(blobs, context.BinaryBlobLengths, out blockCompressedSizes)
+                ? CompressVersion5BinaryBlobs(blobs, context.BinaryBlobLengths, out blockCompressedSizes)
                 : [];
             var buffer2 = BuildVersion5Buffer2(context, blockCompressedSizes);
             var compressedBuffer1 = CompressMainBuffer(buffer1);
@@ -206,13 +215,13 @@ namespace ValveResourceFormat.ResourceTypes
             writer.Write((ushort)0);
             writer.Write(SerializationCompressionMethod == KV3BinaryCompressionMethod.Lz4 ? (ushort)16384 : (ushort)0);
             writer.Write(stringBytesLength);
-            writer.Write(1); // string count
+            writer.Write(1); // countBytes4 in buffer 1 (one int: string count)
             writer.Write(0); // 8-byte values in buffer 1
             writer.Write((int)context.Types.Length);
             writer.Write(countObjects);
             writer.Write(countArrays);
-            writer.Write(buffer1.Length + buffer2.Length);
-            writer.Write(compressedBuffer1.Length + compressedBuffer2.Length + compressedBlobs.Length);
+            writer.Write(checked(buffer1.Length + buffer2.Length));
+            writer.Write(checked(compressedBuffer1.Length + compressedBuffer2.Length + compressedBlobs.Length));
             writer.Write(context.BinaryBlobLengths.Count);
             writer.Write(blobs.Length);
             writer.Write(0); // 2-byte values in buffer 1
@@ -318,7 +327,7 @@ namespace ValveResourceFormat.ResourceTypes
             };
         }
 
-        private byte[] CompressBinaryBlobs(byte[] input, List<int> blobLengths, out List<ushort> blockCompressedSizes)
+        private byte[] CompressVersion5BinaryBlobs(byte[] input, List<int> blobLengths, out List<ushort> blockCompressedSizes)
         {
             blockCompressedSizes = [];
 
@@ -332,18 +341,24 @@ namespace ValveResourceFormat.ResourceTypes
                 return CompressZstd(input);
             }
 
+            return CompressLz4BinaryBlobs(input, blobLengths, out blockCompressedSizes);
+        }
+
+        private static byte[] CompressLz4BinaryBlobs(byte[] input, IReadOnlyList<int> segmentLengths, out List<ushort> blockCompressedSizes)
+        {
+            blockCompressedSizes = [];
             const int frameSize = 16384;
             using var output = new MemoryStream();
             using var encoder = new LZ4FastChainEncoder(frameSize, 0);
             var target = new byte[LZ4Codec.MaximumOutputSize(frameSize)];
             var inputOffset = 0;
 
-            foreach (var blobLength in blobLengths)
+            foreach (var segmentLength in segmentLengths)
             {
-                for (var blobOffset = 0; blobOffset < blobLength; blobOffset += frameSize)
+                for (var segmentOffset = 0; segmentOffset < segmentLength; segmentOffset += frameSize)
                 {
-                    var length = Math.Min(frameSize, blobLength - blobOffset);
-                    encoder.TopupAndEncode(input.AsSpan(inputOffset + blobOffset, length), target, true, false, out var loaded, out var encoded);
+                    var length = Math.Min(frameSize, segmentLength - segmentOffset);
+                    encoder.TopupAndEncode(input.AsSpan(inputOffset + segmentOffset, length), target, true, false, out var loaded, out var encoded);
 
                     if (loaded != length || encoded <= 0 || encoded > ushort.MaxValue)
                     {
@@ -354,10 +369,18 @@ namespace ValveResourceFormat.ResourceTypes
                     output.Write(target, 0, encoded);
                 }
 
-                inputOffset += blobLength;
+                inputOffset += segmentLength;
             }
 
             return output.ToArray();
+        }
+
+        private static byte[] ConcatBuffers(byte[] first, byte[] second)
+        {
+            var output = new byte[checked(first.Length + second.Length)];
+            first.CopyTo(output, 0);
+            second.CopyTo(output, first.Length);
+            return output;
         }
 
         private static byte[] CompressLz4(byte[] input)
@@ -423,7 +446,7 @@ namespace ValveResourceFormat.ResourceTypes
             {
                 var writeValue = (double)value;
 
-                if (writeValue == 0.0)
+                if (BitConverter.DoubleToInt64Bits(writeValue) == 0)
                 {
                     WriteType(context, KV3BinaryNodeType.DOUBLE_ZERO, value.Flag);
                     return;

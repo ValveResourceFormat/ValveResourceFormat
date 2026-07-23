@@ -68,6 +68,7 @@ namespace Tests
             originalFile.Root["int32"] = new KVObject(-789);
             originalFile.Root["uint32"] = new KVObject(987U);
             originalFile.Root["float"] = new KVObject(1.25F);
+            originalFile.Root["negativeZero"] = new KVObject(-0.0D);
             originalFile.Root["emptyString"] = new KVObject(string.Empty);
             originalFile.Root["emptyArray"] = KVObject.Array();
             originalFile.Root["emptyObject"] = KVObject.Collection();
@@ -93,9 +94,56 @@ namespace Tests
                 Assert.That((int)deserializedBinaryKV3.Data.Root["int32"], Is.EqualTo(-789));
                 Assert.That((uint)deserializedBinaryKV3.Data.Root["uint32"], Is.EqualTo(987));
                 Assert.That((float)deserializedBinaryKV3.Data.Root["float"], Is.EqualTo(1.25F));
+                Assert.That(BitConverter.DoubleToInt64Bits((double)deserializedBinaryKV3.Data.Root["negativeZero"]), Is.EqualTo(long.MinValue));
                 Assert.That((string)deserializedBinaryKV3.Data.Root["emptyString"], Is.Empty);
                 Assert.That(deserializedBinaryKV3.Data.Root["emptyArray"], Is.Empty);
                 Assert.That(deserializedBinaryKV3.Data.Root["emptyObject"], Is.Empty);
+            }
+        }
+
+        [TestCase(KV3BinaryCompressionMethod.Uncompressed)]
+        [TestCase(KV3BinaryCompressionMethod.Lz4)]
+        [TestCase(KV3BinaryCompressionMethod.Zstd)]
+        public void TestBinaryKV3Version4Serialization(KV3BinaryCompressionMethod compressionMethod)
+        {
+            var originalFile = KVDocumentExtensions.ParseKV3(Path.Combine(TestContext.CurrentContext.TestDirectory, "Files", "KeyValues", "KeyValues3_LF.kv3"));
+            var firstBlob = new byte[100];
+            var secondBlob = new byte[32769];
+
+            for (var i = 0; i < firstBlob.Length; i++)
+            {
+                firstBlob[i] = (byte)(i % 17);
+            }
+
+            for (var i = 0; i < secondBlob.Length; i++)
+            {
+                secondBlob[i] = (byte)(i % 251);
+            }
+
+            originalFile.Root["firstBlob"] = KVObject.Blob(firstBlob);
+            originalFile.Root["secondBlob"] = KVObject.Blob(secondBlob);
+            originalFile.Root["emptyBlob"] = KVObject.Blob([]);
+            var binaryKV3 = new BinaryKV3(originalFile.Root, KV3IDLookup.Get("generic"))
+            {
+                Resource = null!,
+                SerializationVersion = KV3BinaryVersion.Version4,
+                SerializationCompressionMethod = compressionMethod,
+            };
+
+            using var stream = new MemoryStream();
+            binaryKV3.Serialize(stream);
+            var data = stream.ToArray();
+            Assert.That(BitConverter.ToUInt32(data, 20), Is.EqualTo((uint)compressionMethod));
+
+            stream.Position = 0;
+            var deserializedBinaryKV3 = ReadBinaryKV3(stream);
+
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(deserializedBinaryKV3.Data.Root["firstBlob"].AsBlob(), Is.EqualTo(firstBlob));
+                Assert.That(deserializedBinaryKV3.Data.Root["secondBlob"].AsBlob(), Is.EqualTo(secondBlob));
+                Assert.That(deserializedBinaryKV3.Data.Root["emptyBlob"].AsBlob(), Is.Empty);
+                Assert.That(deserializedBinaryKV3.Data.ToKV3String(), Is.EqualTo(originalFile.ToKV3String()));
             }
         }
 
@@ -198,9 +246,6 @@ namespace Tests
                 Assert.That(binaryKV3.SerializationVersion, Is.EqualTo(KV3BinaryVersion.Version4));
                 Assert.That(binaryKV3.SerializationCompressionMethod, Is.EqualTo(KV3BinaryCompressionMethod.Uncompressed));
             }
-
-            binaryKV3.SerializationCompressionMethod = KV3BinaryCompressionMethod.Lz4;
-            Assert.That(() => binaryKV3.Serialize(new MemoryStream()), Throws.TypeOf<NotSupportedException>());
 
             binaryKV3.SerializationVersion = (KV3BinaryVersion)99;
             Assert.That(() => binaryKV3.Serialize(new MemoryStream()), Throws.TypeOf<NotSupportedException>());
@@ -318,6 +363,11 @@ namespace Tests
             using var stream = new MemoryStream();
             binaryKV3.Serialize(stream);
             stream.Position = 0;
+            return ReadBinaryKV3(stream);
+        }
+
+        private static BinaryKV3 ReadBinaryKV3(Stream stream)
+        {
             var deserializedBinaryKV3 = new BinaryKV3(BlockType.DATA)
             {
                 Size = (uint)stream.Length,
