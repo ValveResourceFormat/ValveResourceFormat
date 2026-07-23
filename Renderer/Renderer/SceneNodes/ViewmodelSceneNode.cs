@@ -13,7 +13,7 @@ public class ViewmodelSceneNode : ModelSceneNode
     /// <summary>
     /// Viewmodel offset in viewmodel space (forward, right, up).
     /// </summary>
-    public Vector3 ViewmodelOffset { get; set; } = new Vector3(0, -2, -2);
+    public Vector3 ViewmodelOffset { get; set; } = new Vector3(5, -2, -2);
 
     /// <summary>
     /// The player arms.
@@ -235,6 +235,7 @@ public class ViewmodelSceneNode : ModelSceneNode
     }
 
     internal const string WorldLayerName = "Internal - First Person Model";
+    internal const string ViewmodelLayerName = "Internal - First Person Viewmodel";
     private const string BreathingClip = "animation/anims/world/shared/breathing.vnmclip";
     private const string LandedClip = "animation/anims/world/shared/jump_additive_land.vnmclip";
 
@@ -354,8 +355,9 @@ public class ViewmodelSceneNode : ModelSceneNode
     {
         var model = new ModelSceneNode(Scene, item)
         {
-            LayerName = WorldLayerName,
+            LayerName = ViewmodelLayerName,
             Flags = ObjectTypeFlags.DisableVisCulling,
+            RenderAsViewmodel = true,
         };
         Scene.Add(model, true);
         Items.Add(model);
@@ -412,8 +414,9 @@ public class ViewmodelSceneNode : ModelSceneNode
         var primary = viewmodel.Items[0]!;
         var stattrakModule = new ModelSceneNode(scene, models[1])
         {
-            LayerName = WorldLayerName,
+            LayerName = ViewmodelLayerName,
             Flags = ObjectTypeFlags.DisableVisCulling,
+            RenderAsViewmodel = true,
         };
 
         scene.Add(stattrakModule, true);
@@ -421,8 +424,9 @@ public class ViewmodelSceneNode : ModelSceneNode
 
         viewmodel.SelectedItemIndex = 2;
         viewmodel.SelectedItemIndex = 3;
-        viewmodel.LayerName = WorldLayerName;
+        viewmodel.LayerName = ViewmodelLayerName;
         viewmodel.Flags |= ObjectTypeFlags.DisableVisCulling;
+        viewmodel.RenderAsViewmodel = true;
 
         // Load muzzle flash particle
         var muzzleFlashResource = loader.LoadFileCompiled("particles/unified_weapon_fx/uweapon_muzflsh_riffle.vpcf"); // _fps
@@ -430,8 +434,9 @@ public class ViewmodelSceneNode : ModelSceneNode
         {
             viewmodel.muzzleFlashParticle = new ParticleSceneNode(scene, particleSystem)
             {
-                LayerName = WorldLayerName,
+                LayerName = ViewmodelLayerName,
                 Flags = ObjectTypeFlags.DisableVisCulling,
+                RenderAsViewmodel = true,
             };
             scene.Add(viewmodel.muzzleFlashParticle, true);
         }
@@ -442,6 +447,7 @@ public class ViewmodelSceneNode : ModelSceneNode
 
         // don't render player model in noclip mode
         scene.DeactivateLayer(WorldLayerName);
+        scene.DeactivateLayer(ViewmodelLayerName);
 
         return viewmodel;
     }
@@ -466,6 +472,7 @@ public class ViewmodelSceneNode : ModelSceneNode
             if (LayerEnabled)
             {
                 Scene.DeactivateLayer(WorldLayerName);
+                Scene.DeactivateLayer(ViewmodelLayerName);
             }
 
             return;
@@ -490,6 +497,7 @@ public class ViewmodelSceneNode : ModelSceneNode
         if (!LayerEnabled)
         {
             Scene.ActivateLayer(WorldLayerName);
+            Scene.ActivateLayer(ViewmodelLayerName);
         }
 
         var camera = input.Camera;

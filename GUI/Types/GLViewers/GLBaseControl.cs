@@ -551,6 +551,8 @@ internal abstract class GLBaseControl : IDisposable
             if (this is GLSceneViewer viewer)
             {
                 RendererContext.FieldOfView = Settings.Config.FieldOfView;
+                RendererContext.ViewmodelFieldOfView = Settings.Config.ViewmodelFieldOfView;
+                viewer.Renderer.Camera.FieldOfView = Settings.Config.FieldOfView;
                 viewer.Renderer.Camera.CreateProjectionMatrix();
             }
         }

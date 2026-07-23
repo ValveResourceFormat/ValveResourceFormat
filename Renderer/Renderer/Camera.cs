@@ -40,7 +40,11 @@ namespace ValveResourceFormat.Renderer
         /// </summary>
         public Vector3 Up { get; private set; }
 
-        private RendererContext RendererContext;
+        /// <summary>
+        /// Horizontal field of view in degrees.
+        /// Converted to the vertical FOV actually used to build <see cref="ProjectionMatrix"/> by <see cref="GetFOV"/>.
+        /// </summary>
+        public float FieldOfView { get; set; }
 
         /// <summary>
         /// Perspective projection matrix (reverse-Z, infinite far plane).
@@ -73,12 +77,12 @@ namespace ValveResourceFormat.Renderer
         public float AspectRatio { get; private set; }
 
         /// <summary>
-        /// Initializes a new camera with a default position and 16:9 viewport.
+        /// Initializes a new camera with a default position, 16:9 viewport, and the given field of view.
         /// </summary>
-        /// <param name="rendererContext">Renderer context used to read field-of-view settings.</param>
-        public Camera(RendererContext rendererContext)
+        /// <param name="fieldOfView">Initial field of view in degrees (horizontal at 4:3, see <see cref="FieldOfView"/>).</param>
+        public Camera(float fieldOfView = 90f)
         {
-            RendererContext = rendererContext;
+            FieldOfView = fieldOfView;
             Location = Vector3.One;
             SetViewportSize(16, 9);
             LookAt(Vector3.Zero);
@@ -150,8 +154,8 @@ namespace ValveResourceFormat.Renderer
             viewConstants.CameraUpDirWs = Up;
 
             // todo: these change per scene, move to the other buffer
-            viewConstants.ViewportMinZ = 0.05f;
-            viewConstants.ViewportMaxZ = 1.0f;
+            viewConstants.ViewportMinZ = Renderer.DepthRange.Scene.Near;
+            viewConstants.ViewportMaxZ = Renderer.DepthRange.Scene.Far;
         }
 
         /// <summary>
@@ -341,12 +345,23 @@ namespace ValveResourceFormat.Renderer
         }
 
         /// <summary>
-        /// Returns the field of view in radians, as read from the renderer context settings.
+        /// Returns the vertical FOV in radians used to build <see cref="ProjectionMatrix"/>, converted from
+        /// <see cref="FieldOfView"/> via <see cref="Calculate4By3Fov"/>.
         /// </summary>
-        /// <returns></returns>
         public float GetFOV()
         {
-            return float.DegreesToRadians(RendererContext.FieldOfView);
+            return Calculate4By3Fov(FieldOfView);
+        }
+
+        /// <summary>
+        /// Converts a horizontal field of view at a 4:3 aspect ratio to the equivalent vertical field of view in radians.
+        /// The result is used directly as the vertical FOV in <see cref="CreatePerspectiveFieldOfView_ReverseZ"/> regardless
+        /// of the actual aspect ratio (Vert- scaling).
+        /// </summary>
+        /// <param name="horizontalDegreesAt4By3">Horizontal field of view in degrees at a 4:3 aspect ratio.</param>
+        public static float Calculate4By3Fov(float horizontalDegreesAt4By3)
+        {
+            return 2f * MathF.Atan(MathF.Tan(float.DegreesToRadians(horizontalDegreesAt4By3) * 0.5f) / (4f / 3f));
         }
     }
 }

@@ -43,8 +43,8 @@ namespace ValveResourceFormat.Renderer
             /// <summary>Gets or sets the scene being rendered.</summary>
             public required Scene Scene { get; set; }
 
-            /// <summary>Gets the camera providing view and projection matrices.</summary>
-            public required Camera Camera { get; init; }
+            /// <summary>Gets or sets the camera providing view and projection matrices.</summary>
+            public required Camera Camera { get; set; }
 
             /// <summary>Gets or sets the framebuffer that is the render target.</summary>
             public required Framebuffer Framebuffer { get; set; }
@@ -211,8 +211,8 @@ namespace ValveResourceFormat.Renderer
             EnableIndirectDraws = LightingInfo.LightingData.IsSkybox == 0u;
 
             // set render lists to their max capacity
-            CollectSceneDrawCalls(new Camera(RendererContext), Frustum.CreateEmpty());
-            SetupSceneShadows(new Camera(RendererContext), -1);
+            CollectSceneDrawCalls(new Camera(), Frustum.CreateEmpty());
+            SetupSceneShadows(new Camera(), -1);
         }
 
         /// <summary>
@@ -716,7 +716,16 @@ namespace ValveResourceFormat.Renderer
             [RenderPass.Outline] = [],
         };
 
-        private Dictionary<DepthOnlyProgram, List<MeshBatchRenderer.Request>> depthOnlyDraws { get; } = new()
+        /// <summary>
+        /// Draw calls for first-person layer geometry.
+        /// </summary>
+        private readonly Dictionary<RenderPass, List<MeshBatchRenderer.Request>> viewmodelRenderLists = new()
+        {
+            [RenderPass.Opaque] = [],
+            [RenderPass.Translucent] = [],
+        };
+
+        private DepthOnlyDrawBuckets depthOnlyDraws { get; } = new()
         {
             [DepthOnlyProgram.Static] = [],
             [DepthOnlyProgram.Animated] = [],
@@ -760,14 +769,18 @@ namespace ValveResourceFormat.Renderer
                 renderPass = RenderPass.Opaque;
             }
 
-            var queueList = renderLists[renderPass];
+            var isViewmodelLayer = request.Node.RenderAsViewmodel && viewmodelRenderLists.ContainsKey(renderPass);
+
+            var queueList = isViewmodelLayer
+                ? viewmodelRenderLists[renderPass]
+                : renderLists[renderPass];
 
             if (renderPass == RenderPass.Translucent)
             {
                 WantsSceneColor |= request.Call.Material.Shader.ReservedTexturesUsed.Contains("g_tSceneColor");
                 WantsSceneDepth |= request.Call.Material.Shader.ReservedTexturesUsed.Contains("g_tSceneDepth");
 
-                if (request.Call.Material.IsCs2Water)
+                if (!isViewmodelLayer && request.Call.Material.IsCs2Water)
                 {
                     queueList = renderLists[RenderPass.Water];
                 }
@@ -784,6 +797,11 @@ namespace ValveResourceFormat.Renderer
         public void CollectSceneDrawCalls(Camera camera, Frustum? cullFrustum = null)
         {
             foreach (var bucket in renderLists.Values)
+            {
+                bucket.Clear();
+            }
+
+            foreach (var bucket in viewmodelRenderLists.Values)
             {
                 bucket.Clear();
             }
@@ -889,8 +907,16 @@ namespace ValveResourceFormat.Renderer
                         Node = node,
                     };
 
-                    renderLists[RenderPass.Opaque].Add(customRender);
-                    renderLists[RenderPass.Translucent].Add(customRender);
+                    if (node.RenderAsViewmodel)
+                    {
+                        viewmodelRenderLists[RenderPass.Opaque].Add(customRender);
+                        viewmodelRenderLists[RenderPass.Translucent].Add(customRender);
+                    }
+                    else
+                    {
+                        renderLists[RenderPass.Opaque].Add(customRender);
+                        renderLists[RenderPass.Translucent].Add(customRender);
+                    }
 
                     if (node.IsSelected)
                     {
@@ -1140,8 +1166,8 @@ namespace ValveResourceFormat.Renderer
                 FrustumCullShader.SetUniform1("g_nDepthPyramidMaxMip", DepthPyramid.NumMipLevels - 1);
                 FrustumCullShader.SetUniform1("g_nDepthPyramidWidth", DepthPyramid.Width);
                 FrustumCullShader.SetUniform1("g_nDepthPyramidHeight", DepthPyramid.Height);
-                FrustumCullShader.SetUniform1("g_flDepthRangeMin", 0.05f);
-                FrustumCullShader.SetUniform1("g_flDepthRangeMax", 1.0f);
+                FrustumCullShader.SetUniform1("g_flDepthRangeMin", Renderer.DepthRange.Scene.Near);
+                FrustumCullShader.SetUniform1("g_flDepthRangeMax", Renderer.DepthRange.Scene.Far);
 
                 // Bind depth pyramid as texture for sampling
                 GL.ActiveTexture(TextureUnit.Texture0);
@@ -1355,6 +1381,34 @@ namespace ValveResourceFormat.Renderer
                 renderContext.RenderPass = RenderPass.Translucent;
                 MeshBatchRenderer.Render(renderLists[RenderPass.Translucent], renderContext);
             }
+        }
+
+        /// <summary>
+        /// Renders the opaque first-person viewmodel layer collected during <see cref="CollectSceneDrawCalls"/>.
+        /// Rendered before the main scene so its reserved near depth range can never be overtaken by world geometry.
+        /// </summary>
+        /// <param name="renderContext">The render context for this pass, expected to use the dedicated viewmodel camera and depth range.</param>
+        public void RenderViewmodelOpaqueLayer(RenderContext renderContext)
+        {
+            renderContext.RenderPass = RenderPass.Opaque;
+            MeshBatchRenderer.Render(viewmodelRenderLists[RenderPass.Opaque], renderContext);
+        }
+
+        /// <summary>
+        /// Renders the translucent first-person viewmodel layer collected during <see cref="CollectSceneDrawCalls"/>.
+        /// Rendered after the main scene (and 3D sky) translucent passes so it composites correctly on top of them.
+        /// </summary>
+        /// <param name="renderContext">The render context for this pass, expected to use the dedicated viewmodel camera and depth range.</param>
+        public void RenderViewmodelTranslucentLayer(RenderContext renderContext)
+        {
+            GL.DepthMask(false);
+            GL.Enable(EnableCap.Blend);
+
+            renderContext.RenderPass = RenderPass.Translucent;
+            MeshBatchRenderer.Render(viewmodelRenderLists[RenderPass.Translucent], renderContext);
+
+            GL.Disable(EnableCap.Blend);
+            GL.DepthMask(true);
         }
 
         /// <summary>Renders water draw calls collected during <see cref="CollectSceneDrawCalls"/>.</summary>

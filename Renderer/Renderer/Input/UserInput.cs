@@ -104,7 +104,7 @@ public class UserInput
     public UserInput(Renderer renderer)
     {
         Renderer = renderer;
-        Camera = new Camera(renderer.RendererContext);
+        Camera = new Camera(renderer.RendererContext.FieldOfView);
         PlayerMovement = new PlayerMovement(this);
     }
 
@@ -173,7 +173,7 @@ public class UserInput
             m_yaw * mouseDelta.X
         );
 
-        var fovRatio = Renderer.RendererContext.FieldOfView / float.RadiansToDegrees(2f * MathF.Atan(3f / 4f));
+        var fovRatio = Renderer.RendererContext.FieldOfView / 90f;
         MouseDeltaPitchYaw *= fovRatio;
         MouseDeltaPitchYaw *= MouseSensitivity;
         MouseDeltaPitchYaw = Vector2.DegreesToRadians(MouseDeltaPitchYaw);

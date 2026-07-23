@@ -83,10 +83,7 @@ internal class RenderTestWindow : GameWindow
         var fileLoader = new GameFileLoader(vpk, mapVpk);
 #pragma warning restore CA2000 // Dispose objects before losing scope
 
-        rendererContext = new RendererContext(fileLoader, logger)
-        {
-            FieldOfView = 75
-        };
+        rendererContext = new RendererContext(fileLoader, logger);
     }
 
     protected override void OnLoad()

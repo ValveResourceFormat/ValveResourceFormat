@@ -14,6 +14,35 @@ namespace ValveResourceFormat.Renderer;
 public class Renderer
 {
     /// <summary>
+    /// Depth range for a single layer of the scene.
+    /// </summary>
+    /// <param name="Start">The starting depth value from the viewers perspective. Note: 1.0 = closest.</param>
+    /// <param name="End">The ending depth value from the viewers perspective. Note: 0.0 = furthest.</param>
+    public record DepthRange(float Start, float End)
+    {
+        /// <summary>The window-space near value.</summary>
+        public float Near { get; } = End;
+
+        /// <summary>The window-space far value.</summary>
+        public float Far { get; } = Start;
+
+        /// <summary>Applies the depth range to the current render state.</summary>
+        public void Apply()
+        {
+            GL.DepthRange(Near, Far);
+        }
+
+        /// <summary>The main scene.</summary>
+        public static readonly DepthRange Scene = new(0.95f, 0.05f);
+
+        /// <summary>Reserved for the first-person viewmodel, always in front of the main scene.</summary>
+        public static readonly DepthRange Viewmodel = new(1.0f, Scene.Start);
+
+        /// <summary>Reserved for the 3D sky, always behind the main scene.</summary>
+        public static readonly DepthRange Sky = new(Scene.End, 0f);
+    }
+
+    /// <summary>
     /// Total time elapsed since the renderer was started, in seconds.
     /// </summary>
     public float Uptime { get; set; }
@@ -32,6 +61,12 @@ public class Renderer
     /// Active camera used for view and projection transforms.
     /// </summary>
     public Camera Camera { get; set; }
+
+    /// <summary>
+    /// Secondary camera used to render the first-person viewmodel layer with its own FOV.
+    /// Synced to <see cref="Camera"/>'s position/orientation each frame; see <see cref="RenderScenesWithView"/>.
+    /// </summary>
+    public Camera ViewmodelCamera { get; }
 
     /// <summary>
     /// Per-frame rendering statistics, including CPU/GPU profiling timings
@@ -146,7 +181,8 @@ public class Renderer
     {
         RendererContext = rendererContext;
         Postprocess = new(rendererContext);
-        Camera = new Camera(rendererContext);
+        Camera = new Camera(rendererContext.FieldOfView);
+        ViewmodelCamera = new Camera();
         Scene = new Scene(rendererContext);
     }
 
@@ -473,7 +509,30 @@ public class Renderer
             GL.PolygonMode(TriangleFace.FrontAndBack, PolygonMode.Line);
         }
 
-        GL.DepthRange(0.05, 1);
+        using (new GLDebugGroup("Viewmodel Opaque"))
+        {
+            var mainCamera = renderContext.Camera;
+
+            ViewmodelCamera.CopyFrom(mainCamera);
+            ViewmodelCamera.FieldOfView = ComputeViewmodelFov();
+            ViewmodelCamera.CreateProjectionMatrix();
+            ViewmodelCamera.RecalculateMatrices();
+
+            DepthRange.Viewmodel.Apply();
+
+            ViewmodelCamera.SetViewConstants(ViewBuffer.Data);
+            Scene.SetFogConstants(ViewBuffer.Data);
+            ViewBuffer.BindBufferBase();
+            ViewBuffer.Update();
+            Scene.SetSceneBuffers();
+
+            renderContext.Camera = ViewmodelCamera;
+            renderContext.Scene = Scene;
+            Scene.RenderViewmodelOpaqueLayer(renderContext);
+            renderContext.Camera = mainCamera;
+        }
+
+        DepthRange.Scene.Apply();
 
         UpdatePerViewGpuBuffers(Scene, renderContext.Camera, DeltaTime);
         Scene.SetSceneBuffers();
@@ -486,7 +545,7 @@ public class Renderer
 
         //using (new GLDebugGroup("Sky Render"))
         {
-            GL.DepthRange(0, 0.05);
+            DepthRange.Sky.Apply();
 
             renderContext.ReplacementShader?.SetUniform1("isSkybox", 1u);
             var skyboxScene = SkyboxScene;
@@ -556,12 +615,35 @@ public class Renderer
             }
 
             renderContext.ReplacementShader?.SetUniform1("isSkybox", 0u);
-            GL.DepthRange(0.05, 1);
+            DepthRange.Scene.Apply();
         }
 
         using (new GLDebugGroup("Main Scene Translucent Render"))
         {
             RenderTranslucentLayer(Scene, renderContext);
+        }
+
+        using (new GLDebugGroup("Viewmodel Translucent"))
+        {
+            var mainCamera = renderContext.Camera;
+
+            DepthRange.Viewmodel.Apply();
+
+            ViewmodelCamera.SetViewConstants(ViewBuffer.Data);
+            Scene.SetFogConstants(ViewBuffer.Data);
+            ViewBuffer.BindBufferBase();
+            ViewBuffer.Update();
+
+            renderContext.Camera = ViewmodelCamera;
+            Scene.RenderViewmodelTranslucentLayer(renderContext);
+            renderContext.Camera = mainCamera;
+
+            DepthRange.Scene.Apply();
+
+            mainCamera.SetViewConstants(ViewBuffer.Data);
+            Scene.SetFogConstants(ViewBuffer.Data);
+            ViewBuffer.BindBufferBase();
+            ViewBuffer.Update();
         }
 
         if (isWireframe)
@@ -585,6 +667,16 @@ public class Renderer
         {
             PerfStats.Active.ResumeTriangleCounter();
         }
+    }
+
+    /// <summary>
+    /// Computes the first-person viewmodel camera's FOV.
+    /// </summary>
+    private float ComputeViewmodelFov()
+    {
+        var fovRatio = RendererContext.FieldOfView / 90f;
+
+        return RendererContext.ViewmodelFieldOfView * fovRatio;
     }
 
     /// <summary>
