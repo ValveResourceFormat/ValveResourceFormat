@@ -1,11 +1,14 @@
 using System.Diagnostics;
 using System.Drawing;
 using System.Linq;
+using System.Runtime.InteropServices;
 using System.Windows.Forms;
 using GUI.Controls;
+using GUI.Types.Audio;
 using GUI.Utils;
 using OpenTK.Graphics.OpenGL;
 using ValveResourceFormat.Renderer;
+using ValveResourceFormat.Renderer.Audio;
 using ValveResourceFormat.Renderer.Input;
 using ValveResourceFormat.Renderer.Materials;
 using ValveResourceFormat.Renderer.Utils;
@@ -25,6 +28,9 @@ namespace GUI.Types.GLViewers
         public Scene Scene { get; }
         public Scene? SkyboxScene => Renderer.SkyboxScene;
         public VrfGuiContext GuiContext;
+
+        /// <summary>Optional sound event player, created by viewers that play scene audio.</summary>
+        protected SoundEventPlayer? soundPlayer;
 
         private bool ShowBaseGrid;
         private bool ShowLightBackground;
@@ -86,6 +92,9 @@ namespace GUI.Types.GLViewers
             physicsTraceRenderer?.Delete();
             physicsTraceRenderer = null;
 
+            soundPlayer?.Dispose();
+            soundPlayer = null;
+
             Renderer?.Dispose();
 
             perfDisplayComboBox?.Dispose();
@@ -134,6 +143,8 @@ namespace GUI.Types.GLViewers
                         UiControl.AddCheckBox("Debug Physics Traces", showPhysicsTraces, v => showPhysicsTraces = v);
                     }
                 }
+
+                UiControl.AddCheckBox("Debug Sound Sources", Renderer.ShowSoundDebug, v => Renderer.ShowSoundDebug = v);
 
                 perfDisplayComboBox = UiControl.AddSelection("Debug Performance", (_, i) => perfDisplay = (PerfDisplay)i);
                 perfDisplayComboBox.Items.AddRange([nameof(PerfDisplay.Off), nameof(PerfDisplay.Stats), nameof(PerfDisplay.Timings)]);
@@ -355,9 +366,68 @@ namespace GUI.Types.GLViewers
             GuiContext.GLPostLoadAction = null;
         }
 
+        /// <summary>
+        /// Creates <see cref="soundPlayer"/> and loads the game's sound events, wiring up the master volume from
+        /// settings and the default mix group volumes. Safe to call once; failures (e.g. no audio device) are logged
+        /// and leave <see cref="soundPlayer"/> null. Intended for scene viewers that want to play scene audio.
+        /// </summary>
+        protected void InitializeSoundPlayer()
+        {
+            if (soundPlayer != null)
+            {
+                return;
+            }
+
+            var timer = Stopwatch.StartNew();
+
+            try
+            {
+                // The player takes ownership of the device and disposes it in its own Dispose (called from ours);
+                // CA2000 cannot see ownership transfer through the constructor, so this is not actually a leak.
+#pragma warning disable CA2000
+                soundPlayer = new SoundEventPlayer(GuiContext, new NAudioDevice(), Scene.RendererContext.Logger);
+#pragma warning restore CA2000
+            }
+            catch (COMException e)
+            {
+                // WASAPI has no usable render endpoint (no audio hardware, headless/RDP session, audio service off).
+                // This is an expected environment, not a bug: run without sound rather than failing the viewer.
+                Log.Warn(nameof(GLSceneViewer), $"No audio device available, sound playback disabled: {e.Message}");
+                return;
+            }
+
+            soundPlayer.LoadSoundEvents();
+            soundPlayer.LoadSoundscapes();
+
+            //const float OcclusionEndMargin = 48f;
+            //soundPlayer.OcclusionTrace = (listener, sound) =>
+            //    Scene.PhysicsWorld?.TraceRay(listener, sound) is { Hit: true } hit
+            //        && Vector3.DistanceSquared(hit.HitPosition, sound) > OcclusionEndMargin * OcclusionEndMargin;
+
+            soundPlayer.Suspended = true; // start with fade-in
+            soundPlayer.Volume = Settings.Config.Volume;
+            soundPlayer.MixGroupVolumes["Weapons"] = 0.7f;
+            soundPlayer.MixGroupVolumes["Foley"] = 0.5f;
+            soundPlayer.MixGroupVolumes["Footsteps"] = 0.4f;
+            soundPlayer.MixGroupVolumes["PlayerDamage"] = 0.4f;
+            soundPlayer.DefaultMixGroupVolume = 0.1f;
+        }
+
+        public override void OnDetachedFromRenderLoop()
+        {
+            base.OnDetachedFromRenderLoop();
+            soundPlayer?.Suspended = true;
+        }
+
         protected override void OnUpdate(float frameTime)
         {
             base.OnUpdate(frameTime);
+
+            if (soundPlayer != null)
+            {
+                soundPlayer.Volume = Settings.Config.Volume;
+                soundPlayer.Suspended = Paused;
+            }
 
             Input.EnableMouseLook = true;
             if (loadedDefaultLighting && (CurrentlyPressedKeys & TrackedKeys.Control) != 0)
@@ -404,6 +474,11 @@ namespace GUI.Types.GLViewers
                 }
 
                 GrabbedMouse = !Input.NoClip && !Paused;
+            }
+
+            if (soundPlayer != null && !Paused)
+            {
+                soundPlayer.Update(Renderer.Camera);
             }
         }
 

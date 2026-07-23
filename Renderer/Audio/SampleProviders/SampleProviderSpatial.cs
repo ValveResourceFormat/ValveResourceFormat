@@ -1,0 +1,97 @@
+namespace ValveResourceFormat.Renderer.Audio.SampleProviders;
+
+/// <summary>
+/// Applies per-ear volumes to a stereo stream based on the listener's orientation.
+/// Volumes are interpolated across each buffer to avoid zipper noise.
+/// </summary>
+public abstract class SampleProviderSpatial : SampleProvider2D
+{
+    /// <summary>Gets the current left ear gain.</summary>
+    public float LeftVolume { get; protected set; }
+    /// <summary>Gets the current right ear gain.</summary>
+    public float RightVolume { get; protected set; }
+
+    /// <summary>Gets or sets the left ear gain used for the previous buffer.</summary>
+    protected float LastLeftVolume { get; set; }
+    /// <summary>Gets or sets the right ear gain used for the previous buffer.</summary>
+    protected float LastRightVolume { get; set; }
+
+    /// <summary>Creates a spatializer around the given source.</summary>
+    protected SampleProviderSpatial(IAudioSampleProvider provider) : base(provider)
+    {
+    }
+
+    /// <inheritdoc/>
+    public override int Read(float[] buffer, int offset, int count)
+    {
+        var read = Provider.Read(buffer, offset, count);
+
+        // Interpolate across the samples actually returned, so the final written sample reaches the
+        // target volume even when the provider ends mid-buffer
+        var lastIndex = Math.Max(read - 1, 1);
+
+        for (var i = 0; i < read; i++)
+        {
+            var left = i % 2 == 0;
+            var lastVolume = left ? LastLeftVolume : LastRightVolume;
+            var volume = left ? LeftVolume : RightVolume;
+            buffer[offset + i] = float.Lerp(buffer[offset + i] * lastVolume, buffer[offset + i] * volume, (float)i / lastIndex);
+        }
+
+        LastLeftVolume = LeftVolume;
+        LastRightVolume = RightVolume;
+
+        if (read < count)
+        {
+            Over();
+        }
+
+        return read;
+    }
+
+    private bool volumesInitialized;
+
+    /// <summary>
+    /// Recomputes the per-ear volumes for the given listener. Returns whether the sound is currently audible.
+    /// </summary>
+    public virtual bool Update(Vector3 listenerPosition, Vector3 rightEarDirection)
+    {
+        var dot = GetDirectionMix(listenerPosition, rightEarDirection);
+
+        // The near ear plays at full volume and the far ear falls off with the angle; without the
+        // cap a sound hard to one side would play at double volume in the near ear and sound
+        // closer (louder) than a centered sound at the same distance
+        LeftVolume = Math.Clamp(-dot + 1, 0, 1) * Volume;
+        RightVolume = Math.Clamp(dot + 1, 0, 1) * Volume;
+        return true;
+    }
+
+    /// <summary>
+    /// Snaps the interpolation state to the current volumes on the first update.
+    /// </summary>
+    protected void SnapVolumesOnFirstUpdate()
+    {
+        if (!volumesInitialized)
+        {
+            volumesInitialized = true;
+            LastLeftVolume = LeftVolume;
+            LastRightVolume = RightVolume;
+        }
+    }
+
+    /// <summary>
+    /// Resets the interpolation state so the next update snaps to its target instead of fading in from
+    /// wherever this provider last left off. Call when reusing this instance for a new (e.g. retriggered) sound.
+    /// </summary>
+    public virtual void ResetInterpolation()
+    {
+        volumesInitialized = false;
+        LastLeftVolume = 0f;
+        LastRightVolume = 0f;
+    }
+
+    /// <summary>
+    /// Returns how much the sound leans towards the right ear (-1 fully left, 1 fully right).
+    /// </summary>
+    protected abstract float GetDirectionMix(Vector3 listenerPosition, Vector3 rightEarDirection);
+}

@@ -1,3 +1,4 @@
+using System.IO;
 using ValveResourceFormat.CompiledShader;
 
 namespace ValveResourceFormat.IO
@@ -24,5 +25,11 @@ namespace ValveResourceFormat.IO
         /// Always returns null.
         /// </remarks>
         public ShaderCollection? LoadShader(string shaderName) => null;
+
+        /// <inheritdoc/>
+        /// <remarks>
+        /// Always returns null.
+        /// </remarks>
+        public Stream? GetFileStream(string file) => null;
     }
 }

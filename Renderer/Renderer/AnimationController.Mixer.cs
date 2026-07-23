@@ -1,6 +1,8 @@
 using System.Diagnostics;
 using ValveResourceFormat.IO;
 using ValveResourceFormat.ResourceTypes.ModelAnimation;
+using ValveResourceFormat.ResourceTypes.ModelAnimation2;
+using ValveResourceFormat.Serialization.KeyValues;
 
 namespace ValveResourceFormat.Renderer
 {
@@ -112,6 +114,225 @@ namespace ValveResourceFormat.Renderer
         }
 
         /// <summary>
+        /// Raised for every clip event (CNmSoundEvent, CNmIDEvent, CNmParticleEvent, ...) whose start time is crossed during playback.
+        /// </summary>
+        public event Action<NmClipEvent>? ClipEventFired;
+
+        /// <summary>
+        /// A clip sound with a duration window that may need to be cut short: either at the end of its
+        /// event window (m_bContinuePlayingSoundAtDurationEnd) or when the animation is interrupted
+        /// before the interruption threshold (m_flDurationInterruptionThreshold).
+        /// </summary>
+        private sealed record ActiveClipSound(
+            Audio.SoundEvent Handle,
+            Clip Clip,
+            NmSoundEvent Event,
+            float FireTime);
+
+        private readonly List<ActiveClipSound> activeClipSounds = [];
+
+        /// <summary>
+        /// Returns whether <paramref name="eventTime"/> was crossed advancing from <paramref name="previousTime"/> to
+        /// <paramref name="newTime"/> on a timeline that wraps at <paramref name="duration"/>, handling loop wrap-around.
+        /// <paramref name="clipFinished"/> treats the interval as closed, so an event at the clip's exact end still fires.
+        /// </summary>
+        private static bool HasEventCrossed(float eventTime, float duration, float previousTime, float newTime, bool clipFinished)
+        {
+            var advancedFullLoop = newTime - previousTime >= duration;
+            var oldTime = previousTime % duration;
+            var currentTime = newTime % duration;
+
+            // Half-open interval [oldTime, currentTime) so events at exactly 0 fire when the clip starts
+            return advancedFullLoop
+                || (clipFinished && eventTime >= oldTime)
+                || (oldTime <= currentTime
+                    ? eventTime >= oldTime && eventTime < currentTime
+                    : eventTime >= oldTime || eventTime < currentTime);
+        }
+
+        /// <summary>
+        /// Fires clip events whose start time was crossed advancing from <paramref name="previousTime"/> to <paramref name="newTime"/>, handling loop wrap-around.
+        /// <paramref name="clipFinished"/> treats the interval as closed, so an event at the clip's exact end still fires.
+        /// </summary>
+        private void FireClipEvents(Clip clip, float previousTime, float newTime, bool clipFinished = false)
+        {
+            var clipEvents = clip.Animation.Clip?.Events;
+            if (clipEvents is not { Length: > 0 } || clip.Animation.Clip!.Duration is not (var duration and > 0f))
+            {
+                return;
+            }
+
+            var currentTime = newTime % duration;
+
+            foreach (var clipEvent in clipEvents)
+            {
+                if (!HasEventCrossed(clipEvent.StartTime, duration, previousTime, newTime, clipFinished))
+                {
+                    continue;
+                }
+
+                ClipEventFired?.Invoke(clipEvent);
+
+                if (PlaySoundEvents && clipEvent is NmSoundEvent soundEvent)
+                {
+                    // The event fired somewhere inside (previousTime, newTime]: reconstruct its actual
+                    // time on the clip's unwrapped timeline so duration windows measure from the event
+                    // itself, not from the end of the frame that crossed it
+                    var fireTime = clipFinished && clipEvent.StartTime >= currentTime
+                        // An end-of-clip event fires at the moment the clip finishes; the wrap formula
+                        // below would place it a whole loop in the past
+                        ? newTime
+                        : newTime - ((currentTime - clipEvent.StartTime + duration) % duration);
+
+                    PlayClipSound(clip, soundEvent, fireTime);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Fires "AE_CL_PLAYSOUND" events from a legacy (non-<see cref="ResourceTypes.ModelAnimation2.AnimationClip"/>)
+        /// animation's frame-based event list. The sound event name is the "name" key of the event's
+        /// m_EventData sub-collection, not m_sOptions (which is unused for this event type). Unlike
+        /// <see cref="NmSoundEvent"/>, these have no duration window - they are fire-and-forget.
+        /// </summary>
+        private void FireLegacyAnimationEvents(Clip clip, float previousTime, float newTime, bool clipFinished = false)
+        {
+            var events = clip.Animation.Events;
+            if (!PlaySoundEvents || events.Length == 0 || clip.Animation.Fps <= 0f)
+            {
+                return;
+            }
+
+            var duration = clip.Animation.FrameCount / clip.Animation.Fps;
+            if (duration <= 0f)
+            {
+                return;
+            }
+
+            foreach (var animEvent in events)
+            {
+                if (animEvent.Name != "AE_CL_PLAYSOUND")
+                {
+                    continue;
+                }
+
+                var soundName = animEvent.EventData?.GetStringProperty("name");
+                if (string.IsNullOrEmpty(soundName))
+                {
+                    continue;
+                }
+
+                var eventTime = animEvent.Frame / clip.Animation.Fps;
+                if (!HasEventCrossed(eventTime, duration, previousTime, newTime, clipFinished))
+                {
+                    continue;
+                }
+
+                Sound.Play(soundName, Transform.Translation);
+            }
+        }
+
+        /// <summary>
+        /// Pre-decodes every sound event a clip can fire. No-op when no sound player is active.
+        /// </summary>
+        private static void PreCacheClipSounds(Animation animation)
+        {
+            var events = animation.Clip?.Events;
+            if (events == null)
+            {
+                return;
+            }
+
+            foreach (var clipEvent in events)
+            {
+                if (clipEvent is NmSoundEvent soundEvent)
+                {
+                    Sound.Cache(soundEvent.Name);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Pre-decodes every sound an "AE_CL_PLAYSOUND" legacy animation event can fire. No-op when no sound player is active.
+        /// </summary>
+        private static void PreCacheLegacyAnimationEventSounds(Animation animation)
+        {
+            foreach (var animEvent in animation.Events)
+            {
+                if (animEvent.Name != "AE_CL_PLAYSOUND")
+                {
+                    continue;
+                }
+
+                var soundName = animEvent.EventData?.GetStringProperty("name");
+                if (!string.IsNullOrEmpty(soundName))
+                {
+                    Sound.Cache(soundName);
+                }
+            }
+        }
+
+        private void PlayClipSound(Clip clip, NmSoundEvent soundEvent, float fireTime)
+        {
+            if (soundEvent.Relevance == "ServerOnly")
+            {
+                return;
+            }
+
+            // "EntityEyePos" is the listener itself, play it unspatialized; "EntityPos" plays at the entity
+            Vector3? position = soundEvent.Position == "EntityPos" ? Transform.Translation : null;
+
+            var handle = Sound.Play(soundEvent.Name, position);
+
+            if (handle != null && soundEvent.Duration > 0f)
+            {
+                activeClipSounds.Add(new ActiveClipSound(handle, clip, soundEvent, fireTime));
+            }
+        }
+
+        /// <summary>
+        /// Enforces the duration windows of playing clip sounds: cuts sounds at the end of their window unless
+        /// they are flagged to continue, and cuts sounds whose animation was interrupted before the threshold.
+        /// </summary>
+        private void UpdateActiveClipSounds()
+        {
+            for (var i = activeClipSounds.Count - 1; i >= 0; i--)
+            {
+                var (handle, clip, soundEvent, fireTime) = activeClipSounds[i];
+
+                if (!handle.Started)
+                {
+                    // The sound already finished on its own
+                    activeClipSounds.RemoveAt(i);
+                    continue;
+                }
+
+                // Clip removed, blended out, or restarted (time jumped backwards) counts as an interruption
+                var interrupted = !clips.ContainsValue(clip) || clip.Weight <= 0f || clip.Time < fireTime;
+                var elapsed = clip.Time - fireTime;
+
+                if (interrupted)
+                {
+                    if (elapsed < soundEvent.Duration * soundEvent.DurationInterruptionThreshold)
+                    {
+                        handle.Stop();
+                    }
+
+                    activeClipSounds.RemoveAt(i);
+                }
+                else if (elapsed >= soundEvent.Duration)
+                {
+                    if (!soundEvent.ContinuePlayingSoundAtDurationEnd)
+                    {
+                        handle.Stop();
+                    }
+
+                    activeClipSounds.RemoveAt(i);
+                }
+            }
+        }
+
+        /// <summary>
         /// Updates time and weights for all active clips during playback.
         /// </summary>
         /// <param name="timeStep">Elapsed time in seconds since the last update.</param>
@@ -139,7 +360,10 @@ namespace ValveResourceFormat.Renderer
             {
                 if (!clip.IsPaused && clip.Animation.FrameCount > 1)
                 {
+                    var previousTime = clip.Time;
                     clip.Time += timeStep;
+
+                    var clipFinished = false;
 
                     if (!clip.Looping)
                     {
@@ -150,10 +374,22 @@ namespace ValveResourceFormat.Renderer
                         {
                             clip.IsPaused = true;
                             clip.Frame = lastFrame;
+                            // Clamp the overshoot: FireClipEvents wraps time modulo the clip duration,
+                            // so time past the end would re-fire events near the start of the clip
+                            clip.Time = maxTime;
+                            clipFinished = true;
                         }
+                    }
+
+                    if (clip.Weight > 0f)
+                    {
+                        FireClipEvents(clip, previousTime, clip.Time, clipFinished);
+                        FireLegacyAnimationEvents(clip, previousTime, clip.Time, clipFinished);
                     }
                 }
             }
+
+            UpdateActiveClipSounds();
 
             if (activeClip.IsTimeBasedTransition && previousClip != null)
             {
@@ -317,6 +553,12 @@ namespace ValveResourceFormat.Renderer
                 var isAdditive = animation.Clip?.IsAdditive == true;
                 newClip = new Clip(animation) { Looping = Looping, BlendTime = blendTime, IsAdditive = isAdditive };
                 clips[animName] = newClip;
+
+                if (PlaySoundEvents)
+                {
+                    PreCacheClipSounds(animation);
+                    PreCacheLegacyAnimationEventSounds(animation);
+                }
             }
             else
             {

@@ -908,6 +908,15 @@ public class Renderer
     }
 
     /// <summary>
+    /// Gets or sets whether the vsnd name of every active positioned sound is billboarded in the world.
+    /// </summary>
+    public bool ShowSoundDebug { get; set; }
+
+    // Reused buffers for the sound debug billboards and 2D (non-positioned) sound list
+    private readonly List<(Vector3 Position, string Text)> debugWorldSounds = [];
+    private readonly List<string> debugFlatSounds = [];
+
+    /// <summary>
     /// Releases GPU resources owned by this renderer.
     /// </summary>
     public void Dispose()
@@ -960,6 +969,50 @@ public class Renderer
 
         Scene.CollectSceneDrawCalls(updateContext.Camera, LockedCullFrustum);
         SkyboxScene?.CollectSceneDrawCalls(updateContext.Camera, LockedCullFrustum);
+
+        if (ShowSoundDebug && Sound.Player != null)
+        {
+            debugWorldSounds.Clear();
+            debugFlatSounds.Clear();
+            Sound.Player.CollectDebugSounds(debugWorldSounds, debugFlatSounds);
+
+            foreach (var (position, text) in debugWorldSounds)
+            {
+                updateContext.TextRenderer.AddTextBillboard(position, new TextRenderer.TextRenderRequest
+                {
+                    Scale = 8f,
+                    Text = text,
+                    CenterHorizontal = true,
+                    Color = new Color32(0.4f, 1f, 0.4f, 1f),
+                }, updateContext.Camera);
+            }
+
+            if (debugFlatSounds.Count > 0)
+            {
+                const float scale = 10f;
+                const float lineHeight = scale * 1.5f;
+                const float marginRight = 8f;
+                const float marginBottom = 8f;
+
+                // Right edge every line is aligned to, so the ".vsnd" suffix lines up flush against the screen corner.
+                var cornerX = updateContext.Camera.WindowSize.X - marginRight;
+                var y = updateContext.Camera.WindowSize.Y - marginBottom - (debugFlatSounds.Count * lineHeight);
+
+                foreach (var text in debugFlatSounds)
+                {
+                    updateContext.TextRenderer.AddText(new TextRenderer.TextRenderRequest
+                    {
+                        X = cornerX - TextRenderer.MeasureTextWidth(text, scale),
+                        Y = y,
+                        Scale = scale,
+                        Text = text,
+                        Color = new Color32(0.4f, 1f, 1f, 1f),
+                    });
+
+                    y += lineHeight;
+                }
+            }
+        }
     }
 
     void EnsureDepthPyramidSize(int width, int height)

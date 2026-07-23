@@ -69,6 +69,9 @@ public class ViewmodelSceneNode : ModelSceneNode
     private const float InAirExitFade = 0.1f;
     private float previousUptime;
 
+    // Animations stay paused until the player leaves noclip, otherwise clips fire sound events while nothing is visible.
+    private bool Active;
+
     /// <summary>
     /// Selects the previously selected item (used for quick weapon switching).
     /// </summary>
@@ -203,6 +206,64 @@ public class ViewmodelSceneNode : ModelSceneNode
         }
     }
 
+    // Attack sounds. In the game these come from weapons.vdata (m_aShootSounds) and knife weapon code;
+    // our two guns are silenced, so they use their WEAPON_SOUND_SPECIAL1 entries.
+    private const string RifleAttackSound = "Weapon_M4A1.Silenced";      // weapon_m4a1_silencer
+    private const string PistolAttackSound = "Weapon_USP.SilencedShot";  // weapon_usp_silencer
+    // The shot samples are hot, heavily compressed recordings; play them tamer than their authored volume.
+    // Same for the knife wall hit, which is authored at volume 1.0 (a map-audible gameplay cue).
+    // Local player shots play unspatialized (head-relative, like the game presents your own gunfire).
+    private const float AttackSoundVolume = 0.5f;
+    private const string KnifeSlashSound = "Weapon_Knife.Slash";
+    private const string KnifeHeavySwishSound = "Weapon_Knife.Swish.Heavy";
+    private const string KnifeHitWallSound = "Weapon_Knife.HitWall";
+    private const float KnifeLightRange = 48f; // cs_weapon_knife.cpp: slash (primary) reaches further
+    private const float KnifeHeavyRange = 32f; // than the stab (secondary)
+
+    // CKnife::Swing retries a missed line trace with a swept "head hull", making the swipe radial
+    private static readonly AABB KnifeSwingHull = AABB.FromCenteredSize(new Vector3(32f, 32f, 36f));
+
+    private void PlayAttackSound(UserInput input, bool heavyKnifeAttack)
+    {
+        switch (SelectedItemIndex)
+        {
+            case 1:
+                Sound.Play(RifleAttackSound, volume: AttackSoundVolume);
+                break;
+
+            case 2:
+                Sound.Play(PistolAttackSound, volume: AttackSoundVolume);
+                break;
+
+            case 3:
+                var camera = input.Camera;
+                var range = heavyKnifeAttack ? KnifeHeavyRange : KnifeLightRange;
+                var from = camera.Location;
+                var to = from + camera.Forward * range;
+
+                var trace = input.PhysicsWorld?.TraceRay(from, to);
+
+                if (trace is not { Hit: true })
+                {
+                    trace = input.PhysicsWorld?.TraceAABB(from, to, KnifeSwingHull, string.Empty);
+                }
+
+                if (trace is { Hit: true } hit)
+                {
+                    Sound.Play(KnifeHitWallSound, hit.HitPosition, volume: AttackSoundVolume);
+                }
+                else
+                {
+                    Sound.Play(heavyKnifeAttack ? KnifeHeavySwishSound : KnifeSlashSound);
+                }
+
+                break;
+
+            default:
+                break;
+        }
+    }
+
     private (float fire, float altFire) GetWeaponFireDelays()
         => SelectedItemIndex switch
         {
@@ -246,7 +307,10 @@ public class ViewmodelSceneNode : ModelSceneNode
         SetState(AnimationState.Idle);
         TargetTransform = Transform;
 
+        AnimationController.PlaySoundEvents = true;
+
         var ag2Controller = AnimationController.CurrentSubController!.Value.Handler;
+        ag2Controller.PlaySoundEvents = true;
         PrimarySkeletonDebug = new SkeletonSceneNode(Scene, ag2Controller, ag2Controller.Skeleton)
         {
             LayerName = WorldLayerName,
@@ -459,6 +523,8 @@ public class ViewmodelSceneNode : ModelSceneNode
     /// <param name="uptime"></param>
     public void ProcessInput(UserInput input, float uptime)
     {
+        Active = !input.NoClip;
+
         var distanceFromFirstPersonEyes = Vector3.Distance(input.Camera.Location, input.PlayerMovement.EyePosition);
 
         var showViewmodelDistance = distanceFromFirstPersonEyes < 35f;
@@ -736,6 +802,7 @@ public class ViewmodelSceneNode : ModelSceneNode
         if (requestedFire && attackCooldown <= 0f)
         {
             SetState(AnimationState.Attack);
+            PlayAttackSound(input, heavyKnifeAttack: false);
             attackCooldown = fireDelay;
             if (SelectedItemIndex != 3 && muzzleFlashParticle != null)
             {
@@ -746,6 +813,13 @@ public class ViewmodelSceneNode : ModelSceneNode
         else if (input.Holding(TrackedKeys.MouseRight) && alternateAttackCooldown <= 0f)
         {
             SetState(AnimationState.AlternateAttack);
+
+            // Rifle/pistol alternate attack is the silencer detach, its sounds come from the clip
+            if (SelectedItemIndex == 3)
+            {
+                PlayAttackSound(input, heavyKnifeAttack: true);
+            }
+
             alternateAttackCooldown = altFireDelay;
         }
 
@@ -784,6 +858,11 @@ public class ViewmodelSceneNode : ModelSceneNode
             Transform *= Matrix4x4.CreateScale(0);
         }
 
+        if (!Active)
+        {
+            return;
+        }
+
         if (Legs != null)
         {
             Legs.AnimationController.EnableFirstPersonLegs = FirstPersonMode;
@@ -802,8 +881,8 @@ public class ViewmodelSceneNode : ModelSceneNode
         attackCooldown = MathF.Max(0f, attackCooldown - context.Timestep);
         alternateAttackCooldown = MathF.Max(0f, alternateAttackCooldown - context.Timestep);
 
-        var active = AnimationController.ActiveAnimation;
-        if (active != null)
+        var activeAnimation = AnimationController.ActiveAnimation;
+        if (activeAnimation != null)
         {
             var frame = AnimationController.Frame;
 

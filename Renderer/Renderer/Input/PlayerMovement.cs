@@ -1,5 +1,4 @@
-
-using System.Diagnostics;
+﻿using System.Diagnostics;
 
 namespace ValveResourceFormat.Renderer.Input;
 
@@ -78,6 +77,25 @@ public class PlayerMovement
     private bool HoldingShift => Input.Holding(TrackedKeys.Shift);
 
     private UserInput Input { get; }
+
+    // Movement sound events (CS2, game_sounds_footsteps.vsndevts / game_sounds_player.vsndevts).
+    // Footstep and land events are per-material (CT_<Material>.StepLeft / Land_<Material>.StepLeft);
+    // physics traces do not return surface materials yet, so default to concrete.
+    private const string FootstepSoundEvent = "CT_Concrete.StepLeft";
+    private const string JumpSoundEvent = "Default.WalkJump";
+    private const string LandSoundEvent = "Land_Concrete.StepLeft";     // Chains Land.Thud as a child event
+    private const string GearSoundEvent = "Gear.JumpLand.CT";
+    private const float GearVolume = 0.1f;                              // Gear events have volume 0 in data, the game supplies it
+    private const string FallDamageSoundEvent = "Player.DamageFall";
+
+    private const float StepSoundVelWalk = 90f;           // GetStepSoundVelocities velwalk (standing)
+    private const float StepSoundVelRun = 220f;           // GetStepSoundVelocities velrun (standing)
+    private const float WalkingStepVolume = 0.8f;         // Slightly quieter steps below run speed (the authored volume is 0.9)
+    private const float LandMinFallSpeed = 290f;          // PLAYER_MAX_SAFE_FALL_SPEED / 2 - quieter landings are silent (a normal jump lands at ~302)
+    private const float FallDamageSpeed = 580f;           // PLAYER_MAX_SAFE_FALL_SPEED
+
+    private float stepSoundTime;
+    private readonly List<Audio.SoundEvent> activeMovementSounds = [];
     private Rubikon? Physics => Input.PhysicsWorld;
 
     /// <summary>
@@ -214,7 +232,18 @@ public class PlayerMovement
                 {
                     PreventBunnyJumping();
                 }
+
+                var loudTakeoffFootstep = Velocity.Length() > WalkSpeedModifier * MaxSpeedValue;
+
                 CheckJump(deltaTime);
+
+                if (loudTakeoffFootstep)
+                {
+                    PlaySound(FootstepSoundEvent, position, playerHull);
+                }
+
+                PlaySound(JumpSoundEvent, position, playerHull);
+                PlaySound(GearSoundEvent, position, playerHull, GearVolume);
             }
 
             // Calculate wish velocity from input (with speed modifiers for duck/crouch)
@@ -250,6 +279,10 @@ public class PlayerMovement
             // Check velocity for NaN/bounds
             CheckVelocity(ref position);
 
+            // Landing happens inside the move below, capture the air state and fall speed before it
+            var wasOnGroundBeforeMove = OnGround;
+            var fallSpeedBeforeMove = -Velocity.Z;
+
             // Update position based on velocity - use lerped hull for collision
             position = TryPlayerMove(position, Velocity * deltaTime, playerHull);
 
@@ -262,8 +295,31 @@ public class PlayerMovement
             // Recategorize position after movement (now that position is updated)
             CategorizePosition(ref position, playerHull);
 
+            if (!wasOnGroundBeforeMove && OnGround && fallSpeedBeforeMove > LandMinFallSpeed)
+            {
+                // A landing that immediately turns into another jump (perfect bhop) skips the land thud
+                var willBunnyHop = RequestedJump || (AutoBunnyHop && Input.Holding(TrackedKeys.Space));
+
+                if (!willBunnyHop)
+                {
+                    // Like CS:GO CheckFalling
+                    PlaySound(LandSoundEvent, position, playerHull);
+                    PlaySound(GearSoundEvent, position, playerHull, GearVolume);
+                }
+
+                // The pain grunt plays even when bhopping - a hard fall hurts either way
+                if (fallSpeedBeforeMove >= FallDamageSpeed)
+                {
+                    PlaySound(FallDamageSoundEvent, position, playerHull);
+                }
+
+                SetStepSoundTime(walking: false);
+            }
+
             // Check velocity again for NaN/bounds
             CheckVelocity(ref position);
+
+            UpdateStepSounds(position, playerHull, deltaTime);
 
             // FinishGravity - add remaining gravity at end of frame
             if (!OnGround)
@@ -288,6 +344,8 @@ public class PlayerMovement
         BlendedEyeHeight = ViewHeightStanding + (ViewHeightDucked - ViewHeightStanding) * CrouchBlend;
         EyePosition = Position + Vector3.UnitZ * BlendedEyeHeight;
         camera.Location = EyePosition;
+
+        UpdateMovementSounds();
 
         // Draw player AABB for debugging
         /*
@@ -663,6 +721,110 @@ public class PlayerMovement
         // FinishGravity is called after jump in Source
         // This subtracts 0.5 * gravity * dt
         Velocity = new Vector3(Velocity.X, Velocity.Y, Velocity.Z - GravityValue * deltaTime * 0.5f);
+    }
+
+    /// <summary>
+    /// Plays footstep sounds periodically based on ground speed, like CS: an immediate step when
+    /// starting to move, then a cadence that speeds up with movement speed.
+    /// </summary>
+    private void UpdateStepSounds(Vector3 position, AABB playerHull, float deltaTime)
+    {
+        // CCSPlayer::UpdateStepSound gate: no footsteps below walk speed or while shift-walking
+        var speedSqr = Velocity.LengthSquared();
+        var walkSpeed = MaxSpeedValue * WalkSpeedModifier; // CS_PLAYER_SPEED_RUN * CS_PLAYER_SPEED_WALK_MODIFIER
+
+        if (speedSqr < walkSpeed * walkSpeed || (HoldingShift && !HoldingCtrl))
+        {
+            if (speedSqr < 10f)
+            {
+                // Standing still keeps the timer armed, so moving again does not step instantly
+                SetStepSoundTime(walking: false);
+            }
+
+            return;
+        }
+
+        // CBasePlayer::UpdateStepSound
+        stepSoundTime = Math.Max(stepSoundTime - deltaTime, 0f);
+        if (stepSoundTime > 0f)
+        {
+            return;
+        }
+
+        var speed = MathF.Sqrt(speedSqr);
+        var groundSpeed = new Vector2(Velocity.X, Velocity.Y).Length();
+
+        var movingFastEnough = speed >= StepSoundVelWalk;
+        var movingAlongGround = groundSpeed > 0.0001f;
+
+        if (!movingFastEnough || !OnGround || !movingAlongGround)
+        {
+            return;
+        }
+
+        var walking = speed < StepSoundVelRun;
+        SetStepSoundTime(walking);
+
+        // fvol from the original: walking pace plays quiet steps, running full
+        PlaySound(FootstepSoundEvent, position, playerHull, walking ? WalkingStepVolume : null);
+    }
+
+    /// <summary>
+    /// 400ms walking, 300ms running, +100ms ducked.
+    /// </summary>
+    private void SetStepSoundTime(bool walking)
+    {
+        stepSoundTime = walking ? 0.4f : 0.3f;
+
+        if (HoldingCtrl)
+        {
+            stepSoundTime += 0.1f;
+        }
+    }
+
+    private void PlaySound(string soundEventName, Vector3 position, AABB playerHull, float? volume = null)
+    {
+        // Convert from AABB center to feet position; the sound event applies its own position offset
+        var feetPosition = position - new Vector3(0, 0, playerHull.Size.Z / 2);
+        var handle = Sound.Play(soundEventName, feetPosition, volume: volume);
+
+        if (handle != null)
+        {
+            activeMovementSounds.Add(handle);
+        }
+    }
+
+    /// <summary>
+    /// Attaches a playing sound so its position follows the player. The sound event's own position offset
+    /// (e.g. +60z for gun shots) stays applied on top.
+    /// </summary>
+    public void AttachSound(Audio.SoundEvent? handle)
+    {
+        if (handle != null)
+        {
+            activeMovementSounds.Add(handle);
+        }
+    }
+
+    /// <summary>
+    /// Tracks the player's position for our movement sounds ("use_entity_position_if_local_player" in the sound
+    /// event data). Left at their emit position they would fall behind at run speed and get louder while receding,
+    /// since the footstep distance-volume curve peaks at ~116 units.
+    /// </summary>
+    private void UpdateMovementSounds()
+    {
+        for (var i = activeMovementSounds.Count - 1; i >= 0; i--)
+        {
+            var handle = activeMovementSounds[i];
+
+            if (!handle.Playing)
+            {
+                activeMovementSounds.RemoveAt(i);
+                continue;
+            }
+
+            handle.Position = Position;
+        }
     }
 
     /// <summary>

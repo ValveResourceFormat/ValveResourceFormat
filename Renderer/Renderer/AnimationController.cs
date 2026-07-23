@@ -13,6 +13,29 @@ namespace ValveResourceFormat.Renderer
         /// <summary>Gets or sets the playback speed multiplier applied to the animation timestep.</summary>
         public float FrametimeMultiplier { get; set; } = 1.0f;
 
+        /// <summary>
+        /// Gets or sets whether sound events embedded in animation clips (CNmSoundEvent), or "AE_CL_PLAYSOUND"
+        /// animation events on legacy (non-clip) animations, are played during playback.
+        /// Setting this to true pre-caches the sound events of clips already loaded.
+        /// </summary>
+        public bool PlaySoundEvents
+        {
+            get => field;
+            set
+            {
+                field = value;
+
+                if (value)
+                {
+                    foreach (var clip in clips.Values)
+                    {
+                        PreCacheClipSounds(clip.Animation);
+                        PreCacheLegacyAnimationEventSounds(clip.Animation);
+                    }
+                }
+            }
+        }
+
         private bool forceUpdate;
 
         /// <summary>
