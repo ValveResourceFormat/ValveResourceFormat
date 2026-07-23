@@ -27,11 +27,13 @@ public class ThemedComboBox : ComboBox
     {
         base.OnCreateControl();
 
-        DropDownBackColor = Parent?.BackColor ?? Themer.CurrentThemeColors.AppMiddle;
+        // Theme constants rather than a frozen Parent colour: this runs before the theming
+        // walk has settled the parents, and nothing re-themes the dropdown list afterwards.
+        DropDownBackColor = Themer.CurrentThemeColors.AppMiddle;
         DropDownForeColor = Themer.CurrentThemeColors.Contrast;
         HighlightColor = Themer.CurrentThemeColors.Accent;
         HeaderColor = Themer.CurrentThemeColors.Border;
-        BackColor = Parent?.BackColor ?? Color.Red;
+        BackColor = Parent?.BackColor ?? Themer.CurrentThemeColors.AppMiddle;
         ForeColor = Themer.CurrentThemeColors.Contrast;
     }
 

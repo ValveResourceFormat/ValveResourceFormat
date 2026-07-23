@@ -16,6 +16,11 @@ internal class ThemedContextMenuStrip : ContextMenuStrip
         container.Add(this);
     }
 
+    // Caller owns disposal.
+    public ThemedContextMenuStrip() : base()
+    {
+    }
+
     public new Size ImageScalingSize
     {
         get => base.ImageScalingSize;

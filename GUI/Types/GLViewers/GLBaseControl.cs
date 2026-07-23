@@ -130,19 +130,22 @@ internal abstract class GLBaseControl : IDisposable
         UiControl.SuspendLayout();
 
 #if DEBUG // We want reload shaders to be the top most button
-        var button = new ThemedButton
+        if (ShowReloadShadersButton)
         {
-            Text = "Reload shaders",
-            AutoSize = true,
-        };
-        button.Click += OnButtonClick;
+            var button = new ThemedButton
+            {
+                Text = "Reload shaders",
+                AutoSize = true,
+            };
+            button.Click += OnButtonClick;
 
-        void OnButtonClick(object? s, EventArgs e)
-        {
-            ShaderHotReload.ReloadShaders();
+            void OnButtonClick(object? s, EventArgs e)
+            {
+                ShaderHotReload.ReloadShaders();
+            }
+
+            UiControl.AddControl(button);
         }
-
-        UiControl.AddControl(button);
 #endif
 
         AddUiControls();
@@ -170,6 +173,10 @@ internal abstract class GLBaseControl : IDisposable
     {
         GLControl?.Invalidate();
     }
+
+    /// <summary>Whether the debug sidebar gets the shader hot-reload button; viewers that never
+    /// compile scene shaders turn it off.</summary>
+    protected virtual bool ShowReloadShadersButton => true;
 
     protected virtual void AddUiControls()
     {

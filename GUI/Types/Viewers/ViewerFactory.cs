@@ -138,6 +138,12 @@ static class ViewerFactory
             await viewer.LoadAsync(stream).ConfigureAwait(false);
             return viewer;
         }
+        else if (TextKeyValues3.IsAccepted(magic, magicResourceVersion))
+        {
+            var viewer = new TextKeyValues3(vrfGuiContext);
+            await viewer.LoadAsync(stream).ConfigureAwait(false);
+            return viewer;
+        }
 
         var byteViewer = new ByteViewer(vrfGuiContext);
         await byteViewer.LoadAsync(stream).ConfigureAwait(false);

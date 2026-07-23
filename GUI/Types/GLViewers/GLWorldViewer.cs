@@ -35,6 +35,10 @@ namespace GUI.Types.GLViewers
         private List<Matrix4x4> CameraMatrices = [];
         private WorldNodeLoader? LoadedWorldNode;
         public WorldLoader? LoadedWorld;
+        private EntityLump.Entity? entityInfoEntity;
+
+        /// <summary>Jump from the entity info popup to the entity's node in the I/O graph tab, when the map has one.</summary>
+        public Func<EntityLump.Entity, bool>? ShowEntityInGraph { get; set; }
 
         public GLWorldViewer(VrfGuiContext vrfGuiContext, RendererContext rendererContext, World world, ResourceExtRefList? externalReferences = null)
             : base(vrfGuiContext, rendererContext)
@@ -514,10 +518,72 @@ namespace GUI.Types.GLViewers
 
             if (node == null)
             {
+                // Tool entities (logic, sounds, finished particles) have no renderable
+                // scene node; fly to the entity origin instead.
+                var origin = entity.GetVector3Property("origin");
+                Input.SaveCameraForTransition();
+                Input.Camera.SetLocation(origin + new Vector3(96f, 96f, 64f));
+                Input.Camera.LookAt(origin);
                 return;
             }
 
             SelectAndFocusNode(node);
+        }
+
+        public void SelectAndFocusEntities(IReadOnlyList<EntityLump.Entity> entities)
+        {
+            if (entities.Count == 1)
+            {
+                SelectAndFocusEntity(entities[0]);
+                return;
+            }
+
+            if (UiControl != null && UiControl.Parent is TabPage tabPage && tabPage.Parent is TabControl tabControl)
+            {
+                tabControl.SelectTab(tabPage);
+            }
+
+            Debug.Assert(SelectedNodeRenderer != null);
+
+            var hasBounds = false;
+            var bounds = default(AABB);
+            var selectedAny = false;
+
+            foreach (var entity in entities)
+            {
+                var node = Scene.Find(entity) ?? SkyboxScene?.Find(entity);
+
+                AABB entityBounds;
+
+                if (node != null)
+                {
+                    if (selectedAny)
+                    {
+                        SelectedNodeRenderer.ToggleNode(node);
+                    }
+                    else
+                    {
+                        SelectedNodeRenderer.SelectNode(node, forceDisableDepth: true);
+                        selectedAny = true;
+                    }
+
+                    EnsureNodeVisible(node);
+                    entityBounds = SelectionBounds(node);
+                }
+                else
+                {
+                    var origin = entity.GetVector3Property("origin");
+                    entityBounds = new AABB(origin - new Vector3(32f), origin + new Vector3(32f));
+                }
+
+                bounds = hasBounds ? bounds.Union(entityBounds) : entityBounds;
+                hasBounds = true;
+            }
+
+            if (hasBounds)
+            {
+                FocusCameraOnBounds(bounds);
+            }
         }
 
         private void SelectAndFocusNode(SceneNode node)
@@ -527,8 +593,27 @@ namespace GUI.Types.GLViewers
             Debug.Assert(SelectedNodeRenderer != null);
 
             SelectedNodeRenderer.SelectNode(node, forceDisableDepth: true);
+            FocusCameraOnBounds(SelectionBounds(node));
+            EnsureNodeVisible(node);
+        }
 
+        private static AABB SelectionBounds(SceneNode node)
+        {
             var bbox = node.BoundingBox;
+            var maxDimension = Math.Max(Math.Max(bbox.Size.X, bbox.Size.Y), bbox.Size.Z);
+
+            // Empty or degenerate bounds (e.g. a particle system that finished playing)
+            // would put the camera inside the node or at a garbage position.
+            if (float.IsNaN(maxDimension) || maxDimension < 1f)
+            {
+                bbox = new AABB(node.Transform.Translation - new Vector3(32f), node.Transform.Translation + new Vector3(32f));
+            }
+
+            return bbox;
+        }
+
+        private void FocusCameraOnBounds(in AABB bbox)
+        {
             var size = bbox.Size;
             var maxDimension = Math.Max(Math.Max(size.X, size.Y), size.Z);
             var distance = maxDimension * 1.2f;
@@ -538,8 +623,10 @@ namespace GUI.Types.GLViewers
             Input.SaveCameraForTransition();
             Input.Camera.SetLocation(location);
             Input.Camera.LookAt(bbox.Center);
+        }
 
-            // Ensure the node is visible
+        private void EnsureNodeVisible(SceneNode node)
+        {
             if (!node.LayerEnabled && worldLayersComboBox != null && node.LayerName != null)
             {
                 var layerId = worldLayersComboBox.Items.IndexOf(node.LayerName);
@@ -564,15 +651,28 @@ namespace GUI.Types.GLViewers
         private void ShowSceneNodeDetails(SceneNode sceneNode)
         {
             var isEntity = sceneNode.EntityData != null;
+            entityInfoEntity = sceneNode.EntityData;
+
             if (entityInfoForm == null)
             {
                 entityInfoForm = new EntityInfoForm(GuiContext);
+
+                if (ShowEntityInGraph != null)
+                {
+                    entityInfoForm.AddShowInGraphButton(OnShowInGraphButtonClick);
+                }
+
                 entityInfoForm.Show();
                 entityInfoForm.EntityInfoControl.OutputsGrid.CellDoubleClick += OnEntityInfoOutputsCellDoubleClick;
                 entityInfoForm.EntityInfoControl.Disposed += OnEntityInfoFormDisposed;
             }
 
             Debug.Assert(entityInfoForm != null);
+
+            if (entityInfoForm.ShowInGraphButton != null)
+            {
+                entityInfoForm.ShowInGraphButton.Visible = isEntity;
+            }
 
             entityInfoForm.EntityInfoControl.Clear();
 
@@ -691,6 +791,14 @@ namespace GUI.Types.GLViewers
 
             SelectAndFocusNode(node);
             ShowSceneNodeDetails(node);
+        }
+
+        private void OnShowInGraphButtonClick(object? sender, EventArgs e)
+        {
+            if (entityInfoEntity != null)
+            {
+                ShowEntityInGraph?.Invoke(entityInfoEntity);
+            }
         }
 
         private void OnEntityInfoFormDisposed(object? sender, EventArgs e)

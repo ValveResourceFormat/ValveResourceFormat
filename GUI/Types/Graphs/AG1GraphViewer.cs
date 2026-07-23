@@ -1,29 +1,26 @@
-using System;
-using System.Collections.Generic;
-using System.Diagnostics;
-using System.Drawing;
-using System.Linq;
-using System.Windows.Forms;
+﻿using System.Linq;
 using GUI.Types.GLViewers;
+using GUI.Types.Graphs.Core;
 using GUI.Utils;
-using SkiaSharp;
 using ValveKeyValue;
 using ValveResourceFormat;
 using ValveResourceFormat.IO;
 using ValveResourceFormat.Renderer;
 using ValveResourceFormat.Serialization.KeyValues;
+using Node = GUI.Types.Graphs.KVGraphNode;
 
 namespace GUI.Types.Graphs;
 
 /// <summary>
 /// Graph viewer for compiled AG1 (Animgraph1) files.
 /// </summary>
-internal class AG1GraphViewer : GLNodeGraphViewer
+internal class AG1GraphViewer : GLGraphViewer
 {
     private readonly KVObject animGraphData;
-    private readonly IReadOnlyList<KVObject> compiledNodes;
+    private IReadOnlyList<KVObject> compiledNodes = Array.Empty<KVObject>();
     private readonly Dictionary<int, Node> nodeMap = new();
     private readonly Dictionary<int, KVObject> parameterIndexToObject = new();
+    private readonly Dictionary<KVObject, List<Node>> parameterConsumers = new();
     private readonly Dictionary<int, string> parameterIndexToName = new();
     private readonly Dictionary<KVObject, int> parameterObjectToIndex = new();
     private readonly Dictionary<string, List<KVObject>> typeToParameters = new();
@@ -36,66 +33,55 @@ internal class AG1GraphViewer : GLNodeGraphViewer
     private Resource? modelResource;
     private bool modelResourceLoaded;
 
-    // Fixed colors per node type (AG1 specific)
-    private static SKColor NodeColor { get; set; } = new SKColor(60, 60, 60);
-    //Blend
-    private static SKColor BlendColor { get; set; } = new SKColor(45, 102, 82);
-    private static SKColor AddSubtractColor { get; set; } = new SKColor(126, 60, 55);
-    private static SKColor AimLeanMatrixColor { get; set; } = new SKColor(99, 43, 87);
-    // Constraints and Procedural
-    private static SKColor ConstraintLightGreenColor { get; set; } = new SKColor(91, 143, 56);
-    private static SKColor ConstraintDarkGreenColor { get; set; } = new SKColor(44, 106, 31);
-    // System
-    private static SKColor SystemYellowColor { get; set; } = new SKColor(78, 73, 29);
-    private static SKColor SystemDarkBlueColor { get; set; } = new SKColor(24, 54, 72);
-    private static SKColor SystemGrayColor { get; set; } = new SKColor(65, 90, 114);
-    // Main
-    private static SKColor PoseColor { get; set; } = new SKColor(173, 255, 47);          // Default fallback
+    // Hue slots per node type (AG1 specific)
+    private const GraphHue PoseHue = GraphHue.Green;
 
-    private static readonly Dictionary<string, SKColor> TagClassColors = new(StringComparer.Ordinal)
+    // A subgraph node stands for a whole referenced file, so it takes the reserved reference hue
+    // rather than any category or data type colour.
+    private static readonly GraphHue SubGraphHue = AnimGraphHues.HueOf(AnimGraphCategory.ExternalReference);
+
+    // Anim tag and component classes each render with a friendly label and a category hue;
+    // the two travel together, so one table carries both.
+    private static readonly Dictionary<string, (string Name, GraphHue Hue)> TagClasses = new(StringComparer.Ordinal)
     {
-        ["CAudioAnimTag"] = new SKColor(141, 59, 9),
-        ["CBodyGroupAnimTag"] = new SKColor(26, 122, 59),
-        ["CClothSettingsAnimTag"] = new SKColor(117, 124, 136),
-        ["CFootFallAnimTag"] = new SKColor(150, 255, 150),
-        ["CFootstepLandedAnimTag"] = new SKColor(71, 71, 34),
-        ["CMaterialAttributeAnimTag"] = new SKColor(16, 157, 205),
-        ["CParticleAnimTag"] = new SKColor(118, 78, 153),
-        ["CRagdollAnimTag"] = new SKColor(221, 209, 34),
-        ["CSequenceFinishedAnimTag"] = new SKColor(200, 180, 255),
-        ["CStringAnimTag"] = new SKColor(163, 22, 99),
-        ["CTaskStatusAnimTag"] = new SKColor(38, 111, 118),
-        ["CWarpSectionAnimTag"] = new SKColor(200, 220, 150),
-        ["CMovementHandshakeAnimTag"] = new SKColor(38, 111, 118),
-        ["CTaskHandshakeAnimTag"] = new SKColor(38, 111, 118),
+        ["CAudioAnimTag"] = ("Audio Tag", GraphHue.Orange),
+        ["CBodyGroupAnimTag"] = ("Body Group Tag", GraphHue.Green),
+        ["CClothSettingsAnimTag"] = ("Cloth Settings Tag", GraphHue.Neutral),
+        ["CFootFallAnimTag"] = ("FootFall Tag", GraphHue.Green),
+        ["CFootstepLandedAnimTag"] = ("FootstepLanded Tag", GraphHue.Olive),
+        ["CMaterialAttributeAnimTag"] = ("Material Attribute Tag", GraphHue.Cyan),
+        ["CMovementHandshakeAnimTag"] = ("Movement Handshake Tag", GraphHue.Teal),
+        ["CParticleAnimTag"] = ("Particle Tag", GraphHue.Purple),
+        ["CRagdollAnimTag"] = ("Ragdoll Tag", GraphHue.Amber),
+        ["CSequenceFinishedAnimTag"] = ("Sequence Finished Tag", GraphHue.Indigo),
+        ["CStringAnimTag"] = ("String/Internal Tag", GraphHue.Magenta),
+        ["CTaskHandshakeAnimTag"] = ("Task Handshake Tag", GraphHue.Teal),
+        ["CTaskStatusAnimTag"] = ("Status Tag", GraphHue.Teal),
+        ["CWarpSectionAnimTag"] = ("Warp Section Tag", GraphHue.Olive),
     };
 
-    private static readonly Dictionary<string, SKColor> ComponentClassColors = new(StringComparer.Ordinal)
+    private static readonly Dictionary<string, (string Name, GraphHue Hue)> ComponentClasses = new(StringComparer.Ordinal)
     {
-        ["CActionComponentUpdater"] = new SKColor(230, 180, 120),
-        ["CAnimScriptComponentUpdater"] = new SKColor(180, 200, 230),
-        ["CCPPScriptComponentUpdater"] = new SKColor(200, 180, 230),
-        ["CDampedValueComponentUpdater"] = new SKColor(180, 230, 180),
-        ["CDemoSettingsComponentUpdater"] = new SKColor(230, 200, 180),
-        ["CLODComponentUpdater"] = new SKColor(200, 200, 200),
-        ["CLookComponentUpdater"] = new SKColor(150, 200, 230),
-        ["CMovementComponentUpdater"] = new SKColor(230, 180, 180),
-        ["CPairedSequenceComponentUpdater"] = new SKColor(180, 180, 230),
-        ["CRagdollComponentUpdater"] = new SKColor(200, 150, 150),
-        ["CRemapValueComponentUpdater"] = new SKColor(150, 200, 150),
-        ["CSlopeComponentUpdater"] = new SKColor(200, 200, 150),
-        ["CStateMachineComponentUpdater"] = new SKColor(44, 57, 89),
+        ["CActionComponentUpdater"] = ("Action Component", GraphHue.Orange),
+        ["CAnimScriptComponentUpdater"] = ("AnimScript Component", GraphHue.Slate),
+        ["CCPPScriptComponentUpdater"] = ("PPScript Component", GraphHue.Purple),
+        ["CDampedValueComponentUpdater"] = ("Damped Value Component", GraphHue.Green),
+        ["CDemoSettingsComponentUpdater"] = ("Demo Settings Component", GraphHue.Orange),
+        ["CLODComponentUpdater"] = ("LOD Component", GraphHue.Neutral),
+        ["CLookComponentUpdater"] = ("Look Component", GraphHue.Cyan),
+        ["CMovementComponentUpdater"] = ("Movement Component", GraphHue.Maroon),
+        ["CPairedSequenceComponentUpdater"] = ("Paired Sequence Component", GraphHue.Indigo),
+        ["CRagdollComponentUpdater"] = ("Ragdoll Component", GraphHue.Maroon),
+        ["CRemapValueComponentUpdater"] = ("Remap Value Component", GraphHue.Green),
+        ["CSlopeComponentUpdater"] = ("Slope Component", GraphHue.Olive),
+        ["CStateMachineComponentUpdater"] = ("State Machine Component", GraphHue.Slate),
     };
 
-    private static SKColor GetComponentClassColor(string className)
-    {
-        return ComponentClassColors.TryGetValue(className, out var color) ? color : new SKColor(128, 128, 128);
-    }
+    private static (string Name, GraphHue Hue) TagClassInfo(string className)
+        => TagClasses.TryGetValue(className, out var info) ? info : (className, GraphHue.Teal);
 
-    private static SKColor GetTagClassColor(string className)
-    {
-        return TagClassColors.TryGetValue(className, out var color) ? color : new SKColor(100, 200, 200);
-    }
+    private static (string Name, GraphHue Hue) ComponentClassInfo(string className)
+        => ComponentClasses.TryGetValue(className, out var info) ? info : (className, GraphHue.Neutral);
 
     // ---- Dictionaries for class-based lookups ----
     private static readonly Dictionary<string, string> ClassDisplayName = new(StringComparer.Ordinal)
@@ -140,41 +126,6 @@ internal class AG1GraphViewer : GLNodeGraphViewer
         ["CStateMachineUpdateNode"] = "State Machine",
     };
 
-    private static readonly Dictionary<string, string> ComponentDisplayName = new(StringComparer.Ordinal)
-    {
-        ["CActionComponentUpdater"] = "Action Component",
-        ["CAnimScriptComponentUpdater"] = "AnimScript Component",
-        ["CCPPScriptComponentUpdater"] = "PPScript Component",
-        ["CDampedValueComponentUpdater"] = "Damped Value Component",
-        ["CDemoSettingsComponentUpdater"] = "Demo Settings Component",
-        ["CLODComponentUpdater"] = "LOD Component",
-        ["CLookComponentUpdater"] = "Look Component",
-        ["CMovementComponentUpdater"] = "Movement Component",
-        ["CPairedSequenceComponentUpdater"] = "Paired Sequence Component",
-        ["CRagdollComponentUpdater"] = "Ragdoll Component",
-        ["CRemapValueComponentUpdater"] = "Remap Value Component",
-        ["CSlopeComponentUpdater"] = "Slope Component",
-        ["CStateMachineComponentUpdater"] = "State Machine Component",
-    };
-
-    private static readonly Dictionary<string, string> TagDisplayName = new(StringComparer.Ordinal)
-    {
-        ["CAudioAnimTag"] = "Audio Tag",
-        ["CBodyGroupAnimTag"] = "Body Group Tag",
-        ["CClothSettingsAnimTag"] = "Cloth Settings Tag",
-        ["CFootFallAnimTag"] = "FootFall Tag",
-        ["CFootstepLandedAnimTag"] = "FootstepLanded Tag",
-        ["CMaterialAttributeAnimTag"] = "Material Attribute Tag",
-        ["CParticleAnimTag"] = "Particle Tag",
-        ["CRagdollAnimTag"] = "Ragdoll Tag",
-        ["CSequenceFinishedAnimTag"] = "Sequence Finished Tag",
-        ["CStringAnimTag"] = "String/Internal Tag",
-        ["CTaskStatusAnimTag"] = "Status Tag",
-        ["CWarpSectionAnimTag"] = "Warp Section Tag",
-        ["CMovementHandshakeAnimTag"] = "Movement Handshake Tag",
-        ["CTaskHandshakeAnimTag"] = "Task Handshake Tag",
-    };
-
     private static readonly Dictionary<string, string> ParameterTypeDisplayName = new(StringComparer.Ordinal)
     {
         ["BOOL"] = "Boolean",
@@ -188,51 +139,63 @@ internal class AG1GraphViewer : GLNodeGraphViewer
         ["UNKNOWN"] = "Unknown",
     };
 
-    private static readonly Dictionary<string, SKColor> ClassColor = new(StringComparer.Ordinal)
-    {
-        ["CSequenceUpdateNode"] = new SKColor(62, 43, 89),
-        ["CChoiceUpdateNode"] = new SKColor(102, 111, 49),
-        ["CMotionMatchingUpdateNode"] = new SKColor(127, 145, 218),
-        ["CSelectorUpdateNode"] = new SKColor(34, 84, 135),
-        ["CSingleFrameUpdateNode"] = new SKColor(111, 53, 195),
-        ["CDirectionalBlendUpdateNode"] = BlendColor,
-        ["CBlendUpdateNode"] = BlendColor,
-        ["CBlend2DUpdateNode"] = new SKColor(7, 62, 42),
-        ["CAddUpdateNode"] = AddSubtractColor,
-        ["CSubtractUpdateNode"] = AddSubtractColor,
-        ["CAimMatrixUpdateNode"] = AimLeanMatrixColor,
-        ["CLeanMatrixUpdateNode"] = AimLeanMatrixColor,
-        ["CBoneMaskUpdateNode"] = new SKColor(116, 51, 75),
-        ["CCycleControlUpdateNode"] = new SKColor(108, 138, 61),
-        ["CCycleControlClipUpdateNode"] = new SKColor(87, 52, 127),
-        ["CFollowAttachmentUpdateNode"] = new SKColor(0, 161, 143),
-        ["CFollowPathUpdateNode"] = new SKColor(27, 61, 82),
-        ["CFootPinningUpdateNode"] = ConstraintLightGreenColor,
-        ["CLookAtUpdateNode"] = ConstraintLightGreenColor,
-        ["CHitReactUpdateNode"] = ConstraintLightGreenColor,
-        ["CFootLockUpdateNode"] = ConstraintLightGreenColor,
-        ["CJiggleBoneUpdateNode"] = new SKColor(87, 175, 122),
-        ["CSolveIKChainUpdateNode"] = ConstraintDarkGreenColor,
-        ["CTwoBoneIKUpdateNode"] = ConstraintDarkGreenColor,
-        ["CSpeedScaleUpdateNode"] = ConstraintDarkGreenColor,
-        ["CChoreoUpdateNode"] = new SKColor(123, 78, 35),
-        ["CDirectPlaybackUpdateNode"] = SystemYellowColor,
-        ["CFootStepTriggerUpdateNode"] = SystemYellowColor,
-        ["CInputStreamUpdateNode"] = new SKColor(166, 0, 207),
-        ["CMoverUpdateNode"] = SystemDarkBlueColor,
-        ["CStopAtGoalUpdateNode"] = SystemDarkBlueColor,
-        ["CPathHelperUpdateNode"] = SystemGrayColor,
-        ["CSetFacingUpdateNode"] = SystemGrayColor,
-        ["CSlowDownOnSlopesUpdateNode"] = new SKColor(26, 59, 18),
-        ["CSkeletalInputUpdateNode"] = new SKColor(15, 101, 144),
-        ["CTurnHelperUpdateNode"] = new SKColor(32, 30, 78),
-        ["CRootUpdateNode"] = new SKColor(149, 121, 65),
-        ["CStateMachineUpdateNode"] = new SKColor(44, 57, 89),
-    };
+    private static GraphHue HueOfClass(string compiledClass)
+        => AnimGraphHues.HueOf(AnimGraphHues.CategoryOfAG1(compiledClass));
     private static readonly HashSet<string> GlobalPropertySkips = new(StringComparer.Ordinal)
     {
         "m_name",
     };
+
+    // Structural keys of a compiled node: they are already drawn as wires, sockets or their own
+    // rows, so the generic property dump leaves them out.
+    private static readonly HashSet<string> CompiledStructureKeys = new(StringComparer.Ordinal)
+    {
+        "_class", "m_nodePath", "m_children", "m_tags", "m_paramSpans", "m_stateMachine", "m_stateData", "m_transitionData",
+    };
+
+    /// <summary>
+    /// Adds one "key: value" row per scalar child, skipping collections, arrays and whatever
+    /// <paramref name="skip"/> rejects. <paramref name="renderRow"/> may claim a key and supply
+    /// the whole row itself.
+    /// </summary>
+    private static void AddScalarRows(Node node, KVObject source, Func<string, bool> skip, int maxRows = int.MaxValue, Func<string, KVObject, string?>? renderRow = null)
+    {
+        var rows = 0;
+
+        foreach (var (key, child) in source)
+        {
+            if (skip(key))
+            {
+                continue;
+            }
+
+            var text = renderRow?.Invoke(key, child);
+
+            if (text == null)
+            {
+                if (child.ValueType is KVValueType.Collection or KVValueType.Array)
+                {
+                    continue;
+                }
+
+                if (string.IsNullOrEmpty(child.ToString()))
+                {
+                    continue;
+                }
+
+                var value = Node.StringifyValue(child);
+
+                text = $"{(PropertyDisplayNames.TryGetValue(key, out var friendly) ? friendly : key)}: {value}";
+            }
+
+            node.AddText(text);
+
+            if (++rows >= maxRows)
+            {
+                break;
+            }
+        }
+    }
 
     private static readonly Dictionary<string, string> PropertyDisplayNames = new(StringComparer.Ordinal)
     {
@@ -256,16 +219,52 @@ internal class AG1GraphViewer : GLNodeGraphViewer
     private static readonly string[] ChildProperties = { "m_pChildNode", "m_pChild1", "m_pChild2", "m_pChild" };
 
     public AG1GraphViewer(VrfGuiContext vrfGuiContext, RendererContext rendererContext, KVObject data)
-        : base(vrfGuiContext, rendererContext, CreateAndConfigureNodeGraph(data, out var graphDef))
+        : base(vrfGuiContext, rendererContext, new GraphView())
     {
         fileLoader = vrfGuiContext;
-        animGraphData = graphDef;
+        animGraphData = data;
         modelInfo = new AnimGraphModelInfo(vrfGuiContext, LoadModel);
 
-        var isUncompiledAnimationGraph = animGraphData.GetStringProperty("_class") == "CAnimationGraph";
-        if (isUncompiledAnimationGraph)
+        BuildGraph();
+    }
+
+    // Parameter feeds fan out from one hub per type into most of the graph, so by default they
+    // stay off the canvas: consumers name their parameters as card text and the hub cards list
+    // every parameter. The sidebar checkbox rebuilds with the dashed wires drawn.
+    private bool drawParameterWires;
+
+    protected override bool HasParameterWireToggle => parameterConsumers.Count > 0;
+
+    protected override void SetDrawParameterWires(bool draw)
+    {
+        if (drawParameterWires == draw)
         {
-            compiledNodes = Array.Empty<KVObject>();
+            return;
+        }
+
+        drawParameterWires = draw;
+        View.Rebuild(BuildGraph);
+        RefreshStatsLabel();
+        RefitToGraph();
+    }
+
+    private void BuildGraph()
+    {
+        nodeMap.Clear();
+        parameterConsumers.Clear();
+        parameterObjectToIndex.Clear();
+
+        if (IsEditorGraph(animGraphData))
+        {
+            // HLA and SteamVR Home ship standalone vanmgrph files in the editor format, and CS2
+            // authors its player graphs the same way in vanmgrph/vsubgrph. The graph is laid out
+            // from its wires like the compiled path; the authored canvas positions are ignored.
+            BuildEditorGraph();
+            View.LayoutOptions.LongWireDummies = true;
+            View.LayoutOptions.TightenMinSpan = 1;
+            View.LayoutNodesPacked();
+
+            View.Legend.AddRange(AnimGraphHues.Legend());
             return;
         }
 
@@ -279,8 +278,405 @@ internal class AG1GraphViewer : GLNodeGraphViewer
         CreateGraph();
         AddParameterAndTagNodes();
         AddComponentNodes();
-        nodeGraph.LayoutNodes();
+        // A pose graph is one connected DAG, where routing a long wire through dummy ranks keeps
+        // it between the cards of the ranks it spans rather than over them, and where closing
+        // every rank of slack pays off instead of costing the room the repair moves cards in.
+        View.LayoutOptions.LongWireDummies = true;
+        View.LayoutOptions.TightenMinSpan = 1;
+        View.LayoutNodesPacked();
+
+        View.Legend.AddRange(AnimGraphHues.Legend());
+
+        // Always listed, wires drawn or not, so toggling never resizes the legend.
+        View.Legend.AddRange(
+        [
+            new("Parameter link", GraphHue.Olive, GraphLegendKind.DashedWire),
+            new("Tag group", GraphHue.Teal),
+            new("Component", GraphHue.Neutral),
+            new("Client-simulated", GraphHue.Purple, GraphLegendKind.Marker),
+        ]);
     }
+
+    // animgraph1 names a child by id, animgraph19 by connection; a node carries one vocabulary
+    // or the other, so both are tried against every node.
+    private static readonly (string Field, string Label)[] EditorChildFields =
+    [
+        ("m_childID", "child"),
+        ("m_baseChildID", "base"),
+        ("m_additiveChildID", "additive"),
+        ("m_subtractChildID", "subtract"),
+        ("m_child1ID", "child 1"),
+        ("m_child2ID", "child 2"),
+        ("m_inputConnection", "input"),
+        ("m_baseInput", "base"),
+        ("m_additiveInput", "additive"),
+        ("m_baseInputConnection", "base"),
+        ("m_subtractInputConnection", "subtract"),
+        ("m_inputConnection1", "input 1"),
+        ("m_inputConnection2", "input 2"),
+    ];
+
+    private static readonly HashSet<string> EditorSkippedDetailFields = new(StringComparer.Ordinal)
+    {
+        "_class", "m_sName", "m_vecPosition", "m_nNodeID", "m_networkMode", "m_subGraphFilename",
+    };
+
+    /// <summary>
+    /// Adds every node of a container to the view, recursing into the node manager a group
+    /// carries so the whole authored tree lands on one canvas, and records the group path and
+    /// the named outputs the connections in the container address.
+    /// </summary>
+    private void AddEditorNodes(
+        IReadOnlyList<KVObject> nodePairs,
+        string? groupPath,
+        Dictionary<long, Node> editorNodes,
+        Dictionary<long, KVObject> editorData,
+        Dictionary<(long Node, long Output), string> outputNames,
+        HashSet<string> usedGroupPaths)
+    {
+        foreach (var pair in nodePairs)
+        {
+            var key = pair.GetSubCollection("key");
+            var value = pair.GetSubCollection("value");
+
+            if (key == null || value == null)
+            {
+                continue;
+            }
+
+            var id = key.GetIntegerProperty("m_id");
+
+            if (editorNodes.ContainsKey(id))
+            {
+                continue;
+            }
+
+            var className = value.GetStringProperty("_class") ?? "Unknown";
+            var compiledClass = className.Replace("AnimNode", "UpdateNode", StringComparison.Ordinal);
+            var friendly = ClassDisplayName.TryGetValue(compiledClass, out var display) ? display : className;
+            var authoredName = value.GetStringProperty("m_sName");
+
+            var node = new Node(value)
+            {
+                Name = string.IsNullOrEmpty(authoredName) || authoredName == "Unnamed" ? friendly : authoredName,
+                NodeType = friendly,
+                Category = HueOfClass(compiledClass),
+                GroupPath = groupPath,
+            };
+
+            // A subgraph node names the file it stands for; the shared resource row shows the
+            // graph icon and the reference opens on double click.
+            var subGraphFileName = value.GetStringProperty("m_subGraphFilename");
+
+            if (!string.IsNullOrEmpty(subGraphFileName))
+            {
+                node.Category = SubGraphHue;
+                node.AddResourceReference(subGraphFileName, "anmgrph", SubGraphHue);
+            }
+
+            if (value.ContainsKey("m_proxyItems"))
+            {
+                foreach (var proxy in value.GetArray("m_proxyItems"))
+                {
+                    var proxyName = proxy.GetStringProperty("m_name");
+
+                    if (!string.IsNullOrEmpty(proxyName) && proxy.GetSubCollection("m_outputID") is { } outputRef)
+                    {
+                        outputNames[(id, outputRef.GetIntegerProperty("m_id"))] = proxyName;
+                    }
+                }
+            }
+
+            AddEditorDetailRows(node, value);
+            View.AddNode(node);
+            editorNodes[id] = node;
+            editorData[id] = value;
+
+            if (ResolveNestedEditorNodes(value) is not { Count: > 0 } childNodes)
+            {
+                continue;
+            }
+
+            // Two groups may share a name; their coordinate systems are still independent, so
+            // the paths are kept distinct to stop the layout from merging them.
+            var childPath = string.IsNullOrEmpty(groupPath) ? node.Title : $"{groupPath}/{node.Title}";
+
+            for (var suffix = 2; !usedGroupPaths.Add(childPath); suffix++)
+            {
+                childPath = string.IsNullOrEmpty(groupPath) ? $"{node.Title} #{suffix}" : $"{groupPath}/{node.Title} #{suffix}";
+            }
+
+            AddEditorNodes(childNodes, childPath, editorNodes, editorData, outputNames, usedGroupPaths);
+        }
+    }
+
+    /// <summary>Root classes of the two uncompiled animation graph schemas.</summary>
+    private static bool IsEditorGraph(KVObject data)
+    {
+        var className = data.GetStringProperty("_class");
+        return className is "CAnimationGraph" or "CAnimationSubGraph";
+    }
+
+    /// <summary>An unset node or output reference.</summary>
+    private const long InvalidEditorId = 0xFFFFFFFF;
+
+    /// <summary>
+    /// Returns the node list a group or subgraph nests in its own node manager, or null for a
+    /// node that holds no nested graph.
+    /// </summary>
+    private static IReadOnlyList<KVObject>? ResolveNestedEditorNodes(KVObject node)
+    {
+        foreach (var managerField in new[] { "m_nodeManager", "m_nodeMgr" })
+        {
+            if (node.GetSubCollection(managerField) is { } manager && manager.ContainsKey("m_nodes"))
+            {
+                return manager.GetArray("m_nodes");
+            }
+        }
+
+        return null;
+    }
+
+    /// <summary>
+    /// Returns the node list of the graph root. animgraph1 keeps it at the root itself,
+    /// animgraph19 moves it under a node manager.
+    /// </summary>
+    private static IReadOnlyList<KVObject>? ResolveRootEditorNodes(KVObject root)
+    {
+        if (root.ContainsKey("m_nodes"))
+        {
+            return root.GetArray("m_nodes");
+        }
+
+        return ResolveNestedEditorNodes(root);
+    }
+
+    // Builds the graph straight from the uncompiled editor schema. Nodes are a key/value list
+    // of id to node. animgraph1 (HLA, SteamVR Home) wires children by plain id fields, while
+    // animgraph19 (CS2) wires them through m_inputConnection { m_nodeID, m_outputID } and nests
+    // groups in a node manager of their own; both are read here and flattened onto one canvas,
+    // with each node stamped with the group path it was authored in.
+    private void BuildEditorGraph()
+    {
+        var rootNodes = ResolveRootEditorNodes(animGraphData);
+
+        if (rootNodes == null || rootNodes.Count == 0)
+        {
+            View.AddNode(new Node(null)
+            {
+                Name = "Empty animation graph",
+                NodeType = animGraphData.GetStringProperty("_class") ?? "CAnimationGraph",
+            });
+            return;
+        }
+
+        var paramNames = new Dictionary<long, string>();
+
+        foreach (var parameters in new[]
+        {
+            animGraphData.GetSubCollection("m_pParameterList")?.GetArray("m_Parameters"),
+            animGraphData.ContainsKey("m_localParameters") ? animGraphData.GetArray("m_localParameters") : null,
+        })
+        {
+            if (parameters == null)
+            {
+                continue;
+            }
+
+            foreach (var parameter in parameters)
+            {
+                if (parameter.GetSubCollection("m_id") is { } paramId)
+                {
+                    paramNames[paramId.GetIntegerProperty("m_id")] = parameter.GetStringProperty("m_name") ?? "?";
+                }
+            }
+        }
+
+        var editorNodes = new Dictionary<long, Node>();
+        var editorData = new Dictionary<long, KVObject>();
+
+        // Names an output socket that a connection addresses by id, so a group boundary card
+        // shows one labelled output per proxy instead of a single anonymous one.
+        var outputNames = new Dictionary<(long Node, long Output), string>();
+        var usedGroupPaths = new HashSet<string>(StringComparer.Ordinal);
+
+        AddEditorNodes(rootNodes, groupPath: null, editorNodes, editorData, outputNames, usedGroupPaths);
+
+        foreach (var (id, value) in editorData)
+        {
+            var parent = editorNodes[id];
+
+            // animgraph19 addresses a source by node and output id; animgraph1 names the node
+            // alone, in which case the node's single anonymous output is used.
+            void ConnectSource(long sourceId, long outputId, string inputName)
+            {
+                if (sourceId == InvalidEditorId || !editorNodes.TryGetValue(sourceId, out var source) || source == parent)
+                {
+                    return;
+                }
+
+                var outputName = outputNames.GetValueOrDefault((sourceId, outputId), string.Empty);
+                var output = source.GetOrAddOutput(outputName, PoseHue);
+                var input = parent.AddInput(inputName, PoseHue, allowMultiple: true);
+
+                if (!input.Wires.Exists(w => w.From == output))
+                {
+                    View.Connect(output, input);
+                }
+            }
+
+            void ConnectConnection(KVObject? connection, string inputName)
+            {
+                if (connection?.GetSubCollection("m_nodeID") is not { } sourceRef)
+                {
+                    return;
+                }
+
+                var outputId = connection.GetSubCollection("m_outputID")?.GetIntegerProperty("m_id") ?? InvalidEditorId;
+                ConnectSource(sourceRef.GetIntegerProperty("m_id"), outputId, inputName);
+            }
+
+            foreach (var (field, label) in EditorChildFields)
+            {
+                if (value.GetSubCollection(field) is not { } childRef)
+                {
+                    continue;
+                }
+
+                if (childRef.ContainsKey("m_nodeID"))
+                {
+                    ConnectConnection(childRef, label);
+                }
+                else
+                {
+                    ConnectSource(childRef.GetIntegerProperty("m_id"), InvalidEditorId, label);
+                }
+            }
+
+            if (value.ContainsKey("m_children"))
+            {
+                foreach (var childEntry in value.GetArray("m_children"))
+                {
+                    var childName = childEntry.GetStringProperty("m_name");
+                    var label = string.IsNullOrEmpty(childName) ? "child" : childName;
+
+                    // A child is either a bare connection or a wrapper carrying one alongside
+                    // its blend value or selection label.
+                    ConnectConnection(childEntry.ContainsKey("m_nodeID") ? childEntry : childEntry.GetSubCollection("m_inputConnection"), label);
+                }
+            }
+
+            // Group and subgraph boundary nodes republish interior results under named outputs.
+            if (value.ContainsKey("m_proxyItems"))
+            {
+                foreach (var proxy in value.GetArray("m_proxyItems"))
+                {
+                    var proxyName = proxy.GetStringProperty("m_name");
+                    ConnectConnection(proxy.GetSubCollection("m_inputConnection"), string.IsNullOrEmpty(proxyName) ? "proxy" : proxyName);
+                }
+            }
+
+            // A group card takes the result of its own interior output node, which keeps the
+            // flattened graph connected across the group boundary.
+            if (value.GetSubCollection("m_outputNodeID") is { } interiorOutput)
+            {
+                ConnectSource(interiorOutput.GetIntegerProperty("m_id"), InvalidEditorId, "group output");
+            }
+
+            if (value.ContainsKey("m_states"))
+            {
+                ConnectEditorStates(value.GetArray("m_states"), editorNodes, paramNames, ConnectConnection, ConnectSource);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Wires a state machine's states to their pose subtrees and draws the dashed state to
+    /// state transitions between those subtrees, labeled by their first condition parameter.
+    /// </summary>
+    private void ConnectEditorStates(
+        IReadOnlyList<KVObject> states,
+        Dictionary<long, Node> editorNodes,
+        Dictionary<long, string> paramNames,
+        Action<KVObject?, string> connectConnection,
+        Action<long, long, string> connectSource)
+    {
+        // The card a state's transitions attach to is the root of the state's own subtree.
+        var stateChildren = new Dictionary<long, long>();
+
+        foreach (var state in states)
+        {
+            var stateName = state.GetStringProperty("m_name") ?? "state";
+            var label = state.GetBooleanProperty("m_bIsStartState") ? $"{stateName} (start)" : stateName;
+            var stateId = state.GetSubCollection("m_stateID")?.GetIntegerProperty("m_id");
+
+            long childId;
+
+            if (state.GetSubCollection("m_inputConnection") is { } connection)
+            {
+                connectConnection(connection, label);
+                childId = connection.GetSubCollection("m_nodeID")?.GetIntegerProperty("m_id") ?? InvalidEditorId;
+            }
+            else if (state.GetSubCollection("m_childNodeID") is { } childRef)
+            {
+                childId = childRef.GetIntegerProperty("m_id");
+                connectSource(childId, InvalidEditorId, label);
+            }
+            else
+            {
+                continue;
+            }
+
+            if (stateId is { } id && childId != InvalidEditorId)
+            {
+                stateChildren[id] = childId;
+            }
+        }
+
+        foreach (var state in states)
+        {
+            if (state.GetSubCollection("m_stateID")?.GetIntegerProperty("m_id") is not { } src ||
+                !stateChildren.TryGetValue(src, out var srcChildId) ||
+                !editorNodes.TryGetValue(srcChildId, out var srcNode) ||
+                !state.ContainsKey("m_transitions"))
+            {
+                continue;
+            }
+
+            foreach (var transition in state.GetArray("m_transitions"))
+            {
+                if (transition.GetSubCollection("m_destState")?.GetIntegerProperty("m_id") is not { } dest ||
+                    !stateChildren.TryGetValue(dest, out var destChildId) ||
+                    !editorNodes.TryGetValue(destChildId, out var destNode) ||
+                    destNode == srcNode)
+                {
+                    continue;
+                }
+
+                // animgraph19 wraps the conditions in a container; animgraph1 lists them inline.
+                var conditions = transition.GetSubCollection("m_conditionList")?.GetArray("m_conditions")
+                    ?? (transition.ContainsKey("m_conditions") ? transition.GetArray("m_conditions") : null);
+
+                string? label = null;
+
+                if (conditions is { Count: > 0 } && conditions[0].GetSubCollection("m_paramID") is { } conditionParam)
+                {
+                    label = paramNames.GetValueOrDefault(conditionParam.GetIntegerProperty("m_id"));
+                }
+
+                var from = srcNode.GetOrAddOutput("Transitions", GraphHue.Slate);
+                var to = destNode.GetOrAddInput("From", GraphHue.Slate);
+
+                if (!to.Wires.Exists(w => w.From == from))
+                {
+                    View.Connect(from, to, dashed: true, label: label);
+                }
+            }
+        }
+    }
+
+    private static void AddEditorDetailRows(Node node, KVObject value)
+        => AddScalarRows(node, value, EditorSkippedDetailFields.Contains, maxRows: 8);
 
     /// <summary>
     /// Returns the container (shared data if present, otherwise the graph root) that holds the given key.
@@ -555,6 +951,12 @@ internal class AG1GraphViewer : GLNodeGraphViewer
                 int index = value.ToInt32();
                 string display = GetParameterDescriptionFromIndex(index);
                 node.AddText($"{field}: {display}");
+
+                if (parameterIndexToObject.TryGetValue(index, out var paramFromIndex))
+                {
+                    RecordParameterConsumer(paramFromIndex, node);
+                }
+
                 continue;
             }
 
@@ -565,6 +967,7 @@ internal class AG1GraphViewer : GLNodeGraphViewer
                 {
                     string info = GetParameterDescriptionFromHandle(handle);
                     node.AddText($"{field}: {info}");
+                    RecordParameterConsumer(ResolveParameterHandle(handle), node);
                 }
                 continue;
             }
@@ -605,31 +1008,6 @@ internal class AG1GraphViewer : GLNodeGraphViewer
 
         return (0f, 0f);
     }
-
-    private static NodeGraphControl CreateAndConfigureNodeGraph(KVObject data, out KVObject graphDef)
-    {
-        graphDef = data;
-        var nodeGraph = new NodeGraphControl
-        {
-            GridStyle = NodeGraphControl.EGridStyle.Checkerboard,
-            CanvasBackgroundColor = new SKColor(40, 40, 40)
-        };
-
-        nodeGraph.GridColor = SKColors.White;
-
-        if (Themer.CurrentTheme == Themer.AppTheme.Dark)
-        {
-            nodeGraph.CanvasBackgroundColor = ToSKColor(Themer.CurrentThemeColors.AppMiddle);
-            NodeColor = ToSKColor(Themer.CurrentThemeColors.AppSoft);
-            nodeGraph.GridColor = ToSKColor(Themer.CurrentThemeColors.ContrastSoft);
-        }
-
-        NodeGraphControl.AddTypeColorPair<Pose>(PoseColor);
-
-        return nodeGraph;
-    }
-
-    private static SKColor ToSKColor(Color color) => new(color.R, color.G, color.B, color.A);
 
     /// <summary>
     /// Extracts a child node index from a child reference, which may be either an inline
@@ -725,20 +1103,55 @@ internal class AG1GraphViewer : GLNodeGraphViewer
                 if (stateMachine != null && stateMachine.ContainsKey("m_states"))
                 {
                     var states = stateMachine.GetArray("m_states");
+
+                    int StateChildNodeIndex(int stateIndex)
+                    {
+                        if (stateIndex < 0 || stateIndex >= stateDataArray.Count)
+                        {
+                            return -1;
+                        }
+
+                        var stateData = stateDataArray[stateIndex];
+
+                        if (!stateData.ContainsKey("m_pChild"))
+                        {
+                            return -1;
+                        }
+
+                        var childRef = stateData.GetSubCollection("m_pChild");
+                        return childRef.ContainsKey("m_nodeIndex") ? childRef.GetInt32Property("m_nodeIndex") : -1;
+                    }
+
                     for (int s = 0; s < stateDataArray.Count; s++)
                     {
-                        var stateData = stateDataArray[s];
-                        if (stateData.ContainsKey("m_pChild"))
+                        int idx = StateChildNodeIndex(s);
+                        if (idx >= 0)
                         {
-                            var childRef = stateData.GetSubCollection("m_pChild");
-                            if (childRef.ContainsKey("m_nodeIndex"))
+                            string stateName = states[s].GetStringProperty("m_name", $"State {s}");
+                            AddConnection(idx, stateName);
+                        }
+                    }
+
+                    // Dashed state-to-state transition wires between the states' subtrees.
+                    if (stateMachine.ContainsKey("m_transitions"))
+                    {
+                        foreach (var transition in stateMachine.GetArray("m_transitions"))
+                        {
+                            var srcIdx = StateChildNodeIndex(transition.GetInt32Property("m_srcStateIndex"));
+                            var destIdx = StateChildNodeIndex(transition.GetInt32Property("m_destStateIndex"));
+
+                            if (srcIdx < 0 || destIdx < 0 || srcIdx == destIdx ||
+                                !nodeMap.TryGetValue(srcIdx, out var srcNode) || !nodeMap.TryGetValue(destIdx, out var destNode))
                             {
-                                int idx = childRef.GetInt32Property("m_nodeIndex");
-                                if (idx >= 0)
-                                {
-                                    string stateName = states[s].GetStringProperty("m_name", $"State {s}");
-                                    AddConnection(idx, stateName);
-                                }
+                                continue;
+                            }
+
+                            var from = srcNode.GetOrAddOutput("Transitions", GraphHue.Slate);
+                            var to = destNode.GetOrAddInput("From", GraphHue.Slate);
+
+                            if (!to.Wires.Exists(w => w.From == from))
+                            {
+                                View.Connect(from, to, dashed: true);
                             }
                         }
                     }
@@ -803,22 +1216,15 @@ internal class AG1GraphViewer : GLNodeGraphViewer
                 if (!nodeMap.TryGetValue(childIdx, out var childNode))
                     continue;
 
-                if (!childNode.Sockets.OfType<SocketOut>().Any())
+                if (childNode.Outputs.Count == 0)
                 {
-                    var outSocket = new SocketOut(typeof(Pose), string.Empty, childNode);
-                    childNode.Sockets.Add(outSocket);
+                    childNode.AddOutput(string.Empty, PoseHue);
                 }
 
-                var inputSocket = new SocketIn(typeof(Pose), label, parentNode, hub: true);
-                parentNode.Sockets.Add(inputSocket);
-
-                var childOutput = childNode.Sockets.OfType<SocketOut>().First();
-                nodeGraph.Connect(childOutput, inputSocket);
+                var inputSocket = parentNode.AddInput(label, PoseHue, allowMultiple: true);
+                View.Connect(childNode.Outputs[0], inputSocket);
             }
-
-            parentNode.Calculate();
         }
-        nodeGraph.LayoutNodes();
     }
 
     /// <summary>
@@ -839,7 +1245,7 @@ internal class AG1GraphViewer : GLNodeGraphViewer
     private static void ApplyNetworkMode(Node node, KVObject obj)
     {
         if (obj.GetStringProperty("m_networkMode", "").Equals("ClientSimulate", StringComparison.Ordinal))
-            node.SetBaseColor(new SKColor(118, 75, 140));
+            node.BodyTint = GraphHue.Purple;
     }
 
     private static string FormatDamping(KVObject damping)
@@ -882,10 +1288,7 @@ internal class AG1GraphViewer : GLNodeGraphViewer
             NodeType = displayName,
         };
 
-        if (className != null && ClassColor.TryGetValue(className, out var color))
-            node.HeaderColor = color;
-        else
-            node.HeaderColor = PoseColor;
+        node.Category = className != null ? HueOfClass(className) : PoseHue;
 
         ApplyNetworkMode(node, compiledNode);
 
@@ -893,34 +1296,16 @@ internal class AG1GraphViewer : GLNodeGraphViewer
         if (className != null)
             ClassPropertySkips.TryGetValue(className, out skipKeys);
 
-        foreach (var kv in compiledNode.Children)
-        {
-            string key = kv.Key;
-            if (key == "_class" || key == "m_nodePath" || key == "m_children" || key.StartsWith("m_pChild") ||
-                key == "m_tags" || key == "m_paramSpans" || key == "m_stateMachine" || key == "m_stateData" || key == "m_transitionData")
-                continue;
-
-            if (GlobalPropertySkips.Contains(key))
-                continue;
-
-            if (skipKeys != null && skipKeys.Contains(key))
-                continue;
-
-            if (kv.Value.ValueType == KVValueType.Collection || kv.Value.ValueType == KVValueType.Array)
-                continue;
-
-            if (key == "m_hSequence")
-            {
-                node.AddText(FormatIndexed("Sequence", kv.Value.ToInt32(), GetSequenceName));
-                continue;
-            }
-
-            string displayKey = PropertyDisplayNames.TryGetValue(key, out var friendly) ? friendly : key;
-            string valueStr = kv.Value.ToString();
-            if (!string.IsNullOrEmpty(valueStr))
-                node.AddText($"{displayKey}: {valueStr}");
-
-        }
+        AddScalarRows(
+            node,
+            compiledNode,
+            key => CompiledStructureKeys.Contains(key)
+                || key.StartsWith("m_pChild", StringComparison.Ordinal)
+                || GlobalPropertySkips.Contains(key)
+                || (skipKeys != null && skipKeys.Contains(key)),
+            renderRow: (key, child) => key == "m_hSequence"
+                ? FormatIndexed("Sequence", child.ToInt32(), GetSequenceName)
+                : null);
 
         DisplayUniversalParameters(compiledNode, node);
 
@@ -1082,20 +1467,6 @@ internal class AG1GraphViewer : GLNodeGraphViewer
                 if (!string.IsNullOrEmpty(chainName))
                     node.AddText($"IK Chain: {chainName}");
             }
-
-            // Attachments
-            //if (opFixedData.ContainsKey("m_endEffectorAttachment"))
-            //{
-            //var attachObj = opFixedData.GetSubCollection("m_endEffectorAttachment");
-            //var name = FindMatchingAttachmentName(attachObj);
-            //node.AddText($"End Effector Attachment: {(!string.IsNullOrEmpty(name) ? name : "(unresolved)")}");
-            //}
-            //if (opFixedData.ContainsKey("m_targetAttachment"))
-            //{
-            //var attachObj = opFixedData.GetSubCollection("m_targetAttachment");
-            //var name = FindMatchingAttachmentName(attachObj);
-            //node.AddText($"Target Attachment: {(!string.IsNullOrEmpty(name) ? name : "(unresolved)")}");
-            //}
 
             if (opFixedData.ContainsKey("m_hPositionParam"))
             {
@@ -1271,24 +1642,43 @@ internal class AG1GraphViewer : GLNodeGraphViewer
             }
         }
 
-        nodeGraph.AddNode(node);
+        View.AddNode(node);
         return node;
     }
 
-    private static SKColor GetParameterTypeColor(string type)
+    private static GraphHue GetParameterTypeHue(string type)
     {
         return type switch
         {
-            "BOOL" => new SKColor(25, 78, 101),
-            "INT" => new SKColor(145, 102, 54),
-            "FLOAT" => new SKColor(163, 171, 37),
-            "ENUM" => new SKColor(89, 27, 111),
-            "VECTOR" => new SKColor(26, 122, 59),
-            "QUATERNION" => new SKColor(123, 58, 60),
-            "SYMBOL" => new SKColor(200, 200, 200),
-            "VIRTUAL" => new SKColor(150, 150, 150),
-            _ => new SKColor(128, 128, 128),
+            "BOOL" => GraphHue.Blue,
+            "INT" => GraphHue.Orange,
+            "FLOAT" => GraphHue.Olive,
+            "ENUM" => GraphHue.Purple,
+            "VECTOR" => GraphHue.Green,
+            "QUATERNION" => GraphHue.Maroon,
+            "SYMBOL" => GraphHue.Neutral,
+            "VIRTUAL" => GraphHue.Neutral,
+            _ => GraphHue.Neutral,
         };
+    }
+
+    private void RecordParameterConsumer(KVObject? paramObj, Node node)
+    {
+        if (paramObj == null)
+        {
+            return;
+        }
+
+        if (!parameterConsumers.TryGetValue(paramObj, out var list))
+        {
+            list = [];
+            parameterConsumers[paramObj] = list;
+        }
+
+        if (!list.Contains(node))
+        {
+            list.Add(node);
+        }
     }
 
     private void AddParameterAndTagNodes()
@@ -1306,11 +1696,29 @@ internal class AG1GraphViewer : GLNodeGraphViewer
             {
                 Name = $"{friendlyName} Parameters",
                 NodeType = "Parameter Group",
-                HeaderColor = GetParameterTypeColor(type),
+                Category = GetParameterTypeHue(type),
             };
             foreach (var p in ordered)
-                node.AddText(GetParameterDescriptionFromObject(p));
-            nodeGraph.AddNode(node);
+            {
+                if (drawParameterWires && parameterConsumers.TryGetValue(p, out var consumers))
+                {
+                    // Consumed parameters become output sockets wired to their readers, making
+                    // "what does this parameter drive" visible.
+                    var output = node.AddOutput(GetParameterDescriptionFromObject(p), GetParameterTypeHue(type));
+
+                    foreach (var consumer in consumers)
+                    {
+                        var input = consumer.GetOrAddInput("Params", GraphHue.Neutral);
+                        View.Connect(output, input, dashed: true);
+                    }
+                }
+                else
+                {
+                    node.AddText(GetParameterDescriptionFromObject(p));
+                }
+            }
+
+            View.AddNode(node);
         }
 
         if (tags.Count > 0)
@@ -1321,7 +1729,7 @@ internal class AG1GraphViewer : GLNodeGraphViewer
             foreach (var group in tagGroups)
             {
                 var className = group.Key;
-                var friendlyName = TagDisplayName.TryGetValue(className, out var display) ? display : className;
+                var (friendlyName, tagHue) = TagClassInfo(className);
 
                 var ordered = group.OrderBy(t => tagIndexMap.TryGetValue(t, out var idx) ? idx : int.MaxValue).ToList();
 
@@ -1329,14 +1737,14 @@ internal class AG1GraphViewer : GLNodeGraphViewer
                 {
                     Name = $"{friendlyName}",
                     NodeType = "Tag Group",
-                    HeaderColor = GetTagClassColor(className),
+                    Category = tagHue,
                 };
                 foreach (var t in ordered)
                 {
                     var name = t.GetStringProperty("m_name") ?? "Unnamed";
                     node.AddText(name);
                 }
-                nodeGraph.AddNode(node);
+                View.AddNode(node);
             }
         }
     }
@@ -1349,7 +1757,7 @@ internal class AG1GraphViewer : GLNodeGraphViewer
         foreach (var comp in components)
         {
             var className = comp.GetStringProperty("_class") ?? "Unknown";
-            var friendlyName = ComponentDisplayName.TryGetValue(className, out var display) ? display : className;
+            var (friendlyName, componentHue) = ComponentClassInfo(className);
             var name = comp.GetStringProperty("m_name") ?? "";
             var displayName = string.IsNullOrEmpty(name) ? friendlyName : $"{friendlyName} ({name})";
 
@@ -1357,7 +1765,7 @@ internal class AG1GraphViewer : GLNodeGraphViewer
             {
                 Name = displayName,
                 NodeType = "Component",
-                HeaderColor = GetComponentClassColor(className),
+                Category = componentHue,
             };
 
             if (className == "CStateMachineComponentUpdater")
@@ -1378,59 +1786,13 @@ internal class AG1GraphViewer : GLNodeGraphViewer
                 }
             }
 
-            foreach (var kv in comp.Children)
-            {
-                string key = kv.Key;
-                if (key == "_class" || key == "m_stateMachine" || key == "m_name")
-                    continue;
-                if (kv.Value.ValueType == KVValueType.Collection || kv.Value.ValueType == KVValueType.Array)
-                    continue;
-
-                string displayKey = PropertyDisplayNames.TryGetValue(key, out var friendly) ? friendly : key;
-                string valueStr = kv.Value.ToString();
-                if (!string.IsNullOrEmpty(valueStr))
-                    node.AddText($"{displayKey}: {valueStr}");
-            }
+            AddScalarRows(node, comp, static key => key is "_class" or "m_stateMachine" or "m_name");
 
             ApplyNetworkMode(node, comp);
 
-            nodeGraph.AddNode(node);
+            View.AddNode(node);
         }
     }
-
-    #region Node class
-
-    private class Node : AbstractNode
-    {
-        public KVObject? Data { get; set; }
-
-        public Node(KVObject? data)
-        {
-            Data = data;
-            BaseColor = NodeColor;
-            TextColor = new SKColor(230, 230, 230);
-            HeaderTextColor = new SKColor(255, 255, 255);
-            HeaderTypeColor = new SKColor(255, 255, 255);
-        }
-
-        public void SetBaseColor(SKColor color)
-        {
-            BaseColor = color;
-        }
-
-        public void AddSpace() => CreateTextSocket<string>(string.Empty);
-        public void AddText(string text) => CreateTextSocket<string>(text);
-
-        private void CreateTextSocket<T>(string text)
-        {
-            var socket = new SocketIn(typeof(T), text, this, false)
-            {
-                DisplayOnly = true
-            };
-            Sockets.Add(socket);
-        }
-    }
-    #endregion
 
     public override void Dispose()
     {
@@ -1441,6 +1803,4 @@ internal class AG1GraphViewer : GLNodeGraphViewer
         base.Dispose();
         GC.SuppressFinalize(this);
     }
-
-    private struct Pose { }
 }

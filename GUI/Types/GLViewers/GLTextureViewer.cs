@@ -139,6 +139,8 @@ namespace GUI.Types.GLViewers
 #endif
         }
 
+        protected virtual bool ShowResetZoomButton => true;
+
         protected override void AddUiControls()
         {
             Debug.Assert(UiControl != null);
@@ -153,15 +155,18 @@ namespace GUI.Types.GLViewers
 
             UpdateZoomLabel();
 
-            var resetButton = new ThemedButton
+            if (ShowResetZoomButton)
             {
-                Text = "Reset zoom",
-                AutoSize = true,
-            };
+                var resetButton = new ThemedButton
+                {
+                    Text = "Reset zoom",
+                    AutoSize = true,
+                };
 
-            resetButton.Click += (_, __) => ResetZoom();
+                resetButton.Click += (_, __) => ResetZoom();
 
-            UiControl.AddControl(resetButton);
+                UiControl.AddControl(resetButton);
+            }
 
             AddSaveButton();
 
@@ -182,6 +187,9 @@ namespace GUI.Types.GLViewers
 
             base.AddUiControls();
         }
+
+        /// <summary>The save/copy row, exposed so a viewer can reorder it within its sidebar.</summary>
+        protected Control? SaveSection { get; private set; }
 
         private void AddSaveButton()
         {
@@ -215,6 +223,7 @@ namespace GUI.Types.GLViewers
             saveTable.Controls.Add(saveButton, 0, 0);
             saveTable.Controls.Add(copyLabel, 1, 0);
             UiControl.AddControl(saveTable);
+            SaveSection = saveTable;
         }
 
         private void InitializeUIControlsForResource()
@@ -1035,8 +1044,9 @@ namespace GUI.Types.GLViewers
             var scaleMinMax = new Vector2(0.1f, 50f);
             scaleMinMax *= 256 / MathF.Max(ActualTextureSize.X, ActualTextureSize.Y);
 
-            if (this is GLNodeGraphViewer)
+            if (this is GLGraphViewer graphViewer)
             {
+                scaleMinMax.X = graphViewer.MinTextureScale();
                 scaleMinMax.Y = 2f;
             }
 
