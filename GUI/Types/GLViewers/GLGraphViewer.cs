@@ -1,6 +1,5 @@
 using System.Diagnostics;
 using System.IO;
-using System.Linq;
 using System.Windows.Forms;
 using GUI.Controls;
 using GUI.Types.Graphs;
@@ -50,6 +49,9 @@ namespace GUI.Types.GLViewers
 
         protected override bool ShowResetZoomButton => false;
 
+        // The graph is drawn through Skia; there are no scene shaders to hot-reload.
+        protected override bool ShowReloadShadersButton => false;
+
         /// <summary>Frontends that build state machines expose a checkbox to draw them as a statechart.</summary>
         protected virtual bool HasStateMachineToggle => false;
 
@@ -58,11 +60,26 @@ namespace GUI.Types.GLViewers
         {
         }
 
+        /// <summary>Frontends whose parameters fan out to many consumers expose a checkbox to draw those wires.</summary>
+        protected virtual bool HasParameterWireToggle => false;
+
+        /// <summary>Rebuilds the graph with parameter feeds drawn as wires (true) or listed as card text (false).</summary>
+        protected virtual void SetDrawParameterWires(bool draw)
+        {
+        }
+
         private Label? statsLabel;
         private ThemedTextBox? searchBox;
-        private Panel? legendPanel;
         private GraphNode? lastSearchResult;
         private CheckedListBox? subtitleFilter;
+        private ComboBox? placementCombo;
+        private ComboBox? wireCombo;
+        private CheckBox? stateMachinesCheckBox;
+        private CheckBox? parameterWiresCheckBox;
+        private bool suppressPlacementChange;
+        private bool suppressWireChange;
+        private GraphPlacement openingPlacement;
+        private bool openingStraightWires;
 
         protected override void AddUiControls()
         {
@@ -70,141 +87,63 @@ namespace GUI.Types.GLViewers
 
             base.AddUiControls();
 
+            statsLabel = new Label
             {
-                statsLabel = new Label
-                {
-                    AutoSize = false,
-                    AutoEllipsis = true,
-                    Padding = new Padding(3, 8, 3, 0),
-                };
-                UiControl.AddControl(statsLabel);
-                RefreshStatsLabel();
+                AutoSize = false,
+                AutoEllipsis = true,
+                Padding = new Padding(3, 8, 3, 0),
+            };
+            UiControl.AddControl(statsLabel);
+            RefreshStatsLabel();
 
-                searchBox = new ThemedTextBox
-                {
-                    PlaceholderText = "Name search (Enter = next)",
-                    BorderStyle = BorderStyle.None,
-                    Dock = DockStyle.Fill,
-                };
-                searchBox.KeyDown += OnSearchKeyDown;
-                searchBox.TextChanged += (_, _) => View.SetSearchHighlight(searchBox.Text);
+            AddSearchSection();
+            AddViewSection();
 
-                // The themed textbox melts into the sidebar; a one-pixel outline panel plus
-                // vertical breathing room keeps the search field visible below the dropdown.
-                var searchOutline = new Panel
-                {
-                    Padding = new Padding(1),
-                    BackColor = Themer.CurrentThemeColors.Border,
-                    Dock = DockStyle.Fill,
-                };
-                searchOutline.Controls.Add(searchBox);
+            var subtitles = View.GetDistinctSubtitles();
 
-                var searchSection = new Panel
+            if (subtitles.Count > 1)
+            {
+                var filterList = UiControl.AddMultiSelection("Filter", listBox =>
                 {
-                    Padding = new Padding(0, 8, 0, 8),
-                    Height = UiControl.AdjustForDPI(40),
-                };
-                searchSection.Controls.Add(searchOutline);
-                UiControl.AddControl(searchSection);
-
-                var suppressPlacementChange = true;
-                var placementCombo = UiControl.AddSelection("Layout", (_, index) =>
-                {
-                    if (suppressPlacementChange || index < 0)
+                    foreach (var subtitle in subtitles)
                     {
-                        return;
+                        listBox.Items.Add(subtitle, true);
                     }
-
-                    View.Placement = (GraphPlacement)index;
-                    View.LayoutNodesPacked();
+                }, visible =>
+                {
+                    View.SetSubtitleFilter(visible);
                     RefitToGraph();
                 });
-                placementCombo.Items.AddRange(new object[] { "Layered (Sugiyama)", "Organic (MDS)" });
-                placementCombo.SelectedIndex = (int)View.Placement;
-                suppressPlacementChange = false;
 
-                var suppressWireChange = true;
-                var wireCombo = UiControl.AddSelection("Wires", (_, index) =>
+                subtitleFilter = filterList;
+
+                // Content-sized section; the sidebar as a whole scrolls instead.
+                if (filterList.Parent?.Parent is Control filterControl)
                 {
-                    if (suppressWireChange || index < 0)
-                    {
-                        return;
-                    }
-
-                    View.StraightWires = index == 1;
-                    View.MarkVisualDirty();
-                    InvalidateRender();
-                });
-                wireCombo.Items.AddRange(new object[] { "Curved", "Straight" });
-                wireCombo.SelectedIndex = View.StraightWires ? 1 : 0;
-                suppressWireChange = false;
-
-                var complexitySection = AddComplexityReduction();
-
-                if (HasStateMachineToggle)
-                {
-                    UiControl.AddCheckBox("Draw state machines", false, SetDrawStateMachines);
+                    filterControl.Height = filterList.ItemHeight * filterList.Items.Count + UiControl.AdjustForDPI(34);
                 }
-
-                var subtitles = View.GetDistinctSubtitles();
-
-                if (subtitles.Count > 1)
-                {
-                    var filterList = UiControl.AddMultiSelection("Filter", listBox =>
-                    {
-                        foreach (var subtitle in subtitles)
-                        {
-                            listBox.Items.Add(subtitle, true);
-                        }
-                    }, visible =>
-                    {
-                        View.SetSubtitleFilter(visible);
-                        RefitToGraph();
-                    });
-
-                    subtitleFilter = filterList;
-
-                    // Content-sized section; the sidebar as a whole scrolls instead.
-                    if (filterList.Parent?.Parent is Control filterControl)
-                    {
-                        filterControl.Height = filterList.ItemHeight * filterList.Items.Count + UiControl.AdjustForDPI(34);
-                    }
-                }
-
-                AddLegendPanel();
-
-                // SendToBack docks a child at the top, so calling it in reverse leaves the sidebar
-                // reading Layout, Wires, Reduce, then the search box. A combo is nested inside its
-                // own selection control, so the sidebar child that owns it is what has to move.
-                searchSection.SendToBack();
-                complexitySection?.SendToBack();
-                SidebarSectionOf(wireCombo, searchSection.Parent)?.SendToBack();
-                SidebarSectionOf(placementCombo, searchSection.Parent)?.SendToBack();
-
-                // Added last so it docks at the very bottom of the sidebar, below the legend.
-                var resetSection = new Panel
-                {
-                    Padding = new Padding(4, 8, 4, 8),
-                    Height = UiControl.AdjustForDPI(48),
-                };
-
-                var resetButton = new ThemedButton
-                {
-                    Text = "Reset view",
-                    Dock = DockStyle.Fill,
-                };
-                resetButton.Click += (_, _) => ResetGraph();
-
-                resetSection.Controls.Add(resetButton);
-                UiControl.AddControl(resetSection);
-
-#if DEBUG
-                AddLayoutDump();
-#endif
-
-                // Saving is the least used control here, so it goes under everything else.
-                SaveSection?.BringToFront();
             }
+
+            AddLegendPanel();
+
+            var resetSection = new Panel
+            {
+                Padding = new Padding(4, 8, 4, 8),
+                Height = UiControl.AdjustForDPI(48),
+            };
+
+            var resetButton = new ThemedButton
+            {
+                Text = "Reset view",
+                Dock = DockStyle.Fill,
+            };
+            resetButton.Click += (_, _) => ResetGraph();
+
+            resetSection.Controls.Add(resetButton);
+            UiControl.AddControl(resetSection);
+
+            // Saving is the least used control here, so it goes under everything else.
+            SaveSection?.BringToFront();
 
             if (GLControl != null)
             {
@@ -213,59 +152,128 @@ namespace GUI.Types.GLViewers
             }
         }
 
-        /// <summary>Walks up from a control to the sidebar child that owns it, so it can be reordered.</summary>
-        private static Control? SidebarSectionOf(Control control, Control? sidebar)
+        private void AddSearchSection()
         {
-            Control? section = control;
+            Debug.Assert(UiControl != null);
 
-            while (section != null && section.Parent != sidebar)
+            searchBox = new ThemedTextBox
             {
-                section = section.Parent;
-            }
+                PlaceholderText = "Name search (Enter = next)",
+                BorderStyle = BorderStyle.None,
+                Dock = DockStyle.Fill,
+            };
+            searchBox.KeyDown += OnSearchKeyDown;
+            searchBox.TextChanged += (_, _) => View.SetSearchHighlight(searchBox.Text);
 
-            return section;
+            // The themed textbox melts into the sidebar; a one-pixel outline panel keeps the
+            // field visible inside the frame.
+            var searchOutline = new Panel
+            {
+                Padding = new Padding(1),
+                BackColor = Themer.CurrentThemeColors.Border,
+                Dock = DockStyle.Fill,
+            };
+            searchOutline.Controls.Add(searchBox);
+
+            var searchContent = new Panel
+            {
+                Padding = new Padding(0, 4, 0, 4),
+                Height = searchBox.PreferredHeight + UiControl.AdjustForDPI(10),
+            };
+            searchContent.Controls.Add(searchOutline);
+
+            var section = new GLViewerGroupedSectionControl("Search");
+            section.AddRow(searchContent);
+            UiControl.AddControl(section);
         }
 
         /// <summary>
-        /// Sidebar command that re-runs the crossing repair with no time limit. The automatic
-        /// pass is capped so opening a graph stays quick, which means a large graph keeps
-        /// crossings the full pass would have removed; this is how the user asks for those.
+        /// The framed section with everything that changes how the graph is presented: layout
+        /// engine, wire style, the rebuild toggles and the unbudgeted crossing repair. The
+        /// repair button exists because the automatic pass is capped so opening a graph stays
+        /// quick, which means a large graph keeps crossings the full pass would have removed.
         /// </summary>
-        private Panel? AddComplexityReduction()
+        private void AddViewSection()
         {
-            if (UiControl == null)
+            Debug.Assert(UiControl != null);
+
+            openingPlacement = View.Placement;
+            openingStraightWires = View.StraightWires;
+
+            var section = new GLViewerGroupedSectionControl("View");
+
+            suppressPlacementChange = true;
+            var placementSelection = CreateSelection("Layout", index =>
             {
-                return null;
+                if (suppressPlacementChange || index < 0)
+                {
+                    return;
+                }
+
+                View.Placement = (GraphPlacement)index;
+                View.LayoutNodesPacked();
+                RefitToGraph();
+            });
+            placementCombo = placementSelection.ComboBox;
+            placementCombo.Items.AddRange(new object[] { "Layered (Sugiyama)", "Organic (MDS)" });
+            placementCombo.SelectedIndex = (int)View.Placement;
+            suppressPlacementChange = false;
+            section.AddRow(placementSelection);
+
+            suppressWireChange = true;
+            var wireSelection = CreateSelection("Wires", index =>
+            {
+                if (suppressWireChange || index < 0)
+                {
+                    return;
+                }
+
+                View.StraightWires = index == 1;
+                View.MarkVisualDirty();
+                InvalidateRender();
+            });
+            wireCombo = wireSelection.ComboBox;
+            wireCombo.Items.AddRange(new object[] { "Curved", "Straight" });
+            wireCombo.SelectedIndex = View.StraightWires ? 1 : 0;
+            suppressWireChange = false;
+            wireSelection.Margin = new Padding(0, UiControl.AdjustForDPI(8), 0, 0);
+            section.AddRow(wireSelection);
+
+            if (HasStateMachineToggle)
+            {
+                var checkbox = RendererControl.CreateCheckBox("Draw state machines", false, SetDrawStateMachines);
+                stateMachinesCheckBox = checkbox.CheckBox;
+                section.AddRow(checkbox);
             }
 
-            var section = new Panel
+            if (HasParameterWireToggle)
             {
-                Padding = new Padding(4, 10, 4, 6),
-                Height = UiControl.AdjustForDPI(94),
-            };
+                var checkbox = RendererControl.CreateCheckBox("Draw parameter wires", false, SetDrawParameterWires);
+                parameterWiresCheckBox = checkbox.CheckBox;
+                section.AddRow(checkbox);
+            }
 
-            var caption = new Label
+            // Auto-sized so it wraps at the real sidebar width and its row grows to fit,
+            // instead of a fixed height the text can overflow into the button below.
+            var reduceCaption = new Label
             {
                 Text = "Wires are untangled for up to four seconds when the graph opens.",
-                Dock = DockStyle.Top,
-                AutoSize = false,
-                Height = UiControl.AdjustForDPI(42),
+                AutoSize = true,
+                Margin = new Padding(0, UiControl.AdjustForDPI(6), 0, UiControl.AdjustForDPI(2)),
             };
+            section.AddRow(reduceCaption);
 
-            // Docked to the bottom with its own height rather than filling: a Fill button competes
-            // with the caption for the same space and ends up drawn over the last line of it.
-            var button = new ThemedButton
+            var reduceButton = new ThemedButton
             {
                 Text = "Reduce Visual Graph Complexity",
-                Dock = DockStyle.Bottom,
-                Height = UiControl.AdjustForDPI(30),
+                MinimumSize = new System.Drawing.Size(0, UiControl.AdjustForDPI(30)),
             };
 
-            button.Click += (_, _) =>
+            reduceButton.Click += (_, _) =>
             {
-                button.Enabled = false;
-                var previous = button.Text;
-                button.Text = "Working...";
+                reduceButton.Enabled = false;
+                var previous = reduceButton.Text;
+                reduceButton.Text = "Working...";
 
                 try
                 {
@@ -275,76 +283,32 @@ namespace GUI.Types.GLViewers
                 }
                 finally
                 {
-                    button.Text = previous;
-                    button.Enabled = true;
+                    reduceButton.Text = previous;
+                    reduceButton.Enabled = true;
                 }
             };
+            section.AddRow(reduceButton);
 
-            section.Controls.Add(button);
-            section.Controls.Add(caption);
             UiControl.AddControl(section);
-            return section;
         }
 
-#if DEBUG
-        /// <summary>
-        /// Sidebar command that writes the graph exactly as it is currently arranged, cards and
-        /// wire dock points alike, to a text file in the user's Downloads folder. Dragging cards
-        /// by hand and dumping the result gives an arrangement to compare the layout against.
-        /// </summary>
-        private void AddLayoutDump()
+        private static GLViewerSelectionControl CreateSelection(string name, Action<int> changeCallback)
         {
-            if (UiControl == null)
-            {
-                return;
-            }
+            var selection = new GLViewerSelectionControl(name, horizontal: false, fill: false);
 
-            var section = new Panel
+            selection.ComboBox.SelectedIndexChanged += (_, _) =>
             {
-                Padding = new Padding(4, 0, 4, 8),
-                Height = UiControl.AdjustForDPI(40),
+                selection.Refresh();
+                changeCallback(selection.ComboBox.SelectedIndex);
             };
 
-            var button = new ThemedButton
-            {
-                Text = "Log layout to file",
-                Dock = DockStyle.Fill,
-            };
-
-            button.Click += (_, _) =>
-            {
-                var name = Path.GetFileNameWithoutExtension(VrfGuiContext.FileName);
-
-                if (string.IsNullOrEmpty(name))
-                {
-                    name = "graph";
-                }
-
-                var folder = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "Downloads");
-                Directory.CreateDirectory(folder);
-
-                // Each click writes a new file so an arrangement can be dumped, changed, and dumped again.
-                var path = Path.Combine(folder, $"graph-layout-{name}.txt");
-
-                for (var i = 2; File.Exists(path); i++)
-                {
-                    path = Path.Combine(folder, $"graph-layout-{name}-{i}.txt");
-                }
-
-                File.WriteAllText(path, View.DescribeLayout(VrfGuiContext.FileName));
-                Log.Info(nameof(GLGraphViewer), $"Wrote graph layout to {path}");
-
-                button.Text = Path.GetFileName(path);
-            };
-
-            section.Controls.Add(button);
-            UiControl.AddControl(section);
+            return selection;
         }
-#endif
 
         /// <summary>
-        /// Clears the search, selection and subtitle filter, restores every isolated node
-        /// and island, then refits the view to the whole graph.
+        /// Restores the graph to how it opened: search, selection and filters cleared, the
+        /// rebuild toggles off, the layout and wire combos back at their opening values, every
+        /// node back at its opening position, and the view refit to the whole graph.
         /// </summary>
         private void ResetGraph()
         {
@@ -358,6 +322,34 @@ namespace GUI.Types.GLViewers
             View.SetSearchHighlight(null);
             View.ClearSelection();
 
+            // Unchecking a rebuild toggle rebuilds the graph and recaptures its opening
+            // arrangement, so both happen before that arrangement is restored.
+            if (stateMachinesCheckBox != null)
+            {
+                stateMachinesCheckBox.Checked = false;
+            }
+
+            if (parameterWiresCheckBox != null)
+            {
+                parameterWiresCheckBox.Checked = false;
+            }
+
+            if (placementCombo != null)
+            {
+                suppressPlacementChange = true;
+                placementCombo.SelectedIndex = (int)openingPlacement;
+                suppressPlacementChange = false;
+                View.Placement = openingPlacement;
+            }
+
+            if (wireCombo != null)
+            {
+                suppressWireChange = true;
+                wireCombo.SelectedIndex = openingStraightWires ? 1 : 0;
+                suppressWireChange = false;
+                View.StraightWires = openingStraightWires;
+            }
+
             if (subtitleFilter != null)
             {
                 for (var i = 0; i < subtitleFilter.Items.Count; i++)
@@ -366,7 +358,11 @@ namespace GUI.Types.GLViewers
                 }
             }
 
-            ShowAllIslands();
+            // Restoring positions supersedes the relayout an isolate-with-relayout queued.
+            pendingFullRelayout = false;
+            View.ShowAllNodes();
+            View.RestoreOpeningLayout();
+            RefitToGraph();
         }
 
         private void OnGlControlLostFocus(object? sender, System.EventArgs e)
@@ -432,6 +428,46 @@ namespace GUI.Types.GLViewers
             FocusNode(match);
         }
 
+        /// <summary>The legend split by sample kind: line samples first, then the node colour swatches.</summary>
+        private List<(string Title, List<GraphLegendEntry> Entries)> LegendSections()
+        {
+            List<GraphLegendEntry> lineEntries = [];
+            List<GraphLegendEntry> nodeEntries = [];
+
+            foreach (var entry in View.Legend)
+            {
+                (entry.Kind == GraphLegendKind.Category ? nodeEntries : lineEntries).Add(entry);
+            }
+
+            List<(string, List<GraphLegendEntry>)> sections = [];
+
+            if (lineEntries.Count > 0)
+            {
+                sections.Add(("Line types", lineEntries));
+            }
+
+            if (nodeEntries.Count > 0)
+            {
+                sections.Add(("Node types", nodeEntries));
+            }
+
+            return sections;
+        }
+
+        /// <summary>Rebuilds the legend rows after a graph rebuild changed the legend.</summary>
+        protected void RefreshLegendPanel()
+        {
+            if (legendSection == null)
+            {
+                return;
+            }
+
+            legendSection.ClearRows();
+            PopulateLegendRows();
+        }
+
+        private GLViewerGroupedSectionControl? legendSection;
+
         private void AddLegendPanel()
         {
             Debug.Assert(UiControl != null);
@@ -441,47 +477,96 @@ namespace GUI.Types.GLViewers
                 return;
             }
 
-            legendPanel = new Panel
-            {
-                Height = UiControl.AdjustForDPI(10 + View.Legend.Count * 18),
-            };
-            legendPanel.Paint += (_, e) =>
-            {
-                var y = 6;
-                using var text = new System.Drawing.SolidBrush(Themer.CurrentThemeColors.Contrast);
+            legendSection = new GLViewerGroupedSectionControl("Legend");
+            PopulateLegendRows();
+            UiControl.AddControl(legendSection);
+        }
 
-                foreach (var (label, hue, kind) in View.Legend)
+        private void PopulateLegendRows()
+        {
+            Debug.Assert(legendSection != null);
+
+            var first = true;
+
+            foreach (var (title, entries) in LegendSections())
+            {
+                var heading = new Label
                 {
-                    // Palette slots resolve at paint time so the legend follows the theme.
-                    var skColor = kind == GraphLegendKind.Category ? View.Palette.Category(hue) : View.Palette.Signal(hue);
-                    using var brush = new System.Drawing.SolidBrush(System.Drawing.Color.FromArgb(skColor.Red, skColor.Green, skColor.Blue));
+                    Text = title,
+                    AutoSize = true,
+                    Margin = new Padding(0, first ? 2 : 8, 0, 2),
+                };
+                legendSection.AddRow(heading);
+                first = false;
 
-                    if (kind is GraphLegendKind.Wire or GraphLegendKind.DashedWire)
-                    {
-                        using var pen = new System.Drawing.Pen(brush.Color, 3f);
-
-                        if (kind == GraphLegendKind.DashedWire)
-                        {
-                            pen.DashStyle = System.Drawing.Drawing2D.DashStyle.Dash;
-                        }
-
-                        e.Graphics.DrawLine(pen, 4, y + 8, 20, y + 8);
-                    }
-                    else if (kind == GraphLegendKind.Marker)
-                    {
-                        e.Graphics.FillPolygon(brush, [new(12, y + 3), new(17, y + 8), new(12, y + 13), new(7, y + 8)]);
-                    }
-                    else
-                    {
-                        e.Graphics.FillRectangle(brush, 6, y + 2, 12, 12);
-                    }
-
-                    e.Graphics.DrawString(label, legendPanel!.Font, text, 24, y);
-                    y += 18;
+                foreach (var entry in entries)
+                {
+                    legendSection.AddRow(new LegendRowLabel(View, entry));
                 }
-            };
+            }
+        }
 
-            UiControl.AddControl(legendPanel);
+        /// <summary>
+        /// One legend entry: the colour sample drawn into the left padding of a font-sized
+        /// label, so the row needs no manual measuring.
+        /// </summary>
+        private sealed class LegendRowLabel : Label
+        {
+            private readonly GraphView view;
+            private readonly GraphLegendEntry entry;
+
+            public LegendRowLabel(GraphView view, GraphLegendEntry entry)
+            {
+                this.view = view;
+                this.entry = entry;
+                AutoSize = true;
+                Text = entry.Label;
+                Margin = new Padding(0);
+                Padding = new Padding(this.AdjustForDPI(26), 1, 0, 1);
+            }
+
+            protected override void OnHandleCreated(EventArgs e)
+            {
+                base.OnHandleCreated(e);
+
+                // DeviceDpi is only final once the control lives in the window.
+                Padding = new Padding(this.AdjustForDPI(26), 1, 0, 1);
+            }
+
+            protected override void OnPaint(PaintEventArgs e)
+            {
+                base.OnPaint(e);
+
+                // Palette slots resolve at paint time so the legend follows the theme.
+                var skColor = entry.Kind == GraphLegendKind.Category ? view.Palette.Category(entry.Hue) : view.Palette.Signal(entry.Hue);
+                var color = System.Drawing.Color.FromArgb(skColor.Red, skColor.Green, skColor.Blue);
+                var mid = Height / 2;
+
+                if (entry.Kind is GraphLegendKind.Wire or GraphLegendKind.DashedWire)
+                {
+                    using var pen = new System.Drawing.Pen(color, 3f);
+
+                    if (entry.Kind == GraphLegendKind.DashedWire)
+                    {
+                        pen.DashStyle = System.Drawing.Drawing2D.DashStyle.Dash;
+                    }
+
+                    e.Graphics.DrawLine(pen, this.AdjustForDPI(2), mid, this.AdjustForDPI(20), mid);
+                }
+                else if (entry.Kind == GraphLegendKind.Marker)
+                {
+                    using var brush = new System.Drawing.SolidBrush(color);
+                    var radius = this.AdjustForDPI(5);
+                    var centerX = this.AdjustForDPI(11);
+                    e.Graphics.FillPolygon(brush, [new(centerX, mid - radius), new(centerX + radius, mid), new(centerX, mid + radius), new(centerX - radius, mid)]);
+                }
+                else
+                {
+                    using var brush = new System.Drawing.SolidBrush(color);
+                    var size = this.AdjustForDPI(12);
+                    e.Graphics.FillRectangle(brush, this.AdjustForDPI(5), mid - size / 2, size, size);
+                }
+            }
         }
 
         /// <summary>Refits the view to the current graph bounds on the next frame.</summary>
@@ -1051,7 +1136,7 @@ namespace GUI.Types.GLViewers
             contextMenu?.Dispose();
             statsLabel?.Dispose();
             searchBox?.Dispose();
-            legendPanel?.Dispose();
+            legendSection?.Dispose();
             subtitleFilter?.Dispose();
             View.GraphChanged -= OnGraphChanged;
 

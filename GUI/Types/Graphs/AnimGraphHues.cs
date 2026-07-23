@@ -85,10 +85,14 @@ static class AnimGraphHues
         _ => GraphHue.Neutral,
     };
 
-    /// <summary>The legend both animation graph viewers advertise, in reading order.</summary>
+    /// <summary>
+    /// The legend both animation graph viewers advertise: the line samples first, then the node
+    /// colour swatches, matching the two sub-sections the legend panel draws.
+    /// </summary>
     public static IEnumerable<GraphLegendEntry> Legend()
     {
         yield return new("Pose flow", HueOf(AnimGraphValueKind.Pose), GraphLegendKind.Wire);
+        yield return new("Transition", GraphHue.Slate, GraphLegendKind.DashedWire);
         yield return new("Clip / sequence", HueOf(AnimGraphCategory.Clip));
         yield return new("Blend", HueOf(AnimGraphCategory.Blend));
         yield return new("Blend 2D", HueOf(AnimGraphCategory.Blend2D));
@@ -103,7 +107,6 @@ static class AnimGraphHues
         yield return new("Timing / speed", HueOf(AnimGraphCategory.Timing));
         yield return new("Output / root", HueOf(AnimGraphCategory.Output));
         yield return new("Subgraph / referenced file", HueOf(AnimGraphCategory.ExternalReference));
-        yield return new("Transition", GraphHue.Slate, GraphLegendKind.DashedWire);
     }
 
     /// <summary>

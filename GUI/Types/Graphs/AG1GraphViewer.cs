@@ -17,7 +17,7 @@ namespace GUI.Types.Graphs;
 internal class AG1GraphViewer : GLGraphViewer
 {
     private readonly KVObject animGraphData;
-    private readonly IReadOnlyList<KVObject> compiledNodes;
+    private IReadOnlyList<KVObject> compiledNodes = Array.Empty<KVObject>();
     private readonly Dictionary<int, Node> nodeMap = new();
     private readonly Dictionary<int, KVObject> parameterIndexToObject = new();
     private readonly Dictionary<KVObject, List<Node>> parameterConsumers = new();
@@ -211,12 +211,41 @@ internal class AG1GraphViewer : GLGraphViewer
         animGraphData = data;
         modelInfo = new AnimGraphModelInfo(vrfGuiContext, LoadModel);
 
+        BuildGraph();
+    }
+
+    // Parameter feeds fan out from one hub per type into most of the graph, so by default they
+    // stay off the canvas: consumers name their parameters as card text and the hub cards list
+    // every parameter. The sidebar checkbox rebuilds with the dashed wires drawn.
+    private bool drawParameterWires;
+
+    protected override bool HasParameterWireToggle => parameterConsumers.Count > 0;
+
+    protected override void SetDrawParameterWires(bool draw)
+    {
+        if (drawParameterWires == draw)
+        {
+            return;
+        }
+
+        drawParameterWires = draw;
+        View.Rebuild(BuildGraph);
+        RefreshStatsLabel();
+        RefreshLegendPanel();
+        RefitToGraph();
+    }
+
+    private void BuildGraph()
+    {
+        nodeMap.Clear();
+        parameterConsumers.Clear();
+        parameterObjectToIndex.Clear();
+
         if (IsEditorGraph(animGraphData))
         {
             // HLA and SteamVR Home ship standalone vanmgrph files in the editor format, and CS2
             // authors its player graphs the same way in vanmgrph/vsubgrph. The graph is laid out
             // from its wires like the compiled path; the authored canvas positions are ignored.
-            compiledNodes = Array.Empty<KVObject>();
             BuildEditorGraph();
             View.LayoutOptions.Features |= GraphLayoutFeature.LongWireDummies;
             View.LayoutOptions.TightenMinSpan = 1;
@@ -244,9 +273,14 @@ internal class AG1GraphViewer : GLGraphViewer
         View.LayoutNodesPacked();
 
         View.Legend.AddRange(AnimGraphHues.Legend());
+
+        if (drawParameterWires)
+        {
+            View.Legend.Add(new("Parameter link", GraphHue.Olive, GraphLegendKind.DashedWire));
+        }
+
         View.Legend.AddRange(
         [
-            new("Parameter link", GraphHue.Olive, GraphLegendKind.DashedWire),
             new("Tag group", GraphHue.Teal),
             new("Component", GraphHue.Neutral),
             new("Client-simulated", GraphHue.Purple, GraphLegendKind.Marker),
@@ -1705,7 +1739,7 @@ internal class AG1GraphViewer : GLGraphViewer
             };
             foreach (var p in ordered)
             {
-                if (parameterConsumers.TryGetValue(p, out var consumers))
+                if (drawParameterWires && parameterConsumers.TryGetValue(p, out var consumers))
                 {
                     // Consumed parameters become output sockets wired to their readers, making
                     // "what does this parameter drive" visible.
