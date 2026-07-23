@@ -52,6 +52,9 @@ public class PerfStats
     /// <summary>Gets the CPU and GPU timings for the same frame. Captured independently of <see cref="Capture"/>.</summary>
     public Timings Timings { get; } = new();
 
+    /// <summary>Gets the managed allocation and GC statistics for the same frame. Captured independently of <see cref="Capture"/>.</summary>
+    public AllocStats Allocations { get; } = new();
+
     // Debug groups opened outside a marked frame are not timed.
     private bool timingFrame;
 
@@ -417,6 +420,8 @@ public class PerfStats
         Timings.MarkFrameBegin();
         timingFrame = Timings.Capture;
 
+        Allocations.MarkFrameBegin();
+
         if (!Capture)
         {
             return;
@@ -498,6 +503,7 @@ public class PerfStats
         // Timed up to here, so that text rendering is still measured.
         timingFrame = false;
         Timings.MarkFrameEnd();
+        Allocations.MarkFrameEnd();
     }
 
     /// <summary>Begins a timing query for a debug group, or returns 0 if this frame is not being timed.</summary>
@@ -528,6 +534,7 @@ public class PerfStats
     public void Dispose()
     {
         Timings.Dispose();
+        Allocations.Dispose();
 
         foreach (var frame in triangleFrames)
         {

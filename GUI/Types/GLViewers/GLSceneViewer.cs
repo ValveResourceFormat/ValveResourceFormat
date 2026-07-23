@@ -41,6 +41,7 @@ namespace GUI.Types.GLViewers
             Off,
             Stats,
             Timings,
+            Allocations,
         }
 
         private PerfDisplay perfDisplay;
@@ -136,7 +137,7 @@ namespace GUI.Types.GLViewers
                 }
 
                 perfDisplayComboBox = UiControl.AddSelection("Debug Performance", (_, i) => perfDisplay = (PerfDisplay)i);
-                perfDisplayComboBox.Items.AddRange([nameof(PerfDisplay.Off), nameof(PerfDisplay.Stats), nameof(PerfDisplay.Timings)]);
+                perfDisplayComboBox.Items.AddRange([nameof(PerfDisplay.Off), nameof(PerfDisplay.Stats), nameof(PerfDisplay.Timings), nameof(PerfDisplay.Allocations)]);
                 perfDisplayComboBox.SelectedIndex = (int)perfDisplay;
             }
 
@@ -455,6 +456,7 @@ namespace GUI.Types.GLViewers
 
             Renderer.PerfStats.Capture = perfDisplay == PerfDisplay.Stats;
             Renderer.PerfStats.Timings.Capture = perfDisplay == PerfDisplay.Timings;
+            Renderer.PerfStats.Allocations.Capture = perfDisplay == PerfDisplay.Allocations;
 
             Renderer.PerfStats.MarkFrameBegin();
             GL.BeginQuery(QueryTarget.TimeElapsed, frametimeQuery1);
@@ -634,6 +636,10 @@ namespace GUI.Types.GLViewers
             else if (perfDisplay == PerfDisplay.Timings)
             {
                 Renderer.PerfStats.Timings.DisplayTimings(TextRenderer, Renderer.Camera);
+            }
+            else if (perfDisplay == PerfDisplay.Allocations)
+            {
+                Renderer.PerfStats.Allocations.DisplayAllocations(TextRenderer, Renderer.Camera);
             }
 
             TextRenderer.Render(Renderer.Camera, Renderer.ResolvedSceneDepth);

@@ -153,13 +153,24 @@ public class Timings
         var yOffset = y;
         var lineHeight = scale * 1.5f / camera.WindowSize.Y;
 
-        // Header
         textRenderer.AddTextRelative(new TextRenderer.TextRenderRequest
         {
             X = x,
             Y = yOffset,
             Scale = scale,
             Color = new Color32(255, 200, 0),
+            Text = "Render Timings"
+        }, camera);
+
+        yOffset += lineHeight;
+
+        // Header
+        textRenderer.AddTextRelative(new TextRenderer.TextRenderRequest
+        {
+            X = x,
+            Y = yOffset,
+            Scale = scale,
+            Color = Color32.White,
             Text = $"  {"",-NameColumnWidth} {"GPU",6} {"CPU",6} {"P100",6}"
         }, camera);
 
