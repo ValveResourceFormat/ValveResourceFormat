@@ -270,7 +270,7 @@ namespace GUI.Types.GLViewers
 
                 switch (entityData.GetStringProperty("classname"))
                 {
-                    case "point_soundevent":
+                    case "point_soundevent" or "snd_event_point":
                         pointSoundEvents.Add(entityData);
                         break;
 

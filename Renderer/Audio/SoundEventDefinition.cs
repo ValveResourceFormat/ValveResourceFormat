@@ -50,12 +50,14 @@ public sealed class SoundEventDefinition
 
     /// <summary>
     /// Gets how strongly geometry between the listener and the sound attenuates it
-    /// ("occlusion_intensity"): 0 (the default) is not occludable, 1 is fully muted when blocked.
+    /// ("occlusion_intensity", or "occlusion_scale" in hlvr): 0 (the default) is
+    /// not occludable, 1 is fully muted when blocked.
     /// </summary>
     public float OcclusionIntensity { get; }
 
     /// <summary>
-    /// Gets whether replays within <see cref="BlockDuration"/> are dropped ("block_matching_events").
+    /// Gets whether replays within <see cref="BlockDuration"/> are dropped ("block_matching_events",
+    /// or "block_match_this_event" in hlvr).
     /// </summary>
     public bool BlockMatchingEvents { get; }
     /// <summary>Gets how long replays are blocked for, in seconds.</summary>
@@ -111,9 +113,11 @@ public sealed class SoundEventDefinition
         Volume = data.GetFloatProperty("volume", 1f);
         Pitch = data.GetFloatProperty("pitch", 1f);
         Delay = data.GetFloatProperty("delay");
-        OcclusionIntensity = data.GetFloatProperty("occlusion_intensity");
+        OcclusionIntensity = data.ContainsKey("occlusion_intensity")
+            ? data.GetFloatProperty("occlusion_intensity")
+            : data.GetFloatProperty("occlusion_scale");
 
-        BlockMatchingEvents = data.GetBooleanProperty("block_matching_events");
+        BlockMatchingEvents = data.GetBooleanProperty("block_matching_events") || data.GetBooleanProperty("block_match_this_event");
         BlockDuration = data.GetFloatProperty("block_duration");
 
         EnableRetrigger = data.GetBooleanProperty("enable_retrigger");
