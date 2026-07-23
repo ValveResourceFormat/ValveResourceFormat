@@ -32,17 +32,20 @@ public sealed class SoundEventPlayer : IDisposable
     // Read on the mixing thread, written from the game/UI thread; volatile so the change is seen promptly.
     private volatile float volumeMultiplier = 1f;
     private volatile bool suspended;
+    private volatile bool mute;
 
-    /// <summary>
-    /// Gets or sets whether output is suspended. When set the mix fades to silence over a short ramp and
-    /// stays silent until resumed, then fades back in - so losing and regaining focus does not snap the audio.
-    /// The fade runs on the mixing thread, which keeps going while the render loop is paused.
-    /// Sounds keep advancing while suspended; this only gates whether they are audible.
-    /// </summary>
+    /// <summary>Gets or sets whether output is suspended, fading to silence and back so focus/tab changes don't snap the audio. Stops ticking like <see cref="Mute"/> once the fade-out finishes.</summary>
     public bool Suspended
     {
         get => suspended;
         set => suspended = value;
+    }
+
+    /// <summary>Gets or sets whether the player is muted, independently of <see cref="Volume"/> and with no fade. While silent, the mixing thread skips decoding/mixing entirely instead of mixing to silence.</summary>
+    public bool Mute
+    {
+        get => mute;
+        set => mute = value;
     }
 
     /// <summary>
@@ -108,9 +111,7 @@ public sealed class SoundEventPlayer : IDisposable
         return MixGroupVolumes.TryGetValue(mixGroup, out var volume) ? volume : DefaultMixGroupVolume;
     }
 
-    /// <summary>
-    /// Creates a sound event player. Takes ownership of <paramref name="device"/> and starts the mixing thread immediately.
-    /// </summary>
+    /// <summary>Creates a sound event player. Takes ownership of <paramref name="device"/> and starts the mixing thread immediately.</summary>
     public SoundEventPlayer(IFileLoader fileLoader, IAudioDevice device, ILogger? logger = null)
     {
         this.fileLoader = fileLoader;
@@ -146,8 +147,19 @@ public sealed class SoundEventPlayer : IDisposable
         // Starts at zero so output always fades in from silence rather than snapping.
         var fadeGain = 0f;
 
+        // How long a chunk represents, used to pace the loop when muted and skipping real work.
+        var chunkMilliseconds = (int)(1000L * MixChunkFrames / device.SampleRate);
+
         while (!stopping)
         {
+            // Nothing to hear: skip decoding/mixing instead of just discarding silence. The device
+            // gets nothing (BufferedWaveProvider's ReadFully plays silence on its own when starved).
+            if (mute || volumeMultiplier == 0f || (suspended && fadeGain == 0f))
+            {
+                Thread.Sleep(chunkMilliseconds);
+                continue;
+            }
+
             mixer.Read(buffer, 0, buffer.Length);
 
             var target = suspended ? 0f : 1f;
@@ -201,9 +213,7 @@ public sealed class SoundEventPlayer : IDisposable
         logger.LogInformation("Loaded {Count} sound events", Bank.Count);
     }
 
-    /// <summary>
-    /// Loads sound event definitions from a single soundevent (vsndevts) file.
-    /// </summary>
+    /// <summary>Loads sound event definitions from a single soundevent (vsndevts) file.</summary>
     public void LoadSoundEventsFile(string fileName)
     {
         using var soundEventsFile = fileLoader.LoadFileCompiled(fileName);
@@ -222,7 +232,7 @@ public sealed class SoundEventPlayer : IDisposable
     /// <param name="soundEventName">Name of the sound event, e.g. "Default.StepLeft".</param>
     /// <param name="position">World position of the sound, or null for non-spatialized playback.</param>
     /// <param name="channel">Optional channel name (e.g. "player"). Playing on a channel stops whatever was playing on that channel before.</param>
-    /// <param name="volume">Optional programmatic volume, replacing the definition's volume property (some events, e.g. gear rustles, expect this).</param>
+    /// <param name="volume">Optional programmatic volume, replacing the definition's volume property.</param>
     /// <returns>A handle to the playing sound, or null when the event is unknown or its type is unsupported.</returns>
     public SoundEvent? Play(string soundEventName, Vector3? position = null, string? channel = null, float? volume = null)
     {
@@ -266,9 +276,8 @@ public sealed class SoundEventPlayer : IDisposable
 
     /// <summary>
     /// Queues background decodes for every vsnd a sound event could play - all random track variants and any
-    /// child events - so the first real <see cref="Play"/> starts with warm audio instead of fading in from
-    /// silence while the decode catches up. Returns immediately; the decode thread works through the queue,
-    /// with sounds that want to play right now taking priority. Unknown events are ignored.
+    /// child events. Returns immediately; sounds that want to play right now take priority over the queue.
+    /// Unknown events are ignored.
     /// </summary>
     public void Cache(string soundEventName)
     {
@@ -302,9 +311,7 @@ public sealed class SoundEventPlayer : IDisposable
         }
     }
 
-    /// <summary>
-    /// Implements "block_matching_events": the same event cannot be played again within its "block_duration".
-    /// </summary>
+    /// <summary>Implements "block_matching_events": the same event cannot be played again within its "block_duration".</summary>
     private static bool IsBlocked(SoundEventDefinition definition)
     {
         if (!definition.BlockMatchingEvents || definition.BlockDuration <= 0f)
@@ -324,9 +331,7 @@ public sealed class SoundEventPlayer : IDisposable
         return false;
     }
 
-    /// <summary>
-    /// Picks a random track index, never repeating the previously picked track for the same sound event definition.
-    /// </summary>
+    /// <summary>Picks a random track index, never repeating the previously picked track for the same sound event definition.</summary>
     internal int PickTrack(SoundEventDefinition definition)
     {
         var trackCount = definition.TrackNames.Length;
@@ -357,9 +362,7 @@ public sealed class SoundEventPlayer : IDisposable
         return index;
     }
 
-    /// <summary>
-    /// Stops the sound currently playing on the given channel, if any.
-    /// </summary>
+    /// <summary>Stops the sound currently playing on the given channel, if any.</summary>
     public void StopChannel(string channel)
     {
         if (channels.Remove(channel, out var soundEvent))
@@ -368,9 +371,7 @@ public sealed class SoundEventPlayer : IDisposable
         }
     }
 
-    /// <summary>
-    /// Collects the position and vsnd name of every audible positioned sound, for the sound debug display.
-    /// </summary>
+    /// <summary>Collects the position and vsnd name of every audible positioned sound.</summary>
     public void CollectDebugSounds(List<(Vector3 Position, string Text)> results) => mixer.CollectDebugSounds(results);
 
     /// <summary>
@@ -380,9 +381,7 @@ public sealed class SoundEventPlayer : IDisposable
     /// </summary>
     public Func<Vector3, Vector3, bool>? OcclusionTrace { get; set; }
 
-    /// <summary>
-    /// Updates listener position and per-frame sound event logic. Call once per frame from the render/game thread.
-    /// </summary>
+    /// <summary>Updates listener position and per-frame sound event logic. Call once per frame.</summary>
     public void Update(Camera camera)
     {
         Sound.Player = this;
@@ -408,8 +407,6 @@ public sealed class SoundEventPlayer : IDisposable
     /// <summary>
     /// Registers a soundscape region. The closest in-range soundscape becomes the active ambient
     /// during <see cref="Update"/>; entering another region crossfades by stopping the previous event.
-    /// Audio decoding is queued immediately so the map starts with warm sounds; should any of it get
-    /// evicted later, approaching the soundscape re-warms it (see <see cref="UpdateSoundscape"/>).
     /// </summary>
     public void AddSoundscape(Vector3 position, float radius, string soundEventName)
     {
@@ -489,9 +486,7 @@ public sealed class SoundEventPlayer : IDisposable
         }
     }
 
-    /// <summary>
-    /// Stops the mixing thread and disposes the mixer and the audio device.
-    /// </summary>
+    /// <summary>Stops the mixing thread and disposes the mixer and the audio device.</summary>
     public void Dispose()
     {
         if (Sound.Player == this)

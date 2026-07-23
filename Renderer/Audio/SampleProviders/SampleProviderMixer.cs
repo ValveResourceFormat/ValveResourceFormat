@@ -2,7 +2,7 @@ namespace ValveResourceFormat.Renderer.Audio.SampleProviders;
 
 /// <summary>
 /// The root mixer. Unlike <see cref="SampleProviderMulti"/> it always produces a full buffer,
-/// padding with silence, so the output device receives a continuous stream.
+/// padding with silence.
 /// </summary>
 public sealed class SampleProviderMixer : SampleProviderMulti
 {

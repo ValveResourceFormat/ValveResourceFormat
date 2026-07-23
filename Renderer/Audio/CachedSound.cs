@@ -1,17 +1,12 @@
 namespace ValveResourceFormat.Renderer.Audio;
 
 /// <summary>
-/// A decoded sound, stored as interleaved 16-bit PCM in the mixer's sample rate and channel count.
-/// PCM16 halves the memory of the float mixer format at inaudible cost; the provider converts to float on read.
-/// Returned by the cache immediately as a placeholder while a background thread decodes; providers play
-/// silence until <see cref="Ready"/>, so audio decoding never blocks the game or mixing threads.
+/// A decoded sound: interleaved 16-bit PCM at the mixer's sample rate and channel count.
+/// Returned as a placeholder while a background thread decodes it.
 /// </summary>
 public sealed class CachedSound
 {
-    /// <summary>
-    /// Gets the interleaved 16-bit PCM samples in the mixer's output format (sample rate and channel count).
-    /// Empty until <see cref="Ready"/>, and stays empty when decoding failed.
-    /// </summary>
+    /// <summary>Gets the interleaved 16-bit PCM samples. Empty until <see cref="Ready"/>, or when decoding failed.</summary>
     public short[] Samples { get; internal set; } = [];
 
     /// <summary>
@@ -26,18 +21,13 @@ public sealed class CachedSound
 
     private volatile bool ready;
 
-    /// <summary>
-    /// Gets whether decoding has finished. The volatile write happens after the samples are assigned,
-    /// so a reader that observes true also observes the samples.
-    /// </summary>
+    /// <summary>Gets whether decoding has finished. Volatile: true implies the samples are already visible.</summary>
     public bool Ready { get => ready; internal set => ready = value; }
 
     private long lastUsed;
 
     /// <summary>
-    /// Stopwatch timestamp of the last time this sound was requested or read by the mixer. The cache uses it to
-    /// avoid evicting sounds that are currently playing. Written from the mixing thread on every read and read
-    /// by the cache; volatile so the 64-bit value cannot tear on 32-bit runtimes.
+    /// Stopwatch timestamp of the last read by the mixer. Volatile so the 64-bit value cannot tear on 32-bit runtimes.
     /// </summary>
     internal long LastUsed
     {

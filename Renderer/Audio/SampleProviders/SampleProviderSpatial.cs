@@ -11,9 +11,9 @@ public abstract class SampleProviderSpatial : SampleProvider2D
     /// <summary>Gets the current right ear gain.</summary>
     public float RightVolume { get; protected set; }
 
-    /// <summary>Gets or sets the left ear gain used for the previous buffer, for interpolation.</summary>
+    /// <summary>Gets or sets the left ear gain used for the previous buffer.</summary>
     protected float LastLeftVolume { get; set; }
-    /// <summary>Gets or sets the right ear gain used for the previous buffer, for interpolation.</summary>
+    /// <summary>Gets or sets the right ear gain used for the previous buffer.</summary>
     protected float LastRightVolume { get; set; }
 
     /// <summary>Creates a spatializer around the given source.</summary>
@@ -67,8 +67,7 @@ public abstract class SampleProviderSpatial : SampleProvider2D
     }
 
     /// <summary>
-    /// Snaps the interpolation state to the current volumes on the first update,
-    /// so a starting sound does not fade in from silence and lose its attack transient.
+    /// Snaps the interpolation state to the current volumes on the first update.
     /// </summary>
     protected void SnapVolumesOnFirstUpdate()
     {

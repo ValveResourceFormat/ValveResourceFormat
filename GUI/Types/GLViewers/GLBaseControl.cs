@@ -79,7 +79,7 @@ internal abstract class GLBaseControl : IDisposable
     public bool Paused = true;
 
     /// <summary>
-    /// Called by the render loop when it stops drawing this control (tab hidden, or another GL control took over the loop).
+    /// Pauses this control.
     /// </summary>
     public virtual void OnDetachedFromRenderLoop()
     {

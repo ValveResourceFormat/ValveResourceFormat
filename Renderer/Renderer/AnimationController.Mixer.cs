@@ -113,8 +113,7 @@ namespace ValveResourceFormat.Renderer
         }
 
         /// <summary>
-        /// Raised for every clip event (CNmSoundEvent, CNmIDEvent, CNmParticleEvent, ...) whose start time
-        /// is crossed during playback. Consumers filter for the event types they are interested in.
+        /// Raised for every clip event (CNmSoundEvent, CNmIDEvent, CNmParticleEvent, ...) whose start time is crossed during playback.
         /// </summary>
         public event Action<NmClipEvent>? ClipEventFired;
 
@@ -132,11 +131,8 @@ namespace ValveResourceFormat.Renderer
         private readonly List<ActiveClipSound> activeClipSounds = [];
 
         /// <summary>
-        /// Fires the clip's events whose start time was crossed while advancing
-        /// from <paramref name="previousTime"/> to <paramref name="newTime"/>, handling loop wrap-around.
-        /// <paramref name="clipFinished"/> marks the final update of a non-looping clip: the interval is
-        /// treated as closed so events authored at the clip's exact end still fire (the end time is
-        /// clamped to the last frame, which a half-open interval would exclude forever).
+        /// Fires clip events whose start time was crossed advancing from <paramref name="previousTime"/> to <paramref name="newTime"/>, handling loop wrap-around.
+        /// <paramref name="clipFinished"/> treats the interval as closed, so an event at the clip's exact end still fires.
         /// </summary>
         private void FireClipEvents(Clip clip, float previousTime, float newTime, bool clipFinished = false)
         {
@@ -189,8 +185,7 @@ namespace ValveResourceFormat.Renderer
         }
 
         /// <summary>
-        /// Pre-decodes every sound event a clip can fire, so the first time it plays does not hitch on decode.
-        /// A no-op when no sound player is active.
+        /// Pre-decodes every sound event a clip can fire. No-op when no sound player is active.
         /// </summary>
         private static void PreCacheClipSounds(Animation animation)
         {
@@ -492,7 +487,6 @@ namespace ValveResourceFormat.Renderer
 
                 if (PlaySoundEvents)
                 {
-                    // Warm the cache for this clip's sound events when it first loads, so playing it does not hitch
                     PreCacheClipSounds(animation);
                 }
             }

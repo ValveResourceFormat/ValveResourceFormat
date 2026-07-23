@@ -15,8 +15,7 @@ namespace ValveResourceFormat.Renderer
 
         /// <summary>
         /// Gets or sets whether sound events embedded in animation clips (CNmSoundEvent) are played during playback.
-        /// Enabled for the viewmodel; off by default so previewing models stays silent. Turning it on pre-caches the
-        /// sound events of the clips loaded so far, so the first play does not hitch the game thread on decode.
+        /// Setting this to true pre-caches the sound events of clips already loaded.
         /// </summary>
         public bool PlaySoundEvents
         {

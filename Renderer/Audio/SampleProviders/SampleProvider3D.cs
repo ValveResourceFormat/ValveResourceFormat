@@ -17,7 +17,7 @@ public class SampleProvider3D : SampleProviderSpatial
 
     /// <summary>
     /// Gets or sets the distance to unfiltered-stereo mapping curve ("distance_unfiltered_stereo_mapping_curve").
-    /// At 1 the sound plays as plain centered stereo (e.g. the listener's own footsteps), at 0 it is fully spatialized.
+    /// At 1 the sound plays as plain centered stereo, at 0 it is fully spatialized.
     /// </summary>
     public SoundEventCurve? StereoMixCurve { get; set; }
 
@@ -26,8 +26,7 @@ public class SampleProvider3D : SampleProviderSpatial
 
     /// <summary>
     /// Gets or sets the attenuation to move towards while geometry blocks the sound
-    /// (1 unoccluded, 0 fully muted). The applied value is smoothed across updates so
-    /// walking past a corner does not gate the sound on and off.
+    /// (1 unoccluded, 0 fully muted). The applied value is smoothed across updates.
     /// </summary>
     public float OcclusionTarget { get; set; } = 1f;
 

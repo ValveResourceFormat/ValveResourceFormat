@@ -7,7 +7,7 @@ namespace ValveResourceFormat.Renderer.Audio.SampleProviders;
 public sealed class CachedSoundSampleProvider : AudioSampleProvider
 {
     private const int ChannelCount = 2; // The mixer format is always stereo
-    private const float PcmScale = 1f / 32768f; // Converts the cached 16-bit PCM back to float
+    private const float PcmScale = 1f / 32768f;
 
     private readonly CachedSound sound;
     private double framePosition;
@@ -20,8 +20,7 @@ public sealed class CachedSoundSampleProvider : AudioSampleProvider
     private int delaySamples;
 
     /// <summary>
-    /// Gets or sets the delay before the sound starts, as an interleaved sample count
-    /// ("delay" in the sound event data, e.g. the knife wall hit plays 90ms into the swing).
+    /// Gets or sets the delay before the sound starts, as an interleaved sample count.
     /// </summary>
     public int DelaySamples { get => delaySamples; set => delaySamples = value; }
 

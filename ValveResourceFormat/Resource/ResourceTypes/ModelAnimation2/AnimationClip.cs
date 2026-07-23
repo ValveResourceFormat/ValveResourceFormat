@@ -81,7 +81,6 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation2
 
         /// <summary>
         /// Gets the events fired during playback of this clip. Times are in seconds.
-        /// Consumers filter for the event types they are interested in (e.g. <see cref="NmSoundEvent"/>).
         /// </summary>
         public NmClipEvent[] Events { get; private set; } = [];
 

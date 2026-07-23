@@ -241,9 +241,7 @@ namespace GUI.Types.GLViewers
         }
 
         /// <summary>
-        /// Starts the map's point_soundevent entities. Only "Start On Spawn" events play - the rest are triggered
-        /// through entity I/O, which the viewer does not simulate (for the same reason "Re-trigger Stops Last" and
-        /// "Save/Restore" have no effect here).
+        /// Starts point_soundevent entities with "Start On Spawn" set. The rest require entity I/O, which the viewer does not simulate.
         /// </summary>
         private void StartMapSoundEvents()
         {
@@ -304,9 +302,7 @@ namespace GUI.Types.GLViewers
         }
 
         /// <summary>
-        /// Resolves where a point_soundevent emits from: unspatialized for "To Local Player" events,
-        /// otherwise the named source entity (at its attachment point when one is named), falling back
-        /// to the point_soundevent's own origin.
+        /// Resolves where a point_soundevent emits from: null for "To Local Player" events, otherwise the source entity's position.
         /// </summary>
         private static Vector3? GetSoundEventPosition(EntityLump.Entity entityData, Dictionary<string, SceneNode> namedEntities)
         {
@@ -333,8 +329,7 @@ namespace GUI.Types.GLViewers
 
             if (entityData.GetBooleanProperty("uselocaloffset"))
             {
-                // The sound plays at the source entity plus this entity's placement as a local offset;
-                // entities do not move in the viewer, so that resolves to the point_soundevent's own origin
+                // Entities do not move in the viewer, so the source entity plus local offset is just this entity's origin
                 return entityData.GetVector3Property("origin");
             }
 

@@ -20,9 +20,7 @@ public sealed class SoundEventCurve
         this.points = points;
     }
 
-    /// <summary>
-    /// Parses a mapping curve property from sound event data, or returns null when it is missing or empty.
-    /// </summary>
+    /// <summary>Parses a mapping curve property from sound event data, or returns null when it is missing or empty.</summary>
     public static SoundEventCurve? Parse(KVObject soundEventData, string name)
     {
         if (!soundEventData.TryGetValue(name, out var value) || value.ValueType != KVValueType.Array)
@@ -61,9 +59,7 @@ public sealed class SoundEventCurve
         return new SoundEventCurve([.. points]);
     }
 
-    /// <summary>
-    /// Evaluates the curve at the given x, clamping to the first and last points.
-    /// </summary>
+    /// <summary>Evaluates the curve at the given x, clamping to the first and last points.</summary>
     public float Evaluate(float x)
     {
         if (x <= points[0].X)

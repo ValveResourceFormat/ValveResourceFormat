@@ -69,8 +69,7 @@ public class ViewmodelSceneNode : ModelSceneNode
     private const float InAirExitFade = 0.1f;
     private float previousUptime;
 
-    // True once the player has entered first-person walk mode (left noclip). Until then the viewmodel is not shown,
-    // so its animations are held paused - otherwise clips advance and fire sound events while nothing is visible.
+    // Animations stay paused until the player leaves noclip, otherwise clips fire sound events while nothing is visible.
     private bool Active;
 
     /// <summary>
@@ -237,9 +236,6 @@ public class ViewmodelSceneNode : ModelSceneNode
                 break;
 
             case 3:
-                // Like CKnife::Swing: a line trace from the eyes along the view direction first,
-                // and when that misses, a swept head-hull trace so the swipe has radial reach.
-                // Play the wall swipe at the impact point, otherwise the miss swish.
                 var camera = input.Camera;
                 var range = heavyKnifeAttack ? KnifeHeavyRange : KnifeLightRange;
                 var from = camera.Location;
@@ -854,7 +850,6 @@ public class ViewmodelSceneNode : ModelSceneNode
             Transform *= Matrix4x4.CreateScale(0);
         }
 
-        // do not advance clips if we are not active
         if (!Active)
         {
             return;

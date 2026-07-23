@@ -63,7 +63,7 @@ public static class MsAdpcmDecoder
                 pos += 2;
             }
 
-            // The two header samples are emitted first, oldest first
+            // Header samples emitted oldest first
             for (var ch = 0; ch < channels; ch++)
             {
                 output[outputIndex++] = sample2[ch] / 32768f;

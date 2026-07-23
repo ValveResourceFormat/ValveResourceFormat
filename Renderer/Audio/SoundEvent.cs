@@ -4,10 +4,7 @@ using ValveResourceFormat.Serialization.KeyValues;
 
 namespace ValveResourceFormat.Renderer.Audio;
 
-/// <summary>
-/// A playing (or pending) instance of a sound event definition.
-/// Returned by <see cref="SoundEventPlayer.Play"/> as a handle to control and reposition the sound.
-/// </summary>
+/// <summary>A playing (or pending) instance of a sound event definition.</summary>
 public abstract class SoundEvent
 {
     /// <summary>Raised when the event begins producing audible samples.</summary>
@@ -35,26 +32,20 @@ public abstract class SoundEvent
 
     /// <summary>
     /// Gets or sets the offset added to <see cref="Position"/> ("position_offset" in the event data,
-    /// e.g. footsteps play 20 units above the ground). Applied on top of Position so repositioning a
-    /// playing sound keeps the offset.
+    /// e.g. footsteps play 20 units above the ground).
     /// </summary>
     public Vector3 PositionOffset { get; protected set; }
 
-    /// <summary>
-    /// Gets or sets a volume passed by game code, replacing the definition's volume property.
-    /// </summary>
+    /// <summary>Gets or sets a volume passed by game code, replacing the definition's volume property.</summary>
     public float? VolumeOverride { get; set; }
 
     /// <summary>Gets the sound event definition this instance was built from.</summary>
     public SoundEventDefinition Definition { get; }
 
-    /// <summary>Gets the vsnd file currently playing for this event, for debugging.</summary>
+    /// <summary>Gets the vsnd file currently playing for this event.</summary>
     public string? PlayingSoundFile { get; protected set; }
 
-    /// <summary>
-    /// Collects the position and vsnd name of every audible positioned sound in this event tree,
-    /// for the sound debug display.
-    /// </summary>
+    /// <summary>Collects the position and vsnd name of every audible positioned sound in this event tree.</summary>
     public void CollectDebugSounds(List<(Vector3 Position, string Text)> results)
     {
         if (Playing && Position.HasValue && PlayingSoundFile != null)
@@ -71,17 +62,14 @@ public abstract class SoundEvent
     /// <summary>Gets the key-values the definition was parsed from.</summary>
     public KVObject SoundEventData => Definition.Data;
 
-    /// <summary>Gets the combined sample provider for this event, fed to the mixer.</summary>
+    /// <summary>Gets the combined sample provider for this event.</summary>
     public SampleProviderMulti SampleProvider { get; private set; } = null!;
     /// <summary>Gets the child sound events spawned by this event.</summary>
     protected List<SoundEvent> ChildSoundEvents { get; } = [];
     /// <summary>Gets the sample providers built by <see cref="DoStart"/>.</summary>
     protected List<AudioSampleProvider> SampleProviders { get; } = [];
 
-    /// <summary>
-    /// Gets the random source for randomized event properties (track picking, volume/pitch jitter, retrigger intervals).
-    /// Shared by the player and reseeded with the play time on every <see cref="SoundEventPlayer.Play"/>.
-    /// </summary>
+    /// <summary>Gets the random source for randomized event properties (track picking, volume/pitch jitter, retrigger intervals).</summary>
     private protected SoundRandom Random => Mixer.Player.Random;
 
     /// <summary>Gets the mixer this event plays through.</summary>
@@ -153,10 +141,7 @@ public abstract class SoundEvent
         }
     }
 
-    /// <summary>
-    /// Gets whether the event is intentionally silent right now but scheduled to produce sound later
-    /// (e.g. waiting out its first retrigger interval), so an empty start must not stop it.
-    /// </summary>
+    /// <summary>Gets whether the event is intentionally silent right now but scheduled to produce sound later (e.g. waiting out its first retrigger interval).</summary>
     private protected virtual bool WaitingToStart => false;
 
     /// <summary>
@@ -171,7 +156,6 @@ public abstract class SoundEvent
     /// <summary>
     /// Fades the whole event tree out along its "fadetime_volume_mapping_curve" (or linearly over
     /// <paramref name="fallbackSeconds"/> when the event has none) and stops it when the fade completes.
-    /// Used for soundscape transitions, where the outgoing ambient should linger under the incoming one.
     /// </summary>
     public void FadeOutAndStop(float fallbackSeconds = 1f)
     {
@@ -282,10 +266,7 @@ public abstract class SoundEvent
         OnSoundStart?.Invoke(this);
     }
 
-    /// <summary>
-    /// Called every frame while the event is active to update spatialization and time based behavior.
-    /// Returns whether any sample provider is currently audible.
-    /// </summary>
+    /// <summary>Updates spatialization and time-based behavior. Returns whether any sample provider is currently audible.</summary>
     public virtual bool Update(Vector3 listenerPosition, Vector3 rightEarDirection)
     {
         var anyPlaying = false;
@@ -343,8 +324,8 @@ public abstract class SoundEvent
     }
 
     /// <summary>
-    /// Detaches all event subscribers. Called by the mixer when the player is torn down; the sound event is a
-    /// fire-and-forget handle whose lifetime the mixer owns, so it is not <see cref="IDisposable"/>.
+    /// Detaches all event subscribers. The sound event is a fire-and-forget handle whose lifetime
+    /// the mixer owns, so it is not <see cref="IDisposable"/>.
     /// </summary>
     internal void Cleanup()
     {

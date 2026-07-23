@@ -13,7 +13,7 @@ public sealed class AudioMixer : IDisposable
     private readonly HashSet<SoundEvent> soundEvents = [];
 
     /// <summary>
-    /// Collects the position and vsnd name of every audible positioned sound, for the sound debug display.
+    /// Collects the position and vsnd name of every audible positioned sound.
     /// </summary>
     public void CollectDebugSounds(List<(Vector3 Position, string Text)> results)
     {
@@ -39,8 +39,7 @@ public sealed class AudioMixer : IDisposable
     private Vector3 listenerRightEarDirection = Vector3.UnitY;
 
     /// <summary>
-    /// Applies the current listener state to a sound event immediately. Called when a sound starts, so the
-    /// audio thread never reads it with the initial zero volumes - that would clip the attack transient.
+    /// Applies the current listener state to a sound event immediately.
     /// </summary>
     internal void PrimeListener(SoundEvent soundEvent)
     {
@@ -48,7 +47,7 @@ public sealed class AudioMixer : IDisposable
     }
 
     /// <summary>
-    /// Updates spatialization for all active sound events. Call once per frame from the render/game thread.
+    /// Updates spatialization for all active sound events.
     /// </summary>
     public void Update(Vector3 listenerPosition, Vector3 listenerForward)
     {
@@ -74,7 +73,7 @@ public sealed class AudioMixer : IDisposable
     }
 
     /// <summary>
-    /// Mixes all active sounds into the buffer. Called from the mixing thread. Always fills the full buffer.
+    /// Mixes all active sounds into the buffer. Always fills the full buffer.
     /// </summary>
     public int Read(float[] buffer, int offset, int count)
     {

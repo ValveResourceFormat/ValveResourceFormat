@@ -9,8 +9,6 @@ namespace GUI.Types.Audio
 {
     /// <summary>
     /// NAudio-backed <see cref="IAudioDevice"/> using event-driven shared mode WASAPI.
-    /// <see cref="SubmitSamples"/> blocks while more than <see cref="MixAhead"/> of audio is queued,
-    /// which paces the renderer's mixing thread and keeps latency low (the equivalent of snd_mixahead).
     /// </summary>
     internal sealed class NAudioDevice : IAudioDevice
     {
@@ -20,8 +18,7 @@ namespace GUI.Types.Audio
         public int Channels => 2;
 
         /// <summary>
-        /// Maximum amount of mixed audio queued ahead of the device. Lower values reduce latency,
-        /// higher values are safer against underruns.
+        /// Maximum amount of mixed audio queued ahead of the device.
         /// </summary>
         public TimeSpan MixAhead { get; set; } = TimeSpan.FromMilliseconds(25);
 
@@ -57,7 +54,7 @@ namespace GUI.Types.Audio
             output = new WasapiOut(AudioClientShareMode.Shared, useEventSync: true, latency: WasapiLatencyMs);
             output.Init(buffer);
             output.Play();
-            _ = Windows.Win32.PInvoke.timeBeginPeriod(1); // need this - SubmitSamples paces the mixing thread with Thread.Sleep(1)
+            _ = Windows.Win32.PInvoke.timeBeginPeriod(1); // SubmitSamples paces the mixing thread with Thread.Sleep(1)
         }
 
         public void SubmitSamples(ReadOnlySpan<float> samples)
@@ -69,7 +66,6 @@ namespace GUI.Types.Audio
             {
                 MemoryMarshal.AsBytes(samples).CopyTo(bytes);
 
-                // Wait until the queued audio drops below the mixahead window, keeping the mixer just-in-time
                 while (!disposed && buffer.BufferedDuration > MixAhead)
                 {
                     Thread.Sleep(1);

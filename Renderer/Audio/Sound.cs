@@ -3,15 +3,11 @@ using ValveResourceFormat.Renderer.Audio;
 namespace ValveResourceFormat.Renderer;
 
 /// <summary>
-/// Static entry point for sound event playback, usable from anywhere in the renderer: <c>Sound.Play("Base.Footstep", position)</c>.
-/// All methods are safe to call when no <see cref="SoundEventPlayer"/> exists — they simply do nothing.
-/// Internal so host applications never get a name collision with the vsnd resource type; they hold on to their <see cref="SoundEventPlayer"/> instance instead.
+/// Static entry point for sound event playback; safe to call when no <see cref="SoundEventPlayer"/> exists.
 /// </summary>
 internal static class Sound
 {
-    /// <summary>
-    /// Gets the active sound event player. Set when a <see cref="SoundEventPlayer"/> is constructed, cleared when it is disposed.
-    /// </summary>
+    /// <summary>Gets the active sound event player. Set when constructed, cleared when disposed.</summary>
     public static SoundEventPlayer? Player { get; internal set; }
 
     /// <summary>
@@ -30,9 +26,6 @@ internal static class Sound
     /// </summary>
     public static void StopChannel(string channel) => Player?.StopChannel(channel);
 
-    /// <summary>
-    /// Queues background decodes for every vsnd a sound event could play, so the first <see cref="Play"/>
-    /// starts with warm audio. Returns immediately; intended for a map's sound events at load time.
-    /// </summary>
+    /// <summary>Queues background decodes for every vsnd a sound event could play. Returns immediately.</summary>
     public static void Cache(string soundEventName) => Player?.Cache(soundEventName);
 }

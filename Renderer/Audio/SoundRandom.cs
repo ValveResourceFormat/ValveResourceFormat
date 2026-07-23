@@ -1,16 +1,13 @@
 namespace ValveResourceFormat.Renderer.Audio;
 
 /// <summary>
-/// Small allocation-free random source for sound event randomization (xorshift64).
-/// A single instance lives on the <see cref="SoundEventPlayer"/> and is reseeded in place on every play.
+/// Small allocation-free random source (xorshift64), reseeded in place on every play.
 /// </summary>
 internal sealed class SoundRandom
 {
     private ulong state = 0x9E3779B97F4A7C15UL;
 
-    /// <summary>
-    /// Reseeds the sequence in place, e.g. with the play timestamp.
-    /// </summary>
+    /// <summary>Reseeds the sequence in place.</summary>
     public void Reseed(long seed)
     {
         // splitmix64 scramble so consecutive timestamps produce unrelated sequences
@@ -30,13 +27,9 @@ internal sealed class SoundRandom
         return x;
     }
 
-    /// <summary>
-    /// Returns a random integer in [0, <paramref name="maxExclusive"/>).
-    /// </summary>
+    /// <summary>Returns a random integer in [0, <paramref name="maxExclusive"/>).</summary>
     public int Next(int maxExclusive) => (int)((NextUInt64() >> 33) % (uint)maxExclusive);
 
-    /// <summary>
-    /// Returns a random float in [0, 1).
-    /// </summary>
+    /// <summary>Returns a random float in [0, 1).</summary>
     public float NextSingle() => (NextUInt64() >> 40) * (1f / (1 << 24));
 }

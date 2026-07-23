@@ -3,9 +3,7 @@ using ValveResourceFormat.Serialization.KeyValues;
 
 namespace ValveResourceFormat.Renderer.Audio;
 
-/// <summary>
-/// Stores sound event definitions loaded from soundevent (vsndevts) files.
-/// </summary>
+/// <summary>Stores sound event definitions loaded from soundevent (vsndevts) files.</summary>
 public sealed class SoundEventBank
 {
     // Sound event names are hashed case-insensitively by the engine (see StringToken), match that here
@@ -33,11 +31,7 @@ public sealed class SoundEventBank
         }
     }
 
-    /// <summary>
-    /// Gets a sound event definition by name (case-insensitive), or null when unknown.
-    /// The definition is resolved and parsed on the first call and reused afterwards, so a
-    /// repeat play reads nothing out of the key-values.
-    /// </summary>
+    /// <summary>Gets a sound event definition by name (case-insensitive), or null when unknown. Resolved and parsed once, then cached.</summary>
     public SoundEventDefinition? GetSoundEvent(string name)
     {
         if (definitions.TryGetValue(name, out var definition))

@@ -8,9 +8,8 @@ using ValveResourceFormat.ResourceTypes;
 namespace ValveResourceFormat.Renderer.Audio;
 
 /// <summary>
-/// Loads compiled sound resources (vsnd) and caches them fully decoded in the mixer's output format.
-/// Decoding happens on worker threads: <see cref="GetSound"/> returns a placeholder immediately and
-/// providers play silence until it is ready, so neither the game thread nor the mixing thread ever block on decode.
+/// Loads compiled sound resources (vsnd) and caches them decoded in the mixer's output format.
+/// <see cref="GetSound"/> returns a placeholder immediately; decoding happens on worker threads.
 /// </summary>
 public sealed class SoundCache : IDisposable
 {
@@ -22,9 +21,8 @@ public sealed class SoundCache : IDisposable
     private readonly int channels;
     private readonly Dictionary<string, CachedSound> sounds = [];
 
-    // Two decode lanes: sounds that want to play right now must never wait behind a bulk
-    // pre-cache decode already in flight (a multi-minute ambient takes hundreds of ms to
-    // decode - long enough to audibly delay a footstep), so each lane has its own thread.
+    // Two decode lanes: a request to play now must never wait behind a bulk pre-cache decode
+    // already in flight (a multi-minute ambient can take hundreds of ms to decode).
     private readonly LinkedList<DecodeRequest> foregroundQueue = [];
     private readonly LinkedList<DecodeRequest> backgroundQueue = [];
     private readonly Thread foregroundThread;
@@ -32,23 +30,17 @@ public sealed class SoundCache : IDisposable
     private volatile bool stopping;
     private long cachedBytes;
 
-    // A sound read within this window is treated as still playing and is never evicted, so the budget is soft:
-    // it floats above the limit while long sounds play and trims back down once they finish.
+    // A sound read within this window is treated as still playing and is never evicted; the budget is
+    // soft and floats above the limit while long sounds play, trimming back down once they finish.
     private static readonly long GraceTicks = Stopwatch.Frequency; // 1 second
 
-    // Sounds at or below this decoded size are never evicted. Small frequent one-shots (footsteps, gear,
-    // impacts - a ~1s clip is ~190 KB) must never pay a re-decode delay just because large soundscape
-    // ambients churned the cache; the big beds are always the ones pruned, their re-decode is inaudible.
+    // Sounds at or below this decoded size are never evicted: small frequent one-shots (footsteps, gear,
+    // impacts) must never pay a re-decode delay just because large soundscape ambients churned the cache.
     private const long SmallSoundProtectionBytes = 512 * 1024;
 
     /// <summary>
-    /// Gets or sets the soft cache budget in bytes. Nothing is allocated up front - decoded sounds accumulate as
-    /// they are played (a second of stereo 48 kHz PCM16 is ~190 KB). Once the total exceeds the budget the least
-    /// recently used <em>idle</em> sounds are dropped; sounds that are currently playing are never evicted, so the
-    /// total can float above the limit while several long sounds play. Evicting only drops the cache's reference:
-    /// a sound still playing holds its own and stays valid, so an evicted sound simply re-decodes if played again.
-    /// Small one-shots are never evicted (see <see cref="SmallSoundProtectionBytes"/>), so the total also floats
-    /// when the small-clip working set alone exceeds the budget.
+    /// Gets or sets the soft cache budget in bytes. Least recently used idle sounds are evicted once the
+    /// total exceeds this; sounds currently playing or below <see cref="SmallSoundProtectionBytes"/> are never evicted.
     /// </summary>
     public long MaxCachedBytes { get; set; } = 512L * 1024 * 1024;
 
@@ -80,10 +72,8 @@ public sealed class SoundCache : IDisposable
     }
 
     /// <summary>
-    /// Gets a sound by its file name (e.g. "sounds/player/footstep01.vsnd"). Returns immediately: when the sound
-    /// is not decoded yet, the returned <see cref="CachedSound"/> is a placeholder that providers play as silence
-    /// until the background decode finishes. Foreground requests (a sound that wants to play now) jump ahead of
-    /// pending <paramref name="background"/> pre-cache requests in the decode queue.
+    /// Gets a sound by file name, decoding it if necessary. Returns immediately with a placeholder if not yet
+    /// decoded; foreground requests jump ahead of pending <paramref name="background"/> requests in the queue.
     /// </summary>
     public CachedSound GetSound(string fileName, bool background = false)
     {
@@ -118,7 +108,7 @@ public sealed class SoundCache : IDisposable
                 foregroundQueue.AddLast(request);
             }
 
-            // Both lane threads wait on the same lock, wake them all so the right one runs
+            // Both lane threads wait on the same lock; wake both, only the matching one has work
             Monitor.PulseAll(sounds);
             return sound;
         }
@@ -175,10 +165,8 @@ public sealed class SoundCache : IDisposable
 
             lock (sounds)
             {
-                // Publish after the samples and loop points are assigned; the volatile write makes them
-                // visible. Published inside the lock so the other decode lane's Prune cannot evict this
-                // sound between the publish and the accounting - the eviction would subtract bytes this
-                // thread has not added yet, permanently inflating the total.
+                // Set Ready inside the lock so the other lane's Prune cannot evict this sound between
+                // the publish and the byte accounting below - that race would subtract bytes never added.
                 request.Sound.Ready = true;
 
                 cachedBytes += (long)request.Sound.Samples.Length * sizeof(short);
@@ -192,16 +180,15 @@ public sealed class SoundCache : IDisposable
     }
 
     /// <summary>
-    /// Drops least recently used <em>idle</em> sounds until the cache is back under budget, or stops early when
-    /// everything left is still playing (the budget is soft). Failed loads are kept as a negative cache;
-    /// a sound currently playing holds its own reference and stays valid even if evicted. Caller holds the lock.
+    /// Drops least recently used idle sounds until back under budget, or stops early if everything left
+    /// is still playing. Failed decodes are kept as a negative cache. Caller holds the lock.
     /// </summary>
     private void Prune()
     {
         var now = Stopwatch.GetTimestamp();
 
-        // Bounded per pass: the lock is shared with GetSound on the game thread, so eviction work
-        // must stay small. Catch-up continues after the next decode; briefly floating over budget is fine.
+        // Bounded per pass since the lock is shared with GetSound on the game thread; catch-up
+        // continues after the next decode.
         var evictionsLeft = 4;
 
         while (cachedBytes > MaxCachedBytes && evictionsLeft-- > 0)
@@ -211,9 +198,8 @@ public sealed class SoundCache : IDisposable
 
             foreach (var (key, sound) in sounds)
             {
-                // Skip sounds that are not decoded yet or failed (zero bytes to reclaim), protected small
-                // one-shots, and sounds read within the grace window: those are playing right now, so evicting
-                // them would not free memory (the provider still holds the buffer) and would re-decode.
+                // Skip undecoded/failed sounds (zero bytes to reclaim), protected small one-shots, and
+                // sounds read within the grace window (still playing - the provider still holds the buffer).
                 if (!sound.Ready
                     || sound.Samples.Length == 0
                     || (long)sound.Samples.Length * sizeof(short) <= SmallSoundProtectionBytes

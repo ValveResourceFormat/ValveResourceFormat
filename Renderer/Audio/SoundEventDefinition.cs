@@ -5,11 +5,9 @@ using ValveResourceFormat.Serialization.KeyValues;
 namespace ValveResourceFormat.Renderer.Audio;
 
 /// <summary>
-/// A sound event definition with its properties parsed out of the key-values once, on first play.
-/// Playing a sound event is on the hot path (footsteps, shots), and reading a property off a
-/// <see cref="KVObject"/> allocates for every array and boxes for every conversion, so nothing here
-/// is read again after the first play. Definitions also carry the mutable per-event playback state
-/// (last picked track, last play time) that would otherwise need a side table keyed by the definition.
+/// A sound event definition with its properties parsed out of the key-values once, on first play,
+/// since reading a property off a <see cref="KVObject"/> allocates or boxes on every access.
+/// Also carries mutable per-event playback state (last picked track, last play time).
 /// </summary>
 public sealed class SoundEventDefinition
 {
@@ -28,8 +26,7 @@ public sealed class SoundEventDefinition
     /// <summary>Gets the child sound event names, empty unless "enable_child_events" is set.</summary>
     public string[] ChildEventNames { get; }
 
-    /// <summary>Gets the position baked into the definition, used when no position is passed at play time.
-    /// An all-zero authored position is a placeholder and parses as null.</summary>
+    /// <summary>Gets the position baked into the definition. An all-zero authored position is a placeholder and parses as null.</summary>
     public Vector3? Position { get; }
 
     /// <summary>
@@ -169,9 +166,7 @@ public sealed class SoundEventDefinition
         RetriggerIntervalMax = data.GetFloatProperty("retrigger_interval_max");
     }
 
-    /// <summary>
-    /// Reads a property that is either an array of strings or a single string.
-    /// </summary>
+    /// <summary>Reads a property that is either an array of strings or a single string.</summary>
     private static string[] GetStringArray(KVObject data, string name)
     {
         if (!data.TryGetValue(name, out var value))

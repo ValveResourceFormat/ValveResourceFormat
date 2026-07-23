@@ -17,11 +17,8 @@ public static class Mp3Decoder
             return null;
         }
 
-        // Decode directly into an array sized from the reported duration. Long ambients are tens of
-        // megabytes of samples, so list-style growth doubling would repeatedly reallocate and copy on
-        // the large object heap - that garbage collector pressure shows up as frame hitches.
-        // The initial size is capped so a bogus reported duration cannot demand a gigabyte up front;
-        // genuinely longer files fall through to the grow path below
+        // Sized from the reported duration to avoid large-object-heap reallocation on long files;
+        // capped so a bogus duration cannot demand a huge allocation up front.
         const int MaxInitialSamples = 1 << 26;
 
         var estimatedSamples = (long)(mpeg.Duration.TotalSeconds * mpeg.SampleRate) * mpeg.Channels;
@@ -29,13 +26,13 @@ public static class Mp3Decoder
         var count = 0;
         var failures = 0;
 
-        // Retry on decoder errors so a single bad frame does not lose the rest of the
-        // file, with a cap for streams where the reader cannot advance past the damage.
+        // Retry on decode errors so one bad frame doesn't lose the rest of the file, capped
+        // for streams where the reader cannot advance past the damage.
         while (failures < 16)
         {
             if (count == samples.Length)
             {
-                // The duration estimate came up short (e.g. a header-less stream): grow by half
+                // Duration estimate came up short (e.g. a header-less stream): grow by half
                 Array.Resize(ref samples, samples.Length + samples.Length / 2);
             }
 

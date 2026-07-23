@@ -4,10 +4,9 @@ using ValveResourceFormat.Serialization.KeyValues;
 namespace ValveResourceFormat.ResourceTypes.ModelAnimation2
 {
     /// <summary>
-    /// An event embedded in an animation clip (m_events). Typed subclasses exist for the classes with
-    /// known consumers (<see cref="NmSoundEvent"/>, <see cref="NmIDEvent"/>, <see cref="NmParticleEvent"/>,
-    /// <see cref="NmLegacyEvent"/>); other classes are represented by this base with their raw data available
-    /// through <see cref="Data"/>. Consumers filter the event array for the types they are interested in.
+    /// An event embedded in an animation clip (m_events). Known types have typed subclasses
+    /// (<see cref="NmSoundEvent"/>, <see cref="NmIDEvent"/>, <see cref="NmParticleEvent"/>, <see cref="NmLegacyEvent"/>);
+    /// others are represented by this base with raw data in <see cref="Data"/>.
     /// </summary>
     public class NmClipEvent
     {
@@ -132,14 +131,13 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation2
         public bool ContinuePlayingSoundAtDurationEnd { get; init; }
 
         /// <summary>
-        /// Gets the fraction of <see cref="NmClipEvent.Duration"/> that must have elapsed for the sound to survive
-        /// an interruption of the animation; interrupted earlier, the sound is stopped.
+        /// Gets the fraction of <see cref="NmClipEvent.Duration"/> that must elapse before an interruption is survived.
         /// </summary>
         public float DurationInterruptionThreshold { get; init; } = 0.9f;
     }
 
     /// <summary>
-    /// A named marker window used by game code and animation graph transitions (CNmIDEvent).
+    /// A named marker window in an animation clip (CNmIDEvent).
     /// </summary>
     public sealed class NmIDEvent : NmClipEvent
     {

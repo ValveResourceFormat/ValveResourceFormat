@@ -82,17 +82,17 @@ public class PlayerMovement
     // Footstep and land events are per-material (CT_<Material>.StepLeft / Land_<Material>.StepLeft);
     // physics traces do not return surface materials yet, so default to concrete.
     private const string FootstepSoundEvent = "CT_Concrete.StepLeft";
-    private const string JumpSoundEvent = "Default.WalkJump";           // Quiet launch whoosh
+    private const string JumpSoundEvent = "Default.WalkJump";
     private const string LandSoundEvent = "Land_Concrete.StepLeft";     // Chains Land.Thud as a child event
-    private const string GearSoundEvent = "Gear.JumpLand.CT";           // Gear rustle layered on both jump and land
+    private const string GearSoundEvent = "Gear.JumpLand.CT";
     private const float GearVolume = 0.1f;                              // Gear events have volume 0 in data, the game supplies it
-    private const string FallDamageSoundEvent = "Player.DamageFall";    // Pain grunt on unsafe falls
+    private const string FallDamageSoundEvent = "Player.DamageFall";
 
     private const float StepSoundVelWalk = 90f;           // GetStepSoundVelocities velwalk (standing)
     private const float StepSoundVelRun = 220f;           // GetStepSoundVelocities velrun (standing)
     private const float WalkingStepVolume = 0.8f;         // Slightly quieter steps below run speed (the authored volume is 0.9)
     private const float LandMinFallSpeed = 290f;          // PLAYER_MAX_SAFE_FALL_SPEED / 2 - quieter landings are silent (a normal jump lands at ~302)
-    private const float FallDamageSpeed = 580f;           // PLAYER_MAX_SAFE_FALL_SPEED - faster falls hurt
+    private const float FallDamageSpeed = 580f;           // PLAYER_MAX_SAFE_FALL_SPEED
 
     private float stepSoundTime;
     private readonly List<Audio.SoundEvent> activeMovementSounds = [];
@@ -302,7 +302,7 @@ public class PlayerMovement
 
                 if (!willBunnyHop)
                 {
-                    // Like CS:GO CheckFalling: land sound (chains Land.Thud) with gear rustle
+                    // Like CS:GO CheckFalling
                     PlaySound(LandSoundEvent, position, playerHull);
                     PlaySound(GearSoundEvent, position, playerHull, GearVolume);
                 }
@@ -795,8 +795,8 @@ public class PlayerMovement
     }
 
     /// <summary>
-    /// Attaches a playing sound to the player so it follows them, like the local player's own sounds do in the game.
-    /// The sound event's own position offset (e.g. +60z for gun shots) stays applied on top.
+    /// Attaches a playing sound so its position follows the player. The sound event's own position offset
+    /// (e.g. +60z for gun shots) stays applied on top.
     /// </summary>
     public void AttachSound(Audio.SoundEvent? handle)
     {
@@ -807,9 +807,9 @@ public class PlayerMovement
     }
 
     /// <summary>
-    /// Keeps our own movement sounds attached to the player while they play ("use_entity_position_if_local_player"
-    /// in the sound event data). Left at their emit position they would fall behind at run speed - and since the
-    /// footstep distance-volume curve peaks at ~116 units, they would get louder while receding.
+    /// Tracks the player's position for our movement sounds ("use_entity_position_if_local_player" in the sound
+    /// event data). Left at their emit position they would fall behind at run speed and get louder while receding,
+    /// since the footstep distance-volume curve peaks at ~116 units.
     /// </summary>
     private void UpdateMovementSounds()
     {
