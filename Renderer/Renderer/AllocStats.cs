@@ -25,12 +25,29 @@ public class AllocStats
         private const int GCAllocationTickEventId = 10;
         private const EventKeywords GCKeyword = (EventKeywords)0x1;
 
+        // System.Buffers.ArrayPoolEventSource event ids. Subscribed at Informational level only:
+        // the Verbose per-rent/return events box their payloads in the dispatch, which at one rent
+        // per frame becomes the dominant allocation in the very report this display produces.
+        private const int BufferAllocatedEventId = 2;
+        private const int BufferTrimmedEventId = 4;
+        private const int BufferDroppedEventId = 6;
+
         private EventSource? runtimeSource;
+        private EventSource? arrayPoolSource;
         private bool enableRequested;
 
         public Lock Sync { get; } = new();
         public Dictionary<string, TypeTotal> Types { get; } = [];
         public long SampledBytes { get; private set; }
+
+        /// <summary>Sampled bytes attributed to large-object heap allocations (each one ages straight into gen2).</summary>
+        public long LohSampledBytes { get; private set; }
+
+        // ArrayPool activity, cumulative since Start. Written with Interlocked from event threads.
+        public long PoolMisses;
+        public long PoolMissElements;
+        public long PoolTrimmed;
+        public long PoolDropped;
 
         protected override void OnEventSourceCreated(EventSource eventSource)
         {
@@ -43,6 +60,15 @@ public class AllocStats
                     EnableEvents(eventSource, EventLevel.Verbose, GCKeyword);
                 }
             }
+            else if (eventSource.Name == "System.Buffers.ArrayPoolEventSource")
+            {
+                arrayPoolSource = eventSource;
+
+                if (enableRequested)
+                {
+                    EnableEvents(eventSource, EventLevel.Informational, EventKeywords.All);
+                }
+            }
         }
 
         public void Start()
@@ -51,13 +77,24 @@ public class AllocStats
             {
                 Types.Clear();
                 SampledBytes = 0;
+                LohSampledBytes = 0;
             }
+
+            Interlocked.Exchange(ref PoolMisses, 0);
+            Interlocked.Exchange(ref PoolMissElements, 0);
+            Interlocked.Exchange(ref PoolTrimmed, 0);
+            Interlocked.Exchange(ref PoolDropped, 0);
 
             enableRequested = true;
 
             if (runtimeSource != null)
             {
                 EnableEvents(runtimeSource, EventLevel.Verbose, GCKeyword);
+            }
+
+            if (arrayPoolSource != null)
+            {
+                EnableEvents(arrayPoolSource, EventLevel.Informational, EventKeywords.All);
             }
         }
 
@@ -69,10 +106,21 @@ public class AllocStats
             {
                 DisableEvents(runtimeSource);
             }
+
+            if (arrayPoolSource != null)
+            {
+                DisableEvents(arrayPoolSource);
+            }
         }
 
         protected override void OnEventWritten(EventWrittenEventArgs eventData)
         {
+            if (eventData.EventSource == arrayPoolSource)
+            {
+                OnArrayPoolEvent(eventData);
+                return;
+            }
+
             // Fires on whichever thread crossed the allocation threshold.
             if (eventData.EventId != GCAllocationTickEventId || eventData.Payload == null || eventData.PayloadNames == null)
             {
@@ -81,6 +129,7 @@ public class AllocStats
 
             var typeName = "<unknown>";
             var amount = 0L;
+            var isLargeObject = false;
 
             for (var i = 0; i < eventData.PayloadNames.Count; i++)
             {
@@ -91,6 +140,9 @@ public class AllocStats
                         break;
                     case "AllocationAmount64":
                         amount = (long)(ulong)eventData.Payload[i]!;
+                        break;
+                    case "AllocationKind":
+                        isLargeObject = eventData.Payload[i] is uint kind && kind == 1;
                         break;
                     default:
                         break;
@@ -113,7 +165,54 @@ public class AllocStats
                 total.Bytes += amount;
                 total.Samples++;
                 SampledBytes += amount;
+
+                if (isLargeObject)
+                {
+                    LohSampledBytes += amount;
+                }
             }
+        }
+
+        private void OnArrayPoolEvent(EventWrittenEventArgs eventData)
+        {
+            switch (eventData.EventId)
+            {
+                case BufferAllocatedEventId:
+                    // The pool had no pooled buffer to hand out, so a real allocation happened.
+                    Interlocked.Increment(ref PoolMisses);
+                    Interlocked.Add(ref PoolMissElements, ReadBufferSize(eventData));
+                    break;
+
+                case BufferTrimmedEventId:
+                    Interlocked.Increment(ref PoolTrimmed);
+                    break;
+
+                case BufferDroppedEventId:
+                    Interlocked.Increment(ref PoolDropped);
+                    break;
+
+                default:
+                    break;
+            }
+        }
+
+        /// <summary>Reads the bufferSize payload field: the array length in elements, not bytes.</summary>
+        private static int ReadBufferSize(EventWrittenEventArgs eventData)
+        {
+            if (eventData.Payload == null || eventData.PayloadNames == null)
+            {
+                return 0;
+            }
+
+            for (var i = 0; i < eventData.PayloadNames.Count; i++)
+            {
+                if (eventData.PayloadNames[i] == "bufferSize")
+                {
+                    return eventData.Payload[i] is int size ? size : 0;
+                }
+            }
+
+            return 0;
         }
     }
 
@@ -123,6 +222,11 @@ public class AllocStats
     private AllocationSampler? sampler;
     private bool wasCapturing;
     private long captureStart;
+
+    // Exceptions allocate (the exception object plus its stack trace); a nonzero rate during
+    // normal rendering is a hidden allocator and usually a bug. Counted since capture start.
+    private long firstChanceExceptions;
+    private EventHandler<System.Runtime.ExceptionServices.FirstChanceExceptionEventArgs>? exceptionHandler;
 
     /// <summary>Gets or sets whether allocation data is actively collected this frame.</summary>
     public bool Capture { get; set; }
@@ -164,10 +268,19 @@ public class AllocStats
                 sampler.Start();
                 captureStart = Stopwatch.GetTimestamp();
                 displayLines.Clear();
+
+                Interlocked.Exchange(ref firstChanceExceptions, 0);
+                exceptionHandler ??= (_, _) => Interlocked.Increment(ref firstChanceExceptions);
+                AppDomain.CurrentDomain.FirstChanceException += exceptionHandler;
             }
             else
             {
                 sampler?.Stop();
+
+                if (exceptionHandler != null)
+                {
+                    AppDomain.CurrentDomain.FirstChanceException -= exceptionHandler;
+                }
             }
         }
 
@@ -347,6 +460,23 @@ public class AllocStats
         };
         AddLine(displayText.Format($"Rate:        {new ByteSize(publishedBytesPerSecond),10}/s"), rateColor);
 
+        var info = GC.GetGCMemoryInfo();
+        var exceptions = Interlocked.Read(ref firstChanceExceptions);
+        var unmanagedOrGl = Environment.WorkingSet - info.HeapSizeBytes;
+
+        AddLine(
+            displayText.Format($"Process:  {new ByteSize(Environment.WorkingSet),10} total, {new ByteSize(unmanagedOrGl),9} unmanaged, {exceptions:N0} thrown exceptions"),
+            exceptions > 0 ? new Color32(255, 255, 0) : valueColor);
+
+        AddLine(displayText.Format($"Heap:     {new ByteSize(GC.GetTotalMemory(forceFullCollection: false)),10} used, {new ByteSize(info.HeapSizeBytes),10} heap, {new ByteSize(info.FragmentedBytes),10} fragmented, {new ByteSize(info.TotalCommittedBytes),10} committed"), valueColor);
+
+
+        // Climbing finalization counts are GL handle wrappers (or other disposables) nobody disposed.
+        AddLine(
+            displayText.Format($"Objects:     {info.PinnedObjectsCount:N0} pinned, {info.FinalizationPendingCount:N0} awaiting finalization"),
+            info.FinalizationPendingCount > 100 ? new Color32(255, 255, 0) : valueColor);
+
+
         var windowCollections = 0;
 
         foreach (var count in publishedCollections)
@@ -358,9 +488,13 @@ public class AllocStats
             displayText.Format($"Collections: gen0 {GC.CollectionCount(0):N0}, gen1 {GC.CollectionCount(1):N0}, gen2 {GC.CollectionCount(2):N0}  (+{publishedCollections[0]}/{publishedCollections[1]}/{publishedCollections[2]} last second)"),
             windowCollections > 0 ? new Color32(255, 255, 0) : valueColor);
 
-        var info = GC.GetGCMemoryInfo();
+        // Sizes are as of the last GC, so they hold still between collections.
+        var generations = info.GenerationInfo;
+        if (generations.Length >= 5)
+        {
+            AddLine(displayText.Format($"Generations: gen0 {new ByteSize(generations[0].SizeAfterBytes),10}, gen1 {new ByteSize(generations[1].SizeAfterBytes),10}, gen2 {new ByteSize(generations[2].SizeAfterBytes),10}, LOH {new ByteSize(generations[3].SizeAfterBytes),10}, POH {new ByteSize(generations[4].SizeAfterBytes),10}"), valueColor);
+        }
 
-        AddLine(displayText.Format($"Heap:        {new ByteSize(GC.GetTotalMemory(forceFullCollection: false)),10} used, {new ByteSize(info.HeapSizeBytes),10} heap, {new ByteSize(info.FragmentedBytes),10} fragmented, {new ByteSize(info.TotalCommittedBytes),10} committed"), valueColor);
         AddLine(displayText.Format($"GC pauses:   {info.PauseTimePercentage:0.00}% of time paused since start"), info.PauseTimePercentage > 1.0 ? new Color32(255, 150, 0) : valueColor);
 
         if (info.Index > 0)
@@ -386,6 +520,15 @@ public class AllocStats
         {
             return;
         }
+
+        var poolMisses = Volatile.Read(ref sampler.PoolMisses);
+        var poolMissElements = Volatile.Read(ref sampler.PoolMissElements);
+        var poolTrimmed = Volatile.Read(ref sampler.PoolTrimmed);
+        var poolDropped = Volatile.Read(ref sampler.PoolDropped);
+
+        AddLine(
+            displayText.Format($"ArrayPool:   {poolMisses:N0} misses ({poolMissElements:N0} elements allocated), {poolTrimmed:N0} trimmed, {poolDropped:N0} dropped"),
+            poolDropped > 0 ? new Color32(255, 150, 0) : valueColor);
 
         long sampledBytes;
         typeSnapshot.Clear();
@@ -485,5 +628,11 @@ public class AllocStats
     {
         sampler?.Dispose();
         sampler = null;
+
+        if (exceptionHandler != null)
+        {
+            AppDomain.CurrentDomain.FirstChanceException -= exceptionHandler;
+            exceptionHandler = null;
+        }
     }
 }

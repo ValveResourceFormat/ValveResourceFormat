@@ -37,6 +37,7 @@ namespace ValveResourceFormat.Renderer
 
             private TextMemory(ReadOnlyMemory<char> memory) => this.memory = memory;
 
+#pragma warning disable CA2225 // Provide a method named alternate for operator overloads
             /// <summary>Wraps a string.</summary>
             public static implicit operator TextMemory(string? text) => new(text.AsMemory());
 
@@ -45,6 +46,7 @@ namespace ValveResourceFormat.Renderer
 
             /// <summary>Wraps a caller-owned buffer slice.</summary>
             public static implicit operator TextMemory(Memory<char> memory) => new(memory);
+#pragma warning restore CA2225
 
             /// <summary>Gets the number of characters.</summary>
             public int Length => memory.Length;
@@ -146,8 +148,10 @@ namespace ValveResourceFormat.Renderer
                 return this;
             }
 
+#pragma warning disable CA2225 // Provide a method named alternate for operator overloads
             /// <summary>Gets the most recently formatted text.</summary>
             public static implicit operator TextMemory(TextBuffer buffer) => buffer.Storage.AsMemory(0, buffer.length);
+#pragma warning restore CA2225
         }
 
         /// <summary>
