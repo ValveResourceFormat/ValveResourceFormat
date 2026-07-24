@@ -147,6 +147,10 @@ public class AllocStats
     private long publishedMaxFrameBytes;
     private readonly int[] publishedCollections = new int[GC.MaxGeneration + 1];
 
+    // Stamped per frame off the collection counts, which unlike GCMemoryInfo cost no allocation to read.
+    private int lastGcCollectionTotal = -1;
+    private long lastGcTimestamp;
+
     /// <summary>Snapshots allocation counters for the new frame.</summary>
     internal void MarkFrameBegin()
     {
@@ -193,6 +197,18 @@ public class AllocStats
 
         frameActive = false;
 
+        var totalCollections = GC.CollectionCount(0) + GC.CollectionCount(1) + GC.CollectionCount(2);
+
+        if (totalCollections != lastGcCollectionTotal)
+        {
+            if (lastGcCollectionTotal != -1)
+            {
+                lastGcTimestamp = Stopwatch.GetTimestamp();
+            }
+
+            lastGcCollectionTotal = totalCollections;
+        }
+
         lastFrameThreadBytes = GC.GetAllocatedBytesForCurrentThread() - frameStartThreadBytes;
         lastFrameTotalBytes = GC.GetTotalAllocatedBytes(precise: false) - frameStartTotalBytes;
 
@@ -228,14 +244,29 @@ public class AllocStats
         }
     }
 
-    private static string FormatBytes(long bytes) => bytes switch
+    /// <summary>Human-readable byte count that formats into a span, so interpolating it does not allocate.</summary>
+    private readonly struct ByteSize(long bytes) : ISpanFormattable
     {
-        < 0 => "0 B", // a GC can shrink GetTotalMemory between snapshots
-        < 1024 => $"{bytes} B",
-        < 1024 * 1024 => $"{bytes / 1024.0:0.0} KB",
-        < 1024 * 1024 * 1024 => $"{bytes / (1024.0 * 1024.0):0.0} MB",
-        _ => $"{bytes / (1024.0 * 1024.0 * 1024.0):0.00} GB",
-    };
+        public bool TryFormat(Span<char> destination, out int charsWritten, ReadOnlySpan<char> format, IFormatProvider? provider) => bytes switch
+        {
+            < 0 => destination.TryWrite($"0 B", out charsWritten), // a GC can shrink GetTotalMemory between snapshots
+            < 1024 => destination.TryWrite($"{bytes} B", out charsWritten),
+            < 1024 * 1024 => destination.TryWrite($"{bytes / 1024.0:0.0} KB", out charsWritten),
+            < 1024 * 1024 * 1024 => destination.TryWrite($"{bytes / (1024.0 * 1024.0):0.0} MB", out charsWritten),
+            _ => destination.TryWrite($"{bytes / (1024.0 * 1024.0 * 1024.0):0.00} GB", out charsWritten),
+        };
+
+        public string ToString(string? format, IFormatProvider? formatProvider) => ToString();
+
+        public override string ToString() => bytes switch
+        {
+            < 0 => "0 B",
+            < 1024 => $"{bytes} B",
+            < 1024 * 1024 => $"{bytes / 1024.0:0.0} KB",
+            < 1024 * 1024 * 1024 => $"{bytes / (1024.0 * 1024.0):0.0} MB",
+            _ => $"{bytes / (1024.0 * 1024.0 * 1024.0):0.00} GB",
+        };
+    }
 
     private static Color32 ColorForFrameBytes(long bytes) => bytes switch
     {
@@ -245,9 +276,10 @@ public class AllocStats
         _ => new Color32(150, 255, 150),
     };
 
-    // Display lines are rebuilt once per second and rendered from this cache, so the overlay
-    // itself allocates (strings, GCMemoryInfoData) at 1 Hz instead of every frame.
-    private readonly List<(string Text, Color32 Color)> displayLines = [];
+    // Display lines are rebuilt once per second into the arena and rendered from this cache, so the
+    // overlay itself allocates almost nothing: only GCMemoryInfoData and the type-name ellipses at 1 Hz.
+    private readonly TextRenderer.TextArena displayText = new(16 * 1024);
+    private readonly List<(TextRenderer.TextMemory Text, Color32 Color)> displayLines = [];
     private readonly List<(string Name, long Bytes, long Samples)> typeSnapshot = [];
     private long lastDisplayRebuild;
 
@@ -296,15 +328,16 @@ public class AllocStats
     private void RebuildDisplayLines()
     {
         displayLines.Clear();
+        displayText.Clear();
 
         var valueColor = new Color32(150, 255, 150);
 
-        void AddLine(string text, Color32 color) => displayLines.Add((text, color));
+        void AddLine(TextRenderer.TextMemory text, Color32 color) => displayLines.Add((text, color));
 
         AddLine("GC Allocations", new Color32(255, 200, 0));
 
-        AddLine($"Frame:       {FormatBytes(lastFrameTotalBytes),10} process, {FormatBytes(lastFrameThreadBytes),10} render thread", ColorForFrameBytes(lastFrameTotalBytes));
-        AddLine($"Peak frame:  {FormatBytes(publishedMaxFrameBytes),10} over the last second", ColorForFrameBytes(publishedMaxFrameBytes));
+        AddLine(displayText.Format($"Frame:       {new ByteSize(lastFrameTotalBytes),10} process, {new ByteSize(lastFrameThreadBytes),10} render thread"), ColorForFrameBytes(lastFrameTotalBytes));
+        AddLine(displayText.Format($"Peak frame:  {new ByteSize(publishedMaxFrameBytes),10} over the last second"), ColorForFrameBytes(publishedMaxFrameBytes));
         var rateColor = publishedBytesPerSecond switch
         {
             >= 64L * 1024 * 1024 => new Color32(255, 0, 0),
@@ -312,9 +345,8 @@ public class AllocStats
             >= 1024 * 1024 => new Color32(255, 255, 0),
             _ => valueColor,
         };
-        AddLine($"Rate:        {FormatBytes(publishedBytesPerSecond),10}/s", rateColor);
+        AddLine(displayText.Format($"Rate:        {new ByteSize(publishedBytesPerSecond),10}/s"), rateColor);
 
-        var collectionsText = $"Collections: gen0 {GC.CollectionCount(0):N0}, gen1 {GC.CollectionCount(1):N0}, gen2 {GC.CollectionCount(2):N0}";
         var windowCollections = 0;
 
         foreach (var count in publishedCollections)
@@ -322,17 +354,14 @@ public class AllocStats
             windowCollections += count;
         }
 
-        if (windowCollections > 0)
-        {
-            collectionsText += $"  (+{publishedCollections[0]}/{publishedCollections[1]}/{publishedCollections[2]} last second)";
-        }
-
-        AddLine(collectionsText, windowCollections > 0 ? new Color32(255, 255, 0) : valueColor);
+        AddLine(
+            displayText.Format($"Collections: gen0 {GC.CollectionCount(0):N0}, gen1 {GC.CollectionCount(1):N0}, gen2 {GC.CollectionCount(2):N0}  (+{publishedCollections[0]}/{publishedCollections[1]}/{publishedCollections[2]} last second)"),
+            windowCollections > 0 ? new Color32(255, 255, 0) : valueColor);
 
         var info = GC.GetGCMemoryInfo();
 
-        AddLine($"Heap:        {FormatBytes(GC.GetTotalMemory(forceFullCollection: false)),10} used, {FormatBytes(info.HeapSizeBytes),10} heap, {FormatBytes(info.FragmentedBytes),10} fragmented, {FormatBytes(info.TotalCommittedBytes),10} committed", valueColor);
-        AddLine($"GC pauses:   {info.PauseTimePercentage:0.00}% of time paused since start", info.PauseTimePercentage > 1.0 ? new Color32(255, 150, 0) : valueColor);
+        AddLine(displayText.Format($"Heap:        {new ByteSize(GC.GetTotalMemory(forceFullCollection: false)),10} used, {new ByteSize(info.HeapSizeBytes),10} heap, {new ByteSize(info.FragmentedBytes),10} fragmented, {new ByteSize(info.TotalCommittedBytes),10} committed"), valueColor);
+        AddLine(displayText.Format($"GC pauses:   {info.PauseTimePercentage:0.00}% of time paused since start"), info.PauseTimePercentage > 1.0 ? new Color32(255, 150, 0) : valueColor);
 
         if (info.Index > 0)
         {
@@ -344,10 +373,14 @@ public class AllocStats
                 pauseMs += pauses[i].TotalMilliseconds;
             }
 
-            AddLine($"Last GC:     #{info.Index:N0} gen{info.Generation}, paused {pauseMs:0.00} ms{(info.Compacted ? ", compacting" : "")}{(info.Concurrent ? ", background" : "")}", pauseMs > 8.0 ? new Color32(255, 150, 0) : valueColor);
+            var lastGcColor = pauseMs > 8.0 ? new Color32(255, 150, 0) : valueColor;
+            var lastGcLine = lastGcTimestamp != 0
+                ? displayText.Format($"Last GC:     #{info.Index:N0} gen{info.Generation}, paused {pauseMs:0.00} ms{(info.Compacted ? ", compacting" : "")}{(info.Concurrent ? ", background" : "")}, {Stopwatch.GetElapsedTime(lastGcTimestamp).TotalSeconds:0.0} s ago")
+                : displayText.Format($"Last GC:     #{info.Index:N0} gen{info.Generation}, paused {pauseMs:0.00} ms{(info.Compacted ? ", compacting" : "")}{(info.Concurrent ? ", background" : "")}");
+            AddLine(lastGcLine, lastGcColor);
         }
 
-        AddLine($"Mode:        {(System.Runtime.GCSettings.IsServerGC ? "server" : "workstation")} GC, latency {System.Runtime.GCSettings.LatencyMode}", valueColor);
+        AddLine(displayText.Format($"Mode:        {(System.Runtime.GCSettings.IsServerGC ? "server" : "workstation")} GC, latency {System.Runtime.GCSettings.LatencyMode}"), valueColor);
 
         if (sampler == null)
         {
@@ -384,20 +417,21 @@ public class AllocStats
 
         typeSnapshot.Sort(static (a, b) => b.Bytes.CompareTo(a.Bytes));
 
-        AddLine(string.Empty, default);
+        AddLine(default, default);
 
         var captureSeconds = Stopwatch.GetElapsedTime(captureStart).TotalSeconds;
-        AddLine($"Top allocated types over {captureSeconds:0} s ({FormatBytes(sampledBytes)} sampled at ~100 KB granularity)", new Color32(255, 200, 0));
-        AddLine($"Without stats overhead and strings: {FormatBytes(sampledBytes - selfBytes - stringBytes)} <- try to make this zero", Color32.White);
-        AddLine($"{"Bytes",10} {"Share",6} {"Ticks",6}  Type", Color32.White);
+        AddLine(displayText.Format($"Top allocated types over {captureSeconds:0} s ({new ByteSize(sampledBytes)} sampled at ~100 KB granularity)"), new Color32(255, 200, 0));
+        AddLine(displayText.Format($"Without stats overhead and strings: {new ByteSize(sampledBytes - selfBytes - stringBytes)} <- try to make this zero"), Color32.White);
+        AddLine(displayText.Format($"{"Bytes",10} {"Share",6} {"Ticks",6}  Type"), Color32.White);
 
         void AddTypeLine(string name, long bytes, long samples, Color32? colorOverride)
         {
             var share = sampledBytes > 0 ? (double)bytes / sampledBytes : 0;
-            var displayName = name.Length > 200 ? string.Concat(name.AsSpan(0, 199), "…") : name;
+            var displayName = name.AsSpan(0, Math.Min(name.Length, 199));
+            var ellipsis = name.Length > 199 ? "…" : "";
             var color = colorOverride ?? (share >= 0.25 ? new Color32(255, 255, 0) : valueColor);
 
-            AddLine($"{FormatBytes(bytes),10} {share,6:0.0%} {samples,6:N0}  {displayName}", color);
+            AddLine(displayText.Format($"{new ByteSize(bytes),10} {share,6:0.0%} {samples,6:N0}  {displayName}{ellipsis}"), color);
         }
 
         var shown = 0;

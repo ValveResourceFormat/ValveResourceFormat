@@ -57,7 +57,9 @@ namespace GUI.Types.GLViewers
 
         private readonly float[] frameTimes = new float[30];
         private int frameTimeNextId;
-        private string fpsText = string.Empty;
+
+        private readonly ValveResourceFormat.Renderer.TextRenderer.TextBuffer fpsText = new("FPS: 10000  CPU: 10000.0ms  GPU: 10000.0ms");
+        private readonly ValveResourceFormat.Renderer.TextRenderer.TextBuffer speedText = new("Speed: 100000.0 u/s");
         private int frametimeQuery1;
         private int frametimeQuery2;
 
@@ -408,7 +410,7 @@ namespace GUI.Types.GLViewers
             }
         }
 
-        protected void DrawLowerCornerText(string text, Color32 color, int lineFromBottom = 0)
+        protected void DrawLowerCornerText(ValveResourceFormat.Renderer.TextRenderer.TextMemory text, Color32 color, int lineFromBottom = 0)
         {
             Debug.Assert(MainFramebuffer != null);
 
@@ -563,11 +565,18 @@ namespace GUI.Types.GLViewers
                     GL.GetQueryObject(frametimeQuery, GetQueryObjectParam.QueryResultNoWait, out long gpuTime);
                     var gpuFrameTime = gpuTime / 1_000_000f;
 
-                    var fps = 1f / (frameTimes.Sum() / frameTimes.Length);
+                    var frameTimeSum = 0f;
+
+                    foreach (var time in frameTimes)
+                    {
+                        frameTimeSum += time;
+                    }
+
+                    var fps = 1f / (frameTimeSum / frameTimes.Length);
                     var cpuFrameTime = Stopwatch.GetElapsedTime(LastUpdate, currentTime).TotalMilliseconds;
 
                     lastFpsUpdate = currentTime;
-                    fpsText = $"FPS: {fps,-3:0}  CPU: {cpuFrameTime,-4:0.0}ms  GPU: {gpuFrameTime,-4:0.0}ms";
+                    fpsText.Format($"FPS: {fps,-3:0}  CPU: {cpuFrameTime,-4:0.0}ms  GPU: {gpuFrameTime,-4:0.0}ms");
                 }
 
                 DrawLowerCornerText(fpsText, Color32.White);
@@ -593,7 +602,7 @@ namespace GUI.Types.GLViewers
                     Y = 0.85f,
                     Scale = 12f,
                     Color = Color32.Yellow,
-                    Text = $"Speed: {Input.Velocity.AsVector2().Length():0.0} u/s",
+                    Text = speedText.Format($"Speed: {Input.Velocity.AsVector2().Length():0.0} u/s"),
                     CenterHorizontal = true,
                 }, Renderer.Camera);
             }

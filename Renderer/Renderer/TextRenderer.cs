@@ -1,6 +1,7 @@
 using System.Buffers;
 using System.Diagnostics;
 using System.Reflection;
+using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using OpenTK.Graphics.OpenGL;
 using SkiaSharp;
@@ -23,6 +24,158 @@ namespace ValveResourceFormat.Renderer
             public Vector2 TexCoord;
             public float Depth;
             public Color32 Color;
+        }
+
+        /// <summary>
+        /// Text for a <see cref="TextRenderRequest"/>. Converts implicitly from a string, or from a
+        /// caller-owned char buffer slice to render without allocating — in which case the buffer
+        /// must not be overwritten until <see cref="Render"/> runs.
+        /// </summary>
+        public readonly struct TextMemory
+        {
+            private readonly ReadOnlyMemory<char> memory;
+
+            private TextMemory(ReadOnlyMemory<char> memory) => this.memory = memory;
+
+            /// <summary>Wraps a string.</summary>
+            public static implicit operator TextMemory(string? text) => new(text.AsMemory());
+
+            /// <summary>Wraps a caller-owned buffer slice.</summary>
+            public static implicit operator TextMemory(ReadOnlyMemory<char> memory) => new(memory);
+
+            /// <summary>Wraps a caller-owned buffer slice.</summary>
+            public static implicit operator TextMemory(Memory<char> memory) => new(memory);
+
+            /// <summary>Gets the number of characters.</summary>
+            public int Length => memory.Length;
+
+            /// <summary>Gets the characters as a span.</summary>
+            public ReadOnlySpan<char> Span => memory.Span;
+
+            /// <summary>
+            /// Formats an interpolated string directly into a caller-owned buffer and wraps the written
+            /// slice, without allocating. Text that does not fit the buffer comes out empty.
+            /// </summary>
+            public static TextMemory Format(Memory<char> destination, [InterpolatedStringHandlerArgument(nameof(destination))] ref FormatHandler handler)
+                => new(destination[..handler.GetWrittenLength(destination.Span)]);
+
+            /// <summary>Interpolated string handler for <see cref="Format"/>, forwarding to the buffer-writing BCL handler.</summary>
+            [InterpolatedStringHandler]
+            public ref struct FormatHandler
+            {
+                private MemoryExtensions.TryWriteInterpolatedStringHandler inner;
+
+                /// <summary>Initializes the handler over the destination buffer. Called by the compiler.</summary>
+                public FormatHandler(int literalLength, int formattedCount, Memory<char> destination, out bool shouldAppend)
+                {
+                    inner = new MemoryExtensions.TryWriteInterpolatedStringHandler(literalLength, formattedCount, destination.Span, out shouldAppend);
+                }
+
+                /// <summary>Appends a literal segment.</summary>
+                public bool AppendLiteral(string value) => inner.AppendLiteral(value);
+
+                /// <summary>Appends a formatted value.</summary>
+                public bool AppendFormatted<T>(T value) => inner.AppendFormatted(value);
+
+                /// <summary>Appends a formatted value.</summary>
+                public bool AppendFormatted<T>(T value, string? format) => inner.AppendFormatted(value, format);
+
+                /// <summary>Appends a formatted value.</summary>
+                public bool AppendFormatted<T>(T value, int alignment) => inner.AppendFormatted(value, alignment);
+
+                /// <summary>Appends a formatted value.</summary>
+                public bool AppendFormatted<T>(T value, int alignment, string? format) => inner.AppendFormatted(value, alignment, format);
+
+                /// <summary>Appends a character span.</summary>
+                public bool AppendFormatted(scoped ReadOnlySpan<char> value) => inner.AppendFormatted(value);
+
+                /// <summary>Appends a character span.</summary>
+                public bool AppendFormatted(scoped ReadOnlySpan<char> value, int alignment = 0, string? format = null) => inner.AppendFormatted(value, alignment, format);
+
+                /// <summary>Appends a string.</summary>
+                public bool AppendFormatted(string? value) => inner.AppendFormatted(value);
+
+                /// <summary>Appends a string.</summary>
+                public bool AppendFormatted(string? value, int alignment = 0, string? format = null) => inner.AppendFormatted(value, alignment, format);
+
+                /// <summary>Initializes the handler over a reusable text buffer. Called by the compiler.</summary>
+                public FormatHandler(int literalLength, int formattedCount, TextBuffer destination, out bool shouldAppend)
+                {
+                    inner = new MemoryExtensions.TryWriteInterpolatedStringHandler(literalLength, formattedCount, destination.Storage, out shouldAppend);
+                }
+
+                /// <summary>Initializes the handler over an arena's free space. Called by the compiler.</summary>
+                public FormatHandler(int literalLength, int formattedCount, TextArena destination, out bool shouldAppend)
+                {
+                    inner = new MemoryExtensions.TryWriteInterpolatedStringHandler(literalLength, formattedCount, destination.FreeSpace, out shouldAppend);
+                }
+
+                internal int GetWrittenLength(Span<char> destination)
+                    => MemoryExtensions.TryWrite(destination, ref inner, out var charsWritten) ? charsWritten : 0;
+            }
+        }
+
+        /// <summary>
+        /// A reusable fixed-size buffer for per-frame formatted text. Construct once, sized directly or
+        /// from a worst-case template string, then <see cref="Format"/> into it each frame and pass it
+        /// wherever <see cref="TextMemory"/> is expected — no per-call allocations.
+        /// </summary>
+        public sealed class TextBuffer
+        {
+            internal readonly char[] Storage;
+            private int length;
+
+            /// <summary>Creates a buffer with the given capacity in characters.</summary>
+            public TextBuffer(int capacity)
+            {
+                Storage = new char[capacity];
+            }
+
+            /// <summary>Creates a buffer sized to fit the given worst-case example text.</summary>
+            public TextBuffer(string template) : this(template.Length)
+            {
+            }
+
+            /// <summary>
+            /// Formats an interpolated string into the buffer without allocating, replacing the previous
+            /// contents. Text that does not fit the buffer comes out empty.
+            /// </summary>
+            public TextMemory Format([InterpolatedStringHandlerArgument("")] ref TextMemory.FormatHandler handler)
+            {
+                length = handler.GetWrittenLength(Storage);
+                return this;
+            }
+
+            /// <summary>Gets the most recently formatted text.</summary>
+            public static implicit operator TextMemory(TextBuffer buffer) => buffer.Storage.AsMemory(0, buffer.length);
+        }
+
+        /// <summary>
+        /// An append-only arena for building many formatted lines into one large backing buffer without
+        /// allocating. Each <see cref="Format"/> returns its text as a <see cref="TextMemory"/> slice
+        /// that stays valid until the next <see cref="Clear"/>.
+        /// </summary>
+        public sealed class TextArena(int capacity)
+        {
+            private readonly char[] storage = new char[capacity];
+            private int used;
+
+            internal Span<char> FreeSpace => storage.AsSpan(used);
+
+            /// <summary>Discards all text, invalidating previously returned slices.</summary>
+            public void Clear() => used = 0;
+
+            /// <summary>
+            /// Formats an interpolated string into the arena without allocating and returns the written
+            /// slice. Text that does not fit the remaining space comes out empty.
+            /// </summary>
+            public TextMemory Format([InterpolatedStringHandlerArgument("")] ref TextMemory.FormatHandler handler)
+            {
+                var written = handler.GetWrittenLength(storage.AsSpan(used));
+                var line = storage.AsMemory(used, written);
+                used += written;
+                return line;
+            }
         }
 
         /// <summary>
@@ -50,8 +203,8 @@ namespace ValveResourceFormat.Renderer
             /// <summary>Gets an additional pixel offset applied after positioning.</summary>
             public Vector2 TextOffset { get; init; } = Vector2.Zero;
 
-            /// <summary>Gets the string to render.</summary>
-            public required string Text { get; init; }
+            /// <summary>Gets the text to render.</summary>
+            public required TextMemory Text { get; init; }
 
             /// <summary>Gets whether the text is centered horizontally around <see cref="X"/>.</summary>
             public bool CenterHorizontal { get; init; } = false;
@@ -230,6 +383,7 @@ namespace ValveResourceFormat.Renderer
 
                 foreach (var textRenderRequest in TextRenderRequests)
                 {
+                    var text = textRenderRequest.Text.Span;
                     var x = textRenderRequest.X;
                     var y = textRenderRequest.Y;
 
@@ -239,7 +393,7 @@ namespace ValveResourceFormat.Renderer
                     if (textRenderRequest.CenterHorizontal)
                     {
                         // For correctness it should use actual plane bounds for each letter (so use real width), but good enough for monospace.
-                        x -= textRenderRequest.Text.Length * DefaultAdvance * textRenderRequest.Scale / 2f;
+                        x -= text.Length * DefaultAdvance * textRenderRequest.Scale / 2f;
                     }
 
                     if (textRenderRequest.CenterVertical)
@@ -252,9 +406,9 @@ namespace ValveResourceFormat.Renderer
                     var color = textRenderRequest.Color;
                     var depth = textRenderRequest.SceneDepth;
 
-                    for (var j = 0; j < textRenderRequest.Text.Length; j++)
+                    for (var j = 0; j < text.Length; j++)
                     {
-                        var c = textRenderRequest.Text[j];
+                        var c = text[j];
 
                         if (c == '\n')
                         {
@@ -264,16 +418,16 @@ namespace ValveResourceFormat.Renderer
                         }
                         else if (c == '\\')
                         {
-                            var cNext = j + 1 < textRenderRequest.Text.Length ? textRenderRequest.Text[j + 1] : '\0';
+                            var cNext = j + 1 < text.Length ? text[j + 1] : '\0';
                             if (cNext == '#')
                             {
                                 j += 2;
-                                if (j + 8 < textRenderRequest.Text.Length)
+                                if (j + 8 < text.Length)
                                 {
-                                    if (byte.TryParse(textRenderRequest.Text.AsSpan(j + 0, 2), System.Globalization.NumberStyles.HexNumber, null, out var r)
-                                    && byte.TryParse(textRenderRequest.Text.AsSpan(j + 2, 2), System.Globalization.NumberStyles.HexNumber, null, out var g)
-                                    && byte.TryParse(textRenderRequest.Text.AsSpan(j + 4, 2), System.Globalization.NumberStyles.HexNumber, null, out var b)
-                                    && byte.TryParse(textRenderRequest.Text.AsSpan(j + 6, 2), System.Globalization.NumberStyles.HexNumber, null, out var a))
+                                    if (byte.TryParse(text.Slice(j + 0, 2), System.Globalization.NumberStyles.HexNumber, null, out var r)
+                                    && byte.TryParse(text.Slice(j + 2, 2), System.Globalization.NumberStyles.HexNumber, null, out var g)
+                                    && byte.TryParse(text.Slice(j + 4, 2), System.Globalization.NumberStyles.HexNumber, null, out var b)
+                                    && byte.TryParse(text.Slice(j + 6, 2), System.Globalization.NumberStyles.HexNumber, null, out var a))
                                     {
                                         color = new Color32(r, g, b, a);
                                         j += 7;
