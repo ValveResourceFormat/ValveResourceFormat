@@ -7,6 +7,7 @@ using ValveKeyValue;
 using ValveResourceFormat.Blocks;
 using ValveResourceFormat.IO;
 using ValveResourceFormat.ResourceTypes.ModelAnimation;
+using ValveResourceFormat.ResourceTypes.ModelAnimation2;
 using ValveResourceFormat.ResourceTypes.ModelData;
 using ValveResourceFormat.ResourceTypes.ModelData.Attachments;
 using ValveResourceFormat.ResourceTypes.ModelFlex;
@@ -382,7 +383,7 @@ namespace ValveResourceFormat.ResourceTypes
         /// Gets embedded animations from the model.
         /// </summary>
         /// <returns>Enumerable of animations.</returns>
-        public IEnumerable<Animation> GetEmbeddedAnimations()
+        public IEnumerable<SequenceAnimation> GetEmbeddedAnimations()
         {
             var ctrl = Resource.GetBlockByType(BlockType.CTRL) as BinaryKV3;
             var embeddedAnimation = ctrl?.Data.Root.GetSubCollection("embedded_animation");
@@ -408,7 +409,7 @@ namespace ValveResourceFormat.ResourceTypes
                 var sequenceDataBlock = Resource.GetBlockByIndex((int)seqGroupDataBlockIndex) as KeyValuesOrNTRO;
                 if (sequenceDataBlock?.Data != null)
                 {
-                    return Animation.FromSequenceData(
+                    return SequenceAnimation.FromSequenceData(
                         sequenceDataBlock.Data,
                         animationDataBlock.Data,
                         decodeKey,
@@ -417,7 +418,7 @@ namespace ValveResourceFormat.ResourceTypes
                 }
             }
 
-            return Animation.FromData(animationDataBlock.Data, decodeKey, Skeleton, FlexControllers);
+            return SequenceAnimation.FromData(animationDataBlock.Data, decodeKey, Skeleton, FlexControllers);
         }
 
         /// <summary>
@@ -462,8 +463,9 @@ namespace ValveResourceFormat.ResourceTypes
                     continue;
                 }
 
+                // Graph clips come from a model's own graphs, not from its animation include models.
                 var anims = GetEmbeddedAnimationsWithSkeleton(fileLoader, Skeleton, model);
-                allAnims.AddRange(anims);
+                allAnims.AddRange(anims.Where(a => !a.RequiresRetarget));
             }
 
             return allAnims;
@@ -482,7 +484,7 @@ namespace ValveResourceFormat.ResourceTypes
             }
 
             var animGroupPaths = GetReferencedAnimationGroupNames();
-            var animations = GetEmbeddedAnimations().ToList();
+            var animations = GetEmbeddedAnimations().ToList<Animation>();
 
             // Load animations from referenced animation groups
             foreach (var animGroupPath in animGroupPaths)
@@ -494,10 +496,69 @@ namespace ValveResourceFormat.ResourceTypes
                 }
             }
 
-            var referencedAnims = GetReferencedAnimations(fileLoader);
-            animations.AddRange(referencedAnims);
+            // Animation graph (AG2) clips are part of the model's animation set. They animate an NM
+            // skeleton and are retargeted onto the model skeleton by consumers (RequiresRetarget).
+            // A malformed clip must not take down the rest of the animation set.
+            foreach (var clipName in AnimationGraphLoader.GetClipNames(this, fileLoader))
+            {
+                try
+                {
+                    if (fileLoader.LoadFileCompiled(clipName)?.DataBlock is AnimationClip clip)
+                    {
+                        animations.Add(new ClipAnimation(clip));
+                    }
+                }
+                catch (Exception e)
+                {
+                    Console.Error.WriteLine(e.ToString());
+                }
+            }
 
-            CachedAnimations = [.. animations];
+            // AG1 sequences carry no additive flag; mark the ones the animation graph applies additively.
+            // The graph is arbitrary third-party data walked on every model load, so an unexpected shape
+            // must never take down animation loading.
+            HashSet<string> additiveSequences;
+            try
+            {
+                additiveSequences = AnimationGraph1Additive.GetAdditiveSequences(this, fileLoader);
+            }
+            catch (Exception e)
+            {
+                Console.Error.WriteLine(e.ToString());
+                additiveSequences = [];
+            }
+
+            // Compiled (AG2) graphs carry no per-sequence additive marks; additive-ness lives on the
+            // clips themselves. Legacy sequences sharing an additive clip's name (retarget sources)
+            // inherit its flag through the same name set.
+            foreach (var animation in animations)
+            {
+                if (animation is ClipAnimation { IsAdditive: true })
+                {
+                    additiveSequences.Add(Path.GetFileNameWithoutExtension(animation.Name));
+                }
+            }
+
+            // Assign (not just set true) so the flag is deterministic per model. Only this model's own
+            // animations are stamped here; referenced animations are shared instances whose flags were
+            // stamped by their owning model, so they are appended after the loop untouched.
+            // '@'-prefixed autoplay aliases inherit the additive-ness of the sequence they wrap.
+            foreach (var animation in animations)
+            {
+                if (animation is not SequenceAnimation sequenceAnimation)
+                {
+                    continue;
+                }
+
+                var sequenceName = animation.Name.StartsWith('@') ? animation.Name[1..] : animation.Name;
+                animation.IsAdditive = additiveSequences.Contains(sequenceName)
+                    || sequenceAnimation.Delta
+                    || sequenceAnimation.AnimGraphAdditive;
+            }
+
+            var referencedAnims = GetReferencedAnimations(fileLoader);
+
+            CachedAnimations = [.. animations, .. referencedAnims];
 
             return CachedAnimations;
         }

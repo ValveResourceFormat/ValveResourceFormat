@@ -23,8 +23,11 @@ namespace ValveResourceFormat.Renderer
         /// <summary>Gets or sets whether animations should loop when reaching the end.</summary>
         public bool Looping { get; set; } = true;
 
-        /// <summary>Gets the currently active animation, or <see langword="null"/> if none is set.</summary>
-        public Animation? ActiveAnimation => activeClip?.Animation;
+        /// <summary>
+        /// Gets the currently active animation, or <see langword="null"/> if none is set. While a
+        /// sub-controller is driving playback (AG2 external skeletons) this reports its animation.
+        /// </summary>
+        public Animation? ActiveAnimation => runner.ActiveAnimation;
 
         /// <summary>Gets the frame cache used to retrieve and interpolate animation frames.</summary>
         public AnimationFrameCache FrameCache { get; }
@@ -47,10 +50,10 @@ namespace ValveResourceFormat.Renderer
         /// <summary>Gets or sets the current frame index of the active animation.</summary>
         public int Frame
         {
-            get => activeClip?.Frame ?? 0;
+            get => runner.Frame;
             set
             {
-                activeClip?.Frame = value;
+                runner.Frame = value;
                 forceUpdate = true;
             }
         }
@@ -58,10 +61,10 @@ namespace ValveResourceFormat.Renderer
         /// <summary>Gets or sets the current playback time in seconds.</summary>
         public float Time
         {
-            get => activeClip?.Time ?? 0f;
+            get => runner.Time;
             set
             {
-                activeClip?.Time = value;
+                runner.Time = value;
                 forceUpdate = true;
             }
         }
@@ -77,6 +80,9 @@ namespace ValveResourceFormat.Renderer
         {
             FrameCache = new(skeleton, flexControllers);
             BlendedFrame = new(skeleton, flexControllers);
+            AdditiveFrame = new(skeleton, flexControllers);
+            directRunner = new DirectPlaybackRunner(this);
+            runner = directRunner;
         }
 
         /// <summary>
@@ -91,105 +97,34 @@ namespace ValveResourceFormat.Renderer
                 return false;
             }
 
-            timeStep *= FrametimeMultiplier;
-
-            if (CurrentSubController is { } subController)
+            if (!runner.Update(timeStep, out var animationFrame) && !forceUpdate)
             {
-                subController.Handler.IsPaused = IsPaused;
-                subController.Handler.Looping = Looping;
-                subController.Handler.forceUpdate = forceUpdate;
-
-                var updated = subController.Handler.Update(timeStep);
-                IsPaused = subController.Handler.IsPaused;
-                forceUpdate = subController.Handler.forceUpdate;
-
-                if (!updated && !forceUpdate)
-                {
-                    return false;
-                }
-
-                // Pose calculation from AG2 clip
-                static void ComputePoseRecursive(Bone bone, Matrix4x4 parentTransform, SubController subController, Span<Matrix4x4> pose)
-                {
-                    var remapIndex = subController.RemapTable[bone.Index];
-
-                    if (remapIndex != -1)
-                    {
-                        // Bone is animated in sub-controller, use its pose
-                        pose[bone.Index] = subController.Handler.Pose[remapIndex];
-                    }
-                    else
-                    {
-                        // Bone is not animated, compute from parent + bind pose
-                        pose[bone.Index] = bone.BindPose * parentTransform;
-                    }
-
-                    foreach (var child in bone.Children)
-                    {
-                        ComputePoseRecursive(child, pose[bone.Index], subController, pose);
-                    }
-                }
-
-                foreach (var root in Skeleton.Roots)
-                {
-                    if (root.IsProceduralCloth)
-                    {
-                        continue;
-                    }
-
-                    ComputePoseRecursive(root, Transform, subController, Pose);
-                }
-
-
-                AnimationFrame = GetFrame();
-                updateHandler(ActiveAnimation, Frame);
-                forceUpdate = false;
-
-                ApplyInverseKinematics();
-                return true;
+                return false;
             }
 
-            if (!IsPaused && activeClip != null)
-            {
-                UpdateClips(timeStep);
-            }
-
-            AnimationFrame = GetFrame();
+            AnimationFrame = animationFrame;
             updateHandler(ActiveAnimation, Frame);
             forceUpdate = false;
-
-            if (AnimationFrame == null)
-            {
-                BindPose.AsSpan().CopyTo(Pose);
-                return true;
-            }
-
-            if (!IsUsingMixer && ActiveAnimation?.Clip is { IsAdditive: true })
-            {
-                // We need a frame we can write to without ruining the frame cache
-                AnimationFrame.Bones.CopyTo(FrameCache.InterpolatedFrame.Bones);
-                AnimationFrame = FrameCache.InterpolatedFrame;
-
-                // Add over bind pose
-                for (var i = 0; i < AnimationFrame.Bones.Length; i++)
-                {
-                    var bindPose = new FrameBone(Skeleton.Bones[i].Position, 1f, Skeleton.Bones[i].Angle);
-                    AnimationFrame.Bones[i] = AnimationFrame.Bones[i].BlendAdd(bindPose, 1f);
-                }
-            }
-
-            foreach (var root in Skeleton.Roots)
-            {
-                if (root.IsProceduralCloth)
-                {
-                    continue;
-                }
-
-                GetBoneMatricesRecursive(root, Transform, AnimationFrame, Pose);
-            }
-
-            ApplyInverseKinematics();
             return true;
+        }
+
+        /// <summary>
+        /// Gets or sets whether the active animation is composed additively over the skeleton bind pose
+        /// rather than applied as an absolute pose. <see cref="SetAnimation(Animation?, float)"/> seeds this
+        /// from <see cref="Animation.IsAdditive"/>. While a sub-controller is driving playback (AG2 external
+        /// skeletons) this delegates to it, so it always reflects what is actually being applied. Changing
+        /// the value forces a pose update.
+        /// </summary>
+        public bool ApplyAdditive
+        {
+            get => runner.ApplyAdditive;
+            set
+            {
+                // Force an update when the effective value changes, otherwise Update's early-out
+                // swallows the toggle and the pose is never recomputed.
+                forceUpdate = forceUpdate || runner.ApplyAdditive != value;
+                runner.ApplyAdditive = value;
+            }
         }
 
         /// <summary>
@@ -208,32 +143,20 @@ namespace ValveResourceFormat.Renderer
         /// <param name="blendTime">The time in seconds to blend from previous animations to the new animation.</param>
         public void SetAnimation(Animation? animation, float blendTime)
         {
-            if (animation is { Clip: { } nmClip })
+            var newRunner = animation is { RequiresRetarget: true, TargetSkeletonName: { } targetSkeletonName }
+                && retargetRunners.TryGetValue(targetSkeletonName, out var retargetRunner)
+                ? retargetRunner
+                : (PlaybackRunner)directRunner;
+
+            if (newRunner != directRunner)
             {
-                var skeletonName = nmClip.SkeletonName;
-                if (ExternalSkeletons.TryGetValue(skeletonName, out var subController))
-                {
-                    subController.Handler.Looping = Looping;
-                    subController.Handler.FrametimeMultiplier = FrametimeMultiplier;
-                    subController.Handler.SetAnimation(animation, blendTime);
-                    CurrentSubController = subController;
-                    forceUpdate = true;
-                    updateHandler(ActiveAnimation, -1);
-                    return;
-                }
+                // The mixer state is no longer what is playing; clear it so a later switch back to a
+                // model-skeleton animation cannot blend from a stale clip.
+                directRunner.ClearClips();
             }
 
-            CurrentSubController = null;
-            FrameCache.PurgeCache();
-
-            if (animation != null)
-            {
-                TransitionToClip(animation, blendTime);
-            }
-            else
-            {
-                activeClip = null;
-            }
+            runner = newRunner;
+            runner.SetAnimation(animation, blendTime);
 
             forceUpdate = true;
             updateHandler(ActiveAnimation, -1);
@@ -246,19 +169,6 @@ namespace ValveResourceFormat.Renderer
             Frame = ActiveAnimation == null ? 0 : ActiveAnimation.FrameCount - 1;
         }
 
-        /// <summary>
-        /// Returns the animation frame for the current time, using exact frame lookup when paused or interpolation during playback.
-        /// </summary>
-        /// <returns>The current animation frame, or <see langword="null"/> if no animation is active.</returns>
-        public Frame? GetFrame()
-        {
-            if (CurrentSubController is { } subController)
-            {
-                return subController.Handler.GetFrame();
-            }
-
-            return GetBlendedFrame();
-        }
 
         /// <summary>
         /// Registers a callback invoked each time the animation frame changes, receiving the active animation and frame index.
@@ -270,23 +180,21 @@ namespace ValveResourceFormat.Renderer
         }
 
         /// <summary>
-        /// The current sub animation controller that is driving animation updates.
+        /// The current sub animation controller that is driving animation updates, or
+        /// <see langword="null"/> while an animation plays directly on the model skeleton.
         /// </summary>
-        public SubController? CurrentSubController { get; private set; }
+        public SubController? CurrentSubController => (runner as RetargetPlaybackRunner)?.Sub;
 
         /// <summary>
         /// Represents a sub-animation controller that drives animation from an external skeleton.
         /// </summary>
         /// <param name="Handler">The animation controller managing the external skeleton.</param>
-        /// <param name="RemapTable">Bone index mapping from parent to child skeleton.</param>
+        /// <param name="Retargeter">Maps the external skeleton's poses onto the model skeleton by bone name.</param>
         /// <param name="DebugMap">Bone name mapping for debugging purposes.</param>
-        public record struct SubController(AnimationController Handler, int[] RemapTable, Dictionary<string, string?> DebugMap)
+        public readonly record struct SubController(AnimationController Handler, SkeletonRetargeter Retargeter, Dictionary<string, string?> DebugMap)
         {
             /// <summary>The sub controller skeleton.</summary>
-            public readonly Skeleton Skeleton => Handler.Skeleton;
-
-            /// <summary>Bone name mapping for debugging.</summary>
-            public readonly Dictionary<string, string?> DebugMap { get; } = DebugMap;
+            public Skeleton Skeleton => Handler.Skeleton;
         }
 
         /// <summary>
@@ -301,42 +209,23 @@ namespace ValveResourceFormat.Renderer
         /// <param name="skeleton">The external skeleton to register.</param>
         public void RegisterExternalSkeleton(string skeletonName, Skeleton skeleton)
         {
-            var sourceBoneCount = skeleton.Bones.Length;
-            var destinationBoneCount = Skeleton.Bones.Length;
+            var retargeter = new SkeletonRetargeter(Skeleton, skeleton);
 
-            var remapTable = new int[destinationBoneCount];
-            var debugMap = new Dictionary<string, string?>(destinationBoneCount);
-
-            var nameToIndex = new Dictionary<uint, int>(sourceBoneCount);
-
-            for (var i = 0; i < sourceBoneCount; i++)
+            var debugMap = new Dictionary<string, string?>(Skeleton.Bones.Length);
+            for (var i = 0; i < Skeleton.Bones.Length; i++)
             {
-                var name = skeleton.Bones[i].Name;
-                nameToIndex[StringToken.Store(name)] = i;
+                var sourceIndex = retargeter.ModelToSource[i];
+                debugMap[Skeleton.Bones[i].Name] = sourceIndex != -1 ? skeleton.Bones[sourceIndex].Name : null;
             }
 
-            for (var i = 0; i < destinationBoneCount; i++)
-            {
-                var name = Skeleton.Bones[i].Name;
-                var hash = StringToken.Store(name);
-
-                remapTable[i] = -1;
-                debugMap[name] = null;
-
-                if (nameToIndex.TryGetValue(hash, out var idx))
-                {
-                    remapTable[i] = idx;
-                    debugMap[name] = skeleton.Bones[idx].Name;
-                }
-            }
-
-            // Could this be a simpler base type?
             var controller = new AnimationController(skeleton, [])
             {
                 Looping = Looping,
             };
 
-            ExternalSkeletons[skeletonName] = new(controller, remapTable, debugMap);
+            var subController = new SubController(controller, retargeter, debugMap);
+            ExternalSkeletons[skeletonName] = subController;
+            retargetRunners[skeletonName] = new RetargetPlaybackRunner(this, subController);
         }
 
     }

@@ -13,7 +13,7 @@ partial class ModelExtract
     /// <summary>
     /// Gets the list of animations to be extracted with their output file names.
     /// </summary>
-    public List<(Animation Anim, string FileName)> AnimationsToExtract { get; } = [];
+    public List<(SequenceAnimation Anim, string FileName)> AnimationsToExtract { get; } = [];
 
     private void EnqueueAnimations()
     {
@@ -33,25 +33,24 @@ partial class ModelExtract
             return;
         }
 
-        foreach (var clipName in AnimationGraphLoader.GetClipNames(model, fileLoader))
+        foreach (var animation in model.GetAllAnimations(fileLoader))
         {
-            var clipResource = fileLoader.LoadFileCompiled(clipName);
-            if (clipResource?.DataBlock is not AnimationClip)
+            if (animation is not ClipAnimation { Clip: var clip })
             {
                 continue;
             }
 
             try
             {
-                var clipContent = new NmClipExtract(clipResource, fileLoader).ToContentFile();
-                clipContent.FileName = clipName;
+                var clipContent = new NmClipExtract(clip.Resource, fileLoader).ToContentFile();
+                clipContent.FileName = animation.Name;
                 clipContent.KeepFullPath = true;
                 vmdl.AdditionalFiles.Add(clipContent);
             }
             catch (Exception e)
             {
                 // A single malformed clip shouldn't fail the whole model export.
-                ProgressReporter?.Report($"Skipping animation graph clip '{clipName}': {e.Message}");
+                ProgressReporter?.Report($"Skipping animation graph clip '{animation.Name}': {e.Message}");
             }
         }
     }

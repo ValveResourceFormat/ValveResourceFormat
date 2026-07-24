@@ -2,6 +2,7 @@ using System.Linq;
 using Microsoft.Extensions.Logging;
 using ValveResourceFormat.Renderer.Input;
 using ValveResourceFormat.ResourceTypes;
+using ValveResourceFormat.ResourceTypes.ModelAnimation;
 
 namespace ValveResourceFormat.Renderer.SceneNodes;
 
@@ -399,12 +400,9 @@ public class ViewmodelSceneNode : ModelSceneNode
 
         foreach (var anim in Animations.Values)
         {
-            if (anim.Clip is not null)
+            if (anim is ClipAnimation { Clip.SecondaryAnimations.Length: > 0 } clipAnimation)
             {
-                if (anim.Clip.SecondaryAnimations.Length > 0)
-                {
-                    model.LoadAnimationClip(anim.Clip.SecondaryAnimations[0]);
-                }
+                model.LoadAnimationClip(clipAnimation.Clip.SecondaryAnimations[0]);
             }
         }
     }

@@ -25,6 +25,7 @@ namespace GUI.Types.GLViewers
         public ComboBox? animationComboBox { get; protected set; }
         protected CheckBox? animationPlayPause;
         private CheckBox? rootMotionCheckBox;
+        private CheckBox? additiveCheckBox;
         private CheckBox? showSkeletonCheckbox;
         private CheckBox? showParticlesCheckbox;
         private ComboBox? hitboxComboBox;
@@ -75,6 +76,7 @@ namespace GUI.Types.GLViewers
             lodComboBox?.Dispose();
             physicsGroupsComboBox?.Dispose();
             rootMotionCheckBox?.Dispose();
+            additiveCheckBox?.Dispose();
             showSkeletonCheckbox?.Dispose();
             showParticlesCheckbox?.Dispose();
             hitboxComboBox?.Dispose();
@@ -124,8 +126,7 @@ namespace GUI.Types.GLViewers
                     }
                 }
 
-                rootMotionCheckBox!.Enabled = animationController.ActiveAnimation?.HasMovementData() ?? false;
-                enableRootMotion = rootMotionCheckBox.Enabled && rootMotionCheckBox.Checked;
+                SyncAnimationToggles();
             });
 
             animationTimeLabel = new Label()
@@ -170,15 +171,41 @@ namespace GUI.Types.GLViewers
                 animationController.IsPaused = previousPaused;
             };
 
+            additiveCheckBox = UiControl.AddCheckBox("Additive (over bind pose)", false, isChecked =>
+            {
+                if (animationController != null)
+                {
+                    animationController.ApplyAdditive = isChecked;
+                }
+            });
+
+            additiveCheckBox.Enabled = false;
+
             rootMotionCheckBox = UiControl.AddCheckBox("Show Root Motion", enableRootMotion, (isChecked) =>
             {
                 enableRootMotion = isChecked;
-                Debug.Assert(modelSceneNode != null);
-                LastRootMotionPosition = modelSceneNode.Transform.Translation;
+                rootMotionLatched = false;
             });
 
             rootMotionCheckBox.Checked = false;
             rootMotionCheckBox.Enabled = false;
+        }
+
+        // Reflect the per-animation defaults after the active animation changes: root motion turns on
+        // whenever the animation has movement data, and the additive checkbox mirrors the state the
+        // controller seeded from Animation.IsAdditive; both remain manual overrides.
+        protected void SyncAnimationToggles()
+        {
+            Debug.Assert(animationController != null);
+
+            var hasRootMotion = animationController.ActiveAnimation?.HasMovementData() ?? false;
+            rootMotionCheckBox!.Enabled = hasRootMotion;
+            rootMotionCheckBox.Checked = hasRootMotion;
+            enableRootMotion = hasRootMotion;
+            rootMotionLatched = false;
+
+            additiveCheckBox!.Enabled = animationController.ActiveAnimation != null;
+            additiveCheckBox.Checked = animationController.ApplyAdditive;
         }
 
         protected override void LoadScene()
@@ -488,20 +515,18 @@ namespace GUI.Types.GLViewers
                     return;
                 }
 
-                var frameCount = animationController.ActiveAnimation.FrameCount;
-                var fps = animationController.ActiveAnimation.Fps;
+                var activeAnimation = animationController.ActiveAnimation;
+                var frameCount = activeAnimation.FrameCount;
+                var fps = activeAnimation.Fps;
                 var totalTime = frameCount / fps;
                 var time = animationController.Time % totalTime;
                 var frameNumber = animationController.Frame + 1;
 
-                var additive = animationController.ActiveAnimation.Clip is { IsAdditive: true }
-                    ? "Additive: true\n"
-                    : string.Empty;
-
                 animationTimeLabel.Text = $"Frame: {frameNumber,4} / {frameCount}\n" +
                     $"Time: {time:F2} / {totalTime:F2}\n" +
                     $"FPS: {fps:F2}\n" +
-                    additive;
+                    $"Additive: {(activeAnimation.IsAdditive ? "true" : "false")}\n" +
+                    $"Root Motion: {(activeAnimation.HasMovementData() ? "true" : "false")}";
             }
 
             void UpdateUiAnimationState(Animation? animation, int frame)
@@ -606,6 +631,8 @@ namespace GUI.Types.GLViewers
         }
 
         private Vector3 LastRootMotionPosition;
+        private float LastRootMotionAngle;
+        private bool rootMotionLatched;
         private bool enableRootMotion;
 
         /// <summary>
@@ -635,17 +662,46 @@ namespace GUI.Types.GLViewers
 
         protected override void OnPaint(float frameTime)
         {
-            if (enableRootMotion && animationController != null && animationController.AnimationFrame is Frame animationFrame && modelSceneNode != null)
+            if (enableRootMotion && animationController != null && animationController.AnimationFrame is Frame animationFrame)
             {
-                var rootMotionDelta = animationFrame.Movement.Position - LastRootMotionPosition;
+                var movement = animationFrame.Movement;
 
-                modelSceneNode.Transform = modelSceneNode.Transform with
+                if (!rootMotionLatched)
                 {
-                    Translation = modelSceneNode.Transform.Translation + rootMotionDelta,
-                };
+                    // First frame after enabling or switching: latch without moving anything.
+                    LastRootMotionPosition = movement.Position;
+                    LastRootMotionAngle = movement.Angle;
+                    rootMotionLatched = true;
+                }
+                else if (movement.Position != LastRootMotionPosition || movement.Angle != LastRootMotionAngle)
+                {
+                    // Movement data is the accumulated root transform (yaw about Z plus translation);
+                    // advance the nodes by the rigid step between the previous and current samples.
+                    var previous = Matrix4x4.CreateRotationZ(float.DegreesToRadians(LastRootMotionAngle))
+                        * Matrix4x4.CreateTranslation(LastRootMotionPosition);
+                    var current = Matrix4x4.CreateRotationZ(float.DegreesToRadians(movement.Angle))
+                        * Matrix4x4.CreateTranslation(movement.Position);
 
-                Input.Camera.Location += rootMotionDelta;
-                LastRootMotionPosition = animationFrame.Movement.Position;
+                    if (Matrix4x4.Invert(previous, out var inversePrevious))
+                    {
+                        var delta = inversePrevious * current;
+
+                        if (modelSceneNode != null)
+                        {
+                            modelSceneNode.Transform *= delta;
+                        }
+
+                        if (skeletonSceneNode != null)
+                        {
+                            skeletonSceneNode.Transform *= delta;
+                        }
+
+                        Input.Camera.Location += movement.Position - LastRootMotionPosition;
+                    }
+
+                    LastRootMotionPosition = movement.Position;
+                    LastRootMotionAngle = movement.Angle;
+                }
             }
 
             // The stats overlay reflects whatever meshes are currently drawn, so it only needs rebuilding

@@ -21,7 +21,7 @@ namespace ValveResourceFormat.Renderer.SceneNodes
 
         readonly Dictionary<string, HitboxSetData> hitboxSets = [];
         HitboxSetData? currentSet;
-        Skeleton skeleton => animationController.FrameCache.Skeleton;
+        Skeleton skeleton => animationController.Skeleton;
 
         /// <summary>
         /// Initializes a new instance of the <see cref="HitboxSetSceneNode"/> class and builds scene nodes for all hitbox sets.

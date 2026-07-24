@@ -79,6 +79,18 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation2
         /// </summary>
         public bool IsAdditive { get; private set; }
 
+        /// <summary>
+        /// Gets the accumulated root motion per frame (position plus unwrapped yaw in degrees).
+        /// Empty when the clip stores no root motion; static clips store a single identity
+        /// placeholder, which is treated as no root motion.
+        /// </summary>
+        public AnimationMovement.MovementData[] RootMotion { get; private set; } = [];
+
+        /// <summary>
+        /// Gets the clip's named scalar channels (float curves), decoded per frame.
+        /// </summary>
+        public AnimationFloatCurve[] FloatCurves { get; private set; } = [];
+
         /// <inheritdoc/>
         public override void Read(BinaryReader reader)
         {
@@ -100,6 +112,67 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation2
             NumFrames = clipData.GetInt32Property("m_nNumFrames");
             Duration = clipData.GetFloatProperty("m_flDuration");
             IsAdditive = clipData.GetBooleanProperty("m_bIsAdditive");
+
+            var rootTransforms = clipData.GetSubCollection("m_rootMotion")?.GetArray("m_transforms");
+            if (rootTransforms is { Count: > 1 })
+            {
+                RootMotion = new AnimationMovement.MovementData[rootTransforms.Count];
+                var previousYaw = 0f;
+
+                for (var t = 0; t < rootTransforms.Count; t++)
+                {
+                    var (position, _, rotation) = rootTransforms[t].ToTransform();
+
+                    // The yaw is unwrapped so accumulated turns past 180 degrees stay monotonic.
+                    var yaw = float.RadiansToDegrees(MathF.Atan2(
+                        2f * (rotation.W * rotation.Z + rotation.X * rotation.Y),
+                        1f - 2f * (rotation.Y * rotation.Y + rotation.Z * rotation.Z)));
+                    yaw += 360f * MathF.Round((previousYaw - yaw) / 360f);
+                    previousYaw = yaw;
+
+                    RootMotion[t] = new AnimationMovement.MovementData(position, yaw);
+                }
+            }
+
+            var floatCurveIds = clipData.GetArray<string>("m_floatCurveIDs");
+            if (floatCurveIds is { Length: > 0 })
+            {
+                var curveDefs = clipData.GetArray("m_floatCurveDefs");
+                var curveData = clipData.GetIntegerArray("m_compressedFloatCurveData");
+                var curveOffsets = clipData.GetIntegerArray("m_compressedFloatCurveOffsets");
+
+                FloatCurves = new AnimationFloatCurve[floatCurveIds.Length];
+
+                // Dynamic curves are packed densely per frame in declaration order; static curves
+                // hold their range start and store no samples.
+                var dynamicRank = 0;
+                for (var c = 0; c < floatCurveIds.Length; c++)
+                {
+                    var def = curveDefs[c];
+                    var range = def.GetSubCollection("m_range");
+                    var rangeStart = range.GetFloatProperty("m_flRangeStart");
+                    var rangeLength = range.GetFloatProperty("m_flRangeLength");
+
+                    var values = new float[NumFrames];
+
+                    if (def.GetBooleanProperty("m_bIsStatic"))
+                    {
+                        Array.Fill(values, rangeStart);
+                    }
+                    else
+                    {
+                        for (var f = 0; f < NumFrames; f++)
+                        {
+                            var raw = (ushort)curveData[curveOffsets[f] + dynamicRank];
+                            values[f] = DecodeFloat(raw, rangeStart, rangeLength);
+                        }
+
+                        dynamicRank++;
+                    }
+
+                    FloatCurves[c] = new AnimationFloatCurve(floatCurveIds[c], values);
+                }
+            }
 
             CompressedPoseData = clipData.GetArray<byte>("m_compressedPoseData");
 

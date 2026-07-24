@@ -1,6 +1,4 @@
-using ValveResourceFormat.ResourceTypes.ModelAnimation;
-
-namespace ValveResourceFormat.Renderer
+namespace ValveResourceFormat.ResourceTypes.ModelAnimation
 {
     /// <summary>
     /// Base class for computing animated bone poses
@@ -41,7 +39,7 @@ namespace ValveResourceFormat.Renderer
 
             foreach (var root in skeleton.Roots)
             {
-                GetBoneMatricesRecursive(root, Matrix4x4.Identity, null, BindPose);
+                FramePose.ComputeWorldSubtree(root, Matrix4x4.Identity, null, BindPose);
                 GetInverseBindPoseRecursive(root, Matrix4x4.Identity, InverseBindPose);
             }
 
@@ -56,34 +54,6 @@ namespace ValveResourceFormat.Renderer
         public virtual bool Update(float timeStep) => false;
 
         /// <summary>
-        /// Recursively computes the world-space transformation matrix for each bone in the hierarchy.
-        /// </summary>
-        /// <param name="bone">The current bone to process.</param>
-        /// <param name="parent">The parent's world-space transformation matrix.</param>
-        /// <param name="frame">The animation frame containing bone transforms, or <see langword="null"/> to use bind pose.</param>
-        /// <param name="boneMatrices">The output array to store computed bone matrices.</param>
-        protected static void GetBoneMatricesRecursive(Bone bone, Matrix4x4 parent, Frame? frame, Span<Matrix4x4> boneMatrices)
-        {
-            var boneTransform = bone.BindPose;
-
-            if (frame != null)
-            {
-                var frameBone = frame.Bones[bone.Index];
-                boneTransform = Matrix4x4.CreateScale(frameBone.Scale)
-                    * Matrix4x4.CreateFromQuaternion(frameBone.Angle)
-                    * Matrix4x4.CreateTranslation(frameBone.Position);
-            }
-
-            boneTransform *= parent;
-            boneMatrices[bone.Index] = boneTransform;
-
-            foreach (var child in bone.Children)
-            {
-                GetBoneMatricesRecursive(child, boneTransform, frame, boneMatrices);
-            }
-        }
-
-        /// <summary>
         /// Recursively computes the inverse bind pose matrix for each bone in the hierarchy.
         /// </summary>
         /// <param name="bone">The current bone to process.</param>
@@ -96,6 +66,31 @@ namespace ValveResourceFormat.Renderer
             foreach (var child in bone.Children)
             {
                 GetInverseBindPoseRecursive(child, boneMatrices[bone.Index], boneMatrices);
+            }
+        }
+
+        /// <summary>
+        /// Procedural cloth root bones are excluded from pose evaluation because there is no cloth
+        /// simulation. Instead of leaving them frozen at bind pose, rigidly attach them to the cloth
+        /// simulation root so they follow the body. This mirrors how <see cref="GetSkinningMatrices"/>
+        /// skins the cloth mesh, and keeps the skeleton overlay consistent with the rendered mesh.
+        /// </summary>
+        protected void ApplyClothRootPose()
+        {
+            var clothSimRoot = Skeleton.ClothSimulationRoot;
+            if (clothSimRoot is null)
+            {
+                return;
+            }
+
+            var delta = InverseBindPose[clothSimRoot.Index] * Pose[clothSimRoot.Index];
+
+            foreach (var root in Skeleton.Roots)
+            {
+                if (root.IsProceduralCloth)
+                {
+                    Pose[root.Index] = root.BindPose * delta;
+                }
             }
         }
 

@@ -68,7 +68,7 @@ namespace GUI.Types.GLViewers
             SkeletonData = ((BinaryKV3)skeletonResource.DataBlock!).Data;
             LoadSkeleton(firstTime);
             Debug.Assert(animationController != null);
-            animationController.SetAnimation(new Animation(clipToLoad));
+            animationController.SetAnimation(new ClipAnimation(clipToLoad));
         }
 
         protected override void LoadScene()
@@ -102,6 +102,8 @@ namespace GUI.Types.GLViewers
 
                     // Set trackbar length to the animation length
                     animationController.SetAnimation(animationController.ActiveAnimation);
+
+                    SyncAnimationToggles();
                 }
 
                 if (animationPlayPause != null)

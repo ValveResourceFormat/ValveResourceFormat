@@ -38,7 +38,7 @@ namespace ValveResourceFormat.IO
 
             if (animBlock != null)
             {
-                animationList.AddRange(Animation.FromData(animBlock.Data, decodeKey, skeleton, flexControllers));
+                animationList.AddRange(SequenceAnimation.FromData(animBlock.Data, decodeKey, skeleton, flexControllers));
                 return animationList;
             }
 
@@ -53,7 +53,7 @@ namespace ValveResourceFormat.IO
                 if (animResource != null)
                 {
                     // Build animation classes
-                    animationList.AddRange(Animation.FromResource(animResource, decodeKey, skeleton, flexControllers));
+                    animationList.AddRange(SequenceAnimation.FromResource(animResource, decodeKey, skeleton, flexControllers));
                 }
             }
 
