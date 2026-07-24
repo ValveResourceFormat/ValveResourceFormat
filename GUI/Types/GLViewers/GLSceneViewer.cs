@@ -85,12 +85,13 @@ namespace GUI.Types.GLViewers
 
         public override void Dispose()
         {
-            base.Dispose();
-
+            // Delete GL resources before the base disposes the GL context
             physicsTraceRenderer?.Delete();
             physicsTraceRenderer = null;
 
             Renderer?.Dispose();
+
+            base.Dispose();
 
             perfDisplayComboBox?.Dispose();
             perfDisplayComboBox = null;
@@ -132,11 +133,11 @@ namespace GUI.Types.GLViewers
                     {
                         UiControl.AddCheckBox("Show Vis Debug", showVisDebug, v => showVisDebug = v);
                     }
+                }
 
-                    if (Scene.PhysicsWorld != null)
-                    {
-                        UiControl.AddCheckBox("Debug Physics Traces", showPhysicsTraces, v => showPhysicsTraces = v);
-                    }
+                if (Scene.PhysicsWorld != null)
+                {
+                    UiControl.AddCheckBox("Debug Physics Traces", showPhysicsTraces, v => showPhysicsTraces = v);
                 }
 
                 perfDisplayComboBox = UiControl.AddSelection("Debug Performance", (_, i) => perfDisplay = (PerfDisplay)i);
@@ -422,7 +423,8 @@ namespace GUI.Types.GLViewers
             base.OnUpdate(frameTime);
 
             Input.EnableMouseLook = true;
-            if (loadedDefaultLighting && (CurrentlyPressedKeys & TrackedKeys.Control) != 0)
+
+            if (loadedDefaultLighting && Input.NoClip && (CurrentlyPressedKeys & TrackedKeys.Control) != 0)
             {
                 var delta = new Vector2(LastMouseDelta.Y, LastMouseDelta.X);
 
@@ -645,16 +647,6 @@ namespace GUI.Types.GLViewers
 
             if (GrabbedMouse)
             {
-                TextRenderer.AddTextRelative(new ValveResourceFormat.Renderer.TextRenderer.TextRenderRequest
-                {
-                    X = 0.5f,
-                    Y = 0.02f,
-                    Scale = 14f,
-                    Color = new Color32(0, 150, 255),
-                    Text = "* MOVEMENT IS EXPERIMENTAL. EXPECT BUGS. HELP US IMPROVE IT. *",
-                    CenterHorizontal = true,
-                }, Renderer.Camera);
-
                 TextRenderer.AddTextRelative(new ValveResourceFormat.Renderer.TextRenderer.TextRenderRequest
                 {
                     X = 0.5f,

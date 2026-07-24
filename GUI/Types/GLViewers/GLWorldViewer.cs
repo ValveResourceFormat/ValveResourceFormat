@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.Globalization;
+using System.IO;
 using System.Linq;
 using System.Windows.Forms;
 using GUI.Controls;
@@ -212,6 +213,10 @@ namespace GUI.Types.GLViewers
                 }
 
                 Input.TryLoadViewmodel(Scene);
+
+                var kzMapPrefixes = new[] { "bhop", "surf", "kz", "dr" };
+                var mapName = Path.GetFileName(LoadedWorld.MapName);
+                Input.PlayerMovement.PrestrafeEnabled = kzMapPrefixes.Any(prefix => mapName.StartsWith(prefix, StringComparison.OrdinalIgnoreCase));
             }
 
             if (!cameraSet)

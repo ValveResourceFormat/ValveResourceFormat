@@ -564,7 +564,18 @@ public class ViewmodelSceneNode : ModelSceneNode
 
         var bobInputRotation = Quaternion.Inverse(viewmodelRotation);
 
-        var targetBob = Vector3.Transform(input.Velocity * 0.005f, bobInputRotation);
+        const float bobReferenceSpeed = 800f;
+        const float bobOvershoot = 0.15f * bobReferenceSpeed; // max extra "speed" past the reference, added exponentially
+
+        var speed = input.Velocity.Length();
+        var bobSpeed = speed <= bobReferenceSpeed
+            ? speed
+            : bobReferenceSpeed + bobOvershoot * (1f - MathF.Exp(-(speed - bobReferenceSpeed) / bobOvershoot));
+
+        // Scale the velocity direction to the clamped magnitude before deriving the bob.
+        var bobVelocity = speed > 1e-4f ? input.Velocity * (bobSpeed / speed) : Vector3.Zero;
+
+        var targetBob = Vector3.Transform(bobVelocity * 0.005f, bobInputRotation);
 
         targetBob.Y = -targetBob.Y; // switch sideways movement to be leading instead of trailing
         targetBob.Z = MathF.Abs(targetBob.Z);
@@ -575,7 +586,6 @@ public class ViewmodelSceneNode : ModelSceneNode
         currentBob = Vector3.Lerp(currentBob, targetBob, 0.5f);
 
         // Add walking bob based on uptime
-        var speed = input.Velocity.Length();
         var bobAmplitude = MathUtils.Saturate((speed - 150f) / 150f) * 0.1f;
 
         if (!input.PlayerMovement.OnGround)
