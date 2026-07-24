@@ -104,6 +104,7 @@ namespace ValveResourceFormat.Renderer.World
         private Dictionary<string, int> BarnLightCookiePaths { get; } = new(StringComparer.OrdinalIgnoreCase);
         private StorageBuffer? BarnLightStorageBuffer;
         private RenderTexture? BarnLightCookieAtlas { get; set; }
+        private RenderTexture? DefaultCookieAtlas;
         private int CookieSamplerClampBorder;
         private int CookieSamplerWrap;
 
@@ -129,14 +130,20 @@ namespace ValveResourceFormat.Renderer.World
                 shader.SetTexture((int)ReservedTextureSlots.Probe2, "g_tLPV_Shadows", LightProbes[0].DirectLightShadows);
             }
 
-            if (BarnLightCookieAtlas != null)
-            {
-                shader.SetTexture((int)ReservedTextureSlots.LightCookieTexture, "g_tLightCookieTexture", BarnLightCookieAtlas);
-                GL.BindSampler((int)ReservedTextureSlots.LightCookieTexture, CookieSamplerClampBorder);
+            // Always bind something, even when the scene has no cookies: the cookie samplers are 2D arrays,
+            // and leaving their reserved units empty makes shaders sample an incomplete texture.
+            var cookieAtlas = BarnLightCookieAtlas ?? (DefaultCookieAtlas ??= CreateDefaultCookieAtlas());
 
-                shader.SetTexture((int)ReservedTextureSlots.LightCookieTextureWrap, "g_tLightCookieTextureWrap", BarnLightCookieAtlas);
-                GL.BindSampler((int)ReservedTextureSlots.LightCookieTextureWrap, CookieSamplerWrap);
+            if (CookieSamplerClampBorder == 0)
+            {
+                CreateCookieSamplers();
             }
+
+            shader.SetTexture((int)ReservedTextureSlots.LightCookieTexture, "g_tLightCookieTexture", cookieAtlas);
+            GL.BindSampler((int)ReservedTextureSlots.LightCookieTexture, CookieSamplerClampBorder);
+
+            shader.SetTexture((int)ReservedTextureSlots.LightCookieTextureWrap, "g_tLightCookieTextureWrap", cookieAtlas);
+            GL.BindSampler((int)ReservedTextureSlots.LightCookieTextureWrap, CookieSamplerWrap);
         }
 
         /// <summary>
@@ -496,8 +503,24 @@ namespace ValveResourceFormat.Renderer.World
             if (cookieTextures.Count > 0)
             {
                 BarnLightCookieAtlas = BuildCookieAtlas(cookieTextures);
-                CreateCookieSamplers();
             }
+        }
+
+        /// <summary>
+        /// Single white layer, used to keep the cookie texture units complete in scenes without cookies.
+        /// Matches layer 0 of a real atlas, which barn lights without a cookie index into.
+        /// </summary>
+        private static RenderTexture CreateDefaultCookieAtlas()
+        {
+            var atlas = new RenderTexture(TextureTarget.Texture2DArray, 1, 1, 1, 1);
+            GL.TextureStorage3D(atlas.Handle, 1, SizedInternalFormat.Srgb8Alpha8, 1, 1, 1);
+            GL.TextureSubImage3D(atlas.Handle, 0, 0, 0, 0, 1, 1, 1, PixelFormat.Rgba, PixelType.UnsignedByte, new byte[] { 255, 255, 255, 255 });
+
+#if DEBUG
+            atlas.SetLabel("EmptyCookieAtlas");
+#endif
+
+            return atlas;
         }
 
         private static RenderTexture BuildCookieAtlas(List<RenderTexture> textures)
@@ -572,6 +595,9 @@ namespace ValveResourceFormat.Renderer.World
 
             BarnLightCookieAtlas?.Delete();
             BarnLightCookieAtlas = null;
+
+            DefaultCookieAtlas?.Delete();
+            DefaultCookieAtlas = null;
 
             if (CookieSamplerClampBorder != 0)
             {
