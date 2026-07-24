@@ -145,7 +145,6 @@ namespace GUI.Types.GLViewers
 
             if (GLControl != null)
             {
-                GLControl.PreviewKeyDown += OnPreviewKeyDown;
                 GLControl.VisibleChanged += OnVisibleChanged;
             }
 
@@ -597,7 +596,6 @@ namespace GUI.Types.GLViewers
         {
             if (GLControl != null)
             {
-                GLControl.PreviewKeyDown -= OnPreviewKeyDown;
                 GLControl.VisibleChanged -= OnVisibleChanged;
             }
 
@@ -826,27 +824,19 @@ namespace GUI.Types.GLViewers
 
         private void UpdateZoomLabel() => SetMoveSpeedOrZoomLabel($"Zoom: {TextureScale * 100:0.0}% (scroll to change)");
 
-        private void OnPreviewKeyDown(object? sender, PreviewKeyDownEventArgs e)
+        protected override void OnKeyDown(Keys keyData)
         {
-            if (e.KeyCode is Keys.Up or Keys.Down or Keys.Left or Keys.Right)
-            {
-                e.IsInputKey = true;
-            }
-        }
-
-        protected override void OnKeyDown(object? sender, KeyEventArgs e)
-        {
-            base.OnKeyDown(sender, e);
+            base.OnKeyDown(keyData);
 
             InvalidateRender();
 
-            if (e.KeyData == (Keys.Control | Keys.S))
+            if (keyData == (Keys.Control | Keys.S))
             {
                 OnSaveButtonClick(null, EventArgs.Empty);
                 return;
             }
 
-            if (e.KeyData == (Keys.Control | Keys.NumPad0) || e.KeyData == (Keys.Control | Keys.D0))
+            if (keyData == (Keys.Control | Keys.NumPad0) || keyData == (Keys.Control | Keys.D0))
             {
                 ResetZoom();
                 return;
@@ -854,13 +844,13 @@ namespace GUI.Types.GLViewers
 
             Debug.Assert(GLControl != null);
 
-            if (e.KeyData == (Keys.Control | Keys.Add) || e.KeyData == (Keys.Control | Keys.Oemplus))
+            if (keyData == (Keys.Control | Keys.Add) || keyData == (Keys.Control | Keys.Oemplus))
             {
                 HandleMouseWheel(1, new System.Drawing.Point(GLControl.Width / 2, GLControl.Height / 2), isShiftPressed: false, isCtrlPressed: false);
                 return;
             }
 
-            if (e.KeyData == (Keys.Control | Keys.Subtract) || e.KeyData == (Keys.Control | Keys.OemMinus))
+            if (keyData == (Keys.Control | Keys.Subtract) || keyData == (Keys.Control | Keys.OemMinus))
             {
                 HandleMouseWheel(-1, new System.Drawing.Point(GLControl.Width / 2, GLControl.Height / 2), isShiftPressed: false, isCtrlPressed: false);
                 return;
@@ -937,7 +927,7 @@ namespace GUI.Types.GLViewers
             }
         }
 
-        protected override void OnMouseMove(object? sender, MouseEventArgs e)
+        protected override void OnMouseMove(int x, int y)
         {
             Debug.Assert(GLControl != null);
 
@@ -949,7 +939,7 @@ namespace GUI.Types.GLViewers
             }
 
             var oldPosition = Position;
-            var mousePosition = new Vector2(e.Location.X, e.Location.Y);
+            var mousePosition = new Vector2(x, y);
 
             Position = ClickPosition.Value - mousePosition;
 
@@ -975,12 +965,12 @@ namespace GUI.Types.GLViewers
             ClickPosition = null;
         }
 
-        protected override void OnMouseWheel(object? sender, MouseEventArgs e)
+        protected override void OnMouseWheel(int delta, System.Drawing.Point location)
         {
             var isShiftPressed = (CurrentlyPressedKeys & TrackedKeys.Shift) > 0;
             var isCtrlPressed = (CurrentlyPressedKeys & TrackedKeys.Control) > 0;
 
-            HandleMouseWheel(e.Delta, e.Location, isShiftPressed, isCtrlPressed);
+            HandleMouseWheel(delta, location, isShiftPressed, isCtrlPressed);
         }
 
         private void HandleMouseWheel(int delta, System.Drawing.Point location, bool isShiftPressed, bool isCtrlPressed)

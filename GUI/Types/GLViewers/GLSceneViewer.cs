@@ -248,16 +248,16 @@ namespace GUI.Types.GLViewers
             Picker?.Resize(w, h);
         }
 
-        protected override void OnMouseWheel(object? sender, MouseEventArgs e)
+        protected override void OnMouseWheel(int delta, Point location)
         {
-            base.OnMouseWheel(sender, e);
+            base.OnMouseWheel(delta, location);
 
             if (!Input.NoClip)
             {
                 return;
             }
 
-            var modifier = Input.OnMouseWheel(e.Delta);
+            var modifier = Input.OnMouseWheel(delta);
 
             if (Input.OrbitMode)
             {
@@ -823,28 +823,28 @@ namespace GUI.Types.GLViewers
             }
         }
 
-        protected override void OnKeyDown(object? sender, KeyEventArgs e)
+        protected override void OnKeyDown(Keys keyData)
         {
             Debug.Assert(SelectedNodeRenderer != null);
 
-            if (e.KeyData == Keys.Delete)
+            if (keyData == Keys.Delete)
             {
                 SelectedNodeRenderer.DisableSelectedNodes();
                 return;
             }
 
-            if (e.KeyData == Keys.Escape)
+            if (keyData == Keys.Escape)
             {
                 SelectedNodeRenderer.SelectNode(null);
             }
 
-            if (e.KeyData == Keys.Tab && perfDisplayComboBox != null)
+            if (keyData == Keys.Tab && perfDisplayComboBox != null)
             {
                 // Cycle through the perf display modes (the callback updates perfDisplay)
                 perfDisplayComboBox.SelectedIndex = (perfDisplayComboBox.SelectedIndex + 1) % perfDisplayComboBox.Items.Count;
             }
 
-            base.OnKeyDown(sender, e);
+            base.OnKeyDown(keyData);
         }
 
 #if DEBUG

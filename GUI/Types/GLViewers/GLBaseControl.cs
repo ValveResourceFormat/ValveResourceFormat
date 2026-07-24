@@ -14,7 +14,7 @@ using Windows.Win32;
 
 namespace GUI.Types.GLViewers;
 
-internal abstract class GLBaseControl : IDisposable
+internal abstract class GLBaseControl : IDisposable, IMessageFilter
 {
     protected RendererControl? UiControl;
 
@@ -108,12 +108,11 @@ internal abstract class GLBaseControl : IDisposable
         GLControl.MouseLeave += OnMouseLeave;
         GLControl.MouseUp += OnMouseUp;
         GLControl.MouseDown += OnMouseDown;
-        GLControl.MouseMove += OnMouseMove;
-        GLControl.MouseWheel += OnMouseWheel;
-        GLControl.PreviewKeyDown += OnPreviewKeyDown;
-        GLControl.KeyDown += OnKeyDown;
-        GLControl.KeyUp += OnKeyUp;
         GLControl.LostFocus += OnLostFocus;
+
+        // High-frequency input (mouse move, wheel, keyboard) is intercepted as raw window messages
+        // instead of WinForms events, whose args allocate on every message. See PreFilterMessage.
+        Application.AddMessageFilter(this);
 
         UiControl = new(isPreview)
         {
@@ -176,23 +175,63 @@ internal abstract class GLBaseControl : IDisposable
         // Implemented in derived classes
     }
 
-    private void OnPreviewKeyDown(object? sender, PreviewKeyDownEventArgs e)
-    {
-        // Sink all inputs into gl control to prevent shortcuts like Ctrl+W and just pressing Alt going to parent
-        e.IsInputKey = true;
-    }
+    private const int WM_KEYDOWN = 0x0100;
+    private const int WM_KEYUP = 0x0101;
+    private const int WM_SYSKEYDOWN = 0x0104;
+    private const int WM_SYSKEYUP = 0x0105;
+    private const int WM_MOUSEMOVE = 0x0200;
+    private const int WM_MOUSEWHEEL = 0x020A;
 
-    protected virtual void OnKeyDown(object? sender, KeyEventArgs e)
+    /// <summary>
+    /// Intercepts the GL control's high-frequency input messages before WinForms translates each one
+    /// into freshly allocated event args (MouseEventArgs, KeyEventArgs, PreviewKeyDownEventArgs).
+    /// Swallowing them here also sinks all shortcuts into the control, which the previous event-based
+    /// path did via PreviewKeyDown.IsInputKey and KeyEventArgs.SuppressKeyPress.
+    /// </summary>
+    public bool PreFilterMessage(ref Message m)
     {
-        using (inputStateLock.EnterScope())
+        if (GLControl is not { IsHandleCreated: true } || m.HWnd != GLControl.Handle)
         {
-            CurrentlyPressedKeys |= RemapKey(e.KeyCode);
+            return false;
         }
 
-        e.Handled = true;
-        e.SuppressKeyPress = true;
+        switch (m.Msg)
+        {
+            case WM_MOUSEMOVE:
+                OnMouseMove((short)m.LParam, (short)((nint)m.LParam >> 16));
 
-        if (e.KeyData == (Keys.Control | Keys.C))
+                // Let the first move of each hover reach the control, so WinForms fires MouseEnter
+                // and re-arms its WM_MOUSELEAVE tracking; swallow the rest of the flood.
+                return MouseOverRenderArea;
+
+            case WM_MOUSEWHEEL:
+                var screenPosition = new Point((short)m.LParam, (short)((nint)m.LParam >> 16));
+                OnMouseWheel((short)((nint)m.WParam >> 16), GLControl.PointToClient(screenPosition));
+                return true;
+
+            case WM_KEYDOWN or WM_SYSKEYDOWN:
+                OnKeyDown(((Keys)m.WParam & Keys.KeyCode) | Control.ModifierKeys);
+                return true;
+
+            case WM_KEYUP or WM_SYSKEYUP:
+                OnKeyUp((Keys)m.WParam & Keys.KeyCode);
+                return true;
+
+            default:
+                return false;
+        }
+    }
+
+    protected virtual void OnKeyDown(Keys keyData)
+    {
+        var keyCode = keyData & Keys.KeyCode;
+
+        using (inputStateLock.EnterScope())
+        {
+            CurrentlyPressedKeys |= RemapKey(keyCode);
+        }
+
+        if (keyData == (Keys.Control | Keys.C))
         {
             var title = Program.MainForm.Text;
             Program.MainForm.Text = "Source 2 Viewer - Copying image to clipboard…";
@@ -213,14 +252,14 @@ internal abstract class GLBaseControl : IDisposable
             return;
         }
 
-        if ((e.KeyCode == Keys.Escape || e.KeyCode == Keys.F11) && FullScreenForm != null)
+        if ((keyCode == Keys.Escape || keyCode == Keys.F11) && FullScreenForm != null)
         {
             FullScreenForm.Close();
 
             return;
         }
 
-        if (e.KeyCode == Keys.F11)
+        if (keyCode == Keys.F11)
         {
             var currentScreen = Screen.FromControl(Program.MainForm);
 
@@ -243,10 +282,10 @@ internal abstract class GLBaseControl : IDisposable
         }
     }
 
-    private void OnKeyUp(object? sender, KeyEventArgs e)
+    protected virtual void OnKeyUp(Keys keyCode)
     {
         using var _ = inputStateLock.EnterScope();
-        CurrentlyPressedKeys &= ~RemapKey(e.KeyCode);
+        CurrentlyPressedKeys &= ~RemapKey(keyCode);
     }
 
     protected virtual void OnResize(int w, int h)
@@ -336,12 +375,9 @@ internal abstract class GLBaseControl : IDisposable
             GLControl.MouseLeave -= OnMouseLeave;
             GLControl.MouseUp -= OnMouseUp;
             GLControl.MouseDown -= OnMouseDown;
-            GLControl.MouseMove -= OnMouseMove;
-            GLControl.MouseWheel -= OnMouseWheel;
-            GLControl.PreviewKeyDown -= OnPreviewKeyDown;
-            GLControl.KeyDown -= OnKeyDown;
-            GLControl.KeyUp -= OnKeyUp;
             GLControl.LostFocus -= OnLostFocus;
+
+            Application.RemoveMessageFilter(this);
 
             UiControl?.Dispose();
         }
@@ -433,7 +469,7 @@ internal abstract class GLBaseControl : IDisposable
         Cursor.Show();
     }
 
-    protected virtual void OnMouseMove(object? sender, MouseEventArgs e)
+    protected virtual void OnMouseMove(int x, int y)
     {
         if (GLControl == null)
         {
@@ -450,7 +486,7 @@ internal abstract class GLBaseControl : IDisposable
 
         using var _ = inputStateLock.EnterScope();
 
-        var position = GLControl.PointToScreen(new Point(e.X, e.Y));
+        var position = GLControl.PointToScreen(new Point(x, y));
 
         if (mouseLookNeedsRebase)
         {
@@ -496,20 +532,20 @@ internal abstract class GLBaseControl : IDisposable
     private static bool IsTouchOrPenInput()
         => ((nint)PInvoke.GetMessageExtraInfo() & 0xFFFFFF00) == MouseEventFromTouchOrPen;
 
-    protected virtual void OnMouseWheel(object? sender, MouseEventArgs e)
+    protected virtual void OnMouseWheel(int delta, Point location)
     {
         // Track mouse wheel state
         using var _ = inputStateLock.EnterScope();
-        if (e.Delta > 0)
+        if (delta > 0)
         {
             CurrentlyPressedKeys |= TrackedKeys.MouseWheelUp;
         }
-        else if (e.Delta < 0)
+        else if (delta < 0)
         {
             CurrentlyPressedKeys |= TrackedKeys.MouseWheelDown;
         }
 
-        pendingMouseWheelDelta += e.Delta;
+        pendingMouseWheelDelta += delta;
     }
 
     protected Point ConsumePendingMouseDelta()
