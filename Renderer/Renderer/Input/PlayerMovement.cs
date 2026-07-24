@@ -103,6 +103,14 @@ public partial class PlayerMovement
     public bool GridPlaneCollisionEnabled { get; set; }
 
     /// <summary>
+    /// Test-only extra static collision half-spaces layered onto the traces, each a
+    /// <see cref="Vector4"/> whose XYZ is the outward unit normal and W the plane offset d;
+    /// the half-space n·x ≤ d is solid. Lets headless tests build walls and overhangs without
+    /// a physics world. Empty in normal use.
+    /// </summary>
+    public List<Vector4> DebugCollisionPlanes { get; } = [];
+
+    /// <summary>
     /// Linear value from 0 to 1 representing how much the player is crouched.  0 = standing, 1 = fully crouched.
     /// </summary>
     public float CrouchBlend { get; private set; }
@@ -1225,7 +1233,50 @@ public partial class PlayerMovement
             result.MinimizeWith(TraceInfiniteGroundPlane(from, to, halfExtents, detectStartSolid));
         }
 
+        foreach (var plane in DebugCollisionPlanes)
+        {
+            var normal = new Vector3(plane.X, plane.Y, plane.Z);
+            result.MinimizeWith(TraceStaticPlane(from, to, halfExtents, normal, plane.W, detectStartSolid));
+        }
+
         return result;
+    }
+
+    /// <summary>
+    /// Swept-AABB trace against a static half-space (n·x ≤ d is solid, <paramref name="normal"/>
+    /// pointing out of the solid). The generalisation of <see cref="TraceInfiniteGroundPlane"/>
+    /// to an arbitrary plane, used by the headless collision tests.
+    /// </summary>
+    private static Rubikon.TraceResult TraceStaticPlane(Vector3 from, Vector3 to, Vector3 halfExtents, Vector3 normal, float planeOffset, bool detectStartSolid)
+    {
+        // Extent of the box toward the plane along the normal (support half-width)
+        var extent = MathF.Abs(normal.X) * halfExtents.X + MathF.Abs(normal.Y) * halfExtents.Y + MathF.Abs(normal.Z) * halfExtents.Z;
+
+        // Signed gap of the box's nearest face to the plane at each end (>0 outside the solid)
+        var gapFrom = Vector3.Dot(normal, from) - planeOffset - extent;
+        var gapTo = Vector3.Dot(normal, to) - planeOffset - extent;
+
+        if (gapFrom < 0f)
+        {
+            return new Rubikon.TraceResult(true, from, normal, 0f, -1) { StartSolid = detectStartSolid };
+        }
+
+        var closing = gapFrom - gapTo; // positive when the sweep moves toward the plane
+
+        if (closing <= 0f)
+        {
+            return new Rubikon.TraceResult(); // moving away or parallel while outside
+        }
+
+        var fraction = gapFrom / closing;
+
+        if (fraction > 1f)
+        {
+            return new Rubikon.TraceResult(); // the sweep ends before reaching the plane
+        }
+
+        var hitPosition = Vector3.Lerp(from, to, fraction);
+        return new Rubikon.TraceResult(true, hitPosition, normal, Vector3.Distance(from, hitPosition), -1);
     }
 
     /// <summary>

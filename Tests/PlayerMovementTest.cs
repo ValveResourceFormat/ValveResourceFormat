@@ -314,5 +314,166 @@ namespace Tests
             Assert.That(Spread(accelSpeeds), Is.LessThan(AccelSpeedSpreadLock), "ground speed invariance regressed");
             Assert.That(Spread(stopDistances), Is.LessThan(StopDistanceSpreadLock), "friction stop distance invariance regressed");
         }
+
+        private static readonly float[] ComparisonFramerates = [50f, 100f, 250f, 1000f];
+
+        private static double Spread(double[] values)
+        {
+            var spread = 0.0;
+            foreach (var value in values)
+            {
+                spread = Math.Max(spread, Math.Abs(value - values[0]));
+            }
+            return spread;
+        }
+
+        /// <summary>
+        /// One wall-slide run: settle, then head 45° into a single axis-aligned wall for 3s.
+        /// Returns the distance slid along the wall (X), the pinned axis (Y) and the end speed.
+        /// </summary>
+        private static (double SlideX, double PinnedY, double EndSpeed) RunWallSlide(float fps)
+        {
+            var (input, renderCamera) = CreateHeadlessFpsInput(spawnHeight: 100f);
+            var movement = input.PlayerMovement;
+            var dt = 1f / fps;
+
+            // A single wall: solid beyond y = 100 (outward normal -Y)
+            movement.DebugCollisionPlanes.Add(new Vector4(0, -1, 0, -100f));
+
+            for (var i = 0; i < (int)(1f * fps); i++)
+            {
+                input.Tick(dt, TrackedKeys.None, Vector2.Zero, renderCamera);
+            }
+
+            Assert.That(movement.OnGround, Is.True, "player did not land during settling");
+
+            var start = movement.Position;
+
+            // Head 45° into the wall (+X and +Y) and hold; Y pins, X is the slide
+            input.Camera.Yaw = MathF.PI / 4f;
+
+            for (var i = 0; i < (int)(3f * fps); i++)
+            {
+                input.Tick(dt, TrackedKeys.W, Vector2.Zero, renderCamera);
+            }
+
+            var pos = movement.Position;
+            return (pos.X - start.X, pos.Y, HorizontalSpeed(movement.Velocity));
+        }
+
+        /// <summary>
+        /// Runs diagonally (45°) into a single axis-aligned wall across framerates and reports how
+        /// far the player slides along it. The wall pins the Y axis, so the slide dynamics play
+        /// out on X alone. Exercises GroundMove; the cross-fps spread is the invariance signal.
+        /// </summary>
+        [Test]
+        public void WallSlideComparison()
+        {
+            var slideX = new double[ComparisonFramerates.Length];
+            var pinnedY = new double[ComparisonFramerates.Length];
+            var endSpeed = new double[ComparisonFramerates.Length];
+
+            for (var run = 0; run < ComparisonFramerates.Length; run++)
+            {
+                (slideX[run], pinnedY[run], endSpeed[run]) = RunWallSlide(ComparisonFramerates[run]);
+            }
+
+            TestContext.Out.WriteLine("45° into a single wall at y=100 (hold-W diagonal, 3s):");
+            TestContext.Out.WriteLine($"  {"fps",-8} {"slide X",-16} {"pinned Y",-14} {"end speed",-14}");
+
+            for (var run = 0; run < ComparisonFramerates.Length; run++)
+            {
+                TestContext.Out.WriteLine($"  {ComparisonFramerates[run],-8:F0} {slideX[run],-16:F5} {pinnedY[run],-14:F5} {endSpeed[run],-14:F5}");
+            }
+
+            TestContext.Out.WriteLine($"  spreads: slideX={Spread(slideX):E2} pinnedY={Spread(pinnedY):E2} endSpeed={Spread(endSpeed):E2}");
+
+            foreach (var y in pinnedY)
+            {
+                Assert.That(y, Is.LessThan(100f), "player passed through the wall");
+            }
+
+            Assert.That(slideX[0], Is.GreaterThan(1f), "player did not slide along the wall");
+        }
+
+        /// <summary>
+        /// One overhang-bounce run: settle, jump straight up into a 45° overhang, then fly until
+        /// landing. Returns the horizontal distance flown and the apex height reached.
+        /// </summary>
+        private static (double Horizontal, double Apex, bool Landed) RunOverhangBounce(float fps)
+        {
+            var (input, renderCamera) = CreateHeadlessFpsInput(spawnHeight: 100f);
+            var movement = input.PlayerMovement;
+            var dt = 1f / fps;
+
+            // 45° overhang above the player: solid where n·x <= d, n pointing down and +x.
+            // Offset chosen so the plane is clear of the spawn/fall column (hull center ~72)
+            // yet gets struck mid-jump (contact near hull center ~82, below the ~93 apex)
+            var n = Vector3.Normalize(new Vector3(1, 0, -1));
+            movement.DebugCollisionPlanes.Add(new Vector4(n.X, n.Y, n.Z, -95f));
+
+            for (var i = 0; i < (int)(1f * fps); i++)
+            {
+                input.Tick(dt, TrackedKeys.None, Vector2.Zero, renderCamera);
+            }
+
+            Assert.That(movement.OnGround, Is.True, "player did not land during settling");
+
+            var launch = movement.Position;
+
+            // One grounded frame with jump held (AutoBunnyHop) launches straight up
+            input.Tick(dt, TrackedKeys.Space, Vector2.Zero, renderCamera);
+            Assert.That(movement.OnGround, Is.False, "jump did not leave the ground");
+
+            var apexZ = movement.Position.Z;
+            var frames = (int)(4f * fps);
+
+            for (var i = 0; i < frames; i++)
+            {
+                input.Tick(dt, TrackedKeys.None, Vector2.Zero, renderCamera);
+                apexZ = MathF.Max(apexZ, movement.Position.Z);
+
+                if (movement.OnGround)
+                {
+                    break;
+                }
+            }
+
+            var land = movement.Position;
+            return (double.Hypot(land.X - launch.X, land.Y - launch.Y), apexZ, movement.OnGround);
+        }
+
+        /// <summary>
+        /// Jumps straight up into a 45° overhang across framerates and measures how far the
+        /// deflection flings the player before landing. The bounce happens in the air mover
+        /// (TryPlayerMove), untouched by the ground refactor, so old vs new should match and the
+        /// cross-fps spread is the invariance signal.
+        /// </summary>
+        [Test]
+        public void OverhangJumpBounceComparison()
+        {
+            var horizontal = new double[ComparisonFramerates.Length];
+            var apex = new double[ComparisonFramerates.Length];
+
+            for (var run = 0; run < ComparisonFramerates.Length; run++)
+            {
+                var (h, a, landed) = RunOverhangBounce(ComparisonFramerates[run]);
+                horizontal[run] = h;
+                apex[run] = a;
+                Assert.That(landed, Is.True, "player never landed");
+            }
+
+            TestContext.Out.WriteLine("45° overhang jump bounce (jump into normal (1,0,-1)):");
+            TestContext.Out.WriteLine($"  {"fps",-8} {"horizontal",-16} {"apex",-14}");
+
+            for (var run = 0; run < ComparisonFramerates.Length; run++)
+            {
+                TestContext.Out.WriteLine($"  {ComparisonFramerates[run],-8:F0} {horizontal[run],-16:F5} {apex[run],-14:F5}");
+            }
+
+            TestContext.Out.WriteLine($"  spreads: horizontal={Spread(horizontal):E2} apex={Spread(apex):E2}");
+
+            Assert.That(horizontal[0], Is.GreaterThan(1.0), "overhang did not deflect the jump horizontally");
+        }
     }
 }
