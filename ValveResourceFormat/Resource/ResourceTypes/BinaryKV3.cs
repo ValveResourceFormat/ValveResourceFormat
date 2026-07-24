@@ -12,6 +12,33 @@ using ValveResourceFormat.Serialization.KeyValues;
 namespace ValveResourceFormat.ResourceTypes
 {
     /// <summary>
+    /// Binary KV3 versions supported for serialization.
+    /// </summary>
+    public enum KV3BinaryVersion
+    {
+        /// <summary>KV3 version 4.</summary>
+        Version4 = 4,
+
+        /// <summary>KV3 version 5.</summary>
+        Version5 = 5,
+    }
+
+    /// <summary>
+    /// Compression methods supported for binary KV3 serialization.
+    /// </summary>
+    public enum KV3BinaryCompressionMethod
+    {
+        /// <summary>Do not compress the serialized data.</summary>
+        Uncompressed = 0,
+
+        /// <summary>Compress the serialized data with LZ4.</summary>
+        Lz4 = 1,
+
+        /// <summary>Compress the serialized data with Zstandard.</summary>
+        Zstd = 2,
+    }
+
+    /// <summary>
     /// Represents a binary KeyValues3 data block.
     /// </summary>
     public partial class BinaryKV3 : Block
@@ -62,6 +89,16 @@ namespace ValveResourceFormat.ResourceTypes
         /// Gets the deserialized KeyValues3 data.
         /// </summary>
         public KVDocument Data { get; protected set; } = null!;
+
+        /// <summary>
+        /// Gets or sets the binary KV3 version used when serializing this block.
+        /// </summary>
+        public KV3BinaryVersion SerializationVersion { get; set; } = KV3BinaryVersion.Version4;
+
+        /// <summary>
+        /// Gets or sets the compression method used when serializing this block.
+        /// </summary>
+        public KV3BinaryCompressionMethod SerializationCompressionMethod { get; set; } = KV3BinaryCompressionMethod.Uncompressed;
 
         private class Buffers
         {
@@ -115,6 +152,9 @@ namespace ValveResourceFormat.ResourceTypes
         /// <inheritdoc/>
         public override void Read(BinaryReader reader)
         {
+            SerializationVersion = KV3BinaryVersion.Version4;
+            SerializationCompressionMethod = KV3BinaryCompressionMethod.Uncompressed;
+
             if (KVBlockType != BlockType.Undefined)
             {
                 reader.BaseStream.Position = Offset;
@@ -195,7 +235,22 @@ namespace ValveResourceFormat.ResourceTypes
 
             var format = KV3IDLookup.GetByValue(new Guid(reader.ReadBytes(16)));
 
-            var compressionMethod = reader.ReadUInt32();
+            var compressionMethodValue = reader.ReadUInt32();
+            var compressionMethod = compressionMethodValue switch
+            {
+                0 => KV3BinaryCompressionMethod.Uncompressed,
+                1 => KV3BinaryCompressionMethod.Lz4,
+                2 => KV3BinaryCompressionMethod.Zstd,
+                _ => throw new UnexpectedMagicException("Unknown compression method", compressionMethodValue, nameof(compressionMethodValue)),
+            };
+
+            if (version == 5)
+            {
+                SerializationVersion = KV3BinaryVersion.Version5;
+            }
+
+            SerializationCompressionMethod = compressionMethod;
+
             ushort compressionDictionaryId = 0;
             ushort compressionFrameSize = 0;
             var countBytes1 = 0;
@@ -278,7 +333,10 @@ namespace ValveResourceFormat.ResourceTypes
                 sizeUncompressedBuffer1 = sizeUncompressedTotal;
             }
 
-            var buffer1Raw = ArrayPool<byte>.Shared.Rent(version < 5 && compressionMethod == 2 ? sizeUncompressedBuffer1 + sizeBinaryBlobsBytes : sizeUncompressedBuffer1);
+            var buffer1Raw = ArrayPool<byte>.Shared.Rent(
+                version < 5 && compressionMethod == KV3BinaryCompressionMethod.Zstd
+                    ? sizeUncompressedBuffer1 + sizeBinaryBlobsBytes
+                    : sizeUncompressedBuffer1);
             byte[]? buffer2Raw = null;
             byte[]? binaryBlobsRaw = null;
             ZstdSharp.Decompressor? zstdDecompressor = null;
@@ -291,7 +349,7 @@ namespace ValveResourceFormat.ResourceTypes
                 {
                     var buffer1Span = new ArraySegment<byte>(buffer1Raw, 0, sizeUncompressedBuffer1);
 
-                    if (compressionMethod == 0) // uncompressed
+                    if (compressionMethod == KV3BinaryCompressionMethod.Uncompressed)
                     {
                         if (compressionDictionaryId != 0)
                         {
@@ -314,7 +372,7 @@ namespace ValveResourceFormat.ResourceTypes
 
                         reader.Read(buffer1Span);
                     }
-                    else if (compressionMethod == 1) // LZ4
+                    else if (compressionMethod == KV3BinaryCompressionMethod.Lz4)
                     {
                         if (compressionDictionaryId != 0)
                         {
@@ -330,7 +388,7 @@ namespace ValveResourceFormat.ResourceTypes
 
                         DecompressLZ4(reader, buffer1Span, sizeCompressedBuffer1);
                     }
-                    else if (compressionMethod == 2) // ZSTD
+                    else if (compressionMethod == KV3BinaryCompressionMethod.Zstd)
                     {
                         Debug.Assert(version >= 2);
 
@@ -358,11 +416,6 @@ namespace ValveResourceFormat.ResourceTypes
 
                         DecompressZSTD(zstdDecompressor, reader, buffer1Raw.AsSpan(0, outBufferLength), sizeCompressedBuffer1);
                     }
-                    else
-                    {
-                        throw new UnexpectedMagicException("Unknown compression method", compressionMethod, nameof(compressionMethod));
-                    }
-
                     var buffer1 = new Buffers();
 
                     var offset = 0;
@@ -473,19 +526,19 @@ namespace ValveResourceFormat.ResourceTypes
                     buffer2Raw = ArrayPool<byte>.Shared.Rent(sizeUncompressedBuffer2);
                     var buffer2Span = new ArraySegment<byte>(buffer2Raw, 0, sizeUncompressedBuffer2);
 
-                    if (compressionMethod == 0) // uncompressed
+                    if (compressionMethod == KV3BinaryCompressionMethod.Uncompressed)
                     {
                         Debug.Assert(sizeCompressedBuffer2 == 0);
 
                         reader.Read(buffer2Span);
                     }
-                    else if (compressionMethod == 1) // LZ4
+                    else if (compressionMethod == KV3BinaryCompressionMethod.Lz4)
                     {
                         Debug.Assert(sizeCompressedBuffer2 > 0);
 
                         DecompressLZ4(reader, buffer2Span, sizeCompressedBuffer2);
                     }
-                    else if (compressionMethod == 2) // ZSTD
+                    else if (compressionMethod == KV3BinaryCompressionMethod.Zstd)
                     {
                         Debug.Assert(sizeCompressedBuffer2 > 0);
 
@@ -493,11 +546,6 @@ namespace ValveResourceFormat.ResourceTypes
 
                         DecompressZSTD(zstdDecompressor, reader, buffer2Span, sizeCompressedBuffer2);
                     }
-                    else
-                    {
-                        throw new UnexpectedMagicException("Unknown compression method", compressionMethod, nameof(compressionMethod));
-                    }
-
                     var buffer2 = new Buffers();
                     context.Buffer = buffer2;
 
@@ -571,13 +619,13 @@ namespace ValveResourceFormat.ResourceTypes
                         UnexpectedMagicException.Assert(trailer == 0xFFEEDD00, trailer);
                     }
 
-                    if (compressionMethod == 0) // Uncompressed
+                    if (compressionMethod == KV3BinaryCompressionMethod.Uncompressed)
                     {
                         binaryBlobsRaw = ArrayPool<byte>.Shared.Rent(sizeBinaryBlobsBytes);
                         context.BinaryBlobs = new ArraySegment<byte>(binaryBlobsRaw, 0, sizeBinaryBlobsBytes);
                         reader.Read(context.BinaryBlobs);
                     }
-                    else if (compressionMethod == 1) // LZ4
+                    else if (compressionMethod == KV3BinaryCompressionMethod.Lz4)
                     {
                         binaryBlobsRaw = ArrayPool<byte>.Shared.Rent(sizeBinaryBlobsBytes);
                         context.BinaryBlobs = new ArraySegment<byte>(binaryBlobsRaw, 0, sizeBinaryBlobsBytes);
@@ -614,7 +662,7 @@ namespace ValveResourceFormat.ResourceTypes
                             }
                         }
                     }
-                    else if (compressionMethod == 2) // ZSTD
+                    else if (compressionMethod == KV3BinaryCompressionMethod.Zstd)
                     {
                         if (version >= 5)
                         {
@@ -637,11 +685,6 @@ namespace ValveResourceFormat.ResourceTypes
                             context.BinaryBlobs = new ArraySegment<byte>(buffer1Raw, sizeUncompressedBuffer1, sizeBinaryBlobsBytes);
                         }
                     }
-                    else
-                    {
-                        throw new UnexpectedMagicException("Unsupported compression method in block decoder", compressionMethod, nameof(compressionMethod));
-                    }
-
                     {
                         var trailer = reader.ReadUInt32();
                         UnexpectedMagicException.Assert(trailer == 0xFFEEDD00, trailer);
