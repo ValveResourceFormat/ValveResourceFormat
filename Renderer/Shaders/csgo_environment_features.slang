@@ -12,6 +12,7 @@
 
     #define F_SHARED_COLOR_OVERLAY 0 // csgo_environment_blend
     #define F_ENABLE_LAYER_3 0 // csgo_environment_blend
+    #define F_USE_NEW_BLENDING 0 // csgo_environment_blend (S_USE_NEW_BLENDING: height-band blend with per-layer carry + Overlay/Replace composite)
     #define F_DEPTH_BIAS 0 // csgo_complex, csgo_depth_only, csgo_environment_blend, csgo_vertexlitgeneric
 #endif
 
