@@ -72,7 +72,7 @@ public partial class PlayerMovement
 
     private float SlopeClipNormalZ = 1f;
 
-    // Analytically integrated displacement of the current ground frame (set by
+    // Analytically integrated displacement of the current ground segment (set by
     // Friction/Accelerate/WalkMove); ground moves use it instead of Velocity * dt so
     // distance traveled is framerate-independent while speed is changing
     private Vector3 GroundMoveDelta;
@@ -241,13 +241,13 @@ public partial class PlayerMovement
 
         var (wishdir, wishspeed) = CalculateWishVelocity(yaw, isWalking);
         var airMoveDelta = Vector3.Zero;
+        var airVelocityChange = Vector3.Zero;
 
         if (OnGround)
         {
+            // Ground friction+acceleration is now integrated per-bump inside GroundMove,
+            // coupled to the collision sweep, so nothing is accelerated here
             ZeroVerticalVelocity();
-            var preFrictionVelocity = Velocity;
-            Friction(deltaTime);
-            WalkMove(wishdir, wishspeed, preFrictionVelocity, deltaTime, isDucking, isWalking);
         }
         else
         {
@@ -255,11 +255,26 @@ public partial class PlayerMovement
             AirMove(wishdir, wishspeed, deltaTime, yawDelta);
 
             // Horizontal strafe gain accrues across the frame, so integrate it as the
-            // trapezoid; Z keeps Velocity * dt, the half-gravity leapfrog's exact midpoint
+            // trapezoid; Z keeps Velocity * dt, the half-gravity leapfrog's exact midpoint.
+            //
+            // Z is exact — gravity is constant, so the midpoint velocity is the frame's average —
+            // but XY is not: the strafe velocity follows TicklessAirStrafe's regime machine, not a
+            // straight line in time, so the trapezoid carries the same second-order error the
+            // ground path used to before Accelerate moved to its closed forms. Nothing catches it
+            // today because no test measures air *distance*; the air tests check end speed, and
+            // the overhang test uses no movement input so it only exercises the exact Z term. An
+            // exact form here means integrating that state machine across its regime transitions.
             airMoveDelta = new Vector3(
                 (preAirVelocity.X + Velocity.X) * 0.5f,
                 (preAirVelocity.Y + Velocity.Y) * 0.5f,
                 Velocity.Z) * deltaTime;
+
+            // What the frame's acceleration adds in total: the strafe gain AirMove just produced,
+            // and gravity's full step (only half of which is in Velocity right now)
+            airVelocityChange = new Vector3(
+                Velocity.X - preAirVelocity.X,
+                Velocity.Y - preAirVelocity.Y,
+                -GravityValue * deltaTime);
         }
 
         CheckVelocity(ref position);
@@ -268,14 +283,23 @@ public partial class PlayerMovement
         // landing that the move below may produce
         fallSpeed = MathF.Max(fallSpeed, -Velocity.Z);
 
-        // Ground movement gets step support; in the air there is nothing to step off
+        // Ground movement integrates and sweeps together with step support; in the air there
+        // is nothing to step off, so the constant-velocity slide runs on the precomputed delta
+        var moveStart = position;
+
         position = OnGround
-            ? StepMove(position, GroundMoveDelta, playerHull)
-            : TryPlayerMove(position, airMoveDelta, playerHull);
+            ? GroundMove(position, wishdir, wishspeed, deltaTime, isDucking, isWalking, playerHull)
+            // AirMove has already applied the whole strafe gain to Velocity (reference 1), while
+            // gravity sits at its leapfrog midpoint (reference 1/2)
+            : TryPlayerMove(position, airMoveDelta, playerHull, airVelocityChange, new Vector3(1f, 1f, 0.5f));
 
         if (OnGround)
         {
             StayOnGround(ref position, playerHull);
+        }
+        else
+        {
+            RewindToGroundBandEntry(ref position, moveStart, airMoveDelta, playerHull);
         }
 
         CategorizePosition(ref position, playerHull);
@@ -471,6 +495,68 @@ public partial class PlayerMovement
     }
 
     /// <summary>
+    /// Groundedness is decided by a probe <see cref="GroundProbeDistance"/> below the hull, so the
+    /// rule is really "once the hull is within that band, snap down". Applied at the end of a
+    /// frame that lands inside the band, the snap credits the whole frame's horizontal travel
+    /// however far past the band entry it went, which makes the landing point depend on where a
+    /// frame boundary happened to fall. Rewind the move to the instant it crossed into the band —
+    /// found by sweeping the same displacement from a start lowered by the band width — so the
+    /// landing is fixed by the trajectory instead of by the timestep. The caller's
+    /// <see cref="CategorizePosition"/> then does the snap from there.
+    /// </summary>
+    private void RewindToGroundBandEntry(ref Vector3 position, Vector3 moveStart, Vector3 delta, Vector3 halfExtents)
+    {
+        // Only a descending move can enter the band from above
+        if (delta.Z >= 0f || delta.LengthSquared() < UntraceableDistanceSquared)
+        {
+            return;
+        }
+
+        // Nothing to rewind unless the move actually ended inside the band over walkable ground
+        var probe = TraceBBox(position, position + new Vector3(0, 0, -GroundProbeDistance), halfExtents);
+
+        if (!IsWalkableGroundHit(probe))
+        {
+            return;
+        }
+
+        // Where the same sweep, lowered by the band width, first meets the ground: the moment the
+        // real path crossed into the band. A start already inside it has nothing to rewind to.
+        var loweredStart = moveStart - new Vector3(0, 0, GroundProbeDistance);
+        var crossing = TraceBBox(loweredStart, loweredStart + delta, halfExtents);
+
+        if (!crossing.Hit || crossing.StartSolid)
+        {
+            return;
+        }
+
+        var fraction = crossing.Distance / delta.Length();
+
+        if (fraction is <= 0f or >= 1f || !float.IsFinite(fraction))
+        {
+            return;
+        }
+
+        var entry = moveStart + (delta * fraction);
+
+        // The rewind lands the hull exactly a band width above the floor, where the caller's probe
+        // is a borderline no-hit: leaving it there would keep the player airborne for another
+        // frame and hand back more horizontal travel than the snap was meant to save. Commit to
+        // the snap here instead, tracing with enough slack to clear the standoff the crossing
+        // trace already left, and only accept it if it really lands on walkable ground.
+        var reach = GroundProbeDistance + (SurfaceEpsilon * 4f);
+        var landing = TraceBBox(entry, entry + new Vector3(0, 0, -reach), halfExtents);
+
+        if (!IsWalkableGroundHit(landing))
+        {
+            return;
+        }
+
+        position = entry;
+        SnapToGround(ref position, landing, snapDownOnly: true);
+    }
+
+    /// <summary>
     /// Retries the ground probe per hull corner, like Source's TryTouchGroundInQuadrants.
     /// </summary>
     private bool ProbeGroundQuadrants(Vector3 position, Vector3 halfExtents)
@@ -552,9 +638,16 @@ public partial class PlayerMovement
     }
 
     /// <summary>
-    /// Perform swept AABB collision detection for player movement with multi-bounce sliding
+    /// Perform swept AABB collision detection for player movement with multi-bounce sliding.
+    /// <paramref name="frameVelocityChange"/> is the total velocity the frame's acceleration adds
+    /// (gravity on Z, air acceleration on XY; zero for ground moves), and
+    /// <paramref name="sweepReference"/> says, per axis, what fraction of the frame the velocity
+    /// the sweep carries corresponds to — 1 for a term already integrated in full, 1/2 for one
+    /// carried at its midpoint like the gravity leapfrog. Together they let an impact clip the
+    /// velocity the player actually had at the moment it hit rather than the one the sweep held
+    /// constant across the whole frame.
     /// </summary>
-    private Vector3 TryPlayerMove(Vector3 start, Vector3 delta, Vector3 halfExtents)
+    private Vector3 TryPlayerMove(Vector3 start, Vector3 delta, Vector3 halfExtents, Vector3 frameVelocityChange = default, Vector3 sweepReference = default)
     {
         if (delta.LengthSquared() < UntraceableDistanceSquared)
         {
@@ -567,6 +660,13 @@ public partial class PlayerMovement
         var remainingDelta = delta;
         var remainingDistance = delta.Length();
         var remainingFraction = 1.0f;
+
+        // Fraction of the frame's time already spent, and how much is left. The sweep is a chord
+        // travelled at constant speed, so a distance fraction is not a time fraction once the
+        // trajectory accelerates along its own direction; these track the time side separately.
+        var timeConsumed = 0f;
+        var remainingTimeFraction = 1.0f;
+        var accelerated = frameVelocityChange != Vector3.Zero;
 
         // Stop dead if clipping ever turns the velocity against the entry velocity (corner ping-pong)
         var entryVelocity = Velocity;
@@ -586,6 +686,27 @@ public partial class PlayerMovement
 
             // Advance to the hit point (already margin-adjusted by TraceBBox)
             var fraction = result.Distance / remainingDistance;
+
+            // Parabolic-trace approximation: the chord runs at constant speed, but the real
+            // trajectory accelerates along its own direction by dot(acceleration, direction), so
+            // the hit distance was covered in more or less time than the chord implies. Recover
+            // the time fraction before it is used to place the impact inside the frame.
+            var timeFraction = fraction;
+
+            if (accelerated && remainingDistance > 0f)
+            {
+                var direction = remainingDelta / remainingDistance;
+                var speedAlongSweep = Vector3.Dot(Velocity, direction);
+                var speedChangeAlongSweep = Vector3.Dot(frameVelocityChange, direction) * remainingTimeFraction;
+
+                if (speedAlongSweep > NegligibleMoveDistance)
+                {
+                    timeFraction = DistanceToTimeFraction(fraction, speedChangeAlongSweep, speedAlongSweep);
+                }
+            }
+
+            timeConsumed += remainingTimeFraction * timeFraction;
+            remainingTimeFraction *= 1f - timeFraction;
 
             position = result.HitPosition;
             remainingFraction *= 1f - fraction;
@@ -609,6 +730,19 @@ public partial class PlayerMovement
 
             planes[planeCount++] = result.HitNormal;
 
+            // The sweep carries one velocity for the whole frame, but the impact happens at this
+            // fraction of it. Per axis the difference is the frame's velocity change times how far
+            // the impact is from the fraction that axis' carried value represents. Undo it so the
+            // clip deflects the real impact velocity, then put it back afterwards so the caller's
+            // remaining integration (FinishGravity's half step) still completes the frame. The
+            // offset is relative, so it stays valid across bumps: each one is restored before the
+            // next is computed.
+            var offset = accelerated
+                ? frameVelocityChange * (new Vector3(timeConsumed) - sweepReference)
+                : Vector3.Zero;
+
+            Velocity += offset;
+
             if (!ClipToPlanes(planes[..planeCount], ref remainingDelta, out var velocity, out var clipNormalZ)
                 || Vector3.Dot(velocity, entryVelocity) <= 0)
             {
@@ -617,7 +751,7 @@ public partial class PlayerMovement
                 break;
             }
 
-            Velocity = velocity;
+            Velocity = velocity - offset;
             SlopeClipNormalZ = clipNormalZ;
 
             CheckVelocity(ref position);
@@ -630,6 +764,52 @@ public partial class PlayerMovement
         }
 
         return position;
+    }
+
+    /// <summary>
+    /// Converts a swept distance fraction into the time fraction that produced it.
+    ///
+    /// The sweep is a straight chord covered at one constant speed, but the real trajectory
+    /// changes speed along it, so "half the distance" is not "half the time". Everything an
+    /// impact needs — the velocity to clip, the time budget to deduct — is a function of time,
+    /// so the distance fraction the trace reports has to be turned back into a time fraction.
+    ///
+    /// Projected on the sweep direction, the distance covered by a given time fraction is a
+    /// quadratic in that fraction (the trapezoid displacement is the linear-velocity model, so
+    /// this is exact for the delta being swept, not an approximation of it). Dividing through by
+    /// the full chord length leaves a quadratic whose only parameter is how far the segment is
+    /// from constant speed, and inverting it recovers the time fraction. A segment that holds its
+    /// speed returns the distance fraction unchanged.
+    /// </summary>
+    /// <param name="distanceFraction">How much of the chord's length the sweep covered.</param>
+    /// <param name="velocityChangeAlong">Speed gained or lost over the segment, projected on the sweep direction.</param>
+    /// <param name="speedAlong">The chord's average speed along that direction.</param>
+    private static float DistanceToTimeFraction(float distanceFraction, float velocityChangeAlong, float speedAlong)
+    {
+        // How far this segment is from constant speed: the speed it gained or lost, over twice its
+        // average speed. Zero means the chord is the trajectory and the time fraction equals the
+        // distance fraction; it is the only thing that bends one into the other.
+        var speedChangeRatio = velocityChangeAlong / (2f * speedAlong);
+
+        // Coefficients of speedChangeRatio*t^2 + linearCoefficient*t - distanceFraction = 0
+        var linearCoefficient = 1f - speedChangeRatio;
+        var discriminant = (linearCoefficient * linearCoefficient) + (4f * speedChangeRatio * distanceFraction);
+
+        if (discriminant <= 0f)
+        {
+            return distanceFraction;
+        }
+
+        // Written as 2c / (-b + sqrt(disc)) rather than the textbook (-b + sqrt(disc)) / 2a. The
+        // textbook form subtracts two near-equal numbers and then divides by a small one: for a
+        // flush contact (distanceFraction 0) the numerator is exactly zero algebraically, but
+        // sqrt(x*x) is not x in single precision, so it lands around 1e-8 and dividing by a
+        // speedChangeRatio of ~1e-4 inflates that into ~1e-4 of fictitious elapsed time on every
+        // contact. This form adds two positives instead and returns exactly zero for a zero
+        // distance fraction, with no special case needed for a small ratio.
+        var timeFraction = 2f * distanceFraction / (linearCoefficient + MathF.Sqrt(discriminant));
+
+        return float.IsFinite(timeFraction) ? Math.Clamp(timeFraction, 0f, 1f) : distanceFraction;
     }
 
     /// <summary>
@@ -701,43 +881,153 @@ public partial class PlayerMovement
     }
 
     /// <summary>
-    /// Ground move with step support, like Source's StepMove: run the slide normally and again
-    /// from a stepped-up position, then keep whichever branch traveled farther laterally.
+    /// Unified ground move: integrate friction+acceleration and sweep in one loop. Each bump
+    /// re-integrates the combined velocity change over the time still left in the frame,
+    /// sweeps that displacement (with step support), and — if it hits a surface partway —
+    /// undoes the share of the acceleration it never earned (linear in the swept fraction,
+    /// the simplified model to be sharpened once traces go parabolic), clips the result to
+    /// the surface, and lets the next bump re-accelerate along it. The frame's walls are
+    /// accumulated so a regenerated segment slides along them instead of re-entering. The
+    /// segment horizon reported by <see cref="WalkMove"/> (e.g. the sub-stopspeed kick kink)
+    /// also ends a bump early, so the boosted and unboosted stretches sweep as separate traces.
     /// </summary>
-    private Vector3 StepMove(Vector3 start, Vector3 delta, Vector3 halfExtents)
+    private Vector3 GroundMove(Vector3 position, Vector3 wishdir, float wishspeed, float deltaTime, bool isDucking, bool isWalking, Vector3 halfExtents)
     {
-        if (delta.LengthSquared() < UntraceableDistanceSquared)
-        {
-            return start;
-        }
+        const int MaxBumps = 8;
 
+        var remaining = deltaTime;
         var entryVelocity = Velocity;
 
-        // Consult the step whenever the direct path is obstructed at all (as Source does)
-        if (!TraceBBox(start, start + delta, halfExtents).Hit)
+        // Walls hit this frame; the regenerated segment is clipped to parallel all of them
+        Span<Vector3> planes = stackalloc Vector3[MaxBumps];
+        var planeCount = 0;
+
+        for (var bump = 0; bump < MaxBumps && remaining > 1e-6f; bump++)
         {
-            return start + delta;
+            var segStartVelocity = Velocity;
+            var segDt = WalkMove(wishdir, wishspeed, remaining, isDucking, isWalking);
+            var freeVelocity = Velocity;
+            var delta = GroundMoveDelta;
+
+            // What friction and acceleration alone did over this segment. Kept before the clip
+            // below, which replaces freeVelocity with a deflected one: that jump is a
+            // discontinuity, not acceleration, and must not enter the distance/time conversion.
+            var segVelocityChange = freeVelocity - segStartVelocity;
+
+            // Constrain the freshly integrated segment to the walls already met this frame
+            if (planeCount > 0)
+            {
+                if (!ClipToPlanes(planes[..planeCount], ref delta, out var constrained, out var constrainedZ))
+                {
+                    Velocity = Vector3.Zero;
+                    break;
+                }
+
+                freeVelocity = constrained;
+                Velocity = constrained;
+                SlopeClipNormalZ = constrainedZ;
+            }
+
+            if (delta.LengthSquared() < UntraceableDistanceSquared)
+            {
+                remaining -= segDt;
+                continue;
+            }
+
+            var (moved, fraction, hitNormal, hit) = StepSweep(position, delta, halfExtents);
+            position = moved;
+
+            // A bump that hit nothing traversed its whole segment, whatever lateral fraction the
+            // stepped branch reports for it: the time fraction is 1 by definition
+            var timeFraction = hit ? fraction : 1f;
+            var segDistance = delta.Length();
+
+            if (hit && segDt > 0f && segDistance > NegligibleMoveDistance)
+            {
+                var direction = delta / segDistance;
+                var speedChangeAlongSweep = Vector3.Dot(segVelocityChange, direction);
+                var speedAlongSweep = segDistance / segDt;
+
+                // Known tradeoff: this is accurate per contact, but it only bites on the first one
+                // of an approach. Once the hull rests against the wall every later contact reports
+                // a zero fraction and converts to nothing, so the whole effect of the conversion
+                // over a run is a single -v*(f-g)*segDt at that first contact — and the fraction
+                // there is set by where the frame boundary happened to fall relative to the wall,
+                // which is uncorrelated across framerates. So it buys accuracy per event at the
+                // cost of a phase-dependent term, and a cross-framerate spread measured over a
+                // long slide can read worse with it on even though each impact is placed better.
+                if (speedAlongSweep > NegligibleMoveDistance)
+                {
+                    timeFraction = DistanceToTimeFraction(fraction, speedChangeAlongSweep, speedAlongSweep);
+                }
+            }
+
+            remaining -= timeFraction * segDt;
+
+            if (!hit)
+            {
+                Velocity = freeVelocity;
+                continue;
+            }
+
+            // Undo the unearned (1 - timeFraction) of this segment's velocity change, then clip
+            // the impact velocity to the surface it landed on
+            Velocity = Vector3.Lerp(segStartVelocity, freeVelocity, timeFraction);
+            planes[planeCount++] = hitNormal;
+
+            // A genuinely trapped move (three or more planes with no valid direction) stops
+            // dead. The reversal guard only applies to a moving player: when clipping flips
+            // the velocity against the way the frame entered. At rest (or crawling) the entry
+            // velocity is ~0, so it must not fire — otherwise the first wall contact zeroes
+            // the acceleration every frame and the player can never slide out along a wall.
+            if (!ClipToPlanes(planes[..planeCount], ref delta, out var velocity, out var clipNormalZ)
+                || (entryVelocity.LengthSquared() > 1f && Vector3.Dot(velocity, entryVelocity) < 0f))
+            {
+                Velocity = Vector3.Zero;
+                break;
+            }
+
+            Velocity = velocity;
+            SlopeClipNormalZ = clipNormalZ;
+            CheckVelocity(ref position);
         }
 
-        // Branch 1: plain slide along the ground
-        var downPosition = TryPlayerMove(start, delta, halfExtents);
-        var downVelocity = Velocity;
-        var downClipNormalZ = SlopeClipNormalZ;
+        return position;
+    }
 
-        // Branch 2: step up as far as headroom allows, slide at that height, then settle back down
-        Velocity = entryVelocity;
+    /// <summary>
+    /// One swept ground step with step (stairs) support, mirroring Source's StepMove branch
+    /// compare but as a single sweep: try the direct move, and also a stepped-up move that
+    /// settles back down, and keep whichever travelled farther laterally. Reports the lateral
+    /// fraction achieved, the surface normal the move stopped against, and whether it was
+    /// blocked at all (a fully cleared stepped move reports no hit).
+    /// </summary>
+    private (Vector3 position, float fraction, Vector3 hitNormal, bool hit) StepSweep(Vector3 start, Vector3 delta, Vector3 halfExtents)
+    {
+        var direct = TraceBBox(start, start + delta, halfExtents);
 
+        if (!direct.Hit)
+        {
+            return (start + delta, 1f, Vector3.UnitZ, false);
+        }
+
+        // Direct branch: stop at the wall
+        var directPosition = direct.HitPosition;
+        var directLateral = new Vector2(directPosition.X - start.X, directPosition.Y - start.Y).LengthSquared();
+
+        // Stepped branch: step up as far as headroom allows, sweep, then settle back down
         var stepUpEnd = start + new Vector3(0, 0, StepSize);
         var upTrace = TraceBBox(start, stepUpEnd, halfExtents);
         var steppedStart = upTrace.Hit ? upTrace.HitPosition : stepUpEnd;
 
-        var steppedSlidePosition = TryPlayerMove(steppedStart, delta, halfExtents);
+        var steppedSweep = TraceBBox(steppedStart, steppedStart + delta, halfExtents);
+        var steppedSlide = steppedSweep.Hit ? steppedSweep.HitPosition : steppedStart + delta;
 
-        var downEnd = steppedSlidePosition + new Vector3(0, 0, -(StepSize + GroundProbeDistance));
-        var downTrace = TraceBBox(steppedSlidePosition, downEnd, halfExtents);
+        var downEnd = steppedSlide + new Vector3(0, 0, -(StepSize + GroundProbeDistance));
+        var downTrace = TraceBBox(steppedSlide, downEnd, halfExtents);
 
-        // Reject unwalkable or embedded landings, as Source does; the down tolerance
-        // keeps a low ceiling from turning a step into a ledge drop
+        // Reject unwalkable or embedded landings; the down tolerance keeps a low ceiling
+        // from turning a step into a ledge drop
         var landingInvalid = !downTrace.Hit
             || downTrace.IsMinimalDistance
             || downTrace.HitNormal.Z < WalkableSlope
@@ -746,31 +1036,40 @@ public partial class PlayerMovement
         if (!landingInvalid)
         {
             var steppedPosition = downTrace.HitPosition;
-
-            // Keep whichever branch went farther laterally (Source compares fLateralDist the same way)
-            var downLateral = new Vector2(downPosition.X - start.X, downPosition.Y - start.Y).LengthSquared();
             var steppedLateral = new Vector2(steppedPosition.X - start.X, steppedPosition.Y - start.Y).LengthSquared();
 
-            if (steppedLateral >= downLateral)
+            if (steppedLateral >= directLateral)
             {
-                // Vertical velocity comes from the ground branch so stepping does not manufacture upward speed
-                Velocity = new Vector3(Velocity.X, Velocity.Y, downVelocity.Z);
-                SlopeClipNormalZ = downClipNormalZ;
-
-                // Record the lift for view smoothing
-                var stepDist = steppedPosition.Z - downPosition.Z;
+                var stepDist = steppedPosition.Z - directPosition.Z;
                 if (stepDist > 0f)
                 {
                     Effects.OnStep(stepDist);
                 }
 
-                return steppedPosition;
+                // The stepped move is blocked only if its lateral sweep hit a wall
+                return (steppedPosition, LateralFraction(start, steppedPosition, delta), steppedSweep.HitNormal, steppedSweep.Hit);
             }
         }
 
-        Velocity = downVelocity;
-        SlopeClipNormalZ = downClipNormalZ;
-        return downPosition;
+        return (directPosition, LateralFraction(start, directPosition, delta), direct.HitNormal, true);
+    }
+
+    /// <summary>
+    /// Fraction of a move's intended lateral (XY) distance that <paramref name="position"/>
+    /// reached from <paramref name="start"/>. Returns 1 for negligible lateral intent so the
+    /// caller treats the move as unobstructed.
+    /// </summary>
+    private static float LateralFraction(Vector3 start, Vector3 position, Vector3 delta)
+    {
+        var intended = new Vector2(delta.X, delta.Y).Length();
+
+        if (intended < 1e-4f)
+        {
+            return 1f;
+        }
+
+        var achieved = new Vector2(position.X - start.X, position.Y - start.Y).Length();
+        return Math.Clamp(achieved / intended, 0f, 1f);
     }
 
     /// <summary>
@@ -947,16 +1246,21 @@ public partial class PlayerMovement
     }
 
     /// <summary>
-    /// Accelerate in desired direction
+    /// Accelerate in the desired direction, integrating the combined friction+acceleration
+    /// velocity change from <paramref name="preFrictionVelocity"/>. Returns how long the
+    /// integrated segment is valid for: normally the full <paramref name="deltaTime"/>, but
+    /// shorter when the trajectory hits an acceleration kink inside the frame (the
+    /// sub-stopspeed kick boost switching off), so the caller can end the segment there and
+    /// sweep the boosted and unboosted stretches as separate traces.
     /// </summary>
-    private void Accelerate(Vector3 wishdir, float wishspeed, Vector3 preFrictionVelocity, float deltaTime, bool isDucking, bool isWalking)
+    private float Accelerate(Vector3 wishdir, float wishspeed, Vector3 preFrictionVelocity, float deltaTime, bool isDucking, bool isWalking)
     {
         var currentspeed = Vector3.Dot(Velocity, wishdir);
         var addspeed = wishspeed - currentspeed;
 
         if (addspeed <= 0)
         {
-            return;
+            return deltaTime;
         }
 
         currentspeed = Math.Max(0, currentspeed);
@@ -971,7 +1275,7 @@ public partial class PlayerMovement
         {
             Velocity = WalkBandAccelerate(Velocity, wishdir, goalSpeed, preFrictionVelocity, deltaTime, frictionRate, AccelerateValue * goalSpeed * SurfaceFriction);
             GroundMoveDelta = TrapezoidDisplacement(preFrictionVelocity, Velocity, deltaTime);
-            return;
+            return deltaTime;
         }
 
         // Gradually reduce walk acceleration near goal speed
@@ -995,15 +1299,21 @@ public partial class PlayerMovement
             // discrete accelspeed jump), keeping starts from rest snappy
             var kickSpeed = AccelerateValue * wishspeed * SurfaceFriction * TickInterval;
             var (kickVelocity, _, kickEndVelocity, kickEndTime) = SubStopSpeedAccelerate(preFrictionVelocity, wishdir, wishspeed, accelMagnitude, deltaTime, frictionRate, kickSpeed);
-            Velocity = kickVelocity;
 
-            // The boost switching off is a jump in acceleration; chording the whole frame across
-            // it is where the trapezoid loses the most. Integrate the boosted and unboosted
-            // stretches separately when the crossing falls inside this frame
-            GroundMoveDelta = kickEndTime >= 0f
-                ? TrapezoidDisplacement(preFrictionVelocity, kickEndVelocity, kickEndTime) + TrapezoidDisplacement(kickEndVelocity, Velocity, deltaTime - kickEndTime)
-                : TrapezoidDisplacement(preFrictionVelocity, Velocity, deltaTime);
-            return;
+            // The boost switching off is a jump in acceleration and a natural segment
+            // boundary: end the segment on the kink so GroundMove sweeps the boosted stretch
+            // as its own trace, and report the shortened horizon. The unboosted remainder is
+            // integrated by the next segment, starting from the kink velocity.
+            if (kickEndTime >= 0f && kickEndTime < deltaTime - 1e-6f)
+            {
+                Velocity = kickEndVelocity;
+                GroundMoveDelta = TrapezoidDisplacement(preFrictionVelocity, kickEndVelocity, kickEndTime);
+                return kickEndTime;
+            }
+
+            Velocity = kickVelocity;
+            GroundMoveDelta = TrapezoidDisplacement(preFrictionVelocity, Velocity, deltaTime);
+            return deltaTime;
         }
 
         var equilibrium = wishdir * (accelMagnitude / frictionRate);
@@ -1018,7 +1328,7 @@ public partial class PlayerMovement
         {
             Velocity = odeVelocity;
             GroundMoveDelta = TrapezoidDisplacement(preFrictionVelocity, Velocity, deltaTime);
-            return;
+            return deltaTime;
         }
 
         // Gate-bound or regime-crossing frame: the discrete update, whose clamp lands the
@@ -1027,6 +1337,7 @@ public partial class PlayerMovement
         Velocity += Math.Min(accelMagnitude * effectiveTime, addspeed) * wishdir;
 
         GroundMoveDelta = TrapezoidDisplacement(preFrictionVelocity, Velocity, deltaTime);
+        return deltaTime;
     }
 
     /// <summary>
@@ -1051,9 +1362,29 @@ public partial class PlayerMovement
     }
 
     /// <summary>
-    /// Ground movement with friction and acceleration
+    /// Integrates one ground segment's combined friction+acceleration velocity change from
+    /// the current <see cref="Velocity"/>, leaving the end velocity in <see cref="Velocity"/>
+    /// and the segment displacement in <see cref="GroundMoveDelta"/>. Friction and
+    /// acceleration are not separate steps: friction supplies the decay term of the same ODE
+    /// that acceleration drives, so this runs friction first only to seed the addspeed gate
+    /// and the no-prestrafe cap, then <see cref="Accelerate"/> integrates them together.
+    /// Returns the segment horizon (the full <paramref name="deltaTime"/>, or an earlier
+    /// acceleration kink), so the caller can split its swept move on the same boundary.
+    ///
+    /// Note that <see cref="GroundMoveDelta"/> is deliberately the trapezoid on every path, even
+    /// where an exact closed form exists (<see cref="LinearOdeDisplacement"/>,
+    /// <see cref="GateBoundDisplacement"/>, and the displacement
+    /// <see cref="SubStopSpeedAccelerate"/> already computes). The trapezoid *is* the
+    /// linear-velocity model, which is the model <see cref="DistanceToTimeFraction"/> inverts,
+    /// so with it the distance -> time conversion applied to a swept segment is exact for the
+    /// delta being swept rather than an approximation of it. An exact-ODE delta would make the
+    /// segment displacement itself more accurate while breaking that: the average speed the
+    /// conversion is handed (segDistance / segDt) would no longer be (v0 + v1) / 2, so the
+    /// quadratic would no longer match the chord it is describing. Keeping the whole ground path
+    /// on one consistent velocity model is worth more than the second-order distance error,
+    /// which is what the acceleration-distance regression lock is sized for.
     /// </summary>
-    private void WalkMove(Vector3 wishdir, float wishspeed, Vector3 preFrictionVelocity, float deltaTime, bool isDucking, bool isWalking)
+    private float WalkMove(Vector3 wishdir, float wishspeed, float deltaTime, bool isDucking, bool isWalking)
     {
         // Come to a complete stop from a crawl. Source runs this before Accelerate; after
         // it, high framerates would re-zero every frame's sub-unit acceleration gain and
@@ -1063,10 +1394,16 @@ public partial class PlayerMovement
             Velocity = Vector3.Zero;
         }
 
-        var previousSpeed = Velocity.Length();
-        Accelerate(wishdir, wishspeed, preFrictionVelocity, deltaTime, isDucking, isWalking);
+        var preFrictionVelocity = Velocity;
 
-        if (!PrestrafeEnabled)
+        Friction(deltaTime);
+        var previousSpeed = Velocity.Length();
+
+        var segDt = Accelerate(wishdir, wishspeed, preFrictionVelocity, deltaTime, isDucking, isWalking);
+
+        // The cap's closed forms assume a full frame; a shortened (kinked) segment stays
+        // deep below the cap, so only apply it when the whole frame was integrated
+        if (!PrestrafeEnabled && segDt >= deltaTime - 1e-6f)
         {
             var frictionRate = FrictionValue * SurfaceFriction;
             var accelMagnitude = AccelerateValue * AccelerationGoalSpeed(wishspeed, isDucking, isWalking) * SurfaceFriction;
@@ -1079,6 +1416,8 @@ public partial class PlayerMovement
                 GroundMoveDelta = TrapezoidDisplacement(preFrictionVelocity, Velocity, deltaTime);
             }
         }
+
+        return segDt;
     }
 
     /// <summary>
@@ -1147,6 +1486,10 @@ public partial class PlayerMovement
     // are instead handled by the margin-restore push below.
     private const float MarginLookahead = 4f;
 
+    // Relative slop, in float epsilons, within which a perpendicular gap counts as flush against
+    // the surface. Scaled by the hull position's magnitude, since that is what the ULP is of.
+    private const float FlushContactTolerance = 4f * 1.1920929e-7f;
+
     /// <summary>
     /// Forward-looking keep-away margin: the raw trace extends a little past the sweep end
     /// and the move stops where the perpendicular gap to the hit surface equals
@@ -1181,8 +1524,20 @@ public partial class PlayerMovement
             return new Rubikon.TraceResult();
         }
 
-        // Stop where the perpendicular gap reaches SurfaceEpsilon
-        var allowed = raw.Distance - SurfaceEpsilon / approach;
+        // Perpendicular gap still to be given up before the hull sits at its standoff. Kept in
+        // perpendicular space rather than as the equivalent raw.Distance - SurfaceEpsilon/approach:
+        // that form divides by approach, and at a grazing angle the division amplifies a single
+        // ULP of the hull position into a large apparent distance along the sweep. A hull resting
+        // against a wall and sliding along it holds its gap to exactly one ULP, so the along-sweep
+        // form hands back a spurious fraction of travel every frame — one that grows as the slide
+        // angle, and with it approach, shrinks with the frame time.
+        var perpendicularSlack = (raw.Distance * approach) - SurfaceEpsilon;
+
+        // Within this the hull counts as already flush: a resting contact, credited no travel
+        var positionScale = MathF.Max(MathF.Abs(from.X), MathF.Max(MathF.Abs(from.Y), MathF.Abs(from.Z)));
+        var flushTolerance = MathF.Min(SurfaceEpsilon / 16f, FlushContactTolerance * MathF.Max(1f, positionScale));
+
+        var allowed = MathF.Abs(perpendicularSlack) <= flushTolerance ? 0f : perpendicularSlack / approach;
 
         if (allowed >= length)
         {
