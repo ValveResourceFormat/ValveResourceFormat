@@ -357,7 +357,7 @@ namespace GUI.Types.GLViewers
 
                         using var lockedGl = MakeCurrent();
                         // Index 0 is Auto; everything below it maps straight to a LoD level.
-                        modelSceneNode?.SetActiveLod(i == 0 ? null : i - 1);
+                        modelSceneNode?.SetOverrideLod(i == 0 ? null : i - 1);
                     });
 
                     lodComboBox.Items.Add("Auto");

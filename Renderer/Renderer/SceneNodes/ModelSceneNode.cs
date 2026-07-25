@@ -679,8 +679,15 @@ namespace ValveResourceFormat.Renderer.SceneNodes
         /// Sets the LoD level to display, rebuilding the renderable mesh list accordingly.
         /// Pass <see langword="null"/> to enable automatic distance-based selection.
         /// </summary>
-        public void SetActiveLod(int? lod)
+        public void SetOverrideLod(int? lod)
         {
+            // A forced level is clamped to the model's populated range.
+            if (lod.HasValue)
+            {
+                var highestLevel = lodInfo.AvailableLevels.Count > 0 ? lodInfo.AvailableLevels[^1] : lodInfo.LowestLevel;
+                lod = Math.Clamp(lod.Value, lodInfo.LowestLevel, highestLevel);
+            }
+
             lodOverride = lod;
 
             // A forced level stays put; Auto starts at the lowest populated level and UpdateAutoLod takes over.
@@ -690,8 +697,7 @@ namespace ValveResourceFormat.Renderer.SceneNodes
 
         /// <summary>
         /// In automatic mode, picks the LoD level from the screen-size metric: the model drops to LoD
-        /// <c>n</c> once the metric passes <c>m_lodGroupSwitchDistances[n]</c>. Depends on FOV and
-        /// resolution, not on how big the model is.
+        /// <c>n</c> once the metric passes <c>m_lodGroupSwitchDistances[n]</c>.
         /// </summary>
         private void UpdateAutoLod(Camera camera)
         {
@@ -710,18 +716,25 @@ namespace ValveResourceFormat.Renderer.SceneNodes
         }
 
         /// <summary>
-        /// Computes the LoD metric: <c>100 / on-screen size of a unit sphere at the model origin</c>.
-        /// It depends only on camera distance and FOV/viewport height, so where the model sits on
-        /// screen doesn't matter and looking around won't flip LoDs.
+        /// Computes the LoD metric: <c>100 / on-screen size of a unit sphere at the model origin</c>,
+        /// scaled by the node's transform. It depends on camera distance, FOV/viewport height and the
+        /// model's scale, so where the model sits on screen doesn't matter and looking around won't flip LoDs.
         /// </summary>
         private float ComputeLodMetric(Camera camera)
         {
             var distance = MathF.Sqrt(GetCameraDistance(camera));
 
+            // Largest per-axis scale baked into the transform.
+            var t = Transform;
+            var scaleX = new Vector3(t.M11, t.M12, t.M13).Length();
+            var scaleY = new Vector3(t.M21, t.M22, t.M23).Length();
+            var scaleZ = new Vector3(t.M31, t.M32, t.M33).Length();
+            var scale = MathF.Max(scaleX, MathF.Max(scaleY, scaleZ));
+
             // Size on screen of a unit sphere at this distance. M22 is the projection's
-            // 1/tan(vFov/2) y-scale, so the pixel height is windowHeight * M22 / distance.
+            // 1/tan(vFov/2) y-scale, so the pixel height is windowHeight * M22 * scale / distance.
             var unitSphereSize = distance > 0f
-                ? camera.WindowSize.Y * camera.ProjectionMatrix.M22 / distance
+                ? camera.WindowSize.Y * camera.ProjectionMatrix.M22 * scale / distance
                 : float.MaxValue;
 
             return unitSphereSize > 0f ? 100f / unitSphereSize : 0f;
