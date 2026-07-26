@@ -198,11 +198,12 @@ uniform mat4 g_mTextureAdjust1;
             float difference = heightPlusSigned - mix(below.signedCarry, below.underHeight, underlyingInfluence);
 
             o.weight = BlendBandWeight(difference, bf, rawHeight, softness, maskWithHeight);
+            o.signedRaw = signedFactor;
 
-            // A layer only carries upward once it is actually present.
+            // The weight-scaled carry and the height it is measured against only propagate
+            // once the layer is actually present; signedRaw propagates regardless.
             if (o.weight > 0.05)
             {
-                o.signedRaw = signedFactor;
                 o.signedCarry = signedFactor * o.weight;
                 o.underHeight = mix(below.underHeight, max(below.underHeight, heightPlusSigned), o.weight);
             }
