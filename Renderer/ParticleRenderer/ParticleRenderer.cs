@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Linq;
+using System.Threading;
 using Microsoft.Extensions.Logging;
 using ValveKeyValue;
 using ValveResourceFormat.Blocks;
@@ -42,6 +43,7 @@ namespace ValveResourceFormat.Renderer.Particles
         // invalidate each other. ReadConstraintPasses returns 1 for systems with no constraints.
         private readonly int ConstraintPasses;
 
+        private static readonly Lock LoggedWarningsLock = new();
         private static readonly HashSet<string> loggedWarnings = [];
 
         private readonly Scene scene;
@@ -768,7 +770,14 @@ namespace ValveResourceFormat.Renderer.Particles
         private void LogUniqueUnsupportedWarning(string componentType, string className)
         {
             var message = $"Unsupported {componentType} class '{className}'";
-            if (loggedWarnings.Add(message))
+
+            bool isNewWarning;
+            using (LoggedWarningsLock.EnterScope())
+            {
+                isNewWarning = loggedWarnings.Add(message);
+            }
+
+            if (isNewWarning)
             {
                 RendererContext.Logger.LogWarning("{Message} {File}", message, Name);
             }
