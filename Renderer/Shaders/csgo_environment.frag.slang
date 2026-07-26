@@ -141,76 +141,78 @@ uniform mat4 g_mTextureAdjust1;
         return mix(overlaid, b, weight * replace);
     }
 
-    #if (F_USE_NEW_BLENDING == 1)
-        // Height-band blend. Every layer above the first gets a single [0, 1] weight from a
-        // height difference measured against the layers below it, which is carried upward.
-        uniform float g_flUnderlyingHeightMapInfluence2 = 1.0;
-        uniform float g_flMaskWithHeight2 = 0.0;
+    // Picks the height-band blend below over the normalized two-height blend in GetBlendWeights.
+    uniform int F_USE_NEW_BLENDING;
+    #define bUseNewBlending (F_USE_NEW_BLENDING == 1)
 
-        #if (F_ENABLE_LAYER_3 == 1)
-            uniform float g_flUnderlyingHeightMapInfluence3 = 1.0;
-            uniform float g_flMaskWithHeight3 = 0.0;
-        #endif
+    // Height-band blend. Every layer above the first gets a single [0, 1] weight from a
+    // height difference measured against the layers below it, which is carried upward.
+    uniform float g_flUnderlyingHeightMapInfluence2 = 1.0;
+    uniform float g_flMaskWithHeight2 = 0.0;
 
-        struct LayerCarry
+    #if (F_ENABLE_LAYER_3 == 1)
+        uniform float g_flUnderlyingHeightMapInfluence3 = 1.0;
+        uniform float g_flMaskWithHeight3 = 0.0;
+    #endif
+
+    struct LayerCarry
+    {
+        float weight;       // this layer's [0, 1] weight
+        float signedRaw;    // 2*bf-1, clamped to >= 0 before the layer above reads it
+        float signedCarry;  // signedRaw scaled by weight; read only where the layer above
+                            // sets UnderlyingHeightMapInfluence below 1
+        float underHeight;  // height the layer above measures its difference against
+    };
+
+    float BlendBandWeight(float difference, float bf, float rawHeight, float softness, float maskWithHeight)
+    {
+        softness = max(softness, 1e-4);
+
+        float quarter = softness * 0.25;
+        float edgeDenom = 0.02 + quarter;
+
+        float crossfade = saturate(0.5 + difference / (2.0 * softness));
+        float edgeHi = saturate((saturate(bf + difference * 0.1 + 0.2) - (0.98 - quarter)) / edgeDenom);
+        crossfade = mix(crossfade, 1.0, edgeHi);
+        float edgeLo = saturate((edgeDenom - saturate(bf + difference * 0.05 - 0.05)) / edgeDenom);
+        crossfade = mix(crossfade, 0.0, edgeLo);
+
+        return saturate(crossfade * mix(0.5, rawHeight, maskWithHeight) * 2.0);
+    }
+
+    // Weighs one layer against everything below it. Layer 2 passes a seed carry holding
+    // layer 1's scaled height, layer 3 passes what layer 2 returned.
+    LayerCarry BlendLayer(LayerCarry below, float bf, float rawHeight, float zeroPoint, float scale,
+                          float softness, float underlyingInfluence, float maskWithHeight)
+    {
+        LayerCarry o;
+        o.weight = 0.0;
+        o.signedRaw = 0.0;
+        o.signedCarry = 0.0;
+        o.underHeight = below.underHeight;
+
+        if (bf <= 0.0)
         {
-            float weight;       // this layer's [0, 1] weight
-            float signedRaw;    // 2*bf-1, clamped to >= 0 before the layer above reads it
-            float signedCarry;  // signedRaw scaled by weight; read only where the layer above
-                                // sets UnderlyingHeightMapInfluence below 1
-            float underHeight;  // height the layer above measures its difference against
-        };
-
-        float BlendBandWeight(float difference, float bf, float rawHeight, float softness, float maskWithHeight)
-        {
-            softness = max(softness, 1e-4);
-
-            float quarter = softness * 0.25;
-            float edgeDenom = 0.02 + quarter;
-
-            float crossfade = saturate(0.5 + difference / (2.0 * softness));
-            float edgeHi = saturate((saturate(bf + difference * 0.1 + 0.2) - (0.98 - quarter)) / edgeDenom);
-            crossfade = mix(crossfade, 1.0, edgeHi);
-            float edgeLo = saturate((edgeDenom - saturate(bf + difference * 0.05 - 0.05)) / edgeDenom);
-            crossfade = mix(crossfade, 0.0, edgeLo);
-
-            return saturate(crossfade * mix(0.5, rawHeight, maskWithHeight) * 2.0);
-        }
-
-        // Weighs one layer against everything below it. Layer 2 passes a seed carry holding
-        // layer 1's scaled height, layer 3 passes what layer 2 returned.
-        LayerCarry BlendLayer(LayerCarry below, float bf, float rawHeight, float zeroPoint, float scale,
-                              float softness, float underlyingInfluence, float maskWithHeight)
-        {
-            LayerCarry o;
-            o.weight = 0.0;
-            o.signedRaw = 0.0;
-            o.signedCarry = 0.0;
-            o.underHeight = below.underHeight;
-
-            if (bf <= 0.0)
-            {
-                return o;
-            }
-
-            float signedFactor = 2.0 * bf - 1.0;
-            float heightPlusSigned = ((rawHeight - zeroPoint) * scale) + signedFactor + max(below.signedRaw, 0.0);
-            float difference = heightPlusSigned - mix(below.signedCarry, below.underHeight, underlyingInfluence);
-
-            o.weight = BlendBandWeight(difference, bf, rawHeight, softness, maskWithHeight);
-            o.signedRaw = signedFactor;
-
-            // The weight-scaled carry and the height it is measured against only propagate
-            // once the layer is actually present; signedRaw propagates regardless.
-            if (o.weight > 0.05)
-            {
-                o.signedCarry = signedFactor * o.weight;
-                o.underHeight = mix(below.underHeight, max(below.underHeight, heightPlusSigned), o.weight);
-            }
-
             return o;
         }
-    #endif
+
+        float signedFactor = 2.0 * bf - 1.0;
+        float heightPlusSigned = ((rawHeight - zeroPoint) * scale) + signedFactor + max(below.signedRaw, 0.0);
+        float difference = heightPlusSigned - mix(below.signedCarry, below.underHeight, underlyingInfluence);
+
+        o.weight = BlendBandWeight(difference, bf, rawHeight, softness, maskWithHeight);
+        o.signedRaw = signedFactor;
+
+        // The weight-scaled carry and the height it is measured against only propagate
+        // once the layer is actually present; signedRaw propagates regardless.
+        if (o.weight > 0.05)
+        {
+            o.signedCarry = signedFactor * o.weight;
+            o.underHeight = mix(below.underHeight, max(below.underHeight, heightPlusSigned), o.weight);
+        }
+
+        return o;
+    }
 
     vec2 GetBlendWeights(vec2 heightTex, vec2 heightScale, vec2 heightZero, vec4 vColorBlendValues)
     {
@@ -361,31 +363,38 @@ MaterialProperties_t GetMaterial(vec3 vertexNormals)
     color2.rgb *= mix(vec3(1.0), vVertexColor_Alpha.rgb, flVertexColorMask2);
 
     // Both blend paths composite the same way and differ only in how they weigh the layer.
-#if (F_USE_NEW_BLENDING == 1)
-    LayerCarry carry1 = LayerCarry(0.0, 0.0, 0.0, (height.r - g_flHeightMapZeroPoint1) * g_flHeightMapScale1);
-    LayerCarry carry2 = BlendLayer(carry1, saturate(vColorBlendValues.x * 1.1 - 0.05), height2.r,
-        g_flHeightMapZeroPoint2, g_flHeightMapScale2, vColorBlendValues.w,
-        g_flUnderlyingHeightMapInfluence2, g_flMaskWithHeight2);
+    float baseHeight1 = height.r - g_flHeightMapZeroPoint1;
+    float baseHeight2 = height2.r - g_flHeightMapZeroPoint2;
 
-    float weight2 = carry2.weight;
-    float weightBase2 = 1.0 - weight2;
+    LayerCarry carry2 = LayerCarry(0.0, 0.0, 0.0, 0.0);
+    float weight2;
+    float weightBase2;
 
-    height.r -= g_flHeightMapZeroPoint1;
-    height2.r -= g_flHeightMapZeroPoint2;
-#else
-    height.r -= g_flHeightMapZeroPoint1;
-    height2.r -= g_flHeightMapZeroPoint2;
+    if (bUseNewBlending)
+    {
+        LayerCarry carry1 = LayerCarry(0.0, 0.0, 0.0, baseHeight1 * g_flHeightMapScale1);
+        carry2 = BlendLayer(carry1, saturate(vColorBlendValues.x * 1.1 - 0.05), height2.r,
+            g_flHeightMapZeroPoint2, g_flHeightMapScale2, vColorBlendValues.w,
+            g_flUnderlyingHeightMapInfluence2, g_flMaskWithHeight2);
 
-    vec2 weights = GetBlendWeights(
-        vec2(height.r, height2.r),
-        vec2(g_flHeightMapScale1, g_flHeightMapScale2),
-        vec2(g_flHeightMapZeroPoint1, g_flHeightMapZeroPoint2),
-        vColorBlendValues
-    );
+        weight2 = carry2.weight;
+        weightBase2 = 1.0 - weight2;
+    }
+    else
+    {
+        vec2 weights = GetBlendWeights(
+            vec2(baseHeight1, baseHeight2),
+            vec2(g_flHeightMapScale1, g_flHeightMapScale2),
+            vec2(g_flHeightMapZeroPoint1, g_flHeightMapZeroPoint2),
+            vColorBlendValues
+        );
 
-    float weight2 = weights.y;
-    float weightBase2 = weights.x;
-#endif
+        weight2 = weights.y;
+        weightBase2 = weights.x;
+    }
+
+    height.r = baseHeight1;
+    height2.r = baseHeight2;
 
     color.rgb = CombineColor(color.rgb, color2.rgb, color2Overlay, weight2, g_flColorOverlay2, g_flColorReplace2);
     color.a = color.a * weightBase2 + color2.a * weight2;
@@ -427,26 +436,30 @@ MaterialProperties_t GetMaterial(vec3 vertexNormals)
         vec3 color3Overlay = color3.rgb;
         color3.rgb *= mix(vec3(1.0), vVertexColor_Alpha.rgb, flVertexColorMask3);
 
-        #if (F_USE_NEW_BLENDING == 1)
+        float baseHeight3 = height3.r - g_flHeightMapZeroPoint3;
+        float weight3;
+
+        if (bUseNewBlending)
+        {
             LayerCarry carry3 = BlendLayer(carry2, saturate(vColorBlendValues.y * 1.1 - 0.05), height3.r,
                 g_flHeightMapZeroPoint3, g_flHeightMapScale3, vColorBlendValues.w,
                 g_flUnderlyingHeightMapInfluence3, g_flMaskWithHeight3);
 
-            float weight3 = carry3.weight;
-
-            height3.r -= g_flHeightMapZeroPoint3;
-        #else
-            height3.r -= g_flHeightMapZeroPoint3;
-
+            weight3 = carry3.weight;
+        }
+        else
+        {
             vec2 weights3 = GetBlendWeights(
-                vec2(max(height.r, height2.r), height3.r),
+                vec2(max(height.r, height2.r), baseHeight3),
                 vec2(max(g_flHeightMapScale1, g_flHeightMapScale2), g_flHeightMapScale3),
                 vec2(max(g_flHeightMapZeroPoint1, g_flHeightMapZeroPoint2), g_flHeightMapZeroPoint3),
                 vec4(vColorBlendValues.y, 0.0, 0.0, vColorBlendValues.w)
             );
 
-            float weight3 = weights3.y;
-        #endif
+            weight3 = weights3.y;
+        }
+
+        height3.r = baseHeight3;
 
         float weightBase3 = 1.0 - weight3;
 
