@@ -78,6 +78,17 @@ namespace ValveResourceFormat.Renderer
         public Dictionary<string, Half[]> BoneMaskDefinitions { get; } = [];
 
         /// <summary>
+        /// Clears the mixer state. Called when another player takes over the pose, so a later
+        /// transition back cannot blend from a clip that stopped being advanced in the meantime.
+        /// </summary>
+        public void ClearClips()
+        {
+            activeClip = null;
+            previousClip = null;
+            clips.Clear();
+        }
+
+        /// <summary>
         /// Registers a bone mask for per-bone transform weighting.
         /// </summary>
         /// <param name="name">The name of the bone mask.</param>
