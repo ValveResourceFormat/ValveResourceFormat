@@ -207,7 +207,7 @@ namespace GUI.Types.GLViewers
                     }
                 }
 
-                skeletonSceneNode = new SkeletonSceneNode(Scene, animationController, model.Skeleton);
+                skeletonSceneNode = new SkeletonSceneNode(Scene, animationController.Pose, model.Skeleton);
                 Scene.Add(skeletonSceneNode, true);
 
                 if (model.HitboxSets != null && model.HitboxSets.Count > 0)

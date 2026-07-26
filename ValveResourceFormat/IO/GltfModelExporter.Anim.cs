@@ -70,7 +70,7 @@ public partial class GltfModelExporter
             // apply a vertical movement track to the body.
             var applyRootMotion = animation.HasMovementData();
 
-            // No cloth solver here, so mirror the renderer (BaseAnimationController.GetSkinningMatrices):
+            // No cloth solver here, so mirror the renderer (AnimationController.GetSkinningMatrices):
             // pin each cloth root to the cloth anchor bone instead of writing its raw, solver-less clip data.
             var clothAnchor = Skeleton.ClothSimulationRoot;
             var anchorInverseBindPose = Matrix4x4.Identity;
