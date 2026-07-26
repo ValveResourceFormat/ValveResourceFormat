@@ -214,7 +214,6 @@ namespace ValveResourceFormat.Renderer
                 if (ExternalSkeletons.TryGetValue(skeletonName, out var subController))
                 {
                     subController.Handler.Looping = Looping;
-                    subController.Handler.FrametimeMultiplier = FrametimeMultiplier;
                     subController.Handler.SetAnimation(animation, blendTime);
                     CurrentSubController = subController;
                     forceUpdate = true;
