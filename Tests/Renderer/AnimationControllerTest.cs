@@ -111,6 +111,7 @@ namespace Tests.Renderer
                 Assert.That(controller.CurrentPlayer, Is.Null, "switching back returns to the model player");
                 Assert.That(controller.IsPaused, Is.True, "pause carries back off the external player");
                 Assert.That(controller.ActiveAnimation!.Name, Is.EqualTo("box_creature_leggy_idle"));
+                Assert.That(external!.Clips, Is.Empty, "the outgoing player's mixer is cleared");
             }
         }
 
