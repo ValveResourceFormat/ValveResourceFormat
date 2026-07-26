@@ -61,6 +61,7 @@ namespace GUI.Types.GLViewers
 
         private readonly float[] frameTimes = new float[30];
         private int frameTimeNextId;
+        private int frameTimeCount;
 
         private readonly ValveResourceFormat.Renderer.TextRenderer.TextBuffer fpsText = new("FPS: 10000  CPU: 10000.0ms  GPU: 10000.0ms");
         private readonly ValveResourceFormat.Renderer.TextRenderer.TextBuffer speedText = new("Speed: 100000.0 u/s");
@@ -595,10 +596,15 @@ namespace GUI.Types.GLViewers
                 var currentTime = Stopwatch.GetTimestamp();
                 var fpsElapsed = Stopwatch.GetElapsedTime(lastFpsUpdate, currentTime);
 
-                frameTimes[frameTimeNextId++] = frameTime;
-                frameTimeNextId %= frameTimes.Length;
+                // Zero length frames (the first frame after resuming) would inflate the average.
+                if (frameTime > 0f)
+                {
+                    frameTimes[frameTimeNextId++] = frameTime;
+                    frameTimeNextId %= frameTimes.Length;
+                    frameTimeCount = Math.Min(frameTimeCount + 1, frameTimes.Length);
+                }
 
-                if (fpsElapsed >= FpsUpdateTimeSpan)
+                if (frameTimeCount > 0 && fpsElapsed >= FpsUpdateTimeSpan)
                 {
                     var frametimeQuery = frametimeQuery2;
                     frametimeQuery2 = frametimeQuery1;
@@ -609,12 +615,13 @@ namespace GUI.Types.GLViewers
 
                     var frameTimeSum = 0f;
 
-                    foreach (var time in frameTimes)
+                    // Only the samples written so far, the rest of the ring is still zeroed.
+                    for (var i = 0; i < frameTimeCount; i++)
                     {
-                        frameTimeSum += time;
+                        frameTimeSum += frameTimes[i];
                     }
 
-                    var fps = 1f / (frameTimeSum / frameTimes.Length);
+                    var fps = frameTimeCount / frameTimeSum;
                     var cpuFrameTime = Stopwatch.GetElapsedTime(LastUpdate, currentTime).TotalMilliseconds;
 
                     lastFpsUpdate = currentTime;
