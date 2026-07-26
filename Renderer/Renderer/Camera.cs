@@ -171,11 +171,47 @@ namespace ValveResourceFormat.Renderer
         }
 
         /// <summary>
+        /// Distance from the eye to the near plane. Nothing closer than this is ever rasterized, so the
+        /// GPU light cull pass clips light volumes against it before reducing them to screen tiles.
+        /// </summary>
+        public const float NearPlane = 1.0f;
+
+        /// <summary>
         /// Rebuilds <see cref="ProjectionMatrix"/> from the current field of view and aspect ratio.
         /// </summary>
         public void CreateProjectionMatrix()
         {
-            ProjectionMatrix = CreatePerspectiveFieldOfView_ReverseZ(GetFOV(), AspectRatio, 1.0f);
+            ProjectionMatrix = CreatePerspectiveFieldOfView_ReverseZ(GetFOV(), AspectRatio, NearPlane);
+        }
+
+        /// <summary>
+        /// Maps a pixel of this camera's view to the pixel the same world ray lands on in
+        /// <paramref name="target"/>'s view, as an xy scale and a zw bias in pixels.
+        /// </summary>
+        /// <remarks>
+        /// <para>
+        /// Exact while the two cameras share an eye position and an orientation and differ only in
+        /// projection, which is exactly what the viewmodel is: its own field of view, everything else
+        /// copied from the main camera. Both projections turn a view ray into ndc by the same shape of
+        /// expression, <c>ndc = scale * (x / -z)</c>, so eliminating the ray between them leaves an affine
+        /// map from one screen to the other with no dependence on how far along the ray the surface sits.
+        /// </para>
+        /// <para>
+        /// That is what lets a pass drawn at a different field of view find its light cull tile from
+        /// gl_FragCoord alone, instead of transforming a world position back into the culled view.
+        /// </para>
+        /// </remarks>
+        /// <param name="target">The camera whose screen the result maps into.</param>
+        /// <param name="viewportSize">Pixel dimensions both cameras draw into.</param>
+        public Vector4 GetPixelRemapTo(Camera target, Vector2 viewportSize)
+        {
+            var scale = new Vector2(
+                ProjectionMatrix.M11 != 0f ? target.ProjectionMatrix.M11 / ProjectionMatrix.M11 : 1f,
+                ProjectionMatrix.M22 != 0f ? target.ProjectionMatrix.M22 / ProjectionMatrix.M22 : 1f);
+
+            var bias = viewportSize * 0.5f * (Vector2.One - scale);
+
+            return new Vector4(scale.X, scale.Y, bias.X, bias.Y);
         }
 
         /// <inheritdoc cref="Matrix4x4.CreatePerspectiveFieldOfView"/>
@@ -239,7 +275,6 @@ namespace ValveResourceFormat.Renderer
 
             ClampRotation();
         }
-
 
         /// <summary>
         /// Positions the camera so the specified bounding box fills the view.

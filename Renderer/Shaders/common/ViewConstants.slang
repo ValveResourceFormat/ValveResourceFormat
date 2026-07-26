@@ -35,6 +35,33 @@ layout(std140, binding = 0) uniform ViewConstants
     vec4 g_vCubeFogCullingParams_ExposureBias_MaxOpacity;
 
     mat4 g_matPrevWorldToProjection;
+
+    uint g_nLightTileBase;
+    uint g_nLightSliceBase;
+    uint g_nLightCullWords;
+    bool g_bLightTilesValid;
+
+    uint g_nLightTileShift;
+    uint g_nLightTileCols;
+    uint g_nLightTileRows;
+    uint g_nLightSliceCount;
+
+    vec4 g_vLightDepthSliceParams;
+
+    mat4 g_matLightCullWorldToProjection;
+
+    vec4 g_vLightCullPixelRemap;
+
+    vec3 g_vLightCullCameraPositionWs;
+    float _lightCullPadding0;
+
+    vec3 g_vLightCullCameraDirWs;
+    float _lightCullPadding1;
+
+    uint g_nEnvMapTileBase;
+    uint g_nEnvMapBinBase;
+    uint g_nEnvMapCullWords;
+    uint g_nNumEnvMaps;
 };
 
 bool blink()

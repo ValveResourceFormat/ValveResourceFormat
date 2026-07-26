@@ -377,13 +377,13 @@ namespace GUI.Types.GLViewers
                     occlusionCullingCheckBox = UiControl.AddCheckBox("GPU Occlusion Culling", Scene.EnableOcclusionCulling, (v) => Scene.EnableOcclusionCulling = v);
                     occlusionCullingCheckBox.Enabled = Scene.EnableIndirectDraws;
 
-
                     UiControl.AddCheckBox("Depth Prepass", Scene.EnableDepthPrepass, (v) => Scene.EnableDepthPrepass = v);
 
                     var enableLights = Scene.LightingInfo.BarnLights.Count < 40;
                     Renderer.ViewBuffer!.Data!.ExperimentalLightsEnabled = enableLights;
 
                     UiControl.AddCheckBox("Experimental Lights", enableLights, v => Renderer.ViewBuffer!.Data!.ExperimentalLightsEnabled = v);
+                    UiControl.AddCheckBox("Tiled Light Culling", Scene.EnableLightTileCulling, v => Scene.EnableLightTileCulling = v);
 
                     AddSceneExposureSlider();
                 }

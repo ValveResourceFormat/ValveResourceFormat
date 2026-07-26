@@ -18,8 +18,8 @@ layout (location = 4) in vec4 aVertexColor;
     out vec3 vPerVertexLightingOut;
 #endif
 
-#if (S_SCENE_CUBEMAP_TYPE > 0)
-    flat out uvec4 g_nEnvMapVisibility;
+#if (S_SCENE_CUBEMAP_TYPE == 1)
+    flat out uint g_nEnvMapIndex;
 #endif
 
 out vec3 vFragPosition;
@@ -46,8 +46,8 @@ void main(void)
     vPerVertexLightingOut = vec3(0.0);
 #endif
 
-#if (S_SCENE_CUBEMAP_TYPE > 0)
-    g_nEnvMapVisibility = uvec4(0u);
+#if (S_SCENE_CUBEMAP_TYPE == 1)
+    g_nEnvMapIndex = 0u;
 #endif
 
     gl_Position = g_matWorldToProjection * vec4(aVertexPosition, 1.0);
