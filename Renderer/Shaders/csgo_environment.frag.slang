@@ -35,7 +35,7 @@ uniform sampler2D g_tNormal1;
 
 uniform bool g_bMetalness1 = true;
 uniform bool g_bModelTint1 = true;
-uniform int g_nColorCorrectionMode1 = 0;
+uniform int g_nColorCorrectionMode1 = 0; // 1 = adjust the base colour through g_mTextureAdjust1
 uniform float g_fTextureNormalContrast1 = 1.0;
 uniform float g_fTextureRoughnessBrightness1 = 1.0;
 uniform float g_fTextureRoughnessContrast1 = 1.0;
@@ -117,37 +117,105 @@ uniform mat4 g_mTextureAdjust1;
         uniform mat4 g_mTextureAdjust3;
     #endif
 
-    uniform bool g_bUseNewBlending = false;
+    // Colour composite parameters, shared by both blend paths. At these defaults the
+    // composite is a plain lerp toward the upper layer.
+    uniform float g_flColorOverlay2 = 0.0;
+    uniform float g_flColorReplace2 = 1.0;
+    #if (F_ENABLE_LAYER_3 == 1)
+        uniform float g_flColorOverlay3 = 0.0;
+        uniform float g_flColorReplace3 = 1.0;
+    #endif
 
-    vec2 GetBlendWeightsNew(vec2 heightTex, vec2 heightScale, vec2 heightZero, vec4 vColorBlendValues)
+    // Mod2x-overlays the gamma-encoded upper layer onto the lower one, then replaces toward it.
+    // overlaySource is the upper layer before its vertex colour is applied, which is what the
+    // overlay term is built from.
+    vec3 CombineColor(vec3 a, vec3 b, vec3 overlaySource, float weight, float overlay, float replace)
     {
-        float blendFactor = vColorBlendValues.x;
-        float blendSoftness = vColorBlendValues.w;
+        vec3 overlaid = a;
 
-        // Scale calculation preserving direction
-        float h1Scale = abs(heightScale.x + (blendSoftness * sign(heightScale.x)));
-        float h2Scale = abs(heightScale.y + (blendSoftness * sign(heightScale.y)));
+        if (overlay > 0.0)
+        {
+            overlaid *= mix(vec3(1.0), SrgbLinearToGamma(saturate(overlaySource)) * 2.0, weight * overlay);
+        }
 
-        // Height calculations
-        float height1 = heightTex.x * h1Scale;
-        float h22 = heightTex.y * abs(heightScale.y - blendSoftness);
+        return mix(overlaid, b, weight * replace);
+    }
 
-        // Blend points with preserved scale direction
-        float blend1 = (-heightZero.x * h1Scale - ((1.0 - heightZero.y) * h2Scale)) - blendSoftness;
-        float blend2 = (1.0 - heightZero.x) * h1Scale - ((-heightZero.y) * h2Scale);
+    // Picks the height-band blend below over the normalized two-height blend in GetBlendWeights.
+    uniform int F_USE_NEW_BLENDING;
+    #define bUseNewBlending (F_USE_NEW_BLENDING == 1)
 
-        float h2x = h22 + mix(blend1, blend2, blendFactor);
-        vec2 weights = vec2(height1, h2x) - vec2(max(height1, h2x) - blendSoftness);
-        return weights;
+    // Height-band blend. Every layer above the first gets a single [0, 1] weight from a
+    // height difference measured against the layers below it, which is carried upward.
+    uniform float g_flUnderlyingHeightMapInfluence2 = 1.0;
+    uniform float g_flMaskWithHeight2 = 0.0;
+
+    #if (F_ENABLE_LAYER_3 == 1)
+        uniform float g_flUnderlyingHeightMapInfluence3 = 1.0;
+        uniform float g_flMaskWithHeight3 = 0.0;
+    #endif
+
+    struct LayerCarry
+    {
+        float weight;       // this layer's [0, 1] weight
+        float signedRaw;    // 2*bf-1, clamped to >= 0 before the layer above reads it
+        float signedCarry;  // signedRaw scaled by weight; read only where the layer above
+                            // sets UnderlyingHeightMapInfluence below 1
+        float underHeight;  // height the layer above measures its difference against
+    };
+
+    float BlendBandWeight(float difference, float bf, float rawHeight, float softness, float maskWithHeight)
+    {
+        softness = max(softness, 1e-4);
+
+        float quarter = softness * 0.25;
+        float edgeDenom = 0.02 + quarter;
+
+        float crossfade = saturate(0.5 + difference / (2.0 * softness));
+        float edgeHi = saturate((saturate(bf + difference * 0.1 + 0.2) - (0.98 - quarter)) / edgeDenom);
+        crossfade = mix(crossfade, 1.0, edgeHi);
+        float edgeLo = saturate((edgeDenom - saturate(bf + difference * 0.05 - 0.05)) / edgeDenom);
+        crossfade = mix(crossfade, 0.0, edgeLo);
+
+        return saturate(crossfade * mix(0.5, rawHeight, maskWithHeight) * 2.0);
+    }
+
+    // Weighs one layer against everything below it. Layer 2 passes a seed carry holding
+    // layer 1's scaled height, layer 3 passes what layer 2 returned.
+    LayerCarry BlendLayer(LayerCarry below, float bf, float rawHeight, float zeroPoint, float scale,
+                          float softness, float underlyingInfluence, float maskWithHeight)
+    {
+        LayerCarry o;
+        o.weight = 0.0;
+        o.signedRaw = 0.0;
+        o.signedCarry = 0.0;
+        o.underHeight = below.underHeight;
+
+        if (bf <= 0.0)
+        {
+            return o;
+        }
+
+        float signedFactor = 2.0 * bf - 1.0;
+        float heightPlusSigned = ((rawHeight - zeroPoint) * scale) + signedFactor + max(below.signedRaw, 0.0);
+        float difference = heightPlusSigned - mix(below.signedCarry, below.underHeight, underlyingInfluence);
+
+        o.weight = BlendBandWeight(difference, bf, rawHeight, softness, maskWithHeight);
+        o.signedRaw = signedFactor;
+
+        // The weight-scaled carry and the height it is measured against only propagate
+        // once the layer is actually present; signedRaw propagates regardless.
+        if (o.weight > 0.05)
+        {
+            o.signedCarry = signedFactor * o.weight;
+            o.underHeight = mix(below.underHeight, max(below.underHeight, heightPlusSigned), o.weight);
+        }
+
+        return o;
     }
 
     vec2 GetBlendWeights(vec2 heightTex, vec2 heightScale, vec2 heightZero, vec4 vColorBlendValues)
     {
-        if (g_bUseNewBlending)
-        {
-            return GetBlendWeightsNew(heightTex, heightScale, heightZero, vColorBlendValues);
-        }
-
         float blendFactor = vColorBlendValues.x;
         float blendSoftness = vColorBlendValues.w;
 
@@ -224,7 +292,7 @@ MaterialProperties_t GetMaterial(vec3 vertexNormals)
     vec3 tintColorNorm = normalize(max(vTintColor_ModelAmount.xyz, vec3(0.001)));
     float tintColorNormLuma = GetLuma(tintColorNorm);
 
-    vec4 colorMaybeColorCorrected = mix(color, vec4((color * g_mTextureAdjust1).rgb, color.a), bvec4(g_nColorCorrectionMode1 != 0));
+    vec4 colorMaybeColorCorrected = mix(color, vec4((color * g_mTextureAdjust1).rgb, color.a), bvec4(g_nColorCorrectionMode1 == 1));
     vec4 colorColorCorrectedTinted = color * g_mTextureColorAdjust1;
 
     vec3 colorTintedMaybeColorCorrected = mix(colorMaybeColorCorrected.rgb, colorColorCorrectedTinted.rgb, tintMask1);
@@ -269,7 +337,7 @@ MaterialProperties_t GetMaterial(vec3 vertexNormals)
     normal2.rg = (normal2.rg - 0.5) * g_fTextureNormalContrast2 + 0.5;
     normal2.b = saturate(((normal2.b - 0.5) * g_fTextureRoughnessContrast2 + 0.5) * g_fTextureRoughnessBrightness2);
 
-    vec4 color2MaybeColorCorrected = mix(color2, vec4((color2 * g_mTextureAdjust2).rgb, color2.a), bvec4(g_nColorCorrectionMode2 != 0));
+    vec4 color2MaybeColorCorrected = mix(color2, vec4((color2 * g_mTextureAdjust2).rgb, color2.a), bvec4(g_nColorCorrectionMode2 == 1));
     vec4 color2ColorCorrectedTinted = color2 * g_mTextureColorAdjust2;
 
     vec3 color2TintedMaybeColorCorrected = mix(color2MaybeColorCorrected.rgb, color2ColorCorrectedTinted.rgb, tintMask2);
@@ -291,22 +359,48 @@ MaterialProperties_t GetMaterial(vec3 vertexNormals)
     #endif
 
     float flVertexColorMask2 = float(g_nVertexColorMode2 != 2) * mix(height2.g, 1.0, g_nVertexColorMode2 == 0);
+    vec3 color2Overlay = color2.rgb;
     color2.rgb *= mix(vec3(1.0), vVertexColor_Alpha.rgb, flVertexColorMask2);
 
-    height.r -= g_flHeightMapZeroPoint1;
-    height2.r -= g_flHeightMapZeroPoint2;
+    // Both blend paths composite the same way and differ only in how they weigh the layer.
+    float baseHeight1 = height.r - g_flHeightMapZeroPoint1;
+    float baseHeight2 = height2.r - g_flHeightMapZeroPoint2;
 
-    vec2 weights = GetBlendWeights(
-        vec2(height.r, height2.r),
-        vec2(g_flHeightMapScale1, g_flHeightMapScale2),
-        vec2(g_flHeightMapZeroPoint1, g_flHeightMapZeroPoint2),
-        vColorBlendValues
-    );
+    LayerCarry carry2 = LayerCarry(0.0, 0.0, 0.0, 0.0);
+    float weight2;
+    float weightBase2;
 
-    color = color * weights.x + color2 * weights.y;
-    height = height * weights.x + height2 * weights.y;
-    normal = normal * weights.x + normal2 * weights.y;
-    aoLevels = aoLevels * weights.x + g_vAmbientOcclusionLevels2.xyz * weights.y;
+    if (bUseNewBlending)
+    {
+        LayerCarry carry1 = LayerCarry(0.0, 0.0, 0.0, baseHeight1 * g_flHeightMapScale1);
+        carry2 = BlendLayer(carry1, saturate(vColorBlendValues.x * 1.1 - 0.05), height2.r,
+            g_flHeightMapZeroPoint2, g_flHeightMapScale2, vColorBlendValues.w,
+            g_flUnderlyingHeightMapInfluence2, g_flMaskWithHeight2);
+
+        weight2 = carry2.weight;
+        weightBase2 = 1.0 - weight2;
+    }
+    else
+    {
+        vec2 weights = GetBlendWeights(
+            vec2(baseHeight1, baseHeight2),
+            vec2(g_flHeightMapScale1, g_flHeightMapScale2),
+            vec2(g_flHeightMapZeroPoint1, g_flHeightMapZeroPoint2),
+            vColorBlendValues
+        );
+
+        weight2 = weights.y;
+        weightBase2 = weights.x;
+    }
+
+    height.r = baseHeight1;
+    height2.r = baseHeight2;
+
+    color.rgb = CombineColor(color.rgb, color2.rgb, color2Overlay, weight2, g_flColorOverlay2, g_flColorReplace2);
+    color.a = color.a * weightBase2 + color2.a * weight2;
+    height = height * weightBase2 + height2 * weight2;
+    normal = normal * weightBase2 + normal2 * weight2;
+    aoLevels = aoLevels * weightBase2 + g_vAmbientOcclusionLevels2.xyz * weight2;
 
     #if (F_ENABLE_LAYER_3 == 1)
         vec4 color3 = texture(g_tColor3, vTexCoord3.xy);
@@ -318,7 +412,7 @@ MaterialProperties_t GetMaterial(vec3 vertexNormals)
         normal3.rg = (normal3.rg - 0.5) * g_fTextureNormalContrast3 + 0.5;
         normal3.b = saturate(((normal3.b - 0.5) * g_fTextureRoughnessContrast3 + 0.5) * g_fTextureRoughnessBrightness3);
 
-        vec4 color3MaybeColorCorrected = mix(color3, vec4((color3 * g_mTextureAdjust3).rgb, color3.a), bvec4(g_nColorCorrectionMode3 != 0));
+        vec4 color3MaybeColorCorrected = mix(color3, vec4((color3 * g_mTextureAdjust3).rgb, color3.a), bvec4(g_nColorCorrectionMode3 == 1));
         vec4 color3ColorCorrectedTinted = color3 * g_mTextureColorAdjust3;
 
         vec3 color3TintedMaybeColorCorrected = mix(color3MaybeColorCorrected.rgb, color3ColorCorrectedTinted.rgb, tintMask3);
@@ -339,21 +433,41 @@ MaterialProperties_t GetMaterial(vec3 vertexNormals)
         #endif
 
         float flVertexColorMask3 = float(g_nVertexColorMode3 != 2) * mix(height3.g, 1.0, g_nVertexColorMode3 == 0);
+        vec3 color3Overlay = color3.rgb;
         color3.rgb *= mix(vec3(1.0), vVertexColor_Alpha.rgb, flVertexColorMask3);
 
-        height3.r -= g_flHeightMapZeroPoint3;
+        float baseHeight3 = height3.r - g_flHeightMapZeroPoint3;
+        float weight3;
 
-        vec2 weights3 = GetBlendWeights(
-            vec2(max(height.r, height2.r), height3.r),
-            vec2(max(g_flHeightMapScale1, g_flHeightMapScale2), g_flHeightMapScale3),
-            vec2(max(g_flHeightMapZeroPoint1, g_flHeightMapZeroPoint2), g_flHeightMapZeroPoint3),
-            vec4(vColorBlendValues.y, 0.0, 0.0, vColorBlendValues.w)
-        );
+        if (bUseNewBlending)
+        {
+            LayerCarry carry3 = BlendLayer(carry2, saturate(vColorBlendValues.y * 1.1 - 0.05), height3.r,
+                g_flHeightMapZeroPoint3, g_flHeightMapScale3, vColorBlendValues.w,
+                g_flUnderlyingHeightMapInfluence3, g_flMaskWithHeight3);
 
-        color = color * (1.0 - weights3.y) + color3 * weights3.y;
-        height = height * (1.0 - weights3.y) + height3 * weights3.y;
-        normal = normal * (1.0 - weights3.y) + normal3 * weights3.y;
-        aoLevels = aoLevels * (1.0 - weights3.y) + g_vAmbientOcclusionLevels3.xyz * weights3.y;
+            weight3 = carry3.weight;
+        }
+        else
+        {
+            vec2 weights3 = GetBlendWeights(
+                vec2(max(height.r, height2.r), baseHeight3),
+                vec2(max(g_flHeightMapScale1, g_flHeightMapScale2), g_flHeightMapScale3),
+                vec2(max(g_flHeightMapZeroPoint1, g_flHeightMapZeroPoint2), g_flHeightMapZeroPoint3),
+                vec4(vColorBlendValues.y, 0.0, 0.0, vColorBlendValues.w)
+            );
+
+            weight3 = weights3.y;
+        }
+
+        height3.r = baseHeight3;
+
+        float weightBase3 = 1.0 - weight3;
+
+        color.rgb = CombineColor(color.rgb, color3.rgb, color3Overlay, weight3, g_flColorOverlay3, g_flColorReplace3);
+        color.a = color.a * weightBase3 + color3.a * weight3;
+        height = height * weightBase3 + height3 * weight3;
+        normal = normal * weightBase3 + normal3 * weight3;
+        aoLevels = aoLevels * weightBase3 + g_vAmbientOcclusionLevels3.xyz * weight3;
     #endif
 #endif
 
