@@ -1,4 +1,4 @@
-using System.Linq;
+﻿using System.Linq;
 using Microsoft.Extensions.Logging;
 using ValveResourceFormat.Renderer.Input;
 using ValveResourceFormat.ResourceTypes;
@@ -279,8 +279,8 @@ public class ViewmodelSceneNode : ModelSceneNode
         SetState(AnimationState.Idle);
         TargetTransform = Transform;
 
-        var ag2Controller = AnimationController.CurrentSubController!.Value.Handler;
-        PrimarySkeletonDebug = new SkeletonSceneNode(Scene, ag2Controller, ag2Controller.Skeleton)
+        var ag2Player = AnimationController.CurrentPlayer!;
+        PrimarySkeletonDebug = new SkeletonSceneNode(Scene, ag2Player, ag2Player.Skeleton)
         {
             LayerName = WorldLayerName,
             Flags = ObjectTypeFlags.DisableVisCulling,
@@ -596,7 +596,7 @@ public class ViewmodelSceneNode : ModelSceneNode
         var playerRotation = Quaternion.Normalize(playerYawRotation);
         PlayerTransform = Matrix4x4.CreateFromQuaternion(playerRotation) * Matrix4x4.CreateTranslation(input.PlayerMovement.Position);
 
-        if (Legs?.AnimationController is { } legsController && legsController.CurrentSubController is { Handler: var legsSubController })
+        if (Legs?.AnimationController is { } legsController && legsController.CurrentPlayer is { } legsPlayer)
         {
             var crouched = input.PlayerMovement.CrouchBlend;
             var standing = 1f - crouched;
@@ -634,8 +634,8 @@ public class ViewmodelSceneNode : ModelSceneNode
                     {
                         var inAirAnimName = GetThirdpersonAnim(posture, MovementState.InAir);
 
-                        var jumpingActionFinished = legsSubController.Clips.TryGetValue(jumpingAnimName, out var jumpClip) && jumpClip.IsPaused;
-                        var inAirActionFinished = legsSubController.Clips.TryGetValue(inAirAnimName, out var inAirClip) && inAirClip.IsPaused;
+                        var jumpingActionFinished = legsPlayer.Clips.TryGetValue(jumpingAnimName, out var jumpClip) && jumpClip.IsPaused;
+                        var inAirActionFinished = legsPlayer.Clips.TryGetValue(inAirAnimName, out var inAirClip) && inAirClip.IsPaused;
 
                         if (jumpingActionFinished)
                         {
@@ -875,14 +875,14 @@ public class ViewmodelSceneNode : ModelSceneNode
                     continue;
                 }
 
-                var ag2Controller = AnimationController.CurrentSubController;
+                var ag2Player = AnimationController.CurrentPlayer;
 
-                if (ag2Controller == null)
+                if (ag2Player == null)
                 {
                     continue;
                 }
 
-                var wpnIndex = ag2Controller.Value.Skeleton.GetBoneIndex("wpn");
+                var wpnIndex = ag2Player.Skeleton.GetBoneIndex("wpn");
 
                 if (wpnIndex == -1)
                 {
@@ -890,7 +890,7 @@ public class ViewmodelSceneNode : ModelSceneNode
                     continue;
                 }
 
-                var wpnTransform = ag2Controller.Value.Handler.Pose[wpnIndex];
+                var wpnTransform = ag2Player.Pose[wpnIndex];
 
                 item.Transform = wpnTransform * Transform;
                 UpdateItem(item, context, LocalBoundingBox);
@@ -898,10 +898,10 @@ public class ViewmodelSceneNode : ModelSceneNode
                 // Update muzzle flash particle transform to wpnTip bone
                 if (muzzleFlashParticle != null && isSelected)
                 {
-                    var wpnTipIndex = ag2Controller.Value.Skeleton.GetBoneIndex("wpnTip");
+                    var wpnTipIndex = ag2Player.Skeleton.GetBoneIndex("wpnTip");
                     if (wpnTipIndex != -1)
                     {
-                        var wpnTipTransform = ag2Controller.Value.Handler.Pose[wpnTipIndex];
+                        var wpnTipTransform = ag2Player.Pose[wpnTipIndex];
                         muzzleFlashParticle.Transform = wpnTipTransform * Transform;
                     }
                 }

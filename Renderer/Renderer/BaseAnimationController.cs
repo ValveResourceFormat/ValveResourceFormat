@@ -33,11 +33,23 @@ namespace ValveResourceFormat.Renderer
         /// </summary>
         /// <param name="skeleton">The skeleton whose bones define the rig.</param>
         public BaseAnimationController(Skeleton skeleton)
+            : this(skeleton, null)
+        {
+        }
+
+        /// <summary>
+        /// Initializes a new <see cref="BaseAnimationController"/> that writes its pose into a
+        /// caller-owned buffer, so an owner and the player driving its skeleton share one pose array
+        /// instead of copying it every frame.
+        /// </summary>
+        /// <param name="skeleton">The skeleton whose bones define the rig.</param>
+        /// <param name="pose">The pose buffer to write into, or <see langword="null"/> to allocate one.</param>
+        protected BaseAnimationController(Skeleton skeleton, Matrix4x4[]? pose)
         {
             Skeleton = skeleton;
             BindPose = new Matrix4x4[skeleton.Bones.Length];
             InverseBindPose = new Matrix4x4[skeleton.Bones.Length];
-            Pose = new Matrix4x4[skeleton.Bones.Length];
+            Pose = pose ?? new Matrix4x4[skeleton.Bones.Length];
 
             foreach (var root in skeleton.Roots)
             {
