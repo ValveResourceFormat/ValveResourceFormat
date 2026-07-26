@@ -9,8 +9,17 @@ namespace ValveResourceFormat.Renderer
     /// playback state lives in exactly one object. An <see cref="AnimationController"/> owns one
     /// player per skeleton its model can be animated from.
     /// </summary>
-    public partial class AnimationPlayer : BaseAnimationController
+    public partial class AnimationPlayer
     {
+        /// <summary>Gets the skeleton this player animates.</summary>
+        public Skeleton Skeleton { get; }
+
+        /// <summary>Gets the skeleton's world-space bind pose.</summary>
+        public Matrix4x4[] BindPose { get; }
+
+        /// <summary>Gets the world-space transform of each bone for the current animation frame.</summary>
+        public Matrix4x4[] Pose { get; }
+
         /// <summary>Gets the currently active animation, or <see langword="null"/> if none is set.</summary>
         public Animation? ActiveAnimation => activeClip?.Animation;
 
@@ -57,19 +66,21 @@ namespace ValveResourceFormat.Renderer
 
         /// <summary>
         /// Initializes a new <see cref="AnimationPlayer"/> for the given skeleton and flex controllers.
+        /// The bind pose and pose buffers are supplied by the owner, so a player and the owner whose
+        /// skeleton it drives share one pose array instead of copying it every frame.
         /// </summary>
         /// <param name="skeleton">The skeleton whose bones define the rig.</param>
         /// <param name="flexControllers">The flex controllers used for facial/morph animation.</param>
-        /// <param name="pose">The pose buffer to write into, or <see langword="null"/> to allocate one.</param>
-        public AnimationPlayer(Skeleton skeleton, FlexController[] flexControllers, Matrix4x4[]? pose = null)
-            : base(skeleton, pose)
+        /// <param name="bindPose">The skeleton's world-space bind pose, one entry per bone.</param>
+        /// <param name="pose">The pose buffer to write into, one entry per bone.</param>
+        public AnimationPlayer(Skeleton skeleton, FlexController[] flexControllers, Matrix4x4[] bindPose, Matrix4x4[] pose)
         {
+            Skeleton = skeleton;
+            BindPose = bindPose;
+            Pose = pose;
             FrameCache = new(skeleton, flexControllers);
             BlendedFrame = new(skeleton, flexControllers);
         }
-
-        /// <inheritdoc/>
-        public override bool Update(float timeStep) => Update(timeStep, Matrix4x4.Identity);
 
         /// <summary>
         /// Advances the animation by <paramref name="timeStep"/> seconds and writes the skeleton's
@@ -120,7 +131,7 @@ namespace ValveResourceFormat.Renderer
                     continue;
                 }
 
-                GetBoneMatricesRecursive(root, rootTransform, AnimationFrame, Pose);
+                FramePose.ComputeWorldSubtree(root, rootTransform, AnimationFrame, Pose);
             }
 
             return true;

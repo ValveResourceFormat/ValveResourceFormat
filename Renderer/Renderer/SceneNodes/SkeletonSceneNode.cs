@@ -1,4 +1,4 @@
-﻿using OpenTK.Graphics.OpenGL;
+using OpenTK.Graphics.OpenGL;
 using ValveResourceFormat.ResourceTypes.ModelAnimation;
 
 namespace ValveResourceFormat.Renderer.SceneNodes
@@ -11,7 +11,9 @@ namespace ValveResourceFormat.Renderer.SceneNodes
         /// <summary>Gets or sets whether the skeleton visualization is drawn.</summary>
         public bool Enabled { get; set; }
 
-        readonly BaseAnimationController animationController;
+        // The live pose array of whatever animates the skeleton. Held by reference, so it must be the
+        // owner's own buffer and not a copy.
+        readonly Matrix4x4[] pose;
         readonly Skeleton skeleton;
         readonly LineBuffer lineBuffer;
 
@@ -19,12 +21,12 @@ namespace ValveResourceFormat.Renderer.SceneNodes
         /// Initializes a new instance of the <see cref="SkeletonSceneNode"/> class.
         /// </summary>
         /// <param name="scene">The scene this node belongs to.</param>
-        /// <param name="animationController">The animation controller providing bone pose data.</param>
+        /// <param name="pose">The world-space bone pose to visualize, indexed by bone index.</param>
         /// <param name="skeleton">The skeleton definition containing bone hierarchy.</param>
-        public SkeletonSceneNode(Scene scene, BaseAnimationController animationController, Skeleton skeleton)
+        public SkeletonSceneNode(Scene scene, Matrix4x4[] pose, Skeleton skeleton)
             : base(scene)
         {
-            this.animationController = animationController;
+            this.pose = pose;
             this.skeleton = skeleton;
 
             lineBuffer = new LineBuffer(Scene.RendererContext, nameof(SkeletonSceneNode));
@@ -42,7 +44,7 @@ namespace ValveResourceFormat.Renderer.SceneNodes
 
             foreach (var root in skeleton.Roots)
             {
-                DrawSkeletonRecursive(root, vertices, context.Camera, context.TextRenderer, animationController);
+                DrawSkeletonRecursive(root, vertices, context.Camera, context.TextRenderer);
             }
 
             AABB bounds = default;
@@ -73,9 +75,9 @@ namespace ValveResourceFormat.Renderer.SceneNodes
             lineBuffer.Delete();
         }
 
-        private void DrawSkeletonRecursive(Bone bone, List<SimpleVertex> vertices, Camera camera, TextRenderer textRenderer, BaseAnimationController animation)
+        private void DrawSkeletonRecursive(Bone bone, List<SimpleVertex> vertices, Camera camera, TextRenderer textRenderer)
         {
-            var boneMatrix = animation.Pose[bone.Index];
+            var boneMatrix = pose[bone.Index];
 
             // todo: bounding box should be from current frame vertices
             var sizeCap = LocalBoundingBox.Size.Length();
@@ -101,7 +103,7 @@ namespace ValveResourceFormat.Renderer.SceneNodes
 
             if (bone.Parent != null)
             {
-                var parentMatrix = animation.Pose[bone.Parent.Index];
+                var parentMatrix = pose[bone.Parent.Index];
 
                 ShapeSceneNode.AddLine(vertices, boneMatrix.Translation, parentMatrix.Translation, Color32.White);
             }
@@ -117,7 +119,7 @@ namespace ValveResourceFormat.Renderer.SceneNodes
 
             foreach (var child in bone.Children)
             {
-                DrawSkeletonRecursive(child, vertices, camera, textRenderer, animation);
+                DrawSkeletonRecursive(child, vertices, camera, textRenderer);
             }
         }
 

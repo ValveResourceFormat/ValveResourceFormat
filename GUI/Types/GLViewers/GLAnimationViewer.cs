@@ -47,7 +47,7 @@ namespace GUI.Types.GLViewers
                 skeletonSceneNode.Enabled = false; // scene.Remove?
             }
 
-            skeletonSceneNode = new SkeletonSceneNode(Scene, animationController, skeleton)
+            skeletonSceneNode = new SkeletonSceneNode(Scene, animationController.Pose, skeleton)
             {
                 Enabled = true,
             };

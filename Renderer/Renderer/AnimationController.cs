@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using ValveResourceFormat.ResourceTypes.ModelAnimation;
 using ValveResourceFormat.ResourceTypes.ModelFlex;
 
@@ -8,9 +9,29 @@ namespace ValveResourceFormat.Renderer
     /// played: the model's own player, or the player of an external NM skeleton whose pose is remapped
     /// onto the model by bone name.
     /// </summary>
-    public partial class AnimationController : BaseAnimationController
+    public partial class AnimationController
     {
         private Action<Animation?, int> updateHandler = (_, __) => { };
+
+        /// <summary>
+        /// The skeleton being animated.
+        /// </summary>
+        public Skeleton Skeleton { get; }
+
+        /// <summary>
+        /// The skeleton skinning bind pose.
+        /// </summary>
+        public Matrix4x4[] BindPose { get; }
+
+        /// <summary>
+        /// The skeleton inverse bind pose.
+        /// </summary>
+        public Matrix4x4[] InverseBindPose { get; }
+
+        /// <summary>
+        /// The flattened worldspace transform of each bone, according to the current animation frame.
+        /// </summary>
+        public Matrix4x4[] Pose { get; }
 
         private readonly AnimationPlayer modelPlayer;
         private readonly Dictionary<string, ExternalSkeleton> externalSkeletons = [];
@@ -79,11 +100,33 @@ namespace ValveResourceFormat.Renderer
         /// <param name="skeleton">The skeleton whose bones define the rig.</param>
         /// <param name="flexControllers">The flex controllers used for facial/morph animation.</param>
         public AnimationController(Skeleton skeleton, FlexController[] flexControllers)
-            : base(skeleton)
         {
-            // The model player poses this skeleton, so it writes straight into our pose buffer.
-            modelPlayer = new AnimationPlayer(skeleton, flexControllers, Pose);
+            Skeleton = skeleton;
+            BindPose = ComputeBindPose(skeleton);
+            InverseBindPose = new Matrix4x4[skeleton.Bones.Length];
+            Pose = BindPose.AsSpan().ToArray();
+
+            foreach (var root in skeleton.Roots)
+            {
+                GetInverseBindPoseRecursive(root, Matrix4x4.Identity, InverseBindPose);
+            }
+
+            // The model player poses this skeleton, so it shares our bind pose and writes straight
+            // into our pose buffer.
+            modelPlayer = new AnimationPlayer(skeleton, flexControllers, BindPose, Pose);
             player = modelPlayer;
+        }
+
+        private static Matrix4x4[] ComputeBindPose(Skeleton skeleton)
+        {
+            var bindPose = new Matrix4x4[skeleton.Bones.Length];
+
+            foreach (var root in skeleton.Roots)
+            {
+                FramePose.ComputeWorldSubtree(root, Matrix4x4.Identity, null, bindPose);
+            }
+
+            return bindPose;
         }
 
         /// <summary>
@@ -91,7 +134,7 @@ namespace ValveResourceFormat.Renderer
         /// </summary>
         /// <param name="timeStep">Elapsed time in seconds since the last update.</param>
         /// <returns><see langword="true"/> if the pose was updated; <see langword="false"/> if nothing changed.</returns>
-        public override bool Update(float timeStep)
+        public bool Update(float timeStep)
         {
             timeStep *= FrametimeMultiplier;
 
@@ -107,6 +150,10 @@ namespace ValveResourceFormat.Renderer
 
             if (remapTable is { } remap)
             {
+                // RemapPoseRecursive reads the player's pose and writes ours; the model player shares
+                // our buffer, so a remap table must only ever be paired with an external player.
+                Debug.Assert(player != modelPlayer, "Remapping from the model player would alias the pose buffer.");
+
                 foreach (var root in Skeleton.Roots)
                 {
                     if (root.IsProceduralCloth)
@@ -216,8 +263,7 @@ namespace ValveResourceFormat.Renderer
         /// </summary>
         /// <param name="Player">The player animating the external skeleton.</param>
         /// <param name="RemapTable">Bone index mapping from the model skeleton to the external one.</param>
-        /// <param name="DebugMap">Bone name mapping for debugging purposes.</param>
-        public readonly record struct ExternalSkeleton(AnimationPlayer Player, int[] RemapTable, Dictionary<string, string?> DebugMap)
+        public readonly record struct ExternalSkeleton(AnimationPlayer Player, int[] RemapTable)
         {
             /// <summary>The external skeleton.</summary>
             public Skeleton Skeleton => Player.Skeleton;
@@ -239,8 +285,6 @@ namespace ValveResourceFormat.Renderer
             var destinationBoneCount = Skeleton.Bones.Length;
 
             var remap = new int[destinationBoneCount];
-            var debugMap = new Dictionary<string, string?>(destinationBoneCount);
-
             var nameToIndex = new Dictionary<uint, int>(sourceBoneCount);
 
             for (var i = 0; i < sourceBoneCount; i++)
@@ -255,16 +299,19 @@ namespace ValveResourceFormat.Renderer
                 var hash = StringToken.Store(name);
 
                 remap[i] = -1;
-                debugMap[name] = null;
 
                 if (nameToIndex.TryGetValue(hash, out var idx))
                 {
                     remap[i] = idx;
-                    debugMap[name] = skeleton.Bones[idx].Name;
                 }
             }
 
-            externalSkeletons[skeletonName] = new(new AnimationPlayer(skeleton, []), remap, debugMap);
+            // The external skeleton is posed in its own space and remapped onto the model, so its
+            // player owns its own buffers rather than sharing ours.
+            var bindPose = ComputeBindPose(skeleton);
+            var externalPlayer = new AnimationPlayer(skeleton, [], bindPose, bindPose.AsSpan().ToArray());
+
+            externalSkeletons[skeletonName] = new(externalPlayer, remap);
         }
 
         /// <summary>
@@ -300,5 +347,47 @@ namespace ValveResourceFormat.Renderer
         /// <param name="boneMask">Optional bone mask name to set.</param>
         public void SetAnimationProperties(string name, float? time = null, bool? looping = null, string? boneMask = null)
             => player.SetAnimationProperties(name, time, looping, boneMask);
+
+        /// <summary>
+        /// Recursively computes the inverse bind pose matrix for each bone in the hierarchy.
+        /// </summary>
+        /// <param name="bone">The current bone to process.</param>
+        /// <param name="parent">The accumulated inverse bind pose from the parent.</param>
+        /// <param name="boneMatrices">The output array to store computed inverse bind pose matrices.</param>
+        private static void GetInverseBindPoseRecursive(Bone bone, Matrix4x4 parent, Span<Matrix4x4> boneMatrices)
+        {
+            boneMatrices[bone.Index] = parent * bone.InverseBindPose;
+
+            foreach (var child in bone.Children)
+            {
+                GetInverseBindPoseRecursive(child, boneMatrices[bone.Index], boneMatrices);
+            }
+        }
+
+        /// <summary>
+        /// Get bone matrices in bindpose space.
+        /// Bones that do not move from the original location will have an identity matrix.
+        /// Thus there will be no transformation in the vertex shader.
+        /// </summary>
+        public void GetSkinningMatrices(Span<Matrix4x4> modelBones)
+        {
+            for (var i = 0; i < Pose.Length; i++)
+            {
+                modelBones[i] = InverseBindPose[i] * Pose[i];
+            }
+
+            // Copy procedural cloth node transforms from an animated root bone
+            var clothSimRoot = Skeleton.ClothSimulationRoot;
+            if (clothSimRoot is not null)
+            {
+                foreach (var clothNode in Skeleton.Roots)
+                {
+                    if (clothNode.IsProceduralCloth)
+                    {
+                        modelBones[clothNode.Index] = modelBones[clothSimRoot.Index];
+                    }
+                }
+            }
+        }
     }
 }

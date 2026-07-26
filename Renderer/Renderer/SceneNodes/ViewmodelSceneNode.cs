@@ -1,4 +1,4 @@
-﻿using System.Linq;
+using System.Linq;
 using Microsoft.Extensions.Logging;
 using ValveResourceFormat.Renderer.Input;
 using ValveResourceFormat.ResourceTypes;
@@ -280,7 +280,7 @@ public class ViewmodelSceneNode : ModelSceneNode
         TargetTransform = Transform;
 
         var ag2Player = AnimationController.CurrentPlayer!;
-        PrimarySkeletonDebug = new SkeletonSceneNode(Scene, ag2Player, ag2Player.Skeleton)
+        PrimarySkeletonDebug = new SkeletonSceneNode(Scene, ag2Player.Pose, ag2Player.Skeleton)
         {
             LayerName = WorldLayerName,
             Flags = ObjectTypeFlags.DisableVisCulling,
