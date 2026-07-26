@@ -567,6 +567,12 @@ namespace ValveResourceFormat.Renderer.World
                         disabled = disabled && Skybox2D != null;
 
                         tintColor = entity.GetColor32Property("tint_color");
+
+                        var skyBrightnessScale = entity.GetFloatProperty("brightnessscale", 1.0f);
+                        if (skyBrightnessScale > 0f)
+                        {
+                            tintColor *= skyBrightnessScale;
+                        }
                     }
 
                     if (!disabled && skyname != null)
@@ -715,6 +721,7 @@ namespace ValveResourceFormat.Renderer.World
                         else
                         {
                             string? material = null;
+                            var skyBrightnessScale = 1.0f;
 
                             if (fogSource == 1) // Cubemap From Env_Sky
                             {
@@ -729,6 +736,12 @@ namespace ValveResourceFormat.Renderer.World
                                         material = skyEntity.GetStringProperty("skyname") ?? skyEntity.GetStringProperty("skybox_material_day");
                                         var rotationOnly = EntityTransformHelper.CalculateTransformationMatrix(skyEntity) with { Translation = transformationMatrix.Translation };
                                         transformationMatrix = rotationOnly;  // steal rotation from env_sky
+
+                                        var scale = skyEntity.GetFloatProperty("brightnessscale", 1.0f);
+                                        if (scale > 0f)
+                                        {
+                                            skyBrightnessScale = scale;
+                                        }
                                     }
                                     else
                                     {
@@ -758,7 +771,7 @@ namespace ValveResourceFormat.Renderer.World
                                     var renderOnlyExposureBias = mat.Material.FloatParams.GetValueOrDefault("g_flRenderOnlyExposureBias", 0f);
 
                                     // These are both logarithms, so this is equivalent to a multiply of the raw value
-                                    exposureBias = brightnessExposureBias + renderOnlyExposureBias;
+                                    exposureBias = brightnessExposureBias + renderOnlyExposureBias + MathF.Log2(skyBrightnessScale);
                                 }
                             }
                         }
