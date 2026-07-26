@@ -4,16 +4,26 @@ using ValveResourceFormat.ResourceTypes.ModelFlex;
 namespace ValveResourceFormat.Renderer
 {
     /// <summary>
-    /// Manages skeletal animation playback and computes animated bone poses.
+    /// Drives a model's skeleton from whichever <see cref="AnimationPlayer"/> owns the animation being
+    /// played: the model's own player, or the player of an external NM skeleton whose pose is remapped
+    /// onto the model by bone name.
     /// </summary>
     public partial class AnimationController : BaseAnimationController
     {
         private Action<Animation?, int> updateHandler = (_, __) => { };
 
+        private readonly AnimationPlayer modelPlayer;
+        private readonly Dictionary<string, ExternalSkeleton> externalSkeletons = [];
+
+        // The player producing the current pose. Every playback member forwards to it, so playback
+        // state has one owner and is never copied between objects.
+        private AnimationPlayer player;
+
+        // Model bone index -> current player's bone index, or null while the model player is active.
+        private int[]? remapTable;
+
         /// <summary>Gets or sets the playback speed multiplier applied to the animation timestep.</summary>
         public float FrametimeMultiplier { get; set; } = 1.0f;
-
-        private bool forceUpdate;
 
         /// <summary>
         /// The parent animating transform.
@@ -24,47 +34,43 @@ namespace ValveResourceFormat.Renderer
         public bool Looping { get; set; } = true;
 
         /// <summary>Gets the currently active animation, or <see langword="null"/> if none is set.</summary>
-        public Animation? ActiveAnimation => activeClip?.Animation;
+        public Animation? ActiveAnimation => player.ActiveAnimation;
 
-        /// <summary>Gets the frame cache used to retrieve and interpolate animation frames.</summary>
-        public AnimationFrameCache FrameCache { get; }
+        /// <summary>Gets the frame cache used to retrieve and interpolate frames on the model skeleton.</summary>
+        public AnimationFrameCache FrameCache => modelPlayer.FrameCache;
 
         /// <summary>Gets the decoded animation frame data for the current tick, or <see langword="null"/> when no animation is active.</summary>
         public Frame? AnimationFrame { get; private set; }
 
-
         /// <summary>Gets or sets whether animation playback is paused. Changing the value forces a pose update.</summary>
         public bool IsPaused
         {
-            get => field;
-            set
-            {
-                forceUpdate = field != value;
-                field = value;
-            }
+            get => player.IsPaused;
+            set => player.IsPaused = value;
         }
 
         /// <summary>Gets or sets the current frame index of the active animation.</summary>
         public int Frame
         {
-            get => activeClip?.Frame ?? 0;
-            set
-            {
-                activeClip?.Frame = value;
-                forceUpdate = true;
-            }
+            get => player.Frame;
+            set => player.Frame = value;
         }
 
         /// <summary>Gets or sets the current playback time in seconds.</summary>
         public float Time
         {
-            get => activeClip?.Time ?? 0f;
-            set
-            {
-                activeClip?.Time = value;
-                forceUpdate = true;
-            }
+            get => player.Time;
+            set => player.Time = value;
         }
+
+        /// <summary>Gets whether the active animation clip has finished playing.</summary>
+        public bool ActiveClipFinished => player.ActiveClipFinished;
+
+        /// <summary>Gets whether the current animation frame is the result of blending multiple clips together.</summary>
+        public bool IsUsingMixer => player.IsUsingMixer;
+
+        /// <summary>Gets the clips of the player currently driving the pose.</summary>
+        public Dictionary<string, AnimationPlayer.Clip> Clips => player.Clips;
 
         /// <summary>
         /// Initializes a new <see cref="AnimationController"/> for the given skeleton and flex controllers,
@@ -75,8 +81,9 @@ namespace ValveResourceFormat.Renderer
         public AnimationController(Skeleton skeleton, FlexController[] flexControllers)
             : base(skeleton)
         {
-            FrameCache = new(skeleton, flexControllers);
-            BlendedFrame = new(skeleton, flexControllers);
+            // The model player poses this skeleton, so it writes straight into our pose buffer.
+            modelPlayer = new AnimationPlayer(skeleton, flexControllers, Pose);
+            player = modelPlayer;
         }
 
         /// <summary>
@@ -86,50 +93,20 @@ namespace ValveResourceFormat.Renderer
         /// <returns><see langword="true"/> if the pose was updated; <see langword="false"/> if nothing changed.</returns>
         public override bool Update(float timeStep)
         {
-            if ((ActiveAnimation == null || IsPaused || ActiveAnimation.FrameCount == 1) && !forceUpdate)
+            timeStep *= FrametimeMultiplier;
+
+            // External skeletons are posed in their own space and remapped below, so only the model
+            // player applies the parent transform itself.
+            if (!player.Update(timeStep, remapTable == null ? Transform : Matrix4x4.Identity))
             {
                 return false;
             }
 
-            timeStep *= FrametimeMultiplier;
+            AnimationFrame = player.AnimationFrame;
+            updateHandler(ActiveAnimation, Frame);
 
-            if (CurrentSubController is { } subController)
+            if (remapTable is { } remap)
             {
-                subController.Handler.IsPaused = IsPaused;
-                subController.Handler.Looping = Looping;
-                subController.Handler.forceUpdate = forceUpdate;
-
-                var updated = subController.Handler.Update(timeStep);
-                IsPaused = subController.Handler.IsPaused;
-                forceUpdate = subController.Handler.forceUpdate;
-
-                if (!updated && !forceUpdate)
-                {
-                    return false;
-                }
-
-                // Pose calculation from AG2 clip
-                static void ComputePoseRecursive(Bone bone, Matrix4x4 parentTransform, SubController subController, Span<Matrix4x4> pose)
-                {
-                    var remapIndex = subController.RemapTable[bone.Index];
-
-                    if (remapIndex != -1)
-                    {
-                        // Bone is animated in sub-controller, use its pose
-                        pose[bone.Index] = subController.Handler.Pose[remapIndex];
-                    }
-                    else
-                    {
-                        // Bone is not animated, compute from parent + bind pose
-                        pose[bone.Index] = bone.BindPose * parentTransform;
-                    }
-
-                    foreach (var child in bone.Children)
-                    {
-                        ComputePoseRecursive(child, pose[bone.Index], subController, pose);
-                    }
-                }
-
                 foreach (var root in Skeleton.Roots)
                 {
                     if (root.IsProceduralCloth)
@@ -137,59 +114,35 @@ namespace ValveResourceFormat.Renderer
                         continue;
                     }
 
-                    ComputePoseRecursive(root, Transform, subController, Pose);
+                    RemapPoseRecursive(root, Transform, remap, player.Pose, Pose);
                 }
-
-
-                AnimationFrame = GetFrame();
-                updateHandler(ActiveAnimation, Frame);
-                forceUpdate = false;
-
-                ApplyInverseKinematics();
+            }
+            else if (AnimationFrame == null)
+            {
+                // The model player already wrote the bind pose into our buffer.
                 return true;
-            }
-
-            if (!IsPaused && activeClip != null)
-            {
-                UpdateClips(timeStep);
-            }
-
-            AnimationFrame = GetFrame();
-            updateHandler(ActiveAnimation, Frame);
-            forceUpdate = false;
-
-            if (AnimationFrame == null)
-            {
-                BindPose.AsSpan().CopyTo(Pose);
-                return true;
-            }
-
-            if (!IsUsingMixer && ActiveAnimation?.Clip is { IsAdditive: true })
-            {
-                // We need a frame we can write to without ruining the frame cache
-                AnimationFrame.Bones.CopyTo(FrameCache.InterpolatedFrame.Bones);
-                AnimationFrame = FrameCache.InterpolatedFrame;
-
-                // Add over bind pose
-                for (var i = 0; i < AnimationFrame.Bones.Length; i++)
-                {
-                    var bindPose = new FrameBone(Skeleton.Bones[i].Position, 1f, Skeleton.Bones[i].Angle);
-                    AnimationFrame.Bones[i] = AnimationFrame.Bones[i].BlendAdd(bindPose, 1f);
-                }
-            }
-
-            foreach (var root in Skeleton.Roots)
-            {
-                if (root.IsProceduralCloth)
-                {
-                    continue;
-                }
-
-                GetBoneMatricesRecursive(root, Transform, AnimationFrame, Pose);
             }
 
             ApplyInverseKinematics();
             return true;
+        }
+
+        /// <summary>
+        /// Copies a source skeleton's world pose onto a model bone subtree: a mapped model bone takes
+        /// its source bone's pose, an unmapped one follows its parent at bind pose.
+        /// </summary>
+        private static void RemapPoseRecursive(Bone bone, Matrix4x4 parentTransform, int[] remapTable, ReadOnlySpan<Matrix4x4> sourcePose, Span<Matrix4x4> pose)
+        {
+            var remapIndex = remapTable[bone.Index];
+
+            pose[bone.Index] = remapIndex != -1
+                ? sourcePose[remapIndex]
+                : bone.BindPose * parentTransform;
+
+            foreach (var child in bone.Children)
+            {
+                RemapPoseRecursive(child, pose[bone.Index], remapTable, sourcePose, pose);
+            }
         }
 
         /// <summary>
@@ -202,39 +155,31 @@ namespace ValveResourceFormat.Renderer
         }
 
         /// <summary>
-        /// Sets the active animation with a blend-in time for smooth transitions.
+        /// Sets the active animation with a blend-in time for smooth transitions, playing it on the
+        /// external skeleton it targets when it has one.
         /// </summary>
         /// <param name="animation">The animation to activate, or <see langword="null"/> to clear.</param>
         /// <param name="blendTime">The time in seconds to blend from previous animations to the new animation.</param>
         public void SetAnimation(Animation? animation, float blendTime)
         {
-            if (animation is { Clip: { } nmClip })
+            var newPlayer = modelPlayer;
+            int[]? newRemapTable = null;
+
+            if (animation is { Clip: { } nmClip } && externalSkeletons.TryGetValue(nmClip.SkeletonName, out var external))
             {
-                var skeletonName = nmClip.SkeletonName;
-                if (ExternalSkeletons.TryGetValue(skeletonName, out var subController))
-                {
-                    subController.Handler.Looping = Looping;
-                    subController.Handler.SetAnimation(animation, blendTime);
-                    CurrentSubController = subController;
-                    forceUpdate = true;
-                    updateHandler(ActiveAnimation, -1);
-                    return;
-                }
+                newPlayer = external.Player;
+                newRemapTable = external.RemapTable;
             }
 
-            CurrentSubController = null;
-            FrameCache.PurgeCache();
-
-            if (animation != null)
+            if (newPlayer != player)
             {
-                TransitionToClip(animation, blendTime);
-            }
-            else
-            {
-                activeClip = null;
+                newPlayer.IsPaused = player.IsPaused;
             }
 
-            forceUpdate = true;
+            player = newPlayer;
+            remapTable = newRemapTable;
+
+            player.SetAnimation(animation, blendTime, Looping);
             updateHandler(ActiveAnimation, -1);
         }
 
@@ -249,15 +194,7 @@ namespace ValveResourceFormat.Renderer
         /// Returns the animation frame for the current time, using exact frame lookup when paused or interpolation during playback.
         /// </summary>
         /// <returns>The current animation frame, or <see langword="null"/> if no animation is active.</returns>
-        public Frame? GetFrame()
-        {
-            if (CurrentSubController is { } subController)
-            {
-                return subController.Handler.GetFrame();
-            }
-
-            return GetBlendedFrame();
-        }
+        public Frame? GetFrame() => player.GetFrame();
 
         /// <summary>
         /// Registers a callback invoked each time the animation frame changes, receiving the active animation and frame index.
@@ -269,32 +206,30 @@ namespace ValveResourceFormat.Renderer
         }
 
         /// <summary>
-        /// The current sub animation controller that is driving animation updates.
+        /// The player driving the pose when an external skeleton's animation is active, or
+        /// <see langword="null"/> while the model's own skeleton is being animated.
         /// </summary>
-        public SubController? CurrentSubController { get; private set; }
+        public AnimationPlayer? CurrentPlayer => player == modelPlayer ? null : player;
 
         /// <summary>
-        /// Represents a sub-animation controller that drives animation from an external skeleton.
+        /// An external NM skeleton the model can be animated from, and the bone mapping back onto it.
         /// </summary>
-        /// <param name="Handler">The animation controller managing the external skeleton.</param>
-        /// <param name="RemapTable">Bone index mapping from parent to child skeleton.</param>
+        /// <param name="Player">The player animating the external skeleton.</param>
+        /// <param name="RemapTable">Bone index mapping from the model skeleton to the external one.</param>
         /// <param name="DebugMap">Bone name mapping for debugging purposes.</param>
-        public record struct SubController(AnimationController Handler, int[] RemapTable, Dictionary<string, string?> DebugMap)
+        public readonly record struct ExternalSkeleton(AnimationPlayer Player, int[] RemapTable, Dictionary<string, string?> DebugMap)
         {
-            /// <summary>The sub controller skeleton.</summary>
-            public readonly Skeleton Skeleton => Handler.Skeleton;
-
-            /// <summary>Bone name mapping for debugging.</summary>
-            public readonly Dictionary<string, string?> DebugMap { get; } = DebugMap;
+            /// <summary>The external skeleton.</summary>
+            public Skeleton Skeleton => Player.Skeleton;
         }
 
         /// <summary>
-        /// Gets the collection of external skeletons registered for sub-animation control, indexed by skeleton name.
+        /// Gets the external skeletons registered for playback, indexed by skeleton name.
         /// </summary>
-        public Dictionary<string, SubController> ExternalSkeletons { get; } = [];
+        public IReadOnlyDictionary<string, ExternalSkeleton> ExternalSkeletons => externalSkeletons;
 
         /// <summary>
-        /// Registers an external skeleton for sub-animation control, creating a bone remapping table.
+        /// Registers an external skeleton animations can be played on, creating a bone remapping table.
         /// </summary>
         /// <param name="skeletonName">The name identifying the external skeleton.</param>
         /// <param name="skeleton">The external skeleton to register.</param>
@@ -303,7 +238,7 @@ namespace ValveResourceFormat.Renderer
             var sourceBoneCount = skeleton.Bones.Length;
             var destinationBoneCount = Skeleton.Bones.Length;
 
-            var remapTable = new int[destinationBoneCount];
+            var remap = new int[destinationBoneCount];
             var debugMap = new Dictionary<string, string?>(destinationBoneCount);
 
             var nameToIndex = new Dictionary<uint, int>(sourceBoneCount);
@@ -319,24 +254,51 @@ namespace ValveResourceFormat.Renderer
                 var name = Skeleton.Bones[i].Name;
                 var hash = StringToken.Store(name);
 
-                remapTable[i] = -1;
+                remap[i] = -1;
                 debugMap[name] = null;
 
                 if (nameToIndex.TryGetValue(hash, out var idx))
                 {
-                    remapTable[i] = idx;
+                    remap[i] = idx;
                     debugMap[name] = skeleton.Bones[idx].Name;
                 }
             }
 
-            // Could this be a simpler base type?
-            var controller = new AnimationController(skeleton, [])
-            {
-                Looping = Looping,
-            };
-
-            ExternalSkeletons[skeletonName] = new(controller, remapTable, debugMap);
+            externalSkeletons[skeletonName] = new(new AnimationPlayer(skeleton, []), remap, debugMap);
         }
 
+        /// <summary>
+        /// Registers a bone mask for per-bone transform weighting.
+        /// </summary>
+        /// <param name="name">The name of the bone mask.</param>
+        /// <param name="boneWeights">Dictionary mapping bone names to weight values (0.0 to 1.0).</param>
+        /// <param name="skeletonName">Optional external skeleton to register the mask on.</param>
+        public void RegisterBoneMask(string name, Dictionary<string, float> boneWeights, string? skeletonName = null)
+        {
+            var target = skeletonName != null && externalSkeletons.TryGetValue(skeletonName, out var external)
+                ? external.Player
+                : modelPlayer;
+
+            target.RegisterBoneMask(name, boneWeights);
+        }
+
+        /// <summary>
+        /// Sets the blend weight for a clip with the specified animation name.
+        /// </summary>
+        /// <param name="name">The name of the animation.</param>
+        /// <param name="weight">The weight value (0.0 to 1.0).</param>
+        /// <param name="restartIfNew">Whether to restart the animation if it's just now fading in.</param>
+        public void SetAnimationWeight(string name, float weight, bool restartIfNew = false)
+            => player.SetAnimationWeight(name, weight, restartIfNew);
+
+        /// <summary>
+        /// Sets properties for a clip with the specified animation name.
+        /// </summary>
+        /// <param name="name">The name of the animation.</param>
+        /// <param name="time">Optional playback time to set.</param>
+        /// <param name="looping">Optional looping flag to set.</param>
+        /// <param name="boneMask">Optional bone mask name to set.</param>
+        public void SetAnimationProperties(string name, float? time = null, bool? looping = null, string? boneMask = null)
+            => player.SetAnimationProperties(name, time, looping, boneMask);
     }
 }

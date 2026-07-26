@@ -1,4 +1,4 @@
-using OpenTK.Graphics.OpenGL;
+﻿using OpenTK.Graphics.OpenGL;
 using ValveResourceFormat.ResourceTypes.ModelAnimation;
 
 namespace ValveResourceFormat.Renderer.SceneNodes
@@ -11,7 +11,7 @@ namespace ValveResourceFormat.Renderer.SceneNodes
         /// <summary>Gets or sets whether the skeleton visualization is drawn.</summary>
         public bool Enabled { get; set; }
 
-        readonly AnimationController animationController;
+        readonly BaseAnimationController animationController;
         readonly Skeleton skeleton;
         readonly LineBuffer lineBuffer;
 
@@ -21,7 +21,7 @@ namespace ValveResourceFormat.Renderer.SceneNodes
         /// <param name="scene">The scene this node belongs to.</param>
         /// <param name="animationController">The animation controller providing bone pose data.</param>
         /// <param name="skeleton">The skeleton definition containing bone hierarchy.</param>
-        public SkeletonSceneNode(Scene scene, AnimationController animationController, Skeleton skeleton)
+        public SkeletonSceneNode(Scene scene, BaseAnimationController animationController, Skeleton skeleton)
             : base(scene)
         {
             this.animationController = animationController;
@@ -73,7 +73,7 @@ namespace ValveResourceFormat.Renderer.SceneNodes
             lineBuffer.Delete();
         }
 
-        private void DrawSkeletonRecursive(Bone bone, List<SimpleVertex> vertices, Camera camera, TextRenderer textRenderer, AnimationController animation)
+        private void DrawSkeletonRecursive(Bone bone, List<SimpleVertex> vertices, Camera camera, TextRenderer textRenderer, BaseAnimationController animation)
         {
             var boneMatrix = animation.Pose[bone.Index];
 

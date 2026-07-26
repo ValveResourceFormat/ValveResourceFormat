@@ -1,13 +1,12 @@
 using System.Diagnostics;
-using ValveResourceFormat.IO;
 using ValveResourceFormat.ResourceTypes.ModelAnimation;
 
 namespace ValveResourceFormat.Renderer
 {
     /// <summary>
-    /// Manages skeletal animation playback and computes animated bone poses.
+    /// Blends the weighted animation clips playing on one skeleton into a single frame.
     /// </summary>
-    public partial class AnimationController
+    public partial class AnimationPlayer
     {
         /// <summary>Represents an animation clip with its playback state.</summary>
         public record class Clip(Animation Animation)
@@ -67,12 +66,7 @@ namespace ValveResourceFormat.Renderer
         /// </summary>
         public Dictionary<string, Clip> Clips => clips;
 
-        private Clip? activeClip
-        {
-            get => CurrentSubController.HasValue ? CurrentSubController.Value.Handler.activeClip : field;
-            set => field = value;
-        }
-
+        private Clip? activeClip;
         private Clip? previousClip;
         private readonly Dictionary<string, Clip> clips = [];
         private readonly Frame BlendedFrame;
@@ -88,15 +82,8 @@ namespace ValveResourceFormat.Renderer
         /// </summary>
         /// <param name="name">The name of the bone mask.</param>
         /// <param name="boneWeights">Dictionary mapping bone names to weight values (0.0 to 1.0).</param>
-        /// <param name="skeletonName">Optional skeleton name to pass to subcontroller.</param>
-        public void RegisterBoneMask(string name, Dictionary<string, float> boneWeights, string? skeletonName = null)
+        public void RegisterBoneMask(string name, Dictionary<string, float> boneWeights)
         {
-            if (skeletonName != null && ExternalSkeletons.TryGetValue(skeletonName, out var subController))
-            {
-                subController.Handler.RegisterBoneMask(name, boneWeights);
-                return;
-            }
-
             var maskArray = new Half[Skeleton.Bones.Length];
 
             foreach (var (boneName, weight) in boneWeights)
@@ -307,7 +294,8 @@ namespace ValveResourceFormat.Renderer
         /// </summary>
         /// <param name="animation">The animation to transition to.</param>
         /// <param name="blendTime">The blend time in seconds. 0 for instant transition, -1 for manual blending.</param>
-        private void TransitionToClip(Animation animation, float blendTime)
+        /// <param name="looping">Whether the clip should loop when reaching the end.</param>
+        private void TransitionToClip(Animation animation, float blendTime, bool looping)
         {
             var animName = animation.Name;
 
@@ -315,13 +303,13 @@ namespace ValveResourceFormat.Renderer
             if (!clips.TryGetValue(animName, out var newClip))
             {
                 var isAdditive = animation.Clip?.IsAdditive == true;
-                newClip = new Clip(animation) { Looping = Looping, BlendTime = blendTime, IsAdditive = isAdditive };
+                newClip = new Clip(animation) { Looping = looping, BlendTime = blendTime, IsAdditive = isAdditive };
                 clips[animName] = newClip;
             }
             else
             {
                 // Update existing clip properties
-                newClip.Looping = Looping;
+                newClip.Looping = looping;
                 newClip.BlendTime = blendTime;
 
                 newClip.IsPaused = false;
@@ -420,11 +408,6 @@ namespace ValveResourceFormat.Renderer
                     clip.IsPaused = false;
                 }
             }
-
-            if (CurrentSubController is { } subController)
-            {
-                subController.Handler.SetAnimationWeight(name, weight, restartIfNew);
-            }
         }
 
         /// <summary>
@@ -453,11 +436,6 @@ namespace ValveResourceFormat.Renderer
                 {
                     clip.BoneMask = boneMask;
                 }
-            }
-
-            if (CurrentSubController is { } subController)
-            {
-                subController.Handler.SetAnimationProperties(name, time, looping, boneMask);
             }
         }
     }
