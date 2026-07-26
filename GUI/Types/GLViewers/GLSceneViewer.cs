@@ -356,52 +356,28 @@ namespace GUI.Types.GLViewers
         }
 
         /// <summary>
-        /// Draws the scene and shadows with culling disabled so the driver specializes every
+        /// Renders one full frame with culling disabled so the driver specializes every
         /// (program, vertex layout, framebuffer) combination once.
         /// </summary>
         private void PrewarmDrawCalls()
         {
             Debug.Assert(MainFramebuffer != null);
 
-            Scene.SetupSceneShadows(Renderer.Camera, -1);
-            Renderer.RenderSceneShadows(new Scene.RenderContext
+            Renderer.DisableAllCulling = true;
+
+            try
             {
-                Camera = Renderer.Camera,
-                Framebuffer = MainFramebuffer,
-                Textures = Renderer.Textures,
-                Scene = Scene,
-            });
+                OnPaint(0f);
 
-            MainFramebuffer.Bind(FramebufferTarget.Framebuffer);
-            GL.Viewport(0, 0, MainFramebuffer.Width, MainFramebuffer.Height);
-            Scene.CollectSceneDrawCalls(Renderer.Camera, Frustum.CreateEmpty());
-            Renderer.DrawMainScene();
-
-            foreach (var particleNode in Scene.AllNodes.OfType<ParticleSceneNode>())
-            {
-                particleNode.Prewarm(Renderer.Camera);
-            }
-
-            if (SkyboxScene != null)
-            {
-                SkyboxScene.CollectSceneDrawCalls(Renderer.Camera, Frustum.CreateEmpty());
-                SkyboxScene.SetSceneBuffers();
-
-                var skyboxContext = new Scene.RenderContext
+                foreach (var particleNode in Scene.AllNodes.OfType<ParticleSceneNode>())
                 {
-                    Camera = Renderer.Camera,
-                    Framebuffer = MainFramebuffer,
-                    Textures = Renderer.Textures,
-                    Scene = SkyboxScene,
-                };
-
-                SkyboxScene.RenderOpaqueLayer(skyboxContext);
-                SkyboxScene.RenderTranslucentLayer(skyboxContext);
-
-                Scene.SetSceneBuffers();
+                    particleNode.Prewarm(Renderer.Camera);
+                }
             }
-
-            OnPaint(0);
+            finally
+            {
+                Renderer.DisableAllCulling = false;
+            }
         }
 
         protected override void OnFirstPaint()

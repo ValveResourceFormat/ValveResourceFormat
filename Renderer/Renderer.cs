@@ -164,6 +164,18 @@ public class Renderer
     /// </summary>
     public Vector3? LockedCullPosition { get; set; }
 
+    /// <summary>
+    /// When <see langword="true"/>, every form of culling (CPU frustum, GPU meshlet, occlusion, PVS, shadow
+    /// frustum) is bypassed so the whole scene is submitted.
+    /// </summary>
+    public bool DisableAllCulling { get; set; }
+
+    /// <summary>Reused so <see cref="Scene.GetFrustumCullResults"/> keeps its cache across pre-warm calls.</summary>
+    private readonly Frustum noCullFrustum = Frustum.CreateEmpty();
+
+    /// <summary>The frustum to cull against, or <see langword="null"/> to use the camera's own frustum.</summary>
+    private Frustum? CullFrustum => DisableAllCulling ? noCullFrustum : LockedCullFrustum;
+
     // options
     /// <summary>
     /// Width and height in texels of the shadow depth buffers.
@@ -387,11 +399,17 @@ public class Renderer
         ViewBuffer.BindBufferBase();
         ViewBuffer.Update();
 
-        if (LockedCullFrustum == null)
+        // A locked cull frustum leaves the indirect buffers untouched, freezing the cull state. Disabled
+        // culling still has to dispatch, otherwise the indirect draw commands keep the previous contents.
+        Frustum? gpuCullFrustum = DisableAllCulling
+            ? noCullFrustum
+            : LockedCullFrustum == null ? camera.ViewFrustum : null;
+
+        if (gpuCullFrustum.HasValue)
         {
             if (scene.DrawMeshletsIndirect)
             {
-                scene.MeshletCullGpu(camera.ViewFrustum);
+                scene.MeshletCullGpu(gpuCullFrustum.Value);
             }
 
             if (scene.CompactMeshletDraws)
@@ -591,10 +609,11 @@ public class Renderer
                 var generateDepthPyramid = Scene.EnableOcclusionCulling
                     && Scene.DrawMeshletsIndirect
                     && LockedCullFrustum == null
+                    && !DisableAllCulling
                     && Uptime >= OcclusionCullWarmupSeconds;
 
                 copyDepth |= generateDepthPyramid;
-                Scene.DepthPyramidValid = generateDepthPyramid || LockedCullFrustum != null;
+                Scene.DepthPyramidValid = !DisableAllCulling && (generateDepthPyramid || LockedCullFrustum != null);
 
                 GrabFramebufferCopy(renderContext.Framebuffer, copyColor, copyDepth);
 
@@ -949,14 +968,14 @@ public class Renderer
 
         Scene.PostProcessInfo.UpdatePostProcessing(updateContext.Camera);
 
-        Scene.SetupSceneShadows(updateContext.Camera, ShadowDepthBuffer.Width);
+        Scene.SetupSceneShadows(updateContext.Camera, DisableAllCulling ? -1 : ShadowDepthBuffer.Width);
 
         if (ViewBuffer.Data.ExperimentalLightsEnabled)
         {
             Scene.LightingInfo.BinBarnLights(Camera, ShadowTextureSize);
         }
 
-        if (Scene is { EnablePvsCulling: true, VoxelVisibility: not null })
+        if (!DisableAllCulling && Scene is { EnablePvsCulling: true, VoxelVisibility: not null })
         {
             var pvsPosition = LockedCullPosition ?? updateContext.Camera.Location;
             Scene.CurrentFramePvs = Scene.VoxelVisibility.GetPVSForPoint(pvsPosition);
@@ -966,8 +985,9 @@ public class Renderer
             Scene.CurrentFramePvs = null;
         }
 
-        Scene.CollectSceneDrawCalls(updateContext.Camera, LockedCullFrustum);
-        SkyboxScene?.CollectSceneDrawCalls(updateContext.Camera, LockedCullFrustum);
+        var cullFrustum = CullFrustum;
+        Scene.CollectSceneDrawCalls(updateContext.Camera, cullFrustum);
+        SkyboxScene?.CollectSceneDrawCalls(updateContext.Camera, cullFrustum);
     }
 
     void EnsureDepthPyramidSize(int width, int height)
