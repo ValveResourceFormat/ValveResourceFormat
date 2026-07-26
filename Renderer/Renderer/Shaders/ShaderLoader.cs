@@ -283,6 +283,9 @@ namespace ValveResourceFormat.Renderer.Shaders
             header.Append(ShaderParser.ExpectedShaderVersion);
             header.Append('\n');
 
+            header.Append("#extension GL_KHR_shader_subgroup_arithmetic : enable\n");
+            header.Append("#extension GL_KHR_shader_subgroup_vote : enable\n");
+
             var variantName = $"GameVfx_{Path.GetFileNameWithoutExtension(originalShaderName)}";
 
             // Add all defines (with argument overrides or defaults)
@@ -355,7 +358,11 @@ namespace ValveResourceFormat.Renderer.Shaders
             {
                 errorSourceFile = int.Parse(errorMatch.Groups["SourceFile"].Value, CultureInfo.InvariantCulture);
                 errorLine = int.Parse(errorMatch.Groups["Line"].Value, CultureInfo.InvariantCulture);
-                sourceFile = parsedData.SourceFiles[errorSourceFile];
+
+                if (errorSourceFile >= 0 && errorSourceFile < parsedData.SourceFiles.Count)
+                {
+                    sourceFile = parsedData.SourceFiles[errorSourceFile];
+                }
             }
 
 #if DEBUG

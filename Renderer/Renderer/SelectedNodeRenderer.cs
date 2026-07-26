@@ -204,7 +204,7 @@ namespace ValveResourceFormat.Renderer
                     if (renderContext.Scene.LightingInfo.CubemapType == CubemapType.CubemapArray)
                     {
                         var list = new List<SceneEnvMap>();
-                        foreach (var shaderId in node.ShaderEnvMapVisibility.GetVisibleShaderIndices())
+                        foreach (var shaderId in node.EnvMaps.Select(static envMap => envMap.ShaderIndex))
                         {
                             var env = renderContext.Scene.LightingInfo.EnvMaps.FirstOrDefault(e => e.ShaderIndex == shaderId);
                             if (env is SceneEnvMap sem)

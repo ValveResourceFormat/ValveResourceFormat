@@ -100,6 +100,7 @@ namespace ValveResourceFormat.Renderer.World
         public ShadowMapper ShadowMapper { get; } = new();
 
         private readonly BarnLightConstants[] BinnedBarnLightGpuData = new BarnLightConstants[BarnLightConstants.MAX_BARN_LIGHTS];
+        private readonly BarnLightCullVolume[] BinnedBarnLightCullVolumes = new BarnLightCullVolume[BarnLightConstants.MAX_BARN_LIGHTS];
 
         private Dictionary<string, int> BarnLightCookiePaths { get; } = new(StringComparer.OrdinalIgnoreCase);
         private StorageBuffer? BarnLightStorageBuffer;
@@ -465,13 +466,25 @@ namespace ValveResourceFormat.Renderer.World
                         data.BarnLightShadowScale = 1.0f;
                     }
 
+                    var hasRangeCutoff = light.Entity == SceneLight.EntityType.Omni2 && light.FallOff > 0f;
+
+                    BinnedBarnLightCullVolumes[LightingData.NumBarnLights] = new BarnLightCullVolume
+                    {
+                        FrustumToWorld = light.BarnFaces[faceIndex].FrustumToWorld,
+                        ObbToWorld = light.BarnFaces[faceIndex].ObbToWorld,
+                        RangeSphere = hasRangeCutoff
+                            ? new Vector4(light.Transform.Translation, light.Range)
+                            : default,
+                    };
+
                     BinnedBarnLightGpuData[LightingData.NumBarnLights++] = data;
                 }
 
                 light.WasDropped = anyFaceDropped;
             }
 
-            BarnLightStorageBuffer?.Update(BinnedBarnLightGpuData, 0, (int)LightingData.NumBarnLights * Unsafe.SizeOf<BarnLightConstants>());
+            var binnedCount = (int)LightingData.NumBarnLights;
+            BarnLightStorageBuffer?.Update(BinnedBarnLightGpuData, 0, binnedCount * Unsafe.SizeOf<BarnLightConstants>());
         }
 
         /// <summary>Clears cached shadow map data for all registered barn lights.</summary>
@@ -587,6 +600,13 @@ namespace ValveResourceFormat.Renderer.World
         {
             BarnLightStorageBuffer?.BindBufferBase();
         }
+
+        /// <summary>
+        /// Gets what bounds every binned barn light face, in the same order the fragment shader indexes
+        /// them, so cull items keep bit position aligned with light index.
+        /// </summary>
+        public ReadOnlySpan<BarnLightCullVolume> BinnedBarnLightVolumes
+            => BinnedBarnLightCullVolumes.AsSpan(0, (int)LightingData.NumBarnLights);
 
         /// <summary>Releases the barn light GPU buffer, cookie atlas texture, and sampler objects.</summary>
         public void DisposeBarnLights()

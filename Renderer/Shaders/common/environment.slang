@@ -11,8 +11,11 @@
 #include "lighting_common.slang"
 #include "pbr.slang"
 
+#include "light_cull.slang"
+
 #define S_SCENE_CUBEMAP_TYPE 0 // 0 = None, 1 = Per-batch cube map, 2 = Per-scene cube map array
 #define renderMode_Cubemaps 0
+#define renderMode_EnvmapTiles 0
 
 struct EnvMapData
 {
@@ -41,10 +44,10 @@ layout(std140, binding = 2) uniform EnvMapArray
     // ...
 #elif (S_SCENE_CUBEMAP_TYPE == 1)
     uniform samplerCube g_tEnvironmentMap; // SrgbRead(true)
-    flat in uvec4 g_nEnvMapVisibility;
+
+    flat in uint g_nEnvMapIndex;
 #elif (S_SCENE_CUBEMAP_TYPE == 2)
     uniform samplerCubeArray g_tEnvironmentMap; // SrgbRead(true)
-    flat in uvec4 g_nEnvMapVisibility;
 #endif
 
 vec3 CubemapParallaxCorrection(vec3 envMapLocalPos, vec3 localReflectionVector, vec3 envMapBoxMin, vec3 envMapBoxMax)
@@ -64,7 +67,6 @@ vec3 CubemapParallaxCorrection(vec3 envMapLocalPos, vec3 localReflectionVector, 
     return normalize(envMapLocalPos + localReflectionVector * Distance);
 }
 
-
 float GetEnvMapLOD(float roughness, vec3 R)
 {
     if (g_iRenderMode == renderMode_Cubemaps)
@@ -75,7 +77,6 @@ float GetEnvMapLOD(float roughness, vec3 R)
     const float EnvMapMipCount = g_vEnvMapSizeConstants.x;
     return roughness * EnvMapMipCount;
 }
-
 
 // Cubemap Normalization
 #define bUseCubemapNormalization 1
@@ -105,7 +106,6 @@ float GetEnvMapNormalization(float rough, vec3 N, vec3 irradiance)
         return 1.0;
     #endif
 }
-
 
 // BRDF
 uniform sampler2D g_tBRDFLookup;
@@ -142,6 +142,17 @@ float EnvBRDFCloth(float perceptualRoughness, vec3 N, vec3 V)
         return normalize(mix(mat.AmbientNormal, warpedVector, warpAmount));
     }
 #endif
+
+bool AnyLaneWantsMoreProbes(bool wantsMore)
+{
+#if defined(GL_KHR_shader_subgroup_vote)
+    return subgroupAny(wantsMore);
+#elif defined(GL_KHR_shader_subgroup_arithmetic)
+    return true;
+#else
+    return wantsMore;
+#endif
+}
 
 vec3 GetCorrectedSampleCoords(vec3 R, mat4x3 envMapWorldToLocal, vec3 envMapLocalPos, bool isBoxProjection, vec3 envMapBoxMin, vec3 envMapBoxMax)
 {
@@ -184,16 +195,7 @@ vec3 GetEnvironmentNoBRDF(MaterialProperties_t mat, float roughnessReflectionCor
     #if (S_SCENE_CUBEMAP_TYPE == 0)
         envMap = vec3(0.3, 0.3, 0.3);
     #elif (S_SCENE_CUBEMAP_TYPE == 1)
-        int envMapIndex = 0;
-        for (uint visBucket = 0; visBucket < 4; visBucket++)
-        {
-            if (g_nEnvMapVisibility[visBucket] != 0u)
-            {
-                envMapIndex = int(visBucket * 32) + findLSB(g_nEnvMapVisibility[visBucket]);
-                break;
-            }
-        }
-        EnvMapData envData = envMaps[envMapIndex];
+        EnvMapData envData = envMaps[g_nEnvMapIndex];
         bool isBoxProjection = envData.ProjectionType == 1u;
         vec3 envMapBoxMin = envData.BoxMins;
         vec3 envMapBoxMax = envData.BoxMaxs;
@@ -209,10 +211,25 @@ vec3 GetEnvironmentNoBRDF(MaterialProperties_t mat, float roughnessReflectionCor
     float flTotalWeight = 0.01;
     bool bContinueLoop = true;
 
-    for (uint visBucket = 0; visBucket < 4 && bContinueLoop; visBucket++)
+    CullLookup_t cull = GetCullLookupCached(vFragPosition);
+    bool bTiled = g_bLightTilesValid && g_nEnvMapCullWords > 0u && cull.m_bValid;
+
+    uint tileBase = g_nEnvMapTileBase + (cull.m_nTileIndex * g_nEnvMapCullWords);
+    uint binBase = g_nEnvMapBinBase + (cull.m_nBin * g_nEnvMapCullWords);
+
+    uint nWords = (g_nNumEnvMaps + 31u) / 32u;
+
+    for (uint word = 0u; word < nWords && AnyLaneWantsMoreProbes(bContinueLoop); word++)
     {
-        uint mask = g_nEnvMapVisibility[visBucket];
-        int baseIndex = int(visBucket * 32);
+        uint mask = bTiled
+            ? (g_LightCullBits[tileBase + word] & g_LightCullBits[binBase + word])
+            : GetCullWordMask(g_nNumEnvMaps, word);
+
+#ifdef GL_KHR_shader_subgroup_arithmetic
+        mask = subgroupOr(mask);
+#endif
+
+        int baseIndex = int(word * 32u);
 
         while (mask != 0 && bContinueLoop)
         {
@@ -230,6 +247,12 @@ vec3 GetEnvironmentNoBRDF(MaterialProperties_t mat, float roughnessReflectionCor
             vec3 envMapBoxMax = envData.BoxMaxs;
             mat4x3 envMapWorldToLocal = mat4x3(envData.WorldToLocal);
             vec3 envMapLocalPos = envMapWorldToLocal * vec4(vFragPosition, 1.0);
+
+            if (any(lessThan(envMapLocalPos, envMapBoxMin)) || any(greaterThan(envMapLocalPos, envMapBoxMax)))
+            {
+                continue;
+            }
+
             float weight = 1.0f;
 
             const bool bUseCubemapBlending = S_LIGHTMAP_VERSION_MINOR >= 2;

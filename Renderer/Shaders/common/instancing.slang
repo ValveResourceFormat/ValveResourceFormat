@@ -7,8 +7,8 @@ uniform mat3x4 transform;
 uniform uint vTint;
 uniform bool bIsInstancing = false;
 
-#if (S_SCENE_CUBEMAP_TYPE > 0)
-    flat out uvec4 g_nEnvMapVisibility;
+#if (S_SCENE_CUBEMAP_TYPE == 1)
+    flat out uint g_nEnvMapIndex;
 #endif
 
 #if (D_BAKED_LIGHTING_FROM_PROBE > 0)
@@ -21,7 +21,6 @@ struct ObjectDataStandard
     uint TransformIndex;
     uint VisibleLPV;
     uint Identification;
-    uvec4 EnvMapVisibility;
 };
 
 layout(std430, binding = 0) readonly buffer g_objectBuffer
@@ -69,12 +68,12 @@ ObjectData_t GetObjectData()
     object.transform = UnpackMatrix4(bIsInstancing ? transforms[objectData.TransformIndex + gl_InstanceID] : transform);
     object.vTint = UnpackColor32(bIsInstancing ? objectData.TintAlpha : vTint);
 
-    #if (S_SCENE_CUBEMAP_TYPE > 0)
-        g_nEnvMapVisibility = objectData.EnvMapVisibility;
+    #if (S_SCENE_CUBEMAP_TYPE == 1)
+        g_nEnvMapIndex = objectData.VisibleLPV >> 16u;
     #endif
 
     #if (D_BAKED_LIGHTING_FROM_PROBE > 0)
-        g_nVisibleLPV = objectData.VisibleLPV;
+        g_nVisibleLPV = objectData.VisibleLPV & 0xFFFFu;
     #endif
 
     return object;

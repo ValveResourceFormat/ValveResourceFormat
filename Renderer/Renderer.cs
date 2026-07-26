@@ -1,4 +1,4 @@
-using System.Diagnostics;
+﻿using System.Diagnostics;
 using System.IO;
 using System.Reflection;
 using OpenTK.Graphics.OpenGL;
@@ -105,6 +105,9 @@ public class Renderer
     /// </summary>
     public UniformBuffer<ViewConstants>? ViewBuffer { get; set; }
 
+    /// <summary>Gets the fullscreen tile mask overlay drawn in the LightTiles render mode.</summary>
+    public LightTilesOverlay LightTilesOverlay { get; }
+
     /// <summary>
     /// Named textures bound to reserved slots for all render passes.
     /// </summary>
@@ -200,6 +203,7 @@ public class Renderer
     {
         RendererContext = rendererContext;
         Postprocess = new(rendererContext);
+        LightTilesOverlay = new(rendererContext);
         Camera = new Camera(rendererContext.FieldOfView);
         ViewmodelCamera = new Camera();
         Scene = new Scene(rendererContext);
@@ -338,7 +342,6 @@ public class Renderer
         var defaultCubeTexture = Scene.RendererContext.MaterialLoader.LoadTexture(cubeFogResource);
         Textures.Add(new(ReservedTextureSlots.FogCubeTexture, "g_tFogCubeTexture", defaultCubeTexture));
 
-
         const string blueNoiseName = "blue_noise_256.vtex_c";
         var blueNoiseResource = RendererContext.FileLoader.LoadFile("textures/dev/" + blueNoiseName);
 
@@ -396,6 +399,10 @@ public class Renderer
         camera.SetViewConstants(ViewBuffer.Data);
         scene.SetFogConstants(ViewBuffer.Data);
 
+        scene.SetLightTileViewConstants(ViewBuffer.Data,
+            (int)ViewBuffer.Data.ViewportSize.X, (int)ViewBuffer.Data.ViewportSize.Y,
+            enabled: LockedCullFrustum == null);
+
         ViewBuffer.BindBufferBase();
         ViewBuffer.Update();
 
@@ -416,6 +423,8 @@ public class Renderer
             {
                 scene.CompactIndirectDraws();
             }
+
+            scene.LightCullGpu();
         }
 
         if (Postprocess != null)
@@ -480,7 +489,6 @@ public class Renderer
         Render(renderContext);
     }
 
-
     /// <summary>
     /// Renders shadows and then the full scene using the provided render context.
     /// </summary>
@@ -526,13 +534,14 @@ public class Renderer
         var isWireframe = IsWireframe && isStandardPass; // To avoid toggling it mid frame
         var computeFramebufferLuminance = Postprocess.State.ExposureSettings.AutoExposureEnabled;
 
-
         // TODO: check if renderpass allows wireframe mode
         // TODO+: replace wireframe shaders with solid color
         if (isWireframe)
         {
             GL.PolygonMode(TriangleFace.FrontAndBack, PolygonMode.Line);
         }
+
+        UpdatePerViewGpuBuffers(Scene, renderContext.Camera, DeltaTime);
 
         using (new GLDebugGroup("Viewmodel Opaque"))
         {
@@ -547,6 +556,10 @@ public class Renderer
 
             ViewmodelCamera.SetViewConstants(ViewBuffer.Data);
             Scene.SetFogConstants(ViewBuffer.Data);
+
+            ViewBuffer.Data.LightCullPixelRemap =
+                ViewmodelCamera.GetPixelRemapTo(mainCamera, ViewBuffer.Data.ViewportSize);
+
             ViewBuffer.BindBufferBase();
             ViewBuffer.Update();
             Scene.SetSceneBuffers();
@@ -555,11 +568,16 @@ public class Renderer
             renderContext.Scene = Scene;
             Scene.RenderViewmodelOpaqueLayer(renderContext);
             renderContext.Camera = mainCamera;
+
+            DepthRange.Scene.Apply();
+
+            mainCamera.SetViewConstants(ViewBuffer.Data);
+            Scene.SetFogConstants(ViewBuffer.Data);
+            ViewBuffer.Data.LightCullPixelRemap = ViewConstants.PixelRemapIdentity;
+            ViewBuffer.BindBufferBase();
+            ViewBuffer.Update();
         }
 
-        DepthRange.Scene.Apply();
-
-        UpdatePerViewGpuBuffers(Scene, renderContext.Camera, DeltaTime);
         Scene.SetSceneBuffers();
 
         using (new GLDebugGroup("Main Scene Opaque Render"))
@@ -658,6 +676,8 @@ public class Renderer
 
             ViewmodelCamera.SetViewConstants(ViewBuffer.Data);
             Scene.SetFogConstants(ViewBuffer.Data);
+            ViewBuffer.Data.LightCullPixelRemap =
+                ViewmodelCamera.GetPixelRemapTo(mainCamera, ViewBuffer.Data.ViewportSize);
             ViewBuffer.BindBufferBase();
             ViewBuffer.Update();
 
@@ -669,6 +689,7 @@ public class Renderer
 
             mainCamera.SetViewConstants(ViewBuffer.Data);
             Scene.SetFogConstants(ViewBuffer.Data);
+            ViewBuffer.Data.LightCullPixelRemap = ViewConstants.PixelRemapIdentity;
             ViewBuffer.BindBufferBase();
             ViewBuffer.Update();
         }
@@ -688,6 +709,19 @@ public class Renderer
             if (Postprocess.HasOutlineObjects)
             {
                 RenderOutlineLayer(renderContext);
+            }
+
+            var overlayBatch = ValveResourceFormat.Renderer.LightTilesOverlay.BatchFor(ViewBuffer!.Data.RenderMode);
+
+            if (overlayBatch != ValveResourceFormat.Renderer.LightTilesOverlay.Batch.None)
+            {
+                var view = ViewBuffer.Data;
+
+                var (tileBase, words) = overlayBatch == ValveResourceFormat.Renderer.LightTilesOverlay.Batch.EnvMaps
+                    ? (view.EnvMapTileBase, view.EnvMapCullWords)
+                    : (view.LightTileBase, view.LightCullWords);
+
+                LightTilesOverlay.Render(Scene.LightCullBitsGpu, tileBase, words);
             }
         }
         else

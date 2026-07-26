@@ -25,6 +25,9 @@ namespace ValveResourceFormat.Renderer.Materials
             new("IrradianceDebug"),
             new("Illumination"),
             new("LightmapShadows"),
+            new("LightTiles"),
+            new("EnvmapTiles"),
+            new("Subgroups"),
             new("Cubemaps"),
             new("RimLight"),
 

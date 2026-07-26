@@ -3,6 +3,8 @@
 #ifndef VRF_LIGHTING_BARN_INCLUDE
 #define VRF_LIGHTING_BARN_INCLUDE
 
+#include "light_cull.slang"
+
 struct BarnLightConstants
 {
     mat4 m_mBarnFrustum;
@@ -24,6 +26,10 @@ struct BarnLightConstants
 layout(std430, binding = 12) readonly buffer BarnLightBuffer {
     BarnLightConstants g_BarnLights[];
 };
+
+int g_nBarnLightsIterated = 0;
+
+bool g_bBarnLightsTiled = false;
 
 // Game uses Texture3D
 uniform layout(binding = 15) sampler2DArray g_tLightCookieTexture; // ClampToBorder
@@ -63,10 +69,8 @@ float ComputeBarnLightShadow_PCF_3x3_Gaussian(vec2 shadowUV, float shadowRef, ve
     return shadow;
 }
 
-void CalculateBarnLighting(inout LightingTerms_t lighting, in MaterialProperties_t mat, vec4 bakedShadow)
+void ShadeBarnLight(inout LightingTerms_t lighting, inout MaterialProperties_t mat, vec4 bakedShadow, uint i)
 {
-    // No tile culling
-    for (uint i = 0; i < g_nNumBarnLights; i++)
     {
         BarnLightConstants barnLight = g_BarnLights[i];
 
@@ -74,20 +78,20 @@ void CalculateBarnLighting(inout LightingTerms_t lighting, in MaterialProperties
         if (visibility == 0.0)
         {
             // lighting.DiffuseDirect *= vec3(1.0, 0.0, 0.0);
-            continue;
+            return;
         }
 
         vec4 clipPos = barnLight.m_mBarnFrustum * vec4(mat.PositionWS, 1.0);
         vec3 ndc = clipPos.xyz / clipPos.w;
         if (any(lessThanEqual(ndc, vec3(-1.0, -1.0, 0.0))) || any(greaterThanEqual(ndc, vec3(1.0))))
         {
-            continue;
+            return;
         }
 
         vec3 obbPos = vec4(mat.PositionWS, 1.0) * barnLight.m_mBarnIlluminationFromWorld;
         if (any(greaterThan(abs(obbPos), vec3(1.0))))
         {
-            continue;
+            return;
         }
 
         float skirtFade = 1.0;
@@ -102,7 +106,7 @@ void CalculateBarnLighting(inout LightingTerms_t lighting, in MaterialProperties
 
         if (skirtFade == 0.0)
         {
-            continue;
+            return;
         }
 
         vec3 lightDir;
@@ -197,7 +201,7 @@ void CalculateBarnLighting(inout LightingTerms_t lighting, in MaterialProperties
 
         if (lightColor == vec3(0.0))
         {
-            continue;
+            return;
         }
 
         // Shadow map
@@ -225,7 +229,7 @@ void CalculateBarnLighting(inout LightingTerms_t lighting, in MaterialProperties
 
         if (lightColor == vec3(0.0))
         {
-            continue;
+            return;
         }
 
         float savedIsoRoughness = mat.IsometricRoughness;
@@ -238,6 +242,73 @@ void CalculateBarnLighting(inout LightingTerms_t lighting, in MaterialProperties
         mat.IsometricRoughness = savedIsoRoughness;
         mat.Roughness = savedRoughness;
     }
+}
+
+void CalculateBarnLighting(inout LightingTerms_t lighting, in MaterialProperties_t mat, vec4 bakedShadow)
+{
+    if (g_bLightTilesValid && !g_bIsSkybox)
+    {
+        CullLookup_t cull = GetCullLookupCached(mat.PositionWS);
+        bool haveTile = cull.m_bValid;
+
+        g_bBarnLightsTiled = haveTile;
+
+        uint tileBase = g_nLightTileBase + (cull.m_nTileIndex * g_nLightCullWords);
+        uint sliceBase = g_nLightSliceBase + (cull.m_nBin * g_nLightCullWords);
+
+        for (uint word = 0u; word < g_nLightCullWords; word++)
+        {
+            uint mask = haveTile
+                ? (g_LightCullBits[tileBase + word] & g_LightCullBits[sliceBase + word])
+                : GetCullWordMask(g_nNumBarnLights, word);
+
+#ifdef GL_KHR_shader_subgroup_arithmetic
+            mask = subgroupOr(mask);
+#endif
+
+            while (mask != 0u)
+            {
+                uint i = uint(findLSB(mask)) + (word * 32u);
+                mask &= mask - 1u;
+
+                g_nBarnLightsIterated++;
+                ShadeBarnLight(lighting, mat, bakedShadow, i);
+            }
+        }
+    }
+    else
+    {
+        for (uint i = 0u; i < g_nNumBarnLights; i++)
+        {
+            g_nBarnLightsIterated++;
+            ShadeBarnLight(lighting, mat, bakedShadow, i);
+        }
+    }
+}
+
+bool GetBarnLightTileHeatmap(out vec3 color)
+{
+    const float kBusyTile = 12.0;
+
+    if (g_nBarnLightsIterated == 0)
+    {
+        color = vec3(0.0);
+        return false;
+    }
+
+    if (!g_bBarnLightsTiled)
+    {
+        color = vec3(1.0, 0.0, 1.0);
+        return true;
+    }
+
+    float t = saturate(float(g_nBarnLightsIterated) / kBusyTile) * 3.0;
+
+    color = mix(vec3(0.0, 0.0, 1.0), vec3(0.0, 1.0, 0.0), saturate(t));
+    color = mix(color, vec3(1.0, 1.0, 0.0), saturate(t - 1.0));
+    color = mix(color, vec3(1.0, 0.0, 0.0), saturate(t - 2.0));
+
+    return true;
 }
 
 #endif
