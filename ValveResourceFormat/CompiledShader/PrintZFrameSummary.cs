@@ -252,12 +252,11 @@ namespace ValveResourceFormat.CompiledShader
             OutputFormatterTabulatedData tabulatedConfigFull = new(OutputWriter);
             tabulatedConfigFull.DefineHeaders(dConfigHeaders);
 
-            var dBlockCount = 0;
-            foreach (var block in StaticCombo.DynamicCombos)
+            for (var dBlockIndex = 0; dBlockIndex < StaticCombo.DynamicCombos.Length; dBlockIndex++)
             {
+                var block = StaticCombo.DynamicCombos[dBlockIndex];
                 var blockId = (int)block.DynamicComboId;
-                dBlockCount++;
-                if (dBlockCount % 100 == 0)
+                if ((dBlockIndex + 1) % 100 == 0)
                 {
                     tabulatedConfigFull.AddTabulatedRow(isVertexShader ?
                         ["", dNamesHeader, "", "", "", "", "", ""] :
@@ -273,7 +272,10 @@ namespace ValveResourceFormat.CompiledShader
                 }
 
                 var sourceLink = $"{blockSource.ShaderFileId:X2}";
-                var vsInputs = isVertexShader ? StaticCombo.VShaderInputs[block.ShaderFileId] : -1;
+                // VShaderInputs is one entry per dynamic combo, indexed positionally.
+                var vsInputs = isVertexShader && dBlockIndex < StaticCombo.VShaderInputs.Length
+                    ? StaticCombo.VShaderInputs[dBlockIndex]
+                    : -1;
                 var gpuInputText = vsInputs >= 0 ? $"VS[{vsInputs}]" : "[none]";
                 var arg1Text = $"{StaticCombo.ConstantBufferBindInfoSlots[blockId]}";
                 var arg2Text = $"{StaticCombo.ConstantBufferBindInfoFlags[blockId]}";

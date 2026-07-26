@@ -385,10 +385,13 @@ public sealed class ShaderExtract
             var staticCombo = staticComboEntry.Value.Unserialize();
             var staticConfigState = staticConfig.GetConfigState(staticCombo.StaticComboId);
 
-            foreach (var vsEnd in staticCombo.DynamicCombos)
+            for (var i = 0; i < staticCombo.DynamicCombos.Length; i++)
             {
+                var vsEnd = staticCombo.DynamicCombos[i];
                 var dynamicConfigState = dynamicConfig.GetConfigState(vsEnd.DynamicComboId);
-                var vsInputId = staticCombo.VShaderInputs[vsEnd.ShaderFileId];
+
+                // VShaderInputs is one entry per dynamic combo, indexed positionally.
+                var vsInputId = staticCombo.VShaderInputs[i];
 
                 for (var j = 0; j < staticConfigState.Length; j++)
                 {

@@ -118,7 +118,7 @@ namespace ValveResourceFormat.CompiledShader
                     byteCodeReader.BaseStream.Position = byteCodeOffset;
                     ShaderFiles[i] = ParentProgramData.VcsPlatformType switch
                     {
-                        VcsPlatformType.VULKAN => new VfxShaderFileVulkan(byteCodeReader, i, hash, this),
+                        VcsPlatformType.VULKAN => new VfxShaderFileVulkan(byteCodeReader, i, (int)byteCodeSize, hash, this),
                         VcsPlatformType.PC => new VfxShaderFileDXBC(byteCodeReader, i, (int)byteCodeSize, hash, this),
                         _ => throw new NotImplementedException($"Unhandled bytecode reader for resource-encoded shader of platform {ParentProgramData.VcsPlatformType}")
                     };

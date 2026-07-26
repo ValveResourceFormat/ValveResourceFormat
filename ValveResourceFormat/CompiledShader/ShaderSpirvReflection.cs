@@ -354,8 +354,10 @@ public static partial class ShaderSpirvReflection
 
         // var leadingWriteSequence = shader.ZFrameCache.Get(zFrameId).DataBlocks[dynamicId];
 
-        var dynamicBlockIndex =
-            Array.Find(staticComboData.DynamicCombos, r => r.ShaderFileId == shaderFile.ShaderFileId)?.DynamicComboId ?? 0;
+        // Arrays that are one entry per dynamic combo (such as VShaderInputs) are indexed by the position of the
+        // combo, which is only the same as its id when no combos were skipped, and never the same as the shader file id.
+        var dynamicComboIndex = Array.FindIndex(staticComboData.DynamicCombos, r => r.ShaderFileId == shaderFile.ShaderFileId);
+        var dynamicBlockIndex = dynamicComboIndex >= 0 ? staticComboData.DynamicCombos[dynamicComboIndex].DynamicComboId : 0;
         var writeSequence = staticComboData.DynamicComboVariables[(int)dynamicBlockIndex];
 
         var bindingConfig = GetBindingConfiguration(program.VcsVersion, program.VcsProgramType);
@@ -377,79 +379,18 @@ public static partial class ShaderSpirvReflection
 
         var reflectedResources = SpirvCrossApi.spvc_resources_get_resource_list_for_type(resources, resourceType);
 
-        var (currentStageInputIndex, currentStageOutputIndex) = (0, 0);
         var isVertexShader = program.VcsProgramType is VcsProgramType.VertexShader;
-        Material.InputSignatureElement[]? vsInputElements = null;
+        Material.InputSignatureElement[] vsInputSignature = [];
 
-        if (isVertexShader)
+        // Only vertex shaders describe their vertex layout, and only since the attribute map was added to the metadata.
+        // Without one there is nothing that says which input sits at which location, so they are left unnamed.
+        var vertexLayout = isVertexShader && shaderFile is VfxShaderFileVulkan { AttribMap: not null } vulkanSource
+            ? vulkanSource
+            : null;
+
+        if (vertexLayout is not null && dynamicComboIndex >= 0 && dynamicComboIndex < staticComboData.VShaderInputs.Length)
         {
-            var inputSignature = program.VSInputSignatures[staticComboData.VShaderInputs[shaderFile.ShaderFileId]];
-
-            var unorderedElements = inputSignature.SymbolsDefinition.ToList();
-            vsInputElements = new Material.InputSignatureElement[unorderedElements.Count];
-            var vsInputIndex = 0;
-
-            Span<string> priority =
-            [
-                "Pos",
-                "PosXyz",
-
-                "Color",
-
-                "TexCoord",
-                "LowPrecisionUv",
-                "LowPrecisionUv1", // there may be more
-                "LightmapUV",
-
-                "Normal",
-                "TangentU_SignV",
-                "OptionallyCompressedTangentFrame",
-                "CompressedTangentFrame",
-
-                "BlendIndices",
-                "BlendWeight",
-
-                "InstanceTransformUv",
-
-                "VertexPaintBlendParams", // there may be more
-                "VertexPaintTintColor",
-                "PerVertexLighting" // todo: confirm this
-            ];
-
-            var shouldPrioritizeVertexColors = program.ShaderName == "csgo_water_fancy";
-
-            if (shouldPrioritizeVertexColors)
-            {
-                for (var i = 0; i < 3; i++)
-                {
-                    var colorIndex = priority.Length - 3 + i;
-                    var color = priority[colorIndex];
-
-                    // make place for the new item
-                    for (var j = colorIndex; j > i; j--)
-                    {
-                        priority[j] = priority[j - 1];
-                    }
-
-                    priority[i] = color;
-                }
-            }
-
-            foreach (var semantic in priority)
-            {
-                var elementIndex = unorderedElements.FindIndex(el => el.Semantic == semantic);
-                if (elementIndex != -1)
-                {
-                    var element = unorderedElements[elementIndex];
-                    vsInputElements[vsInputIndex++] = element;
-                    unorderedElements.Remove(element);
-                }
-            }
-
-            foreach (var element in unorderedElements)
-            {
-                vsInputElements[vsInputIndex++] = element;
-            }
+            vsInputSignature = program.VSInputSignatures[staticComboData.VShaderInputs[dynamicComboIndex]].SymbolsDefinition;
         }
 
         // Fallback (set, binding) for the synthesized _Globals_ uniform buffer when VCS has no matching Cbuffer variable:
@@ -466,6 +407,7 @@ public static partial class ShaderSpirvReflection
         {
             var binding = SpirvCrossApi.spvc_compiler_get_decoration(compiler, resource.id, SpvDecoration.Binding);
             var set = SpirvCrossApi.spvc_compiler_get_decoration(compiler, resource.id, SpvDecoration.DescriptorSet);
+            var location = SpirvCrossApi.spvc_compiler_get_decoration(compiler, resource.id, SpvDecoration.Location);
 
             var imageVfxType = resourceType is SpirvResourceType.SeparateImage
                 ? GetImageVfxType(compiler, resource.base_type_id)
@@ -483,8 +425,10 @@ public static partial class ShaderSpirvReflection
                     writeSequence, binding, set, bindingConfig),
                 SpirvResourceType.UniformBuffer => GetNameForUniformBuffer(program, writeSequence, binding, set)
                     ?? (binding == globalsBufferBinding && set == globalsBufferSet ? "_Globals_" : "undetermined"),
-                SpirvResourceType.StageInput => GetStageAttributeName(vsInputElements, currentStageInputIndex++, true),
-                SpirvResourceType.StageOutput => GetStageAttributeName(null, currentStageOutputIndex++, false),
+                SpirvResourceType.StageInput when vertexLayout is not null
+                    => GetVertexInputName(vertexLayout, vsInputSignature, location),
+                SpirvResourceType.StageInput => GetStageAttributeName(location, input: true),
+                SpirvResourceType.StageOutput => GetStageAttributeName(location, input: false),
                 _ => string.Empty
             };
 
@@ -791,21 +735,40 @@ public static partial class ShaderSpirvReflection
     }
 
     /// <summary>
-    /// Gets the name for a shader stage input or output attribute.
+    /// Gets the name of the vertex shader input at a given location, by asking the shader's attribute map which
+    /// vertex layout slot feeds that location and then matching the slot's semantic against the input signature.
     /// </summary>
-    /// <param name="vsInputElements">The input signature elements array.</param>
-    /// <param name="attributeIndex">The attribute index.</param>
-    /// <param name="input">True if this is an input attribute, false for output.</param>
-    /// <returns>The attribute name from the signature, or a generated name if not found.</returns>
-    public static string GetStageAttributeName(Material.InputSignatureElement[]? vsInputElements, int attributeIndex,
-        bool input)
+    /// <param name="vulkanSource">The vertex shader whose <see cref="VfxShaderFileVulkan.AttribMap"/> to consult.</param>
+    /// <param name="vsInputSignature">The input signature elements of this variant, in any order.</param>
+    /// <param name="location">The SPIR-V input location.</param>
+    /// <returns>The name from the signature, or a name derived from the Direct3D semantic if the signature has no matching element.</returns>
+    public static string GetVertexInputName(VfxShaderFileVulkan vulkanSource,
+        ReadOnlySpan<Material.InputSignatureElement> vsInputSignature, uint location)
     {
-        if (attributeIndex < vsInputElements?.Length)
+        if (!vulkanSource.TryGetInputSemantic(location, out var semanticName, out var semanticIndex))
         {
-            return vsInputElements[attributeIndex].Name;
+            return GetStageAttributeName(location, input: true);
         }
 
-        return $"{(input ? "input" : "output")}_{attributeIndex}";
+        foreach (var element in vsInputSignature)
+        {
+            if (element.D3DSemanticIndex == semanticIndex && element.D3DSemanticName == semanticName)
+            {
+                return element.Name;
+            }
+        }
+
+        return $"input_{semanticName}{semanticIndex}";
+    }
+
+    /// <summary>
+    /// Gets a placeholder name for a shader stage input or output attribute that nothing gives a name to.
+    /// </summary>
+    /// <param name="location">The SPIR-V location of the attribute.</param>
+    /// <param name="input">True if this is an input attribute, false for output.</param>
+    public static string GetStageAttributeName(uint location, bool input)
+    {
+        return $"{(input ? "input" : "output")}_{location}";
     }
 
     [GeneratedRegex(@"\bclamp\s*\(\s*([^\(\),]+?)\s*,\s*(?:0\.?0?|vec[2-4]\s*\(\s*0\.?0?\s*\))\s*,\s*(?:1\.?0?|vec[2-4]\s*\(\s*1\.?0?\s*\))\s*\)", RegexOptions.Compiled)]

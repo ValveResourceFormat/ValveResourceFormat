@@ -116,37 +116,37 @@ layout(set = 1, binding = 31) uniform texture2D g_tClouds;
 layout(set = 1, binding = 15) uniform sampler undetermined_2;
 layout(set = 1, binding = 38) uniform texture2D g_tGBufferDepth;
 
-layout(location = 2) in vec3 input_0;
-layout(location = 3) in vec4 input_1;
-layout(location = 0) in vec4 input_2;
-layout(location = 5) in vec3 input_3;
+layout(location = 2) in vec3 input_2;
+layout(location = 3) in vec4 input_3;
+layout(location = 0) in vec4 input_0;
+layout(location = 5) in vec3 input_5;
 layout(location = 4) in vec4 input_4;
-layout(location = 6) in vec4 input_5;
+layout(location = 6) in vec4 input_6;
 layout(location = 0) out vec4 output_0;
 
 void main()
 {
-    vec3 _7269 = normalize(input_0.xyz);
-    vec4 _20877 = texture(sampler2D(g_tNormal, DefaultSamplerState_0), input_2.xy);
+    vec3 _7269 = normalize(input_2.xyz);
+    vec4 _20877 = texture(sampler2D(g_tNormal, DefaultSamplerState_0), input_0.xy);
     vec2 _7707 = (_20877.wy * 2.0) - vec2(1.0);
     float _9481 = _7707.x;
     vec3 _22101;
     _22101.x = _9481;
     float _21775 = _7707.y;
     _22101.y = _21775;
-    vec3 _13110 = normalize((((normalize(input_1.xyz).xyz * _9481).xyz + ((normalize(cross(_7269.xyz, input_1.xyz)) * input_1.w).xyz * (-_21775))).xyz + (_7269.xyz * sqrt(clamp(1.0 - dot(_22101.xy, _22101.xy), 0.0, 1.0)))).xyz);
+    vec3 _13110 = normalize((((normalize(input_3.xyz).xyz * _9481).xyz + ((normalize(cross(_7269.xyz, input_3.xyz)) * input_3.w).xyz * (-_21775))).xyz + (_7269.xyz * sqrt(clamp(1.0 - dot(_22101.xy, _22101.xy), 0.0, 1.0)))).xyz);
     float _8729 = _13110.z;
-    vec3 _21537 = input_3.xyz - PerViewConstantBuffer_t.g_vCameraPositionWs.xyz;
+    vec3 _21537 = input_5.xyz - PerViewConstantBuffer_t.g_vCameraPositionWs.xyz;
     vec3 _13353 = -normalize(_21537);
     vec3 _18460 = _13110.xyz;
     vec4 _11179 = textureLod(sampler2D(g_tFresnelWarp, AddressU_Clamp_AddressV_Clamp_AddressW_Clamp), vec2(clamp(dot(_13353.xyz, _18460), 0.0, 1.0), 0.5), 0.0);
     float _9136 = _11179.z;
-    vec4 _19372 = texture(sampler2D(g_tMasks1, DefaultSamplerState_0), input_2.xy);
+    vec4 _19372 = texture(sampler2D(g_tMasks1, DefaultSamplerState_0), input_0.xy);
     float _7433 = max(_19372.z, _Globals_.g_flMetalnessBlendToFull);
     float _19248 = max(_19372.w, _Globals_.g_flSelfIllumBlendToFull);
-    vec4 _19373 = texture(sampler2D(g_tMasks2, DefaultSamplerState_0), input_2.xy);
-    vec4 _19680 = texture(sampler2D(g_tColor, DefaultSamplerState_0), input_2.xy);
-    vec3 _13062 = texture(sampler2D(g_tDetail, DefaultSamplerState_0), input_2.zw).xyz * _Globals_.g_vDetail1ColorTint.xyz;
+    vec4 _19373 = texture(sampler2D(g_tMasks2, DefaultSamplerState_0), input_0.xy);
+    vec4 _19680 = texture(sampler2D(g_tColor, DefaultSamplerState_0), input_0.xy);
+    vec3 _13062 = texture(sampler2D(g_tDetail, DefaultSamplerState_0), input_0.zw).xyz * _Globals_.g_vDetail1ColorTint.xyz;
     vec4 _23714;
     _23714.x = _13062.x;
     _23714.y = _13062.y;
@@ -189,7 +189,7 @@ void main()
         float _12501;
         if (undetermined._m14 > 0.0)
         {
-            vec4 _15818 = mat4(vec4(undetermined._m10._m0[0].x, undetermined._m10._m0[1].x, undetermined._m10._m0[2].x, undetermined._m10._m0[3].x), vec4(undetermined._m10._m0[0].y, undetermined._m10._m0[1].y, undetermined._m10._m0[2].y, undetermined._m10._m0[3].y), vec4(undetermined._m10._m0[0].z, undetermined._m10._m0[1].z, undetermined._m10._m0[2].z, undetermined._m10._m0[3].z), vec4(undetermined._m10._m0[0].w, undetermined._m10._m0[1].w, undetermined._m10._m0[2].w, undetermined._m10._m0[3].w)) * vec4(input_3.xyz, 1.0);
+            vec4 _15818 = mat4(vec4(undetermined._m10._m0[0].x, undetermined._m10._m0[1].x, undetermined._m10._m0[2].x, undetermined._m10._m0[3].x), vec4(undetermined._m10._m0[0].y, undetermined._m10._m0[1].y, undetermined._m10._m0[2].y, undetermined._m10._m0[3].y), vec4(undetermined._m10._m0[0].z, undetermined._m10._m0[1].z, undetermined._m10._m0[2].z, undetermined._m10._m0[3].z), vec4(undetermined._m10._m0[0].w, undetermined._m10._m0[1].w, undetermined._m10._m0[2].w, undetermined._m10._m0[3].w)) * vec4(input_5.xyz, 1.0);
             vec3 _10522 = _15818.xyz / vec3(_15818.w);
             vec4 _22906;
             _22906.x = _10522.x;
@@ -252,7 +252,7 @@ void main()
         }
         else
         {
-            vec4 _15817 = mat4(vec4(undetermined._m10._m0[0].x, undetermined._m10._m0[1].x, undetermined._m10._m0[2].x, undetermined._m10._m0[3].x), vec4(undetermined._m10._m0[0].y, undetermined._m10._m0[1].y, undetermined._m10._m0[2].y, undetermined._m10._m0[3].y), vec4(undetermined._m10._m0[0].z, undetermined._m10._m0[1].z, undetermined._m10._m0[2].z, undetermined._m10._m0[3].z), vec4(undetermined._m10._m0[0].w, undetermined._m10._m0[1].w, undetermined._m10._m0[2].w, undetermined._m10._m0[3].w)) * vec4(input_3.xyz, 1.0);
+            vec4 _15817 = mat4(vec4(undetermined._m10._m0[0].x, undetermined._m10._m0[1].x, undetermined._m10._m0[2].x, undetermined._m10._m0[3].x), vec4(undetermined._m10._m0[0].y, undetermined._m10._m0[1].y, undetermined._m10._m0[2].y, undetermined._m10._m0[3].y), vec4(undetermined._m10._m0[0].z, undetermined._m10._m0[1].z, undetermined._m10._m0[2].z, undetermined._m10._m0[3].z), vec4(undetermined._m10._m0[0].w, undetermined._m10._m0[1].w, undetermined._m10._m0[2].w, undetermined._m10._m0[3].w)) * vec4(input_5.xyz, 1.0);
             vec3 _10521 = _15817.xyz / vec3(_15817.w);
             vec4 _22905;
             _22905.x = _10521.x;
@@ -268,7 +268,7 @@ void main()
     vec3 _13833 = -undetermined._m0.xyz;
     vec3 _13845 = _13110.xyz;
     float _17643 = dot(_13845, _13833.xyz);
-    vec2 _21656 = (input_3.xyz + (undetermined._m0.xyz * input_3.y)).xy * (1.0 / undetermined._m9);
+    vec2 _21656 = (input_5.xyz + (undetermined._m0.xyz * input_5.y)).xy * (1.0 / undetermined._m9);
     vec3 _21103 = (((vec3(fma(_17643, 0.5, 0.5) * _21709).xyz * undetermined._m1.xyz).xyz + (((undetermined._m4.xyz * clamp(dot(undetermined._m2.xyz, _18460), 0.0, 1.0)) * undetermined._m3) * _Globals_.g_flAmbientScale)).xyz + (((mix(undetermined._m12.xyz, undetermined._m5.xyz, vec3(fma(_8729, 0.5, 0.5))) * undetermined._m6) * max(1.0 - _21709, 1.0 - clamp(min(texture(sampler2D(g_tClouds, undetermined_2), (_21656 + undetermined._m7.xy).xy).x, texture(sampler2D(g_tClouds, undetermined_2), (_21656 + undetermined._m8.xy).xy).y), 0.0, 1.0))) * _Globals_.g_flAmbientScale)).xyz * _19017.xyz;
     vec4 _11665 = vec4(_21103, _13553 * input_4.w);
     vec3 _14166 = (((((vec3(saturate(_17643) * pow(max(0.001000000047497451305389404296875, clamp(dot(_13833.xyz, -reflect(_13353.xyz, _13845).xyz), 0.0, 1.0)), max(_19373.w, _Globals_.g_flSpecularExponentBlendToFull) * _Globals_.g_flSpecularExponent)).xyz * undetermined._m1.xyz).xyz * _Globals_.g_flSpecularScale).xyz * max(_19373.x, _Globals_.g_flSpecularBlendToFull)).xyz * mix(_19680.xyz, _Globals_.g_vSpecularColor.xyz, vec3(max(_19373.z, _Globals_.g_flReflectionsTintByBaseBlendToNone)))).xyz * max(_9136, _7433)).xyz;
@@ -281,7 +281,7 @@ void main()
     _17843.x = _25192.x;
     _17843.y = _25192.y;
     _17843.z = _25192.z;
-    vec3 _15753 = _17843.xyz + (((input_5.xyz * max(_19373.y, _Globals_.g_flEnvMapBlendToFull)).xyz * max(0.0, _8729)).xyz * _11179.x).xyz;
+    vec3 _15753 = _17843.xyz + (((input_6.xyz * max(_19373.y, _Globals_.g_flEnvMapBlendToFull)).xyz * max(0.0, _8729)).xyz * _11179.x).xyz;
     vec4 _20489 = _17843;
     _20489.x = _15753.x;
     _20489.y = _15753.y;
@@ -313,7 +313,7 @@ void main()
     vec4 _12888;
     if (_Globals_.g_bFog != 0.0)
     {
-        vec3 _19802 = mix(_8674.xyz, PerViewConstantBuffer_t.g_vFogColor.xyz, vec3(clamp(min(PerViewConstantBuffer_t.g_flFogMaxDensity, pow(clamp(fma(distance(input_3.xyz, PerViewConstantBuffer_t.g_vCameraPositionWs.xyz), PerViewConstantBuffer_t.g_flInvFogRange, PerViewConstantBuffer_t.g_flNegFogStartOverFogRange), 0.0, 1.0), PerViewConstantBuffer_t.g_flFogExponent)), 0.0, 1.0)));
+        vec3 _19802 = mix(_8674.xyz, PerViewConstantBuffer_t.g_vFogColor.xyz, vec3(clamp(min(PerViewConstantBuffer_t.g_flFogMaxDensity, pow(clamp(fma(distance(input_5.xyz, PerViewConstantBuffer_t.g_vCameraPositionWs.xyz), PerViewConstantBuffer_t.g_flInvFogRange, PerViewConstantBuffer_t.g_flNegFogStartOverFogRange), 0.0, 1.0), PerViewConstantBuffer_t.g_flFogExponent)), 0.0, 1.0)));
         vec4 _17846 = _8674;
         _17846.x = _19802.x;
         _17846.y = _19802.y;
@@ -358,18 +358,18 @@ void main()
         _21710 = _8675;
     }
     float _10763 = min(150.0, undetermined._m15.x);
-    vec3 _14277 = undetermined._m13 - input_3;
+    vec3 _14277 = undetermined._m13 - input_5;
     vec3 _12686 = _21537.xyz;
     float _16773 = fma(_10763, _Globals_.g_flPortalRadiusScale, -_Globals_.g_flPortalWidth);
     float _19250 = clamp((length(_14277 * vec3(1.0, 1.0, _Globals_.g_flPortalStretch)) - _16773) / (fma(_10763, _Globals_.g_flPortalRadiusScale, _Globals_.g_flPortalWidth) - _16773), 0.0, 1.0);
     vec2 _21711;
-    if (input_3.x < input_3.y)
+    if (input_5.x < input_5.y)
     {
-        _21711 = input_3.yz;
+        _21711 = input_5.yz;
     }
     else
     {
-        _21711 = input_3.xz;
+        _21711 = input_5.xz;
     }
     vec2 _12553 = (vec2(-PerViewConstantBuffer_t.g_flTime) * _Globals_.g_flPortalAnimationSpeed) + _21711;
     float _8310 = saturate(1.0 - _19250);
@@ -395,7 +395,7 @@ void main()
     {
         discard;
     }
-    output_0 = _21710.xyzw * ((fma(_Globals_.g_flPortalEdgeBrightness, (_19250 >= 0.99989998340606689453125) ? 0.0 : (1.0 - smoothstep(_8310, _8310 + _Globals_.g_flPortalEdgeWidth, _23053)), mix(0.0, 0.699999988079071044921875, pow(1.0 - clamp(dot(_14277, _14277) / (_Globals_.g_flPortalVisibilityDistance * _Globals_.g_flPortalVisibilityDistance), 0.0, 1.0), 13.0) * 2.0)) * _19250) * clamp((distance(input_3, (PerViewConstantBuffer_t.g_vCameraPositionWs.xyz + (_12686 * (1.0 / (fma(clamp((texelFetch(g_tGBufferDepth, ivec3(ivec2(gl_FragCoord.xy), 0).xy, 0).x - PerViewConstantBuffer_t.g_flViewportMinZ) / (PerViewConstantBuffer_t.g_flViewportMaxZ - PerViewConstantBuffer_t.g_flViewportMinZ), 0.0, 1.0), PerViewConstantBuffer_t.g_vInvProjRow3.z, PerViewConstantBuffer_t.g_vInvProjRow3.w) * dot(PerViewConstantBuffer_t.g_vCameraDirWs.xyz, _12686))))).xyz) - 10.0) * 0.0500000007450580596923828125, 0.0, 1.0));
+    output_0 = _21710.xyzw * ((fma(_Globals_.g_flPortalEdgeBrightness, (_19250 >= 0.99989998340606689453125) ? 0.0 : (1.0 - smoothstep(_8310, _8310 + _Globals_.g_flPortalEdgeWidth, _23053)), mix(0.0, 0.699999988079071044921875, pow(1.0 - clamp(dot(_14277, _14277) / (_Globals_.g_flPortalVisibilityDistance * _Globals_.g_flPortalVisibilityDistance), 0.0, 1.0), 13.0) * 2.0)) * _19250) * clamp((distance(input_5, (PerViewConstantBuffer_t.g_vCameraPositionWs.xyz + (_12686 * (1.0 / (fma(clamp((texelFetch(g_tGBufferDepth, ivec3(ivec2(gl_FragCoord.xy), 0).xy, 0).x - PerViewConstantBuffer_t.g_flViewportMinZ) / (PerViewConstantBuffer_t.g_flViewportMaxZ - PerViewConstantBuffer_t.g_flViewportMinZ), 0.0, 1.0), PerViewConstantBuffer_t.g_vInvProjRow3.z, PerViewConstantBuffer_t.g_vInvProjRow3.w) * dot(PerViewConstantBuffer_t.g_vCameraDirWs.xyz, _12686))))).xyz) - 10.0) * 0.0500000007450580596923828125, 0.0, 1.0));
 }
 
 
