@@ -223,6 +223,14 @@ namespace ValveResourceFormat.Renderer
                 newPlayer.IsPaused = player.IsPaused;
             }
 
+            if (newPlayer != modelPlayer)
+            {
+                // The model mixer is no longer producing the pose, and its clips stop advancing while
+                // an external player drives. Clear them so a later transition back cannot blend from
+                // a clip frozen at the moment we switched away.
+                modelPlayer.ClearClips();
+            }
+
             player = newPlayer;
             remapTable = newRemapTable;
 
