@@ -357,8 +357,8 @@ public static partial class ShaderSpirvReflection
         // Arrays that are one entry per dynamic combo (such as VShaderInputs) are indexed by the position of the
         // combo, which is only the same as its id when no combos were skipped, and never the same as the shader file id.
         var dynamicComboIndex = Array.FindIndex(staticComboData.DynamicCombos, r => r.ShaderFileId == shaderFile.ShaderFileId);
-        var dynamicBlockIndex = dynamicComboIndex >= 0 ? staticComboData.DynamicCombos[dynamicComboIndex].DynamicComboId : 0;
-        var writeSequence = staticComboData.DynamicComboVariables[(int)dynamicBlockIndex];
+        var dynamicComboId = dynamicComboIndex >= 0 ? staticComboData.DynamicCombos[dynamicComboIndex].DynamicComboId : 0;
+        var writeSequence = staticComboData.DynamicComboVariables[Math.Max(staticComboData.GetDynamicComboIndex(dynamicComboId), 0)];
 
         var bindingConfig = GetBindingConfiguration(program.VcsVersion, program.VcsProgramType);
         var hasBindlessResources =
@@ -771,12 +771,36 @@ public static partial class ShaderSpirvReflection
         return $"{(input ? "input" : "output")}_{location}";
     }
 
-    [GeneratedRegex(@"\bclamp\s*\(\s*([^\(\),]+?)\s*,\s*(?:0\.?0?|vec[2-4]\s*\(\s*0\.?0?\s*\))\s*,\s*(?:1\.?0?|vec[2-4]\s*\(\s*1\.?0?\s*\))\s*\)", RegexOptions.Compiled)]
+    // The clamped expression is matched with a balancing group so that it can contain nested calls and their
+    // commas, which is the usual case: clamp(dot(a, b), 0.0, 1.0). The bounds accept both backends' spelling,
+    // including the hlsl float suffix and splats such as vec3(0.0) or float4(0.0f, 0.0f, 0.0f, 0.0f).
+    [GeneratedRegex("""
+        \bclamp\s*\(\s*
+            (?<arg> (?: [^(),] | (?<depth>\() | (?<-depth>\)) | (?(depth),|(?!)) )+? )
+            (?(depth)(?!))
+        \s*,\s*
+            (?: 0(?:\.0*)?[fF]? | (?:vec|float|half)[2-4]\s*\(\s*0(?:\.0*)?[fF]?(?:\s*,\s*0(?:\.0*)?[fF]?)*\s*\) )
+        \s*,\s*
+            (?: 1(?:\.0*)?[fF]? | (?:vec|float|half)[2-4]\s*\(\s*1(?:\.0*)?[fF]?(?:\s*,\s*1(?:\.0*)?[fF]?)*\s*\) )
+        \s*\)
+        """, RegexOptions.IgnorePatternWhitespace)]
     private static partial Regex Clamp01();
 
     private static string ReplaceCommonPatterns(string code)
     {
-        code = Clamp01().Replace(code, "saturate($1)");
+        // Replace() resumes after each match, so a clamp nested inside another one is skipped on the first
+        // pass. Repeat until the code stops changing, one level of nesting gets folded per pass.
+        for (var pass = 0; pass < 8; pass++)
+        {
+            var replaced = Clamp01().Replace(code, "saturate(${arg})");
+
+            if (string.Equals(replaced, code, StringComparison.Ordinal))
+            {
+                break;
+            }
+
+            code = replaced;
+        }
 
         return code;
     }
