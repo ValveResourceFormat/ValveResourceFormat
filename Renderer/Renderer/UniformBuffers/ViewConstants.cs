@@ -8,8 +8,29 @@ namespace ValveResourceFormat.Renderer.Buffers
     [StructLayout(LayoutKind.Sequential, Pack = 16)]
     public class ViewConstants
     {
-        /// <summary>A view remapped against itself: unit scale, no bias. Statics are not part of the layout.</summary>
+        /// <summary>A view remapped against itself: unit scale, no bias.</summary>
         public static readonly Vector4 PixelRemapIdentity = new(1f, 1f, 0f, 0f);
+
+        /// <summary>
+        /// Gets the distance to the near plane this view was projected with.
+        /// </summary>
+        /// <remarks>
+        /// Recovered from the projection rather than carried as its own field, so it costs nothing in the
+        /// layout this class is marshalled to the GPU with. The reverse Z form
+        /// <see cref="Camera.CreateProjectionMatrix"/> builds has <c>M33 = near / (far - near)</c> and
+        /// <c>M43 = near * far / (far - near)</c>, which inverts to this exactly, and collapses to plain
+        /// <c>M43</c> for an infinite far plane, where M33 is zero.
+        /// </remarks>
+        public float NearPlane => ViewToProjection.M43 / (1f + ViewToProjection.M33);
+
+        /// <summary>
+        /// Gets the distance to the far plane this view was projected with, or
+        /// <see cref="float.PositiveInfinity"/> when the projection has none.
+        /// </summary>
+        /// <remarks>See <see cref="NearPlane"/> for where these come out of the matrix.</remarks>
+        public float FarPlane => ViewToProjection.M33 != 0f
+            ? ViewToProjection.M43 / ViewToProjection.M33
+            : float.PositiveInfinity;
 
         /// <summary>Combined world-to-clip transform (view * projection).</summary>
         public Matrix4x4 WorldToProjection = Matrix4x4.Identity;
