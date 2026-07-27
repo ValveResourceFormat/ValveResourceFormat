@@ -602,8 +602,8 @@ namespace ValveResourceFormat.Renderer.World
         }
 
         /// <summary>
-        /// Gets what bounds every binned barn light face, in the same order the fragment shader indexes
-        /// them, so cull items keep bit position aligned with light index.
+        /// Gets what bounds every binned barn light face, in the order the shading pass indexes them, so
+        /// a cull item's bit position is its light index.
         /// </summary>
         public ReadOnlySpan<BarnLightCullVolume> BinnedBarnLightVolumes
             => BinnedBarnLightCullVolumes.AsSpan(0, (int)LightingData.NumBarnLights);

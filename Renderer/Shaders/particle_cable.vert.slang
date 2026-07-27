@@ -51,8 +51,7 @@ void main(void)
 #if (S_SCENE_CUBEMAP_TYPE == 1)
     g_nEnvMapIndex = 0u;
 #elif (S_SCENE_CUBEMAP_TYPE == 2)
-    // Cables carry no per object probe list, so let the tile masks alone decide.
-    g_nEnvMapVisibility = uvec4(0xFFFFFFFFu);
+    g_nEnvMapVisibility = uvec4(0u); // no envmap fetch?
 #endif
 
     gl_Position = g_matWorldToProjection * vec4(aVertexPosition, 1.0);

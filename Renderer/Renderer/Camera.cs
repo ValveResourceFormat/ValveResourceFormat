@@ -171,16 +171,14 @@ namespace ValveResourceFormat.Renderer
         }
 
         /// <summary>
-        /// Distance from the eye to the near plane. Nothing closer than this is ever rasterized, so the GPU
-        /// light cull pass clips light volumes against it before reducing them to screen tiles.
-        /// Call <see cref="CreateProjectionMatrix"/> after changing it.
+        /// Distance from the eye to the near plane. Also where the light cull pass clips light volumes and
+        /// where its depth slices start. Call <see cref="CreateProjectionMatrix"/> after changing it.
         /// </summary>
         public float NearPlane { get; set; } = 1.0f;
 
         /// <summary>
-        /// Distance from the eye to the far plane, or <see cref="float.PositiveInfinity"/> for a projection
-        /// with no far plane at all, which is the default.
-        /// Call <see cref="CreateProjectionMatrix"/> after changing it.
+        /// Distance from the eye to the far plane, or <see cref="float.PositiveInfinity"/> for none, the
+        /// default. Call <see cref="CreateProjectionMatrix"/> after changing it.
         /// </summary>
         public float FarPlane { get; set; } = float.PositiveInfinity;
 
@@ -193,21 +191,14 @@ namespace ValveResourceFormat.Renderer
         }
 
         /// <summary>
-        /// Maps a pixel of this camera's view to the pixel the same world ray lands on in
-        /// <paramref name="target"/>'s view, as an xy scale and a zw bias in pixels.
+        /// Maps a pixel of this camera's view to the one the same world ray lands on in
+        /// <paramref name="target"/>'s view, as an xy scale and a zw bias in pixels. This is what lets a
+        /// pass drawn at a different field of view find its light cull tile from gl_FragCoord alone.
         /// </summary>
         /// <remarks>
-        /// <para>
-        /// Exact while the two cameras share an eye position and an orientation and differ only in
-        /// projection, which is exactly what the viewmodel is: its own field of view, everything else
-        /// copied from the main camera. Both projections turn a view ray into ndc by the same shape of
-        /// expression, <c>ndc = scale * (x / -z)</c>, so eliminating the ray between them leaves an affine
-        /// map from one screen to the other with no dependence on how far along the ray the surface sits.
-        /// </para>
-        /// <para>
-        /// That is what lets a pass drawn at a different field of view find its light cull tile from
-        /// gl_FragCoord alone, instead of transforming a world position back into the culled view.
-        /// </para>
+        /// Exact while the two cameras differ only in projection, which is what the viewmodel is. Both
+        /// turn a view ray into ndc by the same shape of expression, <c>ndc = scale * (x / -z)</c>, so
+        /// eliminating the ray leaves an affine map with no dependence on distance along it.
         /// </remarks>
         /// <param name="target">The camera whose screen the result maps into.</param>
         /// <param name="viewportSize">Pixel dimensions both cameras draw into.</param>
@@ -224,9 +215,8 @@ namespace ValveResourceFormat.Renderer
 
         /// <inheritdoc cref="Matrix4x4.CreatePerspectiveFieldOfView"/>
         /// <remarks>
-        /// Note: Reverse-Z. Far plane is swapped with near plane, so the near plane maps to ndc z 1 and the
-        /// far plane to 0. An infinite far plane is the limit of the finite case as far grows, but the
-        /// finite expressions evaluate to NaN there, so it keeps its own branch.
+        /// Reverse-Z: the near plane maps to ndc z 1 and the far plane to 0. An infinite far plane is the
+        /// limit of the finite case, but the finite expressions evaluate to NaN there, so it branches.
         /// </remarks>
         private static Matrix4x4 CreatePerspectiveFieldOfView_ReverseZ(float fieldOfView, float aspectRatio, float nearPlaneDistance, float farPlaneDistance)
         {

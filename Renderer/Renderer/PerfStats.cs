@@ -412,10 +412,8 @@ public class PerfStats
     }
 
     /// <summary>
-    /// One line of what the tile and depth bin binning produced. Barn lights are counted per face, the
-    /// unit the binner works in, which is not the same set as the faces the shadow line reports: that one
-    /// counts faces submitted for shadow rendering. The binned counts are the items that projected to
-    /// something a tile can match, so the gap to the slot counts is what the CPU rejected outright.
+    /// One line of what binning produced. Counts are per barn light face, the unit the binner works in,
+    /// which is not the set the shadow line reports - that counts faces submitted for shadow rendering.
     /// </summary>
     private static string FormatBinnerStats(LightBinner.BinnerStats stats)
     {

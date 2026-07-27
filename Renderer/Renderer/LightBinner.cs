@@ -8,12 +8,11 @@ namespace ValveResourceFormat.Renderer;
 
 /// <summary>
 /// Per scene owner of the tile and depth bin cull passes: the item layout, the GPU buffers they read and
-/// write, and the view constants that tell the shading pass where to look.
+/// write, and the constants that tell the shading pass where to look.
 /// </summary>
 /// <remarks>
-/// One of these belongs to each <see cref="Scene"/>, because the bit indices it produces are positions in
-/// that scene's barn light and env map arrays. The 3D skybox is a separate scene with separate arrays, so
-/// its bits are only meaningful against its own.
+/// One per <see cref="Scene"/>, because the bit indices it produces are positions in that scene's barn
+/// light and env map arrays. The 3D skybox has its own arrays, so its bits mean nothing against these.
 /// </remarks>
 public sealed class LightBinner(Scene scene) : IDisposable
 {
@@ -27,8 +26,8 @@ public sealed class LightBinner(Scene scene) : IDisposable
     private const int DepthSliceCount = 32; // todo: experiment with 64 and higher.
 
     /// <summary>
-    /// Floor for the fitted slice far, in world units. A scene with nothing binned, or with everything
-    /// bunched up against the camera, still needs a range wide enough to be worth distributing.
+    /// Floor for the fitted slice far, in world units. A scene with nothing binned still needs a range
+    /// wide enough to be worth distributing.
     /// </summary>
     private const float MinSliceFar = 256f;
 
@@ -68,8 +67,8 @@ public sealed class LightBinner(Scene scene) : IDisposable
     }
 
     /// <summary>
-    /// Points this pass's pixels at the ones the masks were built for. A pass drawn into the same target
-    /// through a different projection, the viewmodel, cannot take its tile from gl_FragCoord directly.
+    /// Points this pass's pixels at the ones the masks were built for. The viewmodel draws into the same
+    /// target through a different projection, so it cannot take its tile from gl_FragCoord directly.
     /// </summary>
     /// <param name="remap">Pixel remap: xy scale, zw bias.</param>
     public void SetPixelRemap(Vector4 remap)
@@ -83,15 +82,15 @@ public sealed class LightBinner(Scene scene) : IDisposable
     }
 
     /// <summary>What this scene's binner produced for the frame, for the render stats display.</summary>
-    /// <param name="Active">Whether items were binned at all, as opposed to every mask being filled with ones.</param>
-    /// <param name="Faces">Barn light faces that reached a tile, out of the faces the shading pass iterates.</param>
+    /// <param name="Active">Whether items were binned, as opposed to every mask being filled with ones.</param>
+    /// <param name="Faces">Barn light faces that reached a tile.</param>
     /// <param name="FaceSlots">Barn light faces the shading pass iterates.</param>
-    /// <param name="Probes">Env map probes that reached a tile, out of the probes the shading pass iterates.</param>
+    /// <param name="Probes">Env map probes that reached a tile.</param>
     /// <param name="ProbeSlots">Env map probes the shading pass iterates.</param>
     /// <param name="HullVertices">Silhouette vertices the tile pass walks across every item.</param>
-    /// <param name="MaskBytes">Size of the tile and depth bin mask buffer for this layout.</param>
-    /// <param name="SliceFar">Far distance the depth slice distribution was fitted to.</param>
-    /// <param name="SliceRatio">How much deeper each slice is than the one before it.</param>
+    /// <param name="MaskBytes">Size of the mask buffer for this layout.</param>
+    /// <param name="SliceFar">Far distance the slice distribution was fitted to.</param>
+    /// <param name="SliceRatio">How much deeper each slice is than the last.</param>
     internal readonly record struct BinnerStats(
         bool Active, int Faces, int FaceSlots, int Probes, int ProbeSlots, int HullVertices, int MaskBytes,
         float SliceFar, float SliceRatio);
@@ -125,12 +124,10 @@ public sealed class LightBinner(Scene scene) : IDisposable
     }
 
     /// <summary>
-    /// Projects every cull item for this frame and writes the resulting tile grid layout into
-    /// <paramref name="viewConstants"/>. Must run before the view buffer upload that precedes
-    /// <see cref="Dispatch"/>: the fragment shader reads the layout from the view constants, so it has to
-    /// be on the GPU before the first dispatch.
+    /// Projects every cull item for this frame and publishes the resulting layout. Must run before the
+    /// view buffer upload preceding <see cref="Dispatch"/>, since the shading pass reads the layout.
     /// </summary>
-    /// <param name="viewConstants">View constants to publish the layout into.</param>
+    /// <param name="viewConstants">View the items are projected against.</param>
     /// <param name="viewportWidth">Viewport width in pixels.</param>
     /// <param name="viewportHeight">Viewport height in pixels.</param>
     /// <param name="enabled">Whether the caller wants binning this frame.</param>
@@ -179,11 +176,10 @@ public sealed class LightBinner(Scene scene) : IDisposable
         Constants.LightSliceCount = DepthSliceCount;
 
         // Read after End, which is where the feeder fits the range to the items it just projected.
-        var depthKeyRange = Feeder.DepthKeyRange;
-
+        // Slices per octave, then the reciprocal near plane the octaves are counted from.
         Constants.LightDepthSliceParams = new Vector4(
-            DepthSliceCount / depthKeyRange,
-            -DepthSliceCount * MathF.Log2(viewConstants.NearPlane) / depthKeyRange,
+            DepthSliceCount / Feeder.DepthKeyRange,
+            1f / Feeder.SliceNear,
             0f, 0f);
 
         Constants.EnvMapTileBase = Feeder.TileBase(TiledCullFeeder.BatchEnvMaps);
@@ -201,9 +197,8 @@ public sealed class LightBinner(Scene scene) : IDisposable
     }
 
     /// <summary>
-    /// Builds the tile and depth bin masks so the shading pass can iterate only the items that reach a
-    /// given fragment. The items were already projected and frustum rejected on the CPU by
-    /// <see cref="Update"/>; these two passes only rasterize them into bits.
+    /// Rasterizes the items <see cref="Update"/> projected into per tile and per depth bin masks, so the
+    /// shading pass iterates only what reaches a given fragment.
     /// </summary>
     public void Dispatch()
     {
@@ -250,8 +245,8 @@ public sealed class LightBinner(Scene scene) : IDisposable
     }
 
     /// <summary>
-    /// Grows the GPU buffers to fit the layout the feeder just produced. The bits buffer is sized from the
-    /// batch layout rather than a worst case, so a scene with few items pays for few words.
+    /// Grows the GPU buffers to fit the layout the feeder just produced. The bits buffer is sized from
+    /// that layout rather than a worst case, so a scene with few items pays for few words.
     /// </summary>
     private void EnsureBuffers()
     {
@@ -280,9 +275,8 @@ public sealed class LightBinner(Scene scene) : IDisposable
     }
 
     /// <summary>
-    /// Feeds the depth pyramid to the optional occlusion test in <c>compute_tile_cullbits</c>. That test is
-    /// behind a shader constant, because occluding a cull item is only sound when every receiver that reads
-    /// it is opaque; these are set regardless so enabling it needs no CPU change.
+    /// Feeds the depth pyramid to the occlusion test in <c>compute_tile_cullbits</c>. The test sits behind
+    /// a shader constant, but these are set regardless so toggling it needs no CPU change.
     /// </summary>
     private void SetOcclusionUniforms(Shader shader)
     {

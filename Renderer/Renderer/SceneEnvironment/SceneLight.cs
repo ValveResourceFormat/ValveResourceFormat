@@ -66,15 +66,14 @@ public class SceneLight(Scene scene) : SceneNode(scene)
         public Matrix4x4 WorldToFrustum { get; set; }
 
         /// <summary>
-        /// Gets or sets the inverse of <see cref="WorldToFrustum"/>. Mapping the clip space cube through
-        /// it recovers the face's lit volume in world space, which the GPU light cull pass bins to tiles.
+        /// Gets or sets the inverse of <see cref="WorldToFrustum"/>. Mapping the clip cube through it
+        /// recovers the face's lit volume in world space, which the light cull pass bins to tiles.
         /// </summary>
         public Matrix4x4 FrustumToWorld { get; set; }
 
         /// <summary>
-        /// Gets or sets the map from the cube [-1,1]^3 to the face's illumination OBB, which is the second
-        /// volume the shader rejects fragments outside of. Default when the face has no OBB, which is the
-        /// same condition as <c>BarnIlluminationFromWorld</c> being default.
+        /// Gets or sets the map from the cube [-1,1]^3 to the illumination OBB, the second volume the
+        /// shader rejects fragments outside of. Default when the face has no OBB.
         /// </summary>
         public Matrix4x4 ObbToWorld { get; set; }
     }
@@ -766,8 +765,8 @@ public class SceneLight(Scene scene) : SceneNode(scene)
 
     /// <summary>
     /// Both matrices of an illumination OBB: the one the shader rejects fragments with, and its inverse,
-    /// which is what recovers the box in world space. Returned together because the light cull pass has to
-    /// bin exactly the box the shader lights inside of, and the 0.999 shrink makes that easy to get wrong.
+    /// which recovers the box in world space. Returned together because the cull pass has to bin exactly
+    /// the box the shader lights inside of, and the shrink factor makes that easy to get wrong.
     /// </summary>
     private static (OpenTK.Mathematics.Matrix3x4 IlluminationFromWorld, Matrix4x4 ObbToWorld)
         ComputeObbMatrices(Vector3 center, Vector3 extent, Vector3 angles)

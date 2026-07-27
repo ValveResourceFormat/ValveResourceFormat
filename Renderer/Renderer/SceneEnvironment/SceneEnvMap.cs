@@ -9,9 +9,8 @@ namespace ValveResourceFormat.Renderer.SceneEnvironment;
 public class SceneEnvMap : SceneNode
 {
     /// <summary>
-    /// Skin added to the probe's box on every side. The shader tests the fragment against the grown box,
-    /// so anything deciding where the probe reaches has to grow it by the same amount or describe a
-    /// smaller volume than the one that actually reflects.
+    /// Skin added to the probe's box on every side. The shader tests fragments against the grown box, so
+    /// anything deciding where the probe reaches must grow it by the same amount.
     /// </summary>
     public const float BoundsExtend = 0.02f;
 
@@ -88,10 +87,10 @@ public class SceneEnvMap : SceneNode
         }
 
         /// <summary>
-        /// Returns the array index of the lowest env map set in this bitmask, or zero when it is empty.
-        /// <see cref="SceneEnvMap.ShaderIndex"/> is assigned in indoor priority order, so that is the
-        /// highest priority probe this node can see, which is the one the legacy per batch cube map path
-        /// binds. Ties on priority resolve arbitrarily; only the priority ordering is meaningful.
+        /// Returns the array index of the lowest env map set here, or zero when empty. Since
+        /// <see cref="SceneEnvMap.ShaderIndex"/> is assigned in indoor priority order, that is the highest
+        /// priority probe the node sees, which is what the legacy per batch cube map path binds. Ties
+        /// resolve arbitrarily.
         /// </summary>
         public readonly uint GetFirstShaderIndex()
         {
