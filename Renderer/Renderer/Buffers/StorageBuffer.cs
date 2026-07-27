@@ -111,6 +111,19 @@ namespace ValveResourceFormat.Renderer.Buffers
             GL.ClearNamedBufferData(Handle, PixelInternalFormat.R32ui, PixelFormat.RedInteger, PixelType.UnsignedInt, IntPtr.Zero);
         }
 
+        /// <summary>
+        /// Zeroes the buffer on the GPU, never through a persistent mapping.
+        /// </summary>
+        /// <remarks>
+        /// <see cref="Clear"/> prefers the mapping when there is one, which is wrong for a buffer the GPU
+        /// writes and the CPU only reads: the mapping is read only, and a CPU store would race whatever the
+        /// GPU has in flight. This orders behind the preceding GL commands instead.
+        /// </remarks>
+        public void ClearOnGpu()
+        {
+            GL.ClearNamedBufferData(Handle, PixelInternalFormat.R32ui, PixelFormat.RedInteger, PixelType.UnsignedInt, IntPtr.Zero);
+        }
+
         /// <summary>Fills the entire buffer with a repeating 32 bit value.</summary>
         /// <param name="value">The value written to every 32 bit word.</param>
         public unsafe void Fill(uint value)

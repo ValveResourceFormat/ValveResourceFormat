@@ -401,15 +401,13 @@ public class Renderer
 
         var cullWidth = (int)ViewBuffer.Data.ViewportSize.X;
         var cullHeight = (int)ViewBuffer.Data.ViewportSize.Y;
-        var cullEnabled = LockedCullFrustum == null;
 
-        scene.LightBinner.Update(ViewBuffer.Data, cullWidth, cullHeight, cullEnabled);
+        var tileCullEnabled = LockedCullFrustum == null && scene.EnableLightTileCulling;
+        scene.LightBinner.Update(ViewBuffer.Data, cullWidth, cullHeight, tileCullEnabled);
 
-        // The 3D skybox shares this camera but bins its own lights and probes: its bit indices address its
-        // own arrays, so it needs masks of its own rather than a share of these.
         if (!ReferenceEquals(scene, SkyboxScene))
         {
-            SkyboxScene?.LightBinner.Update(ViewBuffer.Data, cullWidth, cullHeight, cullEnabled);
+            SkyboxScene?.LightBinner.Update(ViewBuffer.Data, cullWidth, cullHeight, tileCullEnabled);
         }
 
         ViewBuffer.BindBufferBase();
@@ -433,11 +431,14 @@ public class Renderer
                 scene.CompactIndirectDraws();
             }
 
-            scene.LightBinner.Dispatch();
-
-            if (!ReferenceEquals(scene, SkyboxScene))
+            using (new GLDebugGroup("Cull Tiles and Depth Bins"))
             {
-                SkyboxScene?.LightBinner.Dispatch();
+                scene.LightBinner.Dispatch();
+
+                if (!ReferenceEquals(scene, SkyboxScene))
+                {
+                    SkyboxScene?.LightBinner.Dispatch();
+                }
             }
         }
 

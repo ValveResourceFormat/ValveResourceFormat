@@ -84,6 +84,7 @@ public sealed class TiledCullFeeder
     private readonly Vector2[] minkowski = new Vector2[20 * 4];
     private readonly Vector2[] hull = new Vector2[(20 * 4) + 1];
     private readonly int[] batchItemCount = new int[BatchCount];
+    private readonly int[] batchBinnedCount = new int[BatchCount];
     private readonly int[] batchFirstItem = new int[BatchCount];
 
     private CullParams cullParams;
@@ -139,6 +140,21 @@ public sealed class TiledCullFeeder
     /// <summary>Gets a batch's word stride, which is <c>ceil(itemCount / 32)</c>.</summary>
     public uint Stride(int batch) => cullParams.TileBatches[batch].OutputStride;
 
+    /// <summary>Gets how many slots a batch claimed, which is every item the shading pass can iterate.</summary>
+    /// <param name="batch">Batch index.</param>
+    public int SlotCount(int batch) => batchItemCount[batch];
+
+    /// <summary>
+    /// Gets how many of a batch's slots hold an item that can actually match a tile. The rest projected to
+    /// nothing - wholly behind the near plane, or off screen - and were reduced to an item no tile and no
+    /// bin can match, so the gap between this and <see cref="SlotCount"/> is what the CPU rejected outright.
+    /// </summary>
+    /// <param name="batch">Batch index.</param>
+    public int BinnedCount(int batch) => batchBinnedCount[batch];
+
+    /// <summary>Whether an item projected to nothing and will never match a tile or a bin.</summary>
+    private static bool IsRejected(in CullItem item) => item.DepthMin > item.DepthMax;
+
     /// <summary>
     /// Starts a frame. Everything an item is projected against is captured here, so the batches added
     /// afterwards all land in the same space.
@@ -162,6 +178,7 @@ public sealed class TiledCullFeeder
         this.depthKeyRange = depthKeyRange;
 
         Array.Clear(batchItemCount);
+        Array.Clear(batchBinnedCount);
         planeCount = 0;
 
         cullParams = default;
@@ -189,10 +206,39 @@ public sealed class TiledCullFeeder
     /// being dropped. The fragment shader indexes the light array by bit position, so compacting here
     /// would need a remap table it does not have.
     /// </summary>
+    /// <summary>
+    /// Claims batch slots without projecting anything, for a frame that will not bin at all.
+    /// </summary>
+    /// <remarks>
+    /// The masks are filled with ones instead, so the shading pass still indexes them through the bases and
+    /// strides <see cref="End"/> derives from these counts. Everything else <see cref="AddBarnLights"/> and
+    /// <see cref="AddEnvMaps"/> do - projecting corners, clipping against the near plane, hulling the
+    /// Minkowski sum - only feeds a compute pass that is not going to run.
+    /// </remarks>
+    /// <param name="barnLights">Number of barn light faces the shading pass will iterate.</param>
+    /// <param name="envMaps">Number of env map probes the shading pass will iterate.</param>
+    public void AddCounts(int barnLights, int envMaps)
+    {
+        batchItemCount[BatchBarnLights] = Math.Min(barnLights, MaxItemsPerBatch);
+        batchItemCount[BatchEnvMaps] = Math.Min(envMaps, MaxItemsPerBatch);
+
+        // Nothing was projected, so nothing was rejected either: every slot reaches every tile.
+        batchBinnedCount[BatchBarnLights] = batchItemCount[BatchBarnLights];
+        batchBinnedCount[BatchEnvMaps] = batchItemCount[BatchEnvMaps];
+    }
+
+    /// <summary>
+    /// Adds one item per barn light face, keeping index alignment: item <c>i</c> of the batch is always
+    /// light <c>i</c>, and a light that fails the projection gets an item nothing can match rather than
+    /// being dropped. The shading pass indexes the light array by bit position, so compacting here would
+    /// need a remap table it does not have.
+    /// </summary>
+    /// <param name="volumes">Cull volume per barn light face, in shading pass index order.</param>
     public void AddBarnLights(ReadOnlySpan<BarnLightCullVolume> volumes)
     {
         var count = Math.Min(volumes.Length, MaxItemsPerBatch);
         var first = BatchBarnLights * MaxItemsPerBatch;
+        var binned = 0;
 
         Span<Vector3> corners = stackalloc Vector3[8];
 
@@ -238,9 +284,15 @@ public sealed class TiledCullFeeder
             }
 
             items[first + i] = item;
+
+            if (!IsRejected(item))
+            {
+                binned++;
+            }
         }
 
         batchItemCount[BatchBarnLights] = count;
+        batchBinnedCount[BatchBarnLights] = binned;
     }
 
     /// <summary>
@@ -251,6 +303,7 @@ public sealed class TiledCullFeeder
     {
         var first = BatchEnvMaps * MaxItemsPerBatch;
         var count = 0;
+        var binned = 0;
 
         for (var i = 0; i < MaxItemsPerBatch; i++)
         {
@@ -282,11 +335,19 @@ public sealed class TiledCullFeeder
                 corners[corner] = Vector3.Transform(local, envMap.Transform);
             }
 
-            items[first + index] = BuildItem(corners);
+            var item = BuildItem(corners);
+
+            items[first + index] = item;
             count = Math.Max(count, index + 1);
+
+            if (!IsRejected(item))
+            {
+                binned++;
+            }
         }
 
         batchItemCount[BatchEnvMaps] = count;
+        batchBinnedCount[BatchEnvMaps] = binned;
     }
 
     /// <summary>

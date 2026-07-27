@@ -69,9 +69,21 @@ layout(binding = 13, std430) writeonly buffer OutputCullBitsBuffer
     uint g_OutputCullBits[];
 };
 
+// Items that reached at least one real tile, one bit per item, for the render stats. Accumulated across
+// every workgroup, so the CPU clears it before the dispatch and reads last frame's result back.
+// Must match LightBinner.CullStatsWordsPerBatch, which is the most masks a batch can have.
+#define CULL_STATS_WORDS_PER_BATCH 4
+
+layout(binding = 16, std430) buffer CullStatsBuffer
+{
+    uint g_CullStats[];
+};
+
 #if !D_SUBGROUP_SIZE_32
 shared uint g_nGroupMask;
 #endif
+
+shared uint g_nLiveMask;
 
 const bool OCCLUSION_CULL = true;
 
@@ -201,6 +213,13 @@ void main()
     }
 #endif
 
+    if (gl_LocalInvocationIndex == 0u)
+    {
+        g_nLiveMask = 0u;
+    }
+
+    barrier();
+
     uint nFirstItem = batch.nFirstItem + (nMaskIndex * 32u);
     CullItem_t coarseItem = g_CullItems[nFirstItem + nLane];
 
@@ -256,9 +275,22 @@ void main()
         nBits = nLive >= 32u ? 0xFFFFFFFFu : ((1u << nLive) - 1u);
     }
 
-    if (gl_GlobalInvocationID.x < g_nTilesX && gl_GlobalInvocationID.y < g_nTilesY)
+    bool bInBounds = gl_GlobalInvocationID.x < g_nTilesX && gl_GlobalInvocationID.y < g_nTilesY;
+
+    if (bInBounds)
     {
         uint nTile = (gl_GlobalInvocationID.y * g_nTilesX) + gl_GlobalInvocationID.x;
         g_OutputCullBits[batch.nOutputOffset + (nTile * batch.nOutputStride) + nMaskIndex] = nBits;
+    }
+
+    // Only real tiles count: the padding lanes of an edge workgroup test tile centres that no fragment
+    // can ever land in, and an item that reaches only those has been culled as far as anything cares.
+    atomicOr(g_nLiveMask, bInBounds ? nBits : 0u);
+
+    barrier();
+
+    if (gl_LocalInvocationIndex == 0u)
+    {
+        atomicOr(g_CullStats[(nBatch * CULL_STATS_WORDS_PER_BATCH) + nMaskIndex], g_nLiveMask);
     }
 }

@@ -166,11 +166,11 @@ namespace ValveResourceFormat.Renderer
         public bool EnableCompaction { get; set; } = true;
 
         /// <summary>Gets or sets whether barn lights are binned to screen tiles so shaders iterate only the lights that reach them.</summary>
-        public bool EnableLightTileCulling
-        {
-            get => LightBinner.Enabled;
-            set => LightBinner.Enabled = value;
-        }
+        /// <remarks>
+        /// Read by <see cref="Renderer"/> when it drives every scene's binner, so the main scene's setting
+        /// also governs the 3D skybox's. Its own copy of this is never what the viewer is toggling.
+        /// </remarks>
+        public bool EnableLightTileCulling { get; set; } = true;
 
         internal bool DrawMeshletsIndirect { get; private set; }
         internal bool CompactMeshletDraws { get; private set; }
