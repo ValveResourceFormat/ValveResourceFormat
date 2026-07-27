@@ -1,11 +1,5 @@
 #version 460
 
-#define D_SUBGROUP_SIZE_32 0
-
-#if D_SUBGROUP_SIZE_32
-    #extension GL_KHR_shader_subgroup_arithmetic : require
-#endif
-
 #define D_GROUP_TILES_X 8
 #define D_GROUP_TILES_Y 4
 
@@ -72,9 +66,8 @@ layout(binding = 13, std430) writeonly buffer OutputCullBitsBuffer
     uint g_OutputCullBits[];
 };
 
-#if !D_SUBGROUP_SIZE_32
+// Which of the group's 32 items any of its tiles overlaps, unioned across the group.
 shared uint g_nGroupMask;
-#endif
 
 const bool OCCLUSION_CULL = true;
 
@@ -197,12 +190,10 @@ void main()
 
     uint nLane = (gl_LocalInvocationID.y * uint(D_GROUP_TILES_X)) + gl_LocalInvocationID.x;
 
-#if !D_SUBGROUP_SIZE_32
     if (all(equal(gl_LocalInvocationID, uvec3(0u))))
     {
         g_nGroupMask = 0u;
     }
-#endif
 
     uint nFirstItem = batch.nFirstItem + (nMaskIndex * 32u);
     CullItem_t coarseItem = g_CullItems[nFirstItem + nLane];
@@ -221,9 +212,6 @@ void main()
 
     uint nLaneBit = bOverlaps ? (1u << nLane) : 0u;
 
-#if D_SUBGROUP_SIZE_32
-    uint nGroupMask = subgroupOr(nLaneBit);
-#else
     barrier();
 
     if (nLaneBit != 0u)
@@ -234,7 +222,6 @@ void main()
     barrier();
 
     uint nGroupMask = g_nGroupMask;
-#endif
 
     uint nBits = 0u;
 
