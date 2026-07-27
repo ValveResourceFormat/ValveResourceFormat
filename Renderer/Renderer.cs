@@ -1,4 +1,4 @@
-﻿using System.Diagnostics;
+using System.Diagnostics;
 using System.IO;
 using System.Reflection;
 using OpenTK.Graphics.OpenGL;
@@ -342,6 +342,7 @@ public class Renderer
         var defaultCubeTexture = Scene.RendererContext.MaterialLoader.LoadTexture(cubeFogResource);
         Textures.Add(new(ReservedTextureSlots.FogCubeTexture, "g_tFogCubeTexture", defaultCubeTexture));
 
+
         const string blueNoiseName = "blue_noise_256.vtex_c";
         var blueNoiseResource = RendererContext.FileLoader.LoadFile("textures/dev/" + blueNoiseName);
 
@@ -496,6 +497,7 @@ public class Renderer
         Render(renderContext);
     }
 
+
     /// <summary>
     /// Renders shadows and then the full scene using the provided render context.
     /// </summary>
@@ -540,6 +542,7 @@ public class Renderer
 
         var isWireframe = IsWireframe && isStandardPass; // To avoid toggling it mid frame
         var computeFramebufferLuminance = Postprocess.State.ExposureSettings.AutoExposureEnabled;
+
 
         // TODO: check if renderpass allows wireframe mode
         // TODO+: replace wireframe shaders with solid color

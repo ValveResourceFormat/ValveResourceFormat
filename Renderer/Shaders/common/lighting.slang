@@ -165,6 +165,7 @@ void CalculateDirectLighting(inout LightingTerms_t lighting, inout MaterialPrope
     }
 }
 
+
 #if (D_BAKED_LIGHTING_FROM_LIGHTMAP == 1)
 
 #define UseLightmapDirectionality true
@@ -201,6 +202,7 @@ vec3 ComputeLightmapShading(vec3 irradianceColor, vec4 irradianceDirection, vec3
 }
 
 #endif
+
 
 void CalculateIndirectLighting(inout LightingTerms_t lighting, inout MaterialProperties_t mat)
 {
@@ -254,6 +256,7 @@ void CalculateIndirectLighting(inout LightingTerms_t lighting, inout MaterialPro
 #endif
 }
 
+
 uniform float g_flAmbientOcclusionDirectDiffuse = 1.0;
 uniform float g_flAmbientOcclusionDirectSpecular = 1.0;
 
@@ -276,6 +279,7 @@ void ApplyAmbientOcclusion(inout LightingTerms_t o, MaterialProperties_t mat)
     o.SpecularDirect *= DirectAOSpecular;
     o.SpecularIndirect *= mat.SpecularAO;
 }
+
 
 LightingTerms_t CalculateLighting(inout MaterialProperties_t mat)
 {

@@ -70,6 +70,7 @@ vec3 CubemapParallaxCorrection(vec3 envMapLocalPos, vec3 localReflectionVector, 
     return normalize(envMapLocalPos + localReflectionVector * Distance);
 }
 
+
 float GetEnvMapLOD(float roughness, vec3 R)
 {
     if (g_iRenderMode == renderMode_Cubemaps)
@@ -80,6 +81,7 @@ float GetEnvMapLOD(float roughness, vec3 R)
     const float EnvMapMipCount = g_vEnvMapSizeConstants.x;
     return roughness * EnvMapMipCount;
 }
+
 
 // Cubemap Normalization
 #define bUseCubemapNormalization 1
@@ -109,6 +111,7 @@ float GetEnvMapNormalization(float rough, vec3 N, vec3 irradiance)
         return 1.0;
     #endif
 }
+
 
 // BRDF
 uniform sampler2D g_tBRDFLookup;
@@ -206,7 +209,7 @@ vec3 GetEnvironmentNoBRDF(MaterialProperties_t mat, float roughnessReflectionCor
     CullMasks_t masks = GetEnvMapCullMasks(vFragPosition);
     for (uint word = 0u; word < masks.m_nWords && AnyLaneWantsMore(bContinueLoop); word++)
     {
-        uint mask = GetCullMaskWord(masks, word, g_nEnvMapVisibility[word]);
+        uint mask = GetCullMaskWord(masks, word, g_nEnvMapVisibility[word] & GetEnvMapLiveMask(word));
 
         int baseIndex = int(word * 32u);
 

@@ -6,7 +6,10 @@
     #extension GL_KHR_shader_subgroup_arithmetic : require
 #endif
 
-layout(local_size_x = 8, local_size_y = 4, local_size_z = 1) in;
+#define D_GROUP_TILES_X 8
+#define D_GROUP_TILES_Y 4
+
+layout(local_size_x = D_GROUP_TILES_X, local_size_y = D_GROUP_TILES_Y, local_size_z = 1) in;
 
 struct CullBatch_t
 {
@@ -74,8 +77,6 @@ shared uint g_nGroupMask;
 #endif
 
 const bool OCCLUSION_CULL = true;
-
-const bool SKIP_CULLING = false;
 
 layout(binding = 0) uniform sampler2D g_tDepthPyramid;
 uniform int g_nDepthPyramidMaxMip;
@@ -183,16 +184,18 @@ void main()
 
     vec2 vTileCenter = (vec2(gl_GlobalInvocationID.xy) * g_vTileToCenterScale) + g_vTileToCenterOffset;
 
-    uvec2 nGroupBase = gl_WorkGroupID.xy * uvec2(8u, 4u);
+    const uvec2 nGroupTiles = uvec2(D_GROUP_TILES_X, D_GROUP_TILES_Y);
+
+    uvec2 nGroupBase = gl_WorkGroupID.xy * nGroupTiles;
     vec2 vGroupMin = (vec2(nGroupBase) * g_vTileToCenterScale) + g_vTileToCenterOffset;
-    vec2 vGroupMax = (vec2(nGroupBase + uvec2(7u, 3u)) * g_vTileToCenterScale) + g_vTileToCenterOffset;
+    vec2 vGroupMax = (vec2(nGroupBase + nGroupTiles - 1u) * g_vTileToCenterScale) + g_vTileToCenterOffset;
     vec2 vGroupCenter = (vGroupMax + vGroupMin) * 0.5;
     vec2 vGroupExtent = abs(vGroupMax - vGroupMin) * 0.5;
 
     vec2 vGroupPixelMin = vGroupMin - g_vTileToCenterOffset;
     vec2 vGroupPixelMax = vGroupMax + g_vTileToCenterOffset;
 
-    uint nLane = (gl_LocalInvocationID.y * 8u) + gl_LocalInvocationID.x;
+    uint nLane = (gl_LocalInvocationID.y * uint(D_GROUP_TILES_X)) + gl_LocalInvocationID.x;
 
 #if !D_SUBGROUP_SIZE_32
     if (all(equal(gl_LocalInvocationID, uvec3(0u))))
@@ -248,12 +251,6 @@ void main()
         {
             nBits |= 1u << nBit;
         }
-    }
-
-    if (SKIP_CULLING)
-    {
-        uint nLive = batch.nItemEnd > nFirstItem ? min(batch.nItemEnd - nFirstItem, 32u) : 0u;
-        nBits = nLive >= 32u ? 0xFFFFFFFFu : ((1u << nLive) - 1u);
     }
 
     if (gl_GlobalInvocationID.x < g_nTilesX && gl_GlobalInvocationID.y < g_nTilesY)

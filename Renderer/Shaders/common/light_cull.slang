@@ -19,19 +19,17 @@ layout(binding = 6, std140) uniform LightCullConstants
 
     uint g_nEnvMapBinBase;
     uint g_nEnvMapCullWords;
+    uint g_nEnvMapCount;
     uint _lightCullPadding0;
-    uint _lightCullPadding1;
 
     vec4 g_vLightDepthSliceParams;
     vec4 g_vLightCullPixelRemap;
 
-    mat4 g_matLightCullWorldToProjection;
-
     vec3 g_vLightCullCameraPositionWs;
-    float _lightCullPadding2;
+    float _lightCullPadding1;
 
     vec3 g_vLightCullCameraDirWs;
-    float _lightCullPadding3;
+    float _lightCullPadding2;
 };
 
 layout(std430, binding = 13) readonly buffer LightCullBitsBuffer
@@ -57,12 +55,12 @@ struct CullLookup_t
     uvec2 m_nTile;
 
     uint m_nBin;
-
-    bool m_bValid;
 };
 
-CullLookup_t MakeCullLookup(vec2 cullPixel, bool inFront, vec3 positionWs)
+CullLookup_t GetCullLookup(vec3 positionWs)
 {
+    vec2 cullPixel = (gl_FragCoord.xy * g_vLightCullPixelRemap.xy) + g_vLightCullPixelRemap.zw;
+
     uvec2 tile = uvec2(clamp(cullPixel, vec2(0.0), g_vViewportSize - 1.0)) >> uvec2(g_nLightTileShift);
     tile = min(tile, uvec2(g_nLightTileCols, g_nLightTileRows) - 1u);
 
@@ -71,27 +69,8 @@ CullLookup_t MakeCullLookup(vec2 cullPixel, bool inFront, vec3 positionWs)
     lookup.m_nTile = tile;
     lookup.m_nBin = GetLightCullDepthSlice(GetLightCullViewDepth(positionWs),
                                            g_vLightDepthSliceParams.xy, g_nLightSliceCount);
-    lookup.m_bValid = inFront;
 
     return lookup;
-}
-
-CullLookup_t GetCullLookup(vec3 positionWs)
-{
-    vec2 cullPixel = (gl_FragCoord.xy * g_vLightCullPixelRemap.xy) + g_vLightCullPixelRemap.zw;
-
-    return MakeCullLookup(cullPixel, true, positionWs);
-}
-
-CullLookup_t GetCullLookupWs(vec3 positionWs)
-{
-    vec4 cullClip = g_matLightCullWorldToProjection * vec4(positionWs, 1.0);
-
-    bool inFront = cullClip.w > 1e-6;
-
-    vec2 cullPixel = ((cullClip.xy / max(cullClip.w, 1e-6)) * 0.5 + 0.5) * g_vViewportSize;
-
-    return MakeCullLookup(cullPixel, inFront, positionWs);
 }
 
 CullLookup_t g_CullLookup;
@@ -135,6 +114,18 @@ CullMasks_t GetEnvMapCullMasks(vec3 positionWs)
 {
     return MakeCullMasks(GetCullLookupCached(positionWs),
                          g_nEnvMapTileBase, g_nEnvMapBinBase, g_nEnvMapCullWords);
+}
+
+// Bits of an env map mask word that name a probe the scene actually has. The masks are filled with ones
+// when binning is off, tail included, so a consumer whose own probe list is also all ones - a cable, which
+// has none and defers to the tiles - would otherwise iterate slots past the live count and blend whatever
+// the unused array entries hold. Their zeroed box passes the containment test, so it is not self limiting.
+uint GetEnvMapLiveMask(uint word)
+{
+    uint nFirst = word * 32u;
+    uint nLive = g_nEnvMapCount > nFirst ? min(g_nEnvMapCount - nFirst, 32u) : 0u;
+
+    return nLive >= 32u ? 0xFFFFFFFFu : ((1u << nLive) - 1u);
 }
 
 uint GetCullMaskWord(CullMasks_t masks, uint word)
@@ -194,54 +185,6 @@ bool AnyLaneWantsMore(bool wantsMore)
 #else
     return wantsMore;
 #endif
-}
-
-#define LIGHT_TILES_DEBUG_MODE 0
-
-const bool LIGHT_TILES_DEBUG_TILE_INDEX = (LIGHT_TILES_DEBUG_MODE == 1);
-const bool LIGHT_TILES_DEBUG_MASKS = (LIGHT_TILES_DEBUG_MODE == 2);
-
-vec3 GetLightCullMaskDebug(vec3 positionWs)
-{
-    if (g_nLightCullWords == 0u)
-    {
-        return vec3(0.0);
-    }
-
-    CullLookup_t lookup = GetCullLookupCached(positionWs);
-
-    uint tileBase = g_nLightTileBase + (lookup.m_nTileIndex * g_nLightCullWords);
-    uint sliceBase = g_nLightSliceBase + (lookup.m_nBin * g_nLightCullWords);
-
-    uint nTileBits = 0u;
-    uint nSliceBits = 0u;
-    uint nBothBits = 0u;
-
-    for (uint word = 0u; word < g_nLightCullWords; word++)
-    {
-        uint tileWord = g_LightCullBits[tileBase + word];
-        uint sliceWord = g_LightCullBits[sliceBase + word];
-
-        nTileBits += uint(bitCount(tileWord));
-        nSliceBits += uint(bitCount(sliceWord));
-        nBothBits += uint(bitCount(tileWord & sliceWord));
-    }
-
-    return vec3(nTileBits > 0u ? 1.0 : 0.0,
-                nSliceBits > 0u ? 1.0 : 0.0,
-                nBothBits > 0u ? 1.0 : 0.0);
-}
-
-vec3 GetLightCullTileDebug(vec3 positionWs)
-{
-    CullLookup_t lookup = GetCullLookupCached(positionWs);
-
-    bool bLastColumn = lookup.m_nTile.x == (g_nLightTileCols - 1u);
-    bool bLastRow = lookup.m_nTile.y == (g_nLightTileRows - 1u);
-
-    return vec3(float(lookup.m_nTile.x) / float(g_nLightTileCols),
-                float(lookup.m_nTile.y) / float(g_nLightTileRows),
-                (bLastColumn || bLastRow) ? 1.0 : 0.0);
 }
 
 float GetLightCullBinStripe(vec3 positionWs)

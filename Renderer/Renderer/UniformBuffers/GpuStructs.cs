@@ -79,6 +79,7 @@ public struct ObjectDataStandard
     public SceneEnvMap.EnvMapVisibility128 EnvMapVisibility;
 };
 
+
 /// <summary>Arguments for a <c>glDrawElementsIndirect</c> GPU draw call.</summary>
 [StructLayout(LayoutKind.Sequential)]
 public readonly struct DrawElementsIndirectCommand
@@ -107,11 +108,7 @@ public struct CullBatch
     public uint OutputOffset;
     /// <summary>Masks per tile or per depth bin, that is <c>ceil(itemCount / 32)</c>.</summary>
     public uint OutputStride;
-    /// <summary>
-    /// First index into the cull item buffer. Must be a multiple of 32: the depth bin shader shifts by the
-    /// absolute item index while the tile shader shifts by the mask relative one, and they only agree
-    /// under that alignment.
-    /// </summary>
+    /// <summary>First index into the cull item buffer.</summary>
     public uint FirstItem;
     /// <summary>One past this batch's last item index.</summary>
     public uint ItemEnd;
@@ -202,11 +199,15 @@ public struct CullParams
     public Vector2 TileToCenterOffset;
     /// <summary>Depth bin count. Read by neither shader, the depth bin dispatch is exact.</summary>
     public uint DepthBins;
-    /// <summary>Width of one depth bin. Bins are linear in view depth, not logarithmic.</summary>
+    /// <summary>
+    /// Width of one depth bin, in depth key units. Bins are linear in the key, which the producer and the
+    /// consumer both define as a logarithm of view depth; that is what makes the bins themselves
+    /// logarithmic while the shader steps through them linearly.
+    /// </summary>
     public float DepthBinWidth;
     /// <summary>Conservative depth bin dilation.</summary>
     public float BinEpsilon;
-    /// <summary>View depth of bin 0's near edge.</summary>
+    /// <summary>Depth key of bin 0's near edge.</summary>
     public float NearPlane;
     /// <summary>
     /// First mask index of batch 0, which is always zero. Both shaders use the dispatch's mask axis to find

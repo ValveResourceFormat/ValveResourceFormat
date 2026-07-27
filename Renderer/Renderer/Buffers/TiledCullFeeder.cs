@@ -1,4 +1,5 @@
-﻿using ValveResourceFormat.Renderer.SceneEnvironment;
+using System.Diagnostics;
+using ValveResourceFormat.Renderer.SceneEnvironment;
 
 namespace ValveResourceFormat.Renderer.Buffers;
 
@@ -53,9 +54,9 @@ public sealed class TiledCullFeeder
     public const int BatchEnvMaps = 1;
 
     /// <summary>
-    /// Items per mask, and the alignment every batch's first item needs. The depth bin shader shifts by the
-    /// absolute item index while the tile shader shifts by the mask relative one, so they agree only when a
-    /// batch starts on a multiple of this.
+    /// Items per mask. Every batch is padded up to a whole number of these, so a batch's masks never share
+    /// a word with the next batch's and both compute passes can write a full word without a read modify
+    /// write.
     /// </summary>
     public const int ItemsPerMask = 32;
 
@@ -101,6 +102,8 @@ public sealed class TiledCullFeeder
     private bool projectionToWorldValid;
     private float cameraNearPlane;
     private float depthKeyRange;
+    private float minSliceFar;
+    private float maxSliceFar;
     private float tileHalfSize;
 
     /// <summary>Last coordinate the tile grid reaches, which runs past the viewport on a partial edge.</summary>
@@ -142,6 +145,17 @@ public sealed class TiledCullFeeder
     /// </remarks>
     public float MaxItemViewDepth { get; private set; }
 
+    /// <summary>
+    /// Gets the far distance the slice distribution was fitted to this frame, in world units.
+    /// </summary>
+    public float SliceFar { get; private set; }
+
+    /// <summary>Gets the span of the depth key, which is <c>log2(SliceFar)</c>. Valid after <see cref="End"/>.</summary>
+    public float DepthKeyRange => depthKeyRange;
+
+    /// <summary>Gets how much deeper each slice is than the one before it. Valid after <see cref="End"/>.</summary>
+    public float SliceRatio => MathF.Pow(2f, depthKeyRange / depthBins);
+
     /// <summary>Gets the first uint of a batch's tile region, for the consumer's tile lookup.</summary>
     public uint TileBase(int batch) => cullParams.TileBatches[batch].OutputOffset;
 
@@ -172,11 +186,15 @@ public sealed class TiledCullFeeder
     /// </summary>
     public void Begin(
         int tileCols, int tileRows, int tileSize,
-        int depthBins, float depthKeyRange,
+        int depthBins, float minSliceFar, float maxSliceFar,
         Vector2 viewportSize,
         in Matrix4x4 worldToProjection,
         Vector3 cameraPosition, Vector3 cameraDirection, float cameraNearPlane)
     {
+        // The depth bin dispatch is exact and the shader does not bound check, so a bin count that is not
+        // a whole number of groups leaves the tail bins holding whatever the previous layout wrote there.
+        Debug.Assert(depthBins % BinGroupSizeX == 0, $"Depth bin count must be a multiple of {BinGroupSizeX}");
+
         this.tileCols = tileCols;
         this.tileRows = tileRows;
         this.depthBins = depthBins;
@@ -186,7 +204,9 @@ public sealed class TiledCullFeeder
         this.cameraPosition = cameraPosition;
         this.cameraDirection = cameraDirection;
         this.cameraNearPlane = cameraNearPlane;
-        this.depthKeyRange = depthKeyRange;
+        this.minSliceFar = minSliceFar;
+        this.maxSliceFar = maxSliceFar;
+        depthKeyRange = 0f;
 
         Array.Clear(batchItemCount);
         Array.Clear(batchBinnedCount);
@@ -206,18 +226,11 @@ public sealed class TiledCullFeeder
         cullSpaceMax = (new Vector2(tileCols, tileRows) * tileSize) - Vector2.One;
 
         cullParams.DepthBins = (uint)depthBins;
-        cullParams.DepthBinWidth = depthKeyRange / depthBins;
         cullParams.BinEpsilon = 0f;
 
         cullParams.NearPlane = 0f;
     }
 
-    /// <summary>
-    /// Adds one barn light face per volume, keeping index alignment: item <c>i</c> of the batch is always
-    /// light <c>i</c>, and a light that fails the projection gets an item nothing can match rather than
-    /// being dropped. The fragment shader indexes the light array by bit position, so compacting here
-    /// would need a remap table it does not have.
-    /// </summary>
     /// <summary>
     /// Claims batch slots without projecting anything, for a frame that will not bin at all.
     /// </summary>
@@ -368,6 +381,13 @@ public sealed class TiledCullFeeder
     /// </summary>
     public void End()
     {
+        // Fitted here rather than in Begin because it is a property of the items, and they are only
+        // projected in between. Holding raw view depths until now is what lets the fit describe this
+        // frame's items instead of the previous frame's.
+        SliceFar = Math.Clamp(MaxItemViewDepth, minSliceFar, maxSliceFar);
+        depthKeyRange = MathF.Log2(SliceFar);
+        cullParams.DepthBinWidth = depthKeyRange / depthBins;
+
         var itemCursor = 0;
         var wordCursor = 0u;
         maskCount = 0;
@@ -381,6 +401,16 @@ public sealed class TiledCullFeeder
             if (source != itemCursor)
             {
                 Array.Copy(items, source, items, itemCursor, count);
+            }
+
+            // Raw view depth up to here; the fitted range only exists now, so this is where it becomes a
+            // key. RejectAll below is left alone: its min already exceeds its max at any scale.
+            for (var i = 0; i < count; i++)
+            {
+                ref var item = ref items[itemCursor + i];
+
+                item.DepthMin = DepthKey(item.DepthMin);
+                item.DepthMax = DepthKey(item.DepthMax);
             }
 
             for (var i = count; i < masks * ItemsPerMask; i++)
@@ -473,7 +503,7 @@ public sealed class TiledCullFeeder
         BoundsMin = Vector2.Zero,
         BoundsMax = cullSpaceMax,
         DepthMin = 0f,
-        DepthMax = depthKeyRange,
+        DepthMax = float.MaxValue,
 
         // Reads as straddling the near plane, which the occlusion test can never call hidden.
         NdcDepthNear = Vector2.One,
@@ -681,8 +711,8 @@ public sealed class TiledCullFeeder
         {
             BoundsMin = boundsMin,
             BoundsMax = boundsMax,
-            DepthMin = DepthKey(projection.DepthMin),
-            DepthMax = DepthKey(projection.DepthMax),
+            DepthMin = projection.DepthMin,
+            DepthMax = projection.DepthMax,
             NdcDepthNear = new Vector2(projection.OcclusionDepth, 0f),
             FirstPlane = (uint)planeCount,
         };
@@ -724,8 +754,8 @@ public sealed class TiledCullFeeder
         boundsMin = Vector2.Max(boundsMin, item.BoundsMin);
         boundsMax = Vector2.Min(boundsMax, item.BoundsMax);
 
-        var depthMin = MathF.Max(DepthKey(projection.DepthMin), item.DepthMin);
-        var depthMax = MathF.Min(DepthKey(projection.DepthMax), item.DepthMax);
+        var depthMin = MathF.Max(projection.DepthMin, item.DepthMin);
+        var depthMax = MathF.Min(projection.DepthMax, item.DepthMax);
 
         if (boundsMin.X > boundsMax.X || boundsMin.Y > boundsMax.Y || depthMin > depthMax)
         {
