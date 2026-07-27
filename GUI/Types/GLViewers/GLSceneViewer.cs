@@ -48,6 +48,9 @@ namespace GUI.Types.GLViewers
         private PerfDisplay perfDisplay;
         private ComboBox? perfDisplayComboBox;
 
+        /// <summary>Set by escape to release the mouse in walk mode, cleared by clicking back into the viewport.</summary>
+        private bool mouseReleased;
+
         private readonly List<RenderModes.RenderMode> renderModes = new(RenderModes.Items.Count);
         private int renderModeCurrentIndex;
         private ComboBox? renderModeComboBox;
@@ -289,6 +292,8 @@ namespace GUI.Types.GLViewers
         {
             base.OnMouseDown(sender, e);
 
+            mouseReleased = false;
+
             if (!Input.NoClip)
             {
                 return;
@@ -409,7 +414,9 @@ namespace GUI.Types.GLViewers
                 Input.EnableMouseLook = false;
             }
 
-            if (MouseOverRenderArea || Input.ForceUpdate)
+            // Walk mode keeps simulating while the cursor is over the ui, otherwise player
+            // physics and teleports stay frozen until the mouse moves back over the viewport.
+            if (MouseOverRenderArea || Input.ForceUpdate || !Input.NoClip)
             {
                 Input.MouseSensitivity = Settings.Config.MouseSensitivity;
                 Input.SmoothCameraEnabled = Settings.Config.SmoothCameraEnabled;
@@ -441,7 +448,7 @@ namespace GUI.Types.GLViewers
                     SelectedNodeRenderer?.SelectNode(null);
                 }
 
-                GrabbedMouse = !Input.NoClip && !Paused;
+                GrabbedMouse = MouseOverRenderArea && !Input.NoClip && !Paused && !mouseReleased;
             }
         }
 
@@ -621,16 +628,6 @@ namespace GUI.Types.GLViewers
 
             if (GrabbedMouse)
             {
-                TextRenderer.AddTextRelative(new ValveResourceFormat.Renderer.TextRenderer.TextRenderRequest
-                {
-                    X = 0.5f,
-                    Y = 0.02f,
-                    Scale = 14f,
-                    Color = new Color32(0, 150, 255),
-                    Text = "* MOVEMENT IS EXPERIMENTAL. EXPECT BUGS. HELP US IMPROVE IT. *",
-                    CenterHorizontal = true,
-                }, Renderer.Camera);
-
                 TextRenderer.AddTextRelative(new ValveResourceFormat.Renderer.TextRenderer.TextRenderRequest
                 {
                     X = 0.5f,
@@ -871,6 +868,7 @@ namespace GUI.Types.GLViewers
             if (keyData == Keys.Escape)
             {
                 SelectedNodeRenderer.SelectNode(null);
+                mouseReleased = true;
             }
 
             if (keyData == Keys.Tab && perfDisplayComboBox != null)

@@ -124,7 +124,7 @@ namespace GUI.Types.GLViewers
                 yaw = float.DegreesToRadians(float.Parse(ang.Groups["yaw"].Value, CultureInfo.InvariantCulture));
             }
 
-            Input.SaveCameraForTransition();
+            Input.SaveCameraForTransition(exitWalkMode: false);
             Input.Camera.SetLocationPitchYaw(new Vector3(x, y, z), pitch, yaw);
         }
 
