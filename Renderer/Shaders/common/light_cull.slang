@@ -137,14 +137,6 @@ CullMasks_t GetEnvMapCullMasks(vec3 positionWs)
                          g_nEnvMapTileBase, g_nEnvMapBinBase, g_nEnvMapCullWords);
 }
 
-uint GetCullWordMask(uint count, uint word)
-{
-    uint first = word * 32u;
-    uint live = count > first ? min(count - first, 32u) : 0u;
-
-    return live >= 32u ? 0xFFFFFFFFu : ((1u << live) - 1u);
-}
-
 uint GetCullMaskWord(CullMasks_t masks, uint word)
 {
     uint mask = g_LightCullBits[masks.m_nTileWord + word] & g_LightCullBits[masks.m_nBinWord + word];
