@@ -526,10 +526,6 @@ public sealed class TiledCullFeeder
             boundsMax = Vector2.Max(boundsMax, hull[i]);
         }
 
-        // Rejected on the silhouette itself rather than on the dilated hull. The dilation exists so a tile
-        // whose square overlaps the silhouette still tests inside, which means a hull reaches half a tile
-        // past what any pixel can see; in a partial edge row the tile centre is out there too, so an item
-        // wholly off screen would test inside and light up the sliver of that row that is on screen.
         if (projection.HullCount == 0
             || projection.RawMin.X > viewportSize.X || projection.RawMin.Y > viewportSize.Y
             || projection.RawMax.X < 0f || projection.RawMax.Y < 0f)
@@ -537,10 +533,6 @@ public sealed class TiledCullFeeder
             return false;
         }
 
-        // Clamped to the grid, not to the viewport. The coarse pass compares these against tile centres,
-        // and a partial edge row's centre lies past the last pixel, so a viewport clamp puts the bounds
-        // out of reach of a tile the fine pass would have kept. That loses the whole row whenever the
-        // last workgroup holds nothing but that row - grid rows % 4 == 1, or columns % 8 == 1.
         boundsMin = Vector2.Clamp(boundsMin, Vector2.Zero, cullSpaceMax);
         boundsMax = Vector2.Clamp(boundsMax, Vector2.Zero, cullSpaceMax);
 

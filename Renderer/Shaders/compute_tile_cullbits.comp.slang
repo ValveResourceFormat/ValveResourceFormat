@@ -1,24 +1,5 @@
 #version 460
 
-// Reconstructed from CS2 shaders/vfx/compute_tile_cullbits_vulkan_50_cs.vcs.
-// 1 static combo, 2 dynamic variants, 2 unique bytecodes; D_SUBGROUP_SIZE_32 is the only combo.
-//
-// Producer half of Source 2's 2.5D cull-bit system. For every screen tile it writes a bitmask of the
-// cull items whose screen footprint touches that tile. compute_depthbin_cullbits does the same over
-// linear depth bins. A consumer ANDs one tile word with one bin word to get the items live at a pixel.
-//
-// Nothing feeds this yet - it is here as the reference for what the CPU side has to produce. The
-// algorithm is faithful to the bytecode; only two backend details were changed, because they are
-// artifacts of the Vulkan build rather than of Valve's source:
-//   - `set = 0` descriptor qualifiers dropped, bindings renumbered off the Vulkan bind points
-//     (t30/t31/u158) to free GL ones. The dump's own header notes bind points do not carry over.
-//   - std140 is stated explicitly on CullParams_t. It happens to reproduce the DXBC packoffsets
-//     exactly (c0/c1/c3/c4/c7), so the block is byte-compatible with what Source 2 uploads.
-//
-// Names for CullParams_t, g_CullPlanes, g_CullItems and g_OutputCullBits are read out of the DXBC
-// reflection of the _pc_ build. Member names inside the two structured buffers are inferred from use
-// - DXBC records them only as `$Element`. The byte offsets in the comments are exact.
-
 #define D_SUBGROUP_SIZE_32 0
 
 #if D_SUBGROUP_SIZE_32
@@ -29,7 +10,7 @@ layout(local_size_x = 8, local_size_y = 4, local_size_z = 1) in;
 
 struct CullBatch_t
 {
-    uint nOutputOffset;   // +0   first uint of this batch's region in g_OutputCullBits
+    uint nOutputOffset;
     uint nOutputStride;
     uint nFirstItem;
     uint nItemEnd;
@@ -37,7 +18,7 @@ struct CullBatch_t
 
 struct CullItem_t
 {
-    uint  nFirstPlane;      // +0   index into g_CullPlanes of hull 0's first vertex
+    uint  nFirstPlane;
     uint  nUnused04;
     uint  nNumPlanes0;
     uint  nNumPlanes1;
@@ -45,7 +26,7 @@ struct CullItem_t
     vec2  vBoundsMax;
     float flDepthMin;
     float flDepthMax;
-    vec2  vNdcDepthNear;    // +40  x is the item's nearest NDC z; see OCCLUSION_CULL below. Source 2 reads
+    vec2  vNdcDepthNear;
     float flConicXX;
     float flConicYY;
     float flConicXY;
@@ -94,8 +75,6 @@ shared uint g_nGroupMask;
 
 const bool OCCLUSION_CULL = true;
 
-// Marks every live item in every tile, so a consumer sees the same list the untiled path would give it.
-// Anything still missing under this is not the tile pass losing it.
 const bool SKIP_CULLING = false;
 
 layout(binding = 0) uniform sampler2D g_tDepthPyramid;

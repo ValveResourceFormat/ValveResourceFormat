@@ -39,7 +39,7 @@ layout(std140, binding = 0) uniform ViewConstants
     uint g_nLightTileBase;
     uint g_nLightSliceBase;
     uint g_nLightCullWords;
-    bool g_bLightTilesValid;
+    uint _lightCullPadding0;
 
     uint g_nLightTileShift;
     uint g_nLightTileCols;
@@ -53,15 +53,15 @@ layout(std140, binding = 0) uniform ViewConstants
     vec4 g_vLightCullPixelRemap;
 
     vec3 g_vLightCullCameraPositionWs;
-    float _lightCullPadding0;
+    float _lightCullPadding1;
 
     vec3 g_vLightCullCameraDirWs;
-    float _lightCullPadding1;
+    float _lightCullPadding2;
 
     uint g_nEnvMapTileBase;
     uint g_nEnvMapBinBase;
     uint g_nEnvMapCullWords;
-    uint g_nNumEnvMaps;
+    uint _lightCullPadding3;
 };
 
 bool blink()

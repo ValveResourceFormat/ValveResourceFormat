@@ -5,21 +5,10 @@
 
 #include "ViewConstants.slang"
 
-#define LIGHT_CULL_MAX_LIGHTS 128
-#define LIGHT_CULL_MAX_WORDS (LIGHT_CULL_MAX_LIGHTS / 32)
-
 layout(std430, binding = 13) readonly buffer LightCullBitsBuffer
 {
     uint g_LightCullBits[];
 };
-
-uint GetCullWordMask(uint count, uint word)
-{
-    uint first = word * 32u;
-    uint live = count > first ? min(count - first, 32u) : 0u;
-
-    return live >= 32u ? 0xFFFFFFFFu : ((1u << live) - 1u);
-}
 
 float GetLightCullViewDepth(vec3 positionWs)
 {
@@ -45,8 +34,6 @@ struct CullLookup_t
 
 CullLookup_t MakeCullLookup(vec2 cullPixel, bool inFront, vec3 positionWs)
 {
-    bool haveTile = inFront;
-
     uvec2 tile = uvec2(clamp(cullPixel, vec2(0.0), g_vViewportSize - 1.0)) >> uvec2(g_nLightTileShift);
     tile = min(tile, uvec2(g_nLightTileCols, g_nLightTileRows) - 1u);
 
@@ -55,7 +42,7 @@ CullLookup_t MakeCullLookup(vec2 cullPixel, bool inFront, vec3 positionWs)
     lookup.m_nTile = tile;
     lookup.m_nBin = GetLightCullDepthSlice(GetLightCullViewDepth(positionWs),
                                            g_vLightDepthSliceParams.xy, g_nLightSliceCount);
-    lookup.m_bValid = haveTile;
+    lookup.m_bValid = inFront;
 
     return lookup;
 }
@@ -92,29 +79,75 @@ CullLookup_t GetCullLookupCached(vec3 positionWs)
     return g_CullLookup;
 }
 
-// 0 draws the heat map, 1 the tile a fragment resolves to, 2 which of the two masks it ANDs is empty.
+struct CullMasks_t
+{
+    uint m_nTileWord;
+    uint m_nBinWord;
+    uint m_nWords;
+};
+
+CullMasks_t MakeCullMasks(CullLookup_t lookup, uint tileBase, uint binBase, uint words)
+{
+    CullMasks_t masks;
+    masks.m_nTileWord = tileBase + (lookup.m_nTileIndex * words);
+    masks.m_nBinWord = binBase + (lookup.m_nBin * words);
+    masks.m_nWords = words;
+
+    return masks;
+}
+
+CullMasks_t GetBarnLightCullMasks(vec3 positionWs)
+{
+    return MakeCullMasks(GetCullLookupCached(positionWs),
+                         g_nLightTileBase, g_nLightSliceBase, g_nLightCullWords);
+}
+
+CullMasks_t GetEnvMapCullMasks(vec3 positionWs)
+{
+    return MakeCullMasks(GetCullLookupCached(positionWs),
+                         g_nEnvMapTileBase, g_nEnvMapBinBase, g_nEnvMapCullWords);
+}
+
+uint GetCullMaskWord(CullMasks_t masks, uint word)
+{
+    uint mask = g_LightCullBits[masks.m_nTileWord + word] & g_LightCullBits[masks.m_nBinWord + word];
+
+#ifdef GL_KHR_shader_subgroup_arithmetic
+    mask = subgroupOr(mask);
+#endif
+
+    return mask;
+}
+
+uint GetCullMaskWord(CullMasks_t masks, uint word, uint objectMask)
+{
+    return GetCullMaskWord(masks, word) & objectMask;
+}
+
+bool AnyLaneWantsMore(bool wantsMore)
+{
+#if defined(GL_KHR_shader_subgroup_vote)
+    return subgroupAny(wantsMore);
+#elif defined(GL_KHR_shader_subgroup_arithmetic)
+    return true;
+#else
+    return wantsMore;
+#endif
+}
+
 #define LIGHT_TILES_DEBUG_MODE 0
 
 const bool LIGHT_TILES_DEBUG_TILE_INDEX = (LIGHT_TILES_DEBUG_MODE == 1);
 const bool LIGHT_TILES_DEBUG_MASKS = (LIGHT_TILES_DEBUG_MODE == 2);
 
-// Red where the tile mask holds anything, green where the depth bin mask does, blue where their AND does,
-// which is what the light loop actually walks. White is a working fragment. Yellow is the interesting one:
-// both masks hold lights but not the same ones, so the two passes disagree about this fragment. Green
-// alone means the tile pass never marked it, red alone means the bin pass did not.
 vec3 GetLightCullMaskDebug(vec3 positionWs)
 {
-    if (!g_bLightTilesValid || g_nLightCullWords == 0u)
+    if (g_nLightCullWords == 0u)
     {
         return vec3(0.0);
     }
 
     CullLookup_t lookup = GetCullLookupCached(positionWs);
-
-    if (!lookup.m_bValid)
-    {
-        return vec3(1.0, 0.0, 1.0);
-    }
 
     uint tileBase = g_nLightTileBase + (lookup.m_nTileIndex * g_nLightCullWords);
     uint sliceBase = g_nLightSliceBase + (lookup.m_nBin * g_nLightCullWords);
@@ -138,21 +171,9 @@ vec3 GetLightCullMaskDebug(vec3 positionWs)
                 nBothBits > 0u ? 1.0 : 0.0);
 }
 
-// Magenta where the lookup reports no tile and the fragment falls back to iterating everything, black
-// where the masks are not valid at all. Both are states the heat map cannot tell apart from a cold tile.
 vec3 GetLightCullTileDebug(vec3 positionWs)
 {
-    if (!g_bLightTilesValid)
-    {
-        return vec3(0.0);
-    }
-
     CullLookup_t lookup = GetCullLookupCached(positionWs);
-
-    if (!lookup.m_bValid)
-    {
-        return vec3(1.0, 0.0, 1.0);
-    }
 
     bool bLastColumn = lookup.m_nTile.x == (g_nLightTileCols - 1u);
     bool bLastRow = lookup.m_nTile.y == (g_nLightTileRows - 1u);
@@ -164,17 +185,7 @@ vec3 GetLightCullTileDebug(vec3 positionWs)
 
 float GetLightCullBinStripe(vec3 positionWs)
 {
-    if (!g_bLightTilesValid)
-    {
-        return 1.0;
-    }
-
     CullLookup_t lookup = GetCullLookupCached(positionWs);
-
-    if (!lookup.m_bValid)
-    {
-        return 1.0;
-    }
 
     float xyDim = (((lookup.m_nTile.x ^ lookup.m_nTile.y) & 1u) != 0u) ? 0.85 : 1.0;
     float zDim = (lookup.m_nBin & 1u) != 0u ? 0.6 : 1.0;

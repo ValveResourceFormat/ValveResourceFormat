@@ -80,8 +80,8 @@ namespace ValveResourceFormat.Renderer.Buffers
         public uint LightSliceBase;
         /// <summary>Number of 32 bit words each tile and slice mask occupies this frame.</summary>
         public uint LightCullWords;
-        /// <summary>When <see langword="true"/>, the tile masks were built for this view and may be used.</summary>
-        public bool LightTilesValid;
+        /// <summary>Padding to maintain 16-byte struct alignment.</summary>
+        public uint _LightCullPadding0;
 
         /// <summary>Right shift converting a pixel coordinate into a tile coordinate.</summary>
         public uint LightTileShift;
@@ -96,8 +96,9 @@ namespace ValveResourceFormat.Renderer.Buffers
         public Vector4 LightDepthSliceParams;
 
         /// <summary>
-        /// World-to-clip transform of the camera the light masks were built for. Only the world space
-        /// lookup needs it; a raster pass finds its tile through <see cref="LightCullPixelRemap"/>.
+        /// World-to-clip transform of the camera the light masks were built for. Only
+        /// <c>GetCullLookupWs</c> needs it; a raster pass finds its tile through
+        /// <see cref="LightCullPixelRemap"/> instead.
         /// </summary>
         public Matrix4x4 LightCullWorldToProjection = Matrix4x4.Identity;
 
@@ -115,24 +116,21 @@ namespace ValveResourceFormat.Renderer.Buffers
         /// <summary>World-space position of the camera the light masks were built for.</summary>
         public Vector3 LightCullCameraPosition;
         /// <summary>Padding to maintain 16-byte struct alignment.</summary>
-        public float _LightCullPadding0;
+        public float _LightCullPadding1;
 
         /// <summary>World-space forward direction of the camera the light masks were built for.</summary>
         public Vector3 LightCullCameraDir;
         /// <summary>Padding to maintain 16-byte struct alignment.</summary>
-        public float _LightCullPadding1;
+        public float _LightCullPadding2;
 
         /// <summary>Index of the first word of the env map screen tile mask region.</summary>
         public uint EnvMapTileBase;
         /// <summary>Index of the first word of the env map depth bin mask region.</summary>
         public uint EnvMapBinBase;
-        /// <summary>
-        /// Number of 32 bit words each env map tile and bin mask occupies this frame. Zero when the scene
-        /// has no env maps, which is also what makes the masks unusable and selects the fallback.
-        /// </summary>
+        /// <summary>Number of 32 bit words each env map tile and bin mask occupies this frame.</summary>
         public uint EnvMapCullWords;
-        /// <summary>Number of env maps packed into the env map array this frame.</summary>
-        public uint NumEnvMaps;
+        /// <summary>Padding to maintain 16-byte struct alignment.</summary>
+        public uint _LightCullPadding3;
 
         /// <summary>Initializes a new <see cref="ViewConstants"/> with identity matrices and default values.</summary>
         public ViewConstants()
