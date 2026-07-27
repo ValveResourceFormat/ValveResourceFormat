@@ -3,8 +3,6 @@
 #ifndef VRF_LIGHTING_BARN_INCLUDE
 #define VRF_LIGHTING_BARN_INCLUDE
 
-#include "light_cull.slang"
-
 struct BarnLightConstants
 {
     mat4 m_mBarnFrustum;
@@ -28,8 +26,6 @@ layout(std430, binding = 12) readonly buffer BarnLightBuffer {
 };
 
 int g_nBarnLightsIterated = 0;
-
-bool g_bBarnLightsTiled = false;
 
 // Game uses Texture3D
 uniform layout(binding = 15) sampler2DArray g_tLightCookieTexture; // ClampToBorder
@@ -69,29 +65,39 @@ float ComputeBarnLightShadow_PCF_3x3_Gaussian(vec2 shadowUV, float shadowRef, ve
     return shadow;
 }
 
-void ShadeBarnLight(inout LightingTerms_t lighting, inout MaterialProperties_t mat, vec4 bakedShadow, uint i)
+void CalculateBarnLighting(inout LightingTerms_t lighting, in MaterialProperties_t mat, vec4 bakedShadow)
 {
+    uvec4 cullBits = GetCullMaskWords(GetBarnLightCullMasks(mat.PositionWS));
+
+    for (uint i = 0; i < g_nNumBarnLights; i++)
     {
+        if (!IsCullBitSet(cullBits, i))
+        {
+            continue;
+        }
+
+        g_nBarnLightsIterated++;
+
         BarnLightConstants barnLight = g_BarnLights[i];
 
         float visibility = saturate(1.0 - dot(bakedShadow, barnLight.m_vBarnLightBakedShadowMask));
         if (visibility == 0.0)
         {
             // lighting.DiffuseDirect *= vec3(1.0, 0.0, 0.0);
-            return;
+            continue;
         }
 
         vec4 clipPos = barnLight.m_mBarnFrustum * vec4(mat.PositionWS, 1.0);
         vec3 ndc = clipPos.xyz / clipPos.w;
         if (any(lessThanEqual(ndc, vec3(-1.0, -1.0, 0.0))) || any(greaterThanEqual(ndc, vec3(1.0))))
         {
-            return;
+            continue;
         }
 
         vec3 obbPos = vec4(mat.PositionWS, 1.0) * barnLight.m_mBarnIlluminationFromWorld;
         if (any(greaterThan(abs(obbPos), vec3(1.0))))
         {
-            return;
+            continue;
         }
 
         float skirtFade = 1.0;
@@ -106,7 +112,7 @@ void ShadeBarnLight(inout LightingTerms_t lighting, inout MaterialProperties_t m
 
         if (skirtFade == 0.0)
         {
-            return;
+            continue;
         }
 
         vec3 lightDir;
@@ -201,7 +207,7 @@ void ShadeBarnLight(inout LightingTerms_t lighting, inout MaterialProperties_t m
 
         if (lightColor == vec3(0.0))
         {
-            return;
+            continue;
         }
 
         // Shadow map
@@ -229,7 +235,7 @@ void ShadeBarnLight(inout LightingTerms_t lighting, inout MaterialProperties_t m
 
         if (lightColor == vec3(0.0))
         {
-            return;
+            continue;
         }
 
         float savedIsoRoughness = mat.IsometricRoughness;
@@ -244,27 +250,6 @@ void ShadeBarnLight(inout LightingTerms_t lighting, inout MaterialProperties_t m
     }
 }
 
-void CalculateBarnLighting(inout LightingTerms_t lighting, in MaterialProperties_t mat, vec4 bakedShadow)
-{
-    CullMasks_t masks = GetBarnLightCullMasks(mat.PositionWS);
-
-    g_bBarnLightsTiled = true;
-
-    for (uint word = 0u; word < masks.m_nWords; word++)
-    {
-        uint mask = GetCullMaskWord(masks, word);
-
-        while (mask != 0u)
-        {
-            uint i = CullUniformIndex(uint(findLSB(mask)) + (word * 32u));
-            mask &= mask - 1u;
-
-            g_nBarnLightsIterated++;
-            ShadeBarnLight(lighting, mat, bakedShadow, i);
-        }
-    }
-}
-
 bool GetBarnLightTileHeatmap(out vec3 color)
 {
     const float kBusyTile = 12.0;
@@ -273,12 +258,6 @@ bool GetBarnLightTileHeatmap(out vec3 color)
     {
         color = vec3(0.0);
         return false;
-    }
-
-    if (!g_bBarnLightsTiled)
-    {
-        color = vec3(1.0, 0.0, 1.0);
-        return true;
     }
 
     float t = saturate(float(g_nBarnLightsIterated) / kBusyTile) * 3.0;

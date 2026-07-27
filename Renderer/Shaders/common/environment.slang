@@ -216,7 +216,7 @@ vec3 GetEnvironmentNoBRDF(MaterialProperties_t mat, float roughnessReflectionCor
             // Clear the processed bit
             mask &= ~(1u << bit);
 
-            int envMapIndex = int(CullUniformIndex(uint(baseIndex + bit)));
+            int envMapIndex = baseIndex + bit;
 
             EnvMapData envData = envMaps[envMapIndex];
             bool isBoxProjection = envData.ProjectionType == 1u;

@@ -161,19 +161,32 @@ uint GetCullMaskWord(CullMasks_t masks, uint word, uint objectMask)
     return GetCullMaskWord(masks, word) & objectMask;
 }
 
-// Tells the compiler an item index is wave uniform so the item fetch stays a scalar load.
-//
-// GetCullMaskWord unions the mask across the subgroup, so every lane already walks the same bits and
-// this changes no value. What it changes is what the compiler can prove: an index derived from findLSB
-// of a value loaded from a buffer is opaque to it, so the whole light or probe struct gets gathered per
-// lane instead of fetched once per wave. Only valid where that union actually happened, hence the guard.
-uint CullUniformIndex(uint index)
+// Every word of a batch's mask, fetched once. A consumer that gates a linear item loop reads the same
+// word for 32 items running, so holding them in registers costs at most four loads per fragment instead
+// of one per item. Four because the item arrays cap at 128, which is also why a uvec4 holds them all.
+uvec4 GetCullMaskWords(CullMasks_t masks)
 {
-#if defined(GL_KHR_shader_subgroup_arithmetic) && defined(GL_KHR_shader_subgroup_ballot)
-    return subgroupBroadcastFirst(index);
-#else
-    return index;
-#endif
+    uvec4 words = uvec4(0u);
+
+    // Unrolled against constant components: a dynamically indexed vector lvalue can spill to local
+    // memory, and m_nWords is a uniform so each of these branches is wave uniform, which is what
+    // GetCullMaskWord's subgroupOr needs.
+    if (masks.m_nWords > 0u) { words.x = GetCullMaskWord(masks, 0u); }
+    if (masks.m_nWords > 1u) { words.y = GetCullMaskWord(masks, 1u); }
+    if (masks.m_nWords > 2u) { words.z = GetCullMaskWord(masks, 2u); }
+    if (masks.m_nWords > 3u) { words.w = GetCullMaskWord(masks, 3u); }
+
+    return words;
+}
+
+// The gate for a linear item loop. Walking the set bits instead would make the trip count popcount
+// rather than the item count, but it costs an index the compiler cannot prove uniform and a loop it
+// cannot unroll, and it degrades badly once the mask is dense. Here the index is an induction variable,
+// so the item fetch is uniform for free. GetCullMaskWord already unioned each word across the subgroup,
+// so this branch is wave uniform and a culled item is skipped rather than predicated away.
+bool IsCullBitSet(uvec4 words, uint index)
+{
+    return (words[index >> 5u] & (1u << (index & 31u))) != 0u;
 }
 
 bool AnyLaneWantsMore(bool wantsMore)
