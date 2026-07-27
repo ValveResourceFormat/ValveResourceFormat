@@ -33,7 +33,13 @@ namespace ValveResourceFormat.Renderer.Buffers
             if (usage == BufferUsageHint.DynamicRead)
             {
                 GL.NamedBufferStorage(buffer.Handle, buffer.Size, IntPtr.Zero, BufferStorageFlags.MapPersistentBit | BufferStorageFlags.MapReadBit | BufferStorageFlags.MapCoherentBit);
-                buffer.PersistentPtr = GL.MapNamedBuffer(buffer.Handle, BufferAccess.ReadOnly);
+
+                // MapNamedBufferRange rather than MapNamedBuffer: only the range form can set
+                // MAP_PERSISTENT_BIT, and without it the mapping is an ordinary one no matter what the
+                // storage flags say. That leaves the buffer counting as mapped, so every command that
+                // forbids a mapped buffer - ClearNamedBufferData, CopyNamedBufferSubData - fails on it.
+                buffer.PersistentPtr = GL.MapNamedBufferRange(buffer.Handle, IntPtr.Zero, buffer.Size,
+                    BufferAccessMask.MapReadBit | BufferAccessMask.MapPersistentBit | BufferAccessMask.MapCoherentBit);
             }
             else
             {
