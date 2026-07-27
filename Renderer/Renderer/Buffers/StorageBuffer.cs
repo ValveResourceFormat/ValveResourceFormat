@@ -33,13 +33,7 @@ namespace ValveResourceFormat.Renderer.Buffers
             if (usage == BufferUsageHint.DynamicRead)
             {
                 GL.NamedBufferStorage(buffer.Handle, buffer.Size, IntPtr.Zero, BufferStorageFlags.MapPersistentBit | BufferStorageFlags.MapReadBit | BufferStorageFlags.MapCoherentBit);
-
-                // MapNamedBufferRange rather than MapNamedBuffer: only the range form can set
-                // MAP_PERSISTENT_BIT, and without it the mapping is an ordinary one no matter what the
-                // storage flags say. That leaves the buffer counting as mapped, so every command that
-                // forbids a mapped buffer - ClearNamedBufferData, CopyNamedBufferSubData - fails on it.
-                buffer.PersistentPtr = GL.MapNamedBufferRange(buffer.Handle, IntPtr.Zero, buffer.Size,
-                    BufferAccessMask.MapReadBit | BufferAccessMask.MapPersistentBit | BufferAccessMask.MapCoherentBit);
+                buffer.PersistentPtr = GL.MapNamedBuffer(buffer.Handle, BufferAccess.ReadOnly);
             }
             else
             {
@@ -114,19 +108,6 @@ namespace ValveResourceFormat.Renderer.Buffers
                 return;
             }
 
-            GL.ClearNamedBufferData(Handle, PixelInternalFormat.R32ui, PixelFormat.RedInteger, PixelType.UnsignedInt, IntPtr.Zero);
-        }
-
-        /// <summary>
-        /// Zeroes the buffer on the GPU, never through a persistent mapping.
-        /// </summary>
-        /// <remarks>
-        /// <see cref="Clear"/> prefers the mapping when there is one, which is wrong for a buffer the GPU
-        /// writes and the CPU only reads: the mapping is read only, and a CPU store would race whatever the
-        /// GPU has in flight. This orders behind the preceding GL commands instead.
-        /// </remarks>
-        public void ClearOnGpu()
-        {
             GL.ClearNamedBufferData(Handle, PixelInternalFormat.R32ui, PixelFormat.RedInteger, PixelType.UnsignedInt, IntPtr.Zero);
         }
 

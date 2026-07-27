@@ -42,7 +42,6 @@ public sealed class LightBinner(Scene scene) : IDisposable
 
     private StorageBuffer? CullItemsGpu;
     private StorageBuffer? CullPlanesGpu;
-    private StorageBuffer? CullStatsGpu;
     private UniformBuffer<CullParams>? CullParamsGpu;
     private UniformBuffer<LightCullConstants>? ConstantsGpu;
 
@@ -83,51 +82,22 @@ public sealed class LightBinner(Scene scene) : IDisposable
         }
     }
 
-    /// <summary>Mask words reserved per batch in the stats buffer. Matches CULL_STATS_WORDS_PER_BATCH.</summary>
-    private const int CullStatsWordsPerBatch = 4;
-
-    /// <summary>One bit per cull item, set where the tile pass kept it. Read back a frame late.</summary>
-    [InlineArray(TiledCullFeeder.BatchCount * CullStatsWordsPerBatch)]
-    private struct CullStatsWords
-    {
-        private uint _word0;
-    }
-
-    private CullStatsWords cullStatsReadback;
-
-    /// <summary>Counts the bits a batch has set in the last stats readback.</summary>
-    private int LiveItems(int batch)
-    {
-        var live = 0;
-
-        for (var word = 0; word < CullStatsWordsPerBatch; word++)
-        {
-            live += BitOperations.PopCount(cullStatsReadback[(batch * CullStatsWordsPerBatch) + word]);
-        }
-
-        return live;
-    }
-
     /// <summary>What this scene's binner produced for the frame, for the render stats display.</summary>
     /// <param name="Active">Whether items were binned at all, as opposed to every mask being filled with ones.</param>
-    /// <param name="Lights">Barn light faces that reached a tile, out of the faces the shading pass iterates.</param>
-    /// <param name="LightSlots">Barn light faces the shading pass iterates.</param>
+    /// <param name="Faces">Barn light faces that reached a tile, out of the faces the shading pass iterates.</param>
+    /// <param name="FaceSlots">Barn light faces the shading pass iterates.</param>
     /// <param name="Probes">Env map probes that reached a tile, out of the probes the shading pass iterates.</param>
     /// <param name="ProbeSlots">Env map probes the shading pass iterates.</param>
-    /// <param name="LiveLights">Barn light faces the tile pass kept, from the previous frame's readback.</param>
-    /// <param name="LiveProbes">Env map probes the tile pass kept, from the previous frame's readback.</param>
     /// <param name="HullVertices">Silhouette vertices the tile pass walks across every item.</param>
     /// <param name="MaskBytes">Size of the tile and depth bin mask buffer for this layout.</param>
     internal readonly record struct BinnerStats(
-        bool Active, int Lights, int LightSlots, int Probes, int ProbeSlots,
-        int LiveLights, int LiveProbes, int HullVertices, int MaskBytes);
+        bool Active, int Faces, int FaceSlots, int Probes, int ProbeSlots, int HullVertices, int MaskBytes);
 
     /// <summary>Gets what this binner produced for the frame.</summary>
     internal BinnerStats Stats => new(
         Active,
         Feeder.BinnedCount(TiledCullFeeder.BatchBarnLights), Feeder.SlotCount(TiledCullFeeder.BatchBarnLights),
         Feeder.BinnedCount(TiledCullFeeder.BatchEnvMaps), Feeder.SlotCount(TiledCullFeeder.BatchEnvMaps),
-        LiveItems(TiledCullFeeder.BatchBarnLights), LiveItems(TiledCullFeeder.BatchEnvMaps),
         Feeder.PlaneCount,
         Feeder.TotalWords * sizeof(uint));
 
@@ -266,13 +236,6 @@ public sealed class LightBinner(Scene scene) : IDisposable
         CullPlanesGpu.BindBufferBase();
         CullParamsGpu.BindBufferBase();
 
-        // Read before the clear, so this picks up whichever dispatch the GPU has finished by now - a frame
-        // or two back. Stats only, and a mask word is written atomically, so a stale one costs nothing.
-        Debug.Assert(CullStatsGpu is not null);
-        CullStatsGpu.Read(ref cullStatsReadback);
-        CullStatsGpu.ClearOnGpu();
-        CullStatsGpu.BindBufferBase();
-
         var (tileX, tileY, tileZ) = Feeder.TileDispatch;
         TileCullBitsShader.Use();
         SetOcclusionUniforms(TileCullBitsShader);
@@ -299,10 +262,6 @@ public sealed class LightBinner(Scene scene) : IDisposable
 
         CullPlanesGpu ??= StorageBuffer.Allocate<Vector2>(
             ReservedBufferSlots.CullPlanes, Feeder.PlaneArray.Length, BufferUsageHint.DynamicDraw);
-
-        // DynamicRead maps this persistently, which is what makes reading it back cost no sync.
-        CullStatsGpu ??= StorageBuffer.Allocate<uint>(
-            ReservedBufferSlots.CullStats, TiledCullFeeder.BatchCount * CullStatsWordsPerBatch, BufferUsageHint.DynamicRead);
 
         if (CullBits == null || CullBitsWords < Feeder.TotalWords)
         {
@@ -347,7 +306,6 @@ public sealed class LightBinner(Scene scene) : IDisposable
         CullItemsGpu?.Delete();
         CullPlanesGpu?.Delete();
         CullParamsGpu?.Dispose();
-        CullStatsGpu?.Delete();
         ConstantsGpu?.Dispose();
 
         CullBits = null;
