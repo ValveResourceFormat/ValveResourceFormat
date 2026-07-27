@@ -667,7 +667,7 @@ namespace ValveResourceFormat.Renderer
             lpvBuffer.BindBufferBase();
             LightingInfo.BindBarnLightBuffer();
 
-            LightBinner.BindCullBits();
+            LightBinner.Bind();
         }
 
         private readonly List<SceneNode> CullResults = [];

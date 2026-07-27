@@ -21,6 +21,8 @@ public enum ReservedBufferSlots
     FrustumPlanes = 4,
     /// <summary>Shared constants for the tile and depth bin cull passes.</summary>
     CullParams = 5,
+    /// <summary>Per scene cull mask layout read by the shading passes.</summary>
+    LightCull = 6,
 
     // ssbo
 

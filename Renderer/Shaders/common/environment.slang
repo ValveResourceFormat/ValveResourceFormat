@@ -202,22 +202,9 @@ vec3 GetEnvironmentNoBRDF(MaterialProperties_t mat, float roughnessReflectionCor
     bool bContinueLoop = true;
 
     CullMasks_t masks = GetEnvMapCullMasks(vFragPosition);
-
-    // The 3D skybox is a separate scene: its own probe list, its own ShaderIndex numbering, and world
-    // positions in skybox scale. The tile masks describe the main scene's probes, so ANDing them here
-    // would compare two unrelated index spaces and bin against depths that mean nothing. Fall back to the
-    // per object list alone, the same way the barn lights do.
-    //
-    // Tiled reads are bounded by the mask stride, not by a word count derived from the probe count. The
-    // two agree only while every probe's ShaderIndex is dense, and where they do not this walked off the
-    // end of the tile's masks - past the whole region for the highest tile indices, which is the top row.
-    uint nWords = g_bIsSkybox ? 4u : masks.m_nWords;
-
-    for (uint word = 0u; word < nWords && AnyLaneWantsMore(bContinueLoop); word++)
+    for (uint word = 0u; word < masks.m_nWords && AnyLaneWantsMore(bContinueLoop); word++)
     {
-        uint mask = g_bIsSkybox
-            ? g_nEnvMapVisibility[word]
-            : GetCullMaskWord(masks, word, g_nEnvMapVisibility[word]);
+        uint mask = GetCullMaskWord(masks, word, g_nEnvMapVisibility[word]);
 
         int baseIndex = int(word * 32u);
 

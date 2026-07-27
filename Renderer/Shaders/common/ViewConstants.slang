@@ -36,32 +36,6 @@ layout(std140, binding = 0) uniform ViewConstants
 
     mat4 g_matPrevWorldToProjection;
 
-    uint g_nLightTileBase;
-    uint g_nLightSliceBase;
-    uint g_nLightCullWords;
-    uint _lightCullPadding0;
-
-    uint g_nLightTileShift;
-    uint g_nLightTileCols;
-    uint g_nLightTileRows;
-    uint g_nLightSliceCount;
-
-    vec4 g_vLightDepthSliceParams;
-
-    mat4 g_matLightCullWorldToProjection;
-
-    vec4 g_vLightCullPixelRemap;
-
-    vec3 g_vLightCullCameraPositionWs;
-    float _lightCullPadding1;
-
-    vec3 g_vLightCullCameraDirWs;
-    float _lightCullPadding2;
-
-    uint g_nEnvMapTileBase;
-    uint g_nEnvMapBinBase;
-    uint g_nEnvMapCullWords;
-    uint _lightCullPadding3;
 };
 
 bool blink()

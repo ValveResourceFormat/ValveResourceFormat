@@ -5,6 +5,35 @@
 
 #include "ViewConstants.slang"
 
+layout(binding = 6, std140) uniform LightCullConstants
+{
+    uint g_nLightTileBase;
+    uint g_nLightSliceBase;
+    uint g_nLightCullWords;
+    uint g_nLightTileShift;
+
+    uint g_nLightTileCols;
+    uint g_nLightTileRows;
+    uint g_nLightSliceCount;
+    uint g_nEnvMapTileBase;
+
+    uint g_nEnvMapBinBase;
+    uint g_nEnvMapCullWords;
+    uint _lightCullPadding0;
+    uint _lightCullPadding1;
+
+    vec4 g_vLightDepthSliceParams;
+    vec4 g_vLightCullPixelRemap;
+
+    mat4 g_matLightCullWorldToProjection;
+
+    vec3 g_vLightCullCameraPositionWs;
+    float _lightCullPadding2;
+
+    vec3 g_vLightCullCameraDirWs;
+    float _lightCullPadding3;
+};
+
 layout(std430, binding = 13) readonly buffer LightCullBitsBuffer
 {
     uint g_LightCullBits[];
@@ -106,6 +135,14 @@ CullMasks_t GetEnvMapCullMasks(vec3 positionWs)
 {
     return MakeCullMasks(GetCullLookupCached(positionWs),
                          g_nEnvMapTileBase, g_nEnvMapBinBase, g_nEnvMapCullWords);
+}
+
+uint GetCullWordMask(uint count, uint word)
+{
+    uint first = word * 32u;
+    uint live = count > first ? min(count - first, 32u) : 0u;
+
+    return live >= 32u ? 0xFFFFFFFFu : ((1u << live) - 1u);
 }
 
 uint GetCullMaskWord(CullMasks_t masks, uint word)
