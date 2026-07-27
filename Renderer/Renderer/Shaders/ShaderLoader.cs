@@ -285,6 +285,7 @@ namespace ValveResourceFormat.Renderer.Shaders
 
             header.Append("#extension GL_KHR_shader_subgroup_arithmetic : enable\n");
             header.Append("#extension GL_KHR_shader_subgroup_vote : enable\n");
+            header.Append("#extension GL_KHR_shader_subgroup_ballot : enable\n");
 
             var variantName = $"GameVfx_{Path.GetFileNameWithoutExtension(originalShaderName)}";
 

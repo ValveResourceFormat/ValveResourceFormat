@@ -258,7 +258,7 @@ void CalculateBarnLighting(inout LightingTerms_t lighting, in MaterialProperties
 
             while (mask != 0u)
             {
-                uint i = uint(findLSB(mask)) + (word * 32u);
+                uint i = CullUniformIndex(uint(findLSB(mask)) + (word * 32u));
                 mask &= mask - 1u;
 
                 g_nBarnLightsIterated++;

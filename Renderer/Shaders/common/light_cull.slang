@@ -161,6 +161,21 @@ uint GetCullMaskWord(CullMasks_t masks, uint word, uint objectMask)
     return GetCullMaskWord(masks, word) & objectMask;
 }
 
+// Tells the compiler an item index is wave uniform so the item fetch stays a scalar load.
+//
+// GetCullMaskWord unions the mask across the subgroup, so every lane already walks the same bits and
+// this changes no value. What it changes is what the compiler can prove: an index derived from findLSB
+// of a value loaded from a buffer is opaque to it, so the whole light or probe struct gets gathered per
+// lane instead of fetched once per wave. Only valid where that union actually happened, hence the guard.
+uint CullUniformIndex(uint index)
+{
+#if defined(GL_KHR_shader_subgroup_arithmetic) && defined(GL_KHR_shader_subgroup_ballot)
+    return subgroupBroadcastFirst(index);
+#else
+    return index;
+#endif
+}
+
 bool AnyLaneWantsMore(bool wantsMore)
 {
 #if defined(GL_KHR_shader_subgroup_vote)
