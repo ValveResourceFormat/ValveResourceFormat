@@ -118,23 +118,8 @@ namespace ValveResourceFormat.Renderer
         private Shader? FrustumCullShader;
         private Shader? CompactionShader;
 
-        private Shader? TileCullBitsShader;
-        private Shader? DepthBinCullBitsShader;
-
-        /// <summary>Gets the GPU buffer holding the per tile and per depth bin cull bit masks.</summary>
-        public StorageBuffer? LightCullBitsGpu { get; private set; }
-
-        private StorageBuffer? CullItemsGpu;
-        private StorageBuffer? CullPlanesGpu;
-        private UniformBuffer<CullParams>? CullParamsGpu;
-
-        private readonly TiledCullFeeder CullFeeder = new();
-
-        private int LightTileCols;
-        private int LightTileRows;
-        private int CullBitsWords;
-        private bool CullBitsAllVisible;
-        private bool LightTilesActive;
+        /// <summary>Gets the tile and depth bin cull passes for this scene.</summary>
+        public LightBinner LightBinner { get; }
 
         private Shader? DepthPyramidShader;
         private Shader? DepthPyramidNpotShader;
@@ -181,28 +166,11 @@ namespace ValveResourceFormat.Renderer
         public bool EnableCompaction { get; set; } = true;
 
         /// <summary>Gets or sets whether barn lights are binned to screen tiles so shaders iterate only the lights that reach them.</summary>
-        public bool EnableLightTileCulling { get; set; } = true;
-
-        /// <summary>Screen tile size for barn light binning, as a power of two shift. 5 is 32x32 pixels.</summary>
-        private const int LightTileShift = 4;
-
-        /// <summary>Number of logarithmic depth slices barn lights are binned into.</summary>
-        private const int LightDepthSliceCount = 32;
-
-        /// <summary>Far distance the logarithmic slice distribution is fitted to, in world units.</summary>
-        private const float LightDepthSliceFar = 32768f;
-
-        /// <summary>Camera near plane, matching <see cref="Camera.CreateProjectionMatrix"/>.</summary>
-        private const float LightDepthSliceNear = 1f;
-
-        /// <summary>
-        /// Gets whether the barn light tile masks can be built for this scene. Checked before the
-        /// dispatch so the view constants can advertise validity in the same upload the passes read.
-        /// </summary>
-        internal bool CanCullLightTiles => EnableLightTileCulling
-            && (LightingInfo.LightingData.NumBarnLights > 0 || LightingInfo.EnvMaps.Count > 0)
-            && TileCullBitsShader != null
-            && DepthBinCullBitsShader != null;
+        public bool EnableLightTileCulling
+        {
+            get => LightBinner.Enabled;
+            set => LightBinner.Enabled = value;
+        }
 
         internal bool DrawMeshletsIndirect { get; private set; }
         internal bool CompactMeshletDraws { get; private set; }
@@ -227,6 +195,7 @@ namespace ValveResourceFormat.Renderer
             DynamicOctree = new(sizeHint);
 
             LightingInfo = new(this);
+            LightBinner = new(this);
         }
 
         /// <summary>
@@ -248,8 +217,7 @@ namespace ValveResourceFormat.Renderer
             CompactionShader = RendererContext.ShaderLoader.LoadShader("vrf.compact_indirect_draws");
             DepthPyramidShader = RendererContext.ShaderLoader.LoadShader("vrf.depth_pyramid");
             DepthPyramidNpotShader = RendererContext.ShaderLoader.LoadShader("vrf.depth_pyramid", ("D_NPOT_DOWNSAMPLE", 1));
-            TileCullBitsShader = RendererContext.ShaderLoader.LoadShader("vrf.compute_tile_cullbits");
-            DepthBinCullBitsShader = RendererContext.ShaderLoader.LoadShader("vrf.compute_depthbin_cullbits");
+            LightBinner.LoadShaders();
 
             EnableIndirectDraws = LightingInfo.LightingData.IsSkybox == 0u;
 
@@ -699,7 +667,7 @@ namespace ValveResourceFormat.Renderer
             lpvBuffer.BindBufferBase();
             LightingInfo.BindBarnLightBuffer();
 
-            LightCullBitsGpu?.BindBufferBase();
+            LightBinner.BindCullBits();
         }
 
         private readonly List<SceneNode> CullResults = [];
@@ -1240,170 +1208,6 @@ namespace ValveResourceFormat.Renderer
                 // being visible to the later indirect draw.
                 OcclusionDebug!.DispatchFinalize();
             }
-        }
-
-        /// <summary>
-        /// Grows the GPU buffers to fit the layout <see cref="CullFeeder"/> just produced. The bits buffer is
-        /// sized from the batch layout rather than a worst case, so a scene with few items pays for few words.
-        /// </summary>
-        private void EnsureCullBuffers()
-        {
-            CullParamsGpu ??= new UniformBuffer<CullParams>(ReservedBufferSlots.CullParams);
-
-            CullItemsGpu ??= StorageBuffer.Allocate<CullItem>(
-                ReservedBufferSlots.CullItems, CullFeeder.ItemArray.Length, BufferUsageHint.DynamicDraw);
-
-            CullPlanesGpu ??= StorageBuffer.Allocate<Vector2>(
-                ReservedBufferSlots.CullPlanes, CullFeeder.PlaneArray.Length, BufferUsageHint.DynamicDraw);
-
-            if (LightCullBitsGpu == null || CullBitsWords < CullFeeder.TotalWords)
-            {
-                LightCullBitsGpu?.Delete();
-                CullBitsWords = CullFeeder.TotalWords;
-                LightCullBitsGpu = StorageBuffer.Allocate<uint>(
-                    ReservedBufferSlots.LightCullBits, CullBitsWords, BufferUsageHint.DynamicDraw);
-                CullBitsAllVisible = false;
-            }
-        }
-
-        /// <summary>
-        /// Projects every cull item for this frame and writes the resulting tile grid layout into
-        /// <paramref name="viewConstants"/>. Must run before the view buffer upload that precedes
-        /// <see cref="LightCullGpu"/>: the fragment shader reads the layout from the view constants, so it
-        /// has to be on the GPU before the first dispatch.
-        /// </summary>
-        internal void SetLightTileViewConstants(ViewConstants viewConstants, int viewportWidth, int viewportHeight, bool enabled)
-        {
-            LightTilesActive = enabled && CanCullLightTiles && viewportWidth > 0 && viewportHeight > 0;
-
-            const int tileSize = 1 << LightTileShift;
-
-            var width = Math.Max(viewportWidth, 1);
-            var height = Math.Max(viewportHeight, 1);
-
-            LightTileCols = (width + tileSize - 1) >> LightTileShift;
-            LightTileRows = (height + tileSize - 1) >> LightTileShift;
-
-            var depthKeyRange = MathF.Log2(LightDepthSliceFar / LightDepthSliceNear);
-
-            CullFeeder.Begin(
-                LightTileCols, LightTileRows, tileSize,
-                LightDepthSliceCount, depthKeyRange,
-                new Vector2(width, height),
-                viewConstants.WorldToProjection,
-                viewConstants.CameraPosition, viewConstants.CameraDirWs,
-                Camera.NearPlane);
-
-            CullFeeder.AddBarnLights(LightingInfo.BinnedBarnLightVolumes);
-            CullFeeder.AddEnvMaps(LightingInfo.EnvMaps);
-            CullFeeder.End();
-
-            EnsureCullBuffers();
-
-            viewConstants.LightTileBase = CullFeeder.TileBase(TiledCullFeeder.BatchBarnLights);
-            viewConstants.LightSliceBase = CullFeeder.BinBase(TiledCullFeeder.BatchBarnLights);
-            viewConstants.LightCullWords = CullFeeder.Stride(TiledCullFeeder.BatchBarnLights);
-            viewConstants.LightTileShift = LightTileShift;
-            viewConstants.LightTileCols = (uint)LightTileCols;
-            viewConstants.LightTileRows = (uint)LightTileRows;
-            viewConstants.LightSliceCount = LightDepthSliceCount;
-            viewConstants.LightDepthSliceParams = new Vector4(
-                LightDepthSliceCount / depthKeyRange,
-                -LightDepthSliceCount * MathF.Log2(LightDepthSliceNear) / depthKeyRange,
-                0f, 0f);
-
-            viewConstants.EnvMapTileBase = CullFeeder.TileBase(TiledCullFeeder.BatchEnvMaps);
-            viewConstants.EnvMapBinBase = CullFeeder.BinBase(TiledCullFeeder.BatchEnvMaps);
-            viewConstants.EnvMapCullWords = CullFeeder.Stride(TiledCullFeeder.BatchEnvMaps);
-
-            viewConstants.LightCullWorldToProjection = viewConstants.WorldToProjection;
-            viewConstants.LightCullCameraPosition = viewConstants.CameraPosition;
-            viewConstants.LightCullCameraDir = viewConstants.CameraDirWs;
-
-            viewConstants.LightCullPixelRemap = ViewConstants.PixelRemapIdentity;
-        }
-
-        /// <summary>
-        /// Builds the tile and depth bin cull bit masks so the shading pass can iterate only the items that
-        /// reach a given fragment. The items were already projected and frustum rejected on the CPU by
-        /// <see cref="SetLightTileViewConstants"/>; these two passes only rasterize them into bits.
-        /// </summary>
-        public void LightCullGpu()
-        {
-            if (LightCullBitsGpu == null)
-            {
-                return;
-            }
-
-            if (!LightTilesActive || CullFeeder.MaskCount == 0)
-            {
-                if (!CullBitsAllVisible)
-                {
-                    LightCullBitsGpu.Fill(uint.MaxValue);
-                    CullBitsAllVisible = true;
-                }
-
-                return;
-            }
-
-            CullBitsAllVisible = false;
-
-            Debug.Assert(TileCullBitsShader is not null && DepthBinCullBitsShader is not null);
-            Debug.Assert(CullItemsGpu is not null && CullPlanesGpu is not null && CullParamsGpu is not null);
-
-            using var _ = new GLDebugGroup("Cull Tiles and Depth Bins");
-
-            CullItemsGpu.Update(CullFeeder.ItemArray, 0, CullFeeder.ItemCount * Unsafe.SizeOf<CullItem>());
-            CullPlanesGpu.Update(CullFeeder.PlaneArray, 0, CullFeeder.PlaneCount * Unsafe.SizeOf<Vector2>());
-            CullParamsGpu.Data = CullFeeder.Params;
-
-            LightCullBitsGpu.BindBufferBase();
-            CullItemsGpu.BindBufferBase();
-            CullPlanesGpu.BindBufferBase();
-            CullParamsGpu.BindBufferBase();
-
-            var (tileX, tileY, tileZ) = CullFeeder.TileDispatch;
-            TileCullBitsShader.Use();
-            SetTileCullOcclusionUniforms(TileCullBitsShader);
-            GL.DispatchCompute(tileX, tileY, tileZ);
-
-            var (binX, binY, binZ) = CullFeeder.BinDispatch;
-            DepthBinCullBitsShader.Use();
-            GL.DispatchCompute(binX, binY, binZ);
-
-            GL.MemoryBarrier(MemoryBarrierFlags.ShaderStorageBarrierBit);
-        }
-
-        /// <summary>
-        /// Feeds the depth pyramid to the optional occlusion test in <c>compute_tile_cullbits</c>. That test
-        /// is off behind a shader constant, because occluding a cull item is only sound when every receiver
-        /// that reads it is opaque; these are set regardless so enabling it needs no CPU change.
-        /// </summary>
-        private void SetTileCullOcclusionUniforms(Shader shader)
-        {
-            var occlusionEnabled = EnableOcclusionCulling && DepthPyramidValid && DepthPyramid != null;
-
-            shader.SetUniform1("g_bOcclusionCullEnabled", occlusionEnabled ? 1 : 0);
-
-            if (!occlusionEnabled)
-            {
-                return;
-            }
-
-            Debug.Assert(DepthPyramid != null);
-
-            shader.SetUniform1("g_nDepthPyramidMaxMip", DepthPyramid.NumMipLevels - 1);
-            shader.SetUniform1("g_nDepthPyramidWidth", DepthPyramid.Width);
-            shader.SetUniform1("g_nDepthPyramidHeight", DepthPyramid.Height);
-            shader.SetUniform1("g_flDepthRangeMin", Renderer.DepthRange.Scene.Near);
-            shader.SetUniform1("g_flDepthRangeMax", Renderer.DepthRange.Scene.Far);
-
-            shader.SetUniform2("g_vCullToPyramidScale", new Vector2(
-                DepthPyramid.Width / MathF.Max(CullFeeder.ViewportSize.X, 1f),
-                DepthPyramid.Height / MathF.Max(CullFeeder.ViewportSize.Y, 1f)));
-
-            GL.ActiveTexture(TextureUnit.Texture0);
-            GL.BindTexture(DepthPyramid.Target, DepthPyramid.Handle);
         }
 
         /// <summary>
@@ -2098,10 +1902,7 @@ namespace ValveResourceFormat.Renderer
             if (disposing)
             {
                 frustumBuffer?.Dispose();
-                LightCullBitsGpu?.Delete();
-                CullItemsGpu?.Delete();
-                CullPlanesGpu?.Delete();
-                CullParamsGpu?.Dispose();
+                LightBinner.Dispose();
                 lightingBuffer?.Dispose();
                 lpvBuffer?.Dispose();
                 envMapBuffer?.Dispose();

@@ -399,7 +399,7 @@ public class Renderer
         camera.SetViewConstants(ViewBuffer.Data);
         scene.SetFogConstants(ViewBuffer.Data);
 
-        scene.SetLightTileViewConstants(ViewBuffer.Data,
+        scene.LightBinner.SetViewConstants(ViewBuffer.Data,
             (int)ViewBuffer.Data.ViewportSize.X, (int)ViewBuffer.Data.ViewportSize.Y,
             enabled: LockedCullFrustum == null);
 
@@ -424,7 +424,7 @@ public class Renderer
                 scene.CompactIndirectDraws();
             }
 
-            scene.LightCullGpu();
+            scene.LightBinner.Dispatch();
         }
 
         if (Postprocess != null)
@@ -721,7 +721,7 @@ public class Renderer
                     ? (view.EnvMapTileBase, view.EnvMapCullWords)
                     : (view.LightTileBase, view.LightCullWords);
 
-                LightTilesOverlay.Render(Scene.LightCullBitsGpu, tileBase, words);
+                LightTilesOverlay.Render(Scene.LightBinner.CullBits, tileBase, words);
             }
         }
         else
