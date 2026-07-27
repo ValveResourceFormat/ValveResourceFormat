@@ -40,6 +40,8 @@ layout(std140, binding = 2) uniform EnvMapArray
     EnvMapData envMaps[MAX_ENVMAPS];
 };
 
+int g_nEnvMapsIterated = 0;
+
 #if (S_SCENE_CUBEMAP_TYPE == 0)
     // ...
 #elif (S_SCENE_CUBEMAP_TYPE == 1)
@@ -218,6 +220,8 @@ vec3 GetEnvironmentNoBRDF(MaterialProperties_t mat, float roughnessReflectionCor
 
             int envMapIndex = baseIndex + bit;
 
+            g_nEnvMapsIterated++;
+
             EnvMapData envData = envMaps[envMapIndex];
             bool isBoxProjection = envData.ProjectionType == 1u;
             vec3 envMapBoxMin = envData.BoxMins;
@@ -290,6 +294,29 @@ vec3 GetEnvironment(MaterialProperties_t mat, float roughnessReflectionCorrectio
 vec3 GetEnvironment(MaterialProperties_t mat)
 {
     return GetEnvironment(mat, 0.2);
+}
+
+// Heat map for renderMode_EnvmapTiles: blue to red as the probe list the tile and depth bin masks hand
+// this fragment grows. Counts probes reached, not probes blended, so the containment rejects inside the
+// loop show up as heat with no visible reflection change - which is the cost the masks are letting
+// through. Returns false where no probe reaches the fragment so the caller leaves it normally shaded.
+bool GetEnvMapTileHeatmap(out vec3 color)
+{
+    const float kBusyTile = 4.0;
+
+    if (g_nEnvMapsIterated == 0)
+    {
+        color = vec3(0.0);
+        return false;
+    }
+
+    float t = saturate(float(g_nEnvMapsIterated) / kBusyTile) * 3.0;
+
+    color = mix(vec3(0.0, 0.0, 1.0), vec3(0.0, 1.0, 0.0), saturate(t));
+    color = mix(color, vec3(1.0, 1.0, 0.0), saturate(t - 1.0));
+    color = mix(color, vec3(1.0, 0.0, 0.0), saturate(t - 2.0));
+
+    return true;
 }
 
 #endif

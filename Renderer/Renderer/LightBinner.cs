@@ -99,27 +99,6 @@ public sealed class LightBinner(Scene scene) : IDisposable
     }
 
     /// <summary>
-    /// Turns every item on for every tile and bin, so a pass drawn against this buffer culls nothing.
-    /// </summary>
-    /// <remarks>
-    /// This is how the 3D skybox is drawn. It is a separate scene whose bit indices address its own light
-    /// and probe arrays, so the main scene's masks mean nothing to it; rather than bin it separately, it
-    /// runs unculled against the layout already in the view constants. Consumers bound their iteration by
-    /// their own item count, so the spare bits an all ones buffer sets past that count are never read.
-    /// <see cref="Dispatch"/> rebuilds the real masks for the passes that follow.
-    /// </remarks>
-    public void SetAllVisible()
-    {
-        if (CullBits == null || CullBitsAllVisible)
-        {
-            return;
-        }
-
-        CullBits.Fill(uint.MaxValue);
-        CullBitsAllVisible = true;
-    }
-
-    /// <summary>
     /// Projects every cull item for this frame and writes the resulting tile grid layout into
     /// <paramref name="viewConstants"/>. Must run before the view buffer upload that precedes
     /// <see cref="Dispatch"/>: the fragment shader reads the layout from the view constants, so it has to
@@ -266,29 +245,18 @@ public sealed class LightBinner(Scene scene) : IDisposable
     /// </summary>
     private void SetOcclusionUniforms(Shader shader)
     {
-        var occlusionEnabled = scene.EnableOcclusionCulling && scene.DepthPyramidValid && scene.DepthPyramid != null;
-
-        shader.SetUniform1("g_bOcclusionCullEnabled", occlusionEnabled ? 1 : 0);
-
-        if (!occlusionEnabled)
+        if (!scene.SetOcclusionUniforms(shader))
         {
             return;
         }
 
         Debug.Assert(scene.DepthPyramid != null);
 
-        shader.SetUniform1("g_nDepthPyramidMaxMip", scene.DepthPyramid.NumMipLevels - 1);
-        shader.SetUniform1("g_nDepthPyramidWidth", scene.DepthPyramid.Width);
-        shader.SetUniform1("g_nDepthPyramidHeight", scene.DepthPyramid.Height);
-        shader.SetUniform1("g_flDepthRangeMin", Renderer.DepthRange.Scene.Near);
-        shader.SetUniform1("g_flDepthRangeMax", Renderer.DepthRange.Scene.Far);
-
+        // Cull space is pixels, so this is just the pyramid's size over the viewport's. Only this pass
+        // needs it, because only this pass starts from a screen rect rather than a world space box.
         shader.SetUniform2("g_vCullToPyramidScale", new Vector2(
             scene.DepthPyramid.Width / MathF.Max(Feeder.ViewportSize.X, 1f),
             scene.DepthPyramid.Height / MathF.Max(Feeder.ViewportSize.Y, 1f)));
-
-        GL.ActiveTexture(TextureUnit.Texture0);
-        GL.BindTexture(scene.DepthPyramid.Target, scene.DepthPyramid.Handle);
     }
 
     /// <inheritdoc/>

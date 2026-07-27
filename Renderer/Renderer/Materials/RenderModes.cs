@@ -25,9 +25,6 @@ namespace ValveResourceFormat.Renderer.Materials
             new("IrradianceDebug"),
             new("Illumination"),
             new("LightmapShadows"),
-            new("LightTiles"),
-            new("EnvmapTiles"),
-            new("Subgroups"),
             new("Cubemaps"),
             new("RimLight"),
 
@@ -63,7 +60,12 @@ namespace ValveResourceFormat.Renderer.Materials
             new("MeshId"),
             new("ShaderId"),
             new("ShaderProgramId"),
-            new("Meshlets")
+            new("Meshlets"),
+
+            new("Debug", IsHeader: true),
+            new("LightTiles"),
+            new("EnvmapTiles"),
+            new("Subgroups")
         ];
 
         private readonly static Dictionary<string, byte> ShaderIds = new(Items.Count);

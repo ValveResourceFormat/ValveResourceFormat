@@ -1142,6 +1142,42 @@ namespace ValveResourceFormat.Renderer
         }
 
         /// <summary>
+        /// Binds the depth pyramid and sets the constants every occlusion test reads, returning whether
+        /// the test will run at all.
+        /// </summary>
+        /// <remarks>
+        /// Shared by the meshlet cull and the light tile cull so the two cannot end up testing against a
+        /// different pyramid, mip count or depth range than each other.
+        /// </remarks>
+        /// <param name="shader">The shader whose occlusion uniforms to set. Must already be in use.</param>
+        /// <returns>Whether occlusion culling is active this frame.</returns>
+        internal bool SetOcclusionUniforms(Shader shader)
+        {
+            var pyramid = DepthPyramid;
+            var enabled = DepthPyramidValid && pyramid != null;
+
+            shader.SetUniform1("g_bOcclusionCullEnabled", enabled ? 1 : 0);
+
+            if (!enabled)
+            {
+                return false;
+            }
+
+            Debug.Assert(pyramid != null);
+
+            shader.SetUniform1("g_nDepthPyramidMaxMip", pyramid.NumMipLevels - 1);
+            shader.SetUniform1("g_nDepthPyramidWidth", pyramid.Width);
+            shader.SetUniform1("g_nDepthPyramidHeight", pyramid.Height);
+            shader.SetUniform1("g_flDepthRangeMin", Renderer.DepthRange.Scene.Near);
+            shader.SetUniform1("g_flDepthRangeMax", Renderer.DepthRange.Scene.Far);
+
+            GL.ActiveTexture(TextureUnit.Texture0);
+            GL.BindTexture(pyramid.Target, pyramid.Handle);
+
+            return true;
+        }
+
+        /// <summary>
         /// Dispatches the GPU frustum (and optional occlusion) culling compute shader, writing surviving indirect draw commands to <see cref="IndirectDrawsGpu"/>.
         /// </summary>
         /// <param name="frustum">The view frustum used to cull meshlets.</param>
@@ -1161,25 +1197,7 @@ namespace ValveResourceFormat.Renderer
 
             FrustumCullShader.Use();
 
-            // Set occlusion culling enabled flag
-            var occlusionEnabled = DepthPyramidValid;
-            FrustumCullShader.SetUniform1("g_bOcclusionCullEnabled", occlusionEnabled ? 1 : 0);
-
-            // If occlusion culling is enabled, setup depth pyramid and bind texture
-            if (occlusionEnabled)
-            {
-                Debug.Assert(DepthPyramid != null);
-
-                FrustumCullShader.SetUniform1("g_nDepthPyramidMaxMip", DepthPyramid.NumMipLevels - 1);
-                FrustumCullShader.SetUniform1("g_nDepthPyramidWidth", DepthPyramid.Width);
-                FrustumCullShader.SetUniform1("g_nDepthPyramidHeight", DepthPyramid.Height);
-                FrustumCullShader.SetUniform1("g_flDepthRangeMin", Renderer.DepthRange.Scene.Near);
-                FrustumCullShader.SetUniform1("g_flDepthRangeMax", Renderer.DepthRange.Scene.Far);
-
-                // Bind depth pyramid as texture for sampling
-                GL.ActiveTexture(TextureUnit.Texture0);
-                GL.BindTexture(DepthPyramid.Target, DepthPyramid.Handle);
-            }
+            SetOcclusionUniforms(FrustumCullShader);
 
             MeshletDataGpu.BindBufferBase();
             DrawBoundsGpu.BindBufferBase();

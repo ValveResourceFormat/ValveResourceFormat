@@ -372,12 +372,6 @@ public sealed class TiledCullFeeder
         cullParams.MaskCount = running;
     }
 
-    private int AlignedEnd()
-    {
-        var last = BatchCount - 1;
-        return batchFirstItem[last] + (int)cullParams.TileBatches[last].OutputStride * ItemsPerMask;
-    }
-
     /// <summary>
     /// An item no tile and no bin can match. Used for culled entries, which have to keep their slot, and
     /// for the padding the tile pass reads past the end of a batch.

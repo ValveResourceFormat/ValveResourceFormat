@@ -340,26 +340,24 @@ bool _HandleLightingRenderModes(inout vec4 outputColor, MaterialProperties_t mat
             outputColor = vec4(SrgbGammaToLinear((mat.AmbientOcclusion * flLightmapOcclusion).xxx), 1.0);
             return true;
         case renderMode_LightTiles:
-            if (LIGHT_TILES_DEBUG_TILE_INDEX)
-            {
-                outputColor = vec4(GetLightCullTileDebug(mat.PositionWS), 1.0);
-                return true;
-            }
-
-            if (LIGHT_TILES_DEBUG_MASKS)
-            {
-                outputColor = vec4(GetLightCullMaskDebug(mat.PositionWS), 1.0);
-                return true;
-            }
-
             vec3 tileHeat;
             outputColor.rgb *= GetLightCullBinStripe(mat.PositionWS);
 
             if (!GetBarnLightTileHeatmap(tileHeat))
             {
-                return false;
+                return true;
             }
             outputColor = vec4(tileHeat, 1.0);
+            return true;
+        case renderMode_EnvmapTiles:
+            vec3 envMapHeat;
+            outputColor.rgb *= GetLightCullBinStripe(mat.PositionWS);
+
+            if (!GetEnvMapTileHeatmap(envMapHeat))
+            {
+                return true;
+            }
+            outputColor = vec4(envMapHeat, 1.0);
             return true;
         case renderMode_Subgroups:
             outputColor = vec4(GetSubgroupFootprintColor(), 1.0);
