@@ -20,6 +20,8 @@ layout (location = 4) in vec4 aVertexColor;
 
 #if (S_SCENE_CUBEMAP_TYPE == 1)
     flat out uint g_nEnvMapIndex;
+#elif (S_SCENE_CUBEMAP_TYPE == 2)
+    flat out uvec4 g_nEnvMapVisibility;
 #endif
 
 out vec3 vFragPosition;
@@ -48,6 +50,9 @@ void main(void)
 
 #if (S_SCENE_CUBEMAP_TYPE == 1)
     g_nEnvMapIndex = 0u;
+#elif (S_SCENE_CUBEMAP_TYPE == 2)
+    // Cables carry no per object probe list, so let the tile masks alone decide.
+    g_nEnvMapVisibility = uvec4(0xFFFFFFFFu);
 #endif
 
     gl_Position = g_matWorldToProjection * vec4(aVertexPosition, 1.0);

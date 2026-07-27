@@ -120,6 +120,11 @@ namespace ValveResourceFormat.Renderer
         public uint ShaderEnvMapIndex { get; set; }
 
         /// <summary>
+        /// Gets or sets the precomputed environment map visibility bitfield for shaders.
+        /// </summary>
+        public SceneEnvMap.EnvMapVisibility128 ShaderEnvMapVisibility { get; set; }
+
+        /// <summary>
         /// Gets or sets a custom lighting origin override for environment map and light probe sampling.
         /// </summary>
         public Vector3? LightingOrigin { get; set; }

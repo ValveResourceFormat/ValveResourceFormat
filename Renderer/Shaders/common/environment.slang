@@ -48,6 +48,7 @@ layout(std140, binding = 2) uniform EnvMapArray
     flat in uint g_nEnvMapIndex;
 #elif (S_SCENE_CUBEMAP_TYPE == 2)
     uniform samplerCubeArray g_tEnvironmentMap; // SrgbRead(true)
+    flat in uvec4 g_nEnvMapVisibility;
 #endif
 
 vec3 CubemapParallaxCorrection(vec3 envMapLocalPos, vec3 localReflectionVector, vec3 envMapBoxMin, vec3 envMapBoxMax)
@@ -207,7 +208,7 @@ vec3 GetEnvironmentNoBRDF(MaterialProperties_t mat, float roughnessReflectionCor
     // end of the tile's masks - past the whole region for the highest tile indices, which is the top row.
     for (uint word = 0u; word < masks.m_nWords && AnyLaneWantsMore(bContinueLoop); word++)
     {
-        uint mask = GetCullMaskWord(masks, word);
+        uint mask = GetCullMaskWord(masks, word, g_nEnvMapVisibility[word]);
 
         int baseIndex = int(word * 32u);
 
