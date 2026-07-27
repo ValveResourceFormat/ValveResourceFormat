@@ -131,6 +131,17 @@ public sealed class TiledCullFeeder
     /// <summary>Gets how many entries of <see cref="PlaneArray"/> are live this frame.</summary>
     public int PlaneCount => planeCount;
 
+    /// <summary>
+    /// Gets how far along the view axis the furthest item projected this frame reached.
+    /// </summary>
+    /// <remarks>
+    /// Fitting the slice distribution to this rather than to the render far plane keeps the budget on the
+    /// range that can actually hold a bit. Slices past the last light or probe are dead weight, and since
+    /// the distribution is logarithmic, every octave spent out there thickens every slice nearer in.
+    /// Unbounded volumes are excluded: they reach everywhere and would pin this to its ceiling.
+    /// </remarks>
+    public float MaxItemViewDepth { get; private set; }
+
     /// <summary>Gets the first uint of a batch's tile region, for the consumer's tile lookup.</summary>
     public uint TileBase(int batch) => cullParams.TileBatches[batch].OutputOffset;
 
@@ -179,6 +190,7 @@ public sealed class TiledCullFeeder
 
         Array.Clear(batchItemCount);
         Array.Clear(batchBinnedCount);
+        MaxItemViewDepth = 0f;
         planeCount = 0;
 
         cullParams = default;
@@ -658,6 +670,11 @@ public sealed class TiledCullFeeder
         if (!HullBounds(projection, out var boundsMin, out var boundsMax))
         {
             return RejectAll;
+        }
+
+        if (float.IsFinite(projection.DepthMax))
+        {
+            MaxItemViewDepth = MathF.Max(MaxItemViewDepth, projection.DepthMax);
         }
 
         var item = new CullItem

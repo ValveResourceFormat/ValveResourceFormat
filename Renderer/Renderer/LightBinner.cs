@@ -23,8 +23,14 @@ public sealed class LightBinner(Scene scene) : IDisposable
     /// <summary>Number of logarithmic depth slices items are binned into.</summary>
     private const int DepthSliceCount = 32;
 
-    /// <summary>Far distance the logarithmic slice distribution is fitted to, in world units.</summary>
-    private const float DepthSliceFar = 32768f;
+    /// <summary>
+    /// Floor for the fitted slice far, in world units. A scene with nothing binned, or with everything
+    /// bunched up against the camera, still needs a range wide enough to be worth distributing.
+    /// </summary>
+    private const float MinSliceFar = 256f;
+
+    /// <summary>Ceiling for the fitted slice far, in world units.</summary>
+    private const float MaxSliceFar = 32768f;
 
     /// <summary>Camera near plane, matching <see cref="Camera.CreateProjectionMatrix"/>.</summary>
     private const float DepthSliceNear = 1f;
@@ -165,7 +171,13 @@ public sealed class LightBinner(Scene scene) : IDisposable
         TileCols = (width + tileSize - 1) >> TileShift;
         TileRows = (height + tileSize - 1) >> TileShift;
 
-        var depthKeyRange = MathF.Log2(DepthSliceFar / DepthSliceNear);
+        // Fitted to how far items actually reached last frame rather than to the render far plane. The
+        // distribution is logarithmic, so every octave of empty range past the furthest light or probe
+        // thickens every slice nearer in: against the old fixed 32768 a third of the slices were landing
+        // inside the first 32 units. Reading it before Begin resets it is what makes it last frame's, and
+        // a frame of lag is invisible - the producer and the consumer both read the params uploaded here.
+        var sliceFar = Math.Clamp(Feeder.MaxItemViewDepth, MinSliceFar, MaxSliceFar);
+        var depthKeyRange = MathF.Log2(sliceFar / DepthSliceNear);
 
         Feeder.Begin(
             TileCols, TileRows, tileSize,
