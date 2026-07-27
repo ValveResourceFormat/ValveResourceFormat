@@ -114,12 +114,6 @@ namespace ValveResourceFormat.Renderer
         public List<SceneEnvMap> EnvMaps { get; private set; } = [];
 
         /// <summary>
-        /// Array index of the single env map this node uses, for the legacy per batch cube map path. The
-        /// cube map array path culls probes per screen tile instead and does not read this.
-        /// </summary>
-        public uint ShaderEnvMapIndex { get; set; }
-
-        /// <summary>
         /// Gets or sets the precomputed environment map visibility bitfield for shaders.
         /// </summary>
         public SceneEnvMap.EnvMapVisibility128 ShaderEnvMapVisibility { get; set; }

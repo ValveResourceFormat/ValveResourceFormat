@@ -1,3 +1,4 @@
+using System.Numerics;
 using System.Runtime.CompilerServices;
 
 namespace ValveResourceFormat.Renderer.SceneEnvironment;
@@ -84,6 +85,25 @@ public class SceneEnvMap : SceneNode
             }
 
             return this;
+        }
+
+        /// <summary>
+        /// Returns the array index of the lowest env map set in this bitmask, or zero when it is empty.
+        /// <see cref="SceneEnvMap.ShaderIndex"/> is assigned in indoor priority order, so that is the
+        /// highest priority probe this node can see, which is the one the legacy per batch cube map path
+        /// binds. Ties on priority resolve arbitrarily; only the priority ordering is meaningful.
+        /// </summary>
+        public readonly uint GetFirstShaderIndex()
+        {
+            for (var bucket = 0; bucket < 4; bucket++)
+            {
+                if (this[bucket] != 0u)
+                {
+                    return (uint)((bucket * 32) + BitOperations.TrailingZeroCount(this[bucket]));
+                }
+            }
+
+            return 0u;
         }
 
         /// <summary>Returns the four 32-bit buckets of this bitmask as a value tuple.</summary>

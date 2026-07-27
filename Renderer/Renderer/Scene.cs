@@ -523,7 +523,7 @@ namespace ValveResourceFormat.Renderer
                     TintAlpha = Color32.FromVector4(instanceTint).PackedValue,
                     TransformIndex = transformIndex,
                     VisibleLPV = (uint)(node.LightProbeBinding?.ShaderIndex ?? 0)
-                        | (node.ShaderEnvMapIndex << 16),
+                        | (node.ShaderEnvMapVisibility.GetFirstShaderIndex() << 16),
                     EnvMapVisibility = node.ShaderEnvMapVisibility,
                     Identification = node.Id,
                 };
@@ -2005,8 +2005,6 @@ namespace ValveResourceFormat.Renderer
 
                     return aDistance.CompareTo(bDistance);
                 });
-
-                node.ShaderEnvMapIndex = (uint)(node.EnvMaps.Count > 0 ? node.EnvMaps[0].ShaderIndex : 0);
 
                 node.ShaderEnvMapVisibility = default;
                 node.ShaderEnvMapVisibility = node.ShaderEnvMapVisibility.Store(node.EnvMaps);
