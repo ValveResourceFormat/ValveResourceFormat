@@ -9,6 +9,8 @@ uniform bool bIsInstancing = false;
 
 #if (S_SCENE_CUBEMAP_TYPE == 1)
     flat out uint g_nEnvMapIndex;
+#elif (S_SCENE_CUBEMAP_TYPE == 2)
+    flat out uvec4 g_nEnvMapVisibility;
 #endif
 
 #if (D_BAKED_LIGHTING_FROM_PROBE > 0)
@@ -21,6 +23,7 @@ struct ObjectDataStandard
     uint TransformIndex;
     uint VisibleLPV;
     uint Identification;
+    uvec4 EnvMapVisibility;
 };
 
 layout(std430, binding = 0) readonly buffer g_objectBuffer
@@ -70,6 +73,8 @@ ObjectData_t GetObjectData()
 
     #if (S_SCENE_CUBEMAP_TYPE == 1)
         g_nEnvMapIndex = objectData.VisibleLPV >> 16u;
+    #elif (S_SCENE_CUBEMAP_TYPE == 2)
+        g_nEnvMapVisibility = objectData.EnvMapVisibility;
     #endif
 
     #if (D_BAKED_LIGHTING_FROM_PROBE > 0)

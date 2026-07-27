@@ -75,6 +75,8 @@ public struct ObjectDataStandard
     public uint VisibleLPV;
     /// <summary>Unique identifier for this object used in selection and highlighting.</summary>
     public uint Identification;
+    /// <summary>Bitmask of which environment maps are visible to this object.</summary>
+    public SceneEnvMap.EnvMapVisibility128 EnvMapVisibility;
 };
 
 /// <summary>Arguments for a <c>glDrawElementsIndirect</c> GPU draw call.</summary>

@@ -524,6 +524,7 @@ namespace ValveResourceFormat.Renderer
                     TransformIndex = transformIndex,
                     VisibleLPV = (uint)(node.LightProbeBinding?.ShaderIndex ?? 0)
                         | (node.ShaderEnvMapIndex << 16),
+                    EnvMapVisibility = node.ShaderEnvMapVisibility,
                     Identification = node.Id,
                 };
             }
@@ -2006,6 +2007,15 @@ namespace ValveResourceFormat.Renderer
                 });
 
                 node.ShaderEnvMapIndex = (uint)(node.EnvMaps.Count > 0 ? node.EnvMaps[0].ShaderIndex : 0);
+
+                node.ShaderEnvMapVisibility = default;
+                node.ShaderEnvMapVisibility = node.ShaderEnvMapVisibility.Store(node.EnvMaps);
+
+                // all cubemaps visible
+                if (node.Flags.HasFlag(ObjectTypeFlags.DisableVisCulling))
+                {
+                    node.ShaderEnvMapVisibility = node.ShaderEnvMapVisibility.Store(LightingInfo.EnvMaps);
+                }
 
 #if DEBUG
                 if (preComputed != default)
