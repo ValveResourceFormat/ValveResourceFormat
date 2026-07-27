@@ -446,6 +446,54 @@ public sealed class TiledCullFeeder
         NdcDepthNear = Vector2.One,
     };
 
+    /// <summary>
+    /// An item every tile and every bin matches, for a volume that has no silhouette to project but must
+    /// not be dropped.
+    /// </summary>
+    /// <remarks>
+    /// The fallback env map probe viewers without lighting data get is unbounded by construction - its box
+    /// is the whole float range - so it is not a volume the projection can describe. Rejecting it is the
+    /// one answer that is certainly wrong: it reaches every pixel. No hull and no conic means the fine
+    /// pass keeps it too, since both tests pass when there is nothing to test against.
+    /// </remarks>
+    private CullItem AcceptAll => new()
+    {
+        BoundsMin = Vector2.Zero,
+        BoundsMax = cullSpaceMax,
+        DepthMin = 0f,
+        DepthMax = depthKeyRange,
+
+        // Reads as straddling the near plane, which the occlusion test can never call hidden.
+        NdcDepthNear = Vector2.One,
+    };
+
+    /// <summary>
+    /// Whether a volume is small enough that projecting it stays in range. Past this the clip space maths
+    /// overflows to infinities, the divide turns them into NaN, and every downstream comparison silently
+    /// answers false - which reads as "reaches no tile" rather than as the failure it is.
+    /// </summary>
+    /// <remarks>
+    /// The bound is far past any real map, whose coordinates run to a few tens of thousands of units, so
+    /// only a deliberately unbounded volume trips it.
+    /// </remarks>
+    private static bool IsProjectable(ReadOnlySpan<Vector3> corners)
+    {
+        const float MaxCoordinate = 1e18f;
+
+        foreach (var corner in corners)
+        {
+            if (!float.IsFinite(corner.X) || !float.IsFinite(corner.Y) || !float.IsFinite(corner.Z)
+                || Math.Abs(corner.X) > MaxCoordinate
+                || Math.Abs(corner.Y) > MaxCoordinate
+                || Math.Abs(corner.Z) > MaxCoordinate)
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
     /// <summary>What projecting one volume into cull space produced, before it becomes part of an item.</summary>
     private struct Projection
     {
@@ -600,6 +648,11 @@ public sealed class TiledCullFeeder
     /// </summary>
     private CullItem BuildItem(ReadOnlySpan<Vector3> corners)
     {
+        if (!IsProjectable(corners))
+        {
+            return AcceptAll;
+        }
+
         var projection = ProjectVolume(corners);
 
         if (!HullBounds(projection, out var boundsMin, out var boundsMax))

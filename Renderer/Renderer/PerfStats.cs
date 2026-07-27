@@ -412,10 +412,10 @@ public class PerfStats
     }
 
     /// <summary>
-    /// One line of what the tile and depth bin binning produced, narrowing left to right: items the tile
-    /// pass kept, items the CPU projection kept, and the slots the shading pass iterates regardless. The
-    /// first gap is what the GPU culled - hulls, conic, occlusion - and the second is what never reached
-    /// it, having projected to nothing.
+    /// One line of what the tile and depth bin binning produced. The binned counts are the items that
+    /// projected to something a tile can match, so the gap to the slot counts is what the CPU rejected
+    /// outright; the visible counts are what the tile pass then kept, which past the CPU's own bounds
+    /// rejection is the depth pyramid's doing for probes, and the pyramid or the range conic for lights.
     /// </summary>
     private static string FormatBinnerStats(LightBinner.BinnerStats stats)
     {
@@ -424,9 +424,9 @@ public class PerfStats
             return "off, all masks visible";
         }
 
-        return $"{stats.LiveLights:N0} of {stats.Lights:N0} of {stats.LightSlots:N0} lights, "
-            + $"{stats.LiveProbes:N0} of {stats.Probes:N0} of {stats.ProbeSlots:N0} probes reach a tile, "
-            + $"{stats.HullVertices:N0} hull verts, {stats.MaskBytes / 1024.0:0.#} KB masks";
+        // One interpolated string, and the plural suffixes are literals rather than a helper's return value:
+        // this runs every frame the stats are up, and the other lines here each allocate exactly one string.
+        return $"{stats.Lights:N0} of {stats.LightSlots:N0} lights, {stats.Probes:N0} of {stats.ProbeSlots:N0} probes binned ({stats.LiveLights:N0} light{(stats.LiveLights == 1 ? "" : "s")} visible, {stats.LiveProbes:N0} probe{(stats.LiveProbes == 1 ? "" : "s")} visible), {stats.HullVertices:N0} hull verts, {stats.MaskBytes / 1024.0:0.#} KB masks";
     }
 
     /// <summary>Resets per-frame counters, reads back the previous frame's results.</summary>
