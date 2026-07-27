@@ -105,7 +105,7 @@ public class Renderer
     /// </summary>
     public UniformBuffer<ViewConstants>? ViewBuffer { get; set; }
 
-    /// <summary>Gets the fullscreen tile mask overlay drawn in the LightTiles render mode.</summary>
+    /// <summary>Gets the fullscreen tile mask overlay drawn in the tile debug render modes.</summary>
     public LightTilesOverlay LightTilesOverlay { get; }
 
     /// <summary>

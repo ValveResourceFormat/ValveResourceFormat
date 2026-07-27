@@ -12,35 +12,22 @@ public readonly struct BarnLightCullVolume
     /// <summary>Gets the map from the face's clip cube, x and y in [-1,1] and z in [0,1], to world space.</summary>
     public Matrix4x4 FrustumToWorld { get; init; }
 
-    /// <summary>
-    /// Gets the map from the cube [-1,1]^3 to the face's illumination OBB, or default when the face has
-    /// none and the frustum is the only volume.
-    /// </summary>
+    /// <summary>Gets the map from the cube [-1,1]^3 to the illumination OBB, or default when there is none.</summary>
     public Matrix4x4 ObbToWorld { get; init; }
 
-    /// <summary>
-    /// Gets the sphere the light fades out at, centre in xyz and radius in w. Radius 0 means the face has
-    /// no distance cutoff, which is the case for every barn light: only omni2 fades by distance.
-    /// </summary>
+    /// <summary>Gets the fade out sphere, centre in xyz and radius in w. Radius 0 means no distance cutoff.</summary>
     public Vector4 RangeSphere { get; init; }
 }
 
 /// <summary>
-/// CPU side of <c>compute_tile_cullbits</c> and <c>compute_depthbin_cullbits</c>.
+/// CPU side of <c>compute_tile_cullbits</c> and <c>compute_depthbin_cullbits</c>: projects world space
+/// volumes into the screen AABBs, hulls and depth keys those passes rasterize into bits.
 /// </summary>
 /// <remarks>
-/// <para>
-/// Neither compute pass sees world space. A <see cref="CullItem"/> is already a screen space AABB plus a
-/// depth range, so projecting the volume and rejecting it against the frustum is this class's job, and an
-/// item that fails is never a wasted bit rather than a wasted test: item count sets the word stride, which
-/// sets both the buffer size and the length of the fragment shader's loop.
-/// </para>
-/// <para>
-/// The shaders are agnostic about what "cull space" and "depth" mean; they only ever add, scale and
-/// compare. Tile space here is pixels, and the depth key is <c>log2(max(viewDepth, 1))</c>, which is what
-/// makes the depth bins logarithmic despite the shader stepping through them linearly. Both choices have
-/// to agree with what <c>common/light_cull.slang</c> does on the consumer side.
-/// </para>
+/// Neither compute pass sees world space, so frustum rejection happens here, and a rejected item costs a
+/// bit rather than a test - item count sets the word stride, the buffer size and the shading loop's
+/// length. Cull space is pixels and the depth key is octaves past the near plane;
+/// <c>common/light_cull.slang</c> defines both the same way and the two must not drift.
 /// </remarks>
 public sealed class TiledCullFeeder
 {
@@ -53,21 +40,17 @@ public sealed class TiledCullFeeder
     /// <summary>Batch index holding environment map probes.</summary>
     public const int BatchEnvMaps = 1;
 
-    /// <summary>
-    /// Items per mask. Every batch is padded up to a whole number of these, so a batch's masks never share
-    /// a word with the next batch's and both compute passes can write a full word without a read modify
-    /// write.
-    /// </summary>
+    /// <summary>Items per mask. Batches pad up to a whole number of these so no word spans two batches.</summary>
     public const int ItemsPerMask = 32;
 
-    /// <summary>
-    /// Vertex budget per hull. A box silhouette is at most 6 vertices and the tile square adds at most 4
-    /// edge directions, so this clears a projected box comfortably; anything past it falls back to a rect.
-    /// </summary>
+    /// <summary>Vertex budget per hull. A dilated box silhouette needs 10; past this an item falls back to a rect.</summary>
     private const int MaxHullVertices = 16;
 
-    /// <summary>Hulls one item can own. The shader reads two, and a barn light face uses both.</summary>
+    /// <summary>Hulls one item can own. A barn light face uses both: its frustum and its OBB.</summary>
     private const int MaxHullsPerItem = 2;
+
+    /// <summary>Floor for the slice distribution's near distance, so a zero near plane cannot reach log2.</summary>
+    private const float MinSliceNear = 1f / 1024f;
 
     private const int MaxItemsPerBatch = 128;
     private const int MaxItems = BatchCount * MaxItemsPerBatch;
@@ -78,7 +61,7 @@ public sealed class TiledCullFeeder
 
     private readonly CullItem[] items = new CullItem[MaxItems];
 
-    /// <summary>Silhouette hull vertices, packed back to back and indexed by CullItem.FirstPlane.</summary>
+    /// <summary>Hull vertices, packed back to back and indexed by <see cref="CullItem.FirstPlane"/>.</summary>
     private readonly Vector2[] planes = new Vector2[MaxItems * MaxHullVertices * MaxHullsPerItem];
 
     private readonly Vector2[] projected = new Vector2[20];
@@ -106,84 +89,78 @@ public sealed class TiledCullFeeder
     private float maxSliceFar;
     private float tileHalfSize;
 
-    /// <summary>Last coordinate the tile grid reaches, which runs past the viewport on a partial edge.</summary>
+    /// <summary>Last coordinate the tile grid reaches, past the viewport on a partial edge tile.</summary>
     private Vector2 cullSpaceMax;
     private int planeCount;
 
-    /// <summary>Gets the number of uints the cull bits buffer needs for the layout built this frame.</summary>
+    /// <summary>Gets the uints the cull bits buffer needs for this frame's layout.</summary>
     public int TotalWords { get; private set; }
 
-    /// <summary>Gets the total mask count across all batches, which is the dispatch's mask axis.</summary>
+    /// <summary>Gets the mask count across all batches, which is the dispatch's mask axis.</summary>
     public int MaskCount => maskCount;
 
-    /// <summary>Gets the viewport the items were projected against, which is also the extent of cull space.</summary>
+    /// <summary>Gets the viewport the items were projected against, which is the extent of cull space.</summary>
     public Vector2 ViewportSize => viewportSize;
 
     /// <summary>Gets the constants both compute passes read.</summary>
     public ref readonly CullParams Params => ref cullParams;
 
-    /// <summary>Gets the backing array to upload from. Exposed raw because the buffer upload takes an array.</summary>
+    /// <summary>Gets the backing array to upload from.</summary>
     public CullItem[] ItemArray => items;
 
-    /// <summary>Gets how many entries of <see cref="ItemArray"/> are live this frame, tail padding included.</summary>
+    /// <summary>Gets the live entries of <see cref="ItemArray"/> this frame, tail padding included.</summary>
     public int ItemCount { get; private set; }
 
-    /// <summary>Gets the hull vertex backing array referenced by <see cref="CullItem.FirstPlane"/>.</summary>
+    /// <summary>Gets the hull vertex array <see cref="CullItem.FirstPlane"/> indexes.</summary>
     public Vector2[] PlaneArray => planes;
 
-    /// <summary>Gets how many entries of <see cref="PlaneArray"/> are live this frame.</summary>
+    /// <summary>Gets the live entries of <see cref="PlaneArray"/> this frame.</summary>
     public int PlaneCount => planeCount;
 
-    /// <summary>
-    /// Gets how far along the view axis the furthest item projected this frame reached.
-    /// </summary>
+    /// <summary>Gets how far along the view axis the furthest item this frame reached.</summary>
     /// <remarks>
-    /// Fitting the slice distribution to this rather than to the render far plane keeps the budget on the
-    /// range that can actually hold a bit. Slices past the last light or probe are dead weight, and since
-    /// the distribution is logarithmic, every octave spent out there thickens every slice nearer in.
-    /// Unbounded volumes are excluded: they reach everywhere and would pin this to its ceiling.
+    /// The slice distribution is fitted to this rather than to the render far plane: it is logarithmic, so
+    /// every empty octave past the last light thickens every slice nearer in. Unbounded volumes are
+    /// excluded, since they would pin it to its ceiling.
     /// </remarks>
     public float MaxItemViewDepth { get; private set; }
 
-    /// <summary>
-    /// Gets the far distance the slice distribution was fitted to this frame, in world units.
-    /// </summary>
+    /// <summary>Gets the near distance the slice distribution starts at, which is the camera's near plane.</summary>
+    public float SliceNear { get; private set; }
+
+    /// <summary>Gets the far distance the slice distribution was fitted to this frame, in world units.</summary>
     public float SliceFar { get; private set; }
 
-    /// <summary>Gets the span of the depth key, which is <c>log2(SliceFar)</c>. Valid after <see cref="End"/>.</summary>
+    /// <summary>Gets the span of the depth key, <c>log2(SliceFar / SliceNear)</c>. Valid after <see cref="End"/>.</summary>
     public float DepthKeyRange => depthKeyRange;
 
-    /// <summary>Gets how much deeper each slice is than the one before it. Valid after <see cref="End"/>.</summary>
+    /// <summary>Gets how much deeper each slice is than the last. Valid after <see cref="End"/>.</summary>
     public float SliceRatio => MathF.Pow(2f, depthKeyRange / depthBins);
 
-    /// <summary>Gets the first uint of a batch's tile region, for the consumer's tile lookup.</summary>
+    /// <summary>Gets the first uint of a batch's tile region.</summary>
     public uint TileBase(int batch) => cullParams.TileBatches[batch].OutputOffset;
 
-    /// <summary>Gets the first uint of a batch's depth bin region, for the consumer's bin lookup.</summary>
+    /// <summary>Gets the first uint of a batch's depth bin region.</summary>
     public uint BinBase(int batch) => cullParams.BinBatches[batch].OutputOffset;
 
-    /// <summary>Gets a batch's word stride, which is <c>ceil(itemCount / 32)</c>.</summary>
+    /// <summary>Gets a batch's word stride, <c>ceil(itemCount / 32)</c>.</summary>
     public uint Stride(int batch) => cullParams.TileBatches[batch].OutputStride;
 
-    /// <summary>Gets how many slots a batch claimed, which is every item the shading pass can iterate.</summary>
+    /// <summary>Gets the slots a batch claimed, which is every item the shading pass iterates.</summary>
     /// <param name="batch">Batch index.</param>
     public int SlotCount(int batch) => batchItemCount[batch];
 
     /// <summary>
-    /// Gets how many of a batch's slots hold an item that can actually match a tile. The rest projected to
-    /// nothing - wholly behind the near plane, or off screen - and were reduced to an item no tile and no
-    /// bin can match, so the gap between this and <see cref="SlotCount"/> is what the CPU rejected outright.
+    /// Gets the slots holding an item that can match a tile. The gap to <see cref="SlotCount"/> is what
+    /// projected to nothing - behind the near plane or off screen - and the CPU rejected outright.
     /// </summary>
     /// <param name="batch">Batch index.</param>
     public int BinnedCount(int batch) => batchBinnedCount[batch];
 
-    /// <summary>Whether an item projected to nothing and will never match a tile or a bin.</summary>
+    /// <summary>Whether an item projected to nothing and can never match a tile or a bin.</summary>
     private static bool IsRejected(in CullItem item) => item.DepthMin > item.DepthMax;
 
-    /// <summary>
-    /// Starts a frame. Everything an item is projected against is captured here, so the batches added
-    /// afterwards all land in the same space.
-    /// </summary>
+    /// <summary>Starts a frame, capturing everything the batches added afterwards are projected against.</summary>
     public void Begin(
         int tileCols, int tileRows, int tileSize,
         int depthBins, float minSliceFar, float maxSliceFar,
@@ -231,17 +208,13 @@ public sealed class TiledCullFeeder
         cullParams.NearPlane = 0f;
     }
 
-    /// <summary>
-    /// Claims batch slots without projecting anything, for a frame that will not bin at all.
-    /// </summary>
+    /// <summary>Claims batch slots without projecting anything, for a frame that will not bin at all.</summary>
     /// <remarks>
-    /// The masks are filled with ones instead, so the shading pass still indexes them through the bases and
-    /// strides <see cref="End"/> derives from these counts. Everything else <see cref="AddBarnLights"/> and
-    /// <see cref="AddEnvMaps"/> do - projecting corners, clipping against the near plane, hulling the
-    /// Minkowski sum - only feeds a compute pass that is not going to run.
+    /// The masks are filled with ones instead, but the shading pass still indexes them through the bases
+    /// and strides <see cref="End"/> derives from these counts, so the layout still has to be right.
     /// </remarks>
-    /// <param name="barnLights">Number of barn light faces the shading pass will iterate.</param>
-    /// <param name="envMaps">Number of env map probes the shading pass will iterate.</param>
+    /// <param name="barnLights">Barn light faces the shading pass will iterate.</param>
+    /// <param name="envMaps">Env map probes the shading pass will iterate.</param>
     public void AddCounts(int barnLights, int envMaps)
     {
         batchItemCount[BatchBarnLights] = Math.Min(barnLights, MaxItemsPerBatch);
@@ -253,10 +226,8 @@ public sealed class TiledCullFeeder
     }
 
     /// <summary>
-    /// Adds one item per barn light face, keeping index alignment: item <c>i</c> of the batch is always
-    /// light <c>i</c>, and a light that fails the projection gets an item nothing can match rather than
-    /// being dropped. The shading pass indexes the light array by bit position, so compacting here would
-    /// need a remap table it does not have.
+    /// Adds one item per barn light face. Item <c>i</c> is always light <c>i</c>: the shading pass indexes
+    /// the light array by bit position, so a face that fails to project is rejected in place, not dropped.
     /// </summary>
     /// <param name="volumes">Cull volume per barn light face, in shading pass index order.</param>
     public void AddBarnLights(ReadOnlySpan<BarnLightCullVolume> volumes)
@@ -320,10 +291,7 @@ public sealed class TiledCullFeeder
         batchBinnedCount[BatchBarnLights] = binned;
     }
 
-    /// <summary>
-    /// Adds one item per environment map probe. Probes are AABB only, so they exercise the whole pipeline
-    /// without any hull or conic geometry.
-    /// </summary>
+    /// <summary>Adds one item per environment map probe, slotted by <see cref="SceneEnvMap.ShaderIndex"/>.</summary>
     public void AddEnvMaps(List<SceneEnvMap> envMaps)
     {
         var first = BatchEnvMaps * MaxItemsPerBatch;
@@ -376,8 +344,8 @@ public sealed class TiledCullFeeder
     }
 
     /// <summary>
-    /// Lays the batches out back to back in both the item buffer and the bits buffer, and pads every
-    /// batch's tail so the tile pass's unconditional load stays in bounds. Call once all batches are added.
+    /// Lays the batches out back to back in the item and bits buffers, padding each tail so the tile
+    /// pass's unconditional load stays in bounds. Call once every batch is added.
     /// </summary>
     public void End()
     {
@@ -385,7 +353,12 @@ public sealed class TiledCullFeeder
         // projected in between. Holding raw view depths until now is what lets the fit describe this
         // frame's items instead of the previous frame's.
         SliceFar = Math.Clamp(MaxItemViewDepth, minSliceFar, maxSliceFar);
-        depthKeyRange = MathF.Log2(SliceFar);
+
+        // Half the far distance floors the span at one octave, so a broken or absurd near plane cannot
+        // collapse the range and leave every bin degenerate.
+        SliceNear = Math.Clamp(cameraNearPlane, MinSliceNear, SliceFar * 0.5f);
+
+        depthKeyRange = MathF.Log2(SliceFar / SliceNear);
         cullParams.DepthBinWidth = depthKeyRange / depthBins;
 
         var itemCursor = 0;
@@ -475,10 +448,7 @@ public sealed class TiledCullFeeder
         cullParams.MaskCount = running;
     }
 
-    /// <summary>
-    /// An item no tile and no bin can match. Used for culled entries, which have to keep their slot, and
-    /// for the padding the tile pass reads past the end of a batch.
-    /// </summary>
+    /// <summary>An item nothing matches, for rejected entries that keep their slot and for tail padding.</summary>
     private static CullItem RejectAll => new()
     {
         BoundsMin = new Vector2(float.MaxValue),
@@ -488,15 +458,11 @@ public sealed class TiledCullFeeder
         NdcDepthNear = Vector2.One,
     };
 
-    /// <summary>
-    /// An item every tile and every bin matches, for a volume that has no silhouette to project but must
-    /// not be dropped.
-    /// </summary>
+    /// <summary>An item everything matches, for a volume with no silhouette to project.</summary>
     /// <remarks>
-    /// The fallback env map probe viewers without lighting data get is unbounded by construction - its box
-    /// is the whole float range - so it is not a volume the projection can describe. Rejecting it is the
-    /// one answer that is certainly wrong: it reaches every pixel. No hull and no conic means the fine
-    /// pass keeps it too, since both tests pass when there is nothing to test against.
+    /// The fallback probe a viewer without lighting data gets spans the whole float range, so projection
+    /// cannot describe it - but it reaches every pixel, so rejecting it is the one certainly wrong answer.
+    /// Leaving it hull free and conic free keeps it through the fine pass too.
     /// </remarks>
     private CullItem AcceptAll => new()
     {
@@ -510,14 +476,10 @@ public sealed class TiledCullFeeder
     };
 
     /// <summary>
-    /// Whether a volume is small enough that projecting it stays in range. Past this the clip space maths
-    /// overflows to infinities, the divide turns them into NaN, and every downstream comparison silently
-    /// answers false - which reads as "reaches no tile" rather than as the failure it is.
+    /// Whether projecting a volume stays in range. Past this the clip space maths overflows, the divide
+    /// yields NaN, and every downstream comparison answers false - which reads as "reaches no tile"
+    /// rather than as the failure it is. Real map coordinates sit orders of magnitude below the bound.
     /// </summary>
-    /// <remarks>
-    /// The bound is far past any real map, whose coordinates run to a few tens of thousands of units, so
-    /// only a deliberately unbounded volume trips it.
-    /// </remarks>
     private static bool IsProjectable(ReadOnlySpan<Vector3> corners)
     {
         const float MaxCoordinate = 1e18f;
@@ -536,13 +498,13 @@ public sealed class TiledCullFeeder
         return true;
     }
 
-    /// <summary>What projecting one volume into cull space produced, before it becomes part of an item.</summary>
+    /// <summary>What projecting one volume into cull space produced, before it becomes an item.</summary>
     private struct Projection
     {
         /// <summary>Vertices of the dilated silhouette left in <c>hull</c>. Zero means nothing to keep.</summary>
         public int HullCount;
 
-        /// <summary>View depth range over the volume, which is exact because depth is affine over it.</summary>
+        /// <summary>View depth range over the volume, exact because depth is affine over it.</summary>
         public float DepthMin;
         public float DepthMax;
 
@@ -555,22 +517,18 @@ public sealed class TiledCullFeeder
 
         /// <summary>
         /// The nearest NDC depth the occlusion test may use. A volume straddling the near plane has no
-        /// trustworthy screen depth, so it hands the test the nearest value there is and can never be
-        /// decided hidden.
+        /// trustworthy screen depth, so it reports the nearest value there is and is never called hidden.
         /// </summary>
         public readonly float OcclusionDepth
             => AllCornersInFront ? Math.Clamp(NdcDepthNear, -1f, 1f) : 1f;
     }
 
     /// <summary>
-    /// Projects a volume's 8 corners into cull space and reduces them to a dilated silhouette hull and a
-    /// depth range. Corner <c>i</c> must have the x, y and z axis in bits 0, 1 and 2, because the near
-    /// plane edge walk pairs <c>i</c> with <c>i | bit</c>.
+    /// Projects a volume's 8 corners into cull space, reducing them to a dilated silhouette hull and a
+    /// depth range. Corner <c>i</c> must carry the x, y and z axis in bits 0, 1 and 2: the near plane edge
+    /// walk pairs <c>i</c> with <c>i | bit</c>. The result lands in the shared <c>hull</c> scratch, so a
+    /// second call invalidates the first.
     /// </summary>
-    /// <remarks>
-    /// Leaves its result in the shared <c>hull</c> scratch buffer, so a second call invalidates the first:
-    /// callers have to consume one projection before starting the next.
-    /// </remarks>
     private Projection ProjectVolume(ReadOnlySpan<Vector3> corners)
     {
         Span<Vector4> clip = stackalloc Vector4[8];
@@ -656,9 +614,9 @@ public sealed class TiledCullFeeder
     }
 
     /// <summary>
-    /// Screen bounds of the hull a projection left behind, clamped to the viewport. False when the volume
-    /// is degenerate or entirely off screen: clamping that instead would light up a whole edge row of
-    /// tiles, and this is the frustum rejection the compute passes no longer do.
+    /// Screen bounds of the hull a projection left behind, clamped to the viewport. This is the frustum
+    /// rejection the compute passes no longer do: false for a degenerate or off screen volume, which
+    /// clamping instead would smear across a whole edge row of tiles.
     /// </summary>
     private bool HullBounds(in Projection projection, out Vector2 boundsMin, out Vector2 boundsMax)
     {
@@ -685,8 +643,8 @@ public sealed class TiledCullFeeder
     }
 
     /// <summary>
-    /// Projects a volume's 8 corners into cull space and reduces them to an item: a screen AABB, a convex
-    /// silhouette hull, and a depth key range. Corner order is what <see cref="ProjectVolume"/> requires.
+    /// Reduces a volume's 8 corners to an item: screen AABB, convex silhouette hull and depth range.
+    /// Corner order is what <see cref="ProjectVolume"/> requires.
     /// </summary>
     private CullItem BuildItem(ReadOnlySpan<Vector3> corners)
     {
@@ -737,9 +695,9 @@ public sealed class TiledCullFeeder
     }
 
     /// <summary>
-    /// Intersects an item with a second convex volume, as the hull 1 the shader ANDs with hull 0. Must be
-    /// called straight after the <see cref="BuildItem"/> that produced the item, because hull 1 is read
-    /// from <c>FirstPlane + NumPlanes0</c>: anything else claiming vertices in between would take its slot.
+    /// Intersects an item with a second convex volume, as the hull 1 the shader ANDs with hull 0. Must
+    /// follow the <see cref="BuildItem"/> that produced the item: hull 1 is read from
+    /// <c>FirstPlane + NumPlanes0</c>, so anything claiming vertices in between takes its slot.
     /// </summary>
     private void ApplySecondHull(ref CullItem item, ReadOnlySpan<Vector3> corners)
     {
@@ -786,7 +744,7 @@ public sealed class TiledCullFeeder
 
     /// <summary>
     /// Convex hull of the projected points summed with the tile square, counter clockwise, by Andrew's
-    /// monotone chain. Returns the vertex count in <see cref="hull"/>, or 0 when the points are degenerate.
+    /// monotone chain. Returns the vertex count left in <see cref="hull"/>, or 0 if degenerate.
     /// </summary>
     private int BuildDilatedHull(int pointCount)
     {
@@ -847,13 +805,9 @@ public sealed class TiledCullFeeder
     }
 
     /// <summary>
-    /// Emits a rect as a four vertex hull. Only the degenerate fallback uses this now; the bounds arrive
-    /// already dilated, so it must not grow them again.
+    /// Emits an already dilated rect as a four vertex hull, for the overflow fallback. Counter clockwise,
+    /// because the shader takes each edge's left normal as the inward one.
     /// </summary>
-    /// <remarks>
-    /// Counter clockwise, because the shader takes each edge's left normal as the inward one. Cull space
-    /// has y growing upward, same as gl_FragCoord.
-    /// </remarks>
     private void AddRectHull(Vector2 boundsMin, Vector2 boundsMax)
     {
         planes[planeCount + 0] = new Vector2(boundsMin.X, boundsMin.Y);
@@ -865,19 +819,14 @@ public sealed class TiledCullFeeder
     }
 
     /// <summary>
-    /// Sets the item's conic to the light's range sphere, projected. Leaves the conic disabled when the
-    /// sphere cannot produce a bounded screen region, which is the only case the shader's test would get
-    /// wrong.
+    /// Sets the item's conic to the light's projected range sphere, or leaves it disabled when the sphere
+    /// has no bounded screen region - the one case the shader's test would get wrong.
     /// </summary>
     /// <remarks>
-    /// <para>
-    /// Derived as a ray test rather than by projecting the sphere's outline. A pixel sees the sphere when
-    /// the ray through it meets the sphere, which for eye relative centre <c>c</c> and radius <c>r</c> is
-    /// <c>(d.c)^2 - |d|^2 (|c|^2 - r^2) &gt;= 0</c>. The ray direction <c>d</c> is a linear function of the
-    /// pixel, so substituting turns that straight into the quadratic form the shader evaluates, already
-    /// oriented so that inside is positive. Projecting the silhouette instead would leave the sign of the
-    /// conic ambiguous and need a separate test to resolve.
-    /// </para>
+    /// Derived as a ray test, not by projecting the silhouette, which would leave the conic's sign
+    /// ambiguous. A pixel sees the sphere when its ray meets it: for eye relative centre <c>c</c> and
+    /// radius <c>r</c> that is <c>(d.c)^2 - |d|^2 (|c|^2 - r^2) &gt;= 0</c>, and <c>d</c> is linear in the
+    /// pixel, so substituting gives the quadratic form directly, already positive inside.
     /// </remarks>
     private void ApplyRangeConic(ref CullItem item, Vector3 centre, float radius)
     {
@@ -955,7 +904,7 @@ public sealed class TiledCullFeeder
         item.ConicEnable = 1f;
     }
 
-    /// <summary>Radius of the sphere once projected, in pixels, measured by projecting an offset point.</summary>
+    /// <summary>Projected radius of the sphere in pixels, measured by projecting an offset point.</summary>
     private float ProjectedRadiusPixels(Vector3 centre, float radius)
     {
         var toCentre = centre - cameraPosition;
@@ -988,10 +937,9 @@ public sealed class TiledCullFeeder
     }
 
     /// <summary>
-    /// The depth bin key. Must stay in step with <c>GetLightCullDepthSlice</c> in the consumer, which reads
-    /// <c>log2(max(viewDepth, 1))</c> and clamps to the last slice, so the key is clamped to the same range
-    /// rather than allowed to fall outside every bin.
+    /// Octaves past the near plane, which is what the bins are linear in. <c>GetLightCullDepthSlice</c> in
+    /// the consumer computes the same expression from <see cref="SliceNear"/>; the two must not drift.
     /// </summary>
     private float DepthKey(float viewDepth)
-        => Math.Clamp(MathF.Log2(MathF.Max(viewDepth, 1f)), 0f, depthKeyRange);
+        => Math.Clamp(MathF.Log2(MathF.Max(viewDepth / SliceNear, 1f)), 0f, depthKeyRange);
 }

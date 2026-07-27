@@ -6,14 +6,13 @@ using ValveResourceFormat.Renderer.Materials;
 namespace ValveResourceFormat.Renderer;
 
 /// <summary>
-/// Fullscreen overlay for the LightTiles and EnvmapTiles render modes, drawing the tile masks the cull
-/// passes produced directly rather than the per fragment heat map.
+/// Fullscreen overlay for the LightTiles and EnvmapTiles render modes, reading the tile masks directly
+/// rather than through the per fragment heat map.
 /// </summary>
 /// <remarks>
-/// The in shader heat map can only colour fragments that were shaded, so it shows the grid folded onto
-/// geometry, and under subgroup ops it reports the subgroup's union rather than the tile's own list. This
-/// covers the whole screen and reads the masks with no depth bin, which makes it ground truth for what
-/// the producer actually marked.
+/// The heat map only colours shaded fragments, so it shows the grid folded onto geometry, and under
+/// subgroup ops it reports the subgroup's union rather than the tile's own list. This covers the whole
+/// screen and ignores the depth bin, which makes it ground truth for what the producer marked.
 /// </remarks>
 public class LightTilesOverlay(RendererContext rendererContext)
 {
@@ -34,8 +33,8 @@ public class LightTilesOverlay(RendererContext rendererContext)
     private Shader? shader;
 
     /// <summary>
-    /// Returns which batch <paramref name="renderMode"/> asks for. Looked up rather than cached, because
-    /// render mode ids are only assigned while shaders are parsed, which can happen after this type loads.
+    /// Returns which batch <paramref name="renderMode"/> asks for. Looked up rather than cached: render
+    /// mode ids are assigned while shaders are parsed, which can happen after this type loads.
     /// </summary>
     /// <param name="renderMode">The active render mode's shader id.</param>
     public static Batch BatchFor(int renderMode)
@@ -58,12 +57,10 @@ public class LightTilesOverlay(RendererContext rendererContext)
         return Batch.None;
     }
 
-    /// <summary>
-    /// Draws the overlay over whatever is already in the bound framebuffer.
-    /// </summary>
-    /// <param name="cullBits">The cull bits buffer both compute passes wrote, or null when culling is off.</param>
+    /// <summary>Draws the overlay over whatever is already in the bound framebuffer.</summary>
+    /// <param name="cullBits">The cull bits buffer, or null when culling is off.</param>
     /// <param name="tileBase">First word of the batch's tile region.</param>
-    /// <param name="words">Mask words per tile for the batch. Zero draws nothing.</param>
+    /// <param name="words">Mask words per tile. Zero draws nothing.</param>
     public void Render(StorageBuffer? cullBits, uint tileBase, uint words)
     {
         if (cullBits == null || words == 0u)

@@ -166,10 +166,10 @@ namespace ValveResourceFormat.Renderer
         /// <summary>Gets or sets whether GPU draw compaction is applied after frustum culling to remove empty indirect draw commands.</summary>
         public bool EnableCompaction { get; set; } = true;
 
-        /// <summary>Gets or sets whether barn lights are binned to screen tiles so shaders iterate only the lights that reach them.</summary>
+        /// <summary>Gets or sets whether lights are binned to screen tiles so shaders iterate only what reaches them.</summary>
         /// <remarks>
-        /// Read by <see cref="Renderer"/> when it drives every scene's binner, so the main scene's setting
-        /// also governs the 3D skybox's. Its own copy of this is never what the viewer is toggling.
+        /// <see cref="Renderer"/> reads the main scene's copy when driving every binner, so that one also
+        /// governs the 3D skybox. The skybox scene's own copy is never what the viewer toggles.
         /// </remarks>
         public bool EnableLightTileCulling { get; set; } = true;
 
@@ -1143,13 +1143,9 @@ namespace ValveResourceFormat.Renderer
         }
 
         /// <summary>
-        /// Binds the depth pyramid and sets the constants every occlusion test reads, returning whether
-        /// the test will run at all.
+        /// Binds the depth pyramid and sets the constants every occlusion test reads. Shared by the
+        /// meshlet cull and the light tile cull so the two cannot test against different state.
         /// </summary>
-        /// <remarks>
-        /// Shared by the meshlet cull and the light tile cull so the two cannot end up testing against a
-        /// different pyramid, mip count or depth range than each other.
-        /// </remarks>
         /// <param name="shader">The shader whose occlusion uniforms to set. Must already be in use.</param>
         /// <returns>Whether occlusion culling is active this frame.</returns>
         internal bool SetOcclusionUniforms(Shader shader)

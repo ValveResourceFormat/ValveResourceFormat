@@ -67,10 +67,9 @@ public struct ObjectDataStandard
     /// <summary>Index into the transform buffer for this object.</summary>
     public uint TransformIndex;
     /// <summary>
-    /// Packed index pair: light probe volume in the low 16 bits, env map array index in the high 16. Both
-    /// are bounded by their arrays, which cap far below 65535, so sharing a word costs nothing and keeps
-    /// this struct at 16 bytes. The env map half is read only by the legacy per batch cube map path; the
-    /// array path culls probes per screen tile and has no per object probe list.
+    /// Light probe volume index in the low 16 bits, env map index in the high 16. Both arrays cap far
+    /// below 65535, so sharing a word keeps this struct at 16 bytes. Only the legacy per batch cube map
+    /// path reads the env map half; the array path culls probes per screen tile instead.
     /// </summary>
     public uint VisibleLPV;
     /// <summary>Unique identifier for this object used in selection and highlighting.</summary>
@@ -98,7 +97,7 @@ public readonly struct DrawElementsIndirectCommand
 
 /// <summary>
 /// One item class culled by <c>compute_tile_cullbits</c> and <c>compute_depthbin_cullbits</c>. Three are
-/// dispatched together, so a single pass covers barn lights, env maps and light probe volumes at once.
+/// dispatched together, covering barn lights, env maps and light probe volumes in one pass.
 /// </summary>
 /// <remarks>Matches <c>CullBatch_t</c>, 16 bytes.</remarks>
 [StructLayout(LayoutKind.Sequential)]
@@ -115,13 +114,13 @@ public struct CullBatch
 };
 
 /// <summary>
-/// Screen space description of one cull item. The whole test is 2D plus a view depth range: an AABB, an
-/// optional implicit conic, and up to two convex hulls whose vertices live in the cull plane buffer.
-/// Frustum rejection is a byproduct of building this, so the compute passes never see world space.
+/// Screen space description of one cull item: an AABB, an optional implicit conic, up to two convex hulls
+/// indexing the cull plane buffer, and a depth range. Frustum rejection is a byproduct of building this,
+/// so the compute passes never see world space.
 /// </summary>
 /// <remarks>
-/// Matches <c>CullItem_t</c>, 80 bytes. The two unused fields are present in Source 2's layout but read by
-/// neither cull shader, so they are kept as padding rather than guessed at.
+/// Matches <c>CullItem_t</c>, 80 bytes. The unused fields are in Source 2's layout but read by neither
+/// cull shader, so they stay as padding rather than being guessed at.
 /// </remarks>
 [StructLayout(LayoutKind.Sequential)]
 public struct CullItem
@@ -132,9 +131,9 @@ public struct CullItem
     public uint _Unused04;
     /// <summary>Vertex count of hull 0. Zero skips the hull test.</summary>
     public uint NumPlanes0;
-    /// <summary>Vertex count of hull 1, which starts at <see cref="FirstPlane"/> + <see cref="NumPlanes0"/>.</summary>
+    /// <summary>Vertex count of hull 1, starting at <see cref="FirstPlane"/> + <see cref="NumPlanes0"/>.</summary>
     public uint NumPlanes1;
-    /// <summary>Minimum corner of the screen AABB, in the same space as the tile centers.</summary>
+    /// <summary>Minimum corner of the screen AABB, in tile center space.</summary>
     public Vector2 BoundsMin;
     /// <summary>Maximum corner of the screen AABB.</summary>
     public Vector2 BoundsMax;
@@ -143,8 +142,8 @@ public struct CullItem
     /// <summary>Furthest view depth the item reaches.</summary>
     public float DepthMax;
     /// <summary>
-    /// X is the item's nearest NDC z, used by the optional occlusion test in <c>compute_tile_cullbits</c>.
-    /// Source 2 reads neither float at this offset, so this borrows a slot its layout already spends.
+    /// X is the item's nearest NDC z, read by the occlusion test in <c>compute_tile_cullbits</c>. Source 2
+    /// reads neither float here, so this borrows a slot its layout already spends.
     /// </summary>
     public Vector2 NdcDepthNear;
     /// <summary>Conic x squared coefficient. The test is <c>A x^2 + B y^2 + C xy + D x + E y + F &gt;= 0</c>.</summary>
@@ -159,7 +158,7 @@ public struct CullItem
     public float ConicY;
     /// <summary>Conic constant term.</summary>
     public float ConicConst;
-    /// <summary>Exactly zero disables the conic test, which is what AABB only items use.</summary>
+    /// <summary>Exactly zero disables the conic test, which is what AABB only items do.</summary>
     public float ConicEnable;
     /// <summary>Padding to 80 bytes.</summary>
     public float _Unused76;
@@ -172,25 +171,23 @@ public struct CullBatchTriple
     private CullBatch Batch0;
 }
 
-/// <summary>
-/// Shared constants for both cull passes.
-/// </summary>
+/// <summary>Shared constants for both cull passes.</summary>
 /// <remarks>
-/// Matches <c>CullParams_t</c>, 160 bytes. Sequential .NET packing reproduces the std140 offsets, which in
-/// turn reproduce the packoffsets Source 2's own build uses (c0, c1, c3, c4, c7).
+/// Matches <c>CullParams_t</c>, 160 bytes. Sequential .NET packing reproduces the std140 offsets, which
+/// in turn reproduce the packoffsets Source 2's own build uses (c0, c1, c3, c4, c7).
 /// </remarks>
 [StructLayout(LayoutKind.Sequential)]
 public struct CullParams
 {
-    /// <summary>Total tile count. Read by neither shader, present to keep the layout intact.</summary>
+    /// <summary>Total tile count. Read by neither shader; present to keep the layout intact.</summary>
     public uint Tiles;
     /// <summary>Tile grid width.</summary>
     public uint TilesX;
     /// <summary>Tile grid height.</summary>
     public uint TilesY;
     /// <summary>
-    /// Conservative hull dilation in cull space units. Tiles are tested as their center point, so this is
-    /// what accounts for a tile's area; a half diagonal makes the test conservative.
+    /// Hull dilation in cull space units. Tiles are tested as their center point, so this is what accounts
+    /// for a tile's area. Zero here: the hulls arrive already dilated by the tile square.
     /// </summary>
     public float TileEpsilon;
     /// <summary>Scale mapping a tile index to its center in cull space.</summary>
@@ -200,25 +197,24 @@ public struct CullParams
     /// <summary>Depth bin count. Read by neither shader, the depth bin dispatch is exact.</summary>
     public uint DepthBins;
     /// <summary>
-    /// Width of one depth bin, in depth key units. Bins are linear in the key, which the producer and the
-    /// consumer both define as a logarithm of view depth; that is what makes the bins themselves
-    /// logarithmic while the shader steps through them linearly.
+    /// Width of one depth bin, in depth key units. The key is octaves past the near plane, so bins linear
+    /// in it are logarithmic in view depth while the shader still steps through them linearly.
     /// </summary>
     public float DepthBinWidth;
-    /// <summary>Conservative depth bin dilation.</summary>
+    /// <summary>Depth bin dilation, in key units.</summary>
     public float BinEpsilon;
     /// <summary>Depth key of bin 0's near edge.</summary>
     public float NearPlane;
     /// <summary>
-    /// First mask index of batch 0, which is always zero. Both shaders use the dispatch's mask axis to find
-    /// which batch they belong to and the mask index within it.
+    /// First mask index of batch 0, always zero. Both shaders compare the dispatch's mask axis against
+    /// these to find which batch they belong to, and their mask index within it.
     /// </summary>
     public uint FirstMaskForBatch0;
     /// <summary>First mask index of batch 1.</summary>
     public uint FirstMaskForBatch1;
     /// <summary>First mask index of batch 2.</summary>
     public uint FirstMaskForBatch2;
-    /// <summary>Total mask count across all three batches. Read by neither shader; it is the dispatch size.</summary>
+    /// <summary>Total mask count across all batches. Read by neither shader; it is the dispatch size.</summary>
     public uint MaskCount;
     /// <summary>Output layout of each batch in the tile pass.</summary>
     public CullBatchTriple TileBatches;

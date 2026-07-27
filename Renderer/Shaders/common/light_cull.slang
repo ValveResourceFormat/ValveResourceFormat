@@ -42,9 +42,10 @@ float GetLightCullViewDepth(vec3 positionWs)
     return dot(positionWs - g_vLightCullCameraPositionWs, g_vLightCullCameraDirWs);
 }
 
+// sliceParams: x slices per octave, y reciprocal near plane. Mirrors DepthKey in TiledCullFeeder.
 uint GetLightCullDepthSlice(float viewDepth, vec2 sliceParams, uint sliceCount)
 {
-    float slice = log2(max(viewDepth, 1.0)) * sliceParams.x + sliceParams.y;
+    float slice = log2(max(viewDepth * sliceParams.y, 1.0)) * sliceParams.x;
     return uint(clamp(slice, 0.0, float(sliceCount - 1u)));
 }
 
