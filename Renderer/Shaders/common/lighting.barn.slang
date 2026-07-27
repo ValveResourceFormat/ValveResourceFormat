@@ -246,30 +246,19 @@ void ShadeBarnLight(inout LightingTerms_t lighting, inout MaterialProperties_t m
 
 void CalculateBarnLighting(inout LightingTerms_t lighting, in MaterialProperties_t mat, vec4 bakedShadow)
 {
-    if (!g_bIsSkybox)
+    CullMasks_t masks = GetBarnLightCullMasks(mat.PositionWS);
+
+    g_bBarnLightsTiled = true;
+
+    for (uint word = 0u; word < masks.m_nWords; word++)
     {
-        CullMasks_t masks = GetBarnLightCullMasks(mat.PositionWS);
+        uint mask = GetCullMaskWord(masks, word);
 
-        g_bBarnLightsTiled = true;
-
-        for (uint word = 0u; word < masks.m_nWords; word++)
+        while (mask != 0u)
         {
-            uint mask = GetCullMaskWord(masks, word);
+            uint i = CullUniformIndex(uint(findLSB(mask)) + (word * 32u));
+            mask &= mask - 1u;
 
-            while (mask != 0u)
-            {
-                uint i = CullUniformIndex(uint(findLSB(mask)) + (word * 32u));
-                mask &= mask - 1u;
-
-                g_nBarnLightsIterated++;
-                ShadeBarnLight(lighting, mat, bakedShadow, i);
-            }
-        }
-    }
-    else
-    {
-        for (uint i = 0u; i < g_nNumBarnLights; i++)
-        {
             g_nBarnLightsIterated++;
             ShadeBarnLight(lighting, mat, bakedShadow, i);
         }
