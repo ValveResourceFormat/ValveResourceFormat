@@ -160,7 +160,11 @@ public sealed class LightBinner(Scene scene) : IDisposable
         {
             // Nothing will read a projected hull this frame, so only claim the slots. The layout still has
             // to be right: the shading pass indexes an all ones buffer through these same bases and strides.
-            Feeder.AddCounts(scene.LightingInfo.BinnedBarnLightVolumes.Length, scene.LightingInfo.EnvMaps.Count);
+            // Capped to the shader array: the scene list can hold probes past it, which CalculateEnvironmentMaps
+            // logs and never assigns a shader index to, and iterating them would read off the end of the UBO.
+            Feeder.AddCounts(
+                scene.LightingInfo.BinnedBarnLightVolumes.Length,
+                Math.Min(scene.LightingInfo.EnvMaps.Count, EnvMapArray.MAX_ENVMAPS));
         }
 
         Feeder.End();

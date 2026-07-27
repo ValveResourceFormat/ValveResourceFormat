@@ -52,7 +52,12 @@ public sealed class TiledCullFeeder
     /// <summary>Floor for the slice distribution's near distance, so a zero near plane cannot reach log2.</summary>
     private const float MinSliceNear = 1f / 1024f;
 
-    private const int MaxItemsPerBatch = 128;
+    /// <summary>
+    /// Slots reserved per batch. Must be a multiple of <see cref="ItemsPerMask"/>: <see cref="End"/> pads
+    /// each batch out to whole masks, so a stride that is not would run past the item array. Five masks
+    /// covers the 144 env map probes the shader array holds with room to spare.
+    /// </summary>
+    private const int MaxItemsPerBatch = 160;
     private const int MaxItems = BatchCount * MaxItemsPerBatch;
 
     private const int TileGroupSizeX = 8;
