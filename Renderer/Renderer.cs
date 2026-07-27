@@ -404,11 +404,7 @@ public class Renderer
 
         var tileCullEnabled = LockedCullFrustum == null && scene.EnableLightTileCulling;
         scene.LightBinner.Update(ViewBuffer.Data, cullWidth, cullHeight, tileCullEnabled);
-
-        if (!ReferenceEquals(scene, SkyboxScene))
-        {
-            SkyboxScene?.LightBinner.Update(ViewBuffer.Data, cullWidth, cullHeight, tileCullEnabled);
-        }
+        SkyboxScene?.LightBinner.Update(ViewBuffer.Data, cullWidth, cullHeight, tileCullEnabled);
 
         ViewBuffer.BindBufferBase();
         ViewBuffer.Update();
@@ -434,11 +430,7 @@ public class Renderer
             using (new GLDebugGroup("Cull Tiles and Depth Bins"))
             {
                 scene.LightBinner.Dispatch();
-
-                if (!ReferenceEquals(scene, SkyboxScene))
-                {
-                    SkyboxScene?.LightBinner.Dispatch();
-                }
+                SkyboxScene?.LightBinner.Dispatch();
             }
         }
 
@@ -572,8 +564,8 @@ public class Renderer
             ViewmodelCamera.SetViewConstants(ViewBuffer.Data);
             Scene.SetFogConstants(ViewBuffer.Data);
 
-            Scene.LightBinner.SetPixelRemap(
-                ViewmodelCamera.GetPixelRemapTo(mainCamera, ViewBuffer.Data.ViewportSize));
+            var viewmodelTileRemap = ViewmodelCamera.GetPixelRemapTo(mainCamera, ViewBuffer.Data.ViewportSize);
+            Scene.LightBinner.SetPixelRemap(viewmodelTileRemap);
 
             ViewBuffer.BindBufferBase();
             ViewBuffer.Update();

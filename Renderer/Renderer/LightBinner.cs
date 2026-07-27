@@ -155,7 +155,7 @@ public sealed class LightBinner(Scene scene) : IDisposable
             new Vector2(width, height),
             viewConstants.WorldToProjection,
             viewConstants.CameraPosition, viewConstants.CameraDirWs,
-            Camera.NearPlane);
+            viewConstants.NearPlane);
 
         if (Active)
         {

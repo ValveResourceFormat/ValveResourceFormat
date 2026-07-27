@@ -47,7 +47,7 @@ namespace ValveResourceFormat.Renderer
         public float FieldOfView { get; set; }
 
         /// <summary>
-        /// Perspective projection matrix (reverse-Z, infinite far plane).
+        /// Perspective projection matrix (reverse-Z; the far plane is infinite unless <see cref="FarPlane"/> is set).
         /// </summary>
         public Matrix4x4 ProjectionMatrix { get; private set; }
 
@@ -171,17 +171,25 @@ namespace ValveResourceFormat.Renderer
         }
 
         /// <summary>
-        /// Distance from the eye to the near plane. Nothing closer than this is ever rasterized, so the
-        /// GPU light cull pass clips light volumes against it before reducing them to screen tiles.
+        /// Distance from the eye to the near plane. Nothing closer than this is ever rasterized, so the GPU
+        /// light cull pass clips light volumes against it before reducing them to screen tiles.
+        /// Call <see cref="CreateProjectionMatrix"/> after changing it.
         /// </summary>
-        public const float NearPlane = 1.0f;
+        public float NearPlane { get; set; } = 1.0f;
+
+        /// <summary>
+        /// Distance from the eye to the far plane, or <see cref="float.PositiveInfinity"/> for a projection
+        /// with no far plane at all, which is the default.
+        /// Call <see cref="CreateProjectionMatrix"/> after changing it.
+        /// </summary>
+        public float FarPlane { get; set; } = float.PositiveInfinity;
 
         /// <summary>
         /// Rebuilds <see cref="ProjectionMatrix"/> from the current field of view and aspect ratio.
         /// </summary>
         public void CreateProjectionMatrix()
         {
-            ProjectionMatrix = CreatePerspectiveFieldOfView_ReverseZ(GetFOV(), AspectRatio, NearPlane);
+            ProjectionMatrix = CreatePerspectiveFieldOfView_ReverseZ(GetFOV(), AspectRatio, NearPlane, FarPlane);
         }
 
         /// <summary>
@@ -215,19 +223,34 @@ namespace ValveResourceFormat.Renderer
         }
 
         /// <inheritdoc cref="Matrix4x4.CreatePerspectiveFieldOfView"/>
-        /// <remarks>Note: Reverse-Z. Far plane is swapped with near plane. Far plane is set to infinite.</remarks>
-        private static Matrix4x4 CreatePerspectiveFieldOfView_ReverseZ(float fieldOfView, float aspectRatio, float nearPlaneDistance)
+        /// <remarks>
+        /// Note: Reverse-Z. Far plane is swapped with near plane, so the near plane maps to ndc z 1 and the
+        /// far plane to 0. An infinite far plane is the limit of the finite case as far grows, but the
+        /// finite expressions evaluate to NaN there, so it keeps its own branch.
+        /// </remarks>
+        private static Matrix4x4 CreatePerspectiveFieldOfView_ReverseZ(float fieldOfView, float aspectRatio, float nearPlaneDistance, float farPlaneDistance)
         {
             var height = 1.0f / MathF.Tan(fieldOfView * 0.5f);
             var width = height / aspectRatio;
+
+            var m33 = 0.0f;
+            var m43 = nearPlaneDistance;
+
+            if (float.IsFinite(farPlaneDistance))
+            {
+                var range = farPlaneDistance - nearPlaneDistance;
+
+                m33 = nearPlaneDistance / range;
+                m43 = nearPlaneDistance * farPlaneDistance / range;
+            }
 
             return new Matrix4x4
             {
                 M11 = width,
                 M22 = height,
-                M33 = 0.0f,
+                M33 = m33,
                 M34 = -1.0f,
-                M43 = nearPlaneDistance
+                M43 = m43
             };
         }
 
@@ -239,6 +262,8 @@ namespace ValveResourceFormat.Renderer
         {
             AspectRatio = fromOther.AspectRatio;
             WindowSize = fromOther.WindowSize;
+            NearPlane = fromOther.NearPlane;
+            FarPlane = fromOther.FarPlane;
             Location = fromOther.Location;
             Pitch = fromOther.Pitch;
             Yaw = fromOther.Yaw;
