@@ -78,6 +78,15 @@ public class SceneEnvMap : SceneNode
             {
                 var index = envMap.ShaderIndex;
                 var bucketIndex = index / 32;
+
+                // Only the first 128 probes get a bit here. The shader reads a probe past that as visible
+                // to every object, leaving the tile and bin masks and the volume test to cull it, so the
+                // gap costs a little iteration rather than a wrong result.
+                if (bucketIndex >= 4)
+                {
+                    continue;
+                }
+
                 var bitIndex = index % 32;
 
                 this[bucketIndex] |= 1u << bitIndex;

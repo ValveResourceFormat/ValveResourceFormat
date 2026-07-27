@@ -33,7 +33,7 @@ struct EnvMapData
 };
 
 // Maximum number of environment maps supported
-#define MAX_ENVMAPS 128
+#define MAX_ENVMAPS 144
 
 layout(std140, binding = 2) uniform EnvMapArray
 {
@@ -209,7 +209,9 @@ vec3 GetEnvironmentNoBRDF(MaterialProperties_t mat, float roughnessReflectionCor
     CullMasks_t masks = GetEnvMapCullMasks(vFragPosition);
     for (uint word = 0u; word < masks.m_nWords && AnyLaneWantsMore(bContinueLoop); word++)
     {
-        uint mask = GetCullMaskWord(masks, word, g_nEnvMapVisibility[word] & GetEnvMapLiveMask(word));
+        uint objectMask = word < 4u ? g_nEnvMapVisibility[word] : 0xFFFFFFFFu;
+
+        uint mask = GetCullMaskWord(masks, word, objectMask & GetEnvMapLiveMask(word));
 
         int baseIndex = int(word * 32u);
 
