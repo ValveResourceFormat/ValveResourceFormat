@@ -92,7 +92,7 @@ layout(binding = 13, std430) writeonly buffer OutputCullBitsBuffer
 shared uint g_nGroupMask;
 #endif
 
-const bool OCCLUSION_CULL = false;
+const bool OCCLUSION_CULL = true;
 
 // Marks every live item in every tile, so a consumer sees the same list the untiled path would give it.
 // Anything still missing under this is not the tile pass losing it.

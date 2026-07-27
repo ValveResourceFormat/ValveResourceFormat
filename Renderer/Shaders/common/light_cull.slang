@@ -93,7 +93,7 @@ CullLookup_t GetCullLookupCached(vec3 positionWs)
 }
 
 // 0 draws the heat map, 1 the tile a fragment resolves to, 2 which of the two masks it ANDs is empty.
-#define LIGHT_TILES_DEBUG_MODE 2
+#define LIGHT_TILES_DEBUG_MODE 0
 
 const bool LIGHT_TILES_DEBUG_TILE_INDEX = (LIGHT_TILES_DEBUG_MODE == 1);
 const bool LIGHT_TILES_DEBUG_MASKS = (LIGHT_TILES_DEBUG_MODE == 2);
