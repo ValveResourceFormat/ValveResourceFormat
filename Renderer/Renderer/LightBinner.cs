@@ -112,12 +112,12 @@ public sealed class LightBinner(Scene scene) : IDisposable
     /// <param name="LiveProbes">Env map probes the tile pass kept, from the previous frame's readback.</param>
     /// <param name="HullVertices">Silhouette vertices the tile pass walks across every item.</param>
     /// <param name="MaskBytes">Size of the tile and depth bin mask buffer for this layout.</param>
-    public readonly record struct BinnerStats(
+    internal readonly record struct BinnerStats(
         bool Active, int Lights, int LightSlots, int Probes, int ProbeSlots,
         int LiveLights, int LiveProbes, int HullVertices, int MaskBytes);
 
     /// <summary>Gets what this binner produced for the frame.</summary>
-    public BinnerStats Stats => new(
+    internal BinnerStats Stats => new(
         Active,
         Feeder.BinnedCount(TiledCullFeeder.BatchBarnLights), Feeder.SlotCount(TiledCullFeeder.BatchBarnLights),
         Feeder.BinnedCount(TiledCullFeeder.BatchEnvMaps), Feeder.SlotCount(TiledCullFeeder.BatchEnvMaps),
@@ -298,7 +298,12 @@ public sealed class LightBinner(Scene scene) : IDisposable
             CullBitsWords = Feeder.TotalWords;
             CullBits = StorageBuffer.Allocate<uint>(
                 ReservedBufferSlots.LightCullBits, CullBitsWords, BufferUsageHint.DynamicDraw);
-            CullBitsAllVisible = false;
+
+            // A fresh allocation holds nothing in particular, and every zero bit reads as an item culled.
+            // Start visible instead: a pass that never reaches Dispatch - a viewer holding a locked cull
+            // frustum for the whole session - then shades against every light and probe rather than none.
+            CullBits.Fill(uint.MaxValue);
+            CullBitsAllVisible = true;
         }
     }
 
