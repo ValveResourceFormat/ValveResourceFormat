@@ -340,6 +340,18 @@ bool _HandleLightingRenderModes(inout vec4 outputColor, MaterialProperties_t mat
             outputColor = vec4(SrgbGammaToLinear((mat.AmbientOcclusion * flLightmapOcclusion).xxx), 1.0);
             return true;
         case renderMode_LightTiles:
+            if (LIGHT_TILES_DEBUG_TILE_INDEX)
+            {
+                outputColor = vec4(GetLightCullTileDebug(mat.PositionWS), 1.0);
+                return true;
+            }
+
+            if (LIGHT_TILES_DEBUG_MASKS)
+            {
+                outputColor = vec4(GetLightCullMaskDebug(mat.PositionWS), 1.0);
+                return true;
+            }
+
             vec3 tileHeat;
             outputColor.rgb *= GetLightCullBinStripe(mat.PositionWS);
 

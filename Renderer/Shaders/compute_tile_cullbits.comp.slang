@@ -92,7 +92,11 @@ layout(binding = 13, std430) writeonly buffer OutputCullBitsBuffer
 shared uint g_nGroupMask;
 #endif
 
-const bool OCCLUSION_CULL = true;
+const bool OCCLUSION_CULL = false;
+
+// Marks every live item in every tile, so a consumer sees the same list the untiled path would give it.
+// Anything still missing under this is not the tile pass losing it.
+const bool SKIP_CULLING = false;
 
 layout(binding = 0) uniform sampler2D g_tDepthPyramid;
 uniform int g_nDepthPyramidMaxMip;
@@ -265,6 +269,12 @@ void main()
         {
             nBits |= 1u << nBit;
         }
+    }
+
+    if (SKIP_CULLING)
+    {
+        uint nLive = batch.nItemEnd > nFirstItem ? min(batch.nItemEnd - nFirstItem, 32u) : 0u;
+        nBits = nLive >= 32u ? 0xFFFFFFFFu : ((1u << nLive) - 1u);
     }
 
     if (gl_GlobalInvocationID.x < g_nTilesX && gl_GlobalInvocationID.y < g_nTilesY)

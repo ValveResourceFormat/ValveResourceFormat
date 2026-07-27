@@ -1,4 +1,4 @@
-using ValveResourceFormat.Renderer.SceneEnvironment;
+﻿using ValveResourceFormat.Renderer.SceneEnvironment;
 
 namespace ValveResourceFormat.Renderer.Buffers;
 
@@ -101,6 +101,9 @@ public sealed class TiledCullFeeder
     private float cameraNearPlane;
     private float depthKeyRange;
     private float tileHalfSize;
+
+    /// <summary>Last coordinate the tile grid reaches, which runs past the viewport on a partial edge.</summary>
+    private Vector2 cullSpaceMax;
     private int planeCount;
 
     /// <summary>Gets the number of uints the cull bits buffer needs for the layout built this frame.</summary>
@@ -171,6 +174,7 @@ public sealed class TiledCullFeeder
 
         cullParams.TileEpsilon = 0f;
         tileHalfSize = tileSize * 0.5f;
+        cullSpaceMax = (new Vector2(tileCols, tileRows) * tileSize) - Vector2.One;
 
         cullParams.DepthBins = (uint)depthBins;
         cullParams.DepthBinWidth = depthKeyRange / depthBins;
@@ -400,6 +404,10 @@ public sealed class TiledCullFeeder
         public float NdcDepthNear;
         public bool AllCornersInFront;
 
+        /// <summary>Screen bounds of the silhouette itself, before the tile square dilates it.</summary>
+        public Vector2 RawMin;
+        public Vector2 RawMax;
+
         /// <summary>
         /// The nearest NDC depth the occlusion test may use. A volume straddling the near plane has no
         /// trustworthy screen depth, so it hands the test the nearest value there is and can never be
@@ -454,6 +462,8 @@ public sealed class TiledCullFeeder
             DepthMax = depthMax,
             NdcDepthNear = ndcDepthNear,
             AllCornersInFront = allCornersInFront,
+            RawMin = new Vector2(float.MaxValue),
+            RawMax = new Vector2(float.MinValue),
         };
 
         if (pointCount == 0)
@@ -489,6 +499,12 @@ public sealed class TiledCullFeeder
             }
         }
 
+        for (var i = 0; i < pointCount; i++)
+        {
+            projection.RawMin = Vector2.Min(projection.RawMin, projected[i]);
+            projection.RawMax = Vector2.Max(projection.RawMax, projected[i]);
+        }
+
         projection.HullCount = BuildDilatedHull(pointCount);
 
         return projection;
@@ -510,17 +526,23 @@ public sealed class TiledCullFeeder
             boundsMax = Vector2.Max(boundsMax, hull[i]);
         }
 
+        // Rejected on the silhouette itself rather than on the dilated hull. The dilation exists so a tile
+        // whose square overlaps the silhouette still tests inside, which means a hull reaches half a tile
+        // past what any pixel can see; in a partial edge row the tile centre is out there too, so an item
+        // wholly off screen would test inside and light up the sliver of that row that is on screen.
         if (projection.HullCount == 0
-            || boundsMin.X > viewportSize.X || boundsMin.Y > viewportSize.Y
-            || boundsMax.X < 0f || boundsMax.Y < 0f)
+            || projection.RawMin.X > viewportSize.X || projection.RawMin.Y > viewportSize.Y
+            || projection.RawMax.X < 0f || projection.RawMax.Y < 0f)
         {
             return false;
         }
 
-        var maxPixel = viewportSize - Vector2.One;
-
-        boundsMin = Vector2.Clamp(boundsMin, Vector2.Zero, maxPixel);
-        boundsMax = Vector2.Clamp(boundsMax, Vector2.Zero, maxPixel);
+        // Clamped to the grid, not to the viewport. The coarse pass compares these against tile centres,
+        // and a partial edge row's centre lies past the last pixel, so a viewport clamp puts the bounds
+        // out of reach of a tile the fine pass would have kept. That loses the whole row whenever the
+        // last workgroup holds nothing but that row - grid rows % 4 == 1, or columns % 8 == 1.
+        boundsMin = Vector2.Clamp(boundsMin, Vector2.Zero, cullSpaceMax);
+        boundsMax = Vector2.Clamp(boundsMax, Vector2.Zero, cullSpaceMax);
 
         return true;
     }

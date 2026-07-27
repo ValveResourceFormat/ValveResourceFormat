@@ -1,4 +1,4 @@
-using System.Numerics;
+﻿using System.Numerics;
 using System.Runtime.CompilerServices;
 using Microsoft.Extensions.Logging;
 using OpenTK.Graphics.OpenGL;
@@ -572,6 +572,333 @@ for (var i = 0; i < polys.Length; i++)
 
     Check($"pixel remap matches reprojection, worst {worst:F4} px", worst < 0.01f);
     Console.WriteLine($"pixel remap: {points} points, worst disagreement {worst:F6} px");
+}
+
+// ---------------------------------------------------------------------------------------------------
+// Partial edge row. A viewport that is not a whole number of tiles leaves a row whose tile is wider than
+// the pixels it owns, and when the leftover is under half a tile that tile's centre sits past the last
+// pixel. Hulls are dilated by half a tile, so an item whose silhouette clears the screen by less than
+// that still tests inside there and lights the sliver of the row that is on screen. An item is kept
+// exactly while its silhouette touches the viewport, which is what this walks one pixel at a time.
+
+{
+    const int TileSizeE = 16;
+    const int ViewWE = 256;
+
+    foreach (var viewHE in new[] { 128, 120, 122 })
+    {
+        var colsE = (ViewWE + TileSizeE - 1) / TileSizeE;
+        var rowsE = (viewHE + TileSizeE - 1) / TileSizeE;
+
+        var eye = new Vector3(0f, -400f, 0f);
+        var forward = new Vector3(0f, 1f, 0f);
+        var worldToProjection = Matrix4x4.CreateLookAt(eye, eye + forward, Vector3.UnitZ)
+            * Matrix4x4.CreatePerspectiveFieldOfView(1.2f, (float)ViewWE / viewHE, 1f, 20000f);
+
+        var feeder = new TiledCullFeeder();
+        var kept = 0;
+        var dropped = 0;
+
+        for (var step = 0; step < 400; step++)
+        {
+            var height = 300f + (step * 1.5f);
+            var volume = Matrix4x4.CreateScale(20f) * Matrix4x4.CreateTranslation(new Vector3(0f, 400f, height));
+
+            feeder.Begin(colsE, rowsE, TileSizeE, DepthBins, KeyRange, new Vector2(ViewWE, viewHE),
+                worldToProjection, eye, forward, 1f);
+            feeder.AddBarnLights(new[] { new BarnLightCullVolume { FrustumToWorld = volume } });
+            feeder.End();
+
+            // The silhouette, projected here rather than taken from the item, whose bounds are dilated.
+            var rawMin = new Vector2(float.MaxValue);
+            var rawMax = new Vector2(float.MinValue);
+
+            for (var corner = 0; corner < 8; corner++)
+            {
+                var clip = new Vector4(
+                    (corner & 1) != 0 ? 1f : -1f,
+                    (corner & 2) != 0 ? 1f : -1f,
+                    (corner & 4) != 0 ? 1f : 0f,
+                    1f);
+
+                var world = Vector4.Transform(clip, volume);
+                var proj = Vector4.Transform(new Vector4(world.X, world.Y, world.Z, 1f) / world.W, worldToProjection);
+                var pixel = (((new Vector2(proj.X, proj.Y) / proj.W) * 0.5f) + new Vector2(0.5f))
+                            * new Vector2(ViewWE, viewHE);
+
+                rawMin = Vector2.Min(rawMin, pixel);
+                rawMax = Vector2.Max(rawMax, pixel);
+            }
+
+            var onScreen = rawMax.Y >= 0f && rawMin.Y <= viewHE;
+            var item = feeder.ItemArray[0];
+
+            // Skip the pixel the two sides can disagree on by rounding alone.
+            if (MathF.Abs(rawMin.Y - viewHE) < 1f)
+            {
+                continue;
+            }
+
+            if (onScreen) { kept++; } else { dropped++; }
+
+            Check($"H={viewHE} silhouette top {rawMin.Y:F1} onScreen={onScreen} but kept={item.NumPlanes0 != 0u}",
+                onScreen == (item.NumPlanes0 != 0u));
+        }
+
+        Console.WriteLine($"partial row H={viewHE} rows={rowsE} partial={viewHE % TileSizeE != 0}: "
+            + $"{kept} kept, {dropped} dropped");
+    }
+}
+
+// ---------------------------------------------------------------------------------------------------
+// End to end at a viewport that is not a whole number of tiles. Everything above tests one side or the
+// other; this drives the feeder into the real dispatch and checks every tile of every batch against the
+// same point in hull test the shader is specified to do, so a disagreement anywhere between projecting a
+// volume and reading a bit back shows up here.
+
+foreach (var (viewW2, viewH2) in new[] { (256, 128), (250, 122), (247, 119), (241, 113) })
+{
+    var cols2 = (viewW2 + TileSize - 1) / TileSize;
+    var rows2 = (viewH2 + TileSize - 1) / TileSize;
+
+    var eye2 = new Vector3(0f, -400f, 0f);
+    var fwd2 = new Vector3(0f, 1f, 0f);
+    var wtp2 = Matrix4x4.CreateLookAt(eye2, eye2 + fwd2, Vector3.UnitZ)
+        * Matrix4x4.CreatePerspectiveFieldOfView(1.2f, (float)viewW2 / viewH2, 1f, 20000f);
+
+    var feeder2 = new TiledCullFeeder();
+    feeder2.Begin(cols2, rows2, TileSize, DepthBins, KeyRange, new Vector2(viewW2, viewH2),
+        wtp2, eye2, fwd2, 1f);
+
+    // One volume that swallows the whole view, so every tile must be set.
+    feeder2.AddBarnLights(new[] { new BarnLightCullVolume { FrustumToWorld = Matrix4x4.CreateScale(4000f) } });
+    feeder2.AddEnvMaps([new ValveResourceFormat.Renderer.SceneEnvironment.SceneEnvMap(null!, new AABB(new Vector3(-4000f), new Vector3(4000f)))
+        { EnvMapTexture = null!, ShaderIndex = 0 }]);
+    feeder2.End();
+
+    var bits2 = new uint[feeder2.TotalWords];
+    for (var i = 0; i < bits2.Length; i++) { bits2[i] = 0xDEADBEEF; }
+
+    var bitsBuffer2 = MakeSsbo(13, bits2, bits2.Length);
+    MakeSsbo(14, feeder2.ItemArray, feeder2.ItemArray.Length);
+    MakeSsbo(15, feeder2.PlaneArray, feeder2.PlaneArray.Length);
+
+    var params2 = feeder2.Params;
+    GL.CreateBuffers(1, out int paramsBuffer2);
+    GL.NamedBufferData(paramsBuffer2, Unsafe.SizeOf<CullParams>(), ref params2, BufferUsageHint.DynamicDraw);
+    GL.BindBufferBase(BufferRangeTarget.UniformBuffer, 5, paramsBuffer2);
+
+    tileShader.Use();
+    var (dx2, dy2, dz2) = feeder2.TileDispatch;
+    GL.DispatchCompute(dx2, dy2, dz2);
+    GL.MemoryBarrier(MemoryBarrierFlags.ShaderStorageBarrierBit);
+    GL.Finish();
+    GL.GetNamedBufferSubData(bitsBuffer2, IntPtr.Zero, bits2.Length * sizeof(uint), bits2);
+
+    foreach (var batch in new[] { TiledCullFeeder.BatchBarnLights, TiledCullFeeder.BatchEnvMaps })
+    {
+        var item = feeder2.ItemArray[batch == TiledCullFeeder.BatchBarnLights ? 0 : 32];
+        var hull2 = new Vector2[item.NumPlanes0];
+        Array.Copy(feeder2.PlaneArray, (int)item.FirstPlane, hull2, 0, hull2.Length);
+
+        var stride2 = feeder2.Stride(batch);
+        var base2 = feeder2.TileBase(batch);
+        var missingTop = 0;
+        var missingRight = 0;
+
+        for (var ty = 0; ty < rows2; ty++)
+        {
+            for (var tx = 0; tx < cols2; tx++)
+            {
+                var centre = new Vector2((tx * TileSize) + (TileSize * 0.5f), (ty * TileSize) + (TileSize * 0.5f));
+                var expected = hull2.Length > 0 && InsideHull(centre, hull2);
+                var actual = (bits2[base2 + ((uint)((ty * cols2) + tx) * stride2)] & 1u) != 0;
+
+                if (expected != actual)
+                {
+                    if (ty == rows2 - 1) { missingTop++; }
+                    if (tx == cols2 - 1) { missingRight++; }
+                }
+
+                Check($"{viewW2}x{viewH2} batch {batch} tile ({tx},{ty}) expected {expected} got {actual}",
+                    expected == actual);
+            }
+        }
+
+        Console.WriteLine($"e2e {viewW2}x{viewH2} batch {batch}: hull {hull2.Length} verts, "
+            + $"top row mismatches {missingTop}, right column mismatches {missingRight}");
+    }
+}
+
+// ---------------------------------------------------------------------------------------------------
+// Sweep a small volume across the top edge, end to end. The tile a partial row owns is wider than the
+// pixels it covers, so what matters is whether a volume visible in that sliver is still marked there.
+
+{
+    const int viewW3 = 250, viewH3 = 122;
+    var cols3 = (viewW3 + TileSize - 1) / TileSize;
+    var rows3 = (viewH3 + TileSize - 1) / TileSize;
+
+    var eye3 = new Vector3(0f, -400f, 0f);
+    var fwd3 = new Vector3(0f, 1f, 0f);
+    var wtp3 = Matrix4x4.CreateLookAt(eye3, eye3 + fwd3, Vector3.UnitZ)
+        * Matrix4x4.CreatePerspectiveFieldOfView(1.2f, (float)viewW3 / viewH3, 1f, 20000f);
+
+    var worst = 0;
+
+    for (var step = 0; step < 120; step++)
+    {
+        var height = 150f + (step * 2f);
+        // Frustum far larger than the range sphere, so the sphere is the volume and the conic is what
+        // decides every tile. This is the omni2 shape: face frustums whose corners stick out past the range.
+        var volume = Matrix4x4.CreateScale(200f) * Matrix4x4.CreateTranslation(new Vector3(0f, 400f, height));
+        var sphere = new Vector4(0f, 400f, height, 30f);
+
+        var feeder3 = new TiledCullFeeder();
+        feeder3.Begin(cols3, rows3, TileSize, DepthBins, KeyRange, new Vector2(viewW3, viewH3),
+            wtp3, eye3, fwd3, 1f);
+        feeder3.AddBarnLights(new[] { new BarnLightCullVolume { FrustumToWorld = volume, RangeSphere = sphere } });
+        feeder3.End();
+
+        var bits3 = new uint[feeder3.TotalWords];
+        var buf3 = MakeSsbo(13, bits3, bits3.Length);
+        MakeSsbo(14, feeder3.ItemArray, feeder3.ItemArray.Length);
+        MakeSsbo(15, feeder3.PlaneArray, feeder3.PlaneArray.Length);
+
+        var p3 = feeder3.Params;
+        GL.CreateBuffers(1, out int pb3);
+        GL.NamedBufferData(pb3, Unsafe.SizeOf<CullParams>(), ref p3, BufferUsageHint.DynamicDraw);
+        GL.BindBufferBase(BufferRangeTarget.UniformBuffer, 5, pb3);
+
+        tileShader.Use();
+        var (ax, ay, az) = feeder3.TileDispatch;
+        GL.DispatchCompute(ax, ay, az);
+        GL.MemoryBarrier(MemoryBarrierFlags.ShaderStorageBarrierBit);
+        GL.Finish();
+        GL.GetNamedBufferSubData(buf3, IntPtr.Zero, bits3.Length * sizeof(uint), bits3);
+
+        // The sphere's screen disc, measured the same way the feeder measures it.
+        var centreWs = new Vector3(sphere.X, sphere.Y, sphere.Z);
+        var axis = Vector3.Normalize(Vector3.Cross(centreWs - eye3, fwd3)) * sphere.W;
+        var atCentre = Vector4.Transform(new Vector4(centreWs, 1f), wtp3);
+        var atEdge = Vector4.Transform(new Vector4(centreWs + axis, 1f), wtp3);
+        var pc = (((new Vector2(atCentre.X, atCentre.Y) / atCentre.W) * 0.5f) + new Vector2(0.5f))
+                 * new Vector2(viewW3, viewH3);
+        var pe = (((new Vector2(atEdge.X, atEdge.Y) / atEdge.W) * 0.5f) + new Vector2(0.5f))
+                 * new Vector2(viewW3, viewH3);
+        var discRadius = (pe - pc).Length();
+
+        var rawMin = pc - new Vector2(discRadius);
+        var rawMax = pc + new Vector2(discRadius);
+
+        var topRow = rows3 - 1;
+        var rowPixelMin = topRow * TileSize;
+
+        // Visible part of the top row, and whether the silhouette covers any of it.
+        var coversVisible = rawMax.Y >= rowPixelMin && rawMin.Y <= viewH3 - 1
+                         && rawMax.X >= 0f && rawMin.X <= viewW3 - 1;
+
+        if (!coversVisible)
+        {
+            continue;
+        }
+
+        var stride3 = feeder3.Stride(TiledCullFeeder.BatchBarnLights);
+        var base3 = feeder3.TileBase(TiledCullFeeder.BatchBarnLights);
+        var marked = 0;
+
+        for (var tx = 0; tx < cols3; tx++)
+        {
+            var centreX = (tx * TileSize) + (TileSize * 0.5f);
+            if (centreX < rawMin.X - TileSize || centreX > rawMax.X + TileSize) { continue; }
+            if ((bits3[base3 + ((uint)((topRow * cols3) + tx) * stride3)] & 1u) != 0) { marked++; }
+        }
+
+        if (marked == 0)
+        {
+            worst++;
+            Check($"silhouette y [{rawMin.Y:F1},{rawMax.Y:F1}] covers the top row sliver "
+                + $"[{rowPixelMin},{viewH3 - 1}] but no tile in that row is marked", false);
+        }
+    }
+
+    Console.WriteLine($"top edge sweep: {worst} positions visible in the top row but unmarked");
+}
+
+// ---------------------------------------------------------------------------------------------------
+// Every viewport height in a range, with a volume that swallows the view, so every tile must be marked.
+// Any height where the edge tiles come back empty is a grid geometry the pass gets wrong.
+
+{
+    const int viewW4 = 250;
+    var bad = new List<string>();
+
+    for (var viewH4 = 100; viewH4 <= 320; viewH4++)
+    {
+        var cols4 = (viewW4 + TileSize - 1) / TileSize;
+        var rows4 = (viewH4 + TileSize - 1) / TileSize;
+
+        var eye4 = new Vector3(0f, -400f, 0f);
+        var fwd4 = new Vector3(0f, 1f, 0f);
+        var wtp4 = Matrix4x4.CreateLookAt(eye4, eye4 + fwd4, Vector3.UnitZ)
+            * Matrix4x4.CreatePerspectiveFieldOfView(1.2f, (float)viewW4 / viewH4, 1f, 20000f);
+
+        var feeder4 = new TiledCullFeeder();
+        feeder4.Begin(cols4, rows4, TileSize, DepthBins, KeyRange, new Vector2(viewW4, viewH4),
+            wtp4, eye4, fwd4, 1f);
+        // Clip z maps to [0,1], so the box has to be pushed back to actually swallow the eye.
+        var big4 = Matrix4x4.CreateScale(4000f) * Matrix4x4.CreateTranslation(new Vector3(0f, -400f, -2000f));
+        feeder4.AddBarnLights(new[] { new BarnLightCullVolume { FrustumToWorld = big4 } });
+        feeder4.End();
+
+        var bits4 = new uint[feeder4.TotalWords];
+        var buf4 = MakeSsbo(13, bits4, bits4.Length);
+        MakeSsbo(14, feeder4.ItemArray, feeder4.ItemArray.Length);
+        MakeSsbo(15, feeder4.PlaneArray, feeder4.PlaneArray.Length);
+
+        var p4 = feeder4.Params;
+        GL.CreateBuffers(1, out int pb4);
+        GL.NamedBufferData(pb4, Unsafe.SizeOf<CullParams>(), ref p4, BufferUsageHint.DynamicDraw);
+        GL.BindBufferBase(BufferRangeTarget.UniformBuffer, 5, pb4);
+
+        tileShader.Use();
+        var (bx, by, bz) = feeder4.TileDispatch;
+        GL.DispatchCompute(bx, by, bz);
+        GL.MemoryBarrier(MemoryBarrierFlags.ShaderStorageBarrierBit);
+        GL.Finish();
+        GL.GetNamedBufferSubData(buf4, IntPtr.Zero, bits4.Length * sizeof(uint), bits4);
+
+        var stride4 = feeder4.Stride(TiledCullFeeder.BatchBarnLights);
+        var base4 = feeder4.TileBase(TiledCullFeeder.BatchBarnLights);
+        var topMissing = 0;
+        var rightMissing = 0;
+        var anyMissing = 0;
+
+        for (var ty = 0; ty < rows4; ty++)
+        {
+            for (var tx = 0; tx < cols4; tx++)
+            {
+                if ((bits4[base4 + ((uint)((ty * cols4) + tx) * stride4)] & 1u) != 0) { continue; }
+
+                anyMissing++;
+                if (ty == rows4 - 1) { topMissing++; }
+                if (tx == cols4 - 1) { rightMissing++; }
+            }
+        }
+
+        if (anyMissing > 0)
+        {
+            bad.Add($"H={viewH4} (rows={rows4}, H%16={viewH4 % TileSize}) missing {anyMissing} "
+                + $"[top {topMissing}/{cols4}, right {rightMissing}/{rows4}]");
+        }
+    }
+
+    foreach (var line in bad)
+    {
+        Console.WriteLine($"  MISSING {line}");
+    }
+
+    Console.WriteLine($"height sweep: {bad.Count} of 221 heights have unmarked tiles");
 }
 
 Check("no word left unwritten", Array.IndexOf(bits, 0xDEADBEEF) < 0);
