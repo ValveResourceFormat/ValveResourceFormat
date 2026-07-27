@@ -20,8 +20,11 @@ public sealed class LightBinner(Scene scene) : IDisposable
     /// <summary>Screen tile size as a power of two shift. 4 is 16x16 pixels.</summary>
     private const int TileShift = 4;
 
-    /// <summary>Number of logarithmic depth slices items are binned into.</summary>
-    private const int DepthSliceCount = 32;
+    /// <summary>
+    /// Number of logarithmic depth slices items are binned into. Must be a multiple of the depth bin
+    /// pass's group size, which dispatches exactly and does not bound check.
+    /// </summary>
+    private const int DepthSliceCount = 32; // todo: experiment with 64 and higher.
 
     /// <summary>
     /// Floor for the fitted slice far, in world units. A scene with nothing binned, or with everything
@@ -31,9 +34,6 @@ public sealed class LightBinner(Scene scene) : IDisposable
 
     /// <summary>Ceiling for the fitted slice far, in world units.</summary>
     private const float MaxSliceFar = 32768f;
-
-    /// <summary>Camera near plane, matching <see cref="Camera.CreateProjectionMatrix"/>.</summary>
-    private const float DepthSliceNear = 1f;
 
     private readonly TiledCullFeeder Feeder = new();
 
@@ -90,8 +90,11 @@ public sealed class LightBinner(Scene scene) : IDisposable
     /// <param name="ProbeSlots">Env map probes the shading pass iterates.</param>
     /// <param name="HullVertices">Silhouette vertices the tile pass walks across every item.</param>
     /// <param name="MaskBytes">Size of the tile and depth bin mask buffer for this layout.</param>
+    /// <param name="SliceFar">Far distance the depth slice distribution was fitted to.</param>
+    /// <param name="SliceRatio">How much deeper each slice is than the one before it.</param>
     internal readonly record struct BinnerStats(
-        bool Active, int Faces, int FaceSlots, int Probes, int ProbeSlots, int HullVertices, int MaskBytes);
+        bool Active, int Faces, int FaceSlots, int Probes, int ProbeSlots, int HullVertices, int MaskBytes,
+        float SliceFar, float SliceRatio);
 
     /// <summary>Gets what this binner produced for the frame.</summary>
     internal BinnerStats Stats => new(
@@ -99,7 +102,9 @@ public sealed class LightBinner(Scene scene) : IDisposable
         Feeder.BinnedCount(TiledCullFeeder.BatchBarnLights), Feeder.SlotCount(TiledCullFeeder.BatchBarnLights),
         Feeder.BinnedCount(TiledCullFeeder.BatchEnvMaps), Feeder.SlotCount(TiledCullFeeder.BatchEnvMaps),
         Feeder.PlaneCount,
-        Feeder.TotalWords * sizeof(uint));
+        Feeder.TotalWords * sizeof(uint),
+        Feeder.SliceFar,
+        Feeder.SliceRatio);
 
     /// <summary>Gets the first word and stride of a batch's tile region, for the debug overlay.</summary>
     /// <param name="envMaps">Whether to describe the env map batch rather than the barn light one.</param>
@@ -141,17 +146,9 @@ public sealed class LightBinner(Scene scene) : IDisposable
         TileCols = (width + tileSize - 1) >> TileShift;
         TileRows = (height + tileSize - 1) >> TileShift;
 
-        // Fitted to how far items actually reached last frame rather than to the render far plane. The
-        // distribution is logarithmic, so every octave of empty range past the furthest light or probe
-        // thickens every slice nearer in: against the old fixed 32768 a third of the slices were landing
-        // inside the first 32 units. Reading it before Begin resets it is what makes it last frame's, and
-        // a frame of lag is invisible - the producer and the consumer both read the params uploaded here.
-        var sliceFar = Math.Clamp(Feeder.MaxItemViewDepth, MinSliceFar, MaxSliceFar);
-        var depthKeyRange = MathF.Log2(sliceFar / DepthSliceNear);
-
         Feeder.Begin(
             TileCols, TileRows, tileSize,
-            DepthSliceCount, depthKeyRange,
+            DepthSliceCount, MinSliceFar, MaxSliceFar,
             new Vector2(width, height),
             viewConstants.WorldToProjection,
             viewConstants.CameraPosition, viewConstants.CameraDirWs,
@@ -180,16 +177,20 @@ public sealed class LightBinner(Scene scene) : IDisposable
         Constants.LightTileCols = (uint)TileCols;
         Constants.LightTileRows = (uint)TileRows;
         Constants.LightSliceCount = DepthSliceCount;
+
+        // Read after End, which is where the feeder fits the range to the items it just projected.
+        var depthKeyRange = Feeder.DepthKeyRange;
+
         Constants.LightDepthSliceParams = new Vector4(
             DepthSliceCount / depthKeyRange,
-            -DepthSliceCount * MathF.Log2(DepthSliceNear) / depthKeyRange,
+            -DepthSliceCount * MathF.Log2(viewConstants.NearPlane) / depthKeyRange,
             0f, 0f);
 
         Constants.EnvMapTileBase = Feeder.TileBase(TiledCullFeeder.BatchEnvMaps);
         Constants.EnvMapBinBase = Feeder.BinBase(TiledCullFeeder.BatchEnvMaps);
         Constants.EnvMapCullWords = Feeder.Stride(TiledCullFeeder.BatchEnvMaps);
+        Constants.EnvMapCount = (uint)Feeder.SlotCount(TiledCullFeeder.BatchEnvMaps);
 
-        Constants.LightCullWorldToProjection = viewConstants.WorldToProjection;
         Constants.LightCullCameraPosition = viewConstants.CameraPosition;
         Constants.LightCullCameraDir = viewConstants.CameraDirWs;
 
@@ -312,5 +313,6 @@ public sealed class LightBinner(Scene scene) : IDisposable
         CullItemsGpu = null;
         CullPlanesGpu = null;
         CullParamsGpu = null;
+        ConstantsGpu = null;
     }
 }

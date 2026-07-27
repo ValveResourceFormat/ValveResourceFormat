@@ -3,6 +3,8 @@
 #ifndef VRF_LIGHTING_BARN_INCLUDE
 #define VRF_LIGHTING_BARN_INCLUDE
 
+#include "light_cull.slang"
+
 struct BarnLightConstants
 {
     mat4 m_mBarnFrustum;

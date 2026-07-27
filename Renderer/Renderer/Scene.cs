@@ -94,6 +94,7 @@ namespace ValveResourceFormat.Renderer
         /// <summary>Gets or sets the GPU buffer containing world-space transform matrices for all scene nodes.</summary>
         public StorageBuffer? TransformBufferGpu { get; set; }
 
+
         /// <summary>Gets or sets the GPU buffer containing per-draw-call bounding boxes for indirect culling.</summary>
         public StorageBuffer? DrawBoundsGpu { get; set; }
 
@@ -1471,6 +1472,7 @@ namespace ValveResourceFormat.Renderer
             renderContext.ReplacementShader = null;
         }
 
+
         internal void ActivateLayer(string layerName)
         {
             foreach (var node in AllNodes)
@@ -1828,8 +1830,9 @@ namespace ValveResourceFormat.Renderer
                     return aDistance.CompareTo(bDistance);
                 });
 
-                node.ShaderEnvMapVisibility = default;
-                node.ShaderEnvMapVisibility = node.ShaderEnvMapVisibility.Store(node.EnvMaps);
+                // Rebuilt from scratch rather than added to: Store only sets bits, so a node that lost a
+                // probe since the last call would keep it.
+                node.ShaderEnvMapVisibility = default(SceneEnvMap.EnvMapVisibility128).Store(node.EnvMaps);
 
                 // all cubemaps visible
                 if (node.Flags.HasFlag(ObjectTypeFlags.DisableVisCulling))

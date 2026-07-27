@@ -81,7 +81,7 @@ void main()
 
         if (item.flDepthMin <= flBinFar && item.flDepthMax >= flBinNear)
         {
-            nBits |= 1u << i;
+            nBits |= 1u << (i - nFirstItem);
         }
     }
 

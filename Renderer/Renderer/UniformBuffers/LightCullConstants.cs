@@ -35,10 +35,13 @@ namespace ValveResourceFormat.Renderer.Buffers
         public uint EnvMapBinBase;
         /// <summary>Number of 32 bit words each env map tile and bin mask occupies this frame.</summary>
         public uint EnvMapCullWords;
+        /// <summary>
+        /// Env map probe slots the shading pass may iterate. Bits past it exist in the last mask word but
+        /// name nothing, and the all ones masks binning writes when it is off do not distinguish them.
+        /// </summary>
+        public uint EnvMapCount;
         /// <summary>Padding to maintain 16-byte struct alignment.</summary>
         public uint _Padding0;
-        /// <summary>Padding to maintain 16-byte struct alignment.</summary>
-        public uint _Padding1;
 
         /// <summary>Logarithmic depth slice mapping applied to camera forward distance: X scale, Y bias.</summary>
         public Vector4 LightDepthSliceParams;
@@ -49,25 +52,14 @@ namespace ValveResourceFormat.Renderer.Buffers
         /// </summary>
         public Vector4 LightCullPixelRemap = ViewConstants.PixelRemapIdentity;
 
-        /// <summary>
-        /// World-to-clip transform of the camera the masks were built for. Only the world space lookup
-        /// needs it; a raster pass finds its tile through <see cref="LightCullPixelRemap"/> instead.
-        /// </summary>
-        public Matrix4x4 LightCullWorldToProjection = Matrix4x4.Identity;
-
         /// <summary>World-space position of the camera the masks were built for.</summary>
         public Vector3 LightCullCameraPosition;
         /// <summary>Padding to maintain 16-byte struct alignment.</summary>
-        public float _Padding2;
+        public float _Padding1;
 
         /// <summary>World-space forward direction of the camera the masks were built for.</summary>
         public Vector3 LightCullCameraDir;
         /// <summary>Padding to maintain 16-byte struct alignment.</summary>
-        public float _Padding3;
-
-        /// <summary>Initializes a new <see cref="LightCullConstants"/> with identity defaults.</summary>
-        public LightCullConstants()
-        {
-        }
+        public float _Padding2;
     }
 }

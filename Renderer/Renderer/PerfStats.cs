@@ -424,7 +424,7 @@ public class PerfStats
             return "off, all masks visible";
         }
 
-        return $"{stats.Faces:N0} of {stats.FaceSlots:N0} barn faces, {stats.Probes:N0} of {stats.ProbeSlots:N0} probes binned, {stats.HullVertices:N0} hull verts, {stats.MaskBytes / 1024.0:0.#} KB masks";
+        return $"{stats.Faces:N0} of {stats.FaceSlots:N0} barn faces, {stats.Probes:N0} of {stats.ProbeSlots:N0} probes binned, {stats.HullVertices:N0} hull verts, {stats.MaskBytes / 1024.0:0.#} KB masks, slices to {stats.SliceFar:N0} at {stats.SliceRatio:0.000}x";
     }
 
     /// <summary>Resets per-frame counters, reads back the previous frame's results.</summary>
