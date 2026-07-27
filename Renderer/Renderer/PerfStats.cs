@@ -408,6 +408,25 @@ public class PerfStats
         AddLine($"Static Lights:    in view {FormatLightCounts(staticLightsInView, totalStaticLights)} out of total {FormatLightCounts(totalStaticLights, totalStaticLights)}", valueColor);
         AddLine($"Shadow maps:      {counts[(int)Counter.DirectionalShadowMap]:N0} directional, {counts[(int)Counter.BarnShadowMap]:N0} barn, {counts[(int)Counter.ShadowFaceSubmitted]:N0} faces binned, {floatMetrics[(int)Metric.ShadowAtlasUsage]:0%} atlas utilization", valueColor);
         AddLine($"Particle Systems: {counts[(int)Counter.ParticleSystem]:N0} particle systems rendered in {counts[(int)Counter.ParticleDraw]:N0} draw calls out of {totalParticleSystems:N0} total particle systems", valueColor);
+        AddLine($"Light binning:    {FormatBinnerStats(scene.LightBinner.Stats)}", valueColor);
+    }
+
+    /// <summary>
+    /// One line of what the tile and depth bin binning produced, narrowing left to right: items the tile
+    /// pass kept, items the CPU projection kept, and the slots the shading pass iterates regardless. The
+    /// first gap is what the GPU culled - hulls, conic, occlusion - and the second is what never reached
+    /// it, having projected to nothing.
+    /// </summary>
+    private static string FormatBinnerStats(LightBinner.BinnerStats stats)
+    {
+        if (!stats.Active)
+        {
+            return "off, all masks visible";
+        }
+
+        return $"{stats.LiveLights:N0} of {stats.Lights:N0} of {stats.LightSlots:N0} lights, "
+            + $"{stats.LiveProbes:N0} of {stats.Probes:N0} of {stats.ProbeSlots:N0} probes reach a tile, "
+            + $"{stats.HullVertices:N0} hull verts, {stats.MaskBytes / 1024.0:0.#} KB masks";
     }
 
     /// <summary>Resets per-frame counters, reads back the previous frame's results.</summary>

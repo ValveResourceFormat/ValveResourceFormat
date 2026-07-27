@@ -58,6 +58,8 @@ public enum ReservedBufferSlots
     CullItems = 14,
     /// <summary>Convex hull vertices referenced by <see cref="CullItems"/>.</summary>
     CullPlanes = 15,
+    /// <summary>Which cull items survived the tile pass, read back for the render stats.</summary>
+    CullStats = 16,
 
     /// <summary>Guaranteed minimum binding point count in OpenGL 4.6.</summary>
     Max = 8,

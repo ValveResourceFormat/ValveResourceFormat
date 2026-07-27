@@ -347,7 +347,7 @@ bool _HandleLightingRenderModes(inout vec4 outputColor, MaterialProperties_t mat
             {
                 return true;
             }
-            outputColor = vec4(tileHeat, 1.0);
+            outputColor.rgb = mix(outputColor.rgb, tileHeat, 0.5);
             return true;
         case renderMode_EnvmapTiles:
             vec3 envMapHeat;
@@ -357,7 +357,7 @@ bool _HandleLightingRenderModes(inout vec4 outputColor, MaterialProperties_t mat
             {
                 return true;
             }
-            outputColor = vec4(envMapHeat, 1.0);
+            outputColor.rgb = mix(outputColor.rgb, envMapHeat, 0.5);
             return true;
         case renderMode_Subgroups:
             outputColor = vec4(GetSubgroupFootprintColor(), 1.0);
