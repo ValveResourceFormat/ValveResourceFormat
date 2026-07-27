@@ -830,11 +830,13 @@ foreach (var (viewW2, viewH2) in new[] { (256, 128), (250, 122), (247, 119), (24
 // Any height where the edge tiles come back empty is a grid geometry the pass gets wrong.
 
 {
-    const int viewW4 = 250;
     var bad = new List<string>();
+    var tested = 0;
 
+    foreach (var viewW4 in new[] { 250, 241, 242, 248, 256, 129, 130 })
     for (var viewH4 = 100; viewH4 <= 320; viewH4++)
     {
+        tested++;
         var cols4 = (viewW4 + TileSize - 1) / TileSize;
         var rows4 = (viewH4 + TileSize - 1) / TileSize;
 
@@ -898,7 +900,7 @@ foreach (var (viewW2, viewH2) in new[] { (256, 128), (250, 122), (247, 119), (24
         Console.WriteLine($"  MISSING {line}");
     }
 
-    Console.WriteLine($"height sweep: {bad.Count} of 221 heights have unmarked tiles");
+    Console.WriteLine($"grid sweep: {bad.Count} of {tested} viewport sizes have unmarked tiles");
 }
 
 Check("no word left unwritten", Array.IndexOf(bits, 0xDEADBEEF) < 0);
