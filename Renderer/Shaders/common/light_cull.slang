@@ -182,8 +182,12 @@ uvec4 GetCullMaskWords(CullMasks_t masks)
 // The gate for a linear item loop. Walking the set bits instead would make the trip count popcount
 // rather than the item count, but it costs an index the compiler cannot prove uniform and a loop it
 // cannot unroll, and it degrades badly once the mask is dense. Here the index is an induction variable,
-// so the item fetch is uniform for free. GetCullMaskWord already unioned each word across the subgroup,
-// so this branch is wave uniform and a culled item is skipped rather than predicated away.
+// so the item fetch is uniform for free.
+//
+// GetCullMaskWord's subgroupOr makes this branch wave uniform, but that buys less than it looks like:
+// masked off lanes do not get their cycles back, so the wave executes an item's body whenever any lane
+// wants it either way. The union only makes explicit what the hardware already imposes - culling is per
+// wave, never per lane - which is also why a tile finer than the wave's pixel footprint buys nothing.
 bool IsCullBitSet(uvec4 words, uint index)
 {
     return (words[index >> 5u] & (1u << (index & 31u))) != 0u;
