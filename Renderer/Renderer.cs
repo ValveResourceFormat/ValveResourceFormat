@@ -399,9 +399,18 @@ public class Renderer
         camera.SetViewConstants(ViewBuffer.Data);
         scene.SetFogConstants(ViewBuffer.Data);
 
-        scene.LightBinner.SetViewConstants(ViewBuffer.Data,
-            (int)ViewBuffer.Data.ViewportSize.X, (int)ViewBuffer.Data.ViewportSize.Y,
-            enabled: LockedCullFrustum == null);
+        var cullWidth = (int)ViewBuffer.Data.ViewportSize.X;
+        var cullHeight = (int)ViewBuffer.Data.ViewportSize.Y;
+        var cullEnabled = LockedCullFrustum == null;
+
+        scene.LightBinner.Update(ViewBuffer.Data, cullWidth, cullHeight, cullEnabled);
+
+        // The 3D skybox shares this camera but bins its own lights and probes: its bit indices address its
+        // own arrays, so it needs masks of its own rather than a share of these.
+        if (!ReferenceEquals(scene, SkyboxScene))
+        {
+            SkyboxScene?.LightBinner.Update(ViewBuffer.Data, cullWidth, cullHeight, cullEnabled);
+        }
 
         ViewBuffer.BindBufferBase();
         ViewBuffer.Update();
@@ -425,6 +434,11 @@ public class Renderer
             }
 
             scene.LightBinner.Dispatch();
+
+            if (!ReferenceEquals(scene, SkyboxScene))
+            {
+                SkyboxScene?.LightBinner.Dispatch();
+            }
         }
 
         if (Postprocess != null)
@@ -557,8 +571,8 @@ public class Renderer
             ViewmodelCamera.SetViewConstants(ViewBuffer.Data);
             Scene.SetFogConstants(ViewBuffer.Data);
 
-            ViewBuffer.Data.LightCullPixelRemap =
-                ViewmodelCamera.GetPixelRemapTo(mainCamera, ViewBuffer.Data.ViewportSize);
+            Scene.LightBinner.SetPixelRemap(
+                ViewmodelCamera.GetPixelRemapTo(mainCamera, ViewBuffer.Data.ViewportSize));
 
             ViewBuffer.BindBufferBase();
             ViewBuffer.Update();
@@ -573,7 +587,7 @@ public class Renderer
 
             mainCamera.SetViewConstants(ViewBuffer.Data);
             Scene.SetFogConstants(ViewBuffer.Data);
-            ViewBuffer.Data.LightCullPixelRemap = ViewConstants.PixelRemapIdentity;
+            Scene.LightBinner.SetPixelRemap(ViewConstants.PixelRemapIdentity);
             ViewBuffer.BindBufferBase();
             ViewBuffer.Update();
         }
@@ -676,8 +690,8 @@ public class Renderer
 
             ViewmodelCamera.SetViewConstants(ViewBuffer.Data);
             Scene.SetFogConstants(ViewBuffer.Data);
-            ViewBuffer.Data.LightCullPixelRemap =
-                ViewmodelCamera.GetPixelRemapTo(mainCamera, ViewBuffer.Data.ViewportSize);
+            Scene.LightBinner.SetPixelRemap(
+                ViewmodelCamera.GetPixelRemapTo(mainCamera, ViewBuffer.Data.ViewportSize));
             ViewBuffer.BindBufferBase();
             ViewBuffer.Update();
 
@@ -689,7 +703,7 @@ public class Renderer
 
             mainCamera.SetViewConstants(ViewBuffer.Data);
             Scene.SetFogConstants(ViewBuffer.Data);
-            ViewBuffer.Data.LightCullPixelRemap = ViewConstants.PixelRemapIdentity;
+            Scene.LightBinner.SetPixelRemap(ViewConstants.PixelRemapIdentity);
             ViewBuffer.BindBufferBase();
             ViewBuffer.Update();
         }
@@ -715,11 +729,8 @@ public class Renderer
 
             if (overlayBatch != ValveResourceFormat.Renderer.LightTilesOverlay.Batch.None)
             {
-                var view = ViewBuffer.Data;
-
-                var (tileBase, words) = overlayBatch == ValveResourceFormat.Renderer.LightTilesOverlay.Batch.EnvMaps
-                    ? (view.EnvMapTileBase, view.EnvMapCullWords)
-                    : (view.LightTileBase, view.LightCullWords);
+                var (tileBase, words) = Scene.LightBinner.GetOverlayRegion(
+                    overlayBatch == ValveResourceFormat.Renderer.LightTilesOverlay.Batch.EnvMaps);
 
                 LightTilesOverlay.Render(Scene.LightBinner.CullBits, tileBase, words);
             }
