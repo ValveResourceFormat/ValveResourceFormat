@@ -2,11 +2,7 @@
 
 #include "common/ViewConstants.slang"
 #include "common/utils.slang"
-
-layout(std430, binding = 13) readonly buffer LightCullBitsBuffer
-{
-    uint g_LightCullBits[];
-};
+#include "common/light_cull.slang"
 
 const float kBusyTile = 12.0;
 
