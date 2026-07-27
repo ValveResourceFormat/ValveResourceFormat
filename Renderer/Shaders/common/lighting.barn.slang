@@ -246,25 +246,15 @@ void ShadeBarnLight(inout LightingTerms_t lighting, inout MaterialProperties_t m
 
 void CalculateBarnLighting(inout LightingTerms_t lighting, in MaterialProperties_t mat, vec4 bakedShadow)
 {
-    if (g_bLightTilesValid && !g_bIsSkybox)
+    if (!g_bIsSkybox)
     {
-        CullLookup_t cull = GetCullLookupCached(mat.PositionWS);
-        bool haveTile = cull.m_bValid;
+        CullMasks_t masks = GetBarnLightCullMasks(mat.PositionWS);
 
-        g_bBarnLightsTiled = haveTile;
+        g_bBarnLightsTiled = true;
 
-        uint tileBase = g_nLightTileBase + (cull.m_nTileIndex * g_nLightCullWords);
-        uint sliceBase = g_nLightSliceBase + (cull.m_nBin * g_nLightCullWords);
-
-        for (uint word = 0u; word < g_nLightCullWords; word++)
+        for (uint word = 0u; word < masks.m_nWords; word++)
         {
-            uint mask = haveTile
-                ? (g_LightCullBits[tileBase + word] & g_LightCullBits[sliceBase + word])
-                : GetCullWordMask(g_nNumBarnLights, word);
-
-#ifdef GL_KHR_shader_subgroup_arithmetic
-            mask = subgroupOr(mask);
-#endif
+            uint mask = GetCullMaskWord(masks, word);
 
             while (mask != 0u)
             {

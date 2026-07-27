@@ -19,7 +19,7 @@ layout(location = 0) out vec4 outputColor;
 
 void main()
 {
-    if (!g_bLightTilesValid || g_nOverlayWords == 0u)
+    if (g_nOverlayWords == 0u)
     {
         discard;
     }

@@ -1,18 +1,5 @@
 #version 460
 
-// Reconstructed from CS2 shaders/vfx/compute_depthbin_cullbits_vulkan_50_cs.vcs.
-// 1 static combo, 1 variant, 1 unique bytecode. No combos at all.
-//
-// Depth half of Source 2's 2.5D cull-bit system. For every linear depth bin it writes a bitmask of
-// the cull items whose [flDepthMin, flDepthMax] overlaps that bin. Independent of the screen-tile
-// pass and of the depth buffer, which is what makes the result usable by translucent geometry.
-//
-// Nothing feeds this yet - it is here as the reference for what the CPU side has to produce. See
-// compute_tile_cullbits.comp.slang for the field-by-field commentary, the two backend details that
-// differ from the Vulkan dump, and which names are read from reflection versus inferred from use.
-
-// 32 threads, one per depth bin. gl_WorkGroupID.y is the 32-item mask index across all three
-// batches, exactly as gl_WorkGroupID.z is in the tile shader.
 layout(local_size_x = 32, local_size_y = 1, local_size_z = 1) in;
 
 struct CullBatch_t
@@ -55,7 +42,7 @@ layout(binding = 5, std140) uniform CullParams_t
     uint  g_nDepthBins;
     float g_fDepthBinWidth;
     float g_fBinEpsilon;
-    float g_fNearPlane;             // c2.w   depth of bin 0's near edge
+    float g_fNearPlane;
     uvec4 g_nFirstMaskForBatch;
     CullBatch_t g_TileBatches[3];
     CullBatch_t g_BinBatches[3];

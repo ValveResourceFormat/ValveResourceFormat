@@ -111,6 +111,19 @@ namespace ValveResourceFormat.Renderer.Buffers
             GL.ClearNamedBufferData(Handle, PixelInternalFormat.R32ui, PixelFormat.RedInteger, PixelType.UnsignedInt, IntPtr.Zero);
         }
 
+        /// <summary>Fills the entire buffer with a repeating 32 bit value.</summary>
+        /// <param name="value">The value written to every 32 bit word.</param>
+        public unsafe void Fill(uint value)
+        {
+            if (PersistentPtr != IntPtr.Zero)
+            {
+                new Span<uint>((void*)PersistentPtr, Size / sizeof(uint)).Fill(value);
+                return;
+            }
+
+            GL.ClearNamedBufferData(Handle, PixelInternalFormat.R32ui, PixelFormat.RedInteger, PixelType.UnsignedInt, ref value);
+        }
+
         /// <summary>Reads the buffer's contents back from the GPU into the given struct.</summary>
         /// <param name="output">The struct to populate with buffer data.</param>
         public unsafe void Read<T>(ref T output) where T : struct

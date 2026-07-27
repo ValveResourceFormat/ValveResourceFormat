@@ -133,6 +133,7 @@ namespace ValveResourceFormat.Renderer
         private int LightTileCols;
         private int LightTileRows;
         private int CullBitsWords;
+        private bool CullBitsAllVisible;
         private bool LightTilesActive;
 
         private Shader? DepthPyramidShader;
@@ -1260,6 +1261,7 @@ namespace ValveResourceFormat.Renderer
                 CullBitsWords = CullFeeder.TotalWords;
                 LightCullBitsGpu = StorageBuffer.Allocate<uint>(
                     ReservedBufferSlots.LightCullBits, CullBitsWords, BufferUsageHint.DynamicDraw);
+                CullBitsAllVisible = false;
             }
         }
 
@@ -1272,27 +1274,21 @@ namespace ValveResourceFormat.Renderer
         internal void SetLightTileViewConstants(ViewConstants viewConstants, int viewportWidth, int viewportHeight, bool enabled)
         {
             LightTilesActive = enabled && CanCullLightTiles && viewportWidth > 0 && viewportHeight > 0;
-            viewConstants.LightTilesValid = LightTilesActive;
-
-            viewConstants.NumEnvMaps = (uint)Math.Min(LightingInfo.EnvMaps.Count, EnvMapArray.MAX_ENVMAPS);
-
-            if (!LightTilesActive)
-            {
-                viewConstants.EnvMapCullWords = 0u;
-                return;
-            }
 
             const int tileSize = 1 << LightTileShift;
 
-            LightTileCols = (viewportWidth + tileSize - 1) >> LightTileShift;
-            LightTileRows = (viewportHeight + tileSize - 1) >> LightTileShift;
+            var width = Math.Max(viewportWidth, 1);
+            var height = Math.Max(viewportHeight, 1);
+
+            LightTileCols = (width + tileSize - 1) >> LightTileShift;
+            LightTileRows = (height + tileSize - 1) >> LightTileShift;
 
             var depthKeyRange = MathF.Log2(LightDepthSliceFar / LightDepthSliceNear);
 
             CullFeeder.Begin(
                 LightTileCols, LightTileRows, tileSize,
                 LightDepthSliceCount, depthKeyRange,
-                new Vector2(viewportWidth, viewportHeight),
+                new Vector2(width, height),
                 viewConstants.WorldToProjection,
                 viewConstants.CameraPosition, viewConstants.CameraDirWs,
                 Camera.NearPlane);
@@ -1333,10 +1329,23 @@ namespace ValveResourceFormat.Renderer
         /// </summary>
         public void LightCullGpu()
         {
-            if (!LightTilesActive || LightCullBitsGpu == null || CullFeeder.MaskCount == 0)
+            if (LightCullBitsGpu == null)
             {
                 return;
             }
+
+            if (!LightTilesActive || CullFeeder.MaskCount == 0)
+            {
+                if (!CullBitsAllVisible)
+                {
+                    LightCullBitsGpu.Fill(uint.MaxValue);
+                    CullBitsAllVisible = true;
+                }
+
+                return;
+            }
+
+            CullBitsAllVisible = false;
 
             Debug.Assert(TileCullBitsShader is not null && DepthBinCullBitsShader is not null);
             Debug.Assert(CullItemsGpu is not null && CullPlanesGpu is not null && CullParamsGpu is not null);

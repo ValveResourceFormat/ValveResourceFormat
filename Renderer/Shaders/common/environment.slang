@@ -143,17 +143,6 @@ float EnvBRDFCloth(float perceptualRoughness, vec3 N, vec3 V)
     }
 #endif
 
-bool AnyLaneWantsMoreProbes(bool wantsMore)
-{
-#if defined(GL_KHR_shader_subgroup_vote)
-    return subgroupAny(wantsMore);
-#elif defined(GL_KHR_shader_subgroup_arithmetic)
-    return true;
-#else
-    return wantsMore;
-#endif
-}
-
 vec3 GetCorrectedSampleCoords(vec3 R, mat4x3 envMapWorldToLocal, vec3 envMapLocalPos, bool isBoxProjection, vec3 envMapBoxMin, vec3 envMapBoxMax)
 {
     vec3 localReflectionVector = envMapWorldToLocal * vec4(R, 0.0);
@@ -211,26 +200,14 @@ vec3 GetEnvironmentNoBRDF(MaterialProperties_t mat, float roughnessReflectionCor
     float flTotalWeight = 0.01;
     bool bContinueLoop = true;
 
-    CullLookup_t cull = GetCullLookupCached(vFragPosition);
-    bool bTiled = g_bLightTilesValid && g_nEnvMapCullWords > 0u && cull.m_bValid;
-
-    uint tileBase = g_nEnvMapTileBase + (cull.m_nTileIndex * g_nEnvMapCullWords);
-    uint binBase = g_nEnvMapBinBase + (cull.m_nBin * g_nEnvMapCullWords);
+    CullMasks_t masks = GetEnvMapCullMasks(vFragPosition);
 
     // Tiled reads are bounded by the mask stride, not by a word count derived from the probe count. The
     // two agree only while every probe's ShaderIndex is dense, and where they do not this walked off the
     // end of the tile's masks - past the whole region for the highest tile indices, which is the top row.
-    uint nWords = bTiled ? g_nEnvMapCullWords : ((g_nNumEnvMaps + 31u) / 32u);
-
-    for (uint word = 0u; word < nWords && AnyLaneWantsMoreProbes(bContinueLoop); word++)
+    for (uint word = 0u; word < masks.m_nWords && AnyLaneWantsMore(bContinueLoop); word++)
     {
-        uint mask = bTiled
-            ? (g_LightCullBits[tileBase + word] & g_LightCullBits[binBase + word])
-            : GetCullWordMask(g_nNumEnvMaps, word);
-
-#ifdef GL_KHR_shader_subgroup_arithmetic
-        mask = subgroupOr(mask);
-#endif
+        uint mask = GetCullMaskWord(masks, word);
 
         int baseIndex = int(word * 32u);
 
