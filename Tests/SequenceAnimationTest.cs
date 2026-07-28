@@ -10,7 +10,7 @@ using ValveResourceFormat.ResourceTypes.ModelAnimation;
 namespace Tests
 {
     [TestFixture]
-    public class AnimationTest
+    public class SequenceAnimationTest
     {
         // box_creature_leggy_walk travels ~47.92 source units forward (+X) over its 25-frame cycle,
         // stored in the movement array (root motion), not in the bone frames.
