@@ -26,9 +26,22 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
         public virtual float Duration => Fps > 0f ? FrameCount / Fps : 0f;
 
         /// <summary>
-        /// Gets a value indicating whether this animation is additive.
+        /// Gets or sets whether this animation is additive: its frames are per-bone deltas meant to be
+        /// composed over a base pose. AG2 clips and AG1 sequences both carry what their own data says; the
+        /// owning model then adds the sequences its AG1 graph feeds into additive slots, which is not
+        /// knowable from the animation alone.
         /// </summary>
-        public virtual bool IsAdditive => false;
+        public bool IsAdditive { get; set; }
+
+        /// <summary>
+        /// Gets whether the mixer may blend this animation additively over other clips.
+        /// </summary>
+        public virtual bool SupportsMixerAdditive => false;
+
+        /// <summary>
+        /// Composes an already-decoded additive frame over the skeleton bind pose, in place.
+        /// </summary>
+        public abstract void ComposeAdditiveOverBindPose(FrameBone[] bones, Skeleton skeleton);
 
         /// <summary>
         /// Decodes animation data for the specified frame.

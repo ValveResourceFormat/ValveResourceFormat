@@ -494,10 +494,34 @@ namespace ValveResourceFormat.ResourceTypes
                 }
             }
 
-            var referencedAnims = GetReferencedAnimations(fileLoader);
-            animations.AddRange(referencedAnims);
+            HashSet<string> additiveSequences;
+            try
+            {
+                additiveSequences = IO.AnimationGraph1Additive.GetAdditiveSequences(this, fileLoader);
+            }
+            catch (Exception e)
+            {
+                Console.Error.WriteLine(e.ToString());
+                additiveSequences = [];
+            }
 
-            CachedAnimations = [.. animations];
+            // Referenced animations are shared instances stamped by their owning model, so they are
+            // appended after this loop untouched. '@' autoplay aliases inherit the wrapped sequence's flag.
+            foreach (var animation in animations)
+            {
+                if (animation is not SequenceAnimation sequenceAnimation)
+                {
+                    continue;
+                }
+
+                var sequenceName = animation.Name.StartsWith('@') ? animation.Name[1..] : animation.Name;
+
+                sequenceAnimation.IsAdditive |= additiveSequences.Contains(sequenceName);
+            }
+
+            var referencedAnims = GetReferencedAnimations(fileLoader);
+
+            CachedAnimations = [.. animations, .. referencedAnims];
 
             return CachedAnimations;
         }

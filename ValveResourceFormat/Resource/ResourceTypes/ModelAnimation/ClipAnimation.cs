@@ -20,6 +20,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
             Name = clip.Name;
             FrameCount = clip.NumFrames;
             Fps = clip.Duration > 0 ? clip.NumFrames / clip.Duration : 1;
+            IsAdditive = clip.IsAdditive;
 
             Clip = clip;
         }
@@ -37,7 +38,20 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
         public NmClipEvent[] Events => Clip.Events;
 
         /// <inheritdoc/>
-        public override bool IsAdditive => Clip.IsAdditive;
+        public override bool SupportsMixerAdditive => IsAdditive;
+
+        /// <summary>
+        /// Composes an already-decoded additive frame over the skeleton bind pose, in place. Clips
+        /// store an identity delta for un-animated bones, so every bone can be composed.
+        /// </summary>
+        public override void ComposeAdditiveOverBindPose(FrameBone[] bones, Skeleton skeleton)
+        {
+            for (var i = 0; i < bones.Length; i++)
+            {
+                var bindPose = new FrameBone(skeleton.Bones[i].Position, 1f, skeleton.Bones[i].Angle);
+                bones[i] = bones[i].BlendAdd(bindPose, 1f);
+            }
+        }
 
         /// <inheritdoc/>
         public override void DecodeFrame(Frame outFrame)

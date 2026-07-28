@@ -323,7 +323,8 @@ namespace ValveResourceFormat.Renderer
             // Check if clip already exists
             if (!clips.TryGetValue(animName, out var newClip))
             {
-                var isAdditive = animation.IsAdditive;
+                // Only clips whose deltas compose through BlendAdd may blend additively in the mixer.
+                var isAdditive = animation.SupportsMixerAdditive;
                 newClip = new PlaybackClip(animation) { Looping = looping, BlendTime = blendTime, IsAdditive = isAdditive };
                 clips[animName] = newClip;
 

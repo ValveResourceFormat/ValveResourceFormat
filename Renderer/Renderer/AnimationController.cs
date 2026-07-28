@@ -87,6 +87,13 @@ namespace ValveResourceFormat.Renderer
             set => player.IsPaused = value;
         }
 
+        /// <summary>Gets or sets whether the active animation is composed over the bind pose.</summary>
+        public bool ApplyAdditive
+        {
+            get => player.ApplyAdditive;
+            set => player.ApplyAdditive = value;
+        }
+
         /// <summary>Gets or sets the current frame index of the active animation.</summary>
         public int Frame
         {

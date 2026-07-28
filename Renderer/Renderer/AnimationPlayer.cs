@@ -41,6 +41,20 @@ namespace ValveResourceFormat.Renderer
             }
         }
 
+        /// <summary>
+        /// Gets or sets whether the active animation is composed over the bind pose. Seeded from the
+        /// animation's additive flag on activation. Changing the value forces a pose update.
+        /// </summary>
+        public bool ApplyAdditive
+        {
+            get => field;
+            set
+            {
+                forceUpdate |= field != value;
+                field = value;
+            }
+        }
+
         /// <summary>Gets or sets the current frame index of the active animation.</summary>
         public int Frame
         {
@@ -78,7 +92,10 @@ namespace ValveResourceFormat.Renderer
             Pose = pose;
             FrameCache = new(skeleton, flexControllers);
             BlendedFrame = new(skeleton, flexControllers);
+            AdditiveFrame = new(skeleton, flexControllers);
         }
+
+        private readonly Frame AdditiveFrame;
 
         /// <summary>
         /// Advances the animation by <paramref name="timeStep"/> seconds and writes the skeleton's
@@ -108,18 +125,16 @@ namespace ValveResourceFormat.Renderer
                 return true;
             }
 
-            if (!IsUsingMixer && ActiveAnimation is { IsAdditive: true })
+            if (!IsUsingMixer && ApplyAdditive && ActiveAnimation is { } animation)
             {
-                // We need a frame we can write to without ruining the frame cache
-                AnimationFrame.Bones.CopyTo(FrameCache.InterpolatedFrame.Bones);
-                AnimationFrame = FrameCache.InterpolatedFrame;
+                // Composed in a scratch frame so the frame cache is not written to
+                AnimationFrame.Bones.CopyTo(AdditiveFrame.Bones.AsSpan());
+                AnimationFrame.Datas.CopyTo(AdditiveFrame.Datas.AsSpan());
+                AdditiveFrame.Movement = AnimationFrame.Movement;
+                AdditiveFrame.FrameIndex = AnimationFrame.FrameIndex;
+                AnimationFrame = AdditiveFrame;
 
-                // Add over bind pose
-                for (var i = 0; i < AnimationFrame.Bones.Length; i++)
-                {
-                    var bindPose = new FrameBone(Skeleton.Bones[i].Position, 1f, Skeleton.Bones[i].Angle);
-                    AnimationFrame.Bones[i] = AnimationFrame.Bones[i].BlendAdd(bindPose, 1f);
-                }
+                animation.ComposeAdditiveOverBindPose(AnimationFrame.Bones, Skeleton);
             }
 
             foreach (var root in Skeleton.Roots)
@@ -144,6 +159,7 @@ namespace ValveResourceFormat.Renderer
         public void SetAnimation(Animation? animation, float blendTime, bool looping)
         {
             FrameCache.PurgeCache();
+            ApplyAdditive = animation?.IsAdditive ?? false;
 
             if (animation != null)
             {
