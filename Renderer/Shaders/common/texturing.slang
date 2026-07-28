@@ -60,6 +60,10 @@ struct MaterialProperties_t
     float ClothMask;
     float SSSMask;
 
+    // Sheen lobe, layered over the specular. Zero roughness disables it.
+    vec3 SheenColor;
+    float SheenRoughness;
+
     vec3 DiffuseColor;
     vec3 SpecularColor;
     vec3 TransmissiveColor;
@@ -105,6 +109,8 @@ void InitProperties(out MaterialProperties_t mat, vec3 GeometricNormal, vec3 Pos
     mat.ExtraParams = vec4(0.0);
     mat.ClothMask = 0.0;
     mat.SSSMask = 0.0;
+    mat.SheenColor = vec3(0.0);
+    mat.SheenRoughness = 0.0;
 
     mat.DiffuseColor = vec3(0.0);
     mat.SpecularColor = vec3(0.04);
@@ -331,7 +337,9 @@ void applyDetailTexture(inout vec3 Albedo, inout vec3 NormalMap, vec2 detailMask
 #endif
 
 // GLASS
-#if (F_GLASS == 1) || defined(glass_vfx_common)
+// Edge fresnel glass, as CS2 and Alyx do it. Deadlock reuses the F_GLASS name for a
+// transmission model that has none of these parameters, so it opts out.
+#if ((F_GLASS == 1) || defined(glass_vfx_common)) && !defined(GLASS_IS_TRANSMISSIVE)
 
     uniform bool g_bFresnel = true;
     uniform float g_flEdgeColorFalloff = 3.0;

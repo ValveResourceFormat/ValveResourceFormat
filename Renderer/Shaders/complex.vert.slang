@@ -4,7 +4,6 @@
 #define GameVfx_csgo_foliage 0
 #define GameVfx_csgo_simple_2way_blend 0
 #define GameVfx_csgo_simple_3layer_parallax 0
-#define GameVfx_environment_blend 0
 #define GameVfx_vr_complex 0
 #define GameVfx_vr_simple_2way_blend 0
 #define GameVfx_vr_simple_2way_parallax 0
@@ -46,7 +45,7 @@ uniform int F_TEXTURE_ANIMATION_MODE; // csgo_complex, csgo_static_overlay, csgo
     out vec3 vPerVertexLightingOut;
 #endif
 
-#if (F_LAYERS > 0) || (GameVfx_csgo_simple_2way_blend != 0) || defined(vr_blend_vfx_common) || (GameVfx_environment_blend != 0)
+#if (F_LAYERS > 0) || (GameVfx_csgo_simple_2way_blend != 0) || defined(vr_blend_vfx_common)
     #define vBLEND_COLOR vTEXCOORD4
     #if defined(vr_blend_vfx_common)
         #define vBLEND_ALPHA vTEXCOORD5

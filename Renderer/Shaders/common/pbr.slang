@@ -110,9 +110,11 @@ float D_Charlie(float roughness, float NoH)
     return (invRough + 2.0) * pow(max(1.0 - pow2(NoH), 0.0078125), invRough * 0.5) / TAU;
 }
 
+// Clamped to 1 (Filament, Deadlock). Unclamped it runs away to ~65000
+// where NoL and NoV both approach zero.
 float V_Neubelt(float NoL, float NoV)
 {
-    return 1.0 / max(4.0 * (NoL + NoV - NoL * NoV), 0.00001532);
+    return saturate(1.0 / max(4.0 * (NoL + NoV - NoL * NoV), 0.00001532));
 }
 
 // Still pass normal due to some effects modifying normal per light
@@ -150,7 +152,18 @@ vec3 specularLighting(vec3 lightVector, vec3 normal, MaterialProperties_t mat)
         ndfVis = mix(ndfVis, ClothNDF * ClothVis, mat.ClothMask);
     }
 
-    return vec3(ndfVis) * NoL * F;
+    vec3 specular = vec3(ndfVis) * NoL * F;
+
+    // Sheen is a second lobe over the top, with its own colour and roughness, rather than a
+    // blend into the first. Deadlock divides this by max(sheenDirectionalAlbedo, 1.0), which
+    // is always 1 for a directional albedo, so it is left out.
+    if (mat.SheenRoughness > 0.0)
+    {
+        float sheenAlpha = pow2(mat.SheenRoughness);
+        specular += mat.SheenColor * (D_Charlie(sheenAlpha, NoH) * V_Neubelt(NoL, NoV) * NoL);
+    }
+
+    return specular;
 }
 
 

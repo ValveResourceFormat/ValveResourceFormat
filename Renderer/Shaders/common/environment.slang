@@ -157,7 +157,7 @@ vec3 GetCorrectedSampleCoords(vec3 R, mat4x3 envMapWorldToLocal, vec3 envMapLoca
         : localReflectionVector;
 }
 
-vec3 GetEnvironmentNoBRDF(MaterialProperties_t mat, float roughnessReflectionCorrectionAmount)
+vec3 GetEnvironmentNoBRDF(MaterialProperties_t mat, float reflectionCorrectionAmount)
 {
     #if (defined(ANISO_ROUGHNESS) && ((F_SPECULAR_CUBE_MAP_ANISOTROPIC_WARP == 1) || (GameVfx_vr_complex == 0)))
         vec3 reflectionNormal = CalculateAnisoCubemapWarpVector(mat);
@@ -181,8 +181,14 @@ vec3 GetEnvironmentNoBRDF(MaterialProperties_t mat, float roughnessReflectionCor
     // Reflection Vector
     vec3 R = normalize(reflect(-mat.ViewDir, reflectionNormal));
 
-    // Blend to fully corrected
-    float flAmbientNormalMix = roughnessReflectionCorrectionAmount * perceptualRoughness;
+    // Roughness rather than the perceptual remap, so that a caller raising mat.Roughness to 1
+    // for the diffuse lookup lands exactly on the normal.
+    float roughnessSquared = pow2(max(mat.Roughness.x, mat.Roughness.y));
+    float smoothness = saturate(1.0 - roughnessSquared);
+    float dominantDirection = smoothness * (sqrt(smoothness) + roughnessSquared);
+
+    R = normalize(mix(reflectionNormal, R, mix(1.0, dominantDirection, reflectionCorrectionAmount)));
+
     float lod = GetEnvMapLOD(sqrt(perceptualRoughness), R);
 
     vec3 envMap = vec3(0.0);
@@ -198,8 +204,6 @@ vec3 GetEnvironmentNoBRDF(MaterialProperties_t mat, float roughnessReflectionCor
         vec3 envMapLocalPos = envMapWorldToLocal * vec4(vFragPosition, 1.0);
 
         vec3 coords = GetCorrectedSampleCoords(R, envMapWorldToLocal, envMapLocalPos, isBoxProjection, envMapBoxMin, envMapBoxMax);
-        coords = mix(coords, mat.AmbientNormal, flAmbientNormalMix);
-
         envMap = textureLod(g_tEnvironmentMap, coords, lod).rgb;
     #elif (S_SCENE_CUBEMAP_TYPE == 2)
 
@@ -261,7 +265,6 @@ vec3 GetEnvironmentNoBRDF(MaterialProperties_t mat, float roughnessReflectionCor
             flTotalWeight += weight;
 
             vec3 coords = GetCorrectedSampleCoords(R, envMapWorldToLocal, envMapLocalPos, isBoxProjection, envMapBoxMin, envMapBoxMax);
-            coords = mix(coords, mat.AmbientNormal, flAmbientNormalMix);
 
             envMap += textureLod(g_tEnvironmentMap, vec4(coords, envData.ArrayIndex), lod).rgb * weight;
 
@@ -277,9 +280,9 @@ vec3 GetEnvironmentNoBRDF(MaterialProperties_t mat, float roughnessReflectionCor
     return envMap;
 }
 
-vec3 GetEnvironment(MaterialProperties_t mat, float roughnessReflectionCorrectionAmount)
+vec3 GetEnvironment(MaterialProperties_t mat, float reflectionCorrectionAmount)
 {
-    vec3 envMap = GetEnvironmentNoBRDF(mat, roughnessReflectionCorrectionAmount);
+    vec3 envMap = GetEnvironmentNoBRDF(mat, reflectionCorrectionAmount);
 
     if (g_iRenderMode == renderMode_Cubemaps)
     {
@@ -298,7 +301,7 @@ vec3 GetEnvironment(MaterialProperties_t mat, float roughnessReflectionCorrectio
 
 vec3 GetEnvironment(MaterialProperties_t mat)
 {
-    return GetEnvironment(mat, 0.2);
+    return GetEnvironment(mat, 1.0);
 }
 
 // Heat map for renderMode_EnvmapTiles: blue to red as the probe list the tile and depth bin masks hand

@@ -364,6 +364,10 @@ namespace ValveResourceFormat.Renderer.Materials
             {
                 EvalCsgoEnvironmentColorMatrices(shader);
             }
+            else if (shader.Name is "environment_blend.vfx" or "pbr.vfx")
+            {
+                EvalDeadlockColorMatrices(shader);
+            }
             else if (Material.ShaderName.EndsWith("static_overlay.vfx", StringComparison.Ordinal))
             {
                 EvalStaticOverlayColorAdjust(shader);
@@ -444,6 +448,90 @@ namespace ValveResourceFormat.Renderer.Materials
 
                 ccMatrix = Matrix4x4.Multiply(tintMatrix, ccMatrix);
                 shader.SetUniform4x4(param.Key, ccMatrix);
+            }
+        }
+
+        // environment_blend suffixes both the matrices and their inputs by layer; pbr has one
+        // unsuffixed pair fed by layer 1's params.
+        private void EvalDeadlockColorMatrices(Shader shader)
+        {
+            const float TintStrength = 0.85f;
+
+            const string albedoCorrectPrefix = "g_mAlbedoColorCorrect";
+            const string colorTintPrefix = "g_mTextureColorTint";
+
+            const string csbBaseKeyString = "g_vAlbedoContrastSaturationBrightness1";
+            const string tintBaseKeyString = "g_vColorTint1";
+            const string tintModeBaseKeyString = "g_nTextureColorTintMode1";
+            const string colorTextureBaseKeyString = "g_tColor1";
+
+            Span<char> csbKey = stackalloc char[csbBaseKeyString.Length]; csbBaseKeyString.AsSpan().CopyTo(csbKey);
+            Span<char> tintKey = stackalloc char[tintBaseKeyString.Length]; tintBaseKeyString.AsSpan().CopyTo(tintKey);
+            Span<char> tintModeKey = stackalloc char[tintModeBaseKeyString.Length]; tintModeBaseKeyString.AsSpan().CopyTo(tintModeKey);
+            Span<char> colorTextureKey = stackalloc char[colorTextureBaseKeyString.Length]; colorTextureBaseKeyString.AsSpan().CopyTo(colorTextureKey);
+
+            var vectorValueLookup = Material.VectorParams.GetAlternateLookup<ReadOnlySpan<char>>();
+            var intValueLookup = Material.IntParams.GetAlternateLookup<ReadOnlySpan<char>>();
+            var textureLookup = Textures.GetAlternateLookup<ReadOnlySpan<char>>();
+
+            foreach (var param in shader.Default.Matrices)
+            {
+                // Sheen is tinted the same way but has no colour correct matrix, and reads
+                // its own params rather than the albedo's.
+                if (param.Key == "g_mSheenTextureColorTint")
+                {
+                    var sheenTint = Material.VectorParams.GetValueOrDefault("g_vSheenColorTint1", Vector4.One).AsVector3();
+                    var sheenMode = (int)Material.IntParams.GetValueOrDefault("g_nSheenTextureColorTintMode1", 0L);
+
+                    shader.SetUniform4x4(param.Key, VfxEvalFunctions.MatrixColorTint3(ColorSpace.SrgbGammaToLinear(sheenTint), TintStrength, sheenMode));
+                    continue;
+                }
+
+                var isAlbedoCorrect = param.Key.StartsWith(albedoCorrectPrefix, StringComparison.Ordinal);
+
+                if (!isAlbedoCorrect && !param.Key.StartsWith(colorTintPrefix, StringComparison.Ordinal))
+                {
+                    continue;
+                }
+
+                // pbr's unsuffixed pair reads the params layer 1 would have used.
+                var isLayered = char.IsAsciiDigit(param.Key[^1]);
+                var layerCharacter = isLayered ? param.Key[^1] : '1';
+
+                if (isAlbedoCorrect)
+                {
+                    csbKey[^1] = layerCharacter;
+                    colorTextureKey[^1] = layerCharacter;
+
+                    var csb = Vector3.One;
+                    if (vectorValueLookup.TryGetValue(csbKey, out var csbValue))
+                    {
+                        csb = csbValue.AsVector3();
+                    }
+
+                    var textureAverageColor = Vector3.One;
+                    if (textureLookup.TryGetValue(isLayered ? colorTextureKey : colorTextureKey[..^1], out var colorTexture))
+                    {
+                        textureAverageColor = colorTexture.Reflectivity.AsVector3();
+                    }
+
+                    shader.SetUniform4x4(param.Key, VfxEvalFunctions.MatrixColorCorrect2(csb, textureAverageColor));
+                }
+                else
+                {
+                    tintKey[^1] = layerCharacter;
+                    tintModeKey[^1] = layerCharacter;
+
+                    var tint = Vector3.One;
+                    if (vectorValueLookup.TryGetValue(tintKey, out var tintValue))
+                    {
+                        tint = tintValue.AsVector3();
+                    }
+
+                    intValueLookup.TryGetValue(tintModeKey, out var mode);
+
+                    shader.SetUniform4x4(param.Key, VfxEvalFunctions.MatrixColorTint3(ColorSpace.SrgbGammaToLinear(tint), TintStrength, (int)mode));
+                }
             }
         }
 
