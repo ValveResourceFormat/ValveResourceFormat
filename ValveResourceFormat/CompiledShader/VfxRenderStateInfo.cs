@@ -259,13 +259,15 @@ public class VfxRenderStateInfoPixelShader : VfxRenderStateInfo
         /// <param name="vcsVersion">The VCS version, which selects the bit layout.</param>
         public RsDepthStencilStateDesc(ulong depthStencilBits, int vcsVersion)
         {
+            ulong stencilBits;
+
             if (vcsVersion >= 71)
             {
                 DepthTestEnable = (depthStencilBits & 1) != 0;
                 DepthWriteEnable = ((depthStencilBits >> 1) & 1) != 0;
                 DepthFunc = (RsComparison)((depthStencilBits >> 2) & 0xF);
 
-                var stencilBits = depthStencilBits >> 16;
+                stencilBits = depthStencilBits >> 16;
 
                 FrontStencilFunc = (RsComparison)(stencilBits & 0xF);
                 BackStencilFunc = (RsComparison)((stencilBits >> 4) & 0xF);
@@ -290,7 +292,7 @@ public class VfxRenderStateInfoPixelShader : VfxRenderStateInfo
 
             // Stencil state starts at byte 2 (bit 16)
             // RsStencilStateDesc_t
-            var stencilBits = depthStencilBits >> 16;
+            stencilBits = depthStencilBits >> 16;
 
             StencilEnable = (stencilBits & 1) != 0;
             FrontStencilFailOp = (RsStencilOp)((stencilBits >> 1) & 0x7);
