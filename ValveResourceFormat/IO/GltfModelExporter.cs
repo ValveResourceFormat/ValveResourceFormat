@@ -710,7 +710,7 @@ namespace ValveResourceFormat.IO
                     CancellationToken.ThrowIfCancellationRequested();
                 }
 
-                WriteAnimationGraphClips(exportedModel, model, joints!, animationFilter);
+                WriteAnimationGraphClips(exportedModel, scene, model, joints!, animationFilter);
             }
             else
             {

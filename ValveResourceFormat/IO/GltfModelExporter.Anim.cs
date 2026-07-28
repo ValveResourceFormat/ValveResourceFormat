@@ -227,9 +227,37 @@ public partial class GltfModelExporter
     /// Writes animations authored on another skeleton, retargeted onto the model by world pose.
     /// One retargeter serves every clip targeting the same skeleton.
     /// </summary>
-    private void WriteAnimationGraphClips(ModelRoot exportedModel, VModel model, Node?[] joints, HashSet<string> animationFilter)
+    private void WriteAnimationGraphClips(ModelRoot exportedModel, Scene scene, VModel model, Node?[] joints, HashSet<string> animationFilter)
     {
         var clipRetargeters = new Dictionary<string, SkeletonRetargeter?>();
+
+        // Secondary animations (the clip's tracks for further skeletons, e.g. the weapon of a
+        // viewmodel clip) get their own skeleton nodes, created once per skeleton and shared.
+        var secondarySkeletons = new Dictionary<string, (Skeleton Skeleton, Node[] Joints)?>();
+
+        (Skeleton Skeleton, Node[] Joints)? GetOrCreateSecondarySkeleton(string skeletonName)
+        {
+            if (secondarySkeletons.TryGetValue(skeletonName, out var cached))
+            {
+                return cached;
+            }
+
+            (Skeleton Skeleton, Node[] Joints)? created = null;
+            if (FileLoader.LoadFileCompiled(skeletonName)?.DataBlock is BinaryKV3 skeletonData)
+            {
+                var skeleton = Skeleton.FromSkeletonData(skeletonData.Data);
+                var (skeletonNode, secondaryJoints) = CreateGltfSkeleton(scene, skeleton, skeletonName);
+                if (skeletonNode != null && secondaryJoints != null)
+                {
+                    var meshNode = CreateSkeletonVisualizationMesh(exportedModel, scene, skeleton, secondaryJoints);
+                    meshNode.Name = $"{skeletonName}.empty_mesh_reference";
+                    created = (skeleton, secondaryJoints);
+                }
+            }
+
+            secondarySkeletons[skeletonName] = created;
+            return created;
+        }
 
         // UseAnimation is find-or-create by name, so a clip sharing a name with an already-written
         // animation (embedded, or an earlier clip) would merge its channels onto it. Keep the first, skip the rest.
@@ -269,6 +297,19 @@ public partial class GltfModelExporter
             if (retargeter != null)
             {
                 WriteRetargetedClip(exportedModel, model, joints, animation, animationName, retargeter);
+
+                if (animation is ClipAnimation clipAnimation)
+                {
+                    foreach (var secondaryClip in clipAnimation.Clip.SecondaryAnimations)
+                    {
+                        if (GetOrCreateSecondarySkeleton(secondaryClip.SkeletonName) is { } secondary)
+                        {
+                            new AnimationWriter(secondary.Skeleton, []).WriteAnimation(
+                                exportedModel, secondary.Joints, new ClipAnimation(secondaryClip), animationName);
+                        }
+                    }
+                }
+
                 writtenNames.Add(animationName);
             }
         }
