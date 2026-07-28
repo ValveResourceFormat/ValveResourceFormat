@@ -78,8 +78,7 @@ namespace ValveResourceFormat.Renderer
         public Dictionary<string, Half[]> BoneMaskDefinitions { get; } = [];
 
         /// <summary>
-        /// Clears the mixer state. Called when another player takes over the pose, so a later
-        /// transition back cannot blend from a clip that stopped being advanced in the meantime.
+        /// Clears all clips and blend state so a later transition starts from a clean state.
         /// </summary>
         public void ClearClips()
         {
@@ -120,18 +119,6 @@ namespace ValveResourceFormat.Renderer
                 return;
             }
 
-            var allPaused = true;
-            foreach (var clip in clips.Values)
-            {
-                if (!clip.IsPaused)
-                {
-                    allPaused = false;
-                    break;
-                }
-            }
-
-            IsPaused = allPaused;
-
             // Update time for all clips
             foreach (var clip in clips.Values)
             {
@@ -152,6 +139,18 @@ namespace ValveResourceFormat.Renderer
                     }
                 }
             }
+
+            var allPaused = true;
+            foreach (var clip in clips.Values)
+            {
+                if (!clip.IsPaused)
+                {
+                    allPaused = false;
+                    break;
+                }
+            }
+
+            IsPaused = allPaused;
 
             if (activeClip.IsTimeBasedTransition && previousClip != null)
             {

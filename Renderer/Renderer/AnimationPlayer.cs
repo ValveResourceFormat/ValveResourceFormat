@@ -5,8 +5,7 @@ namespace ValveResourceFormat.Renderer
 {
     /// <summary>
     /// Plays animations on a single skeleton: advances clip time, mixes the weighted clips into a
-    /// frame and writes that frame's world-space pose. A player never owns another player, so all
-    /// playback state lives in exactly one object. An <see cref="AnimationController"/> owns one
+    /// frame and writes that frame's world-space pose. An <see cref="AnimationController"/> owns one
     /// player per skeleton its model can be animated from.
     /// </summary>
     public partial class AnimationPlayer
@@ -66,8 +65,7 @@ namespace ValveResourceFormat.Renderer
 
         /// <summary>
         /// Initializes a new <see cref="AnimationPlayer"/> for the given skeleton and flex controllers.
-        /// The bind pose and pose buffers are supplied by the owner, so a player and the owner whose
-        /// skeleton it drives share one pose array instead of copying it every frame.
+        /// The bind pose and pose buffers are supplied by the owner and may be shared with it.
         /// </summary>
         /// <param name="skeleton">The skeleton whose bones define the rig.</param>
         /// <param name="flexControllers">The flex controllers used for facial/morph animation.</param>

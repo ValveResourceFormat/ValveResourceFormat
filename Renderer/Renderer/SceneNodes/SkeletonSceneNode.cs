@@ -11,8 +11,7 @@ namespace ValveResourceFormat.Renderer.SceneNodes
         /// <summary>Gets or sets whether the skeleton visualization is drawn.</summary>
         public bool Enabled { get; set; }
 
-        // The live pose array of whatever animates the skeleton. Held by reference, so it must be the
-        // owner's own buffer and not a copy.
+        // Live pose buffer of whatever animates the skeleton, held by reference.
         readonly Matrix4x4[] pose;
         readonly Skeleton skeleton;
         readonly LineBuffer lineBuffer;

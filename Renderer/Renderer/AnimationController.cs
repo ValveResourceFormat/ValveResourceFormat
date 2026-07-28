@@ -36,8 +36,7 @@ namespace ValveResourceFormat.Renderer
         private readonly AnimationPlayer modelPlayer;
         private readonly Dictionary<string, ExternalSkeleton> externalSkeletons = [];
 
-        // The player producing the current pose. Every playback member forwards to it, so playback
-        // state has one owner and is never copied between objects.
+        // The player producing the current pose; playback members forward to it.
         private AnimationPlayer player;
 
         // Model bone index -> current player's bone index, or null while the model player is active.
@@ -111,8 +110,7 @@ namespace ValveResourceFormat.Renderer
                 GetInverseBindPoseRecursive(root, Matrix4x4.Identity, InverseBindPose);
             }
 
-            // The model player poses this skeleton, so it shares our bind pose and writes straight
-            // into our pose buffer.
+            // The model player writes directly into our pose buffer.
             modelPlayer = new AnimationPlayer(skeleton, flexControllers, BindPose, Pose);
             player = modelPlayer;
         }
@@ -138,8 +136,7 @@ namespace ValveResourceFormat.Renderer
         {
             timeStep *= FrametimeMultiplier;
 
-            // External skeletons are posed in their own space and remapped below, so only the model
-            // player applies the parent transform itself.
+            // External skeletons are posed in their own space; Transform is applied during remapping below.
             if (!player.Update(timeStep, remapTable == null ? Transform : Matrix4x4.Identity))
             {
                 return false;
@@ -150,8 +147,6 @@ namespace ValveResourceFormat.Renderer
 
             if (remapTable is { } remap)
             {
-                // RemapPoseRecursive reads the player's pose and writes ours; the model player shares
-                // our buffer, so a remap table must only ever be paired with an external player.
                 Debug.Assert(player != modelPlayer, "Remapping from the model player would alias the pose buffer.");
 
                 foreach (var root in Skeleton.Roots)
@@ -221,9 +216,6 @@ namespace ValveResourceFormat.Renderer
             if (newPlayer != player)
             {
                 newPlayer.IsPaused = player.IsPaused;
-
-                // The outgoing player's clips stop advancing once it no longer produces the pose.
-                // Clear its mixer so a later transition on it starts from a clean state.
                 player.ClearClips();
             }
 
@@ -310,8 +302,6 @@ namespace ValveResourceFormat.Renderer
                 }
             }
 
-            // The external skeleton is posed in its own space and remapped onto the model, so its
-            // player owns its own buffers rather than sharing ours.
             var bindPose = ComputeBindPose(skeleton);
             var externalPlayer = new AnimationPlayer(skeleton, [], bindPose, bindPose.AsSpan().ToArray());
 
