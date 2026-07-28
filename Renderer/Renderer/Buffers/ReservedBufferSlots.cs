@@ -53,7 +53,7 @@ public enum ReservedBufferSlots
     /// <summary>Barn light constants SSBO slot.</summary>
     BarnLights = 12,
     /// <summary>Tile and depth slice bit masks the cull passes produce.</summary>
-    LightCullBits = 13,
+    CullBits = 13,
     /// <summary>Screen space cull items: barn light faces, env map probes and light probe volumes.</summary>
     CullItems = 14,
     /// <summary>Convex hull vertices referenced by <see cref="CullItems"/>.</summary>

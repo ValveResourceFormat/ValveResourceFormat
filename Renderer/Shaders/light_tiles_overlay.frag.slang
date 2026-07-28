@@ -29,7 +29,7 @@ void main()
 
     for (uint word = 0u; word < g_nOverlayWords; word++)
     {
-        count += uint(bitCount(g_LightCullBits[tileBase + word]));
+        count += uint(bitCount(g_CullBits[tileBase + word]));
     }
 
     if (count == 0u)
