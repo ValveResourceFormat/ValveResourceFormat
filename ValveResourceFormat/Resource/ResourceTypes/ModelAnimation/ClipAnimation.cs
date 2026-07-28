@@ -19,11 +19,15 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
         {
             Name = clip.Name;
             FrameCount = clip.NumFrames;
-            Fps = clip.Duration > 0 ? clip.NumFrames / clip.Duration : 1;
+            // NumFrames samples span Duration, so the frame rate counts the intervals between them.
+            Fps = clip.Duration > 0 && clip.NumFrames > 1 ? (clip.NumFrames - 1) / clip.Duration : 1;
             IsAdditive = clip.IsAdditive;
 
             Clip = clip;
+            movements = clip.RootMotion;
         }
+
+        private readonly AnimationMovement.MovementData[] movements;
 
         /// <inheritdoc/>
         /// <remarks>
@@ -66,12 +70,36 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
         }
 
         /// <inheritdoc/>
-        public override bool HasMovementData() => false;
+        public override bool HasMovementData() => movements.Length > 0;
 
         /// <inheritdoc/>
-        public override AnimationMovement.MovementData GetMovementOffsetData(float time) => new();
+        public override AnimationMovement.MovementData GetMovementOffsetData(float time)
+        {
+            if (movements.Length == 0)
+            {
+                return new();
+            }
+
+            var frame = time * Fps % FrameCount;
+            var lower = Math.Clamp((int)MathF.Floor(frame), 0, movements.Length - 1);
+            var upper = Math.Min(lower + 1, movements.Length - 1);
+            var a = movements[lower];
+            var b = movements[upper];
+
+            return new AnimationMovement.MovementData(
+                Vector3.Lerp(a.Position, b.Position, frame - lower),
+                float.Lerp(a.Angle, b.Angle, frame - lower));
+        }
 
         /// <inheritdoc/>
-        public override AnimationMovement.MovementData GetMovementOffsetData(int frame) => new();
+        public override AnimationMovement.MovementData GetMovementOffsetData(int frame)
+        {
+            if (movements.Length == 0)
+            {
+                return new();
+            }
+
+            return movements[Math.Clamp(frame, 0, movements.Length - 1)];
+        }
     }
 }

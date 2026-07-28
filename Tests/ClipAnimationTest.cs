@@ -101,7 +101,7 @@ namespace Tests
         }
 
         [Test]
-        public void ClipAnimationHasNoMovementData()
+        public void StaticClipHasNoMovementData()
         {
             using var resource = new Resource();
             var clip = LoadAkClip(resource);
