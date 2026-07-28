@@ -42,11 +42,10 @@ float GetLightCullViewDepth(vec3 positionWs)
     return dot(positionWs - g_vLightCullCameraPositionWs, g_vLightCullCameraDirWs);
 }
 
-// sliceParams: x slices per octave, y reciprocal near plane. Mirrors DepthKey in TiledCullFeeder.
-uint GetLightCullDepthSlice(float viewDepth, vec2 sliceParams, uint sliceCount)
+// sliceParams: x slices per world unit, y the last slice index. Mirrors DepthBinWidth in TiledCullFeeder.
+uint GetLightCullDepthSlice(float viewDepth, vec2 sliceParams)
 {
-    float slice = log2(max(viewDepth * sliceParams.y, 1.0)) * sliceParams.x;
-    return uint(clamp(slice, 0.0, float(sliceCount - 1u)));
+    return uint(clamp(viewDepth * sliceParams.x, 0.0, sliceParams.y));
 }
 
 struct CullLookup_t
@@ -68,8 +67,7 @@ CullLookup_t GetCullLookup(vec3 positionWs)
     CullLookup_t lookup;
     lookup.m_nTileIndex = (tile.y * g_nLightTileCols) + tile.x;
     lookup.m_nTile = tile;
-    lookup.m_nBin = GetLightCullDepthSlice(GetLightCullViewDepth(positionWs),
-                                           g_vLightDepthSliceParams.xy, g_nLightSliceCount);
+    lookup.m_nBin = GetLightCullDepthSlice(GetLightCullViewDepth(positionWs), g_vLightDepthSliceParams.xy);
 
     return lookup;
 }

@@ -20,8 +20,8 @@ public sealed class LightBinner(Scene scene) : IDisposable
     private const int TileShift = 4;
 
     /// <summary>
-    /// Number of logarithmic depth slices items are binned into. Must be a multiple of the depth bin
-    /// pass's group size, which dispatches exactly and does not bound check.
+    /// Number of depth slices items are binned into, uniform in view depth. Must be a multiple of the
+    /// depth bin pass's group size, which dispatches exactly and does not bound check.
     /// </summary>
     private const int DepthSliceCount = 32; // todo: experiment with 64 and higher.
 
@@ -90,10 +90,10 @@ public sealed class LightBinner(Scene scene) : IDisposable
     /// <param name="HullVertices">Silhouette vertices the tile pass walks across every item.</param>
     /// <param name="MaskBytes">Size of the mask buffer for this layout.</param>
     /// <param name="SliceFar">Far distance the slice distribution was fitted to.</param>
-    /// <param name="SliceRatio">How much deeper each slice is than the last.</param>
+    /// <param name="SliceWidth">View depth one slice spans, in world units.</param>
     internal readonly record struct BinnerStats(
         bool Active, int Faces, int FaceSlots, int Probes, int ProbeSlots, int HullVertices, int MaskBytes,
-        float SliceFar, float SliceRatio);
+        float SliceFar, float SliceWidth);
 
     /// <summary>Gets what this binner produced for the frame.</summary>
     internal BinnerStats Stats => new(
@@ -103,7 +103,7 @@ public sealed class LightBinner(Scene scene) : IDisposable
         Feeder.PlaneCount,
         Feeder.TotalWords * sizeof(uint),
         Feeder.SliceFar,
-        Feeder.SliceRatio);
+        Feeder.SliceWidth);
 
     /// <summary>Gets the first word and stride of a batch's tile region, for the debug overlay.</summary>
     /// <param name="envMaps">Whether to describe the env map batch rather than the barn light one.</param>
@@ -179,11 +179,10 @@ public sealed class LightBinner(Scene scene) : IDisposable
         Constants.LightTileRows = (uint)TileRows;
         Constants.LightSliceCount = DepthSliceCount;
 
-        // Read after End, which is where the feeder fits the range to the items it just projected.
-        // Slices per octave, then the reciprocal near plane the octaves are counted from.
+        // Read after End, which fits the range. Slices per world unit, then the last slice index.
         Constants.LightDepthSliceParams = new Vector4(
-            DepthSliceCount / Feeder.DepthKeyRange,
-            1f / Feeder.SliceNear,
+            DepthSliceCount / Feeder.SliceFar,
+            DepthSliceCount - 1,
             0f, 0f);
 
         Constants.EnvMapTileBase = Feeder.TileBase(TiledCullFeeder.BatchEnvMaps);

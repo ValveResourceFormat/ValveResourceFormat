@@ -41,7 +41,7 @@ namespace ValveResourceFormat.Renderer.Buffers
         /// <summary>Padding to maintain 16-byte struct alignment.</summary>
         public uint _Padding0;
 
-        /// <summary>Depth slice mapping: X slices per octave, Y reciprocal near plane.</summary>
+        /// <summary>Depth slice mapping: X slices per world unit, Y the last slice index.</summary>
         public Vector4 LightDepthSliceParams;
 
         /// <summary>

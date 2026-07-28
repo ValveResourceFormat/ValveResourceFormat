@@ -26,7 +26,7 @@ public readonly struct BarnLightCullVolume
 /// <remarks>
 /// Neither compute pass sees world space, so frustum rejection happens here, and a rejected item costs a
 /// bit rather than a test - item count sets the word stride, the buffer size and the shading loop's
-/// length. Cull space is pixels and the depth key is octaves past the near plane;
+/// length. Cull space is pixels and depth is distance along the view axis.
 /// <c>common/light_cull.slang</c> defines both the same way and the two must not drift.
 /// </remarks>
 public sealed class TiledCullFeeder
@@ -49,8 +49,14 @@ public sealed class TiledCullFeeder
     /// <summary>Hulls one item can own. A barn light face uses both: its frustum and its OBB.</summary>
     private const int MaxHullsPerItem = 2;
 
-    /// <summary>Floor for the slice distribution's near distance, so a zero near plane cannot reach log2.</summary>
-    private const float MinSliceNear = 1f / 1024f;
+    /// <summary>Slack on the depth bin overlap test, in world units.</summary>
+    private const float DepthBinEpsilon = 0.001f;
+
+    /// <summary>
+    /// Skin on a probe's box before it is projected. Must stay at or above the shading skin
+    /// <see cref="SceneEnvMap.BoundsExtend"/>, or a probe drops from tiles it still lights.
+    /// </summary>
+    private const float EnvMapCullExtend = 0.1f;
 
     /// <summary>
     /// Slots reserved per batch. Must be a multiple of <see cref="ItemsPerMask"/>: <see cref="End"/> pads
@@ -89,7 +95,6 @@ public sealed class TiledCullFeeder
     private Matrix4x4 projectionToWorld;
     private bool projectionToWorldValid;
     private float cameraNearPlane;
-    private float depthKeyRange;
     private float minSliceFar;
     private float maxSliceFar;
     private float tileHalfSize;
@@ -124,23 +129,17 @@ public sealed class TiledCullFeeder
 
     /// <summary>Gets how far along the view axis the furthest item this frame reached.</summary>
     /// <remarks>
-    /// The slice distribution is fitted to this rather than to the render far plane: it is logarithmic, so
-    /// every empty octave past the last light thickens every slice nearer in. Unbounded volumes are
+    /// The slice distribution is fitted to this rather than to the render far plane: slices are uniform in
+    /// view depth, so every empty unit past the last light thickens all of them. Unbounded volumes are
     /// excluded, since they would pin it to its ceiling.
     /// </remarks>
     public float MaxItemViewDepth { get; private set; }
 
-    /// <summary>Gets the near distance the slice distribution starts at, which is the camera's near plane.</summary>
-    public float SliceNear { get; private set; }
-
     /// <summary>Gets the far distance the slice distribution was fitted to this frame, in world units.</summary>
     public float SliceFar { get; private set; }
 
-    /// <summary>Gets the span of the depth key, <c>log2(SliceFar / SliceNear)</c>. Valid after <see cref="End"/>.</summary>
-    public float DepthKeyRange => depthKeyRange;
-
-    /// <summary>Gets how much deeper each slice is than the last. Valid after <see cref="End"/>.</summary>
-    public float SliceRatio => MathF.Pow(2f, depthKeyRange / depthBins);
+    /// <summary>Gets the view depth one slice spans, in world units. Valid after <see cref="End"/>.</summary>
+    public float SliceWidth => cullParams.DepthBinWidth;
 
     /// <summary>Gets the first uint of a batch's tile region.</summary>
     public uint TileBase(int batch) => cullParams.TileBatches[batch].OutputOffset;
@@ -197,7 +196,6 @@ public sealed class TiledCullFeeder
         this.cameraNearPlane = cameraNearPlane;
         this.minSliceFar = minSliceFar;
         this.maxSliceFar = maxSliceFar;
-        depthKeyRange = 0f;
 
         Array.Clear(batchItemCount);
         Array.Clear(batchBinnedCount);
@@ -212,12 +210,12 @@ public sealed class TiledCullFeeder
         cullParams.TileToCenterScale = new Vector2(tileSize);
         cullParams.TileToCenterOffset = new Vector2(tileSize * 0.5f);
 
-        cullParams.TileEpsilon = 0f;
+        cullParams.TileEpsilon = viewportSize.Length() / 16f;
         tileHalfSize = tileSize * 0.5f;
         cullSpaceMax = (new Vector2(tileCols, tileRows) * tileSize) - Vector2.One;
 
         cullParams.DepthBins = (uint)depthBins;
-        cullParams.BinEpsilon = 0f;
+        cullParams.BinEpsilon = DepthBinEpsilon;
 
         cullParams.NearPlane = 0f;
     }
@@ -329,8 +327,8 @@ public sealed class TiledCullFeeder
             }
 
             var bounds = envMap.LocalBoundingBox;
-            var boundsMin = bounds.Min - new Vector3(SceneEnvMap.BoundsExtend);
-            var boundsMax = bounds.Max + new Vector3(SceneEnvMap.BoundsExtend);
+            var boundsMin = bounds.Min - new Vector3(EnvMapCullExtend);
+            var boundsMax = bounds.Max + new Vector3(EnvMapCullExtend);
 
             for (var corner = 0; corner < 8; corner++)
             {
@@ -364,16 +362,10 @@ public sealed class TiledCullFeeder
     public void End()
     {
         // Fitted here rather than in Begin because it is a property of the items, and they are only
-        // projected in between. Holding raw view depths until now is what lets the fit describe this
-        // frame's items instead of the previous frame's.
+        // projected in between.
         SliceFar = Math.Clamp(MaxItemViewDepth, minSliceFar, maxSliceFar);
 
-        // Half the far distance floors the span at one octave, so a broken or absurd near plane cannot
-        // collapse the range and leave every bin degenerate.
-        SliceNear = Math.Clamp(cameraNearPlane, MinSliceNear, SliceFar * 0.5f);
-
-        depthKeyRange = MathF.Log2(SliceFar / SliceNear);
-        cullParams.DepthBinWidth = depthKeyRange / depthBins;
+        cullParams.DepthBinWidth = SliceFar / depthBins;
 
         var itemCursor = 0;
         var wordCursor = 0u;
@@ -388,16 +380,6 @@ public sealed class TiledCullFeeder
             if (source != itemCursor)
             {
                 Array.Copy(items, source, items, itemCursor, count);
-            }
-
-            // Raw view depth up to here; the fitted range only exists now, so this is where it becomes a
-            // key. RejectAll below is left alone: its min already exceeds its max at any scale.
-            for (var i = 0; i < count; i++)
-            {
-                ref var item = ref items[itemCursor + i];
-
-                item.DepthMin = DepthKey(item.DepthMin);
-                item.DepthMax = DepthKey(item.DepthMax);
             }
 
             for (var i = count; i < masks * ItemsPerMask; i++)
@@ -950,10 +932,4 @@ public sealed class TiledCullFeeder
         return (pe - pc).Length();
     }
 
-    /// <summary>
-    /// Octaves past the near plane, which is what the bins are linear in. <c>GetLightCullDepthSlice</c> in
-    /// the consumer computes the same expression from <see cref="SliceNear"/>; the two must not drift.
-    /// </summary>
-    private float DepthKey(float viewDepth)
-        => Math.Clamp(MathF.Log2(MathF.Max(viewDepth / SliceNear, 1f)), 0f, depthKeyRange);
 }
