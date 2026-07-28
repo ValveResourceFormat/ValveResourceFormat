@@ -38,16 +38,13 @@ namespace ValveResourceFormat.Renderer
             /// <summary>Gets whether this clip uses manual weight blending.</summary>
             public bool IsManualBlend => BlendTime == -1;
 
-            /// <summary>Gets or sets the current frame index.</summary>
+            /// <summary>Gets or sets the current frame index within the cycle being played.</summary>
             public int Frame
             {
                 get
                 {
-                    if (Animation.FrameCount > 1)
-                    {
-                        return (int)MathF.Round(Time * Animation.Fps) % Animation.FrameCount;
-                    }
-                    return 0;
+                    var (_, frame, remainder) = Animation.GetCyclePosition(Time);
+                    return remainder < 0.5f ? frame : frame + 1;
                 }
                 set
                 {

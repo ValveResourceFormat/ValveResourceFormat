@@ -80,6 +80,12 @@ namespace ValveResourceFormat.Renderer
         /// <summary>Gets the decoded animation frame data for the current tick, or <see langword="null"/> when no animation is active.</summary>
         public Frame? AnimationFrame { get; private set; }
 
+        /// <summary>
+        /// Takes the root motion the last <see cref="Update"/> advanced through, as a rigid transform to
+        /// compose onto whatever the animation drives, and clears it. Identity when playback did not advance.
+        /// </summary>
+        public Matrix4x4 ConsumeRootMotionDelta() => player.ConsumeRootMotionDelta();
+
         /// <summary>Gets or sets whether animation playback is paused. Changing the value forces a pose update.</summary>
         public bool IsPaused
         {
