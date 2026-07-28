@@ -1,4 +1,4 @@
-﻿namespace ValveResourceFormat.Renderer.Input;
+namespace ValveResourceFormat.Renderer.Input;
 
 /// <summary>
 /// Source engine-style FPS player movement controller.
@@ -21,7 +21,7 @@ public partial class PlayerMovement
     private const float WalkSpeedModifier = 0.52f;        // CS_PLAYER_SPEED_WALK_MODIFIER
     private const float DuckSpeedModifier = 0.34f;        // CS_PLAYER_SPEED_DUCK_MODIFIER
 
-    private const float TickInterval = 1f / 64f;          // Reference tick; the low-speed accel kick reaches its floor within one
+    private float TickInterval => 1f / EmulatedTickRate;  // Reference tick; the low-speed accel kick reaches its floor within one
 
     private const float NonJumpVelocity = 140f;           // Moving up faster than this means airborne (NON_JUMP_VELOCITY)
     private const float AirMaxWishSpeed = 30f;            // Air-control wishspeed cap (AirAccelerate)
@@ -148,6 +148,15 @@ public partial class PlayerMovement
     public bool StepSmoothingEnabled { get; set; } = true;
     /// <summary>Gets or sets the base run speed in world units per second.</summary>
     public float RunSpeed { get; set; } = 250f;
+
+    /// <summary>
+    /// Gets or sets the tick rate whose per-tick acceleration step the tickless integrators
+    /// reproduce. A discrete engine tops the wishdir velocity component up by at most the whole
+    /// remaining addspeed once per tick, which is a bound on speed gained per unit time; the
+    /// continuous forms reimpose that bound so they converge to the same trajectory instead of
+    /// out-accelerating the reference engine as the frame time shrinks.
+    /// </summary>
+    public float EmulatedTickRate { get; set; } = 64f;
 
     /// <summary>
     /// Initializes a new <see cref="PlayerMovement"/> bound to the given user input source.
@@ -291,7 +300,7 @@ public partial class PlayerMovement
             ? GroundMove(position, wishdir, wishspeed, deltaTime, isDucking, isWalking, playerHull)
             // AirMove has already applied the whole strafe gain to Velocity (reference 1), while
             // gravity sits at its leapfrog midpoint (reference 1/2)
-            : TryPlayerMove(position, airMoveDelta, playerHull, airVelocityChange, new Vector3(1f, 1f, 0.5f));
+            : TryPlayerMove(position, airMoveDelta, playerHull, airVelocityChange, new Vector3(1f, 1f, 0.5f), wishdir, wishspeed, deltaTime);
 
         if (OnGround)
         {
@@ -647,7 +656,8 @@ public partial class PlayerMovement
     /// velocity the player actually had at the moment it hit rather than the one the sweep held
     /// constant across the whole frame.
     /// </summary>
-    private Vector3 TryPlayerMove(Vector3 start, Vector3 delta, Vector3 halfExtents, Vector3 frameVelocityChange = default, Vector3 sweepReference = default)
+    private Vector3 TryPlayerMove(Vector3 start, Vector3 delta, Vector3 halfExtents, Vector3 frameVelocityChange = default, Vector3 sweepReference = default,
+        Vector3 wishdir = default, float wishspeed = 0f, float deltaTime = 0f)
     {
         if (delta.LengthSquared() < UntraceableDistanceSquared)
         {
@@ -671,6 +681,15 @@ public partial class PlayerMovement
         // Stop dead if clipping ever turns the velocity against the entry velocity (corner ping-pong)
         var entryVelocity = Velocity;
 
+        // Correction folded in at every exit. Between the offset restore below and the caller's
+        // FinishGravity, the frame applies exactly the un-elapsed share of gravity after a
+        // contact - which is the right amount, but along world -Z. A surface being ridden opposes
+        // gravity's normal component, so that share has to be clipped to it; left unclipped it
+        // drives straight into the surface with nothing to remove it before the frame is sampled,
+        // and the velocity ends up holding a full g*cos(slope)*dt of into-surface speed that
+        // scales with the frame time and is regenerated from scratch every frame.
+        var gravityCorrection = Vector3.Zero;
+
         // Planes hit without making progress; movement must be clipped to parallel all of them
         Span<Vector3> planes = stackalloc Vector3[MaxBumps];
         var planeCount = 0;
@@ -681,6 +700,7 @@ public partial class PlayerMovement
 
             if (!result.Hit)
             {
+                Velocity += gravityCorrection;
                 return position + remainingDelta;
             }
 
@@ -725,6 +745,7 @@ public partial class PlayerMovement
                 && new Vector2(Velocity.X, Velocity.Y).LengthSquared() < 1f)
             {
                 Velocity = Vector3.Zero;
+                gravityCorrection = Vector3.Zero;
                 break;
             }
 
@@ -743,16 +764,96 @@ public partial class PlayerMovement
 
             Velocity += offset;
 
+            // The reversal guard only applies to a genuinely moving player, and only to a real
+            // reversal. A corner clip commonly leaves the velocity perpendicular to the way the
+            // frame entered, where an equality test fires and zeroes everything - including the Z
+            // that the jump is riding on, so the player hangs at the apex and twitches as the
+            // next frame re-accelerates into the same trap. Matches the GroundMove guard.
             if (!ClipToPlanes(planes[..planeCount], ref remainingDelta, out var velocity, out var clipNormalZ)
-                || Vector3.Dot(velocity, entryVelocity) <= 0)
+                || (entryVelocity.LengthSquared() > 1f && Vector3.Dot(velocity, entryVelocity) < 0f))
             {
                 // Trapped by three or more planes, or clipping reversed the move
                 Velocity = Vector3.Zero;
+                gravityCorrection = Vector3.Zero;
                 break;
             }
 
+            // Restore only gravity's carried share (offset is XY-strafe / Z-gravity by
+            // construction, since the up-front strafe gain is horizontal and sits at reference 1
+            // while gravity sits at its leapfrog midpoint). The strafe share is deliberately NOT
+            // put back: the frame's remaining time is re-accelerated below against the surfaces
+            // just found, so restoring it here would apply the wish twice.
             Velocity = velocity - offset;
             SlopeClipNormalZ = clipNormalZ;
+
+            // Recomputed rather than accumulated: each contact supersedes the last, so the
+            // correction always describes the share of gravity left after the most recent one.
+            if (deltaTime > 0f && planeCount > 0)
+            {
+                var remainingGravity = new Vector3(0f, 0f, -GravityValue * deltaTime * remainingTimeFraction);
+
+                // Only a surface gravity is actually driving into can oppose it. ClipWishVelocity
+                // clips unconditionally, matching ClipToPlanes, which is right there because those
+                // planes were just driven into - but gravity is a different vector and need not
+                // be. An overhang the player is bouncing away from would otherwise still have
+                // gravity's component stripped, leaving them drifting along the underside.
+                var drivesIn = false;
+
+                foreach (var plane in planes[..planeCount])
+                {
+                    if (Vector3.Dot(remainingGravity, plane) < 0f)
+                    {
+                        drivesIn = true;
+                        break;
+                    }
+                }
+
+                gravityCorrection = Vector3.Zero;
+
+                if (drivesIn)
+                {
+                    var clippedGravity = ClipWishVelocity(remainingGravity, planes[..planeCount], onGround: false, out var gravityResolved);
+
+                    // Unresolved means the fallback zero, not "gravity clips to nothing". Treating
+                    // it as an answer would subtract the whole remaining gravity and leave the
+                    // player hovering; a genuinely trapped move is already stopped dead above.
+                    gravityCorrection = gravityResolved ? clippedGravity - remainingGravity : Vector3.Zero;
+                }
+            }
+
+            // Re-accelerate along the surface for the time still left in the frame, using the
+            // planes accumulated so far. This is the whole point of clipping: the gate now
+            // measures a direction the player can actually pursue, so it saturates at the same
+            // place no matter how the frame boundaries fall.
+            var segTime = remainingTimeFraction * deltaTime;
+
+            if (segTime > 0f && planeCount > 0)
+            {
+                // Hand the rest of the frame's strafe over to the clipped form. AirMove applied
+                // its gain unclipped across the whole frame, so drop the share that has not
+                // elapsed yet - once. It then has to leave frameVelocityChange, because it is no
+                // longer a pending reference-1 term: left in, every later bump subtracts it again
+                // through its own offset, and a corner (several bumps in one frame) accumulates
+                // that into a large velocity opposite the wish that throws the player back out.
+                var pendingStrafe = new Vector3(frameVelocityChange.X, frameVelocityChange.Y, 0f) * remainingTimeFraction;
+
+                if (pendingStrafe != Vector3.Zero)
+                {
+                    Velocity -= pendingStrafe;
+                    frameVelocityChange = new Vector3(0f, 0f, frameVelocityChange.Z);
+                    accelerated = frameVelocityChange != Vector3.Zero;
+                }
+
+                if (wishspeed > 0f)
+                {
+                    var gain = AirAccelerateClipped(Velocity, wishdir, wishspeed, segTime, planes[..planeCount]);
+
+                    Velocity += gain;
+
+                    // Trapezoid over the segment, matching how the up-front strafe gain is integrated
+                    remainingDelta += gain * (0.5f * segTime);
+                }
+            }
 
             CheckVelocity(ref position);
 
@@ -762,6 +863,8 @@ public partial class PlayerMovement
                 break;
             }
         }
+
+        Velocity += gravityCorrection;
 
         return position;
     }
@@ -860,6 +963,108 @@ public partial class PlayerMovement
     }
 
     /// <summary>
+    /// Resolves the wish input against the surfaces already met this frame: clips the wish
+    /// velocity to them and splits the result back into a direction and a speed, plus the scale
+    /// factor the clip cost. The scale is what the acceleration magnitude has to be multiplied by
+    /// so that clipping first and accelerating along the surface delivers the same tangential
+    /// acceleration as accelerating along the raw wishdir and projecting afterwards.
+    /// </summary>
+    private static (Vector3 Wishdir, float Wishspeed, float WishScale) ClipWish(Vector3 wishdir, float wishspeed, ReadOnlySpan<Vector3> planes)
+    {
+        if (planes.Length == 0 || wishspeed <= 0f)
+        {
+            return (wishdir, wishspeed, 1f);
+        }
+
+        var clipped = ClipWishVelocity(wishdir * wishspeed, planes, onGround: true, out var resolved);
+        var clippedSpeed = resolved ? clipped.Length() : 0f;
+
+        // Wish points entirely into the surfaces: no direction is left to accelerate along, and
+        // the segment runs on friction alone
+        if (clippedSpeed <= NegligibleMoveDistance)
+        {
+            return (Vector3.Zero, 0f, 0f);
+        }
+
+        return (clipped / clippedSpeed, clippedSpeed, clippedSpeed / wishspeed);
+    }
+
+    /// <summary>
+    /// Clips a wish velocity so it does not drive into any of the accumulated planes, using the
+    /// same candidate-plane/crease resolution as <see cref="ClipToPlanes"/>. The magnitude of the
+    /// result is meaningful: it is the part of the wish the player can actually pursue, and
+    /// callers derive both the reduced wishspeed and the reduced acceleration magnitude from it.
+    ///
+    /// The out flag is false when no direction satisfies every plane, in which case the returned
+    /// zero is a fallback rather than an answer. Callers must not read a zero on its own as "this
+    /// clips to nothing": for a wish that reading is correct, but for gravity it would mean
+    /// cancelling it outright and leaving the player hovering.
+    ///
+    /// Like <see cref="ClipToPlanes"/> this clips unconditionally, including when the wish already
+    /// points away from a plane - <see cref="ClipVelocity"/> subtracts the normal component
+    /// whatever its sign, so the result is always parallel to the surface. Skipping the clip in
+    /// that case leaves an away-from-surface component in the acceleration direction, which lifts
+    /// the player off a ramp they should be riding. Assumes a non-empty plane set, as the callers
+    /// all guarantee; an empty one reports unresolved.
+    /// </summary>
+    private static Vector3 ClipWishVelocity(Vector3 wishVelocity, ReadOnlySpan<Vector3> planes, bool onGround, out bool resolved)
+    {
+        resolved = true;
+
+        // Prefer a single-plane clip that does not drive into any other plane
+        for (var i = 0; i < planes.Length; i++)
+        {
+            var candidate = wishVelocity;
+            var candidateDelta = wishVelocity;
+            ClipVelocity(ref candidateDelta, ref candidate, planes[i], onGround);
+
+            var valid = true;
+            for (var j = 0; j < planes.Length; j++)
+            {
+                if (j != i && Vector3.Dot(candidate, planes[j]) < 0f)
+                {
+                    valid = false;
+                    break;
+                }
+            }
+
+            if (valid)
+            {
+                return candidate;
+            }
+        }
+
+        // Two planes form a crease to slide along
+        if (planes.Length == 2)
+        {
+            var creased = wishVelocity;
+            var creasedDelta = wishVelocity;
+            ClipToCrease(ref creasedDelta, ref creased, planes[0], planes[1]);
+            return creased;
+        }
+
+        resolved = false;
+        return Vector3.Zero;
+    }
+
+    /// <summary>
+    /// Whether <paramref name="normal"/> is already among <paramref name="planes"/>, so a repeated
+    /// flush contact against the same surface does not consume a bump slot.
+    /// </summary>
+    private static bool ContainsPlane(ReadOnlySpan<Vector3> planes, Vector3 normal)
+    {
+        foreach (var plane in planes)
+        {
+            if (Vector3.Dot(plane, normal) > 0.999f)
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /// <summary>
     /// Constrains movement to the crease line between two planes.
     /// </summary>
     private static void ClipToCrease(ref Vector3 delta, ref Vector3 velocity, Vector3 plane1, Vector3 plane2)
@@ -887,7 +1092,10 @@ public partial class PlayerMovement
     /// undoes the share of the acceleration it never earned (linear in the swept fraction,
     /// the simplified model to be sharpened once traces go parabolic), clips the result to
     /// the surface, and lets the next bump re-accelerate along it. The frame's walls are
-    /// accumulated so a regenerated segment slides along them instead of re-entering. The
+    /// accumulated, and both the wish input and the segment they produce are clipped to parallel
+    /// all of them, so a regenerated segment slides along instead of re-entering. Clipping the
+    /// wish is what stops a player pressing into a wall from re-aiming every bump at the surface
+    /// it is already flush with, spending the whole bump budget on zero-fraction contacts. The
     /// segment horizon reported by <see cref="WalkMove"/> (e.g. the sub-stopspeed kick kink)
     /// also ends a bump early, so the boosted and unboosted stretches sweep as separate traces.
     /// </summary>
@@ -902,10 +1110,22 @@ public partial class PlayerMovement
         Span<Vector3> planes = stackalloc Vector3[MaxBumps];
         var planeCount = 0;
 
+        var startPos = position;
+
         for (var bump = 0; bump < MaxBumps && remaining > 1e-6f; bump++)
         {
             var segStartVelocity = Velocity;
-            var segDt = WalkMove(wishdir, wishspeed, remaining, isDucking, isWalking);
+
+            // Clip the wish itself, not just what it produced. Re-integrating along the raw
+            // wishdir would aim the segment back into a wall already met this frame, the sweep
+            // would report a flush contact at fraction zero, and the bump would repeat having
+            // spent no time and gone nowhere. Clipping the wish *velocity* keeps the reduction
+            // in one place: its length is the wishspeed the player can still pursue along the
+            // surface, and wishScale carries the same cosine into the acceleration magnitude
+            // (and so into the sub-stopspeed kick, which is defined off wishspeed).
+            var (segWishdir, segWishspeed, wishScale) = ClipWish(wishdir, wishspeed, planes[..planeCount]);
+
+            var segDt = WalkMove(segWishdir, segWishspeed, remaining, isDucking, isWalking, wishScale);
             var freeVelocity = Velocity;
             var delta = GroundMoveDelta;
 
@@ -973,7 +1193,17 @@ public partial class PlayerMovement
             // Undo the unearned (1 - timeFraction) of this segment's velocity change, then clip
             // the impact velocity to the surface it landed on
             Velocity = Vector3.Lerp(segStartVelocity, freeVelocity, timeFraction);
-            planes[planeCount++] = hitNormal;
+
+            // Re-contacting a surface already in the set teaches the clip nothing, so it must not
+            // consume a slot. Combined with a zero time fraction it also means the bump neither
+            // advanced nor learned anything, and repeating it would only burn the remaining
+            // budget: the move is as constrained as it is going to get, so stop after the reclip.
+            var newPlane = !ContainsPlane(planes[..planeCount], hitNormal);
+
+            if (newPlane)
+            {
+                planes[planeCount++] = hitNormal;
+            }
 
             // A genuinely trapped move (three or more planes with no valid direction) stops
             // dead. The reversal guard only applies to a moving player: when clipping flips
@@ -990,6 +1220,11 @@ public partial class PlayerMovement
             Velocity = velocity;
             SlopeClipNormalZ = clipNormalZ;
             CheckVelocity(ref position);
+
+            if (!newPlane && timeFraction <= 0f)
+            {
+                break;
+            }
         }
 
         return position;
@@ -1253,7 +1488,7 @@ public partial class PlayerMovement
     /// sub-stopspeed kick boost switching off), so the caller can end the segment there and
     /// sweep the boosted and unboosted stretches as separate traces.
     /// </summary>
-    private float Accelerate(Vector3 wishdir, float wishspeed, Vector3 preFrictionVelocity, float deltaTime, bool isDucking, bool isWalking)
+    private float Accelerate(Vector3 wishdir, float wishspeed, Vector3 preFrictionVelocity, float deltaTime, bool isDucking, bool isWalking, float wishScale = 1f)
     {
         var currentspeed = Vector3.Dot(Velocity, wishdir);
         var addspeed = wishspeed - currentspeed;
@@ -1265,7 +1500,7 @@ public partial class PlayerMovement
 
         currentspeed = Math.Max(0, currentspeed);
 
-        var goalSpeed = AccelerationGoalSpeed(wishspeed, isDucking, isWalking);
+        var goalSpeed = AccelerationGoalSpeed(wishspeed, isDucking, isWalking, wishScale);
         var frictionRate = FrictionValue * SurfaceFriction;
 
         // Walking tapers acceleration over the last 5 u/s to the goal; that band stays a
@@ -1342,11 +1577,15 @@ public partial class PlayerMovement
 
     /// <summary>
     /// The speed the acceleration ramp aims for: at least 250, scaled by
-    /// the duck/walk modifiers.
+    /// the duck/walk modifiers and by how much of the wish survived clipping.
+    ///
+    /// The 250 floor is applied before <paramref name="wishScale"/> deliberately. Clipping shrinks
+    /// the wishspeed below the floor, so folding the two the other way round would hide the
+    /// reduction entirely and hand a wall-constrained segment the full open-ground acceleration.
     /// </summary>
-    private float AccelerationGoalSpeed(float wishspeed, bool isDucking, bool isWalking)
+    private float AccelerationGoalSpeed(float wishspeed, bool isDucking, bool isWalking, float wishScale = 1f)
     {
-        var goalSpeed = MathF.Max(250.0f, wishspeed);
+        var goalSpeed = MathF.Max(250.0f, wishspeed) * wishScale;
 
         if (isDucking)
         {
@@ -1371,6 +1610,12 @@ public partial class PlayerMovement
     /// Returns the segment horizon (the full <paramref name="deltaTime"/>, or an earlier
     /// acceleration kink), so the caller can split its swept move on the same boundary.
     ///
+    /// <paramref name="wishScale"/> is how much of the raw wish survived the caller's clip to the
+    /// surfaces met this frame (1 when unobstructed). The wishdir/wishspeed passed in are already
+    /// the clipped ones; the scale additionally shrinks the acceleration magnitude, so a
+    /// surface-parallel segment gains exactly the tangential acceleration the unclipped wish
+    /// would have contributed.
+    ///
     /// Note that <see cref="GroundMoveDelta"/> is deliberately the trapezoid on every path, even
     /// where an exact closed form exists (<see cref="LinearOdeDisplacement"/>,
     /// <see cref="GateBoundDisplacement"/>, and the displacement
@@ -1384,7 +1629,7 @@ public partial class PlayerMovement
     /// on one consistent velocity model is worth more than the second-order distance error,
     /// which is what the acceleration-distance regression lock is sized for.
     /// </summary>
-    private float WalkMove(Vector3 wishdir, float wishspeed, float deltaTime, bool isDucking, bool isWalking)
+    private float WalkMove(Vector3 wishdir, float wishspeed, float deltaTime, bool isDucking, bool isWalking, float wishScale = 1f)
     {
         // Come to a complete stop from a crawl. Source runs this before Accelerate; after
         // it, high framerates would re-zero every frame's sub-unit acceleration gain and
@@ -1399,14 +1644,14 @@ public partial class PlayerMovement
         Friction(deltaTime);
         var previousSpeed = Velocity.Length();
 
-        var segDt = Accelerate(wishdir, wishspeed, preFrictionVelocity, deltaTime, isDucking, isWalking);
+        var segDt = Accelerate(wishdir, wishspeed, preFrictionVelocity, deltaTime, isDucking, isWalking, wishScale);
 
         // The cap's closed forms assume a full frame; a shortened (kinked) segment stays
         // deep below the cap, so only apply it when the whole frame was integrated
         if (!PrestrafeEnabled && segDt >= deltaTime - 1e-6f)
         {
             var frictionRate = FrictionValue * SurfaceFriction;
-            var accelMagnitude = AccelerateValue * AccelerationGoalSpeed(wishspeed, isDucking, isWalking) * SurfaceFriction;
+            var accelMagnitude = AccelerateValue * AccelerationGoalSpeed(wishspeed, isDucking, isWalking, wishScale) * SurfaceFriction;
             var preCapVelocity = Velocity;
             Velocity = CapSpeedNoPrestrafe(Velocity, wishdir, wishspeed, previousSpeed, preFrictionVelocity, deltaTime, frictionRate, accelMagnitude);
 
@@ -1418,6 +1663,56 @@ public partial class PlayerMovement
         }
 
         return segDt;
+    }
+
+    /// <summary>
+    /// Linear (non-rotating) air acceleration for a segment that is riding a surface, returning
+    /// the velocity gain. Three things separate it from <see cref="AirMove"/>:
+    ///
+    /// The gain is applied along the wish clipped to the surfaces rather than along wishdir, so
+    /// none of it is spent pushing into a ramp only for the sweep to strip it again — which is
+    /// what made the addspeed gate saturate at a framerate-dependent value.
+    ///
+    /// The budget is scaled by 1/changeRate. The gate is still measured along the raw wishdir
+    /// (unchanged from the engine), but travelling along the clipped direction only raises that
+    /// component at rate |acceldir|², so closing a given addspeed costs proportionally more
+    /// magnitude. Without this the clip would slow the approach to the gate as well as redirect it.
+    ///
+    /// The gain per unit time is capped at what the emulated tick would deliver: a discrete engine
+    /// closes at most the whole remaining addspeed once per tick, so a continuous form that is not
+    /// bounded the same way out-accelerates the reference engine as the frame time shrinks.
+    /// </summary>
+    private Vector3 AirAccelerateClipped(Vector3 velocity, Vector3 wishdir, float wishspeed, float segTime, ReadOnlySpan<Vector3> planes)
+    {
+        var cap = MathF.Min(wishspeed, AirMaxWishSpeed);
+
+        // Note: the accel rate uses the original wishspeed, NOT the capped value
+        var accelRate = AirAccelerateValue * wishspeed * SurfaceFriction;
+
+        // Deliberately not renormalised: the length is how much of the wish is achievable, and
+        // both the budget scaling and the applied gain are defined in terms of it
+        var acceldir = ClipWishVelocity(wishdir, planes, onGround: false, out var resolved);
+
+        var changeRate = resolved ? Vector3.Dot(wishdir, acceldir) : 0f;
+
+        if (changeRate <= 1e-6f)
+        {
+            return Vector3.Zero; // wish points straight into the surface; nothing is achievable
+        }
+
+        var currentspeed = Vector3.Dot(velocity, wishdir);
+        var addspeed = cap - currentspeed;
+
+        if (addspeed <= 0f)
+        {
+            return Vector3.Zero;
+        }
+
+        var accelspeed = MathF.Min(accelRate * segTime, addspeed / changeRate);
+
+        accelspeed = MathF.Min(accelspeed, addspeed * EmulatedTickRate * segTime);
+
+        return accelspeed * acceldir;
     }
 
     /// <summary>

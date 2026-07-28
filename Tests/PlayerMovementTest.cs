@@ -436,6 +436,111 @@ namespace Tests
             Assert.That(slideY[0], Is.GreaterThan(1f), "wall did not deflect the run onto its diagonal");
         }
 
+        // Headless traces always include the infinite z=0 ground plane, so the ramp has to be
+        // lifted clear of it for a 3s descent to stay on the ramp rather than end on the floor
+        private const float SurfSpawnHeight = 3000f;
+
+        /// <summary>
+        /// One surf run: drop onto an inclined plane whose face starts <paramref name="dropHeight"/>
+        /// units below the feet and hold A for 3 seconds, with the view yawed 10° right so the
+        /// strafe converts into speed along the ramp instead of straight into it. The ramp is
+        /// tilted about Y, so its downhill direction is -X and the wish input is nearly across it.
+        /// Returns the horizontal travel, the end speed, how far the player descended and whether
+        /// the mover ever considered the surface walkable ground.
+        /// </summary>
+        private static (double Travel, double EndSpeed, double Descent, bool Grounded, double WishDot) RunSurf(float fps, float slopeDegrees, float dropHeight = 10f)
+        {
+            var (input, renderCamera) = CreateHeadlessFpsInput(spawnHeight: SurfSpawnHeight);
+            var movement = input.PlayerMovement;
+            var dt = 1f / fps;
+
+            // Outward normal of a plane inclined by slopeDegrees, tilted about Y; solid is n·x <= d
+            var alpha = float.DegreesToRadians(slopeDegrees);
+            var n = new Vector3(-MathF.Sin(alpha), 0f, MathF.Cos(alpha));
+
+            // Place the face dropHeight below the hull, measured perpendicular to it. Offsetting
+            // the spawn straight down instead would embed the hull once the ramp is tilted: the
+            // box's support half-width along a tilted normal is much larger than its half-height.
+            var half = movement.HullHalfExtents;
+            var center = movement.Position + new Vector3(0, 0, half.Z);
+            var extent = (MathF.Abs(n.X) * half.X) + (MathF.Abs(n.Y) * half.Y) + (MathF.Abs(n.Z) * half.Z);
+            var d = Vector3.Dot(n, center) - extent - dropHeight;
+
+            movement.DebugCollisionPlanes.Add(new Vector4(n.X, n.Y, n.Z, d));
+
+            // 10° to the right of +X. Forward is (cos yaw, sin yaw); right is yaw - 90°, so
+            // looking right is a negative yaw step.
+            var yaw = float.DegreesToRadians(-10f);
+            input.Camera.Yaw = yaw;
+
+            // Holding A is sideMove = -RunSpeed, so the wish points along -right (CalculateWishVelocity)
+            var right = new Vector3(MathF.Cos(yaw - MathF.PI / 2f), MathF.Sin(yaw - MathF.PI / 2f), 0f);
+            var wishdir = -right;
+
+            var start = movement.Position;
+            var grounded = false;
+
+            for (var i = 0; i < (int)(3f * fps); i++)
+            {
+                input.Tick(dt, TrackedKeys.A, Vector2.Zero, renderCamera);
+                grounded |= movement.OnGround;
+            }
+
+            var end = movement.Position;
+
+            return (
+                double.Hypot(end.X - start.X, end.Y - start.Y),
+                HorizontalSpeed(movement.Velocity),
+                start.Z - end.Z,
+                grounded,
+                Vector3.Dot(wishdir, movement.Velocity));
+        }
+
+        // Steep enough to actually surf: WalkableSlope is 0.7, so everything up to 45.573° counts
+        // as standable ground and would be walked down through GroundMove instead. Past the
+        // threshold the ramp never grounds the player and the run stays on AirMove/TryPlayerMove,
+        // which is the path this locks. The grounded column is the guard on that staying true.
+        private const float SurfSlopeDegrees = 50f;
+
+        [Test]
+        public void SurfIsFramerateInvariant()
+        {
+            const float slopeDegrees = SurfSlopeDegrees;
+
+            var travel = new double[ComparisonFramerates.Length];
+            var endSpeed = new double[ComparisonFramerates.Length];
+            var descent = new double[ComparisonFramerates.Length];
+            var grounded = new bool[ComparisonFramerates.Length];
+            var wishDot = new double[ComparisonFramerates.Length];
+
+            for (var run = 0; run < ComparisonFramerates.Length; run++)
+            {
+                (travel[run], endSpeed[run], descent[run], grounded[run], wishDot[run]) = RunSurf(ComparisonFramerates[run], slopeDegrees);
+            }
+
+            TestContext.Out.WriteLine($"{slopeDegrees}° ramp, dropped 10u above it, 3s holding A with the view 10° right:");
+            TestContext.Out.WriteLine($"  {"fps",-8} {"travel",-16} {"end speed",-14} {"descent",-14} {"v·wishdir",-12} {"grounded",-9}");
+
+            for (var run = 0; run < ComparisonFramerates.Length; run++)
+            {
+                TestContext.Out.WriteLine(
+                    $"  {ComparisonFramerates[run],-8:F0} {travel[run],-16:F5} {endSpeed[run],-14:F5}"
+                    + $" {descent[run],-14:F5} {wishDot[run],-12:F5} {grounded[run],-9}");
+            }
+
+            TestContext.Out.WriteLine(
+                $"  spreads: travel={Spread(travel):E2} endSpeed={Spread(endSpeed):E2}"
+                + $" descent={Spread(descent):E2} wishDot={Spread(wishDot):E2}");
+            TestContext.Out.WriteLine($"  (AirMaxWishSpeed is {AirCap}; the addspeed gate stops adding once v·wishdir reaches it)");
+
+            Assert.That(travel[0], Is.GreaterThan(1f), "player did not move along the ramp; the scenario is broken");
+
+            foreach (var g in grounded)
+            {
+                Assert.That(g, Is.False, "ramp was treated as walkable ground; this is no longer a surf test");
+            }
+        }
+
         /// <summary>
         /// One overhang-bounce run: settle, jump straight up into a 45° overhang, then fly until
         /// landing and slide out the remaining speed. Returns the total horizontal distance from
