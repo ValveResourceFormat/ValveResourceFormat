@@ -177,6 +177,15 @@ public sealed class TiledCullFeeder
         // a whole number of groups leaves the tail bins holding whatever the previous layout wrote there.
         Debug.Assert(depthBins % BinGroupSizeX == 0, $"Depth bin count must be a multiple of {BinGroupSizeX}");
 
+        // End pads every batch out to whole masks, so a stride that is not a multiple of one writes past
+        // the item array.
+        Debug.Assert(MaxItemsPerBatch % ItemsPerMask == 0, $"Batch stride must be a multiple of {ItemsPerMask}");
+
+        // AddEnvMaps drops a probe whose shader index reaches the stride, and says nothing when it does:
+        // the probe would keep shading from the UBO while never being binned to a tile again.
+        Debug.Assert(EnvMapArray.MAX_ENVMAPS <= MaxItemsPerBatch,
+            $"Env map probes must fit the {MaxItemsPerBatch} slot batch stride");
+
         this.tileCols = tileCols;
         this.tileRows = tileRows;
         this.depthBins = depthBins;

@@ -10,8 +10,6 @@ namespace ValveResourceFormat.Renderer.Buffers
     {
         /// <summary>Maximum number of lights (static plus dynamic) supported per scene.</summary>
         public const int MAX_LIGHTS = 256;
-        /// <summary>Maximum number of environment map probes supported per scene.</summary>
-        public const int MAX_ENVMAPS = 144;
 
         /// <summary>UV scale applied when sampling the lightmap atlas.</summary>
         public Vector2 LightmapUvScale;
