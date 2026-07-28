@@ -34,7 +34,7 @@ layout(binding = 6, std140) uniform LightCullConstants
 
 layout(std430, binding = 13) readonly buffer LightCullBitsBuffer
 {
-    uint g_LightCullBits[];
+    uint g_CullBits[];
 };
 
 float GetLightCullViewDepth(vec3 positionWs)
@@ -131,7 +131,7 @@ uint GetEnvMapLiveMask(uint word)
 
 uint GetCullMaskWord(CullMasks_t masks, uint word)
 {
-    uint mask = g_LightCullBits[masks.m_nTileWord + word] & g_LightCullBits[masks.m_nBinWord + word];
+    uint mask = g_CullBits[masks.m_nTileWord + word] & g_CullBits[masks.m_nBinWord + word];
 
 #ifdef GL_KHR_shader_subgroup_arithmetic
     mask = subgroupOr(mask);

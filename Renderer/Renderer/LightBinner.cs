@@ -268,7 +268,7 @@ public sealed class LightBinner(Scene scene) : IDisposable
             CullBits?.Delete();
             CullBitsWords = Feeder.TotalWords;
             CullBits = StorageBuffer.Allocate<uint>(
-                ReservedBufferSlots.LightCullBits, CullBitsWords, BufferUsageHint.DynamicDraw);
+                ReservedBufferSlots.CullBits, CullBitsWords, BufferUsageHint.DynamicDraw);
 
             // A fresh allocation holds nothing in particular, and every zero bit reads as an item culled.
             // Start visible instead: a pass that never reaches Dispatch - a viewer holding a locked cull
