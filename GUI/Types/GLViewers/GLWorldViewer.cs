@@ -384,7 +384,7 @@ namespace GUI.Types.GLViewers
                     Renderer.ViewBuffer!.Data!.ExperimentalLightsEnabled = enableLights;
 
                     UiControl.AddCheckBox("Barn Lights", enableLights, v => Renderer.ViewBuffer!.Data!.ExperimentalLightsEnabled = v);
-                    UiControl.AddCheckBox("Tiled Light Culling", Scene.EnableLightTileCulling, v => Scene.EnableLightTileCulling = v);
+                    UiControl.AddCheckBox("Tiled Light Culling", Scene.EnableTiledLightCulling, v => Scene.EnableTiledLightCulling = v);
 
                     AddSceneExposureSlider();
                 }

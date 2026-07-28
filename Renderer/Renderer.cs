@@ -403,7 +403,7 @@ public class Renderer
         var cullWidth = (int)ViewBuffer.Data.ViewportSize.X;
         var cullHeight = (int)ViewBuffer.Data.ViewportSize.Y;
 
-        var tileCullEnabled = LockedCullFrustum == null && scene.EnableLightTileCulling;
+        var tileCullEnabled = LockedCullFrustum == null && scene.EnableTiledLightCulling;
         scene.LightBinner.Update(ViewBuffer.Data, cullWidth, cullHeight, tileCullEnabled);
         SkyboxScene?.LightBinner.Update(ViewBuffer.Data, cullWidth, cullHeight, tileCullEnabled);
 
