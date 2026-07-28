@@ -207,7 +207,7 @@ namespace ValveResourceFormat.Renderer
             var newPlayer = modelPlayer;
             int[]? newRemapTable = null;
 
-            if (animation is { Clip: { } nmClip } && externalSkeletons.TryGetValue(nmClip.SkeletonName, out var external))
+            if (animation is ClipAnimation clipAnimation && externalSkeletons.TryGetValue(clipAnimation.Clip.SkeletonName, out var external))
             {
                 newPlayer = external.Player;
                 newRemapTable = external.RemapTable;

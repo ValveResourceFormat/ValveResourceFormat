@@ -67,7 +67,7 @@ namespace Tests.Renderer
             Assert.That(controller.CurrentPlayer, Is.Null, "a model animation plays on the model player");
 
             controller.IsPaused = true;
-            controller.SetAnimation(new Animation(clip));
+            controller.SetAnimation(new ClipAnimation(clip));
 
             var external = controller.CurrentPlayer;
 
@@ -75,6 +75,7 @@ namespace Tests.Renderer
             {
                 Assert.That(external, Is.Not.Null, "an NM clip plays on the player owning its skeleton");
                 Assert.That(controller.IsPaused, Is.True, "pause carries onto the player taking over");
+                Assert.That(controller.ActiveAnimation, Is.InstanceOf<ClipAnimation>());
             }
 
             controller.Update(0f);

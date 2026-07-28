@@ -108,7 +108,7 @@ namespace ValveResourceFormat.Renderer
                 return true;
             }
 
-            if (!IsUsingMixer && ActiveAnimation?.Clip is { IsAdditive: true })
+            if (!IsUsingMixer && ActiveAnimation is { IsAdditive: true })
             {
                 // We need a frame we can write to without ruining the frame cache
                 AnimationFrame.Bones.CopyTo(FrameCache.InterpolatedFrame.Bones);
