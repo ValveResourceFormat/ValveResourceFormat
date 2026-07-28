@@ -6,6 +6,19 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation;
 public static class FramePose
 {
     /// <summary>
+    /// Accumulates each bone's world-space transform from the frame's local bone transforms,
+    /// walking down the skeleton hierarchy from the roots. <paramref name="world"/> must be at
+    /// least as long as the skeleton's bone array and is indexed by bone index.
+    /// </summary>
+    public static void ComputeWorldPose(Frame frame, Skeleton skeleton, Span<Matrix4x4> world)
+    {
+        foreach (var root in skeleton.Roots)
+        {
+            ComputeWorldSubtree(root, Matrix4x4.Identity, frame, world);
+        }
+    }
+
+    /// <summary>
     /// Accumulates world-space transforms for one bone subtree under the given parent transform.
     /// A <see langword="null"/> <paramref name="frame"/> yields the bind pose.
     /// </summary>
