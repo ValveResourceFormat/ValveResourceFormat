@@ -63,9 +63,8 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
             }
 
             // Calculate the index of the current frame
-            var frameIndex = (int)(time * anim.Fps) % (anim.FrameCount - 1);
-            var nextFrameIndex = (frameIndex + 1) % anim.FrameCount;
-            var t = ((time * anim.Fps) - frameIndex) % 1;
+            var (_, frameIndex, t) = anim.GetCyclePosition(time);
+            var nextFrameIndex = frameIndex + 1;
 
             // Get current and next frame
             var frame1 = GetFrame(anim, frameIndex);

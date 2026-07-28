@@ -28,6 +28,50 @@ namespace ValveResourceFormat.Renderer
         /// <summary>Gets the decoded animation frame data for the current tick, or <see langword="null"/> when no animation is active.</summary>
         public Frame? AnimationFrame { get; private set; }
 
+        /// <summary>
+        /// Gets the root motion the active clip has moved through since this was last consumed, as a rigid
+        /// transform. Seeking contributes too, backwards as the motion in reverse.
+        /// </summary>
+        public Matrix4x4 RootMotionDelta { get; private set; } = Matrix4x4.Identity;
+
+        /// <summary>
+        /// Takes <see cref="RootMotionDelta"/> and clears it, so a caller running at a different rate than the
+        /// animation neither applies a step twice nor loses one.
+        /// </summary>
+        public Matrix4x4 ConsumeRootMotionDelta()
+        {
+            var delta = RootMotionDelta;
+            RootMotionDelta = Matrix4x4.Identity;
+            return delta;
+        }
+
+        // Root motion is measured between the times the pose was sampled at, so whatever moves the pose moves it.
+        private float sampledTime;
+        private bool hasSampledTime;
+
+        /// <summary>
+        /// Adds the motion covered since the pose was last sampled to the pending delta.
+        /// </summary>
+        private void AccumulateRootMotion()
+        {
+            if (activeClip is not { } clip)
+            {
+                hasSampledTime = false;
+                return;
+            }
+
+            // Mirrors how the frame was sampled: an exact lookup rounds playback to that frame.
+            var sampleTime = clip.IsPaused ? clip.Animation.SnapTimeToFrame(clip.Time) : clip.Time;
+
+            if (hasSampledTime)
+            {
+                RootMotionDelta *= clip.Animation.GetRootMotionDelta(sampledTime, sampleTime);
+            }
+
+            sampledTime = sampleTime;
+            hasSampledTime = true;
+        }
+
         private bool forceUpdate;
 
         /// <summary>Gets or sets whether animation playback is paused. Changing the value forces a pose update.</summary>
@@ -55,13 +99,24 @@ namespace ValveResourceFormat.Renderer
             }
         }
 
-        /// <summary>Gets or sets the current frame index of the active animation.</summary>
+        /// <summary>
+        /// Gets or sets the current frame index of the active animation. Seeking targets a position in the
+        /// cycle being played rather than the first one, so scrubbing a looping animation walks within that
+        /// cycle instead of unwinding everything played so far.
+        /// </summary>
         public int Frame
         {
             get => activeClip?.Frame ?? 0;
             set
             {
-                activeClip?.Frame = value;
+                if (activeClip is { } clip)
+                {
+                    var (cycle, _, _) = clip.Animation.GetCyclePosition(clip.Time);
+
+                    clip.Frame = value;
+                    clip.Time += cycle * clip.Animation.CycleDuration;
+                }
+
                 forceUpdate = true;
             }
         }
@@ -119,6 +174,8 @@ namespace ValveResourceFormat.Renderer
             AnimationFrame = GetFrame();
             forceUpdate = false;
 
+            AccumulateRootMotion();
+
             if (AnimationFrame == null)
             {
                 BindPose.AsSpan().CopyTo(Pose);
@@ -160,6 +217,8 @@ namespace ValveResourceFormat.Renderer
         {
             FrameCache.PurgeCache();
             ApplyAdditive = animation?.IsAdditive ?? false;
+
+            hasSampledTime = false;
 
             if (animation != null)
             {
