@@ -183,8 +183,32 @@ namespace ValveResourceFormat.Renderer
                 return true;
             }
 
+            ApplyClothRootPose();
             ApplyInverseKinematics();
             return true;
+        }
+
+        /// <summary>
+        /// Poses procedural cloth roots rigidly from the cloth simulation root, matching the pin
+        /// <see cref="GetSkinningMatrices"/> applies to their skinning matrices.
+        /// </summary>
+        private void ApplyClothRootPose()
+        {
+            var clothSimRoot = Skeleton.ClothSimulationRoot;
+            if (clothSimRoot == null)
+            {
+                return;
+            }
+
+            var delta = InverseBindPose[clothSimRoot.Index] * Pose[clothSimRoot.Index];
+
+            foreach (var root in Skeleton.Roots)
+            {
+                if (root.IsProceduralCloth)
+                {
+                    Pose[root.Index] = root.BindPose * delta;
+                }
+            }
         }
 
         /// <summary>
