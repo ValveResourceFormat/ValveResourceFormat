@@ -5,6 +5,7 @@ using OpenTK.Graphics.OpenGL;
 using ValveResourceFormat.Renderer.Buffers;
 using ValveResourceFormat.Renderer.PostProcess;
 using ValveResourceFormat.Renderer.SceneEnvironment;
+using ValveResourceFormat.ResourceTypes;
 
 namespace ValveResourceFormat.Renderer;
 
@@ -303,23 +304,31 @@ public class Renderer
     public void LoadRendererResources()
     {
         var rendererAssembly = Assembly.GetAssembly(typeof(RendererContext)) ?? throw new InvalidOperationException("Failed to get renderer assembly");
-        const string vtexFileName = "ggx_integrate_brdf_lut_schlick.vtex_c";
+        const string vtexFileName = "brdf_lut.vtex_c";
 
         // Load brdf lut, preferably from game.
         var brdfLutResource = RendererContext.FileLoader.LoadFile("textures/dev/" + vtexFileName);
 
+        const int BrdfTextureSize = 64;
+        const int BrdfTextureDepth = 3;
+
+        if (brdfLutResource?.DataBlock is not Texture gameBrdfLut
+        || gameBrdfLut.Width != BrdfTextureSize
+        || gameBrdfLut.Height != BrdfTextureSize
+        || gameBrdfLut.Depth != BrdfTextureDepth
+        || gameBrdfLut.Format != VTexFormat.RGBA16161616F)
+        {
+            brdfLutResource?.Dispose();
+            brdfLutResource = null;
+        }
+
         try
         {
-            Stream? brdfStream; // Will be used by LoadTexture, and disposed by resource
-
             if (brdfLutResource == null)
             {
-                brdfStream = rendererAssembly.GetManifestResourceStream("Renderer.Resources." + vtexFileName);
-
-                if (brdfStream == null)
-                {
-                    throw new InvalidOperationException($"Failed to load embedded resource: {vtexFileName}");
-                }
+                // Will be used by LoadTexture, and disposed by resource
+                var brdfStream = rendererAssembly.GetManifestResourceStream("Renderer.Resources." + vtexFileName)
+                    ?? throw new InvalidOperationException($"Failed to load embedded resource: {vtexFileName}");
 
                 brdfLutResource = new Resource() { FileName = vtexFileName };
                 brdfLutResource.Read(brdfStream);

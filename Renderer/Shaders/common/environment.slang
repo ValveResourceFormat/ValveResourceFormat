@@ -114,17 +114,29 @@ float GetEnvMapNormalization(float rough, vec3 N, vec3 irradiance)
 
 
 // BRDF
-uniform sampler2D g_tBRDFLookup;
+// Split sum, kept apart so the caller can take the energy the specular claims back off the
+// diffuse. The table stores reflectance at F0=0 in x and at F0=1 in y, so a lerp by F0
+// recovers the usual scale and bias.
+struct EnvBRDF_t
+{
+    vec3 SingleScatter; // FssEss
+    vec3 MultiScatter;  // FmsEms, lit by the irradiance rather than the cube map
+};
 
-vec3 EnvBRDF(vec3 specColor, float perceptualRoughness, vec3 N, vec3 V)
+EnvBRDF_t EnvBRDF(vec3 specColor, float perceptualRoughness, vec3 N, vec3 V)
 {
     float NdotV = ClampToPositive(dot(N, V));
-    vec2 lookupCoords = vec2(NdotV, perceptualRoughness);
+    vec4 lut = SampleBrdfLut(perceptualRoughness, NdotV, BRDF_LUT_GGX);
 
-    vec2 GGXLut = textureLod(g_tBRDFLookup, lookupCoords, 0.0).xy;
-    GGXLut = pow2(GGXLut);
+    EnvBRDF_t brdf;
+    brdf.SingleScatter = mix(vec3(lut.x), vec3(lut.y), specColor);
 
-    return specColor * GGXLut.x + GGXLut.y;
+    // What a single bounce misses, fed back through the average Fresnel of a Schlick lobe.
+    float energyMissing = 1.0 - lut.y;
+    vec3 averageFresnel = specColor + (vec3(1.0) - specColor) * (1.0 / 21.0);
+
+    brdf.MultiScatter = ((brdf.SingleScatter * averageFresnel) / (vec3(1.0) - averageFresnel * energyMissing)) * energyMissing;
+    return brdf;
 }
 
 float EnvBRDFCloth(float perceptualRoughness, vec3 N, vec3 V)
@@ -289,7 +301,7 @@ vec3 GetEnvironment(MaterialProperties_t mat, float reflectionCorrectionAmount)
         return envMap;
     }
 
-    vec3 brdf = EnvBRDF(mat.SpecularColor, mat.IsometricRoughness, mat.AmbientNormal, mat.ViewDir);
+    vec3 brdf = EnvBRDF(mat.SpecularColor, mat.IsometricRoughness, mat.AmbientNormal, mat.ViewDir).SingleScatter;
     if (F_CLOTH_SHADING == 1)
     {
         vec3 clothBrdf = vec3(EnvBRDFCloth(mat.IsometricRoughness, mat.AmbientNormal, mat.ViewDir));

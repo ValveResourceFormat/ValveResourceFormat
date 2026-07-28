@@ -254,6 +254,11 @@ void CalculateIndirectLighting(inout LightingTerms_t lighting, inout MaterialPro
         lighting.DiffuseIndirect = GetEnvironmentNoBRDF(mat, 1.0);
         mat.Roughness = oldRoughness;
     #endif
+
+    EnvBRDF_t envBrdf = EnvBRDF(mat.SpecularColor, mat.IsometricRoughness, mat.AmbientNormal, mat.ViewDir);
+
+    lighting.SpecularIndirect += envBrdf.MultiScatter * lighting.DiffuseIndirect;
+    lighting.DiffuseIndirect *= ClampToPositive(vec3(1.0) - (envBrdf.SingleScatter + envBrdf.MultiScatter));
 #endif
 }
 

@@ -104,6 +104,20 @@ vec3 GetRetroReflectiveNormal(float retroReflectivity, vec3 L, vec3 V, vec3 N, v
 
 uniform int F_CLOTH_SHADING; // csgo_character, csgo_complex, csgo_customglove, csgo_textile_layer, vr_complex
 
+// BRDF. Layer 1 is the GGX split sum, layer 2 the sheen directional albedo; layer 0 is unused.
+uniform sampler2DArray g_tBRDFLookup;
+
+#define BRDF_LUT_GGX 1.0
+#define BRDF_LUT_SHEEN 2.0
+
+// Half a texel in from either edge of the 64 wide table, so the ends of the range are the
+// centres of the first and last texels rather than a clamped extrapolation.
+vec4 SampleBrdfLut(float roughness, float NdotV, float layer)
+{
+    vec2 coords = vec2(roughness, sqrt(1.0 - NdotV)) * (63.0 / 64.0) + (1.0 / 128.0);
+    return textureLod(g_tBRDFLookup, vec3(coords, layer), 0.0);
+}
+
 float D_Charlie(float roughness, float NoH)
 {
     float invRough = 1.0 / roughness;
@@ -118,7 +132,7 @@ float V_Neubelt(float NoL, float NoV)
 }
 
 // Still pass normal due to some effects modifying normal per light
-vec3 specularLighting(vec3 lightVector, vec3 normal, MaterialProperties_t mat)
+vec3 specularLighting(vec3 lightVector, vec3 normal, MaterialProperties_t mat, float sheenAlbedoScaling)
 {
 	float NoL = saturate( dot(normal, lightVector) );
 
@@ -152,11 +166,10 @@ vec3 specularLighting(vec3 lightVector, vec3 normal, MaterialProperties_t mat)
         ndfVis = mix(ndfVis, ClothNDF * ClothVis, mat.ClothMask);
     }
 
-    vec3 specular = vec3(ndfVis) * NoL * F;
-
     // Sheen is a second lobe over the top, with its own colour and roughness, rather than a
-    // blend into the first. Deadlock divides this by max(sheenDirectionalAlbedo, 1.0), which
-    // is always 1 for a directional albedo, so it is left out.
+    // blend into the first, so the base has to give up the energy it takes.
+    vec3 specular = vec3(ndfVis) * NoL * F * sheenAlbedoScaling;
+
     if (mat.SheenRoughness > 0.0)
     {
         float sheenAlpha = pow2(mat.SheenRoughness);
@@ -169,6 +182,26 @@ vec3 specularLighting(vec3 lightVector, vec3 normal, MaterialProperties_t mat)
 
 
 
+// How much of the base lobes survives once the sheen has taken its share. The directional
+// albedo is read at both the light and the view, because a grazing sheen absorbs from either
+// direction. Without a sheen lobe this is 1 and nothing is sampled.
+float GetSheenAlbedoScaling(MaterialProperties_t mat, vec3 lightVector)
+{
+    if (mat.SheenRoughness <= 0.0)
+    {
+        return 1.0;
+    }
+
+    float NoL = ClampToPositive(dot(mat.Normal, lightVector));
+    float NoV = ClampToPositive(dot(mat.Normal, mat.ViewDir));
+
+    float directionalAlbedo = max(SampleBrdfLut(mat.SheenRoughness, NoV, BRDF_LUT_SHEEN).x,
+                                  SampleBrdfLut(mat.SheenRoughness, NoL, BRDF_LUT_SHEEN).x);
+
+    float sheenMax = max(mat.SheenColor.x, max(mat.SheenColor.y, mat.SheenColor.z));
+    return ClampToPositive(1.0 - sheenMax * directionalAlbedo);
+}
+
 // Calculate PBR shading for a light
 void CalculateShading(inout LightingTerms_t lighting, vec3 lightVector, vec3 lightColor, MaterialProperties_t mat)
 {
@@ -177,7 +210,11 @@ void CalculateShading(inout LightingTerms_t lighting, vec3 lightVector, vec3 lig
 #else
     float diffuseLight = ClampToPositive(dot(mat.Normal, lightVector));
 #endif
-    vec3 specularLight = specularLighting(lightVector, mat.Normal, mat);
+
+    float sheenAlbedoScaling = GetSheenAlbedoScaling(mat, lightVector);
+    diffuseLight *= sheenAlbedoScaling;
+
+    vec3 specularLight = specularLighting(lightVector, mat.Normal, mat, sheenAlbedoScaling);
 
     lighting.SpecularDirect += specularLight * lightColor;
     lighting.DiffuseDirect += diffuseLight * lightColor;
