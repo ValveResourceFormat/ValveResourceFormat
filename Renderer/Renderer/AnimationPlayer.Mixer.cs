@@ -9,7 +9,7 @@ namespace ValveResourceFormat.Renderer
     public partial class AnimationPlayer
     {
         /// <summary>Represents an animation clip with its playback state.</summary>
-        public record class Clip(Animation Animation)
+        public record class PlaybackClip(Animation Animation)
         {
             /// <summary>Gets or sets the current playback time in seconds.</summary>
             public float Time { get; set; }
@@ -64,11 +64,11 @@ namespace ValveResourceFormat.Renderer
         /// <summary>
         /// Gets the current clips.
         /// </summary>
-        public Dictionary<string, Clip> Clips => clips;
+        public Dictionary<string, PlaybackClip> Clips => clips;
 
-        private Clip? activeClip;
-        private Clip? previousClip;
-        private readonly Dictionary<string, Clip> clips = [];
+        private PlaybackClip? activeClip;
+        private PlaybackClip? previousClip;
+        private readonly Dictionary<string, PlaybackClip> clips = [];
         private readonly Frame BlendedFrame;
         private float currentBlendTime;
 
@@ -275,7 +275,7 @@ namespace ValveResourceFormat.Renderer
             return BlendedFrame;
         }
 
-        private Frame SampleFrame(Clip clip)
+        private Frame SampleFrame(PlaybackClip clip)
         {
             var ignoreCache = clip.Animation != ActiveAnimation;
 
@@ -313,7 +313,7 @@ namespace ValveResourceFormat.Renderer
             if (!clips.TryGetValue(animName, out var newClip))
             {
                 var isAdditive = animation.IsAdditive;
-                newClip = new Clip(animation) { Looping = looping, BlendTime = blendTime, IsAdditive = isAdditive };
+                newClip = new PlaybackClip(animation) { Looping = looping, BlendTime = blendTime, IsAdditive = isAdditive };
                 clips[animName] = newClip;
             }
             else
