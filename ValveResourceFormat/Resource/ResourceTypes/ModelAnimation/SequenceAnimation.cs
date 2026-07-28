@@ -28,6 +28,12 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
         public bool Delta { get; init; }
 
         /// <summary>
+        /// Gets a value indicating whether the animation graph plays this animation additively
+        /// (<c>m_bAnimGraphAdditive</c>, present in newer engine branches).
+        /// </summary>
+        public bool AnimGraphAdditive { get; }
+
+        /// <summary>
         /// Gets a value indicating whether this animation is in world space.
         /// </summary>
         public bool Worldspace { get; init; }
@@ -100,7 +106,9 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
             IsLooping = flags.GetBooleanProperty("m_bLooping");
             Hidden = flags.GetBooleanProperty("m_bHidden");
             Delta = flags.GetBooleanProperty("m_bDelta");
+            AnimGraphAdditive = flags.GetBooleanProperty("m_bAnimGraphAdditive");
             Worldspace = flags.GetBooleanProperty("m_bLegacyWorldspace");
+            IsAdditive = Delta || AnimGraphAdditive;
 
             var pData = animDesc.GetSubCollection("m_pData");
             FrameCount = pData.GetInt32Property("m_nFrames");
@@ -153,6 +161,9 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
             Worldspace = seqFlags.GetBooleanProperty("m_bLegacyWorldspace");
             Realtime = seqFlags.GetBooleanProperty("m_bLegacyRealtime");
             Autoplay = seqFlags.GetBooleanProperty("m_bAutoplay");
+            AnimGraphAdditive = animFlags.GetBooleanProperty("m_bAnimGraphAdditive");
+
+            IsAdditive = Delta || AnimGraphAdditive;
 
             // Activities from sequence descriptor
             Activities = seqDesc.GetArray("m_activityArray")
@@ -494,6 +505,90 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
             var elapsedTime = time - startTime;
 
             t = Math.Min(1f, elapsedTime / movementDuration);
+        }
+
+        private enum AnimatedChannels : byte
+        {
+            None = 0,
+            Position = 1,
+            Angle = 2,
+        }
+
+        /// <summary>
+        /// Composes an already-decoded additive frame over the skeleton bind pose, in place. Sequences
+        /// only decode the channels they actually write and leave the rest at bind pose (see
+        /// <see cref="GetAnimatedChannels"/>), so those channels are held at bind rather than added
+        /// onto the bind pose a second time.
+        /// </summary>
+        public override void ComposeAdditiveOverBindPose(FrameBone[] bones, Skeleton skeleton)
+        {
+            var animatedChannels = GetAnimatedChannels(bones.Length);
+
+            for (var i = 0; i < bones.Length; i++)
+            {
+                var bindPose = new FrameBone(skeleton.Bones[i].Position, 1f, skeleton.Bones[i].Angle);
+                var frameBone = bones[i];
+
+                var channels = animatedChannels[i];
+
+                var position = (channels & AnimatedChannels.Position) != 0
+                    ? frameBone.Position + bindPose.Position
+                    : bindPose.Position;
+
+                var angle = (channels & AnimatedChannels.Angle) != 0
+                    ? bindPose.Angle * frameBone.Angle
+                    : bindPose.Angle;
+
+                // Scale is kept at bind so a unit delta scale cannot compound up the bone hierarchy.
+                bones[i] = new FrameBone(position, bindPose.Scale, angle);
+            }
+        }
+
+        private AnimatedChannels[]? animatedChannelsCache;
+
+        /// <summary>
+        /// Returns, per bone, which transform channels this animation actually writes, derived from
+        /// the segment decoders' bone targets and channel attributes.
+        /// </summary>
+        private AnimatedChannels[] GetAnimatedChannels(int boneCount)
+        {
+            if (animatedChannelsCache != null && animatedChannelsCache.Length == boneCount)
+            {
+                return animatedChannelsCache;
+            }
+
+            var animated = new AnimatedChannels[boneCount];
+
+            foreach (var segment in SegmentArray)
+            {
+                if (segment is null)
+                {
+                    continue;
+                }
+
+                var channel = segment.ChannelAttribute switch
+                {
+                    AnimationChannelAttribute.Position => AnimatedChannels.Position,
+                    AnimationChannelAttribute.Angle => AnimatedChannels.Angle,
+                    _ => AnimatedChannels.None,
+                };
+
+                if (channel == AnimatedChannels.None)
+                {
+                    continue;
+                }
+
+                foreach (var boneIndex in segment.RemapTable)
+                {
+                    if (boneIndex >= 0 && boneIndex < boneCount)
+                    {
+                        animated[boneIndex] |= channel;
+                    }
+                }
+            }
+
+            animatedChannelsCache = animated;
+            return animated;
         }
 
         /// <inheritdoc/>

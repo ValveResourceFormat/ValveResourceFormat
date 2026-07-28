@@ -25,6 +25,7 @@ namespace GUI.Types.GLViewers
         public ComboBox? animationComboBox { get; protected set; }
         protected CheckBox? animationPlayPause;
         private CheckBox? rootMotionCheckBox;
+        private CheckBox? additiveCheckBox;
         private CheckBox? showSkeletonCheckbox;
         private CheckBox? showParticlesCheckbox;
         private ComboBox? hitboxComboBox;
@@ -75,6 +76,7 @@ namespace GUI.Types.GLViewers
             lodComboBox?.Dispose();
             physicsGroupsComboBox?.Dispose();
             rootMotionCheckBox?.Dispose();
+            additiveCheckBox?.Dispose();
             showSkeletonCheckbox?.Dispose();
             showParticlesCheckbox?.Dispose();
             hitboxComboBox?.Dispose();
@@ -126,6 +128,11 @@ namespace GUI.Types.GLViewers
 
                 rootMotionCheckBox!.Enabled = animationController.ActiveAnimation?.HasMovementData() ?? false;
                 enableRootMotion = rootMotionCheckBox.Enabled && rootMotionCheckBox.Checked;
+                var activeAnimation = animationController.ActiveAnimation;
+
+                additiveCheckBox!.Enabled = activeAnimation is not null
+                    && (activeAnimation is not ClipAnimation || activeAnimation.IsAdditive);
+                additiveCheckBox.Checked = animationController.ApplyAdditive;
             });
 
             animationTimeLabel = new Label()
@@ -179,6 +186,13 @@ namespace GUI.Types.GLViewers
 
             rootMotionCheckBox.Checked = false;
             rootMotionCheckBox.Enabled = false;
+
+            additiveCheckBox = UiControl.AddCheckBox("Additive (over bind pose)", false, isChecked =>
+            {
+                animationController.ApplyAdditive = isChecked;
+            });
+
+            additiveCheckBox.Enabled = false;
         }
 
         protected override void LoadScene()
@@ -507,14 +521,9 @@ namespace GUI.Types.GLViewers
                 var time = totalTime > 0f ? animationController.Time % totalTime : 0f;
                 var frameNumber = animationController.Frame + 1;
 
-                var additive = animationController.ActiveAnimation.IsAdditive
-                    ? "Additive: true\n"
-                    : string.Empty;
-
                 animationTimeLabel.Text = $"Frame: {frameNumber,4} / {frameCount}\n" +
                     $"Time: {time:F2} / {totalTime:F2}\n" +
-                    $"FPS: {fps:F2}\n" +
-                    additive;
+                    $"FPS: {fps:F2}\n";
             }
 
             void UpdateUiAnimationState(Animation? animation, int frame)
