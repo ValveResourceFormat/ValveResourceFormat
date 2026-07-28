@@ -777,7 +777,19 @@ public class SceneLight(Scene scene) : SceneNode(scene)
         var axis1 = new Vector3(rotMatrix.M21, rotMatrix.M22, rotMatrix.M23);
         var axis2 = new Vector3(rotMatrix.M31, rotMatrix.M32, rotMatrix.M33);
 
-        var inv = new Vector3(0.999f) / extent;
+        const float Shrink = 0.999f;
+
+        var inv = new Vector3(Shrink) / extent;
+
+        // Built before the axes are scaled, from the half extent the shrink actually leaves. This is the
+        // box the shader lights inside of, so it is the one the cull pass has to bin.
+        var halfExtent = extent / Shrink;
+
+        var obbToWorld = new Matrix4x4(
+            axis0.X * halfExtent.X, axis0.Y * halfExtent.X, axis0.Z * halfExtent.X, 0f,
+            axis1.X * halfExtent.Y, axis1.Y * halfExtent.Y, axis1.Z * halfExtent.Y, 0f,
+            axis2.X * halfExtent.Z, axis2.Y * halfExtent.Z, axis2.Z * halfExtent.Z, 0f,
+            center.X, center.Y, center.Z, 1f);
 
         var translation = new Vector3(
             -Vector3.Dot(center, axis0),
@@ -785,16 +797,14 @@ public class SceneLight(Scene scene) : SceneNode(scene)
             -Vector3.Dot(center, axis2)
         ) * inv;
 
-        var obbToWorld = new Matrix4x4(
-            axis0.X / inv.X, axis0.Y / inv.X, axis0.Z / inv.X, 0f,
-            axis1.X / inv.Y, axis1.Y / inv.Y, axis1.Z / inv.Y, 0f,
-            axis2.X / inv.Z, axis2.Y / inv.Z, axis2.Z / inv.Z, 0f,
-            center.X, center.Y, center.Z, 1f);
+        axis0 *= inv.X;
+        axis1 *= inv.Y;
+        axis2 *= inv.Z;
 
         var illuminationFromWorld = new OpenTK.Mathematics.Matrix3x4(
-            axis0.X * inv.X, axis0.Y * inv.X, axis0.Z * inv.X, translation.X,
-            axis1.X * inv.Y, axis1.Y * inv.Y, axis1.Z * inv.Y, translation.Y,
-            axis2.X * inv.Z, axis2.Y * inv.Z, axis2.Z * inv.Z, translation.Z
+            axis0.X, axis0.Y, axis0.Z, translation.X,
+            axis1.X, axis1.Y, axis1.Z, translation.Y,
+            axis2.X, axis2.Y, axis2.Z, translation.Z
         );
 
         return (illuminationFromWorld, obbToWorld);
