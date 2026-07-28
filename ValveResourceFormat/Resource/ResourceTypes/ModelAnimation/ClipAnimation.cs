@@ -40,6 +40,12 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
         /// <inheritdoc/>
         public override bool SupportsMixerAdditive => IsAdditive;
 
+        /// <inheritdoc/>
+        public override bool RequiresRetarget => true;
+
+        /// <inheritdoc/>
+        public override string? TargetSkeletonName => Clip.SkeletonName;
+
         /// <summary>
         /// Composes an already-decoded additive frame over the skeleton bind pose, in place. Clips
         /// store an identity delta for un-animated bones, so every bone can be composed.

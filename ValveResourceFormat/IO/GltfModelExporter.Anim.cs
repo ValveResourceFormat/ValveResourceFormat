@@ -224,7 +224,7 @@ public partial class GltfModelExporter
         }
     }
 
-    // Animation-graph clips aren't part of GetAllAnimations; write them here, retargeted by bone name.
+    // Animations authored on another skeleton are written here, retargeted onto the model by bone name.
     private void WriteAnimationGraphClips(ModelRoot exportedModel, VModel model, Node[] joints, HashSet<string> animationFilter)
     {
         var retargets = new Dictionary<string, (AnimationWriter Writer, Node?[] Joints)?>();
@@ -233,16 +233,16 @@ public partial class GltfModelExporter
         // animation (embedded, or an earlier clip) would merge its channels onto it. Keep the first, skip the rest.
         var writtenNames = exportedModel.LogicalAnimations.Select(a => a.Name).ToHashSet();
 
-        foreach (var clipName in AnimationGraphLoader.GetClipNames(model, FileLoader))
+        foreach (var animation in model.GetAllAnimations(FileLoader))
         {
             CancellationToken.ThrowIfCancellationRequested();
 
-            if (FileLoader.LoadFileCompiled(clipName)?.DataBlock is not VAnimationClip clip)
+            if (animation is not { RequiresRetarget: true, TargetSkeletonName: { } targetSkeletonName })
             {
                 continue;
             }
 
-            var animationName = ClipAnimationName(clip.Name);
+            var animationName = ClipAnimationName(animation.Name);
 
             if (!IncludeAnimation(animationFilter, animationName))
             {
@@ -255,14 +255,14 @@ public partial class GltfModelExporter
                 continue;
             }
 
-            if (!retargets.TryGetValue(clip.SkeletonName, out var retarget))
+            if (!retargets.TryGetValue(targetSkeletonName, out var retarget))
             {
-                retargets[clip.SkeletonName] = retarget = BuildClipRetarget(model, joints, clip.SkeletonName);
+                retargets[targetSkeletonName] = retarget = BuildClipRetarget(model, joints, targetSkeletonName);
             }
 
             if (retarget != null)
             {
-                retarget.Value.Writer.WriteAnimation(exportedModel, retarget.Value.Joints, new ClipAnimation(clip), animationName);
+                retarget.Value.Writer.WriteAnimation(exportedModel, retarget.Value.Joints, animation, animationName);
                 writtenNames.Add(animationName);
             }
         }

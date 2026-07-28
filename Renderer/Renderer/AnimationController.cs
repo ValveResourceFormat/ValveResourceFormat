@@ -320,6 +320,15 @@ namespace ValveResourceFormat.Renderer
         public IReadOnlyDictionary<string, ExternalSkeleton> ExternalSkeletons => externalSkeletons;
 
         /// <summary>
+        /// Whether the animation can play correctly on this controller. Animations targeting another
+        /// skeleton are only playable when that skeleton is registered; without it, playback would map
+        /// the clip's tracks onto the model skeleton by index.
+        /// </summary>
+        public bool IsPlayable(Animation animation)
+            => animation is not ClipAnimation clipAnimation
+                || externalSkeletons.ContainsKey(clipAnimation.Clip.SkeletonName);
+
+        /// <summary>
         /// Registers an external skeleton animations can be played on, creating a bone remapping table.
         /// </summary>
         /// <param name="skeletonName">The name identifying the external skeleton.</param>

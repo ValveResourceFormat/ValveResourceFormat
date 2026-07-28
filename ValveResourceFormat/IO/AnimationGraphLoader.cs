@@ -13,8 +13,9 @@ namespace ValveResourceFormat.IO
 
         /// <summary>
         /// Gets the clip (.vnmclip) resource names referenced by the model's animation graphs, recursing
-        /// into nested graphs. These are not part of <see cref="Model.GetAllAnimations"/>. The returned
-        /// list is de-duplicated (each clip appears once) and preserves first-seen order.
+        /// into nested graphs. <see cref="Model.GetAllAnimations"/> loads these clips as part of the
+        /// model's animation set. The returned list is de-duplicated (each clip appears once) and
+        /// preserves first-seen order.
         /// </summary>
         public static IReadOnlyList<string> GetClipNames(Model model, IFileLoader fileLoader)
         {

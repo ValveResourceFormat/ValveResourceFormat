@@ -363,7 +363,7 @@ public class ViewmodelSceneNode : ModelSceneNode
     private const string MuzzleFlashAttachment = "muzzle_flash2";
 
     internal ViewmodelSceneNode(Scene scene, Model model)
-        : base(scene, model, null, true)
+        : base(scene, model)
     {
         AnimationController.EnableFirstPersonConstraints = true;
         SetState(AnimationState.Idle);
