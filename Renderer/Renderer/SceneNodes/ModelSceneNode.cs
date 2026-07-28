@@ -120,11 +120,6 @@ namespace ValveResourceFormat.Renderer.SceneNodes
                     var skeleton = Skeleton.FromSkeletonData(skeletonData.Data);
                     AnimationController.RegisterExternalSkeleton(skeletonName, skeleton);
                 }
-
-                foreach (var clipName in AnimationGraphLoader.GetClipNames(model, Scene.RendererContext.FileLoader))
-                {
-                    LoadAnimationClip(clipName);
-                }
             }
 
             if (skin != null)
@@ -418,6 +413,8 @@ namespace ValveResourceFormat.Renderer.SceneNodes
             var animations = (embeddedAnimationsOnly
                 ? model.GetEmbeddedAnimations()
                 : model.GetAllAnimations(Scene.RendererContext.FileLoader)).ToList();
+
+            animations.RemoveAll(animation => !AnimationController.IsPlayable(animation));
 
             AddAnimations(animations);
 

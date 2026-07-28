@@ -39,6 +39,18 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
         public virtual bool SupportsMixerAdditive => false;
 
         /// <summary>
+        /// Gets whether this animation is authored on a different skeleton and must be retargeted
+        /// onto the model skeleton to play or export on it.
+        /// </summary>
+        public virtual bool RequiresRetarget => false;
+
+        /// <summary>
+        /// Gets the resource name of the skeleton this animation is authored on, or
+        /// <see langword="null"/> when it is the model's own skeleton.
+        /// </summary>
+        public virtual string? TargetSkeletonName => null;
+
+        /// <summary>
         /// Composes an already-decoded additive frame over the skeleton bind pose, in place.
         /// </summary>
         public abstract void ComposeAdditiveOverBindPose(FrameBone[] bones, Skeleton skeleton);

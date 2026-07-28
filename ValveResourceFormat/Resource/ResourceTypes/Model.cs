@@ -494,6 +494,22 @@ namespace ValveResourceFormat.ResourceTypes
                 }
             }
 
+            // Animation graph (AG2) clips are part of the model's animation set.
+            foreach (var clipName in IO.AnimationGraphLoader.GetClipNames(this, fileLoader))
+            {
+                try
+                {
+                    if (fileLoader.LoadFileCompiled(clipName)?.DataBlock is ModelAnimation2.AnimationClip clip)
+                    {
+                        animations.Add(new ClipAnimation(clip));
+                    }
+                }
+                catch (Exception e)
+                {
+                    Console.Error.WriteLine(e.ToString());
+                }
+            }
+
             HashSet<string> additiveSequences;
             try
             {
@@ -503,6 +519,15 @@ namespace ValveResourceFormat.ResourceTypes
             {
                 Console.Error.WriteLine(e.ToString());
                 additiveSequences = [];
+            }
+
+            // Legacy sequences sharing an additive clip's name (retarget sources) inherit its flag.
+            foreach (var animation in animations)
+            {
+                if (animation is ClipAnimation { IsAdditive: true })
+                {
+                    additiveSequences.Add(System.IO.Path.GetFileNameWithoutExtension(animation.Name));
+                }
             }
 
             // Referenced animations are shared instances stamped by their owning model, so they are
