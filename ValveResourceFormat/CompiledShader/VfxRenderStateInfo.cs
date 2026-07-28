@@ -255,8 +255,34 @@ public class VfxRenderStateInfoPixelShader : VfxRenderStateInfo
         /// <summary>
         /// Initializes a new instance of the <see cref="RsDepthStencilStateDesc"/> class.
         /// </summary>
-        public RsDepthStencilStateDesc(ulong depthStencilBits)
+        /// <param name="depthStencilBits">The packed bitfield value.</param>
+        /// <param name="vcsVersion">The VCS version, which selects the bit layout.</param>
+        public RsDepthStencilStateDesc(ulong depthStencilBits, int vcsVersion)
         {
+            if (vcsVersion >= 71)
+            {
+                DepthTestEnable = (depthStencilBits & 1) != 0;
+                DepthWriteEnable = ((depthStencilBits >> 1) & 1) != 0;
+                DepthFunc = (RsComparison)((depthStencilBits >> 2) & 0xF);
+
+                var stencilBits = depthStencilBits >> 16;
+
+                FrontStencilFunc = (RsComparison)(stencilBits & 0xF);
+                BackStencilFunc = (RsComparison)((stencilBits >> 4) & 0xF);
+                StencilEnable = ((stencilBits >> 8) & 1) != 0;
+                FrontStencilFailOp = (RsStencilOp)((stencilBits >> 9) & 0x7);
+                FrontStencilDepthFailOp = (RsStencilOp)((stencilBits >> 12) & 0x7);
+                FrontStencilPassOp = (RsStencilOp)((stencilBits >> 15) & 0x7);
+                BackStencilFailOp = (RsStencilOp)((stencilBits >> 18) & 0x7);
+                BackStencilDepthFailOp = (RsStencilOp)((stencilBits >> 21) & 0x7);
+                BackStencilPassOp = (RsStencilOp)((stencilBits >> 24) & 0x7);
+
+                StencilReadMask = (byte)((depthStencilBits >> 48) & 0xFF);
+                StencilWriteMask = (byte)((depthStencilBits >> 56) & 0xFF);
+
+                return;
+            }
+
             // Depth state
             DepthTestEnable = (depthStencilBits & 1) != 0;
             DepthWriteEnable = ((depthStencilBits >> 1) & 1) != 0;
@@ -509,7 +535,7 @@ public class VfxRenderStateInfoPixelShader : VfxRenderStateInfo
     /// <summary>
     /// Initializes a new instance of the <see cref="VfxRenderStateInfoPixelShader"/> class.
     /// </summary>
-    public VfxRenderStateInfoPixelShader(long comboId, int shaderId, int sourcePointer, KVObject renderState)
+    public VfxRenderStateInfoPixelShader(long comboId, int shaderId, int sourcePointer, KVObject renderState, int vcsVersion)
         : base(comboId, shaderId, sourcePointer)
     {
         if (renderState is null)
@@ -524,7 +550,7 @@ public class VfxRenderStateInfoPixelShader : VfxRenderStateInfo
 
         if (renderState.ContainsKey("depthStencilStateDesc"))
         {
-            DepthStencilStateDesc = new RsDepthStencilStateDesc(renderState.GetUnsignedIntegerProperty("depthStencilStateDesc"));
+            DepthStencilStateDesc = new RsDepthStencilStateDesc(renderState.GetUnsignedIntegerProperty("depthStencilStateDesc"), vcsVersion);
         }
 
         // PSRS only has blendStateDesc
