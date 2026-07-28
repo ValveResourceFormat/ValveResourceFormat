@@ -102,6 +102,15 @@ partial class ModelExtract
     /// Converts an animation to DMX format using skeleton and flex controllers.
     /// </summary>
     public static byte[] ToDmxAnim(Skeleton skeleton, FlexController[] flexControllers, Animation anim, bool nmSkelAxisFixup = false)
+        => ToDmxAnim(skeleton, flexControllers, anim, [], nmSkelAxisFixup);
+
+    /// <summary>
+    /// Converts an animation to DMX format using skeleton and flex controllers. Secondary animations
+    /// (an NM clip's tracks for further skeletons, e.g. the weapon of a viewmodel clip) are written
+    /// into the same DMX, their joints appended beside the primary skeleton's.
+    /// </summary>
+    public static byte[] ToDmxAnim(Skeleton skeleton, FlexController[] flexControllers, Animation anim,
+        IReadOnlyList<(Skeleton Skeleton, Animation Animation)> secondaryAnimations, bool nmSkelAxisFixup = false)
     {
         using var dmx = new Datamodel.Datamodel("model", 22);
 
@@ -146,6 +155,29 @@ partial class ModelExtract
             ProcessFlexChannels(flexControllers, anim, clip, frames);
         }
 
+        foreach (var (secondarySkeleton, secondaryAnimation) in secondaryAnimations)
+        {
+            if (secondaryAnimation.FrameCount == 0)
+            {
+                continue;
+            }
+
+            var secondaryTransforms = AppendDmeSkeletonJoints(dmeSkeleton, secondarySkeleton);
+
+            var secondaryFrames = new Frame[secondaryAnimation.FrameCount];
+            for (var i = 0; i < secondaryAnimation.FrameCount; i++)
+            {
+                var frame = new Frame(secondarySkeleton, [])
+                {
+                    FrameIndex = i
+                };
+                secondaryAnimation.DecodeFrame(frame);
+                secondaryFrames[i] = frame;
+            }
+
+            ProcessBoneChannels(secondarySkeleton, secondaryAnimation, secondaryTransforms, clip, secondaryFrames);
+        }
+
         animationList.Animations.Add(clip);
 
         using var stream = new MemoryStream();
@@ -177,9 +209,37 @@ partial class ModelExtract
     private static DmeModel BuildDmeDagSkeleton(Skeleton skeleton, out DmeTransform[] transforms, bool nmSkelAxisFixup = false)
     {
         var dmeSkeleton = new DmeModel();
-        var children = new ElementArray();
 
-        transforms = new DmeTransform[skeleton.Bones.Length];
+        transforms = AppendDmeSkeletonJoints(dmeSkeleton, skeleton);
+
+        var rootMotionBone = skeleton["root_motion"];
+
+        if (nmSkelAxisFixup && rootMotionBone != null)
+        {
+            // dmeSkeleton.AxisSystem.UpAxis = 2;
+            // dmeSkeleton.AxisSystem.ForwardParity = -1;
+            // dmeSkeleton.AxisSystem.CoordSys = 2;
+
+            var inverseNmSkelFixup = Quaternion.Inverse(NmSkelRotationFixup);
+            transforms[rootMotionBone.Index].Orientation *= inverseNmSkelFixup;
+
+            foreach (var root in rootMotionBone.Children)
+            {
+                transforms[root.Index].Position = Vector3.Transform(root.Position, NmSkelRotationFixup);
+                transforms[root.Index].Orientation *= NmSkelRotationFixup;
+            }
+        }
+
+        return dmeSkeleton;
+    }
+
+    /// <summary>
+    /// Adds one skeleton's joints to a DmeModel, its roots as children of the model, and returns the
+    /// joint transforms indexed by bone index.
+    /// </summary>
+    private static DmeTransform[] AppendDmeSkeletonJoints(DmeModel dmeSkeleton, Skeleton skeleton)
+    {
+        var transforms = new DmeTransform[skeleton.Bones.Length];
         var boneDags = new DmeJoint[skeleton.Bones.Length];
 
         foreach (var bone in skeleton.Bones)
@@ -214,25 +274,7 @@ partial class ModelExtract
             }
         }
 
-        var rootMotionBone = skeleton["root_motion"];
-
-        if (nmSkelAxisFixup && rootMotionBone != null)
-        {
-            // dmeSkeleton.AxisSystem.UpAxis = 2;
-            // dmeSkeleton.AxisSystem.ForwardParity = -1;
-            // dmeSkeleton.AxisSystem.CoordSys = 2;
-
-            var inverseNmSkelFixup = Quaternion.Inverse(NmSkelRotationFixup);
-            transforms[rootMotionBone.Index].Orientation *= inverseNmSkelFixup;
-
-            foreach (var root in rootMotionBone.Children)
-            {
-                transforms[root.Index].Position = Vector3.Transform(root.Position, NmSkelRotationFixup);
-                transforms[root.Index].Orientation *= NmSkelRotationFixup;
-            }
-        }
-
-        return dmeSkeleton;
+        return transforms;
     }
 
     private static DmeChannel BuildDmeChannel<T>(string name, Element toElement, string toAttribute, out DmeLog<T> log)

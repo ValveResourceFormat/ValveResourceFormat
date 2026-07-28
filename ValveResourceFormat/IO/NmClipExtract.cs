@@ -71,9 +71,22 @@ public class NmClipExtract
             }
             kv.Add("m_bonesToSampleInModelSpace", bonesToSampleInModelSpace);
 
+            // Secondary animations (e.g. the weapon of a viewmodel clip) share the DMX; the compiler
+            // pulls each declared skeleton's tracks out of it by bone name.
+            var secondaryAnimations = new List<(ResourceTypes.ModelAnimation.Skeleton Skeleton, ResourceTypes.ModelAnimation.Animation Animation)>();
+            foreach (var secAnim in clip.SecondaryAnimations)
+            {
+                if (fileLoader.LoadFileCompiled(secAnim.SkeletonName)?.DataBlock is BinaryKV3 secSkeletonData)
+                {
+                    secondaryAnimations.Add((
+                        ResourceTypes.ModelAnimation.Skeleton.FromSkeletonData(secSkeletonData.Data),
+                        new ResourceTypes.ModelAnimation.ClipAnimation(secAnim)));
+                }
+            }
+
             contentFile.AddSubFile(Path.GetFileName(sourceFileName), () =>
             {
-                return ModelExtract.ToDmxAnim(skeleton, [], animation, nmSkelAxisFixup: true);
+                return ModelExtract.ToDmxAnim(skeleton, [], animation, secondaryAnimations, nmSkelAxisFixup: true);
             });
         }
 
