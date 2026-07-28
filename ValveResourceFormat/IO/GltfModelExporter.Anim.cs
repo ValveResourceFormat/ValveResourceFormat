@@ -6,8 +6,8 @@ using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.ResourceTypes.ModelAnimation;
 using ValveResourceFormat.ResourceTypes.ModelFlex;
 using VAnim = ValveResourceFormat.ResourceTypes.ModelAnimation.Animation;
-using VAnimationClip = ValveResourceFormat.ResourceTypes.ModelAnimation2.AnimationClip;
 using VModel = ValveResourceFormat.ResourceTypes.Model;
+using VMesh = ValveResourceFormat.ResourceTypes.Mesh;
 
 namespace ValveResourceFormat.IO;
 
@@ -374,6 +374,102 @@ public partial class GltfModelExporter
             outputAnimation.CreateRotationChannel(jointNode, rotationWriter.Channels[m], true);
             outputAnimation.CreateTranslationChannel(jointNode, positionWriter.Channels[m], true);
             outputAnimation.CreateScaleChannel(jointNode, scaleWriter.Channels[m], true);
+        }
+    }
+
+    /// <summary>
+    /// Writes morph-target weight animation. glTF has no flex controllers, so each mesh's flex rules
+    /// are evaluated per frame from the animation's controller values (Frame.Datas) and the resulting
+    /// morph weights are baked.
+    /// </summary>
+    private void WriteMorphAnimations(ModelRoot exportedModel, VModel model, List<(Node Node, VMesh Mesh)> morphedMeshes, HashSet<string> animationFilter)
+    {
+        var meshTargets = new List<(Node Node, List<int> MorphFlexIds, Dictionary<int, FlexRule> RuleByFlexId)>();
+
+        foreach (var (node, mesh) in morphedMeshes)
+        {
+            var morph = mesh.MorphData!;
+            var descriptors = morph.GetFlexDescriptors();
+            var flexData = morph.GetFlexVertexData();
+
+            // The mesh's glTF morph targets are the flex descriptors that have flex data, in descriptor order.
+            var morphFlexIds = new List<int>();
+            for (var d = 0; d < descriptors.Count; d++)
+            {
+                if (flexData.ContainsKey(descriptors[d]))
+                {
+                    morphFlexIds.Add(d);
+                }
+            }
+
+            if (morphFlexIds.Count == 0)
+            {
+                continue;
+            }
+
+            var ruleByFlexId = new Dictionary<int, FlexRule>();
+            foreach (var rule in morph.FlexRules)
+            {
+                ruleByFlexId[rule.FlexID] = rule;
+            }
+
+            meshTargets.Add((node, morphFlexIds, ruleByFlexId));
+        }
+
+        if (meshTargets.Count == 0)
+        {
+            return;
+        }
+
+        var frame = new Frame(model.Skeleton, model.FlexControllers);
+
+        foreach (var animation in model.GetAllAnimations(FileLoader))
+        {
+            if (animation.RequiresRetarget || animation.FrameCount == 0 || !IncludeAnimation(animationFilter, animation.Name))
+            {
+                continue;
+            }
+
+            // The frame is shared across animations; each animation only writes the flex channels it animates.
+            frame.Clear(model.Skeleton);
+
+            var fps = animation.Fps <= 0f ? 1f : animation.Fps;
+            var keyframes = new Dictionary<float, float[]>[meshTargets.Count];
+            var anyWeight = new bool[meshTargets.Count];
+            for (var t = 0; t < meshTargets.Count; t++)
+            {
+                keyframes[t] = [];
+            }
+
+            for (var f = 0; f < animation.FrameCount; f++)
+            {
+                frame.FrameIndex = f;
+                animation.DecodeFrame(frame);
+
+                for (var t = 0; t < meshTargets.Count; t++)
+                {
+                    var (_, morphFlexIds, ruleByFlexId) = meshTargets[t];
+                    var weights = new float[morphFlexIds.Count];
+                    for (var i = 0; i < morphFlexIds.Count; i++)
+                    {
+                        if (ruleByFlexId.TryGetValue(morphFlexIds[i], out var rule))
+                        {
+                            weights[i] = rule.Evaluate(frame.Datas);
+                            anyWeight[t] |= weights[i] != 0f;
+                        }
+                    }
+
+                    keyframes[t][f / fps] = weights;
+                }
+            }
+
+            for (var t = 0; t < meshTargets.Count; t++)
+            {
+                if (anyWeight[t])
+                {
+                    exportedModel.UseAnimation(animation.Name).CreateMorphChannel(meshTargets[t].Node, keyframes[t], meshTargets[t].MorphFlexIds.Count);
+                }
+            }
         }
     }
 
