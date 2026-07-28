@@ -31,15 +31,10 @@ namespace Tests.Renderer
 
             // The clip runs 25 frames at 30fps, so a full second overshoots its end and pauses it.
             Assert.That(controller.Update(1f), Is.True);
-            Assert.That(controller.IsPaused, Is.False, "the mixer only observes the finished clip on the next tick");
-
-            Assert.That(controller.Update(0f), Is.True);
 
             using (Assert.EnterMultipleScope())
             {
-                // UpdateClips writes IsPaused on the player. The controller reads through to it
-                // rather than holding a copy that has to be pushed back after every update.
-                Assert.That(controller.IsPaused, Is.True);
+                Assert.That(controller.IsPaused, Is.True, "finishing the clip pauses the player on the same tick");
                 Assert.That(controller.ActiveClipFinished, Is.True);
                 Assert.That(controller.Frame, Is.EqualTo(walk.FrameCount - 1));
             }
