@@ -494,7 +494,7 @@ namespace GUI.Types.GLViewers
                 var time = animationController.Time % totalTime;
                 var frameNumber = animationController.Frame + 1;
 
-                var additive = animationController.ActiveAnimation.Clip is { IsAdditive: true }
+                var additive = animationController.ActiveAnimation.IsAdditive
                     ? "Additive: true\n"
                     : string.Empty;
 

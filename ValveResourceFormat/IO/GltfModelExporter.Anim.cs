@@ -89,7 +89,7 @@ public partial class GltfModelExporter
             }
 
             // bake additive clips over the bind pose, same as the renderer
-            var additive = animation.Clip?.IsAdditive ?? false;
+            var additive = animation.IsAdditive;
 
             for (var f = 0; f < animation.FrameCount; f++)
             {
@@ -262,7 +262,7 @@ public partial class GltfModelExporter
 
             if (retarget != null)
             {
-                retarget.Value.Writer.WriteAnimation(exportedModel, retarget.Value.Joints, new VAnim(clip), animationName);
+                retarget.Value.Writer.WriteAnimation(exportedModel, retarget.Value.Joints, new ClipAnimation(clip), animationName);
                 writtenNames.Add(animationName);
             }
         }

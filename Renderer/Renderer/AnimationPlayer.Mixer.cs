@@ -312,7 +312,7 @@ namespace ValveResourceFormat.Renderer
             // Check if clip already exists
             if (!clips.TryGetValue(animName, out var newClip))
             {
-                var isAdditive = animation.Clip?.IsAdditive == true;
+                var isAdditive = animation.IsAdditive;
                 newClip = new Clip(animation) { Looping = looping, BlendTime = blendTime, IsAdditive = isAdditive };
                 clips[animName] = newClip;
             }

@@ -19,7 +19,7 @@ namespace ValveResourceFormat.IO
         /// <param name="skeleton">The skeleton to apply animations to.</param>
         /// <param name="flexControllers">Flex controllers for facial animations.</param>
         /// <returns>Collection of loaded animations.</returns>
-        public static IEnumerable<Animation> LoadAnimationGroup(Resource resource, IFileLoader fileLoader, Skeleton skeleton, FlexController[] flexControllers)
+        public static IEnumerable<SequenceAnimation> LoadAnimationGroup(Resource resource, IFileLoader fileLoader, Skeleton skeleton, FlexController[] flexControllers)
         {
             var dataBlock = resource.DataBlock;
 
@@ -33,12 +33,12 @@ namespace ValveResourceFormat.IO
             // Get the key to decode the animations
             var decodeKey = data.GetSubCollection("m_decodeKey");
 
-            var animationList = new List<Animation>();
+            var animationList = new List<SequenceAnimation>();
             var animBlock = (KeyValuesOrNTRO?)resource.GetBlockByType(BlockType.ANIM);
 
             if (animBlock != null)
             {
-                animationList.AddRange(Animation.FromData(animBlock.Data, decodeKey, skeleton, flexControllers));
+                animationList.AddRange(SequenceAnimation.FromData(animBlock.Data, decodeKey, skeleton, flexControllers));
                 return animationList;
             }
 
@@ -53,7 +53,7 @@ namespace ValveResourceFormat.IO
                 if (animResource != null)
                 {
                     // Build animation classes
-                    animationList.AddRange(Animation.FromResource(animResource, decodeKey, skeleton, flexControllers));
+                    animationList.AddRange(SequenceAnimation.FromResource(animResource, decodeKey, skeleton, flexControllers));
                 }
             }
 
