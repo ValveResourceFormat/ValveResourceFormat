@@ -754,6 +754,17 @@ namespace GUI.Types.GLViewers
                     Text = speedText.Format($"Speed: {Input.Velocity.AsVector2().Length():0.0} u/s"),
                     CenterHorizontal = true,
                 }, Renderer.Camera);
+
+                var pos = Renderer.Camera.Location;
+                TextRenderer.AddTextRelative(new ValveResourceFormat.Renderer.TextRenderer.TextRenderRequest
+                {
+                    X = 0.5f,
+                    Y = 0.875f,
+                    Scale = 12f,
+                    Color = Color32.Yellow,
+                    Text = $"Pos: {pos.X:0.0} {pos.Y:0.0} {pos.Z:0.0}",
+                    CenterHorizontal = true,
+                }, Renderer.Camera);
             }
 
             if (showVisDebug && Scene.VoxelVisibility != null)
