@@ -171,7 +171,7 @@ namespace ValveResourceFormat.Renderer
         /// <see cref="Renderer"/> reads the main scene's copy when driving every binner, so that one also
         /// governs the 3D skybox. The skybox scene's own copy is never what the viewer toggles.
         /// </remarks>
-        public bool EnableLightTileCulling { get; set; } = true;
+        public bool EnableTiledLightCulling { get; set; } = true;
 
         internal bool DrawMeshletsIndirect { get; private set; }
         internal bool CompactMeshletDraws { get; private set; }
