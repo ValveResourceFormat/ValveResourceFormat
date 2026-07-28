@@ -90,7 +90,7 @@ namespace ValveResourceFormat.Renderer
         public bool IsUsingMixer => player.IsUsingMixer;
 
         /// <summary>Gets the clips of the player currently driving the pose.</summary>
-        public Dictionary<string, AnimationPlayer.Clip> Clips => player.Clips;
+        public Dictionary<string, AnimationPlayer.PlaybackClip> Clips => player.Clips;
 
         /// <summary>
         /// Initializes a new <see cref="AnimationController"/> for the given skeleton and flex controllers,
