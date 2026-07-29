@@ -57,9 +57,24 @@ struct CullLookup_t
     uint m_nBin;
 };
 
+// Set by a pass whose vertices are displaced in clip space
+bool g_bCullFromShadedPosition = false;
+
 CullLookup_t GetCullLookup(vec3 positionWs)
 {
-    vec2 cullPixel = (gl_FragCoord.xy * g_vLightCullPixelRemap.xy) + g_vLightCullPixelRemap.zw;
+    vec2 cullPixelVs = gl_FragCoord.xy;
+
+    // A pass that displaces the vertex in clip space rasterizes somewhere other than where the world
+    // position it shades with projects, so its gl_FragCoord names the wrong tile.
+    if (g_bCullFromShadedPosition)
+    {
+        vec4 cullClip = g_matWorldToProjection * vec4(positionWs, 1.0);
+        vec2 cullNdc = cullClip.xy / max(cullClip.w, 1e-6);
+        cullPixelVs = ((cullNdc * 0.5) + 0.5) * g_vViewportSize;
+    }
+
+    // Carries the pixel into the view the masks were built for; identity for everything but the viewmodel.
+    vec2 cullPixel = (cullPixelVs * g_vLightCullPixelRemap.xy) + g_vLightCullPixelRemap.zw;
 
     uvec2 tile = uvec2(clamp(cullPixel, vec2(0.0), g_vViewportSize - 1.0)) >> uvec2(g_nLightTileShift);
     tile = min(tile, uvec2(g_nLightTileCols, g_nLightTileRows) - 1u);

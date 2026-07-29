@@ -662,8 +662,12 @@ MaterialProperties_t GetMaterial(vec2 texCoord, vec3 vertexNormals)
 
 // MAIN
 
+uniform int g_bFirstpersonLegsDistortion = 0;
+
 void main()
 {
+    g_bCullFromShadedPosition = g_bFirstpersonLegsDistortion != 0;
+
     vec3 vertexNormal = SwitchCentroidNormal(vNormalOut, vCentroidNormalOut);
     vec2 texCoord = vTexCoordOut;
 
