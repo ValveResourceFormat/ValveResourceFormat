@@ -44,6 +44,13 @@ namespace ValveResourceFormat.Renderer.Shaders
         /// <summary>Gets the set of reserved texture uniform names that are actively used by this shader.</summary>
         public HashSet<string> ReservedTexturesUsed { get; } = [];
 
+        /// <summary>
+        /// Gets a value indicating whether the linked program samples <c>g_tSceneColor</c>.
+        /// Only meaningful once <see cref="EnsureLoaded"/> has run; shaders compiled without blocking report
+        /// <see langword="false"/> until their first use.
+        /// </summary>
+        public bool ReadsSceneColor { get; private set; }
+
         private readonly Dictionary<string, (ActiveUniformType Type, int Location, bool SrgbRead)> Uniforms = [];
 
         /// <summary>Gets the default <see cref="RenderMaterial"/> whose values serve as fallbacks when a material omits a uniform.</summary>
@@ -154,6 +161,7 @@ namespace ValveResourceFormat.Renderer.Shaders
                     if (isReserved)
                     {
                         ReservedTexturesUsed.Add(name);
+                        ReadsSceneColor |= name == "g_tSceneColor";
                         continue;
                     }
 
@@ -536,6 +544,9 @@ namespace ValveResourceFormat.Renderer.Shaders
 
             RenderModes.Clear();
             RenderModes.UnionWith(shader.RenderModes);
+
+            ReservedTexturesUsed.Clear();
+            ReadsSceneColor = false;
 
             Uniforms.Clear();
             Attributes.Clear();

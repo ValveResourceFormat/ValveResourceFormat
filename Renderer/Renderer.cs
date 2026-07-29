@@ -453,6 +453,7 @@ public class Renderer
 
     private static void RenderTranslucentLayer(Scene scene, Scene.RenderContext renderContext)
     {
+        scene.RenderOpaqueRefractLayer(renderContext);
         scene.RenderWaterLayer(renderContext);
 
         GL.DepthMask(false);

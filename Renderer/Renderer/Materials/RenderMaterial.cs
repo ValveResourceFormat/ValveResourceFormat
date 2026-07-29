@@ -108,6 +108,14 @@ namespace ValveResourceFormat.Renderer.Materials
         /// <summary>Gets a value indicating whether this material uses the CS2 water rendering path.</summary>
         public bool IsCs2Water { get; private set; }
 
+        /// <summary>
+        /// Gets a value indicating whether this material's shader samples the scene color texture, and therefore
+        /// has to be drawn after the framebuffer grab in <see cref="RenderPass.OpaqueRefract"/> or <see cref="RenderPass.Water"/>.
+        /// Queried live rather than cached: shaders are compiled without blocking, so this only becomes true once
+        /// the program has been linked and reflected, which is one frame after the material is first collected.
+        /// </summary>
+        public bool ReadsSceneColor => Shader.ReadsSceneColor;
+
         /// <summary>Gets a value indicating whether this material drives vertex animation (foliage or morph-based).</summary>
         public bool VertexAnimation { get; private set; }
 

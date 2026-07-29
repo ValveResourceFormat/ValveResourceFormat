@@ -719,6 +719,7 @@ namespace ValveResourceFormat.Renderer
             [RenderPass.OpaqueFragments] = [],
             [RenderPass.Opaque] = [],
             [RenderPass.StaticOverlay] = [],
+            [RenderPass.OpaqueRefract] = [],
             [RenderPass.Water] = [],
             [RenderPass.Translucent] = [],
             [RenderPass.Outline] = [],
@@ -755,11 +756,13 @@ namespace ValveResourceFormat.Renderer
                 renderLists[RenderPass.Outline].Add(request);
             }
 
+            var readsSceneColor = request.Call.Material.ReadsSceneColor;
+
             if (renderPass == RenderPass.OpaqueAggregate)
             {
                 if (request.Node is SceneAggregate { CanDrawIndirect: true })
                 {
-                    if (EnableDepthPrepass)
+                    if (EnableDepthPrepass && !readsSceneColor)
                     {
                         var bucket = GetSpecializedDepthOnlyShader(false, request.Mesh, request.Call);
                         depthOnlyDraws[bucket].Add(request);
@@ -783,15 +786,22 @@ namespace ValveResourceFormat.Renderer
                 ? viewmodelRenderLists[renderPass]
                 : renderLists[renderPass];
 
-            if (renderPass == RenderPass.Translucent)
-            {
-                WantsSceneColor |= request.Call.Material.Shader.ReservedTexturesUsed.Contains("g_tSceneColor");
-                WantsSceneDepth |= request.Call.Material.Shader.ReservedTexturesUsed.Contains("g_tSceneDepth");
+            var isLatePass = renderPass == RenderPass.Translucent;
 
-                if (!isViewmodelLayer && request.Call.Material.IsCs2Water)
-                {
-                    queueList = renderLists[RenderPass.Water];
-                }
+            if ((readsSceneColor || request.Call.Material.IsCs2Water) && !isViewmodelLayer && renderPass != RenderPass.StaticOverlay)
+            {
+                queueList = renderLists[request.Call.Material.IsTranslucent
+                    ? RenderPass.Water
+                    : RenderPass.OpaqueRefract];
+
+                isLatePass = true;
+            }
+
+            // Only draws that happen after the grab can make use of the resolved copies.
+            if (isLatePass)
+            {
+                WantsSceneColor |= readsSceneColor;
+                WantsSceneDepth |= request.Call.Material.Shader.ReservedTexturesUsed.Contains("g_tSceneDepth");
             }
 
             queueList.Add(request);
@@ -1445,14 +1455,42 @@ namespace ValveResourceFormat.Renderer
             GL.DepthMask(true);
         }
 
+        /// <summary>
+        /// Renders depth-writing geometry that samples the scene color, collected during <see cref="CollectSceneDrawCalls"/>.
+        /// Runs after the framebuffer grab but before water and translucents, so those still sort against its depth.
+        /// </summary>
+        /// <param name="renderContext">The render context for this pass.</param>
+        public void RenderOpaqueRefractLayer(RenderContext renderContext)
+        {
+            var requests = renderLists[RenderPass.OpaqueRefract];
+
+            if (requests.Count == 0)
+            {
+                return;
+            }
+
+            using (new GLDebugGroup("Opaque Refract Render"))
+            {
+                renderContext.RenderPass = RenderPass.OpaqueRefract;
+                MeshBatchRenderer.Render(requests, renderContext);
+            }
+        }
+
         /// <summary>Renders water draw calls collected during <see cref="CollectSceneDrawCalls"/>.</summary>
         /// <param name="renderContext">The render context for this pass.</param>
         public void RenderWaterLayer(RenderContext renderContext)
         {
+            var requests = renderLists[RenderPass.Water];
+
+            if (requests.Count == 0)
+            {
+                return;
+            }
+
             using (new GLDebugGroup("Fancy Water Render"))
             {
                 renderContext.RenderPass = RenderPass.Water;
-                MeshBatchRenderer.Render(renderLists[RenderPass.Water], renderContext);
+                MeshBatchRenderer.Render(requests, renderContext);
             }
         }
 

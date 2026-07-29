@@ -76,7 +76,7 @@ namespace ValveResourceFormat.Renderer
         /// <param name="context">Render context describing the current pass and scene state.</param>
         public static void Render(List<Request> requests, Scene.RenderContext context)
         {
-            if (context.RenderPass == RenderPass.Opaque)
+            if (context.RenderPass is RenderPass.Opaque or RenderPass.OpaqueRefract)
             {
                 requests.Sort(CompareCustomPipeline);
             }
