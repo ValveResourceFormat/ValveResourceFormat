@@ -71,6 +71,8 @@ namespace Tests
             return new ClipAnimation((AnimationClip)resource.DataBlock!);
         }
 
+        private static readonly string[] ClipEventClasses = ["CNmIDEvent", "CNmParticleEvent", "CNmSoundEvent", "CNmParticleEvent"];
+
         [Test]
         public void EventsAreReadFromClip()
         {
@@ -83,8 +85,7 @@ namespace Tests
             using (Assert.EnterMultipleScope())
             {
                 Assert.That(animation.Duration, Is.EqualTo(0.8f).Within(0.0001f));
-                Assert.That(animation.Events.Select(e => e.ClassName), Is.EqualTo(
-                    new[] { "CNmIDEvent", "CNmParticleEvent", "CNmSoundEvent", "CNmParticleEvent" }));
+                Assert.That(animation.Events.Select(e => e.ClassName), Is.EqualTo(ClipEventClasses));
 
                 // Times are stored normalized in the resource, they are exposed in seconds
                 Assert.That(soundEvent.Name, Is.EqualTo("Weapon_Nova.Pump_Q"));
