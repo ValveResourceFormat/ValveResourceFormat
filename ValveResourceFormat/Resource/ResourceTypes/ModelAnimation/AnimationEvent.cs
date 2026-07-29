@@ -7,7 +7,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
     /// Represents an event that occurs at a specific frame in an animation.
     /// </summary>
     /// <seealso href="https://s2v.app/SchemaExplorer/cs2/animationsystem/CAnimEventDefinition">CAnimEventDefinition</seealso>
-    public readonly struct AnimationEvent
+    public readonly struct AnimationEvent : IAnimationEvent
     {
         /// <summary>
         /// Gets the name of the event.
@@ -34,16 +34,31 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
         /// </summary>
         public string Options { get; init; }
 
+        /// <inheritdoc/>
+        /// <remarks>
+        /// Derived from <see cref="Frame"/> and the frame rate of the animation the event belongs to.
+        /// </remarks>
+        public float StartTime { get; init; }
+
+        /// <inheritdoc/>
+        /// <remarks>
+        /// Always zero, sequence events fire at a single frame.
+        /// </remarks>
+        public float Duration => 0f;
+
         /// <summary>
         /// Initializes a new instance of the <see cref="AnimationEvent"/> struct.
         /// </summary>
-        public AnimationEvent(KVObject data)
+        /// <param name="data">The event data.</param>
+        /// <param name="fps">The frame rate of the animation the event belongs to, used to time the event.</param>
+        public AnimationEvent(KVObject data, float fps)
         {
             Name = data.GetStringProperty("m_sEventName");
             Frame = data.GetInt32Property("m_nFrame");
             Cycle = data.GetFloatProperty("m_flCycle");
             EventData = data.GetSubCollection("m_EventData");
             Options = data.GetStringProperty("m_sOptions");
+            StartTime = fps > 0f ? Frame / fps : 0f;
         }
     }
 }

@@ -21,6 +21,11 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
         public int FrameCount { get; protected init; }
 
         /// <summary>
+        /// Gets the duration of the animation in seconds, which is also the period looping playback wraps around.
+        /// </summary>
+        public virtual float Duration => Fps > 0f ? FrameCount / Fps : 0f;
+
+        /// <summary>
         /// Gets a value indicating whether this animation is additive.
         /// </summary>
         public virtual bool IsAdditive => false;
