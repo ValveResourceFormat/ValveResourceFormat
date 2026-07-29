@@ -100,6 +100,23 @@ namespace Tests.Renderer
         }
 
         [Test]
+        public void PreprocessedSourceCanBePatched()
+        {
+            // Shaders can also be customized by patching the preprocessed source instead of overriding whole files.
+            // Note the result cannot be written back out as a shader file, as it is already fully inlined.
+            var parsedData = new ShaderLoader.ParsedShaderData();
+            var patched = Preprocess("complex.vert.slang", parsedData)
+                .Replace("void main()", "void PatchedMain()", StringComparison.Ordinal);
+
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(patched, Does.Contain("void PatchedMain()"));
+                Assert.That(patched, Does.Not.Contain("void main()"));
+                Assert.That(parsedData.Sources, Is.Empty, "Sources are only filled in by ShaderLoader when it compiles a shader");
+            }
+        }
+
+        [Test]
         public void ShaderMappingsOverrideBuiltinOnes()
         {
             Assert.That(ShaderLoader.GetShaderFileByName("mygame_glass.vfx"), Is.EqualTo("complex"));
