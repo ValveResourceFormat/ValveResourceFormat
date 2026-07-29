@@ -1,9 +1,11 @@
-namespace ValveResourceFormat.ResourceTypes.ModelAnimation
+using ValveResourceFormat.ResourceTypes.ModelAnimation;
+
+namespace ValveResourceFormat.Renderer
 {
     /// <summary>
-    /// Enumerates the events whose start is crossed while playback advances over a cycle range, handling
-    /// loop wrap-around. Obtained from <see cref="SequenceAnimation.SampleEvents"/> or
-    /// <see cref="ClipAnimation.SampleEvents"/>; allocation free, so it can run every frame.
+    /// Enumerates the events whose start is crossed while playback advances over a time range, handling
+    /// loop wrap-around. Used by <see cref="AnimationPlayer"/> as it advances its clips; allocation free,
+    /// so it can run every frame.
     /// </summary>
     /// <typeparam name="T">The event type of the animation being played.</typeparam>
     public struct SampledAnimationEvents<T> where T : IAnimationEvent
@@ -34,7 +36,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
         /// at the exact end still fire, as the end is clamped to the last frame, which a half-open range would
         /// exclude forever.
         /// </param>
-        internal SampledAnimationEvents(T[] events, float duration, float previousTime, float newTime, bool finished)
+        public SampledAnimationEvents(T[] events, float duration, float previousTime, float newTime, bool finished)
         {
             // Nothing can fire on a still animation, or when playback jumped backwards (a restart)
             var still = duration <= 0f;

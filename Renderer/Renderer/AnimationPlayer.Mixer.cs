@@ -124,7 +124,10 @@ namespace ValveResourceFormat.Renderer
             {
                 if (!clip.IsPaused && clip.Animation.FrameCount > 1)
                 {
+                    var previousTime = clip.Time;
                     clip.Time += timeStep;
+
+                    var finished = false;
 
                     if (!clip.Looping)
                     {
@@ -134,9 +137,15 @@ namespace ValveResourceFormat.Renderer
                         if (clip.Time > maxTime)
                         {
                             clip.IsPaused = true;
+
+                            // Clamping the overshoot also keeps the event sampling below from wrapping
+                            // around and firing the events at the start of the clip again
                             clip.Frame = lastFrame;
+                            finished = true;
                         }
                     }
+
+                    SampleEvents(clip, previousTime, clip.Time, finished);
                 }
             }
 

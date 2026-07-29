@@ -1,4 +1,4 @@
-﻿using System.Linq;
+using System.Linq;
 using System.Runtime.InteropServices;
 using ValveKeyValue;
 using ValveResourceFormat.ResourceTypes.ModelAnimation.SegmentDecoders;
@@ -54,16 +54,6 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
         /// Gets the events defined in this animation.
         /// </summary>
         public AnimationEvent[] Events { get; }
-
-        /// <summary>
-        /// Enumerates the events whose start is crossed while playback advances from
-        /// <paramref name="previousTime"/> to <paramref name="newTime"/>, handling loop wrap-around.
-        /// </summary>
-        /// <param name="previousTime">The playback time in seconds before the update.</param>
-        /// <param name="newTime">The playback time in seconds after the update.</param>
-        /// <param name="finished">Whether this is the final update of a non looping playback, see <see cref="SampledAnimationEvents{T}"/>.</param>
-        public SampledAnimationEvents<AnimationEvent> SampleEvents(float previousTime, float newTime, bool finished = false)
-            => new(Events, Duration, previousTime, newTime, finished);
 
         /// <summary>
         /// Gets the activities associated with this animation.

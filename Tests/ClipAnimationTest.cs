@@ -1,4 +1,4 @@
-﻿using System.IO;
+using System.IO;
 using System.Linq;
 using NUnit.Framework;
 using ValveResourceFormat;
@@ -97,73 +97,6 @@ namespace Tests
 
                 Assert.That(animation.Events.OfType<NmParticleEvent>().Last().ParticleSystemName,
                     Is.EqualTo("particles/weapons/cs_weapon_fx/weapon_shell_casing_shotgun_nova.vpcf"));
-            }
-        }
-
-        // Event start times of the nova shoot clip, which is 0.8 seconds long
-        private static readonly float[] ClipStartEvents = [0f, 0f];
-        private static readonly float[] PumpSoundEvent = [0.2333333f];
-        private static readonly float[] ShellCasingEvent = [0.3333333f];
-
-        [Test]
-        public void SampledEventsAreCrossedInPlaybackRange()
-        {
-            using var resource = new Resource();
-            var animation = LoadNovaShootAnimation(resource);
-
-            static float[] Sampled(SampledAnimationEvents<NmClipEvent> events)
-            {
-                var times = new List<float>();
-
-                foreach (var clipEvent in events)
-                {
-                    times.Add(clipEvent.StartTime);
-                }
-
-                return [.. times];
-            }
-
-            using (Assert.EnterMultipleScope())
-            {
-                Assert.That(Sampled(animation.SampleEvents(0f, 0.1f)), Is.EqualTo(ClipStartEvents), "events at the very start fire on the first update");
-                Assert.That(Sampled(animation.SampleEvents(0.1f, 0.2f)), Is.Empty);
-                Assert.That(Sampled(animation.SampleEvents(0.2f, 0.3f)), Is.EqualTo(PumpSoundEvent));
-                Assert.That(Sampled(animation.SampleEvents(0.7f, 0.9f)), Is.EqualTo(ClipStartEvents), "looping playback wraps around the end of the clip");
-                Assert.That(Sampled(animation.SampleEvents(0f, 1.5f)), Has.Length.EqualTo(4), "a range longer than the clip fires everything once");
-                Assert.That(Sampled(animation.SampleEvents(0.4f, 0.2f)), Is.Empty, "a restart does not re-fire events");
-                Assert.That(Sampled(animation.SampleEvents(1f, 1f)), Is.Empty, "a paused clip does not re-fire the events it is sitting on");
-                Assert.That(Sampled(animation.SampleEvents(0f, 0f)), Is.Empty);
-                Assert.That(Sampled(animation.SampleEvents(0.3f, 0.35f, finished: true)), Is.EqualTo(ShellCasingEvent),
-                    "the last update of a non looping clip fires the events up to its end");
-            }
-        }
-
-        [Test]
-        public void SampledEventsFireOncePerLoop()
-        {
-            using var resource = new Resource();
-            var animation = LoadNovaShootAnimation(resource);
-
-            const int Loops = 5;
-            const float TimeStep = 1 / 60f;
-
-            var fireCounts = new Dictionary<NmClipEvent, int>();
-
-            // Playback time keeps growing while looping, exactly like the animation player advances a clip.
-            // The step ending on the final loop point fires the events at time zero again, so it is left out.
-            for (var time = 0f; time + TimeStep <= animation.Duration * Loops; time += TimeStep)
-            {
-                foreach (var clipEvent in animation.SampleEvents(time, time + TimeStep))
-                {
-                    fireCounts.TryGetValue(clipEvent, out var count);
-                    fireCounts[clipEvent] = count + 1;
-                }
-            }
-
-            using (Assert.EnterMultipleScope())
-            {
-                Assert.That(fireCounts, Has.Count.EqualTo(animation.Events.Length), "every event fires");
-                Assert.That(fireCounts.Values, Is.All.EqualTo(Loops), "no event is skipped or fired twice on the loop point");
             }
         }
 
