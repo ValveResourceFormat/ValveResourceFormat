@@ -51,12 +51,12 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
         public AnimationMovement[] Movements { get; }
 
         /// <summary>
-        /// Gets the events defined in this animation. Times are in seconds.
+        /// Gets the events defined in this animation.
         /// </summary>
         public AnimationEvent[] Events { get; }
 
         /// <summary>
-        /// Enumerates the events whose start time is crossed while playback advances from
+        /// Enumerates the events whose start is crossed while playback advances from
         /// <paramref name="previousTime"/> to <paramref name="newTime"/>, handling loop wrap-around.
         /// </summary>
         /// <param name="previousTime">The playback time in seconds before the update.</param>
@@ -130,7 +130,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
             }
 
             Events = animDesc.GetArray("m_eventArray")
-                                 .Select(x => new AnimationEvent(x, Fps))
+                                 .Select(x => new AnimationEvent(x))
                                  .ToArray();
 
             Activities = animDesc.GetArray("m_activityArray")
@@ -195,7 +195,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
 
             // Events from animation data
             Events = animDesc.GetArray("m_eventArray")
-                .Select(x => new AnimationEvent(x, Fps))
+                .Select(x => new AnimationEvent(x))
                 .ToArray();
 
             // Auto layers

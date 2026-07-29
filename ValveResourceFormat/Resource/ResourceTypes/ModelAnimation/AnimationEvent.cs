@@ -36,9 +36,15 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
 
         /// <inheritdoc/>
         /// <remarks>
-        /// Derived from <see cref="Frame"/> and the frame rate of the animation the event belongs to.
+        /// The authored <see cref="Cycle"/>, sequence events carry one alongside their <see cref="Frame"/>.
         /// </remarks>
-        public float StartTime { get; init; }
+        public float StartCycle => Cycle;
+
+        /// <inheritdoc/>
+        /// <remarks>
+        /// Always zero, sequence events are authored on a <see cref="Frame"/> rather than in seconds.
+        /// </remarks>
+        public float StartTime => 0f;
 
         /// <inheritdoc/>
         /// <remarks>
@@ -49,16 +55,13 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
         /// <summary>
         /// Initializes a new instance of the <see cref="AnimationEvent"/> struct.
         /// </summary>
-        /// <param name="data">The event data.</param>
-        /// <param name="fps">The frame rate of the animation the event belongs to, used to time the event.</param>
-        public AnimationEvent(KVObject data, float fps)
+        public AnimationEvent(KVObject data)
         {
             Name = data.GetStringProperty("m_sEventName");
             Frame = data.GetInt32Property("m_nFrame");
             Cycle = data.GetFloatProperty("m_flCycle");
             EventData = data.GetSubCollection("m_EventData");
             Options = data.GetStringProperty("m_sOptions");
-            StartTime = fps > 0f ? Frame / fps : 0f;
         }
     }
 }

@@ -1,8 +1,8 @@
-﻿namespace ValveResourceFormat.ResourceTypes.ModelAnimation
+namespace ValveResourceFormat.ResourceTypes.ModelAnimation
 {
     /// <summary>
-    /// Enumerates the events whose start time is crossed while playback advances over a time range,
-    /// handling loop wrap-around. Obtained from <see cref="SequenceAnimation.SampleEvents"/> or
+    /// Enumerates the events whose start is crossed while playback advances over a cycle range, handling
+    /// loop wrap-around. Obtained from <see cref="SequenceAnimation.SampleEvents"/> or
     /// <see cref="ClipAnimation.SampleEvents"/>; allocation free, so it can run every frame.
     /// </summary>
     /// <typeparam name="T">The event type of the animation being played.</typeparam>
@@ -10,9 +10,9 @@
     {
         private readonly T[] events;
 
-        /// <summary>Playback times wrapped into the animation timeline.</summary>
-        private readonly float startTime;
-        private readonly float endTime;
+        /// <summary>Playback cycles wrapped into the animation timeline.</summary>
+        private readonly float startCycle;
+        private readonly float endCycle;
 
         /// <summary>Whether the range covers the whole timeline, in which case every event fires.</summary>
         private readonly bool wholeTimeline;
@@ -25,23 +25,29 @@
         /// <summary>
         /// Initializes a new instance of the <see cref="SampledAnimationEvents{T}"/> struct.
         /// </summary>
-        /// <param name="events">The events of the animation, with times in seconds.</param>
-        /// <param name="duration">The duration in seconds of the animation timeline, used to wrap looping playback.</param>
+        /// <param name="events">The events of the animation.</param>
+        /// <param name="duration">The duration in seconds of the animation, which the playback times are cycles of.</param>
         /// <param name="previousTime">The playback time in seconds before the update.</param>
         /// <param name="newTime">The playback time in seconds after the update.</param>
         /// <param name="finished">
         /// Marks the final update of a non-looping animation: the range is treated as closed so events authored
-        /// at the exact end still fire, as the end time is clamped to the last frame, which a half-open range
-        /// would exclude forever.
+        /// at the exact end still fire, as the end is clamped to the last frame, which a half-open range would
+        /// exclude forever.
         /// </param>
         internal SampledAnimationEvents(T[] events, float duration, float previousTime, float newTime, bool finished)
         {
             // Nothing can fire on a still animation, or when playback jumped backwards (a restart)
-            this.events = duration > 0f && newTime >= previousTime ? events : [];
+            var still = duration <= 0f;
+            this.events = !still && newTime >= previousTime ? events : [];
 
-            wholeTimeline = newTime - previousTime >= duration;
-            startTime = Wrap(previousTime, duration);
-            endTime = Wrap(newTime, duration);
+            // Events are authored as a cycle of the animation, so playback is remapped into that space
+            var toCycles = still ? 0f : 1f / duration;
+            var previousCycle = previousTime * toCycles;
+            var newCycle = newTime * toCycles;
+
+            wholeTimeline = newCycle - previousCycle >= 1f;
+            startCycle = Wrap(previousCycle);
+            endCycle = Wrap(newCycle);
             inclusiveEnd = finished;
             index = -1;
         }
@@ -58,7 +64,7 @@
         {
             while (++index < events.Length)
             {
-                if (Fires(events[index].StartTime))
+                if (Fires(events[index].StartCycle))
                 {
                     return true;
                 }
@@ -72,29 +78,29 @@
         /// </summary>
         public readonly SampledAnimationEvents<T> GetEnumerator() => this;
 
-        private readonly bool Fires(float eventTime)
+        private readonly bool Fires(float eventCycle)
         {
             if (wholeTimeline)
             {
                 return true;
             }
 
-            if (inclusiveEnd && eventTime >= startTime)
+            if (inclusiveEnd && eventCycle >= startCycle)
             {
                 return true;
             }
 
-            // Half-open range [startTime, endTime) so events at exactly zero fire when playback starts,
+            // Half-open range [startCycle, endCycle) so events at exactly zero fire when playback starts,
             // and events on the loop point are not fired twice
-            return startTime <= endTime
-                ? eventTime >= startTime && eventTime < endTime
-                : eventTime >= startTime || eventTime < endTime;
+            return startCycle <= endCycle
+                ? eventCycle >= startCycle && eventCycle < endCycle
+                : eventCycle >= startCycle || eventCycle < endCycle;
         }
 
-        private static float Wrap(float time, float duration)
+        private static float Wrap(float cycle)
         {
-            var wrapped = time % duration;
-            return wrapped < 0f ? wrapped + duration : wrapped;
+            var wrapped = cycle % 1f;
+            return wrapped < 0f ? wrapped + 1f : wrapped;
         }
     }
 }

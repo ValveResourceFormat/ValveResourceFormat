@@ -15,6 +15,12 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation2
         /// <summary>Gets the runtime class name, e.g. "CNmSoundEvent".</summary>
         public string ClassName { get; }
 
+        /// <inheritdoc/>
+        /// <remarks>
+        /// Clips author their event times as this cycle, <see cref="StartTime"/> is derived from it.
+        /// </remarks>
+        public float StartCycle { get; }
+
         /// <summary>Gets the time in seconds into the clip at which the event starts.</summary>
         public float StartTime { get; }
 
@@ -34,7 +40,8 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation2
         protected NmClipEvent(KVObject eventData, float clipDuration)
         {
             ClassName = eventData.GetStringProperty("_class", string.Empty);
-            StartTime = GetTimeValue(eventData, "m_flStartTime") * clipDuration;
+            StartCycle = GetTimeValue(eventData, "m_flStartTime");
+            StartTime = StartCycle * clipDuration;
             Duration = GetTimeValue(eventData, "m_flDuration") * clipDuration;
             SyncId = eventData.GetStringProperty("m_syncID", string.Empty);
             Data = eventData;
