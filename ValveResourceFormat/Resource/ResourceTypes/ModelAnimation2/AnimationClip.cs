@@ -79,6 +79,12 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation2
         /// </summary>
         public bool IsAdditive { get; private set; }
 
+        /// <summary>
+        /// Gets the events fired during playback of this clip, ordered by start time. Times are in seconds.
+        /// Consumers filter for the event types they are interested in (e.g. <see cref="NmSoundEvent"/>).
+        /// </summary>
+        public NmClipEvent[] Events { get; private set; } = [];
+
         /// <inheritdoc/>
         public override void Read(BinaryReader reader)
         {
@@ -126,6 +132,14 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation2
                     IsTranslationStatic = setting.GetBooleanProperty("m_bIsTranslationStatic"),
                     IsScaleStatic = setting.GetBooleanProperty("m_bIsScaleStatic"),
                 };
+            }
+
+            var events = clipData.GetArray("m_events") ?? [];
+            Events = new NmClipEvent[events.Count];
+
+            for (var eventIndex = 0; eventIndex < events.Count; eventIndex++)
+            {
+                Events[eventIndex] = NmClipEvent.Build(events[eventIndex], Duration);
             }
 
             CompressedPoseOffsets = clipData.GetIntegerArray("m_compressedPoseOffsets");

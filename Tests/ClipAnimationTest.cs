@@ -64,6 +64,42 @@ namespace Tests
             }
         }
 
+        private static ClipAnimation LoadNovaShootAnimation(Resource resource)
+        {
+            resource.Read(FilePath("shoot1_nova.vnmclip_c"));
+
+            return new ClipAnimation((AnimationClip)resource.DataBlock!);
+        }
+
+        private static readonly string[] ClipEventClasses = ["CNmIDEvent", "CNmParticleEvent", "CNmSoundEvent", "CNmParticleEvent"];
+
+        [Test]
+        public void EventsAreReadFromClip()
+        {
+            using var resource = new Resource();
+            var animation = LoadNovaShootAnimation(resource);
+
+            var soundEvent = animation.Events.OfType<NmSoundEvent>().Single();
+            var idEvent = animation.Events.OfType<NmIDEvent>().Single();
+
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(animation.Duration, Is.EqualTo(0.8f).Within(0.0001f));
+                Assert.That(animation.Events.Select(e => e.ClassName), Is.EqualTo(ClipEventClasses));
+
+                // Times are stored normalized in the resource, they are exposed in seconds
+                Assert.That(soundEvent.Name, Is.EqualTo("Weapon_Nova.Pump_Q"));
+                Assert.That(soundEvent.StartTime, Is.EqualTo(0.233333f).Within(0.0001f));
+                Assert.That(soundEvent.DurationInterruptionThreshold, Is.EqualTo(0.9f), "unset properties fall back to their engine default");
+
+                Assert.That(idEvent.ID, Is.EqualTo("WPN_BLOCK_INSPECT"));
+                Assert.That(idEvent.Duration, Is.EqualTo(0.7f).Within(0.0001f));
+
+                Assert.That(animation.Events.OfType<NmParticleEvent>().Last().ParticleSystemName,
+                    Is.EqualTo("particles/weapons/cs_weapon_fx/weapon_shell_casing_shotgun_nova.vpcf"));
+            }
+        }
+
         [Test]
         public void ClipAnimationHasNoMovementData()
         {

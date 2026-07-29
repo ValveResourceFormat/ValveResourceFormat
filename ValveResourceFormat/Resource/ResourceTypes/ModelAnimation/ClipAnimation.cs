@@ -25,6 +25,18 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
         }
 
         /// <inheritdoc/>
+        /// <remarks>
+        /// Taken from the clip itself, rather than derived from the frame rate that was derived from it.
+        /// </remarks>
+        public override float Duration => Clip.Duration;
+
+        /// <summary>
+        /// Gets the events on this animation's timeline, ordered by start time. Times are in seconds.
+        /// Consumers filter for the event types they are interested in (e.g. <see cref="NmSoundEvent"/>).
+        /// </summary>
+        public NmClipEvent[] Events => Clip.Events;
+
+        /// <inheritdoc/>
         public override bool IsAdditive => Clip.IsAdditive;
 
         /// <inheritdoc/>
