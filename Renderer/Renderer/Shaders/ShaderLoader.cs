@@ -517,6 +517,7 @@ namespace ValveResourceFormat.Renderer.Shaders
                 return customShaderFile;
             }
 
+            // TODO: Consider naming renderer shaders with a .slang extension, so that they read as explicitly as .vfx names do
             if (!IsVfxShaderName(shaderName))
             {
                 // Not a Valve shader name, so it names a renderer shader file directly.

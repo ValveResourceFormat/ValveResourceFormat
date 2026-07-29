@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
+using System.IO;
 using Microsoft.Extensions.Logging;
 using OpenTK.Graphics.OpenGL;
 using ValveResourceFormat.CompiledShader;
@@ -198,13 +199,13 @@ namespace ValveResourceFormat.Renderer.Materials
                 }
             }
 
-            if (material.ShaderName == "sky.vfx")
+            if (ShaderName == "sky.vfx")
             {
                 ShaderCollection? shader = null;
 
                 try
                 {
-                    shader = rendererContext.FileLoader.LoadShader(material.ShaderName);
+                    shader = rendererContext.FileLoader.LoadShader(ShaderName);
                 }
                 catch (UnexpectedMagicException e)
                 {
@@ -236,7 +237,7 @@ namespace ValveResourceFormat.Renderer.Materials
             }
 
             SetRenderState();
-            Shader = rendererContext.ShaderLoader.LoadShader(material.ShaderName, combinedShaderParameters, blocking: false);
+            Shader = rendererContext.ShaderLoader.LoadShader(ShaderName, combinedShaderParameters, blocking: false);
             ResetRenderState();
 
             SortId = GetSortId();
@@ -245,7 +246,7 @@ namespace ValveResourceFormat.Renderer.Materials
         /// <summary>Initializes a new instance of the <see cref="RenderMaterial"/> class wrapping an existing shader with an empty material.</summary>
         /// <param name="shader">The shader to use for rendering.</param>
         [SetsRequiredMembers]
-        public RenderMaterial(Shader shader) : this(new Material { Resource = null!, ShaderName = shader.Name })
+        public RenderMaterial(Shader shader) : this(new Material { Resource = null!, ShaderName = shader.Name }, normalizeShaderName: false)
         {
             Shader = shader;
             SortId = GetSortId();
@@ -264,9 +265,11 @@ namespace ValveResourceFormat.Renderer.Materials
             "csgo_effects.vfx",
         ];
 
-        RenderMaterial(Material material)
+        // Renderer shaders are wrapped by their own name, only material shader names are normalized
+        RenderMaterial(Material material, bool normalizeShaderName = true)
         {
             Material = material;
+            ShaderName = normalizeShaderName ? NormalizeShaderName(material.ShaderName) : material.ShaderName;
 
             IntParams.EnsureCapacity(material.IntParams.Count);
             FloatParams.EnsureCapacity(material.FloatParams.Count);
@@ -290,6 +293,15 @@ namespace ValveResourceFormat.Renderer.Materials
             LoadRenderState();
         }
 
+        /// <summary>Gets the shader name of the material, normalized to the <c>.vfx</c> extension the renderer resolves shaders by.</summary>
+        public string ShaderName { get; }
+
+        // Some games name their shaders .shader or .shader_c instead of .vfx
+        private static string NormalizeShaderName(string shaderName)
+        {
+            return string.Concat(Path.GetFileNameWithoutExtension(shaderName.AsSpan()), ShaderLoader.VfxExtension);
+        }
+
         /// <summary>
         /// Load or reload render state from material data.
         /// </summary>
@@ -301,7 +313,7 @@ namespace ValveResourceFormat.Renderer.Materials
             isRenderBackfaces = IntParams.GetValueOrDefault("F_RENDER_BACKFACES") == 1;
             disableDepthTest = IntParams.GetValueOrDefault("F_DISABLE_Z_BUFFERING") == 1;
 
-            if (material.ShaderName == "csgo_water_fancy.vfx")
+            if (ShaderName == "csgo_water_fancy.vfx")
             {
                 blendMode = BlendMode.Translucent;
                 DoNotCastShadows = true;
@@ -316,7 +328,7 @@ namespace ValveResourceFormat.Renderer.Materials
             hasDepthBias = IntParams.GetValueOrDefault("F_DEPTHBIAS") == 1 || IntParams.GetValueOrDefault("F_DEPTH_BIAS") == 1;
             IsOverlay = IntParams.GetValueOrDefault("F_OVERLAY") == 1;
 
-            if (material.ShaderName == "csgo_decalmodulate.vfx")
+            if (ShaderName == "csgo_decalmodulate.vfx")
             {
                 blendMode = BlendMode.Mod2x;
                 return;
@@ -328,7 +340,7 @@ namespace ValveResourceFormat.Renderer.Materials
             }
 
             if (IntParams.GetValueOrDefault("F_TRANSLUCENT") == 1
-            || TranslucentShaders.AsSpan().Contains(material.ShaderName)
+            || TranslucentShaders.AsSpan().Contains(ShaderName)
             || material.IntAttributes.ContainsKey("mapbuilder.water"))
             {
                 blendMode = BlendMode.Translucent;
@@ -340,19 +352,19 @@ namespace ValveResourceFormat.Renderer.Materials
             }
 
             // :MaterialIsOverlay
-            if (IsTranslucent && hasDepthBias && material.ShaderName is "csgo_vertexlitgeneric.vfx" or "csgo_complex.vfx")
+            if (IsTranslucent && hasDepthBias && ShaderName is "csgo_vertexlitgeneric.vfx" or "csgo_complex.vfx")
             {
                 IsOverlay = true;
             }
 
             var blendModeParam = 0;
-            if (material.ShaderName.EndsWith("static_overlay.vfx", StringComparison.Ordinal) || material.ShaderName is "citadel_overlay.vfx")
+            if (ShaderName.EndsWith("static_overlay.vfx", StringComparison.Ordinal) || ShaderName is "citadel_overlay.vfx")
             {
                 IsOverlay = true;
                 blendModeParam = (int)IntParams.GetValueOrDefault("F_BLEND_MODE");
             }
 
-            if (material.ShaderName == "csgo_unlitgeneric.vfx")
+            if (ShaderName == "csgo_unlitgeneric.vfx")
             {
                 blendModeParam = (int)IntParams.GetValueOrDefault("F_BLEND_MODE");
             }
@@ -454,7 +466,7 @@ namespace ValveResourceFormat.Renderer.Materials
             {
                 EvalDeadlockColorMatrices(shader, buffer);
             }
-            else if (Material.ShaderName.EndsWith("static_overlay.vfx", StringComparison.Ordinal))
+            else if (ShaderName.EndsWith("static_overlay.vfx", StringComparison.Ordinal))
             {
                 EvalStaticOverlayColorAdjust(shader, buffer);
             }
