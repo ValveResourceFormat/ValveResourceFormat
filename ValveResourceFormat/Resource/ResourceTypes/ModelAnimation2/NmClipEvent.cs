@@ -122,7 +122,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation2
     /// </summary>
     public sealed class NmIDEvent : NmClipEvent
     {
-        /// <summary>Gets the primary ID, e.g. "WPN_INSPECT_INTRO".</summary>
+        /// <summary>Gets the primary ID.</summary>
         public string ID { get; }
 
         /// <summary>Gets the secondary ID, usually empty.</summary>
@@ -191,7 +191,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation2
 
     /// <summary>
     /// A legacy animation event carried over from the old animation system (CNmLegacyEvent),
-    /// e.g. "AE_WEAPON_PERFORM_ATTACK".
+    /// e.g. "AE_CL_ENABLE_BODYGROUP".
     /// </summary>
     public sealed class NmLegacyEvent : NmClipEvent
     {
