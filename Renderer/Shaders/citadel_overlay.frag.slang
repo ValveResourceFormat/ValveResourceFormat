@@ -54,7 +54,7 @@ uniform vec2 g_vRoughnessSelfIllumAoTranslucencyOutputRange = vec2(0.0, 1.0);
 #include "common/fullbright.slang"
 #include "common/texturing.slang"
 #include "common/fog.slang"
-#include "common/deadlock.slang"
+#include "common/citadel.slang"
 
 // Must be last
 #include "common/lighting.slang"

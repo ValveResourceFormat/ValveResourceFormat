@@ -853,6 +853,7 @@ namespace ValveResourceFormat.Renderer.World
                                 EdgeFadeDists = edgeFadeDists,
                                 ProjectionMode = classname == "env_cubemap" ? 0 : 1,
                                 EnvMapTexture = envMapTexture,
+                                NormalizationSH = SceneEnvMap.CalculateNormalizationSH(envMapTexture.RadianceCoefficients, arrayIndex),
                             };
 
                             if (!isCustomTexture)

@@ -202,7 +202,7 @@ uniform float g_flBorderRoughness2 = 0.5;
 #include "common/fullbright.slang"
 #include "common/texturing.slang"
 #include "common/fog.slang"
-#include "common/deadlock.slang"
+#include "common/citadel.slang"
 
 // Must be last
 #include "common/lighting.slang"

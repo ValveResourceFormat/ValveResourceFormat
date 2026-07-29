@@ -42,6 +42,13 @@ layout(std140, binding = 2) uniform EnvMapArray
 
 int g_nEnvMapsIterated = 0;
 
+// Filled by GetEnvironmentNoBRDF: the blended L1 luminance harmonic of the probes that were
+// sampled, weighted exactly as their radiance was. It evaluates to a radiance, so there is no
+// value here that means "leave reflections alone"; the zero below instead marks it unfilled,
+// and the normalization skips itself on a non positive result. Only reachable with no cube
+// map bound at all, where there is no reflection to scale in the first place.
+vec4 g_vEnvMapNormalizationSH = vec4(0.0);
+
 #if (S_SCENE_CUBEMAP_TYPE == 0)
     // ...
 #elif (S_SCENE_CUBEMAP_TYPE == 1)
@@ -85,8 +92,16 @@ float GetEnvMapLOD(float roughness, vec3 R)
 
 // Cubemap Normalization
 #define bUseCubemapNormalization 1
-const vec2 CubemapNormalizationParams = vec2(34.44445, -2.44445); // Normalization value in Alyx. Haven't checked the other games
 
+// Ceiling on brightening only, rising with roughness. A rough reflection is nearly an
+// irradiance integral so it tolerates being pushed; a mirror is showing one direction and
+// should not be. Darkening is not capped, because that is the occlusion this exists for.
+const vec2 CubemapNormalizationParams = vec2(2.0, 1.0);
+
+// Specular occlusion.
+// With no baked lighting the irradiance falls back to this same cube map at roughness 1, so
+// both sides become the same quantity and the ratio settles at 1. Nothing to compare, nothing
+// to correct.
 float GetEnvMapNormalization(float rough, vec3 N, vec3 irradiance)
 {
     if (g_iRenderMode == renderMode_Cubemaps)
@@ -95,18 +110,15 @@ float GetEnvMapNormalization(float rough, vec3 N, vec3 irradiance)
     }
 
     #if (bUseCubemapNormalization == 1)
-        float NormalizationTerm = pow(GetLuma(irradiance), 1.5) * 4;
+        float bakedLuma = dot(vec4(N, 1.0), g_vEnvMapNormalizationSH);
 
-        const float lowestNormalization = 0.1; 
-        const float rmin = -0.1;
-        const float rmax = 0.9;
+        if (bakedLuma <= 0.0)
+        {
+            return 1.0;
+        }
 
-        float center = 0.5 * (rmin + rmax);
-        float range = 0.5 * (rmax - rmin);
-        float dist = saturate(abs(rough - center) / range);
-        float smoothdist = smoothstep(lowestNormalization, 1.0, dist);
-
-        return clamp(NormalizationTerm, max(lowestNormalization, dist), 1.0);
+        float ceiling = max(rough * CubemapNormalizationParams.x + CubemapNormalizationParams.y, 1.0);
+        return min(GetLuma(irradiance) / bakedLuma, ceiling);
     #else
         return 1.0;
     #endif
@@ -217,10 +229,12 @@ vec3 GetEnvironmentNoBRDF(MaterialProperties_t mat, float reflectionCorrectionAm
 
         vec3 coords = GetCorrectedSampleCoords(R, envMapWorldToLocal, envMapLocalPos, isBoxProjection, envMapBoxMin, envMapBoxMax);
         envMap = textureLod(g_tEnvironmentMap, coords, lod).rgb;
+        g_vEnvMapNormalizationSH = envData.NormalizationSH;
     #elif (S_SCENE_CUBEMAP_TYPE == 2)
 
     float flTotalWeight = 0.01;
     bool bContinueLoop = true;
+    vec4 normalizationSH = vec4(0.0);
 
     CullMasks_t masks = GetEnvMapCullMasks(vFragPosition);
     for (uint word = 0u; word < masks.m_nWords && AnyLaneWantsMore(bContinueLoop); word++)
@@ -279,6 +293,7 @@ vec3 GetEnvironmentNoBRDF(MaterialProperties_t mat, float reflectionCorrectionAm
             vec3 coords = GetCorrectedSampleCoords(R, envMapWorldToLocal, envMapLocalPos, isBoxProjection, envMapBoxMin, envMapBoxMax);
 
             envMap += textureLod(g_tEnvironmentMap, vec4(coords, envData.ArrayIndex), lod).rgb * weight;
+            normalizationSH += envData.NormalizationSH * weight;
 
             if (flTotalWeight > 0.99)
             {
@@ -286,6 +301,8 @@ vec3 GetEnvironmentNoBRDF(MaterialProperties_t mat, float reflectionCorrectionAm
             }
         }
     }
+
+    g_vEnvMapNormalizationSH = normalizationSH / max(flTotalWeight, 1e-4);
 
     #endif // S_SCENE_CUBEMAP_TYPE == 2
 

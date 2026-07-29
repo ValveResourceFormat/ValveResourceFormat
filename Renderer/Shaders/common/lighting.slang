@@ -243,9 +243,10 @@ void CalculateIndirectLighting(inout LightingTerms_t lighting, inout MaterialPro
 
     // Environment Maps
 #if defined(IBL) && (IBL == 1)
-    float normalizationTerm = GetEnvMapNormalization(mat.IsometricRoughness, mat.AmbientNormal, lighting.DiffuseIndirect);
+    vec3 environment = GetEnvironment(mat);
 
-    lighting.SpecularIndirect = GetEnvironment(mat) * normalizationTerm;
+    lighting.SpecularIndirect = environment
+        * GetEnvMapNormalization(mat.IsometricRoughness, mat.AmbientNormal, lighting.DiffuseIndirect);
 
     #if (D_BAKED_LIGHTING_FROM_LIGHTMAP == 0 && D_BAKED_LIGHTING_FROM_PROBE == 0 && D_BAKED_LIGHTING_FROM_VERTEX_STREAM == 0)
         vec2 oldRoughness = mat.Roughness;

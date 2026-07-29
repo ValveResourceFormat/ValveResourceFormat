@@ -1890,7 +1890,7 @@ namespace ValveResourceFormat.Renderer
                 Origin = envMap.Transform.Translation,
                 ProjectionType = (uint)envMap.ProjectionMode,
                 Color = envMap.Tint,
-                NormalizationSH = new Vector4(0, 0, 0, 1)
+                NormalizationSH = envMap.NormalizationSH
             };
         }
 

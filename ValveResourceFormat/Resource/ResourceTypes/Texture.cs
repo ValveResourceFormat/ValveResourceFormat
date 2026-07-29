@@ -262,7 +262,12 @@ namespace ValveResourceFormat.ResourceTypes
         private int[]? CompressedMips;
         private bool IsActuallyCompressedMips;
 
-        private float[]? RadianceCoefficients;
+        /// <summary>
+        /// Gets the baked radiance of each cube map in the array as an L2 spherical harmonic,
+        /// 9 coefficients per channel stored planar, 27 per cube map. Null unless the texture
+        /// carries <see cref="VTexExtraData.CUBEMAP_RADIANCE_SH"/>.
+        /// </summary>
+        public float[]? RadianceCoefficients { get; private set; }
 
         /// <summary>
         /// Gets the actual width of the texture, using <see cref="NonPow2Width"/> if available and valid, otherwise <see cref="Width"/>.

@@ -153,7 +153,7 @@ uniform float g_flNormalAndRoughnessScrollQuantize1 = 0.0;
 #include "common/fullbright.slang"
 #include "common/texturing.slang"
 #include "common/fog.slang"
-#include "common/deadlock.slang"
+#include "common/citadel.slang"
 
 // Must be last
 #include "common/lighting.slang"
