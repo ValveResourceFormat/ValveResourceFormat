@@ -193,6 +193,19 @@ namespace ValveResourceFormat.Renderer.Shaders
             }
         }
 
+        /// <summary>
+        /// Drops all preprocessed shader sources and rediscovers the available shader files. Called when the
+        /// <see cref="ShaderRegistry"/> changes; shader programs that have already been compiled are not affected.
+        /// </summary>
+        internal static void InvalidateParsedShaders()
+        {
+            using var _ = ParserLock.EnterScope();
+
+            ParsedCache.Clear();
+            Parser.ClearBuilder();
+            Parser.RefreshAvailableShaders();
+        }
+
         private static ParsedShaderData GetOrParseShader(string shaderFileName)
         {
             using var _ = ParserLock.EnterScope();
@@ -483,8 +496,24 @@ namespace ValveResourceFormat.Renderer.Shaders
         public const string ShaderFileExtension = ".vert.slang";
         const string VrfInternalShaderPrefix = "vrf.";
 
+        /// <summary>
+        /// Maps a Source 2 shader name to the renderer shader file that draws it. Mappings registered in
+        /// <see cref="ShaderRegistry"/> take priority over the built-in ones.
+        /// </summary>
+        /// <param name="shaderName">The Source 2 shader name (e.g. <c>shader.vfx</c>).</param>
+        /// <returns>The renderer shader name without stage or extension (e.g. <c>complex</c>).</returns>
+        public static string GetShaderFileByName(string shaderName)
+        {
+            if (ShaderRegistry.Mappings.TryGetValue(shaderName, out var customShaderFile))
+            {
+                return customShaderFile;
+            }
+
+            return GetBuiltinShaderFileByName(shaderName);
+        }
+
         // Map Valve's shader names to shader files VRF has
-        private static string GetShaderFileByName(string shaderName) => shaderName switch
+        private static string GetBuiltinShaderFileByName(string shaderName) => shaderName switch
         {
             "sky.vfx" => "sky",
             "tools_sprite.vfx" => "sprite",
@@ -597,6 +626,9 @@ namespace ValveResourceFormat.Renderer.Shaders
         {
             Parser.ClearBuilder();
 
+            // Picks up shader files that were created after startup, including ones in mounted directories
+            Parser.RefreshAvailableShaders();
+
             if (name != null && ShaderParser.ExtensionToProgramType.Keys.Any(ext => name.EndsWith($".{ext}.slang", StringComparison.Ordinal)))
             {
                 // If a named shader changed (not an include), then we can only reload this shader
@@ -632,7 +664,8 @@ namespace ValveResourceFormat.Renderer.Shaders
         {
             using var renderContext = new RendererContext(new ValveResourceFormat.IO.GameFileLoader(null, null), logger);
             var loader = renderContext.ShaderLoader;
-            var folder = ShaderParser.GetShaderDiskPath(string.Empty);
+            var folder = ShaderParser.ShaderSourceDirectory
+                ?? throw new DirectoryNotFoundException("Shader validation requires the shader source files, but this build only has the embedded copies.");
 
             var vertShaders = Directory.GetFiles(folder, "*.vert.slang");
             var compShaders = Directory.GetFiles(folder, "*.comp.slang");
