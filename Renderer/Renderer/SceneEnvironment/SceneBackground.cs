@@ -11,7 +11,7 @@ namespace ValveResourceFormat.Renderer.SceneEnvironment
         /// </summary>
         /// <param name="scene">The scene this background belongs to.</param>
         public SceneBackground(Scene scene)
-            : base(new RenderMaterial(scene.RendererContext.ShaderLoader.LoadShader("vrf.background")))
+            : base(new RenderMaterial(scene.RendererContext.ShaderLoader.LoadShader("background")))
         {
         }
 

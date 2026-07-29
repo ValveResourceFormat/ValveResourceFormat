@@ -24,7 +24,7 @@ namespace ValveResourceFormat.Renderer
                 -1f, -1f,
             };
 
-            shader = scene.RendererContext.ShaderLoader.LoadShader("vrf.grid");
+            shader = scene.RendererContext.ShaderLoader.LoadShader("grid");
 
             // Create VAO
             GL.CreateVertexArrays(1, out vao);

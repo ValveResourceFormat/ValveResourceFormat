@@ -15,7 +15,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
     /// <seealso href="https://s2v.app/SchemaExplorer/cs2/particles/C_OP_RenderCables">C_OP_RenderCables</seealso>
     internal class RenderCables : ParticleFunctionRenderer
     {
-        private const string ShaderName = "vrf.particle_cable";
+        private const string ShaderName = "particle_cable";
 
         private Shader shader;
         private readonly Scene scene;

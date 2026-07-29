@@ -117,6 +117,20 @@ namespace Tests.Renderer
         }
 
         [Test]
+        public void OnlyVfxShaderNamesFallBackToComplex()
+        {
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(ShaderLoader.GetShaderFileByName("mygame_glass.vfx"), Is.EqualTo("complex"));
+                Assert.That(ShaderLoader.GetShaderFileByName("sky.vfx"), Is.EqualTo("sky"));
+
+                // Renderer shader files are loaded as themselves, and throw when they do not exist
+                Assert.That(ShaderLoader.GetShaderFileByName("mygame_glass"), Is.EqualTo("mygame_glass"));
+                Assert.That(ShaderLoader.GetShaderFileByName("vrf.grid"), Is.EqualTo("grid"));
+            }
+        }
+
+        [Test]
         public void ShaderMappingsOverrideBuiltinOnes()
         {
             Assert.That(ShaderLoader.GetShaderFileByName("mygame_glass.vfx"), Is.EqualTo("complex"));

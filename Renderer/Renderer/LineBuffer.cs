@@ -21,7 +21,7 @@ namespace ValveResourceFormat.Renderer
         /// <summary>Creates the GL objects and binds the default shader layout.</summary>
         public LineBuffer(RendererContext rendererContext, string label)
         {
-            Shader = rendererContext.ShaderLoader.LoadShader("vrf.default");
+            Shader = rendererContext.ShaderLoader.LoadShader("default");
 
             GL.CreateBuffers(1, out vboHandle);
 

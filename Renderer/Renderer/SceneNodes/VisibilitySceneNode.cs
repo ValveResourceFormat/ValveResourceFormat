@@ -21,7 +21,7 @@ namespace ValveResourceFormat.Renderer.SceneNodes
         /// </summary>
         public VisibilitySceneNode(Scene scene, VoxelVisibility voxelVisibility) : base(scene)
         {
-            shader = Scene.RendererContext.ShaderLoader.LoadShader("vrf.default");
+            shader = Scene.RendererContext.ShaderLoader.LoadShader("default");
 
             var vertices = new List<SimpleVertex>();
             var ranges = new List<ClusterDrawRange>();

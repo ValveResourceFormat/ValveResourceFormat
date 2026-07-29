@@ -42,12 +42,12 @@ public class BloomRenderer
     /// <summary>Loads bloom shaders and allocates ping-pong and accumulation framebuffers.</summary>
     public void Load()
     {
-        firstDownsampleBloomThreshold = RendererContext.ShaderLoader.LoadShader("vrf.downsample_bloomthreshold");
-        downsample = RendererContext.ShaderLoader.LoadShader("vrf.gaussian_bloom_blur");
-        horizontalBlur = RendererContext.ShaderLoader.LoadShader("vrf.gaussian_bloom_blur", ("D_BLUR_PASS", 1), ("D_BLUR_PASS_HORIZONTAL", 1));
-        verticalBlur = RendererContext.ShaderLoader.LoadShader("vrf.gaussian_bloom_blur", ("D_BLUR_PASS", 1), ("D_BLUR_PASS_HORIZONTAL", 0));
-        upsample = RendererContext.ShaderLoader.LoadShader("vrf.gaussian_bloom_blur", ("D_BLUR_PASS", 2));
-        firstUpsample = RendererContext.ShaderLoader.LoadShader("vrf.gaussian_bloom_blur", ("D_BLUR_PASS", 3));
+        firstDownsampleBloomThreshold = RendererContext.ShaderLoader.LoadShader("downsample_bloomthreshold");
+        downsample = RendererContext.ShaderLoader.LoadShader("gaussian_bloom_blur");
+        horizontalBlur = RendererContext.ShaderLoader.LoadShader("gaussian_bloom_blur", ("D_BLUR_PASS", 1), ("D_BLUR_PASS_HORIZONTAL", 1));
+        verticalBlur = RendererContext.ShaderLoader.LoadShader("gaussian_bloom_blur", ("D_BLUR_PASS", 1), ("D_BLUR_PASS_HORIZONTAL", 0));
+        upsample = RendererContext.ShaderLoader.LoadShader("gaussian_bloom_blur", ("D_BLUR_PASS", 2));
+        firstUpsample = RendererContext.ShaderLoader.LoadShader("gaussian_bloom_blur", ("D_BLUR_PASS", 3));
 
         Ping = CreateFramebuffer("BloomPing");
         Pong = CreateFramebuffer("BloomPong");

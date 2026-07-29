@@ -13,7 +13,7 @@ public class OutlineRenderer(RendererContext rendererContext)
     /// <summary>Loads the outline edge detection shader.</summary>
     public void Load()
     {
-        outlineEdge = rendererContext.ShaderLoader.LoadShader("vrf.outline_post");
+        outlineEdge = rendererContext.ShaderLoader.LoadShader("outline_post");
     }
 
     /// <summary>

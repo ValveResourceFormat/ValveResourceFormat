@@ -492,7 +492,7 @@ namespace ValveResourceFormat.Renderer.Materials
 
         private RenderMaterial GetErrorMaterial()
         {
-            var errorMat = new RenderMaterial(RendererContext.ShaderLoader.LoadShader("vrf.error"));
+            var errorMat = new RenderMaterial(RendererContext.ShaderLoader.LoadShader("error"));
             OwnedMaterials.Add(errorMat);
             return errorMat;
         }

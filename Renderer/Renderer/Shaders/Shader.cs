@@ -126,9 +126,9 @@ namespace ValveResourceFormat.Renderer.Shaders
             Default = new RenderMaterial(this);
             MaterialLoader = rendererContext.MaterialLoader;
 
-            IgnoreMaterialData = Name is "vrf.picking"
-                                      or "vrf.outline"
-                                      or "vrf.depth_only";
+            IgnoreMaterialData = Name is "picking"
+                                      or "outline"
+                                      or "depth_only";
         }
 
         /// <summary>Ensures the shader program has been linked and its uniforms and attributes have been cached.</summary>

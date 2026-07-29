@@ -68,10 +68,10 @@ namespace ValveResourceFormat.Renderer.PostProcess
         public void Load(int msaaSamples)
         {
             var msaa = (byte)msaaSamples;
-            shaderMsaaResolve = RendererContext.ShaderLoader.LoadShader("vrf.msaa_resolve", ("D_MSAA_SAMPLES", msaa));
-            shaderDepthResolve = RendererContext.ShaderLoader.LoadShader("vrf.depth_resolve", ("D_MSAA_SAMPLES", msaa));
-            shaderPostProcess = RendererContext.ShaderLoader.LoadShader("vrf.post_processing", ("D_BLOOM", 0));
-            shaderPostProcessBloom = RendererContext.ShaderLoader.LoadShader("vrf.post_processing", ("D_BLOOM", 1));
+            shaderMsaaResolve = RendererContext.ShaderLoader.LoadShader("msaa_resolve", ("D_MSAA_SAMPLES", msaa));
+            shaderDepthResolve = RendererContext.ShaderLoader.LoadShader("depth_resolve", ("D_MSAA_SAMPLES", msaa));
+            shaderPostProcess = RendererContext.ShaderLoader.LoadShader("post_processing", ("D_BLOOM", 0));
+            shaderPostProcessBloom = RendererContext.ShaderLoader.LoadShader("post_processing", ("D_BLOOM", 1));
 
             DOF.MsaaSamples = msaa;
             Bloom.Load();

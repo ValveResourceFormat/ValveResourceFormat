@@ -1162,7 +1162,7 @@ namespace GUI.Types.GLViewers
                 return;
             }
 
-            shader = RendererContext.ShaderLoader.LoadShader("vrf.texture_decode", (textureType, 1));
+            shader = RendererContext.ShaderLoader.LoadShader("texture_decode", (textureType, 1));
         }
 
         private void UploadTexture(bool forceSoftwareDecode)
