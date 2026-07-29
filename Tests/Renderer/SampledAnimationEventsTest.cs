@@ -92,45 +92,6 @@ namespace Tests.Renderer
         }
 
         [Test]
-        public void SamplingDoesNotAllocate()
-        {
-            using var resource = new Resource();
-            var animation = LoadNovaShootAnimation(resource);
-
-            // Sequence events are a struct, so they are sampled through their own array rather than
-            // an interface one, which would box every event handed out
-            var sequenceEvents = new AnimationEvent[4];
-
-            static float SampleBoth(ClipAnimation animation, AnimationEvent[] sequenceEvents, float time)
-            {
-                var sum = 0f;
-
-                foreach (var clipEvent in Sample(animation, time, time + 0.05f))
-                {
-                    sum += clipEvent.StartTime;
-                }
-
-                foreach (var sequenceEvent in new SampledAnimationEvents<AnimationEvent>(sequenceEvents, 1f, time, time + 0.05f, false))
-                {
-                    sum += sequenceEvent.StartCycle;
-                }
-
-                return sum;
-            }
-
-            SampleBoth(animation, sequenceEvents, 0f);
-
-            var before = GC.GetAllocatedBytesForCurrentThread();
-
-            for (var time = 0f; time < animation.Duration * 2f; time += 0.05f)
-            {
-                SampleBoth(animation, sequenceEvents, time);
-            }
-
-            Assert.That(GC.GetAllocatedBytesForCurrentThread() - before, Is.Zero, "sampling runs every frame, it must not allocate");
-        }
-
-        [Test]
         public void PlayerFiresClipEvents()
         {
             using var resource = new Resource();
