@@ -1,6 +1,7 @@
 #version 460
 
 #extension GL_KHR_shader_subgroup_arithmetic : enable
+#extension GL_KHR_shader_subgroup_basic : enable
 
 #define D_GROUP_TILES_X 8
 #define D_GROUP_TILES_Y 4
@@ -68,11 +69,10 @@ layout(binding = 13, std430) writeonly buffer OutputCullBitsBuffer
     uint g_OutputCullBits[];
 };
 
-// Only the fallback reduction needs this, so it costs a group's shared memory only where subgroup
-// arithmetic is missing.
-#ifndef GL_KHR_shader_subgroup_arithmetic
+// The coarse mask has to cover the whole group, and a subgroup is only guaranteed to be a part of one:
+// Intel runs this at SIMD8 or SIMD16, so subgroupOr alone would leave each subgroup seeing only the
+// items its own lanes loaded. Subgroup arithmetic still pre-reduces into this, it just cannot replace it.
 shared uint g_nGroupMask;
-#endif
 
 const bool OCCLUSION_CULL = true;
 
@@ -195,12 +195,10 @@ void main()
 
     uint nLane = (gl_LocalInvocationID.y * uint(D_GROUP_TILES_X)) + gl_LocalInvocationID.x;
 
-#ifndef GL_KHR_shader_subgroup_arithmetic
-    if (all(equal(gl_LocalInvocationID, uvec3(0u))))
+    if (gl_LocalInvocationIndex == 0u)
     {
         g_nGroupMask = 0u;
     }
-#endif
 
     uint nFirstItem = batch.nFirstItem + (nMaskIndex * 32u);
     CullItem_t coarseItem = g_CullItems[nFirstItem + nLane];
@@ -219,20 +217,27 @@ void main()
 
     uint nLaneBit = bOverlaps ? (1u << nLane) : 0u;
 
-#ifdef GL_KHR_shader_subgroup_arithmetic
-    uint nGroupMask = subgroupOr(nLaneBit);
-#else
     barrier();
 
+#if defined(GL_KHR_shader_subgroup_arithmetic) && defined(GL_KHR_shader_subgroup_basic)
+    // One atomic per subgroup rather than one per set lane. Correct at any subgroup size, including a
+    // subgroup wider than the group, since the lanes outside it contribute a zero bit.
+    uint nSubgroupMask = subgroupOr(nLaneBit);
+
+    if (subgroupElect() && nSubgroupMask != 0u)
+    {
+        atomicOr(g_nGroupMask, nSubgroupMask);
+    }
+#else
     if (nLaneBit != 0u)
     {
         atomicOr(g_nGroupMask, nLaneBit);
     }
+#endif
 
     barrier();
 
     uint nGroupMask = g_nGroupMask;
-#endif
 
     uint nBits = 0u;
 
