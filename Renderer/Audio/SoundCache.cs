@@ -135,8 +135,6 @@ public sealed class SoundCache : IDisposable
 
     private void DecodeLoop(LinkedList<DecodeRequest> queue)
     {
-        // Both lanes' per-thread buffers are allocated here, while the map is still loading, rather than
-        // by whichever sound first misses the cache during play
         DecodeScratch.Prewarm();
         Mp3Decoder.Prewarm();
 

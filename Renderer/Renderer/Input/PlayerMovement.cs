@@ -88,6 +88,14 @@ public class PlayerMovement
     private const float GearVolume = 0.1f;                              // Gear events have volume 0 in data, the game supplies it
     private const string FallDamageSoundEvent = "Player.DamageFall";
 
+    private static readonly string[] MovementSounds = [
+        FootstepSoundEvent,
+        JumpSoundEvent,
+        LandSoundEvent,
+        GearSoundEvent,
+        FallDamageSoundEvent,
+    ];
+
     private const float StepSoundVelWalk = 90f;           // GetStepSoundVelocities velwalk (standing)
     private const float StepSoundVelRun = 220f;           // GetStepSoundVelocities velrun (standing)
     private const float WalkingStepVolume = 0.8f;         // Slightly quieter steps below run speed (the authored volume is 0.9)
@@ -164,22 +172,16 @@ public class PlayerMovement
         TracePositionPrevious = TracePosition;
         Velocity = Vector3.Zero;
 
-        CacheMovementSounds();
+        CacheSounds();
     }
 
-    /// <summary>
-    /// Pre-parses and pre-decodes the movement sounds, so the first step, jump or landing does not do
-    /// the cold event parse and vsnd decode mid-frame. Call at load: a footstep event fans out to a
-    /// track per surface type, which is a lot of files to read and decode. Idempotent - repeat calls
-    /// only refresh the sounds' cache eviction age - and a no-op when no sound player is active.
-    /// </summary>
-    public void CacheMovementSounds()
+    /// <summary>Pre-decodes the sounds movement can fire, so the first step does not decode mid-frame.</summary>
+    public void CacheSounds()
     {
-        Sound.Cache(FootstepSoundEvent);
-        Sound.Cache(JumpSoundEvent);
-        Sound.Cache(LandSoundEvent);
-        Sound.Cache(GearSoundEvent);
-        Sound.Cache(FallDamageSoundEvent);
+        foreach (var soundEvent in MovementSounds)
+        {
+            Sound.Cache(soundEvent);
+        }
     }
 
     /// <summary>

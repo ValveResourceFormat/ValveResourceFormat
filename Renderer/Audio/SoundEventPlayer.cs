@@ -149,6 +149,8 @@ public sealed class SoundEventPlayer : IDisposable
             Priority = ThreadPriority.Highest,
         };
         mixingThread.Start();
+
+        Sound.Player = this;
     }
 
     private void MixingLoop()

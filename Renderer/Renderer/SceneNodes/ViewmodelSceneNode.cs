@@ -257,19 +257,20 @@ public class ViewmodelSceneNode : ModelSceneNode
     // CKnife::Swing retries a missed line trace with a swept "head hull", making the swipe radial
     private static readonly AABB KnifeSwingHull = AABB.FromCenteredSize(new Vector3(32f, 32f, 36f));
 
-    /// <summary>
-    /// Pre-parses and pre-decodes every attack sound, so the first click does not do the cold event
-    /// parse and vsnd decode mid-frame. Called at load (see <see cref="TryLoadCs2Viewmodel"/>) and
-    /// again whenever the viewmodel becomes active, which only refreshes the sounds' eviction age:
-    /// the call is idempotent, and a no-op when no sound player is active.
-    /// </summary>
-    private static void CacheAttackSounds()
+    private static readonly string[] AttackSounds = [
+        RifleAttackSound,
+        PistolAttackSound,
+        KnifeSlashSound,
+        KnifeHeavySwishSound,
+        KnifeHitWallSound,
+    ];
+
+    private static void CacheSounds()
     {
-        Sound.Cache(RifleAttackSound);
-        Sound.Cache(PistolAttackSound);
-        Sound.Cache(KnifeSlashSound);
-        Sound.Cache(KnifeHeavySwishSound);
-        Sound.Cache(KnifeHitWallSound);
+        foreach (var soundEvent in AttackSounds)
+        {
+            Sound.Cache(soundEvent);
+        }
     }
 
     private void PlayAttackSound(UserInput input, bool heavyKnifeAttack)
@@ -532,9 +533,7 @@ public class ViewmodelSceneNode : ModelSceneNode
         viewmodel.SelectedItemIndex = 2;
         viewmodel.SelectedItemIndex = 3;
 
-        // The viewmodel is built during map load, with the sound player already up: warm the attack
-        // sounds here so their event parse and vsnd decode happen while the map is still loading
-        CacheAttackSounds();
+        CacheSounds();
 
         viewmodel.LayerName = ViewmodelLayerName;
         viewmodel.Flags |= ObjectTypeFlags.DisableVisCulling;
@@ -571,13 +570,7 @@ public class ViewmodelSceneNode : ModelSceneNode
     /// <param name="uptime"></param>
     public void ProcessInput(UserInput input, float uptime)
     {
-        var wasActive = Active;
         Active = !input.NoClip;
-
-        if (Active && !wasActive)
-        {
-            CacheAttackSounds();
-        }
 
         var distanceFromFirstPersonEyes = Vector3.Distance(input.Camera.Location, input.PlayerMovement.EyePosition);
 

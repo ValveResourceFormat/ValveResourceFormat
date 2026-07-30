@@ -160,7 +160,6 @@ public class SampleProviderMulti : AudioSampleProvider
         {
             if (providers.Count > 0)
             {
-                // Held for the whole loop, and the child reads below nest into deeper levels
                 var readBuffer = MixScratch.Push(count);
 
                 try

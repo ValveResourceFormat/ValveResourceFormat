@@ -185,6 +185,8 @@ namespace GUI.Types.GLViewers
         {
             base.LoadScene();
 
+            InitializeSoundPlayer();
+
             if (model != null)
             {
                 modelSceneNode = new ModelSceneNode(Scene, model);

@@ -13,7 +13,6 @@ internal static class DecodeScratch
 {
     private const int MaxRetainedBytes = 16 * 1024 * 1024;
 
-    // Covers most vsnd files whole; a longer one grows the buffer once and every later decode reuses it.
     private const int PrewarmBytes = 1024 * 1024;
 
     [ThreadStatic]
@@ -22,14 +21,8 @@ internal static class DecodeScratch
     [ThreadStatic]
     private static byte[]? bytes;
 
-    /// <summary>
-    /// Allocates the calling thread's buffers up front, at their steady-state size. Called by a decode
-    /// thread as it starts, so the buffers exist before the first sound needs decoding rather than being
-    /// allocated by whatever gameplay moment happens to miss the cache first.
-    /// </summary>
     public static void Prewarm()
     {
-        // Every decoder streams through chunks of at most this many samples
         RentFloats(PcmDecoder.ChunkSamples);
         RentBytes(PrewarmBytes);
     }
