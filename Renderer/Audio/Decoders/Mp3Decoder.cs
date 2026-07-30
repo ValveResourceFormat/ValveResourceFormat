@@ -17,6 +17,17 @@ internal static class Mp3Decoder
     [ThreadStatic]
     private static MpegFrameDecoder? cachedDecoder;
 
+    /// <summary>
+    /// Builds the calling thread's frame walker and frame decoder up front. The decoder owns the layer-III
+    /// tables and synthesis buffers, hundreds of kilobytes of arrays that would otherwise be allocated by
+    /// the first MP3 that misses the cache mid-play.
+    /// </summary>
+    public static void Prewarm()
+    {
+        cachedWalker ??= new MpegFrameWalker();
+        cachedDecoder ??= new MpegFrameDecoder();
+    }
+
     /// <summary>Decodes raw MP3 data, or returns false when no audio could be parsed.</summary>
     /// <param name="data">Buffer holding the MP3 file.</param>
     /// <param name="dataLength">Length of the MP3 file within <paramref name="data"/>.</param>

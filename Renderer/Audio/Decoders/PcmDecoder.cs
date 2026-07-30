@@ -11,7 +11,7 @@ namespace ValveResourceFormat.Renderer.Audio.Decoders;
 internal static class PcmDecoder
 {
     // Scratch chunk size in samples (1 MB of floats); decodes stream through a buffer this size
-    private const int ChunkSamples = 1 << 18;
+    internal const int ChunkSamples = 1 << 18;
 
     /// <summary>Decodes raw little-endian integer PCM, or returns false for an unsupported bit depth.</summary>
     public static bool DecodePcm(ReadOnlySpan<byte> data, int bitsPerSample, int channels, int sampleRate, IPcm16Sink sink)

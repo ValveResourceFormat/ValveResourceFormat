@@ -454,6 +454,10 @@ namespace GUI.Types.GLViewers
             soundPlayer.MixGroupVolumes["Footsteps"] = 0.4f;
             soundPlayer.MixGroupVolumes["PlayerDamage"] = 0.4f;
             soundPlayer.DefaultMixGroupVolume = 0.1f;
+
+            // Warm the sounds walk mode can fire while the map is still loading, rather than when the
+            // user switches into it: their event parse and vsnd decode is a burst of file reads.
+            Input.PlayerMovement.CacheMovementSounds();
         }
 
         public override void OnDetachedFromRenderLoop()

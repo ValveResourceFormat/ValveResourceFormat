@@ -1,5 +1,3 @@
-using System.Buffers;
-
 namespace ValveResourceFormat.Renderer.Audio.SampleProviders;
 
 /// <summary>
@@ -162,7 +160,8 @@ public class SampleProviderMulti : AudioSampleProvider
         {
             if (providers.Count > 0)
             {
-                var readBuffer = ArrayPool<float>.Shared.Rent(count);
+                // Held for the whole loop, and the child reads below nest into deeper levels
+                var readBuffer = MixScratch.Push(count);
 
                 try
                 {
@@ -197,7 +196,7 @@ public class SampleProviderMulti : AudioSampleProvider
                 }
                 finally
                 {
-                    ArrayPool<float>.Shared.Return(readBuffer);
+                    MixScratch.Pop();
                 }
             }
 
