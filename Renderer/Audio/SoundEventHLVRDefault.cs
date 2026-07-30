@@ -43,7 +43,10 @@ internal sealed class SoundEventHLVRDefault : SoundEvent
         pitchRandMin = data.GetFloatProperty("pitch_rand_min");
         pitchRandMax = data.GetFloatProperty("pitch_rand_max");
 
-        if (data.ContainsKey("volume_falloff_max"))
+        // VO lines author the falloff as a curve instead of a min/max pair
+        distanceVolumeCurve = SoundEventCurve.Parse(data, "volume_falloff_curve");
+
+        if (distanceVolumeCurve == null && data.ContainsKey("volume_falloff_max"))
         {
             distanceVolumeCurve = SoundEventCurve.Linear(
                 data.GetFloatProperty("volume_falloff_min"), 1f,

@@ -19,17 +19,19 @@ internal sealed class SoundEventHLVRMulti : SoundEvent
 
     private readonly float randDelayMin;
     private readonly float randDelayMax;
+    private readonly bool hasRandomDelay;
+    private float[] childVolumes = [];
     // Cached once: a method group passed straight to StartChildren would allocate a delegate per start
-    private readonly Action<SoundEvent, int>? staggerChild;
+    private readonly Action<SoundEvent, int>? applyChild;
 
     public SoundEventHLVRMulti(SoundEventDefinition definition) : base(definition)
     {
         var data = definition.Data;
 
-        var hasRandomDelay = data.ContainsKey("rand_delay_min") || data.ContainsKey("rand_delay_max");
+        hasRandomDelay = data.ContainsKey("rand_delay_min") || data.ContainsKey("rand_delay_max");
         randDelayMin = data.GetFloatProperty("rand_delay_min");
         randDelayMax = data.GetFloatProperty("rand_delay_max");
-        staggerChild = hasRandomDelay ? StaggerChild : null;
+        applyChild = ApplyChild;
     }
 
     protected override void DoStart()
@@ -42,7 +44,7 @@ internal sealed class SoundEventHLVRMulti : SoundEvent
         PositionOffset = Definition.PositionOffset;
 
         var childDefinitions = Definition.ChildDefinitions ??= ResolveChildren();
-        StartChildren(childDefinitions, staggerChild);
+        StartChildren(childDefinitions, applyChild);
     }
 
     internal override void Prewarm(int depth)
@@ -50,9 +52,17 @@ internal sealed class SoundEventHLVRMulti : SoundEvent
         PrewarmChildren(Definition.ChildDefinitions ??= ResolveChildren(), depth);
     }
 
-    private void StaggerChild(SoundEvent child, int index)
+    private void ApplyChild(SoundEvent child, int index)
     {
-        child.DelayOverride = float.Lerp(randDelayMin, randDelayMax, Random.NextSingle());
+        if (hasRandomDelay)
+        {
+            child.DelayOverride = float.Lerp(randDelayMin, randDelayMax, Random.NextSingle());
+        }
+
+        if (index < childVolumes.Length && childVolumes[index] >= 0f)
+        {
+            child.VolumeOverride = childVolumes[index];
+        }
     }
 
     protected override void OnFinished()
@@ -77,6 +87,31 @@ internal sealed class SoundEventHLVRMulti : SoundEvent
     {
         var data = Definition.Data;
         var names = new List<string>();
+        var volumes = new List<float>();
+
+        // "hlvr_animate_soundevent" lists its children in an array instead of numbered slots
+        foreach (var name in GetStringOrArrayProperty(data, "soundevents"))
+        {
+            names.Add(name);
+            volumes.Add(-1f);
+        }
+
+        // "hlvr_start_multi_bullet" names its two children instead of numbering them
+        var core = data.GetStringProperty("soundevent_core");
+
+        if (!string.IsNullOrEmpty(core))
+        {
+            names.Add(core);
+            volumes.Add(-1f);
+
+            var damage = data.GetStringProperty("soundevent_damage");
+
+            if (!string.IsNullOrEmpty(damage) && data.GetFloatProperty("use_soundevent_damage") != 0f)
+            {
+                names.Add(damage);
+                volumes.Add(-1f);
+            }
+        }
 
         for (var i = 1; i <= MaxSlots; i++)
         {
@@ -95,6 +130,11 @@ internal sealed class SoundEventHLVRMulti : SoundEvent
             }
 
             names.Add(name);
+
+            // Negative means unauthored, leaving the child's own volume alone
+            volumes.Add(data.ContainsKey("volume_soundevent_" + suffix)
+                ? data.GetFloatProperty("volume_soundevent_" + suffix)
+                : -1f);
         }
 
         var definitions = new SoundEventDefinition?[names.Count];
@@ -104,6 +144,7 @@ internal sealed class SoundEventHLVRMulti : SoundEvent
             definitions[i] = Mixer.Player.Bank.GetSoundEvent(names[i]);
         }
 
+        childVolumes = [.. volumes];
         return definitions;
     }
 }

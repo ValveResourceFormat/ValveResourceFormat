@@ -48,6 +48,12 @@ public sealed class SoundEventDefinition
     /// <summary>Gets the delay in seconds before the sound starts.</summary>
     public float Delay { get; }
 
+    /// <summary>Gets the fade-in length in seconds ("volume_fade_in"), zero to start at full volume.</summary>
+    public float FadeIn { get; }
+
+    /// <summary>Gets the stop-fade length in seconds ("volume_fade_out"), zero to use the caller's fallback.</summary>
+    public float FadeOut { get; }
+
     /// <summary>
     /// Gets how strongly geometry between the listener and the sound attenuates it
     /// ("occlusion_intensity", or "occlusion_scale" in hlvr): 0 (the default) is
@@ -122,6 +128,8 @@ public sealed class SoundEventDefinition
         Volume = data.GetFloatProperty("volume", 1f);
         Pitch = data.GetFloatProperty("pitch", 1f);
         Delay = data.GetFloatProperty("delay");
+        FadeIn = data.GetFloatProperty("volume_fade_in");
+        FadeOut = data.GetFloatProperty("volume_fade_out");
         OcclusionIntensity = data.ContainsKey("occlusion_intensity")
             ? data.GetFloatProperty("occlusion_intensity")
             : data.GetFloatProperty("occlusion_scale");

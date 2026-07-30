@@ -187,9 +187,9 @@ public abstract class SoundEvent
 
     /// <summary>
     /// Gets the authored stop-fade length in seconds, overriding the fallback <see cref="FadeOutAndStop"/>
-    /// is called with. Zero when the type has none, leaving the caller's fallback in place.
+    /// is called with. Zero leaves the caller's fallback in place.
     /// </summary>
-    private protected virtual float FadeOutSeconds => 0f;
+    private protected virtual float FadeOutSeconds => Definition.FadeOut;
 
     /// <summary>
     /// Gets whether the event is fading out towards a stop (see <see cref="FadeOutAndStop"/>).
@@ -382,23 +382,30 @@ public abstract class SoundEvent
     /// </param>
     protected void StartChildren(SoundEventDefinition?[] definitions, Action<SoundEvent, int>? beforeStart = null)
     {
-        children ??= new SoundEvent?[definitions.Length];
-
         for (var i = 0; i < definitions.Length; i++)
         {
-            var definition = definitions[i];
-            if (definition == null)
-            {
-                continue;
-            }
+            var child = GetOrBuildChild(definitions, i);
 
-            var child = children[i] ??= Build(definition);
             if (child != null)
             {
                 beforeStart?.Invoke(child, i);
                 StartAsChild(child);
             }
         }
+    }
+
+    /// <summary>
+    /// Gets the instance for one child slot, building it the first time and reusing it on every later
+    /// start, for the types that start one child at a time rather than all of them. Null when the slot
+    /// holds no definition or its type is unsupported. Start it with <see cref="StartAsChild"/>.
+    /// </summary>
+    private protected SoundEvent? GetOrBuildChild(SoundEventDefinition?[] definitions, int index)
+    {
+        children ??= new SoundEvent?[definitions.Length];
+
+        var definition = definitions[index];
+
+        return definition == null ? null : children[index] ??= Build(definition);
     }
 
     /// <summary>
@@ -658,8 +665,19 @@ public abstract class SoundEvent
         {
             "csgo_mega" or "choreo_3d" => new SoundEventCSGOMega(definition),
             "citadel_default_2d" or "citadel_ambient_3d" => new SoundEventCitadelAmbient(definition),
-            "hlvr_default_3d" or "hlvr_2d_w_occlusion" or "src1_3d" or "src1_2d" => new SoundEventHLVRDefault(definition),
-            "hlvr_start_multi" or "hlvr_start_multi_quad" => new SoundEventHLVRMulti(definition),
+            "hlvr_default_3d" or "hlvr_2d_w_occlusion" or "src1_3d" or "src1_2d"
+                or "hlvr_default_3d_on_aabb" or "hlvr_default_3d_xen_propagation" or "hlvr_lpf_3d" or "hlvr_2d_w_falloff"
+                or "hlvr_ambient_rand_child" or "hlvr_ambient_rand_child_random_anim_time"
+                => new SoundEventHLVRDefault(definition),
+            "hlvr_update_vo_default" or "hlvr_update_vo_combine" or "hlvr_music_2d" or "hlvr_music_3d"
+                => new SoundEventHLVRDefault(definition),
+            "hlvr_gun_layers_3d" or "hlvr_player_gun_layers_3d" => new SoundEventHLVRGunLayers(definition),
+            "hlvr_start_soundevent" => new SoundEventHLVRStartSoundEvent(definition),
+            "hlvr_animate_soundevent" => new SoundEventHLVRMulti(definition),
+            "hlvr_start_multi" or "hlvr_start_multi_quad" or "hlvr_start_multi_24" or "hlvr_start_multi_simple"
+                or "hlvr_start_multi_aabb" or "hlvr_start_multi_bullet" or "hlvr_startup_start_multi"
+                or "hlvr_music_start_multi_quad"
+                => new SoundEventHLVRMulti(definition),
             "hlvr_start_multi_switch" => new SoundEventHLVRSwitch(definition),
             "hlvr_ambient_rand" => new SoundEventHLVRAmbientRand(definition),
             "hlvr_ambient_fixed_rotation" => new SoundEventHLVRAmbientFixedRotation(definition),

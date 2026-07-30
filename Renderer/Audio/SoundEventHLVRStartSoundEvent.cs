@@ -1,0 +1,102 @@
+using ValveResourceFormat.Serialization.KeyValues;
+
+namespace ValveResourceFormat.Renderer.Audio;
+
+/// <summary>
+/// Implements the "hlvr_start_soundevent" type: starts one event out of its "soundevents" list, picked at
+/// random or taken in order per "sequence_type", and picks again when it finishes if "restart_on_finish"
+/// is set (a radio station cycling through its lines).
+/// </summary>
+internal sealed class SoundEventHLVRStartSoundEvent : SoundEvent
+{
+    private readonly string[] childEventNames;
+    private readonly bool sequential;
+    private readonly bool restartOnFinish;
+    private readonly float volumeAttenuation;
+
+    private int nextIndex;
+
+    public SoundEventHLVRStartSoundEvent(SoundEventDefinition definition) : base(definition)
+    {
+        var data = definition.Data;
+
+        childEventNames = GetStringOrArrayProperty(data, "soundevents");
+        sequential = !string.Equals(data.GetStringProperty("sequence_type"), "random", StringComparison.OrdinalIgnoreCase);
+        restartOnFinish = data.GetBooleanProperty("restart_on_finish");
+        volumeAttenuation = data.GetFloatProperty("volume_atten", 1f);
+    }
+
+    protected override void DoStart()
+    {
+        if (Position == null && Definition.Position.HasValue)
+        {
+            Position = Definition.Position;
+        }
+
+        PositionOffset = Definition.PositionOffset;
+
+        if (childEventNames.Length == 0)
+        {
+            return;
+        }
+
+        var childDefinitions = Definition.ChildDefinitions ??= ResolveChildren();
+
+        var index = sequential
+            ? nextIndex % childDefinitions.Length
+            : Mixer.Player.PickTrack(Definition, childDefinitions.Length);
+
+        nextIndex = index + 1;
+
+        var child = GetOrBuildChild(childDefinitions, index);
+
+        if (child == null)
+        {
+            return;
+        }
+
+        child.VolumeOverride = Math.Clamp((VolumeOverride ?? Definition.Volume) * volumeAttenuation, 0f, 1f);
+        StartAsChild(child);
+    }
+
+    internal override void Prewarm(int depth)
+    {
+        if (childEventNames.Length > 0)
+        {
+            PrewarmChildren(Definition.ChildDefinitions ??= ResolveChildren(), depth);
+        }
+    }
+
+    protected override void OnFinished()
+    {
+        base.OnFinished();
+
+        if (FadingOut)
+        {
+            return;
+        }
+
+        if (restartOnFinish && childEventNames.Length > 0)
+        {
+            Start();
+            return;
+        }
+
+        if (!AnyChildStarted())
+        {
+            Stop();
+        }
+    }
+
+    private SoundEventDefinition?[] ResolveChildren()
+    {
+        var definitions = new SoundEventDefinition?[childEventNames.Length];
+
+        for (var i = 0; i < childEventNames.Length; i++)
+        {
+            definitions[i] = Mixer.Player.Bank.GetSoundEvent(childEventNames[i]);
+        }
+
+        return definitions;
+    }
+}
