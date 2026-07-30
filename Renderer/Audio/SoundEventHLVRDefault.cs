@@ -53,10 +53,13 @@ internal sealed class SoundEventHLVRDefault : SoundEvent
                 data.GetFloatProperty("volume_falloff_max"), 0f);
         }
 
-        range = distanceVolumeCurve is { MaxX: > 0f }
-            ? distanceVolumeCurve.MaxX
-            : data.ContainsKey("distance_max") ? data.GetFloatProperty("distance_max")
-            : data.ContainsKey("cull_at_distance") ? data.GetFloatProperty("cull_at_distance")
+        // Only positive values are a limit: a zero (or a missing key read as zero) would silence the event
+        var distanceMax = data.GetFloatProperty("distance_max");
+        var cullDistance = data.GetFloatProperty("cull_at_distance");
+
+        range = distanceVolumeCurve is { MaxX: > 0f } ? distanceVolumeCurve.MaxX
+            : distanceMax > 0f ? distanceMax
+            : cullDistance > 0f ? cullDistance
             : 1000f;
 
         limiterMax = (int)data.GetFloatProperty("limiter_max");

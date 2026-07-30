@@ -15,6 +15,13 @@ public sealed class SoundEventCurve
     /// <summary>Gets the largest x value covered by the curve.</summary>
     public float MaxX => points[^1].X;
 
+    /// <summary>
+    /// Gets whether the curve actually falls off. A flat curve carries no distance information - it is a
+    /// constant gain trim left in the data - and using it as an attenuation makes a sound audible at every
+    /// distance, so callers treat it as its value rather than as a curve.
+    /// </summary>
+    public bool Attenuates => points[^1].Y < points[0].Y - 0.0001f;
+
     private SoundEventCurve((float X, float Y)[] points)
     {
         this.points = points;
@@ -31,8 +38,37 @@ public sealed class SoundEventCurve
             : new SoundEventCurve([(x1, y1), (x0, y0)]);
     }
 
+    /// <summary>
+    /// Returns a copy that reaches silence at <paramref name="x"/> and stays there, for events that pair a
+    /// falloff curve with an authored cull distance: a curve whose last point is not silent clamps to that
+    /// value, leaving the sound audible past the distance the game stops playing it at.
+    /// </summary>
+    internal SoundEventCurve WithCutoff(float x)
+    {
+        if (x <= points[0].X || (points[^1].Y <= 0f && x >= points[^1].X))
+        {
+            return this;
+        }
+
+        var kept = 0;
+
+        while (kept < points.Length && points[kept].X < x)
+        {
+            kept++;
+        }
+
+        var cut = new (float X, float Y)[kept + 1];
+        points.AsSpan(0, kept).CopyTo(cut);
+        cut[kept] = (x, 0f);
+
+        return new SoundEventCurve(cut);
+    }
+
     /// <summary>Parses a mapping curve property from sound event data, or returns null when it is missing or empty.</summary>
-    public static SoundEventCurve? Parse(KVObject soundEventData, string name)
+    /// <param name="soundEventData">The event data holding the curve.</param>
+    /// <param name="name">Property name of the curve.</param>
+    /// <param name="decibels">Whether the curve's values are decibels, converted to linear gain as they are read.</param>
+    public static SoundEventCurve? Parse(KVObject soundEventData, string name, bool decibels = false)
     {
         if (!soundEventData.TryGetValue(name, out var value) || value.ValueType != KVValueType.Array)
         {
@@ -59,9 +95,11 @@ public sealed class SoundEventCurve
                 continue;
             }
 
+            var y = Convert.ToSingle(point[1], CultureInfo.InvariantCulture);
+
             points.Add((
                 Convert.ToSingle(point[0], CultureInfo.InvariantCulture),
-                Convert.ToSingle(point[1], CultureInfo.InvariantCulture)));
+                decibels ? MathUtils.DecibelsToLinear(y) : y));
         }
 
         if (points.Count == 0)

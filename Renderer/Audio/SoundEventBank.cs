@@ -54,13 +54,13 @@ public sealed class SoundEventBank
     /// <summary>
     /// Resolves the "base" inheritance chain: most events (e.g. CT_Concrete.StepLeft) only override a few
     /// properties of a base event (e.g. Base.Footstep) which carries the type and the rest of the data.
+    /// A base is either a single event name, or (citadel) an array of shared fragments referenced by
+    /// "event_name" - a falloff curve, a mix send - each contributing only the fields the event lacks.
     /// The merged result replaces the stored definition, so resolution happens once per event.
     /// </summary>
     private KVObject ResolveBase(string name, KVObject soundEvent, int depth)
     {
-        var baseName = soundEvent.GetStringProperty("base");
-
-        if (baseName == null || depth > 8)
+        if (depth > 8 || !soundEvent.TryGetValue("base", out var baseValue))
         {
             return soundEvent;
         }
@@ -75,18 +75,42 @@ public sealed class SoundEventBank
             }
         }
 
-        if (soundEvents.TryGetValue(baseName, out var baseEvent))
+        if (baseValue.ValueType == KVValueType.Array)
         {
-            foreach (var property in ResolveBase(baseName, baseEvent, depth + 1))
+            foreach (var fragment in soundEvent.GetArray("base"))
             {
-                if (!merged.ContainsKey(property.Key))
-                {
-                    merged.Add(property.Key, property.Value);
-                }
+                // The fragment's own "type" names what kind of fragment it is
+                // ("citadel_distance_falloff"), not what the event is, so it is not inherited
+                MergeBase(merged, fragment.GetStringProperty("event_name"), depth, inheritType: false);
             }
+        }
+        else
+        {
+            MergeBase(merged, soundEvent.GetStringProperty("base"), depth, inheritType: true);
         }
 
         soundEvents[name] = merged;
         return merged;
+    }
+
+    private void MergeBase(KVObject merged, string? baseName, int depth, bool inheritType)
+    {
+        if (string.IsNullOrEmpty(baseName) || !soundEvents.TryGetValue(baseName, out var baseEvent))
+        {
+            return;
+        }
+
+        foreach (var property in ResolveBase(baseName, baseEvent, depth + 1))
+        {
+            if (!inheritType && string.Equals(property.Key, "type", StringComparison.OrdinalIgnoreCase))
+            {
+                continue;
+            }
+
+            if (!merged.ContainsKey(property.Key))
+            {
+                merged.Add(property.Key, property.Value);
+            }
+        }
     }
 }
