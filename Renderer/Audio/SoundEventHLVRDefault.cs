@@ -1,4 +1,4 @@
-using ValveResourceFormat.Renderer.Audio.SampleProviders;
+﻿using ValveResourceFormat.Renderer.Audio.SampleProviders;
 using ValveResourceFormat.Serialization.KeyValues;
 
 namespace ValveResourceFormat.Renderer.Audio;
@@ -92,29 +92,7 @@ internal sealed class SoundEventHLVRDefault : SoundEvent
             }
         }
 
-        var soundName = trackNames[Mixer.Player.PickTrack(Definition, trackNames.Length)];
-        var cachedSound = Mixer.Player.SoundCache.GetSound(soundName);
-        PlayingSoundFile = soundName;
-
-        if (cachedSound == null)
-        {
-            return;
-        }
-
-        var position = Position.HasValue ? Position.Value + PositionOffset : (Vector3?)null;
-        // 2 interleaved stereo samples per frame
-        var delaySamples = (int)(Definition.Delay * SampleRate) * 2;
-
-        var sampleProvider = BuildTrackProvider(cachedSound, position, GetRandomizedPitch(), delaySamples);
-        sampleProvider.Volume = GetRandomizedVolume();
-
-        if (sampleProvider is SampleProvider3D spatial)
-        {
-            spatial.Range = range;
-            spatial.DistanceVolumeCurve = distanceVolumeCurve;
-        }
-
-        SampleProviders.Add(sampleProvider);
+        StartTrack(trackNames, GetRandomizedVolume(), GetRandomizedPitch(), range, distanceVolumeCurve);
     }
 
     internal override void Prewarm(int depth)
@@ -124,12 +102,7 @@ internal sealed class SoundEventHLVRDefault : SoundEvent
             return;
         }
 
-        foreach (var trackName in trackNames)
-        {
-            Mixer.Player.SoundCache.GetSound(trackName, background: true);
-        }
-
-        PrewarmTrackProvider(Mixer.Player.SoundCache.GetSound(trackNames[0], background: true));
+        PrewarmTracks(trackNames);
 
         if (limiterEnabled)
         {

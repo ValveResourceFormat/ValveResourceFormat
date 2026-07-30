@@ -176,7 +176,7 @@ public class PlayerMovement
     }
 
     /// <summary>Pre-decodes the sounds movement can fire, so the first step does not decode mid-frame.</summary>
-    public void CacheSounds()
+    public static void CacheSounds()
     {
         foreach (var soundEvent in MovementSounds)
         {

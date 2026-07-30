@@ -385,7 +385,7 @@ public sealed class SoundEventPlayer : IDisposable
         var definition = Bank.GetSoundEvent(soundEventName);
         if (definition == null)
         {
-            logger.LogWarning("Unknown sound event {SoundEventName}", soundEventName);
+            logger.LogUniqueWarning("Unknown sound event {SoundEventName}", soundEventName);
             return null;
         }
 

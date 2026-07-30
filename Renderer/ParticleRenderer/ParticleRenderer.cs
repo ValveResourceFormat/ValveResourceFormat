@@ -1,4 +1,4 @@
-using System.Diagnostics;
+﻿using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Threading;
@@ -43,8 +43,7 @@ namespace ValveResourceFormat.Renderer.Particles
         // invalidate each other. ReadConstraintPasses returns 1 for systems with no constraints.
         private readonly int ConstraintPasses;
 
-        private static readonly Lock LoggedWarningsLock = new();
-        private static readonly HashSet<string> loggedWarnings = [];
+        private const string UnsupportedClassWarning = "Unsupported {ComponentType} class '{ClassName}' {File}";
 
         private readonly Scene scene;
 
@@ -319,11 +318,9 @@ namespace ValveResourceFormat.Renderer.Particles
 
                     if (neededSteps > MaxPreSimulationSteps)
                     {
-                        var message = $"Effect wants {neededSteps} pre-simulation substeps, capped at {MaxPreSimulationSteps}";
-                        if (loggedWarnings.Add($"{message} {Name}"))
-                        {
-                            RendererContext.Logger.LogWarning("{Message} {File}", message, Name);
-                        }
+                        RendererContext.Logger.LogUniqueWarning(
+                            "Effect wants {NeededSteps} pre-simulation substeps, capped at {MaxSteps} {File}",
+                            neededSteps, MaxPreSimulationSteps, Name);
                     }
 
                     for (var i = 0; i < steps; i++)
@@ -688,7 +685,7 @@ namespace ValveResourceFormat.Renderer.Particles
                 }
                 else
                 {
-                    LogUniqueUnsupportedWarning(label, className);
+                    RendererContext.Logger.LogUniqueWarning(UnsupportedClassWarning, label, className, Name);
                 }
             }
         }
@@ -730,7 +727,7 @@ namespace ValveResourceFormat.Renderer.Particles
                 }
                 else
                 {
-                    LogUniqueUnsupportedWarning("renderer", rendererClass);
+                    RendererContext.Logger.LogUniqueWarning(UnsupportedClassWarning, "renderer", rendererClass, Name);
                 }
             }
         }
@@ -765,22 +762,6 @@ namespace ValveResourceFormat.Renderer.Particles
             // Also skip ops that only run during endcap (currently unsupported)
             return parse.Boolean("m_bDisableOperator", default)
                 || parse.Enum<ParticleEndCapMode>("m_nOpEndCapState", default) == ParticleEndCapMode.PARTICLE_ENDCAP_ENDCAP_ON;
-        }
-
-        private void LogUniqueUnsupportedWarning(string componentType, string className)
-        {
-            var message = $"Unsupported {componentType} class '{className}'";
-
-            bool isNewWarning;
-            using (LoggedWarningsLock.EnterScope())
-            {
-                isNewWarning = loggedWarnings.Add(message);
-            }
-
-            if (isNewWarning)
-            {
-                RendererContext.Logger.LogWarning("{Message} {File}", message, Name);
-            }
         }
 
         // todo: set this when viewer checkbox is toggled

@@ -1,12 +1,13 @@
-using System.Diagnostics;
+﻿using System.Diagnostics;
 using ValveResourceFormat.Renderer.Audio.SampleProviders;
 using ValveResourceFormat.Serialization.KeyValues;
 
 namespace ValveResourceFormat.Renderer.Audio;
 
 /// <summary>
-/// Implements the "csgo_mega" sound event type: a random sound picked from a track list,
-/// optional child sound events, and optional periodic retriggering.
+/// Implements the "csgo_mega" sound event type, and Half-Life: Alyx's "choreo_3d", whose keys are a
+/// subset of it: a random sound picked from a track list, optional child sound events, and optional
+/// periodic retriggering.
 /// </summary>
 internal sealed class SoundEventCSGOMega : SoundEvent
 {
@@ -79,31 +80,7 @@ internal sealed class SoundEventCSGOMega : SoundEvent
 
         wasInitialized = true;
 
-        if (trackNames.Length > 0)
-        {
-            var soundName = trackNames[Mixer.Player.PickTrack(Definition, trackNames.Length)];
-            var cachedSound = Mixer.Player.SoundCache.GetSound(soundName);
-            PlayingSoundFile = soundName;
-
-            if (cachedSound != null)
-            {
-                var position = Position.HasValue ? Position.Value + PositionOffset : (Vector3?)null;
-                // 2 interleaved stereo samples per frame
-                var delaySamples = (int)(Definition.Delay * SampleRate) * 2;
-
-                var sampleProvider = BuildTrackProvider(cachedSound, position, GetRandomizedPitch(), delaySamples);
-                sampleProvider.Volume = GetRandomizedVolume();
-
-                if (sampleProvider is SampleProvider3D spatial)
-                {
-                    spatial.Range = range;
-                    spatial.DistanceVolumeCurve = distanceVolumeCurve;
-                    spatial.StereoMixCurve = stereoMixCurve;
-                }
-
-                SampleProviders.Add(sampleProvider);
-            }
-        }
+        StartTrack(trackNames, GetRandomizedVolume(), GetRandomizedPitch(), range, distanceVolumeCurve, stereoMixCurve);
 
         if (childEventNames.Length == 0)
         {
@@ -135,15 +112,7 @@ internal sealed class SoundEventCSGOMega : SoundEvent
 
     internal override void Prewarm(int depth)
     {
-        foreach (var trackName in trackNames)
-        {
-            Mixer.Player.SoundCache.GetSound(trackName, background: true);
-        }
-
-        if (trackNames.Length > 0)
-        {
-            PrewarmTrackProvider(Mixer.Player.SoundCache.GetSound(trackNames[0], background: true));
-        }
+        PrewarmTracks(trackNames);
 
         if (childEventNames.Length > 0)
         {

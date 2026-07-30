@@ -1,4 +1,4 @@
-using ValveResourceFormat.Renderer.Audio.SampleProviders;
+﻿using ValveResourceFormat.Renderer.Audio.SampleProviders;
 using ValveResourceFormat.Serialization.KeyValues;
 
 namespace ValveResourceFormat.Renderer.Audio;
@@ -42,42 +42,12 @@ internal sealed class SoundEventScriptedLoop : SoundEvent
         Position = origin;
         PositionOffset = Definition.PositionOffset;
 
-        var soundName = trackNames[Mixer.Player.PickTrack(Definition, trackNames.Length)];
-        var cachedSound = Mixer.Player.SoundCache.GetSound(soundName);
-        PlayingSoundFile = soundName;
+        var trackVolume = Math.Clamp(VolumeOverride ?? volume, 0f, 1f);
 
-        if (cachedSound == null)
-        {
-            return;
-        }
-
-        var position = Position.HasValue ? Position.Value + PositionOffset : (Vector3?)null;
-        // 2 interleaved stereo samples per frame
-        var delaySamples = (int)(Definition.Delay * SampleRate) * 2;
-
-        var sampleProvider = BuildTrackProvider(cachedSound, position, Math.Clamp(pitch, 0.25f, 4f), delaySamples);
-        sampleProvider.Volume = Math.Clamp(VolumeOverride ?? volume, 0f, 1f);
-
-        if (sampleProvider is SampleProvider3D spatial)
-        {
-            spatial.Range = range;
-        }
-
-        SampleProviders.Add(sampleProvider);
+        StartTrack(trackNames, trackVolume, Math.Clamp(pitch, 0.25f, 4f), range);
     }
 
-    internal override void Prewarm(int depth)
-    {
-        foreach (var trackName in trackNames)
-        {
-            Mixer.Player.SoundCache.GetSound(trackName, background: true);
-        }
-
-        if (trackNames.Length > 0)
-        {
-            PrewarmTrackProvider(Mixer.Player.SoundCache.GetSound(trackNames[0], background: true));
-        }
-    }
+    internal override void Prewarm(int depth) => PrewarmTracks(trackNames);
 
     protected override void OnFinished()
     {

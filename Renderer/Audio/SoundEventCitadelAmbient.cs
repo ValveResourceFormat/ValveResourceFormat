@@ -1,4 +1,4 @@
-using System.Diagnostics;
+﻿using System.Diagnostics;
 using ValveResourceFormat.Renderer.Audio.SampleProviders;
 using ValveResourceFormat.Serialization.KeyValues;
 
@@ -70,27 +70,6 @@ internal sealed class SoundEventCitadelAmbient : SoundEvent
             return;
         }
 
-        var soundName = trackNames[Mixer.Player.PickTrack(Definition, trackNames.Length)];
-        var cachedSound = Mixer.Player.SoundCache.GetSound(soundName);
-        PlayingSoundFile = soundName;
-
-        if (cachedSound == null)
-        {
-            return;
-        }
-
-        var position = Position.HasValue ? Position.Value + PositionOffset : (Vector3?)null;
-        // 2 interleaved stereo samples per frame
-        var delaySamples = (int)(Definition.Delay * SampleRate) * 2;
-
-        trackProvider = BuildTrackProvider(cachedSound, position, Definition.Pitch, delaySamples);
-
-        if (trackProvider is SampleProvider3D spatial)
-        {
-            spatial.Range = range;
-            spatial.DistanceVolumeCurve = distanceVolumeCurve;
-        }
-
         // Definition.Volume is in decibels for this event family
         var baseVolume = Math.Clamp(MathUtils.DecibelsToLinear(VolumeOverride ?? Definition.Volume), 0f, 1f);
         var mixGroupVolume = Mixer.Player.GetMixGroupVolume(mixGroup);
@@ -98,23 +77,12 @@ internal sealed class SoundEventCitadelAmbient : SoundEvent
 
         fadeInSecondsRemaining = volumeFadeIn;
         startTimestamp = Stopwatch.GetTimestamp();
-        trackProvider.Volume = fadeInSecondsRemaining > 0f ? 0f : targetVolume;
 
-        SampleProviders.Add(trackProvider);
+        trackProvider = StartTrack(trackNames, fadeInSecondsRemaining > 0f ? 0f : targetVolume, Definition.Pitch,
+            range, distanceVolumeCurve);
     }
 
-    internal override void Prewarm(int depth)
-    {
-        foreach (var trackName in trackNames)
-        {
-            Mixer.Player.SoundCache.GetSound(trackName, background: true);
-        }
-
-        if (trackNames.Length > 0)
-        {
-            PrewarmTrackProvider(Mixer.Player.SoundCache.GetSound(trackNames[0], background: true));
-        }
-    }
+    internal override void Prewarm(int depth) => PrewarmTracks(trackNames);
 
     internal override void ResetForReplay()
     {

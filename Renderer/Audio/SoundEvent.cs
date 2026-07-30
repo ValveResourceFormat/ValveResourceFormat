@@ -186,6 +186,12 @@ public abstract class SoundEvent
     private protected virtual SoundEventCurve? FadeOutCurve => null;
 
     /// <summary>
+    /// Gets the authored stop-fade length in seconds, overriding the fallback <see cref="FadeOutAndStop"/>
+    /// is called with. Zero when the type has none, leaving the caller's fallback in place.
+    /// </summary>
+    private protected virtual float FadeOutSeconds => 0f;
+
+    /// <summary>
     /// Gets whether the event is fading out towards a stop (see <see cref="FadeOutAndStop"/>).
     /// Retriggers are suppressed while fading.
     /// </summary>
@@ -206,7 +212,7 @@ public abstract class SoundEvent
         }
 
         FadingOut = true;
-        SampleProvider.BeginFadeOut(FadeOutCurve, fallbackSeconds, SampleRate);
+        SampleProvider.BeginFadeOut(FadeOutCurve, FadeOutSeconds > 0f ? FadeOutSeconds : fallbackSeconds, SampleRate);
     }
 
     /// <summary>
@@ -294,6 +300,72 @@ public abstract class SoundEvent
         }
 
         return unspatializedTrackSource ??= new SampleProvider2D(trackSource);
+    }
+
+    /// <summary>
+    /// Picks a track, starts it through <see cref="BuildTrackProvider"/> at this event's position and adds it
+    /// to the mix, for the types that play one track at a time. Returns the provider so the caller can apply
+    /// its own range and curves, or null when there is nothing to play.
+    /// </summary>
+    /// <param name="trackNames">The tracks to pick from.</param>
+    /// <param name="volume">Volume for the picked track.</param>
+    /// <param name="pitch">Pitch multiplier for the picked track.</param>
+    /// <param name="range">Audible range, when the track ends up spatialized.</param>
+    /// <param name="distanceVolumeCurve">Distance to volume curve, when the track ends up spatialized.</param>
+    /// <param name="stereoMixCurve">Distance to unfiltered stereo curve, when the track ends up spatialized.</param>
+    /// <param name="delaySeconds">Start delay, defaulting to the definition's own.</param>
+    private protected AudioSampleProvider? StartTrack(string[] trackNames, float volume, float pitch, float range,
+        SoundEventCurve? distanceVolumeCurve = null, SoundEventCurve? stereoMixCurve = null, float? delaySeconds = null)
+    {
+        if (trackNames.Length == 0)
+        {
+            return null;
+        }
+
+        var soundName = trackNames[Mixer.Player.PickTrack(Definition, trackNames.Length)];
+        var cachedSound = Mixer.Player.SoundCache.GetSound(soundName);
+        PlayingSoundFile = soundName;
+
+        if (cachedSound == null)
+        {
+            return null;
+        }
+
+        var position = Position.HasValue ? Position.Value + PositionOffset : (Vector3?)null;
+        // 2 interleaved stereo samples per frame
+        var delaySamples = (int)((delaySeconds ?? Definition.Delay) * SampleRate) * 2;
+
+        var sampleProvider = BuildTrackProvider(cachedSound, position, pitch, delaySamples);
+        sampleProvider.Volume = volume;
+
+        if (sampleProvider is SampleProvider3D spatial)
+        {
+            spatial.Range = range;
+            spatial.DistanceVolumeCurve = distanceVolumeCurve;
+            spatial.StereoMixCurve = stereoMixCurve;
+        }
+
+        // Added last: a retrigger starts a track while the event is already attached to the mixer, and the
+        // mixing thread must never read the provider before it is fully set up
+        SampleProviders.Add(sampleProvider);
+        return sampleProvider;
+    }
+
+    /// <summary>
+    /// Queues background decodes for every track a <see cref="StartTrack"/> call could pick, and pre-builds
+    /// the provider chain for the first of them.
+    /// </summary>
+    private protected void PrewarmTracks(string[] trackNames)
+    {
+        foreach (var trackName in trackNames)
+        {
+            Mixer.Player.SoundCache.GetSound(trackName, background: true);
+        }
+
+        if (trackNames.Length > 0)
+        {
+            PrewarmTrackProvider(Mixer.Player.SoundCache.GetSound(trackNames[0], background: true));
+        }
     }
 
     /// <summary>
@@ -584,12 +656,13 @@ public abstract class SoundEvent
     {
         return definition.Type switch
         {
-            "csgo_mega" => new SoundEventCSGOMega(definition),
+            "csgo_mega" or "choreo_3d" => new SoundEventCSGOMega(definition),
             "citadel_default_2d" or "citadel_ambient_3d" => new SoundEventCitadelAmbient(definition),
             "hlvr_default_3d" or "hlvr_2d_w_occlusion" or "src1_3d" or "src1_2d" => new SoundEventHLVRDefault(definition),
             "hlvr_start_multi" or "hlvr_start_multi_quad" => new SoundEventHLVRMulti(definition),
             "hlvr_start_multi_switch" => new SoundEventHLVRSwitch(definition),
             "hlvr_ambient_rand" => new SoundEventHLVRAmbientRand(definition),
+            "hlvr_ambient_fixed_rotation" => new SoundEventHLVRAmbientFixedRotation(definition),
             "hlvr_ambient_fixed_rotation_multi_vsnd" => new SoundEventHLVRAmbientMultiVsnd(definition),
             "script_playrandom" => new SoundEventScriptedRandom(definition),
             "script_playlooping" => new SoundEventScriptedLoop(definition),
