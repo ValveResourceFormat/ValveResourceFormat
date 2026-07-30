@@ -161,6 +161,8 @@ namespace ValveResourceFormat.Renderer
 
             IsPaused = allPaused;
 
+            UpdateActiveClipSounds();
+
             if (activeClip.IsTimeBasedTransition && previousClip != null)
             {
                 // Distribute blend weights between previous clip and active clip only.
@@ -324,6 +326,12 @@ namespace ValveResourceFormat.Renderer
                 var isAdditive = animation.IsAdditive;
                 newClip = new PlaybackClip(animation) { Looping = looping, BlendTime = blendTime, IsAdditive = isAdditive };
                 clips[animName] = newClip;
+
+                if (!SkipEvents)
+                {
+                    PreCacheClipSounds(animation);
+                    PreCacheLegacyAnimationEventSounds(animation);
+                }
             }
             else
             {

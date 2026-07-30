@@ -46,9 +46,58 @@ namespace ValveResourceFormat.Renderer
         public float FrametimeMultiplier { get; set; } = 1.0f;
 
         /// <summary>
+        /// Gets or sets whether the sounds of sampled animation events - sound events embedded in animation
+        /// clips (CNmSoundEvent), or "AE_CL_PLAYSOUND"/"AE_CL_PLAYSOUND_ATTACHMENT" events on sequence
+        /// animations - are skipped during playback. False by default, so sounds play unless opted out.
+        /// Clearing this pre-caches the sound events of the clips already loaded.
+        /// </summary>
+        public bool SkipEvents
+        {
+            get => modelPlayer.SkipEvents;
+            set
+            {
+                modelPlayer.SkipEvents = value;
+
+                foreach (var external in externalSkeletons.Values)
+                {
+                    external.Player.SkipEvents = value;
+                }
+            }
+        }
+
+        /// <summary>
         /// The parent animating transform.
         /// </summary>
         public Matrix4x4 Transform { get; set; } = Matrix4x4.Identity;
+
+        /// <summary>
+        /// Optional resolver from an attachment/bone name to a world position, used to place the sounds of
+        /// animation events (an empty name means the model's own position). The owning scene node knows how
+        /// to turn a name into a world transform - and holds the actual world transform, unlike
+        /// <see cref="Transform"/> here, which is not the world transform (it is applied while computing bone
+        /// poses, and re-applying it there would double-transform) - so it wires this up. Sounds play
+        /// unspatialized when unset.
+        /// </summary>
+        public Func<string, Vector3?>? ResolvePosition
+        {
+            get => modelPlayer.ResolvePosition;
+            set
+            {
+                modelPlayer.ResolvePosition = value;
+
+                foreach (var external in externalSkeletons.Values)
+                {
+                    external.Player.ResolvePosition = value;
+                }
+            }
+        }
+
+        /// <summary>
+        /// Pre-decodes every sound the animation's events can play, so the first playback does no decode
+        /// work mid-frame. Call when the animation is loaded, not when it first plays.
+        /// </summary>
+        /// <param name="animation">The animation whose event sounds to pre-cache.</param>
+        public void PreCacheAnimationSounds(Animation animation) => modelPlayer.PreCacheAnimationSounds(animation);
 
         /// <summary>Gets or sets whether animations should loop when reaching the end.</summary>
         public bool Looping { get; set; } = true;
@@ -303,7 +352,11 @@ namespace ValveResourceFormat.Renderer
             }
 
             var bindPose = ComputeBindPose(skeleton);
-            var externalPlayer = new AnimationPlayer(skeleton, [], bindPose, bindPose.AsSpan().ToArray());
+            var externalPlayer = new AnimationPlayer(skeleton, [], bindPose, bindPose.AsSpan().ToArray())
+            {
+                SkipEvents = SkipEvents,
+                ResolvePosition = ResolvePosition,
+            };
 
             externalSkeletons[skeletonName] = new(externalPlayer, remap);
         }

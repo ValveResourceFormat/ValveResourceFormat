@@ -42,11 +42,12 @@ namespace ValveResourceFormat.Renderer
             {
                 var clipHandler = ClipEventFired;
 
-                if (clipHandler != null)
+                if (clipHandler != null || !SkipEvents)
                 {
                     foreach (var clipEvent in new SampledAnimationEvents<NmClipEvent>(clipAnimation.Events, duration, previousTime, newTime, finished))
                     {
-                        clipHandler(clipEvent);
+                        clipHandler?.Invoke(clipEvent);
+                        PlayEventSound(clip, clipEvent, newTime, finished);
                     }
                 }
             }
@@ -54,11 +55,12 @@ namespace ValveResourceFormat.Renderer
             {
                 var sequenceHandler = SequenceEventFired;
 
-                if (sequenceHandler != null)
+                if (sequenceHandler != null || !SkipEvents)
                 {
                     foreach (var sequenceEvent in new SampledAnimationEvents<AnimationEvent>(sequence.Events, duration, previousTime, newTime, finished))
                     {
-                        sequenceHandler(sequenceEvent);
+                        sequenceHandler?.Invoke(sequenceEvent);
+                        PlayEventSound(sequenceEvent);
                     }
                 }
             }
