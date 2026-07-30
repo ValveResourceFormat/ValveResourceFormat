@@ -618,6 +618,9 @@ public class AllocStats
     private static bool IsSelfType(string name) =>
         name == "System.GCMemoryInfoData"
         || name == "MoreEventInfo"
+        // EventWrittenEventArgs.Payload: EventSource wraps every delivered event's arguments in one of
+        // these, so the listener below is charged one per allocation tick it is handed
+        || name == "System.Collections.ObjectModel.ReadOnlyCollection`1[System.Object]"
         || name.Contains(nameof(AllocStats), StringComparison.Ordinal)
         || name.Contains("System.Diagnostics.Tracing", StringComparison.Ordinal);
 
