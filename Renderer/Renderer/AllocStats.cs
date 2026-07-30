@@ -618,6 +618,7 @@ public class AllocStats
     private static bool IsSelfType(string name) =>
         name == "System.GCMemoryInfoData"
         || name == "MoreEventInfo"
+        || name == "System.Collections.ObjectModel.ReadOnlyCollection`1[System.Object]"
         || name.Contains(nameof(AllocStats), StringComparison.Ordinal)
         || name.Contains("System.Diagnostics.Tracing", StringComparison.Ordinal);
 
