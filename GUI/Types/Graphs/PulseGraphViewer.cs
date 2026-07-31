@@ -100,13 +100,14 @@ internal class PulseGraphViewer : GLNodeGraphViewer
     private readonly IReadOnlyList<KVObject> publicOutputs;
     private readonly IReadOnlyList<KVObject> callInfos;
     private readonly Dictionary<int, Dictionary<int, SocketIn>> instructionInputActionSocketMap = [];
-    private readonly List<NodeCallInfo> callNodesToResolve = [];
+    private readonly List<RemoteNodeInfo> remoteNodesToResolve = [];
     private Dictionary<int, HashSet<List<int>>> loopInstructionMap = [];
 
-    struct NodeCallInfo
+    struct RemoteNodeInfo
     {
         public int targetChunk;
         public Node node;
+        public string? targetNamePrefix; // text display name for the target e.g. "Method: x", "Target: x"
     }
 
     class PulseOutflowConnection
@@ -1329,10 +1330,11 @@ internal class PulseGraphViewer : GLNodeGraphViewer
                             {
                                 Log.Warn(nameof(PulseGraphViewer), $"Failed to retrieve call info of ID={callInfoIndex}.");
                             }
-                            callNodesToResolve.Add(new NodeCallInfo
+                            remoteNodesToResolve.Add(new RemoteNodeInfo
                             {
                                 targetChunk = callTargetChunk,
                                 node = node,
+                                targetNamePrefix = "Method: "
                             });
                         }
                         else
@@ -1479,6 +1481,38 @@ internal class PulseGraphViewer : GLNodeGraphViewer
                             node?.Dispose();
                         }
 
+                        break;
+                    }
+                case InstructionCode.CHUNK_LEAP_COND:
+                    {
+                        break;
+                    }
+                case InstructionCode.CHUNK_LEAP:
+                    {
+                        stopProcessing = true;
+                        var leapTargetChunk = instruction.GetInt32Property("m_nChunk");
+                        var leapDestInstructionIdx = instruction.GetInt32Property("m_nDestInstruction");
+                        if (leapTargetChunk != chunkIndex)
+                        {
+                            var node = new Node(null)
+                            {
+                                Name = "Chunk Leap",
+                                NodeType = "Flow",
+                            };
+                            previousActionOutSocket = CreateSequentialActionSockets(node, previousActionOutSocket, chunkIndex, instructionIdx);
+
+                            if (leapDestInstructionIdx != 0)
+                            {
+                                node.AddText("Instruction: " + leapDestInstructionIdx);
+                            }
+
+                            remoteNodesToResolve.Add(new RemoteNodeInfo
+                            {
+                                targetChunk = leapTargetChunk,
+                                node = node,
+                                targetNamePrefix = "Target: "
+                            });
+                        }
                         break;
                     }
                 default:
@@ -1799,11 +1833,11 @@ internal class PulseGraphViewer : GLNodeGraphViewer
         }
 
         // Resolve call nodes to display the target function name
-        foreach (var callNodeInfo in callNodesToResolve)
+        foreach (var callNodeInfo in remoteNodesToResolve)
         {
             var targetChunk = callNodeInfo.targetChunk;
             var methodNameToCall = chunkFunctionName[targetChunk];
-            callNodeInfo.node.AddText($"Method: {methodNameToCall}");
+            callNodeInfo.node.AddText($"{callNodeInfo.targetNamePrefix}{methodNameToCall}");
             callNodeInfo.node.Calculate();
             nodeGraph.AddNode(callNodeInfo.node);
         }
