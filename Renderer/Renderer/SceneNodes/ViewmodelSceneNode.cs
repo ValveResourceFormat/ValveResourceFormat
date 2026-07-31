@@ -71,7 +71,7 @@ public class ViewmodelSceneNode : ModelSceneNode
     private float previousUptime;
 
     // Animations stay paused until the player leaves noclip, otherwise clips fire sound events while nothing is visible.
-    private bool Active;
+    private bool active;
 
     /// <summary>
     /// Selects the previously selected item (used for quick weapon switching).
@@ -307,9 +307,6 @@ public class ViewmodelSceneNode : ModelSceneNode
                     Sound.Play(heavyKnifeAttack ? KnifeHeavySwishSound : KnifeSlashSound);
                 }
 
-                break;
-
-            default:
                 break;
         }
     }
@@ -570,7 +567,7 @@ public class ViewmodelSceneNode : ModelSceneNode
     /// <param name="uptime"></param>
     public void ProcessInput(UserInput input, float uptime)
     {
-        Active = !input.NoClip;
+        active = !input.NoClip;
 
         var distanceFromFirstPersonEyes = Vector3.Distance(input.Camera.Location, input.PlayerMovement.EyePosition);
 
@@ -906,7 +903,7 @@ public class ViewmodelSceneNode : ModelSceneNode
             Transform *= Matrix4x4.CreateScale(0);
         }
 
-        if (!Active)
+        if (!active)
         {
             return;
         }

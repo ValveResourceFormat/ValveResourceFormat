@@ -554,7 +554,7 @@ public sealed class SoundEventPlayer : IDisposable
             return 0;
         }
 
-        var index = 0;
+        int index;
         var last = definition.LastTrackIndex;
 
         if (last >= 0 && last < trackCount)

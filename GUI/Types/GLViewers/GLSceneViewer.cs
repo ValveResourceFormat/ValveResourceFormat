@@ -410,6 +410,7 @@ namespace GUI.Types.GLViewers
             }
         }
 
+        /// <summary>
         /// Creates <see cref="soundPlayer"/> and loads the game's sound events, wiring up the master volume from
         /// settings and the default mix group volumes. Safe to call once; failures (e.g. no audio device) are logged
         /// and leave <see cref="soundPlayer"/> null. Intended for scene viewers that want to play scene audio.
