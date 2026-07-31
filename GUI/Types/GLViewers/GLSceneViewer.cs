@@ -441,6 +441,11 @@ namespace GUI.Types.GLViewers
             soundPlayer.LoadSoundEvents();
             soundPlayer.LoadSoundscapes();
 
+            //const float OcclusionEndMargin = 48f;
+            //soundPlayer.OcclusionTrace = (listener, sound) =>
+            //    Scene.PhysicsWorld?.TraceRay(listener, sound) is { Hit: true } hit
+            //        && Vector3.DistanceSquared(hit.HitPosition, sound) > OcclusionEndMargin * OcclusionEndMargin;
+
             soundPlayer.Suspended = true; // start with fade-in
             soundPlayer.Volume = Settings.Config.Volume;
             soundPlayer.MixGroupVolumes["Weapons"] = 0.7f;
