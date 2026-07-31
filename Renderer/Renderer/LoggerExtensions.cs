@@ -9,7 +9,13 @@ namespace ValveResourceFormat.Renderer;
 public static class LoggerExtensions
 {
     private static readonly Lock LoggedWarningsLock = new();
-    private static readonly HashSet<int> LoggedWarnings = [];
+
+    // Warnings are identified by a hash of the template and its arguments rather than by the formatted
+    // string: the suppressed repeats are the common case (this is called from per-frame code), and
+    // formatting a key on every one of them would be pure garbage. Two independently salted 32-bit
+    // hashes, so a collision - which silently swallows an unrelated warning - stays out of reach.
+    // The set only ever grows to the number of distinct warnings the loaded content produces.
+    private static readonly HashSet<long> LoggedWarnings = [];
 
     /// <summary>
     /// Logs a warning the first time it occurs with these arguments, for warnings raised from per-frame
@@ -20,17 +26,24 @@ public static class LoggerExtensions
     /// <param name="args">Values for the template, which together with it identify the warning.</param>
     public static void LogUniqueWarning(this ILogger logger, string message, params ReadOnlySpan<object?> args)
     {
-        var key = new HashCode();
-        key.Add(message);
+        var low = new HashCode();
+        var high = new HashCode();
+        high.Add(0x9E3779B9u);
+
+        low.Add(message);
+        high.Add(message);
 
         foreach (var arg in args)
         {
-            key.Add(arg);
+            low.Add(arg);
+            high.Add(arg);
         }
+
+        var key = ((long)high.ToHashCode() << 32) | (uint)low.ToHashCode();
 
         using (LoggedWarningsLock.EnterScope())
         {
-            if (!LoggedWarnings.Add(key.ToHashCode()))
+            if (!LoggedWarnings.Add(key))
             {
                 return;
             }
