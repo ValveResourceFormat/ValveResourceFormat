@@ -8,10 +8,16 @@ public class SampleProviderMulti : AudioSampleProvider
 {
     private readonly LinkedList<IAudioSampleProvider> providers;
 
+    // Cached once: passing the method groups to ApplyFade would allocate a delegate on every read
+    private readonly Func<double, float> evaluateFade;
+    private readonly Func<double, float> evaluateFadeIn;
+
     /// <summary>Creates an empty mixer.</summary>
     public SampleProviderMulti()
     {
         providers = new();
+        evaluateFade = EvaluateFade;
+        evaluateFadeIn = EvaluateFadeIn;
     }
 
     /// <summary>Adds a provider to the mix. Idempotent: providers get auto-removed when they run dry and re-added when they resume (e.g. retriggered child events), which must not create duplicates.</summary>
@@ -112,6 +118,37 @@ public class SampleProviderMulti : AudioSampleProvider
         }
     }
 
+    /// <summary>
+    /// Ramps <paramref name="count"/> samples along <paramref name="evaluate"/> and advances the fade,
+    /// returning whether the fade reached its end during this chunk. No-op for a fade that is not running
+    /// (negative <paramref name="elapsedFrames"/>) or an empty read.
+    /// </summary>
+    private static bool ApplyFade(float[] buffer, int offset, int count, ref double elapsedFrames,
+        int sampleRate, float duration, Func<double, float> evaluate)
+    {
+        if (elapsedFrames < 0 || count <= 0)
+        {
+            return false;
+        }
+
+        // Interleaved stereo: two samples per frame
+        var startSeconds = elapsedFrames / sampleRate;
+        var endSeconds = (elapsedFrames + count / 2.0) / sampleRate;
+        var startGain = evaluate(startSeconds);
+        var endGain = evaluate(endSeconds);
+
+        // The last sample must land exactly on endGain so consecutive chunks join without a step
+        var lastIndex = Math.Max(count - 1, 1);
+
+        for (var i = 0; i < count; i++)
+        {
+            buffer[offset + i] *= float.Lerp(startGain, endGain, (float)i / lastIndex);
+        }
+
+        elapsedFrames += count / 2.0;
+        return endSeconds >= duration;
+    }
+
     private float EvaluateFade(double seconds)
     {
         if (fadeCurve != null)
@@ -199,52 +236,16 @@ public class SampleProviderMulti : AudioSampleProvider
                 }
             }
 
-            if (fadeElapsedFrames >= 0 && maxRead > 0)
+            if (ApplyFade(buffer, offset, maxRead, ref fadeElapsedFrames, fadeSampleRate, fadeDuration, evaluateFade))
             {
-                // Interleaved stereo: two samples per frame
-                var startSeconds = fadeElapsedFrames / fadeSampleRate;
-                var endSeconds = (fadeElapsedFrames + maxRead / 2.0) / fadeSampleRate;
-                var startGain = EvaluateFade(startSeconds);
-                var endGain = EvaluateFade(endSeconds);
-
-                // The last sample must land exactly on endGain so consecutive chunks join without a step
-                var lastIndex = Math.Max(maxRead - 1, 1);
-
-                for (var i = 0; i < maxRead; i++)
-                {
-                    buffer[offset + i] *= float.Lerp(startGain, endGain, (float)i / lastIndex);
-                }
-
-                fadeElapsedFrames += maxRead / 2.0;
-
-                if (endSeconds >= fadeDuration)
-                {
-                    // Fade finished: drop everything so the next read comes up empty and fires Over
-                    providers.Clear();
-                }
+                // Fade-out finished: drop everything so the next read comes up empty and fires Over
+                providers.Clear();
             }
 
-            if (fadeInElapsedFrames >= 0 && maxRead > 0)
+            if (ApplyFade(buffer, offset, maxRead, ref fadeInElapsedFrames, fadeInSampleRate, fadeInDuration, evaluateFadeIn))
             {
-                var startSeconds = fadeInElapsedFrames / fadeInSampleRate;
-                var endSeconds = (fadeInElapsedFrames + maxRead / 2.0) / fadeInSampleRate;
-                var startGain = EvaluateFadeIn(startSeconds);
-                var endGain = EvaluateFadeIn(endSeconds);
-
-                var lastIndex = Math.Max(maxRead - 1, 1);
-
-                for (var i = 0; i < maxRead; i++)
-                {
-                    buffer[offset + i] *= float.Lerp(startGain, endGain, (float)i / lastIndex);
-                }
-
-                fadeInElapsedFrames += maxRead / 2.0;
-
-                if (endSeconds >= fadeInDuration)
-                {
-                    // Fade-in finished: stop applying it, unlike fade-out this never touches providers
-                    fadeInElapsedFrames = -1;
-                }
+                // Fade-in finished: stop applying it, unlike the fade-out this never touches providers
+                fadeInElapsedFrames = -1;
             }
         }
 
