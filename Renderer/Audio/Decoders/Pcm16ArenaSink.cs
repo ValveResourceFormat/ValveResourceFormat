@@ -192,6 +192,9 @@ internal sealed class Pcm16ArenaSink : IPcm16Sink
         (slab, slabIndex, offset, capacity) = (grown.Slab, grown.SlabIndex, grown.Offset, grown.Length);
     }
 
+    // Random.Shared rather than the player's SoundRandom: this runs on the decode threads, where the
+    // shared instance's thread safety is worth more than matching the rest of the audio system, and
+    // dither wants to be uncorrelated with anything else anyway.
     private static short Quantize(float value, Random random)
     {
         // Difference of two uniform [0,1) draws gives a triangular distribution over (-1, 1) LSB

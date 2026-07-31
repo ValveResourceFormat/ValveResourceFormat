@@ -95,8 +95,10 @@ public sealed class SoundEventPlayer : IDisposable
     private readonly Dictionary<string, List<SoundEvent>> limiterGroups = new(StringComparer.OrdinalIgnoreCase);
 
     /// <summary>
-    /// Gets the random source used for randomized sound event properties.
-    /// Reseeded in place with the play time on every <see cref="Play"/> - no allocation, no global shared random state.
+    /// Gets the random source used for randomized sound event properties, shared by every event this
+    /// player owns and reseeded in place with the play time on every <see cref="Play"/> - no allocation,
+    /// and no dependence on process-wide random state. See <see cref="SoundRandom"/> on why it is
+    /// unsynchronized despite both threads drawing from it.
     /// </summary>
     internal SoundRandom Random { get; } = new();
 
