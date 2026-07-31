@@ -66,6 +66,7 @@ namespace GUI
             closeToolStripMenuItems = new ThemedToolStripMenuItem();
             closeToolStripMenuItemsToRight = new ThemedToolStripMenuItem();
             closeToolStripMenuItemsToLeft = new ThemedToolStripMenuItem();
+            muteTabToolStripMenuItem = new ThemedToolStripMenuItem();
             toolStripSeparator5 = new ToolStripSeparator();
             exportAsIsToolStripMenuItem = new ThemedToolStripMenuItem();
             decompileExportToolStripMenuItem = new ThemedToolStripMenuItem();
@@ -248,7 +249,7 @@ namespace GUI
             // 
             tabContextMenuStrip.BackColor = System.Drawing.Color.FromArgb(236, 236, 236);
             tabContextMenuStrip.ImageScalingSize = new System.Drawing.Size(24, 24);
-            tabContextMenuStrip.Items.AddRange(new ToolStripItem[] { closeToolStripMenuItem, closeToolStripMenuItems, closeToolStripMenuItemsToRight, closeToolStripMenuItemsToLeft, toolStripSeparator5, exportAsIsToolStripMenuItem, decompileExportToolStripMenuItem, clearConsoleToolStripMenuItem });
+            tabContextMenuStrip.Items.AddRange(new ToolStripItem[] { closeToolStripMenuItem, closeToolStripMenuItems, closeToolStripMenuItemsToRight, closeToolStripMenuItemsToLeft, muteTabToolStripMenuItem, toolStripSeparator5, exportAsIsToolStripMenuItem, decompileExportToolStripMenuItem, clearConsoleToolStripMenuItem });
             tabContextMenuStrip.LayoutStyle = ToolStripLayoutStyle.Table;
             tabContextMenuStrip.Name = "contextMenuStrip1";
             tabContextMenuStrip.Size = new System.Drawing.Size(234, 220);
@@ -287,7 +288,15 @@ namespace GUI
             closeToolStripMenuItemsToLeft.SVGImageResourceName = "GUI.Icons.CloseAllTabsLeft.svg";
             closeToolStripMenuItemsToLeft.Text = "Close all tabs to &left";
             closeToolStripMenuItemsToLeft.Click += CloseToolStripMenuItemsToLeft_Click;
-            // 
+            //
+            // muteTabToolStripMenuItem
+            //
+            muteTabToolStripMenuItem.Name = "muteTabToolStripMenuItem";
+            muteTabToolStripMenuItem.Size = new System.Drawing.Size(233, 30);
+            muteTabToolStripMenuItem.SVGImageResourceName = "GUI.Icons.AudioVolume.svg";
+            muteTabToolStripMenuItem.Text = "&Mute tab";
+            muteTabToolStripMenuItem.Click += MuteTabToolStripMenuItem_Click;
+            //
             // toolStripSeparator5
             // 
             toolStripSeparator5.Name = "toolStripSeparator5";
@@ -551,6 +560,7 @@ namespace GUI
         private ThemedToolStripMenuItem extractToolStripMenuItem;
         private ThemedToolStripMenuItem copyFileNameToolStripMenuItem;
         private ThemedToolStripMenuItem closeToolStripMenuItemsToLeft;
+        private ThemedToolStripMenuItem muteTabToolStripMenuItem;
         private ThemedToolStripMenuItem closeToolStripMenuItemsToRight;
         private ThemedToolStripMenuItem closeToolStripMenuItems;
         private ThemedToolStripMenuItem findToolStripButton;

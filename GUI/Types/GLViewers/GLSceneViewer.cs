@@ -33,6 +33,22 @@ namespace GUI.Types.GLViewers
         /// <summary>Optional sound event player, created by viewers that play scene audio.</summary>
         protected SoundEventPlayer? soundPlayer;
 
+        /// <summary>Gets whether this viewer plays scene audio, i.e. whether <see cref="InitializeSoundPlayer"/> got a device.</summary>
+        public bool HasSoundPlayer => soundPlayer != null;
+
+        /// <summary>Gets or sets whether this viewer's audio is silenced, independently of the master volume.</summary>
+        public bool Muted
+        {
+            get => soundPlayer?.Mute ?? false;
+            set
+            {
+                if (soundPlayer != null)
+                {
+                    soundPlayer.Mute = value;
+                }
+            }
+        }
+
         private bool ShowBaseGrid;
         private bool ShowLightBackground;
         private bool ShowSolidBackground;
