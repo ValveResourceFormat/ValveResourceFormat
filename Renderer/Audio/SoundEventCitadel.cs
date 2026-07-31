@@ -116,8 +116,10 @@ internal sealed class SoundEventCitadel : SoundEvent
     /// </summary>
     private static float GetPerspectiveFloat(KVObject data, string name, float fallback = 0f)
     {
-        return data.ContainsKey(name + "_player")
-            ? data.GetFloatProperty(name + "_player")
+        var playerName = $"{name}_player";
+
+        return data.ContainsKey(playerName)
+            ? data.GetFloatProperty(playerName)
             : data.GetFloatProperty(name, fallback);
     }
 

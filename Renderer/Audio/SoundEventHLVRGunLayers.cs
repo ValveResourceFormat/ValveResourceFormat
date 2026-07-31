@@ -35,15 +35,15 @@ internal sealed class SoundEventHLVRGunLayers : SoundEvent
 
         foreach (var layer in definition.Type == "hlvr_player_gun_layers_3d" ? PlayerLayers : NpcLayers)
         {
-            var file = data.GetStringProperty("vsnd_files_" + layer);
+            var file = data.GetStringProperty($"vsnd_files_{layer}");
 
             if (!string.IsNullOrEmpty(file))
             {
                 list.Add((
                     file,
-                    data.GetFloatProperty("volume_" + layer, 1f),
-                    data.GetFloatProperty("volume_falloff_" + layer + "_min"),
-                    data.GetFloatProperty("volume_falloff_" + layer + "_max")));
+                    data.GetFloatProperty($"volume_{layer}", 1f),
+                    data.GetFloatProperty($"volume_falloff_{layer}_min"),
+                    data.GetFloatProperty($"volume_falloff_{layer}_max")));
             }
         }
 

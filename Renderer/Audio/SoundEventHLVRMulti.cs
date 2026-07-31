@@ -99,7 +99,7 @@ internal sealed class SoundEventHLVRMulti : SoundEvent
         for (var i = 1; i <= MaxSlots; i++)
         {
             var suffix = i.ToString("D2", CultureInfo.InvariantCulture);
-            var name = data.GetStringProperty("soundevent_" + suffix);
+            var name = data.GetStringProperty($"soundevent_{suffix}");
 
             if (name == null)
             {
@@ -107,7 +107,9 @@ internal sealed class SoundEventHLVRMulti : SoundEvent
             }
 
             // Only the first few slots carry an optional "use_NN" toggle; a missing flag means enabled.
-            if (data.ContainsKey("use_" + suffix) && data.GetFloatProperty("use_" + suffix) == 0f)
+            var useKey = $"use_{suffix}";
+
+            if (data.ContainsKey(useKey) && data.GetFloatProperty(useKey) == 0f)
             {
                 continue;
             }
@@ -115,8 +117,10 @@ internal sealed class SoundEventHLVRMulti : SoundEvent
             names.Add(name);
 
             // Negative means unauthored, leaving the child's own volume alone
-            volumes.Add(data.ContainsKey("volume_soundevent_" + suffix)
-                ? data.GetFloatProperty("volume_soundevent_" + suffix)
+            var volumeKey = $"volume_soundevent_{suffix}";
+
+            volumes.Add(data.ContainsKey(volumeKey)
+                ? data.GetFloatProperty(volumeKey)
                 : -1f);
         }
 

@@ -42,8 +42,8 @@ internal sealed class SoundEventHLVRAmbientMultiVsnd : SoundEvent
         for (var i = 1; i <= MaxLayers; i++)
         {
             var suffix = i.ToString("D2", CultureInfo.InvariantCulture);
-            var file = data.GetStringProperty("vsnd_file_" + suffix);
-            var weight = data.GetFloatProperty("vsnd_vol_" + suffix);
+            var file = data.GetStringProperty($"vsnd_file_{suffix}");
+            var weight = data.GetFloatProperty($"vsnd_vol_{suffix}");
 
             if (!string.IsNullOrEmpty(file) && weight > 0f)
             {
