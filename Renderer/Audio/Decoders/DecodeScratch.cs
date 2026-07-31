@@ -2,7 +2,7 @@ namespace ValveResourceFormat.Renderer.Audio.Decoders;
 
 /// <summary>
 /// Reusable per-thread scratch buffers for the decode pipeline. Decoding is a byte/float relay race
-/// whose buffers all die as soon as the <see cref="Pcm16ArenaSink"/> has produced the final cached PCM16.
+/// whose buffers all die as soon as the <see cref="Pcm16ArenaSink"/> has produced the final cached PCM16. 
 /// </summary>
 internal static class DecodeScratch
 {
