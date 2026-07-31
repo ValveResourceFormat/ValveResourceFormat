@@ -15,6 +15,9 @@ internal sealed class SoundEventHLVRStartSoundEvent : SoundEvent
     private readonly float volumeAttenuation;
 
     private int nextIndex;
+    private bool restartPending;
+
+    private protected override bool WaitingToStart => restartPending;
 
     public SoundEventHLVRStartSoundEvent(SoundEventDefinition definition) : base(definition)
     {
@@ -78,7 +81,10 @@ internal sealed class SoundEventHLVRStartSoundEvent : SoundEvent
 
         if (restartOnFinish && childEventNames.Length > 0)
         {
-            Start();
+            // Deferred to Update rather than restarted here: OnFinished also fires on the mixing thread
+            // (a sound running dry mid-read), and Start() clears the provider/child lists that Update
+            // iterates on the game thread. Every other retriggering type defers for the same reason.
+            restartPending = true;
             return;
         }
 
@@ -86,6 +92,24 @@ internal sealed class SoundEventHLVRStartSoundEvent : SoundEvent
         {
             Stop();
         }
+    }
+
+    /// <inheritdoc/>
+    public override bool Update(Vector3 listenerPosition, Vector3 rightEarDirection)
+    {
+        if (Started && !FadingOut && restartPending)
+        {
+            restartPending = false;
+            Start();
+        }
+
+        return base.Update(listenerPosition, rightEarDirection);
+    }
+
+    internal override void ResetForReplay()
+    {
+        base.ResetForReplay();
+        restartPending = false;
     }
 
     private SoundEventDefinition?[] ResolveChildren()
