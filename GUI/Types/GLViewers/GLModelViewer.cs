@@ -500,10 +500,11 @@ namespace GUI.Types.GLViewers
                     return;
                 }
 
-                var frameCount = animationController.ActiveAnimation.FrameCount;
-                var fps = animationController.ActiveAnimation.Fps;
-                var totalTime = frameCount / fps;
-                var time = animationController.Time % totalTime;
+                var activeAnimation = animationController.ActiveAnimation;
+                var frameCount = activeAnimation.FrameCount;
+                var fps = activeAnimation.Fps;
+                var totalTime = activeAnimation.Duration;
+                var time = totalTime > 0f ? animationController.Time % totalTime : 0f;
                 var frameNumber = animationController.Frame + 1;
 
                 var additive = animationController.ActiveAnimation.IsAdditive
