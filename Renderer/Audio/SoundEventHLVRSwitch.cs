@@ -24,13 +24,6 @@ internal sealed class SoundEventHLVRSwitch : SoundEvent
 
     protected override void DoStart()
     {
-        if (Position == null && Definition.Position.HasValue)
-        {
-            Position = Definition.Position;
-        }
-
-        PositionOffset = Definition.PositionOffset;
-
         var childDefinitions = Definition.ChildDefinitions ??= ResolveChildren();
         var picked = Random.NextSingle() < split ? 0 : 1;
 

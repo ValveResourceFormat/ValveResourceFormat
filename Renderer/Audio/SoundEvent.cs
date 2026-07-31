@@ -141,6 +141,7 @@ public abstract class SoundEvent
         ChildSoundEvents.Clear();
         SampleProvider.ClearProviders();
 
+        ApplyDefinitionPlacement();
         DoStart();
 
         if (SampleProviders.Count > 0)
@@ -180,6 +181,22 @@ public abstract class SoundEvent
         }
 
         return true;
+    }
+
+    /// <summary>
+    /// Applies the definition's authored placement, right before <see cref="DoStart"/> gets a chance to
+    /// override it. A position supplied by the caller (a point_soundevent entity, a parent's
+    /// "set_child_position") wins over the definition's own "position" key - all-zero placeholders are
+    /// already dropped at parse time - so this only fills in a position nobody else provided.
+    /// </summary>
+    private void ApplyDefinitionPlacement()
+    {
+        if (Position == null && Definition.Position.HasValue)
+        {
+            Position = Definition.Position;
+        }
+
+        PositionOffset = Definition.PositionOffset;
     }
 
     /// <summary>Gets whether the event is intentionally silent right now but scheduled to produce sound later (e.g. waiting out its first retrigger interval).</summary>

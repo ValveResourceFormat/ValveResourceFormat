@@ -133,12 +133,6 @@ internal sealed class SoundEventCitadel : SoundEvent
             // The emitter is pinned to the player, so it is always at zero distance: an unspatialized bed
             Position = null;
         }
-        else if (Position == null && Definition.Position.HasValue)
-        {
-            Position = Definition.Position;
-        }
-
-        PositionOffset = Definition.PositionOffset;
 
         if (!wasInitialized && CheckRetrigger())
         {

@@ -40,7 +40,6 @@ internal sealed class SoundEventScriptedLoop : SoundEvent
         }
 
         Position = origin;
-        PositionOffset = Definition.PositionOffset;
 
         var trackVolume = Math.Clamp(VolumeOverride ?? volume, 0f, 1f);
 

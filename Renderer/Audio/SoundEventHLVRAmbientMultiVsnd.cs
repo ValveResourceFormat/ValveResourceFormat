@@ -59,13 +59,6 @@ internal sealed class SoundEventHLVRAmbientMultiVsnd : SoundEvent
 
     protected override void DoStart()
     {
-        if (Position == null && Definition.Position.HasValue)
-        {
-            Position = Definition.Position;
-        }
-
-        PositionOffset = Definition.PositionOffset;
-
         if (layers.Length == 0)
         {
             return;

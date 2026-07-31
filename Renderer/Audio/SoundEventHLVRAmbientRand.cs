@@ -44,11 +44,6 @@ internal sealed class SoundEventHLVRAmbientRand : SoundEvent
 
     protected override void DoStart()
     {
-        if (Position == null && Definition.Position.HasValue)
-        {
-            Position = Definition.Position;
-        }
-
         if (!wasInitialized && CheckRetrigger())
         {
             // Waits out its first interval before spawning, same as every other retriggered event here

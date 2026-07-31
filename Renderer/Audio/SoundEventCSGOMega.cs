@@ -62,15 +62,6 @@ internal sealed class SoundEventCSGOMega : SoundEvent
 
     protected override void DoStart()
     {
-        // A position supplied by the caller (e.g. a point_soundevent entity) wins over the definition's
-        // "position" key (all-zero placeholders are already dropped at parse time).
-        if (Position == null && Definition.Position.HasValue)
-        {
-            Position = Definition.Position;
-        }
-
-        PositionOffset = Definition.PositionOffset;
-
         if (!wasInitialized && CheckRetrigger())
         {
             // Retriggered events wait out their first interval before playing

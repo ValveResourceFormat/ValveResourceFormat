@@ -70,13 +70,6 @@ internal sealed class SoundEventHLVRDefault : SoundEvent
 
     protected override void DoStart()
     {
-        if (Position == null && Definition.Position.HasValue)
-        {
-            Position = Definition.Position;
-        }
-
-        PositionOffset = Definition.PositionOffset;
-
         if (trackNames.Length == 0)
         {
             return;
