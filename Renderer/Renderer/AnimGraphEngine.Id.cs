@@ -78,6 +78,24 @@ namespace ValveResourceFormat.Renderer.AnimLib
         }
     }
 
+    // Returns the ID of the sync event the source state is currently in.
+    partial class CurrentSyncEventIDNode
+    {
+        StateNode SourceStateNode;
+
+        public override void Initialize(GraphContext ctx)
+        {
+            ctx.SetNodeFromIndex(SourceStateNodeIdx, ref SourceStateNode);
+        }
+
+        protected override GlobalSymbol GetValueInternal(GraphContext ctx)
+        {
+            var syncTrack = SourceStateNode.SyncTrack;
+            var currentSyncTime = syncTrack.GetTime(SourceStateNode.CurrentTime);
+            return syncTrack.GetEventID(currentSyncTime.EventIdx);
+        }
+    }
+
     // A virtual parameter is a graph-computed sub-expression: evaluates its child (cached once per update).
     partial class VirtualParameterIDNode
     {

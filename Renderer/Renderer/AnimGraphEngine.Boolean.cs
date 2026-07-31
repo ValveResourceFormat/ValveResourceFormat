@@ -156,6 +156,123 @@ namespace ValveResourceFormat.Renderer.AnimLib
         //
     }
 
+    // Compares the source state's current sync event index against a fixed index.
+    partial class SyncEventIndexConditionNode
+    {
+        StateNode SourceStateNode;
+
+        public override void Initialize(GraphContext ctx)
+        {
+            ctx.SetNodeFromIndex(SourceStateNodeIdx, ref SourceStateNode);
+        }
+
+        protected override bool GetValueInternal(GraphContext ctx)
+        {
+            var syncTrack = SourceStateNode.SyncTrack;
+            var currentSyncTime = syncTrack.GetTime(SourceStateNode.CurrentTime);
+
+            return TriggerMode switch
+            {
+                SyncEventIndexConditionNode__TriggerMode.ExactlyAtEventIndex => currentSyncTime.EventIdx == SyncEventIdx,
+                SyncEventIndexConditionNode__TriggerMode.GreaterThanEqualToEventIndex => currentSyncTime.EventIdx >= SyncEventIdx,
+                _ => false,
+            };
+        }
+    }
+
+    // Checks the sampled events buffer for the given IDs, coming either from graph events or from
+    // ID animation events on clip timelines.
+    partial class IDEventConditionNode
+    {
+        StateNode? SourceStateNode;
+
+        public override void Initialize(GraphContext ctx)
+        {
+            ctx.SetOptionalNodeFromIndex(SourceStateNodeIdx, ref SourceStateNode);
+        }
+
+        protected override bool GetValueInternal(GraphContext ctx) => TryMatchTags(ctx);
+
+        private SampledEventRange CalculateSearchRange(GraphContext ctx)
+        {
+            var restrictSearch = SourceStateNode != null && EventConditionRules.IsRuleSet(AnimLib.EventConditionRules.LimitSearchToSourceState);
+
+            return restrictSearch
+                ? SourceStateNode!.SampledEventRange
+                : new SampledEventRange(0, ctx.SampledEvents.Count);
+        }
+
+        private bool TryMatchTags(GraphContext ctx)
+        {
+            Span<bool> foundIDs = stackalloc bool[EventIDs.Length];
+
+            var searchRange = CalculateSearchRange(ctx);
+            var ignoreInactiveEvents = EventConditionRules.IsRuleSet(AnimLib.EventConditionRules.IgnoreInactiveEvents);
+            var searchAnimEvents = EventConditionRules.IsRuleSet(AnimLib.EventConditionRules.SearchBothGraphAndAnimEvents)
+                || EventConditionRules.IsRuleSet(AnimLib.EventConditionRules.SearchOnlyAnimEvents);
+            var searchGraphEvents = EventConditionRules.IsRuleSet(AnimLib.EventConditionRules.SearchBothGraphAndAnimEvents)
+                || EventConditionRules.IsRuleSet(AnimLib.EventConditionRules.SearchOnlyGraphEvents);
+            var operatorOr = EventConditionRules.IsRuleSet(AnimLib.EventConditionRules.OperatorOr);
+
+            for (var i = searchRange.StartIdx; i < searchRange.EndIdx && i < ctx.SampledEvents.Count; i++)
+            {
+                var sampledEvent = ctx.SampledEvents[i];
+
+                if (sampledEvent.IsIgnored)
+                {
+                    continue;
+                }
+
+                if (ignoreInactiveEvents && !sampledEvent.IsFromActiveBranch)
+                {
+                    continue;
+                }
+
+                GlobalSymbol foundID = default;
+
+                if (sampledEvent.IsAnimationEvent)
+                {
+                    if (searchAnimEvents)
+                    {
+                        foundID = sampledEvent.ID;
+                    }
+                }
+                else if (searchGraphEvents)
+                {
+                    foundID = sampledEvent.ID;
+                }
+
+                if (foundID.IsValid)
+                {
+                    for (var t = 0; t < EventIDs.Length; t++)
+                    {
+                        if (EventIDs[t] == foundID)
+                        {
+                            if (operatorOr)
+                            {
+                                return true;
+                            }
+
+                            foundIDs[t] = true;
+                            break;
+                        }
+                    }
+                }
+            }
+
+            // With the 'and' operator every requested ID must have been found
+            for (var t = 0; t < EventIDs.Length; t++)
+            {
+                if (!foundIDs[t])
+                {
+                    return false;
+                }
+            }
+
+            return true;
+        }
+    }
+
     [DebuggerDisplay("{Comparision} {ComparisionIDs}")]
     partial class IDComparisonNode
     {

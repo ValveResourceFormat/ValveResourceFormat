@@ -186,7 +186,7 @@ namespace ValveResourceFormat.Renderer.AnimLib
     {
         public FrameBone[] Pose;
         public Matrix4x4 RootMotionDelta;
-        // SampledEventRange
+        public SampledEventRange SampledEventRange;
     }
 
     partial class PoseNode
@@ -216,12 +216,16 @@ namespace ValveResourceFormat.Renderer.AnimLib
 
         public virtual bool IsValid => true;
 
+        /// <summary>The sync track for this node's timeline; pass-through nodes forward their child's.</summary>
+        public virtual SyncTrack SyncTrack => SyncTrack.Default;
+
         public virtual GraphPoseNodeResult Update(GraphContext ctx)
         {
             return new GraphPoseNodeResult
             {
                 Pose = PoseTransforms,
                 RootMotionDelta = Matrix4x4.Identity,
+                SampledEventRange = new(ctx.SampledEvents.Count, ctx.SampledEvents.Count),
             };
         }
     }
@@ -255,6 +259,7 @@ namespace ValveResourceFormat.Renderer.AnimLib
         public override GraphClip? GetClip(GraphContext ctx) => Clip;
         public override bool IsLooping => AllowLooping;
         public override bool DisableRootMotionSampling => !SampleRootMotion;
+        public override SyncTrack SyncTrack => Clip?.SyncTrack ?? SyncTrack.Default;
 
         public GraphClip? Clip;
 
@@ -304,6 +309,7 @@ namespace ValveResourceFormat.Renderer.AnimLib
             if (clip.FrameCount == 1)
             {
                 clip.SamplePoseAtFrame(0, result.Pose);
+                SampleAnimationEvents(ctx, ref result);
                 return result;
             }
 
@@ -344,7 +350,59 @@ namespace ValveResourceFormat.Renderer.AnimLib
             // root motion
             // frame.Movement.Position;
 
+            SampleAnimationEvents(ctx, ref result);
             return result;
+        }
+
+        /// <summary>
+        /// Samples the clip's events for the time range covered this update into the graph's event
+        /// buffer: duration events that are active at the current time, and instant events that were
+        /// crossed between the previous and current time (accounting for looping).
+        /// </summary>
+        private void SampleAnimationEvents(GraphContext ctx, ref GraphPoseNodeResult result)
+        {
+            var clip = Clip;
+            Debug.Assert(clip != null);
+
+            var events = clip.Animation.Events;
+            if (events.Length == 0)
+            {
+                return;
+            }
+
+            var clipDuration = clip.Duration;
+            var isFromActiveBranch = ctx.BranchState == BranchState.Active;
+            var startCount = ctx.SampledEvents.Count;
+
+            foreach (var clipEvent in events)
+            {
+                var eventStart = clipEvent.StartCycle;
+                var eventDuration = clipDuration > 0f ? clipEvent.Duration / clipDuration : 0f;
+
+                if (eventDuration > 0f)
+                {
+                    // Duration event: sampled while the current time lies within it
+                    if (CurrentTime >= eventStart && CurrentTime <= eventStart + eventDuration)
+                    {
+                        var percentageThrough = (CurrentTime - eventStart) / eventDuration;
+                        ctx.SampledEvents.EmplaceAnimationEvent(NodeIdx, clipEvent, percentageThrough, isFromActiveBranch);
+                    }
+                }
+                else
+                {
+                    // Instant event: sampled when crossed this update
+                    var crossed = PreviousTime <= CurrentTime
+                        ? eventStart > PreviousTime && eventStart <= CurrentTime
+                        : eventStart > PreviousTime || eventStart <= CurrentTime; // looped around
+
+                    if (crossed)
+                    {
+                        ctx.SampledEvents.EmplaceAnimationEvent(NodeIdx, clipEvent, 1f, isFromActiveBranch);
+                    }
+                }
+            }
+
+            result.SampledEventRange = new(startCount, ctx.SampledEvents.Count);
         }
     }
 

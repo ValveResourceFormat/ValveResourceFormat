@@ -78,15 +78,29 @@ namespace ValveResourceFormat.Renderer.AnimLib
         }
     }
 
+    // Returns the source state's current position on its sync track, as index and/or percentage.
     partial class CurrentSyncEventNode
     {
-        FloatValueNode SourceStateNode;
+        StateNode SourceStateNode;
 
         public override void Initialize(GraphContext ctx)
         {
             ctx.SetNodeFromIndex(SourceStateNodeIdx, ref SourceStateNode);
         }
 
+        protected override float GetValueInternal(GraphContext ctx)
+        {
+            var syncTrack = SourceStateNode.SyncTrack;
+            var currentSyncTime = syncTrack.GetTime(SourceStateNode.CurrentTime);
+
+            return InfoType switch
+            {
+                CurrentSyncEventNode__InfoType.IndexAndPercentage => currentSyncTime.EventIdx + currentSyncTime.PercentageThrough.Value,
+                CurrentSyncEventNode__InfoType.IndexOnly => currentSyncTime.EventIdx,
+                CurrentSyncEventNode__InfoType.PercentageOnly => currentSyncTime.PercentageThrough.Value,
+                _ => throw new NotImplementedException(),
+            };
+        }
     }
 
     partial class FloatAngleMathNode

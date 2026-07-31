@@ -92,6 +92,9 @@ namespace ValveResourceFormat.Renderer.AnimLib
         /// <summary>The pose produced by the previous graph update, used to resolve bone targets.</summary>
         public Pose Pose { get; }
 
+        /// <summary>The events sampled during the current graph update.</summary>
+        public SampledEventsBuffer SampledEvents { get; } = new();
+
         public Transform WorldTransformInverse = Transform.Identity;
 
         private GraphDefinition graphDefinition;
@@ -191,6 +194,7 @@ namespace ValveResourceFormat.Renderer.AnimLib
         {
             UpdateID++;
             DeltaTime = timeStep;
+            SampledEvents.Clear();
             var poseResult = RootNode.Update(this);
             Pose.SetParentSpaceTransforms(poseResult.Pose);
             return poseResult;

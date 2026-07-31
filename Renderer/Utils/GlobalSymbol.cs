@@ -25,6 +25,9 @@ readonly struct GlobalSymbol : IEquatable<GlobalSymbol>
         Token = token;
     }
 
+    /// <summary>Whether this symbol holds a stored token, as opposed to being unset.</summary>
+    public bool IsValid => Token != 0;
+
     public override readonly string ToString() => Name;
 
     public static implicit operator uint(GlobalSymbol symbol) => symbol.Token;

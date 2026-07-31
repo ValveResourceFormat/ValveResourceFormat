@@ -235,12 +235,18 @@ namespace ValveResourceFormat.Renderer
         /// <summary>The number of frames in the clip.</summary>
         public int FrameCount => Animation.FrameCount;
 
+        /// <summary>The clip's sync track, used to align it with other clips.</summary>
+        public AnimLib.SyncTrack SyncTrack { get; }
+
         private readonly AnimationFrameCache frameCache;
 
         public GraphClip(ClipAnimation animation, Skeleton skeleton)
         {
             Animation = animation;
             frameCache = new AnimationFrameCache(skeleton, []);
+
+            var syncTrackData = animation.Clip.Data.Root.GetProperty<KVObject>("m_syncTrack");
+            SyncTrack = syncTrackData != null ? new AnimLib.SyncTrack(syncTrackData) : AnimLib.SyncTrack.Default;
         }
 
         /// <summary>Samples the clip at an exact frame index into a parent-space pose.</summary>

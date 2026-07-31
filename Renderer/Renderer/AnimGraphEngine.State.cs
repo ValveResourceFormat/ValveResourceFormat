@@ -24,6 +24,8 @@ namespace ValveResourceFormat.Renderer.AnimLib
         public bool TransitioningOut => Transition == TransitionState.TransitioningOut;
         public bool IsTransitioning => Transition != TransitionState.None;
 
+        public override SyncTrack SyncTrack => ChildNode?.SyncTrack ?? SyncTrack.Default;
+
         public void SetTransitioningState(TransitionState s) => Transition = s;
 
         public override void Initialize(GraphContext ctx)
@@ -84,20 +86,33 @@ namespace ValveResourceFormat.Renderer.AnimLib
             SampleStateEvents(ctx);
         }
 
+        /// <summary>The range of events this state appended to the buffer during the current update.</summary>
+        public SampledEventRange SampledEventRange { get; private set; }
+
         public void SampleStateEvents(GraphContext ctx)
         {
             var isActiveBranch = ctx.BranchState == BranchState.Active;
 
             if (IsFirstStateUpdate || (TransitioningIn && isActiveBranch))
             {
-                /*
-                for ( auto const& entryEventID : pStateDefinition->m_entryEvents )
+                foreach (var entryEventID in EntryEvents)
                 {
-                    context.m_pSampledEventsBuffer->EmplaceGraphEvent( GetNodeIndex(), GraphEventType::Entry, entryEventID, isInActiveBranch );
+                    ctx.SampledEvents.EmplaceGraphEvent(NodeIdx, entryEventID, isActiveBranch);
                 }
-                */
-
-                // ...
+            }
+            else if (TransitioningOut)
+            {
+                foreach (var exitEventID in ExitEvents)
+                {
+                    ctx.SampledEvents.EmplaceGraphEvent(NodeIdx, exitEventID, isActiveBranch);
+                }
+            }
+            else // Fully in state
+            {
+                foreach (var executeEventID in ExecuteEvents)
+                {
+                    ctx.SampledEvents.EmplaceGraphEvent(NodeIdx, executeEventID, isActiveBranch);
+                }
             }
         }
 
@@ -133,6 +148,7 @@ namespace ValveResourceFormat.Renderer.AnimLib
 
         public override GraphPoseNodeResult Update(GraphContext ctx)
         {
+            var eventRangeStart = ctx.SampledEvents.Count;
             var result = base.Update(ctx);
 
             if (ChildNode != null)
@@ -141,7 +157,6 @@ namespace ValveResourceFormat.Renderer.AnimLib
                 Duration = ChildNode.Duration;
                 PreviousTime = ChildNode.PreviousTime;
                 CurrentTime = ChildNode.CurrentTime;
-                // sampled event range
             }
 
             // track time spent in state
@@ -149,6 +164,10 @@ namespace ValveResourceFormat.Renderer.AnimLib
 
             // Sample graph events ( we need to track the sampled range for this node explicitly )
             SampleStateEvents(ctx);
+
+            // The state's event range covers the child's animation events plus its own graph events.
+            SampledEventRange = new(eventRangeStart, ctx.SampledEvents.Count);
+            result.SampledEventRange = SampledEventRange;
 
             // Update layer context and return
             UpdateLayerContext(ctx);

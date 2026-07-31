@@ -6,6 +6,13 @@ class SyncTrackTime
     public int EventIdx { get; }
     public Percent PercentageThrough { get; }
 
+
+    public SyncTrackTime(int eventIdx, float percentageThrough)
+    {
+        EventIdx = eventIdx;
+        PercentageThrough = new(percentageThrough);
+    }
+
     public SyncTrackTime(KVObject data)
     {
         EventIdx = data.GetInt32Property("m_nEventIdx");

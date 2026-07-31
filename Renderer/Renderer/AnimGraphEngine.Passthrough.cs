@@ -16,6 +16,8 @@ namespace ValveResourceFormat.Renderer.AnimLib
 
         public override bool IsValid => ChildNode?.IsValid ?? false;
 
+        public override SyncTrack SyncTrack => ChildNode?.SyncTrack ?? SyncTrack.Default;
+
         public override GraphPoseNodeResult Update(GraphContext ctx)
         {
             if (ChildNode == null)
@@ -203,6 +205,8 @@ namespace ValveResourceFormat.Renderer.AnimLib
 
         public override bool IsValid => SelectedNode?.IsValid ?? false;
 
+        public override SyncTrack SyncTrack => SelectedNode?.SyncTrack ?? SyncTrack.Default;
+
         public override GraphPoseNodeResult Update(GraphContext ctx)
         {
             EnsureSelected(ctx);
@@ -271,6 +275,8 @@ namespace ValveResourceFormat.Renderer.AnimLib
         }
 
         public override bool IsValid => SelectedNode?.IsValid ?? false;
+
+        public override SyncTrack SyncTrack => SelectedNode?.SyncTrack ?? SyncTrack.Default;
 
         public override GraphPoseNodeResult Update(GraphContext ctx)
         {
@@ -371,6 +377,8 @@ namespace ValveResourceFormat.Renderer.AnimLib
         }
 
         public override bool IsValid => SelectedNode?.IsValid ?? false;
+
+        public override SyncTrack SyncTrack => SelectedNode?.SyncTrack ?? SyncTrack.Default;
 
         public override GraphPoseNodeResult Update(GraphContext ctx)
         {

@@ -33,6 +33,10 @@ namespace ValveResourceFormat.Renderer.AnimLib
         public StateInfo ActiveState => States[ActiveStateIndex];
         public StateNode ActiveStateNode => ActiveState.StateNode;
 
+        public override SyncTrack SyncTrack => ActiveStateIndex >= 0 && ActiveStateIndex < States.Length
+            ? ActiveStateNode.SyncTrack
+            : SyncTrack.Default;
+
         public override void Initialize(GraphContext ctx)
         {
             base.Initialize(ctx);
