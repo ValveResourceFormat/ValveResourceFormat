@@ -396,7 +396,8 @@ public sealed class SoundEventPlayer : IDisposable
         var soundEvent = RentSoundEvent(definition);
         if (soundEvent == null)
         {
-            logger.LogUniqueWarning("Unsupported sound event type {Type} for {SoundEventName}",
+            // Keyed on the type alone: one warning per unsupported type, not per event that uses it
+            logger.LogUniqueWarningFor([definition.Type], "Unsupported sound event type {Type} for {SoundEventName}",
                 definition.Type, soundEventName);
             return null;
         }
