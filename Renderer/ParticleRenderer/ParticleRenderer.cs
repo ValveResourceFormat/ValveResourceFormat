@@ -685,7 +685,7 @@ namespace ValveResourceFormat.Renderer.Particles
                 }
                 else
                 {
-                    RendererContext.Logger.LogUniqueWarning(UnsupportedClassWarning, label, className, Name);
+                    RendererContext.Logger.LogUniqueWarningFor([label, className], UnsupportedClassWarning, label, className, Name);
                 }
             }
         }
@@ -727,7 +727,7 @@ namespace ValveResourceFormat.Renderer.Particles
                 }
                 else
                 {
-                    RendererContext.Logger.LogUniqueWarning(UnsupportedClassWarning, "renderer", rendererClass, Name);
+                    RendererContext.Logger.LogUniqueWarningFor(["renderer", rendererClass], UnsupportedClassWarning, "renderer", rendererClass, Name);
                 }
             }
         }
