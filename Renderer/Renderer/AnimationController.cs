@@ -68,13 +68,6 @@ namespace ValveResourceFormat.Renderer
             }
         }
 
-        /// <summary>
-        /// Pre-decodes every sound the animation's events can play, so the first playback does no decode
-        /// work mid-frame. Call when the animation is loaded, not when it first plays.
-        /// </summary>
-        /// <param name="animation">The animation whose event sounds to prewarm.</param>
-        public void PrewarmAnimationSounds(Animation animation) => modelPlayer.PrewarmAnimationSounds(animation);
-
         /// <summary>Gets or sets whether animations should loop when reaching the end.</summary>
         public bool Looping { get; set; } = true;
 

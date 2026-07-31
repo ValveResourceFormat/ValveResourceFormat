@@ -161,7 +161,7 @@ namespace ValveResourceFormat.Renderer
         }
 
         /// <summary>Pre-decodes every sound the animation's events can play. Call when the animation is loaded.</summary>
-        public void PrewarmAnimationSounds(Animation animation)
+        public static void PrewarmAnimationSounds(Animation animation)
         {
             PrewarmClipSounds(animation);
             PrewarmLegacyAnimationEventSounds(animation);

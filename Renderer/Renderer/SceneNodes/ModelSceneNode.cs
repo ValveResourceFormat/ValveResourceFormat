@@ -446,7 +446,7 @@ namespace ValveResourceFormat.Renderer.SceneNodes
             foreach (var anim in animations)
             {
                 Animations[anim.Name] = anim;
-                AnimationController.PrewarmAnimationSounds(anim);
+                AnimationPlayer.PrewarmAnimationSounds(anim);
             }
         }
 
@@ -457,7 +457,7 @@ namespace ValveResourceFormat.Renderer.SceneNodes
         {
             var anim = new ClipAnimation(clip);
             Animations[anim.Name] = anim;
-            AnimationController.PrewarmAnimationSounds(anim);
+            AnimationPlayer.PrewarmAnimationSounds(anim);
         }
 
         /// <summary>
