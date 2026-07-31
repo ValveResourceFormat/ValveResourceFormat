@@ -467,4 +467,121 @@ namespace ValveResourceFormat.Renderer.AnimLib
             return a + ab * t;
         }
     }
+
+    // Layers additional pose sources over a base pose, weighted per layer (optionally through a bone
+    // mask). State machine layers contribute their state's authored layer weight via the layer context.
+    partial class LayerBlendNode
+    {
+        PoseNode BaseNode;
+        PoseNode?[] LayerInputs = [];
+        FloatValueNode?[] LayerWeights = [];
+        BoneMaskValueNode?[] LayerMasks = [];
+        bool warnedModelSpace;
+
+        public override void Initialize(GraphContext ctx)
+        {
+            base.Initialize(ctx);
+            ctx.SetNodeFromIndex(BaseNodeIdx, ref BaseNode);
+
+            LayerInputs = new PoseNode?[LayerDefinition.Length];
+            LayerWeights = new FloatValueNode?[LayerDefinition.Length];
+            LayerMasks = new BoneMaskValueNode?[LayerDefinition.Length];
+
+            for (var i = 0; i < LayerDefinition.Length; i++)
+            {
+                ctx.SetOptionalNodeFromIndex(LayerDefinition[i].InputNodeIdx, ref LayerInputs[i]);
+                ctx.SetOptionalNodeFromIndex(LayerDefinition[i].WeightValueNodeIdx, ref LayerWeights[i]);
+                ctx.SetOptionalNodeFromIndex(LayerDefinition[i].BoneMaskValueNodeIdx, ref LayerMasks[i]);
+            }
+        }
+
+        public override bool IsValid => BaseNode?.IsValid ?? false;
+
+        public override SyncTrack SyncTrack => BaseNode?.SyncTrack ?? SyncTrack.Default;
+
+        public override void Restart(GraphContext ctx)
+        {
+            base.Restart(ctx);
+            BaseNode?.Restart(ctx);
+
+            foreach (var layerInput in LayerInputs)
+            {
+                layerInput?.Restart(ctx);
+            }
+        }
+
+        public override GraphPoseNodeResult Update(GraphContext ctx)
+        {
+            var eventRangeStart = ctx.SampledEvents.Count;
+            var result = base.Update(ctx);
+
+            var baseResult = BaseNode.Update(ctx);
+            Duration = BaseNode.Duration;
+            PreviousTime = BaseNode.PreviousTime;
+            CurrentTime = BaseNode.CurrentTime;
+
+            // Blend layers into our own buffer so the base node's pose is left untouched
+            baseResult.Pose.AsSpan(0, Math.Min(baseResult.Pose.Length, PoseTransforms.Length)).CopyTo(PoseTransforms);
+            result.RootMotionDelta = baseResult.RootMotionDelta;
+
+            for (var i = 0; i < LayerDefinition.Length; i++)
+            {
+                var layerInput = LayerInputs[i];
+                if (layerInput == null || !layerInput.IsValid)
+                {
+                    continue;
+                }
+
+                var definition = LayerDefinition[i];
+
+                // A state machine layer's weight comes from its active state's authored layer settings
+                var wasInLayer = ctx.IsInLayer;
+                ctx.IsInLayer = true;
+                ctx.LayerContext.Weight = 1f;
+                ctx.LayerContext.RootMotionWeight = 1f;
+
+                var layerResult = layerInput.Update(ctx);
+
+                ctx.IsInLayer = wasInLayer;
+
+                var weight = LayerWeights[i]?.GetValue(ctx) ?? 1f;
+                if (definition.IsStateMachineLayer)
+                {
+                    weight *= ctx.LayerContext.Weight;
+                }
+
+                weight = MathUtils.Saturate(weight);
+                if (weight <= 0f)
+                {
+                    continue;
+                }
+
+                if (definition.BlendMode == PoseBlendMode.ModelSpace && !warnedModelSpace)
+                {
+                    ctx.LogWarning(NodeIdx, "ModelSpace layer blending is approximated in parent space.");
+                    warnedModelSpace = true;
+                }
+
+                var mask = LayerMasks[i]?.GetValue(ctx) ?? default;
+                var boneCount = Math.Min(PoseTransforms.Length, layerResult.Pose.Length);
+
+                for (var b = 0; b < boneCount; b++)
+                {
+                    var boneWeight = weight * mask.GetBoneWeight(ctx.Skeleton, b);
+                    if (boneWeight <= 0f)
+                    {
+                        continue;
+                    }
+
+                    PoseTransforms[b] = definition.BlendMode == PoseBlendMode.Additive
+                        ? PoseTransforms[b].BlendAdd(layerResult.Pose[b], boneWeight)
+                        : PoseTransforms[b].Blend(layerResult.Pose[b], boneWeight);
+                }
+            }
+
+            result.Pose = PoseTransforms;
+            result.SampledEventRange = new(eventRangeStart, ctx.SampledEvents.Count);
+            return result;
+        }
+    }
 }

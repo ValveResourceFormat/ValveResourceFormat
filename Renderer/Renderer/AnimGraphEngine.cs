@@ -145,7 +145,25 @@ namespace ValveResourceFormat.Renderer.AnimLib
 
         // Layer context
         public bool IsInLayer { get; set; }
-        public LayerContext LayerContext { get; }
+        public LayerContext LayerContext { get; } = new();
+
+        /// <summary>Resolves a referenced graph slot index to the instantiated child graph, if any.</summary>
+        public AnimationGraph? GetReferencedGraph(short referencedGraphIdx)
+        {
+            var slots = graphDefinition.ReferencedGraphSlots;
+            if (referencedGraphIdx < 0 || referencedGraphIdx >= slots.Length)
+            {
+                return null;
+            }
+
+            var dataSlotIdx = slots[referencedGraphIdx].DataSlotIdx;
+            if (dataSlotIdx < 0 || dataSlotIdx >= Graph.ChildGraphs.Length)
+            {
+                return null;
+            }
+
+            return Graph.ChildGraphs[dataSlotIdx];
+        }
 
         public void SetNodeFromIndex<T>(short childNodeIdx, ref T childNode) where T : GraphNode
         {

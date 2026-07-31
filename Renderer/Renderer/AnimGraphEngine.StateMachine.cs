@@ -113,8 +113,24 @@ namespace ValveResourceFormat.Renderer.AnimLib
             CurrentTime = activeState.CurrentTime;
         }
 
+        private bool hasSelectedStartingState;
+
         public override GraphPoseNodeResult Update(GraphContext ctx)
         {
+            // The starting state honors entry conditions, evaluated lazily on the first update —
+            // at construction time the condition nodes are not initialized yet (node array order).
+            if (!hasSelectedStartingState)
+            {
+                hasSelectedStartingState = true;
+                var startingState = SelectStartingState(ctx);
+
+                if (startingState != ActiveStateIndex)
+                {
+                    ActiveStateIndex = startingState;
+                    ActiveStateNode.Restart(ctx);
+                }
+            }
+
             var result = base.Update(ctx);
 
             // Check active transition

@@ -51,9 +51,15 @@ namespace ValveResourceFormat.Renderer
 
         /// <summary>
         /// The graph's data slots: one entry per resource reference. Clip resources get a sampleable
-        /// <see cref="GraphClip"/>; other resource types (nested graphs are not implemented yet) are null.
+        /// <see cref="GraphClip"/>; other resource types are null.
         /// </summary>
         internal GraphClip?[] DataSlots { get; } = [];
+
+        /// <summary>
+        /// Referenced child graphs, index-aligned with <see cref="DataSlots"/>: one instance per
+        /// graph resource reference, null for other resource types (or on a recursive reference).
+        /// </summary>
+        internal AnimationGraph?[] ChildGraphs { get; } = [];
 
         /// <summary>The AnimLib view of the skeleton (reference pose, bone masks).</summary>
         internal AnimLib.Skeleton AnimLibSkeleton { get; }
@@ -73,17 +79,28 @@ namespace ValveResourceFormat.Renderer
         private readonly Dictionary<string, HashSet<string>> idOptions = [];
 
         /// <summary>
-        /// Gets the known comparison values for an ID parameter, collected from the graph's
-        /// IDComparison nodes. Useful for populating UI dropdowns.
+        /// Gets the known values for an ID parameter, collected from the graph's IDComparison and
+        /// ID-based selector nodes, including those of referenced child graphs. Useful for
+        /// populating UI dropdowns.
         /// </summary>
         public IEnumerable<string> GetParameterIdOptions(string parameterName)
         {
-            if (idOptions.TryGetValue(parameterName, out var options))
+            var options = new HashSet<string>();
+
+            if (idOptions.TryGetValue(parameterName, out var own))
             {
-                return options;
+                options.UnionWith(own);
             }
 
-            return [];
+            foreach (var childGraph in ChildGraphs)
+            {
+                if (childGraph != null)
+                {
+                    options.UnionWith(childGraph.GetParameterIdOptions(parameterName));
+                }
+            }
+
+            return options;
         }
 
         /// <summary>
@@ -92,6 +109,11 @@ namespace ValveResourceFormat.Renderer
         /// <param name="graphDefinition">The graph definition resource data.</param>
         /// <param name="fileLoader">Loader used to resolve the skeleton and clip resources.</param>
         public AnimationGraph(NmGraphDefinition graphDefinition, IFileLoader fileLoader)
+            : this(graphDefinition, fileLoader, [])
+        {
+        }
+
+        private AnimationGraph(NmGraphDefinition graphDefinition, IFileLoader fileLoader, HashSet<string> loadStack)
         {
             var graph = graphDefinition.Data.Root;
             Debug.Assert(graph != null, "Animation graph definition data is null.");
@@ -115,9 +137,13 @@ namespace ValveResourceFormat.Renderer
 
             CollectParameters(graph);
 
-            // Load all clips. Slots must stay index-aligned with m_resources.
+            // Load all clips and referenced child graphs. Slots must stay index-aligned with m_resources.
             var resources = graph.GetArray<string>("m_resources") ?? [];
             DataSlots = new GraphClip?[resources.Length];
+            ChildGraphs = new AnimationGraph?[resources.Length];
+
+            var graphResourceName = graphDefinition.Resource?.FileName ?? Name;
+            loadStack.Add(graphResourceName);
 
             for (var ri = 0; ri < resources.Length; ri++)
             {
@@ -129,9 +155,14 @@ namespace ValveResourceFormat.Renderer
                     var clipAnim = new ClipAnimation((AnimationClip)resourceFile.DataBlock!);
                     DataSlots[ri] = new GraphClip(clipAnim, Skeleton);
                 }
-
-                // TODO: nested graph resources (ResourceType.NmGraph) are not instantiated yet.
+                else if (resourceFile?.DataBlock is NmGraphDefinition childDefinition
+                    && !loadStack.Contains(resourceFile.FileName ?? resourceName))
+                {
+                    ChildGraphs[ri] = new AnimationGraph(childDefinition, fileLoader, loadStack);
+                }
             }
+
+            loadStack.Remove(graphResourceName);
 
             graphContext = new AnimLib.GraphContext(graph, this);
         }
@@ -206,26 +237,32 @@ namespace ValveResourceFormat.Renderer
                 }
                 else if (type == "IDComparison")
                 {
-                    var inputValueIdx = node.GetInt32Property("m_nInputValueNodeIdx");
-                    if (inputValueIdx < 0 || inputValueIdx >= ParameterNames.Length)
-                    {
-                        continue;
-                    }
-
-                    var parameterName = ParameterNames[inputValueIdx];
-                    var idsToCompare = node.GetArray<string>("m_comparisionIDs");
-
-                    if (idsToCompare == null || idsToCompare.Length == 0)
-                    {
-                        continue;
-                    }
-
-                    idOptions.TryAdd(parameterName, []);
-                    idOptions[parameterName].UnionWith(idsToCompare);
+                    CollectIdOptions(node.GetInt32Property("m_nInputValueNodeIdx"), node.GetArray<string>("m_comparisionIDs"));
+                }
+                else if (type is "IDBasedSelector" or "IDBasedClipSelector")
+                {
+                    CollectIdOptions(node.GetInt32Property("m_nParameterNodeIdx"), node.GetArray<string>("m_optionIDs"));
                 }
             }
         }
 
+        private void CollectIdOptions(int parameterNodeIdx, string[]? ids)
+        {
+            if (parameterNodeIdx < 0 || parameterNodeIdx >= ParameterNames.Length || ids == null || ids.Length == 0)
+            {
+                return;
+            }
+
+            var parameterName = ParameterNames[parameterNodeIdx];
+            idOptions.TryAdd(parameterName, []);
+            idOptions[parameterName].UnionWith(ids);
+        }
+
+        /// <summary>Restarts the graph's node tree as if freshly activated.</summary>
+        internal void RestartRoot()
+        {
+            graphContext.RootNode.Restart(graphContext);
+        }
     }
 
     /// <summary>

@@ -3,25 +3,53 @@ using System.Linq;
 
 namespace ValveResourceFormat.Renderer.AnimLib
 {
+    // Minimal port of Esoterica's bone mask task list: holds either a skeleton mask reference or a
+    // uniform weight. Task chaining (blending two lists) degrades to picking the dominant list.
     struct BoneMaskTaskList
     {
         public static BoneMaskTaskList Default { get; }
 
+        // Skeleton mask index + 1, so default(BoneMaskTaskList) means "no mask".
+        private short maskIndexPlusOne;
+        private float uniformWeight;
+        private bool hasUniformWeight;
+
+        public readonly bool IsSet => maskIndexPlusOne != 0 || hasUniformWeight;
+
         public void EmplaceTask(byte maskIndex)
         {
+            maskIndexPlusOne = (short)(maskIndex + 1);
+            hasUniformWeight = false;
         }
 
         public void EmplaceTask(float uniformWeight)
         {
-
+            this.uniformWeight = uniformWeight;
+            hasUniformWeight = true;
+            maskIndexPlusOne = 0;
         }
 
         public void CopyFrom(BoneMaskTaskList other)
         {
+            this = other;
         }
 
         public void SetToBlendBetweenTaskLists(BoneMaskTaskList listA, BoneMaskTaskList listB, float t)
         {
+            // Coarse approximation: pick the dominant list instead of blending mask weights.
+            this = t < 0.5f ? listA : listB;
+        }
+
+        /// <summary>Gets the blend weight for one bone, resolving skeleton masks by bone ID.</summary>
+        public readonly float GetBoneWeight(Skeleton? skeleton, int boneIdx)
+        {
+            if (maskIndexPlusOne != 0 && skeleton != null)
+            {
+                var weights = skeleton.GetResolvedMaskWeights(maskIndexPlusOne - 1);
+                return boneIdx < weights.Length ? weights[boneIdx] : 0f;
+            }
+
+            return hasUniformWeight ? uniformWeight : 1f;
         }
     }
 

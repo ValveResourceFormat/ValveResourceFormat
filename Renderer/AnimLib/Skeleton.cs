@@ -26,6 +26,44 @@ class Skeleton
         IsPropSkeleton = data.GetProperty<bool>("m_bIsPropSkeleton");
     }
 
+    private float[][] resolvedMaskWeights;
+
+    /// <summary>
+    /// Gets per-bone weights for a mask definition, mapping its bone ID list onto this skeleton.
+    /// Bones the mask does not list get weight 0.
+    /// </summary>
+    public float[] GetResolvedMaskWeights(int maskIndex)
+    {
+        resolvedMaskWeights ??= new float[MaskDefinitions.Length][];
+
+        if (maskIndex < 0 || maskIndex >= MaskDefinitions.Length)
+        {
+            return [];
+        }
+
+        if (resolvedMaskWeights[maskIndex] == null)
+        {
+            var weights = new float[BoneIDs.Length];
+            var list = MaskDefinitions[maskIndex].PrimaryWeightList;
+
+            for (var i = 0; i < list.BoneIDs.Length && i < list.Weights.Length; i++)
+            {
+                for (var b = 0; b < BoneIDs.Length; b++)
+                {
+                    if (BoneIDs[b] == list.BoneIDs[i])
+                    {
+                        weights[b] = list.Weights[i];
+                        break;
+                    }
+                }
+            }
+
+            resolvedMaskWeights[maskIndex] = weights;
+        }
+
+        return resolvedMaskWeights[maskIndex];
+    }
+
     public int GetBoneMaskIndex(GlobalSymbol boneMaskID)
     {
         for (var i = 0; i < MaskDefinitions.Length; i++)

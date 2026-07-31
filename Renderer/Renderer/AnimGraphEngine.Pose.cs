@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Linq;
 using ValveResourceFormat.ResourceTypes.ModelAnimation;
 
 namespace ValveResourceFormat.Renderer.AnimLib
@@ -205,7 +206,10 @@ namespace ValveResourceFormat.Renderer.AnimLib
             Duration = 0f;
             RestartTime();
 
+            // Start from the reference pose so a node that never writes its buffer (not implemented
+            // yet, invalid clip) produces the bind pose rather than zero-scale garbage.
             PoseTransforms = new FrameBone[ctx.Graph.ParentSpaceReferencePose.Length];
+            ctx.Graph.ParentSpaceReferencePose.CopyTo(PoseTransforms, 0);
         }
 
         public void RestartTime()
@@ -479,6 +483,119 @@ namespace ValveResourceFormat.Renderer.AnimLib
     }
     #endregion
 
+
+    // Plays a referenced child graph (its own instance with its own context), pushing the parent's
+    // same-named control parameters down every update and surfacing the child's sampled events.
+    partial class ReferencedGraphNode
+    {
+        AnimationGraph? childGraph;
+        PoseNode? FallbackNode;
+
+        string[] sharedBoolParameters = [];
+        string[] sharedFloatParameters = [];
+        string[] sharedIdParameters = [];
+        string[] sharedVectorParameters = [];
+        string[] sharedTargetParameters = [];
+
+        public override void Initialize(GraphContext ctx)
+        {
+            base.Initialize(ctx);
+            ctx.SetOptionalNodeFromIndex(FallbackNodeIdx, ref FallbackNode);
+
+            childGraph = ctx.GetReferencedGraph(ReferencedGraphIdx);
+
+            if (childGraph != null)
+            {
+                var parent = ctx.Graph;
+                sharedBoolParameters = [.. childGraph.BoolParameters.Keys.Where(parent.BoolParameters.ContainsKey)];
+                sharedFloatParameters = [.. childGraph.FloatParameters.Keys.Where(parent.FloatParameters.ContainsKey)];
+                sharedIdParameters = [.. childGraph.IdParameters.Keys.Where(parent.IdParameters.ContainsKey)];
+                sharedVectorParameters = [.. childGraph.VectorParameters.Keys.Where(parent.VectorParameters.ContainsKey)];
+                sharedTargetParameters = [.. childGraph.TargetParameters.Keys.Where(parent.TargetParameters.ContainsKey)];
+            }
+        }
+
+        public override bool IsValid => childGraph != null || (FallbackNode?.IsValid ?? false);
+
+        public override SyncTrack SyncTrack => childGraph?.Context.RootNode.SyncTrack
+            ?? FallbackNode?.SyncTrack
+            ?? SyncTrack.Default;
+
+        public override void Restart(GraphContext ctx)
+        {
+            base.Restart(ctx);
+            childGraph?.RestartRoot();
+            FallbackNode?.Restart(ctx);
+        }
+
+        public override GraphPoseNodeResult Update(GraphContext ctx)
+        {
+            if (childGraph == null)
+            {
+                if (FallbackNode != null)
+                {
+                    var fallbackResult = FallbackNode.Update(ctx);
+                    Duration = FallbackNode.Duration;
+                    PreviousTime = FallbackNode.PreviousTime;
+                    CurrentTime = FallbackNode.CurrentTime;
+                    return fallbackResult;
+                }
+
+                return base.Update(ctx);
+            }
+
+            var parent = ctx.Graph;
+            PushParameters(parent);
+
+            var eventRangeStart = ctx.SampledEvents.Count;
+            var childPose = childGraph.Update(ctx.DeltaTime);
+
+            // Surface the child's events so parent conditions can see them
+            ctx.SampledEvents.AppendFrom(childGraph.Context.SampledEvents);
+
+            var result = base.Update(ctx);
+            var count = Math.Min(childPose.Length, result.Pose.Length);
+            childPose.AsSpan(0, count).CopyTo(result.Pose);
+            result.SampledEventRange = new(eventRangeStart, ctx.SampledEvents.Count);
+
+            var childRoot = childGraph.Context.RootNode;
+            Duration = childRoot.Duration;
+            PreviousTime = childRoot.PreviousTime;
+            CurrentTime = childRoot.CurrentTime;
+
+            return result;
+        }
+
+        private void PushParameters(AnimationGraph parent)
+        {
+            Debug.Assert(childGraph != null);
+
+            foreach (var name in sharedBoolParameters)
+            {
+                childGraph!.BoolParameters[name] = parent.BoolParameters[name];
+            }
+
+            foreach (var name in sharedFloatParameters)
+            {
+                childGraph!.FloatParameters[name] = parent.FloatParameters[name];
+            }
+
+            foreach (var name in sharedIdParameters)
+            {
+                childGraph!.IdParameters[name] = parent.IdParameters[name];
+            }
+
+            foreach (var name in sharedVectorParameters)
+            {
+                childGraph!.VectorParameters[name] = parent.VectorParameters[name];
+            }
+
+            foreach (var name in sharedTargetParameters)
+            {
+                childGraph!.TargetParameters[name] = parent.TargetParameters[name];
+            }
+        }
+    }
 
     # region Clip Selector Nodes
     // An interface to directly access a selected animation
