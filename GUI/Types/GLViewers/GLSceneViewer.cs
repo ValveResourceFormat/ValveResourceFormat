@@ -553,7 +553,7 @@ namespace GUI.Types.GLViewers
 
             if (!Paused)
             {
-                using (new ProfilerScope("Sound Update"))
+                using (new ProfilerScope("Update Sounds"))
                 {
                     soundPlayer.Update(Renderer.Camera);
                 }
@@ -571,9 +571,7 @@ namespace GUI.Types.GLViewers
             if (perfStats.Capture)
             {
                 var cache = soundPlayer.SoundCache;
-
-                perfStats.SetCounter("Sound cache", string.Create(CultureInfo.InvariantCulture,
-                    $"{cache.CachedBytes / (1024 * 1024):N0} MB decoded, {cache.PendingDecodes:N0} queued to decode"));
+                perfStats.SetSoundCacheStats((int)(cache.CachedBytes / (1024 * 1024)), cache.PendingDecodes);
             }
         }
 

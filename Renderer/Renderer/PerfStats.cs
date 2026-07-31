@@ -20,6 +20,8 @@ internal enum Counter
     ShadowFaceSubmitted,
     ParticleSystem,
     ParticleDraw,
+    SoundCacheMegabytes,
+    SoundDecodeQueue,
 }
 
 internal enum Metric
@@ -410,29 +412,19 @@ public class PerfStats
         AddLine($"Particle Systems: {counts[(int)Counter.ParticleSystem]:N0} particle systems rendered in {counts[(int)Counter.ParticleDraw]:N0} draw calls out of {totalParticleSystems:N0} total particle systems", valueColor);
         AddLine($"Light binning:    {FormatBinnerStats(scene.LightBinner.Stats)}", valueColor);
 
-        if (counters.Count > 0)
-        {
-            AddLine(string.Empty, valueColor);
-            AddLine("Counters", new Color32(255, 200, 0));
-
-            foreach (var (name, value) in counters)
-            {
-                AddLine($"{name + ":",-18}{value}", valueColor);
-            }
-        }
+        AddLine($"Sound cache:      {counts[(int)Counter.SoundCacheMegabytes]:N0} MB decoded, {counts[(int)Counter.SoundDecodeQueue]:N0} queued to decode", valueColor);
     }
 
-    private readonly SortedDictionary<string, string> counters = [];
-
     /// <summary>
-    /// Records a named counter to list under "Counters" in the stats display, for subsystem totals that
-    /// are not per-frame render work. Replaced by name on each call.
+    /// Assigns the sound cache counters. Unlike the render counters these are a snapshot of another
+    /// subsystem rather than work tallied during the frame, so they are set rather than accumulated.
     /// </summary>
-    /// <param name="name">Counter label, unique per source.</param>
-    /// <param name="value">Preformatted value to show.</param>
-    public void SetCounter(string name, string value)
+    /// <param name="cachedMegabytes">Decoded audio currently held, in megabytes.</param>
+    /// <param name="pendingDecodes">Sounds still queued to decode.</param>
+    public void SetSoundCacheStats(int cachedMegabytes, int pendingDecodes)
     {
-        counters[name] = value;
+        counts[(int)Counter.SoundCacheMegabytes] = cachedMegabytes;
+        counts[(int)Counter.SoundDecodeQueue] = pendingDecodes;
     }
 
     /// <summary>
