@@ -339,7 +339,7 @@ namespace ValveResourceFormat.Renderer.AnimLib
             PreviousTime = CurrentTime;
             CurrentTime += deltaPercentage;
 
-            if (IsLooping)
+            if (IsLooping || ctx.Graph.ForceLoopingClips)
             {
                 if (CurrentTime > 1f)
                 {

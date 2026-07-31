@@ -485,6 +485,12 @@ namespace GUI.Types.GLViewers
             uiControl.AddDivider();
             uiControl.AddLabel($"Animation: {animGraph.Name}");
 
+            // Graphs rely on the game re-triggering actions; clamped clips otherwise finish and hold.
+            uiControl.AddCheckBox("Loop clips (non-authentic)", animGraph.ForceLoopingClips, isChecked =>
+            {
+                animGraph.ForceLoopingClips = isChecked;
+            });
+
             foreach (var (paramName, _) in animGraph.BoolParameters)
             {
                 uiControl.AddCheckBoxWithSignal(paramName, animGraph.BoolParameters[paramName],

@@ -44,6 +44,12 @@ namespace ValveResourceFormat.Renderer
         public string[] ParameterNames { get; private set; } = [];
 
         /// <summary>
+        /// Gets or sets whether clamped (non-looping) clips loop anyway. Not authentic — graphs rely
+        /// on the game re-triggering actions — but useful in a viewer to keep animations moving.
+        /// </summary>
+        public bool ForceLoopingClips { get; set; }
+
+        /// <summary>
         /// The graph's data slots: one entry per resource reference. Clip resources get a sampleable
         /// <see cref="GraphClip"/>; other resource types (nested graphs are not implemented yet) are null.
         /// </summary>
@@ -264,16 +270,19 @@ namespace ValveResourceFormat.Renderer
         {
             Debug.Assert(cycle >= 0f && cycle <= 1f);
 
-            // At exactly the end of the clip the interpolated lookup would wrap its frame index back
-            // to the first frame; a clamped (non-looping) clip must hold its final frame instead.
-            if (cycle >= 1f)
+            var time = cycle * Animation.Duration;
+
+            // The interpolated lookup wraps its frame index (modulo FrameCount - 1) once the time
+            // passes the last stored frame, sampling the first frame again. That wrap is for looping
+            // playback; a clamped clip sampled in its final frame interval must hold the final frame.
+            var lastFrameTime = (Animation.FrameCount - 1) / Animation.Fps;
+            if (time >= lastFrameTime)
             {
                 var lastFrame = frameCache.GetFrame(Animation, Animation.FrameCount - 1);
                 CopyFrame(lastFrame, pose);
                 return lastFrame;
             }
 
-            var time = cycle * Animation.Duration;
             var frame = frameCache.GetInterpolatedFrame(Animation, time);
             CopyFrame(frame, pose);
             return frame;
