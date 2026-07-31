@@ -335,6 +335,17 @@ namespace ValveResourceFormat.Renderer.AnimLib
 
         SyncTrack? syncTrackWithOffset;
 
+        // Whether the clip currently plays backwards. Time still advances forward; pose and event
+        // sampling mirror through (1 - t) (Esoterica AnimationClipNode::CalculateResult).
+        bool shouldPlayInReverse;
+        bool warnedReverseDuringSync;
+
+        public override void Restart(GraphContext ctx)
+        {
+            base.Restart(ctx);
+            shouldPlayInReverse = false;
+        }
+
         public override void UpdateSelection(GraphContext ctx)
         {
             //
@@ -365,16 +376,36 @@ namespace ValveResourceFormat.Renderer.AnimLib
             // Synchronized Update
             if (updateRange != null)
             {
+                // The reverse toggle is not processed during a synced update (the sync range drives
+                // time), but an already-latched reversal still mirrors the sampling below.
+                if ((PlayInReverseValueNode != null || shouldPlayInReverse) && !warnedReverseDuringSync)
+                {
+                    warnedReverseDuringSync = true;
+                    ctx.LogWarning(NodeIdx, "'Play reversed' has no effect when used with time synchronization!");
+                }
+
                 PreviousTime = SyncTrack.GetPercentageThrough(updateRange.Value.StartTime);
                 CurrentTime = SyncTrack.GetPercentageThrough(updateRange.Value.EndTime);
                 LoopCount = 0;
 
-                clip.SamplePoseAtPercentage(CurrentTime, result.Pose);
+                clip.SamplePoseAtPercentage(shouldPlayInReverse ? 1f - CurrentTime : CurrentTime, result.Pose);
                 SampleAnimationEvents(ctx, ref result);
                 return result;
             }
 
             // Unsynchronized Update
+
+            // Should we change the playback direction? Mirror the current time so the pose is
+            // continuous across the toggle.
+            if (PlayInReverseValueNode != null && shouldPlayInReverse != PlayInReverseValueNode.GetValue(ctx))
+            {
+                shouldPlayInReverse = !shouldPlayInReverse;
+                CurrentTime = 1f - CurrentTime;
+                if (CurrentTime == 1f)
+                {
+                    CurrentTime = 0f;
+                }
+            }
 
             var resetTime = ResetTimeValueNode?.GetValue(ctx) ?? false;
             if (resetTime)
@@ -382,9 +413,6 @@ namespace ValveResourceFormat.Renderer.AnimLib
                 CurrentTime = 0f;
                 PreviousTime = 0f;
             }
-
-            // todo
-            var playInReverse = PlayInReverseValueNode?.GetValue(ctx) ?? false;
 
             var deltaPercentage = Duration > 0f ? ctx.DeltaTime / Duration : 0f;
 
@@ -408,7 +436,7 @@ namespace ValveResourceFormat.Renderer.AnimLib
             }
 
             // sample animation pose at current time
-            var frame = clip.SamplePoseAtPercentage(CurrentTime, result.Pose);
+            var frame = clip.SamplePoseAtPercentage(shouldPlayInReverse ? 1f - CurrentTime : CurrentTime, result.Pose);
 
             // root motion
             // frame.Movement.Position;
@@ -435,8 +463,15 @@ namespace ValveResourceFormat.Renderer.AnimLib
 
             if (events.Length > 0 && clipDuration > 0f)
             {
-                var from = PreviousTime;
-                var to = CurrentTime;
+                // Reversed playback covers the mirrored clip range: invert the times and swap the
+                // start and end (Esoterica AnimationClipNode::CalculateResult).
+                var from = shouldPlayInReverse ? 1f - CurrentTime : PreviousTime;
+                var to = shouldPlayInReverse ? 1f - PreviousTime : CurrentTime;
+
+                // Duration events report how far through they are at the clip time reached this
+                // update (Esoterica uses the single sample end time, also for looped ranges),
+                // mirrored back for reversed playback.
+                var sampleEndTime = shouldPlayInReverse ? 1f - CurrentTime : CurrentTime;
 
                 // Every event whose time range overlaps [from, to) is sampled, with the trailing edge
                 // included at the very end of the clip (Esoterica AnimationClip::GetEventsForRange).
@@ -462,9 +497,15 @@ namespace ValveResourceFormat.Renderer.AnimLib
                             continue;
                         }
 
-                        var percentageThrough = clipEvent.Duration > 0f
-                            ? MathUtils.Saturate((rangeTo - eventStart) / (eventEnd - eventStart))
-                            : 1f;
+                        var percentageThrough = 1f;
+                        if (clipEvent.Duration > 0f)
+                        {
+                            percentageThrough = MathUtils.Saturate((sampleEndTime - eventStart) / (eventEnd - eventStart));
+                            if (shouldPlayInReverse)
+                            {
+                                percentageThrough = 1f - percentageThrough;
+                            }
+                        }
 
                         ctx.SampledEvents.EmplaceAnimationEvent(NodeIdx, clipEvent, percentageThrough, isFromActiveBranch);
                     }

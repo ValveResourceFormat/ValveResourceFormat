@@ -18,9 +18,10 @@ verbatim wherever possible. Deliberate architecture deviations:
 
 Behavioral, not yet ported:
 
-- Clip play-in-reverse (`m_playInReverseValueNode`): value read, not applied.
 - Clip root motion sampling (`RootMotionDelta` stays identity); `VelocityBlendNode` and
-  `VelocityBasedSpeedScaleNode` need per-clip average velocity from decoded root motion.
+  `VelocityBasedSpeedScaleNode` need per-clip average velocity from decoded root motion. This also
+  covers the reversed-playback root-motion special case (play-in-reverse itself is ported; no CS2
+  graph authors it — Tests/AnimGraphReverseTest.cs drives it synthetically).
 - `SnapToFrameEvent` pose-time snapping.
 - Transition start bone mask (`m_startBoneMaskNodeIdx` / `m_boneMaskBlendInTimePercentage`
   pose-weight remap during the blend-in).
