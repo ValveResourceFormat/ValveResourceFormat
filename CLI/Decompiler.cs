@@ -53,6 +53,7 @@ namespace CLI
         private TextureCodec TextureDecodeFlags;
         private string[] FileFilter = [];
         private bool ListResources;
+        private string? GameInfoPath;
         private string? GltfExportFormat;
         private bool GltfExportAnimations;
         private string[] GltfAnimationFilter = [];
@@ -108,6 +109,7 @@ namespace CLI
         /// <param name="vpk_extensions">-e, File extension(s) filter, example: "vcss_c,vjs_c,vxml_c".</param>
         /// <param name="vpk_filepath">-f, File path filter, example: "panorama/,sounds/" or "scripts/items/items_game.txt".</param>
         /// <param name="vpk_list">-l, Lists all resources in given VPK. File extension and path filters apply.</param>
+        /// <param name="gameinfo">Path to a gameinfo.gi file to load search paths from.</param>
         /// <param name="gltf_export_format">Exports meshes/models in given glTF format. Must be either "gltf" or "glb".</param>
         /// <param name="gltf_export_animations">Whether to export model animations during glTF exports.</param>
         /// <param name="gltf_animation_list">Animations to include in the glTF, example "idle,dropped". By default will include all animations.</param>
@@ -140,6 +142,7 @@ namespace CLI
             string? vpk_extensions = default,
             string? vpk_filepath = default,
             bool vpk_list = false,
+            string? gameinfo = default,
 
             string? gltf_export_format = default,
             bool gltf_export_animations = false,
@@ -198,6 +201,17 @@ namespace CLI
             {
                 OutputFile = Path.GetFullPath(OutputFile);
                 OutputFile = FixPathSlashes(OutputFile);
+            }
+
+            if (gameinfo != null)
+            {
+                if (!File.Exists(gameinfo))
+                {
+                    Console.Error.WriteLine($"Gameinfo file \"{gameinfo}\" does not exist.");
+                    return 1;
+                }
+
+                GameInfoPath = Path.GetFullPath(gameinfo);
             }
 
             for (var i = 0; i < FileFilter.Length; i++)
@@ -650,7 +664,7 @@ namespace CLI
 
                 if (OutputFile != null)
                 {
-                    using var outputFileLoader = new GameFileLoader(null, resource.FileName);
+                    using var outputFileLoader = CreateGameFileLoader(null, resource.FileName);
 
                     path = Path.ChangeExtension(path, extension);
                     var outFilePath = GetOutputPath(path);
@@ -828,7 +842,7 @@ namespace CLI
                     var outFilePath = Path.ChangeExtension(GetOutputPath(path), GltfExportFormat);
                     Directory.CreateDirectory(Path.GetDirectoryName(outFilePath)!);
 
-                    using var fileLoader = new GameFileLoader(null, path);
+                    using var fileLoader = CreateGameFileLoader(null, path);
                     CreateGltfExporter(fileLoader).Export(navMeshFile, path, outFilePath);
                     return;
                 }
@@ -1070,7 +1084,7 @@ namespace CLI
                     }
                     else
                     {
-                        using var fileLoader = StatsWithLoader ? new GameFileLoader(package, package.FileName) : null;
+                        using var fileLoader = StatsWithLoader ? CreateGameFileLoader(package, package.FileName) : null;
 
                         while (queue.TryDequeue(out var file))
                         {
@@ -1142,7 +1156,7 @@ namespace CLI
                     }
                 }
 
-                using var fileLoader = new GameFileLoader(package, package.FileName);
+                using var fileLoader = CreateGameFileLoader(package, package.FileName);
 
                 Debug.Assert(package.Entries != null);
 
@@ -1375,6 +1389,18 @@ namespace CLI
                     ArrayPool<byte>.Shared.Return(rawFileData);
                 }
             }
+        }
+
+        private GameFileLoader CreateGameFileLoader(Package? package, string? path)
+        {
+            var fileLoader = new GameFileLoader(package, path);
+
+            if (GameInfoPath != null)
+            {
+                fileLoader.FindAndLoadSearchPaths(GameInfoPath);
+            }
+
+            return fileLoader;
         }
 
         private GltfModelExporter CreateGltfExporter(IFileLoader fileLoader)

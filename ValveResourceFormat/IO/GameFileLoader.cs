@@ -553,7 +553,7 @@ namespace ValveResourceFormat.IO
         /// <summary>
         /// Finds and loads search paths from gameinfo.gi files.
         /// </summary>
-        protected void FindAndLoadSearchPaths(string? modIdentifierPath = null)
+        public void FindAndLoadSearchPaths(string? modIdentifierPath = null)
         {
             modIdentifierPath ??= GetModIdentifierFile();
 
