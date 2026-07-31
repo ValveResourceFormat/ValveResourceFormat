@@ -559,25 +559,22 @@ namespace GUI.Types.GLViewers
                 }
             }
 
-            var timings = Renderer.PerfStats.Timings;
+            var perfStats = Renderer.PerfStats;
 
-            if (!timings.Capture)
+            if (perfStats.Timings.Capture)
             {
-                return;
+                // The mixing thread runs on its own clock, so it is reported rather than timed
+                perfStats.Timings.SetAsyncRow("Sound Mixer", soundPlayer.MixMilliseconds,
+                    soundPlayer.MixDutyCycle.ToString("P0", CultureInfo.InvariantCulture));
             }
 
-            // The mixing and decode threads run on their own clocks, so they are reported rather than timed
-            timings.SetAsyncRow("Sound Mixer", soundPlayer.MixMilliseconds,
-                soundPlayer.MixDutyCycle.ToString("P0", CultureInfo.InvariantCulture));
+            if (perfStats.Capture)
+            {
+                var cache = soundPlayer.SoundCache;
 
-            var cache = soundPlayer.SoundCache;
-            var pending = cache.PendingDecodes;
-
-            timings.SetAsyncRow("Sound Cache", null,
-                string.Create(CultureInfo.InvariantCulture, $"{cache.CachedBytes / (1024 * 1024)}MB"));
-
-            timings.SetAsyncRow("Sound Decode Queue", null,
-                pending.ToString(CultureInfo.InvariantCulture));
+                perfStats.SetCounter("Sound cache", string.Create(CultureInfo.InvariantCulture,
+                    $"{cache.CachedBytes / (1024 * 1024):N0} MB decoded, {cache.PendingDecodes:N0} queued to decode"));
+            }
         }
 
         protected void DrawLowerCornerText(ValveResourceFormat.Renderer.TextRenderer.TextMemory text, Color32 color, int lineFromBottom = 0)

@@ -409,6 +409,30 @@ public class PerfStats
         AddLine($"Shadow maps:      {counts[(int)Counter.DirectionalShadowMap]:N0} directional, {counts[(int)Counter.BarnShadowMap]:N0} barn, {counts[(int)Counter.ShadowFaceSubmitted]:N0} faces binned, {floatMetrics[(int)Metric.ShadowAtlasUsage]:0%} atlas utilization", valueColor);
         AddLine($"Particle Systems: {counts[(int)Counter.ParticleSystem]:N0} particle systems rendered in {counts[(int)Counter.ParticleDraw]:N0} draw calls out of {totalParticleSystems:N0} total particle systems", valueColor);
         AddLine($"Light binning:    {FormatBinnerStats(scene.LightBinner.Stats)}", valueColor);
+
+        if (counters.Count > 0)
+        {
+            AddLine(string.Empty, valueColor);
+            AddLine("Counters", new Color32(255, 200, 0));
+
+            foreach (var (name, value) in counters)
+            {
+                AddLine($"{name + ":",-18}{value}", valueColor);
+            }
+        }
+    }
+
+    private readonly SortedDictionary<string, string> counters = [];
+
+    /// <summary>
+    /// Records a named counter to list under "Counters" in the stats display, for subsystem totals that
+    /// are not per-frame render work. Replaced by name on each call.
+    /// </summary>
+    /// <param name="name">Counter label, unique per source.</param>
+    /// <param name="value">Preformatted value to show.</param>
+    public void SetCounter(string name, string value)
+    {
+        counters[name] = value;
     }
 
     /// <summary>
