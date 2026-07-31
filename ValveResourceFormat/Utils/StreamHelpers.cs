@@ -44,7 +44,7 @@ namespace ValveResourceFormat
         }
 
         /// <summary>
-        /// Reads a string at a given uint offset.
+        /// Reads a string located at a signed 32-bit relative offset read from the stream.
         /// </summary>
         /// <returns>String.</returns>
         /// <param name="stream">Stream.</param>

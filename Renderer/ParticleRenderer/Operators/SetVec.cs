@@ -1,5 +1,10 @@
 namespace ValveResourceFormat.Renderer.Particles.Operators
 {
+    /// <summary>
+    /// Sets a vector particle attribute to a per-particle vector value, with an optional
+    /// interpolation factor that blends between the current value and the target each frame.
+    /// </summary>
+    /// <seealso href="https://s2v.app/SchemaExplorer/cs2/particles/C_OP_SetVec">C_OP_SetVec</seealso>
     class SetVec : ParticleFunctionOperator
     {
         private readonly ParticleField OutputField = ParticleField.Color;
@@ -10,11 +15,10 @@ namespace ValveResourceFormat.Renderer.Particles.Operators
         public SetVec(ParticleDefinitionParser parse) : base(parse)
         {
             OutputField = parse.ParticleField("m_nOutputField", OutputField);
-            value = parse.VectorProvider("m_nInputValue", value);
+            value = parse.VectorProvider("m_InputValue", value);
             setMethod = parse.Enum<ParticleSetMethod>("m_nSetMethod", setMethod);
             lerp = parse.NumberProvider("m_Lerp", lerp);
 
-            // there's also a Lerp value that will fade it in when at low values. Further testing is needed to know anything more
         }
         public override void Operate(ParticleCollection particles, float frameTime, ParticleSystemRenderState particleSystemState)
         {

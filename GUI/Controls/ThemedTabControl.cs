@@ -67,6 +67,9 @@ namespace GUI.Controls
         [Description("Roundness of the corners of the top of tabs"), Category("Appearance")]
         public bool SelectionLine { get; set; } = true;
 
+        [Description("Hide the tab strip entirely and let the selected page fill the whole control"), Category("Appearance")]
+        public bool HideTabHeader { get; set; }
+
         private bool _endEllipsis;
         public bool EndEllipsis
         {
@@ -231,6 +234,12 @@ namespace GUI.Controls
         {
             get
             {
+                // No tab strip: let the selected page fill the entire control.
+                if (HideTabHeader)
+                {
+                    return new Rectangle(0, 0, Width, Height);
+                }
+
                 var rect = base.DisplayRectangle;
 
                 // extend the client area by 4 pixels, this makes the page inside the tab control flush with the edges
@@ -285,6 +294,11 @@ namespace GUI.Controls
             using (var bgBrush = new SolidBrush(BackColor))
             {
                 g.FillRectangle(bgBrush, ClientRectangle);
+            }
+
+            if (HideTabHeader)
+            {
+                return;
             }
 
             for (var i = 0; i < TabCount; i++)

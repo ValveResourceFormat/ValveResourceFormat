@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.IO;
 using ValveKeyValue;
 
@@ -19,7 +20,7 @@ namespace ValveResourceFormat.ResourceTypes
         /// <summary>
         /// Gets the deserialized KeyValues data.
         /// </summary>
-        public KVObject? KeyValues { get; private set; }
+        public KVDocument? KeyValues { get; private set; }
 
         /// <inheritdoc/>
         public override void Read(BinaryReader reader)
@@ -41,6 +42,8 @@ namespace ValveResourceFormat.ResourceTypes
         /// </remarks>
         public override void WriteText(IndentedTextWriter writer)
         {
+            Debug.Assert(KeyValues != null);
+
             using var ms = new MemoryStream();
             using var reader = new StreamReader(ms);
 

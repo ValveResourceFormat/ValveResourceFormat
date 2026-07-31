@@ -1,5 +1,3 @@
-#nullable disable
-
 namespace ValveResourceFormat.ResourceTypes.ModelAnimation
 {
     /// <summary>
@@ -15,7 +13,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
         /// <summary>
         /// Gets the array of element indices to decode.
         /// </summary>
-        protected int[] WantedElements { get; private set; }
+        protected int[] WantedElements { get; private set; } = [];
 
         /// <summary>
         /// Gets the total number of elements in the segment.
@@ -25,7 +23,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
         /// <summary>
         /// Gets the remap table for mapping elements to bones or flex controllers.
         /// </summary>
-        public int[] RemapTable { get; private set; }
+        public int[] RemapTable { get; private set; } = [];
 
         /// <summary>
         /// Gets the channel attribute type.

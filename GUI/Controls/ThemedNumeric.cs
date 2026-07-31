@@ -2,7 +2,7 @@ using System.ComponentModel;
 using System.Drawing;
 using System.Globalization;
 using System.Windows.Forms;
-using ValveResourceFormat.Renderer;
+using ValveResourceFormat.Renderer.Utils;
 
 namespace GUI.Controls
 {

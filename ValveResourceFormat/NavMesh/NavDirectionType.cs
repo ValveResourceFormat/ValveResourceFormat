@@ -1,8 +1,9 @@
 namespace ValveResourceFormat.NavMesh
 {
     /// <summary>
-    /// Navigation direction type.
+    /// Cardinal direction used for navigation mesh connectivity.
     /// </summary>
+    /// <seealso href="https://s2v.app/SchemaExplorer/cs2/navlib/NavDirType">NavDirType</seealso>
     public enum NavDirectionType
     {
 #pragma warning disable CS1591

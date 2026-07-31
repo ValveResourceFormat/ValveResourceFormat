@@ -10,6 +10,8 @@ namespace ValveResourceFormat.Renderer
         private readonly int vao;
         private readonly Shader shader;
 
+        /// <summary>Initializes the grid geometry and loads the grid shader.</summary>
+        /// <param name="scene">Scene providing the renderer context.</param>
         public InfiniteGrid(Scene scene)
         {
             var vertices = new[]
@@ -42,6 +44,7 @@ namespace ValveResourceFormat.Renderer
 #endif
         }
 
+        /// <summary>Renders the infinite grid for the current frame.</summary>
         public void Render()
         {
             GL.Enable(EnableCap.Blend);
@@ -51,9 +54,6 @@ namespace ValveResourceFormat.Renderer
             GL.BindVertexArray(vao);
 
             GL.DrawArrays(PrimitiveType.Triangles, 0, 6);
-
-            GL.UseProgram(0);
-            GL.BindVertexArray(0);
 
             GL.Disable(EnableCap.Blend);
         }

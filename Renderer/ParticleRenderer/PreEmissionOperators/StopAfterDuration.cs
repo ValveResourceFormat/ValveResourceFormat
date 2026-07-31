@@ -1,5 +1,10 @@
 namespace ValveResourceFormat.Renderer.Particles.PreEmissionOperators
 {
+    /// <summary>
+    /// Stops the particle system after a specified duration, optionally destroying all
+    /// remaining particles immediately.
+    /// </summary>
+    /// <seealso href="https://s2v.app/SchemaExplorer/cs2/particles/C_OP_StopAfterCPDuration">C_OP_StopAfterCPDuration</seealso>
     class StopAfterDuration : ParticleFunctionPreEmissionOperator
     {
         private readonly INumberProvider duration = new LiteralNumberProvider(1.0f);

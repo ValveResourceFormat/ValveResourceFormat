@@ -7,7 +7,7 @@ namespace ValveResourceFormat.CompiledShader
      * ----------------------------------------
      *
      * During parsing, the configuration mapping is applied to all vcs files that contain zframes
-     * to identify the configuration that each zframes belongs to.
+     * to identify the configuration that each zframe belongs to.
      * The basic idea for mapping zframe-Ids to static configurations is by enumerating all possible
      * legal states and writing them (in order) next to the zframes.
      *
@@ -44,7 +44,7 @@ namespace ValveResourceFormat.CompiledShader
      * 11        1  2  1
      *
      * In most shader files some static-combinations are not allowed. These are described by constraints specified
-     * in the the Sf-constraints blocks. The most common types of constraints are mutual-exclusion and dependencies
+     * in the Sf-constraints blocks. The most common types of constraints are mutual-exclusion and dependencies
      * between pairs of parameters.
      *
      * EXC(S1,S2) means S1 and S2 are mutually exclusive and cannot appear together
@@ -222,7 +222,7 @@ namespace ValveResourceFormat.CompiledShader
         */
 
         /*
-         * possible zframe values are upto this value,
+         * possible zframe values are up to this value,
          * but not equal or exceeding
          *
          */

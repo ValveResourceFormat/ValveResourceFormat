@@ -1,6 +1,7 @@
 using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices;
+using ValveKeyValue;
 using ValveResourceFormat.Serialization.KeyValues;
 
 namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Shapes
@@ -8,6 +9,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Shapes
     /// <summary>
     /// Represents a mesh shape.
     /// </summary>
+    /// <seealso href="https://s2v.app/SchemaExplorer/cs2/physicslib/RnMesh_t">RnMesh_t</seealso>
     public readonly struct Mesh
     {
         /// <summary>
@@ -26,6 +28,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Shapes
         /// <summary>
         /// Represents a node in the mesh BVH.
         /// </summary>
+        /// <seealso href="https://s2v.app/SchemaExplorer/cs2/physicslib/RnNode_t">RnNode_t</seealso>
         [StructLayout(LayoutKind.Sequential)]
         public readonly struct Node
         {
@@ -81,14 +84,15 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Shapes
         /// <summary>
         /// Represents a triangle in the mesh.
         /// </summary>
+        /// <seealso href="https://s2v.app/SchemaExplorer/cs2/physicslib/RnTriangle_t">RnTriangle_t</seealso>
         [StructLayout(LayoutKind.Sequential)]
         public readonly struct Triangle
         {
-            /// <summary>The X component of the triangle.</summary>
+            /// <summary>The first vertex index of the triangle.</summary>
             public readonly int X;
-            /// <summary>The Y component of the triangle.</summary>
+            /// <summary>The second vertex index of the triangle.</summary>
             public readonly int Y;
-            /// <summary>The Z component of the triangle.</summary>
+            /// <summary>The third vertex index of the triangle.</summary>
             public readonly int Z;
 
             /// <summary>
@@ -141,7 +145,17 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Shapes
             Data = data;
             Min = data.GetSubCollection("m_vMin").ToVector3();
             Max = data.GetSubCollection("m_vMax").ToVector3();
-            Materials = data.GetArray<object>("m_Materials")!.Select(Convert.ToInt32).ToArray();
+
+            var materials = data.GetArray<object>("m_Materials"); // This might be binary blob or an array in different models
+            if (materials != null)
+            {
+                Materials = [.. materials.Select(Convert.ToInt32)];
+            }
+            else
+            {
+                Materials = [];
+            }
+
             OrthographicAreas = data.GetSubCollection("m_vOrthographicAreas").ToVector3();
         }
 
@@ -165,7 +179,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Shapes
         }
 
         /// <summary>
-        /// The mesh triangles with additional topology information similar to the half-edge data structure.
+        /// The mesh triangles as vertex index triples.
         /// </summary>
         public ReadOnlySpan<Triangle> GetTriangles()
         {

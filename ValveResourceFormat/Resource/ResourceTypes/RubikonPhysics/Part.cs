@@ -1,3 +1,4 @@
+using ValveKeyValue;
 using ValveResourceFormat.Serialization.KeyValues;
 
 namespace ValveResourceFormat.ResourceTypes.RubikonPhysics
@@ -5,6 +6,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics
     /// <summary>
     /// Represents a physics part.
     /// </summary>
+    /// <seealso href="https://s2v.app/SchemaExplorer/cs2/modellib/VPhysXBodyPart_t">VPhysXBodyPart_t</seealso>
     public struct Part
     {
         /// <summary>

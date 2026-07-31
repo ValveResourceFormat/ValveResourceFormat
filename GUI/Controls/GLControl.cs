@@ -35,9 +35,9 @@ public class GLControl : Control
     private readonly Lock glLock;
 
     /// <summary>
-    /// Constructs a new instance with the specified GLControlSettings.
+    /// Constructs a new instance using the specified lock to guard the native OpenGL window.
     /// </summary>
-    /// <param name="glControlSettings">The preferred configuration for the OpenGL  renderer.</param>
+    /// <param name="glLock">The lock used to synchronize access to the OpenGL/GLFW native window.</param>
     public GLControl(Lock glLock)
     {
         SetStyle(ControlStyles.Opaque, true);
@@ -85,7 +85,7 @@ public class GLControl : Control
     }
 
     /// <summary>
-    /// Gets the CreateParams instance for this GLControl.
+    /// Gets the CreateParams instance for this <see cref="GLControl"/>.
     /// This is overridden to force correct child behavior.
     /// </summary>
     protected override CreateParams CreateParams
@@ -175,8 +175,8 @@ public class GLControl : Control
     }
 
     /// <summary>
-    /// This private object is used as the reference for the 'Load' handler in
-    /// the Events collection, and is only needed if you use the 'Load' event.
+    /// This private object is used as the reference for the <see cref="Load"/> handler in
+    /// the Events collection, and is only needed if you use the <see cref="Load"/> event.
     /// </summary>
     private static readonly object EVENT_LOAD = new();
 
@@ -203,7 +203,7 @@ public class GLControl : Control
     }
 
     /// <summary>
-    /// The Load event is fired before the control becomes visible for the first time.
+    /// The <see cref="Load"/> event is fired before the control becomes visible for the first time.
     /// </summary>
     [EditorBrowsable(EditorBrowsableState.Advanced)]
     protected virtual void OnLoad(EventArgs e)

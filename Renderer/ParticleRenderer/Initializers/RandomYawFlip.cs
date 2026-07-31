@@ -1,5 +1,9 @@
 namespace ValveResourceFormat.Renderer.Particles.Initializers
 {
+    /// <summary>
+    /// Randomly flips the yaw of a particle by 180 degrees based on a configurable flip percentage.
+    /// </summary>
+    /// <seealso href="https://s2v.app/SchemaExplorer/cs2/particles/C_INIT_RandomYawFlip">C_INIT_RandomYawFlip</seealso>
     class RandomYawFlip : ParticleFunctionInitializer
     {
         private readonly float percent;
@@ -9,9 +13,9 @@ namespace ValveResourceFormat.Renderer.Particles.Initializers
             percent = parse.Float("m_flPercent", 0.5f);
         }
 
-        public override Particle Initialize(ref Particle particle, ParticleSystemRenderState particleSystemState)
+        public override Particle Initialize(ref Particle particle, ParticleCollection particles, ParticleSystemRenderState particleSystemState)
         {
-            if (Random.Shared.NextSingle() > percent)
+            if (Random.Shared.NextSingle() < percent)
             {
                 particle.SetScalar(ParticleField.Yaw, particle.GetScalar(ParticleField.Yaw) + MathF.PI);
             }

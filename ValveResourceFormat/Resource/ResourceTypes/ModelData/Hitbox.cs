@@ -1,3 +1,4 @@
+using ValveKeyValue;
 using ValveResourceFormat.Serialization.KeyValues;
 
 namespace ValveResourceFormat.ResourceTypes.ModelData
@@ -5,6 +6,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelData
     /// <summary>
     /// Represents a hitbox for collision detection in a model.
     /// </summary>
+    /// <seealso href="https://s2v.app/SchemaExplorer/cs2/modellib/CHitBox">CHitBox</seealso>
     public class Hitbox
     {
         /// <summary>
@@ -75,7 +77,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelData
             BoneName = data.GetStringProperty("m_sBoneName");
             MinBounds = data.GetSubCollection("m_vMinBounds").ToVector3();
             MaxBounds = data.GetSubCollection("m_vMaxBounds").ToVector3();
-            TranslationOnly = data.GetProperty<bool>("m_bTranslationOnly");
+            TranslationOnly = data.GetBooleanProperty("m_bTranslationOnly");
             GroupId = data.GetInt32Property("m_nGroupId");
 
             ShapeType = (HitboxShape)data.GetInt32Property("m_nShapeType");

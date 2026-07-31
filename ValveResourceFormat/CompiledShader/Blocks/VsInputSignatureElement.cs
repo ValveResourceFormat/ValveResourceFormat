@@ -1,7 +1,7 @@
 using System.Diagnostics;
 using System.IO;
 using System.Text;
-using ValveResourceFormat.Serialization.KeyValues;
+using ValveKeyValue;
 using static ValveResourceFormat.ResourceTypes.Material;
 
 namespace ValveResourceFormat.CompiledShader;
@@ -9,6 +9,7 @@ namespace ValveResourceFormat.CompiledShader;
 /// <summary>
 /// Vertex shader input signature definitions.
 /// </summary>
+/// <seealso href="https://s2v.app/SchemaExplorer/cs2/modellib/VsInputSignatureElement_t">VsInputSignatureElement_t</seealso>
 public class VsInputSignatureElement : ShaderDataBlock
 {
     /// <summary>Gets the block index.</summary>
@@ -28,7 +29,7 @@ public class VsInputSignatureElement : ShaderDataBlock
 
         for (var i = 0; i < data.Count; i++)
         {
-            var definition = (KVObject)data[i].Value!;
+            var definition = data[i];
             SymbolsDefinition[i] = new(definition);
         }
     }

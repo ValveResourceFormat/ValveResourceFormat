@@ -1,5 +1,6 @@
 using System.Collections;
 using System.Linq;
+using ValveKeyValue;
 using ValveResourceFormat.Serialization.KeyValues;
 
 namespace ValveResourceFormat.ResourceTypes.ModelData.Attachments
@@ -7,6 +8,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelData.Attachments
     /// <summary>
     /// Represents an attachment point on a model with associated influences.
     /// </summary>
+    /// <seealso href="https://s2v.app/SchemaExplorer/cs2/modellib/CAttachment">CAttachment</seealso>
     public class Attachment : IEnumerable<Attachment.Influence>
     {
         /// <summary>
@@ -74,11 +76,11 @@ namespace ValveResourceFormat.ResourceTypes.ModelData.Attachments
             var valueData = attachmentData.GetSubCollection("value") ?? attachmentData;
 
             Name = valueData.GetStringProperty("m_name");
-            IgnoreRotation = valueData.GetProperty<bool>("m_bIgnoreRotation");
+            IgnoreRotation = valueData.GetBooleanProperty("m_bIgnoreRotation");
 
             var influenceNames = valueData.GetArray<string>("m_influenceNames");
             var influenceRotations = valueData.GetArray("m_vInfluenceRotations").Select(v => v.ToQuaternion()).ToArray();
-            var influenceOffsets = valueData.GetArray("m_vInfluenceOffsets", v => v.ToVector3());
+            var influenceOffsets = valueData.GetArray("m_vInfluenceOffsets").Select(v => v.ToVector3()).ToArray();
             var influenceWeights = valueData.GetArray<double>("m_influenceWeights");
 
             var influenceCount = valueData.GetInt32Property("m_nInfluences");

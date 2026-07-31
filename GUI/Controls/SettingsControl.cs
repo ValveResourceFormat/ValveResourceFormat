@@ -1,5 +1,7 @@
 using System.Diagnostics;
+using System.Globalization;
 using System.IO;
+using System.Threading.Tasks;
 using System.Windows.Forms;
 using GUI.Utils;
 using Microsoft.Win32;
@@ -9,6 +11,8 @@ namespace GUI.Controls
     partial class SettingsControl : UserControl
     {
         private static readonly int[] AntiAliasingSampleOptions = [0, 2, 4, 8, 16];
+        private static readonly int[] ShadowQualityResolutions = [512, 1024, 2048, 4096];
+        private static readonly string[] ShadowQualityNames = ["Low", "Medium", "High", "Very High"];
 
         public SettingsControl()
         {
@@ -23,15 +27,33 @@ namespace GUI.Controls
             }
 
             maxTextureSizeInput.Value = Settings.Config.MaxTextureSize;
-            shadowResolutionInput.Value = Settings.Config.ShadowResolution;
             fovInput.Value = Settings.Config.FieldOfView;
+            viewmodelFovInput.Value = Settings.Config.ViewmodelFieldOfView;
+            mouseSensitivitySlider.Value = (int)(Settings.Config.MouseSensitivity * 10f);
+            mouseSensitivityValueLabel.Text = Settings.Config.MouseSensitivity.ToString("0.0");
+            smoothCamCheckbox.Checked = Settings.Config.SmoothCameraEnabled;
+
+            shadowQualityComboBox.Items.AddRange(ShadowQualityNames);
+            var currentShadowResolution = Settings.Config.ShadowResolution;
+            var shadowQualityIndex = ShadowQualityResolutions.Length - 1;
+
+            for (var i = 0; i < ShadowQualityResolutions.Length; i++)
+            {
+                if (currentShadowResolution <= ShadowQualityResolutions[i])
+                {
+                    shadowQualityIndex = i;
+                    break;
+                }
+            }
+
+            shadowQualityComboBox.SelectedIndex = shadowQualityIndex;
             vsyncCheckBox.Checked = Settings.Config.Vsync != 0;
             displayFpsCheckBox.Checked = Settings.Config.DisplayFps != 0;
             openExplorerOnStartCheckbox.Checked = Settings.Config.OpenExplorerOnStart != 0;
             textViewerFontSize.Value = Settings.Config.TextViewerFontSize;
 
             themeComboBox.Items.AddRange(Enum.GetNames<Themer.AppTheme>());
-            themeComboBox.SelectedIndex = Settings.Config.Theme;
+            themeComboBox.SelectedIndex = Math.Clamp(Settings.Config.Theme, 0, themeComboBox.Items.Count - 1);
 
             var quickPreviewFlags = (Settings.QuickPreviewFlags)Settings.Config.QuickFilePreview;
             quickPreviewCheckbox.Checked = (quickPreviewFlags & Settings.QuickPreviewFlags.Enabled) != 0;
@@ -71,17 +93,12 @@ namespace GUI.Controls
 
         private void GamePathAdd(object sender, EventArgs e)
         {
-            using var dlg = new OpenFileDialog
-            {
-                InitialDirectory = Settings.Config.OpenDirectory,
-                Filter = "Valve Pak (*.vpk) or gameinfo.gi|*.vpk;gameinfo.gi|All files (*.*)|*.*",
-            };
-            if (dlg.ShowDialog() != DialogResult.OK)
+            var fileName = AppFileDialogs.OpenFile(null, "Valve Pak (*.vpk) or gameinfo.gi|*.vpk;gameinfo.gi|All files (*.*)|*.*", updateRemembered: false);
+
+            if (fileName == null)
             {
                 return;
             }
-
-            var fileName = dlg.FileName;
 
             if (Regexes.VpkNumberArchive().IsMatch(fileName))
             {
@@ -93,8 +110,7 @@ namespace GUI.Controls
                 return;
             }
 
-            var directory = Path.GetDirectoryName(fileName);
-            if (directory != null)
+            if (Path.GetDirectoryName(fileName) is { Length: > 0 } directory)
             {
                 Settings.Config.OpenDirectory = directory;
             }
@@ -106,24 +122,22 @@ namespace GUI.Controls
 
         private void GamePathAddFolder(object sender, EventArgs e)
         {
-            using var dlg = new FolderBrowserDialog
-            {
-                SelectedPath = Settings.Config.OpenDirectory,
-            };
-            if (dlg.ShowDialog() != DialogResult.OK)
+            var selectedPath = AppFileDialogs.PickFolder(null, AppFileDialogs.RememberIn.OpenDirectory, updateRemembered: false);
+
+            if (selectedPath == null)
             {
                 return;
             }
 
-            if (Settings.Config.GameSearchPaths.Contains(dlg.SelectedPath))
+            if (Settings.Config.GameSearchPaths.Contains(selectedPath))
             {
                 return;
             }
 
-            Settings.Config.OpenDirectory = dlg.SelectedPath;
-            Settings.Config.GameSearchPaths.Add(dlg.SelectedPath);
+            Settings.Config.OpenDirectory = selectedPath;
+            Settings.Config.GameSearchPaths.Add(selectedPath);
 
-            gamePaths.Items.Add(dlg.SelectedPath);
+            gamePaths.Items.Add(selectedPath);
         }
 
         private void OnMaxTextureSizeValueChanged(object sender, EventArgs e)
@@ -136,6 +150,16 @@ namespace GUI.Controls
             Settings.Config.MaxTextureSize = maxTextureSizeInput.Value;
         }
 
+        private void OnShadowQualityChanged(object sender, EventArgs e)
+        {
+            if (!IsHandleCreated || shadowQualityComboBox.SelectedIndex < 0)
+            {
+                return;
+            }
+
+            Settings.Config.ShadowResolution = ShadowQualityResolutions[shadowQualityComboBox.SelectedIndex];
+        }
+
         private void OnFovValueChanged(object sender, EventArgs e)
         {
             if (!IsHandleCreated)
@@ -146,10 +170,26 @@ namespace GUI.Controls
             Settings.Config.FieldOfView = (float)fovInput.Value;
         }
 
-        private void OnSetFovTo4by3ButtonClick(object sender, EventArgs e)
+        private void OnViewmodelFovValueChanged(object sender, EventArgs e)
         {
-            Settings.Config.FieldOfView = float.RadiansToDegrees(2f * MathF.Atan(3f / 4f));
-            fovInput.Value = Settings.Config.FieldOfView;
+            if (!IsHandleCreated)
+            {
+                return;
+            }
+
+            Settings.Config.ViewmodelFieldOfView = (float)viewmodelFovInput.Value;
+        }
+
+        private void OnMouseSensitivitySliderValueChanged(object sender, EventArgs e)
+        {
+            if (!IsHandleCreated)
+            {
+                return;
+            }
+
+            var sensitivity = mouseSensitivitySlider.Value / 10f;
+            Settings.Config.MouseSensitivity = sensitivity;
+            mouseSensitivityValueLabel.Text = sensitivity.ToString("0.0", CultureInfo.InvariantCulture);
         }
 
         private void OnOpenExplorerOnStartValueChanged(object sender, EventArgs e)
@@ -164,7 +204,7 @@ namespace GUI.Controls
 
         private void OnAntiAliasingValueChanged(object sender, EventArgs e)
         {
-            if (!IsHandleCreated)
+            if (!IsHandleCreated || antiAliasingComboBox.SelectedIndex < 0)
             {
                 return;
             }
@@ -200,7 +240,7 @@ namespace GUI.Controls
                 return;
             }
 
-            Settings.Config.TextViewerFontSize = (int)textViewerFontSize.Value;
+            Settings.Config.TextViewerFontSize = textViewerFontSize.Value;
         }
 
         private void OnQuickPreviewCheckboxChanged(object sender, EventArgs e) => SetQuickPreviewSetting();
@@ -241,9 +281,9 @@ namespace GUI.Controls
             //Application.SetColorMode(Settings.GetSystemColor());
         }
 
-        private void OnRegisterAssociationButtonClick(object sender, EventArgs e) => RegisterFileAssociation();
+        private async void OnRegisterAssociationButtonClick(object sender, EventArgs e) => await RegisterFileAssociationAsync().ConfigureAwait(true);
 
-        public static void RegisterFileAssociation()
+        public static async Task RegisterFileAssociationAsync()
         {
             const string extension = ".vpk";
             const string progId = $"VRF.Source2Viewer{extension}";
@@ -257,8 +297,8 @@ namespace GUI.Controls
             {
                 using var iconStream = Program.Assembly.GetManifestResourceStream("GUI.Utils.vpk.ico");
                 Debug.Assert(iconStream != null);
-                using var iconDiskStream = File.OpenWrite(vpkIconPath);
-                iconStream.CopyTo(iconDiskStream);
+                using var iconDiskStream = File.Create(vpkIconPath);
+                await iconStream.CopyToAsync(iconDiskStream).ConfigureAwait(true);
             }
 
             // .vpk file extension
@@ -287,12 +327,20 @@ namespace GUI.Controls
                 Windows.Win32.PInvoke.SHChangeNotify(Windows.Win32.UI.Shell.SHCNE_ID.SHCNE_ASSOCCHANGED, Windows.Win32.UI.Shell.SHCNF_FLAGS.SHCNF_FLUSH, null, null);
             }
 
-            MessageBox.Show(
+            await AppMessageDialogs.ShowMessageAsync(
                 $"Registered .vpk file association as well as \"vpk:\" protocol link handling.{Environment.NewLine}{Environment.NewLine}If you move {Path.GetFileName(applicationPath)}, you will have to register it again.",
-                "File association registered",
-                MessageBoxButtons.OK,
-                MessageBoxIcon.Information
-            );
+                "File association registered"
+            ).ConfigureAwait(false);
+        }
+
+        private void OnSmoothCameraChanged(object sender, EventArgs e)
+        {
+            if (!IsHandleCreated)
+            {
+                return;
+            }
+
+            Settings.Config.SmoothCameraEnabled = smoothCamCheckbox.Checked;
         }
 
         private void SettingsControl_Leave(object sender, EventArgs e)

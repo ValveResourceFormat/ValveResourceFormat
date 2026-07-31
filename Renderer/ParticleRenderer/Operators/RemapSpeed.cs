@@ -1,5 +1,10 @@
 namespace ValveResourceFormat.Renderer.Particles.Operators
 {
+    /// <summary>
+    /// Remaps each particle's current speed from an input range to an output range and writes
+    /// the result to a scalar particle attribute.
+    /// </summary>
+    /// <seealso href="https://s2v.app/SchemaExplorer/cs2/particles/C_OP_RemapSpeed">C_OP_RemapSpeed</seealso>
     class RemapSpeed : ParticleFunctionOperator
     {
         private readonly INumberProvider inputMin = new LiteralNumberProvider(0);
@@ -29,7 +34,7 @@ namespace ValveResourceFormat.Renderer.Particles.Operators
                 var outputMin = this.outputMin.NextNumber(ref particle, particleSystemState);
                 var outputMax = this.outputMax.NextNumber(ref particle, particleSystemState);
 
-                var finalValue = MathUtils.RemapRange(particle.Speed, inputMin, inputMax, outputMin, outputMax);
+                var finalValue = MathUtils.RemapValClamped(particle.Speed, inputMin, inputMax, outputMin, outputMax);
                 finalValue = particle.ModifyScalarBySetMethod(particles, OutputField, finalValue, setMethod);
 
                 particle.SetScalar(OutputField, finalValue);

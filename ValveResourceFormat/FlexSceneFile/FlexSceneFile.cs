@@ -147,8 +147,8 @@ namespace ValveResourceFormat.FlexSceneFile
         }
 
         /// <summary>
-        /// Opens and reads the given filename.
-        /// The file is held open until the object is disposed.
+        /// Opens the given file and reads its contents.
+        /// The underlying FileStream is not retained or explicitly closed by this instance.
         /// </summary>
         /// <param name="filename">The file to open and read.</param>
         public void Read(string filename)

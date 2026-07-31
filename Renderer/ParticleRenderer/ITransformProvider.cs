@@ -1,5 +1,8 @@
 namespace ValveResourceFormat.Renderer.Particles
 {
+    /// <summary>
+    /// Provides a transformation matrix that may be derived from a control point or other source.
+    /// </summary>
     interface ITransformProvider
     {
         /// <summary>
@@ -7,6 +10,9 @@ namespace ValveResourceFormat.Renderer.Particles
         /// </summary>
         Matrix4x4 NextTransform(ref Particle particle, ParticleSystemRenderState renderState);
 
+        /// <summary>
+        /// Returns a transformation matrix using system-level state only.
+        /// </summary>
         Matrix4x4 NextTransform(ParticleSystemRenderState renderState)
             => NextTransform(ref Particle.Default, renderState);
 
@@ -29,6 +35,9 @@ namespace ValveResourceFormat.Renderer.Particles
         }
     }
 
+    /// <summary>
+    /// Provides a transform derived from a control point's position and optional orientation.
+    /// </summary>
     readonly struct ControlPointTransformProvider : ITransformProvider
     {
         private readonly int controlPoint;
@@ -40,12 +49,25 @@ namespace ValveResourceFormat.Renderer.Particles
             this.useOrientation = useOrientation;
         }
 
+        /// <inheritdoc/>
         public Matrix4x4 NextTransform(ref Particle particle, ParticleSystemRenderState renderState)
         {
             var cp = renderState.GetControlPoint(controlPoint);
             var position = cp.Position;
 
-            if (!useOrientation || cp.Orientation == Vector3.Zero)
+            if (!useOrientation)
+            {
+                return Matrix4x4.CreateTranslation(position);
+            }
+
+            // A full rotation (e.g. from a map entity's angles) can express frames a bare forward
+            // vector cannot; prefer it when the control point carries one.
+            if (cp.Rotation is { } fullRotation)
+            {
+                return Matrix4x4.CreateFromQuaternion(fullRotation) * Matrix4x4.CreateTranslation(position);
+            }
+
+            if (cp.Orientation == Vector3.Zero)
             {
                 return Matrix4x4.CreateTranslation(position);
             }
@@ -64,10 +86,26 @@ namespace ValveResourceFormat.Renderer.Particles
 
             return rotation * Matrix4x4.CreateTranslation(position);
         }
+
+        /// <summary>
+        /// Transforms a local offset into control point <paramref name="cp"/>'s frame (rotation + translation).
+        /// </summary>
+        public static Vector3 TransformPosition(ParticleSystemRenderState state, int cp, Vector3 localOffset)
+            => Vector3.Transform(localOffset, new ControlPointTransformProvider(cp, true).NextTransform(ref Particle.Default, state));
+
+        /// <summary>
+        /// Rotates a local direction into control point <paramref name="cp"/>'s frame (rotation only, no translation).
+        /// </summary>
+        public static Vector3 TransformDirection(ParticleSystemRenderState state, int cp, Vector3 localDir)
+            => Vector3.TransformNormal(localDir, new ControlPointTransformProvider(cp, true).NextTransform(ref Particle.Default, state));
     }
 
+    /// <summary>
+    /// A transform provider that always returns the identity matrix.
+    /// </summary>
     readonly struct IdentityTransformProvider : ITransformProvider
     {
+        /// <inheritdoc/>
         public Matrix4x4 NextTransform(ref Particle particle, ParticleSystemRenderState renderState)
         {
             return Matrix4x4.Identity;

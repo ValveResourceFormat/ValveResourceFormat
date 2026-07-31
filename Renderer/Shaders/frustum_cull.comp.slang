@@ -30,6 +30,10 @@ layout(binding = 7, std430) buffer OccludedBoundsDebugBuffer
 {
     uint occludedCount;
     uint padding[3];
+    uint indirectVertexCount;
+    uint indirectInstanceCount;
+    uint indirectFirst;
+    uint indirectBaseInstance;
     DrawBounds occludedBounds[];
 };
 
@@ -42,7 +46,7 @@ layout(binding = 0) uniform sampler2D g_tDepthPyramid;
 uniform int g_nDepthPyramidMaxMip;
 uniform int g_nDepthPyramidWidth;
 uniform int g_nDepthPyramidHeight;
-uniform float g_flDepthPyramidCameraOffset;
+//uniform float g_flDepthPyramidCameraOffset;
 uniform float g_flDepthRangeMin;
 uniform float g_flDepthRangeMax;
 uniform bool g_bOcclusionCullEnabled;
@@ -51,7 +55,7 @@ uniform bool g_bOcclusionCullEnabled;
 bool testAABBOcclusion(vec3 bmin, vec3 bmax)
 {
     // Offset camera forward to reduce false occlusions
-    vec3 cameraOffset = g_vCameraDirWs * g_flDepthPyramidCameraOffset;
+    //vec3 cameraOffset = g_vCameraDirWs * g_flDepthPyramidCameraOffset;
 
     // Project all 8 corners to clip space
     vec4 corners[8];
@@ -85,12 +89,12 @@ bool testAABBOcclusion(vec3 bmin, vec3 bmax)
 
     // Find min/max bounds in NDC space, clamp to [-1, 1]
     vec3 ndcMin = max(
-        min(min(min(ndc[0], ndc[1]), min(ndc[2], ndc[3])), 
+        min(min(min(ndc[0], ndc[1]), min(ndc[2], ndc[3])),
             min(min(ndc[4], ndc[5]), min(ndc[6], ndc[7]))),
         vec3(-1.0)
     );
     vec3 ndcMax = min(
-        max(max(max(ndc[0], ndc[1]), max(ndc[2], ndc[3])), 
+        max(max(max(ndc[0], ndc[1]), max(ndc[2], ndc[3])),
             max(max(ndc[4], ndc[5]), max(ndc[6], ndc[7]))),
         vec3(1.0)
     );
@@ -100,10 +104,22 @@ bool testAABBOcclusion(vec3 bmin, vec3 bmax)
     vec2 uvMax = ndcMax.xy * 0.5 + 0.5;
     vec2 uvSize = uvMax - uvMin;
 
-     // Early out: degenerate rect, or beyond far plane
+    // Early out: degenerate rect, or beyond far plane
     if (uvSize.x * uvSize.y <= 0.0 || ndcMax.z >= 1.0)
     {
         return false;
+    }
+
+    const bool SizeCull = true;
+    const float minPixelSize = 0.2;
+    vec2 screenSpaceSize = uvSize * g_vViewportSize;
+
+    // check if this AABB is too small to even draw anything
+    if (SizeCull && any(lessThan(screenSpaceSize, vec2(minPixelSize))))
+    {
+        // oob objects will have zero size, so ignore those
+        bool atScreenEdge = any(equal(uvMin.xy, vec2(0.0))) || any(equal(uvMax.xy, vec2(1.0)));
+        return atScreenEdge == false;
     }
 
     // Convert to pixel coordinates
@@ -167,20 +183,20 @@ bool testAABBFrustum(vec3 bmin, vec3 bmax)
         vec4 plane = planes[i];
         vec3 normal = plane.xyz;
         float dist = plane.w;
-        
+
         // Get the closest vertex to the plane (matching C# Frustum.Intersects logic)
         vec3 closest;
         closest.x = normal.x < 0.0 ? bmin.x : bmax.x;
         closest.y = normal.y < 0.0 ? bmin.y : bmax.y;
         closest.z = normal.z < 0.0 ? bmin.z : bmax.z;
-        
+
         // If closest vertex is outside, box is completely outside
         if (dot(normal, closest) + dist < 0.0)
         {
             return false;
         }
     }
-    
+
     return true;
 }
 
@@ -214,7 +230,7 @@ vec4 unpackSByteVector(uint packedData)
 void main()
 {
     uint drawId = gl_GlobalInvocationID.x;
-    
+
     if (drawId >= drawCommands.length())
     {
         return;

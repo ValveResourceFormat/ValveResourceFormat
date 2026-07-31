@@ -29,7 +29,7 @@ public static class GraphLayout
     }
 
     /// <summary>
-    /// Layouts nodes in a hierarchical arrangement using the Sugiyama algorithm.
+    /// Lays out nodes in a hierarchical arrangement using the Sugiyama algorithm.
     /// </summary>
     /// <typeparam name="TNode">Type representing a node.</typeparam>
     /// <typeparam name="TConnection">Type representing a connection between nodes.</typeparam>
@@ -40,8 +40,8 @@ public static class GraphLayout
     /// <param name="getSize">Function to get a node's size.</param>
     /// <param name="getSourceNode">Function to get the source node from a connection.</param>
     /// <param name="getTargetNode">Function to get the target node from a connection.</param>
-    /// <param name="getInputConnections">Function to get connections where this node is the target (optional, for barycenter calculation).</param>
-    /// <param name="getOutputConnections">Function to get connections where this node is the source (optional, for barycenter calculation).</param>
+    /// <param name="getInputConnections">Function to get connections where this node is the target (used for barycenter calculation).</param>
+    /// <param name="getOutputConnections">Function to get connections where this node is the source (used for barycenter calculation).</param>
     /// <param name="options">Layout options (uses defaults if null).</param>
     public static void LayoutNodes<TNode, TConnection>(
         IEnumerable<TNode> nodes,
@@ -112,7 +112,7 @@ public static class GraphLayout
             options.LayerSpacing, options.NodeSpacing);
     }
 
-    private static (List<List<TNode>> nodeLayers, Dictionary<TNode, int> nodeToLayer) AssignLayers<TNode, TConnection>(
+    internal static (List<List<TNode>> nodeLayers, Dictionary<TNode, int> nodeToLayer) AssignLayers<TNode, TConnection>(
         List<TNode> nodes,
         List<TConnection> connections,
         Func<TConnection, TNode> getSourceNode,
@@ -385,7 +385,7 @@ public static class GraphLayout
             : values[mid];
     }
 
-    private static List<List<TNode>> ReduceCrossings<TNode, TConnection>(
+    internal static List<List<TNode>> ReduceCrossings<TNode, TConnection>(
         List<List<TNode>> nodeLayers,
         Dictionary<TNode, int> nodeToLayer,
         Func<TConnection, TNode> getSourceNode,
@@ -551,7 +551,7 @@ public static class GraphLayout
         return finalPositions;
     }
 
-    private static void AssignCoordinates<TNode, TConnection>(
+    internal static void AssignCoordinates<TNode, TConnection>(
         List<List<TNode>> nodeLayers,
         Func<TNode, Vector2> getPosition,
         Action<TNode, Vector2> setPosition,

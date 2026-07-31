@@ -1,5 +1,10 @@
 namespace ValveResourceFormat.Renderer.Particles.Operators
 {
+    /// <summary>
+    /// Lerps a scalar particle attribute from its initial value toward a target value over a
+    /// specified time window of the particle's normalized lifetime.
+    /// </summary>
+    /// <seealso href="https://s2v.app/SchemaExplorer/cs2/particles/C_OP_LerpScalar">C_OP_LerpScalar</seealso>
     class LerpScalar : ParticleFunctionOperator
     {
         private readonly ParticleField FieldOutput = ParticleField.Radius;
@@ -20,7 +25,7 @@ namespace ValveResourceFormat.Renderer.Particles.Operators
             {
                 var lerpTarget = output.NextNumber(ref particle, particleSystemState);
 
-                var lerpWeight = MathUtils.Saturate(MathUtils.Remap(particle.Age, startTime, endTime));
+                var lerpWeight = MathUtils.Saturate(MathUtils.Remap(particle.NormalizedAge, startTime, endTime));
 
                 var scalarOutput = float.Lerp(particle.GetInitialScalar(particles, FieldOutput), lerpTarget, lerpWeight);
 

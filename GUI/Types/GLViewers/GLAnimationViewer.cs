@@ -2,12 +2,13 @@ using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using GUI.Utils;
+using ValveKeyValue;
 using ValveResourceFormat;
 using ValveResourceFormat.Renderer;
+using ValveResourceFormat.Renderer.SceneNodes;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.ResourceTypes.ModelAnimation;
 using ValveResourceFormat.ResourceTypes.ModelAnimation2;
-using ValveResourceFormat.Serialization.KeyValues;
 
 namespace GUI.Types.GLViewers
 {
@@ -46,7 +47,7 @@ namespace GUI.Types.GLViewers
                 skeletonSceneNode.Enabled = false; // scene.Remove?
             }
 
-            skeletonSceneNode = new SkeletonSceneNode(Scene, animationController, skeleton)
+            skeletonSceneNode = new SkeletonSceneNode(Scene, animationController.Pose, skeleton)
             {
                 Enabled = true,
             };
@@ -67,7 +68,7 @@ namespace GUI.Types.GLViewers
             SkeletonData = ((BinaryKV3)skeletonResource.DataBlock!).Data;
             LoadSkeleton(firstTime);
             Debug.Assert(animationController != null);
-            animationController.SetAnimation(new Animation(clipToLoad));
+            animationController.SetAnimation(new ClipAnimation(clipToLoad));
         }
 
         protected override void LoadScene()

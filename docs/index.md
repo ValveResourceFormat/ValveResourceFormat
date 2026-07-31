@@ -4,8 +4,6 @@
 
 [**Download Source 2 Viewer**](https://s2v.app/) | [View on GitHub](https://github.com/ValveResourceFormat/ValveResourceFormat)
 
----
-
 ## What is Source 2 Viewer?
 
 Source 2 Viewer is a modern, actively maintained tool for browsing, extracting, and viewing assets from Valve's Source 2 engine games. Whether you're a game modder, map creator, texture artist, or simply curious about how your favorite Source 2 games work, Source 2 Viewer provides everything you need to explore game files.
@@ -23,8 +21,6 @@ Source 2 Viewer is a modern, actively maintained tool for browsing, extracting, 
 - **Game Explorer** - Automatically detects VPK files from all your installed Steam games
 - **Free & Open Source** - MIT licensed, community-driven development
 
----
-
 ## What is ValveResourceFormat?
 
 ValveResourceFormat (VRF) is the underlying library that powers Source 2 Viewer. It's a comprehensive Source 2 resource file format parser, decompiler, and exporter. The project consists of three main components:
@@ -39,8 +35,6 @@ Developers can integrate ValveResourceFormat into their own projects via [NuGet]
 
 - **[ValvePak](https://www.nuget.org/packages/ValvePak/)** - VPK archive reading library for .NET
 - **[ValveKeyValue](https://www.nuget.org/packages/ValveKeyValue/)** - KeyValues format support library (KV1/KV2/KV3)
-
----
 
 ## Supported Games
 
@@ -78,39 +72,57 @@ Source 2 Viewer is used by:
 ValveResourceFormat is used in production by **[s&box](https://sbox.game/)** (a Source 2 game platform by Facepunch Studios). Despite having access to the Source 2 source engine code, Facepunch uses VRF on their backend to scan and extract information from assets.
 
 In their [asset system](https://sbox.game/news/asset-system#asset-information), VRF is used to:
+
 - **Automatically scan uploaded assets** without requiring republishing
 - **Extract and verify metadata** from models and materials
 - **[Retroactively tag and sort assets](https://sbox.game/news/march2022)** in their marketplace
 
 This demonstrates VRF's reliability—even developers with official Source 2 SDK access choose VRF for programmatic asset processing.
 
----
+## Crediting Source 2 Viewer
+
+If you ship our binaries or use parts of our code, the [MIT license](https://github.com/ValveResourceFormat/ValveResourceFormat/blob/master/LICENSE) requires you to keep the copyright notice with it.
+
+Source 2 Viewer is the result of years of reverse engineering by many contributors. If it helped anywhere in your project, even if you only ran it once to export some assets, please mention it with a link. If your project is substantially built on it, link it in the app itself too, not just the readme.
 
 ## Frequently Asked Questions
 
 ### Does Source 2 Viewer work on Mac and Linux?
-Source 2 Viewer is currently a .NET Winforms Forms application, as a result it only works on Windows. However you can run it using Wine.
+
+Source 2 Viewer is currently a .NET WinForms application, as a result it only works on Windows. However you can run it using Wine.
 The command-line utility is completely cross-platform.
 
 ### How do I open VPK files?
+
 Simply launch Source 2 Viewer and use the Game Explorer to automatically detect installed games, or use File > Open to manually browse for .vpk files.
 
 ### Can I extract textures and convert them to PNG/JPG?
+
 Yes, Source 2 Viewer can preview .vtex files and export them to common image formats.
 
 ### Can I extract files from Counter-Strike 2 (CS2)?
+
 Yes, Source 2 Viewer fully supports CS2, including models, textures, materials, maps, and sounds.
 
 ### Is Source 2 Viewer still being updated?
+
 Yes, Source 2 Viewer is actively maintained and regularly updated to support new Source 2 games and file format changes.
 
+### Why is Source 2 Viewer not opening?
+
+If you double click the executable and nothing happens, the most likely cause is that your Windows is missing CET (Control-flow Enforcement Technology) support. Please update your Windows.
+
 ### How do I extract models for use in Blender or other 3D software?
+
 Source 2 Viewer can export .vmdl, .vmesh, .vwrld, .vwnod, and .vmap files into a standard glTF format which is supported by a lot of software including Blender.
 
-### Does Source 2 use BSP files like Source 1?
-No, Source 2 does not use the traditional BSP (Binary Space Partitioning) format. Source 1 games used .bsp files for compiled maps with BSP tree structures for rendering optimization. Source 2 instead uses mesh-based maps. This represents a fundamental shift in how Source 2 handles level geometry and rendering.
+### Does Source 2 Viewer support Source 1 games like Team Fortress 2 or Half-Life 2?
 
----
+No, Source 2 Viewer only supports Source 2 games. For Source 1 and GoldSrc games, check out **[VPKEdit](https://github.com/craftablescience/VPKEdit)**. It's basically Source 2 Viewer but for older games on Source and GoldSource engines.
+
+### Does Source 2 use BSP files like Source 1?
+
+No, Source 2 does not use the traditional BSP (Binary Space Partitioning) format. Source 1 games used .bsp files for compiled maps with BSP tree structures for rendering optimization. Source 2 instead uses mesh-based maps. This represents a fundamental shift in how Source 2 handles level geometry and rendering.
 
 ## Alternative to GCFScape
 
@@ -124,18 +136,19 @@ GCFScape was a popular utility created by Nem for extracting and browsing Valve 
 - **Asset Previewing** - View assets directly without extraction
 - **Decompilation** - Convert compiled resources to readable formats
 
----
-
 ## Community & Support
 
 ### Get Help
+
 - **Discord** - [Join our Discord](https://discord.gg/s9QQ7Wg7r4) and visit the #source2-viewer channel
 - **GitHub Issues** - [Report bugs or request features](https://github.com/ValveResourceFormat/ValveResourceFormat/issues)
 
 ### Contribute
+
 Source 2 Viewer is open-source and welcomes contributions! Whether you're a developer, designer, or documentation writer, check out the [Contributing Guide](https://github.com/ValveResourceFormat/ValveResourceFormat/blob/master/CONTRIBUTING.md).
 
 ### Links
+
 - **Website** - [s2v.app](https://s2v.app/)
 - **GitHub** - [ValveResourceFormat/ValveResourceFormat](https://github.com/ValveResourceFormat/ValveResourceFormat)
 - **NuGet Package** - [ValveResourceFormat](https://www.nuget.org/packages/ValveResourceFormat/)

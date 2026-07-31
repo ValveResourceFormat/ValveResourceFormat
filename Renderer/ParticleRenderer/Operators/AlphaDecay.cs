@@ -1,8 +1,9 @@
 namespace ValveResourceFormat.Renderer.Particles.Operators
 {
     /// <summary>
-    /// Cull particle when its alpha is below a certain threshold.
+    /// Kills a particle when its alpha falls to or below the specified minimum alpha threshold.
     /// </summary>
+    /// <seealso href="https://s2v.app/SchemaExplorer/cs2/particles/C_OP_AlphaDecay">C_OP_AlphaDecay</seealso>
     class AlphaDecay : ParticleFunctionOperator
     {
         private readonly float minAlpha;

@@ -13,7 +13,7 @@ public class ControlsBoxPanel : Panel
     }
 
     // These are DPI compensated.
-    private readonly int ControlBoxInconSize = 10;
+    private readonly int ControlBoxIconSize = 10;
     private readonly int TitleBarHeight = 35;
     private readonly int TitleBarButtonWidth = 45;
 
@@ -93,7 +93,7 @@ public class ControlsBoxPanel : Panel
 
         var titleBarButtonRects = GetCustomTitleBarButtonRects();
 
-        var controlBoxIconSize = this.AdjustForDPI(ControlBoxInconSize);
+        var controlBoxIconSize = this.AdjustForDPI(ControlBoxIconSize);
 
         var closeIconRect = new Rectangle
         {

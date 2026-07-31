@@ -1,60 +1,5 @@
 "ResourceEditInfo"
 {
-	"AdditionalInputDependencies"
-	{
-	}
-	"AdditionalRelatedFiles"
-	{
-	}
-	"ArgumentDependencies"
-	{
-		"0"
-		{
-			"Fingerprint"	"0"
-			"FingerprintDefault"	"0"
-			"ParameterName"	"___OverrideInputData___"
-			"ParameterType"	"BinaryBlobArg"
-		}
-		"1"
-		{
-			"Fingerprint"	"0"
-			"FingerprintDefault"	"0"
-			"ParameterName"	"fast"
-			"ParameterType"	"IntArg"
-		}
-		"2"
-		{
-			"Fingerprint"	"0"
-			"FingerprintDefault"	"0"
-			"ParameterName"	"minmipsize"
-			"ParameterType"	"IntArg"
-		}
-		"3"
-		{
-			"Fingerprint"	"1048576"
-			"FingerprintDefault"	"1048576"
-			"ParameterName"	"maxmipsize"
-			"ParameterType"	"IntArg"
-		}
-		"4"
-		{
-			"Fingerprint"	"0"
-			"FingerprintDefault"	"0"
-			"ParameterName"	"dev/helper/reflectivity_90b_color.tga"
-			"ParameterType"	"ImageArg"
-		}
-		"5"
-		{
-			"Fingerprint"	"0"
-			"FingerprintDefault"	"0"
-			"ParameterName"	"dev/helper/reflectivity_90b_color.tga"
-			"ParameterType"	"BinaryBlobArg"
-		}
-	}
-	"ChildResourceList"
-	{
-		"0"	"dev/helper/reflectivity_90b_color_tga_88186957.vtex"
-	}
 	"InputDependencies"
 	{
 		"0"
@@ -62,28 +7,114 @@
 			"ContentRelativeFilename"	"dev/helper/reflectivity_90b.vmat"
 			"ContentSearchPath"	"dota"
 			"FileCRC"	"3243246134"
+			"Optional"	"0"
 			"FileExists"	"1"
 			"IsGameFile"	"0"
-			"Optional"	"0"
 		}
 		"1"
 		{
 			"ContentRelativeFilename"	"dev/helper/reflectivity_90b_color.txt"
 			"ContentSearchPath"	"dota"
 			"FileCRC"	"0"
+			"Optional"	"1"
 			"FileExists"	"0"
 			"IsGameFile"	"0"
-			"Optional"	"1"
 		}
 		"2"
 		{
 			"ContentRelativeFilename"	"dev/helper/reflectivity_90b_color.tga"
 			"ContentSearchPath"	"core"
 			"FileCRC"	"2490916597"
+			"Optional"	"0"
 			"FileExists"	"1"
 			"IsGameFile"	"0"
-			"Optional"	"0"
 		}
+	}
+	"AdditionalInputDependencies"
+	{
+	}
+	"ArgumentDependencies"
+	{
+		"0"
+		{
+			"ParameterName"	"___OverrideInputData___"
+			"ParameterType"	"BinaryBlobArg"
+			"Fingerprint"	"0"
+			"FingerprintDefault"	"0"
+		}
+		"1"
+		{
+			"ParameterName"	"fast"
+			"ParameterType"	"IntArg"
+			"Fingerprint"	"0"
+			"FingerprintDefault"	"0"
+		}
+		"2"
+		{
+			"ParameterName"	"minmipsize"
+			"ParameterType"	"IntArg"
+			"Fingerprint"	"0"
+			"FingerprintDefault"	"0"
+		}
+		"3"
+		{
+			"ParameterName"	"maxmipsize"
+			"ParameterType"	"IntArg"
+			"Fingerprint"	"1048576"
+			"FingerprintDefault"	"1048576"
+		}
+		"4"
+		{
+			"ParameterName"	"dev/helper/reflectivity_90b_color.tga"
+			"ParameterType"	"ImageArg"
+			"Fingerprint"	"0"
+			"FingerprintDefault"	"0"
+		}
+		"5"
+		{
+			"ParameterName"	"dev/helper/reflectivity_90b_color.tga"
+			"ParameterType"	"BinaryBlobArg"
+			"Fingerprint"	"0"
+			"FingerprintDefault"	"0"
+		}
+	}
+	"SpecialDependencies"
+	{
+		"0"
+		{
+			"String"	"Material Compiler Version"
+			"CompilerIdentifier"	"CompileMaterial"
+			"Fingerprint"	"25"
+			"UserData"	"0"
+		}
+		"1"
+		{
+			"String"	"dota/global_lit_simple.vfx"
+			"CompilerIdentifier"	"CompileMaterial"
+			"Fingerprint"	"0"
+			"UserData"	"0"
+		}
+		"2"
+		{
+			"String"	"Texture Compiler Version"
+			"CompilerIdentifier"	"CompileTexture"
+			"Fingerprint"	"11"
+			"UserData"	"0"
+		}
+		"3"
+		{
+			"String"	"Texture Compiler Version Mip Box"
+			"CompilerIdentifier"	"CompileTexture"
+			"Fingerprint"	"1"
+			"UserData"	"0"
+		}
+	}
+	"AdditionalRelatedFiles"
+	{
+	}
+	"ChildResourceList"
+	{
+		"0"	"dev/helper/reflectivity_90b_color_tga_88186957.vtex"
 	}
 	"SearchableUserData"
 	{
@@ -169,37 +200,6 @@ VsInputSignature_t VsInputSignature_t_0
 		}
 	]
 }"
-		}
-	}
-	"SpecialDependencies"
-	{
-		"0"
-		{
-			"CompilerIdentifier"	"CompileMaterial"
-			"Fingerprint"	"25"
-			"String"	"Material Compiler Version"
-			"UserData"	"0"
-		}
-		"1"
-		{
-			"CompilerIdentifier"	"CompileMaterial"
-			"Fingerprint"	"0"
-			"String"	"dota/global_lit_simple.vfx"
-			"UserData"	"0"
-		}
-		"2"
-		{
-			"CompilerIdentifier"	"CompileTexture"
-			"Fingerprint"	"11"
-			"String"	"Texture Compiler Version"
-			"UserData"	"0"
-		}
-		"3"
-		{
-			"CompilerIdentifier"	"CompileTexture"
-			"Fingerprint"	"1"
-			"String"	"Texture Compiler Version Mip Box"
-			"UserData"	"0"
 		}
 	}
 }

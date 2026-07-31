@@ -1,5 +1,6 @@
 using System.Globalization;
 using System.Linq;
+using ValveKeyValue;
 using ValveResourceFormat.ResourceTypes.RubikonPhysics;
 using ValveResourceFormat.Serialization.KeyValues;
 
@@ -8,6 +9,7 @@ namespace ValveResourceFormat.ResourceTypes
     /// <summary>
     /// Represents physics aggregate data containing collision shapes and properties.
     /// </summary>
+    /// <seealso href="https://s2v.app/SchemaExplorer/cs2/modellib/VPhysXAggregateData_t">VPhysXAggregateData_t</seealso>
     public class PhysAggregateData : KeyValuesOrNTRO
     {
         /// <summary>
@@ -20,9 +22,9 @@ namespace ValveResourceFormat.ResourceTypes
         /// Gets the bind pose transformation matrices.
         /// </summary>
         public Matrix4x4[] BindPose
-           => Data.GetArray("m_bindPose")
-                .Select(v => Matrix4x4FromArray(v
-                    .Select(m => Convert.ToSingle(m.Value, CultureInfo.InvariantCulture))
+           => bindPose ??= Data.GetArray("m_bindPose")
+                .Select(v => Matrix4x4FromArray(v.Children.Select(c => c.Value)
+                    .Select(m => Convert.ToSingle(m, CultureInfo.InvariantCulture))
                     .ToArray()))
                 .ToArray();
 
@@ -33,18 +35,31 @@ namespace ValveResourceFormat.ResourceTypes
             => parts ??= Data.GetArray("m_parts").Select(p => new Part(p)).ToArray();
 
         /// <summary>
+        /// Gets the referenced bone names.
+        /// </summary>
+        public string[] BoneNames => Data.GetArray<string>("m_boneNames");
+
+        /// <summary>
+        /// Gets the bone parent indices for each part.
+        /// </summary>
+        public uint[] BoneParents => Data.GetArray<uint>("m_boneParents");
+
+        /// <summary>
         /// Gets the surface property hashes for collision materials.
         /// </summary>
         public uint[] SurfacePropertyHashes
-            => Data.GetArray<object>("m_surfacePropertyHashes").Select(Convert.ToUInt32).ToArray();
+            => surfacePropertyHashes ??= Data.GetArray<object>("m_surfacePropertyHashes").Select(Convert.ToUInt32).ToArray();
 
         /// <summary>
         /// Gets the collision attributes.
         /// </summary>
         public IReadOnlyList<KVObject> CollisionAttributes
-            => Data.GetArray("m_collisionAttributes");
+            => collisionAttributes ??= Data.GetArray("m_collisionAttributes");
 
+        private Matrix4x4[]? bindPose;
         private Part[]? parts;
+        private uint[]? surfacePropertyHashes;
+        private IReadOnlyList<KVObject>? collisionAttributes;
 
         /// <summary>
         /// Initializes a new instance of the <see cref="PhysAggregateData"/> class.
@@ -65,5 +80,32 @@ namespace ValveResourceFormat.ResourceTypes
                    a[1], a[5], a[9], 0,
                    a[2], a[6], a[10], 0,
                    a[3], a[7], a[11], 1);
+
+        /// <summary>
+        /// Gets the parent bone name for a given physics aggregate part.
+        /// </summary>
+        public string GetParentBoneName(int partIndex)
+        {
+            var boneParents = BoneParents;
+            var boneNames = BoneNames;
+
+            if (boneParents == null || boneNames == null)
+            {
+                return string.Empty;
+            }
+
+            if (partIndex < 0 || partIndex >= boneParents.Length)
+            {
+                return string.Empty;
+            }
+
+            var parentIndex = boneParents[partIndex];
+            if (parentIndex < 0 || parentIndex >= boneNames.Length)
+            {
+                return string.Empty;
+            }
+
+            return boneNames[parentIndex];
+        }
     }
 }

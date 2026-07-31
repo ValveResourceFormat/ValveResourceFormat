@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using System.IO;
 using System.Text;
+using ValveKeyValue;
 using ValveResourceFormat.Serialization.KeyValues;
 
 namespace ValveResourceFormat.CompiledShader;
@@ -28,11 +29,11 @@ public class FeaturesHeaderBlock : ShaderDataBlock
     {
         Version = data.GetInt32Property("m_nVersion");
         FileDescription = data.GetStringProperty("m_description");
-        DevShader = data.GetProperty<bool>("m_bDevShader");
+        DevShader = data.GetBooleanProperty("m_bDevShader");
         AvailablePrograms = data.GetArray<bool>("m_bHasShaderProgram")!;
 
         var modeArray = data.GetArray("m_modeArray");
-        Modes.EnsureCapacity(modeArray.Length);
+        Modes.EnsureCapacity(modeArray.Count);
 
         foreach (var modeObj in modeArray)
         {
@@ -41,13 +42,13 @@ public class FeaturesHeaderBlock : ShaderDataBlock
 
             var mode = (name, shader, ComboName: string.Empty, ComboValue: -1);
 
-            var settings = modeObj.GetArray<KVObject>("m_staticComboSettings")!;
-            if (settings.Length > 0)
+            var settings = modeObj.GetArray("m_staticComboSettings")!;
+            if (settings.Count > 0)
             {
-                Debug.Assert(settings.Length <= 1, "CVfxModeSettings with more than one combo.");
+                Debug.Assert(settings.Count <= 1, "CVfxModeSettings with more than one combo.");
 
                 var setting = settings[0];
-                mode.ComboName = setting.GetProperty<string>("m_szStaticCombo");
+                mode.ComboName = setting.GetStringProperty("m_szStaticCombo");
                 mode.ComboValue = setting.GetInt32Property("m_nValue");
             }
 

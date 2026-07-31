@@ -20,9 +20,16 @@
 
 mat3 adjoint(in mat4 m)
 {
-    return mat3(cross(m[1].xyz, m[2].xyz),
-                cross(m[2].xyz, m[0].xyz),
-                cross(m[0].xyz, m[1].xyz));
+    vec3 c0 = cross(m[1].xyz, m[2].xyz);
+    vec3 c1 = cross(m[2].xyz, m[0].xyz);
+    vec3 c2 = cross(m[0].xyz, m[1].xyz);
+    
+    // Normalize columns to handle degenerate transforms from zero-scaled bones
+    c0 = safeNormalize(c0);
+    c1 = safeNormalize(c1);
+    c2 = safeNormalize(c2);
+    
+    return mat3(c0, c1, c2);
 }
 
 //Decompress a byte4 normal in the 0..255 range to a float4 tangent
@@ -85,7 +92,7 @@ void DecompressNormalTangent2(uint nPackedFrame, out vec3 normal, out vec4 tange
     float derivedNormalZ = 1.0 - abs(nPackedFrameX) - abs(nPackedFrameY); // Project onto x+y+z=1
     vec3 unpackedNormal = vec3( nPackedFrameX, nPackedFrameY, derivedNormalZ );
 
-    // If Z is negative, X and Y has had extra amounts (TODO: find the logic behind this value) added into them so they would add up to over 1.0
+    // If Z is negative, X and Y have had extra amounts (TODO: find the logic behind this value) added into them so they would add up to over 1.0
     // Thus, we take the negative components of Z and add them back into XY to get the correct original values.
     vec2 negativeZCompensation = vec2( saturate(-derivedNormalZ) ); // Isolate the negative 0..1 range of derived Z
     unpackedNormal.xy += mix(negativeZCompensation, -negativeZCompensation, greaterThanEqual(unpackedNormal.xy, vec2(0.0)));
@@ -108,7 +115,7 @@ void DecompressNormalTangent2(uint nPackedFrame, out vec3 normal, out vec4 tange
     unalignedTangent.y = -tangentSign * ((normal.x * normal.y) * rcpTangentZ);
     unalignedTangent.z = -tangentSign * normal.x;
 
-    // This establishes a single direction on the tangent plane that derived from only the normal (has no texcoord info).
+    // This establishes a single direction on the tangent plane that is derived from only the normal (has no texcoord info).
     // But it doesn't line up with the texcoords. For that, it uses nPackedFrameT, which is the rotation.
 
     // Angle to use to rotate tangent

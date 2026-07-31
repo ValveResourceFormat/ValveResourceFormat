@@ -6,13 +6,17 @@ using GUI.Controls;
 using GUI.Utils;
 using OpenTK.Graphics.OpenGL;
 using ValveResourceFormat.Renderer;
+using ValveResourceFormat.Renderer.Input;
+using ValveResourceFormat.Renderer.Materials;
+using ValveResourceFormat.Renderer.SceneNodes;
+using ValveResourceFormat.Renderer.Utils;
 using static ValveResourceFormat.Renderer.PickingTexture;
 
 namespace GUI.Types.GLViewers
 {
     internal abstract class GLSceneViewer : GLBaseControl
     {
-        public Renderer Renderer { get; internal set; }
+        public ValveResourceFormat.Renderer.Renderer Renderer { get; internal set; }
         public UserInput Input { get; protected set; }
 
         public ValveResourceFormat.Renderer.TextRenderer TextRenderer { get; protected set; }
@@ -29,20 +33,38 @@ namespace GUI.Types.GLViewers
 
         private bool showStaticOctree;
         private bool showDynamicOctree;
+        private bool showVisDebug;
+        private bool showPhysicsTraces;
+        private PhysicsTraceDebugRenderer? physicsTraceRenderer;
+
+        private enum PerfDisplay
+        {
+            Off,
+            Stats,
+            Timings,
+            Allocations,
+        }
+
+        private PerfDisplay perfDisplay;
+        private ComboBox? perfDisplayComboBox;
+
+        /// <summary>Set by escape to release the mouse in walk mode, cleared by clicking back into the viewport.</summary>
+        private bool mouseReleased;
 
         private readonly List<RenderModes.RenderMode> renderModes = new(RenderModes.Items.Count);
         private int renderModeCurrentIndex;
         private ComboBox? renderModeComboBox;
         private InfiniteGrid? baseGrid;
-        private OctreeDebugRenderer? staticOctreeRenderer;
-        private OctreeDebugRenderer? dynamicOctreeRenderer;
         protected SelectedNodeRenderer? SelectedNodeRenderer;
 
         static readonly TimeSpan FpsUpdateTimeSpan = TimeSpan.FromSeconds(0.1);
 
         private readonly float[] frameTimes = new float[30];
         private int frameTimeNextId;
-        private string fpsText = string.Empty;
+        private int frameTimeCount;
+
+        private readonly ValveResourceFormat.Renderer.TextRenderer.TextBuffer fpsText = new("FPS: 10000  CPU: 10000.0ms  GPU: 10000.0ms");
+        private readonly ValveResourceFormat.Renderer.TextRenderer.TextBuffer speedText = new("Speed: 100000.0 u/s");
         private int frametimeQuery1;
         private int frametimeQuery2;
 
@@ -69,13 +91,16 @@ namespace GUI.Types.GLViewers
         {
             base.Dispose();
 
+            physicsTraceRenderer?.Delete();
+            physicsTraceRenderer = null;
+
             Renderer?.Dispose();
 
-            if (renderModeComboBox != null)
-            {
-                renderModeComboBox.Dispose();
-                renderModeComboBox = null;
-            }
+            perfDisplayComboBox?.Dispose();
+            perfDisplayComboBox = null;
+
+            renderModeComboBox?.Dispose();
+            renderModeComboBox = null;
 
 #if DEBUG
             ShaderHotReload.ShadersReloaded -= OnHotReload;
@@ -91,19 +116,10 @@ namespace GUI.Types.GLViewers
                 UiControl.AddCheckBox("Lock Cull Frustum", false, (v) =>
                 {
                     Renderer.LockedCullFrustum = v ? Renderer.Camera.ViewFrustum.Clone() : null;
+                    Renderer.LockedCullPosition = v ? Renderer.Camera.Location : null;
                 });
 
-                UiControl.AddCheckBox("Show Static Octree", showStaticOctree, (v) =>
-                {
-                    showStaticOctree = v;
-
-                    if (showStaticOctree && staticOctreeRenderer != null)
-                    {
-                        using var lockedGl = MakeCurrent();
-
-                        staticOctreeRenderer.StaticBuild();
-                    }
-                });
+                UiControl.AddCheckBox("Show Static Octree", showStaticOctree, (v) => showStaticOctree = v);
                 UiControl.AddCheckBox("Show Dynamic Octree", showDynamicOctree, (v) => showDynamicOctree = v);
                 UiControl.AddCheckBox("Show Tool Materials", Scene.ShowToolsMaterials, (v) =>
                 {
@@ -112,12 +128,24 @@ namespace GUI.Types.GLViewers
                     SkyboxScene?.ShowToolsMaterials = v;
                 });
 
-                if (this is GLWorldViewer worldViewer)
+                if (this is GLWorldViewer)
                 {
                     UiControl.AddCheckBox("Show Occluded Bounds", Scene.OcclusionDebugEnabled, (v) => Scene.OcclusionDebugEnabled = v);
+
+                    if (Scene.VoxelVisibility != null)
+                    {
+                        UiControl.AddCheckBox("Show Vis Debug", showVisDebug, v => showVisDebug = v);
+                    }
+
+                    if (Scene.PhysicsWorld != null)
+                    {
+                        UiControl.AddCheckBox("Debug Physics Traces", showPhysicsTraces, v => showPhysicsTraces = v);
+                    }
                 }
 
-                UiControl.AddCheckBox("Show Render Timings", Renderer.Timings.Capture, (v) => Renderer.Timings.Capture = v);
+                perfDisplayComboBox = UiControl.AddSelection("Debug Performance", (_, i) => perfDisplay = (PerfDisplay)i);
+                perfDisplayComboBox.Items.AddRange([nameof(PerfDisplay.Off), nameof(PerfDisplay.Stats), nameof(PerfDisplay.Timings), nameof(PerfDisplay.Allocations)]);
+                perfDisplayComboBox.SelectedIndex = (int)perfDisplay;
             }
 
             base.AddUiControls();
@@ -128,10 +156,7 @@ namespace GUI.Types.GLViewers
             Renderer.LoadRendererResources();
         }
 
-        // Default environment + simple sun lighting used by viewers without lighting information
-        protected readonly Vector2 defaultSunAngles = new(80f, 170f);
-        protected readonly Vector4 defaultSunColor = new(new Vector3(255, 247, 235) / 255.0f, 2.5f);
-        protected Vector2 sunAngles;
+        public Vector2 sunAngles;
         private bool loadedDefaultLighting;
 
         protected virtual void LoadDefaultLighting()
@@ -145,22 +170,9 @@ namespace GUI.Types.GLViewers
             };
             resource.Read(stream);
 
-            var texture = Scene.RendererContext.MaterialLoader.LoadTexture(resource, true);
-            var environmentMap = new SceneEnvMap(Scene, new AABB(new Vector3(float.MinValue), new Vector3(float.MaxValue)))
-            {
-                Transform = Matrix4x4.Identity,
-                EdgeFadeDists = Vector3.Zero,
-                HandShake = 0,
-                ProjectionMode = 0,
-                EnvMapTexture = texture,
-            };
+            Renderer.LoadDefaultLighting(Scene, resource);
 
-            Scene.LightingInfo.AddEnvironmentMap(environmentMap);
-            Scene.LightingInfo.UseSceneBoundsForSunLightFrustum = true;
-
-            sunAngles = defaultSunAngles;
-            Scene.LightingInfo.LightingData.LightColor_Brightness[0] = defaultSunColor;
-            UpdateSunAngles();
+            sunAngles = Renderer.DefaultSunAngles;
             loadedDefaultLighting = true;
         }
 
@@ -212,7 +224,7 @@ namespace GUI.Types.GLViewers
                 }
 
                 // If there is no bbox, LookAt will break camera, so +1 to location
-                var offset = Math.Max(bbox.Max.X, bbox.Max.Z) + 1f * 1.5f;
+                var offset = Math.Max(bbox.Max.X, Math.Max(bbox.Max.Y, bbox.Max.Z)) + 1f * 1.5f;
                 offset = Math.Clamp(offset, 0f, 2000f);
                 var location = new Vector3(offset, 0, offset);
 
@@ -225,8 +237,8 @@ namespace GUI.Types.GLViewers
                 Input.Camera.LookAt(bbox.Center);
             }
 
-            staticOctreeRenderer = new OctreeDebugRenderer(Scene.StaticOctree, Scene.RendererContext, false);
-            dynamicOctreeRenderer = new OctreeDebugRenderer(Scene.DynamicOctree, Scene.RendererContext, true);
+            Scene.StaticOctree.DebugRenderer = new(Scene.StaticOctree, Scene.RendererContext, false);
+            Scene.DynamicOctree.DebugRenderer = new(Scene.DynamicOctree, Scene.RendererContext, true);
         }
 
         protected abstract void LoadScene();
@@ -241,16 +253,16 @@ namespace GUI.Types.GLViewers
             Picker?.Resize(w, h);
         }
 
-        protected override void OnMouseWheel(object? sender, MouseEventArgs e)
+        protected override void OnMouseWheel(int delta, Point location)
         {
-            base.OnMouseWheel(sender, e);
+            base.OnMouseWheel(delta, location);
 
             if (!Input.NoClip)
             {
                 return;
             }
 
-            var modifier = Input.OnMouseWheel(e.Delta);
+            var modifier = Input.OnMouseWheel(delta);
 
             if (Input.OrbitMode)
             {
@@ -271,15 +283,17 @@ namespace GUI.Types.GLViewers
                 return;
             }
 
-            if (InitialMousePosition == new Point(e.X, e.Y))
+            if (!MouseDragged)
             {
-                Picker?.RequestNextFrame(e.X, e.Y, PickingIntent.Select);
+                Picker?.RequestNextFrame(InitialMousePosition.X, InitialMousePosition.Y, PickingIntent.Select);
             }
         }
 
         protected override void OnMouseDown(object? sender, MouseEventArgs e)
         {
             base.OnMouseDown(sender, e);
+
+            mouseReleased = false;
 
             if (!Input.NoClip)
             {
@@ -316,7 +330,7 @@ namespace GUI.Types.GLViewers
             GL.EndQuery(QueryTarget.TimeElapsed);
 
             TextRenderer.Load();
-            Renderer.Postprocess.Load();
+            Renderer.Postprocess.Load(NumSamples);
 
             baseGrid = new InfiniteGrid(Scene);
             SelectedNodeRenderer = new(Scene.RendererContext);
@@ -337,18 +351,52 @@ namespace GUI.Types.GLViewers
 
             PostSceneLoad();
 
-            if (GLNativeWindow != null)
+            if (this is GLWorldViewer)
             {
-                // try to compile shaders?
-                Renderer.Camera.SetLocationPitchYaw(Vector3.UnitZ * 20_000f, -90, 0f);
-                Renderer.Camera.SetViewportSize(64, 64);
-                OnPaint(0f);
-                GLNativeWindow.Context.SwapBuffers();
+                PrewarmDrawCalls();
             }
 
             GuiContext.ClearCache();
             GuiContext.GLPostLoadAction?.Invoke(this);
             GuiContext.GLPostLoadAction = null;
+        }
+
+        /// <summary>
+        /// Renders one full frame with culling disabled so the driver specializes every
+        /// (program, vertex layout, framebuffer) combination once.
+        /// </summary>
+        private void PrewarmDrawCalls()
+        {
+            Debug.Assert(MainFramebuffer != null);
+
+            Renderer.DisableAllCulling = true;
+
+            try
+            {
+                OnPaint(0f);
+
+                foreach (var particleNode in Scene.AllNodes.OfType<ParticleSceneNode>())
+                {
+                    particleNode.Prewarm(Renderer.Camera);
+                }
+            }
+            finally
+            {
+                Renderer.DisableAllCulling = false;
+            }
+        }
+
+        protected override void OnFirstPaint()
+        {
+            base.OnFirstPaint();
+
+            if (this is GLWorldViewer)
+            {
+                // Fixes compile stutters, but performance is lower!
+                // PrewarmDrawCalls();
+                // var elapsed = Stopwatch.GetElapsedTime(LastUpdate, Stopwatch.GetTimestamp());
+                // Log.Debug(GetType().Name, $"Prewarm time: {elapsed}");
+            }
         }
 
         protected override void OnUpdate(float frameTime)
@@ -367,9 +415,14 @@ namespace GUI.Types.GLViewers
                 Input.EnableMouseLook = false;
             }
 
-            if (MouseOverRenderArea || Input.ForceUpdate)
+            // Walk mode keeps simulating while the cursor is over the ui, otherwise player
+            // physics and teleports stay frozen until the mouse moves back over the viewport.
+            if (MouseOverRenderArea || Input.ForceUpdate || !Input.NoClip)
             {
-                var pressedKeys = CurrentlyPressedKeys;
+                Input.MouseSensitivity = Settings.Config.MouseSensitivity;
+                Input.SmoothCameraEnabled = Settings.Config.SmoothCameraEnabled;
+
+                var pressedKeys = ConsumeCurrentlyPressedKeysForUpdate();
                 var modifierKeys = Control.ModifierKeys;
 
                 if ((modifierKeys & Keys.Shift) > 0)
@@ -382,29 +435,49 @@ namespace GUI.Types.GLViewers
                     pressedKeys |= TrackedKeys.Alt;
                 }
 
-                Input.Tick(frameTime, pressedKeys, new Vector2(MouseDelta.X, MouseDelta.Y), Renderer.Camera);
-                LastMouseDelta = MouseDelta;
-                MouseDelta = System.Drawing.Point.Empty;
+                var mouseDelta = ConsumePendingMouseDelta();
+                var wheelDelta = ConsumePendingMouseWheelDelta();
 
-                // Clear mouse wheel events after processing (they're one-time events)
-                CurrentlyPressedKeys &= ~(TrackedKeys.MouseWheelUp | TrackedKeys.MouseWheelDown);
+                Input.MouseSensitivity = Settings.Config.MouseSensitivity;
+                var wasNoClip = Input.NoClip;
+                Input.Tick(frameTime, pressedKeys, new Vector2(mouseDelta.X, mouseDelta.Y), Renderer.Camera);
+                LastMouseDelta = mouseDelta;
 
-                GrabbedMouse = !Input.NoClip && !Paused;
+                // cancel unintentional selection
+                if (wasNoClip && !Input.NoClip)
+                {
+                    SelectedNodeRenderer?.SelectNode(null);
+                }
+
+                GrabbedMouse = MouseOverRenderArea && !Input.NoClip && !Paused && !mouseReleased;
             }
         }
 
-        protected void DrawLowerCornerText(string text, Color32 color)
+        protected void DrawLowerCornerText(ValveResourceFormat.Renderer.TextRenderer.TextMemory text, Color32 color, int lineFromBottom = 0)
         {
             Debug.Assert(MainFramebuffer != null);
 
             TextRenderer.AddText(new ValveResourceFormat.Renderer.TextRenderer.TextRenderRequest
             {
                 X = 2f,
-                Y = MainFramebuffer.Height - 4f,
+                Y = MainFramebuffer.Height - 4f - lineFromBottom * 16f,
                 Scale = 14f,
                 Color = color,
                 Text = text
             });
+        }
+
+        protected void DrawWorldSpaceText(string text, float size, Vector3 position, Color32 color, Scene.RenderContext renderContext)
+        {
+            Scene.WantsSceneDepth = true;
+            TextRenderer.AddTextBillboard(position, new ValveResourceFormat.Renderer.TextRenderer.TextRenderRequest
+            {
+                Scale = size,
+                Color = color,
+                Text = text,
+                CenterVertical = true,
+                CenterHorizontal = true,
+            }, renderContext.Camera, depthMask: true);
         }
 
         protected override void BlitFramebufferToScreen()
@@ -426,7 +499,11 @@ namespace GUI.Types.GLViewers
             Debug.Assert(Picker != null);
             Debug.Assert(SelectedNodeRenderer != null);
 
-            Renderer.Timings.MarkFrameBegin();
+            Renderer.PerfStats.Capture = perfDisplay == PerfDisplay.Stats;
+            Renderer.PerfStats.Timings.Capture = perfDisplay == PerfDisplay.Timings;
+            Renderer.PerfStats.Allocations.Capture = perfDisplay == PerfDisplay.Allocations;
+
+            Renderer.PerfStats.MarkFrameBegin();
             GL.BeginQuery(QueryTarget.TimeElapsed, frametimeQuery1);
 
             var renderContext = new Scene.RenderContext
@@ -451,6 +528,8 @@ namespace GUI.Types.GLViewers
                 SelectedNodeRenderer.Update(renderContext, updateContext);
             }
 
+            Renderer.ForceResolveSceneDepth = ShowBaseGrid;
+
             using (new GLDebugGroup("Scenes Render"))
             {
                 if (Picker.ActiveNextFrame)
@@ -474,14 +553,14 @@ namespace GUI.Types.GLViewers
             {
                 SelectedNodeRenderer.Render();
 
-                if (showStaticOctree && staticOctreeRenderer != null)
+                if (showStaticOctree && Scene.StaticOctree.DebugRenderer != null)
                 {
-                    staticOctreeRenderer.Render();
+                    Scene.StaticOctree.DebugRenderer.Render();
                 }
 
-                if (showDynamicOctree && dynamicOctreeRenderer != null)
+                if (showDynamicOctree && Scene.DynamicOctree.DebugRenderer != null)
                 {
-                    dynamicOctreeRenderer.Render();
+                    Scene.DynamicOctree.DebugRenderer.Render();
                 }
 
                 if (Scene.OcclusionDebugEnabled && Scene.OcclusionDebug != null)
@@ -489,9 +568,20 @@ namespace GUI.Types.GLViewers
                     Scene.OcclusionDebug.Render();
                 }
 
+                if (showPhysicsTraces && Scene.PhysicsWorld != null)
+                {
+                    physicsTraceRenderer ??= new PhysicsTraceDebugRenderer(Scene.RendererContext);
+                    physicsTraceRenderer.Render(Scene.PhysicsWorld, Input, Renderer.Camera);
+                }
+
                 if (ShowBaseGrid && baseGrid != null)
                 {
                     baseGrid.Render();
+
+                    DrawWorldSpaceText("+X", 10f, Vector3.UnitX * 120f, Color32.Red, renderContext);
+                    DrawWorldSpaceText("-X", 10f, -Vector3.UnitX * 120f, Color32.Red, renderContext);
+                    DrawWorldSpaceText("+Y", 10f, Vector3.UnitY * 120f, Color32.Green, renderContext);
+                    DrawWorldSpaceText("-Y", 10f, -Vector3.UnitY * 120f, Color32.Green, renderContext);
                 }
             }
 
@@ -506,10 +596,15 @@ namespace GUI.Types.GLViewers
                 var currentTime = Stopwatch.GetTimestamp();
                 var fpsElapsed = Stopwatch.GetElapsedTime(lastFpsUpdate, currentTime);
 
-                frameTimes[frameTimeNextId++] = frameTime;
-                frameTimeNextId %= frameTimes.Length;
+                // Zero length frames (the first frame after resuming) would inflate the average.
+                if (frameTime > 0f)
+                {
+                    frameTimes[frameTimeNextId++] = frameTime;
+                    frameTimeNextId %= frameTimes.Length;
+                    frameTimeCount = Math.Min(frameTimeCount + 1, frameTimes.Length);
+                }
 
-                if (fpsElapsed >= FpsUpdateTimeSpan)
+                if (frameTimeCount > 0 && fpsElapsed >= FpsUpdateTimeSpan)
                 {
                     var frametimeQuery = frametimeQuery2;
                     frametimeQuery2 = frametimeQuery1;
@@ -518,11 +613,19 @@ namespace GUI.Types.GLViewers
                     GL.GetQueryObject(frametimeQuery, GetQueryObjectParam.QueryResultNoWait, out long gpuTime);
                     var gpuFrameTime = gpuTime / 1_000_000f;
 
-                    var fps = 1f / (frameTimes.Sum() / frameTimes.Length);
+                    var frameTimeSum = 0f;
+
+                    // Only the samples written so far, the rest of the ring is still zeroed.
+                    for (var i = 0; i < frameTimeCount; i++)
+                    {
+                        frameTimeSum += frameTimes[i];
+                    }
+
+                    var fps = frameTimeCount / frameTimeSum;
                     var cpuFrameTime = Stopwatch.GetElapsedTime(LastUpdate, currentTime).TotalMilliseconds;
 
                     lastFpsUpdate = currentTime;
-                    fpsText = $"FPS: {fps,-3:0}  CPU: {cpuFrameTime,-4:0.0}ms  GPU: {gpuFrameTime,-4:0.0}ms";
+                    fpsText.Format($"FPS: {fps,-3:0}  CPU: {cpuFrameTime,-4:0.0}ms  GPU: {gpuFrameTime,-4:0.0}ms");
                 }
 
                 DrawLowerCornerText(fpsText, Color32.White);
@@ -535,33 +638,62 @@ namespace GUI.Types.GLViewers
                 TextRenderer.AddTextRelative(new ValveResourceFormat.Renderer.TextRenderer.TextRenderRequest
                 {
                     X = 0.5f,
-                    Y = 0.02f,
-                    Scale = 14f,
-                    Color = new Color32(0, 150, 255),
-                    Text = "* MOVEMENT IS EXPERIMENTAL. EXPECT BUGS. HELP US IMPROVE IT. *",
-                    CenterVertical = true,
-                }, Renderer.Camera);
-
-                TextRenderer.AddTextRelative(new ValveResourceFormat.Renderer.TextRenderer.TextRenderRequest
-                {
-                    X = 0.5f,
                     Y = 0.85f,
                     Scale = 12f,
                     Color = Color32.Yellow,
-                    Text = $"Speed: {Input.Velocity.AsVector2().Length():0.0} u/s",
-                    CenterVertical = true,
+                    Text = speedText.Format($"Speed: {Input.Velocity.AsVector2().Length():0.0} u/s"),
+                    CenterHorizontal = true,
                 }, Renderer.Camera);
             }
 
-            if (Renderer.Timings.Capture)
+            if (showVisDebug && Scene.VoxelVisibility != null)
             {
-                Renderer.Timings.DisplayTimings(TextRenderer, Renderer.Camera);
+                var pvsPos = Renderer.LockedCullPosition ?? Renderer.Camera.Location;
+                var cluster = Scene.VoxelVisibility.GetClusterForPosition(pvsPos);
+                var y = 18f;
+
+                void AddLine(string text, Color32 color)
+                {
+                    TextRenderer.AddText(new ValveResourceFormat.Renderer.TextRenderer.TextRenderRequest
+                    {
+                        X = 4f,
+                        Y = y,
+                        Scale = 14f,
+                        Color = color,
+                        Text = text,
+                    });
+                    y += 16f;
+                }
+
+                AddLine(
+                    cluster <= 1 ? "No PVS at this position" : $"PVS cluster {cluster}",
+                    cluster <= 1 ? new Color32(255, 0, 0) : Color32.White
+                );
+
+                if (Scene.CurrentFramePvs != null)
+                {
+                    var visCount = Scene.CurrentFramePvs.Sum(b => BitOperations.PopCount(b));
+                    AddLine($"PVS visible: {visCount}/{Scene.VoxelVisibility.BaseClusterCount} clusters", Color32.White);
+                }
             }
 
-            TextRenderer.Render(Renderer.Camera);
+            if (perfDisplay == PerfDisplay.Stats)
+            {
+                Renderer.PerfStats.DisplayStats(TextRenderer, Renderer.Camera, Scene, SkyboxScene);
+            }
+            else if (perfDisplay == PerfDisplay.Timings)
+            {
+                Renderer.PerfStats.Timings.DisplayTimings(TextRenderer, Renderer.Camera);
+            }
+            else if (perfDisplay == PerfDisplay.Allocations)
+            {
+                Renderer.PerfStats.Allocations.DisplayAllocations(TextRenderer, Renderer.Camera);
+            }
+
+            TextRenderer.Render(Renderer.Camera, Renderer.ResolvedSceneDepth);
             Picker?.TriggerEventIfAny();
 
-            Renderer.Timings.MarkFrameEnd();
+            Renderer.PerfStats.MarkFrameEnd();
         }
 
         protected void AddBaseGridControl()
@@ -700,13 +832,6 @@ namespace GUI.Types.GLViewers
         {
             Scene.SetEnabledLayers(layers);
             SkyboxScene?.SetEnabledLayers(layers);
-
-            if (showStaticOctree && staticOctreeRenderer != null)
-            {
-                using var lockedGl = MakeCurrent();
-
-                staticOctreeRenderer.Rebuild();
-            }
         }
 
         private void SetRenderMode(string renderMode)
@@ -737,22 +862,29 @@ namespace GUI.Types.GLViewers
             }
         }
 
-        protected override void OnKeyDown(object? sender, KeyEventArgs e)
+        protected override void OnKeyDown(Keys keyData)
         {
             Debug.Assert(SelectedNodeRenderer != null);
 
-            if (e.KeyData == Keys.Delete)
+            if (keyData == Keys.Delete)
             {
                 SelectedNodeRenderer.DisableSelectedNodes();
                 return;
             }
 
-            if (e.KeyData == Keys.Escape)
+            if (keyData == Keys.Escape)
             {
                 SelectedNodeRenderer.SelectNode(null);
+                mouseReleased = true;
             }
 
-            base.OnKeyDown(sender, e);
+            if (keyData == Keys.Tab && perfDisplayComboBox != null)
+            {
+                // Cycle through the perf display modes (the callback updates perfDisplay)
+                perfDisplayComboBox.SelectedIndex = (perfDisplayComboBox.SelectedIndex + 1) % perfDisplayComboBox.Items.Count;
+            }
+
+            base.OnKeyDown(keyData);
         }
 
 #if DEBUG

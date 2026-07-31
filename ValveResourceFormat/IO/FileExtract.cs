@@ -1,8 +1,8 @@
 using System.IO;
 using System.Text;
+using ValveKeyValue;
 using ValveResourceFormat.CompiledShader;
 using ValveResourceFormat.ResourceTypes;
-using ValveResourceFormat.ResourceTypes.ModelAnimation2;
 using ValveResourceFormat.Serialization.KeyValues;
 
 namespace ValveResourceFormat.IO
@@ -42,10 +42,16 @@ namespace ValveResourceFormat.IO
         /// <summary>
         /// Additional extracted resources. E.g. for a vmat, this would be the vtex files.
         /// You will want to extract the files if data is non null, and also their respective subfiles.
-        /// You might want to ignore further extracts on these files—especially lone extracts,
+        /// You might want to ignore further extracts on these files, especially lone extracts,
         /// since this is most likely their most optimal extract context.
         /// </summary>
         public List<ContentFile> AdditionalFiles { get; init; } = [];
+
+        /// <summary>
+        /// When true, writers place this file (and its subfiles) at its full <see cref="FileName"/> relative
+        /// to the output root instead of next to the parent content file.
+        /// </summary>
+        public bool KeepFullPath { get; set; }
 
         /// <summary>
         /// Gets a value indicating whether this instance has been disposed.
@@ -173,11 +179,14 @@ namespace ValveResourceFormat.IO
                     break;
 
                 case ResourceType.Model:
-                    contentFile = new ModelExtract(resource, fileLoader).ToContentFile();
+                    contentFile = new ModelExtract(resource, fileLoader) { ProgressReporter = progress }.ToContentFile();
                     break;
 
                 case ResourceType.AnimationGraph:
-                    contentFile = new AnimationGraphExtract(resource).ToContentFile();
+                    {
+                        using var animGraphExtract = new AnimationGraphExtract(resource, fileLoader);
+                        contentFile = animGraphExtract.ToContentFile();
+                    }
                     break;
 
                 case ResourceType.Panorama:
@@ -200,24 +209,34 @@ namespace ValveResourceFormat.IO
                         soundStream.TryGetBuffer(out var buffer);
                         contentFile.Data = [.. buffer];
 
+                        // Lip-sync phoneme data; the compiler bakes this back in when the txt sits next to the source sound.
+                        if (soundData.Sentence != null)
+                        {
+                            contentFile.AdditionalFiles.Add(new ContentFile
+                            {
+                                FileName = Path.ChangeExtension(resource.FileName, "txt") ?? "exported.txt",
+                                Data = Encoding.UTF8.GetBytes(soundData.Sentence.ToValveSentence())
+                            });
+                        }
+
                         // TODO: Refactor this into a SoundExtract?
                         if (resource.GetBlockByType(BlockType.CTRL) is BinaryKV3 ctrlData)
                         {
-                            var wrappedData = new KVObject("root");
-                            wrappedData.AddProperty("VrfExportedSound", ctrlData.Data);
+                            var wrappedData = KVObject.Collection();
+                            wrappedData.Add("VrfExportedSound", ctrlData.Data);
                             contentFile.AdditionalFiles.Add(new ContentFile
                             {
                                 FileName = Path.ChangeExtension(resource.FileName, "vsnd") ?? "exported.vsnd",
-                                Data = Encoding.UTF8.GetBytes(new KV3File(wrappedData).ToString())
+                                Data = Encoding.UTF8.GetBytes(wrappedData.ToKV3String())
                             });
                         }
                     }
                     else if (resource.GetBlockByType(BlockType.CTRL) is BinaryKV3 ctrlData)
                     {
                         // TODO: We may want to cleanup m_vSound (recursively) since it contains random garbage if not actually used
-                        var wrappedData = new KVObject("root");
-                        wrappedData.AddProperty("VrfExportedSound", ctrlData.Data);
-                        contentFile.Data = Encoding.UTF8.GetBytes(new KV3File(wrappedData).ToString());
+                        var wrappedData = KVObject.Collection();
+                        wrappedData.Add("VrfExportedSound", ctrlData.Data);
+                        contentFile.Data = Encoding.UTF8.GetBytes(wrappedData.ToKV3String());
                     }
 
                     break;
@@ -269,6 +288,14 @@ namespace ValveResourceFormat.IO
                     contentFile = new NmClipExtract(resource, fileLoader).ToContentFile();
                     break;
 
+                case ResourceType.NmGraph:
+                case ResourceType.NmGraphVariation:
+                    using (var nmGraphExtract = new NmGraphExtract(resource, fileLoader))
+                    {
+                        contentFile = nmGraphExtract.ToContentFile();
+                    }
+                    break;
+
                 // These all just use ToString() and WriteText() to do the job
                 case ResourceType.PanoramaStyle:
                 case ResourceType.PanoramaLayout:
@@ -318,7 +345,28 @@ namespace ValveResourceFormat.IO
             {
                 FlexSceneFile.FlexSceneFile.MAGIC => new FlexSceneExtract(stream).ToContentFile(),
                 ClosedCaptions.ClosedCaptions.MAGIC => new ClosedCaptionsExtract(stream, fileName).ToContentFile(),
+                NavMesh.NavMeshFile.MAGIC => ExtractNavMesh(stream, fileName),
                 _ => null,
+            };
+        }
+
+        private static ContentFile ExtractNavMesh(Stream stream, string fileName)
+        {
+            var navMesh = new NavMesh.NavMeshFile();
+            navMesh.Read(stream);
+
+            var exporter = new GltfModelExporter(new NullFileLoader())
+            {
+                ProgressReporter = new Progress<string>(_ => { }),
+            };
+            var glbStream = new MemoryStream();
+            var resourceName = Path.GetFileNameWithoutExtension(fileName);
+            exporter.Export(navMesh, resourceName, glbStream);
+
+            return new ContentFile
+            {
+                Data = glbStream.ToArray(),
+                FileName = Path.ChangeExtension(fileName, ".glb"),
             };
         }
 
@@ -335,7 +383,7 @@ namespace ValveResourceFormat.IO
         /// Determines whether the resource is a child resource.
         /// </summary>
         public static bool IsChildResource(Resource resource)
-            => resource.EditInfo?.SearchableUserData?.GetProperty<long>("IsChildResource") == 1;
+            => resource.EditInfo?.SearchableUserData?.GetIntegerProperty("IsChildResource") == 1;
 
         /// <summary>
         /// Gets the appropriate file extension for the extracted resource.

@@ -286,6 +286,39 @@ public class GltfJointsTest
     }
 
     [Test]
+    public void SplitEightBoneJoints_SingleVertex_WritesAllEightIndices()
+    {
+        ushort[] joints = [1, 2, 3, 4, 5, 6, 7, 8];
+        var output = new ushort[8];
+
+        GltfModelExporter.SplitEightBoneJoints(joints, output);
+
+        // First half is JOINTS_0 (indices 0..3), second half is JOINTS_1 (indices 4..7).
+        Assert.That(output, Is.EqualTo(new ushort[] { 1, 2, 3, 4, 5, 6, 7, 8 }).AsCollection);
+    }
+
+    [Test]
+    public void SplitEightBoneJoints_MultipleVertices_WritesAllVertices()
+    {
+        ushort[] joints = [
+            1,  2,  3,  4,  5,  6,  7,  8,
+            11, 12, 13, 14, 15, 16, 17, 18,
+            21, 22, 23, 24, 25, 26, 27, 28,
+        ];
+        var output = new ushort[joints.Length];
+
+        GltfModelExporter.SplitEightBoneJoints(joints, output);
+
+        // Layout: JOINTS_0 holds the first 4 indices of each vertex packed together,
+        // then JOINTS_1 holds the last 4 indices of each vertex packed together.
+        ushort[] expected = [
+            1,  2,  3,  4,  11, 12, 13, 14, 21, 22, 23, 24,
+            5,  6,  7,  8,  15, 16, 17, 18, 25, 26, 27, 28,
+        ];
+        Assert.That(output, Is.EqualTo(expected).AsCollection);
+    }
+
+    [Test]
     public void FourJoints_ComplexDuplicates_ShouldHandleCorrectly()
     {
         // Test case with duplicates spread throughout the array

@@ -1,8 +1,6 @@
 using System.Diagnostics;
 using System.IO;
 using System.Threading.Tasks;
-using System.Windows.Forms;
-using GUI.Controls;
 using GUI.Utils;
 
 namespace GUI.Types.Viewers
@@ -52,14 +50,15 @@ namespace GUI.Types.Viewers
             text = await reader.ReadToEndAsync().ConfigureAwait(false);
         }
 
-        public void Create(TabPage tab)
+        public ViewerContent GetContent()
         {
             Debug.Assert(text is not null);
 
-            var control = CodeTextBox.Create(text);
-            tab.Controls.Add(control);
+            var content = new ViewerContent.Text(text);
 
             text = null;
+
+            return content;
         }
 
         public void Dispose()

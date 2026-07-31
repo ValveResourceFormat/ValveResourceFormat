@@ -1,11 +1,17 @@
 namespace ValveResourceFormat.Renderer.Particles.Initializers
 {
+    /// <summary>
+    /// Initializes particle velocity to a random direction and speed, with independent per-axis speed ranges in a local coordinate system.
+    /// </summary>
+    /// <seealso href="https://s2v.app/SchemaExplorer/cs2/particles/C_INIT_VelocityRandom">C_INIT_VelocityRandom</seealso>
     class VelocityRandom : ParticleFunctionInitializer
     {
         private readonly IVectorProvider vectorMin = new LiteralVectorProvider(Vector3.Zero);
         private readonly IVectorProvider vectorMax = new LiteralVectorProvider(Vector3.Zero);
         private readonly INumberProvider speedMin = new LiteralNumberProvider(0.1f);
         private readonly INumberProvider speedMax = new LiteralNumberProvider(0.1f);
+        private readonly int controlPoint;
+        private readonly bool ignoreDT;
 
         public VelocityRandom(ParticleDefinitionParser parse) : base(parse)
         {
@@ -13,9 +19,11 @@ namespace ValveResourceFormat.Renderer.Particles.Initializers
             vectorMax = parse.VectorProvider("m_LocalCoordinateSystemSpeedMax", vectorMax);
             speedMin = parse.NumberProvider("m_fSpeedMin", speedMin);
             speedMax = parse.NumberProvider("m_fSpeedMax", speedMax);
+            controlPoint = parse.Int32("m_nControlPointNumber", controlPoint);
+            ignoreDT = parse.Boolean("m_bIgnoreDT", ignoreDT);
         }
 
-        public override Particle Initialize(ref Particle particle, ParticleSystemRenderState particleSystemState)
+        public override Particle Initialize(ref Particle particle, ParticleCollection particles, ParticleSystemRenderState particleSystemState)
         {
             // A bit unclear what the speed is here, but I do know that going under 1.0 does nothing different than 1.0
             var speedmin = speedMin.NextNumber(ref particle, particleSystemState);
@@ -26,9 +34,22 @@ namespace ValveResourceFormat.Renderer.Particles.Initializers
             var vecMin = vectorMin.NextVector(ref particle, particleSystemState);
             var vecMax = vectorMax.NextVector(ref particle, particleSystemState);
 
-            var velocity = ParticleCollection.RandomBetweenPerComponent(particle.ParticleID, vecMin, vecMax);
+            var localSpeed = ParticleCollection.RandomBetweenPerComponent(particle.ParticleID, vecMin, vecMax);
 
-            particle.Velocity = velocity * speed;
+            // The authored speed vector is expressed in the control point's local coordinate system.
+            var velocity = ControlPointTransformProvider.TransformDirection(particleSystemState, controlPoint, localSpeed) * speed;
+
+            // With the flag set the authored value is a raw per-step displacement, not units/second.
+            if (ignoreDT)
+            {
+                var frameTime = particleSystemState.Data?.CurrentFrameTime ?? 0f;
+                if (frameTime > 0f)
+                {
+                    velocity /= frameTime;
+                }
+            }
+
+            particle.Velocity += velocity;
 
             return particle;
         }

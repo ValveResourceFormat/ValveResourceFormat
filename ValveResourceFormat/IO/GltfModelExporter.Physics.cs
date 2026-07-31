@@ -1,6 +1,7 @@
 using System.Linq;
 using System.Threading.Tasks;
 using SharpGLTF.Schema2;
+using ValveKeyValue;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.Serialization.KeyValues;
 using static ValveResourceFormat.ResourceTypes.RubikonPhysics.Shapes.Hull;
@@ -97,7 +98,7 @@ public partial class GltfModelExporter
                         collisionAttributes[collisionAttrIndex], physicsSurfaceNames, surfacePropIndex, classname);
                     var node = scene.CreateNode(meshName);
                     node.Mesh = gltfMesh;
-                    node.WorldMatrix = transform * TRANSFORMSOURCETOGLTF;
+                    node.WorldMatrix = transform * TransformSourceToGltf;
 
                     var interactAsStrings = collisionAttributes[collisionAttrIndex].GetArray<string>("m_InteractAsStrings");
                     var interactAsArray = new System.Text.Json.Nodes.JsonArray([.. interactAsStrings!]);
@@ -535,7 +536,7 @@ public partial class GltfModelExporter
     }
 
     /// <summary>
-    /// Generates and links a physics texture for the given surface property using MapAutoPhysTextureGenerator.
+    /// Generates and links a physics texture for the given surface property using <see cref="MapAutoPhysTextureGenerator"/>.
     /// </summary>
     private async Task AddPhysicsTexture(Image image, string surfaceProperty)
     {

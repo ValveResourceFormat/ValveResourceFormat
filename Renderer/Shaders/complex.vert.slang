@@ -3,14 +3,13 @@
 #define GameVfx_csgo_character 0
 #define GameVfx_csgo_foliage 0
 #define GameVfx_csgo_simple_2way_blend 0
-#define GameVfx_environment_blend 0
+#define GameVfx_csgo_simple_3layer_parallax 0
 #define GameVfx_vr_complex 0
 #define GameVfx_vr_simple_2way_blend 0
 #define GameVfx_vr_simple_2way_parallax 0
 #define GameVfx_vr_simple_3way_parallax 0
 #define GameVfx_vr_simple_blend_to_triplanar 0
 #define GameVfx_vr_simple_blend_to_xen_membrane 0
-#define GameVfx_vr_standard 0
 
 #include "common/utils.slang"
 #include "common/features.slang"
@@ -27,11 +26,11 @@ layout (location = 3) in vec2 vTEXCOORD;
 #include "common/compression.slang"
 
 //Parameter defines - These are default values and can be overwritten based on material/model parameters
-#define F_NOTINT 0
-#define F_VERTEX_COLOR 0
-#define F_TEXTURE_ANIMATION 0
-uniform int F_TEXTURE_ANIMATION_MODE;
-#define F_SPHERICAL_PROJECTED_ANISOTROPIC_TANGENTS 0
+#define F_NOTINT 0 // csgo_vertexlitgeneric
+#define F_VERTEX_COLOR 0 // most shaders
+#define F_TEXTURE_ANIMATION 0 // csgo_complex, csgo_static_overlay, csgo_unlitgeneric, vr_complex, vr_monitor, vr_panorama_hint_ui, vr_simple, vr_standard
+uniform int F_TEXTURE_ANIMATION_MODE; // csgo_complex, csgo_static_overlay, csgo_unlitgeneric, vr_complex, vr_monitor
+#define F_SPHERICAL_PROJECTED_ANISOTROPIC_TANGENTS 0 // csgo_character
 //End of parameter defines
 
 #if (GameVfx_vr_simple_2way_blend != 0) || (GameVfx_vr_simple_2way_parallax != 0) || (GameVfx_vr_simple_3way_parallax != 0) || (GameVfx_vr_simple_blend_to_triplanar != 0) || (GameVfx_vr_simple_blend_to_xen_membrane != 0)
@@ -42,23 +41,12 @@ uniform int F_TEXTURE_ANIMATION_MODE;
     in vec2 vLightmapUV;
     centroid out vec3 vLightmapUVScaled;
 #elif D_BAKED_LIGHTING_FROM_VERTEX_STREAM == 1
-    #if (GameVfx_vr_standard != 0)
-        #undef F_VERTEX_COLOR
-        #undef F_PAINT_VERTEX_COLORS
-        in vec4 vCOLOR1;
-    #else
-        in vec4 vPerVertexLighting;
-    #endif
+    in vec4 vPerVertexLighting;
     out vec3 vPerVertexLightingOut;
 #endif
 
-#if (F_LAYERS > 0) || (GameVfx_csgo_simple_2way_blend != 0) || defined(vr_blend_vfx_common) || defined(vr_standard_vfx_blend) || (GameVfx_environment_blend != 0)
-    #if defined(vr_standard_vfx_blend)
-        #define vBLEND_COLOR vTEXCOORD2
-    #else
-        #define vBLEND_COLOR vTEXCOORD4
-    #endif
-
+#if (F_LAYERS > 0) || (GameVfx_csgo_simple_2way_blend != 0) || defined(vr_blend_vfx_common)
+    #define vBLEND_COLOR vTEXCOORD4
     #if defined(vr_blend_vfx_common)
         #define vBLEND_ALPHA vTEXCOORD5
         in vec4 vBLEND_ALPHA;
@@ -229,7 +217,7 @@ vec4 GetTintColorLinear(vec4 vTint)
 #if F_NOTINT == 0
     TintFade.rgb = mix(vec3(1.0), SrgbGammaToLinear(vTint.rgb) * g_vColorTint.rgb, g_flModelTintAmount);
 #endif
-    TintFade.a = pow(vTint.a, g_flFadeExponent);
+    TintFade.a = pow(vTint.a, max(g_flFadeExponent, 0.0001));
     return TintFade;
 }
 
@@ -247,6 +235,39 @@ vec4 GetTintColorLinear(vec4 vTint)
 #endif
 
 #include "features/csgo_character_eyes_vs.slang"
+
+// Firstperson legs distortion parameters
+uniform int g_bFirstpersonLegsDistortion = 0;
+
+// Apply firstperson legs distortion effect to clip space position and normal.
+// This creates a fish-eye warping effect on player legs in first-person view,
+// preventing clipping when looking down by scaling outward and pulling back.
+void ApplyFirstpersonLegsDistortion(
+    in vec3 vertexPosOS,
+    in vec3 vertexPosWS,
+    in vec4 clipSpacePos,
+    in vec3 normal,
+    in float viewDirZ,
+    out vec4 outClipSpacePos,
+    out vec3 outNormal)
+{
+    // Calculate distortion factor based on:
+    // 1. Vertex Z height (legs height) - normalized and clamped
+    // 2. Camera pitch (looking down) - squared for sharper falloff
+    float heightFactor = clamp((vertexPosOS.z + 1.0) * 0.0125, 0.0, 1.0) * 0.5;
+    float pitchFactor = pow(clamp(-viewDirZ, 0.0, 1.0), 2.0);
+    float distortionAmount = pow(heightFactor * pitchFactor, 1.5);
+
+    // Apply distortion to clip space position
+    vec2 scaledXY = clipSpacePos.xy * (1.0 + (5.0 * distortionAmount)); // Scale XY outward by up to 5x
+    float offsetY = scaledXY.y - (200.0 * distortionAmount); // Pull down in Y
+    float offsetZ = clipSpacePos.z;// + (40.0 * distortionAmount); // Pull back in Z (depth)
+    
+    outClipSpacePos = vec4(scaledXY.x, offsetY, offsetZ, clipSpacePos.w);
+
+    // Adjust normal to point slightly upward when distortion is applied
+    outNormal = normalize(normal + (vec3(0.0, 0.0, 0.5) * float(int(sign(distortionAmount)))));
+}
 
 void main()
 {
@@ -298,11 +319,16 @@ void main()
 
     gl_Position = g_matWorldToProjection * vec4(vFragPosition, 1.0);
 
+    if (g_bFirstpersonLegsDistortion != 0)
+    {
+        ApplyFirstpersonLegsDistortion(vPOSITION, vFragPosition, gl_Position, vNormalOut, g_vCameraDirWs.z, gl_Position, vNormalOut);
+    }
+
 #if (F_SPHERICAL_PROJECTED_ANISOTROPIC_TANGENTS == 1)
     vAnisoBitangentOut = normalTransform * GetSphericalProjectedAnisoBitangent(normal, tangent.xyz);
 #endif
 
-#if (GameVfx_csgo_character != 0) && (F_EYEBALLS == 1) && (D_ANIMATED == 1)
+#if (GameVfx_csgo_character != 0) && (F_EYEBALLS == 1)
     eyeInterpolator = GetCharacterEyeInterpolator(vPOSITION);
 #endif
 
@@ -311,9 +337,6 @@ void main()
 #if (D_BAKED_LIGHTING_FROM_LIGHTMAP == 1)
     vLightmapUVScaled = vec3(vLightmapUV * g_vLightmapUvScale.xy, 0);
 #elif (D_BAKED_LIGHTING_FROM_VERTEX_STREAM == 1)
-    #if (GameVfx_vr_standard != 0)
-        vec4 vPerVertexLighting = vCOLOR1;
-    #endif
     vec3 Light = vPerVertexLighting.rgb * 6.0 * vPerVertexLighting.a;
     vPerVertexLightingOut = pow2(Light);
 #endif
@@ -321,7 +344,12 @@ void main()
     vVertexColorOut = GetTintColorLinear(object.vTint);
 
 #if !defined(vFoliageParams) && ((F_VERTEX_COLOR == 1) || (F_PAINT_VERTEX_COLORS == 1))
-    vVertexColorOut *= SrgbGammaToLinear(vCOLOR);
+    #if (GameVfx_csgo_static_overlay != 0) || (GameVfx_vr_static_overlay != 0)
+        // Paint is multiplied without sRGB decode, and all-zero paint means unpainted
+        vVertexColorOut *= mix(vec4(1.0), vCOLOR, sign(dot(vCOLOR, vec4(1.0))));
+    #else
+        vVertexColorOut *= SrgbGammaToLinear(vCOLOR);
+    #endif
 #endif
 
 #if (F_SECONDARY_UV == 1) || (F_FORCE_UV2 == 1)

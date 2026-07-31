@@ -1,5 +1,8 @@
 "ResourceEditInfo"
 {
+	"InputDependencies"
+	{
+	}
 	"AdditionalInputDependencies"
 	{
 		"0"
@@ -7,30 +10,44 @@
 			"ContentRelativeFilename"	"models/props_structures/dmx/animation/bad_ancient_ambient_blast_anim.dmx"
 			"ContentSearchPath"	"dota"
 			"FileCRC"	"408231207"
+			"Optional"	"0"
 			"FileExists"	"1"
 			"IsGameFile"	"0"
-			"Optional"	"0"
 		}
-	}
-	"AdditionalRelatedFiles"
-	{
 	}
 	"ArgumentDependencies"
 	{
 		"0"
 		{
-			"Fingerprint"	"3597450724"
-			"FingerprintDefault"	"0"
 			"ParameterName"	"___OverrideInputData___"
 			"ParameterType"	"BinaryBlobArg"
+			"Fingerprint"	"3597450724"
+			"FingerprintDefault"	"0"
 		}
+	}
+	"SpecialDependencies"
+	{
+		"0"
+		{
+			"String"	"Animation Group Compiler Version"
+			"CompilerIdentifier"	"CompileAnimGroup"
+			"Fingerprint"	"33"
+			"UserData"	"0"
+		}
+		"1"
+		{
+			"String"	"Animation Compiler Version"
+			"CompilerIdentifier"	"CompileAnimation"
+			"Fingerprint"	"42"
+			"UserData"	"0"
+		}
+	}
+	"AdditionalRelatedFiles"
+	{
 	}
 	"ChildResourceList"
 	{
 		"0"	"models/285461c2/bad_ancient_ambient_blast_anim.vanim"
-	}
-	"InputDependencies"
-	{
 	}
 	"SearchableUserData"
 	{
@@ -38,23 +55,6 @@
 		{
 			"Key"	"IsChildResource"
 			"Value"	"1"
-		}
-	}
-	"SpecialDependencies"
-	{
-		"0"
-		{
-			"CompilerIdentifier"	"CompileAnimGroup"
-			"Fingerprint"	"33"
-			"String"	"Animation Group Compiler Version"
-			"UserData"	"0"
-		}
-		"1"
-		{
-			"CompilerIdentifier"	"CompileAnimation"
-			"Fingerprint"	"42"
-			"String"	"Animation Compiler Version"
-			"UserData"	"0"
 		}
 	}
 }

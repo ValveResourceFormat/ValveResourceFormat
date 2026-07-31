@@ -13,5 +13,13 @@ public enum UiType
     VectorText,
     CheckBox,
     Enum,
+    LayerReference,
+    HeightBlend,
+    ColorCorrection,
+    Span,
+    AngularSpan,
+    HeightCorrection,
+    SubsurfaceProfile,
+    Direction3D,
 #pragma warning restore CS1591
 }

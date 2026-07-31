@@ -81,8 +81,6 @@ partial class MainFormBottomPanel
         //
         // MainFormBottomPanel
         //
-        AutoScaleDimensions = new System.Drawing.SizeF(7F, 15F);
-        AutoScaleMode = AutoScaleMode.Font;
         Controls.Add(keybindingsPanel);
         Controls.Add(menuStrip1);
         Name = "MainFormBottomPanel";

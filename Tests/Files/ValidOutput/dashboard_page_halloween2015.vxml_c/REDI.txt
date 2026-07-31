@@ -1,118 +1,260 @@
 "ResourceEditInfo"
 {
-	"AdditionalInputDependencies"
+	"InputDependencies"
 	{
+		"0"
+		{
+			"ContentRelativeFilename"	"panorama/layout/leaf_pages/dashboard_page_halloween2015.vxml"
+			"ContentSearchPath"	"dota"
+			"FileCRC"	"0"
+			"Optional"	"1"
+			"FileExists"	"0"
+			"IsGameFile"	"0"
+		}
+		"1"
+		{
+			"ContentRelativeFilename"	"panorama/layout/leaf_pages/dashboard_page_halloween2015.xml"
+			"ContentSearchPath"	"dota"
+			"FileCRC"	"2271007145"
+			"Optional"	"0"
+			"FileExists"	"1"
+			"IsGameFile"	"0"
+		}
+		"2"
+		{
+			"ContentRelativeFilename"	"panorama/images/leaf_pages/halloween2015/candles.txt"
+			"ContentSearchPath"	"dota"
+			"FileCRC"	"0"
+			"Optional"	"1"
+			"FileExists"	"0"
+			"IsGameFile"	"0"
+		}
+		"3"
+		{
+			"ContentRelativeFilename"	"panorama/images/leaf_pages/halloween2015/candles.psd"
+			"ContentSearchPath"	"dota"
+			"FileCRC"	"993085149"
+			"Optional"	"0"
+			"FileExists"	"1"
+			"IsGameFile"	"0"
+		}
+		"4"
+		{
+			"ContentRelativeFilename"	"panorama/images/leaf_pages/halloween2015/tip1.txt"
+			"ContentSearchPath"	"dota"
+			"FileCRC"	"0"
+			"Optional"	"1"
+			"FileExists"	"0"
+			"IsGameFile"	"0"
+		}
+		"5"
+		{
+			"ContentRelativeFilename"	"panorama/images/leaf_pages/halloween2015/tip1.psd"
+			"ContentSearchPath"	"dota"
+			"FileCRC"	"2687533869"
+			"Optional"	"0"
+			"FileExists"	"1"
+			"IsGameFile"	"0"
+		}
+		"6"
+		{
+			"ContentRelativeFilename"	"panorama/images/leaf_pages/halloween2015/tip2.txt"
+			"ContentSearchPath"	"dota"
+			"FileCRC"	"0"
+			"Optional"	"1"
+			"FileExists"	"0"
+			"IsGameFile"	"0"
+		}
+		"7"
+		{
+			"ContentRelativeFilename"	"panorama/images/leaf_pages/halloween2015/tip2.psd"
+			"ContentSearchPath"	"dota"
+			"FileCRC"	"3416744881"
+			"Optional"	"0"
+			"FileExists"	"1"
+			"IsGameFile"	"0"
+		}
+		"8"
+		{
+			"ContentRelativeFilename"	"panorama/images/leaf_pages/halloween2015/tip3.txt"
+			"ContentSearchPath"	"dota"
+			"FileCRC"	"0"
+			"Optional"	"1"
+			"FileExists"	"0"
+			"IsGameFile"	"0"
+		}
+		"9"
+		{
+			"ContentRelativeFilename"	"panorama/images/leaf_pages/halloween2015/tip3.psd"
+			"ContentSearchPath"	"dota"
+			"FileCRC"	"1968426625"
+			"Optional"	"0"
+			"FileExists"	"1"
+			"IsGameFile"	"0"
+		}
+		"10"
+		{
+			"ContentRelativeFilename"	"panorama/images/leaf_pages/halloween2015/tip4.txt"
+			"ContentSearchPath"	"dota"
+			"FileCRC"	"0"
+			"Optional"	"1"
+			"FileExists"	"0"
+			"IsGameFile"	"0"
+		}
+		"11"
+		{
+			"ContentRelativeFilename"	"panorama/images/leaf_pages/halloween2015/tip4.psd"
+			"ContentSearchPath"	"dota"
+			"FileCRC"	"3905594094"
+			"Optional"	"0"
+			"FileExists"	"1"
+			"IsGameFile"	"0"
+		}
 	}
-	"AdditionalRelatedFiles"
+	"AdditionalInputDependencies"
 	{
 	}
 	"ArgumentDependencies"
 	{
 		"0"
 		{
-			"Fingerprint"	"0"
-			"FingerprintDefault"	"0"
 			"ParameterName"	"___OverrideInputData___"
 			"ParameterType"	"BinaryBlobArg"
+			"Fingerprint"	"0"
+			"FingerprintDefault"	"0"
 		}
 		"1"
 		{
-			"Fingerprint"	"0"
-			"FingerprintDefault"	"0"
 			"ParameterName"	"compress"
 			"ParameterType"	"IntArg"
+			"Fingerprint"	"0"
+			"FingerprintDefault"	"0"
 		}
 		"2"
 		{
-			"Fingerprint"	"0"
-			"FingerprintDefault"	"0"
 			"ParameterName"	"fast"
 			"ParameterType"	"IntArg"
+			"Fingerprint"	"0"
+			"FingerprintDefault"	"0"
 		}
 		"3"
 		{
-			"Fingerprint"	"0"
-			"FingerprintDefault"	"0"
 			"ParameterName"	"minmipsize"
 			"ParameterType"	"IntArg"
+			"Fingerprint"	"0"
+			"FingerprintDefault"	"0"
 		}
 		"4"
 		{
-			"Fingerprint"	"1048576"
-			"FingerprintDefault"	"1048576"
 			"ParameterName"	"maxmipsize"
 			"ParameterType"	"IntArg"
+			"Fingerprint"	"1048576"
+			"FingerprintDefault"	"1048576"
 		}
 		"5"
 		{
-			"Fingerprint"	"0"
-			"FingerprintDefault"	"0"
 			"ParameterName"	"panorama/images/leaf_pages/halloween2015/candles.psd"
 			"ParameterType"	"ImageArg"
+			"Fingerprint"	"0"
+			"FingerprintDefault"	"0"
 		}
 		"6"
 		{
-			"Fingerprint"	"0"
-			"FingerprintDefault"	"0"
 			"ParameterName"	"panorama/images/leaf_pages/halloween2015/candles.psd"
 			"ParameterType"	"BinaryBlobArg"
+			"Fingerprint"	"0"
+			"FingerprintDefault"	"0"
 		}
 		"7"
 		{
-			"Fingerprint"	"0"
-			"FingerprintDefault"	"0"
 			"ParameterName"	"panorama/images/leaf_pages/halloween2015/tip1.psd"
 			"ParameterType"	"ImageArg"
+			"Fingerprint"	"0"
+			"FingerprintDefault"	"0"
 		}
 		"8"
 		{
-			"Fingerprint"	"0"
-			"FingerprintDefault"	"0"
 			"ParameterName"	"panorama/images/leaf_pages/halloween2015/tip1.psd"
 			"ParameterType"	"BinaryBlobArg"
+			"Fingerprint"	"0"
+			"FingerprintDefault"	"0"
 		}
 		"9"
 		{
-			"Fingerprint"	"0"
-			"FingerprintDefault"	"0"
 			"ParameterName"	"panorama/images/leaf_pages/halloween2015/tip2.psd"
 			"ParameterType"	"ImageArg"
+			"Fingerprint"	"0"
+			"FingerprintDefault"	"0"
 		}
 		"10"
 		{
-			"Fingerprint"	"0"
-			"FingerprintDefault"	"0"
 			"ParameterName"	"panorama/images/leaf_pages/halloween2015/tip2.psd"
 			"ParameterType"	"BinaryBlobArg"
+			"Fingerprint"	"0"
+			"FingerprintDefault"	"0"
 		}
 		"11"
 		{
-			"Fingerprint"	"0"
-			"FingerprintDefault"	"0"
 			"ParameterName"	"panorama/images/leaf_pages/halloween2015/tip3.psd"
 			"ParameterType"	"ImageArg"
+			"Fingerprint"	"0"
+			"FingerprintDefault"	"0"
 		}
 		"12"
 		{
-			"Fingerprint"	"0"
-			"FingerprintDefault"	"0"
 			"ParameterName"	"panorama/images/leaf_pages/halloween2015/tip3.psd"
 			"ParameterType"	"BinaryBlobArg"
+			"Fingerprint"	"0"
+			"FingerprintDefault"	"0"
 		}
 		"13"
 		{
-			"Fingerprint"	"0"
-			"FingerprintDefault"	"0"
 			"ParameterName"	"panorama/images/leaf_pages/halloween2015/tip4.psd"
 			"ParameterType"	"ImageArg"
+			"Fingerprint"	"0"
+			"FingerprintDefault"	"0"
 		}
 		"14"
 		{
-			"Fingerprint"	"0"
-			"FingerprintDefault"	"0"
 			"ParameterName"	"panorama/images/leaf_pages/halloween2015/tip4.psd"
 			"ParameterType"	"BinaryBlobArg"
+			"Fingerprint"	"0"
+			"FingerprintDefault"	"0"
 		}
+	}
+	"SpecialDependencies"
+	{
+		"0"
+		{
+			"String"	"Panorama Layout Compiler Version"
+			"CompilerIdentifier"	"CompilePanorama"
+			"Fingerprint"	"1"
+			"UserData"	"0"
+		}
+		"1"
+		{
+			"String"	"Texture Compiler Version"
+			"CompilerIdentifier"	"CompileTexture"
+			"Fingerprint"	"11"
+			"UserData"	"0"
+		}
+		"2"
+		{
+			"String"	"Texture Compiler Version Image Dilate Color"
+			"CompilerIdentifier"	"CompileTexture"
+			"Fingerprint"	"1"
+			"UserData"	"0"
+		}
+		"3"
+		{
+			"String"	"Texture Compiler Version Mip None"
+			"CompilerIdentifier"	"CompileTexture"
+			"Fingerprint"	"1"
+			"UserData"	"0"
+		}
+	}
+	"AdditionalRelatedFiles"
+	{
 	}
 	"ChildResourceList"
 	{
@@ -122,154 +264,12 @@
 		"3"	"panorama/images/leaf_pages/halloween2015/tip3_psd.vtex"
 		"4"	"panorama/images/leaf_pages/halloween2015/tip4_psd.vtex"
 	}
-	"InputDependencies"
-	{
-		"0"
-		{
-			"ContentRelativeFilename"	"panorama/layout/leaf_pages/dashboard_page_halloween2015.vxml"
-			"ContentSearchPath"	"dota"
-			"FileCRC"	"0"
-			"FileExists"	"0"
-			"IsGameFile"	"0"
-			"Optional"	"1"
-		}
-		"1"
-		{
-			"ContentRelativeFilename"	"panorama/layout/leaf_pages/dashboard_page_halloween2015.xml"
-			"ContentSearchPath"	"dota"
-			"FileCRC"	"2271007145"
-			"FileExists"	"1"
-			"IsGameFile"	"0"
-			"Optional"	"0"
-		}
-		"2"
-		{
-			"ContentRelativeFilename"	"panorama/images/leaf_pages/halloween2015/candles.txt"
-			"ContentSearchPath"	"dota"
-			"FileCRC"	"0"
-			"FileExists"	"0"
-			"IsGameFile"	"0"
-			"Optional"	"1"
-		}
-		"3"
-		{
-			"ContentRelativeFilename"	"panorama/images/leaf_pages/halloween2015/candles.psd"
-			"ContentSearchPath"	"dota"
-			"FileCRC"	"993085149"
-			"FileExists"	"1"
-			"IsGameFile"	"0"
-			"Optional"	"0"
-		}
-		"4"
-		{
-			"ContentRelativeFilename"	"panorama/images/leaf_pages/halloween2015/tip1.txt"
-			"ContentSearchPath"	"dota"
-			"FileCRC"	"0"
-			"FileExists"	"0"
-			"IsGameFile"	"0"
-			"Optional"	"1"
-		}
-		"5"
-		{
-			"ContentRelativeFilename"	"panorama/images/leaf_pages/halloween2015/tip1.psd"
-			"ContentSearchPath"	"dota"
-			"FileCRC"	"2687533869"
-			"FileExists"	"1"
-			"IsGameFile"	"0"
-			"Optional"	"0"
-		}
-		"6"
-		{
-			"ContentRelativeFilename"	"panorama/images/leaf_pages/halloween2015/tip2.txt"
-			"ContentSearchPath"	"dota"
-			"FileCRC"	"0"
-			"FileExists"	"0"
-			"IsGameFile"	"0"
-			"Optional"	"1"
-		}
-		"7"
-		{
-			"ContentRelativeFilename"	"panorama/images/leaf_pages/halloween2015/tip2.psd"
-			"ContentSearchPath"	"dota"
-			"FileCRC"	"3416744881"
-			"FileExists"	"1"
-			"IsGameFile"	"0"
-			"Optional"	"0"
-		}
-		"8"
-		{
-			"ContentRelativeFilename"	"panorama/images/leaf_pages/halloween2015/tip3.txt"
-			"ContentSearchPath"	"dota"
-			"FileCRC"	"0"
-			"FileExists"	"0"
-			"IsGameFile"	"0"
-			"Optional"	"1"
-		}
-		"9"
-		{
-			"ContentRelativeFilename"	"panorama/images/leaf_pages/halloween2015/tip3.psd"
-			"ContentSearchPath"	"dota"
-			"FileCRC"	"1968426625"
-			"FileExists"	"1"
-			"IsGameFile"	"0"
-			"Optional"	"0"
-		}
-		"10"
-		{
-			"ContentRelativeFilename"	"panorama/images/leaf_pages/halloween2015/tip4.txt"
-			"ContentSearchPath"	"dota"
-			"FileCRC"	"0"
-			"FileExists"	"0"
-			"IsGameFile"	"0"
-			"Optional"	"1"
-		}
-		"11"
-		{
-			"ContentRelativeFilename"	"panorama/images/leaf_pages/halloween2015/tip4.psd"
-			"ContentSearchPath"	"dota"
-			"FileCRC"	"3905594094"
-			"FileExists"	"1"
-			"IsGameFile"	"0"
-			"Optional"	"0"
-		}
-	}
 	"SearchableUserData"
 	{
 		"0"
 		{
 			"Key"	"IsChildResource"
 			"Value"	"0"
-		}
-	}
-	"SpecialDependencies"
-	{
-		"0"
-		{
-			"CompilerIdentifier"	"CompilePanorama"
-			"Fingerprint"	"1"
-			"String"	"Panorama Layout Compiler Version"
-			"UserData"	"0"
-		}
-		"1"
-		{
-			"CompilerIdentifier"	"CompileTexture"
-			"Fingerprint"	"11"
-			"String"	"Texture Compiler Version"
-			"UserData"	"0"
-		}
-		"2"
-		{
-			"CompilerIdentifier"	"CompileTexture"
-			"Fingerprint"	"1"
-			"String"	"Texture Compiler Version Image Dilate Color"
-			"UserData"	"0"
-		}
-		"3"
-		{
-			"CompilerIdentifier"	"CompileTexture"
-			"Fingerprint"	"1"
-			"String"	"Texture Compiler Version Mip None"
-			"UserData"	"0"
 		}
 	}
 }

@@ -36,9 +36,9 @@ namespace ValveResourceFormat
         }
 
         /// <summary>
-        /// Gets or sets the number of spaces to indent.
+        /// Gets or sets the number of indentation levels; each level emits one <see cref="TabString"/>.
         /// </summary>
-        /// <returns> The number of spaces to indent. </returns>
+        /// <returns> The number of indentation levels. </returns>
         public int Indent
         {
             get
@@ -101,9 +101,9 @@ namespace ValveResourceFormat
         }
 
         /// <summary>
-        /// Grows this writer to match the specified min capacity.
+        /// Grows this writer's capacity by at least the specified amount beyond the current content length.
         /// </summary>
-        /// <param name="minCapacity">The minimum capacity for this writer.</param>
+        /// <param name="minCapacity">The additional capacity to reserve beyond the current length.</param>
         public int Grow(int minCapacity) => writer.GetStringBuilder().EnsureCapacity(writer.GetStringBuilder().Length + minCapacity);
 
         /// <summary>

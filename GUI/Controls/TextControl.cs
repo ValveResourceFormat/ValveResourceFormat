@@ -1,5 +1,5 @@
 using System.Windows.Forms;
-using static GUI.Controls.CodeTextBox;
+using GUI.Utils;
 
 namespace GUI.Controls
 {

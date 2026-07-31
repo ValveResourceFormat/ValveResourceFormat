@@ -1,12 +1,28 @@
 namespace ValveResourceFormat.Renderer.Particles.Initializers
 {
+    /// <summary>
+    /// Places particles at random positions within a sphere defined by a minimum and maximum radius,
+    /// and assigns an initial outward velocity sampled from a speed range. An optional local
+    /// coordinate system speed can add a directional bias to the velocity.
+    /// </summary>
     class CreateWithinSphere : ParticleFunctionInitializer
     {
+        /// <summary>Minimum distance to spawn from the center of the sphere.</summary>
         protected readonly INumberProvider radiusMin = new LiteralNumberProvider(0);
+
+        /// <summary>Maximum distance to spawn from the center of the sphere.</summary>
         protected readonly INumberProvider radiusMax = new LiteralNumberProvider(0);
+
+        /// <summary>Minimum initial speed of the particle emitted outward from the sphere.</summary>
         protected readonly INumberProvider speedMin = new LiteralNumberProvider(0);
+
+        /// <summary>Maximum initial speed of the particle emitted outward from the sphere.</summary>
         protected readonly INumberProvider speedMax = new LiteralNumberProvider(0);
+
+        /// <summary>Local space minimum initial speed of the particle in x y z.</summary>
         protected readonly IVectorProvider localCoordinateSystemSpeedMin = new LiteralVectorProvider(Vector3.Zero);
+
+        /// <summary>Local space maximum initial speed of the particle in x y z.</summary>
         protected readonly IVectorProvider localCoordinateSystemSpeedMax = new LiteralVectorProvider(Vector3.Zero);
 
         public CreateWithinSphere(ParticleDefinitionParser parse) : base(parse)
@@ -19,7 +35,7 @@ namespace ValveResourceFormat.Renderer.Particles.Initializers
             localCoordinateSystemSpeedMax = parse.VectorProvider("m_LocalCoordinateSystemSpeedMax", localCoordinateSystemSpeedMax);
         }
 
-        public override Particle Initialize(ref Particle particle, ParticleSystemRenderState particleSystemState)
+        public override Particle Initialize(ref Particle particle, ParticleCollection particles, ParticleSystemRenderState particleSystemState)
         {
             var randomVector = ParticleCollection.RandomBetweenPerComponent(particle.ParticleID, new Vector3(-1), new Vector3(1));
 
@@ -42,7 +58,6 @@ namespace ValveResourceFormat.Renderer.Particles.Initializers
                 localCoordinateSystemSpeedMax.NextVector(ref particle, particleSystemState));
 
             particle.Position += direction * distance;
-            particle.PositionPrevious = particle.Position;
             particle.Velocity = (direction * speed) + localCoordinateSystemSpeed;
 
             return particle;

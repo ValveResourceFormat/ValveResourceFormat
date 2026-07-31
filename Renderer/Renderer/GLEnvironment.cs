@@ -1,3 +1,4 @@
+using System.Threading;
 using Microsoft.Extensions.Logging;
 using OpenTK.Graphics.OpenGL;
 
@@ -31,7 +32,19 @@ public static class GLEnvironment
     }
 
     private static ParallelShaderCompileType ParallelShaderCompileSupport = ParallelShaderCompileType.None;
+    private static int parallelShaderCompileConfigured;
+
+    /// <summary>
+    /// Indicates whether indirect count draw calls are supported by the current driver.
+    /// </summary>
     public static bool IndirectCountSupported { get; private set; }
+
+    /// <summary>
+    /// Indicates whether the driver does not perform efficiently with small sub-draws, making GPU-driven
+    /// rendering slower than direct draws. Intel drivers also misassign gl_BaseInstance across
+    /// sub-draws when baseVertex varies within one multidraw.
+    /// </summary>
+    public static bool SlowMultiDrawIndirect { get; private set; }
 
     /// <summary>
     /// Gets the GPU renderer name and driver version string.
@@ -54,7 +67,8 @@ public static class GLEnvironment
         var major = GL.GetInteger(GetPName.MajorVersion);
 
         var vendor = GL.GetString(StringName.Vendor);
-        var gpu = $"GPU: {GL.GetString(StringName.Renderer)}, Driver: {GL.GetString(StringName.Version)}";
+        var renderer = GL.GetString(StringName.Renderer);
+        var gpu = $"GPU: {renderer}, Driver: {GL.GetString(StringName.Version)}";
 
         GpuRendererAndDriver = gpu;
 
@@ -77,6 +91,8 @@ public static class GLEnvironment
 
         // not supported on Intel integrated drivers
         IndirectCountSupported = vendor != "Intel";
+        SlowMultiDrawIndirect = vendor == "Intel"
+            && (renderer.Contains("Intel(R) HD", StringComparison.Ordinal) || renderer.Contains("Intel(R) UHD", StringComparison.Ordinal));
 
         if (extensions.Contains("GL_KHR_parallel_shader_compile"))
         {
@@ -112,14 +128,17 @@ public static class GLEnvironment
         GL.DepthFunc(DepthFunction.Greater);
         GL.ClearDepth(0.0f);
 
-        // Parallel shader compilation, 0xFFFFFFFF requests an implementation-specific maximum
-        if (GLEnvironment.ParallelShaderCompileSupport == GLEnvironment.ParallelShaderCompileType.Khr)
+        // Process-global driver setting; configure exactly once (re-issuing it mid-compile crashes some drivers).
+        if (Interlocked.CompareExchange(ref parallelShaderCompileConfigured, 1, 0) == 0)
         {
-            GL.Khr.MaxShaderCompilerThreads(uint.MaxValue);
-        }
-        else if (GLEnvironment.ParallelShaderCompileSupport == GLEnvironment.ParallelShaderCompileType.Arb)
-        {
-            GL.Arb.MaxShaderCompilerThreads(uint.MaxValue);
+            if (ParallelShaderCompileSupport == ParallelShaderCompileType.Khr)
+            {
+                GL.Khr.MaxShaderCompilerThreads(uint.MaxValue);
+            }
+            else if (ParallelShaderCompileSupport == ParallelShaderCompileType.Arb)
+            {
+                GL.Arb.MaxShaderCompilerThreads(uint.MaxValue);
+            }
         }
     }
 
@@ -132,7 +151,7 @@ public static class GLEnvironment
     }
 
     /// <summary>
-    /// Converts a <see cref="Matrix4x4"/> to an OpenTK Matrix3x4 by dropping the last row.
+    /// Converts a <see cref="Matrix4x4"/> to an OpenTK Matrix3x4, transposing the matrix and dropping the last (M14/M24/M34/M44) column.
     /// </summary>
     public static OpenTK.Mathematics.Matrix3x4 To3x4(this Matrix4x4 m)
     {

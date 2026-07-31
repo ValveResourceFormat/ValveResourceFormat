@@ -1,24 +1,5 @@
 "ResourceEditInfo"
 {
-	"AdditionalInputDependencies"
-	{
-	}
-	"AdditionalRelatedFiles"
-	{
-	}
-	"ArgumentDependencies"
-	{
-		"0"
-		{
-			"Fingerprint"	"0"
-			"FingerprintDefault"	"0"
-			"ParameterName"	"___OverrideInputData___"
-			"ParameterType"	"BinaryBlobArg"
-		}
-	}
-	"ChildResourceList"
-	{
-	}
 	"InputDependencies"
 	{
 		"0"
@@ -26,10 +7,39 @@
 			"ContentRelativeFilename"	"particles/sequence_test.vpcf"
 			"ContentSearchPath"	"dota"
 			"FileCRC"	"1964791923"
+			"Optional"	"0"
 			"FileExists"	"1"
 			"IsGameFile"	"0"
-			"Optional"	"0"
 		}
+	}
+	"AdditionalInputDependencies"
+	{
+	}
+	"ArgumentDependencies"
+	{
+		"0"
+		{
+			"ParameterName"	"___OverrideInputData___"
+			"ParameterType"	"BinaryBlobArg"
+			"Fingerprint"	"0"
+			"FingerprintDefault"	"0"
+		}
+	}
+	"SpecialDependencies"
+	{
+		"0"
+		{
+			"String"	"KV3 Compiler Version"
+			"CompilerIdentifier"	"CompileParticle"
+			"Fingerprint"	"1"
+			"UserData"	"0"
+		}
+	}
+	"AdditionalRelatedFiles"
+	{
+	}
+	"ChildResourceList"
+	{
 	}
 	"SearchableUserData"
 	{
@@ -37,16 +47,6 @@
 		{
 			"Key"	"IsChildResource"
 			"Value"	"0"
-		}
-	}
-	"SpecialDependencies"
-	{
-		"0"
-		{
-			"CompilerIdentifier"	"CompileParticle"
-			"Fingerprint"	"1"
-			"String"	"KV3 Compiler Version"
-			"UserData"	"0"
 		}
 	}
 }

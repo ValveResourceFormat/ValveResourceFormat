@@ -1,111 +1,504 @@
 "ResourceEditInfo"
 {
-	"AdditionalInputDependencies"
+	"InputDependencies"
 	{
+		"0"
+		{
+			"ContentRelativeFilename"	"maps/dota.vmap"
+			"ContentSearchPath"	"dota"
+			"FileCRC"	"2238657056"
+			"Optional"	"0"
+			"FileExists"	"1"
+			"IsGameFile"	"0"
+		}
+		"1"
+		{
+			"ContentRelativeFilename"	"maps/dota/clips.vmap"
+			"ContentSearchPath"	"dota"
+			"FileCRC"	"4118702014"
+			"Optional"	"0"
+			"FileExists"	"1"
+			"IsGameFile"	"0"
+		}
+		"2"
+		{
+			"ContentRelativeFilename"	"maps/dota/dest_dire.vmap"
+			"ContentSearchPath"	"dota"
+			"FileCRC"	"3172375440"
+			"Optional"	"0"
+			"FileExists"	"1"
+			"IsGameFile"	"0"
+		}
+		"3"
+		{
+			"ContentRelativeFilename"	"maps/dota/dest_radiant.vmap"
+			"ContentSearchPath"	"dota"
+			"FileCRC"	"706904138"
+			"Optional"	"0"
+			"FileExists"	"1"
+			"IsGameFile"	"0"
+		}
+		"4"
+		{
+			"ContentRelativeFilename"	"maps/dota/dire.vmap"
+			"ContentSearchPath"	"dota"
+			"FileCRC"	"1045137569"
+			"Optional"	"0"
+			"FileExists"	"1"
+			"IsGameFile"	"0"
+		}
+		"5"
+		{
+			"ContentRelativeFilename"	"maps/dota/dota.vmap"
+			"ContentSearchPath"	"dota"
+			"FileCRC"	"3403037264"
+			"Optional"	"0"
+			"FileExists"	"1"
+			"IsGameFile"	"0"
+		}
+		"6"
+		{
+			"ContentRelativeFilename"	"maps/dota/lighting.vmap"
+			"ContentSearchPath"	"dota"
+			"FileCRC"	"1739859459"
+			"Optional"	"0"
+			"FileExists"	"1"
+			"IsGameFile"	"0"
+		}
+		"7"
+		{
+			"ContentRelativeFilename"	"maps/dota/particles.vmap"
+			"ContentSearchPath"	"dota"
+			"FileCRC"	"1307036160"
+			"Optional"	"0"
+			"FileExists"	"1"
+			"IsGameFile"	"0"
+		}
+		"8"
+		{
+			"ContentRelativeFilename"	"maps/dota/plants.vmap"
+			"ContentSearchPath"	"dota"
+			"FileCRC"	"1157431634"
+			"Optional"	"0"
+			"FileExists"	"1"
+			"IsGameFile"	"0"
+		}
+		"9"
+		{
+			"ContentRelativeFilename"	"maps/dota/soundscape.vmap"
+			"ContentSearchPath"	"dota"
+			"FileCRC"	"2905501848"
+			"Optional"	"0"
+			"FileExists"	"1"
+			"IsGameFile"	"0"
+		}
+		"10"
+		{
+			"ContentRelativeFilename"	"maps/dota/tools.vmap"
+			"ContentSearchPath"	"dota"
+			"FileCRC"	"1435766914"
+			"Optional"	"0"
+			"FileExists"	"1"
+			"IsGameFile"	"0"
+		}
+		"11"
+		{
+			"ContentRelativeFilename"	"maps/dota/trees.vmap"
+			"ContentSearchPath"	"dota"
+			"FileCRC"	"895370052"
+			"Optional"	"0"
+			"FileExists"	"1"
+			"IsGameFile"	"0"
+		}
+		"12"
+		{
+			"ContentRelativeFilename"	"maps/dota/triggers.vmap"
+			"ContentSearchPath"	"dota"
+			"FileCRC"	"2383346362"
+			"Optional"	"0"
+			"FileExists"	"1"
+			"IsGameFile"	"0"
+		}
+		"13"
+		{
+			"ContentRelativeFilename"	"maps/dota/tutorial_mid.vmap"
+			"ContentSearchPath"	"dota"
+			"FileCRC"	"888321204"
+			"Optional"	"0"
+			"FileExists"	"1"
+			"IsGameFile"	"0"
+		}
+		"14"
+		{
+			"ContentRelativeFilename"	"maps/dota/water.vmap"
+			"ContentSearchPath"	"dota"
+			"FileCRC"	"3861927634"
+			"Optional"	"0"
+			"FileExists"	"1"
+			"IsGameFile"	"0"
+		}
+		"15"
+		{
+			"ContentRelativeFilename"	"maps/prefabs/dota_custom_default_000.vmap"
+			"ContentSearchPath"	"dota"
+			"FileCRC"	"3918140382"
+			"Optional"	"0"
+			"FileExists"	"1"
+			"IsGameFile"	"0"
+		}
+		"16"
+		{
+			"ContentRelativeFilename"	"maps/prefabs/dota_pvp_prefab.vmap"
+			"ContentSearchPath"	"dota"
+			"FileCRC"	"1667893266"
+			"Optional"	"0"
+			"FileExists"	"1"
+			"IsGameFile"	"0"
+		}
+		"17"
+		{
+			"ContentRelativeFilename"	"maps/prefabs/rune_water.vmap"
+			"ContentSearchPath"	"dota"
+			"FileCRC"	"2480822231"
+			"Optional"	"0"
+			"FileExists"	"1"
+			"IsGameFile"	"0"
+		}
+		"18"
+		{
+			"ContentRelativeFilename"	"maps/prefabs/shop_keeper_dire.vmap"
+			"ContentSearchPath"	"dota"
+			"FileCRC"	"2487150455"
+			"Optional"	"0"
+			"FileExists"	"1"
+			"IsGameFile"	"0"
+		}
+		"19"
+		{
+			"ContentRelativeFilename"	"maps/prefabs/shop_keeper_radiant.vmap"
+			"ContentSearchPath"	"dota"
+			"FileCRC"	"2134078453"
+			"Optional"	"0"
+			"FileExists"	"1"
+			"IsGameFile"	"0"
+		}
+		"20"
+		{
+			"ContentRelativeFilename"	"maps/prefabs/shop_quirt_default.vmap"
+			"ContentSearchPath"	"dota"
+			"FileCRC"	"2621105669"
+			"Optional"	"0"
+			"FileExists"	"1"
+			"IsGameFile"	"0"
+		}
+		"21"
+		{
+			"ContentRelativeFilename"	"maps/prefabs/shop_sithil.vmap"
+			"ContentSearchPath"	"dota"
+			"FileCRC"	"585793673"
+			"Optional"	"0"
+			"FileExists"	"1"
+			"IsGameFile"	"0"
+		}
+		"22"
+		{
+			"ContentRelativeFilename"	"maps/prefabs/structure_ancient_dire.vmap"
+			"ContentSearchPath"	"dota"
+			"FileCRC"	"3022116202"
+			"Optional"	"0"
+			"FileExists"	"1"
+			"IsGameFile"	"0"
+		}
+		"23"
+		{
+			"ContentRelativeFilename"	"maps/prefabs/structure_ancient_radiant.vmap"
+			"ContentSearchPath"	"dota"
+			"FileCRC"	"842312326"
+			"Optional"	"0"
+			"FileExists"	"1"
+			"IsGameFile"	"0"
+		}
+		"24"
+		{
+			"ContentRelativeFilename"	"maps/prefabs/structure_barracks_melee_dire.vmap"
+			"ContentSearchPath"	"dota"
+			"FileCRC"	"2504017442"
+			"Optional"	"0"
+			"FileExists"	"1"
+			"IsGameFile"	"0"
+		}
+		"25"
+		{
+			"ContentRelativeFilename"	"maps/prefabs/structure_barracks_melee_radiant.vmap"
+			"ContentSearchPath"	"dota"
+			"FileCRC"	"786486420"
+			"Optional"	"0"
+			"FileExists"	"1"
+			"IsGameFile"	"0"
+		}
+		"26"
+		{
+			"ContentRelativeFilename"	"maps/prefabs/structure_barracks_ranged_dire.vmap"
+			"ContentSearchPath"	"dota"
+			"FileCRC"	"4000202772"
+			"Optional"	"0"
+			"FileExists"	"1"
+			"IsGameFile"	"0"
+		}
+		"27"
+		{
+			"ContentRelativeFilename"	"maps/prefabs/structure_barracks_ranged_radiant.vmap"
+			"ContentSearchPath"	"dota"
+			"FileCRC"	"198715513"
+			"Optional"	"0"
+			"FileExists"	"1"
+			"IsGameFile"	"0"
+		}
+		"28"
+		{
+			"ContentRelativeFilename"	"maps/prefabs/structure_filler_dire.vmap"
+			"ContentSearchPath"	"dota"
+			"FileCRC"	"4264760874"
+			"Optional"	"0"
+			"FileExists"	"1"
+			"IsGameFile"	"0"
+		}
+		"29"
+		{
+			"ContentRelativeFilename"	"maps/prefabs/structure_filler_radiant.vmap"
+			"ContentSearchPath"	"dota"
+			"FileCRC"	"522067376"
+			"Optional"	"0"
+			"FileExists"	"1"
+			"IsGameFile"	"0"
+		}
+		"30"
+		{
+			"ContentRelativeFilename"	"maps/prefabs/structure_fountain_radiant.vmap"
+			"ContentSearchPath"	"dota"
+			"FileCRC"	"3133985709"
+			"Optional"	"0"
+			"FileExists"	"1"
+			"IsGameFile"	"0"
+		}
+		"31"
+		{
+			"ContentRelativeFilename"	"maps/prefabs/structure_tower_dire.vmap"
+			"ContentSearchPath"	"dota"
+			"FileCRC"	"233471341"
+			"Optional"	"0"
+			"FileExists"	"1"
+			"IsGameFile"	"0"
+		}
+		"32"
+		{
+			"ContentRelativeFilename"	"maps/prefabs/structure_tower_radiant.vmap"
+			"ContentSearchPath"	"dota"
+			"FileCRC"	"3806178872"
+			"Optional"	"0"
+			"FileExists"	"1"
+			"IsGameFile"	"0"
+		}
+		"33"
+		{
+			"ContentRelativeFilename"	"maps/tilesets/dire_basic.vmap"
+			"ContentSearchPath"	"dota"
+			"FileCRC"	"3029409662"
+			"Optional"	"0"
+			"FileExists"	"1"
+			"IsGameFile"	"0"
+		}
+		"34"
+		{
+			"ContentRelativeFilename"	"maps/tilesets/map_edge_generic.vmap"
+			"ContentSearchPath"	"dota"
+			"FileCRC"	"3089111605"
+			"Optional"	"0"
+			"FileExists"	"1"
+			"IsGameFile"	"0"
+		}
+		"35"
+		{
+			"ContentRelativeFilename"	"maps/tilesets/radiant_basic.vmap"
+			"ContentSearchPath"	"dota"
+			"FileCRC"	"2001968910"
+			"Optional"	"0"
+			"FileExists"	"1"
+			"IsGameFile"	"0"
+		}
 	}
-	"AdditionalRelatedFiles"
+	"AdditionalInputDependencies"
 	{
 	}
 	"ArgumentDependencies"
 	{
 		"0"
 		{
-			"Fingerprint"	"0"
-			"FingerprintDefault"	"0"
 			"ParameterName"	"___OverrideInputData___"
 			"ParameterType"	"BinaryBlobArg"
+			"Fingerprint"	"0"
+			"FingerprintDefault"	"0"
 		}
 		"1"
 		{
-			"Fingerprint"	"0"
-			"FingerprintDefault"	"0"
 			"ParameterName"	"skipmapload"
 			"ParameterType"	"IntArg"
+			"Fingerprint"	"0"
+			"FingerprintDefault"	"0"
 		}
 		"2"
 		{
-			"Fingerprint"	"0"
-			"FingerprintDefault"	"0"
 			"ParameterName"	"regdivlod"
 			"ParameterType"	"IntArg"
+			"Fingerprint"	"0"
+			"FingerprintDefault"	"0"
 		}
 		"3"
 		{
-			"Fingerprint"	"0"
-			"FingerprintDefault"	"0"
 			"ParameterName"	"regdiv"
 			"ParameterType"	"IntArg"
+			"Fingerprint"	"0"
+			"FingerprintDefault"	"0"
 		}
 		"4"
 		{
-			"Fingerprint"	"0"
-			"FingerprintDefault"	"0"
 			"ParameterName"	"nosky"
 			"ParameterType"	"IntArg"
+			"Fingerprint"	"0"
+			"FingerprintDefault"	"0"
 		}
 		"5"
 		{
-			"Fingerprint"	"0"
-			"FingerprintDefault"	"0"
 			"ParameterName"	"norte"
 			"ParameterType"	"IntArg"
+			"Fingerprint"	"0"
+			"FingerprintDefault"	"0"
 		}
 		"6"
 		{
-			"Fingerprint"	"0"
-			"FingerprintDefault"	"0"
 			"ParameterName"	"dumptris"
 			"ParameterType"	"IntArg"
+			"Fingerprint"	"0"
+			"FingerprintDefault"	"0"
 		}
 		"7"
 		{
-			"Fingerprint"	"8192"
-			"FingerprintDefault"	"8192"
 			"ParameterName"	"nodesize"
 			"ParameterType"	"IntArg"
+			"Fingerprint"	"8192"
+			"FingerprintDefault"	"8192"
 		}
 		"8"
 		{
-			"Fingerprint"	"0"
-			"FingerprintDefault"	"0"
 			"ParameterName"	"forcelod"
 			"ParameterType"	"IntArg"
+			"Fingerprint"	"0"
+			"FingerprintDefault"	"0"
 		}
 		"9"
 		{
-			"Fingerprint"	"1"
-			"FingerprintDefault"	"1"
 			"ParameterName"	"gridtolod"
 			"ParameterType"	"IntArg"
+			"Fingerprint"	"1"
+			"FingerprintDefault"	"1"
 		}
 		"10"
 		{
-			"Fingerprint"	"0"
-			"FingerprintDefault"	"0"
 			"ParameterName"	"force_up_to_date_materials"
 			"ParameterType"	"IntArg"
+			"Fingerprint"	"0"
+			"FingerprintDefault"	"0"
 		}
 		"11"
 		{
-			"Fingerprint"	"0"
-			"FingerprintDefault"	"0"
 			"ParameterName"	"fulltangent"
 			"ParameterType"	"IntArg"
+			"Fingerprint"	"0"
+			"FingerprintDefault"	"0"
 		}
 		"12"
 		{
-			"Fingerprint"	"0"
-			"FingerprintDefault"	"0"
 			"ParameterName"	"randomize_mesh"
 			"ParameterType"	"IntArg"
+			"Fingerprint"	"0"
+			"FingerprintDefault"	"0"
 		}
 		"13"
 		{
-			"Fingerprint"	"0"
-			"FingerprintDefault"	"0"
 			"ParameterName"	"skip_mesh_optimization"
 			"ParameterType"	"IntArg"
+			"Fingerprint"	"0"
+			"FingerprintDefault"	"0"
 		}
+	}
+	"SpecialDependencies"
+	{
+		"0"
+		{
+			"String"	"Map Compiler Version"
+			"CompilerIdentifier"	"CompileMap"
+			"Fingerprint"	"2"
+			"UserData"	"0"
+		}
+		"1"
+		{
+			"String"	"Model Compiler Version"
+			"CompilerIdentifier"	"CompileModel"
+			"Fingerprint"	"39"
+			"UserData"	"0"
+		}
+		"2"
+		{
+			"String"	"Collision Mesh Compiler Version"
+			"CompilerIdentifier"	"CompileVPhysXData"
+			"Fingerprint"	"96"
+			"UserData"	"0"
+		}
+		"3"
+		{
+			"String"	"Mesh Compiler Version"
+			"CompilerIdentifier"	"CompileRenderMesh"
+			"Fingerprint"	"28"
+			"UserData"	"0"
+		}
+		"4"
+		{
+			"String"	"World Node Compiler Version"
+			"CompilerIdentifier"	"CompileWorldNode"
+			"Fingerprint"	"1"
+			"UserData"	"0"
+		}
+		"5"
+		{
+			"String"	"Entity Lump Compiler Version"
+			"CompilerIdentifier"	"CompileEntityLump"
+			"Fingerprint"	"3"
+			"UserData"	"0"
+		}
+		"6"
+		{
+			"String"	"World Compiler Version"
+			"CompilerIdentifier"	"CompileWorld"
+			"Fingerprint"	"1"
+			"UserData"	"0"
+		}
+		"7"
+		{
+			"String"	"DynData Compiler Version"
+			"CompilerIdentifier"	"CompileResourceManifest"
+			"Fingerprint"	"6"
+			"UserData"	"0"
+		}
+		"8"
+		{
+			"String"	"Manifest Compiler Version"
+			"CompilerIdentifier"	"CompileResourceManifest"
+			"Fingerprint"	"2"
+			"UserData"	"0"
+		}
+	}
+	"AdditionalRelatedFiles"
+	{
 	}
 	"ChildResourceList"
 	{
@@ -182,405 +575,12 @@
 		"70"	"maps/dota/world_visibility.vvis"
 		"71"	"maps/dota/world.vrman"
 	}
-	"InputDependencies"
-	{
-		"0"
-		{
-			"ContentRelativeFilename"	"maps/dota.vmap"
-			"ContentSearchPath"	"dota"
-			"FileCRC"	"2238657056"
-			"FileExists"	"1"
-			"IsGameFile"	"0"
-			"Optional"	"0"
-		}
-		"1"
-		{
-			"ContentRelativeFilename"	"maps/dota/clips.vmap"
-			"ContentSearchPath"	"dota"
-			"FileCRC"	"4118702014"
-			"FileExists"	"1"
-			"IsGameFile"	"0"
-			"Optional"	"0"
-		}
-		"2"
-		{
-			"ContentRelativeFilename"	"maps/dota/dest_dire.vmap"
-			"ContentSearchPath"	"dota"
-			"FileCRC"	"3172375440"
-			"FileExists"	"1"
-			"IsGameFile"	"0"
-			"Optional"	"0"
-		}
-		"3"
-		{
-			"ContentRelativeFilename"	"maps/dota/dest_radiant.vmap"
-			"ContentSearchPath"	"dota"
-			"FileCRC"	"706904138"
-			"FileExists"	"1"
-			"IsGameFile"	"0"
-			"Optional"	"0"
-		}
-		"4"
-		{
-			"ContentRelativeFilename"	"maps/dota/dire.vmap"
-			"ContentSearchPath"	"dota"
-			"FileCRC"	"1045137569"
-			"FileExists"	"1"
-			"IsGameFile"	"0"
-			"Optional"	"0"
-		}
-		"5"
-		{
-			"ContentRelativeFilename"	"maps/dota/dota.vmap"
-			"ContentSearchPath"	"dota"
-			"FileCRC"	"3403037264"
-			"FileExists"	"1"
-			"IsGameFile"	"0"
-			"Optional"	"0"
-		}
-		"6"
-		{
-			"ContentRelativeFilename"	"maps/dota/lighting.vmap"
-			"ContentSearchPath"	"dota"
-			"FileCRC"	"1739859459"
-			"FileExists"	"1"
-			"IsGameFile"	"0"
-			"Optional"	"0"
-		}
-		"7"
-		{
-			"ContentRelativeFilename"	"maps/dota/particles.vmap"
-			"ContentSearchPath"	"dota"
-			"FileCRC"	"1307036160"
-			"FileExists"	"1"
-			"IsGameFile"	"0"
-			"Optional"	"0"
-		}
-		"8"
-		{
-			"ContentRelativeFilename"	"maps/dota/plants.vmap"
-			"ContentSearchPath"	"dota"
-			"FileCRC"	"1157431634"
-			"FileExists"	"1"
-			"IsGameFile"	"0"
-			"Optional"	"0"
-		}
-		"9"
-		{
-			"ContentRelativeFilename"	"maps/dota/soundscape.vmap"
-			"ContentSearchPath"	"dota"
-			"FileCRC"	"2905501848"
-			"FileExists"	"1"
-			"IsGameFile"	"0"
-			"Optional"	"0"
-		}
-		"10"
-		{
-			"ContentRelativeFilename"	"maps/dota/tools.vmap"
-			"ContentSearchPath"	"dota"
-			"FileCRC"	"1435766914"
-			"FileExists"	"1"
-			"IsGameFile"	"0"
-			"Optional"	"0"
-		}
-		"11"
-		{
-			"ContentRelativeFilename"	"maps/dota/trees.vmap"
-			"ContentSearchPath"	"dota"
-			"FileCRC"	"895370052"
-			"FileExists"	"1"
-			"IsGameFile"	"0"
-			"Optional"	"0"
-		}
-		"12"
-		{
-			"ContentRelativeFilename"	"maps/dota/triggers.vmap"
-			"ContentSearchPath"	"dota"
-			"FileCRC"	"2383346362"
-			"FileExists"	"1"
-			"IsGameFile"	"0"
-			"Optional"	"0"
-		}
-		"13"
-		{
-			"ContentRelativeFilename"	"maps/dota/tutorial_mid.vmap"
-			"ContentSearchPath"	"dota"
-			"FileCRC"	"888321204"
-			"FileExists"	"1"
-			"IsGameFile"	"0"
-			"Optional"	"0"
-		}
-		"14"
-		{
-			"ContentRelativeFilename"	"maps/dota/water.vmap"
-			"ContentSearchPath"	"dota"
-			"FileCRC"	"3861927634"
-			"FileExists"	"1"
-			"IsGameFile"	"0"
-			"Optional"	"0"
-		}
-		"15"
-		{
-			"ContentRelativeFilename"	"maps/prefabs/dota_custom_default_000.vmap"
-			"ContentSearchPath"	"dota"
-			"FileCRC"	"3918140382"
-			"FileExists"	"1"
-			"IsGameFile"	"0"
-			"Optional"	"0"
-		}
-		"16"
-		{
-			"ContentRelativeFilename"	"maps/prefabs/dota_pvp_prefab.vmap"
-			"ContentSearchPath"	"dota"
-			"FileCRC"	"1667893266"
-			"FileExists"	"1"
-			"IsGameFile"	"0"
-			"Optional"	"0"
-		}
-		"17"
-		{
-			"ContentRelativeFilename"	"maps/prefabs/rune_water.vmap"
-			"ContentSearchPath"	"dota"
-			"FileCRC"	"2480822231"
-			"FileExists"	"1"
-			"IsGameFile"	"0"
-			"Optional"	"0"
-		}
-		"18"
-		{
-			"ContentRelativeFilename"	"maps/prefabs/shop_keeper_dire.vmap"
-			"ContentSearchPath"	"dota"
-			"FileCRC"	"2487150455"
-			"FileExists"	"1"
-			"IsGameFile"	"0"
-			"Optional"	"0"
-		}
-		"19"
-		{
-			"ContentRelativeFilename"	"maps/prefabs/shop_keeper_radiant.vmap"
-			"ContentSearchPath"	"dota"
-			"FileCRC"	"2134078453"
-			"FileExists"	"1"
-			"IsGameFile"	"0"
-			"Optional"	"0"
-		}
-		"20"
-		{
-			"ContentRelativeFilename"	"maps/prefabs/shop_quirt_default.vmap"
-			"ContentSearchPath"	"dota"
-			"FileCRC"	"2621105669"
-			"FileExists"	"1"
-			"IsGameFile"	"0"
-			"Optional"	"0"
-		}
-		"21"
-		{
-			"ContentRelativeFilename"	"maps/prefabs/shop_sithil.vmap"
-			"ContentSearchPath"	"dota"
-			"FileCRC"	"585793673"
-			"FileExists"	"1"
-			"IsGameFile"	"0"
-			"Optional"	"0"
-		}
-		"22"
-		{
-			"ContentRelativeFilename"	"maps/prefabs/structure_ancient_dire.vmap"
-			"ContentSearchPath"	"dota"
-			"FileCRC"	"3022116202"
-			"FileExists"	"1"
-			"IsGameFile"	"0"
-			"Optional"	"0"
-		}
-		"23"
-		{
-			"ContentRelativeFilename"	"maps/prefabs/structure_ancient_radiant.vmap"
-			"ContentSearchPath"	"dota"
-			"FileCRC"	"842312326"
-			"FileExists"	"1"
-			"IsGameFile"	"0"
-			"Optional"	"0"
-		}
-		"24"
-		{
-			"ContentRelativeFilename"	"maps/prefabs/structure_barracks_melee_dire.vmap"
-			"ContentSearchPath"	"dota"
-			"FileCRC"	"2504017442"
-			"FileExists"	"1"
-			"IsGameFile"	"0"
-			"Optional"	"0"
-		}
-		"25"
-		{
-			"ContentRelativeFilename"	"maps/prefabs/structure_barracks_melee_radiant.vmap"
-			"ContentSearchPath"	"dota"
-			"FileCRC"	"786486420"
-			"FileExists"	"1"
-			"IsGameFile"	"0"
-			"Optional"	"0"
-		}
-		"26"
-		{
-			"ContentRelativeFilename"	"maps/prefabs/structure_barracks_ranged_dire.vmap"
-			"ContentSearchPath"	"dota"
-			"FileCRC"	"4000202772"
-			"FileExists"	"1"
-			"IsGameFile"	"0"
-			"Optional"	"0"
-		}
-		"27"
-		{
-			"ContentRelativeFilename"	"maps/prefabs/structure_barracks_ranged_radiant.vmap"
-			"ContentSearchPath"	"dota"
-			"FileCRC"	"198715513"
-			"FileExists"	"1"
-			"IsGameFile"	"0"
-			"Optional"	"0"
-		}
-		"28"
-		{
-			"ContentRelativeFilename"	"maps/prefabs/structure_filler_dire.vmap"
-			"ContentSearchPath"	"dota"
-			"FileCRC"	"4264760874"
-			"FileExists"	"1"
-			"IsGameFile"	"0"
-			"Optional"	"0"
-		}
-		"29"
-		{
-			"ContentRelativeFilename"	"maps/prefabs/structure_filler_radiant.vmap"
-			"ContentSearchPath"	"dota"
-			"FileCRC"	"522067376"
-			"FileExists"	"1"
-			"IsGameFile"	"0"
-			"Optional"	"0"
-		}
-		"30"
-		{
-			"ContentRelativeFilename"	"maps/prefabs/structure_fountain_radiant.vmap"
-			"ContentSearchPath"	"dota"
-			"FileCRC"	"3133985709"
-			"FileExists"	"1"
-			"IsGameFile"	"0"
-			"Optional"	"0"
-		}
-		"31"
-		{
-			"ContentRelativeFilename"	"maps/prefabs/structure_tower_dire.vmap"
-			"ContentSearchPath"	"dota"
-			"FileCRC"	"233471341"
-			"FileExists"	"1"
-			"IsGameFile"	"0"
-			"Optional"	"0"
-		}
-		"32"
-		{
-			"ContentRelativeFilename"	"maps/prefabs/structure_tower_radiant.vmap"
-			"ContentSearchPath"	"dota"
-			"FileCRC"	"3806178872"
-			"FileExists"	"1"
-			"IsGameFile"	"0"
-			"Optional"	"0"
-		}
-		"33"
-		{
-			"ContentRelativeFilename"	"maps/tilesets/dire_basic.vmap"
-			"ContentSearchPath"	"dota"
-			"FileCRC"	"3029409662"
-			"FileExists"	"1"
-			"IsGameFile"	"0"
-			"Optional"	"0"
-		}
-		"34"
-		{
-			"ContentRelativeFilename"	"maps/tilesets/map_edge_generic.vmap"
-			"ContentSearchPath"	"dota"
-			"FileCRC"	"3089111605"
-			"FileExists"	"1"
-			"IsGameFile"	"0"
-			"Optional"	"0"
-		}
-		"35"
-		{
-			"ContentRelativeFilename"	"maps/tilesets/radiant_basic.vmap"
-			"ContentSearchPath"	"dota"
-			"FileCRC"	"2001968910"
-			"FileExists"	"1"
-			"IsGameFile"	"0"
-			"Optional"	"0"
-		}
-	}
 	"SearchableUserData"
 	{
 		"0"
 		{
 			"Key"	"IsChildResource"
 			"Value"	"0"
-		}
-	}
-	"SpecialDependencies"
-	{
-		"0"
-		{
-			"CompilerIdentifier"	"CompileMap"
-			"Fingerprint"	"2"
-			"String"	"Map Compiler Version"
-			"UserData"	"0"
-		}
-		"1"
-		{
-			"CompilerIdentifier"	"CompileModel"
-			"Fingerprint"	"39"
-			"String"	"Model Compiler Version"
-			"UserData"	"0"
-		}
-		"2"
-		{
-			"CompilerIdentifier"	"CompileVPhysXData"
-			"Fingerprint"	"96"
-			"String"	"Collision Mesh Compiler Version"
-			"UserData"	"0"
-		}
-		"3"
-		{
-			"CompilerIdentifier"	"CompileRenderMesh"
-			"Fingerprint"	"28"
-			"String"	"Mesh Compiler Version"
-			"UserData"	"0"
-		}
-		"4"
-		{
-			"CompilerIdentifier"	"CompileWorldNode"
-			"Fingerprint"	"1"
-			"String"	"World Node Compiler Version"
-			"UserData"	"0"
-		}
-		"5"
-		{
-			"CompilerIdentifier"	"CompileEntityLump"
-			"Fingerprint"	"3"
-			"String"	"Entity Lump Compiler Version"
-			"UserData"	"0"
-		}
-		"6"
-		{
-			"CompilerIdentifier"	"CompileWorld"
-			"Fingerprint"	"1"
-			"String"	"World Compiler Version"
-			"UserData"	"0"
-		}
-		"7"
-		{
-			"CompilerIdentifier"	"CompileResourceManifest"
-			"Fingerprint"	"6"
-			"String"	"DynData Compiler Version"
-			"UserData"	"0"
-		}
-		"8"
-		{
-			"CompilerIdentifier"	"CompileResourceManifest"
-			"Fingerprint"	"2"
-			"String"	"Manifest Compiler Version"
-			"UserData"	"0"
 		}
 	}
 }

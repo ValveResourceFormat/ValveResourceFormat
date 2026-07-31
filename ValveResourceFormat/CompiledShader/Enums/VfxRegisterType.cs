@@ -7,15 +7,17 @@ public enum VfxRegisterType
 {
 #pragma warning disable CS1591
     Bool = 1,
-    Int,
-    Uniform,
+    Int4,
+    Float4,
     Texture,
     RenderState,
     SamplerState,
     InputTexture,
-    Buffer,
-    Unkn9,
-    Unkn10,
-    CBuffer = 11,
+    ConstantBuffer,
+    Uav,
+    DescriptorSet,
+    PushConstantBuffer,
+    TextureIndex,
+    SamplerIndex,
 #pragma warning restore CS1591
 }

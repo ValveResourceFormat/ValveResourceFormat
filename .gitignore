@@ -11,8 +11,10 @@ launchSettings.json
 # User-specific files (MonoDevelop/Xamarin Studio)
 *.userprefs
 
+# Visual Studio Code files
 .vscode/
 Renderer/Animation
+*.lscache
 
 # Build results
 [Dd]ebug/
@@ -220,6 +222,10 @@ FakesAssemblies/
 _Pvt_Extensions
 
 Tests/lcov.info
+exceptions*.txt
 /docs/_site/
 /docs/api/
 Misc/SchemaConverter/source2-schema.json
+/docs/.vitepress/dist/
+/docs/.vitepress/cache/
+/docs/.vitepress/temp/

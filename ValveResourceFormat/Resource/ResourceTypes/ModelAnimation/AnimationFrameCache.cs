@@ -10,12 +10,21 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
     {
         private Frame PrevFrame;
         private Frame NextFrame;
-        private readonly Frame InterpolatedFrame;
+
+        /// <summary>
+        /// The output frame.
+        /// </summary>
+        public Frame InterpolatedFrame { get; }
 
         /// <summary>
         /// Gets the skeleton associated with this frame cache.
         /// </summary>
         public Skeleton Skeleton { get; }
+
+        /// <summary>
+        /// Gets the flex controllers associated with this frame cache.
+        /// </summary>
+        public FlexController[] FlexControllers { get; }
 
         /// <summary>
         /// Initializes a new instance of the <see cref="AnimationFrameCache"/> class.
@@ -26,15 +35,17 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
             NextFrame = new Frame(skeleton, flexControllers);
             InterpolatedFrame = new Frame(skeleton, flexControllers);
             Skeleton = skeleton;
+            FlexControllers = flexControllers;
             Clear();
         }
 
         /// <summary>
-        /// Clears interpolated frame bones and frame cache.
+        /// Clears the cached frames (previous and next) and resets the frame cache.
         /// Should be used on animation change.
         /// </summary>
         public void Clear()
         {
+            PurgeCache();
             PrevFrame.Clear(Skeleton);
             NextFrame.Clear(Skeleton);
         }
@@ -119,6 +130,15 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
 
             frame.Movement = anim.GetMovementOffsetData(frameIndex);
             return frame;
+        }
+
+        /// <summary>
+        /// Purges the frame cache, resetting both previous and next frames.
+        /// </summary>
+        public void PurgeCache()
+        {
+            PrevFrame.FrameIndex = -2;
+            NextFrame.FrameIndex = -1;
         }
     }
 }

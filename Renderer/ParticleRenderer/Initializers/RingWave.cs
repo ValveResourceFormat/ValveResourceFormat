@@ -1,11 +1,21 @@
 namespace ValveResourceFormat.Renderer.Particles.Initializers
 {
+    /// <summary>
+    /// Positions particles in a ring pattern around a transform, with configurable initial radius, thickness, and even or random angular distribution.
+    /// </summary>
+    /// <remarks>
+    /// "Position Along Ring" in the particle editor. Like "Position Within Sphere Random", it can
+    /// also impart radial force to particles via the min/max initial speed.
+    /// </remarks>
+    /// <seealso href="https://s2v.app/SchemaExplorer/cs2/particles/C_INIT_RingWave">C_INIT_RingWave</seealso>
     class RingWave : ParticleFunctionInitializer
     {
         private readonly bool evenDistribution;
         private readonly INumberProvider initialRadius = new LiteralNumberProvider(0);
         private readonly INumberProvider thickness = new LiteralNumberProvider(0);
         private readonly INumberProvider particlesPerOrbit = new LiteralNumberProvider(-1);
+        private readonly INumberProvider initialSpeedMin = new LiteralNumberProvider(0);
+        private readonly INumberProvider initialSpeedMax = new LiteralNumberProvider(0);
 
         private float orbitCount;
 
@@ -15,31 +25,45 @@ namespace ValveResourceFormat.Renderer.Particles.Initializers
             particlesPerOrbit = parse.NumberProvider("m_flParticlesPerOrbit", particlesPerOrbit);
             initialRadius = parse.NumberProvider("m_flInitialRadius", initialRadius);
             thickness = parse.NumberProvider("m_flThickness", thickness);
+            initialSpeedMin = parse.NumberProvider("m_flInitialSpeedMin", initialSpeedMin);
+            initialSpeedMax = parse.NumberProvider("m_flInitialSpeedMax", initialSpeedMax);
 
-            // other properties: m_vInitialSpeedMin/Max, m_flRoll
+            // other properties: m_flRoll
         }
 
-        public override Particle Initialize(ref Particle particle, ParticleSystemRenderState particleSystemState)
+        public override Particle Initialize(ref Particle particle, ParticleCollection particles, ParticleSystemRenderState particleSystemState)
         {
             var thickness = this.thickness.NextNumber(ref particle, particleSystemState);
             var particlesPerOrbit = this.particlesPerOrbit.NextInt(ref particle, particleSystemState);
 
             var radius = initialRadius.NextNumber(ref particle, particleSystemState) + (Random.Shared.NextSingle() * thickness);
 
-            var angle = GetNextAngle(particlesPerOrbit);
+            var angle = GetNextAngle(particlesPerOrbit, particles.Capacity);
+            var radialDirection = new Vector3(MathF.Cos(angle), MathF.Sin(angle), 0);
 
-            particle.Position += radius * new Vector3(MathF.Cos(angle), MathF.Sin(angle), 0);
+            particle.Position += radius * radialDirection;
+
+            // Initial speed pushes outward along the ring direction (positive = outward).
+            var speedMin = initialSpeedMin.NextNumber(ref particle, particleSystemState);
+            var speedMax = initialSpeedMax.NextNumber(ref particle, particleSystemState);
+            if (speedMin != 0f || speedMax != 0f)
+            {
+                particle.Velocity += radialDirection * ParticleSystemRenderState.RandomFloat(speedMin, speedMax);
+            }
 
             return particle;
         }
 
-        private float GetNextAngle(int particlesPerOrbit)
+        private float GetNextAngle(int particlesPerOrbit, int maxParticles)
         {
             if (evenDistribution)
             {
-                var offset = orbitCount / particlesPerOrbit;
+                // -1 is the sentinel for using the collection's maximum particle count.
+                var perOrbit = Math.Max(1, particlesPerOrbit == -1 ? maxParticles : particlesPerOrbit);
 
-                orbitCount = (orbitCount + 1) % particlesPerOrbit;
+                var offset = orbitCount / perOrbit;
+
+                orbitCount = (orbitCount + 1) % perOrbit;
 
                 return offset * MathF.Tau;
             }

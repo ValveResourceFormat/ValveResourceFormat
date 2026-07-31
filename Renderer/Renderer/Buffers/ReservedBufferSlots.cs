@@ -1,6 +1,5 @@
 namespace ValveResourceFormat.Renderer.Buffers;
 
-#pragma warning disable CS1591 // Missing XML comment for publicly visible type or member
 #pragma warning disable CA1069 // Enum values should not be duplicated
 
 /// <summary>
@@ -9,27 +8,59 @@ namespace ValveResourceFormat.Renderer.Buffers;
 public enum ReservedBufferSlots
 {
     // ubo
+
+    /// <summary>View constants UBO slot.</summary>
     View = 0,
+    /// <summary>Lighting constants UBO slot.</summary>
     Lighting = 1,
+    /// <summary>Environment map array UBO slot.</summary>
     EnvironmentMap = 2,
+    /// <summary>Light probe volume array UBO slot.</summary>
     LightProbe = 3,
+    /// <summary>Frustum planes UBO slot.</summary>
     FrustumPlanes = 4,
+    /// <summary>Shared constants for the tile and depth bin cull passes.</summary>
+    CullParams = 5,
+    /// <summary>Per scene cull mask layout read by the shading passes.</summary>
+    LightCull = 6,
 
     // ssbo
-    Objects = 0,
-    Transforms = 1,
-    Histogram = 2,
-    AverageLuminance = 3,
-    AggregateDraws = 4,
-    AggregateDrawBounds = 5,
-    AggregateMeshlets = 6,
-    OccludedBoundsDebug = 7,
-    CompactedDraws = 8,
-    CompactedCounts = 9,
-    CompactionRequests = 10,
 
-    Max = 8, // guaranteed minimum in 4.6
+    /// <summary>Per-object data SSBO slot.</summary>
+    Objects = 0,
+    /// <summary>Transform matrices SSBO slot.</summary>
+    Transforms = 1,
+    /// <summary>Histogram SSBO slot.</summary>
+    Histogram = 2,
+    /// <summary>Average luminance SSBO slot.</summary>
+    AverageLuminance = 3,
+    /// <summary>Aggregate indirect draw commands SSBO slot.</summary>
+    AggregateDraws = 4,
+    /// <summary>Aggregate draw bounding boxes SSBO slot.</summary>
+    AggregateDrawBounds = 5,
+    /// <summary>Meshlet cull data SSBO slot.</summary>
+    AggregateMeshlets = 6,
+    /// <summary>Occluded bounds debug output SSBO slot.</summary>
+    OccludedBoundsDebug = 7,
+    /// <summary>Compacted draw commands SSBO slot.</summary>
+    CompactedDraws = 8,
+    /// <summary>Compacted draw counts SSBO slot.</summary>
+    CompactedCounts = 9,
+    /// <summary>Compaction request descriptors SSBO slot.</summary>
+    CompactionRequests = 10,
+    /// <summary>Bone transform matrices SSBO slot.</summary>
+    BoneTransforms = 11,
+    /// <summary>Barn light constants SSBO slot.</summary>
+    BarnLights = 12,
+    /// <summary>Tile and depth slice bit masks the cull passes produce.</summary>
+    CullBits = 13,
+    /// <summary>Screen space cull items: barn light faces, env map probes and light probe volumes.</summary>
+    CullItems = 14,
+    /// <summary>Convex hull vertices referenced by <see cref="CullItems"/>.</summary>
+    CullPlanes = 15,
+
+    /// <summary>Guaranteed minimum binding point count in OpenGL 4.6.</summary>
+    Max = 8,
 }
 
 #pragma warning restore CA1069 // Enum values should not be duplicated
-#pragma warning restore CS1591 // Missing XML comment for publicly visible type or member

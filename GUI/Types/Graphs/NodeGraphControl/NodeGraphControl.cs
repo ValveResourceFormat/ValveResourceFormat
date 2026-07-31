@@ -82,6 +82,7 @@ namespace GUI.Types.Graphs
         {
             Grid,
             Dots,
+            Checkerboard,
             None
         }
 
@@ -169,8 +170,13 @@ namespace GUI.Types.Graphs
         public bool IsMoving { get; private set; }
         SKPoint lastLocation;
 
+        // Synchronizes graph state between the render thread and UI mouse handlers.
+        private readonly System.Threading.Lock stateLock = new();
+
         public void RenderToCanvas(SKCanvas canvas, SKPoint topLeft, SKPoint bottomRight)
         {
+            using var _ = stateLock.EnterScope();
+
             canvas.Clear(_canvasBackgroundColor);
 
             OnDrawBackground(canvas, topLeft, bottomRight);
@@ -200,10 +206,10 @@ namespace GUI.Types.Graphs
 
                 var wireColor = GetColorByType(wire.From.ValueType);
                 var wireWidth = (wire == lastHoveredNode) ? 5f : 3f;
-                using var wirePaint = new SKPaint { Color = wireColor, StrokeWidth = wireWidth, IsAntialias = true, Style = SKPaintStyle.Stroke };
-                using var wirePath = DrawWire(canvas, wirePaint, xFrom, yFrom, xTo, yTo);
+                using var wirePath = DrawWire(canvas, wireColor, wireWidth, xFrom, yFrom, xTo, yTo);
 
                 using var widerPaint = new SKPaint { Style = SKPaintStyle.Stroke, StrokeWidth = 10f };
+                wire.HitTestPath?.Dispose();
                 wire.HitTestPath = widerPaint.GetFillPath(wirePath);
             }
 
@@ -221,6 +227,8 @@ namespace GUI.Types.Graphs
         // Get the bounds of the entire graph in graph space
         public SKRect GetGraphBounds()
         {
+            using var _ = stateLock.EnterScope();
+
             if (_graphNodes.Count == 0)
             {
                 return new SKRect(-1000, -1000, 1000, 1000); // Default large area
@@ -247,6 +255,8 @@ namespace GUI.Types.Graphs
 
         public void HandleMouseDown(SKPoint graphPoint, MouseButtons button, Keys modifiers)
         {
+            using var _ = stateLock.EnterScope();
+
             UpdateOriginalLocation(graphPoint);
 
             var element = FindElementAt(lastLocation);
@@ -283,6 +293,8 @@ namespace GUI.Types.Graphs
 
         public void HandleMouseMove(SKPoint graphPoint, Keys modifiers = Keys.None)
         {
+            using var _ = stateLock.EnterScope();
+
             if (IsMoving)
             {
                 var delta = new SKPoint(
@@ -328,6 +340,8 @@ namespace GUI.Types.Graphs
 
         public void HandleMouseUp(SKPoint graphPoint)
         {
+            using var _ = stateLock.EnterScope();
+
             UpdateOriginalLocation(graphPoint);
 
             IsMoving = false;
@@ -338,12 +352,10 @@ namespace GUI.Types.Graphs
             lastLocation = graphPoint;
         }
 
-        private static SKPath DrawWire(SKCanvas canvas, SKPaint paint, float xFrom, float yFrom, float xTo, float yTo)
+        private static SKPath DrawWire(SKCanvas canvas, SKColor color, float width, float xFrom, float yFrom, float xTo, float yTo)
         {
             var from = new SKPoint(xFrom, yFrom);
             var to = new SKPoint(xTo, yTo);
-
-            var path = new SKPath();
 
             var dx = to.X - from.X;
             var dy = to.Y - from.Y;
@@ -359,11 +371,24 @@ namespace GUI.Types.Graphs
             var fromControl = new SKPoint(from.X + horizontalOffset, from.Y + verticalOffset);
             var toControl = new SKPoint(to.X - horizontalOffset, to.Y + verticalOffset);
 
-            path.MoveTo(from);
-            path.CubicTo(fromControl, toControl, to);
+            using var pathBuilder = new SKPathBuilder();
+            pathBuilder.MoveTo(from);
+            pathBuilder.CubicTo(fromControl, toControl, to);
+            var path = pathBuilder.Detach();
 
+            using var paint = new SKPaint { Color = color, StrokeWidth = width, IsAntialias = true, Style = SKPaintStyle.Stroke };
             canvas.DrawPath(path, paint);
             return path;
+        }
+
+        private static SKColor BlendColor(SKColor from, SKColor to, float t)
+        {
+            static byte Lerp(byte a, byte b, float t) => (byte)(a + (b - a) * t);
+            return new SKColor(
+                Lerp(from.Red, to.Red, t),
+                Lerp(from.Green, to.Green, t),
+                Lerp(from.Blue, to.Blue, t),
+                from.Alpha);
         }
 
         private void OnDrawBackground(SKCanvas canvas, SKPoint topLeft, SKPoint bottomRight)
@@ -380,6 +405,32 @@ namespace GUI.Types.Graphs
 
             var largeXOffset = ((float)Math.Round(left / _gridStep) * _gridStep);
             var largeYOffset = ((float)Math.Round(top / _gridStep) * _gridStep);
+
+            //checkerboard
+            if (_gridStyle == EGridStyle.Checkerboard)
+            {
+                var tileSize = 32;
+                using var darkPaint = new SKPaint { Color = _canvasBackgroundColor };
+                using var lightPaint = new SKPaint { Color = BlendColor(_canvasBackgroundColor, _gridColor, 0.08f) };
+
+                // Loop over the visible area
+                var startX = (int)Math.Floor(left / tileSize) * tileSize;
+                var startY = (int)Math.Floor(top / tileSize) * tileSize;
+                var endX = (int)Math.Ceiling(right / tileSize) * tileSize;
+                var endY = (int)Math.Ceiling(bottom / tileSize) * tileSize;
+
+                for (var x = startX; x < endX; x += tileSize)
+                {
+                    for (var y = startY; y < endY; y += tileSize)
+                    {
+                        bool isDark = ((x / tileSize) + (y / tileSize)) % 2 == 0;
+                        var paint = isDark ? darkPaint : lightPaint;
+                        canvas.DrawRect(x, y, tileSize, tileSize, paint);
+                    }
+                }
+
+                return;
+            }
 
             // grid
             if (_gridStyle == EGridStyle.Grid)
@@ -423,6 +474,8 @@ namespace GUI.Types.Graphs
         // Find element at graph-space point
         public NodeUIElement? FindElementAt(SKPoint point)
         {
+            using var _ = stateLock.EnterScope();
+
             // Iterate in reverse order to find topmost (frontmost) nodes first
             for (var i = _graphNodes.Count - 1; i >= 0; i--)
             {
@@ -587,6 +640,39 @@ namespace GUI.Types.Graphs
                 getTargetNode: static w => w.To.Owner,
                 getInputConnections: static n => n.Sockets.OfType<SocketIn>().SelectMany(s => s.Connections),
                 getOutputConnections: static n => n.Sockets.OfType<SocketOut>().SelectMany(s => s.Connections)
+            );
+
+            foreach (var node in _graphNodes)
+            {
+                node.Calculate();
+            }
+
+            OnGraphChanged();
+        }
+
+        public void LayoutNodesSequential(float nodeSpacing = 100f)
+        {
+            if (_graphNodes.Count == 0)
+            {
+                return;
+            }
+
+            GraphLayout.LayoutOptions options = new()
+            {
+                LayerSpacing = nodeSpacing
+            };
+
+            SequentialGraphLayout.LayoutNodes(
+                nodes: _graphNodes,
+                connections: _connections,
+                getPosition: static n => new Vector2(n.Location.X, n.Location.Y),
+                setPosition: static (n, p) => n.Location = new SKPoint(p.X, p.Y),
+                getSize: static n => new Vector2(n.BoundsFull.Width, n.BoundsFull.Height),
+                getSourceNode: static w => w.From.Owner,
+                getTargetNode: static w => w.To.Owner,
+                getInputConnections: static n => n.Sockets.OfType<SocketIn>().SelectMany(s => s.Connections),
+                getOutputConnections: static n => n.Sockets.OfType<SocketOut>().SelectMany(s => s.Connections),
+                options: options
             );
 
             foreach (var node in _graphNodes)

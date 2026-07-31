@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using System.IO;
 using System.Runtime.InteropServices;
+using ValveKeyValue;
 using ValveResourceFormat.Serialization.KeyValues;
 
 namespace ValveResourceFormat.ResourceTypes
@@ -9,6 +10,7 @@ namespace ValveResourceFormat.ResourceTypes
     /// <summary>
     /// Represents an emphasis sample for voice modulation.
     /// </summary>
+    /// <seealso href="https://s2v.app/SchemaExplorer/cs2/soundsystem_voicecontainers/CAudioEmphasisSample">CAudioEmphasisSample</seealso>
     public readonly struct EmphasisSample
     {
         /// <summary>
@@ -25,6 +27,7 @@ namespace ValveResourceFormat.ResourceTypes
     /// <summary>
     /// Represents a phoneme timing tag for lip-sync animation.
     /// </summary>
+    /// <seealso href="https://s2v.app/SchemaExplorer/cs2/soundsystem_voicecontainers/CAudioPhonemeTag">CAudioPhonemeTag</seealso>
     public readonly struct PhonemeTag
     {
         /// <summary>
@@ -46,14 +49,13 @@ namespace ValveResourceFormat.ResourceTypes
     /// <summary>
     /// Represents a sentence with phoneme and emphasis data for voice playback.
     /// </summary>
-    public class Sentence
+    /// <seealso href="https://s2v.app/SchemaExplorer/cs2/soundsystem_voicecontainers/CAudioSentence">CAudioSentence</seealso>
+    public partial class Sentence
     {
-        /*
         /// <summary>
         /// Gets a value indicating whether voice ducking should be applied.
         /// </summary>
         public bool ShouldVoiceDuck { get; init; }
-        */
 
         /// <summary>
         /// Gets the phoneme tags for lip-sync.
@@ -71,6 +73,8 @@ namespace ValveResourceFormat.ResourceTypes
     /// <summary>
     /// Represents a sound resource containing audio data and metadata.
     /// </summary>
+    /// <seealso href="https://s2v.app/SchemaExplorer/cs2/soundsystem_voicecontainers/CVSound">CVSound</seealso>
+    /// <seealso href="https://s2v.app/SchemaExplorer/cs2/soundsystem_voicecontainers/CVoiceContainerBase">CVoiceContainerBase</seealso>
     public class Sound : Block
     {
         /// <summary>
@@ -78,24 +82,28 @@ namespace ValveResourceFormat.ResourceTypes
         /// </summary>
         public enum AudioFileType
         {
-#pragma warning disable CS1591 // Missing XML comment for publicly visible type or member
+            /// <summary>Advanced Audio Coding container.</summary>
             AAC = 0,
+            /// <summary>Waveform Audio File Format container.</summary>
             WAV = 1,
+            /// <summary>MPEG Layer 3 container.</summary>
             MP3 = 2,
-#pragma warning restore CS1591
         }
 
         /// <summary>
         /// Specifies the audio encoding format for version 4 sound files.
         /// </summary>
+        /// <seealso href="https://s2v.app/SchemaExplorer/cs2/soundsystem_voicecontainers/CVSoundFormat_t">CVSoundFormat_t</seealso>
         public enum AudioFormatV4
         {
-#pragma warning disable CS1591 // Missing XML comment for publicly visible type or member
+            /// <summary>16-bit PCM audio.</summary>
             PCM16 = 0,
+            /// <summary>8-bit PCM audio.</summary>
             PCM8 = 1,
+            /// <summary>MPEG Layer 3 compressed audio.</summary>
             MP3 = 2,
+            /// <summary>Adaptive Differential Pulse Code Modulation compressed audio.</summary>
             ADPCM = 3,
-#pragma warning restore CS1591
         }
 
         /// <summary>
@@ -103,11 +111,12 @@ namespace ValveResourceFormat.ResourceTypes
         /// </summary>
         public enum WaveAudioFormat
         {
-#pragma warning disable CS1591 // Missing XML comment for publicly visible type or member
+            /// <summary>Unknown or unspecified audio encoding.</summary>
             Unknown = 0,
+            /// <summary>Uncompressed pulse-code modulation.</summary>
             PCM = 1,
+            /// <summary>Adaptive Differential Pulse Code Modulation compressed audio.</summary>
             ADPCM = 2,
-#pragma warning restore CS1591
         }
 
         /// <inheritdoc/>
@@ -236,7 +245,7 @@ namespace ValveResourceFormat.ResourceTypes
             var headerSize = reader.ReadInt32();
             StreamingDataSize = reader.ReadUInt32();
 
-            // this is likely to be m_nSeekTable
+            // m_nSeekTable (seek table for seeking compressed audio)
             if (Resource.Version >= 1)
             {
                 var d = reader.ReadUInt32();
@@ -253,7 +262,7 @@ namespace ValveResourceFormat.ResourceTypes
             }
 
             // v2 and v3 are the same?
-            // this is likely to be CAudioMorphData
+            // likely CAudioMorphData (m_morphData inside CAudioSentence)
             if (Resource.Version >= 2)
             {
                 var f = reader.ReadUInt32();
@@ -290,14 +299,14 @@ namespace ValveResourceFormat.ResourceTypes
                 return false;
             }
 
-            var soundClass = obj.Data.GetStringProperty("_class");
+            var soundClass = obj.Data.Root.GetStringProperty("_class");
 
             if (soundClass is not "CVoiceContainerDefault" and not "CVoiceContainerEnvelope")
             {
                 return false;
             }
 
-            var sound = obj.Data.GetSubCollection("m_vSound");
+            var sound = obj.Data.Root.GetSubCollection("m_vSound");
 
             switch (sound.GetStringProperty("m_nFormat"))
             {
@@ -317,7 +326,7 @@ namespace ValveResourceFormat.ResourceTypes
             Duration = sound.GetFloatProperty("m_flDuration");
             StreamingDataSize = sound.GetUInt32Property("m_nStreamingSize");
 
-            // TODO: m_Sentences
+            ReadSentenceFromCtrl(sound);
 
             return true;
         }
@@ -401,6 +410,38 @@ namespace ValveResourceFormat.ResourceTypes
             }
         }
 
+        private void ReadSentenceFromCtrl(KVObject sound)
+        {
+            var sentences = sound.GetArray("m_Sentences");
+
+            if (sentences == null || sentences.Count == 0)
+            {
+                return;
+            }
+
+            var phonemes = sentences[0].GetArray("m_RunTimePhonemes");
+
+            if (phonemes == null)
+            {
+                return;
+            }
+
+            Sentence = new Sentence
+            {
+                RunTimePhonemes = new PhonemeTag[phonemes.Count]
+            };
+
+            for (var i = 0; i < phonemes.Count; i++)
+            {
+                Sentence.RunTimePhonemes[i] = new PhonemeTag
+                {
+                    StartTime = phonemes[i].GetFloatProperty("m_flStartTime"),
+                    EndTime = phonemes[i].GetFloatProperty("m_flEndTime"),
+                    PhonemeCode = (ushort)phonemes[i].GetInt32Property("m_nPhonemeCode"),
+                };
+            }
+        }
+
         private static uint ExtractSub(uint l, byte offset, byte nrBits)
         {
             var rightShifted = l >> offset;
@@ -409,7 +450,7 @@ namespace ValveResourceFormat.ResourceTypes
         }
 
         /// <summary>
-        /// Returns a fully playable sound data.
+        /// Returns fully playable sound data.
         /// In case of WAV files, header is automatically generated as Valve removes it when compiling.
         /// </summary>
         /// <returns>Byte array containing sound data.</returns>
@@ -425,7 +466,7 @@ namespace ValveResourceFormat.ResourceTypes
         }
 
         /// <summary>
-        /// Returns a fully playable sound data.
+        /// Returns fully playable sound data.
         /// In case of WAV files, header is automatically generated as Valve removes it when compiling.
         /// </summary>
         /// <returns>Memory stream containing sound data.</returns>

@@ -110,6 +110,9 @@ namespace GUI.Types.PackageViewer
             TreeView.OpenPackageEntry += VPK_OpenFile;
             TreeView.OpenContextMenu += VPK_OnContextMenu;
             TreeView.PreviewFile += VPK_PreviewFile;
+            TreeView.PreviewCleared += VPK_PreviewCleared;
+            TreeView.PreviewFocused += VPK_PreviewFocused;
+            TreeView.PreviewBlurred += VPK_PreviewBlurred;
             TreeView.Disposed += VPK_Disposed;
         }
 
@@ -193,16 +196,26 @@ namespace GUI.Types.PackageViewer
 
             TreeView.EndUpdate();
 
+            // Reveal the added entries under the folder the context menu was opened on
+            LastContextTreeNode?.Expand();
+
             Cursor.Current = Cursors.Default;
 
 #if DEBUG
-            if (resourceEntries.Count > 0 && MessageBox.Show(
-                "Would you like to scan and all dependencies of the compiled file (ending in \"_c\") you just added?",
-                "Detected a compiled resource",
-                MessageBoxButtons.YesNo,
-                MessageBoxIcon.Question) == DialogResult.Yes)
+            ScanForResourceDependencies();
+
+            // Fire-and-forget on purpose: this is a dev-only prompt, and AddFiles has no reason to wait for it.
+            async void ScanForResourceDependencies()
             {
-                MessageBox.Show("This is not yet implemented.");
+                if (resourceEntries.Count == 0 || !await AppMessageDialogs.ConfirmAsync(
+                    "Would you like to scan for all dependencies of the compiled file (ending in \"_c\") you just added?",
+                    "Detected a compiled resource",
+                    buttons: ConfirmButtons.YesNo).ConfigureAwait(true))
+                {
+                    return;
+                }
+
+                await AppMessageDialogs.ShowMessageAsync("This is not yet implemented.", "Not implemented").ConfigureAwait(true);
 
                 while (resourceEntries.TryDequeue(out var entry))
                 {
@@ -248,7 +261,7 @@ namespace GUI.Types.PackageViewer
 
                         if (!File.Exists(file))
                         {
-                            Log.Warn(nameof(PackageViewer), $"Faield to find file: {file}");
+                            Log.Warn(nameof(PackageViewer), $"Failed to find file: {file}");
                             continue;
                         }
                     }
@@ -263,7 +276,13 @@ namespace GUI.Types.PackageViewer
         {
             if (LastContextTreeNode != null)
             {
+                var removedRoot = LastContextTreeNode.PkgNode;
                 RemoveRecursiveFiles(LastContextTreeNode);
+
+                if (removedRoot != null)
+                {
+                    TreeView?.PruneNavigationHistory(removedRoot);
+                }
             }
         }
 
@@ -319,12 +338,7 @@ namespace GUI.Types.PackageViewer
 
             Log.Info(nameof(PackageViewer), result);
 
-            MessageBox.Show(
-                result,
-                "VPK created",
-                MessageBoxButtons.OK,
-                MessageBoxIcon.Information
-            );
+            _ = AppMessageDialogs.ShowMessageAsync(result, "VPK created");
         }
 
         internal static List<PackageEntry> RecoverDeletedFiles(Package package, Action<string> setProgress)
@@ -581,6 +595,9 @@ namespace GUI.Types.PackageViewer
                 treeViewWithSearch.OpenPackageEntry -= VPK_OpenFile;
                 treeViewWithSearch.OpenContextMenu -= VPK_OnContextMenu;
                 treeViewWithSearch.PreviewFile -= VPK_PreviewFile;
+                treeViewWithSearch.PreviewCleared -= VPK_PreviewCleared;
+                treeViewWithSearch.PreviewFocused -= VPK_PreviewFocused;
+                treeViewWithSearch.PreviewBlurred -= VPK_PreviewBlurred;
                 treeViewWithSearch.Disposed -= VPK_Disposed;
                 TreeView = null;
                 LastContextTreeNode = null;
@@ -588,14 +605,30 @@ namespace GUI.Types.PackageViewer
         }
 
         /// <summary>
-        /// Opens a file based on a double clicked list view item. Does nothing if the double clicked item contains a non-TreeNode object.
+        /// Opens the given package entry in a new tab.
         /// </summary>
         /// <param name="sender">Object which raised event.</param>
-        /// <param name="e">Event data.</param>
+        /// <param name="entry">The package entry to open.</param>
         private void VPK_OpenFile(object? sender, PackageEntry entry)
         {
             var newVrfGuiContext = new VrfGuiContext(entry.GetFullPath(), vrfGuiContext);
             Program.MainForm.OpenFile(newVrfGuiContext, entry);
+        }
+
+        private void VPK_PreviewCleared(object? sender, EventArgs e)
+        {
+            // A folder is shown instead of a file preview, so the window title should no longer reflect a file.
+            Program.MainForm.ResetPreviewTitle();
+        }
+
+        private void VPK_PreviewFocused(object? sender, TabPage previewTab)
+        {
+            Program.MainForm.ShowPreviewKeybindings(previewTab);
+        }
+
+        private void VPK_PreviewBlurred(object? sender, EventArgs e)
+        {
+            Program.MainForm.ShowSelectedTabKeybindings();
         }
 
         private void VPK_PreviewFile(object? sender, PackageEntry entry)
@@ -605,16 +638,8 @@ namespace GUI.Types.PackageViewer
                 return;
             }
 
-            if (((Settings.QuickPreviewFlags)Settings.Config.QuickFilePreview & Settings.QuickPreviewFlags.Enabled) == 0)
+            if (!TreeViewWithSearchResults.CanQuickPreviewFile(entry))
             {
-                return;
-            }
-
-            var extension = entry.TypeName;
-
-            if (extension is "vpk" or "vmap_c")
-            {
-                // Not ideal to check by file extension, but do not nest vpk previewss
                 return;
             }
 
@@ -637,7 +662,7 @@ namespace GUI.Types.PackageViewer
         }
 
         /// <summary>
-        /// Opens a context menu where the user right-clicked in the ListView.
+        /// Opens a context menu where the user right-clicked in the TreeView or ListView.
         /// </summary>
         /// <param name="sender">Object which raised event.</param>
         /// <param name="e">Event data.</param>
@@ -673,7 +698,7 @@ namespace GUI.Types.PackageViewer
 
             if (sender is Control senderControl)
             {
-                Program.MainForm.ShowVpkContextMenu(senderControl, e.Location, isRoot, isFolder);
+                Program.MainForm.ShowVpkContextMenu(senderControl, e.Location, isRoot, isFolder, TreeView.DeletedFilesRecovered);
             }
         }
 

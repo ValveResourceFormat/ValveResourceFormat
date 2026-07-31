@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.IO;
+using ValveKeyValue;
 using ValveResourceFormat.Serialization.KeyValues;
 
 namespace ValveResourceFormat.CompiledShader;
@@ -59,7 +60,7 @@ public class VfxRule : ShaderDataBlock
             ExtraRuleData[i] = extraRuleData[i];
         }
 
-        Description = data.GetProperty<string>("m_szErrorString");
+        Description = data.GetStringProperty("m_szErrorString");
     }
 
     /// <summary>

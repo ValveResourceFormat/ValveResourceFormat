@@ -1,5 +1,6 @@
 using System.Drawing;
 using System.Drawing.Drawing2D;
+using System.Drawing.Imaging;
 using System.Windows.Forms;
 using GUI.Utils;
 
@@ -122,7 +123,18 @@ namespace GUI.Controls
                 imageRect.X -= (imageRect.Width - rect.Width) / 2;
                 imageRect.Y -= (imageRect.Height - rect.Height) / 2;
 
-                pevent.Graphics.DrawImage(Image, imageRect);
+                if (Enabled)
+                {
+                    pevent.Graphics.DrawImage(Image, imageRect);
+                }
+                else
+                {
+                    // Dim the icon while keeping the same scaling as the enabled state.
+                    using var attributes = new ImageAttributes();
+                    var matrix = new ColorMatrix { Matrix33 = 0.35f };
+                    attributes.SetColorMatrix(matrix);
+                    pevent.Graphics.DrawImage(Image, imageRect, 0, 0, Image.Width, Image.Height, GraphicsUnit.Pixel, attributes);
+                }
             }
         }
     }

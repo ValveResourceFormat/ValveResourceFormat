@@ -152,13 +152,6 @@ void main()
     vTangentOut = normalize(normalTransform * tangent.xyz);
     vBitangentOut = tangent.w * cross(vNormalOut, vTangentOut);
 
-	vTexCoord.xy = RotateVector2D(vTEXCOORD.xy,
-        g_flTexCoordRotation1,
-        g_vTexCoordScale1.xy,
-        g_vTexCoordOffset1.xy,
-        g_vTexCoordCenter1.xy
-    );
-
     #if D_BAKED_LIGHTING_FROM_LIGHTMAP == 1
         vLightmapUVScaled = vec3(vLightmapUV * g_vLightmapUvScale.xy, 0);
     #elif D_BAKED_LIGHTING_FROM_VERTEX_STREAM == 1
@@ -256,24 +249,6 @@ void main()
     #endif
 
     #if (GameVfx_csgo_environment_blend != 0)
-
-        vTexCoord2.xy = RotateVector2D(vTEXCOORD.xy,
-            g_flTexCoordRotation2,
-            g_vTexCoordScale2.xy,
-            g_vTexCoordOffset2.xy,
-            g_vTexCoordCenter2.xy
-        );
-
-        #if (F_ENABLE_LAYER_3 == 1)
-            vTexCoord3.xy = RotateVector2D(vTEXCOORD.xy,
-                g_flTexCoordRotation3,
-                g_vTexCoordScale3.xy,
-                g_vTexCoordOffset3.xy,
-                g_vTexCoordCenter3.xy
-            );
-
-            vTexCoord3.zw = vTEXCOORD.xy;
-        #endif
 
         vColorBlendValues = vTEXCOORD4;
 

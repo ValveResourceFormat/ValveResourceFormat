@@ -4,6 +4,7 @@ using System.Windows.Forms;
 using GUI.Controls;
 using GUI.Types.GLViewers;
 using GUI.Utils;
+using ValveKeyValue;
 using ValveResourceFormat.NavMesh;
 using ValveResourceFormat.Renderer;
 using ValveResourceFormat.Serialization.KeyValues;
@@ -63,7 +64,7 @@ namespace GUI.Types.Viewers
 
             var infoPage = new ThemedTabPage("NAV INFO");
             var infoText = navMeshFile.ToString();
-            var infoTextControl = CodeTextBox.Create(infoText, CodeTextBox.HighlightLanguage.None);
+            var infoTextControl = CodeTextBox.Create(infoText, HighlightLanguage.None);
             infoPage.Controls.Add(infoTextControl);
             tabControl.Controls.Add(infoPage);
 
@@ -92,18 +93,19 @@ namespace GUI.Types.Viewers
             }
         }
 
+        public void NotifyVisible() => glViewer?.NotifyVisible();
+
         public void Dispose()
         {
             glViewer?.Dispose();
         }
 
-        private static ThemedTabPage CreateKVTab(string tabName, KVObject kvObject)
+        private static ThemedTabPage CreateKVTab(string tabName, KVDocument kvDocument)
         {
             var kvPage = new ThemedTabPage(tabName);
 
-            var kv = new KV3File(kvObject);
-            var kvText = kv.ToString();
-            var kvTextControl = CodeTextBox.Create(kvText, CodeTextBox.HighlightLanguage.None);
+            var kvText = kvDocument.ToKV3String();
+            var kvTextControl = CodeTextBox.Create(kvText, HighlightLanguage.None);
 
             kvPage.Controls.Add(kvTextControl);
             return kvPage;

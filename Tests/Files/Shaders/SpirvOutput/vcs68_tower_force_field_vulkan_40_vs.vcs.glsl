@@ -1,10 +1,11 @@
 // SPIR-V reflection failed for backend HLSL:
 // cbuffer ID 5618 (name: _Globals_), member index 0 (name: g_vTexCoordOffset) cannot be expressed with either HLSL packing layout or packoffset.
-// 
+//
 // Re-attempting reflection with the GLSL backend.
 
+// VRF-TEST
 // SPIR-V source (9832 bytes), GLSL reflection with SPIRV-Cross by KhronosGroup
-// 
+// Dynamic combos: D_BLEND_WEIGHT_COUNT=4, D_COMPRESSED_NORMALS_AND_TANGENTS
 
 #version 460
 #if defined(GL_EXT_control_flow_attributes)
@@ -154,7 +155,7 @@ void main()
     _20489.w = _7692.y;
     vec2 _13394 = _14212.xy;
     vec2 _15686 = _13394 - DotaGlobalParams_t.g_vLocalPlayerHeroPosition.xy;
-    vec2 _9831 = _13394 + (normalize(_15686) * (25.0 * (1.0 - clamp(length(_15686) * 0.006666666828095912933349609375, 0.0, 1.0))));
+    vec2 _9831 = _13394 + (normalize(_15686) * (25.0 * (1.0 - saturate(length(_15686) * 0.006666666828095912933349609375))));
     float _9979 = _9831.x;
     vec3 _20490 = _14212;
     _20490.x = _9979;

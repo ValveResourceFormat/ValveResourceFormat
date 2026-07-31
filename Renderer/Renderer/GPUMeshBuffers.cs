@@ -5,13 +5,18 @@ using ValveResourceFormat.Blocks;
 namespace ValveResourceFormat.Renderer
 {
     /// <summary>
-    /// GPU vertex and index buffers created from VBIB mesh data.
+    /// GPU vertex and index buffers created from <see cref="VBIB"/> mesh data.
     /// </summary>
     public class GPUMeshBuffers
     {
+        /// <summary>Gets the OpenGL handles for each uploaded vertex buffer.</summary>
         public int[] VertexBuffers { get; private set; }
+
+        /// <summary>Gets the OpenGL handles for each uploaded index buffer.</summary>
         public int[] IndexBuffers { get; private set; }
 
+        /// <summary>Uploads all vertex and index buffers from the provided <see cref="VBIB"/> to the GPU.</summary>
+        /// <param name="vbib">Source vertex and index buffer data.</param>
         public GPUMeshBuffers(VBIB vbib)
         {
             VertexBuffers = new int[vbib.VertexBuffers.Count];
@@ -31,6 +36,7 @@ namespace ValveResourceFormat.Renderer
             }
         }
 
+        /// <summary>Deletes all GPU vertex and index buffers.</summary>
         public void Delete()
         {
             GL.DeleteBuffers(VertexBuffers.Length, VertexBuffers);

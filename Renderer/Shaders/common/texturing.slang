@@ -60,6 +60,10 @@ struct MaterialProperties_t
     float ClothMask;
     float SSSMask;
 
+    // Sheen lobe, layered over the specular. Zero roughness disables it.
+    vec3 SheenColor;
+    float SheenRoughness;
+
     vec3 DiffuseColor;
     vec3 SpecularColor;
     vec3 TransmissiveColor;
@@ -105,6 +109,8 @@ void InitProperties(out MaterialProperties_t mat, vec3 GeometricNormal, vec3 Pos
     mat.ExtraParams = vec4(0.0);
     mat.ClothMask = 0.0;
     mat.SSSMask = 0.0;
+    mat.SheenColor = vec3(0.0);
+    mat.SheenRoughness = 0.0;
 
     mat.DiffuseColor = vec3(0.0);
     mat.SpecularColor = vec3(0.04);
@@ -185,7 +191,7 @@ void SetDiffuseColorBleed(inout MaterialProperties_t mat)
 #if (F_SSS_MASK == 1)
     vAmbientOcclusionExponent = mix(vec3(1.0), vAmbientOcclusionExponent, mat.SSSMask);
 #endif
-    mat.DiffuseAO = pow(mat.DiffuseAO, vAmbientOcclusionExponent);
+    mat.DiffuseAO = SafePow(mat.DiffuseAO, vAmbientOcclusionExponent);
 }
 
 #endif
@@ -270,7 +276,7 @@ vec3 calculateWorldNormal(vec3 normalMap, vec3 normal, vec3 tangent, vec3 bitang
 
 #if (F_DETAIL_TEXTURE > 0)
 
-// Xen foliage detail textures always has both color and normal
+// Xen foliage detail textures always have both color and normal
 #define DETAIL_COLOR_MOD2X (F_DETAIL_TEXTURE == 1) && (GameVfx_vr_xen_foliage == 0)
 #define DETAIL_COLOR_OVERLAY ((F_DETAIL_TEXTURE == 2) || (F_DETAIL_TEXTURE == 4)) || (GameVfx_vr_xen_foliage != 0)
 #define DETAIL_NORMALS ((F_DETAIL_TEXTURE == 3) || (F_DETAIL_TEXTURE == 4)) || (GameVfx_vr_xen_foliage != 0)
@@ -323,7 +329,7 @@ void applyDetailTexture(inout vec3 Albedo, inout vec3 NormalMap, vec2 detailMask
     #if (DETAIL_NORMALS)
         vec3 DetailNormal = DecodeHemiOctahedronNormal(texture(g_tNormalDetail, vDetailTexCoords).xy);
         DetailNormal = mix(vec3(0, 0, 1), DetailNormal, detailMask * g_flDetailNormalStrength);
-        // literally i dont even know
+        // literally i don't even know
         NormalMap = NormalMap * DetailNormal.z + vec3(NormalMap.z * DetailNormal.z * DetailNormal.xy, 0.0);
     #endif
 }
@@ -331,7 +337,9 @@ void applyDetailTexture(inout vec3 Albedo, inout vec3 NormalMap, vec2 detailMask
 #endif
 
 // GLASS
-#if (F_GLASS == 1) || defined(glass_vfx_common)
+// Edge fresnel glass, as CS2 and Alyx do it. Deadlock reuses the F_GLASS name for a
+// transmission model that has none of these parameters, so it opts out.
+#if ((F_GLASS == 1) || defined(glass_vfx_common)) && !defined(GLASS_IS_TRANSMISSIVE)
 
     uniform bool g_bFresnel = true;
     uniform float g_flEdgeColorFalloff = 3.0;
@@ -344,7 +352,7 @@ void applyDetailTexture(inout vec3 Albedo, inout vec3 NormalMap, vec2 detailMask
     // todo2: inout mat properties
     vec4 GetGlassMaterial(MaterialProperties_t mat)
     {
-        float viewDotNormalInv = saturate(1.0 - (dot(mat.ViewDir, mat.Normal) - g_flEdgeColorThickness));
+        float viewDotNormalInv = clamp(1.0 - (dot(mat.ViewDir, mat.Normal) - g_flEdgeColorThickness), 0.0001, 1.0);
         float fresnel = saturate(pow(viewDotNormalInv, g_flEdgeColorFalloff)) * g_flEdgeColorMaxOpacity;
         vec4 fresnelColor = vec4(g_vEdgeColor.xyz, g_bFresnel ? fresnel : 0.0);
 

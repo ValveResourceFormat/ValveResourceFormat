@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.IO;
+using ValveKeyValue;
 using ValveResourceFormat.Serialization.KeyValues;
 
 namespace ValveResourceFormat.CompiledShader;
@@ -64,11 +65,13 @@ public class VfxRenderStateInfoPixelShader : VfxRenderStateInfo
     /// <summary>
     /// Describes the rasterizer state configuration.
     /// </summary>
+    /// <seealso href="https://s2v.app/SchemaExplorer/cs2/rendersystemdx11/RsRasterizerStateDesc_t">RsRasterizerStateDesc_t</seealso>
     public class RsRasterizerStateDesc
     {
         /// <summary>
         /// Specifies the fill mode for rendering.
         /// </summary>
+        /// <seealso href="https://s2v.app/SchemaExplorer/cs2/rendersystemdx11/RsFillMode_t">RsFillMode_t</seealso>
         public enum RsFillMode : byte
         {
 #pragma warning disable CS1591
@@ -80,6 +83,7 @@ public class VfxRenderStateInfoPixelShader : VfxRenderStateInfo
         /// <summary>
         /// Specifies the cull mode for rendering.
         /// </summary>
+        /// <seealso href="https://s2v.app/SchemaExplorer/cs2/rendersystemdx11/RsCullMode_t">RsCullMode_t</seealso>
         public enum RsCullMode : byte
         {
 #pragma warning disable CS1591
@@ -145,25 +149,9 @@ public class VfxRenderStateInfoPixelShader : VfxRenderStateInfo
     /// <summary>
     /// Describes the depth and stencil state configuration.
     /// </summary>
+    /// <seealso href="https://s2v.app/SchemaExplorer/cs2/rendersystemdx11/RsDepthStencilStateDesc_t">RsDepthStencilStateDesc_t</seealso>
     public class RsDepthStencilStateDesc
     {
-        /// <summary>
-        /// Specifies comparison functions.
-        /// </summary>
-        public enum RsComparison : byte
-        {
-#pragma warning disable CS1591
-            Never = 0,
-            Less = 1,
-            Equal = 2,
-            LessEqual = 3,
-            Greater = 4,
-            NotEqual = 5,
-            GreaterEqual = 6,
-            Always = 7,
-#pragma warning restore CS1591
-        }
-
         /// <summary>
         /// Specifies stencil operations.
         /// </summary>
@@ -267,8 +255,36 @@ public class VfxRenderStateInfoPixelShader : VfxRenderStateInfo
         /// <summary>
         /// Initializes a new instance of the <see cref="RsDepthStencilStateDesc"/> class.
         /// </summary>
-        public RsDepthStencilStateDesc(ulong depthStencilBits)
+        /// <param name="depthStencilBits">The packed bitfield value.</param>
+        /// <param name="vcsVersion">The VCS version, which selects the bit layout.</param>
+        public RsDepthStencilStateDesc(ulong depthStencilBits, int vcsVersion)
         {
+            ulong stencilBits;
+
+            if (vcsVersion >= 71)
+            {
+                DepthTestEnable = (depthStencilBits & 1) != 0;
+                DepthWriteEnable = ((depthStencilBits >> 1) & 1) != 0;
+                DepthFunc = (RsComparison)((depthStencilBits >> 2) & 0xF);
+
+                stencilBits = depthStencilBits >> 16;
+
+                FrontStencilFunc = (RsComparison)(stencilBits & 0xF);
+                BackStencilFunc = (RsComparison)((stencilBits >> 4) & 0xF);
+                StencilEnable = ((stencilBits >> 8) & 1) != 0;
+                FrontStencilFailOp = (RsStencilOp)((stencilBits >> 9) & 0x7);
+                FrontStencilDepthFailOp = (RsStencilOp)((stencilBits >> 12) & 0x7);
+                FrontStencilPassOp = (RsStencilOp)((stencilBits >> 15) & 0x7);
+                BackStencilFailOp = (RsStencilOp)((stencilBits >> 18) & 0x7);
+                BackStencilDepthFailOp = (RsStencilOp)((stencilBits >> 21) & 0x7);
+                BackStencilPassOp = (RsStencilOp)((stencilBits >> 24) & 0x7);
+
+                StencilReadMask = (byte)((depthStencilBits >> 48) & 0xFF);
+                StencilWriteMask = (byte)((depthStencilBits >> 56) & 0xFF);
+
+                return;
+            }
+
             // Depth state
             DepthTestEnable = (depthStencilBits & 1) != 0;
             DepthWriteEnable = ((depthStencilBits >> 1) & 1) != 0;
@@ -276,7 +292,7 @@ public class VfxRenderStateInfoPixelShader : VfxRenderStateInfo
 
             // Stencil state starts at byte 2 (bit 16)
             // RsStencilStateDesc_t
-            var stencilBits = depthStencilBits >> 16;
+            stencilBits = depthStencilBits >> 16;
 
             StencilEnable = (stencilBits & 1) != 0;
             FrontStencilFailOp = (RsStencilOp)((stencilBits >> 1) & 0x7);
@@ -328,6 +344,7 @@ public class VfxRenderStateInfoPixelShader : VfxRenderStateInfo
     /// <summary>
     /// Describes the blend state configuration for render targets.
     /// </summary>
+    /// <seealso href="https://s2v.app/SchemaExplorer/cs2/rendersystemdx11/RsBlendStateDesc_t">RsBlendStateDesc_t</seealso>
     public class RsBlendStateDesc
     {
         /// <summary>Gets the maximum number of render targets.</summary>
@@ -520,7 +537,7 @@ public class VfxRenderStateInfoPixelShader : VfxRenderStateInfo
     /// <summary>
     /// Initializes a new instance of the <see cref="VfxRenderStateInfoPixelShader"/> class.
     /// </summary>
-    public VfxRenderStateInfoPixelShader(long comboId, int shaderId, int sourcePointer, KVObject renderState)
+    public VfxRenderStateInfoPixelShader(long comboId, int shaderId, int sourcePointer, KVObject renderState, int vcsVersion)
         : base(comboId, shaderId, sourcePointer)
     {
         if (renderState is null)
@@ -535,7 +552,7 @@ public class VfxRenderStateInfoPixelShader : VfxRenderStateInfo
 
         if (renderState.ContainsKey("depthStencilStateDesc"))
         {
-            DepthStencilStateDesc = new RsDepthStencilStateDesc(renderState.GetUnsignedIntegerProperty("depthStencilStateDesc"));
+            DepthStencilStateDesc = new RsDepthStencilStateDesc(renderState.GetUnsignedIntegerProperty("depthStencilStateDesc"), vcsVersion);
         }
 
         // PSRS only has blendStateDesc

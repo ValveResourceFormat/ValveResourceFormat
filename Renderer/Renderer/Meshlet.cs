@@ -1,4 +1,5 @@
 using System.Runtime.InteropServices;
+using ValveKeyValue;
 using ValveResourceFormat.Serialization.KeyValues;
 
 namespace ValveResourceFormat.Renderer
@@ -65,6 +66,8 @@ namespace ValveResourceFormat.Renderer
         /// <summary>Number of triangles contained in this meshlet. Typically maxes out at 48.</summary>
         public uint TriangleCount { get; init; }
 
+        /// <summary>Deserializes a meshlet from its KV3 representation.</summary>
+        /// <param name="data">KV3 object containing the meshlet properties.</param>
         public Meshlet(KVObject data)
         {
             var packedBounds = data.GetSubCollection("m_PackedAABB");

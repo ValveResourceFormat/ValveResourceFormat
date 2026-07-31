@@ -11,8 +11,8 @@ public enum VfxStaticComboSourceType
     S_SHADER_QUALITY,
     S_VR,
     S_MOLTEN_VK,
-    S_BINDLESS_RUNTIME,
-    S_MOBILE,
+    S_BINDLESS_RUNTIME, // Removed in version 71, following values are shifted down by two in newer files
+    S_MOBILE, // Removed in version 71
     S_REVERSE_DEPTH_BUFFER,
     S_SUPPORTS_CLIP_DISTANCE,
     S_SUBGROUP_WAVE_OPS,

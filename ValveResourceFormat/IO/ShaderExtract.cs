@@ -40,7 +40,7 @@ public sealed class ShaderExtract
         public bool NoHungarianTypeGuessing { get; init; }
         /// <summary>Gets a value indicating whether to write parameters in raw format.</summary>
         public bool WriteParametersRaw { get; init; }
-        /// <summary>Gets or sets a value indicating whether static combos can be read.</summary>
+        /// <summary>Gets a value indicating whether static combos can be read.</summary>
         public bool CanReadStaticCombos
         {
             get => StaticComboReadingCap != 0;
@@ -385,10 +385,13 @@ public sealed class ShaderExtract
             var staticCombo = staticComboEntry.Value.Unserialize();
             var staticConfigState = staticConfig.GetConfigState(staticCombo.StaticComboId);
 
-            foreach (var vsEnd in staticCombo.DynamicCombos)
+            for (var i = 0; i < staticCombo.DynamicCombos.Length; i++)
             {
+                var vsEnd = staticCombo.DynamicCombos[i];
                 var dynamicConfigState = dynamicConfig.GetConfigState(vsEnd.DynamicComboId);
-                var vsInputId = staticCombo.VShaderInputs[vsEnd.ShaderFileId];
+
+                // VShaderInputs is one entry per dynamic combo, indexed positionally.
+                var vsInputId = staticCombo.VShaderInputs[i];
 
                 for (var j = 0; j < staticConfigState.Length; j++)
                 {
@@ -760,7 +763,7 @@ public sealed class ShaderExtract
             }
 
             if (parameters.Count == 0 || parameters.All(p =>
-                paramBlocks[p].RegisterType == VfxRegisterType.SamplerState || paramBlocks[p].RegisterType == VfxRegisterType.Buffer))
+                paramBlocks[p].RegisterType == VfxRegisterType.SamplerState || paramBlocks[p].RegisterType == VfxRegisterType.ConstantBuffer))
             {
                 continue;
             }
@@ -951,9 +954,9 @@ public sealed class ShaderExtract
                     VfxVariableType.Int => ((int)attribute.ConstValue).ToString(CultureInfo.InvariantCulture),
                     VfxVariableType.Float => ((float)attribute.ConstValue).ToString(CultureInfo.InvariantCulture),
                     VfxVariableType.String => (string)attribute.ConstValue,
-                    VfxVariableType.Float2 => ((Vector2)attribute.ConstValue).ToString().Trim('<', '>'),
-                    VfxVariableType.Float3 => ((Vector3)attribute.ConstValue).ToString().Trim('<', '>'),
-                    VfxVariableType.Float4 => ((Vector4)attribute.ConstValue).ToString().Trim('<', '>'),
+                    VfxVariableType.Float2 => ((Vector2)attribute.ConstValue).ToString("G", CultureInfo.InvariantCulture).Trim('<', '>'),
+                    VfxVariableType.Float3 => ((Vector3)attribute.ConstValue).ToString("G", CultureInfo.InvariantCulture).Trim('<', '>'),
+                    VfxVariableType.Float4 => ((Vector4)attribute.ConstValue).ToString("G", CultureInfo.InvariantCulture).Trim('<', '>'),
 
                     _ => attribute.ConstValue.ToString(),
                 };
@@ -968,7 +971,7 @@ public sealed class ShaderExtract
             }
             else
             {
-                throw new InvalidOperationException("Whats the value of this attribute then?");
+                throw new InvalidOperationException("What's the value of this attribute then?");
             }
 
             var attributeType = attribute.VfxType switch
@@ -1200,8 +1203,14 @@ public sealed class ShaderExtract
         {
             WriteVariable(param, paramBlocks, writer, annotations);
         }
-        else if (param.RegisterType == VfxRegisterType.Texture)
+        else if (param.RegisterType is VfxRegisterType.Texture or VfxRegisterType.TextureIndex)
         {
+            //Skip bindless array variable definitions
+            if (param.VariableSource == VfxVariableSourceType.ExternalDescSet)
+            {
+                return;
+            }
+
             WriteTexture(param, paramBlocks, channelBlocks, writer, annotations);
         }
     }
@@ -1221,7 +1230,7 @@ public sealed class ShaderExtract
         [nameof(VfxRenderStateInfoPixelShader.RsRasterizerStateDesc.MultisampleEnable)] = typeof(Boolean),
 
         // RsDepthStencilStateDesc
-        [nameof(VfxRenderStateInfoPixelShader.RsDepthStencilStateDesc.DepthFunc)] = typeof(VfxRenderStateInfoPixelShader.RsDepthStencilStateDesc.RsComparison),
+        [nameof(VfxRenderStateInfoPixelShader.RsDepthStencilStateDesc.DepthFunc)] = typeof(RsComparison),
         ["DepthEnable"] = typeof(Boolean),
         [nameof(VfxRenderStateInfoPixelShader.RsDepthStencilStateDesc.DepthWriteEnable)] = typeof(Boolean),
 
@@ -1419,14 +1428,24 @@ public sealed class ShaderExtract
             annotations.Add($"OutputFormat({format});");
         }
 
-        annotations.Add($"SrgbRead({(param.SrgbRead ? "true" : "false")});");
+        // only add SrgbRead to actual textures
+        if (param.VfxType is < VfxVariableType.StructuredBuffer or > VfxVariableType.RWStructuredBufferWithCounter)
+        {
+            annotations.Add($"SrgbRead({(param.SrgbRead ? "true" : "false")});");
+        }
 
         const string Sampler = "Sampler";
+        const string Index = "Index";
         var typeString = param.VfxType.ToString();
 
         typeString = typeString.StartsWith(Sampler, StringComparison.Ordinal)
             ? "Texture" + typeString[Sampler.Length..]
             : typeString; // not even a texture type?
+
+        if (typeString.EndsWith(Index, StringComparison.Ordinal))
+        {
+            typeString = typeString[..^Index.Length];
+        }
 
         writer.WriteLine($"{typeString} {param.Name}{GetVfxAttributes(annotations)};");
     }

@@ -1,5 +1,6 @@
 using System.IO;
 using System.Text;
+using ValveKeyValue;
 using ValveResourceFormat.Serialization.KeyValues;
 
 namespace ValveResourceFormat.Blocks.ResourceEditInfoStructs
@@ -38,9 +39,9 @@ namespace ValveResourceFormat.Blocks.ResourceEditInfoStructs
         /// </summary>
         public AdditionalRelatedFile(KVObject data)
         {
-            ContentRelativeFilename = data.GetProperty<string>("m_RelativeFilename");
-            ContentSearchPath = data.GetProperty<string>("m_SearchPath");
-            IsGameFile = data.GetProperty<bool>("m_bIsGameFile");
+            ContentRelativeFilename = data.GetStringProperty("m_RelativeFilename");
+            ContentSearchPath = data.GetStringProperty("m_SearchPath");
+            IsGameFile = data.GetBooleanProperty("m_bIsGameFile");
         }
     }
 }

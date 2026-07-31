@@ -10,7 +10,8 @@ layout(std140, binding = 0) uniform ViewConstants
     mat4 g_matWorldToView;
     mat4 g_matViewToProjection;
     vec4 g_vInvProjRow3;
-    vec4 g_vInvViewportSize;
+    vec2 g_vInvViewportSize;
+    vec2 g_vViewportSize;
     vec3 g_vCameraPositionWs;
     float g_flViewportMinZ;
     vec3 g_vCameraDirWs;

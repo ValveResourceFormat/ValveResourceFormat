@@ -39,9 +39,15 @@ public class RendererContext : IDisposable
     public int MaxTextureSize { get; set; } = 1024;
 
     /// <summary>
-    /// Field of view in degrees for <see cref="Camera"/>.
+    /// Main camera field of view, in horizontal degrees at a 4:3 aspect ratio.
+    /// See <see cref="Camera.FieldOfView"/>.
     /// </summary>
-    public float FieldOfView { get; set; } = 60.0f;
+    public float FieldOfView { get; set; } = 90.0f;
+
+    /// <summary>
+    /// First-person viewmodel field of view, in horizontal degrees at a 4:3 aspect ratio.
+    /// </summary>
+    public float ViewmodelFieldOfView { get; set; } = 64.0f;
 
     /// <summary>
     /// Initializes a new renderer context.
@@ -65,7 +71,10 @@ public class RendererContext : IDisposable
         GC.SuppressFinalize(this);
     }
 
-    /// <inheritdoc/>
+    /// <summary>
+    /// Releases resources owned by the context.
+    /// </summary>
+    /// <param name="disposing">True to release managed resources.</param>
     protected virtual void Dispose(bool disposing)
     {
         if (!disposing)

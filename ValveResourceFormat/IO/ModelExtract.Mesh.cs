@@ -7,6 +7,7 @@ using Datamodel;
 using ValveResourceFormat.Blocks;
 using ValveResourceFormat.IO.ContentFormats.DmxModel;
 using ValveResourceFormat.ResourceTypes;
+using ValveResourceFormat.ResourceTypes.ModelAnimation;
 using ValveResourceFormat.ResourceTypes.RubikonPhysics;
 using ValveResourceFormat.Serialization.KeyValues;
 using RnShapes = ValveResourceFormat.ResourceTypes.RubikonPhysics.Shapes;
@@ -18,12 +19,12 @@ partial class ModelExtract
     /// <summary>
     /// Gets the list of physics hulls to be extracted with their output file names.
     /// </summary>
-    public List<(HullDescriptor Hull, string FileName)> PhysHullsToExtract { get; } = [];
+    public List<(HullDescriptor Hull, string FileName, string ParentBone)> PhysHullsToExtract { get; } = [];
 
     /// <summary>
     /// Gets the list of physics meshes to be extracted with their output file names.
     /// </summary>
-    public List<(MeshDescriptor Mesh, string FileName)> PhysMeshesToExtract { get; } = [];
+    public List<(MeshDescriptor Mesh, string FileName, string ParentBone)> PhysMeshesToExtract { get; } = [];
 
     /// <summary>
     /// Gets the list of render meshes to be extracted.
@@ -51,7 +52,7 @@ partial class ModelExtract
     public HashSet<SurfaceTagCombo> SurfaceTagCombos { get; } = [];
 
     /// <summary>
-    /// Gets or initializes the function to provide render material names for physics surface tags.
+    /// Gets the function to provide render material names for physics surface tags.
     /// </summary>
     public Func<SurfaceTagCombo, string>? PhysicsToRenderMaterialNameProvider { get; init; }
 
@@ -79,6 +80,12 @@ partial class ModelExtract
         /// Remap table for the mesh bone indices.
         /// </summary>
         public int[]? BoneRemapTable { get; init; }
+
+        /// <summary>
+        /// Skeleton whose bones the mesh's BLENDINDICES reference (post-remap, in <see cref="Bone.Index"/> order).
+        /// When provided, bones are emitted into the DMX <c>jointList</c> so ModelDoc can resolve indices.
+        /// </summary>
+        public Skeleton? Skeleton { get; init; }
     }
 
     /// <summary>
@@ -90,6 +97,7 @@ partial class ModelExtract
         int Index,
         string FileName,
         int[]? BoneRemapTable = null,
+        Skeleton? Skeleton = null,
         ImportFilter ImportFilter = default
     );
 
@@ -161,7 +169,7 @@ partial class ModelExtract
         foreach (var embedded in model.GetEmbeddedMeshes())
         {
             var remapTable = model.GetRemapTable(embedded.MeshIndex);
-            RenderMeshesToExtract.Add(new(embedded.Mesh, embedded.Name, embedded.MeshIndex, GetDmxFileName_ForEmbeddedMesh(embedded.Name, i++), remapTable));
+            RenderMeshesToExtract.Add(new(embedded.Mesh, embedded.Name, embedded.MeshIndex, GetDmxFileName_ForEmbeddedMesh(embedded.Name, i++), remapTable, model.Skeleton));
         }
 
         foreach (var reference in model.GetReferenceMeshNamesAndLoD())
@@ -187,7 +195,7 @@ partial class ModelExtract
             var remapTable = model.GetRemapTable(reference.MeshIndex);
             var meshKey = Path.GetFileNameWithoutExtension(reference.MeshName);
 
-            RenderMeshesToExtract.Add(new(mesh, meshKey, reference.MeshIndex, GetDmxFileName_ForReferenceMesh(reference.MeshName), remapTable));
+            RenderMeshesToExtract.Add(new(mesh, meshKey, reference.MeshIndex, GetDmxFileName_ForReferenceMesh(reference.MeshName), remapTable, model.Skeleton));
         }
     }
 
@@ -228,17 +236,20 @@ partial class ModelExtract
         }
 
         var i = 0;
-        foreach (var physicsPart in physAggregateData.Parts)
+        for (var partIndex = 0; partIndex < physAggregateData.Parts.Length; partIndex++)
         {
+            var physicsPart = physAggregateData.Parts[partIndex];
+            var parentBone = physAggregateData.GetParentBoneName(partIndex);
+
             foreach (var hull in physicsPart.Shape.Hulls)
             {
-                PhysHullsToExtract.Add((hull, GetDmxFileName_ForEmbeddedMesh("hull", i++)));
+                PhysHullsToExtract.Add((hull, GetDmxFileName_ForEmbeddedMesh("hull", i++), parentBone));
                 StoreSurfaceTagCombo(hull);
             }
 
             foreach (var mesh in physicsPart.Shape.Meshes)
             {
-                PhysMeshesToExtract.Add((mesh, GetDmxFileName_ForEmbeddedMesh("phys", i++)));
+                PhysMeshesToExtract.Add((mesh, GetDmxFileName_ForEmbeddedMesh("phys", i++), parentBone));
 
                 StoreSurfaceTagCombo(mesh);
 
@@ -280,12 +291,14 @@ partial class ModelExtract
             yield break;
         }
 
-        var (mesh, name, index, fileName, _, _) = extract.RenderMeshesToExtract[0];
+        var (mesh, name, index, fileName, boneRemapTable, skeleton, _) = extract.RenderMeshesToExtract[0];
 
         var options = new DatamodelRenderMeshExtractOptions
         {
             MaterialInputSignatures = extract.MaterialInputSignatures,
-            SplitDrawCallsIntoSeparateSubmeshes = true
+            SplitDrawCallsIntoSeparateSubmeshes = true,
+            BoneRemapTable = boneRemapTable,
+            Skeleton = skeleton,
         };
 
         byte[] sharedDmxExtractMethod() => ToDmxMesh(
@@ -294,7 +307,7 @@ partial class ModelExtract
             options
         );
 
-        var sharedMeshExtractConfiguration = new RenderMeshExtractConfiguration(mesh, name, index, fileName, ImportFilter: new(true, new(1)));
+        var sharedMeshExtractConfiguration = new RenderMeshExtractConfiguration(mesh, name, index, fileName, boneRemapTable, skeleton, new(true, new(1)));
         extract.RenderMeshesToExtract.Clear();
         extract.RenderMeshesToExtract.Add(sharedMeshExtractConfiguration);
 
@@ -462,6 +475,14 @@ partial class ModelExtract
         var dmeModel = new DmeModel() { Name = name };
         var dmeVertexBuffers = new Dictionary<(int, int), (DmeDag Dag, DmeVertexData VertexData)>(mbuf.VertexBuffers.Count);
 
+        // Populate the joint list with bones up-front so DMX BLENDINDICES line up with Bone.Index.
+        // ModelDoc resolves mesh skinning indices through this list; without it the mesh is bound to "no skeleton".
+        if (options.Skeleton is { Bones.Length: > 0 } skeleton)
+        {
+            dmeModel = BuildDmeDagSkeleton(skeleton, out _);
+            dmeModel.Name = name;
+        }
+
         var materialInputSignature = Material.VsInputSignature.Empty;
         var drawCallIndex = 0;
 
@@ -471,11 +492,11 @@ partial class ModelExtract
             {
                 var vertexBuffers = drawCall.GetArray("m_vertexBuffers");
 
-                Debug.Assert(vertexBuffers.Length <= 2); // Hello traveler, if you are here to update this code to support more than 2 buffers!
+                Debug.Assert(vertexBuffers.Count <= 2); // Hello traveler, if you are here to update this code to support more than 2 buffers!
 
                 var dmeVertexBufferKey = (
                     vertexBuffers[0].GetInt32Property("m_hBuffer"),
-                    vertexBuffers.Length > 1 ? vertexBuffers[1].GetInt32Property("m_hBuffer") : -1
+                    vertexBuffers.Count > 1 ? vertexBuffers[1].GetInt32Property("m_hBuffer") : -1
                 );
 
                 if (!dmeVertexBuffers.TryGetValue(dmeVertexBufferKey, out var dmeVertexBuffer))
@@ -488,7 +509,7 @@ partial class ModelExtract
                 var indexBufferIndex = indexBufferInfo.GetInt32Property("m_hBuffer");
                 ReadOnlySpan<int> indexBuffer = indexBuffers[indexBufferIndex].Value;
 
-                var material = drawCall.GetProperty<string>("m_material") ?? drawCall.GetProperty<string>("m_pMaterial");
+                var material = drawCall.GetStringProperty("m_material") ?? drawCall.GetStringProperty("m_pMaterial");
 
                 if (material != null && options.MaterialInputSignatures != null && (materialInputSignature.Elements == null || materialInputSignature.Elements.Length == 0))
                 {
@@ -518,7 +539,7 @@ partial class ModelExtract
                         dag = CreateDmxDag(dmeModel, dmeVertexBuffer.VertexData, subMeshName);
                     }
 
-                    dag.Shape.Name = subMeshName;
+                    dag.Shape!.Name = subMeshName;
                 }
 
                 GenerateTriangleFaceSetFromIndexBuffer(

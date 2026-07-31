@@ -1,5 +1,5 @@
+using ValveKeyValue;
 using ValveResourceFormat.ResourceTypes.Choreo.Curves;
-using ValveResourceFormat.Serialization.KeyValues;
 
 namespace ValveResourceFormat.ResourceTypes.Choreo
 {
@@ -35,10 +35,10 @@ namespace ValveResourceFormat.ResourceTypes.Choreo
         /// <returns>A <see cref="KVObject"/> representing this edge.</returns>
         public KVObject ToKeyValues()
         {
-            var kv = new KVObject(null);
+            var kv = KVObject.Collection();
 
-            kv.AddProperty("type", CurveType.ToKeyValue());
-            kv.AddProperty("zero_value", ZeroValue);
+            kv.Add("type", CurveType.ToKeyValue());
+            kv.Add("zero_value", ZeroValue);
 
             return kv;
         }

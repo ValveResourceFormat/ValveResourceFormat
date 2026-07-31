@@ -6,6 +6,7 @@ using GUI.Types.GLViewers;
 using GUI.Utils;
 using SkiaSharp;
 using Svg.Skia;
+using ValveKeyValue;
 using ValveResourceFormat.Renderer;
 using ValveResourceFormat.Serialization.KeyValues;
 
@@ -115,9 +116,9 @@ internal class AnimationGraphViewer : GLNodeGraphViewer
         }
 
 
-        Dictionary<int, Node> createdNodes = new(nodes.Length);
+        Dictionary<int, Node> createdNodes = new(nodes.Count);
 
-        Node CreateNode(string[] nodePaths, KVObject[] nodes, int nodeIdx)
+        Node CreateNode(string[] nodePaths, IReadOnlyList<KVObject> nodes, int nodeIdx)
         {
             if (createdNodes.TryGetValue(nodeIdx, out var existingNode))
             {
@@ -205,13 +206,13 @@ internal class AnimationGraphViewer : GLNodeGraphViewer
 
                     if (stateInputIdx != -1)
                     {
-                        var (_, stateNodeOut) = CreateChild<Pose>(node, children.Length, stateInputIdx);
+                        var (_, stateNodeOut) = CreateChild<Pose>(node, children.Count, stateInputIdx);
                         nodeGraph.Connect(stateNodeOut, input);
                     }
 
                     if (entryConditionNodeIdx != -1)
                     {
-                        var (_, childOutput) = CreateChild<Value>(node, children.Length, entryConditionNodeIdx, stateName);
+                        var (_, childOutput) = CreateChild<Value>(node, children.Count, entryConditionNodeIdx, stateName);
                         nodeGraph.Connect(childOutput, input);
                     }
                 }
@@ -223,7 +224,7 @@ internal class AnimationGraphViewer : GLNodeGraphViewer
                 var parameterNodeIdx = data.GetInt32Property("m_parameterNodeIdx");
                 CreateInputAndChild<Value>(node, options.Length + 1, parameterNodeIdx);
 
-                var hasWeightsSet = data.GetProperty<bool>("m_bHasWeightsSet");
+                var hasWeightsSet = data.GetBooleanProperty("m_bHasWeightsSet");
                 var totalWeight = 0;
                 var weights = data.GetArray<uint>("m_optionWeights");
 
@@ -306,9 +307,9 @@ internal class AnimationGraphViewer : GLNodeGraphViewer
                         CreateInputAndChild<Pose>(layerNode, 1, rootMotionNodeIdx, parentInputName: "Root Motion");
                     }
 
-                    layerNode.AddText($"Is Synchronized: {layer.GetProperty<bool>("m_bIsSynchronized")}");
-                    layerNode.AddText($"Ignore Events: {layer.GetProperty<bool>("m_bIgnoreEvents")}");
-                    layerNode.AddText($"Is State Machine Layer: {layer.GetProperty<bool>("m_bIsStateMachineLayer")}");
+                    layerNode.AddText($"Is Synchronized: {layer.GetBooleanProperty("m_bIsSynchronized")}");
+                    layerNode.AddText($"Ignore Events: {layer.GetBooleanProperty("m_bIgnoreEvents")}");
+                    layerNode.AddText($"Is State Machine Layer: {layer.GetBooleanProperty("m_bIsStateMachineLayer")}");
                     layerNode.AddText($"Blend Mode: {layer.GetStringProperty("m_blendMode")}");
                     layerNode.UpdateTypeColorFromOutput();
                     layerNode.Calculate();
@@ -341,20 +342,25 @@ internal class AnimationGraphViewer : GLNodeGraphViewer
                     CreateInputAndChild<Pose>(node, childCount, sourceNodeIdx, $"Option {++optionIndex}");
                 }
 
-                node.AddText($"Allow Looping: {data.GetProperty<bool>("m_bAllowLooping")}");
+                node.AddText($"Allow Looping: {data.GetBooleanProperty("m_bAllowLooping")}");
             }
             else if (node.NodeType is "BoneMask")
             {
-                node.AddText(data.GetProperty<string>("m_boneMaskID"));
+                node.AddText(data.GetStringProperty("m_boneMaskID"));
+            }
+            else if (node.NodeType is "CachedFloat")
+            {
+                CreateInputAndChild<Value>(node, 1, data.GetInt32Property("m_nInputValueNodeIdx"), "Input");
+                node.AddText($"Mode: {data.GetStringProperty("m_mode")}");
             }
             else if (node.NodeType is "ConstTarget")
             {
-                var value = data.GetProperty<KVObject>("m_value");
-                var boneId = value.GetProperty<string>("m_boneID");
-                var isBoneTarget = value.GetProperty<bool>("m_bIsBoneTarget");
-                var isUsingBoneSpaceOffsets = value.GetProperty<bool>("m_bIsUsingBoneSpaceOffsets");
-                var hasOffsets = value.GetProperty<bool>("m_bHasOffsets");
-                var isSet = value.GetProperty<bool>("m_bIsSet");
+                var value = data.GetSubCollection("m_value");
+                var boneId = value.GetStringProperty("m_boneID");
+                var isBoneTarget = value.GetBooleanProperty("m_bIsBoneTarget");
+                var isUsingBoneSpaceOffsets = value.GetBooleanProperty("m_bIsUsingBoneSpaceOffsets");
+                var hasOffsets = value.GetBooleanProperty("m_bHasOffsets");
+                var isSet = value.GetBooleanProperty("m_bIsSet");
 
                 node.AddText($"Bone: {boneId}");
                 node.AddText($"Is Bone Target: {isBoneTarget}");
@@ -377,8 +383,8 @@ internal class AnimationGraphViewer : GLNodeGraphViewer
             else if (node.NodeType is "FloatRemap")
             {
                 CreateInputAndChild<Value>(node, 1, data.GetInt32Property("m_nInputValueNodeIdx"), "Value");
-                var inputRange = data.GetProperty<KVObject>("m_inputRange");
-                var outputRange = data.GetProperty<KVObject>("m_outputRange");
+                var inputRange = data.GetSubCollection("m_inputRange");
+                var outputRange = data.GetSubCollection("m_outputRange");
                 node.AddText($"InputBegin: {inputRange.GetFloatProperty("m_flBegin")} InputEnd: {inputRange.GetFloatProperty("m_flEnd")}");
                 node.AddText($"OutputBegin: {outputRange.GetFloatProperty("m_flBegin")} OutputEnd: {outputRange.GetFloatProperty("m_flEnd")}");
             }
@@ -398,12 +404,12 @@ internal class AnimationGraphViewer : GLNodeGraphViewer
             }
             else if (node.NodeType.EndsWith("Math", StringComparison.Ordinal))
             {
-                var inputNodeIdxA = data.GetProperty("m_nInputValueNodeIdxA", -1);
-                var inputNodeIdxB = data.GetProperty("m_nInputValueNodeIdxB", -1);
+                var inputNodeIdxA = data.GetInt32Property("m_nInputValueNodeIdxA", -1);
+                var inputNodeIdxB = data.GetInt32Property("m_nInputValueNodeIdxB", -1);
 
                 CreateInputAndChild<Value>(node, 2, inputNodeIdxA, "A");
 
-                var @operator = data.GetProperty<string>("m_operator");
+                var @operator = data.GetStringProperty("m_operator");
                 node.AddText(@operator);
 
                 if (inputNodeIdxB != -1)
@@ -425,7 +431,7 @@ internal class AnimationGraphViewer : GLNodeGraphViewer
 
                 if (data.ContainsKey("m_comparison"))
                 {
-                    var comparison = data.GetProperty<string>("m_comparison");
+                    var comparison = data.GetStringProperty("m_comparison");
                     node.AddText(comparison);
                 }
 
@@ -465,6 +471,15 @@ internal class AnimationGraphViewer : GLNodeGraphViewer
             else if (node.Data?.ContainsKey("m_nChildNodeIdx") ?? false)
             {
                 var childCount = 1;
+
+                void AddMaybeOptionalInput(string name, int idx)
+                {
+                    if (idx != -1)
+                    {
+                        CreateInputAndChild<Value>(node, childCount, idx, name);
+                    }
+                }
+
                 if (node.NodeType == "Scale")
                 {
                     childCount = 3;
@@ -474,7 +489,7 @@ internal class AnimationGraphViewer : GLNodeGraphViewer
                 else if (node.NodeType == "TwoBoneIK")
                 {
                     childCount = 2;
-                    node.AddText($"Bone: {data.GetProperty<string>("m_effectorBoneID")}");
+                    node.AddText($"Bone: {data.GetStringProperty("m_effectorBoneID")}");
                     CreateInputAndChild<Pose>(node, childCount, data.GetInt32Property("m_nEffectorTargetNodeIdx"), "Effector");
                     var enabledNodeIdx = data.GetInt32Property("m_nEnabledNodeIdx");
                     if (enabledNodeIdx != -1)
@@ -486,8 +501,54 @@ internal class AnimationGraphViewer : GLNodeGraphViewer
                         node.AddText("Enabled: true");
                     }
                     node.AddText($"Blend Time: {data.GetFloatProperty("m_flBlendTimeSeconds"):f}");
-                    node.AddText($"Blend Mode: {data.GetProperty<string>("m_blendMode")}");
-                    node.AddText($"Worldspace: {data.GetProperty<bool>("m_bIsTargetInWorldSpace")}");
+                    node.AddText($"Blend Mode: {data.GetStringProperty("m_blendMode")}");
+                    node.AddText($"Worldspace: {data.GetBooleanProperty("m_bIsTargetInWorldSpace")}");
+                }
+                else if (node.NodeType == "FootIK")
+                {
+                    childCount = 3;
+
+                    node.AddText($"Left Effector: {data.GetStringProperty("m_leftEffectorBoneID")}");
+                    node.AddText($"Right Effector: {data.GetStringProperty("m_rightEffectorBoneID")}");
+
+                    var leftTargetIdx = data.GetInt32Property("m_nLeftTargetNodeIdx");
+                    var rightTargetIdx = data.GetInt32Property("m_nRightTargetNodeIdx");
+
+                    CreateInputAndChild<Pose>(node, childCount, leftTargetIdx, "Left Target");
+                    CreateInputAndChild<Pose>(node, childCount, rightTargetIdx, "Right Target");
+
+                    var enabledNodeIdx = data.GetInt32Property("m_nEnabledNodeIdx", -1);
+                    if (enabledNodeIdx != -1)
+                    {
+                        CreateInputAndChild<Value>(node, childCount, enabledNodeIdx, "Enabled");
+                    }
+
+                    node.AddText($"Blend Time: {data.GetFloatProperty("m_flBlendTimeSeconds"):F2}");
+                    node.AddText($"Blend Mode: {data.GetStringProperty("m_blendMode")}");
+                    node.AddText($"Worldspace: {data.GetBooleanProperty("m_bIsTargetInWorldSpace")}");
+                }
+                else if (node.NodeType is "AimCS")
+                {
+                    childCount = 8;
+
+                    AddMaybeOptionalInput("Vertical Angle", data.GetInt32Property("m_nVerticalAngleNodeIdx"));
+                    AddMaybeOptionalInput("Horizontal Angle", data.GetInt32Property("m_nHorizontalAngleNodeIdx"));
+                    AddMaybeOptionalInput("Weapon Category", data.GetInt32Property("m_nWeaponCategoryNodeIdx"));
+                    AddMaybeOptionalInput("Weapon Type", data.GetInt32Property("m_nWeaponTypeNodeIdx"));
+                    AddMaybeOptionalInput("Is Weapon Action Active", data.GetInt32Property("m_nIsWeaponActionActiveNodeIdx"));
+                    AddMaybeOptionalInput("Weapon Drop", data.GetInt32Property("m_nWeaponDropNodeIdx"));
+                    AddMaybeOptionalInput("Disable Hand IK", data.GetInt32Property("m_nDisableHandIKNodeIdx"));
+                    AddMaybeOptionalInput("Crouch Weight", data.GetInt32Property("m_nCrouchWeightNodeIdx"));
+
+                    node.AddText($"Hand IK Blend In: {data.GetFloatProperty("m_flHandIKBlendInTimeSeconds"):F2}");
+                    node.AddText($"Action Blend Time: {data.GetFloatProperty("m_flActionBlendTimeSeconds"):F2}");
+                }
+                else if (node.NodeType is "SnapWeapon")
+                {
+                    childCount = 4;
+                    AddMaybeOptionalInput("Flashed Amount", data.GetInt32Property("m_nFlashedAmountNodeIdx"));
+                    AddMaybeOptionalInput("Weapon Category", data.GetInt32Property("m_nWeaponCategoryNodeIdx"));
+                    AddMaybeOptionalInput("Weapon Type", data.GetInt32Property("m_nWeaponTypeNodeIdx"));
                 }
 
                 var childNodeIdx = data.GetInt32Property("m_nChildNodeIdx");
@@ -518,8 +579,8 @@ internal class AnimationGraphViewer : GLNodeGraphViewer
                     node.AddSpace();
                     node.AddText($"Speed: {data.GetFloatProperty("m_flSpeedMultiplier"):F2}x");
                     node.AddText($"StartSyncEvent Offset: {data.GetInt32Property("m_nStartSyncEventOffset")}");
-                    node.AddText($"Sample RootMotion: {data.GetProperty<bool>("m_bSampleRootMotion")}");
-                    node.AddText($"Allow Looping: {data.GetProperty<bool>("m_bAllowLooping")}");
+                    node.AddText($"Sample RootMotion: {data.GetBooleanProperty("m_bSampleRootMotion")}");
+                    node.AddText($"Allow Looping: {data.GetBooleanProperty("m_bAllowLooping")}");
 
                     var playInReverseNodeIdx = data.GetInt32Property("m_nPlayInReverseValueNodeIdx");
                     if (playInReverseNodeIdx != -1)
@@ -544,7 +605,7 @@ internal class AnimationGraphViewer : GLNodeGraphViewer
                         CreateInputAndChild<Value>(node, 1, poseTimeNodeIdx, "Time");
                     }
 
-                    var timeRemapRange = data.GetProperty<KVObject>("m_inputTimeRemapRange");
+                    var timeRemapRange = data.GetSubCollection("m_inputTimeRemapRange");
                     var remapMin = timeRemapRange.GetFloatProperty("m_flMin");
                     var remapMax = timeRemapRange.GetFloatProperty("m_flMax");
                     var remapMinDesc = remapMin == float.MaxValue ? "None" : $"{remapMin:f}";
@@ -552,7 +613,7 @@ internal class AnimationGraphViewer : GLNodeGraphViewer
 
                     node.AddText($"Remap: {remapMinDesc} - {remapMaxDesc}");
                     node.AddText($"Const Time: {data.GetFloatProperty("m_flUserSpecifiedTime"):f}");
-                    node.AddText($"Use frames: {data.GetProperty<bool>("m_bUseFramesAsInput")}");
+                    node.AddText($"Use frames: {data.GetBooleanProperty("m_bUseFramesAsInput")}");
                 }
 
                 if (dataSlotIdx != -1)
@@ -563,6 +624,10 @@ internal class AnimationGraphViewer : GLNodeGraphViewer
             else if (node.NodeType.StartsWith("ControlParameter", StringComparison.Ordinal))
             {
                 // Graph input value set by game code.
+            }
+            else if (node.NodeType is "ZeroPose")
+            {
+                // Empty node
             }
             else
             {
@@ -593,7 +658,7 @@ internal class AnimationGraphViewer : GLNodeGraphViewer
         CreateChildren(root, rootNodeIdx);
 
         // create some unreferenced nodes
-        for (var i = 0; i < nodes.Length; i++)
+        for (var i = 0; i < nodes.Count; i++)
         {
             var exists = createdNodes.ContainsKey(i);
             if (exists)
@@ -611,7 +676,7 @@ internal class AnimationGraphViewer : GLNodeGraphViewer
         }
 
         nodeGraph.LayoutNodes();
-        Log.Debug(nameof(AnimationGraphViewer), $"Created {createdNodes.Count} nodes (out of {nodes.Length}) or {createdNodes.Count / (float)nodes.Length:P}.");
+        Log.Debug(nameof(AnimationGraphViewer), $"Created {createdNodes.Count} nodes (out of {nodes.Count}) or {createdNodes.Count / (float)nodes.Count:P}.");
     }
 
     #region Nodes
@@ -723,7 +788,7 @@ internal class AnimationGraphViewer : GLNodeGraphViewer
             }
 
             using var paint = new SKPaint { Color = PoseColor, IsAntialias = true };
-            canvas.DrawText(trimStr, textPosition.X, textPosition.Y, ArialFont, paint);
+            canvas.DrawText(trimStr, textPosition.X, textPosition.Y, SKTextAlign.Left, ArialFont, paint);
         }
 
         private static readonly Dictionary<string, SKSvg> IconCache = [];

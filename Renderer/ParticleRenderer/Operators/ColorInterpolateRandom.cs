@@ -1,5 +1,9 @@
 namespace ValveResourceFormat.Renderer.Particles.Operators
 {
+    /// <summary>
+    /// Interpolates a particle's color toward a per-particle randomly chosen target color (between a min and max fade color) over a normalized age range.
+    /// </summary>
+    /// <seealso href="https://s2v.app/SchemaExplorer/cs2/particles/C_OP_ColorInterpolateRandom">C_OP_ColorInterpolateRandom</seealso>
     class ColorInterpolateRandom : ParticleFunctionOperator
     {
         private readonly Vector3 colorFadeMin = Vector3.One;
@@ -7,7 +11,7 @@ namespace ValveResourceFormat.Renderer.Particles.Operators
         private readonly float fadeStartTime;
         private readonly float fadeEndTime = 1f;
         private readonly ParticleField FieldOutput = ParticleField.Color;
-        private readonly bool easeInOut;
+        private readonly bool easeInOut = true;
 
         public ColorInterpolateRandom(ParticleDefinitionParser parse) : base(parse)
         {
@@ -23,18 +27,21 @@ namespace ValveResourceFormat.Renderer.Particles.Operators
         {
             foreach (ref var particle in particles.Current)
             {
-                var newColor = easeInOut
-                    ? ParticleCollection.RandomBetweenPerComponent(particle.ParticleID, colorFadeMin, colorFadeMax)
-                    : ParticleCollection.RandomBetween(particle.ParticleID, colorFadeMin, colorFadeMax);
+                var newColor = ParticleCollection.RandomBetweenPerComponent(particle.ParticleID, colorFadeMin, colorFadeMax);
 
                 var time = particle.NormalizedAge;
 
                 if (time >= fadeStartTime && time <= fadeEndTime)
                 {
                     var t = MathUtils.Remap(time, fadeStartTime, fadeEndTime);
+                    if (easeInOut)
+                    {
+                        // Smoothstep easing
+                        t = t * t * (3 - 2 * t);
+                    }
 
                     // Interpolate from constant color to fade color
-                    particle.SetVector(FieldOutput, Vector3.Lerp(particle.GetInitialVector(particles, ParticleField.Color), newColor, t));
+                    particle.SetVector(FieldOutput, Vector3.Lerp(particle.GetInitialVector(particles, FieldOutput), newColor, t));
                 }
             }
         }

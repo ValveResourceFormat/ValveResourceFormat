@@ -8,7 +8,11 @@ using GUI.Utils;
 using ValveResourceFormat.Blocks;
 using ValveResourceFormat.IO;
 using ValveResourceFormat.Renderer;
+using ValveResourceFormat.Renderer.SceneEnvironment;
+using ValveResourceFormat.Renderer.SceneNodes;
+using ValveResourceFormat.Renderer.World;
 using ValveResourceFormat.ResourceTypes;
+using ValveResourceFormat.Serialization.KeyValues;
 using static GUI.Controls.SavedCameraPositionsControl;
 using static ValveResourceFormat.Renderer.PickingTexture;
 
@@ -95,12 +99,12 @@ namespace GUI.Types.GLViewers
                 pitch = -1.0f * float.RadiansToDegrees(Renderer.Camera.Pitch);
                 yaw = float.RadiansToDegrees(Renderer.Camera.Yaw);
 
-                Clipboard.SetText($"setpos {loc.X:F6} {loc.Y:F6} {loc.Z:F6}; setang {pitch:F6} {yaw:F6} 0.0");
+                AppClipboard.SetText($"setpos {loc.X:F6} {loc.Y:F6} {loc.Z:F6}; setang {pitch:F6} {yaw:F6} 0.0");
 
                 return;
             }
 
-            var text = Clipboard.GetText();
+            var text = AppClipboard.GetText();
             var pos = Regexes.SetPos().Match(text);
             var ang = Regexes.SetAng().Match(text);
 
@@ -120,7 +124,7 @@ namespace GUI.Types.GLViewers
                 yaw = float.DegreesToRadians(float.Parse(ang.Groups["yaw"].Value, CultureInfo.InvariantCulture));
             }
 
-            Input.SaveCameraForTransition();
+            Input.SaveCameraForTransition(exitWalkMode: false);
             Input.Camera.SetLocationPitchYaw(new Vector3(x, y, z), pitch, yaw);
         }
 
@@ -183,7 +187,8 @@ namespace GUI.Types.GLViewers
 
             if (world != null)
             {
-                LoadedWorld = new WorldLoader(world, Scene, mapExternalReferences);
+                LoadedWorld = new WorldLoader(world, Scene);
+                LoadedWorld.Load(mapExternalReferences);
 
                 if (LoadedWorld.SkyboxScene != null)
                 {
@@ -196,6 +201,7 @@ namespace GUI.Types.GLViewers
                 }
 
                 NavMeshSceneNode.AddNavNodesToScene(LoadedWorld.NavMesh, Scene);
+                CS2BombDamageSceneNode.AddBakedBombDamageToScene(LoadedWorld.BombDamage, Scene);
 
                 if (LoadedWorld.CameraMatrices.Count > 0)
                 {
@@ -204,6 +210,8 @@ namespace GUI.Types.GLViewers
                     Input.Camera.SetFromTransformMatrix(CameraMatrices[0]);
                     cameraSet = true;
                 }
+
+                Input.TryLoadViewmodel(Scene);
             }
 
             if (!cameraSet)
@@ -289,7 +297,7 @@ namespace GUI.Types.GLViewers
 
                 foreach (var node in Scene.AllNodes)
                 {
-                    if (node.LayerName?.StartsWith("LightProbeGrid", StringComparison.Ordinal) == true)
+                    if (node.LayerName?.StartsWith("Internal -", StringComparison.Ordinal) == true)
                     {
                         continue;
                     }
@@ -343,14 +351,40 @@ namespace GUI.Types.GLViewers
 
                     UiControl.AddCheckBox("Show Fog", Scene.FogEnabled, v => Scene.FogEnabled = v);
                     UiControl.AddCheckBox("Color Correction", Renderer.Postprocess.ColorCorrectionEnabled, v => Renderer.Postprocess.ColorCorrectionEnabled = v);
-                    UiControl.AddCheckBox("Occlusion Culling", Scene.EnableOcclusionCulling, (v) => Scene.EnableOcclusionCulling = v);
-                    UiControl.AddCheckBox("Gpu Culling", Scene.EnableIndirectDraws, v =>
+
+                    // TODO: PVS culling is not implemented yet
+                    // if (Scene.VoxelVisibility != null)
+                    // {
+                    //     UiControl.AddCheckBox("PVS Culling", Scene.EnablePvsCulling, v => Scene.EnablePvsCulling = v);
+                    // }
+
+                    CheckBox? occlusionCullingCheckBox = null;
+
+                    if (GLEnvironment.SlowMultiDrawIndirect)
+                    {
+                        Scene.EnableIndirectDraws = false;
+                    }
+
+                    UiControl.AddCheckBox("GPU Culling", Scene.EnableIndirectDraws, v =>
                     {
                         Scene.EnableIndirectDraws = v;
+                        if (occlusionCullingCheckBox != null)
+                        {
+                            occlusionCullingCheckBox.Enabled = v;
+                        }
                     });
 
+                    occlusionCullingCheckBox = UiControl.AddCheckBox("GPU Occlusion Culling", Scene.EnableOcclusionCulling, (v) => Scene.EnableOcclusionCulling = v);
+                    occlusionCullingCheckBox.Enabled = Scene.EnableIndirectDraws;
+
+
                     UiControl.AddCheckBox("Depth Prepass", Scene.EnableDepthPrepass, (v) => Scene.EnableDepthPrepass = v);
-                    UiControl.AddCheckBox("Experimental Lights", false, v => Renderer.ViewBuffer!.Data!.ExperimentalLightsEnabled = v);
+
+                    var enableLights = Scene.LightingInfo.BarnLights.Count < 40;
+                    Renderer.ViewBuffer!.Data!.ExperimentalLightsEnabled = enableLights;
+
+                    UiControl.AddCheckBox("Barn Lights", enableLights, v => Renderer.ViewBuffer!.Data!.ExperimentalLightsEnabled = v);
+                    UiControl.AddCheckBox("Tiled Light Culling", Scene.EnableTiledLightCulling, v => Scene.EnableTiledLightCulling = v);
 
                     AddSceneExposureSlider();
                 }
@@ -737,7 +771,7 @@ namespace GUI.Types.GLViewers
             if (sceneNode.EntityData != null)
             {
                 // Perhaps this needs to check for correct classname?
-                var particle = sceneNode.EntityData.GetProperty<string>("effect_name");
+                var particle = sceneNode.EntityData.GetStringProperty("effect_name");
 
                 if (particle != null)
                 {
@@ -832,7 +866,7 @@ namespace GUI.Types.GLViewers
 
             entityInfoForm.EntityInfoControl.PopulateFromEntity(sceneNode.EntityData);
 
-            var classname = sceneNode.EntityData.GetProperty<string>("classname");
+            var classname = sceneNode.EntityData.GetStringProperty("classname");
             entityInfoForm.Text = $"Entity: {classname}";
         }
 

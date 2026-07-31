@@ -1,7 +1,493 @@
 "ResourceEditInfo"
 {
+	"InputDependencies"
+	{
+		"0"
+		{
+			"ContentRelativeFilename"	"models/heroes/alchemist/alchemist.vmdl"
+			"ContentSearchPath"	"dota"
+			"FileCRC"	"2923274954"
+			"Optional"	"0"
+			"FileExists"	"1"
+			"IsGameFile"	"0"
+		}
+		"1"
+		{
+			"ContentRelativeFilename"	"models/heroes/alchemist/dmx/alchemist_model.dmx"
+			"ContentSearchPath"	"dota"
+			"FileCRC"	"1432934369"
+			"Optional"	"0"
+			"FileExists"	"1"
+			"IsGameFile"	"0"
+		}
+		"2"
+		{
+			"ContentRelativeFilename"	"models/heroes/alchemist/dmx/alchemist_lod.dmx"
+			"ContentSearchPath"	"dota"
+			"FileCRC"	"1816466979"
+			"Optional"	"0"
+			"FileExists"	"1"
+			"IsGameFile"	"0"
+		}
+		"3"
+		{
+			"ContentRelativeFilename"	"models/heroes/alchemist/dmx/animation/loadout_spawn.dmx"
+			"ContentSearchPath"	"dota"
+			"FileCRC"	"92012700"
+			"Optional"	"0"
+			"FileExists"	"1"
+			"IsGameFile"	"0"
+		}
+		"4"
+		{
+			"ContentRelativeFilename"	"models/heroes/alchemist/dmx/animation/loadout.dmx"
+			"ContentSearchPath"	"dota"
+			"FileCRC"	"3725880715"
+			"Optional"	"0"
+			"FileExists"	"1"
+			"IsGameFile"	"0"
+		}
+		"5"
+		{
+			"ContentRelativeFilename"	"models/heroes/alchemist/dmx/animation/turns.dmx"
+			"ContentSearchPath"	"dota"
+			"FileCRC"	"1789624253"
+			"Optional"	"0"
+			"FileExists"	"1"
+			"IsGameFile"	"0"
+		}
+		"6"
+		{
+			"ContentRelativeFilename"	"models/heroes/alchemist/dmx/animation/idle.dmx"
+			"ContentSearchPath"	"dota"
+			"FileCRC"	"472962814"
+			"Optional"	"0"
+			"FileExists"	"1"
+			"IsGameFile"	"0"
+		}
+		"7"
+		{
+			"ContentRelativeFilename"	"models/heroes/alchemist/dmx/animation/ability4_victory.dmx"
+			"ContentSearchPath"	"dota"
+			"FileCRC"	"3603156566"
+			"Optional"	"0"
+			"FileExists"	"1"
+			"IsGameFile"	"0"
+		}
+		"8"
+		{
+			"ContentRelativeFilename"	"models/heroes/alchemist/dmx/animation/idle_alt.dmx"
+			"ContentSearchPath"	"dota"
+			"FileCRC"	"766727776"
+			"Optional"	"0"
+			"FileExists"	"1"
+			"IsGameFile"	"0"
+		}
+		"9"
+		{
+			"ContentRelativeFilename"	"models/heroes/alchemist/dmx/animation/flail.dmx"
+			"ContentSearchPath"	"dota"
+			"FileCRC"	"4059901476"
+			"Optional"	"0"
+			"FileExists"	"1"
+			"IsGameFile"	"0"
+		}
+		"10"
+		{
+			"ContentRelativeFilename"	"models/heroes/alchemist/dmx/animation/stun.dmx"
+			"ContentSearchPath"	"dota"
+			"FileCRC"	"1772789846"
+			"Optional"	"0"
+			"FileExists"	"1"
+			"IsGameFile"	"0"
+		}
+		"11"
+		{
+			"ContentRelativeFilename"	"models/heroes/alchemist/dmx/animation/portrait.dmx"
+			"ContentSearchPath"	"dota"
+			"FileCRC"	"1182913048"
+			"Optional"	"0"
+			"FileExists"	"1"
+			"IsGameFile"	"0"
+		}
+		"12"
+		{
+			"ContentRelativeFilename"	"models/heroes/alchemist/dmx/animation/portrait_bink.dmx"
+			"ContentSearchPath"	"dota"
+			"FileCRC"	"1180107805"
+			"Optional"	"0"
+			"FileExists"	"1"
+			"IsGameFile"	"0"
+		}
+		"13"
+		{
+			"ContentRelativeFilename"	"models/heroes/alchemist/dmx/animation/attack1.dmx"
+			"ContentSearchPath"	"dota"
+			"FileCRC"	"3576721527"
+			"Optional"	"0"
+			"FileExists"	"1"
+			"IsGameFile"	"0"
+		}
+		"14"
+		{
+			"ContentRelativeFilename"	"models/heroes/alchemist/dmx/animation/attack2.dmx"
+			"ContentSearchPath"	"dota"
+			"FileCRC"	"535507684"
+			"Optional"	"0"
+			"FileExists"	"1"
+			"IsGameFile"	"0"
+		}
+		"15"
+		{
+			"ContentRelativeFilename"	"models/heroes/alchemist/dmx/animation/abil1.dmx"
+			"ContentSearchPath"	"dota"
+			"FileCRC"	"2388687179"
+			"Optional"	"0"
+			"FileExists"	"1"
+			"IsGameFile"	"0"
+		}
+		"16"
+		{
+			"ContentRelativeFilename"	"models/heroes/alchemist/dmx/animation/gesture_abil2.dmx"
+			"ContentSearchPath"	"dota"
+			"FileCRC"	"3834402959"
+			"Optional"	"0"
+			"FileExists"	"1"
+			"IsGameFile"	"0"
+		}
+		"17"
+		{
+			"ContentRelativeFilename"	"models/heroes/alchemist/dmx/animation/ability4_attack1.dmx"
+			"ContentSearchPath"	"dota"
+			"FileCRC"	"3487892883"
+			"Optional"	"0"
+			"FileExists"	"1"
+			"IsGameFile"	"0"
+		}
+		"18"
+		{
+			"ContentRelativeFilename"	"models/heroes/alchemist/dmx/animation/ability4_attack1_lefthand.dmx"
+			"ContentSearchPath"	"dota"
+			"FileCRC"	"3708625996"
+			"Optional"	"0"
+			"FileExists"	"1"
+			"IsGameFile"	"0"
+		}
+		"19"
+		{
+			"ContentRelativeFilename"	"models/heroes/alchemist/dmx/animation/abil4_flail.dmx"
+			"ContentSearchPath"	"dota"
+			"FileCRC"	"3798301964"
+			"Optional"	"0"
+			"FileExists"	"1"
+			"IsGameFile"	"0"
+		}
+		"20"
+		{
+			"ContentRelativeFilename"	"models/heroes/alchemist/dmx/animation/ability4_idle.dmx"
+			"ContentSearchPath"	"dota"
+			"FileCRC"	"415392288"
+			"Optional"	"0"
+			"FileExists"	"1"
+			"IsGameFile"	"0"
+		}
+		"21"
+		{
+			"ContentRelativeFilename"	"models/heroes/alchemist/dmx/animation/ability4_idle_alt.dmx"
+			"ContentSearchPath"	"dota"
+			"FileCRC"	"1883916787"
+			"Optional"	"0"
+			"FileExists"	"1"
+			"IsGameFile"	"0"
+		}
+		"22"
+		{
+			"ContentRelativeFilename"	"models/heroes/alchemist/dmx/animation/abil4_stun.dmx"
+			"ContentSearchPath"	"dota"
+			"FileCRC"	"203685679"
+			"Optional"	"0"
+			"FileExists"	"1"
+			"IsGameFile"	"0"
+		}
+		"23"
+		{
+			"ContentRelativeFilename"	"models/heroes/alchemist/dmx/animation/ability1_knives.dmx"
+			"ContentSearchPath"	"dota"
+			"FileCRC"	"495953560"
+			"Optional"	"0"
+			"FileExists"	"1"
+			"IsGameFile"	"0"
+		}
+		"24"
+		{
+			"ContentRelativeFilename"	"models/heroes/alchemist/dmx/animation/death.dmx"
+			"ContentSearchPath"	"dota"
+			"FileCRC"	"3365103302"
+			"Optional"	"0"
+			"FileExists"	"1"
+			"IsGameFile"	"0"
+		}
+		"25"
+		{
+			"ContentRelativeFilename"	"models/heroes/alchemist/dmx/animation/gesture_abil2_end.dmx"
+			"ContentSearchPath"	"dota"
+			"FileCRC"	"2564729931"
+			"Optional"	"0"
+			"FileExists"	"1"
+			"IsGameFile"	"0"
+		}
+		"26"
+		{
+			"ContentRelativeFilename"	"models/heroes/alchemist/dmx/animation/pullout.dmx"
+			"ContentSearchPath"	"dota"
+			"FileCRC"	"3700395313"
+			"Optional"	"0"
+			"FileExists"	"1"
+			"IsGameFile"	"0"
+		}
+		"27"
+		{
+			"ContentRelativeFilename"	"models/heroes/alchemist/dmx/animation/putback.dmx"
+			"ContentSearchPath"	"dota"
+			"FileCRC"	"555457211"
+			"Optional"	"0"
+			"FileExists"	"1"
+			"IsGameFile"	"0"
+		}
+		"28"
+		{
+			"ContentRelativeFilename"	"models/heroes/alchemist/dmx/animation/workshop_anim_00.dmx"
+			"ContentSearchPath"	"dota"
+			"FileCRC"	"3742072327"
+			"Optional"	"0"
+			"FileExists"	"1"
+			"IsGameFile"	"0"
+		}
+		"29"
+		{
+			"ContentRelativeFilename"	"models/heroes/alchemist/dmx/animation/workshop_anim_01.dmx"
+			"ContentSearchPath"	"dota"
+			"FileCRC"	"2616713320"
+			"Optional"	"0"
+			"FileExists"	"1"
+			"IsGameFile"	"0"
+		}
+		"30"
+		{
+			"ContentRelativeFilename"	"models/heroes/alchemist/dmx/animation/workshop_anim_02.dmx"
+			"ContentSearchPath"	"dota"
+			"FileCRC"	"2440276926"
+			"Optional"	"0"
+			"FileExists"	"1"
+			"IsGameFile"	"0"
+		}
+		"31"
+		{
+			"ContentRelativeFilename"	"models/heroes/alchemist/dmx/animation/workshop_anim_03.dmx"
+			"ContentSearchPath"	"dota"
+			"FileCRC"	"1858914396"
+			"Optional"	"0"
+			"FileExists"	"1"
+			"IsGameFile"	"0"
+		}
+		"32"
+		{
+			"ContentRelativeFilename"	"models/heroes/alchemist/dmx/animation/workshop_anim_04.dmx"
+			"ContentSearchPath"	"dota"
+			"FileCRC"	"2629097787"
+			"Optional"	"0"
+			"FileExists"	"1"
+			"IsGameFile"	"0"
+		}
+		"33"
+		{
+			"ContentRelativeFilename"	"models/heroes/alchemist/dmx/animation/workshop_anim_05.dmx"
+			"ContentSearchPath"	"dota"
+			"FileCRC"	"3404356681"
+			"Optional"	"0"
+			"FileExists"	"1"
+			"IsGameFile"	"0"
+		}
+		"34"
+		{
+			"ContentRelativeFilename"	"models/heroes/alchemist/dmx/animation/workshop_anim_06.dmx"
+			"ContentSearchPath"	"dota"
+			"FileCRC"	"2461933329"
+			"Optional"	"0"
+			"FileExists"	"1"
+			"IsGameFile"	"0"
+		}
+		"35"
+		{
+			"ContentRelativeFilename"	"models/heroes/alchemist/dmx/animation/workshop_anim_07.dmx"
+			"ContentSearchPath"	"dota"
+			"FileCRC"	"425951662"
+			"Optional"	"0"
+			"FileExists"	"1"
+			"IsGameFile"	"0"
+		}
+		"36"
+		{
+			"ContentRelativeFilename"	"models/heroes/alchemist/dmx/animation/workshop_anim_08.dmx"
+			"ContentSearchPath"	"dota"
+			"FileCRC"	"676762451"
+			"Optional"	"0"
+			"FileExists"	"1"
+			"IsGameFile"	"0"
+		}
+		"37"
+		{
+			"ContentRelativeFilename"	"models/heroes/alchemist/dmx/animation/workshop_anim_09.dmx"
+			"ContentSearchPath"	"dota"
+			"FileCRC"	"1034767376"
+			"Optional"	"0"
+			"FileExists"	"1"
+			"IsGameFile"	"0"
+		}
+		"38"
+		{
+			"ContentRelativeFilename"	"models/heroes/alchemist/dmx/animation/teleport_end.dmx"
+			"ContentSearchPath"	"dota"
+			"FileCRC"	"2254983508"
+			"Optional"	"0"
+			"FileExists"	"1"
+			"IsGameFile"	"0"
+		}
+		"39"
+		{
+			"ContentRelativeFilename"	"models/heroes/alchemist/dmx/animation/teleport.dmx"
+			"ContentSearchPath"	"dota"
+			"FileCRC"	"186189956"
+			"Optional"	"0"
+			"FileExists"	"1"
+			"IsGameFile"	"0"
+		}
+		"40"
+		{
+			"ContentRelativeFilename"	"models/heroes/alchemist/dmx/animation/run_alt.dmx"
+			"ContentSearchPath"	"dota"
+			"FileCRC"	"1360950224"
+			"Optional"	"0"
+			"FileExists"	"1"
+			"IsGameFile"	"0"
+		}
+		"41"
+		{
+			"ContentRelativeFilename"	"models/heroes/alchemist/dmx/animation/run_haste.dmx"
+			"ContentSearchPath"	"dota"
+			"FileCRC"	"3284918683"
+			"Optional"	"0"
+			"FileExists"	"1"
+			"IsGameFile"	"0"
+		}
+		"42"
+		{
+			"ContentRelativeFilename"	"models/heroes/alchemist/dmx/animation/injured_run.dmx"
+			"ContentSearchPath"	"dota"
+			"FileCRC"	"760771127"
+			"Optional"	"0"
+			"FileExists"	"1"
+			"IsGameFile"	"0"
+		}
+		"43"
+		{
+			"ContentRelativeFilename"	"models/heroes/alchemist/dmx/animation/run_alt2.dmx"
+			"ContentSearchPath"	"dota"
+			"FileCRC"	"3064817155"
+			"Optional"	"0"
+			"FileExists"	"1"
+			"IsGameFile"	"0"
+		}
+		"44"
+		{
+			"ContentRelativeFilename"	"models/heroes/alchemist/dmx/animation/ability4_run.dmx"
+			"ContentSearchPath"	"dota"
+			"FileCRC"	"2048674998"
+			"Optional"	"0"
+			"FileExists"	"1"
+			"IsGameFile"	"0"
+		}
+		"45"
+		{
+			"ContentRelativeFilename"	"models/heroes/alchemist/dmx/animation/ability4_high_run.dmx"
+			"ContentSearchPath"	"dota"
+			"FileCRC"	"1642135131"
+			"Optional"	"0"
+			"FileExists"	"1"
+			"IsGameFile"	"0"
+		}
+	}
 	"AdditionalInputDependencies"
 	{
+	}
+	"ArgumentDependencies"
+	{
+		"0"
+		{
+			"ParameterName"	"___OverrideInputData___"
+			"ParameterType"	"BinaryBlobArg"
+			"Fingerprint"	"0"
+			"FingerprintDefault"	"0"
+		}
+		"1"
+		{
+			"ParameterName"	"fulltangent"
+			"ParameterType"	"IntArg"
+			"Fingerprint"	"0"
+			"FingerprintDefault"	"0"
+		}
+		"2"
+		{
+			"ParameterName"	"force_up_to_date_materials"
+			"ParameterType"	"IntArg"
+			"Fingerprint"	"0"
+			"FingerprintDefault"	"0"
+		}
+		"3"
+		{
+			"ParameterName"	"randomize_mesh"
+			"ParameterType"	"IntArg"
+			"Fingerprint"	"0"
+			"FingerprintDefault"	"0"
+		}
+		"4"
+		{
+			"ParameterName"	"skip_mesh_optimization"
+			"ParameterType"	"IntArg"
+			"Fingerprint"	"0"
+			"FingerprintDefault"	"0"
+		}
+	}
+	"SpecialDependencies"
+	{
+		"0"
+		{
+			"String"	"Model Compiler Version"
+			"CompilerIdentifier"	"CompileModel"
+			"Fingerprint"	"39"
+			"UserData"	"0"
+		}
+		"1"
+		{
+			"String"	"Mesh Compiler Version"
+			"CompilerIdentifier"	"CompileRenderMesh"
+			"Fingerprint"	"28"
+			"UserData"	"0"
+		}
+		"2"
+		{
+			"String"	"Animation Group Compiler Version"
+			"CompilerIdentifier"	"CompileAnimGroup"
+			"Fingerprint"	"33"
+			"UserData"	"0"
+		}
+		"3"
+		{
+			"String"	"Animation Compiler Version"
+			"CompilerIdentifier"	"CompileAnimation"
+			"Fingerprint"	"42"
+			"UserData"	"0"
+		}
 	}
 	"AdditionalRelatedFiles"
 	{
@@ -198,466 +684,11 @@
 			"IsGameFile"	"0"
 		}
 	}
-	"ArgumentDependencies"
-	{
-		"0"
-		{
-			"Fingerprint"	"0"
-			"FingerprintDefault"	"0"
-			"ParameterName"	"___OverrideInputData___"
-			"ParameterType"	"BinaryBlobArg"
-		}
-		"1"
-		{
-			"Fingerprint"	"0"
-			"FingerprintDefault"	"0"
-			"ParameterName"	"fulltangent"
-			"ParameterType"	"IntArg"
-		}
-		"2"
-		{
-			"Fingerprint"	"0"
-			"FingerprintDefault"	"0"
-			"ParameterName"	"force_up_to_date_materials"
-			"ParameterType"	"IntArg"
-		}
-		"3"
-		{
-			"Fingerprint"	"0"
-			"FingerprintDefault"	"0"
-			"ParameterName"	"randomize_mesh"
-			"ParameterType"	"IntArg"
-		}
-		"4"
-		{
-			"Fingerprint"	"0"
-			"FingerprintDefault"	"0"
-			"ParameterName"	"skip_mesh_optimization"
-			"ParameterType"	"IntArg"
-		}
-	}
 	"ChildResourceList"
 	{
 		"0"	"models/heroes/alchemist/alchemist_model.vmesh"
 		"1"	"models/heroes/alchemist/alchemist_lod.vmesh"
 		"2"	"models/heroes/alchemist/asset_sequences_e7fec448.vagrp"
-	}
-	"InputDependencies"
-	{
-		"0"
-		{
-			"ContentRelativeFilename"	"models/heroes/alchemist/alchemist.vmdl"
-			"ContentSearchPath"	"dota"
-			"FileCRC"	"2923274954"
-			"FileExists"	"1"
-			"IsGameFile"	"0"
-			"Optional"	"0"
-		}
-		"1"
-		{
-			"ContentRelativeFilename"	"models/heroes/alchemist/dmx/alchemist_model.dmx"
-			"ContentSearchPath"	"dota"
-			"FileCRC"	"1432934369"
-			"FileExists"	"1"
-			"IsGameFile"	"0"
-			"Optional"	"0"
-		}
-		"2"
-		{
-			"ContentRelativeFilename"	"models/heroes/alchemist/dmx/alchemist_lod.dmx"
-			"ContentSearchPath"	"dota"
-			"FileCRC"	"1816466979"
-			"FileExists"	"1"
-			"IsGameFile"	"0"
-			"Optional"	"0"
-		}
-		"3"
-		{
-			"ContentRelativeFilename"	"models/heroes/alchemist/dmx/animation/loadout_spawn.dmx"
-			"ContentSearchPath"	"dota"
-			"FileCRC"	"92012700"
-			"FileExists"	"1"
-			"IsGameFile"	"0"
-			"Optional"	"0"
-		}
-		"4"
-		{
-			"ContentRelativeFilename"	"models/heroes/alchemist/dmx/animation/loadout.dmx"
-			"ContentSearchPath"	"dota"
-			"FileCRC"	"3725880715"
-			"FileExists"	"1"
-			"IsGameFile"	"0"
-			"Optional"	"0"
-		}
-		"5"
-		{
-			"ContentRelativeFilename"	"models/heroes/alchemist/dmx/animation/turns.dmx"
-			"ContentSearchPath"	"dota"
-			"FileCRC"	"1789624253"
-			"FileExists"	"1"
-			"IsGameFile"	"0"
-			"Optional"	"0"
-		}
-		"6"
-		{
-			"ContentRelativeFilename"	"models/heroes/alchemist/dmx/animation/idle.dmx"
-			"ContentSearchPath"	"dota"
-			"FileCRC"	"472962814"
-			"FileExists"	"1"
-			"IsGameFile"	"0"
-			"Optional"	"0"
-		}
-		"7"
-		{
-			"ContentRelativeFilename"	"models/heroes/alchemist/dmx/animation/ability4_victory.dmx"
-			"ContentSearchPath"	"dota"
-			"FileCRC"	"3603156566"
-			"FileExists"	"1"
-			"IsGameFile"	"0"
-			"Optional"	"0"
-		}
-		"8"
-		{
-			"ContentRelativeFilename"	"models/heroes/alchemist/dmx/animation/idle_alt.dmx"
-			"ContentSearchPath"	"dota"
-			"FileCRC"	"766727776"
-			"FileExists"	"1"
-			"IsGameFile"	"0"
-			"Optional"	"0"
-		}
-		"9"
-		{
-			"ContentRelativeFilename"	"models/heroes/alchemist/dmx/animation/flail.dmx"
-			"ContentSearchPath"	"dota"
-			"FileCRC"	"4059901476"
-			"FileExists"	"1"
-			"IsGameFile"	"0"
-			"Optional"	"0"
-		}
-		"10"
-		{
-			"ContentRelativeFilename"	"models/heroes/alchemist/dmx/animation/stun.dmx"
-			"ContentSearchPath"	"dota"
-			"FileCRC"	"1772789846"
-			"FileExists"	"1"
-			"IsGameFile"	"0"
-			"Optional"	"0"
-		}
-		"11"
-		{
-			"ContentRelativeFilename"	"models/heroes/alchemist/dmx/animation/portrait.dmx"
-			"ContentSearchPath"	"dota"
-			"FileCRC"	"1182913048"
-			"FileExists"	"1"
-			"IsGameFile"	"0"
-			"Optional"	"0"
-		}
-		"12"
-		{
-			"ContentRelativeFilename"	"models/heroes/alchemist/dmx/animation/portrait_bink.dmx"
-			"ContentSearchPath"	"dota"
-			"FileCRC"	"1180107805"
-			"FileExists"	"1"
-			"IsGameFile"	"0"
-			"Optional"	"0"
-		}
-		"13"
-		{
-			"ContentRelativeFilename"	"models/heroes/alchemist/dmx/animation/attack1.dmx"
-			"ContentSearchPath"	"dota"
-			"FileCRC"	"3576721527"
-			"FileExists"	"1"
-			"IsGameFile"	"0"
-			"Optional"	"0"
-		}
-		"14"
-		{
-			"ContentRelativeFilename"	"models/heroes/alchemist/dmx/animation/attack2.dmx"
-			"ContentSearchPath"	"dota"
-			"FileCRC"	"535507684"
-			"FileExists"	"1"
-			"IsGameFile"	"0"
-			"Optional"	"0"
-		}
-		"15"
-		{
-			"ContentRelativeFilename"	"models/heroes/alchemist/dmx/animation/abil1.dmx"
-			"ContentSearchPath"	"dota"
-			"FileCRC"	"2388687179"
-			"FileExists"	"1"
-			"IsGameFile"	"0"
-			"Optional"	"0"
-		}
-		"16"
-		{
-			"ContentRelativeFilename"	"models/heroes/alchemist/dmx/animation/gesture_abil2.dmx"
-			"ContentSearchPath"	"dota"
-			"FileCRC"	"3834402959"
-			"FileExists"	"1"
-			"IsGameFile"	"0"
-			"Optional"	"0"
-		}
-		"17"
-		{
-			"ContentRelativeFilename"	"models/heroes/alchemist/dmx/animation/ability4_attack1.dmx"
-			"ContentSearchPath"	"dota"
-			"FileCRC"	"3487892883"
-			"FileExists"	"1"
-			"IsGameFile"	"0"
-			"Optional"	"0"
-		}
-		"18"
-		{
-			"ContentRelativeFilename"	"models/heroes/alchemist/dmx/animation/ability4_attack1_lefthand.dmx"
-			"ContentSearchPath"	"dota"
-			"FileCRC"	"3708625996"
-			"FileExists"	"1"
-			"IsGameFile"	"0"
-			"Optional"	"0"
-		}
-		"19"
-		{
-			"ContentRelativeFilename"	"models/heroes/alchemist/dmx/animation/abil4_flail.dmx"
-			"ContentSearchPath"	"dota"
-			"FileCRC"	"3798301964"
-			"FileExists"	"1"
-			"IsGameFile"	"0"
-			"Optional"	"0"
-		}
-		"20"
-		{
-			"ContentRelativeFilename"	"models/heroes/alchemist/dmx/animation/ability4_idle.dmx"
-			"ContentSearchPath"	"dota"
-			"FileCRC"	"415392288"
-			"FileExists"	"1"
-			"IsGameFile"	"0"
-			"Optional"	"0"
-		}
-		"21"
-		{
-			"ContentRelativeFilename"	"models/heroes/alchemist/dmx/animation/ability4_idle_alt.dmx"
-			"ContentSearchPath"	"dota"
-			"FileCRC"	"1883916787"
-			"FileExists"	"1"
-			"IsGameFile"	"0"
-			"Optional"	"0"
-		}
-		"22"
-		{
-			"ContentRelativeFilename"	"models/heroes/alchemist/dmx/animation/abil4_stun.dmx"
-			"ContentSearchPath"	"dota"
-			"FileCRC"	"203685679"
-			"FileExists"	"1"
-			"IsGameFile"	"0"
-			"Optional"	"0"
-		}
-		"23"
-		{
-			"ContentRelativeFilename"	"models/heroes/alchemist/dmx/animation/ability1_knives.dmx"
-			"ContentSearchPath"	"dota"
-			"FileCRC"	"495953560"
-			"FileExists"	"1"
-			"IsGameFile"	"0"
-			"Optional"	"0"
-		}
-		"24"
-		{
-			"ContentRelativeFilename"	"models/heroes/alchemist/dmx/animation/death.dmx"
-			"ContentSearchPath"	"dota"
-			"FileCRC"	"3365103302"
-			"FileExists"	"1"
-			"IsGameFile"	"0"
-			"Optional"	"0"
-		}
-		"25"
-		{
-			"ContentRelativeFilename"	"models/heroes/alchemist/dmx/animation/gesture_abil2_end.dmx"
-			"ContentSearchPath"	"dota"
-			"FileCRC"	"2564729931"
-			"FileExists"	"1"
-			"IsGameFile"	"0"
-			"Optional"	"0"
-		}
-		"26"
-		{
-			"ContentRelativeFilename"	"models/heroes/alchemist/dmx/animation/pullout.dmx"
-			"ContentSearchPath"	"dota"
-			"FileCRC"	"3700395313"
-			"FileExists"	"1"
-			"IsGameFile"	"0"
-			"Optional"	"0"
-		}
-		"27"
-		{
-			"ContentRelativeFilename"	"models/heroes/alchemist/dmx/animation/putback.dmx"
-			"ContentSearchPath"	"dota"
-			"FileCRC"	"555457211"
-			"FileExists"	"1"
-			"IsGameFile"	"0"
-			"Optional"	"0"
-		}
-		"28"
-		{
-			"ContentRelativeFilename"	"models/heroes/alchemist/dmx/animation/workshop_anim_00.dmx"
-			"ContentSearchPath"	"dota"
-			"FileCRC"	"3742072327"
-			"FileExists"	"1"
-			"IsGameFile"	"0"
-			"Optional"	"0"
-		}
-		"29"
-		{
-			"ContentRelativeFilename"	"models/heroes/alchemist/dmx/animation/workshop_anim_01.dmx"
-			"ContentSearchPath"	"dota"
-			"FileCRC"	"2616713320"
-			"FileExists"	"1"
-			"IsGameFile"	"0"
-			"Optional"	"0"
-		}
-		"30"
-		{
-			"ContentRelativeFilename"	"models/heroes/alchemist/dmx/animation/workshop_anim_02.dmx"
-			"ContentSearchPath"	"dota"
-			"FileCRC"	"2440276926"
-			"FileExists"	"1"
-			"IsGameFile"	"0"
-			"Optional"	"0"
-		}
-		"31"
-		{
-			"ContentRelativeFilename"	"models/heroes/alchemist/dmx/animation/workshop_anim_03.dmx"
-			"ContentSearchPath"	"dota"
-			"FileCRC"	"1858914396"
-			"FileExists"	"1"
-			"IsGameFile"	"0"
-			"Optional"	"0"
-		}
-		"32"
-		{
-			"ContentRelativeFilename"	"models/heroes/alchemist/dmx/animation/workshop_anim_04.dmx"
-			"ContentSearchPath"	"dota"
-			"FileCRC"	"2629097787"
-			"FileExists"	"1"
-			"IsGameFile"	"0"
-			"Optional"	"0"
-		}
-		"33"
-		{
-			"ContentRelativeFilename"	"models/heroes/alchemist/dmx/animation/workshop_anim_05.dmx"
-			"ContentSearchPath"	"dota"
-			"FileCRC"	"3404356681"
-			"FileExists"	"1"
-			"IsGameFile"	"0"
-			"Optional"	"0"
-		}
-		"34"
-		{
-			"ContentRelativeFilename"	"models/heroes/alchemist/dmx/animation/workshop_anim_06.dmx"
-			"ContentSearchPath"	"dota"
-			"FileCRC"	"2461933329"
-			"FileExists"	"1"
-			"IsGameFile"	"0"
-			"Optional"	"0"
-		}
-		"35"
-		{
-			"ContentRelativeFilename"	"models/heroes/alchemist/dmx/animation/workshop_anim_07.dmx"
-			"ContentSearchPath"	"dota"
-			"FileCRC"	"425951662"
-			"FileExists"	"1"
-			"IsGameFile"	"0"
-			"Optional"	"0"
-		}
-		"36"
-		{
-			"ContentRelativeFilename"	"models/heroes/alchemist/dmx/animation/workshop_anim_08.dmx"
-			"ContentSearchPath"	"dota"
-			"FileCRC"	"676762451"
-			"FileExists"	"1"
-			"IsGameFile"	"0"
-			"Optional"	"0"
-		}
-		"37"
-		{
-			"ContentRelativeFilename"	"models/heroes/alchemist/dmx/animation/workshop_anim_09.dmx"
-			"ContentSearchPath"	"dota"
-			"FileCRC"	"1034767376"
-			"FileExists"	"1"
-			"IsGameFile"	"0"
-			"Optional"	"0"
-		}
-		"38"
-		{
-			"ContentRelativeFilename"	"models/heroes/alchemist/dmx/animation/teleport_end.dmx"
-			"ContentSearchPath"	"dota"
-			"FileCRC"	"2254983508"
-			"FileExists"	"1"
-			"IsGameFile"	"0"
-			"Optional"	"0"
-		}
-		"39"
-		{
-			"ContentRelativeFilename"	"models/heroes/alchemist/dmx/animation/teleport.dmx"
-			"ContentSearchPath"	"dota"
-			"FileCRC"	"186189956"
-			"FileExists"	"1"
-			"IsGameFile"	"0"
-			"Optional"	"0"
-		}
-		"40"
-		{
-			"ContentRelativeFilename"	"models/heroes/alchemist/dmx/animation/run_alt.dmx"
-			"ContentSearchPath"	"dota"
-			"FileCRC"	"1360950224"
-			"FileExists"	"1"
-			"IsGameFile"	"0"
-			"Optional"	"0"
-		}
-		"41"
-		{
-			"ContentRelativeFilename"	"models/heroes/alchemist/dmx/animation/run_haste.dmx"
-			"ContentSearchPath"	"dota"
-			"FileCRC"	"3284918683"
-			"FileExists"	"1"
-			"IsGameFile"	"0"
-			"Optional"	"0"
-		}
-		"42"
-		{
-			"ContentRelativeFilename"	"models/heroes/alchemist/dmx/animation/injured_run.dmx"
-			"ContentSearchPath"	"dota"
-			"FileCRC"	"760771127"
-			"FileExists"	"1"
-			"IsGameFile"	"0"
-			"Optional"	"0"
-		}
-		"43"
-		{
-			"ContentRelativeFilename"	"models/heroes/alchemist/dmx/animation/run_alt2.dmx"
-			"ContentSearchPath"	"dota"
-			"FileCRC"	"3064817155"
-			"FileExists"	"1"
-			"IsGameFile"	"0"
-			"Optional"	"0"
-		}
-		"44"
-		{
-			"ContentRelativeFilename"	"models/heroes/alchemist/dmx/animation/ability4_run.dmx"
-			"ContentSearchPath"	"dota"
-			"FileCRC"	"2048674998"
-			"FileExists"	"1"
-			"IsGameFile"	"0"
-			"Optional"	"0"
-		}
-		"45"
-		{
-			"ContentRelativeFilename"	"models/heroes/alchemist/dmx/animation/ability4_high_run.dmx"
-			"ContentSearchPath"	"dota"
-			"FileCRC"	"1642135131"
-			"FileExists"	"1"
-			"IsGameFile"	"0"
-			"Optional"	"0"
-		}
 	}
 	"SearchableUserData"
 	{
@@ -665,37 +696,6 @@
 		{
 			"Key"	"IsChildResource"
 			"Value"	"0"
-		}
-	}
-	"SpecialDependencies"
-	{
-		"0"
-		{
-			"CompilerIdentifier"	"CompileModel"
-			"Fingerprint"	"39"
-			"String"	"Model Compiler Version"
-			"UserData"	"0"
-		}
-		"1"
-		{
-			"CompilerIdentifier"	"CompileRenderMesh"
-			"Fingerprint"	"28"
-			"String"	"Mesh Compiler Version"
-			"UserData"	"0"
-		}
-		"2"
-		{
-			"CompilerIdentifier"	"CompileAnimGroup"
-			"Fingerprint"	"33"
-			"String"	"Animation Group Compiler Version"
-			"UserData"	"0"
-		}
-		"3"
-		{
-			"CompilerIdentifier"	"CompileAnimation"
-			"Fingerprint"	"42"
-			"String"	"Animation Compiler Version"
-			"UserData"	"0"
 		}
 	}
 }

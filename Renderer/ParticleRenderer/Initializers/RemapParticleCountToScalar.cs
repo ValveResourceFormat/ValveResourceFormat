@@ -2,6 +2,11 @@ using ValveResourceFormat.Renderer.Particles.Utils;
 
 namespace ValveResourceFormat.Renderer.Particles.Initializers
 {
+    /// <summary>
+    /// Remaps a particle's index within the system (or the inverse) to a scalar output field.
+    /// The input particle count range is mapped to a configurable output range, with optional bias, wrap, and invert controls.
+    /// </summary>
+    /// <seealso href="https://s2v.app/SchemaExplorer/cs2/particles/C_INIT_RemapParticleCountToScalar">C_INIT_RemapParticleCountToScalar</seealso>
     class RemapParticleCountToScalar : ParticleFunctionInitializer
     {
         private readonly ParticleField FieldOutput = ParticleField.Radius;
@@ -36,9 +41,8 @@ namespace ValveResourceFormat.Renderer.Particles.Initializers
             controlPointComponent = parse.Int32("m_nScaleControlPointField", controlPointComponent);
         }
 
-        public override Particle Initialize(ref Particle particle, ParticleSystemRenderState particleSystemState)
+        public override Particle Initialize(ref Particle particle, ParticleCollection particles, ParticleSystemRenderState particleSystemState)
         {
-            // system state currently doesn't track total count, so we can't access that yet
             var count = invert
                 ? particleSystemState.ParticleCount - particle.ParticleID
                 : particle.ParticleID;
@@ -70,7 +74,6 @@ namespace ValveResourceFormat.Renderer.Particles.Initializers
 
             particle.SetScalar(FieldOutput, output);
 
-            // Why are we returning an object that we already use a ref for?
             return particle;
         }
     }

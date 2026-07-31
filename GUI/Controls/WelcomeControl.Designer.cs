@@ -31,7 +31,6 @@ namespace GUI.Controls
             var resources = new System.ComponentModel.ComponentResourceManager(typeof(WelcomeControl));
             groupBox1 = new ThemedGroupBox();
             label1 = new System.Windows.Forms.Label();
-            updateCheckButton = new ThemedButton();
             groupBox2 = new ThemedGroupBox();
             label3 = new System.Windows.Forms.Label();
             groupBox3 = new ThemedGroupBox();
@@ -49,47 +48,47 @@ namespace GUI.Controls
             // 
             // groupBox1
             // 
+            groupBox1.BackColor = System.Drawing.SystemColors.Control;
+            groupBox1.BorderColor = System.Drawing.Color.FromArgb(188, 188, 188);
+            groupBox1.BorderWidth = 2;
             groupBox1.Controls.Add(label1);
-            groupBox1.Controls.Add(updateCheckButton);
+            groupBox1.CornerRadius = 5;
             groupBox1.Dock = System.Windows.Forms.DockStyle.Top;
-            groupBox1.Location = new System.Drawing.Point(15, 395);
+            groupBox1.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
+            groupBox1.ForeColor = System.Drawing.Color.Black;
+            groupBox1.Location = new System.Drawing.Point(15, 295);
             groupBox1.Name = "groupBox1";
             groupBox1.Padding = new System.Windows.Forms.Padding(20);
-            groupBox1.Size = new System.Drawing.Size(270, 110);
+            groupBox1.Size = new System.Drawing.Size(120, 125);
             groupBox1.TabIndex = 2;
             groupBox1.TabStop = false;
             groupBox1.Text = "Check for updates";
             // 
             // label1
             // 
-            label1.Dock = System.Windows.Forms.DockStyle.Top;
-            label1.Location = new System.Drawing.Point(20, 74);
+            label1.Dock = System.Windows.Forms.DockStyle.Fill;
+            label1.Location = new System.Drawing.Point(20, 36);
             label1.Margin = new System.Windows.Forms.Padding(3);
             label1.Name = "label1";
-            label1.Size = new System.Drawing.Size(230, 15);
+            label1.Size = new System.Drawing.Size(80, 69);
             label1.TabIndex = 1;
-            label1.Text = "Updates are checked daily by connecting to github.com";
+            label1.Text = "Automatic update checks are enabled. Updates are checked daily by connecting to github.com. This can be changed in the About menu.";
             label1.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
-            // 
-            // updateCheckButton
-            // 
-            updateCheckButton.Dock = System.Windows.Forms.DockStyle.Top;
-            updateCheckButton.Location = new System.Drawing.Point(20, 36);
-            updateCheckButton.Name = "updateCheckButton";
-            updateCheckButton.Size = new System.Drawing.Size(230, 38);
-            updateCheckButton.TabIndex = 0;
-            updateCheckButton.Text = "Enable automatic update checks";
-            updateCheckButton.UseVisualStyleBackColor = true;
-            updateCheckButton.Click += updateCheckButton_Click;
             // 
             // groupBox2
             // 
+            groupBox2.BackColor = System.Drawing.SystemColors.Control;
+            groupBox2.BorderColor = System.Drawing.Color.FromArgb(188, 188, 188);
+            groupBox2.BorderWidth = 2;
             groupBox2.Controls.Add(label3);
+            groupBox2.CornerRadius = 5;
             groupBox2.Dock = System.Windows.Forms.DockStyle.Top;
+            groupBox2.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
+            groupBox2.ForeColor = System.Drawing.Color.Black;
             groupBox2.Location = new System.Drawing.Point(15, 15);
             groupBox2.Name = "groupBox2";
             groupBox2.Padding = new System.Windows.Forms.Padding(20);
-            groupBox2.Size = new System.Drawing.Size(270, 280);
+            groupBox2.Size = new System.Drawing.Size(120, 280);
             groupBox2.TabIndex = 3;
             groupBox2.TabStop = false;
             groupBox2.Text = "Welcome to Source 2 Viewer";
@@ -99,31 +98,45 @@ namespace GUI.Controls
             label3.Dock = System.Windows.Forms.DockStyle.Fill;
             label3.Location = new System.Drawing.Point(20, 36);
             label3.Name = "label3";
-            label3.Size = new System.Drawing.Size(230, 224);
+            label3.Size = new System.Drawing.Size(80, 224);
             label3.TabIndex = 0;
             label3.Text = resources.GetString("label3.Text");
             // 
             // groupBox3
             // 
+            groupBox3.BackColor = System.Drawing.SystemColors.Control;
+            groupBox3.BorderColor = System.Drawing.Color.FromArgb(188, 188, 188);
+            groupBox3.BorderWidth = 2;
             groupBox3.Controls.Add(fileAssociationButton);
+            groupBox3.CornerRadius = 5;
             groupBox3.Dock = System.Windows.Forms.DockStyle.Top;
-            groupBox3.Location = new System.Drawing.Point(15, 295);
+            groupBox3.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
+            groupBox3.ForeColor = System.Drawing.Color.Black;
+            groupBox3.Location = new System.Drawing.Point(15, 420);
             groupBox3.Name = "groupBox3";
             groupBox3.Padding = new System.Windows.Forms.Padding(20);
-            groupBox3.Size = new System.Drawing.Size(270, 100);
+            groupBox3.Size = new System.Drawing.Size(120, 100);
             groupBox3.TabIndex = 4;
             groupBox3.TabStop = false;
             groupBox3.Text = "File association";
             // 
             // fileAssociationButton
             // 
+            fileAssociationButton.BackColor = System.Drawing.Color.FromArgb(188, 188, 188);
+            fileAssociationButton.ClickedBackColor = System.Drawing.Color.FromArgb(99, 161, 255);
+            fileAssociationButton.CornerRadius = 5;
             fileAssociationButton.Dock = System.Windows.Forms.DockStyle.Top;
+            fileAssociationButton.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
+            fileAssociationButton.ForeColor = System.Drawing.Color.Black;
+            fileAssociationButton.HoveredBackColor = System.Drawing.Color.FromArgb(140, 191, 255);
+            fileAssociationButton.LabelFormatFlags = System.Windows.Forms.TextFormatFlags.HorizontalCenter | System.Windows.Forms.TextFormatFlags.VerticalCenter | System.Windows.Forms.TextFormatFlags.EndEllipsis;
             fileAssociationButton.Location = new System.Drawing.Point(20, 36);
             fileAssociationButton.Name = "fileAssociationButton";
-            fileAssociationButton.Size = new System.Drawing.Size(230, 41);
+            fileAssociationButton.Size = new System.Drawing.Size(80, 41);
+            fileAssociationButton.Style = true;
             fileAssociationButton.TabIndex = 0;
             fileAssociationButton.Text = "Set Source 2 Viewer as the default program for .VPK files";
-            fileAssociationButton.UseVisualStyleBackColor = true;
+            fileAssociationButton.UseVisualStyleBackColor = false;
             fileAssociationButton.Click += fileAssociationButton_Click;
             // 
             // splitContainer
@@ -135,22 +148,22 @@ namespace GUI.Controls
             // splitContainer.Panel1
             // 
             splitContainer.Panel1.Controls.Add(panel1);
-            splitContainer.Panel1MinSize = 300;
+            splitContainer.Panel1MinSize = 150;
             splitContainer.Size = new System.Drawing.Size(600, 600);
-            splitContainer.SplitterDistance = 300;
+            splitContainer.SplitterDistance = 150;
             splitContainer.TabIndex = 5;
             // 
             // panel1
             // 
             panel1.AutoScroll = true;
-            panel1.Controls.Add(groupBox1);
             panel1.Controls.Add(groupBox3);
+            panel1.Controls.Add(groupBox1);
             panel1.Controls.Add(groupBox2);
             panel1.Dock = System.Windows.Forms.DockStyle.Fill;
             panel1.Location = new System.Drawing.Point(0, 0);
             panel1.Name = "panel1";
             panel1.Padding = new System.Windows.Forms.Padding(15);
-            panel1.Size = new System.Drawing.Size(300, 600);
+            panel1.Size = new System.Drawing.Size(150, 600);
             panel1.TabIndex = 0;
             // 
             // WelcomeControl
@@ -171,14 +184,13 @@ namespace GUI.Controls
         }
 
         #endregion
-        private System.Windows.Forms.GroupBox groupBox1;
-        private System.Windows.Forms.GroupBox groupBox2;
-        private System.Windows.Forms.GroupBox groupBox3;
         private System.Windows.Forms.Label label3;
         private System.Windows.Forms.Label label1;
-        private System.Windows.Forms.Button updateCheckButton;
-        private System.Windows.Forms.Button fileAssociationButton;
         private System.Windows.Forms.SplitContainer splitContainer;
         private System.Windows.Forms.Panel panel1;
+        private ThemedGroupBox groupBox1;
+        private ThemedGroupBox groupBox2;
+        private ThemedGroupBox groupBox3;
+        private ThemedButton fileAssociationButton;
     }
 }

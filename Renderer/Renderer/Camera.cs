@@ -5,57 +5,132 @@ namespace ValveResourceFormat.Renderer
     /// </summary>
     public class Camera
     {
+        /// <summary>
+        /// World-space position of the camera.
+        /// </summary>
         public Vector3 Location { get; set; }
+
+        /// <summary>
+        /// Vertical rotation angle in radians.
+        /// </summary>
         public float Pitch { get; set; }
+
+        /// <summary>
+        /// Horizontal rotation angle in radians.
+        /// </summary>
         public float Yaw { get; set; }
 
+        /// <summary>
+        /// Clockwise rotation angle around the camera's forward axis in radians.
+        /// </summary>
+        public float Roll { get; set; }
+
+        /// <summary>
+        /// Unit vector pointing in the camera's look direction.
+        /// </summary>
         public Vector3 Forward { get; private set; }
+
+        /// <summary>
+        /// Unit vector pointing to the camera's right.
+        /// </summary>
         public Vector3 Right { get; private set; }
+
+        /// <summary>
+        /// Unit vector pointing upward from the camera's perspective.
+        /// </summary>
         public Vector3 Up { get; private set; }
 
-        private RendererContext RendererContext;
+        /// <summary>
+        /// Horizontal field of view in degrees.
+        /// Converted to the vertical FOV actually used to build <see cref="ProjectionMatrix"/> by <see cref="GetFOV"/>.
+        /// </summary>
+        public float FieldOfView { get; set; }
+
+        /// <summary>
+        /// Perspective projection matrix (reverse-Z; the far plane is infinite unless <see cref="FarPlane"/> is set).
+        /// </summary>
         public Matrix4x4 ProjectionMatrix { get; private set; }
+
+        /// <summary>
+        /// World-to-view transform matrix.
+        /// </summary>
         public Matrix4x4 CameraViewMatrix { get; private set; }
+
+        /// <summary>
+        /// Combined world-to-clip transform matrix.
+        /// </summary>
         public Matrix4x4 ViewProjectionMatrix { get; private set; }
+
+        /// <summary>
+        /// Frustum derived from the current view-projection matrix, used for culling.
+        /// </summary>
         public Frustum ViewFrustum { get; } = new Frustum();
 
+        /// <summary>
+        /// Current viewport dimensions in pixels.
+        /// </summary>
         public Vector2 WindowSize { get; private set; }
+
+        /// <summary>
+        /// Viewport width divided by height.
+        /// </summary>
         public float AspectRatio { get; private set; }
 
-        public Camera(RendererContext rendererContext)
+        /// <summary>
+        /// Initializes a new camera with a default position, 16:9 viewport, and the given field of view.
+        /// </summary>
+        /// <param name="fieldOfView">Initial field of view in degrees (horizontal at 4:3, see <see cref="FieldOfView"/>).</param>
+        public Camera(float fieldOfView = 90f)
         {
-            RendererContext = rendererContext;
+            FieldOfView = fieldOfView;
             Location = Vector3.One;
             SetViewportSize(16, 9);
             LookAt(Vector3.Zero);
         }
 
+        /// <summary>
+        /// Recomputes the view and view-projection matrices (and updates the view frustum) from the current location and orientation. The projection matrix is not rebuilt here (see <see cref="CreateProjectionMatrix"/>).
+        /// </summary>
         public void RecalculateMatrices()
         {
             var (location, pitch, yaw) = (Location, Pitch, Yaw);
 
             RecalculateDirectionVectors();
 
-            CameraViewMatrix = Matrix4x4.CreateLookAt(location, location + Forward, Vector3.UnitZ);
+            CameraViewMatrix = Matrix4x4.CreateLookAt(location, location + Forward, Up);
             ViewProjectionMatrix = CameraViewMatrix * ProjectionMatrix;
             ViewFrustum.Update(ViewProjectionMatrix);
         }
 
+        /// <summary>
+        /// Recomputes <see cref="Forward"/>, <see cref="Up"/>, and <see cref="Right"/> vectors from the current pitch, yaw, and roll.
+        /// </summary>
         public void RecalculateDirectionVectors()
         {
             var (yawSin, yawCos) = MathF.SinCos(Yaw);
             var (pitchSin, pitchCos) = MathF.SinCos(Pitch);
 
             Forward = new Vector3(yawCos * pitchCos, yawSin * pitchCos, pitchSin);
-            Up = new Vector3(yawCos * pitchSin, yawSin * pitchSin, pitchCos);
+            Up = new Vector3(-yawCos * pitchSin, -yawSin * pitchSin, pitchCos);
 
             const float PiOver2 = MathF.PI / 2f;
             var (piOver2Sin, piOver2Cos) = MathF.SinCos(Yaw - PiOver2);
 
             Right = new Vector3(piOver2Cos, piOver2Sin, 0);
             // Right = Vector3.Cross(Forward, Up);
+
+            if (Roll != 0f)
+            {
+                var qRoll = Quaternion.CreateFromAxisAngle(Forward, Roll);
+                Up = Vector3.Transform(Up, qRoll);
+                Right = Vector3.Transform(Right, qRoll);
+            }
         }
 
+        /// <summary>
+        /// Writes camera matrices and direction vectors into the provided view constants object.
+        /// </summary>
+        /// <param name="viewConstants">View constants object to populate.</param>
         public void SetViewConstants(Buffers.ViewConstants viewConstants)
         {
             viewConstants.WorldToProjection = ViewProjectionMatrix;
@@ -63,7 +138,11 @@ namespace ValveResourceFormat.Renderer
             viewConstants.ViewToProjection = ProjectionMatrix;
             viewConstants.CameraPosition = Location;
 
-            Matrix4x4.Invert(ProjectionMatrix, out viewConstants.ProjectionToWorld);
+            if (!Matrix4x4.Invert(ProjectionMatrix, out viewConstants.ProjectionToWorld))
+            {
+                throw new InvalidOperationException("Matrix invert failed");
+            }
+
             viewConstants.InvProjRow3 = new Vector4(
                 viewConstants.ProjectionToWorld.M14,
                 viewConstants.ProjectionToWorld.M24,
@@ -75,10 +154,13 @@ namespace ValveResourceFormat.Renderer
             viewConstants.CameraUpDirWs = Up;
 
             // todo: these change per scene, move to the other buffer
-            viewConstants.ViewportMinZ = 0.05f;
-            viewConstants.ViewportMaxZ = 1.0f;
+            viewConstants.ViewportMinZ = Renderer.DepthRange.Scene.Near;
+            viewConstants.ViewportMaxZ = Renderer.DepthRange.Scene.Far;
         }
 
+        /// <summary>
+        /// Updates the viewport dimensions and rebuilds the projection matrix.
+        /// </summary>
         public void SetViewportSize(int viewportWidth, int viewportHeight)
         {
             // Store window size and aspect ratio
@@ -88,46 +170,107 @@ namespace ValveResourceFormat.Renderer
             CreateProjectionMatrix();
         }
 
+        /// <summary>
+        /// Distance from the eye to the near plane. Also where the light cull pass clips light volumes and
+        /// where its depth slices start. Call <see cref="CreateProjectionMatrix"/> after changing it.
+        /// </summary>
+        public float NearPlane { get; set; } = 1.0f;
+
+        /// <summary>
+        /// Distance from the eye to the far plane, or <see cref="float.PositiveInfinity"/> for none, the
+        /// default. Call <see cref="CreateProjectionMatrix"/> after changing it.
+        /// </summary>
+        public float FarPlane { get; set; } = float.PositiveInfinity;
+
+        /// <summary>
+        /// Rebuilds <see cref="ProjectionMatrix"/> from the current field of view and aspect ratio.
+        /// </summary>
         public void CreateProjectionMatrix()
         {
-            ProjectionMatrix = CreatePerspectiveFieldOfView_ReverseZ(GetFOV(), AspectRatio, 1.0f);
+            ProjectionMatrix = CreatePerspectiveFieldOfView_ReverseZ(GetFOV(), AspectRatio, NearPlane, FarPlane);
+        }
+
+        /// <summary>
+        /// Maps a pixel of this camera's view to the one the same world ray lands on in
+        /// <paramref name="target"/>'s view, as an xy scale and a zw bias in pixels. This is what lets a
+        /// pass drawn at a different field of view find its light cull tile from gl_FragCoord alone.
+        /// </summary>
+        /// <remarks>
+        /// Exact while the two cameras differ only in projection, which is what the viewmodel is. Both
+        /// turn a view ray into ndc by the same shape of expression, <c>ndc = scale * (x / -z)</c>, so
+        /// eliminating the ray leaves an affine map with no dependence on distance along it.
+        /// </remarks>
+        /// <param name="target">The camera whose screen the result maps into.</param>
+        /// <param name="viewportSize">Pixel dimensions both cameras draw into.</param>
+        public Vector4 GetPixelRemapTo(Camera target, Vector2 viewportSize)
+        {
+            var scale = new Vector2(
+                ProjectionMatrix.M11 != 0f ? target.ProjectionMatrix.M11 / ProjectionMatrix.M11 : 1f,
+                ProjectionMatrix.M22 != 0f ? target.ProjectionMatrix.M22 / ProjectionMatrix.M22 : 1f);
+
+            var bias = viewportSize * 0.5f * (Vector2.One - scale);
+
+            return new Vector4(scale.X, scale.Y, bias.X, bias.Y);
         }
 
         /// <inheritdoc cref="Matrix4x4.CreatePerspectiveFieldOfView"/>
-        /// <remarks>Note: Reverse-Z. Far plane is swapped with near plane. Far plane is set to infinite.</remarks>
-        private static Matrix4x4 CreatePerspectiveFieldOfView_ReverseZ(float fieldOfView, float aspectRatio, float nearPlaneDistance)
+        /// <remarks>
+        /// Reverse-Z: the near plane maps to ndc z 1 and the far plane to 0. An infinite far plane is the
+        /// limit of the finite case, but the finite expressions evaluate to NaN there, so it branches.
+        /// </remarks>
+        private static Matrix4x4 CreatePerspectiveFieldOfView_ReverseZ(float fieldOfView, float aspectRatio, float nearPlaneDistance, float farPlaneDistance)
         {
             var height = 1.0f / MathF.Tan(fieldOfView * 0.5f);
             var width = height / aspectRatio;
+
+            var m33 = 0.0f;
+            var m43 = nearPlaneDistance;
+
+            if (float.IsFinite(farPlaneDistance))
+            {
+                var range = farPlaneDistance - nearPlaneDistance;
+
+                m33 = nearPlaneDistance / range;
+                m43 = nearPlaneDistance * farPlaneDistance / range;
+            }
 
             return new Matrix4x4
             {
                 M11 = width,
                 M22 = height,
-                M33 = 0.0f,
+                M33 = m33,
                 M34 = -1.0f,
-                M43 = nearPlaneDistance
+                M43 = m43
             };
         }
 
+        /// <summary>
+        /// Copies all transform state from another camera into this one.
+        /// </summary>
+        /// <param name="fromOther">The camera to copy from.</param>
         public void CopyFrom(Camera fromOther)
         {
             AspectRatio = fromOther.AspectRatio;
             WindowSize = fromOther.WindowSize;
+            NearPlane = fromOther.NearPlane;
+            FarPlane = fromOther.FarPlane;
             Location = fromOther.Location;
             Pitch = fromOther.Pitch;
             Yaw = fromOther.Yaw;
+            Roll = fromOther.Roll;
             ProjectionMatrix = fromOther.ProjectionMatrix;
             CameraViewMatrix = fromOther.CameraViewMatrix;
             ViewProjectionMatrix = fromOther.ViewProjectionMatrix;
             ViewFrustum.Update(ViewProjectionMatrix);
         }
 
+        /// <summary>Sets <see cref="Location"/> without recalculating matrices.</summary>
         public void SetLocation(Vector3 location)
         {
             Location = location;
         }
 
+        /// <summary>Sets <see cref="Location"/>, <see cref="Pitch"/>, and <see cref="Yaw"/> without recalculating matrices.</summary>
         public void SetLocationPitchYaw(Vector3 location, float pitch, float yaw)
         {
             Location = location;
@@ -135,18 +278,43 @@ namespace ValveResourceFormat.Renderer
             Yaw = yaw;
         }
 
+        /// <summary>
+        /// Orients the camera to face the given world-space target.
+        /// </summary>
         public void LookAt(Vector3 target)
         {
             var dir = Vector3.Normalize(target - Location);
             Yaw = MathF.Atan2(dir.Y, dir.X);
             Pitch = MathF.Asin(dir.Z);
+            Roll = 0f;
 
             ClampRotation();
         }
 
 
+        /// <summary>
+        /// Positions the camera so the specified bounding box fills the view.
+        /// </summary>
+        /// <param name="objectPosition">Center of the object to frame.</param>
+        /// <param name="width">Width of the object's bounding box.</param>
+        /// <param name="height">Height of the object's bounding box.</param>
+        /// <param name="depth">Depth of the object's bounding box.</param>
         public void FrameObject(Vector3 objectPosition, float width, float height, float depth)
         {
+            if (width == 0 && height == 0 && depth == 0)
+            {
+                return;
+            }
+
+            // Previous operation might have corrupted our angles
+            if (float.IsNaN(Yaw) || float.IsNaN(Pitch))
+            {
+                Yaw = 0;
+                Pitch = 0;
+            }
+
+            RecalculateDirectionVectors();
+
             var fov = GetFOV();
             var halfFovVertical = fov * 0.5f;
             var halfFovHorizontal = MathF.Atan(MathF.Tan(halfFovVertical) * AspectRatio);
@@ -155,7 +323,7 @@ namespace ValveResourceFormat.Renderer
             var halfHeight = height * 0.5f;
             var halfDepth = depth * 0.5f;
 
-            // this calculate the apparent size in screen space by projecting onto camera axis
+            // this calculates the apparent size in screen space by projecting onto camera axis
             var maxHorizontalExtent = 0f;
             var maxVerticalExtent = 0f;
 
@@ -184,6 +352,15 @@ namespace ValveResourceFormat.Renderer
             LookAt(objectPosition);
         }
 
+        /// <summary>
+        /// Positions the camera at the given yaw/pitch angle so the bounding box fills the view.
+        /// </summary>
+        /// <param name="objectPosition">Center of the object to frame.</param>
+        /// <param name="width">Width of the object's bounding box.</param>
+        /// <param name="height">Height of the object's bounding box.</param>
+        /// <param name="depth">Depth of the object's bounding box.</param>
+        /// <param name="yaw">Horizontal angle in radians.</param>
+        /// <param name="pitch">Vertical angle in radians.</param>
         public void FrameObjectFromAngle(Vector3 objectPosition, float width, float height, float depth,
             float yaw, float pitch)
         {
@@ -195,6 +372,10 @@ namespace ValveResourceFormat.Renderer
             FrameObject(objectPosition, width, height, depth);
         }
 
+        /// <summary>
+        /// Sets the camera position and orientation from a transform matrix.
+        /// </summary>
+        /// <param name="matrix">Transform matrix whose translation and first row determine position and direction.</param>
         public void SetFromTransformMatrix(Matrix4x4 matrix)
         {
             Location = matrix.Translation;
@@ -205,16 +386,33 @@ namespace ValveResourceFormat.Renderer
             Pitch = MathF.Asin(dir.Z);
         }
 
-        // Prevent camera from going upside-down
+        /// <summary>
+        /// Clamps <see cref="Pitch"/> to prevent the camera from flipping upside-down.
+        /// </summary>
         public void ClampRotation()
         {
             const float PITCH_LIMIT = 89.5f * MathF.PI / 180f;
             Pitch = Math.Clamp(Pitch, -PITCH_LIMIT, PITCH_LIMIT);
         }
 
-        private float GetFOV()
+        /// <summary>
+        /// Returns the vertical FOV in radians used to build <see cref="ProjectionMatrix"/>, converted from
+        /// <see cref="FieldOfView"/> via <see cref="Calculate4By3Fov"/>.
+        /// </summary>
+        public float GetFOV()
         {
-            return float.DegreesToRadians(RendererContext.FieldOfView);
+            return Calculate4By3Fov(FieldOfView);
+        }
+
+        /// <summary>
+        /// Converts a horizontal field of view at a 4:3 aspect ratio to the equivalent vertical field of view in radians.
+        /// The result is used directly as the vertical FOV in <see cref="CreatePerspectiveFieldOfView_ReverseZ"/> regardless
+        /// of the actual aspect ratio (Vert- scaling).
+        /// </summary>
+        /// <param name="horizontalDegreesAt4By3">Horizontal field of view in degrees at a 4:3 aspect ratio.</param>
+        public static float Calculate4By3Fov(float horizontalDegreesAt4By3)
+        {
+            return 2f * MathF.Atan(MathF.Tan(float.DegreesToRadians(horizontalDegreesAt4By3) * 0.5f) / (4f / 3f));
         }
     }
 }

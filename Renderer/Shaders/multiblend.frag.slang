@@ -13,10 +13,10 @@
 #define renderMode_Tint 0
 
 //Parameter defines - These are default values and can be overwritten based on material/model parameters
-#define F_TINT_MASK 0
-#define F_NORMAL_MAP 0
-#define F_TWO_LAYER_BLEND 0
-#define F_WORLDSPACE_UVS 0
+#define F_TINT_MASK 0 // most shaders
+#define F_NORMAL_MAP 0 // most shaders
+#define F_TWO_LAYER_BLEND 0 // multiblend
+#define F_WORLDSPACE_UVS 0 // multiblend
 //End of parameter defines
 
 in vec3 vFragPosition;

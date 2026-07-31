@@ -14,6 +14,8 @@
 #define renderMode_IrradianceDebug 0
 #define renderMode_Occlusion 0
 #define renderMode_LightmapShadows 0
+#define renderMode_LightTiles 0
+#define renderMode_Subgroups 0
 
 #if (D_BAKED_LIGHTING_FROM_LIGHTMAP == 1)
     centroid in vec3 vLightmapUVScaled;
@@ -48,6 +50,8 @@
 #include "pbr.slang"
 #include "environment.slang"
 
+#include "lighting.barn.slang"
+
 // https://lisyarus.github.io/blog/graphics/2022/07/30/point-light-attenuation.html
 float attenuate_cusp(float s, float falloff)
 {
@@ -61,6 +65,7 @@ float attenuate_cusp(float s, float falloff)
 void CalculateDirectLighting(inout LightingTerms_t lighting, inout MaterialProperties_t mat)
 {
     const float MIN_ALPHA = 0.0001;
+    vec4 dlsh = vec4(1, 1, 1, 1);
 
     #if (S_LIGHTMAP_VERSION_MINOR == 1)
         #if (D_BAKED_LIGHTING_FROM_LIGHTMAP == 1)
@@ -112,8 +117,6 @@ void CalculateDirectLighting(inout LightingTerms_t lighting, inout MaterialPrope
         }
 
     #elif (S_LIGHTMAP_VERSION_MINOR >= 2)
-        vec4 dlsh = vec4(1, 1, 1, 1);
-
         #if (D_BAKED_LIGHTING_FROM_LIGHTMAP == 1)
             dlsh = textureLod(g_tDirectLightShadows, mat.LightmapUv, 0.0);
         #elif (D_BAKED_LIGHTING_FROM_PROBE == 1)
@@ -121,60 +124,45 @@ void CalculateDirectLighting(inout LightingTerms_t lighting, inout MaterialPrope
             dlsh = textureLod(g_tLPV_Shadows, vLightProbeShadowCoords, 0.0);
         #endif
 
-        for(uint uShadowIndex = 0; uShadowIndex < 4; ++uShadowIndex)
+        if (g_nNumLights[0] > 0u)
         {
-            float shadowFactor = 1.0 - dlsh[uShadowIndex];
-            if (shadowFactor <= MIN_ALPHA)
+            float visibility = saturate(1.0 - dot(dlsh, g_vSunLightBakedShadowMask));
+            
+            if (visibility > MIN_ALPHA)
             {
-                continue;
+                visibility *= CalculateSunShadowMapVisibility(mat.PositionWS);
             }
-            uint nLightIndexStart = uShadowIndex == 0 ? 0 : g_nNumLightsPerShadow[uShadowIndex - 1];
-            uint nLightCount = g_nNumLightsPerShadow[uShadowIndex];
 
-            for(uint uLightIndex = nLightIndexStart; uLightIndex < nLightCount; ++uLightIndex)
+            if (visibility > MIN_ALPHA)
             {
-                float visibility = shadowFactor;
-                vec3 lightVector = GetLightDirection(mat.PositionWS, uLightIndex);
-
-                if (IsDirectionalLight(uLightIndex))
-                {
-                    visibility *= CalculateSunShadowMapVisibility(mat.PositionWS);
-                }
-                else
-                {
-                    if (!g_bExperimentalLightsEnabled)
-                    {
-                        continue;
-                    }
-
-                    float flInvRange = g_vLightDirection_InvRange[uLightIndex].a * 0.5;
-                    vec3 vLightPosition = g_vLightPosition_Type[uLightIndex].xyz;
-                    float flDistance = length(vLightPosition - mat.PositionWS);
-                    float flFallOff = g_vLightFallOff[uLightIndex].x;
-
-                    // 0.0 near the light, 1.0 at the light maximum range
-                    float flDistanceOverRange = flDistance * flInvRange;
-                    visibility *= attenuate_cusp(flDistanceOverRange, flFallOff);
-                }
-
-                if (visibility > MIN_ALPHA)
-                {
-                    vec3 lightColor = GetLightColor(uLightIndex);
-                    CalculateShading(lighting, lightVector, visibility * lightColor, mat);
-                }
+                vec3 lightVector = GetLightDirection(mat.PositionWS, 0u);
+                vec3 lightColor = GetLightColor(0u);
+                CalculateShading(lighting, lightVector, visibility * lightColor, mat);
             }
         }
     #else
         // Non lightmapped scene
-        const uint uLightIndex = 0;
-        vec3 lightColor = GetLightColor(uLightIndex);
-        if (length(lightColor) > 0.0)
+        for (uint i = g_nNumLights[0]; i < g_nNumLights[1]; i++)
         {
-            float visibility = CalculateSunShadowMapVisibility(mat.PositionWS);
-            vec3 lightVector = GetEnvLightDirection(uLightIndex);
-            CalculateShading(lighting, lightVector, visibility * lightColor, mat);
+            if (IsDirectionalLight(i))
+            {
+                float visibility = CalculateSunShadowMapVisibility(mat.PositionWS);
+
+                if (visibility > MIN_ALPHA)
+                {
+                    vec3 lightVector = GetLightDirection(mat.PositionWS, i);
+                    vec3 lightColor = GetLightColor(i);
+                    CalculateShading(lighting, lightVector, visibility * lightColor, mat);
+                }
+            }
         }
-    #endif
+#endif
+
+    // 0 (dynamic scene) or lightmapped 2+ 
+    if (S_LIGHTMAP_VERSION_MINOR != 1 && g_bExperimentalLightsEnabled)
+    {
+        CalculateBarnLighting(lighting, mat, dlsh);
+    }
 }
 
 
@@ -255,16 +243,23 @@ void CalculateIndirectLighting(inout LightingTerms_t lighting, inout MaterialPro
 
     // Environment Maps
 #if defined(IBL) && (IBL == 1)
-    float normalizationTerm = GetEnvMapNormalization(mat.IsometricRoughness, mat.AmbientNormal, lighting.DiffuseIndirect);
+    vec3 environment = GetEnvironment(mat);
 
-    lighting.SpecularIndirect = GetEnvironment(mat) * normalizationTerm;
+    lighting.SpecularIndirect = environment
+        * GetEnvMapNormalization(mat.IsometricRoughness, mat.AmbientNormal, lighting.DiffuseIndirect);
 
     #if (D_BAKED_LIGHTING_FROM_LIGHTMAP == 0 && D_BAKED_LIGHTING_FROM_PROBE == 0 && D_BAKED_LIGHTING_FROM_VERTEX_STREAM == 0)
         vec2 oldRoughness = mat.Roughness;
         mat.Roughness = vec2(1.0);
-        lighting.DiffuseIndirect = GetEnvironmentNoBRDF(mat, 0);
+        // Roughness is at 1 here, so the full correction lands the lookup on the normal.
+        lighting.DiffuseIndirect = GetEnvironmentNoBRDF(mat, 1.0);
         mat.Roughness = oldRoughness;
     #endif
+
+    EnvBRDF_t envBrdf = EnvBRDF(mat.SpecularColor, mat.IsometricRoughness, mat.AmbientNormal, mat.ViewDir);
+
+    lighting.SpecularIndirect += envBrdf.MultiScatter * lighting.DiffuseIndirect;
+    lighting.DiffuseIndirect *= ClampToPositive(vec3(1.0) - (envBrdf.SingleScatter + envBrdf.MultiScatter));
 #endif
 }
 
@@ -280,7 +275,7 @@ void ApplyAmbientOcclusion(inout LightingTerms_t o, MaterialProperties_t mat)
 #endif
 
     // In non-lightmap shaders, SpecularAO always does a min(1.0, specularAO) in the same place where lightmap
-    // shaders does min(bakedAO, specularAO). That means that bakedAO exists and is a constant 1.0 in those shaders!
+    // shaders do min(bakedAO, specularAO). That means that bakedAO exists and is a constant 1.0 in those shaders!
     mat.SpecularAO = min(o.SpecularOcclusion, mat.SpecularAO);
 
     vec3 DirectAODiffuse = mix(vec3(1.0), mat.DiffuseAO, g_flAmbientOcclusionDirectDiffuse);
@@ -313,6 +308,27 @@ LightingTerms_t CalculateLighting(inout MaterialProperties_t mat)
     return lighting;
 }
 
+vec3 GetSubgroupFootprintColor()
+{
+#ifdef GL_KHR_shader_subgroup_arithmetic
+    uvec2 pixel = uvec2(gl_FragCoord.xy);
+
+    uint id = subgroupMin((pixel.y << 16u) | (pixel.x & 0xFFFFu));
+
+    id ^= id >> 16u;
+    id *= 0x7feb352du;
+    id ^= id >> 15u;
+    id *= 0x846ca68bu;
+    id ^= id >> 16u;
+
+    vec3 color = vec3(uvec3(id >> 16u, id >> 8u, id) & 0xFFu) / 255.0;
+
+    return mix(color, vec3(1.0), 0.25);
+#else
+    return vec3(0.0);
+#endif
+}
+
 bool _HandleLightingRenderModes(inout vec4 outputColor, MaterialProperties_t mat, LightingTerms_t lighting)
 {
     switch (g_iRenderMode)
@@ -333,6 +349,29 @@ bool _HandleLightingRenderModes(inout vec4 outputColor, MaterialProperties_t mat
         case renderMode_Occlusion:
             float flLightmapOcclusion = blink() ? 1.0 : lighting.SpecularOcclusion;
             outputColor = vec4(SrgbGammaToLinear((mat.AmbientOcclusion * flLightmapOcclusion).xxx), 1.0);
+            return true;
+        case renderMode_LightTiles:
+            vec3 tileHeat;
+            outputColor.rgb *= GetLightCullBinStripe(mat.PositionWS);
+
+            if (!GetBarnLightTileHeatmap(tileHeat))
+            {
+                return true;
+            }
+            outputColor.rgb = mix(outputColor.rgb, tileHeat, 0.5);
+            return true;
+        case renderMode_EnvmapTiles:
+            vec3 envMapHeat;
+            outputColor.rgb *= GetLightCullBinStripe(mat.PositionWS);
+
+            if (!GetEnvMapTileHeatmap(envMapHeat))
+            {
+                return true;
+            }
+            outputColor.rgb = mix(outputColor.rgb, envMapHeat, 0.5);
+            return true;
+        case renderMode_Subgroups:
+            outputColor = vec4(GetSubgroupFootprintColor(), 1.0);
             return true;
     #if (D_BAKED_LIGHTING_FROM_LIGHTMAP == 1 && S_LIGHTMAP_VERSION_MINOR >= 2)
         case renderMode_LightmapShadows:

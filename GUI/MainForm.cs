@@ -1,5 +1,6 @@
 //#define SCREENSHOT_MODE // Uncomment to hide version, keep title bar static, set an exact window size
 
+using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Drawing;
 using System.Drawing.Imaging;
@@ -19,7 +20,6 @@ using OpenTK.Windowing.Desktop;
 using SteamDatabase.ValvePak;
 using Svg.Skia;
 using ValveResourceFormat.IO;
-using ValveResourceFormat.Renderer;
 using Windows.Win32;
 using Windows.Win32.Graphics.Gdi;
 using Windows.Win32.UI.WindowsAndMessaging;
@@ -29,33 +29,13 @@ namespace GUI
 {
     partial class MainForm : Form
     {
-        // Disposable fields should be disposed
-        // for some reason disposing it makes closing GUI very slow
-        //
-        // Never lookup icons from this list, use Icons and ExtensionIcons properties.
-        public static ImageList ImageList { get; private set; } = new ImageList
-        {
-            ColorDepth = ColorDepth.Depth32Bit,
-        };
-
-        /// <summary>
-        /// Lookup an UI icon from GUI/Icons/ folder.
-        /// </summary>
-        public static Dictionary<string, int> Icons { get; private set; } = [];
-
-        /// <summary>
-        /// Lookup a file extension icon from GUI/Icons/AssetTypes/ folder.
-        /// </summary>
-        public static Dictionary<string, int> ExtensionIcons { get; private set; } = [];
-
-        /// <summary>
-        /// Lookup a game icon by appid that are loaded by the Explorer control from Steam.
-        /// </summary>
-        public static Dictionary<int, int> GameIcons { get; private set; } = [];
-
         private readonly string[] Args;
+        internal ExplorerControl? explorerControl;
 
         private SearchForm? searchForm;
+#pragma warning disable CA2213 // Disposed in OnFormClosing
+        private Ipc.IpcWindow? ipcWindow;
+#pragma warning restore CA2213
 
         static MainForm()
         {
@@ -75,6 +55,13 @@ namespace GUI
             Themer.InitializeTheme();
             InitializeComponent();
             LoadIcons();
+
+            // Let the explorer start scanning games before the window even spawns
+            if (args.Length == 0 && (Settings.IsFirstStartup || Settings.Config.OpenExplorerOnStart != 0))
+            {
+                EnsureExplorerControl();
+            }
+
             Themer.ApplyTheme(this);
 
             if (Settings.Config.WindowWidth > 0 && Settings.Config.WindowHeight > 0)
@@ -87,7 +74,7 @@ namespace GUI
                 }
             }
 
-            mainTabs.ImageList = ImageList;
+            mainTabs.ImageList = AppIcons.ImageList;
             mainTabs.SelectedIndexChanged += OnMainSelectedTabChanged;
             mainTabs.BackColor = Themer.CurrentThemeColors.App;
             mainTabs.SelectTabColor = Themer.CurrentThemeColors.AppMiddle;
@@ -101,7 +88,7 @@ namespace GUI
 
             // Display version
             {
-                var version = Application.ProductVersion;
+                var version = Program.ProductVersion;
                 var versionPlus = version.IndexOf('+', StringComparison.InvariantCulture);
                 string versionDisplay;
 
@@ -153,99 +140,9 @@ namespace GUI
 
         private void LoadIcons()
         {
-            ImageList.ImageSize = new Size(this.AdjustForDPI(24), this.AdjustForDPI(24));
+            AppIcons.Load(this.AdjustForDPI(24));
 
-            var resources = Program.Assembly.GetManifestResourceNames().Where(static r => r.StartsWith("GUI.Icons.", StringComparison.Ordinal));
-
-            if (Themer.CurrentThemeColors.ColorMode == SystemColorMode.Classic)
-            {
-                // In light mode, sort icons so that _light icons come first
-                resources = resources.OrderByDescending(static r => r.Contains("_light", StringComparison.Ordinal));
-            }
-            else
-            {
-                // In dark mode, just filter out all _light icons
-                resources = resources.Where(static r => !r.Contains("_light", StringComparison.Ordinal));
-            }
-
-            const string AssetTypesAliasesFile = "GUI.Icons.AssetTypes.aliases.txt";
-
-            foreach (var fullName in resources)
-            {
-                if (fullName == AssetTypesAliasesFile)
-                {
-                    continue;
-                }
-
-                var name = fullName.AsSpan("GUI.Icons.".Length);
-                var extension = Path.GetExtension(name);
-                name = Path.GetFileNameWithoutExtension(name);
-
-                var isAssetType = name.StartsWith("AssetTypes.", StringComparison.Ordinal);
-                var isLightIcon = name.EndsWith("_light", StringComparison.Ordinal);
-
-                if (isAssetType)
-                {
-                    name = name["AssetTypes.".Length..];
-                }
-
-                if (isLightIcon)
-                {
-                    name = name[..^"_light".Length];
-                }
-
-                using var stream = Program.Assembly.GetManifestResourceStream(fullName);
-                Debug.Assert(stream is not null);
-
-                var iconName = name.ToString();
-                var index = ImageList.Images.Count;
-
-                if (isAssetType)
-                {
-                    if (!ExtensionIcons.TryAdd(iconName, index))
-                    {
-                        continue;
-                    }
-                }
-                else if (!Icons.TryAdd(iconName, index))
-                {
-                    continue;
-                }
-
-                if (extension.SequenceEqual(".svg"))
-                {
-#pragma warning disable CA2000 // Dispose objects before losing scope, this is a false positive
-                    using var svg = new SKSvg();
-                    svg.Load(stream);
-
-                    using var bitmap = Themer.SvgToBitmap(svg, ImageList.ImageSize.Width, ImageList.ImageSize.Height);
-                    AddFixedImageToImageList(bitmap, ImageList);
-#pragma warning restore CA2000
-
-                    if (iconName == "Logo")
-                    {
-                        mainLogo.Image = Themer.SvgToBitmap(svg, mainLogo.Width, mainLogo.Height);
-                    }
-                }
-                else
-                {
-                    Debug.Assert(false, "Use only svg icons");
-                }
-            }
-
-            {
-                using var stream = Program.Assembly.GetManifestResourceStream(AssetTypesAliasesFile);
-                Debug.Assert(stream != null);
-                using var reader = new StreamReader(stream);
-
-                string? line;
-                while ((line = reader.ReadLine()) != null)
-                {
-                    var space = line.IndexOf(' ', StringComparison.Ordinal);
-                    var addResult = ExtensionIcons.TryAdd(line[..space], ExtensionIcons[line[(space + 1)..]]);
-                    Debug.Assert(addResult, "Duplicate icon");
-                }
-            }
+            mainLogo.Image = Themer.SvgToBitmap(AppIcons.ExtensionSVGS["Logo"], mainLogo.Width, mainLogo.Height);
         }
 
         public void OpenCommandLineArgFiles(string[] args)
@@ -279,6 +176,7 @@ namespace GUI
                         if (!File.Exists(dirFile))
                         {
                             Log.Error(nameof(MainForm), $"File '{file}' does not exist.");
+                            mainTabs.OpenTab("Console");
                             continue;
                         }
 
@@ -302,7 +200,8 @@ namespace GUI
 
                             if (packageFile == null)
                             {
-                                Log.Error(nameof(MainForm), $"File '{packageFile}' does not exist in package '{file}'.");
+                                Log.Error(nameof(MainForm), $"File '{innerFile}' does not exist in package '{file}'.");
+                                mainTabs.OpenTab("Console");
                                 continue;
                             }
                         }
@@ -340,6 +239,7 @@ namespace GUI
                 if (!File.Exists(file))
                 {
                     Log.Error(nameof(MainForm), $"File '{file}' does not exist.");
+                    mainTabs.OpenTab("Console");
                     continue;
                 }
 
@@ -357,7 +257,7 @@ namespace GUI
             var consoleTab = new ConsoleTab();
             Log.SetConsoleTab(consoleTab);
             var consoleTabPage = consoleTab.CreateTab();
-            consoleTabPage.ImageIndex = Icons["Log"];
+            consoleTabPage.ImageIndex = AppIcons.Icons["Log"];
             mainTabs.TabPages.Add(consoleTabPage);
             consoleTab.InitializeFont();
 
@@ -405,6 +305,18 @@ namespace GUI
             {
                 OpenExplorer();
             }
+
+            ipcWindow = new(args => BeginInvoke(() =>
+            {
+                OpenCommandLineArgFiles(args);
+
+                if (WindowState == FormWindowState.Minimized)
+                {
+                    WindowState = FormWindowState.Normal;
+                }
+
+                Activate();
+            }));
         }
 
         protected override void OnFormClosing(FormClosingEventArgs e)
@@ -424,6 +336,8 @@ namespace GUI
                 Settings.Config.WindowState = (int)(placement.showCmd == SHOW_WINDOW_CMD.SW_SHOWMAXIMIZED ? FormWindowState.Maximized : FormWindowState.Normal);
             }
 #endif
+
+            ipcWindow?.Dispose();
 
             Settings.Save();
             base.OnFormClosing(e);
@@ -469,18 +383,25 @@ namespace GUI
         private void OnMainSelectedTabChanged(object? sender, EventArgs e)
         {
 #if !SCREENSHOT_MODE
-            if (string.IsNullOrEmpty(mainTabs.SelectedTab?.ToolTipText))
-            {
-                Text = "Source 2 Viewer";
-            }
-            else
-            {
-                Text = $"Source 2 Viewer - {mainTabs.SelectedTab.ToolTipText}";
-            }
-
+            UpdateWindowTitle(mainTabs.SelectedTab?.ToolTipText);
             UpdateBottomPanelKeybindings();
 #endif
         }
+
+        private void UpdateWindowTitle(string? toolTipText)
+        {
+#if !SCREENSHOT_MODE
+            Text = string.IsNullOrEmpty(toolTipText)
+                ? "Source 2 Viewer"
+                : $"Source 2 Viewer - {toolTipText}";
+#endif
+        }
+
+        /// <summary>
+        /// Resets the window title to the selected tab. Called when a package preview is cleared (e.g. a folder is
+        /// shown) so the title stops reflecting the file that was being previewed.
+        /// </summary>
+        public void ResetPreviewTitle() => UpdateWindowTitle(mainTabs.SelectedTab?.ToolTipText);
 
         private void UpdateBottomPanelKeybindings()
         {
@@ -488,6 +409,20 @@ namespace GUI
             var keybindings = KeybindingRegistry.GetKeybindingsForViewer(viewerType);
             mainFormBottomPanel.UpdateKeybindings(keybindings);
         }
+
+        /// <summary>
+        /// Shows the keybindings for a previewed viewer
+        /// </summary>
+        public void ShowPreviewKeybindings(TabPage previewTab)
+        {
+            var keybindings = KeybindingRegistry.GetKeybindingsForViewer(KeybindingRegistry.GetViewerTypeFromTab(previewTab));
+            mainFormBottomPanel.UpdateKeybindings(keybindings);
+        }
+
+        /// <summary>
+        /// Shows the keybindings of the selected tab.
+        /// </summary>
+        public void ShowSelectedTabKeybindings() => UpdateBottomPanelKeybindings();
 
         private void CloseAndReOpenActiveTab()
         {
@@ -617,7 +552,7 @@ namespace GUI
             var seettingsTab = new ThemedTabPage("Settings")
             {
                 ToolTipText = "Settings",
-                ImageIndex = Icons["Settings"],
+                ImageIndex = AppIcons.Icons["Settings"],
             };
 
             try
@@ -638,30 +573,14 @@ namespace GUI
 
         private void OpenToolStripMenuItem_Click(object sender, EventArgs e)
         {
-            using var openDialog = new OpenFileDialog
-            {
-                InitialDirectory = Settings.Config.OpenDirectory,
-                Filter = "Valve Resource Format (*.*_c, *.vpk)|*.*_c;*.vpk;*.vcs|All files (*.*)|*.*",
-                Multiselect = true,
-                AddToRecent = true,
-            };
-            var userOK = openDialog.ShowDialog();
+            var files = AppFileDialogs.OpenFiles(null, "Valve Resource Format (*.*_c, *.vpk)|*.*_c;*.vpk;*.vcs|All files (*.*)|*.*");
 
-            if (userOK != DialogResult.OK)
+            if (files == null)
             {
                 return;
             }
 
-            if (openDialog.FileNames.Length > 0)
-            {
-                var directory = Path.GetDirectoryName(openDialog.FileNames[0]);
-                if (directory != null)
-                {
-                    Settings.Config.OpenDirectory = directory;
-                }
-            }
-
-            foreach (var file in openDialog.FileNames)
+            foreach (var file in files)
             {
                 OpenFile(file);
             }
@@ -744,7 +663,7 @@ namespace GUI
                     {
                         if (vrfGuiContext.FileName.StartsWith(game.GamePath, StringComparison.OrdinalIgnoreCase))
                         {
-                            if (GameIcons.TryGetValue(game.AppID, out var imageIndexGame))
+                            if (AppIcons.GameIcons.TryGetValue(game.AppID, out var imageIndexGame))
                             {
                                 tab.ImageIndex = imageIndexGame;
                             }
@@ -761,7 +680,7 @@ namespace GUI
                         extension = extension[1..];
                     }
 
-                    tab.ImageIndex = GetImageIndexForExtension(extension);
+                    tab.ImageIndex = AppIcons.GetImageIndexForExtension(extension);
                 }
 
                 if (!isPreview)
@@ -777,19 +696,36 @@ namespace GUI
                 tabTemp?.Dispose();
             }
 
-            Control? loadingFile = null;
-
-            if (!isPreview)
+            if (isPreview)
             {
-                loadingFile = new LoadingFile();
+                // The preview tab is not in mainTabs, so update the window title to the previewed file ourselves.
+                UpdateWindowTitle(tab.ToolTipText);
+            }
+
+            // For a preview of the same type as the one already shown, keep that view frozen while the new file loads
+            // and show no loading panel; the new viewer is swapped in once ready. Otherwise show the loading panel.
+            var keepFrozen = isPreview && packageTreeView!.IsSamePreviewType(file?.TypeName);
+
+            LoadingFile? loadingFile = null;
+
+            if (!keepFrozen)
+            {
+#pragma warning disable CA2000 // Ownership is transferred to the tab, which disposes it
+                loadingFile = new LoadingFile(vrfGuiContext.FileName);
+#pragma warning restore CA2000
                 tab.Controls.Add(loadingFile);
-            }
-            else
-            {
-                Cursor.Current = Cursors.WaitCursor;
+
+                if (isPreview)
+                {
+                    // Show the loading panel in the preview area right away (replacing the blank page).
+                    Debug.Assert(packageTreeView != null);
+                    packageTreeView.ReplaceListViewWithControl(tab, file?.TypeName);
+                }
             }
 
-            var taskLoad = Task.Run(() => ProcessFile(vrfGuiContext, file, viewMode));
+            Types.Viewers.IViewer? createdViewer = null;
+
+            var taskLoad = Task.Run(() => Types.Viewers.ViewerFactory.CreateAndLoadAsync(vrfGuiContext, file, viewMode));
 
             taskLoad.ContinueWith(t =>
             {
@@ -799,11 +735,6 @@ namespace GUI
                 {
                     BeginInvoke(() =>
                     {
-                        if (isPreview)
-                        {
-                            Cursor.Current = Cursors.Default;
-                        }
-
                         var control = CodeTextBox.CreateFromException(ex, tab.ToolTipText);
 
                         tab.Controls.Add(control);
@@ -840,6 +771,7 @@ namespace GUI
                         }
 
                         viewer.Create(tab);
+                        createdViewer = viewer;
 
                         if (mainTabs.SelectedTab == tab)
                         {
@@ -887,150 +819,23 @@ namespace GUI
             {
                 BeginInvoke(() =>
                 {
-                    loadingFile?.Dispose();
-
-                    if (isPreview)
+                    if (keepFrozen)
                     {
+                        // Same-type preview: swap the frozen previous view for the newly loaded viewer.
                         Debug.Assert(packageTreeView != null);
-                        packageTreeView.ReplaceListViewWithControl(tab);
+                        packageTreeView.ReplaceListViewWithControl(tab, file?.TypeName);
                     }
+                    else
+                    {
+                        // The tab is already shown; disposing the loading panel reveals the viewer behind it.
+                        loadingFile?.Dispose();
+                    }
+
+                    // Revealing the viewer does not reliably deliver a paint to the underlying GL control, so tell
+                    // the viewer to redraw now that it is visible.
+                    createdViewer?.NotifyVisible();
                 });
             });
-        }
-
-        private static async Task<Types.Viewers.IViewer> ProcessFile(VrfGuiContext vrfGuiContext, PackageEntry? entry, ResourceViewMode viewMode)
-        {
-            await Task.Yield();
-
-            Stream? stream = null;
-            Span<byte> magicData = stackalloc byte[6];
-
-            if (entry != null)
-            {
-                var parentContext = vrfGuiContext.ParentGuiContext;
-                if (parentContext?.CurrentPackage == null)
-                {
-                    throw new InvalidDataException("Parent context or package is null");
-                }
-
-                stream = GameFileLoader.GetPackageEntryStream(parentContext.CurrentPackage, entry);
-
-                if (stream.Length >= magicData.Length)
-                {
-                    stream.ReadExactly(magicData);
-                    stream.Seek(-magicData.Length, SeekOrigin.Current);
-                }
-            }
-            else
-            {
-                using var fs = new FileStream(vrfGuiContext.FileName, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
-
-                if (fs.Length >= magicData.Length)
-                {
-                    fs.ReadExactly(magicData);
-                }
-            }
-
-            var magic = BitConverter.ToUInt32(magicData[..4]);
-            var magicResourceVersion = BitConverter.ToUInt16(magicData[4..]);
-
-            if (Types.PackageViewer.PackageViewer.IsAccepted(magic))
-            {
-                var viewer = new PackageViewer(vrfGuiContext);
-                await viewer.LoadAsync(stream).ConfigureAwait(false);
-                return viewer;
-            }
-            else if (Types.Viewers.CompiledShader.IsAccepted(magic))
-            {
-                var viewer = new Types.Viewers.CompiledShader(vrfGuiContext);
-                await viewer.LoadAsync(stream).ConfigureAwait(false);
-                return viewer;
-            }
-            else if (Types.Viewers.ClosedCaptions.IsAccepted(magic))
-            {
-                var viewer = new Types.Viewers.ClosedCaptions(vrfGuiContext);
-                await viewer.LoadAsync(stream).ConfigureAwait(false);
-                return viewer;
-            }
-            else if (Types.Viewers.ToolsAssetInfo.IsAccepted(magic))
-            {
-                var viewer = new Types.Viewers.ToolsAssetInfo(vrfGuiContext);
-                await viewer.LoadAsync(stream).ConfigureAwait(false);
-                return viewer;
-            }
-            else if (Types.Viewers.FlexSceneFile.IsAccepted(magic))
-            {
-                var viewer = new Types.Viewers.FlexSceneFile(vrfGuiContext);
-                await viewer.LoadAsync(stream).ConfigureAwait(false);
-                return viewer;
-            }
-            else if (Types.Viewers.NavView.IsAccepted(magic))
-            {
-                var viewer = new Types.Viewers.NavView(vrfGuiContext);
-                await viewer.LoadAsync(stream).ConfigureAwait(false);
-                return viewer;
-            }
-            else if (Types.Viewers.BinaryKeyValues3.IsAccepted(magic))
-            {
-                var viewer = new Types.Viewers.BinaryKeyValues3(vrfGuiContext);
-                await viewer.LoadAsync(stream).ConfigureAwait(false);
-                return viewer;
-            }
-            else if (Types.Viewers.BinaryKeyValues2.IsAccepted(magic, vrfGuiContext.FileName))
-            {
-                var viewer = new Types.Viewers.BinaryKeyValues2(vrfGuiContext);
-                await viewer.LoadAsync(stream).ConfigureAwait(false);
-                return viewer;
-            }
-            else if (Types.Viewers.BinaryKeyValues1.IsAccepted(magic))
-            {
-                var viewer = new Types.Viewers.BinaryKeyValues1(vrfGuiContext);
-                await viewer.LoadAsync(stream).ConfigureAwait(false);
-                return viewer;
-            }
-            else if (Types.Viewers.Resource.IsAccepted(magicResourceVersion))
-            {
-                var viewer = new Types.Viewers.Resource(vrfGuiContext, viewMode, verifyFileSize: entry == null || entry.CRC32 > 0);
-                await viewer.LoadAsync(stream).ConfigureAwait(false);
-                return viewer;
-            }
-            // Raw images and audio files do not really appear in Source 2 projects, but we support viewing them anyway.
-            // As some detections rely on the file extension instead of magic bytes,
-            // they should be detected at the bottom here, after failing to detect a proper resource file.
-            else if (Types.Viewers.Image.IsAccepted(magic))
-            {
-                var viewer = new Types.Viewers.Image(vrfGuiContext);
-                await viewer.LoadAsync(stream).ConfigureAwait(false);
-                return viewer;
-            }
-            else if (Types.Viewers.ImageVector.IsAccepted(vrfGuiContext.FileName))
-            {
-                var viewer = new Types.Viewers.ImageVector(vrfGuiContext);
-                await viewer.LoadAsync(stream).ConfigureAwait(false);
-                return viewer;
-            }
-            else if (Types.Viewers.Audio.IsAccepted(magic, vrfGuiContext.FileName))
-            {
-                var viewer = new Types.Viewers.Audio(vrfGuiContext, viewMode == ResourceViewMode.ViewerOnly);
-                await viewer.LoadAsync(stream).ConfigureAwait(false);
-                return viewer;
-            }
-            else if (Types.Viewers.GridNavFile.IsAccepted(magic))
-            {
-                var viewer = new Types.Viewers.GridNavFile(vrfGuiContext);
-                await viewer.LoadAsync(stream).ConfigureAwait(false);
-                return viewer;
-            }
-            else if (Types.Viewers.SpirvBinary.IsAccepted(magic))
-            {
-                var viewer = new Types.Viewers.SpirvBinary(vrfGuiContext);
-                await viewer.LoadAsync(stream).ConfigureAwait(false);
-                return viewer;
-            }
-
-            var byteViewer = new Types.Viewers.ByteViewer(vrfGuiContext);
-            await byteViewer.LoadAsync(stream).ConfigureAwait(false);
-            return byteViewer;
         }
 
         private void MainForm_DragDrop(object sender, DragEventArgs e)
@@ -1088,13 +893,15 @@ namespace GUI
             if (package != null)
             {
                 searchForm ??= new();
+                searchForm.SetSearchableUserDataKeys(package.GetSearchDataKeysAsync());
                 var result = searchForm.ShowDialog();
                 if (result == DialogResult.OK)
                 {
                     var searchText = searchForm.SearchText;
-                    if (!string.IsNullOrEmpty(searchText))
+                    var filterKey = searchForm.SelectedFilterKey;
+                    if (!string.IsNullOrEmpty(searchText) || filterKey != null)
                     {
-                        package.SearchAndFillResults(searchText, searchForm.SelectedSearchType);
+                        package.SearchAndFillResults(searchText, searchForm.SelectedSearchType, filterKey, searchForm.SelectedFilterValue);
                     }
                 }
                 return;
@@ -1129,29 +936,28 @@ namespace GUI
 
         private void OpenExplorer_Click(object sender, EventArgs e) => OpenExplorer();
 
+        private ExplorerControl EnsureExplorerControl()
+        {
+            explorerControl ??= new ExplorerControl { Dock = DockStyle.Fill };
+            return explorerControl;
+        }
+
         private void OpenExplorer()
         {
-            foreach (TabPage tabPage in mainTabs.TabPages)
+            if (mainTabs.OpenTab("Explorer"))
             {
-                if (tabPage.Text == "Explorer")
-                {
-                    mainTabs.SelectTab(tabPage);
-                    return;
-                }
+                return;
             }
 
             var explorerTab = new ThemedTabPage("Explorer")
             {
                 ToolTipText = "Explorer",
-                ImageIndex = Icons["Explorer"],
+                ImageIndex = AppIcons.Icons["Explorer"],
             };
 
             try
             {
-                explorerTab.Controls.Add(new ExplorerControl
-                {
-                    Dock = DockStyle.Fill,
-                });
+                explorerTab.Controls.Add(EnsureExplorerControl());
                 mainTabs.TabPages.Insert(1, explorerTab);
                 mainTabs.SelectTab(explorerTab);
                 explorerTab = null;
@@ -1167,12 +973,12 @@ namespace GUI
             var welcomeTab = new ThemedTabPage("Welcome")
             {
                 ToolTipText = "Welcome",
-                ImageIndex = Icons["WelcomeScreen"],
+                ImageIndex = AppIcons.Icons["WelcomeScreen"],
             };
 
             try
             {
-                welcomeTab.Controls.Add(new WelcomeControl
+                welcomeTab.Controls.Add(new WelcomeControl(EnsureExplorerControl())
                 {
                     Dock = DockStyle.Fill
                 });
@@ -1184,28 +990,6 @@ namespace GUI
             {
                 welcomeTab?.Dispose();
             }
-        }
-
-        public static int GetImageIndexForExtension(ReadOnlySpan<char> extension)
-        {
-            if (extension.EndsWith(GameFileLoader.CompiledFileSuffix, StringComparison.Ordinal))
-            {
-                extension = extension[0..^2];
-            }
-
-            var lookup = ExtensionIcons.GetAlternateLookup<ReadOnlySpan<char>>();
-
-            if (lookup.TryGetValue(extension, out var image))
-            {
-                return image;
-            }
-
-            if (extension.Length > 0 && extension[0] == 'v' && lookup.TryGetValue(extension[1..], out image))
-            {
-                return image;
-            }
-
-            return Icons["File"];
         }
 
         private void ClearConsoleToolStripMenuItem_Click(object sender, EventArgs e)
@@ -1273,46 +1057,28 @@ namespace GUI
             };
             progressDialog.OnProcess += (_, __) =>
             {
-                using var window = new OpenTK.Windowing.Desktop.NativeWindow(new()
+                var window = NativeWindowFactory.Create(new()
                 {
-                    APIVersion = GLEnvironment.RequiredVersion,
+                    APIVersion = ValveResourceFormat.Renderer.GLEnvironment.RequiredVersion,
                     Flags = GLBaseControl.Flags | OpenTK.Windowing.Common.ContextFlags.Offscreen,
                     StartVisible = false,
                     Title = "Source 2 Viewer Shader Validator"
                 });
 
-                window.MakeCurrent();
+                try
+                {
+                    window.MakeCurrent();
 
-                ShaderLoader.ValidateShaders(new Progress<string>(progressDialog.SetProgress), VrfGuiContext.Logger);
+                    ValveResourceFormat.Renderer.Shaders.ShaderLoader.ValidateShaders(new Progress<string>(progressDialog.SetProgress), VrfGuiContext.Logger);
+                }
+                finally
+                {
+                    NativeWindowFactory.Destroy(window);
+                }
             };
             progressDialog.ShowDialog();
         }
 #endif
 
-        // Based on https://www.codeproject.com/articles/Adding-and-using-32-bit-alphablended-images-and-ic
-        // Fixes adding images with proper transparency without incorrect anti aliasing
-        public static unsafe void AddFixedImageToImageList(Bitmap bm, ImageList il)
-        {
-            Debug.Assert(bm.Size == il.ImageSize);
-
-            var bmi = new BITMAPINFO();
-            bmi.bmiHeader.biSize = (uint)sizeof(BITMAPINFOHEADER);
-            bmi.bmiHeader.biBitCount = 32;
-            bmi.bmiHeader.biPlanes = 1;
-            bmi.bmiHeader.biWidth = bm.Width;
-            bmi.bmiHeader.biHeight = bm.Height;
-
-            bm.RotateFlip(RotateFlipType.RotateNoneFlipY);
-
-            using var hBitmap = PInvoke.CreateDIBSection((HDC)IntPtr.Zero, &bmi, DIB_USAGE.DIB_RGB_COLORS, out var ppvBits, null, 0);
-
-            var bitmapData = bm.LockBits(new Rectangle(0, 0, bm.Width, bm.Height), ImageLockMode.ReadOnly, PixelFormat.Format32bppArgb);
-            var byteCount = bm.Height * bitmapData.Stride;
-            Buffer.MemoryCopy((void*)bitmapData.Scan0, ppvBits, byteCount, byteCount);
-            bm.UnlockBits(bitmapData);
-
-            using var ilHandle = new DeleteObjectSafeHandle(il.Handle, ownsHandle: false);
-            PInvoke.ImageList_Add(ilHandle, hBitmap, default);
-        }
     }
 }

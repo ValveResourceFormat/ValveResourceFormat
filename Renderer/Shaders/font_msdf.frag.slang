@@ -3,7 +3,7 @@
 // in regards to float weight:
 // change the weight to be wider (+1 ... +5)
 // or change the weight to be slimmer (-1 ... -5)
-// if you pass weight as varying, then the bottom calculation can reduced to
+// if you pass weight as varying, then the bottom calculation can be reduced to
 // (0.5 - weight)
 #define WEIGHT 1.0
 #define OUTLINE_OFFSET 0.7
@@ -12,10 +12,12 @@
 
 in vec2 vTexCoord;
 in vec4 vFragColor;
+in float vSceneDepth;
 
 out vec4 color;
 
 uniform sampler2D msdf;
+uniform sampler2D g_tSceneDepth; // resolved scene depth (reverse-Z window space)
 uniform float g_fRange; // distance field's pixel range
 
 float median(float r, float g, float b) {
@@ -28,6 +30,14 @@ float screenPxRange() {
 }
 
 void main() {
+    if (vSceneDepth >= 0.0) {
+        float sceneDepth = texelFetch(g_tSceneDepth, ivec2(gl_FragCoord.xy), 0).r;
+
+        if (vSceneDepth < sceneDepth) {
+            discard;
+        }
+    }
+
     vec3 tex = texture(msdf, vTexCoord).rgb;
     float distance = median(tex.r, tex.g, tex.b);
     float range = screenPxRange();

@@ -1,5 +1,4 @@
 using System.Diagnostics;
-using System.Threading;
 using OpenTK.Graphics.OpenGL;
 using QueryId = System.Int32;
 
@@ -25,25 +24,17 @@ public class Timings
 
     private const int NameColumnWidth = 40;
 
-    private readonly Lock threadLock = new();
-    private int owningThreadId;
-
-    public Timings()
-    {
-        owningThreadId = Environment.CurrentManagedThreadId;
-    }
-
+    /// <summary>Gets or sets whether timing data is actively collected this frame.</summary>
     public bool Capture { get; set; }
-    private bool IsNotOwningThread => Environment.CurrentManagedThreadId != owningThreadId;
 
     /// <summary>
     /// Begins a new timing measurement for the specified name.
     /// </summary>
     /// <param name="name">Name of the region to time.</param>
     /// <returns>Query ID to use when ending the query, or 0 if timing is disabled.</returns>
-    public QueryId BeginQuery(string name)
+    internal QueryId BeginQuery(string name)
     {
-        if (!Capture || IsNotOwningThread)
+        if (!Capture)
         {
             return 0;
         }
@@ -95,10 +86,10 @@ public class Timings
     /// <summary>
     /// Ends a timing measurement.
     /// </summary>
-    /// <param name="id">Query ID returned from BeginQuery.</param>
-    public void EndQuery(QueryId id)
+    /// <param name="id">Query ID returned from <see cref="BeginQuery"/>.</param>
+    internal void EndQuery(QueryId id)
     {
-        if (!Capture || id == 0 || IsNotOwningThread)
+        if (!Capture || id == 0)
         {
             return;
         }
@@ -162,14 +153,25 @@ public class Timings
         var yOffset = y;
         var lineHeight = scale * 1.5f / camera.WindowSize.Y;
 
-        // Header
         textRenderer.AddTextRelative(new TextRenderer.TextRenderRequest
         {
             X = x,
             Y = yOffset,
             Scale = scale,
             Color = new Color32(255, 200, 0),
-            Text = $"  {"",-NameColumnWidth} {"GPU",6} {"CPU",6} {"",6}"
+            Text = "Render Timings"
+        }, camera);
+
+        yOffset += lineHeight;
+
+        // Header
+        textRenderer.AddTextRelative(new TextRenderer.TextRenderRequest
+        {
+            X = x,
+            Y = yOffset,
+            Scale = scale,
+            Color = Color32.White,
+            Text = $"  {"",-NameColumnWidth} {"GPU",6} {"CPU",6} {"P100",6}"
         }, camera);
 
         yOffset += lineHeight;
@@ -238,27 +240,23 @@ public class Timings
         }, camera);
     }
 
-    public void MarkFrameBegin()
+    /// <summary>Resets the query index for the new frame. Marked by <see cref="PerfStats"/>, which owns the thread policy.</summary>
+    internal void MarkFrameBegin()
     {
         if (Capture)
         {
-            using var _ = threadLock.EnterScope();
-            owningThreadId = Environment.CurrentManagedThreadId;
-            GLDebugGroup.Timings = this;
             currentIndex = 0;
         }
     }
 
     /// <summary>
-    /// Clears all collected timing results and transfers ownership to the calling thread.
+    /// Clears all collected timing results for the frame.
     /// </summary>
-    public void MarkFrameEnd()
+    internal void MarkFrameEnd()
     {
         if (Capture)
         {
-            using var _ = threadLock.EnterScope();
             results.Clear();
-            GLDebugGroup.Timings = null;
         }
     }
 

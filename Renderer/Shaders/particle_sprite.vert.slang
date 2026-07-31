@@ -8,9 +8,11 @@ layout (location = 4) in vec4 aVertexColor;
 
 out vec2 vTexCoordOut;
 out vec4 vColor;
+out vec3 vFragPosition;
 
 void main(void) {
     vColor = aVertexColor;
     vTexCoordOut = aTexCoords;
+    vFragPosition = aVertexPosition;
     gl_Position = g_matWorldToProjection * vec4(aVertexPosition, 1.0);
 }

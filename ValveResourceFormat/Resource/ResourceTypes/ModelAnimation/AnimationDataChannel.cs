@@ -1,3 +1,4 @@
+using ValveKeyValue;
 using ValveResourceFormat.ResourceTypes.ModelFlex;
 using ValveResourceFormat.Serialization.KeyValues;
 
@@ -6,6 +7,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
     /// <summary>
     /// Represents a data channel in an animation, mapping bones or flex controllers to animation elements.
     /// </summary>
+    /// <seealso href="https://s2v.app/SchemaExplorer/cs2/animationsystem/CAnimDataChannelDesc">CAnimDataChannelDesc</seealso>
     public class AnimationDataChannel
     {
         /// <summary>
@@ -26,7 +28,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
             var elementNameArray = dataChannel.GetArray<string>("m_szElementNameArray");
             var elementIndexArray = dataChannel.GetIntegerArray("m_nElementIndexArray");
 
-            var channelAttribute = dataChannel.GetProperty<string>("m_szVariableName");
+            var channelAttribute = dataChannel.GetStringProperty("m_szVariableName");
             Attribute = channelAttribute switch
             {
                 "Position" => AnimationChannelAttribute.Position,

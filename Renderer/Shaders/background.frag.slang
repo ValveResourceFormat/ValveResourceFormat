@@ -81,7 +81,7 @@ void main() {
     }
 
     // mixing the alternative colors to go through their alt version
-    // set the PI2t multication to vary the color phases
+    // set the PI2t multiplication to vary the color phases
     vec3 skyColor = mix(SKY_C, SKY_ALT_C, latitude(polar.x + 0.0 * PI2t));
     vec3 groundColor = mix(GROUND_C, GROUND_ALT_C, latitude(polar.x + 1.0 * PI2t));
     vec3 horizonColor = mix(HORIZON_C, HORIZON_ALT_C, latitude(polar.x + 2.0 * PI2t));

@@ -1,6 +1,7 @@
 using System.Buffers;
 using System.Diagnostics;
 using System.Reflection;
+using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using OpenTK.Graphics.OpenGL;
 using SkiaSharp;
@@ -17,11 +18,168 @@ namespace ValveResourceFormat.Renderer
         [StructLayout(LayoutKind.Sequential)]
         struct Vertex
         {
-            public const int Size = 5;
+            public const int Size = 6;
 
             public Vector2 Position;
             public Vector2 TexCoord;
+            public float Depth;
             public Color32 Color;
+        }
+
+        /// <summary>
+        /// Text for a <see cref="TextRenderRequest"/>. Converts implicitly from a string, or from a
+        /// caller-owned char buffer slice to render without allocating — in which case the buffer
+        /// must not be overwritten until <see cref="Render"/> runs.
+        /// </summary>
+        public readonly struct TextMemory
+        {
+            private readonly ReadOnlyMemory<char> memory;
+
+            private TextMemory(ReadOnlyMemory<char> memory) => this.memory = memory;
+
+#pragma warning disable CA2225 // Provide a method named alternate for operator overloads
+            /// <summary>Wraps a string.</summary>
+            public static implicit operator TextMemory(string? text) => new(text.AsMemory());
+
+            /// <summary>Wraps a caller-owned buffer slice.</summary>
+            public static implicit operator TextMemory(ReadOnlyMemory<char> memory) => new(memory);
+
+            /// <summary>Wraps a caller-owned buffer slice.</summary>
+            public static implicit operator TextMemory(Memory<char> memory) => new(memory);
+#pragma warning restore CA2225
+
+            /// <summary>Gets the number of characters.</summary>
+            public int Length => memory.Length;
+
+            /// <summary>Gets the characters as a span.</summary>
+            public ReadOnlySpan<char> Span => memory.Span;
+
+            /// <summary>
+            /// Formats an interpolated string directly into a caller-owned buffer and wraps the written
+            /// slice, without allocating. Text that does not fit the buffer comes out empty.
+            /// </summary>
+            public static TextMemory Format(Memory<char> destination, [InterpolatedStringHandlerArgument(nameof(destination))] ref FormatHandler handler)
+                => new(destination[..handler.GetWrittenLength(destination.Span)]);
+
+            /// <summary>Interpolated string handler for <see cref="Format"/>, forwarding to the buffer-writing BCL handler.</summary>
+            [InterpolatedStringHandler]
+            public ref struct FormatHandler
+            {
+                private MemoryExtensions.TryWriteInterpolatedStringHandler inner;
+
+                /// <summary>Initializes the handler over the destination buffer. Called by the compiler.</summary>
+                public FormatHandler(int literalLength, int formattedCount, Memory<char> destination, out bool shouldAppend)
+                {
+                    inner = new MemoryExtensions.TryWriteInterpolatedStringHandler(literalLength, formattedCount, destination.Span, out shouldAppend);
+                }
+
+                /// <summary>Appends a literal segment.</summary>
+                public bool AppendLiteral(string value) => inner.AppendLiteral(value);
+
+                /// <summary>Appends a formatted value.</summary>
+                public bool AppendFormatted<T>(T value) => inner.AppendFormatted(value);
+
+                /// <summary>Appends a formatted value.</summary>
+                public bool AppendFormatted<T>(T value, string? format) => inner.AppendFormatted(value, format);
+
+                /// <summary>Appends a formatted value.</summary>
+                public bool AppendFormatted<T>(T value, int alignment) => inner.AppendFormatted(value, alignment);
+
+                /// <summary>Appends a formatted value.</summary>
+                public bool AppendFormatted<T>(T value, int alignment, string? format) => inner.AppendFormatted(value, alignment, format);
+
+                /// <summary>Appends a character span.</summary>
+                public bool AppendFormatted(scoped ReadOnlySpan<char> value) => inner.AppendFormatted(value);
+
+                /// <summary>Appends a character span.</summary>
+                public bool AppendFormatted(scoped ReadOnlySpan<char> value, int alignment = 0, string? format = null) => inner.AppendFormatted(value, alignment, format);
+
+                /// <summary>Appends a string.</summary>
+                public bool AppendFormatted(string? value) => inner.AppendFormatted(value);
+
+                /// <summary>Appends a string.</summary>
+                public bool AppendFormatted(string? value, int alignment = 0, string? format = null) => inner.AppendFormatted(value, alignment, format);
+
+                /// <summary>Initializes the handler over a reusable text buffer. Called by the compiler.</summary>
+                public FormatHandler(int literalLength, int formattedCount, TextBuffer destination, out bool shouldAppend)
+                {
+                    inner = new MemoryExtensions.TryWriteInterpolatedStringHandler(literalLength, formattedCount, destination.Storage, out shouldAppend);
+                }
+
+                /// <summary>Initializes the handler over an arena's free space. Called by the compiler.</summary>
+                public FormatHandler(int literalLength, int formattedCount, TextArena destination, out bool shouldAppend)
+                {
+                    inner = new MemoryExtensions.TryWriteInterpolatedStringHandler(literalLength, formattedCount, destination.FreeSpace, out shouldAppend);
+                }
+
+                internal int GetWrittenLength(Span<char> destination)
+                    => MemoryExtensions.TryWrite(destination, ref inner, out var charsWritten) ? charsWritten : 0;
+            }
+        }
+
+        /// <summary>
+        /// A reusable fixed-size buffer for per-frame formatted text. Construct once, sized directly or
+        /// from a worst-case template string, then <see cref="Format"/> into it each frame and pass it
+        /// wherever <see cref="TextMemory"/> is expected — no per-call allocations.
+        /// </summary>
+        public sealed class TextBuffer
+        {
+            internal readonly char[] Storage;
+            private int length;
+
+            /// <summary>Creates a buffer with the given capacity in characters.</summary>
+            public TextBuffer(int capacity)
+            {
+                Storage = new char[capacity];
+            }
+
+            /// <summary>Creates a buffer sized to fit the given worst-case example text.</summary>
+            public TextBuffer(string template) : this(template.Length)
+            {
+            }
+
+            /// <summary>
+            /// Formats an interpolated string into the buffer without allocating, replacing the previous
+            /// contents. Text that does not fit the buffer comes out empty.
+            /// </summary>
+            public TextMemory Format([InterpolatedStringHandlerArgument("")] ref TextMemory.FormatHandler handler)
+            {
+                length = handler.GetWrittenLength(Storage);
+                return this;
+            }
+
+#pragma warning disable CA2225 // Provide a method named alternate for operator overloads
+            /// <summary>Gets the most recently formatted text.</summary>
+            public static implicit operator TextMemory(TextBuffer buffer) => buffer.Storage.AsMemory(0, buffer.length);
+#pragma warning restore CA2225
+        }
+
+        /// <summary>
+        /// An append-only arena for building many formatted lines into one large backing buffer without
+        /// allocating. Each <see cref="Format"/> returns its text as a <see cref="TextMemory"/> slice
+        /// that stays valid until the next <see cref="Clear"/>.
+        /// </summary>
+        public sealed class TextArena(int capacity)
+        {
+            private readonly char[] storage = new char[capacity];
+            private int used;
+
+            internal Span<char> FreeSpace => storage.AsSpan(used);
+
+            /// <summary>Discards all text, invalidating previously returned slices.</summary>
+            public void Clear() => used = 0;
+
+            /// <summary>
+            /// Formats an interpolated string into the arena without allocating and returns the written
+            /// slice. Text that does not fit the remaining space comes out empty.
+            /// </summary>
+            public TextMemory Format([InterpolatedStringHandlerArgument("")] ref TextMemory.FormatHandler handler)
+            {
+                var written = handler.GetWrittenLength(storage.AsSpan(used));
+                var line = storage.AsMemory(used, written);
+                used += written;
+                return line;
+            }
         }
 
         /// <summary>
@@ -29,14 +187,34 @@ namespace ValveResourceFormat.Renderer
         /// </summary>
         public struct TextRenderRequest()
         {
+            /// <summary>Gets or sets the screen-space X position in pixels.</summary>
             public float X { get; set; }
+
+            /// <summary>Gets or sets the screen-space Y position in pixels.</summary>
             public float Y { get; set; }
+
+            /// <summary>Gets or sets the text scale in pixels-per-em.</summary>
             public float Scale { get; set; }
+
+            /// <summary>
+            /// Gets or sets the window space depth to use for depth masking.
+            /// </summary>
+            public float SceneDepth { get; set; } = -1f;
+
+            /// <summary>Gets the text color.</summary>
             public Color32 Color { get; init; } = Color32.White;
+
+            /// <summary>Gets an additional pixel offset applied after positioning.</summary>
             public Vector2 TextOffset { get; init; } = Vector2.Zero;
-            public required string Text { get; init; }
-            public bool CenterVertical { get; init; } = false;
+
+            /// <summary>Gets the text to render.</summary>
+            public required TextMemory Text { get; init; }
+
+            /// <summary>Gets whether the text is centered horizontally around <see cref="X"/>.</summary>
             public bool CenterHorizontal { get; init; } = false;
+
+            /// <summary>Gets whether the text is centered vertically around <see cref="Y"/>.</summary>
+            public bool CenterVertical { get; init; } = false;
         }
 
         private readonly List<TextRenderRequest> TextRenderRequests = new(10);
@@ -48,11 +226,15 @@ namespace ValveResourceFormat.Renderer
         private int bufferHandle;
         private int vao;
 
+        /// <summary>Initializes the text renderer.</summary>
+        /// <param name="rendererContext">Renderer context for loading shaders.</param>
+        /// <param name="camera">Camera (unused at construction; required at render time).</param>
         public TextRenderer(RendererContext rendererContext, Camera camera)
         {
             this.RendererContext = rendererContext;
         }
 
+        /// <summary>Loads the MSDF font atlas texture and compiles the font shader.</summary>
         public void Load()
         {
             using var fontStream = Assembly.GetExecutingAssembly().GetManifestResourceStream("Renderer.Resources.jetbrains_mono_msdf.png");
@@ -71,6 +253,7 @@ namespace ValveResourceFormat.Renderer
             {
                 ("vPOSITION", 2, VertexAttribType.Float, false),
                 ("vTEXCOORD", 2, VertexAttribType.Float, false),
+                ("vDEPTH", 1, VertexAttribType.Float, false),
                 ("vCOLOR", 4, VertexAttribType.UnsignedByte, true),
             };
 
@@ -99,7 +282,13 @@ namespace ValveResourceFormat.Renderer
 #endif
         }
 
-        public void AddTextBillboard(Vector3 position, TextRenderRequest textRenderRequest, Camera camera, bool fixedScale = true)
+        /// <summary>Projects a 3D world position to screen space and queues the text for rendering.</summary>
+        /// <param name="position">World-space position to project.</param>
+        /// <param name="textRenderRequest">Text rendering parameters.</param>
+        /// <param name="camera">Camera used for the projection.</param>
+        /// <param name="fixedScale">When <see langword="true"/>, the scale is unchanged; when <see langword="false"/>, the scale is attenuated by depth.</param>
+        /// <param name="depthMask">When <see langword="true"/>, the text is occluded by scene geometry using the resolved scene depth texture.</param>
+        public void AddTextBillboard(Vector3 position, TextRenderRequest textRenderRequest, Camera camera, bool fixedScale = true, bool depthMask = false)
         {
             var screenPosition = Vector4.Transform(new Vector4(position, 1.0f), camera.ViewProjectionMatrix);
             screenPosition /= screenPosition.W;
@@ -112,6 +301,11 @@ namespace ValveResourceFormat.Renderer
             textRenderRequest.X = 0.5f * (screenPosition.X + 1.0f) * camera.WindowSize.X;
             textRenderRequest.Y = 0.5f * (1.0f - screenPosition.Y) * camera.WindowSize.Y;
 
+            if (depthMask)
+            {
+                textRenderRequest.SceneDepth = 0.05f + 0.95f * screenPosition.Z;
+            }
+
             if (!fixedScale)
             {
                 textRenderRequest.Scale *= screenPosition.Z * 100f;
@@ -120,6 +314,13 @@ namespace ValveResourceFormat.Renderer
             AddText(textRenderRequest);
         }
 
+        /// <summary>Queues text at a viewport-relative position (0-1 range) for rendering.</summary>
+        /// <param name="text">String to render.</param>
+        /// <param name="x">Horizontal position as a fraction of the viewport width.</param>
+        /// <param name="y">Vertical position as a fraction of the viewport height.</param>
+        /// <param name="scale">Text scale in pixels-per-em.</param>
+        /// <param name="color">Text color.</param>
+        /// <param name="camera">Camera providing the viewport dimensions.</param>
         public void AddTextRelative(string text, float x, float y, float scale, Color32 color, Camera camera)
         {
             var req = new TextRenderRequest
@@ -134,6 +335,9 @@ namespace ValveResourceFormat.Renderer
             AddTextRelative(req, camera);
         }
 
+        /// <summary>Queues a text render request at a viewport-relative position (0-1 range) for rendering.</summary>
+        /// <param name="textRenderRequest">Text rendering parameters; <see cref="TextRenderRequest.X"/> and <see cref="TextRenderRequest.Y"/> are treated as fractions of the viewport dimensions.</param>
+        /// <param name="camera">Camera providing the viewport dimensions.</param>
         public void AddTextRelative(TextRenderRequest textRenderRequest, Camera camera)
         {
             textRenderRequest.X = camera.WindowSize.X * MathUtils.Saturate(textRenderRequest.X);
@@ -141,12 +345,20 @@ namespace ValveResourceFormat.Renderer
             TextRenderRequests.Add(textRenderRequest);
         }
 
+        /// <summary>Queues a text render request at absolute pixel coordinates for rendering.</summary>
+        /// <param name="textRenderRequest">Text rendering parameters with pixel-space <see cref="TextRenderRequest.X"/> and <see cref="TextRenderRequest.Y"/>.</param>
         public void AddText(TextRenderRequest textRenderRequest)
         {
             TextRenderRequests.Add(textRenderRequest);
         }
 
-        public void Render(Camera camera)
+        /// <summary>Flushes all queued text requests to the GPU and renders them for the current frame.</summary>
+        /// <param name="camera">Camera providing the viewport dimensions for the orthographic projection.</param>
+        /// <param name="sceneDepth">
+        /// Resolved scene depth texture used to occlude world-space text behind geometry. When
+        /// <see langword="null"/>, depth masking is skipped (world-space text always renders on top).
+        /// </param>
+        public void Render(Camera camera, RenderTexture? sceneDepth = null)
         {
             var letters = 0;
             var verticesSize = 0;
@@ -163,6 +375,8 @@ namespace ValveResourceFormat.Renderer
 
             using var _ = new GLDebugGroup("Text Render");
 
+            PerfStats.Active.SuspendTriangleCounter();
+
             verticesSize *= Vertex.Size * 4;
             var vertexBuffer = ArrayPool<float>.Shared.Rent(verticesSize);
 
@@ -173,19 +387,20 @@ namespace ValveResourceFormat.Renderer
 
                 foreach (var textRenderRequest in TextRenderRequests)
                 {
+                    var text = textRenderRequest.Text.Span;
                     var x = textRenderRequest.X;
                     var y = textRenderRequest.Y;
 
                     x += textRenderRequest.TextOffset.X;
                     y += textRenderRequest.TextOffset.Y;
 
-                    if (textRenderRequest.CenterVertical)
+                    if (textRenderRequest.CenterHorizontal)
                     {
                         // For correctness it should use actual plane bounds for each letter (so use real width), but good enough for monospace.
-                        x -= textRenderRequest.Text.Length * DefaultAdvance * textRenderRequest.Scale / 2f;
+                        x -= text.Length * DefaultAdvance * textRenderRequest.Scale / 2f;
                     }
 
-                    if (textRenderRequest.CenterHorizontal)
+                    if (textRenderRequest.CenterVertical)
                     {
                         y -= (Ascender + Descender) / 2f * textRenderRequest.Scale;
                     }
@@ -193,10 +408,11 @@ namespace ValveResourceFormat.Renderer
                     var originalX = x;
 
                     var color = textRenderRequest.Color;
+                    var depth = textRenderRequest.SceneDepth;
 
-                    for (var j = 0; j < textRenderRequest.Text.Length; j++)
+                    for (var j = 0; j < text.Length; j++)
                     {
-                        var c = textRenderRequest.Text[j];
+                        var c = text[j];
 
                         if (c == '\n')
                         {
@@ -206,16 +422,16 @@ namespace ValveResourceFormat.Renderer
                         }
                         else if (c == '\\')
                         {
-                            var cNext = j + 1 < textRenderRequest.Text.Length ? textRenderRequest.Text[j + 1] : '\0';
+                            var cNext = j + 1 < text.Length ? text[j + 1] : '\0';
                             if (cNext == '#')
                             {
                                 j += 2;
-                                if (j + 8 < textRenderRequest.Text.Length)
+                                if (j + 8 < text.Length)
                                 {
-                                    if (byte.TryParse(textRenderRequest.Text.AsSpan(j + 0, 2), System.Globalization.NumberStyles.HexNumber, null, out var r)
-                                    && byte.TryParse(textRenderRequest.Text.AsSpan(j + 2, 2), System.Globalization.NumberStyles.HexNumber, null, out var g)
-                                    && byte.TryParse(textRenderRequest.Text.AsSpan(j + 4, 2), System.Globalization.NumberStyles.HexNumber, null, out var b)
-                                    && byte.TryParse(textRenderRequest.Text.AsSpan(j + 6, 2), System.Globalization.NumberStyles.HexNumber, null, out var a))
+                                    if (byte.TryParse(text.Slice(j + 0, 2), System.Globalization.NumberStyles.HexNumber, null, out var r)
+                                    && byte.TryParse(text.Slice(j + 2, 2), System.Globalization.NumberStyles.HexNumber, null, out var g)
+                                    && byte.TryParse(text.Slice(j + 4, 2), System.Globalization.NumberStyles.HexNumber, null, out var b)
+                                    && byte.TryParse(text.Slice(j + 6, 2), System.Globalization.NumberStyles.HexNumber, null, out var a))
                                     {
                                         color = new Color32(r, g, b, a);
                                         j += 7;
@@ -245,16 +461,16 @@ namespace ValveResourceFormat.Renderer
                         var to = metrics.AtlasBounds.W / AtlasSize;
 
                         // left bottom
-                        vertices[i++] = new Vertex { Position = new Vector2(x0, y0), TexCoord = new Vector2(le, bo), Color = color };
+                        vertices[i++] = new Vertex { Position = new Vector2(x0, y0), TexCoord = new Vector2(le, bo), Depth = depth, Color = color };
 
                         // left top
-                        vertices[i++] = new Vertex { Position = new Vector2(x0, y1), TexCoord = new Vector2(le, to), Color = color };
+                        vertices[i++] = new Vertex { Position = new Vector2(x0, y1), TexCoord = new Vector2(le, to), Depth = depth, Color = color };
 
                         // right top
-                        vertices[i++] = new Vertex { Position = new Vector2(x1, y1), TexCoord = new Vector2(ri, to), Color = color };
+                        vertices[i++] = new Vertex { Position = new Vector2(x1, y1), TexCoord = new Vector2(ri, to), Depth = depth, Color = color };
 
                         // right bottom
-                        vertices[i++] = new Vertex { Position = new Vector2(x1, y0), TexCoord = new Vector2(ri, bo), Color = color };
+                        vertices[i++] = new Vertex { Position = new Vector2(x1, y0), TexCoord = new Vector2(ri, bo), Depth = depth, Color = color };
 
                         x += metrics.Advance * textRenderRequest.Scale;
                     }
@@ -279,16 +495,21 @@ namespace ValveResourceFormat.Renderer
             shader.Use();
             shader.SetUniform4x4("transform", Matrix4x4.CreateOrthographicOffCenter(0f, camera.WindowSize.X, camera.WindowSize.Y, 0f, -100f, 100f));
             shader.SetTexture(0, "msdf", fontTexture);
+
+            if (sceneDepth != null)
+            {
+                shader.SetTexture(1, "g_tSceneDepth", sceneDepth);
+            }
+
             shader.SetUniform1("g_fRange", TextureRange);
 
             GL.BindVertexArray(vao);
             GL.DrawElements(PrimitiveType.Triangles, letters * 6, DrawElementsType.UnsignedShort, 0);
 
-            GL.UseProgram(0);
-            GL.BindVertexArray(0);
-
             GL.Disable(EnableCap.Blend);
             GL.Enable(EnableCap.DepthTest);
+
+            PerfStats.Active.ResumeTriangleCounter();
 
             TextRenderRequests.Clear();
         }

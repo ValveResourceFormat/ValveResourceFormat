@@ -2,6 +2,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Text;
+using ValveKeyValue;
 using ValveResourceFormat.Serialization.KeyValues;
 
 namespace ValveResourceFormat.CompiledShader
@@ -53,10 +54,31 @@ namespace ValveResourceFormat.CompiledShader
         /// <summary>Gets the dynamic combos render state info.</summary>
         public VfxRenderStateInfo[] DynamicCombos { get; } = [];
 
+        // Binary vcs stores the per dynamic combo arrays densely over the entire dynamic combo id space,
+        // so the id is already the index. Resource (kv3) shaders only store the combos that exist,
+        // addressed by position, and their ids are sparse (e.g. 0..9, 20, 25).
+        private readonly Dictionary<long, int>? dynamicComboIdToIndex;
+
+        /// <summary>
+        /// Gets the index to address the per dynamic combo arrays with (<see cref="DynamicComboVariables"/>,
+        /// <see cref="ConstantBufferBindInfoSlots"/>, <see cref="ConstantBufferBindInfoFlags"/>).
+        /// </summary>
+        /// <param name="dynamicComboId">The dynamic combo id, as found on <see cref="VfxRenderStateInfo.DynamicComboId"/>.</param>
+        /// <returns>The array index, or -1 when this combo is not present in this static combo.</returns>
+        public int GetDynamicComboIndex(long dynamicComboId)
+        {
+            if (dynamicComboIdToIndex == null)
+            {
+                return (int)dynamicComboId;
+            }
+
+            return dynamicComboIdToIndex.TryGetValue(dynamicComboId, out var index) ? index : -1;
+        }
+
         /// <summary>
         /// Initializes a new instance of the <see cref="VfxStaticComboData"/> class from a KV object.
         /// </summary>
-        public VfxStaticComboData(KVObject data, long staticComboId, VfxShaderAttribute[] attributes, KVObject[] byteCodeDataArray, VfxProgramData programData)
+        public VfxStaticComboData(KVObject data, long staticComboId, VfxShaderAttribute[] attributes, IReadOnlyList<KVObject> byteCodeDataArray, VfxProgramData programData)
         {
             ParentProgramData = programData;
             StaticComboId = staticComboId;
@@ -65,7 +87,9 @@ namespace ValveResourceFormat.CompiledShader
             var dynamicComboRenderState = data.GetArray("m_dynamicComboRenderState");
             var byteCodeIndex = data.GetArray<int>("m_byteCodeIndex")!;
 
-            DynamicCombos = new VfxRenderStateInfo[dynamicComboRenderState.Length];
+            DynamicCombos = new VfxRenderStateInfo[dynamicComboRenderState.Count];
+            dynamicComboIdToIndex = new Dictionary<long, int>(DynamicCombos.Length);
+
             for (var i = 0; i < DynamicCombos.Length; i++)
             {
                 var id = dynamicComboIds.Length > 0
@@ -77,9 +101,11 @@ namespace ValveResourceFormat.CompiledShader
                 DynamicCombos[i] = programData.VcsProgramType switch
                 {
                     VcsProgramType.PixelShader or VcsProgramType.PixelShaderRenderState
-                        => new VfxRenderStateInfoPixelShader(i, byteCodeIndex[i], -1, renderState),
-                    _ => new VfxRenderStateInfo(i, byteCodeIndex[i], -1),
+                        => new VfxRenderStateInfoPixelShader(id, byteCodeIndex[i], -1, renderState, programData.VcsVersion),
+                    _ => new VfxRenderStateInfo(id, byteCodeIndex[i], -1),
                 };
+
+                dynamicComboIdToIndex[id] = i;
             }
 
             var byteCodeDataIdx = data.GetInt32Property("m_nByteCodeDataIdx");
@@ -100,9 +126,9 @@ namespace ValveResourceFormat.CompiledShader
 
                 var hashes = byteCodeData.GetArray("m_hash");
                 var offsets = byteCodeData.GetArray<uint>("m_offs")!;
-                Debug.Assert(offsets.Length == hashes.Length + 1);
+                Debug.Assert(offsets.Length == hashes.Count + 1);
 
-                ShaderFiles = new VfxShaderFile[hashes.Length];
+                ShaderFiles = new VfxShaderFile[hashes.Count];
                 foreach (var i in byteCodeIndex)
                 {
                     if (i == -1)
@@ -117,7 +143,7 @@ namespace ValveResourceFormat.CompiledShader
                     byteCodeReader.BaseStream.Position = byteCodeOffset;
                     ShaderFiles[i] = ParentProgramData.VcsPlatformType switch
                     {
-                        VcsPlatformType.VULKAN => new VfxShaderFileVulkan(byteCodeReader, i, hash, this),
+                        VcsPlatformType.VULKAN => new VfxShaderFileVulkan(byteCodeReader, i, (int)byteCodeSize, hash, this),
                         VcsPlatformType.PC => new VfxShaderFileDXBC(byteCodeReader, i, (int)byteCodeSize, hash, this),
                         _ => throw new NotImplementedException($"Unhandled bytecode reader for resource-encoded shader of platform {ParentProgramData.VcsPlatformType}")
                     };
@@ -129,8 +155,8 @@ namespace ValveResourceFormat.CompiledShader
             var dynamicComboVars = data.GetArray<uint>("m_dynamicComboVars");
             var dynamicComboVarsRef = data.GetArray("m_dynamicComboVarsRef");
 
-            DynamicComboVariables = new VfxVariableIndexArray[dynamicComboVarsRef.Length];
-            for (var i = 0; i < dynamicComboVarsRef.Length; i++)
+            DynamicComboVariables = new VfxVariableIndexArray[dynamicComboVarsRef.Count];
+            for (var i = 0; i < dynamicComboVarsRef.Count; i++)
             {
                 var variableIndexArray = dynamicComboVarsRef[i];
                 var start = variableIndexArray.GetInt32Property("m_indexAndRegisterOffsetStart");

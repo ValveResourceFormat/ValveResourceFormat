@@ -1,5 +1,9 @@
 namespace ValveResourceFormat.Renderer.Particles.Initializers
 {
+    /// <summary>
+    /// Remaps a scalar input particle field from one range to another and writes the result to an output field.
+    /// Corresponds to <c>C_INIT_RemapScalar</c>.
+    /// </summary>
     class RemapScalar : ParticleFunctionInitializer
     {
         private readonly ParticleField FieldInput = ParticleField.Alpha;
@@ -19,11 +23,11 @@ namespace ValveResourceFormat.Renderer.Particles.Initializers
             outputMax = parse.Float("m_flOutputMax", outputMax);
         }
 
-        public override Particle Initialize(ref Particle particle, ParticleSystemRenderState particleSystemState)
+        public override Particle Initialize(ref Particle particle, ParticleCollection particles, ParticleSystemRenderState particleSystemState)
         {
             var value = particle.GetScalar(FieldInput);
 
-            value = MathUtils.RemapRange(value, inputMin, inputMax, outputMin, outputMax);
+            value = MathUtils.RemapValClamped(value, inputMin, inputMax, outputMin, outputMax);
 
             particle.SetScalar(FieldOutput, value);
 

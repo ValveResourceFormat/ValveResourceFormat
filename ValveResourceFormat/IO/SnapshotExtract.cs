@@ -1,4 +1,5 @@
 using System.Text;
+using ValveKeyValue;
 using ValveResourceFormat.Blocks;
 using ValveResourceFormat.Serialization.KeyValues;
 
@@ -43,19 +44,19 @@ public sealed class SnapshotExtract
     /// </summary>
     public string ToValveSnap()
     {
-        var outKV3 = new KVObject(null);
-        var data = new KVObject("");
-        data.AddProperty("num_values", snap.NumParticles);
+        var outKV3 = KVObject.Collection();
+        var data = KVObject.Collection();
+        data.Add("num_values", snap.NumParticles);
 
-        var streams = new KVObject(null, isArray: true);
-        data.AddProperty("streams", streams);
+        var streams = KVObject.Array();
+        data.Add("streams", streams);
 
         foreach (var (attribute, attributeStream) in snap.AttributeData)
         {
-            var stream = new KVObject(null);
+            var stream = KVObject.Collection();
             {
-                stream.AddProperty("name", attribute.Name);
-                stream.AddProperty("type", attribute.Name switch
+                stream.Add("name", attribute.Name);
+                stream.Add("type", attribute.Name switch
                 {
                     "position" => "position_3d",
                     "normal" => "normal_3d",
@@ -70,32 +71,32 @@ public sealed class SnapshotExtract
                 });
 
 
-                var values = new KVObject(null, isArray: true);
+                var values = KVObject.Array();
 
                 foreach (var datum in attributeStream)
                 {
                     if (datum is int i)
                     {
-                        values.AddItem(i);
+                        values.Add(i);
                     }
                     else if (datum is float f)
                     {
-                        values.AddItem((double)f);
+                        values.Add((double)f);
                     }
                     else if (datum is Vector3 v)
                     {
-                        var array = new KVObject(null, isArray: true);
+                        var array = KVObject.Array();
                         {
-                            array.AddItem((double)v.X);
-                            array.AddItem((double)v.Y);
-                            array.AddItem((double)v.Z);
+                            array.Add((double)v.X);
+                            array.Add((double)v.Y);
+                            array.Add((double)v.Z);
                         }
 
-                        values.AddProperty(null, array);
+                        values.Add(array);
                     }
                     else if (datum is string s)
                     {
-                        values.AddItem(s);
+                        values.Add(s);
                     }
                     else if (datum is ParticleSnapshot.SkinningData skinning)
                     {
@@ -106,13 +107,13 @@ public sealed class SnapshotExtract
                     }
                 }
 
-                stream.AddProperty("values", values);
+                stream.Add("values", values);
             }
 
-            streams.AddItem(stream);
+            streams.Add(stream);
         }
 
-        outKV3.AddProperty("stream_data", data);
-        return new KV3File(outKV3).ToString();
+        outKV3.Add("stream_data", data);
+        return outKV3.ToKV3String();
     }
 }

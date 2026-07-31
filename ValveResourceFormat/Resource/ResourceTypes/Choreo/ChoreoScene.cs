@@ -1,4 +1,4 @@
-using ValveResourceFormat.Serialization.KeyValues;
+using ValveKeyValue;
 
 namespace ValveResourceFormat.ResourceTypes.Choreo
 {
@@ -75,47 +75,47 @@ namespace ValveResourceFormat.ResourceTypes.Choreo
         /// <returns>A <see cref="KVObject"/> representing this scene.</returns>
         public KVObject ToKeyValues()
         {
-            var kv = new KVObject(null);
+            var kv = KVObject.Collection();
 
             if (Events.Length > 0)
             {
-                var events = new KVObject(null, isArray: true);
+                var events = KVObject.Array();
                 foreach (var choreoEvent in Events)
                 {
-                    events.AddProperty(null, choreoEvent.ToKeyValues());
+                    events.Add(choreoEvent.ToKeyValues());
                 }
 
-                kv.AddProperty("events", events);
+                kv.Add("events", events);
             }
 
             if (Actors.Length > 0)
             {
-                var actors = new KVObject(null, isArray: true);
+                var actors = KVObject.Array();
                 foreach (var actor in Actors)
                 {
-                    actors.AddItem(actor.ToKeyValues());
+                    actors.Add(actor.ToKeyValues());
                 }
 
-                kv.AddProperty("actors", actors);
+                kv.Add("actors", actors);
             }
 
             if (Ramp != null)
             {
                 if (Ramp.LeftEdge != null)
                 {
-                    kv.AddProperty("left_edge", Ramp.LeftEdge.ToKeyValues());
+                    kv.Add("left_edge", Ramp.LeftEdge.ToKeyValues());
                 }
                 if (Ramp.RightEdge != null)
                 {
-                    kv.AddProperty("right_edge", Ramp.RightEdge.ToKeyValues());
+                    kv.Add("right_edge", Ramp.RightEdge.ToKeyValues());
                 }
                 if (Ramp.Samples.Length > 0)
                 {
-                    kv.AddProperty("scene_ramp", Ramp.ToKeyValues());
+                    kv.Add("scene_ramp", Ramp.ToKeyValues());
                 }
             }
 
-            kv.AddProperty("ignorePhonemes", IgnorePhonemes);
+            kv.Add("ignorePhonemes", IgnorePhonemes);
 
             return kv;
         }

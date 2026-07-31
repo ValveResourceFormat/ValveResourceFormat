@@ -1,5 +1,10 @@
 namespace ValveResourceFormat.Renderer.Particles.Operators
 {
+    /// <summary>
+    /// Sets a scalar particle attribute to a per-particle float value, with an optional
+    /// interpolation factor that blends between the current value and the target each frame.
+    /// </summary>
+    /// <seealso href="https://s2v.app/SchemaExplorer/cs2/particles/C_OP_SetFloat">C_OP_SetFloat</seealso>
     class SetFloat : ParticleFunctionOperator
     {
         private readonly ParticleField OutputField = ParticleField.Radius;
@@ -10,7 +15,7 @@ namespace ValveResourceFormat.Renderer.Particles.Operators
         public SetFloat(ParticleDefinitionParser parse) : base(parse)
         {
             OutputField = parse.ParticleField("m_nOutputField", OutputField);
-            value = parse.NumberProvider("m_nInputValue", value);
+            value = parse.NumberProvider("m_InputValue", value);
             setMethod = parse.Enum<ParticleSetMethod>("m_nSetMethod", setMethod);
             lerp = parse.NumberProvider("m_Lerp", lerp);
 

@@ -3,6 +3,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelFlex
     /// <summary>
     /// Represents a flex controller for model facial animation.
     /// </summary>
+    /// <seealso href="https://s2v.app/SchemaExplorer/cs2/modellib/CFlexController">CFlexController</seealso>
     public class FlexController
     {
         /// <summary>

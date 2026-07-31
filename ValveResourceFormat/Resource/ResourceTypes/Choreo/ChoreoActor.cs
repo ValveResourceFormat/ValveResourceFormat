@@ -1,4 +1,4 @@
-using ValveResourceFormat.Serialization.KeyValues;
+using ValveKeyValue;
 
 namespace ValveResourceFormat.ResourceTypes.Choreo
 {
@@ -41,17 +41,17 @@ namespace ValveResourceFormat.ResourceTypes.Choreo
         /// <returns>A <see cref="KVObject"/> representing this actor.</returns>
         public KVObject ToKeyValues()
         {
-            var kv = new KVObject(null);
-            kv.AddProperty("name", Name);
+            var kv = KVObject.Collection();
+            kv.Add("name", Name);
 
-            var channels = new KVObject(null, isArray: true);
+            var channels = KVObject.Array();
             foreach (var channel in Channels)
             {
-                channels.AddItem(channel.ToKeyValues());
+                channels.Add(channel.ToKeyValues());
             }
 
-            kv.AddProperty("channels", channels);
-            kv.AddProperty("active", IsActive);
+            kv.Add("channels", channels);
+            kv.Add("active", IsActive);
 
             return kv;
         }

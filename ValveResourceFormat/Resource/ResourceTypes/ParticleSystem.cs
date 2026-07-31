@@ -1,4 +1,5 @@
 using System.Linq;
+using ValveKeyValue;
 using ValveResourceFormat.Serialization.KeyValues;
 
 namespace ValveResourceFormat.ResourceTypes
@@ -6,6 +7,7 @@ namespace ValveResourceFormat.ResourceTypes
     /// <summary>
     /// Represents a particle system resource.
     /// </summary>
+    /// <seealso href="https://s2v.app/SchemaExplorer/cs2/particles/CParticleSystemDefinition">CParticleSystemDefinition</seealso>
     public class ParticleSystem : KeyValuesOrNTRO
     {
         /// <summary>
@@ -25,6 +27,13 @@ namespace ValveResourceFormat.ResourceTypes
         /// </summary>
         public IEnumerable<KVObject> GetForceGenerators()
             => Data.GetArray("m_ForceGenerators") ?? Enumerable.Empty<KVObject>();
+
+        /// <summary>
+        /// Gets the constraints in the particle system. Constraints run after operators each frame and
+        /// relax particle positions (e.g. distance/rope/plane/world-collision constraints).
+        /// </summary>
+        public IEnumerable<KVObject> GetConstraints()
+            => Data.GetArray("m_Constraints") ?? Enumerable.Empty<KVObject>();
 
         /// <summary>
         /// Gets the initializers in the particle system.
@@ -58,10 +67,10 @@ namespace ValveResourceFormat.ResourceTypes
 
             if (enabledOnly)
             {
-                children = children.Where(c => !c.ContainsKey("m_bDisableChild") || !c.GetProperty<bool>("m_bDisableChild"));
+                children = children.Where(c => !c.GetBooleanProperty("m_bDisableChild"));
             }
 
-            return children.Select(c => c.GetProperty<string>("m_ChildRef")).ToList();
+            return children.Select(c => c.GetStringProperty("m_ChildRef")).ToList();
         }
     }
 }

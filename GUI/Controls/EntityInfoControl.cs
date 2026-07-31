@@ -1,9 +1,6 @@
-using System.Linq;
 using System.Windows.Forms;
-using GUI.Types.Viewers;
 using GUI.Utils;
-using ValveResourceFormat;
-using ValveResourceFormat.ResourceTypes;
+using ValveKeyValue;
 using ValveResourceFormat.Serialization.KeyValues;
 using static ValveResourceFormat.ResourceTypes.EntityLump;
 
@@ -16,6 +13,9 @@ namespace GUI.Forms
         public EntityInfoControl()
         {
             InitializeComponent();
+
+            components ??= new System.ComponentModel.Container();
+            components.Add(tabPageOutputs);
         }
 
         public EntityInfoControl(VrfGuiContext vrfGuiContext) : this()
@@ -59,9 +59,9 @@ namespace GUI.Forms
 
         public void PopulateFromEntity(Entity entity)
         {
-            foreach (var (key, value) in entity.Properties)
+            foreach (var child in entity.Children)
             {
-                AddProperty(key, StringifyValue(value));
+                AddProperty(child.Key, StringifyValue(child.Value));
             }
 
             if (entity.Connections != null)

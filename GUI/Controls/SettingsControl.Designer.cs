@@ -40,21 +40,26 @@ namespace GUI.Controls
             gamePathsRemove = new ThemedButton();
             gamePathsAddFolder = new ThemedButton();
             maxTextureSizeLabel = new System.Windows.Forms.Label();
-            maxTextureSizeInput = new ThemedIntNumeric() { MaxValue = 8192, MinValue = 16 };
+            maxTextureSizeInput = new ThemedIntNumeric() { MaxValue = 10240, MinValue = 16 };
             fovInput = new ThemedFloatNumeric() { MaxValue = 170, MinValue = 1 };
             fovLabel = new System.Windows.Forms.Label();
+            viewmodelFovInput = new ThemedFloatNumeric() { MaxValue = 70, MinValue = 50 };
+            viewmodelFovLabel = new System.Windows.Forms.Label();
+            mouseSensitivityLabel = new System.Windows.Forms.Label();
+            mouseSensitivitySlider = new System.Windows.Forms.TrackBar();
+            mouseSensitivityValueLabel = new System.Windows.Forms.Label();
             antiAliasingLabel = new System.Windows.Forms.Label();
             antiAliasingComboBox = new ThemedComboBox();
             registerAssociationButton = new ThemedButton();
             displayFpsCheckBox = new System.Windows.Forms.CheckBox();
             groupBox1 = new ThemedGroupBox();
             groupBox2 = new ThemedGroupBox();
-            setFovTo4by3Button = new ThemedButton();
-            shadowResolutionInput = new ThemedIntNumeric() { MaxValue = 4096, MinValue = 16 };
+            smoothCamCheckbox = new System.Windows.Forms.CheckBox();
+            shadowQualityComboBox = new ThemedComboBox();
             shadowResolutionLabel = new System.Windows.Forms.Label();
             groupBox3 = new ThemedGroupBox();
             textViewerFontSizeLabel = new System.Windows.Forms.Label();
-            textViewerFontSize = new ThemedFloatNumeric() { MaxValue = 24, MinValue = 8 };
+            textViewerFontSize = new ThemedIntNumeric() { MaxValue = 24, MinValue = 8 };
             openExplorerOnStartCheckbox = new System.Windows.Forms.CheckBox();
             themeComboBox = new ThemedComboBox();
             themeLabel = new System.Windows.Forms.Label();
@@ -74,7 +79,7 @@ namespace GUI.Controls
             // 
             vsyncCheckBox.Anchor = System.Windows.Forms.AnchorStyles.Left;
             vsyncCheckBox.AutoSize = true;
-            vsyncCheckBox.Location = new System.Drawing.Point(15, 227);
+            vsyncCheckBox.Location = new System.Drawing.Point(15, 301);
             vsyncCheckBox.Name = "vsyncCheckBox";
             vsyncCheckBox.Size = new System.Drawing.Size(104, 23);
             vsyncCheckBox.TabIndex = 8;
@@ -139,7 +144,7 @@ namespace GUI.Controls
             // 
             maxTextureSizeLabel.Anchor = System.Windows.Forms.AnchorStyles.Left;
             maxTextureSizeLabel.AutoSize = true;
-            maxTextureSizeLabel.Location = new System.Drawing.Point(15, 134);
+            maxTextureSizeLabel.Location = new System.Drawing.Point(15, 185);
             maxTextureSizeLabel.Name = "maxTextureSizeLabel";
             maxTextureSizeLabel.Size = new System.Drawing.Size(111, 19);
             maxTextureSizeLabel.TabIndex = 0;
@@ -149,7 +154,7 @@ namespace GUI.Controls
             // 
             maxTextureSizeInput.Anchor = System.Windows.Forms.AnchorStyles.Left;
             maxTextureSizeInput.Increment = 64;
-            maxTextureSizeInput.Location = new System.Drawing.Point(170, 132);
+            maxTextureSizeInput.Location = new System.Drawing.Point(170, 183);
             maxTextureSizeInput.Name = "maxTextureSizeInput";
             maxTextureSizeInput.Size = new System.Drawing.Size(100, 25);
             maxTextureSizeInput.TabIndex = 5;
@@ -167,6 +172,40 @@ namespace GUI.Controls
             fovInput.Value = 90;
             fovInput.ValueChanged += OnFovValueChanged;
             // 
+            // mouseSensitivityLabel
+            // 
+            mouseSensitivityLabel.Anchor = System.Windows.Forms.AnchorStyles.Left;
+            mouseSensitivityLabel.AutoSize = true;
+            mouseSensitivityLabel.Location = new System.Drawing.Point(15, 224);
+            mouseSensitivityLabel.Name = "mouseSensitivityLabel";
+            mouseSensitivityLabel.Size = new System.Drawing.Size(108, 19);
+            mouseSensitivityLabel.TabIndex = 5;
+            mouseSensitivityLabel.Text = "Mouse sensitivity:";
+            // 
+            // mouseSensitivitySlider
+            // 
+            mouseSensitivitySlider.Anchor = System.Windows.Forms.AnchorStyles.Left;
+            mouseSensitivitySlider.Location = new System.Drawing.Point(170, 221);
+            mouseSensitivitySlider.Maximum = 80;
+            mouseSensitivitySlider.Minimum = 0;
+            mouseSensitivitySlider.SmallChange = 1;
+            mouseSensitivitySlider.LargeChange = 2;
+            mouseSensitivitySlider.Size = new System.Drawing.Size(160, 45);
+            mouseSensitivitySlider.TabIndex = 7;
+            mouseSensitivitySlider.TickFrequency = 5;
+            mouseSensitivitySlider.Value = 40;
+            mouseSensitivitySlider.ValueChanged += OnMouseSensitivitySliderValueChanged;
+            // 
+            // mouseSensitivityValueLabel
+            // 
+            mouseSensitivityValueLabel.Anchor = System.Windows.Forms.AnchorStyles.Left;
+            mouseSensitivityValueLabel.AutoSize = true;
+            mouseSensitivityValueLabel.Location = new System.Drawing.Point(340, 227);
+            mouseSensitivityValueLabel.Name = "mouseSensitivityValueLabel";
+            mouseSensitivityValueLabel.Size = new System.Drawing.Size(24, 19);
+            mouseSensitivityValueLabel.TabIndex = 8;
+            mouseSensitivityValueLabel.Text = "4.0";
+            // 
             // fovLabel
             // 
             fovLabel.Anchor = System.Windows.Forms.AnchorStyles.Left;
@@ -175,8 +214,29 @@ namespace GUI.Controls
             fovLabel.Name = "fovLabel";
             fovLabel.Size = new System.Drawing.Size(87, 19);
             fovLabel.TabIndex = 4;
-            fovLabel.Text = "Vertical FOV:";
-            // 
+            fovLabel.Text = "Camera FOV:";
+            //
+            // viewmodelFovInput
+            //
+            viewmodelFovInput.Anchor = System.Windows.Forms.AnchorStyles.Left;
+            viewmodelFovInput.DecimalMax = 6;
+            viewmodelFovInput.Location = new System.Drawing.Point(170, 132);
+            viewmodelFovInput.Name = "viewmodelFovInput";
+            viewmodelFovInput.Size = new System.Drawing.Size(100, 25);
+            viewmodelFovInput.TabIndex = 14;
+            viewmodelFovInput.Value = 64;
+            viewmodelFovInput.ValueChanged += OnViewmodelFovValueChanged;
+            //
+            // viewmodelFovLabel
+            //
+            viewmodelFovLabel.Anchor = System.Windows.Forms.AnchorStyles.Left;
+            viewmodelFovLabel.AutoSize = true;
+            viewmodelFovLabel.Location = new System.Drawing.Point(15, 134);
+            viewmodelFovLabel.Name = "viewmodelFovLabel";
+            viewmodelFovLabel.Size = new System.Drawing.Size(160, 19);
+            viewmodelFovLabel.TabIndex = 15;
+            viewmodelFovLabel.Text = "Viewmodel FOV:";
+            //
             // antiAliasingLabel
             // 
             antiAliasingLabel.Anchor = System.Windows.Forms.AnchorStyles.Left;
@@ -223,7 +283,7 @@ namespace GUI.Controls
             // 
             displayFpsCheckBox.Anchor = System.Windows.Forms.AnchorStyles.Left;
             displayFpsCheckBox.AutoSize = true;
-            displayFpsCheckBox.Location = new System.Drawing.Point(15, 274);
+            displayFpsCheckBox.Location = new System.Drawing.Point(15, 333);
             displayFpsCheckBox.Name = "displayFpsCheckBox";
             displayFpsCheckBox.Size = new System.Drawing.Size(98, 23);
             displayFpsCheckBox.TabIndex = 9;
@@ -257,11 +317,16 @@ namespace GUI.Controls
             groupBox2.BorderColor = System.Drawing.Color.Black;
             groupBox2.BorderWidth = 2;
             groupBox2.Controls.Add(displayFpsCheckBox);
-            groupBox2.Controls.Add(setFovTo4by3Button);
+            groupBox2.Controls.Add(smoothCamCheckbox);
+            groupBox2.Controls.Add(viewmodelFovInput);
+            groupBox2.Controls.Add(viewmodelFovLabel);
             groupBox2.Controls.Add(vsyncCheckBox);
             groupBox2.Controls.Add(fovInput);
             groupBox2.Controls.Add(fovLabel);
-            groupBox2.Controls.Add(shadowResolutionInput);
+            groupBox2.Controls.Add(mouseSensitivitySlider);
+            groupBox2.Controls.Add(mouseSensitivityValueLabel);
+            groupBox2.Controls.Add(mouseSensitivityLabel);
+            groupBox2.Controls.Add(shadowQualityComboBox);
             groupBox2.Controls.Add(shadowResolutionLabel);
             groupBox2.Controls.Add(antiAliasingLabel);
             groupBox2.Controls.Add(antiAliasingComboBox);
@@ -273,45 +338,50 @@ namespace GUI.Controls
             groupBox2.Location = new System.Drawing.Point(16, 261);
             groupBox2.Name = "groupBox2";
             groupBox2.Padding = new System.Windows.Forms.Padding(16, 18, 16, 18);
-            groupBox2.Size = new System.Drawing.Size(501, 336);
+            groupBox2.Size = new System.Drawing.Size(501, 442);
             groupBox2.TabIndex = 2;
             groupBox2.TabStop = false;
             groupBox2.Text = "Video settings";
             // 
-            // setFovTo4by3Button
+            // smoothCamCheckbox
             // 
-            setFovTo4by3Button.Anchor = System.Windows.Forms.AnchorStyles.Left;
-            setFovTo4by3Button.ClickedBackColor = System.Drawing.Color.Gray;
-            setFovTo4by3Button.CornerRadius = 5;
-            setFovTo4by3Button.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
-            setFovTo4by3Button.LabelFormatFlags = System.Windows.Forms.TextFormatFlags.HorizontalCenter | System.Windows.Forms.TextFormatFlags.VerticalCenter | System.Windows.Forms.TextFormatFlags.EndEllipsis;
-            setFovTo4by3Button.Location = new System.Drawing.Point(293, 78);
-            setFovTo4by3Button.Name = "setFovTo4by3Button";
-            setFovTo4by3Button.Size = new System.Drawing.Size(39, 26);
-            setFovTo4by3Button.TabIndex = 7;
-            setFovTo4by3Button.Text = "4:3";
-            setFovTo4by3Button.UseVisualStyleBackColor = true;
-            setFovTo4by3Button.Click += OnSetFovTo4by3ButtonClick;
+            smoothCamCheckbox.AutoSize = true;
+            smoothCamCheckbox.Checked = true;
+            smoothCamCheckbox.CheckState = System.Windows.Forms.CheckState.Checked;
+            smoothCamCheckbox.Location = new System.Drawing.Point(15, 401);
+            smoothCamCheckbox.Name = "smoothCamCheckbox";
+            smoothCamCheckbox.Size = new System.Drawing.Size(98, 23);
+            smoothCamCheckbox.TabIndex = 13;
+            smoothCamCheckbox.Text = "Smooth camera";
+            smoothCamCheckbox.UseVisualStyleBackColor = true;
+            smoothCamCheckbox.CheckedChanged += OnSmoothCameraChanged;
+            //
+            // shadowQualityComboBox
             // 
-            // shadowResolutionInput
-            // 
-            shadowResolutionInput.Anchor = System.Windows.Forms.AnchorStyles.Left;
-            shadowResolutionInput.Increment = 64;
-            shadowResolutionInput.Location = new System.Drawing.Point(170, 180);
-            shadowResolutionInput.Name = "shadowResolutionInput";
-            shadowResolutionInput.Size = new System.Drawing.Size(100, 25);
-            shadowResolutionInput.TabIndex = 12;
-            shadowResolutionInput.Value = 2048;
+            shadowQualityComboBox.Anchor = System.Windows.Forms.AnchorStyles.Left;
+            shadowQualityComboBox.BackColor = System.Drawing.Color.FromArgb(34, 39, 51);
+            shadowQualityComboBox.DrawMode = System.Windows.Forms.DrawMode.OwnerDrawFixed;
+            shadowQualityComboBox.DropDownBackColor = System.Drawing.Color.FromArgb(34, 39, 51);
+            shadowQualityComboBox.DropDownForeColor = System.Drawing.Color.White;
+            shadowQualityComboBox.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList;
+            shadowQualityComboBox.ForeColor = System.Drawing.Color.White;
+            shadowQualityComboBox.HeaderColor = System.Drawing.Color.FromArgb(51, 57, 74);
+            shadowQualityComboBox.HighlightColor = System.Drawing.Color.FromArgb(99, 161, 255);
+            shadowQualityComboBox.Location = new System.Drawing.Point(170, 266);
+            shadowQualityComboBox.Name = "shadowQualityComboBox";
+            shadowQualityComboBox.Size = new System.Drawing.Size(100, 26);
+            shadowQualityComboBox.TabIndex = 12;
+            shadowQualityComboBox.SelectedIndexChanged += OnShadowQualityChanged;
             // 
             // shadowResolutionLabel
             // 
             shadowResolutionLabel.Anchor = System.Windows.Forms.AnchorStyles.Left;
             shadowResolutionLabel.AutoSize = true;
-            shadowResolutionLabel.Location = new System.Drawing.Point(15, 182);
+            shadowResolutionLabel.Location = new System.Drawing.Point(15, 268);
             shadowResolutionLabel.Name = "shadowResolutionLabel";
             shadowResolutionLabel.Size = new System.Drawing.Size(125, 19);
             shadowResolutionLabel.TabIndex = 11;
-            shadowResolutionLabel.Text = "Shadow resolution:";
+            shadowResolutionLabel.Text = "Shadow quality:";
             // 
             // groupBox3
             // 
@@ -490,6 +560,8 @@ namespace GUI.Controls
         private ThemedIntNumeric maxTextureSizeInput;
         private ThemedFloatNumeric fovInput;
         private System.Windows.Forms.Label fovLabel;
+        private ThemedFloatNumeric viewmodelFovInput;
+        private System.Windows.Forms.Label viewmodelFovLabel;
         private System.Windows.Forms.Label antiAliasingLabel;
         private System.Windows.Forms.CheckBox vsyncCheckBox;
         private System.Windows.Forms.CheckBox displayFpsCheckBox;
@@ -497,10 +569,13 @@ namespace GUI.Controls
         private System.Windows.Forms.CheckBox quickPreviewSoundsCheckbox;
         private System.Windows.Forms.CheckBox openExplorerOnStartCheckbox;
         private System.Windows.Forms.Label shadowResolutionLabel;
-        private ThemedIntNumeric shadowResolutionInput;
+        private ThemedComboBox shadowQualityComboBox;
         private System.Windows.Forms.Label themeLabel;
         private System.Windows.Forms.Label textViewerFontSizeLabel;
-        private ThemedFloatNumeric textViewerFontSize;
+        private ThemedIntNumeric textViewerFontSize;
+        private System.Windows.Forms.Label mouseSensitivityLabel;
+        private System.Windows.Forms.TrackBar mouseSensitivitySlider;
+        private System.Windows.Forms.Label mouseSensitivityValueLabel;
         private System.Windows.Forms.Label footerLabel;
         private System.Windows.Forms.Panel footerPanel;
         private ThemedButton gamePathsAdd;
@@ -508,11 +583,11 @@ namespace GUI.Controls
         private ThemedButton gamePathsAddFolder;
         private ThemedComboBox antiAliasingComboBox;
         private ThemedButton registerAssociationButton;
-        private ThemedButton setFovTo4by3Button;
         private ThemedComboBox themeComboBox;
         private ThemedGroupBox groupBox1;
         private ThemedGroupBox groupBox2;
         private ThemedGroupBox groupBox3;
         private ThemedGroupBox groupBox4;
+        private System.Windows.Forms.CheckBox smoothCamCheckbox;
     }
 }

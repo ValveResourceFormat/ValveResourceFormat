@@ -6,8 +6,10 @@ namespace ValveResourceFormat.Renderer
     /// </summary>
     public readonly struct Frustum
     {
+        /// <summary>Gets the six clipping planes that define this frustum.</summary>
         public readonly Plane[] Planes { get; }
 
+        /// <summary>Initializes a new <see cref="Frustum"/> with six zeroed planes.</summary>
         public Frustum()
         {
             Planes = new Plane[6];
@@ -47,36 +49,18 @@ namespace ValveResourceFormat.Renderer
         /// <param name="viewProjectionMatrix">Combined view and projection matrix.</param>
         public void Update(in Matrix4x4 viewProjectionMatrix)
         {
-            Planes[0] = Plane.Normalize(new Plane(
-                viewProjectionMatrix.M14 + viewProjectionMatrix.M11,
-                viewProjectionMatrix.M24 + viewProjectionMatrix.M21,
-                viewProjectionMatrix.M34 + viewProjectionMatrix.M31,
-                viewProjectionMatrix.M44 + viewProjectionMatrix.M41));
-            Planes[1] = Plane.Normalize(new Plane(
-                viewProjectionMatrix.M14 - viewProjectionMatrix.M11,
-                viewProjectionMatrix.M24 - viewProjectionMatrix.M21,
-                viewProjectionMatrix.M34 - viewProjectionMatrix.M31,
-                viewProjectionMatrix.M44 - viewProjectionMatrix.M41));
-            Planes[2] = Plane.Normalize(new Plane(
-                viewProjectionMatrix.M14 - viewProjectionMatrix.M12,
-                viewProjectionMatrix.M24 - viewProjectionMatrix.M22,
-                viewProjectionMatrix.M34 - viewProjectionMatrix.M32,
-                viewProjectionMatrix.M44 - viewProjectionMatrix.M42));
-            Planes[3] = Plane.Normalize(new Plane(
-                viewProjectionMatrix.M14 + viewProjectionMatrix.M12,
-                viewProjectionMatrix.M24 + viewProjectionMatrix.M22,
-                viewProjectionMatrix.M34 + viewProjectionMatrix.M32,
-                viewProjectionMatrix.M44 + viewProjectionMatrix.M42));
-            Planes[4] = Plane.Normalize(new Plane(
-                viewProjectionMatrix.M13,
-                viewProjectionMatrix.M23,
-                viewProjectionMatrix.M33,
-                viewProjectionMatrix.M43));
-            Planes[5] = Plane.Normalize(new Plane(
-                viewProjectionMatrix.M14 - viewProjectionMatrix.M13,
-                viewProjectionMatrix.M24 - viewProjectionMatrix.M23,
-                viewProjectionMatrix.M34 - viewProjectionMatrix.M33,
-                viewProjectionMatrix.M44 - viewProjectionMatrix.M43));
+            var m = viewProjectionMatrix;
+            var c1 = new Vector4(m.M11, m.M21, m.M31, m.M41);
+            var c2 = new Vector4(m.M12, m.M22, m.M32, m.M42);
+            var c3 = new Vector4(m.M13, m.M23, m.M33, m.M43);
+            var c4 = new Vector4(m.M14, m.M24, m.M34, m.M44);
+
+            Planes[0] = Plane.Normalize(new Plane(c4 + c1)); // Left
+            Planes[1] = Plane.Normalize(new Plane(c4 - c1)); // Right
+            Planes[2] = Plane.Normalize(new Plane(c4 - c2)); // Top
+            Planes[3] = Plane.Normalize(new Plane(c4 + c2)); // Bottom
+            Planes[4] = Plane.Normalize(new Plane(c3));       // Near
+            Planes[5] = Plane.Normalize(new Plane(c4 - c3)); // Far
         }
 
         /// <summary>
@@ -97,14 +81,15 @@ namespace ValveResourceFormat.Renderer
         /// <returns><see langword="true"/> if the box is at least partially inside the frustum.</returns>
         public bool Intersects(in AABB box)
         {
-            for (var i = 0; i < Planes.Length; ++i)
-            {
-                var closest = new Vector3(
-                    Planes[i].Normal.X < 0 ? box.Min.X : box.Max.X,
-                    Planes[i].Normal.Y < 0 ? box.Min.Y : box.Max.Y,
-                    Planes[i].Normal.Z < 0 ? box.Min.Z : box.Max.Z);
+            var center = new Vector4((box.Max + box.Min) * 0.5f, 1f);
+            var extent = (box.Max - box.Min) * 0.5f;
 
-                if (Vector3.Dot(Planes[i].Normal, closest) + Planes[i].D < 0)
+            foreach (ref readonly var plane in Planes.AsSpan())
+            {
+                var dist = Plane.Dot(plane, center);
+                var radius = Vector3.Dot(extent, Vector3.Abs(plane.Normal));
+
+                if (dist + radius < 0)
                 {
                     return false;
                 }
@@ -120,9 +105,9 @@ namespace ValveResourceFormat.Renderer
         /// <returns><see langword="true"/> if the point is inside the frustum.</returns>
         public bool Intersects(in Vector3 point)
         {
-            for (var i = 0; i < Planes.Length; ++i)
+            foreach (ref readonly var plane in Planes.AsSpan())
             {
-                if (Vector3.Dot(Planes[i].Normal, point) + Planes[i].D < 0)
+                if (Plane.DotCoordinate(plane, point) < 0)
                 {
                     return false;
                 }

@@ -2,7 +2,7 @@
 ## [🔗 View VRF website](https://valveresourceformat.github.io)
 
 Valve's Source 2 resource file format parser, decompiler, and exporter.
-Source 2 files usually files end with `_c`, for example `.vmdl_c`.
+Source 2 files usually end with `_c`, for example `.vmdl_c`.
 
 ## ⚠️ Breaking Changes Notice
 

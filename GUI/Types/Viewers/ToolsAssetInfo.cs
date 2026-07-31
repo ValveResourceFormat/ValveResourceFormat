@@ -1,8 +1,6 @@
 using System.Diagnostics;
 using System.IO;
 using System.Threading.Tasks;
-using System.Windows.Forms;
-using GUI.Controls;
 using GUI.Utils;
 
 namespace GUI.Types.Viewers
@@ -33,14 +31,15 @@ namespace GUI.Types.Viewers
             text = toolsAssetInfo.ToString();
         }
 
-        public void Create(TabPage tab)
+        public ViewerContent GetContent()
         {
             Debug.Assert(text is not null);
 
-            var textBox = CodeTextBox.Create(text);
-            tab.Controls.Add(textBox);
+            var content = new ViewerContent.Text(text);
 
             text = null;
+
+            return content;
         }
 
         public void Dispose()

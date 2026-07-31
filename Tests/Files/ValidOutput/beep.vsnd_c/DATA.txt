@@ -5,7 +5,7 @@ SampleSize: 1
 SampleCount: 2387
 Format: PCM
 Channels: 1
-LoopStart: (-00:00:01) -1
-LoopEnd: (00:00:00) 0
+LoopStart: -1 (-00:00:00.0000907)
+LoopEnd: 0 (00:00:00)
 Duration: 00:00:00.2165079 (0.21650794)
 StreamingDataSize: 2387

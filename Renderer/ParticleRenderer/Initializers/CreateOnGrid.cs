@@ -2,6 +2,11 @@ using Microsoft.Extensions.Logging;
 
 namespace ValveResourceFormat.Renderer.Particles.Initializers
 {
+    /// <summary>
+    /// Places particles on a 3-D grid with configurable per-axis cell counts and spacing.
+    /// Supports optional centering around a control point and a hollow interior mode.
+    /// </summary>
+    /// <seealso href="https://s2v.app/SchemaExplorer/cs2/particles/C_INIT_CreateOnGrid">C_INIT_CreateOnGrid</seealso>
     // this single initializer delayed this release by months
     class CreateOnGrid : ParticleFunctionInitializer
     {
@@ -16,7 +21,6 @@ namespace ValveResourceFormat.Renderer.Particles.Initializers
         private readonly int controlPointNumber;
         private readonly bool center = true;
         private readonly bool hollow; // misery
-        //private readonly bool localSpace;
 
         public CreateOnGrid(ParticleDefinitionParser parse) : base(parse)
         {
@@ -42,7 +46,7 @@ namespace ValveResourceFormat.Renderer.Particles.Initializers
         }
 
         // We're simulating a lot of weird and incorrect behavior here, but it's accurate to source 2
-        public override Particle Initialize(ref Particle particle, ParticleSystemRenderState particleSystemState)
+        public override Particle Initialize(ref Particle particle, ParticleCollection particles, ParticleSystemRenderState particleSystemState)
         {
             var rawDimenX = this.dimenX.NextNumber(ref particle, particleSystemState);
             var rawDimenY = this.dimenY.NextNumber(ref particle, particleSystemState);
@@ -155,8 +159,7 @@ namespace ValveResourceFormat.Renderer.Particles.Initializers
             }
 
             particle.Position = position;
-            particle.PositionPrevious = position; // reset velocity
-            particle.Velocity = Vector3.Zero; // because positionprevious isn't used for velocity yet
+            particle.Velocity = Vector3.Zero;
 
             return particle;
         }

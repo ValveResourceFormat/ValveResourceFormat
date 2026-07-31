@@ -5,6 +5,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 using GUI.Controls;
+using GUI.Forms;
 using GUI.Utils;
 using OpenTK.Graphics.OpenGL;
 using SkiaSharp;
@@ -12,6 +13,9 @@ using Svg.Skia;
 using ValveResourceFormat;
 using ValveResourceFormat.CompiledShader;
 using ValveResourceFormat.Renderer;
+using ValveResourceFormat.Renderer.Input;
+using ValveResourceFormat.Renderer.Materials;
+using ValveResourceFormat.Renderer.Shaders;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.TextureDecoders;
 using static ValveResourceFormat.ResourceTypes.Texture;
@@ -129,7 +133,6 @@ namespace GUI.Types.GLViewers
         private GLTextureViewer(VrfGuiContext vrfGuiContext, RendererContext rendererContext) : base(rendererContext)
         {
             VrfGuiContext = vrfGuiContext;
-            RendererContext = new(vrfGuiContext, VrfGuiContext.Logger);
 
 #if DEBUG
             ShaderHotReload.ShadersReloaded += OnHotReload;
@@ -142,7 +145,6 @@ namespace GUI.Types.GLViewers
 
             if (GLControl != null)
             {
-                GLControl.PreviewKeyDown += OnPreviewKeyDown;
                 GLControl.VisibleChanged += OnVisibleChanged;
             }
 
@@ -159,6 +161,8 @@ namespace GUI.Types.GLViewers
             resetButton.Click += (_, __) => ResetZoom();
 
             UiControl.AddControl(resetButton);
+
+            AddSaveButton();
 
             if (Bitmap != null)
             {
@@ -178,9 +182,8 @@ namespace GUI.Types.GLViewers
             base.AddUiControls();
         }
 
-        private void InitializeUIControlsForResource()
+        private void AddSaveButton()
         {
-            Debug.Assert(Resource != null);
             Debug.Assert(UiControl != null);
 
             var saveButton = new ThemedButton
@@ -211,6 +214,12 @@ namespace GUI.Types.GLViewers
             saveTable.Controls.Add(saveButton, 0, 0);
             saveTable.Controls.Add(copyLabel, 1, 0);
             UiControl.AddControl(saveTable);
+        }
+
+        private void InitializeUIControlsForResource()
+        {
+            Debug.Assert(Resource != null);
+            Debug.Assert(UiControl != null);
 
             if (Resource.ResourceType == ResourceType.PanoramaVectorGraphic)
             {
@@ -382,6 +391,8 @@ namespace GUI.Types.GLViewers
                     {
                         decodeFlags |= Enum.Parse<TextureCodec>(itemName);
                     }
+
+                    SetupTextureFromUi(softwareDecodeCheckBox != null && softwareDecodeCheckBox.Checked);
                 }
             );
 
@@ -390,17 +401,21 @@ namespace GUI.Types.GLViewers
                 AddChannelsComboBox();
 
                 var forceSoftwareDecode = textureData.IsRawAnyImage;
+                var projectionBeforeSoftwareDecode = (int)CubemapProjection.Equirectangular;
                 softwareDecodeCheckBox = UiControl.AddCheckBox("Software decode", forceSoftwareDecode, (state) =>
                 {
                     if (cubemapProjectionComboBox != null)
                     {
                         if (state)
                         {
+                            // Software decode can't project cubemaps; force a single face, remembering the projection.
+                            projectionBeforeSoftwareDecode = cubemapProjectionComboBox.SelectedIndex;
                             cubemapProjectionComboBox.SelectedIndex = (int)CubemapProjection.None;
                             cubemapProjectionComboBox.Enabled = false;
                         }
                         else
                         {
+                            cubemapProjectionComboBox.SelectedIndex = projectionBeforeSoftwareDecode;
                             cubemapProjectionComboBox.Enabled = true;
                         }
                     }
@@ -417,7 +432,6 @@ namespace GUI.Types.GLViewers
                     TextureDimensionsChanged(previousSize);
 
                     SetTextureFilteringFromUi();
-
                 });
 
                 if (forceSoftwareDecode)
@@ -425,8 +439,6 @@ namespace GUI.Types.GLViewers
                     softwareDecodeCheckBox.Enabled = false;
                 }
             }
-
-            return;
         }
 
         public GLTextureViewer(VrfGuiContext vrfGuiContext, RendererContext rendererContext, SKBitmap? bitmap) : this(vrfGuiContext, rendererContext)
@@ -486,10 +498,7 @@ namespace GUI.Types.GLViewers
                 }
             });
 
-            for (var i = 0; i < ChannelsComboBoxOrder.Length; i++)
-            {
-                channelsComboBox.Items.Add(ChannelsComboBoxOrder[i].ChoiceString);
-            }
+            channelsComboBox.Items.AddRange([.. ChannelsComboBoxOrder.Select(c => (object)c.ChoiceString)]);
 
             channelsComboBox.SelectedIndex = Svg != null
                 ? Array.FindIndex(ChannelsComboBoxOrder, channel => channel.Channels == ChannelMapping.RGBA)
@@ -549,6 +558,14 @@ namespace GUI.Types.GLViewers
             }
         }
 
+        public override void NotifyVisible()
+        {
+            if (GLControl?.Visible == true)
+            {
+                InvalidateRender();
+            }
+        }
+
         private void SetInitialDecodeFlagsState(CheckedListBox listBox)
         {
             listBox.Items.Clear();
@@ -577,17 +594,15 @@ namespace GUI.Types.GLViewers
 
         public override void Dispose()
         {
-            base.Dispose();
-
             if (GLControl != null)
             {
-                GLControl.PreviewKeyDown -= OnPreviewKeyDown;
                 GLControl.VisibleChanged -= OnVisibleChanged;
             }
 
 #if DEBUG
             ShaderHotReload.ShadersReloaded -= OnHotReload;
 #endif
+
             Resource = null;
 
             Bitmap?.Dispose();
@@ -602,85 +617,118 @@ namespace GUI.Types.GLViewers
 
             decodeFlagsListBox?.Dispose();
             decodeFlagsListBox = null;
+
+            base.Dispose();
         }
 
         private void OnSaveButtonClick(object? sender, EventArgs e)
         {
-            if (Resource == null)
+            if (Resource == null && Svg == null && Bitmap == null)
             {
+                return;
+            }
+
+            var fileName = (Resource != null
+                ? Path.GetFileNameWithoutExtension(Resource.FileName)
+                : Path.GetFileNameWithoutExtension(VrfGuiContext.FileName)) ?? string.Empty;
+
+            // The svg export picks format (and raster resolution) up front, before the file dialog.
+            if (Svg?.Picture != null)
+            {
+                SaveSvg(fileName);
                 return;
             }
 
             var filter = "PNG Image|*.png|JPG Image|*.jpg";
             var alternativeImageFormatIndex = 2;
 
-            var isHdrTexture = Resource.DataBlock is Texture textureData && textureData.IsHighDynamicRange;
+            var isHdrTexture = Resource?.DataBlock is Texture textureData && textureData.IsHighDynamicRange;
 
-            if (Svg != null)
-            {
-                filter = $"SVG (Scalable Vector Graphics)|*.svg|{filter}";
-                alternativeImageFormatIndex++;
-            }
-            else if (isHdrTexture)
+            if (isHdrTexture)
             {
                 filter = "EXR Image|*.exr|" + filter;
                 alternativeImageFormatIndex++;
             }
 
-            using var saveFileDialog = new SaveFileDialog
-            {
-                InitialDirectory = Settings.Config.SaveDirectory,
-                Filter = filter,
-                Title = "Save an Image File",
-                FileName = Path.GetFileNameWithoutExtension(Resource.FileName),
-                AddToRecent = true,
-            };
+            var savePath = AppFileDialogs.SaveFile("Save an Image File", fileName, null, filter, out var selectedFilterIndex);
 
-            if (saveFileDialog.ShowDialog(UiControl) != DialogResult.OK)
+            if (savePath == null)
             {
                 return;
             }
 
-            var directory = saveFileDialog.FileName;
-            if (directory != null)
-            {
-                Settings.Config.SaveDirectory = directory;
-            }
+            using var fs = File.Create(savePath);
 
-            using var fs = saveFileDialog.OpenFile();
-
-            if (Svg != null && saveFileDialog.FilterIndex == 1 && Resource.DataBlock is Panorama panoramaData)
-            {
-                fs.Write(panoramaData.Data);
-                return;
-            }
-
-            if (isHdrTexture && saveFileDialog.FilterIndex == 1)
+            if (isHdrTexture && selectedFilterIndex == 1)
             {
                 using var hdrBitmap = ReadPixelsToBitmap(hdr: true);
                 fs.Write(ValveResourceFormat.IO.TextureExtract.ToExrImage(hdrBitmap));
                 return;
             }
 
-            // TODO: nonpow2 sizes?
-            using var bitmap = ReadPixelsToBitmap();
             var format = SKEncodedImageFormat.Png;
 
-            switch (saveFileDialog.FilterIndex - alternativeImageFormatIndex)
+            switch (selectedFilterIndex - alternativeImageFormatIndex)
             {
                 case 0:
                     format = SKEncodedImageFormat.Jpeg;
                     break;
             }
 
-            var test = bitmap.GetPixelSpan();
+            // TODO: nonpow2 sizes?
+            using var bitmap = ReadPixelsToBitmap();
+            using var bitmapPixmap = bitmap.PeekPixels();
+            bitmapPixmap.Encode(fs, format, 100);
+        }
 
-            using var pixmap = bitmap.PeekPixels();
-            var t = pixmap.Encode(fs, format, 100);
+        private void SaveSvg(string fileName)
+        {
+            Debug.Assert(Svg?.Picture != null);
+
+            using var exportForm = new SvgExportForm(OriginalWidth, OriginalHeight, Resource?.DataBlock is Panorama);
+            if (exportForm.ShowDialog(UiControl) != DialogResult.OK)
+            {
+                return;
+            }
+
+            var (filter, extension) = exportForm.SelectedFormat switch
+            {
+                SvgExportFormat.Svg => ("SVG (Scalable Vector Graphics)|*.svg", "svg"),
+                SvgExportFormat.Jpg => ("JPG Image|*.jpg", "jpg"),
+                _ => ("PNG Image|*.png", "png"),
+            };
+
+            var savePath = AppFileDialogs.SaveFile("Save an Image File", $"{fileName}.{extension}", null, filter);
+
+            if (savePath == null)
+            {
+                return;
+            }
+
+            using var fs = File.Create(savePath);
+
+            if (exportForm.SelectedFormat == SvgExportFormat.Svg && Resource?.DataBlock is Panorama panoramaData)
+            {
+                fs.Write(panoramaData.Data);
+                return;
+            }
+
+            var scale = exportForm.SelectedScale;
+            var format = exportForm.SelectedFormat == SvgExportFormat.Jpg ? SKEncodedImageFormat.Jpeg : SKEncodedImageFormat.Png;
+
+            using var svgBitmap = RasterizeSvg(Svg.Picture, OriginalWidth * scale, OriginalHeight * scale);
+            using var pixmap = svgBitmap.PeekPixels();
+            pixmap.Encode(fs, format, 100);
         }
 
         protected override SKBitmap ReadPixelsToBitmap()
         {
+            if (Svg?.Picture != null)
+            {
+                var (svgWidth, svgHeight) = GetSvgExportSize();
+                return RasterizeSvg(Svg.Picture, svgWidth, svgHeight);
+            }
+
             return ReadPixelsToBitmap(hdr: false);
         }
 
@@ -776,27 +824,19 @@ namespace GUI.Types.GLViewers
 
         private void UpdateZoomLabel() => SetMoveSpeedOrZoomLabel($"Zoom: {TextureScale * 100:0.0}% (scroll to change)");
 
-        private void OnPreviewKeyDown(object? sender, PreviewKeyDownEventArgs e)
+        protected override void OnKeyDown(Keys keyData)
         {
-            if (e.KeyCode is Keys.Up or Keys.Down or Keys.Left or Keys.Right)
-            {
-                e.IsInputKey = true;
-            }
-        }
-
-        protected override void OnKeyDown(object? sender, KeyEventArgs e)
-        {
-            base.OnKeyDown(sender, e);
+            base.OnKeyDown(keyData);
 
             InvalidateRender();
 
-            if (e.KeyData == (Keys.Control | Keys.S))
+            if (keyData == (Keys.Control | Keys.S))
             {
                 OnSaveButtonClick(null, EventArgs.Empty);
                 return;
             }
 
-            if (e.KeyData == (Keys.Control | Keys.NumPad0) || e.KeyData == (Keys.Control | Keys.D0))
+            if (keyData == (Keys.Control | Keys.NumPad0) || keyData == (Keys.Control | Keys.D0))
             {
                 ResetZoom();
                 return;
@@ -804,13 +844,13 @@ namespace GUI.Types.GLViewers
 
             Debug.Assert(GLControl != null);
 
-            if (e.KeyData == (Keys.Control | Keys.Add) || e.KeyData == (Keys.Control | Keys.Oemplus))
+            if (keyData == (Keys.Control | Keys.Add) || keyData == (Keys.Control | Keys.Oemplus))
             {
                 HandleMouseWheel(1, new System.Drawing.Point(GLControl.Width / 2, GLControl.Height / 2), isShiftPressed: false, isCtrlPressed: false);
                 return;
             }
 
-            if (e.KeyData == (Keys.Control | Keys.Subtract) || e.KeyData == (Keys.Control | Keys.OemMinus))
+            if (keyData == (Keys.Control | Keys.Subtract) || keyData == (Keys.Control | Keys.OemMinus))
             {
                 HandleMouseWheel(-1, new System.Drawing.Point(GLControl.Width / 2, GLControl.Height / 2), isShiftPressed: false, isCtrlPressed: false);
                 return;
@@ -820,8 +860,8 @@ namespace GUI.Types.GLViewers
         private void HandleArrowKeyMovement(float frameTime)
         {
             var movementKeys = CurrentlyPressedKeys &
-                (TrackedKeys.Forward | TrackedKeys.Back |
-                 TrackedKeys.Left | TrackedKeys.Right);
+                (TrackedKeys.W | TrackedKeys.S |
+                 TrackedKeys.A | TrackedKeys.D);
 
             var isMovingThisFrame = movementKeys != TrackedKeys.None;
 
@@ -847,22 +887,22 @@ namespace GUI.Types.GLViewers
 
             var delta = Vector2.Zero;
 
-            if (CurrentlyPressedKeys.HasFlag(TrackedKeys.Forward))
+            if (CurrentlyPressedKeys.HasFlag(TrackedKeys.W))
             {
                 delta.Y -= moveDistance;
             }
 
-            if (CurrentlyPressedKeys.HasFlag(TrackedKeys.Back))
+            if (CurrentlyPressedKeys.HasFlag(TrackedKeys.S))
             {
                 delta.Y += moveDistance;
             }
 
-            if (CurrentlyPressedKeys.HasFlag(TrackedKeys.Left))
+            if (CurrentlyPressedKeys.HasFlag(TrackedKeys.A))
             {
                 delta.X -= moveDistance;
             }
 
-            if (CurrentlyPressedKeys.HasFlag(TrackedKeys.Right))
+            if (CurrentlyPressedKeys.HasFlag(TrackedKeys.D))
             {
                 delta.X += moveDistance;
             }
@@ -887,7 +927,7 @@ namespace GUI.Types.GLViewers
             }
         }
 
-        protected override void OnMouseMove(object? sender, MouseEventArgs e)
+        protected override void OnMouseMove(int x, int y)
         {
             Debug.Assert(GLControl != null);
 
@@ -899,7 +939,7 @@ namespace GUI.Types.GLViewers
             }
 
             var oldPosition = Position;
-            var mousePosition = new Vector2(e.Location.X, e.Location.Y);
+            var mousePosition = new Vector2(x, y);
 
             Position = ClickPosition.Value - mousePosition;
 
@@ -925,12 +965,12 @@ namespace GUI.Types.GLViewers
             ClickPosition = null;
         }
 
-        protected override void OnMouseWheel(object? sender, MouseEventArgs e)
+        protected override void OnMouseWheel(int delta, System.Drawing.Point location)
         {
             var isShiftPressed = (CurrentlyPressedKeys & TrackedKeys.Shift) > 0;
             var isCtrlPressed = (CurrentlyPressedKeys & TrackedKeys.Control) > 0;
 
-            HandleMouseWheel(e.Delta, e.Location, isShiftPressed, isCtrlPressed);
+            HandleMouseWheel(delta, location, isShiftPressed, isCtrlPressed);
         }
 
         private void HandleMouseWheel(int delta, System.Drawing.Point location, bool isShiftPressed, bool isCtrlPressed)
@@ -1213,6 +1253,34 @@ namespace GUI.Types.GLViewers
             InvalidateRender();
         }
 
+        /// <summary>
+        /// Auto export dimensions for an svg, used when copying to the clipboard: the long edge is rounded
+        /// up to the nearest power of two within [1024, 4096], the short edge scales proportionally. Saving
+        /// to a file instead asks the user for an explicit multiple of the native resolution.
+        /// </summary>
+        private (float Width, float Height) GetSvgExportSize()
+        {
+            // Never export below the svg's native resolution, even when zoomed out to fit the viewport.
+            var exportScale = MathF.Max(1f, TextureScale);
+            var longEdge = (int)MathF.Ceiling(MathF.Max(OriginalWidth, OriginalHeight) * exportScale);
+            longEdge = Math.Clamp(longEdge, 1024, 4096);
+            var target = (int)BitOperations.RoundUpToPowerOf2((uint)longEdge);
+            var scale = target / MathF.Max(OriginalWidth, OriginalHeight);
+            return (MathF.Round(OriginalWidth * scale), MathF.Round(OriginalHeight * scale));
+        }
+
+        private static SKBitmap RasterizeSvg(SKPicture picture, float width, float height)
+        {
+            var imageInfo = new SKImageInfo((int)width, (int)height, SKColorType.Bgra8888, SKAlphaType.Premul, null);
+            var bitmap = new SKBitmap(imageInfo);
+
+            using var canvas = new SKCanvas(bitmap);
+            canvas.Scale(width / picture.CullRect.Width, height / picture.CullRect.Height);
+            canvas.DrawPicture(picture);
+
+            return bitmap;
+        }
+
         private void GenerateNewSvgBitmap()
         {
             Debug.Assert(Svg?.Picture != null);
@@ -1221,16 +1289,11 @@ namespace GUI.Types.GLViewers
 
             var width = Svg.Picture.CullRect.Width * TextureScale;
             var height = Svg.Picture.CullRect.Height * TextureScale;
-            var imageInfo = new SKImageInfo((int)width, (int)height, SKColorType.Bgra8888, SKAlphaType.Premul, null);
 
-            var bitmap = new SKBitmap(imageInfo);
+            var bitmap = RasterizeSvg(Svg.Picture, width, height);
 
             try
             {
-                using var canvas = new SKCanvas(bitmap);
-                canvas.Scale(TextureScale, TextureScale);
-                canvas.DrawPicture(Svg.Picture);
-
                 if (version == NextBitmapVersion)
                 {
                     NextBitmapToSet = bitmap;

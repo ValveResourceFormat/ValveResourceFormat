@@ -1,7 +1,8 @@
 using System.IO;
+using System.Linq;
 using System.Text;
+using ValveKeyValue;
 using ValveResourceFormat.Blocks.ResourceEditInfoStructs;
-using ValveResourceFormat.Serialization.KeyValues;
 
 namespace ValveResourceFormat.Blocks
 {
@@ -47,7 +48,7 @@ namespace ValveResourceFormat.Blocks
         /// <summary>
         /// Gets the searchable user data.
         /// </summary>
-        public KVObject SearchableUserData { get; } = new("m_SearchableUserData"); // Maybe these should be split..
+        public KVObject SearchableUserData { get; } = KVObject.Collection();
 
         /// <inheritdoc/>
         public override void Read(BinaryReader reader)
@@ -81,15 +82,22 @@ namespace ValveResourceFormat.Blocks
             void ReadKeyValues<T>(KVObject kvObject, Func<BinaryReader, T> valueReader)
             {
                 var count = AdvanceGetCount();
-                kvObject.Properties.EnsureCapacity(kvObject.Properties.Count + count);
-
                 for (var i = 0; i < count; i++)
                 {
                     var key = reader.ReadOffsetString(Encoding.UTF8);
                     var value = valueReader.Invoke(reader);
 
                     // Note: we may override existing keys
-                    kvObject.Properties[key] = new KVValue(value);
+                    KVObject kvValue = value switch
+                    {
+                        string s => s,
+                        long l => l,
+                        double d => d,
+                        float f => f,
+                        int n => n,
+                        _ => value!.ToString()!,
+                    };
+                    kvObject[key] = kvValue;
                 }
             }
 
@@ -132,7 +140,7 @@ namespace ValveResourceFormat.Blocks
                 SpecialDependencies,
                 AdditionalRelatedFiles,
                 ChildResourceList,
-                SearchableUserData,
+                SearchableUserData = SearchableUserData.Select(c => new { c.Key, Value = c.Value.ToString() ?? string.Empty }),
             };
 
             serializer.Serialize(ms, serializedProps, "ResourceEditInfo");

@@ -1,4 +1,4 @@
-using ValveResourceFormat.Serialization.KeyValues;
+using ValveKeyValue;
 
 namespace ValveResourceFormat.ResourceTypes.Choreo.Curves
 {
@@ -48,13 +48,13 @@ namespace ValveResourceFormat.ResourceTypes.Choreo.Curves
         public readonly string OutTypeName => Interpolators[OutType];
 
         /// <summary>
-        /// Converts this curve type to a <see cref="KVValue"/>.
+        /// Converts this curve type to a <see cref="KVObject"/>.
         /// </summary>
-        /// <returns>A <see cref="KVValue"/> representing this curve type.</returns>
-        public readonly KVValue ToKeyValue()
+        /// <returns>A <see cref="KVObject"/> representing this curve type.</returns>
+        public readonly KVObject ToKeyValue()
         {
             var curveType = $"curve_{InTypeName}_to_curve_{OutTypeName}";
-            return new KVValue(curveType);
+            return curveType;
         }
     }
 }

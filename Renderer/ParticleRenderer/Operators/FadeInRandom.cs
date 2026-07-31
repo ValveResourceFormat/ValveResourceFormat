@@ -1,25 +1,23 @@
 namespace ValveResourceFormat.Renderer.Particles.Operators
 {
-    class FadeInRandom : ParticleFunctionOperator
+    /// <summary>
+    /// Fades a particle's alpha in over a per-particle randomly chosen duration drawn from a min/max range with an optional exponent bias.
+    /// </summary>
+    /// <remarks>
+    /// "Alpha Fade In Random" in the particle editor. Unlike "Alpha Fade In Simple", the range
+    /// can be defined in seconds rather than a fraction of the lifespan by turning proportional off.
+    /// </remarks>
+    class FadeInRandom : CGeneralRandomFade
     {
-        private readonly float fadeInTimeMin = 0.25f;
-        private readonly float fadeInTimeMax = 0.25f;
-        private readonly float randomExponent = 1f;
-        private readonly bool proportional = true;
-
-        public FadeInRandom(ParticleDefinitionParser parse) : base(parse)
+        public FadeInRandom(ParticleDefinitionParser parse) : base(parse, "m_flFadeInTime")
         {
-            fadeInTimeMin = parse.Float("m_flFadeInTimeMin", fadeInTimeMin);
-            fadeInTimeMax = parse.Float("m_flFadeInTimeMax", fadeInTimeMax);
-            randomExponent = parse.Float("m_flFadeInTimeExp", randomExponent);
-            proportional = parse.Boolean("m_bProportional", proportional);
         }
 
         public override void Operate(ParticleCollection particles, float frameTime, ParticleSystemRenderState particleSystemState)
         {
             foreach (ref var particle in particles.Current)
             {
-                var fadeInTime = ParticleCollection.RandomWithExponentBetween(particle.ParticleID, randomExponent, fadeInTimeMin, fadeInTimeMax);
+                var fadeInTime = GetFadeTime(ref particle);
 
                 var time = proportional
                     ? particle.NormalizedAge
@@ -27,8 +25,7 @@ namespace ValveResourceFormat.Renderer.Particles.Operators
 
                 if (time <= fadeInTime)
                 {
-                    var newAlpha = (time / fadeInTime) * particle.GetInitialScalar(particles, ParticleField.Alpha);
-                    particle.Alpha = newAlpha;
+                    particle.Alpha = (time / fadeInTime) * particle.GetInitialScalar(particles, ParticleField.Alpha);
                 }
             }
         }

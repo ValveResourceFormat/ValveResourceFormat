@@ -4,7 +4,7 @@ using System.Threading.Tasks;
 using System.Windows.Forms;
 using GUI.Utils;
 using SkiaSharp;
-using ValveResourceFormat.Renderer;
+using ValveResourceFormat.Renderer.Utils;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.Serialization.KeyValues;
 using static ValveResourceFormat.ResourceTypes.EntityLump;
@@ -50,23 +50,23 @@ namespace GUI.Types.Viewers
             EntityIconImageList = new ImageList
             {
                 ColorDepth = ColorDepth.Depth32Bit,
-                ImageSize = MainForm.ImageList.ImageSize,
+                ImageSize = AppIcons.ImageList.ImageSize,
             };
 
-            if (MainForm.ExtensionIcons.TryGetValue("ents", out var entsIconIndex) &&
-                MainForm.ImageList.Images[entsIconIndex] is Bitmap entsIcon)
+            if (AppIcons.ExtensionIcons.TryGetValue("ents", out var entsIconIndex) &&
+                AppIcons.ImageList.Images[entsIconIndex] is Bitmap entsIcon)
             {
                 EntityIconImageList.Images.Add(entsIcon);
             }
 
-            if (MainForm.ExtensionIcons.TryGetValue("mdl", out var mdlIconIndex) &&
-                MainForm.ImageList.Images[mdlIconIndex] is Bitmap mdlIcon)
+            if (AppIcons.ExtensionIcons.TryGetValue("mdl", out var mdlIconIndex) &&
+                AppIcons.ImageList.Images[mdlIconIndex] is Bitmap mdlIcon)
             {
                 EntityIconImageList.Images.Add(mdlIcon);
             }
 
-            if (MainForm.ExtensionIcons.TryGetValue("pcf", out var pcfIconIndex) &&
-                MainForm.ImageList.Images[pcfIconIndex] is Bitmap pcfIcon)
+            if (AppIcons.ExtensionIcons.TryGetValue("pcf", out var pcfIconIndex) &&
+                AppIcons.ImageList.Images[pcfIconIndex] is Bitmap pcfIcon)
             {
                 EntityIconImageList.Images.Add(pcfIcon);
             }
@@ -111,7 +111,7 @@ namespace GUI.Types.Viewers
             EntityViewerGrid.SmallImageList = EntityIconImageList;
 
             var allClassnames = Entities
-                .Select(static e => e.GetProperty("classname", string.Empty))
+                .Select(static e => e.GetStringProperty("classname", string.Empty))
                 .Where(static cn => !string.IsNullOrEmpty(cn))
                 .Where(static cn => !EntityIconLoadAttempted.Contains(cn))
                 .ToHashSet();
@@ -150,7 +150,7 @@ namespace GUI.Types.Viewers
 
             foreach (var entity in Entities)
             {
-                var classname = entity.GetProperty("classname", string.Empty);
+                var classname = entity.GetStringProperty("classname", string.Empty);
 
                 if (!string.IsNullOrEmpty(SearchData.Class))
                 {
@@ -208,7 +208,7 @@ namespace GUI.Types.Viewers
                     }
                 }
 
-                var targetname = entity.GetProperty("targetname", string.Empty);
+                var targetname = entity.GetStringProperty("targetname", string.Empty);
                 filteredEntities.Add((entity, classname, targetname));
             }
 
@@ -254,7 +254,7 @@ namespace GUI.Types.Viewers
 
         private static bool ContainsKey(Entity entity, string key)
         {
-            foreach (var prop in entity.Properties)
+            foreach (var prop in entity.Children)
             {
                 if (prop.Key.Contains(key, StringComparison.OrdinalIgnoreCase))
                 {
@@ -267,7 +267,7 @@ namespace GUI.Types.Viewers
 
         private bool ContainsValue(Entity entity, string value)
         {
-            foreach (var prop in entity.Properties)
+            foreach (var prop in entity.Children)
             {
                 var stringValue = prop.Value.ToString() ?? string.Empty;
 
@@ -292,9 +292,9 @@ namespace GUI.Types.Viewers
 
         private bool ContainsKeyValue(Entity entity, string key, string value)
         {
-            foreach (var prop in entity.Properties)
+            foreach (var prop in entity.Children)
             {
-                var stringValue = prop.Value?.ToString() ?? string.Empty;
+                var stringValue = prop.Value.ToString() ?? string.Empty;
 
                 if (prop.Key.Contains(key, StringComparison.OrdinalIgnoreCase))
                 {
@@ -388,7 +388,7 @@ namespace GUI.Types.Viewers
             {
                 if (EntityViewerGrid.SelectedItems[0].Tag is Entity entity)
                 {
-                    var classname = entity.GetProperty("classname", string.Empty);
+                    var classname = entity.GetStringProperty("classname", string.Empty);
                     if (classname == "worldspawn")
                     {
                         return;
@@ -407,8 +407,8 @@ namespace GUI.Types.Viewers
 
             var groupBoxName = "Entity Properties";
 
-            var targetname = entity.GetProperty("targetname", string.Empty);
-            var classname = entity.GetProperty("classname", string.Empty);
+            var targetname = entity.GetStringProperty("targetname", string.Empty);
+            var classname = entity.GetStringProperty("classname", string.Empty);
 
             if (!string.IsNullOrEmpty(targetname))
             {
@@ -440,7 +440,7 @@ namespace GUI.Types.Viewers
 
                 foreach (var entity in Entities)
                 {
-                    var targetname = entity.GetProperty("targetname", string.Empty);
+                    var targetname = entity.GetStringProperty("targetname", string.Empty);
                     if (string.IsNullOrEmpty(targetname))
                     {
                         continue;
@@ -552,7 +552,7 @@ namespace GUI.Types.Viewers
             InvokeWorkaround(() =>
             {
                 index = EntityIconImageList.Images.Count;
-                MainForm.AddFixedImageToImageList(bitmap, EntityIconImageList);
+                AppIcons.AddFixedImageToImageList(bitmap, EntityIconImageList);
             });
 
             return index;
@@ -596,7 +596,7 @@ namespace GUI.Types.Viewers
                 {
                     foreach (ListViewItem item in EntityViewerGrid.Items)
                     {
-                        if (item.Tag is Entity entity && entity.GetProperty("classname", string.Empty) == classname)
+                        if (item.Tag is Entity entity && entity.GetStringProperty("classname", string.Empty) == classname)
                         {
                             item.ImageIndex = iconIndex >= 0 ? iconIndex : GetDefaultIconIndexForEntity(entity);
                         }

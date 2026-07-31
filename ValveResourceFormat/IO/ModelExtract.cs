@@ -39,6 +39,9 @@ public partial class ModelExtract
     /// <summary>Gets the extraction type to apply when generating assets.</summary>
     public ModelExtractType Type { get; init; } = ModelExtractType.Default;
 
+    /// <summary>Optional sink for non-fatal progress and warning messages.</summary>
+    public IProgress<string>? ProgressReporter { get; init; }
+
     /// <summary>
     /// Initializes a new instance of the <see cref="ModelExtract"/> class.
     /// </summary>
@@ -81,7 +84,7 @@ public partial class ModelExtract
     /// Extract a single mesh to vmdl+dmx.
     /// </summary>
     /// <param name="mesh">Mesh data</param>
-    /// <param name="meshFileName">File name of the mesh e.g "models/my_mesh.vmesh"</param>
+    /// <param name="meshFileName">File name of the mesh e.g. "models/my_mesh.vmesh"</param>
     public ModelExtract(Mesh mesh, string meshFileName)
     {
         ArgumentNullException.ThrowIfNull(mesh);
@@ -119,6 +122,7 @@ public partial class ModelExtract
             {
                 MaterialInputSignatures = MaterialInputSignatures,
                 BoneRemapTable = renderMesh.BoneRemapTable,
+                Skeleton = renderMesh.Skeleton,
             };
 
             vmdl.AddSubFile(
@@ -154,6 +158,8 @@ public partial class ModelExtract
                 }
             );
         }
+
+        AddAnimationGraphClips(vmdl);
 
         return vmdl;
     }

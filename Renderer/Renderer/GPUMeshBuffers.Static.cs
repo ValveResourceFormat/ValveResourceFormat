@@ -6,6 +6,7 @@ public partial class GPUMeshBufferCache
 {
     private QuadIndexBuffer? quadIndices;
 
+    /// <summary>Gets the shared quad index buffer used for rendering quad-based geometry as triangle pairs.</summary>
     [DebuggerBrowsable(DebuggerBrowsableState.Never)]
     public QuadIndexBuffer QuadIndices
     {
@@ -19,6 +20,7 @@ public partial class GPUMeshBufferCache
 
     private int emptyVAO = -1;
 
+    /// <summary>Gets a lazily created empty vertex array object with no attributes, used for attributeless draws.</summary>
     [DebuggerBrowsable(DebuggerBrowsableState.Never)]
     public int EmptyVAO
     {
@@ -40,6 +42,7 @@ public partial class GPUMeshBufferCache
 
     private int vectorOneVertexBuffer = -1;
 
+    /// <summary>Gets a lazily created vertex buffer containing a single <c>(1, 1, 1, 1)</c> float4, used as a default color attribute.</summary>
     [DebuggerBrowsable(DebuggerBrowsableState.Never)]
     public int VectorOneVertexBuffer
     {

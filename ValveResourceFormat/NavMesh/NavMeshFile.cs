@@ -2,8 +2,8 @@ using System.Diagnostics;
 using System.Globalization;
 using System.IO;
 using System.Text;
+using ValveKeyValue;
 using ValveResourceFormat.ResourceTypes;
-using ValveResourceFormat.Serialization.KeyValues;
 
 namespace ValveResourceFormat.NavMesh
 {
@@ -51,22 +51,22 @@ namespace ValveResourceFormat.NavMesh
         /// <summary>
         /// Gets or sets custom data associated with the navigation mesh.
         /// </summary>
-        public KVObject? CustomData { get; set; }
+        public KVDocument? CustomData { get; set; }
 
         /// <summary>
         /// Unknown KV3 data stored in v36 .nav files.
         /// </summary>
-        public KVObject? KV3Unknown1 { get; set; }
+        public KVDocument? KV3Unknown1 { get; set; }
 
         /// <summary>
         /// Unknown KV3 data stored in v36 .nav files.
         /// </summary>
-        public KVObject? KV3Unknown2 { get; set; }
+        public KVDocument? KV3Unknown2 { get; set; }
 
         /// <summary>
         /// Unknown KV3 data stored in v36 .nav files.
         /// </summary>
-        public KVObject? KV3Unknown3 { get; set; }
+        public KVDocument? KV3Unknown3 { get; set; }
 
         /// <summary>
         /// Reads the navigation mesh from a file.
@@ -166,7 +166,7 @@ namespace ValveResourceFormat.NavMesh
             Debug.Assert(binaryReader.BaseStream.Position == binaryReader.BaseStream.Length);
         }
 
-        private static KVObject? ReadKV3(BinaryReader binaryReader)
+        private static KVDocument ReadKV3(BinaryReader binaryReader)
         {
             // Align to 8-byte boundary
             binaryReader.BaseStream.Position = (binaryReader.BaseStream.Position + 7) & ~7L;

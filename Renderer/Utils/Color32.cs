@@ -1,6 +1,6 @@
 using System.Diagnostics;
 
-namespace ValveResourceFormat.Renderer
+namespace ValveResourceFormat.Renderer.Utils
 {
     /// <summary>
     /// 32-bit RGBA color with byte component storage.
@@ -53,13 +53,7 @@ namespace ValveResourceFormat.Renderer
         /// <param name="g">Green component (0-255).</param>
         /// <param name="b">Blue component (0-255).</param>
         /// <param name="a">Alpha component (0-255).</param>
-        public Color32(byte r, byte g, byte b, byte a) : this(0)
-        {
-            R = r;
-            G = g;
-            B = b;
-            A = a;
-        }
+        public Color32(byte r, byte g, byte b, byte a) : this((uint)r | ((uint)g << 8) | ((uint)b << 16) | ((uint)a << 24)) { }
 
         /// <summary>
         /// Initializes a new color from RGBA float components.
@@ -68,7 +62,7 @@ namespace ValveResourceFormat.Renderer
         /// <param name="g">Green component (0.0-1.0).</param>
         /// <param name="b">Blue component (0.0-1.0).</param>
         /// <param name="a">Alpha component (0.0-1.0).</param>
-        public Color32(float r, float g, float b, float a) : this((byte)(r * 255), (byte)(g * 255), (byte)(b * 255), (byte)(a * 255))
+        public Color32(float r, float g, float b, float a) : this((byte)(r * 255f + 0.5f), (byte)(g * 255f + 0.5f), (byte)(b * 255f + 0.5f), (byte)(a * 255f + 0.5f))
         {
             Debug.Assert(
                 r >= 0.0f && r <= 1.0f && g >= 0.0f && g <= 1.0f && b >= 0.0f && b <= 1.0f && a >= 0.0f && a <= 1.0f,

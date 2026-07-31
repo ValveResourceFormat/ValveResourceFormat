@@ -24,7 +24,7 @@ uniform sampler2D g_tColor; // SrgbRead(true)
 
 // "p" point being textured
 // "n" surface normal at "p"
-// "k" controls the sharpness of the blending in the transitions areas
+// "k" controls the sharpness of the blending in the transition areas
 // "s" texture sampler
 vec4 boxmap( in sampler2D s, in vec3 p, in vec3 n, in float k )
 {

@@ -6,8 +6,11 @@ layout (location = 0) in vec3 aVertexPosition;
 uniform mat4 uModelMatrix;
 
 out vec2 uv;
+out vec3 vFragPosition;
 
 void main(void) {
     uv = aVertexPosition.xy * 0.5 + 0.5;
-    gl_Position = g_matWorldToProjection * uModelMatrix * vec4(aVertexPosition, 1.0);
+    vec4 worldPosition = uModelMatrix * vec4(aVertexPosition, 1.0);
+    vFragPosition = worldPosition.xyz;
+    gl_Position = g_matWorldToProjection * worldPosition;
 }

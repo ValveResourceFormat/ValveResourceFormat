@@ -46,12 +46,15 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
         /// </summary>
         public static FrameBone Identity => new(Vector3.Zero, 1.0f, Quaternion.Identity);
 
-        /// <inheritdoc/>
+        /// <summary>
+        /// Gets the position and scale of this bone combined into a <see cref="Vector4"/> .
+        /// </summary>
         public readonly Vector4 PositionScale => new(Position, Scale);
 
-        /// <inheritdoc/>
+        /// <summary>
+        /// Gets the scale of this bone as a <see cref="Vector3"/> .
+        /// </summary>
         public readonly Vector3 ScaleVector => new(Scale);
-
 
         /// <summary>
         /// Blends to the target transform normally.
@@ -65,7 +68,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
         }
 
         /// <summary>
-        ///Blends to the target transform additively.
+        /// Blends to the target transform additively.
         /// </summary>
         public readonly FrameBone BlendAdd(FrameBone other, float t)
         {
@@ -113,7 +116,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
         }
 
         /// <summary>
-        /// Converts the transform to a matrix.
+        /// Creates a transform from a matrix, assuming uniform scale.
         /// </summary>
         public static FrameBone FromMatrix(Matrix4x4 matrix)
         {

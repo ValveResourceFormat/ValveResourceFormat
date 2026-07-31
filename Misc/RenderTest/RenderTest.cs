@@ -1,6 +1,4 @@
 using System.Diagnostics;
-using System.IO;
-using System.Linq;
 using Microsoft.Extensions.Logging;
 using OpenTK.Graphics.OpenGL;
 using OpenTK.Windowing.Common;
@@ -9,7 +7,9 @@ using OpenTK.Windowing.GraphicsLibraryFramework;
 using SteamDatabase.ValvePak;
 using ValveResourceFormat.IO;
 using ValveResourceFormat.Renderer;
-using ValveResourceFormat.ResourceTypes;
+using ValveResourceFormat.Renderer.Input;
+using ValveResourceFormat.Renderer.Utils;
+using ValveResourceFormat.Renderer.World;
 using Vector2 = System.Numerics.Vector2;
 using Vector3 = System.Numerics.Vector3;
 
@@ -83,10 +83,7 @@ internal class RenderTestWindow : GameWindow
         var fileLoader = new GameFileLoader(vpk, mapVpk);
 #pragma warning restore CA2000 // Dispose objects before losing scope
 
-        rendererContext = new RendererContext(fileLoader, logger)
-        {
-            FieldOfView = 75
-        };
+        rendererContext = new RendererContext(fileLoader, logger);
     }
 
     protected override void OnLoad()
@@ -170,12 +167,14 @@ internal class RenderTestWindow : GameWindow
 
         // Map OpenTK keys to TrackedKeys
         var trackedKeys = TrackedKeys.None;
-        if (input.IsKeyDown(Keys.W)) trackedKeys |= TrackedKeys.Forward;
-        if (input.IsKeyDown(Keys.S)) trackedKeys |= TrackedKeys.Back;
-        if (input.IsKeyDown(Keys.A)) trackedKeys |= TrackedKeys.Left;
-        if (input.IsKeyDown(Keys.D)) trackedKeys |= TrackedKeys.Right;
-        if (input.IsKeyDown(Keys.Q)) trackedKeys |= TrackedKeys.Up;
-        if (input.IsKeyDown(Keys.Z)) trackedKeys |= TrackedKeys.Down;
+        if (input.IsKeyDown(Keys.W)) trackedKeys |= TrackedKeys.W;
+        if (input.IsKeyDown(Keys.S)) trackedKeys |= TrackedKeys.S;
+        if (input.IsKeyDown(Keys.A)) trackedKeys |= TrackedKeys.A;
+        if (input.IsKeyDown(Keys.D)) trackedKeys |= TrackedKeys.D;
+        if (input.IsKeyDown(Keys.Q)) trackedKeys |= TrackedKeys.Q;
+        if (input.IsKeyDown(Keys.Z)) trackedKeys |= TrackedKeys.Z;
+        if (input.IsKeyDown(Keys.X)) trackedKeys |= TrackedKeys.X;
+        if (input.IsKeyDown(Keys.Space)) trackedKeys |= TrackedKeys.Space;
         if (input.IsKeyDown(Keys.LeftShift) || input.IsKeyDown(Keys.RightShift)) trackedKeys |= TrackedKeys.Shift;
         if (input.IsKeyDown(Keys.LeftAlt) || input.IsKeyDown(Keys.RightAlt)) trackedKeys |= TrackedKeys.Alt;
         if (input.IsKeyDown(Keys.LeftControl) || input.IsKeyDown(Keys.RightControl)) trackedKeys |= TrackedKeys.Control;
@@ -257,7 +256,7 @@ internal class RenderTestWindow : GameWindow
         // Clear the screen
         GL.Clear(ClearBufferMask.ColorBufferBit | ClearBufferMask.DepthBufferBit);
 
-        RenderScene((float)args.Time);
+        RenderScene();
 
         SwapBuffers();
     }
@@ -273,8 +272,6 @@ internal class RenderTestWindow : GameWindow
         textRenderer = new TextRenderer(rendererContext, SceneRenderer.Camera);
         textRenderer.Load();
 
-        SceneRenderer.Postprocess.Load();
-
         // Create framebuffer for rendering
         framebuffer = Framebuffer.Prepare("MainFramebuffer", 4, 4, 4,
             new(PixelInternalFormat.Rgba16f, PixelFormat.Rgba, PixelType.HalfFloat),
@@ -283,6 +280,7 @@ internal class RenderTestWindow : GameWindow
 
         SceneRenderer.Initialize();
         SceneRenderer.MainFramebuffer = framebuffer;
+        SceneRenderer.Postprocess.Load(framebuffer.NumSamples);
 
         SceneRenderer.LoadRendererResources();
 
@@ -319,7 +317,7 @@ internal class RenderTestWindow : GameWindow
         }
     }
 
-    private void RenderScene(float deltaTime)
+    private void RenderScene()
     {
         Debug.Assert(SceneRenderer != null, "SceneRenderer is not loaded.");
         Debug.Assert(framebuffer is not null, "Framebuffer is not created.");

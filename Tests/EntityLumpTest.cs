@@ -5,6 +5,7 @@ using NUnit.Framework;
 using ValveKeyValue;
 using ValveResourceFormat;
 using ValveResourceFormat.ResourceTypes;
+using ValveResourceFormat.Serialization.KeyValues;
 
 namespace Tests
 {
@@ -30,22 +31,25 @@ namespace Tests
             Assert.That(entities, Has.Count.EqualTo(23));
             using (Assert.EnterMultipleScope())
             {
-                Assert.That(entities[0].Properties.Properties, Has.Count.EqualTo(26));
-                Assert.That(entities[22].Properties.Properties, Has.Count.EqualTo(56));
+                Assert.That(entities[0], Has.Count.EqualTo(26));
+                Assert.That(entities[22], Has.Count.EqualTo(56));
             }
 
-            var classname = entities[0].GetProperty("classname");
+            Assert.That(entities[0].TryGetValue("classname", out var classname), Is.True);
             using (Assert.EnterMultipleScope())
             {
-                Assert.That(classname.Type, Is.EqualTo(KVValueType.String));
-                Assert.That(classname.Value, Is.EqualTo("worldspawn"));
+                Assert.That(classname!.ValueType, Is.EqualTo(KVValueType.String));
+                Assert.That((string)classname!, Is.EqualTo("worldspawn"));
             }
 
-            var classnameString = entities[0].GetProperty<string>("classname");
-            Assert.That(classnameString, Is.EqualTo("worldspawn"));
+            var classnameString = entities[0].GetStringProperty("classname");
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(classnameString, Is.EqualTo("worldspawn"));
 
-            var worldname = entities[0].GetProperty("worldname");
-            Assert.That(worldname.Value, Is.EqualTo("blackmap"));
+                Assert.That(entities[0].TryGetValue("worldname", out var worldname), Is.True);
+                Assert.That((string)worldname!, Is.EqualTo("blackmap"));
+            }
 
             var entityString = entityLump.ToEntityDumpString();
 

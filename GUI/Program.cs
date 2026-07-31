@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.Globalization;
+using System.IO;
 using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Text;
@@ -15,6 +16,7 @@ namespace GUI
 #nullable disable
         public static MainForm MainForm { get; private set; }
         public static Assembly Assembly { get; private set; }
+        public static string ProductVersion { get; private set; }
 #nullable enable
 
         /// <summary>
@@ -34,7 +36,30 @@ namespace GUI
             Application.SetUnhandledExceptionMode(UnhandledExceptionMode.CatchException);
             Application.SetHighDpiMode(HighDpiMode.PerMonitorV2);
 
+            if (args.Length > 0 && Ipc.TryForwardToExistingInstance(args))
+            {
+                return;
+            }
+
             Assembly = Assembly.GetExecutingAssembly();
+
+            // from winforms dep: Application.ProductVersion
+            // Custom attribute
+            Assembly? entryAssembly = Assembly.GetEntryAssembly();
+            if (entryAssembly is not null)
+            {
+                object[] attrs = entryAssembly.GetCustomAttributes(typeof(AssemblyInformationalVersionAttribute), false);
+                if (attrs is not null && attrs.Length > 0)
+                {
+                    ProductVersion = ((AssemblyInformationalVersionAttribute)attrs[0]).InformationalVersion;
+                }
+            }
+
+            if (ProductVersion is null || ProductVersion.Length == 0)
+            {
+                throw new InvalidDataException("Failed to find version number");
+            }
+
             MainForm = new MainForm(args);
 
             Application.Run(MainForm);
@@ -54,9 +79,13 @@ namespace GUI
         {
             Log.Error(nameof(Program), exception.ToString());
 
-            if (exception is ValveResourceFormat.Renderer.ShaderLoader.ShaderCompilerException)
+            if (exception is ValveResourceFormat.Renderer.Shaders.ShaderLoader.ShaderCompilerException)
             {
+#pragma warning disable RS0030
+                // cant use the new api here because this must work when UI is broken or not yet initialized due to the callbacks
+                // finding a real fix here is a problem for future us when we know how the new UI works.
                 MessageBox.Show(exception.Message, "Failed to compile shader", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+#pragma warning restore RS0030
                 return;
             }
 
@@ -113,7 +142,7 @@ namespace GUI
                 },
                 Footnote = new TaskDialogFootnote
                 {
-                    Text = $"S2V {Application.ProductVersion[..16].Replace('+', ' ')}{Environment.NewLine}Try using latest dev build to see if the issue persists.",
+                    Text = $"S2V {Program.ProductVersion[..16].Replace('+', ' ')}{Environment.NewLine}Try using latest dev build to see if the issue persists.",
                     Icon = TaskDialogIcon.Information
                 }
             };
@@ -124,18 +153,18 @@ namespace GUI
             {
                 if (MainForm != null && MainForm.InvokeRequired)
                 {
-                    MainForm.BeginInvoke(() => Clipboard.SetText(outputText));
+                    MainForm.BeginInvoke(() => AppClipboard.SetText(outputText));
                 }
                 else
                 {
-                    Clipboard.SetText(outputText);
+                    AppClipboard.SetText(outputText);
                 }
             }
         }
 
         public static void AppendExceptionWithVersion(StringBuilder output, Exception exception)
         {
-            var version = Application.ProductVersion;
+            var version = Program.ProductVersion;
 
             output.AppendLine("```");
             output.AppendLine(exception.ToString());

@@ -27,7 +27,7 @@ internal class DmeModel : DMElement
 public class DmeShape : DMElement
 {
     /// <summary>
-    /// Gets or sets a value indicating whether this mesh is visible.
+    /// Gets or sets a value indicating whether this shape is visible.
     /// </summary>
     public bool Visible { get; set; } = true;
 }
@@ -95,9 +95,10 @@ public class DmeDag : DMElement
     public DmeTransform Transform { get; } = [];
 
     /// <summary>
-    /// Gets the mesh shape of this DAG node.
+    /// Gets or sets the mesh shape of this DAG node. Null for joints, which carry no geometry;
+    /// emitting an empty shape makes Blender Source Tools reject the DMX on import.
     /// </summary>
-    public DmeShape Shape { get; set; } = [];
+    public DmeShape? Shape { get; set; }
 
     /// <summary>
     /// Gets or sets a value indicating whether this node is visible.

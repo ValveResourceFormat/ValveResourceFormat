@@ -9,8 +9,11 @@ namespace ValveResourceFormat.Renderer
     /// </summary>
     public class QuadIndexBuffer
     {
+        /// <summary>Gets the OpenGL buffer object handle.</summary>
         public int GLHandle { get; }
 
+        /// <summary>Allocates the buffer and fills it with quad-to-triangle index patterns.</summary>
+        /// <param name="size">Total number of indices to generate (must be a multiple of 6).</param>
         public QuadIndexBuffer(int size)
         {
             GL.CreateBuffers(1, out int handle);

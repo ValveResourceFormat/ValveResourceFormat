@@ -2,7 +2,7 @@
 
 #include "common/ViewConstants.slang"
 
-#define F_DEBUG_PICKER 0
+#define F_DEBUG_PICKER 0 // VRF: visualize picking IDs with colors
 
 #define renderMode_ObjectId 0
 #define renderMode_MeshId 0

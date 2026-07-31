@@ -5,6 +5,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
     /// <summary>
     /// Represents a bone in a model skeleton.
     /// </summary>
+    /// <seealso href="https://s2v.app/SchemaExplorer/cs2/animationsystem/CAnimBone">CAnimBone</seealso>
     [DebuggerDisplay("{Name} (Index: {Index})")]
     public class Bone
     {

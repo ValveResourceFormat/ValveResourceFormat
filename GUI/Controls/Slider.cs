@@ -2,7 +2,7 @@ using System.Drawing;
 using System.Drawing.Drawing2D;
 using System.Windows.Forms;
 using GUI.Utils;
-using ValveResourceFormat.Renderer;
+using ValveResourceFormat.Renderer.Utils;
 
 namespace GUI.Controls;
 

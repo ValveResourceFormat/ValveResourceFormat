@@ -3,6 +3,7 @@ using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Runtime.CompilerServices;
+using ValveKeyValue;
 using ValveResourceFormat.Blocks;
 using ValveResourceFormat.IO.ContentFormats.DmxModel;
 using ValveResourceFormat.IO.ContentFormats.ValveMap;
@@ -74,7 +75,7 @@ public sealed class MapExtract
     }
 
     /// <summary>
-    /// Extract a map from a resource. Accepted types include Map, World. TODO: WorldNode and EntityLump.
+    /// Extract a map from a resource. Accepted types include <see cref="ResourceType.Map"/>, <see cref="ResourceType.World"/>. TODO: <see cref="ResourceType.WorldNode"/> and <see cref="ResourceType.EntityLump"/>.
     /// </summary>
     public MapExtract(Resource resource, IFileLoader? fileLoader)
     {
@@ -388,7 +389,8 @@ public sealed class MapExtract
         var phys = LoadWorldPhysics();
         if (phys != null)
         {
-            var worldPhysMeshes = phys.Parts[0].Shape.Meshes.Where(m => phys.CollisionAttributes[m.CollisionAttributeIndex].GetStringProperty("m_CollisionGroupString") == "Default");
+            var collisionAttributes = phys.CollisionAttributes;
+            var worldPhysMeshes = phys.Parts[0].Shape.Meshes.Where(m => collisionAttributes[m.CollisionAttributeIndex].GetStringProperty("m_CollisionGroupString") == "Default");
 
             PhysVertexMatcher = new PhysicsVertexMatcher(worldPhysMeshes.ToArray());
 
@@ -468,7 +470,7 @@ public sealed class MapExtract
                 if (additionalMaps.Count < thresholdCrossedTimes)
                 {
                     additionalMaps.Add([]);
-                    ProgressReporter?.Report("Creating additional map document due large editable mesh size.");
+                    ProgressReporter?.Report("Creating additional map document due to large editable mesh size.");
                 }
 
                 additionalMaps[^1].World.Children.Add(mesh);
@@ -584,7 +586,7 @@ public sealed class MapExtract
         EntitiesSelectionSet = S2VSelectionSet.Children.AddReturn(new CMapSelectionSet("Entities"));
     }
 
-    internal List<CMapMesh> RenderMeshToHammerMesh(Model model, Resource resource, Vector3 offset = new Vector3(), string? entityClassname = null)
+    internal List<CMapMesh> RenderMeshToHammerMesh(Model model, Resource resource, string? entityClassname = null, Matrix4x4? transform = null)
     {
         List<CMapMesh> hammerMeshesToReturn = [];
 
@@ -592,6 +594,8 @@ public sealed class MapExtract
         {
             return hammerMeshesToReturn;
         }
+
+        var meshTransform = transform ?? Matrix4x4.Identity;
 
         var modelExtract = new ModelExtract(resource, FileLoader);
         modelExtract.GrabMaterialInputSignatures(resource);
@@ -622,7 +626,7 @@ public sealed class MapExtract
                 };
                 if (dag.Shape is DmeMesh meshShape)
                 {
-                    builder.AddRenderMesh(meshShape, offset);
+                    builder.AddRenderMesh(meshShape, meshTransform);
                 }
                 var hammerMesh = new CMapMesh() { MeshData = builder.GenerateMesh() };
 
@@ -641,13 +645,13 @@ public sealed class MapExtract
                 }
 
                 var modelmesh = ((Model)resource.DataBlock).GetEmbeddedMeshes().First();
-                var sceneObject = modelmesh.Mesh.Data.GetArray("m_sceneObjects").First();
+                var sceneObject = modelmesh.Mesh.Data.GetArray("m_sceneObjects")[0];
                 var drawCalls = sceneObject.GetArray("m_drawCalls");
 
                 var tint = Vector3.One * 255f;
                 var alpha = 255f;
 
-                //this is fine because i think the scene objects we exports are never more than one draw
+                //this is fine because i think the scene objects we export are never more than one draw
                 var fragment = drawCalls[0];
 
                 if (fragment.ContainsKey("m_vTintColor"))
@@ -804,8 +808,9 @@ public sealed class MapExtract
 
     private void HandleWorldNode(WorldNode node)
     {
-        var layerNodes = new List<MapNode>(node.LayerNames.Count);
-        foreach (var layerName in node.LayerNames)
+        var layerNames = node.LayerNames;
+        var layerNodes = new List<MapNode>(layerNames.Count);
+        foreach (var layerName in layerNames)
         {
             if (layerName == "world_layer_base")
             {
@@ -886,8 +891,8 @@ public sealed class MapExtract
 
         void ProcessSceneObject(KVObject sceneObject, int layerIndex, List<MapNode> layerNodes)
         {
-            var modelName = sceneObject.GetProperty<string>("m_renderableModel");
-            var meshName = sceneObject.GetProperty<string>("m_renderable");
+            var modelName = sceneObject.GetStringProperty("m_renderableModel");
+            var meshName = sceneObject.GetStringProperty("m_renderable");
 
             if (string.IsNullOrEmpty(modelName))
             {
@@ -905,6 +910,8 @@ public sealed class MapExtract
 
             FolderExtractFilter.Add(modelName ?? meshName);
 
+            var objectTransform = sceneObject.GetArray("m_vTransform").ToMatrix4x4();
+
             if (SceneObjectShouldConvertToHammerMesh(modelName))
             {
                 var meshNameCompiled = modelName + GameFileLoader.CompiledFileSuffix;
@@ -916,8 +923,27 @@ public sealed class MapExtract
                 }
 
                 var model = (Model)mesh.DataBlock;
-                foreach (var hammermesh in RenderMeshToHammerMesh(model, mesh))
+
+                // Source 2 bakes a mesh's scale into its vertices, so bake it here and keep only origin/angles on the node.
+                var meshOrigin = Vector3.Zero;
+                var meshAngles = new Datamodel.QAngle();
+                var scaleTransform = Matrix4x4.Identity;
+                if (!objectTransform.IsIdentity)
                 {
+                    if (!Matrix4x4.Decompose(objectTransform, out var scales, out var rotation, out var translation))
+                    {
+                        throw new InvalidOperationException("Matrix decompose failed");
+                    }
+
+                    meshOrigin = translation;
+                    meshAngles = ModelExtract.ToEulerAngles(rotation);
+                    scaleTransform = Matrix4x4.CreateScale(scales);
+                }
+
+                foreach (var hammermesh in RenderMeshToHammerMesh(model, mesh, transform: scaleTransform))
+                {
+                    hammermesh.Origin = meshOrigin;
+                    hammermesh.Angles = meshAngles;
                     MapDocument.World.Children.Add(hammermesh);
                 }
                 return;
@@ -933,7 +959,6 @@ public sealed class MapExtract
                 .WithClassName("prop_static")
                 .WithProperty("model", modelName!);
 
-            var objectTransform = sceneObject.GetArray("m_vTransform").ToMatrix4x4();
             if (!objectTransform.IsIdentity)
             {
                 if (!Matrix4x4.Decompose(objectTransform, out var scales, out var rotation, out var translation))
@@ -946,8 +971,8 @@ public sealed class MapExtract
                 propStatic.Scales = scales;
             }
 
-            var fadeStartDistance = sceneObject.GetProperty<double>("m_flFadeStartDistance");
-            var fadeEndDistance = sceneObject.GetProperty<double>("m_flFadeEndDistance");
+            var fadeStartDistance = sceneObject.GetDoubleProperty("m_flFadeStartDistance");
+            var fadeEndDistance = sceneObject.GetDoubleProperty("m_flFadeEndDistance");
             if (fadeStartDistance > 0)
             {
                 propStatic.EntityProperties["fademindist"] = fadeStartDistance.ToString(CultureInfo.InvariantCulture);
@@ -966,7 +991,7 @@ public sealed class MapExtract
                 propStatic.EntityProperties["precomputelightprobes"] = StringBool(false);
             }*/
 
-            var skin = sceneObject.GetProperty<string>("m_skin");
+            var skin = sceneObject.GetStringProperty("m_skin");
             if (!string.IsNullOrEmpty(skin))
             {
                 propStatic.EntityProperties["skin"] = skin;
@@ -992,7 +1017,7 @@ public sealed class MapExtract
 
         void ProcessAggregate(KVObject agg, int layerIndex, List<MapNode> layerNodes)
         {
-            var modelName = agg.GetProperty<string>("m_renderableModel");
+            var modelName = agg.GetStringProperty("m_renderableModel");
             var anyFlags = agg.GetEnumValue<ObjectTypeFlags>("m_anyFlags", normalize: true);
             var allFlags = agg.GetEnumValue<ObjectTypeFlags>("m_allFlags", normalize: true);
 
@@ -1002,7 +1027,7 @@ public sealed class MapExtract
 
             var aggregateMeshes = agg.GetArray("m_aggregateMeshes");
 
-            var drawCalls = Array.Empty<KVObject>();
+            IReadOnlyList<KVObject> drawCalls = [];
             var drawCenters = Array.Empty<Vector3>();
 
             var transformIndex = 0;
@@ -1010,7 +1035,7 @@ public sealed class MapExtract
                 ? agg.GetArray("m_fragmentTransforms")
                 : [];
 
-            var aggregateHasTransforms = fragmentTransforms.Length > 0;
+            var aggregateHasTransforms = fragmentTransforms.Count > 0;
 
             FolderExtractFilter.Add(modelName);
             using var modelRes = FileLoader.LoadFileCompiled(modelName);
@@ -1024,7 +1049,7 @@ public sealed class MapExtract
 
             // TODO: reference meshes
             var mesh = ((Model)modelRes.DataBlock).GetEmbeddedMeshes().First();
-            var sceneObject = mesh.Mesh.Data.GetArray("m_sceneObjects").First();
+            var sceneObject = mesh.Mesh.Data.GetArray("m_sceneObjects")[0];
             drawCalls = sceneObject.GetArray("m_drawCalls");
 
             if (convertToHalfEdge)
@@ -1043,7 +1068,7 @@ public sealed class MapExtract
                         .ToArray();
                 }
 
-                var modelFiles = ModelExtract.GetContentFiles_DrawCallSplit(modelRes, FileLoader, drawCenters, drawCalls.Length);
+                var modelFiles = ModelExtract.GetContentFiles_DrawCallSplit(modelRes, FileLoader, drawCenters, drawCalls.Count);
                 PreExportedFragments.AddRange(modelFiles);
             }
 
@@ -1057,12 +1082,12 @@ public sealed class MapExtract
             var drawSelectionSet = new CMapSelectionSet();
             if (convertToHalfEdge)
             {
-                drawSelectionSet.SelectionSetName = "hammer mesh " + (aggregateHasTransforms ? "(instanced) " : "(" + drawCalls.Length + " split draw meshes) ") + Path.GetFileNameWithoutExtension(modelName);
+                drawSelectionSet.SelectionSetName = "hammer mesh " + (aggregateHasTransforms ? "(instanced) " : "(" + drawCalls.Count + " split draw meshes) ") + Path.GetFileNameWithoutExtension(modelName);
                 HammerMeshesSelectionSet?.Children.Add(drawSelectionSet);
             }
             else
             {
-                drawSelectionSet.SelectionSetName = "prop_static render mesh " + (aggregateHasTransforms ? "(instanced) " : "(" + drawCalls.Length + " split draw meshes) ") + Path.GetFileNameWithoutExtension(modelName);
+                drawSelectionSet.SelectionSetName = "prop_static render mesh " + (aggregateHasTransforms ? "(instanced) " : "(" + drawCalls.Count + " split draw meshes) ") + Path.GetFileNameWithoutExtension(modelName);
                 StaticPropsSelectionSet?.Children.Add(drawSelectionSet);
             }
 
@@ -1143,10 +1168,12 @@ public sealed class MapExtract
             }
         }
 
-        for (var i = 0; i < node.SceneObjects.Count; i++)
+        var sceneObjects = node.SceneObjects;
+        var sceneObjectLayerIndices = node.SceneObjectLayerIndices;
+        for (var i = 0; i < sceneObjects.Count; i++)
         {
-            var sceneObject = node.SceneObjects[i];
-            var layerIndex = (int)(node.SceneObjectLayerIndices?[i] ?? -1);
+            var sceneObject = sceneObjects[i];
+            var layerIndex = (int)(sceneObjectLayerIndices?[i] ?? -1);
             ProcessSceneObject(sceneObject, layerIndex, layerNodes);
         }
 
@@ -1177,26 +1204,25 @@ public sealed class MapExtract
     {
         var textureName = Path.ChangeExtension(materialName, ".png");
 
-        var root = new ValveKeyValue.KVObject("Layer0",
-        [
-            new("shader", "generic.vfx"),
-            new("F_TRANSLUCENT", 1),
-            new("TextureTranslucency", $"[{0.700000f:N6} {0.700000f:N6} {0.700000f:N6} {0.000000f:N6}]"),
-            new("TextureColor", textureName),
-            new("Attributes",
-            [
-                new("mapbuilder.nodraw", 1),
-                new("tools.toolsmaterial", 1),
-                new("physics.nodefaultsimplification", 1),
-            ]),
-            new("SystemAttributes",
-            [
-                new("PhysicsSurfaceProperties", surfaceProperty),
-            ]),
-        ]);
+        var root = ValveKeyValue.KVObject.ListCollection();
+        root.Add("shader", "generic.vfx");
+        root.Add("F_TRANSLUCENT", 1);
+        root.Add("TextureTranslucency", "[0.700000 0.700000 0.700000 0.000000]");
+        root.Add("TextureColor", textureName);
+
+        var attributes = ValveKeyValue.KVObject.ListCollection();
+        attributes.Add("mapbuilder.nodraw", 1);
+        attributes.Add("tools.toolsmaterial", 1);
+        attributes.Add("physics.nodefaultsimplification", 1);
+        root.Add("Attributes", attributes);
+
+        var systemAttributes = ValveKeyValue.KVObject.ListCollection();
+        systemAttributes.Add("PhysicsSurfaceProperties", surfaceProperty);
+        root.Add("SystemAttributes", systemAttributes);
 
         using var ms = new MemoryStream();
-        ValveKeyValue.KVSerializer.Create(ValveKeyValue.KVSerializationFormat.KeyValues1Text).Serialize(ms, root);
+        var doc = new ValveKeyValue.KVDocument(new(), "Layer0", root);
+        ValveKeyValue.KVSerializer.Create(ValveKeyValue.KVSerializationFormat.KeyValues1Text).Serialize(ms, doc);
 
         var vmat = new ContentFile()
         {
@@ -1218,16 +1244,39 @@ public sealed class MapExtract
     }
 
     #region Entities
+    // Child lumps discovered while walking, keyed by name so a point_template can claim its own lump by
+    // entitylumpname (see GatherEntitiesFromLump below). Whatever is left once the root walk finishes was
+    // not referenced by any template, i.e. orphans to emit at their stored positions.
+    // The renderer and glTF exporter share EntityLumpTraversal for the same walk; we keep a separate copy
+    // here because extraction additionally needs orphan emission and parent-transform threading.
+    private readonly Dictionary<string, EntityLump> ChildEntityLumps = [];
+
     private void GatherEntitiesFromLump(EntityLump entityLump)
     {
-        var lumpName = entityLump.Name;
+        GatherEntitiesFromLump(entityLump, null);
 
-        foreach (var childLumpName in entityLump.GetChildEntityNames())
+        while (ChildEntityLumps.Count > 0)
         {
-            using var entityLumpResource = FileLoader.LoadFileCompiled(childLumpName);
-            if (entityLumpResource != null && entityLumpResource.DataBlock != null)
+            var (childLumpName, childEntityLump) = ChildEntityLumps.First();
+            ChildEntityLumps.Remove(childLumpName);
+
+            if (childEntityLump.GetEntities().Count > 0)
             {
-                GatherEntitiesFromLump((EntityLump)entityLumpResource.DataBlock);
+                ProgressReporter?.Report($"Entity lump {childLumpName} is not referenced by any point_template, emitting its entities at stored positions.");
+            }
+
+            GatherEntitiesFromLump(childEntityLump, null);
+        }
+    }
+
+    private void GatherEntitiesFromLump(EntityLump entityLump, Matrix4x4? parentTransform)
+    {
+        foreach (var childEntityName in entityLump.GetChildEntityNames())
+        {
+            using var entityLumpResource = FileLoader.LoadFileCompiled(childEntityName);
+            if (entityLumpResource?.DataBlock is EntityLump childEntityLump)
+            {
+                ChildEntityLumps.TryAdd(childEntityLump.Name, childEntityLump);
             }
         }
 
@@ -1235,7 +1284,7 @@ public sealed class MapExtract
 
         foreach (var compiledEntity in entityLump.GetEntities())
         {
-            var className = compiledEntity.GetProperty<string>("classname");
+            var className = compiledEntity.GetStringProperty("classname");
 
             if (className == null)
             {
@@ -1246,7 +1295,7 @@ public sealed class MapExtract
             {
                 AddProperties(className, compiledEntity, MapDocument.World);
                 MapDocument.World.EntityProperties["description"] = $"Decompiled with {StringToken.VRF_GENERATOR}";
-                var mapType = compiledEntity.GetProperty<string>("mapusagetype");
+                var mapType = compiledEntity.GetStringProperty("mapusagetype");
                 if (mapType != null)
                 {
                     MapDocument.World.MapUsageType = mapType;
@@ -1256,6 +1305,23 @@ public sealed class MapExtract
 
             var mapEntity = new CMapEntity();
             var entityLineage = AddProperties(className, compiledEntity, mapEntity);
+            var localTransform = EntityTransformHelper.CalculateTransformationMatrix(compiledEntity);
+            var worldTransform = parentTransform is { } parent ? localTransform * parent : localTransform;
+            if (parentTransform is not null)
+            {
+                // parent transform is rigid (rotation and translation only), so worldTransform is affine and
+                // decomposes cleanly unless the child itself shears (non-uniform scale + rotation)
+                _ = Matrix4x4.Decompose(worldTransform, out var scales, out var rotation, out var translation);
+                mapEntity.Origin = translation;
+                mapEntity.Angles = ModelExtract.ToEulerAngles(rotation);
+                mapEntity.Scales = scales;
+
+                if (TryDeduplicateTemplateChild(compiledEntity))
+                {
+                    continue;
+                }
+            }
+
             if (entityLineage.Length > 1)
             {
                 for (var i = 0; i < entityLineage.Length; i++)
@@ -1295,7 +1361,25 @@ public sealed class MapExtract
                 }
             }
 
-            var rawModelName = compiledEntity.GetProperty<string>("model");
+            if (className == "point_template")
+            {
+                // empty when the template has no compiled children
+                var entityLumpName = compiledEntity.GetStringProperty("entitylumpname");
+                if (!string.IsNullOrEmpty(entityLumpName))
+                {
+                    if (ChildEntityLumps.Remove(entityLumpName, out var childEntityLump))
+                    {
+                        var childLumpTransform = EntityTransformHelper.CalculateRigidTransformationMatrix(compiledEntity) * (parentTransform ?? Matrix4x4.Identity);
+                        GatherEntitiesFromLump(childEntityLump, childLumpTransform);
+                    }
+                    else
+                    {
+                        ProgressReporter?.Report($"Failed to find child entity lump with name {entityLumpName}.");
+                    }
+                }
+            }
+
+            var rawModelName = compiledEntity.GetStringProperty("model");
             string? modelName = null;
             if (!string.IsNullOrEmpty(rawModelName))
             {
@@ -1312,7 +1396,7 @@ public sealed class MapExtract
                         $"model = {modelName} {className} != {otherClass}");
                 }
 
-                ExtractEntityModel(mapEntity, compiledEntity, modelName);
+                ExtractEntityModel(mapEntity, modelName, worldTransform.Translation);
 
                 ReadOnlySpan<char> entityIdFull = Path.GetFileNameWithoutExtension(modelName);
                 var nameCutoff = entityIdFull.Length;
@@ -1332,7 +1416,7 @@ public sealed class MapExtract
                 }
             }
 
-            var rawSnapshotFile = compiledEntity.GetProperty<string>("snapshot_file");
+            var rawSnapshotFile = compiledEntity.GetStringProperty("snapshot_file");
             string? snapshotFile = null;
             if (!string.IsNullOrEmpty(rawSnapshotFile))
             {
@@ -1350,7 +1434,24 @@ public sealed class MapExtract
         }
     }
 
-    private void ExtractEntityModel(CMapEntity mapEntity, Entity compiledEntity, string modelName)
+    private readonly HashSet<string> TemplateChildEntities = [];
+
+    /// <summary>
+    /// The compiler clones an entity used by several point_templates into each template's child lump,
+    /// but every clone keeps the original hammeruniqueid, so we can fold them back into one entity.
+    /// </summary>
+    private bool TryDeduplicateTemplateChild(Entity compiledEntity)
+    {
+        var hammerUniqueId = compiledEntity.GetStringProperty("hammeruniqueid");
+        if (string.IsNullOrEmpty(hammerUniqueId))
+        {
+            return false;
+        }
+
+        return !TemplateChildEntities.Add(hammerUniqueId);
+    }
+
+    private void ExtractEntityModel(CMapEntity mapEntity, string modelName, Vector3 offset)
     {
         using var model = FileLoader.LoadFileCompiled(modelName);
         if (model is null || model.DataBlock is null)
@@ -1369,8 +1470,6 @@ public sealed class MapExtract
 
         if (EntitiesToHammerMesh)
         {
-            var offset = EntityTransformHelper.CalculateTransformationMatrix(compiledEntity).Translation;
-
             if (isJustPhysics)
             {
                 var phys = data.GetEmbeddedPhys();
@@ -1384,7 +1483,7 @@ public sealed class MapExtract
             }
             else
             {
-                foreach (var hammermesh in RenderMeshToHammerMesh(data, model, offset, associatedEntityClass))
+                foreach (var hammermesh in RenderMeshToHammerMesh(data, model, associatedEntityClass, Matrix4x4.CreateTranslation(offset)))
                 {
                     mapEntity.Children.Add(hammermesh);
                 }
@@ -1410,7 +1509,7 @@ public sealed class MapExtract
     private static int[] AddProperties(string className, Entity compiledEntity, BaseEntity mapEntity)
     {
         var entityLineage = Array.Empty<int>();
-        foreach (var (key, value) in compiledEntity.Properties)
+        foreach (var (key, value) in compiledEntity.Children)
         {
             var propertyKey = key.ToLowerInvariant();
 
@@ -1436,11 +1535,11 @@ public sealed class MapExtract
             {
                 var dmeConnection = new DmeConnectionData
                 {
-                    OutputName = connection.GetProperty<string>("m_outputName"),
+                    OutputName = connection.GetStringProperty("m_outputName"),
                     TargetType = connection.GetInt32Property("m_targetType"),
-                    TargetName = RemoveTargetnamePrefix(connection.GetProperty<string>("m_targetName")),
-                    InputName = connection.GetProperty<string>("m_inputName"),
-                    OverrideParam = connection.GetProperty<string>("m_overrideParam"),
+                    TargetName = RemoveTargetnamePrefix(connection.GetStringProperty("m_targetName")),
+                    InputName = connection.GetStringProperty("m_inputName"),
+                    OverrideParam = connection.GetStringProperty("m_overrideParam"),
                     Delay = connection.GetFloatProperty("m_flDelay"),
                     TimesToFire = connection.GetInt32Property("m_nTimesToFire"),
                 };
@@ -1473,7 +1572,7 @@ public sealed class MapExtract
         {
             try
             {
-                var hammerUniqueIdString = ToEditString(compiledEntity.GetProperty(key).Value);
+                var hammerUniqueIdString = compiledEntity.TryGetValue(key, out var hammerValue) ? ToEditString(hammerValue) : null;
                 if (!string.IsNullOrEmpty(hammerUniqueIdString))
                 {
                     lineage = Array.ConvertAll(hammerUniqueIdString.Split(':'), int.Parse);
@@ -1528,19 +1627,30 @@ public sealed class MapExtract
                 return string.Join(' ', kvObject.Select(p => p.Value.ToString() ?? string.Empty));
             }
 
-            using var writer = new IndentedTextWriter();
-            kvObject.Serialize(writer);
-            return writer.ToString();
+            if (kvObject.ValueType is not KVValueType.Collection)
+            {
+                return kvObject.ValueType switch
+                {
+                    KVValueType.String => (string)kvObject,
+                    KVValueType.Boolean => StringBool((bool)kvObject),
+                    KVValueType.Null => string.Empty,
+                    _ => kvObject.ToString(),
+                };
+            }
+
+            using var ms = new MemoryStream();
+            KVSerializer.Create(KVSerializationFormat.KeyValues1Text).Serialize(ms, new KVDocument(null, null, kvObject));
+            return System.Text.Encoding.UTF8.GetString(ms.ToArray());
         }
 
         return data switch
         {
             string str => str,
             bool boolean => StringBool(boolean),
-            Vector3 vector => $"{vector.X} {vector.Y} {vector.Z}",
-            Vector2 vector => $"{vector.X} {vector.Y}",
+            Vector3 vector => string.Create(CultureInfo.InvariantCulture, $"{vector.X} {vector.Y} {vector.Z}"),
+            Vector2 vector => string.Create(CultureInfo.InvariantCulture, $"{vector.X} {vector.Y}"),
             null => string.Empty,
-            _ when data.GetType().IsPrimitive => data.ToString(),
+            _ when data.GetType().IsPrimitive => Convert.ToString(data, CultureInfo.InvariantCulture),
             _ => throw new NotImplementedException()
         };
     }

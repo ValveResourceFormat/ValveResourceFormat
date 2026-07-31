@@ -19,7 +19,7 @@ namespace ValveResourceFormat.Serialization.VfxEval
         /// Builds a 4x4 color correction matrix that applies contrast, saturation, and brightness adjustments.
         /// </summary>
         /// <param name="CSB">Color correction parameters: X = contrast, Y = saturation, Z = brightness.</param>
-        /// <param name="colorOffset">Pivot point for the brightness gain.</param>
+        /// <param name="colorOffset">Pivot point for the contrast adjustment.</param>
         public static Matrix4x4 MatrixColorCorrect2(Vector3 CSB, Vector3 colorOffset)
         {
             var cross = Vector3.Cross(LuminanceCoefficientsNormalised, Vector3.UnitZ);
@@ -65,6 +65,22 @@ namespace ValveResourceFormat.Serialization.VfxEval
             result *= Matrix4x4.CreateScale(Vector3.One / LuminanceCoefficientsNormalised);
 
             return Matrix4x4.Transpose(result);
+        }
+
+        /// <summary>
+        /// Builds a color tint matrix using one of the tint modes exposed by newer shaders.
+        /// </summary>
+        /// <param name="rgb">Tint color, in linear space.</param>
+        /// <param name="strength">Saturation adjustment strength, used by the luminance preserving mode.</param>
+        /// <param name="mode">0 = multiply, 1 = preserve luminance, 2 = mod2x.</param>
+        public static Matrix4x4 MatrixColorTint3(Vector3 rgb, float strength, int mode)
+        {
+            return mode switch
+            {
+                1 => MatrixColorTint2(rgb, strength),
+                2 => Matrix4x4.CreateScale(rgb * 2f),
+                _ => Matrix4x4.CreateScale(rgb),
+            };
         }
     }
 }

@@ -1,12 +1,14 @@
+using System.Linq;
+using System.Net.Sockets;
 using SkiaSharp;
 
 namespace GUI.Types.Graphs
 {
     public abstract class AbstractNode : NodeUIElement, IDisposable
     {
-        private static readonly SKFont HeaderNameFont = SKTypeface.FromFamilyName("Helvetica", SKFontStyle.Bold).ToFont(14f);
-        private static readonly SKFont HeaderTypeFont = SKTypeface.FromFamilyName("Roboto", SKFontStyle.Bold).ToFont(10f);
-        private static readonly SKFont SocketCaptionFont = SKTypeface.FromFamilyName("Helvetica", SKFontStyle.Bold).ToFont(13f);
+        protected static readonly SKFont HeaderNameFont = SKTypeface.FromFamilyName("Helvetica", SKFontStyle.Bold).ToFont(14f);
+        protected static readonly SKFont HeaderTypeFont = SKTypeface.FromFamilyName("Roboto", SKFontStyle.Bold).ToFont(10f);
+        protected static readonly SKFont SocketCaptionFont = SKTypeface.FromFamilyName("Helvetica", SKFontStyle.Bold).ToFont(13f);
 
         static AbstractNode()
         {
@@ -67,17 +69,40 @@ namespace GUI.Types.Graphs
         public SKRect BoundsBase { get; private set; }
         public SKRect BoundsFooter { get; private set; }
 
-        public void Calculate()
+        protected virtual void CalculateWidth()
         {
             if (remeasureWidth)
             {
-                HeaderNameFont.MeasureText(Name ?? string.Empty, out var nameBounds);
+                // Calculate longest input and output socket caption width to make sure that text can fit properly.
+                var longestInputCation = string.Empty;
+                var longestOutputCation = string.Empty;
+                foreach (var sock in Sockets.OfType<SocketIn>())
+                {
+                    if (sock.SocketName?.Length > longestInputCation.Length)
+                    {
+                        longestInputCation = sock.SocketName;
+                    }
+                }
+                foreach (var sock in Sockets.OfType<SocketOut>())
+                {
+                    if (sock.SocketName?.Length > longestOutputCation.Length)
+                    {
+                        longestOutputCation = sock.SocketName;
+                    }
+                }
 
-                var maxTextWidth = nameBounds.Width;
+                HeaderNameFont.MeasureText(Name ?? string.Empty, out var nameBounds);
+                SocketCaptionFont.MeasureText(longestInputCation, out var maxSockInBounds);
+                SocketCaptionFont.MeasureText(longestOutputCation, out var maxSockOutBounds);
+                var maxTextWidth = Math.Max(nameBounds.Width, maxSockInBounds.Width + maxSockOutBounds.Width + 10f); // (10px for some separation)
                 var minWidth = maxTextWidth + 20f; // Add padding (10px each side)
                 NodeWidth = Math.Max(200f, minWidth); // Minimum 200px
                 remeasureWidth = false;
             }
+        }
+        public void Calculate()
+        {
+            CalculateWidth();
 
             if (MinBaseHeight == 0)
             {
@@ -150,10 +175,11 @@ namespace GUI.Types.Graphs
             headerColorPaint.Color = HeaderColor;
 
             // base
-            using (var path = new SKPath())
             {
                 var rect = SKRect.Create(left, top, NodeWidth, FullHeight);
-                path.AddRoundRect(rect, cornerSize / 2f, cornerSize / 2f);
+                using var pathBuilder = new SKPathBuilder();
+                pathBuilder.AddRoundRect(rect, cornerSize / 2f, cornerSize / 2f, SKPathDirection.Clockwise);
+                using var path = pathBuilder.Detach();
 
                 SKColor shadowColor;
                 var shadowBlur = 10f;
@@ -196,16 +222,17 @@ namespace GUI.Types.Graphs
             }
 
             // header
-            using (var path = new SKPath())
             {
-                path.MoveTo(left + cornerSize / 2f, top);
-                path.LineTo(right - cornerSize / 2f, top);
-                path.ArcTo(SKRect.Create(right - cornerSize, top, cornerSize, cornerSize), 270, 90, false);
-                path.LineTo(right, bottomHeader);
-                path.LineTo(left, bottomHeader);
-                path.LineTo(left, top + cornerSize / 2f);
-                path.ArcTo(SKRect.Create(left, top, cornerSize, cornerSize), 180, 90, false);
-                path.Close();
+                using var pathBuilder = new SKPathBuilder();
+                pathBuilder.MoveTo(left + cornerSize / 2f, top);
+                pathBuilder.LineTo(right - cornerSize / 2f, top);
+                pathBuilder.ArcTo(SKRect.Create(right - cornerSize, top, cornerSize, cornerSize), 270, 90, false);
+                pathBuilder.LineTo(right, bottomHeader);
+                pathBuilder.LineTo(left, bottomHeader);
+                pathBuilder.LineTo(left, top + cornerSize / 2f);
+                pathBuilder.ArcTo(SKRect.Create(left, top, cornerSize, cornerSize), 180, 90, false);
+                pathBuilder.Close();
+                using var path = pathBuilder.Detach();
 
                 canvas.DrawPath(path, headerColorPaint);
 
@@ -217,8 +244,8 @@ namespace GUI.Types.Graphs
                 headerTextPaint.Color = HeaderTextColor;
                 headerTypePaint.Color = HeaderTypeColor;
 
-                canvas.DrawText(Name, nodeStringPositionX, nodeTypePositionY + 10f, HeaderNameFont, headerTextPaint);
-                canvas.DrawText(NodeType, nodeStringPositionX, nodeNamePositionY + 7f, HeaderTypeFont, headerTypePaint);
+                canvas.DrawText(Name, nodeStringPositionX, nodeTypePositionY + 10f, SKTextAlign.Left, HeaderNameFont, headerTextPaint);
+                canvas.DrawText(NodeType, nodeStringPositionX, nodeNamePositionY + 7f, SKTextAlign.Left, HeaderTypeFont, headerTypePaint);
             }
 
             // sockets
@@ -331,7 +358,7 @@ namespace GUI.Types.Graphs
             };
             var positionY = center.Y - metrics.Ascent - textHeight / 2;
 
-            canvas.DrawText(text, positionX, positionY, SocketCaptionFont, textPaint);
+            canvas.DrawText(text, positionX, positionY, SKTextAlign.Left, SocketCaptionFont, textPaint);
         }
 
         protected virtual void Dispose(bool disposing)

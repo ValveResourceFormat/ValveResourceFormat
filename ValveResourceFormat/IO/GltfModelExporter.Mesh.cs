@@ -5,6 +5,7 @@ using System.Runtime.InteropServices;
 using System.Text.Json.Nodes;
 using SharpGLTF.Memory;
 using SharpGLTF.Schema2;
+using ValveKeyValue;
 using ValveResourceFormat.Blocks;
 using ValveResourceFormat.Serialization.KeyValues;
 using VMaterial = ValveResourceFormat.ResourceTypes.Material;
@@ -143,10 +144,12 @@ public partial class GltfModelExporter
                 {
                     var (normals, tangents) = VBIB.GetNormalTangentArray(vertexBuffer, attribute);
                     FixZeroLengthVectors(normals);
+                    BakeDirections(normals);
 
                     if (tangents.Length > 0)
                     {
                         FixZeroLengthVectors(tangents);
+                        BakeTangents(tangents);
                         accessors["NORMAL"] = CreateAccessor(exportedModel, normals);
                         accessors["TANGENT"] = CreateAccessor(exportedModel, tangents);
                     }
@@ -162,6 +165,7 @@ public partial class GltfModelExporter
                         case 1:
                             {
                                 var buffer = VBIB.GetScalarAttributeArray(vertexBuffer, attribute);
+                                SanitizeNonFinite(buffer);
                                 var bufferView = exportedModel.CreateBufferView(4 * buffer.Length, 0, BufferMode.ARRAY_BUFFER);
                                 new ScalarArray(bufferView.Content).Fill(buffer);
                                 var accessor = exportedModel.CreateAccessor();
@@ -179,6 +183,10 @@ public partial class GltfModelExporter
                         case 3:
                             {
                                 var vectors = VBIB.GetVector3AttributeArray(vertexBuffer, attribute);
+                                if (accessorName == "POSITION")
+                                {
+                                    BakePositions(vectors);
+                                }
                                 accessors[accessorName] = CreateAccessor(exportedModel, vectors);
                                 break;
                             }
@@ -189,6 +197,7 @@ public partial class GltfModelExporter
                                 if (accessorName == "TANGENT")
                                 {
                                     FixZeroLengthVectors(vectors);
+                                    BakeTangents(vectors);
                                 }
 
                                 accessors[accessorName] = CreateAccessor(exportedModel, vectors);
@@ -211,13 +220,32 @@ public partial class GltfModelExporter
                 {
                     // If this occurs, give default weights
                     var baseWeight = 1f / boneWeightCount;
-                    var baseWeights = new Vector4(
+                    var baseWeights0 = new Vector4(
                         boneWeightCount > 0 ? baseWeight : 0,
                         boneWeightCount > 1 ? baseWeight : 0,
                         boneWeightCount > 2 ? baseWeight : 0,
                         boneWeightCount > 3 ? baseWeight : 0
                     );
-                    weights = [.. Enumerable.Repeat(baseWeights, (int)vertexBuffer.ElementCount)];
+
+                    if (isEightBonePackedFormat)
+                    {
+                        var baseWeights1 = new Vector4(
+                            boneWeightCount > 4 ? baseWeight : 0,
+                            boneWeightCount > 5 ? baseWeight : 0,
+                            boneWeightCount > 6 ? baseWeight : 0,
+                            boneWeightCount > 7 ? baseWeight : 0
+                        );
+                        weights = new Vector4[(int)vertexBuffer.ElementCount * 2];
+                        for (var i = 0; i < weights.Length; i += 2)
+                        {
+                            weights[i] = baseWeights0;
+                            weights[i + 1] = baseWeights1;
+                        }
+                    }
+                    else
+                    {
+                        weights = [.. Enumerable.Repeat(baseWeights0, (int)vertexBuffer.ElementCount)];
+                    }
                 }
 
                 var weightsFloats = MemoryMarshal.Cast<Vector4, float>(weights.AsSpan());
@@ -233,21 +261,7 @@ public partial class GltfModelExporter
                     Debug.Assert(joints.Length == 8 * vertexBuffer.ElementCount);
                     Debug.Assert(weights.Length == 2 * vertexBuffer.ElementCount);
 
-                    var joints0 = 0;
-                    var joints1 = joints.Length / 2;
-
-                    for (var i = 0; i < joints.Length - 8; i += 8)
-                    {
-                        bufferViewShorts[joints0++] = joints[i];
-                        bufferViewShorts[joints0++] = joints[i + 1];
-                        bufferViewShorts[joints0++] = joints[i + 2];
-                        bufferViewShorts[joints0++] = joints[i + 3];
-
-                        bufferViewShorts[joints1++] = joints[i + 4];
-                        bufferViewShorts[joints1++] = joints[i + 5];
-                        bufferViewShorts[joints1++] = joints[i + 6];
-                        bufferViewShorts[joints1++] = joints[i + 7];
-                    }
+                    SplitEightBoneJoints(joints, bufferViewShorts);
 
                     var accessor0 = exportedModel.CreateAccessor();
                     var accessor1 = exportedModel.CreateAccessor();
@@ -274,7 +288,7 @@ public partial class GltfModelExporter
                     var weights1 = new Vector4[weights.Length / 2];
                     var w = 0;
 
-                    for (var i = 0; i < weights.Length - 1; i += 2)
+                    for (var i = 0; i < weights.Length; i += 2)
                     {
                         weights0[w] = weights[i];
                         weights1[w] = weights[i + 1];
@@ -308,13 +322,32 @@ public partial class GltfModelExporter
 
         var vertexBuffers = drawCall.GetArray("m_vertexBuffers");
 
+        // Each vertex buffer names its TEXCOORDs/COLORs from 0 independently, so remap to a
+        // global counter here to avoid later buffers overwriting earlier ones on the primitive.
+        var texcoordCounter = 0;
+        var colorCounter = 0;
+
         foreach (var vertexBufferInfo in vertexBuffers)
         {
             var vertexBufferIndex = vertexBufferInfo.GetInt32Property("m_hBuffer");
 
             foreach (var (attributeKey, accessor) in vertexBufferAccessors[vertexBufferIndex])
             {
-                primitive.SetVertexAccessor(attributeKey, accessor);
+                string key;
+                if (attributeKey.StartsWith("TEXCOORD_", StringComparison.Ordinal))
+                {
+                    key = $"TEXCOORD_{texcoordCounter++}";
+                }
+                else if (attributeKey.StartsWith("COLOR_", StringComparison.Ordinal))
+                {
+                    key = $"COLOR_{colorCounter++}";
+                }
+                else
+                {
+                    key = attributeKey;
+                }
+
+                primitive.SetVertexAccessor(key, accessor);
 
                 DebugValidateGLTF();
             }
@@ -360,7 +393,7 @@ public partial class GltfModelExporter
             modelTintColor *= dcTintColorWithAlpha;
         }
 
-        var materialPath = skinMaterialPath ?? drawCall.GetProperty<string>("m_material") ?? drawCall.GetProperty<string>("m_pMaterial");
+        var materialPath = skinMaterialPath ?? drawCall.GetStringProperty("m_material") ?? drawCall.GetStringProperty("m_pMaterial");
 
         var materialNameTrimmed = Path.GetFileNameWithoutExtension(materialPath);
         var materialHashKey = new ExportedMaterial(materialPath, modelTintColor);
@@ -425,7 +458,7 @@ public partial class GltfModelExporter
         }
         else
         {
-            var refMeshes = model.GetReferenceMeshNamesAndLoD().Where(m => (m.LoDMask & 1) != 0).ToList();
+            var refMeshes = model.GetReferenceMeshNamesForLod(model.LodInfo.LowestLevel).ToList();
             var refMesh = refMeshes.First();
 
             if (refMeshes.Count > 1)
@@ -445,7 +478,7 @@ public partial class GltfModelExporter
         var aggregateMeshes = aggregateSceneObject.GetArray("m_aggregateMeshes");
 
         // Aperture Desk Job goes from draw call -> aggregate mesh
-        if (aggregateMeshes.Length > 0 && !aggregateMeshes[0].ContainsKey("m_nDrawCallIndex"))
+        if (aggregateMeshes.Count > 0 && !aggregateMeshes[0].ContainsKey("m_nDrawCallIndex"))
         {
             return false;
         }
@@ -457,7 +490,7 @@ public partial class GltfModelExporter
         var fragmentTransforms = aggregateSceneObject.GetArray("m_fragmentTransforms");
 
         var meshSceneObjects = vmesh.Data.GetArray("m_sceneObjects");
-        var drawCalls = new List<KVObject>(meshSceneObjects.Length);
+        var drawCalls = new List<KVObject>(meshSceneObjects.Count);
 
         foreach (var meshSceneObject in meshSceneObjects)
         {
@@ -474,7 +507,7 @@ public partial class GltfModelExporter
             var drawCall = drawCalls[drawCallIndex];
             var transform = Matrix4x4.Identity;
 
-            if (fragmentData.GetProperty<bool>("m_bHasTransform") == true)
+            if (fragmentData.GetBooleanProperty("m_bHasTransform") == true)
             {
                 transform *= fragmentTransforms[transformIndex++].ToMatrix4x4();
 
@@ -501,7 +534,9 @@ public partial class GltfModelExporter
             CreateMeshFromDrawCall(drawCall, mesh, vbib, vertexBufferAccessors, exportedModel, skinMaterialPath: null, tintColor);
 
             var newNode = scene.CreateNode(name).WithMesh(mesh);
-            newNode.WorldMatrix = transform * TRANSFORMSOURCETOGLTF;
+            // The conversion is baked into the geometry (CreateVertexBufferAccessors), so the placement
+            // transform is conjugated by it rather than multiplied on top - otherwise it applies twice.
+            newNode.WorldMatrix = GetPlacementTransform(transform);
         }
 
         return true;
@@ -519,8 +554,12 @@ public partial class GltfModelExporter
                 continue;
             }
 
+            // Morph deltas share the base mesh's vertex space, which is baked into glTF units, so bake them too.
+            var deltas = rectData[vertexOffset..(vertexOffset + vertexCount)];
+            BakePositions(deltas);
+
             var bufferView = model.CreateBufferView(3 * sizeof(float) * vertexCount, 0, BufferMode.ARRAY_BUFFER);
-            new Vector3Array(bufferView.Content).Fill(rectData[vertexOffset..(vertexOffset + vertexCount)]);
+            new Vector3Array(bufferView.Content).Fill(deltas);
 
             var acc = model.CreateAccessor();
             acc.Name = morphName;
@@ -569,6 +608,8 @@ public partial class GltfModelExporter
 
     private static Accessor CreateAccessor(ModelRoot exportedModel, Vector2[] vectors)
     {
+        SanitizeNonFinite(MemoryMarshal.Cast<Vector2, float>(vectors.AsSpan()));
+
         var bufferView = exportedModel.CreateBufferView(2 * sizeof(float) * vectors.Length, 0, BufferMode.ARRAY_BUFFER);
         new Vector2Array(bufferView.Content).Fill(vectors);
 
@@ -580,6 +621,8 @@ public partial class GltfModelExporter
 
     private static Accessor CreateAccessor(ModelRoot exportedModel, Vector3[] vectors)
     {
+        SanitizeNonFinite(MemoryMarshal.Cast<Vector3, float>(vectors.AsSpan()));
+
         var bufferView = exportedModel.CreateBufferView(3 * sizeof(float) * vectors.Length, 0, BufferMode.ARRAY_BUFFER);
         new Vector3Array(bufferView.Content).Fill(vectors);
 
@@ -591,6 +634,8 @@ public partial class GltfModelExporter
 
     private static Accessor CreateAccessor(ModelRoot exportedModel, Vector4[] vectors)
     {
+        SanitizeNonFinite(MemoryMarshal.Cast<Vector4, float>(vectors.AsSpan()));
+
         var bufferView = exportedModel.CreateBufferView(4 * sizeof(float) * vectors.Length, 0, BufferMode.ARRAY_BUFFER);
         new Vector4Array(bufferView.Content).Fill(vectors);
 
@@ -626,12 +671,38 @@ public partial class GltfModelExporter
     }
 
     /// <summary>
+    /// Splits an interleaved 8-bone-per-vertex joint array into two VEC4 halves
+    /// laid out back-to-back (JOINTS_0 followed by JOINTS_1) for glTF export.
+    /// </summary>
+    internal static void SplitEightBoneJoints(ReadOnlySpan<ushort> joints, Span<ushort> output)
+    {
+        Debug.Assert(joints.Length % 8 == 0);
+        Debug.Assert(output.Length == joints.Length);
+
+        var joints0 = 0;
+        var joints1 = joints.Length / 2;
+
+        for (var i = 0; i < joints.Length; i += 8)
+        {
+            output[joints0++] = joints[i];
+            output[joints0++] = joints[i + 1];
+            output[joints0++] = joints[i + 2];
+            output[joints0++] = joints[i + 3];
+
+            output[joints1++] = joints[i + 4];
+            output[joints1++] = joints[i + 5];
+            output[joints1++] = joints[i + 6];
+            output[joints1++] = joints[i + 7];
+        }
+    }
+
+    /// <summary>
     /// Processes joint and weight data to ensure consistency by:
     /// 1. Setting joints with zero weights to zero (no influence)
     /// 2. Merging weights of duplicate joint references
     /// 3. Ensuring valid data is packed into consecutive positions
     /// </summary>
-    /// <param name="joints">Array of joint indices (ushort), organized in groups of size jointCount</param>
+    /// <param name="joints">Array of joint indices (ushort), organized in groups of size <paramref name="jointCount"/></param>
     /// <param name="weights">Array of weight values (float), corresponding to each joint</param>
     /// <param name="jointCount">Number of joints per vertex (typically 4 or 8)</param>
     internal static void FixDuplicateJoints(Span<ushort> joints, Span<float> weights, int jointCount)

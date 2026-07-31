@@ -13,7 +13,7 @@ namespace GUI.Types.PackageViewer
         public const int ParentNavigationTag = 0x50415245;
 
         /// <summary>
-        /// True if this node represents a directory in the tree view
+        /// True if this item represents a directory (folder) rather than a file.
         /// </summary>
         public bool IsFolder => PackageEntry == null;
 

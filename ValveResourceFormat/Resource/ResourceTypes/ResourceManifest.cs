@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using System.IO;
 using System.Text;
+using ValveKeyValue;
 using ValveResourceFormat.Serialization.KeyValues;
 
 namespace ValveResourceFormat.ResourceTypes
@@ -102,29 +103,29 @@ namespace ValveResourceFormat.ResourceTypes
         /// </remarks>
         public override void WriteText(IndentedTextWriter writer)
         {
-            GetPrintabaleObject().WriteText(writer);
+            GetPrintabaleObject().WriteKV3Text(writer);
         }
 
-        private KV3File GetPrintabaleObject()
+        private KVDocument GetPrintabaleObject()
         {
-            var root = new KVObject(null);
+            var root = new KVObject();
             var index = 0;
 
             foreach (var resource in Resources)
             {
-                var arr = new KVObject(null, isArray: true);
+                var arr = KVObject.Array();
 
                 foreach (var file in resource)
                 {
-                    arr.AddItem(file);
+                    arr.Add(file);
                 }
 
                 var key = index > 0 ? $"resourceManifest{index}" : "resourceManifest";
-                root.AddProperty(key, arr);
+                root.Add(key, arr);
                 index++;
             }
 
-            return new KV3File(root);
+            return root.ToKV3Document();
         }
     }
 }

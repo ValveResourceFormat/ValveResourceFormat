@@ -48,6 +48,7 @@ namespace ValveResourceFormat.IO
         private readonly Lock CachedShadersLock = new();
         private readonly HashSet<string> CurrentGameSearchPaths = [];
         private readonly HashSet<string> CurrentGameOfficialAddonsPaths = [];
+        private readonly HashSet<string> CurrentGameAddonsPaths = [];
         private readonly List<Package> CurrentGamePackages = [];
         private readonly string? CurrentFileName;
         private string? PreferredAddonFolderOnDisk;
@@ -187,16 +188,37 @@ namespace ValveResourceFormat.IO
 
                         if (dependencies != null)
                         {
-                            foreach (var dependency in (IEnumerable<KVObject>)dependencies)
-                            {
-                                var dependencyId = (uint)dependency.Value;
-                                var dependencyVpkPath = Path.Join(workshopRoot, $"{dependencyId}", $"{dependencyId}.vpk");
+                            HashSet<string> localAddonFolders = [];
 
-                                if (File.Exists(dependencyVpkPath))
+                            foreach (var (_, dependency) in dependencies)
+                            {
+                                var dependencyString = dependency.ToString();
+
+                                if (ulong.TryParse(dependencyString, out var dependencyId))
                                 {
-                                    AddPackageToSearch(dependencyVpkPath);
+                                    var dependencyVpkPath = Path.Join(workshopRoot, $"{dependencyId}", $"{dependencyId}.vpk");
+
+                                    if (File.Exists(dependencyVpkPath))
+                                    {
+                                        AddPackageToSearch(dependencyVpkPath);
+                                    }
+
+                                    continue;
+                                }
+
+                                // Non-numeric dependencies are local addons referenced by name (e.g. "steamvr_home")
+                                foreach (var addonsPath in CurrentGameAddonsPaths)
+                                {
+                                    var addonFolder = Path.Combine(addonsPath, dependencyString);
+
+                                    if (Directory.Exists(addonFolder))
+                                    {
+                                        localAddonFolders.Add(addonFolder);
+                                    }
                                 }
                             }
+
+                            FindAndLoadVpksInFolders(localAddonFolders);
                         }
                     }
                     catch
@@ -420,17 +442,22 @@ namespace ValveResourceFormat.IO
                 }
             }
 
-            Console.WriteLine($"Found \"{gameInfo["game"]}\" from \"{gameinfoPath}\"");
+            gameInfo.TryGetValue("game", out var gameName);
+            Console.WriteLine($"Found \"{gameName}\" from \"{gameinfoPath}\"");
 
-            foreach (var searchPath in (IEnumerable<KVObject>)gameInfo["FileSystem"]["SearchPaths"])
+            foreach (var (key, searchPath) in gameInfo["FileSystem"]["SearchPaths"])
             {
-                if (searchPath.Name == "Game")
+                if (key == "Game")
                 {
-                    folders.Add(Path.Combine(gameRoot, searchPath.Value.ToString()!));
+                    folders.Add(Path.Combine(gameRoot, searchPath.ToString()!));
                 }
-                else if (searchPath.Name == "OfficialAddonRoot")
+                else if (key == "OfficialAddonRoot")
                 {
-                    CurrentGameOfficialAddonsPaths.Add(Path.Combine(gameRoot, searchPath.Value.ToString()!));
+                    CurrentGameOfficialAddonsPaths.Add(Path.Combine(gameRoot, searchPath.ToString()!));
+                }
+                else if (key == "AddonRoot")
+                {
+                    CurrentGameAddonsPaths.Add(Path.Combine(gameRoot, searchPath.ToString()!));
                 }
             }
         }
@@ -445,10 +472,10 @@ namespace ValveResourceFormat.IO
                 using var vsurf = LoadFileCompiled("surfaceproperties/surfaceproperties.vsurf");
                 if (vsurf is not null && vsurf.DataBlock is BinaryKV3 kv3)
                 {
-                    var surfacePropertiesList = kv3.Data.GetArray("SurfacePropertiesList");
+                    var surfacePropertiesList = kv3.Data.Root.GetArray("SurfacePropertiesList");
                     foreach (var surface in surfacePropertiesList)
                     {
-                        var name = surface.GetProperty<string>("surfacePropertyName");
+                        var name = surface.GetStringProperty("surfacePropertyName");
                         var hash = StringToken.Store(name);
                         Debug.Assert(
                             hash == surface.GetUnsignedIntegerProperty("m_nameHash"),
@@ -575,31 +602,7 @@ namespace ValveResourceFormat.IO
                 }
             }
 
-            foreach (var folder in folders)
-            {
-                // Scan for vpks in folder, same logic as in source engine
-                for (var i = 1; i < 99; i++)
-                {
-                    var vpk = Path.Combine(folder, $"pak{i:D2}_dir.vpk");
-
-                    if (!File.Exists(vpk))
-                    {
-                        break;
-                    }
-
-                    if (CurrentFileName == vpk)
-                    {
-#if DEBUG_FILE_LOAD
-                        Console.WriteLine($"VPK \"{vpk}\" is the same we just opened, skipping");
-#endif
-                        continue;
-                    }
-
-                    AddPackageToSearch(vpk);
-                }
-
-                AddDiskPathToSearch(folder);
-            }
+            FindAndLoadVpksInFolders(folders);
         }
 
         private string? GetModIdentifierFile()
@@ -706,6 +709,35 @@ namespace ValveResourceFormat.IO
             }
         }
 
+        private void FindAndLoadVpksInFolders(HashSet<string> folders)
+        {
+            foreach (var folder in folders)
+            {
+                // Scan for vpks in folder, same logic as in source engine
+                for (var i = 1; i < 99; i++)
+                {
+                    var vpk = Path.Combine(folder, $"pak{i:D2}_dir.vpk");
+
+                    if (!File.Exists(vpk))
+                    {
+                        break;
+                    }
+
+                    if (CurrentFileName == vpk)
+                    {
+#if DEBUG_FILE_LOAD
+                        Console.WriteLine($"VPK \"{vpk}\" is the same we just opened, skipping");
+#endif
+                        continue;
+                    }
+
+                    AddPackageToSearch(vpk);
+                }
+
+                AddDiskPathToSearch(folder);
+            }
+        }
+
         private HashSet<string> FindGameFoldersForWorkshopFile()
         {
             // If we're loading a file from steamapps/workshop folder, attempt to discover gameinfos and load vpks for the game
@@ -741,7 +773,7 @@ namespace ValveResourceFormat.IO
             var steamPath = filePath[..(contentIndex + "steamapps/".Length)];
             var appManifestPath = Path.Join(steamPath, $"appmanifest_{appId}.acf");
 
-            // SteamVR addons have addoninfo.txt file which contain dependency workshop ids,
+            // SteamVR addons have an addoninfo.txt file which contains dependency workshop ids,
             // seemingly other games do not have this.
             AttemptToLoadWorkshopDependencies = appId == 250820;
 

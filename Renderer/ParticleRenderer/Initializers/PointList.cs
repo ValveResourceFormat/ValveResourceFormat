@@ -1,5 +1,11 @@
 namespace ValveResourceFormat.Renderer.Particles.Initializers
 {
+    /// <summary>
+    /// Places particles at positions taken from a user-defined list of control-point-relative
+    /// offsets. Optionally spaces particles evenly along the path formed by the list, with support
+    /// for closed-loop paths.
+    /// </summary>
+    /// <seealso href="https://s2v.app/SchemaExplorer/cs2/particles/C_INIT_PointList">C_INIT_PointList</seealso>
     class PointList : ParticleFunctionInitializer
     {
         private class PointDefinition
@@ -9,8 +15,14 @@ namespace ValveResourceFormat.Renderer.Particles.Initializers
             public Vector3 Offset = Vector3.Zero;
             public Vector3 GetPosition(ParticleSystemRenderState particleSystem)
             {
+                if (UseLocalOffset)
+                {
+                    // The offset is authored in the control point's frame.
+                    return ControlPointTransformProvider.TransformPosition(particleSystem, ControlPointID, Offset);
+                }
+
                 var origin = particleSystem.GetControlPoint(ControlPointID).Position;
-                return origin + Offset; // temp: doesn't account for local offset (whatever that does).
+                return origin + Offset;
             }
         }
 
@@ -48,46 +60,60 @@ namespace ValveResourceFormat.Renderer.Particles.Initializers
         private int currentNumber;
         private Vector3 GetParticlePosition(ParticleSystemRenderState particleSystem)
         {
+            if (pointList.Count == 0)
+            {
+                return Vector3.Zero;
+            }
+
             if (usePath)
             {
-                var relativeParticleNumber = currentNumber++ % numPointsOnPath;
+                var pointCount = pointList.Count;
 
-                var numPathNodes = closedLoop
-                    ? pointList.Count + 1
-                    : pointList.Count;
+                // An open path interpolates across Count - 1 segments; a closed loop has one
+                // extra segment wrapping back to the first point
+                var numPathSegments = closedLoop ? pointCount : pointCount - 1;
 
-                // Percentage of path completed / 100
-                var pathCompletion = relativeParticleNumber / (float)numPointsOnPath;
-
-                // Shortcut so we don't index out of bounds
-                if (pathCompletion == 1.0f)
+                if (numPathSegments < 1)
                 {
-                    return pointList[numPathNodes - 1].GetPosition(particleSystem);
+                    return pointList[0].GetPosition(particleSystem);
                 }
 
-                // Get the ID first of the two points we're interpolating between
-                var firstPointID = (int)MathF.Floor(pathCompletion * numPathNodes);
+                // An open path must place the last particle on the final point; a closed loop
+                // wraps, so full completion is one step past the last particle
+                var divisor = closedLoop ? numPointsOnPath : Math.Max(1, numPointsOnPath - 1);
+                var pathCompletion = (currentNumber++ % numPointsOnPath) / (float)divisor;
 
-                var pos1 = pointList[firstPointID].GetPosition(particleSystem);
+                // Particles are spaced by arc length so unequal segments don't clump them
+                Span<float> segmentLengths = numPathSegments <= 64 ? stackalloc float[numPathSegments] : new float[numPathSegments];
+                var totalLength = 0f;
 
-                Vector3 pos2;
-                // If we need to loop around and sample the first point, just take the first point so we don't index out of bounds
-                if (closedLoop && firstPointID == pointList.Count - 1)
+                for (var i = 0; i < numPathSegments; i++)
                 {
-                    pos2 = pointList[0].GetPosition(particleSystem);
+                    var a = pointList[i].GetPosition(particleSystem);
+                    var b = pointList[(i + 1) % pointCount].GetPosition(particleSystem);
+                    segmentLengths[i] = Vector3.Distance(a, b);
+                    totalLength += segmentLengths[i];
                 }
-                else
+
+                if (totalLength <= 0f)
                 {
-                    pos2 = pointList[firstPointID + 1].GetPosition(particleSystem);
+                    return pointList[0].GetPosition(particleSystem);
                 }
 
-                // I think this is right?
-                var point1Percent = (float)firstPointID / numPathNodes;
-                var point2Percent = (float)(firstPointID + 1) / numPathNodes;
+                var targetLength = pathCompletion * totalLength;
+                var segment = 0;
 
-                var relativeBlend = MathUtils.Remap(pathCompletion, point1Percent, point2Percent);
+                while (segment < numPathSegments - 1 && targetLength > segmentLengths[segment])
+                {
+                    targetLength -= segmentLengths[segment];
+                    segment++;
+                }
 
-                return Vector3.Lerp(pos1, pos2, relativeBlend);
+                var pos1 = pointList[segment].GetPosition(particleSystem);
+                var pos2 = pointList[(segment + 1) % pointCount].GetPosition(particleSystem);
+                var blend = segmentLengths[segment] > 0f ? targetLength / segmentLengths[segment] : 0f;
+
+                return Vector3.Lerp(pos1, pos2, blend);
             }
             else
             {
@@ -98,7 +124,7 @@ namespace ValveResourceFormat.Renderer.Particles.Initializers
 
         }
 
-        public override Particle Initialize(ref Particle particle, ParticleSystemRenderState particleSystemState)
+        public override Particle Initialize(ref Particle particle, ParticleCollection particles, ParticleSystemRenderState particleSystemState)
         {
             var particlePosition = GetParticlePosition(particleSystemState);
 

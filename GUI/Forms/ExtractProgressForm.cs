@@ -88,7 +88,7 @@ namespace GUI.Forms
         {
             if (filesToExtract.Count == 0 && filesToExtractSorted.Sum(x => x.Value.Count) == 0)
             {
-                MessageBox.Show("There are no files to extract", "Failed to extract");
+                _ = AppMessageDialogs.ShowMessageAsync("There are no files to extract", "Failed to extract", MessageIcon.Warning);
                 return;
             }
 
@@ -97,21 +97,14 @@ namespace GUI.Forms
                 return;
             }
 
-            using var dialog = new FolderBrowserDialog
-            {
-                Description = "Choose which folder to extract files to",
-                UseDescriptionForTitle = true,
-                SelectedPath = Settings.Config.SaveDirectory,
-                AddToRecent = true,
-            };
+            var selectedPath = AppFileDialogs.PickFolder("Choose which folder to extract files to", AppFileDialogs.RememberIn.SaveDirectory);
 
-            if (dialog.ShowDialog() != DialogResult.OK)
+            if (selectedPath == null)
             {
                 return;
             }
 
-            path = dialog.SelectedPath;
-            Settings.Config.SaveDirectory = dialog.SelectedPath;
+            path = selectedPath;
 
             ShowDialog();
         }
@@ -143,7 +136,7 @@ namespace GUI.Forms
                     firstType,
                 };
 
-                if (firstType is "vmdl" or "vmesh" or "vmap" or "vwrld" or "vwnod")
+                if (firstType is "vmdl" or "vmesh" or "vmap" or "vwrld" or "vwnod" or "vnmclip")
                 {
                     outputTypes.Add("gltf");
                     outputTypes.Add("glb");
@@ -379,9 +372,8 @@ namespace GUI.Forms
                 if (!decompile || !packageFile.TypeName.EndsWith(GameFileLoader.CompiledFileSuffix, StringComparison.Ordinal))
                 {
                     // Extract as is
-                    var outStream = File.OpenWrite(outFilePath);
+                    using var outStream = File.Create(outFilePath);
                     await stream.CopyToAsync(outStream).ConfigureAwait(false);
-                    outStream.Close();
 
                     continue;
                 }
@@ -476,10 +468,11 @@ namespace GUI.Forms
                 {
                     extractedFiles.Add(additionalFile.FileName + GameFileLoader.CompiledFileSuffix);
                     var fileNameOut = additionalFile.FileName;
+                    var flattenThis = flatSubfiles && !additionalFile.KeepFullPath;
 
                     if (additionalFile.Data != null)
                     {
-                        if (flatSubfiles)
+                        if (flattenThis)
                         {
                             fileNameOut = Path.GetFileName(fileNameOut);
                         }
@@ -494,7 +487,7 @@ namespace GUI.Forms
                         await File.WriteAllBytesAsync(outPath.Full, additionalFile.Data, cancellationTokenSource.Token).ConfigureAwait(false);
                     }
 
-                    var contentRelativeFolder = flatSubfiles ? string.Empty : Path.GetDirectoryName(fileNameOut) ?? string.Empty;
+                    var contentRelativeFolder = flattenThis ? string.Empty : Path.GetDirectoryName(fileNameOut) ?? string.Empty;
 
                     await ExtractSubfiles(contentRelativeFolder, additionalFile).ConfigureAwait(false);
                 }

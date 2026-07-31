@@ -1,10 +1,9 @@
-using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Text;
+using ValveKeyValue;
 using ValveResourceFormat.Serialization.KeyValues;
-using KVValueType = ValveKeyValue.KVValueType;
 
 namespace ValveResourceFormat.ResourceTypes
 {
@@ -16,73 +15,45 @@ namespace ValveResourceFormat.ResourceTypes
         /// <summary>
         /// Represents a single entity with its properties and connections.
         /// </summary>
-        public class Entity
+        public class Entity : KVObject
         {
             /// <summary>
-            /// Gets the entity properties collection.
-            /// </summary>
-            public KVObject Properties { get; } = new(null);
-            // public KVObject Attributes { get; } = new(null);
-            /// <summary>
-            /// Gets or sets the entity connections (inputs/outputs).
+            /// Gets the entity connections (outputs that fire inputs on other entities, part of the entity I/O system).
             /// </summary>
             public List<KVObject>? Connections { get; internal set; }
             /// <summary>
-            /// Gets or initializes the parent entity lump that contains this entity.
+            /// Gets the parent entity lump that contains this entity.
             /// </summary>
             public required EntityLump ParentLump { get; init; }
 
             /// <summary>
-            /// Gets a strongly-typed property value by name, returning a default value if not found or on error.
+            /// Gets a Vector2 property value by name.
             /// </summary>
-            /// <typeparam name="T">The type to convert the property value to.</typeparam>
             /// <param name="name">The property name.</param>
-            /// <param name="defaultValue">The default value to return if the property is not found or conversion fails.</param>
-            /// <returns>The property value or the default value.</returns>
-            /// <exception cref="InvalidOperationException">Thrown when attempting to use Vector3 type (use GetVector3Property instead).</exception>
-            [return: NotNullIfNotNull(nameof(defaultValue))]
-            public T? GetProperty<T>(string name, T? defaultValue = default)
+            /// <param name="defaultValue">The default value to return if the property is not found.</param>
+            /// <returns>The Vector2 property value or the default value.</returns>
+            public Vector2 GetVector2Property(string name, Vector2 defaultValue = default)
             {
-                if (typeof(T) == typeof(Vector3))
-                {
-                    throw new InvalidOperationException("Entity.GetProperty<Vector3> has been removed. Use Entity.GetVector3Property.");
-                }
-
-                try
-                {
-                    return Properties.GetProperty(name, defaultValue);
-                }
-                catch (Exception)
+                if (!TryGetValue(name, out var value))
                 {
                     return defaultValue;
                 }
+
+                if (value != null && value.ValueType != KVValueType.Null)
+                {
+                    if (value.ValueType is KVValueType.Collection or KVValueType.Array)
+                    {
+                        return value.ToVector2();
+                    }
+
+                    if (value.ValueType == KVValueType.String)
+                    {
+                        return EntityTransformHelper.ParseVector2((string)value);
+                    }
+                }
+
+                return defaultValue;
             }
-
-            //public bool TryGetProperty<T>(string name, out T property) => Properties.TryGetProperty(name, out property);
-
-            /// <summary>
-            /// Gets a strongly-typed struct property value by name without type checking.
-            /// </summary>
-            /// <typeparam name="T">The struct type to convert the property value to.</typeparam>
-            /// <param name="name">The property name.</param>
-            /// <param name="defaultValue">The default value to return if the property is not found.</param>
-            /// <returns>The property value or the default value.</returns>
-            public T GetPropertyUnchecked<T>(string name, T defaultValue = default) where T : struct
-                => Properties.GetPropertyUnchecked(name, defaultValue);
-
-            /// <summary>
-            /// Gets a property value by name.
-            /// </summary>
-            /// <param name="name">The property name.</param>
-            /// <returns>The property value or the default <see cref="KVValue"/> (with <see cref="KVValueType.Null"/>) if not found.</returns>
-            public KVValue GetProperty(string name) => Properties.Properties.GetValueOrDefault(name);
-
-            /// <summary>
-            /// Determines whether the entity contains a property with the specified name.
-            /// </summary>
-            /// <param name="name">The property name to check.</param>
-            /// <returns>True if the property exists, false otherwise.</returns>
-            public bool ContainsKey(string name) => Properties.Properties.ContainsKey(name);
 
             /// <summary>
             /// Gets a Vector3 property value by name.
@@ -92,16 +63,21 @@ namespace ValveResourceFormat.ResourceTypes
             /// <returns>The Vector3 property value or the default value.</returns>
             public Vector3 GetVector3Property(string name, Vector3 defaultValue = default)
             {
-                if (Properties.Properties.TryGetValue(name, out var value))
+                if (!TryGetValue(name, out var value))
                 {
-                    if (value.Value is KVObject kv)
+                    return defaultValue;
+                }
+
+                if (value != null && value.ValueType != KVValueType.Null)
+                {
+                    if (value.ValueType is KVValueType.Collection or KVValueType.Array)
                     {
-                        return kv.ToVector3();
+                        return value.ToVector3();
                     }
 
-                    if (value.Value is string editString)
+                    if (value.ValueType == KVValueType.String)
                     {
-                        return EntityTransformHelper.ParseVector(editString);
+                        return EntityTransformHelper.ParseVector((string)value);
                     }
                 }
 
@@ -123,7 +99,7 @@ namespace ValveResourceFormat.ResourceTypes
         /// <summary>
         /// Gets the name of this entity lump.
         /// </summary>
-        public string Name => Data.GetProperty<string>("m_name");
+        public string Name => Data.GetStringProperty("m_name");
 
         /// <summary>
         /// Gets the names of child entity lumps.
@@ -159,12 +135,12 @@ namespace ValveResourceFormat.ResourceTypes
             }
 
             // are there any kinds of valid entities which don't contain a classname?
-            if (!entity.Properties.ContainsKey("classname"))
+            if (!entity.ContainsKey("classname"))
             {
                 return null;
             }
 
-            if (connections.Length > 0)
+            if (connections.Count > 0)
             {
                 entity.Connections = [.. connections];
             }
@@ -183,39 +159,37 @@ namespace ValveResourceFormat.ResourceTypes
 
             var entity = new Entity { ParentLump = this };
 
-            ReadValues(entity, entityKv.Properties["values"]);
-            ReadValues(entity, entityKv.Properties["attributes"]);
+            entityKv.TryGetValue("values", out var values);
+            entityKv.TryGetValue("attributes", out var attributes);
+
+            ReadValues(entity, values);
+            ReadValues(entity, attributes);
 
             return entity;
         }
 
-        private static void ReadValues(Entity entity, KVValue values)
+        private static KVObject MakeColor32(byte[] bytes)
+            => KVObject.Array(bytes.Select(b => (KVObject)(long)b));
+
+        private static void ReadValues(Entity entity, KVObject? values)
         {
-            if (values.Type == KVValueType.Null)
+            if (values == null || values.ValueType == KVValueType.Null)
             {
                 return;
             }
 
-            if (values.Type != KVValueType.Collection)
+            if (values.ValueType != KVValueType.Collection)
             {
-                throw new UnexpectedMagicException("Unsupported entity data values type", (int)values.Type, nameof(values.Type));
+                throw new UnexpectedMagicException("Unsupported entity data values type", (int)values.ValueType, nameof(values));
             }
 
-            if (values.Value is not KVObject kvObject)
-            {
-                throw new InvalidDataException("Expected KVObject for entity values");
-            }
-
-            var properties = kvObject.Properties;
-            entity.Properties.Properties.EnsureCapacity(entity.Properties.Count + properties.Count);
-
-            foreach (var value in properties)
+            foreach (var child in values.Children)
             {
                 // All entity property keys will be stored in lowercase
-                var lowercaseKey = value.Key.ToLowerInvariant();
+                var lowercaseKey = child.Key.ToLowerInvariant();
 
                 var hash = StringToken.Store(lowercaseKey);
-                entity.Properties.AddProperty(lowercaseKey, value.Value);
+                entity.Add(lowercaseKey, child.Value);
             }
         }
 
@@ -239,21 +213,19 @@ namespace ValveResourceFormat.ResourceTypes
             {
                 var type = (EntityFieldType)dataReader.ReadUInt32();
 
-                var (kvType, valueObject) = type switch
+                KVObject entityProperty = type switch
                 {
-                    EntityFieldType.Boolean => (KVValueType.Boolean, (object)dataReader.ReadBoolean()),
-                    EntityFieldType.Float => (KVValueType.FloatingPoint64, (double)dataReader.ReadSingle()),
-                    EntityFieldType.Float64 => (KVValueType.FloatingPoint64, dataReader.ReadDouble()),
-                    EntityFieldType.Color32 => (KVValueType.Array, new KVObject("", dataReader.ReadBytes(4).Select(c => new KVValue(KVValueType.Int64, c)).ToArray())),
-                    EntityFieldType.Integer => (KVValueType.Int64, (long)dataReader.ReadInt32()),
-                    EntityFieldType.UInt => (KVValueType.UInt64, (ulong)dataReader.ReadUInt32()),
-                    EntityFieldType.Integer64 => (KVValueType.UInt64, dataReader.ReadUInt64()), // Is this supposed to be ReadInt64?
-                    EntityFieldType.Vector or EntityFieldType.QAngle => (KVValueType.String, $"{dataReader.ReadSingle()} {dataReader.ReadSingle()} {dataReader.ReadSingle()}"),
-                    EntityFieldType.CString => (KVValueType.String, dataReader.ReadNullTermString(Encoding.UTF8)),
+                    EntityFieldType.Boolean => dataReader.ReadBoolean(),
+                    EntityFieldType.Float => (double)dataReader.ReadSingle(),
+                    EntityFieldType.Float64 => dataReader.ReadDouble(),
+                    EntityFieldType.Color32 => MakeColor32(dataReader.ReadBytes(4)),
+                    EntityFieldType.Integer => (long)dataReader.ReadInt32(),
+                    EntityFieldType.UInt => (ulong)dataReader.ReadUInt32(),
+                    EntityFieldType.Integer64 => dataReader.ReadUInt64(), // Is this supposed to be ReadInt64?
+                    EntityFieldType.Vector or EntityFieldType.QAngle => (KVObject)string.Create(CultureInfo.InvariantCulture, $"{dataReader.ReadSingle()} {dataReader.ReadSingle()} {dataReader.ReadSingle()}"),
+                    EntityFieldType.CString => dataReader.ReadNullTermString(Encoding.UTF8),
                     _ => throw new UnexpectedMagicException("Unknown type", (int)type, nameof(type)),
                 };
-
-                var entityProperty = new KVValue(kvType, valueObject);
 
                 if (keyName == null)
                 {
@@ -270,7 +242,7 @@ namespace ValveResourceFormat.ResourceTypes
                     }
                 }
 
-                entity.Properties.Properties.Add(keyName, entityProperty);
+                entity.Add(keyName, entityProperty);
             }
 
             for (var i = 0; i < hashedFieldsCount; i++)
@@ -308,7 +280,7 @@ namespace ValveResourceFormat.ResourceTypes
             {
                 builder.AppendLine(CultureInfo.InvariantCulture, $"===={index++}====");
 
-                foreach (var property in entity.Properties)
+                foreach (var property in entity.Children)
                 {
                     var value = StringifyValue(property.Value);
 
@@ -320,7 +292,7 @@ namespace ValveResourceFormat.ResourceTypes
                     foreach (var connection in entity.Connections)
                     {
                         builder.Append('@');
-                        builder.Append(connection.GetProperty<string>("m_outputName"));
+                        builder.Append(connection.GetStringProperty("m_outputName"));
                         builder.Append(' ');
 
                         var delay = connection.GetFloatProperty("m_flDelay");
@@ -342,11 +314,11 @@ namespace ValveResourceFormat.ResourceTypes
                                 break;
                         }
 
-                        builder.Append(connection.GetProperty<string>("m_inputName"));
+                        builder.Append(connection.GetStringProperty("m_inputName"));
                         builder.Append(' ');
-                        builder.Append(connection.GetProperty<string>("m_targetName"));
+                        builder.Append(connection.GetStringProperty("m_targetName"));
 
-                        var param = connection.GetProperty<string>("m_overrideParam");
+                        var param = connection.GetStringProperty("m_overrideParam");
 
                         if (!string.IsNullOrEmpty(param) && param != "(null)")
                         {
@@ -388,7 +360,7 @@ namespace ValveResourceFormat.ResourceTypes
 
             foreach (var entity in GetEntities())
             {
-                var classname = entity.GetProperty<string>("classname")?.ToLowerInvariant();
+                var classname = entity.GetStringProperty("classname")?.ToLowerInvariant();
                 if (classname == null)
                 {
                     continue;
@@ -400,7 +372,7 @@ namespace ValveResourceFormat.ResourceTypes
                     uniqueEntityProperties.Add(classname, entityProperties);
                 }
 
-                foreach (var property in entity.Properties.Properties)
+                foreach (var property in entity.Children)
                 {
                     var key = property.Key;
 
@@ -409,15 +381,16 @@ namespace ValveResourceFormat.ResourceTypes
                         continue;
                     }
 
-                    if (property.Value.Value is string model && key == "model")
+                    if (property.Value.ValueType == KVValueType.String && key == "model")
                     {
+                        var model = (string)property.Value;
                         if (model.Contains("/entities/", StringComparison.Ordinal) || model.Contains("\\entities\\", StringComparison.Ordinal))
                         {
                             brushEntities.Add(classname);
                         }
                     }
 
-                    entityProperties.Add((key, property.Value.Type));
+                    entityProperties.Add((key, property.Value.ValueType));
                 }
 
                 if (entity.Connections != null)
@@ -430,7 +403,7 @@ namespace ValveResourceFormat.ResourceTypes
 
                     foreach (var connection in entity.Connections)
                     {
-                        var outputName = connection.GetProperty<string>("m_outputName");
+                        var outputName = connection.GetStringProperty("m_outputName");
 
                         entityConnections.Add(outputName);
                     }
@@ -503,23 +476,22 @@ namespace ValveResourceFormat.ResourceTypes
 
             if (value is KVObject kvObject)
             {
-                if (kvObject.IsArray)
+                using var ms = new MemoryStream();
+                var serializer = KVSerializer.Create(KVSerializationFormat.KeyValues3Text);
+                serializer.Serialize(ms, new KVDocument(null, null, kvObject), new KVSerializerOptions
                 {
-                    valueStr = string.Join(' ', kvObject.Select(p => p.Value.ToString() ?? string.Empty));
-                }
-                else
-                {
-                    using var writer = new IndentedTextWriter();
-                    kvObject.Serialize(writer);
-                    valueStr = writer.ToString();
-                }
+                    SkipHeader = true
+                });
+                ms.Position = 0;
+                using var reader = new StreamReader(ms);
+                valueStr = reader.ReadToEnd();
             }
             else if (value is not null)
             {
                 valueStr = value.ToString() ?? string.Empty;
             }
 
-            return valueStr;
+            return valueStr.Trim();
         }
     }
 }

@@ -1,5 +1,5 @@
+using ValveKeyValue;
 using ValveResourceFormat.ResourceTypes.Choreo.Enums;
-using ValveResourceFormat.Serialization.KeyValues;
 
 namespace ValveResourceFormat.ResourceTypes.Choreo
 {
@@ -63,40 +63,40 @@ namespace ValveResourceFormat.ResourceTypes.Choreo
         /// <returns>A <see cref="KVObject"/> representing this track.</returns>
         public KVObject ToKeyValues()
         {
-            var kv = new KVObject(null);
+            var kv = KVObject.Collection();
 
             var isDisabled = !TrackFlags.HasFlag(ChoreoTrackFlags.Enabled);
             var isCombo = TrackFlags.HasFlag(ChoreoTrackFlags.Combo);
 
-            kv.AddProperty("name", Name);
+            kv.Add("name", Name);
             if (isDisabled)
             {
-                kv.AddProperty("disabled", true);
+                kv.Add("disabled", true);
             }
             if (isCombo)
             {
-                kv.AddProperty("combo", true);
+                kv.Add("combo", true);
             }
-            kv.AddProperty("min", MinRange);
-            kv.AddProperty("max", MaxRange);
+            kv.Add("min", MinRange);
+            kv.Add("max", MaxRange);
 
             //Edges are the same for both curves
             if (Ramp?.LeftEdge != null)
             {
-                kv.AddProperty("left_edge", Ramp.LeftEdge.ToKeyValues());
+                kv.Add("left_edge", Ramp.LeftEdge.ToKeyValues());
             }
             if (Ramp?.RightEdge != null)
             {
-                kv.AddProperty("right_edge", Ramp.RightEdge.ToKeyValues());
+                kv.Add("right_edge", Ramp.RightEdge.ToKeyValues());
             }
 
             if (Ramp?.Samples.Length > 0)
             {
-                kv.AddProperty("samples", Ramp.ToKeyValues());
+                kv.Add("samples", Ramp.ToKeyValues());
             }
             if (isCombo && ComboRamp?.Samples.Length > 0)
             {
-                kv.AddProperty("stereo", ComboRamp.ToKeyValues());
+                kv.Add("stereo", ComboRamp.ToKeyValues());
             }
 
             return kv;

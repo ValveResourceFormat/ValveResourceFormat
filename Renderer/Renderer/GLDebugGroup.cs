@@ -1,5 +1,3 @@
-using OpenTK.Graphics.OpenGL;
-
 namespace ValveResourceFormat.Renderer;
 
 /// <summary>
@@ -10,7 +8,6 @@ namespace ValveResourceFormat.Renderer;
 /// </remarks>
 public ref struct GLDebugGroup
 {
-    internal static Timings? Timings { get; set; }
     internal int TimeQueryId { get; }
 
     /// <summary>
@@ -19,9 +16,9 @@ public ref struct GLDebugGroup
     /// <param name="name">Name of the debug group to display in profiling tools.</param>
     public GLDebugGroup(string name)
     {
-        TimeQueryId = Timings?.BeginQuery(name) ?? 0;
+        TimeQueryId = PerfStats.Active.BeginTimingQuery(name);
 #if DEBUG
-        GL.PushDebugGroup(DebugSourceExternal.DebugSourceApplication, 0, name.Length, name);
+        OpenTK.Graphics.OpenGL.GL.PushDebugGroup(OpenTK.Graphics.OpenGL.DebugSourceExternal.DebugSourceApplication, 0, name.Length, name);
 #endif
     }
 
@@ -33,8 +30,8 @@ public ref struct GLDebugGroup
 #pragma warning restore CA1822
     {
 #if DEBUG
-        GL.PopDebugGroup();
+        OpenTK.Graphics.OpenGL.GL.PopDebugGroup();
 #endif
-        Timings?.EndQuery(TimeQueryId);
+        PerfStats.Active.EndTimingQuery(TimeQueryId);
     }
 }

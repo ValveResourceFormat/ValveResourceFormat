@@ -42,6 +42,20 @@ internal class MainTabs : ThemedTabControl
         tooltipTimer.Tick += TooltipTimer_Tick;
     }
 
+    public bool OpenTab(string tabName)
+    {
+        foreach (TabPage tabPage in TabPages)
+        {
+            if (tabPage.Text == tabName)
+            {
+                SelectTab(tabPage);
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     private void TooltipTimer_Tick(object? sender, EventArgs e)
     {
         tooltipTimer.Stop();
@@ -155,6 +169,11 @@ internal class MainTabs : ThemedTabControl
         if (isClosingCurrentTab && tabIndex > 0)
         {
             SelectedIndex = tabIndex - 1;
+        }
+
+        if (Program.MainForm?.explorerControl is { } explorerControl && tab.Contains(explorerControl))
+        {
+            tab.Controls.Remove(explorerControl);
         }
 
         TabPages.Remove(tab);

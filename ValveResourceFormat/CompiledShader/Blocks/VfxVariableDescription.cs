@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using ValveKeyValue;
 using ValveResourceFormat.Serialization.KeyValues;
 
 namespace ValveResourceFormat.CompiledShader;
@@ -135,19 +136,19 @@ public class VfxVariableDescription : ShaderDataBlock
     public VfxVariableDescription(KVObject data, int blockIndex) : base()
     {
         BlockIndex = blockIndex;
-        Name = data.GetProperty<string>("m_szName");
-        UiGroup = UiGroup.FromCompactString(data.GetProperty<string>("m_szUiGroup"));
+        Name = data.GetStringProperty("m_szName");
+        UiGroup = UiGroup.FromCompactString(data.GetStringProperty("m_szUiGroup"));
         UiType = (UiType)data.GetInt32Property("m_uiType");
         UiStep = data.GetFloatProperty("m_flUiStep");
-        StringData = data.GetProperty<string>("m_pSourceString");
+        StringData = data.GetStringProperty("m_pSourceString");
         VariableSource = (VfxVariableSourceType)data.GetInt32Property("m_sourceType");
 
-        if (data.GetProperty<byte[]>("m_pCompiledExpression") is byte[] compiledExpression)
+        if (data.GetArray<byte>("m_pCompiledExpression") is byte[] compiledExpression)
         {
             DynExp = compiledExpression;
         }
 
-        UiVisibilityExp = data.GetProperty<byte[]>("m_pCompiledUIVisibilityExpression") ?? [];
+        UiVisibilityExp = data.GetArray<byte>("m_pCompiledUIVisibilityExpression") ?? [];
 
         SourceIndex = data.GetInt32Property("m_sourceIndex");
         VfxType = (VfxVariableType)data.GetInt32Property("m_type");
@@ -166,7 +167,7 @@ public class VfxVariableDescription : ShaderDataBlock
             FloatMins = data.GetFloatArray("m_flMin");
             FloatMaxs = data.GetFloatArray("m_flMax");
 
-            if (RegisterType is VfxRegisterType.Uniform)
+            if (RegisterType is VfxRegisterType.Float4)
             {
                 IntMins = [.. FloatMins.Select(fl => (int)MathF.Floor(fl))];
                 IntMaxs = [.. FloatMaxs.Select(fl => (int)MathF.Floor(fl))];
@@ -179,7 +180,7 @@ public class VfxVariableDescription : ShaderDataBlock
             IntMins = [.. data.GetIntegerArray("m_intMin").Select(l => (int)l)];
             IntMaxs = [.. data.GetIntegerArray("m_intMax").Select(l => (int)l)];
 
-            if (RegisterType is VfxRegisterType.Uniform)
+            if (RegisterType is VfxRegisterType.Float4)
             {
                 FloatMins = [.. IntMins.Select(i => (float)i)];
                 FloatMaxs = [.. IntMaxs.Select(i => (float)i)];
@@ -193,15 +194,15 @@ public class VfxVariableDescription : ShaderDataBlock
         // todo: better detection
         if (data.ContainsKey("m_outputTextureFormat"))
         {
-            DefaultInputTexture = data.GetProperty<string>("m_defaultInputTexture");
+            DefaultInputTexture = data.GetStringProperty("m_defaultInputTexture");
             ImageFormat = (ImageFormat)data.GetUInt32Property("m_outputTextureFormat");
             ChannelCount = data.GetInt32Property("m_nChannelCount");
             ChannelIndices = data.GetArray<int>("m_nChannelInfoIndex")!;
             ColorMode = data.GetInt32Property("m_inputColorSpace");
             MinPrecisionBits = data.GetInt32Property("m_nMinPrecisionBits");
 
-            ImageSuffix = data.GetProperty<string>("m_szTextureFileEnding");
-            ImageProcessor = data.GetProperty<string>("m_inputProcessingCommand");
+            ImageSuffix = data.GetStringProperty("m_szTextureFileEnding");
+            ImageProcessor = data.GetStringProperty("m_inputProcessingCommand");
             MaxRes = data.GetInt32Property("m_nMaxRes");
         }
         else
@@ -212,8 +213,8 @@ public class VfxVariableDescription : ShaderDataBlock
         }
 
         LayerId = (byte)data.GetInt32Property("m_nLayerId");
-        AllowLayerOverride = data.GetProperty<bool>("m_bAllowLayerOverride");
-        IsLayerConstant = data.GetProperty<bool>("m_bIsLayerConstant");
+        AllowLayerOverride = data.GetBooleanProperty("m_bAllowLayerOverride");
+        IsLayerConstant = data.GetBooleanProperty("m_bIsLayerConstant");
     }
 
     /// <summary>

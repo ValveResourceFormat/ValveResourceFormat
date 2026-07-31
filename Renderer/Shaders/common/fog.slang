@@ -20,7 +20,7 @@ void ApplyGradientFog(inout vec3 pixelColor, vec3 positionWS, vec3 cameraCentere
     gradientFogComponents.x = length(cameraCenteredPixelPos);
     gradientFogComponents.y = positionWS.z;
 
-    gradientFogComponents = pow( saturate(gradientFogComponents * g_vGradientFogBiasAndScale.zw + g_vGradientFogBiasAndScale.xy), m_vGradientFogExponents );
+    gradientFogComponents = pow( clamp(gradientFogComponents * g_vGradientFogBiasAndScale.zw + g_vGradientFogBiasAndScale.xy, 0.0001, 1.0), m_vGradientFogExponents );
 
     float gradientFogBlend = gradientFogComponents.x * gradientFogComponents.y * g_vGradientFogColor_Opacity.a;
 
@@ -29,13 +29,13 @@ void ApplyGradientFog(inout vec3 pixelColor, vec3 positionWS, vec3 cameraCentere
 
 // ExposureBias is actually a separate param, but Z is unused and exposurebias stupidly only uses x
 
-uniform samplerCube g_tFogCubeTexture;
+uniform layout(binding = 2) samplerCube g_tFogCubeTexture; // ReservedTextureSlots.FogCubeTexture, bound globally by the scene
 
 void ApplyCubemapFog(inout vec3 pixelColor, vec3 positionWS, vec3 posRelativeToCamera)
 {
     vec2 cubeFogComponents;
-    cubeFogComponents.x = pow(ClampToPositive(length(posRelativeToCamera.xy) * g_vCubeFog_Offset_Scale_Bias_Exponent.y + g_vCubeFog_Offset_Scale_Bias_Exponent.x), g_vCubeFog_Offset_Scale_Bias_Exponent.w);
-    cubeFogComponents.y = pow(ClampToPositive(positionWS.z * g_vCubeFog_Height_Offset_Scale_Exponent_Log2Mip.y + g_vCubeFog_Height_Offset_Scale_Exponent_Log2Mip.x), g_vCubeFog_Height_Offset_Scale_Exponent_Log2Mip.z);
+    cubeFogComponents.x = pow(max(length(posRelativeToCamera.xy) * g_vCubeFog_Offset_Scale_Bias_Exponent.y + g_vCubeFog_Offset_Scale_Bias_Exponent.x, 0.0001), g_vCubeFog_Offset_Scale_Bias_Exponent.w);
+    cubeFogComponents.y = pow(max(positionWS.z * g_vCubeFog_Height_Offset_Scale_Exponent_Log2Mip.y + g_vCubeFog_Height_Offset_Scale_Exponent_Log2Mip.x, 0.0001), g_vCubeFog_Height_Offset_Scale_Exponent_Log2Mip.z);
 
     float cubemapFogBlend = saturate(cubeFogComponents.x) * saturate(cubeFogComponents.y);
 
@@ -84,7 +84,7 @@ vec4 g_vSphericalVignetteColor_Opacity;
 
 void ApplySphericalVignette( inout vec3 pixelColor, vec3 worldPositionLightingOffset)
 {
-	float sphericalVignetteLinear = saturate(g_vSphericalVignetteBiasAndScale.y * distance(worldPositionLightingOffset, g_vSphericalVignetteOrigin_Exponent.xyz) + g_vSphericalVignetteBiasAndScale.x);
+	float sphericalVignetteLinear = clamp(g_vSphericalVignetteBiasAndScale.y * distance(worldPositionLightingOffset, g_vSphericalVignetteOrigin_Exponent.xyz) + g_vSphericalVignetteBiasAndScale.x, 0.0001, 1.0);
 	float sphericalVignetteBlend = pow(sphericalVignetteLinear, g_vSphericalVignetteOrigin_Exponent.w);
 	PixelColor = mix(pixelColor, g_vSphericalVignetteColor_Opacity.rgb, g_vSphericalVignetteColor_Opacity.a * sphericalVignetteBlend);
 }
@@ -135,6 +135,18 @@ void ApplyFog(inout vec3 pixelColor, vec3 positionWS)
 #endif
 
     }
+}
+
+// Fog attenuation factor for additive/mod2x contributions, which must fade with fog density rather
+// than tint toward the fog color (tinting would add the fog color to the scene). ApplyFog is affine
+// in the input color, so probing it at white and black recovers the pure attenuation term.
+float GetFogAttenuation(vec3 positionWS)
+{
+    vec3 fogWhite = vec3(1.0);
+    vec3 fogBlack = vec3(0.0);
+    ApplyFog(fogWhite, positionWS);
+    ApplyFog(fogBlack, positionWS);
+    return saturate(fogWhite.g - fogBlack.g);
 }
 
 #endif

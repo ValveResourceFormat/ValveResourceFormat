@@ -1,18 +1,17 @@
 using System.Globalization;
 using System.Linq;
-using OpenTK.Graphics.OpenGL;
+using ValveResourceFormat.Renderer.SceneEnvironment;
+using ValveResourceFormat.Renderer.SceneNodes;
+using ValveResourceFormat.Renderer.World;
+using ValveResourceFormat.Serialization.KeyValues;
 
 namespace ValveResourceFormat.Renderer
 {
     /// <summary>
     /// Renders selection outlines and debug information for selected scene nodes.
     /// </summary>
-    public class SelectedNodeRenderer
+    public class SelectedNodeRenderer : LineDebugRenderer
     {
-        private readonly Shader shader;
-        private readonly int vaoHandle;
-        private readonly int vboHandle;
-        private int vertexCount;
         private bool disableDepth;
         private bool debugCubeMaps;
         private bool debugLightProbes;
@@ -20,24 +19,19 @@ namespace ValveResourceFormat.Renderer
         private readonly List<SimpleVertex> vertices = new(48);
 
         private readonly Vector2 SelectedNodeNameOffset = new(0, -20);
+
+        /// <summary>Gets or sets optional debug text rendered in the top-left corner of the viewport.</summary>
         public string ScreenDebugText { get; set; } = string.Empty;
 
+        /// <summary>Initializes the selected node renderer and creates GPU resources.</summary>
+        /// <param name="rendererContext">Renderer context for loading shaders.</param>
         public SelectedNodeRenderer(RendererContext rendererContext)
+            : base(rendererContext, nameof(SelectedNodeRenderer))
         {
-            shader = rendererContext.ShaderLoader.LoadShader("vrf.default");
-
-            GL.CreateVertexArrays(1, out vaoHandle);
-            GL.CreateBuffers(1, out vboHandle);
-            GL.VertexArrayVertexBuffer(vaoHandle, 0, vboHandle, 0, SimpleVertex.SizeInBytes);
-            SimpleVertex.BindDefaultShaderLayout(vaoHandle, shader.Program);
-
-#if DEBUG
-            var vaoLabel = nameof(SelectedNodeRenderer);
-            GL.ObjectLabel(ObjectLabelIdentifier.VertexArray, vaoHandle, vaoLabel.Length, vaoLabel);
-            GL.ObjectLabel(ObjectLabelIdentifier.Buffer, vboHandle, vaoLabel.Length, vaoLabel);
-#endif
         }
 
+        /// <summary>Toggles selection of the given node, adding it if not selected or removing it if already selected.</summary>
+        /// <param name="node">The scene node to toggle.</param>
         public void ToggleNode(SceneNode node)
         {
             var selectedNode = selectedNodes.IndexOf(node);
@@ -64,6 +58,9 @@ namespace ValveResourceFormat.Renderer
             }
         }
 
+        /// <summary>Clears the selection and selects a single node, optionally disabling depth testing for its overlay.</summary>
+        /// <param name="node">Node to select, or <see langword="null"/> to clear the selection.</param>
+        /// <param name="forceDisableDepth">When <see langword="true"/>, the selection overlay is drawn without depth testing.</param>
         public void SelectNode(SceneNode? node, bool forceDisableDepth = false)
         {
             RemoveAllLightProbeDebugGrid();
@@ -73,7 +70,7 @@ namespace ValveResourceFormat.Renderer
 
             if (node == null)
             {
-                vertexCount = 0;
+                Clear();
                 return;
             }
 
@@ -86,6 +83,7 @@ namespace ValveResourceFormat.Renderer
             }
         }
 
+        /// <summary>Toggles the layer-enabled state of all currently selected nodes.</summary>
         public void DisableSelectedNodes()
         {
             foreach (var node in selectedNodes)
@@ -177,6 +175,9 @@ namespace ValveResourceFormat.Renderer
             }
         }
 
+        /// <summary>Rebuilds the wireframe geometry and text labels for all selected nodes.</summary>
+        /// <param name="renderContext">Render context providing camera and scene state.</param>
+        /// <param name="updateContext">Update context providing the text renderer.</param>
         public void Update(Scene.RenderContext renderContext, Scene.UpdateContext updateContext)
         {
             disableDepth = selectedNodes.Count > 1;
@@ -184,7 +185,7 @@ namespace ValveResourceFormat.Renderer
             if (selectedNodes.Count == 0)
             {
                 // We don't need to reupload an empty array
-                vertexCount = 0;
+                Clear();
                 return;
             }
 
@@ -239,12 +240,12 @@ namespace ValveResourceFormat.Renderer
                     AddBox(renderContext.Camera, updateContext.TextRenderer, vertices, node.LightProbeBinding.Transform, node.LightProbeBinding.LocalBoundingBox, new(1.0f, 0.0f, 1.0f, 1.0f));
                     ShapeSceneNode.AddLine(vertices, node.LightProbeBinding.Transform.Translation, node.BoundingBox.Center, new(1.0f, 0.0f, 1.0f, 1.0f));
 
-                    node.LightProbeBinding.CrateDebugGridSpheres();
+                    node.LightProbeBinding.CreateDebugGridSpheres();
                 }
 
                 if (node.EntityData != null)
                 {
-                    var classname = node.EntityData.GetProperty<string>("classname");
+                    var classname = node.EntityData.GetStringProperty("classname");
                     if (classname != null)
                     {
                         nodeName = classname;
@@ -256,7 +257,7 @@ namespace ValveResourceFormat.Renderer
 
                         if (classname == "env_cubemap")
                         {
-                            var radius = node.EntityData.GetProperty<float>("influenceradius");
+                            var radius = node.EntityData.GetFloatProperty("influenceradius");
                             bounds = new AABB(-radius, -radius, -radius, radius, radius, radius);
                         }
                         else
@@ -273,10 +274,10 @@ namespace ValveResourceFormat.Renderer
                     }
                     else if (classname is "light_barn" or "light_omni2")
                     {
-                        var boundsMins = node.EntityData.GetProperty<string>("precomputedboundsmins");
-                        var boundsMaxs = node.EntityData.GetProperty<string>("precomputedboundsmaxs");
-                        var obbExtent = node.EntityData.GetProperty<string>("precomputedobbextent");
-                        var obbOrigin = node.EntityData.GetProperty<string>("precomputedobborigin");
+                        var boundsMins = node.EntityData.GetStringProperty("precomputedboundsmins");
+                        var boundsMaxs = node.EntityData.GetStringProperty("precomputedboundsmaxs");
+                        var obbExtent = node.EntityData.GetStringProperty("precomputedobbextent");
+                        var obbOrigin = node.EntityData.GetStringProperty("precomputedobborigin");
 
                         if (boundsMins != null && boundsMaxs != null && obbExtent != null && obbOrigin != null)
                         {
@@ -306,7 +307,7 @@ namespace ValveResourceFormat.Renderer
                 {
                     Scale = 20f,
                     Text = nodeName,
-                    CenterVertical = true,
+                    CenterHorizontal = true,
                     TextOffset = SelectedNodeNameOffset
                 }, renderContext.Camera, fixedScale: false);
             }
@@ -322,9 +323,7 @@ namespace ValveResourceFormat.Renderer
                 }, renderContext.Camera);
             }
 
-            vertexCount = vertices.Count;
-
-            GL.NamedBufferData(vboHandle, vertexCount * SimpleVertex.SizeInBytes, ListAccessors<SimpleVertex>.GetBackingArray(vertices), BufferUsageHint.DynamicDraw);
+            Upload(vertices);
 
             vertices.Clear();
         }
@@ -337,35 +336,14 @@ namespace ValveResourceFormat.Renderer
             }
         }
 
+        /// <summary>Renders the wireframe selection overlay for the current frame.</summary>
         public void Render()
         {
-            if (vertexCount == 0)
-            {
-                return;
-            }
-
-            GL.Enable(EnableCap.Blend);
-
-            if (disableDepth)
-            {
-                GL.Disable(EnableCap.DepthTest);
-            }
-
-            GL.DepthMask(false);
-            GL.BlendFunc(BlendingFactor.SrcAlpha, BlendingFactor.OneMinusSrcAlpha);
-
-            shader.Use();
-            shader.SetUniform3x4("transform", Matrix4x4.Identity);
-
-            GL.BindVertexArray(vaoHandle);
-            GL.DrawArrays(PrimitiveType.Lines, 0, vertexCount);
-            GL.UseProgram(0);
-            GL.BindVertexArray(0);
-            GL.DepthMask(true);
-            GL.Disable(EnableCap.Blend);
-            GL.Enable(EnableCap.DepthTest);
+            RenderLines(disableDepth);
         }
 
+        /// <summary>Updates which debug overlays (cubemaps, light probes) are drawn based on the active render mode.</summary>
+        /// <param name="mode">The render mode name from the viewer.</param>
         public void SetRenderMode(string mode)
         {
             debugCubeMaps = mode == "Cubemaps";

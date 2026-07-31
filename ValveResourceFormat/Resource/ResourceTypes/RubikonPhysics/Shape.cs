@@ -1,4 +1,5 @@
 using System.Linq;
+using ValveKeyValue;
 using ValveResourceFormat.Serialization.KeyValues;
 
 namespace ValveResourceFormat.ResourceTypes.RubikonPhysics
@@ -6,6 +7,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics
     /// <summary>
     /// Represents a physics shape.
     /// </summary>
+    /// <seealso href="https://s2v.app/SchemaExplorer/cs2/modellib/VPhysics2ShapeDef_t">VPhysics2ShapeDef_t</seealso>
     public struct Shape
     {
         /// <summary>
@@ -47,8 +49,8 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics
             where TShape : struct
         {
             var arrayData = data.GetArray(name);
-            var array = new TDescriptor[arrayData.Length];
-            for (var a = 0; a < arrayData.Length; a++)
+            var array = new TDescriptor[arrayData.Count];
+            for (var a = 0; a < arrayData.Count; a++)
             {
                 array[a] = new TDescriptor();
                 array[a].KV3Transfer(arrayData[a]);

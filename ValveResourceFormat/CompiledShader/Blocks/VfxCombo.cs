@@ -1,5 +1,6 @@
 using System.IO;
 using System.Text;
+using ValveKeyValue;
 using ValveResourceFormat.Serialization.KeyValues;
 
 namespace ValveResourceFormat.CompiledShader;
@@ -38,15 +39,15 @@ public class VfxCombo : ShaderDataBlock
     /// <summary>
     /// Initializes a new instance from <see cref="KVObject"/> data.
     /// </summary>
-    public VfxCombo(KVObject data, int blockIndex) : base()
+    public VfxCombo(KVObject data, int blockIndex, int vcsVersion) : base()
     {
         BlockIndex = blockIndex;
-        Name = data.GetProperty<string>("m_szName");
-        AliasName = data.GetProperty<string>("m_szAliasName") ?? string.Empty;
+        Name = data.GetStringProperty("m_szName");
+        AliasName = data.GetStringProperty("m_szAliasName") ?? string.Empty;
         ComboType = data.GetEnumValue<VfxComboType>("m_comboType", normalize: true, stripExtension: "Type");
         RangeMin = data.GetInt32Property("m_nMin");
         RangeMax = data.GetInt32Property("m_nMax");
-        ComboSourceType = data.GetInt32Property("m_shaderComboSourceType");
+        ComboSourceType = NormalizeComboSourceType(data.GetInt32Property("m_shaderComboSourceType"), vcsVersion);
         FeatureIndex = data.GetInt32Property("m_iFeatureIndex");
         Strings = data.GetArray<string>("m_stringArray")!;
 
@@ -61,7 +62,7 @@ public class VfxCombo : ShaderDataBlock
     /// <summary>
     /// Initializes a new instance from a binary reader.
     /// </summary>
-    public VfxCombo(BinaryReader datareader, int blockIndex) : base(datareader)
+    public VfxCombo(BinaryReader datareader, int blockIndex, int vcsVersion) : base(datareader)
     {
         // CVfxCombo::Unserialize
         BlockIndex = blockIndex;
@@ -70,7 +71,7 @@ public class VfxCombo : ShaderDataBlock
         ComboType = (VfxComboType)datareader.ReadInt32();
         RangeMin = datareader.ReadInt32();
         RangeMax = datareader.ReadInt32();
-        ComboSourceType = datareader.ReadInt32();
+        ComboSourceType = NormalizeComboSourceType(datareader.ReadInt32(), vcsVersion);
         FeatureIndex = datareader.ReadInt32();
 
         var stringsCount = datareader.ReadInt32();
@@ -89,5 +90,15 @@ public class VfxCombo : ShaderDataBlock
         {
             FeatureComparisonValue = datareader.ReadInt32();
         }
+    }
+
+    private int NormalizeComboSourceType(int comboSourceType, int vcsVersion)
+    {
+        if (vcsVersion >= 71 && ComboType == VfxComboType.Static && comboSourceType >= (int)VfxStaticComboSourceType.S_BINDLESS_RUNTIME)
+        {
+            comboSourceType += 2;
+        }
+
+        return comboSourceType;
     }
 }

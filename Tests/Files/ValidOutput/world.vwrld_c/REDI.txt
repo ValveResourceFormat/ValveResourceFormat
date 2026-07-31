@@ -1,5 +1,8 @@
 "ResourceEditInfo"
 {
+	"InputDependencies"
+	{
+	}
 	"AdditionalInputDependencies"
 	{
 		"0"
@@ -7,28 +10,35 @@
 			"ContentRelativeFilename"	"maps/dota/world.vwrld"
 			"ContentSearchPath"	"dota"
 			"FileCRC"	"118052462"
+			"Optional"	"0"
 			"FileExists"	"1"
 			"IsGameFile"	"0"
-			"Optional"	"0"
 		}
-	}
-	"AdditionalRelatedFiles"
-	{
 	}
 	"ArgumentDependencies"
 	{
 		"0"
 		{
-			"Fingerprint"	"0"
-			"FingerprintDefault"	"0"
 			"ParameterName"	"___OverrideInputData___"
 			"ParameterType"	"BinaryBlobArg"
+			"Fingerprint"	"0"
+			"FingerprintDefault"	"0"
 		}
 	}
-	"ChildResourceList"
+	"SpecialDependencies"
+	{
+		"0"
+		{
+			"String"	"World Compiler Version"
+			"CompilerIdentifier"	"CompileWorld"
+			"Fingerprint"	"1"
+			"UserData"	"0"
+		}
+	}
+	"AdditionalRelatedFiles"
 	{
 	}
-	"InputDependencies"
+	"ChildResourceList"
 	{
 	}
 	"SearchableUserData"
@@ -37,16 +47,6 @@
 		{
 			"Key"	"IsChildResource"
 			"Value"	"1"
-		}
-	}
-	"SpecialDependencies"
-	{
-		"0"
-		{
-			"CompilerIdentifier"	"CompileWorld"
-			"Fingerprint"	"1"
-			"String"	"World Compiler Version"
-			"UserData"	"0"
 		}
 	}
 }

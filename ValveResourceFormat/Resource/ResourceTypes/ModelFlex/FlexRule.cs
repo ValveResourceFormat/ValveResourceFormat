@@ -5,6 +5,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelFlex
     /// <summary>
     /// Represents a flex rule that evaluates flex operations.
     /// </summary>
+    /// <seealso href="https://s2v.app/SchemaExplorer/cs2/modellib/CFlexRule">CFlexRule</seealso>
     public class FlexRule
     {
         /// <summary>

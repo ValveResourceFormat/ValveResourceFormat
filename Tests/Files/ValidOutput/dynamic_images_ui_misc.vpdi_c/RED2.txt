@@ -1,8 +1,7 @@
 <!-- kv3 encoding:text:version{e21c7f3c-8a33-41c5-9977-a76d3a32aa0d} format:generic:version{7412167c-06e9-4698-aff2-e63eb59037e7} -->
 {
-	m_InputDependencies =
+	m_InputDependencies = 
 	[
-
 		{
 			m_RelativeFilename = "panorama/dynamic_images_ui_misc.vpdi"
 			m_SearchPath = "csgo"
@@ -11,7 +10,6 @@
 			m_bFileExists = true
 			m_bIsGameFile = false
 		},
-
 		{
 			m_RelativeFilename = "panorama/images/stats_cards/stats_card_banner_0.png"
 			m_SearchPath = "csgo"
@@ -20,7 +18,6 @@
 			m_bFileExists = true
 			m_bIsGameFile = false
 		},
-
 		{
 			m_RelativeFilename = "panorama/images/stats_cards/stats_card_banner_0.txt"
 			m_SearchPath = "csgo"
@@ -29,7 +26,6 @@
 			m_bFileExists = false
 			m_bIsGameFile = false
 		},
-
 		{
 			m_RelativeFilename = "panorama/images/stats_cards/stats_card_banner_1.png"
 			m_SearchPath = "csgo"
@@ -38,7 +34,6 @@
 			m_bFileExists = true
 			m_bIsGameFile = false
 		},
-
 		{
 			m_RelativeFilename = "panorama/images/stats_cards/stats_card_banner_1.txt"
 			m_SearchPath = "csgo"
@@ -47,7 +42,6 @@
 			m_bFileExists = false
 			m_bIsGameFile = false
 		},
-
 		{
 			m_RelativeFilename = "panorama/images/stats_cards/stats_card_banner_2.png"
 			m_SearchPath = "csgo"
@@ -56,7 +50,6 @@
 			m_bFileExists = true
 			m_bIsGameFile = false
 		},
-
 		{
 			m_RelativeFilename = "panorama/images/stats_cards/stats_card_banner_2.txt"
 			m_SearchPath = "csgo"
@@ -65,7 +58,6 @@
 			m_bFileExists = false
 			m_bIsGameFile = false
 		},
-
 		{
 			m_RelativeFilename = "panorama/images/stats_cards/stats_card_banner_3.png"
 			m_SearchPath = "csgo"
@@ -74,7 +66,6 @@
 			m_bFileExists = true
 			m_bIsGameFile = false
 		},
-
 		{
 			m_RelativeFilename = "panorama/images/stats_cards/stats_card_banner_3.txt"
 			m_SearchPath = "csgo"
@@ -83,7 +74,6 @@
 			m_bFileExists = false
 			m_bIsGameFile = false
 		},
-
 		{
 			m_RelativeFilename = "panorama/images/stats_cards/stats_card_banner_4.png"
 			m_SearchPath = "csgo"
@@ -92,7 +82,6 @@
 			m_bFileExists = true
 			m_bIsGameFile = false
 		},
-
 		{
 			m_RelativeFilename = "panorama/images/stats_cards/stats_card_banner_4.txt"
 			m_SearchPath = "csgo"
@@ -101,7 +90,6 @@
 			m_bFileExists = false
 			m_bIsGameFile = false
 		},
-
 		{
 			m_RelativeFilename = "panorama/images/vpdi_sentinel.png"
 			m_SearchPath = "core"
@@ -110,7 +98,6 @@
 			m_bFileExists = true
 			m_bIsGameFile = false
 		},
-
 		{
 			m_RelativeFilename = "panorama/images/vpdi_sentinel.txt"
 			m_SearchPath = "csgo"
@@ -119,7 +106,6 @@
 			m_bFileExists = false
 			m_bIsGameFile = false
 		},
-
 		{
 			m_RelativeFilename = "panorama/preprocessor_config.txt"
 			m_SearchPath = "csgo"
@@ -129,145 +115,123 @@
 			m_bIsGameFile = false
 		},
 	]
-	m_AdditionalInputDependencies =
+	m_AdditionalInputDependencies = [  ]
+	m_ArgumentDependencies = 
 	[
-	]
-	m_ArgumentDependencies =
-	[
-
 		{
 			m_ParameterName = "___OverrideInputData___"
 			m_ParameterType = "BinaryBlobArg"
 			m_nFingerprint = 0
 			m_nFingerprintDefault = 0
 		},
-
 		{
 			m_ParameterName = "compress"
 			m_ParameterType = "IntArg"
 			m_nFingerprint = 0
 			m_nFingerprintDefault = 0
 		},
-
 		{
 			m_ParameterName = "etc"
 			m_ParameterType = "IntArg"
 			m_nFingerprint = 0
 			m_nFingerprintDefault = 0
 		},
-
 		{
 			m_ParameterName = "fast"
 			m_ParameterType = "IntArg"
 			m_nFingerprint = 0
 			m_nFingerprintDefault = 0
 		},
-
 		{
 			m_ParameterName = "final"
 			m_ParameterType = "IntArg"
 			m_nFingerprint = 0
 			m_nFingerprintDefault = 0
 		},
-
 		{
 			m_ParameterName = "maxcompiledtextureres"
 			m_ParameterType = "FloatArg"
 			m_nFingerprint = 0
 			m_nFingerprintDefault = 0
 		},
-
 		{
 			m_ParameterName = "maxmipsize"
 			m_ParameterType = "FloatArg"
 			m_nFingerprint = 1233125376
 			m_nFingerprintDefault = 1233125376
 		},
-
 		{
 			m_ParameterName = "minmipsize"
 			m_ParameterType = "FloatArg"
 			m_nFingerprint = 0
 			m_nFingerprintDefault = 0
 		},
-
 		{
 			m_ParameterName = "panorama/images/stats_cards/stats_card_banner_0.png"
 			m_ParameterType = "ImageArg"
 			m_nFingerprint = 0
 			m_nFingerprintDefault = 0
 		},
-
 		{
 			m_ParameterName = "panorama/images/stats_cards/stats_card_banner_0.png"
 			m_ParameterType = "BinaryBlobArg"
 			m_nFingerprint = 0
 			m_nFingerprintDefault = 0
 		},
-
 		{
 			m_ParameterName = "panorama/images/stats_cards/stats_card_banner_1.png"
 			m_ParameterType = "ImageArg"
 			m_nFingerprint = 0
 			m_nFingerprintDefault = 0
 		},
-
 		{
 			m_ParameterName = "panorama/images/stats_cards/stats_card_banner_1.png"
 			m_ParameterType = "BinaryBlobArg"
 			m_nFingerprint = 0
 			m_nFingerprintDefault = 0
 		},
-
 		{
 			m_ParameterName = "panorama/images/stats_cards/stats_card_banner_2.png"
 			m_ParameterType = "ImageArg"
 			m_nFingerprint = 0
 			m_nFingerprintDefault = 0
 		},
-
 		{
 			m_ParameterName = "panorama/images/stats_cards/stats_card_banner_2.png"
 			m_ParameterType = "BinaryBlobArg"
 			m_nFingerprint = 0
 			m_nFingerprintDefault = 0
 		},
-
 		{
 			m_ParameterName = "panorama/images/stats_cards/stats_card_banner_3.png"
 			m_ParameterType = "ImageArg"
 			m_nFingerprint = 0
 			m_nFingerprintDefault = 0
 		},
-
 		{
 			m_ParameterName = "panorama/images/stats_cards/stats_card_banner_3.png"
 			m_ParameterType = "BinaryBlobArg"
 			m_nFingerprint = 0
 			m_nFingerprintDefault = 0
 		},
-
 		{
 			m_ParameterName = "panorama/images/stats_cards/stats_card_banner_4.png"
 			m_ParameterType = "ImageArg"
 			m_nFingerprint = 0
 			m_nFingerprintDefault = 0
 		},
-
 		{
 			m_ParameterName = "panorama/images/stats_cards/stats_card_banner_4.png"
 			m_ParameterType = "BinaryBlobArg"
 			m_nFingerprint = 0
 			m_nFingerprintDefault = 0
 		},
-
 		{
 			m_ParameterName = "panorama/images/vpdi_sentinel.png"
 			m_ParameterType = "ImageArg"
 			m_nFingerprint = 0
 			m_nFingerprintDefault = 0
 		},
-
 		{
 			m_ParameterName = "panorama/images/vpdi_sentinel.png"
 			m_ParameterType = "BinaryBlobArg"
@@ -275,44 +239,38 @@
 			m_nFingerprintDefault = 0
 		},
 	]
-	m_SpecialDependencies =
+	m_SpecialDependencies = 
 	[
-
 		{
 			m_String = "Panorama Dynamic Images Compiler Version"
 			m_CompilerIdentifier = "CompilePanorama"
 			m_nFingerprint = 3
 			m_nUserData = 0
 		},
-
 		{
 			m_String = "Panorama Preprocessor Presence/Version"
 			m_CompilerIdentifier = "CompilePanorama"
 			m_nFingerprint = 6
 			m_nUserData = 0
 		},
-
 		{
 			m_String = "Texture Compiler Version"
 			m_CompilerIdentifier = "CompileTexture"
 			m_nFingerprint = 11
 			m_nUserData = 0
 		},
-
 		{
 			m_String = "Texture Compiler Version Image Dilate Color"
 			m_CompilerIdentifier = "CompileTexture"
 			m_nFingerprint = 1
 			m_nUserData = 0
 		},
-
 		{
 			m_String = "Texture Compiler Version Mip None"
 			m_CompilerIdentifier = "CompileTexture"
 			m_nFingerprint = 1
 			m_nUserData = 0
 		},
-
 		{
 			m_String = "Texture Encode Quality"
 			m_CompilerIdentifier = "CompileTexture"
@@ -320,10 +278,8 @@
 			m_nUserData = 3
 		},
 	]
-	m_AdditionalRelatedFiles =
-	[
-	]
-	m_ChildResourceList =
+	m_AdditionalRelatedFiles = [  ]
+	m_ChildResourceList = 
 	[
 		"panorama/dynamic_images_ui_misc_sentinel.vtex",
 		"panorama/images/stats_cards/stats_card_banner_0_png.vtex",
@@ -332,10 +288,8 @@
 		"panorama/images/stats_cards/stats_card_banner_3_png.vtex",
 		"panorama/images/stats_cards/stats_card_banner_4_png.vtex",
 	]
-	m_WeakReferenceList =
-	[
-	]
-	m_SearchableUserData =
+	m_WeakReferenceList = [  ]
+	m_SearchableUserData = 
 	{
 		IsChildResource = 0
 	}

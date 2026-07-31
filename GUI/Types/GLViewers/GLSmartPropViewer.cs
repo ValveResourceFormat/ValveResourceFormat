@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using GUI.Utils;
 using ValveResourceFormat.Renderer;
+using ValveResourceFormat.Renderer.SceneNodes;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.Serialization.KeyValues;
 
@@ -19,7 +20,7 @@ namespace GUI.Types.GLViewers
         {
             base.LoadScene();
 
-            var children = smartProp.Data.GetArray("m_Children");
+            var children = smartProp.Data.Root.GetArray("m_Children");
 
             foreach (var child in children)
             {

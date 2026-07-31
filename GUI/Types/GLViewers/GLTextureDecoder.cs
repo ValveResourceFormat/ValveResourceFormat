@@ -9,6 +9,7 @@ using ValveResourceFormat;
 using ValveResourceFormat.CompiledShader;
 using ValveResourceFormat.IO;
 using ValveResourceFormat.Renderer;
+using ValveResourceFormat.Renderer.Materials;
 using ValveResourceFormat.TextureDecoders;
 using static ValveResourceFormat.ResourceTypes.Texture;
 
@@ -126,7 +127,7 @@ public class GLTextureDecoder : IHardwareTextureDecoder, IDisposable
     {
         RendererContext.Logger.LogInformation("Initializing GPU texture decoder...");
 
-        GLWindowContext = new NativeWindow(new()
+        GLWindowContext = NativeWindowFactory.Create(new()
         {
             APIVersion = GLEnvironment.RequiredVersion,
             Flags = GLBaseControl.Flags | OpenTK.Windowing.Common.ContextFlags.Offscreen,
@@ -263,7 +264,7 @@ public class GLTextureDecoder : IHardwareTextureDecoder, IDisposable
 
     private void Dispose_ThreadResources()
     {
-        GLWindowContext?.Dispose();
+        NativeWindowFactory.Destroy(GLWindowContext);
     }
 
     private void Exit()

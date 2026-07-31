@@ -1,5 +1,11 @@
 namespace ValveResourceFormat.Renderer.Particles.Initializers
 {
+    /// <summary>
+    /// Places particles at random positions within an axis-aligned box defined by a minimum and
+    /// maximum corner vector, offset by a control point. An optional scale control point can
+    /// uniformly scale the box extents.
+    /// </summary>
+    /// <seealso href="https://s2v.app/SchemaExplorer/cs2/particles/C_INIT_CreateWithinBox">C_INIT_CreateWithinBox</seealso>
     class CreateWithinBox : ParticleFunctionInitializer
     {
         private readonly IVectorProvider min = new LiteralVectorProvider(Vector3.Zero);
@@ -16,7 +22,7 @@ namespace ValveResourceFormat.Renderer.Particles.Initializers
             scaleCP = parse.Int32("m_nScaleCP", scaleCP);
         }
 
-        public override Particle Initialize(ref Particle particle, ParticleSystemRenderState particleSystemState)
+        public override Particle Initialize(ref Particle particle, ParticleCollection particles, ParticleSystemRenderState particleSystemState)
         {
             var posMin = min.NextVector(ref particle, particleSystemState);
             var posMax = max.NextVector(ref particle, particleSystemState);

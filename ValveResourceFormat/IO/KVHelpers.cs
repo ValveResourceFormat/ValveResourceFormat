@@ -1,4 +1,4 @@
-using ValveResourceFormat.Serialization.KeyValues;
+using ValveKeyValue;
 
 namespace ValveResourceFormat.IO;
 
@@ -6,36 +6,62 @@ internal class KVHelpers
 {
     internal static KVObject MakeNode(string className, KVObject @object)
     {
-        var node = new KVObject(className, @object.Properties.Count + 1);
-        node.AddProperty("_class", className);
+        var node = KVObject.Collection();
+        node.Add("_class", className);
 
-        foreach (var property in @object.Properties)
+        foreach (var (key, child) in @object)
         {
-            if (property.Key == "_class")
+            if (key == "_class")
             {
                 continue;
             }
 
-            node.AddProperty(property.Key, property.Value);
+            node.Add(key, child);
         }
 
         return node;
     }
-    internal static KVObject MakeNode(string className, params (string Name, object Value)[] properties)
+    internal static KVObject MakeNode(string className, params (string Name, KVObject Value)[] properties)
     {
-        var node = new KVObject(className, capacity: properties.Length + 1);
-        node.AddProperty("_class", className);
+        var node = KVObject.Collection();
+        node.Add("_class", className);
         foreach (var prop in properties)
         {
-            node.AddProperty(prop.Name, prop.Value);
+            node.Add(prop.Name, prop.Value);
         }
         return node;
     }
 
     internal static (KVObject Node, KVObject Children) MakeListNode(string className, string containerName = "children")
     {
-        var children = new KVObject(null, isArray: true);
+        var children = KVObject.Array();
         var node = MakeNode(className, (containerName, children));
         return (node, children);
     }
+
+    internal static KVObject MakeArray(params KVObject[] values)
+    {
+        var arr = KVObject.Array();
+        foreach (var v in values)
+        {
+            arr.Add(v);
+        }
+        return arr;
+    }
+
+    internal static KVObject MakeArray(IEnumerable<KVObject> values)
+    {
+        var arr = KVObject.Array();
+        foreach (var v in values)
+        {
+            arr.Add(v);
+        }
+        return arr;
+    }
+
+    internal static KVObject ToKVArray(Vector3 v)
+        => MakeArray(v.X, v.Y, v.Z);
+
+    internal static KVObject ToKVArray(Quaternion q)
+        => MakeArray(q.X, q.Y, q.Z, q.W);
 }

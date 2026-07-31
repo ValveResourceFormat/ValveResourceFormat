@@ -1,22 +1,22 @@
 namespace ValveResourceFormat.Renderer.Particles.Operators
 {
+    /// <summary>
+    /// Applies noise to a scalar particle attribute, mapping a noise value into a configurable
+    /// output range. Can operate additively or by replacing the current value.
+    /// </summary>
+    /// <seealso href="https://s2v.app/SchemaExplorer/cs2/particles/C_OP_Noise">C_OP_Noise</seealso>
     class Noise : ParticleFunctionOperator
     {
         private readonly INumberProvider outputMin = new LiteralNumberProvider(0);
         private readonly INumberProvider outputMax = new LiteralNumberProvider(1);
         private readonly ParticleField OutputField = ParticleField.Radius;
         private readonly bool Additive;
-        //private readonly float noiseScale;
-        //private readonly float noiseAnimationTimeScale;
 
         public Noise(ParticleDefinitionParser parse) : base(parse)
         {
             OutputField = parse.ParticleField("m_nFieldOutput", OutputField);
             outputMin = parse.NumberProvider("m_flOutputMin", outputMin);
             outputMax = parse.NumberProvider("m_flOutputMax", outputMax);
-            //noiseScale = parse.Float("m_fl4NoiseScale", 1.0f);
-            //noiseAnimationTimeScale = parse.Float("m_flNoiseAnimationTimeScale", 0.0f);
-
             Additive = parse.Boolean("m_bAdditive", false);
         }
 
@@ -45,9 +45,7 @@ namespace ValveResourceFormat.Renderer.Particles.Operators
 
             foreach (ref var particle in particles.Current)
             {
-                // Valve uses NoiseSIMD which uses much more complicated deterministic noise based on coord
-                //var coord = particle.Position * noiseScale;
-
+                // Spatial noise is approximated here with per-particle randomness.
                 var noiseValue = ParticleCollection.RandomBetween(particle.ParticleID, -1f, 1f);
 
                 var finalValue = valueBase + valueScale * noiseValue;

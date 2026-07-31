@@ -1,5 +1,5 @@
+using ValveKeyValue;
 using ValveResourceFormat.ResourceTypes.Choreo.Curves;
-using ValveResourceFormat.Serialization.KeyValues;
 
 namespace ValveResourceFormat.ResourceTypes.Choreo
 {
@@ -79,19 +79,19 @@ namespace ValveResourceFormat.ResourceTypes.Choreo
         /// <returns>A <see cref="KVObject"/> representing this sample.</returns>
         public KVObject ToKeyValues()
         {
-            var kv = new KVObject(null);
+            var kv = KVObject.Collection();
 
-            kv.AddProperty("time", Time);
-            kv.AddProperty("value", Value);
+            kv.Add("time", Time);
+            kv.Add("value", Value);
 
             if (Curve != null)
             {
-                kv.AddProperty("curvetype", Curve.Value.ToKeyValue());
+                kv.Add("curvetype", Curve.Value.ToKeyValue());
             }
 
             if (Bezier != null)
             {
-                kv.AddProperty("bezier", Bezier.Value.ToKeyValue());
+                kv.Add("bezier", Bezier.Value.ToKeyValue());
             }
 
             return kv;

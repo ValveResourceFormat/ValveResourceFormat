@@ -1,4 +1,5 @@
 using System.Collections.Frozen;
+using ValveKeyValue.KeyValues3;
 
 namespace ValveResourceFormat.Serialization.KeyValues;
 
@@ -13,12 +14,12 @@ namespace ValveResourceFormat.Serialization.KeyValues;
 //
 
 /// <summary>
-/// Provides lookup for <see cref="KeyValues3"/> identifiers.
+/// Provides lookup for KV3 identifiers.
 /// </summary>
 public static class KV3IDLookup
 {
     /// <summary>
-    /// Gets the mapping of <see cref="KV3ID"/> names to their GUIDs.
+    /// Gets the mapping of KV3ID names to their GUIDs.
     /// </summary>
     public static readonly FrozenDictionary<string, Guid> Table = new Dictionary<string, Guid>()
     {
@@ -210,7 +211,7 @@ public static class KV3IDLookup
     }.ToFrozenDictionary();
 
     /// <summary>
-    /// Lookups a <see cref="KV3ID"/> in the lookup table, will throw <see cref="ArgumentException"/> if not found.
+    /// Looks up a <see cref="KV3ID"/> in the lookup table, will throw <see cref="ArgumentException"/> if not found.
     /// </summary>
     public static KV3ID Get(string name)
     {
@@ -223,7 +224,7 @@ public static class KV3IDLookup
     }
 
     /// <summary>
-    /// Lookup a <see cref="KV3ID"/> in the lookup table, will return a <see cref="KV3ID"/> with name set to "vrfunknown" if not found.
+    /// Looks up a <see cref="KV3ID"/> in the lookup table, will return a <see cref="KV3ID"/> with name set to "vrfunknown" if not found.
     /// </summary>
     public static KV3ID GetByValue(Guid value)
     {

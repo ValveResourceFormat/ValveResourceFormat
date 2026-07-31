@@ -1,5 +1,6 @@
 using System.Globalization;
 using System.IO;
+using ValveKeyValue;
 using ValveResourceFormat.Blocks.ResourceEditInfoStructs;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.Serialization.KeyValues;
@@ -15,6 +16,11 @@ namespace ValveResourceFormat.Blocks
         public override BlockType Type => BlockType.RED2;
 
         private BinaryKV3? BackingData;
+
+        /// <summary>
+        /// Gets the parsed KV3 document, if available.
+        /// </summary>
+        public KVDocument? Data => BackingData?.Data;
 
         /// <summary>
         /// Gets the list of weak references.
@@ -54,17 +60,18 @@ namespace ValveResourceFormat.Blocks
 
             static void ReadItems<T>(BinaryKV3 kv3, List<T> list, string key, Func<KVObject, T> constructor)
             {
-                var container = kv3.Data.Properties.GetValueOrDefault(key).Value as KVObject;
+                var container = kv3.Data[key];
                 ArgumentNullException.ThrowIfNull(container, key);
                 ArgumentOutOfRangeException.ThrowIfEqual(container.IsArray, false, key);
 
                 list.EnsureCapacity(container.Count);
 
-                foreach (var item in container)
+                var items = kv3.Data.Root.GetArray(key);
+                if (items != null)
                 {
-                    if (item.Value is KVObject kvObject)
+                    foreach (var item in items)
                     {
-                        var newItem = constructor.Invoke(kvObject);
+                        var newItem = constructor.Invoke(item);
                         list.Add(newItem);
                     }
                 }
@@ -76,65 +83,69 @@ namespace ValveResourceFormat.Blocks
             ReadItems(kv3, SpecialDependencies, "m_SpecialDependencies", static (KVObject data) => new SpecialDependency(data));
             ReadItems(kv3, AdditionalRelatedFiles, "m_AdditionalRelatedFiles", static (KVObject data) => new AdditionalRelatedFile(data));
 
-            var childResources = kv3.Data.GetArray<string>("m_ChildResourceList");
+            var childResources = kv3.Data.Root.GetArray<string>("m_ChildResourceList");
             if (childResources != null)
             {
                 ChildResourceList.AddRange(childResources);
             }
 
-            var weakReferences = kv3.Data.GetArray<string>("m_WeakReferenceList");
+            var weakReferences = kv3.Data.Root.GetArray<string>("m_WeakReferenceList");
             if (weakReferences is not null)
             {
                 WeakReferenceList.AddRange(weakReferences);
             }
 
-            var searchableData = kv3.Data.GetProperty<KVObject>("m_SearchableUserData");
+            var searchableData = kv3.Data.Root.GetSubCollection("m_SearchableUserData");
             if (searchableData is not null)
             {
-                SearchableUserData.Properties.EnsureCapacity(searchableData.Properties.Count);
-
-                foreach (var property in searchableData.Properties)
+                foreach (var (key, child) in searchableData)
                 {
-                    SearchableUserData.Properties.Add(property.Key, property.Value);
+                    SearchableUserData.Add(key, child);
                 }
             }
 
-            var subassetReferences = kv3.Data.GetProperty<KVObject>("m_SubassetReferences");
+            var subassetReferences = kv3.Data.Root.GetSubCollection("m_SubassetReferences");
             if (subassetReferences != null)
             {
                 SubassetReferences = new(capacity: subassetReferences.Count);
 
-                foreach (var property in subassetReferences)
+                foreach (var (propertyKey, property) in subassetReferences)
                 {
-                    if (property.Value is KVObject perTypeReferencesKv)
+                    if (property.ValueType != KVValueType.Collection)
                     {
-                        var perTypeReferences = new Dictionary<string, int>(capacity: perTypeReferencesKv.Count);
-
-                        foreach (var (refName, refCount) in perTypeReferencesKv)
-                        {
-                            perTypeReferences.Add(refName, Convert.ToInt32(refCount, CultureInfo.InvariantCulture));
-                        }
-
-                        var subassetType = property.Key;
-                        SubassetReferences.Add(subassetType, perTypeReferences);
+                        continue;
                     }
+
+                    var perTypeReferences = new Dictionary<string, int>(capacity: property.Count);
+
+                    foreach (var (childKey, child) in property)
+                    {
+                        perTypeReferences.Add(childKey, Convert.ToInt32(child, CultureInfo.InvariantCulture));
+                    }
+
+                    SubassetReferences.Add(propertyKey, perTypeReferences);
                 }
             }
 
-            var subassetDefinitions = kv3.Data.GetProperty<KVObject>("m_SubassetDefinitions");
+            var subassetDefinitions = kv3.Data.Root.GetSubCollection("m_SubassetDefinitions");
             if (subassetDefinitions != null)
             {
                 SubassetDefinitions = new(capacity: subassetDefinitions.Count);
 
-                foreach (var property in subassetDefinitions)
+                foreach (var (propertyKey, property) in subassetDefinitions)
                 {
-                    var subassetType = property.Key;
-                    var definitions = subassetDefinitions.GetArray<string>(subassetType);
-
-                    if (definitions != null)
+                    if (property.ValueType != KVValueType.Array)
                     {
-                        SubassetDefinitions.Add(subassetType, definitions);
+                        continue;
                     }
+
+                    var definitions = new string[property.Count];
+                    for (var i = 0; i < property.Count; i++)
+                    {
+                        definitions[i] = (string)property[i]!;
+                    }
+
+                    SubassetDefinitions.Add(propertyKey, definitions);
                 }
             }
         }

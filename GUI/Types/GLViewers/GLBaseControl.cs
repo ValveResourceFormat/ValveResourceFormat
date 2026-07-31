@@ -9,10 +9,12 @@ using OpenTK.Graphics.OpenGL;
 using OpenTK.Windowing.Common;
 using OpenTK.Windowing.Desktop;
 using ValveResourceFormat.Renderer;
+using ValveResourceFormat.Renderer.Input;
+using Windows.Win32;
 
 namespace GUI.Types.GLViewers;
 
-internal abstract class GLBaseControl : IDisposable
+internal abstract class GLBaseControl : IDisposable, IMessageFilter
 {
     protected RendererControl? UiControl;
 
@@ -29,6 +31,16 @@ internal abstract class GLBaseControl : IDisposable
     protected TrackedKeys CurrentlyPressedKeys;
     public Point LastMouseDelta { get; protected set; }
 
+    /// <summary>Whether the mouse has moved while a button was held since the last mouse down.</summary>
+    protected bool MouseDragged;
+
+    private readonly Lock inputStateLock = new();
+    private Point pendingMouseDelta;
+    private int pendingMouseWheelDelta;
+    private bool cursorHiddenForDrag;
+    private bool currentDragIsTouch;
+    private bool mouseLookNeedsRebase;
+
     public bool GrabbedMouse
     {
         get;
@@ -36,8 +48,14 @@ internal abstract class GLBaseControl : IDisposable
         {
             if (field != value)
             {
-                Action changeCursorVisibility = value ? Cursor.Hide : Cursor.Show;
-                GLControl?.BeginInvoke(changeCursorVisibility);
+                if (value)
+                {
+                    mouseLookNeedsRebase = true;
+                }
+                else
+                {
+                    GLControl?.BeginInvoke(RestoreCursorAfterDrag);
+                }
             }
 
             field = value;
@@ -90,12 +108,11 @@ internal abstract class GLBaseControl : IDisposable
         GLControl.MouseLeave += OnMouseLeave;
         GLControl.MouseUp += OnMouseUp;
         GLControl.MouseDown += OnMouseDown;
-        GLControl.MouseMove += OnMouseMove;
-        GLControl.MouseWheel += OnMouseWheel;
-        GLControl.PreviewKeyDown += OnPreviewKeyDown;
-        GLControl.KeyDown += OnKeyDown;
-        GLControl.KeyUp += OnKeyUp;
         GLControl.LostFocus += OnLostFocus;
+
+        // High-frequency input (mouse move, wheel, keyboard) is intercepted as raw window messages
+        // instead of WinForms events, whose args allocate on every message. See PreFilterMessage.
+        Application.AddMessageFilter(this);
 
         UiControl = new(isPreview)
         {
@@ -144,35 +161,90 @@ internal abstract class GLBaseControl : IDisposable
         }
     }
 
+    /// <summary>
+    /// Force the GL control to redraw. Used when the viewer becomes visible after being obscured (e.g. by a
+    /// loading panel), which does not reliably deliver a paint message to the underlying GL control on its own.
+    /// </summary>
+    public virtual void NotifyVisible()
+    {
+        GLControl?.Invalidate();
+    }
+
     protected virtual void AddUiControls()
     {
         // Implemented in derived classes
     }
 
-    private void OnPreviewKeyDown(object? sender, PreviewKeyDownEventArgs e)
+    private const int WM_KEYDOWN = 0x0100;
+    private const int WM_KEYUP = 0x0101;
+    private const int WM_SYSKEYDOWN = 0x0104;
+    private const int WM_SYSKEYUP = 0x0105;
+    private const int WM_MOUSEMOVE = 0x0200;
+    private const int WM_MOUSEWHEEL = 0x020A;
+
+    /// <summary>
+    /// Intercepts the GL control's high-frequency input messages before WinForms translates each one
+    /// into freshly allocated event args (MouseEventArgs, KeyEventArgs, PreviewKeyDownEventArgs).
+    /// Swallowing them here also sinks all shortcuts into the control, which the previous event-based
+    /// path did via PreviewKeyDown.IsInputKey and KeyEventArgs.SuppressKeyPress.
+    /// </summary>
+    public bool PreFilterMessage(ref Message m)
     {
-        // Sink all inputs into gl control to prevent shortcuts like Ctrl+W and just pressing Alt going to parent
-        e.IsInputKey = true;
+        if (GLControl is not { IsHandleCreated: true } || m.HWnd != GLControl.Handle)
+        {
+            return false;
+        }
+
+        switch (m.Msg)
+        {
+            case WM_MOUSEMOVE:
+                OnMouseMove((short)m.LParam, (short)((nint)m.LParam >> 16));
+
+                // Let the first move of each hover reach the control, so WinForms fires MouseEnter
+                // and re-arms its WM_MOUSELEAVE tracking; swallow the rest of the flood.
+                return MouseOverRenderArea;
+
+            case WM_MOUSEWHEEL:
+                var screenPosition = new Point((short)m.LParam, (short)((nint)m.LParam >> 16));
+                OnMouseWheel((short)((nint)m.WParam >> 16), GLControl.PointToClient(screenPosition));
+                return true;
+
+            case WM_KEYDOWN or WM_SYSKEYDOWN:
+                OnKeyDown(((Keys)m.WParam & Keys.KeyCode) | Control.ModifierKeys);
+                return true;
+
+            case WM_KEYUP or WM_SYSKEYUP:
+                OnKeyUp((Keys)m.WParam & Keys.KeyCode);
+                return true;
+
+            default:
+                return false;
+        }
     }
 
-    protected virtual void OnKeyDown(object? sender, KeyEventArgs e)
+    protected virtual void OnKeyDown(Keys keyData)
     {
-        CurrentlyPressedKeys |= RemapKey(e.KeyCode);
+        var keyCode = keyData & Keys.KeyCode;
 
-        e.Handled = true;
-        e.SuppressKeyPress = true;
+        using (inputStateLock.EnterScope())
+        {
+            CurrentlyPressedKeys |= RemapKey(keyCode);
+        }
 
-        if (e.KeyData == (Keys.Control | Keys.C))
+        if (keyData == (Keys.Control | Keys.C))
         {
             var title = Program.MainForm.Text;
             Program.MainForm.Text = "Source 2 Viewer - Copying image to clipboard…";
             Application.DoEvents(); // Force the updated text to show up
 
             using var bitmap = ReadPixelsToBitmap();
-            if (bitmap != null)
+            if (bitmap == null)
             {
-                Log.Error(nameof(GLBaseControl), "Failed to copy image to clipboard, bitmat was null");
-                ClipboardSetImage(bitmap);
+                Log.Error(nameof(GLBaseControl), "Failed to copy image to clipboard, bitmap was null");
+            }
+            else
+            {
+                AppClipboard.SetImage(bitmap);
             }
 
             Program.MainForm.Text = title;
@@ -180,14 +252,14 @@ internal abstract class GLBaseControl : IDisposable
             return;
         }
 
-        if ((e.KeyCode == Keys.Escape || e.KeyCode == Keys.F11) && FullScreenForm != null)
+        if ((keyCode == Keys.Escape || keyCode == Keys.F11) && FullScreenForm != null)
         {
             FullScreenForm.Close();
 
             return;
         }
 
-        if (e.KeyCode == Keys.F11)
+        if (keyCode == Keys.F11)
         {
             var currentScreen = Screen.FromControl(Program.MainForm);
 
@@ -210,9 +282,10 @@ internal abstract class GLBaseControl : IDisposable
         }
     }
 
-    private void OnKeyUp(object? sender, KeyEventArgs e)
+    protected virtual void OnKeyUp(Keys keyCode)
     {
-        CurrentlyPressedKeys &= ~RemapKey(e.KeyCode);
+        using var _ = inputStateLock.EnterScope();
+        CurrentlyPressedKeys &= ~RemapKey(keyCode);
     }
 
     protected virtual void OnResize(int w, int h)
@@ -239,26 +312,33 @@ internal abstract class GLBaseControl : IDisposable
     {
         CurrentlyPressedKeys = TrackedKeys.None;
         MouseDelta = Point.Empty;
+        currentDragIsTouch = false;
+        mouseLookNeedsRebase = true;
         GrabbedMouse = false;
+        RestoreCursorAfterDrag();
     }
 
     private static TrackedKeys RemapKey(Keys key) => key switch
     {
-        Keys.W => TrackedKeys.Forward,
-        Keys.A => TrackedKeys.Left,
-        Keys.S => TrackedKeys.Back,
-        Keys.D => TrackedKeys.Right,
-        Keys.Q => TrackedKeys.Up,
-        Keys.Z => TrackedKeys.Down,
-        Keys.Up => TrackedKeys.Forward,
-        Keys.Down => TrackedKeys.Back,
-        Keys.Left => TrackedKeys.Left,
-        Keys.Right => TrackedKeys.Right,
+        Keys.W => TrackedKeys.W,
+        Keys.A => TrackedKeys.A,
+        Keys.S => TrackedKeys.S,
+        Keys.D => TrackedKeys.D,
+        Keys.Q => TrackedKeys.Q,
+        Keys.Z => TrackedKeys.Z,
+        Keys.Up => TrackedKeys.W,
+        Keys.Down => TrackedKeys.S,
+        Keys.Left => TrackedKeys.A,
+        Keys.Right => TrackedKeys.D,
         Keys.ControlKey => TrackedKeys.Control,
         Keys.ShiftKey or Keys.LShiftKey => TrackedKeys.Shift,
         Keys.Menu or Keys.LMenu => TrackedKeys.Alt,
         Keys.Space => TrackedKeys.Space,
         Keys.X => TrackedKeys.X,
+        Keys.D1 => TrackedKeys.Slot1,
+        Keys.D2 => TrackedKeys.Slot2,
+        Keys.D3 => TrackedKeys.Slot3,
+        Keys.F => TrackedKeys.F,
         Keys.Escape => TrackedKeys.Escape,
         _ => TrackedKeys.None,
     };
@@ -278,6 +358,12 @@ internal abstract class GLBaseControl : IDisposable
     {
         using var lockedGl = glLock.EnterScope();
 
+        if (cursorHiddenForDrag)
+        {
+            cursorHiddenForDrag = false;
+            Cursor.Show();
+        }
+
         if (GLControl is not null)
         {
             RenderLoopThread.UnsetCurrentGLControl(this);
@@ -289,12 +375,9 @@ internal abstract class GLBaseControl : IDisposable
             GLControl.MouseLeave -= OnMouseLeave;
             GLControl.MouseUp -= OnMouseUp;
             GLControl.MouseDown -= OnMouseDown;
-            GLControl.MouseMove -= OnMouseMove;
-            GLControl.MouseWheel -= OnMouseWheel;
-            GLControl.PreviewKeyDown -= OnPreviewKeyDown;
-            GLControl.KeyDown -= OnKeyDown;
-            GLControl.KeyUp -= OnKeyUp;
             GLControl.LostFocus -= OnLostFocus;
+
+            Application.RemoveMessageFilter(this);
 
             UiControl?.Dispose();
         }
@@ -304,7 +387,7 @@ internal abstract class GLBaseControl : IDisposable
 #endif
 
         FullScreenForm?.Dispose();
-        GLNativeWindow?.Dispose();
+        NativeWindowFactory.Destroy(GLNativeWindow);
         RendererContext.Dispose();
     }
 
@@ -327,6 +410,9 @@ internal abstract class GLBaseControl : IDisposable
 
         InitialMousePosition = new Point(e.X, e.Y);
         MouseDelta = Point.Empty;
+        MouseDragged = false;
+        currentDragIsTouch = IsTouchOrPenInput();
+        mouseLookNeedsRebase = true;
 
         if (GLControl != null)
         {
@@ -346,6 +432,7 @@ internal abstract class GLBaseControl : IDisposable
 
     protected virtual void OnMouseUp(object? sender, MouseEventArgs e)
     {
+        using var _ = inputStateLock.EnterScope();
         if (e.Button == MouseButtons.Left)
         {
             CurrentlyPressedKeys &= ~TrackedKeys.MouseLeft;
@@ -358,87 +445,135 @@ internal abstract class GLBaseControl : IDisposable
 
         if ((CurrentlyPressedKeys & TrackedKeys.MouseLeftOrRight) == 0)
         {
+            pendingMouseDelta = Point.Empty;
             MouseDelta = Point.Empty;
+            currentDragIsTouch = false;
+            mouseLookNeedsRebase = true;
+
+            if (!GrabbedMouse)
+            {
+                RestoreCursorAfterDrag();
+            }
         }
     }
 
-    protected virtual void OnMouseMove(object? sender, MouseEventArgs e)
+    private void RestoreCursorAfterDrag()
     {
-        if (!GrabbedMouse && (CurrentlyPressedKeys & TrackedKeys.MouseLeftOrRight) == 0)
+        if (!cursorHiddenForDrag)
         {
             return;
         }
 
+        cursorHiddenForDrag = false;
+        Cursor.Position = MousePreviousPosition;
+        Cursor.Show();
+    }
+
+    protected virtual void OnMouseMove(int x, int y)
+    {
         if (GLControl == null)
         {
             return;
         }
 
-        var position = GLControl.PointToScreen(new Point(e.X, e.Y));
-        var topLeft = GLControl.PointToScreen(Point.Empty);
-        var bottomRight = topLeft + GLControl.Size;
+        var dragging = (CurrentlyPressedKeys & TrackedKeys.MouseLeftOrRight) != 0;
+        var touch = currentDragIsTouch || IsTouchOrPenInput();
 
-        // Windows has a 1px edge on bottom and right of the screen where cursor can't reach
-        // (assuming that there is no secondary screen past these edges)
-        bottomRight.X -= 1;
-        bottomRight.Y -= 1;
-
-        var positionWrapped = position;
-
-        if (position.X <= topLeft.X)
+        if (!dragging && !(GrabbedMouse && !touch))
         {
-            MouseDelta.X--;
-            positionWrapped.X = bottomRight.X - 1;
-        }
-        else if (position.X >= bottomRight.X)
-        {
-            MouseDelta.X++;
-            positionWrapped.X = topLeft.X + 1;
-        }
-
-        if (position.Y <= topLeft.Y)
-        {
-            MouseDelta.Y--;
-            positionWrapped.Y = bottomRight.Y - 1;
-        }
-        else if (position.Y >= bottomRight.Y)
-        {
-            MouseDelta.Y++;
-            positionWrapped.Y = topLeft.Y + 1;
-        }
-
-        if (positionWrapped != position)
-        {
-            // When wrapping cursor, add only 1px delta movement above
-            MousePreviousPosition = positionWrapped;
-            Cursor.Position = positionWrapped;
             return;
         }
 
-        MouseDelta.X += position.X - MousePreviousPosition.X;
-        MouseDelta.Y += position.Y - MousePreviousPosition.Y;
-        MousePreviousPosition = position;
+        using var _ = inputStateLock.EnterScope();
 
-        if (GrabbedMouse)
+        var position = GLControl.PointToScreen(new Point(x, y));
+
+        if (mouseLookNeedsRebase)
         {
-            var centerPoint = new Point(GLControl.Width / 2, GLControl.Height / 2);
-            var screenCenter = GLControl.PointToScreen(centerPoint);
-            MousePreviousPosition = screenCenter;
-            Cursor.Position = screenCenter;
+            mouseLookNeedsRebase = false;
+            MousePreviousPosition = position;
+            return;
         }
+
+        var delta = new Point(
+            position.X - MousePreviousPosition.X,
+            position.Y - MousePreviousPosition.Y
+        );
+
+        pendingMouseDelta.X += delta.X;
+        pendingMouseDelta.Y += delta.Y;
+
+        if (delta != Point.Empty)
+        {
+            MouseDragged = true;
+
+            if (!cursorHiddenForDrag)
+            {
+                cursorHiddenForDrag = true;
+                Cursor.Hide();
+            }
+        }
+
+        // Touch and pen are absolute digitizers: warping the cursor doesn't move the contact point
+        if (touch)
+        {
+            MousePreviousPosition = position;
+            return;
+        }
+
+        // Relative mouse: pin the cursor so the look can continue past the screen edges
+        Cursor.Position = MousePreviousPosition;
     }
 
-    protected virtual void OnMouseWheel(object? sender, MouseEventArgs e)
+    // Signature Windows stamps onto mouse messages synthesized from touch or pen input.
+    // See "Distinguishing Pen and Touch Input from Mouse Input" in the Windows docs.
+    private const long MouseEventFromTouchOrPen = 0xFF515700;
+
+    private static bool IsTouchOrPenInput()
+        => ((nint)PInvoke.GetMessageExtraInfo() & 0xFFFFFF00) == MouseEventFromTouchOrPen;
+
+    protected virtual void OnMouseWheel(int delta, Point location)
     {
         // Track mouse wheel state
-        if (e.Delta > 0)
+        using var _ = inputStateLock.EnterScope();
+        if (delta > 0)
         {
             CurrentlyPressedKeys |= TrackedKeys.MouseWheelUp;
         }
-        else if (e.Delta < 0)
+        else if (delta < 0)
         {
             CurrentlyPressedKeys |= TrackedKeys.MouseWheelDown;
         }
+
+        pendingMouseWheelDelta += delta;
+    }
+
+    protected Point ConsumePendingMouseDelta()
+    {
+        using var _ = inputStateLock.EnterScope();
+        var delta = pendingMouseDelta;
+        pendingMouseDelta = Point.Empty;
+        MouseDelta = Point.Empty;
+        return delta;
+    }
+
+    protected int ConsumePendingMouseWheelDelta()
+    {
+        using var _ = inputStateLock.EnterScope();
+        var wheelDelta = pendingMouseWheelDelta;
+        pendingMouseWheelDelta = 0;
+        return wheelDelta;
+    }
+
+    protected TrackedKeys ConsumeCurrentlyPressedKeysForUpdate()
+    {
+        using var _ = inputStateLock.EnterScope();
+        var keys = CurrentlyPressedKeys;
+
+        // Clear mouse wheel events after processing (they're one-time events)
+        CurrentlyPressedKeys &= ~(TrackedKeys.MouseWheelUp | TrackedKeys.MouseWheelDown);
+
+        return keys;
     }
 
     private void OnGlControlPaint(object? sender, EventArgs e)
@@ -452,6 +587,8 @@ internal abstract class GLBaseControl : IDisposable
             if (this is GLSceneViewer viewer)
             {
                 RendererContext.FieldOfView = Settings.Config.FieldOfView;
+                RendererContext.ViewmodelFieldOfView = Settings.Config.ViewmodelFieldOfView;
+                viewer.Renderer.Camera.FieldOfView = Settings.Config.FieldOfView;
                 viewer.Renderer.Camera.CreateProjectionMatrix();
             }
         }
@@ -470,7 +607,7 @@ internal abstract class GLBaseControl : IDisposable
         var elapsed = Stopwatch.GetElapsedTime(LastUpdate, current);
         LastUpdate = current;
 
-        Log.Debug(nameof(GLBaseControl), $"First Paint: {elapsed}");
+        Log.Debug(nameof(GLBaseControl), $"First paint: {elapsed}");
     }
 
     protected virtual void OnUpdate(float frameTime)
@@ -550,7 +687,7 @@ internal abstract class GLBaseControl : IDisposable
                 WindowState = OpenTK.Windowing.Common.WindowState.Normal,
                 Title = "Source 2 Viewer OpenGL",
             };
-            GLNativeWindow = new(settings);
+            GLNativeWindow = NativeWindowFactory.Create(settings);
 
             GLNativeWindow.Context.MakeNoneCurrent();
         });
@@ -630,6 +767,13 @@ internal abstract class GLBaseControl : IDisposable
         var message = System.Runtime.InteropServices.Marshal.PtrToStringUTF8(pMessage, length);
         var error = $"[{severityStr} {sourceStr} {typeStr}] {message}";
 
+#if DEBUG
+        if (type is DebugType.DebugTypePerformance or DebugType.DebugTypeUndefinedBehavior)
+        {
+            error += $" ({DescribeObject(ObjectLabelIdentifier.Program, GL.GetInteger(GetPName.CurrentProgram))}, {DescribeObject(ObjectLabelIdentifier.Framebuffer, GL.GetInteger(GetPName.DrawFramebufferBinding))})";
+        }
+#endif
+
         switch (type)
         {
             case DebugType.DebugTypeError: Log.Error("OpenGL", error); break;
@@ -643,6 +787,21 @@ internal abstract class GLBaseControl : IDisposable
         }
 #endif
     }
+
+#if DEBUG
+    private static string DescribeObject(ObjectLabelIdentifier identifier, int name)
+    {
+        var kind = identifier == ObjectLabelIdentifier.Program ? "program" : "framebuffer";
+
+        if (name == 0)
+        {
+            return $"{kind} 0";
+        }
+
+        GL.GetObjectLabel(identifier, name, 256, out _, out string label);
+        return string.IsNullOrEmpty(label) ? $"{kind} {name}" : $"{kind} {name} '{label}'";
+    }
+#endif
 
     protected static readonly DebugProc OpenGLDebugMessageDelegate = OnDebugMessage;
 
@@ -744,25 +903,9 @@ internal abstract class GLBaseControl : IDisposable
         // Flip y
         using var canvas = new SkiaSharp.SKCanvas(bitmap);
         canvas.Scale(1, -1, 0, bitmap.Height / 2f);
-        canvas.DrawBitmap(bitmap, new SkiaSharp.SKPoint());
+        canvas.DrawBitmap(bitmap, new SkiaSharp.SKPoint(), SkiaSharp.SKSamplingOptions.Default);
 
         return bitmap;
     }
 
-    private static void ClipboardSetImage(SkiaSharp.SKBitmap bitmap)
-    {
-        var data = new DataObject();
-
-        using var bitmapWindows = bitmap.ToBitmap();
-        data.SetData(DataFormats.Bitmap, true, bitmapWindows);
-
-        using var pngStream = new MemoryStream();
-        using var pixels = bitmap.PeekPixels();
-        var png = pixels.Encode(pngStream, new SkiaSharp.SKPngEncoderOptions(SkiaSharp.SKPngEncoderFilterFlags.Sub, zLibLevel: 1));
-
-        bitmapWindows.Save(pngStream, System.Drawing.Imaging.ImageFormat.Png);
-        data.SetData("PNG", false, pngStream);
-
-        Clipboard.SetDataObject(data, copy: true);
-    }
 }

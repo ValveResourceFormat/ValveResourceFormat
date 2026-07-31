@@ -3,6 +3,7 @@ namespace ValveResourceFormat
     /// <summary>
     /// Render primitive types for mesh drawing.
     /// </summary>
+    /// <seealso href="https://s2v.app/SchemaExplorer/cs2/modellib/RenderPrimitiveType_t">RenderPrimitiveType_t</seealso>
     public enum RenderPrimitiveType //: byte
     {
 #pragma warning disable CS1591
@@ -49,6 +50,7 @@ namespace ValveResourceFormat
         RENDER_PRIM_30_CONTROL_POINT_PATCHLIST = 0x28,
         RENDER_PRIM_31_CONTROL_POINT_PATCHLIST = 0x29,
         RENDER_PRIM_32_CONTROL_POINT_PATCHLIST = 0x2A,
+        RENDER_PRIM_COMPUTE_SHADER = 0x2B,
 #pragma warning restore CS1591
     }
 }

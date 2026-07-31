@@ -96,7 +96,7 @@ namespace CLI
         /// <param name="input">-i, Input file to be processed. With no additional arguments, a summary of the input(s) will be displayed.</param>
         /// <param name="output">-o, Output path to write to. If input is a folder (or a VPK), this should be a folder.</param>
         /// <param name="decompile">-d|--vpk_decompile, Decompile supported resource files.</param>
-        /// <param name="texture_decode_flags">Decompile textures with the specified decode flags, example: "none", "auto", "foceldr".</param>
+        /// <param name="texture_decode_flags">Decompile textures with the specified decode flags, example: "none", "auto", "ForceLDR".</param>
         /// <param name="recursive">If specified and given input is a folder, all sub directories will be scanned too.</param>
         /// <param name="recursive_vpk">If specified along with --recursive, will also recurse into VPK archives.</param>
         /// <param name="all">-a, Print the content of each resource block in the file.</param>
@@ -179,8 +179,8 @@ namespace CLI
             GltfExportFormat = gltf_export_format;
             GltfExportMaterials = gltf_export_materials;
             GltfExportAnimations = gltf_export_animations;
-            GltfAnimationFilter = gltf_animation_list?.Split(',') ?? [];
-            GltfMeshFilter = gltf_mesh_list?.Split(',') ?? [];
+            GltfAnimationFilter = gltf_animation_list?.Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries) ?? [];
+            GltfMeshFilter = gltf_mesh_list?.Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries) ?? [];
             GltfExportAdaptTextures = gltf_textures_adapt;
             GltfExportExtras = gltf_export_extras;
             ToolsAssetInfoShort = tools_asset_info_short;
@@ -823,6 +823,16 @@ namespace CLI
                 var navMeshFile = new NavMeshFile();
                 navMeshFile.Read(stream);
 
+                if (OutputFile != null && GltfExportFormat != null)
+                {
+                    var outFilePath = Path.ChangeExtension(GetOutputPath(path), GltfExportFormat);
+                    Directory.CreateDirectory(Path.GetDirectoryName(outFilePath)!);
+
+                    using var fileLoader = new GameFileLoader(null, path);
+                    CreateGltfExporter(fileLoader).Export(navMeshFile, path, outFilePath);
+                    return;
+                }
+
                 if (!CollectStats)
                 {
                     Console.WriteLine(navMeshFile.ToString());
@@ -1246,13 +1256,17 @@ namespace CLI
                 {
                     if (manifestData.TryGetValue(filePath, out var oldCrc32) && oldCrc32 == file.CRC32)
                     {
+                        Console.WriteLine("--- Skipped (unchanged) \"{0}\"", filePath);
                         continue;
                     }
 
                     manifestData[filePath] = file.CRC32;
                 }
 
-                Console.WriteLine("\t[archive index: {0:D3}] {1}", file.ArchiveIndex, filePath);
+                if (OutputFile == null)
+                {
+                    Console.WriteLine("\t[archive index: {0:D3}] {1}", file.ArchiveIndex, filePath);
+                }
 
                 var totalLength = (int)file.TotalLength;
                 var rawFileData = ArrayPool<byte>.Shared.Rent(totalLength);
@@ -1295,6 +1309,7 @@ namespace CLI
                             // Only parse the highest SM of features files
                             if (!highestShaderModelFeatures!.Contains(filePath))
                             {
+                                Console.WriteLine("--- Skipped (not highest shader model) \"{0}\"", filePath);
                                 continue;
                             }
 
@@ -1324,6 +1339,8 @@ namespace CLI
                                 Directory.CreateDirectory(Path.GetDirectoryName(outputFile)!);
 
                                 gltfExporter.Export(resource, outputFile);
+
+                                Console.WriteLine("--- Dump written to \"{0}\"", outputFile);
 
                                 continue;
                             }
@@ -1405,7 +1422,7 @@ namespace CLI
             return highestByShader.Values.Select(x => x.FilePath).ToHashSet();
         }
 
-        private static void DumpContentFile(string path, ContentFile contentFile, bool dumpSubFiles = true)
+        private void DumpContentFile(string path, ContentFile contentFile, bool dumpSubFiles = true)
         {
             if (contentFile.Data != null)
             {
@@ -1414,7 +1431,14 @@ namespace CLI
 
             foreach (var additionalFile in contentFile.AdditionalFiles)
             {
-                DumpContentFile(Path.Combine(Path.GetDirectoryName(path)!, Path.GetFileName(additionalFile.FileName)), additionalFile);
+                // Additional files (animation-graph clips) carry their full resource path. With a real output
+                // directory we keep it; otherwise we flatten to the leaf name next to the parent file, which can
+                // collide on shared names. Resolving these relative to the parent's output path properly needs a
+                // bigger rework of the extract path handling (also in the GUI's ExtractProgressForm).
+                var additionalPath = additionalFile.KeepFullPath && OutputFile != null && (IsInputFolder || Directory.Exists(OutputFile))
+                    ? Path.Combine(OutputFile, additionalFile.FileName)
+                    : Path.Combine(Path.GetDirectoryName(path)!, Path.GetFileName(additionalFile.FileName));
+                DumpContentFile(additionalPath, additionalFile);
             }
 
             if (dumpSubFiles)
@@ -1518,7 +1542,7 @@ namespace CLI
                     }
                     else if (resource.GetBlockByType(BlockType.CTRL) is BinaryKV3 ctrlData)
                     {
-                        info = ctrlData.Data.GetStringProperty("_class");
+                        info = ctrlData.Data.Root.GetStringProperty("_class");
                     }
 
                     break;
@@ -1533,9 +1557,9 @@ namespace CLI
 
                         foreach (var entity in entities)
                         {
-                            foreach (var property in entity.Properties)
+                            foreach (var property in entity.Children)
                             {
-                                if (!knownEntityKeys.Contains(property.Key))
+                                if (!knownEntityKeys.Contains(property.Key) && property.Key.StartsWith("vrf_unknown_key_", StringComparison.Ordinal))
                                 {
                                     lock (unknownEntityKeys)
                                     {
@@ -1555,22 +1579,22 @@ namespace CLI
 
                         foreach (var op in particleSystem.GetInitializers())
                         {
-                            AddStatLocal($"Initializer: {op.GetProperty<string>("_class")}");
+                            AddStatLocal($"Initializer: {op.GetStringProperty("_class")}");
                         }
 
                         foreach (var op in particleSystem.GetRenderers())
                         {
-                            AddStatLocal($"Renderer: {op.GetProperty<string>("_class")}");
+                            AddStatLocal($"Renderer: {op.GetStringProperty("_class")}");
                         }
 
                         foreach (var op in particleSystem.GetEmitters())
                         {
-                            AddStatLocal($"Emitter: {op.GetProperty<string>("_class")}");
+                            AddStatLocal($"Emitter: {op.GetStringProperty("_class")}");
                         }
 
                         foreach (var op in particleSystem.GetOperators())
                         {
-                            AddStatLocal($"Operator: {op.GetProperty<string>("_class")}");
+                            AddStatLocal($"Operator: {op.GetStringProperty("_class")}");
                         }
                     }
                     break;

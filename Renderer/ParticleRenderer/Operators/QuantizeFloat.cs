@@ -1,5 +1,10 @@
 namespace ValveResourceFormat.Renderer.Particles.Operators
 {
+    /// <summary>
+    /// Quantizes a scalar particle attribute to a multiple of a given step size by truncating
+    /// toward zero, snapping the value onto a grid.
+    /// </summary>
+    /// <seealso href="https://s2v.app/SchemaExplorer/cs2/particles/C_OP_QuantizeFloat">C_OP_QuantizeFloat</seealso>
     class QuantizeFloat : ParticleFunctionOperator
     {
         private readonly ParticleField OutputField = ParticleField.Radius;
@@ -8,7 +13,7 @@ namespace ValveResourceFormat.Renderer.Particles.Operators
         public QuantizeFloat(ParticleDefinitionParser parse) : base(parse)
         {
             OutputField = parse.ParticleField("m_nOutputField", OutputField);
-            quantizeSize = parse.NumberProvider("m_nInputValue", quantizeSize);
+            quantizeSize = parse.NumberProvider("m_InputValue", quantizeSize);
         }
         public override void Operate(ParticleCollection particles, float frameTime, ParticleSystemRenderState particleSystemState)
         {

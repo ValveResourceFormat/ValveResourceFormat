@@ -1,4 +1,5 @@
 using System.Collections;
+using System.Diagnostics;
 using System.IO;
 using System.IO.Hashing;
 using System.Text;
@@ -106,7 +107,7 @@ namespace ValveResourceFormat.ClosedCaptions
                 Captions.Add(caption);
             }
 
-            // Probably could be inside the for loop above, but I'm unsure what the performance costs are of moving the position head manually a bunch compared to reading sequentually
+            // Probably could be inside the for loop above, but I'm unsure what the performance costs are of moving the position head manually a bunch compared to reading sequentially
             foreach (var caption in Captions)
             {
                 reader.BaseStream.Position = dataoffset + (caption.Blocknum * blocksize) + caption.Offset;
@@ -124,10 +125,12 @@ namespace ValveResourceFormat.ClosedCaptions
 
         /// <inheritdoc/>
         /// <remarks>
-        /// Exports the captions to KeyValues1 text format (VCD format).
+        /// Exports the captions to KeyValues1 text format.
         /// </remarks>
         public override string ToString()
         {
+            Debug.Assert(FileName != null);
+
             var captionsToExport = new Dictionary<uint, string>(Captions.Count);
 
             foreach (var caption in Captions)

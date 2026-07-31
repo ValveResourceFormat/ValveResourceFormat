@@ -8,11 +8,13 @@
     <PackageIcon>source2viewer.png</PackageIcon>
     <PackageTags>source2 dota2 dota steam valve halflife artifact underlords</PackageTags>
     <PackageReadmeFile>README.md</PackageReadmeFile>
-    <PublishAot>true</PublishAot>
-    <IsAotCompatible>true</IsAotCompatible>
+    <PublishAot Condition="'$(Configuration)' != 'Debug'">true</PublishAot>
+    <IsAotCompatible Condition="'$(Configuration)' != 'Debug'">true</IsAotCompatible>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
-    <NoWarn>CS8618</NoWarn>
-    <GenerateDocumentationFile>false</GenerateDocumentationFile>
+    <!-- CS8618/CS1591 suppressed while the AnimLib port is in progress: graph nodes wire their
+         references in Initialize() rather than constructors, and the ported types lack XML docs. -->
+    <NoWarn>$(NoWarn);CS8618;CS1591</NoWarn>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
   </PropertyGroup>
 
   <ItemGroup>
@@ -21,7 +23,11 @@
   </ItemGroup>
 
   <ItemGroup>
+    <Using Include="ValveKeyValue" />
     <Using Include="ValveResourceFormat.Utils" />
+    <Using Include="ValveResourceFormat.Renderer.Utils" />
+    <Using Include="ValveResourceFormat.Renderer.Shaders" />
+    <Using Include="ValveResourceFormat.Renderer.Materials" />
   </ItemGroup>
 
   <ItemGroup>
@@ -30,7 +36,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.3" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.10" />
     <PackageReference Include="OpenTK.Graphics" Version="4.9.4" />
   </ItemGroup>
 

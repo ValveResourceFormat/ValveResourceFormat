@@ -1,9 +1,16 @@
+global using DepthOnlyDrawBuckets = System.Collections.Generic.Dictionary<ValveResourceFormat.Renderer.DepthOnlyProgram, System.Collections.Generic.List<ValveResourceFormat.Renderer.MeshBatchRenderer.Request>>;
+
 using System.Diagnostics;
 using System.Linq;
 using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
 using Microsoft.Extensions.Logging;
 using OpenTK.Graphics.OpenGL;
+using ValveResourceFormat.Blocks;
 using ValveResourceFormat.Renderer.Buffers;
+using ValveResourceFormat.Renderer.SceneEnvironment;
+using ValveResourceFormat.Renderer.SceneNodes;
+using ValveResourceFormat.Renderer.World;
 using ValveResourceFormat.ResourceTypes;
 
 namespace ValveResourceFormat.Renderer
@@ -18,8 +25,13 @@ namespace ValveResourceFormat.Renderer
         /// </summary>
         public readonly struct UpdateContext
         {
+            /// <summary>Gets the camera used for view-dependent node updates.</summary>
             public required Camera Camera { get; init; }
+
+            /// <summary>Gets the text renderer available for nodes that need to draw labels.</summary>
             public required TextRenderer TextRenderer { get; init; }
+
+            /// <summary>Gets the elapsed time in seconds since the last update.</summary>
             public required float Timestep { get; init; }
         }
 
@@ -28,65 +40,143 @@ namespace ValveResourceFormat.Renderer
         /// </summary>
         public struct RenderContext
         {
+            /// <summary>Gets or sets the scene being rendered.</summary>
             public required Scene Scene { get; set; }
-            public required Camera Camera { get; init; }
+
+            /// <summary>Gets or sets the camera providing view and projection matrices.</summary>
+            public required Camera Camera { get; set; }
+
+            /// <summary>Gets or sets the framebuffer that is the render target.</summary>
             public required Framebuffer Framebuffer { get; set; }
+
+            /// <summary>Gets or sets the current render pass being executed.</summary>
             public RenderPass RenderPass { get; set; }
+
+            /// <summary>Gets or sets an optional shader that overrides per-material shaders for this pass.</summary>
             public Shader? ReplacementShader { get; set; }
+
+            /// <summary>Gets the list of scene-level textures bound to reserved texture slots.</summary>
             public required List<(ReservedTextureSlots Slot, string Name, RenderTexture Texture)> Textures { get; init; }
         }
 
+        /// <summary>Gets the render attribute overrides applied to all draw calls in this scene.</summary>
         public Dictionary<string, byte> RenderAttributes { get; } = [];
+
+        /// <summary>Gets the world lighting information including light probes, environment maps, and dynamic lights.</summary>
         public WorldLightingInfo LightingInfo { get; }
+
+        /// <summary>Gets or sets the fog parameters for this scene.</summary>
         public WorldFogInfo FogInfo { get; set; } = new();
+
+        /// <summary>Gets or sets the post-processing parameters for this scene.</summary>
         public WorldPostProcessInfo PostProcessInfo { get; set; } = new();
 
+        /// <summary>Gets or sets the physics simulation world associated with this scene.</summary>
         public Rubikon? PhysicsWorld { get; set; }
+
+        /// <summary>Gets or sets the voxel visibility data.</summary>
+        public VoxelVisibility? VoxelVisibility { get; set; }
+
+        /// <summary>Gets or sets whether PVS culling is enabled for this scene.</summary>
+        public bool EnablePvsCulling { get; set; }
+
+        /// <summary>Gets or sets the PVS bitfield for the cluster at the current camera position.</summary>
+        public byte[]? CurrentFramePvs { get; set; }
 
         private UniformBuffer<LightingConstants>? lightingBuffer;
         private UniformBuffer<EnvMapArray>? envMapBuffer;
         private UniformBuffer<LightProbeVolumeArray>? lpvBuffer;
         private UniformBuffer<FrustumPlanesGpu>? frustumBuffer;
 
+        /// <summary>Gets or sets the GPU buffer containing per-instance object data (tint, transform index, env map visibility).</summary>
         public StorageBuffer? InstanceBufferGpu { get; set; }
+
+        /// <summary>Gets or sets the GPU buffer containing world-space transform matrices for all scene nodes.</summary>
         public StorageBuffer? TransformBufferGpu { get; set; }
 
 
+        /// <summary>Gets or sets the GPU buffer containing per-draw-call bounding boxes for indirect culling.</summary>
         public StorageBuffer? DrawBoundsGpu { get; set; }
+
+        /// <summary>Gets or sets the GPU buffer containing per-meshlet cull info (bounds and cone data).</summary>
         public StorageBuffer? MeshletDataGpu { get; set; }
+
+        /// <summary>Gets or sets the GPU buffer containing the indirect draw commands for all meshlets.</summary>
         public StorageBuffer? IndirectDrawsGpu { get; set; }
+
+        /// <summary>Gets or sets the GPU buffer that receives compacted indirect draw commands after culling.</summary>
         public StorageBuffer? CompactedDrawsGpu { get; set; }
+
+        /// <summary>Gets or sets the GPU buffer that stores per-aggregate visible draw counts after compaction.</summary>
         public StorageBuffer? CompactedCountsGpu { get; set; }
+
+        /// <summary>Gets or sets the GPU buffer containing compaction request descriptors (count and start index per aggregate).</summary>
         public StorageBuffer? CompactionRequestsGpu { get; set; }
+
+        /// <summary>Gets the total number of meshlets across all indirect-draw-capable aggregates in the scene.</summary>
         public int SceneMeshletCount { get; private set; }
 
         private Shader? FrustumCullShader;
         private Shader? CompactionShader;
 
+        /// <summary>Gets the tile and depth bin cull passes for this scene.</summary>
+        public LightBinner LightBinner { get; }
+
         private Shader? DepthPyramidShader;
         private Shader? DepthPyramidNpotShader;
+        /// <summary>Gets the hierarchical depth pyramid texture used for GPU occlusion culling.</summary>
         public RenderTexture? DepthPyramid { get; internal set; }
+
+        /// <summary>Gets the view-projection matrix that was used when the depth pyramid was last generated.</summary>
         public Matrix4x4 DepthPyramidViewProjection { get; internal set; }
+
+        /// <summary>Gets whether the depth pyramid is current and safe to use for occlusion culling this frame.</summary>
         public bool DepthPyramidValid { get; internal set; }
 
+        /// <summary>Gets the renderer context providing shared GPU resources and shader loading.</summary>
         public RendererContext RendererContext { get; }
+
+        /// <summary>Gets the octree used to spatially partition static scene nodes.</summary>
         public Octree StaticOctree { get; }
+
+        /// <summary>Gets the octree used to spatially partition dynamic scene nodes.</summary>
         public Octree DynamicOctree { get; }
 
+        /// <summary>Gets or sets whether materials flagged as tools-only are rendered.</summary>
         public bool ShowToolsMaterials { get; set; }
+
+        /// <summary>Gets or sets whether scene fog is applied during rendering.</summary>
         public bool FogEnabled { get; set; } = true;
+
+        /// <summary>Gets or sets whether a depth-only prepass is performed before the opaque pass to reduce overdraw.</summary>
         public bool EnableDepthPrepass { get; set; }
+
+        /// <summary>Gets or sets whether GPU occlusion culling is enabled.</summary>
         public bool EnableOcclusionCulling { get; set; } = true;
-        internal bool EnableOcclusionQueries { get; set; }
+
+        /// <summary>Gets or sets whether occlusion culling debug visualization is active.</summary>
         public bool OcclusionDebugEnabled { get; set; }
+
+        /// <summary>Gets or sets the occlusion debug renderer, or <see langword="null"/> if not initialized.</summary>
         public OcclusionDebugRenderer? OcclusionDebug { get; set; }
 
+        /// <summary>Gets or sets whether GPU indirect drawing is used for eligible aggregate scene nodes.</summary>
         public bool EnableIndirectDraws { get; set; } = true;
+
+        /// <summary>Gets or sets whether GPU draw compaction is applied after frustum culling to remove empty indirect draw commands.</summary>
         public bool EnableCompaction { get; set; } = true;
+
+        /// <summary>Gets or sets whether lights are binned to screen tiles so shaders iterate only what reaches them.</summary>
+        /// <remarks>
+        /// <see cref="Renderer"/> reads the main scene's copy when driving every binner, so that one also
+        /// governs the 3D skybox. The skybox scene's own copy is never what the viewer toggles.
+        /// </remarks>
+        public bool EnableTiledLightCulling { get; set; } = true;
 
         internal bool DrawMeshletsIndirect { get; private set; }
         internal bool CompactMeshletDraws { get; private set; }
 
+        /// <summary>Gets all static and dynamic scene nodes in the order they were added.</summary>
         public IEnumerable<SceneNode> AllNodes => staticNodes.Concat(dynamicNodes);
 
         private readonly List<SceneNode> staticNodes = [];
@@ -94,6 +184,11 @@ namespace ValveResourceFormat.Renderer
 
         private Shader? OutlineShader;
 
+        /// <summary>
+        /// Initializes a new scene with the given renderer context and optional octree size hint.
+        /// </summary>
+        /// <param name="context">The renderer context providing shared GPU resources.</param>
+        /// <param name="sizeHint">The initial world-space extent used to size the octrees.</param>
         public Scene(RendererContext context, float sizeHint = 32768)
         {
             RendererContext = context;
@@ -101,15 +196,20 @@ namespace ValveResourceFormat.Renderer
             DynamicOctree = new(sizeHint);
 
             LightingInfo = new(this);
+            LightBinner = new(this);
         }
 
+        /// <summary>
+        /// Performs one-time GPU setup: builds octrees, allocates buffers, computes light probe and environment map bindings, and loads internal shaders.
+        /// </summary>
         public void Initialize()
         {
             UpdateOctrees();
+            UpdateNodeIndices();
             CreateBuffers();
             CalculateLightProbeBindings();
             CalculateEnvironmentMaps();
-            CreateInstanceTransformBuffers(); // after calculating envmap and lpv
+            CreateInstanceTransformBuffers(deletePrevious: true); // after calculating envmap and lpv
 
             UpdateBuffers();
 
@@ -118,26 +218,35 @@ namespace ValveResourceFormat.Renderer
             CompactionShader = RendererContext.ShaderLoader.LoadShader("vrf.compact_indirect_draws");
             DepthPyramidShader = RendererContext.ShaderLoader.LoadShader("vrf.depth_pyramid");
             DepthPyramidNpotShader = RendererContext.ShaderLoader.LoadShader("vrf.depth_pyramid", ("D_NPOT_DOWNSAMPLE", 1));
+            LightBinner.LoadShaders();
 
             EnableIndirectDraws = LightingInfo.LightingData.IsSkybox == 0u;
 
             // set render lists to their max capacity
-            CollectSceneDrawCalls(new Camera(RendererContext), Frustum.CreateEmpty());
-            SetupSceneShadows(new Camera(RendererContext), -1);
+            CollectSceneDrawCalls(new Camera(), Frustum.CreateEmpty());
+            SetupSceneShadows(new Camera(), -1);
         }
 
+        /// <summary>
+        /// Adds a node to the scene, placing it in either the static or dynamic partition.
+        /// </summary>
+        /// <param name="node">The node to add.</param>
+        /// <param name="dynamic">When <see langword="true"/>, the node is placed in the dynamic octree; otherwise the static octree.</param>
         public void Add(SceneNode node, bool dynamic)
         {
-            var (nodeList, octree, indexOffset) = dynamic
-                ? (dynamicNodes, DynamicOctree, 1u)
-                : (staticNodes, StaticOctree, 0u);
+            var (nodeList, octree) = dynamic
+                ? (dynamicNodes, DynamicOctree)
+                : (staticNodes, StaticOctree);
 
             nodeList.Add(node);
-            node.Id = (uint)nodeList.Count * 2 - indexOffset;
-
-            octree.Insert(node);
+            octree.Dirty = true;
         }
 
+        /// <summary>
+        /// Removes a node from the scene's static or dynamic partition.
+        /// </summary>
+        /// <param name="node">The node to remove.</param>
+        /// <param name="dynamic">When <see langword="true"/>, removes from the dynamic partition; otherwise the static partition.</param>
         public void Remove(SceneNode node, bool dynamic)
         {
             var (nodeList, octree) = dynamic
@@ -145,40 +254,97 @@ namespace ValveResourceFormat.Renderer
                 : (staticNodes, StaticOctree);
 
             nodeList.Remove(node);
-            octree.Remove(node); // octree removal can be unreliable
+            octree.Dirty = true;
         }
 
+        /// <summary>Indicates which spatial partition a scene node belongs to.</summary>
+        public enum NodeType
+        {
+            /// <summary>The node ID is not present in any partition.</summary>
+            Unknown,
+
+            /// <summary>The node resides in the static spatial partition.</summary>
+            Static,
+
+            /// <summary>The node resides in the dynamic spatial partition.</summary>
+            Dynamic,
+        }
+
+        /// <summary>
+        /// Resolves a scene-unique node ID to its partition type and local list index.
+        /// </summary>
+        /// <param name="id">The scene-unique node ID assigned by <see cref="UpdateNodeIndices"/>.</param>
+        /// <returns>The node type and local index, or <c>(Unknown, -1)</c> if the ID is not found.</returns>
+        public (NodeType Type, int LocalId) GetNodeTypeById(uint id)
+        {
+            if (id > 0)
+            {
+                var staticNodeIndex = (int)(id - 1);
+                var dynamicNodeIndex = staticNodeIndex - staticNodes.Count;
+
+                if (staticNodeIndex < staticNodes.Count)
+                {
+                    return (NodeType.Static, staticNodeIndex);
+                }
+                else if (dynamicNodeIndex < dynamicNodes.Count)
+                {
+                    return (NodeType.Dynamic, dynamicNodeIndex);
+                }
+            }
+
+            return (NodeType.Unknown, -1);
+        }
+
+        /// <summary>
+        /// Removes all nodes from the scene, also disposes loaded materials and gpu mesh buffers.
+        /// </summary>
+        public void Clear()
+        {
+            foreach (var item in dynamicNodes)
+            {
+                item.Delete();
+            }
+            dynamicNodes.Clear();
+
+            foreach (var item in staticNodes)
+            {
+                item.Delete();
+            }
+            staticNodes.Clear();
+
+            StaticOctree.Clear();
+            DynamicOctree.Clear();
+
+            RendererContext.MaterialLoader.Clear();
+            RendererContext.MeshBufferCache.Clear();
+        }
+
+        /// <summary>
+        /// Finds a scene node by its scene-unique ID.
+        /// </summary>
+        /// <param name="id">The node ID to look up.</param>
+        /// <returns>The matching <see cref="SceneNode"/>, or <see langword="null"/> if not found.</returns>
         public SceneNode? Find(uint id)
         {
-            if (id == 0)
+            var (type, localId) = GetNodeTypeById(id);
+
+            if (type == NodeType.Static)
             {
-                return null;
+                return staticNodes[localId];
+            }
+            else if (type == NodeType.Dynamic)
+            {
+                return dynamicNodes[localId];
             }
 
-            if (id % 2 == 1)
-            {
-                var index = ((int)id + 1) / 2 - 1;
-
-                if (index >= dynamicNodes.Count)
-                {
-                    return null;
-                }
-
-                return dynamicNodes[index];
-            }
-            else
-            {
-                var index = (int)id / 2 - 1;
-
-                if (index >= staticNodes.Count)
-                {
-                    return null;
-                }
-
-                return staticNodes[index];
-            }
+            return null;
         }
 
+        /// <summary>
+        /// Finds the first scene node whose entity data matches the given entity.
+        /// </summary>
+        /// <param name="entity">The entity to search for.</param>
+        /// <returns>The matching <see cref="SceneNode"/>, or <see langword="null"/> if not found.</returns>
         public SceneNode? Find(EntityLump.Entity entity)
         {
             bool IsMatchingEntity(SceneNode node) => node.EntityData == entity;
@@ -186,6 +352,12 @@ namespace ValveResourceFormat.Renderer
             return staticNodes.Find(IsMatchingEntity) ?? dynamicNodes.Find(IsMatchingEntity);
         }
 
+        /// <summary>
+        /// Finds the first scene node whose entity data contains a property with the given key and value.
+        /// </summary>
+        /// <param name="keyToFind">The entity property key to match.</param>
+        /// <param name="valueToFind">The expected string value (case-insensitive).</param>
+        /// <returns>The matching <see cref="SceneNode"/>, or <see langword="null"/> if not found.</returns>
         public SceneNode? FindNodeByKeyValue(string keyToFind, string valueToFind)
         {
             bool IsMatchingEntity(SceneNode node)
@@ -195,14 +367,18 @@ namespace ValveResourceFormat.Renderer
                     return false;
                 }
 
-                return node.EntityData.Properties.Properties.TryGetValue(keyToFind, out var value)
-                    && value.Value is string outString
-                    && valueToFind.Equals(outString, StringComparison.OrdinalIgnoreCase);
+                return node.EntityData.TryGetValue(keyToFind, out var value)
+                    && value.ValueType == ValveKeyValue.KVValueType.String
+                    && valueToFind.Equals((string)value, StringComparison.OrdinalIgnoreCase);
             }
 
             return staticNodes.Find(IsMatchingEntity) ?? dynamicNodes.Find(IsMatchingEntity);
         }
 
+        /// <summary>
+        /// Updates all scene nodes for the current frame, advancing animations and rebuilding octrees and GPU buffers if the scene changed.
+        /// </summary>
+        /// <param name="updateContext">Per-frame context data including camera and timestep.</param>
         public void Update(Scene.UpdateContext updateContext)
         {
             foreach (var node in staticNodes)
@@ -210,78 +386,114 @@ namespace ValveResourceFormat.Renderer
                 node.Update(updateContext);
             }
 
-            if (OctreeDirty)
-            {
-                // we disabled or enabled some node
-                CreateIndirectDrawBuffers(true);
-                UpdateOctrees();
-                OctreeDirty = false;
-            }
-
             foreach (var node in dynamicNodes)
             {
+                if (node.Parent != null)
+                {
+                    continue; // child nodes are updated by their parent
+                }
+
                 var oldBox = node.BoundingBox;
                 node.Update(updateContext);
 
-                if (!oldBox.Equals(node.BoundingBox))
+                if (node.LayerEnabled && !oldBox.Equals(node.BoundingBox))
                 {
                     DynamicOctree.Update(node, oldBox);
                 }
             }
+
+            if (StaticOctree.Dirty || DynamicOctree.Dirty)
+            {
+                // Indirect draw commands bake node ids, so recreate them only after reindexing
+                var staticDirty = StaticOctree.Dirty;
+
+                UpdateOctrees();
+                UpdateNodeIndices();
+                CreateInstanceTransformBuffers(deletePrevious: true);
+
+                if (staticDirty)
+                {
+                    // a static node was disabled, enabled, added, or removed
+                    CreateIndirectDrawBuffers(true);
+                }
+            }
         }
 
+        /// <summary>Allocates GPU uniform and storage buffers for lighting, environment maps, light probes, frustum planes, and indirect draws.</summary>
         public void CreateBuffers()
         {
-            lightingBuffer = new(ReservedBufferSlots.Lighting)
-            {
-                Data = LightingInfo.LightingData
-            };
+            lightingBuffer ??= new(ReservedBufferSlots.Lighting);
+            envMapBuffer ??= new(ReservedBufferSlots.EnvironmentMap);
+            lpvBuffer ??= new(ReservedBufferSlots.LightProbe);
+            frustumBuffer ??= new(ReservedBufferSlots.FrustumPlanes);
 
-            envMapBuffer = new(ReservedBufferSlots.EnvironmentMap);
-            lpvBuffer = new(ReservedBufferSlots.LightProbe);
-            frustumBuffer = new(ReservedBufferSlots.FrustumPlanes);
+            lightingBuffer.Data = LightingInfo.LightingData;
 
+            LightingInfo.CreateBarnLightBuffer();
             CreateIndirectDrawBuffers();
         }
 
-        private void CreateInstanceTransformBuffers()
+        private void CreateInstanceTransformBuffers(bool deletePrevious = false)
         {
+            if (deletePrevious)
+            {
+                InstanceBufferGpu?.Delete();
+                TransformBufferGpu?.Delete();
+            }
+
             var nodes = AllNodes.ToList();
+
+            if (nodes.Count == 0)
+            {
+                return;
+            }
+
             var maxId = nodes.Max(n => n.Id);
 
             var instanceData = new ObjectDataStandard[maxId + 1];
-            var transformData = new OpenTK.Mathematics.Matrix3x4[maxId + 2];
-
-            // Reserve index 0 for identity transform
-            var i = 1;
-            transformData[0] = Matrix4x4.Identity.To3x4();
+            var transformData = new List<OpenTK.Mathematics.Matrix3x4>(capacity: (int)maxId + 2)
+            {
+                // Reserve index 0 for identity transform
+                Matrix4x4.Identity.To3x4()
+            };
 
             foreach (var node in nodes)
             {
                 var instanceTint = Vector4.One;
                 if (node is SceneAggregate.Fragment fragment)
                 {
-                    instanceTint = fragment.RenderMesh.Tint * fragment.DrawCall.TintColor * fragment.Tint;
+                    // Content can author out-of-range tints; the packed byte color can only represent [0, 1].
+                    instanceTint = Vector4.Clamp(fragment.RenderMesh.Tint * fragment.DrawCall.TintColor * fragment.Tint, Vector4.Zero, Vector4.One);
                 }
 
                 uint transformIndex;
-                if (node.Transform.IsIdentity)
+
+                if (node is SceneAggregate { InstanceTransforms.Count: > 0 } aggregateWithInstances)
+                {
+                    transformIndex = (uint)transformData.Count;
+
+                    foreach (var instanceTransform in aggregateWithInstances.InstanceTransforms)
+                    {
+                        transformData.Add(instanceTransform);
+                    }
+                }
+                else if (node.Transform.IsIdentity)
                 {
                     transformIndex = 0; // Reuse identity transform at index 0
                 }
                 else
                 {
-                    transformIndex = (uint)i;
-                    transformData[i] = node.Transform.To3x4();
-                    i++;
+                    transformIndex = (uint)transformData.Count;
+                    transformData.Add(node.Transform.To3x4());
                 }
 
                 instanceData[node.Id] = new ObjectDataStandard
                 {
                     TintAlpha = Color32.FromVector4(instanceTint).PackedValue,
                     TransformIndex = transformIndex,
+                    VisibleLPV = (uint)(node.LightProbeBinding?.ShaderIndex ?? 0)
+                        | (node.ShaderEnvMapVisibility.GetFirstShaderIndex() << 16),
                     EnvMapVisibility = node.ShaderEnvMapVisibility,
-                    VisibleLPV = (uint)(node.LightProbeBinding?.ShaderIndex ?? 0),
                     Identification = node.Id,
                 };
             }
@@ -290,7 +502,7 @@ namespace ValveResourceFormat.Renderer
             TransformBufferGpu = new StorageBuffer(ReservedBufferSlots.Transforms);
 
             InstanceBufferGpu.Create(instanceData, BufferUsageHint.StaticDraw);
-            TransformBufferGpu.Create(transformData.AsSpan(0, i), BufferUsageHint.StaticDraw);
+            TransformBufferGpu.Create(CollectionsMarshal.AsSpan(transformData), BufferUsageHint.StaticDraw);
         }
 
         private void CreateIndirectDrawBuffers(bool deletePrevious = false)
@@ -340,17 +552,22 @@ namespace ValveResourceFormat.Renderer
                 var meshletDataGpu = new MeshletCullInfo[aggregateMeshletCount];
                 var indirectDrawsGpu = new DrawElementsIndirectCommand[aggregateMeshletCount];
 
+                // Commands are laid out by meshlet index, so each draw call multidraws its
+                // [FirstMeshlet, FirstMeshlet + NumMeshlets) range within the aggregate
                 var sceneDrawCount = 0;
                 var sceneMeshletCount = 0;
-                var aggregateIndex = 0;
+                var compactionRequestList = new List<uint>();
+
                 foreach (var agg in aggregateSceneNodes)
                 {
                     agg.IndirectDrawByteOffset = sceneMeshletCount * Unsafe.SizeOf<DrawElementsIndirectCommand>();
                     agg.IndirectDrawCount = agg.RenderMesh.Meshlets.Count;
-                    agg.CompactionIndex = aggregateIndex++;
+
+                    agg.CompactionIndex = compactionRequestList.Count / 2;
+                    compactionRequestList.Add((uint)agg.RenderMesh.Meshlets.Count);
+                    compactionRequestList.Add((uint)sceneMeshletCount);
 
                     var drawIndex = 0;
-                    var indirectDrawCount = 0;
                     foreach (var fragment in agg.Fragments)
                     {
                         var fragmentInstanceId = fragment.Id;
@@ -362,7 +579,9 @@ namespace ValveResourceFormat.Renderer
                         for (var drawMeshletIndex = start; drawMeshletIndex < stop; drawMeshletIndex++)
                         {
                             var meshlet = agg.RenderMesh.Meshlets[drawMeshletIndex];
-                            meshletDataGpu[sceneMeshletCount] = new MeshletCullInfo
+                            var commandIndex = sceneMeshletCount + drawMeshletIndex;
+
+                            meshletDataGpu[commandIndex] = new MeshletCullInfo
                             {
                                 Bounds = meshlet.PackedAABB,
                                 Cone = meshlet.CullingData,
@@ -374,7 +593,7 @@ namespace ValveResourceFormat.Renderer
 
                             if (count == 0 && firstIndex == 0)
                             {
-                                // older meshlets   
+                                // older meshlets
                                 var tris = drawCall.IndexCount / 3;
                                 var clusters = drawCall.NumMeshlets;
                                 var trisPerCluster = tris / clusters;
@@ -390,7 +609,7 @@ namespace ValveResourceFormat.Renderer
 
                             // what is meshlet.VertexOffset used for?
 
-                            indirectDrawsGpu[sceneMeshletCount] = new DrawElementsIndirectCommand
+                            indirectDrawsGpu[commandIndex] = new DrawElementsIndirectCommand
                             {
                                 Count = count,
                                 InstanceCount = 1,
@@ -398,17 +617,12 @@ namespace ValveResourceFormat.Renderer
                                 BaseVertex = drawCall.BaseVertex,
                                 BaseInstance = fragmentInstanceId,
                             };
-
-                            sceneMeshletCount++;
-                            indirectDrawCount++;
                         }
 
                         drawIndex++;
                     }
 
-                    // can be smaller than serialized meshlets due to LoD filtering
-                    agg.IndirectDrawCount = indirectDrawCount;
-
+                    sceneMeshletCount += agg.RenderMesh.Meshlets.Count;
                     sceneDrawCount += agg.Fragments.Count;
                 }
 
@@ -424,27 +638,16 @@ namespace ValveResourceFormat.Renderer
                 CompactedDrawsGpu = new StorageBuffer(ReservedBufferSlots.CompactedDraws);
                 CompactedDrawsGpu.Create(indirectDrawsGpu, BufferUsageHint.DynamicDraw);
 
-                CompactedCountsGpu = StorageBuffer.Allocate<uint>(ReservedBufferSlots.CompactedCounts, aggregateSceneNodes.Count, BufferUsageHint.DynamicDraw);
-
-                // Create compaction requests (one per aggregate)
-                var compactionRequests = new uint[aggregateSceneNodes.Count * 2];
-                for (var i = 0; i < aggregateSceneNodes.Count; i++)
-                {
-                    var agg = aggregateSceneNodes[i];
-                    var startIndex = agg.IndirectDrawByteOffset / Unsafe.SizeOf<DrawElementsIndirectCommand>();
-                    var drawCount = agg.IndirectDrawCount;
-
-                    compactionRequests[i * 2 + 0] = (uint)drawCount;
-                    compactionRequests[i * 2 + 1] = (uint)startIndex;
-                }
+                CompactedCountsGpu = StorageBuffer.Allocate<uint>(ReservedBufferSlots.CompactedCounts, compactionRequestList.Count / 2, BufferUsageHint.DynamicDraw);
 
                 CompactionRequestsGpu = new StorageBuffer(ReservedBufferSlots.CompactionRequests);
-                CompactionRequestsGpu.Create(compactionRequests, BufferUsageHint.StaticDraw);
+                CompactionRequestsGpu.Create(compactionRequestList);
             }
 
             OcclusionDebug = new OcclusionDebugRenderer(this, RendererContext);
         }
 
+        /// <summary>Uploads the latest lighting, environment map, and light probe data to their respective GPU uniform buffers.</summary>
         public void UpdateBuffers()
         {
             Debug.Assert(lightingBuffer is not null && envMapBuffer is not null && lpvBuffer is not null);
@@ -454,28 +657,35 @@ namespace ValveResourceFormat.Renderer
             lpvBuffer.Update();
         }
 
+        /// <summary>Updates the lighting buffer, then binds the lighting, environment map, light probe, and barn light buffers to their reserved GPU binding slots.</summary>
         public void SetSceneBuffers()
         {
             Debug.Assert(lightingBuffer is not null && envMapBuffer is not null && lpvBuffer is not null);
 
+            lightingBuffer.Update();
             lightingBuffer.BindBufferBase();
             envMapBuffer.BindBufferBase();
             lpvBuffer.BindBufferBase();
+            LightingInfo.BindBarnLightBuffer();
+
+            LightBinner.Bind();
         }
 
         private readonly List<SceneNode> CullResults = [];
         private int StaticCount;
         private int LastFrustum = -1;
 
+        /// <summary>
+        /// Returns all scene nodes whose bounding boxes intersect the given frustum, caching static results across frames when the frustum is unchanged.
+        /// </summary>
+        /// <param name="frustum">The view frustum to test against.</param>
+        /// <returns>A list of visible scene nodes (valid until the next call to this method).</returns>
         public List<SceneNode> GetFrustumCullResults(Frustum frustum)
         {
             var currentFrustum = frustum.GetHashCode();
 
-            // Optimization: Do not clear static culled results from last frame if:
-            // 1. Frustum did not change
-            // 2. Did not run occlusion queries
-
-            if (LastFrustum != currentFrustum || occlusionDirty)
+            // Optimization: Do not clear static culled results from last frame if the frustum did not change
+            if (LastFrustum != currentFrustum)
             {
                 LastFrustum = currentFrustum;
 
@@ -494,8 +704,13 @@ namespace ValveResourceFormat.Renderer
             return CullResults;
         }
 
+        /// <summary>Gets or sets whether any translucent material in the collected draw calls samples the scene color texture.</summary>
         public bool WantsSceneColor { get; set; }
+
+        /// <summary>Gets or sets whether any translucent material in the collected draw calls samples the scene depth texture.</summary>
         public bool WantsSceneDepth { get; set; }
+
+        /// <summary>Gets whether there are any selected nodes queued for outline rendering.</summary>
         public bool HasOutlineObjects => renderLists[RenderPass.Outline].Count > 0;
 
         private readonly Dictionary<RenderPass, List<MeshBatchRenderer.Request>> renderLists = new()
@@ -504,12 +719,22 @@ namespace ValveResourceFormat.Renderer
             [RenderPass.OpaqueFragments] = [],
             [RenderPass.Opaque] = [],
             [RenderPass.StaticOverlay] = [],
+            [RenderPass.OpaqueRefract] = [],
             [RenderPass.Water] = [],
             [RenderPass.Translucent] = [],
             [RenderPass.Outline] = [],
         };
 
-        private Dictionary<DepthOnlyProgram, List<MeshBatchRenderer.Request>> depthOnlyDraws { get; } = new()
+        /// <summary>
+        /// Draw calls for first-person layer geometry.
+        /// </summary>
+        private readonly Dictionary<RenderPass, List<MeshBatchRenderer.Request>> viewmodelRenderLists = new()
+        {
+            [RenderPass.Opaque] = [],
+            [RenderPass.Translucent] = [],
+        };
+
+        private DepthOnlyDrawBuckets depthOnlyDraws { get; } = new()
         {
             [DepthOnlyProgram.Static] = [],
             [DepthOnlyProgram.Animated] = [],
@@ -531,11 +756,13 @@ namespace ValveResourceFormat.Renderer
                 renderLists[RenderPass.Outline].Add(request);
             }
 
+            var readsSceneColor = request.Call.Material.ReadsSceneColor;
+
             if (renderPass == RenderPass.OpaqueAggregate)
             {
                 if (request.Node is SceneAggregate { CanDrawIndirect: true })
                 {
-                    if (EnableDepthPrepass)
+                    if (EnableDepthPrepass && !readsSceneColor)
                     {
                         var bucket = GetSpecializedDepthOnlyShader(false, request.Mesh, request.Call);
                         depthOnlyDraws[bucket].Add(request);
@@ -553,25 +780,46 @@ namespace ValveResourceFormat.Renderer
                 renderPass = RenderPass.Opaque;
             }
 
-            var queueList = renderLists[renderPass];
+            var isViewmodelLayer = request.Node.RenderAsViewmodel && viewmodelRenderLists.ContainsKey(renderPass);
 
-            if (renderPass == RenderPass.Translucent)
+            var queueList = isViewmodelLayer
+                ? viewmodelRenderLists[renderPass]
+                : renderLists[renderPass];
+
+            var isLatePass = renderPass == RenderPass.Translucent;
+
+            if ((readsSceneColor || request.Call.Material.IsCs2Water) && !isViewmodelLayer && renderPass != RenderPass.StaticOverlay)
             {
-                WantsSceneColor |= request.Call.Material.Shader.ReservedTexuresUsed.Contains("g_tSceneColor");
-                WantsSceneDepth |= request.Call.Material.Shader.ReservedTexuresUsed.Contains("g_tSceneDepth");
+                queueList = renderLists[request.Call.Material.IsTranslucent
+                    ? RenderPass.Water
+                    : RenderPass.OpaqueRefract];
 
-                if (request.Call.Material.IsCs2Water)
-                {
-                    queueList = renderLists[RenderPass.Water];
-                }
+                isLatePass = true;
+            }
+
+            // Only draws that happen after the grab can make use of the resolved copies.
+            if (isLatePass)
+            {
+                WantsSceneColor |= readsSceneColor;
+                WantsSceneDepth |= request.Call.Material.Shader.ReservedTexturesUsed.Contains("g_tSceneDepth");
             }
 
             queueList.Add(request);
         }
 
+        /// <summary>
+        /// Frustum-culls the scene and populates the per-pass render lists for the upcoming frame.
+        /// </summary>
+        /// <param name="camera">The camera used to sort translucent draw calls by distance.</param>
+        /// <param name="cullFrustum">An optional override frustum for culling; defaults to the camera's view frustum.</param>
         public void CollectSceneDrawCalls(Camera camera, Frustum? cullFrustum = null)
         {
             foreach (var bucket in renderLists.Values)
+            {
+                bucket.Clear();
+            }
+
+            foreach (var bucket in viewmodelRenderLists.Values)
             {
                 bucket.Clear();
             }
@@ -586,6 +834,8 @@ namespace ValveResourceFormat.Renderer
 
             var frustum = cullFrustum ??= camera.ViewFrustum;
             var cullResults = GetFrustumCullResults(frustum);
+
+            PerfStats.Active.Count(Counter.SceneObjectInView, cullResults.Count);
 
             // Collect mesh calls
             foreach (var node in cullResults)
@@ -662,6 +912,11 @@ namespace ValveResourceFormat.Renderer
                 }
                 else
                 {
+                    if (node is SceneLight light)
+                    {
+                        PerfStats.Active.CountLightInView(light);
+                    }
+
                     var customRender = new MeshBatchRenderer.Request
                     {
                         DistanceFromCamera = node is PhysSceneNode
@@ -670,8 +925,16 @@ namespace ValveResourceFormat.Renderer
                         Node = node,
                     };
 
-                    renderLists[RenderPass.Opaque].Add(customRender);
-                    renderLists[RenderPass.Translucent].Add(customRender);
+                    if (node.RenderAsViewmodel)
+                    {
+                        viewmodelRenderLists[RenderPass.Opaque].Add(customRender);
+                        viewmodelRenderLists[RenderPass.Translucent].Add(customRender);
+                    }
+                    else
+                    {
+                        renderLists[RenderPass.Opaque].Add(customRender);
+                        renderLists[RenderPass.Translucent].Add(customRender);
+                    }
 
                     if (node.IsSelected)
                     {
@@ -683,7 +946,8 @@ namespace ValveResourceFormat.Renderer
 
         private List<SceneNode> CulledShadowNodes { get; } = [];
         private readonly List<RenderableMesh> listWithSingleMesh = [null!];
-        private Dictionary<DepthOnlyProgram, List<MeshBatchRenderer.Request>> CulledShadowDrawCalls { get; } = new()
+        internal DepthOnlyDrawBuckets CulledShadowDrawCalls { get; } = CreateDepthOnlyDrawCallCollection();
+        internal static DepthOnlyDrawBuckets CreateDepthOnlyDrawCallCollection() => new()
         {
             [DepthOnlyProgram.Static] = [],
             [DepthOnlyProgram.Animated] = [],
@@ -691,6 +955,11 @@ namespace ValveResourceFormat.Renderer
             [DepthOnlyProgram.Unspecified] = [],
         };
 
+        /// <summary>
+        /// Updates the sun light shadow frustum and collects shadow draw calls for the directional light, if dynamic shadows are enabled.
+        /// </summary>
+        /// <param name="camera">The main camera used to fit the shadow frustum.</param>
+        /// <param name="shadowMapSize">The shadow map resolution; pass -1 to produce an empty frustum (pre-warm pass).</param>
         public void SetupSceneShadows(Camera camera, int shadowMapSize)
         {
             if (!LightingInfo.EnableDynamicShadows)
@@ -705,28 +974,103 @@ namespace ValveResourceFormat.Renderer
                 LightingInfo.SunLightFrustum.SetEmpty();
             }
 
-            foreach (var bucket in CulledShadowDrawCalls.Values)
+            CollectShadowDrawCalls(LightingInfo.SunLightFrustum,
+                includeStatic: !LightingInfo.HasBakedShadowsFromLightmap,
+                includeDynamic: true, CulledShadowDrawCalls);
+        }
+
+        /// <summary>Invalidates the cached shadow draw calls for all faces of the given barn light, forcing a rebuild next frame.</summary>
+        /// <param name="light">The barn light whose shadow cache should be cleared.</param>
+        public static void ClearShadowCache(SceneLight light)
+        {
+            for (var i = 0; i < light.BarnFaces.Length; i++)
+            {
+                ref var entry = ref CollectionsMarshal.GetValueRefOrNullRef(light.FaceShadowCache, i);
+                if (!Unsafe.IsNullRef(ref entry))
+                {
+                    entry.FrustumHash = -1;
+                }
+            }
+        }
+
+        /// <summary>
+        /// Ensures the shadow draw call cache for a single barn light face is up to date, rebuilding it if the light frustum changed.
+        /// </summary>
+        /// <param name="light">The barn light owning the shadow face.</param>
+        /// <param name="faceIndex">The face index within the barn light to update.</param>
+        /// <param name="lightFrustum">The frustum representing the light's view for this face.</param>
+        public void SetupBarnLightFaceShadow(SceneLight light, int faceIndex, Frustum lightFrustum)
+        {
+            var barnLightFrustumHash = lightFrustum.GetHashCode();
+            ref var entry = ref CollectionsMarshal.GetValueRefOrAddDefault(light.FaceShadowCache, faceIndex, out _);
+
+            if (entry.FrustumHash == barnLightFrustumHash && entry.DrawCalls is not null)
+            {
+                return;
+            }
+
+            entry.DrawCalls ??= CreateDepthOnlyDrawCallCollection();
+            // Skip static geo for stationary lights
+            CollectShadowDrawCalls(lightFrustum, includeStatic: light.DirectLight != SceneLight.DirectLightType.Stationary, includeDynamic: true, entry.DrawCalls);
+            entry.FrustumHash = barnLightFrustumHash;
+        }
+
+        private void CollectShadowDrawCalls(Frustum frustum, bool includeStatic, bool includeDynamic, DepthOnlyDrawBuckets drawBuckets)
+        {
+            foreach (var bucket in drawBuckets.Values)
             {
                 bucket.Clear();
             }
 
-            if (!LightingInfo.HasBakedShadowsFromLightmap)
+            if (includeStatic)
             {
-                StaticOctree.Root.Query(LightingInfo.SunLightFrustum, CulledShadowNodes);
+                StaticOctree.Root.Query(frustum, CulledShadowNodes);
             }
 
-            DynamicOctree.Root.Query(LightingInfo.SunLightFrustum, CulledShadowNodes);
+            if (includeDynamic)
+            {
+                DynamicOctree.Root.Query(frustum, CulledShadowNodes);
+            }
 
             foreach (var node in CulledShadowNodes)
             {
+                const ObjectTypeFlags skipFlags = ObjectTypeFlags.NoShadows | ObjectTypeFlags.BlockLight;
+
                 List<RenderableMesh> meshes;
+                DrawCall? singleCall = null;
 
                 if (node is MeshCollectionNode meshCollection)
                 {
+                    if ((node.Flags & skipFlags) != 0)
+                    {
+                        continue;
+                    }
+
                     meshes = meshCollection.RenderableMeshes;
+                }
+                else if (node is SceneAggregate.Fragment fragment)
+                {
+                    if ((fragment.Flags & skipFlags) != 0)
+                    {
+                        continue;
+                    }
+
+                    listWithSingleMesh[0] = fragment.RenderMesh;
+                    meshes = listWithSingleMesh;
+                    singleCall = fragment.DrawCall;
                 }
                 else if (node is SceneAggregate aggregate)
                 {
+                    if ((aggregate.AllFlags & skipFlags) != 0)
+                    {
+                        continue;
+                    }
+
+                    if (aggregate.InstanceTransforms.Count == 0)
+                    {
+                        continue;
+                    }
+
                     listWithSingleMesh[0] = aggregate.RenderMesh;
                     meshes = listWithSingleMesh;
                 }
@@ -741,15 +1085,19 @@ namespace ValveResourceFormat.Renderer
                 {
                     foreach (var opaqueCall in mesh.DrawCallsOpaque)
                     {
+                        if (singleCall != null && opaqueCall != singleCall)
+                        {
+                            continue;
+                        }
+
                         if (opaqueCall.Material.DoNotCastShadows)
                         {
                             continue;
                         }
 
-                        // todo: create depth only variants for these shader types
                         var bucket = GetSpecializedDepthOnlyShader(animated, mesh, opaqueCall);
 
-                        CulledShadowDrawCalls[bucket].Add(new MeshBatchRenderer.Request
+                        drawBuckets[bucket].Add(new MeshBatchRenderer.Request
                         {
                             Mesh = mesh,
                             Call = opaqueCall,
@@ -785,7 +1133,6 @@ namespace ValveResourceFormat.Renderer
         {
             CompactMeshletDraws = false;
             DrawMeshletsIndirect = EnableIndirectDraws && SceneMeshletCount > 0 && IndirectDrawsGpu != null;
-            EnableOcclusionQueries = EnableOcclusionCulling && !DrawMeshletsIndirect;
 
             if (DrawMeshletsIndirect)
             {
@@ -805,6 +1152,42 @@ namespace ValveResourceFormat.Renderer
             }
         }
 
+        /// <summary>
+        /// Binds the depth pyramid and sets the constants every occlusion test reads. Shared by the
+        /// meshlet cull and the light tile cull so the two cannot test against different state.
+        /// </summary>
+        /// <param name="shader">The shader whose occlusion uniforms to set. Must already be in use.</param>
+        /// <returns>Whether occlusion culling is active this frame.</returns>
+        internal bool SetOcclusionUniforms(Shader shader)
+        {
+            var pyramid = DepthPyramid;
+            var enabled = DepthPyramidValid && pyramid != null;
+
+            shader.SetUniform1("g_bOcclusionCullEnabled", enabled ? 1 : 0);
+
+            if (!enabled)
+            {
+                return false;
+            }
+
+            Debug.Assert(pyramid != null);
+
+            shader.SetUniform1("g_nDepthPyramidMaxMip", pyramid.NumMipLevels - 1);
+            shader.SetUniform1("g_nDepthPyramidWidth", pyramid.Width);
+            shader.SetUniform1("g_nDepthPyramidHeight", pyramid.Height);
+            shader.SetUniform1("g_flDepthRangeMin", Renderer.DepthRange.Scene.Near);
+            shader.SetUniform1("g_flDepthRangeMax", Renderer.DepthRange.Scene.Far);
+
+            GL.ActiveTexture(TextureUnit.Texture0);
+            GL.BindTexture(pyramid.Target, pyramid.Handle);
+
+            return true;
+        }
+
+        /// <summary>
+        /// Dispatches the GPU frustum (and optional occlusion) culling compute shader, writing surviving indirect draw commands to <see cref="IndirectDrawsGpu"/>.
+        /// </summary>
+        /// <param name="frustum">The view frustum used to cull meshlets.</param>
         public void MeshletCullGpu(Frustum frustum)
         {
             Debug.Assert(frustumBuffer is not null);
@@ -821,43 +1204,40 @@ namespace ValveResourceFormat.Renderer
 
             FrustumCullShader.Use();
 
-            // Set occlusion culling enabled flag
-            var occlusionEnabled = DepthPyramidValid;
-            FrustumCullShader.SetUniform1("g_bOcclusionCullEnabled", occlusionEnabled ? 1 : 0);
-
-            // If occlusion culling is enabled, setup depth pyramid and bind texture
-            if (occlusionEnabled)
-            {
-                Debug.Assert(DepthPyramid != null);
-
-                FrustumCullShader.SetUniform1("g_nDepthPyramidMaxMip", DepthPyramid.NumMipLevels - 1);
-                FrustumCullShader.SetUniform1("g_nDepthPyramidWidth", DepthPyramid.Width);
-                FrustumCullShader.SetUniform1("g_nDepthPyramidHeight", DepthPyramid.Height);
-                FrustumCullShader.SetUniform1("g_flDepthRangeMin", 0.05f);
-                FrustumCullShader.SetUniform1("g_flDepthRangeMax", 1.0f);
-
-                // Bind depth pyramid as texture for sampling
-                GL.ActiveTexture(TextureUnit.Texture0);
-                GL.BindTexture(DepthPyramid.Target, DepthPyramid.Handle);
-            }
+            SetOcclusionUniforms(FrustumCullShader);
 
             MeshletDataGpu.BindBufferBase();
             DrawBoundsGpu.BindBufferBase();
             IndirectDrawsGpu.BindBufferBase();
 
+            var occlusionDebugEnabled = OcclusionDebugEnabled && OcclusionDebug != null;
+
             // Bind debug buffer for occluded bounds visualization
-            if (OcclusionDebugEnabled)
+            if (occlusionDebugEnabled)
             {
                 OcclusionDebug!.BindAndClearBuffer();
             }
-            FrustumCullShader.SetUniform1("g_bOcclusionDebugEnabled", OcclusionDebugEnabled);
+            FrustumCullShader.SetUniform1("g_bOcclusionDebugEnabled", occlusionDebugEnabled);
 
             var workGroups = (SceneMeshletCount + 63) / 64;
             GL.DispatchCompute(workGroups, 1, 1);
 
             GL.MemoryBarrier(MemoryBarrierFlags.ShaderStorageBarrierBit);
+
+            if (occlusionDebugEnabled)
+            {
+                // Converts occludedCount into a DrawArraysIndirectCommand on the GPU so
+                // OcclusionDebugRenderer.Render() can draw without a CPU readback/stall.
+                // The barrier above makes occludedCount visible to this dispatch; the
+                // CommandBarrierBit barrier in RenderOpaqueLayer covers its own output
+                // being visible to the later indirect draw.
+                OcclusionDebug!.DispatchFinalize();
+            }
         }
 
+        /// <summary>
+        /// Dispatches the GPU draw compaction compute shader, packing non-zero indirect draw commands into <see cref="CompactedDrawsGpu"/> to avoid empty draw calls.
+        /// </summary>
         public void CompactIndirectDraws()
         {
             if (CompactionShader == null || CompactedDrawsGpu == null || CompactedCountsGpu == null || CompactionRequestsGpu == null)
@@ -880,6 +1260,10 @@ namespace ValveResourceFormat.Renderer
 
         }
 
+        /// <summary>
+        /// Generates the hierarchical depth pyramid from the given depth texture by downsampling through compute shaders.
+        /// </summary>
+        /// <param name="depthSource">The full-resolution depth texture to downsample.</param>
         public void GenerateDepthPyramid(RenderTexture depthSource)
         {
             if (DepthPyramid == null || DepthPyramidShader == null)
@@ -941,20 +1325,32 @@ namespace ValveResourceFormat.Renderer
             GL.MemoryBarrier(MemoryBarrierFlags.TextureFetchBarrierBit);
         }
 
-        public void RenderOpaqueShadows(RenderContext renderContext, Span<Shader> depthOnlyShaders)
+        /// <summary>
+        /// Renders shadow depth passes for all draw call buckets using their corresponding specialized depth-only shaders.
+        /// </summary>
+        /// <param name="renderContext">The render context for this shadow pass.</param>
+        /// <param name="depthOnlyShaders">A span of shaders indexed by <see cref="DepthOnlyProgram"/>.</param>
+        /// <param name="drawCalls">The bucketed draw calls to render.</param>
+        public static void RenderOpaqueShadows(RenderContext renderContext, Span<Shader> depthOnlyShaders, DepthOnlyDrawBuckets drawCalls)
         {
-            using (new GLDebugGroup("Scene Shadows"))
-            {
-                renderContext.RenderPass = RenderPass.DepthOnly;
+            renderContext.RenderPass = RenderPass.DepthOnly;
 
-                foreach (var (program, calls) in CulledShadowDrawCalls)
-                {
-                    renderContext.ReplacementShader = depthOnlyShaders[(int)program];
-                    MeshBatchRenderer.Render(calls, renderContext);
-                }
+            PerfStats.Active.SuspendTriangleCounter();
+
+            foreach (var (program, calls) in drawCalls)
+            {
+                renderContext.ReplacementShader = depthOnlyShaders[(int)program];
+                MeshBatchRenderer.Render(calls, renderContext);
             }
+
+            PerfStats.Active.ResumeTriangleCounter();
         }
 
+        /// <summary>
+        /// Renders the opaque pass, optionally with a depth prepass, followed by aggregate indirect draws and static overlay geometry.
+        /// </summary>
+        /// <param name="renderContext">The render context for this pass.</param>
+        /// <param name="depthOnlyShaders">An optional span of depth-only shaders; when provided and <see cref="EnableDepthPrepass"/> is set, a depth prepass is performed.</param>
         public void RenderOpaqueLayer(RenderContext renderContext, Span<Shader> depthOnlyShaders = default)
         {
             var camera = renderContext.Camera;
@@ -973,12 +1369,16 @@ namespace ValveResourceFormat.Renderer
                 {
                     GL.ColorMask(false, false, false, false);
 
+                    PerfStats.Active.SuspendTriangleCounter();
+
                     renderContext.RenderPass = RenderPass.DepthOnly;
                     foreach (var (program, calls) in depthOnlyDraws)
                     {
                         renderContext.ReplacementShader = depthOnlyShaders[(int)program];
                         MeshBatchRenderer.Render(calls, renderContext);
                     }
+
+                    PerfStats.Active.ResumeTriangleCounter();
 
                     GL.ColorMask(true, true, true, true);
                 }
@@ -1016,184 +1416,8 @@ namespace ValveResourceFormat.Renderer
             }
         }
 
-        private bool occlusionDirty;
-
-        static void ClearOccludedStateRecursive(Octree.Node node)
-        {
-            foreach (var child in node.Children)
-            {
-                child.OcclusionCulled = false;
-                child.OcculsionQuerySubmitted = false;
-                ClearOccludedStateRecursive(child);
-            }
-        }
-
-        public void RenderOcclusionProxies(RenderContext renderContext, Shader depthOnlyShader)
-        {
-            using var _ = new GLDebugGroup("Occlusion Tests");
-            occlusionDirty = true;
-
-            GL.ColorMask(false, false, false, false);
-            GL.DepthMask(false);
-            GL.Disable(EnableCap.CullFace);
-
-            depthOnlyShader.Use();
-            GL.BindVertexArray(RendererContext.MeshBufferCache.EmptyVAO);
-
-            var maxTests = 1024;
-            var startDepth = 3;
-            var maxDepth = 8;
-            TestOctantsRecursive(StaticOctree.Root, renderContext.Camera.Location, ref maxTests, startDepth, maxDepth);
-
-            GL.UseProgram(0);
-            GL.BindVertexArray(0);
-
-            GL.ColorMask(true, true, true, true);
-            GL.DepthMask(true);
-            GL.Enable(EnableCap.CullFace);
-        }
-
-        private static void TestOctantsRecursive(Octree.Node parentNode, Vector3 cameraPosition, ref int maxTests, int startDepth, int maxDepth)
-        {
-            Span<bool> testChildren = stackalloc bool[8];
-
-            if (maxTests < 0 || maxDepth < 0)
-            {
-                return;
-            }
-
-            for (var i = 0; i < parentNode.Children.Length; i++)
-            {
-                var node = parentNode.Children[i];
-                if (node.FrustumCulled)
-                {
-                    node.OcclusionCulled = false;
-                    node.OcculsionQuerySubmitted = false;
-                    continue;
-                }
-
-                // This skips leaf octants, not sure if helps
-                // if (!node.HasChildren)
-                // {
-                //     continue;
-                // }
-
-                if (node.Region.Intersects(new AABB(cameraPosition, 4f)))
-                {
-                    // if the camera is inside the octant, we can skip the occlusion test, however we still need to test the children
-                    testChildren[i] = true;
-                    node.OcclusionCulled = false;
-                    node.OcculsionQuerySubmitted = false;
-                    continue;
-                }
-
-                if (!node.OcclusionCulled)
-                {
-                    testChildren[i] = true;
-                }
-
-                if (startDepth > 0)
-                {
-                    continue;
-                }
-
-                // Queried on a previous frame, waiting for result
-                if (node.OcculsionQuerySubmitted)
-                {
-                    //TryGetOcclusionTestResult(node);
-                    continue;
-                }
-
-                // Octree node passed frustum test, contains subregions, and was not waiting for a previous query
-                maxTests = SubmitOctreeNodeQuery(maxTests, maxDepth, node);
-            }
-
-            for (var i = 0; i < parentNode.Children.Length; i++)
-            {
-                if (testChildren[i])
-                {
-                    TestOctantsRecursive(parentNode.Children[i], cameraPosition, ref maxTests, startDepth - 1, maxDepth - 1);
-                }
-            }
-        }
-
-        private static int SubmitOctreeNodeQuery(int maxTests, int maxDepth, Octree.Node octreeNode)
-        {
-            if (octreeNode.OcclusionQueryHandle == -1)
-            {
-                octreeNode.OcclusionQueryHandle = GL.GenQuery();
-            }
-
-            octreeNode.OcculsionQuerySubmitted = true;
-            maxTests--;
-
-            GL.VertexAttrib4(
-                0,
-                octreeNode.Region.Min.X,
-                octreeNode.Region.Min.Y,
-                octreeNode.Region.Min.Z,
-                octreeNode.Region.Size.X
-            );
-
-#if DEBUG
-            GL.VertexAttribI2(1, maxDepth, maxTests);
-#endif
-
-            GL.BeginQuery(QueryTarget.AnySamplesPassedConservative, octreeNode.OcclusionQueryHandle);
-            GL.DrawArrays(PrimitiveType.Triangles, 0, 36);
-            GL.EndQuery(QueryTarget.AnySamplesPassedConservative);
-
-            return maxTests;
-        }
-
-        public void GetOcclusionTestResults()
-        {
-            if (!occlusionDirty)
-            {
-                return;
-            }
-
-            if (!EnableOcclusionQueries)
-            {
-                ClearOccludedStateRecursive(StaticOctree.Root);
-                occlusionDirty = false;
-                LastFrustum = -1;
-                return;
-            }
-
-            static void CheckOcclusionQueries(Octree.Node root)
-            {
-                foreach (var child in root.Children)
-                {
-                    if (child.OcculsionQuerySubmitted)
-                    {
-                        TryGetOcclusionTestResult(child);
-                    }
-
-                    if (child.HasChildren)
-                    {
-                        CheckOcclusionQueries(child);
-                    }
-                }
-            }
-
-            CheckOcclusionQueries(StaticOctree.Root);
-        }
-
-        private static bool TryGetOcclusionTestResult(Octree.Node node)
-        {
-            var visible = -1;
-            GL.GetQueryObject(
-                node.OcclusionQueryHandle,
-                GetQueryObjectParam.QueryResultNoWait,
-                out visible
-            );
-
-            node.OcclusionCulled = visible == 0;
-            node.OcculsionQuerySubmitted = visible == -1;
-            return visible != -1;
-        }
-
+        /// <summary>Renders all translucent draw calls collected during <see cref="CollectSceneDrawCalls"/>.</summary>
+        /// <param name="renderContext">The render context for this pass.</param>
         public void RenderTranslucentLayer(RenderContext renderContext)
         {
             using (new GLDebugGroup("Translucent Render"))
@@ -1203,15 +1427,75 @@ namespace ValveResourceFormat.Renderer
             }
         }
 
-        public void RenderWaterLayer(RenderContext renderContext)
+        /// <summary>
+        /// Renders the opaque first-person viewmodel layer collected during <see cref="CollectSceneDrawCalls"/>.
+        /// Rendered before the main scene so its reserved near depth range can never be overtaken by world geometry.
+        /// </summary>
+        /// <param name="renderContext">The render context for this pass, expected to use the dedicated viewmodel camera and depth range.</param>
+        public void RenderViewmodelOpaqueLayer(RenderContext renderContext)
         {
-            using (new GLDebugGroup("Fancy Water Render"))
+            renderContext.RenderPass = RenderPass.Opaque;
+            MeshBatchRenderer.Render(viewmodelRenderLists[RenderPass.Opaque], renderContext);
+        }
+
+        /// <summary>
+        /// Renders the translucent first-person viewmodel layer collected during <see cref="CollectSceneDrawCalls"/>.
+        /// Rendered after the main scene (and 3D sky) translucent passes so it composites correctly on top of them.
+        /// </summary>
+        /// <param name="renderContext">The render context for this pass, expected to use the dedicated viewmodel camera and depth range.</param>
+        public void RenderViewmodelTranslucentLayer(RenderContext renderContext)
+        {
+            GL.DepthMask(false);
+            GL.Enable(EnableCap.Blend);
+
+            renderContext.RenderPass = RenderPass.Translucent;
+            MeshBatchRenderer.Render(viewmodelRenderLists[RenderPass.Translucent], renderContext);
+
+            GL.Disable(EnableCap.Blend);
+            GL.DepthMask(true);
+        }
+
+        /// <summary>
+        /// Renders depth-writing geometry that samples the scene color, collected during <see cref="CollectSceneDrawCalls"/>.
+        /// Runs after the framebuffer grab but before water and translucents, so those still sort against its depth.
+        /// </summary>
+        /// <param name="renderContext">The render context for this pass.</param>
+        public void RenderOpaqueRefractLayer(RenderContext renderContext)
+        {
+            var requests = renderLists[RenderPass.OpaqueRefract];
+
+            if (requests.Count == 0)
             {
-                renderContext.RenderPass = RenderPass.Water;
-                MeshBatchRenderer.Render(renderLists[RenderPass.Water], renderContext);
+                return;
+            }
+
+            using (new GLDebugGroup("Opaque Refract Render"))
+            {
+                renderContext.RenderPass = RenderPass.OpaqueRefract;
+                MeshBatchRenderer.Render(requests, renderContext);
             }
         }
 
+        /// <summary>Renders water draw calls collected during <see cref="CollectSceneDrawCalls"/>.</summary>
+        /// <param name="renderContext">The render context for this pass.</param>
+        public void RenderWaterLayer(RenderContext renderContext)
+        {
+            var requests = renderLists[RenderPass.Water];
+
+            if (requests.Count == 0)
+            {
+                return;
+            }
+
+            using (new GLDebugGroup("Fancy Water Render"))
+            {
+                renderContext.RenderPass = RenderPass.Water;
+                MeshBatchRenderer.Render(requests, renderContext);
+            }
+        }
+
+        /// <summary>Renders all selected nodes using the outline shader to produce selection highlights.</summary>
+        /// <param name="renderContext">The render context for this pass.</param>
         public void RenderOutlineLayer(RenderContext renderContext)
         {
             renderContext.RenderPass = RenderPass.Outline;
@@ -1222,6 +1506,33 @@ namespace ValveResourceFormat.Renderer
             renderContext.ReplacementShader = null;
         }
 
+
+        internal void ActivateLayer(string layerName)
+        {
+            foreach (var node in AllNodes)
+            {
+                if (node.LayerName == layerName)
+                {
+                    node.LayerEnabled = true;
+                }
+            }
+        }
+
+        internal void DeactivateLayer(string layerName)
+        {
+            foreach (var node in AllNodes)
+            {
+                if (node.LayerName == layerName)
+                {
+                    node.LayerEnabled = false;
+                }
+            }
+        }
+
+        /// <summary>
+        /// Enables or disables scene nodes based on whether their layer name is present in the given set.
+        /// </summary>
+        /// <param name="layers">The set of layer names that should be visible.</param>
         public void SetEnabledLayers(HashSet<string> layers)
         {
             foreach (var renderer in AllNodes)
@@ -1232,7 +1543,7 @@ namespace ValveResourceFormat.Renderer
                     continue;
                 }
 
-                if (renderer.LayerName.StartsWith("LightProbeGrid", StringComparison.Ordinal))
+                if (renderer.LayerName.StartsWith("Internal -", StringComparison.Ordinal))
                 {
                     continue;
                 }
@@ -1241,36 +1552,105 @@ namespace ValveResourceFormat.Renderer
             }
         }
 
-        public bool OctreeDirty { get; set; }
+        /// <summary>
+        /// Marks the octree that owns the given node as dirty so it will be rebuilt on the next update.
+        /// Also clears barn light shadow caches.
+        /// </summary>
+        /// <param name="node">The node whose owning octree should be dirtied.</param>
+        /// <returns><see langword="true"/> if the node was found and its octree was dirtied; <see langword="false"/> if the node is not part of this scene.</returns>
+        public bool MarkParentOctreeDirty(SceneNode node)
+        {
+            var nodeType = GetNodeTypeById(node.Id).Type;
+            if (nodeType == NodeType.Unknown)
+            {
+                return false;
+            }
 
+            LightingInfo.ClearBarnShadowCache();
+
+            var octree = nodeType == NodeType.Static ? StaticOctree : DynamicOctree;
+            octree.Dirty = true;
+            return true;
+        }
+
+        /// <summary>Rebuilds dirty static and dynamic octrees from their current node sets.</summary>
         public void UpdateOctrees()
         {
             LastFrustum = -1;
-            StaticOctree.Clear();
-            DynamicOctree.Clear();
+
+            if (StaticOctree.Dirty)
+            {
+                // static octree is tightly wrapped around the scene
+                var maxBounds = new AABB();
+                var hasBounds = false;
+
+                foreach (var node in staticNodes)
+                {
+                    if (node.LayerEnabled)
+                    {
+                        maxBounds = hasBounds ? maxBounds.Union(node.BoundingBox) : node.BoundingBox;
+                        hasBounds = true;
+                    }
+                }
+
+                StaticOctree.Clear(maxBounds);
+
+                foreach (var node in staticNodes)
+                {
+                    if (node.LayerEnabled)
+                    {
+                        StaticOctree.Insert(node);
+                    }
+                }
+
+                StaticOctree.DebugRenderer?.StaticBuild();
+                StaticOctree.Dirty = false;
+            }
+
+            if (DynamicOctree.Dirty)
+            {
+                DynamicOctree.Clear();
+
+                foreach (var node in dynamicNodes)
+                {
+                    if (node.LayerEnabled)
+                    {
+                        DynamicOctree.Insert(node);
+                    }
+                }
+
+                DynamicOctree.Dirty = false;
+            }
+        }
+
+        /// <summary>Assigns sequential scene-unique IDs to all static and dynamic nodes, starting at 1 (0 is reserved as an invalid ID).</summary>
+        public void UpdateNodeIndices()
+        {
+            uint index = 1; // 0 is reserved for invalid index
 
             foreach (var node in staticNodes)
             {
-                if (node.LayerEnabled)
-                {
-                    StaticOctree.Insert(node);
-                }
+                node.Id = index;
+                index++;
             }
 
             foreach (var node in dynamicNodes)
             {
-                if (node.LayerEnabled)
-                {
-                    DynamicOctree.Insert(node);
-                }
+                node.Id = index;
+                index++;
             }
         }
 
+        /// <summary>Writes the scene fog parameters into the provided view constants structure.</summary>
+        /// <param name="viewConstants">The view constants to update with fog uniforms.</param>
         public void SetFogConstants(ViewConstants viewConstants)
         {
             FogInfo.SetFogUniforms(viewConstants, FogEnabled);
         }
 
+        /// <summary>
+        /// Assigns each scene node its best-matching light probe volume and uploads probe data to the GPU light probe uniform buffer.
+        /// </summary>
         public void CalculateLightProbeBindings()
         {
             Debug.Assert(lpvBuffer is not null);
@@ -1304,9 +1684,19 @@ namespace ValveResourceFormat.Renderer
                 }
             }
 
+            var isAtlas = LightingInfo.LightProbeType == LightProbeType.ProbeAtlas;
+
+            static bool IsValid(SceneLightProbe probe, bool isAtlas) => isAtlas switch
+            {
+                true => probe is { Irradiance: not null, DirectLightShadows: not null },
+                false => true,
+            };
+
             var sortedLightProbes = LightingInfo.LightProbes
+                .Where(probe => IsValid(probe, isAtlas))
                 .OrderByDescending(static lpv => lpv.IndoorOutdoorLevel)
-                .ThenBy(static lpv => lpv.AtlasSize.LengthSquared());
+                .ThenBy(static lpv => lpv.AtlasSize.LengthSquared())
+                .ToList();
 
             var nodes = new List<SceneNode>();
 
@@ -1322,7 +1712,7 @@ namespace ValveResourceFormat.Renderer
                 }
 
                 probe.ShaderIndex = i;
-                var data = probe.CalculateGpuProbeData(LightingInfo.LightProbeType == LightProbeType.ProbeAtlas);
+                var data = probe.CalculateGpuProbeData(isAtlas);
                 lpvBuffer.Data.Probes[i] = data;
 
                 nodes.Clear();
@@ -1334,16 +1724,30 @@ namespace ValveResourceFormat.Renderer
                 }
             }
 
-            // Assign random probe to any node that does not have any light probes to fix the flickering,
-            // this isn't ideal, and a proper fix would be to remove D_BAKED_LIGHTING_FROM_PROBE from the shader
-            var firstProbe = LightingInfo.LightProbes[0];
+            if (sortedLightProbes.Count == 0)
+            {
+                // remove baked lighting from probe attribute?
+                return;
+            }
+
+            // Fall back to the global probe
+            var globalProbe = sortedLightProbes[^1];
 
             foreach (var node in AllNodes)
             {
-                node.LightProbeBinding ??= firstProbe;
+                if (node.Flags.HasFlag(ObjectTypeFlags.DisableVisCulling))
+                {
+                    node.LightProbeBinding = globalProbe;
+                    continue;
+                }
+
+                node.LightProbeBinding ??= globalProbe;
             }
         }
 
+        /// <summary>
+        /// Assigns environment maps to scene nodes based on spatial overlap and precomputed handshakes, and uploads env map data to the GPU uniform buffer.
+        /// </summary>
         public void CalculateEnvironmentMaps()
         {
             if (LightingInfo.EnvMaps.Count == 0)
@@ -1412,7 +1816,7 @@ namespace ValveResourceFormat.Renderer
                     else
                     {
 #if DEBUG
-                        RendererContext.Logger.LogDebug("A envmap with handshake [{Handshake}] does not exist for node at {Center}", precomputedHandshake, node.BoundingBox.Center);
+                        RendererContext.Logger.LogDebug("An envmap with handshake [{Handshake}] does not exist for node at {Center}", precomputedHandshake, node.BoundingBox.Center);
 #endif
                     }
                 }
@@ -1460,7 +1864,15 @@ namespace ValveResourceFormat.Renderer
                     return aDistance.CompareTo(bDistance);
                 });
 
-                node.ShaderEnvMapVisibility = node.ShaderEnvMapVisibility.Store(node.EnvMaps);
+                // Rebuilt from scratch rather than added to: Store only sets bits, so a node that lost a
+                // probe since the last call would keep it.
+                node.ShaderEnvMapVisibility = default(SceneEnvMap.EnvMapVisibility128).Store(node.EnvMaps);
+
+                // all cubemaps visible
+                if (node.Flags.HasFlag(ObjectTypeFlags.DisableVisCulling))
+                {
+                    node.ShaderEnvMapVisibility = node.ShaderEnvMapVisibility.Store(LightingInfo.EnvMaps);
+                }
 
 #if DEBUG
                 if (preComputed != default)
@@ -1504,7 +1916,7 @@ namespace ValveResourceFormat.Renderer
                 throw new InvalidOperationException("Matrix invert failed");
             }
 
-            var boundsExtend = new Vector3(0.02f);
+            var boundsExtend = new Vector3(SceneEnvMap.BoundsExtend);
 
             envMapBuffer.Data.EnvMaps[index] = new EnvMapData
             {
@@ -1516,10 +1928,14 @@ namespace ValveResourceFormat.Renderer
                 Origin = envMap.Transform.Translation,
                 ProjectionType = (uint)envMap.ProjectionMode,
                 Color = envMap.Tint,
-                NormalizationSH = new Vector4(0, 0, 0, 1)
+                NormalizationSH = envMap.NormalizationSH
             };
         }
 
+        /// <summary>
+        /// Applies a rotation delta to the first environment map's world-to-local transform to simulate sun angle changes.
+        /// </summary>
+        /// <param name="delta">The rotation matrix to multiply into the env map transform.</param>
         public void AdjustEnvMapSunAngle(Matrix4x4 delta)
         {
             Debug.Assert(envMapBuffer != null);
@@ -1527,20 +1943,25 @@ namespace ValveResourceFormat.Renderer
             envMapBuffer.Data.EnvMaps[0].WorldToLocal *= delta;
         }
 
+        /// <inheritdoc/>
         public void Dispose()
         {
             Dispose(true);
             GC.SuppressFinalize(this);
         }
 
+        /// <summary>Releases managed GPU resources owned by the scene.</summary>
+        /// <param name="disposing"><see langword="true"/> when called from <see cref="Dispose()"/>.</param>
         protected virtual void Dispose(bool disposing)
         {
             if (disposing)
             {
                 frustumBuffer?.Dispose();
+                LightBinner.Dispose();
                 lightingBuffer?.Dispose();
                 lpvBuffer?.Dispose();
                 envMapBuffer?.Dispose();
+                LightingInfo.DisposeBarnLights();
             }
         }
     }

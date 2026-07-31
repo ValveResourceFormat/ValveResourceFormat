@@ -35,7 +35,7 @@ namespace GUI.Forms
             github = new ThemedButton();
             label3 = new Label();
             icon = new PictureBox();
-            keybinds = new ThemedButton();
+            discord = new ThemedButton();
             copyVersion = new ThemedButton();
             checkForUpdatesCheckbox = new CheckBox();
             downloadButton = new ThemedButton();
@@ -112,24 +112,24 @@ namespace GUI.Forms
             icon.TabIndex = 11;
             icon.TabStop = false;
             // 
-            // keybinds
+            // discord
             // 
-            keybinds.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
-            keybinds.BackColor = System.Drawing.Color.FromArgb(188, 188, 188);
-            keybinds.ClickedBackColor = System.Drawing.Color.FromArgb(99, 161, 255);
-            keybinds.CornerRadius = 5;
-            keybinds.FlatStyle = FlatStyle.Flat;
-            keybinds.ForeColor = System.Drawing.Color.Black;
-            keybinds.HoveredBackColor = System.Drawing.Color.FromArgb(140, 191, 255);
-            keybinds.LabelFormatFlags = TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter | TextFormatFlags.EndEllipsis;
-            keybinds.Location = new System.Drawing.Point(311, 3);
-            keybinds.Name = "keybinds";
-            keybinds.Size = new System.Drawing.Size(149, 30);
-            keybinds.Style = true;
-            keybinds.TabIndex = 12;
-            keybinds.Text = "View &keybinds";
-            keybinds.UseVisualStyleBackColor = false;
-            keybinds.Click += OnKeybindsClick;
+            discord.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
+            discord.BackColor = System.Drawing.Color.FromArgb(188, 188, 188);
+            discord.ClickedBackColor = System.Drawing.Color.FromArgb(99, 161, 255);
+            discord.CornerRadius = 5;
+            discord.FlatStyle = FlatStyle.Flat;
+            discord.ForeColor = System.Drawing.Color.Black;
+            discord.HoveredBackColor = System.Drawing.Color.FromArgb(140, 191, 255);
+            discord.LabelFormatFlags = TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter | TextFormatFlags.EndEllipsis;
+            discord.Location = new System.Drawing.Point(311, 3);
+            discord.Name = "discord";
+            discord.Size = new System.Drawing.Size(149, 30);
+            discord.Style = true;
+            discord.TabIndex = 12;
+            discord.Text = "&Discord";
+            discord.UseVisualStyleBackColor = false;
+            discord.Click += OnDiscordClick;
             // 
             // copyVersion
             // 
@@ -243,7 +243,7 @@ namespace GUI.Forms
             tableLayoutPanel1.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 33.3333321F));
             tableLayoutPanel1.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 33.3333321F));
             tableLayoutPanel1.Controls.Add(website, 0, 0);
-            tableLayoutPanel1.Controls.Add(keybinds, 2, 0);
+            tableLayoutPanel1.Controls.Add(discord, 2, 0);
             tableLayoutPanel1.Controls.Add(github, 1, 0);
             tableLayoutPanel1.Location = new System.Drawing.Point(16, 96);
             tableLayoutPanel1.Name = "tableLayoutPanel1";
@@ -351,7 +351,7 @@ namespace GUI.Forms
         private Label currentVersionLabel;
         private ThemedButton website;
         private ThemedButton github;
-        private ThemedButton keybinds;
+        private ThemedButton discord;
         private ThemedButton copyVersion;
         private ThemedButton downloadButton;
         private ThemedButton viewReleaseNotesButton;

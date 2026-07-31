@@ -13,11 +13,12 @@ namespace ValveResourceFormat.Renderer.Particles
         /// </summary>
         public enum PfInputMode
         {
-#pragma warning disable CS1591 // Missing XML comment for publicly visible type or member
+            /// <summary>Invalid input mode.</summary>
             Invalid = -1,
+            /// <summary>Input values are clamped to the defined input range.</summary>
             Clamped,
+            /// <summary>Input values wrap around within the defined input range.</summary>
             Looped,
-#pragma warning restore CS1591 // Missing XML comment for publicly visible type or member
         }
 
         /// <summary>
@@ -25,19 +26,42 @@ namespace ValveResourceFormat.Renderer.Particles
         /// </summary>
         public enum PfMapType
         {
-#pragma warning disable CS1591 // Missing XML comment for publicly visible type or member
+            /// <summary>Invalid mapping type.</summary>
             Invalid = -1,
+            /// <summary>Passes the input value through unchanged.</summary>
             Direct,
+            /// <summary>Multiplies the input value by a constant factor.</summary>
             Mult,
+            /// <summary>Remaps the input from one range to another.</summary>
             Remap,
+            /// <summary>Remaps the input with an additional bias curve applied.</summary>
             RemapBiased,
+            /// <summary>Evaluates a piecewise curve at the input value.</summary>
             Curve,
+            /// <summary>Returns one of two output values depending on whether the input is within a range.</summary>
             Notched,
-#pragma warning restore CS1591 // Missing XML comment for publicly visible type or member
+            /// <summary>Rounds the input value using the configured rounding mode.</summary>
+            Round,
         };
+
+        /// <summary>
+        /// Rounding modes for <see cref="PfMapType.Round"/>.
+        /// </summary>
+        public enum PfRoundType
+        {
+            /// <summary>Invalid rounding mode.</summary>
+            Invalid = -1,
+            /// <summary>Round to the nearest integer.</summary>
+            Nearest,
+            /// <summary>Round down.</summary>
+            Floor,
+            /// <summary>Round up.</summary>
+            Ceil,
+        }
 
         private readonly PfMapType MapType;
         private readonly PfInputMode InputMode = PfInputMode.Clamped;
+        private readonly PfRoundType roundType = PfRoundType.Nearest;
 
         private readonly float multFactor;
 
@@ -45,6 +69,11 @@ namespace ValveResourceFormat.Renderer.Particles
         private readonly float input1;
         private readonly float output0;
         private readonly float output1;
+
+        private readonly float notchedRangeMin;
+        private readonly float notchedRangeMax;
+        private readonly float notchedOutputOutside;
+        private readonly float notchedOutputInside;
 
         //private readonly ParticleFloatBiasType biasType;
         //private readonly float biasParameter;
@@ -73,8 +102,13 @@ namespace ValveResourceFormat.Renderer.Particles
                     output0 = parse.Float("m_flOutput0");
                     output1 = parse.Float("m_flOutput1");
 
-                    MathUtils.MinMaxFixUp(ref input0, ref input1);
-                    MathUtils.MinMaxFixUp(ref output0, ref output1);
+                    // Sort the input range, swapping the outputs with it so the authored
+                    // input->output pairing (which may deliberately descend) is preserved
+                    if (input0 > input1)
+                    {
+                        (input0, input1) = (input1, input0);
+                        (output0, output1) = (output1, output0);
+                    }
 
                     break;
 
@@ -84,12 +118,14 @@ namespace ValveResourceFormat.Renderer.Particles
                     break;
 
                 case PfMapType.Notched:
-                    /* NOTCHED PARAMS:
-                    * m_flNotchedRangeMin
-                    * m_flNotchedRangeMax
-                    * m_flNotchedOutputOutside
-                    * m_flNotchedOutputInside
-                    */
+                    notchedRangeMin = parse.Float("m_flNotchedRangeMin");
+                    notchedRangeMax = parse.Float("m_flNotchedRangeMax");
+                    notchedOutputOutside = parse.Float("m_flNotchedOutputOutside");
+                    notchedOutputInside = parse.Float("m_flNotchedOutputInside");
+                    break;
+
+                case PfMapType.Round:
+                    roundType = parse.EnumNormalized<PfRoundType>("m_nRoundType", roundType);
                     break;
 
                 default:
@@ -126,7 +162,9 @@ namespace ValveResourceFormat.Renderer.Particles
                 case PfMapType.RemapBiased:
                     var remappedTo0_1RangeBiased = MathUtils.Remap(value, input0, input1);
 
-                    if (InputMode == PfInputMode.Looped) { remappedTo0_1RangeBiased = MathUtils.Fract(remappedTo0_1RangeBiased); }
+                    remappedTo0_1RangeBiased = InputMode == PfInputMode.Looped
+                        ? MathUtils.Fract(remappedTo0_1RangeBiased)
+                        : MathUtils.Saturate(remappedTo0_1RangeBiased);
 
                     // TODO: Insert bias processing here. Shared with randombiased mode in INumberProvider
 
@@ -134,6 +172,19 @@ namespace ValveResourceFormat.Renderer.Particles
 
                 case PfMapType.Curve:
                     return curve!.Evaluate(value);
+
+                case PfMapType.Notched:
+                    return value >= notchedRangeMin && value <= notchedRangeMax
+                        ? notchedOutputInside
+                        : notchedOutputOutside;
+
+                case PfMapType.Round:
+                    return roundType switch
+                    {
+                        PfRoundType.Floor => MathF.Floor(value),
+                        PfRoundType.Ceil => MathF.Ceiling(value),
+                        _ => MathF.Round(value),
+                    };
 
                 default:
                     return value;

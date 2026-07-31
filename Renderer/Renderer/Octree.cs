@@ -1,5 +1,3 @@
-using OpenTK.Graphics.OpenGL;
-
 namespace ValveResourceFormat.Renderer
 {
     /// <summary>
@@ -35,26 +33,6 @@ namespace ValveResourceFormat.Renderer
             /// Gets the eight child octree nodes created after subdivision.
             /// </summary>
             public Node[] Children { get; private set; } = [];
-
-            /// <summary>
-            /// Gets or sets whether this node is outside the view frustum.
-            /// </summary>
-            public bool FrustumCulled { get; set; }
-
-            /// <summary>
-            /// Gets or sets the OpenGL occlusion query handle for this node.
-            /// </summary>
-            public int OcclusionQueryHandle { get; set; } = -1;
-
-            /// <summary>
-            /// Gets or sets whether an occlusion query has been submitted for this node.
-            /// </summary>
-            public bool OcculsionQuerySubmitted { get; set; }
-
-            /// <summary>
-            /// Gets or sets whether this node is occluded by other geometry.
-            /// </summary>
-            public bool OcclusionCulled { get; set; }
 
             /// <summary>
             /// Splits this node into eight child nodes and redistributes elements.
@@ -144,6 +122,12 @@ namespace ValveResourceFormat.Renderer
             /// </remarks>
             public void Insert(SceneNode element)
             {
+                if ((element.Flags & ObjectTypeFlags.DisableVisCulling) != 0)
+                {
+                    InsertIntoRoot(element);
+                    return;
+                }
+
                 if (!HasChildren && HasElements && ShouldSubdivide(Region.Size.X, Elements!.Count))
                 {
                     Subdivide();
@@ -179,6 +163,11 @@ namespace ValveResourceFormat.Renderer
                     return;
                 }
 
+                InsertIntoRoot(element);
+            }
+
+            private void InsertIntoRoot(SceneNode element)
+            {
                 if (Elements == null)
                 {
                     Elements = [element];
@@ -236,22 +225,17 @@ namespace ValveResourceFormat.Renderer
             }
 
             /// <summary>
-            /// Clears all elements and children from this node and releases OpenGL resources.
+            /// Clears all elements and children from this node.
             /// </summary>
             public void Clear()
             {
-                Elements = null;
-                Children = [];
-
-                if (OcclusionQueryHandle != -1)
+                foreach (var child in Children)
                 {
-                    GL.DeleteQuery(OcclusionQueryHandle);
-                    OcclusionQueryHandle = -1;
+                    child.Clear();
                 }
 
-                FrustumCulled = false;
-                OcculsionQuerySubmitted = false;
-                OcclusionCulled = false;
+                Elements = null;
+                Children = [];
             }
 
             /// <summary>
@@ -289,16 +273,13 @@ namespace ValveResourceFormat.Renderer
             /// </summary>
             /// <param name="frustum">View frustum to test against.</param>
             /// <param name="results">List to populate with visible scene nodes.</param>
-            /// <remarks>
-            /// Performs frustum and occlusion culling during traversal.
-            /// </remarks>
             public void Query(Frustum frustum, List<SceneNode> results)
             {
                 if (HasElements)
                 {
                     foreach (var element in Elements!)
                     {
-                        if (frustum.Intersects(element.BoundingBox))
+                        if (frustum.Intersects(element.BoundingBox) || (element.Flags & ObjectTypeFlags.DisableVisCulling) != 0)
                         {
                             results.Add(element);
                         }
@@ -309,14 +290,10 @@ namespace ValveResourceFormat.Renderer
                 {
                     foreach (var child in Children)
                     {
-                        child.FrustumCulled = !frustum.Intersects(child.Region);
-
-                        if (child.FrustumCulled || child.OcclusionCulled)
+                        if (frustum.Intersects(child.Region))
                         {
-                            continue;
+                            child.Query(frustum, results);
                         }
-
-                        child.Query(frustum, results);
                     }
                 }
             }
@@ -356,18 +333,33 @@ namespace ValveResourceFormat.Renderer
         /// <summary>
         /// Gets the root node of the octree.
         /// </summary>
-        public Node Root { get; }
+        public Node Root { get; private set; }
+
+        /// <summary>
+        /// Gets or sets whether this octree needs to be rebuilt.
+        /// </summary>
+        public bool Dirty { get; set; } = true;
+
+        /// <summary>Gets or sets an optional debug renderer that visualizes this octree.</summary>
+        public OctreeDebugRenderer? DebugRenderer { get; set; }
 
         /// <summary>
         /// Initializes a new octree with the specified size.
         /// </summary>
         /// <param name="size">Total size of the octree region (centered at origin).</param>
-        /// <exception cref="ArgumentOutOfRangeException">Thrown if <paramref name="size"/> is negative or zero.</exception>
         public Octree(float size)
+            : this(new AABB(Vector3.Zero, size / 2f))
         {
-            ArgumentOutOfRangeException.ThrowIfNegativeOrZero(size);
+        }
 
-            Root = new Node(null, new Vector3(-size * 0.5f), new Vector3(size));
+        /// <summary>
+        /// Initializes a new octree with the specified bounding box as the largest region.
+        /// </summary>
+        public Octree(AABB size)
+        {
+            ArgumentOutOfRangeException.ThrowIfNegativeOrZero(size.Size.Length());
+
+            Root = new Node(null, size.Min, size.Size);
         }
 
         /// <summary>
@@ -408,6 +400,11 @@ namespace ValveResourceFormat.Renderer
         public void Update(SceneNode obj, in AABB oldBounds)
         {
             ArgumentNullException.ThrowIfNull(obj);
+
+            if ((obj.Flags & ObjectTypeFlags.DisableVisCulling) != 0)
+            {
+                return;
+            }
 
             var (node, index) = Root.Find(obj, oldBounds);
             if (node is { Elements: not null })
@@ -453,6 +450,21 @@ namespace ValveResourceFormat.Renderer
         public void Clear()
         {
             Root.Clear();
+        }
+
+
+        /// <summary>
+        /// Clears all nodes and roughly sizes root to the specified bounds.
+        /// </summary>
+        public void Clear(AABB rootBounds)
+        {
+            Clear();
+
+            var min = Vector3.Max(-new Vector3(16384), rootBounds.Min);
+            var max = Vector3.Min(new Vector3(16384), rootBounds.Max);
+
+            max = new Vector3(max.Length());
+            Root = new Node(null, min, max - min);
         }
     }
 }

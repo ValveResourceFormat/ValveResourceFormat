@@ -42,10 +42,10 @@ namespace ValveResourceFormat.Renderer
         /// Initializes a new bounding box centered at a point with uniform extents.
         /// </summary>
         /// <param name="point">Center point.</param>
-        /// <param name="uniformSize">Half-size along each axis.</param>
-        public AABB(Vector3 point, float uniformSize)
+        /// <param name="halfExtents">Half-size along each axis.</param>
+        public AABB(Vector3 point, float halfExtents)
         {
-            var size = new Vector3(uniformSize);
+            var size = new Vector3(halfExtents);
             Min = point - size;
             Max = point + size;
         }
@@ -134,7 +134,7 @@ namespace ValveResourceFormat.Renderer
         /// <param name="transform">The transformation matrix.</param>
         /// <returns>A new axis-aligned bounding box that contains the transformed box.</returns>
         /// <remarks>
-        /// The resulting AABB may be larger than the original if rotation is involved.
+        /// The resulting <see cref="AABB"/> may be larger than the original if rotation is involved.
         /// To minimize error accumulation, premultiply matrices before transforming.
         /// </remarks>
         public AABB Transform(in Matrix4x4 transform)

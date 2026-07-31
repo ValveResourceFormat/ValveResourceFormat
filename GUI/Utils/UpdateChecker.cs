@@ -7,7 +7,6 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Threading;
 using System.Threading.Tasks;
-using System.Windows.Forms;
 
 namespace GUI.Utils;
 
@@ -57,7 +56,7 @@ static partial class UpdateChecker
     {
         try
         {
-            var version = Application.ProductVersion;
+            var version = Program.ProductVersion;
             var versionPlus = version.IndexOf('+', StringComparison.InvariantCulture); // Drop the git commit
             var currentVersion = new Version(versionPlus > 0 ? version[..versionPlus] : version);
 

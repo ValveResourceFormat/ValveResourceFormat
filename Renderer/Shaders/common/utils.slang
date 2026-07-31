@@ -45,6 +45,20 @@ float pow5(float val)
     return pow(val, 5.0); // Should get optimized
 }
 
+// Guards against pow(0, 0) = NaN by clamping the base off zero.
+float SafePow(float base, float exponent)
+{
+    return pow(max(base, 1e-9), exponent);
+}
+vec2 SafePow(vec2 base, vec2 exponent)
+{
+    return pow(max(base, vec2(1e-9)), exponent);
+}
+vec3 SafePow(vec3 base, vec3 exponent)
+{
+    return pow(max(base, vec3(1e-9)), exponent);
+}
+
 float Random2D(vec2 Seed)
 {
     return fract(sin( dot(Seed, vec2(12.9898, 78.233)) ) * 43758.5469);
@@ -96,7 +110,7 @@ float LevelsAdjust(float component, vec3 L_BlackWhiteGamma)
         2.0 - L_BlackWhiteGamma.z
     );
 
-    return mix(levels.x, levels.y, pow(component, levels.z));
+    return mix(levels.x, levels.y, SafePow(component, levels.z));
 }
 
 float SrgbGammaToLinear(float color)
@@ -173,6 +187,12 @@ vec3 DecodeYCoCg(vec4 color)
     return vec3(R, G, B);
 }
 
+vec3 DecodeRGBM(vec4 color)
+{
+    const float MaxRange = 6.0;
+    return color.rgb * (color.a * MaxRange);
+}
+
 vec2 Resize2D(float Base, vec4 StartPos_Size)
 {
 	return StartPos_Size.xy + Base * StartPos_Size.zw;
@@ -190,7 +210,7 @@ vec2 RotateVector2D(vec2 vectorInput, float rotation, vec2 scale, vec2 offset)
     float sinRot = sin(rotation);
     float cosRot = cos(rotation);
 
-    vec2 finalOffset = (scale.xy * -0.5) * vec2(cosRot - sinRot, sinRot - cosRot) + offset + vec2(0.5);
+    vec2 finalOffset = (scale.xy * -0.5) * vec2(cosRot - sinRot, sinRot + cosRot) + offset + vec2(0.5);
     vec4 xform = scale.xxyy * vec4(cosRot, -sinRot, sinRot, cosRot);
 
     return vec2(dot(xform.xy, vectorInput.xy), dot(xform.zw, vectorInput.xy)) + finalOffset;
@@ -205,12 +225,24 @@ vec2 RotateVector2D(vec2 vectorInput, float rotation, vec2 scale, vec2 offset, v
 
     vec4 xform = vec4(cosRot * scale.x, -sinRot * scale.y, sinRot * scale.x, cosRot* scale.y);
 
-    vec2 finalOffset;
-    finalOffset.x = (center.x + offset.x) + (sinRot * center.y) - (cosRot * center.x);
-    finalOffset.y = (center.y + offset.y) - (sinRot * center.x) + (cosRot * center.y);
-    // ^ all of this should be precalculated
+    vec2 finalOffset = center + offset - vec2(dot(xform.xy, center), dot(xform.zw, center));
 
     return vec2(dot(xform.xy, vectorInput.xy), dot(xform.zw, vectorInput.xy)) + finalOffset;
+}
+
+// From vr_common in sbox
+vec4 QuaternionMultiplication( vec4 q1, vec4 q2 )
+{
+	return vec4(
+		q2.xyz * q1.w + q1.xyz * q2.w + cross( q1.xyz, q2.xyz ),
+		q1.w * q2.w - dot( q1.xyz, q2.xyz )
+	);
+}
+
+vec3 QuaternionRotation( vec3 v, vec4 q )
+{
+	vec4 q_c = q.xyzw * vec4( -1, -1, -1, 1 );
+	return QuaternionMultiplication( q, QuaternionMultiplication( vec4( v.xyz, 0 ), q_c.xyzw ) ).xyz;
 }
 
 // All of this is directly ported from The Lab Renderer from the unity store.
@@ -320,6 +352,17 @@ vec3 oct_to_float32x3(vec2 e)
 {
     vec3 v = vec3(e.xy, 1.0 - abs(e.x) - abs(e.y));
     return normalize(v);
+}
+
+// Safe normalize that handles degenerate normals from zero-scaled bones
+vec3 safeNormalize(vec3 v)
+{
+    float len2 = dot(v, v);
+    if (len2 < 1e-8)
+    {
+        return vec3(0.0, 0.0, 1.0);
+    }
+    return v * inversesqrt(len2);
 }
 
 // Unpack HemiOct normal map

@@ -1,25 +1,35 @@
 "ResourceEditInfo"
 {
-	"AdditionalInputDependencies"
+	"InputDependencies"
 	{
 	}
-	"AdditionalRelatedFiles"
+	"AdditionalInputDependencies"
 	{
 	}
 	"ArgumentDependencies"
 	{
 		"0"
 		{
-			"Fingerprint"	"0"
-			"FingerprintDefault"	"0"
 			"ParameterName"	"___OverrideInputData___"
 			"ParameterType"	"BinaryBlobArg"
+			"Fingerprint"	"0"
+			"FingerprintDefault"	"0"
 		}
 	}
-	"ChildResourceList"
+	"SpecialDependencies"
+	{
+		"0"
+		{
+			"String"	"Sequence Compiler Version"
+			"CompilerIdentifier"	"CompileSequence"
+			"Fingerprint"	"13"
+			"UserData"	"0"
+		}
+	}
+	"AdditionalRelatedFiles"
 	{
 	}
-	"InputDependencies"
+	"ChildResourceList"
 	{
 	}
 	"SearchableUserData"
@@ -28,16 +38,6 @@
 		{
 			"Key"	"IsChildResource"
 			"Value"	"1"
-		}
-	}
-	"SpecialDependencies"
-	{
-		"0"
-		{
-			"CompilerIdentifier"	"CompileSequence"
-			"Fingerprint"	"13"
-			"String"	"Sequence Compiler Version"
-			"UserData"	"0"
 		}
 	}
 }

@@ -5,6 +5,7 @@ using ValveResourceFormat.Blocks;
 using ValveResourceFormat.Blocks.ResourceEditInfoStructs;
 using ValveResourceFormat.CompiledShader;
 using ValveResourceFormat.ResourceTypes;
+using ValveResourceFormat.ResourceTypes.GenericData;
 
 namespace ValveResourceFormat
 {
@@ -22,7 +23,7 @@ namespace ValveResourceFormat
 
         /// <summary>
         /// Gets the binary reader. USE AT YOUR OWN RISK!
-        /// It is exposed publicly to ease of reading the same file.
+        /// It is exposed publicly to ease reading the same file.
         /// </summary>
         /// <value>The binary reader.</value>
         public BinaryReader? Reader { get; private set; }
@@ -53,18 +54,18 @@ namespace ValveResourceFormat
         public List<Block> Blocks { get; } = [];
 
         /// <summary>
-        /// Gets or sets the type of the resource.
+        /// Gets the type of the resource.
         /// </summary>
         /// <value>The type of the resource.</value>
         public ResourceType ResourceType { get; private set; }
 
         /// <summary>
-        /// Gets the ResourceEditInfo block.
+        /// Gets the <see cref="ResourceEditInfo"/> block.
         /// </summary>
         public ResourceEditInfo? EditInfo { get; private set; }
 
         /// <summary>
-        /// Gets the ResourceExtRefList block.
+        /// Gets the <see cref="ResourceExtRefList"/> block.
         /// </summary>
         public ResourceExtRefList? ExternalReferences => (ResourceExtRefList?)GetBlockByType(BlockType.RERL);
 
@@ -74,7 +75,7 @@ namespace ValveResourceFormat
         public Block? DataBlock => GetBlockByType(BlockType.DATA);
 
         /// <summary>
-        /// Resource files have a FileSize in the metadata, however
+        /// Resource files have a <see cref="FileSize"/> in the metadata, however
         /// certain file types such as sounds have streaming audio data come
         /// after the resource file, and the size is specified within the DATA block.
         /// This property attempts to return the correct size.
@@ -265,7 +266,7 @@ namespace ValveResourceFormat
                     block.Read(Reader);
                     EditInfo = (ResourceEditInfo)block;
 
-                    // Try to determine resource type by looking at the compiler indentifiers
+                    // Try to determine resource type by looking at the compiler identifiers
                     // This must be done right after reading EditInfo because future DATA block
                     // will depend on knowing the resource type to construct the correct block in ConstructResourceType()
                     if (ResourceType == ResourceType.Unknown)
@@ -312,6 +313,14 @@ namespace ValveResourceFormat
                 }
             }
 
+            // Specialize the generic VData KV3 DATA block into a typed block based on generic_data_type
+            if (ResourceType == ResourceType.VData
+                && DataBlock is BinaryKV3 vdataBlock
+                && GenericData.Construct(vdataBlock) is { } specializedData)
+            {
+                Blocks[Blocks.IndexOf(vdataBlock)] = specializedData;
+            }
+
             var fullFileSize = FullFileSize;
 
             if (verifyFileSize && Reader.BaseStream.Length != fullFileSize)
@@ -351,7 +360,7 @@ namespace ValveResourceFormat
         /// Serialize resource to binary.
         /// </summary>
         /// <remarks>NOT PRODUCTION READY! Not all blocks support serialization and will throw. The total file size must not exceed <see cref="uint"/>.</remarks>
-        /// <param name="stream">Stream to write to. The stream support seeking.</param>
+        /// <param name="stream">Stream to write to. The stream must support seeking.</param>
         public void Serialize(Stream stream)
         {
             if (!stream.CanSeek)
@@ -514,6 +523,7 @@ namespace ValveResourceFormat
                 BlockType.MVTX => new MeshVertexBuffer() { Resource = this },
                 BlockType.MIDX => new MeshIndexBuffer() { Resource = this },
                 BlockType.MADJ => new MeshAdjacencyBuffer() { Resource = this },
+                BlockType.MSLT => new MeshletBuffer() { Resource = this },
                 BlockType.CTRL => new BinaryKV3(BlockType.CTRL) { Resource = this },
                 BlockType.MDAT => new Mesh(BlockType.MDAT) { Resource = this },
                 BlockType.INSG => new BinaryKV3(BlockType.INSG) { Resource = this },

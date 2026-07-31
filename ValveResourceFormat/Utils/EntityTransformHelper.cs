@@ -17,7 +17,7 @@ namespace ValveResourceFormat.Utils
         /// <param name="positionVector">The position vector.</param>
         public static void DecomposeTransformationMatrix(Entity entity, out Vector3 scaleVector, out Matrix4x4 rotationMatrix, out Vector3 positionVector)
         {
-            scaleVector = entity.GetVector3Property("scales");
+            scaleVector = entity.GetVector3Property("scales", Vector3.One);
             positionVector = entity.GetVector3Property("origin");
             var pitchYawRoll = entity.GetVector3Property("angles");
 
@@ -72,6 +72,17 @@ namespace ValveResourceFormat.Utils
         }
 
         /// <summary>
+        /// Converts Euler angles (pitch, yaw, roll) to a normalized forward direction vector.
+        /// </summary>
+        /// <param name="pitchYawRoll">The Euler angles.</param>
+        /// <returns>The normalized forward direction.</returns>
+        public static Vector3 QAngleToForwardDirection(Vector3 pitchYawRoll)
+        {
+            var rotationMatrix = CreateRotationMatrixFromEulerAngles(pitchYawRoll);
+            return Vector3.Normalize(Vector3.Transform(new Vector3(1, 0, 0), rotationMatrix));
+        }
+
+        /// <summary>
         /// Calculates the full transformation matrix for an entity.
         /// </summary>
         /// <param name="entity">The entity.</param>
@@ -84,6 +95,40 @@ namespace ValveResourceFormat.Utils
             var positionMatrix = Matrix4x4.CreateTranslation(positionVector);
 
             return scaleMatrix * rotationMatrix * positionMatrix;
+        }
+
+        /// <summary>
+        /// Like <see cref="CalculateTransformationMatrix"/> but without scale; the transform a template passes to its children.
+        /// </summary>
+        /// <returns>The transform without the entity's scale.</returns>
+        public static Matrix4x4 CalculateRigidTransformationMatrix(Entity entity)
+        {
+            DecomposeTransformationMatrix(entity, out _, out var rotationMatrix, out var positionVector);
+
+            return rotationMatrix * Matrix4x4.CreateTranslation(positionVector);
+        }
+
+        /// <summary>
+        /// Parses a string representation of a Vector2.
+        /// </summary>
+        /// <param name="input">The input string.</param>
+        /// <returns>The parsed vector.</returns>
+        public static Vector2 ParseVector2(string input)
+        {
+            if (string.IsNullOrEmpty(input))
+            {
+                return default;
+            }
+            var split = input.Split(' ');
+
+            if (split.Length != 2)
+            {
+                return default;
+            }
+
+            return new Vector2(
+                float.Parse(split[0], CultureInfo.InvariantCulture),
+                float.Parse(split[1], CultureInfo.InvariantCulture));
         }
 
         /// <summary>

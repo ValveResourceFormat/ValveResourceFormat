@@ -1,4 +1,3 @@
-using System.Diagnostics;
 using System.Globalization;
 using System.IO;
 using System.Linq;
@@ -19,7 +18,7 @@ namespace ValveResourceFormat.IO;
 public class TextureContentFile : ContentFile
 {
     /// <summary>
-    /// Gets or initializes the bitmap data.
+    /// Gets the bitmap data.
     /// </summary>
     public required SKBitmap Bitmap { get; init; }
 
@@ -56,12 +55,12 @@ public class TextureContentFile : ContentFile
 public sealed class ImageSubFile : SubFile
 {
     /// <summary>
-    /// Gets or initializes the bitmap data.
+    /// Gets the bitmap data.
     /// </summary>
     public required SKBitmap Bitmap { get; init; }
 
     /// <summary>
-    /// Gets or initializes the image extraction function.
+    /// Gets the image extraction function.
     /// </summary>
     public required Func<SKBitmap, byte[]> ImageExtract { get; init; }
 
@@ -97,7 +96,7 @@ public sealed class TextureExtract
     public TextureDecoders.TextureCodec DecodeFlags { get; set; } = TextureDecoders.TextureCodec.Auto;
 
     /// <summary>
-    /// Whether to combine cubemap faces into a single latlong image.
+    /// Whether to combine cubemap faces into a single latlong image. Only applies to high dynamic range cubemaps.
     /// </summary>
     public bool LatLongCombineCubemap { get; set; } = true;
 
@@ -259,7 +258,12 @@ public sealed class TextureExtract
             if (isCubeMap && LatLongCombineCubemap && ExportExr)
             {
                 // use the file name set in material properties
-                vtexContent.SubFiles[0].FileName = Path.GetFileName(mapsToUnpack.First().FileName);
+                var firstUnpackInfo = mapsToUnpack.FirstOrDefault();
+
+                if (firstUnpackInfo.FileName != null)
+                {
+                    vtexContent.SubFiles[0].FileName = Path.GetFileName(firstUnpackInfo.FileName);
+                }
             }
 
             return vtexContent;
@@ -470,7 +474,7 @@ public sealed class TextureExtract
         private static readonly SKSamplingOptions SamplingOptions = new(SKFilterMode.Linear, SKMipmapMode.None);
 
         /// <summary>
-        /// Gets or initializes the default color for unpacked channels.
+        /// Gets the default color for unpacked channels.
         /// </summary>
         public SKColor DefaultColor { get; init; } = SKColors.Black;
 
@@ -726,9 +730,9 @@ public sealed class TextureExtract
         ArgumentOutOfRangeException.ThrowIfLessThan(faces.Length, 6, nameof(faces));
 
         var colorType = faces[0].Info.ColorType;
-        if (colorType != SKColorType.RgbaF16 && colorType != SKColorType.RgbaF32)
+        if (colorType != SKColorType.RgbaF32)
         {
-            throw new InvalidOperationException($"Cubemap faces must be HDR format (RgbaF16 or RgbaF32), got {colorType}");
+            throw new InvalidOperationException($"Cubemap faces must be RgbaF32 format, got {colorType}");
         }
 
         var faceWidth = faces[0].Width;
@@ -746,17 +750,16 @@ public sealed class TextureExtract
         Parallel.For(0, height, y =>
         {
             var latLongSpan = latLongPixels.GetPixelSpan<SKColorF>();
-            var v = (y + 0.5f) / height * (float)Math.PI;
+            var v = (y + 0.5f) / height * MathF.PI;
             for (var x = 0; x < width; x++)
             {
-                var u = (x + 0.5f) / width * 2 * (float)Math.PI;
+                var u = (x + 0.5f) / width * MathF.Tau;
+
+                var (sinU, cosU) = MathF.SinCos(u);
+                var (sinV, cosV) = MathF.SinCos(v);
 
                 // direction vector
-                var dir = new Vector3(
-                    (float)(Math.Sin(v) * Math.Cos(u)),
-                    (float)Math.Cos(v),
-                    (float)(Math.Sin(v) * Math.Sin(u))
-                );
+                var dir = new Vector3(sinV * cosU, cosV, sinV * sinU);
 
                 var color = SampleCubemapDirection(faces, dir);
                 latLongSpan[y * width + x] = color;

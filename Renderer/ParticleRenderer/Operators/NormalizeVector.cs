@@ -1,5 +1,10 @@
 namespace ValveResourceFormat.Renderer.Particles.Operators
 {
+    /// <summary>
+    /// Normalizes a vector particle attribute to unit length, then multiplies the result by a
+    /// scale factor.
+    /// </summary>
+    /// <seealso href="https://s2v.app/SchemaExplorer/cs2/particles/C_OP_NormalizeVector">C_OP_NormalizeVector</seealso>
     class NormalizeVector : ParticleFunctionOperator
     {
         private readonly ParticleField OutputField = ParticleField.Position;
@@ -9,14 +14,19 @@ namespace ValveResourceFormat.Renderer.Particles.Operators
         {
             OutputField = parse.ParticleField("m_nFieldOutput", OutputField);
             Scale = parse.Float("m_flScale", Scale);
-
-            // there's also a Lerp value that will fade it in when at low values. Further testing is needed to know anything more
         }
         public override void Operate(ParticleCollection particles, float frameTime, ParticleSystemRenderState particleSystemState)
         {
             foreach (ref var particle in particles.Current)
             {
                 var vector = particle.GetVector(OutputField);
+
+                // A zero vector has no direction to normalize
+                if (vector == Vector3.Zero)
+                {
+                    continue;
+                }
+
                 vector = Vector3.Normalize(vector) * Scale;
 
                 particle.SetVector(OutputField, vector);

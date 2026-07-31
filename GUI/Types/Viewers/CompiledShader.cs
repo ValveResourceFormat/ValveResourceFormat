@@ -37,7 +37,7 @@ namespace GUI.Types.Viewers
                 ShowRootLines = false,
                 ShowNodeToolTips = true,
                 Dock = DockStyle.Fill,
-                ImageList = MainForm.ImageList,
+                ImageList = AppIcons.ImageList,
             };
             fileListView.NodeMouseClick += OnNodeMouseClick;
             Themer.ThemeControl(fileListView);
@@ -55,7 +55,7 @@ namespace GUI.Types.Viewers
             exportBytecodeMenuItem.Click += OnExportBytecodeClick;
             shaderFileContextMenu.Items.Add(exportBytecodeMenuItem);
 
-            control = new TextControl(CodeTextBox.HighlightLanguage.Shaders);
+            control = new TextControl(HighlightLanguage.Shaders);
             control.AddControl(fileListView);
         }
 
@@ -83,9 +83,9 @@ namespace GUI.Types.Viewers
         {
             tab.Controls.Add(control);
 
-            var vfxImage = MainForm.Icons["FolderShaders"];
-            var programImage = MainForm.GetImageIndexForExtension("vcs");
-            var comboImage = MainForm.GetImageIndexForExtension("pdi");
+            var vfxImage = AppIcons.Icons["FolderShaders"];
+            var programImage = AppIcons.GetImageIndexForExtension("vcs");
+            var comboImage = AppIcons.GetImageIndexForExtension("pdi");
 
             var materialCollectionIndex = 0;
             var collectionNode = new TreeNode($"{vcsCollectionName}.vfx")
@@ -186,7 +186,7 @@ namespace GUI.Types.Viewers
 
                             if (shaderFile.Bytecode.Length > 0)
                             {
-                                var matImage = MainForm.GetImageIndexForExtension("vmat");
+                                var matImage = AppIcons.GetImageIndexForExtension("vmat");
                                 var matNode = new TreeNode($"Material {program.VcsProgramType}{variantsAbbrev}")
                                 {
                                     ToolTipText = variantsTooltip,
@@ -304,7 +304,7 @@ namespace GUI.Types.Viewers
                 var reflectedSource = AttemptSpirvReflection(vulkanSource, Backend.GLSL);
 
                 var textTab = new TabPage("SPIR-V");
-                var textBox = new CodeTextBox(reflectedSource, CodeTextBox.HighlightLanguage.Shaders);
+                var textBox = new CodeTextBox(reflectedSource, HighlightLanguage.Shaders);
                 textTab.Controls.Add(textBox);
                 resTabs.TabPages.Add(textTab);
                 resTabs.SelectedTab = textTab;
@@ -322,7 +322,7 @@ namespace GUI.Types.Viewers
 
         private static void CreateStaticComboNodes(VfxStaticComboData combo, TreeNode treeNode)
         {
-            var sourceFileImage = MainForm.GetImageIndexForExtension("ini");
+            var sourceFileImage = AppIcons.GetImageIndexForExtension("ini");
 
             List<string> dfNamesAbbrev = [];
             List<string> dfNames = [];
@@ -413,27 +413,19 @@ namespace GUI.Types.Viewers
             Debug.Assert(combo.ParentProgramData != null);
 
             var extension = shaderFile.BlockName == "VULKAN" ? "spv" : shaderFile.BlockName.ToLowerInvariant();
-            using var dialog = new SaveFileDialog
-            {
-                Title = "Export bytecode",
-                FileName = $"{combo.ParentProgramData.ShaderName}_{combo.StaticComboId:x08}_{shaderFile.ShaderFileId:x02}",
-                InitialDirectory = Settings.Config.SaveDirectory,
-                DefaultExt = extension,
-                Filter = $"{shaderFile.BlockName} bytecode (*.{extension})|*.{extension}|All files (*.*)|*.*",
-                AddToRecent = true,
-            };
 
-            if (dialog.ShowDialog() != DialogResult.OK)
+            var fileName = AppFileDialogs.SaveFile(
+                "Export bytecode",
+                $"{combo.ParentProgramData.ShaderName}_{combo.StaticComboId:x08}_{shaderFile.ShaderFileId:x02}",
+                extension,
+                $"{shaderFile.BlockName} bytecode (*.{extension})|*.{extension}|All files (*.*)|*.*");
+
+            if (fileName == null)
             {
                 return;
             }
 
-            if (Path.GetDirectoryName(dialog.FileName) is { } directory)
-            {
-                Settings.Config.SaveDirectory = directory;
-            }
-
-            File.WriteAllBytes(dialog.FileName, shaderFile.Bytecode);
+            File.WriteAllBytes(fileName, shaderFile.Bytecode);
         }
     }
 }

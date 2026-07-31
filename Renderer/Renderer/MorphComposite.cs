@@ -1,7 +1,7 @@
 using System.Diagnostics.CodeAnalysis;
-using System.Globalization;
 using System.Linq;
 using OpenTK.Graphics.OpenGL;
+using ValveKeyValue;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.Serialization.KeyValues;
 
@@ -14,6 +14,7 @@ namespace ValveResourceFormat.Renderer
     {
         private const int VertexSize = 16;
 
+        /// <summary>Gets the GPU texture containing the composited morph target offsets.</summary>
         public RenderTexture CompositeTexture { get; }
 
         private readonly int frameBuffer;
@@ -40,6 +41,9 @@ namespace ValveResourceFormat.Renderer
             public Vector4 Ranges;
         }
 
+        /// <summary>Initializes the morph composite for the given morph data, uploading the atlas and building the vertex buffer.</summary>
+        /// <param name="renderContext">Renderer context for loading shaders and textures.</param>
+        /// <param name="morph">Morph data describing the morph targets and atlas layout.</param>
         public MorphComposite(RendererContext renderContext, Morph morph)
         {
             ArgumentNullException.ThrowIfNull(morph.TextureResource);
@@ -82,6 +86,7 @@ namespace ValveResourceFormat.Renderer
             GL.NamedFramebufferTexture(frameBuffer, FramebufferAttachment.ColorAttachment0, CompositeTexture.Handle, 0);
         }
 
+        /// <summary>Composites all active morph targets into <see cref="CompositeTexture"/>.</summary>
         public void Render()
         {
             var usedVerticesLength = usedRects.Count * 4 * VertexSize;
@@ -109,9 +114,6 @@ namespace ValveResourceFormat.Renderer
             GL.BindVertexArray(vao);
 
             GL.DrawElements(PrimitiveType.Triangles, (usedVerticesLength / VertexSize / 4) * 6, DrawElementsType.UnsignedShort, 0);
-
-            GL.UseProgram(0);
-            GL.BindVertexArray(0);
 
             GL.Disable(EnableCap.Blend);
             GL.Enable(EnableCap.CullFace);
@@ -152,49 +154,48 @@ namespace ValveResourceFormat.Renderer
         {
             var morphDatas = morph.GetMorphDatas();
 
-            if (morphDatas == null)
+            if (morphDatas == null || morphDatas.Count == 0)
             {
                 allVertices = [];
                 morphRects = [];
                 return;
             }
 
-            var bundleCount = morphDatas.Sum(morphData => GetMorphDataBundleCount((KVObject)morphData.Value));
+            var bundleCount = morphDatas.Sum(morphData => GetMorphDataBundleCount(morphData));
 
             allVertices = new float[bundleCount * 4 * VertexSize];
             morphCount = morph.GetMorphCount();
             morphRects = new List<int>[morphCount];
 
             var rectCount = 0;
-            foreach (var pair in morphDatas)
+            for (var morphId = 0; morphId < morphDatas.Count; morphId++)
             {
-                var morphId = int.Parse(pair.Key, CultureInfo.InvariantCulture);
+                var morphDataChild = morphDatas[morphId];
                 morphRects[morphId] = new List<int>(10);
 
-                if (pair.Value is not KVObject morphData)
+                if (morphDataChild.ValueType != KVValueType.Collection)
                 {
                     continue;
                 }
 
-                var morphRectDatas = morphData.GetSubCollection("m_morphRectDatas");
+                var morphRectDatas = morphDataChild.GetArray("m_morphRectDatas") ?? [];
 
                 foreach (var rectPair in morphRectDatas)
                 {
                     morphRects[morphId].Add(rectCount);
 
-                    var morphRectData = (KVObject)rectPair.Value;
                     //TODO: Implement normal/wrinkle bundle type (second bundle data usually, if exists)
-                    var bundleData = (KVObject)morphRectData.GetSubCollection("m_bundleDatas").First().Value;
+                    var bundleData = (rectPair.GetArray("m_bundleDatas") ?? [])[0];
 
                     var offsets = bundleData.GetFloatArray("m_offsets");
                     var ranges = bundleData.GetFloatArray("m_ranges");
 
                     var vertexData = new MorphCompositeRectData
                     {
-                        LeftX = morphRectData.GetInt32Property("m_nXLeftDst"),
-                        TopY = morphRectData.GetInt32Property("m_nYTopDst"),
-                        WidthU = morphRectData.GetFloatProperty("m_flUWidthSrc"),
-                        HeightV = morphRectData.GetFloatProperty("m_flVHeightSrc"),
+                        LeftX = rectPair.GetInt32Property("m_nXLeftDst"),
+                        TopY = rectPair.GetInt32Property("m_nYTopDst"),
+                        WidthU = rectPair.GetFloatProperty("m_flUWidthSrc"),
+                        HeightV = rectPair.GetFloatProperty("m_flVHeightSrc"),
 
                         LeftU = bundleData.GetFloatProperty("m_flULeftSrc"),
                         TopV = bundleData.GetFloatProperty("m_flVTopSrc"),
@@ -292,6 +293,9 @@ namespace ValveResourceFormat.Renderer
             return allVertices[rects.First() * 4 * VertexSize];
         }
 
+        /// <summary>Sets the blend weight for the specified morph target and marks its rects as active or inactive.</summary>
+        /// <param name="morphId">Morph target identifier.</param>
+        /// <param name="value">Blend weight to apply.</param>
         public void SetMorphValue(int morphId, float value)
         {
             var morphValue = GetMorphValue(morphId);

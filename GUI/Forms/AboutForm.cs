@@ -32,7 +32,7 @@ namespace GUI.Forms
                 decoder.StartThread();
             }
 
-            currentVersionLabel.Text = Application.ProductVersion[..16].Replace('+', ' ');
+            currentVersionLabel.Text = Program.ProductVersion[..16].Replace('+', ' ');
             newVersionLabel.Text = "Checking for updates…";
 
             checkForUpdatesCheckbox.Checked = Settings.Config.Update.CheckAutomatically;
@@ -79,9 +79,9 @@ namespace GUI.Forms
             OpenUrl("https://github.com/ValveResourceFormat/ValveResourceFormat");
         }
 
-        private void OnKeybindsClick(object sender, EventArgs e)
+        private void OnDiscordClick(object sender, EventArgs e)
         {
-            OpenUrl("https://github.com/ValveResourceFormat/ValveResourceFormat?tab=readme-ov-file#gui-keybinds");
+            OpenUrl("https://discord.gg/s9QQ7Wg7r4");
         }
 
         private void OnViewReleaseNotesButtonClick(object sender, EventArgs e)
@@ -104,7 +104,7 @@ namespace GUI.Forms
             ToggleAutomaticUpdateCheck(checkForUpdatesCheckbox.Checked);
         }
 
-        public static void ToggleAutomaticUpdateCheck(bool enabled = true)
+        private static void ToggleAutomaticUpdateCheck(bool enabled = true)
         {
             Settings.Config.Update.CheckAutomatically = enabled;
             Settings.Config.Update.LastCheck = string.Empty;
@@ -122,7 +122,7 @@ namespace GUI.Forms
         private void OnCopyVersionClick(object sender, EventArgs e)
         {
             var output = new StringBuilder(192);
-            var version = Application.ProductVersion;
+            var version = Program.ProductVersion;
             var versionPlus = version.IndexOf('+', StringComparison.Ordinal);
 
             if (versionPlus > 0)
@@ -143,7 +143,7 @@ namespace GUI.Forms
                 output.Append(CultureInfo.InvariantCulture, $" ({GLEnvironment.GpuRendererAndDriver})");
             }
 
-            Clipboard.SetText(output.ToString());
+            AppClipboard.SetText(output.ToString());
 
             copyVersion.Text = "Copied!";
         }

@@ -23,7 +23,7 @@ layout(std140, binding = 3) uniform LightProbeVolumeArray
     LightProbeVolume g_LPV[MAX_LIGHT_PROBES];
 };
 
-uniform sampler3D g_tLPV_Irradiance;
+uniform sampler3D g_tLPV_Irradiance; // SrgbRead(true)
 
 #if (S_LIGHTMAP_VERSION_MINOR == 1)
     uniform sampler3D g_tLPV_Indices;

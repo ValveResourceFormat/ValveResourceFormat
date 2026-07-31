@@ -1,7 +1,7 @@
 using System.Buffers;
 using System.Diagnostics;
 using System.IO;
-using ValveResourceFormat.Serialization.KeyValues;
+using ValveKeyValue;
 
 namespace ValveResourceFormat.CompiledShader;
 
@@ -12,19 +12,19 @@ public class VfxStaticComboVcsEntry
 {
     private const int LZMA_MAGIC = 0x414D5A4C;
 
-    /// <summary>Gets or sets the parent program data.</summary>
+    /// <summary>Gets the parent program data.</summary>
     public required VfxProgramData ParentProgramData { get; init; }
-    /// <summary>Gets or sets the static combo identifier.</summary>
+    /// <summary>Gets the static combo identifier.</summary>
     public long StaticComboId { get; init; }
-    /// <summary>Gets or sets the file offset.</summary>
+    /// <summary>Gets the file offset.</summary>
     public int FileOffset { get; init; }
 
     /// <summary>
     /// Resource entry for KeyValues-based files.
     /// </summary>
-    public record ResourceEntry(KVObject ComboData, VfxShaderAttribute[] AllAttributes, KVObject[] ByteCodeDescArray);
+    public record ResourceEntry(KVObject ComboData, VfxShaderAttribute[] AllAttributes, IReadOnlyList<KVObject> ByteCodeDescArray);
 
-    /// <summary>Gets or sets the KeyValues entry.</summary>
+    /// <summary>Gets the KeyValues entry.</summary>
     public ResourceEntry? KVEntry { get; init; }
 
     /// <summary>
@@ -98,7 +98,7 @@ public class VfxStaticComboVcsEntry
                 throw new NotImplementedException("Uncompressed block");
 
             case 2:
-                throw new NotImplementedException("ZSTD compresed without dict");
+                throw new NotImplementedException("ZSTD compressed without dict");
 
             case 3: // ZStd with dictionary 1
             case 5: // ZStd with dictionary 2
