@@ -180,8 +180,8 @@ public sealed class SoundCache : IDisposable
 
             lock (sounds)
             {
-                // Set Ready inside the lock so the other lane's Prune cannot evict this sound between
-                // the publish and the byte accounting below - that race would subtract bytes never added.
+                // Ready is set inside the lock, or the other lane's Prune could evict this sound between
+                // the publish and the accounting below and subtract bytes that were never added
                 request.Sound.Ready = true;
 
                 cachedBytes += (long)request.Sound.SampleLength * sizeof(short);
@@ -202,8 +202,7 @@ public sealed class SoundCache : IDisposable
     {
         var now = Stopwatch.GetTimestamp();
 
-        // Bounded per pass since the lock is shared with GetSound on the game thread; catch-up
-        // continues after the next decode.
+        // Bounded per pass: the lock is shared with GetSound on the game thread, and the next decode catches up
         var evictionsLeft = 4;
 
         while (cachedBytes > MaxCachedBytes && evictionsLeft-- > 0)

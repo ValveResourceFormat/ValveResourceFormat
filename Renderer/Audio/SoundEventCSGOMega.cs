@@ -39,15 +39,12 @@ internal sealed class SoundEventCSGOMega : SoundEvent
         pitchRandomMax = data.GetFloatProperty("pitch_random_max");
         mixGroup = data.GetStringProperty("mixgroup", string.Empty);
 
-        // Not gated on the "use_" flags: the vast majority of events carry these curves without the flag
-        // set (e.g. soundscape ambients author a flat 1.0 distance curve and no flag), and the game
-        // audibly honors them - the flag governs a different runtime path.
+        // None of these are gated on their "use_" flag: most events carry the curve without setting the
+        // flag (soundscape ambients author a flat 1.0 distance curve and no flag) and the game audibly
+        // honors it anyway - the flags govern a different runtime path.
         var volumeCurve = SoundEventCurve.Parse(data, "distance_volume_mapping_curve");
         distanceVolumeCurve = volumeCurve;
         stereoMixCurve = SoundEventCurve.Parse(data, "distance_unfiltered_stereo_mapping_curve");
-
-        // Not gated on "use_fadetime_volume_mapping_curve": that flag governs a different runtime path,
-        // authored fade curves are used for stop fades whenever present
         fadeOutCurve = SoundEventCurve.Parse(data, "fadetime_volume_mapping_curve");
 
         // Only reached by the fallback falloff when the event has no volume curve

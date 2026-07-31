@@ -96,8 +96,7 @@ public abstract class SoundEvent
     /// <summary>Gets the sample providers built by <see cref="DoStart"/>.</summary>
     protected List<AudioSampleProvider> SampleProviders { get; } = [];
 
-    // Backing state for BuildTrackProvider/StartChildren: reused across retriggers instead of
-    // rebuilding the provider/child tree from scratch every time DoStart() runs.
+    // BuildTrackProvider/StartChildren reuse these across retriggers rather than rebuild the tree
     private CachedSoundSampleProvider? trackSource;
     private SampleProvider2D? unspatializedTrackSource;
     private SampleProvider3D? spatializedTrackSource;
@@ -132,10 +131,10 @@ public abstract class SoundEvent
     /// Starts (or restarts, in the case of retriggered events) the sound event.
     /// </summary>
     /// <returns>
-    /// Whether the event became active. False means nothing in it could ever produce samples this play
-    /// (no tracks and no children, or dropped by its limiter) and it was stopped again immediately.
-    /// The return value - not <see cref="Started"/>, which a fast mixer may already have cleared again
-    /// for an ultra-short sound by the time the caller looks - is how callers must detect this.
+    /// Whether the event became active. False means it was inert - nothing in it could ever produce
+    /// samples this play (no tracks and no children, or dropped by its limiter) - and it was stopped
+    /// again immediately. Callers must detect that from this return value, not from
+    /// <see cref="Started"/>, which a fast mixer may already have cleared again for an ultra-short sound.
     /// </returns>
     public bool Start()
     {
@@ -148,8 +147,7 @@ public abstract class SoundEvent
 
         if (SampleProviders.Count > 0)
         {
-            // Prime spatialization before the mixer can read the providers,
-            // so the sound does not start with zeroed volumes and lose its attack transient
+            // Prime spatialization before the mixer can read the providers, or the sound starts at zero volume and loses its attack transient
             Mixer.PrimeListener(this);
 
             foreach (var provider in SampleProviders)
@@ -169,9 +167,7 @@ public abstract class SoundEvent
 
         if (SampleProviders.Count == 0 && !WaitingToStart)
         {
-            // Nothing in this event can ever produce samples (e.g. a definition with no tracks and no
-            // children): its provider never reaches the mixer, so no end-of-sound can fire - stop now
-            // instead of sitting in the mixer's active set forever.
+            // Inert (see the returns doc): the provider never reaches the mixer, so no end-of-sound can fire
             Stop();
             return false;
         }
@@ -325,12 +321,9 @@ public abstract class SoundEvent
     /// </summary>
     protected void StartAsChild(SoundEvent childSoundEvent)
     {
-        // "set_child_position": the child always follows this event (a footstep's gear rustle plays at the
-        // player). Otherwise a child with its own authored position keeps it (a soundscape's birds sit in
-        // their own tree) - but a child with neither still needs some position, so it inherits this event's
-        // as a fallback (e.g. an NPC's AE_CL_PLAYSOUND-triggered vocalization routed through a container
-        // event with no "position" of its own, like "hlvr_start_multi_switch"). Without this, such a child
-        // falls back to null (unspatialized/"in ear") instead of playing at the NPC.
+        // "set_child_position" pins the child to this event (a footstep's gear rustle plays at the player);
+        // otherwise a child keeps its own authored position, and one with neither inherits ours rather than
+        // falling back to null and playing unspatialized "in ear".
         if (Definition.SetChildPosition || !childSoundEvent.Definition.Position.HasValue)
         {
             childSoundEvent.Position = Position;
@@ -416,8 +409,7 @@ public abstract class SoundEvent
             spatial.StereoMixCurve = stereoMixCurve;
         }
 
-        // Added last: a retrigger starts a track while the event is already attached to the mixer, and the
-        // mixing thread must never read the provider before it is fully set up
+        // Added last: on a retrigger the event is already attached, and the mixing thread must never read a half-configured provider
         SampleProviders.Add(sampleProvider);
         return sampleProvider;
     }

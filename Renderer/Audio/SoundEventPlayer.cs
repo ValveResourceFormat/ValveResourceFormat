@@ -172,12 +172,9 @@ public sealed class SoundEventPlayer : IDisposable
 
         while (!stopping)
         {
-            // Nothing to hear: skip decoding/mixing instead of just discarding silence. The device
-            // gets nothing (BufferedWaveProvider's ReadFully plays silence on its own when starved).
-            // Deliberately NOT extended to "suspended && fadeGain == 0f": Suspended is driven by things
-            // like tab-switching, which happens far more often and for far less predictable durations than
-            // an explicit mute - a sound triggered while suspended must keep advancing in real time so it
-            // doesn't play back "late" (from frame 0) whenever the tab becomes active again.
+            // Nothing to hear: skip decoding/mixing rather than discard silence. The device gets nothing
+            // (BufferedWaveProvider's ReadFully plays silence on its own when starved). Deliberately not
+            // extended to a completed suspend fade - see Suspended, whose sounds must keep advancing.
             if (mute || volumeMultiplier == 0f)
             {
                 Thread.Sleep(chunkMilliseconds);
@@ -603,10 +600,9 @@ public sealed class SoundEventPlayer : IDisposable
             }
         }
 
-        // Stopped outside the lock: Stop cascades into mixer/provider locks the mixing thread takes
-        // before firing the OnStop hook that locks limiterGroups - holding it here would deadlock.
-        // A concurrent stop of the same instance is fine, Stop is idempotent.
-        // Removes itself from the group via the OnStop hook wired in RegisterLimiterGroup.
+        // Stopped outside the lock: Stop cascades into mixer/provider locks the mixing thread takes before
+        // firing the OnStop hook that locks limiterGroups (and removes the instance), so holding it here
+        // would deadlock. A concurrent stop of the same instance is fine, Stop is idempotent.
         oldest?.Stop();
     }
 
@@ -760,9 +756,8 @@ public sealed class SoundEventPlayer : IDisposable
             if (distance < soundscape.Radius + SoundscapePrecacheMargin
                 && warmedSoundscapes.Add(soundscape.Name))
             {
-                // Approaching: re-queue the background decode in case the load-time precache got
-                // evicted, so entering the radius (and every later child retrigger) plays warm.
-                // Cached sounds make this a no-op that just refreshes their eviction age.
+                // Approaching: re-queue the decode in case the load-time precache was evicted, so entering
+                // the radius plays warm. Already-cached sounds just get their eviction age refreshed.
                 if (soundscape.Scripted)
                 {
                     CacheScripted(soundscape.Name);

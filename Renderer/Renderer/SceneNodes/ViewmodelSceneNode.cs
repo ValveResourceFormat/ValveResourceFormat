@@ -241,12 +241,12 @@ public class ViewmodelSceneNode : ModelSceneNode
     }
 
     // Attack sounds. In the game these come from weapons.vdata (m_aShootSounds) and knife weapon code;
-    // our two guns are silenced, so they use their WEAPON_SOUND_SPECIAL1 entries.
+    // our two guns are silenced, so they use their WEAPON_SOUND_SPECIAL1 entries. Played unspatialized,
+    // head-relative, like the game presents your own gunfire.
     private const string RifleAttackSound = "Weapon_M4A1.Silenced";      // weapon_m4a1_silencer
     private const string PistolAttackSound = "Weapon_USP.SilencedShot";  // weapon_usp_silencer
-    // The shot samples are hot, heavily compressed recordings; play them tamer than their authored volume.
-    // Same for the knife wall hit, which is authored at volume 1.0 (a map-audible gameplay cue).
-    // Local player shots play unspatialized (head-relative, like the game presents your own gunfire).
+    // Tamer than authored: the shot samples are hot, heavily compressed recordings, and the knife wall
+    // hit is authored at 1.0 because it is a map-audible gameplay cue.
     private const float AttackSoundVolume = 0.5f;
     private const string KnifeSlashSound = "Weapon_Knife.Slash";
     private const string KnifeHeavySwishSound = "Weapon_Knife.Swish.Heavy";
