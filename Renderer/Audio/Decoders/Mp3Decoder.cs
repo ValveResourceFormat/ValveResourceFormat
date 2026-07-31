@@ -1,16 +1,28 @@
-using System.IO;
 using NLayer;
 
 namespace ValveResourceFormat.Renderer.Audio.Decoders;
 
 /// <summary>
-/// MP3 decoder backed by NLayer (fully managed, no platform audio dependencies). Reads fixed-size chunks
-/// straight through to an <see cref="IPcm16Sink"/>, so no whole-file sample buffer ever exists.
-/// NLayer applies the Xing/LAME gapless info itself: the leading encoder delay is skipped on the first
-/// read, and the trailing padding is excluded from the length it stops at.
+/// MP3 decoder built on NLayer's frame decoder (fully managed, no platform audio dependencies), fed
+/// by a <see cref="MpegFrameWalker"/> straight over the file bytes - no streams, no per-file reader or
+/// decoder objects. The frame decoder (which owns the large layer-III tables) and the walker are kept
+/// per decode thread, so at steady state an MP3 decode allocates nothing. Honors Xing/LAME gapless
+/// info: leading encoder delay and trailing padding are trimmed like NLayer's own <c>MpegFile</c> does.
 /// </summary>
 internal static class Mp3Decoder
 {
+    [ThreadStatic]
+    private static MpegFrameWalker? cachedWalker;
+
+    [ThreadStatic]
+    private static MpegFrameDecoder? cachedDecoder;
+
+    public static void Prewarm()
+    {
+        cachedWalker ??= new MpegFrameWalker();
+        cachedDecoder ??= new MpegFrameDecoder();
+    }
+
     /// <summary>Decodes raw MP3 data, or returns false when no audio could be parsed.</summary>
     /// <param name="data">Buffer holding the MP3 file.</param>
     /// <param name="dataLength">Length of the MP3 file within <paramref name="data"/>.</param>
@@ -20,49 +32,95 @@ internal static class Mp3Decoder
     {
         truncated = false;
 
-        using var stream = new MemoryStream(data, 0, dataLength, writable: false);
-        using var mpeg = new MpegFile(stream);
+        var walker = cachedWalker ??= new MpegFrameWalker();
+        var decoder = cachedDecoder ??= new MpegFrameDecoder();
+        decoder.Reset();
+        walker.SetData(data, dataLength);
 
-        var channels = mpeg.Channels;
-
-        if (channels < 1 || mpeg.SampleRate <= 0)
+        if (!walker.TryNextFrame())
         {
             return false;
         }
 
-        // Length counts bytes of float samples, with the gapless trim already applied. Only a sizing
-        // hint - Pcm16ArenaSink prefers the sample count the vsnd resource itself reports.
-        sink.SetFormat(channels, mpeg.SampleRate, mpeg.Length / sizeof(float));
+        var sampleRate = walker.SampleRate;
+        var channels = walker.Channels;
 
-        // Whole frames per chunk so the sink always sees frame-aligned writes
-        var chunkSamples = PcmDecoder.ChunkSamples / channels * channels;
-        var scratch = DecodeScratch.RentFloats(chunkSamples);
+        // Gapless info: the Xing/Info tag frame carries the audio frame count and the encoder's
+        // leading/trailing filler sample counts; the tag frame itself is not audio.
+        long totalSamples = -1;
+        long delaySamples = 0;
+
+        if (walker.TryParseXing(out var frameCount, out var encoderDelay, out var encoderPadding))
+        {
+            totalSamples = (long)frameCount * walker.SampleCount * channels;
+            delaySamples = (long)encoderDelay * channels;
+            totalSamples -= (long)encoderPadding * channels;
+
+            if (!walker.TryNextFrame())
+            {
+                return false;
+            }
+        }
+
+        sink.SetFormat(channels, sampleRate, totalSamples > 0 ? totalSamples - delaySamples : -1);
+
+        // 2304 floats covers the largest frame (1152 samples x 2 channels)
+        var scratch = DecodeScratch.RentFloats(2304);
+        var produced = 0L;
         var written = 0L;
         var failures = 0;
 
-        while (failures < 16)
+        while (true)
         {
-            int read;
+            int decoded;
 
             try
             {
-                read = mpeg.ReadSamples(scratch, 0, chunkSamples);
+                decoded = decoder.DecodeFrame(walker, scratch, 0);
             }
-            catch (Exception e) when (e is IndexOutOfRangeException or ArgumentException or InvalidDataException)
+            catch (Exception e) when (e is IndexOutOfRangeException or ArgumentException or System.IO.InvalidDataException or System.IO.EndOfStreamException)
             {
-                // Retry past the damaged frame so one bad spot does not lose the rest of the file,
-                // capped for data damaged badly enough that the reader never gets back in sync
-                failures++;
+                // Skip the damaged frame so one bad spot doesn't lose the rest of the file, capped
+                // for data damaged badly enough that skipping never gets back in sync
+                if (++failures >= 16)
+                {
+                    break;
+                }
+
+                decoder.Reset();
+
+                if (!walker.TryNextFrame())
+                {
+                    break;
+                }
+
                 continue;
             }
 
-            if (read <= 0)
+            if (decoded > 0)
+            {
+                // Emit the slice of this frame inside the [delay, total) gapless window
+                var start = Math.Max(produced, delaySamples);
+                var end = totalSamples > 0 ? Math.Min(produced + decoded, totalSamples) : produced + decoded;
+
+                if (end > start)
+                {
+                    sink.Write(scratch.AsSpan((int)(start - produced), (int)(end - start)));
+                    written += end - start;
+                }
+
+                produced += decoded;
+
+                if (totalSamples > 0 && produced >= totalSamples)
+                {
+                    break;
+                }
+            }
+
+            if (!walker.TryNextFrame())
             {
                 break;
             }
-
-            sink.Write(scratch.AsSpan(0, read));
-            written += read;
         }
 
         truncated = failures > 0;
