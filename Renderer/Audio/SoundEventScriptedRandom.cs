@@ -1,4 +1,3 @@
-﻿using System.Diagnostics;
 using ValveResourceFormat.Renderer.Audio.SampleProviders;
 using ValveResourceFormat.Serialization.KeyValues;
 
@@ -23,11 +22,7 @@ internal sealed class SoundEventScriptedRandom : SoundEvent
     private readonly Vector3? origin;
     private readonly float range;
 
-    private bool wasInitialized;
-    private bool waitingForRetrigger;
-    private long retriggerTimestamp;
-
-    private protected override bool WaitingToStart => waitingForRetrigger;
+    private protected override (float Min, float Max)? RetriggerInterval => timeRange;
 
     public SoundEventScriptedRandom(SoundEventDefinition definition) : base(definition)
     {
@@ -44,14 +39,10 @@ internal sealed class SoundEventScriptedRandom : SoundEvent
 
     protected override void DoStart()
     {
-        if (!wasInitialized && CheckRetrigger())
+        if (WaitOutFirstInterval())
         {
-            // Waits out its first interval before playing, same as entering a modern retriggered event's area
-            wasInitialized = true;
             return;
         }
-
-        wasInitialized = true;
 
         if (trackNames.Length == 0)
         {
@@ -68,34 +59,7 @@ internal sealed class SoundEventScriptedRandom : SoundEvent
 
     internal override void Prewarm(int depth) => PrewarmTracks(trackNames);
 
-    internal override void ResetForReplay()
-    {
-        base.ResetForReplay();
-        wasInitialized = false;
-        waitingForRetrigger = false;
-    }
-
     private protected override bool StayAliveAfterFinishing() => CheckRetrigger();
-
-    private bool CheckRetrigger()
-    {
-        var retriggerAt = float.Lerp(timeRange.Min, timeRange.Max, Random.NextSingle());
-        retriggerTimestamp = Stopwatch.GetTimestamp() + (long)(retriggerAt * Stopwatch.Frequency);
-        waitingForRetrigger = true;
-        return true;
-    }
-
-    /// <inheritdoc/>
-    public override bool Update(Vector3 listenerPosition, Vector3 rightEarDirection)
-    {
-        if (Started && !FadingOut && waitingForRetrigger && Stopwatch.GetTimestamp() >= retriggerTimestamp)
-        {
-            waitingForRetrigger = false;
-            Start();
-        }
-
-        return base.Update(listenerPosition, rightEarDirection);
-    }
 
     /// <summary>
     /// Picks a random point on a ring around the listener. A real soundscape would pick between a

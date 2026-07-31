@@ -1,3 +1,5 @@
+using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
 using ValveResourceFormat.Renderer.Audio.SampleProviders;
 using ValveKeyValue;
 using ValveResourceFormat.Serialization.KeyValues;
@@ -115,7 +117,7 @@ public abstract class SoundEvent
         Definition = definition;
     }
 
-    [System.Diagnostics.CodeAnalysis.MemberNotNull(nameof(SampleProvider))]
+    [MemberNotNull(nameof(SampleProvider))]
     internal void Init(AudioMixer mixer, int sampleRate)
     {
         Mixer = mixer;
@@ -200,7 +202,53 @@ public abstract class SoundEvent
     }
 
     /// <summary>Gets whether the event is intentionally silent right now but scheduled to produce sound later (e.g. waiting out its first retrigger interval).</summary>
-    private protected virtual bool WaitingToStart => false;
+    private protected virtual bool WaitingToStart => waitingForRetrigger;
+
+    private bool wasInitialized;
+    private bool waitingForRetrigger;
+    private long retriggerTimestamp;
+
+    /// <summary>
+    /// Gets the interval, in seconds, this event replays itself on, or null when it does not reschedule.
+    /// The default is the shared "enable_retrigger"/"retrigger_interval_*" trio; types that author their
+    /// own timer keys (hlvr_ambient_rand, the soundscape script operators) override this.
+    /// Only consulted by types that opt into rescheduling from <see cref="StayAliveAfterFinishing"/>.
+    /// </summary>
+    private protected virtual (float Min, float Max)? RetriggerInterval
+        => Definition.EnableRetrigger ? (Definition.RetriggerIntervalMin, Definition.RetriggerIntervalMax) : null;
+
+    /// <summary>
+    /// Arms the next replay at a random point in <see cref="RetriggerInterval"/> and returns whether it
+    /// did. <see cref="Update"/> performs the replay once the interval elapses.
+    /// </summary>
+    private protected bool CheckRetrigger()
+    {
+        if (RetriggerInterval is not { } interval)
+        {
+            return false;
+        }
+
+        var retriggerAt = float.Lerp(interval.Min, interval.Max, Random.NextSingle());
+        retriggerTimestamp = Stopwatch.GetTimestamp() + (long)(retriggerAt * Stopwatch.Frequency);
+        waitingForRetrigger = true;
+        return true;
+    }
+
+    /// <summary>
+    /// Arms the first replay instead of playing right now, on the first start only: entering a
+    /// retriggering event's area should not fire it instantly. Returns whether the calling
+    /// <see cref="DoStart"/> should return without starting anything.
+    /// </summary>
+    private protected bool WaitOutFirstInterval()
+    {
+        if (wasInitialized)
+        {
+            return false;
+        }
+
+        wasInitialized = true;
+        return CheckRetrigger();
+    }
 
     /// <summary>
     /// Gets the curve <see cref="FadeOutAndStop"/> fades along, or null to always use its linear fallback.
@@ -637,6 +685,12 @@ public abstract class SoundEvent
     /// <summary>Updates spatialization and time-based behavior. Returns whether any sample provider is currently audible.</summary>
     public virtual bool Update(Vector3 listenerPosition, Vector3 rightEarDirection)
     {
+        if (Started && !FadingOut && waitingForRetrigger && Stopwatch.GetTimestamp() >= retriggerTimestamp)
+        {
+            waitingForRetrigger = false;
+            Start();
+        }
+
         var anyPlaying = false;
 
         var occlusionTrace = Definition.OcclusionIntensity > 0f ? Mixer.Player.OcclusionTrace : null;
@@ -645,7 +699,7 @@ public abstract class SoundEvent
         {
             // Occlusion is smoothed, so it does not need a ray every frame: retrace ~10 times
             // a second, with a jittered interval so concurrent events spread across frames
-            var now = System.Diagnostics.Stopwatch.GetTimestamp();
+            var now = Stopwatch.GetTimestamp();
             if (now < nextOcclusionTraceTimestamp)
             {
                 occlusionTrace = null;
@@ -653,7 +707,7 @@ public abstract class SoundEvent
             else
             {
                 var interval = 0.08f + 0.04f * Random.NextSingle();
-                nextOcclusionTraceTimestamp = now + (long)(interval * System.Diagnostics.Stopwatch.Frequency);
+                nextOcclusionTraceTimestamp = now + (long)(interval * Stopwatch.Frequency);
             }
         }
 
@@ -701,6 +755,8 @@ public abstract class SoundEvent
     internal virtual void ResetForReplay()
     {
         FadingOut = false;
+        wasInitialized = false;
+        waitingForRetrigger = false;
         Position = null;
         PositionOffset = default;
         VolumeOverride = null;

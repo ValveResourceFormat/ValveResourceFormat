@@ -1,4 +1,3 @@
-﻿using System.Diagnostics;
 using ValveResourceFormat.Renderer.Audio.SampleProviders;
 using ValveResourceFormat.Serialization.KeyValues;
 
@@ -23,11 +22,6 @@ internal sealed class SoundEventCSGOMega : SoundEvent
     private readonly SoundEventCurve? fadeOutCurve;
     private readonly float range;
 
-    private bool wasInitialized;
-    private bool waitingForRetrigger;
-    private long retriggerTimestamp;
-
-    private protected override bool WaitingToStart => waitingForRetrigger;
     private protected override SoundEventCurve? FadeOutCurve => fadeOutCurve;
 
     public SoundEventCSGOMega(SoundEventDefinition definition) : base(definition)
@@ -62,14 +56,10 @@ internal sealed class SoundEventCSGOMega : SoundEvent
 
     protected override void DoStart()
     {
-        if (!wasInitialized && CheckRetrigger())
+        if (WaitOutFirstInterval())
         {
-            // Retriggered events wait out their first interval before playing
-            wasInitialized = true;
             return;
         }
-
-        wasInitialized = true;
 
         StartTrack(trackNames,
             GetRandomizedVolume(volumeRandomMin, volumeRandomMax, mixGroup),
@@ -114,36 +104,5 @@ internal sealed class SoundEventCSGOMega : SoundEvent
         }
     }
 
-    internal override void ResetForReplay()
-    {
-        base.ResetForReplay();
-        wasInitialized = false;
-        waitingForRetrigger = false;
-    }
-
     private protected override bool StayAliveAfterFinishing() => CheckRetrigger() || AnyChildStarted();
-
-    private bool CheckRetrigger()
-    {
-        if (!Definition.EnableRetrigger)
-        {
-            return false;
-        }
-
-        var retriggerAt = float.Lerp(Definition.RetriggerIntervalMin, Definition.RetriggerIntervalMax, Random.NextSingle());
-        retriggerTimestamp = Stopwatch.GetTimestamp() + (long)(retriggerAt * Stopwatch.Frequency);
-        waitingForRetrigger = true;
-        return true;
-    }
-
-    public override bool Update(Vector3 listenerPosition, Vector3 rightEarDirection)
-    {
-        if (Started && !FadingOut && waitingForRetrigger && Stopwatch.GetTimestamp() >= retriggerTimestamp)
-        {
-            waitingForRetrigger = false;
-            Start();
-        }
-
-        return base.Update(listenerPosition, rightEarDirection);
-    }
 }

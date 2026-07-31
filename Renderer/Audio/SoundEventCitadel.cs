@@ -1,4 +1,4 @@
-﻿using System.Diagnostics;
+using System.Diagnostics;
 using ValveKeyValue;
 using ValveResourceFormat.Renderer.Audio.SampleProviders;
 using ValveResourceFormat.Serialization.KeyValues;
@@ -42,11 +42,6 @@ internal sealed class SoundEventCitadel : SoundEvent
     private float targetVolume;
     private float fadeInSecondsRemaining;
     private long startTimestamp;
-    private bool wasInitialized;
-    private bool waitingForRetrigger;
-    private long retriggerTimestamp;
-
-    private protected override bool WaitingToStart => waitingForRetrigger;
 
     public SoundEventCitadel(SoundEventDefinition definition) : base(definition)
     {
@@ -134,14 +129,10 @@ internal sealed class SoundEventCitadel : SoundEvent
             Position = null;
         }
 
-        if (!wasInitialized && CheckRetrigger())
+        if (WaitOutFirstInterval())
         {
-            // Retriggered events wait out their first interval before playing
-            wasInitialized = true;
             return;
         }
-
-        wasInitialized = true;
 
         if (trackNames.Length == 0)
         {
@@ -166,35 +157,14 @@ internal sealed class SoundEventCitadel : SoundEvent
     internal override void ResetForReplay()
     {
         base.ResetForReplay();
-        wasInitialized = false;
-        waitingForRetrigger = false;
         fadeInSecondsRemaining = 0f;
     }
 
     private protected override bool StayAliveAfterFinishing() => CheckRetrigger();
 
-    private bool CheckRetrigger()
-    {
-        if (!Definition.EnableRetrigger)
-        {
-            return false;
-        }
-
-        var retriggerAt = float.Lerp(Definition.RetriggerIntervalMin, Definition.RetriggerIntervalMax, Random.NextSingle());
-        retriggerTimestamp = Stopwatch.GetTimestamp() + (long)(retriggerAt * Stopwatch.Frequency);
-        waitingForRetrigger = true;
-        return true;
-    }
-
     /// <inheritdoc/>
     public override bool Update(Vector3 listenerPosition, Vector3 rightEarDirection)
     {
-        if (Started && !FadingOut && waitingForRetrigger && Stopwatch.GetTimestamp() >= retriggerTimestamp)
-        {
-            waitingForRetrigger = false;
-            Start();
-        }
-
         if (trackProvider != null && fadeInSecondsRemaining > 0f)
         {
             var elapsed = (float)Stopwatch.GetElapsedTime(startTimestamp).TotalSeconds;

@@ -1,4 +1,3 @@
-using System.Diagnostics;
 using ValveResourceFormat.Serialization.KeyValues;
 
 namespace ValveResourceFormat.Renderer.Audio;
@@ -23,12 +22,9 @@ internal sealed class SoundEventHLVRAmbientRand : SoundEvent
     private readonly float radiusMax;
     private readonly bool positionRandom;
 
-    private bool wasInitialized;
-    private bool waitingForRetrigger;
-    private long retriggerTimestamp;
     private SoundEvent? child;
 
-    private protected override bool WaitingToStart => waitingForRetrigger;
+    private protected override (float Min, float Max)? RetriggerInterval => (timerMin, timerMax);
 
     public SoundEventHLVRAmbientRand(SoundEventDefinition definition) : base(definition)
     {
@@ -44,14 +40,10 @@ internal sealed class SoundEventHLVRAmbientRand : SoundEvent
 
     protected override void DoStart()
     {
-        if (!wasInitialized && CheckRetrigger())
+        if (WaitOutFirstInterval())
         {
-            // Waits out its first interval before spawning, same as every other retriggered event here
-            wasInitialized = true;
             return;
         }
-
-        wasInitialized = true;
 
         if (childEventName.Length == 0)
         {
@@ -107,33 +99,11 @@ internal sealed class SoundEventHLVRAmbientRand : SoundEvent
     internal override void ResetForReplay()
     {
         base.ResetForReplay();
-        wasInitialized = false;
-        waitingForRetrigger = false;
         // The child lives in this class's own field, not the base's child slots, so cascade by hand
         child?.ResetForReplay();
     }
 
     private protected override bool StayAliveAfterFinishing() => CheckRetrigger();
-
-    private bool CheckRetrigger()
-    {
-        var retriggerAt = float.Lerp(timerMin, timerMax, Random.NextSingle());
-        retriggerTimestamp = Stopwatch.GetTimestamp() + (long)(retriggerAt * Stopwatch.Frequency);
-        waitingForRetrigger = true;
-        return true;
-    }
-
-    /// <inheritdoc/>
-    public override bool Update(Vector3 listenerPosition, Vector3 rightEarDirection)
-    {
-        if (Started && !FadingOut && waitingForRetrigger && Stopwatch.GetTimestamp() >= retriggerTimestamp)
-        {
-            waitingForRetrigger = false;
-            Start();
-        }
-
-        return base.Update(listenerPosition, rightEarDirection);
-    }
 
     private Vector3 PickRandomPosition(Vector3 anchor)
     {
