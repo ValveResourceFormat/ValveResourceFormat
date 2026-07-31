@@ -438,7 +438,7 @@ namespace ValveResourceFormat.Renderer.SceneNodes
 
         /// <summary>
         /// Adds the given animations to the collection of available animations for this model,
-        /// pre-caching any sound events they can fire so first playback stays allocation-free.
+        /// prewarming any sound events they can fire so first playback stays allocation-free.
         /// </summary>
         public void AddAnimations(List<Animation> animations)
         {
@@ -446,7 +446,7 @@ namespace ValveResourceFormat.Renderer.SceneNodes
             foreach (var anim in animations)
             {
                 Animations[anim.Name] = anim;
-                AnimationController.PreCacheAnimationSounds(anim);
+                AnimationController.PrewarmAnimationSounds(anim);
             }
         }
 
@@ -457,7 +457,7 @@ namespace ValveResourceFormat.Renderer.SceneNodes
         {
             var anim = new ClipAnimation(clip);
             Animations[anim.Name] = anim;
-            AnimationController.PreCacheAnimationSounds(anim);
+            AnimationController.PrewarmAnimationSounds(anim);
         }
 
         /// <summary>

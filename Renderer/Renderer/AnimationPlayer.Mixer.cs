@@ -327,11 +327,7 @@ namespace ValveResourceFormat.Renderer
                 newClip = new PlaybackClip(animation) { Looping = looping, BlendTime = blendTime, IsAdditive = isAdditive };
                 clips[animName] = newClip;
 
-                if (!SkipEvents)
-                {
-                    PreCacheClipSounds(animation);
-                    PreCacheLegacyAnimationEventSounds(animation);
-                }
+                PrewarmAnimationSounds(animation);
             }
             else
             {

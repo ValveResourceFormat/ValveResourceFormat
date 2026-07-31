@@ -42,26 +42,20 @@ namespace ValveResourceFormat.Renderer
             {
                 var clipHandler = ClipEventFired;
 
-                if (clipHandler != null || !SkipEvents)
+                foreach (var clipEvent in new SampledAnimationEvents<NmClipEvent>(clipAnimation.Events, duration, previousTime, newTime, finished))
                 {
-                    foreach (var clipEvent in new SampledAnimationEvents<NmClipEvent>(clipAnimation.Events, duration, previousTime, newTime, finished))
-                    {
-                        clipHandler?.Invoke(clipEvent);
-                        PlayEventSound(clip, clipEvent, newTime, finished);
-                    }
+                    clipHandler?.Invoke(clipEvent);
+                    PlayEventSound(clip, clipEvent, newTime, finished);
                 }
             }
             else if (clip.Animation is SequenceAnimation sequence)
             {
                 var sequenceHandler = SequenceEventFired;
 
-                if (sequenceHandler != null || !SkipEvents)
+                foreach (var sequenceEvent in new SampledAnimationEvents<AnimationEvent>(sequence.Events, duration, previousTime, newTime, finished))
                 {
-                    foreach (var sequenceEvent in new SampledAnimationEvents<AnimationEvent>(sequence.Events, duration, previousTime, newTime, finished))
-                    {
-                        sequenceHandler?.Invoke(sequenceEvent);
-                        PlayEventSound(sequenceEvent);
-                    }
+                    sequenceHandler?.Invoke(sequenceEvent);
+                    PlayEventSound(sequenceEvent);
                 }
             }
         }

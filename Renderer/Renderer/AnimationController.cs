@@ -46,26 +46,6 @@ namespace ValveResourceFormat.Renderer
         public float FrametimeMultiplier { get; set; } = 1.0f;
 
         /// <summary>
-        /// Gets or sets whether the sounds of sampled animation events - sound events embedded in animation
-        /// clips (CNmSoundEvent), or "AE_CL_PLAYSOUND"/"AE_CL_PLAYSOUND_ATTACHMENT" events on sequence
-        /// animations - are skipped during playback. False by default, so sounds play unless opted out.
-        /// Clearing this pre-caches the sound events of the clips already loaded.
-        /// </summary>
-        public bool SkipEvents
-        {
-            get => modelPlayer.SkipEvents;
-            set
-            {
-                modelPlayer.SkipEvents = value;
-
-                foreach (var external in externalSkeletons.Values)
-                {
-                    external.Player.SkipEvents = value;
-                }
-            }
-        }
-
-        /// <summary>
         /// The parent animating transform.
         /// </summary>
         public Matrix4x4 Transform { get; set; } = Matrix4x4.Identity;
@@ -96,8 +76,8 @@ namespace ValveResourceFormat.Renderer
         /// Pre-decodes every sound the animation's events can play, so the first playback does no decode
         /// work mid-frame. Call when the animation is loaded, not when it first plays.
         /// </summary>
-        /// <param name="animation">The animation whose event sounds to pre-cache.</param>
-        public void PreCacheAnimationSounds(Animation animation) => modelPlayer.PreCacheAnimationSounds(animation);
+        /// <param name="animation">The animation whose event sounds to prewarm.</param>
+        public void PrewarmAnimationSounds(Animation animation) => modelPlayer.PrewarmAnimationSounds(animation);
 
         /// <summary>Gets or sets whether animations should loop when reaching the end.</summary>
         public bool Looping { get; set; } = true;
@@ -354,7 +334,6 @@ namespace ValveResourceFormat.Renderer
             var bindPose = ComputeBindPose(skeleton);
             var externalPlayer = new AnimationPlayer(skeleton, [], bindPose, bindPose.AsSpan().ToArray())
             {
-                SkipEvents = SkipEvents,
                 ResolvePosition = ResolvePosition,
             };
 

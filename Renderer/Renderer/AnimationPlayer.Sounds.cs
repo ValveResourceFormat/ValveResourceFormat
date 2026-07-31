@@ -9,25 +9,6 @@ namespace ValveResourceFormat.Renderer
     /// </summary>
     public partial class AnimationPlayer
     {
-        /// <summary>Gets or sets whether sampled events play their sounds. Event sampling itself is unaffected.</summary>
-        public bool SkipEvents
-        {
-            get => field;
-            set
-            {
-                var wasSkipping = field;
-                field = value;
-
-                if (wasSkipping && !value)
-                {
-                    foreach (var clip in clips.Values)
-                    {
-                        PreCacheAnimationSounds(clip.Animation);
-                    }
-                }
-            }
-        }
-
         /// <summary>Gets or sets the resolver from an attachment name to a world position, an empty name being the model itself.</summary>
         public Func<string, Vector3?>? ResolvePosition { get; set; }
 
@@ -41,7 +22,7 @@ namespace ValveResourceFormat.Renderer
 
         private void PlayEventSound(PlaybackClip clip, NmClipEvent clipEvent, float newTime, bool finished)
         {
-            if (SkipEvents || clipEvent is not NmSoundEvent soundEvent || soundEvent.Relevance == "ServerOnly")
+            if (clipEvent is not NmSoundEvent soundEvent || soundEvent.Relevance == "ServerOnly")
             {
                 return;
             }
@@ -70,7 +51,7 @@ namespace ValveResourceFormat.Renderer
         {
             var isAttachment = sequenceEvent.Name == "AE_CL_PLAYSOUND_ATTACHMENT";
 
-            if (SkipEvents || (!isAttachment && sequenceEvent.Name != "AE_CL_PLAYSOUND"))
+            if (!isAttachment && sequenceEvent.Name != "AE_CL_PLAYSOUND")
             {
                 return;
             }
@@ -126,18 +107,13 @@ namespace ValveResourceFormat.Renderer
         }
 
         /// <summary>Pre-decodes every sound the animation's events can play. Call when the animation is loaded.</summary>
-        public void PreCacheAnimationSounds(Animation animation)
+        public void PrewarmAnimationSounds(Animation animation)
         {
-            if (SkipEvents)
-            {
-                return;
-            }
-
-            PreCacheClipSounds(animation);
-            PreCacheLegacyAnimationEventSounds(animation);
+            PrewarmClipSounds(animation);
+            PrewarmLegacyAnimationEventSounds(animation);
         }
 
-        private static void PreCacheClipSounds(Animation animation)
+        private static void PrewarmClipSounds(Animation animation)
         {
             if (animation is not ClipAnimation clipAnimation)
             {
@@ -153,7 +129,7 @@ namespace ValveResourceFormat.Renderer
             }
         }
 
-        private static void PreCacheLegacyAnimationEventSounds(Animation animation)
+        private static void PrewarmLegacyAnimationEventSounds(Animation animation)
         {
             if (animation is not SequenceAnimation sequence)
             {
