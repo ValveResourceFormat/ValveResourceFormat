@@ -75,7 +75,7 @@ public sealed class SoundscapeBank
 
     private void Flatten(string ownerName, KVObject soundscape, List<string> events, HashSet<string> visited, int depth, ref int syntheticIndex)
     {
-        if (depth > 8)
+        if (depth > SoundEvent.MaxRecursionDepth)
         {
             return;
         }

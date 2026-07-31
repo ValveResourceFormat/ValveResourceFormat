@@ -60,7 +60,7 @@ public sealed class SoundEventBank
     /// </summary>
     private KVObject ResolveBase(string name, KVObject soundEvent, int depth)
     {
-        if (depth > 8 || !soundEvent.TryGetValue("base", out var baseValue))
+        if (depth > SoundEvent.MaxRecursionDepth || !soundEvent.TryGetValue("base", out var baseValue))
         {
             return soundEvent;
         }

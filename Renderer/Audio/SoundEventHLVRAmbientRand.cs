@@ -88,7 +88,7 @@ internal sealed class SoundEventHLVRAmbientRand : SoundEvent
 
     internal override void Prewarm(int depth)
     {
-        if (childEventName.Length == 0 || depth > 8)
+        if (childEventName.Length == 0 || depth > MaxRecursionDepth)
         {
             return;
         }

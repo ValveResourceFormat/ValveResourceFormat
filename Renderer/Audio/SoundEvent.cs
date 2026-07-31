@@ -7,6 +7,12 @@ namespace ValveResourceFormat.Renderer.Audio;
 /// <summary>A playing (or pending) instance of a sound event definition.</summary>
 public abstract class SoundEvent
 {
+    /// <summary>
+    /// How deep the sound event graph is walked before giving up. Definitions reference each other by
+    /// name, so a child chain, a "base" chain or a "playsoundscape" chain can be cyclic in bad data.
+    /// </summary>
+    internal const int MaxRecursionDepth = 8;
+
     /// <summary>Raised when the event begins producing audible samples.</summary>
     public event Action<SoundEvent>? OnSoundStart;
 
@@ -426,7 +432,7 @@ public abstract class SoundEvent
     /// </summary>
     private protected void PrewarmChildren(SoundEventDefinition?[] definitions, int depth)
     {
-        if (depth > 8)
+        if (depth > MaxRecursionDepth)
         {
             return;
         }
