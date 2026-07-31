@@ -29,6 +29,8 @@ namespace ValveResourceFormat.Renderer.AnimLib
         public TransitionNode? ActiveTransition { get; private set; }
         public StateInfo[] States;
 
+        // Matches Esoterica: a state machine is valid when it has a valid active state index;
+        // the active state's own validity is deliberately not consulted.
         public override bool IsValid => base.IsValid && ActiveStateIndex >= 0 && ActiveStateIndex < States.Length;
         public StateInfo ActiveState => States[ActiveStateIndex];
         public StateNode ActiveStateNode => ActiveState.StateNode;

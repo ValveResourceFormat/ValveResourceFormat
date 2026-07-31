@@ -104,6 +104,18 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
         }
 
         /// <summary>
+        /// Returns the inverse of this transform.
+        /// </summary>
+        public readonly FrameBone Inverse()
+        {
+            var invScale = 1f / Scale;
+            var invRotation = Quaternion.Inverse(Angle);
+            var invPosition = Vector3.Transform(-Position * invScale, invRotation);
+
+            return new(invPosition, invScale, invRotation);
+        }
+
+        /// <summary>
         /// Converts the transform to a matrix.
         /// </summary>
         public readonly Matrix4x4 ToMatrix()

@@ -1,3 +1,4 @@
+using ValveResourceFormat.ResourceTypes.ModelAnimation;
 using System.Diagnostics;
 
 namespace ValveResourceFormat.Renderer.AnimLib
@@ -38,26 +39,8 @@ namespace ValveResourceFormat.Renderer.AnimLib
             ctx.SetNodeFromIndex(InputParameterValueNodeIdx, ref InputParameterValueNode);
         }
 
-        public override bool IsValid
-        {
-            get
-            {
-                if (SourceNodes == null || SourceNodes.Length <= 1 || InputParameterValueNode == null)
-                {
-                    return false;
-                }
-
-                foreach (var source in SourceNodes)
-                {
-                    if (!source.IsValid)
-                    {
-                        return false;
-                    }
-                }
-
-                return true;
-            }
-        }
+        // Matches Esoterica: only the input parameter is required, sources may be individually invalid.
+        public override bool IsValid => SourceNodes is { Length: > 1 } && InputParameterValueNode != null;
 
         protected void EvaluateBlendSpace(GraphContext ctx)
         {
@@ -238,26 +221,8 @@ namespace ValveResourceFormat.Renderer.AnimLib
             // initialized yet at this point).
         }
 
-        public override bool IsValid
-        {
-            get
-            {
-                if (SourceNodes == null || SourceNodes.Length <= 1 || InputParameterNode0 == null || InputParameterNode1 == null)
-                {
-                    return false;
-                }
-
-                foreach (var source in SourceNodes)
-                {
-                    if (!source.IsValid)
-                    {
-                        return false;
-                    }
-                }
-
-                return true;
-            }
-        }
+        // Matches Esoterica: only the input parameters are required, sources may be individually invalid.
+        public override bool IsValid => SourceNodes is { Length: > 1 } && InputParameterNode0 != null && InputParameterNode1 != null;
 
         void EvaluateBlendSpace(GraphContext ctx)
         {
@@ -468,15 +433,21 @@ namespace ValveResourceFormat.Renderer.AnimLib
         }
     }
 
-    // Layers additional pose sources over a base pose, weighted per layer (optionally through a bone
-    // mask). State machine layers contribute their state's authored layer weight via the layer context.
+    // Layers additional pose sources over a base pose. Port of Esoterica's LayerBlendNode: each
+    // layer runs in a fresh layer context; state machine layers always update and contribute their
+    // state's authored weight and bone mask through the context.
     partial class LayerBlendNode
     {
         PoseNode BaseNode;
         PoseNode?[] LayerInputs = [];
         FloatValueNode?[] LayerWeights = [];
         BoneMaskValueNode?[] LayerMasks = [];
-        bool warnedModelSpace;
+
+        // Scratch buffers for model-space layer blending
+        Quaternion[] baseGlobalRotations = [];
+        Quaternion[] layerGlobalRotations = [];
+        Quaternion[] resultGlobalRotations = [];
+        FrameBone[] maskedLayerResult = [];
 
         public override void Initialize(GraphContext ctx)
         {
@@ -493,6 +464,11 @@ namespace ValveResourceFormat.Renderer.AnimLib
                 ctx.SetOptionalNodeFromIndex(LayerDefinition[i].WeightValueNodeIdx, ref LayerWeights[i]);
                 ctx.SetOptionalNodeFromIndex(LayerDefinition[i].BoneMaskValueNodeIdx, ref LayerMasks[i]);
             }
+
+            baseGlobalRotations = new Quaternion[PoseTransforms.Length];
+            layerGlobalRotations = new Quaternion[PoseTransforms.Length];
+            resultGlobalRotations = new Quaternion[PoseTransforms.Length];
+            maskedLayerResult = new FrameBone[PoseTransforms.Length];
         }
 
         public override bool IsValid => BaseNode?.IsValid ?? false;
@@ -524,64 +500,171 @@ namespace ValveResourceFormat.Renderer.AnimLib
             baseResult.Pose.AsSpan(0, Math.Min(baseResult.Pose.Length, PoseTransforms.Length)).CopyTo(PoseTransforms);
             result.RootMotionDelta = baseResult.RootMotionDelta;
 
+            // Cache any outer layer context so it can be restored after our layers are done
+            var wasInLayer = ctx.IsInLayer;
+            var outerWeight = ctx.LayerContext.Weight;
+            var outerRootMotionWeight = ctx.LayerContext.RootMotionWeight;
+            var outerMask = ctx.LayerContext.MaskTaskList;
+
             for (var i = 0; i < LayerDefinition.Length; i++)
             {
                 var layerInput = LayerInputs[i];
-                if (layerInput == null || !layerInput.IsValid)
+                if (layerInput == null)
                 {
                     continue;
                 }
 
                 var definition = LayerDefinition[i];
 
-                // A state machine layer's weight comes from its active state's authored layer settings
-                var wasInLayer = ctx.IsInLayer;
+                // Start a new layer
                 ctx.IsInLayer = true;
-                ctx.LayerContext.Weight = 1f;
-                ctx.LayerContext.RootMotionWeight = 1f;
+                ctx.LayerContext.Reset();
 
-                var layerResult = layerInput.Update(ctx);
-
-                ctx.IsInLayer = wasInLayer;
-
-                var weight = LayerWeights[i]?.GetValue(ctx) ?? 1f;
-                if (definition.IsStateMachineLayer)
+                // If we're not a state machine, set up the layer context here
+                if (!definition.IsStateMachineLayer)
                 {
-                    weight *= ctx.LayerContext.Weight;
+                    if (LayerWeights[i] != null)
+                    {
+                        ctx.LayerContext.Weight = MathUtils.Saturate(LayerWeights[i]!.GetValue(ctx));
+                    }
+
+                    if (LayerMasks[i] != null)
+                    {
+                        ctx.LayerContext.MaskTaskList.CopyFrom(LayerMasks[i]!.GetValue(ctx));
+                    }
                 }
 
-                weight = MathUtils.Saturate(weight);
-                if (weight <= 0f)
+                // Always update state machine layers as the transitions need to be evaluated;
+                // they calculate the final layer weight and store it in the layer context.
+                var updated = false;
+                GraphPoseNodeResult layerResult = default;
+                if (definition.IsStateMachineLayer || ctx.LayerContext.Weight > 0f)
+                {
+                    layerResult = layerInput.Update(ctx);
+                    updated = true;
+                }
+
+                var weight = MathUtils.Saturate(ctx.LayerContext.Weight);
+                var mask = ctx.LayerContext.MaskTaskList;
+
+                if (!updated || weight <= 1e-4f)
                 {
                     continue;
                 }
 
-                if (definition.BlendMode == PoseBlendMode.ModelSpace && !warnedModelSpace)
+                var blendMode = definition.BlendMode;
+
+                // We cannot perform a global blend without a bone mask
+                if (blendMode == PoseBlendMode.ModelSpace && !mask.IsSet)
                 {
-                    ctx.LogWarning(NodeIdx, "ModelSpace layer blending is approximated in parent space.");
-                    warnedModelSpace = true;
+                    ctx.LogWarning(NodeIdx, "Attempting to perform a global blend without a bone mask! This is not supported so falling back to a local blend!");
+                    blendMode = PoseBlendMode.Overlay;
                 }
 
-                var mask = LayerMasks[i]?.GetValue(ctx) ?? default;
                 var boneCount = Math.Min(PoseTransforms.Length, layerResult.Pose.Length);
 
-                for (var b = 0; b < boneCount; b++)
+                switch (blendMode)
                 {
-                    var boneWeight = weight * mask.GetBoneWeight(ctx.Skeleton, b);
-                    if (boneWeight <= 0f)
-                    {
-                        continue;
-                    }
+                    case PoseBlendMode.Overlay:
+                    case PoseBlendMode.Additive:
+                        for (var b = 0; b < boneCount; b++)
+                        {
+                            var boneWeight = weight * mask.GetBoneWeight(ctx.Skeleton, b);
+                            if (boneWeight <= 0f)
+                            {
+                                continue;
+                            }
 
-                    PoseTransforms[b] = definition.BlendMode == PoseBlendMode.Additive
-                        ? PoseTransforms[b].BlendAdd(layerResult.Pose[b], boneWeight)
-                        : PoseTransforms[b].Blend(layerResult.Pose[b], boneWeight);
+                            PoseTransforms[b] = blendMode == PoseBlendMode.Additive
+                                ? PoseTransforms[b].BlendAdd(layerResult.Pose[b], boneWeight)
+                                : PoseTransforms[b].Blend(layerResult.Pose[b], boneWeight);
+                        }
+
+                        break;
+
+                    case PoseBlendMode.ModelSpace:
+                        BlendLayerModelSpace(ctx, layerResult.Pose, weight, mask, boneCount);
+                        break;
                 }
             }
+
+            ctx.IsInLayer = wasInLayer;
+            ctx.LayerContext.Weight = outerWeight;
+            ctx.LayerContext.RootMotionWeight = outerRootMotionWeight;
+            ctx.LayerContext.MaskTaskList = outerMask;
 
             result.Pose = PoseTransforms;
             result.SampledEventRange = new(eventRangeStart, ctx.SampledEvents.Count);
             return result;
+        }
+
+        /// <summary>
+        /// Port of Esoterica's Blender::ModelSpaceBlend: masked bones blend their rotations in model
+        /// space (translation and scale blend in parent space), and the mask-weighted result is then
+        /// blended over the base pose in parent space by the layer weight.
+        /// </summary>
+        private void BlendLayerModelSpace(GraphContext ctx, FrameBone[] layerPose, float layerWeight, BoneMaskTaskList mask, int boneCount)
+        {
+            var parentIndices = ctx.Skeleton?.ParentIndices;
+            if (parentIndices == null || boneCount == 0)
+            {
+                return;
+            }
+
+            // Calculate global rotations for base and layer poses.
+            // Bones are ordered parent-before-child; global = parentGlobal * local (System.Numerics order).
+            baseGlobalRotations[0] = PoseTransforms[0].Angle;
+            layerGlobalRotations[0] = layerPose[0].Angle;
+
+            for (var b = 1; b < boneCount; b++)
+            {
+                var parentIdx = parentIndices[b];
+                baseGlobalRotations[b] = baseGlobalRotations[parentIdx] * PoseTransforms[b].Angle;
+                layerGlobalRotations[b] = layerGlobalRotations[parentIdx] * layerPose[b].Angle;
+            }
+
+            // Blend the root separately - parent space blend
+            var rootWeight = mask.GetBoneWeight(ctx.Skeleton, 0);
+            if (rootWeight > 0f)
+            {
+                maskedLayerResult[0] = PoseTransforms[0].Blend(layerPose[0], rootWeight);
+                resultGlobalRotations[0] = maskedLayerResult[0].Angle;
+            }
+            else
+            {
+                maskedLayerResult[0] = PoseTransforms[0];
+                resultGlobalRotations[0] = PoseTransforms[0].Angle;
+            }
+
+            // Blend model-space rotations together and convert back to parent space
+            for (var b = 1; b < boneCount; b++)
+            {
+                var boneWeight = mask.GetBoneWeight(ctx.Skeleton, b);
+                if (boneWeight <= 0f)
+                {
+                    // Use the base local pose for masked out bones
+                    resultGlobalRotations[b] = baseGlobalRotations[b];
+                    maskedLayerResult[b] = PoseTransforms[b];
+                }
+                else
+                {
+                    // Translation and scale blend in parent space
+                    var positionScale = Vector4.Lerp(PoseTransforms[b].PositionScale, layerPose[b].PositionScale, boneWeight);
+
+                    // Rotation blends in model space
+                    resultGlobalRotations[b] = Quaternion.Slerp(baseGlobalRotations[b], layerGlobalRotations[b], boneWeight);
+
+                    var parentIdx = parentIndices[b];
+                    var localRotation = Quaternion.Normalize(Quaternion.Inverse(resultGlobalRotations[parentIdx]) * resultGlobalRotations[b]);
+                    maskedLayerResult[b] = new FrameBone(positionScale, localRotation);
+                }
+            }
+
+            // Blend the masked result onto the base pose by the layer weight, in parent space
+            for (var b = 0; b < boneCount; b++)
+            {
+                PoseTransforms[b] = PoseTransforms[b].Blend(maskedLayerResult[b], layerWeight);
+            }
         }
     }
 }

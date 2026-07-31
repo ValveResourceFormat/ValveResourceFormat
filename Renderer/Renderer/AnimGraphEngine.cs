@@ -12,8 +12,16 @@ namespace ValveResourceFormat.Renderer.AnimLib
 
     class LayerContext
     {
-        public float Weight;
-        public float RootMotionWeight;
+        public float Weight = 1f;
+        public float RootMotionWeight = 1f;
+        public BoneMaskTaskList MaskTaskList;
+
+        public void Reset()
+        {
+            Weight = 1f;
+            RootMotionWeight = 1f;
+            MaskTaskList = default;
+        }
     }
 
     abstract partial class GraphNode

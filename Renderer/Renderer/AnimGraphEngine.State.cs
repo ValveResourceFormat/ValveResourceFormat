@@ -26,6 +26,8 @@ namespace ValveResourceFormat.Renderer.AnimLib
 
         public override SyncTrack SyncTrack => ChildNode?.SyncTrack ?? SyncTrack.Default;
 
+        public override bool IsValid => ChildNode?.IsValid ?? false;
+
         public void SetTransitioningState(TransitionState s) => Transition = s;
 
         public override void Initialize(GraphContext ctx)
@@ -151,8 +153,13 @@ namespace ValveResourceFormat.Renderer.AnimLib
             //-------------------------------------------------------------------------
             if (BoneMaskValueNode != null)
             {
-                var boneMask = BoneMaskValueNode.GetValue(ctx);
-                // task list...
+                var boneMaskTaskList = BoneMaskValueNode.GetValue(ctx);
+
+                // If we dont have a bone mask task list, use a copy of the state's task list
+                if (!ctx.LayerContext.MaskTaskList.IsSet)
+                {
+                    ctx.LayerContext.MaskTaskList.CopyFrom(boneMaskTaskList);
+                }
             }
         }
 
