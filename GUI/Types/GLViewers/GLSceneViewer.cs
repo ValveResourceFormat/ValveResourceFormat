@@ -421,8 +421,6 @@ namespace GUI.Types.GLViewers
                 return;
             }
 
-            var timer = Stopwatch.StartNew();
-
             try
             {
                 // The player takes ownership of the device and disposes it in its own Dispose (called from ours);
@@ -441,11 +439,6 @@ namespace GUI.Types.GLViewers
 
             soundPlayer.LoadSoundEvents();
             soundPlayer.LoadSoundscapes();
-
-            //const float OcclusionEndMargin = 48f;
-            //soundPlayer.OcclusionTrace = (listener, sound) =>
-            //    Scene.PhysicsWorld?.TraceRay(listener, sound) is { Hit: true } hit
-            //        && Vector3.DistanceSquared(hit.HitPosition, sound) > OcclusionEndMargin * OcclusionEndMargin;
 
             soundPlayer.Suspended = true; // start with fade-in
             soundPlayer.Volume = Settings.Config.Volume;

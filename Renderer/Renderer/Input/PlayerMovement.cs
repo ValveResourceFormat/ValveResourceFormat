@@ -814,18 +814,6 @@ public class PlayerMovement
     }
 
     /// <summary>
-    /// Attaches a playing sound so its position follows the player. The sound event's own position offset
-    /// (e.g. +60z for gun shots) stays applied on top.
-    /// </summary>
-    public void AttachSound(Audio.SoundEvent? handle)
-    {
-        if (handle != null)
-        {
-            activeMovementSounds.Add(handle);
-        }
-    }
-
-    /// <summary>
     /// Tracks the player's position for our movement sounds ("use_entity_position_if_local_player" in the sound
     /// event data). Left at their emit position they would fall behind at run speed and get louder while receding,
     /// since the footstep distance-volume curve peaks at ~116 units.

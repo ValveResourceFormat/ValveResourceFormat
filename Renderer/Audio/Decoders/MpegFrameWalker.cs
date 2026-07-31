@@ -52,9 +52,6 @@ internal sealed class MpegFrameWalker : IMpegFrame
         return TrySeekFrame(from);
     }
 
-    /// <summary>Re-syncs one byte past the current frame start, for when its decode failed.</summary>
-    public bool TryResync() => frameOffset >= 0 && TrySeekFrame(frameOffset + 1);
-
     private int SkipId3(int position)
     {
         if (dataLength >= position + 10

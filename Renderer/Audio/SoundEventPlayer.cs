@@ -828,7 +828,8 @@ public sealed class SoundEventPlayer : IDisposable
 
             if (soundEvent != null)
             {
-                //soundEvent.FadeIn(SoundscapeFadeInSeconds);
+                // No FadeIn here, unlike the scripted branch: a modern single-event soundscape is a
+                // citadel ambient that brings its own authored "volume_fade_in"
                 activeSoundscapeEvents.Add(soundEvent);
             }
         }
