@@ -34,9 +34,11 @@ namespace ValveResourceFormat.Renderer.Utils
         /// <param name="outputMax">Output range maximum.</param>
         /// <returns>Value remapped to output range.</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static float RemapRange(float x, float inputMin, float inputMax, float outputMin, float outputMax)
+        public static float RemapRange(float value, float inputMin, float inputMax, float outputMin, float outputMax)
         {
-            return float.Lerp(outputMin, outputMax, Remap(x, inputMin, inputMax));
+            // Matches Esoterica: the input percentage is clamped before remapping
+            var t = inputMax != inputMin ? Math.Clamp((value - inputMin) / (inputMax - inputMin), 0f, 1f) : 0f;
+            return Lerp(outputMin, outputMax, t);
         }
 
         /// <summary>

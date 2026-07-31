@@ -69,11 +69,11 @@ namespace ValveResourceFormat.Renderer.AnimLib
                 if (range.ParameterValueRange.ContainsInclusive(value))
                 {
                     var weight = range.ParameterValueRange.GetPercentageThrough(value);
-                    if (weight <= 0f)
+                    if (weight <= 1e-4f)
                     {
                         blendSource0 = SourceNodes[range.InputIdx0];
                     }
-                    else if (weight >= 1f)
+                    else if (weight >= 1f - 1e-4f)
                     {
                         blendSource0 = SourceNodes[range.InputIdx1];
                     }
@@ -160,7 +160,7 @@ namespace ValveResourceFormat.Renderer.AnimLib
 
             Blender.Blend(result0.Pose, result1.Pose, blendWeight, result.Pose);
             result.RootMotionDelta = Blender.BlendRootMotion(result0.RootMotionDelta, result1.RootMotionDelta, blendWeight, RootMotionBlendMode.Blend);
-            result.SampledEventRange = new(result0.SampledEventRange.StartIdx, ctx.SampledEvents.Count);
+            result.SampledEventRange = ctx.SampledEvents.BlendEventRanges(result0.SampledEventRange, result1.SampledEventRange, blendWeight);
 
             PreviousTime = SyncTrack.GetPercentageThrough(range.StartTime);
             CurrentTime = SyncTrack.GetPercentageThrough(range.EndTime);
@@ -254,8 +254,27 @@ namespace ValveResourceFormat.Renderer.AnimLib
             // initialized yet at this point).
         }
 
-        // Matches Esoterica: only the input parameters are required, sources may be individually invalid.
-        public override bool IsValid => SourceNodes is { Length: > 1 } && InputParameterNode0 != null && InputParameterNode1 != null;
+        // Esoterica Blend2D requires every source to be valid (unlike Blend1D)
+        public override bool IsValid
+        {
+            get
+            {
+                if (SourceNodes is not { Length: > 1 } || InputParameterNode0 == null || InputParameterNode1 == null)
+                {
+                    return false;
+                }
+
+                foreach (var source in SourceNodes)
+                {
+                    if (!source.IsValid)
+                    {
+                        return false;
+                    }
+                }
+
+                return true;
+            }
+        }
 
         SyncTrack? blendedSyncTrack;
         readonly SyncTrack ownedSyncTrack2Way = SyncTrack.CreateBlendScratch();
@@ -358,6 +377,7 @@ namespace ValveResourceFormat.Renderer.AnimLib
 
             Blender.Blend(r0.Pose, r1.Pose, bsr.Weight01, result.Pose);
             result.RootMotionDelta = Blender.BlendRootMotion(r0.RootMotionDelta, r1.RootMotionDelta, bsr.Weight01, RootMotionBlendMode.Blend);
+            result.SampledEventRange = ctx.SampledEvents.BlendEventRanges(r0.SampledEventRange, r1.SampledEventRange, bsr.Weight01);
 
             if (bsr.Src2 != -1)
             {
@@ -366,9 +386,8 @@ namespace ValveResourceFormat.Renderer.AnimLib
 
                 Blender.Blend(result.Pose, r2.Pose, bsr.Weight12, result.Pose);
                 result.RootMotionDelta = Blender.BlendRootMotion(result.RootMotionDelta, r2.RootMotionDelta, bsr.Weight12, RootMotionBlendMode.Blend);
+                result.SampledEventRange = ctx.SampledEvents.BlendEventRanges(result.SampledEventRange, r2.SampledEventRange, bsr.Weight12);
             }
-
-            result.SampledEventRange = new(r0.SampledEventRange.StartIdx, ctx.SampledEvents.Count);
 
             PreviousTime = SyncTrack.GetPercentageThrough(range.StartTime);
             CurrentTime = SyncTrack.GetPercentageThrough(range.EndTime);
@@ -645,6 +664,24 @@ namespace ValveResourceFormat.Renderer.AnimLib
                 {
                     ctx.LogWarning(NodeIdx, "Attempting to perform a global blend without a bone mask! This is not supported so falling back to a local blend!");
                     blendMode = PoseBlendMode.Overlay;
+                }
+
+                // Weight or discard the layer's sampled events (Esoterica UpdateLayers)
+                if (definition.IgnoreEvents)
+                {
+                    ctx.SampledEvents.MarkEventsAsIgnored(layerResult.SampledEventRange);
+                }
+                else
+                {
+                    ctx.SampledEvents.UpdateWeights(layerResult.SampledEventRange, weight);
+                }
+
+                // Blend layer root motion unless only the base's is sampled
+                if (!OnlySampleBaseRootMotion)
+                {
+                    var rootMotionWeight = weight * ctx.LayerContext.RootMotionWeight;
+                    var rootMotionMode = definition.BlendMode == PoseBlendMode.Additive ? RootMotionBlendMode.Additive : RootMotionBlendMode.Blend;
+                    result.RootMotionDelta = Blender.BlendRootMotion(result.RootMotionDelta, layerResult.RootMotionDelta, rootMotionWeight, rootMotionMode);
                 }
 
                 var boneCount = Math.Min(PoseTransforms.Length, layerResult.Pose.Length);

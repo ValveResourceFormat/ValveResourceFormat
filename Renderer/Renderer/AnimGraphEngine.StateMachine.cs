@@ -35,9 +35,9 @@ namespace ValveResourceFormat.Renderer.AnimLib
         public StateInfo ActiveState => States[ActiveStateIndex];
         public StateNode ActiveStateNode => ActiveState.StateNode;
 
-        public override SyncTrack SyncTrack => ActiveStateIndex >= 0 && ActiveStateIndex < States.Length
-            ? ActiveStateNode.SyncTrack
-            : SyncTrack.Default;
+        public override SyncTrack SyncTrack => ActiveTransition != null
+            ? ActiveTransition.SyncTrack
+            : ActiveStateIndex >= 0 && ActiveStateIndex < States.Length ? ActiveStateNode.SyncTrack : SyncTrack.Default;
 
         public override void Initialize(GraphContext ctx)
         {
@@ -226,9 +226,9 @@ namespace ValveResourceFormat.Renderer.AnimLib
             // Update state data to that of the new active state
             ActiveStateIndex = selectedTransition.TargetStateIndex;
 
-            Duration = ActiveTransition.Duration;
-            PreviousTime = ActiveTransition.PreviousTime;
-            CurrentTime = ActiveTransition.CurrentTime;
+            Duration = ActiveState.StateNode.Duration;
+            PreviousTime = ActiveState.StateNode.PreviousTime;
+            CurrentTime = ActiveState.StateNode.CurrentTime;
 
             return transitionResult;
         }

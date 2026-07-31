@@ -71,7 +71,7 @@ struct Target
 
                 // Apply the offset's rotation then translation (preserve multiplication order from the C++ code)
                 var offset = Transform;
-                var combinedRot = Quaternion.Normalize(offset.Angle * result.Angle);
+                var combinedRot = Quaternion.Normalize(result.Angle * offset.Angle);
                 result = result with { Angle = combinedRot, Position = result.Position + offset.Position };
 
                 var parentBoneIdx = skeleton.ParentIndices[boneIdx];
@@ -85,7 +85,7 @@ struct Target
             {
                 result = pose.GetModelSpaceTransform(boneIdx);
                 var offset = Transform;
-                var combinedRot = Quaternion.Normalize(offset.Angle * result.Angle);
+                var combinedRot = Quaternion.Normalize(result.Angle * offset.Angle);
                 result = result with { Angle = combinedRot, Position = result.Position + offset.Position };
             }
         }

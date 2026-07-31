@@ -43,14 +43,23 @@ static class Blender
         float blendWeight,
         RootMotionBlendMode blendMode)
     {
-        return blendMode switch
+        // Matches Esoterica's early-out ordering: a zero weight or IgnoreTarget yields the source
+        if (blendWeight <= 0f || blendMode == RootMotionBlendMode.IgnoreTarget)
         {
-            RootMotionBlendMode.Blend => LerpMatrix(sourceRootMotion, targetRootMotion, blendWeight),
-            RootMotionBlendMode.Additive => sourceRootMotion * targetRootMotion,
-            RootMotionBlendMode.IgnoreSource => targetRootMotion,
-            RootMotionBlendMode.IgnoreTarget => sourceRootMotion,
-            _ => Matrix4x4.Identity,
-        };
+            return sourceRootMotion;
+        }
+
+        if (blendWeight >= 1f || blendMode == RootMotionBlendMode.IgnoreSource)
+        {
+            return targetRootMotion;
+        }
+
+        if (blendMode == RootMotionBlendMode.Additive)
+        {
+            return LerpMatrix(sourceRootMotion, targetRootMotion * sourceRootMotion, blendWeight);
+        }
+
+        return LerpMatrix(sourceRootMotion, targetRootMotion, blendWeight);
     }
 
     static Matrix4x4 LerpMatrix(Matrix4x4 a, Matrix4x4 b, float t)

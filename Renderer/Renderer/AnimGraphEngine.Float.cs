@@ -291,8 +291,8 @@ namespace ValveResourceFormat.Renderer.AnimLib
 
                 // integer / fractional decomposition uses floor so fractional part is in [0,1)
                 FloatMathNode__Operator.IntegerPart => MathF.Floor(a),
-                FloatMathNode__Operator.FractionalPart => a - MathF.Floor(a),
-                FloatMathNode__Operator.InverseFractionalPart => 1f - (a - MathF.Floor(a)),
+                FloatMathNode__Operator.FractionalPart => a - MathF.Truncate(a),
+                FloatMathNode__Operator.InverseFractionalPart => 1f - (a - MathF.Truncate(a)),
 
                 _ => throw new UnreachableException()
             };
@@ -392,8 +392,11 @@ namespace ValveResourceFormat.Renderer.AnimLib
             var dt = ctx.DeltaTime;
 
             // Semi-implicit Euler spring integration
-            CurrentVelocity += (-omega * omega * (CurrentValue - target) - 2f * DampingRatio * omega * CurrentVelocity) * dt;
-            CurrentValue += CurrentVelocity * dt;
+            // Implicit Euler, matching Esoterica (stable at high stiffness / large steps)
+            var omegaDt = omega * dt;
+            var scale = 1f / (1f + omegaDt * (2f * DampingRatio + omegaDt));
+            CurrentVelocity = scale * (CurrentVelocity - omegaDt * omega * (CurrentValue - target));
+            CurrentValue += dt * CurrentVelocity;
 
             return CurrentValue;
         }

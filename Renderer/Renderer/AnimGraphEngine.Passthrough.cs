@@ -26,7 +26,7 @@ namespace ValveResourceFormat.Renderer.AnimLib
 
         public override GraphPoseNodeResult Update(GraphContext ctx, SyncTrackTimeRange? updateRange = null)
         {
-            if (ChildNode == null)
+            if (ChildNode is not { IsValid: true })
             {
                 return base.Update(ctx);
             }
@@ -57,10 +57,19 @@ namespace ValveResourceFormat.Renderer.AnimLib
 
         public override GraphPoseNodeResult Update(GraphContext ctx, SyncTrackTimeRange? updateRange = null)
         {
-            // Speed scaling has no effect during a synchronized update; just pass the range through.
+            // Speed scaling has no effect on a synchronized update's time step, but the scaled
+            // duration is still reported so the parent's sync step accounts for it (Esoterica).
             if (updateRange != null)
             {
-                return base.Update(ctx, updateRange);
+                var syncResult = base.Update(ctx, updateRange);
+
+                if (ChildNode is { IsValid: true })
+                {
+                    var syncSpeedScale = CalculateSpeedScaleMultiplier(ctx);
+                    Duration = syncSpeedScale < NearZero ? 0f : ChildNode.Duration / syncSpeedScale;
+                }
+
+                return syncResult;
             }
 
             var speedScale = CalculateSpeedScaleMultiplier(ctx);
@@ -130,13 +139,13 @@ namespace ValveResourceFormat.Renderer.AnimLib
             }
 
             var childDuration = (ChildNode?.IsValid ?? false) ? ChildNode!.Duration : -1f;
-            if (childDuration > 0f && desiredDuration > 0f)
+            if (childDuration > 0f)
             {
-                return childDuration / desiredDuration;
+                // A zero desired duration would be an infinite speed; freeze instead of NaN/Inf.
+                return desiredDuration > 1e-5f ? childDuration / desiredDuration : 0f;
             }
 
-            // desiredDuration == 0 would be an infinite speed; freeze instead of producing NaN/Inf delta time.
-            return desiredDuration <= 0f ? 0f : 1f;
+            return 1f;
         }
     }
 
@@ -191,7 +200,7 @@ namespace ValveResourceFormat.Renderer.AnimLib
             hasSelected = true;
 
             var selectedIndex = SelectOption(ctx);
-            if (selectedIndex >= 0)
+            if (selectedIndex >= 0 && OptionNodes[selectedIndex].IsValid)
             {
                 SelectedNode = OptionNodes[selectedIndex];
             }
@@ -294,6 +303,12 @@ namespace ValveResourceFormat.Renderer.AnimLib
                     break;
                 }
             }
+            // An invalid selection falls back (Esoterica)
+            if (SelectedNode is { IsValid: false })
+            {
+                SelectedNode = FallbackNode;
+            }
+
         }
 
         public override bool IsValid => SelectedNode?.IsValid ?? false;
@@ -356,7 +371,7 @@ namespace ValveResourceFormat.Renderer.AnimLib
             hasSelected = true;
 
             var selectedIndex = SelectOption(ctx);
-            if (selectedIndex >= 0)
+            if (selectedIndex >= 0 && OptionNodes[selectedIndex].IsValid)
             {
                 SelectedNode = OptionNodes[selectedIndex];
             }
@@ -394,7 +409,10 @@ namespace ValveResourceFormat.Renderer.AnimLib
                 boundaries[i] = totalWeightedOptions;
             }
 
-            Debug.Assert(totalWeightedOptions > 0);
+            if (totalWeightedOptions == 0)
+            {
+                return -1;
+            }
 
             var weightedIdx = seed % totalWeightedOptions;
             for (var i = 0; i < numOptions; i++)

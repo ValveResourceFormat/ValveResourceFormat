@@ -247,6 +247,18 @@ namespace ValveResourceFormat.Renderer.AnimLib
 
     partial class ReferencePoseNode
     {
+        public override void Initialize(GraphContext ctx)
+        {
+            base.Initialize(ctx);
+            PreviousTime = CurrentTime = 1f;
+        }
+
+        public override void Restart(GraphContext ctx)
+        {
+            base.Restart(ctx);
+            PreviousTime = CurrentTime = 1f;
+        }
+
         public override GraphPoseNodeResult Update(GraphContext ctx, SyncTrackTimeRange? updateRange = null)
         {
             var result = base.Update(ctx);
@@ -257,6 +269,18 @@ namespace ValveResourceFormat.Renderer.AnimLib
 
     partial class ZeroPoseNode
     {
+        public override void Initialize(GraphContext ctx)
+        {
+            base.Initialize(ctx);
+            PreviousTime = CurrentTime = 1f;
+        }
+
+        public override void Restart(GraphContext ctx)
+        {
+            base.Restart(ctx);
+            PreviousTime = CurrentTime = 1f;
+        }
+
         public override GraphPoseNodeResult Update(GraphContext ctx, SyncTrackTimeRange? updateRange = null)
         {
             var result = base.Update(ctx);
@@ -274,7 +298,7 @@ namespace ValveResourceFormat.Renderer.AnimLib
         public override GraphClip? GetClip(GraphContext ctx) => Clip;
         public override bool IsLooping => AllowLooping;
         public override bool DisableRootMotionSampling => !SampleRootMotion;
-        public override SyncTrack SyncTrack => Clip?.SyncTrack ?? SyncTrack.Default;
+        public override SyncTrack SyncTrack => syncTrackWithOffset ?? Clip?.SyncTrack ?? SyncTrack.Default;
 
         public GraphClip? Clip;
 
@@ -299,8 +323,17 @@ namespace ValveResourceFormat.Renderer.AnimLib
             }
 
             Clip = ctx.Graph.DataSlots[DataSlotIdx];
-            Duration = Clip?.Duration ?? 0f;
+
+            // The exposed duration folds in the speed multiplier (Esoterica) so parents see scaled time
+            Duration = SpeedMultiplier != 0f ? (Clip?.Duration ?? 0f) / SpeedMultiplier : 0f;
+
+            // Apply the authored start offset to this node's view of the clip's sync track
+            syncTrackWithOffset = Clip != null && StartSyncEventOffset != 0
+                ? new SyncTrack(Clip.SyncTrack.SyncEvents, StartSyncEventOffset)
+                : null;
         }
+
+        SyncTrack? syncTrackWithOffset;
 
         public override void UpdateSelection(GraphContext ctx)
         {
@@ -353,7 +386,7 @@ namespace ValveResourceFormat.Renderer.AnimLib
             // todo
             var playInReverse = PlayInReverseValueNode?.GetValue(ctx) ?? false;
 
-            var deltaPercentage = (ctx.DeltaTime * SpeedMultiplier) / Duration;
+            var deltaPercentage = Duration > 0f ? ctx.DeltaTime / Duration : 0f;
 
             PreviousTime = CurrentTime;
             CurrentTime += deltaPercentage;
@@ -394,42 +427,64 @@ namespace ValveResourceFormat.Renderer.AnimLib
             var clip = Clip;
             Debug.Assert(clip != null);
 
-            var events = clip.Animation.Events;
-            if (events.Length == 0)
-            {
-                return;
-            }
-
-            var clipDuration = clip.Duration;
             var isFromActiveBranch = ctx.BranchState == BranchState.Active;
             var startCount = ctx.SampledEvents.Count;
 
-            foreach (var clipEvent in events)
-            {
-                var eventStart = clipEvent.StartCycle;
-                var eventDuration = clipDuration > 0f ? clipEvent.Duration / clipDuration : 0f;
+            var events = clip.Animation.Events;
+            var clipDuration = clip.Animation.Duration;
 
-                if (eventDuration > 0f)
+            if (events.Length > 0 && clipDuration > 0f)
+            {
+                var from = PreviousTime;
+                var to = CurrentTime;
+
+                // Every event whose time range overlaps [from, to) is sampled, with the trailing edge
+                // included at the very end of the clip (Esoterica AnimationClip::GetEventsForRange).
+                // A wrapped range (looping) samples [from, 1) and [0, to).
+                void SampleRange(float rangeFrom, float rangeTo, bool includeEnd)
                 {
-                    // Duration event: sampled while the current time lies within it
-                    if (CurrentTime >= eventStart && CurrentTime <= eventStart + eventDuration)
+                    foreach (var clipEvent in events)
                     {
-                        var percentageThrough = (CurrentTime - eventStart) / eventDuration;
+                        var eventStart = clipEvent.StartCycle;
+                        var eventEnd = eventStart + (clipEvent.Duration / clipDuration);
+
+                        var overlaps = clipEvent.Duration > 0f
+                            ? eventStart < rangeTo && eventEnd > rangeFrom
+                            : eventStart >= rangeFrom && (eventStart < rangeTo || (includeEnd && eventStart <= rangeTo && rangeTo >= 1f));
+
+                        if (clipEvent.Duration > 0f && includeEnd && rangeTo >= 1f && eventEnd >= 1f && eventStart < 1f)
+                        {
+                            overlaps = overlaps || eventStart < rangeTo;
+                        }
+
+                        if (!overlaps)
+                        {
+                            continue;
+                        }
+
+                        var percentageThrough = clipEvent.Duration > 0f
+                            ? MathUtils.Saturate((rangeTo - eventStart) / (eventEnd - eventStart))
+                            : 1f;
+
                         ctx.SampledEvents.EmplaceAnimationEvent(NodeIdx, clipEvent, percentageThrough, isFromActiveBranch);
                     }
                 }
-                else
-                {
-                    // Instant event: sampled when crossed this update
-                    var crossed = PreviousTime <= CurrentTime
-                        ? eventStart > PreviousTime && eventStart <= CurrentTime
-                        : eventStart > PreviousTime || eventStart <= CurrentTime; // looped around
 
-                    if (crossed)
-                    {
-                        ctx.SampledEvents.EmplaceAnimationEvent(NodeIdx, clipEvent, 1f, isFromActiveBranch);
-                    }
+                if (to >= from)
+                {
+                    SampleRange(from, to, to >= 1f);
                 }
+                else // Looped this update
+                {
+                    SampleRange(from, 1f, true);
+                    SampleRange(0f, to, false);
+                }
+            }
+
+            // Emit this clip node's authored graph events every update (Generic type)
+            foreach (var graphEventID in GraphEvents)
+            {
+                ctx.SampledEvents.EmplaceGraphEvent(NodeIdx, GraphEventType.Generic, graphEventID, isFromActiveBranch);
             }
 
             result.SampledEventRange = new(startCount, ctx.SampledEvents.Count);
@@ -440,6 +495,8 @@ namespace ValveResourceFormat.Renderer.AnimLib
     {
         public FloatValueNode? PoseTimeValueNode;
         public GraphClip? Clip;
+
+        public override bool IsValid => Clip != null;
 
         public override void Initialize(GraphContext ctx)
         {
@@ -622,17 +679,27 @@ namespace ValveResourceFormat.Renderer.AnimLib
         public virtual bool DisableRootMotionSampling => SelectedOption?.DisableRootMotionSampling ?? false;
         public ClipReferenceNode? SelectedOption;
 
+        bool hasSelectedOption;
+
         public override void Restart(GraphContext ctx)
         {
             base.Restart(ctx);
             SelectedOption?.Restart(ctx);
+
+            // Re-select on the next update; selection is otherwise fixed per activation (Esoterica)
+            hasSelectedOption = false;
+            SelectedOption = null;
         }
 
         public abstract void UpdateSelection(GraphContext ctx);
 
         public override GraphPoseNodeResult Update(GraphContext ctx, SyncTrackTimeRange? updateRange = null)
         {
-            UpdateSelection(ctx);
+            if (!hasSelectedOption)
+            {
+                hasSelectedOption = true;
+                UpdateSelection(ctx);
+            }
 
             if (SelectedOption != null)
             {

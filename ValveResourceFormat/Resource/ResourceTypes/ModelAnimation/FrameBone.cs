@@ -73,7 +73,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
         public readonly FrameBone BlendAdd(FrameBone other, float t)
         {
             var positionScale = Vector4.FusedMultiplyAdd(other.PositionScale, new Vector4(t), PositionScale);
-            var targetAngle = other.Angle * Angle;
+            var targetAngle = Angle * other.Angle;
             var angle = Quaternion.Slerp(Angle, targetAngle, t);
             return new(positionScale, angle);
         }

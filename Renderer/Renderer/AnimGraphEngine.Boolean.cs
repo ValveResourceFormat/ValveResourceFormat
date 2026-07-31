@@ -295,7 +295,8 @@ namespace ValveResourceFormat.Renderer.AnimLib
         {
             var inputValue = InputValueNode.GetValue(ctx);
 
-            var matches = ComparisionIDs.Contains(inputValue);
+            // An empty comparand list matches an unset input (Esoterica IDComparisonNode)
+            var matches = ComparisionIDs.Length == 0 ? !inputValue.IsValid : ComparisionIDs.Contains(inputValue);
             return Comparison switch
             {
                 IDComparisonNode__Comparison.Matches => matches,
@@ -353,10 +354,12 @@ namespace ValveResourceFormat.Renderer.AnimLib
     partial class StateCompletedConditionNode
     {
         StateNode SourceStateNode;
+        FloatValueNode? TransitionDurationOverrideNode;
 
         public override void Initialize(GraphContext ctx)
         {
             ctx.SetNodeFromIndex(SourceStateNodeIdx, ref SourceStateNode);
+            ctx.SetOptionalNodeFromIndex(TransitionDurationOverrideNodeIdx, ref TransitionDurationOverrideNode);
         }
 
         protected override bool GetValueInternal(GraphContext ctx)
@@ -367,12 +370,18 @@ namespace ValveResourceFormat.Renderer.AnimLib
             {
                 return true;
             }
-            else
+
+            var transitionDuration = TransitionDurationOverrideNode?.GetValue(ctx) ?? TransitionDurationSeconds;
+
+            // Instant transitions complete at the end of the state, detected via the loop wrap
+            if (transitionDuration <= 1e-5f)
             {
-                var transitionTime = TransitionDurationSeconds / sourceDuration;
-                var transitionPoint = 1.0f - transitionTime;
-                return SourceStateNode.CurrentTime >= transitionPoint;
+                return MathF.Abs(SourceStateNode.CurrentTime - 1f) <= 1e-5f
+                    || SourceStateNode.CurrentTime < SourceStateNode.PreviousTime;
             }
+
+            var transitionPoint = 1.0f - (transitionDuration / sourceDuration);
+            return SourceStateNode.CurrentTime >= transitionPoint;
         }
     }
 
@@ -408,9 +417,8 @@ namespace ValveResourceFormat.Renderer.AnimLib
             return Type switch
             {
                 TimeConditionNode__ComparisonType.PercentageThroughState => Compare(SourceStateNode.CurrentTime, comparisonValue),
-                TimeConditionNode__ComparisonType.PercentageThroughSyncEvent => Compare((float)SourceStateNode.ElapsedTimeInState.TotalSeconds, comparisonValue),
-                TimeConditionNode__ComparisonType.ElapsedTime => Compare(SourceStateNode.CurrentTime, comparisonValue),
-                // LoopCount?
+                TimeConditionNode__ComparisonType.PercentageThroughSyncEvent => Compare(SourceStateNode.SyncTrack.GetTime(SourceStateNode.CurrentTime).PercentageThrough.Value, comparisonValue),
+                TimeConditionNode__ComparisonType.ElapsedTime => Compare(SourceStateNode.Duration * SourceStateNode.CurrentTime, comparisonValue),
                 _ => false,
             };
         }

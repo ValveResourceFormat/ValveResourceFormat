@@ -90,12 +90,24 @@ namespace ValveResourceFormat.Renderer.AnimLib
         public void StartTransitionOut(GraphContext ctx)
         {
             Transition = TransitionState.TransitioningOut;
+        }
 
-            // Since we update states before we register transitions, we need to ignore all previously sampled state events for this frame
-            // This would require sampled events buffer - for now just resample
+        public void StartTransitionOut(GraphContext ctx, bool isZeroDurationTransition)
+        {
+            Transition = TransitionState.TransitioningOut;
 
-            // Resample state events with new transition state
-            SampleStateEvents(ctx);
+            // The state was updated before the transition was registered; its already-sampled events
+            // no longer belong to the active branch.
+            ctx.SampledEvents.MarkEventsAsFromInactiveBranch(SampledEventRange);
+
+            // For an instant transition resample the exit events (as inactive-branch events)
+            if (isZeroDurationTransition)
+            {
+                var previousBranchState = ctx.BranchState;
+                ctx.BranchState = BranchState.Inactive;
+                SampleStateEvents(ctx);
+                ctx.BranchState = previousBranchState;
+            }
         }
 
         /// <summary>The range of events this state appended to the buffer during the current update.</summary>
@@ -109,23 +121,53 @@ namespace ValveResourceFormat.Renderer.AnimLib
             {
                 foreach (var entryEventID in EntryEvents)
                 {
-                    ctx.SampledEvents.EmplaceGraphEvent(NodeIdx, entryEventID, isActiveBranch);
+                    ctx.SampledEvents.EmplaceGraphEvent(NodeIdx, GraphEventType.Entry, entryEventID, isActiveBranch);
+                }
+            }
+            else if (Transition == TransitionState.None && isActiveBranch)
+            {
+                foreach (var executeEventID in ExecuteEvents)
+                {
+                    ctx.SampledEvents.EmplaceGraphEvent(NodeIdx, GraphEventType.FullyInState, executeEventID, isActiveBranch);
                 }
             }
             else if (TransitioningOut)
             {
                 foreach (var exitEventID in ExitEvents)
                 {
-                    ctx.SampledEvents.EmplaceGraphEvent(NodeIdx, exitEventID, isActiveBranch);
+                    ctx.SampledEvents.EmplaceGraphEvent(NodeIdx, GraphEventType.Exit, exitEventID, isActiveBranch);
                 }
             }
-            else // Fully in state
+
+            // Sample Timed Events
+            var elapsedTime = Duration * CurrentTime;
+            foreach (var timedEvent in TimedElapsedEvents)
             {
-                foreach (var executeEventID in ExecuteEvents)
+                var fire = timedEvent.ComparisionOperator == StateNode__TimedEvent__Comparison.GreaterThanEqual
+                    ? elapsedTime >= timedEvent.TimeValueSeconds
+                    : elapsedTime <= timedEvent.TimeValueSeconds;
+
+                if (fire)
                 {
-                    ctx.SampledEvents.EmplaceGraphEvent(NodeIdx, executeEventID, isActiveBranch);
+                    ctx.SampledEvents.EmplaceGraphEvent(NodeIdx, GraphEventType.Timed, timedEvent.ID, isActiveBranch);
                 }
             }
+
+            var currentTimeRemaining = (1f - CurrentTime) * Duration;
+            foreach (var timedEvent in TimedRemainingEvents)
+            {
+                var fire = timedEvent.ComparisionOperator == StateNode__TimedEvent__Comparison.GreaterThanEqual
+                    ? currentTimeRemaining >= timedEvent.TimeValueSeconds
+                    : currentTimeRemaining <= timedEvent.TimeValueSeconds;
+
+                if (fire)
+                {
+                    ctx.SampledEvents.EmplaceGraphEvent(NodeIdx, GraphEventType.Timed, timedEvent.ID, isActiveBranch);
+                }
+            }
+
+            // Keep the state's recorded event range covering everything sampled this update
+            SampledEventRange = new(SampledEventRange.StartIdx, ctx.SampledEvents.Count);
         }
 
 
@@ -145,8 +187,8 @@ namespace ValveResourceFormat.Renderer.AnimLib
             }
             else
             {
-                ctx.LayerContext.Weight *= LayerWeightNode?.GetValue(ctx) ?? 1.0f;
-                ctx.LayerContext.RootMotionWeight *= LayerRootMotionWeightNode?.GetValue(ctx) ?? 1.0f;
+                ctx.LayerContext.Weight *= Math.Clamp(LayerWeightNode?.GetValue(ctx) ?? 1.0f, 0f, 1f);
+                ctx.LayerContext.RootMotionWeight *= Math.Clamp(LayerRootMotionWeightNode?.GetValue(ctx) ?? 1.0f, 0f, 1f);
             }
 
             // Update bone mask task list
@@ -168,7 +210,7 @@ namespace ValveResourceFormat.Renderer.AnimLib
             var eventRangeStart = ctx.SampledEvents.Count;
             var result = base.Update(ctx);
 
-            if (ChildNode != null)
+            if (ChildNode is { IsValid: true })
             {
                 result = ChildNode.Update(ctx, updateRange);
                 Duration = ChildNode.Duration;
@@ -180,6 +222,7 @@ namespace ValveResourceFormat.Renderer.AnimLib
             ElapsedTimeInState += TimeSpan.FromSeconds(ctx.DeltaTime);
 
             // Sample graph events ( we need to track the sampled range for this node explicitly )
+            SampledEventRange = new(eventRangeStart, ctx.SampledEvents.Count);
             SampleStateEvents(ctx);
 
             // The state's event range covers the child's animation events plus its own graph events.
@@ -362,11 +405,11 @@ namespace ValveResourceFormat.Renderer.AnimLib
 
                 if (Type == SourceType.State)
                 {
-                    GetSourceStateNode().StartTransitionOut(ctx);
+                    GetSourceStateNode().StartTransitionOut(ctx, isInstantTransition);
                 }
                 else
                 {
-                    GetSourceTransitionNode().TargetStateNode.StartTransitionOut(ctx);
+                    GetSourceTransitionNode().TargetStateNode.StartTransitionOut(ctx, isInstantTransition);
                 }
 
                 if (isInstantTransition)
@@ -523,12 +566,7 @@ namespace ValveResourceFormat.Renderer.AnimLib
                     StartTransitionOutForSource();
                     TargetStateNode.Start(ctx);
                     TargetStateNode.StartTransitionIn(ctx);
-
-                    // Zero time-step: we do not want to advance the target this update, just pose it
-                    var oldDeltaTime = ctx.DeltaTime;
-                    ctx.DeltaTime = 0f;
                     targetNodeResult = TargetStateNode.Update(ctx);
-                    ctx.DeltaTime = oldDeltaTime;
                 }
             }
 
@@ -553,7 +591,7 @@ namespace ValveResourceFormat.Renderer.AnimLib
                 result = base.Update(ctx);
                 Blender.Blend(sourceNodeResult.Pose, targetNodeResult.Pose, BlendWeight, result.Pose);
                 result.RootMotionDelta = Blender.BlendRootMotion(sourceNodeResult.RootMotionDelta, targetNodeResult.RootMotionDelta, BlendWeight, RootMotionBlend);
-                result.SampledEventRange = new(sourceNodeResult.SampledEventRange.StartIdx, ctx.SampledEvents.Count);
+                result.SampledEventRange = ctx.SampledEvents.BlendEventRanges(sourceNodeResult.SampledEventRange, targetNodeResult.SampledEventRange, BlendWeight);
 
                 if (targetUpdateRange != null && sourceSyncTrackForBlend != null)
                 {
@@ -708,7 +746,7 @@ namespace ValveResourceFormat.Renderer.AnimLib
                 BlendWeight,
                 RootMotionBlend);
 
-            result.SampledEventRange = new(sourceNodeResult.SampledEventRange.StartIdx, ctx.SampledEvents.Count);
+            result.SampledEventRange = ctx.SampledEvents.BlendEventRanges(sourceNodeResult.SampledEventRange, targetNodeResult.SampledEventRange, BlendWeight);
 
             // Update internal time and duration
             //-------------------------------------------------------------------------
