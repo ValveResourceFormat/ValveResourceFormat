@@ -171,26 +171,7 @@ internal sealed class SoundEventCitadel : SoundEvent
         fadeInSecondsRemaining = 0f;
     }
 
-    protected override void OnFinished()
-    {
-        base.OnFinished();
-
-        if (FadingOut)
-        {
-            // The base already completed the stop
-            return;
-        }
-
-        if (CheckRetrigger())
-        {
-            return;
-        }
-
-        // One-shot (no retrigger): fully stop once nothing in the tree can produce samples anymore, so
-        // the event leaves the mixer's active set instead of staying registered (and updated) forever.
-        // A genuinely looping track (baked-in loop points) never reaches here.
-        Stop();
-    }
+    private protected override bool StayAliveAfterFinishing() => CheckRetrigger();
 
     private bool CheckRetrigger()
     {

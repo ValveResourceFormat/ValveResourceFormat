@@ -79,16 +79,6 @@ internal sealed class SoundEventHLVRGunLayers : SoundEvent
         }
     }
 
-    protected override void OnFinished()
-    {
-        base.OnFinished();
-
-        if (!FadingOut && !AnyChildStarted())
-        {
-            Stop();
-        }
-    }
-
     private SoundEventDefinition[] BuildLayerDefinitions()
     {
         var definitions = new SoundEventDefinition[layers.Length];

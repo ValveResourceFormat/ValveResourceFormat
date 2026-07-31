@@ -113,15 +113,7 @@ internal sealed class SoundEventHLVRAmbientRand : SoundEvent
         child?.ResetForReplay();
     }
 
-    protected override void OnFinished()
-    {
-        base.OnFinished();
-
-        if (!FadingOut)
-        {
-            CheckRetrigger();
-        }
-    }
+    private protected override bool StayAliveAfterFinishing() => CheckRetrigger();
 
     private bool CheckRetrigger()
     {

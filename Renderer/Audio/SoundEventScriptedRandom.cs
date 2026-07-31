@@ -75,25 +75,7 @@ internal sealed class SoundEventScriptedRandom : SoundEvent
         waitingForRetrigger = false;
     }
 
-    protected override void OnFinished()
-    {
-        base.OnFinished();
-
-        if (FadingOut)
-        {
-            // The base already completed the stop
-            return;
-        }
-
-        if (CheckRetrigger())
-        {
-            return;
-        }
-
-        // Track list came back empty (e.g. every vsnd failed to decode): nothing left to retry with, so
-        // leave the mixer's active set instead of retriggering into silence forever.
-        Stop();
-    }
+    private protected override bool StayAliveAfterFinishing() => CheckRetrigger();
 
     private bool CheckRetrigger()
     {

@@ -66,24 +66,6 @@ internal sealed class SoundEventHLVRMulti : SoundEvent
         }
     }
 
-    protected override void OnFinished()
-    {
-        base.OnFinished();
-
-        if (FadingOut)
-        {
-            // The base already completed the stop
-            return;
-        }
-
-        // One-shot: fully stop once nothing in the tree can produce samples anymore, so the event
-        // leaves the mixer's active set instead of staying registered (and updated) forever.
-        if (!AnyChildStarted())
-        {
-            Stop();
-        }
-    }
-
     /// <summary>Collects the child event names this definition starts, with their per-slot volumes.</summary>
     private static (string[] Names, float[] Volumes) CollectChildren(KVObject data)
     {

@@ -120,16 +120,4 @@ internal sealed class SoundEventHLVRDefault : SoundEvent
             Mixer.Player.RegisterLimiterGroup(this, limiterKey);
         }
     }
-
-    protected override void OnFinished()
-    {
-        base.OnFinished();
-
-        // One-shot: fully stop once nothing in the tree can produce samples anymore, so the event
-        // leaves the mixer's active set instead of staying registered (and updated) forever.
-        if (!FadingOut)
-        {
-            Stop();
-        }
-    }
 }

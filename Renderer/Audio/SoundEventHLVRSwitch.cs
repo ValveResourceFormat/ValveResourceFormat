@@ -43,24 +43,6 @@ internal sealed class SoundEventHLVRSwitch : SoundEvent
         PrewarmChildren(Definition.ChildDefinitions ??= ResolveChildren(), depth);
     }
 
-    protected override void OnFinished()
-    {
-        base.OnFinished();
-
-        if (FadingOut)
-        {
-            // The base already completed the stop
-            return;
-        }
-
-        // One-shot: fully stop once nothing in the tree can produce samples anymore, so the event
-        // leaves the mixer's active set instead of staying registered (and updated) forever.
-        if (!AnyChildStarted())
-        {
-            Stop();
-        }
-    }
-
     private SoundEventDefinition?[] ResolveChildren()
     {
         var definitions = new SoundEventDefinition?[2];

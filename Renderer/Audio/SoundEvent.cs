@@ -598,7 +598,7 @@ public abstract class SoundEvent
     /// </summary>
     protected abstract void DoStart();
 
-    /// <summary>Marks the event as no longer audible and raises <see cref="OnSoundOver"/>.</summary>
+    /// <summary>Marks the event as no longer audible, raises <see cref="OnSoundOver"/> and stops the event unless something in it is scheduled to sound again.</summary>
     protected virtual void OnFinished()
     {
         Playing = false;
@@ -608,8 +608,24 @@ public abstract class SoundEvent
         {
             // The fade ran to completion, finish the stop
             Stop();
+            return;
+        }
+
+        if (!StayAliveAfterFinishing())
+        {
+            // Nothing in this tree can produce samples anymore, so leave the mixer's active set instead
+            // of staying registered (and updated) forever. A genuinely looping track (baked-in loop
+            // points) never gets here; for those types this only catches a mistakenly non-looping vsnd.
+            Stop();
         }
     }
+
+    /// <summary>
+    /// Called when the event has run out of samples and is not fading out, to decide whether it stays in
+    /// the mixer's active set. Types that reschedule themselves arm their next play here and return true.
+    /// The default keeps the event alive only while a child still is - one waiting on its own retrigger.
+    /// </summary>
+    private protected virtual bool StayAliveAfterFinishing() => AnyChildStarted();
 
     /// <summary>Marks the event as audible and raises <see cref="OnSoundStart"/>.</summary>
     protected virtual void OnStarted()

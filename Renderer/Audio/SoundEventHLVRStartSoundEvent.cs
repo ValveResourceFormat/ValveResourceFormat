@@ -63,28 +63,18 @@ internal sealed class SoundEventHLVRStartSoundEvent : SoundEvent
         }
     }
 
-    protected override void OnFinished()
+    private protected override bool StayAliveAfterFinishing()
     {
-        base.OnFinished();
-
-        if (FadingOut)
-        {
-            return;
-        }
-
         if (restartOnFinish && childEventNames.Length > 0)
         {
-            // Deferred to Update rather than restarted here: OnFinished also fires on the mixing thread
-            // (a sound running dry mid-read), and Start() clears the provider/child lists that Update
-            // iterates on the game thread. Every other retriggering type defers for the same reason.
+            // Deferred to Update rather than restarted here: this also runs on the mixing thread (a sound
+            // running dry mid-read), and Start() clears the provider/child lists that Update iterates on
+            // the game thread. Every other rescheduling type defers for the same reason.
             restartPending = true;
-            return;
+            return true;
         }
 
-        if (!AnyChildStarted())
-        {
-            Stop();
-        }
+        return AnyChildStarted();
     }
 
     /// <inheritdoc/>

@@ -66,16 +66,4 @@ internal sealed class SoundEventHLVRAmbientFixedRotation : SoundEvent
     }
 
     internal override void Prewarm(int depth) => PrewarmTracks(trackNames);
-
-    protected override void OnFinished()
-    {
-        base.OnFinished();
-
-        // A genuinely looping track (baked-in loop points) never reaches here; this only catches a
-        // mistakenly non-looping vsnd, so it doesn't stay registered producing nothing forever.
-        if (!FadingOut)
-        {
-            Stop();
-        }
-    }
 }
