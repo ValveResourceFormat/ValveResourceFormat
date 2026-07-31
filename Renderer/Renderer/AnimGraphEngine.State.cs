@@ -46,6 +46,10 @@ namespace ValveResourceFormat.Renderer.AnimLib
             ElapsedTimeInState = TimeSpan.Zero;
             Transition = TransitionState.None;
 
+            // Entering a state restarts its subtree, standing in for Esoterica's node re-initialization:
+            // clip times, selections and nested state machines start fresh instead of resuming stale state.
+            ChildNode?.Restart(ctx);
+
             if (ChildNode is not null)
             {
                 Duration = ChildNode.Duration;
@@ -55,6 +59,12 @@ namespace ValveResourceFormat.Renderer.AnimLib
 
             // Flag this as the first update for this state, this will cause state entry events to be sampled for at least one update
             IsFirstStateUpdate = true;
+        }
+
+        public override void Restart(GraphContext ctx)
+        {
+            base.Restart(ctx);
+            Start(ctx);
         }
 
         public void Stop(GraphContext ctx)

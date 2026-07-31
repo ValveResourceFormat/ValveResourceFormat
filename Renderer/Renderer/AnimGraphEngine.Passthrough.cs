@@ -18,6 +18,12 @@ namespace ValveResourceFormat.Renderer.AnimLib
 
         public override SyncTrack SyncTrack => ChildNode?.SyncTrack ?? SyncTrack.Default;
 
+        public override void Restart(GraphContext ctx)
+        {
+            base.Restart(ctx);
+            ChildNode?.Restart(ctx);
+        }
+
         public override GraphPoseNodeResult Update(GraphContext ctx)
         {
             if (ChildNode == null)
@@ -207,6 +213,16 @@ namespace ValveResourceFormat.Renderer.AnimLib
 
         public override SyncTrack SyncTrack => SelectedNode?.SyncTrack ?? SyncTrack.Default;
 
+        public override void Restart(GraphContext ctx)
+        {
+            base.Restart(ctx);
+            SelectedNode?.Restart(ctx);
+
+            // Re-select on the next update: the driving conditions/IDs may have changed since.
+            hasSelected = false;
+            SelectedNode = null;
+        }
+
         public override GraphPoseNodeResult Update(GraphContext ctx)
         {
             EnsureSelected(ctx);
@@ -277,6 +293,16 @@ namespace ValveResourceFormat.Renderer.AnimLib
         public override bool IsValid => SelectedNode?.IsValid ?? false;
 
         public override SyncTrack SyncTrack => SelectedNode?.SyncTrack ?? SyncTrack.Default;
+
+        public override void Restart(GraphContext ctx)
+        {
+            base.Restart(ctx);
+            SelectedNode?.Restart(ctx);
+
+            // Re-select on the next update: the driving conditions/IDs may have changed since.
+            hasSelected = false;
+            SelectedNode = null;
+        }
 
         public override GraphPoseNodeResult Update(GraphContext ctx)
         {
@@ -379,6 +405,16 @@ namespace ValveResourceFormat.Renderer.AnimLib
         public override bool IsValid => SelectedNode?.IsValid ?? false;
 
         public override SyncTrack SyncTrack => SelectedNode?.SyncTrack ?? SyncTrack.Default;
+
+        public override void Restart(GraphContext ctx)
+        {
+            base.Restart(ctx);
+            SelectedNode?.Restart(ctx);
+
+            // Re-select on the next update: the driving conditions/IDs may have changed since.
+            hasSelected = false;
+            SelectedNode = null;
+        }
 
         public override GraphPoseNodeResult Update(GraphContext ctx)
         {

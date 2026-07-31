@@ -214,6 +214,17 @@ namespace ValveResourceFormat.Renderer.AnimLib
             PreviousTime = 0f;
         }
 
+        /// <summary>
+        /// Restarts this node's playback (and its children's) as if freshly activated. This stands in
+        /// for Esoterica's node activation lifecycle: states call it on their subtree when (re)entered,
+        /// so clip times, selections and nested state machines don't resume from stale state.
+        /// </summary>
+        public virtual void Restart(GraphContext ctx)
+        {
+            LoopCount = 0;
+            RestartTime();
+        }
+
         public virtual bool IsValid => true;
 
         /// <summary>The sync track for this node's timeline; pass-through nodes forward their child's.</summary>
@@ -479,6 +490,12 @@ namespace ValveResourceFormat.Renderer.AnimLib
         public virtual bool DisableRootMotionSampling => SelectedOption?.DisableRootMotionSampling ?? false;
         public ClipReferenceNode? SelectedOption;
 
+        public override void Restart(GraphContext ctx)
+        {
+            base.Restart(ctx);
+            SelectedOption?.Restart(ctx);
+        }
+
         public abstract void UpdateSelection(GraphContext ctx);
 
         public override GraphPoseNodeResult Update(GraphContext ctx)
@@ -487,7 +504,11 @@ namespace ValveResourceFormat.Renderer.AnimLib
 
             if (SelectedOption != null)
             {
-                return SelectedOption.Update(ctx);
+                var result = SelectedOption.Update(ctx);
+                Duration = SelectedOption.Duration;
+                PreviousTime = SelectedOption.PreviousTime;
+                CurrentTime = SelectedOption.CurrentTime;
+                return result;
             }
 
             return base.Update(ctx);

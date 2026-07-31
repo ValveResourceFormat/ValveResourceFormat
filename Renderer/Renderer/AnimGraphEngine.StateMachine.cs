@@ -25,9 +25,9 @@ namespace ValveResourceFormat.Renderer.AnimLib
 
         }
 
-        StateIndex ActiveStateIndex = -1;
-        TransitionNode? ActiveTransition;
-        StateInfo[] States;
+        public StateIndex ActiveStateIndex { get; private set; } = -1;
+        public TransitionNode? ActiveTransition { get; private set; }
+        public StateInfo[] States;
 
         public override bool IsValid => base.IsValid && ActiveStateIndex >= 0 && ActiveStateIndex < States.Length;
         public StateInfo ActiveState => States[ActiveStateIndex];
@@ -70,6 +70,43 @@ namespace ValveResourceFormat.Renderer.AnimLib
             Debug.Assert(ActiveStateIndex != -1);
 
             var activeState = ActiveState.StateNode;
+
+            Duration = activeState.Duration;
+            PreviousTime = activeState.PreviousTime;
+            CurrentTime = activeState.CurrentTime;
+        }
+
+        /// <summary>
+        /// Picks the state to start in: the first state whose entry condition passes, or the default.
+        /// </summary>
+        private StateIndex SelectStartingState(GraphContext ctx)
+        {
+            for (StateIndex i = 0; i < States.Length; i++)
+            {
+                if (States[i].EntryConditionNode?.GetValue(ctx) == true)
+                {
+                    return i;
+                }
+            }
+
+            return DefaultStateIndex;
+        }
+
+        public override void Restart(GraphContext ctx)
+        {
+            base.Restart(ctx);
+
+            // At graph construction time the containing state restarts us before our own Initialize ran.
+            if (States == null)
+            {
+                return;
+            }
+
+            ActiveTransition = null;
+            ActiveStateIndex = SelectStartingState(ctx);
+
+            var activeState = ActiveState.StateNode;
+            activeState.Restart(ctx);
 
             Duration = activeState.Duration;
             PreviousTime = activeState.PreviousTime;

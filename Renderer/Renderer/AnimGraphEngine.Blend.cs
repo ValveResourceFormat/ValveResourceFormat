@@ -7,6 +7,21 @@ namespace ValveResourceFormat.Renderer.AnimLib
     partial class ParameterizedBlendNode
     {
         public PoseNode[] SourceNodes;
+
+        public override void Restart(GraphContext ctx)
+        {
+            base.Restart(ctx);
+
+            if (SourceNodes == null)
+            {
+                return;
+            }
+
+            foreach (var sourceNode in SourceNodes)
+            {
+                sourceNode.Restart(ctx);
+            }
+        }
         public FloatValueNode InputParameterValueNode;
 
         protected ParameterizedBlendNode__Parameterization ActiveParameterization;
@@ -191,6 +206,21 @@ namespace ValveResourceFormat.Renderer.AnimLib
         }
 
         public PoseNode[] SourceNodes;
+
+        public override void Restart(GraphContext ctx)
+        {
+            base.Restart(ctx);
+
+            if (SourceNodes == null)
+            {
+                return;
+            }
+
+            foreach (var sourceNode in SourceNodes)
+            {
+                sourceNode.Restart(ctx);
+            }
+        }
         public FloatValueNode InputParameterNode0;
         public FloatValueNode InputParameterNode1;
 

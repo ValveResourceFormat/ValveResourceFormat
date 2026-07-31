@@ -57,6 +57,9 @@ namespace ValveResourceFormat.Renderer
 
         private readonly AnimLib.GraphContext graphContext;
 
+        /// <summary>The graph evaluation context, exposed for debug tooling and tests.</summary>
+        internal AnimLib.GraphContext Context => graphContext;
+
         // Bool parameters that were signaled as a one-shot and must be reset to false after the next update.
         private readonly HashSet<string> signaledBoolParameters = [];
         private readonly object signalLock = new();
@@ -260,6 +263,15 @@ namespace ValveResourceFormat.Renderer
         public Frame SamplePoseAtPercentage(float cycle, FrameBone[] pose)
         {
             Debug.Assert(cycle >= 0f && cycle <= 1f);
+
+            // At exactly the end of the clip the interpolated lookup would wrap its frame index back
+            // to the first frame; a clamped (non-looping) clip must hold its final frame instead.
+            if (cycle >= 1f)
+            {
+                var lastFrame = frameCache.GetFrame(Animation, Animation.FrameCount - 1);
+                CopyFrame(lastFrame, pose);
+                return lastFrame;
+            }
 
             var time = cycle * Animation.Duration;
             var frame = frameCache.GetInterpolatedFrame(Animation, time);
