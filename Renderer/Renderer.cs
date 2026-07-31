@@ -1051,46 +1051,57 @@ public class Renderer
 
         if (ShowSoundDebug && Sound.Player != null)
         {
-            debugWorldSounds.Clear();
-            debugFlatSounds.Clear();
-            Sound.Player.CollectDebugSounds(debugWorldSounds, debugFlatSounds);
+            CollectSoundDebugText(updateContext);
+        }
+    }
 
-            foreach (var (position, text) in debugWorldSounds)
+    /// <summary>
+    /// Queues a billboard per audible positioned sound, and a bottom-right corner list of the
+    /// non-positioned (2D) ones.
+    /// </summary>
+    private void CollectSoundDebugText(Scene.UpdateContext updateContext)
+    {
+        debugWorldSounds.Clear();
+        debugFlatSounds.Clear();
+        Sound.Player!.CollectDebugSounds(debugWorldSounds, debugFlatSounds);
+
+        foreach (var (position, text) in debugWorldSounds)
+        {
+            updateContext.TextRenderer.AddTextBillboard(position, new TextRenderer.TextRenderRequest
             {
-                updateContext.TextRenderer.AddTextBillboard(position, new TextRenderer.TextRenderRequest
-                {
-                    Scale = 8f,
-                    Text = text,
-                    CenterHorizontal = true,
-                    Color = new Color32(0.4f, 1f, 0.4f, 1f),
-                }, updateContext.Camera);
-            }
+                Scale = 8f,
+                Text = text,
+                CenterHorizontal = true,
+                Color = new Color32(0.4f, 1f, 0.4f, 1f),
+            }, updateContext.Camera);
+        }
 
-            if (debugFlatSounds.Count > 0)
+        if (debugFlatSounds.Count == 0)
+        {
+            return;
+        }
+
+        const float scale = 10f;
+        const float lineHeight = scale * 1.5f;
+        const float marginRight = 8f;
+        const float marginBottom = 8f;
+
+        // Right edge every line is aligned to, so the ".vsnd" suffix lines up flush against the screen corner.
+        var cornerX = updateContext.Camera.WindowSize.X - marginRight;
+        var y = updateContext.Camera.WindowSize.Y - marginBottom - (debugFlatSounds.Count * lineHeight);
+
+        foreach (var text in debugFlatSounds)
+        {
+            updateContext.TextRenderer.AddText(new TextRenderer.TextRenderRequest
             {
-                const float scale = 10f;
-                const float lineHeight = scale * 1.5f;
-                const float marginRight = 8f;
-                const float marginBottom = 8f;
+                X = cornerX - TextRenderer.MeasureTextWidth(text, scale),
+                Y = y,
+                Scale = scale,
+                Text = text,
+                Color = new Color32(0.4f, 1f, 1f, 1f),
+            });
 
-                // Right edge every line is aligned to, so the ".vsnd" suffix lines up flush against the screen corner.
-                var cornerX = updateContext.Camera.WindowSize.X - marginRight;
-                var y = updateContext.Camera.WindowSize.Y - marginBottom - (debugFlatSounds.Count * lineHeight);
-
-                foreach (var text in debugFlatSounds)
-                {
-                    updateContext.TextRenderer.AddText(new TextRenderer.TextRenderRequest
-                    {
-                        X = cornerX - TextRenderer.MeasureTextWidth(text, scale),
-                        Y = y,
-                        Scale = scale,
-                        Text = text,
-                        Color = new Color32(0.4f, 1f, 1f, 1f),
-                    });
-
-                    y += lineHeight;
-                }
-            }
+            y += lineHeight;
         }
     }
 
