@@ -71,7 +71,10 @@ internal sealed class SoundEventCSGOMega : SoundEvent
 
         wasInitialized = true;
 
-        StartTrack(trackNames, GetRandomizedVolume(), GetRandomizedPitch(), range, distanceVolumeCurve, stereoMixCurve);
+        StartTrack(trackNames,
+            GetRandomizedVolume(volumeRandomMin, volumeRandomMax, mixGroup),
+            GetRandomizedPitch(pitchRandomMin, pitchRandomMax),
+            range, distanceVolumeCurve, stereoMixCurve);
 
         if (childEventNames.Length == 0)
         {
@@ -164,32 +167,5 @@ internal sealed class SoundEventCSGOMega : SoundEvent
         }
 
         return base.Update(listenerPosition, rightEarDirection);
-    }
-
-    private float GetRandomizedPitch()
-    {
-        var pitch = Definition.Pitch;
-
-        if (pitchRandomMin != 0f || pitchRandomMax != 0f)
-        {
-            pitch += float.Lerp(pitchRandomMin, pitchRandomMax, Random.NextSingle());
-        }
-
-        return Math.Clamp(pitch, 0.25f, 4f);
-    }
-
-    private float GetRandomizedVolume()
-    {
-        // Events like Gear.JumpLand.CT have volume 0.0 in their data: the game passes the volume at play time
-        var volume = VolumeOverride ?? Definition.Volume;
-
-        if (volumeRandomMin != 0f || volumeRandomMax != 0f)
-        {
-            volume += float.Lerp(volumeRandomMin, volumeRandomMax, Random.NextSingle());
-        }
-
-        var mixGroupVolume = Mixer.Player.GetMixGroupVolume(mixGroup);
-
-        return Math.Clamp(volume, 0f, 1f) * mixGroupVolume;
     }
 }

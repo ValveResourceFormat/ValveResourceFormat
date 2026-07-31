@@ -91,7 +91,10 @@ internal sealed class SoundEventHLVRDefault : SoundEvent
             }
         }
 
-        StartTrack(trackNames, GetRandomizedVolume(), GetRandomizedPitch(), range, distanceVolumeCurve);
+        StartTrack(trackNames,
+            GetRandomizedVolume(volumeRandMin, volumeRandMax, mixGroup),
+            GetRandomizedPitch(pitchRandMin, pitchRandMax),
+            range, distanceVolumeCurve);
     }
 
     internal override void Prewarm(int depth)
@@ -128,31 +131,5 @@ internal sealed class SoundEventHLVRDefault : SoundEvent
         {
             Stop();
         }
-    }
-
-    private float GetRandomizedPitch()
-    {
-        var pitch = Definition.Pitch;
-
-        if (pitchRandMin != 0f || pitchRandMax != 0f)
-        {
-            pitch += float.Lerp(pitchRandMin, pitchRandMax, Random.NextSingle());
-        }
-
-        return Math.Clamp(pitch, 0.25f, 4f);
-    }
-
-    private float GetRandomizedVolume()
-    {
-        var volume = VolumeOverride ?? Definition.Volume;
-
-        if (volumeRandMin != 0f || volumeRandMax != 0f)
-        {
-            volume += float.Lerp(volumeRandMin, volumeRandMax, Random.NextSingle());
-        }
-
-        var mixGroupVolume = Mixer.Player.GetMixGroupVolume(mixGroup);
-
-        return Math.Clamp(volume, 0f, 1f) * mixGroupVolume;
     }
 }
