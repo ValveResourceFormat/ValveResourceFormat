@@ -50,9 +50,7 @@ internal sealed class SoundEventHLVRAmbientRand : SoundEvent
             return;
         }
 
-        // Child definition is resolved through the bank once and kept on the parent definition
-        var childDefinitions = Definition.ChildDefinitions ??= [Mixer.Player.Bank.GetSoundEvent(childEventName)];
-        var childDefinition = childDefinitions[0];
+        var childDefinition = (Definition.ChildDefinitions ??= ResolveChildDefinitions([childEventName]))[0];
 
         if (childDefinition == null)
         {
@@ -80,8 +78,7 @@ internal sealed class SoundEventHLVRAmbientRand : SoundEvent
             return;
         }
 
-        var childDefinitions = Definition.ChildDefinitions ??= [Mixer.Player.Bank.GetSoundEvent(childEventName)];
-        var childDefinition = childDefinitions[0];
+        var childDefinition = (Definition.ChildDefinitions ??= ResolveChildDefinitions([childEventName]))[0];
 
         if (childDefinition == null)
         {

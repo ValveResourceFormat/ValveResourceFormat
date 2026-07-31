@@ -500,6 +500,23 @@ public abstract class SoundEvent
     }
 
     /// <summary>
+    /// Resolves child event names through the bank, in order, leaving a null where a name is unknown.
+    /// Callers cache the result on <see cref="SoundEventDefinition.ChildDefinitions"/> so every instance
+    /// and retrigger of the definition reuses the one resolution.
+    /// </summary>
+    private protected SoundEventDefinition?[] ResolveChildDefinitions(string[] names)
+    {
+        var definitions = new SoundEventDefinition?[names.Length];
+
+        for (var i = 0; i < names.Length; i++)
+        {
+            definitions[i] = Mixer.Player.Bank.GetSoundEvent(names[i]);
+        }
+
+        return definitions;
+    }
+
+    /// <summary>
     /// Gets the instance for one child slot, building it the first time and reusing it on every later
     /// start, for the types that start one child at a time rather than all of them. Null when the slot
     /// holds no definition or its type is unsupported. Start it with <see cref="StartAsChild"/>.

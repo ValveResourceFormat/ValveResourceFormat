@@ -9,7 +9,7 @@ namespace ValveResourceFormat.Renderer.Audio;
 /// </summary>
 internal sealed class SoundEventHLVRSwitch : SoundEvent
 {
-    private readonly string?[] childEventNames = new string?[2];
+    private readonly string[] childEventNames = new string[2];
     private readonly float split;
     private readonly SoundEventDefinition?[] toStart = new SoundEventDefinition?[2];
 
@@ -17,14 +17,15 @@ internal sealed class SoundEventHLVRSwitch : SoundEvent
     {
         var data = definition.Data;
 
-        childEventNames[0] = data.GetStringProperty("soundevent_01");
-        childEventNames[1] = data.GetStringProperty("soundevent_02");
+        // Empty resolves to no definition, same as a name the bank does not know
+        childEventNames[0] = data.GetStringProperty("soundevent_01", string.Empty);
+        childEventNames[1] = data.GetStringProperty("soundevent_02", string.Empty);
         split = data.GetFloatProperty("soundevent_split", 0.5f);
     }
 
     protected override void DoStart()
     {
-        var childDefinitions = Definition.ChildDefinitions ??= ResolveChildren();
+        var childDefinitions = Definition.ChildDefinitions ??= ResolveChildDefinitions(childEventNames);
         var picked = Random.NextSingle() < split ? 0 : 1;
 
         // Only the picked slot is non-null this call, so StartChildren plays just that one; an already
@@ -40,23 +41,6 @@ internal sealed class SoundEventHLVRSwitch : SoundEvent
     internal override void Prewarm(int depth)
     {
         // Both slots, since any play can pick either
-        PrewarmChildren(Definition.ChildDefinitions ??= ResolveChildren(), depth);
-    }
-
-    private SoundEventDefinition?[] ResolveChildren()
-    {
-        var definitions = new SoundEventDefinition?[2];
-
-        for (var i = 0; i < 2; i++)
-        {
-            var name = childEventNames[i];
-
-            if (name != null)
-            {
-                definitions[i] = Mixer.Player.Bank.GetSoundEvent(name);
-            }
-        }
-
-        return definitions;
+        PrewarmChildren(Definition.ChildDefinitions ??= ResolveChildDefinitions(childEventNames), depth);
     }
 }

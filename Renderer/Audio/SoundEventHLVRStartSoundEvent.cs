@@ -36,7 +36,7 @@ internal sealed class SoundEventHLVRStartSoundEvent : SoundEvent
             return;
         }
 
-        var childDefinitions = Definition.ChildDefinitions ??= ResolveChildren();
+        var childDefinitions = Definition.ChildDefinitions ??= ResolveChildDefinitions(childEventNames);
 
         var index = sequential
             ? nextIndex % childDefinitions.Length
@@ -59,7 +59,7 @@ internal sealed class SoundEventHLVRStartSoundEvent : SoundEvent
     {
         if (childEventNames.Length > 0)
         {
-            PrewarmChildren(Definition.ChildDefinitions ??= ResolveChildren(), depth);
+            PrewarmChildren(Definition.ChildDefinitions ??= ResolveChildDefinitions(childEventNames), depth);
         }
     }
 
@@ -94,17 +94,5 @@ internal sealed class SoundEventHLVRStartSoundEvent : SoundEvent
     {
         base.ResetForReplay();
         restartPending = false;
-    }
-
-    private SoundEventDefinition?[] ResolveChildren()
-    {
-        var definitions = new SoundEventDefinition?[childEventNames.Length];
-
-        for (var i = 0; i < childEventNames.Length; i++)
-        {
-            definitions[i] = Mixer.Player.Bank.GetSoundEvent(childEventNames[i]);
-        }
-
-        return definitions;
     }
 }

@@ -71,27 +71,7 @@ internal sealed class SoundEventCSGOMega : SoundEvent
             return;
         }
 
-        StartChildren(ResolveChildDefinitions());
-    }
-
-    /// <summary>Resolves child definitions through the bank once and keeps them on the parent definition.</summary>
-    private SoundEventDefinition?[] ResolveChildDefinitions()
-    {
-        var childDefinitions = Definition.ChildDefinitions;
-
-        if (childDefinitions == null)
-        {
-            childDefinitions = new SoundEventDefinition?[childEventNames.Length];
-
-            for (var i = 0; i < childEventNames.Length; i++)
-            {
-                childDefinitions[i] = Mixer.Player.Bank.GetSoundEvent(childEventNames[i]);
-            }
-
-            Definition.ChildDefinitions = childDefinitions;
-        }
-
-        return childDefinitions;
+        StartChildren(Definition.ChildDefinitions ??= ResolveChildDefinitions(childEventNames));
     }
 
     internal override void Prewarm(int depth)
@@ -100,7 +80,7 @@ internal sealed class SoundEventCSGOMega : SoundEvent
 
         if (childEventNames.Length > 0)
         {
-            PrewarmChildren(ResolveChildDefinitions(), depth);
+            PrewarmChildren(Definition.ChildDefinitions ??= ResolveChildDefinitions(childEventNames), depth);
         }
     }
 

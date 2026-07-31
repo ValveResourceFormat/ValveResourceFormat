@@ -36,21 +36,21 @@ internal sealed class SoundEventHLVRMulti : SoundEvent
         randDelayMax = data.GetFloatProperty("rand_delay_max");
         applyChild = ApplyChild;
 
-        // Collected here rather than alongside the bank lookup in ResolveChildren: that one only runs for
-        // whichever instance resolves the shared Definition.ChildDefinitions first, so a second concurrent
-        // instance of the same definition would be left without any per-slot volumes.
+        // Collected here rather than alongside the bank lookup: that one only runs for whichever instance
+        // resolves the shared Definition.ChildDefinitions first, so a second concurrent instance of the
+        // same definition would be left without any per-slot volumes.
         (childEventNames, childVolumes) = CollectChildren(data);
     }
 
     protected override void DoStart()
     {
-        var childDefinitions = Definition.ChildDefinitions ??= ResolveChildren();
+        var childDefinitions = Definition.ChildDefinitions ??= ResolveChildDefinitions(childEventNames);
         StartChildren(childDefinitions, applyChild);
     }
 
     internal override void Prewarm(int depth)
     {
-        PrewarmChildren(Definition.ChildDefinitions ??= ResolveChildren(), depth);
+        PrewarmChildren(Definition.ChildDefinitions ??= ResolveChildDefinitions(childEventNames), depth);
     }
 
     private void ApplyChild(SoundEvent child, int index)
@@ -121,17 +121,5 @@ internal sealed class SoundEventHLVRMulti : SoundEvent
         }
 
         return ([.. names], [.. volumes]);
-    }
-
-    private SoundEventDefinition?[] ResolveChildren()
-    {
-        var definitions = new SoundEventDefinition?[childEventNames.Length];
-
-        for (var i = 0; i < childEventNames.Length; i++)
-        {
-            definitions[i] = Mixer.Player.Bank.GetSoundEvent(childEventNames[i]);
-        }
-
-        return definitions;
     }
 }
