@@ -181,6 +181,8 @@ public sealed class SoundEventPlayer : IDisposable
                 continue;
             }
 
+            var mixStart = Stopwatch.GetTimestamp();
+
             mixer.Read(buffer, 0, buffer.Length);
 
             var target = suspended ? 0f : 1f;
@@ -213,8 +215,34 @@ public sealed class SoundEventPlayer : IDisposable
                 }
             }
 
+            // Measured before the submit, which blocks until the device drains: including that would
+            // report how long the thread slept, not what mixing a chunk costs.
+            RecordMixTime((float)Stopwatch.GetElapsedTime(mixStart).TotalMilliseconds, chunkMilliseconds);
+
             device.SubmitSamples(buffer);
         }
+    }
+
+    private volatile float mixMilliseconds;
+    private volatile float mixDutyCycle;
+
+    /// <summary>Gets the recent average time spent mixing one chunk, in milliseconds.</summary>
+    public float MixMilliseconds => mixMilliseconds;
+
+    /// <summary>
+    /// Gets the share of real time the mixing thread spends mixing rather than waiting on the device,
+    /// 0 to 1 - effectively how much of one core the audio costs.
+    /// </summary>
+    public float MixDutyCycle => mixDutyCycle;
+
+    private void RecordMixTime(float elapsedMilliseconds, int chunkMilliseconds)
+    {
+        // Smoothed: per-chunk times swing with how many sounds happen to be audible, and the display
+        // reads this at an unrelated rate
+        const float Smoothing = 0.05f;
+
+        mixMilliseconds = float.Lerp(mixMilliseconds, elapsedMilliseconds, Smoothing);
+        mixDutyCycle = chunkMilliseconds > 0 ? mixMilliseconds / chunkMilliseconds : 0f;
     }
 
     /// <summary>

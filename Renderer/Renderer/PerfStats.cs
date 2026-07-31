@@ -524,14 +524,14 @@ public class PerfStats
     }
 
     /// <summary>Begins a timing query for a debug group, or returns 0 if this frame is not being timed.</summary>
-    internal QueryId BeginTimingQuery(string name)
+    internal QueryId BeginTimingQuery(string name, bool cpuOnly = false)
     {
         if (!timingFrame || IsNotOwningThread)
         {
             return 0;
         }
 
-        return Timings.BeginQuery(name);
+        return Timings.BeginQuery(name, cpuOnly);
     }
 
     /// <summary>Ends a timing query opened by <see cref="BeginTimingQuery"/>.</summary>

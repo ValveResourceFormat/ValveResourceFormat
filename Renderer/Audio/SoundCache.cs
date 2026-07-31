@@ -45,6 +45,18 @@ public sealed class SoundCache : IDisposable
     /// </summary>
     public long MaxCachedBytes { get; set; } = 512L * 1024 * 1024;
 
+    /// <summary>Gets how many sounds are still waiting to be decoded, across both lanes.</summary>
+    public int PendingDecodes
+    {
+        get
+        {
+            lock (sounds)
+            {
+                return foregroundQueue.Count + backgroundQueue.Count;
+            }
+        }
+    }
+
     /// <summary>Gets the total size of the decoded audio currently held.</summary>
     public long CachedBytes
     {

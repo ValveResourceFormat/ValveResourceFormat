@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Diagnostics;
 using System.Drawing;
 using System.Linq;
@@ -537,10 +538,46 @@ namespace GUI.Types.GLViewers
                 GrabbedMouse = MouseOverRenderArea && !Input.NoClip && !Paused && !mouseReleased;
             }
 
-            if (soundPlayer != null && !Paused)
+        }
+
+        /// <summary>
+        /// Advances the sound system and reports its cost. Runs inside the frame's timing bracket rather
+        /// than in <see cref="OnUpdate"/>, which is outside it, so the listener update shows up as a row.
+        /// </summary>
+        private void UpdateSoundPlayer()
+        {
+            if (soundPlayer == null)
             {
-                soundPlayer.Update(Renderer.Camera);
+                return;
             }
+
+            if (!Paused)
+            {
+                using (new ProfilerScope("Sound Update"))
+                {
+                    soundPlayer.Update(Renderer.Camera);
+                }
+            }
+
+            var timings = Renderer.PerfStats.Timings;
+
+            if (!timings.Capture)
+            {
+                return;
+            }
+
+            // The mixing and decode threads run on their own clocks, so they are reported rather than timed
+            timings.SetAsyncRow("Sound Mixer", soundPlayer.MixMilliseconds,
+                soundPlayer.MixDutyCycle.ToString("P0", CultureInfo.InvariantCulture));
+
+            var cache = soundPlayer.SoundCache;
+            var pending = cache.PendingDecodes;
+
+            timings.SetAsyncRow("Sound Cache", null,
+                string.Create(CultureInfo.InvariantCulture, $"{cache.CachedBytes / (1024 * 1024)}MB"));
+
+            timings.SetAsyncRow("Sound Decode Queue", null,
+                pending.ToString(CultureInfo.InvariantCulture));
         }
 
         protected void DrawLowerCornerText(ValveResourceFormat.Renderer.TextRenderer.TextMemory text, Color32 color, int lineFromBottom = 0)
@@ -595,6 +632,8 @@ namespace GUI.Types.GLViewers
 
             Renderer.PerfStats.MarkFrameBegin();
             GL.BeginQuery(QueryTarget.TimeElapsed, frametimeQuery1);
+
+            UpdateSoundPlayer();
 
             var renderContext = new Scene.RenderContext
             {
