@@ -2,10 +2,7 @@ using System.Diagnostics;
 using System.Drawing;
 using System.Globalization;
 using System.Linq;
-using System.Runtime.CompilerServices;
 using System.Text;
-using System.Windows.Forms;
-using System.Xml.Linq;
 using GUI.Types.GLViewers;
 using GUI.Utils;
 using SkiaSharp;
@@ -13,7 +10,6 @@ using Svg.Skia;
 using ValveKeyValue;
 using ValveResourceFormat.Renderer;
 using ValveResourceFormat.Serialization.KeyValues;
-using static ValveResourceFormat.Blocks.ResourceIntrospectionManifest.ResourceDiskEnum;
 
 namespace GUI.Types.Graphs;
 
@@ -1485,10 +1481,70 @@ internal class PulseGraphViewer : GLNodeGraphViewer
                     }
                 case InstructionCode.CHUNK_LEAP_COND:
                     {
+                        var reg0 = instruction.GetInt32Property("m_nReg0");
+                        Node? node = null;
+                        try
+                        {
+                            node = new Node(null)
+                            {
+                                Name = "If",
+                                NodeType = "Flow control",
+                            };
+                            var socketIn = node.CreateSocketIn<Flow>("");
+                            nodeGraph.Connect(previousActionOutSocket, socketIn);
+                            instructionInputActionSocketMap[chunkIndex][instructionIdx] = socketIn;
+
+                            if (reg0 != -1)
+                            {
+                                AddNodeRegisterInput(node, chunkIndex, registerConstValueMap, registerOutputSocketMap, reg0, "Condition");
+                            }
+
+                            // If false we don't take the leap. So traverse starting from currentinstr + 1
+                            var destInstructionIdxFalse = instructionIdx + 1;
+
+                            var socketOutTrue = node.CreateSocketOut<Flow>("True");
+                            var leapTargetChunk = instruction.GetInt32Property("m_nChunk");
+                            var leapDestInstructionIdx = instruction.GetInt32Property("m_nDestInstruction");
+                            if (leapTargetChunk != chunkIndex)
+                            {
+                                var leapNode = new Node(null)
+                                {
+                                    Name = "Chunk Leap",
+                                    NodeType = "Flow",
+                                };
+                                CreateSequentialActionSockets(leapNode, socketOutTrue, chunkIndex, instructionIdx);
+
+                                if (leapDestInstructionIdx != 0)
+                                {
+                                    node.AddText("Instruction: " + leapDestInstructionIdx);
+                                }
+
+                                remoteNodesToResolve.Add(new RemoteNodeInfo
+                                {
+                                    targetChunk = leapTargetChunk,
+                                    node = leapNode,
+                                    targetNamePrefix = "Target: "
+                                });
+                            }
+
+                            // Since leaps don't come back after executing we don't have to worry about defining "bounds" for the conditions, unlike regular jumps.
+                            // Also no need for a "Finished" socket because no way for true and false flows to merge back again.
+                            previousActionOutSocket = node.CreateSocketOut<Flow>("False");
+
+                            node.Calculate();
+                            nodeGraph.AddNode(node);
+                            node = null;
+                        }
+                        finally
+                        {
+                            node?.Dispose();
+                        }
+
                         break;
                     }
                 case InstructionCode.CHUNK_LEAP:
                     {
+                        // Chunk leap does not seem to return back to the place after finishing, apparently just leaves current flow "behind"
                         stopProcessing = true;
                         var leapTargetChunk = instruction.GetInt32Property("m_nChunk");
                         var leapDestInstructionIdx = instruction.GetInt32Property("m_nDestInstruction");
