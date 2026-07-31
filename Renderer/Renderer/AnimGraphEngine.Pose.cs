@@ -234,7 +234,7 @@ namespace ValveResourceFormat.Renderer.AnimLib
         /// <summary>The sync track for this node's timeline; pass-through nodes forward their child's.</summary>
         public virtual SyncTrack SyncTrack => SyncTrack.Default;
 
-        public virtual GraphPoseNodeResult Update(GraphContext ctx)
+        public virtual GraphPoseNodeResult Update(GraphContext ctx, SyncTrackTimeRange? updateRange = null)
         {
             return new GraphPoseNodeResult
             {
@@ -247,7 +247,7 @@ namespace ValveResourceFormat.Renderer.AnimLib
 
     partial class ReferencePoseNode
     {
-        public override GraphPoseNodeResult Update(GraphContext ctx)
+        public override GraphPoseNodeResult Update(GraphContext ctx, SyncTrackTimeRange? updateRange = null)
         {
             var result = base.Update(ctx);
             ctx.Graph.ParentSpaceReferencePose.CopyTo(result.Pose, 0);
@@ -257,7 +257,7 @@ namespace ValveResourceFormat.Renderer.AnimLib
 
     partial class ZeroPoseNode
     {
-        public override GraphPoseNodeResult Update(GraphContext ctx)
+        public override GraphPoseNodeResult Update(GraphContext ctx, SyncTrackTimeRange? updateRange = null)
         {
             var result = base.Update(ctx);
             for (var i = 0; i < result.Pose.Length; i++)
@@ -307,7 +307,7 @@ namespace ValveResourceFormat.Renderer.AnimLib
             //
         }
 
-        public override GraphPoseNodeResult Update(GraphContext ctx)
+        public override GraphPoseNodeResult Update(GraphContext ctx, SyncTrackTimeRange? updateRange = null)
         {
             var result = base.Update(ctx);
 
@@ -319,14 +319,29 @@ namespace ValveResourceFormat.Renderer.AnimLib
 
             Debug.Assert(CurrentTime >= 0f && CurrentTime <= 1f);
 
-            // Unsynchronized Update
-
+            // Handle single frame animations
             if (clip.FrameCount == 1)
             {
+                PreviousTime = 1f;
+                CurrentTime = 1f;
                 clip.SamplePoseAtFrame(0, result.Pose);
                 SampleAnimationEvents(ctx, ref result);
                 return result;
             }
+
+            // Synchronized Update
+            if (updateRange != null)
+            {
+                PreviousTime = SyncTrack.GetPercentageThrough(updateRange.StartTime);
+                CurrentTime = SyncTrack.GetPercentageThrough(updateRange.EndTime);
+                LoopCount = 0;
+
+                clip.SamplePoseAtPercentage(CurrentTime, result.Pose);
+                SampleAnimationEvents(ctx, ref result);
+                return result;
+            }
+
+            // Unsynchronized Update
 
             var resetTime = ResetTimeValueNode?.GetValue(ctx) ?? false;
             if (resetTime)
@@ -444,7 +459,7 @@ namespace ValveResourceFormat.Renderer.AnimLib
             // set to null if skeletons don't match
         }
 
-        public override GraphPoseNodeResult Update(GraphContext ctx)
+        public override GraphPoseNodeResult Update(GraphContext ctx, SyncTrackTimeRange? updateRange = null)
         {
             var result = base.Update(ctx);
 
@@ -528,7 +543,7 @@ namespace ValveResourceFormat.Renderer.AnimLib
             FallbackNode?.Restart(ctx);
         }
 
-        public override GraphPoseNodeResult Update(GraphContext ctx)
+        public override GraphPoseNodeResult Update(GraphContext ctx, SyncTrackTimeRange? updateRange = null)
         {
             if (childGraph == null)
             {
@@ -548,7 +563,7 @@ namespace ValveResourceFormat.Renderer.AnimLib
             PushParameters(parent);
 
             var eventRangeStart = ctx.SampledEvents.Count;
-            var childPose = childGraph.Update(ctx.DeltaTime);
+            var childPose = childGraph.Update(ctx.DeltaTime, updateRange);
 
             // Surface the child's events so parent conditions can see them
             ctx.SampledEvents.AppendFrom(childGraph.Context.SampledEvents);
@@ -615,13 +630,13 @@ namespace ValveResourceFormat.Renderer.AnimLib
 
         public abstract void UpdateSelection(GraphContext ctx);
 
-        public override GraphPoseNodeResult Update(GraphContext ctx)
+        public override GraphPoseNodeResult Update(GraphContext ctx, SyncTrackTimeRange? updateRange = null)
         {
             UpdateSelection(ctx);
 
             if (SelectedOption != null)
             {
-                var result = SelectedOption.Update(ctx);
+                var result = SelectedOption.Update(ctx, updateRange);
                 Duration = SelectedOption.Duration;
                 PreviousTime = SelectedOption.PreviousTime;
                 CurrentTime = SelectedOption.CurrentTime;

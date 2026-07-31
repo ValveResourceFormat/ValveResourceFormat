@@ -117,7 +117,7 @@ namespace ValveResourceFormat.Renderer.AnimLib
 
         private bool hasSelectedStartingState;
 
-        public override GraphPoseNodeResult Update(GraphContext ctx)
+        public override GraphPoseNodeResult Update(GraphContext ctx, SyncTrackTimeRange? updateRange = null)
         {
             // The starting state honors entry conditions, evaluated lazily on the first update —
             // at construction time the condition nodes are not initialized yet (node array order).
@@ -147,14 +147,14 @@ namespace ValveResourceFormat.Renderer.AnimLib
             if (ActiveTransition == null)
             {
                 var activeState = ActiveState;
-                result = activeState.StateNode.Update(ctx);
+                result = activeState.StateNode.Update(ctx, updateRange);
                 Duration = activeState.StateNode.Duration;
                 PreviousTime = activeState.StateNode.PreviousTime;
                 CurrentTime = activeState.StateNode.CurrentTime;
             }
             else // Update the transition
             {
-                result = ActiveTransition.Update(ctx);
+                result = ActiveTransition.Update(ctx, updateRange);
                 Duration = ActiveTransition.Duration;
                 PreviousTime = ActiveTransition.PreviousTime;
                 CurrentTime = ActiveTransition.CurrentTime;
@@ -162,13 +162,13 @@ namespace ValveResourceFormat.Renderer.AnimLib
 
             if (ctx.BranchState is BranchState.Active)
             {
-                EvaluateTransitions(ctx, result);
+                result = EvaluateTransitions(ctx, result, updateRange);
             }
 
             return result;
         }
 
-        private void EvaluateTransitions(GraphContext ctx, GraphPoseNodeResult currentResult)
+        private GraphPoseNodeResult EvaluateTransitions(GraphContext ctx, GraphPoseNodeResult currentResult, SyncTrackTimeRange? updateRange)
         {
             var activeState = ActiveState;
 
@@ -199,7 +199,7 @@ namespace ValveResourceFormat.Renderer.AnimLib
 
             if (transitionIdx == -1)
             {
-                return;
+                return currentResult;
             }
 
             //-------------------------------------------------------------------------
@@ -214,20 +214,23 @@ namespace ValveResourceFormat.Renderer.AnimLib
                 //UpdateRange = pUpdateRange,
                 IsSourceTransition = (ActiveTransition != null),
                 SourceNode = ActiveTransition != null ? (PoseNode)ActiveTransition : (PoseNode)ActiveState.StateNode,
+                UpdateRange = updateRange,
                 //StartCachingSourcePose = selectedTransition.TransitionNode.CacheSourcePose
                 //SourceTasksStartMarker = ctx.TaskIndexMarker
             };
 
-            selectedTransition.TransitionNode.InitializeTargetStateAndUpdateTransition(ctx, startOptions);
+            var transitionResult = selectedTransition.TransitionNode.InitializeTargetStateAndUpdateTransition(ctx, startOptions);
 
             ActiveTransition = selectedTransition.TransitionNode;
 
             // Update state data to that of the new active state
             ActiveStateIndex = selectedTransition.TargetStateIndex;
 
-            Duration = ActiveState.StateNode.Duration;
-            PreviousTime = ActiveState.StateNode.PreviousTime;
-            CurrentTime = ActiveState.StateNode.CurrentTime;
+            Duration = ActiveTransition.Duration;
+            PreviousTime = ActiveTransition.PreviousTime;
+            CurrentTime = ActiveTransition.CurrentTime;
+
+            return transitionResult;
         }
     }
 }

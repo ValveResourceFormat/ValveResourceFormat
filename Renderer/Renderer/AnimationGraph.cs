@@ -185,9 +185,9 @@ namespace ValveResourceFormat.Renderer
         /// Advances the graph by <paramref name="timeStep"/> seconds and returns the resulting
         /// model-space pose on the NM skeleton.
         /// </summary>
-        internal FrameBone[] Update(float timeStep)
+        internal FrameBone[] Update(float timeStep, AnimLib.SyncTrackTimeRange? updateRange = null)
         {
-            var result = graphContext.Update(timeStep);
+            var result = graphContext.Update(timeStep, updateRange);
 
             // Reset one-shot signaled bool parameters now that the graph has consumed them this frame.
             if (signaledBoolParameters.Count > 0)

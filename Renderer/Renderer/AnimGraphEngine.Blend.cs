@@ -42,6 +42,10 @@ namespace ValveResourceFormat.Renderer.AnimLib
         // Matches Esoterica: only the input parameter is required, sources may be individually invalid.
         public override bool IsValid => SourceNodes is { Length: > 1 } && InputParameterValueNode != null;
 
+        SyncTrack? blendedSyncTrack;
+
+        public override SyncTrack SyncTrack => blendedSyncTrack ?? SyncTrack.Default;
+
         protected void EvaluateBlendSpace(GraphContext ctx)
         {
             // Only evaluate the blend space once per graph update.
@@ -86,21 +90,28 @@ namespace ValveResourceFormat.Renderer.AnimLib
             // Fallback for a degenerate parameterization: clamp to the first source.
             blendSource0 ??= SourceNodes.Length > 0 ? SourceNodes[0] : null;
 
+            // Calculate the blended sync track and duration. Even single-source cases build a blended
+            // track to strip any start event offsets (matching Esoterica).
             if (blendSource0 == null)
             {
+                blendedSyncTrack = SyncTrack.Default;
                 Duration = 0f;
             }
             else if (blendSource1 == null)
             {
+                blendedSyncTrack = new SyncTrack(blendSource0.SyncTrack, blendSource0.SyncTrack, 0f);
                 Duration = blendSource0.Duration;
             }
             else
             {
-                Duration = MathUtils.Lerp(blendSource0.Duration, blendSource1.Duration, blendWeight);
+                var syncTrack0 = blendSource0.SyncTrack;
+                var syncTrack1 = blendSource1.SyncTrack;
+                blendedSyncTrack = new SyncTrack(syncTrack0, syncTrack1, blendWeight);
+                Duration = SyncTrack.CalculateDurationSynchronized(blendSource0.Duration, blendSource1.Duration, syncTrack0.NumEvents, syncTrack1.NumEvents, blendedSyncTrack.NumEvents, blendWeight);
             }
         }
 
-        public override GraphPoseNodeResult Update(GraphContext ctx)
+        public override GraphPoseNodeResult Update(GraphContext ctx, SyncTrackTimeRange? updateRange = null)
         {
             if (!IsValid)
             {
@@ -109,28 +120,47 @@ namespace ValveResourceFormat.Renderer.AnimLib
 
             EvaluateBlendSpace(ctx);
 
+            // Calculate the actual update range: an externally supplied one, or this frame's time
+            // step converted to a range on the blended sync track.
+            SyncTrackTimeRange range;
+            if (updateRange != null)
+            {
+                range = updateRange;
+            }
+            else
+            {
+                var deltaPercentage = Duration > 0f ? ctx.DeltaTime / Duration : 0f;
+                var fromTime = CurrentTime;
+                var toTime = AllowLooping ? CurrentTime + deltaPercentage : MathUtils.Saturate(CurrentTime + deltaPercentage);
+                range = new SyncTrackTimeRange(blendedSyncTrack!.GetTime(fromTime), blendedSyncTrack.GetTime(toTime));
+            }
+
             // Single source
             if (blendSource1 == null)
             {
-                var single = blendSource0!.Update(ctx);
-                Duration = blendSource0.Duration;
-                PreviousTime = blendSource0.PreviousTime;
-                CurrentTime = blendSource0.CurrentTime;
+                if (blendSource0 is not { IsValid: true })
+                {
+                    return base.Update(ctx);
+                }
+
+                var single = blendSource0.Update(ctx, range);
+                PreviousTime = SyncTrack.GetPercentageThrough(range.StartTime);
+                CurrentTime = SyncTrack.GetPercentageThrough(range.EndTime);
                 return single;
             }
 
-            // 2-way blend into our own buffer
+            // 2-way blend into our own buffer: both sources advance through the same sync range
             var result = base.Update(ctx);
 
-            var result0 = blendSource0!.Update(ctx);
-            var result1 = blendSource1.Update(ctx);
+            var result0 = blendSource0!.Update(ctx, range);
+            var result1 = blendSource1.Update(ctx, range);
 
             Blender.Blend(result0.Pose, result1.Pose, blendWeight, result.Pose);
             result.RootMotionDelta = Blender.BlendRootMotion(result0.RootMotionDelta, result1.RootMotionDelta, blendWeight, RootMotionBlendMode.Blend);
+            result.SampledEventRange = new(result0.SampledEventRange.StartIdx, ctx.SampledEvents.Count);
 
-            Duration = MathUtils.Lerp(blendSource0.Duration, blendSource1.Duration, blendWeight);
-            PreviousTime = MathUtils.Lerp(blendSource0.PreviousTime, blendSource1.PreviousTime, blendWeight);
-            CurrentTime = MathUtils.Lerp(blendSource0.CurrentTime, blendSource1.CurrentTime, blendWeight);
+            PreviousTime = SyncTrack.GetPercentageThrough(range.StartTime);
+            CurrentTime = SyncTrack.GetPercentageThrough(range.EndTime);
 
             return result;
         }
@@ -224,6 +254,10 @@ namespace ValveResourceFormat.Renderer.AnimLib
         // Matches Esoterica: only the input parameters are required, sources may be individually invalid.
         public override bool IsValid => SourceNodes is { Length: > 1 } && InputParameterNode0 != null && InputParameterNode1 != null;
 
+        SyncTrack? blendedSyncTrack;
+
+        public override SyncTrack SyncTrack => blendedSyncTrack ?? SyncTrack.Default;
+
         void EvaluateBlendSpace(GraphContext ctx)
         {
             // Only evaluate the blend space once per graph update.
@@ -237,17 +271,37 @@ namespace ValveResourceFormat.Renderer.AnimLib
             var point = new Vector2(InputParameterNode0.GetValue(ctx), InputParameterNode1.GetValue(ctx));
             CalculateBlendSpaceWeights(Values, Indices, HullIndices, point, ref bsr);
 
+            // Calculate the blended sync track and synchronized duration across the up-to-3 sources
             if (bsr.Src1 == -1)
             {
-                Duration = SourceNodes[bsr.Src0].Duration;
+                var source = SourceNodes[bsr.Src0];
+                blendedSyncTrack = new SyncTrack(source.SyncTrack, source.SyncTrack, 0f);
+                Duration = source.Duration;
             }
             else
             {
-                Duration = MathUtils.Lerp(SourceNodes[bsr.Src0].Duration, SourceNodes[bsr.Src1].Duration, bsr.Weight01);
+                var source0 = SourceNodes[bsr.Src0];
+                var source1 = SourceNodes[bsr.Src1];
+                var syncTrack0 = source0.SyncTrack;
+                var syncTrack1 = source1.SyncTrack;
+
+                blendedSyncTrack = new SyncTrack(syncTrack0, syncTrack1, bsr.Weight01);
+                Duration = SyncTrack.CalculateDurationSynchronized(source0.Duration, source1.Duration, syncTrack0.NumEvents, syncTrack1.NumEvents, blendedSyncTrack.NumEvents, bsr.Weight01);
+
+                if (bsr.Src2 != -1)
+                {
+                    var source2 = SourceNodes[bsr.Src2];
+                    var syncTrack2 = source2.SyncTrack;
+                    var durationOf2WayBlend = Duration;
+                    var numEventsIn2WayBlendedSyncTrack = blendedSyncTrack.NumEvents;
+
+                    blendedSyncTrack = new SyncTrack(blendedSyncTrack, syncTrack2, bsr.Weight12);
+                    Duration = SyncTrack.CalculateDurationSynchronized(durationOf2WayBlend, source2.Duration, numEventsIn2WayBlendedSyncTrack, syncTrack2.NumEvents, blendedSyncTrack.NumEvents, bsr.Weight12);
+                }
             }
         }
 
-        public override GraphPoseNodeResult Update(GraphContext ctx)
+        public override GraphPoseNodeResult Update(GraphContext ctx, SyncTrackTimeRange? updateRange = null)
         {
             if (!IsValid)
             {
@@ -256,44 +310,64 @@ namespace ValveResourceFormat.Renderer.AnimLib
 
             EvaluateBlendSpace(ctx);
 
+            // Calculate the actual update range: an externally supplied one, or this frame's time
+            // step converted to a range on the blended sync track.
+            SyncTrackTimeRange range;
+            if (updateRange != null)
+            {
+                range = updateRange;
+            }
+            else
+            {
+                var deltaPercentage = Duration > 0f ? ctx.DeltaTime / Duration : 0f;
+                var fromTime = CurrentTime;
+                var toTime = AllowLooping ? CurrentTime + deltaPercentage : MathUtils.Saturate(CurrentTime + deltaPercentage);
+                range = new SyncTrackTimeRange(blendedSyncTrack!.GetTime(fromTime), blendedSyncTrack.GetTime(toTime));
+            }
+
             // Single source
             if (bsr.Src1 == -1)
             {
                 var source = SourceNodes[bsr.Src0];
-                var single = source.Update(ctx);
-                Duration = source.Duration;
-                PreviousTime = source.PreviousTime;
-                CurrentTime = source.CurrentTime;
+                if (!source.IsValid)
+                {
+                    return base.Update(ctx);
+                }
+
+                var single = source.Update(ctx, range);
+                PreviousTime = SyncTrack.GetPercentageThrough(range.StartTime);
+                CurrentTime = SyncTrack.GetPercentageThrough(range.EndTime);
                 return single;
             }
 
-            // 2-way blend into our own buffer
+            // 2- or 3-way blend into our own buffer: all sources advance through the same sync range
             var result = base.Update(ctx);
 
             var s0 = SourceNodes[bsr.Src0];
             var s1 = SourceNodes[bsr.Src1];
-            var r0 = s0.Update(ctx);
-            var r1 = s1.Update(ctx);
+            var r0 = s0.Update(ctx, range);
+            var r1 = s1.Update(ctx, range);
 
             Blender.Blend(r0.Pose, r1.Pose, bsr.Weight01, result.Pose);
             result.RootMotionDelta = Blender.BlendRootMotion(r0.RootMotionDelta, r1.RootMotionDelta, bsr.Weight01, RootMotionBlendMode.Blend);
 
-            Duration = MathUtils.Lerp(s0.Duration, s1.Duration, bsr.Weight01);
-            PreviousTime = MathUtils.Lerp(s0.PreviousTime, s1.PreviousTime, bsr.Weight01);
-            CurrentTime = MathUtils.Lerp(s0.CurrentTime, s1.CurrentTime, bsr.Weight01);
-
-            // 3-way blend: blend the 2-way result with the third source, in place.
             if (bsr.Src2 != -1)
             {
-                var r2 = SourceNodes[bsr.Src2].Update(ctx);
+                var s2 = SourceNodes[bsr.Src2];
+                var r2 = s2.Update(ctx, range);
+
                 Blender.Blend(result.Pose, r2.Pose, bsr.Weight12, result.Pose);
                 result.RootMotionDelta = Blender.BlendRootMotion(result.RootMotionDelta, r2.RootMotionDelta, bsr.Weight12, RootMotionBlendMode.Blend);
             }
 
+            result.SampledEventRange = new(r0.SampledEventRange.StartIdx, ctx.SampledEvents.Count);
+
+            PreviousTime = SyncTrack.GetPercentageThrough(range.StartTime);
+            CurrentTime = SyncTrack.GetPercentageThrough(range.EndTime);
+
             return result;
         }
 
-        // Ported from Esoterica's Blend2DNode::CalculateBlendSpaceWeights.
         static void CalculateBlendSpaceWeights(Vector2[] points, uint[] indices, uint[] hullIndices, Vector2 point, ref BlendSpaceResult result)
         {
             result.Reset();
@@ -486,15 +560,19 @@ namespace ValveResourceFormat.Renderer.AnimLib
             }
         }
 
-        public override GraphPoseNodeResult Update(GraphContext ctx)
+        public override GraphPoseNodeResult Update(GraphContext ctx, SyncTrackTimeRange? updateRange = null)
         {
             var eventRangeStart = ctx.SampledEvents.Count;
             var result = base.Update(ctx);
 
-            var baseResult = BaseNode.Update(ctx);
+            var baseResult = BaseNode.Update(ctx, updateRange);
             Duration = BaseNode.Duration;
             PreviousTime = BaseNode.PreviousTime;
             CurrentTime = BaseNode.CurrentTime;
+
+            // Synchronized layers advance through the same sync range the base covered this update
+            var baseSyncTrack = BaseNode.SyncTrack;
+            var layerUpdateRange = new SyncTrackTimeRange(baseSyncTrack.GetTime(BaseNode.PreviousTime), baseSyncTrack.GetTime(BaseNode.CurrentTime));
 
             // Blend layers into our own buffer so the base node's pose is left untouched
             baseResult.Pose.AsSpan(0, Math.Min(baseResult.Pose.Length, PoseTransforms.Length)).CopyTo(PoseTransforms);
@@ -540,7 +618,7 @@ namespace ValveResourceFormat.Renderer.AnimLib
                 GraphPoseNodeResult layerResult = default;
                 if (definition.IsStateMachineLayer || ctx.LayerContext.Weight > 0f)
                 {
-                    layerResult = layerInput.Update(ctx);
+                    layerResult = layerInput.Update(ctx, definition.IsSynchronized ? layerUpdateRange : null);
                     updated = true;
                 }
 

@@ -216,12 +216,12 @@ namespace ValveResourceFormat.Renderer.AnimLib
             }
         }
 
-        public GraphPoseNodeResult Update(float timeStep)
+        public GraphPoseNodeResult Update(float timeStep, SyncTrackTimeRange? updateRange = null)
         {
             UpdateID++;
             DeltaTime = timeStep;
             SampledEvents.Clear();
-            var poseResult = RootNode.Update(this);
+            var poseResult = RootNode.Update(this, updateRange);
             Pose.SetParentSpaceTransforms(poseResult.Pose);
             return poseResult;
         }

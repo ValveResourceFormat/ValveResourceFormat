@@ -24,14 +24,14 @@ namespace ValveResourceFormat.Renderer.AnimLib
             ChildNode?.Restart(ctx);
         }
 
-        public override GraphPoseNodeResult Update(GraphContext ctx)
+        public override GraphPoseNodeResult Update(GraphContext ctx, SyncTrackTimeRange? updateRange = null)
         {
             if (ChildNode == null)
             {
                 return base.Update(ctx);
             }
 
-            var result = ChildNode.Update(ctx);
+            var result = ChildNode.Update(ctx, updateRange);
             Duration = ChildNode.Duration;
             PreviousTime = ChildNode.PreviousTime;
             CurrentTime = ChildNode.CurrentTime;
@@ -55,8 +55,14 @@ namespace ValveResourceFormat.Renderer.AnimLib
 
         protected virtual float CalculateSpeedScaleMultiplier(GraphContext ctx) => 1f;
 
-        public override GraphPoseNodeResult Update(GraphContext ctx)
+        public override GraphPoseNodeResult Update(GraphContext ctx, SyncTrackTimeRange? updateRange = null)
         {
+            // Speed scaling has no effect during a synchronized update; just pass the range through.
+            if (updateRange != null)
+            {
+                return base.Update(ctx, updateRange);
+            }
+
             var speedScale = CalculateSpeedScaleMultiplier(ctx);
             Debug.Assert(speedScale >= 0f);
 
@@ -223,7 +229,7 @@ namespace ValveResourceFormat.Renderer.AnimLib
             SelectedNode = null;
         }
 
-        public override GraphPoseNodeResult Update(GraphContext ctx)
+        public override GraphPoseNodeResult Update(GraphContext ctx, SyncTrackTimeRange? updateRange = null)
         {
             EnsureSelected(ctx);
 
@@ -232,7 +238,7 @@ namespace ValveResourceFormat.Renderer.AnimLib
                 return base.Update(ctx);
             }
 
-            var result = SelectedNode.Update(ctx);
+            var result = SelectedNode.Update(ctx, updateRange);
             Duration = SelectedNode.Duration;
             PreviousTime = SelectedNode.PreviousTime;
             CurrentTime = SelectedNode.CurrentTime;
@@ -304,7 +310,7 @@ namespace ValveResourceFormat.Renderer.AnimLib
             SelectedNode = null;
         }
 
-        public override GraphPoseNodeResult Update(GraphContext ctx)
+        public override GraphPoseNodeResult Update(GraphContext ctx, SyncTrackTimeRange? updateRange = null)
         {
             EnsureSelected(ctx);
 
@@ -313,7 +319,7 @@ namespace ValveResourceFormat.Renderer.AnimLib
                 return base.Update(ctx);
             }
 
-            var result = SelectedNode.Update(ctx);
+            var result = SelectedNode.Update(ctx, updateRange);
             Duration = SelectedNode.Duration;
             PreviousTime = SelectedNode.PreviousTime;
             CurrentTime = SelectedNode.CurrentTime;
@@ -416,7 +422,7 @@ namespace ValveResourceFormat.Renderer.AnimLib
             SelectedNode = null;
         }
 
-        public override GraphPoseNodeResult Update(GraphContext ctx)
+        public override GraphPoseNodeResult Update(GraphContext ctx, SyncTrackTimeRange? updateRange = null)
         {
             EnsureSelected(ctx);
 
@@ -425,7 +431,7 @@ namespace ValveResourceFormat.Renderer.AnimLib
                 return base.Update(ctx);
             }
 
-            var result = SelectedNode.Update(ctx);
+            var result = SelectedNode.Update(ctx, updateRange);
             Duration = SelectedNode.Duration;
             PreviousTime = SelectedNode.PreviousTime;
             CurrentTime = SelectedNode.CurrentTime;

@@ -163,14 +163,14 @@ namespace ValveResourceFormat.Renderer.AnimLib
             }
         }
 
-        public override GraphPoseNodeResult Update(GraphContext ctx)
+        public override GraphPoseNodeResult Update(GraphContext ctx, SyncTrackTimeRange? updateRange = null)
         {
             var eventRangeStart = ctx.SampledEvents.Count;
             var result = base.Update(ctx);
 
             if (ChildNode != null)
             {
-                result = ChildNode.Update(ctx);
+                result = ChildNode.Update(ctx, updateRange);
                 Duration = ChildNode.Duration;
                 PreviousTime = ChildNode.PreviousTime;
                 CurrentTime = ChildNode.CurrentTime;
@@ -218,12 +218,15 @@ namespace ValveResourceFormat.Renderer.AnimLib
             MatchSyncEventPercentage, // Only checked if MatchSourceTime is set
 
             PreferClosestSyncEventID, // Only checked if MatchSyncEventID is set, will prefer the closest matching sync event rather than the first found
+
+            MatchTimeInSeconds, // Only checked if MatchSourceTime is set
+            OffsetTimeInSeconds, // Only checked if MatchSourceTime is not set
         };
 
         public struct StartOptions(GraphPoseNodeResult sourceNodeResult)
         {
             public GraphPoseNodeResult SourceNodeResult = sourceNodeResult;
-            //public SyncTrackTimeRange UpdateRange;
+            public SyncTrackTimeRange? UpdateRange;
             public sbyte SourceTasksStartMarker = -1;
             public PoseNode SourceNode;
             public bool IsSourceTransition;
@@ -236,7 +239,7 @@ namespace ValveResourceFormat.Renderer.AnimLib
         FloatValueNode? EventOffsetOverrideNode;
         BoneMaskValueNode? StartBoneMaskNode;
         IDValueNode? TargetSyncIDNode;
-        // synctrack
+        SyncTrack? blendedSyncTrack;
         float TransitionProgress;
         float TransitionDuration; // This is either time in seconds, or percentage of the sync track
         float SyncEventOffset;
@@ -245,6 +248,8 @@ namespace ValveResourceFormat.Renderer.AnimLib
         SourceType Type;
         BoneMaskTaskList BoneMaskTaskList;
 
+        public override SyncTrack SyncTrack => blendedSyncTrack ?? TargetStateNode?.SyncTrack ?? SyncTrack.Default;
+
         public bool IsSourceAState => Type == SourceType.State;
         public bool IsSourceTransition => Type == SourceType.Transition;
         public bool IsSourceACachedPose => Type == SourceType.CachedPose;
@@ -252,8 +257,11 @@ namespace ValveResourceFormat.Renderer.AnimLib
 
         public bool GetOption(TransitionOptions_t option)
         {
-            return TransitionOptions.IsFlagSet((uint)option);
+            // The options enum stores bit indices, not masks
+            return TransitionOptions.IsFlagSet(1u << (int)option);
         }
+
+        public bool IsSynchronized => GetOption(TransitionOptions_t.Synchronized);
 
 
         public StateNode GetSourceStateNode()
@@ -333,7 +341,7 @@ namespace ValveResourceFormat.Renderer.AnimLib
             }
         }
 
-        public void InitializeTargetStateAndUpdateTransition(GraphContext ctx, StartOptions options)
+        public GraphPoseNodeResult InitializeTargetStateAndUpdateTransition(GraphContext ctx, StartOptions options)
         {
             Debug.Assert(options.SourceNode != null);
             Debug.Assert(SourceNode == null);
@@ -345,14 +353,7 @@ namespace ValveResourceFormat.Renderer.AnimLib
             // override and reset transition state before TransitionDuration is used below.
             Start(ctx);
 
-            if (options.StartCachingSourcePose)
-            {
-                // Start caching source pose
-                // ...
-            }
-
-            // Copy the source node result as we are gonna potentially modify both the sampled event indices and the task idx
-            GraphPoseNodeResult sourceNodeResult = options.SourceNodeResult;
+            var sourceNodeResult = options.SourceNodeResult;
 
             void StartTransitionOutForSource()
             {
@@ -374,74 +375,207 @@ namespace ValveResourceFormat.Renderer.AnimLib
                         EndSourceTransition(ctx);
                     }
 
-                    // Shutdown the source node
-                    //SourceNode?.Shutdown(ctx);
                     SourceNode = null;
                 }
             }
 
-            // Starting a transition out may generate additional graph events so we need to update the sampled event range
-            //...
+            GraphPoseNodeResult targetNodeResult;
+            SyncTrackTimeRange? targetUpdateRange = null;
+            SyncTrack? sourceSyncTrackForBlend = null;
 
-            /*
-            GraphLayerContext targetLayerContext;
-            GraphLayerContext* pSourceLayerCtx = nullptr;
-            if ( context.IsInLayer() )
+            // Use sync events to initialize the target state
+            //-------------------------------------------------------------------------
+
+            if (IsSynchronized || options.UpdateRange != null)
             {
-                pSourceLayerCtx = context.m_pLayerContext;
-                context.m_pLayerContext = &targetLayerContext;
-            }
-            */
+                var sourceSyncTrack = SourceNode!.SyncTrack;
+                sourceSyncTrackForBlend = sourceSyncTrack;
 
-            // bunch of sync stuff
+                // Calculate the source update sync range
+                var sourceUpdateRange = new SyncTrackTimeRange(
+                    sourceSyncTrack.GetTime(SourceNode.PreviousTime),
+                    sourceSyncTrack.GetTime(SourceNode.CurrentTime));
+
+                // Calculate transition duration
+                if (GetOption(TransitionOptions_t.ClampDuration))
+                {
+                    // Calculate the delta between the current position and the real end of the source
+                    var sourceRealEndTime = sourceSyncTrack.GetPercentageThrough(sourceSyncTrack.GetEndTime());
+                    var sourceCurrentTime = sourceSyncTrack.GetPercentageThrough(sourceUpdateRange.StartTime);
+
+                    var deltaToRealEnd = sourceRealEndTime > sourceCurrentTime
+                        ? sourceRealEndTime - sourceCurrentTime
+                        : 1f - (sourceCurrentTime - sourceRealEndTime);
+
+                    // If the end of the source occurs before the transition completes, clamp the duration
+                    var sourceDuration = SourceNode.Duration;
+                    if (sourceDuration > 0f)
+                    {
+                        TransitionDuration = Math.Min(TransitionDuration, sourceDuration * deltaToRealEnd);
+                    }
+                }
+
+                // Only apply the transition's sync offset when we are not part of a synced update
+                SyncEventOffset = options.UpdateRange == null
+                    ? MathF.Floor(EventOffsetOverrideNode?.GetValue(ctx) ?? TimeOffset)
+                    : 0f;
+
+                var offset = (int)SyncEventOffset;
+                targetUpdateRange = new SyncTrackTimeRange(
+                    new SyncTrackTime(sourceUpdateRange.StartTime.EventIdx + offset, sourceUpdateRange.StartTime.PercentageThrough.Value),
+                    new SyncTrackTime(sourceUpdateRange.EndTime.EventIdx + offset, sourceUpdateRange.EndTime.PercentageThrough.Value));
+
+                // Transition out, then start and synchronize the target
+                StartTransitionOutForSource();
+                TargetStateNode.Start(ctx);
+                TargetStateNode.StartTransitionIn(ctx);
+                targetNodeResult = TargetStateNode.Update(ctx, targetUpdateRange);
+            }
 
             // Unsynchronized Transition
             //-------------------------------------------------------------------------
 
-            // Should we clamp how long the transition is active for?
-            if (GetOption(TransitionOptions_t.ClampDuration))
+            else
             {
-                var sourceDuration = SourceNode.Duration;
-                if (sourceDuration > 0f)
+                // The sync event offset may be in seconds based on the flags
+                SyncEventOffset = EventOffsetOverrideNode?.GetValue(ctx) ?? TimeOffset;
+
+                // Should we clamp how long the transition is active for?
+                var sourceDuration = SourceNode!.Duration;
+                if (GetOption(TransitionOptions_t.ClampDuration) && sourceDuration > 0f)
                 {
-                    var remainingTime = (1f - SourceNode.CurrentTime) * sourceDuration;
-                    TransitionDuration = Math.Min(TransitionDuration, remainingTime);
+                    var remainingNodeTime = (1f - SourceNode.CurrentTime) * sourceDuration;
+                    TransitionDuration = Math.Min(TransitionDuration, remainingNodeTime);
+                }
+
+                // If we have a sync offset or need to match the source state time, seed the target time
+                var shouldMatchSourceTime = GetOption(TransitionOptions_t.MatchSourceTime);
+                if (shouldMatchSourceTime || Math.Abs(SyncEventOffset) > 1e-5f)
+                {
+                    var sourceCurrentTimeForMatch = SourceNode.CurrentTime;
+                    var sourceSyncTrack = SourceNode.SyncTrack;
+                    var sourceFromSyncTime = sourceSyncTrack.GetTime(sourceCurrentTimeForMatch);
+
+                    StartTransitionOutForSource();
+                    TargetStateNode.Start(ctx);
+                    TargetStateNode.StartTransitionIn(ctx);
+
+                    var targetStartEventSyncTime = new SyncTrackTime(0, 0f);
+
+                    var shouldMatchInSeconds = GetOption(TransitionOptions_t.MatchTimeInSeconds);
+                    if (shouldMatchInSeconds || GetOption(TransitionOptions_t.OffsetTimeInSeconds))
+                    {
+                        var sourceCurrentTimeSeconds = shouldMatchInSeconds ? sourceDuration * sourceCurrentTimeForMatch : 0f;
+                        var targetDesiredTimeSeconds = sourceCurrentTimeSeconds + SyncEventOffset;
+                        SyncEventOffset = 0f;
+
+                        var targetDuration = TargetStateNode.Duration;
+                        var targetDesiredTime = targetDuration > 0f ? MathUtils.Saturate(targetDesiredTimeSeconds / targetDuration) : 0f;
+                        targetStartEventSyncTime = TargetStateNode.SyncTrack.GetTime(targetDesiredTime);
+                    }
+                    else // Match using sync time
+                    {
+                        var eventIdx = 0;
+                        var percentageThrough = 0f;
+
+                        if (shouldMatchSourceTime)
+                        {
+                            if (GetOption(TransitionOptions_t.MatchSyncEventIndex))
+                            {
+                                eventIdx = sourceFromSyncTime.EventIdx;
+                            }
+                            else if (GetOption(TransitionOptions_t.MatchSyncEventID))
+                            {
+                                var eventIDToMatch = TargetSyncIDNode?.GetValue(ctx) ?? sourceSyncTrack.GetEventID(sourceFromSyncTime.EventIdx);
+                                if (eventIDToMatch.IsValid)
+                                {
+                                    var targetSyncTrack = TargetStateNode.SyncTrack;
+                                    eventIdx = GetOption(TransitionOptions_t.PreferClosestSyncEventID)
+                                        ? targetSyncTrack.GetClosestEventIndexForID(sourceFromSyncTime, eventIDToMatch)
+                                        : targetSyncTrack.GetEventIndexForID(eventIDToMatch);
+                                }
+                            }
+
+                            if (GetOption(TransitionOptions_t.MatchSyncEventPercentage))
+                            {
+                                percentageThrough = sourceFromSyncTime.PercentageThrough.Value;
+                            }
+                        }
+
+                        // Apply the sync event offset (upstream passes the integer part as the
+                        // percentage here, which trips its own validity assert; we keep the fraction)
+                        var newIdxAndPercentage = eventIdx + percentageThrough + SyncEventOffset;
+                        eventIdx = (int)MathF.Floor(newIdxAndPercentage);
+                        percentageThrough = Math.Abs(newIdxAndPercentage - eventIdx);
+                        targetStartEventSyncTime = new SyncTrackTime(eventIdx, percentageThrough);
+                    }
+
+                    // Seed the target at the computed sync time without advancing it
+                    var seedRange = new SyncTrackTimeRange(targetStartEventSyncTime, targetStartEventSyncTime);
+                    var oldDeltaTime = ctx.DeltaTime;
+                    ctx.DeltaTime = 0f;
+                    targetNodeResult = TargetStateNode.Update(ctx, seedRange);
+                    ctx.DeltaTime = oldDeltaTime;
+                }
+                else // Regular start at the beginning of the target
+                {
+                    StartTransitionOutForSource();
+                    TargetStateNode.Start(ctx);
+                    TargetStateNode.StartTransitionIn(ctx);
+
+                    // Zero time-step: we do not want to advance the target this update, just pose it
+                    var oldDeltaTime = ctx.DeltaTime;
+                    ctx.DeltaTime = 0f;
+                    targetNodeResult = TargetStateNode.Update(ctx);
+                    ctx.DeltaTime = oldDeltaTime;
                 }
             }
 
-            // If we have a sync offset or we need to match the source state time, we need to create a target state initial time
-            // ...
-
-            // Regular time update (not matched or has sync offset)
-            {
-                // Transition out - this will resample any source state events so that the target state machine has all the correct state events
-                StartTransitionOutForSource();
-
-                TargetStateNode.Start(ctx);
-
-                // Start transition in and update target
-                TargetStateNode.StartTransitionIn(ctx);
-            }
-
-            // Calculate the blend weight, register pose task and update layer weights
+            // Calculate the blend weight and blend the first frame
             //-------------------------------------------------------------------------
 
             CalculateBlendWeight();
 
-            if (ctx.IsInLayer)
-            {
-                // Calculate the new layer weights based on the transition progress
-                // UpdateLayerContext would go here
+            GraphPoseNodeResult result;
 
-                // Restore original context
+            if (SourceNode == null)
+            {
+                // Instant transition - target only
+                result = targetNodeResult;
+                PreviousTime = 0f;
+                CurrentTime = 0f;
+                BlendedDuration = TargetStateNode.Duration;
+                blendedSyncTrack = TargetStateNode.SyncTrack;
+            }
+            else
+            {
+                result = base.Update(ctx);
+                Blender.Blend(sourceNodeResult.Pose, targetNodeResult.Pose, BlendWeight, result.Pose);
+                result.RootMotionDelta = Blender.BlendRootMotion(sourceNodeResult.RootMotionDelta, targetNodeResult.RootMotionDelta, BlendWeight, RootMotionBlend);
+                result.SampledEventRange = new(sourceNodeResult.SampledEventRange.StartIdx, ctx.SampledEvents.Count);
+
+                if (targetUpdateRange != null && sourceSyncTrackForBlend != null)
+                {
+                    // Create the blended sync track
+                    var targetSyncTrack = TargetStateNode.SyncTrack;
+                    blendedSyncTrack = new SyncTrack(sourceSyncTrackForBlend, targetSyncTrack, BlendWeight);
+                    BlendedDuration = SyncTrack.CalculateDurationSynchronized(SourceNode.Duration, TargetStateNode.Duration, sourceSyncTrackForBlend.NumEvents, targetSyncTrack.NumEvents, blendedSyncTrack.NumEvents, BlendWeight);
+                    PreviousTime = blendedSyncTrack.GetPercentageThrough(targetUpdateRange.StartTime);
+                    CurrentTime = blendedSyncTrack.GetPercentageThrough(targetUpdateRange.EndTime);
+                }
+                else
+                {
+                    PreviousTime = 0f;
+                    CurrentTime = 0f;
+                    BlendedDuration = MathUtils.Lerp(SourceNode.Duration, TargetStateNode.Duration, BlendWeight);
+                    blendedSyncTrack = TargetStateNode.SyncTrack;
+                }
             }
 
-            // Update internal state
+            // Expose the target duration so any "state completed" conditions trigger correctly
             Duration = TargetStateNode.Duration;
-            PreviousTime = TargetStateNode.PreviousTime;
-            CurrentTime = TargetStateNode.CurrentTime;
 
-            return;
+            return result;
         }
 
         public bool IsComplete(GraphContext ctx)
@@ -454,19 +588,40 @@ namespace ValveResourceFormat.Renderer.AnimLib
             return TransitionProgress + (ctx.DeltaTime / TransitionDuration) >= 1f;
         }
 
-        public override GraphPoseNodeResult Update(GraphContext ctx)
+        public override GraphPoseNodeResult Update(GraphContext ctx, SyncTrackTimeRange? updateRange = null)
         {
             var result = base.Update(ctx);
 
             if (TransitionDuration <= 0f)
             {
                 // Instant transition - just return target
-                result = TargetStateNode.Update(ctx);
+                result = TargetStateNode.Update(ctx, updateRange);
                 Duration = TargetStateNode.Duration;
                 PreviousTime = TargetStateNode.PreviousTime;
                 CurrentTime = TargetStateNode.CurrentTime;
                 return result;
             }
+
+            // Calculate update range and whether to sync or not
+            //-------------------------------------------------------------------------
+
+            SyncTrackTimeRange? syncedRange = null;
+
+            // A supplied range means the parent state machine is being driven via a sync update
+            if (updateRange != null)
+            {
+                syncedRange = updateRange;
+            }
+            else if (IsSynchronized && blendedSyncTrack != null)
+            {
+                // Calculate the update range for this frame on the blended sync track
+                var percentageTimeDelta = BlendedDuration > 0f ? ctx.DeltaTime / BlendedDuration : 0f;
+                var toTime = CurrentTime + percentageTimeDelta;
+                syncedRange = new SyncTrackTimeRange(blendedSyncTrack.GetTime(CurrentTime), blendedSyncTrack.GetTime(toTime));
+            }
+
+            // Update transition progress
+            //-------------------------------------------------------------------------
 
             // Check if source transition is complete
             if (IsSourceTransition && GetSourceTransitionNode().IsComplete(ctx))
@@ -474,14 +629,25 @@ namespace ValveResourceFormat.Renderer.AnimLib
                 EndSourceTransition(ctx);
             }
 
-            // Update transition progress
-            TransitionProgress += ctx.DeltaTime / TransitionDuration;
+            // With clamping in a synced update the progress advances by the covered sync distance
+            if (syncedRange != null && GetOption(TransitionOptions_t.ClampDuration) && blendedSyncTrack != null)
+            {
+                var eventDistance = blendedSyncTrack.CalculatePercentageCovered(syncedRange);
+                TransitionProgress += eventDistance / TransitionDuration;
+            }
+            else
+            {
+                TransitionProgress += ctx.DeltaTime / TransitionDuration;
+            }
+
             TransitionProgress = MathUtils.Saturate(TransitionProgress);
 
             // Calculate blend weight with easing
             CalculateBlendWeight();
 
-            // Update source and target states
+            // Update the source state
+            //-------------------------------------------------------------------------
+
             GraphPoseNodeResult sourceNodeResult;
             if (IsSourceACachedPose)
             {
@@ -496,37 +662,83 @@ namespace ValveResourceFormat.Renderer.AnimLib
                 var previousBranchState = ctx.BranchState;
                 ctx.BranchState = BranchState.Inactive;
 
-                sourceNodeResult = SourceNode.Update(ctx);
+                if (syncedRange != null)
+                {
+                    // The update range is for the target - remove the sync event offset for the source
+                    var offset = (int)SyncEventOffset;
+                    var sourceStart = new SyncTrackTime(syncedRange.StartTime.EventIdx - offset, syncedRange.StartTime.PercentageThrough.Value);
+                    var sourceEnd = new SyncTrackTime(syncedRange.EndTime.EventIdx - offset, syncedRange.EndTime.PercentageThrough.Value);
+
+                    // Ensure the end time is clamped to the end of the source node
+                    if (GetOption(TransitionOptions_t.ClampDuration) && TransitionProgress >= 1f)
+                    {
+                        sourceEnd = new SyncTrackTime(sourceStart.EventIdx, 1f);
+                    }
+
+                    sourceNodeResult = SourceNode.Update(ctx, new SyncTrackTimeRange(sourceStart, sourceEnd));
+                }
+                else
+                {
+                    sourceNodeResult = SourceNode.Update(ctx);
+                }
 
                 ctx.BranchState = previousBranchState;
             }
 
-            var targetNodeResult = TargetStateNode.Update(ctx);
+            // Update the target state
+            //-------------------------------------------------------------------------
 
-            // Blend poses
+            var targetNodeResult = TargetStateNode.Update(ctx, syncedRange);
+
+            // Blend poses and root motion
+            //-------------------------------------------------------------------------
+
             Blender.Blend(
                 sourceNodeResult.Pose,
                 targetNodeResult.Pose,
                 BlendWeight,
                 result.Pose);
 
-            // Blend root motion
             result.RootMotionDelta = Blender.BlendRootMotion(
                 sourceNodeResult.RootMotionDelta,
                 targetNodeResult.RootMotionDelta,
                 BlendWeight,
                 RootMotionBlend);
 
-            // Calculate blended duration
-            BlendedDuration = (1f - BlendWeight) * (SourceNode?.Duration ?? 0f) + BlendWeight * TargetStateNode.Duration;
+            result.SampledEventRange = new(sourceNodeResult.SampledEventRange.StartIdx, ctx.SampledEvents.Count);
+
+            // Update internal time and duration
+            //-------------------------------------------------------------------------
+
+            if (syncedRange != null && !IsSourceACachedPose && SourceNode != null)
+            {
+                // Recreate the blended sync track with the new weight
+                var sourceSyncTrack = SourceNode.SyncTrack;
+                var targetSyncTrack = TargetStateNode.SyncTrack;
+                blendedSyncTrack = new SyncTrack(sourceSyncTrack, targetSyncTrack, BlendWeight);
+
+                BlendedDuration = SyncTrack.CalculateDurationSynchronized(SourceNode.Duration, TargetStateNode.Duration, sourceSyncTrack.NumEvents, targetSyncTrack.NumEvents, blendedSyncTrack.NumEvents, BlendWeight);
+                PreviousTime = blendedSyncTrack.GetPercentageThrough(syncedRange.StartTime);
+                CurrentTime = blendedSyncTrack.GetPercentageThrough(syncedRange.EndTime);
+            }
+            else
+            {
+                BlendedDuration = MathUtils.Lerp(SourceNode?.Duration ?? 0f, TargetStateNode.Duration, BlendWeight);
+
+                if (BlendedDuration > 0f)
+                {
+                    var deltaPercentage = ctx.DeltaTime / BlendedDuration;
+                    PreviousTime = CurrentTime;
+                    CurrentTime = (CurrentTime + deltaPercentage) % 1f;
+                }
+                else
+                {
+                    PreviousTime = CurrentTime = 1f;
+                }
+            }
+
+            // Expose the target duration so any "state completed" conditions trigger correctly
             Duration = TargetStateNode.Duration;
-
-            // Blend times
-            PreviousTime = (1f - BlendWeight) * (SourceNode?.PreviousTime ?? 0f) + BlendWeight * TargetStateNode.PreviousTime;
-            CurrentTime = (1f - BlendWeight) * (SourceNode?.CurrentTime ?? 0f) + BlendWeight * TargetStateNode.CurrentTime;
-
-            // Calculate blended duration
-            BlendedDuration = MathUtils.Lerp(SourceNode?.Duration ?? 0f, TargetStateNode.Duration, BlendWeight);
 
             return result;
         }
