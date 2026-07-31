@@ -6,7 +6,6 @@ namespace ValveResourceFormat.Renderer.Audio.Decoders;
 /// <summary>
 /// Decodes the raw sample data of a WAV-type vsnd (PCM 8/16/24/32 bit or MS ADPCM, described by the
 /// sound block's own fields - no container header exists in the stored data, and none is synthesized).
-/// Streams fixed-size float chunks to an <see cref="IPcm16Sink"/>, so no whole-file sample buffer ever exists.
 /// </summary>
 internal static class PcmDecoder
 {

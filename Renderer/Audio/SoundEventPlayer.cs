@@ -107,17 +107,17 @@ public sealed class SoundEventPlayer : IDisposable
     /// A crude stand-in for the game's mix graph: groups without an entry play at full volume.
     /// Applies to sounds started after the change.
     /// </summary>
-    public Dictionary<string, float> MixGroupVolumes { get; } = new(StringComparer.OrdinalIgnoreCase);
+    public Dictionary<string, float> MixGroupVolume { get; } = new(StringComparer.OrdinalIgnoreCase);
 
     /// <summary>
     /// Gets or sets the fallback volume multiplier for mix groups without an explicit
-    /// <see cref="MixGroupVolumes"/> entry.
+    /// <see cref="MixGroupVolume"/> entry.
     /// Events without any mix group are not affected and play at authored volume.
     /// </summary>
     public float DefaultMixGroupVolume { get; set; } = 1f;
 
     /// <summary>
-    /// Gets the volume multiplier for a mix group: its <see cref="MixGroupVolumes"/> entry,
+    /// Gets the volume multiplier for a mix group: its <see cref="MixGroupVolume"/> entry,
     /// <see cref="DefaultMixGroupVolume"/> for unknown groups, and 1 when the event has no group.
     /// </summary>
     public float GetMixGroupVolume(string mixGroup)
@@ -127,7 +127,7 @@ public sealed class SoundEventPlayer : IDisposable
             return 1f;
         }
 
-        return MixGroupVolumes.TryGetValue(mixGroup, out var volume) ? volume : DefaultMixGroupVolume;
+        return MixGroupVolume.TryGetValue(mixGroup, out var volume) ? volume : DefaultMixGroupVolume;
     }
 
     /// <summary>Creates a sound event player. Takes ownership of <paramref name="device"/> and starts the mixing thread immediately.</summary>

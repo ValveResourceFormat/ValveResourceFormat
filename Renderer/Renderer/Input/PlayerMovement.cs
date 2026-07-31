@@ -83,9 +83,9 @@ public class PlayerMovement
     // physics traces do not return surface materials yet, so default to concrete.
     private const string FootstepSoundEvent = "CT_Concrete.StepLeft";
     private const string JumpSoundEvent = "Default.WalkJump";
-    private const string LandSoundEvent = "Land_Concrete.StepLeft";     // Chains Land.Thud as a child event
+    private const string LandSoundEvent = "Land_Concrete.StepLeft";
     private const string GearSoundEvent = "Gear.JumpLand.CT";
-    private const float GearVolume = 0.1f;                              // Gear events have volume 0 in data, the game supplies it
+    private const float GearVolume = 0.1f;
     private const string FallDamageSoundEvent = "Player.DamageFall";
 
     private static readonly string[] MovementSounds = [
@@ -321,7 +321,6 @@ public class PlayerMovement
 
                 if (!willBunnyHop)
                 {
-                    // Like CS:GO CheckFalling
                     PlaySound(LandSoundEvent, position, playerHull);
                     PlaySound(GearSoundEvent, position, playerHull, GearVolume);
                 }
@@ -742,13 +741,9 @@ public class PlayerMovement
         Velocity = new Vector3(Velocity.X, Velocity.Y, Velocity.Z - GravityValue * deltaTime * 0.5f);
     }
 
-    /// <summary>
-    /// Plays footstep sounds periodically based on ground speed, like CS: an immediate step when
-    /// starting to move, then a cadence that speeds up with movement speed.
-    /// </summary>
+    /// <summary>Plays footstep sounds periodically based on ground speed.</summary>
     private void UpdateStepSounds(Vector3 position, AABB playerHull, float deltaTime)
     {
-        // CCSPlayer::UpdateStepSound gate: no footsteps below walk speed or while shift-walking
         var speedSqr = Velocity.LengthSquared();
         var walkSpeed = MaxSpeedValue * WalkSpeedModifier; // CS_PLAYER_SPEED_RUN * CS_PLAYER_SPEED_WALK_MODIFIER
 

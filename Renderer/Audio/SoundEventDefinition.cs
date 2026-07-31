@@ -5,12 +5,8 @@ using ValveResourceFormat.Serialization.KeyValues;
 namespace ValveResourceFormat.Renderer.Audio;
 
 /// <summary>
-/// A sound event definition with its properties parsed out of the key-values once, on first play,
-/// since reading a property off a <see cref="KVObject"/> allocates or boxes on every access.
+/// A sound event definition with its properties parsed out of the key-values once.
 /// Also carries mutable per-event playback state (last picked track, last play time).
-/// Only holds properties genuinely shared across event types (same key name and meaning in every game's
-/// schema) plus properties the base <see cref="SoundEvent"/>/<see cref="SoundEventPlayer"/> machinery itself
-/// reads directly - everything else belongs on the type that understands it (e.g. <see cref="SoundEventCSGOMega"/>).
 /// </summary>
 public sealed class SoundEventDefinition
 {
@@ -38,7 +34,7 @@ public sealed class SoundEventDefinition
 
     /// <summary>
     /// Gets the base volume, replaced by <see cref="SoundEvent.VolumeOverride"/> when set. Unit depends on the
-    /// event type: CS2 events author this linear (0-1); Deadlock events author it in decibels.
+    /// sub type: CS2 events author this linear (0-1); Deadlock events author it in decibels.
     /// </summary>
     public float Volume { get; }
 
@@ -48,10 +44,10 @@ public sealed class SoundEventDefinition
     /// <summary>Gets the delay in seconds before the sound starts.</summary>
     public float Delay { get; }
 
-    /// <summary>Gets the fade-in length in seconds ("volume_fade_in"), zero to start at full volume.</summary>
+    /// <summary>Gets the fade-in length in seconds, zero to start at full volume.</summary>
     public float FadeIn { get; }
 
-    /// <summary>Gets the stop-fade length in seconds ("volume_fade_out"), zero to use the caller's fallback.</summary>
+    /// <summary>Gets the stop-fade length in seconds, zero to use the caller's fallback.</summary>
     public float FadeOut { get; }
 
     /// <summary>

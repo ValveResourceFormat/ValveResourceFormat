@@ -2,12 +2,7 @@ namespace ValveResourceFormat.Renderer.Audio.Decoders;
 
 /// <summary>
 /// Reusable per-thread scratch buffers for the decode pipeline. Decoding is a byte/float relay race
-/// whose buffers all die as soon as the <see cref="Pcm16ArenaSink"/> has produced the final
-/// cached PCM16 - without reuse, every decode churns multiples of the sound's size in garbage
-/// (dominating profiler captures whenever new sounds stream in). The decode threads are two long-lived
-/// dedicated threads, so a grow-only thread-local buffer serves every decode after its high-water mark
-/// with zero allocation. Oversized requests (rare multi-minute music tracks) are served with one-off
-/// arrays instead, so no thread permanently pins tens of megabytes.
+/// whose buffers all die as soon as the <see cref="Pcm16ArenaSink"/> has produced the final cached PCM16.
 /// </summary>
 internal static class DecodeScratch
 {

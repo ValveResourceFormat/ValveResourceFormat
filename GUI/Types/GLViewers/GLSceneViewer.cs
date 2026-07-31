@@ -441,17 +441,18 @@ namespace GUI.Types.GLViewers
             soundPlayer.LoadSoundEvents();
             soundPlayer.LoadSoundscapes();
 
-            //const float OcclusionEndMargin = 48f;
-            //soundPlayer.OcclusionTrace = (listener, sound) =>
-            //    Scene.PhysicsWorld?.TraceRay(listener, sound) is { Hit: true } hit
-            //        && Vector3.DistanceSquared(hit.HitPosition, sound) > OcclusionEndMargin * OcclusionEndMargin;
+            // todo: collision filter 'default' and 'blocksound'
+            // const float OcclusionEndMargin = 48f;
+            // soundPlayer.OcclusionTrace = (listener, sound) =>
+            //     Scene.PhysicsWorld?.TraceRay(listener, sound) is { Hit: true } hit
+            //         && Vector3.DistanceSquared(hit.HitPosition, sound) > OcclusionEndMargin * OcclusionEndMargin;
 
             soundPlayer.Suspended = true; // start with fade-in
             soundPlayer.Volume = Settings.Config.Volume;
-            soundPlayer.MixGroupVolumes["Weapons"] = 0.7f;
-            soundPlayer.MixGroupVolumes["Foley"] = 0.5f;
-            soundPlayer.MixGroupVolumes["Footsteps"] = 0.4f;
-            soundPlayer.MixGroupVolumes["PlayerDamage"] = 0.4f;
+            soundPlayer.MixGroupVolume["Weapons"] = 0.7f;
+            soundPlayer.MixGroupVolume["Foley"] = 0.5f;
+            soundPlayer.MixGroupVolume["Footsteps"] = 0.4f;
+            soundPlayer.MixGroupVolume["PlayerDamage"] = 0.4f;
             soundPlayer.DefaultMixGroupVolume = 0.1f;
         }
 

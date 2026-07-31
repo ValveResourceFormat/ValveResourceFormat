@@ -52,11 +52,7 @@ namespace ValveResourceFormat.Renderer
 
         /// <summary>
         /// Optional resolver from an attachment/bone name to a world position, used to place the sounds of
-        /// animation events (an empty name means the model's own position). The owning scene node knows how
-        /// to turn a name into a world transform - and holds the actual world transform, unlike
-        /// <see cref="Transform"/> here, which is not the world transform (it is applied while computing bone
-        /// poses, and re-applying it there would double-transform) - so it wires this up. Sounds play
-        /// unspatialized when unset.
+        /// animation events. TODO: rework this.
         /// </summary>
         public Func<string, Vector3?>? ResolvePosition
         {

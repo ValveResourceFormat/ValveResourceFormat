@@ -5,9 +5,8 @@ using ValveResourceFormat.Serialization.KeyValues;
 namespace ValveResourceFormat.Renderer.Audio;
 
 /// <summary>
-/// Shared parsing helpers for classic soundscape script operators ("playrandom", "playlooping"): the
-/// old KeyValues1 format authors ranges as a single "min, max" string and named sound levels
-/// ("SNDLVL_140db") instead of the KV3 vsndevt schema's separate min/max keys and raw floats.
+/// Shared parsing helpers for Source 1 soundscape script operators ("playrandom", "playlooping"): the
+/// old KeyValues1 format authors ranges as a single "min, max" string and named sound levels ("SNDLVL_140db").
 /// </summary>
 internal static class SoundscapeOperatorParsing
 {
@@ -80,8 +79,7 @@ internal static class SoundscapeOperatorParsing
     }
 
     /// <summary>
-    /// Collects every "wave" entry under a "rndwave" sub-block (repeated sibling keys, not a KV3 array),
-    /// or an empty list when there is no rndwave block.
+    /// Collects every "wave" entry under a "rndwave" sub-block, or an empty list when there is no rndwave block.
     /// </summary>
     public static string[] GetRandomWaveFiles(KVObject data)
     {
@@ -111,9 +109,7 @@ internal static class SoundscapeOperatorParsing
     /// <summary>
     /// Converts a "soundlevel" token ("SNDLVL_140db", a named constant like "SNDLVL_NORM", or a bare
     /// number) into an approximate audible range in world units, or <paramref name="fallbackRange"/> when
-    /// missing or unrecognized. This is a rough heuristic (6 dB falloff per doubling of distance from a
-    /// "normal conversation" reference), not the engine's real attenuation curve - just enough that a
-    /// gunfire-level entry carries further than a quiet drip.
+    /// missing or unrecognized. This is a rough heuristic (6 dB falloff per doubling of distance from a "normal conversation" reference).
     /// </summary>
     public static float SoundLevelToRange(string? token, float fallbackRange)
     {

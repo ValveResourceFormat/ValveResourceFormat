@@ -414,11 +414,7 @@ public abstract class SoundEvent
         return sampleProvider;
     }
 
-    /// <summary>
-    /// Gets the definition's pitch with an authored random offset applied ("pitch_rand_*" in hlvr,
-    /// "pitch_random_*" in csgo_mega - same meaning, different key names), clamped to a playback rate
-    /// the resampler can actually hold.
-    /// </summary>
+    /// <summary>Gets the definition's pitch with an authored random offset applied.</summary>
     private protected float GetRandomizedPitch(float randomMin, float randomMax)
     {
         var pitch = Definition.Pitch;
@@ -431,11 +427,7 @@ public abstract class SoundEvent
         return Math.Clamp(pitch, 0.25f, 4f);
     }
 
-    /// <summary>
-    /// Gets the volume this play starts at: the caller's override or the definition's own volume (events
-    /// like Gear.JumpLand.CT author 0.0 and expect game code to pass one), plus an authored random
-    /// offset, scaled by the event's mix group.
-    /// </summary>
+    /// <summary>Gets the volume this play starts at: the caller's override or the definition's own volume.</summary>
     private protected float GetRandomizedVolume(float randomMin, float randomMax, string mixGroup)
     {
         var volume = VolumeOverride ?? Definition.Volume;

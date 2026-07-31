@@ -28,7 +28,6 @@ internal sealed class SoundEventHLVRAmbientMultiVsnd : SoundEvent
     private readonly string mixGroup;
     private readonly float falloffMin;
     private readonly float falloffMax;
-    // Cached once: a lambda in DoStart would allocate a closure per start
     private readonly Action<SoundEvent, int> applyLayer;
     private float startBaseVolume;
 
@@ -102,10 +101,12 @@ internal sealed class SoundEventHLVRAmbientMultiVsnd : SoundEvent
 
         for (var i = 0; i < layers.Length; i++)
         {
-            var wrapper = new KVObject();
-            wrapper.Add("type", "hlvr_default_3d");
-            wrapper.Add("vsnd_files", layers[i].File);
-            wrapper.Add("delay", delay);
+            var wrapper = new KVObject
+            {
+                { "type", "hlvr_default_3d" },
+                { "vsnd_files", layers[i].File },
+                { "delay", delay }
+            };
 
             if (falloffMax > 0f)
             {

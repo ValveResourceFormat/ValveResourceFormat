@@ -4,12 +4,7 @@ namespace ValveResourceFormat.Renderer.Audio.Decoders;
 
 /// <summary>
 /// A reusable <see cref="IMpegFrame"/> that walks MP3 frames directly over a byte buffer, replacing
-/// NLayer's stream-based <c>MpegFile</c>/<c>MpegStreamReader</c> front end. Those allocate a reader,
-/// a frame decoder (with its large layer-III tables) and per-frame objects on every file; this walker
-/// and the <see cref="NLayer.MpegFrameDecoder"/> it feeds are both kept per decode thread and rebound
-/// per file, so MP3 decoding allocates nothing at steady state. Bit-reading semantics mirror NLayer's
-/// own <c>MpegFrame</c> (cursor starts after the 4-byte header plus 2 CRC bytes when present; CRC is
-/// not validated).
+/// NLayer's stream-based <c>MpegFile</c>/<c>MpegStreamReader</c> front end.
 /// </summary>
 internal sealed class MpegFrameWalker : IMpegFrame
 {

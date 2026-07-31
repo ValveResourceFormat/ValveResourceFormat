@@ -240,21 +240,17 @@ public class ViewmodelSceneNode : ModelSceneNode
         }
     }
 
-    // Attack sounds. In the game these come from weapons.vdata (m_aShootSounds) and knife weapon code;
-    // our two guns are silenced, so they use their WEAPON_SOUND_SPECIAL1 entries. Played unspatialized,
-    // head-relative, like the game presents your own gunfire.
+    // Attack sounds. In the game these come from weapons.vdata (m_aShootSounds).
     private const string RifleAttackSound = "Weapon_M4A1.Silenced";      // weapon_m4a1_silencer
     private const string PistolAttackSound = "Weapon_USP.SilencedShot";  // weapon_usp_silencer
-    // Tamer than authored: the shot samples are hot, heavily compressed recordings, and the knife wall
-    // hit is authored at 1.0 because it is a map-audible gameplay cue.
     private const float AttackSoundVolume = 0.5f;
     private const string KnifeSlashSound = "Weapon_Knife.Slash";
     private const string KnifeHeavySwishSound = "Weapon_Knife.Swish.Heavy";
     private const string KnifeHitWallSound = "Weapon_Knife.HitWall";
-    private const float KnifeLightRange = 48f; // cs_weapon_knife.cpp: slash (primary) reaches further
-    private const float KnifeHeavyRange = 32f; // than the stab (secondary)
+    private const float KnifeLightRange = 48f;
+    private const float KnifeHeavyRange = 32f;
 
-    // CKnife::Swing retries a missed line trace with a swept "head hull", making the swipe radial
+    // Retry a missed line trace with a swept "head hull", making the swipe radial
     private static readonly AABB KnifeSwingHull = AABB.FromCenteredSize(new Vector3(32f, 32f, 36f));
 
     private static readonly string[] AttackSounds = [
@@ -859,7 +855,6 @@ public class ViewmodelSceneNode : ModelSceneNode
         {
             SetState(AnimationState.AlternateAttack);
 
-            // Rifle/pistol alternate attack is the silencer detach, its sounds come from the clip
             if (SelectedItemIndex == 3)
             {
                 PlayAttackSound(input, heavyKnifeAttack: true);

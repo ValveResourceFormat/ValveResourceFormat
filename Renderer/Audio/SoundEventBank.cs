@@ -7,10 +7,8 @@ namespace ValveResourceFormat.Renderer.Audio;
 public sealed class SoundEventBank
 {
     // Sound event names are hashed case-insensitively by the engine (see StringToken), match that here.
-    // Pre-sized for a full game's worth of events (HLA ~12k, CS2 ~21k) so the load-time fill doesn't
-    // leave a chain of ever-doubling discarded Entry[] arrays behind.
-    private readonly Dictionary<string, KVObject> soundEvents = new(capacity: 24593, StringComparer.OrdinalIgnoreCase);
-    private readonly Dictionary<string, SoundEventDefinition> definitions = new(capacity: 1024, StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<string, KVObject> soundEvents = new(capacity: 32768, StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<string, SoundEventDefinition> definitions = new(capacity: 2048, StringComparer.OrdinalIgnoreCase);
 
     /// <summary>Gets the number of loaded sound event definitions.</summary>
     public int Count => soundEvents.Count;
@@ -52,10 +50,8 @@ public sealed class SoundEventBank
     }
 
     /// <summary>
-    /// Resolves the "base" inheritance chain: most events (e.g. CT_Concrete.StepLeft) only override a few
-    /// properties of a base event (e.g. Base.Footstep) which carries the type and the rest of the data.
-    /// A base is either a single event name, or (citadel) an array of shared fragments referenced by
-    /// "event_name" - a falloff curve, a mix send - each contributing only the fields the event lacks.
+    /// Resolves the "base" inheritance chain. A base is either a single event name, or an array
+    /// of shared fragments referenced by "event_name" - a falloff curve, a mix send - each contributing only the fields the event lacks.
     /// The merged result replaces the stored definition, so resolution happens once per event.
     /// </summary>
     private KVObject ResolveBase(string name, KVObject soundEvent, int depth)
