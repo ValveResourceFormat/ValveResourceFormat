@@ -415,17 +415,6 @@ public class PerfStats
         AddLine($"Sound cache:      {counts[(int)Counter.SoundCacheMegabytes]:N0} MB decoded, {counts[(int)Counter.SoundDecodeQueue]:N0} queued to decode", valueColor);
     }
 
-    /// <summary>
-    /// Assigns the sound cache counters. Unlike the render counters these are a snapshot of another
-    /// subsystem rather than work tallied during the frame, so they are set rather than accumulated.
-    /// </summary>
-    /// <param name="cachedMegabytes">Decoded audio currently held, in megabytes.</param>
-    /// <param name="pendingDecodes">Sounds still queued to decode.</param>
-    public void SetSoundCacheStats(int cachedMegabytes, int pendingDecodes)
-    {
-        counts[(int)Counter.SoundCacheMegabytes] = cachedMegabytes;
-        counts[(int)Counter.SoundDecodeQueue] = pendingDecodes;
-    }
 
     /// <summary>
     /// One line of what binning produced. Counts are per barn light face, the unit the binner works in,

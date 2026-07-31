@@ -1,4 +1,3 @@
-using System.Globalization;
 using System.Diagnostics;
 using System.Drawing;
 using System.Linq;
@@ -557,21 +556,6 @@ namespace GUI.Types.GLViewers
                 {
                     soundPlayer.Update(Renderer.Camera);
                 }
-            }
-
-            var perfStats = Renderer.PerfStats;
-
-            if (perfStats.Timings.Capture)
-            {
-                // The mixing thread runs on its own clock, so it is reported rather than timed
-                perfStats.Timings.SetAsyncRow("Sound Mixer", soundPlayer.MixMilliseconds,
-                    soundPlayer.MixDutyCycle.ToString("P0", CultureInfo.InvariantCulture));
-            }
-
-            if (perfStats.Capture)
-            {
-                var cache = soundPlayer.SoundCache;
-                perfStats.SetSoundCacheStats((int)(cache.CachedBytes / (1024 * 1024)), cache.PendingDecodes);
             }
         }
 

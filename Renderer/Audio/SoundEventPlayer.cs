@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Diagnostics;
 using System.IO;
 using System.Threading;
@@ -703,6 +704,27 @@ public sealed class SoundEventPlayer : IDisposable
         Sound.Player = this;
         mixer.Update(camera.Location, camera.Forward);
         UpdateSoundscape(camera.Location);
+        ReportStats();
+    }
+
+    /// <summary>
+    /// Publishes what the audio threads did to the active <see cref="PerfStats"/>. Counted here once a
+    /// frame rather than accumulated as it happens: these are snapshots of state owned by the mixing and
+    /// decode threads, and the counters reset every frame, so one assignment per frame is the whole tally.
+    /// </summary>
+    private void ReportStats()
+    {
+        var perfStats = PerfStats.Active;
+
+        perfStats.Count(Counter.SoundCacheMegabytes, (int)(SoundCache.CachedBytes / (1024 * 1024)));
+        perfStats.Count(Counter.SoundDecodeQueue, SoundCache.PendingDecodes);
+
+        if (perfStats.Timings.Capture)
+        {
+            // The mixing thread runs on its own clock, so it is reported rather than timed
+            perfStats.Timings.SetAsyncRow("Sound Mixing Thread", mixMilliseconds,
+                mixDutyCycle.ToString("P0", CultureInfo.InvariantCulture));
+        }
     }
 
     /// <summary>
