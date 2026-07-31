@@ -229,13 +229,6 @@ public partial class PlayerMovement
             Effects.OnLanded(fallSpeed);
         }
 
-        // StartGravity
-        if (!OnGround)
-        {
-            ApplyHalfGravity(deltaTime);
-            CheckVelocity(ref position);
-        }
-
         var wantsToJump = AutoBunnyHop ? Input.Holding(TrackedKeys.Space) : Input.Pressed(TrackedKeys.Space);
         wantsToJump = wantsToJump || Input.Holding(TrackedKeys.MouseWheelDown) || Input.Holding(TrackedKeys.MouseWheelUp);
 
@@ -245,12 +238,12 @@ public partial class PlayerMovement
             {
                 PreventBunnyJumping();
             }
-            CheckJump(deltaTime);
+            CheckJump();
         }
 
         var (wishdir, wishspeed) = CalculateWishVelocity(yaw, isWalking);
         var airMoveDelta = Vector3.Zero;
-        var airVelocityChange = Vector3.Zero;
+        var airVelocityDelta = Vector3.Zero;
 
         if (OnGround)
         {
@@ -260,11 +253,18 @@ public partial class PlayerMovement
         }
         else
         {
+            // AirMove produces the frame's whole strafe gain, but it is taken back out of
+            // Velocity and carried as a delta: Velocity stays the velocity at the frame's start,
+            // so every accelerating term - strafe and gravity alike - is handed to the mover the
+            // same way, and the mover always holds the true velocity at the instant it is at.
             var preAirVelocity = Velocity;
             AirMove(wishdir, wishspeed, deltaTime, yawDelta);
+            var strafeGain = Velocity - preAirVelocity;
+            Velocity = preAirVelocity;
 
-            // Horizontal strafe gain accrues across the frame, so integrate it as the
-            // trapezoid; Z keeps Velocity * dt, the half-gravity leapfrog's exact midpoint.
+            airVelocityDelta = strafeGain - new Vector3(0f, 0f, GravityValue * deltaTime);
+
+            // The frame's displacement if nothing is in the way: (v + dv/2) * dt.
             //
             // Z is exact — gravity is constant, so the midpoint velocity is the frame's average —
             // but XY is not: the strafe velocity follows TicklessAirStrafe's regime machine, not a
@@ -273,24 +273,14 @@ public partial class PlayerMovement
             // today because no test measures air *distance*; the air tests check end speed, and
             // the overhang test uses no movement input so it only exercises the exact Z term. An
             // exact form here means integrating that state machine across its regime transitions.
-            airMoveDelta = new Vector3(
-                (preAirVelocity.X + Velocity.X) * 0.5f,
-                (preAirVelocity.Y + Velocity.Y) * 0.5f,
-                Velocity.Z) * deltaTime;
-
-            // What the frame's acceleration adds in total: the strafe gain AirMove just produced,
-            // and gravity's full step (only half of which is in Velocity right now)
-            airVelocityChange = new Vector3(
-                Velocity.X - preAirVelocity.X,
-                Velocity.Y - preAirVelocity.Y,
-                -GravityValue * deltaTime);
+            airMoveDelta = TrapezoidDisplacement(Velocity, Velocity + airVelocityDelta, deltaTime);
         }
 
         CheckVelocity(ref position);
 
-        // Falling continued through StartGravity; keep the freshest impact speed for the
-        // landing that the move below may produce
-        fallSpeed = MathF.Max(fallSpeed, -Velocity.Z);
+        // Gravity is applied inside the move now, so the freshest impact speed for a landing the
+        // move below may produce is the frame's midpoint - the average the trapezoid sweeps
+        fallSpeed = MathF.Max(fallSpeed, -(Velocity.Z + (airVelocityDelta.Z * 0.5f)));
 
         // Ground movement integrates and sweeps together with step support; in the air there
         // is nothing to step off, so the constant-velocity slide runs on the precomputed delta
@@ -298,9 +288,7 @@ public partial class PlayerMovement
 
         position = OnGround
             ? GroundMove(position, wishdir, wishspeed, deltaTime, isDucking, isWalking, playerHull)
-            // AirMove has already applied the whole strafe gain to Velocity (reference 1), while
-            // gravity sits at its leapfrog midpoint (reference 1/2)
-            : TryPlayerMove(position, airMoveDelta, playerHull, airVelocityChange, new Vector3(1f, 1f, 0.5f), wishdir, wishspeed, deltaTime);
+            : TryPlayerMove(position, airVelocityDelta, deltaTime, playerHull, wishdir, wishspeed);
 
         if (OnGround)
         {
@@ -313,13 +301,6 @@ public partial class PlayerMovement
 
         CategorizePosition(ref position, playerHull);
         CheckVelocity(ref position);
-
-        // FinishGravity
-        if (!OnGround)
-        {
-            ApplyHalfGravity(deltaTime);
-            CheckVelocity(ref position);
-        }
 
         CheckStuck(ref position, playerHull);
 
@@ -359,14 +340,6 @@ public partial class PlayerMovement
             Velocity = Vector3.Zero;
             Effects.ClearStepOffset(); // deliberate teleport, nothing to glide
         }
-    }
-
-    /// <summary>
-    /// Half-step gravity (Source's StartGravity/FinishGravity leapfrog).
-    /// </summary>
-    private void ApplyHalfGravity(float deltaTime)
-    {
-        Velocity = new Vector3(Velocity.X, Velocity.Y, Velocity.Z - GravityValue * deltaTime * 0.5f);
     }
 
     private void ZeroVerticalVelocity()
@@ -648,91 +621,72 @@ public partial class PlayerMovement
 
     /// <summary>
     /// Perform swept AABB collision detection for player movement with multi-bounce sliding.
-    /// <paramref name="frameVelocityChange"/> is the total velocity the frame's acceleration adds
-    /// (gravity on Z, air acceleration on XY; zero for ground moves), and
-    /// <paramref name="sweepReference"/> says, per axis, what fraction of the frame the velocity
-    /// the sweep carries corresponds to — 1 for a term already integrated in full, 1/2 for one
-    /// carried at its midpoint like the gravity leapfrog. Together they let an impact clip the
-    /// velocity the player actually had at the moment it hit rather than the one the sweep held
-    /// constant across the whole frame.
+    ///
+    /// The frame is given as a base velocity — <see cref="Velocity"/>, the velocity at the frame's
+    /// start — plus <paramref name="velocityDelta"/>, the total velocity change the frame's
+    /// acceleration produces (gravity, and the air strafe gain the caller took back out of
+    /// Velocity). Each segment sweeps (v + dv/2) * t, the displacement of a velocity that is
+    /// linear in time, which is exactly the model <see cref="DistanceToTimeFraction"/> inverts.
+    ///
+    /// Because <see cref="Velocity"/> is advanced by the acceleration as time is consumed, it is
+    /// always the true velocity at the instant the loop is at: an impact clips the velocity the
+    /// player actually hit with, and nothing has to be un-applied or restored around the clip.
     /// </summary>
-    private Vector3 TryPlayerMove(Vector3 start, Vector3 delta, Vector3 halfExtents, Vector3 frameVelocityChange = default, Vector3 sweepReference = default,
-        Vector3 wishdir = default, float wishspeed = 0f, float deltaTime = 0f)
+    private Vector3 TryPlayerMove(Vector3 start, Vector3 velocityDelta, float deltaTime, Vector3 halfExtents,
+        Vector3 wishdir = default, float wishspeed = 0f)
     {
-        if (delta.LengthSquared() < UntraceableDistanceSquared)
-        {
-            return start;
-        }
-
         const int MaxBumps = 6;
 
         var position = start;
-        var remainingDelta = delta;
-        var remainingDistance = delta.Length();
-        var remainingFraction = 1.0f;
-
-        // Fraction of the frame's time already spent, and how much is left. The sweep is a chord
-        // travelled at constant speed, so a distance fraction is not a time fraction once the
-        // trajectory accelerates along its own direction; these track the time side separately.
-        var timeConsumed = 0f;
-        var remainingTimeFraction = 1.0f;
-        var accelerated = frameVelocityChange != Vector3.Zero;
+        var timeLeft = deltaTime;
 
         // Stop dead if clipping ever turns the velocity against the entry velocity (corner ping-pong)
         var entryVelocity = Velocity;
-
-        // Correction folded in at every exit. Between the offset restore below and the caller's
-        // FinishGravity, the frame applies exactly the un-elapsed share of gravity after a
-        // contact - which is the right amount, but along world -Z. A surface being ridden opposes
-        // gravity's normal component, so that share has to be clipped to it; left unclipped it
-        // drives straight into the surface with nothing to remove it before the frame is sampled,
-        // and the velocity ends up holding a full g*cos(slope)*dt of into-surface speed that
-        // scales with the frame time and is regenerated from scratch every frame.
-        var gravityCorrection = Vector3.Zero;
 
         // Planes hit without making progress; movement must be clipped to parallel all of them
         Span<Vector3> planes = stackalloc Vector3[MaxBumps];
         var planeCount = 0;
 
-        for (var bump = 0; bump < MaxBumps && remainingFraction > 0; bump++)
+        for (var bump = 0; bump < MaxBumps && timeLeft > 0f; bump++)
         {
-            var result = TraceBBox(position, position + remainingDelta, halfExtents);
+            var delta = TrapezoidDisplacement(Velocity, Velocity + velocityDelta, timeLeft);
+
+            if (delta.LengthSquared() < UntraceableDistanceSquared)
+            {
+                break;
+            }
+
+            var distance = delta.Length();
+
+            var result = TraceBBox(position, position + delta, halfExtents);
 
             if (!result.Hit)
             {
-                Velocity += gravityCorrection;
-                return position + remainingDelta;
+                // The sweep proved the whole remaining segment is free, so its acceleration acted
+                // in full, whatever surfaces were met earlier in the frame
+                Velocity += velocityDelta;
+                return position + delta;
             }
 
             // Advance to the hit point (already margin-adjusted by TraceBBox)
-            var fraction = result.Distance / remainingDistance;
+            var fraction = result.Distance / distance;
 
-            // Parabolic-trace approximation: the chord runs at constant speed, but the real
-            // trajectory accelerates along its own direction by dot(acceleration, direction), so
-            // the hit distance was covered in more or less time than the chord implies. Recover
-            // the time fraction before it is used to place the impact inside the frame.
-            var timeFraction = fraction;
+            // The chord runs at constant speed, but the real trajectory accelerates along its own
+            // direction, so the hit distance was covered in more or less time than the chord
+            // implies. Recover the time fraction before it is used to place the impact.
+            var direction = delta / distance;
+            var speedAlongSweep = distance / timeLeft;
+            var timeFraction = speedAlongSweep > NegligibleMoveDistance
+                ? DistanceToTimeFraction(fraction, Vector3.Dot(velocityDelta, direction), speedAlongSweep)
+                : fraction;
 
-            if (accelerated && remainingDistance > 0f)
-            {
-                var direction = remainingDelta / remainingDistance;
-                var speedAlongSweep = Vector3.Dot(Velocity, direction);
-                var speedChangeAlongSweep = Vector3.Dot(frameVelocityChange, direction) * remainingTimeFraction;
-
-                if (speedAlongSweep > NegligibleMoveDistance)
-                {
-                    timeFraction = DistanceToTimeFraction(fraction, speedChangeAlongSweep, speedAlongSweep);
-                }
-            }
-
-            timeConsumed += remainingTimeFraction * timeFraction;
-            remainingTimeFraction *= 1f - timeFraction;
+            var elapsed = timeFraction * timeLeft;
 
             position = result.HitPosition;
-            remainingFraction *= 1f - fraction;
 
-            // Consume the traveled portion of the move budget (Source: time_left -= time_left * fraction)
-            remainingDelta *= 1f - fraction;
+            // Carry the velocity forward to the moment of impact
+            Velocity += velocityDelta * timeFraction;
+            timeLeft -= elapsed;
 
             // Progress invalidates the accumulated planes
             if (fraction > 0)
@@ -745,128 +699,91 @@ public partial class PlayerMovement
                 && new Vector2(Velocity.X, Velocity.Y).LengthSquared() < 1f)
             {
                 Velocity = Vector3.Zero;
-                gravityCorrection = Vector3.Zero;
-                break;
+                return position;
             }
 
-            planes[planeCount++] = result.HitNormal;
+            // Re-contacting a surface already in the set teaches the clip nothing, so it must not
+            // consume a slot. Matches the GroundMove guard.
+            var newPlane = !ContainsPlane(planes[..planeCount], result.HitNormal);
 
-            // The sweep carries one velocity for the whole frame, but the impact happens at this
-            // fraction of it. Per axis the difference is the frame's velocity change times how far
-            // the impact is from the fraction that axis' carried value represents. Undo it so the
-            // clip deflects the real impact velocity, then put it back afterwards so the caller's
-            // remaining integration (FinishGravity's half step) still completes the frame. The
-            // offset is relative, so it stays valid across bumps: each one is restored before the
-            // next is computed.
-            var offset = accelerated
-                ? frameVelocityChange * (new Vector3(timeConsumed) - sweepReference)
-                : Vector3.Zero;
+            if (newPlane)
+            {
+                planes[planeCount++] = result.HitNormal;
+            }
 
-            Velocity += offset;
+            // ClipToPlanes also clips a delta; this one is spent, so it takes a scratch copy
+            var clippedDelta = delta;
 
             // The reversal guard only applies to a genuinely moving player, and only to a real
             // reversal. A corner clip commonly leaves the velocity perpendicular to the way the
             // frame entered, where an equality test fires and zeroes everything - including the Z
             // that the jump is riding on, so the player hangs at the apex and twitches as the
             // next frame re-accelerates into the same trap. Matches the GroundMove guard.
-            if (!ClipToPlanes(planes[..planeCount], ref remainingDelta, out var velocity, out var clipNormalZ)
+            if (!ClipToPlanes(planes[..planeCount], ref clippedDelta, out var velocity, out var clipNormalZ)
                 || (entryVelocity.LengthSquared() > 1f && Vector3.Dot(velocity, entryVelocity) < 0f))
             {
                 // Trapped by three or more planes, or clipping reversed the move
                 Velocity = Vector3.Zero;
-                gravityCorrection = Vector3.Zero;
-                break;
+                return position;
             }
 
-            // Restore only gravity's carried share (offset is XY-strafe / Z-gravity by
-            // construction, since the up-front strafe gain is horizontal and sits at reference 1
-            // while gravity sits at its leapfrog midpoint). The strafe share is deliberately NOT
-            // put back: the frame's remaining time is re-accelerated below against the surfaces
-            // just found, so restoring it here would apply the wish twice.
-            Velocity = velocity - offset;
+            Velocity = velocity;
             SlopeClipNormalZ = clipNormalZ;
 
-            // Recomputed rather than accumulated: each contact supersedes the last, so the
-            // correction always describes the share of gravity left after the most recent one.
-            if (deltaTime > 0f && planeCount > 0)
+            // Rebuild the acceleration for the rest of the frame against the surfaces now known.
+            // The strafe half is re-aimed along them, so none of it is spent pushing into a ramp
+            // only for the next sweep to strip it again - that is what made the addspeed gate
+            // saturate at a framerate-dependent value. Recomputed rather than accumulated: each
+            // contact supersedes the last, so this always describes what is left after the most
+            // recent one.
+            if (timeLeft > 0f && planeCount > 0)
             {
-                var remainingGravity = new Vector3(0f, 0f, -GravityValue * deltaTime * remainingTimeFraction);
+                velocityDelta = ClipAcceleration(new Vector3(0f, 0f, -GravityValue * timeLeft), planes[..planeCount]);
 
-                // Only a surface gravity is actually driving into can oppose it. ClipWishVelocity
-                // clips unconditionally, matching ClipToPlanes, which is right there because those
-                // planes were just driven into - but gravity is a different vector and need not
-                // be. An overhang the player is bouncing away from would otherwise still have
-                // gravity's component stripped, leaving them drifting along the underside.
-                var drivesIn = false;
-
-                foreach (var plane in planes[..planeCount])
-                {
-                    if (Vector3.Dot(remainingGravity, plane) < 0f)
-                    {
-                        drivesIn = true;
-                        break;
-                    }
-                }
-
-                gravityCorrection = Vector3.Zero;
-
-                if (drivesIn)
-                {
-                    var clippedGravity = ClipWishVelocity(remainingGravity, planes[..planeCount], onGround: false, out var gravityResolved);
-
-                    // Unresolved means the fallback zero, not "gravity clips to nothing". Treating
-                    // it as an answer would subtract the whole remaining gravity and leave the
-                    // player hovering; a genuinely trapped move is already stopped dead above.
-                    gravityCorrection = gravityResolved ? clippedGravity - remainingGravity : Vector3.Zero;
-                }
-            }
-
-            // Re-accelerate along the surface for the time still left in the frame, using the
-            // planes accumulated so far. This is the whole point of clipping: the gate now
-            // measures a direction the player can actually pursue, so it saturates at the same
-            // place no matter how the frame boundaries fall.
-            var segTime = remainingTimeFraction * deltaTime;
-
-            if (segTime > 0f && planeCount > 0)
-            {
-                // Hand the rest of the frame's strafe over to the clipped form. AirMove applied
-                // its gain unclipped across the whole frame, so drop the share that has not
-                // elapsed yet - once. It then has to leave frameVelocityChange, because it is no
-                // longer a pending reference-1 term: left in, every later bump subtracts it again
-                // through its own offset, and a corner (several bumps in one frame) accumulates
-                // that into a large velocity opposite the wish that throws the player back out.
-                var pendingStrafe = new Vector3(frameVelocityChange.X, frameVelocityChange.Y, 0f) * remainingTimeFraction;
-
-                if (pendingStrafe != Vector3.Zero)
-                {
-                    Velocity -= pendingStrafe;
-                    frameVelocityChange = new Vector3(0f, 0f, frameVelocityChange.Z);
-                    accelerated = frameVelocityChange != Vector3.Zero;
-                }
-
-                if (wishspeed > 0f)
-                {
-                    var gain = AirAccelerateClipped(Velocity, wishdir, wishspeed, segTime, planes[..planeCount]);
-
-                    Velocity += gain;
-
-                    // Trapezoid over the segment, matching how the up-front strafe gain is integrated
-                    remainingDelta += gain * (0.5f * segTime);
-                }
+                var strafe = wishspeed > 0f
+                    ? AirAccelerateClipped(Velocity + velocityDelta, wishdir, wishspeed, timeLeft, planes[..planeCount]) / timeLeft
+                    : Vector3.Zero;
             }
 
             CheckVelocity(ref position);
 
-            remainingDistance = remainingDelta.Length();
-            if (remainingDistance <= NegligibleMoveDistance)
+            // A repeated flush contact neither advanced nor learned anything, and repeating it
+            // would only burn the bump budget: the move is as constrained as it is going to get
+            if (!newPlane && timeFraction <= 0f)
             {
                 break;
             }
         }
 
-        Velocity += gravityCorrection;
+        // Time the sweep never got to spend - a flush contact, an exhausted bump budget, a
+        // segment too short to trace. Its acceleration is already clipped to the surfaces being
+        // ridden, so applying it here does not drive into them.
+        Velocity += velocityDelta;
 
         return position;
+    }
+
+    /// <summary>
+    /// The part of an acceleration a player in contact with <paramref name="planes"/> can actually
+    /// take on. Only a surface the acceleration drives into can oppose it: <see cref="ClipToPlanes"/>
+    /// clips unconditionally, which is right for a velocity that was just driven into those planes,
+    /// but an overhang the player is bouncing away from must not have gravity's component stripped
+    /// or they drift along its underside. An unresolved clip (no direction satisfies every plane)
+    /// leaves the term alone rather than cancelling it, which would leave the player hovering; a
+    /// genuinely trapped move is stopped dead by the caller instead.
+    /// </summary>
+    private static Vector3 ClipAcceleration(Vector3 acceleration, ReadOnlySpan<Vector3> planes)
+    {
+        foreach (var plane in planes)
+        {
+            if (Vector3.Dot(acceleration, plane) < 0f)
+            {
+                var clipped = ClipWishVelocity(acceleration, planes, onGround: false, out var resolved);
+                return resolved ? clipped : acceleration;
+            }
+        }
+
+        return acceleration;
     }
 
     /// <summary>
@@ -1375,16 +1292,20 @@ public partial class PlayerMovement
     /// Handle jump input - applies upward impulse
     /// Ported from cs_gamemovement.cpp CheckJumpButton()
     /// </summary>
-    private void CheckJump(float deltaTime)
+    /// <remarks>
+    /// The impulse is a discrete change to the velocity itself and nothing more. Clearing
+    /// <see cref="OnGround"/> routes the rest of the frame down the air path, which puts this
+    /// timestep's gravity into the frame's velocity delta like any other airborne frame - so the
+    /// jump frame travels (v_impulse - g*dt/2) * dt and ends at v_impulse - g*dt, exactly what
+    /// Source's post-jump FinishGravity half-step used to produce.
+    /// </remarks>
+    private void CheckJump()
     {
         OnGround = false;
 
         // Jump impulse scales by stamina as in CS: drained stamina makes successive jumps lower
         Velocity = new Vector3(Velocity.X, Velocity.Y, JumpImpulseValue * Stamina);
         SlopeClipNormalZ = 1f; // jump impulse is genuine vertical velocity
-
-        // FinishGravity is called after jump in Source
-        ApplyHalfGravity(deltaTime);
     }
 
     /// <summary>
@@ -1681,6 +1602,7 @@ public partial class PlayerMovement
     /// The gain per unit time is capped at what the emulated tick would deliver: a discrete engine
     /// closes at most the whole remaining addspeed once per tick, so a continuous form that is not
     /// bounded the same way out-accelerates the reference engine as the frame time shrinks.
+    /// TODO for refactor: This should be rewritten
     /// </summary>
     private Vector3 AirAccelerateClipped(Vector3 velocity, Vector3 wishdir, float wishspeed, float segTime, ReadOnlySpan<Vector3> planes)
     {
@@ -1688,6 +1610,7 @@ public partial class PlayerMovement
 
         // Note: the accel rate uses the original wishspeed, NOT the capped value
         var accelRate = AirAccelerateValue * wishspeed * SurfaceFriction;
+        
 
         // Deliberately not renormalised: the length is how much of the wish is achievable, and
         // both the budget scaling and the applied gain are defined in terms of it
