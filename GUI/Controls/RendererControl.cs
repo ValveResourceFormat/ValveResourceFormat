@@ -150,6 +150,164 @@ partial class RendererControl : UserControl
         return checkbox.CheckBox;
     }
 
+    /// <summary>
+    /// Adds a checkbox (for persistent toggles) alongside a momentary "Signal" button (for one-shot
+    /// triggers). The checkbox writes its state via <paramref name="changeCallback"/>; the button invokes
+    /// <paramref name="signalCallback"/>, which pulses the value true for a single graph update.
+    /// </summary>
+    public CheckBox AddCheckBoxWithSignal(string name, bool defaultChecked, Action<bool> changeCallback, Action signalCallback)
+    {
+        var flowPanel = new FlowLayoutPanel
+        {
+            AutoSize = true,
+            FlowDirection = FlowDirection.LeftToRight,
+            WrapContents = false,
+            Dock = DockStyle.Top,
+            Margin = new Padding(0, 0, 0, 0),
+        };
+
+        var checkbox = CreateCheckBox(name, defaultChecked, changeCallback);
+
+        var signalButton = new ThemedButton
+        {
+            Text = "Signal",
+            AutoSize = true,
+            Margin = new Padding(0, 0, 0, 0),
+        };
+        signalButton.Click += (_, __) => signalCallback();
+
+        flowPanel.Controls.Add(checkbox);
+        flowPanel.Controls.Add(signalButton);
+        ControlsPanel.Controls.Add(flowPanel);
+        SetControlLocation(flowPanel);
+
+        return checkbox.CheckBox;
+    }
+
+    /// <summary>
+    /// Adds an editor for a target (transform) parameter: a position (X/Y/Z) and a rotation
+    /// (Yaw/Pitch/Roll, in degrees). The callback receives the six components whenever any field changes.
+    /// </summary>
+    public void AddTargetParameter(string name, Action<float[]> changeCallback)
+    {
+        var label = new Label
+        {
+            Text = name,
+            AutoSize = true,
+            Dock = DockStyle.Top,
+            Margin = new Padding(0, 4, 0, 0),
+        };
+        ControlsPanel.Controls.Add(label);
+        SetControlLocation(label);
+
+        var flowPanel = new FlowLayoutPanel
+        {
+            AutoSize = true,
+            FlowDirection = FlowDirection.LeftToRight,
+            WrapContents = true,
+            Dock = DockStyle.Top,
+            Margin = new Padding(0, 0, 0, 0),
+        };
+
+        string[] fieldLabels = ["X", "Y", "Z", "Yaw", "Pitch", "Roll"];
+        var fields = new ThemedFloatNumeric[6];
+
+        for (var i = 0; i < fields.Length; i++)
+        {
+            flowPanel.Controls.Add(new Label
+            {
+                Text = fieldLabels[i],
+                AutoSize = true,
+                TextAlign = ContentAlignment.MiddleLeft,
+                Margin = new Padding(i == 0 ? 0 : 6, 4, 2, 0),
+            });
+
+            var field = new ThemedFloatNumeric
+            {
+                MinValue = float.MinValue,
+                MaxValue = float.MaxValue,
+                DecimalMax = 3,
+                DragWithinRange = false,
+                Value = 0f,
+                Margin = new Padding(0, 0, 0, 0),
+                Size = new Size(48, 20),
+            };
+
+            field.ValueChanged += (_, __) => changeCallback([.. fields.Select(f => f.Value)]);
+            fields[i] = field;
+            flowPanel.Controls.Add(field);
+        }
+
+        ControlsPanel.Controls.Add(flowPanel);
+        SetControlLocation(flowPanel);
+    }
+
+    public ThemedFloatNumeric AddNumericField(string name, float startingValue, Action<float> changeCallback)
+    {
+        // Use FlowLayoutPanel for horizontal layout
+        var flowPanel = new FlowLayoutPanel
+        {
+            AutoSize = true,
+            FlowDirection = FlowDirection.LeftToRight,
+            WrapContents = false,
+            Dock = DockStyle.Top,
+            Margin = new Padding(0, 0, 0, 0),
+        };
+
+        var label = new Label
+        {
+            Text = name,
+            AutoSize = true,
+            TextAlign = ContentAlignment.MiddleLeft,
+            Margin = new Padding(0, 0, 8, 0),
+        };
+
+        var field = new ThemedFloatNumeric
+        {
+            MinValue = float.MinValue,
+            MaxValue = float.MaxValue,
+            DecimalMax = 3,
+            DragWithinRange = false,
+            Value = startingValue,
+            Margin = new Padding(0, 0, 0, 0),
+            Size = new Size(40, 20),
+        };
+
+        field.ValueChanged += (s, e) => changeCallback(field.Value);
+
+        flowPanel.Controls.Add(label);
+        flowPanel.Controls.Add(field);
+        ControlsPanel.Controls.Add(flowPanel);
+        SetControlLocation(flowPanel);
+        return field;
+    }
+
+    public Slider AddSlider(string name, float min, float max, float startingValue, Action<float> changeCallback)
+    {
+        var sliderControl = new GLViewerSliderControl();
+        sliderControl.Slider.ValueChanged = changeCallback;
+
+        /*
+        Vector2 range = new(min, max);
+        float Pack(float v) => (v - range.X) / (range.Y - range.X);
+        float Unpack(float s) => s * (range.Y - range.X) + range.X;
+
+        var slider = uiControl.AddTrackBar(val =>
+        {
+            animGraphController.FloatParameters[paramName] = Unpack(val);
+        });
+
+        void SetValue(float v) => slider.Slider.Value = Pack(v);
+        SetValue(value);
+        */
+
+        ControlsPanel.Controls.Add(sliderControl);
+
+        SetControlLocation(sliderControl);
+
+        return sliderControl.Slider;
+    }
+
     public ComboBox AddSelection(string name, Action<string, int> changeCallback, bool horizontal = false, bool fill = false)
     {
         var selectionControl = new GLViewerSelectionControl(name, horizontal, fill);
@@ -310,6 +468,18 @@ partial class RendererControl : UserControl
         panel.Controls.Add(label);
         ControlsPanel.Controls.Add(panel);
         SetControlLocation(panel);
+    }
+
+    public Label AddLabel(string text)
+    {
+        var label = new Label
+        {
+            Text = text,
+            AutoSize = true,
+        };
+        ControlsPanel.Controls.Add(label);
+        SetControlLocation(label);
+        return label;
     }
 
     public void SetMoveSpeed(string text)

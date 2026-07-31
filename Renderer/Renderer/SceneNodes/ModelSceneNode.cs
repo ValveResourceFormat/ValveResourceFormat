@@ -573,6 +573,23 @@ namespace ValveResourceFormat.Renderer.SceneNodes
         }
 
         /// <summary>
+        /// Plays an animation graph on this model, binding the skinning buffers the same way
+        /// <see cref="SetAnimation"/> does. Pass <see langword="null"/> to detach the graph.
+        /// </summary>
+        /// <param name="graph">The animation graph to play, or <see langword="null"/> to detach.</param>
+        public void SetAnimationGraph(AnimationGraph? graph)
+        {
+            SetupBoneMatrixBuffers();
+            AnimationController.SetAnimationGraph(graph);
+            UpdateBoundingBox();
+
+            foreach (var renderer in meshRenderers)
+            {
+                renderer.SetBoneMatricesBuffer(graph != null ? boneMatricesGpu : null);
+            }
+        }
+
+        /// <summary>
         /// Attaches another <see cref="SceneNode"/> to this model with optional attachment point, offset and rotation.
         /// </summary>
         /// <param name="node">The child model to attach.</param>

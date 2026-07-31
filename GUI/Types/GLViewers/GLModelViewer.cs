@@ -12,12 +12,15 @@ using ValveResourceFormat.Renderer.SceneNodes;
 using ValveResourceFormat.Renderer.Utils;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.ResourceTypes.ModelAnimation;
+using ValveResourceFormat.ResourceTypes.ModelAnimation2;
+using ValveResourceFormat.Serialization.KeyValues;
 
 namespace GUI.Types.GLViewers
 {
     class GLModelViewer : GLSingleNodeViewer
     {
         protected Model? model { get; init; }
+        private readonly bool ModelViewerWithAnimGraphSupport;
         private PhysAggregateData? phys;
 
         private readonly List<string?> animationIndexMap = [];
@@ -40,6 +43,7 @@ namespace GUI.Types.GLViewers
         private int statsLod = -1;
         private ModelSceneNode? modelSceneNode;
         protected AnimationController? animationController;
+        protected AnimationGraph? animGraph;
         protected SkeletonSceneNode? skeletonSceneNode;
         private HitboxSetSceneNode? hitboxSetSceneNode;
         private List<ParticleSceneNode> modelParticleNodes = [];
@@ -54,6 +58,7 @@ namespace GUI.Types.GLViewers
         public GLModelViewer(VrfGuiContext vrfGuiContext, RendererContext rendererContext, Model model) : base(vrfGuiContext, rendererContext)
         {
             this.model = model;
+            ModelViewerWithAnimGraphSupport = true;
         }
 
         public GLModelViewer(VrfGuiContext vrfGuiContext, RendererContext rendererContext, PhysAggregateData phys) : base(vrfGuiContext, rendererContext)
@@ -188,6 +193,24 @@ namespace GUI.Types.GLViewers
             if (model != null)
             {
                 modelSceneNode = new ModelSceneNode(Scene, model);
+
+                if (ModelViewerWithAnimGraphSupport)
+                {
+                    // Play the model's first animation graph reference, if it has one.
+                    var animGraph2Refs = model.Data.GetArray("m_animGraph2Refs");
+
+                    if (animGraph2Refs is { Count: > 0 }
+                        && animGraph2Refs[0].GetProperty<string>("m_hGraph") is { } graphName)
+                    {
+                        var animGraphResource = Scene.RendererContext.FileLoader.LoadFileCompiled(graphName);
+                        if (animGraphResource?.DataBlock is NmGraphDefinition graphDefinition)
+                        {
+                            animGraph = new AnimationGraph(graphDefinition, Scene.RendererContext.FileLoader);
+                            modelSceneNode.SetAnimationGraph(animGraph);
+                        }
+                    }
+                }
+
                 animationController = modelSceneNode.AnimationController;
                 Scene.Add(modelSceneNode, true);
 
@@ -315,6 +338,11 @@ namespace GUI.Types.GLViewers
                             particleNode.LayerEnabled = isChecked;
                         }
                     });
+                }
+
+                if (animGraph != null)
+                {
+                    CreateAnimGraphControls(UiControl, animGraph);
                 }
 
                 if (model.HitboxSets != null && model.HitboxSets.Count > 0)
@@ -450,6 +478,65 @@ namespace GUI.Types.GLViewers
             }
 
             base.AddUiControls();
+        }
+
+        private static void CreateAnimGraphControls(RendererControl uiControl, AnimationGraph animGraph)
+        {
+            uiControl.AddDivider();
+            uiControl.AddLabel($"Animation: {animGraph.Name}");
+
+            // Graphs rely on the game re-triggering actions; clamped clips otherwise finish and hold.
+            uiControl.AddCheckBox("Loop clips (non-authentic)", animGraph.ForceLoopingClips, isChecked =>
+            {
+                animGraph.ForceLoopingClips = isChecked;
+            });
+
+            foreach (var (paramName, _) in animGraph.BoolParameters)
+            {
+                uiControl.AddCheckBoxWithSignal(paramName, animGraph.BoolParameters[paramName],
+                    isChecked =>
+                    {
+                        animGraph.BoolParameters[paramName] = isChecked;
+                    },
+                    () =>
+                    {
+                        animGraph.SignalBoolParameter(paramName);
+                    });
+            }
+
+            foreach (var (paramName, value) in animGraph.FloatParameters)
+            {
+                uiControl.AddNumericField(paramName, value, val =>
+                {
+                    animGraph.FloatParameters[paramName] = val;
+                });
+            }
+
+            foreach (var (paramName, value) in animGraph.IdParameters)
+            {
+                var combo = uiControl.AddSelection(paramName, (id, _) =>
+                {
+                    animGraph.IdParameters[paramName] = id;
+                }, horizontal: true);
+
+                combo.Items.AddRange([.. animGraph.GetParameterIdOptions(paramName)]);
+                combo.SelectedIndex = combo.Items.IndexOf(value);
+            }
+
+            foreach (var (paramName, _) in animGraph.TargetParameters)
+            {
+                uiControl.AddTargetParameter(paramName, values =>
+                {
+                    var position = new System.Numerics.Vector3(values[0], values[1], values[2]);
+                    var rotation = System.Numerics.Quaternion.CreateFromYawPitchRoll(
+                        float.DegreesToRadians(values[3]),
+                        float.DegreesToRadians(values[4]),
+                        float.DegreesToRadians(values[5]));
+                    animGraph.TargetParameters[paramName] = new FrameBone(position, 1f, rotation);
+                });
+            }
+
+            uiControl.AddDivider();
         }
 
         protected void SetAnimationControllerUpdateHandler()

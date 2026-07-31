@@ -13,6 +13,7 @@ launchSettings.json
 
 # Visual Studio Code files
 .vscode/
+Renderer/Animation
 *.lscache
 
 # Build results
@@ -224,6 +225,7 @@ Tests/lcov.info
 exceptions*.txt
 /docs/_site/
 /docs/api/
+Misc/SchemaConverter/source2-schema.json
 /docs/.vitepress/dist/
 /docs/.vitepress/cache/
 /docs/.vitepress/temp/

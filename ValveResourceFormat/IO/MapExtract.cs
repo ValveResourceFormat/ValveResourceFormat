@@ -967,7 +967,7 @@ public sealed class MapExtract
                 }
 
                 propStatic.Origin = translation;
-                propStatic.Angles = ModelExtract.ToEulerAngles(rotation);
+                propStatic.Angles = EntityTransformHelper.ToEulerAngles(rotation);
                 propStatic.Scales = scales;
             }
 
@@ -1140,7 +1140,7 @@ public sealed class MapExtract
                     }
 
                     instance.Origin = translation;
-                    var angles = ModelExtract.ToEulerAngles(rotation);
+                    var angles = EntityTransformHelper.ToEulerAngles(rotation);
                     instance.Angles = angles;
                     instance.Scales = scales;
 
