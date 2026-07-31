@@ -1,4 +1,5 @@
 using System.Globalization;
+using ValveKeyValue;
 using ValveResourceFormat.Serialization.KeyValues;
 
 namespace ValveResourceFormat.Renderer.Audio;
@@ -20,7 +21,9 @@ internal sealed class SoundEventHLVRMulti : SoundEvent
     private readonly float randDelayMin;
     private readonly float randDelayMax;
     private readonly bool hasRandomDelay;
-    private float[] childVolumes = [];
+    private readonly string[] childEventNames;
+    // Per-slot "volume_soundevent_NN", parallel to childEventNames, negative where unauthored
+    private readonly float[] childVolumes;
     // Cached once: a method group passed straight to StartChildren would allocate a delegate per start
     private readonly Action<SoundEvent, int>? applyChild;
 
@@ -32,6 +35,11 @@ internal sealed class SoundEventHLVRMulti : SoundEvent
         randDelayMin = data.GetFloatProperty("rand_delay_min");
         randDelayMax = data.GetFloatProperty("rand_delay_max");
         applyChild = ApplyChild;
+
+        // Collected here rather than alongside the bank lookup in ResolveChildren: that one only runs for
+        // whichever instance resolves the shared Definition.ChildDefinitions first, so a second concurrent
+        // instance of the same definition would be left without any per-slot volumes.
+        (childEventNames, childVolumes) = CollectChildren(data);
     }
 
     protected override void DoStart()
@@ -83,9 +91,9 @@ internal sealed class SoundEventHLVRMulti : SoundEvent
         }
     }
 
-    private SoundEventDefinition?[] ResolveChildren()
+    /// <summary>Collects the child event names this definition starts, with their per-slot volumes.</summary>
+    private static (string[] Names, float[] Volumes) CollectChildren(KVObject data)
     {
-        var data = Definition.Data;
         var names = new List<string>();
         var volumes = new List<float>();
 
@@ -137,14 +145,18 @@ internal sealed class SoundEventHLVRMulti : SoundEvent
                 : -1f);
         }
 
-        var definitions = new SoundEventDefinition?[names.Count];
+        return ([.. names], [.. volumes]);
+    }
 
-        for (var i = 0; i < names.Count; i++)
+    private SoundEventDefinition?[] ResolveChildren()
+    {
+        var definitions = new SoundEventDefinition?[childEventNames.Length];
+
+        for (var i = 0; i < childEventNames.Length; i++)
         {
-            definitions[i] = Mixer.Player.Bank.GetSoundEvent(names[i]);
+            definitions[i] = Mixer.Player.Bank.GetSoundEvent(childEventNames[i]);
         }
 
-        childVolumes = [.. volumes];
         return definitions;
     }
 }
