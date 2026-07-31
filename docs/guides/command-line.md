@@ -35,7 +35,7 @@ The binary name is `Source2Viewer-CLI`.
 | `--tools_asset_info_short`   | Whether to print only file paths for tools_asset_info files.                                                                                                    |
 | **Other**                    |                                                                                                                                                                 |
 | `--threads`                  | If higher than 1, files will be processed concurrently.                                                                                                         |
-| `--gameinfo`                 | Path to a `gameinfo.gi` file to load game search paths from. Useful when the input file is not located inside a game folder.                                    |
+| `--game`                     | Path to a `gameinfo.gi` file to load game search paths from. Useful when the input file is not located inside a game folder.                                    |
 | `--version`                  | Show version information.                                                                                                                                       |
 | `--help`                     | Show help information.                                                                                                                                          |
 
