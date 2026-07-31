@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using ValveResourceFormat.ResourceTypes.ModelAnimation2;
+using ValveResourceFormat.Serialization.KeyValues;
 
 namespace ValveResourceFormat.Renderer.AnimLib;
 
@@ -7,6 +8,68 @@ static class EventConditionRulesExtensions
 {
     public static bool IsRuleSet(this BitFlags flags, EventConditionRules rule)
         => flags.IsFlagSet(1u << (int)rule);
+}
+
+/// <summary>Shared helpers for the event-searching value nodes (Esoterica Events.cpp).</summary>
+static class EventSearch
+{
+    /// <summary>
+    /// The events to search: the source state's sampled range when the rules restrict the search,
+    /// otherwise the whole buffer (Esoterica CalculateSearchRange).
+    /// </summary>
+    public static SampledEventRange CalculateSearchRange(GraphContext ctx, StateNode? sourceStateNode, BitFlags rules)
+    {
+        var restrictSearch = sourceStateNode != null && rules.IsRuleSet(EventConditionRules.LimitSearchToSourceState);
+
+        return restrictSearch
+            ? sourceStateNode!.SampledEventRange
+            : new SampledEventRange(0, ctx.SampledEvents.Count);
+    }
+
+    // Esoterica FootEvent::GetSyncEventID, indexed by FootPhase
+    public static readonly GlobalSymbol[] FootPhaseSyncIDs =
+    [
+        new("Left Foot Down"),
+        new("Right Foot Passing"),
+        new("Right Foot Down"),
+        new("Left Foot Passing"),
+        new("None"),
+    ];
+
+    /// <summary>
+    /// Extracts the foot phase from a sampled animation event. CS2 clips have not been observed to
+    /// contain foot events; this reads the raw event data so authored ones would still work.
+    /// </summary>
+    public static bool TryGetFootPhase(in SampledEvent sampledEvent, out FootPhase phase)
+    {
+        phase = FootPhase.None;
+
+        if (sampledEvent.AnimEvent is not { ClassName: "CNmFootEvent" } animEvent)
+        {
+            return false;
+        }
+
+        return Enum.TryParse(animEvent.Data.GetStringProperty("m_phase", string.Empty), out phase);
+    }
+
+    /// <summary>
+    /// Extracts the rule and optional ID from a sampled transition animation event. CS2 clips have
+    /// not been observed to contain transition events; this reads the raw event data so authored
+    /// ones would still work.
+    /// </summary>
+    public static bool TryGetTransitionEvent(in SampledEvent sampledEvent, out TransitionRule rule, out GlobalSymbol optionalID)
+    {
+        rule = TransitionRule.AllowTransition;
+        optionalID = default;
+
+        if (sampledEvent.AnimEvent is not { ClassName: "CNmTransitionEvent" } animEvent)
+        {
+            return false;
+        }
+
+        optionalID = new GlobalSymbol(animEvent.Data.GetStringProperty("m_optionalID", string.Empty));
+        return Enum.TryParse(animEvent.Data.GetStringProperty("m_rule", string.Empty), out rule);
+    }
 }
 
 // The kind of graph event a state or clip emitted (Esoterica GraphEventType)

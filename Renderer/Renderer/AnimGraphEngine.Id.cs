@@ -96,6 +96,171 @@ namespace ValveResourceFormat.Renderer.AnimLib
         }
     }
 
+    // Selects between two ID inputs (or constants) based on a bool input.
+    partial class IDSwitchNode
+    {
+        BoolValueNode SwitchValueNode;
+        IDValueNode? TrueValueNode;
+        IDValueNode? FalseValueNode;
+
+        public override void Initialize(GraphContext ctx)
+        {
+            ctx.SetNodeFromIndex(SwitchValueNodeIdx, ref SwitchValueNode);
+            ctx.SetOptionalNodeFromIndex(TrueValueNodeIdx, ref TrueValueNode);
+            ctx.SetOptionalNodeFromIndex(FalseValueNodeIdx, ref FalseValueNode);
+        }
+
+        protected override GlobalSymbol GetValueInternal(GraphContext ctx)
+        {
+            if (SwitchValueNode.GetValue(ctx))
+            {
+                return TrueValueNode?.GetValue(ctx) ?? TrueValue;
+            }
+
+            return FalseValueNode?.GetValue(ctx) ?? FalseValue;
+        }
+    }
+
+    // Returns the value of the first passing condition, or the default.
+    partial class IDSelectorNode
+    {
+        BoolValueNode[] ConditionNodes;
+
+        public override void Initialize(GraphContext ctx)
+        {
+            ctx.SetNodesFromIndexArray(ConditionNodeIndices, ref ConditionNodes);
+        }
+
+        protected override GlobalSymbol GetValueInternal(GraphContext ctx)
+        {
+            for (var i = 0; i < ConditionNodes.Length; i++)
+            {
+                if (ConditionNodes[i].GetValue(ctx))
+                {
+                    return Values[i];
+                }
+            }
+
+            return DefaultValue;
+        }
+    }
+
+    // Returns the ID of the best matching sampled ID animation event this update, or the default
+    // (Esoterica IDEventNode).
+    partial class IDEventNode
+    {
+        StateNode? SourceStateNode;
+
+        public override void Initialize(GraphContext ctx)
+        {
+            ctx.SetOptionalNodeFromIndex(SourceStateNodeIdx, ref SourceStateNode);
+        }
+
+        protected override GlobalSymbol GetValueInternal(GraphContext ctx)
+        {
+            GlobalSymbol foundEventID = default;
+            var foundPercentageThrough = 0f;
+            var highestWeightFound = -1f;
+            var eventFound = false;
+
+            var searchRange = EventSearch.CalculateSearchRange(ctx, SourceStateNode, EventConditionRules);
+            var ignoreInactiveEvents = EventConditionRules.IsRuleSet(AnimLib.EventConditionRules.IgnoreInactiveEvents);
+            var preferHigherWeight = EventConditionRules.IsRuleSet(AnimLib.EventConditionRules.PreferHighestWeight);
+
+            for (var i = searchRange.StartIdx; i < searchRange.EndIdx && i < ctx.SampledEvents.Count; i++)
+            {
+                var sampledEvent = ctx.SampledEvents[i];
+                if (sampledEvent.IsIgnored || sampledEvent.IsGraphEvent)
+                {
+                    continue;
+                }
+
+                if (ignoreInactiveEvents && !sampledEvent.IsFromActiveBranch)
+                {
+                    continue;
+                }
+
+                if (sampledEvent.AnimEvent is not ValveResourceFormat.ResourceTypes.ModelAnimation2.NmIDEvent)
+                {
+                    continue;
+                }
+
+                // If we already have a found event then apply the priority rule
+                var updateEvent = !eventFound
+                    || (preferHigherWeight
+                        ? sampledEvent.Weight >= highestWeightFound
+                        : sampledEvent.PercentageThrough >= foundPercentageThrough);
+
+                if (updateEvent)
+                {
+                    foundEventID = sampledEvent.ID;
+                    eventFound = true;
+                    foundPercentageThrough = sampledEvent.PercentageThrough;
+                    highestWeightFound = sampledEvent.Weight;
+                }
+            }
+
+            return eventFound ? foundEventID : DefaultValue;
+        }
+    }
+
+    // Returns the sync ID of the best matching sampled foot event this update (Esoterica FootstepEventIDNode).
+    partial class FootstepEventIDNode
+    {
+        StateNode? SourceStateNode;
+
+        public override void Initialize(GraphContext ctx)
+        {
+            ctx.SetOptionalNodeFromIndex(SourceStateNodeIdx, ref SourceStateNode);
+        }
+
+        protected override GlobalSymbol GetValueInternal(GraphContext ctx)
+        {
+            GlobalSymbol foundID = default;
+            var foundPercentageThrough = 0f;
+            var highestWeightFound = -1f;
+            var eventFound = false;
+
+            var searchRange = EventSearch.CalculateSearchRange(ctx, SourceStateNode, EventConditionRules);
+            var ignoreInactiveEvents = EventConditionRules.IsRuleSet(AnimLib.EventConditionRules.IgnoreInactiveEvents);
+            var preferHigherWeight = EventConditionRules.IsRuleSet(AnimLib.EventConditionRules.PreferHighestWeight);
+
+            for (var i = searchRange.StartIdx; i < searchRange.EndIdx && i < ctx.SampledEvents.Count; i++)
+            {
+                var sampledEvent = ctx.SampledEvents[i];
+                if (sampledEvent.IsIgnored || sampledEvent.IsGraphEvent)
+                {
+                    continue;
+                }
+
+                if (ignoreInactiveEvents && !sampledEvent.IsFromActiveBranch)
+                {
+                    continue;
+                }
+
+                if (!EventSearch.TryGetFootPhase(sampledEvent, out var phase))
+                {
+                    continue;
+                }
+
+                var updateEvent = !eventFound
+                    || (preferHigherWeight
+                        ? sampledEvent.Weight >= highestWeightFound
+                        : sampledEvent.PercentageThrough >= foundPercentageThrough);
+
+                if (updateEvent)
+                {
+                    eventFound = true;
+                    foundPercentageThrough = sampledEvent.PercentageThrough;
+                    highestWeightFound = sampledEvent.Weight;
+                    foundID = EventSearch.FootPhaseSyncIDs[(int)phase];
+                }
+            }
+
+            return foundID;
+        }
+    }
+
     // A virtual parameter is a graph-computed sub-expression: evaluates its child (cached once per update).
     partial class VirtualParameterIDNode
     {

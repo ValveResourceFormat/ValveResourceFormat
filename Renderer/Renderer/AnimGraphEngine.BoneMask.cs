@@ -1,56 +1,298 @@
 using System.Diagnostics;
-using System.Linq;
+using System.Runtime.CompilerServices;
 
 namespace ValveResourceFormat.Renderer.AnimLib
 {
-    // Minimal port of Esoterica's bone mask task list: holds either a skeleton mask reference or a
-    // uniform weight. Task chaining (blending two lists) degrades to picking the dominant list.
+    // A bone mask operation (Esoterica BoneMaskTask)
+    struct BoneMaskTask
+    {
+        public enum TaskType : byte
+        {
+            Mask = 0,
+            GenerateMask,
+            Blend,
+            Scale,
+            Combine,
+        }
+
+        public float Weight;
+        public sbyte SourceTaskIdx;
+        public sbyte TargetTaskIdx;
+        public byte MaskSetIdx;
+        public TaskType Type;
+
+        /// <summary>Creates a mask generate task (all weights set to <paramref name="weight"/>).</summary>
+        public static BoneMaskTask Generate(float weight)
+            => new() { Type = TaskType.GenerateMask, Weight = weight, SourceTaskIdx = -1, TargetTaskIdx = -1, MaskSetIdx = 0xFF };
+
+        /// <summary>Creates a skeleton bone mask reference task.</summary>
+        public static BoneMaskTask Mask(byte maskSetIdx)
+            => new() { Type = TaskType.Mask, SourceTaskIdx = -1, TargetTaskIdx = -1, MaskSetIdx = maskSetIdx };
+
+        /// <summary>Creates a scale task.</summary>
+        public static BoneMaskTask Scale(sbyte sourceIdx, float scale)
+            => new() { Type = TaskType.Scale, SourceTaskIdx = sourceIdx, TargetTaskIdx = -1, Weight = scale, MaskSetIdx = 0xFF };
+
+        /// <summary>Creates a combine (multiply) task.</summary>
+        public static BoneMaskTask Combine(sbyte sourceIdx, sbyte targetIdx)
+            => new() { Type = TaskType.Combine, SourceTaskIdx = sourceIdx, TargetTaskIdx = targetIdx, Weight = -1f, MaskSetIdx = 0xFF };
+
+        /// <summary>Creates a blend task (lerp from source result to target result).</summary>
+        public static BoneMaskTask Blend(sbyte sourceIdx, sbyte targetIdx, float blendWeight)
+            => new() { Type = TaskType.Blend, SourceTaskIdx = sourceIdx, TargetTaskIdx = targetIdx, Weight = blendWeight, MaskSetIdx = 0xFF };
+    }
+
+    [InlineArray(BoneMaskTaskList.MaxTasks)]
+    struct BoneMaskTaskBuffer
+    {
+        private BoneMaskTask element0;
+    }
+
+    // A command list of bone mask operations (Esoterica BoneMaskTaskList). Value type: assignment
+    // copies the whole list, matching the C++ inline-vector semantics.
     struct BoneMaskTaskList
     {
-        public static BoneMaskTaskList Default { get; }
+        public const int MaxTasks = 32;
 
-        // Skeleton mask index + 1, so default(BoneMaskTaskList) means "no mask".
-        private short maskIndexPlusOne;
-        private float uniformWeight;
-        private bool hasUniformWeight;
-
-        public readonly bool IsSet => maskIndexPlusOne != 0 || hasUniformWeight;
-
-        public void EmplaceTask(byte maskIndex)
+        // A default mask list with a single generate task (all weights = 1.0f), C++ s_defaultMaskList
+        public static BoneMaskTaskList Default
         {
-            maskIndexPlusOne = (short)(maskIndex + 1);
-            hasUniformWeight = false;
+            get
+            {
+                var list = new BoneMaskTaskList();
+                list.EmplaceTask(1.0f);
+                return list;
+            }
         }
 
-        public void EmplaceTask(float uniformWeight)
-        {
-            this.uniformWeight = uniformWeight;
-            hasUniformWeight = true;
-            maskIndexPlusOne = 0;
-        }
+        private BoneMaskTaskBuffer tasks;
+        private int count;
 
-        public void CopyFrom(BoneMaskTaskList other)
+        public readonly bool HasTasks => count > 0;
+
+        public void Reset() => count = 0;
+
+        public readonly sbyte LastTaskIdx => (sbyte)(count - 1);
+
+        public sbyte CopyFrom(in BoneMaskTaskList other)
         {
             this = other;
+            return LastTaskIdx;
         }
 
-        public void SetToBlendBetweenTaskLists(BoneMaskTaskList listA, BoneMaskTaskList listB, float t)
+        private void Add(in BoneMaskTask task)
         {
-            // Coarse approximation: pick the dominant list instead of blending mask weights.
-            this = t < 0.5f ? listA : listB;
-        }
-
-        /// <summary>Gets the blend weight for one bone, resolving skeleton masks by bone ID.</summary>
-        public readonly float GetBoneWeight(Skeleton? skeleton, int boneIdx)
-        {
-            if (maskIndexPlusOne != 0 && skeleton != null)
+            Debug.Assert(count < MaxTasks);
+            if (count < MaxTasks)
             {
-                var weights = skeleton.GetResolvedMaskWeights(maskIndexPlusOne - 1);
-                return boneIdx < weights.Length ? weights[boneIdx] : 0f;
+                tasks[count++] = task;
+            }
+        }
+
+        /// <summary>Emplaces a skeleton bone mask reference task.</summary>
+        public void EmplaceTask(byte maskIndex) => Add(BoneMaskTask.Mask(maskIndex));
+
+        /// <summary>Emplaces a mask generate task with a uniform weight.</summary>
+        public void EmplaceTask(float uniformWeight) => Add(BoneMaskTask.Generate(uniformWeight));
+
+        /// <summary>Blends this task list's result to the result of the supplied list.</summary>
+        public sbyte BlendTo(in BoneMaskTaskList taskList, float blendWeight)
+        {
+            var sourceTaskIdx = LastTaskIdx;
+            var targetTaskIdx = AppendTaskListAndFixDependencies(taskList);
+            Add(BoneMaskTask.Blend(sourceTaskIdx, targetTaskIdx, blendWeight));
+            return LastTaskIdx;
+        }
+
+        /// <summary>Combines (multiplies) the result of this task list with the result of the supplied list.</summary>
+        public sbyte CombineWith(in BoneMaskTaskList taskList)
+        {
+            var sourceTaskIdx = LastTaskIdx;
+            var targetTaskIdx = AppendTaskListAndFixDependencies(taskList);
+            Add(BoneMaskTask.Combine(sourceTaskIdx, targetTaskIdx));
+            return LastTaskIdx;
+        }
+
+        /// <summary>Sets this task list to a blend between two task lists.</summary>
+        public sbyte SetToBlendBetweenTaskLists(in BoneMaskTaskList sourceTaskList, in BoneMaskTaskList targetTaskList, float blendWeight)
+        {
+            if (blendWeight == 0f)
+            {
+                this = sourceTaskList;
+            }
+            else if (blendWeight == 1f)
+            {
+                this = targetTaskList;
+            }
+            else
+            {
+                this = sourceTaskList;
+                BlendTo(targetTaskList, blendWeight);
             }
 
-            return hasUniformWeight ? uniformWeight : 1f;
+            return LastTaskIdx;
         }
+
+        /// <summary>Creates a blend from the current registered tasks to a generated mask.</summary>
+        public sbyte BlendToGeneratedMask(float generatedMaskWeight, float blendWeight)
+        {
+            Debug.Assert(blendWeight >= 0f && blendWeight <= 1f);
+
+            if (blendWeight == 0f)
+            {
+                // Do nothing
+            }
+            else if (blendWeight == 1f)
+            {
+                count = 0;
+                Add(BoneMaskTask.Generate(generatedMaskWeight));
+            }
+            else
+            {
+                var sourceTaskIdx = LastTaskIdx;
+                Add(BoneMaskTask.Generate(generatedMaskWeight));
+                var targetTaskIdx = LastTaskIdx;
+                Add(BoneMaskTask.Blend(sourceTaskIdx, targetTaskIdx, blendWeight));
+            }
+
+            return LastTaskIdx;
+        }
+
+        /// <summary>Creates a blend from a generated mask to the current registered tasks.</summary>
+        public sbyte BlendFromGeneratedMask(float generatedMaskWeight, float blendWeight)
+            => BlendToGeneratedMask(generatedMaskWeight, 1f - blendWeight);
+
+        private sbyte AppendTaskListAndFixDependencies(in BoneMaskTaskList taskList)
+        {
+            var dependencyOffset = (sbyte)(LastTaskIdx + 1);
+
+            for (var i = 0; i < taskList.count; i++)
+            {
+                var task = taskList.tasks[i];
+                if (task.Type is BoneMaskTask.TaskType.Blend or BoneMaskTask.TaskType.Combine)
+                {
+                    task.SourceTaskIdx += dependencyOffset;
+                    task.TargetTaskIdx += dependencyOffset;
+                }
+
+                Add(task);
+            }
+
+            return LastTaskIdx;
+        }
+
+        /// <summary>
+        /// Executes the task list, writing the resulting per-bone weight into
+        /// <paramref name="result"/> (Esoterica BoneMaskTaskList::GenerateBoneMask).
+        /// </summary>
+        public readonly void GenerateBoneMask(Skeleton? skeleton, BoneMaskPool pool, float[] result)
+        {
+            Debug.Assert(HasTasks);
+
+            Span<int> maskBufferIndices = stackalloc int[count];
+
+            for (var i = 0; i < count; i++)
+            {
+                ref readonly var task = ref tasks[i];
+
+                switch (task.Type)
+                {
+                    case BoneMaskTask.TaskType.Mask:
+                    {
+                        maskBufferIndices[i] = pool.Acquire(result.Length);
+                        var buffer = pool.GetBuffer(maskBufferIndices[i]);
+                        var maskWeights = skeleton?.GetResolvedMaskWeights(task.MaskSetIdx);
+                        if (maskWeights != null)
+                        {
+                            var n = Math.Min(maskWeights.Length, buffer.Length);
+                            maskWeights.AsSpan(0, n).CopyTo(buffer);
+                            buffer.AsSpan(n).Clear();
+                        }
+                        else
+                        {
+                            Array.Fill(buffer, 1f);
+                        }
+
+                        break;
+                    }
+
+                    case BoneMaskTask.TaskType.GenerateMask:
+                    {
+                        maskBufferIndices[i] = pool.Acquire(result.Length);
+                        Array.Fill(pool.GetBuffer(maskBufferIndices[i]), task.Weight);
+                        break;
+                    }
+
+                    case BoneMaskTask.TaskType.Scale:
+                    {
+                        var sourceBuffer = pool.GetBuffer(maskBufferIndices[task.SourceTaskIdx]);
+                        maskBufferIndices[i] = maskBufferIndices[task.SourceTaskIdx];
+                        for (var b = 0; b < sourceBuffer.Length; b++)
+                        {
+                            sourceBuffer[b] *= task.Weight;
+                        }
+
+                        break;
+                    }
+
+                    case BoneMaskTask.TaskType.Combine:
+                    case BoneMaskTask.TaskType.Blend:
+                    {
+                        var sourceBuffer = pool.GetBuffer(maskBufferIndices[task.SourceTaskIdx]);
+                        var targetBuffer = pool.GetBuffer(maskBufferIndices[task.TargetTaskIdx]);
+                        maskBufferIndices[i] = maskBufferIndices[task.TargetTaskIdx];
+
+                        if (task.Type == BoneMaskTask.TaskType.Combine)
+                        {
+                            for (var b = 0; b < targetBuffer.Length; b++)
+                            {
+                                targetBuffer[b] *= sourceBuffer[b];
+                            }
+                        }
+                        else // Blend: lerp from the source result towards the target result
+                        {
+                            for (var b = 0; b < targetBuffer.Length; b++)
+                            {
+                                targetBuffer[b] = MathUtils.Lerp(sourceBuffer[b], targetBuffer[b], task.Weight);
+                            }
+                        }
+
+                        break;
+                    }
+                }
+            }
+
+            pool.GetBuffer(maskBufferIndices[count - 1]).AsSpan(0, result.Length).CopyTo(result);
+            pool.ReleaseAll();
+        }
+    }
+
+    /// <summary>
+    /// Reusable per-bone weight buffers for bone mask task list evaluation. Buffers persist for the
+    /// lifetime of the graph and are recycled via <see cref="ReleaseAll"/> after each evaluation.
+    /// </summary>
+    class BoneMaskPool
+    {
+        private readonly List<float[]> buffers = [];
+        private int firstFree;
+
+        public int Acquire(int size)
+        {
+            if (firstFree == buffers.Count)
+            {
+                buffers.Add(new float[size]);
+            }
+            else if (buffers[firstFree].Length < size)
+            {
+                buffers[firstFree] = new float[size];
+            }
+
+            return firstFree++;
+        }
+
+        public float[] GetBuffer(int index) => buffers[index];
+
+        public void ReleaseAll() => firstFree = 0;
     }
 
     partial class BoneMaskValueNode
@@ -116,23 +358,20 @@ namespace ValveResourceFormat.Renderer.AnimLib
 
         protected override BoneMaskTaskList GetValueInternal(GraphContext ctx)
         {
-            var sourceTaskList = SourceBoneMask.GetValue(ctx);
-            var targetTaskList = TargetBoneMask.GetValue(ctx);
             var blendWeight = BlendWeightValueNode.GetValue(ctx);
 
+            // If we dont need to perform the blend, set the value to the required source
             if (blendWeight <= 0.0f)
             {
-                TaskList = sourceTaskList;
+                TaskList = SourceBoneMask.GetValue(ctx);
             }
             else if (blendWeight >= 1.0f)
             {
-                TaskList = targetTaskList;
+                TaskList = TargetBoneMask.GetValue(ctx);
             }
-            else
+            else // Actually perform the blend
             {
-                // Perform the blend into this node's task list. keep the original call commented so you can add it.
-                TaskList = sourceTaskList;
-                // TaskList.SetToBlendBetweenTaskLists(sourceTaskList, targetTaskList, blendWeight);
+                TaskList.SetToBlendBetweenTaskLists(SourceBoneMask.GetValue(ctx), TargetBoneMask.GetValue(ctx), blendWeight);
             }
 
             return TaskList;
@@ -149,19 +388,29 @@ namespace ValveResourceFormat.Renderer.AnimLib
         float CurrentTimeInBlend;
         bool Blending;
 
+        bool hasSelectedInitialMask;
+
         public override void Initialize(GraphContext ctx)
         {
             ctx.SetNodeFromIndex(ParameterValueNodeIdx, ref ParameterValueNode);
             ctx.SetOptionalNodeFromIndex(DefaultMaskNodeIdx, ref DefaultMaskValueNode);
             ctx.SetNodesFromIndexArray(MaskNodeIndices, ref MaskOptions);
 
-            SelectedMaskIndex = TrySelectMask(ctx);
             NewMaskIndex = -1;
             Blending = false;
         }
 
         protected override BoneMaskTaskList GetValueInternal(GraphContext ctx)
         {
+            // The initial selection happens lazily on first evaluation - at graph construction time
+            // the parameter node's own child references are not wired up yet (nodes initialize in
+            // array order; C++ separates instantiation from initialization).
+            if (!hasSelectedInitialMask)
+            {
+                hasSelectedInitialMask = true;
+                SelectedMaskIndex = TrySelectMask(ctx);
+            }
+
             // Perform selection
             //-------------------------------------------------------------------------
             if (SwitchDynamically)
@@ -176,10 +425,15 @@ namespace ValveResourceFormat.Renderer.AnimLib
                     {
                         NewMaskIndex = -1;
                     }
-                    else // Start a blend to the new mask
+                    else if (BlendTimeSeconds > 0f) // Start a blend to the new mask
                     {
                         CurrentTimeInBlend = 0f;
                         Blending = true;
+                    }
+                    else // Immediately switch mask
+                    {
+                        SelectedMaskIndex = NewMaskIndex;
+                        NewMaskIndex = -1;
                     }
                 }
             }
@@ -238,24 +492,86 @@ namespace ValveResourceFormat.Renderer.AnimLib
         BoolValueNode SwitchValueNode;
         BoneMaskValueNode TrueValueNode;
         BoneMaskValueNode FalseValueNode;
+        int SelectedMaskIndex;
+        float CurrentTimeInBlend;
+        bool Blending;
+
+        bool hasSelectedInitialMask;
 
         public override void Initialize(GraphContext ctx)
         {
             ctx.SetNodeFromIndex(SwitchValueNodeIdx, ref SwitchValueNode);
             ctx.SetNodeFromIndex(TrueValueNodeIdx, ref TrueValueNode);
             ctx.SetNodeFromIndex(FalseValueNodeIdx, ref FalseValueNode);
+
+            Blending = false;
         }
 
         protected override BoneMaskTaskList GetValueInternal(GraphContext ctx)
         {
-            var switchValue = SwitchValueNode.GetValue(ctx);
+            // The initial selection happens lazily on first evaluation - at graph construction time
+            // the switch value node's own child references are not wired up yet (nodes initialize
+            // in array order; C++ separates instantiation from initialization).
+            if (!hasSelectedInitialMask)
+            {
+                hasSelectedInitialMask = true;
+                SelectedMaskIndex = SwitchValueNode.GetValue(ctx) ? 1 : 0;
+            }
 
-            // SwitchDynamically
-            // BlendTimeSeconds
-            // todo: this is supposed to blend like BoneMaskSelectorNode
+            // Perform selection
+            //-------------------------------------------------------------------------
+            if (SwitchDynamically)
+            {
+                // Only try to select a new mask if we are not blending
+                if (!Blending)
+                {
+                    var newMaskIdx = SwitchValueNode.GetValue(ctx) ? 1 : 0;
 
-            return switchValue ? TrueValueNode.GetValue(ctx) : FalseValueNode.GetValue(ctx);
+                    // If the new mask is the same as the current one, do nothing
+                    if (newMaskIdx != SelectedMaskIndex)
+                    {
+                        SelectedMaskIndex = newMaskIdx;
+
+                        if (BlendTimeSeconds > 0f)
+                        {
+                            CurrentTimeInBlend = 0f;
+                            Blending = true;
+                        }
+                    }
+                }
+            }
+
+            // Generate task list
+            //-------------------------------------------------------------------------
+
+            if (Blending)
+            {
+                CurrentTimeInBlend += ctx.DeltaTime;
+                var blendWeight = CurrentTimeInBlend / BlendTimeSeconds;
+
+                // If the blend is complete, then update the selected mask index
+                if (blendWeight >= 1.0f)
+                {
+                    TaskList.CopyFrom(GetBoneMaskForIndex(ctx, SelectedMaskIndex));
+                    Blending = false;
+                }
+                else // Perform blend and return the result
+                {
+                    var sourceList = GetBoneMaskForIndex(ctx, SelectedMaskIndex == 1 ? 0 : 1);
+                    var targetList = GetBoneMaskForIndex(ctx, SelectedMaskIndex == 1 ? 1 : 0);
+                    TaskList.SetToBlendBetweenTaskLists(sourceList, targetList, blendWeight);
+                }
+            }
+            else
+            {
+                TaskList.CopyFrom(GetBoneMaskForIndex(ctx, SelectedMaskIndex));
+            }
+
+            return TaskList;
         }
+
+        private BoneMaskTaskList GetBoneMaskForIndex(GraphContext ctx, int index)
+            => index == 1 ? TrueValueNode.GetValue(ctx) : FalseValueNode.GetValue(ctx);
     }
 
     partial class VirtualParameterBoneMaskNode

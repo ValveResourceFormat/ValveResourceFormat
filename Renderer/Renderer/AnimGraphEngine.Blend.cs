@@ -549,6 +549,7 @@ namespace ValveResourceFormat.Renderer.AnimLib
         Quaternion[] layerGlobalRotations = [];
         Quaternion[] resultGlobalRotations = [];
         FrameBone[] maskedLayerResult = [];
+        float[] layerMaskWeights = [];
 
         public override void Initialize(GraphContext ctx)
         {
@@ -570,6 +571,7 @@ namespace ValveResourceFormat.Renderer.AnimLib
             layerGlobalRotations = new Quaternion[PoseTransforms.Length];
             resultGlobalRotations = new Quaternion[PoseTransforms.Length];
             maskedLayerResult = new FrameBone[PoseTransforms.Length];
+            layerMaskWeights = new float[PoseTransforms.Length];
         }
 
         public override bool IsValid => BaseNode?.IsValid ?? false;
@@ -607,9 +609,10 @@ namespace ValveResourceFormat.Renderer.AnimLib
 
             // Cache any outer layer context so it can be restored after our layers are done
             var wasInLayer = ctx.IsInLayer;
-            var outerWeight = ctx.LayerContext.Weight;
-            var outerRootMotionWeight = ctx.LayerContext.RootMotionWeight;
-            var outerMask = ctx.LayerContext.MaskTaskList;
+            var outerLayerContext = ctx.LayerContext;
+            var outerWeight = outerLayerContext.Weight;
+            var outerRootMotionWeight = outerLayerContext.RootMotionWeight;
+            var outerMask = outerLayerContext.MaskTaskList;
 
             for (var i = 0; i < LayerDefinition.Length; i++)
             {
@@ -660,10 +663,17 @@ namespace ValveResourceFormat.Renderer.AnimLib
                 var blendMode = definition.BlendMode;
 
                 // We cannot perform a global blend without a bone mask
-                if (blendMode == PoseBlendMode.ModelSpace && !mask.IsSet)
+                if (blendMode == PoseBlendMode.ModelSpace && !mask.HasTasks)
                 {
                     ctx.LogWarning(NodeIdx, "Attempting to perform a global blend without a bone mask! This is not supported so falling back to a local blend!");
                     blendMode = PoseBlendMode.Overlay;
+                }
+
+                // Evaluate the layer's bone mask task list into per-bone weights
+                var hasMask = mask.HasTasks;
+                if (hasMask)
+                {
+                    mask.GenerateBoneMask(ctx.Skeleton, ctx.BoneMaskPool, layerMaskWeights);
                 }
 
                 // Weight or discard the layer's sampled events (Esoterica UpdateLayers)
@@ -692,7 +702,7 @@ namespace ValveResourceFormat.Renderer.AnimLib
                     case PoseBlendMode.Additive:
                         for (var b = 0; b < boneCount; b++)
                         {
-                            var boneWeight = weight * mask.GetBoneWeight(ctx.Skeleton, b);
+                            var boneWeight = weight * (hasMask ? layerMaskWeights[b] : 1f);
                             if (boneWeight <= 0f)
                             {
                                 continue;
@@ -706,12 +716,13 @@ namespace ValveResourceFormat.Renderer.AnimLib
                         break;
 
                     case PoseBlendMode.ModelSpace:
-                        BlendLayerModelSpace(ctx, layerResult.Pose, weight, mask, boneCount);
+                        BlendLayerModelSpace(ctx, layerResult.Pose, weight, layerMaskWeights, boneCount);
                         break;
                 }
             }
 
             ctx.IsInLayer = wasInLayer;
+            ctx.LayerContext = outerLayerContext;
             ctx.LayerContext.Weight = outerWeight;
             ctx.LayerContext.RootMotionWeight = outerRootMotionWeight;
             ctx.LayerContext.MaskTaskList = outerMask;
@@ -726,7 +737,7 @@ namespace ValveResourceFormat.Renderer.AnimLib
         /// space (translation and scale blend in parent space), and the mask-weighted result is then
         /// blended over the base pose in parent space by the layer weight.
         /// </summary>
-        private void BlendLayerModelSpace(GraphContext ctx, FrameBone[] layerPose, float layerWeight, BoneMaskTaskList mask, int boneCount)
+        private void BlendLayerModelSpace(GraphContext ctx, FrameBone[] layerPose, float layerWeight, float[] maskWeights, int boneCount)
         {
             var parentIndices = ctx.Skeleton?.ParentIndices;
             if (parentIndices == null || boneCount == 0)
@@ -747,7 +758,7 @@ namespace ValveResourceFormat.Renderer.AnimLib
             }
 
             // Blend the root separately - parent space blend
-            var rootWeight = mask.GetBoneWeight(ctx.Skeleton, 0);
+            var rootWeight = maskWeights[0];
             if (rootWeight > 0f)
             {
                 maskedLayerResult[0] = PoseTransforms[0].Blend(layerPose[0], rootWeight);
@@ -762,7 +773,7 @@ namespace ValveResourceFormat.Renderer.AnimLib
             // Blend model-space rotations together and convert back to parent space
             for (var b = 1; b < boneCount; b++)
             {
-                var boneWeight = mask.GetBoneWeight(ctx.Skeleton, b);
+                var boneWeight = maskWeights[b];
                 if (boneWeight <= 0f)
                 {
                     // Use the base local pose for masked out bones

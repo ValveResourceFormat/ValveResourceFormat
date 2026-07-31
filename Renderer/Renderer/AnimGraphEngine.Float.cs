@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.Linq;
+using ValveResourceFormat.Serialization.KeyValues;
 
 namespace ValveResourceFormat.Renderer.AnimLib
 {
@@ -169,15 +170,70 @@ namespace ValveResourceFormat.Renderer.AnimLib
         }
     }
 
+    // Evaluates the best matching sampled float-curve event, falling back to the default value
+    // (Esoterica FloatCurveEventNode). Curve evaluation itself is not ported: CS2 float-curve
+    // events are not surfaced as typed clip events yet, so a matched event keeps the default.
     partial class FloatCurveEventNode
     {
-        FloatValueNode DefaultNode;
+        FloatValueNode? DefaultNode;
 
         public override void Initialize(GraphContext ctx)
         {
-            ctx.SetNodeFromIndex(DefaultNodeIdx, ref DefaultNode);
+            ctx.SetOptionalNodeFromIndex(DefaultNodeIdx, ref DefaultNode);
         }
 
+        protected override float GetValueInternal(GraphContext ctx)
+        {
+            var bestValueFound = DefaultNode?.GetValue(ctx) ?? DefaultValue;
+
+            var ignoreInactiveEvents = EventConditionRules.IsRuleSet(AnimLib.EventConditionRules.IgnoreInactiveEvents);
+            var preferHigherWeight = EventConditionRules.IsRuleSet(AnimLib.EventConditionRules.PreferHighestWeight);
+
+            var foundPercentageThrough = 0f;
+            var highestWeightFound = -1f;
+            var eventFound = false;
+
+            // Searches the whole buffer (no source state restriction upstream)
+            for (var i = 0; i < ctx.SampledEvents.Count; i++)
+            {
+                var sampledEvent = ctx.SampledEvents[i];
+                if (sampledEvent.IsIgnored || sampledEvent.IsGraphEvent)
+                {
+                    continue;
+                }
+
+                if (ignoreInactiveEvents && !sampledEvent.IsFromActiveBranch)
+                {
+                    continue;
+                }
+
+                if (sampledEvent.AnimEvent is not { ClassName: "CNmFloatCurveEvent" } curveEvent)
+                {
+                    continue;
+                }
+
+                // Filter based on event ID
+                if (EventID.IsValid && new GlobalSymbol(curveEvent.Data.GetStringProperty("m_ID", string.Empty)) != EventID)
+                {
+                    continue;
+                }
+
+                var updateEvent = !eventFound
+                    || (preferHigherWeight
+                        ? sampledEvent.Weight >= highestWeightFound
+                        : sampledEvent.PercentageThrough >= foundPercentageThrough);
+
+                if (updateEvent)
+                {
+                    eventFound = true;
+                    foundPercentageThrough = sampledEvent.PercentageThrough;
+                    highestWeightFound = sampledEvent.Weight;
+                    ctx.LogNodeNotImplemented(NodeIdx, "FloatCurveEventNode curve evaluation");
+                }
+            }
+
+            return bestValueFound;
+        }
     }
 
     partial class FloatCurveNode
@@ -426,15 +482,134 @@ namespace ValveResourceFormat.Renderer.AnimLib
         }
     }
 
+    // Percentage through the best matching sampled foot event, or -1 when none matched the phase
+    // condition (Esoterica FootstepEventPercentageThroughNode).
     partial class FootstepEventPercentageThroughNode
     {
-        FloatValueNode SourceStateNode;
+        StateNode? SourceStateNode;
 
         public override void Initialize(GraphContext ctx)
         {
-            ctx.SetNodeFromIndex(SourceStateNodeIdx, ref SourceStateNode);
+            ctx.SetOptionalNodeFromIndex(SourceStateNodeIdx, ref SourceStateNode);
         }
 
+        protected override float GetValueInternal(GraphContext ctx)
+        {
+            var ignoreInactiveEvents = EventConditionRules.IsRuleSet(AnimLib.EventConditionRules.IgnoreInactiveEvents);
+            var preferHigherWeight = EventConditionRules.IsRuleSet(AnimLib.EventConditionRules.PreferHighestWeight);
+
+            var foundPercentageThrough = 0f;
+            var highestWeightFound = -1f;
+            var eventFound = false;
+
+            var searchRange = EventSearch.CalculateSearchRange(ctx, SourceStateNode, EventConditionRules);
+            for (var i = searchRange.StartIdx; i < searchRange.EndIdx && i < ctx.SampledEvents.Count; i++)
+            {
+                var sampledEvent = ctx.SampledEvents[i];
+                if (sampledEvent.IsIgnored || sampledEvent.IsGraphEvent)
+                {
+                    continue;
+                }
+
+                if (ignoreInactiveEvents && !sampledEvent.IsFromActiveBranch)
+                {
+                    continue;
+                }
+
+                if (!EventSearch.TryGetFootPhase(sampledEvent, out var foot))
+                {
+                    continue;
+                }
+
+                // Filter by the phase condition (the phase groups include None here, matching C++)
+                var passesFilter = PhaseCondition switch
+                {
+                    FootPhaseCondition.LeftFootDown => foot == FootPhase.LeftFootDown,
+                    FootPhaseCondition.RightFootDown => foot == FootPhase.RightFootDown,
+                    FootPhaseCondition.LeftFootPassing => foot == FootPhase.LeftFootPassing,
+                    FootPhaseCondition.RightFootPassing => foot == FootPhase.RightFootPassing,
+                    FootPhaseCondition.LeftPhase => foot is FootPhase.None or FootPhase.RightFootDown or FootPhase.LeftFootPassing,
+                    FootPhaseCondition.RightPhase => foot is FootPhase.None or FootPhase.LeftFootDown or FootPhase.RightFootPassing,
+                    FootPhaseCondition.None => foot == FootPhase.None,
+                    _ => false,
+                };
+
+                if (!passesFilter)
+                {
+                    continue;
+                }
+
+                var updateEvent = !eventFound
+                    || (preferHigherWeight
+                        ? sampledEvent.Weight >= highestWeightFound
+                        : sampledEvent.PercentageThrough >= foundPercentageThrough);
+
+                if (updateEvent)
+                {
+                    eventFound = true;
+                    foundPercentageThrough = sampledEvent.PercentageThrough;
+                    highestWeightFound = sampledEvent.Weight;
+                }
+            }
+
+            return eventFound ? foundPercentageThrough : -1f;
+        }
+    }
+
+    // Percentage through the best matching sampled ID animation event with the requested ID, or -1
+    // (Esoterica IDEventPercentageThroughNode).
+    partial class IDEventPercentageThroughNode
+    {
+        StateNode? SourceStateNode;
+
+        public override void Initialize(GraphContext ctx)
+        {
+            ctx.SetOptionalNodeFromIndex(SourceStateNodeIdx, ref SourceStateNode);
+        }
+
+        protected override float GetValueInternal(GraphContext ctx)
+        {
+            var foundPercentageThrough = 0f;
+            var highestWeightFound = -1f;
+            var eventFound = false;
+
+            var searchRange = EventSearch.CalculateSearchRange(ctx, SourceStateNode, EventConditionRules);
+            var ignoreInactiveEvents = EventConditionRules.IsRuleSet(AnimLib.EventConditionRules.IgnoreInactiveEvents);
+            var preferHigherWeight = EventConditionRules.IsRuleSet(AnimLib.EventConditionRules.PreferHighestWeight);
+
+            for (var i = searchRange.StartIdx; i < searchRange.EndIdx && i < ctx.SampledEvents.Count; i++)
+            {
+                var sampledEvent = ctx.SampledEvents[i];
+                if (sampledEvent.IsIgnored || sampledEvent.IsGraphEvent)
+                {
+                    continue;
+                }
+
+                if (ignoreInactiveEvents && !sampledEvent.IsFromActiveBranch)
+                {
+                    continue;
+                }
+
+                if (sampledEvent.AnimEvent is not ValveResourceFormat.ResourceTypes.ModelAnimation2.NmIDEvent || EventID != sampledEvent.ID)
+                {
+                    continue;
+                }
+
+                var updateEvent = !eventFound
+                    || (preferHigherWeight
+                        ? sampledEvent.Weight >= highestWeightFound
+                        : sampledEvent.PercentageThrough >= foundPercentageThrough);
+
+                if (updateEvent)
+                {
+                    eventFound = true;
+                    foundPercentageThrough = sampledEvent.PercentageThrough;
+                    highestWeightFound = sampledEvent.Weight;
+                }
+            }
+
+            return eventFound ? foundPercentageThrough : -1f;
+        }
     }
 
     partial class IDToFloatNode
@@ -555,21 +730,6 @@ namespace ValveResourceFormat.Renderer.AnimLib
                 default:
                     return 0.0f;
             }
-        }
-    }
-
-    partial class VectorInfoNode
-    {
-        TargetValueNode TargetNode;
-
-        public override void Initialize(GraphContext ctx)
-        {
-            ctx.SetNodeFromIndex(InputValueNodeIdx, ref TargetNode);
-        }
-
-        protected override float GetValueInternal(GraphContext ctx)
-        {
-            return 1f;
         }
     }
 

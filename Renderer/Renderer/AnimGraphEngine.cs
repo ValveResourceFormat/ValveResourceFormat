@@ -22,6 +22,13 @@ namespace ValveResourceFormat.Renderer.AnimLib
             RootMotionWeight = 1f;
             MaskTaskList = default;
         }
+
+        public void CopyFrom(LayerContext other)
+        {
+            Weight = other.Weight;
+            RootMotionWeight = other.RootMotionWeight;
+            MaskTaskList = other.MaskTaskList;
+        }
     }
 
     abstract partial class GraphNode
@@ -151,9 +158,52 @@ namespace ValveResourceFormat.Renderer.AnimLib
                 ?? throw new InvalidOperationException($"Could not create instance of node type {nodeType.Name}.");
         }
 
-        // Layer context
+        // Layer context. Transitions temporarily swap in a scratch context for their target state
+        // (Esoterica swaps the m_pLayerContext pointer), so the reference is settable.
         public bool IsInLayer { get; set; }
-        public LayerContext LayerContext { get; } = new();
+        public LayerContext LayerContext { get; set; } = new();
+
+        /// <summary>Scratch buffers for bone mask task list evaluation.</summary>
+        public BoneMaskPool BoneMaskPool { get; } = new();
+
+        // Cached pose buffers (stand-in for Esoterica's task-system cached pose buffers): forced
+        // transitions snapshot their in-flight blend here so the same state is never updated twice
+        // in one frame. Buffers are recycled, so steady state allocates nothing.
+        private readonly List<Transform[]> cachedPoseBuffers = [];
+        private readonly List<bool> cachedPoseBufferInUse = [];
+
+        public int CreateCachedPose()
+        {
+            for (var i = 0; i < cachedPoseBuffers.Count; i++)
+            {
+                if (!cachedPoseBufferInUse[i])
+                {
+                    cachedPoseBufferInUse[i] = true;
+                    Graph.ParentSpaceReferencePose.CopyTo(cachedPoseBuffers[i], 0);
+                    return i;
+                }
+            }
+
+            var buffer = new Transform[Graph.ParentSpaceReferencePose.Length];
+            Graph.ParentSpaceReferencePose.CopyTo(buffer, 0);
+            cachedPoseBuffers.Add(buffer);
+            cachedPoseBufferInUse.Add(true);
+            return cachedPoseBuffers.Count - 1;
+        }
+
+        public bool IsValidCachedPose(int id) => id >= 0 && id < cachedPoseBuffers.Count && cachedPoseBufferInUse[id];
+
+        public Transform[] GetCachedPoseBuffer(int id)
+        {
+            Debug.Assert(IsValidCachedPose(id));
+            return cachedPoseBuffers[id];
+        }
+
+        public void DestroyCachedPose(int id)
+        {
+            Debug.Assert(IsValidCachedPose(id));
+            cachedPoseBufferInUse[id] = false;
+        }
 
         /// <summary>Resolves a referenced graph slot index to the instantiated child graph, if any.</summary>
         public AnimationGraph? GetReferencedGraph(short referencedGraphIdx)

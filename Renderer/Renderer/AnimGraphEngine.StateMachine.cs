@@ -29,6 +29,9 @@ namespace ValveResourceFormat.Renderer.AnimLib
         public TransitionNode? ActiveTransition { get; private set; }
         public StateInfo[] States;
 
+        // Scratch for EvaluateTransitions (cleared per use, no per-frame allocation)
+        readonly List<StateNode> forceableTargetStatesUsingCachedPoses = [];
+
         // Matches Esoterica: a state machine is valid when it has a valid active state index;
         // the active state's own validity is deliberately not consulted.
         public override bool IsValid => base.IsValid && ActiveStateIndex >= 0 && ActiveStateIndex < States.Length;
@@ -208,15 +211,35 @@ namespace ValveResourceFormat.Renderer.AnimLib
             Debug.Assert(transitionIdx >= 0 && transitionIdx < activeState.Transitions.Length);
             var selectedTransition = activeState.Transitions[transitionIdx];
 
+            // Handle forced transitions: collect the target states of the new target state's
+            // forceable transitions - an in-flight transition to/from one of these must start
+            // caching its pose (or switch to it) so no state is updated twice in one frame.
+            forceableTargetStatesUsingCachedPoses.Clear();
+            var targetStateInfo = States[selectedTransition.TargetStateIndex];
+            if (targetStateInfo.HasForceableTransitions)
+            {
+                foreach (var transitionInfo in targetStateInfo.Transitions)
+                {
+                    if (transitionInfo.CanBeForced)
+                    {
+                        forceableTargetStatesUsingCachedPoses.Add(States[transitionInfo.TargetStateIndex].StateNode);
+                    }
+                }
+            }
+
+            // Check if we have a forceable transition back to our current state, if so we need to immediately start caching the source pose
+            var startCachingSourcePose = forceableTargetStatesUsingCachedPoses.Contains(activeState.StateNode);
+
+            // Notify the current transition of the new transition about to start
+            ActiveTransition?.NotifyNewTransitionStarting(ctx, targetStateInfo.StateNode, forceableTargetStatesUsingCachedPoses);
+
             // Initialize target state based on transition settings and what the source is (state or transition)
             TransitionNode.StartOptions startOptions = new(currentResult)
             {
-                //UpdateRange = pUpdateRange,
                 IsSourceTransition = (ActiveTransition != null),
                 SourceNode = ActiveTransition != null ? (PoseNode)ActiveTransition : (PoseNode)ActiveState.StateNode,
                 UpdateRange = updateRange,
-                //StartCachingSourcePose = selectedTransition.TransitionNode.CacheSourcePose
-                //SourceTasksStartMarker = ctx.TaskIndexMarker
+                StartCachingSourcePose = startCachingSourcePose,
             };
 
             var transitionResult = selectedTransition.TransitionNode.InitializeTargetStateAndUpdateTransition(ctx, startOptions);

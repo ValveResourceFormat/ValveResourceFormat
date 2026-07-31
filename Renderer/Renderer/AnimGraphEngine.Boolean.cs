@@ -154,14 +154,142 @@ namespace ValveResourceFormat.Renderer.AnimLib
         }
     }
 
+    // Checks the sampled foot events for a phase (or phase group) match.
     partial class FootEventConditionNode
     {
-        //
+        StateNode? SourceStateNode;
+
+        public override void Initialize(GraphContext ctx)
+        {
+            ctx.SetOptionalNodeFromIndex(SourceStateNodeIdx, ref SourceStateNode);
+        }
+
+        protected override bool GetValueInternal(GraphContext ctx)
+        {
+            var result = false;
+            var eventFound = false;
+
+            var ignoreInactiveEvents = EventConditionRules.IsRuleSet(AnimLib.EventConditionRules.IgnoreInactiveEvents);
+            var searchRange = EventSearch.CalculateSearchRange(ctx, SourceStateNode, EventConditionRules);
+
+            for (var i = searchRange.StartIdx; i < searchRange.EndIdx && i < ctx.SampledEvents.Count; i++)
+            {
+                var sampledEvent = ctx.SampledEvents[i];
+                if (sampledEvent.IsIgnored || sampledEvent.IsGraphEvent)
+                {
+                    continue;
+                }
+
+                if (ignoreInactiveEvents && !sampledEvent.IsFromActiveBranch)
+                {
+                    continue;
+                }
+
+                if (EventSearch.TryGetFootPhase(sampledEvent, out var foot))
+                {
+                    result = PhaseCondition switch
+                    {
+                        FootPhaseCondition.LeftFootDown => foot == FootPhase.LeftFootDown,
+                        FootPhaseCondition.RightFootDown => foot == FootPhase.RightFootDown,
+                        FootPhaseCondition.LeftFootPassing => foot == FootPhase.LeftFootPassing,
+                        FootPhaseCondition.RightFootPassing => foot == FootPhase.RightFootPassing,
+                        FootPhaseCondition.LeftPhase => foot is FootPhase.RightFootDown or FootPhase.LeftFootPassing,
+                        FootPhaseCondition.RightPhase => foot is FootPhase.LeftFootDown or FootPhase.RightFootPassing,
+                        FootPhaseCondition.None => foot == FootPhase.None,
+                        _ => false,
+                    };
+                    eventFound = true;
+                }
+
+                if (eventFound)
+                {
+                    break;
+                }
+            }
+
+            return result;
+        }
     }
 
+    // Checks the sampled graph events (entry/fully-in-state/exit/timed/generic) against a set of
+    // ID + event-type conditions (Esoterica GraphEventConditionNode).
     partial class GraphEventConditionNode
     {
-        //
+        StateNode? SourceStateNode;
+
+        public override void Initialize(GraphContext ctx)
+        {
+            ctx.SetOptionalNodeFromIndex(SourceStateNodeIdx, ref SourceStateNode);
+        }
+
+        protected override bool GetValueInternal(GraphContext ctx) => TryMatchTags(ctx);
+
+        static bool DoesGraphEventTypesMatchCondition(GraphEventTypeCondition condition, GraphEventType eventType)
+            => condition == GraphEventTypeCondition.Any || (byte)condition == (byte)eventType;
+
+        private bool TryMatchTags(GraphContext ctx)
+        {
+            Span<bool> foundConditions = stackalloc bool[Conditions.Length];
+
+            var searchRange = EventSearch.CalculateSearchRange(ctx, SourceStateNode, EventConditionRules);
+            var ignoreInactiveEvents = EventConditionRules.IsRuleSet(AnimLib.EventConditionRules.IgnoreInactiveEvents);
+            var operatorOr = EventConditionRules.IsRuleSet(AnimLib.EventConditionRules.OperatorOr);
+
+            for (var i = searchRange.StartIdx; i < searchRange.EndIdx && i < ctx.SampledEvents.Count; i++)
+            {
+                var sampledEvent = ctx.SampledEvents[i];
+
+                if (sampledEvent.IsIgnored)
+                {
+                    continue;
+                }
+
+                if (ignoreInactiveEvents && !sampledEvent.IsFromActiveBranch)
+                {
+                    continue;
+                }
+
+                // Only check graph events
+                if (sampledEvent.IsAnimationEvent)
+                {
+                    continue;
+                }
+
+                var foundID = sampledEvent.ID;
+                if (!foundID.IsValid)
+                {
+                    continue;
+                }
+
+                // Check against the set of events we need to match
+                for (var t = 0; t < Conditions.Length; t++)
+                {
+                    var condition = Conditions[t];
+                    if (condition.EventID == foundID && DoesGraphEventTypesMatchCondition(condition.EventTypeCondition, sampledEvent.GraphEventType))
+                    {
+                        // If we have an 'or' operator we can early out here
+                        if (operatorOr)
+                        {
+                            return true;
+                        }
+
+                        foundConditions[t] = true;
+                        break;
+                    }
+                }
+            }
+
+            // Ensure that all conditions have been matched
+            for (var t = 0; t < Conditions.Length; t++)
+            {
+                if (!foundConditions[t])
+                {
+                    return false;
+                }
+            }
+
+            return true;
+        }
     }
 
     // Compares the source state's current sync event index against a fixed index.
@@ -306,12 +434,24 @@ namespace ValveResourceFormat.Renderer.AnimLib
         }
     }
 
-    // IDEventConditionNode
-    // IDEventPercentageThroughNode
-    // IsExternalGraphSlotFilledNode
-    // IsExternalPoseSetNode
-    // IsInactiveBranchConditionNode
-    // IsTargetSetNode
+    // External poses and external graph slots are never attached in the viewer, so these are
+    // faithfully always false.
+    partial class IsExternalPoseSetNode
+    {
+        protected override bool GetValueInternal(GraphContext ctx) => false;
+    }
+
+    partial class IsExternalGraphSlotFilledNode
+    {
+        protected override bool GetValueInternal(GraphContext ctx) => false;
+    }
+
+    // CS2 addition with no Esoterica analogue: true while evaluating an inactive branch (e.g. the
+    // source side of a transition).
+    partial class IsInactiveBranchConditionNode
+    {
+        protected override bool GetValueInternal(GraphContext ctx) => ctx.BranchState == BranchState.Inactive;
+    }
 
     partial class NotNode
     {
@@ -438,40 +578,32 @@ namespace ValveResourceFormat.Renderer.AnimLib
             var eventFound = false;
             var mostRestrictiveMarkerFound = TransitionRule.AllowTransition;
 
-            var ignoreInactiveEvents = EventConditionRules.IsFlagSet((uint)AnimLib.EventConditionRules.IgnoreInactiveEvents);
+            var ignoreInactiveEvents = EventConditionRules.IsRuleSet(AnimLib.EventConditionRules.IgnoreInactiveEvents);
 
-            // Calculate search range
-            /*
-            var sampledEventsBuffer = ctx.SampledEventsBuffer;
-            var searchRange = CalculateSearchRange(SourceStateNode, sampledEventsBuffer, rules); // TODO: implement or adjust
-            for (int i = searchRange.StartIdx; i < searchRange.EndIdx; i++)
+            var searchRange = EventSearch.CalculateSearchRange(ctx, SourceStateNode, EventConditionRules);
+            for (var i = searchRange.StartIdx; i < searchRange.EndIdx && i < ctx.SampledEvents.Count; i++)
             {
-                var sampledEvent = sampledEventsBuffer.GetEvent(i);
-                if (sampledEvent.IsIgnored() || sampledEvent.IsGraphEvent())
+                var sampledEvent = ctx.SampledEvents[i];
+                if (sampledEvent.IsIgnored || sampledEvent.IsGraphEvent)
                 {
                     continue;
                 }
 
                 // Skip events from inactive branch if so requested
-                if (ignoreInactiveEvents && !sampledEvent.IsFromActiveBranch())
+                if (ignoreInactiveEvents && !sampledEvent.IsFromActiveBranch)
                 {
                     continue;
                 }
 
-                var transitionEvent = sampledEvent.TryGetEvent<TransitionEvent>();
-                if (transitionEvent != null)
+                if (EventSearch.TryGetTransitionEvent(sampledEvent, out var eventMarker, out var optionalID))
                 {
                     // Check if we need to match a specific transition ID
-                    if (pDefinition.m_requireRuleID.IsValid())
+                    if (RequireRuleID.IsValid && RequireRuleID != optionalID)
                     {
-                        if (pDefinition.m_requireRuleID != transitionEvent.GetOptionalID())
-                        {
-                            continue;
-                        }
+                        continue;
                     }
 
                     eventFound = true;
-                    var eventMarker = transitionEvent.GetRule();
 
                     // We return the most restrictive marker found
                     if (eventMarker > mostRestrictiveMarkerFound)
@@ -480,7 +612,6 @@ namespace ValveResourceFormat.Renderer.AnimLib
                     }
                 }
             }
-            */
 
             if (!eventFound)
             {

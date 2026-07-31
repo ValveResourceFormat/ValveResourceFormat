@@ -1,7 +1,8 @@
 using ValveResourceFormat.Serialization.KeyValues;
 namespace ValveResourceFormat.Renderer.AnimLib;
 
-partial class IDEventPercentageThroughNode : BoolValueNode
+// Note: outputs a float (the percentage through the matched event), FloatValueNode in Esoterica
+partial class IDEventPercentageThroughNode : FloatValueNode
 {
     public short SourceStateNodeIdx { get; }
     public BitFlags EventConditionRules { get; }
