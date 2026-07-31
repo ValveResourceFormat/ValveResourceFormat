@@ -1,7 +1,7 @@
 using ValveResourceFormat.Serialization.KeyValues;
 namespace ValveResourceFormat.Renderer.AnimLib;
 
-class SyncTrackTime
+readonly struct SyncTrackTime
 {
     public int EventIdx { get; }
     public Percent PercentageThrough { get; }

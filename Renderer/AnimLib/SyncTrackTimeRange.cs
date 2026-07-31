@@ -1,7 +1,7 @@
 using ValveResourceFormat.Serialization.KeyValues;
 namespace ValveResourceFormat.Renderer.AnimLib;
 
-class SyncTrackTimeRange
+readonly struct SyncTrackTimeRange
 {
     public SyncTrackTime StartTime { get; }
     public SyncTrackTime EndTime { get; }

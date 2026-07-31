@@ -1,7 +1,7 @@
 using ValveResourceFormat.Serialization.KeyValues;
 namespace ValveResourceFormat.Renderer.AnimLib;
 
-class SyncTrack__Event
+readonly struct SyncTrack__Event
 {
     public GlobalSymbol ID { get; }
     public Percent StartTime { get; }

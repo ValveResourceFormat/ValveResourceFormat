@@ -240,6 +240,7 @@ namespace ValveResourceFormat.Renderer.AnimLib
         BoneMaskValueNode? StartBoneMaskNode;
         IDValueNode? TargetSyncIDNode;
         SyncTrack? blendedSyncTrack;
+        readonly SyncTrack ownedSyncTrack = SyncTrack.CreateBlendScratch();
         float TransitionProgress;
         float TransitionDuration; // This is either time in seconds, or percentage of the sync track
         float SyncEventOffset;
@@ -558,10 +559,11 @@ namespace ValveResourceFormat.Renderer.AnimLib
                 {
                     // Create the blended sync track
                     var targetSyncTrack = TargetStateNode.SyncTrack;
-                    blendedSyncTrack = new SyncTrack(sourceSyncTrackForBlend, targetSyncTrack, BlendWeight);
+                    ownedSyncTrack.SetToBlendOf(sourceSyncTrackForBlend, targetSyncTrack, BlendWeight);
+                    blendedSyncTrack = ownedSyncTrack;
                     BlendedDuration = SyncTrack.CalculateDurationSynchronized(SourceNode.Duration, TargetStateNode.Duration, sourceSyncTrackForBlend.NumEvents, targetSyncTrack.NumEvents, blendedSyncTrack.NumEvents, BlendWeight);
-                    PreviousTime = blendedSyncTrack.GetPercentageThrough(targetUpdateRange.StartTime);
-                    CurrentTime = blendedSyncTrack.GetPercentageThrough(targetUpdateRange.EndTime);
+                    PreviousTime = blendedSyncTrack.GetPercentageThrough(targetUpdateRange.Value.StartTime);
+                    CurrentTime = blendedSyncTrack.GetPercentageThrough(targetUpdateRange.Value.EndTime);
                 }
                 else
                 {
@@ -632,7 +634,7 @@ namespace ValveResourceFormat.Renderer.AnimLib
             // With clamping in a synced update the progress advances by the covered sync distance
             if (syncedRange != null && GetOption(TransitionOptions_t.ClampDuration) && blendedSyncTrack != null)
             {
-                var eventDistance = blendedSyncTrack.CalculatePercentageCovered(syncedRange);
+                var eventDistance = blendedSyncTrack.CalculatePercentageCovered(syncedRange.Value);
                 TransitionProgress += eventDistance / TransitionDuration;
             }
             else
@@ -666,8 +668,9 @@ namespace ValveResourceFormat.Renderer.AnimLib
                 {
                     // The update range is for the target - remove the sync event offset for the source
                     var offset = (int)SyncEventOffset;
-                    var sourceStart = new SyncTrackTime(syncedRange.StartTime.EventIdx - offset, syncedRange.StartTime.PercentageThrough.Value);
-                    var sourceEnd = new SyncTrackTime(syncedRange.EndTime.EventIdx - offset, syncedRange.EndTime.PercentageThrough.Value);
+                    var syncedRangeValue = syncedRange.Value;
+                    var sourceStart = new SyncTrackTime(syncedRangeValue.StartTime.EventIdx - offset, syncedRangeValue.StartTime.PercentageThrough.Value);
+                    var sourceEnd = new SyncTrackTime(syncedRangeValue.EndTime.EventIdx - offset, syncedRangeValue.EndTime.PercentageThrough.Value);
 
                     // Ensure the end time is clamped to the end of the source node
                     if (GetOption(TransitionOptions_t.ClampDuration) && TransitionProgress >= 1f)
@@ -715,11 +718,12 @@ namespace ValveResourceFormat.Renderer.AnimLib
                 // Recreate the blended sync track with the new weight
                 var sourceSyncTrack = SourceNode.SyncTrack;
                 var targetSyncTrack = TargetStateNode.SyncTrack;
-                blendedSyncTrack = new SyncTrack(sourceSyncTrack, targetSyncTrack, BlendWeight);
+                ownedSyncTrack.SetToBlendOf(sourceSyncTrack, targetSyncTrack, BlendWeight);
+                blendedSyncTrack = ownedSyncTrack;
 
                 BlendedDuration = SyncTrack.CalculateDurationSynchronized(SourceNode.Duration, TargetStateNode.Duration, sourceSyncTrack.NumEvents, targetSyncTrack.NumEvents, blendedSyncTrack.NumEvents, BlendWeight);
-                PreviousTime = blendedSyncTrack.GetPercentageThrough(syncedRange.StartTime);
-                CurrentTime = blendedSyncTrack.GetPercentageThrough(syncedRange.EndTime);
+                PreviousTime = blendedSyncTrack.GetPercentageThrough(syncedRange.Value.StartTime);
+                CurrentTime = blendedSyncTrack.GetPercentageThrough(syncedRange.Value.EndTime);
             }
             else
             {

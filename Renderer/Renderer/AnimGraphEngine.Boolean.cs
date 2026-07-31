@@ -95,7 +95,15 @@ namespace ValveResourceFormat.Renderer.AnimLib
 
         protected override bool GetValueInternal(GraphContext ctx)
         {
-            return conditionNodes.All(node => node.GetValue(ctx));
+            foreach (var node in conditionNodes)
+            {
+                if (!node.GetValue(ctx))
+                {
+                    return false;
+                }
+            }
+
+            return true;
         }
     }
 
@@ -330,7 +338,15 @@ namespace ValveResourceFormat.Renderer.AnimLib
 
         protected override bool GetValueInternal(GraphContext ctx)
         {
-            return conditionNodes.Any(node => node.GetValue(ctx));
+            foreach (var node in conditionNodes)
+            {
+                if (node.GetValue(ctx))
+                {
+                    return true;
+                }
+            }
+
+            return false;
         }
     }
 

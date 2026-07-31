@@ -12,8 +12,8 @@ class SyncTrack
     /// <summary>A default track with one full-length unnamed event.</summary>
     public static SyncTrack Default { get; } = new SyncTrack([new SyncTrack__Event(default, 0f, 1f)], 0);
 
-    public SyncTrack__Event[] SyncEvents { get; }
-    public int StartEventOffset { get; }
+    public SyncTrack__Event[] SyncEvents { get; private set; }
+    public int StartEventOffset { get; private set; }
 
     public int NumEvents => SyncEvents.Length;
 
@@ -41,6 +41,21 @@ class SyncTrack
     /// </summary>
     public SyncTrack(SyncTrack track0, SyncTrack track1, float blendWeight)
     {
+        SyncEvents = [];
+        SetToBlendOf(track0, track1, blendWeight);
+    }
+
+    /// <summary>Creates a reusable scratch track for in-place blending.</summary>
+    public static SyncTrack CreateBlendScratch() => new([new SyncTrack__Event(default, 0f, 1f)], 0);
+
+    /// <summary>
+    /// Reuses this track as the blend of two tracks, only reallocating the event array when the
+    /// event count changes. The inputs must not be this instance.
+    /// </summary>
+    public void SetToBlendOf(SyncTrack track0, SyncTrack track1, float blendWeight)
+    {
+        Debug.Assert(!ReferenceEquals(track0, this) && !ReferenceEquals(track1, this));
+
         var numEvents0 = track0.NumEvents;
         var numEvents1 = track1.NumEvents;
         Debug.Assert(blendWeight >= 0f && blendWeight <= 1f);
@@ -49,7 +64,11 @@ class SyncTrack
         var durationScale0 = (float)numEvents0 / lcm;
         var durationScale1 = (float)numEvents1 / lcm;
 
-        SyncEvents = new SyncTrack__Event[lcm];
+        if (SyncEvents.Length != lcm)
+        {
+            SyncEvents = new SyncTrack__Event[lcm];
+        }
+
         var blendedStartPercent = 0f;
 
         for (var i = 0; i < lcm; i++)

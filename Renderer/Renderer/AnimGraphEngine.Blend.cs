@@ -43,6 +43,7 @@ namespace ValveResourceFormat.Renderer.AnimLib
         public override bool IsValid => SourceNodes is { Length: > 1 } && InputParameterValueNode != null;
 
         SyncTrack? blendedSyncTrack;
+        readonly SyncTrack ownedSyncTrack = SyncTrack.CreateBlendScratch();
 
         public override SyncTrack SyncTrack => blendedSyncTrack ?? SyncTrack.Default;
 
@@ -99,14 +100,16 @@ namespace ValveResourceFormat.Renderer.AnimLib
             }
             else if (blendSource1 == null)
             {
-                blendedSyncTrack = new SyncTrack(blendSource0.SyncTrack, blendSource0.SyncTrack, 0f);
+                ownedSyncTrack.SetToBlendOf(blendSource0.SyncTrack, blendSource0.SyncTrack, 0f);
+                blendedSyncTrack = ownedSyncTrack;
                 Duration = blendSource0.Duration;
             }
             else
             {
                 var syncTrack0 = blendSource0.SyncTrack;
                 var syncTrack1 = blendSource1.SyncTrack;
-                blendedSyncTrack = new SyncTrack(syncTrack0, syncTrack1, blendWeight);
+                ownedSyncTrack.SetToBlendOf(syncTrack0, syncTrack1, blendWeight);
+                blendedSyncTrack = ownedSyncTrack;
                 Duration = SyncTrack.CalculateDurationSynchronized(blendSource0.Duration, blendSource1.Duration, syncTrack0.NumEvents, syncTrack1.NumEvents, blendedSyncTrack.NumEvents, blendWeight);
             }
         }
@@ -125,7 +128,7 @@ namespace ValveResourceFormat.Renderer.AnimLib
             SyncTrackTimeRange range;
             if (updateRange != null)
             {
-                range = updateRange;
+                range = updateRange.Value;
             }
             else
             {
@@ -255,6 +258,8 @@ namespace ValveResourceFormat.Renderer.AnimLib
         public override bool IsValid => SourceNodes is { Length: > 1 } && InputParameterNode0 != null && InputParameterNode1 != null;
 
         SyncTrack? blendedSyncTrack;
+        readonly SyncTrack ownedSyncTrack2Way = SyncTrack.CreateBlendScratch();
+        readonly SyncTrack ownedSyncTrack3Way = SyncTrack.CreateBlendScratch();
 
         public override SyncTrack SyncTrack => blendedSyncTrack ?? SyncTrack.Default;
 
@@ -275,7 +280,8 @@ namespace ValveResourceFormat.Renderer.AnimLib
             if (bsr.Src1 == -1)
             {
                 var source = SourceNodes[bsr.Src0];
-                blendedSyncTrack = new SyncTrack(source.SyncTrack, source.SyncTrack, 0f);
+                ownedSyncTrack2Way.SetToBlendOf(source.SyncTrack, source.SyncTrack, 0f);
+                blendedSyncTrack = ownedSyncTrack2Way;
                 Duration = source.Duration;
             }
             else
@@ -285,7 +291,8 @@ namespace ValveResourceFormat.Renderer.AnimLib
                 var syncTrack0 = source0.SyncTrack;
                 var syncTrack1 = source1.SyncTrack;
 
-                blendedSyncTrack = new SyncTrack(syncTrack0, syncTrack1, bsr.Weight01);
+                ownedSyncTrack2Way.SetToBlendOf(syncTrack0, syncTrack1, bsr.Weight01);
+                blendedSyncTrack = ownedSyncTrack2Way;
                 Duration = SyncTrack.CalculateDurationSynchronized(source0.Duration, source1.Duration, syncTrack0.NumEvents, syncTrack1.NumEvents, blendedSyncTrack.NumEvents, bsr.Weight01);
 
                 if (bsr.Src2 != -1)
@@ -295,7 +302,8 @@ namespace ValveResourceFormat.Renderer.AnimLib
                     var durationOf2WayBlend = Duration;
                     var numEventsIn2WayBlendedSyncTrack = blendedSyncTrack.NumEvents;
 
-                    blendedSyncTrack = new SyncTrack(blendedSyncTrack, syncTrack2, bsr.Weight12);
+                    ownedSyncTrack3Way.SetToBlendOf(ownedSyncTrack2Way, syncTrack2, bsr.Weight12);
+                    blendedSyncTrack = ownedSyncTrack3Way;
                     Duration = SyncTrack.CalculateDurationSynchronized(durationOf2WayBlend, source2.Duration, numEventsIn2WayBlendedSyncTrack, syncTrack2.NumEvents, blendedSyncTrack.NumEvents, bsr.Weight12);
                 }
             }
@@ -315,7 +323,7 @@ namespace ValveResourceFormat.Renderer.AnimLib
             SyncTrackTimeRange range;
             if (updateRange != null)
             {
-                range = updateRange;
+                range = updateRange.Value;
             }
             else
             {

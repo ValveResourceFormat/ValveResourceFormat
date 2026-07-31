@@ -332,8 +332,8 @@ namespace ValveResourceFormat.Renderer.AnimLib
             // Synchronized Update
             if (updateRange != null)
             {
-                PreviousTime = SyncTrack.GetPercentageThrough(updateRange.StartTime);
-                CurrentTime = SyncTrack.GetPercentageThrough(updateRange.EndTime);
+                PreviousTime = SyncTrack.GetPercentageThrough(updateRange.Value.StartTime);
+                CurrentTime = SyncTrack.GetPercentageThrough(updateRange.Value.EndTime);
                 LoopCount = 0;
 
                 clip.SamplePoseAtPercentage(CurrentTime, result.Pose);
