@@ -43,7 +43,7 @@ namespace GUI.Types.GLViewers
         private int statsLod = -1;
         private ModelSceneNode? modelSceneNode;
         protected AnimationController? animationController;
-        protected AnimationGraphController? animGraphController;
+        protected AnimationGraph? animGraph;
         protected SkeletonSceneNode? skeletonSceneNode;
         private HitboxSetSceneNode? hitboxSetSceneNode;
         private List<ParticleSceneNode> modelParticleNodes = [];
@@ -196,25 +196,17 @@ namespace GUI.Types.GLViewers
 
                 if (ModelViewerWithAnimGraphSupport)
                 {
-                    // check in model data if there is an anim graph reference.
+                    // Play the model's first animation graph reference, if it has one.
+                    var animGraph2Refs = model.Data.GetArray("m_animGraph2Refs");
 
-                    var animGraph2Refs = model.Data.GetArray<KVObject>("m_animGraph2Refs");
-                    // m_vecNmSkeletonRefs
-
-                    if (animGraph2Refs != null && animGraph2Refs.Length > 0)
+                    if (animGraph2Refs is { Count: > 0 }
+                        && animGraph2Refs[0].GetProperty<string>("m_hGraph") is { } graphName)
                     {
-                        var animGraphRef = animGraph2Refs[0];
-                        var identifier = animGraphRef.GetProperty<string>("m_sIdentifier");
-                        var graphName = animGraphRef.GetProperty<string>("m_hGraph");
                         var animGraphResource = Scene.RendererContext.FileLoader.LoadFileCompiled(graphName);
-                        if (animGraphResource != null && animGraphResource.DataBlock is NmGraphDefinition graphDefinition)
+                        if (animGraphResource?.DataBlock is NmGraphDefinition graphDefinition)
                         {
-                            animGraphController = new AnimationGraphController(model.Skeleton, graphDefinition, Scene.RendererContext.FileLoader);
-                            modelSceneNode.AnimationController = animGraphController;
-
-                            // force model to use skinning matrices
-                            modelSceneNode.SetupBoneMatrixBuffers();
-                            modelSceneNode.SetAnimation(animGraphController.Animation);
+                            animGraph = new AnimationGraph(graphDefinition, Scene.RendererContext.FileLoader);
+                            modelSceneNode.SetAnimationGraph(animGraph);
                         }
                     }
                 }
@@ -348,9 +340,9 @@ namespace GUI.Types.GLViewers
                     });
                 }
 
-                if (animGraphController != null)
+                if (animGraph != null)
                 {
-                    CreateAnimGraphControls(UiControl, animGraphController, modelSceneNode);
+                    CreateAnimGraphControls(UiControl, animGraph);
                 }
 
                 if (model.HitboxSets != null && model.HitboxSets.Count > 0)
@@ -488,45 +480,44 @@ namespace GUI.Types.GLViewers
             base.AddUiControls();
         }
 
-        private static void CreateAnimGraphControls(RendererControl uiControl, AnimationGraphController animGraphController, ModelSceneNode modelSceneNode)
+        private static void CreateAnimGraphControls(RendererControl uiControl, AnimationGraph animGraph)
         {
             uiControl.AddDivider();
-            uiControl.AddLabel($"Animation: {animGraphController.Name}");
+            uiControl.AddLabel($"Animation: {animGraph.Name}");
 
-
-            foreach (var (paramName, _) in animGraphController.BoolParameters)
+            foreach (var (paramName, _) in animGraph.BoolParameters)
             {
-                uiControl.AddCheckBoxWithSignal(paramName, animGraphController.BoolParameters[paramName],
+                uiControl.AddCheckBoxWithSignal(paramName, animGraph.BoolParameters[paramName],
                     isChecked =>
                     {
-                        animGraphController.BoolParameters[paramName] = isChecked;
+                        animGraph.BoolParameters[paramName] = isChecked;
                     },
                     () =>
                     {
-                        animGraphController.SignalBoolParameter(paramName);
+                        animGraph.SignalBoolParameter(paramName);
                     });
             }
 
-            foreach (var (paramName, value) in animGraphController.FloatParameters)
+            foreach (var (paramName, value) in animGraph.FloatParameters)
             {
                 uiControl.AddNumericField(paramName, value, val =>
                 {
-                    animGraphController.FloatParameters[paramName] = val;
+                    animGraph.FloatParameters[paramName] = val;
                 });
             }
 
-            foreach (var (paramName, value) in animGraphController.IdParameters)
+            foreach (var (paramName, value) in animGraph.IdParameters)
             {
                 var combo = uiControl.AddSelection(paramName, (id, _) =>
                 {
-                    animGraphController.IdParameters[paramName] = id;
+                    animGraph.IdParameters[paramName] = id;
                 }, horizontal: true);
 
-                combo.Items.AddRange([.. animGraphController.GetParameterIdOptions(paramName)]);
+                combo.Items.AddRange([.. animGraph.GetParameterIdOptions(paramName)]);
                 combo.SelectedIndex = combo.Items.IndexOf(value);
             }
 
-            foreach (var (paramName, _) in animGraphController.TargetParameters)
+            foreach (var (paramName, _) in animGraph.TargetParameters)
             {
                 uiControl.AddTargetParameter(paramName, values =>
                 {
@@ -535,7 +526,7 @@ namespace GUI.Types.GLViewers
                         float.DegreesToRadians(values[3]),
                         float.DegreesToRadians(values[4]),
                         float.DegreesToRadians(values[5]));
-                    animGraphController.TargetParameters[paramName] = new FrameBone(position, 1f, rotation);
+                    animGraph.TargetParameters[paramName] = new FrameBone(position, 1f, rotation);
                 });
             }
 

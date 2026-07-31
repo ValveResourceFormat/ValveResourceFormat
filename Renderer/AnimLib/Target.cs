@@ -16,7 +16,7 @@ struct Target
 
     public Target(KVObject data)
     {
-        Transform = new(data.GetProperty<KVObject>("m_transform"));
+        Transform = data.GetTransformProperty("m_transform");
         BoneID = data.GetProperty<string>("m_boneID");
         IsBoneTarget = data.GetProperty<bool>("m_bIsBoneTarget");
         IsUsingBoneSpaceOffsets = data.GetProperty<bool>("m_bIsUsingBoneSpaceOffsets");
@@ -71,8 +71,8 @@ struct Target
 
                 // Apply the offset's rotation then translation (preserve multiplication order from the C++ code)
                 var offset = Transform;
-                var combinedRot = Quaternion.Normalize(offset.Rotation * result.Rotation);
-                result = result with { Rotation = combinedRot, Position = result.Position + offset.Position };
+                var combinedRot = Quaternion.Normalize(offset.Angle * result.Angle);
+                result = result with { Angle = combinedRot, Position = result.Position + offset.Position };
 
                 var parentBoneIdx = skeleton.ParentIndices[boneIdx];
                 if (parentBoneIdx != -1)
@@ -85,8 +85,8 @@ struct Target
             {
                 result = pose.GetModelSpaceTransform(boneIdx);
                 var offset = Transform;
-                var combinedRot = Quaternion.Normalize(offset.Rotation * result.Rotation);
-                result = result with { Rotation = combinedRot, Position = result.Position + offset.Position };
+                var combinedRot = Quaternion.Normalize(offset.Angle * result.Angle);
+                result = result with { Angle = combinedRot, Position = result.Position + offset.Position };
             }
         }
         else

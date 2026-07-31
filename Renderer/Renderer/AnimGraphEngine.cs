@@ -1,6 +1,3 @@
-global using Pose = System.Numerics.Matrix4x4[];
-
-
 using System.Diagnostics;
 using System.Linq;
 using ValveResourceFormat.Serialization.KeyValues;
@@ -43,11 +40,43 @@ namespace ValveResourceFormat.Renderer.AnimLib
         {
             return [.. collection.GetArray<string>(name).Select(s => new GlobalSymbol(s))];
         }
+
+        /// <summary>Parses an 8-float KV3 array property (position, scale, rotation) into a transform.</summary>
+        public static Transform GetTransformProperty(this KVObject collection, string name)
+        {
+            var data = collection.GetProperty<KVObject>(name);
+            if (data == null)
+            {
+                return Transform.Identity;
+            }
+
+            var (position, scale, rotation) = data.ToTransform();
+            return new Transform(position, scale, rotation);
+        }
+
+        /// <summary>Parses an array of 8-float KV3 arrays (position, scale, rotation) into transforms.</summary>
+        public static Transform[] GetTransformArray(this KVObject collection, string name)
+        {
+            var outer = collection.GetArray(name);
+            if (outer == null)
+            {
+                return [];
+            }
+
+            var result = new Transform[outer.Count];
+            for (var i = 0; i < result.Length; i++)
+            {
+                var (position, scale, rotation) = outer[i].ToTransform();
+                result[i] = new Transform(position, scale, rotation);
+            }
+
+            return result;
+        }
     }
 
     class GraphContext
     {
-        public AnimationGraphController Controller { get; set; }
+        public AnimationGraph Graph { get; }
         public GraphNode[] Nodes { get; set; }
         public PoseNode RootNode { get; set; }
 
@@ -57,41 +86,30 @@ namespace ValveResourceFormat.Renderer.AnimLib
         /// <summary>Incremented once per graph update; used by nodes to evaluate at most once per frame.</summary>
         public uint UpdateID { get; private set; }
 
-        public Skeleton Skeleton { get; } // => Controller.Skeleton;
-        public Transform WorldTransformInverse;
+        /// <summary>The AnimLib view of the graph's skeleton (reference pose, bone masks).</summary>
+        public Skeleton Skeleton => Graph.AnimLibSkeleton;
+
+        /// <summary>The pose produced by the previous graph update, used to resolve bone targets.</summary>
+        public Pose Pose { get; }
+
+        public Transform WorldTransformInverse = Transform.Identity;
 
         private GraphDefinition graphDefinition;
-        private ResourceTypes.ModelAnimation.Skeleton nmSkel;
 
-        public GraphContext(KVObject graph, ResourceTypes.ModelAnimation.Skeleton skeleton, AnimationGraphController controller)
+        public GraphContext(KVObject graph, AnimationGraph owner)
         {
             graphDefinition = new GraphDefinition(graph);
-            nmSkel = skeleton;
-            Controller = controller;
+            Graph = owner;
+            Pose = new Pose(owner.AnimLibSkeleton);
 
             // Create nodes
             var nodeArray = graph.GetArray<KVObject>("m_nodes");
             Nodes = new GraphNode[nodeArray.Length];
 
-            // todo: code gen
-            var allNodeTypes = typeof(GraphNode).Assembly.GetTypes()
-                .Where(t => t.IsSubclassOf(typeof(GraphNode)))
-                .ToDictionary(t => t.Name, t => t);
-
             // Transfer node data from KVObject
             for (short i = 0; i < nodeArray.Length; i++)
             {
-                var nodeData = nodeArray[i];
-                var @class = nodeData.GetProperty<string>("_class");
-
-                // find the correct node type on the AnimLib namespace
-                var nodeTypeName = @class["CNm".Length..^"::CDefinition".Length];
-                var nodeType = allNodeTypes[nodeTypeName];
-
-                var node = (GraphNode?)Activator.CreateInstance(nodeType, [nodeData])
-                    ?? throw new InvalidOperationException($"Could not create instance of node type {nodeType.Name}.");
-
-                Nodes[i] = node;
+                Nodes[i] = CreateNode(nodeArray[i]);
             }
 
             // Initialize nodes, populate strong references
@@ -103,7 +121,24 @@ namespace ValveResourceFormat.Renderer.AnimLib
             RootNode = (PoseNode)Nodes[graphDefinition.RootNodeIdx];
         }
 
-        public Pose Pose { get; }// => Controller.Pose;
+        // Maps schema class names (minus the CNm prefix and ::CDefinition suffix) to AnimLib node types.
+        // todo: code gen
+        private static readonly Dictionary<string, Type> NodeTypes = typeof(GraphNode).Assembly.GetTypes()
+            .Where(t => t.IsSubclassOf(typeof(GraphNode)))
+            .ToDictionary(t => t.Name, t => t);
+
+        /// <summary>Creates the AnimLib node instance for one <c>m_nodes</c> entry of a graph definition.</summary>
+        public static GraphNode CreateNode(KVObject nodeData)
+        {
+            var @class = nodeData.GetProperty<string>("_class")
+                ?? throw new InvalidOperationException("Graph node has no _class property.");
+
+            var nodeTypeName = @class["CNm".Length..^"::CDefinition".Length];
+            var nodeType = NodeTypes[nodeTypeName];
+
+            return (GraphNode?)Activator.CreateInstance(nodeType, [nodeData])
+                ?? throw new InvalidOperationException($"Could not create instance of node type {nodeType.Name}.");
+        }
 
         // Layer context
         public bool IsInLayer { get; set; }
@@ -138,11 +173,26 @@ namespace ValveResourceFormat.Renderer.AnimLib
             Console.WriteLine($"[AnimGraph][Node {nodeIdx}] Warning: {message}");
         }
 
+        private readonly HashSet<string> warnedNotImplemented = [];
+
+        /// <summary>
+        /// Logs, once per node type, that a value node has no implementation yet and evaluates to a
+        /// default value, so a single unported node degrades the graph instead of killing it.
+        /// </summary>
+        public void LogNodeNotImplemented(short nodeIdx, string typeName)
+        {
+            if (warnedNotImplemented.Add(typeName))
+            {
+                Console.WriteLine($"[AnimGraph][Node {nodeIdx}] {typeName} is not implemented yet; returning a default value.");
+            }
+        }
+
         public GraphPoseNodeResult Update(float timeStep)
         {
             UpdateID++;
             DeltaTime = timeStep;
             var poseResult = RootNode.Update(this);
+            Pose.SetParentSpaceTransforms(poseResult.Pose);
             return poseResult;
         }
     }

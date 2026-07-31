@@ -18,7 +18,11 @@ namespace ValveResourceFormat.Renderer.AnimLib
             return cachedValue;
         }
 
-        protected virtual Target GetValueInternal(GraphContext ctx) => throw new NotImplementedException();
+        protected virtual Target GetValueInternal(GraphContext ctx)
+        {
+            ctx.LogNodeNotImplemented(NodeIdx, GetType().Name);
+            return default;
+        }
     }
 
     partial class CachedTargetNode
@@ -63,14 +67,14 @@ namespace ValveResourceFormat.Renderer.AnimLib
 
         public override void Initialize(GraphContext ctx)
         {
-            Debug.Assert(NodeIdx >= 0 && NodeIdx < ctx.Controller.ParameterNames.Length);
-            parameterName = ctx.Controller.ParameterNames[NodeIdx];
+            Debug.Assert(NodeIdx >= 0 && NodeIdx < ctx.Graph.ParameterNames.Length);
+            parameterName = ctx.Graph.ParameterNames[NodeIdx];
         }
 
         protected override Target GetValueInternal(GraphContext ctx)
         {
             // Stored as a FrameBone transform (set externally / from the UI); exposed as a set, non-bone target.
-            return new Target(ctx.Controller.TargetParameters[parameterName]);
+            return new Target(ctx.Graph.TargetParameters[parameterName]);
         }
     }
 
@@ -122,7 +126,7 @@ namespace ValveResourceFormat.Renderer.AnimLib
 
                 // Lower cost = better match.
                 var positionCost = Vector3.Distance(optionTransform.Position, reference.Position);
-                var orientationCost = QuaternionAngle(optionTransform.Rotation, reference.Rotation);
+                var orientationCost = QuaternionAngle(optionTransform.Angle, reference.Angle);
                 var cost = (PositionScoreWeight * positionCost) + (OrientationScoreWeight * orientationCost);
 
                 if (cost < bestCost)

@@ -220,6 +220,75 @@ namespace ValveResourceFormat.Renderer.AnimLib
         }
     }
 
+    // Valve extension: selects a pose option by matching an ID parameter against per-option IDs,
+    // falling back to a dedicated fallback node when no option matches.
+    partial class IDBasedSelectorNode
+    {
+        public PoseNode[] OptionNodes;
+        public IDValueNode ParameterNode;
+        public PoseNode? FallbackNode;
+        public PoseNode? SelectedNode;
+        bool hasSelected;
+
+        public override void Initialize(GraphContext ctx)
+        {
+            base.Initialize(ctx);
+            ctx.SetNodesFromIndexArray(OptionNodeIndices, ref OptionNodes);
+            ctx.SetNodeFromIndex(ParameterNodeIdx, ref ParameterNode);
+            ctx.SetOptionalNodeFromIndex(FallbackNodeIdx, ref FallbackNode);
+
+            // Selection happens lazily on the first Update, like SelectorNode.
+            hasSelected = false;
+            SelectedNode = null;
+        }
+
+        void EnsureSelected(GraphContext ctx)
+        {
+            if (hasSelected)
+            {
+                return;
+            }
+
+            hasSelected = true;
+            SelectedNode = FallbackNode;
+
+            var id = ParameterNode.GetValue(ctx);
+            var optionCount = Math.Min(OptionIDs.Length, OptionNodes.Length);
+
+            for (var i = 0; i < optionCount; i++)
+            {
+                if (OptionIDs[i] == id)
+                {
+                    if (IgnoreInvalidOptions && !OptionNodes[i].IsValid)
+                    {
+                        continue;
+                    }
+
+                    SelectedNode = OptionNodes[i];
+                    break;
+                }
+            }
+        }
+
+        public override bool IsValid => SelectedNode?.IsValid ?? false;
+
+        public override GraphPoseNodeResult Update(GraphContext ctx)
+        {
+            EnsureSelected(ctx);
+
+            if (SelectedNode == null)
+            {
+                return base.Update(ctx);
+            }
+
+            var result = SelectedNode.Update(ctx);
+            Duration = SelectedNode.Duration;
+            PreviousTime = SelectedNode.PreviousTime;
+            CurrentTime = SelectedNode.CurrentTime;
+            return result;
+        }
+    }
+
     // Selects one of N child pose nodes using a numeric parameter as a seed (with optional weight buckets).
     partial class ParameterizedSelectorNode
     {

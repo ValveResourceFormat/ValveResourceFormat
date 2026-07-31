@@ -16,7 +16,7 @@ partial class Blend2DNode : PoseNode
         SourceNodeIndices = data.GetArray<short>("m_sourceNodeIndices");
         InputParameterNodeIdx0 = data.GetInt16Property("m_nInputParameterNodeIdx0");
         InputParameterNodeIdx1 = data.GetInt16Property("m_nInputParameterNodeIdx1");
-        Values = [.. System.Linq.Enumerable.Select(data.GetArray<KVObject>("m_values"), v => new Vector2(v.GetFloatProperty("0"), v.GetFloatProperty("1")))];
+        Values = [.. System.Linq.Enumerable.Select(data.GetArray<KVObject>("m_values"), v => v.ToVector2())];
         Indices = data.GetArray<uint>("m_indices");
         HullIndices = data.GetArray<uint>("m_hullIndices");
         AllowLooping = data.GetProperty<bool>("m_bAllowLooping");

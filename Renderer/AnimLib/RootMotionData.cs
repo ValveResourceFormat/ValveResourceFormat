@@ -11,10 +11,10 @@ class RootMotionData
 
     public RootMotionData(KVObject data)
     {
-        Transforms = data.GetArray<Transform>("m_transforms");
+        Transforms = data.GetTransformArray("m_transforms");
         NumFrames = data.GetInt32Property("m_nNumFrames");
         AverageLinearVelocity = data.GetFloatProperty("m_flAverageLinearVelocity");
         AverageAngularVelocityRadians = data.GetFloatProperty("m_flAverageAngularVelocityRadians");
-        TotalDelta = new(data.GetProperty<KVObject>("m_totalDelta"));
+        TotalDelta = data.GetTransformProperty("m_totalDelta");
     }
 }

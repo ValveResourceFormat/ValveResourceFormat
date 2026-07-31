@@ -19,7 +19,11 @@ namespace ValveResourceFormat.Renderer.AnimLib
             return cachedValue;
         }
 
-        protected virtual float GetValueInternal(GraphContext ctx) => throw new NotImplementedException();
+        protected virtual float GetValueInternal(GraphContext ctx)
+        {
+            ctx.LogNodeNotImplemented(NodeIdx, GetType().Name);
+            return 0f;
+        }
     }
 
     partial class CachedFloatNode
@@ -64,13 +68,13 @@ namespace ValveResourceFormat.Renderer.AnimLib
 
         public override void Initialize(GraphContext ctx)
         {
-            Debug.Assert(NodeIdx >= 0 && NodeIdx < ctx.Controller.ParameterNames.Length);
-            parameterName = ctx.Controller.ParameterNames[NodeIdx];
+            Debug.Assert(NodeIdx >= 0 && NodeIdx < ctx.Graph.ParameterNames.Length);
+            parameterName = ctx.Graph.ParameterNames[NodeIdx];
         }
 
         protected override float GetValueInternal(GraphContext ctx)
         {
-            return ctx.Controller.FloatParameters[parameterName];
+            return ctx.Graph.FloatParameters[parameterName];
         }
     }
 
@@ -83,7 +87,6 @@ namespace ValveResourceFormat.Renderer.AnimLib
             ctx.SetNodeFromIndex(SourceStateNodeIdx, ref SourceStateNode);
         }
 
-        protected override float GetValueInternal(GraphContext ctx) => throw new NotImplementedException();
     }
 
     partial class FloatAngleMathNode
@@ -161,7 +164,6 @@ namespace ValveResourceFormat.Renderer.AnimLib
             ctx.SetNodeFromIndex(DefaultNodeIdx, ref DefaultNode);
         }
 
-        protected override float GetValueInternal(GraphContext ctx) => throw new NotImplementedException();
     }
 
     partial class FloatCurveNode
@@ -386,20 +388,24 @@ namespace ValveResourceFormat.Renderer.AnimLib
     partial class FloatSwitchNode
     {
         BoolValueNode SwitchValueNode;
-        FloatValueNode TrueValueNode;
-        FloatValueNode FalseValueNode;
+        FloatValueNode? TrueValueNode;
+        FloatValueNode? FalseValueNode;
 
         public override void Initialize(GraphContext ctx)
         {
             ctx.SetNodeFromIndex(SwitchValueNodeIdx, ref SwitchValueNode);
-            ctx.SetNodeFromIndex(TrueValueNodeIdx, ref TrueValueNode);
-            ctx.SetNodeFromIndex(FalseValueNodeIdx, ref FalseValueNode);
+
+            // The value inputs are optional; unbound inputs use the inline constants instead.
+            ctx.SetOptionalNodeFromIndex(TrueValueNodeIdx, ref TrueValueNode);
+            ctx.SetOptionalNodeFromIndex(FalseValueNodeIdx, ref FalseValueNode);
         }
 
         protected override float GetValueInternal(GraphContext ctx)
         {
             var switchValue = SwitchValueNode.GetValue(ctx);
-            return switchValue ? TrueValueNode.GetValue(ctx) : FalseValueNode.GetValue(ctx);
+            return switchValue
+                ? TrueValueNode?.GetValue(ctx) ?? TrueValue
+                : FalseValueNode?.GetValue(ctx) ?? FalseValue;
         }
     }
 
@@ -412,7 +418,6 @@ namespace ValveResourceFormat.Renderer.AnimLib
             ctx.SetNodeFromIndex(SourceStateNodeIdx, ref SourceStateNode);
         }
 
-        protected override float GetValueInternal(GraphContext ctx) => throw new NotImplementedException();
     }
 
     partial class IDToFloatNode
@@ -514,19 +519,19 @@ namespace ValveResourceFormat.Renderer.AnimLib
 
                 case TargetInfoNode__Info.DeltaOrientationX:
                     {
-                        var e = EntityTransformHelper.ToEulerAngles(inputTargetTransform.Rotation);
+                        var e = EntityTransformHelper.ToEulerAngles(inputTargetTransform.Angle);
                         return e.X;
                     }
 
                 case TargetInfoNode__Info.DeltaOrientationY:
                     {
-                        var e = EntityTransformHelper.ToEulerAngles(inputTargetTransform.Rotation);
+                        var e = EntityTransformHelper.ToEulerAngles(inputTargetTransform.Angle);
                         return e.Y;
                     }
 
                 case TargetInfoNode__Info.DeltaOrientationZ:
                     {
-                        var e = EntityTransformHelper.ToEulerAngles(inputTargetTransform.Rotation);
+                        var e = EntityTransformHelper.ToEulerAngles(inputTargetTransform.Angle);
                         return e.Z;
                     }
 

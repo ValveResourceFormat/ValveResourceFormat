@@ -226,6 +226,42 @@ namespace ValveResourceFormat.Renderer
             updateHandler(ActiveAnimation, -1);
         }
 
+        /// <summary>
+        /// Attaches an animation graph as the pose source, playing it on the player of the external
+        /// skeleton the graph animates (registering that skeleton if needed). Pass <see langword="null"/>
+        /// to detach the graph from the current player and return to clip playback.
+        /// </summary>
+        /// <param name="graph">The animation graph to play, or <see langword="null"/> to detach.</param>
+        public void SetAnimationGraph(AnimationGraph? graph)
+        {
+            if (graph == null)
+            {
+                player.SetGraph(null);
+                return;
+            }
+
+            if (!externalSkeletons.TryGetValue(graph.SkeletonName, out var external))
+            {
+                RegisterExternalSkeleton(graph.SkeletonName, graph.Skeleton);
+                external = externalSkeletons[graph.SkeletonName];
+            }
+
+            var newPlayer = external.Player;
+
+            if (newPlayer != player)
+            {
+                newPlayer.IsPaused = player.IsPaused;
+                player.ClearClips();
+                player.SetGraph(null);
+            }
+
+            player = newPlayer;
+            remapTable = external.RemapTable;
+
+            player.SetGraph(graph);
+            updateHandler(ActiveAnimation, -1);
+        }
+
         /// <summary>Pauses playback and seeks to the last frame of the active animation.</summary>
         public void PauseLastFrame()
         {

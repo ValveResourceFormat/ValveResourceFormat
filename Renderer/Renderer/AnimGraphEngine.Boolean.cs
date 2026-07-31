@@ -19,7 +19,11 @@ namespace ValveResourceFormat.Renderer.AnimLib
             return cachedValue;
         }
 
-        protected virtual bool GetValueInternal(GraphContext ctx) => throw new NotImplementedException();
+        protected virtual bool GetValueInternal(GraphContext ctx)
+        {
+            ctx.LogNodeNotImplemented(NodeIdx, GetType().Name);
+            return false;
+        }
     }
 
     partial class ConstBoolNode
@@ -39,13 +43,13 @@ namespace ValveResourceFormat.Renderer.AnimLib
 
         public override void Initialize(GraphContext ctx)
         {
-            Debug.Assert(NodeIdx >= 0 && NodeIdx < ctx.Controller.ParameterNames.Length);
-            parameterName = ctx.Controller.ParameterNames[NodeIdx];
+            Debug.Assert(NodeIdx >= 0 && NodeIdx < ctx.Graph.ParameterNames.Length);
+            parameterName = ctx.Graph.ParameterNames[NodeIdx];
         }
 
         protected override bool GetValueInternal(GraphContext ctx)
         {
-            return ctx.Controller.BoolParameters[parameterName];
+            return ctx.Graph.BoolParameters[parameterName];
         }
     }
 

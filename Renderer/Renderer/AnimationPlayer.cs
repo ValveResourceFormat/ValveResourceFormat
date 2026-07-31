@@ -89,6 +89,11 @@ namespace ValveResourceFormat.Renderer
         /// <returns><see langword="true"/> if the pose was updated; <see langword="false"/> if nothing changed.</returns>
         public bool Update(float timeStep, Matrix4x4 rootTransform)
         {
+            if (Graph != null)
+            {
+                return UpdateFromGraph(Graph, timeStep, rootTransform);
+            }
+
             if ((ActiveAnimation == null || IsPaused || ActiveAnimation.FrameCount == 1) && !forceUpdate)
             {
                 return false;
@@ -147,6 +152,8 @@ namespace ValveResourceFormat.Renderer
 
             if (animation != null)
             {
+                // Picking a specific animation takes over from graph playback.
+                Graph = null;
                 TransitionToClip(animation, blendTime, looping);
             }
             else

@@ -15,7 +15,7 @@ class IKJoint
     {
         ParentIndex = data.GetInt32Property("m_nParentIndex");
         BodyIndex = data.GetInt32Property("m_nBodyIndex");
-        XLocalFrame = new(data.GetProperty<KVObject>("m_xLocalFrame"));
+        XLocalFrame = data.GetTransformProperty("m_xLocalFrame");
         SwingLimit = data.GetFloatProperty("m_flSwingLimit");
         MinTwistLimit = data.GetFloatProperty("m_flMinTwistLimit");
         MaxTwistLimit = data.GetFloatProperty("m_flMaxTwistLimit");

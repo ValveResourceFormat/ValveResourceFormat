@@ -71,16 +71,44 @@ namespace ValveResourceFormat.Serialization.KeyValues
         }
 
         /// <summary>
-        /// Gets an short property stored as long
+        /// Gets an Int16 property from the key-value object, checking the value fits.
         /// </summary>
-        public static short GetInt16Property(this KVObject collection, string name) => collection.GetProperty<object>(name) switch
+        public static short GetInt16Property(this KVObject obj, string name, short defaultValue = 0)
         {
-            long l when l < short.MinValue || l > short.MaxValue => throw new OverflowException($"Value {l} is out of range for Int16"),
-            long l => (short)l,
-            int i when i < short.MinValue || i > short.MaxValue => throw new OverflowException($"Value {i} is out of range for Int16"),
-            int i => (short)i,
-            _ => throw new InvalidCastException($"Unexpected underlying type for Int16"),
-        };
+            if (!obj.TryGetValue(name, out var value))
+            {
+                return defaultValue;
+            }
+
+            return checked((short)(int)value);
+        }
+
+        /// <summary>
+        /// Gets a property converted to the requested type, mirroring the old VRF
+        /// <c>KVObject.GetProperty&lt;T&gt;</c>. Sub-collections are returned as <see cref="KVObject"/>;
+        /// primitive values are converted with invariant culture. Returns <see langword="default"/>
+        /// (declared non-null to match the old contract, so it can be a null reference)
+        /// when the property is missing or null.
+        /// </summary>
+        public static T GetProperty<T>(this KVObject obj, string name)
+        {
+            if (!obj.TryGetValue(name, out var value) || value.ValueType == KVValueType.Null)
+            {
+                return default!;
+            }
+
+            if (typeof(T) == typeof(KVObject) || typeof(T) == typeof(object))
+            {
+                return (T)(object)value;
+            }
+
+            if (typeof(T) == typeof(string))
+            {
+                return (T)(object)(string)value!;
+            }
+
+            return (T)Convert.ChangeType(value, typeof(T), CultureInfo.InvariantCulture);
+        }
 
         /// <summary>
         /// Gets a UInt32 property from the key-value object.
@@ -233,6 +261,12 @@ namespace ValveResourceFormat.Serialization.KeyValues
             for (var i = 0; i < span.Length; i++)
             {
                 var elem = span[i];
+
+                if (typeof(T) == typeof(KVObject))
+                {
+                    result[i] = (T)(object)elem;
+                    continue;
+                }
 
                 if (elem.ValueType is KVValueType.Null or KVValueType.Collection or KVValueType.Array)
                 {

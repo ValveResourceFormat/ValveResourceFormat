@@ -28,6 +28,9 @@ namespace ValveResourceFormat.Renderer.AnimLib
 
         public override void Initialize(GraphContext ctx)
         {
+            // Sizes the pose buffer; an off state without a child returns it directly.
+            base.Initialize(ctx);
+
             ctx.SetOptionalNodeFromIndex(ChildNodeIdx, ref ChildNode);
             ctx.SetOptionalNodeFromIndex(LayerBoneMaskNodeIdx, ref BoneMaskValueNode);
             ctx.SetOptionalNodeFromIndex(LayerWeightNodeIdx, ref LayerWeightNode);

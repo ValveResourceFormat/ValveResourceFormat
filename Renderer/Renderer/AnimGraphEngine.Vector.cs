@@ -18,7 +18,11 @@ namespace ValveResourceFormat.Renderer.AnimLib
             return cachedValue;
         }
 
-        protected virtual Vector3 GetValueInternal(GraphContext ctx) => throw new NotImplementedException();
+        protected virtual Vector3 GetValueInternal(GraphContext ctx)
+        {
+            ctx.LogNodeNotImplemented(NodeIdx, GetType().Name);
+            return Vector3.Zero;
+        }
     }
 
     partial class CachedVectorNode
@@ -63,13 +67,13 @@ namespace ValveResourceFormat.Renderer.AnimLib
 
         public override void Initialize(GraphContext ctx)
         {
-            Debug.Assert(NodeIdx >= 0 && NodeIdx < ctx.Controller.ParameterNames.Length);
-            parameterName = ctx.Controller.ParameterNames[NodeIdx];
+            Debug.Assert(NodeIdx >= 0 && NodeIdx < ctx.Graph.ParameterNames.Length);
+            parameterName = ctx.Graph.ParameterNames[NodeIdx];
         }
 
         protected override Vector3 GetValueInternal(GraphContext ctx)
         {
-            return ctx.Controller.VectorParameters[parameterName].AsVector3();
+            return ctx.Graph.VectorParameters[parameterName].AsVector3();
         }
     }
 

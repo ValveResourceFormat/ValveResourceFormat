@@ -24,6 +24,9 @@
 
   <ItemGroup>
     <Using Include="ValveKeyValue" />
+    <!-- The animgraph code uses Esoterica's Transform name for bone transforms; it is the same type
+         as the FrameBone used by the rest of the animation pipeline. -->
+    <Using Include="ValveResourceFormat.ResourceTypes.ModelAnimation.FrameBone" Alias="Transform" />
     <Using Include="ValveResourceFormat.Utils" />
     <Using Include="ValveResourceFormat.Renderer.Utils" />
     <Using Include="ValveResourceFormat.Renderer.Shaders" />

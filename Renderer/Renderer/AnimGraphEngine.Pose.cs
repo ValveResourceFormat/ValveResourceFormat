@@ -142,6 +142,16 @@ namespace ValveResourceFormat.Renderer.AnimLib
         {
             Debug.Assert(boneIdx >= 0 && boneIdx < NumBones);
             ParentSpaceTransforms[boneIdx] = transform;
+            CalculatedModelSpace = false;
+            MarkAsValidPose();
+        }
+
+        /// <summary>Copies parent-space transforms in bulk and invalidates cached model-space transforms.</summary>
+        public void SetParentSpaceTransforms(ReadOnlySpan<FrameBone> transforms)
+        {
+            var count = Math.Min(transforms.Length, ParentSpaceTransforms.Length);
+            transforms[..count].CopyTo(ParentSpaceTransforms);
+            CalculatedModelSpace = false;
             MarkAsValidPose();
         }
 
@@ -186,7 +196,8 @@ namespace ValveResourceFormat.Renderer.AnimLib
         public float CurrentTime; /* Percent */
         public float PreviousTime;  /* Percent */
 
-        public FrameBone[] ModelSpaceTransforms = [];
+        /// <summary>This node's output pose buffer, in parent (local bone) space.</summary>
+        public FrameBone[] PoseTransforms = [];
 
         public override void Initialize(GraphContext ctx)
         {
@@ -194,7 +205,7 @@ namespace ValveResourceFormat.Renderer.AnimLib
             Duration = 0f;
             RestartTime();
 
-            ModelSpaceTransforms = new FrameBone[ctx.Controller.BindPose.Length];
+            PoseTransforms = new FrameBone[ctx.Graph.ParentSpaceReferencePose.Length];
         }
 
         public void RestartTime()
@@ -209,7 +220,7 @@ namespace ValveResourceFormat.Renderer.AnimLib
         {
             return new GraphPoseNodeResult
             {
-                Pose = ModelSpaceTransforms,
+                Pose = PoseTransforms,
                 RootMotionDelta = Matrix4x4.Identity,
             };
         }
@@ -220,7 +231,7 @@ namespace ValveResourceFormat.Renderer.AnimLib
         public override GraphPoseNodeResult Update(GraphContext ctx)
         {
             var result = base.Update(ctx);
-            ctx.Controller.BindPose.CopyTo(result.Pose, 0);
+            ctx.Graph.ParentSpaceReferencePose.CopyTo(result.Pose, 0);
             return result;
         }
     }
@@ -241,16 +252,16 @@ namespace ValveResourceFormat.Renderer.AnimLib
     #region Animation Source Nodes
     partial class ClipNode
     {
-        public override AnimationController? GetAnimation(GraphContext ctx) => Animation;
+        public override GraphClip? GetClip(GraphContext ctx) => Clip;
         public override bool IsLooping => AllowLooping;
         public override bool DisableRootMotionSampling => !SampleRootMotion;
 
-        public AnimationController? Animation;
+        public GraphClip? Clip;
 
         public BoolValueNode? ResetTimeValueNode;
         public BoolValueNode? PlayInReverseValueNode;
 
-        public override bool IsValid => Animation?.ActiveAnimation != null;
+        public override bool IsValid => Clip != null;
 
         public override void Initialize(GraphContext ctx)
         {
@@ -260,15 +271,15 @@ namespace ValveResourceFormat.Renderer.AnimLib
             ctx.SetOptionalNodeFromIndex(PlayInReverseValueNodeIdx, ref PlayInReverseValueNode);
 
             // DataSlotIdx can be -1 (no clip bound) — leave the node invalid in that case.
-            if (DataSlotIdx < 0 || DataSlotIdx >= ctx.Controller.Sequences.Length)
+            if (DataSlotIdx < 0 || DataSlotIdx >= ctx.Graph.DataSlots.Length)
             {
-                Animation = null;
+                Clip = null;
                 Duration = 0f;
                 return;
             }
 
-            Animation = ctx.Controller.Sequences[DataSlotIdx];
-            Duration = Animation.ActiveAnimation?.Duration ?? 0f;
+            Clip = ctx.Graph.DataSlots[DataSlotIdx];
+            Duration = Clip?.Duration ?? 0f;
         }
 
         public override void UpdateSelection(GraphContext ctx)
@@ -280,8 +291,8 @@ namespace ValveResourceFormat.Renderer.AnimLib
         {
             var result = base.Update(ctx);
 
-            var animation = Animation;
-            if (animation?.ActiveAnimation == null)
+            var clip = Clip;
+            if (clip == null)
             {
                 return result;
             }
@@ -290,9 +301,9 @@ namespace ValveResourceFormat.Renderer.AnimLib
 
             // Unsynchronized Update
 
-            if (animation.ActiveAnimation.FrameCount == 1)
+            if (clip.FrameCount == 1)
             {
-                animation.SamplePoseAtFrame(0, result.Pose);
+                clip.SamplePoseAtFrame(0, result.Pose);
                 return result;
             }
 
@@ -328,7 +339,7 @@ namespace ValveResourceFormat.Renderer.AnimLib
             }
 
             // sample animation pose at current time
-            var frame = animation.SamplePoseAtPercentage(CurrentTime, result.Pose);
+            var frame = clip.SamplePoseAtPercentage(CurrentTime, result.Pose);
 
             // root motion
             // frame.Movement.Position;
@@ -340,15 +351,23 @@ namespace ValveResourceFormat.Renderer.AnimLib
     partial class AnimationPoseNode
     {
         public FloatValueNode? PoseTimeValueNode;
-        public AnimationController Animation;
+        public GraphClip? Clip;
 
         public override void Initialize(GraphContext ctx)
         {
             base.Initialize(ctx);
             ctx.SetOptionalNodeFromIndex(PoseTimeValueNodeIdx, ref PoseTimeValueNode);
-            Animation = ctx.Controller.Sequences[DataSlotIdx];
-            Debug.Assert(Animation.ActiveAnimation != null);
-            Duration = Animation.ActiveAnimation.Duration;
+
+            // DataSlotIdx can be -1 (no clip bound) — leave the node invalid in that case.
+            if (DataSlotIdx < 0 || DataSlotIdx >= ctx.Graph.DataSlots.Length)
+            {
+                Clip = null;
+                Duration = 0f;
+                return;
+            }
+
+            Clip = ctx.Graph.DataSlots[DataSlotIdx];
+            Duration = Clip?.Duration ?? 0f;
             // set to null if skeletons don't match
         }
 
@@ -356,11 +375,15 @@ namespace ValveResourceFormat.Renderer.AnimLib
         {
             var result = base.Update(ctx);
 
-            Debug.Assert(Animation.ActiveAnimation != null);
-
-            if (Animation.ActiveAnimation.FrameCount == 1)
+            var clip = Clip;
+            if (clip == null)
             {
-                Animation.SamplePoseAtFrame(0, result.Pose);
+                return result;
+            }
+
+            if (clip.FrameCount == 1)
+            {
+                clip.SamplePoseAtFrame(0, result.Pose);
                 return result;
             }
 
@@ -375,13 +398,13 @@ namespace ValveResourceFormat.Renderer.AnimLib
             // Convert to percentage
             if (UseFramesAsInput)
             {
-                timeValue /= Animation.ActiveAnimation.FrameCount - 1;
+                timeValue /= clip.FrameCount - 1;
             }
 
             CurrentTime = MathUtils.Saturate(timeValue);
             PreviousTime = CurrentTime;
 
-            Animation.SamplePoseAtPercentage(CurrentTime, result.Pose);
+            clip.SamplePoseAtPercentage(CurrentTime, result.Pose);
             return result;
         }
     }
@@ -393,7 +416,7 @@ namespace ValveResourceFormat.Renderer.AnimLib
     // This is needed to ensure certain animation nodes only operate on animations directly
     abstract partial class ClipReferenceNode
     {
-        public virtual AnimationController? GetAnimation(GraphContext ctx) => SelectedOption?.GetAnimation(ctx);
+        public virtual GraphClip? GetClip(GraphContext ctx) => SelectedOption?.GetClip(ctx);
         public virtual bool IsLooping => SelectedOption?.IsLooping ?? false;
         public virtual bool DisableRootMotionSampling => SelectedOption?.DisableRootMotionSampling ?? false;
         public ClipReferenceNode? SelectedOption;
@@ -453,6 +476,45 @@ namespace ValveResourceFormat.Renderer.AnimLib
         }
     }
 
+    // Valve extension: selects a clip option by matching an ID parameter against per-option IDs,
+    // falling back to a dedicated fallback node when no option matches.
+    partial class IDBasedClipSelectorNode
+    {
+        public ClipReferenceNode[] OptionNodes;
+        public IDValueNode ParameterNode;
+        public ClipReferenceNode? FallbackNode;
+
+        public override void Initialize(GraphContext ctx)
+        {
+            base.Initialize(ctx);
+            ctx.SetNodesFromIndexArray(OptionNodeIndices, ref OptionNodes);
+            ctx.SetNodeFromIndex(ParameterNodeIdx, ref ParameterNode);
+            ctx.SetOptionalNodeFromIndex(FallbackNodeIdx, ref FallbackNode);
+        }
+
+        public override void UpdateSelection(GraphContext ctx)
+        {
+            SelectedOption = FallbackNode;
+
+            var id = ParameterNode.GetValue(ctx);
+            var optionCount = Math.Min(OptionIDs.Length, OptionNodes.Length);
+
+            for (var i = 0; i < optionCount; i++)
+            {
+                if (OptionIDs[i] == id)
+                {
+                    if (IgnoreInvalidOptions && !OptionNodes[i].IsValid)
+                    {
+                        continue;
+                    }
+
+                    SelectedOption = OptionNodes[i];
+                    break;
+                }
+            }
+        }
+    }
+
     partial class ParameterizedClipSelectorNode
     {
         public ClipReferenceNode[] OptionNodes;
@@ -485,17 +547,20 @@ namespace ValveResourceFormat.Renderer.AnimLib
 
             Debug.Assert(OptionWeights.Length == numOptions);
 
-            // Build cumulative bucket boundaries from the byte weights
+            // Build cumulative bucket boundaries from the byte weights.
+            // Zero-weight options exist in shipped data; they are simply never picked.
             Span<int> boundaries = stackalloc int[numOptions];
             var totalWeightedOptions = 0;
             for (var i = 0; i < numOptions; i++)
             {
-                Debug.Assert(OptionWeights[i] > 0);
                 totalWeightedOptions += OptionWeights[i];
                 boundaries[i] = totalWeightedOptions;
             }
 
-            Debug.Assert(totalWeightedOptions > 0);
+            if (totalWeightedOptions == 0)
+            {
+                return seed % numOptions;
+            }
 
             var weightedIdx = seed % totalWeightedOptions;
 
