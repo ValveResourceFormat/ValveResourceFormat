@@ -367,9 +367,7 @@ namespace ValveResourceFormat.IO
             }
         }
 
-        /// <summary>
-        /// Gets a stream for reading a file.
-        /// </summary>
+        /// <inheritdoc/>
         public Stream? GetFileStream(string file)
         {
             var foundFile = FindFile(file);

@@ -466,6 +466,23 @@ namespace ValveResourceFormat.ResourceTypes
         }
 
         /// <summary>
+        /// Reads the raw streaming sound data - the samples exactly as stored, without the container
+        /// header <see cref="GetSoundStream"/> synthesizes - into <paramref name="buffer"/>, which must be
+        /// exactly <see cref="StreamingDataSize"/> bytes. The stored format is described by
+        /// <see cref="SoundType"/>, <see cref="AudioFormat"/>, <see cref="Bits"/>, <see cref="Channels"/>,
+        /// <see cref="SampleRate"/> and (for ADPCM) <see cref="Header"/>, so decoders can consume the data
+        /// directly instead of round-tripping through a synthesized RIFF header.
+        /// </summary>
+        public void ReadStreamingData(Span<byte> buffer)
+        {
+            Debug.Assert(buffer.Length == StreamingDataSize);
+            Debug.Assert(Reader != null);
+
+            Reader.BaseStream.Position = Offset + Size;
+            Reader.BaseStream.ReadExactly(buffer);
+        }
+
+        /// <summary>
         /// Returns fully playable sound data.
         /// In case of WAV files, header is automatically generated as Valve removes it when compiling.
         /// </summary>

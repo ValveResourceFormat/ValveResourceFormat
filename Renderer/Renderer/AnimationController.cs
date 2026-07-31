@@ -50,6 +50,24 @@ namespace ValveResourceFormat.Renderer
         /// </summary>
         public Matrix4x4 Transform { get; set; } = Matrix4x4.Identity;
 
+        /// <summary>
+        /// Optional resolver from an attachment/bone name to a world position, used to place the sounds of
+        /// animation events. TODO: rework this.
+        /// </summary>
+        public Func<string, Vector3?>? ResolvePosition
+        {
+            get => modelPlayer.ResolvePosition;
+            set
+            {
+                modelPlayer.ResolvePosition = value;
+
+                foreach (var external in externalSkeletons.Values)
+                {
+                    external.Player.ResolvePosition = value;
+                }
+            }
+        }
+
         /// <summary>Gets or sets whether animations should loop when reaching the end.</summary>
         public bool Looping { get; set; } = true;
 
@@ -303,7 +321,10 @@ namespace ValveResourceFormat.Renderer
             }
 
             var bindPose = ComputeBindPose(skeleton);
-            var externalPlayer = new AnimationPlayer(skeleton, [], bindPose, bindPose.AsSpan().ToArray());
+            var externalPlayer = new AnimationPlayer(skeleton, [], bindPose, bindPose.AsSpan().ToArray())
+            {
+                ResolvePosition = ResolvePosition,
+            };
 
             externalSkeletons[skeletonName] = new(externalPlayer, remap);
         }

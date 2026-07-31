@@ -20,6 +20,8 @@ internal enum Counter
     ShadowFaceSubmitted,
     ParticleSystem,
     ParticleDraw,
+    SoundCacheMegabytes,
+    SoundDecodeQueue,
 }
 
 internal enum Metric
@@ -409,7 +411,10 @@ public class PerfStats
         AddLine($"Shadow maps:      {counts[(int)Counter.DirectionalShadowMap]:N0} directional, {counts[(int)Counter.BarnShadowMap]:N0} barn, {counts[(int)Counter.ShadowFaceSubmitted]:N0} faces binned, {floatMetrics[(int)Metric.ShadowAtlasUsage]:0%} atlas utilization", valueColor);
         AddLine($"Particle Systems: {counts[(int)Counter.ParticleSystem]:N0} particle systems rendered in {counts[(int)Counter.ParticleDraw]:N0} draw calls out of {totalParticleSystems:N0} total particle systems", valueColor);
         AddLine($"Light binning:    {FormatBinnerStats(scene.LightBinner.Stats)}", valueColor);
+
+        AddLine($"Sound cache:      {counts[(int)Counter.SoundCacheMegabytes]:N0} MB decoded, {counts[(int)Counter.SoundDecodeQueue]:N0} queued to decode", valueColor);
     }
+
 
     /// <summary>
     /// One line of what binning produced. Counts are per barn light face, the unit the binner works in,
@@ -524,14 +529,14 @@ public class PerfStats
     }
 
     /// <summary>Begins a timing query for a debug group, or returns 0 if this frame is not being timed.</summary>
-    internal QueryId BeginTimingQuery(string name)
+    internal QueryId BeginTimingQuery(string name, bool cpuOnly = false)
     {
         if (!timingFrame || IsNotOwningThread)
         {
             return 0;
         }
 
-        return Timings.BeginQuery(name);
+        return Timings.BeginQuery(name, cpuOnly);
     }
 
     /// <summary>Ends a timing query opened by <see cref="BeginTimingQuery"/>.</summary>

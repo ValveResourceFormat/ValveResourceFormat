@@ -519,6 +519,11 @@ namespace GUI
                 //For UX purposes, hide the option to close the console also (this is disabled later in code too)
                 closeToolStripMenuItem.Visible = tabIndex != 0;
 
+                //Only tabs that got a sound player (world and model viewers) have anything to mute
+                var sceneViewer = GLBaseControl.FindHostedIn(thisTab) as GLSceneViewer;
+                muteTabToolStripMenuItem.Visible = sceneViewer?.HasSoundPlayer == true;
+                muteTabToolStripMenuItem.Text = sceneViewer?.Muted == true ? "&Unmute tab" : "&Mute tab";
+
                 var canExport = thisTab.Tag is ExportData exportData;
                 toolStripSeparator5.Visible = canExport || tabIndex == 0;
                 exportAsIsToolStripMenuItem.Visible = canExport;

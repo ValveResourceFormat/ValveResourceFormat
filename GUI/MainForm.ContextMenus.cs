@@ -8,6 +8,7 @@ using System.Windows.Forms;
 using GUI.Controls;
 using GUI.Forms;
 using GUI.Types.Exporter;
+using GUI.Types.GLViewers;
 using GUI.Types.PackageViewer;
 using GUI.Utils;
 using SteamDatabase.ValvePak;
@@ -77,6 +78,14 @@ namespace GUI
         private void CloseToolStripMenuItems_Click(object sender, EventArgs e)
         {
             CloseAllTabs();
+        }
+
+        private void MuteTabToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            if (GLBaseControl.FindHostedIn(FetchToolstripTabContext(sender)) is GLSceneViewer viewer)
+            {
+                viewer.Muted = !viewer.Muted;
+            }
         }
 
         private void CopyFileNameToolStripMenuItem_Click(object sender, EventArgs e)

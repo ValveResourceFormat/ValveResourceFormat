@@ -1,11 +1,14 @@
 using System.Diagnostics;
 using System.Drawing;
 using System.Linq;
+using System.Runtime.InteropServices;
 using System.Windows.Forms;
 using GUI.Controls;
+using GUI.Types.Audio;
 using GUI.Utils;
 using OpenTK.Graphics.OpenGL;
 using ValveResourceFormat.Renderer;
+using ValveResourceFormat.Renderer.Audio;
 using ValveResourceFormat.Renderer.Input;
 using ValveResourceFormat.Renderer.Materials;
 using ValveResourceFormat.Renderer.SceneNodes;
@@ -26,6 +29,25 @@ namespace GUI.Types.GLViewers
         public Scene Scene { get; }
         public Scene? SkyboxScene => Renderer.SkyboxScene;
         public VrfGuiContext GuiContext;
+
+        /// <summary>Optional sound event player, created by viewers that play scene audio.</summary>
+        protected SoundEventPlayer? soundPlayer;
+
+        /// <summary>Gets whether this viewer plays scene audio, i.e. whether <see cref="InitializeSoundPlayer"/> got a device.</summary>
+        public bool HasSoundPlayer => soundPlayer != null;
+
+        /// <summary>Gets or sets whether this viewer's audio is silenced, independently of the master volume.</summary>
+        public bool Muted
+        {
+            get => soundPlayer?.Mute ?? false;
+            set
+            {
+                if (soundPlayer != null)
+                {
+                    soundPlayer.Mute = value;
+                }
+            }
+        }
 
         private bool ShowBaseGrid;
         private bool ShowLightBackground;
@@ -94,6 +116,9 @@ namespace GUI.Types.GLViewers
             physicsTraceRenderer?.Delete();
             physicsTraceRenderer = null;
 
+            soundPlayer?.Dispose();
+            soundPlayer = null;
+
             Renderer?.Dispose();
 
             perfDisplayComboBox?.Dispose();
@@ -142,6 +167,8 @@ namespace GUI.Types.GLViewers
                         UiControl.AddCheckBox("Debug Physics Traces", showPhysicsTraces, v => showPhysicsTraces = v);
                     }
                 }
+
+                UiControl.AddCheckBox("Debug Sound Sources", Renderer.ShowSoundDebug, v => Renderer.ShowSoundDebug = v);
 
                 perfDisplayComboBox = UiControl.AddSelection("Debug Performance", (_, i) => perfDisplay = (PerfDisplay)i);
                 perfDisplayComboBox.Items.AddRange([nameof(PerfDisplay.Off), nameof(PerfDisplay.Stats), nameof(PerfDisplay.Timings), nameof(PerfDisplay.Allocations)]);
@@ -399,9 +426,67 @@ namespace GUI.Types.GLViewers
             }
         }
 
+        /// <summary>
+        /// Creates <see cref="soundPlayer"/> and loads the game's sound events, wiring up the master volume from
+        /// settings and the default mix group volumes. Safe to call once; failures (e.g. no audio device) are logged
+        /// and leave <see cref="soundPlayer"/> null. Intended for scene viewers that want to play scene audio.
+        /// </summary>
+        protected void InitializeSoundPlayer()
+        {
+            if (soundPlayer != null)
+            {
+                return;
+            }
+
+            try
+            {
+                // The player takes ownership of the device and disposes it in its own Dispose (called from ours);
+                // CA2000 cannot see ownership transfer through the constructor, so this is not actually a leak.
+#pragma warning disable CA2000
+                soundPlayer = new SoundEventPlayer(GuiContext, new NAudioDevice(), Scene.RendererContext.Logger);
+#pragma warning restore CA2000
+            }
+            catch (COMException e)
+            {
+                // WASAPI has no usable render endpoint (no audio hardware, headless/RDP session, audio service off).
+                // This is an expected environment, not a bug: run without sound rather than failing the viewer.
+                Log.Warn(nameof(GLSceneViewer), $"No audio device available, sound playback disabled: {e.Message}");
+                return;
+            }
+
+            soundPlayer.LoadSoundEvents();
+            soundPlayer.LoadSoundscapes();
+
+            // todo: collision filter 'default' and 'blocksound'
+            // const float OcclusionEndMargin = 48f;
+            // soundPlayer.OcclusionTrace = (listener, sound) =>
+            //     Scene.PhysicsWorld?.TraceRay(listener, sound) is { Hit: true } hit
+            //         && Vector3.DistanceSquared(hit.HitPosition, sound) > OcclusionEndMargin * OcclusionEndMargin;
+
+            soundPlayer.Suspended = true; // start with fade-in
+            soundPlayer.Volume = Settings.Config.Volume;
+            soundPlayer.MixGroupVolume["Weapons"] = 0.7f;
+            soundPlayer.MixGroupVolume["Foley"] = 0.5f;
+            soundPlayer.MixGroupVolume["Footsteps"] = 0.4f;
+            soundPlayer.MixGroupVolume["PlayerDamage"] = 0.4f;
+            soundPlayer.DefaultMixGroupVolume = 0.1f;
+        }
+
+        public override void OnDetachedFromRenderLoop()
+        {
+            base.OnDetachedFromRenderLoop();
+            soundPlayer?.Suspended = true;
+        }
+
         protected override void OnUpdate(float frameTime)
         {
             base.OnUpdate(frameTime);
+
+            if (soundPlayer != null)
+            {
+                soundPlayer.Volume = Settings.Config.Volume;
+                soundPlayer.Suspended = Paused;
+            }
 
             Input.EnableMouseLook = true;
             if (loadedDefaultLighting && (CurrentlyPressedKeys & TrackedKeys.Control) != 0)
@@ -450,6 +535,27 @@ namespace GUI.Types.GLViewers
                 }
 
                 GrabbedMouse = MouseOverRenderArea && !Input.NoClip && !Paused && !mouseReleased;
+            }
+
+        }
+
+        /// <summary>
+        /// Advances the sound system and reports its cost. Runs inside the frame's timing bracket rather
+        /// than in <see cref="OnUpdate"/>, which is outside it, so the listener update shows up as a row.
+        /// </summary>
+        private void UpdateSoundPlayer()
+        {
+            if (soundPlayer == null)
+            {
+                return;
+            }
+
+            if (!Paused)
+            {
+                using (new ProfilerScope("Update Sounds"))
+                {
+                    soundPlayer.Update(Renderer.Camera);
+                }
             }
         }
 
@@ -505,6 +611,8 @@ namespace GUI.Types.GLViewers
 
             Renderer.PerfStats.MarkFrameBegin();
             GL.BeginQuery(QueryTarget.TimeElapsed, frametimeQuery1);
+
+            UpdateSoundPlayer();
 
             var renderContext = new Scene.RenderContext
             {

@@ -51,6 +51,16 @@ namespace ValveResourceFormat.Renderer
         }
 
         /// <summary>
+        /// Creates a bounding box of the given size centered on the origin.
+        /// </summary>
+        /// <param name="size">Full size along each axis.</param>
+        public static AABB FromCenteredSize(Vector3 size)
+        {
+            var halfExtents = size * 0.5f;
+            return new AABB(-halfExtents, halfExtents);
+        }
+
+        /// <summary>
         /// Initializes a new bounding box from individual coordinate components.
         /// </summary>
         public AABB(float min_x, float min_y, float min_z, float max_x, float max_y, float max_z)

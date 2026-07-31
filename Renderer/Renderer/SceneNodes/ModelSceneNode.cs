@@ -142,6 +142,10 @@ namespace ValveResourceFormat.Renderer.SceneNodes
             SetCharacterEyeRenderParams();
             Attachments = model.Attachments;
             AnimationController.TwistConstraints = ParseTwistConstraints(model);
+
+            // GetAttachmentOrSelfTransform already falls back to this node's own world Transform for an empty/
+            // unmatched name - AnimationController.Transform is not it (see its doc comment), so route through here.
+            AnimationController.ResolvePosition = attachmentName => GetAttachmentOrSelfTransform(attachmentName).Translation;
         }
 
         readonly struct CharacterEyeParameters
@@ -433,7 +437,8 @@ namespace ValveResourceFormat.Renderer.SceneNodes
         }
 
         /// <summary>
-        /// Adds the given animations to the collection of available animations for this model.
+        /// Adds the given animations to the collection of available animations for this model,
+        /// prewarming any sound events they can fire so first playback stays allocation-free.
         /// </summary>
         public void AddAnimations(List<Animation> animations)
         {
@@ -441,6 +446,7 @@ namespace ValveResourceFormat.Renderer.SceneNodes
             foreach (var anim in animations)
             {
                 Animations[anim.Name] = anim;
+                AnimationPlayer.PrewarmAnimationSounds(anim);
             }
         }
 
@@ -451,6 +457,7 @@ namespace ValveResourceFormat.Renderer.SceneNodes
         {
             var anim = new ClipAnimation(clip);
             Animations[anim.Name] = anim;
+            AnimationPlayer.PrewarmAnimationSounds(anim);
         }
 
         /// <summary>

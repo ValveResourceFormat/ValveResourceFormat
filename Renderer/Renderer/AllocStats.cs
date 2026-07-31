@@ -447,7 +447,7 @@ public class AllocStats
 
         void AddLine(TextRenderer.TextMemory text, Color32 color) => displayLines.Add((text, color));
 
-        AddLine("GC Allocations", new Color32(255, 200, 0));
+        AddLine("Frame Allocations", new Color32(255, 200, 0));
 
         AddLine(displayText.Format($"Frame:       {new ByteSize(lastFrameTotalBytes),10} process, {new ByteSize(lastFrameThreadBytes),10} render thread"), ColorForFrameBytes(lastFrameTotalBytes));
         AddLine(displayText.Format($"Peak frame:  {new ByteSize(publishedMaxFrameBytes),10} over the last second"), ColorForFrameBytes(publishedMaxFrameBytes));
@@ -564,7 +564,7 @@ public class AllocStats
 
         var captureSeconds = Stopwatch.GetElapsedTime(captureStart).TotalSeconds;
         AddLine(displayText.Format($"Top allocated types over {captureSeconds:0} s ({new ByteSize(sampledBytes)} sampled at ~100 KB granularity)"), new Color32(255, 200, 0));
-        AddLine(displayText.Format($"Without stats overhead and strings: {new ByteSize(sampledBytes - selfBytes - stringBytes)} <- try to make this zero"), Color32.White);
+        AddLine(displayText.Format($"Without stats overhead and strings: {new ByteSize(sampledBytes - selfBytes - stringBytes)}"), Color32.White);
         AddLine(displayText.Format($"{"Bytes",10} {"Share",6} {"Ticks",6}  Type"), Color32.White);
 
         void AddTypeLine(string name, long bytes, long samples, Color32? colorOverride)

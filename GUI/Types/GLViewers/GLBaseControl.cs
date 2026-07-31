@@ -77,6 +77,14 @@ internal abstract class GLBaseControl : IDisposable, IMessageFilter
     private bool FirstPaint = true;
     public long LastUpdate { get; protected set; }
     public bool Paused = true;
+
+    /// <summary>
+    /// Pauses this control.
+    /// </summary>
+    public virtual void OnDetachedFromRenderLoop()
+    {
+        Paused = true;
+    }
     protected long lastFpsUpdate;
 
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Usage", "CA2213:Disposable fields should be disposed", Justification = "RendererContext is disposed in Dispose method")]
@@ -95,11 +103,36 @@ internal abstract class GLBaseControl : IDisposable, IMessageFilter
 #endif
     }
 
+    /// <summary>
+    /// Finds the viewer whose GL surface sits somewhere under <paramref name="container"/> (a tab page,
+    /// say), or null when it hosts none.
+    /// </summary>
+    public static GLBaseControl? FindHostedIn(Control container)
+    {
+        foreach (Control child in container.Controls)
+        {
+            if (child is GLControl { Tag: GLBaseControl viewer })
+            {
+                return viewer;
+            }
+
+            if (FindHostedIn(child) is { } nested)
+            {
+                return nested;
+            }
+        }
+
+        return null;
+    }
+
     public Control InitializeUiControls(bool isPreview = false)
     {
         GLControl = new GLControl(glLock)
         {
-            Dock = DockStyle.Fill
+            Dock = DockStyle.Fill,
+            // Back-reference for FindHostedIn: this class is not itself a WinForms control, so the
+            // GL surface is the only thing of ours in the tab's control tree.
+            Tag = this,
         };
 
         GLControl.Paint += OnGlControlPaint;
