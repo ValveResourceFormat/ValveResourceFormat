@@ -243,6 +243,14 @@ namespace ValveResourceFormat.Renderer
                 {
                     CollectIdOptions(node.GetInt32Property("m_nParameterNodeIdx"), node.GetArray<string>("m_optionIDs"));
                 }
+                else if (type == "IDToFloat")
+                {
+                    CollectIdOptions(node.GetInt32Property("m_nInputValueNodeIdx"), node.GetArray<string>("m_IDs"));
+                }
+                else if (type == "BoneMaskSelector")
+                {
+                    CollectIdOptions(node.GetInt32Property("m_parameterValueNodeIdx"), node.GetArray<string>("m_parameterValues"));
+                }
             }
         }
 
