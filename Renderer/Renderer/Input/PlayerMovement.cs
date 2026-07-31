@@ -83,6 +83,33 @@ public partial class PlayerMovement
 
     private readonly ViewEffects Effects = new();
 
+    // Movement sound events (CS2, game_sounds_footsteps.vsndevts / game_sounds_player.vsndevts).
+    // Footstep and land events are per-material (CT_<Material>.StepLeft / Land_<Material>.StepLeft);
+    // physics traces do not return surface materials yet, so default to concrete.
+    private const string FootstepSoundEvent = "CT_Concrete.StepLeft";
+    private const string JumpSoundEvent = "Default.WalkJump";
+    private const string LandSoundEvent = "Land_Concrete.StepLeft";
+    private const string GearSoundEvent = "Gear.JumpLand.CT";
+    private const float GearVolume = 0.1f;
+    private const string FallDamageSoundEvent = "Player.DamageFall";
+
+    private static readonly string[] MovementSounds = [
+        FootstepSoundEvent,
+        JumpSoundEvent,
+        LandSoundEvent,
+        GearSoundEvent,
+        FallDamageSoundEvent,
+    ];
+
+    private const float StepSoundVelWalk = 90f;           // GetStepSoundVelocities velwalk (standing)
+    private const float StepSoundVelRun = 220f;           // GetStepSoundVelocities velrun (standing)
+    private const float WalkingStepVolume = 0.8f;         // Slightly quieter steps below run speed (the authored volume is 0.9)
+    private const float LandMinFallSpeed = 290f;          // PLAYER_MAX_SAFE_FALL_SPEED / 2 - quieter landings are silent (a normal jump lands at ~302)
+    private const float FallDamageSpeed = 580f;           // PLAYER_MAX_SAFE_FALL_SPEED
+
+    private float stepSoundTime;
+    private readonly List<Audio.SoundEvent> activeMovementSounds = [];
+
     /// <summary>
     /// Gets the current jump stamina, from 0 to 1. Landing drains it, it recovers over roughly
     /// a second, and jump impulses scale by it, so spammed hops get progressively lower (like
@@ -182,6 +209,17 @@ public partial class PlayerMovement
         SlopeClipNormalZ = 1f;
         HasPreviousYaw = false;
         Effects.Reset();
+
+        CacheSounds();
+    }
+
+    /// <summary>Pre-decodes the sounds movement can fire, so the first step does not decode mid-frame.</summary>
+    public static void CacheSounds()
+    {
+        foreach (var soundEvent in MovementSounds)
+        {
+            Sound.Cache(soundEvent);
+        }
     }
 
     /// <summary>
@@ -224,13 +262,14 @@ public partial class PlayerMovement
 
         var justLanded = !WasOnGroundLastFrame && OnGround;
 
+        var wantsToJump = AutoBunnyHop ? Input.Holding(TrackedKeys.Space) : Input.Pressed(TrackedKeys.Space);
+        wantsToJump = wantsToJump || Input.Holding(TrackedKeys.MouseWheelDown) || Input.Holding(TrackedKeys.MouseWheelUp);
+
         if (justLanded)
         {
             Effects.OnLanded(fallSpeed);
+            PlayLandingSounds(fallSpeed, wantsToJump, position, playerHull);
         }
-
-        var wantsToJump = AutoBunnyHop ? Input.Holding(TrackedKeys.Space) : Input.Pressed(TrackedKeys.Space);
-        wantsToJump = wantsToJump || Input.Holding(TrackedKeys.MouseWheelDown) || Input.Holding(TrackedKeys.MouseWheelUp);
 
         if (wantsToJump && (OnGround || (AutoBunnyHop && justLanded)))
         {
@@ -238,7 +277,18 @@ public partial class PlayerMovement
             {
                 PreventBunnyJumping();
             }
+
+            var loudTakeoffFootstep = Velocity.Length() > WalkSpeedModifier * RunSpeed;
+
             CheckJump();
+
+            if (loudTakeoffFootstep)
+            {
+                PlaySound(FootstepSoundEvent, position, playerHull);
+            }
+
+            PlaySound(JumpSoundEvent, position, playerHull);
+            PlaySound(GearSoundEvent, position, playerHull, GearVolume);
         }
 
         var (wishdir, wishspeed) = CalculateWishVelocity(yaw, isWalking);
@@ -309,7 +359,10 @@ public partial class PlayerMovement
         if (!justLanded && !WasOnGroundLastFrame && OnGround)
         {
             Effects.OnLanded(fallSpeed);
+            PlayLandingSounds(fallSpeed, wantsToJump, position, playerHull);
         }
+
+        UpdateStepSounds(position, playerHull, deltaTime);
 
         TracePosition = position;
 
@@ -322,6 +375,122 @@ public partial class PlayerMovement
         EyePosition = Position + Vector3.UnitZ * BlendedEyeHeight;
         camera.Location = EyePosition;
         camera.Roll = float.DegreesToRadians(Effects.LandingRollDegrees);
+
+        UpdateMovementSounds();
+    }
+
+    /// <summary>
+    /// Plays the landing thud, gear rattle and pain grunt for a landing at <paramref name="fallSpeed"/>.
+    /// </summary>
+    private void PlayLandingSounds(float fallSpeed, bool willBunnyHop, Vector3 position, Vector3 halfExtents)
+    {
+        if (fallSpeed <= LandMinFallSpeed)
+        {
+            return;
+        }
+
+        // A landing that immediately turns into another jump (perfect bhop) skips the land thud
+        if (!willBunnyHop)
+        {
+            PlaySound(LandSoundEvent, position, halfExtents);
+            PlaySound(GearSoundEvent, position, halfExtents, GearVolume);
+        }
+
+        // The pain grunt plays even when bhopping - a hard fall hurts either way
+        if (fallSpeed >= FallDamageSpeed)
+        {
+            PlaySound(FallDamageSoundEvent, position, halfExtents);
+        }
+
+        SetStepSoundTime(walking: false);
+    }
+
+    /// <summary>Plays footstep sounds periodically based on ground speed.</summary>
+    private void UpdateStepSounds(Vector3 position, Vector3 halfExtents, float deltaTime)
+    {
+        var speedSqr = Velocity.LengthSquared();
+        var walkSpeed = RunSpeed * WalkSpeedModifier; // CS_PLAYER_SPEED_RUN * CS_PLAYER_SPEED_WALK_MODIFIER
+
+        if (speedSqr < walkSpeed * walkSpeed || (HoldingShift && !HoldingCtrl))
+        {
+            if (speedSqr < 10f)
+            {
+                // Standing still keeps the timer armed, so moving again does not step instantly
+                SetStepSoundTime(walking: false);
+            }
+
+            return;
+        }
+
+        // CBasePlayer::UpdateStepSound
+        stepSoundTime = Math.Max(stepSoundTime - deltaTime, 0f);
+        if (stepSoundTime > 0f)
+        {
+            return;
+        }
+
+        var speed = MathF.Sqrt(speedSqr);
+        var groundSpeed = new Vector2(Velocity.X, Velocity.Y).Length();
+
+        var movingFastEnough = speed >= StepSoundVelWalk;
+        var movingAlongGround = groundSpeed > 0.0001f;
+
+        if (!movingFastEnough || !OnGround || !movingAlongGround)
+        {
+            return;
+        }
+
+        var walking = speed < StepSoundVelRun;
+        SetStepSoundTime(walking);
+
+        // fvol from the original: walking pace plays quiet steps, running full
+        PlaySound(FootstepSoundEvent, position, halfExtents, walking ? WalkingStepVolume : null);
+    }
+
+    /// <summary>
+    /// 400ms walking, 300ms running, +100ms ducked.
+    /// </summary>
+    private void SetStepSoundTime(bool walking)
+    {
+        stepSoundTime = walking ? 0.4f : 0.3f;
+
+        if (HoldingCtrl)
+        {
+            stepSoundTime += 0.1f;
+        }
+    }
+
+    private void PlaySound(string soundEventName, Vector3 position, Vector3 halfExtents, float? volume = null)
+    {
+        // Convert from hull center to feet position; the sound event applies its own position offset
+        var feetPosition = position - new Vector3(0, 0, halfExtents.Z);
+        var handle = Sound.Play(soundEventName, feetPosition, volume: volume);
+
+        if (handle != null)
+        {
+            activeMovementSounds.Add(handle);
+        }
+    }
+
+    /// <summary>
+    /// Tracks the player's position for our movement sounds ("use_entity_position_if_local_player" in the sound
+    /// event data). Left at their emit position they would fall behind at run speed and get louder while receding,
+    /// since the footstep distance-volume curve peaks at ~116 units.
+    /// </summary>
+    private void UpdateMovementSounds()
+    {
+        for (var i = activeMovementSounds.Count - 1; i >= 0; i--)
+        {
+            var handle = activeMovementSounds[i];
+
+            if (!handle.Playing)
+            {
+                activeMovementSounds.RemoveAt(i);
+                continue;
+            }
+
+            handle.Position = Position;
+        }
     }
 
     /// <summary>

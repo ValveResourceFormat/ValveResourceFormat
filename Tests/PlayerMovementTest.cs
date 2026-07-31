@@ -29,9 +29,9 @@ namespace Tests
         private static (UserInput Input, Camera RenderCamera) CreateHeadlessFpsInput(float spawnHeight)
         {
             var context = new RendererContext(new GameFileLoader(null, null), NullLogger.Instance);
-            var renderer = new Renderer(context);
+            var renderer = new ValveResourceFormat.Renderer.Renderer(context);
             var input = new UserInput(renderer);
-            var renderCamera = new Camera(context);
+            var renderCamera = new Camera();
 
             // Leave noclip into FPS movement; the spawn height decides grounded vs airborne
             input.Camera.Location = new Vector3(0, 0, spawnHeight);
