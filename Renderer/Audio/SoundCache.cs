@@ -46,7 +46,18 @@ public sealed class SoundCache : IDisposable
     public long MaxCachedBytes { get; set; } = 512L * 1024 * 1024;
 
     /// <summary>Gets the total size of the decoded audio currently held.</summary>
-    public long CachedBytes => Interlocked.Read(ref cachedBytes);
+    public long CachedBytes
+    {
+        get
+        {
+            // Written only under this lock (decode publish, Prune), so read under it too rather than
+            // implying a lock-free protocol that isn't there
+            lock (sounds)
+            {
+                return cachedBytes;
+            }
+        }
+    }
 
     /// <summary>Creates a sound cache that decodes into the given output format.</summary>
     public SoundCache(IFileLoader fileLoader, int sampleRate, int channels, ILogger logger)
