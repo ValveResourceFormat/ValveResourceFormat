@@ -147,7 +147,6 @@ public sealed class SoundCache : IDisposable
     private void DecodeLoop(LinkedList<DecodeRequest> queue)
     {
         DecodeScratch.Prewarm();
-        Mp3Decoder.Prewarm();
 
         while (!stopping)
         {
