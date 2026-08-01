@@ -141,12 +141,9 @@ void InitProperties(out MaterialProperties_t mat, vec3 GeometricNormal, vec3 Pos
     }
 }
 
-const float MIN_ROUGHNESS = 0.0525;
-
 void AdjustRoughnessByGeometricNormal(inout MaterialProperties_t mat)
 {
     float geometricRoughnessFactor = CalculateGeometricRoughnessFactor(mat.GeometricNormal);
-    geometricRoughnessFactor = max(geometricRoughnessFactor, MIN_ROUGHNESS);
 
     vec2 geometricAdjusted = max(mat.RoughnessTex, vec2(geometricRoughnessFactor));
 

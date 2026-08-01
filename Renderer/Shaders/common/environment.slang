@@ -192,10 +192,11 @@ vec3 GetEnvironmentNoBRDF(MaterialProperties_t mat, float reflectionCorrectionAm
     if (g_iRenderMode == renderMode_Cubemaps)
     {
         reflectionNormal = mat.GeometricNormal;
-        mat.IsometricRoughness = MIN_ROUGHNESS;
+        mat.IsometricRoughness = 0.0;
     }
 
-    float perceptualRoughness = RemapValClamped(mat.IsometricRoughness, MIN_ROUGHNESS, 1.0, 0.0, 1.0);
+    float perceptualRoughness = saturate(mat.IsometricRoughness);
+
     
     if (F_CLOTH_SHADING == 1)
     {

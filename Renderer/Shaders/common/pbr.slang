@@ -146,7 +146,8 @@ vec3 specularLighting(vec3 lightVector, vec3 normal, MaterialProperties_t mat, f
 	float NoH = saturate(dot(normal, halfVector));
 	float NoV = saturate(dot(normal, mat.ViewDir));
 	float VoH = saturate(dot(lightVector, halfVector));
-	float roughness = pow2(mat.IsometricRoughness); // linear
+	const float MIN_GGX_ALPHA = 1e-4;
+	float roughness = max(pow2(mat.IsometricRoughness), MIN_GGX_ALPHA); // linear
 
 #if defined(ANISO_ROUGHNESS)
     // Anisotropic shading
