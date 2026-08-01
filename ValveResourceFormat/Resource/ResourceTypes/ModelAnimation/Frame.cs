@@ -117,5 +117,25 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
             Array.Clear(Datas);
             Movement = default;
         }
+
+        /// <summary>
+        /// Resets frame bones to an identity delta and clears flex and movement data. Additive animations
+        /// decode deltas over this seed, so channels they do not write stay neutral instead of holding a
+        /// bind pose the delta would be composed onto twice.
+        /// </summary>
+        public void ClearToIdentity()
+        {
+            FrameIndex = -1;
+
+            for (var i = 0; i < Bones.Length; i++)
+            {
+                Bones[i].Position = Vector3.Zero;
+                Bones[i].Angle = Quaternion.Identity;
+                Bones[i].Scale = 1;
+            }
+
+            Array.Clear(Datas);
+            Movement = default;
+        }
     }
 }
