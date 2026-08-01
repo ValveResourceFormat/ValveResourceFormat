@@ -32,6 +32,17 @@ public partial class GltfModelExporter
     }
 
     /// <summary>
+    /// Applies the conversion to an additive delta transform. The translation delta converts like any
+    /// bone-local translation; the rotation delta stays in source space, as it is composed onto a bind
+    /// rotation that already carries the conversion.
+    /// </summary>
+    private static (Vector3 Translation, Quaternion Rotation) BakeAdditiveDeltaConversion(Vector3 translation, Quaternion rotation, bool isRoot)
+    {
+        var (bakedTranslation, _) = BakeConversion(translation, rotation, isRoot);
+        return (bakedTranslation, rotation);
+    }
+
+    /// <summary>
     /// The node transform for placed geometry. The conversion is already baked into the geometry, so a
     /// standalone model resolves to identity; a world/entity placement is conjugated by the conversion so it
     /// positions the converted geometry correctly.

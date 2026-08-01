@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Text.Json.Nodes;
 using SharpGLTF.Schema2;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.ResourceTypes.ModelAnimation;
@@ -27,6 +28,11 @@ public partial class GltfModelExporter
         AnimationChannelWriter<Vector3> ScaleWriter;
 
         /// <summary>
+        /// Gets whether additive animations are composed over the bind pose rather than written as delta tracks.
+        /// </summary>
+        public bool ComposeAdditive { get; init; }
+
+        /// <summary>
         /// Initializes a new instance of the <see cref="AnimationWriter"/> class.
         /// </summary>
         public AnimationWriter(Skeleton skeleton, FlexController[] flexControllers)
@@ -48,14 +54,24 @@ public partial class GltfModelExporter
         {
             Debug.Assert(joints.Length == BoneCount);
 
+            var writeDeltas = animation.IsAdditive && !ComposeAdditive;
+
             // Cleanup state
-            Frame.Clear(Skeleton);
+            if (writeDeltas)
+            {
+                Frame.ClearToIdentity();
+            }
+            else
+            {
+                Frame.Clear(Skeleton);
+            }
 
             RotationWriter.Clear();
             PositionWriter.Clear();
             ScaleWriter.Clear();
 
             var outputAnimation = model.UseAnimation(animationName ?? animation.Name);
+            WriteAdditiveExtras(outputAnimation, animation, ComposeAdditive);
 
             var fps = animation.Fps;
 
@@ -68,11 +84,11 @@ public partial class GltfModelExporter
             // root motion is stored separately from bone frames, so bake it into the root bone(s) to keep
             // the skeleton from animating in place. horizontal travel and yaw only. the engine doesn't
             // apply a vertical movement track to the body.
-            var applyRootMotion = animation.HasMovementData();
+            var applyRootMotion = animation.HasMovementData() && !writeDeltas;
 
             // No cloth solver here, so mirror the renderer (AnimationController.GetSkinningMatrices):
             // pin each cloth root to the cloth anchor bone instead of writing its raw, solver-less clip data.
-            var clothAnchor = Skeleton.ClothSimulationRoot;
+            var clothAnchor = writeDeltas ? null : Skeleton.ClothSimulationRoot;
             var anchorInverseBindPose = Matrix4x4.Identity;
             if (clothAnchor != null)
             {
@@ -88,15 +104,12 @@ public partial class GltfModelExporter
                 }
             }
 
-            // bake additive layers over the bind pose, same as the renderer
-            var additive = animation.IsAdditive;
-
             for (var f = 0; f < animation.FrameCount; f++)
             {
                 Frame.FrameIndex = f;
                 animation.DecodeFrame(Frame);
 
-                if (additive)
+                if (animation.IsAdditive && !writeDeltas)
                 {
                     animation.ComposeAdditiveOverBindPose(Frame.Bones, Skeleton);
                 }
@@ -153,7 +166,7 @@ public partial class GltfModelExporter
                         scalarBoneScale = 0.0f;
                     }
 
-                    var scale = new Vector3(scalarBoneScale);
+                    var scale = writeDeltas ? Vector3.One : new Vector3(scalarBoneScale);
 
                     var bone = Skeleton.Bones[boneID];
 
@@ -191,7 +204,9 @@ public partial class GltfModelExporter
                         }
                     }
 
-                    (position, rotation) = BakeConversion(position, rotation, bone.Parent == null);
+                    (position, rotation) = writeDeltas
+                        ? BakeAdditiveDeltaConversion(position, rotation, bone.Parent == null)
+                        : BakeConversion(position, rotation, bone.Parent == null);
 
                     RotationWriter.SubmitKeyframe(boneID, time, prevFrameTime, rotation);
                     PositionWriter.SubmitKeyframe(boneID, time, prevFrameTime, position);
@@ -204,9 +219,11 @@ public partial class GltfModelExporter
                 if (animation.FrameCount == 0)
                 {
                     var bone = Skeleton.Bones[boneID];
-                    var (bindPosition, bindRotation) = BakeConversion(bone.Position, bone.Angle, bone.Parent == null);
-                    RotationWriter.Channels[boneID].Add(0f, bindRotation);
-                    PositionWriter.Channels[boneID].Add(0f, bindPosition);
+                    var (restPosition, restRotation) = writeDeltas
+                        ? (Vector3.Zero, Quaternion.Identity)
+                        : BakeConversion(bone.Position, bone.Angle, bone.Parent == null);
+                    RotationWriter.Channels[boneID].Add(0f, restRotation);
+                    PositionWriter.Channels[boneID].Add(0f, restPosition);
                     ScaleWriter.Channels[boneID].Add(0f, Vector3.One);
                 }
 
@@ -296,7 +313,7 @@ public partial class GltfModelExporter
 
             if (retargeter != null)
             {
-                WriteRetargetedClip(exportedModel, model, joints, animation, animationName, retargeter);
+                WriteRetargetedClip(exportedModel, model, joints, animation, animationName, retargeter, ComposeAdditiveAnimations);
 
                 if (animation is ClipAnimation clipAnimation)
                 {
@@ -304,8 +321,8 @@ public partial class GltfModelExporter
                     {
                         if (GetOrCreateSecondarySkeleton(secondaryClip.SkeletonName) is { } secondary)
                         {
-                            new AnimationWriter(secondary.Skeleton, []).WriteAnimation(
-                                exportedModel, secondary.Joints, new ClipAnimation(secondaryClip), animationName);
+                            new AnimationWriter(secondary.Skeleton, []) { ComposeAdditive = ComposeAdditiveAnimations }.WriteAnimation(
+                                exportedModel, secondary.Joints, new ClipAnimation(secondaryClip) { IsAdditive = animation.IsAdditive }, animationName);
                         }
                     }
                 }
@@ -320,16 +337,39 @@ public partial class GltfModelExporter
     private static string ClipAnimationName(string clipName) => Path.ChangeExtension(clipName, null)!;
 
     /// <summary>
+    /// Flags an additive animation in its glTF extras. glTF has no notion of additive animation, so an
+    /// uncomposed one carries per-bone deltas the consumer composes onto the bind pose itself: add the
+    /// translation, post-multiply the rotation. Scale is not part of the delta and stays at one.
+    /// </summary>
+    private static void WriteAdditiveExtras(SharpGLTF.Schema2.Animation outputAnimation, VAnim animation, bool composed)
+    {
+        if (!animation.IsAdditive)
+        {
+            return;
+        }
+
+        outputAnimation.Extras = new JsonObject
+        {
+            ["additive"] = true,
+            ["additive_base"] = "bindpose",
+            ["additive_composed"] = composed,
+        };
+    }
+
+    /// <summary>
     /// Retargets one NM clip onto the model skeleton by world pose, then writes its animation
     /// channels. Root motion is baked into the root bones like WriteAnimation; unlike the legacy
     /// movement system, NM root motion natively carries vertical travel, so Z is kept.
+    /// Retargeting matches world poses, so an additive clip is composed over the clip skeleton's bind
+    /// pose either way, and taken back to a delta over the model's bind pose when deltas are wanted.
     /// </summary>
-    private static void WriteRetargetedClip(ModelRoot exportedModel, VModel model, Node?[] joints, VAnim animation, string animationName, SkeletonRetargeter retargeter)
+    private static void WriteRetargetedClip(ModelRoot exportedModel, VModel model, Node?[] joints, VAnim animation, string animationName, SkeletonRetargeter retargeter, bool composeAdditive)
     {
         var modelSkeleton = model.Skeleton;
         var clipSkeleton = retargeter.SourceSkeleton;
         var fps = animation.Fps <= 0f ? 1f : animation.Fps;
-        var applyRootMotion = animation.HasMovementData();
+        var writeDeltas = animation.IsAdditive && !composeAdditive;
+        var applyRootMotion = animation.HasMovementData() && !writeDeltas;
 
         if (!retargeter.HasMappedBones)
         {
@@ -337,6 +377,7 @@ public partial class GltfModelExporter
         }
 
         var outputAnimation = exportedModel.UseAnimation(animationName);
+        WriteAdditiveExtras(outputAnimation, animation, composeAdditive);
         var rotationWriter = AnimationChannelWriter<Quaternion>.Create(modelSkeleton.Bones.Length);
         var positionWriter = AnimationChannelWriter<Vector3>.Create(modelSkeleton.Bones.Length);
         var scaleWriter = AnimationChannelWriter<Vector3>.Create(modelSkeleton.Bones.Length);
@@ -388,7 +429,16 @@ public partial class GltfModelExporter
                     translation = local.Translation;
                 }
 
-                var (bakedPosition, bakedRotation) = BakeConversion(translation, rotation, bone.Parent == null);
+                if (writeDeltas)
+                {
+                    translation -= bone.Position;
+                    rotation = Quaternion.Conjugate(bone.Angle) * rotation;
+                    scale = Vector3.One;
+                }
+
+                var (bakedPosition, bakedRotation) = writeDeltas
+                    ? BakeAdditiveDeltaConversion(translation, rotation, bone.Parent == null)
+                    : BakeConversion(translation, rotation, bone.Parent == null);
                 rotationWriter.SubmitKeyframe(m, time, previousTime, bakedRotation);
                 positionWriter.SubmitKeyframe(m, time, previousTime, bakedPosition);
                 scaleWriter.SubmitKeyframe(m, time, previousTime, scale);
@@ -400,9 +450,11 @@ public partial class GltfModelExporter
             if (animation.FrameCount == 0)
             {
                 var bone = modelSkeleton.Bones[m];
-                var (bindPosition, bindRotation) = BakeConversion(bone.Position, bone.Angle, bone.Parent == null);
-                rotationWriter.Channels[m].Add(0f, bindRotation);
-                positionWriter.Channels[m].Add(0f, bindPosition);
+                var (restPosition, restRotation) = writeDeltas
+                    ? (Vector3.Zero, Quaternion.Identity)
+                    : BakeConversion(bone.Position, bone.Angle, bone.Parent == null);
+                rotationWriter.Channels[m].Add(0f, restRotation);
+                positionWriter.Channels[m].Add(0f, restPosition);
                 scaleWriter.Channels[m].Add(0f, Vector3.One);
             }
 

@@ -60,6 +60,7 @@ namespace CLI
         private bool GltfExportMaterials;
         private bool GltfExportAdaptTextures;
         private bool GltfExportExtras;
+        private bool GltfComposeAdditive;
         private bool ToolsAssetInfoShort;
 
         // The options below are for collecting stats and testing exporting, this is mostly intended for VRF developers, not end users.
@@ -115,6 +116,7 @@ namespace CLI
         /// <param name="gltf_export_materials">Whether to export materials during glTF exports.</param>
         /// <param name="gltf_textures_adapt">Whether to perform any glTF spec adaptations on textures (e.g. split metallic map).</param>
         /// <param name="gltf_export_extras">Export additional Mesh properties into glTF extras</param>
+        /// <param name="gltf_compose_additive">Compose additive animations over the bind pose instead of exporting their delta tracks.</param>
         /// <param name="tools_asset_info_short">Whether to print only file paths for tools_asset_info files.</param>
         /// <param name="stats">Collect stats on all input files and then print them. Use "-i steam" to scan all Steam libraries.</param>
         /// <param name="stats_with_loader">When using --stats, use GameFileLoader to load dependencies.</param>
@@ -148,6 +150,7 @@ namespace CLI
             bool gltf_export_materials = false,
             bool gltf_textures_adapt = false,
             bool gltf_export_extras = false,
+            bool gltf_compose_additive = false,
             bool tools_asset_info_short = false,
 
             bool stats = false,
@@ -183,6 +186,7 @@ namespace CLI
             GltfMeshFilter = gltf_mesh_list?.Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries) ?? [];
             GltfExportAdaptTextures = gltf_textures_adapt;
             GltfExportExtras = gltf_export_extras;
+            GltfComposeAdditive = gltf_compose_additive;
             ToolsAssetInfoShort = tools_asset_info_short;
 
             CollectStats = stats;
@@ -243,7 +247,7 @@ namespace CLI
                 }
             }
 
-            if (!Decompile && (GltfExportFormat != null || GltfExportAnimations || GltfExportMaterials || GltfExportAdaptTextures || GltfExportExtras))
+            if (!Decompile && (GltfExportFormat != null || GltfExportAnimations || GltfExportMaterials || GltfExportAdaptTextures || GltfExportExtras || GltfComposeAdditive))
             {
                 Console.Error.WriteLine("Exporting to glTF requires specifying -d argument.");
                 return 1;
@@ -1396,6 +1400,7 @@ namespace CLI
                 ExportMaterials = GltfExportMaterials,
                 AdaptTextures = GltfExportAdaptTextures,
                 ExportExtras = GltfExportExtras,
+                ComposeAdditiveAnimations = GltfComposeAdditive,
                 ProgressReporter = ProgressReporter,
             };
 

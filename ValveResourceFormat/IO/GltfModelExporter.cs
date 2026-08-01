@@ -68,6 +68,13 @@ namespace ValveResourceFormat.IO
         public bool ExportExtras { get; set; }
 
         /// <summary>
+        /// Gets or sets a value indicating whether additive animations are composed over the bind pose.
+        /// When false they are exported as the delta tracks they are, flagged in the animation's extras
+        /// for the consumer to compose.
+        /// </summary>
+        public bool ComposeAdditiveAnimations { get; set; }
+
+        /// <summary>
         /// Gets the set of animation names to filter during export. An entry matches an animation by its
         /// full name or, for animation graph clips named by resource path, by its leaf name (e.g. "idle_knife"
         /// matches "animation/anims/.../idle_knife"). Empty means export every animation.
@@ -648,7 +655,7 @@ namespace ValveResourceFormat.IO
                 //if (ExportAnimations)
                 {
                     var animation = new ResourceTypes.ModelAnimation.ClipAnimation(clip);
-                    var animationWriter = new AnimationWriter(skeletonData, []);
+                    var animationWriter = new AnimationWriter(skeletonData, []) { ComposeAdditive = ComposeAdditiveAnimations };
                     animationWriter.WriteAnimation(exportedModel, joints, animation, ClipAnimationName(clip.Name));
                 }
             }
@@ -696,7 +703,7 @@ namespace ValveResourceFormat.IO
                 Debug.Assert(joints != null);
 
                 var animations = model.GetAllAnimations(FileLoader);
-                var animationWriter = new AnimationWriter(model.Skeleton, model.FlexControllers);
+                var animationWriter = new AnimationWriter(model.Skeleton, model.FlexControllers) { ComposeAdditive = ComposeAdditiveAnimations };
 
                 foreach (var animation in animations)
                 {
