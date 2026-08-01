@@ -23,10 +23,8 @@ in vec2 vTEXCOORD1;
     out vec3 vPerVertexLightingOut;
 #endif
 
-#if (GameVfx_csgo_environment_blend != 0)
-    in vec4 vTEXCOORD4;
-    out vec4 vColorBlendValues;
-#endif
+in vec4 vTEXCOORD4; // default should be (0, 0, 0, 1)
+out vec4 vColorBlendValues;
 
 
 out vec3 vFragPosition;
@@ -248,9 +246,9 @@ void main()
         #endif
     #endif
 
-    #if (GameVfx_csgo_environment_blend != 0)
+    vColorBlendValues = vTEXCOORD4;
 
-        vColorBlendValues = vTEXCOORD4;
+    #if (GameVfx_csgo_environment_blend != 0)
 
         if (bGeoBlendByFacingDirection2)
         {
@@ -280,6 +278,8 @@ void main()
         #endif
 
         vColorBlendValues.a = clamp(vColorBlendValues.a + flSoftness, 0.001, 1.0);
+    #else
+        vColorBlendValues.a = clamp(vColorBlendValues.a, 0.001, 1.0);
     #endif
 
     vCentroidNormalOut = vNormalOut;

@@ -756,13 +756,16 @@ namespace ValveResourceFormat.Renderer
                 renderLists[RenderPass.Outline].Add(request);
             }
 
-            var readsSceneColor = request.Call.Material.ReadsSceneColor;
+            // Aggregated geometry is opaque world detail that never samples the scene color, and the refract
+            // pass is the one place it cannot go: it has neither the depth prepass nor the indirect draw path.
+            var isAggregated = request.Node is SceneAggregate or SceneAggregate.Fragment;
+            var readsSceneColor = !isAggregated && request.Call.Material.ReadsSceneColor;
 
             if (renderPass == RenderPass.OpaqueAggregate)
             {
                 if (request.Node is SceneAggregate { CanDrawIndirect: true })
                 {
-                    if (EnableDepthPrepass && !readsSceneColor)
+                    if (EnableDepthPrepass)
                     {
                         var bucket = GetSpecializedDepthOnlyShader(false, request.Mesh, request.Call);
                         depthOnlyDraws[bucket].Add(request);
@@ -1641,11 +1644,23 @@ namespace ValveResourceFormat.Renderer
             }
         }
 
-        /// <summary>Writes the scene fog parameters into the provided view constants structure.</summary>
-        /// <param name="viewConstants">The view constants to update with fog uniforms.</param>
+        /// <summary>
+        /// Wetness coverage, drying amount, rain strength and puddle ripple strength, read from the map's
+        /// <c>info_map_parameters</c>. Holds that entity's own defaults when the map has none.
+        /// </summary>
+        public Vector4 EnvironmentWetness { get; set; } = new(1f, 0f, 1f, 1f);
+
+        /// <summary>Puddle ripple direction, over 0 to 1 for a full turn.</summary>
+        public float PuddleWindDirection { get; set; }
+
+        /// <summary>Writes the scene's fog and weather parameters into the provided view constants structure.</summary>
+        /// <param name="viewConstants">The view constants to update.</param>
         public void SetFogConstants(ViewConstants viewConstants)
         {
             FogInfo.SetFogUniforms(viewConstants, FogEnabled);
+
+            viewConstants.EnvWetness = EnvironmentWetness;
+            viewConstants.EnvWetnessRipple = new Vector4(PuddleWindDirection, 0f, 0f, 0f);
         }
 
         /// <summary>

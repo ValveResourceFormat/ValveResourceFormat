@@ -217,6 +217,12 @@ namespace ValveResourceFormat.Renderer.Shaders
                             var uniformName = match.Groups["Name"].Value;
 
                             parsedData.Uniforms.Add(uniformName);
+
+                            if (uniformType.StartsWith("sampler", StringComparison.Ordinal) && MaterialLoader.IsReservedTexture(uniformName))
+                            {
+                                parsedData.ReservedTextures.Add(uniformName);
+                            }
+
                             if (match.Groups["SrgbRead"].Success)
                             {
                                 parsedData.SrgbUniforms.Add(uniformName);

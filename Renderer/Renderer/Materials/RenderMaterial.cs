@@ -47,6 +47,8 @@ namespace ValveResourceFormat.Renderer.Materials
         LightCookieTexture,
         /// <summary>Light cookie texture (repeat wrap mode).</summary>
         LightCookieTextureWrap,
+        /// <summary>Scrolling wave normals and blotch mask.</summary>
+        WetnessWaves,
         /// <summary>Resolved opaque scene color for refraction.</summary>
         SceneColor,
         /// <summary>Resolved scene depth buffer.</summary>

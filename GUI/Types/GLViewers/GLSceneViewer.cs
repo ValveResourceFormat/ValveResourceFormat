@@ -396,6 +396,7 @@ namespace GUI.Types.GLViewers
         {
             Debug.Assert(MainFramebuffer != null);
 
+            Scene.RendererContext.ShaderLoader.LinkLoadedShaders();
             Renderer.DisableAllCulling = true;
 
             try

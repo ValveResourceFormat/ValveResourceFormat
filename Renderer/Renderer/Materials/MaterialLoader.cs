@@ -442,6 +442,28 @@ namespace ValveResourceFormat.Renderer.Materials
         /// <summary>Gets the set of texture uniform names that are bound to reserved global texture slots and must not be overridden by materials.</summary>
         public static readonly HashSet<string> ReservedTextures = [.. Enum.GetNames<ReservedTextureSlots>(), "g_tLPV"];
 
+        /// <summary>Returns whether a uniform name is bound to one of the <see cref="ReservedTextures"/> slots.</summary>
+        public static bool IsReservedTexture(string uniformName)
+        {
+            foreach (var reserved in ReservedTextures)
+            {
+                if (uniformName.Contains(reserved, StringComparison.OrdinalIgnoreCase))
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        /// <summary>
+        /// Material invariant textures, requested by shaders. They become scene-wide textures.
+        /// </summary>
+        public static readonly List<(ReservedTextureSlots Slot, string Name, string Path)> ShaderTextures =
+        [
+            (ReservedTextureSlots.WetnessWaves, "g_tWetnessWaves", "materials/dev/water_waves.vtex"),
+        ];
+
         private RenderMaterial GetErrorMaterial()
         {
             var errorMat = new RenderMaterial(RendererContext.ShaderLoader.LoadShader("vrf.error"));

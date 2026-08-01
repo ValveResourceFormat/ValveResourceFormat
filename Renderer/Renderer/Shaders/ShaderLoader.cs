@@ -46,6 +46,14 @@ namespace ValveResourceFormat.Renderer.Shaders
         /// <summary>Gets the number of compiled shader variants currently held in the cache.</summary>
         public int ShaderCount => CachedShaders.Count;
 
+        /// <summary>
+        /// Gets every reserved texture sampler declared by the shaders loaded so far. Read off the shader source, so
+        /// unlike a shader's own <see cref="Shader.ReservedTexturesUsed"/> it is known before the program links, and
+        /// it includes samplers behind a combo the linker went on to drop. Grow only, so a renderer can pick up what
+        /// was added since it last looked; see <see cref="MaterialLoader.ShaderTextures"/>.
+        /// </summary>
+        public HashSet<string> DeclaredReservedTextures { get; } = [];
+
         private static readonly Dictionary<string, byte> EmptyArgs = [];
         private static readonly Lock ParserLock = new();
         private static readonly Dictionary<string, ParsedShaderData> ParsedCache = [];
@@ -73,6 +81,12 @@ namespace ValveResourceFormat.Renderer.Shaders
 
             /// <summary>Gets the set of sampler uniform names annotated with <c>// Sampler(UserConfig)</c>.</summary>
             public HashSet<string> SamplerUserConfigUniforms { get; } = [];
+
+            /// <summary>
+            /// Gets the reserved texture samplers declared in the shader source. A superset of what the linker
+            /// keeps, since the source is read before any combo is resolved; see <see cref="Shader.ReservedTexturesUsed"/>.
+            /// </summary>
+            public HashSet<string> ReservedTextures { get; } = [];
 
             /// <summary>Gets the preprocessed GLSL source text for each shader stage.</summary>
             public Dictionary<ShaderProgramType, string> Sources { get; } = [];
@@ -144,6 +158,24 @@ namespace ValveResourceFormat.Renderer.Shaders
             var shader = CompileAndLinkShader(shaderName, shaderFileName, parsedData, arguments, blocking: blocking);
             CachedShaders[shaderCacheHash] = shader;
             return shader;
+        }
+
+        /// <summary>
+        /// Collects the link status of every shader loaded so far, which materials load without waiting for.
+        /// Until this runs a shader is linked by the first draw that uses it, and a draw call is queued before that
+        /// happens: run it before rendering a frame that has to see each shader's final state, such as a pre-warm
+        /// pass. Must be called on the thread holding the GL context.
+        /// </summary>
+        public void LinkLoadedShaders()
+        {
+            foreach (var shader in CachedShaders.Values)
+            {
+                if (!shader.EnsureLoaded())
+                {
+                    GL.GetProgramInfoLog(shader.Program, out var log);
+                    RendererContext.Logger.LogError("Shader '{ShaderName}' failed to link: {Log}", shader.Name, log);
+                }
+            }
         }
 
         private static ParsedShaderData GetOrParseShader(string shaderFileName)
@@ -228,6 +260,10 @@ namespace ValveResourceFormat.Renderer.Shaders
                 }
 #endif
 
+                // What the source declares is known before the program links, and the renderer needs it that
+                // early to have a texture bound by the first draw that samples it. Only ever grows.
+                DeclaredReservedTextures.UnionWith(parsedData.ReservedTextures);
+
                 var shader = new Shader(shaderName, RendererContext)
                 {
 #if DEBUG
@@ -240,7 +276,11 @@ namespace ValveResourceFormat.Renderer.Shaders
                     RenderModes = parsedData.RenderModes,
                     UniformNames = parsedData.Uniforms,
                     SrgbUniforms = parsedData.SrgbUniforms,
-                    SamplerUserConfigUniforms = parsedData.SamplerUserConfigUniforms
+                    SamplerUserConfigUniforms = parsedData.SamplerUserConfigUniforms,
+
+                    // Copied, because the parsed data is shared by every variant of this shader while the
+                    // linker trims each variant's own set down to what its combos kept.
+                    ReservedTexturesUsed = [.. parsedData.ReservedTextures],
                 };
 
                 foreach (var shaderObj in shaderObjects)

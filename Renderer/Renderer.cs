@@ -298,6 +298,38 @@ public class Renderer
         EnsureDepthPyramidSize(256, 256);
     }
 
+    /// <summary>Slots out of <see cref="MaterialLoader.ShaderTextures"/> that have been resolved.</summary>
+    private readonly HashSet<ReservedTextureSlots> loadedShaderTextures = [];
+
+    /// <summary>
+    /// Loads any used texture from the <see cref="MaterialLoader.ShaderTextures"/> list.
+    /// </summary>
+    private void LoadShaderTextures()
+    {
+        if (loadedShaderTextures.Count == MaterialLoader.ShaderTextures.Count)
+        {
+            return;
+        }
+
+        var declared = RendererContext.ShaderLoader.DeclaredReservedTextures;
+
+        foreach (var (slot, name, path) in MaterialLoader.ShaderTextures)
+        {
+            if (!declared.Contains(name) || !loadedShaderTextures.Add(slot))
+            {
+                continue;
+            }
+
+            using var resource = RendererContext.FileLoader.LoadFileCompiled(path);
+
+            var texture = resource != null
+                ? RendererContext.MaterialLoader.LoadTexture(resource)
+                : RendererContext.MaterialLoader.GetDefaultColor();
+
+            Textures.Add(new(slot, name, texture));
+        }
+    }
+
     /// <summary>
     /// Loads embedded or game-provided BRDF LUT, cube fog, and blue noise textures into <see cref="Textures"/>.
     /// </summary>
@@ -483,6 +515,7 @@ public class Renderer
             Textures = Textures,
         };
 
+        LoadShaderTextures();
         UpdatePerViewGpuBuffers(Scene, Camera, DeltaTime);
         Scene.SetSceneBuffers();
 
@@ -513,6 +546,8 @@ public class Renderer
     /// </summary>
     public void Render(Scene.RenderContext renderContext)
     {
+        LoadShaderTextures();
+
         // Render backfaces into shadow maps
         GL.FrontFace(FrontFaceDirection.Cw);
 

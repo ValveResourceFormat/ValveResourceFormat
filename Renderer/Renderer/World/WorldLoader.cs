@@ -608,6 +608,18 @@ namespace ValveResourceFormat.Renderer.World
                         scene.LightingInfo.SunLightShadowCoverageScale = 4f;
                     }
                 }
+                else if (classname == "info_map_parameters")
+                {
+                    scene.EnvironmentWetness = new Vector4(
+                        entity.GetFloatProperty("envwetnesscoverage", 1f),
+                        entity.GetFloatProperty("envwetnessdryingamount", 0f),
+                        entity.GetFloatProperty("envrainstrength", 1f),
+                        entity.GetFloatProperty("envpuddleripplestrength", 1f));
+
+                    // raintracetoskyenabled
+
+                    scene.PuddleWindDirection = entity.GetFloatProperty("envpuddlerippledirection", 0f);
+                }
                 else if (classname == "env_gradient_fog")
                 {
                     // If it has "start_disabled", only take it if we haven't found any others yet.
