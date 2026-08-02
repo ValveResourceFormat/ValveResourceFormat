@@ -74,8 +74,9 @@ namespace ValveResourceFormat.Renderer.Particles.Operators
             previousTransformPosition = transformPosition;
             previousTransform = transform;
 
-            // A jump beyond the threshold teleports particles with the transform at full strength
-            var instantJump = delta.Length() > instantJumpThreshold;
+            // A jump beyond the threshold teleports particles with the transform at full strength;
+            // the squared delta is tested against the raw threshold value
+            var instantJump = delta.LengthSquared() > instantJumpThreshold;
 
             if (delta == Vector3.Zero && !lockRotation)
             {
