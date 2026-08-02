@@ -40,6 +40,16 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
         private readonly INumberProvider selfIllumAmount = new LiteralNumberProvider(0);
         private readonly INumberProvider alphaMapToZero = new LiteralNumberProvider(0);
         private readonly INumberProvider alphaMapToOne = new LiteralNumberProvider(1);
+        private readonly bool hasAlphaRemap;
+
+        private readonly INumberProvider desaturation = new LiteralNumberProvider(0);
+        // -1 means no control point, so no shift.
+        private readonly int hsvShiftControlPoint = -1;
+
+        private readonly bool outline;
+        private readonly Vector4 outlineColor = Vector4.One;
+        // Start0, End0, Start1, End1 -- the order the shader's two-sided ramp wants them in.
+        private readonly Vector4 outlineRanges = new(0.5f, 0.7f, 0.6f, 0.8f);
         private int vertexBufferHandle;
 
 
@@ -49,17 +59,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
 
             blendMode = parse.Enum<ParticleBlendMode>("m_nOutputBlendMode", blendMode);
 
-            var shaderParams = new Dictionary<string, byte>();
-            if (blendMode == ParticleBlendMode.PARTICLE_OUTPUT_BLEND_MODE_ADD)
-            {
-                shaderParams["F_ADDITIVE_BLEND"] = 1;
-            }
-            else if (blendMode == ParticleBlendMode.PARTICLE_OUTPUT_BLEND_MODE_MOD2X)
-            {
-                shaderParams["F_MOD2X"] = 1;
-            }
-
-            shader = RendererContext.ShaderLoader.LoadShader(ShaderName, shaderParams);
+            shader = RendererContext.ShaderLoader.LoadShader(ShaderName);
 
             // The same quad is reused for all particles
             vaoHandle = SetupQuadBuffer();
@@ -114,6 +114,27 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
             selfIllumAmount = parse.NumberProvider("m_flSelfIllumAmount", selfIllumAmount);
             alphaMapToZero = parse.NumberProvider("m_flSourceAlphaValueToMapToZero", alphaMapToZero);
             alphaMapToOne = parse.NumberProvider("m_flSourceAlphaValueToMapToOne", alphaMapToOne);
+            desaturation = parse.NumberProvider("m_flDesaturation", desaturation);
+            hsvShiftControlPoint = parse.Int32("m_nHSVShiftControlPoint", hsvShiftControlPoint);
+
+            // The remap is a smoothstep, so the nominal (0, 1) range is not the identity. Only enable it
+            // where the effect actually authored a bound, otherwise every untouched particle would get an
+            // ease curve applied to its alpha.
+            hasAlphaRemap = parse.Data.ContainsKey("m_flSourceAlphaValueToMapToZero")
+                || parse.Data.ContainsKey("m_flSourceAlphaValueToMapToOne");
+
+            outline = parse.Boolean("m_bOutline", outline);
+
+            if (outline)
+            {
+                var color = parse.Color24("m_OutlineColor", new Vector3(1f));
+                outlineColor = new Vector4(color, parse.Int32("m_nOutlineAlpha", 255) / 255f);
+                outlineRanges = new Vector4(
+                    parse.Float("m_flOutlineStart0", outlineRanges.X),
+                    parse.Float("m_flOutlineEnd0", outlineRanges.Y),
+                    parse.Float("m_flOutlineStart1", outlineRanges.Z),
+                    parse.Float("m_flOutlineEnd1", outlineRanges.W));
+            }
         }
 
         public override void SetWireframe(bool isWireframe)
@@ -390,16 +411,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
             // stop depth writes here; otherwise sprites are opaque. The cable renderer instead draws opaque with depth writes.
             GL.Enable(EnableCap.Blend);
             GL.DepthMask(false);
-
-            if (blendMode == ParticleBlendMode.PARTICLE_OUTPUT_BLEND_MODE_MOD2X)
-            {
-                GL.BlendFunc(BlendingFactor.DstColor, BlendingFactor.SrcColor);
-            }
-            else
-            {
-                // Premultiplied output; the shader zeroes the blend weight for additive.
-                GL.BlendFunc(BlendingFactor.One, BlendingFactor.OneMinusSrcAlpha);
-            }
+            GL.BlendFunc(BlendingFactor.One, BlendingFactor.OneMinusSrcAlpha);
 
             GL.Disable(EnableCap.CullFace);
 
@@ -408,17 +420,28 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
 
             shader.SetTexture(RenderMaterial.TextureUnitStart, "uTexture", texture);
 
-            // TODO: This formula is a guess but still seems too bright compared to valve particles
             shader.SetUniform1("uOverbrightFactor", overbrightFactor.NextNumber(systemRenderState));
             shader.SetUniform1("uColorFactor", diffuseAmount.NextNumber(systemRenderState) + selfIllumAmount.NextNumber(systemRenderState));
+            shader.SetUniform1("uDesaturation", desaturation.NextNumber(systemRenderState));
 
-            var mapToZero = alphaMapToZero.NextNumber(systemRenderState);
-            var alphaRemapRange = alphaMapToOne.NextNumber(systemRenderState) - mapToZero;
-            var alphaRemapScaleBias = MathF.Abs(alphaRemapRange) > 0.0001f
-                ? new Vector2(1f / alphaRemapRange, -mapToZero / alphaRemapRange)
+            // The control point carries (hue offset, saturation scale, value scale). Identity when absent.
+            shader.SetUniform3("uHsvShift", hsvShiftControlPoint >= 0
+                ? systemRenderState.GetControlPoint(hsvShiftControlPoint).Position
+                : new Vector3(0f, 1f, 1f));
+
+            // x >= y disables the remap in the shader.
+            var alphaRemapRange = hasAlphaRemap
+                ? new Vector2(alphaMapToZero.NextNumber(systemRenderState), alphaMapToOne.NextNumber(systemRenderState))
                 : new Vector2(1f, 0f);
-            shader.SetUniform2("uAlphaRemapScaleBias", alphaRemapScaleBias);
+            shader.SetUniform2("uAlphaRemapRange", alphaRemapRange);
             shader.SetUniform1("uTextureChannels", (int)textureChannels);
+
+            shader.SetUniform1("uOutline", outline);
+            shader.SetUniform4("uOutlineColor", outlineColor);
+            shader.SetUniform4("uOutlineRanges", outlineRanges);
+
+            // Set every draw: the program is shared with every other sprite renderer, whatever their mode.
+            shader.SetUniform1("uBlendMode", (int)blendMode);
 
             // DRAW
             PerfStats.Active.Count(Counter.ParticleDraw);

@@ -54,17 +54,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
 
             blendMode = parse.Enum<ParticleBlendMode>("m_nOutputBlendMode", blendMode);
 
-            var shaderParams = new Dictionary<string, byte>();
-            if (blendMode == ParticleBlendMode.PARTICLE_OUTPUT_BLEND_MODE_ADD)
-            {
-                shaderParams["F_ADDITIVE_BLEND"] = 1;
-            }
-            else if (blendMode == ParticleBlendMode.PARTICLE_OUTPUT_BLEND_MODE_MOD2X)
-            {
-                shaderParams["F_MOD2X"] = 1;
-            }
-
-            shader = RendererContext.ShaderLoader.LoadShader(ShaderName, shaderParams);
+            shader = RendererContext.ShaderLoader.LoadShader(ShaderName);
 
             // All trails of this renderer are batched into a single dynamic vertex buffer
             (vaoHandle, vertexBufferHandle) = SetupQuadBuffer();
@@ -308,7 +298,9 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
             GL.Enable(EnableCap.Blend);
             GL.DepthMask(false);
 
-            if (blendMode == ParticleBlendMode.PARTICLE_OUTPUT_BLEND_MODE_ADD)
+            // MOD2X adds like ADD does; spritecard has no blend state that scales the destination.
+            if (blendMode is ParticleBlendMode.PARTICLE_OUTPUT_BLEND_MODE_ADD
+                or ParticleBlendMode.PARTICLE_OUTPUT_BLEND_MODE_MOD2X)
             {
                 GL.BlendFunc(BlendingFactor.SrcAlpha, BlendingFactor.One);
             }
@@ -328,6 +320,9 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
 
             // TODO: This formula is a guess but still seems too bright compared to valve particles
             shader.SetUniform1("uOverbrightFactor", (float)overbrightFactor.NextNumber(systemRenderState));
+
+            // Set every draw: the program is shared with every other trail renderer, whatever their mode.
+            shader.SetUniform1("uBlendMode", (int)blendMode);
 
             PerfStats.Active.Count(Counter.ParticleDraw);
             GL.DrawElements(PrimitiveType.Triangles, quadCount * 6, DrawElementsType.UnsignedShort, 0);
