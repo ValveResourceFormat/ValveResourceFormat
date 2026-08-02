@@ -253,7 +253,7 @@ namespace ValveResourceFormat.Renderer.Particles
 
         public float NextNumber(ref Particle particle, ParticleSystemRenderState renderState)
         {
-            var speed = renderState.GetControlPoint(cp).GetVelocity().Length();
+            var speed = renderState.GetControlPoint(cp).Velocity.Length();
             return attributeMapping.ApplyMapping(speed);
         }
     }

@@ -315,6 +315,12 @@ namespace ValveResourceFormat.Renderer.Particles
                 _ => throw new NotImplementedException($"Unknown particle set type {Enum.GetName(setMethod)}!"),
             };
 
-        public static bool IsAngleField(this ParticleField field) => field is ParticleField.Roll or ParticleField.Yaw or ParticleField.Pitch;
+        /// <summary>
+        /// Whether the field holds an angle, and so is stored in radians while content authors it in
+        /// degrees. <see cref="ParticleField.RollSpeed"/> counts: an angular rate is authored in degrees
+        /// per second, which is why <c>C_INIT_RandomRotationSpeed</c> converts on the way in.
+        /// </summary>
+        public static bool IsAngleField(this ParticleField field)
+            => field is ParticleField.Roll or ParticleField.Yaw or ParticleField.Pitch or ParticleField.RollSpeed;
     }
 }

@@ -28,7 +28,7 @@ namespace ValveResourceFormat.Renderer.Particles.Initializers
                 return particle;
             }
 
-            particle.Velocity += controlPoint.GetVelocity() * velocityScale;
+            particle.Velocity += controlPoint.Velocity * velocityScale;
             return particle;
         }
     }

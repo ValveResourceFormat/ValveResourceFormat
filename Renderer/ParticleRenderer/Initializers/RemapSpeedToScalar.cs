@@ -38,7 +38,7 @@ namespace ValveResourceFormat.Renderer.Particles.Initializers
             }
             else
             {
-                speed = particleSystemState.GetControlPoint(controlPointNumber).GetVelocity().Length();
+                speed = particleSystemState.GetControlPoint(controlPointNumber).Velocity.Length();
             }
 
             var output = MathUtils.RemapValClamped(speed, inputMin, inputMax, outputMin, outputMax);

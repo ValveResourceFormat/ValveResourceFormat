@@ -232,7 +232,7 @@ namespace ValveResourceFormat.Renderer.Particles
         /// is asking - a child running finer substeps would otherwise divide a whole frame of movement by
         /// a fraction of it and read a velocity several times too high.
         /// </remarks>
-        public Vector3 GetVelocity()
+        public Vector3 Velocity
             => PreviousStepTime > 0f ? StepDelta / PreviousStepTime : Vector3.Zero;
 
         /// <summary>
