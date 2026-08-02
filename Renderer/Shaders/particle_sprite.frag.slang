@@ -11,10 +11,25 @@
 #define PARTICLE_OUTPUT_BLEND_MODE_MOD2X 5
 uniform int uBlendMode = 0; // PARTICLE_OUTPUT_BLEND_MODE_ALPHA
 
+// One sampler per texture layer. Layer 0 is the base texture and keeps the plain name.
+#define MAX_TEXTURE_LAYERS 5
 uniform sampler2D uTexture;
+uniform sampler2D uTextureLayer1;
+uniform sampler2D uTextureLayer2;
+uniform sampler2D uTextureLayer3;
+uniform sampler2D uTextureLayer4;
+
 uniform float uOverbrightFactor;
 uniform float uColorFactor = 1.0; // m_flDiffuseAmount + m_flSelfIllumAmount
 uniform float uDesaturation = 0.0; // m_flDesaturation
+// m_bSaturateColorPreAlphaBlend, which defaults on. A good deal of shipped content turns it off to let
+// the brightness run past 1 into the blend.
+uniform bool uSaturateColorPreAlphaBlend = true;
+
+// m_bBlendFramesSeq0 / m_bMaxLuminanceBlendingSequence0. Gated on a uniform rather than on vFrameBlend
+// so that the second fetch sits in draw-uniform control flow.
+uniform bool uBlendFrames = true;
+uniform bool uMaxLuminanceFrameBlend = false;
 
 uniform vec3 uHsvShift = vec3(0.0, 1.0, 1.0);
 uniform vec2 uAlphaRemapRange = vec2(1.0, 0.0);
@@ -39,22 +54,27 @@ uniform vec4 uOutlineRanges = vec4(0.5, 0.7, 0.6, 0.8);
 #define SPRITECARD_TEXTURE_CHANNEL_MIX_GALPHA         13
 #define SPRITECARD_TEXTURE_CHANNEL_MIX_BALPHA         14
 
-uniform int uTextureChannels = 1; // MIX_RGBA
+// Per-layer mask mode, blend mode and strength (m_nTextureChannels, m_nTextureBlendMode,
+// m_flTextureBlend). Every entry below uLayerCount is written by the renderer each draw.
+uniform int uLayerCount = 1;
+uniform int uLayerChannels[MAX_TEXTURE_LAYERS];
+uniform int uLayerBlendMode[MAX_TEXTURE_LAYERS];
+uniform float uLayerBlend[MAX_TEXTURE_LAYERS];
 
-#define SPRITECARD_TEXTURE_BLEND_MULTIPLY   0
-#define SPRITECARD_TEXTURE_BLEND_MULTIPLY2X 1
-#define SPRITECARD_TEXTURE_BLEND_REPLACE    2
-#define SPRITECARD_TEXTURE_BLEND_ADD        3
-#define SPRITECARD_TEXTURE_BLEND_SUBTRACT   4
-#define SPRITECARD_TEXTURE_BLEND_AVERAGE    5
-#define SPRITECARD_TEXTURE_BLEND_LUMINANCE  6
-// Left at MULTIPLY until the per-layer texture inputs are parsed; with one layer that is the identity.
-uniform int uTextureBlendMode = 0; // MULTIPLY
+#define SPRITECARD_TEXTURE_BLEND_MULTIPLY  0
+#define SPRITECARD_TEXTURE_BLEND_MOD2X     1
+#define SPRITECARD_TEXTURE_BLEND_REPLACE   2
+#define SPRITECARD_TEXTURE_BLEND_ADD       3
+#define SPRITECARD_TEXTURE_BLEND_SUBTRACT  4
+#define SPRITECARD_TEXTURE_BLEND_AVERAGE   5
+#define SPRITECARD_TEXTURE_BLEND_LUMINANCE 6
 
 // The mask modes use Rec.601 weights, while the LUMINANCE blend below uses Rec.709 (GetLuma).
 const vec3 LUMA_601 = vec3(0.299, 0.587, 0.114);
 
 in vec2 vTexCoordOut;
+in vec2 vTexCoordNextFrameOut;
+in float vFrameBlend;
 in vec4 vColor;
 in vec3 vFragPosition;
 
@@ -104,12 +124,26 @@ vec4 ApplyChannelMask(vec4 accum, vec4 layer, int maskMode, float sub)
     return layer; // MIX_RGBA, and anything unrecognised
 }
 
+// GLSL cannot return an opaque texture, so the per-layer choice happens at the fetch itself.
+vec4 SampleLayer(int layer, vec2 uv)
+{
+    switch (layer)
+    {
+        case 1: return texture(uTextureLayer1, uv);
+        case 2: return texture(uTextureLayer2, uv);
+        case 3: return texture(uTextureLayer3, uv);
+        case 4: return texture(uTextureLayer4, uv);
+    }
+
+    return texture(uTexture, uv);
+}
+
 // Combine the masked layer into the accumulator.
 vec4 ApplyLayerBlend(vec4 accum, vec4 masked, int blendMode)
 {
     switch (blendMode)
     {
-        case SPRITECARD_TEXTURE_BLEND_MULTIPLY2X: return accum * masked * 2.0;
+        case SPRITECARD_TEXTURE_BLEND_MOD2X:      return accum * masked * 2.0;
         case SPRITECARD_TEXTURE_BLEND_REPLACE:    return masked;
         case SPRITECARD_TEXTURE_BLEND_ADD:        return accum + masked;
         case SPRITECARD_TEXTURE_BLEND_SUBTRACT:   return accum - masked;
@@ -168,14 +202,42 @@ vec3 ApplyHsvShift(vec3 rgb)
 }
 
 void main(void) {
-    // Layer 0 is the base texture, folded into an accumulator of vec4(1.0). Extra layers will repeat
-    // this block with their own mask, blend and uv.
+    // Each layer is folded into an accumulator seeded to white. Layer 0 is the base texture, so with one
+    // layer and the default MULTIPLY this collapses to a straight sample.
     vec4 accum = vec4(1.0);
 
-    float sub = float(uTextureBlendMode == SPRITECARD_TEXTURE_BLEND_SUBTRACT);
-    vec4 layer = texture(uTexture, vTexCoordOut);
-    vec4 masked = ApplyChannelMask(accum, layer, uTextureChannels, sub);
-    accum = max(ApplyLayerBlend(accum, masked, uTextureBlendMode), vec4(0.0));
+    for (int i = 0; i < uLayerCount; ++i)
+    {
+        vec4 layer = SampleLayer(i, vTexCoordOut);
+
+        // The sheet sequence belongs to the base texture, so only layer 0 cross-fades frames.
+        if (i == 0 && uBlendFrames)
+        {
+            vec4 nextFrame = SampleLayer(0, vTexCoordNextFrameOut);
+
+            if (uMaxLuminanceFrameBlend)
+            {
+                // Weighting each frame by the square root of its luminance keeps the brighter one
+                // dominant through the cross-fade, so a spark does not dim as it crosses a frame.
+                float weight = (1.0 - vFrameBlend) * sqrt(max(0.001, GetLuma(layer.rgb)));
+                float nextWeight = vFrameBlend * sqrt(max(0.001, GetLuma(nextFrame.rgb)));
+                layer = ((layer * weight) + (nextFrame * nextWeight)) / (weight + nextWeight);
+            }
+            else
+            {
+                layer = mix(layer, nextFrame, vFrameBlend);
+            }
+        }
+
+        int blendMode = uLayerBlendMode[i];
+        float sub = float(blendMode == SPRITECARD_TEXTURE_BLEND_SUBTRACT);
+
+        vec4 masked = ApplyChannelMask(accum, layer, uLayerChannels[i], sub);
+        vec4 blended = ApplyLayerBlend(accum, masked, blendMode);
+
+        // m_flTextureBlend fades the layer's contribution back toward what was already there.
+        accum = max(mix(accum, blended, uLayerBlend[i]), vec4(0.0));
+    }
 
     vec4 color = accum;
 
@@ -210,14 +272,19 @@ void main(void) {
     // with everything else, and before the brightness below.
     finalColor = mix(finalColor, vec3(GetLuma(finalColor)), uDesaturation);
 
-    // spritecard shading: brightness from diffuse+selfillum, saturated before the alpha blend. Applied
-    // after the outline so the overlay colour is lit the same way the sample is.
-    finalColor = saturate(finalColor * (uOverbrightFactor * uColorFactor));
+    // spritecard shading: brightness from diffuse+selfillum, optionally clamped before the alpha blend.
+    // Applied after the outline so the overlay colour is lit the same way the sample is.
+    finalColor = finalColor * (uOverbrightFactor * uColorFactor);
+
+    if (uSaturateColorPreAlphaBlend)
+    {
+        finalColor = saturate(finalColor);
+    }
 
     alpha *= vColor.a;
 
     // MOD2X composites like ADD. The modulate-2x in spritecard is a texture combiner inside the layer
-    // chain (SPRITECARD_TEXTURE_BLEND_MULTIPLY2X above), not a framebuffer op: every blend state the
+    // chain (SPRITECARD_TEXTURE_BLEND_MOD2X above), not a framebuffer op: every blend state the
     // shader ships with is an Add with a One destination, so it never scales what is behind it.
     bool isAdditive = uBlendMode == PARTICLE_OUTPUT_BLEND_MODE_ADD
         || uBlendMode == PARTICLE_OUTPUT_BLEND_MODE_MOD2X;

@@ -16,21 +16,56 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
     internal class RenderSprites : ParticleFunctionRenderer
     {
         private const string ShaderName = "vrf.particle_sprite";
-        private const int VertexSize = 9;
+        // position 3, colour 4, uv 2, next-frame uv 2, frame blend 1
+        private const int VertexSize = 12;
+
+        // The shader keeps one sampler per layer, so this is a hard ceiling rather than a preference.
+        private const int MaxTextureLayers = 5;
+
+        private static readonly INumberProvider OneNumberProvider = new LiteralNumberProvider(1f);
+
+        // Interpolated names would allocate on every draw, and this is per-frame renderer code.
+        private static readonly string[] LayerTextureUniforms = ["uTexture", "uTextureLayer1", "uTextureLayer2", "uTextureLayer3", "uTextureLayer4"];
+        private static readonly string[] LayerChannelsUniforms = ["uLayerChannels[0]", "uLayerChannels[1]", "uLayerChannels[2]", "uLayerChannels[3]", "uLayerChannels[4]"];
+        private static readonly string[] LayerBlendModeUniforms = ["uLayerBlendMode[0]", "uLayerBlendMode[1]", "uLayerBlendMode[2]", "uLayerBlendMode[3]", "uLayerBlendMode[4]"];
+        private static readonly string[] LayerBlendUniforms = ["uLayerBlend[0]", "uLayerBlend[1]", "uLayerBlend[2]", "uLayerBlend[3]", "uLayerBlend[4]"];
+
+        /// <summary>One entry of m_vecTexturesInput: a texture plus how it folds into the layers below it.</summary>
+        private sealed class TextureLayer(RenderTexture texture)
+        {
+            public RenderTexture Texture { get; } = texture;
+            public SpriteCardTextureChannel Channels { get; init; } = SpriteCardTextureChannel.SPRITECARD_TEXTURE_CHANNEL_MIX_RGBA;
+            public ParticleTextureLayerBlendType BlendMode { get; init; } = ParticleTextureLayerBlendType.SPRITECARD_TEXTURE_BLEND_MULTIPLY;
+            public INumberProvider Blend { get; init; } = OneNumberProvider;
+        }
 
         private readonly Shader shader;
         private readonly RendererContext RendererContext;
         private readonly int vaoHandle;
-        private readonly RenderTexture texture;
+        private readonly TextureLayer[] layers;
 
         private readonly float animationRate = 0.1f;
         private readonly ParticleAnimationType animationType = ParticleAnimationType.ANIMATION_TYPE_FIXED_RATE;
         private readonly INumberProvider minSize = new LiteralNumberProvider(0f);
         private readonly INumberProvider maxSize = new LiteralNumberProvider(5000f);
 
+        // m_flCenterXOffset/m_flCenterYOffset shift the quad within its own corner space, before the
+        // radius scale, so the card pivots about a point other than its middle.
+        private readonly INumberProvider centerXOffset = new LiteralNumberProvider(0f);
+        private readonly INumberProvider centerYOffset = new LiteralNumberProvider(0f);
+        // Both default on: shipped content only ever writes them as false, which is how the compiled KV
+        // reveals a default it omits.
+        private readonly bool gammaCorrectVertexColors = true;
+        private readonly bool saturateColorPreAlphaBlend = true;
+
+        // m_bBlendFramesSeq0 cross-fades consecutive sheet frames instead of stepping between them.
+        // m_bMaxLuminanceBlendingSequence0 swaps the plain lerp for a luminance-weighted one, which keeps
+        // the brighter of the two frames dominant through the cross-fade.
+        private readonly bool blendFrames = true;
+        private readonly bool maxLuminanceFrameBlend;
+
         private readonly INumberProvider radiusScale = new LiteralNumberProvider(1f);
         private readonly INumberProvider alphaScale = new LiteralNumberProvider(1f);
-        private readonly SpriteCardTextureChannel textureChannels = SpriteCardTextureChannel.SPRITECARD_TEXTURE_CHANNEL_MIX_RGBA;
 
         private readonly bool animateInFps;
         private readonly ParticleBlendMode blendMode = ParticleBlendMode.PARTICLE_OUTPUT_BLEND_MODE_ALPHA;
@@ -68,11 +103,14 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
 
             if (parse.Data.ContainsKey("m_hTexture"))
             {
+                // Legacy single-texture form; equivalent to one layer with every control at its default.
                 textureName = parse.Data.GetStringProperty("m_hTexture");
+                layers = [new TextureLayer(rendererContext.MaterialLoader.GetTexture(textureName, srgbRead: true))];
             }
             else
             {
-                // TODO: Support more than one texture
+                var parsed = new List<TextureLayer>();
+
                 foreach (var textureInput in parse.Array("m_vecTexturesInput"))
                 {
                     if (!textureInput.Boolean("m_bEnabled", true))
@@ -80,19 +118,41 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
                         continue;
                     }
 
-                    textureName = textureInput.Data.GetStringProperty("m_hTexture");
-                    textureChannels = textureInput.Enum("m_nTextureChannels", textureChannels);
-                    break;
-                }
-            }
+                    // A gradient layer synthesizes its texture from m_Gradient rather than loading one.
+                    if (textureInput.Boolean("m_bReplaceTextureWithGradient", false)
+                        || !textureInput.Data.ContainsKey("m_hTexture"))
+                    {
+                        continue;
+                    }
 
-            if (textureName == null)
-            {
-                texture = rendererContext.MaterialLoader.GetErrorTexture();
-            }
-            else
-            {
-                texture = rendererContext.MaterialLoader.GetTexture(textureName, srgbRead: true);
+                    // Normal maps and motion vector sheets are not colour: compositing them into the chain
+                    // would tint the card with a tangent-space basis or a flow field. They are the majority
+                    // of the extra layers in shipped content, so this matters more than it sounds.
+                    var textureType = textureInput.Enum("m_nTextureType", SpriteCardTextureType.SPRITECARD_TEXTURE_DIFFUSE);
+
+                    if (textureType is SpriteCardTextureType.SPRITECARD_TEXTURE_NORMALMAP
+                        or SpriteCardTextureType.SPRITECARD_TEXTURE_ANIMMOTIONVEC)
+                    {
+                        continue;
+                    }
+
+                    if (parsed.Count == MaxTextureLayers)
+                    {
+                        break;
+                    }
+
+                    var layerTextureName = textureInput.Data.GetStringProperty("m_hTexture");
+                    textureName ??= layerTextureName;
+
+                    parsed.Add(new TextureLayer(rendererContext.MaterialLoader.GetTexture(layerTextureName, srgbRead: true))
+                    {
+                        Channels = textureInput.Enum("m_nTextureChannels", SpriteCardTextureChannel.SPRITECARD_TEXTURE_CHANNEL_MIX_RGBA),
+                        BlendMode = textureInput.Enum("m_nTextureBlendMode", ParticleTextureLayerBlendType.SPRITECARD_TEXTURE_BLEND_MULTIPLY),
+                        Blend = textureInput.NumberProvider("m_flTextureBlend", OneNumberProvider),
+                    });
+                }
+
+                layers = parsed.Count > 0 ? [.. parsed] : [new TextureLayer(rendererContext.MaterialLoader.GetErrorTexture())];
             }
 
 #if DEBUG
@@ -114,6 +174,12 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
             selfIllumAmount = parse.NumberProvider("m_flSelfIllumAmount", selfIllumAmount);
             alphaMapToZero = parse.NumberProvider("m_flSourceAlphaValueToMapToZero", alphaMapToZero);
             alphaMapToOne = parse.NumberProvider("m_flSourceAlphaValueToMapToOne", alphaMapToOne);
+            centerXOffset = parse.NumberProvider("m_flCenterXOffset", centerXOffset);
+            centerYOffset = parse.NumberProvider("m_flCenterYOffset", centerYOffset);
+            gammaCorrectVertexColors = parse.Boolean("m_bGammaCorrectVertexColors", gammaCorrectVertexColors);
+            saturateColorPreAlphaBlend = parse.Boolean("m_bSaturateColorPreAlphaBlend", saturateColorPreAlphaBlend);
+            blendFrames = parse.Boolean("m_bBlendFramesSeq0", blendFrames);
+            maxLuminanceFrameBlend = parse.Boolean("m_bMaxLuminanceBlendingSequence0", maxLuminanceFrameBlend);
             desaturation = parse.NumberProvider("m_flDesaturation", desaturation);
             hsvShiftControlPoint = parse.Int32("m_nHSVShiftControlPoint", hsvShiftControlPoint);
 
@@ -152,23 +218,43 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
             GL.VertexArrayVertexBuffer(vao, 0, vertexBufferHandle, 0, stride);
             GL.VertexArrayElementBuffer(vao, RendererContext.MeshBufferCache.QuadIndices.GLHandle);
 
-            var positionAttributeLocation = GL.GetAttribLocation(shader.Program, "aVertexPosition");
-            var colorAttributeLocation = GL.GetAttribLocation(shader.Program, "aVertexColor");
-            var uvAttributeLocation = GL.GetAttribLocation(shader.Program, "aTexCoords");
+            // A driver is free to drop an attribute whose only use sits behind a uniform branch, in which
+            // case GetAttribLocation reports -1 and binding it would raise a GL error.
+            void SetupAttribute(string name, int components, int offsetInFloats)
+            {
+                var location = GL.GetAttribLocation(shader.Program, name);
 
-            GL.EnableVertexArrayAttrib(vao, positionAttributeLocation);
-            GL.EnableVertexArrayAttrib(vao, colorAttributeLocation);
-            GL.EnableVertexArrayAttrib(vao, uvAttributeLocation);
+                if (location < 0)
+                {
+                    return;
+                }
 
-            GL.VertexArrayAttribFormat(vao, positionAttributeLocation, 3, VertexAttribType.Float, false, 0);
-            GL.VertexArrayAttribFormat(vao, colorAttributeLocation, 4, VertexAttribType.Float, false, sizeof(float) * 3);
-            GL.VertexArrayAttribFormat(vao, uvAttributeLocation, 2, VertexAttribType.Float, false, sizeof(float) * 7);
+                GL.EnableVertexArrayAttrib(vao, location);
+                GL.VertexArrayAttribFormat(vao, location, components, VertexAttribType.Float, false, sizeof(float) * offsetInFloats);
+                GL.VertexArrayAttribBinding(vao, location, 0);
+            }
 
-            GL.VertexArrayAttribBinding(vao, positionAttributeLocation, 0);
-            GL.VertexArrayAttribBinding(vao, colorAttributeLocation, 0);
-            GL.VertexArrayAttribBinding(vao, uvAttributeLocation, 0);
+            SetupAttribute("aVertexPosition", 3, 0);
+            SetupAttribute("aVertexColor", 4, 3);
+            SetupAttribute("aTexCoords", 2, 7);
+            SetupAttribute("aTexCoordsNextFrame", 2, 9);
+            SetupAttribute("aFrameBlend", 1, 11);
 
             return vao;
+        }
+
+        // Writes one uv rectangle across the quad's four corners, at the given offset within each vertex.
+        // The quad winds top-left, bottom-left, bottom-right, top-right with v increasing downward.
+        private static void WriteQuadUv(float[] vertices, int offset, Vector2 min, Vector2 max)
+        {
+            vertices[offset + (VertexSize * 0) + 0] = min.X;
+            vertices[offset + (VertexSize * 0) + 1] = max.Y;
+            vertices[offset + (VertexSize * 1) + 0] = min.X;
+            vertices[offset + (VertexSize * 1) + 1] = min.Y;
+            vertices[offset + (VertexSize * 2) + 0] = max.X;
+            vertices[offset + (VertexSize * 2) + 1] = min.Y;
+            vertices[offset + (VertexSize * 3) + 0] = max.X;
+            vertices[offset + (VertexSize * 3) + 1] = max.Y;
         }
 
         // A quad orientation matrix from a base (right, up) pair with the particle roll folded in, matching the
@@ -246,6 +332,10 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
             var maxScreenSize = maxSize.NextNumber(systemRenderState);
             var tanHalfFov = MathF.Tan(camera.GetFOV() * 0.5f);
 
+            var centerOffset = new Vector2(
+                centerXOffset.NextNumber(systemRenderState),
+                centerYOffset.NextNumber(systemRenderState));
+
             // Update vertex buffer
             var rawVertices = ArrayPool<float>.Shared.Rent(particles.Count * VertexSize * 4);
 
@@ -285,10 +375,12 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
                         _ => particle.GetRotationMatrix() * particle.GetTransformationMatrix(radiusScale),
                     };
 
-                    var tl = Vector4.Transform(new Vector4(-1, -1, 0, 1), modelMatrix);
-                    var bl = Vector4.Transform(new Vector4(-1, 1, 0, 1), modelMatrix);
-                    var br = Vector4.Transform(new Vector4(1, 1, 0, 1), modelMatrix);
-                    var tr = Vector4.Transform(new Vector4(1, -1, 0, 1), modelMatrix);
+                    // The centre offset shifts the corners before the model matrix scales them, so it is
+                    // measured in half-widths rather than world units.
+                    var tl = Vector4.Transform(new Vector4(centerOffset.X - 1, centerOffset.Y - 1, 0, 1), modelMatrix);
+                    var bl = Vector4.Transform(new Vector4(centerOffset.X - 1, centerOffset.Y + 1, 0, 1), modelMatrix);
+                    var br = Vector4.Transform(new Vector4(centerOffset.X + 1, centerOffset.Y + 1, 0, 1), modelMatrix);
+                    var tr = Vector4.Transform(new Vector4(centerOffset.X + 1, centerOffset.Y - 1, 0, 1), modelMatrix);
 
                     var quadStart = i * VertexSize * 4;
                     rawVertices[quadStart + 0] = tl.X;
@@ -314,76 +406,43 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
                         rawVertices[quadStart + (VertexSize * j) + 6] = particle.Alpha * alphaScale;
                     }
 
-                    // UVs
-                    var spriteSheetData = texture.SpriteSheetData;
+                    // UVs. Animated sheets emit the frame the particle is on plus the one after it, and
+                    // how far between them it sits, so the fragment shader can cross-fade rather than step.
+                    var uvMin = Vector2.Zero;
+                    var uvMax = Vector2.One;
+                    var uvNextMin = Vector2.Zero;
+                    var uvNextMax = Vector2.One;
+                    var frameBlend = 0f;
+
+                    // The sheet sequence comes from the base layer; extra layers ride its frame timing.
+                    var spriteSheetData = layers[0].Texture.SpriteSheetData;
                     if (spriteSheetData != null && spriteSheetData.Sequences.Length > 0 && spriteSheetData.Sequences[0].Frames.Length > 0)
                     {
                         var sequence = spriteSheetData.Sequences[particle.Sequence % spriteSheetData.Sequences.Length];
 
-                        var frameId = 0;
+                        var frame = sequence.Frames.Length > 1
+                            ? GetSheetFrame(ref particle, sequence.FramesPerSecond, animationRate, animationType, animateInFps)
+                            : 0f;
 
-                        if (sequence.Frames.Length > 1)
-                        {
-                            if (animationType == ParticleAnimationType.ANIMATION_TYPE_MANUAL_FRAMES)
-                            {
-                                frameId = particle.ManualAnimationFrame;
-                            }
-                            else if (animateInFps)
-                            {
-                                frameId = (int)(animationRate * particle.Age);
-                            }
-                            else
-                            {
-                                var animationTime = animationType switch
-                                {
-                                    ParticleAnimationType.ANIMATION_TYPE_FIXED_RATE => particle.Age,
-                                    ParticleAnimationType.ANIMATION_TYPE_FIT_LIFETIME => particle.NormalizedAge,
-                                    _ => particle.Age,
-                                };
+                        var frameId = (int)MathF.Floor(frame);
+                        frameBlend = frame - frameId;
 
-                                frameId = (int)(animationTime * animationRate * sequence.FramesPerSecond);
-                            }
+                        // TODO: Support more than one image per frame?
+                        var currentImage = sequence.Frames[ResolveSheetFrame(frameId, sequence.Frames.Length, sequence.Clamp)].Images[0];
+                        var nextImage = sequence.Frames[ResolveSheetFrame(frameId + 1, sequence.Frames.Length, sequence.Clamp)].Images[0];
 
-                            if (sequence.Clamp)
-                            {
-                                frameId = Math.Clamp(frameId, 0, sequence.Frames.Length - 1);
-                            }
-                            else
-                            {
-                                frameId %= sequence.Frames.Length;
-                                if (frameId < 0)
-                                {
-                                    frameId += sequence.Frames.Length;
-                                }
-                            }
-                        }
-
-                        var currentFrame = sequence.Frames[frameId];
-                        var currentImage = currentFrame.Images[0]; // TODO: Support more than one image per frame?
-
-                        // Lerp frame coords and size
-                        var offset = currentImage.UncroppedMin;
-                        var scale = currentImage.UncroppedMax - currentImage.UncroppedMin;
-
-                        rawVertices[quadStart + (VertexSize * 0) + 7] = offset.X;
-                        rawVertices[quadStart + (VertexSize * 0) + 8] = offset.Y + scale.Y;
-                        rawVertices[quadStart + (VertexSize * 1) + 7] = offset.X;
-                        rawVertices[quadStart + (VertexSize * 1) + 8] = offset.Y;
-                        rawVertices[quadStart + (VertexSize * 2) + 7] = offset.X + scale.X;
-                        rawVertices[quadStart + (VertexSize * 2) + 8] = offset.Y;
-                        rawVertices[quadStart + (VertexSize * 3) + 7] = offset.X + scale.X;
-                        rawVertices[quadStart + (VertexSize * 3) + 8] = offset.Y + scale.Y;
+                        uvMin = currentImage.UncroppedMin;
+                        uvMax = currentImage.UncroppedMax;
+                        uvNextMin = nextImage.UncroppedMin;
+                        uvNextMax = nextImage.UncroppedMax;
                     }
-                    else
+
+                    WriteQuadUv(rawVertices, quadStart + 7, uvMin, uvMax);
+                    WriteQuadUv(rawVertices, quadStart + 9, uvNextMin, uvNextMax);
+
+                    for (var j = 0; j < 4; ++j)
                     {
-                        rawVertices[quadStart + (VertexSize * 0) + 7] = 0;
-                        rawVertices[quadStart + (VertexSize * 0) + 8] = 1;
-                        rawVertices[quadStart + (VertexSize * 1) + 7] = 0;
-                        rawVertices[quadStart + (VertexSize * 1) + 8] = 0;
-                        rawVertices[quadStart + (VertexSize * 2) + 7] = 1;
-                        rawVertices[quadStart + (VertexSize * 2) + 8] = 0;
-                        rawVertices[quadStart + (VertexSize * 3) + 7] = 1;
-                        rawVertices[quadStart + (VertexSize * 3) + 8] = 1;
+                        rawVertices[quadStart + (VertexSize * j) + 11] = frameBlend;
                     }
 
                     i++;
@@ -418,7 +477,22 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
             shader.Use();
             GL.BindVertexArray(vaoHandle);
 
-            shader.SetTexture(RenderMaterial.TextureUnitStart, "uTexture", texture);
+            // Layer 0 keeps the plain uTexture name; the rest take a sampler each. Units past the layer
+            // count are never sampled, but they get layer 0's texture so no sampler is left unbound.
+            for (var layer = 0; layer < MaxTextureLayers; layer++)
+            {
+                var source = layer < layers.Length ? layers[layer] : layers[0];
+                shader.SetTexture(RenderMaterial.TextureUnitStart + layer, LayerTextureUniforms[layer], source.Texture);
+            }
+
+            shader.SetUniform1("uLayerCount", layers.Length);
+
+            for (var layer = 0; layer < layers.Length; layer++)
+            {
+                shader.SetUniform1(LayerChannelsUniforms[layer], (int)layers[layer].Channels);
+                shader.SetUniform1(LayerBlendModeUniforms[layer], (int)layers[layer].BlendMode);
+                shader.SetUniform1(LayerBlendUniforms[layer], layers[layer].Blend.NextNumber(systemRenderState));
+            }
 
             shader.SetUniform1("uOverbrightFactor", overbrightFactor.NextNumber(systemRenderState));
             shader.SetUniform1("uColorFactor", diffuseAmount.NextNumber(systemRenderState) + selfIllumAmount.NextNumber(systemRenderState));
@@ -434,8 +508,11 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
                 ? new Vector2(alphaMapToZero.NextNumber(systemRenderState), alphaMapToOne.NextNumber(systemRenderState))
                 : new Vector2(1f, 0f);
             shader.SetUniform2("uAlphaRemapRange", alphaRemapRange);
-            shader.SetUniform1("uTextureChannels", (int)textureChannels);
 
+            shader.SetUniform1("uGammaCorrectVertexColors", gammaCorrectVertexColors);
+            shader.SetUniform1("uSaturateColorPreAlphaBlend", saturateColorPreAlphaBlend);
+            shader.SetUniform1("uBlendFrames", blendFrames);
+            shader.SetUniform1("uMaxLuminanceFrameBlend", maxLuminanceFrameBlend);
             shader.SetUniform1("uOutline", outline);
             shader.SetUniform4("uOutlineColor", outlineColor);
             shader.SetUniform4("uOutlineRanges", outlineRanges);
