@@ -25,7 +25,7 @@ namespace ValveResourceFormat.Renderer.Particles.Operators
             additive = parse.Boolean("m_bAdditive", additive);
         }
 
-        public override void Operate(ParticleCollection particles, float frameTime, ParticleSystemRenderState particleSystemState)
+        public override void Operate(ParticleCollection particles, float frameTime, ParticleSystemRenderState particleSystemState, float strength)
         {
             // Coefficients for noise scaling (noise returns -1..1)
             var valueScale = (outputMax - outputMin) * 0.5f;
@@ -35,11 +35,16 @@ namespace ValveResourceFormat.Renderer.Particles.Operators
 
             foreach (ref var particle in particles.Current)
             {
-                var coordinate = (particle.Position * noiseScale) + new Vector3(timeOffset);
+                // The engine scrolls the field along X only, and walks the second and third
+                // channels cumulatively away from the first to decorrelate them
+                var coordinate = (particle.Position * noiseScale) + new Vector3(timeOffset, 0f, 0f);
+                var secondChannel = coordinate + new Vector3(100000.5f, 300000.25f, 9000001f);
+                var thirdChannel = secondChannel + new Vector3(110000.25f, 310000.75f, 9100000f);
+
                 var noise = new Vector3(
                     Utils.Noise.Value3D(coordinate),
-                    Utils.Noise.Value3D(coordinate + new Vector3(31.416f, 17.239f, 0f)),
-                    Utils.Noise.Value3D(coordinate + new Vector3(0f, 47.853f, 63.271f)));
+                    Utils.Noise.Value3D(secondChannel),
+                    Utils.Noise.Value3D(thirdChannel));
 
                 var value = (noise * valueScale) + valueBase;
 
@@ -49,7 +54,7 @@ namespace ValveResourceFormat.Renderer.Particles.Operators
                     continue;
                 }
 
-                value *= frameTime;
+                value *= frameTime * strength;
                 particle.SetVector(outputField, particle.GetVector(outputField) + value);
 
                 // The previous position moves with the offset so it is not read back as velocity

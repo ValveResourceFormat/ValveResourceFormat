@@ -8,7 +8,7 @@ namespace ValveResourceFormat.Renderer.Particles.Operators
     class DampenToCP : ParticleFunctionOperator
     {
         private readonly int controlPoint;
-        private readonly float range;
+        private readonly float range = 100f;
         private readonly float scale = 1f;
 
         public DampenToCP(ParticleDefinitionParser parse) : base(parse)
@@ -18,7 +18,7 @@ namespace ValveResourceFormat.Renderer.Particles.Operators
             scale = parse.Float("m_flScale", scale);
         }
 
-        public override void Operate(ParticleCollection particles, float frameTime, ParticleSystemRenderState particleSystemState)
+        public override void Operate(ParticleCollection particles, float frameTime, ParticleSystemRenderState particleSystemState, float strength)
         {
             if (range <= 0f)
             {
@@ -39,7 +39,9 @@ namespace ValveResourceFormat.Renderer.Particles.Operators
                 var dampening = MathF.Pow(distance / range, scale);
 
                 // Motion lives in the Verlet position pair, so shortening the step damps the particle
-                particle.Position = particle.PositionPrevious + ((particle.Position - particle.PositionPrevious) * dampening);
+                var dampened = particle.PositionPrevious + ((particle.Position - particle.PositionPrevious) * dampening);
+
+                particle.Position = Vector3.Lerp(particle.Position, dampened, strength);
             }
         }
     }

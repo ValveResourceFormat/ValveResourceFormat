@@ -39,7 +39,7 @@ namespace ValveResourceFormat.Renderer.Particles.Operators
             Increment = parse.NumberProvider("m_nSnapShotIncrement", Increment);
         }
 
-        public override void Operate(ParticleCollection particles, float frameTime, ParticleSystemRenderState particleSystemState)
+        public override void Operate(ParticleCollection particles, float frameTime, ParticleSystemRenderState particleSystemState, float strength)
         {
             if (!snapshotResolved)
             {

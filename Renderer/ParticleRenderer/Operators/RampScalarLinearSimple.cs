@@ -20,14 +20,14 @@ namespace ValveResourceFormat.Renderer.Particles.Operators
             field = parse.ParticleField("m_nField", field);
         }
 
-        public override void Operate(ParticleCollection particles, float frameTime, ParticleSystemRenderState particleSystemState)
+        public override void Operate(ParticleCollection particles, float frameTime, ParticleSystemRenderState particleSystemState, float strength)
         {
             foreach (ref var particle in particles.Current)
             {
                 // The start/end window is in normalized age, like FadeInSimple.
                 if (particle.NormalizedAge > startTime && particle.NormalizedAge < endTime)
                 {
-                    particle.SetScalar(field, particle.GetScalar(field) + rate * frameTime);
+                    particle.SetScalar(field, particle.GetScalar(field) + rate * frameTime * strength);
                 }
             }
         }

@@ -37,6 +37,9 @@ namespace ValveResourceFormat.Renderer.Particles
     {
         private readonly float value;
 
+        /// <summary>The constant this provider returns, for callers that specialise on known values.</summary>
+        public float Value => value;
+
         public LiteralNumberProvider(float value)
         {
             this.value = value;

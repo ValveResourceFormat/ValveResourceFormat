@@ -43,7 +43,7 @@ namespace ValveResourceFormat.Renderer.Particles.Operators
             };
         }
 
-        public override void Operate(ParticleCollection particles, float frameTime, ParticleSystemRenderState particleSystemState)
+        public override void Operate(ParticleCollection particles, float frameTime, ParticleSystemRenderState particleSystemState, float strength)
         {
             foreach (ref var particle in particles.Current)
             {
@@ -65,7 +65,7 @@ namespace ValveResourceFormat.Renderer.Particles.Operators
                 }
 
                 var rate = ParticleCollection.RandomBetween(particle.ParticleID, rateMin, rateMax);
-                var value = particle.GetScalar(field) + (rate * frameTime);
+                var value = particle.GetScalar(field) + (rate * frameTime * strength);
 
                 particle.SetScalar(field, Math.Clamp(value, clampMin, clampMax));
             }

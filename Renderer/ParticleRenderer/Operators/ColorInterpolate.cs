@@ -21,7 +21,7 @@ namespace ValveResourceFormat.Renderer.Particles.Operators
             easeInOut = parse.Boolean("m_bEaseInOut", easeInOut);
         }
 
-        public override void Operate(ParticleCollection particles, float frameTime, ParticleSystemRenderState particleSystemState)
+        public override void Operate(ParticleCollection particles, float frameTime, ParticleSystemRenderState particleSystemState, float strength)
         {
             foreach (ref var particle in particles.Current)
             {
@@ -37,7 +37,9 @@ namespace ValveResourceFormat.Renderer.Particles.Operators
                     }
 
                     // Interpolate from constant color to fade color
-                    particle.SetVector(FieldOutput, Vector3.Lerp(particle.GetInitialVector(particles, ParticleField.Color), colorFade, t));
+                    var faded = Vector3.Lerp(particle.GetInitialVector(particles, ParticleField.Color), colorFade, t);
+
+                    particle.SetVector(FieldOutput, Vector3.Lerp(particle.GetVector(FieldOutput), faded, strength));
                 }
             }
         }

@@ -18,7 +18,7 @@ namespace ValveResourceFormat.Renderer.Particles.Operators
             offsetLocal = parse.Boolean("m_bOffsetLocal", offsetLocal);
         }
 
-        public override void Operate(ParticleCollection particles, float frameTime, ParticleSystemRenderState particleSystemState)
+        public override void Operate(ParticleCollection particles, float frameTime, ParticleSystemRenderState particleSystemState, float strength)
         {
             var cp = particleSystemState.GetControlPoint(controlPoint);
 

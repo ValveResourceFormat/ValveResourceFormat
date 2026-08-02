@@ -19,7 +19,7 @@ namespace ValveResourceFormat.Renderer.Particles.Operators
             drag = parse.NumberProvider("m_fDrag", drag);
         }
 
-        public override void Operate(ParticleCollection particles, float frameTime, ParticleSystemRenderState particleSystemState)
+        public override void Operate(ParticleCollection particles, float frameTime, ParticleSystemRenderState particleSystemState, float strength)
         {
             // The force generators run from inside this operator: it seeds a fresh
             // acceleration buffer with gravity and asks each generator to add to it before integrating.
@@ -28,14 +28,14 @@ namespace ValveResourceFormat.Renderer.Particles.Operators
             {
                 foreach (var forceGenerator in forceGenerators)
                 {
-                    var strength = forceGenerator.GetOperatorRunStrength(particleSystemState);
+                    var forceStrength = forceGenerator.GetOperatorRunStrength(particleSystemState);
 
-                    if (strength <= 0.0f)
+                    if (forceStrength <= 0.0f)
                     {
                         continue;
                     }
 
-                    forceGenerator.GenerateForces(particles, frameTime, particleSystemState, strength);
+                    forceGenerator.GenerateForces(particles, frameTime, particleSystemState, forceStrength);
                 }
             }
 

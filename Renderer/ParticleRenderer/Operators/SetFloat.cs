@@ -23,7 +23,7 @@ namespace ValveResourceFormat.Renderer.Particles.Operators
             // Thus it's basically like exponential decay, except it works with the
             // initial value, which works because they store the init value
         }
-        public override void Operate(ParticleCollection particles, float frameTime, ParticleSystemRenderState particleSystemState)
+        public override void Operate(ParticleCollection particles, float frameTime, ParticleSystemRenderState particleSystemState, float strength)
         {
             foreach (ref var particle in particles.Current)
             {
@@ -35,7 +35,7 @@ namespace ValveResourceFormat.Renderer.Particles.Operators
 
                 value = float.Lerp(initialValue, currentValue, lerp);
 
-                particle.SetScalar(OutputField, value);
+                particle.SetScalar(OutputField, float.Lerp(initialValue, value, strength));
             }
         }
     }

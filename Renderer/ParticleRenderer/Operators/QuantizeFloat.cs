@@ -15,11 +15,11 @@ namespace ValveResourceFormat.Renderer.Particles.Operators
             OutputField = parse.ParticleField("m_nOutputField", OutputField);
             quantizeSize = parse.NumberProvider("m_InputValue", quantizeSize);
         }
-        public override void Operate(ParticleCollection particles, float frameTime, ParticleSystemRenderState particleSystemState)
+        public override void Operate(ParticleCollection particles, float frameTime, ParticleSystemRenderState particleSystemState, float strength)
         {
             foreach (ref var particle in particles.Current)
             {
-                var quantizeSize = this.quantizeSize.NextNumber(ref particle, particleSystemState);
+                var quantizeSize = this.quantizeSize.NextNumber(ref particle, particleSystemState) * strength;
                 var value = particle.GetScalar(OutputField);
 
                 if (quantizeSize != 0)

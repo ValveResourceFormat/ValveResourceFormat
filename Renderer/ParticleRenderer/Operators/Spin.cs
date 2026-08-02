@@ -40,8 +40,8 @@ namespace ValveResourceFormat.Renderer.Particles.Operators
         /// in degrees per second; the engine scales the converted rate by an extra 2*pi, inherited
         /// from S1 CGeneralSpin (57 deg/s spins roughly one full turn per second).
         /// </summary>
-        protected float GetSpinDelta(float age, float frameTime)
-            => float.DegreesToRadians(GetSpinRate(age)) * MathF.Tau * frameTime;
+        protected float GetSpinDelta(float age, float frameTime, float strength)
+            => float.DegreesToRadians(GetSpinRate(age) * strength) * MathF.Tau * frameTime;
     }
 
     /// <summary>
@@ -55,11 +55,11 @@ namespace ValveResourceFormat.Renderer.Particles.Operators
         {
         }
 
-        public override void Operate(ParticleCollection particles, float frameTime, ParticleSystemRenderState particleSystemState)
+        public override void Operate(ParticleCollection particles, float frameTime, ParticleSystemRenderState particleSystemState, float strength)
         {
             foreach (ref var particle in particles.Current)
             {
-                particle.SetScalar(ParticleField.Roll, particle.Rotation.Z + GetSpinDelta(particle.Age, frameTime));
+                particle.SetScalar(ParticleField.Roll, particle.Rotation.Z + GetSpinDelta(particle.Age, frameTime, strength));
             }
         }
     }
@@ -75,11 +75,11 @@ namespace ValveResourceFormat.Renderer.Particles.Operators
         {
         }
 
-        public override void Operate(ParticleCollection particles, float frameTime, ParticleSystemRenderState particleSystemState)
+        public override void Operate(ParticleCollection particles, float frameTime, ParticleSystemRenderState particleSystemState, float strength)
         {
             foreach (ref var particle in particles.Current)
             {
-                particle.SetScalar(ParticleField.Yaw, particle.Rotation.X + GetSpinDelta(particle.Age, frameTime));
+                particle.SetScalar(ParticleField.Yaw, particle.Rotation.X + GetSpinDelta(particle.Age, frameTime, strength));
             }
         }
     }

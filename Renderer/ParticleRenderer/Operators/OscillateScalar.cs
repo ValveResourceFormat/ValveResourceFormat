@@ -28,7 +28,7 @@ namespace ValveResourceFormat.Renderer.Particles.Operators
             proportional = parse.Boolean("m_bProportional", proportional);
         }
 
-        public override void Operate(ParticleCollection particles, float frameTime, ParticleSystemRenderState particleSystemState)
+        public override void Operate(ParticleCollection particles, float frameTime, ParticleSystemRenderState particleSystemState, float strength)
         {
             foreach (ref var particle in particles.Current)
             {
@@ -41,7 +41,7 @@ namespace ValveResourceFormat.Renderer.Particles.Operators
 
                 var delta = float.SinPi((t * frequency * oscillationMultiplier) + oscillationOffset);
 
-                var finalScalar = delta * rate * frameTime;
+                var finalScalar = delta * rate * frameTime * strength;
                 particle.SetScalar(outputField, particle.GetScalar(outputField) + finalScalar);
             }
         }
@@ -78,7 +78,7 @@ namespace ValveResourceFormat.Renderer.Particles.Operators
             };
         }
 
-        public override void Operate(ParticleCollection particles, float frameTime, ParticleSystemRenderState particleSystemState)
+        public override void Operate(ParticleCollection particles, float frameTime, ParticleSystemRenderState particleSystemState, float strength)
         {
             // Update remaining particles
             foreach (ref var particle in particles.Current)

@@ -11,20 +11,17 @@ class CurlNoiseForce : ParticleFunctionForceGenerator
 
     /// <summary>Amplitude of the noise.</summary>
     private readonly IVectorProvider NoiseScale = new LiteralVectorProvider(new Vector3(1000f));
-    private readonly INumberProvider Strength = new LiteralNumberProvider(1.0f);
 
     public CurlNoiseForce(ParticleDefinitionParser parse) : base(parse)
     {
         NoiseFrequency = parse.VectorProvider("m_vecNoiseFreq", NoiseFrequency);
         NoiseScale = parse.VectorProvider("m_vecNoiseScale", NoiseScale);
-        Strength = parse.NumberProvider("m_flOpStrength", Strength);
     }
 
     public override void GenerateForces(ParticleCollection particles, float frameTime, ParticleSystemRenderState particleSystemState, float strength)
     {
         var freq = NoiseFrequency.NextVector(particleSystemState);
         var scale = NoiseScale.NextVector(particleSystemState);
-        strength *= Strength.NextNumber(particleSystemState);
 
         foreach (ref var particle in particles.Current)
         {

@@ -22,14 +22,14 @@ namespace ValveResourceFormat.Renderer.Particles.Operators
             endTime = parse.Float("m_flEndTime", endTime);
             setMethod = parse.Enum<ParticleSetMethod>("m_nSetMethod", setMethod);
         }
-        public override void Operate(ParticleCollection particles, float frameTime, ParticleSystemRenderState particleSystemState)
+        public override void Operate(ParticleCollection particles, float frameTime, ParticleSystemRenderState particleSystemState, float strength)
         {
             foreach (ref var particle in particles.Current)
             {
                 // The set method affects the value the vector is interpolating to, instead of the current interpolated value.
                 var lerpTarget = particle.ModifyVectorBySetMethod(particles, FieldOutput, output, setMethod);
 
-                var lerpWeight = MathUtils.Saturate(MathUtils.Remap(particle.NormalizedAge, startTime, endTime));
+                var lerpWeight = MathUtils.Saturate(MathUtils.Remap(particle.NormalizedAge, startTime, endTime)) * strength;
 
                 var scalarOutput = Vector3.Lerp(particle.GetInitialVector(particles, FieldOutput), lerpTarget, lerpWeight);
 
