@@ -258,9 +258,6 @@ namespace ValveResourceFormat.Renderer.SceneNodes
                 var meshBones = MemoryMarshal.Cast<float, OpenTK.Mathematics.Matrix3x4>(floatBuffer.AsSpan(0, floatBufferSizeMeshBones));
                 var modelBones = MemoryMarshal.Cast<float, Matrix4x4>(floatBuffer.AsSpan(floatBufferSizeMeshBones));
 
-                UpdateBoundingBox(); // Reset back to the mesh bbox
-                var newBoundingBox = LocalBoundingBox;
-
                 try
                 {
                     AnimationController.GetSkinningMatrices(modelBones);
@@ -278,15 +275,7 @@ namespace ValveResourceFormat.Renderer.SceneNodes
 
                     boneMatricesGpu.Update(floatBuffer, 0, floatBufferSizeMeshBones * sizeof(float));
 
-                    var first = true;
-                    foreach (var matrix in modelBones[..boneCount])
-                    {
-                        var bbox = LocalBoundingBox.Transform(matrix);
-                        newBoundingBox = first ? bbox : newBoundingBox.Union(bbox);
-                        first = false;
-                    }
-
-                    LocalBoundingBox = newBoundingBox;
+                    UpdateAnimatedBoundingBox();
                 }
                 finally
                 {
@@ -790,6 +779,56 @@ namespace ValveResourceFormat.Renderer.SceneNodes
                 LocalBoundingBox = first ? mesh.BoundingBox : LocalBoundingBox.Union(mesh.BoundingBox);
                 first = false;
             }
+        }
+
+        /// <summary>
+        /// Fits the local bounding box to the current pose by placing each bone's authored sphere at that
+        /// bone's posed origin.
+        /// </summary>
+        private void UpdateAnimatedBoundingBox()
+        {
+            const bool SkipNonSkinningBones = true;
+
+            var spheres = AnimationController.Skeleton.BoneSpheres;
+
+            if (spheres.Length == 0)
+            {
+                return;
+            }
+
+            var pose = AnimationController.Pose;
+
+            var min = new Vector3(float.MaxValue);
+            var max = new Vector3(float.MinValue);
+            var anyBoneContributed = false;
+
+            for (var boneIndex = 0; boneIndex < spheres.Length; boneIndex++)
+            {
+                if (SkipNonSkinningBones && spheres[boneIndex] <= 0f)
+                {
+                    continue;
+                }
+
+                var bone = pose[boneIndex];
+
+                // todo: refactor pose to hold single scale factor
+                var scale = new Vector3(bone.M11, bone.M12, bone.M13).Length();
+
+                var radius = new Vector3(spheres[boneIndex] * scale);
+                var origin = bone.Translation;
+
+                min = Vector3.Min(min, origin - radius);
+                max = Vector3.Max(max, origin + radius);
+                anyBoneContributed = true;
+            }
+
+            if (!anyBoneContributed)
+            {
+                UpdateBoundingBox();
+                return;
+            }
+
+            LocalBoundingBox = new AABB(min, max);
         }
 
 #if DEBUG
