@@ -342,6 +342,7 @@ public class ViewmodelSceneNode : ModelSceneNode
     internal const string ViewmodelLayerName = "Internal - First Person Viewmodel";
     private const string BreathingClip = "animation/anims/world/shared/breathing.vnmclip";
     private const string LandedClip = "animation/anims/world/shared/jump_additive_land.vnmclip";
+    private const string MuzzleFlashAttachment = "muzzle_flash2";
 
     internal ViewmodelSceneNode(Scene scene, Model model)
         : base(scene, model, null, true)
@@ -533,7 +534,7 @@ public class ViewmodelSceneNode : ModelSceneNode
         viewmodel.RenderAsViewmodel = true;
 
         // Load muzzle flash particle
-        var muzzleFlashResource = loader.LoadFileCompiled("particles/unified_weapon_fx/uweapon_muzflsh_riffle.vpcf"); // _fps
+        var muzzleFlashResource = loader.LoadFileCompiled("particles/unified_weapon_fx/uweapon_muzflsh_riffle_fps.vpcf");
         if (muzzleFlashResource?.DataBlock is ParticleSystem particleSystem)
         {
             viewmodel.muzzleFlashParticle = new ParticleSceneNode(scene, particleSystem)
@@ -541,6 +542,7 @@ public class ViewmodelSceneNode : ModelSceneNode
                 LayerName = ViewmodelLayerName,
                 Flags = ObjectTypeFlags.DisableVisCulling,
                 RenderAsViewmodel = true,
+                Parent = viewmodel,
             };
             scene.Add(viewmodel.muzzleFlashParticle, true);
         }
@@ -847,7 +849,6 @@ public class ViewmodelSceneNode : ModelSceneNode
             attackCooldown = fireDelay;
             if (SelectedItemIndex != 3 && muzzleFlashParticle != null)
             {
-                muzzleFlashParticle.GetControlPoint(1).Position = Vector3.One; // light radius
                 muzzleFlashParticle.Restart();
             }
         }
@@ -980,15 +981,13 @@ public class ViewmodelSceneNode : ModelSceneNode
                 item.Transform = wpnTransform * Transform;
                 UpdateItem(item, context, LocalBoundingBox);
 
-                // Update muzzle flash particle transform to wpnTip bone
-                if (muzzleFlashParticle != null && isSelected)
+                // The effect's control point configuration drives control point 0 from the weapon's muzzle_flash attachment
+                if (muzzleFlashParticle != null)
                 {
-                    var wpnTipIndex = ag2Player.Skeleton.GetBoneIndex("wpnTip");
-                    if (wpnTipIndex != -1)
-                    {
-                        var wpnTipTransform = ag2Player.Pose[wpnTipIndex];
-                        muzzleFlashParticle.Transform = wpnTipTransform * Transform;
-                    }
+                    Matrix4x4.Decompose(item.GetAttachmentTransform(MuzzleFlashAttachment), out _, out var muzzleRotation, out var muzzlePosition);
+
+                    muzzleFlashParticle.Transform = Matrix4x4.CreateFromQuaternion(muzzleRotation) * Matrix4x4.CreateTranslation(muzzlePosition);
+                    muzzleFlashParticle.Update(context);
                 }
             }
         }

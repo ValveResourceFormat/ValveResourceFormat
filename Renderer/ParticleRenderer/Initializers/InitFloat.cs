@@ -25,7 +25,7 @@ namespace ValveResourceFormat.Renderer.Particles.Initializers
             var value = InputValue.NextNumber(ref particle, particleSystemState);
             value *= InputStrength.NextNumber(ref particle, particleSystemState);
 
-            var finalValue = particle.ModifyScalarBySetMethod(particles, OutputField, value, SetMethod);
+            var finalValue = particle.ModifyScalarBySetMethodAtSpawn(OutputField, value, SetMethod);
 
             particle.SetScalar(OutputField, finalValue);
 

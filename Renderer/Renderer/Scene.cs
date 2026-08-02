@@ -33,6 +33,9 @@ namespace ValveResourceFormat.Renderer
 
             /// <summary>Gets the elapsed time in seconds since the last update.</summary>
             public required float Timestep { get; init; }
+
+            /// <summary> Gets the renderer's total elapsed time in seconds.</summary>
+            public float Uptime { get; init; }
         }
 
         /// <summary>

@@ -49,6 +49,14 @@ namespace ValveResourceFormat.Renderer.Particles
             this.useOrientation = useOrientation;
         }
 
+        /// <summary>
+        /// Control point 0 with its orientation, matching the defaults a transform input
+        /// deserializes to when the effect leaves <c>m_TransformInput</c> unset.
+        /// </summary>
+        public ControlPointTransformProvider() : this(0, true)
+        {
+        }
+
         /// <inheritdoc/>
         public Matrix4x4 NextTransform(ref Particle particle, ParticleSystemRenderState renderState)
         {

@@ -1056,6 +1056,8 @@ public class Renderer
         DeltaTime = updateContext.Timestep;
         ViewBuffer.Data.Time = Uptime;
 
+        updateContext = updateContext with { Uptime = Uptime };
+
         Camera.RecalculateMatrices();
 
         Scene.Update(updateContext);

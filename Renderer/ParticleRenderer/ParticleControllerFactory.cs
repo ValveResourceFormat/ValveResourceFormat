@@ -26,6 +26,7 @@ namespace ValveResourceFormat.Renderer.Particles
         internal static readonly Dictionary<string, Func<ParticleDefinitionParser, ParticleFunctionPreEmissionOperator>> PreEmissionOperatorDictionary
             = new()
             {
+                ["C_OP_ChooseRandomChildrenInGroup"] = preEmissionOperatorInfo => new ChooseRandomChildrenInGroup(preEmissionOperatorInfo),
                 ["C_OP_DistanceBetweenCPsToCP"] = preEmissionOperatorInfo => new DistanceBetweenCPsToCP(preEmissionOperatorInfo),
                 ["C_OP_RampCPLinearRandom"] = preEmissionOperatorInfo => new RampCPLinearRandom(preEmissionOperatorInfo),
                 ["C_OP_SetControlPointPositions"] = preEmissionOperatorInfo => new SetControlPointPositions(preEmissionOperatorInfo),
@@ -51,6 +52,7 @@ namespace ValveResourceFormat.Renderer.Particles
             = new()
             {
                 ["C_INIT_AddVectorToVector"] = initializerInfo => new AddVectorToVector(initializerInfo),
+                ["C_INIT_AgeNoise"] = initializerInfo => new AgeNoise(initializerInfo),
                 ["C_INIT_CreateAlongPath"] = initializerInfo => new CreateAlongPath(initializerInfo),
                 ["C_INIT_CreateOnGrid"] = initializerInfo => new CreateOnGrid(initializerInfo),
                 ["C_INIT_CreateWithinBox"] = initializerInfo => new CreateWithinBox(initializerInfo),
@@ -59,6 +61,7 @@ namespace ValveResourceFormat.Renderer.Particles
                 ["C_INIT_CreateFromCPs"] = initializerInfo => new CreateFromCPs(initializerInfo),
                 ["C_INIT_CreateFromParentParticles"] = initializerInfo => new CreateFromParentParticles(initializerInfo),
                 ["C_INIT_CreationNoise"] = initializerInfo => new CreationNoise(initializerInfo),
+                ["C_INIT_GlobalScale"] = initializerInfo => new GlobalScale(initializerInfo),
                 ["C_INIT_InitFromCPSnapshot"] = initializerInfo => new InitFromCPSnapshot(initializerInfo),
                 ["C_INIT_InitFloat"] = initializerInfo => new InitFloat(initializerInfo),
                 ["C_INIT_InitFloatCollection"] = initializerInfo => new InitFloat(initializerInfo), // initfloat but the numberprovider has fewer options
@@ -86,6 +89,7 @@ namespace ValveResourceFormat.Renderer.Particles
                 ["C_INIT_NormalAlignToCP"] = initializerInfo => new NormalAlignToCP(initializerInfo),
                 ["C_INIT_NormalOffset"] = initializerInfo => new NormalOffset(initializerInfo),
                 ["C_INIT_RemapScalar"] = initializerInfo => new RemapScalar(initializerInfo),
+                ["C_INIT_RemapScalarToVector"] = initializerInfo => new RemapScalarToVector(initializerInfo),
                 ["C_INIT_RemapSpeedToScalar"] = initializerInfo => new RemapSpeedToScalar(initializerInfo),
                 ["C_INIT_RemapParticleCountToScalar"] = initializerInfo => new RemapParticleCountToScalar(initializerInfo),
                 ["C_INIT_RingWave"] = initializerInfo => new RingWave(initializerInfo),
@@ -104,6 +108,7 @@ namespace ValveResourceFormat.Renderer.Particles
                 ["C_OP_ClampScalar"] = operatorInfo => new ClampScalar(operatorInfo),
                 ["C_OP_ColorInterpolate"] = operatorInfo => new ColorInterpolate(operatorInfo),
                 ["C_OP_ColorInterpolateRandom"] = operatorInfo => new ColorInterpolateRandom(operatorInfo),
+                ["C_OP_Cull"] = operatorInfo => new Cull(operatorInfo),
                 ["C_OP_Decay"] = operatorInfo => new Decay(operatorInfo),
                 ["C_OP_DistanceCull"] = operatorInfo => new DistanceCull(operatorInfo),
                 ["C_OP_DistanceToCP"] = operatorInfo => new DistanceToCP(operatorInfo),
@@ -152,6 +157,7 @@ namespace ValveResourceFormat.Renderer.Particles
             {
                 ["C_OP_AttractToControlPoint"] = forceGeneratorInfo => new AttractToControlPoint(forceGeneratorInfo),
                 ["C_OP_CurlNoiseForce"] = forceGeneratorInfo => new CurlNoiseForce(forceGeneratorInfo),
+                ["C_OP_PerParticleForce"] = forceGeneratorInfo => new PerParticleForce(forceGeneratorInfo),
                 ["C_OP_RandomForce"] = forceGeneratorInfo => new RandomForce(forceGeneratorInfo),
             };
 

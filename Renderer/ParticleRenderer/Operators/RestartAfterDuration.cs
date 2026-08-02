@@ -50,7 +50,7 @@ namespace ValveResourceFormat.Renderer.Particles.Operators
                 duration *= point.Position.GetComponent(controlPointField);
             }
 
-            particleSystemState.SetStopTime(duration, true);
+            particleSystemState.SetRestartTime(duration);
         }
     }
 }

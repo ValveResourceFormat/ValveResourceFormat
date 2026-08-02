@@ -38,6 +38,11 @@ namespace ValveResourceFormat.Renderer.Particles
         // (15s at 0.01 step).
         private const int MaxPreSimulationSteps = 2048;
 
+        // How much catch-up a fixed-timestep system will do in one frame. Bounds the work a hitch can
+        // cause; anything still banked past this is dropped rather than deferred.
+        // 16 covers the finest steps CS2 ships (0.0025s) against a 60 Hz frame without falling behind.
+        private const int MaxSimulationSubsteps = 16;
+
         // Upper bound on constraint work-list rounds per frame (m_nMaxConstraintPasses, default 3).
         // A lone constraint settles in one round; the bound only matters when multiple constraints
         // invalidate each other. ReadConstraintPasses returns 1 for systems with no constraints.
@@ -57,6 +62,18 @@ namespace ValveResourceFormat.Renderer.Particles
 
         public string Name { get; set; }
         public int BehaviorVersion { get; }
+
+        /// <summary>
+        /// The group this system belongs to when it is used as a child, matched by
+        /// <see cref="PreEmissionOperators.ChooseRandomChildrenInGroup"/> on the parent.
+        /// </summary>
+        private readonly int GroupId;
+
+        /// <summary>
+        /// Whether the parent's child selection currently lets this system run. Always true for a
+        /// root system and for children in a group nobody selects from.
+        /// </summary>
+        private bool ChildEnabled = true;
 
         private readonly int InitialParticles;
         private readonly int MaxParticles;
@@ -118,6 +135,7 @@ namespace ValveResourceFormat.Renderer.Particles
 
             var parse = new ParticleDefinitionParser(particleSystem.Data, rendererContext.Logger);
             BehaviorVersion = parse.Int32("m_nBehaviorVersion", 13);
+            GroupId = parse.Int32("m_nGroupID", 0);
             InitialParticles = parse.Int32("m_nInitialParticles", 0);
             MaxParticles = parse.Int32("m_nMaxParticles", 1000);
             MinimumTimeStep = parse.Float("m_flMinimumTimeStep", 0f);
@@ -285,8 +303,16 @@ namespace ValveResourceFormat.Renderer.Particles
         public void Restart()
         {
             Stop();
+
+            // Run-once pre-emission operators re-arm, so a re-triggered effect picks fresh children.
+            foreach (var preEmissionOperator in PreEmissionOperators)
+            {
+                preEmissionOperator.HasRun = false;
+            }
+
             systemRenderState.Age = 0;
             systemRenderState.ParticleCount = 0;
+            systemRenderState.EndEarly = false;
             particlesEmitted = 0;
             particleCollection.Clear();
             Start();
@@ -297,7 +323,21 @@ namespace ValveResourceFormat.Renderer.Particles
             }
         }
 
-        public void Update(float frameTime) => Update(frameTime, presimulating: false);
+        public void Update(float frameTime, float worldTime)
+        {
+            // Only the root carries it; children read it back through their parent chain.
+            systemRenderState.WorldTime = worldTime;
+
+            Update(frameTime, presimulating: false);
+
+            // Control point history feeds control point velocities. The root records it once per frame,
+            // after every consumer (including children, which share the root's control points) has run,
+            // timed by the real frame rather than by any one system's simulation step.
+            if (systemRenderState.ParentSystem == null)
+            {
+                systemRenderState.SnapshotControlPointHistory(frameTime);
+            }
+        }
 
         private void Update(float frameTime, bool presimulating)
         {
@@ -340,31 +380,53 @@ namespace ValveResourceFormat.Renderer.Particles
                 return;
             }
 
-            // Fixed sim time ensures consistent particle aging regardless of client frame rate.
-            var useSimTime = MinimumSimTime > 0f || MaximumSimTime > 0f;
-            if (useSimTime)
+            // Fixed sim time ensures consistent particle aging regardless of client frame rate: elapsed
+            // time is banked and then drained in chunks no larger than the maximum. The whole bank has to
+            // drain each frame - taking a single chunk and carrying the rest leaves a system whose maximum
+            // is shorter than the step it was handed permanently behind, playing in slow motion.
+            if (MinimumSimTime > 0f || MaximumSimTime > 0f)
             {
                 accumulatedSimTime += frameTime;
 
-                // Skip if below minimum
+                // Not enough banked to take a step yet.
                 if (accumulatedSimTime < MinimumSimTime)
                 {
                     return;
                 }
 
-                // Clamp if above maximum
-                if (MaximumSimTime > 0f && accumulatedSimTime > MaximumSimTime)
+                var chunk = MaximumSimTime > 0f ? MaximumSimTime : accumulatedSimTime;
+                var substeps = 0;
+
+                while (accumulatedSimTime > 0f && accumulatedSimTime >= MinimumSimTime && substeps < MaxSimulationSubsteps)
                 {
-                    frameTime = MaximumSimTime;
-                    accumulatedSimTime -= MaximumSimTime;
+                    var step = MathF.Min(accumulatedSimTime, chunk);
+                    accumulatedSimTime -= step;
+                    substeps++;
+
+                    // Only the last substep refreshes renderers and bounds; the intermediate ones would
+                    // just be overwritten.
+                    var lastSubstep = accumulatedSimTime <= 0f
+                        || accumulatedSimTime < MinimumSimTime
+                        || substeps >= MaxSimulationSubsteps;
+
+                    Simulate(step, presimulating || !lastSubstep);
                 }
-                else
+
+                // A long hitch can bank more than we are willing to catch up on; drop the rest rather than
+                // letting it pile up into an ever-growing debt.
+                if (substeps >= MaxSimulationSubsteps)
                 {
-                    frameTime = accumulatedSimTime;
                     accumulatedSimTime = 0f;
                 }
+
+                return;
             }
 
+            Simulate(frameTime, presimulating);
+        }
+
+        private void Simulate(float frameTime, bool presimulating)
+        {
             frameTime = Math.Clamp(frameTime, MinimumTimeStep, MaximumTimeStep);
             currentFrameTime = frameTime;
 
@@ -372,6 +434,16 @@ namespace ValveResourceFormat.Renderer.Particles
 
             foreach (var preEmissionOperator in PreEmissionOperators)
             {
+                if (preEmissionOperator.RunOnce)
+                {
+                    if (preEmissionOperator.HasRun)
+                    {
+                        continue;
+                    }
+
+                    preEmissionOperator.HasRun = true;
+                }
+
                 preEmissionOperator.Operate(ref systemRenderState, frameTime);
             }
 
@@ -416,6 +488,11 @@ namespace ValveResourceFormat.Renderer.Particles
 
             foreach (var childParticleRenderer in childParticleRenderers)
             {
+                if (!childParticleRenderer.ChildEnabled)
+                {
+                    continue;
+                }
+
                 childParticleRenderer.Update(frameTime, presimulating);
             }
 
@@ -432,24 +509,24 @@ namespace ValveResourceFormat.Renderer.Particles
             // TODO: Is this the correct place for this because child particle renderers also check this
             if (systemRenderState.EndEarly && systemRenderState.Age > systemRenderState.Duration)
             {
-                if (systemRenderState.DestroyInstantlyOnEnd)
+                if (systemRenderState.RestartOnEnd)
                 {
                     Restart();
                 }
                 else
                 {
                     Stop();
+
+                    // "Destroy immediately" drops the particles still alive; without it they are left
+                    // to finish their lifetimes and only emission stops.
+                    if (systemRenderState.DestroyInstantlyOnEnd)
+                    {
+                        particleCollection.Clear();
+                    }
                 }
             }
 
             systemRenderState.ParticleCount = particleCollection.Count;
-
-            // Control point history feeds control-point velocities; the root snapshots once per step
-            // after every consumer (including children, which share the root's control points) has run.
-            if (systemRenderState.ParentSystem == null)
-            {
-                systemRenderState.SnapshotControlPointHistory();
-            }
         }
 
         // Constraints run from a work list bounded by m_nMaxConstraintPasses: each constraint runs once,
@@ -520,7 +597,7 @@ namespace ValveResourceFormat.Renderer.Particles
 
             foreach (var childRenderer in childParticleRenderers)
             {
-                if (!childRenderer.IsFinished())
+                if (childRenderer.ChildEnabled && !childRenderer.IsFinished())
                 {
                     return false;
                 }
@@ -533,6 +610,11 @@ namespace ValveResourceFormat.Renderer.Particles
         {
             foreach (var childParticleRenderer in childParticleRenderers)
             {
+                if (!childParticleRenderer.ChildEnabled)
+                {
+                    continue;
+                }
+
                 childParticleRenderer.Render(camera);
             }
 
@@ -565,6 +647,11 @@ namespace ValveResourceFormat.Renderer.Particles
         {
             foreach (var childParticleRenderer in childParticleRenderers)
             {
+                if (!childParticleRenderer.ChildEnabled)
+                {
+                    continue;
+                }
+
                 childParticleRenderer.Prewarm(camera);
             }
 
@@ -660,6 +747,11 @@ namespace ValveResourceFormat.Renderer.Particles
 
             foreach (var childParticleRenderer in childParticleRenderers)
             {
+                if (!childParticleRenderer.ChildEnabled)
+                {
+                    continue;
+                }
+
                 newBounds = hasBounds ? newBounds.Union(childParticleRenderer.LocalBoundingBox) : childParticleRenderer.LocalBoundingBox;
                 hasBounds = true;
             }
@@ -729,6 +821,45 @@ namespace ValveResourceFormat.Renderer.Particles
                 {
                     RendererContext.Logger.LogUniqueWarningFor(["renderer", rendererClass], UnsupportedClassWarning, "renderer", rendererClass, Name);
                 }
+            }
+        }
+
+        /// <summary>
+        /// Suppresses every child system tagged with <paramref name="groupId"/> except for
+        /// <paramref name="numberOfChildren"/> randomly chosen ones. Children in other groups are untouched.
+        /// </summary>
+        internal void ChooseRandomChildrenInGroup(int groupId, int numberOfChildren)
+        {
+            var remaining = 0;
+
+            foreach (var child in childParticleRenderers)
+            {
+                if (child.GroupId == groupId)
+                {
+                    remaining++;
+                }
+            }
+
+            var needed = Math.Clamp(numberOfChildren, 0, remaining);
+
+            // Selection sampling: walk the group once, taking each candidate with probability
+            // needed/remaining. Uniform over all subsets of that size, and needs no scratch buffer.
+            foreach (var child in childParticleRenderers)
+            {
+                if (child.GroupId != groupId)
+                {
+                    continue;
+                }
+
+                var chosen = needed > 0 && Random.Shared.Next(remaining) < needed;
+                child.ChildEnabled = chosen;
+
+                if (chosen)
+                {
+                    needed--;
+                }
+
+                remaining--;
             }
         }
 
