@@ -71,6 +71,13 @@ namespace ValveResourceFormat.Renderer.Particles
         }
 
 
+        /// <summary>
+        /// Whether the field holds an angle. These are authored in degrees but stored in radians, so
+        /// writers have to convert; scale set methods are dimensionless and stay raw.
+        /// </summary>
+        public static bool IsAngular(this ParticleField field)
+            => field is ParticleField.Roll or ParticleField.RollSpeed or ParticleField.Yaw or ParticleField.Pitch;
+
         // Scalar fields
         public static float GetScalar(this ref Particle particle, ParticleField field)
         {

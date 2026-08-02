@@ -11,6 +11,7 @@ namespace ValveResourceFormat.Renderer.Particles.Initializers
         private readonly INumberProvider InputValue = new LiteralNumberProvider(0);
         private readonly INumberProvider InputStrength = new LiteralNumberProvider(1f);
         private readonly ParticleSetMethod SetMethod = ParticleSetMethod.PARTICLE_SET_REPLACE_VALUE;
+        private readonly bool ConvertToRadians;
 
         public InitFloat(ParticleDefinitionParser parse) : base(parse)
         {
@@ -18,12 +19,20 @@ namespace ValveResourceFormat.Renderer.Particles.Initializers
             InputValue = parse.NumberProvider("m_InputValue", InputValue);
             InputStrength = parse.NumberProvider("m_InputStrength", InputStrength);
             SetMethod = parse.Enum<ParticleSetMethod>("m_nSetMethod", SetMethod);
+
+            ConvertToRadians = OutputField.IsAngular()
+                && SetMethod is not (ParticleSetMethod.PARTICLE_SET_SCALE_INITIAL_VALUE or ParticleSetMethod.PARTICLE_SET_SCALE_CURRENT_VALUE);
         }
 
         public override Particle Initialize(ref Particle particle, ParticleCollection particles, ParticleSystemRenderState particleSystemState)
         {
             var value = InputValue.NextNumber(ref particle, particleSystemState);
             value *= InputStrength.NextNumber(ref particle, particleSystemState);
+
+            if (ConvertToRadians)
+            {
+                value = float.DegreesToRadians(value);
+            }
 
             var finalValue = particle.ModifyScalarBySetMethodAtSpawn(OutputField, value, SetMethod);
 
