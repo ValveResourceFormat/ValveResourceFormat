@@ -21,7 +21,7 @@ namespace ValveResourceFormat.Renderer.Particles.Emitters
         private Action<float>? particleEmitCallback;
 
         private float time;
-        private float lastEmissionTime;
+        private EmissionAccumulator accumulator;
 
         public ContinuousEmitter(ParticleDefinitionParser parse) : base(parse)
         {
@@ -35,7 +35,7 @@ namespace ValveResourceFormat.Renderer.Particles.Emitters
             this.particleEmitCallback = particleEmitCallback;
 
             time = 0f;
-            lastEmissionTime = 0;
+            accumulator.Reset();
 
             IsFinished = false;
         }
@@ -53,34 +53,19 @@ namespace ValveResourceFormat.Renderer.Particles.Emitters
                 return;
             }
 
+            var frameStart = time;
             time += frameTime;
 
             var nextStartTime = startTime.NextNumber(particleSystemState);
             var nextEmissionDuration = emissionDuration.NextNumber(particleSystemState);
 
-            if (time >= nextStartTime && (nextEmissionDuration == 0f || time <= nextStartTime + nextEmissionDuration))
+            if (TryGetEmissionWindow(frameStart, time, nextStartTime, nextEmissionDuration, out var windowStart, out var windowEnd))
             {
                 // Re-evaluate the emit rate every frame: a control-point or curve-driven
                 // rate changes over the emitter's lifetime.
                 var rate = emitRate.NextNumber(particleSystemState);
-                if (rate > 0f)
-                {
-                    // Don't count time before the start time as pending emission,
-                    // otherwise the first emitting frame bursts all of it at once
-                    if (lastEmissionTime < nextStartTime)
-                    {
-                        lastEmissionTime = nextStartTime;
-                    }
 
-                    var emitInterval = 1.0f / rate;
-                    var numToEmit = (int)MathF.Floor((time - lastEmissionTime) / emitInterval);
-                    for (var i = 0; i < numToEmit; i++)
-                    {
-                        particleEmitCallback?.Invoke(0f);
-                    }
-
-                    lastEmissionTime += numToEmit * emitInterval;
-                }
+                accumulator.Charge(rate, windowStart, windowEnd, time, particleEmitCallback);
             }
 
             if (nextEmissionDuration != 0f && time > nextStartTime + nextEmissionDuration)

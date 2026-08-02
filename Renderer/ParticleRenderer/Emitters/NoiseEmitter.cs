@@ -22,8 +22,7 @@ namespace ValveResourceFormat.Renderer.Particles.Emitters
         private Action<float>? particleEmitCallback;
 
         private float time;
-        private double particlesToEmit;
-        private long particlesFlushed;
+        private EmissionAccumulator accumulator;
 
         public NoiseEmitter(ParticleDefinitionParser parse) : base(parse)
         {
@@ -41,9 +40,7 @@ namespace ValveResourceFormat.Renderer.Particles.Emitters
             this.particleEmitCallback = particleEmitCallback;
 
             time = 0f;
-            // Source 2 starts the accumulator at 1 so short or slow emitters (rate * duration <= 1) still emit
-            particlesToEmit = 1d;
-            particlesFlushed = 0;
+            accumulator.Reset();
 
             IsFinished = false;
         }
@@ -67,42 +64,14 @@ namespace ValveResourceFormat.Renderer.Particles.Emitters
             var nextStartTime = startTime.NextNumber(particleSystemState);
             var nextEmissionDuration = emissionDuration.NextNumber(particleSystemState);
 
-            if (nextStartTime <= time)
+            if (TryGetEmissionWindow(frameStart, time, nextStartTime, nextEmissionDuration, out var windowStart, out var windowEnd))
             {
-                var windowStart = frameStart;
-                var windowEnd = time;
+                var noise = (Noise.Simplex1D((time + noiseOffset) * noiseScale.NextNumber(particleSystemState)) * 0.5f) + 0.5f;
+                var emissionMinValue = emissionMin.NextNumber(particleSystemState);
+                var emissionMaxValue = emissionMax.NextNumber(particleSystemState);
+                var emissionRate = emissionMinValue + noise * (emissionMaxValue - emissionMinValue);
 
-                if (nextEmissionDuration != 0f)
-                {
-                    windowStart = MathF.Max(nextStartTime, windowStart);
-                    windowEnd = MathF.Min(nextStartTime + nextEmissionDuration, windowEnd);
-                }
-
-                if (windowEnd > windowStart)
-                {
-                    var noise = (Noise.Simplex1D((time + noiseOffset) * noiseScale.NextNumber(particleSystemState)) * 0.5f) + 0.5f;
-                    var emissionMinValue = emissionMin.NextNumber(particleSystemState);
-                    var emissionMaxValue = emissionMax.NextNumber(particleSystemState);
-                    var emissionRate = emissionMinValue + noise * (emissionMaxValue - emissionMinValue);
-
-                    particlesToEmit += Math.Max(0f, emissionRate) * (windowEnd - windowStart);
-
-                    var flushTo = (long)Math.Floor(particlesToEmit);
-                    var toEmit = flushTo - particlesFlushed;
-
-                    if (toEmit > 0)
-                    {
-                        particlesFlushed = flushTo;
-
-                        // Creation times spread evenly across the charged interval, as the engine does
-                        var step = (windowEnd - windowStart) / toEmit;
-
-                        for (var i = 0; i < toEmit; i++)
-                        {
-                            particleEmitCallback?.Invoke(time - (windowStart + (i * step)));
-                        }
-                    }
-                }
+                accumulator.Charge(emissionRate, windowStart, windowEnd, time, particleEmitCallback);
             }
 
             if (nextEmissionDuration != 0f && time > nextStartTime + nextEmissionDuration)
