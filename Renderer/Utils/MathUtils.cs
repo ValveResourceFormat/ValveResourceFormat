@@ -23,6 +23,24 @@ namespace ValveResourceFormat.Renderer.Utils
         }
 
         /// <summary>
+        /// GLSL's smoothstep: 0 below <paramref name="edge0"/>, 1 above <paramref name="edge1"/>, and a
+        /// Hermite ease between them. Edges may be given in either order, so a descending pair produces a
+        /// falling curve.
+        /// </summary>
+        /// <param name="edge0">Value at which the result reaches 0.</param>
+        /// <param name="edge1">Value at which the result reaches 1.</param>
+        /// <param name="x">Value to interpolate.</param>
+        /// <returns>The eased value in the 0-1 range.</returns>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static float Smoothstep(float edge0, float edge1, float x)
+        {
+            if (edge0 == edge1) { return x < edge0 ? 0f : 1f; }
+
+            var t = Saturate((x - edge0) / (edge1 - edge0));
+            return t * t * (3f - (2f * t));
+        }
+
+        /// <summary>
         /// Remaps a value from one range to another.
         /// </summary>
         /// <param name="x">Value to remap.</param>

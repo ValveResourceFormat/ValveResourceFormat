@@ -352,9 +352,9 @@ namespace ValveResourceFormat.Renderer
 
                 // Content can author out-of-range tints (e.g. renderamt above 255 baked into the draw call
                 // alpha); the packed byte color can only represent [0, 1].
-                var tint = Vector4.Clamp(request.Mesh.Tint * request.Call.TintColor * instanceTint, Vector4.Zero, Vector4.One);
+                var tint = Color32.FromVector4Clamped(request.Mesh.Tint * request.Call.TintColor * instanceTint);
 
-                GL.ProgramUniform1((uint)shader.Program, uniforms.Tint, Color32.FromVector4(tint).PackedValue);
+                GL.ProgramUniform1((uint)shader.Program, uniforms.Tint, tint.PackedValue);
             }
 
             var instanceCount = 1;

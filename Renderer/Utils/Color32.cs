@@ -78,6 +78,11 @@ namespace ValveResourceFormat.Renderer.Utils
         public static Color32 FromVector4(Vector4 vector) => new(vector.X, vector.Y, vector.Z, vector.W);
 
         /// <summary>
+        /// Creates a color from a <see cref="Vector4"/> where XYZW maps to RGBA, clamping the input values to [0, 1].
+        /// </summary>
+        public static Color32 FromVector4Clamped(Vector4 vector) => FromVector4(Vector4.Clamp(vector, Vector4.Zero, Vector4.One));
+
+        /// <summary>
         /// Converts this color to a linear color space <see cref="Vector4"/> with components in the range [0, 1].
         /// </summary>
         public readonly Vector4 ToLinearColor()

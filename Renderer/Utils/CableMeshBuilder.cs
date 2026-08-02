@@ -221,7 +221,7 @@ namespace ValveResourceFormat.Renderer.Utils
             {
                 var sample = samples[i];
                 var center = positions[i];
-                var color = Color32.FromVector4(new Vector4(sample.Color, 1.0f));
+                var color = Color32.FromVector4Clamped(new Vector4(sample.Color, 1.0f));
 
                 var (normal, bitangent) = BuildFrame(positions, i, previousNormal);
                 previousNormal = normal;

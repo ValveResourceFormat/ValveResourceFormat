@@ -48,6 +48,14 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
         private readonly ParticleAnimationType animationType = ParticleAnimationType.ANIMATION_TYPE_FIXED_RATE;
         private readonly INumberProvider minSize = new LiteralNumberProvider(0f);
         private readonly INumberProvider maxSize = new LiteralNumberProvider(5000f);
+        private readonly INumberProvider startFadeSize = new LiteralNumberProvider(100000000f);
+        private readonly INumberProvider endFadeSize = new LiteralNumberProvider(200000000f);
+        private readonly bool distanceAlpha;
+
+        // m_flStartFadeDot/m_flEndFadeDot: the normal-aligned modes fade out as the card turns edge-on to
+        // the camera. The defaults span 1..2 against a value that never exceeds 1, so no fade by default.
+        private readonly float startFadeDot = 1f;
+        private readonly float endFadeDot = 2f;
 
         // m_flCenterXOffset/m_flCenterYOffset shift the quad within its own corner space, before the
         // radius scale, so the card pivots about a point other than its middle.
@@ -167,6 +175,11 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
             animationRate = parse.Float("m_flAnimationRate", animationRate);
             minSize = parse.NumberProvider("m_flMinSize", minSize);
             maxSize = parse.NumberProvider("m_flMaxSize", maxSize);
+            startFadeSize = parse.NumberProvider("m_flStartFadeSize", startFadeSize);
+            endFadeSize = parse.NumberProvider("m_flEndFadeSize", endFadeSize);
+            distanceAlpha = parse.Boolean("m_bDistanceAlpha", distanceAlpha);
+            startFadeDot = parse.Float("m_flStartFadeDot", startFadeDot);
+            endFadeDot = parse.Float("m_flEndFadeDot", endFadeDot);
             animationType = parse.Enum<ParticleAnimationType>("m_nAnimationType", animationType);
             radiusScale = parse.NumberProvider("m_flRadiusScale", radiusScale);
             alphaScale = parse.NumberProvider("m_flAlphaScale", alphaScale);
@@ -290,13 +303,14 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
             => QuadBasis(new Vector3(0f, -1f, 0f), new Vector3(1f, 0f, 0f), roll);
 
         // ALIGN_TO_PARTICLE_NORMAL: quad plane perpendicular to the particle normal, with the shader's canonical
-        // tangent frame (reference axis chosen away from the normal).
+        // tangent frame. The reference axis is world -Y once the normal tilts at all off horizontal, and world
+        // +Z only while it is nearly horizontal; either choice stays clear of the normal.
         private static Matrix4x4 ParticleNormalBasis(Vector3 normal, float roll)
         {
-            var reference = MathF.Abs(normal.Z) > 0.9f ? new Vector3(1f, 0f, 0f) : new Vector3(0f, 0f, 1f);
-            var tangent = Vector3.Normalize(Vector3.Cross(normal, reference));
-            var bitangent = Vector3.Cross(normal, tangent);
-            return QuadBasis(bitangent, tangent, roll);
+            var reference = MathF.Abs(normal.Z) > 0.1f ? new Vector3(0f, -1f, 0f) : new Vector3(0f, 0f, 1f);
+            var up = Vector3.Normalize(Vector3.Cross(normal, reference));
+            var right = Vector3.Cross(up, normal);
+            return QuadBasis(right, up, roll);
         }
 
         // SCREENALIGN_TO_PARTICLE_NORMAL: the quad's right edge follows the particle normal while it turns toward
@@ -313,7 +327,8 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
             return QuadBasis(n, Vector3.Normalize(w), roll);
         }
 
-        private void UpdateVertices(ParticleCollection particles, ParticleSystemRenderState systemRenderState, Camera camera)
+        /// <summary>Fills and uploads the quad buffer, returning the number of quads actually emitted.</summary>
+        private int UpdateVertices(ParticleCollection particles, ParticleSystemRenderState systemRenderState, Camera camera)
         {
             var modelViewMatrix = camera.CameraViewMatrix;
 
@@ -326,15 +341,32 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
             modelViewRotation = Quaternion.Inverse(modelViewRotation);
             var billboardMatrix = Matrix4x4.CreateFromQuaternion(modelViewRotation);
 
-            // Screen-size clamps: m_flMinSize/m_flMaxSize are fractions of the screen a sprite may cover;
-            // tiny flashes rely on the minimum to stay visible at any camera distance.
+            // Distance-driven size and fade. All four bounds are fractions of the screen a sprite may
+            // cover, so they compare against radius / (distance * tan(fov/2)): the minimum keeps tiny
+            // flashes visible at any camera distance, and the two fade bounds dissolve a sprite that grows
+            // past them. The whole group is gated on m_bDistanceAlpha, as it is in the shader.
             var minScreenSize = minSize.NextNumber(systemRenderState);
             var maxScreenSize = maxSize.NextNumber(systemRenderState);
+            var startFadeScreenSize = startFadeSize.NextNumber(systemRenderState);
+            var endFadeScreenSize = endFadeSize.NextNumber(systemRenderState);
             var tanHalfFov = MathF.Tan(camera.GetFOV() * 0.5f);
 
             var centerOffset = new Vector2(
                 centerXOffset.NextNumber(systemRenderState),
                 centerYOffset.NextNumber(systemRenderState));
+
+            // Distance from the quad centre to its furthest corner, in half-widths, so a particle can be
+            // bounded by a sphere without building its basis first.
+            var cornerDistance = new Vector2(1f + MathF.Abs(centerOffset.X), 1f + MathF.Abs(centerOffset.Y)).Length();
+            var cullFrustum = camera.ViewFrustum;
+            const bool PerParticleFrustumCull = false;
+
+            // Only the two normal-aligned modes fade by view angle, and only when the range can actually
+            // be entered: the value it tests is a dot product magnitude, so it never exceeds 1.
+            var viewAngleFadeActive = startFadeDot < 1f
+                && endFadeDot > startFadeDot
+                && orientationType is ParticleOrientation.PARTICLE_ORIENTATION_ALIGN_TO_PARTICLE_NORMAL
+                    or ParticleOrientation.PARTICLE_ORIENTATION_SCREENALIGN_TO_PARTICLE_NORMAL;
 
             // Update vertex buffer
             var rawVertices = ArrayPool<float>.Shared.Rent(particles.Count * VertexSize * 4);
@@ -346,18 +378,79 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
                 {
                     var radiusScale = this.radiusScale.NextNumber(ref particle, systemRenderState);
 
-                    var distanceToCamera = Vector3.Distance(camera.Location, particle.Position);
-                    if (distanceToCamera > 1e-3f && tanHalfFov > 0f)
+                    // Scales rgb and alpha alike, matching the shader's fade of the whole vertex colour.
+                    var colorFade = 1f;
+
+                    // The view-angle fade touches alpha only, unlike the size fade below.
+                    var alphaFade = 1f;
+
+                    if (viewAngleFadeActive)
                     {
-                        var screenHalfHeight = distanceToCamera * tanHalfFov;
-                        var screenFraction = particle.Radius * radiusScale / screenHalfHeight;
-                        if (screenFraction < minScreenSize && screenFraction > 0f)
+                        var toCamera = camera.Location - particle.Position;
+
+                        if (toCamera.LengthSquared() > 1e-12f)
                         {
-                            radiusScale *= minScreenSize / screenFraction;
+                            var facing = MathF.Abs(Vector3.Dot(Vector3.Normalize(particle.Normal), Vector3.Normalize(toCamera)));
+                            alphaFade = 1f - MathUtils.Smoothstep(startFadeDot, endFadeDot, facing);
                         }
-                        else if (screenFraction > maxScreenSize)
+                    }
+
+                    if (distanceAlpha && tanHalfFov > 0f)
+                    {
+                        var screenHalfHeight = Vector3.Distance(camera.Location, particle.Position) * tanHalfFov;
+                        var radius = particle.Radius * radiusScale;
+                        var fadeStart = startFadeScreenSize * screenHalfHeight;
+                        var fadeEnd = endFadeScreenSize * screenHalfHeight;
+
+                        if (radius > fadeStart)
                         {
-                            radiusScale *= maxScreenSize / screenFraction;
+                            if (radius >= fadeEnd)
+                            {
+                                // Faded out entirely; emitting the quad would only cost overdraw.
+                                continue;
+                            }
+
+                            colorFade = 1f - ((radius - fadeStart) / (fadeEnd - fadeStart));
+                        }
+
+                        if (particle.Radius > 0f)
+                        {
+                            // Expressed back as a scale, because the corner transform takes one. Nested
+                            // min/max rather than a clamp: an inverted range has to resolve to the maximum
+                            // the way the shader's does, not throw.
+                            radiusScale = MathF.Min(MathF.Max(radius, minScreenSize * screenHalfHeight), maxScreenSize * screenHalfHeight) / particle.Radius;
+                        }
+                    }
+
+                    var alphaScale = this.alphaScale.NextNumber(ref particle, systemRenderState);
+                    var alpha = particle.Alpha * alphaScale * colorFade * alphaFade;
+                    var halfWidth = particle.Radius * radiusScale;
+
+                    // A quad with no extent collapses to a point and rasterizes nothing, whatever the
+                    // fragment shader does with it. Zero alpha is deliberately not culled here: what it
+                    // composites to is the blend mode's business, not the vertex writer's.
+                    if (halfWidth <= 0f)
+                    {
+                        continue;
+                    }
+
+                    // Off-screen particles still cost their vertices and a scan-out of the whole quad.
+                    // The bound is the corner furthest from the centre: the axes of every orientation
+                    // basis are unit length or shorter, so the offset corner distance covers all of them.
+                    if (PerParticleFrustumCull && !cullFrustum.IsEmpty)
+                    {
+                        var cornerReach = halfWidth * cornerDistance;
+
+                        if (orientationType == ParticleOrientation.PARTICLE_ORIENTATION_ALIGN_TO_PARTICLE_NORMAL)
+                        {
+                            // Its right axis is cross(up, normal) left un-normalized, so a normal that is
+                            // not unit length widens the quad past what the corner distance alone covers.
+                            cornerReach *= MathF.Max(1f, particle.Normal.Length());
+                        }
+
+                        if (!cullFrustum.Intersects(particle.Position, cornerReach))
+                        {
+                            continue;
                         }
                     }
 
@@ -396,14 +489,13 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
                     rawVertices[quadStart + (VertexSize * 3) + 1] = tr.Y;
                     rawVertices[quadStart + (VertexSize * 3) + 2] = tr.Z;
 
-                    var alphaScale = this.alphaScale.NextNumber(ref particle, systemRenderState);
                     // Colors
                     for (var j = 0; j < 4; ++j)
                     {
-                        rawVertices[quadStart + (VertexSize * j) + 3] = particle.Color.X;
-                        rawVertices[quadStart + (VertexSize * j) + 4] = particle.Color.Y;
-                        rawVertices[quadStart + (VertexSize * j) + 5] = particle.Color.Z;
-                        rawVertices[quadStart + (VertexSize * j) + 6] = particle.Alpha * alphaScale;
+                        rawVertices[quadStart + (VertexSize * j) + 3] = particle.Color.X * colorFade;
+                        rawVertices[quadStart + (VertexSize * j) + 4] = particle.Color.Y * colorFade;
+                        rawVertices[quadStart + (VertexSize * j) + 5] = particle.Color.Z * colorFade;
+                        rawVertices[quadStart + (VertexSize * j) + 6] = alpha;
                     }
 
                     // UVs. Animated sheets emit the frame the particle is on plus the one after it, and
@@ -448,7 +540,9 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
                     i++;
                 }
 
-                GL.NamedBufferData(vertexBufferHandle, particles.Count * VertexSize * 4 * sizeof(float), rawVertices, BufferUsageHint.DynamicDraw);
+                GL.NamedBufferData(vertexBufferHandle, i * VertexSize * 4 * sizeof(float), rawVertices, BufferUsageHint.DynamicDraw);
+
+                return i;
             }
             finally
             {
@@ -463,8 +557,14 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
                 return;
             }
 
-            // Update vertex buffer
-            UpdateVertices(particleBag, systemRenderState, camera);
+            // Update vertex buffer. Fully faded particles are skipped, so this can be fewer than the
+            // live particle count.
+            var quadCount = UpdateVertices(particleBag, systemRenderState, camera);
+
+            if (quadCount == 0)
+            {
+                return;
+            }
 
             // Draw it. The translucent pass leaves blend/depth state to each custom draw, so enable blending and
             // stop depth writes here; otherwise sprites are opaque. The cable renderer instead draws opaque with depth writes.
@@ -522,7 +622,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
 
             // DRAW
             PerfStats.Active.Count(Counter.ParticleDraw);
-            GL.DrawElements(PrimitiveType.Triangles, particleBag.Count * 6, DrawElementsType.UnsignedShort, 0);
+            GL.DrawElements(PrimitiveType.Triangles, quadCount * 6, DrawElementsType.UnsignedShort, 0);
 
             GL.Enable(EnableCap.CullFace);
         }
