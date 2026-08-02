@@ -233,6 +233,16 @@ namespace ValveResourceFormat.Renderer.Particles
 
         public void Start()
         {
+            foreach (var initializer in Initializers)
+            {
+                initializer.Reset();
+            }
+
+            foreach (var particleOperator in Operators)
+            {
+                particleOperator.Reset();
+            }
+
             for (var i = 0; i < InitialParticles; ++i)
             {
                 EmitParticle(0f);

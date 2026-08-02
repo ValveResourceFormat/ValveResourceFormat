@@ -29,6 +29,12 @@ namespace ValveResourceFormat.Renderer.Particles.Operators
         private Vector3 previousTransformPosition = new(float.MaxValue);
         private Matrix4x4 previousTransform = Matrix4x4.Identity;
 
+        public override void Reset()
+        {
+            previousTransformPosition = new Vector3(float.MaxValue);
+            previousTransform = Matrix4x4.Identity;
+        }
+
         public PositionLock(ParticleDefinitionParser parse) : base(parse)
         {
             transformInput = parse.TransformInput("m_TransformInput", transformInput);
