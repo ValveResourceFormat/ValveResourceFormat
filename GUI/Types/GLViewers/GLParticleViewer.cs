@@ -40,6 +40,7 @@ namespace GUI.Types.GLViewers
 
         protected override void LoadScene()
         {
+            InitializeSoundPlayer();
             LoadDefaultLighting();
             Scene.LightingInfo.UseSceneBoundsForSunLightFrustum = false;
             Renderer.ViewBuffer!.Data!.ExperimentalLightsEnabled = true;
