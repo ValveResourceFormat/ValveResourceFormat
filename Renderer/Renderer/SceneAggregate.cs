@@ -129,6 +129,27 @@ namespace ValveResourceFormat.Renderer
             }
         }
 
+        /// <summary>Appends a meshlet covering an entire draw call.</summary>
+        private void CreateDrawMeshlet(DrawCall drawCall)
+        {
+            drawCall.FirstMeshlet = RenderMesh.Meshlets.Count;
+            drawCall.NumMeshlets = 1;
+
+            // Packed meshlet bounds are normalized within the parent draw bounds, so a min of zero and a
+            // max of 1023 in every component unpacks back to exactly the draw call's own bounding box.
+            const uint PackedBoundsMax = (1023u << 20) | (1023u << 10) | 1023u;
+
+            RenderMesh.Meshlets.Add(new Meshlet
+            {
+                PackedAABB = new Meshlet.MeshletBounds { Min = 0, Max = PackedBoundsMax, },
+                CullingData = new Meshlet.MeshletCone { ConeCutoff = 127, },
+                VertexOffset = 0,
+                VertexCount = drawCall.VertexCount,
+                TriangleOffset = (int)(drawCall.StartIndex / drawCall.IndexSizeInBytes) / 3,
+                TriangleCount = (uint)(drawCall.IndexCount / 3),
+            });
+        }
+
         private IEnumerable<Fragment> CreateFragments(KVObject aggregateSceneObject)
         {
             var aggregateMeshes = aggregateSceneObject.GetArray("m_aggregateMeshes");
@@ -136,6 +157,9 @@ namespace ValveResourceFormat.Renderer
             // Aperture Desk Job goes from draw call -> aggregate mesh
             if (aggregateMeshes.Count > 0 && !aggregateMeshes[0].ContainsKey("m_nDrawCallIndex"))
             {
+                var createDrawMeshlets = RenderMesh.Meshlets.Count == 0;
+                CanDrawIndirect = RenderMesh.DrawCallsOpaque.Count > 0 && createDrawMeshlets;
+
                 foreach (var drawCall in RenderMesh.DrawCallsOpaque)
                 {
                     var fragmentData = aggregateMeshes[drawCall.MeshId];
@@ -144,6 +168,12 @@ namespace ValveResourceFormat.Renderer
                     var flags = fragmentData.GetEnumValue<ObjectTypeFlags>("m_objectFlags", normalize: true);
 
                     drawCall.DrawBounds = new AABB(worldBounds[0].ToVector3(), worldBounds[1].ToVector3());
+
+                    if (createDrawMeshlets)
+                    {
+                        CreateDrawMeshlet(drawCall);
+                    }
+
                     var fragment = new Fragment(Scene, this, drawCall.DrawBounds.Value)
                     {
                         DrawCall = drawCall,
