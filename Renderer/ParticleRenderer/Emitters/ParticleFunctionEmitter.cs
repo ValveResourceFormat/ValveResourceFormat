@@ -16,8 +16,8 @@ namespace ValveResourceFormat.Renderer.Particles.Emitters
         /// <summary>Signals the emitter to stop spawning new particles.</summary>
         public abstract void Stop();
 
-        /// <summary>Called each frame to emit particles based on elapsed time.</summary>
-        public abstract void Emit(float frameTime, ParticleSystemRenderState particleSystemState);
+        /// <summary>Runs one frame of emission, scaled by the operator run strength.</summary>
+        public abstract void Emit(float frameTime, ParticleSystemRenderState particleSystemState, float strength);
 
         /// <summary>Gets whether the emitter has finished emitting and will produce no more particles.</summary>
         public abstract bool IsFinished { get; protected set; }
@@ -55,15 +55,18 @@ namespace ValveResourceFormat.Renderer.Particles.Emitters
         protected struct EmissionAccumulator
         {
             private double pending;
+            private double floorEpsilon;
             private long flushed;
 
             /// <summary>
-            /// Resets to the engine's initial state, which is charged enough to emit one particle
-            /// immediately so that short or slow emitters still produce something.
+            /// Resets to the emitter's initial state. A charge of 1 emits one particle immediately so
+            /// short or slow emitters still produce something; the continuous emitter instead starts
+            /// uncharged with a small epsilon inside the flush threshold.
             /// </summary>
-            public void Reset()
+            public void Reset(double initialCharge, float flushEpsilon)
             {
-                pending = 1d;
+                pending = initialCharge;
+                floorEpsilon = flushEpsilon;
                 flushed = 0;
             }
 
@@ -72,7 +75,7 @@ namespace ValveResourceFormat.Renderer.Particles.Emitters
             {
                 pending += Math.Max(0f, rate) * (windowEnd - windowStart);
 
-                var flushTo = (long)Math.Floor(pending);
+                var flushTo = (long)Math.Floor(pending + floorEpsilon);
                 var toEmit = flushTo - flushed;
 
                 if (toEmit <= 0)

@@ -37,7 +37,7 @@ namespace ValveResourceFormat.Renderer.Particles.Initializers
             var coordinate = (samplePosition.X * 0.7f) + (samplePosition.Y * 1.3f) + (samplePosition.Z * 2.1f)
                 + ((particleSystemState.Age + offset) * noiseScale);
 
-            var noise = Noise.Simplex1D(coordinate);
+            var noise = Noise.ValueDiagonal(coordinate);
 
             // abs folds the signed noise into the full range; otherwise the half-span scale centers
             // it. absValInv inverts either way. Matches C_INIT_CreationNoise.

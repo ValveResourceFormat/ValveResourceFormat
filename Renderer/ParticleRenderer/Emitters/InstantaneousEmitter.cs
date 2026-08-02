@@ -14,15 +14,18 @@ namespace ValveResourceFormat.Renderer.Particles.Emitters
 
         private readonly INumberProvider emitCount = new LiteralNumberProvider(1);
         private readonly INumberProvider startTime = new LiteralNumberProvider(0);
+        private readonly int maxEmittedPerFrame = -1;
         private readonly int snapshotControlPoint;
         private readonly bool hasSnapshotSubset;
 
         private float time;
+        private int remainingToEmit;
 
         public InstantaneousEmitter(ParticleDefinitionParser parse) : base(parse)
         {
             emitCount = parse.NumberProvider("m_nParticlesToEmit", emitCount);
             startTime = parse.NumberProvider("m_flStartTime", startTime);
+            maxEmittedPerFrame = parse.Int32("m_nMaxEmittedPerFrame", maxEmittedPerFrame);
             snapshotControlPoint = parse.Int32("m_nSnapshotControlPoint", -1);
             hasSnapshotSubset = !string.IsNullOrEmpty(parse.Data.GetStringProperty("m_strSnapshotSubset"));
         }
@@ -34,6 +37,7 @@ namespace ValveResourceFormat.Renderer.Particles.Emitters
             IsFinished = false;
 
             time = 0;
+            remainingToEmit = -1;
         }
 
         public override void Stop()
@@ -42,7 +46,7 @@ namespace ValveResourceFormat.Renderer.Particles.Emitters
             particleEmitCallback = null;
         }
 
-        public override void Emit(float frameTime, ParticleSystemRenderState particleSystemState)
+        public override void Emit(float frameTime, ParticleSystemRenderState particleSystemState, float strength)
         {
             if (IsFinished)
             {
@@ -51,9 +55,16 @@ namespace ValveResourceFormat.Renderer.Particles.Emitters
 
             time += frameTime;
 
-            if (time >= startTime.NextNumber(particleSystemState))
+            var nextStartTime = startTime.NextNumber(particleSystemState);
+
+            if (time < nextStartTime)
             {
-                var numToEmit = (int)emitCount.NextNumber(particleSystemState);
+                return;
+            }
+
+            if (remainingToEmit < 0)
+            {
+                remainingToEmit = (int)emitCount.NextNumber(particleSystemState);
 
                 // When emitting from a whole snapshot, spawn one particle per snapshot element so each maps
                 // 1:1 to its snapshot index (C_INIT_InitFromCPSnapshot reads by particle id). A subset string
@@ -63,15 +74,26 @@ namespace ValveResourceFormat.Renderer.Particles.Emitters
                     var snapshot = particleSystemState.GetControlPointSnapshot(snapshotControlPoint);
                     if (snapshot != null)
                     {
-                        numToEmit = (int)snapshot.NumParticles;
+                        remainingToEmit = (int)snapshot.NumParticles;
                     }
                 }
+            }
 
-                for (var i = 0; i < numToEmit; i++)
-                {
-                    particleEmitCallback?.Invoke(0f);
-                }
+            var perFrameCap = maxEmittedPerFrame >= 0 ? maxEmittedPerFrame : 100000;
+            var numToEmit = Math.Min(remainingToEmit, (int)(perFrameCap * strength));
 
+            // Every burst particle is stamped with the start-time instant, not the frame it spawns in
+            var ageAtSpawn = time - nextStartTime;
+
+            for (var i = 0; i < numToEmit; i++)
+            {
+                particleEmitCallback?.Invoke(ageAtSpawn);
+            }
+
+            remainingToEmit -= numToEmit;
+
+            if (remainingToEmit <= 0)
+            {
                 IsFinished = true;
             }
         }

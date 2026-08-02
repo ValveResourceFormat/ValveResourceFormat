@@ -28,14 +28,19 @@ namespace ValveResourceFormat.Renderer.Particles.Operators
             foreach (ref var particle in particles.Current)
             {
                 var value = this.value.NextNumber(ref particle, particleSystemState);
-                var lerp = this.lerp.NextNumber(ref particle, particleSystemState);
+                var lerp = MathUtils.Saturate(this.lerp.NextNumber(ref particle, particleSystemState));
 
-                var currentValue = particle.ModifyScalarBySetMethod(particles, OutputField, value, setMethod);
-                var initialValue = particle.GetScalar(OutputField);
+                var target = particle.ModifyScalarBySetMethod(particles, OutputField, value, setMethod);
+                var currentValue = particle.GetScalar(OutputField);
 
-                value = float.Lerp(initialValue, currentValue, lerp);
+                var blended = float.Lerp(currentValue, target, lerp);
 
-                particle.SetScalar(OutputField, float.Lerp(initialValue, value, strength));
+                // Strength lerps from the spawn initial for the two initial-value set methods
+                var strengthBase = setMethod is ParticleSetMethod.PARTICLE_SET_SCALE_INITIAL_VALUE or ParticleSetMethod.PARTICLE_SET_ADD_TO_INITIAL_VALUE
+                    ? particle.GetInitialScalar(particles, OutputField)
+                    : currentValue;
+
+                particle.SetScalar(OutputField, float.Lerp(strengthBase, blended, strength));
             }
         }
     }

@@ -13,7 +13,7 @@ namespace ValveResourceFormat.Renderer.Particles.Utils
         /// Samples the noise lattice. Operators that only vary one input sample the x=y=z diagonal,
         /// which is what the engine does when no world noise control point is set.
         /// </summary>
-        public static float Simplex1D(float t) => Value3D(t, t, t);
+        public static float ValueDiagonal(float t) => Value3D(t, t, t);
 
         /// <inheritdoc cref="Value3D(float, float, float)"/>
         public static float Value3D(Vector3 position) => Value3D(position.X, position.Y, position.Z);
@@ -41,7 +41,7 @@ namespace ValveResourceFormat.Renderer.Particles.Utils
         }
 
         /// <summary>
-        /// Hashes one lattice corner to [0, 1). The corner is packed by plain addition rather than
+        /// Hashes one lattice corner to [0, 1]. The corner is packed by plain addition rather than
         /// into disjoint bit fields, so the field aliases: Hash(x + 1024, y, z) == Hash(x, y + 1, z).
         /// </summary>
         private static float Hash(int x, int y, int z)
@@ -59,7 +59,7 @@ namespace ValveResourceFormat.Renderer.Particles.Utils
                 var mixed = (uint)((int)h ^ ((int)h >> 16)) & 0x7FFFFFFFu;
                 var scaled = mixed * 0x04B2AE35u;
 
-                return ((uint)((int)scaled ^ ((int)scaled >> 16)) & 0xFFFFu) / 65536f;
+                return ((uint)((int)scaled ^ ((int)scaled >> 16)) & 0xFFFFu) / 65535f;
             }
         }
     }

@@ -35,7 +35,7 @@ namespace ValveResourceFormat.Renderer.Particles.Emitters
             this.particleEmitCallback = particleEmitCallback;
 
             time = 0f;
-            accumulator.Reset();
+            accumulator.Reset(initialCharge: 0d, flushEpsilon: 0.001f);
 
             IsFinished = false;
         }
@@ -46,7 +46,7 @@ namespace ValveResourceFormat.Renderer.Particles.Emitters
             particleEmitCallback = null;
         }
 
-        public override void Emit(float frameTime, ParticleSystemRenderState particleSystemState)
+        public override void Emit(float frameTime, ParticleSystemRenderState particleSystemState, float strength)
         {
             if (IsFinished)
             {
@@ -63,7 +63,7 @@ namespace ValveResourceFormat.Renderer.Particles.Emitters
             {
                 // Re-evaluate the emit rate every frame: a control-point or curve-driven
                 // rate changes over the emitter's lifetime.
-                var rate = emitRate.NextNumber(particleSystemState);
+                var rate = emitRate.NextNumber(particleSystemState) * strength;
 
                 accumulator.Charge(rate, windowStart, windowEnd, time, particleEmitCallback);
             }

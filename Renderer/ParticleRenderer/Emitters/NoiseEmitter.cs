@@ -40,7 +40,7 @@ namespace ValveResourceFormat.Renderer.Particles.Emitters
             this.particleEmitCallback = particleEmitCallback;
 
             time = 0f;
-            accumulator.Reset();
+            accumulator.Reset(initialCharge: 1d, flushEpsilon: 0f);
 
             IsFinished = false;
         }
@@ -51,7 +51,7 @@ namespace ValveResourceFormat.Renderer.Particles.Emitters
             particleEmitCallback = null;
         }
 
-        public override void Emit(float frameTime, ParticleSystemRenderState particleSystemState)
+        public override void Emit(float frameTime, ParticleSystemRenderState particleSystemState, float strength)
         {
             if (IsFinished)
             {
@@ -66,10 +66,10 @@ namespace ValveResourceFormat.Renderer.Particles.Emitters
 
             if (TryGetEmissionWindow(frameStart, time, nextStartTime, nextEmissionDuration, out var windowStart, out var windowEnd))
             {
-                var noise = (Noise.Simplex1D((time + noiseOffset) * noiseScale.NextNumber(particleSystemState)) * 0.5f) + 0.5f;
+                var noise = (Noise.ValueDiagonal((time + noiseOffset) * noiseScale.NextNumber(particleSystemState)) * 0.5f) + 0.5f;
                 var emissionMinValue = emissionMin.NextNumber(particleSystemState);
                 var emissionMaxValue = emissionMax.NextNumber(particleSystemState);
-                var emissionRate = emissionMinValue + noise * (emissionMaxValue - emissionMinValue);
+                var emissionRate = (emissionMinValue + noise * (emissionMaxValue - emissionMinValue)) * strength;
 
                 accumulator.Charge(emissionRate, windowStart, windowEnd, time, particleEmitCallback);
             }

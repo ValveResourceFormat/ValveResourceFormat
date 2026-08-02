@@ -36,10 +36,11 @@ namespace ValveResourceFormat.Renderer.Particles.Operators
                         t = t * t * (3 - 2 * t);
                     }
 
-                    // Interpolate from constant color to fade color
-                    var faded = Vector3.Lerp(particle.GetInitialVector(particles, ParticleField.Color), colorFade, t);
+                    // Interpolate from constant color to fade color; strength blends from the initial color
+                    var initialColor = particle.GetInitialVector(particles, ParticleField.Color);
+                    var faded = Vector3.Lerp(initialColor, colorFade, t);
 
-                    particle.SetVector(FieldOutput, Vector3.Lerp(particle.GetVector(FieldOutput), faded, strength));
+                    particle.SetVector(FieldOutput, Vector3.Lerp(initialColor, faded, strength));
                 }
             }
         }

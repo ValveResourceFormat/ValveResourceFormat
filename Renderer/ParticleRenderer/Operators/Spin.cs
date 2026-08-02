@@ -18,17 +18,18 @@ namespace ValveResourceFormat.Renderer.Particles.Operators
         }
 
         /// <summary>
-        /// Spin rate in degrees per second at the given particle age: the rate decays linearly from
-        /// the main rate to the min floor over the stop time; a stop time of 0 means no decay.
+        /// Spin rate in degrees per second at the given particle age: the strength-scaled rate decays
+        /// linearly toward the min floor over the stop time; a stop time of 0 means no decay. The min
+        /// floor itself is not scaled by strength.
         /// </summary>
-        private float GetSpinRate(float age)
+        private float GetSpinRate(float age, float strength)
         {
             if (spinRateStopTime == 0f)
             {
-                return spinRateDegrees;
+                return spinRateDegrees * strength;
             }
 
-            var decayed = spinRateDegrees * MathF.Max(0f, 1f - (age / spinRateStopTime));
+            var decayed = spinRateDegrees * strength * MathF.Max(0f, 1f - (age / spinRateStopTime));
 
             return spinRateDegrees >= 0
                 ? MathF.Max(decayed, spinRateMinDegrees)
@@ -41,7 +42,7 @@ namespace ValveResourceFormat.Renderer.Particles.Operators
         /// from S1 CGeneralSpin (57 deg/s spins roughly one full turn per second).
         /// </summary>
         protected float GetSpinDelta(float age, float frameTime, float strength)
-            => float.DegreesToRadians(GetSpinRate(age) * strength) * MathF.Tau * frameTime;
+            => float.DegreesToRadians(GetSpinRate(age, strength)) * MathF.Tau * frameTime;
     }
 
     /// <summary>

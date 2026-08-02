@@ -41,9 +41,9 @@ namespace ValveResourceFormat.Renderer.Particles.Initializers
             var coordinate = (samplePosition.X * 0.7f) + (samplePosition.Y * 1.3f) + (samplePosition.Z * 2.1f)
                 + ((particleSystemState.Age + offset) * noiseScale);
             var r = new Vector3(
-                Noise.Simplex1D(coordinate),
-                Noise.Simplex1D(coordinate + 101723),
-                Noise.Simplex1D(coordinate + 555557));
+                Noise.ValueDiagonal(coordinate),
+                Noise.ValueDiagonal(coordinate + 101723),
+                Noise.ValueDiagonal(coordinate + 555557));
 
             var min = outputMin.NextVector(ref particle, particleSystemState);
             var max = outputMax.NextVector(ref particle, particleSystemState);

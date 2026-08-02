@@ -249,7 +249,7 @@ namespace ValveResourceFormat.Renderer.Particles
             }
         }
 
-        private void EmitParticle(float ageAtSpawn = 0f)
+        private void EmitParticle(float ageAtSpawn)
         {
             var index = particleCollection.Add();
             if (index < 0)
@@ -322,15 +322,61 @@ namespace ValveResourceFormat.Renderer.Particles
             }
         }
 
-        /// <summary>
-        /// Advances the system by one frame. Ordinary frames simulate in a single step; only a frame
-        /// longer than <see cref="MaximumTimeStep"/> is broken into substeps, and the total is capped
-        /// so a long stall cannot make the system catch up indefinitely.
-        /// </summary>
         public void Update(float frameTime, float worldTime)
         {
             // Only the root carries it; children read it back through their parent chain.
             systemRenderState.WorldTime = worldTime;
+
+            UpdateFrame(frameTime, presimulating: false);
+
+            // Control point history feeds control point velocities. The root records it once per frame,
+            // after every consumer (including children, which share the root's control points) has run,
+            // timed by the real frame rather than by any one system's simulation step.
+            if (systemRenderState.ParentSystem == null)
+            {
+                systemRenderState.SnapshotControlPointHistory(frameTime);
+            }
+        }
+
+        /// <summary>
+        /// Advances the system by one frame. Ordinary frames simulate in a single step; only a frame
+        /// longer than <see cref="MaximumTimeStep"/> is broken into substeps, and the total is capped
+        /// so a long stall cannot make the system catch up indefinitely. Children advance once per
+        /// frame with the raw frame time, each substepping against its own timestep settings.
+        /// A system frozen by <see cref="StopSimulationAfterTime"/> holds its children frozen with it.
+        /// </summary>
+        private void UpdateFrame(float frameTime, bool presimulating)
+        {
+            if (!hasStarted)
+            {
+                Start();
+                hasStarted = true;
+
+                // Fast-forward the whole m_flPreSimulationTime as fixed maximum-timestep substeps so operators
+                // and constraints relax to their settled state before first draw (e.g. a static cable
+                // dropping into its droop). One-time at spawn.
+                // Renderer updates and bounds are skipped per substep and refreshed once after the burst.
+                if (PreSimulationTime > 0f)
+                {
+                    var step = MaximumTimeStep > 0f ? MaximumTimeStep : PreSimulationTime;
+                    var neededSteps = (int)MathF.Ceiling(PreSimulationTime / step);
+                    var steps = Math.Min(MaxPreSimulationSteps, neededSteps);
+
+                    if (neededSteps > MaxPreSimulationSteps)
+                    {
+                        RendererContext.Logger.LogUniqueWarning(
+                            "Effect wants {NeededSteps} pre-simulation substeps, capped at {MaxSteps} {File}",
+                            neededSteps, MaxPreSimulationSteps, Name);
+                    }
+
+                    for (var i = 0; i < steps; i++)
+                    {
+                        UpdateFrame(step, presimulating: true);
+                    }
+
+                    RefreshRenderState();
+                }
+            }
 
             var maximumStep = MaximumTimeStep > 0f ? MaximumTimeStep : 0.1f;
 
@@ -358,51 +404,27 @@ namespace ValveResourceFormat.Renderer.Particles
 
                 // Renderer state and bounds are refreshed by the final substep only, as the engine
                 // does that bookkeeping once per frame rather than once per step
-                Update(step, presimulating: remaining > 0f);
+                Simulate(step, presimulating: presimulating || remaining > 0f);
             }
 
-            // Control point history feeds control point velocities. The root records it once per frame,
-            // after every consumer (including children, which share the root's control points) has run,
-            // timed by the real frame rather than by any one system's simulation step.
-            if (systemRenderState.ParentSystem == null)
+            if (StopSimulationAfterTime > 0f && systemRenderState.Age >= StopSimulationAfterTime)
             {
-                systemRenderState.SnapshotControlPointHistory(frameTime);
+                return;
+            }
+
+            foreach (var childParticleRenderer in childParticleRenderers)
+            {
+                if (!childParticleRenderer.ChildEnabled)
+                {
+                    continue;
+                }
+
+                childParticleRenderer.UpdateFrame(frameTime, presimulating);
             }
         }
 
-        private void Update(float frameTime, bool presimulating)
+        private void Simulate(float frameTime, bool presimulating)
         {
-            if (!hasStarted)
-            {
-                Start();
-                hasStarted = true;
-
-                // Fast-forward the whole m_flPreSimulationTime as fixed maximum-timestep substeps so operators
-                // and constraints relax to their settled state before first draw (e.g. a static cable
-                // dropping into its droop). One-time at spawn.
-                // Renderer updates and bounds are skipped per substep and refreshed once after the burst.
-                if (PreSimulationTime > 0f)
-                {
-                    var step = MaximumTimeStep > 0f ? MaximumTimeStep : PreSimulationTime;
-                    var neededSteps = (int)MathF.Ceiling(PreSimulationTime / step);
-                    var steps = Math.Min(MaxPreSimulationSteps, neededSteps);
-
-                    if (neededSteps > MaxPreSimulationSteps)
-                    {
-                        RendererContext.Logger.LogUniqueWarning(
-                            "Effect wants {NeededSteps} pre-simulation substeps, capped at {MaxSteps} {File}",
-                            neededSteps, MaxPreSimulationSteps, Name);
-                    }
-
-                    for (var i = 0; i < steps; i++)
-                    {
-                        Update(step, presimulating: true);
-                    }
-
-                    RefreshRenderState();
-                }
-            }
-
             // Simulation stops after m_flStopSimulationAfterTime and the particles are held
             // in place; a settled static cable freezes here because its pre-simulation already advanced the age
             // to the stop time. Rendering continues from the frozen state.
@@ -415,6 +437,14 @@ namespace ValveResourceFormat.Renderer.Particles
             currentFrameTime = frameTime;
 
             systemRenderState.Age += frameTime;
+
+            // Age is not stored by the engine, only derived, so recompute it from the creation
+            // stamp before operators read it; particles born later this step carry their own age
+            for (var i = 0; i < particleCollection.Count; ++i)
+            {
+                ref var particle = ref particleCollection.Current[i];
+                particle.Age = systemRenderState.Age - particle.CreationTime;
+            }
 
             foreach (var preEmissionOperator in PreEmissionOperators)
             {
@@ -445,8 +475,7 @@ namespace ValveResourceFormat.Renderer.Particles
                     continue;
                 }
 
-                // TODO: Pass in strength
-                emitter.Emit(frameTime, systemRenderState);
+                emitter.Emit(frameTime, systemRenderState, strength);
             }
 
             foreach (var particleOperator in Operators)
@@ -463,28 +492,10 @@ namespace ValveResourceFormat.Renderer.Particles
 
             RunConstraints(frameTime);
 
-            // Age is not stored by the engine, only derived, so recompute it from the creation
-            // stamp rather than accumulating: particles born this frame already carry their age
-            for (var i = 0; i < particleCollection.Count; ++i)
-            {
-                ref var particle = ref particleCollection.Current[i];
-                particle.Age = systemRenderState.Age - particle.CreationTime;
-            }
-
             // Remove all dead particles
             particleCollection.PruneExpired();
 
             particleCollection.PreviousFrameTime = frameTime;
-
-            foreach (var childParticleRenderer in childParticleRenderers)
-            {
-                if (!childParticleRenderer.ChildEnabled)
-                {
-                    continue;
-                }
-
-                childParticleRenderer.Update(frameTime, presimulating);
-            }
 
             if (!presimulating)
             {

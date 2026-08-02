@@ -44,7 +44,7 @@ namespace ValveResourceFormat.Renderer.Particles.Initializers
 
             var samplePosition = (particle.Position + offsetLoc) * noiseScaleLoc;
             var sampleTime = ((particleSystemState.Age + offset) * noiseScale) + (particleSystemState.WorldTime * worldTimeScale);
-            var noise = Noise.Simplex1D((samplePosition.X * 0.7f) + (samplePosition.Y * 1.3f) + (samplePosition.Z * 2.1f) + sampleTime);
+            var noise = Noise.ValueDiagonal((samplePosition.X * 0.7f) + (samplePosition.Y * 1.3f) + (samplePosition.Z * 2.1f) + sampleTime);
 
             // abs folds the signed noise into the full output range; otherwise the half-span
             // scale centers it in the range. absValInv inverts either way.
