@@ -19,8 +19,8 @@ void main(void) {
     vtxUv = vTEXCOORD;
     vtxPhase = vPHASE;
 
-    vec4 worldPos = CalculateObjectToWorldMatrix() * vec4(vPOSITION, 1.0);
-    vtxWorldPos = worldPos.xyz;
-    vtxClipPos = g_matWorldToProjection * worldPos;
+    vec3 worldPos = vec4(vPOSITION, 1.0) * CalculateObjectToWorldMatrix();
+    vtxWorldPos = worldPos;
+    vtxClipPos = g_matWorldToProjection * vec4(worldPos, 1.0);
     gl_Position = vtxClipPos;
 }

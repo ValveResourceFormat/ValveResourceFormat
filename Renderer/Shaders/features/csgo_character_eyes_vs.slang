@@ -72,14 +72,13 @@ EyePixelInput GetCharacterEyeInterpolator(vec3 vPositionOs)
     EyeData currentEye = bIsRightEye ? rightEyeOs : leftEyeOs;
     float flExotropia = bIsRightEye ? (g_flEyeBallWalleyeR1 * -1.0) : g_flEyeBallWalleyeL1;
 
-    mat4 eyeAnimationMatrix = getMatrix(currentEye.BoneIndex);
-    mat3 eyeRotationMatrix = mat3(eyeAnimationMatrix);
+    mat3x4 eyeAnimationMatrix = getMatrix(currentEye.BoneIndex);
 
-    currentEye.Forward =    eyeRotationMatrix * currentEye.Forward;
-    currentEye.Up =         eyeRotationMatrix * currentEye.Up;
-    currentEye.Position =   (eyeAnimationMatrix * vec4(currentEye.Position, 1.0)).xyz;
+    currentEye.Forward =    vec4(currentEye.Forward, 0.0) * eyeAnimationMatrix;
+    currentEye.Up =         vec4(currentEye.Up, 0.0) * eyeAnimationMatrix;
+    currentEye.Position =   vec4(currentEye.Position, 1.0) * eyeAnimationMatrix;
 
-    vec3 targetPosition = (getMatrix(g_nEyeTargetBindIdx) * vec4(g_vEyeTargetBindPos.xyz, 1.0)).xyz;
+    vec3 targetPosition = vec4(g_vEyeTargetBindPos.xyz, 1.0) * getMatrix(g_nEyeTargetBindIdx);
     vec3 viewDir = normalize(targetPosition - currentEye.Position);
 
     if (flExotropia != 0.0)

@@ -103,8 +103,8 @@ void main()
 {
     ObjectData_t object = GetObjectData();
 
-    mat4 skinTransform = object.transform * getSkinMatrix();
-    vec4 fragPosition = skinTransform * vec4(vPOSITION, 1.0);
+    mat3x4 skinTransform = CalculateSkinTransform();
+    vec3 fragPosition = vec4(vPOSITION, 1.0) * skinTransform;
 
     #if (F_JITTER_VERTICES > 0)
         #if (F_SECONDARY_UV == 1)
@@ -116,14 +116,14 @@ void main()
         #if (F_JITTER_VERTICES == 2)
             // Object space: the noise travels with the prop, so the displacement has to be
             // rotated into world space rather than added to it.
-            fragPosition.xyz += mat3(skinTransform) * GetJitterDisplacement(vPOSITION, jitterTexCoord);
+            fragPosition += vec4(GetJitterDisplacement(vPOSITION, jitterTexCoord), 0.0) * skinTransform;
         #else
-            fragPosition.xyz += GetJitterDisplacement(fragPosition.xyz, jitterTexCoord);
+            fragPosition += GetJitterDisplacement(fragPosition, jitterTexCoord);
         #endif
     #endif
 
-    gl_Position = g_matWorldToProjection * fragPosition;
-    vFragPosition = fragPosition.xyz;
+    gl_Position = g_matWorldToProjection * vec4(fragPosition, 1.0);
+    vFragPosition = fragPosition;
 
     // Normals are deliberately not recomputed against the displacement.
 
@@ -131,9 +131,8 @@ void main()
     vec4 tangent;
     GetOptionallyCompressedNormalTangent(normal, tangent);
 
-    mat3 normalTransform = adjoint(skinTransform);
-    vNormalOut = normalize(normalTransform * normal);
-    vTangentOut = normalize(normalTransform * tangent.xyz);
+    vNormalOut = TransformDirectionToWorld(skinTransform, normal);
+    vTangentOut = TransformDirectionToWorld(skinTransform, tangent.xyz);
     vBitangentOut = tangent.w * cross(vNormalOut, vTangentOut);
     vCentroidNormalOut = vNormalOut;
 

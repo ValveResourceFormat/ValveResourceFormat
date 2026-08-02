@@ -273,16 +273,15 @@ void main()
 {
     ObjectData_t object = GetObjectData();
 
-    mat4 skinTransform = object.transform * getSkinMatrix();
-    vFragPosition = (skinTransform * vec4(vPOSITION + getMorphOffset(), 1.0)).xyz;
+    mat3x4 skinTransform = CalculateSkinTransform();
+    vFragPosition = vec4(vPOSITION + getMorphOffset(), 1.0) * skinTransform;
 
     vec3 normal;
     vec4 tangent;
     GetOptionallyCompressedNormalTangent(normal, tangent);
 
-    mat3 normalTransform = adjoint(skinTransform);
-    vNormalOut = normalize(normalTransform * normal);
-    vTangentOut = normalize(normalTransform * tangent.xyz);
+    vNormalOut = TransformDirectionToWorld(skinTransform, normal);
+    vTangentOut = TransformDirectionToWorld(skinTransform, tangent.xyz);
     vBitangentOut = tangent.w * cross(vNormalOut, vTangentOut);
 
     #if defined(foliage_vfx_common)
@@ -325,7 +324,7 @@ void main()
     }
 
 #if (F_SPHERICAL_PROJECTED_ANISOTROPIC_TANGENTS == 1)
-    vAnisoBitangentOut = normalTransform * GetSphericalProjectedAnisoBitangent(normal, tangent.xyz);
+    vAnisoBitangentOut = TransformDirectionToWorld(skinTransform, GetSphericalProjectedAnisoBitangent(normal, tangent.xyz));
 #endif
 
 #if (GameVfx_csgo_character != 0) && (F_EYEBALLS == 1)

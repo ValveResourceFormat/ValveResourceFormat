@@ -18,12 +18,7 @@ layout (location = 0) in vec3 vPOSITION;
 
 void main()
 {
-    mat4 vertexTransform = CalculateObjectToWorldMatrix();
     vec3 vertexPosition = vPOSITION;
-
-    #if (D_ANIMATED == 1)
-        vertexTransform *= getSkinMatrix();
-    #endif
 
     #if (D_MORPHED == 1)
         vertexPosition += getMorphOffset();
@@ -33,6 +28,11 @@ void main()
         texCoord = vTEXCOORD;
     #endif
 
-    vec4 fragPosition = vertexTransform * vec4(vertexPosition, 1.0);
-    gl_Position = g_matWorldToProjection * fragPosition;
+    #if (D_ANIMATED == 1)
+        vec3 fragPosition = vec4(vertexPosition, 1.0) * CalculateSkinTransform();
+    #else
+        vec3 fragPosition = vec4(vertexPosition, 1.0) * CalculateObjectToWorldMatrix();
+    #endif
+
+    gl_Position = g_matWorldToProjection * vec4(fragPosition, 1.0);
 }

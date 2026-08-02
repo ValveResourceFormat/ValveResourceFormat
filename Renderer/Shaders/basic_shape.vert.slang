@@ -19,5 +19,5 @@ void main(void) {
 
     camPos = g_vCameraPositionWs;
 
-    gl_Position = g_matWorldToProjection * CalculateObjectToWorldMatrix() * vec4(vPOSITION, 1.0);
+    gl_Position = g_matWorldToProjection * vec4(vec4(vPOSITION, 1.0) * CalculateObjectToWorldMatrix(), 1.0);
 }

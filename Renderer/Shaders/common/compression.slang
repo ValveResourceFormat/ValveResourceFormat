@@ -18,20 +18,6 @@
     in uint vNORMAL; // CompressedTangentFrame
 #endif
 
-mat3 adjoint(in mat4 m)
-{
-    vec3 c0 = cross(m[1].xyz, m[2].xyz);
-    vec3 c1 = cross(m[2].xyz, m[0].xyz);
-    vec3 c2 = cross(m[0].xyz, m[1].xyz);
-    
-    // Normalize columns to handle degenerate transforms from zero-scaled bones
-    c0 = safeNormalize(c0);
-    c1 = safeNormalize(c1);
-    c2 = safeNormalize(c2);
-    
-    return mat3(c0, c1, c2);
-}
-
 //Decompress a byte4 normal in the 0..255 range to a float4 tangent
 vec4 DecompressTangent( vec4 inputNormal )
 {
