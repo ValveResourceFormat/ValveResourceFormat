@@ -25,7 +25,7 @@ namespace ValveResourceFormat.Renderer.Particles.Operators
             setMethod = parse.Enum<ParticleSetMethod>("m_nSetMethod", setMethod);
         }
 
-        public override void Operate(ParticleCollection particles, float frameTime, ParticleSystemRenderState particleSystemState)
+        public override void Operate(ParticleCollection particles, float frameTime, ParticleSystemRenderState particleSystemState, float strength)
         {
             foreach (ref var particle in particles.Current)
             {
@@ -37,7 +37,7 @@ namespace ValveResourceFormat.Renderer.Particles.Operators
                 var finalValue = MathUtils.RemapValClamped(particle.Speed, inputMin, inputMax, outputMin, outputMax);
                 finalValue = particle.ModifyScalarBySetMethod(particles, OutputField, finalValue, setMethod);
 
-                particle.SetScalar(OutputField, finalValue);
+                particle.SetScalar(OutputField, float.Lerp(particle.GetScalar(OutputField), finalValue, strength));
             }
         }
     }

@@ -38,11 +38,6 @@ namespace ValveResourceFormat.Renderer.Particles
         // (15s at 0.01 step).
         private const int MaxPreSimulationSteps = 2048;
 
-        // How much catch-up a fixed-timestep system will do in one frame. Bounds the work a hitch can
-        // cause; anything still banked past this is dropped rather than deferred.
-        // 16 covers the finest steps CS2 ships (0.0025s) against a 60 Hz frame without falling behind.
-        private const int MaxSimulationSubsteps = 16;
-
         // Upper bound on constraint work-list rounds per frame (m_nMaxConstraintPasses, default 3).
         // A lone constraint settles in one round; the bound only matters when multiple constraints
         // invalidate each other. ReadConstraintPasses returns 1 for systems with no constraints.
@@ -87,6 +82,7 @@ namespace ValveResourceFormat.Renderer.Particles
         internal float CurrentFrameTime => currentFrameTime;
         private readonly float MinimumSimTime;
         private readonly float MaximumSimTime;
+        private readonly int MinimumFrames;
         private readonly float PreSimulationTime;
         private readonly float StopSimulationAfterTime;
 
@@ -104,7 +100,7 @@ namespace ValveResourceFormat.Renderer.Particles
         /// <summary>
         /// Cache a reference to <see cref="EmitParticle"/> as to not allocate one for every emitted particle.
         /// </summary>
-        private readonly Action emitParticleAction;
+        private readonly Action<float> emitParticleAction;
 
         public ControlPoint MainControlPoint
         {
@@ -117,7 +113,7 @@ namespace ValveResourceFormat.Renderer.Particles
         private readonly List<ParticleRenderer> childParticleRenderers;
         private readonly RendererContext RendererContext;
         private bool hasStarted;
-        private float accumulatedSimTime;
+        private int simulatedFrames;
 
         private readonly ParticleCollection particleCollection;
         private readonly Dictionary<int, ParticleSnapshot> controlPointSnapshots = [];
@@ -142,6 +138,7 @@ namespace ValveResourceFormat.Renderer.Particles
             MaximumTimeStep = parse.Float("m_flMaximumTimeStep", 0.1f);
             MinimumSimTime = parse.Float("m_flMinimumSimTime", 0f);
             MaximumSimTime = parse.Float("m_flMaximumSimTime", 0f);
+            MinimumFrames = parse.Int32("m_nMinimumFrames", 0);
             PreSimulationTime = parse.Float("m_flPreSimulationTime", 0f);
             StopSimulationAfterTime = parse.Float("m_flStopSimulationAfterTime", 0f);
 
@@ -238,7 +235,7 @@ namespace ValveResourceFormat.Renderer.Particles
         {
             for (var i = 0; i < InitialParticles; ++i)
             {
-                EmitParticle();
+                EmitParticle(0f);
             }
 
             foreach (var emitter in Emitters)
@@ -252,7 +249,7 @@ namespace ValveResourceFormat.Renderer.Particles
             }
         }
 
-        private void EmitParticle()
+        private void EmitParticle(float ageAtSpawn)
         {
             var index = particleCollection.Add();
             if (index < 0)
@@ -269,7 +266,8 @@ namespace ValveResourceFormat.Renderer.Particles
             particleCollection.Current[index].ParticleID = particlesEmitted++;
             particleCollection.Current[index].Index = index;
             particleCollection.Current[index].Position = MainControlPoint.Position;
-            particleCollection.Current[index].CreationTime = systemRenderState.Age;
+            particleCollection.Current[index].CreationTime = systemRenderState.Age - ageAtSpawn;
+            particleCollection.Current[index].Age = ageAtSpawn;
 
             foreach (var initializer in Initializers)
             {
@@ -314,6 +312,7 @@ namespace ValveResourceFormat.Renderer.Particles
             systemRenderState.ParticleCount = 0;
             systemRenderState.EndEarly = false;
             particlesEmitted = 0;
+            simulatedFrames = 0;
             particleCollection.Clear();
             Start();
 
@@ -328,7 +327,7 @@ namespace ValveResourceFormat.Renderer.Particles
             // Only the root carries it; children read it back through their parent chain.
             systemRenderState.WorldTime = worldTime;
 
-            Update(frameTime, presimulating: false);
+            UpdateFrame(frameTime, presimulating: false);
 
             // Control point history feeds control point velocities. The root records it once per frame,
             // after every consumer (including children, which share the root's control points) has run,
@@ -339,7 +338,14 @@ namespace ValveResourceFormat.Renderer.Particles
             }
         }
 
-        private void Update(float frameTime, bool presimulating)
+        /// <summary>
+        /// Advances the system by one frame. Ordinary frames simulate in a single step; only a frame
+        /// longer than <see cref="MaximumTimeStep"/> is broken into substeps, and the total is capped
+        /// so a long stall cannot make the system catch up indefinitely. Children advance once per
+        /// frame with the raw frame time, each substepping against its own timestep settings.
+        /// A system frozen by <see cref="StopSimulationAfterTime"/> holds its children frozen with it.
+        /// </summary>
+        private void UpdateFrame(float frameTime, bool presimulating)
         {
             if (!hasStarted)
             {
@@ -365,13 +371,60 @@ namespace ValveResourceFormat.Renderer.Particles
 
                     for (var i = 0; i < steps; i++)
                     {
-                        Update(step, presimulating: true);
+                        UpdateFrame(step, presimulating: true);
                     }
 
                     RefreshRenderState();
                 }
             }
 
+            var maximumStep = MaximumTimeStep > 0f ? MaximumTimeStep : 0.1f;
+
+            // m_flMaximumSimTime caps the system's total simulated lifetime, measured against the
+            // accumulated age; the cap only applies for the first m_nMinimumFrames frames
+            if (MaximumSimTime != 0f && simulatedFrames <= MinimumFrames)
+            {
+                if (systemRenderState.Age + frameTime > MaximumSimTime)
+                {
+                    frameTime = MathF.Max(MinimumSimTime, MaximumSimTime - systemRenderState.Age);
+                }
+
+                simulatedFrames++;
+            }
+
+            var remaining = MathF.Min(frameTime, maximumStep * 10f);
+
+            while (remaining > 0f)
+            {
+                var step = remaining > maximumStep
+                    ? maximumStep
+                    : MathF.Max(remaining, MinimumTimeStep);
+
+                remaining -= step;
+
+                // Renderer state and bounds are refreshed by the final substep only, as the engine
+                // does that bookkeeping once per frame rather than once per step
+                Simulate(step, presimulating: presimulating || remaining > 0f);
+            }
+
+            if (StopSimulationAfterTime > 0f && systemRenderState.Age >= StopSimulationAfterTime)
+            {
+                return;
+            }
+
+            foreach (var childParticleRenderer in childParticleRenderers)
+            {
+                if (!childParticleRenderer.ChildEnabled)
+                {
+                    continue;
+                }
+
+                childParticleRenderer.UpdateFrame(frameTime, presimulating);
+            }
+        }
+
+        private void Simulate(float frameTime, bool presimulating)
+        {
             // Simulation stops after m_flStopSimulationAfterTime and the particles are held
             // in place; a settled static cable freezes here because its pre-simulation already advanced the age
             // to the stop time. Rendering continues from the frozen state.
@@ -380,60 +433,26 @@ namespace ValveResourceFormat.Renderer.Particles
                 return;
             }
 
-            // Fixed sim time ensures consistent particle aging regardless of client frame rate: elapsed
-            // time is banked and then drained in chunks no larger than the maximum. The whole bank has to
-            // drain each frame - taking a single chunk and carrying the rest leaves a system whose maximum
-            // is shorter than the step it was handed permanently behind, playing in slow motion.
-            if (MinimumSimTime > 0f || MaximumSimTime > 0f)
-            {
-                accumulatedSimTime += frameTime;
-
-                // Not enough banked to take a step yet.
-                if (accumulatedSimTime < MinimumSimTime)
-                {
-                    return;
-                }
-
-                var chunk = MaximumSimTime > 0f ? MaximumSimTime : accumulatedSimTime;
-                var substeps = 0;
-
-                while (accumulatedSimTime > 0f && accumulatedSimTime >= MinimumSimTime && substeps < MaxSimulationSubsteps)
-                {
-                    var step = MathF.Min(accumulatedSimTime, chunk);
-                    accumulatedSimTime -= step;
-                    substeps++;
-
-                    // Only the last substep refreshes renderers and bounds; the intermediate ones would
-                    // just be overwritten.
-                    var lastSubstep = accumulatedSimTime <= 0f
-                        || accumulatedSimTime < MinimumSimTime
-                        || substeps >= MaxSimulationSubsteps;
-
-                    Simulate(step, presimulating || !lastSubstep);
-                }
-
-                // A long hitch can bank more than we are willing to catch up on; drop the rest rather than
-                // letting it pile up into an ever-growing debt.
-                if (substeps >= MaxSimulationSubsteps)
-                {
-                    accumulatedSimTime = 0f;
-                }
-
-                return;
-            }
-
-            Simulate(frameTime, presimulating);
-        }
-
-        private void Simulate(float frameTime, bool presimulating)
-        {
             frameTime = Math.Clamp(frameTime, MinimumTimeStep, MaximumTimeStep);
             currentFrameTime = frameTime;
 
             systemRenderState.Age += frameTime;
 
+            // Age is not stored by the engine, only derived, so recompute it from the creation
+            // stamp before operators read it; particles born later this step carry their own age
+            for (var i = 0; i < particleCollection.Count; ++i)
+            {
+                ref var particle = ref particleCollection.Current[i];
+                particle.Age = systemRenderState.Age - particle.CreationTime;
+            }
+
             foreach (var preEmissionOperator in PreEmissionOperators)
             {
+                if (preEmissionOperator.GetOperatorRunStrength(systemRenderState) <= 0f)
+                {
+                    continue;
+                }
+
                 if (preEmissionOperator.RunOnce)
                 {
                     if (preEmissionOperator.HasRun)
@@ -456,8 +475,7 @@ namespace ValveResourceFormat.Renderer.Particles
                     continue;
                 }
 
-                // TODO: Pass in strength
-                emitter.Emit(frameTime, systemRenderState);
+                emitter.Emit(frameTime, systemRenderState, strength);
             }
 
             foreach (var particleOperator in Operators)
@@ -469,32 +487,15 @@ namespace ValveResourceFormat.Renderer.Particles
                     continue;
                 }
 
-                // TODO: Pass in strength
-                particleOperator.Operate(particleCollection, frameTime, systemRenderState);
+                particleOperator.Operate(particleCollection, frameTime, systemRenderState, strength);
             }
 
             RunConstraints(frameTime);
-
-            // Increase age of all particles
-            for (var i = 0; i < particleCollection.Count; ++i)
-            {
-                particleCollection.Current[i].Age += frameTime;
-            }
 
             // Remove all dead particles
             particleCollection.PruneExpired();
 
             particleCollection.PreviousFrameTime = frameTime;
-
-            foreach (var childParticleRenderer in childParticleRenderers)
-            {
-                if (!childParticleRenderer.ChildEnabled)
-                {
-                    continue;
-                }
-
-                childParticleRenderer.Update(frameTime, presimulating);
-            }
 
             if (!presimulating)
             {
@@ -670,7 +671,7 @@ namespace ValveResourceFormat.Renderer.Particles
 
             for (var i = 0; i < PrewarmParticleCount; i++)
             {
-                EmitParticle();
+                EmitParticle(0f);
             }
 
             foreach (var renderer in Renderers)

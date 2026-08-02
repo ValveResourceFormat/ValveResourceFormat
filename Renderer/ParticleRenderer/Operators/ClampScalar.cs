@@ -17,7 +17,7 @@ namespace ValveResourceFormat.Renderer.Particles.Operators
             outputMax = parse.NumberProvider("m_flOutputMax", outputMax);
         }
 
-        public override void Operate(ParticleCollection particles, float frameTime, ParticleSystemRenderState particleSystemState)
+        public override void Operate(ParticleCollection particles, float frameTime, ParticleSystemRenderState particleSystemState, float strength)
         {
             foreach (ref var particle in particles.Current)
             {
@@ -25,8 +25,10 @@ namespace ValveResourceFormat.Renderer.Particles.Operators
                 var max = outputMax.NextNumber(ref particle, particleSystemState);
                 MathUtils.MinMaxFixUp(ref min, ref max);
 
-                var clampedValue = Math.Clamp(particle.GetScalar(OutputField), min, max);
-                particle.SetScalar(OutputField, clampedValue);
+                var currentValue = particle.GetScalar(OutputField);
+                var clampedValue = Math.Clamp(currentValue, min, max);
+
+                particle.SetScalar(OutputField, float.Lerp(currentValue, clampedValue, strength));
             }
         }
     }

@@ -17,7 +17,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
     {
         private const string ShaderName = "vrf.particle_sprite";
         // position 3, colour 4, uv 2, next-frame uv 2, frame blend 1
-        private const int VertexSize = 12;
+        private const int VertexSize = 12 + ((MaxTextureLayers - 1) * 4);
 
         // The shader keeps one sampler per layer, so this is a hard ceiling rather than a preference.
         private const int MaxTextureLayers = 5;
@@ -268,6 +268,10 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
             SetupAttribute("aTexCoords", 2, 7);
             SetupAttribute("aTexCoordsNextFrame", 2, 9);
             SetupAttribute("aFrameBlend", 1, 11);
+            SetupAttribute("aLayerUv0", 4, 12);
+            SetupAttribute("aLayerUv1", 4, 16);
+            SetupAttribute("aLayerUv2", 4, 20);
+            SetupAttribute("aLayerUv3", 4, 24);
 
             return vao;
         }
@@ -293,6 +297,44 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
             }
 
             return parsed;
+        }
+
+        /// <summary>
+        /// The current and next frame rectangles of one layer's own sprite sheet, for this particle's
+        /// sequence at the base layer's animation time. A one-frame sequence yields the same rect twice
+        /// and a sheetless texture spans the full [0, 1] range, so cross-fading is a no-op for both.
+        /// </summary>
+        private (Vector2 UvMin, Vector2 UvMax, Vector2 NextMin, Vector2 NextMax) GetLayerSheetUvs(int layer, ref Particle particle, out float frameBlend)
+        {
+            frameBlend = 0f;
+
+            var spriteSheetData = layers[layer].Texture.SpriteSheetData;
+            if (spriteSheetData == null || spriteSheetData.Sequences.Length == 0 || spriteSheetData.Sequences[0].Frames.Length == 0)
+            {
+                return (Vector2.Zero, Vector2.One, Vector2.Zero, Vector2.One);
+            }
+
+            var sequence = spriteSheetData.Sequences[particle.Sequence % spriteSheetData.Sequences.Length];
+
+            var frame = sequence.Frames.Length > 1
+                ? GetSheetFrame(ref particle, sequence.FramesPerSecond, animationRate, animationType, animateInFps)
+                : 0f;
+
+            var frameId = (int)MathF.Floor(frame);
+            frameBlend = frame - frameId;
+
+            // TODO: Support more than one image per frame?
+            var currentImage = sequence.Frames[ResolveSheetFrame(frameId, sequence.Frames.Length, sequence.Clamp)].Images[0];
+            var nextImage = sequence.Frames[ResolveSheetFrame(frameId + 1, sequence.Frames.Length, sequence.Clamp)].Images[0];
+
+            return (currentImage.UncroppedMin, currentImage.UncroppedMax, nextImage.UncroppedMin, nextImage.UncroppedMax);
+        }
+
+        // Writes a layer's current+next uv rectangle pair as one vec4 per corner.
+        private static void WriteQuadUvPair(float[] vertices, int offset, (Vector2 UvMin, Vector2 UvMax, Vector2 NextMin, Vector2 NextMax) uvs)
+        {
+            WriteQuadUv(vertices, offset, uvs.UvMin, uvs.UvMax);
+            WriteQuadUv(vertices, offset + 2, uvs.NextMin, uvs.NextMax);
         }
 
         // Writes one uv rectangle across the quad's four corners, at the given offset within each vertex.
@@ -538,39 +580,18 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
                         rawVertices[quadStart + (VertexSize * j) + 6] = alpha;
                     }
 
-                    // UVs. Animated sheets emit the frame the particle is on plus the one after it, and
-                    // how far between them it sits, so the fragment shader can cross-fade rather than step.
-                    var uvMin = Vector2.Zero;
-                    var uvMax = Vector2.One;
-                    var uvNextMin = Vector2.Zero;
-                    var uvNextMax = Vector2.One;
-                    var frameBlend = 0f;
-
-                    // The sheet sequence comes from the base layer; extra layers ride its frame timing.
-                    var spriteSheetData = layers[0].Texture.SpriteSheetData;
-                    if (spriteSheetData != null && spriteSheetData.Sequences.Length > 0 && spriteSheetData.Sequences[0].Frames.Length > 0)
-                    {
-                        var sequence = spriteSheetData.Sequences[particle.Sequence % spriteSheetData.Sequences.Length];
-
-                        var frame = sequence.Frames.Length > 1
-                            ? GetSheetFrame(ref particle, sequence.FramesPerSecond, animationRate, animationType, animateInFps)
-                            : 0f;
-
-                        var frameId = (int)MathF.Floor(frame);
-                        frameBlend = frame - frameId;
-
-                        // TODO: Support more than one image per frame?
-                        var currentImage = sequence.Frames[ResolveSheetFrame(frameId, sequence.Frames.Length, sequence.Clamp)].Images[0];
-                        var nextImage = sequence.Frames[ResolveSheetFrame(frameId + 1, sequence.Frames.Length, sequence.Clamp)].Images[0];
-
-                        uvMin = currentImage.UncroppedMin;
-                        uvMax = currentImage.UncroppedMax;
-                        uvNextMin = nextImage.UncroppedMin;
-                        uvNextMax = nextImage.UncroppedMax;
-                    }
+                    // Each layer resolves frame rects against its own sheet, timed by the base sequence:
+                    // companion sheets match the base rects, one-frame sequences pin an atlas region.
+                    var (uvMin, uvMax, uvNextMin, uvNextMax) = GetLayerSheetUvs(0, ref particle, out var frameBlend);
 
                     WriteQuadUv(rawVertices, quadStart + 7, uvMin, uvMax);
                     WriteQuadUv(rawVertices, quadStart + 9, uvNextMin, uvNextMax);
+
+                    for (var layer = 1; layer < layers.Length; layer++)
+                    {
+                        var layerUvs = GetLayerSheetUvs(layer, ref particle, out _);
+                        WriteQuadUvPair(rawVertices, quadStart + 12 + ((layer - 1) * 4), layerUvs);
+                    }
 
                     for (var j = 0; j < 4; ++j)
                     {

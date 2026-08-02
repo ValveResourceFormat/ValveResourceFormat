@@ -29,7 +29,7 @@ namespace ValveResourceFormat.Renderer.Particles.Operators
         }
 
         // is this particle id or total particle count?
-        public override void Operate(ParticleCollection particles, float frameTime, ParticleSystemRenderState particleSystemState)
+        public override void Operate(ParticleCollection particles, float frameTime, ParticleSystemRenderState particleSystemState, float strength)
         {
             foreach (ref var particle in particles.Current)
             {
@@ -52,7 +52,7 @@ namespace ValveResourceFormat.Renderer.Particles.Operators
 
                 finalValue = particle.ModifyScalarBySetMethod(particles, OutputField, finalValue, setMethod);
 
-                particle.SetScalar(OutputField, finalValue);
+                particle.SetScalar(OutputField, float.Lerp(particle.GetScalar(OutputField), finalValue, strength));
             }
         }
     }

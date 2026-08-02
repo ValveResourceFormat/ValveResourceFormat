@@ -20,12 +20,12 @@ namespace ValveResourceFormat.Renderer.Particles.Operators
             lerp = parse.NumberProvider("m_Lerp", lerp);
 
         }
-        public override void Operate(ParticleCollection particles, float frameTime, ParticleSystemRenderState particleSystemState)
+        public override void Operate(ParticleCollection particles, float frameTime, ParticleSystemRenderState particleSystemState, float strength)
         {
             foreach (ref var particle in particles.Current)
             {
                 var value = this.value.NextVector(ref particle, particleSystemState);
-                var lerp = this.lerp.NextNumber(ref particle, particleSystemState);
+                var lerp = Math.Clamp(this.lerp.NextNumber(ref particle, particleSystemState) * strength, 0f, 1f);
 
                 var currentValue = particle.ModifyVectorBySetMethod(particles, OutputField, value, setMethod);
                 var initialValue = particle.GetVector(OutputField);

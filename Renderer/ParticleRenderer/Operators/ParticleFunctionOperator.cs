@@ -9,6 +9,6 @@ namespace ValveResourceFormat.Renderer.Particles.Operators
         {
         }
 
-        public abstract void Operate(ParticleCollection particles, float frameTime, ParticleSystemRenderState particleSystemState);
+        public abstract void Operate(ParticleCollection particles, float frameTime, ParticleSystemRenderState particleSystemState, float strength);
     }
 }

@@ -19,7 +19,7 @@ namespace ValveResourceFormat.Renderer.Particles.Operators
             FieldOutput = parse.ParticleField("m_nFieldOutput", FieldOutput);
         }
 
-        public override void Operate(ParticleCollection particles, float frameTime, ParticleSystemRenderState particleSystemState)
+        public override void Operate(ParticleCollection particles, float frameTime, ParticleSystemRenderState particleSystemState, float strength)
         {
             foreach (ref var particle in particles.Current)
             {

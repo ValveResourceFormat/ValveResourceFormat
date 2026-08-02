@@ -48,7 +48,7 @@ namespace ValveResourceFormat.Renderer.Particles.Operators
             outputFieldPrev = parse.ParticleField("m_nFieldOutputPrev", outputFieldPrev);
         }
 
-        public override void Operate(ParticleCollection particles, float frameTime, ParticleSystemRenderState particleSystemState)
+        public override void Operate(ParticleCollection particles, float frameTime, ParticleSystemRenderState particleSystemState, float strength)
         {
             // The transform delta must be computed once per frame, not per particle,
             // otherwise only the first particle ever observes the transform moving
@@ -87,7 +87,7 @@ namespace ValveResourceFormat.Renderer.Particles.Operators
 
             foreach (ref var particle in particles.Current)
             {
-                var lockStrength = 1f;
+                var lockStrength = strength;
 
                 if (!alwaysLocked)
                 {
@@ -95,14 +95,14 @@ namespace ValveResourceFormat.Renderer.Particles.Operators
                     var endTime = ParticleCollection.RandomWithExponentBetween(particle.ParticleID, endTimeExp, endTimeMin, endTimeMax);
 
                     // Fully locked until startTime, fading the lock out until endTime, using normalized lifetime
-                    lockStrength = particle.NormalizedAge <= startTime
+                    lockStrength *= particle.NormalizedAge <= startTime
                         ? 1f
                         : 1f - MathUtils.Saturate(MathUtils.Remap(particle.NormalizedAge, startTime, endTime));
                 }
 
                 if (instantJump)
                 {
-                    lockStrength = 1f;
+                    lockStrength = strength;
                 }
 
                 if (lockStrength <= 0f)

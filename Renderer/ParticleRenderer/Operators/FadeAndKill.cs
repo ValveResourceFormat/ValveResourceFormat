@@ -28,7 +28,7 @@ namespace ValveResourceFormat.Renderer.Particles.Operators
             endAlpha = parse.Float("m_flEndAlpha", endAlpha);
         }
 
-        public override void Operate(ParticleCollection particles, float frameTime, ParticleSystemRenderState particleSystemState)
+        public override void Operate(ParticleCollection particles, float frameTime, ParticleSystemRenderState particleSystemState, float strength)
         {
             foreach (ref var particle in particles.Current)
             {
@@ -41,7 +41,7 @@ namespace ValveResourceFormat.Renderer.Particles.Operators
                     var blend = MathUtils.Remap(time, startFadeInTime, endFadeInTime);
 
                     // Interpolate from initialAlpha * startAlpha up to initialAlpha
-                    particle.Alpha = float.Lerp(initialAlpha * startAlpha, initialAlpha, blend);
+                    particle.Alpha = float.Lerp(particle.Alpha, float.Lerp(initialAlpha * startAlpha, initialAlpha, blend), strength);
                 }
 
                 // If fading out
@@ -50,7 +50,7 @@ namespace ValveResourceFormat.Renderer.Particles.Operators
                     var blend = MathUtils.Remap(time, startFadeOutTime, endFadeOutTime);
 
                     // Interpolate from initialAlpha down to initialAlpha * endAlpha
-                    particle.Alpha = float.Lerp(initialAlpha, initialAlpha * endAlpha, blend);
+                    particle.Alpha = float.Lerp(particle.Alpha, float.Lerp(initialAlpha, initialAlpha * endAlpha, blend), strength);
                 }
 
                 if (time >= endFadeOutTime)

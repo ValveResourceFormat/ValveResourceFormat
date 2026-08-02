@@ -25,7 +25,7 @@ namespace ValveResourceFormat.Renderer.Particles.Operators
             cullExponent = parse.Float("m_flCullExp", cullExponent);
         }
 
-        public override void Operate(ParticleCollection particles, float frameTime, ParticleSystemRenderState particleSystemState)
+        public override void Operate(ParticleCollection particles, float frameTime, ParticleSystemRenderState particleSystemState, float strength)
         {
             if (cullPercentage <= 0f)
             {

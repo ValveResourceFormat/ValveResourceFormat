@@ -32,7 +32,7 @@ namespace ValveResourceFormat.Renderer.Particles.Operators
             // Unsupported features: LOS test. We'd need collision for that.
         }
 
-        public override void Operate(ParticleCollection particles, float frameTime, ParticleSystemRenderState particleSystemState)
+        public override void Operate(ParticleCollection particles, float frameTime, ParticleSystemRenderState particleSystemState, float strength)
         {
             var cpPos = particleSystemState.GetControlPoint(controlPoint).Position;
 
@@ -58,7 +58,8 @@ namespace ValveResourceFormat.Renderer.Particles.Operators
                     // Yes, this causes it to continuously grow larger. Yes, this is in the original too.
                     finalValue += particle.GetScalar(OutputField);
                 }
-                particle.SetScalar(OutputField, finalValue);
+
+                particle.SetScalar(OutputField, float.Lerp(particle.GetScalar(OutputField), finalValue, strength));
             }
         }
     }

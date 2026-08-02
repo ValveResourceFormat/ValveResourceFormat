@@ -19,7 +19,7 @@ namespace ValveResourceFormat.Renderer.Particles.Operators
             startTime = parse.Float("m_flStartTime", startTime);
             endTime = parse.Float("m_flEndTime", endTime);
         }
-        public override void Operate(ParticleCollection particles, float frameTime, ParticleSystemRenderState particleSystemState)
+        public override void Operate(ParticleCollection particles, float frameTime, ParticleSystemRenderState particleSystemState, float strength)
         {
             foreach (ref var particle in particles.Current)
             {
@@ -29,7 +29,7 @@ namespace ValveResourceFormat.Renderer.Particles.Operators
 
                 var scalarOutput = float.Lerp(particle.GetInitialScalar(particles, FieldOutput), lerpTarget, lerpWeight);
 
-                particle.SetScalar(FieldOutput, scalarOutput);
+                particle.SetScalar(FieldOutput, float.Lerp(particle.GetScalar(FieldOutput), scalarOutput, strength));
             }
         }
     }
