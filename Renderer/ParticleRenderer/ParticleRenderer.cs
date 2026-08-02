@@ -104,7 +104,7 @@ namespace ValveResourceFormat.Renderer.Particles
         /// <summary>
         /// Cache a reference to <see cref="EmitParticle"/> as to not allocate one for every emitted particle.
         /// </summary>
-        private readonly Action emitParticleAction;
+        private readonly Action<float> emitParticleAction;
 
         public ControlPoint MainControlPoint
         {
@@ -118,6 +118,13 @@ namespace ValveResourceFormat.Renderer.Particles
         private readonly RendererContext RendererContext;
         private bool hasStarted;
         private float accumulatedSimTime;
+        private float leftoverSimTime;
+
+        /// <summary>Fixed simulation rate; frames arriving faster than this accumulate instead of stepping.</summary>
+        private const float SimulationTimeStep = 1f / 120f;
+
+        /// <summary>Bounds catch-up work after a long stall.</summary>
+        private const int MaxSimulationStepsPerFrame = 128;
 
         private readonly ParticleCollection particleCollection;
         private readonly Dictionary<int, ParticleSnapshot> controlPointSnapshots = [];
@@ -238,7 +245,7 @@ namespace ValveResourceFormat.Renderer.Particles
         {
             for (var i = 0; i < InitialParticles; ++i)
             {
-                EmitParticle();
+                EmitParticle(0f);
             }
 
             foreach (var emitter in Emitters)
@@ -252,7 +259,7 @@ namespace ValveResourceFormat.Renderer.Particles
             }
         }
 
-        private void EmitParticle()
+        private void EmitParticle(float ageAtSpawn = 0f)
         {
             var index = particleCollection.Add();
             if (index < 0)
@@ -269,7 +276,8 @@ namespace ValveResourceFormat.Renderer.Particles
             particleCollection.Current[index].ParticleID = particlesEmitted++;
             particleCollection.Current[index].Index = index;
             particleCollection.Current[index].Position = MainControlPoint.Position;
-            particleCollection.Current[index].CreationTime = systemRenderState.Age;
+            particleCollection.Current[index].CreationTime = systemRenderState.Age - ageAtSpawn;
+            particleCollection.Current[index].Age = ageAtSpawn;
 
             foreach (var initializer in Initializers)
             {
@@ -323,12 +331,35 @@ namespace ValveResourceFormat.Renderer.Particles
             }
         }
 
+        /// <summary>
+        /// Advances the system in fixed steps, accumulating any remainder. The engine caps how often
+        /// particles simulate (r_particle_min_timestep) rather than simulating every rendered frame;
+        /// a varying step would otherwise feed the frame-ratio term in <see cref="Operators.BasicMovement"/>
+        /// and let jitter amplify particle motion.
+        /// </summary>
         public void Update(float frameTime, float worldTime)
         {
             // Only the root carries it; children read it back through their parent chain.
             systemRenderState.WorldTime = worldTime;
 
-            Update(frameTime, presimulating: false);
+            var step = Math.Clamp(SimulationTimeStep, MinimumTimeStep, MaximumTimeStep);
+
+            leftoverSimTime += Math.Min(frameTime, MaximumTimeStep * 10f);
+
+            var steps = 0;
+
+            while (leftoverSimTime >= step && steps < MaxSimulationStepsPerFrame)
+            {
+                leftoverSimTime -= step;
+                steps++;
+
+                Update(step, presimulating: false);
+            }
+
+            if (steps >= MaxSimulationStepsPerFrame)
+            {
+                leftoverSimTime = 0f;
+            }
 
             // Control point history feeds control point velocities. The root records it once per frame,
             // after every consumer (including children, which share the root's control points) has run,
@@ -670,7 +701,7 @@ namespace ValveResourceFormat.Renderer.Particles
 
             for (var i = 0; i < PrewarmParticleCount; i++)
             {
-                EmitParticle();
+                EmitParticle(0f);
             }
 
             foreach (var renderer in Renderers)

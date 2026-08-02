@@ -18,7 +18,7 @@ namespace ValveResourceFormat.Renderer.Particles.Emitters
         /// <summary>Number of particles to spawn (per second).</summary>
         private readonly INumberProvider emitRate = new LiteralNumberProvider(100);
 
-        private Action? particleEmitCallback;
+        private Action<float>? particleEmitCallback;
 
         private float time;
         private float lastEmissionTime;
@@ -30,7 +30,7 @@ namespace ValveResourceFormat.Renderer.Particles.Emitters
             emitRate = parse.NumberProvider("m_flEmitRate", emitRate);
         }
 
-        public override void Start(Action particleEmitCallback)
+        public override void Start(Action<float> particleEmitCallback)
         {
             this.particleEmitCallback = particleEmitCallback;
 
@@ -76,7 +76,7 @@ namespace ValveResourceFormat.Renderer.Particles.Emitters
                     var numToEmit = (int)MathF.Floor((time - lastEmissionTime) / emitInterval);
                     for (var i = 0; i < numToEmit; i++)
                     {
-                        particleEmitCallback?.Invoke();
+                        particleEmitCallback?.Invoke(0f);
                     }
 
                     lastEmissionTime += numToEmit * emitInterval;

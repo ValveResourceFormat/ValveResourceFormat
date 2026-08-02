@@ -11,7 +11,7 @@ namespace ValveResourceFormat.Renderer.Particles.Emitters
         }
 
         /// <summary>Starts the emitter, registering the callback used to spawn particles.</summary>
-        public abstract void Start(Action particleEmitCallback);
+        public abstract void Start(Action<float> particleEmitCallback);
 
         /// <summary>Signals the emitter to stop spawning new particles.</summary>
         public abstract void Stop();

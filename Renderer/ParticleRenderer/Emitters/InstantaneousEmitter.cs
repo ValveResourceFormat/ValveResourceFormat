@@ -10,7 +10,7 @@ namespace ValveResourceFormat.Renderer.Particles.Emitters
     {
         public override bool IsFinished { get; protected set; }
 
-        private Action? particleEmitCallback;
+        private Action<float>? particleEmitCallback;
 
         private readonly INumberProvider emitCount = new LiteralNumberProvider(1);
         private readonly INumberProvider startTime = new LiteralNumberProvider(0);
@@ -27,7 +27,7 @@ namespace ValveResourceFormat.Renderer.Particles.Emitters
             hasSnapshotSubset = !string.IsNullOrEmpty(parse.Data.GetStringProperty("m_strSnapshotSubset"));
         }
 
-        public override void Start(Action particleEmitCallback)
+        public override void Start(Action<float> particleEmitCallback)
         {
             this.particleEmitCallback = particleEmitCallback;
 
@@ -69,7 +69,7 @@ namespace ValveResourceFormat.Renderer.Particles.Emitters
 
                 for (var i = 0; i < numToEmit; i++)
                 {
-                    particleEmitCallback?.Invoke();
+                    particleEmitCallback?.Invoke(0f);
                 }
 
                 IsFinished = true;
