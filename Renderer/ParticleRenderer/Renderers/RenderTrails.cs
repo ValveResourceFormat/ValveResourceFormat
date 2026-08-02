@@ -48,6 +48,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
         private readonly float lengthScale = 1f;
         private readonly float lengthFadeInTime;
         private readonly bool ignoreDeltaTime;
+        private readonly float forwardShift;
 
         public RenderTrails(ParticleDefinitionParser parse, RendererContext rendererContext) : base(parse)
         {
@@ -101,6 +102,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
             lengthScale = parse.Float("m_flLengthScale", lengthScale);
             lengthFadeInTime = parse.Float("m_flLengthFadeInTime", lengthFadeInTime);
             ignoreDeltaTime = parse.Boolean("m_bIgnoreDT", ignoreDeltaTime);
+            forwardShift = parse.Float("m_flForwardShift", forwardShift);
             animationType = parse.Enum<ParticleAnimationType>("m_nAnimationType", animationType);
             animateInFps = parse.Boolean("m_bAnimateInFPS", animateInFps);
             prevPositionSource = parse.ParticleField("m_nPrevPntSource", prevPositionSource);
@@ -197,7 +199,10 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
 
                         var halfWidth = particle.Radius * 0.5f;
                         var halfLength = length * 0.5f;
-                        var center = position + direction * halfLength;
+
+                        // The engine slides the trail along the motion axis by m_flForwardShift lengths;
+                        // direction runs backwards along travel here, so the shift subtracts
+                        var center = position + (direction * (length * (0.5f - forwardShift)));
 
                         modelMatrix = new Matrix4x4(
                             widthAxis.X * halfWidth, widthAxis.Y * halfWidth, widthAxis.Z * halfWidth, 0f,
