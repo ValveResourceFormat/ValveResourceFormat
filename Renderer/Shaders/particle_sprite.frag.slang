@@ -86,6 +86,7 @@ const vec2 MASK_RAMP_FLAGS[15] = vec2[](
 
 in vec2 vTexCoordOut;
 in vec2 vTexCoordNextFrameOut;
+in vec4 vLayerUvOut[4];
 in float vFrameBlend;
 in vec4 vColor;
 in vec3 vFragPosition;
@@ -237,14 +238,18 @@ void main(void) {
 
     for (int i = 0; i < uLayerCount; ++i)
     {
-        vec4 layer = SampleLayer(i, vTexCoordOut);
+        // Each layer cross-fades between its own sheet's current and next frame rects; layers whose
+        // rects are constant (one-frame sequences, plain textures) mix two identical samples.
+        vec2 layerUv = i == 0 ? vTexCoordOut : vLayerUvOut[i - 1].xy;
+        vec2 layerUvNext = i == 0 ? vTexCoordNextFrameOut : vLayerUvOut[i - 1].zw;
 
-        // The sheet sequence belongs to the base texture, so only layer 0 cross-fades frames.
-        if (i == 0 && uBlendFrames)
+        vec4 layer = SampleLayer(i, layerUv);
+
+        if (uBlendFrames)
         {
-            vec4 nextFrame = SampleLayer(0, vTexCoordNextFrameOut);
+            vec4 nextFrame = SampleLayer(i, layerUvNext);
 
-            if (uMaxLuminanceFrameBlend)
+            if (i == 0 && uMaxLuminanceFrameBlend)
             {
                 // Weighting each frame by the square root of its luminance keeps the brighter one
                 // dominant through the cross-fade, so a spark does not dim as it crosses a frame.
