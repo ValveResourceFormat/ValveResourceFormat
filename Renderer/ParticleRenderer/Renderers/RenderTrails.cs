@@ -106,6 +106,12 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
             ignoreDeltaTime = parse.Boolean("m_bIgnoreDT", ignoreDeltaTime);
             animationType = parse.Enum<ParticleAnimationType>("m_nAnimationType", animationType);
             prevPositionSource = parse.ParticleField("m_nPrevPntSource", prevPositionSource);
+
+            if (minLength > maxLength)
+            {
+                // Some particles may have length range set up incorrectly
+                maxLength = minLength;
+            }
         }
 
         public override void SetWireframe(bool isWireframe)
