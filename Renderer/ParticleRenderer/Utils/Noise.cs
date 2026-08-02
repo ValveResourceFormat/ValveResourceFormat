@@ -4,7 +4,8 @@ namespace ValveResourceFormat.Renderer.Particles.Utils
 {
     /// <summary>
     /// The engine's general-purpose particle noise primitive: a value-noise lattice whose corners come
-    /// from a MurmurHash3-family integer hash, trilinearly interpolated, returning [-1, 1].
+    /// from a packed-index integer hash, trilinearly interpolated with unsmoothed weights, returning
+    /// [-1, 1]. The hash is a MurmurHash3 mixing round followed by the engine's own finalizer.
     /// </summary>
     static class Noise
     {
@@ -39,20 +40,26 @@ namespace ValveResourceFormat.Renderer.Particles.Utils
             return (float.Lerp(c0, c1, fz) - 0.5f) * 2f;
         }
 
+        /// <summary>
+        /// Hashes one lattice corner to [0, 1). The corner is packed by plain addition rather than
+        /// into disjoint bit fields, so the field aliases: Hash(x + 1024, y, z) == Hash(x, y + 1, z).
+        /// </summary>
         private static float Hash(int x, int y, int z)
         {
             unchecked
             {
-                var h = (uint)x * 0xCC9E2D51u;
-                h = System.Numerics.BitOperations.RotateLeft(h, 15) * 0x1B873593u;
-                h ^= (uint)y * 0x85EBCA6Bu;
-                h = (System.Numerics.BitOperations.RotateLeft(h, 13) * 5u) + 0xE6546B64u;
-                h ^= (uint)z * 0xC2B2AE35u;
-                h ^= h >> 16;
-                h *= 0x7FEB352Du;
-                h ^= h >> 15;
+                var index = x + (y << 10) + (z << 20);
 
-                return (h >> 16) / 65536f;
+                var k = ((uint)index * 0xCC9E2D51u) & 0x7FFFFFFFu;
+                k = (BitOperations.RotateLeft(k, 15) * 0x1B873593u) & 0x7FFFFFFFu;
+
+                var h = (BitOperations.RotateLeft(k, 13) * 5u) + 0xE6546B64u;
+
+                // Sign-extending shift: the unmasked bit 31 reaches bits that survive the mask
+                var mixed = (uint)((int)h ^ ((int)h >> 16)) & 0x7FFFFFFFu;
+                var scaled = mixed * 0x04B2AE35u;
+
+                return ((uint)((int)scaled ^ ((int)scaled >> 16)) & 0xFFFFu) / 65536f;
             }
         }
     }
