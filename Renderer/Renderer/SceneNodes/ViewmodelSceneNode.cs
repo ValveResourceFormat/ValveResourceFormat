@@ -576,6 +576,10 @@ public class ViewmodelSceneNode : ModelSceneNode
 
         if (!attachViewmodelDistance)
         {
+            // The transform keeps tracking the camera while detached so particles anchored to the
+            // muzzle never see a frozen control point
+            UpdateTransforms(input, uptime);
+
             // don't render player model in noclip mode
             if (LayerEnabled)
             {
@@ -608,68 +612,10 @@ public class ViewmodelSceneNode : ModelSceneNode
             Scene.ActivateLayer(ViewmodelLayerName);
         }
 
+        UpdateTransforms(input, uptime);
+
         var camera = input.Camera;
-        camera.RecalculateDirectionVectors();
-
-        // Build a stable camera orientation quaternion from direction vectors.
-        var forward = Vector3.Normalize(camera.Forward);
-        var worldUp = Vector3.UnitZ;
-
-        var right = Vector3.Normalize(Vector3.Cross(worldUp, forward));
-        if (right.LengthSquared() < 1e-4f)
-        {
-            // Looking straight up/down: fallback to camera's right vector.
-            right = Vector3.Normalize(camera.Right);
-        }
-
-        var up = Vector3.Cross(forward, right);
-
-        var cameraRotation = Quaternion.CreateFromRotationMatrix(new Matrix4x4(
-            right.X, right.Y, right.Z, 0,
-            up.X, up.Y, up.Z, 0,
-            forward.X, forward.Y, forward.Z, 0,
-            0, 0, 0, 1
-        ));
-
-        // Apply a fixed viewmodel-space rotation to match the expected model orientation.
-        var viewmodelOffsetRot = Quaternion.CreateFromAxisAngle(Vector3.UnitY, -float.DegreesToRadians(90))
-            * Quaternion.CreateFromAxisAngle(Vector3.UnitX, -float.DegreesToRadians(90));
-        var viewmodelRotation = Quaternion.Normalize(cameraRotation * viewmodelOffsetRot);
-
-
-        var bobInputRotation = Quaternion.Inverse(viewmodelRotation);
-
-        var targetBob = Vector3.Transform(input.Velocity * 0.005f, bobInputRotation);
-
-        targetBob.Y = -targetBob.Y; // switch sideways movement to be leading instead of trailing
-        targetBob.Z = MathF.Abs(targetBob.Z);
-        targetBob.Y *= 0.3f; // dampen sideways movement
-        targetBob.Z *= 0.3f; // dampen vertical movement
-
-        // Smooth bob transitions to avoid harsh changes
-        currentBob = Vector3.Lerp(currentBob, targetBob, 0.5f);
-
-        // Add walking bob based on uptime
         var speed = input.Velocity.Length();
-        var bobAmplitude = MathUtils.Saturate((speed - 150f) / 150f) * 0.1f;
-
-        if (!input.PlayerMovement.OnGround)
-        {
-            bobAmplitude = 0;
-        }
-
-        var bobFrequency = 18; //float.Lerp(10f, 20f, bobAmplitude);
-        var walkBob = new Vector3(1, 0.5f, 1) * MathF.Sin(uptime * bobFrequency) * bobAmplitude;
-
-        var rotationMatrix = Matrix4x4.CreateFromQuaternion(viewmodelRotation);
-        var offset = Vector3.Transform(ViewmodelOffset - currentBob - walkBob, viewmodelRotation);
-
-        TargetTransform = rotationMatrix with { Translation = camera.Location + offset };
-
-        // Keep legs oriented with player yaw only (ignore camera pitch) to avoid pitch-tilt on leg model.
-        var playerYawRotation = Quaternion.CreateFromAxisAngle(Vector3.UnitZ, camera.Yaw);
-        var playerRotation = Quaternion.Normalize(playerYawRotation);
-        PlayerTransform = Matrix4x4.CreateFromQuaternion(playerRotation) * Matrix4x4.CreateTranslation(input.PlayerMovement.Position);
 
         if (Legs?.AnimationController is { } legsController && legsController.CurrentPlayer is { } legsPlayer)
         {
@@ -885,6 +831,70 @@ public class ViewmodelSceneNode : ModelSceneNode
         {
             SetState(AnimationState.LookAt);
         }
+    }
+
+    /// <summary>
+    /// Recomputes <see cref="TargetTransform"/> and <see cref="PlayerTransform"/> from the camera,
+    /// including view bob. The player transform carries yaw only; camera pitch stays out of it.
+    /// </summary>
+    private void UpdateTransforms(UserInput input, float uptime)
+    {
+        var camera = input.Camera;
+        camera.RecalculateDirectionVectors();
+
+        var forward = Vector3.Normalize(camera.Forward);
+        var worldUp = Vector3.UnitZ;
+
+        var right = Vector3.Normalize(Vector3.Cross(worldUp, forward));
+        if (right.LengthSquared() < 1e-4f)
+        {
+            // Looking straight up/down: fallback to camera's right vector.
+            right = Vector3.Normalize(camera.Right);
+        }
+
+        var up = Vector3.Cross(forward, right);
+
+        var cameraRotation = Quaternion.CreateFromRotationMatrix(new Matrix4x4(
+            right.X, right.Y, right.Z, 0,
+            up.X, up.Y, up.Z, 0,
+            forward.X, forward.Y, forward.Z, 0,
+            0, 0, 0, 1
+        ));
+
+        var viewmodelOffsetRot = Quaternion.CreateFromAxisAngle(Vector3.UnitY, -float.DegreesToRadians(90))
+            * Quaternion.CreateFromAxisAngle(Vector3.UnitX, -float.DegreesToRadians(90));
+        var viewmodelRotation = Quaternion.Normalize(cameraRotation * viewmodelOffsetRot);
+
+        var bobInputRotation = Quaternion.Inverse(viewmodelRotation);
+
+        var targetBob = Vector3.Transform(input.Velocity * 0.005f, bobInputRotation);
+
+        targetBob.Y = -targetBob.Y; // switch sideways movement to be leading instead of trailing
+        targetBob.Z = MathF.Abs(targetBob.Z);
+        targetBob.Y *= 0.3f;
+        targetBob.Z *= 0.3f;
+
+        currentBob = Vector3.Lerp(currentBob, targetBob, 0.5f);
+
+        var speed = input.Velocity.Length();
+        var bobAmplitude = MathUtils.Saturate((speed - 150f) / 150f) * 0.1f;
+
+        if (!input.PlayerMovement.OnGround)
+        {
+            bobAmplitude = 0;
+        }
+
+        var bobFrequency = 18;
+        var walkBob = new Vector3(1, 0.5f, 1) * MathF.Sin(uptime * bobFrequency) * bobAmplitude;
+
+        var rotationMatrix = Matrix4x4.CreateFromQuaternion(viewmodelRotation);
+        var offset = Vector3.Transform(ViewmodelOffset - currentBob - walkBob, viewmodelRotation);
+
+        TargetTransform = rotationMatrix with { Translation = camera.Location + offset };
+
+        var playerYawRotation = Quaternion.CreateFromAxisAngle(Vector3.UnitZ, camera.Yaw);
+        var playerRotation = Quaternion.Normalize(playerYawRotation);
+        PlayerTransform = Matrix4x4.CreateFromQuaternion(playerRotation) * Matrix4x4.CreateTranslation(input.PlayerMovement.Position);
     }
 
     /// <summary>
