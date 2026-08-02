@@ -11,7 +11,6 @@ namespace ValveResourceFormat.Renderer.Particles.Initializers
         private readonly INumberProvider InputValue = new LiteralNumberProvider(0);
         private readonly INumberProvider InputStrength = new LiteralNumberProvider(1f);
         private readonly ParticleSetMethod SetMethod = ParticleSetMethod.PARTICLE_SET_REPLACE_VALUE;
-        private readonly bool ConvertToRadians;
 
         public InitFloat(ParticleDefinitionParser parse) : base(parse)
         {
@@ -19,9 +18,6 @@ namespace ValveResourceFormat.Renderer.Particles.Initializers
             InputValue = parse.NumberProvider("m_InputValue", InputValue);
             InputStrength = parse.NumberProvider("m_InputStrength", InputStrength);
             SetMethod = parse.Enum<ParticleSetMethod>("m_nSetMethod", SetMethod);
-
-            ConvertToRadians = OutputField.IsAngular()
-                && SetMethod is not (ParticleSetMethod.PARTICLE_SET_SCALE_INITIAL_VALUE or ParticleSetMethod.PARTICLE_SET_SCALE_CURRENT_VALUE);
         }
 
         public override Particle Initialize(ref Particle particle, ParticleCollection particles, ParticleSystemRenderState particleSystemState)
@@ -29,7 +25,11 @@ namespace ValveResourceFormat.Renderer.Particles.Initializers
             var value = InputValue.NextNumber(ref particle, particleSystemState);
             value *= InputStrength.NextNumber(ref particle, particleSystemState);
 
-            if (ConvertToRadians)
+            // Angles are authored in degrees and stored in radians, the same conversion the dedicated
+            // rotation initializers do. The scaling set methods take a unitless multiplier, not an angle,
+            // so they are left alone.
+            if (OutputField.IsAngleField()
+                && SetMethod is not (ParticleSetMethod.PARTICLE_SET_SCALE_INITIAL_VALUE or ParticleSetMethod.PARTICLE_SET_SCALE_CURRENT_VALUE))
             {
                 value = float.DegreesToRadians(value);
             }

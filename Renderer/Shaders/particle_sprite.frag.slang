@@ -69,8 +69,20 @@ uniform float uLayerBlend[MAX_TEXTURE_LAYERS];
 #define SPRITECARD_TEXTURE_BLEND_AVERAGE   5
 #define SPRITECARD_TEXTURE_BLEND_LUMINANCE 6
 
+// SpriteCardTextureType_t, for the values that are effect modes. NORMALMAP and ANIMMOTIONVEC never reach
+// the shader: the renderer keeps them out of the colour chain entirely.
+#define SPRITECARD_TEXTURE_1D_COLOR_LOOKUP 2
+uniform int uLayerEffectMode[MAX_TEXTURE_LAYERS];
+
 // The mask modes use Rec.601 weights, while the LUMINANCE blend below uses Rec.709 (GetLuma).
 const vec3 LUMA_601 = vec3(0.299, 0.587, 0.114);
+
+// A constant table from the reference, indexed by mask mode: .x premultiplies the ramp's source colour by
+// its alpha, .y switches the lookup to read alpha as the luma.
+const vec2 MASK_RAMP_FLAGS[15] = vec2[](
+    vec2(1.0, 0.0), vec2(0.0, 0.0), vec2(0.0, 1.0), vec2(0.0, 0.0), vec2(1.0, 0.0),
+    vec2(1.0, 0.0), vec2(0.0, 0.0), vec2(0.0, 1.0), vec2(0.0, 0.0), vec2(1.0, 0.0),
+    vec2(1.0, 0.0), vec2(1.0, 0.0), vec2(0.0, 0.0), vec2(0.0, 0.0), vec2(0.0, 0.0));
 
 in vec2 vTexCoordOut;
 in vec2 vTexCoordNextFrameOut;
@@ -101,8 +113,10 @@ vec4 ApplyChannelMask(vec4 accum, vec4 layer, int maskMode, float sub)
             return vec4(layer.rgb, dot(layer.rgb, LUMA_601));
         case SPRITECARD_TEXTURE_CHANNEL_MIX_A_RGBALPHA:
             return vec4(mix(accum.rgb, vec3(0.0), sub), dot(layer.rgb, LUMA_601));
+        // Its name reads as the RGB_A mode with the layer's luminance standing in for its alpha, and the
+        // colour follows that: it comes from the layer, as it does in RGB_A and RGBA_RGBALPHA.
         case SPRITECARD_TEXTURE_CHANNEL_MIX_RGB_A_RGBALPHA:
-            return vec4(accum.rgb, accum.a * dot(layer.rgb, LUMA_601));
+            return vec4(layer.rgb, accum.a * dot(layer.rgb, LUMA_601));
 
         // The single-channel modes keep their own channel and drop the rest under SUBTRACT.
         case SPRITECARD_TEXTURE_CHANNEL_MIX_R:
@@ -136,6 +150,21 @@ vec4 SampleLayer(int layer, vec2 uv)
     }
 
     return texture(uTexture, uv);
+}
+
+// A 1D ramp, looked up by the luminance of whatever is beneath this layer. The lookup runs in gamma
+// space, and the ramp is a one-texel-tall gradient the renderer synthesized from m_Gradient.
+vec4 SampleGradientRamp(int layer, vec4 previous, int maskMode)
+{
+    vec2 flags = MASK_RAMP_FLAGS[maskMode];
+
+    vec4 source = mix(mix(vec4(previous.rgb * previous.aaa, 1.0), previous, flags.x),
+                      previous.aaaa, flags.y);
+
+    vec4 ramp = SampleLayer(layer, vec2(GetLuma(SrgbLinearToGamma(source.rgb)), 0.5));
+
+    // With alpha as the luma the ramp also supplies the alpha; otherwise the layer below keeps its own.
+    return mix(vec4(ramp.rgb, previous.a), vec4(ramp.rgb, dot(ramp.rgb, LUMA_601)), flags.y);
 }
 
 // Combine the masked layer into the accumulator.
@@ -229,10 +258,19 @@ void main(void) {
             }
         }
 
+        int maskMode = uLayerChannels[i];
+
+        if (uLayerEffectMode[i] == SPRITECARD_TEXTURE_1D_COLOR_LOOKUP)
+        {
+            // The colour an effect reads is the layer's own sample on layer 0, but the accumulator
+            // afterwards -- a special case in the reference rather than something that folds away.
+            layer = SampleGradientRamp(i, i == 0 ? layer : accum, maskMode);
+        }
+
         int blendMode = uLayerBlendMode[i];
         float sub = float(blendMode == SPRITECARD_TEXTURE_BLEND_SUBTRACT);
 
-        vec4 masked = ApplyChannelMask(accum, layer, uLayerChannels[i], sub);
+        vec4 masked = ApplyChannelMask(accum, layer, maskMode, sub);
         vec4 blended = ApplyLayerBlend(accum, masked, blendMode);
 
         // m_flTextureBlend fades the layer's contribution back toward what was already there.
