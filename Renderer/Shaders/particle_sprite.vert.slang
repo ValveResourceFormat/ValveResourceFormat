@@ -14,6 +14,9 @@ layout (location = 6) in float aFrameBlend;
 // this they are used as though they were already linear. Alpha is left alone.
 uniform bool uGammaCorrectVertexColors = true;
 
+// m_vecColorScale, a linear tint applied after the gamma correction above.
+uniform vec3 uColorScale = vec3(1.0);
+
 out vec2 vTexCoordOut;
 out vec2 vTexCoordNextFrameOut;
 out float vFrameBlend;
@@ -27,6 +30,8 @@ void main(void) {
     {
         vColor.rgb = SrgbGammaToLinear(vColor.rgb);
     }
+
+    vColor.rgb *= uColorScale;
 
     vTexCoordOut = aTexCoords;
     vTexCoordNextFrameOut = aTexCoordsNextFrame;

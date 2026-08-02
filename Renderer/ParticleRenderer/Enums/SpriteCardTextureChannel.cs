@@ -23,7 +23,7 @@ namespace ValveResourceFormat.Renderer.Particles
         SPRITECARD_TEXTURE_CHANNEL_MIX_RGBA_RGBALPHA = 6,
         /// <summary>Colour from A, alpha from B's luminance.</summary>
         SPRITECARD_TEXTURE_CHANNEL_MIX_A_RGBALPHA = 7,
-        /// <summary>Colour from A, alpha from A.a scaled by B's luminance.</summary>
+        /// <summary>Colour from B.rgb, alpha from A.a scaled by B's luminance.</summary>
         SPRITECARD_TEXTURE_CHANNEL_MIX_RGB_A_RGBALPHA = 8,
         /// <summary>Colour from B's red channel, alpha from A.</summary>
         SPRITECARD_TEXTURE_CHANNEL_MIX_R = 9,
