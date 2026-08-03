@@ -58,19 +58,5 @@ namespace GUI.Controls
             tableLayout.Controls.Add(control, 0, tableLayout.RowCount - 1);
             FitToContent();
         }
-
-        public void ClearRows()
-        {
-            for (var i = tableLayout.Controls.Count - 1; i >= 0; i--)
-            {
-                var control = tableLayout.Controls[i];
-                tableLayout.Controls.RemoveAt(i);
-                control.Dispose();
-            }
-
-            tableLayout.RowStyles.Clear();
-            tableLayout.RowCount = 0;
-            FitToContent();
-        }
     }
 }

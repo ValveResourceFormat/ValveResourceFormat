@@ -116,8 +116,8 @@ namespace GUI.Types.GLViewers
         private bool IsZoomedIn;
         private bool MovedFromOrigin_Unzoomed;
 
-        private int LastRenderHash;
-        private int NumRendersLastHash;
+        protected int LastRenderHash;
+        protected int NumRendersLastHash;
 
         static readonly (ChannelMapping Channels, ChannelSplitting ChannelSplitMode, string ChoiceString)[] ChannelsComboBoxOrder = [
             (ChannelMapping.R, ChannelSplitting.None, "Red"),
@@ -630,9 +630,15 @@ namespace GUI.Types.GLViewers
             base.Dispose();
         }
 
+        /// <summary>
+        /// Whether there is anything to write out. Viewers that draw their own content instead of
+        /// a texture override this and answer with <see cref="ReadPixelsToBitmap"/>.
+        /// </summary>
+        protected virtual bool CanSaveVisual => Resource != null || Svg != null || Bitmap != null;
+
         private void OnSaveButtonClick(object? sender, EventArgs e)
         {
-            if (Resource == null && Svg == null && Bitmap == null)
+            if (!CanSaveVisual)
             {
                 return;
             }
@@ -831,7 +837,7 @@ namespace GUI.Types.GLViewers
             }
         }
 
-        private void UpdateZoomLabel() => SetMoveSpeedOrZoomLabel($"Zoom: {TextureScale * 100:0.0}% (scroll to change)");
+        protected void UpdateZoomLabel() => SetMoveSpeedOrZoomLabel($"Zoom: {TextureScale * 100:0.0}% (scroll to change)");
 
         protected override void OnKeyDown(Keys keyData)
         {

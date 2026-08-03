@@ -28,8 +28,6 @@ namespace GUI.Types.GLViewers
         private GRBackendRenderTarget? renderTarget;
         private SKSurface? surface;
         private SKSizeI lastSize;
-        private int lastRenderHash;
-        private int numRendersLastHash;
 
         public GLGraphViewer(VrfGuiContext vrfGuiContext, RendererContext rendererContext, GraphView view)
             : base(vrfGuiContext, rendererContext, (SKBitmap?)null)
@@ -114,10 +112,15 @@ namespace GUI.Types.GLViewers
 
                 subtitleFilter = filterList;
 
-                // Content-sized section; the sidebar as a whole scrolls instead.
+                // Content-sized up to a cap, past which the list scrolls on its own instead of
+                // pushing everything below it out of the sidebar.
                 if (filterList.Parent?.Parent is Control filterControl)
                 {
-                    filterControl.Height = filterList.ItemHeight * filterList.Items.Count + UiControl.AdjustForDPI(34);
+                    const int MaxVisibleRows = 12;
+
+                    filterList.IntegralHeight = false;
+                    var rows = Math.Min(filterList.Items.Count, MaxVisibleRows);
+                    filterControl.Height = filterList.ItemHeight * rows + UiControl.AdjustForDPI(34);
                 }
             }
 
@@ -268,13 +271,20 @@ namespace GUI.Types.GLViewers
 
             reduceButton.Click += (_, _) =>
             {
+                if (disposed)
+                {
+                    return;
+                }
+
                 reduceButton.Enabled = false;
                 var previous = reduceButton.Text;
                 reduceButton.Text = "Working...";
 
+                // Repaints the caption without pumping the message queue.
+                reduceButton.Update();
+
                 try
                 {
-                    Application.DoEvents();
                     View.ReduceVisualComplexity();
                     InvalidateRender();
                 }
@@ -655,6 +665,8 @@ namespace GUI.Types.GLViewers
                     (center.X - graphBounds.Left) * TextureScale - GLControl.Width / 2f,
                     (center.Y - graphBounds.Top) * TextureScale - GLControl.Height / 2f);
                 TextureScaleChangeTime = 10f; // Skip animation
+
+                UpdateZoomLabel();
             }
 
             InvalidateRender();
@@ -803,17 +815,6 @@ namespace GUI.Types.GLViewers
                 MainFramebuffer = GLDefaultFramebuffer;
             }
 
-            Debug.Assert(MainFramebuffer != null);
-
-            var bgColor = View.Palette.Canvas;
-            MainFramebuffer.ClearColor = new OpenTK.Mathematics.Color4(
-                bgColor.Red / 255f,
-                bgColor.Green / 255f,
-                bgColor.Blue / 255f,
-                bgColor.Alpha / 255f
-            );
-            MainFramebuffer.ClearMask = ClearBufferMask.ColorBufferBit;
-
             // Set texture size to graph bounds for zoom calculations
             graphBounds = View.GetGraphBounds();
             OriginalWidth = (int)graphBounds.Width;
@@ -822,7 +823,7 @@ namespace GUI.Types.GLViewers
 
         protected override void OnFirstPaint()
         {
-            // Initial fit is handled in Draw()
+            // The initial fit, and the zoom label that follows it, happen in OnPaint.
         }
 
         protected override void OnPaint(float frameTime)
@@ -836,20 +837,20 @@ namespace GUI.Types.GLViewers
                 MainFramebuffer.Height,
                 needsFit);
 
-            if (renderHash != lastRenderHash)
+            if (renderHash != LastRenderHash)
             {
-                lastRenderHash = renderHash;
-                numRendersLastHash = 0;
+                LastRenderHash = renderHash;
+                NumRendersLastHash = 0;
             }
 
             // Once both back buffers hold the current content, swapping them is free.
             const int NumBackBuffers = 2;
-            if (numRendersLastHash >= NumBackBuffers)
+            if (NumRendersLastHash >= NumBackBuffers)
             {
                 return;
             }
 
-            numRendersLastHash++;
+            NumRendersLastHash++;
 
             if (grContext == null)
             {
@@ -982,10 +983,19 @@ namespace GUI.Types.GLViewers
             );
 
             TextureScaleChangeTime = 10f; // Skip animation
+
+            PostZoomLabelUpdate();
         }
+
+        // Fits run on the render thread, so the label has to be set back on the UI thread.
+        private void PostZoomLabelUpdate() => UiControl?.BeginInvoke(UpdateZoomLabel);
 
         protected override void OnMouseDown(object? sender, MouseEventArgs e)
         {
+            // Keyboard shortcuts are routed to the focused control, and the sidebar search box
+            // keeps focus until something takes it back.
+            GLControl?.Focus();
+
             // A live node drag owns the gesture; chorded buttons must not start panning
             // or reach the view mid-drag.
             if (View.IsMoving && e.Button != MouseButtons.Left)
@@ -1013,6 +1023,21 @@ namespace GUI.Types.GLViewers
                     base.OnMouseDown(sender, e);
                 }
             }
+        }
+
+        /// <summary>
+        /// Ctrl+0 fits the graph to the viewport instead of the base viewer's literal 100% zoom,
+        /// which on a graph is an arbitrary crop rather than a meaningful view.
+        /// </summary>
+        protected override void OnKeyDown(Keys keyData)
+        {
+            if (keyData == (Keys.Control | Keys.D0) || keyData == (Keys.Control | Keys.NumPad0))
+            {
+                RefitToGraph();
+                return;
+            }
+
+            base.OnKeyDown(keyData);
         }
 
         protected override void OnMouseMove(int x, int y)
@@ -1058,34 +1083,23 @@ namespace GUI.Types.GLViewers
             return new SKPoint(canvasX + graphBounds.Left, canvasY + graphBounds.Top);
         }
 
-        // The graph is drawn through Skia, not the texture/shader pipeline the base capture
-        // path assumes. Captures the current viewport at the current zoom for Ctrl+C / saving,
-        // cropped to the graph bounds so a zoomed-out capture has no empty margins.
+        /// <summary>There is no texture or resource behind a graph viewer; the saved image is the graph.</summary>
+        protected override bool CanSaveVisual => true;
+
+        /// <summary>
+        /// The graph is drawn through Skia, not the texture/shader pipeline the base capture path
+        /// assumes. Rasterizes the whole graph, independent of the viewport and its zoom, at native
+        /// size unless that would put the long edge past 8192 px.
+        /// </summary>
         protected override SKBitmap ReadPixelsToBitmap()
         {
-            Debug.Assert(MainFramebuffer != null);
+            var bounds = View.GetGraphBounds();
 
-            var (scale, position) = GetCurrentPositionAndScale();
+            const float MaxCaptureDimension = 8192f;
+            var scale = Math.Min(1f, MaxCaptureDimension / Math.Max(bounds.Width, bounds.Height));
 
-            var viewportRect = new SKRect(
-                position.X / scale + graphBounds.Left,
-                position.Y / scale + graphBounds.Top,
-                (position.X + MainFramebuffer.Width) / scale + graphBounds.Left,
-                (position.Y + MainFramebuffer.Height) / scale + graphBounds.Top);
-
-            var captureRect = new SKRect(
-                Math.Max(viewportRect.Left, graphBounds.Left),
-                Math.Max(viewportRect.Top, graphBounds.Top),
-                Math.Min(viewportRect.Right, graphBounds.Right),
-                Math.Min(viewportRect.Bottom, graphBounds.Bottom));
-
-            if (captureRect.Width <= 0 || captureRect.Height <= 0)
-            {
-                captureRect = viewportRect;
-            }
-
-            var width = Math.Max(1, (int)(captureRect.Width * scale));
-            var height = Math.Max(1, (int)(captureRect.Height * scale));
+            var width = Math.Max(1, (int)(bounds.Width * scale));
+            var height = Math.Max(1, (int)(bounds.Height * scale));
 
             var bitmap = new SKBitmap(new SKImageInfo(width, height, SKColorType.Bgra8888, SKAlphaType.Premul));
 
@@ -1093,9 +1107,9 @@ namespace GUI.Types.GLViewers
             {
                 using var canvas = new SKCanvas(bitmap);
                 canvas.Scale(scale, scale);
-                canvas.Translate(-captureRect.Left, -captureRect.Top);
+                canvas.Translate(-bounds.Left, -bounds.Top);
 
-                View.RenderToCanvas(canvas, captureRect, scale);
+                View.RenderToCanvas(canvas, bounds, scale);
 
                 var bitmapToReturn = bitmap;
                 bitmap = null;
