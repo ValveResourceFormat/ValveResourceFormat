@@ -14,6 +14,8 @@
 #define renderMode_IrradianceDebug 0
 #define renderMode_Occlusion 0
 #define renderMode_LightmapShadows 0
+#define renderMode_LightTiles 0
+#define renderMode_Subgroups 0
 
 #if (D_BAKED_LIGHTING_FROM_LIGHTMAP == 1)
     centroid in vec3 vLightmapUVScaled;
@@ -241,16 +243,23 @@ void CalculateIndirectLighting(inout LightingTerms_t lighting, inout MaterialPro
 
     // Environment Maps
 #if defined(IBL) && (IBL == 1)
-    float normalizationTerm = GetEnvMapNormalization(mat.IsometricRoughness, mat.AmbientNormal, lighting.DiffuseIndirect);
+    vec3 environment = GetEnvironment(mat);
 
-    lighting.SpecularIndirect = GetEnvironment(mat) * normalizationTerm;
+    lighting.SpecularIndirect = environment
+        * GetEnvMapNormalization(mat.IsometricRoughness, mat.AmbientNormal, lighting.DiffuseIndirect);
 
     #if (D_BAKED_LIGHTING_FROM_LIGHTMAP == 0 && D_BAKED_LIGHTING_FROM_PROBE == 0 && D_BAKED_LIGHTING_FROM_VERTEX_STREAM == 0)
         vec2 oldRoughness = mat.Roughness;
         mat.Roughness = vec2(1.0);
-        lighting.DiffuseIndirect = GetEnvironmentNoBRDF(mat, 0);
+        // Roughness is at 1 here, so the full correction lands the lookup on the normal.
+        lighting.DiffuseIndirect = GetEnvironmentNoBRDF(mat, 1.0);
         mat.Roughness = oldRoughness;
     #endif
+
+    EnvBRDF_t envBrdf = EnvBRDF(mat.SpecularColor, mat.IsometricRoughness, mat.AmbientNormal, mat.ViewDir);
+
+    lighting.SpecularIndirect += envBrdf.MultiScatter * lighting.DiffuseIndirect;
+    lighting.DiffuseIndirect *= ClampToPositive(vec3(1.0) - (envBrdf.SingleScatter + envBrdf.MultiScatter));
 #endif
 }
 
@@ -299,6 +308,27 @@ LightingTerms_t CalculateLighting(inout MaterialProperties_t mat)
     return lighting;
 }
 
+vec3 GetSubgroupFootprintColor()
+{
+#ifdef GL_KHR_shader_subgroup_arithmetic
+    uvec2 pixel = uvec2(gl_FragCoord.xy);
+
+    uint id = subgroupMin((pixel.y << 16u) | (pixel.x & 0xFFFFu));
+
+    id ^= id >> 16u;
+    id *= 0x7feb352du;
+    id ^= id >> 15u;
+    id *= 0x846ca68bu;
+    id ^= id >> 16u;
+
+    vec3 color = vec3(uvec3(id >> 16u, id >> 8u, id) & 0xFFu) / 255.0;
+
+    return mix(color, vec3(1.0), 0.25);
+#else
+    return vec3(0.0);
+#endif
+}
+
 bool _HandleLightingRenderModes(inout vec4 outputColor, MaterialProperties_t mat, LightingTerms_t lighting)
 {
     switch (g_iRenderMode)
@@ -319,6 +349,29 @@ bool _HandleLightingRenderModes(inout vec4 outputColor, MaterialProperties_t mat
         case renderMode_Occlusion:
             float flLightmapOcclusion = blink() ? 1.0 : lighting.SpecularOcclusion;
             outputColor = vec4(SrgbGammaToLinear((mat.AmbientOcclusion * flLightmapOcclusion).xxx), 1.0);
+            return true;
+        case renderMode_LightTiles:
+            vec3 tileHeat;
+            outputColor.rgb *= GetLightCullBinStripe(mat.PositionWS);
+
+            if (!GetBarnLightTileHeatmap(tileHeat))
+            {
+                return true;
+            }
+            outputColor.rgb = mix(outputColor.rgb, tileHeat, 0.5);
+            return true;
+        case renderMode_EnvmapTiles:
+            vec3 envMapHeat;
+            outputColor.rgb *= GetLightCullBinStripe(mat.PositionWS);
+
+            if (!GetEnvMapTileHeatmap(envMapHeat))
+            {
+                return true;
+            }
+            outputColor.rgb = mix(outputColor.rgb, envMapHeat, 0.5);
+            return true;
+        case renderMode_Subgroups:
+            outputColor = vec4(GetSubgroupFootprintColor(), 1.0);
             return true;
     #if (D_BAKED_LIGHTING_FROM_LIGHTMAP == 1 && S_LIGHTMAP_VERSION_MINOR >= 2)
         case renderMode_LightmapShadows:

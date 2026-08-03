@@ -40,10 +40,14 @@ namespace ValveResourceFormat.Renderer
         /// </summary>
         public Vector3 Up { get; private set; }
 
-        private RendererContext RendererContext;
+        /// <summary>
+        /// Horizontal field of view in degrees.
+        /// Converted to the vertical FOV actually used to build <see cref="ProjectionMatrix"/> by <see cref="GetFOV"/>.
+        /// </summary>
+        public float FieldOfView { get; set; }
 
         /// <summary>
-        /// Perspective projection matrix (reverse-Z, infinite far plane).
+        /// Perspective projection matrix (reverse-Z; the far plane is infinite unless <see cref="FarPlane"/> is set).
         /// </summary>
         public Matrix4x4 ProjectionMatrix { get; private set; }
 
@@ -73,12 +77,12 @@ namespace ValveResourceFormat.Renderer
         public float AspectRatio { get; private set; }
 
         /// <summary>
-        /// Initializes a new camera with a default position and 16:9 viewport.
+        /// Initializes a new camera with a default position, 16:9 viewport, and the given field of view.
         /// </summary>
-        /// <param name="rendererContext">Renderer context used to read field-of-view settings.</param>
-        public Camera(RendererContext rendererContext)
+        /// <param name="fieldOfView">Initial field of view in degrees (horizontal at 4:3, see <see cref="FieldOfView"/>).</param>
+        public Camera(float fieldOfView = 90f)
         {
-            RendererContext = rendererContext;
+            FieldOfView = fieldOfView;
             Location = Vector3.One;
             SetViewportSize(16, 9);
             LookAt(Vector3.Zero);
@@ -150,8 +154,8 @@ namespace ValveResourceFormat.Renderer
             viewConstants.CameraUpDirWs = Up;
 
             // todo: these change per scene, move to the other buffer
-            viewConstants.ViewportMinZ = 0.05f;
-            viewConstants.ViewportMaxZ = 1.0f;
+            viewConstants.ViewportMinZ = Renderer.DepthRange.Scene.Near;
+            viewConstants.ViewportMaxZ = Renderer.DepthRange.Scene.Far;
         }
 
         /// <summary>
@@ -167,27 +171,76 @@ namespace ValveResourceFormat.Renderer
         }
 
         /// <summary>
+        /// Distance from the eye to the near plane. Also where the light cull pass clips light volumes and
+        /// where its depth slices start. Call <see cref="CreateProjectionMatrix"/> after changing it.
+        /// </summary>
+        public float NearPlane { get; set; } = 1.0f;
+
+        /// <summary>
+        /// Distance from the eye to the far plane, or <see cref="float.PositiveInfinity"/> for none, the
+        /// default. Call <see cref="CreateProjectionMatrix"/> after changing it.
+        /// </summary>
+        public float FarPlane { get; set; } = float.PositiveInfinity;
+
+        /// <summary>
         /// Rebuilds <see cref="ProjectionMatrix"/> from the current field of view and aspect ratio.
         /// </summary>
         public void CreateProjectionMatrix()
         {
-            ProjectionMatrix = CreatePerspectiveFieldOfView_ReverseZ(GetFOV(), AspectRatio, 1.0f);
+            ProjectionMatrix = CreatePerspectiveFieldOfView_ReverseZ(GetFOV(), AspectRatio, NearPlane, FarPlane);
+        }
+
+        /// <summary>
+        /// Maps a pixel of this camera's view to the one the same world ray lands on in
+        /// <paramref name="target"/>'s view, as an xy scale and a zw bias in pixels. This is what lets a
+        /// pass drawn at a different field of view find its light cull tile from gl_FragCoord alone.
+        /// </summary>
+        /// <remarks>
+        /// Exact while the two cameras differ only in projection, which is what the viewmodel is. Both
+        /// turn a view ray into ndc by the same shape of expression, <c>ndc = scale * (x / -z)</c>, so
+        /// eliminating the ray leaves an affine map with no dependence on distance along it.
+        /// </remarks>
+        /// <param name="target">The camera whose screen the result maps into.</param>
+        /// <param name="viewportSize">Pixel dimensions both cameras draw into.</param>
+        public Vector4 GetPixelRemapTo(Camera target, Vector2 viewportSize)
+        {
+            var scale = new Vector2(
+                ProjectionMatrix.M11 != 0f ? target.ProjectionMatrix.M11 / ProjectionMatrix.M11 : 1f,
+                ProjectionMatrix.M22 != 0f ? target.ProjectionMatrix.M22 / ProjectionMatrix.M22 : 1f);
+
+            var bias = viewportSize * 0.5f * (Vector2.One - scale);
+
+            return new Vector4(scale.X, scale.Y, bias.X, bias.Y);
         }
 
         /// <inheritdoc cref="Matrix4x4.CreatePerspectiveFieldOfView"/>
-        /// <remarks>Note: Reverse-Z. Far plane is swapped with near plane. Far plane is set to infinite.</remarks>
-        private static Matrix4x4 CreatePerspectiveFieldOfView_ReverseZ(float fieldOfView, float aspectRatio, float nearPlaneDistance)
+        /// <remarks>
+        /// Reverse-Z: the near plane maps to ndc z 1 and the far plane to 0. An infinite far plane is the
+        /// limit of the finite case, but the finite expressions evaluate to NaN there, so it branches.
+        /// </remarks>
+        private static Matrix4x4 CreatePerspectiveFieldOfView_ReverseZ(float fieldOfView, float aspectRatio, float nearPlaneDistance, float farPlaneDistance)
         {
             var height = 1.0f / MathF.Tan(fieldOfView * 0.5f);
             var width = height / aspectRatio;
+
+            var m33 = 0.0f;
+            var m43 = nearPlaneDistance;
+
+            if (float.IsFinite(farPlaneDistance))
+            {
+                var range = farPlaneDistance - nearPlaneDistance;
+
+                m33 = nearPlaneDistance / range;
+                m43 = nearPlaneDistance * farPlaneDistance / range;
+            }
 
             return new Matrix4x4
             {
                 M11 = width,
                 M22 = height,
-                M33 = 0.0f,
+                M33 = m33,
                 M34 = -1.0f,
-                M43 = nearPlaneDistance
+                M43 = m43
             };
         }
 
@@ -199,6 +252,8 @@ namespace ValveResourceFormat.Renderer
         {
             AspectRatio = fromOther.AspectRatio;
             WindowSize = fromOther.WindowSize;
+            NearPlane = fromOther.NearPlane;
+            FarPlane = fromOther.FarPlane;
             Location = fromOther.Location;
             Pitch = fromOther.Pitch;
             Yaw = fromOther.Yaw;
@@ -341,12 +396,23 @@ namespace ValveResourceFormat.Renderer
         }
 
         /// <summary>
-        /// Returns the field of view in radians, as read from the renderer context settings.
+        /// Returns the vertical FOV in radians used to build <see cref="ProjectionMatrix"/>, converted from
+        /// <see cref="FieldOfView"/> via <see cref="Calculate4By3Fov"/>.
         /// </summary>
-        /// <returns></returns>
         public float GetFOV()
         {
-            return float.DegreesToRadians(RendererContext.FieldOfView);
+            return Calculate4By3Fov(FieldOfView);
+        }
+
+        /// <summary>
+        /// Converts a horizontal field of view at a 4:3 aspect ratio to the equivalent vertical field of view in radians.
+        /// The result is used directly as the vertical FOV in <see cref="CreatePerspectiveFieldOfView_ReverseZ"/> regardless
+        /// of the actual aspect ratio (Vert- scaling).
+        /// </summary>
+        /// <param name="horizontalDegreesAt4By3">Horizontal field of view in degrees at a 4:3 aspect ratio.</param>
+        public static float Calculate4By3Fov(float horizontalDegreesAt4By3)
+        {
+            return 2f * MathF.Atan(MathF.Tan(float.DegreesToRadians(horizontalDegreesAt4By3) * 0.5f) / (4f / 3f));
         }
     }
 }

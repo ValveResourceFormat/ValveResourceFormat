@@ -104,7 +104,7 @@ public class UserInput
     public UserInput(Renderer renderer)
     {
         Renderer = renderer;
-        Camera = new Camera(renderer.RendererContext);
+        Camera = new Camera(renderer.RendererContext.FieldOfView);
         PlayerMovement = new PlayerMovement(this);
     }
 
@@ -173,7 +173,7 @@ public class UserInput
             m_yaw * mouseDelta.X
         );
 
-        var fovRatio = Renderer.RendererContext.FieldOfView / float.RadiansToDegrees(2f * MathF.Atan(3f / 4f));
+        var fovRatio = Renderer.RendererContext.FieldOfView / 90f;
         MouseDeltaPitchYaw *= fovRatio;
         MouseDeltaPitchYaw *= MouseSensitivity;
         MouseDeltaPitchYaw = Vector2.DegreesToRadians(MouseDeltaPitchYaw);
@@ -218,11 +218,6 @@ public class UserInput
             PlayerMovement.Initialize = !NoClip;
         }
 
-        if (Pressed(TrackedKeys.Escape))
-        {
-            NoClip = true;
-        }
-
         if (wasClipping && NoClip)
         {
             MoveCamera(new Vector3(0, 0, 32), transition: true);
@@ -265,8 +260,17 @@ public class UserInput
     /// Switches to noclip mode and begins a smooth camera transition from the current position.
     /// </summary>
     /// <param name="transitionDuration">Duration of the transition animation in seconds.</param>
-    public void SaveCameraForTransition(float transitionDuration = 1.5f)
+    /// <param name="exitWalkMode">Whether to leave walk mode; pass false to teleport the player instead.</param>
+    public void SaveCameraForTransition(float transitionDuration = 1.5f, bool exitWalkMode = true)
     {
+        if (!exitWalkMode && !NoClip)
+        {
+            // Teleport the player instead, without the transition lerping the view
+            // behind physics that already moved.
+            PlayerMovement.Initialize = true;
+            return;
+        }
+
         NoClip = true;
         TransitionCamera(transitionDuration);
     }

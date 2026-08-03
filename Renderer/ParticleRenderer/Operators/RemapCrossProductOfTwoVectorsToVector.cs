@@ -20,7 +20,7 @@ namespace ValveResourceFormat.Renderer.Particles.Operators
             inputVec2 = parse.VectorProvider("m_InputVec2", inputVec2);
             normalize = parse.Boolean("m_bNormalize", normalize);
         }
-        public override void Operate(ParticleCollection particles, float frameTime, ParticleSystemRenderState particleSystemState)
+        public override void Operate(ParticleCollection particles, float frameTime, ParticleSystemRenderState particleSystemState, float strength)
         {
             foreach (ref var particle in particles.Current)
             {

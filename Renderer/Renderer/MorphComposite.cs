@@ -115,9 +115,6 @@ namespace ValveResourceFormat.Renderer
 
             GL.DrawElements(PrimitiveType.Triangles, (usedVerticesLength / VertexSize / 4) * 6, DrawElementsType.UnsignedShort, 0);
 
-            GL.UseProgram(0);
-            GL.BindVertexArray(0);
-
             GL.Disable(EnableCap.Blend);
             GL.Enable(EnableCap.CullFace);
         }

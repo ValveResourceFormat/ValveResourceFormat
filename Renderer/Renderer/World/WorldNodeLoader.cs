@@ -72,6 +72,9 @@ namespace ValveResourceFormat.Renderer.World
                 var matrix = sceneObject.GetArray("m_vTransform").ToMatrix4x4();
                 var flags = sceneObject.GetEnumValue<ObjectTypeFlags>("m_nObjectTypeFlags", normalize: true);
 
+                // Per-placement forced LoD baked by the compiler (-1 = automatic).
+                var lodOverride = sceneObject.ContainsKey("m_nLODOverride") ? sceneObject.GetInt32Property("m_nLODOverride") : -1;
+
                 var tintColor = sceneObject.GetSubCollection("m_vTintColor").ToVector4();
                 if (tintColor.W == 0)
                 {
@@ -104,6 +107,11 @@ namespace ValveResourceFormat.Renderer.World
                         LightProbeVolumePrecomputedHandshake = lightProbeVolumePrecomputedHandshake,
                         Flags = flags,
                     };
+
+                    if (lodOverride >= 0)
+                    {
+                        modelNode.SetOverrideLod(lodOverride);
+                    }
 
                     scene.Add(modelNode, false);
                 }

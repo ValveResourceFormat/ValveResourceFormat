@@ -25,7 +25,16 @@ namespace ValveResourceFormat.Renderer.Particles.Initializers
             var value = InputValue.NextNumber(ref particle, particleSystemState);
             value *= InputStrength.NextNumber(ref particle, particleSystemState);
 
-            var finalValue = particle.ModifyScalarBySetMethod(particles, OutputField, value, SetMethod);
+            // Angles are authored in degrees and stored in radians, the same conversion the dedicated
+            // rotation initializers do. The scaling set methods take a unitless multiplier, not an angle,
+            // so they are left alone.
+            if (OutputField.IsAngleField()
+                && SetMethod is not (ParticleSetMethod.PARTICLE_SET_SCALE_INITIAL_VALUE or ParticleSetMethod.PARTICLE_SET_SCALE_CURRENT_VALUE))
+            {
+                value = float.DegreesToRadians(value);
+            }
+
+            var finalValue = particle.ModifyScalarBySetMethodAtSpawn(OutputField, value, SetMethod);
 
             particle.SetScalar(OutputField, finalValue);
 

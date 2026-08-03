@@ -61,6 +61,11 @@ namespace GUI.Types.GLViewers
         {
             var originalGlControl = Interlocked.Exchange(ref currentGLControl, glControl);
 
+            if (originalGlControl != null && originalGlControl != glControl)
+            {
+                originalGlControl.OnDetachedFromRenderLoop();
+            }
+
             /*
             if (originalGlControl == null)
             {
@@ -80,6 +85,8 @@ namespace GUI.Types.GLViewers
         public static void UnsetCurrentGLControl(GLBaseControl glControl)
         {
             Interlocked.CompareExchange(ref currentGLControl, null, glControl);
+
+            glControl.OnDetachedFromRenderLoop();
 
             if (currentGLControl == null)
             {

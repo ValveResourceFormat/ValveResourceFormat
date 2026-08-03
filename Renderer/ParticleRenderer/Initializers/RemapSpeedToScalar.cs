@@ -38,18 +38,12 @@ namespace ValveResourceFormat.Renderer.Particles.Initializers
             }
             else
             {
-                var frameTime = particleSystemState.Data?.CurrentFrameTime ?? 0f;
-                if (frameTime <= 0f)
-                {
-                    return particle;
-                }
-
-                speed = particleSystemState.GetControlPoint(controlPointNumber).GetVelocity(frameTime).Length();
+                speed = particleSystemState.GetControlPoint(controlPointNumber).Velocity.Length();
             }
 
             var output = MathUtils.RemapValClamped(speed, inputMin, inputMax, outputMin, outputMax);
 
-            output = particle.ModifyScalarBySetMethod(particles, FieldOutput, output, setMethod);
+            output = particle.ModifyScalarBySetMethodAtSpawn(FieldOutput, output, setMethod);
             particle.SetScalar(FieldOutput, output);
 
             return particle;

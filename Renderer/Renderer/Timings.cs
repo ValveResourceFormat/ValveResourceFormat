@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Diagnostics;
 using OpenTK.Graphics.OpenGL;
 using QueryId = System.Int32;
@@ -8,8 +9,8 @@ namespace ValveResourceFormat.Renderer;
 /// </summary>
 public class Timings
 {
-    private record struct TimingQuery(long StartTimestamp, bool SubmitGpuQueries, string Name, int Depth, QueryId Id);
-    private readonly record struct TimingResult(string Name, double TimeMs, double TimeMsGpu, int Depth, QueryId Id);
+    private record struct TimingQuery(long StartTimestamp, bool SubmitGpuQueries, string Name, int Depth, QueryId Id, bool CpuOnly);
+    private readonly record struct TimingResult(string Name, double TimeMs, double TimeMsGpu, int Depth, QueryId Id, bool CpuOnly);
 
     private readonly Dictionary<QueryId, TimingQuery> activeQueries = [];
     private readonly Dictionary<QueryId, int> gpuStartQueries = [];
@@ -27,12 +28,29 @@ public class Timings
     /// <summary>Gets or sets whether timing data is actively collected this frame.</summary>
     public bool Capture { get; set; }
 
+    private readonly record struct AsyncRow(double? CpuMs, string Detail);
+    private readonly SortedDictionary<string, AsyncRow> asyncRows = [];
+
+    /// <summary>
+    /// Records work measured off the frame - another thread, or a window that is not a frame - listed
+    /// under an "Async" header below the frame's own rows. Replaced by name on each call, so the caller
+    /// just sets it every frame from whatever the producing thread last published.
+    /// </summary>
+    /// <param name="name">Row label, unique per source.</param>
+    /// <param name="cpuMs">CPU milliseconds to show, or null to leave the column blank for a row that is not a duration.</param>
+    /// <param name="detail">Free-form right-hand column, e.g. a duty cycle or a byte count.</param>
+    public void SetAsyncRow(string name, double? cpuMs, string detail = "")
+    {
+        asyncRows[name] = new AsyncRow(cpuMs, detail);
+    }
+
     /// <summary>
     /// Begins a new timing measurement for the specified name.
     /// </summary>
     /// <param name="name">Name of the region to time.</param>
+    /// <param name="cpuOnly">Whether the region submits no GPU work, so no GPU queries are issued for it.</param>
     /// <returns>Query ID to use when ending the query, or 0 if timing is disabled.</returns>
-    internal QueryId BeginQuery(string name)
+    internal QueryId BeginQuery(string name, bool cpuOnly = false)
     {
         if (!Capture)
         {
@@ -40,6 +58,15 @@ public class Timings
         }
 
         currentIndex++;
+
+        if (cpuOnly)
+        {
+            // No GPU query objects at all: this region issues no draw work, so the GPU column would
+            // only ever report the gap between whatever surrounds it.
+            var depth = activeQueries.TryGetValue(currentIndex, out var existing) ? existing.Depth : currentDepth++;
+            activeQueries[currentIndex] = new TimingQuery(Stopwatch.GetTimestamp(), false, name, depth, currentIndex, CpuOnly: true);
+            return currentIndex;
+        }
 
         var endQueryId = 0;
         if (!gpuStartQueries.TryGetValue(currentIndex, out var startQueryId))
@@ -77,7 +104,7 @@ public class Timings
 
         GL.QueryCounter(startQueryId, QueryCounterTarget.Timestamp);
         GL.QueryCounter(endQueryId, QueryCounterTarget.Timestamp);
-        activeQueries[currentIndex] = new TimingQuery(Stopwatch.GetTimestamp(), true, name, currentDepth, currentIndex);
+        activeQueries[currentIndex] = new TimingQuery(Stopwatch.GetTimestamp(), true, name, currentDepth, currentIndex, CpuOnly: false);
         currentDepth++;
 
         return currentIndex;
@@ -99,6 +126,13 @@ public class Timings
         if (activeQueries.TryGetValue(id, out var query))
         {
             var elapsed = Stopwatch.GetElapsedTime(query.StartTimestamp, endTimestamp);
+
+            if (query.CpuOnly)
+            {
+                results[id] = new TimingResult(query.Name, elapsed.TotalMilliseconds, 0.0, query.Depth, query.Id, CpuOnly: true);
+                currentDepth = Math.Max(currentDepth - 1, 0);
+                return;
+            }
 
             // carry forward previous GPU time if new GPU time is not available
             var elapsedGpuMs = gpuTimingsCache.GetValueOrDefault(query.Id);
@@ -128,7 +162,7 @@ public class Timings
 
             activeQueries[id] = query with { SubmitGpuQueries = resubmitQueries };
 
-            results[id] = new TimingResult(query.Name, elapsed.TotalMilliseconds, elapsedGpuMs, query.Depth, query.Id);
+            results[id] = new TimingResult(query.Name, elapsed.TotalMilliseconds, elapsedGpuMs, query.Depth, query.Id, CpuOnly: false);
         }
 
         currentDepth--;
@@ -153,13 +187,24 @@ public class Timings
         var yOffset = y;
         var lineHeight = scale * 1.5f / camera.WindowSize.Y;
 
-        // Header
         textRenderer.AddTextRelative(new TextRenderer.TextRenderRequest
         {
             X = x,
             Y = yOffset,
             Scale = scale,
             Color = new Color32(255, 200, 0),
+            Text = "Render Timings"
+        }, camera);
+
+        yOffset += lineHeight;
+
+        // Header
+        textRenderer.AddTextRelative(new TextRenderer.TextRenderRequest
+        {
+            X = x,
+            Y = yOffset,
+            Scale = scale,
+            Color = Color32.White,
             Text = $"  {"",-NameColumnWidth} {"GPU",6} {"CPU",6} {"P100",6}"
         }, camera);
 
@@ -206,13 +251,16 @@ public class Timings
             var indent = new string(' ', result.Depth * 2);
             var displayName = $"{indent}{result.Name}";
 
+            // A CPU-only region submits no GPU work, so a number in that column would be meaningless
+            var gpuText = result.CpuOnly ? "-" : result.TimeMsGpu.ToString("0.00", CultureInfo.InvariantCulture);
+
             textRenderer.AddTextRelative(new TextRenderer.TextRenderRequest
             {
                 X = x,
                 Y = yOffset,
                 Scale = scale,
                 Color = color,
-                Text = $"  {displayName,-NameColumnWidth} {result.TimeMsGpu,6:0.00} {result.TimeMs,6:0.00} {maxTime,6:0.00}"
+                Text = $"  {displayName,-NameColumnWidth} {gpuText,6} {result.TimeMs,6:0.00} {maxTime,6:0.00}"
             }, camera);
 
             yOffset += lineHeight;
@@ -227,6 +275,40 @@ public class Timings
             Color = Color32.White,
             Text = $"  {"Total",-NameColumnWidth} {totalGpu,6:0.00} {totalCpu,6:0.00} {total,6:0.00}"
         }, camera);
+
+        if (asyncRows.Count == 0)
+        {
+            return;
+        }
+
+        // Off-frame work, listed apart from the totals above: it runs on other threads, so counting it
+        // into the frame would overstate what the frame actually costs.
+        yOffset += lineHeight;
+
+        textRenderer.AddTextRelative(new TextRenderer.TextRenderRequest
+        {
+            X = x,
+            Y = yOffset,
+            Scale = scale,
+            Color = Color32.White,
+            Text = $"  {"Async",-NameColumnWidth}"
+        }, camera);
+
+        foreach (var (name, row) in asyncRows)
+        {
+            yOffset += lineHeight;
+
+            var cpuText = row.CpuMs?.ToString("0.00", CultureInfo.InvariantCulture) ?? string.Empty;
+
+            textRenderer.AddTextRelative(new TextRenderer.TextRenderRequest
+            {
+                X = x,
+                Y = yOffset,
+                Scale = scale,
+                Color = new Color32(150, 255, 150),
+                Text = $"  {"  " + name,-NameColumnWidth} {"-",6} {cpuText,6} {row.Detail,6}"
+            }, camera);
+        }
     }
 
     /// <summary>Resets the query index for the new frame. Marked by <see cref="PerfStats"/>, which owns the thread policy.</summary>

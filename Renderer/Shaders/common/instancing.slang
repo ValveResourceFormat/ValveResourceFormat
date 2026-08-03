@@ -7,7 +7,9 @@ uniform mat3x4 transform;
 uniform uint vTint;
 uniform bool bIsInstancing = false;
 
-#if (S_SCENE_CUBEMAP_TYPE > 0)
+#if (S_SCENE_CUBEMAP_TYPE == 1)
+    flat out uint g_nEnvMapIndex;
+#elif (S_SCENE_CUBEMAP_TYPE == 2)
     flat out uvec4 g_nEnvMapVisibility;
 #endif
 
@@ -36,7 +38,6 @@ layout(std430, binding = 1) readonly buffer g_transformBuffer
 
 struct ObjectData_t
 {
-    mat4 transform;
     vec4 vTint;
 };
 
@@ -61,28 +62,52 @@ mat4 UnpackMatrix4(mat3x4 m)
     );
 }
 
-ObjectData_t GetObjectData()
+// Applies first, then second.
+mat3x4 ConcatTransforms(mat3x4 first, mat3x4 second)
 {
-    ObjectDataStandard objectData = objects[gl_BaseInstance];
+    mat3x4 result;
 
-    ObjectData_t object;
-    object.transform = UnpackMatrix4(bIsInstancing ? transforms[objectData.TransformIndex + gl_InstanceID] : transform);
-    object.vTint = UnpackColor32(bIsInstancing ? objectData.TintAlpha : vTint);
+    for (int i = 0; i < 3; i++)
+    {
+        result[i] = (second[i].x * first[0]) + (second[i].y * first[1]) + (second[i].z * first[2]);
+        result[i].w += second[i].w;
+    }
 
-    #if (S_SCENE_CUBEMAP_TYPE > 0)
+    return result;
+}
+
+void SetObjectInterpolators(ObjectDataStandard objectData)
+{
+    #if (S_SCENE_CUBEMAP_TYPE == 1)
+        g_nEnvMapIndex = objectData.VisibleLPV >> 16u;
+    #elif (S_SCENE_CUBEMAP_TYPE == 2)
         g_nEnvMapVisibility = objectData.EnvMapVisibility;
     #endif
 
     #if (D_BAKED_LIGHTING_FROM_PROBE > 0)
-        g_nVisibleLPV = objectData.VisibleLPV;
+        g_nVisibleLPV = objectData.VisibleLPV & 0xFFFFu;
     #endif
+}
+
+ObjectData_t GetObjectData()
+{
+    ObjectDataStandard objectData = objects[gl_BaseInstance];
+
+    SetObjectInterpolators(objectData);
+
+    ObjectData_t object;
+    object.vTint = UnpackColor32(bIsInstancing ? objectData.TintAlpha : vTint);
 
     return object;
 }
 
-mat4 CalculateObjectToWorldMatrix()
+mat3x4 CalculateObjectToWorldMatrix()
 {
-    return GetObjectData().transform;
+    ObjectDataStandard objectData = objects[gl_BaseInstance];
+
+    SetObjectInterpolators(objectData);
+
+    return bIsInstancing ? transforms[objectData.TransformIndex + gl_InstanceID] : transform;
 }
 
 vec4 GetObjectTintSrgb()

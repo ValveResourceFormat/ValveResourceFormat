@@ -35,6 +35,13 @@ namespace ValveResourceFormat.Renderer
         /// <summary>Gets the average color reflectivity used for environment lighting calculations.</summary>
         public Vector4 Reflectivity { get; internal set; }
 
+        /// <summary>
+        /// Gets the baked radiance of each cube map in this array as an L2 spherical harmonic,
+        /// 9 coefficients per channel stored planar, 27 per cube map. Null unless the source
+        /// texture carried them.
+        /// </summary>
+        public float[]? RadianceCoefficients { get; }
+
         RenderTexture(TextureTarget target)
         {
             Target = target;
@@ -44,7 +51,7 @@ namespace ValveResourceFormat.Renderer
 
         /// <summary>Creates a render texture and populates metadata from the given source texture resource.</summary>
         /// <param name="target">OpenGL texture target.</param>
-        /// <param name="data">Source texture resource providing dimensions, mip count, and spritesheet data.</param>
+        /// <param name="data">Source texture resource providing dimensions, mip count, spritesheet data and radiance harmonics.</param>
         public RenderTexture(TextureTarget target, Texture data) : this(target)
         {
             Width = data.Width;
@@ -53,6 +60,7 @@ namespace ValveResourceFormat.Renderer
             NumMipLevels = data.NumMipLevels;
             SpriteSheetData = data.GetSpriteSheetData();
             Reflectivity = data.Reflectivity;
+            RadianceCoefficients = data.RadianceCoefficients;
         }
 
         /// <summary>Creates a render texture with explicit dimension and mip level metadata.</summary>

@@ -382,7 +382,7 @@ namespace ValveResourceFormat.ResourceTypes
         /// Gets embedded animations from the model.
         /// </summary>
         /// <returns>Enumerable of animations.</returns>
-        public IEnumerable<Animation> GetEmbeddedAnimations()
+        public IEnumerable<SequenceAnimation> GetEmbeddedAnimations()
         {
             var ctrl = Resource.GetBlockByType(BlockType.CTRL) as BinaryKV3;
             var embeddedAnimation = ctrl?.Data.Root.GetSubCollection("embedded_animation");
@@ -408,7 +408,7 @@ namespace ValveResourceFormat.ResourceTypes
                 var sequenceDataBlock = Resource.GetBlockByIndex((int)seqGroupDataBlockIndex) as KeyValuesOrNTRO;
                 if (sequenceDataBlock?.Data != null)
                 {
-                    return Animation.FromSequenceData(
+                    return SequenceAnimation.FromSequenceData(
                         sequenceDataBlock.Data,
                         animationDataBlock.Data,
                         decodeKey,
@@ -417,7 +417,7 @@ namespace ValveResourceFormat.ResourceTypes
                 }
             }
 
-            return Animation.FromData(animationDataBlock.Data, decodeKey, Skeleton, FlexControllers);
+            return SequenceAnimation.FromData(animationDataBlock.Data, decodeKey, Skeleton, FlexControllers);
         }
 
         /// <summary>
@@ -482,7 +482,7 @@ namespace ValveResourceFormat.ResourceTypes
             }
 
             var animGroupPaths = GetReferencedAnimationGroupNames();
-            var animations = GetEmbeddedAnimations().ToList();
+            var animations = GetEmbeddedAnimations().ToList<Animation>();
 
             // Load animations from referenced animation groups
             foreach (var animGroupPath in animGroupPaths)

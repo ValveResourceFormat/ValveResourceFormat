@@ -27,7 +27,7 @@ namespace ValveResourceFormat.Renderer.Particles.Operators
                 ? distanceFromEdge < 0
                 : distanceFromEdge > 0;
         }
-        public override void Operate(ParticleCollection particles, float frameTime, ParticleSystemRenderState particleSystemState)
+        public override void Operate(ParticleCollection particles, float frameTime, ParticleSystemRenderState particleSystemState, float strength)
         {
             var radius = distance.NextNumber(particleSystemState);
 

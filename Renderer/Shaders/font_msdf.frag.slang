@@ -30,11 +30,6 @@ float screenPxRange() {
 }
 
 void main() {
-    // Occlude world-space text that sits behind scene geometry. We render to the default
-    // framebuffer which has no usable depth, so we compare against the resolved scene depth
-    // texture instead. Reverse-Z: a larger depth value is closer, so the text fragment is
-    // hidden when its depth is smaller (further) than what the scene wrote at this pixel.
-    // Screen-space text passes a negative depth to opt out of the test entirely.
     if (vSceneDepth >= 0.0) {
         float sceneDepth = texelFetch(g_tSceneDepth, ivec2(gl_FragCoord.xy), 0).r;
 

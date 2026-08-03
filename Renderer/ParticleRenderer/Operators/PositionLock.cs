@@ -29,6 +29,12 @@ namespace ValveResourceFormat.Renderer.Particles.Operators
         private Vector3 previousTransformPosition = new(float.MaxValue);
         private Matrix4x4 previousTransform = Matrix4x4.Identity;
 
+        public override void Reset()
+        {
+            previousTransformPosition = new Vector3(float.MaxValue);
+            previousTransform = Matrix4x4.Identity;
+        }
+
         public PositionLock(ParticleDefinitionParser parse) : base(parse)
         {
             transformInput = parse.TransformInput("m_TransformInput", transformInput);
@@ -48,7 +54,7 @@ namespace ValveResourceFormat.Renderer.Particles.Operators
             outputFieldPrev = parse.ParticleField("m_nFieldOutputPrev", outputFieldPrev);
         }
 
-        public override void Operate(ParticleCollection particles, float frameTime, ParticleSystemRenderState particleSystemState)
+        public override void Operate(ParticleCollection particles, float frameTime, ParticleSystemRenderState particleSystemState, float strength)
         {
             // The transform delta must be computed once per frame, not per particle,
             // otherwise only the first particle ever observes the transform moving
@@ -74,8 +80,9 @@ namespace ValveResourceFormat.Renderer.Particles.Operators
             previousTransformPosition = transformPosition;
             previousTransform = transform;
 
-            // A jump beyond the threshold teleports particles with the transform at full strength
-            var instantJump = delta.Length() > instantJumpThreshold;
+            // A jump beyond the threshold teleports particles with the transform at full strength;
+            // the squared delta is tested against the raw threshold value
+            var instantJump = delta.LengthSquared() > instantJumpThreshold;
 
             if (delta == Vector3.Zero && !lockRotation)
             {
@@ -87,7 +94,7 @@ namespace ValveResourceFormat.Renderer.Particles.Operators
 
             foreach (ref var particle in particles.Current)
             {
-                var lockStrength = 1f;
+                var lockStrength = strength;
 
                 if (!alwaysLocked)
                 {
@@ -95,14 +102,14 @@ namespace ValveResourceFormat.Renderer.Particles.Operators
                     var endTime = ParticleCollection.RandomWithExponentBetween(particle.ParticleID, endTimeExp, endTimeMin, endTimeMax);
 
                     // Fully locked until startTime, fading the lock out until endTime, using normalized lifetime
-                    lockStrength = particle.NormalizedAge <= startTime
+                    lockStrength *= particle.NormalizedAge <= startTime
                         ? 1f
                         : 1f - MathUtils.Saturate(MathUtils.Remap(particle.NormalizedAge, startTime, endTime));
                 }
 
                 if (instantJump)
                 {
-                    lockStrength = 1f;
+                    lockStrength = strength;
                 }
 
                 if (lockStrength <= 0f)

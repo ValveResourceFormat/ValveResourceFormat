@@ -109,7 +109,7 @@ public partial class GltfModelExporter
                 var accessorName = attribute.SemanticName switch
                 {
                     "TEXCOORD" when attributeFormat.ElementCount == 2 => "TEXCOORD",
-                    "COLOR" => "COLOR",
+                    "COLOR" => attribute.SemanticIndex == 0 ? "COLOR" : "_COLOR",
                     "POSITION" => "POSITION",
                     "NORMAL" => "NORMAL",
                     "TANGENT" => "TANGENT",

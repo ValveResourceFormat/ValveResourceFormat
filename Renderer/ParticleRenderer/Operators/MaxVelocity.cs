@@ -20,7 +20,7 @@ namespace ValveResourceFormat.Renderer.Particles.Operators
             overrideCPField = parse.Int32("m_nOverrideCPField", overrideCPField);
         }
 
-        public override void Operate(ParticleCollection particles, float frameTime, ParticleSystemRenderState particleSystemState)
+        public override void Operate(ParticleCollection particles, float frameTime, ParticleSystemRenderState particleSystemState, float strength)
         {
             foreach (ref var particle in particles.Current)
             {
@@ -29,19 +29,23 @@ namespace ValveResourceFormat.Renderer.Particles.Operators
                     : maxVelocityProvider.NextNumber(ref particle, particleSystemState);
                 var minVelocity = minVelocityProvider.NextNumber(ref particle, particleSystemState);
 
-                var speed = particle.Velocity.Length();
+                var originalVelocity = particle.Velocity;
+                var speed = originalVelocity.Length();
+
                 if (speed > maxVelocity)
                 {
-                    particle.Velocity *= maxVelocity / speed;
+                    particle.Velocity = originalVelocity * (maxVelocity / speed);
                 }
                 else if (speed > 0f && speed < minVelocity)
                 {
-                    particle.Velocity *= minVelocity / speed;
+                    particle.Velocity = originalVelocity * (minVelocity / speed);
                 }
                 else
                 {
                     continue;
                 }
+
+                particle.Velocity = Vector3.Lerp(originalVelocity, particle.Velocity, strength);
 
                 // Motion lives in the Verlet position pair; write the clamp back so the next
                 // integration step actually uses it.

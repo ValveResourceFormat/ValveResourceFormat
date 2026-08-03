@@ -47,7 +47,7 @@ namespace GUI.Types.GLViewers
                 skeletonSceneNode.Enabled = false; // scene.Remove?
             }
 
-            skeletonSceneNode = new SkeletonSceneNode(Scene, animationController, skeleton)
+            skeletonSceneNode = new SkeletonSceneNode(Scene, animationController.Pose, skeleton)
             {
                 Enabled = true,
             };
@@ -68,7 +68,7 @@ namespace GUI.Types.GLViewers
             SkeletonData = ((BinaryKV3)skeletonResource.DataBlock!).Data;
             LoadSkeleton(firstTime);
             Debug.Assert(animationController != null);
-            animationController.SetAnimation(new Animation(clipToLoad));
+            animationController.SetAnimation(new ClipAnimation(clipToLoad));
         }
 
         protected override void LoadScene()

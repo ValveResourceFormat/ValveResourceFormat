@@ -21,6 +21,20 @@ namespace ValveResourceFormat.Renderer.Particles
         /// </summary>
         public SceneNode? OwnerNode => Data?.OwnerNode ?? ParentSystem?.OwnerNode;
 
+        private float worldTime;
+
+        /// <summary>
+        /// The renderer's clock, in seconds, as fed to the shaders' <c>g_flTime</c>. Unlike
+        /// <see cref="Age"/> it is shared by every system and survives a restart, so operators that use
+        /// it to decorrelate repeat plays of an effect actually get a different sample each time. Child
+        /// systems read the root's value.
+        /// </summary>
+        public float WorldTime
+        {
+            get => ParentSystem?.WorldTime ?? worldTime;
+            set => worldTime = value;
+        }
+
         private int detailLevel = 3;
 
         /// <summary>
@@ -40,17 +54,40 @@ namespace ValveResourceFormat.Renderer.Particles
         public bool EndEarly { get; set; }
 
         public bool DestroyInstantlyOnEnd { get; private set; }
+
+        /// <summary>
+        /// Whether reaching <see cref="Duration"/> replays the system rather than ending it.
+        /// </summary>
+        public bool RestartOnEnd { get; private set; }
+
         public float Duration { get; private set; }
 
         // We don't yet support endcaps (effects that play for when a particle system ends), but if we ever do:
         // This can be set by PlayEndCapWhenFinished and StopAfterDuration
         public bool PlayEndCap { get; private set; }
 
+        /// <summary>
+        /// Ends the system after <paramref name="duration"/>: emission stops, and with
+        /// <paramref name="destroyInstantly"/> the particles still alive are dropped instead of being
+        /// left to finish their lifetimes.
+        /// </summary>
         public void SetStopTime(float duration, bool destroyInstantly)
         {
             EndEarly = true;
             Duration = duration;
             DestroyInstantlyOnEnd = destroyInstantly;
+            RestartOnEnd = false;
+        }
+
+        /// <summary>
+        /// Replays the system from the beginning after <paramref name="duration"/>.
+        /// </summary>
+        public void SetRestartTime(float duration)
+        {
+            EndEarly = true;
+            Duration = duration;
+            DestroyInstantlyOnEnd = false;
+            RestartOnEnd = true;
         }
 
         // Control Points
@@ -109,14 +146,17 @@ namespace ValveResourceFormat.Renderer.Particles
         }
 
         /// <summary>
-        /// Records every control point's current position as its previous-step position. The root
-        /// system calls this once per simulation step, after all consumers have run.
+        /// Records every control point's current position as its previous-step position, along with the
+        /// real time the move took. The root system calls this once per frame, after all consumers
+        /// (including children, which share its control points) have run.
         /// </summary>
-        internal void SnapshotControlPointHistory()
+        /// <param name="elapsed">Real time covered since the previous snapshot, in seconds.</param>
+        internal void SnapshotControlPointHistory(float elapsed)
         {
             foreach (var point in controlPoints.Values)
             {
                 point.PositionPrevious = point.Position;
+                point.PreviousStepTime = elapsed;
             }
         }
 
@@ -174,11 +214,26 @@ namespace ValveResourceFormat.Renderer.Particles
         public Vector3 PositionPrevious { get; set; }
 
         /// <summary>
-        /// The control point's velocity over the current simulation step in units per second, derived
-        /// from <see cref="PositionPrevious"/>. Zero when the step duration is unknown.
+        /// Real time the move recorded in <see cref="PositionPrevious"/> took, in seconds.
         /// </summary>
-        public Vector3 GetVelocity(float frameTime)
-            => frameTime > 0f ? (Position - PositionPrevious) / frameTime : Vector3.Zero;
+        public float PreviousStepTime { get; internal set; }
+
+        /// <summary>
+        /// How far the control point moved over the last recorded step.
+        /// </summary>
+        public Vector3 StepDelta => Position - PositionPrevious;
+
+        /// <summary>
+        /// The control point's velocity in units per second, derived from <see cref="PositionPrevious"/>
+        /// over the real time that move took. Zero until a step has been recorded.
+        /// </summary>
+        /// <remarks>
+        /// The move is timed by the root system's frame, not by the simulation step of whichever system
+        /// is asking - a child running finer substeps would otherwise divide a whole frame of movement by
+        /// a fraction of it and read a velocity several times too high.
+        /// </remarks>
+        public Vector3 Velocity
+            => PreviousStepTime > 0f ? StepDelta / PreviousStepTime : Vector3.Zero;
 
         /// <summary>
         /// The orientation/direction of this control point.

@@ -41,8 +41,18 @@ namespace ValveResourceFormat.Renderer.Shaders
         /// <summary>Gets the set of sampler uniform names that use material address modes via <c>// Sampler(UserConfig)</c>.</summary>
         public required HashSet<string> SamplerUserConfigUniforms { get; init; }
 
-        /// <summary>Gets the set of reserved texture uniform names that are actively used by this shader.</summary>
-        public HashSet<string> ReservedTexturesUsed { get; } = [];
+        /// <summary>
+        /// Gets the set of reserved texture uniform names that this shader samples. Seeded from the parsed source,
+        /// so it is available before the program is linked, and trimmed by <see cref="EnsureLoaded"/> down to the
+        /// ones the linker kept for this variant's combos.
+        /// </summary>
+        public HashSet<string> ReservedTexturesUsed { get; init; } = [];
+
+        /// <summary>
+        /// Gets a value indicating whether the program samples <c>g_tSceneColor</c>. Declaring it is enough until
+        /// the program is linked, after which it means the linker kept it.
+        /// </summary>
+        public bool ReadsSceneColor => ReservedTexturesUsed.Contains("g_tSceneColor");
 
         private readonly Dictionary<string, (ActiveUniformType Type, int Location, bool SrgbRead)> Uniforms = [];
 
@@ -140,20 +150,8 @@ namespace ValveResourceFormat.Renderer.Shaders
 
                 if (isTexture && !Default.Textures.ContainsKey(name))
                 {
-                    var isReserved = false;
-
-                    foreach (var reserved in MaterialLoader.ReservedTextures)
+                    if (MaterialLoader.IsReservedTexture(name))
                     {
-                        if (name.Contains(reserved, StringComparison.OrdinalIgnoreCase))
-                        {
-                            isReserved = true;
-                            break;
-                        }
-                    }
-
-                    if (isReserved)
-                    {
-                        ReservedTexturesUsed.Add(name);
                         continue;
                     }
 
@@ -199,6 +197,9 @@ namespace ValveResourceFormat.Renderer.Shaders
                     );
                 }
             }
+
+            // Seeded from the source, where a sampler behind a combo the linker dropped still looks used.
+            ReservedTexturesUsed.RemoveWhere(reserved => GL.GetUniformLocation(Program, reserved) == -1);
         }
 
         /// <summary>Installs this shader program as part of the current rendering state.</summary>
@@ -536,6 +537,9 @@ namespace ValveResourceFormat.Renderer.Shaders
 
             RenderModes.Clear();
             RenderModes.UnionWith(shader.RenderModes);
+
+            ReservedTexturesUsed.Clear();
+            ReservedTexturesUsed.UnionWith(shader.ReservedTexturesUsed);
 
             Uniforms.Clear();
             Attributes.Clear();

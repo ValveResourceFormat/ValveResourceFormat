@@ -9,6 +9,11 @@ namespace ValveResourceFormat.Renderer.Particles.Operators
         {
         }
 
-        public abstract void Operate(ParticleCollection particles, float frameTime, ParticleSystemRenderState particleSystemState);
+        public abstract void Operate(ParticleCollection particles, float frameTime, ParticleSystemRenderState particleSystemState, float strength);
+
+        /// <summary>Rebuilds any per-instance running state when the system starts or restarts.</summary>
+        public virtual void Reset()
+        {
+        }
     }
 }

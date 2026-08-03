@@ -26,6 +26,7 @@ namespace ValveResourceFormat.Renderer.Particles
         internal static readonly Dictionary<string, Func<ParticleDefinitionParser, ParticleFunctionPreEmissionOperator>> PreEmissionOperatorDictionary
             = new()
             {
+                ["C_OP_ChooseRandomChildrenInGroup"] = preEmissionOperatorInfo => new ChooseRandomChildrenInGroup(preEmissionOperatorInfo),
                 ["C_OP_DistanceBetweenCPsToCP"] = preEmissionOperatorInfo => new DistanceBetweenCPsToCP(preEmissionOperatorInfo),
                 ["C_OP_RampCPLinearRandom"] = preEmissionOperatorInfo => new RampCPLinearRandom(preEmissionOperatorInfo),
                 ["C_OP_SetControlPointPositions"] = preEmissionOperatorInfo => new SetControlPointPositions(preEmissionOperatorInfo),
@@ -51,6 +52,7 @@ namespace ValveResourceFormat.Renderer.Particles
             = new()
             {
                 ["C_INIT_AddVectorToVector"] = initializerInfo => new AddVectorToVector(initializerInfo),
+                ["C_INIT_AgeNoise"] = initializerInfo => new AgeNoise(initializerInfo),
                 ["C_INIT_CreateAlongPath"] = initializerInfo => new CreateAlongPath(initializerInfo),
                 ["C_INIT_CreateOnGrid"] = initializerInfo => new CreateOnGrid(initializerInfo),
                 ["C_INIT_CreateWithinBox"] = initializerInfo => new CreateWithinBox(initializerInfo),
@@ -59,6 +61,7 @@ namespace ValveResourceFormat.Renderer.Particles
                 ["C_INIT_CreateFromCPs"] = initializerInfo => new CreateFromCPs(initializerInfo),
                 ["C_INIT_CreateFromParentParticles"] = initializerInfo => new CreateFromParentParticles(initializerInfo),
                 ["C_INIT_CreationNoise"] = initializerInfo => new CreationNoise(initializerInfo),
+                ["C_INIT_GlobalScale"] = initializerInfo => new GlobalScale(initializerInfo),
                 ["C_INIT_InitFromCPSnapshot"] = initializerInfo => new InitFromCPSnapshot(initializerInfo),
                 ["C_INIT_InitFloat"] = initializerInfo => new InitFloat(initializerInfo),
                 ["C_INIT_InitFloatCollection"] = initializerInfo => new InitFloat(initializerInfo), // initfloat but the numberprovider has fewer options
@@ -86,6 +89,7 @@ namespace ValveResourceFormat.Renderer.Particles
                 ["C_INIT_NormalAlignToCP"] = initializerInfo => new NormalAlignToCP(initializerInfo),
                 ["C_INIT_NormalOffset"] = initializerInfo => new NormalOffset(initializerInfo),
                 ["C_INIT_RemapScalar"] = initializerInfo => new RemapScalar(initializerInfo),
+                ["C_INIT_RemapScalarToVector"] = initializerInfo => new RemapScalarToVector(initializerInfo),
                 ["C_INIT_RemapSpeedToScalar"] = initializerInfo => new RemapSpeedToScalar(initializerInfo),
                 ["C_INIT_RemapParticleCountToScalar"] = initializerInfo => new RemapParticleCountToScalar(initializerInfo),
                 ["C_INIT_RingWave"] = initializerInfo => new RingWave(initializerInfo),
@@ -104,6 +108,8 @@ namespace ValveResourceFormat.Renderer.Particles
                 ["C_OP_ClampScalar"] = operatorInfo => new ClampScalar(operatorInfo),
                 ["C_OP_ColorInterpolate"] = operatorInfo => new ColorInterpolate(operatorInfo),
                 ["C_OP_ColorInterpolateRandom"] = operatorInfo => new ColorInterpolateRandom(operatorInfo),
+                ["C_OP_Cull"] = operatorInfo => new Cull(operatorInfo),
+                ["C_OP_DampenToCP"] = operatorInfo => new DampenToCP(operatorInfo),
                 ["C_OP_Decay"] = operatorInfo => new Decay(operatorInfo),
                 ["C_OP_DistanceCull"] = operatorInfo => new DistanceCull(operatorInfo),
                 ["C_OP_DistanceToCP"] = operatorInfo => new DistanceToCP(operatorInfo),
@@ -119,6 +125,7 @@ namespace ValveResourceFormat.Renderer.Particles
                 ["C_OP_LerpVector"] = operatorInfo => new LerpVector(operatorInfo),
                 ["C_OP_MaxVelocity"] = operatorInfo => new MaxVelocity(operatorInfo),
                 ["C_OP_Noise"] = operatorInfo => new Noise(operatorInfo),
+                ["C_OP_VectorNoise"] = operatorInfo => new VectorNoise(operatorInfo),
                 ["C_OP_NormalizeVector"] = operatorInfo => new NormalizeVector(operatorInfo),
                 ["C_OP_OscillateScalar"] = operatorInfo => new OscillateScalar(operatorInfo),
                 ["C_OP_OscillateScalarSimple"] = operatorInfo => new OscillateScalarSimple(operatorInfo),
@@ -128,6 +135,7 @@ namespace ValveResourceFormat.Renderer.Particles
                 ["C_OP_RestartAfterDuration"] = operatorInfo => new RestartAfterDuration(operatorInfo),
                 ["C_OP_PositionLock"] = operatorInfo => new PositionLock(operatorInfo),
                 ["C_OP_QuantizeFloat"] = operatorInfo => new QuantizeFloat(operatorInfo),
+                ["C_OP_RampScalarLinear"] = operatorInfo => new RampScalarLinear(operatorInfo),
                 ["C_OP_RampScalarLinearSimple"] = operatorInfo => new RampScalarLinearSimple(operatorInfo),
                 ["C_OP_RemapCrossProductOfTwoVectorsToVector"] = operatorInfo => new RemapCrossProductOfTwoVectorsToVector(operatorInfo),
                 ["C_OP_RemapControlPointDirectionToVector"] = operatorInfo => new RemapControlPointDirectionToVector(operatorInfo),
@@ -139,6 +147,7 @@ namespace ValveResourceFormat.Renderer.Particles
                 ["C_OP_SetFloat"] = operatorInfo => new SetFloat(operatorInfo),
                 ["C_OP_SetFloatCollection"] = operatorInfo => new SetFloat(operatorInfo), // same as initfloatcollection
                 ["C_OP_SetFromCPSnapshot"] = operatorInfo => new SetFromCPSnapshot(operatorInfo),
+                ["C_OP_SetToCP"] = operatorInfo => new SetToCP(operatorInfo),
                 ["C_OP_SetVec"] = operatorInfo => new SetVec(operatorInfo),
                 ["C_OP_Spin"] = operatorInfo => new Spin(operatorInfo),
                 ["C_OP_SpinUpdate"] = operatorInfo => new SpinUpdate(operatorInfo),
@@ -152,6 +161,7 @@ namespace ValveResourceFormat.Renderer.Particles
             {
                 ["C_OP_AttractToControlPoint"] = forceGeneratorInfo => new AttractToControlPoint(forceGeneratorInfo),
                 ["C_OP_CurlNoiseForce"] = forceGeneratorInfo => new CurlNoiseForce(forceGeneratorInfo),
+                ["C_OP_PerParticleForce"] = forceGeneratorInfo => new PerParticleForce(forceGeneratorInfo),
                 ["C_OP_RandomForce"] = forceGeneratorInfo => new RandomForce(forceGeneratorInfo),
             };
 
@@ -171,6 +181,7 @@ namespace ValveResourceFormat.Renderer.Particles
                 ["C_OP_RenderRopes"] = (rendererInfo, rendererContext, scene) => new RenderCables(rendererInfo, rendererContext, scene), // Rope renderer variant, drawn with RenderCables as a tube approximation.
 
                 ["C_OP_RenderTrails"] = (rendererInfo, rendererContext, scene) => new RenderTrails(rendererInfo, rendererContext),
+                ["C_OP_RenderSound"] = (rendererInfo, rendererContext, scene) => new RenderSound(rendererInfo),
                 ["C_OP_RenderStandardLight"] = (rendererInfo, rendererContext, scene) => new RenderStandardLight(rendererInfo, rendererContext, scene),
                 ["C_OP_RenderOmni2Light"] = (rendererInfo, rendererContext, scene) => new RenderOmni2Light(rendererInfo, rendererContext, scene),
             };

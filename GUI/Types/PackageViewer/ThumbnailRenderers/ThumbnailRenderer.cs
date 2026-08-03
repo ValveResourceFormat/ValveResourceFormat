@@ -57,10 +57,7 @@ internal abstract class ThumbnailRenderer : IDisposable
         };
 
         NativeWindow = GLViewers.NativeWindowFactory.Create(nativeWindowSettings);
-        RendererContext = new RendererContext(context, VrfGuiContext.Logger)
-        {
-            FieldOfView = 75,
-        };
+        RendererContext = new RendererContext(context, VrfGuiContext.Logger);
 
         NativeWindow.MakeCurrent();
 

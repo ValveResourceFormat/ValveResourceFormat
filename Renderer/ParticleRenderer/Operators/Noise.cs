@@ -20,7 +20,7 @@ namespace ValveResourceFormat.Renderer.Particles.Operators
             Additive = parse.Boolean("m_bAdditive", false);
         }
 
-        public override void Operate(ParticleCollection particles, float frameTime, ParticleSystemRenderState particleSystemState)
+        public override void Operate(ParticleCollection particles, float frameTime, ParticleSystemRenderState particleSystemState, float strength)
         {
             var min = outputMin.NextNumber(particleSystemState);
             var max = outputMax.NextNumber(particleSystemState);

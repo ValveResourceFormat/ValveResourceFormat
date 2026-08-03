@@ -40,7 +40,7 @@ namespace ValveResourceFormat.Renderer.Particles.Operators
             endTimeMax = parse.Float("m_flEndTime_max", endTimeMax);
         }
 
-        public override void Operate(ParticleCollection particles, float frameTime, ParticleSystemRenderState particleSystemState)
+        public override void Operate(ParticleCollection particles, float frameTime, ParticleSystemRenderState particleSystemState, float strength)
         {
             foreach (ref var particle in particles.Current)
             {
@@ -68,7 +68,7 @@ namespace ValveResourceFormat.Renderer.Particles.Operators
                 delta.Y = float.SinPi((t * frequency.Y * multiplier) + offset);
                 delta.Z = float.SinPi((t * frequency.Z * multiplier) + offset);
 
-                var value = rate * frameTime * delta;
+                var value = rate * frameTime * strength * delta;
 
                 particle.SetVector(outputField, particle.GetVector(outputField) + value);
             }
@@ -97,7 +97,7 @@ namespace ValveResourceFormat.Renderer.Particles.Operators
             oscillationOffset = parse.Float("m_flOscAdd", oscillationOffset);
         }
 
-        public override void Operate(ParticleCollection particles, float frameTime, ParticleSystemRenderState particleSystemState)
+        public override void Operate(ParticleCollection particles, float frameTime, ParticleSystemRenderState particleSystemState, float strength)
         {
             foreach (ref var particle in particles.Current)
             {

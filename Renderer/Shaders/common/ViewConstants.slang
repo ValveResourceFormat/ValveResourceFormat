@@ -35,6 +35,9 @@ layout(std140, binding = 0) uniform ViewConstants
     vec4 g_vCubeFogCullingParams_ExposureBias_MaxOpacity;
 
     mat4 g_matPrevWorldToProjection;
+
+    vec4 g_vEnvWetness;
+    vec4 g_vEnvWetnessRipple;
 };
 
 bool blink()

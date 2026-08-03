@@ -44,7 +44,6 @@ namespace ValveResourceFormat.Renderer
             lineBuffer.Shader.SetUniform3x4("transform", Matrix4x4.Identity);
 
             lineBuffer.Draw();
-            GL.UseProgram(0);
 
             GL.DepthMask(true);
             GL.Disable(EnableCap.Blend);

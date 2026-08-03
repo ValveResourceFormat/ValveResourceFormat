@@ -15,6 +15,8 @@ namespace ValveResourceFormat.Renderer
         Opaque,
         /// <summary>Static overlay decal pass.</summary>
         StaticOverlay,
+        /// <summary>Geometry that reads the scene color.</summary>
+        OpaqueRefract,
         /// <summary>Water surface pass.</summary>
         Water,
         /// <summary>Translucent (alpha-blended) pass.</summary>

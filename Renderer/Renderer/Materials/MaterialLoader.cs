@@ -442,6 +442,28 @@ namespace ValveResourceFormat.Renderer.Materials
         /// <summary>Gets the set of texture uniform names that are bound to reserved global texture slots and must not be overridden by materials.</summary>
         public static readonly HashSet<string> ReservedTextures = [.. Enum.GetNames<ReservedTextureSlots>(), "g_tLPV"];
 
+        /// <summary>Returns whether a uniform name is bound to one of the <see cref="ReservedTextures"/> slots.</summary>
+        public static bool IsReservedTexture(string uniformName)
+        {
+            foreach (var reserved in ReservedTextures)
+            {
+                if (uniformName.Contains(reserved, StringComparison.OrdinalIgnoreCase))
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        /// <summary>
+        /// Material invariant textures, requested by shaders. They become scene-wide textures.
+        /// </summary>
+        public static readonly List<(ReservedTextureSlots Slot, string Name, string Path)> ShaderTextures =
+        [
+            (ReservedTextureSlots.WetnessWaves, "g_tWetnessWaves", "materials/dev/water_waves.vtex"),
+        ];
+
         private RenderMaterial GetErrorMaterial()
         {
             var errorMat = new RenderMaterial(RendererContext.ShaderLoader.LoadShader("vrf.error"));
@@ -514,6 +536,93 @@ namespace ValveResourceFormat.Renderer.Materials
             GL.TextureSubImage2D(texture.Handle, 0, 0, 0, texture.Width, texture.Height, store.PixelFormat!.Value, store.PixelType!.Value, bitmap.GetPixels());
 
             return texture;
+        }
+
+        /// <summary>
+        /// Builds a one-dimensional colour ramp from a list of gradient stops.
+        /// </summary>
+        /// <param name="stops">Gradient stops, each a position in 0-1 and its colour. Need not be sorted.</param>
+        public static RenderTexture GenerateGradientTexture(ReadOnlySpan<(float Position, Color32 Color)> stops)
+        {
+            const int Width = 256;
+
+            var texels = new byte[Width * 4];
+
+            for (var x = 0; x < Width; x++)
+            {
+                var position = x / (Width - 1f);
+                var color = SampleGradient(stops, position);
+
+                texels[(x * 4) + 0] = color.R;
+                texels[(x * 4) + 1] = color.G;
+                texels[(x * 4) + 2] = color.B;
+                texels[(x * 4) + 3] = color.A;
+            }
+
+            var texture = new RenderTexture(TextureTarget.Texture2D, Width, 1, 1, 1);
+            // Clamped and filtered: the ramp is addressed by a luminance, so the ends have to hold rather
+            // than wrap, and the steps between stops should not be visible.
+            texture.SetFiltering(TextureMinFilter.Linear, TextureMagFilter.Linear);
+            texture.SetWrapMode(TextureWrapMode.ClampToEdge);
+
+            // sRGB storage, so a sample lands in linear space like every other layer's texture.
+            GL.TextureStorage2D(texture.Handle, 1, SizedInternalFormat.Srgb8Alpha8, Width, 1);
+            GL.TextureSubImage2D(texture.Handle, 0, 0, 0, Width, 1, PixelFormat.Rgba, PixelType.UnsignedByte, texels);
+
+#if DEBUG
+            texture.SetLabel("GeneratedGradient");
+#endif
+
+            return texture;
+        }
+
+        private static Color32 SampleGradient(ReadOnlySpan<(float Position, Color32 Color)> stops, float position)
+        {
+            if (stops.Length == 0)
+            {
+                return new Color32(255, 255, 255);
+            }
+
+            // Stops are authored in order, but nothing guarantees it, so pick the bracketing pair by value
+            // rather than by index.
+            var lower = stops[0];
+            var upper = stops[0];
+            var hasLower = false;
+            var hasUpper = false;
+
+            foreach (var stop in stops)
+            {
+                if (stop.Position <= position && (!hasLower || stop.Position >= lower.Position))
+                {
+                    lower = stop;
+                    hasLower = true;
+                }
+
+                if (stop.Position >= position && (!hasUpper || stop.Position <= upper.Position))
+                {
+                    upper = stop;
+                    hasUpper = true;
+                }
+            }
+
+            if (!hasLower)
+            {
+                return upper.Color;
+            }
+
+            if (!hasUpper)
+            {
+                return lower.Color;
+            }
+
+            var span = upper.Position - lower.Position;
+            var t = span > 0f ? (position - lower.Position) / span : 0f;
+
+            return new Color32(
+                (byte)float.Round(float.Lerp(lower.Color.R, upper.Color.R, t)),
+                (byte)float.Round(float.Lerp(lower.Color.G, upper.Color.G, t)),
+                (byte)float.Round(float.Lerp(lower.Color.B, upper.Color.B, t)),
+                (byte)float.Round(float.Lerp(lower.Color.A, upper.Color.A, t)));
         }
 
         private static RenderTexture GenerateColorTexture(int width, int height, byte[] color)

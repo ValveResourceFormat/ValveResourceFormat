@@ -31,7 +31,7 @@ namespace ValveResourceFormat.Renderer.Particles.Operators
             }
         }
 
-        public override void Operate(ParticleCollection particles, float frameTime, ParticleSystemRenderState particleSystemState)
+        public override void Operate(ParticleCollection particles, float frameTime, ParticleSystemRenderState particleSystemState, float strength)
         {
             if (particleSystemState.EndEarly)
             {
@@ -50,7 +50,7 @@ namespace ValveResourceFormat.Renderer.Particles.Operators
                 duration *= point.Position.GetComponent(controlPointField);
             }
 
-            particleSystemState.SetStopTime(duration, true);
+            particleSystemState.SetRestartTime(duration);
         }
     }
 }

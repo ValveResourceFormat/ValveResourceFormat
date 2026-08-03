@@ -196,6 +196,8 @@ namespace GUI.Types.GLViewers
         {
             base.LoadScene();
 
+            InitializeSoundPlayer();
+
             if (model != null)
             {
                 modelSceneNode = new ModelSceneNode(Scene, model);
@@ -218,7 +220,7 @@ namespace GUI.Types.GLViewers
                     }
                 }
 
-                skeletonSceneNode = new SkeletonSceneNode(Scene, animationController, model.Skeleton);
+                skeletonSceneNode = new SkeletonSceneNode(Scene, animationController.Pose, model.Skeleton);
                 Scene.Add(skeletonSceneNode, true);
 
                 if (model.HitboxSets != null && model.HitboxSets.Count > 0)
@@ -368,7 +370,7 @@ namespace GUI.Types.GLViewers
 
                         using var lockedGl = MakeCurrent();
                         // Index 0 is Auto; everything below it maps straight to a LoD level.
-                        modelSceneNode?.SetActiveLod(i == 0 ? null : i - 1);
+                        modelSceneNode?.SetOverrideLod(i == 0 ? null : i - 1);
                     });
 
                     lodComboBox.Items.Add("Auto");
@@ -505,7 +507,7 @@ namespace GUI.Types.GLViewers
                 var time = animationController.Time % totalTime;
                 var frameNumber = animationController.Frame + 1;
 
-                var additive = animationController.ActiveAnimation.Clip is { IsAdditive: true }
+                var additive = animationController.ActiveAnimation.IsAdditive
                     ? "Additive: true\n"
                     : string.Empty;
 

@@ -14,9 +14,7 @@
 #define GameVfx_csgo_unlitgeneric 0
 #define GameVfx_csgo_vertexlitgeneric 0
 #define GameVfx_csgo_weapon 0
-#define GameVfx_environment_blend 0
 #define GameVfx_generic 0
-#define GameVfx_pbr 0
 #define GameVfx_steampal_2way_blend_mask 0
 #define GameVfx_unlit 0
 #define GameVfx_vr_complex 0
@@ -134,7 +132,7 @@ uniform sampler2D g_tTintMask;
     #define csgo_generic_blend
 #endif
 
-#if (defined(simple_blend_common) || defined(csgo_generic_blend) || (GameVfx_environment_blend != 0))
+#if (defined(simple_blend_common) || defined(csgo_generic_blend))
     #if (GameVfx_steampal_2way_blend_mask == 0) // blending without vertex paint
         in vec4 vColorBlendValues;
     #endif
@@ -153,10 +151,10 @@ uniform sampler2D g_tTintMask;
 
 
 #define _uniformMetalness (defined(simple_vfx_common) || defined(complex_vfx_common)) && (F_METALNESS_TEXTURE == 0)
-#define _colorAlphaMetalness ((defined(simple_vfx_common) || defined(complex_vfx_common)) && (F_METALNESS_TEXTURE == 1) || (GameVfx_pbr != 0))
+#define _colorAlphaMetalness ((defined(simple_vfx_common) || defined(complex_vfx_common)) && (F_METALNESS_TEXTURE == 1))
 #define _colorAlphaAO ((GameVfx_vr_simple != 0) && (F_AMBIENT_OCCLUSION_TEXTURE == 1) && (F_METALNESS_TEXTURE == 0)) || (defined(simple_blend_common) && (F_ENABLE_AMBIENT_OCCLUSION == 1))
 #define _metalnessTexture (defined(complex_vfx_common) && (F_METALNESS_TEXTURE == 1) && ((F_ALPHA_TEST == 1) || (F_TRANSLUCENT == 1))) || (GameVfx_csgo_weapon != 0) || (GameVfx_csgo_character != 0) || (GameVfx_csgo_vertexlitgeneric != 0)
-#define _ambientOcclusionTexture (((GameVfx_vr_simple != 0) && (F_AMBIENT_OCCLUSION_TEXTURE == 1) && (F_METALNESS_TEXTURE == 1)) || defined(complex_vfx_common) || (GameVfx_csgo_foliage != 0) || (GameVfx_csgo_weapon != 0) || (GameVfx_csgo_character != 0) || defined(csgo_generic_vfx_common) || (GameVfx_pbr != 0) || (GameVfx_csgo_simple_3layer_parallax != 0))
+#define _ambientOcclusionTexture (((GameVfx_vr_simple != 0) && (F_AMBIENT_OCCLUSION_TEXTURE == 1) && (F_METALNESS_TEXTURE == 1)) || defined(complex_vfx_common) || (GameVfx_csgo_foliage != 0) || (GameVfx_csgo_weapon != 0) || (GameVfx_csgo_character != 0) || defined(csgo_generic_vfx_common) || (GameVfx_csgo_simple_3layer_parallax != 0))
 
 #define unlit ((GameVfx_unlit != 0) || (GameVfx_csgo_unlitgeneric != 0) || (F_FULLBRIGHT == 1) || (F_UNLIT == 1) || (defined(static_overlay_vfx_common) && F_LIT == 0)) || (GameVfx_csgo_decalmodulate != 0)
 #define alphatest (F_ALPHA_TEST == 1) || (((GameVfx_csgo_unlitgeneric != 0) || defined(static_overlay_vfx_common)) && (F_BLEND_MODE == 2)) || (GameVfx_csgo_decalmodulate != 0)
@@ -221,29 +219,6 @@ uniform sampler2D g_tTintMask;
     uniform float g_flBlendSoftness;
 #endif
 
-
-#if (GameVfx_environment_blend != 0)
-    #define g_tColor1 g_tColor
-    #define g_tNormalRoughness1 g_tNormal
-    uniform sampler2D g_tPacked1;
-    uniform float g_fLayerSelfIllumScale1;
-    uniform vec3 g_vLayerSelfIllumTint1 = vec3(1.0);
-
-    #define g_tColor2 g_tLayer2Color
-    #define g_tNormalRoughness2 g_tLayer2NormalRoughness
-    uniform sampler2D g_tPacked2;
-    uniform sampler2D g_tRevealMask2;
-    uniform float g_flRevealSoftness2;
-    uniform float g_fLayerSelfIllumScale2;
-    uniform vec3 g_vLayerSelfIllumTint2 = vec3(1.0);
-
-    // todo: layer 3
-    // todo: overlay
-
-    //uniform sampler2D g_tColorOverlay;
-    //uniform sampler2D g_tNormalRoughnessOverlay;
-    //uniform sampler2D g_tRevealOverlay;
-#endif
 
 #if (GameVfx_csgo_simple_3layer_parallax != 0)
     uniform sampler2D g_tLayer0Mask; // Sampler(UserConfig)
@@ -404,10 +379,6 @@ MaterialProperties_t GetMaterial(vec2 texCoord, vec3 vertexNormals)
         #endif
 
         blendFactor = ApplyBlendModulation(blendFactor, blendModTexel.r, softnessPaint);
-    #elif (GameVfx_environment_blend != 0)
-        float blendFactor = vColorBlendValues.r;
-        float revealMask = texture(g_tRevealMask2, texCoordB).r;
-        blendFactor = ApplyBlendModulation(blendFactor, revealMask, g_flRevealSoftness2);
     #else
         float blendFactor = vColorBlendValues.r;
     #endif
@@ -423,24 +394,9 @@ MaterialProperties_t GetMaterial(vec2 texCoord, vec3 vertexNormals)
         color2.rgb *= tintFactorB;
     #endif
 
-    #if (GameVfx_environment_blend != 0)
-        vec2 packed1 = texture(g_tPacked1, texCoord).rg;
-        vec2 packed2 = texture(g_tPacked2, texCoordB).rg;
-        vec3 envBlendIllumColor = mix(
-            color.rgb * (packed1.r * g_fLayerSelfIllumScale1) * g_vLayerSelfIllumTint1,
-            color2.rgb * (packed2.r * g_fLayerSelfIllumScale2) * g_vLayerSelfIllumTint2,
-            blendFactor
-        );
-    #endif
-
     color = mix(color, color2, blendFactor);
     // It's more correct to blend normals after decoding, but it's not actually how S2 does it
     normalTexture = mix(normalTexture, normalTexture2, blendFactor);
-
-    #if (GameVfx_environment_blend != 0)
-        vec2 packedBlended = mix(packed1, packed2, blendFactor);
-        mat.Metalness = packedBlended.g;
-    #endif
 #endif
 
     float flSelfIllumMask = 0.0;
@@ -538,8 +494,6 @@ MaterialProperties_t GetMaterial(vec2 texCoord, vec3 vertexNormals)
         #endif
 
         mat.IllumColor = GetStandardSelfIllumination(flSelfIllumMask, mat.Albedo);
-    #elif (GameVfx_environment_blend != 0)
-        mat.IllumColor = envBlendIllumColor;
     #endif
 
     #if (unlit)
@@ -708,8 +662,12 @@ MaterialProperties_t GetMaterial(vec2 texCoord, vec3 vertexNormals)
 
 // MAIN
 
+uniform int g_bFirstpersonLegsDistortion = 0;
+
 void main()
 {
+    g_bCullFromShadedPosition = g_bFirstpersonLegsDistortion != 0;
+
     vec3 vertexNormal = SwitchCentroidNormal(vNormalOut, vCentroidNormalOut);
     vec2 texCoord = vTexCoordOut;
 

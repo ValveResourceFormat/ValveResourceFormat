@@ -5,7 +5,7 @@ namespace ValveResourceFormat.Renderer.Particles
 {
     abstract class ParticleFunction
     {
-        //INumberProvider OpStrength; // operator strength
+        private readonly INumberProvider OpStrength = new LiteralNumberProvider(1f);
         //ParticleEndCapMode OpEndCapState; // operator end cap state
         public readonly float OpStartFadeInTime; // operator start fadein
         public readonly float OpEndFadeInTime; // operator end fadein
@@ -13,37 +13,46 @@ namespace ValveResourceFormat.Renderer.Particles
         public readonly float OpEndFadeOutTime; // operator end fadeout
         public readonly float OpFadeOscillatePeriod; // operator fade oscillate
         //bool NormalizeToStopTime; // normalize fade times to endcap
-        //float OpTimeOffsetMin; // operator fade time offset min
-        //float OpTimeOffsetMax; // operator fade time offset max
+        private readonly float OpTimeOffsetMin;
+        private readonly float OpTimeOffsetMax;
         //int OpTimeOffsetSeed; // operator fade time offset seed
         //int OpTimeScaleSeed; // operator fade time scale seed
-        //float OpTimeScaleMin; // operator fade time scale min
-        //float OpTimeScaleMax; // operator fade time scale max
+        private readonly float OpTimeScaleMin = 1f;
+        private readonly float OpTimeScaleMax = 1f;
 
+        /// <summary>Every field feeding the fade curve is at its default, so the curve is always 1.</summary>
+        readonly bool FadeCurveIsUnity;
+
+        /// <summary>The curve is unity and the strength is a literal 1, so the whole evaluation folds away.</summary>
         readonly bool StrengthFastPath;
         protected readonly ILogger Logger;
 
         public ParticleFunction(ParticleDefinitionParser parse)
         {
             Logger = parse.Logger;
+            OpStrength = parse.NumberProvider("m_flOpStrength", OpStrength);
             OpStartFadeInTime = parse.Float("m_flOpStartFadeInTime");
             OpEndFadeInTime = parse.Float("m_flOpEndFadeInTime");
             OpStartFadeOutTime = parse.Float("m_flOpStartFadeOutTime");
             OpEndFadeOutTime = parse.Float("m_flOpEndFadeOutTime");
             OpFadeOscillatePeriod = parse.Float("m_flOpFadeOscillatePeriod");
+            OpTimeOffsetMin = parse.Float("m_flOpTimeOffsetMin", OpTimeOffsetMin);
+            OpTimeOffsetMax = parse.Float("m_flOpTimeOffsetMax", OpTimeOffsetMax);
+            OpTimeScaleMin = parse.Float("m_flOpTimeScaleMin", OpTimeScaleMin);
+            OpTimeScaleMax = parse.Float("m_flOpTimeScaleMax", OpTimeScaleMax);
 
-            StrengthFastPath =
+            FadeCurveIsUnity =
                 OpStartFadeInTime == 0f &&
                 OpEndFadeInTime == 0f &&
                 OpStartFadeOutTime == 0f &&
-                OpEndFadeOutTime == 0f;
-            //OpTimeOffsetMin == 0f &&
-            //OpTimeOffsetMax == 0f &&
-            //OpTimeScaleMin == 1f &&
-            //OpTimeScaleMax == 1f &&
-            //OpStrengthMaxScale == 1f &&
-            //OpStrengthMinScale == 1f &&
+                OpEndFadeOutTime == 0f &&
+                OpTimeOffsetMin == 0f &&
+                OpTimeOffsetMax == 0f &&
+                OpTimeScaleMin == 1f &&
+                OpTimeScaleMax == 1f;
             //OpEndCapState == ParticleEndCapMode.PARTICLE_ENDCAP_ALWAYS_ON);
+
+            StrengthFastPath = FadeCurveIsUnity && OpStrength is LiteralNumberProvider { Value: 1f };
         }
 
         public float GetOperatorRunStrength(ParticleSystemRenderState systemState) // CheckIfOperatorShouldRun
@@ -51,6 +60,13 @@ namespace ValveResourceFormat.Renderer.Particles
             if (StrengthFastPath)
             {
                 return 1f;
+            }
+
+            var opStrength = OpStrength.NextNumber(systemState);
+
+            if (FadeCurveIsUnity || opStrength <= 0f)
+            {
+                return opStrength;
             }
 
             /* TODO
@@ -86,7 +102,7 @@ namespace ValveResourceFormat.Renderer.Particles
 
             var strength = FadeInOut(OpStartFadeInTime, OpEndFadeInTime, OpStartFadeOutTime, OpEndFadeOutTime, time);
 
-            return strength;
+            return MathF.Max(0f, opStrength) * strength;
         }
 
         private static float FadeInOut(float fadeInStart, float fadeInEnd, float fadeOutStart, float fadeOutEnd, float time)

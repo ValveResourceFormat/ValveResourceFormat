@@ -64,6 +64,18 @@ public class SceneLight(Scene scene) : SceneNode(scene)
 
         /// <summary>Gets or sets the world-to-frustum projection matrix for shadow rendering.</summary>
         public Matrix4x4 WorldToFrustum { get; set; }
+
+        /// <summary>
+        /// Gets or sets the inverse of <see cref="WorldToFrustum"/>. Mapping the clip cube through it
+        /// recovers the face's lit volume in world space, which the light cull pass bins to tiles.
+        /// </summary>
+        public Matrix4x4 FrustumToWorld { get; set; }
+
+        /// <summary>
+        /// Gets or sets the map from the cube [-1,1]^3 to the illumination OBB, the second volume the
+        /// shader rejects fragments outside of. Default when the face has no OBB.
+        /// </summary>
+        public Matrix4x4 ObbToWorld { get; set; }
     }
 
     /// <summary>
@@ -512,6 +524,10 @@ public class SceneLight(Scene scene) : SceneNode(scene)
 
         var orientationQ = Quaternion.CreateFromRotationMatrix(light.Transform);
 
+        var (illuminationFromWorld, obbToWorld) = ShouldEnableOBB(light)
+            ? ComputeObbMatrices(light.PrecomputedObbOrigin, light.PrecomputedObbExtent, light.PrecomputedObbAngles)
+            : default;
+
         return new BarnFaceData
         {
             GpuData = new BarnLightConstants
@@ -528,13 +544,17 @@ public class SceneLight(Scene scene) : SceneNode(scene)
                 BarnLightMinRoughness = MathF.Max(0.04f, light.MinRoughness),
                 BarnLightShadowScale = 0f,
                 PathTraceIndex_BarnLightFlags = 0xFFFF0000u,
-                BarnIlluminationFromWorld = ShouldEnableOBB(light)
-                    ? ComputeIlluminationFromWorld(light.PrecomputedObbOrigin, light.PrecomputedObbExtent,
-                        light.PrecomputedObbAngles)
-                    : default
+                BarnIlluminationFromWorld = illuminationFromWorld
             },
             WorldToFrustum = worldToFrustum,
+            FrustumToWorld = InvertFrustum(worldToFrustum),
+            ObbToWorld = obbToWorld,
         };
+    }
+
+    private static Matrix4x4 InvertFrustum(Matrix4x4 worldToFrustum)
+    {
+        return Matrix4x4.Invert(worldToFrustum, out var frustumToWorld) ? frustumToWorld : Matrix4x4.Identity;
     }
 
     private static void ComputeOmni2Faces(SceneLight light, Dictionary<string, int> cookiePaths)
@@ -589,6 +609,7 @@ public class SceneLight(Scene scene) : SceneNode(scene)
             var lightView = Matrix4x4.CreateLookAtLeftHanded(origin, origin + faceForward, faceUp);
             var lightProj = Matrix4x4.CreatePerspectiveLeftHanded(2f * nearPlane, 2f * nearPlane, nearPlane, nearPlane + range);
             var worldToFrustum = lightView * lightProj;
+            var (illuminationFromWorld, obbToWorld) = GetOmni2FaceOBB(light, faceIndex);
 
             return new BarnFaceData
             {
@@ -606,9 +627,11 @@ public class SceneLight(Scene scene) : SceneNode(scene)
                     BarnLightMinRoughness = MathF.Max(0.04f, light.MinRoughness),
                     BarnLightShadowScale = 0f,
                     PathTraceIndex_BarnLightFlags = 0xFFFF0000u,
-                    BarnIlluminationFromWorld = GetOmni2FaceOBB(light, faceIndex)
+                    BarnIlluminationFromWorld = illuminationFromWorld
                 },
                 WorldToFrustum = worldToFrustum,
+                FrustumToWorld = InvertFrustum(worldToFrustum),
+                ObbToWorld = obbToWorld,
             };
         }
 
@@ -740,7 +763,13 @@ public class SceneLight(Scene scene) : SceneNode(scene)
         return SphericalTriangleArea(dirA, dirB, dirC) + SphericalTriangleArea(dirA, dirC, dirD);
     }
 
-    private static OpenTK.Mathematics.Matrix3x4 ComputeIlluminationFromWorld(Vector3 center, Vector3 extent, Vector3 angles)
+    /// <summary>
+    /// Both matrices of an illumination OBB: the one the shader rejects fragments with, and its inverse,
+    /// which recovers the box in world space. Returned together because the cull pass has to bin exactly
+    /// the box the shader lights inside of, and the shrink factor makes that easy to get wrong.
+    /// </summary>
+    private static (OpenTK.Mathematics.Matrix3x4 IlluminationFromWorld, Matrix4x4 ObbToWorld)
+        ComputeObbMatrices(Vector3 center, Vector3 extent, Vector3 angles)
     {
         var rotMatrix = EntityTransformHelper.CreateRotationMatrixFromEulerAngles(angles);
 
@@ -748,7 +777,19 @@ public class SceneLight(Scene scene) : SceneNode(scene)
         var axis1 = new Vector3(rotMatrix.M21, rotMatrix.M22, rotMatrix.M23);
         var axis2 = new Vector3(rotMatrix.M31, rotMatrix.M32, rotMatrix.M33);
 
-        var inv = new Vector3(0.999f) / extent;
+        const float Shrink = 0.999f;
+
+        var inv = new Vector3(Shrink) / extent;
+
+        // Built before the axes are scaled, from the half extent the shrink actually leaves. This is the
+        // box the shader lights inside of, so it is the one the cull pass has to bin.
+        var halfExtent = extent / Shrink;
+
+        var obbToWorld = new Matrix4x4(
+            axis0.X * halfExtent.X, axis0.Y * halfExtent.X, axis0.Z * halfExtent.X, 0f,
+            axis1.X * halfExtent.Y, axis1.Y * halfExtent.Y, axis1.Z * halfExtent.Y, 0f,
+            axis2.X * halfExtent.Z, axis2.Y * halfExtent.Z, axis2.Z * halfExtent.Z, 0f,
+            center.X, center.Y, center.Z, 1f);
 
         var translation = new Vector3(
             -Vector3.Dot(center, axis0),
@@ -760,19 +801,22 @@ public class SceneLight(Scene scene) : SceneNode(scene)
         axis1 *= inv.Y;
         axis2 *= inv.Z;
 
-        return new OpenTK.Mathematics.Matrix3x4(
+        var illuminationFromWorld = new OpenTK.Mathematics.Matrix3x4(
             axis0.X, axis0.Y, axis0.Z, translation.X,
             axis1.X, axis1.Y, axis1.Z, translation.Y,
             axis2.X, axis2.Y, axis2.Z, translation.Z
         );
+
+        return (illuminationFromWorld, obbToWorld);
     }
 
-    private static OpenTK.Mathematics.Matrix3x4 GetOmni2FaceOBB(SceneLight light, int faceIndex)
+    private static (OpenTK.Mathematics.Matrix3x4 IlluminationFromWorld, Matrix4x4 ObbToWorld)
+        GetOmni2FaceOBB(SceneLight light, int faceIndex)
     {
         if (light.PrecomputedSubObbOrigins != null
             && faceIndex < light.PrecomputedSubObbOrigins.Length)
         {
-            return ComputeIlluminationFromWorld(
+            return ComputeObbMatrices(
                 light.PrecomputedSubObbOrigins[faceIndex],
                 light.PrecomputedSubObbExtents![faceIndex],
                 light.PrecomputedSubObbAngles![faceIndex]);

@@ -7,7 +7,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
     /// Represents an event that occurs at a specific frame in an animation.
     /// </summary>
     /// <seealso href="https://s2v.app/SchemaExplorer/cs2/animationsystem/CAnimEventDefinition">CAnimEventDefinition</seealso>
-    public readonly struct AnimationEvent
+    public readonly struct AnimationEvent : IAnimationEvent
     {
         /// <summary>
         /// Gets the name of the event.
@@ -33,6 +33,24 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
         /// Gets the event options.
         /// </summary>
         public string Options { get; init; }
+
+        /// <inheritdoc/>
+        /// <remarks>
+        /// The authored <see cref="Cycle"/>, sequence events carry one alongside their <see cref="Frame"/>.
+        /// </remarks>
+        public float StartCycle => Cycle;
+
+        /// <inheritdoc/>
+        /// <remarks>
+        /// Always zero, sequence events are authored on a <see cref="Frame"/> rather than in seconds.
+        /// </remarks>
+        public float StartTime => 0f;
+
+        /// <inheritdoc/>
+        /// <remarks>
+        /// Always zero, sequence events fire at a single frame.
+        /// </remarks>
+        public float Duration => 0f;
 
         /// <summary>
         /// Initializes a new instance of the <see cref="AnimationEvent"/> struct.

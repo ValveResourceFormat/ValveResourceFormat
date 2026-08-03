@@ -1,13 +1,17 @@
 using System.Diagnostics;
 using System.Drawing;
 using System.Linq;
+using System.Runtime.InteropServices;
 using System.Windows.Forms;
 using GUI.Controls;
+using GUI.Types.Audio;
 using GUI.Utils;
 using OpenTK.Graphics.OpenGL;
 using ValveResourceFormat.Renderer;
+using ValveResourceFormat.Renderer.Audio;
 using ValveResourceFormat.Renderer.Input;
 using ValveResourceFormat.Renderer.Materials;
+using ValveResourceFormat.Renderer.SceneNodes;
 using ValveResourceFormat.Renderer.Utils;
 using static ValveResourceFormat.Renderer.PickingTexture;
 
@@ -26,6 +30,25 @@ namespace GUI.Types.GLViewers
         public Scene? SkyboxScene => Renderer.SkyboxScene;
         public VrfGuiContext GuiContext;
 
+        /// <summary>Optional sound event player, created by viewers that play scene audio.</summary>
+        protected SoundEventPlayer? soundPlayer;
+
+        /// <summary>Gets whether this viewer plays scene audio, i.e. whether <see cref="InitializeSoundPlayer"/> got a device.</summary>
+        public bool HasSoundPlayer => soundPlayer != null;
+
+        /// <summary>Gets or sets whether this viewer's audio is silenced, independently of the master volume.</summary>
+        public bool Muted
+        {
+            get => soundPlayer?.Mute ?? false;
+            set
+            {
+                if (soundPlayer != null)
+                {
+                    soundPlayer.Mute = value;
+                }
+            }
+        }
+
         private bool ShowBaseGrid;
         private bool ShowLightBackground;
         private bool ShowSolidBackground;
@@ -41,10 +64,14 @@ namespace GUI.Types.GLViewers
             Off,
             Stats,
             Timings,
+            Allocations,
         }
 
         private PerfDisplay perfDisplay;
         private ComboBox? perfDisplayComboBox;
+
+        /// <summary>Set by escape to release the mouse in walk mode, cleared by clicking back into the viewport.</summary>
+        private bool mouseReleased;
 
         private readonly List<RenderModes.RenderMode> renderModes = new(RenderModes.Items.Count);
         private int renderModeCurrentIndex;
@@ -56,7 +83,10 @@ namespace GUI.Types.GLViewers
 
         private readonly float[] frameTimes = new float[30];
         private int frameTimeNextId;
-        private string fpsText = string.Empty;
+        private int frameTimeCount;
+
+        private readonly ValveResourceFormat.Renderer.TextRenderer.TextBuffer fpsText = new("FPS: 10000  CPU: 10000.0ms  GPU: 10000.0ms");
+        private readonly ValveResourceFormat.Renderer.TextRenderer.TextBuffer speedText = new("Speed: 100000.0 u/s");
         private int frametimeQuery1;
         private int frametimeQuery2;
 
@@ -85,6 +115,9 @@ namespace GUI.Types.GLViewers
 
             physicsTraceRenderer?.Delete();
             physicsTraceRenderer = null;
+
+            soundPlayer?.Dispose();
+            soundPlayer = null;
 
             Renderer?.Dispose();
 
@@ -135,8 +168,10 @@ namespace GUI.Types.GLViewers
                     }
                 }
 
+                UiControl.AddCheckBox("Debug Sound Sources", Renderer.ShowSoundDebug, v => Renderer.ShowSoundDebug = v);
+
                 perfDisplayComboBox = UiControl.AddSelection("Debug Performance", (_, i) => perfDisplay = (PerfDisplay)i);
-                perfDisplayComboBox.Items.AddRange([nameof(PerfDisplay.Off), nameof(PerfDisplay.Stats), nameof(PerfDisplay.Timings)]);
+                perfDisplayComboBox.Items.AddRange([nameof(PerfDisplay.Off), nameof(PerfDisplay.Stats), nameof(PerfDisplay.Timings), nameof(PerfDisplay.Allocations)]);
                 perfDisplayComboBox.SelectedIndex = (int)perfDisplay;
             }
 
@@ -245,16 +280,16 @@ namespace GUI.Types.GLViewers
             Picker?.Resize(w, h);
         }
 
-        protected override void OnMouseWheel(object? sender, MouseEventArgs e)
+        protected override void OnMouseWheel(int delta, Point location)
         {
-            base.OnMouseWheel(sender, e);
+            base.OnMouseWheel(delta, location);
 
             if (!Input.NoClip)
             {
                 return;
             }
 
-            var modifier = Input.OnMouseWheel(e.Delta);
+            var modifier = Input.OnMouseWheel(delta);
 
             if (Input.OrbitMode)
             {
@@ -284,6 +319,8 @@ namespace GUI.Types.GLViewers
         protected override void OnMouseDown(object? sender, MouseEventArgs e)
         {
             base.OnMouseDown(sender, e);
+
+            mouseReleased = false;
 
             if (!Input.NoClip)
             {
@@ -341,13 +378,9 @@ namespace GUI.Types.GLViewers
 
             PostSceneLoad();
 
-            if (GLNativeWindow != null)
+            if (this is GLWorldViewer)
             {
-                // try to compile shaders?
-                Renderer.Camera.SetLocationPitchYaw(Vector3.UnitZ * 20_000f, -90, 0f);
-                Renderer.Camera.SetViewportSize(64, 64);
-                OnPaint(0f);
-                GLNativeWindow.Context.SwapBuffers();
+                PrewarmDrawCalls();
             }
 
             GuiContext.ClearCache();
@@ -355,9 +388,106 @@ namespace GUI.Types.GLViewers
             GuiContext.GLPostLoadAction = null;
         }
 
+        /// <summary>
+        /// Renders one full frame with culling disabled so the driver specializes every
+        /// (program, vertex layout, framebuffer) combination once.
+        /// </summary>
+        private void PrewarmDrawCalls()
+        {
+            Debug.Assert(MainFramebuffer != null);
+
+            Scene.RendererContext.ShaderLoader.LinkLoadedShaders();
+            Renderer.DisableAllCulling = true;
+
+            try
+            {
+                OnPaint(0f);
+
+                foreach (var particleNode in Scene.AllNodes.OfType<ParticleSceneNode>())
+                {
+                    particleNode.Prewarm(Renderer.Camera);
+                }
+            }
+            finally
+            {
+                Renderer.DisableAllCulling = false;
+            }
+        }
+
+        protected override void OnFirstPaint()
+        {
+            base.OnFirstPaint();
+
+            if (this is GLWorldViewer)
+            {
+                // Fixes compile stutters, but performance is lower!
+                // PrewarmDrawCalls();
+                // var elapsed = Stopwatch.GetElapsedTime(LastUpdate, Stopwatch.GetTimestamp());
+                // Log.Debug(GetType().Name, $"Prewarm time: {elapsed}");
+            }
+        }
+
+        /// <summary>
+        /// Creates <see cref="soundPlayer"/> and loads the game's sound events, wiring up the master volume from
+        /// settings and the default mix group volumes. Safe to call once; failures (e.g. no audio device) are logged
+        /// and leave <see cref="soundPlayer"/> null. Intended for scene viewers that want to play scene audio.
+        /// </summary>
+        protected void InitializeSoundPlayer()
+        {
+            if (soundPlayer != null)
+            {
+                return;
+            }
+
+            try
+            {
+                // The player takes ownership of the device and disposes it in its own Dispose (called from ours);
+                // CA2000 cannot see ownership transfer through the constructor, so this is not actually a leak.
+#pragma warning disable CA2000
+                soundPlayer = new SoundEventPlayer(GuiContext, new NAudioDevice(), Scene.RendererContext.Logger);
+#pragma warning restore CA2000
+            }
+            catch (COMException e)
+            {
+                // WASAPI has no usable render endpoint (no audio hardware, headless/RDP session, audio service off).
+                // This is an expected environment, not a bug: run without sound rather than failing the viewer.
+                Log.Warn(nameof(GLSceneViewer), $"No audio device available, sound playback disabled: {e.Message}");
+                return;
+            }
+
+            soundPlayer.LoadSoundEvents();
+            soundPlayer.LoadSoundscapes();
+
+            // todo: collision filter 'default' and 'blocksound'
+            // const float OcclusionEndMargin = 48f;
+            // soundPlayer.OcclusionTrace = (listener, sound) =>
+            //     Scene.PhysicsWorld?.TraceRay(listener, sound) is { Hit: true } hit
+            //         && Vector3.DistanceSquared(hit.HitPosition, sound) > OcclusionEndMargin * OcclusionEndMargin;
+
+            soundPlayer.Suspended = true; // start with fade-in
+            soundPlayer.Volume = Settings.Config.Volume;
+            soundPlayer.MixGroupVolume["Weapons"] = 0.7f;
+            soundPlayer.MixGroupVolume["Foley"] = 0.5f;
+            soundPlayer.MixGroupVolume["Footsteps"] = 0.4f;
+            soundPlayer.MixGroupVolume["PlayerDamage"] = 0.4f;
+            soundPlayer.DefaultMixGroupVolume = 0.1f;
+        }
+
+        public override void OnDetachedFromRenderLoop()
+        {
+            base.OnDetachedFromRenderLoop();
+            soundPlayer?.Suspended = true;
+        }
+
         protected override void OnUpdate(float frameTime)
         {
             base.OnUpdate(frameTime);
+
+            if (soundPlayer != null)
+            {
+                soundPlayer.Volume = Settings.Config.Volume;
+                soundPlayer.Suspended = Paused;
+            }
 
             Input.EnableMouseLook = true;
             if (loadedDefaultLighting && (CurrentlyPressedKeys & TrackedKeys.Control) != 0)
@@ -371,7 +501,9 @@ namespace GUI.Types.GLViewers
                 Input.EnableMouseLook = false;
             }
 
-            if (MouseOverRenderArea || Input.ForceUpdate)
+            // Walk mode keeps simulating while the cursor is over the ui, otherwise player
+            // physics and teleports stay frozen until the mouse moves back over the viewport.
+            if (MouseOverRenderArea || Input.ForceUpdate || !Input.NoClip)
             {
                 Input.MouseSensitivity = Settings.Config.MouseSensitivity;
                 Input.SmoothCameraEnabled = Settings.Config.SmoothCameraEnabled;
@@ -403,11 +535,32 @@ namespace GUI.Types.GLViewers
                     SelectedNodeRenderer?.SelectNode(null);
                 }
 
-                GrabbedMouse = !Input.NoClip && !Paused;
+                GrabbedMouse = MouseOverRenderArea && !Input.NoClip && !Paused && !mouseReleased;
+            }
+
+        }
+
+        /// <summary>
+        /// Advances the sound system and reports its cost. Runs inside the frame's timing bracket rather
+        /// than in <see cref="OnUpdate"/>, which is outside it, so the listener update shows up as a row.
+        /// </summary>
+        private void UpdateSoundPlayer()
+        {
+            if (soundPlayer == null)
+            {
+                return;
+            }
+
+            if (!Paused)
+            {
+                using (new ProfilerScope("Update Sounds"))
+                {
+                    soundPlayer.Update(Renderer.Camera);
+                }
             }
         }
 
-        protected void DrawLowerCornerText(string text, Color32 color, int lineFromBottom = 0)
+        protected void DrawLowerCornerText(ValveResourceFormat.Renderer.TextRenderer.TextMemory text, Color32 color, int lineFromBottom = 0)
         {
             Debug.Assert(MainFramebuffer != null);
 
@@ -455,9 +608,12 @@ namespace GUI.Types.GLViewers
 
             Renderer.PerfStats.Capture = perfDisplay == PerfDisplay.Stats;
             Renderer.PerfStats.Timings.Capture = perfDisplay == PerfDisplay.Timings;
+            Renderer.PerfStats.Allocations.Capture = perfDisplay == PerfDisplay.Allocations;
 
             Renderer.PerfStats.MarkFrameBegin();
             GL.BeginQuery(QueryTarget.TimeElapsed, frametimeQuery1);
+
+            UpdateSoundPlayer();
 
             var renderContext = new Scene.RenderContext
             {
@@ -549,10 +705,15 @@ namespace GUI.Types.GLViewers
                 var currentTime = Stopwatch.GetTimestamp();
                 var fpsElapsed = Stopwatch.GetElapsedTime(lastFpsUpdate, currentTime);
 
-                frameTimes[frameTimeNextId++] = frameTime;
-                frameTimeNextId %= frameTimes.Length;
+                // Zero length frames (the first frame after resuming) would inflate the average.
+                if (frameTime > 0f)
+                {
+                    frameTimes[frameTimeNextId++] = frameTime;
+                    frameTimeNextId %= frameTimes.Length;
+                    frameTimeCount = Math.Min(frameTimeCount + 1, frameTimes.Length);
+                }
 
-                if (fpsElapsed >= FpsUpdateTimeSpan)
+                if (frameTimeCount > 0 && fpsElapsed >= FpsUpdateTimeSpan)
                 {
                     var frametimeQuery = frametimeQuery2;
                     frametimeQuery2 = frametimeQuery1;
@@ -561,11 +722,19 @@ namespace GUI.Types.GLViewers
                     GL.GetQueryObject(frametimeQuery, GetQueryObjectParam.QueryResultNoWait, out long gpuTime);
                     var gpuFrameTime = gpuTime / 1_000_000f;
 
-                    var fps = 1f / (frameTimes.Sum() / frameTimes.Length);
+                    var frameTimeSum = 0f;
+
+                    // Only the samples written so far, the rest of the ring is still zeroed.
+                    for (var i = 0; i < frameTimeCount; i++)
+                    {
+                        frameTimeSum += frameTimes[i];
+                    }
+
+                    var fps = frameTimeCount / frameTimeSum;
                     var cpuFrameTime = Stopwatch.GetElapsedTime(LastUpdate, currentTime).TotalMilliseconds;
 
                     lastFpsUpdate = currentTime;
-                    fpsText = $"FPS: {fps,-3:0}  CPU: {cpuFrameTime,-4:0.0}ms  GPU: {gpuFrameTime,-4:0.0}ms";
+                    fpsText.Format($"FPS: {fps,-3:0}  CPU: {cpuFrameTime,-4:0.0}ms  GPU: {gpuFrameTime,-4:0.0}ms");
                 }
 
                 DrawLowerCornerText(fpsText, Color32.White);
@@ -578,20 +747,10 @@ namespace GUI.Types.GLViewers
                 TextRenderer.AddTextRelative(new ValveResourceFormat.Renderer.TextRenderer.TextRenderRequest
                 {
                     X = 0.5f,
-                    Y = 0.02f,
-                    Scale = 14f,
-                    Color = new Color32(0, 150, 255),
-                    Text = "* MOVEMENT IS EXPERIMENTAL. EXPECT BUGS. HELP US IMPROVE IT. *",
-                    CenterHorizontal = true,
-                }, Renderer.Camera);
-
-                TextRenderer.AddTextRelative(new ValveResourceFormat.Renderer.TextRenderer.TextRenderRequest
-                {
-                    X = 0.5f,
                     Y = 0.85f,
                     Scale = 12f,
                     Color = Color32.Yellow,
-                    Text = $"Speed: {Input.Velocity.AsVector2().Length():0.0} u/s",
+                    Text = speedText.Format($"Speed: {Input.Velocity.AsVector2().Length():0.0} u/s"),
                     CenterHorizontal = true,
                 }, Renderer.Camera);
             }
@@ -634,6 +793,10 @@ namespace GUI.Types.GLViewers
             else if (perfDisplay == PerfDisplay.Timings)
             {
                 Renderer.PerfStats.Timings.DisplayTimings(TextRenderer, Renderer.Camera);
+            }
+            else if (perfDisplay == PerfDisplay.Allocations)
+            {
+                Renderer.PerfStats.Allocations.DisplayAllocations(TextRenderer, Renderer.Camera);
             }
 
             TextRenderer.Render(Renderer.Camera, Renderer.ResolvedSceneDepth);
@@ -808,28 +971,29 @@ namespace GUI.Types.GLViewers
             }
         }
 
-        protected override void OnKeyDown(object? sender, KeyEventArgs e)
+        protected override void OnKeyDown(Keys keyData)
         {
             Debug.Assert(SelectedNodeRenderer != null);
 
-            if (e.KeyData == Keys.Delete)
+            if (keyData == Keys.Delete)
             {
                 SelectedNodeRenderer.DisableSelectedNodes();
                 return;
             }
 
-            if (e.KeyData == Keys.Escape)
+            if (keyData == Keys.Escape)
             {
                 SelectedNodeRenderer.SelectNode(null);
+                mouseReleased = true;
             }
 
-            if (e.KeyData == Keys.Tab && perfDisplayComboBox != null)
+            if (keyData == Keys.Tab && perfDisplayComboBox != null)
             {
                 // Cycle through the perf display modes (the callback updates perfDisplay)
                 perfDisplayComboBox.SelectedIndex = (perfDisplayComboBox.SelectedIndex + 1) % perfDisplayComboBox.Items.Count;
             }
 
-            base.OnKeyDown(sender, e);
+            base.OnKeyDown(keyData);
         }
 
 #if DEBUG

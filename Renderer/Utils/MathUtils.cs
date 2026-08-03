@@ -23,6 +23,24 @@ namespace ValveResourceFormat.Renderer.Utils
         }
 
         /// <summary>
+        /// GLSL's smoothstep: 0 below <paramref name="edge0"/>, 1 above <paramref name="edge1"/>, and a
+        /// Hermite ease between them. Edges may be given in either order, so a descending pair produces a
+        /// falling curve.
+        /// </summary>
+        /// <param name="edge0">Value at which the result reaches 0.</param>
+        /// <param name="edge1">Value at which the result reaches 1.</param>
+        /// <param name="x">Value to interpolate.</param>
+        /// <returns>The eased value in the 0-1 range.</returns>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static float Smoothstep(float edge0, float edge1, float x)
+        {
+            if (edge0 == edge1) { return x < edge0 ? 0f : 1f; }
+
+            var t = Saturate((x - edge0) / (edge1 - edge0));
+            return t * t * (3f - (2f * t));
+        }
+
+        /// <summary>
         /// Remaps a value from one range to another.
         /// </summary>
         /// <param name="x">Value to remap.</param>
@@ -78,6 +96,25 @@ namespace ValveResourceFormat.Renderer.Utils
         public static float Saturate(float x)
         {
             return Math.Clamp(x, 0.0f, 1.0f);
+        }
+
+        /// <summary>
+        /// Converts a decibel value to a linear amplitude multiplier (0 dB is 1.0, -6 dB is roughly half).
+        /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static float DecibelsToLinear(float decibels)
+        {
+            return MathF.Pow(10f, decibels / 20f);
+        }
+
+        /// <summary>
+        /// Maps a linear 0-1 value onto an exponential curve approximating perceptual loudness, so the
+        /// middle of a volume control (or a linear distance falloff) does not sound louder than it should.
+        /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static float ToPerceptualVolume(float linear)
+        {
+            return (float)((Math.Exp(linear) - 1) / (Math.E - 1));
         }
 
         /// <summary>

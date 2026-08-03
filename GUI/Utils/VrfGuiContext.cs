@@ -198,6 +198,7 @@ namespace GUI.Utils
             return new RendererContext(this, Logger)
             {
                 FieldOfView = Settings.Config.FieldOfView,
+                ViewmodelFieldOfView = Settings.Config.ViewmodelFieldOfView,
                 MaxTextureSize = Settings.Config.MaxTextureSize,
             };
         }

@@ -221,6 +221,7 @@ FakesAssemblies/
 _Pvt_Extensions
 
 Tests/lcov.info
+exceptions*.txt
 /docs/_site/
 /docs/api/
 /docs/.vitepress/dist/

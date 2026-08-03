@@ -37,7 +37,7 @@ namespace ValveResourceFormat.Renderer.Particles.Operators
                 vector.Z * new Vector3(rotatedMatrix.M31, rotatedMatrix.M32, rotatedMatrix.M33);
         }
 
-        public override void Operate(ParticleCollection particles, float frameTime, ParticleSystemRenderState particleSystemState)
+        public override void Operate(ParticleCollection particles, float frameTime, ParticleSystemRenderState particleSystemState, float strength)
         {
             foreach (ref var particle in particles.Current)
             {
@@ -47,13 +47,14 @@ namespace ValveResourceFormat.Renderer.Particles.Operators
                 var scale = perParticleScale.NextNumber(ref particle, particleSystemState);
 
                 // probably slow but who knows???
-                var rotatedVector = MatrixMul(particle.GetVector(OutputField), Matrix4x4.CreateFromAxisAngle(axis, rotationRate * scale * frameTime));
+                var currentVector = particle.GetVector(OutputField);
+                var rotatedVector = MatrixMul(currentVector, Matrix4x4.CreateFromAxisAngle(axis, rotationRate * scale * frameTime));
 
                 rotatedVector = normalize
                     ? Vector3.Normalize(rotatedVector)
                     : rotatedVector;
 
-                particle.SetVector(OutputField, rotatedVector);
+                particle.SetVector(OutputField, Vector3.Lerp(currentVector, rotatedVector, strength));
             }
         }
     }

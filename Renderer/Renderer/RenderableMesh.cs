@@ -452,6 +452,7 @@ namespace ValveResourceFormat.Renderer
                     var vertexBuffer = new VertexDrawBuffer
                     {
                         Handle = gpuVbib.VertexBuffers[(int)bufferIndex],
+                        BufferIndex = (int)bufferIndex,
                         Offset = vertexBindOffset,
                         ElementSizeInBytes = vertexBufferVbib.ElementSizeInBytes,
                         InputLayoutFields = inputLayoutFields,
@@ -568,17 +569,5 @@ namespace ValveResourceFormat.Renderer
 
         /// <summary>Gets the list of renderable meshes owned by this node.</summary>
         public List<RenderableMesh> RenderableMeshes { get; protected init; } = [];
-
-        /// <inheritdoc/>
-        public override void Delete()
-        {
-            foreach (var mesh in RenderableMeshes)
-            {
-                foreach (var drawCall in mesh.DrawCalls)
-                {
-                    drawCall.DeleteVertexArrayObject();
-                }
-            }
-        }
     }
 }

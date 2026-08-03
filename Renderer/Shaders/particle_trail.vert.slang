@@ -1,16 +1,18 @@
 #version 460
 
 layout (location = 0) in vec3 aVertexPosition;
+layout (location = 3) in vec2 aTexCoords;
+layout (location = 4) in vec4 aVertexColor;
 
 #include "common/ViewConstants.slang"
-uniform mat4 uModelMatrix;
 
-out vec2 uv;
+out vec2 vTexCoordOut;
+out vec4 vColor;
 out vec3 vFragPosition;
 
 void main(void) {
-    uv = aVertexPosition.xy * 0.5 + 0.5;
-    vec4 worldPosition = uModelMatrix * vec4(aVertexPosition, 1.0);
-    vFragPosition = worldPosition.xyz;
-    gl_Position = g_matWorldToProjection * worldPosition;
+    vColor = aVertexColor;
+    vTexCoordOut = aTexCoords;
+    vFragPosition = aVertexPosition;
+    gl_Position = g_matWorldToProjection * vec4(aVertexPosition, 1.0);
 }

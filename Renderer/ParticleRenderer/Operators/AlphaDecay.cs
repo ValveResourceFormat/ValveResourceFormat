@@ -12,7 +12,7 @@ namespace ValveResourceFormat.Renderer.Particles.Operators
             minAlpha = parse.Float("m_flMinAlpha", minAlpha);
         }
 
-        public override void Operate(ParticleCollection particles, float frameTime, ParticleSystemRenderState particleSystemState)
+        public override void Operate(ParticleCollection particles, float frameTime, ParticleSystemRenderState particleSystemState, float strength)
         {
             foreach (ref var particle in particles.Current)
             {

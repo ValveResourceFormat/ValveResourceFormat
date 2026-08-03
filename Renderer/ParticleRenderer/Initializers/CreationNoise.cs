@@ -18,6 +18,7 @@ namespace ValveResourceFormat.Renderer.Particles.Initializers
         private readonly float outputMax = 1f;
         private readonly float noiseScale = 0.1f;
         private readonly float noiseScaleLoc = 0.001f;
+        private readonly float worldTimeScale;
         private readonly Vector3 offsetLoc = Vector3.Zero;
 
         public CreationNoise(ParticleDefinitionParser parse) : base(parse)
@@ -30,6 +31,7 @@ namespace ValveResourceFormat.Renderer.Particles.Initializers
             outputMax = parse.Float("m_flOutputMax", outputMax);
             noiseScale = parse.Float("m_flNoiseScale", noiseScale);
             noiseScaleLoc = parse.Float("m_flNoiseScaleLoc", noiseScaleLoc);
+            worldTimeScale = parse.Float("m_flWorldTimeScale", worldTimeScale);
             offsetLoc = parse.Vector3("m_vecOffsetLoc", offsetLoc);
         }
 
@@ -41,8 +43,8 @@ namespace ValveResourceFormat.Renderer.Particles.Initializers
             }
 
             var samplePosition = (particle.Position + offsetLoc) * noiseScaleLoc;
-            var sampleTime = (particleSystemState.Age + offset) * noiseScale;
-            var noise = Noise.Simplex1D((samplePosition.X * 0.7f) + (samplePosition.Y * 1.3f) + (samplePosition.Z * 2.1f) + sampleTime);
+            var sampleTime = ((particleSystemState.Age + offset) * noiseScale) + (particleSystemState.WorldTime * worldTimeScale);
+            var noise = Noise.ValueDiagonal((samplePosition.X * 0.7f) + (samplePosition.Y * 1.3f) + (samplePosition.Z * 2.1f) + sampleTime);
 
             // abs folds the signed noise into the full output range; otherwise the half-span
             // scale centers it in the range. absValInv inverts either way.

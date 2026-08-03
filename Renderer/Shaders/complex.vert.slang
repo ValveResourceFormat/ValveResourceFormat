@@ -4,7 +4,6 @@
 #define GameVfx_csgo_foliage 0
 #define GameVfx_csgo_simple_2way_blend 0
 #define GameVfx_csgo_simple_3layer_parallax 0
-#define GameVfx_environment_blend 0
 #define GameVfx_vr_complex 0
 #define GameVfx_vr_simple_2way_blend 0
 #define GameVfx_vr_simple_2way_parallax 0
@@ -46,7 +45,7 @@ uniform int F_TEXTURE_ANIMATION_MODE; // csgo_complex, csgo_static_overlay, csgo
     out vec3 vPerVertexLightingOut;
 #endif
 
-#if (F_LAYERS > 0) || (GameVfx_csgo_simple_2way_blend != 0) || defined(vr_blend_vfx_common) || (GameVfx_environment_blend != 0)
+#if (F_LAYERS > 0) || (GameVfx_csgo_simple_2way_blend != 0) || defined(vr_blend_vfx_common)
     #define vBLEND_COLOR vTEXCOORD4
     #if defined(vr_blend_vfx_common)
         #define vBLEND_ALPHA vTEXCOORD5
@@ -218,7 +217,7 @@ vec4 GetTintColorLinear(vec4 vTint)
 #if F_NOTINT == 0
     TintFade.rgb = mix(vec3(1.0), SrgbGammaToLinear(vTint.rgb) * g_vColorTint.rgb, g_flModelTintAmount);
 #endif
-    TintFade.a = SafePow(vTint.a, g_flFadeExponent);
+    TintFade.a = pow(vTint.a, max(g_flFadeExponent, 0.0001));
     return TintFade;
 }
 
@@ -274,16 +273,15 @@ void main()
 {
     ObjectData_t object = GetObjectData();
 
-    mat4 skinTransform = object.transform * getSkinMatrix();
-    vFragPosition = (skinTransform * vec4(vPOSITION + getMorphOffset(), 1.0)).xyz;
+    mat3x4 skinTransform = CalculateSkinTransform();
+    vFragPosition = vec4(vPOSITION + getMorphOffset(), 1.0) * skinTransform;
 
     vec3 normal;
     vec4 tangent;
     GetOptionallyCompressedNormalTangent(normal, tangent);
 
-    mat3 normalTransform = adjoint(skinTransform);
-    vNormalOut = normalize(normalTransform * normal);
-    vTangentOut = normalize(normalTransform * tangent.xyz);
+    vNormalOut = TransformDirectionToWorld(skinTransform, normal);
+    vTangentOut = TransformDirectionToWorld(skinTransform, tangent.xyz);
     vBitangentOut = tangent.w * cross(vNormalOut, vTangentOut);
 
     #if defined(foliage_vfx_common)
@@ -326,7 +324,7 @@ void main()
     }
 
 #if (F_SPHERICAL_PROJECTED_ANISOTROPIC_TANGENTS == 1)
-    vAnisoBitangentOut = normalTransform * GetSphericalProjectedAnisoBitangent(normal, tangent.xyz);
+    vAnisoBitangentOut = TransformDirectionToWorld(skinTransform, GetSphericalProjectedAnisoBitangent(normal, tangent.xyz));
 #endif
 
 #if (GameVfx_csgo_character != 0) && (F_EYEBALLS == 1)

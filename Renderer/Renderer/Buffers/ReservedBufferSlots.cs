@@ -19,6 +19,10 @@ public enum ReservedBufferSlots
     LightProbe = 3,
     /// <summary>Frustum planes UBO slot.</summary>
     FrustumPlanes = 4,
+    /// <summary>Shared constants for the tile and depth bin cull passes.</summary>
+    CullParams = 5,
+    /// <summary>Per scene cull mask layout read by the shading passes.</summary>
+    LightCull = 6,
 
     // ssbo
 
@@ -48,6 +52,12 @@ public enum ReservedBufferSlots
     BoneTransforms = 11,
     /// <summary>Barn light constants SSBO slot.</summary>
     BarnLights = 12,
+    /// <summary>Tile and depth slice bit masks the cull passes produce.</summary>
+    CullBits = 13,
+    /// <summary>Screen space cull items: barn light faces, env map probes and light probe volumes.</summary>
+    CullItems = 14,
+    /// <summary>Convex hull vertices referenced by <see cref="CullItems"/>.</summary>
+    CullPlanes = 15,
 
     /// <summary>Guaranteed minimum binding point count in OpenGL 4.6.</summary>
     Max = 8,

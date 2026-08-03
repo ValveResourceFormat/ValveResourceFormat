@@ -14,11 +14,14 @@ internal enum Counter
     DrawCall,
     MeshletDispatch,
     MaterialChange,
+    VaoChange,
     DirectionalShadowMap,
     BarnShadowMap,
     ShadowFaceSubmitted,
     ParticleSystem,
     ParticleDraw,
+    SoundCacheMegabytes,
+    SoundDecodeQueue,
 }
 
 internal enum Metric
@@ -51,6 +54,9 @@ public class PerfStats
 
     /// <summary>Gets the CPU and GPU timings for the same frame. Captured independently of <see cref="Capture"/>.</summary>
     public Timings Timings { get; } = new();
+
+    /// <summary>Gets the managed allocation and GC statistics for the same frame. Captured independently of <see cref="Capture"/>.</summary>
+    public AllocStats Allocations { get; } = new();
 
     // Debug groups opened outside a marked frame are not timed.
     private bool timingFrame;
@@ -211,14 +217,14 @@ public class PerfStats
         counts[(int)Counter.DrawCall]++;
     }
 
-    internal void CountIndirectDraw(SceneAggregate aggregate)
+    internal void CountIndirectDraw(int indirectDrawCount)
     {
         if (!Counting)
         {
             return;
         }
 
-        counts[(int)Counter.MeshletDispatch] += aggregate.IndirectDrawCount;
+        counts[(int)Counter.MeshletDispatch] += indirectDrawCount;
     }
 
     /// <summary>Counts a light that passed frustum culling this frame.</summary>
@@ -399,10 +405,29 @@ public class PerfStats
         AddLine($"Triangles:        rendered {trianglesRendered:N0} of {totalTriangles:N0}", valueColor);
         AddLine($"Scene objects:    drawn {counts[(int)Counter.SceneObjectInView]:N0} of {totalSceneObjects:N0} scene objects in {counts[(int)Counter.DrawCall]:N0} draw calls and {counts[(int)Counter.MeshletDispatch]:N0} meshlet dispatches ({totalDrawCalls:N0} total draw calls)", valueColor);
         AddLine($"Materials:        {counts[(int)Counter.MaterialChange]:N0} changes between drawcalls, {totalMaterials:N0} total materials in scene", valueColor);
+        AddLine($"VAOs:             {counts[(int)Counter.VaoChange]:N0} binds this frame, {scene.RendererContext.MeshBufferCache.VertexArrayObjectCount:N0} cached", valueColor);
         AddLine($"Dynamic Lights:   in view {FormatLightCounts(lightsInView, totalLights)} out of total {FormatLightCounts(totalLights, totalLights)}", valueColor);
         AddLine($"Static Lights:    in view {FormatLightCounts(staticLightsInView, totalStaticLights)} out of total {FormatLightCounts(totalStaticLights, totalStaticLights)}", valueColor);
         AddLine($"Shadow maps:      {counts[(int)Counter.DirectionalShadowMap]:N0} directional, {counts[(int)Counter.BarnShadowMap]:N0} barn, {counts[(int)Counter.ShadowFaceSubmitted]:N0} faces binned, {floatMetrics[(int)Metric.ShadowAtlasUsage]:0%} atlas utilization", valueColor);
         AddLine($"Particle Systems: {counts[(int)Counter.ParticleSystem]:N0} particle systems rendered in {counts[(int)Counter.ParticleDraw]:N0} draw calls out of {totalParticleSystems:N0} total particle systems", valueColor);
+        AddLine($"Light binning:    {FormatBinnerStats(scene.LightBinner.Stats)}", valueColor);
+
+        AddLine($"Sound cache:      {counts[(int)Counter.SoundCacheMegabytes]:N0} MB decoded, {counts[(int)Counter.SoundDecodeQueue]:N0} queued to decode", valueColor);
+    }
+
+
+    /// <summary>
+    /// One line of what binning produced. Counts are per barn light face, the unit the binner works in,
+    /// which is not the set the shadow line reports - that counts faces submitted for shadow rendering.
+    /// </summary>
+    private static string FormatBinnerStats(LightBinner.BinnerStats stats)
+    {
+        if (!stats.Active)
+        {
+            return "off, all masks visible";
+        }
+
+        return $"{stats.Faces:N0} of {stats.FaceSlots:N0} barn faces, {stats.Probes:N0} of {stats.ProbeSlots:N0} probes binned, {stats.HullVertices:N0} hull verts, {stats.MaskBytes / 1024.0:0.#} KB masks, slices to {stats.SliceFar:N0} at {stats.SliceWidth:N0} each";
     }
 
     /// <summary>Resets per-frame counters, reads back the previous frame's results.</summary>
@@ -416,6 +441,8 @@ public class PerfStats
 
         Timings.MarkFrameBegin();
         timingFrame = Timings.Capture;
+
+        Allocations.MarkFrameBegin();
 
         if (!Capture)
         {
@@ -498,17 +525,18 @@ public class PerfStats
         // Timed up to here, so that text rendering is still measured.
         timingFrame = false;
         Timings.MarkFrameEnd();
+        Allocations.MarkFrameEnd();
     }
 
     /// <summary>Begins a timing query for a debug group, or returns 0 if this frame is not being timed.</summary>
-    internal QueryId BeginTimingQuery(string name)
+    internal QueryId BeginTimingQuery(string name, bool cpuOnly = false)
     {
         if (!timingFrame || IsNotOwningThread)
         {
             return 0;
         }
 
-        return Timings.BeginQuery(name);
+        return Timings.BeginQuery(name, cpuOnly);
     }
 
     /// <summary>Ends a timing query opened by <see cref="BeginTimingQuery"/>.</summary>
@@ -528,6 +556,7 @@ public class PerfStats
     public void Dispose()
     {
         Timings.Dispose();
+        Allocations.Dispose();
 
         foreach (var frame in triangleFrames)
         {

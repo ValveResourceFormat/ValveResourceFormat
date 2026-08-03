@@ -263,61 +263,64 @@ namespace ValveResourceFormat.Renderer.Particles
             return initialParticle.GetVector(field);
         }
 
-        // Set methods, shared by a bunch of different operators and initializers
+        // Set methods, shared by a bunch of different operators and initializers.
+        // The operator form: the particle has a spawn snapshot, so "initial" and "current" differ.
         public static float ModifyScalarBySetMethod(this ref Particle particle, ParticleCollection particles, ParticleField field, float value, ParticleSetMethod setMethod)
+            => ApplySetMethod(value, particle.GetInitialScalar(particles, field), particle.GetScalar(field), particle.Age, setMethod);
+
+        /// <summary>
+        /// The initializer-time form. There is no spawn snapshot yet - the collection's initial array
+        /// still holds the system's constant template - so the "initial value" an initializer scales or
+        /// adds to is what earlier initializers in the same pass have already written to the particle.
+        /// </summary>
+        public static float ModifyScalarBySetMethodAtSpawn(this ref Particle particle, ParticleField field, float value, ParticleSetMethod setMethod)
         {
-            switch (setMethod)
-            {
-                case ParticleSetMethod.PARTICLE_SET_REPLACE_VALUE:
-                    break;
-                case ParticleSetMethod.PARTICLE_SET_SCALE_INITIAL_VALUE:
-                    value *= particle.GetInitialScalar(particles, field);
-                    break;
-                case ParticleSetMethod.PARTICLE_SET_ADD_TO_INITIAL_VALUE:
-                    value += particle.GetInitialScalar(particles, field);
-                    break;
-                case ParticleSetMethod.PARTICLE_SET_SCALE_CURRENT_VALUE:
-                    value *= particle.GetScalar(field);
-                    break;
-                case ParticleSetMethod.PARTICLE_SET_ADD_TO_CURRENT_VALUE:
-                    value += particle.GetScalar(field);
-                    break;
-                case ParticleSetMethod.PARTICLE_SET_RAMP_CURRENT_VALUE: // new in DeskJob. Exponential, unlike other ramps
-                    value = particle.GetScalar(field) + (value * particle.Age);
-                    break;
-                default:
-                    throw new NotImplementedException($"Unknown particle set type {Enum.GetName(setMethod)}!");
-            }
-            return value;
+            var current = particle.GetScalar(field);
+            return ApplySetMethod(value, current, current, particle.Age, setMethod);
         }
+
+        private static float ApplySetMethod(float value, float initialValue, float currentValue, float age, ParticleSetMethod setMethod)
+            => setMethod switch
+            {
+                ParticleSetMethod.PARTICLE_SET_REPLACE_VALUE => value,
+                ParticleSetMethod.PARTICLE_SET_SCALE_INITIAL_VALUE => value * initialValue,
+                ParticleSetMethod.PARTICLE_SET_ADD_TO_INITIAL_VALUE => value + initialValue,
+                ParticleSetMethod.PARTICLE_SET_SCALE_CURRENT_VALUE => value * currentValue,
+                ParticleSetMethod.PARTICLE_SET_ADD_TO_CURRENT_VALUE => value + currentValue,
+                // new in DeskJob. Exponential, unlike other ramps
+                ParticleSetMethod.PARTICLE_SET_RAMP_CURRENT_VALUE => currentValue + (value * age),
+                _ => throw new NotImplementedException($"Unknown particle set type {Enum.GetName(setMethod)}!"),
+            };
 
         public static Vector3 ModifyVectorBySetMethod(this ref Particle particle, ParticleCollection particles, ParticleField field, Vector3 value, ParticleSetMethod setMethod)
+            => ApplySetMethod(value, particle.GetInitialVector(particles, field), particle.GetVector(field), particle.Age, setMethod);
+
+        /// <inheritdoc cref="ModifyScalarBySetMethodAtSpawn"/>
+        public static Vector3 ModifyVectorBySetMethodAtSpawn(this ref Particle particle, ParticleField field, Vector3 value, ParticleSetMethod setMethod)
         {
-            switch (setMethod)
-            {
-                case ParticleSetMethod.PARTICLE_SET_REPLACE_VALUE:
-                    break;
-                case ParticleSetMethod.PARTICLE_SET_SCALE_INITIAL_VALUE:
-                    value *= particle.GetInitialVector(particles, field);
-                    break;
-                case ParticleSetMethod.PARTICLE_SET_ADD_TO_INITIAL_VALUE:
-                    value += particle.GetInitialVector(particles, field);
-                    break;
-                case ParticleSetMethod.PARTICLE_SET_SCALE_CURRENT_VALUE:
-                    value *= particle.GetVector(field);
-                    break;
-                case ParticleSetMethod.PARTICLE_SET_ADD_TO_CURRENT_VALUE:
-                    value += particle.GetVector(field);
-                    break;
-                case ParticleSetMethod.PARTICLE_SET_RAMP_CURRENT_VALUE: // new in DeskJob
-                    value = particle.GetVector(field) + (value * particle.Age);
-                    break;
-                default:
-                    throw new NotImplementedException($"Unknown particle set type {Enum.GetName(setMethod)}!");
-            }
-            return value;
+            var current = particle.GetVector(field);
+            return ApplySetMethod(value, current, current, particle.Age, setMethod);
         }
 
-        public static bool IsAngleField(this ParticleField field) => field is ParticleField.Roll or ParticleField.Yaw or ParticleField.Pitch;
+        private static Vector3 ApplySetMethod(Vector3 value, Vector3 initialValue, Vector3 currentValue, float age, ParticleSetMethod setMethod)
+            => setMethod switch
+            {
+                ParticleSetMethod.PARTICLE_SET_REPLACE_VALUE => value,
+                ParticleSetMethod.PARTICLE_SET_SCALE_INITIAL_VALUE => value * initialValue,
+                ParticleSetMethod.PARTICLE_SET_ADD_TO_INITIAL_VALUE => value + initialValue,
+                ParticleSetMethod.PARTICLE_SET_SCALE_CURRENT_VALUE => value * currentValue,
+                ParticleSetMethod.PARTICLE_SET_ADD_TO_CURRENT_VALUE => value + currentValue,
+                // new in DeskJob
+                ParticleSetMethod.PARTICLE_SET_RAMP_CURRENT_VALUE => currentValue + (value * age),
+                _ => throw new NotImplementedException($"Unknown particle set type {Enum.GetName(setMethod)}!"),
+            };
+
+        /// <summary>
+        /// Whether the field holds an angle, and so is stored in radians while content authors it in
+        /// degrees. <see cref="ParticleField.RollSpeed"/> counts: an angular rate is authored in degrees
+        /// per second, which is why <c>C_INIT_RandomRotationSpeed</c> converts on the way in.
+        /// </summary>
+        public static bool IsAngleField(this ParticleField field)
+            => field is ParticleField.Roll or ParticleField.Yaw or ParticleField.Pitch or ParticleField.RollSpeed;
     }
 }

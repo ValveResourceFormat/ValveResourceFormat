@@ -23,7 +23,7 @@ namespace ValveResourceFormat.Renderer.Particles.Operators
             setMethod = parse.Enum<ParticleSetMethod>("m_nSetMethod", setMethod);
         }
 
-        public override void Operate(ParticleCollection particles, float frameTime, ParticleSystemRenderState particleSystemState)
+        public override void Operate(ParticleCollection particles, float frameTime, ParticleSystemRenderState particleSystemState, float strength)
         {
             foreach (ref var particle in particles.Current)
             {
@@ -58,6 +58,15 @@ namespace ValveResourceFormat.Renderer.Particles.Operators
                         => value1 < value2 ? 1f : 0f,
                     _ => throw new NotImplementedException($"Unrecognized scalar expression type ({expression})")
                 };
+
+                // Strength scales the raw arithmetic result before the set method combines it;
+                // the comparison expressions emit their bare 0/1 unscaled
+                if (expression is not (ScalarExpressionType.SCALAR_EXPRESSION_EQUAL
+                    or ScalarExpressionType.SCALAR_EXPRESSION_GT
+                    or ScalarExpressionType.SCALAR_EXPRESSION_LT))
+                {
+                    output *= strength;
+                }
 
                 particle.SetScalar(OutputField, particle.ModifyScalarBySetMethod(particles, OutputField, output, setMethod));
             }

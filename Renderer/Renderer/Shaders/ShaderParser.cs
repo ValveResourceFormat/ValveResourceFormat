@@ -61,7 +61,7 @@ namespace ValveResourceFormat.Renderer.Shaders
             }
 
             // simulate first time compile
-            // builder.Append($"// {Guid.CreateVersion7()}");
+            builder.Append($"// {Guid.CreateVersion7()}");
 
             void LoadShaderString(string shaderFileToLoad, string? parentFile, bool isInclude)
             {
@@ -217,6 +217,12 @@ namespace ValveResourceFormat.Renderer.Shaders
                             var uniformName = match.Groups["Name"].Value;
 
                             parsedData.Uniforms.Add(uniformName);
+
+                            if (uniformType.StartsWith("sampler", StringComparison.Ordinal) && MaterialLoader.IsReservedTexture(uniformName))
+                            {
+                                parsedData.ReservedTextures.Add(uniformName);
+                            }
+
                             if (match.Groups["SrgbRead"].Success)
                             {
                                 parsedData.SrgbUniforms.Add(uniformName);

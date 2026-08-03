@@ -119,13 +119,14 @@ internal class PulseGraphViewer : GLGraphViewer
     private readonly IReadOnlyList<KVObject> variables;
     private readonly IReadOnlyList<KVObject> publicOutputs;
     private readonly IReadOnlyList<KVObject> callInfos;
-    private readonly List<NodeCallInfo> callNodesToResolve = [];
+    private readonly List<RemoteNodeInfo> remoteNodesToResolve = [];
     private Dictionary<int, HashSet<List<int>>> loopInstructionMap = [];
 
-    struct NodeCallInfo
+    struct RemoteNodeInfo
     {
         public int targetChunk;
         public Node node;
+        public string? targetNamePrefix; // text display name for the target e.g. "Method: x", "Target: x"
     }
 
     class PulseOutflowConnection
@@ -1297,10 +1298,11 @@ internal class PulseGraphViewer : GLGraphViewer
                             {
                                 Log.Warn(nameof(PulseGraphViewer), $"Failed to retrieve call info of ID={callInfoIndex}.");
                             }
-                            callNodesToResolve.Add(new NodeCallInfo
+                            remoteNodesToResolve.Add(new RemoteNodeInfo
                             {
                                 targetChunk = callTargetChunk,
                                 node = node,
+                                targetNamePrefix = "Method: "
                             });
                         }
                         else
@@ -1427,6 +1429,85 @@ internal class PulseGraphViewer : GLGraphViewer
 
                         View.AddNode(node);
 
+                        break;
+                    }
+                case InstructionCode.CHUNK_LEAP_COND:
+                    {
+                        var reg0 = instruction.GetInt32Property("m_nReg0");
+                        var node = new Node(null)
+                        {
+                            Name = "If",
+                            NodeType = "Flow control",
+                            Category = ControlFlowHue,
+                        };
+                        var socketIn = node.CreateSocketIn<Flow>("");
+                        View.Connect(previousActionOutSocket, socketIn);
+
+                        if (reg0 != -1)
+                        {
+                            AddNodeRegisterInput(node, chunkIndex, registerConstValueMap, registerOutputSocketMap, reg0, "Condition");
+                        }
+
+                        var socketOutTrue = node.CreateSocketOut<Flow>("True");
+                        var leapTargetChunk = instruction.GetInt32Property("m_nChunk");
+                        var leapDestInstructionIdx = instruction.GetInt32Property("m_nDestInstruction");
+                        if (leapTargetChunk != chunkIndex)
+                        {
+                            var leapNode = new Node(null)
+                            {
+                                Name = "Chunk Leap",
+                                NodeType = "Flow",
+                            };
+                            CreateSequentialActionSockets(leapNode, socketOutTrue);
+
+                            if (leapDestInstructionIdx != 0)
+                            {
+                                node.AddText("Instruction: " + leapDestInstructionIdx);
+                            }
+
+                            remoteNodesToResolve.Add(new RemoteNodeInfo
+                            {
+                                targetChunk = leapTargetChunk,
+                                node = leapNode,
+                                targetNamePrefix = "Target: "
+                            });
+                        }
+
+                        // Since leaps don't come back after executing we don't have to worry about defining "bounds" for the conditions, unlike regular jumps.
+                        // Also no need for a "Finished" socket because no way for true and false flows to merge back again.
+                        previousActionOutSocket = node.CreateSocketOut<Flow>("False");
+
+                        View.AddNode(node);
+
+                        break;
+                    }
+                case InstructionCode.CHUNK_LEAP:
+                    {
+                        // Chunk leap does not seem to return back to the place after finishing, apparently just leaves current flow "behind"
+                        stopProcessing = true;
+                        var leapTargetChunk = instruction.GetInt32Property("m_nChunk");
+                        var leapDestInstructionIdx = instruction.GetInt32Property("m_nDestInstruction");
+                        if (leapTargetChunk != chunkIndex)
+                        {
+                            var node = new Node(null)
+                            {
+                                Name = "Chunk Leap",
+                                NodeType = "Flow",
+                            };
+                            previousActionOutSocket = CreateSequentialActionSockets(node, previousActionOutSocket);
+
+                            if (leapDestInstructionIdx != 0)
+                            {
+                                node.AddText("Instruction: " + leapDestInstructionIdx);
+                            }
+
+                            remoteNodesToResolve.Add(new RemoteNodeInfo
+                            {
+                                targetChunk = leapTargetChunk,
+                                node = node,
+                                targetNamePrefix = "Target: "
+                            });
+                        }
                         break;
                     }
                 default:
@@ -1734,11 +1815,11 @@ internal class PulseGraphViewer : GLGraphViewer
         }
 
         // Resolve call nodes to display the target function name
-        foreach (var callNodeInfo in callNodesToResolve)
+        foreach (var callNodeInfo in remoteNodesToResolve)
         {
             var targetChunk = callNodeInfo.targetChunk;
             var methodNameToCall = chunkFunctionName[targetChunk];
-            callNodeInfo.node.AddText($"Method: {methodNameToCall}");
+            callNodeInfo.node.AddText($"{callNodeInfo.targetNamePrefix}{methodNameToCall}");
             View.AddNode(callNodeInfo.node);
         }
 

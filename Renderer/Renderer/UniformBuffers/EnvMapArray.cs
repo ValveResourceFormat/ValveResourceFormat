@@ -39,7 +39,7 @@ namespace ValveResourceFormat.Renderer.Buffers
     public class EnvMapArray
     {
         /// <summary>Maximum number of environment map probes supported per scene.</summary>
-        public const int MAX_ENVMAPS = 128;
+        public const int MAX_ENVMAPS = 144;
 
         /// <summary>Array of environment map probe data entries.</summary>
         [MarshalAs(UnmanagedType.ByValArray, SizeConst = MAX_ENVMAPS)]

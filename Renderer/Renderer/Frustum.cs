@@ -99,6 +99,25 @@ namespace ValveResourceFormat.Renderer
         }
 
         /// <summary>
+        /// Tests if a sphere intersects this frustum.
+        /// </summary>
+        /// <param name="center">Center of the sphere.</param>
+        /// <param name="radius">Radius of the sphere.</param>
+        /// <returns><see langword="true"/> if the sphere is at least partially inside the frustum.</returns>
+        public bool Intersects(in Vector3 center, float radius)
+        {
+            foreach (ref readonly var plane in Planes.AsSpan())
+            {
+                if (Plane.DotCoordinate(plane, center) < -radius)
+                {
+                    return false;
+                }
+            }
+
+            return true;
+        }
+
+        /// <summary>
         /// Tests if a point is inside this frustum.
         /// </summary>
         /// <param name="point">The point to test.</param>

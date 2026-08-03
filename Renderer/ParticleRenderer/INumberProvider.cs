@@ -37,6 +37,9 @@ namespace ValveResourceFormat.Renderer.Particles
     {
         private readonly float value;
 
+        /// <summary>The constant this provider returns, for callers that specialise on known values.</summary>
+        public float Value => value;
+
         public LiteralNumberProvider(float value)
         {
             this.value = value;
@@ -220,20 +223,22 @@ namespace ValveResourceFormat.Renderer.Particles
     // Control Point Component
     class ControlPointComponentNumberProvider : INumberProvider
     {
-        //private readonly AttributeMapping attributeMapping;
+        private readonly AttributeMapping attributeMapping;
         private readonly int cp;
         private readonly int vectorComponent;
 
         public ControlPointComponentNumberProvider(ParticleDefinitionParser parse)
         {
-            //attributeMapping = new AttributeMapping(parse);
+            attributeMapping = new AttributeMapping(parse);
             cp = parse.Int32("m_nControlPoint");
             vectorComponent = parse.Int32("m_nVectorComponent");
         }
 
         public float NextNumber(ref Particle particle, ParticleSystemRenderState renderState)
         {
-            return renderState.GetControlPoint(cp).Position.GetComponent(vectorComponent);
+            // Control points carry raw switches and scalars that the mapping turns into the value the
+            // effect actually wants - an unset point commonly has to read as a multiplier of 1, not 0.
+            return attributeMapping.ApplyMapping(renderState.GetControlPoint(cp).Position.GetComponent(vectorComponent));
         }
     }
 
@@ -251,8 +256,7 @@ namespace ValveResourceFormat.Renderer.Particles
 
         public float NextNumber(ref Particle particle, ParticleSystemRenderState renderState)
         {
-            var frameTime = renderState.Data?.CurrentFrameTime ?? 0f;
-            var speed = renderState.GetControlPoint(cp).GetVelocity(frameTime).Length();
+            var speed = renderState.GetControlPoint(cp).Velocity.Length();
             return attributeMapping.ApplyMapping(speed);
         }
     }

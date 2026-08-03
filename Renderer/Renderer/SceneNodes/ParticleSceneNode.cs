@@ -54,6 +54,71 @@ namespace ValveResourceFormat.Renderer.SceneNodes
                     Scene.Add(PreviewModel, true);
                 }
             }
+            else
+            {
+                ApplyRuntimeControlPointValues(particleSystem);
+            }
+        }
+
+        // Outside the editor an effect is played under one of its control point configurations, and the
+        // configuration is where several constants its operators depend on actually live - a global scale
+        // control point that has to read 0.5 rather than 0, or a flag switching an effect into its
+        // first-person sizing. Those arrive as a driver's literal offset, so seed the control points that
+        // carry one. Points a driver leaves at zero are skipped: control point 0 is the effect's placement
+        // and comes from the node transform, and the rest we would only be writing their default back.
+        private void ApplyRuntimeControlPointValues(ParticleSystem particleSystem)
+        {
+            var configurations = particleSystem.Data.GetArray("m_controlPointConfigurations");
+            if (configurations == null)
+            {
+                return;
+            }
+
+            // Viewmodel effects carry a first-person configuration; everything else plays under "game".
+            var viewModelEffect = particleSystem.Data.GetStringProperty("m_nViewModelEffect") == "INHERITABLE_BOOL_TRUE";
+            var wantedConfiguration = viewModelEffect ? "fps_view" : "game";
+
+            KVObject? chosen = null;
+
+            foreach (var configuration in configurations)
+            {
+                var name = configuration.GetStringProperty("m_name");
+
+                if (string.Equals(name, wantedConfiguration, StringComparison.OrdinalIgnoreCase))
+                {
+                    chosen = configuration;
+                    break;
+                }
+
+                // Any non-preview configuration beats nothing, but keep looking for the wanted one.
+                if (chosen == null && !string.Equals(name, "preview", StringComparison.OrdinalIgnoreCase))
+                {
+                    chosen = configuration;
+                }
+            }
+
+            var drivers = chosen?.GetArray("m_drivers");
+            if (drivers == null)
+            {
+                return;
+            }
+
+            foreach (var driver in drivers)
+            {
+                var controlPoint = driver.ContainsKey("m_iControlPoint") ? driver.GetInt32Property("m_iControlPoint") : 0;
+                if (controlPoint == 0)
+                {
+                    continue;
+                }
+
+                var offset = ReadDriverVector(driver, "m_vecOffset");
+                if (offset == Vector3.Zero)
+                {
+                    continue;
+                }
+
+                GetControlPoint(controlPoint).Position = offset;
+            }
         }
 
         /// <summary>
@@ -156,6 +221,11 @@ namespace ValveResourceFormat.Renderer.SceneNodes
         /// Restarts the particle system from the beginning.
         /// </summary>
         public void Restart() => particleRenderer.Restart();
+
+        /// <summary>
+        /// Forces this system's renderers to draw once with temporary particles.
+        /// </summary>
+        public void Prewarm(Camera camera) => particleRenderer.Prewarm(camera);
 
         /// <summary>Sets the particle detail tier (0 = Low .. 3 = Ultra) used by detail-tiered inputs.</summary>
         public void SetDetailLevel(int level) => particleRenderer.SetDetailLevel(level);
@@ -361,7 +431,7 @@ namespace ValveResourceFormat.Renderer.SceneNodes
 
             if (frameTime > 0f)
             {
-                particleRenderer.Update(frameTime);
+                particleRenderer.Update(frameTime, context.Uptime);
 
                 if (!Preview)
                 {
