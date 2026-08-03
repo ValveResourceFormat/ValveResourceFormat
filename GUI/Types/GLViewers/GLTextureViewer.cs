@@ -676,7 +676,7 @@ namespace GUI.Types.GLViewers
 
             if (isHdrTexture && selectedFilterIndex == 1)
             {
-                using var hdrBitmap = ReadPixelsToBitmap(hdr: true);
+                using var hdrBitmap = ReadTexturePixels(hdr: true);
                 fs.Write(ValveResourceFormat.IO.TextureExtract.ToExrImage(hdrBitmap));
                 return;
             }
@@ -744,10 +744,10 @@ namespace GUI.Types.GLViewers
                 return RasterizeSvg(Svg.Picture, svgWidth, svgHeight);
             }
 
-            return ReadPixelsToBitmap(hdr: false);
+            return ReadTexturePixels(hdr: false);
         }
 
-        protected SKBitmap ReadPixelsToBitmap(bool hdr = false)
+        private SKBitmap ReadTexturePixels(bool hdr)
         {
             var removeFlags = hdr
                 ? (TextureCodec.ColorSpaceLinear | TextureCodec.ColorSpaceSrgb)
