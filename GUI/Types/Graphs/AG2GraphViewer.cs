@@ -13,6 +13,9 @@ internal class AG2GraphViewer : GLGraphViewer
 {
     private static readonly GraphHue PoseHue = AnimGraphHues.HueOf(AnimGraphValueKind.Pose);
 
+    /// <summary>Name a card and a label take for an index that names no node.</summary>
+    private const string MissingNodeName = "missing node";
+
     private readonly KVObject graphDefinition;
 
     public AG2GraphViewer(VrfGuiContext vrfGuiContext, RendererContext rendererContext, KVObject data)
@@ -96,8 +99,15 @@ internal class AG2GraphViewer : GLGraphViewer
             }
         }
 
+        bool IsValidNodeIndex(int nodeIdx) => nodeIdx >= 0 && nodeIdx < nodes.Count && nodeIdx < nodePaths.Length;
+
         string GetName(int nodeIdx)
         {
+            if (nodeIdx < 0 || nodeIdx >= nodePaths.Length)
+            {
+                return MissingNodeName;
+            }
+
             return nodePaths[nodeIdx].Split('/')[^1];
         }
 
@@ -122,13 +132,13 @@ internal class AG2GraphViewer : GLGraphViewer
 
             Node node;
 
-            if (nodeIdx < 0 || nodeIdx >= nodes.Count)
+            if (!IsValidNodeIndex(nodeIdx))
             {
                 Log.Warn(nameof(AG2GraphViewer), $"Node index {nodeIdx} is out of range ({nodes.Count} nodes), adding a placeholder node.");
 
                 node = new Node(null)
                 {
-                    Name = $"({nodeIdx}) missing node",
+                    Name = $"({nodeIdx}) {MissingNodeName}",
                     NodeType = "Missing",
                     Category = GraphHue.Red,
                 };
@@ -207,19 +217,27 @@ internal class AG2GraphViewer : GLGraphViewer
 
             var childNodeOutput = childNode.AddOutput(childOutputName ?? string.Empty, outputHue);
 
-            if (childNode.NodeType != "Missing")
-            {
-                try
-                {
-                    CreateChildren(childNode, nodeIdx);
-                }
-                catch (Exception e) when (e is IndexOutOfRangeException or ArgumentOutOfRangeException)
-                {
-                    Log.Error(nameof(AG2GraphViewer), $"Error creating children for {childNode.Name} (idx = {nodeIdx}).");
-                }
-            }
+            TryCreateChildren(childNode, nodeIdx);
 
             return (childNode, childNodeOutput);
+        }
+
+        // A malformed index anywhere in the tree costs its own subtree, never the whole graph.
+        void TryCreateChildren(Node node, int nodeIdx)
+        {
+            if (node.NodeType == "Missing" || !IsValidNodeIndex(nodeIdx))
+            {
+                return;
+            }
+
+            try
+            {
+                CreateChildren(node, nodeIdx);
+            }
+            catch (Exception e) when (e is IndexOutOfRangeException or ArgumentOutOfRangeException)
+            {
+                Log.Error(nameof(AG2GraphViewer), $"Error creating children for {node.Name} (idx = {nodeIdx}).");
+            }
         }
 
         void CreateChildren(Node node, int nodeIdx)
@@ -239,10 +257,19 @@ internal class AG2GraphViewer : GLGraphViewer
                     var entryConditionNodeIdx = stateDefinition.GetInt32Property("m_nEntryConditionNodeIdx"); // can be -1
 
                     var stateName = GetName(stateNodeIdx);
+                    var input = node.AddInput(stateName, PoseHue, allowMultiple: true);
+
+                    // The placeholder keeps the state list index-aligned with the transitions.
+                    if (!IsValidNodeIndex(stateNodeIdx))
+                    {
+                        var missingState = CreateNode(nodePaths, nodes, stateNodeIdx);
+                        View.Connect(missingState.GetOrAddOutput(string.Empty, PoseHue), input);
+                        stateGraphNodes.Add(missingState);
+                        continue;
+                    }
+
                     var stateNode = nodes[stateNodeIdx];
                     var stateInputIdx = stateNode.GetInt32Property("m_nChildNodeIdx");
-
-                    var input = node.AddInput(stateName, PoseHue, allowMultiple: true);
 
                     var stateGraphNode = View.AddNode(new Node(stateNode)
                     {
@@ -300,22 +327,7 @@ internal class AG2GraphViewer : GLGraphViewer
                         var conditionNodeIdx = transition.GetInt32Property("m_nConditionNodeIdx");
                         var label = conditionNodeIdx != -1 ? GetName(conditionNodeIdx) : null;
 
-                        var target = stateGraphNodes[targetStateIdx];
-                        var from = source.GetOrAddOutput("Transitions", GraphHue.Slate);
-                        var to = target.GetOrAddInput("From", GraphHue.Slate);
-
-                        // Parallel transitions between the same pair of states share one dashed
-                        // wire; every condition keeps its label on it.
-                        var existing = to.Wires.Find(w => w.From == from);
-
-                        if (existing == null)
-                        {
-                            View.Connect(from, to, dashed: true, label: label);
-                        }
-                        else if (label != null)
-                        {
-                            existing.Label = existing.Label == null ? label : $"{existing.Label} | {label}";
-                        }
+                        AnimGraphHues.ConnectTransition(View, source, stateGraphNodes[targetStateIdx], label);
                     }
                 }
             }
@@ -331,10 +343,17 @@ internal class AG2GraphViewer : GLGraphViewer
                     var entryConditionNodeIdx = stateDefinition.GetInt32Property("m_nEntryConditionNodeIdx"); // can be -1
 
                     var stateName = GetName(stateNodeIdx);
+                    var input = node.AddInput(stateName, PoseHue, allowMultiple: true);
+
+                    if (!IsValidNodeIndex(stateNodeIdx))
+                    {
+                        var missingState = CreateNode(nodePaths, nodes, stateNodeIdx);
+                        View.Connect(missingState.GetOrAddOutput(string.Empty, PoseHue), input);
+                        continue;
+                    }
+
                     var stateNode = nodes[stateNodeIdx];
                     var stateInputIdx = stateNode.GetInt32Property("m_nChildNodeIdx");
-
-                    var input = node.AddInput(stateName, PoseHue, allowMultiple: true);
 
                     if (stateInputIdx != -1)
                     {
@@ -345,7 +364,7 @@ internal class AG2GraphViewer : GLGraphViewer
                     if (entryConditionNodeIdx != -1)
                     {
                         var (_, childOutput) = CreateChild<Value>(entryConditionNodeIdx, stateName);
-                        View.Connect(childOutput, input);
+                        View.Connect(childOutput, node.AddInput("Entry condition", childOutput.Hue, allowMultiple: true));
                     }
 
                     var layerBoneMaskNodeIdx = stateNode.GetInt32Property("m_nLayerBoneMaskNodeIdx", -1);
@@ -353,7 +372,7 @@ internal class AG2GraphViewer : GLGraphViewer
                     if (layerBoneMaskNodeIdx != -1)
                     {
                         var (_, maskOutput) = CreateChild<Value>(layerBoneMaskNodeIdx, stateName);
-                        View.Connect(maskOutput, input);
+                        View.Connect(maskOutput, node.AddInput("Layer bone mask", maskOutput.Hue, allowMultiple: true));
                     }
                 }
             }
@@ -391,7 +410,12 @@ internal class AG2GraphViewer : GLGraphViewer
             }
             else if (node.NodeType is "IDBasedSelector" or "IDBasedClipSelector")
             {
-                CreateInputAndChild<Value>(node, data.GetInt32Property("m_nParameterNodeIdx", -1), "Parameter");
+                var idParameterNodeIdx = data.GetInt32Property("m_nParameterNodeIdx", -1);
+
+                if (idParameterNodeIdx != -1)
+                {
+                    CreateInputAndChild<Value>(node, idParameterNodeIdx, "Parameter");
+                }
 
                 var fallbackNodeIdx = data.GetInt32Property("m_nFallbackNodeIdx", -1);
 
@@ -406,13 +430,18 @@ internal class AG2GraphViewer : GLGraphViewer
 
                 for (var i = 0; i < options.Length; i++)
                 {
-                    var label = i < optionIds.Length ? optionIds[i] : $"Option {i + 1}";
+                    var label = optionIds != null && i < optionIds.Length ? optionIds[i] : $"Option {i + 1}";
                     CreateInputAndChild<Pose>(node, options[i], label);
                 }
             }
             else if (node.NodeType is "FloatSwitch" or "IDSwitch" or "BoneMaskSwitch")
             {
-                CreateInputAndChild<Value>(node, data.GetInt32Property("m_nSwitchValueNodeIdx", -1), "Switch");
+                var switchValueNodeIdx = data.GetInt32Property("m_nSwitchValueNodeIdx", -1);
+
+                if (switchValueNodeIdx != -1)
+                {
+                    CreateInputAndChild<Value>(node, switchValueNodeIdx, "Switch");
+                }
 
                 // Either branch may be a constant instead of a wired node, in which case the
                 // constant it falls back to is worth showing in its place.
@@ -447,8 +476,18 @@ internal class AG2GraphViewer : GLGraphViewer
             }
             else if (node.NodeType is "OrientationWarp")
             {
-                CreateInputAndChild<Pose>(node, data.GetInt32Property("m_nClipReferenceNodeIdx", -1), "Clip");
-                CreateInputAndChild<Value>(node, data.GetInt32Property("m_nTargetValueNodeIdx", -1), "Target");
+                var clipReferenceNodeIdx = data.GetInt32Property("m_nClipReferenceNodeIdx", -1);
+                var targetValueNodeIdx = data.GetInt32Property("m_nTargetValueNodeIdx", -1);
+
+                if (clipReferenceNodeIdx != -1)
+                {
+                    CreateInputAndChild<Pose>(node, clipReferenceNodeIdx, "Clip");
+                }
+
+                if (targetValueNodeIdx != -1)
+                {
+                    CreateInputAndChild<Value>(node, targetValueNodeIdx, "Target");
+                }
 
                 node.AddText($"Offset: {data.GetBooleanProperty("m_bIsOffsetNode")}");
                 node.AddText($"Relative To Character: {data.GetBooleanProperty("m_bIsOffsetRelativeToCharacter")}");
@@ -519,7 +558,6 @@ internal class AG2GraphViewer : GLGraphViewer
             else if (node.NodeType is "Blend1D" or "Blend2D")
             {
                 var sourceNodeIndices = data.GetArray<int>("m_sourceNodeIndices");
-                var childCount = sourceNodeIndices.Length + 2;
 
                 if (node.NodeType == "Blend1D")
                 {
@@ -531,7 +569,6 @@ internal class AG2GraphViewer : GLGraphViewer
                     var inputNodeIdxA = data.GetInt32Property("m_nInputParameterNodeIdx0");
                     var inputNodeIdxB = data.GetInt32Property("m_nInputParameterNodeIdx1");
 
-                    childCount += 1;
                     CreateInputAndChild<Value>(node, inputNodeIdxA, "Parameter A");
                     CreateInputAndChild<Value>(node, inputNodeIdxB, "Parameter B");
                 }
@@ -685,8 +722,6 @@ internal class AG2GraphViewer : GLGraphViewer
             }
             else if (node.Data?.ContainsKey("m_nChildNodeIdx") ?? false)
             {
-                var childCount = 1;
-
                 void AddMaybeOptionalInput(string name, int idx)
                 {
                     if (idx != -1)
@@ -697,13 +732,11 @@ internal class AG2GraphViewer : GLGraphViewer
 
                 if (node.NodeType == "Scale")
                 {
-                    childCount = 3;
                     CreateInputAndChild<Pose>(node, data.GetInt32Property("m_nMaskNodeIdx"), "Mask");
                     CreateInputAndChild<Value>(node, data.GetInt32Property("m_nEnableNodeIdx"), "Enable");
                 }
                 else if (node.NodeType == "TwoBoneIK")
                 {
-                    childCount = 2;
                     node.AddText($"Bone: {data.GetStringProperty("m_effectorBoneID")}");
                     CreateInputAndChild<Pose>(node, data.GetInt32Property("m_nEffectorTargetNodeIdx"), "Effector");
                     var enabledNodeIdx = data.GetInt32Property("m_nEnabledNodeIdx");
@@ -721,8 +754,6 @@ internal class AG2GraphViewer : GLGraphViewer
                 }
                 else if (node.NodeType == "FootIK")
                 {
-                    childCount = 3;
-
                     node.AddText($"Left Effector: {data.GetStringProperty("m_leftEffectorBoneID")}");
                     node.AddText($"Right Effector: {data.GetStringProperty("m_rightEffectorBoneID")}");
 
@@ -744,8 +775,6 @@ internal class AG2GraphViewer : GLGraphViewer
                 }
                 else if (node.NodeType is "AimCS")
                 {
-                    childCount = 10;
-
                     AddMaybeOptionalInput("Vertical Angle", data.GetInt32Property("m_nVerticalAngleNodeIdx"));
                     AddMaybeOptionalInput("Horizontal Angle", data.GetInt32Property("m_nHorizontalAngleNodeIdx"));
                     AddMaybeOptionalInput("Weapon Category", data.GetInt32Property("m_nWeaponCategoryNodeIdx"));
@@ -762,7 +791,6 @@ internal class AG2GraphViewer : GLGraphViewer
                 }
                 else if (node.NodeType is "SnapWeapon")
                 {
-                    childCount = 4;
                     AddMaybeOptionalInput("Flashed Amount", data.GetInt32Property("m_nFlashedAmountNodeIdx"));
                     AddMaybeOptionalInput("Weapon Category", data.GetInt32Property("m_nWeaponCategoryNodeIdx"));
                     AddMaybeOptionalInput("Weapon Type", data.GetInt32Property("m_nWeaponTypeNodeIdx"));
@@ -868,10 +896,7 @@ internal class AG2GraphViewer : GLGraphViewer
         var rootOutput = root.AddOutput(string.Empty, PoseHue);
         View.Connect(rootOutput, finalPoseInput);
 
-        if (root.NodeType != "Missing")
-        {
-            CreateChildren(root, rootNodeIdx);
-        }
+        TryCreateChildren(root, rootNodeIdx);
 
         // create some unreferenced nodes
         for (var i = 0; i < nodes.Count; i++)

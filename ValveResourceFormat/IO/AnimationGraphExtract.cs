@@ -1053,7 +1053,7 @@ public class AnimationGraphExtract : IDisposable
             }
 
             stateNode.Add("m_position", MakeVector2(stateX, stateY));
-            stateNode.Add("m_name", compiledState.GetStringProperty("m_name"));
+            stateNode.Add("m_name", compiledState.GetStringProperty("m_name", string.Empty));
             stateNode.Add("m_stateID", compiledState.GetSubCollection("m_stateID"));
             stateNode.Add("m_bIsStartState", compiledState.GetIntegerProperty("m_bIsStartState") > 0);
             stateNode.Add("m_bIsEndtState", compiledState.GetIntegerProperty("m_bIsEndState") > 0);

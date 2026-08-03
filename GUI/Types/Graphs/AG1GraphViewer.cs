@@ -33,8 +33,7 @@ internal class AG1GraphViewer : GLGraphViewer
     private Resource? modelResource;
     private bool modelResourceLoaded;
 
-    // Hue slots per node type (AG1 specific)
-    private const GraphHue PoseHue = GraphHue.Green;
+    private static readonly GraphHue PoseHue = AnimGraphHues.HueOf(AnimGraphValueKind.Pose);
 
     // A subgraph node stands for a whole referenced file, so it takes the reserved reference hue
     // rather than any category or data type colour.
@@ -290,10 +289,10 @@ internal class AG1GraphViewer : GLGraphViewer
         // Always listed, wires drawn or not, so toggling never resizes the legend.
         View.Legend.AddRange(
         [
-            new("Parameter link", GraphHue.Olive, GraphLegendKind.DashedWire),
-            new("Tag group", GraphHue.Teal),
-            new("Component", GraphHue.Neutral),
-            new("Client-simulated", GraphHue.Purple, GraphLegendKind.Marker),
+            new("Parameter link (hue per type)", GraphHue.Neutral, GraphLegendKind.DashedWire),
+            new("Tag group (hue per class)", GraphHue.Teal),
+            new("Component (hue per class)", GraphHue.Neutral),
+            new("Client-simulated (body tint)", GraphHue.Purple),
         ]);
     }
 
@@ -664,13 +663,7 @@ internal class AG1GraphViewer : GLGraphViewer
                     label = paramNames.GetValueOrDefault(conditionParam.GetIntegerProperty("m_id"));
                 }
 
-                var from = srcNode.GetOrAddOutput("Transitions", GraphHue.Slate);
-                var to = destNode.GetOrAddInput("From", GraphHue.Slate);
-
-                if (!to.Wires.Exists(w => w.From == from))
-                {
-                    View.Connect(from, to, dashed: true, label: label);
-                }
+                AnimGraphHues.ConnectTransition(View, srcNode, destNode, label);
             }
         }
     }
@@ -1146,13 +1139,9 @@ internal class AG1GraphViewer : GLGraphViewer
                                 continue;
                             }
 
-                            var from = srcNode.GetOrAddOutput("Transitions", GraphHue.Slate);
-                            var to = destNode.GetOrAddInput("From", GraphHue.Slate);
-
-                            if (!to.Wires.Exists(w => w.From == from))
-                            {
-                                View.Connect(from, to, dashed: true);
-                            }
+                            // Compiled transitions keep their conditions in the state's script
+                            // rather than on the transition, so the wire carries no label.
+                            AnimGraphHues.ConnectTransition(View, srcNode, destNode);
                         }
                     }
                 }
@@ -1216,13 +1205,9 @@ internal class AG1GraphViewer : GLGraphViewer
                 if (!nodeMap.TryGetValue(childIdx, out var childNode))
                     continue;
 
-                if (childNode.Outputs.Count == 0)
-                {
-                    childNode.AddOutput(string.Empty, PoseHue);
-                }
-
+                var outputSocket = childNode.GetOrAddOutput(string.Empty, PoseHue);
                 var inputSocket = parentNode.AddInput(label, PoseHue, allowMultiple: true);
-                View.Connect(childNode.Outputs[0], inputSocket);
+                View.Connect(outputSocket, inputSocket);
             }
         }
     }

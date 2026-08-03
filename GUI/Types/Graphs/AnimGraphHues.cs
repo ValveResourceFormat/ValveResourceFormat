@@ -85,6 +85,30 @@ static class AnimGraphHues
         _ => GraphHue.Neutral,
     };
 
+    /// <summary>Hue the dashed state to state transition wires and their sockets share.</summary>
+    public const GraphHue TransitionHue = GraphHue.Slate;
+
+    /// <summary>
+    /// Draws the dashed transition wire between two state cards, reusing the transition sockets
+    /// either card already carries. Transitions repeated between the same pair of states share
+    /// one wire and merge their labels onto it.
+    /// </summary>
+    public static void ConnectTransition(GraphView view, GraphNode source, GraphNode target, string? label = null)
+    {
+        var from = source.GetOrAddOutput("Transitions", TransitionHue);
+        var to = target.GetOrAddInput("From", TransitionHue);
+        var existing = to.Wires.Find(wire => wire.From == from);
+
+        if (existing == null)
+        {
+            view.Connect(from, to, dashed: true, label: label);
+        }
+        else if (label != null)
+        {
+            existing.Label = existing.Label == null ? label : $"{existing.Label} | {label}";
+        }
+    }
+
     /// <summary>
     /// The legend both animation graph viewers advertise: the line samples first, then the node
     /// colour swatches, matching the two sub-sections the legend panel draws.
@@ -92,7 +116,7 @@ static class AnimGraphHues
     public static IEnumerable<GraphLegendEntry> Legend()
     {
         yield return new("Pose flow", HueOf(AnimGraphValueKind.Pose), GraphLegendKind.Wire);
-        yield return new("Transition", GraphHue.Slate, GraphLegendKind.DashedWire);
+        yield return new("Transition", TransitionHue, GraphLegendKind.DashedWire);
         yield return new("Clip / sequence", HueOf(AnimGraphCategory.Clip));
         yield return new("Blend", HueOf(AnimGraphCategory.Blend));
         yield return new("Blend 2D", HueOf(AnimGraphCategory.Blend2D));
