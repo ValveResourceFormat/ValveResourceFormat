@@ -40,6 +40,9 @@ namespace GUI.Types.GLViewers
         /// <summary>Jump from the entity info popup to the entity's node in the I/O graph tab, when the map has one.</summary>
         public Func<EntityLump.Entity, bool>? ShowEntityInGraph { get; set; }
 
+        /// <summary>Whether the I/O graph tab has a node for an entity. Set together with <see cref="ShowEntityInGraph"/>.</summary>
+        public Func<EntityLump.Entity, bool>? EntityHasGraphNode { get; set; }
+
         public GLWorldViewer(VrfGuiContext vrfGuiContext, RendererContext rendererContext, World world, ResourceExtRefList? externalReferences = null)
             : base(vrfGuiContext, rendererContext)
         {
@@ -792,7 +795,9 @@ namespace GUI.Types.GLViewers
 
             if (entityInfoForm.ShowInGraphButton != null)
             {
-                entityInfoForm.ShowInGraphButton.Visible = isEntity;
+                entityInfoForm.ShowInGraphButton.Visible = isEntity
+                    && entityInfoEntity != null
+                    && (EntityHasGraphNode?.Invoke(entityInfoEntity) ?? false);
             }
 
             entityInfoForm.EntityInfoControl.Clear();

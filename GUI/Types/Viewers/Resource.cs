@@ -1,4 +1,4 @@
-﻿using System.ComponentModel;
+using System.ComponentModel;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
@@ -35,7 +35,6 @@ namespace GUI.Types.Viewers
         private ValveResourceFormat.Resource? resource;
         private RendererContext? rendererContext;
         private readonly List<(GLGraphViewer Viewer, string TabName)> preparedGraphViewers = [];
-        private EntityIOGraphViewer? entityGraphViewer;
         public GLBaseControl? GLViewer { get; private set; }
         private CodeTextBox? GLViewerError;
         private string? GLViewerTabName;
@@ -253,7 +252,12 @@ namespace GUI.Types.Viewers
             }
 
             GLViewer?.InitializeLoad();
-            PrepareExtraGraphViewers(vrfGuiContext, resource);
+
+            // Preview only ever shows the first tab, so the extra graph tabs would be built and thrown away.
+            if (viewMode != ResourceViewMode.ViewerOnly)
+            {
+                PrepareExtraGraphViewers(vrfGuiContext, resource);
+            }
         }
 
         public void NotifyVisible() => GLViewer?.NotifyVisible();
@@ -296,6 +300,15 @@ namespace GUI.Types.Viewers
                     var errorTab = new ThemedTabPage("Viewer Error");
                     errorTab.Controls.Add(GLViewerError);
                     resTabs.TabPages.Add(errorTab);
+                }
+
+                // Entity lumps get the same browsable grid a map's world viewer provides, with or
+                // without the graph tab the GL viewer adds.
+                if (!isPreview && resource.DataBlock is EntityLump standaloneLump)
+                {
+                    var entitiesTabPage = new ThemedTabPage("Entity List");
+                    entitiesTabPage.Controls.Add(new EntityViewer(vrfGuiContext, standaloneLump.GetEntities()));
+                    resTabs.TabPages.Add(entitiesTabPage);
                 }
             }
 
@@ -492,24 +505,17 @@ namespace GUI.Types.Viewers
                     resTabs.TabPages.Add(entitiesTabPage);
                 }
 
-                // Standalone entity lumps get the same browsable grid a map's world viewer provides.
-                if (!isPreview && GLViewer is EntityIOGraphViewer && resource.DataBlock is EntityLump standaloneLump)
-                {
-                    var entitiesTabPage = new ThemedTabPage("Entity List");
-                    entitiesTabPage.Controls.Add(new EntityViewer(vrfGuiContext, standaloneLump.GetEntities()));
-                    resTabs.TabPages.Add(entitiesTabPage);
-                }
-
                 if (!isPreview)
                 {
                     foreach (var (viewer, tabName) in preparedGraphViewers)
                     {
                         AddGraphViewerTab(viewer, tabName, resTabs);
-                    }
 
-                    if (GLViewer is GLWorldViewer worldViewerWithGraph && entityGraphViewer != null)
-                    {
-                        worldViewerWithGraph.ShowEntityInGraph = entityGraphViewer.ShowEntity;
+                        if (GLViewer is GLWorldViewer worldViewerWithGraph && viewer is EntityIOGraphViewer entityGraphViewer)
+                        {
+                            worldViewerWithGraph.ShowEntityInGraph = entityGraphViewer.ShowEntity;
+                            worldViewerWithGraph.EntityHasGraphNode = entityGraphViewer.HasEntity;
+                        }
                     }
                 }
 
@@ -554,8 +560,7 @@ namespace GUI.Types.Viewers
 
                 if (hasConnections)
                 {
-                    entityGraphViewer = new EntityIOGraphViewer(vrfGuiContext, rendererContext, loadedWorld.Entities, glWorldViewer.SelectAndFocusEntities);
-                    preparedGraphViewers.Add((entityGraphViewer, "ENTITY I/O GRAPH"));
+                    preparedGraphViewers.Add((new EntityIOGraphViewer(vrfGuiContext, rendererContext, loadedWorld.Entities, glWorldViewer.SelectAndFocusEntities), "ENTITY I/O GRAPH"));
                 }
 
                 PrepareMapPulseGraphViewers(vrfGuiContext, loadedWorld.Entities);
@@ -1063,8 +1068,6 @@ namespace GUI.Types.Viewers
             }
 
             preparedGraphViewers.Clear();
-            entityGraphViewer?.Dispose();
-            entityGraphViewer = null;
         }
 
         public void Dispose()

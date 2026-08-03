@@ -5,6 +5,7 @@ using GUI.Types.GLViewers;
 using GUI.Types.Graphs.Core;
 using GUI.Utils;
 using SkiaSharp;
+using ValveResourceFormat;
 using ValveResourceFormat.Renderer;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.Serialization.KeyValues;
@@ -75,13 +76,10 @@ internal class EntityIOGraphViewer : GLGraphViewer
         islands.Sort(static (a, b) => b.Count.CompareTo(a.Count));
 
         LoadEntityIcons();
-        View.IconResolver = key => iconCache.GetValueOrDefault(key);
+        View.IconResolver = key => iconsByClassname.GetValueOrDefault(key);
 
-        // Icons widen their nodes, so lay out again with the final geometry.
-        if (iconCache.Count > 0)
-        {
-            View.LayoutNodesPacked();
-        }
+        // Icons widen their nodes, so lay out once the node content is final.
+        View.LayoutNodesPacked();
     }
 
     // Hammer editor icons: convention path materials/editor/<classname>.vmat, plus FGD-derived
@@ -108,11 +106,13 @@ internal class EntityIOGraphViewer : GLGraphViewer
         ["logic_npc_counter_obb"] = "math_counter",
     };
 
-    private readonly Dictionary<string, SKImage> iconCache = [];
+    // Owns the decoded images; classnames that alias onto the same material share one entry.
+    private readonly Dictionary<string, SKImage> iconsByMaterial = [];
+    private readonly Dictionary<string, SKImage> iconsByClassname = [];
 
     private void LoadEntityIcons()
     {
-        var failed = new HashSet<string>();
+        var failedMaterials = new HashSet<string>();
 
         foreach (var island in islands)
         {
@@ -125,22 +125,34 @@ internal class EntityIOGraphViewer : GLGraphViewer
 
                 var classname = entity.GetStringProperty("classname");
 
-                if (string.IsNullOrEmpty(classname) || failed.Contains(classname))
+                if (string.IsNullOrEmpty(classname))
                 {
                     continue;
                 }
 
-                if (!iconCache.ContainsKey(classname))
+                if (!iconsByClassname.ContainsKey(classname))
                 {
-                    var image = TryLoadIcon(classname);
+                    var materialName = IconAliases.GetValueOrDefault(classname, classname);
 
-                    if (image == null)
+                    if (failedMaterials.Contains(materialName))
                     {
-                        failed.Add(classname);
                         continue;
                     }
 
-                    iconCache[classname] = image;
+                    if (!iconsByMaterial.TryGetValue(materialName, out var image))
+                    {
+                        image = TryLoadIcon(materialName);
+
+                        if (image == null)
+                        {
+                            failedMaterials.Add(materialName);
+                            continue;
+                        }
+
+                        iconsByMaterial[materialName] = image;
+                    }
+
+                    iconsByClassname[classname] = image;
                 }
 
                 node.IconKey = classname;
@@ -148,10 +160,8 @@ internal class EntityIOGraphViewer : GLGraphViewer
         }
     }
 
-    private SKImage? TryLoadIcon(string classname)
+    private SKImage? TryLoadIcon(string iconName)
     {
-        var iconName = IconAliases.GetValueOrDefault(classname, classname);
-
         try
         {
             if (RendererContext.FileLoader.LoadFileCompiled($"materials/editor/{iconName}.vmat")?.DataBlock is not Material material)
@@ -174,61 +184,57 @@ internal class EntityIOGraphViewer : GLGraphViewer
         }
         catch (Exception e)
         {
-            Log.Debug(nameof(EntityIOGraphViewer), $"Failed to load editor icon for {classname}: {e.Message}");
+            Log.Debug(nameof(EntityIOGraphViewer), $"Failed to load editor icon {iconName}: {e.Message}");
             return null;
         }
     }
 
-    /// <summary>Selects and centers the node of <paramref name="entity"/>. Returns false when the entity has no node in the graph.</summary>
-    public bool ShowEntity(EntityLump.Entity entity)
-    {
-        GraphNode? target = null;
+    /// <summary>Whether <paramref name="entity"/> has a node <see cref="ShowEntity"/> can jump to.</summary>
+    public bool HasEntity(EntityLump.Entity entity) => FindNode(entity) != null;
 
+    private GraphNode? FindNode(EntityLump.Entity entity)
+    {
         foreach (var island in islands)
         {
             foreach (var node in island)
             {
                 if (ReferenceEquals(node.Tag, entity))
                 {
-                    target = node;
-                    break;
+                    return node;
                 }
-            }
-
-            if (target != null)
-            {
-                break;
             }
         }
 
-        if (target == null)
+        // Merged name-group nodes carry only one member as Tag; match the rest by name+class.
+        var name = entity.GetStringProperty("targetname");
+
+        if (string.IsNullOrEmpty(name))
         {
-            // Merged name-group nodes carry only one member as Tag; match the rest by name+class.
-            var name = entity.GetStringProperty("targetname");
-            var classname = entity.GetStringProperty("classname");
+            return null;
+        }
 
-            if (!string.IsNullOrEmpty(name))
+        var classname = entity.GetStringProperty("classname");
+
+        foreach (var island in islands)
+        {
+            foreach (var node in island)
             {
-                foreach (var island in islands)
+                if (node.Tag is EntityLump.Entity member &&
+                    string.Equals(member.GetStringProperty("targetname"), name, StringComparison.OrdinalIgnoreCase) &&
+                    member.GetStringProperty("classname") == classname)
                 {
-                    foreach (var node in island)
-                    {
-                        if (node.Tag is EntityLump.Entity member &&
-                            string.Equals(member.GetStringProperty("targetname"), name, StringComparison.OrdinalIgnoreCase) &&
-                            member.GetStringProperty("classname") == classname)
-                        {
-                            target = node;
-                            break;
-                        }
-                    }
-
-                    if (target != null)
-                    {
-                        break;
-                    }
+                    return node;
                 }
             }
         }
+
+        return null;
+    }
+
+    /// <summary>Selects and centers the node of <paramref name="entity"/>. Returns false when the entity has no node in the graph.</summary>
+    public bool ShowEntity(EntityLump.Entity entity)
+    {
+        var target = FindNode(entity);
 
         if (target == null)
         {
@@ -265,12 +271,13 @@ internal class EntityIOGraphViewer : GLGraphViewer
     {
         base.Dispose();
 
-        foreach (var image in iconCache.Values)
+        foreach (var image in iconsByMaterial.Values)
         {
             image.Dispose();
         }
 
-        iconCache.Clear();
+        iconsByMaterial.Clear();
+        iconsByClassname.Clear();
     }
 
     protected override bool HasMultipleIslands => islands.Count > 1;
@@ -314,7 +321,7 @@ internal class EntityIOGraphViewer : GLGraphViewer
         return $"{best!.Title} ({island.Count} nodes)";
     }
 
-    private sealed record Connection(EntityLump.Entity Source, string OutputName, string InputName, string TargetName, string OverrideParam, float Delay, int TimesToFire);
+    private sealed record Connection(EntityLump.Entity Source, string OutputName, string InputName, string TargetName, EntityIOTargetType TargetType, string OverrideParam, float Delay, int TimesToFire);
 
     // Prefab-instanced entities carry a "[PR#]" targetname prefix, hide it for display.
     private static string StripTargetnamePrefix(string value)
@@ -351,9 +358,25 @@ internal class EntityIOGraphViewer : GLGraphViewer
         return parts.Count > 0 ? string.Join(" ", parts) : null;
     }
 
+    private static string? SpecialTargetName(Connection connection) => connection.TargetName.Length > 0
+        ? connection.TargetName
+        : connection.TargetType switch
+        {
+            EntityIOTargetType.SpecialActivator => "!activator",
+            EntityIOTargetType.SpecialCaller => "!caller",
+            _ => null,
+        };
+
+    private const int MaxMalformedConnectionWarnings = 20;
+
+    /// <summary>
+    /// Fills <paramref name="view"/> with a node per entity and a wire per connection. Leaves the
+    /// nodes unpositioned; the caller lays out once the node content is final.
+    /// </summary>
     internal static void BuildGraph(GraphView view, List<EntityLump.Entity> entities, Dictionary<GraphNode, List<EntityLump.Entity>>? groupMembers = null)
     {
         var connections = new List<Connection>();
+        var malformedConnections = 0;
 
         foreach (var entity in entities)
         {
@@ -370,8 +393,14 @@ internal class EntityIOGraphViewer : GLGraphViewer
 
                 if (outputName == null || inputName == null || targetName == null)
                 {
-                    var owner = entity.GetStringProperty("targetname") ?? entity.GetStringProperty("classname") ?? "unknown entity";
-                    Log.Warn(nameof(EntityIOGraphViewer), $"Skipping connection with a missing or non-string name field on '{owner}'.");
+                    malformedConnections++;
+
+                    if (malformedConnections <= MaxMalformedConnectionWarnings)
+                    {
+                        var owner = entity.GetStringProperty("targetname") ?? entity.GetStringProperty("classname") ?? "unknown entity";
+                        Log.Warn(nameof(EntityIOGraphViewer), $"Skipping connection with a missing or non-string name field on '{owner}'.");
+                    }
+
                     continue;
                 }
 
@@ -380,30 +409,19 @@ internal class EntityIOGraphViewer : GLGraphViewer
                     outputName,
                     inputName,
                     targetName,
+                    EntityIOTargetResolver.GetTargetType(connectionData),
                     connectionData.GetStringProperty("m_overrideParam"),
                     connectionData.GetFloatProperty("m_flDelay"),
                     connectionData.GetInt32Property("m_nTimesToFire")));
             }
         }
 
-        var entitiesByName = new Dictionary<string, List<EntityLump.Entity>>(StringComparer.OrdinalIgnoreCase);
-
-        foreach (var entity in entities)
+        if (malformedConnections > MaxMalformedConnectionWarnings)
         {
-            var name = entity.GetStringProperty("targetname");
-            if (string.IsNullOrEmpty(name))
-            {
-                continue;
-            }
-
-            if (!entitiesByName.TryGetValue(name, out var list))
-            {
-                list = [];
-                entitiesByName[name] = list;
-            }
-
-            list.Add(entity);
+            Log.Warn(nameof(EntityIOGraphViewer), $"Skipped {malformedConnections} connections with a missing or non-string name field.");
         }
+
+        var resolver = new EntityIOTargetResolver(entities);
 
         var entityNodes = new Dictionary<EntityLump.Entity, GraphNode>();
         var namedNodes = new Dictionary<(string Name, string Class), GraphNode>();
@@ -431,9 +449,14 @@ internal class EntityIOGraphViewer : GLGraphViewer
 
                 if (!namedNodes.TryGetValue(key, out node))
                 {
-                    List<EntityLump.Entity> members = entitiesByName.TryGetValue(name, out var group)
-                        ? group.Where(e => (e.GetStringProperty("classname") ?? "unknown") == classname).ToList()
-                        : [entity];
+                    var members = resolver.GetByTargetName(name)
+                        .Where(e => (e.GetStringProperty("classname") ?? "unknown") == classname)
+                        .ToList();
+
+                    if (members.Count == 0)
+                    {
+                        members = [entity];
+                    }
 
                     node = view.AddNode(new GraphNode
                     {
@@ -468,10 +491,12 @@ internal class EntityIOGraphViewer : GLGraphViewer
             return node;
         }
 
-        GraphNode SyntheticFor(string targetName, bool unresolved)
+        GraphNode SyntheticFor(string targetName, EntityIOTargetOutcome outcome)
         {
             if (!syntheticNodes.TryGetValue(targetName, out var node))
             {
+                var unresolved = outcome == EntityIOTargetOutcome.NotFound;
+
                 node = view.AddNode(new GraphNode
                 {
                     Title = StripTargetnamePrefix(targetName),
@@ -517,8 +542,9 @@ internal class EntityIOGraphViewer : GLGraphViewer
             for (var i = 1; i <= 64; i++)
             {
                 var childName = entity.GetStringProperty($"template{i:D2}");
+                var childEntities = resolver.GetByTargetName(childName);
 
-                if (string.IsNullOrEmpty(childName) || !entitiesByName.TryGetValue(childName, out var childEntities))
+                if (childEntities.Count == 0)
                 {
                     continue;
                 }
@@ -544,61 +570,34 @@ internal class EntityIOGraphViewer : GLGraphViewer
             return;
         }
 
+        var targetEntities = new List<EntityLump.Entity>();
+
         foreach (var connection in connections)
         {
             var sourceNode = NodeFor(connection.Source);
 
-            // Relative specials (!self, !activator, ...) and listener hooks are not real map
-            // entities; they inline as annotation rows on the firing node instead of wires.
-            if (connection.TargetName.Length == 0 || connection.TargetName.StartsWith('!'))
+            targetEntities.Clear();
+            var outcome = resolver.Resolve(connection.TargetName, connection.TargetType, targetEntities);
+
+            // Targets bound at runtime inline as annotation rows on the firing node instead of wires.
+            if (outcome is EntityIOTargetOutcome.Special or EntityIOTargetOutcome.Empty)
             {
                 var inlineLabel = FormatConnectionLabel(connection);
+                var specialName = SpecialTargetName(connection);
                 var inputPart = connection.InputName.Length == 0 ? string.Empty : $".{connection.InputName}";
-                var text = connection.TargetName.Length == 0
+                var text = specialName == null
                     ? $"{connection.OutputName} → (hook)"
-                    : $"{connection.OutputName} → {connection.TargetName}{inputPart}{(inlineLabel != null ? $" ({inlineLabel})" : string.Empty)}";
+                    : $"{connection.OutputName} → {specialName}{inputPart}{(inlineLabel != null ? $" ({inlineLabel})" : string.Empty)}";
                 annotations.Add((sourceNode, text));
                 continue;
             }
 
             var output = OutputFor(sourceNode, connection.OutputName, OutputHue);
 
-            List<GraphNode> targetNodes;
-
-            if (entitiesByName.TryGetValue(connection.TargetName, out var targetEntities))
-            {
-                // Name-group members merge into shared nodes; Distinct avoids doubling labels.
-                targetNodes = targetEntities.Select(NodeFor).Distinct().ToList();
-            }
-            else if (connection.TargetName.Contains('*'))
-            {
-                // Source 2 target names support trailing-* prefix matching.
-                var prefix = connection.TargetName[..connection.TargetName.IndexOf('*')];
-                targetNodes = [];
-
-                foreach (var (name, namedEntities) in entitiesByName)
-                {
-                    if (name.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
-                    {
-                        foreach (var targetEntity in namedEntities)
-                        {
-                            targetNodes.Add(NodeFor(targetEntity));
-                        }
-                    }
-                }
-
-                // Name-group members merge into shared nodes; Distinct avoids doubling labels.
-                targetNodes = targetNodes.Distinct().ToList();
-
-                if (targetNodes.Count == 0)
-                {
-                    targetNodes = [SyntheticFor(connection.TargetName, unresolved: true)];
-                }
-            }
-            else
-            {
-                targetNodes = [SyntheticFor(connection.TargetName, unresolved: true)];
-            }
+            // Name-group members merge into shared nodes; Distinct avoids doubling labels.
+            var targetNodes = outcome == EntityIOTargetOutcome.Matched
+                ? targetEntities.Select(NodeFor).Distinct().ToList()
+                : [SyntheticFor(connection.TargetName, outcome)];
 
             var label = FormatConnectionLabel(connection);
 
@@ -633,7 +632,5 @@ internal class EntityIOGraphViewer : GLGraphViewer
         }
 
         Log.Debug(nameof(EntityIOGraphViewer), $"Created {entityNodes.Count + syntheticNodes.Count} nodes from {connections.Count} connections ({entities.Count} entities).");
-
-        view.LayoutNodesPacked();
     }
 }
