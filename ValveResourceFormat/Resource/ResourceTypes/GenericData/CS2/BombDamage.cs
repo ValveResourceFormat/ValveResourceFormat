@@ -98,7 +98,7 @@ public sealed class BombDamage : GenericData
 
         var header = kvRoot.GetSubCollection("header");
         Version = header.GetInt32Property("version");
-        if (Version != 1)
+        if (Version is not (1 or 2))
         {
             throw new UnexpectedMagicException("Unexpected version for baked bomb damage data", Version, nameof(Version));
         }
