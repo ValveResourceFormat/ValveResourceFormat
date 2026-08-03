@@ -3,8 +3,10 @@ using System.Runtime.CompilerServices;
 namespace GUI.Types.Graphs.Core;
 
 /// <summary>
-/// The wire curve shared by rendering, hit testing and layout measurement, so all three agree
-/// on where a wire actually runs.
+/// Wire geometry shared by the passes that need it. The curve shape is shared by drawing and hit
+/// testing, which build one path per wire, so a click lands on the line that is on screen. Layout
+/// does not use it: the placement and repair passes measure a wire as the straight run between its
+/// two socket pivots, and take only the intersection tests from here.
 /// </summary>
 internal static class GraphWireGeometry
 {

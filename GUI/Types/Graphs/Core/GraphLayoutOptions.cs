@@ -57,7 +57,7 @@ sealed class GraphLayoutOptions
     /// Crossings a card may add by moving out from under a wire. At zero a card stays under a wire
     /// whenever escaping it would put its own wires across something else.
     /// </summary>
-    public int ClearCrossingTolerance { get; set; } = 1;
+    public int ClearCrossingTolerance { get; set; }
 
     /// <summary>Furthest a card may be moved to get out from under a wire.</summary>
     public float WireClearLimit { get; set; } = 260f;
@@ -69,16 +69,19 @@ sealed class GraphLayoutOptions
     public float CrossingSlideStep { get; set; } = 14f;
 
     /// <summary>
-    /// Wall-clock milliseconds the whole repair may spend before it stops and keeps what it has.
-    /// Zero removes the limit, which is what the manual full-quality command uses.
+    /// Wall-clock milliseconds the whole layout may spend on crossing repair before it stops and
+    /// keeps what it has. Zero removes the limit, which is what the manual full-quality command
+    /// uses. The caller splits it across the islands with
+    /// <see cref="GraphLayout.SplitRepairBudget"/>.
     /// </summary>
     public int CrossingRepairBudgetMs { get; set; } = 4000;
 
     /// <summary>
-    /// Clock the budget is counted against, shared by every island of one layout so the budget
-    /// covers the whole graph rather than each island separately.
+    /// Milliseconds the island being laid out right now may spend, timed from when its own repair
+    /// starts so no island can eat the time meant for the ones after it. Null lets the repair take
+    /// the whole of <see cref="CrossingRepairBudgetMs"/>; zero means unlimited, as it does there.
     /// </summary>
-    internal System.Diagnostics.Stopwatch? RepairClock { get; set; }
+    internal int? RepairSliceMs { get; set; }
 
     /// <summary>Largest branch that may be shifted as one to reorder two wires into a card.</summary>
     public int BranchShiftMaxNodes { get; set; } = 40;

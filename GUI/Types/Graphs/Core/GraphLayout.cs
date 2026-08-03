@@ -26,6 +26,9 @@ internal static class GraphLayout
     /// <summary>Gap between the wrapped sub-columns of one oversized rank.</summary>
     private const float SubColumnSeparation = 64f;
 
+    /// <summary>Repair time every island is given before the rest is shared out by size.</summary>
+    private const int RepairSliceFloorMs = 250;
+
     public static void Layout(
         List<GraphNode> component,
         List<GraphWire> componentWires,
@@ -90,28 +93,63 @@ internal static class GraphLayout
         }
     }
 
-    internal static bool OverlapsColumn(GraphNode node, List<GraphNode> column, GraphGeometry geometry)
+    /// <summary>
+    /// Splits a repair budget across the islands of one layout, so the first island cannot spend
+    /// all of it. Islands of fewer than two nodes get nothing, every other island gets a floor plus
+    /// a share of what is left in proportion to its node count, and the slices together stay inside
+    /// <paramref name="totalMs"/>. A zero total stays zero, which means unlimited; a slice is never
+    /// rounded down to zero, which would mean the same thing.
+    /// </summary>
+    public static int[] SplitRepairBudget(IReadOnlyList<int> nodeCounts, int totalMs)
     {
-        var top = node.Position.Y;
-        var bottom = top + geometry.SizeOf(node).Y;
+        var slices = new int[nodeCounts.Count];
 
-        foreach (var other in column)
+        if (totalMs <= 0)
         {
-            if (other == node)
+            return slices;
+        }
+
+        var islands = 0;
+        var totalNodes = 0;
+
+        for (var i = 0; i < nodeCounts.Count; i++)
+        {
+            if (nodeCounts[i] < 2)
             {
                 continue;
             }
 
-            var otherTop = other.Position.Y;
+            islands++;
+            totalNodes += nodeCounts[i];
+        }
 
-            if (top < otherTop + geometry.SizeOf(other).Y && otherTop < bottom)
+        if (islands == 0)
+        {
+            return slices;
+        }
+
+        var floor = Math.Min(RepairSliceFloorMs, totalMs / islands);
+        var shared = totalMs - (floor * islands);
+
+        for (var i = 0; i < nodeCounts.Count; i++)
+        {
+            if (nodeCounts[i] >= 2)
             {
-                return true;
+                slices[i] = Math.Max(1, floor + (int)((long)shared * nodeCounts[i] / totalNodes));
             }
         }
 
-        return false;
+        return slices;
     }
+
+    /// <summary>
+    /// Whether two cards clear each other: they either miss in x entirely, or keep
+    /// <paramref name="spacing"/> between them in y. Both placement engines leave every pair in
+    /// that state, so it is the condition every later move has to preserve.
+    /// </summary>
+    internal static bool CardsClear(Vector2 aMin, Vector2 aMax, Vector2 bMin, Vector2 bMax, float spacing)
+        => aMax.X <= bMin.X || bMax.X <= aMin.X
+        || bMin.Y - aMax.Y >= spacing || aMin.Y - bMax.Y >= spacing;
 
     // Stress majorization over graph-theoretic hop distances, then pairwise overlap removal.
     private static void LayoutOrganic(List<GraphNode> component, List<GraphWire> componentWires, GraphGeometry geometry, GraphLayoutOptions options)
@@ -361,13 +399,37 @@ internal static class GraphLayout
 
             var shift = WeightedMedian(shifts[i]);
 
-            // Only take the nudge when it cannot reintroduce an overlap.
-            if (Math.Abs(shift) > halfSizes[i].Y + options.NodeSpacing)
+            // Taken only when the shifted card still clears every card it overlaps in x, measured
+            // against where those cards sit now, so the nudges stay safe applied one after another.
+            if (!Fits(i, shift))
             {
                 continue;
             }
 
             component[i].Position += new Vector2(0f, shift);
+        }
+
+        bool Fits(int i, float shift)
+        {
+            var min = component[i].Position + new Vector2(0f, shift);
+            var max = min + halfSizes[i] * 2f;
+
+            for (var j = 0; j < component.Count; j++)
+            {
+                if (j == i)
+                {
+                    continue;
+                }
+
+                var otherMin = component[j].Position;
+
+                if (!CardsClear(min, max, otherMin, otherMin + halfSizes[j] * 2f, options.NodeSpacing))
+                {
+                    return false;
+                }
+            }
+
+            return true;
         }
     }
 
@@ -431,7 +493,7 @@ internal static class GraphLayout
             .ToArray();
 
         var baseWidth = MathF.Sqrt(area * PackingAspect);
-        var bestScore = float.MaxValue;
+        var bestScore = float.PositiveInfinity;
 
         foreach (var factor in new[] { 0.85f, 1f, 1.2f })
         {
@@ -462,7 +524,9 @@ internal static class GraphLayout
 
             var usedHeight = shelfY + shelfHeight;
             var aspect = usedWidth / Math.Max(1f, usedHeight);
-            var score = Math.Max(aspect / PackingAspect, PackingAspect / aspect);
+
+            // Zero-width input has no shape to score, and still has to come out placed.
+            var score = aspect > 0f ? Math.Max(aspect / PackingAspect, PackingAspect / aspect) : float.MaxValue;
 
             if (score < bestScore)
             {
@@ -534,9 +598,11 @@ internal static class GraphLayout
             AssignHeights();
             ApplyPositions();
 
-            // Runs on the placed cards, before the routes are built from them.
             RepairCrossings(component, componentWires, geometry, options);
 
+            // The repair moves cards, so the lanes the long wires run through are re-derived from
+            // where the cards ended up rather than from where they were placed.
+            AssignDummyHeights();
             EmitRoutes();
         }
 
@@ -958,44 +1024,74 @@ internal static class GraphLayout
             }
         }
 
-        // Inversions between consecutive ranks, counted with a Fenwick tree so hub-heavy ranks
-        // stay affordable.
+        /// <summary>
+        /// Inversions across every rank boundary, counted with a Fenwick tree so hub-heavy ranks
+        /// stay affordable. A wire spanning several ranks is projected onto each boundary it
+        /// crosses, so ordering sees the wires that have no dummies standing in for them too.
+        /// Heights are normalised per rank, so the two sides of a boundary compare.
+        /// </summary>
         private int CountCrossings()
         {
+            var boundaries = new List<(float Upper, float Lower)>[Math.Max(1, ranks.Length)];
+
+            for (var i = 0; i < count; i++)
+            {
+                foreach (var link in down[i])
+                {
+                    var fromRank = rankOf[i];
+                    var toRank = rankOf[link.Other];
+
+                    if (toRank <= fromRank)
+                    {
+                        continue;
+                    }
+
+                    var fromKey = NormalisedPosition(i);
+                    var toKey = NormalisedPosition(link.Other);
+                    var span = (float)(toRank - fromRank);
+
+                    for (var r = fromRank; r < toRank; r++)
+                    {
+                        var upper = fromKey + ((toKey - fromKey) * ((r - fromRank) / span));
+                        var lower = fromKey + ((toKey - fromKey) * ((r + 1 - fromRank) / span));
+                        (boundaries[r] ??= []).Add((upper, lower));
+                    }
+                }
+            }
+
             var total = 0;
 
             for (var r = 0; r + 1 < ranks.Length; r++)
             {
-                var edges = new List<(int Upper, int Lower)>();
+                var edges = boundaries[r];
 
-                foreach (var node in ranks[r])
-                {
-                    foreach (var link in down[node])
-                    {
-                        if (rankOf[link.Other] == r + 1)
-                        {
-                            edges.Add((positionInRank[node], positionInRank[link.Other]));
-                        }
-                    }
-                }
-
-                if (edges.Count < 2)
+                if (edges == null || edges.Count < 2)
                 {
                     continue;
                 }
 
+                var lowers = new float[edges.Count];
+
+                for (var i = 0; i < edges.Count; i++)
+                {
+                    lowers[i] = edges[i].Lower;
+                }
+
+                Array.Sort(lowers);
                 edges.Sort(static (a, b) => a.Upper != b.Upper ? a.Upper.CompareTo(b.Upper) : a.Lower.CompareTo(b.Lower));
 
-                var size = ranks[r + 1].Count + 1;
+                var size = edges.Count + 1;
                 var tree = new int[size + 1];
                 var seen = 0;
 
                 foreach (var (_, lower) in edges)
                 {
-                    // Everything already inserted strictly to the right of this edge crosses it.
-                    var greater = seen - Query(lower + 1);
-                    total += greater;
-                    Add(lower + 1);
+                    // Equal heights share a slot, so two wires arriving level do not count.
+                    var found = Array.BinarySearch(lowers, lower);
+                    var slot = (found < 0 ? ~found : found) + 1;
+
+                    total += seen - Query(slot);
+                    Add(slot);
                     seen++;
                 }
 
@@ -1229,6 +1325,99 @@ internal static class GraphLayout
                 if (overlap > 0f)
                 {
                     centerY[lower] += overlap;
+                }
+            }
+        }
+
+        /// <summary>
+        /// Re-derives the heights of the long-wire dummies from the cards' final positions. The
+        /// cards themselves stay where the repair left them; only the lanes between them move.
+        /// </summary>
+        private void AssignDummyHeights()
+        {
+            if (count == realCount)
+            {
+                return;
+            }
+
+            for (var i = 0; i < realCount; i++)
+            {
+                centerY[i] = component[i].Position.Y + height[i] / 2f;
+            }
+
+            var desired = new List<(float Value, float Weight)>();
+            var lane = new List<int>();
+
+            for (var sweep = 0; sweep < 8; sweep++)
+            {
+                var forward = sweep % 2 == 0;
+
+                for (var c = forward ? 0 : columns.Count - 1; forward ? c < columns.Count : c >= 0; c += forward ? 1 : -1)
+                {
+                    lane.Clear();
+
+                    foreach (var i in columns[c])
+                    {
+                        if (i < realCount)
+                        {
+                            continue;
+                        }
+
+                        desired.Clear();
+                        Collect(i, desired);
+
+                        if (desired.Count > 0)
+                        {
+                            centerY[i] = WeightedMedian(desired);
+                        }
+
+                        lane.Add(i);
+                    }
+
+                    SpaceDummies(columns[c], lane);
+                }
+            }
+        }
+
+        /// <summary>Moves the dummies of one column out of the cards in it and off each other.</summary>
+        private void SpaceDummies(List<int> column, List<int> lane)
+        {
+            if (lane.Count == 0)
+            {
+                return;
+            }
+
+            lane.Sort((a, b) => centerY[a].CompareTo(centerY[b]));
+
+            for (var round = 0; round < 2; round++)
+            {
+                foreach (var dummy in lane)
+                {
+                    foreach (var i in column)
+                    {
+                        if (i >= realCount)
+                        {
+                            continue;
+                        }
+
+                        var top = centerY[i] - (height[i] / 2f) - options.DummyLaneHeight;
+                        var bottom = centerY[i] + (height[i] / 2f) + options.DummyLaneHeight;
+
+                        if (centerY[dummy] > top && centerY[dummy] < bottom)
+                        {
+                            centerY[dummy] = centerY[dummy] - top < bottom - centerY[dummy] ? top : bottom;
+                        }
+                    }
+                }
+
+                for (var j = 1; j < lane.Count; j++)
+                {
+                    var overlap = centerY[lane[j - 1]] + options.DummyLaneHeight - centerY[lane[j]];
+
+                    if (overlap > 0f)
+                    {
+                        centerY[lane[j]] += overlap;
+                    }
                 }
             }
         }

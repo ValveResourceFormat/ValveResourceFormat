@@ -20,6 +20,9 @@ internal sealed class CrossingRepair
 {
     private const float ColumnQuantum = 8f;
 
+    /// <summary>Slack allowed on the separation test, so gaps laid out at exactly the spacing pass.</summary>
+    private const float SeparationTolerance = 0.5f;
+
     private readonly List<GraphNode> component;
     private readonly GraphGeometry geometry;
     private readonly GraphLayoutOptions options;
@@ -41,6 +44,15 @@ internal sealed class CrossingRepair
     private readonly Dictionary<GraphNode, List<int>> incident = [];
     private readonly Dictionary<GraphNode, List<GraphNode>> columnOf = [];
     private readonly List<List<GraphNode>> columns = [];
+
+    /// <summary>
+    /// The island's cards ordered by left edge, with their widths. Every move here is vertical, so
+    /// this is built once and stays valid, and it is what the separation veto searches: quantised
+    /// columns say nothing about which cards actually overlap in x once placement is organic.
+    /// </summary>
+    private readonly GraphNode[] byLeft;
+    private readonly float[] lefts;
+    private readonly float maxWidth;
 
 
     public CrossingRepair(List<GraphNode> component, List<GraphWire> componentWires, GraphGeometry geometry, GraphLayoutOptions options)
@@ -84,6 +96,69 @@ internal sealed class CrossingRepair
             columnOf[node] = column;
         }
 
+        byLeft = [.. component.OrderBy(static n => n.Position.X)];
+        lefts = new float[byLeft.Length];
+
+        for (var i = 0; i < byLeft.Length; i++)
+        {
+            lefts[i] = byLeft[i].Position.X;
+            maxWidth = Math.Max(maxWidth, geometry.SizeOf(byLeft[i]).X);
+        }
+    }
+
+    /// <summary>
+    /// Whether a card sits too close to another card of its island where it is now: cards that
+    /// overlap in x have to keep <see cref="GraphLayoutOptions.NodeSpacing"/> between them in y.
+    /// Both placement engines leave every pair like that, so every move is vetoed against it.
+    /// </summary>
+    private bool Blocked(GraphNode node)
+    {
+        var min = node.Position;
+        var max = min + geometry.SizeOf(node);
+        var spacing = options.NodeSpacing - SeparationTolerance;
+
+        for (var i = FirstReaching(min.X); i < byLeft.Length && lefts[i] < max.X; i++)
+        {
+            var other = byLeft[i];
+
+            if (other == node)
+            {
+                continue;
+            }
+
+            var otherMin = other.Position;
+
+            if (!GraphLayout.CardsClear(min, max, otherMin, otherMin + geometry.SizeOf(other), spacing))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /// <summary>First of the x-sorted cards whose right edge can still reach <paramref name="left"/>.</summary>
+    private int FirstReaching(float left)
+    {
+        var reach = left - maxWidth;
+        var low = 0;
+        var high = lefts.Length;
+
+        while (low < high)
+        {
+            var mid = (low + high) / 2;
+
+            if (lefts[mid] < reach)
+            {
+                low = mid + 1;
+            }
+            else
+            {
+                high = mid;
+            }
+        }
+
+        return low;
     }
 
     private void Track(GraphNode node, int wire)
@@ -117,13 +192,15 @@ internal sealed class CrossingRepair
         }
     }
 
-    private System.Diagnostics.Stopwatch clock = new();
+    private readonly System.Diagnostics.Stopwatch clock = new();
+    private int budgetMs;
 
     /// <summary>
-    /// Whether the repair has spent its time. Checked between moves rather than inside the
-    /// scoring loops, so it always stops on a consistent layout, never half way through a swap.
+    /// Whether the repair has spent the slice of the layout's budget this island was given. Checked
+    /// between moves rather than inside the scoring loops, so it always stops on a consistent
+    /// layout, never half way through a swap.
     /// </summary>
-    private bool Spent => options.CrossingRepairBudgetMs > 0 && clock.ElapsedMilliseconds >= options.CrossingRepairBudgetMs;
+    private bool Spent => budgetMs > 0 && clock.ElapsedMilliseconds >= budgetMs;
 
     public void Run()
     {
@@ -132,7 +209,8 @@ internal sealed class CrossingRepair
             return;
         }
 
-        clock = options.RepairClock ?? System.Diagnostics.Stopwatch.StartNew();
+        budgetMs = options.RepairSliceMs ?? options.CrossingRepairBudgetMs;
+        clock.Restart();
 
         for (var pass = 0; pass < options.CrossingRepairPasses && !Spent; pass++)
         {
@@ -237,8 +315,7 @@ internal sealed class CrossingRepair
 
         // Cards of different heights can land on a neighbour when they trade places, and the
         // layout guarantees no overlapping cards, so such a swap is refused outright.
-        if (GraphLayout.OverlapsColumn(x, column, geometry) || GraphLayout.OverlapsColumn(y, column, geometry)
-            || Count(subset, candidates) >= before)
+        if (Blocked(x) || Blocked(y) || Count(subset, candidates) >= before)
         {
             Exchange(x, y);
             return false;
@@ -279,21 +356,31 @@ internal sealed class CrossingRepair
         var last = column[^1];
         var candidates = LocalCandidates(subset, last.Position.Y + geometry.SizeOf(last).Y - top);
 
+        var placed = new float[column.Count];
+
+        for (var i = 0; i < column.Count; i++)
+        {
+            placed[i] = column[i].Position.Y;
+        }
+
         var best = Count(subset, candidates);
         var bestOrder = new List<GraphNode>(column);
         var order = new List<GraphNode>(column);
         var moved = false;
         var budget = options.CrossingReinsertBudget;
 
-        for (var slot = 0; slot < column.Count && budget > 0; slot++)
+        for (var slot = 0; slot < column.Count && budget > 0 && !Spent; slot++)
         {
-            // Only cards that actually cross something are worth relocating.
-            if (!Crosses(column[slot], candidates))
+            // Asked of the best order stacked, rather than of whatever the last rejected candidate
+            // left behind, and of the card that would actually be relocated.
+            Restack(bestOrder, top);
+
+            if (!Crosses(bestOrder[slot], candidates))
             {
                 continue;
             }
 
-            for (var target = 0; target < column.Count && budget > 0; target++)
+            for (var target = 0; target < column.Count && budget > 0 && !Spent; target++)
             {
                 if (target == slot)
                 {
@@ -309,6 +396,12 @@ internal sealed class CrossingRepair
                 order.Insert(target, node);
 
                 Restack(order, top);
+
+                if (!Fits(order))
+                {
+                    continue;
+                }
+
                 var score = Count(subset, candidates);
 
                 if (score < best)
@@ -320,15 +413,38 @@ internal sealed class CrossingRepair
             }
         }
 
+        if (!moved)
+        {
+            for (var i = 0; i < column.Count; i++)
+            {
+                Move(column[i], placed[i]);
+            }
+
+            return false;
+        }
+
         Restack(bestOrder, top);
         column.Clear();
         column.AddRange(bestOrder);
-        return moved;
+        return true;
+
+        bool Fits(List<GraphNode> stacked)
+        {
+            foreach (var node in stacked)
+            {
+                if (Blocked(node))
+                {
+                    return false;
+                }
+            }
+
+            return true;
+        }
     }
 
     private bool TrySlide(GraphNode node)
     {
-        if (!incident.TryGetValue(node, out var touching) || !columnOf.TryGetValue(node, out var column))
+        if (!incident.TryGetValue(node, out var touching))
         {
             return false;
         }
@@ -413,7 +529,7 @@ internal sealed class CrossingRepair
 
             Move(node, originalY + shift);
 
-            if (GraphLayout.OverlapsColumn(node, column, geometry))
+            if (Blocked(node))
             {
                 continue;
             }
@@ -616,18 +732,61 @@ internal sealed class CrossingRepair
     /// </summary>
     private bool TryClearWires(GraphNode node)
     {
-        if (!columnOf.TryGetValue(node, out var column))
+        var offenders = Underlaps(node, out var lowest, out var highest);
+
+        if (offenders == 0)
         {
             return false;
         }
 
+        // Under everything, or over everything. The shorter move is tried first, but leaving on
+        // one side can force this card's own wires across the very wire it is escaping, so both
+        // directions get a turn before giving up.
+        var originalY = node.Position.Y;
+        var height = geometry.SizeOf(node).Y;
+        var down = lowest + options.WireClearance - originalY;
+        var up = highest - options.WireClearance - (originalY + height);
+
+        var touching = incident.GetValueOrDefault(node) ?? [];
+        var before = Count(touching, allWires);
+
+        foreach (var shift in Math.Abs(down) <= Math.Abs(up) ? (float[])[down, up] : [up, down])
+        {
+            if (Math.Abs(shift) < 1f || Math.Abs(shift) > options.WireClearLimit)
+            {
+                continue;
+            }
+
+            Move(node, originalY + shift);
+
+            // Taken only when the card lands clear of its neighbours, is genuinely out from under
+            // wires it was under, and buys that with no crossing of its own.
+            if (!Blocked(node) && Underlaps(node, out _, out _) < offenders
+                && Count(touching, allWires) <= before + options.ClearCrossingTolerance)
+            {
+                return true;
+            }
+
+            Move(node, originalY);
+        }
+
+        return false;
+    }
+
+    /// <summary>
+    /// Wires that merely pass across a card, and the heights they cross its centre line at. Where
+    /// a wire sits at that line is what decides which side to leave by; its overall extent could
+    /// be dominated by a far-away end.
+    /// </summary>
+    private int Underlaps(GraphNode node, out float lowest, out float highest)
+    {
         var size = geometry.SizeOf(node);
         var top = node.Position.Y;
         var bottom = top + size.Y;
-        var middle = node.Position.X + size.X / 2f;
+        var middle = node.Position.X + (size.X / 2f);
 
-        var lowest = float.MinValue;
-        var highest = float.MaxValue;
+        lowest = float.MinValue;
+        highest = float.MaxValue;
         var offenders = 0;
 
         foreach (var wire in allWires)
@@ -641,59 +800,18 @@ internal sealed class CrossingRepair
                 continue;
             }
 
-            // Where the wire sits at the card's own centre line is what decides which side to
-            // leave by; its overall extent could be dominated by a far-away end.
             var span = maxX[wire] - minX[wire];
             var t = span > 0.01f ? Math.Clamp((middle - minX[wire]) / span, 0f, 1f) : 0f;
             var lower = from[wire].X <= to[wire].X ? from[wire] : to[wire];
             var upper = from[wire].X <= to[wire].X ? to[wire] : from[wire];
-            var height = lower.Y + ((upper.Y - lower.Y) * t);
+            var crossing = lower.Y + ((upper.Y - lower.Y) * t);
 
-            lowest = Math.Max(lowest, height);
-            highest = Math.Min(highest, height);
+            lowest = Math.Max(lowest, crossing);
+            highest = Math.Min(highest, crossing);
             offenders++;
         }
 
-        if (offenders == 0)
-        {
-            return false;
-        }
-
-        // Under everything, or over everything. The shorter move is tried first, but leaving on
-        // one side can force this card's own wires across the very wire it is escaping, so both
-        // directions get a turn before giving up.
-        var down = lowest + options.WireClearance - top;
-        var up = highest - options.WireClearance - bottom;
-
-        var touching = incident.GetValueOrDefault(node) ?? [];
-        var before = Count(touching, allWires);
-        var originalY = node.Position.Y;
-
-        foreach (var shift in Math.Abs(down) <= Math.Abs(up) ? (float[])[down, up] : [up, down])
-        {
-            if (Math.Abs(shift) < 1f || Math.Abs(shift) > options.WireClearLimit)
-            {
-                continue;
-            }
-
-            Move(node, originalY + shift);
-
-            // Getting clear is not worth trading a crossing for, and the card still may not land
-            // on one of its own column neighbours.
-            var overlaps = GraphLayout.OverlapsColumn(node, column, geometry);
-            var after = Count(touching, allWires);
-
-
-            if (overlaps || after > before + options.ClearCrossingTolerance)
-            {
-                Move(node, originalY);
-                continue;
-            }
-
-            return true;
-        }
-
-        return false;
+        return offenders;
     }
 
     /// <summary>
@@ -731,11 +849,15 @@ internal sealed class CrossingRepair
         var branchUpper = Branch(upperSource, target);
         var branchLower = Branch(lowerSource, target);
 
+        if (branchUpper == null || branchLower == null)
+        {
+            return false;
+        }
+
         // A card feeding both branches cannot move with either of them.
         branchUpper.ExceptWith(branchLower);
 
-
-        if (branchUpper.Count == 0 || branchUpper.Count > options.BranchShiftMaxNodes)
+        if (branchUpper.Count == 0)
         {
             return false;
         }
@@ -769,9 +891,8 @@ internal sealed class CrossingRepair
                 Move(node, node.Position.Y + candidate);
             }
 
-            var blocked = branchUpper.Any(n => columnOf.TryGetValue(n, out var column) && GraphLayout.OverlapsColumn(n, column, geometry));
+            var blocked = branchUpper.Any(Blocked);
             var after = Count(subset, allWires);
-
 
             if (!blocked && after < before)
             {
@@ -822,28 +943,42 @@ internal sealed class CrossingRepair
             : restEdge + options.NodeSpacing - branchEdge;
     }
 
-    /// <summary>Everything upstream of a card, stopping before the consumer it feeds.</summary>
-    private static HashSet<GraphNode> Branch(GraphNode node, GraphNode stop)
+    /// <summary>
+    /// Everything upstream of a card, stopping before the consumer it feeds. Cards that are hidden
+    /// or belong to another island are left out, since nothing here may move them. Null when the
+    /// cone grows past what may be shifted at once, so an oversized walk stops rather than
+    /// materialising a branch that is going to be refused.
+    /// </summary>
+    private HashSet<GraphNode>? Branch(GraphNode node, GraphNode stop)
     {
         var branch = new HashSet<GraphNode>();
-        Walk(node);
-        return branch;
+        var pending = new Stack<GraphNode>();
+        pending.Push(node);
 
-        void Walk(GraphNode current)
+        while (pending.Count > 0)
         {
-            if (current == stop || !branch.Add(current))
+            var current = pending.Pop();
+
+            if (current == stop || current.Hidden || !columnOf.ContainsKey(current) || !branch.Add(current))
             {
-                return;
+                continue;
+            }
+
+            if (branch.Count > options.BranchShiftMaxNodes)
+            {
+                return null;
             }
 
             foreach (var socket in current.Inputs)
             {
                 foreach (var wire in socket.Wires)
                 {
-                    Walk(wire.From.Owner);
+                    pending.Push(wire.From.Owner);
                 }
             }
         }
+
+        return branch;
     }
 
     /// <summary>Whether two wires overlap in both axes, and so could possibly cross.</summary>

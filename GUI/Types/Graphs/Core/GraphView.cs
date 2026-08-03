@@ -955,6 +955,7 @@ partial class GraphView : IDisposable
 
             var previousBudget = LayoutOptions.CrossingRepairBudgetMs;
             LayoutOptions.CrossingRepairBudgetMs = 0;
+            LayoutOptions.RepairSliceMs = null;
 
             try
             {
@@ -1046,9 +1047,9 @@ partial class GraphView : IDisposable
             }
         }
 
-        // One clock for the whole graph: the repair budget is what the caller is prepared to wait
-        // for a layout, not what it will wait for each of a hundred islands.
-        LayoutOptions.RepairClock = System.Diagnostics.Stopwatch.StartNew();
+        // The repair budget is what the caller is prepared to wait for a layout, not what it will
+        // wait for each of a hundred islands, so it is shared out before any island starts.
+        var slices = GraphLayout.SplitRepairBudget([.. components.Select(static c => c.Count)], LayoutOptions.CrossingRepairBudgetMs);
 
         for (var i = 0; i < components.Count; i++)
         {
@@ -1060,10 +1061,11 @@ partial class GraphView : IDisposable
                 continue;
             }
 
+            LayoutOptions.RepairSliceMs = slices[i];
             GraphLayout.Layout(component, componentWires[i], Placement, Geometry, LayoutOptions);
         }
 
-        LayoutOptions.RepairClock = null;
+        LayoutOptions.RepairSliceMs = null;
 
         // Nodes with no wires at all carry no structure to read, so mixing them into the packing
         // just pushes the parts that do connect further apart and buries them among the rest.
