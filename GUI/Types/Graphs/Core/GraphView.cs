@@ -17,7 +17,7 @@ partial class GraphView : IDisposable
 
     private readonly List<GraphNode> nodes = [];
     private readonly List<GraphWire> wires = [];
-    private readonly Dictionary<GraphWire, (SKPath Path, SKRect Bounds)> wireHitPaths = [];
+    private readonly Dictionary<GraphWire, WirePaths> wirePaths = [];
 
     private IGraphElement? lastHovered;
     private string? searchHighlight;
@@ -28,11 +28,19 @@ partial class GraphView : IDisposable
     /// <summary>All geometry this view derived from the model: sizes, pivots, routed wires.</summary>
     internal GraphGeometry Geometry { get; } = new();
 
+    /// <summary>Measured size of a node, safe to call while the render thread is drawing.</summary>
+    public Vector2 MeasuredSizeOf(GraphNode node)
+    {
+        using var _ = stateLock.EnterScope();
+
+        EnsureAllGeometry();
+        return Geometry.SizeOf(node);
+    }
+
     public bool IsMoving { get; private set; }
     private SKPoint lastLocation;
     private SKPoint dragOrigin;
     private bool dragStarted;
-    private bool dragMovedConnected;
     private const float DragThreshold = 4f;
 
     // Synchronizes graph state between the render thread and UI mouse handlers.
@@ -67,11 +75,28 @@ partial class GraphView : IDisposable
     /// <summary>Which layout improvements the placement engines apply.</summary>
     internal GraphLayoutOptions LayoutOptions { get; } = new();
 
+    private bool straightWires;
+
     /// <summary>
     /// Draws wires as straight segments leaving each socket on a short stub instead of as
     /// curves, and squares off the corners of routed wires.
     /// </summary>
-    public bool StraightWires { get; set; }
+    public bool StraightWires
+    {
+        get => straightWires;
+        set
+        {
+            using var _ = stateLock.EnterScope();
+
+            if (straightWires == value)
+            {
+                return;
+            }
+
+            straightWires = value;
+            ClearWirePaths();
+        }
+    }
 
     /// <summary>Legend rows describing this graph's color semantics, declared by the frontend.</summary>
     public List<GraphLegendEntry> Legend { get; } = [];
@@ -85,6 +110,8 @@ partial class GraphView : IDisposable
 
     public T AddNode<T>(T node) where T : GraphNode
     {
+        using var _ = stateLock.EnterScope();
+
         node.Sequence = nextNodeSequence++;
         nodes.Add(node);
         return node;
@@ -96,6 +123,8 @@ partial class GraphView : IDisposable
         {
             throw new ArgumentException("Wires connect an output socket to an input socket.");
         }
+
+        using var _ = stateLock.EnterScope();
 
         if (to.Wires.Any(existing => existing.From == from))
         {
@@ -118,28 +147,42 @@ partial class GraphView : IDisposable
     }
 
     /// <summary>Removes a wire from both sockets and the wire list.</summary>
-    public void Disconnect(GraphWire wire) => RemoveWire(wire);
+    public void Disconnect(GraphWire wire)
+    {
+        using var _ = stateLock.EnterScope();
+        RemoveWire(wire);
+    }
+
+    /// <summary>Removes a socket from <paramref name="node"/> and drops its geometry.</summary>
+    public void RemoveSocket(GraphNode node, GraphSocket socket)
+    {
+        using var _ = stateLock.EnterScope();
+
+        node.RemoveSocket(socket);
+        Geometry.RemoveSocket(socket);
+    }
 
     private void RemoveWire(GraphWire wire)
     {
         wire.From.Wires.Remove(wire);
         wire.To.Wires.Remove(wire);
         wires.Remove(wire);
+        Geometry.RemoveWire(wire);
 
-        if (wireHitPaths.Remove(wire, out var entry))
+        if (wirePaths.Remove(wire, out var entry))
         {
-            entry.Path.Dispose();
+            entry.Dispose();
         }
     }
 
-    private void ClearWireHitPaths()
+    private void ClearWirePaths()
     {
-        foreach (var entry in wireHitPaths.Values)
+        foreach (var entry in wirePaths.Values)
         {
-            entry.Path.Dispose();
+            entry.Dispose();
         }
 
-        wireHitPaths.Clear();
+        wirePaths.Clear();
     }
 
     public SKRect GetGraphBounds()
@@ -225,7 +268,6 @@ partial class GraphView : IDisposable
             {
                 IsMoving = true;
                 dragStarted = false;
-                dragMovedConnected = false;
                 dragOrigin = graphPoint;
                 BringNodeToFront(node);
             }
@@ -258,8 +300,6 @@ partial class GraphView : IDisposable
 
             if (moveAllConnected && Selection.Connected.Count > 0)
             {
-                dragMovedConnected = true;
-
                 foreach (var node in Selection.Connected)
                 {
                     node.Position += delta;
@@ -272,7 +312,7 @@ partial class GraphView : IDisposable
                 ReanchorWireWaypoints(Selection.PrimaryNode);
             }
 
-            ClearWireHitPaths();
+            ClearWirePaths();
             lastLocation = graphPoint;
             OnGraphChanged();
             return;
@@ -299,13 +339,6 @@ partial class GraphView : IDisposable
         }
 
         lastLocation = graphPoint;
-
-        // After a real drag, re-route the moved island's wires around the new positions.
-        if (IsMoving && dragStarted && Selection.PrimaryNode != null)
-        {
-            RerouteComponentOf(Selection.PrimaryNode);
-        }
-
         IsMoving = false;
         dragStarted = false;
     }
@@ -319,43 +352,6 @@ partial class GraphView : IDisposable
         dragStarted = false;
     }
 
-    private void RerouteComponentOf(GraphNode start)
-    {
-        var component = new List<GraphNode>();
-        var visited = new HashSet<GraphNode> { start };
-        WalkComponent(start, visited, component, includeHidden: false);
-
-        // Only the wires touching the moved nodes need new routes; the rest of the
-        // component participates as obstacles but keeps its existing geometry.
-        HashSet<GraphNode> movedNodes = dragMovedConnected ? [.. Selection.Connected, start] : [start];
-
-        var movedWires = wires.Where(w =>
-            visited.Contains(w.From.Owner) && visited.Contains(w.To.Owner) &&
-            !w.From.Owner.Hidden && !w.To.Owner.Hidden &&
-            (movedNodes.Contains(w.From.Owner) || movedNodes.Contains(w.To.Owner))).ToList();
-
-        // Dropped wires re-anchor as plain curves; only self-loops carry a synthetic
-        // route that must be rebuilt around the new position.
-        foreach (var wire in movedWires)
-        {
-            if (wire.From.Owner == wire.To.Owner)
-            {
-                GraphLayout.SynthesizeSelfLoop(wire, Geometry);
-                continue;
-            }
-
-            var route = Geometry.TryRouteOf(wire);
-
-            if (route != null)
-            {
-                route.Waypoints = null;
-            }
-        }
-
-        ClearWireHitPaths();
-        OnGraphChanged();
-    }
-
     public IGraphElement? FindElementAt(SKPoint point)
     {
         using var _ = stateLock.EnterScope();
@@ -365,6 +361,9 @@ partial class GraphView : IDisposable
     private IGraphElement? FindElementAtCore(SKPoint point)
     {
         const float socketHitRadius = SocketRadius + 3f;
+
+        // A hit test can land between a rebuild and the next paint, when nothing has measured yet.
+        EnsureAllGeometry();
 
         for (var i = nodes.Count - 1; i >= 0; i--)
         {
@@ -419,14 +418,9 @@ partial class GraphView : IDisposable
                 continue;
             }
 
-            if (!wireHitPaths.TryGetValue(wire, out var entry))
-            {
-                var path = BuildWireHitPath(wire);
-                entry = (path, path.Bounds);
-                wireHitPaths[wire] = entry;
-            }
+            var entry = EnsureWireHitPath(wire);
 
-            if (entry.Bounds.Contains(point.X, point.Y) && entry.Path.Contains(point.X, point.Y))
+            if (entry.HitBounds.Contains(point.X, point.Y) && entry.HitPath!.Contains(point.X, point.Y))
             {
                 return wire;
             }
@@ -539,7 +533,7 @@ partial class GraphView : IDisposable
 
     private List<List<GraphNode>> GetVisibleComponents() => CollectComponents(includeHidden: false);
 
-    private List<List<GraphNode>> CollectComponents(bool includeHidden)
+    private List<List<GraphNode>> CollectComponents(bool includeHidden, bool skipDashed = false)
     {
         var visited = new HashSet<GraphNode>();
         var components = new List<List<GraphNode>>();
@@ -552,7 +546,7 @@ partial class GraphView : IDisposable
             }
 
             var component = new List<GraphNode>();
-            WalkComponent(start, visited, component, includeHidden);
+            WalkComponent(start, visited, component, includeHidden, skipDashed);
             components.Add(component);
         }
 
@@ -561,7 +555,7 @@ partial class GraphView : IDisposable
 
     // Undirected flood fill across socket wires; appends every newly visited node to component.
     // Callers seed visited with start.
-    private static void WalkComponent(GraphNode start, HashSet<GraphNode> visited, List<GraphNode> component, bool includeHidden)
+    private static void WalkComponent(GraphNode start, HashSet<GraphNode> visited, List<GraphNode> component, bool includeHidden, bool skipDashed = false)
     {
         var stack = new Stack<GraphNode>();
         stack.Push(start);
@@ -571,20 +565,146 @@ partial class GraphView : IDisposable
             var node = stack.Pop();
             component.Add(node);
 
-            foreach (var neighbor in node.Neighbors(upstream: true))
+            foreach (var socket in node.Inputs)
             {
-                if ((includeHidden || !neighbor.Hidden) && visited.Add(neighbor))
+                foreach (var wire in socket.Wires)
                 {
-                    stack.Push(neighbor);
+                    Visit(wire, wire.From.Owner);
                 }
             }
 
-            foreach (var neighbor in node.Neighbors(upstream: false))
+            foreach (var socket in node.Outputs)
             {
-                if ((includeHidden || !neighbor.Hidden) && visited.Add(neighbor))
+                foreach (var wire in socket.Wires)
                 {
-                    stack.Push(neighbor);
+                    Visit(wire, wire.To.Owner);
                 }
+            }
+        }
+
+        void Visit(GraphWire wire, GraphNode neighbor)
+        {
+            if (skipDashed && wire.Dashed)
+            {
+                return;
+            }
+
+            if ((includeHidden || !neighbor.Hidden) && visited.Add(neighbor))
+            {
+                stack.Push(neighbor);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Visible components for packing: dashed wires (variable links, transitions) do not fuse two
+    /// islands into one block, but a node reached only over dashed wires still packs with the
+    /// island it links to the most, rather than drifting off as its own island.
+    /// </summary>
+    private List<List<GraphNode>> GetPackingComponents()
+    {
+        var components = CollectComponents(includeHidden: false, skipDashed: true);
+        var componentOf = new Dictionary<GraphNode, int>();
+
+        for (var i = 0; i < components.Count; i++)
+        {
+            foreach (var node in components[i])
+            {
+                componentOf[node] = i;
+            }
+        }
+
+        var dashedOnly = new List<GraphNode>();
+
+        foreach (var node in nodes)
+        {
+            if (node.Hidden || !componentOf.ContainsKey(node))
+            {
+                continue;
+            }
+
+            var wireCount = 0;
+            var dashedCount = 0;
+
+            foreach (var wire in WiresOf(node))
+            {
+                wireCount++;
+                dashedCount += wire.Dashed ? 1 : 0;
+            }
+
+            if (wireCount > 0 && wireCount == dashedCount)
+            {
+                dashedOnly.Add(node);
+            }
+        }
+
+        dashedOnly.Sort(static (a, b) => a.Sequence.CompareTo(b.Sequence));
+
+        var shared = new Dictionary<int, (int Count, int LowestSequence)>();
+
+        foreach (var node in dashedOnly)
+        {
+            shared.Clear();
+            var from = componentOf[node];
+
+            foreach (var wire in WiresOf(node))
+            {
+                var partner = wire.From.Owner == node ? wire.To.Owner : wire.From.Owner;
+
+                if (partner == node || !componentOf.TryGetValue(partner, out var partnerComponent) || partnerComponent == from)
+                {
+                    continue;
+                }
+
+                if (!shared.TryGetValue(partnerComponent, out var entry))
+                {
+                    entry = (0, int.MaxValue);
+                }
+
+                shared[partnerComponent] = (entry.Count + 1, Math.Min(entry.LowestSequence, partner.Sequence));
+            }
+
+            var target = -1;
+            var best = (Count: 0, LowestSequence: int.MaxValue);
+
+            foreach (var (component, entry) in shared)
+            {
+                if (entry.Count > best.Count || (entry.Count == best.Count && entry.LowestSequence < best.LowestSequence))
+                {
+                    target = component;
+                    best = entry;
+                }
+            }
+
+            if (target < 0)
+            {
+                continue;
+            }
+
+            components[from].Remove(node);
+            components[target].Add(node);
+            componentOf[node] = target;
+        }
+
+        components.RemoveAll(static component => component.Count == 0);
+        return components;
+    }
+
+    private static IEnumerable<GraphWire> WiresOf(GraphNode node)
+    {
+        foreach (var socket in node.Inputs)
+        {
+            foreach (var wire in socket.Wires)
+            {
+                yield return wire;
+            }
+        }
+
+        foreach (var socket in node.Outputs)
+        {
+            foreach (var wire in socket.Wires)
+            {
+                yield return wire;
             }
         }
     }
@@ -602,12 +722,16 @@ partial class GraphView : IDisposable
     {
         var normalized = string.IsNullOrWhiteSpace(query) ? null : query;
 
-        if (normalized == searchHighlight)
+        using (stateLock.EnterScope())
         {
-            return;
+            if (normalized == searchHighlight)
+            {
+                return;
+            }
+
+            searchHighlight = normalized;
         }
 
-        searchHighlight = normalized;
         OnGraphChanged();
     }
 
@@ -659,11 +783,14 @@ partial class GraphView : IDisposable
     {
         var visible = new HashSet<string>(visibleSubtitles, StringComparer.OrdinalIgnoreCase);
 
-        foreach (var node in nodes)
+        using (stateLock.EnterScope())
         {
-            if (!string.IsNullOrEmpty(node.Subtitle))
+            foreach (var node in nodes)
             {
-                node.Hidden = !visible.Contains(node.Subtitle);
+                if (!string.IsNullOrEmpty(node.Subtitle))
+                {
+                    node.Hidden = !visible.Contains(node.Subtitle);
+                }
             }
         }
 
@@ -697,11 +824,14 @@ partial class GraphView : IDisposable
             return;
         }
 
-        var keep = NodesToKeep(node, mode);
-
-        foreach (var member in nodes)
+        using (stateLock.EnterScope())
         {
-            member.Hidden = !keep.Contains(member);
+            var keep = NodesToKeep(node, mode);
+
+            foreach (var member in nodes)
+            {
+                member.Hidden = !keep.Contains(member);
+            }
         }
 
         OnGraphChanged();
@@ -734,9 +864,12 @@ partial class GraphView : IDisposable
 
     public void ShowAllNodes()
     {
-        foreach (var node in nodes)
+        using (stateLock.EnterScope())
         {
-            node.Hidden = false;
+            foreach (var node in nodes)
+            {
+                node.Hidden = false;
+            }
         }
 
         OnGraphChanged();
@@ -799,7 +932,7 @@ partial class GraphView : IDisposable
 
         LayoutPass(padding);
 
-        ClearWireHitPaths();
+        ClearWirePaths();
         OnGraphChanged();
     }
 
@@ -812,6 +945,13 @@ partial class GraphView : IDisposable
         using (stateLock.EnterScope())
         {
             EnsureAllGeometry();
+
+            var positions = new Dictionary<GraphNode, Vector2>(nodes.Count);
+
+            foreach (var node in nodes)
+            {
+                positions[node] = node.Position;
+            }
 
             var previousBudget = LayoutOptions.CrossingRepairBudgetMs;
             LayoutOptions.CrossingRepairBudgetMs = 0;
@@ -831,7 +971,31 @@ partial class GraphView : IDisposable
                 LayoutOptions.CrossingRepairBudgetMs = previousBudget;
             }
 
-            ClearWireHitPaths();
+            // The repair moves cards out from under the routes the layout built for them, so the
+            // wires it moved drop back to plain curves; only self-loops keep a synthetic route.
+            foreach (var wire in wires)
+            {
+                if (positions[wire.From.Owner] == wire.From.Owner.Position &&
+                    positions[wire.To.Owner] == wire.To.Owner.Position)
+                {
+                    continue;
+                }
+
+                if (wire.From.Owner == wire.To.Owner)
+                {
+                    GraphLayout.SynthesizeSelfLoop(wire, Geometry);
+                    continue;
+                }
+
+                var route = Geometry.TryRouteOf(wire);
+
+                if (route != null)
+                {
+                    route.Waypoints = null;
+                }
+            }
+
+            ClearWirePaths();
         }
 
         OnGraphChanged();
@@ -842,7 +1006,7 @@ partial class GraphView : IDisposable
         EnsureAllGeometry();
         Geometry.ClearAllRoutes();
 
-        var components = GetVisibleComponents();
+        var components = GetPackingComponents();
 
         // Component discovery walks the z-ordered node list, which mutates as nodes are
         // clicked; layout runs on the stable creation order instead so a relayout always
@@ -871,9 +1035,12 @@ partial class GraphView : IDisposable
             componentWires[i] = [];
         }
 
+        // A dashed wire between two packed islands stays out of both layouts and draws as a plain
+        // curve across the gap.
         foreach (var wire in wires)
         {
-            if (componentOf.TryGetValue(wire.From.Owner, out var c) && componentOf.ContainsKey(wire.To.Owner))
+            if (componentOf.TryGetValue(wire.From.Owner, out var c) &&
+                componentOf.TryGetValue(wire.To.Owner, out var to) && c == to)
             {
                 componentWires[c].Add(wire);
             }
@@ -1003,12 +1170,7 @@ partial class GraphView : IDisposable
     {
         using var _ = stateLock.EnterScope();
 
-        foreach (var entry in wireHitPaths.Values)
-        {
-            entry.Path.Dispose();
-        }
-
-        wireHitPaths.Clear();
+        ClearWirePaths();
         nodes.Clear();
         wires.Clear();
         Legend.Clear();
@@ -1034,7 +1196,7 @@ partial class GraphView : IDisposable
         {
             if (disposing)
             {
-                ClearWireHitPaths();
+                ClearWirePaths();
                 DisposeRenderResources();
             }
 

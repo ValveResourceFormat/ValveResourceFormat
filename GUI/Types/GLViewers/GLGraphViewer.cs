@@ -650,7 +650,7 @@ namespace GUI.Types.GLViewers
                     TextureScale = 1f;
                 }
 
-                var center = node.Position + View.Geometry.SizeOf(node) / 2f;
+                var center = node.Position + View.MeasuredSizeOf(node) / 2f;
                 Position = new Vector2(
                     (center.X - graphBounds.Left) * TextureScale - GLControl.Width / 2f,
                     (center.Y - graphBounds.Top) * TextureScale - GLControl.Height / 2f);

@@ -14,8 +14,28 @@ interface IGraphElement
 /// </summary>
 class GraphNode : IGraphElement
 {
-    public string Title { get; set; } = string.Empty;
-    public string? Subtitle { get; set; }
+    private string title = string.Empty;
+    private string? subtitle;
+
+    public string Title
+    {
+        get => title;
+        set
+        {
+            title = value;
+            ContentVersion++;
+        }
+    }
+
+    public string? Subtitle
+    {
+        get => subtitle;
+        set
+        {
+            subtitle = value;
+            ContentVersion++;
+        }
+    }
 
     /// <summary>Stable creation order; layout runs in this order, independent of z-order.</summary>
     public int Sequence { get; internal set; }

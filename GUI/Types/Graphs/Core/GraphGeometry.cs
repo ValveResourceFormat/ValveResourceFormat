@@ -69,6 +69,12 @@ internal sealed class GraphGeometry
 
     public WireRoute? TryRouteOf(GraphWire wire) => routes.GetValueOrDefault(wire);
 
+    /// <summary>Drops the route of a wire that no longer exists.</summary>
+    public void RemoveWire(GraphWire wire) => routes.Remove(wire);
+
+    /// <summary>Drops the pivot of a socket that no longer exists.</summary>
+    public void RemoveSocket(GraphSocket socket) => pivotOffsets.Remove(socket);
+
     public void ClearAllRoutes()
     {
         foreach (var route in routes.Values)

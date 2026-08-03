@@ -10,8 +10,6 @@ namespace GUI.Types.Graphs.Core;
 /// </summary>
 class GraphPalette
 {
-    public bool IsDark { get; }
-
     public SKColor Canvas { get; }
     public SKColor NodeBody { get; }
     public SKColor NodeOutline { get; }
@@ -42,8 +40,6 @@ class GraphPalette
 
     public GraphPalette(bool isDark, Themer.ThemeColors chrome)
     {
-        IsDark = isDark;
-
         Canvas = ToSK(chrome.AppMiddle);
         NodeBody = ToSK(chrome.AppSoft);
         Text = ToSK(chrome.Contrast);

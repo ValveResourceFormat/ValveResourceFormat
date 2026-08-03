@@ -955,13 +955,13 @@ internal class AG2GraphViewer : GLGraphViewer
 
                     if (input.Wires.Count == 0)
                     {
-                        consumer.RemoveSocket(input);
+                        View.RemoveSocket(consumer, input);
                     }
                 }
 
                 if (output.Wires.Count == 0)
                 {
-                    node.RemoveSocket(output);
+                    View.RemoveSocket(node, output);
                 }
             }
         }

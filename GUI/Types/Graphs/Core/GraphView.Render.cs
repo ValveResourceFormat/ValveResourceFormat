@@ -100,17 +100,57 @@ partial class GraphView
 
     private static readonly SKPaint HitTestPaint = new() { Style = SKPaintStyle.Stroke, StrokeWidth = 10f };
 
-    private SKPath BuildWireHitPath(GraphWire wire)
+    /// <summary>
+    /// One wire's paint geometry: the drawn path, the fattened path hit testing runs against and
+    /// the gradient of a wire whose ends differ in hue. Held until anything moves the wire.
+    /// </summary>
+    private sealed class WirePaths : IDisposable
     {
-        var fromPivot = Geometry.PivotOf(wire.From);
-        var toPivot = Geometry.PivotOf(wire.To);
-        var from = new SKPoint(fromPivot.X, fromPivot.Y);
-        var to = new SKPoint(toPivot.X, toPivot.Y);
+        public SKPath? Path;
+        public SKPath? HitPath;
+        public SKRect HitBounds;
+        public SKShader? Shader;
 
-        using var pathBuilder = new SKPathBuilder();
-        BuildWirePath(pathBuilder, wire, Geometry.TryRouteOf(wire), from, to);
-        using var path = pathBuilder.Detach();
-        return HitTestPaint.GetFillPath(path);
+        public void Dispose()
+        {
+            Path?.Dispose();
+            HitPath?.Dispose();
+            Shader?.Dispose();
+        }
+    }
+
+    private WirePaths EnsureWirePath(GraphWire wire)
+    {
+        if (!wirePaths.TryGetValue(wire, out var cached))
+        {
+            cached = new WirePaths();
+            wirePaths[wire] = cached;
+        }
+
+        if (cached.Path == null)
+        {
+            var fromPivot = Geometry.PivotOf(wire.From);
+            var toPivot = Geometry.PivotOf(wire.To);
+
+            using var pathBuilder = new SKPathBuilder();
+            BuildWirePath(pathBuilder, wire, Geometry.TryRouteOf(wire), new SKPoint(fromPivot.X, fromPivot.Y), new SKPoint(toPivot.X, toPivot.Y));
+            cached.Path = pathBuilder.Detach();
+        }
+
+        return cached;
+    }
+
+    private WirePaths EnsureWireHitPath(GraphWire wire)
+    {
+        var cached = EnsureWirePath(wire);
+
+        if (cached.HitPath == null)
+        {
+            cached.HitPath = HitTestPaint.GetFillPath(cached.Path!);
+            cached.HitBounds = cached.HitPath.Bounds;
+        }
+
+        return cached;
     }
 
     private void DisposeRenderResources()
@@ -141,7 +181,7 @@ partial class GraphView
 
         if (anyChanged)
         {
-            ClearWireHitPaths();
+            ClearWirePaths();
         }
     }
 
@@ -420,6 +460,10 @@ partial class GraphView
 
     private void DrawNodesPass(SKCanvas canvas, SKRect visibleRect, float zoom, RenderTier tier)
     {
+        // A search owns the emphasis while it runs: matches read as the focused set on their own,
+        // without the selection colouring a second, competing set of cards on top of them.
+        var searching = searchHighlight != null;
+
         foreach (var node in nodes)
         {
             if (node.Hidden || NodeTier(node) != tier)
@@ -435,10 +479,10 @@ partial class GraphView
                 continue;
             }
 
-            var isPrimarySelected = node == Selection.PrimaryNode;
+            var isPrimarySelected = !searching && node == Selection.PrimaryNode;
             SKColor? connectedColor = null;
 
-            if (!isPrimarySelected && tier == RenderTier.Focus)
+            if (!searching && !isPrimarySelected && tier == RenderTier.Focus)
             {
                 if (Selection.PrimaryNode != null)
                 {
@@ -466,12 +510,15 @@ partial class GraphView
     // and fade in as their level's screen spacing grows.
     private static readonly float[] GridSteps = [20f, 100f, 500f, 2500f];
 
-    private SKPoint[] gridPointBuffer = [];
+    // One buffer per level, sized exactly because DrawPoints takes a whole array, and kept until
+    // that level's dot count changes.
+    private readonly SKPoint[]?[] gridPointBuffers = new SKPoint[GridSteps.Length][];
 
     private void DrawGrid(SKCanvas canvas, SKRect visibleRect, float zoom)
     {
-        foreach (var step in GridSteps)
+        for (var level = 0; level < GridSteps.Length; level++)
         {
+            var step = GridSteps[level];
             var spacingPx = step * zoom;
 
             if (spacingPx < 10f)
@@ -490,14 +537,19 @@ partial class GraphView
             var countX = (int)((visibleRect.Right - startX) / step) + 1;
             var countY = (int)((visibleRect.Bottom - startY) / step) + 1;
 
-            if (countX <= 0 || countY <= 0 || countX * countY > 40000)
+            var needed = countX * countY;
+
+            if (countX <= 0 || countY <= 0 || needed > 40000)
             {
                 continue;
             }
 
-            if (gridPointBuffer.Length != countX * countY)
+            var buffer = gridPointBuffers[level];
+
+            if (buffer == null || buffer.Length != needed)
             {
-                gridPointBuffer = new SKPoint[countX * countY];
+                buffer = new SKPoint[needed];
+                gridPointBuffers[level] = buffer;
             }
 
             var i = 0;
@@ -506,13 +558,13 @@ partial class GraphView
             {
                 for (var iy = 0; iy < countY; iy++)
                 {
-                    gridPointBuffer[i++] = new SKPoint(startX + ix * step, startY + iy * step);
+                    buffer[i++] = new SKPoint(startX + ix * step, startY + iy * step);
                 }
             }
 
             gridPaint.Color = Palette.GridDot.WithAlpha((byte)(fade * 170f));
             gridPaint.StrokeWidth = 2f * dotRadiusPx / zoom;
-            canvas.DrawPoints(SKPointMode.Points, gridPointBuffer, gridPaint);
+            canvas.DrawPoints(SKPointMode.Points, buffer, gridPaint);
         }
     }
 
@@ -530,13 +582,17 @@ partial class GraphView
     /// <summary>How much of the neighbouring span each spline tangent reaches across.</summary>
     private const float RouteTension = 1f / 5f;
 
+    private readonly List<Vector2> smoothRoutePoints = [];
+
     // A routed wire draws as one continuous curve through its waypoints rather than as straight
     // runs joined by fillets, so a wire detouring around a card still reads as the same kind of
     // line as every other wire. Catmull-Rom tangents converted to cubic segments, with the end
     // points duplicated so the curve starts and finishes exactly on the sockets.
-    private static void BuildSmoothRoute(SKPathBuilder path, SKPoint from, List<Vector2> waypoints, SKPoint to)
+    private void BuildSmoothRoute(SKPathBuilder path, SKPoint from, List<Vector2> waypoints, SKPoint to)
     {
-        var points = new List<Vector2>(waypoints.Count + 2) { new(from.X, from.Y) };
+        var points = smoothRoutePoints;
+        points.Clear();
+        points.Add(new Vector2(from.X, from.Y));
         points.AddRange(waypoints);
         points.Add(new Vector2(to.X, to.Y));
 
@@ -615,19 +671,20 @@ partial class GraphView
             return;
         }
 
-        var route = Geometry.TryRouteOf(wire);
-
         // A self-wire without a route would draw straight through its own card; give it
         // the deterministic synthetic loop instead.
-        if (wire.From.Owner == wire.To.Owner && route?.Waypoints == null)
+        if (wire.From.Owner == wire.To.Owner && Geometry.TryRouteOf(wire)?.Waypoints == null)
         {
             GraphLayout.SynthesizeSelfLoop(wire, Geometry);
-            route = Geometry.TryRouteOf(wire);
+
+            if (wirePaths.Remove(wire, out var stale))
+            {
+                stale.Dispose();
+            }
         }
 
-        using var pathBuilder = new SKPathBuilder();
-        BuildWirePath(pathBuilder, wire, route, from, to);
-        using var path = pathBuilder.Detach();
+        var cached = EnsureWirePath(wire);
+        var path = cached.Path!;
 
         var width = WireWidth * Math.Max(1f, 1f / zoom);
 
@@ -660,15 +717,15 @@ partial class GraphView
         else
         {
             wirePaint.Color = SKColors.White;
-            wirePaint.Shader = SKShader.CreateLinearGradient(
+            cached.Shader ??= SKShader.CreateLinearGradient(
                 from, to,
                 [Palette.Signal(wire.From.Hue), Palette.Signal(wire.To.Hue)],
                 null, SKShaderTileMode.Clamp);
+            wirePaint.Shader = cached.Shader;
         }
 
         canvas.DrawPath(path, wirePaint);
 
-        wirePaint.Shader?.Dispose();
         wirePaint.Shader = null;
         wirePaint.PathEffect = null;
 
