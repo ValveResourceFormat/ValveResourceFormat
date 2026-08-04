@@ -118,8 +118,8 @@ namespace ValveResourceFormat.Renderer
             Matrix4x4.Invert(pose[hand.Parent.Index], out var handParentInverse);
             var handLocal = pose[hand.Index] * handParentInverse;
             Matrix4x4.Decompose(handLocal, out _, out var handRotation, out _);
-            var handEulerRad = QuaternionToEuler(handRotation);
-            var handTwist = Quaternion.CreateFromAxisAngle(Vector3.UnitX, handEulerRad.X - 1.45f);
+            var handTwistAngle = float.DegreesToRadians(EntityTransformHelper.ToEulerAngles(handRotation).Z);
+            var handTwist = Quaternion.CreateFromAxisAngle(Vector3.UnitX, handTwistAngle - 1.45f);
             handTwist = Quaternion.Slerp(Quaternion.Identity, handTwist, 1f);
             var handTwistMatrix = Matrix4x4.CreateFromQuaternion(handTwist);
 
@@ -139,32 +139,5 @@ namespace ValveResourceFormat.Renderer
             }
         }
 
-        private static Vector3 QuaternionToEuler(Quaternion q)
-        {
-            var euler = new Vector3();
-
-            // Roll (x-axis rotation)
-            var sinr_cosp = 2 * (q.W * q.X + q.Y * q.Z);
-            var cosr_cosp = 1 - 2 * (q.X * q.X + q.Y * q.Y);
-            euler.X = MathF.Atan2(sinr_cosp, cosr_cosp);
-
-            // Pitch (y-axis rotation)
-            var sinp = 2 * (q.W * q.Y - q.Z * q.X);
-            if (MathF.Abs(sinp) >= 1)
-            {
-                euler.Y = MathF.CopySign(MathF.PI / 2, sinp);
-            }
-            else
-            {
-                euler.Y = MathF.Asin(sinp);
-            }
-
-            // Yaw (z-axis rotation)
-            var siny_cosp = 2 * (q.W * q.Z + q.X * q.Y);
-            var cosy_cosp = 1 - 2 * (q.Y * q.Y + q.Z * q.Z);
-            euler.Z = MathF.Atan2(siny_cosp, cosy_cosp);
-
-            return euler;
-        }
     }
 }

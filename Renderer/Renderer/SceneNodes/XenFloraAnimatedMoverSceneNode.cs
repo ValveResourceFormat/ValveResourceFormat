@@ -159,7 +159,7 @@ public class XenFloraAnimatedMoverSceneNode : ModelSceneNode
 
         if (faceForward)
         {
-            currentRotation = DirectionToRotation(Vector3.Normalize(segmentVector));
+            currentRotation = EntityTransformHelper.CreateRotationMatrixFromEulerAngles(EntityTransformHelper.ForwardDirectionToQAngle(segmentVector));
         }
     }
 
@@ -169,16 +169,5 @@ public class XenFloraAnimatedMoverSceneNode : ModelSceneNode
         distanceIntoSegment = 0f;
         waitTimer = node.Wait;
         currentPosition = node.Position + localOffset;
-    }
-
-    // Builds the same pitch/yaw/roll rotation convention as EntityTransformHelper, starting from a travel
-    // direction instead of authored angles (the inverse of EntityTransformHelper.QAngleToForwardDirection).
-    private static Matrix4x4 DirectionToRotation(Vector3 direction)
-    {
-        var horizontalLength = MathF.Sqrt((direction.X * direction.X) + (direction.Y * direction.Y));
-        var yaw = float.RadiansToDegrees(MathF.Atan2(direction.Y, direction.X));
-        var pitch = float.RadiansToDegrees(MathF.Atan2(-direction.Z, horizontalLength));
-
-        return EntityTransformHelper.CreateRotationMatrixFromEulerAngles(new Vector3(pitch, yaw, 0f));
     }
 }

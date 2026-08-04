@@ -241,8 +241,7 @@ public class Renderer
         scene.LightingInfo.LightingData.DynamicLightCount = 1;
         scene.LightingInfo.LightingData.LightColor_Brightness[0] = DefaultSunColor;
 
-        scene.LightingInfo.LightingData.LightToWorld[0] = Matrix4x4.CreateRotationY(float.DegreesToRadians(DefaultSunAngles.X))
-                                                             * Matrix4x4.CreateRotationZ(float.DegreesToRadians(DefaultSunAngles.Y));
+        scene.LightingInfo.LightingData.LightToWorld[0] = EntityTransformHelper.CreateRotationMatrixFromEulerAngles(new Vector3(DefaultSunAngles.X, DefaultSunAngles.Y, 0f));
     }
 
     /// <summary>

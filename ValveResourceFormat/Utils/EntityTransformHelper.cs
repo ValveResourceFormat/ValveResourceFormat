@@ -87,6 +87,21 @@ namespace ValveResourceFormat.Utils
         }
 
         /// <summary>
+        /// Converts a forward direction vector to Euler angles (pitch, yaw, roll) in degrees, with zero roll.
+        /// Inverse of <see cref="QAngleToForwardDirection"/>.
+        /// </summary>
+        /// <param name="direction">The forward direction. Does not need to be normalized.</param>
+        /// <returns>The Euler angles in degrees.</returns>
+        public static Vector3 ForwardDirectionToQAngle(Vector3 direction)
+        {
+            var xyDist = MathF.Sqrt(direction.X * direction.X + direction.Y * direction.Y);
+            var pitch = MathF.Atan2(-direction.Z, xyDist);
+            var yaw = MathF.Atan2(direction.Y, direction.X);
+
+            return Vector3.RadiansToDegrees(new Vector3(pitch, yaw, 0f));
+        }
+
+        /// <summary>
         /// Calculates the full transformation matrix for an entity.
         /// </summary>
         /// <param name="entity">The entity.</param>

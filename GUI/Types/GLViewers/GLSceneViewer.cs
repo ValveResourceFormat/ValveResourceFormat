@@ -209,8 +209,7 @@ namespace GUI.Types.GLViewers
             sunAngles.X = Math.Clamp(sunAngles.X, 0f, 89f);
             sunAngles.Y %= 360f;
 
-            Scene.LightingInfo.LightingData.LightToWorld[0] = Matrix4x4.CreateRotationY(float.DegreesToRadians(sunAngles.X))
-                                                             * Matrix4x4.CreateRotationZ(float.DegreesToRadians(sunAngles.Y));
+            Scene.LightingInfo.LightingData.LightToWorld[0] = EntityTransformHelper.CreateRotationMatrixFromEulerAngles(new Vector3(sunAngles.X, sunAngles.Y, 0f));
         }
 
         public virtual void PostSceneLoad()
