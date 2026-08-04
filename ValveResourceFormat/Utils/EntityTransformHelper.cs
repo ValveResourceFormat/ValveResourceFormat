@@ -41,6 +41,41 @@ namespace ValveResourceFormat.Utils
         }
 
         /// <summary>
+        /// Converts a quaternion to Euler angles (pitch, yaw, roll) in degrees.
+        /// Includes gimbal lock handling when pitch is near +/-90 degrees.
+        /// </summary>
+        /// <param name="q">The quaternion to convert.</param>
+        /// <returns>The Euler angles in degrees.</returns>
+        public static Vector3 ToEulerAngles(Quaternion q)
+        {
+            var forwardX = 1 - 2 * (q.Y * q.Y + q.Z * q.Z);
+            var forwardY = 2 * (q.X * q.Y + q.W * q.Z);
+            var forwardZ = 2 * (q.X * q.Z - q.W * q.Y);
+
+            var xyDist = MathF.Sqrt(forwardX * forwardX + forwardY * forwardY);
+
+            Vector3 angles = new();
+            angles.X = MathF.Atan2(-forwardZ, xyDist);
+
+            if (xyDist > 0.001f)
+            {
+                var leftZ = 2 * (q.Y * q.Z + q.W * q.X);
+                var upZ = 1 - 2 * (q.X * q.X + q.Y * q.Y);
+                angles.Y = MathF.Atan2(forwardY, forwardX);
+                angles.Z = MathF.Atan2(leftZ, upZ);
+            }
+            else
+            {
+                var leftX = 2 * (q.X * q.Y - q.W * q.Z);
+                var leftY = 1 - 2 * (q.X * q.X + q.Z * q.Z);
+                angles.Y = MathF.Atan2(-leftX, leftY);
+                angles.Z = 0;
+            }
+
+            return Vector3.RadiansToDegrees(angles);
+        }
+
+        /// <summary>
         /// Converts Euler angles (pitch, yaw, roll) to a normalized forward direction vector.
         /// </summary>
         /// <param name="pitchYawRoll">The Euler angles.</param>

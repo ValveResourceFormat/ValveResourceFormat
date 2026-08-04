@@ -936,7 +936,7 @@ public sealed class MapExtract
                     }
 
                     meshOrigin = translation;
-                    meshAngles = ModelExtract.ToEulerAngles(rotation);
+                    meshAngles = EntityTransformHelper.ToEulerAngles(rotation);
                     scaleTransform = Matrix4x4.CreateScale(scales);
                 }
 
@@ -967,7 +967,7 @@ public sealed class MapExtract
                 }
 
                 propStatic.Origin = translation;
-                propStatic.Angles = ModelExtract.ToEulerAngles(rotation);
+                propStatic.Angles = EntityTransformHelper.ToEulerAngles(rotation);
                 propStatic.Scales = scales;
             }
 
@@ -1140,7 +1140,7 @@ public sealed class MapExtract
                     }
 
                     instance.Origin = translation;
-                    var angles = ModelExtract.ToEulerAngles(rotation);
+                    var angles = EntityTransformHelper.ToEulerAngles(rotation);
                     instance.Angles = angles;
                     instance.Scales = scales;
 
@@ -1313,7 +1313,7 @@ public sealed class MapExtract
                 // decomposes cleanly unless the child itself shears (non-uniform scale + rotation)
                 _ = Matrix4x4.Decompose(worldTransform, out var scales, out var rotation, out var translation);
                 mapEntity.Origin = translation;
-                mapEntity.Angles = ModelExtract.ToEulerAngles(rotation);
+                mapEntity.Angles = EntityTransformHelper.ToEulerAngles(rotation);
                 mapEntity.Scales = scales;
 
                 if (TryDeduplicateTemplateChild(compiledEntity))
