@@ -94,7 +94,7 @@ namespace CLI
         /// A test bed command line interface for the VRF library.
         /// </summary>
         /// <param name="input">-i, Input file to be processed. With no additional arguments, a summary of the input(s) will be displayed.</param>
-        /// <param name="output">-o, Output path to write to. If input is a folder (or a VPK), this should be a folder.</param>
+        /// <param name="output">-o, Output path to write to. For a VPK, only an exact path filter selecting one entry may use a filename; otherwise use a folder.</param>
         /// <param name="decompile">-d|--vpk_decompile, Decompile supported resource files.</param>
         /// <param name="texture_decode_flags">Decompile textures with the specified decode flags, example: "none", "auto", "ForceLDR".</param>
         /// <param name="recursive">If specified and given input is a folder, all sub directories will be scanned too.</param>
@@ -1146,9 +1146,22 @@ namespace CLI
 
                 Debug.Assert(package.Entries != null);
 
+                var useOutputAsDirectory = true;
+                if (FileFilter.Length == 1)
+                {
+                    var filteredEntries = package.Entries
+                        .Where(entry => ExtFilterList == null || ExtFilterList.Contains(entry.Key))
+                        .SelectMany(entry => FilteredEntries(entry.Value))
+                        .Take(2)
+                        .ToArray();
+
+                    useOutputAsDirectory = filteredEntries.Length != 1
+                        || !filteredEntries[0].FilePath.Equals(FileFilter[0], StringComparison.Ordinal);
+                }
+
                 foreach (var type in package.Entries)
                 {
-                    ProcessVPKEntries(path, package, fileLoader, type.Key, manifestData);
+                    ProcessVPKEntries(path, package, fileLoader, type.Key, manifestData, useOutputAsDirectory);
                 }
 
                 if (CachedManifest)
@@ -1226,7 +1239,7 @@ namespace CLI
         }
 
         private void ProcessVPKEntries(string parentPath, Package package,
-            IFileLoader fileLoader, string type, Dictionary<string, uint> manifestData)
+            IFileLoader fileLoader, string type, Dictionary<string, uint> manifestData, bool useOutputAsDirectory)
         {
             if (ExtFilterList != null)
             {
@@ -1290,7 +1303,7 @@ namespace CLI
                                 outputFile = Path.Combine(parentPath, outputFile);
                             }
 
-                            outputFile = GetOutputPath(outputFile, useOutputAsDirectory: true);
+                            outputFile = GetOutputPath(outputFile, useOutputAsDirectory);
 
                             DumpFile(outputFile, rawFileData.AsSpan()[..totalLength]);
                         }
@@ -1334,7 +1347,8 @@ namespace CLI
                             if (GltfExportFormat != null && GltfModelExporter.CanExport(resource))
                             {
                                 var outputExtension = GltfExportFormat;
-                                outputFile = Path.Combine(OutputFile, Path.ChangeExtension(filePath, outputExtension));
+                                outputFile = GetOutputPath(filePath, useOutputAsDirectory);
+                                outputFile = Path.ChangeExtension(outputFile, outputExtension);
 
                                 Directory.CreateDirectory(Path.GetDirectoryName(outputFile)!);
 
@@ -1360,9 +1374,9 @@ namespace CLI
                             outputFile = Path.Combine(parentPath, outputFile);
                         }
 
-                        outputFile = GetOutputPath(outputFile, useOutputAsDirectory: true);
+                        outputFile = GetOutputPath(outputFile, useOutputAsDirectory);
 
-                        DumpContentFile(outputFile, contentFile);
+                        DumpContentFile(outputFile, contentFile, useOutputPathForSingleSubFile: !useOutputAsDirectory);
                     }
                 }
                 catch (Exception e)
@@ -1422,7 +1436,7 @@ namespace CLI
             return highestByShader.Values.Select(x => x.FilePath).ToHashSet();
         }
 
-        private void DumpContentFile(string path, ContentFile contentFile, bool dumpSubFiles = true)
+        private void DumpContentFile(string path, ContentFile contentFile, bool dumpSubFiles = true, bool useOutputPathForSingleSubFile = false)
         {
             if (contentFile.Data != null)
             {
@@ -1443,6 +1457,17 @@ namespace CLI
 
             if (dumpSubFiles)
             {
+                if (useOutputPathForSingleSubFile && contentFile.Data == null && contentFile.SubFiles.Count == 1)
+                {
+                    var data = contentFile.SubFiles[0].Extract?.Invoke();
+                    if (data != null)
+                    {
+                        DumpFile(path, data);
+                    }
+
+                    return;
+                }
+
                 foreach (var contentSubFile in contentFile.SubFiles)
                 {
                     var data = contentSubFile.Extract?.Invoke();
