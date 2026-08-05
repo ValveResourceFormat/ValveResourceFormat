@@ -15,7 +15,7 @@ namespace ValveResourceFormat.Renderer.Particles.Operators
         private readonly int ControlPointNumber;
         private readonly ParticleField AttributeToWrite;
         private readonly ParticleField AttributeToRead;
-        private readonly int LocalSpaceCP = -1;
+        private readonly int LocalSpaceCP;
         private readonly bool Random;
         private readonly bool Reverse;
         private readonly bool WritePrevious = true;
@@ -31,10 +31,10 @@ namespace ValveResourceFormat.Renderer.Particles.Operators
             ControlPointNumber = parse.Int32("m_nControlPointNumber", 0);
             AttributeToWrite = parse.ParticleField("m_nAttributeToWrite", ParticleField.Position);
             AttributeToRead = parse.ParticleField("m_nAttributeToRead", AttributeToWrite);
-            LocalSpaceCP = parse.Int32("m_nLocalSpaceCP", LocalSpaceCP);
+            LocalSpaceCP = parse.Int32("m_nLocalSpaceCP", 0);
             Random = parse.Boolean("m_bRandom", false);
             Reverse = parse.Boolean("m_bReverse", false);
-            WritePrevious = parse.Boolean("m_bPrev", false);
+            WritePrevious = parse.Boolean("m_bPrev", WritePrevious);
             StartPoint = parse.NumberProvider("m_nSnapShotStartPoint", StartPoint);
             Increment = parse.NumberProvider("m_nSnapShotIncrement", Increment);
         }
