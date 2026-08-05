@@ -409,6 +409,29 @@ namespace ValveResourceFormat.Renderer.Particles
         /// sliver so burst particles render their first frame at age ~0 instead of pre-aged by however
         /// much time passed since the triggering event.
         /// </summary>
+        /// <summary>
+        /// Replays the system from scratch, discarding the particles still alive first. This is the
+        /// viewer's restart affordance rather than engine behaviour: an effect whose pool is already
+        /// saturated would otherwise have no free slots to emit into and appear to do nothing.
+        /// </summary>
+        public void Replay()
+        {
+            ClearParticles();
+            Restart();
+        }
+
+        private void ClearParticles()
+        {
+            particleCollection.Clear();
+            systemRenderState.ParticleCount = 0;
+            particlesEmitted = 0;
+
+            foreach (var childParticleRenderer in childParticleRenderers)
+            {
+                childParticleRenderer.ClearParticles();
+            }
+        }
+
         public void Restart()
         {
             Stop();
