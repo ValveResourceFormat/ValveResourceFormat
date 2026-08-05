@@ -33,8 +33,9 @@ namespace ValveResourceFormat.Renderer.Particles.Utils
 
         /// <summary>
         /// Writes the snapshot value at <paramref name="idx"/> into <paramref name="particle"/>'s
-        /// <paramref name="attributeToWrite"/>, applying an optional local-space control point offset. Does
-        /// nothing if the attribute type does not match the snapshot data or the index is out of range.
+        /// <paramref name="attributeToWrite"/>, moving it into control point <paramref name="localSpaceCP"/>'s
+        /// frame first (a negative control point leaves the value alone). Does nothing if the attribute type
+        /// does not match the snapshot data or the index is out of range.
         /// When <paramref name="writePositionPrevious"/> is set, a <see cref="ParticleField.Position"/> write also seeds <see cref="Particle.PositionPrevious"/>
         /// (the initializer always mirrors it; the operator only when <c>m_bPrev</c> is set).
         /// <paramref name="atSpawn"/> marks the initializer path, where a velocity write goes through
@@ -49,6 +50,20 @@ namespace ValveResourceFormat.Renderer.Particles.Utils
             {
                 var value = vectorArray[idx];
 
+                // Only these three attributes are moved into the local space control point's frame, and a
+                // velocity or a normal is rotated by it without picking up its translation.
+                if (localSpaceCP >= 0)
+                {
+                    value = attributeToWrite switch
+                    {
+                        ParticleField.Position
+                            => ControlPointTransformProvider.TransformPosition(particleSystemState, localSpaceCP, value),
+                        ParticleField.PositionPrevious or ParticleField.Normal
+                            => ControlPointTransformProvider.TransformDirection(particleSystemState, localSpaceCP, value),
+                        _ => value,
+                    };
+                }
+
                 // PREV_XYZ stores a velocity; the previous position is derived from the current
                 // position and that velocity over the frame (1/30 fallback when the frame time is unknown).
                 if (attributeToWrite == ParticleField.PositionPrevious)
@@ -62,14 +77,6 @@ namespace ValveResourceFormat.Renderer.Particles.Utils
                     var dt = frameTime > 0f ? frameTime : 1f / 30f;
                     particle.PositionPrevious = particle.Position - (value * dt);
                     return;
-                }
-
-                if (localSpaceCP >= 0)
-                {
-                    // Transform the sampled value by the control point's full local frame (rotation +
-                    // translation), not just an origin offset. Identity orientation collapses to a plain
-                    // position offset.
-                    value = ControlPointTransformProvider.TransformPosition(particleSystemState, localSpaceCP, value);
                 }
 
                 particle.SetVector(attributeToWrite, value);
