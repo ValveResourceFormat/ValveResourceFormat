@@ -63,6 +63,8 @@ namespace ValveResourceFormat.Renderer.Particles
                 ["C_INIT_CreateFromCPs"] = initializerInfo => new CreateFromCPs(initializerInfo),
                 ["C_INIT_CreateFromParentParticles"] = initializerInfo => new CreateFromParentParticles(initializerInfo),
                 ["C_INIT_CreationNoise"] = initializerInfo => new CreationNoise(initializerInfo),
+                ["C_INIT_DistanceToCPInit"] = initializerInfo => new DistanceToCPInit(initializerInfo),
+                ["C_INIT_InheritFromParentParticles"] = initializerInfo => new InheritFromParentParticles(initializerInfo),
                 ["C_INIT_GlobalScale"] = initializerInfo => new GlobalScale(initializerInfo),
                 ["C_INIT_InitFromCPSnapshot"] = initializerInfo => new InitFromCPSnapshot(initializerInfo),
                 ["C_INIT_InitFloat"] = initializerInfo => new InitFloat(initializerInfo),
