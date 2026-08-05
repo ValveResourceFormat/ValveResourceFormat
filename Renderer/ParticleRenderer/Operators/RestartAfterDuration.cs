@@ -1,5 +1,3 @@
-using Microsoft.Extensions.Logging;
-
 namespace ValveResourceFormat.Renderer.Particles.Operators
 {
     /// <summary>
@@ -12,7 +10,7 @@ namespace ValveResourceFormat.Renderer.Particles.Operators
         private readonly float durationMax = 1f;
         private readonly int controlPoint = -1;
         private readonly int controlPointField;
-        private readonly int childGroupId = -1;
+        private readonly int childGroupId;
         private readonly bool onlyChildren;
 
         public RestartAfterDuration(ParticleDefinitionParser parse) : base(parse)
@@ -23,12 +21,6 @@ namespace ValveResourceFormat.Renderer.Particles.Operators
             controlPointField = parse.Int32("m_nCPField", controlPointField);
             childGroupId = parse.Int32("m_nChildGroupID", childGroupId);
             onlyChildren = parse.Boolean("m_bOnlyChildren", onlyChildren);
-
-            if (childGroupId >= 0 || onlyChildren)
-            {
-                Logger.LogWarning(
-                    "C_OP_RestartAfterDuration child group support is not implemented. Restart applies to the entire particle system.");
-            }
         }
 
         public override void Operate(ParticleCollection particles, float frameTime, ParticleSystemRenderState particleSystemState, float strength)
@@ -48,6 +40,12 @@ namespace ValveResourceFormat.Renderer.Particles.Operators
             {
                 var point = particleSystemState.GetControlPoint(controlPoint);
                 duration *= point.Position.GetComponent(controlPointField);
+            }
+
+            if (onlyChildren)
+            {
+                particleSystemState.Data?.RestartChildrenInGroup(childGroupId, duration);
+                return;
             }
 
             particleSystemState.SetRestartTime(duration);

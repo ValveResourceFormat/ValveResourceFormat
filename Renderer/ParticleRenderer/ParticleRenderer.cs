@@ -982,6 +982,21 @@ namespace ValveResourceFormat.Renderer.Particles
             }
         }
 
+        /// <summary>
+        /// Schedules every direct child tagged with <paramref name="groupId"/> to replay after
+        /// <paramref name="duration"/>. This system and children in other groups keep running.
+        /// </summary>
+        internal void RestartChildrenInGroup(int groupId, float duration)
+        {
+            foreach (var child in childParticleRenderers)
+            {
+                if (child.GroupId == groupId)
+                {
+                    child.systemRenderState.SetRestartTime(duration);
+                }
+            }
+        }
+
         private void SetupChildParticles(IEnumerable<string> childNames)
         {
             foreach (var childName in childNames)

@@ -6,7 +6,7 @@ namespace ValveResourceFormat.Renderer.Particles.Initializers
     /// <seealso href="https://s2v.app/SchemaExplorer/cs2/particles/C_INIT_VelocityFromCP">C_INIT_VelocityFromCP</seealso>
     class VelocityFromCP : ParticleFunctionInitializer
     {
-        private readonly IVectorProvider velocityInput = new LiteralVectorProvider(Vector3.Zero);
+        private readonly IVectorProvider velocityInput = new CPValueVectorProvider(0);
         private readonly ITransformProvider transformInput = new IdentityTransformProvider();
         private readonly float velocityScale = 1f;
         private readonly bool directionOnly;

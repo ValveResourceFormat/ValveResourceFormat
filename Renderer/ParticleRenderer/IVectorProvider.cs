@@ -118,6 +118,11 @@ namespace ValveResourceFormat.Renderer.Particles
             scale = parse.Vector3("m_vCPValueScale", scale);
         }
 
+        public CPValueVectorProvider(int controlPoint)
+        {
+            cp = controlPoint;
+        }
+
         public Vector3 NextVector(ref Particle particle, ParticleSystemRenderState renderState)
         {
             return renderState.GetControlPoint(cp).Position * scale;
