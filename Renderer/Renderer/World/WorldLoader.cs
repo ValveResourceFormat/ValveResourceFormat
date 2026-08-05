@@ -778,9 +778,9 @@ namespace ValveResourceFormat.Renderer.World
 
                                 if (mat != null && mat.Textures.TryGetValue("g_tSkyTexture", out fogTexture))
                                 {
-                                    var brightnessExposureBias = mat.Material.FloatParams.GetValueOrDefault("g_flBrightnessExposureBias", 0f);
+                                    var brightnessExposureBias = mat.FloatParams.GetValueOrDefault("g_flBrightnessExposureBias", 0f);
                                     // todo: make sure this matches with scene post process
-                                    var renderOnlyExposureBias = mat.Material.FloatParams.GetValueOrDefault("g_flRenderOnlyExposureBias", 0f);
+                                    var renderOnlyExposureBias = mat.FloatParams.GetValueOrDefault("g_flRenderOnlyExposureBias", 0f);
 
                                     // These are both logarithms, so this is equivalent to a multiply of the raw value
                                     exposureBias = brightnessExposureBias + renderOnlyExposureBias + MathF.Log2(skyBrightnessScale);

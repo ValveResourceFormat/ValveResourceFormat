@@ -75,9 +75,9 @@ public class LightTilesOverlay(RendererContext rendererContext)
         using var _ = new GLDebugGroup("Cull Tiles Overlay");
 
         shader.Use();
-        shader.SetUniform1("g_flOverlayAlpha", Alpha);
-        shader.SetUniform1("g_nOverlayTileBase", tileBase);
-        shader.SetUniform1("g_nOverlayWords", words);
+        shader.SetUniform("g_flOverlayAlpha", Alpha);
+        shader.SetUniform("g_nOverlayTileBase", tileBase);
+        shader.SetUniform("g_nOverlayWords", words);
 
         cullBits.BindBufferBase();
 

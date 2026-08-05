@@ -27,7 +27,7 @@ public class ViewmodelSceneNode : ModelSceneNode
     public ModelSceneNode Legs { get; set; }
 
     readonly List<ModelSceneNode?> Items = [];
-    readonly List<Material> legsMaterials = [];
+    readonly List<RenderMaterial> legsMaterials = [];
 
     ModelSceneNode? SelectedItem => Items.ElementAtOrDefault(SelectedItemIndex - 1);
 
@@ -376,13 +376,13 @@ public class ViewmodelSceneNode : ModelSceneNode
         // Cache material references for efficient uniform updates (exclude arms/viewmodel materials)
         var armsMaterials = Arms.RenderableMeshes
             .SelectMany(m => m.DrawCalls)
-            .Select(dc => dc.Material.Material)
+            .Select(dc => dc.Material)
             .ToHashSet();
 
         legsMaterials.AddRange(
             Legs.RenderableMeshes
                 .SelectMany(m => m.DrawCalls)
-                .Select(dc => dc.Material.Material)
+                .Select(dc => dc.Material)
                 .Except(armsMaterials)
         );
 

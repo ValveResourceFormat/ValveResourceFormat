@@ -292,7 +292,7 @@ public sealed class LightBinner(Scene scene) : IDisposable
 
         // Cull space is pixels, so this is just the pyramid's size over the viewport's. Only this pass
         // needs it, because only this pass starts from a screen rect rather than a world space box.
-        shader.SetUniform2("g_vCullToPyramidScale", new Vector2(
+        shader.SetUniform("g_vCullToPyramidScale", new Vector2(
             scene.DepthPyramid.Width / MathF.Max(Feeder.ViewportSize.X, 1f),
             scene.DepthPyramid.Height / MathF.Max(Feeder.ViewportSize.Y, 1f)));
     }

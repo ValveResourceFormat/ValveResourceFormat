@@ -3,6 +3,7 @@ using System.Diagnostics.CodeAnalysis;
 using Microsoft.Extensions.Logging;
 using OpenTK.Graphics.OpenGL;
 using ValveResourceFormat.CompiledShader;
+using ValveResourceFormat.Renderer.Buffers;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.Serialization.VfxEval;
 
@@ -92,14 +93,23 @@ namespace ValveResourceFormat.Renderer.Materials
         /// <summary>Gets the <see cref="Shaders.Shader"/> used to render this material.</summary>
         public required Shader Shader { get; init; }
 
-        /// <summary>Gets the underlying parsed <see cref="ValveResourceFormat.ResourceTypes.Material"/> data.</summary>
+        /// <summary>Gets the underlying parsed <see cref="ValveResourceFormat.ResourceTypes.Material"/> data, as read from the file.</summary>
         public Material Material { get; }
 
+        /// <summary>Gets the integer parameters, seeded from <see cref="Material"/> and writable per instance.</summary>
+        public MaterialInputs<long> IntParams { get; } = new();
+
+        /// <summary>Gets the float parameters, seeded from <see cref="Material"/> and writable per instance.</summary>
+        public MaterialInputs<float> FloatParams { get; } = new();
+
+        /// <summary>Gets the vector parameters, seeded from <see cref="Material"/> and writable per instance.</summary>
+        public MaterialInputs<Vector4> VectorParams { get; } = new();
+
         /// <summary>Gets the map of matrix uniform names to their current values for this material.</summary>
-        public Dictionary<string, Matrix4x4> Matrices { get; } = [];
+        public MaterialInputs<Matrix4x4> Matrices { get; } = new();
 
         /// <summary>Gets the map of texture uniform names to the bound <see cref="RenderTexture"/> objects for this material.</summary>
-        public Dictionary<string, RenderTexture> Textures { get; } = [];
+        public MaterialInputs<RenderTexture> Textures { get; } = new();
 
         /// <summary>Gets or sets a value indicating whether this material is rendered as a screen-space or world-space overlay (polygon-offset, no depth write).</summary>
         public bool IsOverlay { get; set; }
@@ -131,6 +141,13 @@ namespace ValveResourceFormat.Renderer.Materials
         public bool IsAlphaTest => blendMode == BlendMode.AlphaTest;
 
         private readonly MaterialLoader? Loader;
+
+        private Globals? globals;
+        private GlobalsLayout? filledLayout;
+        private uint filledVersion;
+
+        private uint InputsVersion => unchecked(
+            IntParams.Version + FloatParams.Version + VectorParams.Version + Matrices.Version + Textures.Version);
 
         private BlendMode blendMode;
         private bool isRenderBackfaces;
@@ -229,6 +246,26 @@ namespace ValveResourceFormat.Renderer.Materials
         RenderMaterial(Material material)
         {
             Material = material;
+
+            IntParams.EnsureCapacity(material.IntParams.Count);
+            FloatParams.EnsureCapacity(material.FloatParams.Count);
+            VectorParams.EnsureCapacity(material.VectorParams.Count);
+
+            foreach (var (name, value) in material.IntParams)
+            {
+                IntParams[name] = value;
+            }
+
+            foreach (var (name, value) in material.FloatParams)
+            {
+                FloatParams[name] = value;
+            }
+
+            foreach (var (name, value) in material.VectorParams)
+            {
+                VectorParams[name] = value;
+            }
+
             LoadRenderState();
         }
 
@@ -240,8 +277,8 @@ namespace ValveResourceFormat.Renderer.Materials
             var material = Material;
             IsToolsMaterial = material.IntAttributes.ContainsKey("tools.toolsmaterial");
             DoNotCastShadows = material.IntAttributes.GetValueOrDefault("F_DO_NOT_CAST_SHADOWS") == 1;
-            isRenderBackfaces = material.IntParams.GetValueOrDefault("F_RENDER_BACKFACES") == 1;
-            disableDepthTest = material.IntParams.GetValueOrDefault("F_DISABLE_Z_BUFFERING") == 1;
+            isRenderBackfaces = IntParams.GetValueOrDefault("F_RENDER_BACKFACES") == 1;
+            disableDepthTest = IntParams.GetValueOrDefault("F_DISABLE_Z_BUFFERING") == 1;
 
             if (material.ShaderName == "csgo_water_fancy.vfx")
             {
@@ -251,12 +288,12 @@ namespace ValveResourceFormat.Renderer.Materials
                 return;
             }
 
-            VertexAnimation = material.IntParams.GetValueOrDefault("F_VERTEX_ANIMATION") > 0
-                || material.IntParams.GetValueOrDefault("F_FOLIAGE_ANIMATION") > 0;
+            VertexAnimation = IntParams.GetValueOrDefault("F_VERTEX_ANIMATION") > 0
+                || IntParams.GetValueOrDefault("F_FOLIAGE_ANIMATION") > 0;
 
             // :MaterialIsOverlay
-            hasDepthBias = material.IntParams.GetValueOrDefault("F_DEPTHBIAS") == 1 || material.IntParams.GetValueOrDefault("F_DEPTH_BIAS") == 1;
-            IsOverlay = material.IntParams.GetValueOrDefault("F_OVERLAY") == 1;
+            hasDepthBias = IntParams.GetValueOrDefault("F_DEPTHBIAS") == 1 || IntParams.GetValueOrDefault("F_DEPTH_BIAS") == 1;
+            IsOverlay = IntParams.GetValueOrDefault("F_OVERLAY") == 1;
 
             if (material.ShaderName == "csgo_decalmodulate.vfx")
             {
@@ -264,19 +301,19 @@ namespace ValveResourceFormat.Renderer.Materials
                 return;
             }
 
-            if (material.IntParams.GetValueOrDefault("F_ALPHA_TEST") > 0)
+            if (IntParams.GetValueOrDefault("F_ALPHA_TEST") > 0)
             {
                 blendMode = BlendMode.AlphaTest;
             }
 
-            if (material.IntParams.GetValueOrDefault("F_TRANSLUCENT") == 1
+            if (IntParams.GetValueOrDefault("F_TRANSLUCENT") == 1
             || TranslucentShaders.AsSpan().Contains(material.ShaderName)
             || material.IntAttributes.ContainsKey("mapbuilder.water"))
             {
                 blendMode = BlendMode.Translucent;
             }
 
-            if (material.IntParams.GetValueOrDefault("F_ADDITIVE_BLEND") == 1)
+            if (IntParams.GetValueOrDefault("F_ADDITIVE_BLEND") == 1)
             {
                 blendMode = BlendMode.Additive;
             }
@@ -291,12 +328,12 @@ namespace ValveResourceFormat.Renderer.Materials
             if (material.ShaderName.EndsWith("static_overlay.vfx", StringComparison.Ordinal) || material.ShaderName is "citadel_overlay.vfx")
             {
                 IsOverlay = true;
-                blendModeParam = (int)material.IntParams.GetValueOrDefault("F_BLEND_MODE");
+                blendModeParam = (int)IntParams.GetValueOrDefault("F_BLEND_MODE");
             }
 
             if (material.ShaderName == "csgo_unlitgeneric.vfx")
             {
-                blendModeParam = (int)material.IntParams.GetValueOrDefault("F_BLEND_MODE");
+                blendModeParam = (int)IntParams.GetValueOrDefault("F_BLEND_MODE");
             }
 
             blendMode = blendModeParam switch
@@ -309,6 +346,171 @@ namespace ValveResourceFormat.Renderer.Materials
                 6 => BlendMode.ModThenAdd,
                 _ => blendMode,
             };
+        }
+
+        /// <summary>
+        /// Fills this material's constant buffer if it is stale and binds it to
+        /// <see cref="ReservedBufferSlots.Globals"/>.
+        /// </summary>
+        /// <param name="shader">
+        /// The shader being drawn with, whose layout the buffer is filled for. Usually <see cref="Shader"/>,
+        /// but a few renderers draw a material through a shader of their own.
+        /// </param>
+        internal void BindGlobals(Shader shader)
+        {
+            if (shader.GlobalsLayout.Size == 0)
+            {
+                return;
+            }
+
+            EnsureGlobals(shader).Bind();
+        }
+
+        private Globals EnsureGlobals(Shader shader)
+        {
+            var layout = shader.GlobalsLayout;
+
+            globals ??= new Globals(Material.Name.Length > 0 ? Material.Name : shader.Name);
+
+            if (filledLayout != layout || filledVersion != InputsVersion)
+            {
+                filledLayout = layout;
+                filledVersion = InputsVersion;
+
+                FillGlobals(shader, layout, globals);
+            }
+
+            return globals;
+        }
+
+        private void FillGlobals(Shader shader, GlobalsLayout layout, Globals buffer)
+        {
+            buffer.BeginFill(layout);
+
+            var members = layout.Members;
+
+            foreach (var (name, value) in IntParams)
+            {
+                if (members.TryGetValue(name, out var constant))
+                {
+                    buffer.SetScalar(constant, value);
+                }
+            }
+
+            foreach (var (name, value) in FloatParams)
+            {
+                if (members.TryGetValue(name, out var constant))
+                {
+                    buffer.SetScalar(constant, value);
+                }
+            }
+
+            foreach (var (name, value) in VectorParams)
+            {
+                if (members.TryGetValue(name, out var constant))
+                {
+                    buffer.SetVector(constant, shader.SrgbUniforms.Contains(name)
+                        ? new Vector4(ColorSpace.SrgbGammaToLinear(value.AsVector3()), value.W)
+                        : value);
+                }
+            }
+
+            foreach (var (name, value) in Matrices)
+            {
+                if (members.TryGetValue(name, out var constant))
+                {
+                    buffer.SetMatrix(constant, value);
+                }
+            }
+
+            // todo: dynamic eval
+
+            if (shader.Name.StartsWith("csgo_environment", StringComparison.Ordinal))
+            {
+                EvalCsgoEnvironmentColorMatrices(shader, buffer);
+            }
+            else if (shader.Name is "environment_blend.vfx" or "pbr.vfx")
+            {
+                EvalDeadlockColorMatrices(shader, buffer);
+            }
+            else if (Material.ShaderName.EndsWith("static_overlay.vfx", StringComparison.Ordinal))
+            {
+                EvalStaticOverlayColorAdjust(shader, buffer);
+            }
+
+            buffer.EndFill();
+        }
+
+        [Conditional("DEBUG")]
+        private void AssertGlobalsAreForThisShader()
+        {
+            Debug.Assert(filledLayout is null || filledLayout == Shader.GlobalsLayout,
+                $"'{Material.Name}' was last filled for a different shader's layout.");
+        }
+
+        /// <summary>Sets a packed global uniform in this material's constant buffer.</summary>
+        /// <remarks>
+        /// The value survives until the buffer is refilled, which only happens when one of the inputs it is
+        /// built from changes, or a shader reload replaces the layout.
+        /// </remarks>
+        public void SetUniform(string name, float value)
+        {
+            AssertGlobalsAreForThisShader();
+
+            if (Shader.GlobalsLayout.Members.TryGetValue(name, out var constant))
+            {
+                EnsureGlobals(Shader).SetScalar(constant, value);
+            }
+        }
+
+        /// <inheritdoc cref="SetUniform(string, float)"/>
+        public void SetUniform(string name, long value)
+        {
+            AssertGlobalsAreForThisShader();
+
+            if (Shader.GlobalsLayout.Members.TryGetValue(name, out var constant))
+            {
+                EnsureGlobals(Shader).SetScalar(constant, value);
+            }
+        }
+
+        /// <inheritdoc cref="SetUniform(string, float)"/>
+        public void SetUniform(string name, bool value) => SetUniform(name, value ? 1L : 0L);
+
+        /// <inheritdoc cref="SetUniform(string, float)"/>
+        public void SetUniform(string name, Vector4 value)
+        {
+            AssertGlobalsAreForThisShader();
+
+            if (Shader.GlobalsLayout.Members.TryGetValue(name, out var constant))
+            {
+                EnsureGlobals(Shader).SetVector(constant, value);
+            }
+        }
+
+        /// <inheritdoc cref="SetUniform(string, float)"/>
+        public void SetUniform(string name, Vector3 value) => SetUniform(name, new Vector4(value, 0f));
+
+        /// <inheritdoc cref="SetUniform(string, float)"/>
+        public void SetUniform(string name, Vector2 value) => SetUniform(name, new Vector4(value, 0f, 0f));
+
+        /// <inheritdoc cref="SetUniform(string, float)"/>
+        public void SetUniform(string name, Matrix4x4 value)
+        {
+            AssertGlobalsAreForThisShader();
+
+            if (Shader.GlobalsLayout.Members.TryGetValue(name, out var constant))
+            {
+                EnsureGlobals(Shader).SetMatrix(constant, value);
+            }
+        }
+
+        /// <summary>Releases the GPU resources this material owns. Safe to call more than once.</summary>
+        public void Delete()
+        {
+            globals?.Delete();
+            globals = null;
+            filledLayout = null;
         }
 
         /// <summary>Binds textures, sets material uniforms, and applies blend/depth render state for this material.</summary>
@@ -324,13 +526,15 @@ namespace ValveResourceFormat.Renderer.Materials
                 return;
             }
 
+            BindGlobals(shader);
+
             boundSamplerUnits.Clear();
 
             var userConfigSampler = 0;
             if (shader.SamplerUserConfigUniforms.Count > 0 && Loader != null)
             {
-                var addressModeU = (int)Material.IntParams.GetValueOrDefault("g_nTextureAddressModeU");
-                var addressModeV = (int)Material.IntParams.GetValueOrDefault("g_nTextureAddressModeV");
+                var addressModeU = (int)IntParams.GetValueOrDefault("g_nTextureAddressModeU");
+                var addressModeV = (int)IntParams.GetValueOrDefault("g_nTextureAddressModeV");
                 userConfigSampler = Loader.GetOrCreateSampler(addressModeU, addressModeV);
             }
 
@@ -352,41 +556,18 @@ namespace ValveResourceFormat.Renderer.Materials
                 textureUnit++;
             }
 
-            foreach (var param in shader.Default.Material.IntParams)
-            {
-                var value = (int)Material.IntParams.GetValueOrDefault(param.Key, param.Value);
-                shader.SetUniform1(param.Key, value);
-            }
-
-            foreach (var param in shader.Default.Material.FloatParams)
-            {
-                var value = Material.FloatParams.GetValueOrDefault(param.Key, param.Value);
-                shader.SetUniform1(param.Key, value);
-            }
-
-            foreach (var param in shader.Default.Material.VectorParams)
-            {
-                var value = Material.VectorParams.GetValueOrDefault(param.Key, param.Value);
-                shader.SetMaterialVector4Uniform(param.Key, value);
-            }
-
-            if (shader.Name.StartsWith("csgo_environment", StringComparison.Ordinal))
-            {
-                EvalCsgoEnvironmentColorMatrices(shader);
-            }
-            else if (shader.Name is "environment_blend.vfx" or "pbr.vfx")
-            {
-                EvalDeadlockColorMatrices(shader);
-            }
-            else if (Material.ShaderName.EndsWith("static_overlay.vfx", StringComparison.Ordinal))
-            {
-                EvalStaticOverlayColorAdjust(shader);
-            }
-
             SetRenderState();
         }
 
-        private void EvalCsgoEnvironmentColorMatrices(Shader shader)
+        private static void SetMatrix(Shader shader, Globals buffer, string name, Matrix4x4 value)
+        {
+            if (shader.GlobalsLayout.Members.TryGetValue(name, out var constant))
+            {
+                buffer.SetMatrix(constant, value);
+            }
+        }
+
+        private void EvalCsgoEnvironmentColorMatrices(Shader shader, Globals buffer)
         {
             const string contrastBaseKeyString = "g_fTextureColorContrast1";
             const string saturationBaseKeyString = "g_fTextureColorSaturation1";
@@ -400,8 +581,8 @@ namespace ValveResourceFormat.Renderer.Materials
             Span<char> tintKey = stackalloc char[tintBaseKeyString.Length]; tintBaseKeyString.AsSpan().CopyTo(tintKey);
             Span<char> colorTextureKey = stackalloc char[colorTextureBaseKeyString.Length]; colorTextureBaseKeyString.AsSpan().CopyTo(colorTextureKey);
 
-            var floatValueLookup = Material.FloatParams.GetAlternateLookup<ReadOnlySpan<char>>();
-            var vectorValueLookup = Material.VectorParams.GetAlternateLookup<ReadOnlySpan<char>>();
+            var floatValueLookup = FloatParams.GetAlternateLookup<ReadOnlySpan<char>>();
+            var vectorValueLookup = VectorParams.GetAlternateLookup<ReadOnlySpan<char>>();
             var textureLookup = Textures.GetAlternateLookup<ReadOnlySpan<char>>();
 
             static void TryGetValueNoUpdate<T>(Dictionary<string, T>.AlternateLookup<ReadOnlySpan<char>> lookup, ReadOnlySpan<char> key, ref T outValue)
@@ -457,13 +638,13 @@ namespace ValveResourceFormat.Renderer.Materials
                 var tintMatrix = VfxEvalFunctions.MatrixColorTint2(tint.AsVector3(), 1f);
 
                 ccMatrix = Matrix4x4.Multiply(tintMatrix, ccMatrix);
-                shader.SetUniform4x4(param.Key, ccMatrix);
+                SetMatrix(shader, buffer, param.Key, ccMatrix);
             }
         }
 
         // environment_blend suffixes both the matrices and their inputs by layer; pbr has one
         // unsuffixed pair fed by layer 1's params.
-        private void EvalDeadlockColorMatrices(Shader shader)
+        private void EvalDeadlockColorMatrices(Shader shader, Globals buffer)
         {
             const float TintStrength = 0.85f;
 
@@ -480,8 +661,8 @@ namespace ValveResourceFormat.Renderer.Materials
             Span<char> tintModeKey = stackalloc char[tintModeBaseKeyString.Length]; tintModeBaseKeyString.AsSpan().CopyTo(tintModeKey);
             Span<char> colorTextureKey = stackalloc char[colorTextureBaseKeyString.Length]; colorTextureBaseKeyString.AsSpan().CopyTo(colorTextureKey);
 
-            var vectorValueLookup = Material.VectorParams.GetAlternateLookup<ReadOnlySpan<char>>();
-            var intValueLookup = Material.IntParams.GetAlternateLookup<ReadOnlySpan<char>>();
+            var vectorValueLookup = VectorParams.GetAlternateLookup<ReadOnlySpan<char>>();
+            var intValueLookup = IntParams.GetAlternateLookup<ReadOnlySpan<char>>();
             var textureLookup = Textures.GetAlternateLookup<ReadOnlySpan<char>>();
 
             foreach (var param in shader.Default.Matrices)
@@ -490,10 +671,10 @@ namespace ValveResourceFormat.Renderer.Materials
                 // its own params rather than the albedo's.
                 if (param.Key == "g_mSheenTextureColorTint")
                 {
-                    var sheenTint = Material.VectorParams.GetValueOrDefault("g_vSheenColorTint1", Vector4.One).AsVector3();
-                    var sheenMode = (int)Material.IntParams.GetValueOrDefault("g_nSheenTextureColorTintMode1", 0L);
+                    var sheenTint = VectorParams.GetValueOrDefault("g_vSheenColorTint1", Vector4.One).AsVector3();
+                    var sheenMode = (int)IntParams.GetValueOrDefault("g_nSheenTextureColorTintMode1", 0L);
 
-                    shader.SetUniform4x4(param.Key, VfxEvalFunctions.MatrixColorTint3(ColorSpace.SrgbGammaToLinear(sheenTint), TintStrength, sheenMode));
+                    SetMatrix(shader, buffer, param.Key, VfxEvalFunctions.MatrixColorTint3(ColorSpace.SrgbGammaToLinear(sheenTint), TintStrength, sheenMode));
                     continue;
                 }
 
@@ -525,7 +706,7 @@ namespace ValveResourceFormat.Renderer.Materials
                         textureAverageColor = colorTexture.Reflectivity.AsVector3();
                     }
 
-                    shader.SetUniform4x4(param.Key, VfxEvalFunctions.MatrixColorCorrect2(csb, textureAverageColor));
+                    SetMatrix(shader, buffer, param.Key, VfxEvalFunctions.MatrixColorCorrect2(csb, textureAverageColor));
                 }
                 else
                 {
@@ -540,12 +721,12 @@ namespace ValveResourceFormat.Renderer.Materials
 
                     intValueLookup.TryGetValue(tintModeKey, out var mode);
 
-                    shader.SetUniform4x4(param.Key, VfxEvalFunctions.MatrixColorTint3(ColorSpace.SrgbGammaToLinear(tint), TintStrength, (int)mode));
+                    SetMatrix(shader, buffer, param.Key, VfxEvalFunctions.MatrixColorTint3(ColorSpace.SrgbGammaToLinear(tint), TintStrength, (int)mode));
                 }
             }
         }
 
-        private void EvalStaticOverlayColorAdjust(Shader shader)
+        private void EvalStaticOverlayColorAdjust(Shader shader, Globals buffer)
         {
             if (!shader.Default.Matrices.ContainsKey("g_mTextureColorAdjust"))
             {
@@ -553,11 +734,11 @@ namespace ValveResourceFormat.Renderer.Materials
             }
 
             var csb = new Vector3(
-                Material.FloatParams.GetValueOrDefault("g_fTextureColorContrast", 1f),
-                Material.FloatParams.GetValueOrDefault("g_fTextureColorSaturation", 1f),
-                Material.FloatParams.GetValueOrDefault("g_fTextureColorBrightness", 1f));
+                FloatParams.GetValueOrDefault("g_fTextureColorContrast", 1f),
+                FloatParams.GetValueOrDefault("g_fTextureColorSaturation", 1f),
+                FloatParams.GetValueOrDefault("g_fTextureColorBrightness", 1f));
 
-            var tint = Material.VectorParams.GetValueOrDefault("g_vTextureColorCorrectionTint", Vector4.One);
+            var tint = VectorParams.GetValueOrDefault("g_vTextureColorCorrectionTint", Vector4.One);
 
             var textureAverageColor = Vector3.One;
             if (Textures.TryGetValue("g_tColor", out var colorTexture))
@@ -568,7 +749,7 @@ namespace ValveResourceFormat.Renderer.Materials
             var ccMatrix = VfxEvalFunctions.MatrixColorCorrect2(csb, textureAverageColor);
             var tintMatrix = VfxEvalFunctions.MatrixColorTint2(tint.AsVector3(), 1f);
 
-            shader.SetUniform4x4("g_mTextureColorAdjust", Matrix4x4.Multiply(tintMatrix, ccMatrix));
+            SetMatrix(shader, buffer, "g_mTextureColorAdjust", Matrix4x4.Multiply(tintMatrix, ccMatrix));
         }
 
         /// <summary>Restores render state after the draw call for this material has completed.</summary>

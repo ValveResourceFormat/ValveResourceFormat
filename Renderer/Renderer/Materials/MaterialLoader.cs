@@ -16,6 +16,8 @@ namespace ValveResourceFormat.Renderer.Materials
     public class MaterialLoader
     {
         private readonly Dictionary<ulong, RenderMaterial> Materials = [];
+        private readonly List<RenderMaterial> OwnedMaterials = [];
+
         private readonly Dictionary<string, RenderTexture> Textures = [];
         private readonly Dictionary<string, RenderTexture> TexturesSrgb = [];
         private readonly Dictionary<(int AddressU, int AddressV, bool AnisotropicFiltering), int> Samplers = [];
@@ -53,6 +55,12 @@ namespace ValveResourceFormat.Renderer.Materials
         /// </summary>
         public void Clear()
         {
+            foreach (var material in OwnedMaterials)
+            {
+                material.Delete();
+            }
+
+            OwnedMaterials.Clear();
             Materials.Clear();
 
             foreach (var item in Textures)
@@ -137,6 +145,8 @@ namespace ValveResourceFormat.Renderer.Materials
                 RendererContext,
                 shaderArguments
             );
+
+            OwnedMaterials.Add(mat);
 
             foreach (var (textureName, texturePath) in mat.Material.TextureParams)
             {
@@ -467,6 +477,7 @@ namespace ValveResourceFormat.Renderer.Materials
         private RenderMaterial GetErrorMaterial()
         {
             var errorMat = new RenderMaterial(RendererContext.ShaderLoader.LoadShader("vrf.error"));
+            OwnedMaterials.Add(errorMat);
             return errorMat;
         }
 

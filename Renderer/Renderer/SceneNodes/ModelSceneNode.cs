@@ -191,8 +191,8 @@ namespace ValveResourceFormat.Renderer.SceneNodes
         {
             var eyeEnablingMaterials = meshRenderers
                 .SelectMany(Mesh => Mesh.DrawCallsOpaque.Select(Draw => (Mesh, Draw)))
-                .Where(meshDraw => meshDraw.Draw.Material.Material.IntParams.GetValueOrDefault("F_EYEBALLS") == 1)
-                .Select(meshDraw => (meshDraw.Mesh, meshDraw.Draw.Material.Material))
+                .Where(meshDraw => meshDraw.Draw.Material.IntParams.GetValueOrDefault("F_EYEBALLS") == 1)
+                .Select(meshDraw => (meshDraw.Mesh, meshDraw.Draw.Material))
                 .ToList();
 
             if (eyeEnablingMaterials.Count == 0)
@@ -207,8 +207,10 @@ namespace ValveResourceFormat.Renderer.SceneNodes
                 return;
             }
 
-            foreach (var (mesh, materialData) in eyeEnablingMaterials)
+            foreach (var (mesh, material) in eyeEnablingMaterials)
             {
+                var materialData = material;
+
                 materialData.IntParams["g_nEyeLBindIdx"] = GetMeshBoneIndex(eyes.LeftEyeBoneIndex, mesh);
                 materialData.IntParams["g_nEyeRBindIdx"] = GetMeshBoneIndex(eyes.RightEyeBoneIndex, mesh);
                 materialData.IntParams["g_nEyeTargetBindIdx"] = GetMeshBoneIndex(eyes.TargetBoneIndex, mesh);

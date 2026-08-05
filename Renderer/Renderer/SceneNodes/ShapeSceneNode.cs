@@ -357,8 +357,8 @@ namespace ValveResourceFormat.Renderer.SceneNodes
             renderShader.SetUniform3x4("transform", Transform);
             renderShader.SetBoneAnimationData(false);
 
-            renderShader.SetUniform1("g_bNormalShaded", Shaded);
-            renderShader.SetUniform1("g_bTriplanarMapping", ToolTexture != null);
+            renderShader.SetUniform("g_bNormalShaded", Shaded);
+            renderShader.SetUniform("g_bTriplanarMapping", ToolTexture != null);
 
             if (ToolTexture != null)
             {

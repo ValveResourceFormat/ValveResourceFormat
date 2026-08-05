@@ -91,12 +91,12 @@ namespace ValveResourceFormat.Renderer
 
             // First pass: behind depth buffer (correctly occluded) - GREEN
             GL.DepthFunc(DepthFunction.Less);
-            shader.SetUniform4("g_vColor", new Vector4(0.0f, 1.0f, 0.0f, 0.9f));
+            shader.SetUniform("g_vColor", new Vector4(0.0f, 1.0f, 0.0f, 0.9f));
             GL.DrawArraysIndirect(PrimitiveType.Lines, indirectArgs);
 
             // Second pass: in front/at depth buffer (incorrectly visible) - RED
             GL.DepthFunc(DepthFunction.Gequal);
-            shader.SetUniform4("g_vColor", new Vector4(1.0f, 0.0f, 0.0f, 0.9f));
+            shader.SetUniform("g_vColor", new Vector4(1.0f, 0.0f, 0.0f, 0.9f));
             GL.DrawArraysIndirect(PrimitiveType.Lines, indirectArgs);
 
             // Restore defaults

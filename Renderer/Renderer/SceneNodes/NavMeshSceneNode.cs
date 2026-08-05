@@ -92,8 +92,8 @@ namespace ValveResourceFormat.Renderer.SceneNodes
             renderShader.SetUniform3x4("transform", Transform);
             renderShader.SetBoneAnimationData(false);
 
-            renderShader.SetUniform1("g_bNormalShaded", true);
-            renderShader.SetUniform1("g_bTriplanarMapping", false);
+            renderShader.SetUniform("g_bNormalShaded", true);
+            renderShader.SetUniform("g_bTriplanarMapping", false);
 
             GL.BindVertexArray(vao.Get(renderShader));
 

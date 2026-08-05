@@ -149,15 +149,15 @@ public class DOFRenderer
             throw new InvalidOperationException("Matrix invert failed");
         }
 
-        shader.SetUniform4x4("g_invViewProjMatrix", invViewProjMatrix);
+        shader.SetUniform("g_invViewProjMatrix", invViewProjMatrix);
 
         var focalPoint = camera.Location + camera.Forward * FocalDistance;
         var d = -Vector3.Dot(camera.Forward, focalPoint);
 
         var lensPlane = new Vector4(camera.Forward, d);
-        shader.SetUniform4("g_vLensPlane", lensPlane);
+        shader.SetUniform("g_vLensPlane", lensPlane);
 
-        shader.SetUniform4("g_vNearFarScaleBias", new Vector4(CurrentDofParams.NearScale, CurrentDofParams.NearBias, CurrentDofParams.FarScale, CurrentDofParams.FarBias));
+        shader.SetUniform("g_vNearFarScaleBias", new Vector4(CurrentDofParams.NearScale, CurrentDofParams.NearBias, CurrentDofParams.FarScale, CurrentDofParams.FarBias));
     }
 
     private Dof2InputParams CreateInputParams()
@@ -197,7 +197,7 @@ public class DOFRenderer
 
         var g_vInvRenderTargetDim = new Vector2(1.0f / BlurredResult!.Width, 1.0f / BlurredResult.Height);
 
-        DOF!.SetUniform1("flMaxBlurSize", CurrentDofParams.MaxBlurSize);
+        DOF!.SetUniform("g_flMaxBlurSize", CurrentDofParams.MaxBlurSize);
 
         var angle = 0.0f;
         var radius = CurrentDofParams.RadScale;
@@ -220,7 +220,7 @@ public class DOFRenderer
         }
 
         DOF.SetUniform4Array("g_vSampleOffsetsRadMinMax", Offsets.Length, Offsets);
-        DOF.SetUniform1("g_nSamples", sample);
+        DOF.SetUniform("g_nSamples", sample);
     }
 }
 

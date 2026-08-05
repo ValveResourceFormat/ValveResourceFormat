@@ -118,19 +118,19 @@ namespace ValveResourceFormat.Renderer.PostProcess
             var ditherOffset = new Vector2(random.NextSingle(), random.NextSingle());
 
             // Dither by one 255th of frame color originally. Modified to be twice that, because it looks better.
-            shader.SetUniform4("g_vBlueNoiseDitherParams", new Vector4(ditherOffset, 1.0f / 256.0f, 2.0f / 255.0f));
+            shader.SetUniform("g_vBlueNoiseDitherParams", new Vector4(ditherOffset, 1.0f / 256.0f, 2.0f / 255.0f));
 
-            shader.SetUniform1("g_flExposureBiasScaleFactor", MathF.Pow(2.0f, TonemapSettings.ExposureBias));
-            shader.SetUniform1("g_flShoulderStrength", TonemapSettings.ShoulderStrength);
-            shader.SetUniform1("g_flLinearStrength", TonemapSettings.LinearStrength);
-            shader.SetUniform1("g_flLinearAngle", TonemapSettings.LinearAngle);
-            shader.SetUniform1("g_flToeStrength", TonemapSettings.ToeStrength);
-            shader.SetUniform1("g_flToeNum", TonemapSettings.ToeNum);
-            shader.SetUniform1("g_flToeDenom", TonemapSettings.ToeDenom);
+            shader.SetUniform("g_flExposureBiasScaleFactor", MathF.Pow(2.0f, TonemapSettings.ExposureBias));
+            shader.SetUniform("g_flShoulderStrength", TonemapSettings.ShoulderStrength);
+            shader.SetUniform("g_flLinearStrength", TonemapSettings.LinearStrength);
+            shader.SetUniform("g_flLinearAngle", TonemapSettings.LinearAngle);
+            shader.SetUniform("g_flToeStrength", TonemapSettings.ToeStrength);
+            shader.SetUniform("g_flToeNum", TonemapSettings.ToeNum);
+            shader.SetUniform("g_flToeDenom", TonemapSettings.ToeDenom);
 
             var tonemappedWhitePoint = TonemapSettings.ApplyTonemapping(TonemapSettings.WhitePoint);
-            shader.SetUniform1("g_flWhitePoint", TonemapSettings.WhitePoint);
-            shader.SetUniform1("g_flWhitePointScale", 1.0f / tonemappedWhitePoint);
+            shader.SetUniform("g_flWhitePoint", TonemapSettings.WhitePoint);
+            shader.SetUniform("g_flWhitePointScale", 1.0f / tonemappedWhitePoint);
         }
 
         /// <summary>
@@ -155,7 +155,7 @@ namespace ValveResourceFormat.Renderer.PostProcess
                 msaaResolveShader.SetTexture(0, "g_tSourceMsaa", colorBufferRead.Color);
                 GL.BindImageTexture(1, resolveTarget.Handle, 0, false, 0,
                     TextureAccess.WriteOnly, SizedInternalFormat.Rgba16f);
-                msaaResolveShader.SetUniform1("g_bFlipY", flipY);
+                msaaResolveShader.SetUniform("g_bFlipY", flipY);
 
                 if (DOF.Enabled)
                 {
@@ -201,20 +201,20 @@ namespace ValveResourceFormat.Renderer.PostProcess
                     // NormalizedBloomStrengths seems to act as a blending factor "how much of each bloom mode do we have right now"
                     var bloomStrengths = new Vector3(State.BloomSettings.AddBloomStrength, State.BloomSettings.ScreenBloomStrength, State.BloomSettings.BlurBloomStrength);
                     var normalizedStrenghts = Vector3.Normalize(bloomStrengths);
-                    postProcessShader.SetUniform3("g_vNormalizedBloomStrengths", normalizedStrenghts);
-                    postProcessShader.SetUniform3("g_vUnNormalizedBloomStrengths", bloomStrengths);
+                    postProcessShader.SetUniform("g_vNormalizedBloomStrengths", normalizedStrenghts);
+                    postProcessShader.SetUniform("g_vUnNormalizedBloomStrengths", bloomStrengths);
                 }
-                postProcessShader.SetUniform1("g_bFlipY", flipY);
+                postProcessShader.SetUniform("g_bFlipY", flipY);
 
-                postProcessShader.SetUniform1("g_bPostProcessEnabled", Enabled);
+                postProcessShader.SetUniform("g_bPostProcessEnabled", Enabled);
 
-                postProcessShader.SetUniform1("g_flToneMapScalarLinear", TonemapScalar);
+                postProcessShader.SetUniform("g_flToneMapScalarLinear", TonemapScalar);
                 SetPostProcessUniforms(postProcessShader, State.TonemapSettings);
 
                 var invDimensions = 1.0f / State.ColorCorrectionLutDimensions;
                 var invRange = new Vector2(1.0f - invDimensions, 0.5f * invDimensions);
-                postProcessShader.SetUniform2("g_vColorCorrectionColorRange", invRange);
-                postProcessShader.SetUniform1("g_flColorCorrectionDefaultWeight", (State.NumLutsActive > 0 && ColorCorrectionEnabled) ? State.ColorCorrectionWeight : 0f);
+                postProcessShader.SetUniform("g_vColorCorrectionColorRange", invRange);
+                postProcessShader.SetUniform("g_flColorCorrectionDefaultWeight", (State.NumLutsActive > 0 && ColorCorrectionEnabled) ? State.ColorCorrectionWeight : 0f);
 
                 GL.BindVertexArray(RendererContext.MeshBufferCache.EmptyVAO);
                 GL.DrawArrays(PrimitiveType.Triangles, 0, 3);

@@ -23,6 +23,8 @@ public enum ReservedBufferSlots
     CullParams = 5,
     /// <summary>Per scene cull mask layout read by the shading passes.</summary>
     LightCull = 6,
+    /// <summary>Packed material properties.</summary>
+    Globals = 7,
 
     // ssbo
 

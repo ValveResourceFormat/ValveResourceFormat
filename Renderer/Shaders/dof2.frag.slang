@@ -1,6 +1,6 @@
 #version 460
 
-uniform float flMaxBlurSize;
+uniform float g_flMaxBlurSize;
 uniform vec4[256] g_vSampleOffsetsRadMinMax;
 uniform int g_nSamples;
 
@@ -29,7 +29,7 @@ void main()
             offsetCoC = clamp(offsetCoC, 0.0, centerCoC);
         }
 
-        float t = smoothstep(g_vSampleOffsetsRadMinMax[i].z, g_vSampleOffsetsRadMinMax[i].w, offsetCoC * flMaxBlurSize);
+        float t = smoothstep(g_vSampleOffsetsRadMinMax[i].z, g_vSampleOffsetsRadMinMax[i].w, offsetCoC * g_flMaxBlurSize);
       
         finalColor += mix(finalColor / weightSum, offsetSample.rgb, t);
 

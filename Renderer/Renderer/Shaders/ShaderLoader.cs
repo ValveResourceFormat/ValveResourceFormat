@@ -73,8 +73,23 @@ namespace ValveResourceFormat.Renderer.Shaders
             /// <summary>Gets the set of render mode names declared in the shader source.</summary>
             public HashSet<string> RenderModes { get; } = [];
 
-            /// <summary>Gets the set of sampler and vector uniform names declared in the shader source.</summary>
+            /// <summary>Gets the set of uniform names declared in the shader source.</summary>
             public HashSet<string> Uniforms { get; } = [];
+
+            /// <summary>
+            /// Gets the <c>#extension</c> directives hoisted out of the shader source. They have to precede
+            /// every non-preprocessor token, and the packed uniform block is one, so the header emits them.
+            /// </summary>
+            public HashSet<string> Extensions { get; } = [];
+
+            /// <summary>Gets the packable uniform declarations collected from every stage, in source order.</summary>
+            public List<GlobalsDeclaration> GlobalsDeclarations { get; } = [];
+
+            /// <summary>
+            /// Gets the packed layout of <see cref="GlobalsDeclarations"/>. Built once all stages have been
+            /// preprocessed, and shared by every static combo variant compiled from this source.
+            /// </summary>
+            public GlobalsLayout GlobalsLayout { get; set; } = GlobalsLayout.Empty;
 
             /// <summary>Gets the set of uniform names annotated with <c>// SrgbRead(true)</c>.</summary>
             public HashSet<string> SrgbUniforms { get; } = [];
@@ -212,6 +227,8 @@ namespace ValveResourceFormat.Renderer.Shaders
                 Parser.ClearBuilder();
             }
 
+            parsedData.GlobalsLayout = GlobalsLayout.Build(parsedData.GlobalsDeclarations);
+
             ParsedCache[shaderFileName] = parsedData;
             return parsedData;
         }
@@ -271,6 +288,7 @@ namespace ValveResourceFormat.Renderer.Shaders
 #endif
 
                     Parameters = arguments,
+                    GlobalsLayout = parsedData.GlobalsLayout,
                     Program = shaderProgram,
                     ShaderObjects = shaderObjects,
                     RenderModes = parsedData.RenderModes,
@@ -326,6 +344,12 @@ namespace ValveResourceFormat.Renderer.Shaders
             header.Append("#extension GL_KHR_shader_subgroup_arithmetic : enable\n");
             header.Append("#extension GL_KHR_shader_subgroup_vote : enable\n");
 
+            foreach (var extension in parsedData.Extensions)
+            {
+                header.Append(extension);
+                header.Append('\n');
+            }
+
             var variantName = $"GameVfx_{Path.GetFileNameWithoutExtension(originalShaderName)}";
 
             // Add all defines (with argument overrides or defaults)
@@ -348,6 +372,8 @@ namespace ValveResourceFormat.Renderer.Shaders
                 header.Append(value.ToString(CultureInfo.InvariantCulture));
                 header.Append('\n');
             }
+
+            header.Append(parsedData.GlobalsLayout.BlockSource);
 
             var headerText = header.ToString();
 
@@ -491,6 +517,11 @@ namespace ValveResourceFormat.Renderer.Shaders
         /// <param name="disposing"><see langword="true"/> when called from <see cref="Dispose()"/>.</param>
         protected virtual void Dispose(bool disposing)
         {
+            foreach (var shader in CachedShaders.Values)
+            {
+                shader.Default.Delete();
+            }
+
             CachedShaders.Clear();
         }
 

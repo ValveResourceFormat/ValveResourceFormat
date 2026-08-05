@@ -52,7 +52,7 @@ namespace ValveResourceFormat.Renderer.SceneNodes
             GL.ObjectLabel(ObjectLabelIdentifier.Buffer, vboHandle, Math.Min(GLEnvironment.MaxLabelLength, vaoLabel.Length), vaoLabel);
 #endif
 
-            var spriteSize = material.Material.FloatParams.GetValueOrDefault("g_flUniformPointSize", 16);
+            var spriteSize = material.FloatParams.GetValueOrDefault("g_flUniformPointSize", 16);
             spriteSize /= 2f; // correct the scale to actually be 16x16
 
             LocalBoundingBox = new AABB(-Vector3.One, Vector3.One);

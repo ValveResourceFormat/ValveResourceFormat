@@ -83,9 +83,9 @@ public class CS2BombDamageSceneNode : SceneNode
         meshName = $"{bombDamageData.Resource.FileName}:site{bombsiteIndex}";
 
         material = new RenderMaterial(shader);
-        material.Material.IntParams["F_TRANSLUCENT"] = 1;
-        material.Material.IntParams["F_RENDER_BACKFACES"] = 1;
-        material.Material.IntParams["F_DISABLE_Z_BUFFERING"] = 1;
+        material.IntParams["F_TRANSLUCENT"] = 1;
+        material.IntParams["F_RENDER_BACKFACES"] = 1;
+        material.IntParams["F_DISABLE_Z_BUFFERING"] = 1;
         material.LoadRenderState();
         material.Textures["g_tColor"] = renderTexture;
 
@@ -279,5 +279,6 @@ public class CS2BombDamageSceneNode : SceneNode
     {
         base.Delete();
         Scene.RendererContext.MeshBufferCache.DeleteVertexIndexBuffers(meshName);
+        material.Delete();
     }
 }

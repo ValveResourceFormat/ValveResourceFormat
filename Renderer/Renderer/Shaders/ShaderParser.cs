@@ -31,8 +31,17 @@ namespace ValveResourceFormat.Renderer.Shaders
         // uniform vec{dim} b = vec3(1.0); // SrgbRead(true)
         // uniform sampler{dim} c; // SrgbRead(true) Sampler(UserConfig)
         // uniform sampler{dim} d; // Sampler(UserConfig)
-        [GeneratedRegex("^uniform (?<Type>(?:sampler|vec)\\S+) (?<Name>\\S+)(?:\\s*=\\s*[^;]+)?;[ \t]*(?:// )?(?<SrgbRead>SrgbRead\\(true\\))?[ \t]*(?<SamplerUserConfig>Sampler\\(UserConfig\\))?")]
+        [GeneratedRegex("^uniform (?<Type>\\S+) (?<Name>[A-Za-z_][A-Za-z0-9_]*)(?<Array>\\[[^\\]]*\\])?(?:\\s*=\\s*(?<Default>[^;]+?))?\\s*;[ \t]*(?:// )?(?<SrgbRead>SrgbRead\\(true\\))?[ \t]*(?<SamplerUserConfig>Sampler\\(UserConfig\\))?")]
         private static partial Regex RegexUniform();
+
+        [GeneratedRegex("^#extension .+$")]
+        private static partial Regex RegexExtension();
+
+        [GeneratedRegex("^#define (?<From>(?:g|F)_[A-Za-z0-9_]+) (?<To>[A-Za-z_][A-Za-z0-9_]*)$")]
+        private static partial Regex RegexUniformAlias();
+
+        private static bool IsPackableUniformName(string name)
+            => name.StartsWith("g_", StringComparison.Ordinal) || name.StartsWith("F_", StringComparison.Ordinal);
 
         private readonly StringBuilder builder = new(1024);
 
@@ -50,6 +59,8 @@ namespace ValveResourceFormat.Renderer.Shaders
         {
             var sourceFileNumber = parsedData.SourceFiles.Count;
             var resolvedIncludes = new HashSet<string>(4);
+
+            var uniformAliases = new Dictionary<string, string>(0);
 
             void AppendLineNumber(int a, int b)
             {
@@ -124,6 +135,8 @@ namespace ValveResourceFormat.Renderer.Shaders
 #endif
 
                         builder.Append('\n');
+
+                        AppendLineNumber(lineNum, currentSourceFileNumber);
 
                         // We add #version even in includes so that they can be compiled individually for better editing experience
                         // Skip #version for main shader - will be prepended in header
@@ -209,12 +222,36 @@ namespace ValveResourceFormat.Renderer.Shaders
                             continue;
                         }
 
+                        match = RegexExtension().Match(line);
+
+                        if (match.Success)
+                        {
+                            parsedData.Extensions.Add(line);
+
+                            builder.Append("// :VrfHoisted ");
+                            builder.Append(line);
+                            builder.Append('\n');
+                            continue;
+                        }
+
+                        match = RegexUniformAlias().Match(line);
+
+                        if (match.Success)
+                        {
+                            uniformAliases[match.Groups["From"].Value] = match.Groups["To"].Value;
+                        }
+
                         // sRGB uniforms or samplers
                         match = RegexUniform().Match(line);
                         if (match.Success)
                         {
                             var uniformType = match.Groups["Type"].Value;
                             var uniformName = match.Groups["Name"].Value;
+
+                            if (uniformAliases.TryGetValue(uniformName, out var aliasedName))
+                            {
+                                uniformName = aliasedName;
+                            }
 
                             parsedData.Uniforms.Add(uniformName);
 
@@ -230,6 +267,21 @@ namespace ValveResourceFormat.Renderer.Shaders
                             if (match.Groups["SamplerUserConfig"].Success)
                             {
                                 parsedData.SamplerUserConfigUniforms.Add(uniformName);
+                            }
+
+                            if (!match.Groups["Array"].Success
+                            && IsPackableUniformName(uniformName)
+                            && GlobalsLayout.TryGetType(uniformType, out var constantType))
+                            {
+                                var defaultGroup = match.Groups["Default"];
+
+                                parsedData.GlobalsDeclarations.Add(new GlobalsDeclaration(uniformName, constantType,
+                                    defaultGroup.Success ? defaultGroup.Value : null, match.Groups["SrgbRead"].Success));
+
+                                builder.Append("// :VrfPacked ");
+                                builder.Append(line);
+                                builder.Append('\n');
+                                continue;
                             }
                         }
                     }

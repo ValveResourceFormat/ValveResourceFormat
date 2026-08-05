@@ -20,6 +20,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
         private Shader shader;
         private readonly Scene scene;
         private readonly RenderMaterial material;
+        private readonly bool ownsMaterial;
         private readonly int vaoHandle;
         private int vertexBufferHandle;
         private int indexBufferHandle;
@@ -91,9 +92,10 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
             circumferenceRepeats = parse.NumberProvider("m_flTextureRepeatsCircumference", circumferenceRepeats);
 
             var materialName = parse.Data.ContainsKey("m_hMaterial") ? parse.Data.GetStringProperty("m_hMaterial") : null;
-            material = materialName != null
-                ? rendererContext.MaterialLoader.GetMaterial(materialName, null)
-                : new RenderMaterial(shader);
+            ownsMaterial = materialName == null;
+            material = ownsMaterial
+                ? new RenderMaterial(shader)
+                : rendererContext.MaterialLoader.GetMaterial(materialName!, null);
 
             // A cable without an authored colour texture uses a default white one, showing the vertex
             // colour rather than the shader-default error checker.
@@ -449,6 +451,11 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
             GL.DeleteVertexArray(vaoHandle);
             GL.DeleteBuffer(vertexBufferHandle);
             GL.DeleteBuffer(indexBufferHandle);
+
+            if (ownsMaterial)
+            {
+                material.Delete();
+            }
         }
     }
 }

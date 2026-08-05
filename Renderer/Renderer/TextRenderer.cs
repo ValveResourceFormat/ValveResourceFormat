@@ -511,7 +511,7 @@ namespace ValveResourceFormat.Renderer
                 shader.SetTexture(1, "g_tSceneDepth", sceneDepth);
             }
 
-            shader.SetUniform1("g_fRange", TextureRange);
+            shader.SetUniform("g_fRange", TextureRange);
 
             GL.BindVertexArray(vao);
             GL.DrawElements(PrimitiveType.Triangles, letters * 6, DrawElementsType.UnsignedShort, 0);

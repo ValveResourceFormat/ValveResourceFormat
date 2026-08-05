@@ -144,8 +144,8 @@ namespace GUI.Types.GLViewers
             // Collect all parameters with their types and sort them together
             var allParams = new List<(string name, object value, ParamType type, VfxVariableDescription? vfx)>();
 
-            var materialParams = drawCall.Material.Material;
-            var shaderParams = drawCall.Material.Shader.Default.Material;
+            var materialParams = drawCall.Material;
+            var shaderParams = drawCall.Material.Shader.Default;
 
             var allParameterNames = new HashSet<string>(materialParams.FloatParams.Keys);
             allParameterNames.UnionWith(materialParams.IntParams.Keys);
@@ -288,7 +288,7 @@ namespace GUI.Types.GLViewers
                             floatVal,
                             range,
                             ParamType.Float,
-                            v => drawCall.Material.Material.FloatParams[paramName] = (float)v,
+                            v => drawCall.Material.FloatParams[paramName] = (float)v,
                             floatPresence != ParameterPresence.MaterialOnly);
                         break;
                     case ParamType.Int:
@@ -303,7 +303,7 @@ namespace GUI.Types.GLViewers
                             ParamType.Int,
                             v =>
                             {
-                                drawCall.Material.Material.IntParams[paramName] = (int)v;
+                                drawCall.Material.IntParams[paramName] = (int)v;
                                 drawCall.Material.LoadRenderState();
                             },
                             intPresence != ParameterPresence.MaterialOnly);
@@ -315,7 +315,7 @@ namespace GUI.Types.GLViewers
                             boolVal,
                             v =>
                             {
-                                drawCall.Material.Material.IntParams[paramName] = v ? 1 : 0;
+                                drawCall.Material.IntParams[paramName] = v ? 1 : 0;
                                 drawCall.Material.LoadRenderState();
                             },
                             boolPresence != ParameterPresence.MaterialOnly);
@@ -326,7 +326,7 @@ namespace GUI.Types.GLViewers
                             paramName,
                             count,
                             vector,
-                            v => drawCall.Material.Material.VectorParams[paramName] = v,
+                            v => drawCall.Material.VectorParams[paramName] = v,
                             vectorPresence != ParameterPresence.MaterialOnly);
                         break;
 
@@ -335,7 +335,7 @@ namespace GUI.Types.GLViewers
                         AddColorParameter(
                             paramName,
                             Vector4ToColor(colorVec),
-                            c => drawCall.Material.Material.VectorParams[paramName] = ColorToVector4(c),
+                            c => drawCall.Material.VectorParams[paramName] = ColorToVector4(c),
                             colorPresence != ParameterPresence.MaterialOnly);
                         break;
                 }

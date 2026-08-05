@@ -1,7 +1,7 @@
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
-using ValveResourceFormat.Renderer.Audio.SampleProviders;
 using ValveKeyValue;
+using ValveResourceFormat.Renderer.Audio.SampleProviders;
 using ValveResourceFormat.Serialization.KeyValues;
 
 namespace ValveResourceFormat.Renderer.Audio;

@@ -32,6 +32,14 @@ namespace ValveResourceFormat.Renderer.SceneEnvironment
 #endif
         }
 
+        /// <summary>
+        /// Releases owned GPU resources.
+        /// </summary>
+        public virtual void Delete()
+        {
+            GL.DeleteVertexArray(vao);
+        }
+
         /// <summary>Renders the skybox using a fullscreen 36-vertex cube draw call.</summary>
         public void Render()
         {
@@ -39,8 +47,8 @@ namespace ValveResourceFormat.Renderer.SceneEnvironment
 
             Material.Shader.Use();
             Material.Render();
-            Material.Shader.SetUniform3("m_vTint", Tint);
-            Material.Shader.SetUniform4x4("g_matSkyRotation", Transform);
+            Material.SetUniform("g_vTint", Tint);
+            Material.SetUniform("g_matSkyRotation", Transform);
 
             GL.BindVertexArray(vao);
             GL.DrawArrays(PrimitiveType.Triangles, 0, 36);

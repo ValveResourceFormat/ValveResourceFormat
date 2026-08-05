@@ -222,15 +222,15 @@ public class GLTextureDecoder : IHardwareTextureDecoder, IDisposable
         shader.Use();
 
         shader.SetTexture(0, "g_tInputTexture", inputTexture);
-        shader.SetUniform2("g_vViewportSize", new Vector2(blockWidth, blockHeight));
-        shader.SetUniform4("g_vInputTextureSize", new Vector4(
+        shader.SetUniform("g_vViewportSize", new Vector2(blockWidth, blockHeight));
+        shader.SetUniform("g_vInputTextureSize", new Vector4(
             blockWidth, blockHeight, inputTexture.Depth, inputTexture.NumMipLevels
         ));
-        shader.SetUniform1("g_nSelectedMip", request.Mip);
-        shader.SetUniform1("g_nSelectedDepth", request.Depth);
-        shader.SetUniform1("g_nSelectedCubeFace", (int)request.Face);
-        shader.SetUniform1("g_nSelectedChannels", request.Channels.PackedValue);
-        shader.SetUniform1("g_nDecodeFlags", (int)request.DecodeFlags);
+        shader.SetUniform("g_nSelectedMip", request.Mip);
+        shader.SetUniform("g_nSelectedDepth", request.Depth);
+        shader.SetUniform("g_nSelectedCubeFace", (int)request.Face);
+        shader.SetUniform("g_nSelectedChannels", request.Channels.PackedValue);
+        shader.SetUniform("g_nDecodeFlags", (int)request.DecodeFlags);
 
         // full screen triangle
         GL.BindVertexArray(RendererContext.MeshBufferCache.EmptyVAO);

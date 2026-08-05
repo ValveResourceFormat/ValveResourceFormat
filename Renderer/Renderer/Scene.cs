@@ -1169,7 +1169,7 @@ namespace ValveResourceFormat.Renderer
             var pyramid = DepthPyramid;
             var enabled = DepthPyramidValid && pyramid != null;
 
-            shader.SetUniform1("g_bOcclusionCullEnabled", enabled ? 1 : 0);
+            shader.SetUniform("g_bOcclusionCullEnabled", enabled ? 1 : 0);
 
             if (!enabled)
             {
@@ -1178,11 +1178,11 @@ namespace ValveResourceFormat.Renderer
 
             Debug.Assert(pyramid != null);
 
-            shader.SetUniform1("g_nDepthPyramidMaxMip", pyramid.NumMipLevels - 1);
-            shader.SetUniform1("g_nDepthPyramidWidth", pyramid.Width);
-            shader.SetUniform1("g_nDepthPyramidHeight", pyramid.Height);
-            shader.SetUniform1("g_flDepthRangeMin", Renderer.DepthRange.Scene.Near);
-            shader.SetUniform1("g_flDepthRangeMax", Renderer.DepthRange.Scene.Far);
+            shader.SetUniform("g_nDepthPyramidMaxMip", pyramid.NumMipLevels - 1);
+            shader.SetUniform("g_nDepthPyramidWidth", pyramid.Width);
+            shader.SetUniform("g_nDepthPyramidHeight", pyramid.Height);
+            shader.SetUniform("g_flDepthRangeMin", Renderer.DepthRange.Scene.Near);
+            shader.SetUniform("g_flDepthRangeMax", Renderer.DepthRange.Scene.Far);
 
             GL.ActiveTexture(TextureUnit.Texture0);
             GL.BindTexture(pyramid.Target, pyramid.Handle);
@@ -1223,7 +1223,7 @@ namespace ValveResourceFormat.Renderer
             {
                 OcclusionDebug!.BindAndClearBuffer();
             }
-            FrustumCullShader.SetUniform1("g_bOcclusionDebugEnabled", occlusionDebugEnabled);
+            FrustumCullShader.SetUniform("g_bOcclusionDebugEnabled", occlusionDebugEnabled);
 
             var workGroups = (SceneMeshletCount + 63) / 64;
             GL.DispatchCompute(workGroups, 1, 1);
@@ -1287,11 +1287,11 @@ namespace ValveResourceFormat.Renderer
                 Debug.Assert(DepthPyramidNpotShader != null);
                 DepthPyramidNpotShader.Use();
                 DepthPyramidNpotShader.SetTexture(0, "g_tSourceDepthNpot", depthSource);
-                DepthPyramidNpotShader.SetUniform1("g_nSourceDepthWidth", depthSource.Width);
-                DepthPyramidNpotShader.SetUniform1("g_nSourceDepthHeight", depthSource.Height);
+                DepthPyramidNpotShader.SetUniform("g_nSourceDepthWidth", depthSource.Width);
+                DepthPyramidNpotShader.SetUniform("g_nSourceDepthHeight", depthSource.Height);
 
-                DepthPyramidNpotShader.SetUniform1("g_nDestDepthWidth", DepthPyramid.Width);
-                DepthPyramidNpotShader.SetUniform1("g_nDestDepthHeight", DepthPyramid.Height);
+                DepthPyramidNpotShader.SetUniform("g_nDestDepthWidth", DepthPyramid.Width);
+                DepthPyramidNpotShader.SetUniform("g_nDestDepthHeight", DepthPyramid.Height);
 
                 GL.BindImageTexture(2, DepthPyramid.Handle, 0, false, 0, TextureAccess.WriteOnly, SizedInternalFormat.R32f);
 
@@ -1311,8 +1311,8 @@ namespace ValveResourceFormat.Renderer
                 var destHeight = Math.Max(1, DepthPyramid.Height >> mipLevel);
                 var sourceMip = mipLevel - 1;
 
-                DepthPyramidShader.SetUniform1("g_nDestDepthWidth", destWidth);
-                DepthPyramidShader.SetUniform1("g_nDestDepthHeight", destHeight);
+                DepthPyramidShader.SetUniform("g_nDestDepthWidth", destWidth);
+                DepthPyramidShader.SetUniform("g_nDestDepthHeight", destHeight);
 
                 // Bind source mip level as read-only image
                 GL.BindImageTexture(1, DepthPyramid.Handle, sourceMip, false, 0, TextureAccess.ReadOnly, SizedInternalFormat.R32f);

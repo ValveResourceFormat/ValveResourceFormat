@@ -25,8 +25,8 @@ public class OutlineRenderer(RendererContext rendererContext)
 
         outlineEdge.Use();
 
-        outlineEdge.SetUniform1("g_bFlipY", flipY);
-        outlineEdge.SetUniform1("g_nNumSamplesMSAA", numSamples);
+        outlineEdge.SetUniform("g_bFlipY", flipY);
+        outlineEdge.SetUniform("g_nNumSamplesMSAA", numSamples);
 
         outlineEdge.SetTexture(0, "g_tStencilBuffer", stencil);
 
