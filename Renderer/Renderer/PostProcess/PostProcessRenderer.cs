@@ -149,7 +149,7 @@ namespace ValveResourceFormat.Renderer.PostProcess
 
             using (new GLDebugGroup("MSAA Resolve"))
             {
-                var msaaResolveShader = DOF.Enabled ? DOF.MsaaResolveDof.Value : shaderMsaaResolve;
+                var msaaResolveShader = DOF.Enabled ? DOF.MsaaResolveDof : shaderMsaaResolve;
 
                 msaaResolveShader.Use();
                 msaaResolveShader.SetTexture(0, "g_tSourceMsaa", colorBufferRead.Color);
