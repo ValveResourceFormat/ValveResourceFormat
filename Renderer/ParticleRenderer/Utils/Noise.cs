@@ -41,6 +41,59 @@ namespace ValveResourceFormat.Renderer.Particles.Utils
         }
 
         /// <summary>
+        /// Samples a vector-valued lattice at a point, returning each component in [-1, 1]. Shares the
+        /// packed-corner indexing and unsmoothed trilinear weights of <see cref="Value3D(float, float, float)"/>,
+        /// but draws all three components from a single hash of each corner, so they are correlated.
+        /// </summary>
+        public static Vector3 ValueVector3(Vector3 position)
+        {
+            var ix = (int)MathF.Floor(position.X);
+            var iy = (int)MathF.Floor(position.Y);
+            var iz = (int)MathF.Floor(position.Z);
+
+            var fx = position.X - ix;
+            var fy = position.Y - iy;
+            var fz = position.Z - iz;
+
+            var c00 = Vector3.Lerp(HashVector(ix, iy, iz), HashVector(ix + 1, iy, iz), fx);
+            var c10 = Vector3.Lerp(HashVector(ix, iy + 1, iz), HashVector(ix + 1, iy + 1, iz), fx);
+            var c01 = Vector3.Lerp(HashVector(ix, iy, iz + 1), HashVector(ix + 1, iy, iz + 1), fx);
+            var c11 = Vector3.Lerp(HashVector(ix, iy + 1, iz + 1), HashVector(ix + 1, iy + 1, iz + 1), fx);
+
+            var c0 = Vector3.Lerp(c00, c10, fy);
+            var c1 = Vector3.Lerp(c01, c11, fy);
+
+            return Vector3.Lerp(c0, c1, fz);
+        }
+
+        /// <summary>
+        /// Hashes one lattice corner to a vector with each component in [-1, 1], taken from three bytes
+        /// of a single mixed value.
+        /// </summary>
+        private static Vector3 HashVector(int x, int y, int z)
+        {
+            unchecked
+            {
+                var index = x + (y << 10) + (z << 20);
+
+                var k = (int)((uint)index * 0xCC9E2D51u) & 0x7FFFFFFF;
+                k = (int)(BitOperations.RotateLeft((uint)k, 15) * 0x1B873593u) & 0x7FFFFFFF;
+                k = (int)BitOperations.RotateLeft((uint)k, 13) & 0x7FFFFFFF;
+
+                var mixed = k * 0x04B2AE35;
+                mixed ^= mixed >> 16;
+
+                const float scale = 2f / 255f;
+
+                return new Vector3(
+                    ((mixed & 255) * scale) - 1f,
+                    (((mixed >> 8) & 255) * scale) - 1f,
+                    (((mixed >> 16) & 255) * scale) - 1f
+                );
+            }
+        }
+
+        /// <summary>
         /// Hashes one lattice corner to [0, 1]. The corner is packed by plain addition rather than
         /// into disjoint bit fields, so the field aliases: Hash(x + 1024, y, z) == Hash(x, y + 1, z).
         /// </summary>
