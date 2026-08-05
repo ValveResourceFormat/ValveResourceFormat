@@ -240,7 +240,7 @@ namespace ValveResourceFormat.Renderer
             using var fontStream = Assembly.GetExecutingAssembly().GetManifestResourceStream("Renderer.Resources.jetbrains_mono_msdf.png");
             using var bitmap = SKBitmap.Decode(fontStream);
 
-            shader = RendererContext.ShaderLoader.LoadShader("vrf.font_msdf");
+            shader = RendererContext.ShaderLoader.LoadShader("font_msdf");
 
             fontTexture = new RenderTexture(TextureTarget.Texture2D, (int)AtlasSize, (int)AtlasSize, 1, 1);
             fontTexture.SetWrapMode(TextureWrapMode.ClampToEdge);

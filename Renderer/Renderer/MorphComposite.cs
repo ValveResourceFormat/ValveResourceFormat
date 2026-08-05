@@ -48,7 +48,7 @@ namespace ValveResourceFormat.Renderer
         {
             ArgumentNullException.ThrowIfNull(morph.TextureResource);
             morphAtlas = renderContext.MaterialLoader.LoadTexture(morph.TextureResource);
-            shader = renderContext.ShaderLoader.LoadShader("vrf.morph_composite");
+            shader = renderContext.ShaderLoader.LoadShader("morph_composite");
 
             var width = morph.Data.GetInt32Property("m_nWidth");
             var height = morph.Data.GetInt32Property("m_nHeight");

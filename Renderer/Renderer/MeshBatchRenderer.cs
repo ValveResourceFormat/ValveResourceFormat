@@ -222,7 +222,7 @@ namespace ValveResourceFormat.Renderer
                             uniforms.LPVIrradianceTexture = shader.GetUniformLocation("g_tLPV_Irradiance");
                         }
 
-                        if (shader.Name == "vrf.picking")
+                        if (shader.Name == "picking")
                         {
                             uniforms.MeshId = shader.GetUniformLocation("meshId");
                             uniforms.ShaderId = shader.GetUniformLocation("shaderId");

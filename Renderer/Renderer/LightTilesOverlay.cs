@@ -68,7 +68,7 @@ public class LightTilesOverlay(RendererContext rendererContext)
             return;
         }
 
-        shader ??= rendererContext.ShaderLoader.LoadShader("vrf.light_tiles_overlay");
+        shader ??= rendererContext.ShaderLoader.LoadShader("light_tiles_overlay");
 
         Debug.Assert(shader != null);
 

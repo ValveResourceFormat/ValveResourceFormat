@@ -62,8 +62,8 @@ public sealed class LightBinner(Scene scene) : IDisposable
     /// <summary>Loads the two compute shaders. Call once the GL context exists.</summary>
     public void LoadShaders()
     {
-        TileCullBitsShader = scene.RendererContext.ShaderLoader.LoadShader("vrf.compute_tile_cullbits");
-        DepthBinCullBitsShader = scene.RendererContext.ShaderLoader.LoadShader("vrf.compute_depthbin_cullbits");
+        TileCullBitsShader = scene.RendererContext.ShaderLoader.LoadShader("compute_tile_cullbits");
+        DepthBinCullBitsShader = scene.RendererContext.ShaderLoader.LoadShader("compute_depthbin_cullbits");
     }
 
     /// <summary>

@@ -64,7 +64,7 @@ public class DOFRenderer
     /// it on first use and whenever <see cref="MsaaSamples"/> selects a different variant.
     /// </summary>
     public Shader MsaaResolveDof
-        => msaaResolveDof ??= RendererContext.ShaderLoader.LoadShader("vrf.msaa_resolve", ("D_DOF", 1), ("D_MSAA_SAMPLES", MsaaSamples));
+        => msaaResolveDof ??= RendererContext.ShaderLoader.LoadShader("msaa_resolve", ("D_DOF", 1), ("D_MSAA_SAMPLES", MsaaSamples));
 
     private readonly RendererContext RendererContext;
 
@@ -108,7 +108,7 @@ public class DOFRenderer
     {
         if (DOF == null)
         {
-            DOF = RendererContext.ShaderLoader.LoadShader("vrf.dof2");
+            DOF = RendererContext.ShaderLoader.LoadShader("dof2");
             BlurredResult = Framebuffer.Prepare("Depth Of Field", 2, 2, 0, PostProcessRenderer.DefaultColorFormat, null);
             BlurredResult.Initialize();
         }

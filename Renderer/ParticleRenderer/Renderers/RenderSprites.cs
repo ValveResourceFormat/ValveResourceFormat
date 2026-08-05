@@ -15,7 +15,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
     /// <seealso href="https://s2v.app/SchemaExplorer/cs2/particles/C_OP_RenderSprites">C_OP_RenderSprites</seealso>
     internal class RenderSprites : ParticleFunctionRenderer
     {
-        private const string ShaderName = "vrf.particle_sprite";
+        private const string ShaderName = "particle_sprite";
         // position 3, colour 4, uv 2, next-frame uv 2, frame blend 1
         private const int VertexSize = 12 + ((MaxTextureLayers - 1) * 4);
 

@@ -1,4 +1,4 @@
-using System.Globalization;
+﻿using System.Globalization;
 using System.IO;
 using System.IO.Hashing;
 using System.Linq;
@@ -145,7 +145,7 @@ namespace ValveResourceFormat.Renderer.Shaders
         }
 
         /// <summary>Loads or retrieves a cached shader compiled with the specified static combos.</summary>
-        /// <param name="shaderName">The Source 2 shader name (e.g. <c>complex.vfx</c>).</param>
+        /// <param name="shaderName">The Source 2 shader name (e.g. <c>complex.vfx</c>), or a renderer shader file name that must exist (e.g. <c>grid</c>). See <see cref="GetShaderFileByName"/>.</param>
         /// <param name="combos">Static combo name/value pairs to activate.</param>
         public Shader LoadShader(string shaderName, params (string ComboName, byte ComboValue)[] combos)
         {
@@ -154,7 +154,7 @@ namespace ValveResourceFormat.Renderer.Shaders
         }
 
         /// <summary>Loads or retrieves a cached shader compiled with the given argument dictionary.</summary>
-        /// <param name="shaderName">The Source 2 shader name (e.g. <c>complex.vfx</c>).</param>
+        /// <param name="shaderName">The Source 2 shader name (e.g. <c>complex.vfx</c>), or a renderer shader file name that must exist (e.g. <c>grid</c>). See <see cref="GetShaderFileByName"/>.</param>
         /// <param name="arguments">Static combo parameter overrides, or <see langword="null"/> for defaults.</param>
         /// <param name="blocking">When <see langword="true"/>, waits for linking to complete before returning.</param>
         public Shader LoadShader(string shaderName, IReadOnlyDictionary<string, byte>? arguments = null, bool blocking = true)
@@ -191,6 +191,19 @@ namespace ValveResourceFormat.Renderer.Shaders
                     RendererContext.Logger.LogError("Shader '{ShaderName}' failed to link: {Log}", shader.Name, log);
                 }
             }
+        }
+
+        /// <summary>
+        /// Drops all preprocessed shader sources and rediscovers the available shader files. Called when the
+        /// <see cref="ShaderRegistry"/> changes; shader programs that have already been compiled are not affected.
+        /// </summary>
+        internal static void InvalidateParsedShaders()
+        {
+            using var _ = ParserLock.EnterScope();
+
+            ParsedCache.Clear();
+            Parser.ClearBuilder();
+            Parser.RefreshAvailableShaders();
         }
 
         private static ParsedShaderData GetOrParseShader(string shaderFileName)
@@ -241,7 +254,7 @@ namespace ValveResourceFormat.Renderer.Shaders
             {
                 var sources = parsedData.Sources;
 
-                if (shaderName == "vrf.depth_only" && arguments.Count == 0)
+                if (shaderName == "depth_only" && arguments.Count == 0)
                 {
                     sources = new(sources);
                     sources.Remove(ShaderProgramType.Fragment);
@@ -320,7 +333,17 @@ namespace ValveResourceFormat.Renderer.Shaders
                 }
 
                 var argsDescription = GetArgumentDescription(SortAndFilterArguments(parsedData.Defines, arguments));
-                RendererContext.Logger.LogInformation("Shader '{ShaderName}' as '{ShaderFileName}'{ArgsDescription} compiled{CompiledStatus} successfully (program={Program})", shaderName, shaderFileName, argsDescription, blocking ? " and linked" : string.Empty, shader.Program);
+                var compiledStatus = blocking ? " and linked" : string.Empty;
+
+                // Only Valve shader names are resolved to a different file, so naming both would be noise
+                if (IsVfxShaderName(shaderName))
+                {
+                    RendererContext.Logger.LogInformation("Shader '{ShaderName}' as '{ShaderFileName}'{ArgsDescription} compiled{CompiledStatus} successfully (program={Program})", shaderName, shaderFileName, argsDescription, compiledStatus, shader.Program);
+                }
+                else
+                {
+                    RendererContext.Logger.LogInformation("Shader '{ShaderName}'{ArgsDescription} compiled{CompiledStatus} successfully (program={Program})", shaderName, argsDescription, compiledStatus, shader.Program);
+                }
 
                 return shader;
             }
@@ -335,7 +358,7 @@ namespace ValveResourceFormat.Renderer.Shaders
             }
         }
 
-        private static void CompileShaderObjects(int[] shaderObjects, string[] shaderSources, string shaderFile, ReadOnlySpan<char> originalShaderName, IReadOnlyDictionary<string, byte> arguments, ParsedShaderData parsedData)
+        private static void CompileShaderObjects(int[] shaderObjects, string[] shaderSources, string shaderFile, string originalShaderName, IReadOnlyDictionary<string, byte> arguments, ParsedShaderData parsedData)
         {
             var header = new StringBuilder();
             header.Append(ShaderParser.ExpectedShaderVersion);
@@ -350,7 +373,10 @@ namespace ValveResourceFormat.Renderer.Shaders
                 header.Append('\n');
             }
 
-            var variantName = $"GameVfx_{Path.GetFileNameWithoutExtension(originalShaderName)}";
+            // Only Valve shader names activate a shader variant, renderer shader files are loaded as themselves
+            var variantName = IsVfxShaderName(originalShaderName)
+                ? $"GameVfx_{Path.GetFileNameWithoutExtension(originalShaderName)}"
+                : null;
 
             // Add all defines (with argument overrides or defaults)
             foreach (var (defineName, defaultValue) in parsedData.Defines)
@@ -481,10 +507,49 @@ namespace ValveResourceFormat.Renderer.Shaders
 
         /// <summary>The file extension used to identify vertex shader entry points (<c>.vert.slang</c>).</summary>
         public const string ShaderFileExtension = ".vert.slang";
+        // No longer used by the renderer itself, kept so that names that were required before still resolve
         const string VrfInternalShaderPrefix = "vrf.";
 
+        /// <summary>
+        /// Resolves a shader name to the renderer shader file that draws it. Mappings registered in
+        /// <see cref="ShaderRegistry"/> take priority over the built-in ones.
+        /// </summary>
+        /// <param name="shaderName">
+        /// A Source 2 shader name ending in <c>.vfx</c>, which is mapped to the renderer shader that best matches it and
+        /// falls back to <c>complex</c> when it is unknown. Any other name is the renderer shader file to load directly,
+        /// and must exist.
+        /// </param>
+        /// <returns>The renderer shader name without stage or extension (e.g. <c>complex</c>).</returns>
+        public static string GetShaderFileByName(string shaderName)
+        {
+            if (ShaderRegistry.Mappings.TryGetValue(shaderName, out var customShaderFile))
+            {
+                return customShaderFile;
+            }
+
+            // TODO: Consider naming renderer shaders with a .slang extension, so that they read as explicitly as .vfx names do
+            if (!IsVfxShaderName(shaderName))
+            {
+                // Not a Valve shader name, so it names a renderer shader file directly.
+                // Unknown names are not silently drawn with 'complex', loading them throws instead.
+                return shaderName.StartsWith(VrfInternalShaderPrefix, StringComparison.Ordinal)
+                    ? shaderName[VrfInternalShaderPrefix.Length..]
+                    : shaderName;
+            }
+
+            return GetBuiltinShaderFileByName(shaderName);
+        }
+
+        /// <summary>The file extension of Source 2 shader names (<c>.vfx</c>).</summary>
+        public const string VfxExtension = ".vfx";
+
+        private static bool IsVfxShaderName(string shaderName)
+        {
+            return shaderName.EndsWith(VfxExtension, StringComparison.Ordinal);
+        }
+
         // Map Valve's shader names to shader files VRF has
-        private static string GetShaderFileByName(string shaderName) => shaderName switch
+        private static string GetBuiltinShaderFileByName(string shaderName) => shaderName switch
         {
             "sky.vfx" => "sky",
             "tools_sprite.vfx" => "sprite",
@@ -502,7 +567,6 @@ namespace ValveResourceFormat.Renderer.Shaders
             "pbr.vfx" => "pbr",
             "citadel_overlay.vfx" => "citadel_overlay",
 
-            _ when shaderName.StartsWith(VrfInternalShaderPrefix, StringComparison.Ordinal) => shaderName[VrfInternalShaderPrefix.Length..],
             _ => "complex",
         };
 
@@ -597,6 +661,9 @@ namespace ValveResourceFormat.Renderer.Shaders
         {
             Parser.ClearBuilder();
 
+            // Picks up shader files that were created after startup, including ones in mounted directories
+            Parser.RefreshAvailableShaders();
+
             if (name != null && ShaderParser.ExtensionToProgramType.Keys.Any(ext => name.EndsWith($".{ext}.slang", StringComparison.Ordinal)))
             {
                 // If a named shader changed (not an include), then we can only reload this shader
@@ -632,7 +699,8 @@ namespace ValveResourceFormat.Renderer.Shaders
         {
             using var renderContext = new RendererContext(new ValveResourceFormat.IO.GameFileLoader(null, null), logger);
             var loader = renderContext.ShaderLoader;
-            var folder = ShaderParser.GetShaderDiskPath(string.Empty);
+            var folder = ShaderParser.ShaderSourceDirectory
+                ?? throw new DirectoryNotFoundException("Shader validation requires the shader source files, but this build only has the embedded copies.");
 
             var vertShaders = Directory.GetFiles(folder, "*.vert.slang");
             var compShaders = Directory.GetFiles(folder, "*.comp.slang");
@@ -649,28 +717,27 @@ namespace ValveResourceFormat.Renderer.Shaders
             foreach (var shader in allShaders)
             {
                 var shaderName = ShaderNameFromPath(shader);
-                var vrfFileName = string.Concat(VrfInternalShaderPrefix, shaderName);
 
                 if (IsCI)
                 {
                     Console.WriteLine($"::group::Shader {shaderName}");
                 }
 
-                progressReporter.Report($"Compiling {vrfFileName}");
+                progressReporter.Report($"Compiling {shaderName}");
 
                 if (shaderName == "texture_decode")
                 {
-                    loader.LoadShader(vrfFileName, new Dictionary<string, byte>
+                    loader.LoadShader(shaderName, new Dictionary<string, byte>
                     {
                         ["S_TYPE_TEXTURE2D"] = 1,
                     });
                     continue;
                 }
 
-                loader.LoadShader(vrfFileName);
+                loader.LoadShader(shaderName);
 
                 // Test all defines one by one
-                var parsed = GetOrParseShader(GetShaderFileByName(vrfFileName));
+                var parsed = GetOrParseShader(GetShaderFileByName(shaderName));
                 var defines = parsed.Defines.Where(static x => !x.Key.StartsWith("GameVfx_", StringComparison.Ordinal)).ToDictionary();
                 var variants = parsed.Defines.Keys.Where(static x => x.StartsWith("GameVfx_", StringComparison.Ordinal));
                 var sourceLines = parsed.SourceFileLines;
@@ -682,9 +749,9 @@ namespace ValveResourceFormat.Renderer.Shaders
 
                     for (var value = 1; value <= maxValue; value++)
                     {
-                        progressReporter.Report($"Compiling {vrfFileName} with {define}={value}");
+                        progressReporter.Report($"Compiling {shaderName} with {define}={value}");
 
-                        loader.LoadShader(vrfFileName, new Dictionary<string, byte>
+                        loader.LoadShader(shaderName, new Dictionary<string, byte>
                         {
                             [define] = (byte)value,
                         });

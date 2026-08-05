@@ -87,8 +87,8 @@ public class PickingTexture : Framebuffer
     public PickingTexture(RendererContext rendererContext, EventHandler<PickingResponse> onPicked) : base(nameof(PickingTexture))
     {
         RendererContext = rendererContext;
-        Shader = rendererContext.ShaderLoader.LoadShader("vrf.picking");
-        DebugShader = rendererContext.ShaderLoader.LoadShader("vrf.picking", ("F_DEBUG_PICKER", 1));
+        Shader = rendererContext.ShaderLoader.LoadShader("picking");
+        DebugShader = rendererContext.ShaderLoader.LoadShader("picking", ("F_DEBUG_PICKER", 1));
         OnPicked += onPicked;
 
         ColorFormat = new(PixelInternalFormat.Rgba32ui, PixelFormat.RgbaInteger, PixelType.UnsignedInt);

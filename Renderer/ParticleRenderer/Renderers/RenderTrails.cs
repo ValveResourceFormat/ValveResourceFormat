@@ -16,7 +16,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
     /// <seealso href="https://s2v.app/SchemaExplorer/cs2/particles/C_OP_RenderTrails">C_OP_RenderTrails</seealso>
     internal class RenderTrails : ParticleFunctionRenderer
     {
-        private const string ShaderName = "vrf.particle_trail";
+        private const string ShaderName = "particle_trail";
         private const int VertexSize = 9;
 
         // The shared quad index buffer covers 65532 indices, six per quad

@@ -11,13 +11,35 @@ namespace GUI.Types.GLViewers;
 
 internal class ShaderHotReload : IDisposable
 {
-    private FileSystemWatcher? ShaderWatcher = new()
+    // The built-in shader folder, plus every directory mounted through ShaderRegistry
+    private List<FileSystemWatcher>? ShaderWatchers = CreateWatchers();
+
+    private static List<FileSystemWatcher> CreateWatchers()
     {
-        Path = ShaderParser.GetShaderDiskPath(string.Empty),
-        NotifyFilter = NotifyFilters.FileName | NotifyFilters.LastWrite,
-        IncludeSubdirectories = true,
-        EnableRaisingEvents = true,
-    };
+        var watchers = new List<FileSystemWatcher>(1 + ShaderRegistry.Directories.Length);
+        var paths = new List<string>(watchers.Capacity);
+        paths.AddRange(ShaderRegistry.Directories);
+
+        // Only present when this assembly was built from the shader source files, rather than using the embedded copies
+        if (ShaderParser.ShaderSourceDirectory != null)
+        {
+            paths.Add(ShaderParser.ShaderSourceDirectory);
+        }
+
+        foreach (var path in paths)
+        {
+            watchers.Add(new FileSystemWatcher
+            {
+                Path = path,
+                NotifyFilter = NotifyFilters.FileName | NotifyFilters.LastWrite,
+                IncludeSubdirectories = true,
+                EnableRaisingEvents = true,
+                Filters = { "*.slang" },
+            });
+        }
+
+        return watchers;
+    }
 
     private readonly TaskDialogPage errorReloadingPage = new()
     {
@@ -43,30 +65,35 @@ internal class ShaderHotReload : IDisposable
     {
         ViewerControl = viewerControl;
         ShaderLoader = shaderLoader;
-
-        ShaderWatcher.Filters.Add("*.slang");
     }
 
     public void SetSynchronizingObject(ISynchronizeInvoke synchronizingObject)
     {
-        Debug.Assert(ShaderWatcher is not null);
+        Debug.Assert(ShaderWatchers is not null);
 
-        ShaderWatcher.SynchronizingObject = synchronizingObject;
+        foreach (var watcher in ShaderWatchers)
+        {
+            watcher.SynchronizingObject = synchronizingObject;
 
-        ShaderWatcher.Changed += Hotload;
-        ShaderWatcher.Created += Hotload;
-        ShaderWatcher.Renamed += Hotload;
+            watcher.Changed += Hotload;
+            watcher.Created += Hotload;
+            watcher.Renamed += Hotload;
+        }
     }
 
     public void Dispose()
     {
-        if (ShaderWatcher != null)
+        if (ShaderWatchers != null)
         {
-            ShaderWatcher.Changed -= Hotload;
-            ShaderWatcher.Created -= Hotload;
-            ShaderWatcher.Renamed -= Hotload;
-            ShaderWatcher.Dispose();
-            ShaderWatcher = null;
+            foreach (var watcher in ShaderWatchers)
+            {
+                watcher.Changed -= Hotload;
+                watcher.Created -= Hotload;
+                watcher.Renamed -= Hotload;
+                watcher.Dispose();
+            }
+
+            ShaderWatchers = null;
 
             reloadSemaphore.Dispose();
         }

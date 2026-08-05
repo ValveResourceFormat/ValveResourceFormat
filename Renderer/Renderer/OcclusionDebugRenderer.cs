@@ -33,8 +33,8 @@ namespace ValveResourceFormat.Renderer
             this.scene = scene;
             renderContext = rendererContext;
 
-            shader = rendererContext.ShaderLoader.LoadShader("vrf.occlusion_debug");
-            finalizeShader = rendererContext.ShaderLoader.LoadShader("vrf.occlusion_debug_finalize");
+            shader = rendererContext.ShaderLoader.LoadShader("occlusion_debug");
+            finalizeShader = rendererContext.ShaderLoader.LoadShader("occlusion_debug_finalize");
         }
 
         /// <summary>Allocates (if needed) and clears the GPU buffer that receives occluded bounds from the culling shader.</summary>

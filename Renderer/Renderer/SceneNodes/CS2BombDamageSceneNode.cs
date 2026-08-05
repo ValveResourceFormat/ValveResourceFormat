@@ -79,7 +79,7 @@ public class CS2BombDamageSceneNode : SceneNode
     /// <param name="bombsiteLabel">Display label for the bombsite ("A", "B", or a per-site index when unresolved).</param>
     public CS2BombDamageSceneNode(Scene scene, BombDamage bombDamageData, int bombsiteIndex, RenderTexture renderTexture, string bombsiteLabel) : base(scene)
     {
-        var shader = Scene.RendererContext.ShaderLoader.LoadShader("vrf.cs2_baked_bomb_damage");
+        var shader = Scene.RendererContext.ShaderLoader.LoadShader("cs2_baked_bomb_damage");
         meshName = $"{bombDamageData.Resource.FileName}:site{bombsiteIndex}";
 
         material = new RenderMaterial(shader);

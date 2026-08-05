@@ -216,11 +216,11 @@ namespace ValveResourceFormat.Renderer
 
             UpdateBuffers();
 
-            OutlineShader = RendererContext.ShaderLoader.LoadShader("vrf.outline");
-            FrustumCullShader = RendererContext.ShaderLoader.LoadShader("vrf.frustum_cull");
-            CompactionShader = RendererContext.ShaderLoader.LoadShader("vrf.compact_indirect_draws");
-            DepthPyramidShader = RendererContext.ShaderLoader.LoadShader("vrf.depth_pyramid");
-            DepthPyramidNpotShader = RendererContext.ShaderLoader.LoadShader("vrf.depth_pyramid", ("D_NPOT_DOWNSAMPLE", 1));
+            OutlineShader = RendererContext.ShaderLoader.LoadShader("outline");
+            FrustumCullShader = RendererContext.ShaderLoader.LoadShader("frustum_cull");
+            CompactionShader = RendererContext.ShaderLoader.LoadShader("compact_indirect_draws");
+            DepthPyramidShader = RendererContext.ShaderLoader.LoadShader("depth_pyramid");
+            DepthPyramidNpotShader = RendererContext.ShaderLoader.LoadShader("depth_pyramid", ("D_NPOT_DOWNSAMPLE", 1));
             LightBinner.LoadShaders();
 
             EnableIndirectDraws = LightingInfo.LightingData.IsSkybox == 0u;
