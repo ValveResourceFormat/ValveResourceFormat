@@ -10,6 +10,11 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
         {
         }
 
+        /// <summary>
+        /// The pass this renderer draws in.
+        /// </summary>
+        public RenderPass Pass { get; protected set; } = RenderPass.Translucent;
+
         public virtual void Update(ParticleCollection particles, ParticleSystemRenderState systemRenderState)
         {
         }

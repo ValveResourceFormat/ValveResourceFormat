@@ -1,7 +1,6 @@
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Linq;
-using System.Threading;
 using Microsoft.Extensions.Logging;
 using ValveKeyValue;
 using ValveResourceFormat.Blocks;
@@ -48,6 +47,12 @@ namespace ValveResourceFormat.Renderer.Particles
         private readonly Scene scene;
 
         public AABB LocalBoundingBox { get; private set; } = new AABB(new Vector3(float.MinValue), new Vector3(float.MaxValue));
+
+        /// <summary>
+        /// The passes this system draws in, unioned over its renderers and its children's. Fixed once the
+        /// system is built.
+        /// </summary>
+        public CustomRenderPasses Passes { get; private set; }
 
         /// <summary>
         /// The scene node this system renders under, when created for one. Renderers use its
@@ -205,7 +210,28 @@ namespace ValveResourceFormat.Renderer.Particles
 
             SetupChildParticles(particleSystem.GetChildParticleNames(true));
 
+            Passes = CollectPasses();
+
             CalculateBounds();
+        }
+
+        private CustomRenderPasses CollectPasses()
+        {
+            var passes = CustomRenderPasses.None;
+
+            foreach (var renderer in Renderers)
+            {
+                passes |= renderer.Pass == RenderPass.Opaque
+                    ? CustomRenderPasses.Opaque
+                    : CustomRenderPasses.Translucent;
+            }
+
+            foreach (var childParticleRenderer in childParticleRenderers)
+            {
+                passes |= childParticleRenderer.Passes;
+            }
+
+            return passes;
         }
 
         /// <summary>
@@ -617,8 +643,13 @@ namespace ValveResourceFormat.Renderer.Particles
             return true;
         }
 
-        public void Render(Camera camera)
+        /// <summary>
+        /// Draws the renderers belonging to <paramref name="pass"/>.
+        /// </summary>
+        public void Render(Camera camera, RenderPass pass)
         {
+            var wantedPass = pass == RenderPass.DepthOnly ? RenderPass.Opaque : pass;
+
             foreach (var childParticleRenderer in childParticleRenderers)
             {
                 if (!childParticleRenderer.ChildEnabled)
@@ -626,7 +657,7 @@ namespace ValveResourceFormat.Renderer.Particles
                     continue;
                 }
 
-                childParticleRenderer.Render(camera);
+                childParticleRenderer.Render(camera, pass);
             }
 
             if (particleCollection.Count > 0)
@@ -635,6 +666,11 @@ namespace ValveResourceFormat.Renderer.Particles
 
                 foreach (var renderer in Renderers)
                 {
+                    if (renderer.Pass != wantedPass)
+                    {
+                        continue;
+                    }
+
                     if (renderer.GetOperatorRunStrength(systemRenderState) <= 0.0f)
                     {
                         continue;

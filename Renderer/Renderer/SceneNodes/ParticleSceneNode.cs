@@ -45,6 +45,8 @@ namespace ValveResourceFormat.Renderer.SceneNodes
             };
             LocalBoundingBox = particleRenderer.LocalBoundingBox;
 
+            RenderPasses = particleRenderer.Passes;
+
             if (preview)
             {
                 Preview = true;
@@ -478,12 +480,17 @@ namespace ValveResourceFormat.Renderer.SceneNodes
         /// <inheritdoc/>
         public override void Render(Scene.RenderContext context)
         {
-            if (context.RenderPass != RenderPass.Translucent || context.ReplacementShader is not null)
+            if (context.ReplacementShader is not null)
             {
                 return;
             }
 
-            particleRenderer.Render(context.Camera);
+            if (context.RenderPass is not (RenderPass.Opaque or RenderPass.Translucent or RenderPass.DepthOnly))
+            {
+                return;
+            }
+
+            particleRenderer.Render(context.Camera, context.RenderPass);
         }
 
         /// <inheritdoc/>

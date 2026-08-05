@@ -480,7 +480,7 @@ public class ViewmodelSceneNode : ModelSceneNode
         {
             LayerName = ViewmodelLayerName,
             Flags = ObjectTypeFlags.DisableVisCulling,
-            RenderAsViewmodel = true,
+            RenderPasses = CustomRenderPasses.Default | CustomRenderPasses.Viewmodel,
         };
         Scene.Add(model, true);
         Items.Add(model);
@@ -536,7 +536,7 @@ public class ViewmodelSceneNode : ModelSceneNode
         {
             LayerName = ViewmodelLayerName,
             Flags = ObjectTypeFlags.DisableVisCulling,
-            RenderAsViewmodel = true,
+            RenderPasses = CustomRenderPasses.Default | CustomRenderPasses.Viewmodel,
         };
 
         scene.Add(stattrakModule, true);
@@ -549,7 +549,7 @@ public class ViewmodelSceneNode : ModelSceneNode
 
         viewmodel.LayerName = ViewmodelLayerName;
         viewmodel.Flags |= ObjectTypeFlags.DisableVisCulling;
-        viewmodel.RenderAsViewmodel = true;
+        viewmodel.RenderPasses |= CustomRenderPasses.Viewmodel;
 
         // Load muzzle flash particle
         var muzzleFlashResource = loader.LoadFileCompiled("particles/unified_weapon_fx/uweapon_muzflsh_riffle_fps.vpcf");
@@ -559,9 +559,12 @@ public class ViewmodelSceneNode : ModelSceneNode
             {
                 LayerName = ViewmodelLayerName,
                 Flags = ObjectTypeFlags.DisableVisCulling,
-                RenderAsViewmodel = true,
                 Parent = viewmodel,
             };
+
+            // Added to, not assigned over: the node's passes are the ones its particle renderers draw in.
+            viewmodel.muzzleFlashParticle.RenderPasses |= CustomRenderPasses.Viewmodel;
+
             scene.Add(viewmodel.muzzleFlashParticle, true);
         }
 

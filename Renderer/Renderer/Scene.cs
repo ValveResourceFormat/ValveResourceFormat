@@ -786,7 +786,8 @@ namespace ValveResourceFormat.Renderer
                 renderPass = RenderPass.Opaque;
             }
 
-            var isViewmodelLayer = request.Node.RenderAsViewmodel && viewmodelRenderLists.ContainsKey(renderPass);
+            var isViewmodelLayer = (request.Node.RenderPasses & CustomRenderPasses.Viewmodel) != 0
+                && viewmodelRenderLists.ContainsKey(renderPass);
 
             var queueList = isViewmodelLayer
                 ? viewmodelRenderLists[renderPass]
@@ -931,15 +932,19 @@ namespace ValveResourceFormat.Renderer
                         Node = node,
                     };
 
-                    if (node.RenderAsViewmodel)
+                    var customPasses = node.RenderPasses;
+                    var customLists = (customPasses & CustomRenderPasses.Viewmodel) != 0
+                        ? viewmodelRenderLists
+                        : renderLists;
+
+                    if ((customPasses & CustomRenderPasses.Opaque) != 0)
                     {
-                        viewmodelRenderLists[RenderPass.Opaque].Add(customRender);
-                        viewmodelRenderLists[RenderPass.Translucent].Add(customRender);
+                        customLists[RenderPass.Opaque].Add(customRender);
                     }
-                    else
+
+                    if ((customPasses & CustomRenderPasses.Translucent) != 0)
                     {
-                        renderLists[RenderPass.Opaque].Add(customRender);
-                        renderLists[RenderPass.Translucent].Add(customRender);
+                        customLists[RenderPass.Translucent].Add(customRender);
                     }
 
                     if (node.IsSelected)
@@ -1082,6 +1087,17 @@ namespace ValveResourceFormat.Renderer
                 }
                 else
                 {
+                    // Nodes that draw their own solid geometry cast shadows by drawing into the depth pass
+                    // with their own shaders. The unspecified bucket is the one with no depth-only
+                    // replacement shader, which is exactly what that needs.
+                    if ((node.Flags & skipFlags) == 0 && (node.RenderPasses & CustomRenderPasses.Opaque) != 0)
+                    {
+                        drawBuckets[DepthOnlyProgram.Unspecified].Add(new MeshBatchRenderer.Request
+                        {
+                            Node = node,
+                        });
+                    }
+
                     continue;
                 }
 

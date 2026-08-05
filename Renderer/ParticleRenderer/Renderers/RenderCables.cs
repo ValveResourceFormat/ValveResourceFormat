@@ -104,6 +104,8 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
                 material.Textures["g_tColor"] = rendererContext.MaterialLoader.GetDefaultColor();
             }
 
+            Pass = material.IsTranslucent ? RenderPass.Translucent : RenderPass.Opaque;
+
             vaoHandle = SetupBuffers();
         }
 
@@ -431,17 +433,10 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
                 scene.LightingInfo.BindInstanceLightProbeTextures(lightProbe);
             }
 
-            // The tube is opaque geometry drawn in the translucent pass: disable blending and write depth so
-            // it self-occludes correctly, then restore the translucent defaults.
-            GL.Disable(EnableCap.Blend);
-            GL.DepthMask(true);
-
             PerfStats.Active.Count(Counter.ParticleDraw);
             GL.DrawElements(PrimitiveType.Triangles, indexCount, DrawElementsType.UnsignedInt, 0);
 
             material.PostRender();
-            GL.DepthMask(false);
-            GL.Enable(EnableCap.Blend);
         }
 
         public override IEnumerable<string> GetSupportedRenderModes() => shader.RenderModes;
