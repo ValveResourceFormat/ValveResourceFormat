@@ -415,15 +415,12 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
             modelViewRotation = Quaternion.Inverse(modelViewRotation);
             var billboardMatrix = Matrix4x4.CreateFromQuaternion(modelViewRotation);
 
-            // Distance-driven size and fade. All four bounds are fractions of the screen a sprite may
-            // cover, so they compare against radius / (distance * tan(fov/2)): the minimum keeps tiny
-            // flashes visible at any camera distance, and the two fade bounds dissolve a sprite that grows
-            // past them. The whole group is gated on m_bDistanceAlpha, as it is in the shader.
-            var minScreenSize = minSize.NextNumber(systemRenderState);
-            var maxScreenSize = maxSize.NextNumber(systemRenderState);
-            var startFadeScreenSize = startFadeSize.NextNumber(systemRenderState);
-            var endFadeScreenSize = endFadeSize.NextNumber(systemRenderState);
-            var tanHalfFov = MathF.Tan(camera.GetFOV() * 0.5f);
+            // All four bounds are a radius per unit of camera distance, and the whole group is gated
+            // on m_bDistanceAlpha.
+            var minSizeSlope = minSize.NextNumber(systemRenderState);
+            var maxSizeSlope = maxSize.NextNumber(systemRenderState);
+            var startFadeSlope = startFadeSize.NextNumber(systemRenderState);
+            var endFadeSlope = endFadeSize.NextNumber(systemRenderState);
 
             var centerOffset = new Vector2(
                 centerXOffset.NextNumber(systemRenderState),
@@ -470,12 +467,12 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
                         }
                     }
 
-                    if (distanceAlpha && tanHalfFov > 0f)
+                    if (distanceAlpha)
                     {
-                        var screenHalfHeight = Vector3.Distance(camera.Location, particle.Position) * tanHalfFov;
+                        var cameraDistance = Vector3.Distance(camera.Location, particle.Position);
                         var radius = particle.Radius * radiusScale;
-                        var fadeStart = startFadeScreenSize * screenHalfHeight;
-                        var fadeEnd = endFadeScreenSize * screenHalfHeight;
+                        var fadeStart = startFadeSlope * cameraDistance;
+                        var fadeEnd = endFadeSlope * cameraDistance;
 
                         if (radius > fadeStart)
                         {
@@ -493,7 +490,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
                             // Expressed back as a scale, because the corner transform takes one. Nested
                             // min/max rather than a clamp: an inverted range has to resolve to the maximum
                             // the way the shader's does, not throw.
-                            radiusScale = MathF.Min(MathF.Max(radius, minScreenSize * screenHalfHeight), maxScreenSize * screenHalfHeight) / particle.Radius;
+                            radiusScale = MathF.Min(MathF.Max(radius, minSizeSlope * cameraDistance), maxSizeSlope * cameraDistance) / particle.Radius;
                         }
                     }
 
@@ -501,10 +498,9 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
                     var alpha = particle.Alpha * alphaScale * colorFade * alphaFade;
                     var halfWidth = particle.Radius * radiusScale;
 
-                    // A quad with no extent collapses to a point and rasterizes nothing, whatever the
-                    // fragment shader does with it. Zero alpha is deliberately not culled here: what it
-                    // composites to is the blend mode's business, not the vertex writer's.
-                    if (halfWidth <= 0f)
+                    // The spritecard vertex shader scales the corner offset to zero below 1/255 alpha, so
+                    // a quad with no extent or no alpha rasterizes nothing either way.
+                    if (halfWidth <= 0f || alpha < 1f / 255f)
                     {
                         continue;
                     }
