@@ -50,18 +50,20 @@ namespace ValveResourceFormat.Renderer.Particles.Initializers
 
             var biasedDirection = Vector3.Normalize(randomVector * bias);
 
+            // The direction consumed the random table at the particle id through id + 2; sharing a
+            // slot with it correlates the radius with one axis and pulls the spawn cloud off centre.
             var distance = ParticleCollection.RandomBetween(
-                particle.ParticleID,
+                particle.ParticleID + 3,
                 radiusMin.NextNumber(ref particle, particleSystemState),
                 radiusMax.NextNumber(ref particle, particleSystemState));
 
             var speed = ParticleCollection.RandomBetween(
-                particle.ParticleID,
+                particle.ParticleID + 4,
                 speedMin.NextNumber(ref particle, particleSystemState),
                 speedMax.NextNumber(ref particle, particleSystemState));
 
             var localCoordinateSystemSpeed = ParticleCollection.RandomBetweenPerComponent(
-                particle.ParticleID,
+                particle.ParticleID + 5,
                 localCoordinateSystemSpeedMin.NextVector(ref particle, particleSystemState),
                 localCoordinateSystemSpeedMax.NextVector(ref particle, particleSystemState));
 
