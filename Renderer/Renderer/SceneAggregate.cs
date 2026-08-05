@@ -42,6 +42,22 @@ namespace ValveResourceFormat.Renderer
         public ObjectTypeFlags AnyFlags { get; set; }
 
         /// <summary>
+        /// Baked LOD switching data for one cluster of aggregated instances: the world-space origin the
+        /// camera distance is measured against, the largest instance scale in the cluster, and the
+        /// ascending per-level switch distances.
+        /// </summary>
+        /// <param name="Origin">World-space point the camera distance is measured to.</param>
+        /// <param name="MaxObjectScale">Largest instance scale in the cluster, scales the projected size metric.</param>
+        /// <param name="SwitchDistances">Ascending per-level thresholds, first entry 0, compared against a
+        /// screen-size derived distance metric rather than raw world distance.</param>
+        public readonly record struct LodSetup(Vector3 Origin, float MaxObjectScale, float[] SwitchDistances);
+
+        /// <summary>Gets the baked per-cluster LOD setups, empty when this aggregate has no LOD switching.</summary>
+        public LodSetup[] LodSetups { get; private set; } = [];
+
+        private int[] activeLodLevels = [];
+
+        /// <summary>
         /// Single drawable fragment within an aggregate with independent bounds.
         /// </summary>
         public sealed class Fragment : SceneNode
@@ -57,6 +73,12 @@ namespace ValveResourceFormat.Renderer
 
             /// <summary>Gets or sets the per-fragment tint color.</summary>
             public Vector4 Tint { get; set; } = Vector4.One;
+
+            /// <summary>Gets the LOD levels this fragment belongs to, one bit per level; 0 means always drawn.</summary>
+            public uint LodGroupMask { get; init; }
+
+            /// <summary>Gets the index into the parent's <see cref="LodSetups"/> that governs this fragment.</summary>
+            public int LodSetupIndex { get; init; }
 
             /// <summary>Initializes a new fragment of the given aggregate with the specified local bounds.</summary>
             /// <param name="scene">Owning scene.</param>
@@ -122,11 +144,117 @@ namespace ValveResourceFormat.Renderer
         /// <param name="aggregateSceneObject">KV3 object describing the aggregate's fragment list.</param>
         public void LoadFragments(KVObject aggregateSceneObject)
         {
+            LoadLodSetups(aggregateSceneObject);
             Fragments.AddRange(CreateFragments(aggregateSceneObject));
             foreach (var fragment in Fragments)
             {
                 Scene.Add(fragment, false);
             }
+        }
+
+        private void LoadLodSetups(KVObject aggregateSceneObject)
+        {
+            if (!aggregateSceneObject.ContainsKey("m_lodSetups"))
+            {
+                return;
+            }
+
+            var lodSetups = aggregateSceneObject.GetArray("m_lodSetups");
+
+            if (lodSetups.Count == 0)
+            {
+                return;
+            }
+
+            LodSetups = new LodSetup[lodSetups.Count];
+
+            for (var i = 0; i < lodSetups.Count; i++)
+            {
+                LodSetups[i] = new LodSetup(
+                    lodSetups[i].GetSubCollection("m_vLODOrigin").ToVector3(),
+                    (float)lodSetups[i].GetFloatProperty("m_fMaxObjectScale"),
+                    lodSetups[i].GetFloatArray("m_fSwitchDistances")
+                );
+            }
+
+            activeLodLevels = new int[LodSetups.Length];
+        }
+
+        /// <summary>
+        /// Tangent of half the vertical field of view the game runs at (90 degrees horizontal at 4:3),
+        /// used instead of the viewer's own camera FOV so switch distances match the game.
+        /// </summary>
+        private const float GameTanHalfVerticalFov = 0.75f;
+
+        /// <inheritdoc/>
+        /// <remarks>
+        /// Picks the active LOD level per setup from the projected screen size of the cluster at the camera's
+        /// distance to the setup origin: metric = 100 * distance / (maxObjectScale * pixelsPerUnitAtUnitDistance),
+        /// active level = highest index whose switch distance the metric exceeds. The projection uses the game's
+        /// fixed field of view and the display height, so results match the game at native resolution regardless
+        /// of the viewer's window size or camera FOV.
+        /// </remarks>
+        public override void Update(Scene.UpdateContext context)
+        {
+            if (LodSetups.Length == 0)
+            {
+                return;
+            }
+
+            var camera = context.Camera;
+            var referenceHeight = Scene.RendererContext.LodReferenceHeight;
+
+            if (referenceHeight <= 0)
+            {
+                referenceHeight = (int)camera.WindowSize.Y;
+            }
+
+            var projectionScale = referenceHeight / GameTanHalfVerticalFov;
+
+            if (projectionScale <= 0f)
+            {
+                return;
+            }
+
+            var cameraPosition = camera.Location;
+
+            for (var i = 0; i < LodSetups.Length; i++)
+            {
+                var setup = LodSetups[i];
+                var distance = Vector3.Distance(cameraPosition, setup.Origin);
+                var metric = 100f * distance / (setup.MaxObjectScale * projectionScale);
+                var level = 0;
+
+                for (var j = 1; j < setup.SwitchDistances.Length; j++)
+                {
+                    if (metric > setup.SwitchDistances[j])
+                    {
+                        level = j;
+                    }
+                }
+
+                activeLodLevels[i] = level;
+            }
+        }
+
+        /// <summary>
+        /// Returns whether a fragment is part of the currently active LOD level of its setup.
+        /// Fragments with no LOD mask are always visible.
+        /// </summary>
+        /// <param name="fragment">The fragment to test.</param>
+        public bool IsFragmentInActiveLod(Fragment fragment)
+        {
+            if (fragment.LodGroupMask == 0 || activeLodLevels.Length == 0)
+            {
+                return true;
+            }
+
+            if (fragment.LodSetupIndex < 0 || fragment.LodSetupIndex >= activeLodLevels.Length)
+            {
+                return true;
+            }
+
+            return (fragment.LodGroupMask & (1u << activeLodLevels[fragment.LodSetupIndex])) != 0;
         }
 
         /// <summary>Appends a meshlet covering an entire draw call.</summary>
@@ -194,15 +322,6 @@ namespace ValveResourceFormat.Renderer
 
             CanDrawIndirect = RenderMesh.DrawCallsOpaque.Count > 0;
 
-            // Keep only the fragments at the lowest present LoD level (usually LoD0, though some
-            // aggregates leave it empty). A mask of 0 means no LoD, so the fragment always renders.
-            var combinedLodMask = 0u;
-            foreach (var fragmentData in aggregateMeshes)
-            {
-                combinedLodMask |= fragmentData.GetUInt32Property("m_nLODGroupMask");
-            }
-            var lowestLodBit = combinedLodMask == 0 ? 0u : 1u << ModelLodInfo.LowestSetLevel(combinedLodMask);
-
             // CS2 goes from aggregate mesh -> draw call (many meshes can share one draw call)
             foreach (var fragmentData in aggregateMeshes)
             {
@@ -216,11 +335,14 @@ namespace ValveResourceFormat.Renderer
                 var fragmentTransform = fragmentData.GetBooleanProperty("m_bHasTransform") == true
                     ? fragmentTransforms[transformIndex++]
                     : null;
+                var lodSetupIndex = fragmentData.ContainsKey("m_nLODSetupIndex")
+                    ? fragmentData.GetInt32Property("m_nLODSetupIndex")
+                    : 0;
 
-                var isHighestDetailMesh = lodGroupMask == 0 || (lodGroupMask & lowestLodBit) != 0;
-                if (!isHighestDetailMesh)
+                if (lodGroupMask != 0)
                 {
-                    continue;
+                    // LOD-managed fragments change visibility with the camera, which the baked indirect draw buffers cannot express
+                    CanDrawIndirect = false;
                 }
 
                 var fragment = new Fragment(Scene, this, drawBounds)
@@ -231,6 +353,8 @@ namespace ValveResourceFormat.Renderer
                     Parent = this,
                     LightProbeVolumePrecomputedHandshake = lightProbeVolumePrecomputedHandshake,
                     Flags = flags,
+                    LodGroupMask = lodGroupMask,
+                    LodSetupIndex = lodSetupIndex,
                 };
 
                 if (fragmentTransform != null)

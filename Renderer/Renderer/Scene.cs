@@ -909,6 +909,11 @@ namespace ValveResourceFormat.Renderer
                 }
                 else if (node is SceneAggregate.Fragment fragment)
                 {
+                    if (!fragment.Parent.IsFragmentInActiveLod(fragment))
+                    {
+                        continue;
+                    }
+
                     fragment.Parent.AnyChildrenVisible = true;
                     Add(new MeshBatchRenderer.Request
                     {
@@ -1085,6 +1090,11 @@ namespace ValveResourceFormat.Renderer
                 else if (node is SceneAggregate.Fragment fragment)
                 {
                     if ((fragment.Flags & skipFlags) != 0)
+                    {
+                        continue;
+                    }
+
+                    if (!fragment.Parent.IsFragmentInActiveLod(fragment))
                     {
                         continue;
                     }

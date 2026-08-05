@@ -200,6 +200,7 @@ namespace GUI.Utils
                 FieldOfView = Settings.Config.FieldOfView,
                 ViewmodelFieldOfView = Settings.Config.ViewmodelFieldOfView,
                 MaxTextureSize = Settings.Config.MaxTextureSize,
+                LodReferenceHeight = System.Windows.Forms.Screen.PrimaryScreen?.Bounds.Height ?? 0,
             };
         }
 

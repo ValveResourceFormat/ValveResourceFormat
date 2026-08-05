@@ -50,6 +50,13 @@ public class RendererContext : IDisposable
     public float ViewmodelFieldOfView { get; set; } = 64.0f;
 
     /// <summary>
+    /// Vertical resolution used as the reference for screen-size based LOD selection, typically the
+    /// height of the display so results match the game running at native resolution. When 0, the
+    /// current viewport height is used instead.
+    /// </summary>
+    public int LodReferenceHeight { get; set; }
+
+    /// <summary>
     /// Initializes a new renderer context.
     /// </summary>
     /// <param name="fileLoader">Game file loader for resource access.</param>
