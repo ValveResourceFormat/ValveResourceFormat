@@ -434,7 +434,7 @@ namespace ValveResourceFormat.Renderer.SceneNodes
             if (pendingRestart)
             {
                 pendingRestart = false;
-                particleRenderer.Restart();
+                particleRenderer.Replay();
             }
 
             if (frameTime > 0f)
