@@ -122,6 +122,7 @@ namespace ValveResourceFormat.Renderer.Particles
         private readonly RendererContext RendererContext;
         private bool hasStarted;
         private bool restartFirstStepPending;
+        private bool preSimulating;
         private int simulatedFrames;
 
         private readonly ParticleCollection particleCollection;
@@ -312,11 +313,27 @@ namespace ValveResourceFormat.Renderer.Particles
         /// </summary>
         private void PreSimulate()
         {
-            if (PreSimulationTime <= 0f)
+            // A system that restarts within its own pre-simulation window re-enters this through
+            // Restart(), so the burst runs only for the outermost call.
+            if (PreSimulationTime <= 0f || preSimulating)
             {
                 return;
             }
 
+            preSimulating = true;
+
+            try
+            {
+                PreSimulateSteps();
+            }
+            finally
+            {
+                preSimulating = false;
+            }
+        }
+
+        private void PreSimulateSteps()
+        {
             var step = MaximumTimeStep > 0f ? MaximumTimeStep : PreSimulationTime;
             var neededSteps = (int)MathF.Ceiling(PreSimulationTime / step);
             var steps = Math.Min(MaxPreSimulationSteps, neededSteps);
