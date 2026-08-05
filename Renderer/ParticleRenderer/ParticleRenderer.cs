@@ -403,7 +403,9 @@ namespace ValveResourceFormat.Renderer.Particles
         }
 
         /// <summary>
-        /// Restarts the system from age zero. The first simulated step after a restart is clamped to a
+        /// Restarts the system from age zero, re-arming emission without destroying the particles
+        /// already alive: they keep occupying pool slots, so the next burst is limited to whatever
+        /// <c>m_nMaxParticles</c> leaves free. The first simulated step after a restart is clamped to a
         /// sliver so burst particles render their first frame at age ~0 instead of pre-aged by however
         /// much time passed since the triggering event.
         /// </summary>
@@ -412,11 +414,8 @@ namespace ValveResourceFormat.Renderer.Particles
             Stop();
 
             systemRenderState.Age = 0;
-            systemRenderState.ParticleCount = 0;
             systemRenderState.EndEarly = false;
-            particlesEmitted = 0;
             simulatedFrames = 0;
-            particleCollection.Clear();
             StartSelf();
 
             foreach (var childParticleRenderer in childParticleRenderers)
