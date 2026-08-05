@@ -1,4 +1,5 @@
 using ValveResourceFormat.IO;
+using ValveResourceFormat.Renderer.Entities;
 using ValveResourceFormat.Renderer.SceneNodes;
 using ValveResourceFormat.ResourceTypes;
 
@@ -74,6 +75,9 @@ public class UserInput
     /// Gets the <see cref="PlayerMovement"/> helper that processes WASD movement in walk mode.
     /// </summary>
     public PlayerMovement PlayerMovement { get; }
+
+    /// <summary>Gets the map's trigger volumes, tested against the player after each movement tick.</summary>
+    public List<TriggerTeleport> TriggerVolumes { get; } = [];
     /// <summary>Gets a value indicating whether the camera is in noclip (free-flight) mode rather than FPS movement mode.</summary>
     public bool NoClip { get; private set; } = true;
 
@@ -242,6 +246,12 @@ public class UserInput
             }
 
             PlayerMovement.ProcessMovement(Camera, deltaTime);
+
+            foreach (var trigger in TriggerVolumes)
+            {
+                trigger.Touch(PlayerMovement);
+            }
+
             Velocity = PlayerMovement.Velocity;
             Camera.Pitch -= MouseDeltaPitchYaw.X;
             Camera.Yaw -= MouseDeltaPitchYaw.Y;

@@ -9,6 +9,7 @@ using GUI.Utils;
 using ValveResourceFormat.Blocks;
 using ValveResourceFormat.IO;
 using ValveResourceFormat.Renderer;
+using ValveResourceFormat.Renderer.Entities;
 using ValveResourceFormat.Renderer.Input;
 using ValveResourceFormat.Renderer.SceneEnvironment;
 using ValveResourceFormat.Renderer.SceneNodes;
@@ -227,6 +228,8 @@ namespace GUI.Types.GLViewers
                 Input.PlayerMovement.AirAccelerate = isKzMap
                     ? PlayerMovement.AirAccelerateMovementMaps
                     : PlayerMovement.AirAccelerateCompetitive;
+
+                Input.TriggerVolumes.AddRange(TriggerTeleport.LoadAll(LoadedWorld.Entities, RendererContext.FileLoader));
             }
 
             if (!cameraSet)

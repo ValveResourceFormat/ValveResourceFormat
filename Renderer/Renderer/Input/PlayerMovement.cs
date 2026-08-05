@@ -232,6 +232,34 @@ public partial class PlayerMovement
         CacheSounds();
     }
 
+    /// <summary>
+    /// Moves the player somewhere else outright, keeping their velocity.
+    /// </summary>
+    /// <param name="feetPosition">Where the feet arrive.</param>
+    /// <param name="yawDegrees">View yaw to adopt, or null to keep the current one.</param>
+    public void Teleport(Vector3 feetPosition, float? yawDegrees = null)
+    {
+        var position = feetPosition + new Vector3(0, 0, HullHalfExtents.Z);
+
+        // Carry the already-placed camera along so the view does not trail by a frame
+        var moved = position - TracePositionSmooth;
+        EyePosition += moved;
+        Input.Camera.Location += moved;
+
+        TracePosition = position;
+        TracePositionSmooth = position;
+        HasValidPosition = false; // Do not restore positions from before the teleport
+        Effects.ClearStepOffset();
+
+        if (yawDegrees is { } yaw)
+        {
+            Input.Camera.Yaw = float.DegreesToRadians(yaw);
+
+            // A snapped yaw is not a turn; restart the strafe yaw tracking
+            HasPreviousYaw = false;
+        }
+    }
+
     /// <summary>Pre-decodes the sounds movement can fire, so the first step does not decode mid-frame.</summary>
     public static void CacheSounds()
     {
