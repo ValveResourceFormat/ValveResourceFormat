@@ -12,7 +12,7 @@ namespace ValveResourceFormat.Renderer.Particles.Emitters
 
         private Action<float>? particleEmitCallback;
 
-        private readonly INumberProvider emitCount = new LiteralNumberProvider(1);
+        private readonly INumberProvider emitCount = new LiteralNumberProvider(100);
         private readonly INumberProvider startTime = new LiteralNumberProvider(0);
         private readonly int maxEmittedPerFrame = -1;
         private readonly int snapshotControlPoint;
