@@ -86,7 +86,6 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
         private readonly INumberProvider selfIllumAmount = new LiteralNumberProvider(0);
         private readonly INumberProvider alphaMapToZero = new LiteralNumberProvider(0);
         private readonly INumberProvider alphaMapToOne = new LiteralNumberProvider(1);
-        private readonly bool hasAlphaRemap;
 
         private readonly INumberProvider desaturation = new LiteralNumberProvider(0);
         // -1 means no control point, so no shift.
@@ -211,12 +210,6 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
             maxLuminanceFrameBlend = parse.Boolean("m_bMaxLuminanceBlendingSequence0", maxLuminanceFrameBlend);
             desaturation = parse.NumberProvider("m_flDesaturation", desaturation);
             hsvShiftControlPoint = parse.Int32("m_nHSVShiftControlPoint", hsvShiftControlPoint);
-
-            // The remap is a smoothstep, so the nominal (0, 1) range is not the identity. Only enable it
-            // where the effect actually authored a bound, otherwise every untouched particle would get an
-            // ease curve applied to its alpha.
-            hasAlphaRemap = parse.Data.ContainsKey("m_flSourceAlphaValueToMapToZero")
-                || parse.Data.ContainsKey("m_flSourceAlphaValueToMapToOne");
 
             outline = parse.Boolean("m_bOutline", outline);
 
@@ -665,11 +658,11 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
                 ? systemRenderState.GetControlPoint(hsvShiftControlPoint).Position
                 : new Vector3(0f, 1f, 1f));
 
-            // x >= y disables the remap in the shader.
-            var alphaRemapRange = hasAlphaRemap
-                ? new Vector2(alphaMapToZero.NextNumber(systemRenderState), alphaMapToOne.NextNumber(systemRenderState))
-                : new Vector2(1f, 0f);
-            shader.SetUniform2("uAlphaRemapRange", alphaRemapRange);
+            // A smoothstep over the source alpha, sent unconditionally: the engine's own defaults are
+            // (0, 1), which its x < y guard accepts, so the remap is live unless an effect inverts it.
+            shader.SetUniform2("uAlphaRemapRange", new Vector2(
+                alphaMapToZero.NextNumber(systemRenderState),
+                alphaMapToOne.NextNumber(systemRenderState)));
 
             shader.SetUniform3("uColorScale", colorScale.NextVector(systemRenderState));
             shader.SetUniform1("uGammaCorrectVertexColors", gammaCorrectVertexColors);
