@@ -220,9 +220,11 @@ namespace ValveResourceFormat.Renderer.SceneNodes
         }
 
         /// <summary>
-        /// Restarts the particle system from the beginning.
+        /// Restarts the particle system at the start of its next update.
         /// </summary>
-        public void Restart() => particleRenderer.Restart();
+        public void Restart() => pendingRestart = true;
+
+        private bool pendingRestart;
 
         /// <summary>
         /// Forces this system's renderers to draw once with temporary particles.
@@ -431,6 +433,12 @@ namespace ValveResourceFormat.Renderer.SceneNodes
 
             var frameTime = context.Timestep * FrametimeMultiplier;
 
+            if (pendingRestart)
+            {
+                pendingRestart = false;
+                particleRenderer.Restart();
+            }
+
             if (frameTime > 0f)
             {
                 particleRenderer.Update(frameTime, context.Uptime);
@@ -446,7 +454,7 @@ namespace ValveResourceFormat.Renderer.SceneNodes
             // Restart if all emitters are done and all particles expired
             if (Preview && particleRenderer.IsFinished())
             {
-                particleRenderer.Restart();
+                pendingRestart = true;
             }
         }
 

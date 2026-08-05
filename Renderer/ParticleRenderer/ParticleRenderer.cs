@@ -37,6 +37,9 @@ namespace ValveResourceFormat.Renderer.Particles
         // (15s at 0.01 step).
         private const int MaxPreSimulationSteps = 2048;
 
+        // The clamped length of the first simulated step after a restart.
+        private const float RestartFirstStep = 0.0025f;
+
         // Upper bound on constraint work-list rounds per frame (m_nMaxConstraintPasses, default 3).
         // A lone constraint settles in one round; the bound only matters when multiple constraints
         // invalidate each other. ReadConstraintPasses returns 1 for systems with no constraints.
@@ -118,6 +121,7 @@ namespace ValveResourceFormat.Renderer.Particles
         private readonly List<ParticleRenderer> childParticleRenderers;
         private readonly RendererContext RendererContext;
         private bool hasStarted;
+        private bool restartFirstStepPending;
         private int simulatedFrames;
 
         private readonly ParticleCollection particleCollection;
@@ -259,6 +263,26 @@ namespace ValveResourceFormat.Renderer.Particles
 
         public void Start()
         {
+            StartSelf();
+
+            foreach (var childParticleRenderer in childParticleRenderers)
+            {
+                childParticleRenderer.Start();
+            }
+
+            PreSimulate();
+        }
+
+        private void StartSelf()
+        {
+            hasStarted = true;
+
+            foreach (var preEmissionOperator in PreEmissionOperators)
+            {
+                preEmissionOperator.HasRun = false;
+                preEmissionOperator.Reset();
+            }
+
             foreach (var initializer in Initializers)
             {
                 initializer.Reset();
@@ -278,11 +302,38 @@ namespace ValveResourceFormat.Renderer.Particles
             {
                 emitter.Start(emitParticleAction);
             }
+        }
 
-            foreach (var childParticleRenderer in childParticleRenderers)
+        /// <summary>
+        /// Fast-forwards the whole <c>m_flPreSimulationTime</c> as fixed maximum-timestep substeps so
+        /// operators and constraints relax to their settled state before first draw (e.g. a static
+        /// cable dropping into its droop). Renderer updates and bounds are skipped per substep and
+        /// refreshed once after the burst.
+        /// </summary>
+        private void PreSimulate()
+        {
+            if (PreSimulationTime <= 0f)
             {
-                childParticleRenderer.Start();
+                return;
             }
+
+            var step = MaximumTimeStep > 0f ? MaximumTimeStep : PreSimulationTime;
+            var neededSteps = (int)MathF.Ceiling(PreSimulationTime / step);
+            var steps = Math.Min(MaxPreSimulationSteps, neededSteps);
+
+            if (neededSteps > MaxPreSimulationSteps)
+            {
+                RendererContext.Logger.LogUniqueWarning(
+                    "Effect wants {NeededSteps} pre-simulation substeps, capped at {MaxSteps} {File}",
+                    neededSteps, MaxPreSimulationSteps, Name);
+            }
+
+            for (var i = 0; i < steps; i++)
+            {
+                UpdateFrame(step, presimulating: true);
+            }
+
+            RefreshRenderState();
         }
 
         private void EmitParticle(float ageAtSpawn)
@@ -334,15 +385,14 @@ namespace ValveResourceFormat.Renderer.Particles
             }
         }
 
+        /// <summary>
+        /// Restarts the system from age zero. The first simulated step after a restart is clamped to a
+        /// sliver so burst particles render their first frame at age ~0 instead of pre-aged by however
+        /// much time passed since the triggering event.
+        /// </summary>
         public void Restart()
         {
             Stop();
-
-            // Run-once pre-emission operators re-arm, so a re-triggered effect picks fresh children.
-            foreach (var preEmissionOperator in PreEmissionOperators)
-            {
-                preEmissionOperator.HasRun = false;
-            }
 
             systemRenderState.Age = 0;
             systemRenderState.ParticleCount = 0;
@@ -350,12 +400,15 @@ namespace ValveResourceFormat.Renderer.Particles
             particlesEmitted = 0;
             simulatedFrames = 0;
             particleCollection.Clear();
-            Start();
+            StartSelf();
 
             foreach (var childParticleRenderer in childParticleRenderers)
             {
                 childParticleRenderer.Restart();
             }
+
+            PreSimulate();
+            restartFirstStepPending = true;
         }
 
         public void Update(float frameTime, float worldTime)
@@ -386,32 +439,6 @@ namespace ValveResourceFormat.Renderer.Particles
             if (!hasStarted)
             {
                 Start();
-                hasStarted = true;
-
-                // Fast-forward the whole m_flPreSimulationTime as fixed maximum-timestep substeps so operators
-                // and constraints relax to their settled state before first draw (e.g. a static cable
-                // dropping into its droop). One-time at spawn.
-                // Renderer updates and bounds are skipped per substep and refreshed once after the burst.
-                if (PreSimulationTime > 0f)
-                {
-                    var step = MaximumTimeStep > 0f ? MaximumTimeStep : PreSimulationTime;
-                    var neededSteps = (int)MathF.Ceiling(PreSimulationTime / step);
-                    var steps = Math.Min(MaxPreSimulationSteps, neededSteps);
-
-                    if (neededSteps > MaxPreSimulationSteps)
-                    {
-                        RendererContext.Logger.LogUniqueWarning(
-                            "Effect wants {NeededSteps} pre-simulation substeps, capped at {MaxSteps} {File}",
-                            neededSteps, MaxPreSimulationSteps, Name);
-                    }
-
-                    for (var i = 0; i < steps; i++)
-                    {
-                        UpdateFrame(step, presimulating: true);
-                    }
-
-                    RefreshRenderState();
-                }
             }
 
             var maximumStep = MaximumTimeStep > 0f ? MaximumTimeStep : 0.1f;
@@ -467,6 +494,12 @@ namespace ValveResourceFormat.Renderer.Particles
             if (StopSimulationAfterTime > 0f && systemRenderState.Age >= StopSimulationAfterTime)
             {
                 return;
+            }
+
+            if (restartFirstStepPending)
+            {
+                restartFirstStepPending = false;
+                frameTime = MathF.Min(frameTime, RestartFirstStep);
             }
 
             frameTime = Math.Clamp(frameTime, MinimumTimeStep, MaximumTimeStep);
