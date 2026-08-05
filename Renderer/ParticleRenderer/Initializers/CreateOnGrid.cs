@@ -108,13 +108,13 @@ namespace ValveResourceFormat.Renderer.Particles.Initializers
             // really slow but the cleanest way to do it
             for (var z = 0; z < dimenZ; z++)
             {
-                hollowZ = HollowTest(z, dimenZ, hollowDimenZ);
+                hollowZ = hollow && HollowTest(z, dimenZ, hollowDimenZ);
                 for (var y = 0; y < dimenY; y++)
                 {
-                    hollowY = HollowTest(y, dimenY, hollowDimenY);
+                    hollowY = hollow && HollowTest(y, dimenY, hollowDimenY);
                     for (var x = 0; x < dimenX; x++)
                     {
-                        hollowX = HollowTest(x, dimenX, hollowDimenX);
+                        hollowX = hollow && HollowTest(x, dimenX, hollowDimenX);
 
                         if (hollowX && hollowY && hollowZ)
                         {
