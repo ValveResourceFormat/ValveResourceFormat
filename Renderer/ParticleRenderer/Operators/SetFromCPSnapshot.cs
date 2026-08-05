@@ -18,7 +18,7 @@ namespace ValveResourceFormat.Renderer.Particles.Operators
         private readonly int LocalSpaceCP = -1;
         private readonly bool Random;
         private readonly bool Reverse;
-        private readonly bool WritePrevious;
+        private readonly bool WritePrevious = true;
         private readonly INumberProvider StartPoint = new LiteralNumberProvider(0);
         private readonly INumberProvider Increment = new LiteralNumberProvider(1);
 
