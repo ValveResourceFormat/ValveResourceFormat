@@ -7,7 +7,7 @@ namespace ValveResourceFormat.Renderer.Particles.PreEmissionOperators
     /// <seealso href="https://s2v.app/SchemaExplorer/cs2/particles/C_OP_SetControlPointToVectorExpression">C_OP_SetControlPointToVectorExpression</seealso>
     class SetControlPointToVectorExpression : ParticleFunctionPreEmissionOperator
     {
-        private readonly int OutputCP = 1;
+        private readonly int OutputCP = 2;
         private readonly IVectorProvider Input1 = new LiteralVectorProvider(Vector3.Zero);
         private readonly IVectorProvider Input2 = new LiteralVectorProvider(Vector3.Zero);
         private readonly INumberProvider Lerp = new LiteralNumberProvider(0f);

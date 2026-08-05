@@ -10,7 +10,7 @@ namespace ValveResourceFormat.Renderer.Particles.Initializers
         private readonly ParticleField FieldInput = ParticleField.Position;
         private readonly ParticleField FieldOutput = ParticleField.Position;
         private readonly Vector3 OffsetMin = Vector3.Zero;
-        private readonly Vector3 OffsetMax = Vector3.One;
+        private readonly Vector3 OffsetMax = Vector3.Zero;
 
         public AddVectorToVector(ParticleDefinitionParser parse) : base(parse)
         {
