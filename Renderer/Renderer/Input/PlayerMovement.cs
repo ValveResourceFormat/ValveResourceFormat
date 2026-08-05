@@ -909,9 +909,10 @@ public partial class PlayerMovement
             {
                 velocityDelta = ClipAcceleration(new Vector3(0f, 0f, -GravityValue * timeLeft), planes[..planeCount]);
 
-                var strafe = wishspeed > 0f
-                    ? AirAccelerateClipped(Velocity + velocityDelta, wishdir, wishspeed, timeLeft, planes[..planeCount]) / timeLeft
-                    : Vector3.Zero;
+                if (wishspeed > 0f)
+                {
+                    velocityDelta += AirAccelerateClipped(Velocity, wishdir, wishspeed, timeLeft, planes[..planeCount]);
+                }
             }
 
             CheckVelocity(ref position);

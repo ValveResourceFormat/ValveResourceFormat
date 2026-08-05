@@ -507,6 +507,19 @@ namespace Tests
         {
             const float slopeDegrees = SurfSlopeDegrees;
 
+            // Regression locks, set just above the measured spreads (travel 2.0, endSpeed 4.3,
+            // descent 3.2, wishDot 1.4 over a ~1796u run). When precision improves, LOWER them.
+            const double TravelSpreadLock = 4.0;
+            const double EndSpeedSpreadLock = 8.0;
+            const double DescentSpreadLock = 6.0;
+            const double WishDotSpreadLock = 3.0;
+
+            // The strafe gate saturates near AirMaxWishSpeed (30) when surfing works. The bug this
+            // guards against (the post-contact strafe gain being recomputed and then dropped)
+            // pushed it to about -175 at ordinary framerates while 1000 fps stayed healthy, so it
+            // is asserted per framerate, not on the spread.
+            const double WishDotFloor = 20.0;
+
             var travel = new double[ComparisonFramerates.Length];
             var endSpeed = new double[ComparisonFramerates.Length];
             var descent = new double[ComparisonFramerates.Length];
@@ -539,6 +552,16 @@ namespace Tests
             {
                 Assert.That(g, Is.False, "ramp was treated as walkable ground; this is no longer a surf test");
             }
+
+            foreach (var w in wishDot)
+            {
+                Assert.That(w, Is.GreaterThan(WishDotFloor), "strafe input lost against the ramp; surfing is broken at this framerate");
+            }
+
+            Assert.That(Spread(travel), Is.LessThan(TravelSpreadLock), "surf travel framerate invariance regressed");
+            Assert.That(Spread(endSpeed), Is.LessThan(EndSpeedSpreadLock), "surf end speed framerate invariance regressed");
+            Assert.That(Spread(descent), Is.LessThan(DescentSpreadLock), "surf descent framerate invariance regressed");
+            Assert.That(Spread(wishDot), Is.LessThan(WishDotSpreadLock), "surf wish gate framerate invariance regressed");
         }
 
         /// <summary>
