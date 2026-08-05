@@ -11,7 +11,7 @@ namespace ValveResourceFormat.Renderer.Particles.Operators
         private readonly ParticleField outputField = ParticleField.Color;
         private readonly Vector3 outputMin = Vector3.Zero;
         private readonly Vector3 outputMax = Vector3.One;
-        private readonly float noiseScale = 1f;
+        private readonly float noiseScale = 0.1f;
         private readonly float noiseAnimationTimeScale;
         private readonly bool additive;
 

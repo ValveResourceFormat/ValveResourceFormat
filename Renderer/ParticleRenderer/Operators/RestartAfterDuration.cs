@@ -8,7 +8,7 @@ namespace ValveResourceFormat.Renderer.Particles.Operators
     /// <seealso href="https://s2v.app/SchemaExplorer/cs2/particles/C_OP_RestartAfterDuration">C_OP_RestartAfterDuration</seealso>
     class RestartAfterDuration : ParticleFunctionOperator
     {
-        private readonly float durationMin = 1f;
+        private readonly float durationMin;
         private readonly float durationMax = 1f;
         private readonly int controlPoint = -1;
         private readonly int controlPointField;
