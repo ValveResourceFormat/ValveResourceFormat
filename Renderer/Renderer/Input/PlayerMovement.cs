@@ -663,8 +663,11 @@ public partial class PlayerMovement
         OnGround = grounded && Velocity.Z * SlopeClipNormalZ < NonJumpVelocity;
 
         // CGameMovement::CategorizePosition resets m_surfaceFriction to 1 each call and quarters
-        // it while airborne and rising, restoring full air control the frame the apex passes
-        SurfaceFriction = !OnGround && Velocity.Z > 0f ? JumpFriction : 1f;
+        // it while airborne and rising - but only below NON_JUMP_VELOCITY: faster ascents take
+        // the bMovingUpRapidly early-out, which never reaches the friction line. A full jump
+        // (302 u/s) therefore keeps full air control until 140 u/s, and the dead window is just
+        // the last stretch up to the apex, restoring the frame it passes.
+        SurfaceFriction = !OnGround && Velocity.Z > 0f && Velocity.Z <= NonJumpVelocity ? JumpFriction : 1f;
 
         if (OnGround && snapToHit)
         {
