@@ -24,5 +24,10 @@ namespace ValveResourceFormat.Renderer.Particles.PreEmissionOperators
 
         // "remap average scalar value to cp" requires knowing particles as well as system status...s
         public abstract void Operate(ref ParticleSystemRenderState particleSystemState, float frameTime);
+
+        /// <summary>Rebuilds any per-instance running state when the system starts or restarts.</summary>
+        public virtual void Reset()
+        {
+        }
     }
 }
