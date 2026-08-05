@@ -847,6 +847,7 @@ namespace ValveResourceFormat.Renderer.World
                             {
                                 LayerName = layerName,
                                 Transform = transformationMatrix,
+                                EntityData = entity,
                                 HandShake = handShake,
                                 ArrayIndex = arrayIndex,
                                 IndoorOutdoorLevel = indoorOutdoorLevel,
@@ -873,6 +874,7 @@ namespace ValveResourceFormat.Renderer.World
                         {
                             LayerName = layerName,
                             Transform = transformationMatrix,
+                            EntityData = entity,
                             HandShake = handShake,
                             Irradiance = irradianceTexture,
                             IndoorOutdoorLevel = indoorOutdoorLevel,
