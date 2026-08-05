@@ -128,6 +128,7 @@ namespace ValveResourceFormat.Renderer.Particles
                 ["C_OP_LerpVector"] = operatorInfo => new LerpVector(operatorInfo),
                 ["C_OP_MaintainSequentialPath"] = operatorInfo => new MaintainSequentialPath(operatorInfo),
                 ["C_OP_MaxVelocity"] = operatorInfo => new MaxVelocity(operatorInfo),
+                ["C_OP_MovementRotateParticleAroundAxis"] = operatorInfo => new MovementRotateParticleAroundAxis(operatorInfo),
                 ["C_OP_Noise"] = operatorInfo => new Noise(operatorInfo),
                 ["C_OP_VectorNoise"] = operatorInfo => new VectorNoise(operatorInfo),
                 ["C_OP_NormalLock"] = operatorInfo => new NormalLock(operatorInfo),
