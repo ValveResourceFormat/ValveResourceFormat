@@ -47,6 +47,12 @@ namespace ValveResourceFormat.Renderer.Particles
             set => detailLevel = value;
         }
 
+        /// <summary>
+        /// Fixed random offset for this system instance, indexing the shared random table so
+        /// simultaneous instances of the same effect draw distinct per-system random values.
+        /// </summary>
+        public int RandomSeed { get; } = Random.Shared.Next();
+
         // Properties
         public long ParticleCount { get; set; }
         public float Age { get; set; }
@@ -146,9 +152,9 @@ namespace ValveResourceFormat.Renderer.Particles
         }
 
         /// <summary>
-        /// Records every control point's current position as its previous-step position, along with the
-        /// real time the move took. The root system calls this once per frame, after all consumers
-        /// (including children, which share its control points) have run.
+        /// Records every control point's current position and orientation as its previous-step state,
+        /// along with the real time the move took. The root system calls this once per frame, after all
+        /// consumers (including children, which share its control points) have run.
         /// </summary>
         /// <param name="elapsed">Real time covered since the previous snapshot, in seconds.</param>
         internal void SnapshotControlPointHistory(float elapsed)
@@ -156,6 +162,8 @@ namespace ValveResourceFormat.Renderer.Particles
             foreach (var point in controlPoints.Values)
             {
                 point.PositionPrevious = point.Position;
+                point.OrientationPrevious = point.Orientation;
+                point.RotationPrevious = point.Rotation;
                 point.PreviousStepTime = elapsed;
             }
         }
@@ -241,6 +249,11 @@ namespace ValveResourceFormat.Renderer.Particles
         public Vector3 Orientation { get; set; }
 
         /// <summary>
+        /// The orientation this control point had on the previous simulation step.
+        /// </summary>
+        public Vector3 OrientationPrevious { get; internal set; }
+
+        /// <summary>
         /// The full rotation of this control point, when the source supplies one (e.g. a map entity's
         /// angles). Consumers fall back to synthesizing a frame from <see cref="Orientation"/> when unset,
         /// since most operators only drive the forward direction.
@@ -248,22 +261,35 @@ namespace ValveResourceFormat.Renderer.Particles
         public Quaternion? Rotation { get; set; }
 
         /// <summary>
+        /// The full rotation this control point had on the previous simulation step, when one was recorded.
+        /// </summary>
+        public Quaternion? RotationPrevious { get; internal set; }
+
+        /// <summary>
         /// The control point's full rotation, using <see cref="Rotation"/> when present and otherwise
         /// synthesizing a frame from the forward <see cref="Orientation"/> direction.
         /// </summary>
-        public Quaternion GetRotation()
+        public Quaternion GetRotation() => SynthesizeRotation(Rotation, Orientation);
+
+        /// <summary>
+        /// The control point's full rotation on the previous simulation step, derived the same way as
+        /// <see cref="GetRotation"/>.
+        /// </summary>
+        public Quaternion GetPreviousRotation() => SynthesizeRotation(RotationPrevious, OrientationPrevious);
+
+        private static Quaternion SynthesizeRotation(Quaternion? rotation, Vector3 orientation)
         {
-            if (Rotation is { } rotation)
+            if (rotation is { } fullRotation)
             {
-                return rotation;
+                return fullRotation;
             }
 
-            if (Orientation == Vector3.Zero)
+            if (orientation == Vector3.Zero)
             {
                 return Quaternion.Identity;
             }
 
-            var forward = Vector3.Normalize(Orientation);
+            var forward = Vector3.Normalize(orientation);
             var up = MathF.Abs(forward.Y) < 0.999f ? Vector3.UnitY : Vector3.UnitZ;
             var right = Vector3.Normalize(Vector3.Cross(up, forward));
             up = Vector3.Cross(forward, right);
