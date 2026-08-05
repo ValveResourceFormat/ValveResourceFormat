@@ -1680,6 +1680,13 @@ namespace ValveResourceFormat.Renderer
 
             foreach (var node in AllNodes)
             {
+                if (node.EntityData is { } entityData
+                    && LightingInfo.LightProbes.Find(p => ReferenceEquals(p.EntityData, entityData)) is { } selfProbe)
+                {
+                    node.LightProbeBinding = selfProbe;
+                    continue;
+                }
+
                 var precomputedHandshake = node.LightProbeVolumePrecomputedHandshake;
                 if (precomputedHandshake == 0)
                 {
@@ -1815,7 +1822,13 @@ namespace ValveResourceFormat.Renderer
                 var precomputedHandshake = node.CubeMapPrecomputedHandshake;
                 SceneEnvMap? preComputed = default;
 
-                if (precomputedHandshake > 0)
+                if (node.EntityData is { } entityData
+                    && LightingInfo.EnvMaps.Find(e => ReferenceEquals(e.EntityData, entityData)) is { } selfEnvMap)
+                {
+                    node.EnvMaps.Clear();
+                    node.EnvMaps.Add(selfEnvMap);
+                }
+                else if (precomputedHandshake > 0)
                 {
                     if (LightingInfo.CubemapType == CubemapType.IndividualCubemaps
                         && precomputedHandshake <= LightingInfo.EnvMaps.Count)
