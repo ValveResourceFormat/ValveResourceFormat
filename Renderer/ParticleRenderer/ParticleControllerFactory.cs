@@ -179,6 +179,7 @@ namespace ValveResourceFormat.Renderer.Particles
         internal static readonly Dictionary<string, Func<ParticleDefinitionParser, ParticleFunctionConstraint>> ConstraintDictionary
             = new()
             {
+                ["C_OP_ConstrainDistance"] = constraintInfo => new ConstrainDistance(constraintInfo),
                 ["C_OP_RopeSpringConstraint"] = constraintInfo => new RopeSpringConstraint(constraintInfo),
             };
 
