@@ -423,12 +423,12 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
             material.Render(shader);
 
             // todo: batch tube draws and call this less often
-            scene.LightingInfo.SetLightmapTextures(shader);
+            scene.LightingInfo.BindLightmapTextures();
 
             if (lightProbe is not null)
             {
                 shader.SetUniform1("uLightProbeIndex", (uint)lightProbe.ShaderIndex);
-                scene.LightingInfo.SetInstanceLightProbeTextures(shader, lightProbe);
+                scene.LightingInfo.BindInstanceLightProbeTextures(lightProbe);
             }
 
             // The tube is opaque geometry drawn in the translucent pass: disable blending and write depth so

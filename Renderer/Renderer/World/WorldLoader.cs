@@ -432,7 +432,6 @@ namespace ValveResourceFormat.Renderer.World
                     var srgbRead = name == "irradiance";
                     var renderTexture = RendererContext.MaterialLoader.GetTexture(lightmap, srgbRead);
                     result.Lightmaps[uniformName] = renderTexture;
-                    MaterialLoader.ReservedTextures.Add(uniformName);
 
                     if (name == "direct_light_indices")
                     {

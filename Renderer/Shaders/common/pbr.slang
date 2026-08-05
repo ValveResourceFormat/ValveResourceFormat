@@ -105,7 +105,7 @@ vec3 GetRetroReflectiveNormal(float retroReflectivity, vec3 L, vec3 V, vec3 N, v
 uniform int F_CLOTH_SHADING; // csgo_character, csgo_complex, csgo_customglove, csgo_textile_layer, vr_complex
 
 // BRDF. Layer 1 is the GGX split sum, layer 2 the sheen directional albedo; layer 0 is unused.
-uniform sampler2DArray g_tBRDFLookup;
+uniform sampler2DArray g_tBRDFLookup; // reserved
 
 #define BRDF_LUT_GGX 1.0
 #define BRDF_LUT_SHEEN 2.0

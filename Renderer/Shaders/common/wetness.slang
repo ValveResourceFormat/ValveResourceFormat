@@ -44,7 +44,7 @@ uniform bool g_bWetnessUseHeightmapAdjustments = false;
 #define g_flEnvPuddleRippleStrength g_vEnvWetness.w
 #define g_flEnvPuddleRippleDirection g_vEnvWetnessRipple.x
 
-uniform sampler2D g_tWetnessWaves; // materials/dev/water_waves.vtex
+uniform sampler2D g_tWetnessWaves; // reserved, materials/dev/water_waves.vtex
 
 // Filled by ApplyWetness: how much standing water is on this fragment, for PuddleWaterDiffuse
 // at the bottom of this file. Zero means no water, which is the identity for that term.

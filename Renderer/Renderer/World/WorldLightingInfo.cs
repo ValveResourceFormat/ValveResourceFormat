@@ -109,26 +109,24 @@ namespace ValveResourceFormat.Renderer.World
         private int CookieSamplerClampBorder;
         private int CookieSamplerWrap;
 
-        /// <summary>
-        /// Binds lightmap, light probe, and barn light cookie textures to the given shader.
-        /// </summary>
-        /// <param name="shader">The shader to bind lightmap textures to.</param>
-        public void SetLightmapTextures(Shader shader)
+        /// <summary>Binds the scene's lightmap, light probe atlas, and barn light cookie textures to their reserved units.</summary>
+        public void BindLightmapTextures()
         {
-            var i = 0;
-            foreach (var (Name, Texture) in Lightmaps)
+            foreach (var (name, texture) in Lightmaps)
             {
-                var slot = (int)ReservedTextureSlots.Lightmap1 + i;
-                Debug.Assert(slot <= (int)ReservedTextureSlots.EnvironmentMap, "Too many lightmap textures. Reserve more slots!");
-                i++;
+                if (!MaterialLoader.ReservedTextureSlotByName.TryGetValue(name, out var lightmapSlot))
+                {
+                    Debug.Assert(false, $"Lightmap texture '{name}' has no reserved slot. Add it to {nameof(MaterialLoader.ReservedTextureSlotByName)}.");
+                    continue;
+                }
 
-                shader.SetTexture(slot, Name, Texture);
+                GL.BindTextureUnit((int)lightmapSlot, texture.Handle);
             }
 
             if (LightProbeType == LightProbeType.ProbeAtlas && LightProbes.Count > 0)
             {
-                shader.SetTexture((int)ReservedTextureSlots.Probe1, "g_tLPV_Irradiance", LightProbes[0].Irradiance);
-                shader.SetTexture((int)ReservedTextureSlots.Probe2, "g_tLPV_Shadows", LightProbes[0].DirectLightShadows);
+                BindProbeTexture("g_tLPV_Irradiance", LightProbes[0].Irradiance);
+                BindProbeTexture("g_tLPV_Shadows", LightProbes[0].DirectLightShadows);
             }
 
             // Always bind something, even when the scene has no cookies: the cookie samplers are 2D arrays,
@@ -140,45 +138,44 @@ namespace ValveResourceFormat.Renderer.World
                 CreateCookieSamplers();
             }
 
-            shader.SetTexture((int)ReservedTextureSlots.LightCookieTexture, "g_tLightCookieTexture", cookieAtlas);
+            GL.BindTextureUnit((int)ReservedTextureSlots.LightCookieTexture, cookieAtlas.Handle);
             GL.BindSampler((int)ReservedTextureSlots.LightCookieTexture, CookieSamplerClampBorder);
 
-            shader.SetTexture((int)ReservedTextureSlots.LightCookieTextureWrap, "g_tLightCookieTextureWrap", cookieAtlas);
+            GL.BindTextureUnit((int)ReservedTextureSlots.LightCookieTextureWrap, cookieAtlas.Handle);
             GL.BindSampler((int)ReservedTextureSlots.LightCookieTextureWrap, CookieSamplerWrap);
         }
 
-        /// <summary>
-        /// Binds the per-draw light-probe volume textures for a draw bound to <paramref name="lightProbe"/>:
-        /// the probe's irradiance plus the lightmap-version specific direct-light data. Only applies to
-        /// individual-probe scenes; in probe-atlas scenes the shared atlas textures are bound per shader by
-        /// <see cref="SetLightmapTextures"/> and the shader picks the probe by its index.
-        /// </summary>
-        public void SetInstanceLightProbeTextures(Shader shader, SceneLightProbe lightProbe)
+        /// <summary>Binds the per-draw light probe volume textures. Individual-probe scenes only.</summary>
+        public void BindInstanceLightProbeTextures(SceneLightProbe lightProbe)
         {
             if (LightProbeType != LightProbeType.IndividualProbes)
             {
                 return;
             }
 
-            BindProbeTexture(shader, ReservedTextureSlots.Probe1, "g_tLPV_Irradiance", lightProbe.Irradiance);
+            BindProbeTexture("g_tLPV_Irradiance", lightProbe.Irradiance);
 
             if (LightmapGameVersionNumber == 1)
             {
-                BindProbeTexture(shader, ReservedTextureSlots.Probe2, "g_tLPV_Indices", lightProbe.DirectLightIndices);
-                BindProbeTexture(shader, ReservedTextureSlots.Probe3, "g_tLPV_Scalars", lightProbe.DirectLightScalars);
+                BindProbeTexture("g_tLPV_Indices", lightProbe.DirectLightIndices);
+                BindProbeTexture("g_tLPV_Scalars", lightProbe.DirectLightScalars);
             }
             else if (LightmapGameVersionNumber >= 2)
             {
-                BindProbeTexture(shader, ReservedTextureSlots.Probe2, "g_tLPV_Shadows", lightProbe.DirectLightShadows);
+                BindProbeTexture("g_tLPV_Shadows", lightProbe.DirectLightShadows);
             }
         }
 
-        private static void BindProbeTexture(Shader shader, ReservedTextureSlots slot, string name, RenderTexture? texture)
+        /// <summary>Binds a light probe volume texture to the unit its sampler reads.</summary>
+        private static void BindProbeTexture(string samplerName, RenderTexture? texture)
         {
-            if (texture != null)
+            if (texture == null)
             {
-                shader.SetTexture((int)slot, name, texture);
+                return;
             }
+
+            var slot = MaterialLoader.ReservedTextureSlotByName[samplerName];
+            GL.BindTextureUnit((int)slot, texture.Handle);
         }
 
         /// <summary>

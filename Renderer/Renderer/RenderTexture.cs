@@ -14,8 +14,8 @@ namespace ValveResourceFormat.Renderer
         /// <summary>Gets the OpenGL texture target (e.g. Texture2D, TextureCubeMap).</summary>
         public TextureTarget Target { get; }
 
-        /// <summary>Gets the OpenGL texture object handle.</summary>
-        public int Handle { get; }
+        /// <summary>Gets the OpenGL texture object handle, or 0 once <see cref="Delete"/> has been called.</summary>
+        public int Handle { get; private set; }
 
         /// <summary>Gets optional spritesheet layout data when the texture is a sprite atlas.</summary>
         public Texture.SpritesheetData? SpriteSheetData { get; }
@@ -184,6 +184,7 @@ namespace ValveResourceFormat.Renderer
         public void Delete()
         {
             GL.DeleteTexture(Handle);
+            Handle = 0;
         }
 
         /// <summary>Calculates a reasonable mip count for a texture of the given dimensions.</summary>

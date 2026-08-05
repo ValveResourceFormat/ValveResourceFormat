@@ -9,56 +9,73 @@ using ValveResourceFormat.Serialization.VfxEval;
 
 namespace ValveResourceFormat.Renderer.Materials
 {
+    /// <summary>Names the sampler uniforms bound to a <see cref="ReservedTextureSlots"/> member. Names may share a slot when their texture targets differ, since a unit holds one binding per target, or when no shader variant declares both.</summary>
+    /// <param name="names">The sampler uniform names bound to this slot.</param>
+    [AttributeUsage(AttributeTargets.Field)]
+    public sealed class SamplerNameAttribute(params string[] names) : Attribute
+    {
+        /// <summary>Gets the sampler uniform names bound to this slot.</summary>
+        public IReadOnlyList<string> Names { get; } = names;
+    }
+
     /// <summary>
     /// Reserved GPU texture unit slots for global textures.
     /// </summary>
     public enum ReservedTextureSlots
     {
         /// <summary>BRDF lookup texture for PBR shading.</summary>
+        [SamplerName("g_tBRDFLookup")]
         BRDFLookup = 0,
         /// <summary>Blue noise texture for dithering and randomization.</summary>
+        [SamplerName("g_tBlueNoise")]
         BlueNoise,
         /// <summary>Fog cube texture for atmospheric fog rendering.</summary>
+        [SamplerName("g_tFogCubeTexture")]
         FogCubeTexture,
-        /// <summary>Lightmap texture channel 1.</summary>
+        /// <summary>Baked irradiance, from the lightmap or the light probe volume.</summary>
+        [SamplerName("g_tIrradiance", "g_tLPV_Irradiance")]
         Lightmap1,
-        /// <summary>Lightmap texture channel 2.</summary>
+        /// <summary>Baked directional irradiance, whole or red split.</summary>
+        [SamplerName("g_tDirectionalIrradiance", "g_tDirectionalIrradianceR")]
         Lightmap2,
-        /// <summary>Lightmap texture channel 3.</summary>
+        /// <summary>Baked direct light indices, or green split directional irradiance.</summary>
+        [SamplerName("g_tDirectLightIndices", "g_tLPV_Indices", "g_tDirectionalIrradianceG")]
         Lightmap3,
-        /// <summary>Lightmap texture channel 4.</summary>
+        /// <summary>Baked direct light strengths, or blue split directional irradiance.</summary>
+        [SamplerName("g_tDirectLightStrengths", "g_tLPV_Scalars", "g_tDirectionalIrradianceB")]
         Lightmap4,
-        /// <summary>Lightmap texture channel 5.</summary>
+        /// <summary>Baked direct light shadows.</summary>
+        [SamplerName("g_tDirectLightShadows", "g_tLPV_Shadows")]
         Lightmap5,
-        /// <summary>Lightmap texture channel 6.</summary>
+        /// <summary>Lightmap irradiance debug chart.</summary>
+        [SamplerName("g_tIrradianceDebugChart")]
         Lightmap6,
         /// <summary>Environment cubemap for reflections.</summary>
+        [SamplerName("g_tEnvironmentMap")]
         EnvironmentMap,
-        /// <summary>Light probe irradiance slot 1.</summary>
-        Probe1,
-        /// <summary>Light probe irradiance slot 2.</summary>
-        Probe2,
-        /// <summary>Light probe irradiance slot 3.</summary>
-        Probe3,
         /// <summary>Shadow depth buffer for primary shadow pass.</summary>
+        [SamplerName("g_tShadowDepthBufferDepth")]
         ShadowDepthBufferDepth,
         /// <summary>Shadow depth buffer for barn lights.</summary>
+        [SamplerName("g_tBarnLightShadowDepth")]
         BarnLightShadowDepth,
         /// <summary>Light cookie texture (clamped wrap mode).</summary>
+        [SamplerName("g_tLightCookieTexture")]
         LightCookieTexture,
         /// <summary>Light cookie texture (repeat wrap mode).</summary>
+        [SamplerName("g_tLightCookieTextureWrap")]
         LightCookieTextureWrap,
         /// <summary>Scrolling wave normals and blotch mask.</summary>
+        [SamplerName("g_tWetnessWaves")]
         WetnessWaves,
         /// <summary>Resolved opaque scene color for refraction.</summary>
+        [SamplerName("g_tSceneColor")]
         SceneColor,
         /// <summary>Resolved scene depth buffer.</summary>
+        [SamplerName("g_tSceneDepth")]
         SceneDepth,
-        /// <summary>Resolved scene stencil buffer.</summary>
-        SceneStencil,
-        /// <summary>Hierarchical depth pyramid for occlusion culling.</summary>
-        DepthPyramid,
         /// <summary>Morph composite texture for vertex animation.</summary>
+        [SamplerName("morphCompositeTexture")]
         MorphCompositeTexture,
         /// <summary>Last reserved slot; equal to <see cref="MorphCompositeTexture"/>.</summary>
         Last = MorphCompositeTexture,
@@ -155,6 +172,10 @@ namespace ValveResourceFormat.Renderer.Materials
         private bool disableDepthTest;
         private int textureUnit;
         private readonly List<int> boundSamplerUnits = [];
+
+#if DEBUG
+        private static int maxTextureImageUnits;
+#endif
 
         /// <summary>Initializes a new instance of the <see cref="RenderMaterial"/> class from a parsed material resource, loading its shader and applying render state.</summary>
         /// <param name="material">The parsed Source 2 material data.</param>
@@ -555,6 +576,16 @@ namespace ValveResourceFormat.Renderer.Materials
 
                 textureUnit++;
             }
+
+#if DEBUG
+            if (maxTextureImageUnits == 0)
+            {
+                GL.GetInteger(GetPName.MaxTextureImageUnits, out maxTextureImageUnits);
+            }
+
+            Debug.Assert(textureUnit <= maxTextureImageUnits,
+                $"'{shader.Name}' needs {textureUnit} texture units ({textureUnit - TextureUnitStart} of its own on top of {TextureUnitStart} reserved) but the driver only has {maxTextureImageUnits}.");
+#endif
 
             SetRenderState();
         }

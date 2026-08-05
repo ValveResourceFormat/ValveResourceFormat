@@ -1,7 +1,9 @@
 using System.Buffers;
+using System.Collections.Frozen;
 using System.Diagnostics;
 using System.IO.Hashing;
 using System.Linq;
+using System.Reflection;
 using System.Runtime.InteropServices;
 using OpenTK.Graphics.OpenGL;
 using SkiaSharp;
@@ -449,22 +451,36 @@ namespace ValveResourceFormat.Renderer.Materials
             _ => throw new NotImplementedException($"Unsupported texture format {vformat}")
         };
 
-        /// <summary>Gets the set of texture uniform names that are bound to reserved global texture slots and must not be overridden by materials.</summary>
-        public static readonly HashSet<string> ReservedTextures = [.. Enum.GetNames<ReservedTextureSlots>(), "g_tLPV"];
+        /// <summary>Gets the texture unit each reserved sampler uniform is bound to.</summary>
+        public static readonly FrozenDictionary<string, ReservedTextureSlots> ReservedTextureSlotByName = BuildReservedTextureSlotByName();
 
-        /// <summary>Returns whether a uniform name is bound to one of the <see cref="ReservedTextures"/> slots.</summary>
-        public static bool IsReservedTexture(string uniformName)
+        private static FrozenDictionary<string, ReservedTextureSlots> BuildReservedTextureSlotByName()
         {
-            foreach (var reserved in ReservedTextures)
+            var slotByName = new Dictionary<string, ReservedTextureSlots>(StringComparer.Ordinal);
+
+            foreach (var field in typeof(ReservedTextureSlots).GetFields(BindingFlags.Public | BindingFlags.Static))
             {
-                if (uniformName.Contains(reserved, StringComparison.OrdinalIgnoreCase))
+                var attribute = field.GetCustomAttribute<SamplerNameAttribute>();
+
+                if (attribute == null)
                 {
-                    return true;
+                    continue; // Aliases such as Last carry no names of their own.
+                }
+
+                var slot = (ReservedTextureSlots)field.GetRawConstantValue()!;
+
+                foreach (var name in attribute.Names)
+                {
+                    // Add, not assign: two slots claiming one sampler name is a mistake worth failing on.
+                    slotByName.Add(name, slot);
                 }
             }
 
-            return false;
+            return slotByName.ToFrozenDictionary(StringComparer.Ordinal);
         }
+
+        /// <summary>Returns whether a uniform name is bound to one of the <see cref="ReservedTextureSlots"/>.</summary>
+        public static bool IsReservedTexture(string uniformName) => ReservedTextureSlotByName.ContainsKey(uniformName);
 
         /// <summary>
         /// Material invariant textures, requested by shaders. They become scene-wide textures.

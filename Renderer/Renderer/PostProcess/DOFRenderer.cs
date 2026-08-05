@@ -142,7 +142,8 @@ public class DOFRenderer
     /// <param name="msaaDepth">The MSAA depth texture used to reconstruct world-space depth.</param>
     public void SetDofResolveShaderUniforms(Shader shader, Camera camera, RenderTexture msaaDepth)
     {
-        shader.SetTexture(2, "g_tSceneDepth", msaaDepth);
+        // Not the scene's resolved depth, so it goes above the reserved slots like any other per draw texture.
+        shader.SetTexture(RenderMaterial.TextureUnitStart, "g_tSceneDepthMsaa", msaaDepth);
 
         if (!Matrix4x4.Invert(camera.ViewProjectionMatrix, out var invViewProjMatrix))
         {

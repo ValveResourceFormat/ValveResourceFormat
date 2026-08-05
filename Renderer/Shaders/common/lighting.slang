@@ -19,20 +19,20 @@
 
 #if (D_BAKED_LIGHTING_FROM_LIGHTMAP == 1)
     centroid in vec3 vLightmapUVScaled;
-    uniform sampler2DArray g_tIrradiance;
-    uniform sampler2DArray g_tIrradianceDebugChart;
+    uniform sampler2DArray g_tIrradiance; // reserved
+    uniform sampler2DArray g_tIrradianceDebugChart; // reserved
     #if (S_LIGHTMAP_VERSION_MINOR >= 3)
-        uniform sampler2DArray g_tDirectionalIrradianceR;
-        uniform sampler2DArray g_tDirectionalIrradianceG;
-        uniform sampler2DArray g_tDirectionalIrradianceB;
+        uniform sampler2DArray g_tDirectionalIrradianceR; // reserved
+        uniform sampler2DArray g_tDirectionalIrradianceG; // reserved
+        uniform sampler2DArray g_tDirectionalIrradianceB; // reserved
     #else
-        uniform sampler2DArray g_tDirectionalIrradiance;
+        uniform sampler2DArray g_tDirectionalIrradiance; // reserved
     #endif
     #if (S_LIGHTMAP_VERSION_MINOR == 1)
-        uniform sampler2DArray g_tDirectLightIndices;
-        uniform sampler2DArray g_tDirectLightStrengths;
+        uniform sampler2DArray g_tDirectLightIndices; // reserved
+        uniform sampler2DArray g_tDirectLightStrengths; // reserved
     #elif (S_LIGHTMAP_VERSION_MINOR >= 2)
-        uniform sampler2DArray g_tDirectLightShadows;
+        uniform sampler2DArray g_tDirectLightShadows; // reserved
     #endif
 #elif (D_BAKED_LIGHTING_FROM_PROBE == 1)
     #include "lighting.lpv.slang"

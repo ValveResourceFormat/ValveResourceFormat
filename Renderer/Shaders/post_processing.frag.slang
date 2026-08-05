@@ -21,9 +21,9 @@ uniform vec2 g_vColorCorrectionColorRange = vec2(0.96875, 0.015625);
 uniform vec4 g_vBlueNoiseDitherParams;
 uniform vec2 g_vInvTexDim;
 
-layout (binding = 0) uniform sampler2D g_tColorBuffer;
-layout (binding = 1) uniform sampler3D g_tColorCorrectionLUT;
-layout (binding = 2) uniform sampler2D g_tBlueNoise;
+uniform sampler2D g_tColorBuffer;
+uniform sampler3D g_tColorCorrectionLUT;
+uniform sampler2D g_tBlueNoise; // reserved
 
 #define D_BLOOM 0
 
@@ -33,8 +33,8 @@ layout (binding = 2) uniform sampler2D g_tBlueNoise;
     uniform vec3 g_vNormalizedBloomStrengths;
     uniform float g_flBloomLensDirtIntensity = 1;
 
-    layout(binding = 4) uniform sampler2D g_tBloom;
-    //layout(binding = 5) uniform sampler2D g_tDirt;
+    uniform sampler2D g_tBloom;
+    //uniform sampler2D g_tDirt;
 #endif
 
 layout (location = 0) out vec4 outputColor;

@@ -508,7 +508,7 @@ namespace ValveResourceFormat.Renderer
 
             if (sceneDepth != null)
             {
-                shader.SetTexture(1, "g_tSceneDepth", sceneDepth);
+                shader.SetTexture((int)ReservedTextureSlots.SceneDepth, "g_tSceneDepth", sceneDepth);
             }
 
             shader.SetUniform("g_fRange", TextureRange);

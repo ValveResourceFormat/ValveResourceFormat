@@ -27,7 +27,7 @@ uniform sampler2D g_tMask3;
 #endif
 
 #if F_DEPTH_FEATHER == 1
-    uniform sampler2D g_tSceneDepth;
+    uniform sampler2D g_tSceneDepth; // reserved
 
     vec3 GetWorldPositionFromDepth(ivec2 vScreenPosition, vec3 vCameraRay)
     {

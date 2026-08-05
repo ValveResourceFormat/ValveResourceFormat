@@ -152,6 +152,7 @@ namespace ValveResourceFormat.Renderer.Shaders
                 {
                     StoreAttributeLocations();
                     StoreUniformLocations();
+                    BindReservedTextureSlots();
 
 #if DEBUG
                     VerifyGlobalsLayout();
@@ -246,6 +247,21 @@ namespace ValveResourceFormat.Renderer.Shaders
 
             // Seeded from the source, where a sampler behind a combo the linker dropped still looks used.
             ReservedTexturesUsed.RemoveWhere(reserved => GL.GetUniformLocation(Program, reserved) == -1);
+        }
+
+        /// <summary>Points every reserved texture sampler this program declares at its global texture unit.</summary>
+        private void BindReservedTextureSlots()
+        {
+            // Table driven: StoreUniformLocations does not classify array and shadow samplers.
+            foreach (var (name, slot) in MaterialLoader.ReservedTextureSlotByName)
+            {
+                var uniformLocation = GetUniformLocation(name);
+
+                if (uniformLocation > -1)
+                {
+                    GL.ProgramUniform1(Program, uniformLocation, (int)slot);
+                }
+            }
         }
 
         /// <summary>

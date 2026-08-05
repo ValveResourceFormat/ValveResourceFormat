@@ -31,7 +31,9 @@ namespace ValveResourceFormat.Renderer.Shaders
         // uniform vec{dim} b = vec3(1.0); // SrgbRead(true)
         // uniform sampler{dim} c; // SrgbRead(true) Sampler(UserConfig)
         // uniform sampler{dim} d; // Sampler(UserConfig)
-        [GeneratedRegex("^uniform (?<Type>\\S+) (?<Name>[A-Za-z_][A-Za-z0-9_]*)(?<Array>\\[[^\\]]*\\])?(?:\\s*=\\s*(?<Default>[^;]+?))?\\s*;[ \t]*(?:// )?(?<SrgbRead>SrgbRead\\(true\\))?[ \t]*(?<SamplerUserConfig>Sampler\\(UserConfig\\))?")]
+        // layout(binding = n) uniform sampler{dim} e;
+        // uniform layout(binding = n) sampler{dim} f;
+        [GeneratedRegex("^(?:layout\\s*\\([^)]*\\)\\s*)?uniform (?:layout\\s*\\([^)]*\\)\\s*)?(?<Type>\\S+) (?<Name>[A-Za-z_][A-Za-z0-9_]*)(?<Array>\\[[^\\]]*\\])?(?:\\s*=\\s*(?<Default>[^;]+?))?\\s*;[ \t]*(?:// )?(?<SrgbRead>SrgbRead\\(true\\))?[ \t]*(?<SamplerUserConfig>Sampler\\(UserConfig\\))?")]
         private static partial Regex RegexUniform();
 
         [GeneratedRegex("^#extension .+$")]

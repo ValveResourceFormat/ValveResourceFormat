@@ -17,7 +17,7 @@ in float vSceneDepth;
 out vec4 color;
 
 uniform sampler2D msdf;
-uniform sampler2D g_tSceneDepth; // resolved scene depth (reverse-Z window space)
+uniform sampler2D g_tSceneDepth; // reserved, resolved scene depth (reverse-Z window space)
 uniform float g_fRange; // distance field's pixel range
 
 float median(float r, float g, float b) {

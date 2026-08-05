@@ -98,7 +98,7 @@ centroid in vec4 vVertexColorOut;
 
 out vec4 outputColor;
 
-uniform sampler2D g_tBlueNoise;
+uniform sampler2D g_tBlueNoise; // reserved
 uniform sampler2D g_tColor; // SrgbRead(true) Sampler(UserConfig)
 uniform sampler2D g_tNormal; // Sampler(UserConfig)
 uniform sampler2D g_tTintMask;

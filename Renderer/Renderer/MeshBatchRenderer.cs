@@ -95,7 +95,20 @@ namespace ValveResourceFormat.Renderer
                 requests.Sort(CompareCameraDistance);
             }
 
+            BindReservedTextures(context);
+
             DrawBatch(requests, context);
+        }
+
+        /// <summary>Binds the scene-wide textures to their reserved texture units for this pass.</summary>
+        private static void BindReservedTextures(Scene.RenderContext context)
+        {
+            foreach (var (slot, _, texture) in context.Textures)
+            {
+                GL.BindTextureUnit((int)slot, texture.Handle);
+            }
+
+            context.Scene.LightingInfo.BindLightmapTextures();
         }
 
         private ref struct Uniforms
@@ -109,7 +122,6 @@ namespace ValveResourceFormat.Renderer
             public int MeshId = -1;
             public int ShaderId = -1;
             public int ShaderProgramId = -1;
-            public int MorphCompositeTexture = -1;
             public int MorphCompositeTextureSize = -1;
             public int MorphVertexIdOffset = -1;
 
@@ -124,9 +136,10 @@ namespace ValveResourceFormat.Renderer
             public LightProbeType LightProbeType;
         }
 
-        private static void SetInstanceTexture(Shader shader, ReservedTextureSlots slot, int location, RenderTexture texture)
+        /// <summary>Binds a per-draw texture over its reserved unit.</summary>
+        private static void BindInstanceTexture(ReservedTextureSlots slot, RenderTexture texture)
         {
-            shader.SetTexture((int)slot, location, texture);
+            GL.BindTextureUnit((int)slot, texture.Handle);
         }
 
         private static void DrawBatch(List<Request> requests, Scene.RenderContext context)
@@ -156,6 +169,9 @@ namespace ValveResourceFormat.Renderer
                         // Custom nodes render themselves and may issue several draws internally; count them as one draw call.
                         counters.Count(Counter.DrawCall);
                         request.Node.Render(context);
+
+                        // Custom nodes bind over the reserved units, so restore them.
+                        BindReservedTextures(context);
 
                         shader = null;
                         material = null;
@@ -197,7 +213,6 @@ namespace ValveResourceFormat.Renderer
 
                         if (shader.Parameters.ContainsKey("F_MORPH_SUPPORTED"))
                         {
-                            uniforms.MorphCompositeTexture = shader.GetUniformLocation("morphCompositeTexture");
                             uniforms.MorphCompositeTextureSize = shader.GetUniformLocation("morphCompositeTextureSize");
                             uniforms.MorphVertexIdOffset = shader.GetUniformLocation("morphVertexIdOffset");
                         }
@@ -215,16 +230,6 @@ namespace ValveResourceFormat.Renderer
                         }
 
                         shader.Use();
-
-                        if (!shader.IgnoreMaterialData)
-                        {
-                            foreach (var (slot, name, texture) in context.Textures)
-                            {
-                                shader.SetTexture((int)slot, name, texture);
-                            }
-
-                            context.Scene.LightingInfo.SetLightmapTextures(shader);
-                        }
 
                         Debug.Assert(context.Scene.InstanceBufferGpu != null && context.Scene.TransformBufferGpu != null);
                         context.Scene.TransformBufferGpu.BindBufferBase();
@@ -301,13 +306,13 @@ namespace ValveResourceFormat.Renderer
             if (config.NeedsCubemapBinding && uniforms.EnvmapTexture != -1 && request.Node.EnvMaps.Count > 0)
             {
                 var envmap = request.Node.EnvMaps[0];
-                SetInstanceTexture(shader, ReservedTextureSlots.EnvironmentMap, uniforms.EnvmapTexture, envmap.EnvMapTexture);
+                BindInstanceTexture(ReservedTextureSlots.EnvironmentMap, envmap.EnvMapTexture);
             }
 
             if (config.LightProbeType == LightProbeType.IndividualProbes && uniforms.LPVIrradianceTexture != -1
                 && request.Node.LightProbeBinding is { } lightProbe)
             {
-                request.Node.Scene.LightingInfo.SetInstanceLightProbeTextures(shader, lightProbe);
+                request.Node.Scene.LightingInfo.BindInstanceLightProbeTextures(lightProbe);
             }
 
             if (uniforms.AnimationData != -1)
@@ -333,7 +338,7 @@ namespace ValveResourceFormat.Renderer
                 var morphComposite = request.Mesh.FlexStateManager?.MorphComposite;
                 if (morphComposite != null)
                 {
-                    SetInstanceTexture(shader, ReservedTextureSlots.MorphCompositeTexture, uniforms.MorphCompositeTexture, morphComposite.CompositeTexture);
+                    BindInstanceTexture(ReservedTextureSlots.MorphCompositeTexture, morphComposite.CompositeTexture);
                     GL.ProgramUniform2(shader.Program, uniforms.MorphCompositeTextureSize, (float)morphComposite.CompositeTexture.Width, morphComposite.CompositeTexture.Height);
                 }
 

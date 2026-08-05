@@ -30,11 +30,11 @@ layout(std430, binding = 12) readonly buffer BarnLightBuffer {
 int g_nBarnLightsIterated = 0;
 
 // Game uses Texture3D
-uniform layout(binding = 15) sampler2DArray g_tLightCookieTexture; // ClampToBorder
-uniform layout(binding = 16) sampler2DArray g_tLightCookieTextureWrap; // Wrap
+uniform sampler2DArray g_tLightCookieTexture; // ClampToBorder, reserved
+uniform sampler2DArray g_tLightCookieTextureWrap; // Wrap, reserved
 
 // We currently have a separate shadow map for all barn lights
-uniform layout(binding = 14) sampler2DShadow g_tBarnLightShadowDepth;
+uniform sampler2DShadow g_tBarnLightShadowDepth; // reserved
 
 float ComputeBarnLightShadow(vec2 shadowUV, float shadowRef)
 {

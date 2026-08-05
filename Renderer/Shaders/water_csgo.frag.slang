@@ -106,7 +106,7 @@ uniform float g_flWaterEffectCausticStrength = 1.0;
 #define g_vRoughness vec2(max(.01, 1.0 - g_flGlossiness))
 uniform vec4 g_vViewportExtentsTs;
 
-uniform sampler2D g_tBlueNoise;
+uniform sampler2D g_tBlueNoise; // reserved
 uniform sampler2D g_tFoam;
 uniform sampler2D g_tDebris; // SrgbRead(true)
 uniform sampler2D g_tDebrisNormal;
@@ -116,8 +116,8 @@ uniform sampler2D g_tWavesNormalHeight;
 
 uniform vec4 g_vSimpleSkyReflectionColor = vec4(1.0);
 
-uniform sampler2D g_tSceneColor;
-uniform sampler2D g_tSceneDepth;
+uniform sampler2D g_tSceneColor; // reserved
+uniform sampler2D g_tSceneDepth; // reserved
 
 void main()
 {
