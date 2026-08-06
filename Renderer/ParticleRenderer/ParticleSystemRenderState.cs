@@ -100,8 +100,17 @@ namespace ValveResourceFormat.Renderer.Particles
 
         private readonly Dictionary<int, ControlPoint> controlPoints = new(64);
 
+        // Control points this system holds in its own right rather than reading from its parent. Only
+        // C_OP_SetParentControlPointsToChildCP creates them, so it stays null for almost every system.
+        private Dictionary<int, ControlPoint>? controlPointOverrides;
+
         public ControlPoint GetControlPoint(int cp)
         {
+            if (controlPointOverrides != null && controlPointOverrides.TryGetValue(cp, out var overridden))
+            {
+                return overridden;
+            }
+
             if (ParentSystem != null)
             {
                 return ParentSystem.GetControlPoint(cp);
@@ -161,11 +170,52 @@ namespace ValveResourceFormat.Renderer.Particles
         {
             foreach (var point in controlPoints.Values)
             {
-                point.PositionPrevious = point.Position;
-                point.OrientationPrevious = point.Orientation;
-                point.RotationPrevious = point.Rotation;
-                point.PreviousStepTime = elapsed;
+                RecordStep(point, elapsed);
             }
+        }
+
+        /// <summary>
+        /// Records the previous-step state of the control points this system overrides, which the root's
+        /// own snapshot does not reach.
+        /// </summary>
+        /// <param name="elapsed">Real time covered since the previous snapshot, in seconds.</param>
+        internal void SnapshotControlPointOverrideHistory(float elapsed)
+        {
+            if (controlPointOverrides == null)
+            {
+                return;
+            }
+
+            foreach (var point in controlPointOverrides.Values)
+            {
+                RecordStep(point, elapsed);
+            }
+        }
+
+        private static void RecordStep(ControlPoint point, float elapsed)
+        {
+            point.PositionPrevious = point.Position;
+            point.OrientationPrevious = point.Orientation;
+            point.RotationPrevious = point.Rotation;
+            point.PreviousStepTime = elapsed;
+        }
+
+        /// <summary>
+        /// Gives this system its own control point at <paramref name="cp"/>, shadowing the one it would
+        /// otherwise read from its parent, and returns it.
+        /// </summary>
+        /// <param name="cp">Control point index.</param>
+        internal ControlPoint OverrideControlPoint(int cp)
+        {
+            controlPointOverrides ??= [];
+
+            if (!controlPointOverrides.TryGetValue(cp, out var point))
+            {
+                point = new ControlPoint();
+                controlPointOverrides.Add(cp, point);
+            }
+
+            return point;
         }
 
         /// <summary>

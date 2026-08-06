@@ -35,6 +35,7 @@ namespace ValveResourceFormat.Renderer.Particles
                 ["C_OP_SetControlPointRotation"] = preEmissionOperatorInfo => new SetControlPointRotation(preEmissionOperatorInfo),
                 ["C_OP_SetControlPointToVectorExpression"] = preEmissionOperatorInfo => new SetControlPointToVectorExpression(preEmissionOperatorInfo),
                 ["C_OP_SetControlPointOrientation"] = preEmissionOperatorInfo => new SetControlPointOrientation(preEmissionOperatorInfo),
+                ["C_OP_SetParentControlPointsToChildCP"] = preEmissionOperatorInfo => new SetParentControlPointsToChildCP(preEmissionOperatorInfo),
                 ["C_OP_SetRandomControlPointPosition"] = preEmissionOperatorInfo => new SetRandomControlPointPosition(preEmissionOperatorInfo),
                 ["C_OP_SetSingleControlPointPosition"] = preEmissionOperatorInfo => new SetSingleControlPointPosition(preEmissionOperatorInfo),
                 ["C_OP_StopAfterCPDuration"] = preEmissionOperatorInfo => new StopAfterDuration(preEmissionOperatorInfo),
