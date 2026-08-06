@@ -957,40 +957,17 @@ namespace ValveResourceFormat.Renderer.Particles
         }
 
         /// <summary>
-        /// Hands this system's own control points to the direct children tagged with <paramref name="groupId"/>:
-        /// each matching child takes the next source point in turn, all writing the same
-        /// <paramref name="childControlPoint"/> index on their own system, until
-        /// <paramref name="numControlPoints"/> children have been served.
+        /// Appends the render states of the direct children tagged with <paramref name="groupId"/> to
+        /// <paramref name="destination"/>, in definition order.
         /// </summary>
-        internal void SetParentControlPointsToChildCP(int groupId, int childControlPoint, int numControlPoints, int firstSourcePoint, bool setOrientation)
+        internal void CollectChildStatesInGroup(int groupId, List<ParticleSystemRenderState> destination)
         {
-            var remaining = numControlPoints;
-
             foreach (var child in childParticleRenderers)
             {
-                if (remaining <= 0)
+                if (child.GroupId == groupId)
                 {
-                    break;
+                    destination.Add(child.systemRenderState);
                 }
-
-                if (child.GroupId != groupId)
-                {
-                    continue;
-                }
-
-                var source = systemRenderState.GetControlPoint(firstSourcePoint);
-                var destination = child.systemRenderState.OverrideControlPoint(childControlPoint);
-
-                destination.Position = source.Position;
-
-                if (setOrientation)
-                {
-                    destination.Orientation = source.Orientation;
-                    destination.Rotation = source.Rotation;
-                }
-
-                remaining--;
-                firstSourcePoint++;
             }
         }
 

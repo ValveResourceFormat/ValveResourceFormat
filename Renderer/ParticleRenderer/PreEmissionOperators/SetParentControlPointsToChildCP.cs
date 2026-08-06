@@ -14,6 +14,8 @@ namespace ValveResourceFormat.Renderer.Particles.PreEmissionOperators
         private readonly int firstSourcePoint;
         private readonly bool setOrientation;
 
+        private readonly List<ParticleSystemRenderState> matchingChildren = [];
+
         public SetParentControlPointsToChildCP(ParticleDefinitionParser parse) : base(parse)
         {
             childGroupId = parse.Int32("m_nChildGroupID", childGroupId);
@@ -25,8 +27,29 @@ namespace ValveResourceFormat.Renderer.Particles.PreEmissionOperators
 
         public override void Operate(ref ParticleSystemRenderState particleSystemState, float frameTime)
         {
-            particleSystemState.Data?.SetParentControlPointsToChildCP(
-                childGroupId, childControlPoint, numControlPoints, firstSourcePoint, setOrientation);
+            if (particleSystemState.Data == null)
+            {
+                return;
+            }
+
+            matchingChildren.Clear();
+            particleSystemState.Data.CollectChildStatesInGroup(childGroupId, matchingChildren);
+
+            var served = Math.Min(numControlPoints, matchingChildren.Count);
+
+            for (var i = 0; i < served; i++)
+            {
+                var source = particleSystemState.GetControlPoint(firstSourcePoint + i);
+                var destination = matchingChildren[i].OverrideControlPoint(childControlPoint);
+
+                destination.Position = source.Position;
+
+                if (setOrientation)
+                {
+                    destination.Orientation = source.Orientation;
+                    destination.Rotation = source.Rotation;
+                }
+            }
         }
     }
 }
