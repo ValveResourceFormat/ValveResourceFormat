@@ -56,10 +56,41 @@ namespace ValveResourceFormat.ResourceTypes
         public IReadOnlyList<KVObject> CollisionAttributes
             => collisionAttributes ??= Data.GetArray("m_collisionAttributes");
 
+        /// <summary>
+        /// Gets the embedded finite-element (soft body / cloth) model (<c>m_pFeModel</c>), or null when the
+        /// aggregate has no cloth. Reusable for both bone-chain and proxy-mesh cloth reconstruction.
+        /// </summary>
+        public FeModel? FeModel
+        {
+            get
+            {
+                if (feModelParsed)
+                {
+                    return feModel;
+                }
+
+                feModelParsed = true;
+
+                var feModelData = Data.GetSubCollection("m_pFeModel");
+                if (feModelData is not null)
+                {
+                    var parsed = new FeModel(feModelData);
+                    if (parsed.HasData)
+                    {
+                        feModel = parsed;
+                    }
+                }
+
+                return feModel;
+            }
+        }
+
         private Matrix4x4[]? bindPose;
         private Part[]? parts;
         private uint[]? surfacePropertyHashes;
         private IReadOnlyList<KVObject>? collisionAttributes;
+        private FeModel? feModel;
+        private bool feModelParsed;
 
         /// <summary>
         /// Initializes a new instance of the <see cref="PhysAggregateData"/> class.
