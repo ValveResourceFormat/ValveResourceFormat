@@ -47,12 +47,6 @@ namespace ValveResourceFormat.Renderer.Particles
             set => detailLevel = value;
         }
 
-        /// <summary>
-        /// Fixed random offset for this system instance, indexing the shared random table so
-        /// simultaneous instances of the same effect draw distinct per-system random values.
-        /// </summary>
-        public int RandomSeed { get; } = Random.Shared.Next();
-
         // Properties
         public long ParticleCount { get; set; }
         public float Age { get; set; }
