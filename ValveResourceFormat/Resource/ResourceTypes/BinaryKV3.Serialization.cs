@@ -85,9 +85,9 @@ namespace ValveResourceFormat.ResourceTypes
                 throw new InvalidOperationException("No data to serialize");
             }
 
-            if (!Enum.IsDefined(SerializationVersion))
+            if (SerializationVersion is not (4 or 5))
             {
-                throw new NotSupportedException($"Unsupported binary KV3 version: {(int)SerializationVersion}");
+                throw new NotSupportedException($"Unsupported binary KV3 version: {SerializationVersion}");
             }
 
             if (!Enum.IsDefined(SerializationCompressionMethod))
@@ -104,7 +104,7 @@ namespace ValveResourceFormat.ResourceTypes
             context.Bytes4.Position = 0;
             context.Bytes4Writer.Write(context.Strings.Count);
 
-            if (SerializationVersion == KV3BinaryVersion.Version5)
+            if (SerializationVersion == 5)
             {
                 SerializeVersion5(stream, context);
                 return;
@@ -498,7 +498,7 @@ namespace ValveResourceFormat.ResourceTypes
                     break;
                 case KVValueType.Collection:
                     {
-                        if (SerializationVersion == KV3BinaryVersion.Version5)
+                        if (SerializationVersion == 5)
                         {
                             context.ObjectLengthsWriter.Write(value.Count);
                         }

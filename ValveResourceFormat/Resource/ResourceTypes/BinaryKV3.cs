@@ -12,18 +12,6 @@ using ValveResourceFormat.Serialization.KeyValues;
 namespace ValveResourceFormat.ResourceTypes
 {
     /// <summary>
-    /// Binary KV3 versions supported for serialization.
-    /// </summary>
-    public enum KV3BinaryVersion
-    {
-        /// <summary>KV3 version 4.</summary>
-        Version4 = 4,
-
-        /// <summary>KV3 version 5.</summary>
-        Version5 = 5,
-    }
-
-    /// <summary>
     /// Compression methods supported for binary KV3 serialization.
     /// </summary>
     public enum KV3BinaryCompressionMethod
@@ -91,9 +79,9 @@ namespace ValveResourceFormat.ResourceTypes
         public KVDocument Data { get; protected set; } = null!;
 
         /// <summary>
-        /// Gets or sets the binary KV3 version used when serializing this block.
+        /// Gets or sets the binary KV3 version used when serializing this block. Supported values are 4 and 5.
         /// </summary>
-        public KV3BinaryVersion SerializationVersion { get; set; } = KV3BinaryVersion.Version4;
+        public int SerializationVersion { get; set; } = 4;
 
         /// <summary>
         /// Gets or sets the compression method used when serializing this block.
@@ -152,7 +140,7 @@ namespace ValveResourceFormat.ResourceTypes
         /// <inheritdoc/>
         public override void Read(BinaryReader reader)
         {
-            SerializationVersion = KV3BinaryVersion.Version4;
+            SerializationVersion = 4;
             SerializationCompressionMethod = KV3BinaryCompressionMethod.Uncompressed;
 
             if (KVBlockType != BlockType.Undefined)
@@ -246,7 +234,7 @@ namespace ValveResourceFormat.ResourceTypes
 
             if (version == 5)
             {
-                SerializationVersion = KV3BinaryVersion.Version5;
+                SerializationVersion = 5;
             }
 
             SerializationCompressionMethod = compressionMethod;
