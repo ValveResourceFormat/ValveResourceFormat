@@ -463,6 +463,16 @@ namespace ValveResourceFormat.Renderer.Particles
             if (systemRenderState.ParentSystem == null)
             {
                 systemRenderState.SnapshotControlPointHistory(frameTime);
+                SnapshotChildControlPointOverrides(frameTime);
+            }
+        }
+
+        private void SnapshotChildControlPointOverrides(float frameTime)
+        {
+            foreach (var child in childParticleRenderers)
+            {
+                child.systemRenderState.SnapshotControlPointOverrideHistory(frameTime);
+                child.SnapshotChildControlPointOverrides(frameTime);
             }
         }
 
@@ -979,6 +989,44 @@ namespace ValveResourceFormat.Renderer.Particles
                 }
 
                 remaining--;
+            }
+        }
+
+        /// <summary>
+        /// Hands this system's own control points to the direct children tagged with <paramref name="groupId"/>:
+        /// each matching child takes the next source point in turn, all writing the same
+        /// <paramref name="childControlPoint"/> index on their own system, until
+        /// <paramref name="numControlPoints"/> children have been served.
+        /// </summary>
+        internal void SetParentControlPointsToChildCP(int groupId, int childControlPoint, int numControlPoints, int firstSourcePoint, bool setOrientation)
+        {
+            var remaining = numControlPoints;
+
+            foreach (var child in childParticleRenderers)
+            {
+                if (remaining <= 0)
+                {
+                    break;
+                }
+
+                if (child.GroupId != groupId)
+                {
+                    continue;
+                }
+
+                var source = systemRenderState.GetControlPoint(firstSourcePoint);
+                var destination = child.systemRenderState.OverrideControlPoint(childControlPoint);
+
+                destination.Position = source.Position;
+
+                if (setOrientation)
+                {
+                    destination.Orientation = source.Orientation;
+                    destination.Rotation = source.Rotation;
+                }
+
+                remaining--;
+                firstSourcePoint++;
             }
         }
 
