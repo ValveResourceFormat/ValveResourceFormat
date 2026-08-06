@@ -1,5 +1,6 @@
 using System.Runtime.InteropServices;
 using System.Windows.Forms;
+using GUI.Controls;
 using GUI.Utils;
 using Windows.Win32;
 using Windows.Win32.UI.WindowsAndMessaging;
@@ -9,6 +10,7 @@ namespace GUI.Forms
     partial class EntityInfoForm : ThemedForm
     {
         public EntityInfoControl EntityInfoControl;
+        public ThemedButton? ShowInGraphButton { get; private set; }
         private static WINDOWPLACEMENT? SavedWindowPlacement;
 
         public EntityInfoForm(VrfGuiContext vrfGuiContext)
@@ -23,6 +25,18 @@ namespace GUI.Forms
             Controls.Add(EntityInfoControl);
 
             Icon = Program.MainForm.Icon;
+        }
+
+        public void AddShowInGraphButton(EventHandler onClick)
+        {
+            ShowInGraphButton = new ThemedButton
+            {
+                Text = "Show in I/O graph",
+                Dock = DockStyle.Bottom,
+                Height = 32,
+            };
+            ShowInGraphButton.Click += onClick;
+            Controls.Add(ShowInGraphButton);
         }
 
         protected override bool ProcessDialogKey(Keys keyData)
