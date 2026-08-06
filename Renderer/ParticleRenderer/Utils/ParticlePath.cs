@@ -91,8 +91,7 @@ namespace ValveResourceFormat.Renderer.Particles.Utils
         /// Computes the Bezier control triple for a path at the given timestamp. Endpoint offsets
         /// apply before the midpoint is derived; the bulge displaces the midpoint along the bulge
         /// control point's forward direction scaled by how perpendicular that direction is to the
-        /// path, or by a fixed per-system random offset when no bulge control is set; the midpoint
-        /// offset applies last.
+        /// path; the midpoint offset applies last.
         /// </summary>
         public static (Vector3 Start, Vector3 Mid, Vector3 End) CalculatePathValues(
             ParticleSystemRenderState state, in ParticlePathParameters path, float timeStamp)
@@ -102,28 +101,21 @@ namespace ValveResourceFormat.Renderer.Particles.Utils
 
             var mid = Vector3.Lerp(start, end, path.MidPoint);
 
-            if (path.Bulge != 0f)
+            if (path.Bulge != 0f && path.BulgeControl != 0)
             {
-                if (path.BulgeControl != 0)
-                {
-                    var bulgeCp = path.BulgeControl == 2 ? path.EndControlPointNumber : path.StartControlPointNumber;
-                    var forward = state.GetControlPoint(bulgeCp).Orientation;
-                    var direction = end - start;
-                    var length = direction.Length();
+                var bulgeCp = path.BulgeControl == 2 ? path.EndControlPointNumber : path.StartControlPointNumber;
+                var forward = state.GetControlPoint(bulgeCp).Orientation;
+                var direction = end - start;
+                var length = direction.Length();
 
-                    var perpendicularity = length > 1e-6f
-                        ? 1f - MathF.Abs(Vector3.Dot(direction / length, forward))
-                        : 0f;
+                var perpendicularity = length > 1e-6f
+                    ? 1f - MathF.Abs(Vector3.Dot(direction / length, forward))
+                    : 0f;
 
-                    var forwardLength = forward.Length();
-                    if (forwardLength > 1e-6f)
-                    {
-                        mid += forward * (length * path.Bulge * perpendicularity / forwardLength);
-                    }
-                }
-                else
+                var forwardLength = forward.Length();
+                if (forwardLength > 1e-6f)
                 {
-                    mid += ParticleCollection.RandomBetweenPerComponent(state.RandomSeed, new Vector3(-path.Bulge), new Vector3(path.Bulge));
+                    mid += forward * (length * path.Bulge * perpendicularity / forwardLength);
                 }
             }
 
