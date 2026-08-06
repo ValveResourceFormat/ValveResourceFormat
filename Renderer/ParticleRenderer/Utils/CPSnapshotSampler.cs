@@ -40,9 +40,12 @@ namespace ValveResourceFormat.Renderer.Particles.Utils
         /// (the initializer always mirrors it; the operator only when <c>m_bPrev</c> is set).
         /// <paramref name="atSpawn"/> marks the initializer path, where a velocity write goes through
         /// <see cref="Particle.Velocity"/> so the emit path's Verlet encoding picks it up.
+        /// <paramref name="localSpaceAngles"/> extends the control point transform to Roll, Yaw and Pitch writes
+        /// (<c>m_bLocalSpaceAngles</c>, which only the initializer carries).
         /// </summary>
         public static void WriteAttribute(ref Particle particle, ParticleField attributeToWrite, IEnumerable readAttributeData,
-            int idx, int localSpaceCP, bool writePositionPrevious, bool atSpawn, float frameTime, ParticleSystemRenderState particleSystemState)
+            int idx, int localSpaceCP, bool writePositionPrevious, bool atSpawn, float frameTime, ParticleSystemRenderState particleSystemState,
+            bool localSpaceAngles = false)
         {
             var fieldType = attributeToWrite.FieldType();
 
@@ -88,7 +91,15 @@ namespace ValveResourceFormat.Renderer.Particles.Utils
             }
             else if (fieldType == "float" && readAttributeData is float[] floatArray && (uint)idx < (uint)floatArray.Length)
             {
-                particle.SetScalar(attributeToWrite, floatArray[idx]);
+                var value = floatArray[idx];
+
+                if (localSpaceAngles && localSpaceCP >= 0
+                    && attributeToWrite is ParticleField.Roll or ParticleField.Yaw or ParticleField.Pitch)
+                {
+                    value = ControlPointTransformProvider.TransformAngle(particleSystemState, localSpaceCP, attributeToWrite, value);
+                }
+
+                particle.SetScalar(attributeToWrite, value);
             }
         }
     }
