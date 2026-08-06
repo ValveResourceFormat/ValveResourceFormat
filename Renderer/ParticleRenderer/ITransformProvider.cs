@@ -106,6 +106,32 @@ namespace ValveResourceFormat.Renderer.Particles
         /// </summary>
         public static Vector3 TransformDirection(ParticleSystemRenderState state, int cp, Vector3 localDir)
             => Vector3.TransformNormal(localDir, new ControlPointTransformProvider(cp, true).NextTransform(ref Particle.Default, state));
+
+        /// <summary>
+        /// Rotates a single Euler angle, given in radians as <paramref name="angleField"/>'s component, by control
+        /// point <paramref name="cp"/>'s orientation, and returns that same component of the composed rotation.
+        /// </summary>
+        public static float TransformAngle(ParticleSystemRenderState state, int cp, ParticleField angleField, float radians)
+        {
+            var degrees = float.RadiansToDegrees(radians);
+            var angles = angleField switch
+            {
+                ParticleField.Pitch => new Vector3(degrees, 0f, 0f),
+                ParticleField.Yaw => new Vector3(0f, degrees, 0f),
+                _ => new Vector3(0f, 0f, degrees),
+            };
+
+            var composed = EntityTransformHelper.CreateRotationMatrixFromEulerAngles(angles)
+                * new ControlPointTransformProvider(cp, true).NextTransform(ref Particle.Default, state);
+            var result = EntityTransformHelper.ToEulerAngles(Quaternion.CreateFromRotationMatrix(composed));
+
+            return float.DegreesToRadians(angleField switch
+            {
+                ParticleField.Pitch => result.X,
+                ParticleField.Yaw => result.Y,
+                _ => result.Z,
+            });
+        }
     }
 
     /// <summary>
