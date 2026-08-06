@@ -26,6 +26,8 @@ namespace GUI.Types.GLViewers
 
         protected PickingTexture? Picker { get; set; }
 
+        protected QuadOverdraw? QuadOverdrawRenderer { get; set; }
+
         public Scene Scene { get; }
         public Scene? SkyboxScene => Renderer.SkyboxScene;
         public VrfGuiContext GuiContext;
@@ -117,6 +119,9 @@ namespace GUI.Types.GLViewers
 
             soundPlayer?.Dispose();
             soundPlayer = null;
+
+            QuadOverdrawRenderer?.Dispose();
+            QuadOverdrawRenderer = null;
 
             Renderer?.Dispose();
 
@@ -362,6 +367,9 @@ namespace GUI.Types.GLViewers
             baseGrid = new InfiniteGrid(Scene);
             SelectedNodeRenderer = new(Scene.RendererContext);
             Picker = new(Scene.RendererContext, OnPicked);
+
+            QuadOverdrawRenderer = new(Scene.RendererContext);
+            QuadOverdrawRenderer.Load();
 
             Renderer.ShadowTextureSize = Settings.Config.ShadowResolution;
             Renderer.Initialize();
@@ -640,6 +648,8 @@ namespace GUI.Types.GLViewers
 
             Renderer.ForceResolveSceneDepth = ShowBaseGrid;
 
+            var quadOverdrawThisFrame = false;
+
             using (new GLDebugGroup("Scenes Render"))
             {
                 if (Picker.ActiveNextFrame)
@@ -655,8 +665,29 @@ namespace GUI.Types.GLViewers
                 {
                     renderContext.ReplacementShader = Picker.DebugShader;
                 }
+                else if (QuadOverdrawRenderer?.IsActive == true)
+                {
+                    QuadOverdrawRenderer.Prepare(MainFramebuffer.Width, MainFramebuffer.Height);
+                    renderContext.ReplacementShader = QuadOverdrawRenderer.SceneShader;
+
+                    // set to true to render quad overdraw later, first draw the scene normally in order to have a depth buffer
+                    // so things dont look weird in quad overdraw
+                    quadOverdrawThisFrame = true;
+                }
 
                 Renderer.Render(renderContext);
+
+                if (quadOverdrawThisFrame)
+                {
+                    using (new GLDebugGroup("Quad Overdraw Counting Pass"))
+                    {
+                        QuadOverdrawRenderer!.BeginCountingPass(MainFramebuffer);
+                        Renderer.RenderScenesWithView(renderContext);
+                        QuadOverdrawRenderer.EndCountingPass(MainFramebuffer);
+                    }
+
+                    QuadOverdrawRenderer!.Render();
+                }
             }
 
             using (new GLDebugGroup("Lines Render"))
@@ -889,6 +920,12 @@ namespace GUI.Types.GLViewers
                 var selectedIndex = 0;
                 var currentlySelected = keepCurrentSelection ? renderModeComboBox.SelectedItem?.ToString() : null;
                 var supportedRenderModes = new HashSet<string>(Picker.Shader.RenderModes);
+
+                if (QuadOverdrawRenderer != null)
+                {
+                    supportedRenderModes.UnionWith(QuadOverdrawRenderer.SceneShader.RenderModes);
+                }
+
                 foreach (var node in Scene.AllNodes)
                 {
                     supportedRenderModes.UnionWith(node.GetSupportedRenderModes());
@@ -956,6 +993,7 @@ namespace GUI.Types.GLViewers
             Scene.EnableCompaction = renderMode != "Meshlets";
 
             Picker.SetRenderMode(renderMode);
+            QuadOverdrawRenderer?.SetRenderMode(renderMode);
             SelectedNodeRenderer.SetRenderMode(renderMode);
 
             foreach (var node in Scene.AllNodes)

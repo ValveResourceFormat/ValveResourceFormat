@@ -65,7 +65,8 @@ namespace ValveResourceFormat.Renderer.Materials
             new("Debug", IsHeader: true),
             new("LightTiles"),
             new("EnvmapTiles"),
-            new("Subgroups")
+            new("Subgroups"),
+            new("QuadOverdraw")
         ];
 
         private readonly static Dictionary<string, byte> ShaderIds = new(Items.Count);
