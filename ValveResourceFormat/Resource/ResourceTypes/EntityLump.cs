@@ -20,11 +20,20 @@ namespace ValveResourceFormat.ResourceTypes
             /// <summary>
             /// Gets the entity connections (outputs that fire inputs on other entities, part of the entity I/O system).
             /// </summary>
-            public List<KVObject>? Connections { get; internal set; }
+            public List<Connection>? Connections { get; internal set; }
             /// <summary>
             /// Gets the parent entity lump that contains this entity.
             /// </summary>
             public required EntityLump ParentLump { get; init; }
+
+            /// <summary>
+            /// Gets the target name of the entity.
+            /// </summary>
+            public string? TargetName => this.GetStringProperty("targetname");
+            /// <summary>
+            /// Gets the target name of the entity without the PR# prefix.
+            /// </summary>
+            public string? FriendlyTargetName => RemoveTargetnamePrefix(this.GetStringProperty("targetname"));
 
             /// <summary>
             /// Gets a Vector2 property value by name.
@@ -94,6 +103,72 @@ namespace ValveResourceFormat.ResourceTypes
                 var defaultColor = new Vector3(255f);
                 return GetVector3Property(key, defaultColor) / 255f;
             }
+
+            /// <summary>
+            /// Finds all connections in the parent lump that target this entity by its targetname.
+            /// </summary>
+            /// <param name="entities">List of world entities to look for connections for, defaults to the current lump.</param>
+            /// <returns>A list of input connections targeting this entity.</returns>
+            public List<Connection> GetInputConnections(List<Entity>? entities)
+            {
+                if (string.IsNullOrEmpty(TargetName))
+                {
+                    return [];
+                }
+
+                var inputConnections = new List<Connection>();
+
+                foreach (var sourceEntity in entities ?? ParentLump.GetEntities())
+                {
+                    if (sourceEntity.Connections == null)
+                    {
+                        continue;
+                    }
+
+                    inputConnections.AddRange(sourceEntity.Connections.Where(connection => connection.TargetName == TargetName));
+                }
+
+                return inputConnections;
+            }
+        }
+
+        /// <summary>
+        /// Represents a IO connection.
+        /// </summary>
+        public class Connection
+        {
+            /// <summary>
+            /// Gets the entity that fires this connection (the source of the output).
+            /// </summary>
+            public required Entity SourceEntity { get; init; }
+            /// <summary>
+            /// Gets the name of the output that fires this connection (m_outputName).
+            /// </summary>
+            public required string OutputName { get; init; }
+            /// <summary>
+            /// Gets the name of the input that is fired on the target entity (m_inputName).
+            /// </summary>
+            public required string InputName { get; init; }
+            /// <summary>
+            /// Gets the name of the target entity (m_targetName).
+            /// </summary>
+            public required string TargetName { get; init; }
+            /// <summary>
+            /// Gets the parameter override passed with the input (m_overrideParam).
+            /// </summary>
+            public required string OverrideParam { get; init; }
+            /// <summary>
+            /// Gets the delay in seconds before the input is fired (m_flDelay).
+            /// </summary>
+            public required float Delay { get; init; }
+            /// <summary>
+            /// Gets the number of times this connection may fire, or -1 for infinite (m_nTimesToFire).
+            /// </summary>
+            public required int TimesToFire { get; init; }
+            /// <summary>
+            /// Gets the connection target type (m_targetType).
+            /// </summary>
+            public required EntityIOTargetType TargetType { get; init; }
         }
 
         /// <summary>
@@ -142,7 +217,17 @@ namespace ValveResourceFormat.ResourceTypes
 
             if (connections.Count > 0)
             {
-                entity.Connections = [.. connections];
+                entity.Connections = connections.Select((connection) => new Connection
+                {
+                    SourceEntity = entity,
+                    TargetName = connection.GetStringProperty("m_targetName"),
+                    OutputName = connection.GetStringProperty("m_outputName"),
+                    InputName = connection.GetStringProperty("m_inputName"),
+                    OverrideParam = connection.GetStringProperty("m_overrideParam"),
+                    Delay = connection.GetFloatProperty("m_flDelay"),
+                    TimesToFire = connection.GetInt32Property("m_nTimesToFire"),
+                    TargetType = connection.GetEnumValue<EntityIOTargetType>("m_targetType"),
+                }).ToList();
             }
 
             return entity;
@@ -292,17 +377,17 @@ namespace ValveResourceFormat.ResourceTypes
                     foreach (var connection in entity.Connections)
                     {
                         builder.Append('@');
-                        builder.Append(connection.GetStringProperty("m_outputName"));
+                        builder.Append(connection.OutputName);
                         builder.Append(' ');
 
-                        var delay = connection.GetFloatProperty("m_flDelay");
+                        var delay = connection.Delay;
 
                         if (delay > 0)
                         {
                             builder.Append(CultureInfo.InvariantCulture, $"Delay={delay} ");
                         }
 
-                        var timesToFire = connection.GetInt32Property("m_nTimesToFire");
+                        var timesToFire = connection.TimesToFire;
 
                         switch (timesToFire)
                         {
@@ -314,11 +399,11 @@ namespace ValveResourceFormat.ResourceTypes
                                 break;
                         }
 
-                        builder.Append(connection.GetStringProperty("m_inputName"));
+                        builder.Append(connection.InputName);
                         builder.Append(' ');
-                        builder.Append(connection.GetStringProperty("m_targetName"));
+                        builder.Append(connection.TargetName);
 
-                        var param = connection.GetStringProperty("m_overrideParam");
+                        var param = connection.OverrideParam;
 
                         if (!string.IsNullOrEmpty(param) && param != "(null)")
                         {
@@ -403,7 +488,7 @@ namespace ValveResourceFormat.ResourceTypes
 
                     foreach (var connection in entity.Connections)
                     {
-                        var outputName = connection.GetStringProperty("m_outputName");
+                        var outputName = connection.OutputName;
 
                         entityConnections.Add(outputName);
                     }
@@ -492,6 +577,28 @@ namespace ValveResourceFormat.ResourceTypes
             }
 
             return valueStr.Trim();
+        }
+
+        /// <summary>
+        /// Return a string without [PR#] prefix.
+        /// </summary>
+        /// <param name="value">Entity targetname.</param>
+        /// <returns>Friendly targetname.</returns>
+        public static string RemoveTargetnamePrefix(string? value)
+        {
+            if (string.IsNullOrEmpty(value))
+            {
+                return string.Empty;
+            }
+
+            const string Prefix = "[PR#]";
+
+            if (!value.StartsWith(Prefix, StringComparison.Ordinal))
+            {
+                return value;
+            }
+
+            return value[Prefix.Length..];
         }
     }
 }

@@ -704,6 +704,7 @@ namespace GUI.Types.GLViewers
                 entityInfoForm = new EntityInfoForm(GuiContext);
                 entityInfoForm.Show();
                 entityInfoForm.EntityInfoControl.OutputsGrid.CellDoubleClick += OnEntityInfoOutputsCellDoubleClick;
+                entityInfoForm.EntityInfoControl.InputsGrid.CellDoubleClick += OnEntityInfoInputsCellDoubleClick;
                 entityInfoForm.EntityInfoControl.Disposed += OnEntityInfoFormDisposed;
             }
 
@@ -789,7 +790,7 @@ namespace GUI.Types.GLViewers
                 entityInfoForm.Text += " (in 3D skybox)";
             }
 
-            entityInfoForm.EntityInfoControl.ShowOutputsTabIfAnyData();
+            entityInfoForm.EntityInfoControl.ShowPopulatedTabs();
             entityInfoForm.EntityInfoControl.Show();
         }
 
@@ -828,6 +829,39 @@ namespace GUI.Types.GLViewers
             ShowSceneNodeDetails(node);
         }
 
+        private void OnEntityInfoInputsCellDoubleClick(object? sender, DataGridViewCellEventArgs e)
+        {
+            if (entityInfoForm == null)
+            {
+                return;
+            }
+
+            if (e.ColumnIndex != 0 || e.RowIndex < 0)
+            {
+                return;
+            }
+
+            if (entityInfoForm.EntityInfoControl.InputsGrid.Rows[e.RowIndex].Tag is not EntityLump.Entity sourceEntity)
+            {
+                return;
+            }
+
+            var node = Scene.Find(sourceEntity);
+
+            if (node == null && SkyboxScene != null)
+            {
+                node = SkyboxScene.Find(sourceEntity);
+            }
+
+            if (node == null)
+            {
+                return;
+            }
+
+            SelectAndFocusNode(node);
+            ShowSceneNodeDetails(node);
+        }
+
         private void OnEntityInfoFormDisposed(object? sender, EventArgs e)
         {
             if (entityInfoForm == null)
@@ -836,6 +870,7 @@ namespace GUI.Types.GLViewers
             }
 
             entityInfoForm.EntityInfoControl.OutputsGrid.CellDoubleClick -= OnEntityInfoOutputsCellDoubleClick;
+            entityInfoForm.EntityInfoControl.InputsGrid.CellDoubleClick -= OnEntityInfoInputsCellDoubleClick;
             entityInfoForm.EntityInfoControl.Disposed -= OnEntityInfoFormDisposed;
             entityInfoForm = null;
         }
@@ -993,10 +1028,20 @@ namespace GUI.Types.GLViewers
             Debug.Assert(entityInfoForm != null);
             Debug.Assert(sceneNode.EntityData != null);
 
-            entityInfoForm.EntityInfoControl.PopulateFromEntity(sceneNode.EntityData);
+            if (LoadedWorld is null)
+            {
+                entityInfoForm.EntityInfoControl.PopulateFromEntity(sceneNode.EntityData);
+            }
+            else
+            {
+                entityInfoForm.EntityInfoControl.PopulateFromEntity(LoadedWorld.Entities, sceneNode.EntityData);
+            }
 
             var classname = sceneNode.EntityData.GetStringProperty("classname");
-            entityInfoForm.Text = $"Entity: {classname}";
+            var targetName = sceneNode.EntityData.FriendlyTargetName;
+            entityInfoForm.Text = string.IsNullOrEmpty(targetName)
+                ? $"Entity: {classname}"
+                : $"Entity: {classname} ({targetName})";
         }
 
         private void SetAvailableLayers(IEnumerable<string> worldLayers)

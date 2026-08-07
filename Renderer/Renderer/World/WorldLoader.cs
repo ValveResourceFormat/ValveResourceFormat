@@ -248,7 +248,7 @@ namespace ValveResourceFormat.Renderer.World
 
             foreach (var model in scene.AllNodes.OfType<ModelSceneNode>())
             {
-                var targetName = model.EntityData?.GetStringProperty("targetname");
+                var targetName = model.EntityData?.TargetName;
 
                 if (targetName != null)
                 {
@@ -974,12 +974,12 @@ namespace ValveResourceFormat.Renderer.World
                         else
                         {
                             RendererContext.Logger.LogWarning("Skipped degenerate path_particle_rope '{Target}' at ({Origin})",
-                                entity.GetStringProperty("targetname"), entity.GetStringProperty("origin"));
+                                entity.TargetName, entity.GetStringProperty("origin"));
                         }
                     }
                     catch (Exception e)
                     {
-                        RendererContext.Logger.LogError(e, "Failed to setup path_particle_rope '{Target}'", entity.GetStringProperty("targetname"));
+                        RendererContext.Logger.LogError(e, "Failed to setup path_particle_rope '{Target}'", entity.TargetName);
                     }
 
                     // A degenerate or failed cable renders nothing. Never fall through to the
@@ -1099,7 +1099,7 @@ namespace ValveResourceFormat.Renderer.World
 
                 if (IsCamera(classname))
                 {
-                    var cameraName = entity.GetStringProperty("cameraname") ?? entity.GetStringProperty("targetname") ?? classname;
+                    var cameraName = entity.GetStringProperty("cameraname") ?? entity.TargetName ?? classname;
                     CameraNames.Add(cameraName);
                     CameraMatrices.Add(transformationMatrix);
                 }
@@ -1627,7 +1627,7 @@ namespace ValveResourceFormat.Renderer.World
 
             foreach (var connectionData in entity.Connections)
             {
-                var targetType = connectionData.GetEnumValue<EntityIOTargetType>("m_targetType");
+                var targetType = connectionData.TargetType;
 
                 if (targetType != EntityIOTargetType.EntityNameOrClassName)
                 {
@@ -1635,7 +1635,7 @@ namespace ValveResourceFormat.Renderer.World
                     continue;
                 }
 
-                var targetName = connectionData.GetStringProperty("m_targetName");
+                var targetName = connectionData.TargetName;
                 var endEntity = FindEntityByKeyValue("targetname", targetName);
 
                 if (endEntity == null)

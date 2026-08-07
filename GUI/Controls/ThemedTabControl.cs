@@ -10,21 +10,27 @@ namespace GUI.Controls
 {
     public class ThemedTabControl : TabControl
     {
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
         [Description("Back color for selected Tab"), Category("Appearance")]
         public Color SelectTabColor { get; set; } = SystemColors.ControlLight;
 
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
         [Description("Fore Color for Selected Tab"), Category("Appearance")]
         public Color SelectedForeColor { get; set; } = SystemColors.HighlightText;
 
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
         [Description("Background color for the whole control"), Category("Appearance"), Browsable(true)]
         public override Color BackColor { get; set; } = SystemColors.Control;
 
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
         [Description("Fore Color for all Texts"), Category("Appearance")]
         public override Color ForeColor { get; set; } = SystemColors.ControlText;
 
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
         [Description("Hover Color for the tab"), Category("Appearance")]
         public Color HoverColor { get; set; } = SystemColors.Highlight;
 
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
         [Description("Accent Color for the tab"), Category("Appearance")]
         public Color AccentColor { get; set; } = SystemColors.ActiveBorder;
 
