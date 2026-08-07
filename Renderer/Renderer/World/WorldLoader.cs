@@ -45,6 +45,34 @@ namespace ValveResourceFormat.Renderer.World
         /// <summary>Transform matrices corresponding to each entry in <see cref="CameraNames"/>.</summary>
         public List<Matrix4x4> CameraMatrices { get; } = [];
 
+        /// <summary>
+        /// Camera transform for the best spawn marker entity found, per <see cref="SpawnCameraClasses"/>
+        /// priority, with eye height already applied to ground markers.
+        /// </summary>
+        public Matrix4x4? SpawnCameraMatrix { get; private set; }
+
+        /// <summary>
+        /// Spawn marker classnames in priority order; earlier entries win regardless of entity order.
+        /// team_select and T/CT spawns are CS2, info_team_spawn is Deadlock, goodguys/badguys are
+        /// Dota 2, then the generic player start, then the camera entities as last resorts.
+        /// </summary>
+        private static readonly string[] SpawnCameraClasses =
+        [
+            "team_select",
+            "info_player_terrorist",
+            "info_player_counterterrorist",
+            "info_team_spawn",
+            "info_player_start_goodguys",
+            "info_player_start_badguys",
+            "info_player_start",
+            "point_camera",
+            "point_camera_vertical_fov",
+            "point_devshot_camera",
+        ];
+
+        private const float PlayerEyeHeight = 64f;
+        private int spawnCameraPriority = int.MaxValue;
+
         /// <summary>The 3D skybox scene, if one was found during entity loading.</summary>
         public Scene? SkyboxScene { get; set; }
         /// <summary>The 2D skybox, if one was found during entity loading.</summary>
@@ -1102,6 +1130,29 @@ namespace ValveResourceFormat.Renderer.World
                     var cameraName = entity.GetStringProperty("cameraname") ?? entity.GetStringProperty("targetname") ?? classname;
                     CameraNames.Add(cameraName);
                     CameraMatrices.Add(transformationMatrix);
+                }
+
+                var spawnPriority = Array.IndexOf(SpawnCameraClasses, classname) * 2;
+                if (spawnPriority >= 0)
+                {
+                    // HLA maps can have several info_player_start entities; spawnflag 1 marks the active one.
+                    if (classname == "info_player_start" && (entity.GetUInt32Property("spawnflags") & 1) != 0)
+                    {
+                        spawnPriority--;
+                    }
+
+                    if (spawnPriority < spawnCameraPriority)
+                    {
+                        var spawnMatrix = transformationMatrix;
+
+                        if (!IsCamera(classname))
+                        {
+                            spawnMatrix.Translation += new Vector3(0, 0, PlayerEyeHeight);
+                        }
+
+                        spawnCameraPriority = spawnPriority;
+                        SpawnCameraMatrix = spawnMatrix;
+                    }
                 }
 
                 if (classname == "post_processing_volume")

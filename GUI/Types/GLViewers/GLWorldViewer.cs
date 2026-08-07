@@ -212,8 +212,11 @@ namespace GUI.Types.GLViewers
                 if (LoadedWorld.CameraMatrices.Count > 0)
                 {
                     CameraMatrices = LoadedWorld.CameraMatrices;
+                }
 
-                    Input.Camera.SetFromTransformMatrix(CameraMatrices[0]);
+                if (LoadedWorld.SpawnCameraMatrix is { } spawn)
+                {
+                    Input.Camera.SetFromTransformMatrix(spawn);
                     cameraSet = true;
                 }
 
