@@ -411,28 +411,11 @@ namespace ValveResourceFormat.ResourceTypes
                     return SequenceAnimation.FromSequenceData(
                         sequenceDataBlock.Data,
                         animationDataBlock.Data,
-                        decodeKey,
-                        Skeleton,
-                        FlexControllers);
+                        decodeKey);
                 }
             }
 
-            return SequenceAnimation.FromData(animationDataBlock.Data, decodeKey, Skeleton, FlexControllers);
-        }
-
-        /// <summary>
-        /// Get the embedded animations with a different skeleton as animation target.
-        /// </summary>
-        /// <returns></returns>
-        public static IEnumerable<Animation> GetEmbeddedAnimationsWithSkeleton(IFileLoader fileLoader, Skeleton skeleton, Model model)
-        {
-            var old = model.cachedSkeleton;
-
-            model.cachedSkeleton = skeleton;
-            var anims = model.GetAllAnimations(fileLoader);
-
-            model.cachedSkeleton = old;
-            return anims;
+            return SequenceAnimation.FromData(animationDataBlock.Data, decodeKey);
         }
 
         /// <summary>
@@ -462,8 +445,7 @@ namespace ValveResourceFormat.ResourceTypes
                     continue;
                 }
 
-                var anims = GetEmbeddedAnimationsWithSkeleton(fileLoader, Skeleton, model);
-                allAnims.AddRange(anims);
+                allAnims.AddRange(model.GetAllAnimations(fileLoader));
             }
 
             return allAnims;
@@ -490,7 +472,7 @@ namespace ValveResourceFormat.ResourceTypes
                 using var animGroup = fileLoader.LoadFileCompiled(animGroupPath);
                 if (animGroup != default)
                 {
-                    animations.AddRange(AnimationGroupLoader.LoadAnimationGroup(animGroup, fileLoader, Skeleton, FlexControllers));
+                    animations.AddRange(AnimationGroupLoader.LoadAnimationGroup(animGroup, fileLoader));
                 }
             }
 
@@ -543,6 +525,7 @@ namespace ValveResourceFormat.ResourceTypes
                 var sequenceName = animation.Name.StartsWith('@') ? animation.Name[1..] : animation.Name;
 
                 sequenceAnimation.IsAdditive |= additiveSequences.Contains(sequenceName);
+                sequenceAnimation.EnsureBinding(Skeleton, FlexControllers);
             }
 
             CachedAnimations = animations;

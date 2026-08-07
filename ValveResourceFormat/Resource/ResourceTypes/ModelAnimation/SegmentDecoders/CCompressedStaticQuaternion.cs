@@ -9,18 +9,20 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation.SegmentDecoders
         /// <remarks>
         /// Reads static compressed quaternion values that remain constant across all frames.
         /// </remarks>
-        public override void Read(int frameIndex, Frame outFrame)
+        public override void Read(int frameIndex, Frame outFrame, ReadOnlySpan<ElementRemap> remaps)
         {
-            for (var i = 0; i < RemapTable.Length; i++)
+            var data = Data.Span;
+
+            foreach (var remap in remaps)
             {
-                var compressedQuaternionBytes = Data.Slice(
-                    WantedElements[i] * SegmentHelpers.CompressedQuaternionSize,
+                var compressedQuaternionBytes = data.Slice(
+                    remap.Source * SegmentHelpers.CompressedQuaternionSize,
                     SegmentHelpers.CompressedQuaternionSize
                 );
 
                 var quaternion = SegmentHelpers.ReadQuaternion(compressedQuaternionBytes);
 
-                outFrame.SetAttribute(RemapTable[i], ChannelAttribute, quaternion);
+                outFrame.SetAttribute(remap.Dest, ChannelAttribute, quaternion);
             }
         }
     }

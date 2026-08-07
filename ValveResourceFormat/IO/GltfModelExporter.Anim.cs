@@ -20,8 +20,8 @@ public partial class GltfModelExporter
     public class AnimationWriter
     {
         Skeleton Skeleton { get; init; }
-        Frame Frame { get; init; }
         FlexController[] FlexControllers { get; init; }
+        Frame Frame { get; init; }
         int BoneCount => Frame.Bones.Length;
 
         AnimationChannelWriter<Quaternion> RotationWriter;
@@ -43,8 +43,8 @@ public partial class GltfModelExporter
         public AnimationWriter(Skeleton skeleton, FlexController[] flexControllers)
         {
             Skeleton = skeleton;
-            Frame = new(skeleton, flexControllers);
             FlexControllers = flexControllers;
+            Frame = new(skeleton, flexControllers);
 
             RotationWriter = AnimationChannelWriter<Quaternion>.Create(BoneCount);
             PositionWriter = AnimationChannelWriter<Vector3>.Create(BoneCount);

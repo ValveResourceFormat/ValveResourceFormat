@@ -28,10 +28,22 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
         public AnimationMovement.MovementData Movement { get; set; }
 
         /// <summary>
+        /// Gets the skeleton this frame is shaped for.
+        /// </summary>
+        public Skeleton Skeleton { get; }
+
+        /// <summary>
+        /// Gets the flex controllers this frame is shaped for.
+        /// </summary>
+        public FlexController[] FlexControllers { get; }
+
+        /// <summary>
         /// Initializes a new instance of the <see cref="Frame"/> class.
         /// </summary>
         public Frame(Skeleton skeleton, FlexController[] flexControllers)
         {
+            Skeleton = skeleton;
+            FlexControllers = flexControllers;
             Bones = new FrameBone[skeleton.Bones.Length];
             Datas = new float[flexControllers.Length];
             Clear(skeleton);

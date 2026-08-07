@@ -16,10 +16,8 @@ namespace ValveResourceFormat.IO
         /// </summary>
         /// <param name="resource">The animation group resource to load from.</param>
         /// <param name="fileLoader">File loader for loading external animation files.</param>
-        /// <param name="skeleton">The skeleton to apply animations to.</param>
-        /// <param name="flexControllers">Flex controllers for facial animations.</param>
         /// <returns>Collection of loaded animations.</returns>
-        public static IEnumerable<SequenceAnimation> LoadAnimationGroup(Resource resource, IFileLoader fileLoader, Skeleton skeleton, FlexController[] flexControllers)
+        public static IEnumerable<SequenceAnimation> LoadAnimationGroup(Resource resource, IFileLoader fileLoader)
         {
             var dataBlock = resource.DataBlock;
 
@@ -38,7 +36,7 @@ namespace ValveResourceFormat.IO
 
             if (animBlock != null)
             {
-                animationList.AddRange(SequenceAnimation.FromData(animBlock.Data, decodeKey, skeleton, flexControllers));
+                animationList.AddRange(SequenceAnimation.FromData(animBlock.Data, decodeKey));
                 return animationList;
             }
 
@@ -53,7 +51,7 @@ namespace ValveResourceFormat.IO
                 if (animResource != null)
                 {
                     // Build animation classes
-                    animationList.AddRange(SequenceAnimation.FromResource(animResource, decodeKey, skeleton, flexControllers));
+                    animationList.AddRange(SequenceAnimation.FromResource(animResource, decodeKey));
                 }
             }
 

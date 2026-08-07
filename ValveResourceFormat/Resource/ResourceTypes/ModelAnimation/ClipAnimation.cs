@@ -22,7 +22,6 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
             // NumFrames samples span Duration, so the frame rate counts the intervals between them.
             Fps = clip.Duration > 0 && clip.NumFrames > 1 ? (clip.NumFrames - 1) / clip.Duration : 1;
             IsAdditive = clip.IsAdditive;
-            TargetSkeletonName = clip.SkeletonName;
 
             Clip = clip;
         }
@@ -38,6 +37,9 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
         /// Consumers filter for the event types they are interested in (e.g. <see cref="NmSoundEvent"/>).
         /// </summary>
         public NmClipEvent[] Events => Clip.Events;
+
+        /// <inheritdoc/>
+        public override string TargetSkeletonName => Clip.SkeletonName;
 
         /// <summary>
         /// A decoded clip bone is already the delta: clips store one for every bone, un-animated ones
