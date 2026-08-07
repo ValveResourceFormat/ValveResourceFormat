@@ -129,9 +129,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation2
                 {
                     var (position, _, rotation) = rootTransforms[t].ToTransform();
 
-                    var yaw = float.RadiansToDegrees(MathF.Atan2(
-                        2f * (rotation.W * rotation.Z + rotation.X * rotation.Y),
-                        1f - 2f * (rotation.Y * rotation.Y + rotation.Z * rotation.Z)));
+                    var yaw = EntityTransformHelper.ToEulerAngles(rotation).Y;
                     yaw += 360f * MathF.Round((previousYaw - yaw) / 360f);
                     previousYaw = yaw;
 

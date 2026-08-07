@@ -637,10 +637,8 @@ namespace ValveResourceFormat.IO
 
             void ExportAnimationClip(VAnimationClip clip)
             {
-                var skeletonResource = FileLoader.LoadFileCompiled(clip.SkeletonName)
-                ?? throw new InvalidOperationException($"Unable to load skeleton data '{clip.SkeletonName}'.");
-
-                var skeletonData = Skeleton.FromSkeletonData(((BinaryKV3)skeletonResource.DataBlock!).Data);
+                var skeletonData = Skeleton.FromSkeletonResource(FileLoader, clip.SkeletonName)
+                    ?? throw new InvalidOperationException($"Unable to load skeleton data '{clip.SkeletonName}'.");
 
                 var (skeletonNode, joints) = CreateGltfSkeleton(scene, skeletonData, clip.SkeletonName);
                 if (skeletonNode == null || joints == null)

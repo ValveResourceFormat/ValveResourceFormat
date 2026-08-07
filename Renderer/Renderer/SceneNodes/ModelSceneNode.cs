@@ -111,14 +111,10 @@ namespace ValveResourceFormat.Renderer.SceneNodes
             {
                 foreach (var skeletonName in nmSkelRefs)
                 {
-                    var resource = Scene.RendererContext.FileLoader.LoadFileCompiled(skeletonName);
-                    if (resource?.DataBlock is not BinaryKV3 skeletonData)
+                    if (Skeleton.FromSkeletonResource(Scene.RendererContext.FileLoader, skeletonName) is { } skeleton)
                     {
-                        continue;
+                        AnimationController.RegisterExternalSkeleton(skeletonName, skeleton);
                     }
-
-                    var skeleton = Skeleton.FromSkeletonData(skeletonData.Data);
-                    AnimationController.RegisterExternalSkeleton(skeletonName, skeleton);
                 }
             }
 
