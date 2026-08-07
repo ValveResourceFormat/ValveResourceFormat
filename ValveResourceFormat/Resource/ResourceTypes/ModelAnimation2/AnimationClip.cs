@@ -159,17 +159,20 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation2
                     var rangeLength = range.GetFloatProperty("m_flRangeLength");
 
                     var values = new float[NumFrames];
+                    Array.Fill(values, rangeStart);
 
-                    if (def.GetBooleanProperty("m_bIsStatic"))
+                    if (!def.GetBooleanProperty("m_bIsStatic"))
                     {
-                        Array.Fill(values, rangeStart);
-                    }
-                    else
-                    {
-                        for (var f = 0; f < NumFrames; f++)
+                        var decodableFrames = Math.Min(NumFrames, curveOffsets.Length);
+                        for (var f = 0; f < decodableFrames; f++)
                         {
-                            var raw = (ushort)curveData[curveOffsets[f] + dynamicRank];
-                            values[f] = DecodeFloat(raw, rangeStart, rangeLength);
+                            var sampleIndex = curveOffsets[f] + dynamicRank;
+                            if (sampleIndex < 0 || sampleIndex >= curveData.Length)
+                            {
+                                continue;
+                            }
+
+                            values[f] = DecodeFloat((ushort)curveData[sampleIndex], rangeStart, rangeLength);
                         }
 
                         dynamicRank++;
