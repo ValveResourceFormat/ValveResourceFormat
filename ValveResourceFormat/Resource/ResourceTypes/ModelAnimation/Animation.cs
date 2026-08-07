@@ -23,7 +23,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
         /// <summary>
         /// Gets the duration of the animation in seconds, which is also the period looping playback wraps around.
         /// </summary>
-        public virtual float Duration => Fps > 0f ? FrameCount / Fps : 0f;
+        public virtual float Duration => CycleDuration;
 
         /// <summary>
         /// Gets the number of frame intervals one playback cycle spans. Looping wraps over the intervals

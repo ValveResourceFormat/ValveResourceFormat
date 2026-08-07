@@ -532,7 +532,8 @@ namespace GUI.Types.GLViewers
                 var frameCount = activeAnimation.FrameCount;
                 var fps = activeAnimation.Fps;
                 var totalTime = activeAnimation.Duration;
-                var time = totalTime > 0f ? animationController.Time % totalTime : 0f;
+                var (cycle, _, _) = activeAnimation.GetCyclePosition(animationController.Time);
+                var time = animationController.Time - cycle * totalTime;
                 var frameNumber = animationController.Frame + 1;
 
                 animationTimeLabel.Text = $"Frame: {frameNumber,4} / {frameCount}\n" +
