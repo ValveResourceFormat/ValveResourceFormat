@@ -29,7 +29,7 @@ void ApplyGradientFog(inout vec3 pixelColor, vec3 positionWS, vec3 cameraCentere
 
 // ExposureBias is actually a separate param, but Z is unused and exposurebias stupidly only uses x
 
-uniform layout(binding = 2) samplerCube g_tFogCubeTexture; // ReservedTextureSlots.FogCubeTexture, bound globally by the scene
+uniform samplerCube g_tFogCubeTexture; // reserved
 
 void ApplyCubemapFog(inout vec3 pixelColor, vec3 positionWS, vec3 posRelativeToCamera)
 {
@@ -58,7 +58,7 @@ uniform vec4 g_vVolFogPostWorldToFrustumScale;
 uniform vec4 g_vVolFogPostWorldToFrustumBias;
 uniform mat4 g_mVolFogFromWorld; // original code is an array of length 2, and the code uses address [1]
 uniform sampler3D g_tFogVolume;
-uniform sampler2D g_tBlueNoise;
+uniform sampler2D g_tBlueNoise; // reserved
 
 void ApplyVolumetricFog( inout vec3 PixelColor, vec3 positionWS )
 {

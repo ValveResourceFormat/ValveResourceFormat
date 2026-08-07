@@ -31,8 +31,13 @@
     <EmbeddedResource Include="Resources\**" />
   </ItemGroup>
 
+  <ItemGroup Condition="'$(Configuration)' == 'Debug'">
+    <AssemblyMetadata Include="ShaderSourceDirectory" Value="$(MSBuildProjectDirectory)\Shaders" />
+  </ItemGroup>
+
   <ItemGroup>
-    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.8" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.10" />
+    <PackageReference Include="NLayer" Version="2.0.1" />
     <PackageReference Include="OpenTK.Graphics" Version="4.9.4" />
   </ItemGroup>
 

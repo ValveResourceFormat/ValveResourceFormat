@@ -70,7 +70,7 @@ public partial class GltfModelExporter
             // apply a vertical movement track to the body.
             var applyRootMotion = animation.HasMovementData();
 
-            // No cloth solver here, so mirror the renderer (BaseAnimationController.GetSkinningMatrices):
+            // No cloth solver here, so mirror the renderer (AnimationController.GetSkinningMatrices):
             // pin each cloth root to the cloth anchor bone instead of writing its raw, solver-less clip data.
             var clothAnchor = Skeleton.ClothSimulationRoot;
             var anchorInverseBindPose = Matrix4x4.Identity;
@@ -89,7 +89,7 @@ public partial class GltfModelExporter
             }
 
             // bake additive clips over the bind pose, same as the renderer
-            var additive = animation.Clip?.IsAdditive ?? false;
+            var additive = animation.IsAdditive;
 
             for (var f = 0; f < animation.FrameCount; f++)
             {
@@ -262,7 +262,7 @@ public partial class GltfModelExporter
 
             if (retarget != null)
             {
-                retarget.Value.Writer.WriteAnimation(exportedModel, retarget.Value.Joints, new VAnim(clip), animationName);
+                retarget.Value.Writer.WriteAnimation(exportedModel, retarget.Value.Joints, new ClipAnimation(clip), animationName);
                 writtenNames.Add(animationName);
             }
         }

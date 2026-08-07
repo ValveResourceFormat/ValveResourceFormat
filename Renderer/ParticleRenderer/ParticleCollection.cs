@@ -26,7 +26,7 @@ namespace ValveResourceFormat.Renderer.Particles
         public int Count { get; private set; }
 
         /// <summary>
-        /// Duration of the previous simulation step. BasicMovement scales the Verlet inertia
+        /// Duration of the previous simulation step. <see cref="Operators.BasicMovement"/> scales the Verlet inertia
         /// term by the current-to-previous step ratio so momentum stays framerate-independent; 0 until
         /// the first step completes.
         /// </summary>

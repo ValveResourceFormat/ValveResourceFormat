@@ -21,6 +21,20 @@ namespace ValveResourceFormat.Renderer.Particles
         /// </summary>
         public SceneNode? OwnerNode => Data?.OwnerNode ?? ParentSystem?.OwnerNode;
 
+        private float worldTime;
+
+        /// <summary>
+        /// The renderer's clock, in seconds, as fed to the shaders' <c>g_flTime</c>. Unlike
+        /// <see cref="Age"/> it is shared by every system and survives a restart, so operators that use
+        /// it to decorrelate repeat plays of an effect actually get a different sample each time. Child
+        /// systems read the root's value.
+        /// </summary>
+        public float WorldTime
+        {
+            get => ParentSystem?.WorldTime ?? worldTime;
+            set => worldTime = value;
+        }
+
         private int detailLevel = 3;
 
         /// <summary>
@@ -40,25 +54,57 @@ namespace ValveResourceFormat.Renderer.Particles
         public bool EndEarly { get; set; }
 
         public bool DestroyInstantlyOnEnd { get; private set; }
+
+        /// <summary>
+        /// Whether reaching <see cref="Duration"/> replays the system rather than ending it.
+        /// </summary>
+        public bool RestartOnEnd { get; private set; }
+
         public float Duration { get; private set; }
 
         // We don't yet support endcaps (effects that play for when a particle system ends), but if we ever do:
         // This can be set by PlayEndCapWhenFinished and StopAfterDuration
         public bool PlayEndCap { get; private set; }
 
+        /// <summary>
+        /// Ends the system after <paramref name="duration"/>: emission stops, and with
+        /// <paramref name="destroyInstantly"/> the particles still alive are dropped instead of being
+        /// left to finish their lifetimes.
+        /// </summary>
         public void SetStopTime(float duration, bool destroyInstantly)
         {
             EndEarly = true;
             Duration = duration;
             DestroyInstantlyOnEnd = destroyInstantly;
+            RestartOnEnd = false;
+        }
+
+        /// <summary>
+        /// Replays the system from the beginning after <paramref name="duration"/>.
+        /// </summary>
+        public void SetRestartTime(float duration)
+        {
+            EndEarly = true;
+            Duration = duration;
+            DestroyInstantlyOnEnd = false;
+            RestartOnEnd = true;
         }
 
         // Control Points
 
         private readonly Dictionary<int, ControlPoint> controlPoints = new(64);
 
+        // Control points this system holds in its own right rather than reading from its parent. Only
+        // C_OP_SetParentControlPointsToChildCP creates them, so it stays null for almost every system.
+        private Dictionary<int, ControlPoint>? controlPointOverrides;
+
         public ControlPoint GetControlPoint(int cp)
         {
+            if (controlPointOverrides != null && controlPointOverrides.TryGetValue(cp, out var overridden))
+            {
+                return overridden;
+            }
+
             if (ParentSystem != null)
             {
                 return ParentSystem.GetControlPoint(cp);
@@ -109,15 +155,61 @@ namespace ValveResourceFormat.Renderer.Particles
         }
 
         /// <summary>
-        /// Records every control point's current position as its previous-step position. The root
-        /// system calls this once per simulation step, after all consumers have run.
+        /// Records every control point's current position and orientation as its previous-step state,
+        /// along with the real time the move took. The root system calls this once per frame, after all
+        /// consumers (including children, which share its control points) have run.
         /// </summary>
-        internal void SnapshotControlPointHistory()
+        /// <param name="elapsed">Real time covered since the previous snapshot, in seconds.</param>
+        internal void SnapshotControlPointHistory(float elapsed)
         {
             foreach (var point in controlPoints.Values)
             {
-                point.PositionPrevious = point.Position;
+                RecordStep(point, elapsed);
             }
+        }
+
+        /// <summary>
+        /// Records the previous-step state of the control points this system overrides, which the root's
+        /// own snapshot does not reach.
+        /// </summary>
+        /// <param name="elapsed">Real time covered since the previous snapshot, in seconds.</param>
+        internal void SnapshotControlPointOverrideHistory(float elapsed)
+        {
+            if (controlPointOverrides == null)
+            {
+                return;
+            }
+
+            foreach (var point in controlPointOverrides.Values)
+            {
+                RecordStep(point, elapsed);
+            }
+        }
+
+        private static void RecordStep(ControlPoint point, float elapsed)
+        {
+            point.PositionPrevious = point.Position;
+            point.OrientationPrevious = point.Orientation;
+            point.RotationPrevious = point.Rotation;
+            point.PreviousStepTime = elapsed;
+        }
+
+        /// <summary>
+        /// Gives this system its own control point at <paramref name="cp"/>, shadowing the one it would
+        /// otherwise read from its parent, and returns it.
+        /// </summary>
+        /// <param name="cp">Control point index.</param>
+        internal ControlPoint OverrideControlPoint(int cp)
+        {
+            controlPointOverrides ??= [];
+
+            if (!controlPointOverrides.TryGetValue(cp, out var point))
+            {
+                point = new ControlPoint();
+                controlPointOverrides.Add(cp, point);
+            }
+
+            return point;
         }
 
         /// <summary>
@@ -147,7 +239,7 @@ namespace ValveResourceFormat.Renderer.Particles
         }
 
         /// <summary>
-        /// Return a random float in the range [flLow, flHigh). The distribution is uniform.
+        /// Return a random float in the range [<paramref name="flLow"/>, <paramref name="flHigh"/>). The distribution is uniform.
         /// </summary>
         internal static float RandomFloat(float flLow, float flHigh)
         {
@@ -174,16 +266,36 @@ namespace ValveResourceFormat.Renderer.Particles
         public Vector3 PositionPrevious { get; set; }
 
         /// <summary>
-        /// The control point's velocity over the current simulation step in units per second, derived
-        /// from <see cref="PositionPrevious"/>. Zero when the step duration is unknown.
+        /// Real time the move recorded in <see cref="PositionPrevious"/> took, in seconds.
         /// </summary>
-        public Vector3 GetVelocity(float frameTime)
-            => frameTime > 0f ? (Position - PositionPrevious) / frameTime : Vector3.Zero;
+        public float PreviousStepTime { get; internal set; }
+
+        /// <summary>
+        /// How far the control point moved over the last recorded step.
+        /// </summary>
+        public Vector3 StepDelta => Position - PositionPrevious;
+
+        /// <summary>
+        /// The control point's velocity in units per second, derived from <see cref="PositionPrevious"/>
+        /// over the real time that move took. Zero until a step has been recorded.
+        /// </summary>
+        /// <remarks>
+        /// The move is timed by the root system's frame, not by the simulation step of whichever system
+        /// is asking - a child running finer substeps would otherwise divide a whole frame of movement by
+        /// a fraction of it and read a velocity several times too high.
+        /// </remarks>
+        public Vector3 Velocity
+            => PreviousStepTime > 0f ? StepDelta / PreviousStepTime : Vector3.Zero;
 
         /// <summary>
         /// The orientation/direction of this control point.
         /// </summary>
         public Vector3 Orientation { get; set; }
+
+        /// <summary>
+        /// The orientation this control point had on the previous simulation step.
+        /// </summary>
+        public Vector3 OrientationPrevious { get; internal set; }
 
         /// <summary>
         /// The full rotation of this control point, when the source supplies one (e.g. a map entity's
@@ -193,22 +305,35 @@ namespace ValveResourceFormat.Renderer.Particles
         public Quaternion? Rotation { get; set; }
 
         /// <summary>
+        /// The full rotation this control point had on the previous simulation step, when one was recorded.
+        /// </summary>
+        public Quaternion? RotationPrevious { get; internal set; }
+
+        /// <summary>
         /// The control point's full rotation, using <see cref="Rotation"/> when present and otherwise
         /// synthesizing a frame from the forward <see cref="Orientation"/> direction.
         /// </summary>
-        public Quaternion GetRotation()
+        public Quaternion GetRotation() => SynthesizeRotation(Rotation, Orientation);
+
+        /// <summary>
+        /// The control point's full rotation on the previous simulation step, derived the same way as
+        /// <see cref="GetRotation"/>.
+        /// </summary>
+        public Quaternion GetPreviousRotation() => SynthesizeRotation(RotationPrevious, OrientationPrevious);
+
+        private static Quaternion SynthesizeRotation(Quaternion? rotation, Vector3 orientation)
         {
-            if (Rotation is { } rotation)
+            if (rotation is { } fullRotation)
             {
-                return rotation;
+                return fullRotation;
             }
 
-            if (Orientation == Vector3.Zero)
+            if (orientation == Vector3.Zero)
             {
                 return Quaternion.Identity;
             }
 
-            var forward = Vector3.Normalize(Orientation);
+            var forward = Vector3.Normalize(orientation);
             var up = MathF.Abs(forward.Y) < 0.999f ? Vector3.UnitY : Vector3.UnitZ;
             var right = Vector3.Normalize(Vector3.Cross(up, forward));
             up = Vector3.Cross(forward, right);

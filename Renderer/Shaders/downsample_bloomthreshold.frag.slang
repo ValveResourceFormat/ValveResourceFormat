@@ -1,8 +1,8 @@
 #version 460
 
-uniform float bloomScale;
+uniform float g_flBloomScale;
 uniform float g_flToneMapScalarLinear;
-uniform vec2 thresholdParams;
+uniform vec2 g_flThresholdParams;
 
 layout(binding = 0) uniform sampler2D inputTexture;
 layout(location = 0) out vec4 outputColor;
@@ -27,7 +27,7 @@ vec3 KarisAverage(vec3 a, vec3 b, vec3 c, vec3 d) {
 
 vec3 ApplyThreshold(vec3 color) {
     float luminance = CalculateLuminance(color);
-    float thresholdFactor = g_flToneMapScalarLinear * luminance * thresholdParams.y + thresholdParams.x;
+    float thresholdFactor = g_flToneMapScalarLinear * luminance * g_flThresholdParams.y + g_flThresholdParams.x;
     float thresholdWeight = clamp(thresholdFactor, 0.0, 1.0);
     return color * thresholdWeight;
 }
@@ -65,7 +65,7 @@ void main() {
 
     vec4 downsampledColor = DownsampleJimenez(uv);
     vec3 thresholdedColor = ApplyThreshold(downsampledColor.rgb);
-    vec3 bloomColor = thresholdedColor * bloomScale * g_flToneMapScalarLinear;
+    vec3 bloomColor = thresholdedColor * g_flBloomScale * g_flToneMapScalarLinear;
 
     outputColor = vec4(bloomColor, 1.0);
 }

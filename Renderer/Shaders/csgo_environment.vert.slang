@@ -23,10 +23,8 @@ in vec2 vTEXCOORD1;
     out vec3 vPerVertexLightingOut;
 #endif
 
-#if (GameVfx_csgo_environment_blend != 0)
-    in vec4 vTEXCOORD4;
-    out vec4 vColorBlendValues;
-#endif
+in vec4 vTEXCOORD4; // default should be (0, 0, 0, 1)
+out vec4 vColorBlendValues;
 
 
 out vec3 vFragPosition;
@@ -138,26 +136,18 @@ void main()
 {
     ObjectData_t object = GetObjectData();
 
-    mat4 skinTransform = object.transform * getSkinMatrix();
-    vec4 fragPosition = skinTransform * vec4(vPOSITION, 1.0);
-    gl_Position = g_matWorldToProjection * fragPosition;
-    vFragPosition = fragPosition.xyz;
+    mat3x4 skinTransform = CalculateSkinTransform();
+    vec3 fragPosition = vec4(vPOSITION, 1.0) * skinTransform;
+    gl_Position = g_matWorldToProjection * vec4(fragPosition, 1.0);
+    vFragPosition = fragPosition;
 
     vec3 normal;
     vec4 tangent;
     GetOptionallyCompressedNormalTangent(normal, tangent);
 
-    mat3 normalTransform = adjoint(skinTransform);
-    vNormalOut = normalize(normalTransform * normal);
-    vTangentOut = normalize(normalTransform * tangent.xyz);
+    vNormalOut = TransformDirectionToWorld(skinTransform, normal);
+    vTangentOut = TransformDirectionToWorld(skinTransform, tangent.xyz);
     vBitangentOut = tangent.w * cross(vNormalOut, vTangentOut);
-
-	vTexCoord.xy = RotateVector2D(vTEXCOORD.xy,
-        g_flTexCoordRotation1,
-        g_vTexCoordScale1.xy,
-        g_vTexCoordOffset1.xy,
-        g_vTexCoordCenter1.xy
-    );
 
     #if D_BAKED_LIGHTING_FROM_LIGHTMAP == 1
         vLightmapUVScaled = vec3(vLightmapUV * g_vLightmapUvScale.xy, 0);
@@ -255,27 +245,9 @@ void main()
         #endif
     #endif
 
+    vColorBlendValues = vTEXCOORD4;
+
     #if (GameVfx_csgo_environment_blend != 0)
-
-        vTexCoord2.xy = RotateVector2D(vTEXCOORD.xy,
-            g_flTexCoordRotation2,
-            g_vTexCoordScale2.xy,
-            g_vTexCoordOffset2.xy,
-            g_vTexCoordCenter2.xy
-        );
-
-        #if (F_ENABLE_LAYER_3 == 1)
-            vTexCoord3.xy = RotateVector2D(vTEXCOORD.xy,
-                g_flTexCoordRotation3,
-                g_vTexCoordScale3.xy,
-                g_vTexCoordOffset3.xy,
-                g_vTexCoordCenter3.xy
-            );
-
-            vTexCoord3.zw = vTEXCOORD.xy;
-        #endif
-
-        vColorBlendValues = vTEXCOORD4;
 
         if (bGeoBlendByFacingDirection2)
         {
@@ -305,6 +277,8 @@ void main()
         #endif
 
         vColorBlendValues.a = clamp(vColorBlendValues.a + flSoftness, 0.001, 1.0);
+    #else
+        vColorBlendValues.a = clamp(vColorBlendValues.a, 0.001, 1.0);
     #endif
 
     vCentroidNormalOut = vNormalOut;

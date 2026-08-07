@@ -493,6 +493,40 @@ namespace Tests
         }
 
         [Test]
+        public void TestDepthStencilStateBitLayouts()
+        {
+            // Depth test+write with LessEqual, stencil disabled with Always funcs and full masks. The bit layout changed in version 71.
+            var v71 = new VfxRenderStateInfoPixelShader.RsDepthStencilStateDesc(0xFFFF00000077000FUL, 71);
+
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(v71.DepthTestEnable, Is.True);
+                Assert.That(v71.DepthWriteEnable, Is.True);
+                Assert.That(v71.DepthFunc, Is.EqualTo(RsComparison.LessEqual));
+                Assert.That(v71.StencilEnable, Is.False);
+                Assert.That(v71.FrontStencilFunc, Is.EqualTo(RsComparison.Always));
+                Assert.That(v71.BackStencilFunc, Is.EqualTo(RsComparison.Always));
+                Assert.That(v71.StencilReadMask, Is.EqualTo(0xFF));
+                Assert.That(v71.StencilWriteMask, Is.EqualTo(0xFF));
+            }
+
+            // Value from vcs70 and older: depth disabled, LessEqual, Always funcs.
+            var v70 = new VfxRenderStateInfoPixelShader.RsDepthStencilStateDesc(0xFFFF01C01C000300UL, 70);
+
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(v70.DepthTestEnable, Is.False);
+                Assert.That(v70.DepthWriteEnable, Is.False);
+                Assert.That(v70.DepthFunc, Is.EqualTo(RsComparison.LessEqual));
+                Assert.That(v70.StencilEnable, Is.False);
+                Assert.That(v70.FrontStencilFunc, Is.EqualTo(RsComparison.Always));
+                Assert.That(v70.BackStencilFunc, Is.EqualTo(RsComparison.Always));
+                Assert.That(v70.StencilReadMask, Is.EqualTo(0xFF));
+                Assert.That(v70.StencilWriteMask, Is.EqualTo(0xFF));
+            }
+        }
+
+        [Test]
         public void TestUiGroup()
         {
             var testCases = new Dictionary<string, UiGroup>

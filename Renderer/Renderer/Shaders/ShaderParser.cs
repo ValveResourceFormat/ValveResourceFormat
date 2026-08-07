@@ -2,6 +2,7 @@ using System.Diagnostics;
 using System.Globalization;
 using System.IO;
 using System.Linq;
+using System.Reflection;
 using System.Text;
 using System.Text.RegularExpressions;
 using static ValveResourceFormat.Renderer.Shaders.ShaderLoader;
@@ -31,8 +32,19 @@ namespace ValveResourceFormat.Renderer.Shaders
         // uniform vec{dim} b = vec3(1.0); // SrgbRead(true)
         // uniform sampler{dim} c; // SrgbRead(true) Sampler(UserConfig)
         // uniform sampler{dim} d; // Sampler(UserConfig)
-        [GeneratedRegex("^uniform (?<Type>(?:sampler|vec)\\S+) (?<Name>\\S+)(?:\\s*=\\s*[^;]+)?;[ \t]*(?:// )?(?<SrgbRead>SrgbRead\\(true\\))?[ \t]*(?<SamplerUserConfig>Sampler\\(UserConfig\\))?")]
+        // layout(binding = n) uniform sampler{dim} e;
+        // uniform layout(binding = n) sampler{dim} f;
+        [GeneratedRegex("^(?:layout\\s*\\([^)]*\\)\\s*)?uniform (?:layout\\s*\\([^)]*\\)\\s*)?(?<Type>\\S+) (?<Name>[A-Za-z_][A-Za-z0-9_]*)(?<Array>\\[[^\\]]*\\])?(?:\\s*=\\s*(?<Default>[^;]+?))?\\s*;[ \t]*(?:// )?(?<SrgbRead>SrgbRead\\(true\\))?[ \t]*(?<SamplerUserConfig>Sampler\\(UserConfig\\))?")]
         private static partial Regex RegexUniform();
+
+        [GeneratedRegex("^#extension .+$")]
+        private static partial Regex RegexExtension();
+
+        [GeneratedRegex("^#define (?<From>(?:g|F)_[A-Za-z0-9_]+) (?<To>[A-Za-z_][A-Za-z0-9_]*)$")]
+        private static partial Regex RegexUniformAlias();
+
+        private static bool IsPackableUniformName(string name)
+            => name.StartsWith("g_", StringComparison.Ordinal) || name.StartsWith("F_", StringComparison.Ordinal);
 
         private readonly StringBuilder builder = new(1024);
 
@@ -51,6 +63,8 @@ namespace ValveResourceFormat.Renderer.Shaders
             var sourceFileNumber = parsedData.SourceFiles.Count;
             var resolvedIncludes = new HashSet<string>(4);
 
+            var uniformAliases = new Dictionary<string, string>(0);
+
             void AppendLineNumber(int a, int b)
             {
                 builder.Append("#line ");
@@ -61,7 +75,7 @@ namespace ValveResourceFormat.Renderer.Shaders
             }
 
             // simulate first time compile
-            // builder.Append($"// {Guid.CreateVersion7()}");
+            builder.Append($"// {Guid.CreateVersion7()}");
 
             void LoadShaderString(string shaderFileToLoad, string? parentFile, bool isInclude)
             {
@@ -124,6 +138,8 @@ namespace ValveResourceFormat.Renderer.Shaders
 #endif
 
                         builder.Append('\n');
+
+                        AppendLineNumber(lineNum, currentSourceFileNumber);
 
                         // We add #version even in includes so that they can be compiled individually for better editing experience
                         // Skip #version for main shader - will be prepended in header
@@ -209,6 +225,25 @@ namespace ValveResourceFormat.Renderer.Shaders
                             continue;
                         }
 
+                        match = RegexExtension().Match(line);
+
+                        if (match.Success)
+                        {
+                            parsedData.Extensions.Add(line);
+
+                            builder.Append("// :VrfHoisted ");
+                            builder.Append(line);
+                            builder.Append('\n');
+                            continue;
+                        }
+
+                        match = RegexUniformAlias().Match(line);
+
+                        if (match.Success)
+                        {
+                            uniformAliases[match.Groups["From"].Value] = match.Groups["To"].Value;
+                        }
+
                         // sRGB uniforms or samplers
                         match = RegexUniform().Match(line);
                         if (match.Success)
@@ -216,7 +251,18 @@ namespace ValveResourceFormat.Renderer.Shaders
                             var uniformType = match.Groups["Type"].Value;
                             var uniformName = match.Groups["Name"].Value;
 
+                            if (uniformAliases.TryGetValue(uniformName, out var aliasedName))
+                            {
+                                uniformName = aliasedName;
+                            }
+
                             parsedData.Uniforms.Add(uniformName);
+
+                            if (uniformType.StartsWith("sampler", StringComparison.Ordinal) && MaterialLoader.IsReservedTexture(uniformName))
+                            {
+                                parsedData.ReservedTextures.Add(uniformName);
+                            }
+
                             if (match.Groups["SrgbRead"].Success)
                             {
                                 parsedData.SrgbUniforms.Add(uniformName);
@@ -224,6 +270,21 @@ namespace ValveResourceFormat.Renderer.Shaders
                             if (match.Groups["SamplerUserConfig"].Success)
                             {
                                 parsedData.SamplerUserConfigUniforms.Add(uniformName);
+                            }
+
+                            if (!match.Groups["Array"].Success
+                            && IsPackableUniformName(uniformName)
+                            && GlobalsLayout.TryGetType(uniformType, out var constantType))
+                            {
+                                var defaultGroup = match.Groups["Default"];
+
+                                parsedData.GlobalsDeclarations.Add(new GlobalsDeclaration(uniformName, constantType,
+                                    defaultGroup.Success ? defaultGroup.Value : null, match.Groups["SrgbRead"].Success));
+
+                                builder.Append("// :VrfPacked ");
+                                builder.Append(line);
+                                builder.Append('\n');
+                                continue;
                             }
                         }
                     }
@@ -260,11 +321,17 @@ namespace ValveResourceFormat.Renderer.Shaders
             return ExtensionToProgramType.GetValueOrDefault(ext, ShaderProgramType.Max);
         }
 
-        /// <summary>Gets the map from shader base names to a bool array indicating which pipeline stages (vertex, fragment, compute) exist on disk or in the assembly manifest.</summary>
-        public Dictionary<string, bool[]> AvailableShaders { get; }
+        /// <summary>Gets the map from shader base names to a bool array indicating which pipeline stages (vertex, fragment, compute) exist in a mounted shader directory, on disk, or in the assembly manifest.</summary>
+        public Dictionary<string, bool[]> AvailableShaders { get; private set; }
 
         /// <summary>Initializes a new instance of the <see cref="ShaderParser"/> class and discovers all available shader files.</summary>
         public ShaderParser()
+        {
+            AvailableShaders = GetAvailableShaders();
+        }
+
+        /// <summary>Rediscovers the available shader files, picking up changes to <see cref="ShaderRegistry"/>.</summary>
+        internal void RefreshAvailableShaders()
         {
             AvailableShaders = GetAvailableShaders();
         }
@@ -289,47 +356,105 @@ namespace ValveResourceFormat.Renderer.Shaders
                 stages[(int)shaderType] = true;
             }
 
-#if DEBUG
-            var dirInfo = new DirectoryInfo(ShaderRootDirectory);
-            var files = dirInfo.GetFiles($"*{SlangExtension}", SearchOption.TopDirectoryOnly);
+            foreach (var file in ShaderRegistry.EnumerateShaderFiles($"*{SlangExtension}"))
+            {
+                var fileName = Path.GetFileName(file);
 
-            foreach (var file in files)
-            {
-                var shaderName = ShaderNameFromPath(file.FullName);
-                var shaderType = GetTypeFromFileName(file.Name);
-                LogShaderStage(shaderName, shaderType);
+                if (fileName.Length <= ShaderFileExtension.Length)
+                {
+                    continue;
+                }
+
+                LogShaderStage(ShaderNameFromPath(file), GetTypeFromFileName(fileName));
             }
-#else
-            var resources = System.Reflection.Assembly.GetExecutingAssembly().GetManifestResourceNames()
-                .Where(static r => r.StartsWith(ShaderDirectory, StringComparison.Ordinal))
-                .Where(static r => r.EndsWith(SlangExtension, StringComparison.Ordinal));
-            foreach (var resource in resources)
+
+            if (ShaderSourceDirectory != null)
             {
-                var shaderName = resource[ShaderDirectory.Length..^ShaderFileExtension.Length];
-                var shaderType = GetTypeFromFileName(resource);
-                LogShaderStage(shaderName, shaderType);
+                var dirInfo = new DirectoryInfo(ShaderSourceDirectory);
+                var files = dirInfo.GetFiles($"*{SlangExtension}", SearchOption.TopDirectoryOnly);
+
+                foreach (var file in files)
+                {
+                    var shaderName = ShaderNameFromPath(file.FullName);
+                    var shaderType = GetTypeFromFileName(file.Name);
+                    LogShaderStage(shaderName, shaderType);
+                }
             }
-#endif
+            else
+            {
+                var resources = Assembly.GetExecutingAssembly().GetManifestResourceNames()
+                    .Where(static r => r.StartsWith(ShaderDirectory, StringComparison.Ordinal))
+                    .Where(static r => r.EndsWith(SlangExtension, StringComparison.Ordinal));
+                foreach (var resource in resources)
+                {
+                    var shaderName = resource[ShaderDirectory.Length..^ShaderFileExtension.Length];
+                    var shaderType = GetTypeFromFileName(resource);
+                    LogShaderStage(shaderName, shaderType);
+                }
+            }
+
             return availableShaders;
         }
 
-#if !DEBUG
+        /// <summary>
+        /// Opens a shader source file, preferring the directories mounted through <see cref="ShaderRegistry"/> over the
+        /// shaders shipped with the renderer.
+        /// </summary>
+        /// <param name="name">Root relative shader file name using forward slashes (e.g. <c>common/lighting.slang</c>).</param>
         private static Stream GetShaderStream(string name)
         {
+            return ShaderRegistry.TryOpenShaderFile(name) ?? GetBuiltinShaderStream(name);
+        }
+
+        private const string ShaderSourceDirectoryMetadataKey = "ShaderSourceDirectory";
+
+        /// <summary>
+        /// Gets the folder holding the shaders shipped with the renderer as loose files on disk, or <see langword="null"/>
+        /// when only the copies embedded in this assembly are available.
+        /// </summary>
+        /// <remarks>
+        /// Debug builds record the absolute path of the shader folder at compile time so that shader files can be edited
+        /// and hot reloaded without rebuilding. It is not recorded in release builds, and points at a folder that does not
+        /// exist when the assembly is used on another machine, in which case the embedded shaders are used instead.
+        /// </remarks>
+        public static string? ShaderSourceDirectory { get; } = FindShaderSourceDirectory();
+
+        private static string? FindShaderSourceDirectory()
+        {
+            foreach (var metadata in typeof(ShaderParser).Assembly.GetCustomAttributes<AssemblyMetadataAttribute>())
+            {
+                if (metadata.Key == ShaderSourceDirectoryMetadataKey
+                && !string.IsNullOrEmpty(metadata.Value)
+                && Directory.Exists(metadata.Value))
+                {
+                    return metadata.Value;
+                }
+            }
+
+            return null;
+        }
+
+        private static Stream GetBuiltinShaderStream(string name)
+        {
+            if (ShaderSourceDirectory != null)
+            {
+                var path = Path.Combine(ShaderSourceDirectory, name);
+
+                if (File.Exists(path))
+                {
+                    return OpenShaderFile(path);
+                }
+            }
+
             var resourceName = $"{ShaderDirectory}{name.Replace('/', '.')}";
-            var stream = System.Reflection.Assembly.GetExecutingAssembly().GetManifestResourceStream(resourceName);
-            ArgumentNullException.ThrowIfNull(stream);
+            var stream = Assembly.GetExecutingAssembly().GetManifestResourceStream(resourceName)
+                ?? throw new FileNotFoundException($"Shader file '{name}' was not found on disk or among the embedded shaders.", name);
+
             return stream;
         }
-#else
-        // Path to the folder where the ValveResourceFormat.slnx is on disk (parent of the GUI folder)
-        private static readonly string SolutionRootDirector = GetSolutionRootDirectory();
-        private static readonly string ShaderRootDirectory = Path.Combine(SolutionRootDirector, ShaderDirectory.Replace('.', Path.DirectorySeparatorChar));
 
-        private static FileStream GetShaderStream(string name)
+        private static FileStream OpenShaderFile(string path)
         {
-            var path = GetShaderDiskPath(name);
-
             try
             {
                 return File.Open(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
@@ -345,35 +470,5 @@ namespace ValveResourceFormat.Renderer.Shaders
                 return File.Open(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
             }
         }
-
-        /// <summary>Returns the absolute path to a shader file on disk (debug builds only).</summary>
-        /// <param name="name">Relative shader file name (e.g. <c>complex.vert.slang</c>).</param>
-        public static string GetShaderDiskPath(string name)
-        {
-            return Path.Combine(ShaderRootDirectory, name);
-        }
-
-        private static string GetSolutionRootDirectory()
-        {
-            var root = AppContext.BaseDirectory;
-            var failsafe = 10;
-            var fileName = string.Empty;
-
-            do
-            {
-                root = Path.GetDirectoryName(root);
-
-                if (root == null || failsafe-- == 0)
-                {
-                    throw new DirectoryNotFoundException("Failed to find the project root folder for the shaders, are you debugging in some unconventional setup?");
-                }
-
-                fileName = Path.Join(root, "ValveResourceFormat.slnx");
-            }
-            while (!File.Exists(fileName));
-
-            return root;
-        }
-#endif
     }
 }

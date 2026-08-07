@@ -41,6 +41,41 @@ namespace ValveResourceFormat.Utils
         }
 
         /// <summary>
+        /// Converts a quaternion to Euler angles (pitch, yaw, roll) in degrees.
+        /// Includes gimbal lock handling when pitch is near +/-90 degrees.
+        /// </summary>
+        /// <param name="q">The quaternion to convert.</param>
+        /// <returns>The Euler angles in degrees.</returns>
+        public static Vector3 ToEulerAngles(Quaternion q)
+        {
+            var forwardX = 1 - 2 * (q.Y * q.Y + q.Z * q.Z);
+            var forwardY = 2 * (q.X * q.Y + q.W * q.Z);
+            var forwardZ = 2 * (q.X * q.Z - q.W * q.Y);
+
+            var xyDist = MathF.Sqrt(forwardX * forwardX + forwardY * forwardY);
+
+            Vector3 angles = new();
+            angles.X = MathF.Atan2(-forwardZ, xyDist);
+
+            if (xyDist > 0.001f)
+            {
+                var leftZ = 2 * (q.Y * q.Z + q.W * q.X);
+                var upZ = 1 - 2 * (q.X * q.X + q.Y * q.Y);
+                angles.Y = MathF.Atan2(forwardY, forwardX);
+                angles.Z = MathF.Atan2(leftZ, upZ);
+            }
+            else
+            {
+                var leftX = 2 * (q.X * q.Y - q.W * q.Z);
+                var leftY = 1 - 2 * (q.X * q.X + q.Z * q.Z);
+                angles.Y = MathF.Atan2(-leftX, leftY);
+                angles.Z = 0;
+            }
+
+            return Vector3.RadiansToDegrees(angles);
+        }
+
+        /// <summary>
         /// Converts Euler angles (pitch, yaw, roll) to a normalized forward direction vector.
         /// </summary>
         /// <param name="pitchYawRoll">The Euler angles.</param>
@@ -49,6 +84,21 @@ namespace ValveResourceFormat.Utils
         {
             var rotationMatrix = CreateRotationMatrixFromEulerAngles(pitchYawRoll);
             return Vector3.Normalize(Vector3.Transform(new Vector3(1, 0, 0), rotationMatrix));
+        }
+
+        /// <summary>
+        /// Converts a forward direction vector to Euler angles (pitch, yaw, roll) in degrees, with zero roll.
+        /// Inverse of <see cref="QAngleToForwardDirection"/>.
+        /// </summary>
+        /// <param name="direction">The forward direction. Does not need to be normalized.</param>
+        /// <returns>The Euler angles in degrees.</returns>
+        public static Vector3 ForwardDirectionToQAngle(Vector3 direction)
+        {
+            var xyDist = MathF.Sqrt(direction.X * direction.X + direction.Y * direction.Y);
+            var pitch = MathF.Atan2(-direction.Z, xyDist);
+            var yaw = MathF.Atan2(direction.Y, direction.X);
+
+            return Vector3.RadiansToDegrees(new Vector3(pitch, yaw, 0f));
         }
 
         /// <summary>
@@ -67,7 +117,7 @@ namespace ValveResourceFormat.Utils
         }
 
         /// <summary>
-        /// Like <see cref="CalculateTransformationMatrix"/> but without scale — the transform a template passes to its children.
+        /// Like <see cref="CalculateTransformationMatrix"/> but without scale; the transform a template passes to its children.
         /// </summary>
         /// <returns>The transform without the entity's scale.</returns>
         public static Matrix4x4 CalculateRigidTransformationMatrix(Entity entity)

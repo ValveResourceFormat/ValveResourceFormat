@@ -10,7 +10,7 @@ namespace GUI.Utils
     /// </summary>
     static class Settings
     {
-        private const int SettingsFileCurrentVersion = 15;
+        private const int SettingsFileCurrentVersion = 16;
         private const int RecentFilesLimit = 20;
 
         /// <summary>
@@ -65,6 +65,8 @@ namespace GUI.Utils
             public int ShadowResolution { get; set; }
             /// <summary>Gets or sets the camera field of view in degrees.</summary>
             public float FieldOfView { get; set; }
+            /// <summary>Gets or sets the first-person viewmodel field of view in degrees.</summary>
+            public float ViewmodelFieldOfView { get; set; }
             /// <summary>Gets or sets the mouse look sensitivity.</summary>
             public float MouseSensitivity { get; set; }
             /// <summary>Gets or sets whether the viewport camera should have acceleration/deceleration when starting or stopping to move</summary>
@@ -95,7 +97,7 @@ namespace GUI.Utils
             public int TextViewerFontSize { get; set; }
             /// <summary>Gets or sets whether the package file list uses grid view (1) or list view (0).</summary>
             public int PackageGridView { get; set; }
-            /// <summary>Gets or sets the grid thumbnail size index (0–4, mapping to ThumbnailSizes enum).</summary>
+            /// <summary>Gets or sets the grid thumbnail size index (0-4, mapping to <see cref="GUI.Types.PackageViewer.ThumbnailRenderers.ThumbnailSizes"/> enum).</summary>
             public int PackageGridSize { get; set; }
             /// <summary>Internal settings file version used to apply migrations when upgrading from older versions. Do not modify manually.</summary>
             public int _VERSION_DO_NOT_MODIFY { get; set; }
@@ -109,7 +111,7 @@ namespace GUI.Utils
         public static string SettingsFolder { get; private set; } = string.Empty;
         private static string SettingsFilePath = string.Empty;
 
-        /// <summary>Gets or sets the active application configuration.</summary>
+        /// <summary>Gets the active application configuration.</summary>
         public static AppConfig Config { get; private set; } = new AppConfig();
 
         /// <summary>Raised when <see cref="AppConfig.SavedCameras"/> is mutated, signaling subscribers to refresh their camera lists.</summary>
@@ -209,14 +211,16 @@ namespace GUI.Utils
                 Config.ShadowResolution = 4096;
             }
 
-            if (Config.FieldOfView <= 0)
+            // upgrade fov
+            if (currentVersion > 0 && currentVersion < 16)
             {
-                Config.FieldOfView = 60;
+                var oldVerticalRadians = float.DegreesToRadians(Config.FieldOfView);
+                var horizontalAt4By3Radians = 2f * MathF.Atan(MathF.Tan(oldVerticalRadians * 0.5f) * (4f / 3f));
+                Config.FieldOfView = float.RadiansToDegrees(horizontalAt4By3Radians);
             }
-            else if (Config.FieldOfView > 170)
-            {
-                Config.FieldOfView = 170;
-            }
+
+            Config.FieldOfView = Math.Clamp(Config.FieldOfView, 1, 170);
+            Config.ViewmodelFieldOfView = Math.Clamp(Config.ViewmodelFieldOfView, 40, 80);
 
             Config.AntiAliasingSamples = Math.Clamp(Config.AntiAliasingSamples, 0, 64);
             Config.Volume = MathUtils.Saturate(Config.Volume);
@@ -277,6 +281,11 @@ namespace GUI.Utils
             if (currentVersion < 15) // version 15: added smooth camera setting
             {
                 Config.SmoothCameraEnabled = true;
+            }
+
+            if (currentVersion < 16) // version 16: added viewmodel field of view
+            {
+                Config.ViewmodelFieldOfView = 64;
             }
 
             if (currentVersion > 0 && currentVersion != SettingsFileCurrentVersion)

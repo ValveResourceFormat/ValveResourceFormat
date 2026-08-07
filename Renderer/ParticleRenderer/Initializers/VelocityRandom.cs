@@ -8,8 +8,8 @@ namespace ValveResourceFormat.Renderer.Particles.Initializers
     {
         private readonly IVectorProvider vectorMin = new LiteralVectorProvider(Vector3.Zero);
         private readonly IVectorProvider vectorMax = new LiteralVectorProvider(Vector3.Zero);
-        private readonly INumberProvider speedMin = new LiteralNumberProvider(0.1f);
-        private readonly INumberProvider speedMax = new LiteralNumberProvider(0.1f);
+        private readonly INumberProvider speedMin = new LiteralNumberProvider(0f);
+        private readonly INumberProvider speedMax = new LiteralNumberProvider(0f);
         private readonly int controlPoint;
         private readonly bool ignoreDT;
 

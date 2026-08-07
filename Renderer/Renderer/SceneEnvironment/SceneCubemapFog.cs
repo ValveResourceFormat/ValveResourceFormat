@@ -16,10 +16,10 @@ public class SceneCubemapFog(Scene scene) : SceneNode(scene)
     /// <summary>Gets or sets the exponent controlling the fog density falloff curve.</summary>
     public float FalloffExponent { get; set; }
 
-    /// <summary>Gets or sets the world-space height at which height fog begins.</summary>
+    /// <summary>Gets or sets the world-space height at which height fog is at full density and begins to fade.</summary>
     public float HeightStart { get; set; }
 
-    /// <summary>Gets or sets the world-space height at which height fog reaches full density.</summary>
+    /// <summary>Gets or sets the world-space height at which height fog fades to zero density.</summary>
     public float HeightEnd { get; set; }
 
     /// <summary>Gets or sets the exponent controlling the height fog falloff curve.</summary>

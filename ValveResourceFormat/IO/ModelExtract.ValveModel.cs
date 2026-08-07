@@ -41,7 +41,7 @@ partial class ModelExtract
             {
                 var value = sourceObject.GetFloatArray(sourceName);
                 var rot = new Quaternion(value[0], value[1], value[2], value[3]);
-                var angles = ToEulerAngles(rot);
+                var angles = EntityTransformHelper.ToEulerAngles(rot);
                 targetObject.Add(targetName, ToKVArray(angles));
             }
             else if (typeof(T) == typeof(Vector3))
@@ -122,7 +122,7 @@ partial class ModelExtract
             //Order of angles is different for some reason
             var rotArray = constrainedBoneData.GetFloatArray("m_qBaseOrientation");
             var rot = new Quaternion(rotArray[0], rotArray[1], rotArray[2], rotArray[3]);
-            var angles = ToEulerAngles(rot);
+            var angles = EntityTransformHelper.ToEulerAngles(rot);
             angles = new Vector3(angles.Z, angles.X, angles.Y);
             node.Add("rotation_offset_xyz", ToKVArray(angles));
         }
@@ -221,37 +221,6 @@ partial class ModelExtract
     }
     #endregion
 
-    /// <summary>
-    /// Converts a quaternion to Euler angles in degrees.
-    /// </summary>
-    public static Vector3 ToEulerAngles(Quaternion q)
-    {
-        Vector3 angles = new();
-
-        // pitch / x
-        var sinp = 2 * (q.W * q.Y - q.Z * q.X);
-        if (Math.Abs(sinp) >= 1)
-        {
-            angles.X = MathF.CopySign(MathF.PI / 2, sinp);
-        }
-        else
-        {
-            angles.X = MathF.Asin(sinp);
-        }
-
-        // yaw / y
-        var siny_cosp = 2 * (q.W * q.Z + q.X * q.Y);
-        var cosy_cosp = 1 - 2 * (q.Y * q.Y + q.Z * q.Z);
-        angles.Y = MathF.Atan2(siny_cosp, cosy_cosp);
-
-        // roll / z
-        var sinr_cosp = 2 * (q.W * q.X + q.Y * q.Z);
-        var cosr_cosp = 1 - 2 * (q.X * q.X + q.Y * q.Y);
-        angles.Z = MathF.Atan2(sinr_cosp, cosr_cosp);
-
-        return Vector3.RadiansToDegrees(angles);
-    }
-
     static void AddBonesRecursive(IEnumerable<Bone> bones, KVObject parent)
     {
         foreach (var bone in bones)
@@ -260,7 +229,7 @@ partial class ModelExtract
                 "Bone",
                 ("name", GetExportBoneName(bone)),
                 ("origin", ToKVArray(bone.Position)),
-                ("angles", ToKVArray(ToEulerAngles(bone.Angle))),
+                ("angles", ToKVArray(EntityTransformHelper.ToEulerAngles(bone.Angle))),
                 ("do_not_discard", true)
             );
 
@@ -551,7 +520,7 @@ partial class ModelExtract
                     ("ignore_rotation", attachment.IgnoreRotation),
                     ("parent_bone", mainInfluence.Name),
                     ("relative_origin", ToKVArray(mainInfluence.Offset)),
-                    ("relative_angles", ToKVArray(ToEulerAngles(mainInfluence.Rotation))),
+                    ("relative_angles", ToKVArray(EntityTransformHelper.ToEulerAngles(mainInfluence.Rotation))),
                     ("weight", mainInfluence.Weight)
                 );
 
@@ -564,7 +533,7 @@ partial class ModelExtract
                         var childNode = MakeNode("AttachmentInfluence",
                             ("parent_bone", influence.Name),
                             ("relative_origin", ToKVArray(influence.Offset)),
-                            ("relative_angles", ToKVArray(ToEulerAngles(influence.Rotation))),
+                            ("relative_angles", ToKVArray(EntityTransformHelper.ToEulerAngles(influence.Rotation))),
                             ("weight", influence.Weight)
                         );
 

@@ -1,4 +1,3 @@
-using System.Buffers;
 using System.Runtime.InteropServices;
 using ValveResourceFormat.Renderer.SceneNodes;
 
@@ -156,47 +155,19 @@ namespace ValveResourceFormat.Renderer.Utils
                 return false;
             }
 
-            var count = positions.Length;
-            var pool = ArrayPool<Vector3>.Shared;
-            var tangents = pool.Rent(count);
-            var normals = pool.Rent(count);
-            var bitangents = pool.Rent(count);
-            try
-            {
-                BuildFrames(positions, tangents, normals, bitangents);
-                BuildTubeGeometry(positions, samples, circumferenceRepeats, normals, bitangents, sides, vertices, indices);
-            }
-            finally
-            {
-                pool.Return(tangents);
-                pool.Return(normals);
-                pool.Return(bitangents);
-            }
-
+            BuildTubeGeometry(positions, samples, circumferenceRepeats, sides, vertices, indices);
             return true;
         }
 
-        // Fills the first positions.Length entries of the (pooled, possibly larger) frame arrays.
-        private static void BuildFrames(ReadOnlySpan<Vector3> positions, Vector3[] tangents, Vector3[] normals, Vector3[] bitangents)
+        private static (Vector3 Normal, Vector3 Bitangent) BuildFrame(ReadOnlySpan<Vector3> positions, int i, Vector3 previousNormal)
         {
-            var count = positions.Length;
+            var tangent = SampleTangent(positions, i);
+            var normal = i == 0 ? InitialNormal(tangent) : NormalFromPrevious(tangent, previousNormal);
 
-            for (var i = 0; i < count; i++)
-            {
-                tangents[i] = SampleTangent(positions, i);
-            }
+            var bitangent = Vector3.Cross(tangent, normal);
+            bitangent = bitangent.LengthSquared() > 1e-8f ? Vector3.Normalize(bitangent) : InitialNormal(tangent);
 
-            normals[0] = InitialNormal(tangents[0]);
-            for (var i = 1; i < count; i++)
-            {
-                normals[i] = NormalFromPrevious(tangents[i], normals[i - 1]);
-            }
-
-            for (var i = 0; i < count; i++)
-            {
-                var bitangent = Vector3.Cross(tangents[i], normals[i]);
-                bitangents[i] = bitangent.LengthSquared() > 1e-8f ? Vector3.Normalize(bitangent) : InitialNormal(tangents[i]);
-            }
+            return (normal, bitangent);
         }
 
         private static Vector3 SampleTangent(ReadOnlySpan<Vector3> positions, int i)
@@ -235,10 +206,10 @@ namespace ValveResourceFormat.Renderer.Utils
         }
 
         private static void BuildTubeGeometry(ReadOnlySpan<Vector3> positions, ReadOnlySpan<RopeSample> samples,
-            float circumferenceRepeats,
-            Vector3[] normals, Vector3[] bitangents, int sides, Span<Vertex> vertices, Span<uint> indices)
+            float circumferenceRepeats, int sides, Span<Vertex> vertices, Span<uint> indices)
         {
             var ringCount = positions.Length;
+            var previousNormal = Vector3.Zero;
 
             // Emit a duplicate seam vertex per ring (sides + 1): the extra vertex sits at the j == 0 position
             // but carries v == CircumferenceRepeats, so the closing quad interpolates the texture forward to
@@ -250,12 +221,15 @@ namespace ValveResourceFormat.Renderer.Utils
             {
                 var sample = samples[i];
                 var center = positions[i];
-                var color = Color32.FromVector4(new Vector4(sample.Color, 1.0f));
+                var color = Color32.FromVector4Clamped(new Vector4(sample.Color, 1.0f));
+
+                var (normal, bitangent) = BuildFrame(positions, i, previousNormal);
+                previousNormal = normal;
 
                 for (var j = 0; j <= sides; j++)
                 {
                     var angle = MathF.Tau * j / sides;
-                    var radial = (normals[i] * MathF.Cos(angle)) + (bitangents[i] * MathF.Sin(angle));
+                    var radial = (normal * MathF.Cos(angle)) + (bitangent * MathF.Sin(angle));
                     var pos = center + (radial * sample.Radius);
                     var v = j / (float)sides * circumferenceRepeats;
                     vertices[vertexCursor++] = new Vertex(pos, Normalize(radial), new Vector2(sample.U, v), color);

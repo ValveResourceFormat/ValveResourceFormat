@@ -24,7 +24,7 @@ namespace ValveResourceFormat.Renderer
                 -1f, -1f,
             };
 
-            shader = scene.RendererContext.ShaderLoader.LoadShader("vrf.grid");
+            shader = scene.RendererContext.ShaderLoader.LoadShader("grid");
 
             // Create VAO
             GL.CreateVertexArrays(1, out vao);
@@ -54,9 +54,6 @@ namespace ValveResourceFormat.Renderer
             GL.BindVertexArray(vao);
 
             GL.DrawArrays(PrimitiveType.Triangles, 0, 6);
-
-            GL.UseProgram(0);
-            GL.BindVertexArray(0);
 
             GL.Disable(EnableCap.Blend);
         }

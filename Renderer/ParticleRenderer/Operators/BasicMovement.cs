@@ -4,7 +4,7 @@ namespace ValveResourceFormat.Renderer.Particles.Operators
     /// Moves particles each frame by integrating velocity, applying a gravity vector and an exponential drag factor.
     /// </summary>
     /// <remarks>
-    /// "Movement Basic" in the particle editor — "basic" in the sense of fundamental rather than
+    /// "Movement Basic" in the particle editor; "basic" in the sense of fundamental rather than
     /// simplistic: without it (or another movement operator) particles are spatially static.
     /// </remarks>
     /// <seealso href="https://s2v.app/SchemaExplorer/cs2/particles/C_OP_BasicMovement">C_OP_BasicMovement</seealso>
@@ -19,7 +19,7 @@ namespace ValveResourceFormat.Renderer.Particles.Operators
             drag = parse.NumberProvider("m_fDrag", drag);
         }
 
-        public override void Operate(ParticleCollection particles, float frameTime, ParticleSystemRenderState particleSystemState)
+        public override void Operate(ParticleCollection particles, float frameTime, ParticleSystemRenderState particleSystemState, float strength)
         {
             // The force generators run from inside this operator: it seeds a fresh
             // acceleration buffer with gravity and asks each generator to add to it before integrating.
@@ -28,14 +28,14 @@ namespace ValveResourceFormat.Renderer.Particles.Operators
             {
                 foreach (var forceGenerator in forceGenerators)
                 {
-                    var strength = forceGenerator.GetOperatorRunStrength(particleSystemState);
+                    var forceStrength = forceGenerator.GetOperatorRunStrength(particleSystemState);
 
-                    if (strength <= 0.0f)
+                    if (forceStrength <= 0.0f)
                     {
                         continue;
                     }
 
-                    forceGenerator.GenerateForces(particles, frameTime, particleSystemState, strength);
+                    forceGenerator.GenerateForces(particles, frameTime, particleSystemState, forceStrength);
                 }
             }
 

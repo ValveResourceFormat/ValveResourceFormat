@@ -30,13 +30,17 @@ layout(binding = 7, std430) buffer OccludedBoundsDebugBuffer
 {
     uint occludedCount;
     uint padding[3];
+    uint indirectVertexCount;
+    uint indirectInstanceCount;
+    uint indirectFirst;
+    uint indirectBaseInstance;
     DrawBounds occludedBounds[];
 };
 
 uniform bool g_bOcclusionDebugEnabled;
 
 // Depth pyramid (hierarchical depth buffer)
-layout(binding = 0) uniform sampler2D g_tDepthPyramid;
+uniform sampler2D g_tDepthPyramid; // bound above the reserved slots by Scene.SetOcclusionUniforms
 
 // Depth pyramid dimensions
 uniform int g_nDepthPyramidMaxMip;

@@ -11,8 +11,15 @@ namespace ValveResourceFormat.Renderer.SceneEnvironment
         /// </summary>
         /// <param name="scene">The scene this background belongs to.</param>
         public SceneBackground(Scene scene)
-            : base(new RenderMaterial(scene.RendererContext.ShaderLoader.LoadShader("vrf.background")))
+            : base(new RenderMaterial(scene.RendererContext.ShaderLoader.LoadShader("background")))
         {
+        }
+
+        /// <inheritdoc/>
+        public override void Delete()
+        {
+            base.Delete();
+            Material.Delete();
         }
 
         /// <summary>
@@ -21,7 +28,7 @@ namespace ValveResourceFormat.Renderer.SceneEnvironment
         /// <param name="enabled">Whether to enable the light background.</param>
         public void SetLightBackground(bool enabled)
         {
-            Material.Material.IntParams["g_bShowLightBackground"] = enabled ? 1 : 0;
+            Material.IntParams["g_bShowLightBackground"] = enabled ? 1 : 0;
         }
 
         /// <summary>
@@ -30,7 +37,7 @@ namespace ValveResourceFormat.Renderer.SceneEnvironment
         /// <param name="enabled">Whether to enable the solid background.</param>
         public void SetSolidBackground(bool enabled)
         {
-            Material.Material.IntParams["g_bShowSolidBackground"] = enabled ? 1 : 0;
+            Material.IntParams["g_bShowSolidBackground"] = enabled ? 1 : 0;
         }
     }
 }

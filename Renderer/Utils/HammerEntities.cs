@@ -20,7 +20,7 @@ public static class HammerEntities
         /// </summary>
         /// <param name="Color">Line color.</param>
         /// <param name="StartKey">Source entity property key (usually "targetname").</param>
-        /// <param name="StartValueKey">Target entity reference property.</param>
+        /// <param name="StartValueKey">Start entity reference property.</param>
         /// <param name="EndKey">Optional end entity property key.</param>
         /// <param name="EndValueKey">Optional end entity reference property.</param>
         public record Line(Color32 Color, string StartKey, string StartValueKey, string? EndKey = null, string? EndValueKey = null);

@@ -367,9 +367,7 @@ namespace ValveResourceFormat.IO
             }
         }
 
-        /// <summary>
-        /// Gets a stream for reading a file.
-        /// </summary>
+        /// <inheritdoc/>
         public Stream? GetFileStream(string file)
         {
             var foundFile = FindFile(file);
@@ -608,6 +606,7 @@ namespace ValveResourceFormat.IO
         private string? GetModIdentifierFile()
         {
             var directory = CurrentFileName!;
+            string? childDirectory = null;
             var i = 10;
             var isLastWorkshop = false;
 
@@ -641,6 +640,9 @@ namespace ValveResourceFormat.IO
 
                     if (File.Exists(mainGameInfo))
                     {
+                        // Loose compiled files of the addon the opened file is in (e.g. csgo_addons/<addon>/materials)
+                        PreferredAddonFolderOnDisk ??= childDirectory;
+
                         return mainGameInfo;
                     }
                 }
@@ -667,6 +669,8 @@ namespace ValveResourceFormat.IO
                         return path;
                     }
                 }
+
+                childDirectory = directory;
             }
 
             return null;

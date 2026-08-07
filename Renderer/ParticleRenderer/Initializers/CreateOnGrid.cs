@@ -27,9 +27,9 @@ namespace ValveResourceFormat.Renderer.Particles.Initializers
             dimenX = parse.NumberProvider("m_nXCount", dimenX);
             dimenY = parse.NumberProvider("m_nYCount", dimenY);
             dimenZ = parse.NumberProvider("m_nZCount", dimenZ);
-            spacingX = parse.NumberProvider("m_flXSpacing", spacingX);
-            spacingY = parse.NumberProvider("m_flYSpacing", spacingY);
-            spacingZ = parse.NumberProvider("m_flZSpacing", spacingZ);
+            spacingX = parse.NumberProvider("m_nXSpacing", spacingX);
+            spacingY = parse.NumberProvider("m_nYSpacing", spacingY);
+            spacingZ = parse.NumberProvider("m_nZSpacing", spacingZ);
             controlPointNumber = parse.Int32("m_nControlPointNumber", controlPointNumber);
             center = parse.Boolean("m_bCenter", center);
             hollow = parse.Boolean("m_bHollow", hollow);
@@ -108,13 +108,13 @@ namespace ValveResourceFormat.Renderer.Particles.Initializers
             // really slow but the cleanest way to do it
             for (var z = 0; z < dimenZ; z++)
             {
-                hollowZ = HollowTest(z, dimenZ, hollowDimenZ);
+                hollowZ = hollow && HollowTest(z, dimenZ, hollowDimenZ);
                 for (var y = 0; y < dimenY; y++)
                 {
-                    hollowY = HollowTest(y, dimenY, hollowDimenY);
+                    hollowY = hollow && HollowTest(y, dimenY, hollowDimenY);
                     for (var x = 0; x < dimenX; x++)
                     {
-                        hollowX = HollowTest(x, dimenX, hollowDimenX);
+                        hollowX = hollow && HollowTest(x, dimenX, hollowDimenX);
 
                         if (hollowX && hollowY && hollowZ)
                         {

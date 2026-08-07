@@ -7,7 +7,7 @@
 #define bMorphed (morphVertexIdOffset != -1)
 
 #if (F_MORPH_SUPPORTED == 1)
-    uniform sampler2D morphCompositeTexture;
+    uniform sampler2D morphCompositeTexture; // reserved
     uniform vec2 morphCompositeTextureSize;
     uniform int morphVertexIdOffset;
 

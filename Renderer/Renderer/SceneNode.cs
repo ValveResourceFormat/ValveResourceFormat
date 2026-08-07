@@ -85,6 +85,11 @@ namespace ValveResourceFormat.Renderer
         /// </summary>
         public ObjectTypeFlags Flags { get; set; }
 
+        /// <summary>
+        /// Flags for when should this node be drawn and where.
+        /// </summary>
+        public CustomRenderPasses RenderPasses { get; set; } = CustomRenderPasses.Default;
+
 #if DEBUG
         /// <summary>
         /// Gets a human-readable debug name including type, name, id, and position.

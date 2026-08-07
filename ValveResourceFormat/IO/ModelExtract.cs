@@ -84,7 +84,7 @@ public partial class ModelExtract
     /// Extract a single mesh to vmdl+dmx.
     /// </summary>
     /// <param name="mesh">Mesh data</param>
-    /// <param name="meshFileName">File name of the mesh e.g "models/my_mesh.vmesh"</param>
+    /// <param name="meshFileName">File name of the mesh e.g. "models/my_mesh.vmesh"</param>
     public ModelExtract(Mesh mesh, string meshFileName)
     {
         ArgumentNullException.ThrowIfNull(mesh);

@@ -11,5 +11,10 @@ namespace ValveResourceFormat.Renderer.Particles.Initializers
         }
 
         public abstract Particle Initialize(ref Particle particle, ParticleCollection particles, ParticleSystemRenderState particleSystemState);
+
+        /// <summary>Rebuilds any per-instance running state when the system starts or restarts.</summary>
+        public virtual void Reset()
+        {
+        }
     }
 }

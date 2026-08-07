@@ -2,18 +2,24 @@ using System.Linq;
 using Microsoft.Extensions.Logging;
 using ValveResourceFormat.Renderer.Input;
 using ValveResourceFormat.ResourceTypes;
+using ValveResourceFormat.ResourceTypes.ModelAnimation;
 
 namespace ValveResourceFormat.Renderer.SceneNodes;
 
 /// <summary>
-/// Animgraph 2 model node.
+/// First-person viewmodel scene node (player arms, weapon items and legs) driven by animgraph 2 clips.
 /// </summary>
 public class ViewmodelSceneNode : ModelSceneNode
 {
     /// <summary>
     /// Viewmodel offset in viewmodel space (forward, right, up).
     /// </summary>
-    public Vector3 ViewmodelOffset { get; set; } = new Vector3(0, -2, -2);
+    public Vector3 ViewmodelOffset { get; set; } = new Vector3(5, -2, -2);
+
+    /// <summary>
+    /// Viewmodel sway, trailing the arms behind the view as it turns.
+    /// </summary>
+    public ViewmodelLag Lag { get; } = new();
 
     /// <summary>
     /// The player arms.
@@ -26,7 +32,7 @@ public class ViewmodelSceneNode : ModelSceneNode
     public ModelSceneNode Legs { get; set; }
 
     readonly List<ModelSceneNode?> Items = [];
-    readonly List<Material> legsMaterials = [];
+    readonly List<RenderMaterial> legsMaterials = [];
 
     ModelSceneNode? SelectedItem => Items.ElementAtOrDefault(SelectedItemIndex - 1);
 
@@ -68,6 +74,9 @@ public class ViewmodelSceneNode : ModelSceneNode
     private float inAirExitTimer;
     private const float InAirExitFade = 0.1f;
     private float previousUptime;
+
+    // Animations stay paused until the player leaves noclip, otherwise clips fire sound events while nothing is visible.
+    private bool active;
 
     /// <summary>
     /// Selects the previously selected item (used for quick weapon switching).
@@ -113,19 +122,52 @@ public class ViewmodelSceneNode : ModelSceneNode
         NorthWest,
     }
 
-    private static readonly Dictionary<Heading, Vector2> HeadingVectors = new()
+    private static readonly Posture[] Postures = Enum.GetValues<Posture>();
+
+    /// <summary>Direction vector per heading, indexed by <see cref="Heading"/>.</summary>
+    private static readonly Vector2[] HeadingVectors = BuildHeadingVectors();
+
+    private static Vector2[] BuildHeadingVectors()
     {
-        [Heading.North] = new(0, 1),
-        [Heading.NorthEast] = Vector2.Normalize(new(1, 1)),
-        [Heading.East] = new(1, 0),
-        [Heading.SouthEast] = Vector2.Normalize(new(1, -1)),
-        [Heading.South] = new(0, -1),
-        [Heading.SouthWest] = Vector2.Normalize(new(-1, -1)),
-        [Heading.West] = new(-1, 0),
-        [Heading.NorthWest] = Vector2.Normalize(new(-1, 1)),
-    };
+        var vectors = new Vector2[Enum.GetValues<Heading>().Length];
+        vectors[(int)Heading.North] = new(0, 1);
+        vectors[(int)Heading.NorthEast] = Vector2.Normalize(new(1, 1));
+        vectors[(int)Heading.East] = new(1, 0);
+        vectors[(int)Heading.SouthEast] = Vector2.Normalize(new(1, -1));
+        vectors[(int)Heading.South] = new(0, -1);
+        vectors[(int)Heading.SouthWest] = Vector2.Normalize(new(-1, -1));
+        vectors[(int)Heading.West] = new(-1, 0);
+        vectors[(int)Heading.NorthWest] = Vector2.Normalize(new(-1, 1));
+        return vectors;
+    }
+
+    /// <summary>Clip names precomputed for every state so the per-frame blend never builds strings.</summary>
+    private static readonly string[,,] ThirdpersonAnims = BuildThirdpersonAnims();
+
+    private static string[,,] BuildThirdpersonAnims()
+    {
+        var movements = Enum.GetValues<MovementState>();
+        var headings = Enum.GetValues<Heading>();
+        var anims = new string[Postures.Length, movements.Length, headings.Length];
+
+        foreach (var posture in Postures)
+        {
+            foreach (var movement in movements)
+            {
+                foreach (var heading in headings)
+                {
+                    anims[(int)posture, (int)movement, (int)heading] = BuildThirdpersonAnim(posture, movement, heading);
+                }
+            }
+        }
+
+        return anims;
+    }
 
     private static string GetThirdpersonAnim(Posture posture, MovementState movement, Heading heading = Heading.West)
+        => ThirdpersonAnims[(int)posture, (int)movement, (int)heading];
+
+    private static string BuildThirdpersonAnim(Posture posture, MovementState movement, Heading heading)
     {
         const string item = "rifle";
         const string path = $"animation/anims/world/{item}/_default_{item}/";
@@ -203,6 +245,73 @@ public class ViewmodelSceneNode : ModelSceneNode
         }
     }
 
+    // Attack sounds. In the game these come from weapons.vdata (m_aShootSounds).
+    private const string RifleAttackSound = "Weapon_M4A1.Silenced";      // weapon_m4a1_silencer
+    private const string PistolAttackSound = "Weapon_USP.SilencedShot";  // weapon_usp_silencer
+    private const float AttackSoundVolume = 0.5f;
+    private const string KnifeSlashSound = "Weapon_Knife.Slash";
+    private const string KnifeHeavySwishSound = "Weapon_Knife.Swish.Heavy";
+    private const string KnifeHitWallSound = "Weapon_Knife.HitWall";
+    private const float KnifeLightRange = 48f;
+    private const float KnifeHeavyRange = 32f;
+
+    // Retry a missed line trace with a swept "head hull", making the swipe radial
+    private static readonly AABB KnifeSwingHull = AABB.FromCenteredSize(new Vector3(32f, 32f, 36f));
+
+    private static readonly string[] AttackSounds = [
+        RifleAttackSound,
+        PistolAttackSound,
+        KnifeSlashSound,
+        KnifeHeavySwishSound,
+        KnifeHitWallSound,
+    ];
+
+    private static void CacheSounds()
+    {
+        foreach (var soundEvent in AttackSounds)
+        {
+            Sound.Cache(soundEvent);
+        }
+    }
+
+    private void PlayAttackSound(UserInput input, bool heavyKnifeAttack)
+    {
+        switch (SelectedItemIndex)
+        {
+            case 1:
+                Sound.Play(RifleAttackSound, volume: AttackSoundVolume);
+                break;
+
+            case 2:
+                Sound.Play(PistolAttackSound, volume: AttackSoundVolume);
+                break;
+
+            case 3:
+                var camera = input.Camera;
+                var range = heavyKnifeAttack ? KnifeHeavyRange : KnifeLightRange;
+                var from = camera.Location;
+                var to = from + camera.Forward * range;
+
+                var trace = input.PhysicsWorld?.TraceRay(from, to);
+
+                if (trace is not { Hit: true })
+                {
+                    trace = input.PhysicsWorld?.TraceAABB(from, to, KnifeSwingHull, string.Empty);
+                }
+
+                if (trace is { Hit: true } hit)
+                {
+                    Sound.Play(KnifeHitWallSound, hit.HitPosition, volume: AttackSoundVolume);
+                }
+                else
+                {
+                    Sound.Play(heavyKnifeAttack ? KnifeHeavySwishSound : KnifeSlashSound);
+                }
+
+                break;
+        }
+    }
+
     private (float fire, float altFire) GetWeaponFireDelays()
         => SelectedItemIndex switch
         {
@@ -210,6 +319,19 @@ public class ViewmodelSceneNode : ModelSceneNode
             2 => (0.1f, 2f),
             3 => (0.3f, 1f),
             _ => (0.1f, 2f),
+        };
+
+    /// <summary>
+    /// Gets the running speed the equipped item allows, in world units per second.
+    /// These are <c>max_player_speed</c> from the CS weapon scripts: heavier guns slow the player down.
+    /// </summary>
+    public float WeaponMaxSpeed
+        => SelectedItemIndex switch
+        {
+            1 => 225f, // m4a1_silencer
+            2 => 240f, // usp_silencer
+            3 => 250f, // knife
+            _ => 250f,
         };
 
     void SetState(AnimationState newState)
@@ -235,8 +357,10 @@ public class ViewmodelSceneNode : ModelSceneNode
     }
 
     internal const string WorldLayerName = "Internal - First Person Model";
+    internal const string ViewmodelLayerName = "Internal - First Person Viewmodel";
     private const string BreathingClip = "animation/anims/world/shared/breathing.vnmclip";
     private const string LandedClip = "animation/anims/world/shared/jump_additive_land.vnmclip";
+    private const string MuzzleFlashAttachment = "muzzle_flash2";
 
     internal ViewmodelSceneNode(Scene scene, Model model)
         : base(scene, model, null, true)
@@ -245,8 +369,8 @@ public class ViewmodelSceneNode : ModelSceneNode
         SetState(AnimationState.Idle);
         TargetTransform = Transform;
 
-        var ag2Controller = AnimationController.CurrentSubController!.Value.Handler;
-        PrimarySkeletonDebug = new SkeletonSceneNode(Scene, ag2Controller, ag2Controller.Skeleton)
+        var ag2Player = AnimationController.CurrentPlayer!;
+        PrimarySkeletonDebug = new SkeletonSceneNode(Scene, ag2Player.Pose, ag2Player.Skeleton)
         {
             LayerName = WorldLayerName,
             Flags = ObjectTypeFlags.DisableVisCulling,
@@ -270,13 +394,13 @@ public class ViewmodelSceneNode : ModelSceneNode
         // Cache material references for efficient uniform updates (exclude arms/viewmodel materials)
         var armsMaterials = Arms.RenderableMeshes
             .SelectMany(m => m.DrawCalls)
-            .Select(dc => dc.Material.Material)
+            .Select(dc => dc.Material)
             .ToHashSet();
 
         legsMaterials.AddRange(
             Legs.RenderableMeshes
                 .SelectMany(m => m.DrawCalls)
-                .Select(dc => dc.Material.Material)
+                .Select(dc => dc.Material)
                 .Except(armsMaterials)
         );
 
@@ -354,8 +478,9 @@ public class ViewmodelSceneNode : ModelSceneNode
     {
         var model = new ModelSceneNode(Scene, item)
         {
-            LayerName = WorldLayerName,
+            LayerName = ViewmodelLayerName,
             Flags = ObjectTypeFlags.DisableVisCulling,
+            RenderPasses = CustomRenderPasses.Default | CustomRenderPasses.Viewmodel,
         };
         Scene.Add(model, true);
         Items.Add(model);
@@ -364,12 +489,9 @@ public class ViewmodelSceneNode : ModelSceneNode
 
         foreach (var anim in Animations.Values)
         {
-            if (anim.Clip is not null)
+            if (anim is ClipAnimation { Clip.SecondaryAnimations.Length: > 0 } clipAnimation)
             {
-                if (anim.Clip.SecondaryAnimations.Length > 0)
-                {
-                    model.LoadAnimationClip(anim.Clip.SecondaryAnimations[0]);
-                }
+                model.LoadAnimationClip(clipAnimation.Clip.SecondaryAnimations[0]);
             }
         }
     }
@@ -412,8 +534,9 @@ public class ViewmodelSceneNode : ModelSceneNode
         var primary = viewmodel.Items[0]!;
         var stattrakModule = new ModelSceneNode(scene, models[1])
         {
-            LayerName = WorldLayerName,
+            LayerName = ViewmodelLayerName,
             Flags = ObjectTypeFlags.DisableVisCulling,
+            RenderPasses = CustomRenderPasses.Default | CustomRenderPasses.Viewmodel,
         };
 
         scene.Add(stattrakModule, true);
@@ -421,18 +544,27 @@ public class ViewmodelSceneNode : ModelSceneNode
 
         viewmodel.SelectedItemIndex = 2;
         viewmodel.SelectedItemIndex = 3;
-        viewmodel.LayerName = WorldLayerName;
+
+        CacheSounds();
+
+        viewmodel.LayerName = ViewmodelLayerName;
         viewmodel.Flags |= ObjectTypeFlags.DisableVisCulling;
+        viewmodel.RenderPasses |= CustomRenderPasses.Viewmodel;
 
         // Load muzzle flash particle
-        var muzzleFlashResource = loader.LoadFileCompiled("particles/unified_weapon_fx/uweapon_muzflsh_riffle.vpcf"); // _fps
+        var muzzleFlashResource = loader.LoadFileCompiled("particles/unified_weapon_fx/uweapon_muzflsh_riffle_fps.vpcf");
         if (muzzleFlashResource?.DataBlock is ParticleSystem particleSystem)
         {
             viewmodel.muzzleFlashParticle = new ParticleSceneNode(scene, particleSystem)
             {
-                LayerName = WorldLayerName,
+                LayerName = ViewmodelLayerName,
                 Flags = ObjectTypeFlags.DisableVisCulling,
+                Parent = viewmodel,
             };
+
+            // Added to, not assigned over: the node's passes are the ones its particle renderers draw in.
+            viewmodel.muzzleFlashParticle.RenderPasses |= CustomRenderPasses.Viewmodel;
+
             scene.Add(viewmodel.muzzleFlashParticle, true);
         }
 
@@ -442,6 +574,7 @@ public class ViewmodelSceneNode : ModelSceneNode
 
         // don't render player model in noclip mode
         scene.DeactivateLayer(WorldLayerName);
+        scene.DeactivateLayer(ViewmodelLayerName);
 
         return viewmodel;
     }
@@ -453,6 +586,8 @@ public class ViewmodelSceneNode : ModelSceneNode
     /// <param name="uptime"></param>
     public void ProcessInput(UserInput input, float uptime)
     {
+        active = !input.NoClip;
+
         var distanceFromFirstPersonEyes = Vector3.Distance(input.Camera.Location, input.PlayerMovement.EyePosition);
 
         var showViewmodelDistance = distanceFromFirstPersonEyes < 35f;
@@ -462,10 +597,15 @@ public class ViewmodelSceneNode : ModelSceneNode
 
         if (!attachViewmodelDistance)
         {
+            // The transform keeps tracking the camera while detached so particles anchored to the
+            // muzzle never see a frozen control point
+            UpdateTransforms(input, uptime);
+
             // don't render player model in noclip mode
             if (LayerEnabled)
             {
                 Scene.DeactivateLayer(WorldLayerName);
+                Scene.DeactivateLayer(ViewmodelLayerName);
             }
 
             return;
@@ -490,72 +630,15 @@ public class ViewmodelSceneNode : ModelSceneNode
         if (!LayerEnabled)
         {
             Scene.ActivateLayer(WorldLayerName);
+            Scene.ActivateLayer(ViewmodelLayerName);
         }
+
+        UpdateTransforms(input, uptime);
 
         var camera = input.Camera;
-        camera.RecalculateDirectionVectors();
-
-        // Build a stable camera orientation quaternion from direction vectors.
-        var forward = Vector3.Normalize(camera.Forward);
-        var worldUp = Vector3.UnitZ;
-
-        var right = Vector3.Normalize(Vector3.Cross(worldUp, forward));
-        if (right.LengthSquared() < 1e-4f)
-        {
-            // Looking straight up/down: fallback to camera's right vector.
-            right = Vector3.Normalize(camera.Right);
-        }
-
-        var up = Vector3.Cross(forward, right);
-
-        var cameraRotation = Quaternion.CreateFromRotationMatrix(new Matrix4x4(
-            right.X, right.Y, right.Z, 0,
-            up.X, up.Y, up.Z, 0,
-            forward.X, forward.Y, forward.Z, 0,
-            0, 0, 0, 1
-        ));
-
-        // Apply a fixed viewmodel-space rotation to match the expected model orientation.
-        var viewmodelOffsetRot = Quaternion.CreateFromAxisAngle(Vector3.UnitY, -float.DegreesToRadians(90))
-            * Quaternion.CreateFromAxisAngle(Vector3.UnitX, -float.DegreesToRadians(90));
-        var viewmodelRotation = Quaternion.Normalize(cameraRotation * viewmodelOffsetRot);
-
-
-        var bobInputRotation = Quaternion.Inverse(viewmodelRotation);
-
-        var targetBob = Vector3.Transform(input.Velocity * 0.005f, bobInputRotation);
-
-        targetBob.Y = -targetBob.Y; // switch sideways movement to be leading instead of trailing
-        targetBob.Z = MathF.Abs(targetBob.Z);
-        targetBob.Y *= 0.3f; // dampen sideways movement
-        targetBob.Z *= 0.3f; // dampen vertical movement
-
-        // Smooth bob transitions to avoid harsh changes
-        currentBob = Vector3.Lerp(currentBob, targetBob, 0.5f);
-
-        // Add walking bob based on uptime
         var speed = input.Velocity.Length();
-        var bobAmplitude = MathUtils.Saturate((speed - 150f) / 150f) * 0.1f;
 
-        if (!input.PlayerMovement.OnGround)
-        {
-            bobAmplitude = 0;
-        }
-
-        var bobFrequency = 18; //float.Lerp(10f, 20f, bobAmplitude);
-        var walkBob = new Vector3(1, 0.5f, 1) * MathF.Sin(uptime * bobFrequency) * bobAmplitude;
-
-        var rotationMatrix = Matrix4x4.CreateFromQuaternion(viewmodelRotation);
-        var offset = Vector3.Transform(ViewmodelOffset - currentBob - walkBob, viewmodelRotation);
-
-        TargetTransform = rotationMatrix with { Translation = camera.Location + offset };
-
-        // Keep legs oriented with player yaw only (ignore camera pitch) to avoid pitch-tilt on leg model.
-        var playerYawRotation = Quaternion.CreateFromAxisAngle(Vector3.UnitZ, camera.Yaw);
-        var playerRotation = Quaternion.Normalize(playerYawRotation);
-        PlayerTransform = Matrix4x4.CreateFromQuaternion(playerRotation) * Matrix4x4.CreateTranslation(input.PlayerMovement.Position);
-
-        if (Legs?.AnimationController is { } legsController && legsController.CurrentSubController is { Handler: var legsSubController })
+        if (Legs?.AnimationController is { } legsController && legsController.CurrentPlayer is { } legsPlayer)
         {
             var crouched = input.PlayerMovement.CrouchBlend;
             var standing = 1f - crouched;
@@ -581,7 +664,7 @@ public class ViewmodelSceneNode : ModelSceneNode
                 restartInAirAnim = restartInAirAnim || justJumped;
                 var restartedInAirAnim = false;
 
-                foreach (var posture in Enum.GetValues<Posture>())
+                foreach (var posture in Postures)
                 {
                     var jumpingAnimName = GetThirdpersonAnim(posture, MovementState.Jumping);
 
@@ -593,8 +676,8 @@ public class ViewmodelSceneNode : ModelSceneNode
                     {
                         var inAirAnimName = GetThirdpersonAnim(posture, MovementState.InAir);
 
-                        var jumpingActionFinished = legsSubController.Clips.TryGetValue(jumpingAnimName, out var jumpClip) && jumpClip.IsPaused;
-                        var inAirActionFinished = legsSubController.Clips.TryGetValue(inAirAnimName, out var inAirClip) && inAirClip.IsPaused;
+                        var jumpingActionFinished = legsPlayer.Clips.TryGetValue(jumpingAnimName, out var jumpClip) && jumpClip.IsPaused;
+                        var inAirActionFinished = legsPlayer.Clips.TryGetValue(inAirAnimName, out var inAirClip) && inAirClip.IsPaused;
 
                         if (jumpingActionFinished)
                         {
@@ -658,24 +741,24 @@ public class ViewmodelSceneNode : ModelSceneNode
                 }
             }
 
-            var headingWeights = new Dictionary<Heading, float>();
+            Span<float> headingWeights = stackalloc float[HeadingVectors.Length];
             var headingTotal = 0f;
-            foreach (var heading in HeadingVectors.Keys)
+            for (var i = 0; i < HeadingVectors.Length; i++)
             {
-                var weight = MathF.Max(0f, Vector2.Dot(currentWalkDirection, HeadingVectors[heading]));
-                headingWeights[heading] = weight;
+                var weight = MathF.Max(0f, Vector2.Dot(currentWalkDirection, HeadingVectors[i]));
+                headingWeights[i] = weight;
                 headingTotal += weight;
             }
 
             if (headingTotal > 0f)
             {
-                foreach (var heading in headingWeights.Keys.ToList())
+                for (var i = 0; i < headingWeights.Length; i++)
                 {
-                    headingWeights[heading] /= headingTotal;
+                    headingWeights[i] /= headingTotal;
                 }
             }
 
-            foreach (var posture in Enum.GetValues<Posture>())
+            foreach (var posture in Postures)
             {
                 var t = posture == Posture.Standing ? standing : crouched;
 
@@ -692,9 +775,10 @@ public class ViewmodelSceneNode : ModelSceneNode
             ];
 
             // 8 way blend
-            foreach (var heading in HeadingVectors.Keys)
+            for (var headingIndex = 0; headingIndex < HeadingVectors.Length; headingIndex++)
             {
-                var headingWeight = headingWeights.TryGetValue(heading, out var w) ? w : 0f;
+                var heading = (Heading)headingIndex;
+                var headingWeight = headingWeights[headingIndex];
 
                 foreach (var (posture, movement) in locomotionStates)
                 {
@@ -728,16 +812,22 @@ public class ViewmodelSceneNode : ModelSceneNode
         if (requestedFire && attackCooldown <= 0f)
         {
             SetState(AnimationState.Attack);
+            PlayAttackSound(input, heavyKnifeAttack: false);
             attackCooldown = fireDelay;
             if (SelectedItemIndex != 3 && muzzleFlashParticle != null)
             {
-                muzzleFlashParticle.GetControlPoint(1).Position = Vector3.One; // light radius
                 muzzleFlashParticle.Restart();
             }
         }
         else if (input.Holding(TrackedKeys.MouseRight) && alternateAttackCooldown <= 0f)
         {
             SetState(AnimationState.AlternateAttack);
+
+            if (SelectedItemIndex == 3)
+            {
+                PlayAttackSound(input, heavyKnifeAttack: true);
+            }
+
             alternateAttackCooldown = altFireDelay;
         }
 
@@ -765,6 +855,84 @@ public class ViewmodelSceneNode : ModelSceneNode
     }
 
     /// <summary>
+    /// Recomputes <see cref="TargetTransform"/> and <see cref="PlayerTransform"/> from the camera,
+    /// including view bob. The player transform carries yaw only; camera pitch stays out of it.
+    /// </summary>
+    private void UpdateTransforms(UserInput input, float uptime)
+    {
+        var camera = input.Camera;
+        camera.RecalculateDirectionVectors();
+
+        var forward = Vector3.Normalize(camera.Forward);
+        var worldUp = Vector3.UnitZ;
+
+        var right = Vector3.Normalize(Vector3.Cross(worldUp, forward));
+        if (right.LengthSquared() < 1e-4f)
+        {
+            // Looking straight up/down: fallback to camera's right vector.
+            right = Vector3.Normalize(camera.Right);
+        }
+
+        var up = Vector3.Cross(forward, right);
+
+        var cameraRotation = Quaternion.CreateFromRotationMatrix(new Matrix4x4(
+            right.X, right.Y, right.Z, 0,
+            up.X, up.Y, up.Z, 0,
+            forward.X, forward.Y, forward.Z, 0,
+            0, 0, 0, 1
+        ));
+
+        var viewmodelOffsetRot = Quaternion.CreateFromAxisAngle(Vector3.UnitY, -float.DegreesToRadians(90))
+            * Quaternion.CreateFromAxisAngle(Vector3.UnitX, -float.DegreesToRadians(90));
+        var viewmodelRotation = Quaternion.Normalize(cameraRotation * viewmodelOffsetRot);
+
+        var bobInputRotation = Quaternion.Inverse(viewmodelRotation);
+
+        const float bobReferenceSpeed = 800f;
+        const float bobOvershoot = 0.15f * bobReferenceSpeed; // max extra "speed" past the reference, added exponentially
+
+        var speed = input.Velocity.Length();
+        var bobSpeed = speed <= bobReferenceSpeed
+            ? speed
+            : bobReferenceSpeed + bobOvershoot * (1f - MathF.Exp(-(speed - bobReferenceSpeed) / bobOvershoot));
+
+        // Scale the velocity direction to the clamped magnitude before deriving the bob, so
+        // surf speeds do not throw the viewmodel off screen.
+        var bobVelocity = speed > 1e-4f ? input.Velocity * (bobSpeed / speed) : Vector3.Zero;
+
+        var targetBob = Vector3.Transform(bobVelocity * 0.005f, bobInputRotation);
+
+        targetBob.Y = -targetBob.Y; // switch sideways movement to be leading instead of trailing
+        targetBob.Z = MathF.Abs(targetBob.Z);
+        targetBob.Y *= 0.3f;
+        targetBob.Z *= 0.3f;
+
+        currentBob = Vector3.Lerp(currentBob, targetBob, 0.5f);
+
+        var bobAmplitude = MathUtils.Saturate((speed - 150f) / 150f) * 0.1f;
+
+        if (!input.PlayerMovement.OnGround)
+        {
+            bobAmplitude = 0;
+        }
+
+        var bobFrequency = 18;
+        var walkBob = new Vector3(1, 0.5f, 1) * MathF.Sin(uptime * bobFrequency) * bobAmplitude;
+
+        // The gun trails the view by cl_wpn_sway_interp seconds as it turns
+        var lag = Lag.Calculate(camera.Yaw, uptime);
+
+        var rotationMatrix = Matrix4x4.CreateFromQuaternion(viewmodelRotation);
+        var offset = Vector3.Transform(ViewmodelOffset - currentBob - walkBob + lag, viewmodelRotation);
+
+        TargetTransform = rotationMatrix with { Translation = camera.Location + offset };
+
+        var playerYawRotation = Quaternion.CreateFromAxisAngle(Vector3.UnitZ, camera.Yaw);
+        var playerRotation = Quaternion.Normalize(playerYawRotation);
+        PlayerTransform = Matrix4x4.CreateFromQuaternion(playerRotation) * Matrix4x4.CreateTranslation(input.PlayerMovement.Position);
+    }
+
+    /// <summary>
     /// Update
     /// </summary>
     public override void Update(Scene.UpdateContext context)
@@ -774,6 +942,11 @@ public class ViewmodelSceneNode : ModelSceneNode
         if (!FirstPersonMode)
         {
             Transform *= Matrix4x4.CreateScale(0);
+        }
+
+        if (!active)
+        {
+            return;
         }
 
         if (Legs != null)
@@ -794,8 +967,8 @@ public class ViewmodelSceneNode : ModelSceneNode
         attackCooldown = MathF.Max(0f, attackCooldown - context.Timestep);
         alternateAttackCooldown = MathF.Max(0f, alternateAttackCooldown - context.Timestep);
 
-        var active = AnimationController.ActiveAnimation;
-        if (active != null)
+        var activeAnimation = AnimationController.ActiveAnimation;
+        if (activeAnimation != null)
         {
             var frame = AnimationController.Frame;
 
@@ -833,14 +1006,14 @@ public class ViewmodelSceneNode : ModelSceneNode
                     continue;
                 }
 
-                var ag2Controller = AnimationController.CurrentSubController;
+                var ag2Player = AnimationController.CurrentPlayer;
 
-                if (ag2Controller == null)
+                if (ag2Player == null)
                 {
                     continue;
                 }
 
-                var wpnIndex = ag2Controller.Value.Skeleton.GetBoneIndex("wpn");
+                var wpnIndex = ag2Player.Skeleton.GetBoneIndex("wpn");
 
                 if (wpnIndex == -1)
                 {
@@ -848,22 +1021,102 @@ public class ViewmodelSceneNode : ModelSceneNode
                     continue;
                 }
 
-                var wpnTransform = ag2Controller.Value.Handler.Pose[wpnIndex];
+                var wpnTransform = ag2Player.Pose[wpnIndex];
 
                 item.Transform = wpnTransform * Transform;
                 UpdateItem(item, context, LocalBoundingBox);
 
-                // Update muzzle flash particle transform to wpnTip bone
-                if (muzzleFlashParticle != null && isSelected)
+                // The effect's control point configuration drives control point 0 from the weapon's muzzle_flash attachment
+                if (muzzleFlashParticle != null)
                 {
-                    var wpnTipIndex = ag2Controller.Value.Skeleton.GetBoneIndex("wpnTip");
-                    if (wpnTipIndex != -1)
-                    {
-                        var wpnTipTransform = ag2Controller.Value.Handler.Pose[wpnTipIndex];
-                        muzzleFlashParticle.Transform = wpnTipTransform * Transform;
-                    }
+                    Matrix4x4.Decompose(item.GetAttachmentTransform(MuzzleFlashAttachment), out _, out var muzzleRotation, out var muzzlePosition);
+
+                    muzzleFlashParticle.Transform = Matrix4x4.CreateFromQuaternion(muzzleRotation) * Matrix4x4.CreateTranslation(muzzlePosition);
+                    muzzleFlashParticle.Update(context);
                 }
             }
+        }
+    }
+
+    /// <summary>
+    /// Viewmodel sway.
+    /// </summary>
+    public sealed class ViewmodelLag
+    {
+        /// <summary>How far back the viewmodel trails the view, in seconds (<c>cl_wpn_sway_interp</c>).</summary>
+        public float SwayInterp { get; set; } = 0.1f;
+
+        /// <summary>
+        /// How far the trailing view angle pushes the viewmodel (<c>cl_wpn_sway_scale</c>).
+        /// </summary>
+        public float SwayScale { get; set; } = 0.32f;
+
+        // Past view yaws, newest last. The window only needs one entry per frame, so this reaches
+        // back well past the sway window even at very high framerates; older entries fall off.
+        private readonly (float Time, float Yaw)[] history = new (float, float)[512];
+        private int newest = -1;
+        private int count;
+
+        /// <summary>
+        /// Records this frame's view yaw and returns the sway offset, in viewmodel space
+        /// (forward, left, up).
+        /// </summary>
+        /// <param name="yaw">Current view yaw in radians.</param>
+        /// <param name="currentTime">Seconds since startup.</param>
+        public Vector3 Calculate(float yaw, float currentTime)
+        {
+            Record(currentTime, yaw);
+
+            if (SwayInterp <= 0f)
+            {
+                return Vector3.Zero;
+            }
+
+            // AngleVectors of the yaw the view turned through over the window, measured against
+            // an unturned forward vector. Standing still leaves this at zero.
+            var deltaYaw = MathF.IEEERemainder(yaw - Sample(currentTime - SwayInterp), MathF.Tau);
+            var (yawSin, yawCos) = MathF.SinCos(deltaYaw);
+
+            // Source composes this as forward*x + right*-y + up*z. Right is the negated left axis,
+            // so in a (forward, left, up) basis the components carry over unchanged.
+            return new Vector3(1f - yawCos, -yawSin, 0f) * SwayScale;
+        }
+
+        private void Record(float time, float yaw)
+        {
+            newest = (newest + 1) % history.Length;
+            history[newest] = (time, yaw);
+
+            if (count < history.Length)
+            {
+                count++;
+            }
+        }
+
+        /// <summary>
+        /// Linearly interpolates the recorded yaw at <paramref name="time"/>, holding at the
+        /// ends when it falls outside the history, as Source's CInterpolatedVar does.
+        /// </summary>
+        private float Sample(float time)
+        {
+            var newer = history[newest];
+
+            for (var i = 1; i < count && time < newer.Time; i++)
+            {
+                var older = history[(newest - i + history.Length) % history.Length];
+
+                if (older.Time <= time)
+                {
+                    var span = newer.Time - older.Time;
+                    var t = span > 0f ? (time - older.Time) / span : 0f;
+
+                    return MathUtils.LerpAngle(older.Yaw, newer.Yaw, t);
+                }
+
+                newer = older;
+            }
+
+            return newer.Yaw;
         }
     }
 }

@@ -18,7 +18,7 @@ namespace ValveResourceFormat.Renderer.Particles.Operators
             cp = parse.Int32("m_nControlPointNumber", cp);
         }
 
-        public override void Operate(ParticleCollection particles, float frameTime, ParticleSystemRenderState particleSystemState)
+        public override void Operate(ParticleCollection particles, float frameTime, ParticleSystemRenderState particleSystemState, float strength)
         {
             foreach (ref var particle in particles.Current)
             {

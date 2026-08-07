@@ -1,16 +1,15 @@
 using System.Diagnostics;
-using ValveResourceFormat.IO;
 using ValveResourceFormat.ResourceTypes.ModelAnimation;
 
 namespace ValveResourceFormat.Renderer
 {
     /// <summary>
-    /// Manages skeletal animation playback and computes animated bone poses.
+    /// Blends the weighted animation clips playing on one skeleton into a single frame.
     /// </summary>
-    public partial class AnimationController
+    public partial class AnimationPlayer
     {
         /// <summary>Represents an animation clip with its playback state.</summary>
-        public record class Clip(Animation Animation)
+        public record class PlaybackClip(Animation Animation)
         {
             /// <summary>Gets or sets the current playback time in seconds.</summary>
             public float Time { get; set; }
@@ -27,7 +26,7 @@ namespace ValveResourceFormat.Renderer
             /// <summary>Gets or sets the blend weight (0.0 to 1.0) for this clip.</summary>
             public float Weight { get; set; } = 1f;
 
-            /// <summary>Gets or sets the blend transition time in seconds. Negative values indicate manual blending.</summary>
+            /// <summary>Gets or sets the blend transition time in seconds. A value of -1 indicates manual blending.</summary>
             public float BlendTime { get; set; }
 
             /// <summary>Gets or sets the bone mask name to apply per-bone weighting. Empty string means no mask.</summary>
@@ -65,16 +64,11 @@ namespace ValveResourceFormat.Renderer
         /// <summary>
         /// Gets the current clips.
         /// </summary>
-        public Dictionary<string, Clip> Clips => clips;
+        public Dictionary<string, PlaybackClip> Clips => clips;
 
-        private Clip? activeClip
-        {
-            get => CurrentSubController.HasValue ? CurrentSubController.Value.Handler.activeClip : field;
-            set => field = value;
-        }
-
-        private Clip? previousClip;
-        private readonly Dictionary<string, Clip> clips = [];
+        private PlaybackClip? activeClip;
+        private PlaybackClip? previousClip;
+        private readonly Dictionary<string, PlaybackClip> clips = [];
         private readonly Frame BlendedFrame;
         private float currentBlendTime;
 
@@ -84,19 +78,22 @@ namespace ValveResourceFormat.Renderer
         public Dictionary<string, Half[]> BoneMaskDefinitions { get; } = [];
 
         /// <summary>
+        /// Clears all clips and blend state so a later transition starts from a clean state.
+        /// </summary>
+        public void ClearClips()
+        {
+            activeClip = null;
+            previousClip = null;
+            clips.Clear();
+        }
+
+        /// <summary>
         /// Registers a bone mask for per-bone transform weighting.
         /// </summary>
         /// <param name="name">The name of the bone mask.</param>
         /// <param name="boneWeights">Dictionary mapping bone names to weight values (0.0 to 1.0).</param>
-        /// <param name="skeletonName">Optional skeleton name to pass to subcontroller.</param>
-        public void RegisterBoneMask(string name, Dictionary<string, float> boneWeights, string? skeletonName = null)
+        public void RegisterBoneMask(string name, Dictionary<string, float> boneWeights)
         {
-            if (skeletonName != null && ExternalSkeletons.TryGetValue(skeletonName, out var subController))
-            {
-                subController.Handler.RegisterBoneMask(name, boneWeights);
-                return;
-            }
-
             var maskArray = new Half[Skeleton.Bones.Length];
 
             foreach (var (boneName, weight) in boneWeights)
@@ -122,6 +119,36 @@ namespace ValveResourceFormat.Renderer
                 return;
             }
 
+            // Update time for all clips
+            foreach (var clip in clips.Values)
+            {
+                if (!clip.IsPaused && clip.Animation.FrameCount > 1)
+                {
+                    var previousTime = clip.Time;
+                    clip.Time += timeStep;
+
+                    var finished = false;
+
+                    if (!clip.Looping)
+                    {
+                        var lastFrame = clip.Animation!.FrameCount - 1;
+                        var maxTime = lastFrame / clip.Animation.Fps;
+
+                        if (clip.Time > maxTime)
+                        {
+                            clip.IsPaused = true;
+
+                            // Clamping the overshoot also keeps the event sampling below from wrapping
+                            // around and firing the events at the start of the clip again
+                            clip.Frame = lastFrame;
+                            finished = true;
+                        }
+                    }
+
+                    SampleEvents(clip, previousTime, clip.Time, finished);
+                }
+            }
+
             var allPaused = true;
             foreach (var clip in clips.Values)
             {
@@ -134,26 +161,7 @@ namespace ValveResourceFormat.Renderer
 
             IsPaused = allPaused;
 
-            // Update time for all clips
-            foreach (var clip in clips.Values)
-            {
-                if (!clip.IsPaused && clip.Animation.FrameCount > 1)
-                {
-                    clip.Time += timeStep;
-
-                    if (!clip.Looping)
-                    {
-                        var lastFrame = clip.Animation!.FrameCount - 1;
-                        var maxTime = lastFrame / clip.Animation.Fps;
-
-                        if (clip.Time > maxTime)
-                        {
-                            clip.IsPaused = true;
-                            clip.Frame = lastFrame;
-                        }
-                    }
-                }
-            }
+            UpdateActiveClipSounds();
 
             if (activeClip.IsTimeBasedTransition && previousClip != null)
             {
@@ -278,7 +286,7 @@ namespace ValveResourceFormat.Renderer
             return BlendedFrame;
         }
 
-        private Frame SampleFrame(Clip clip)
+        private Frame SampleFrame(PlaybackClip clip)
         {
             var ignoreCache = clip.Animation != ActiveAnimation;
 
@@ -307,21 +315,24 @@ namespace ValveResourceFormat.Renderer
         /// </summary>
         /// <param name="animation">The animation to transition to.</param>
         /// <param name="blendTime">The blend time in seconds. 0 for instant transition, -1 for manual blending.</param>
-        private void TransitionToClip(Animation animation, float blendTime)
+        /// <param name="looping">Whether the clip should loop when reaching the end.</param>
+        private void TransitionToClip(Animation animation, float blendTime, bool looping)
         {
             var animName = animation.Name;
 
             // Check if clip already exists
             if (!clips.TryGetValue(animName, out var newClip))
             {
-                var isAdditive = animation.Clip?.IsAdditive == true;
-                newClip = new Clip(animation) { Looping = Looping, BlendTime = blendTime, IsAdditive = isAdditive };
+                var isAdditive = animation.IsAdditive;
+                newClip = new PlaybackClip(animation) { Looping = looping, BlendTime = blendTime, IsAdditive = isAdditive };
                 clips[animName] = newClip;
+
+                PrewarmAnimationSounds(animation);
             }
             else
             {
                 // Update existing clip properties
-                newClip.Looping = Looping;
+                newClip.Looping = looping;
                 newClip.BlendTime = blendTime;
 
                 newClip.IsPaused = false;
@@ -420,11 +431,6 @@ namespace ValveResourceFormat.Renderer
                     clip.IsPaused = false;
                 }
             }
-
-            if (CurrentSubController is { } subController)
-            {
-                subController.Handler.SetAnimationWeight(name, weight, restartIfNew);
-            }
         }
 
         /// <summary>
@@ -453,11 +459,6 @@ namespace ValveResourceFormat.Renderer
                 {
                     clip.BoneMask = boneMask;
                 }
-            }
-
-            if (CurrentSubController is { } subController)
-            {
-                subController.Handler.SetAnimationProperties(name, time, looping, boneMask);
             }
         }
     }

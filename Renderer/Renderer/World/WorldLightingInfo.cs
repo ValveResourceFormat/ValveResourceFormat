@@ -81,7 +81,7 @@ namespace ValveResourceFormat.Renderer.World
         /// <summary>Gets or sets a value indicating whether dynamic shadow rendering is enabled.</summary>
         public bool EnableDynamicShadows { get; set; } = true;
 
-        /// <summary>Gets or sets the combined view-projection matrix used for sun shadow rendering.</summary>
+        /// <summary>Gets the combined view-projection matrix used for sun shadow rendering.</summary>
         public Matrix4x4 SunViewProjection { get; internal set; }
         /// <summary>Gets the frustum used for sun light shadow culling.</summary>
         public Frustum SunLightFrustum { get; } = new();
@@ -100,79 +100,82 @@ namespace ValveResourceFormat.Renderer.World
         public ShadowMapper ShadowMapper { get; } = new();
 
         private readonly BarnLightConstants[] BinnedBarnLightGpuData = new BarnLightConstants[BarnLightConstants.MAX_BARN_LIGHTS];
+        private readonly BarnLightCullVolume[] BinnedBarnLightCullVolumes = new BarnLightCullVolume[BarnLightConstants.MAX_BARN_LIGHTS];
 
         private Dictionary<string, int> BarnLightCookiePaths { get; } = new(StringComparer.OrdinalIgnoreCase);
         private StorageBuffer? BarnLightStorageBuffer;
         private RenderTexture? BarnLightCookieAtlas { get; set; }
+        private RenderTexture? DefaultCookieAtlas;
         private int CookieSamplerClampBorder;
         private int CookieSamplerWrap;
 
-        /// <summary>
-        /// Binds lightmap, light probe, and barn light cookie textures to the given shader.
-        /// </summary>
-        /// <param name="shader">The shader to bind lightmap textures to.</param>
-        public void SetLightmapTextures(Shader shader)
+        /// <summary>Binds the scene's lightmap, light probe atlas, and barn light cookie textures to their reserved units.</summary>
+        public void BindLightmapTextures()
         {
-            var i = 0;
-            foreach (var (Name, Texture) in Lightmaps)
+            foreach (var (name, texture) in Lightmaps)
             {
-                var slot = (int)ReservedTextureSlots.Lightmap1 + i;
-                Debug.Assert(slot <= (int)ReservedTextureSlots.EnvironmentMap, "Too many lightmap textures. Reserve more slots!");
-                i++;
+                if (!MaterialLoader.ReservedTextureSlotByName.TryGetValue(name, out var lightmapSlot))
+                {
+                    Debug.Assert(false, $"Lightmap texture '{name}' has no reserved slot. Add it to {nameof(MaterialLoader.ReservedTextureSlotByName)}.");
+                    continue;
+                }
 
-                shader.SetTexture(slot, Name, Texture);
+                GL.BindTextureUnit((int)lightmapSlot, texture.Handle);
             }
 
             if (LightProbeType == LightProbeType.ProbeAtlas && LightProbes.Count > 0)
             {
-                shader.SetTexture((int)ReservedTextureSlots.Probe1, "g_tLPV_Irradiance", LightProbes[0].Irradiance);
-                shader.SetTexture((int)ReservedTextureSlots.Probe2, "g_tLPV_Shadows", LightProbes[0].DirectLightShadows);
+                BindProbeTexture("g_tLPV_Irradiance", LightProbes[0].Irradiance);
+                BindProbeTexture("g_tLPV_Shadows", LightProbes[0].DirectLightShadows);
             }
 
-            if (BarnLightCookieAtlas != null)
+            // Always bind something, even when the scene has no cookies: the cookie samplers are 2D arrays,
+            // and leaving their reserved units empty makes shaders sample an incomplete texture.
+            var cookieAtlas = BarnLightCookieAtlas ?? (DefaultCookieAtlas ??= CreateDefaultCookieAtlas());
+
+            if (CookieSamplerClampBorder == 0)
             {
-                shader.SetTexture((int)ReservedTextureSlots.LightCookieTexture, "g_tLightCookieTexture", BarnLightCookieAtlas);
-                GL.BindSampler((int)ReservedTextureSlots.LightCookieTexture, CookieSamplerClampBorder);
-
-                shader.SetTexture((int)ReservedTextureSlots.LightCookieTextureWrap, "g_tLightCookieTextureWrap", BarnLightCookieAtlas);
-                GL.BindSampler((int)ReservedTextureSlots.LightCookieTextureWrap, CookieSamplerWrap);
+                CreateCookieSamplers();
             }
+
+            GL.BindTextureUnit((int)ReservedTextureSlots.LightCookieTexture, cookieAtlas.Handle);
+            GL.BindSampler((int)ReservedTextureSlots.LightCookieTexture, CookieSamplerClampBorder);
+
+            GL.BindTextureUnit((int)ReservedTextureSlots.LightCookieTextureWrap, cookieAtlas.Handle);
+            GL.BindSampler((int)ReservedTextureSlots.LightCookieTextureWrap, CookieSamplerWrap);
         }
 
-        /// <summary>
-        /// Binds the per-draw light-probe volume textures for a draw bound to <paramref name="lightProbe"/>:
-        /// the probe's irradiance plus the lightmap-version specific direct-light data. Only applies to
-        /// individual-probe scenes; in probe-atlas scenes the shared atlas textures are bound per shader by
-        /// <see cref="SetLightmapTextures"/> and the shader picks the probe by its index. Slots bound here
-        /// are queued into <paramref name="boundSlots"/> when provided, so the caller can unbind them after
-        /// the draw.
-        /// </summary>
-        public void SetInstanceLightProbeTextures(Shader shader, SceneLightProbe lightProbe, Queue<int>? boundSlots = null)
+        /// <summary>Binds the per-draw light probe volume textures. Individual-probe scenes only.</summary>
+        public void BindInstanceLightProbeTextures(SceneLightProbe lightProbe)
         {
             if (LightProbeType != LightProbeType.IndividualProbes)
             {
                 return;
             }
 
-            BindProbeTexture(shader, ReservedTextureSlots.Probe1, "g_tLPV_Irradiance", lightProbe.Irradiance, boundSlots);
+            BindProbeTexture("g_tLPV_Irradiance", lightProbe.Irradiance);
 
             if (LightmapGameVersionNumber == 1)
             {
-                BindProbeTexture(shader, ReservedTextureSlots.Probe2, "g_tLPV_Indices", lightProbe.DirectLightIndices, boundSlots);
-                BindProbeTexture(shader, ReservedTextureSlots.Probe3, "g_tLPV_Scalars", lightProbe.DirectLightScalars, boundSlots);
+                BindProbeTexture("g_tLPV_Indices", lightProbe.DirectLightIndices);
+                BindProbeTexture("g_tLPV_Scalars", lightProbe.DirectLightScalars);
             }
             else if (LightmapGameVersionNumber >= 2)
             {
-                BindProbeTexture(shader, ReservedTextureSlots.Probe2, "g_tLPV_Shadows", lightProbe.DirectLightShadows, boundSlots);
+                BindProbeTexture("g_tLPV_Shadows", lightProbe.DirectLightShadows);
             }
         }
 
-        private static void BindProbeTexture(Shader shader, ReservedTextureSlots slot, string name, RenderTexture? texture, Queue<int>? boundSlots)
+        /// <summary>Binds a light probe volume texture to the unit its sampler reads.</summary>
+        private static void BindProbeTexture(string samplerName, RenderTexture? texture)
         {
-            if (texture != null && shader.SetTexture((int)slot, name, texture))
+            if (texture == null)
             {
-                boundSlots?.Enqueue((int)slot);
+                return;
             }
+
+            var slot = MaterialLoader.ReservedTextureSlotByName[samplerName];
+            GL.BindTextureUnit((int)slot, texture.Handle);
         }
 
         /// <summary>
@@ -460,13 +463,25 @@ namespace ValveResourceFormat.Renderer.World
                         data.BarnLightShadowScale = 1.0f;
                     }
 
+                    var hasRangeCutoff = light.Entity == SceneLight.EntityType.Omni2 && light.FallOff > 0f;
+
+                    BinnedBarnLightCullVolumes[LightingData.NumBarnLights] = new BarnLightCullVolume
+                    {
+                        FrustumToWorld = light.BarnFaces[faceIndex].FrustumToWorld,
+                        ObbToWorld = light.BarnFaces[faceIndex].ObbToWorld,
+                        RangeSphere = hasRangeCutoff
+                            ? new Vector4(light.Transform.Translation, light.Range)
+                            : default,
+                    };
+
                     BinnedBarnLightGpuData[LightingData.NumBarnLights++] = data;
                 }
 
                 light.WasDropped = anyFaceDropped;
             }
 
-            BarnLightStorageBuffer?.Update(BinnedBarnLightGpuData, 0, (int)LightingData.NumBarnLights * Unsafe.SizeOf<BarnLightConstants>());
+            var binnedCount = (int)LightingData.NumBarnLights;
+            BarnLightStorageBuffer?.Update(BinnedBarnLightGpuData, 0, binnedCount * Unsafe.SizeOf<BarnLightConstants>());
         }
 
         /// <summary>Clears cached shadow map data for all registered barn lights.</summary>
@@ -498,8 +513,24 @@ namespace ValveResourceFormat.Renderer.World
             if (cookieTextures.Count > 0)
             {
                 BarnLightCookieAtlas = BuildCookieAtlas(cookieTextures);
-                CreateCookieSamplers();
             }
+        }
+
+        /// <summary>
+        /// Single white layer, used to keep the cookie texture units complete in scenes without cookies.
+        /// Matches layer 0 of a real atlas, which barn lights without a cookie index into.
+        /// </summary>
+        private static RenderTexture CreateDefaultCookieAtlas()
+        {
+            var atlas = new RenderTexture(TextureTarget.Texture2DArray, 1, 1, 1, 1);
+            GL.TextureStorage3D(atlas.Handle, 1, SizedInternalFormat.Srgb8Alpha8, 1, 1, 1);
+            GL.TextureSubImage3D(atlas.Handle, 0, 0, 0, 0, 1, 1, 1, PixelFormat.Rgba, PixelType.UnsignedByte, new byte[] { 255, 255, 255, 255 });
+
+#if DEBUG
+            atlas.SetLabel("EmptyCookieAtlas");
+#endif
+
+            return atlas;
         }
 
         private static RenderTexture BuildCookieAtlas(List<RenderTexture> textures)
@@ -567,6 +598,13 @@ namespace ValveResourceFormat.Renderer.World
             BarnLightStorageBuffer?.BindBufferBase();
         }
 
+        /// <summary>
+        /// Gets what bounds every binned barn light face, in the order the shading pass indexes them, so
+        /// a cull item's bit position is its light index.
+        /// </summary>
+        public ReadOnlySpan<BarnLightCullVolume> BinnedBarnLightVolumes
+            => BinnedBarnLightCullVolumes.AsSpan(0, (int)LightingData.NumBarnLights);
+
         /// <summary>Releases the barn light GPU buffer, cookie atlas texture, and sampler objects.</summary>
         public void DisposeBarnLights()
         {
@@ -574,6 +612,9 @@ namespace ValveResourceFormat.Renderer.World
 
             BarnLightCookieAtlas?.Delete();
             BarnLightCookieAtlas = null;
+
+            DefaultCookieAtlas?.Delete();
+            DefaultCookieAtlas = null;
 
             if (CookieSamplerClampBorder != 0)
             {

@@ -1,4 +1,5 @@
 using ValveResourceFormat.IO;
+using ValveResourceFormat.Renderer.Entities;
 using ValveResourceFormat.Renderer.SceneNodes;
 using ValveResourceFormat.ResourceTypes;
 
@@ -74,6 +75,9 @@ public class UserInput
     /// Gets the <see cref="PlayerMovement"/> helper that processes WASD movement in walk mode.
     /// </summary>
     public PlayerMovement PlayerMovement { get; }
+
+    /// <summary>Gets the map's trigger volumes, tested against the player after each movement tick.</summary>
+    public List<TriggerTeleport> TriggerVolumes { get; } = [];
     /// <summary>Gets a value indicating whether the camera is in noclip (free-flight) mode rather than FPS movement mode.</summary>
     public bool NoClip { get; private set; } = true;
 
@@ -104,7 +108,7 @@ public class UserInput
     public UserInput(Renderer renderer)
     {
         Renderer = renderer;
-        Camera = new Camera(renderer.RendererContext);
+        Camera = new Camera(renderer.RendererContext.FieldOfView);
         PlayerMovement = new PlayerMovement(this);
     }
 
@@ -173,7 +177,7 @@ public class UserInput
             m_yaw * mouseDelta.X
         );
 
-        var fovRatio = Renderer.RendererContext.FieldOfView / float.RadiansToDegrees(2f * MathF.Atan(3f / 4f));
+        var fovRatio = Renderer.RendererContext.FieldOfView / 90f;
         MouseDeltaPitchYaw *= fovRatio;
         MouseDeltaPitchYaw *= MouseSensitivity;
         MouseDeltaPitchYaw = Vector2.DegreesToRadians(MouseDeltaPitchYaw);
@@ -212,15 +216,10 @@ public class UserInput
         }
 
         var wasClipping = !NoClip;
-        if (Pressed(TrackedKeys.X) || PressedSuccessive(TrackedKeys.Space, 0.5f))
+        if (Pressed(TrackedKeys.X))
         {
             NoClip = !NoClip;
             PlayerMovement.Initialize = !NoClip;
-        }
-
-        if (Pressed(TrackedKeys.Escape))
-        {
-            NoClip = true;
         }
 
         if (wasClipping && NoClip)
@@ -228,6 +227,8 @@ public class UserInput
             MoveCamera(new Vector3(0, 0, 32), transition: true);
             CurrentSpeedModifier = 7;
         }
+
+        Camera.Roll = 0f;
 
         if (OrbitMode)
         {
@@ -239,7 +240,18 @@ public class UserInput
         }
         else
         {
-            PlayerMovement.ProcessMovement(this, Camera, deltaTime);
+            if (Viewmodel != null)
+            {
+                PlayerMovement.RunSpeed = Viewmodel.WeaponMaxSpeed;
+            }
+
+            PlayerMovement.ProcessMovement(Camera, deltaTime);
+
+            foreach (var trigger in TriggerVolumes)
+            {
+                trigger.Touch(PlayerMovement);
+            }
+
             Velocity = PlayerMovement.Velocity;
             Camera.Pitch -= MouseDeltaPitchYaw.X;
             Camera.Yaw -= MouseDeltaPitchYaw.Y;
@@ -250,8 +262,13 @@ public class UserInput
 
         var finalCamera = GetInterpolatedCamera();
 
-        renderCamera.SetLocationPitchYaw(finalCamera.Location, finalCamera.Pitch, finalCamera.Yaw);
+        // The landing punch tilts the rendered view down without touching the stored aim.
+        var viewPunchPitch = float.DegreesToRadians(PlayerMovement.ViewPunchPitchDegrees);
+
+        renderCamera.SetLocationPitchYaw(finalCamera.Location, finalCamera.Pitch - viewPunchPitch, finalCamera.Yaw);
         renderCamera.ClampRotation();
+
+        renderCamera.Roll = Camera.Roll;
 
         PreviousKeys = keyboardState;
     }
@@ -265,8 +282,17 @@ public class UserInput
     /// Switches to noclip mode and begins a smooth camera transition from the current position.
     /// </summary>
     /// <param name="transitionDuration">Duration of the transition animation in seconds.</param>
-    public void SaveCameraForTransition(float transitionDuration = 1.5f)
+    /// <param name="exitWalkMode">Whether to leave walk mode; pass false to teleport the player instead.</param>
+    public void SaveCameraForTransition(float transitionDuration = 1.5f, bool exitWalkMode = true)
     {
+        if (!exitWalkMode && !NoClip)
+        {
+            // Teleport the player instead, without the transition lerping the view
+            // behind physics that already moved.
+            PlayerMovement.Initialize = true;
+            return;
+        }
+
         NoClip = true;
         TransitionCamera(transitionDuration);
     }

@@ -32,8 +32,8 @@ namespace ValveResourceFormat.Renderer.Particles
 
         /// <summary>Gets or sets the RGB color of the particle, with each component in the range [0, 1].</summary>
         public Vector3 Color { get; set; } = Vector3.One;
-        /// <summary>Gets or sets the radius of the particle.</summary>
-        public float Radius { get; set; } = 1.0f;
+        /// <summary>Gets or sets the radius of the particle. The engine seeds this attribute with 5.</summary>
+        public float Radius { get; set; } = 5.0f;
 
         /// <summary>Gets or sets the trail length multiplier for trail-based renderers. The engine seeds this attribute with 0.1.</summary>
         public float TrailLength { get; set; } = 0.1f;

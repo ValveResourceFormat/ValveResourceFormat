@@ -37,16 +37,16 @@ void main()
     vTangentOut = tangent.xyz;
     vBitangentOut = tangent.w * cross(vNormalOut, vTangentOut);
 
-    vec4 vPositionWs = CalculateObjectToWorldMatrix() * vec4(vPOSITION, 1.0);
+    vec3 vPositionWs = vec4(vPOSITION, 1.0) * CalculateObjectToWorldMatrix();
 
     //Here comes some of the greatest fucking bullshit I have ever seen
-    vec3 vertDir = normalize(vPositionWs.xyz - g_vCameraPositionWs);
+    vec3 vertDir = normalize(vPositionWs - g_vCameraPositionWs);
     vec2 parallaxOffset = vertDir.xy / -vertDir.z * 0.7; //like ???? what the fuck
-    vPositionWs.xyz += (vNormalOut.xyz * g_flWaterPlaneOffset);
+    vPositionWs += (vNormalOut.xyz * g_flWaterPlaneOffset);
     vPositionWs.xy += ((-(normalize(parallaxOffset) * clamp(length(parallaxOffset), 0.0, 20.0))) * g_flWaterPlaneOffset);
 
-    gl_Position = g_matWorldToProjection * vPositionWs;
-    vFragPosition = vPositionWs.xyz;
+    gl_Position = g_matWorldToProjection * vec4(vPositionWs, 1.0);
+    vFragPosition = vPositionWs;
 
     #if (D_BAKED_LIGHTING_FROM_LIGHTMAP == 1)
         vLightmapUVScaled = vec3(vLightmapUV * g_vLightmapUvScale.xy, 0);

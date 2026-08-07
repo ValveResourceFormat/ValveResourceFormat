@@ -519,6 +519,11 @@ namespace GUI
                 //For UX purposes, hide the option to close the console also (this is disabled later in code too)
                 closeToolStripMenuItem.Visible = tabIndex != 0;
 
+                //Only tabs that got a sound player (world and model viewers) have anything to mute
+                var sceneViewer = GLBaseControl.FindHostedIn(thisTab) as GLSceneViewer;
+                muteTabToolStripMenuItem.Visible = sceneViewer?.HasSoundPlayer == true;
+                muteTabToolStripMenuItem.Text = sceneViewer?.Muted == true ? "&Unmute tab" : "&Mute tab";
+
                 var canExport = thisTab.Tag is ExportData exportData;
                 toolStripSeparator5.Visible = canExport || tabIndex == 0;
                 exportAsIsToolStripMenuItem.Visible = canExport;
@@ -1057,7 +1062,7 @@ namespace GUI
             };
             progressDialog.OnProcess += (_, __) =>
             {
-                using var window = new OpenTK.Windowing.Desktop.NativeWindow(new()
+                var window = NativeWindowFactory.Create(new()
                 {
                     APIVersion = ValveResourceFormat.Renderer.GLEnvironment.RequiredVersion,
                     Flags = GLBaseControl.Flags | OpenTK.Windowing.Common.ContextFlags.Offscreen,
@@ -1065,9 +1070,16 @@ namespace GUI
                     Title = "Source 2 Viewer Shader Validator"
                 });
 
-                window.MakeCurrent();
+                try
+                {
+                    window.MakeCurrent();
 
-                ValveResourceFormat.Renderer.Shaders.ShaderLoader.ValidateShaders(new Progress<string>(progressDialog.SetProgress), VrfGuiContext.Logger);
+                    ValveResourceFormat.Renderer.Shaders.ShaderLoader.ValidateShaders(new Progress<string>(progressDialog.SetProgress), VrfGuiContext.Logger);
+                }
+                finally
+                {
+                    NativeWindowFactory.Destroy(window);
+                }
             };
             progressDialog.ShowDialog();
         }

@@ -224,7 +224,7 @@ public static class KV3IDLookup
     }
 
     /// <summary>
-    /// Lookup a <see cref="KV3ID"/> in the lookup table, will return a <see cref="KV3ID"/> with name set to "vrfunknown" if not found.
+    /// Looks up a <see cref="KV3ID"/> in the lookup table, will return a <see cref="KV3ID"/> with name set to "vrfunknown" if not found.
     /// </summary>
     public static KV3ID GetByValue(Guid value)
     {

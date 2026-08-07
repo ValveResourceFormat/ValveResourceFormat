@@ -8,6 +8,25 @@ namespace ValveResourceFormat.Renderer.Buffers
     [StructLayout(LayoutKind.Sequential, Pack = 16)]
     public class ViewConstants
     {
+        /// <summary>A view remapped against itself: unit scale, no bias.</summary>
+        public static readonly Vector4 PixelRemapIdentity = new(1f, 1f, 0f, 0f);
+
+        /// <summary>Gets the distance to the near plane this view was projected with.</summary>
+        /// <remarks>
+        /// Recovered from the projection rather than carried as a field, so it costs nothing in the layout
+        /// this class is marshalled to the GPU with. The reverse Z form
+        /// <see cref="Camera.CreateProjectionMatrix"/> builds has <c>M33 = near / (far - near)</c> and
+        /// <c>M43 = near * far / (far - near)</c>, which inverts to this exactly and collapses to plain
+        /// <c>M43</c> when the far plane is infinite.
+        /// </remarks>
+        public float NearPlane => ViewToProjection.M43 / (1f + ViewToProjection.M33);
+
+        /// <summary>Gets the far plane distance, or <see cref="float.PositiveInfinity"/> when there is none.</summary>
+        /// <remarks>See <see cref="NearPlane"/> for where these come out of the matrix.</remarks>
+        public float FarPlane => ViewToProjection.M33 != 0f
+            ? ViewToProjection.M43 / ViewToProjection.M33
+            : float.PositiveInfinity;
+
         /// <summary>Combined world-to-clip transform (view * projection).</summary>
         public Matrix4x4 WorldToProjection = Matrix4x4.Identity;
         /// <summary>Inverse of <see cref="WorldToProjection"/>, mapping clip space back to world space.</summary>
@@ -24,11 +43,11 @@ namespace ValveResourceFormat.Renderer.Buffers
         public Vector2 ViewportSize;
         /// <summary>World-space position of the camera.</summary>
         public Vector3 CameraPosition = Vector3.Zero;
-        /// <summary>Near plane depth value in normalized device coordinates.</summary>
+        /// <summary>Minimum window-space depth of the viewport depth range (the far plane under reverse-Z).</summary>
         public float ViewportMinZ;
         /// <summary>World-space forward direction of the camera.</summary>
         public Vector3 CameraDirWs;
-        /// <summary>Far plane depth value in normalized device coordinates.</summary>
+        /// <summary>Maximum window-space depth of the viewport depth range (the near plane under reverse-Z).</summary>
         public float ViewportMaxZ;
         /// <summary>World-space up direction of the camera.</summary>
         public Vector3 CameraUpDirWs;
@@ -68,8 +87,14 @@ namespace ValveResourceFormat.Renderer.Buffers
         /// <summary>Cube fog culling parameters, exposure bias, and maximum opacity.</summary>
         public Vector4 CubeFogCullingParams_ExposureBias_MaxOpacity;
 
-        /// <summary>Previous frame's world-to-clip transform, used for motion vectors.</summary>
+        /// <summary>World-to-clip transform from when the depth pyramid was last generated, used for GPU occlusion culling.</summary>
         public Matrix4x4 WorldToProjectionPrev = Matrix4x4.Identity;
+
+        /// <summary>Wetness coverage, drying amount, rain strength and puddle ripple strength.</summary>
+        public Vector4 EnvWetness = new(1f, 0f, 1f, 1f);
+
+        /// <summary>Puddle ripple direction in X, over 0 to 1 for a full turn.</summary>
+        public Vector4 EnvWetnessRipple;
 
         /// <summary>Initializes a new <see cref="ViewConstants"/> with identity matrices and default values.</summary>
         public ViewConstants()

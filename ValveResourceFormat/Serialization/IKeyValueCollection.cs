@@ -299,7 +299,7 @@ namespace ValveResourceFormat.Serialization.KeyValues
         }
 
         /// <summary>
-        /// Normalize C Style VALVE_ENUM_VALUE_1 to C# ValveEnum.Value1
+        /// Normalize C Style VALVE_ENUM_SOME_VALUE to C# ValveEnum.SomeValue (underscores and digits are stripped)
         /// </summary>
         public static string NormalizeEnumName<TEnum>(string name, string stripExtension = "")
             where TEnum : Enum

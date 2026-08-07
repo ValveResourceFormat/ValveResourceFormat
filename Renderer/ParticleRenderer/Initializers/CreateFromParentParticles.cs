@@ -6,7 +6,7 @@ namespace ValveResourceFormat.Renderer.Particles.Initializers
     /// <seealso href="https://s2v.app/SchemaExplorer/cs2/particles/C_INIT_CreateFromParentParticles">C_INIT_CreateFromParentParticles</seealso>
     class CreateFromParentParticles : ParticleFunctionInitializer
     {
-        private readonly float velocityScale = 1f;
+        private readonly float velocityScale;
         private readonly float increment = 1f;
         private readonly bool randomDistribution;
         private readonly int randomSeed;

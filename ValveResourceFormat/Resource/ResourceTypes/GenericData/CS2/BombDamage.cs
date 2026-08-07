@@ -32,7 +32,7 @@ public sealed class BombDamage : GenericData
     public Vector3[] Positions { get; private set; } = [];
 
     /// <summary>
-    /// Contains baked damage information, such as yaw, angle, and phase. The length of this array should be equal to the number of positions multiplied by the number of bombsites.
+    /// Contains baked damage information, such as yaw, pitch, and phase. The length of this array should be equal to the number of positions multiplied by the number of bombsites.
     /// To retrieve the damage information for a given position and bombsite, use <see cref="GetBombsiteDamageValue(int, int)"/>.
     /// </summary>
     public BombDamageDamageValue[] DamageValues { get; private set; } = [];
@@ -98,7 +98,7 @@ public sealed class BombDamage : GenericData
 
         var header = kvRoot.GetSubCollection("header");
         Version = header.GetInt32Property("version");
-        if (Version != 1)
+        if (Version is not (1 or 2))
         {
             throw new UnexpectedMagicException("Unexpected version for baked bomb damage data", Version, nameof(Version));
         }

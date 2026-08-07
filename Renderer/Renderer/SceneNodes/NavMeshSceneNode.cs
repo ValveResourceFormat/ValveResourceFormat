@@ -92,10 +92,10 @@ namespace ValveResourceFormat.Renderer.SceneNodes
             renderShader.SetUniform3x4("transform", Transform);
             renderShader.SetBoneAnimationData(false);
 
-            renderShader.SetUniform1("g_bNormalShaded", true);
-            renderShader.SetUniform1("g_bTriplanarMapping", false);
+            renderShader.SetUniform("g_bNormalShaded", true);
+            renderShader.SetUniform("g_bTriplanarMapping", false);
 
-            GL.BindVertexArray(vaoHandle);
+            GL.BindVertexArray(vao.Get(renderShader));
 
             GL.BlendFunc(BlendingFactor.SrcAlpha, BlendingFactor.OneMinusSrcAlpha);
 
@@ -113,9 +113,6 @@ namespace ValveResourceFormat.Renderer.SceneNodes
             GL.Disable(EnableCap.PolygonOffsetLine);
             GL.Disable(EnableCap.PolygonOffsetFill);
             GL.PolygonOffsetClamp(0, 0, 0);
-
-            GL.UseProgram(0);
-            GL.BindVertexArray(0);
         }
 
         /// <inheritdoc/>

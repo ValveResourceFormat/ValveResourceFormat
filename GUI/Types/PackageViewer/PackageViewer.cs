@@ -662,7 +662,7 @@ namespace GUI.Types.PackageViewer
         }
 
         /// <summary>
-        /// Opens a context menu where the user right-clicked in the ListView.
+        /// Opens a context menu where the user right-clicked in the TreeView or ListView.
         /// </summary>
         /// <param name="sender">Object which raised event.</param>
         /// <param name="e">Event data.</param>

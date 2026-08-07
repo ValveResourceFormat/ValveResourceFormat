@@ -36,8 +36,8 @@ namespace ValveResourceFormat.Renderer.SceneNodes
         /// <summary>Gets the number of indices uploaded to the GPU index buffer.</summary>
         protected int indexCount { get; private set; }
 
-        /// <summary>Gets the OpenGL vertex array object handle.</summary>
-        protected int vaoHandle { get; private set; }
+        /// <summary>Gets the vertex array state for this shape.</summary>
+        protected RenderVao vao { get; private set; } = null!;
 
         /// <summary>Gets whether this shape uses normal-based shading.</summary>
         protected virtual bool Shaded { get; } = true;
@@ -47,7 +47,7 @@ namespace ValveResourceFormat.Renderer.SceneNodes
 
         private ShapeSceneNode(Scene scene) : base(scene)
         {
-            shader = Scene.RendererContext.ShaderLoader.LoadShader("vrf.basic_shape");
+            shader = Scene.RendererContext.ShaderLoader.LoadShader("basic_shape");
         }
 
         internal ShapeSceneNode(Scene scene, List<SimpleVertexNormal> verts, List<int> inds) : this(scene)
@@ -109,20 +109,16 @@ namespace ValveResourceFormat.Renderer.SceneNodes
         {
             indexCount = inds.Count;
 
-            GL.CreateVertexArrays(1, out int vaoHandleLocal);
-            vaoHandle = vaoHandleLocal;
             GL.CreateBuffers(1, out int vboHandle);
             GL.CreateBuffers(1, out int iboHandle);
-            GL.VertexArrayVertexBuffer(vaoHandle, 0, vboHandle, 0, SimpleVertexNormal.SizeInBytes);
-            GL.VertexArrayElementBuffer(vaoHandle, iboHandle);
-            SimpleVertexNormal.BindDefaultShaderLayout(vaoHandle, shader.Program);
 
             GL.NamedBufferData(vboHandle, verts.Count * SimpleVertexNormal.SizeInBytes, ListAccessors<SimpleVertexNormal>.GetBackingArray(verts), BufferUsageHint.StaticDraw);
             GL.NamedBufferData(iboHandle, inds.Count * sizeof(int), ListAccessors<int>.GetBackingArray(inds), BufferUsageHint.StaticDraw);
 
+            vao = new RenderVao(Scene.RendererContext.MeshBufferCache, nameof(ShapeSceneNode), vboHandle, SimpleVertexNormal.SizeInBytes, SimpleVertexNormal.InputLayout, iboHandle);
+
 #if DEBUG
             var vaoLabel = nameof(PhysSceneNode);
-            GL.ObjectLabel(ObjectLabelIdentifier.VertexArray, vaoHandle, vaoLabel.Length, vaoLabel);
             GL.ObjectLabel(ObjectLabelIdentifier.Buffer, vboHandle, vaoLabel.Length, vaoLabel);
             GL.ObjectLabel(ObjectLabelIdentifier.Buffer, iboHandle, vaoLabel.Length, vaoLabel);
 #endif
@@ -292,7 +288,7 @@ namespace ValveResourceFormat.Renderer.SceneNodes
             vertices.Add(new SimpleVertex(to, color));
         }
 
-        /// <summary>Appends the 12 wireframe edges of an AABB as line segments to the given vertex list.</summary>
+        /// <summary>Appends the 12 wireframe edges of an <see cref="AABB"/> as line segments to the given vertex list.</summary>
         public static void AddBox(List<SimpleVertex> vertices, in AABB box, Color32 color)
         {
             // Adding a box will add many vertices, so ensure the required capacity for it up front
@@ -314,6 +310,37 @@ namespace ValveResourceFormat.Renderer.SceneNodes
             AddLine(vertices, new Vector3(box.Min.X, box.Max.Y, box.Min.Z), new Vector3(box.Min.X, box.Max.Y, box.Max.Z), color);
         }
 
+        /// <summary>Appends a wireframe sphere as three orthogonal circles of line segments to the given vertex list.</summary>
+        public static void AddSphere(List<SimpleVertex> vertices, Vector3 center, float radius, Color32 color)
+        {
+            const int Segments = 16;
+
+            vertices.EnsureCapacity(vertices.Count + 2 * 3 * Segments);
+
+            for (var axis = 0; axis < 3; axis++)
+            {
+                var previous = Vector3.Zero;
+
+                for (var i = 0; i <= Segments; i++)
+                {
+                    var (sin, cos) = MathF.SinCos(MathF.Tau * i / Segments);
+                    var point = center + radius * (axis switch
+                    {
+                        0 => new Vector3(0f, cos, sin),
+                        1 => new Vector3(cos, 0f, sin),
+                        _ => new Vector3(cos, sin, 0f),
+                    });
+
+                    if (i > 0)
+                    {
+                        AddLine(vertices, previous, point, color);
+                    }
+
+                    previous = point;
+                }
+            }
+        }
+
         /// <inheritdoc/>
         public override void Render(Scene.RenderContext context)
         {
@@ -330,15 +357,15 @@ namespace ValveResourceFormat.Renderer.SceneNodes
             renderShader.SetUniform3x4("transform", Transform);
             renderShader.SetBoneAnimationData(false);
 
-            renderShader.SetUniform1("g_bNormalShaded", Shaded);
-            renderShader.SetUniform1("g_bTriplanarMapping", ToolTexture != null);
+            renderShader.SetUniform("g_bNormalShaded", Shaded);
+            renderShader.SetUniform("g_bTriplanarMapping", ToolTexture != null);
 
             if (ToolTexture != null)
             {
                 renderShader.SetTexture(0, "g_tColor", ToolTexture);
             }
 
-            GL.BindVertexArray(vaoHandle);
+            GL.BindVertexArray(vao.Get(renderShader));
 
             GL.DepthFunc(DepthFunction.Gequal);
 
@@ -372,9 +399,6 @@ namespace ValveResourceFormat.Renderer.SceneNodes
             }
 
             GL.DepthFunc(DepthFunction.Greater);
-
-            GL.UseProgram(0);
-            GL.BindVertexArray(0);
         }
 
         /// <inheritdoc/>

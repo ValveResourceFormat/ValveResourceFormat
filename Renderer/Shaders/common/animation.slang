@@ -4,6 +4,7 @@
 #define VRF_ANIMATION_INCLUDE
 
 #include "instancing.slang"
+#include "utils.slang"
 
 layout (location = 1) in uvec4 vBLENDINDICES;
 layout (location = 2) in vec4 vBLENDWEIGHT;
@@ -27,25 +28,32 @@ layout(std430, binding = 11) readonly buffer g_boneTransformBuffer
 #define meshBoneCount uAnimationData.z
 #define numWeights uAnimationData.w
 
-mat4 getMatrix(uint boneIndex)
+// Scale is assumed to be uniform.
+vec3 TransformDirectionToWorld(mat3x4 objectToWorld, vec3 vDirectionOs)
+{
+    // Plain normalize would give us NaN for zero-scaled bones.
+    return safeNormalize(vec4(vDirectionOs, 0.0) * objectToWorld);
+}
+
+mat3x4 getMatrix(uint boneIndex)
 {
     // Issue #705 out of bounds bone index (model needs ApplyVBIBDefaults)
     // Model:  hlvr/models/props/xen/xen_villi_medium.vmdl
     // In map: hlvr/maps/a3_distillery.vmap
     if (boneIndex >= meshBoneCount) {
-        return mat4(1.0);
+        return mat3x4(1.0);
     }
 
     boneIndex += meshBoneOffset;
 
-    return UnpackMatrix4(boneTransforms[boneIndex]);
+    return boneTransforms[boneIndex];
 }
 
-mat4 getSkinMatrix()
+mat3x4 getSkinMatrix()
 {
     if (!bAnimated)
     {
-        return mat4(1.0);
+        return mat3x4(1.0);
     }
 
     if (numWeights == 1u)
@@ -53,7 +61,7 @@ mat4 getSkinMatrix()
         return getMatrix(vBLENDINDICES.x);
     }
 
-    mat4 skinMatrix = mat4(0.0);
+    mat3x4 skinMatrix = mat3x4(0.0);
 
 
     skinMatrix += vBLENDWEIGHT.x * getMatrix(vBLENDINDICES.x);
@@ -69,6 +77,13 @@ mat4 getSkinMatrix()
     #endif
 
     return skinMatrix;
+}
+
+// The full object to world matrix for this vertex. The skinning matrices stay in object space, so the
+// object transform still has to be applied on top of them here.
+mat3x4 CalculateSkinTransform()
+{
+    return ConcatTransforms(getSkinMatrix(), CalculateObjectToWorldMatrix());
 }
 
 #endif

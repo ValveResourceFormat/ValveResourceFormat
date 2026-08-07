@@ -40,6 +40,13 @@ public static class GLEnvironment
     public static bool IndirectCountSupported { get; private set; }
 
     /// <summary>
+    /// Indicates whether the driver does not perform efficiently with small sub-draws, making GPU-driven
+    /// rendering slower than direct draws. Intel drivers also misassign gl_BaseInstance across
+    /// sub-draws when baseVertex varies within one multidraw.
+    /// </summary>
+    public static bool SlowMultiDrawIndirect { get; private set; }
+
+    /// <summary>
     /// Gets the GPU renderer name and driver version string.
     /// </summary>
     public static string? GpuRendererAndDriver { get; private set; }
@@ -60,7 +67,8 @@ public static class GLEnvironment
         var major = GL.GetInteger(GetPName.MajorVersion);
 
         var vendor = GL.GetString(StringName.Vendor);
-        var gpu = $"GPU: {GL.GetString(StringName.Renderer)}, Driver: {GL.GetString(StringName.Version)}";
+        var renderer = GL.GetString(StringName.Renderer);
+        var gpu = $"GPU: {renderer}, Driver: {GL.GetString(StringName.Version)}";
 
         GpuRendererAndDriver = gpu;
 
@@ -83,6 +91,8 @@ public static class GLEnvironment
 
         // not supported on Intel integrated drivers
         IndirectCountSupported = vendor != "Intel";
+        SlowMultiDrawIndirect = vendor == "Intel"
+            && (renderer.Contains("Intel(R) HD", StringComparison.Ordinal) || renderer.Contains("Intel(R) UHD", StringComparison.Ordinal));
 
         if (extensions.Contains("GL_KHR_parallel_shader_compile"))
         {

@@ -13,7 +13,7 @@ public class OutlineRenderer(RendererContext rendererContext)
     /// <summary>Loads the outline edge detection shader.</summary>
     public void Load()
     {
-        outlineEdge = rendererContext.ShaderLoader.LoadShader("vrf.outline_post");
+        outlineEdge = rendererContext.ShaderLoader.LoadShader("outline_post");
     }
 
     /// <summary>
@@ -25,8 +25,8 @@ public class OutlineRenderer(RendererContext rendererContext)
 
         outlineEdge.Use();
 
-        outlineEdge.SetUniform1("g_bFlipY", flipY);
-        outlineEdge.SetUniform1("g_nNumSamplesMSAA", numSamples);
+        outlineEdge.SetUniform("g_bFlipY", flipY);
+        outlineEdge.SetUniform("g_nNumSamplesMSAA", numSamples);
 
         outlineEdge.SetTexture(0, "g_tStencilBuffer", stencil);
 

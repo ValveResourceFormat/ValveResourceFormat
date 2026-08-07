@@ -1,5 +1,3 @@
-using Microsoft.Extensions.Logging;
-
 namespace ValveResourceFormat.Renderer.Particles.Operators
 {
     /// <summary>
@@ -8,11 +6,11 @@ namespace ValveResourceFormat.Renderer.Particles.Operators
     /// <seealso href="https://s2v.app/SchemaExplorer/cs2/particles/C_OP_RestartAfterDuration">C_OP_RestartAfterDuration</seealso>
     class RestartAfterDuration : ParticleFunctionOperator
     {
-        private readonly float durationMin = 1f;
+        private readonly float durationMin;
         private readonly float durationMax = 1f;
         private readonly int controlPoint = -1;
         private readonly int controlPointField;
-        private readonly int childGroupId = -1;
+        private readonly int childGroupId;
         private readonly bool onlyChildren;
 
         public RestartAfterDuration(ParticleDefinitionParser parse) : base(parse)
@@ -23,15 +21,9 @@ namespace ValveResourceFormat.Renderer.Particles.Operators
             controlPointField = parse.Int32("m_nCPField", controlPointField);
             childGroupId = parse.Int32("m_nChildGroupID", childGroupId);
             onlyChildren = parse.Boolean("m_bOnlyChildren", onlyChildren);
-
-            if (childGroupId >= 0 || onlyChildren)
-            {
-                Logger.LogWarning(
-                    "C_OP_RestartAfterDuration child group support is not implemented. Restart applies to the entire particle system.");
-            }
         }
 
-        public override void Operate(ParticleCollection particles, float frameTime, ParticleSystemRenderState particleSystemState)
+        public override void Operate(ParticleCollection particles, float frameTime, ParticleSystemRenderState particleSystemState, float strength)
         {
             if (particleSystemState.EndEarly)
             {
@@ -50,7 +42,13 @@ namespace ValveResourceFormat.Renderer.Particles.Operators
                 duration *= point.Position.GetComponent(controlPointField);
             }
 
-            particleSystemState.SetStopTime(duration, true);
+            if (onlyChildren)
+            {
+                particleSystemState.Data?.RestartChildrenInGroup(childGroupId, duration);
+                return;
+            }
+
+            particleSystemState.SetRestartTime(duration);
         }
     }
 }

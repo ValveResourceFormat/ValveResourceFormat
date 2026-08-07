@@ -40,10 +40,31 @@ public class DOFRenderer
     public Dof2InputParams CurrentDofParams { get; private set; }
 
     private Shader? DOF;
+
     /// <summary>Gets or sets the MSAA sample count passed to the DOF resolve shader.</summary>
-    public byte MsaaSamples { get; set; }
-    /// <summary>Gets a lazily-created MSAA resolve shader variant that encodes circle-of-confusion in the alpha channel.</summary>
-    public Lazy<Shader> MsaaResolveDof => new(() => RendererContext.ShaderLoader.LoadShader("vrf.msaa_resolve", ("D_DOF", 1), ("D_MSAA_SAMPLES", MsaaSamples)));
+    public byte MsaaSamples
+    {
+        get;
+        set
+        {
+            if (field == value)
+            {
+                return;
+            }
+
+            field = value;
+            msaaResolveDof = null;
+        }
+    }
+
+    private Shader? msaaResolveDof;
+
+    /// <summary>
+    /// Gets the MSAA resolve shader variant that encodes circle-of-confusion in the alpha channel, loading
+    /// it on first use and whenever <see cref="MsaaSamples"/> selects a different variant.
+    /// </summary>
+    public Shader MsaaResolveDof
+        => msaaResolveDof ??= RendererContext.ShaderLoader.LoadShader("msaa_resolve", ("D_DOF", 1), ("D_MSAA_SAMPLES", MsaaSamples));
 
     private readonly RendererContext RendererContext;
 
@@ -87,7 +108,7 @@ public class DOFRenderer
     {
         if (DOF == null)
         {
-            DOF = RendererContext.ShaderLoader.LoadShader("vrf.dof2");
+            DOF = RendererContext.ShaderLoader.LoadShader("dof2");
             BlurredResult = Framebuffer.Prepare("Depth Of Field", 2, 2, 0, PostProcessRenderer.DefaultColorFormat, null);
             BlurredResult.Initialize();
         }
@@ -121,22 +142,23 @@ public class DOFRenderer
     /// <param name="msaaDepth">The MSAA depth texture used to reconstruct world-space depth.</param>
     public void SetDofResolveShaderUniforms(Shader shader, Camera camera, RenderTexture msaaDepth)
     {
-        shader.SetTexture(2, "g_tSceneDepth", msaaDepth);
+        // Not the scene's resolved depth, so it goes above the reserved slots like any other per draw texture.
+        shader.SetTexture(RenderMaterial.TextureUnitStart, "g_tSceneDepthMsaa", msaaDepth);
 
         if (!Matrix4x4.Invert(camera.ViewProjectionMatrix, out var invViewProjMatrix))
         {
             throw new InvalidOperationException("Matrix invert failed");
         }
 
-        shader.SetUniform4x4("g_invViewProjMatrix", invViewProjMatrix);
+        shader.SetUniform("g_invViewProjMatrix", invViewProjMatrix);
 
         var focalPoint = camera.Location + camera.Forward * FocalDistance;
         var d = -Vector3.Dot(camera.Forward, focalPoint);
 
         var lensPlane = new Vector4(camera.Forward, d);
-        shader.SetUniform4("g_vLensPlane", lensPlane);
+        shader.SetUniform("g_vLensPlane", lensPlane);
 
-        shader.SetUniform4("g_vNearFarScaleBias", new Vector4(CurrentDofParams.NearScale, CurrentDofParams.NearBias, CurrentDofParams.FarScale, CurrentDofParams.FarBias));
+        shader.SetUniform("g_vNearFarScaleBias", new Vector4(CurrentDofParams.NearScale, CurrentDofParams.NearBias, CurrentDofParams.FarScale, CurrentDofParams.FarBias));
     }
 
     private Dof2InputParams CreateInputParams()
@@ -176,7 +198,7 @@ public class DOFRenderer
 
         var g_vInvRenderTargetDim = new Vector2(1.0f / BlurredResult!.Width, 1.0f / BlurredResult.Height);
 
-        DOF!.SetUniform1("flMaxBlurSize", CurrentDofParams.MaxBlurSize);
+        DOF!.SetUniform("g_flMaxBlurSize", CurrentDofParams.MaxBlurSize);
 
         var angle = 0.0f;
         var radius = CurrentDofParams.RadScale;
@@ -199,7 +221,7 @@ public class DOFRenderer
         }
 
         DOF.SetUniform4Array("g_vSampleOffsetsRadMinMax", Offsets.Length, Offsets);
-        DOF.SetUniform1("g_nSamples", sample);
+        DOF.SetUniform("g_nSamples", sample);
     }
 }
 

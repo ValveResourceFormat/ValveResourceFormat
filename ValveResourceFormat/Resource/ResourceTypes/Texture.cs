@@ -262,17 +262,22 @@ namespace ValveResourceFormat.ResourceTypes
         private int[]? CompressedMips;
         private bool IsActuallyCompressedMips;
 
-        private float[]? RadianceCoefficients;
+        /// <summary>
+        /// Gets the baked radiance of each cube map in the array as an L2 spherical harmonic,
+        /// 9 coefficients per channel stored planar, 27 per cube map. Null unless the texture
+        /// carries <see cref="VTexExtraData.CUBEMAP_RADIANCE_SH"/>.
+        /// </summary>
+        public float[]? RadianceCoefficients { get; private set; }
 
         /// <summary>
-        /// Gets the actual width of the texture, using NonPow2Width if available and valid, otherwise Width.
+        /// Gets the actual width of the texture, using <see cref="NonPow2Width"/> if available and valid, otherwise <see cref="Width"/>.
         /// Some textures have displayrect set to 1x1, but that's not the expected size.
         /// If it's set to 1x1, but the real size does not expand to 4x4 (the usual block compression size), it's ignored.
         /// </summary>
         public ushort ActualWidth => NonPow2Width > 0 && (NonPow2Width != 1 || Width == 4) ? NonPow2Width : Width;
 
         /// <summary>
-        /// Gets the actual height of the texture, using NonPow2Height if available and valid, otherwise Height.
+        /// Gets the actual height of the texture, using <see cref="NonPow2Height"/> if available and valid, otherwise <see cref="Height"/>.
         /// Some textures have displayrect set to 1x1, but that's not the expected size.
         /// If it's set to 1x1, but the real size does not expand to 4x4 (the usual block compression size), it's ignored.
         /// </summary>

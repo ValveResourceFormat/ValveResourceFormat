@@ -9,7 +9,7 @@ Models are stored as `.vmdl_c` files inside VPK archives. In CS2, most assets ar
 | Game             | Path                 | Examples                                         |
 | ---------------- | -------------------- | ------------------------------------------------ |
 | Counter-Strike 2 | `weapons/models/`    | Weapon viewmodels and worldmodels                |
-| Counter-Strike 2 | `characters/models/` | Player and agent models                          |
+| Counter-Strike 2 | `agents/models/`     | Player and agent models                          |
 | Counter-Strike 2 | `models/`            | Props, vehicles, foliage, and other world models |
 | Dota 2           | `models/heroes/`     | Hero models with cosmetics                       |
 | Deadlock         | `models/heroes/`     | Hero models                                      |

@@ -127,7 +127,7 @@ public class GLTextureDecoder : IHardwareTextureDecoder, IDisposable
     {
         RendererContext.Logger.LogInformation("Initializing GPU texture decoder...");
 
-        GLWindowContext = new NativeWindow(new()
+        GLWindowContext = NativeWindowFactory.Create(new()
         {
             APIVersion = GLEnvironment.RequiredVersion,
             Flags = GLBaseControl.Flags | OpenTK.Windowing.Common.ContextFlags.Offscreen,
@@ -217,20 +217,20 @@ public class GLTextureDecoder : IHardwareTextureDecoder, IDisposable
         GL.Disable(EnableCap.DepthTest);
 
         var textureType = GetTextureTypeDefine(inputTexture.Target);
-        var shader = RendererContext.ShaderLoader.LoadShader("vrf.texture_decode", (textureType, 1));
+        var shader = RendererContext.ShaderLoader.LoadShader("texture_decode", (textureType, 1));
 
         shader.Use();
 
         shader.SetTexture(0, "g_tInputTexture", inputTexture);
-        shader.SetUniform2("g_vViewportSize", new Vector2(blockWidth, blockHeight));
-        shader.SetUniform4("g_vInputTextureSize", new Vector4(
+        shader.SetUniform("g_vViewportSize", new Vector2(blockWidth, blockHeight));
+        shader.SetUniform("g_vInputTextureSize", new Vector4(
             blockWidth, blockHeight, inputTexture.Depth, inputTexture.NumMipLevels
         ));
-        shader.SetUniform1("g_nSelectedMip", request.Mip);
-        shader.SetUniform1("g_nSelectedDepth", request.Depth);
-        shader.SetUniform1("g_nSelectedCubeFace", (int)request.Face);
-        shader.SetUniform1("g_nSelectedChannels", request.Channels.PackedValue);
-        shader.SetUniform1("g_nDecodeFlags", (int)request.DecodeFlags);
+        shader.SetUniform("g_nSelectedMip", request.Mip);
+        shader.SetUniform("g_nSelectedDepth", request.Depth);
+        shader.SetUniform("g_nSelectedCubeFace", (int)request.Face);
+        shader.SetUniform("g_nSelectedChannels", request.Channels.PackedValue);
+        shader.SetUniform("g_nDecodeFlags", (int)request.DecodeFlags);
 
         // full screen triangle
         GL.BindVertexArray(RendererContext.MeshBufferCache.EmptyVAO);
@@ -264,7 +264,7 @@ public class GLTextureDecoder : IHardwareTextureDecoder, IDisposable
 
     private void Dispose_ThreadResources()
     {
-        GLWindowContext?.Dispose();
+        NativeWindowFactory.Destroy(GLWindowContext);
     }
 
     private void Exit()

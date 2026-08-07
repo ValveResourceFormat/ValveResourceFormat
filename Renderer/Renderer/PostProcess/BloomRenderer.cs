@@ -42,12 +42,12 @@ public class BloomRenderer
     /// <summary>Loads bloom shaders and allocates ping-pong and accumulation framebuffers.</summary>
     public void Load()
     {
-        firstDownsampleBloomThreshold = RendererContext.ShaderLoader.LoadShader("vrf.downsample_bloomthreshold");
-        downsample = RendererContext.ShaderLoader.LoadShader("vrf.gaussian_bloom_blur");
-        horizontalBlur = RendererContext.ShaderLoader.LoadShader("vrf.gaussian_bloom_blur", ("D_BLUR_PASS", 1), ("D_BLUR_PASS_HORIZONTAL", 1));
-        verticalBlur = RendererContext.ShaderLoader.LoadShader("vrf.gaussian_bloom_blur", ("D_BLUR_PASS", 1), ("D_BLUR_PASS_HORIZONTAL", 0));
-        upsample = RendererContext.ShaderLoader.LoadShader("vrf.gaussian_bloom_blur", ("D_BLUR_PASS", 2));
-        firstUpsample = RendererContext.ShaderLoader.LoadShader("vrf.gaussian_bloom_blur", ("D_BLUR_PASS", 3));
+        firstDownsampleBloomThreshold = RendererContext.ShaderLoader.LoadShader("downsample_bloomthreshold");
+        downsample = RendererContext.ShaderLoader.LoadShader("gaussian_bloom_blur");
+        horizontalBlur = RendererContext.ShaderLoader.LoadShader("gaussian_bloom_blur", ("D_BLUR_PASS", 1), ("D_BLUR_PASS_HORIZONTAL", 1));
+        verticalBlur = RendererContext.ShaderLoader.LoadShader("gaussian_bloom_blur", ("D_BLUR_PASS", 1), ("D_BLUR_PASS_HORIZONTAL", 0));
+        upsample = RendererContext.ShaderLoader.LoadShader("gaussian_bloom_blur", ("D_BLUR_PASS", 2));
+        firstUpsample = RendererContext.ShaderLoader.LoadShader("gaussian_bloom_blur", ("D_BLUR_PASS", 3));
 
         Ping = CreateFramebuffer("BloomPing");
         Pong = CreateFramebuffer("BloomPong");
@@ -120,9 +120,9 @@ public class BloomRenderer
             GL.Viewport(0, 0, Ping.Width, Ping.Height);
 
             var thresholdParams = new Vector2(settings.BloomThreshold / settings.BloomThresholdWidth * -1, 1 / settings.BloomThresholdWidth);
-            firstDownsampleBloomThreshold.SetUniform1("bloomScale", settings.BloomStrength);
-            firstDownsampleBloomThreshold.SetUniform1("g_flToneMapScalarLinear", tonemapScalar);
-            firstDownsampleBloomThreshold.SetUniform2("thresholdParams", thresholdParams);
+            firstDownsampleBloomThreshold.SetUniform("g_flBloomScale", settings.BloomStrength);
+            firstDownsampleBloomThreshold.SetUniform("g_flToneMapScalarLinear", tonemapScalar);
+            firstDownsampleBloomThreshold.SetUniform("g_flThresholdParams", thresholdParams);
 
             GL.BindVertexArray(RendererContext.MeshBufferCache.EmptyVAO);
             GL.DrawArrays(PrimitiveType.Triangles, 0, 3);
@@ -188,13 +188,13 @@ public class BloomRenderer
 
             upsampleShader.Use();
             upsampleShader.SetTexture(0, "g_tSource", Accumulation.Color);
-            upsampleShader.SetUniform2("g_vTexelSize", invTexSize);
-            upsampleShader.SetUniform1("g_nCurrentMip", (float)i);
+            upsampleShader.SetUniform("g_vTexelSize", invTexSize);
+            upsampleShader.SetUniform("g_nCurrentMip", (float)i);
 
             if (isFirstUpsample)
             {
                 var prevBlurTint = settings.BlurTint[i + 1] * settings.BlurWeight[i + 1];
-                upsampleShader.SetUniform3("g_vPrevMipBlurTint", prevBlurTint);
+                upsampleShader.SetUniform("g_vPrevMipBlurTint", prevBlurTint);
             }
 
             var blurTint = settings.BlurTint[i] * settings.BlurWeight[i];
@@ -208,7 +208,7 @@ public class BloomRenderer
                 blurTint += settings.BlurTint[i - 1] * settings.BlurWeight[i - 1];
             }
 
-            upsampleShader.SetUniform3("g_vCurMipBlurTint", blurTint);
+            upsampleShader.SetUniform("g_vCurMipBlurTint", blurTint);
 
             GL.BindVertexArray(RendererContext.MeshBufferCache.EmptyVAO);
             GL.DrawArrays(PrimitiveType.Triangles, 0, 3);
@@ -218,7 +218,7 @@ public class BloomRenderer
     }
 
     /// <summary>
-    /// Render a texture from ping to pong using the provided screenspace shader.
+    /// Render a texture from <paramref name="ping"/> to <paramref name="pong"/> using the provided screenspace shader.
     /// </summary>
     private void RenderTexture(Shader shader, Framebuffer ping, Framebuffer pong, Vector2i size, int mip = 0)
     {
@@ -232,9 +232,9 @@ public class BloomRenderer
 
         shader.Use();
 
-        shader.SetUniform2("g_vTexelSize", invTexSize);
-        shader.SetUniform2("g_vTextureSize", texSize);
-        shader.SetUniform1("g_nCurrentMip", (float)mip);
+        shader.SetUniform("g_vTexelSize", invTexSize);
+        shader.SetUniform("g_vTextureSize", texSize);
+        shader.SetUniform("g_nCurrentMip", (float)mip);
         shader.SetTexture(0, "g_tSource", ping.Color);
 
         GL.BindVertexArray(RendererContext.MeshBufferCache.EmptyVAO);

@@ -1,30 +1,119 @@
+using System.Numerics;
+
 namespace ValveResourceFormat.Renderer.Particles.Utils
 {
+    /// <summary>
+    /// The engine's general-purpose particle noise primitive: a value-noise lattice whose corners come
+    /// from a packed-index integer hash, trilinearly interpolated with unsmoothed weights, returning
+    /// [-1, 1]. The hash is a MurmurHash3 mixing round followed by the engine's own finalizer.
+    /// </summary>
     static class Noise
     {
-        // Simple perlin noise implementation, returns a value in [-1, 1] to match Source's NoiseSIMD.
-        public static float Simplex1D(float t)
-        {
-            var previous = PseudoRandom(MathF.Floor(t));
-            var next = PseudoRandom(MathF.Ceiling(t));
+        /// <summary>
+        /// Samples the noise lattice. Operators that only vary one input sample the x=y=z diagonal,
+        /// which is what the engine does when no world noise control point is set.
+        /// </summary>
+        public static float ValueDiagonal(float t) => Value3D(t, t, t);
 
-            return (2f * CosineInterpolate(previous, next, MathUtils.Fract(t))) - 1f;
+        /// <inheritdoc cref="Value3D(float, float, float)"/>
+        public static float Value3D(Vector3 position) => Value3D(position.X, position.Y, position.Z);
+
+        /// <summary>Samples the noise lattice at a point, returning a value in [-1, 1].</summary>
+        public static float Value3D(float x, float y, float z)
+        {
+            var ix = (int)MathF.Floor(x);
+            var iy = (int)MathF.Floor(y);
+            var iz = (int)MathF.Floor(z);
+
+            var fx = x - ix;
+            var fy = y - iy;
+            var fz = z - iz;
+
+            var c00 = float.Lerp(Hash(ix, iy, iz), Hash(ix + 1, iy, iz), fx);
+            var c10 = float.Lerp(Hash(ix, iy + 1, iz), Hash(ix + 1, iy + 1, iz), fx);
+            var c01 = float.Lerp(Hash(ix, iy, iz + 1), Hash(ix + 1, iy, iz + 1), fx);
+            var c11 = float.Lerp(Hash(ix, iy + 1, iz + 1), Hash(ix + 1, iy + 1, iz + 1), fx);
+
+            var c0 = float.Lerp(c00, c10, fy);
+            var c1 = float.Lerp(c01, c11, fy);
+
+            return (float.Lerp(c0, c1, fz) - 0.5f) * 2f;
         }
 
         /// <summary>
-        /// Yes I know it's not actually a proper LCG but I need it to work without knowing the last value.
+        /// Samples a vector-valued lattice at a point, returning each component in [-1, 1]. Shares the
+        /// packed-corner indexing and unsmoothed trilinear weights of <see cref="Value3D(float, float, float)"/>,
+        /// but draws all three components from a single hash of each corner, so they are correlated.
         /// </summary>
-        private static float PseudoRandom(float t)
+        public static Vector3 ValueVector3(Vector3 position)
         {
-            // Compute in double and wrap into [0, 1) so large or negative inputs stay well distributed
-            var value = 1013904223517.0 * t % 1664525.0 / 1664525.0;
-            return (float)(value < 0 ? value + 1 : value);
+            var ix = (int)MathF.Floor(position.X);
+            var iy = (int)MathF.Floor(position.Y);
+            var iz = (int)MathF.Floor(position.Z);
+
+            var fx = position.X - ix;
+            var fy = position.Y - iy;
+            var fz = position.Z - iz;
+
+            var c00 = Vector3.Lerp(HashVector(ix, iy, iz), HashVector(ix + 1, iy, iz), fx);
+            var c10 = Vector3.Lerp(HashVector(ix, iy + 1, iz), HashVector(ix + 1, iy + 1, iz), fx);
+            var c01 = Vector3.Lerp(HashVector(ix, iy, iz + 1), HashVector(ix + 1, iy, iz + 1), fx);
+            var c11 = Vector3.Lerp(HashVector(ix, iy + 1, iz + 1), HashVector(ix + 1, iy + 1, iz + 1), fx);
+
+            var c0 = Vector3.Lerp(c00, c10, fy);
+            var c1 = Vector3.Lerp(c01, c11, fy);
+
+            return Vector3.Lerp(c0, c1, fz);
         }
 
-        private static float CosineInterpolate(float start, float end, float mu)
+        /// <summary>
+        /// Hashes one lattice corner to a vector with each component in [-1, 1], taken from three bytes
+        /// of a single mixed value.
+        /// </summary>
+        private static Vector3 HashVector(int x, int y, int z)
         {
-            var mu2 = (1 - float.CosPi(mu)) / 2f;
-            return float.Lerp(start, end, mu2);
+            unchecked
+            {
+                var index = x + (y << 10) + (z << 20);
+
+                var k = (int)((uint)index * 0xCC9E2D51u) & 0x7FFFFFFF;
+                k = (int)(BitOperations.RotateLeft((uint)k, 15) * 0x1B873593u) & 0x7FFFFFFF;
+                k = (int)BitOperations.RotateLeft((uint)k, 13) & 0x7FFFFFFF;
+
+                var mixed = k * 0x04B2AE35;
+                mixed ^= mixed >> 16;
+
+                const float scale = 2f / 255f;
+
+                return new Vector3(
+                    ((mixed & 255) * scale) - 1f,
+                    (((mixed >> 8) & 255) * scale) - 1f,
+                    (((mixed >> 16) & 255) * scale) - 1f
+                );
+            }
+        }
+
+        /// <summary>
+        /// Hashes one lattice corner to [0, 1]. The corner is packed by plain addition rather than
+        /// into disjoint bit fields, so the field aliases: Hash(x + 1024, y, z) == Hash(x, y + 1, z).
+        /// </summary>
+        private static float Hash(int x, int y, int z)
+        {
+            unchecked
+            {
+                var index = x + (y << 10) + (z << 20);
+
+                var k = ((uint)index * 0xCC9E2D51u) & 0x7FFFFFFFu;
+                k = (BitOperations.RotateLeft(k, 15) * 0x1B873593u) & 0x7FFFFFFFu;
+
+                var h = (BitOperations.RotateLeft(k, 13) * 5u) + 0xE6546B64u;
+
+                // Sign-extending shift: the unmasked bit 31 reaches bits that survive the mask
+                var mixed = (uint)((int)h ^ ((int)h >> 16)) & 0x7FFFFFFFu;
+                var scaled = mixed * 0x04B2AE35u;
+
+                return ((uint)((int)scaled ^ ((int)scaled >> 16)) & 0xFFFFu) / 65535f;
+            }
         }
     }
     /* PFNoiseType_t:
@@ -37,7 +126,7 @@ namespace ValveResourceFormat.Renderer.Particles.Utils
      * PF_NOISE_MODIFIER_NONE
      * PF_NOISE_MODIFIER_LINES
      * PF_NOISE_MODIFIER_CLUMPS
-     * PF_NOISE_MODIFIER_RINGS 
+     * PF_NOISE_MODIFIER_RINGS
      */
     /* PFNoiseTurbulence_t:
      * PF_NOISE_TURB_NONE

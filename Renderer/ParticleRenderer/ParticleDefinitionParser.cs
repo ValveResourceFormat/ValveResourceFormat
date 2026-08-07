@@ -93,15 +93,62 @@ record struct ParticleDefinitionParser(KVObject Data, ILogger Logger)
     /// <summary>Reads a <see cref="System.Numerics.Vector3"/> sub-collection property, returning <paramref name="default"/> if the key is absent.</summary>
     public readonly Vector3 Vector3(string key, Vector3 @default = default) => GetValueOrDefault(key, Vector3, @default);
 
-    private readonly T Enum<T>(string k) where T : Enum => Data.GetEnumValue<T>(k);
     /// <summary>Reads an enum property, returning <paramref name="default"/> if the key is absent.</summary>
     public readonly T Enum<T>(string key, T @default = default) where T : struct, Enum
-        => GetValueOrDefault(key, Enum<T>, @default);
+        => ReadEnum(key, @default, normalize: false);
 
-    private readonly T EnumNormalized<T>(string k) where T : Enum => Data.GetEnumValue<T>(k, true);
     /// <summary>Reads an enum property with normalized name matching, returning <paramref name="default"/> if the key is absent.</summary>
     public readonly T EnumNormalized<T>(string key, T @default = default) where T : struct, Enum
-        => GetValueOrDefault(key, EnumNormalized<T>, @default);
+        => ReadEnum(key, @default, normalize: true);
+
+    /// <summary>
+    /// Reads an enum authored either as a member name or as its raw integer value, falling back to
+    /// <paramref name="default"/> for anything this enum does not define.
+    /// </summary>
+    private readonly T ReadEnum<T>(string key, T @default, bool normalize) where T : struct, Enum
+    {
+        if (!Data.TryGetValue(key, out var value))
+        {
+            return @default;
+        }
+
+        if (value.ValueType != KVValueType.String)
+        {
+            return FromEnumValue(key, (int)value, @default);
+        }
+
+        var name = (string)value;
+
+        if (int.TryParse(name, NumberStyles.Integer, CultureInfo.InvariantCulture, out var numeric))
+        {
+            return FromEnumValue(key, numeric, @default);
+        }
+
+        var member = normalize ? KVObjectExtensions.NormalizeEnumName<T>(name, "Flags") : name;
+
+        if (System.Enum.TryParse<T>(member, false, out var result))
+        {
+            return result;
+        }
+
+        Logger.LogUniqueWarning("Enum {Enum} has no member named '{Name}' read from {Key}, using {Default}",
+            typeof(T).Name, name, key, @default);
+
+        return @default;
+    }
+
+    private readonly T FromEnumValue<T>(string key, int value, T @default) where T : struct, Enum
+    {
+        if (System.Enum.IsDefined(typeof(T), value))
+        {
+            return (T)(object)value;
+        }
+
+        Logger.LogUniqueWarning("Enum {Enum} has no member with value {Value} read from {Key}, using {Default}",
+            typeof(T).Name, value, key, @default);
+
+        return @default;
+    }
 
     private readonly ParticleField ParticleField(string k) => (ParticleField)Data.GetIntegerProperty(k);
     /// <summary>Reads a particle field enum property, returning <paramref name="default"/> if the key is absent.</summary>

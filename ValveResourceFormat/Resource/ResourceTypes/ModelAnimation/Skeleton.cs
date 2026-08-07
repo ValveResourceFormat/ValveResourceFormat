@@ -31,7 +31,13 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
         public Bone? ClothSimulationRoot { get; private set; }
 
         /// <summary>
-        /// Gets a bone by its StringToken hash.
+        /// Gets the authored bounding sphere radius of each bone, in model space, covering the vertices
+        /// weighted to it. Zero for bones that carry no geometry.
+        /// </summary>
+        public float[] BoneSpheres { get; private set; } = [];
+
+        /// <summary>
+        /// Gets a bone by its <see cref="StringToken"/> hash.
         /// </summary>
         public Bone? this[uint hash]
         {
@@ -49,7 +55,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
 
 
         /// <summary>
-        /// Gets the index of a bone by its StringToken hash, or -1 if not found.
+        /// Gets the index of a bone by its <see cref="StringToken"/> hash, or -1 if not found.
         /// </summary>
         public int GetBoneIndex(uint hash) => boneHashToIndex.TryGetValue(hash, out var index) ? index : -1;
 
@@ -126,6 +132,11 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
 
             var boneCount = boneNames.Length;
             Bones = new Bone[boneCount];
+
+            if (skeletonData.ContainsKey("m_boneSphere"))
+            {
+                BoneSpheres = skeletonData.GetFloatArray("m_boneSphere");
+            }
 
             for (var i = 0; i < boneCount; i++)
             {

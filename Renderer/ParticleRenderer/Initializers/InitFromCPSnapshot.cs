@@ -14,9 +14,10 @@ namespace ValveResourceFormat.Renderer.Particles.Initializers
         private readonly int ControlPointNumber;
         private readonly ParticleField AttributeToRead;
         private readonly ParticleField AttributeToWrite;
-        private readonly int LocalSpaceCP = -1;
+        private readonly int LocalSpaceCP;
         private readonly bool Random;
         private readonly bool Reverse;
+        private readonly bool LocalSpaceAngles;
         // The manual index defaults to -1 = none; negative values fall back to the plain mapping.
         private readonly INumberProvider StartIndex = new LiteralNumberProvider(-1);
         private readonly INumberProvider Increment = new LiteralNumberProvider(1);
@@ -32,9 +33,10 @@ namespace ValveResourceFormat.Renderer.Particles.Initializers
             ControlPointNumber = parse.Int32("m_nControlPointNumber", 0);
             AttributeToWrite = parse.ParticleField("m_nAttributeToWrite", ParticleField.Position);
             AttributeToRead = parse.ParticleField("m_nAttributeToRead", AttributeToWrite);
-            LocalSpaceCP = parse.Int32("m_nLocalSpaceCP", LocalSpaceCP);
+            LocalSpaceCP = parse.Int32("m_nLocalSpaceCP", 0);
             Random = parse.Boolean("m_bRandom", false);
             Reverse = parse.Boolean("m_bReverse", false);
+            LocalSpaceAngles = parse.Boolean("m_bLocalSpaceAngles", LocalSpaceAngles);
             StartIndex = parse.NumberProvider("m_nManualSnapshotIndex", StartIndex);
             Increment = parse.NumberProvider("m_nSnapShotIncrement", Increment);
         }
@@ -63,7 +65,7 @@ namespace ValveResourceFormat.Renderer.Particles.Initializers
             var idx = Utils.CPSnapshotSampler.SelectIndex(particle.ParticleID, numParticles, Random, Reverse, startPoint, increment);
             // A Position write is always mirrored into PositionPrevious. A PREV_XYZ
             // (velocity) write goes through Particle.Velocity for the emit path's Verlet encoding.
-            Utils.CPSnapshotSampler.WriteAttribute(ref particle, AttributeToWrite, readAttributeData, idx, LocalSpaceCP, true, atSpawn: true, 0f, particleSystemState);
+            Utils.CPSnapshotSampler.WriteAttribute(ref particle, AttributeToWrite, readAttributeData, idx, LocalSpaceCP, true, atSpawn: true, 0f, particleSystemState, LocalSpaceAngles);
 
             return particle;
         }

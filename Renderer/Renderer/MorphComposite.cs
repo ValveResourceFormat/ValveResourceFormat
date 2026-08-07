@@ -48,7 +48,7 @@ namespace ValveResourceFormat.Renderer
         {
             ArgumentNullException.ThrowIfNull(morph.TextureResource);
             morphAtlas = renderContext.MaterialLoader.LoadTexture(morph.TextureResource);
-            shader = renderContext.ShaderLoader.LoadShader("vrf.morph_composite");
+            shader = renderContext.ShaderLoader.LoadShader("morph_composite");
 
             var width = morph.Data.GetInt32Property("m_nWidth");
             var height = morph.Data.GetInt32Property("m_nHeight");
@@ -114,9 +114,6 @@ namespace ValveResourceFormat.Renderer
             GL.BindVertexArray(vao);
 
             GL.DrawElements(PrimitiveType.Triangles, (usedVerticesLength / VertexSize / 4) * 6, DrawElementsType.UnsignedShort, 0);
-
-            GL.UseProgram(0);
-            GL.BindVertexArray(0);
 
             GL.Disable(EnableCap.Blend);
             GL.Enable(EnableCap.CullFace);

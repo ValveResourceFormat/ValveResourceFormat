@@ -15,11 +15,12 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
     /// <seealso href="https://s2v.app/SchemaExplorer/cs2/particles/C_OP_RenderCables">C_OP_RenderCables</seealso>
     internal class RenderCables : ParticleFunctionRenderer
     {
-        private const string ShaderName = "vrf.particle_cable";
+        private const string ShaderName = "particle_cable";
 
         private Shader shader;
         private readonly Scene scene;
         private readonly RenderMaterial material;
+        private readonly bool ownsMaterial;
         private readonly int vaoHandle;
         private int vertexBufferHandle;
         private int indexBufferHandle;
@@ -67,14 +68,19 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
             maxArrayLength: (MaxTubeRings - 1) * CableMeshBuilder.MaxSides * 6,
             maxArraysPerBucket: 2);
 
-        private static readonly IComparer<(int Id, Vector3 Position, float Radius, Vector3 Color)> ChainComparer =
-            Comparer<(int Id, Vector3 Position, float Radius, Vector3 Color)>.Create(static (a, b) => a.Id.CompareTo(b.Id));
+        private static readonly Comparison<(int Id, Vector3 Position, float Radius, Vector3 Color)> ChainComparer =
+            static (a, b) => a.Id.CompareTo(b.Id);
 
         public RenderCables(ParticleDefinitionParser parse, RendererContext rendererContext, Scene scene) : base(parse)
         {
             this.scene = scene;
 
-            shader = rendererContext.ShaderLoader.LoadShader(ShaderName);
+            var shaderArguments = new Dictionary<string, byte>(scene.RenderAttributes)
+            {
+                ["D_BAKED_LIGHTING_FROM_PROBE"] = scene.LightingInfo.HasValidLightProbes ? (byte)1 : (byte)0,
+            };
+
+            shader = rendererContext.ShaderLoader.LoadShader(ShaderName, shaderArguments);
 
             roundness = parse.Int32("m_nRoundness", roundness);
             textureRepetitionMode = parse.Enum("m_nTextureRepetitionMode", textureRepetitionMode);
@@ -86,9 +92,10 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
             circumferenceRepeats = parse.NumberProvider("m_flTextureRepeatsCircumference", circumferenceRepeats);
 
             var materialName = parse.Data.ContainsKey("m_hMaterial") ? parse.Data.GetStringProperty("m_hMaterial") : null;
-            material = materialName != null
-                ? rendererContext.MaterialLoader.GetMaterial(materialName, null)
-                : new RenderMaterial(shader);
+            ownsMaterial = materialName == null;
+            material = ownsMaterial
+                ? new RenderMaterial(shader)
+                : rendererContext.MaterialLoader.GetMaterial(materialName!, null);
 
             // A cable without an authored colour texture uses a default white one, showing the vertex
             // colour rather than the shader-default error checker.
@@ -96,6 +103,8 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
             {
                 material.Textures["g_tColor"] = rendererContext.MaterialLoader.GetDefaultColor();
             }
+
+            Pass = material.IsTranslucent ? RenderPass.Translucent : RenderPass.Opaque;
 
             vaoHandle = SetupBuffers();
         }
@@ -352,8 +361,8 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
         }
 
         // Prefers the probe volume containing the cable midpoint, falling back to the binding the
-        // scene assigned to the owning node. When one exists the shader is swapped for the
-        // probe-sampling variant (same vertex layout, so the VAO is kept).
+        // scene assigned to the owning node. Failing to find one is a lighting problem and the
+        // cable renders unlit, the same way a model with a bad probe binding would.
         private void ResolveLightProbe(ParticleSystemRenderState systemRenderState, Vector3 cablePosition)
         {
             lightProbeResolved = true;
@@ -364,18 +373,6 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
             }
 
             lightProbe = FindContainingProbe(cablePosition) ?? systemRenderState.OwnerNode?.LightProbeBinding;
-            if (lightProbe?.Irradiance == null)
-            {
-                lightProbe = null;
-                return;
-            }
-
-            var arguments = new Dictionary<string, byte>(scene.RenderAttributes)
-            {
-                ["D_BAKED_LIGHTING_FROM_PROBE"] = 1,
-            };
-
-            shader = scene.RendererContext.ShaderLoader.LoadShader(ShaderName, arguments);
         }
 
         // Highest-priority (then smallest) complete probe volume containing the given position,
@@ -428,27 +425,18 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
             material.Render(shader);
 
             // todo: batch tube draws and call this less often
-            scene.LightingInfo.SetLightmapTextures(shader);
+            scene.LightingInfo.BindLightmapTextures();
 
             if (lightProbe is not null)
             {
                 shader.SetUniform1("uLightProbeIndex", (uint)lightProbe.ShaderIndex);
-                scene.LightingInfo.SetInstanceLightProbeTextures(shader, lightProbe);
+                scene.LightingInfo.BindInstanceLightProbeTextures(lightProbe);
             }
-
-            // The tube is opaque geometry drawn in the translucent pass: disable blending and write depth so
-            // it self-occludes correctly, then restore the translucent defaults.
-            GL.Disable(EnableCap.Blend);
-            GL.DepthMask(true);
 
             PerfStats.Active.Count(Counter.ParticleDraw);
             GL.DrawElements(PrimitiveType.Triangles, indexCount, DrawElementsType.UnsignedInt, 0);
 
             material.PostRender();
-            GL.DepthMask(false);
-            GL.Enable(EnableCap.Blend);
-            GL.BindVertexArray(0);
-            GL.UseProgram(0);
         }
 
         public override IEnumerable<string> GetSupportedRenderModes() => shader.RenderModes;
@@ -458,6 +446,11 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
             GL.DeleteVertexArray(vaoHandle);
             GL.DeleteBuffer(vertexBufferHandle);
             GL.DeleteBuffer(indexBufferHandle);
+
+            if (ownsMaterial)
+            {
+                material.Delete();
+            }
         }
     }
 }

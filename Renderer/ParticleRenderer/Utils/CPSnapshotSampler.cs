@@ -33,21 +33,39 @@ namespace ValveResourceFormat.Renderer.Particles.Utils
 
         /// <summary>
         /// Writes the snapshot value at <paramref name="idx"/> into <paramref name="particle"/>'s
-        /// <paramref name="attributeToWrite"/>, applying an optional local-space control point offset. Does
-        /// nothing if the attribute type does not match the snapshot data or the index is out of range.
-        /// When <paramref name="writePositionPrevious"/> is set, a Position write also seeds PositionPrevious
+        /// <paramref name="attributeToWrite"/>, moving it into control point <paramref name="localSpaceCP"/>'s
+        /// frame first (a negative control point leaves the value alone). Does nothing if the attribute type
+        /// does not match the snapshot data or the index is out of range.
+        /// When <paramref name="writePositionPrevious"/> is set, a <see cref="ParticleField.Position"/> write also seeds <see cref="Particle.PositionPrevious"/>
         /// (the initializer always mirrors it; the operator only when <c>m_bPrev</c> is set).
         /// <paramref name="atSpawn"/> marks the initializer path, where a velocity write goes through
         /// <see cref="Particle.Velocity"/> so the emit path's Verlet encoding picks it up.
+        /// <paramref name="localSpaceAngles"/> extends the control point transform to Roll, Yaw and Pitch writes
+        /// (<c>m_bLocalSpaceAngles</c>, which only the initializer carries).
         /// </summary>
         public static void WriteAttribute(ref Particle particle, ParticleField attributeToWrite, IEnumerable readAttributeData,
-            int idx, int localSpaceCP, bool writePositionPrevious, bool atSpawn, float frameTime, ParticleSystemRenderState particleSystemState)
+            int idx, int localSpaceCP, bool writePositionPrevious, bool atSpawn, float frameTime, ParticleSystemRenderState particleSystemState,
+            bool localSpaceAngles = false)
         {
             var fieldType = attributeToWrite.FieldType();
 
             if (fieldType == "vector" && readAttributeData is Vector3[] vectorArray && (uint)idx < (uint)vectorArray.Length)
             {
                 var value = vectorArray[idx];
+
+                // Only these three attributes are moved into the local space control point's frame, and a
+                // velocity or a normal is rotated by it without picking up its translation.
+                if (localSpaceCP >= 0)
+                {
+                    value = attributeToWrite switch
+                    {
+                        ParticleField.Position
+                            => ControlPointTransformProvider.TransformPosition(particleSystemState, localSpaceCP, value),
+                        ParticleField.PositionPrevious or ParticleField.Normal
+                            => ControlPointTransformProvider.TransformDirection(particleSystemState, localSpaceCP, value),
+                        _ => value,
+                    };
+                }
 
                 // PREV_XYZ stores a velocity; the previous position is derived from the current
                 // position and that velocity over the frame (1/30 fallback when the frame time is unknown).
@@ -64,14 +82,6 @@ namespace ValveResourceFormat.Renderer.Particles.Utils
                     return;
                 }
 
-                if (localSpaceCP >= 0)
-                {
-                    // Transform the sampled value by the control point's full local frame (rotation +
-                    // translation), not just an origin offset. Identity orientation collapses to a plain
-                    // position offset.
-                    value = ControlPointTransformProvider.TransformPosition(particleSystemState, localSpaceCP, value);
-                }
-
                 particle.SetVector(attributeToWrite, value);
 
                 if (writePositionPrevious && attributeToWrite == ParticleField.Position)
@@ -81,7 +91,15 @@ namespace ValveResourceFormat.Renderer.Particles.Utils
             }
             else if (fieldType == "float" && readAttributeData is float[] floatArray && (uint)idx < (uint)floatArray.Length)
             {
-                particle.SetScalar(attributeToWrite, floatArray[idx]);
+                var value = floatArray[idx];
+
+                if (localSpaceAngles && localSpaceCP >= 0
+                    && attributeToWrite is ParticleField.Roll or ParticleField.Yaw or ParticleField.Pitch)
+                {
+                    value = ControlPointTransformProvider.TransformAngle(particleSystemState, localSpaceCP, attributeToWrite, value);
+                }
+
+                particle.SetScalar(attributeToWrite, value);
             }
         }
     }

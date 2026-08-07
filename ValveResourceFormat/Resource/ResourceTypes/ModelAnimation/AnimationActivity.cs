@@ -10,22 +10,22 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
     public readonly struct AnimationActivity
     {
         /// <summary>
-        /// Gets or sets the name of the activity.
+        /// Gets the name of the activity.
         /// </summary>
         public string Name { get; init; }
 
         /// <summary>
-        /// Gets or sets the activity identifier.
+        /// Gets the activity identifier.
         /// </summary>
         public int Activity { get; init; }
 
         /// <summary>
-        /// Gets or sets the activity flags.
+        /// Gets the activity flags.
         /// </summary>
         public int Flags { get; init; }
 
         /// <summary>
-        /// Gets or sets the activity weight.
+        /// Gets the activity weight.
         /// </summary>
         public int Weight { get; init; }
 

@@ -14,8 +14,8 @@ namespace ValveResourceFormat.Renderer
         /// <summary>Gets the OpenGL texture target (e.g. Texture2D, TextureCubeMap).</summary>
         public TextureTarget Target { get; }
 
-        /// <summary>Gets the OpenGL texture object handle.</summary>
-        public int Handle { get; }
+        /// <summary>Gets the OpenGL texture object handle, or 0 once <see cref="Delete"/> has been called.</summary>
+        public int Handle { get; private set; }
 
         /// <summary>Gets optional spritesheet layout data when the texture is a sprite atlas.</summary>
         public Texture.SpritesheetData? SpriteSheetData { get; }
@@ -32,8 +32,15 @@ namespace ValveResourceFormat.Renderer
         /// <summary>Gets the number of mip levels.</summary>
         public int NumMipLevels { get; private set; }
 
-        /// <summary>Gets or sets the average color reflectivity used for environment lighting calculations.</summary>
+        /// <summary>Gets the average color reflectivity used for environment lighting calculations.</summary>
         public Vector4 Reflectivity { get; internal set; }
+
+        /// <summary>
+        /// Gets the baked radiance of each cube map in this array as an L2 spherical harmonic,
+        /// 9 coefficients per channel stored planar, 27 per cube map. Null unless the source
+        /// texture carried them.
+        /// </summary>
+        public float[]? RadianceCoefficients { get; }
 
         RenderTexture(TextureTarget target)
         {
@@ -44,7 +51,7 @@ namespace ValveResourceFormat.Renderer
 
         /// <summary>Creates a render texture and populates metadata from the given source texture resource.</summary>
         /// <param name="target">OpenGL texture target.</param>
-        /// <param name="data">Source texture resource providing dimensions, mip count, and spritesheet data.</param>
+        /// <param name="data">Source texture resource providing dimensions, mip count, spritesheet data and radiance harmonics.</param>
         public RenderTexture(TextureTarget target, Texture data) : this(target)
         {
             Width = data.Width;
@@ -53,6 +60,7 @@ namespace ValveResourceFormat.Renderer
             NumMipLevels = data.NumMipLevels;
             SpriteSheetData = data.GetSpriteSheetData();
             Reflectivity = data.Reflectivity;
+            RadianceCoefficients = data.RadianceCoefficients;
         }
 
         /// <summary>Creates a render texture with explicit dimension and mip level metadata.</summary>
@@ -176,6 +184,7 @@ namespace ValveResourceFormat.Renderer
         public void Delete()
         {
             GL.DeleteTexture(Handle);
+            Handle = 0;
         }
 
         /// <summary>Calculates a reasonable mip count for a texture of the given dimensions.</summary>

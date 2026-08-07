@@ -695,7 +695,7 @@ namespace GUI.Types.PackageViewer
         }
 
         /// <summary>
-        /// Renders the file-type SVG icon at the given size — the same icon the grid view falls back to when a
+        /// Renders the file-type SVG icon at the given <paramref name="size"/>; this is the same icon the grid view falls back to when a
         /// file has no rendered thumbnail.
         /// </summary>
         internal static Bitmap GetTypeIconBitmap(string typeName, int size)
@@ -1214,6 +1214,8 @@ namespace GUI.Types.PackageViewer
         /// </summary>
         /// <param name="searchText">Value to search for in the TreeView. Matching on this value is based on the search type.</param>
         /// <param name="selectedSearchType">Determines the matching of the value. For example, full/partial text search or full path search.</param>
+        /// <param name="filterKey">Optional <see cref="ValveResourceFormat.ToolsAssetInfo.ToolsAssetInfo.File.SearchableUserData"/> key that matching files must contain.</param>
+        /// <param name="filterValue">Optional value the filter key must equal; when <see langword="null"/>, any value for the key matches.</param>
         internal void SearchAndFillResults(string searchText, SearchType selectedSearchType, string? filterKey = null, string? filterValue = null)
         {
             var request = new SearchRequest(searchText, selectedSearchType, filterKey, filterValue);
@@ -1810,7 +1812,7 @@ namespace GUI.Types.PackageViewer
                             iconImageCacheEntry = new IconImageCacheEntry(bitmap, index);
                             BigIconImageCache[extension] = iconImageCacheEntry;
                         }
-                        // else: lost the race — discard the bitmap we just created
+                        // else: lost the race, discard the bitmap we just created
                     }
                 }
 
@@ -1824,7 +1826,7 @@ namespace GUI.Types.PackageViewer
         }
 
         /// <summary>
-        /// Returns a task that resolves to the SearchableUserData filter keys.
+        /// Returns a task that resolves to the <see cref="ValveResourceFormat.ToolsAssetInfo.ToolsAssetInfo.File.SearchableUserData"/> filter keys.
         /// If already cached, returns a completed task. Otherwise loads on a background thread.
         /// </summary>
         internal Task<Dictionary<string, SortedSet<string>>?> GetSearchDataKeysAsync()
@@ -1838,7 +1840,7 @@ namespace GUI.Types.PackageViewer
         }
 
         /// <summary>
-        /// Lazily loads the tools asset info and builds the SearchableUserData index.
+        /// Lazily loads the tools asset info and builds the <see cref="ValveResourceFormat.ToolsAssetInfo.ToolsAssetInfo.File.SearchableUserData"/> index.
         /// Returns the collected filter keys and their unique values, or null if no data.
         /// </summary>
         internal Dictionary<string, SortedSet<string>>? GetSearchDataKeys()

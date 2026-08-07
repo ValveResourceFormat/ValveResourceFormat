@@ -46,9 +46,9 @@ namespace ValveResourceFormat
         }
 
         /// <summary>
-        /// Writes the correct text dump of the object to IndentedTextWriter.
+        /// Writes the correct text dump of the object to <see cref="IndentedTextWriter"/>.
         /// </summary>
-        /// <param name="writer">IndentedTextWriter.</param>
+        /// <param name="writer"><see cref="IndentedTextWriter"/>.</param>
         public abstract void WriteText(IndentedTextWriter writer);
 
         /// <summary>

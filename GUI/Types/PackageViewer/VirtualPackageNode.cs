@@ -17,7 +17,7 @@ namespace GUI.Types.PackageViewer
         public string Name { get; } = name;
 
         /// <summary>
-        /// Summed up size of all the files in this dictionary (recursively).
+        /// Summed up size of all the files in this folder (recursively).
         /// </summary>
         public long TotalSize { get; set; } = size;
 

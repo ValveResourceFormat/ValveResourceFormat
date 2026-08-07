@@ -30,7 +30,7 @@ namespace ValveResourceFormat.Renderer.Particles.Operators
             bias = parse.NumberProvider("m_flBias", bias);
         }
 
-        public override void Operate(ParticleCollection particles, float frameTime, ParticleSystemRenderState particleSystemState)
+        public override void Operate(ParticleCollection particles, float frameTime, ParticleSystemRenderState particleSystemState, float strength)
         {
             foreach (ref var particle in particles.Current)
             {

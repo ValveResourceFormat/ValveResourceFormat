@@ -1,9 +1,12 @@
 using System.Diagnostics;
+using System.Linq;
 using System.Reflection;
 using System.Runtime.InteropServices;
 using OpenTK.Graphics.OpenGL;
 using ValveResourceFormat.Blocks;
+using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.ResourceTypes.GenericData.CS2;
+using ValveResourceFormat.Serialization.KeyValues;
 
 namespace ValveResourceFormat.Renderer.SceneNodes;
 
@@ -32,7 +35,7 @@ public class CS2BombDamageSceneNode : SceneNode
 
     private readonly RenderMaterial material;
     private readonly string meshName;
-    private int vaoHandle;
+    private RenderVao vao = null!;
 
     private const int VertexPositionOffset = 0;
     private const int VertexUVOffset = 12;
@@ -42,10 +45,10 @@ public class CS2BombDamageSceneNode : SceneNode
 
     private static readonly VBIB.RenderInputLayoutField[] InputLayout =
     [
-        new() { SemanticName = "POSITION", Format = DXGI_FORMAT.R32G32B32_FLOAT, Offset = VertexPositionOffset },
-        new() { SemanticName = "TEXCOORD", Format = DXGI_FORMAT.R32G32_FLOAT, Offset = VertexUVOffset },
-        new() { SemanticName = "COLOR", Format = DXGI_FORMAT.R8G8B8A8_UNORM, Offset = VertexColorOffset },
-        new() { SemanticName = "PHASE", Format = DXGI_FORMAT.R32_FLOAT, Offset = VertexPhaseOffset },
+        new("POSITION", DXGI_FORMAT.R32G32B32_FLOAT, VertexPositionOffset),
+        new("TEXCOORD", DXGI_FORMAT.R32G32_FLOAT, VertexUVOffset),
+        new("COLOR", DXGI_FORMAT.R8G8B8A8_UNORM, VertexColorOffset),
+        new("PHASE", DXGI_FORMAT.R32_FLOAT, VertexPhaseOffset),
     ];
 
     private int indicesCount;
@@ -73,19 +76,20 @@ public class CS2BombDamageSceneNode : SceneNode
     /// <param name="bombDamageData">Baked bomb damage data.</param>
     /// <param name="bombsiteIndex">Index of the bombsite. Index 0 is not guaranteed to be bombsite A.</param>
     /// <param name="renderTexture">Texture drawn on each damage value quad.</param>
-    public CS2BombDamageSceneNode(Scene scene, BombDamage bombDamageData, int bombsiteIndex, RenderTexture renderTexture) : base(scene)
+    /// <param name="bombsiteLabel">Display label for the bombsite ("A", "B", or a per-site index when unresolved).</param>
+    public CS2BombDamageSceneNode(Scene scene, BombDamage bombDamageData, int bombsiteIndex, RenderTexture renderTexture, string bombsiteLabel) : base(scene)
     {
-        var shader = Scene.RendererContext.ShaderLoader.LoadShader("vrf.cs2_baked_bomb_damage");
+        var shader = Scene.RendererContext.ShaderLoader.LoadShader("cs2_baked_bomb_damage");
         meshName = $"{bombDamageData.Resource.FileName}:site{bombsiteIndex}";
 
         material = new RenderMaterial(shader);
-        material.Material.IntParams["F_TRANSLUCENT"] = 1;
-        material.Material.IntParams["F_RENDER_BACKFACES"] = 1;
-        material.Material.IntParams["F_DISABLE_Z_BUFFERING"] = 1;
+        material.IntParams["F_TRANSLUCENT"] = 1;
+        material.IntParams["F_RENDER_BACKFACES"] = 1;
+        material.IntParams["F_DISABLE_Z_BUFFERING"] = 1;
         material.LoadRenderState();
         material.Textures["g_tColor"] = renderTexture;
 
-        LayerName = $"Bombsite {bombsiteIndex} blast flow map";
+        LayerName = $"Bombsite {bombsiteLabel} blast flow map";
 
         Initialize(bombDamageData, bombsiteIndex);
     }
@@ -150,21 +154,7 @@ public class CS2BombDamageSceneNode : SceneNode
             Data = indexData,
         });
 
-        var meshBufferCache = Scene.RendererContext.MeshBufferCache;
-        var gpuBuffers = meshBufferCache.CreateVertexIndexBuffers(meshName, vbib);
-
-        // why do we have to create this
-        VertexDrawBuffer[] vertexDrawBuffers =
-        [
-            new VertexDrawBuffer
-            {
-                Handle = gpuBuffers.VertexBuffers[0],
-                ElementSizeInBytes = VertexSize,
-                InputLayoutFields = InputLayout,
-            },
-        ];
-
-        vaoHandle = meshBufferCache.GetVertexArrayObject(meshName, vertexDrawBuffers, material, gpuBuffers.IndexBuffers[0]);
+        vao = Scene.RendererContext.MeshBufferCache.UploadBuffersAndCreateVertexArray(meshName, vbib, material.Material.InputSignature);
     }
 
     private void AddFace(Span<VertexFormat> vertices, Span<int> indices, int positionIndex, Vector3 basePosition, in BombDamageDamageValue damage, in BombDamageBombsite bombsite, in AABB bombsiteBounds)
@@ -222,19 +212,28 @@ public class CS2BombDamageSceneNode : SceneNode
 
         var renderShader = context.ReplacementShader ?? material.Shader;
         renderShader.Use();
-        GL.BindVertexArray(vaoHandle);
+        GL.BindVertexArray(vao.Get(renderShader));
         material.Render(renderShader);
         renderShader.SetUniform3x4("transform", Matrix4x4.Identity);
 
         GL.DrawElementsInstancedBaseInstance(PrimitiveType.Triangles, indicesCount, DrawElementsType.UnsignedInt, 0, 1, Id);
 
         material.PostRender();
-        GL.BindVertexArray(0);
-        GL.UseProgram(0);
     }
+
+    private static string GetBombsiteDesignation(SceneNode bombTarget) => bombTarget.EntityData?.GetStringProperty("bomb_site_designation") switch
+    {
+        "0" => "A",
+        "1" => "B",
+        _ => "?",
+    };
 
     /// <summary>
     /// Adds visualization scene nodes of a <see cref="BombDamage"/> to a <see cref="Scene"/>. Each bombsite gets its own <see cref="CS2BombDamageSceneNode"/>.
+    /// The baked data carries no site letters; at detonation the first site whose bounds, expanded by 32 units,
+    /// contain the bomb position is used, so each site's plant trigger volume must intersect its bounds. Sites are
+    /// labeled from the <c>func_bomb_target</c> volumes intersecting their bounds, falling back to a per-site
+    /// index unless exactly one designation matches (e.g. when the scene has no entities).
     /// </summary>
     public static void AddBakedBombDamageToScene(BombDamage? bombDamageData, Scene scene)
     {
@@ -243,14 +242,27 @@ public class CS2BombDamageSceneNode : SceneNode
             return;
         }
 
+        var bombTargets = scene.AllNodes
+            .Where(static n => n.EntityData?.GetStringProperty("classname") == "func_bomb_target")
+            .ToList();
+
         var arrowTexture = LoadArrowTexture(scene);
 
         for (var i = 0; i < bombDamageData.Bombsites.Length; i++)
         {
-            var sceneNode = new CS2BombDamageSceneNode(scene, bombDamageData, i, arrowTexture);
-            scene.Add(sceneNode, false);
-
             var bombsite = bombDamageData.Bombsites[i];
+            var siteBounds = new AABB(bombsite.BoundsMin - new Vector3(32f), bombsite.BoundsMax + new Vector3(32f));
+            var designations = bombTargets
+                .Where(n => n.BoundingBox.Intersects(siteBounds))
+                .Select(GetBombsiteDesignation)
+                .Distinct()
+                .ToList();
+            // Fall back to a per-site index when unresolved (e.g. standalone viewer has no
+            // entities) so each site still gets a distinct scene layer.
+            var label = designations.Count == 1 ? designations[0] : $"#{i + 1}";
+
+            var sceneNode = new CS2BombDamageSceneNode(scene, bombDamageData, i, arrowTexture, label);
+            scene.Add(sceneNode, false);
             var boundsVertices = new List<SimpleVertex>(2 * 12);
             ShapeSceneNode.AddBox(boundsVertices, new AABB(bombsite.BoundsMin, bombsite.BoundsMax), Color32.Red);
 
@@ -267,5 +279,6 @@ public class CS2BombDamageSceneNode : SceneNode
     {
         base.Delete();
         Scene.RendererContext.MeshBufferCache.DeleteVertexIndexBuffers(meshName);
+        material.Delete();
     }
 }

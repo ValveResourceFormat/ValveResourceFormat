@@ -216,14 +216,14 @@ namespace GUI.Types.GLViewers
             }
         }
 
-        protected override void OnMouseMove(object? sender, MouseEventArgs e)
+        protected override void OnMouseMove(int x, int y)
         {
-            var screenPoint = new SKPoint(e.Location.X, e.Location.Y);
+            var screenPoint = new SKPoint(x, y);
             var graphPoint = ScreenToGraph(screenPoint);
 
             if (ClickPosition.HasValue)
             {
-                base.OnMouseMove(sender, e);
+                base.OnMouseMove(x, y);
                 return;
             }
 

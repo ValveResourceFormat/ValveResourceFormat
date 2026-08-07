@@ -106,10 +106,10 @@ namespace ValveResourceFormat.CompiledShader
         }
 
         /// <summary>
-        /// Converts a program type abbreviation string to a VcsProgramType enum value.
+        /// Converts a program type abbreviation string to a <see cref="VcsProgramType"/> enum value.
         /// </summary>
         /// <param name="abbrev">The program type abbreviation (e.g., "vs", "ps", "features").</param>
-        /// <returns>The corresponding VcsProgramType enum value.</returns>
+        /// <returns>The corresponding <see cref="VcsProgramType"/> enum value.</returns>
         public static VcsProgramType ComputeVcsProgramType(string abbrev)
         {
             // When adding new types make sure to add a small shader file to the tests folder
@@ -130,9 +130,9 @@ namespace ValveResourceFormat.CompiledShader
         }
 
         /// <summary>
-        /// Converts a VcsProgramType enum value to its abbreviation string.
+        /// Converts a <see cref="VcsProgramType"/> enum value to its abbreviation string.
         /// </summary>
-        /// <param name="type">The VcsProgramType enum value.</param>
+        /// <param name="type">The <see cref="VcsProgramType"/> enum value.</param>
         /// <returns>The program type abbreviation (e.g., "vs", "ps", "features").</returns>
         public static string ComputeVcsProgramType(VcsProgramType type)
         {
@@ -426,7 +426,7 @@ namespace ValveResourceFormat.CompiledShader
         ];
 
         /// <summary>
-        /// Converts a VfxVariableType enum value to its string representation.
+        /// Converts a <see cref="VfxVariableType"/> enum value to its string representation.
         /// </summary>
         /// <param name="type">The VFX variable type.</param>
         /// <returns>The string representation of the variable type.</returns>

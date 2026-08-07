@@ -52,7 +52,7 @@ partial class ModelExtract
     public HashSet<SurfaceTagCombo> SurfaceTagCombos { get; } = [];
 
     /// <summary>
-    /// Gets or initializes the function to provide render material names for physics surface tags.
+    /// Gets the function to provide render material names for physics surface tags.
     /// </summary>
     public Func<SurfaceTagCombo, string>? PhysicsToRenderMaterialNameProvider { get; init; }
 

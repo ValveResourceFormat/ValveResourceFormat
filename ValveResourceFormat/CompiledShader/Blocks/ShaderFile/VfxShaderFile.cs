@@ -13,7 +13,7 @@ public abstract class VfxShaderFile : ShaderDataBlock
     public abstract string BlockName { get; }
     /// <summary>Gets the shader file identifier.</summary>
     public int ShaderFileId { get; }
-    /// <summary>Gets or sets the bytecode size.</summary>
+    /// <summary>Gets or sets the shader data size. Depending on the platform this may include header data in addition to the bytecode.</summary>
     public int Size { get; protected set; }
     /// <summary>Gets or sets the shader bytecode.</summary>
     public byte[] Bytecode { get; protected set; } = [];

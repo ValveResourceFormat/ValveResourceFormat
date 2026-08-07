@@ -79,6 +79,12 @@ In their [asset system](https://sbox.game/news/asset-system#asset-information), 
 
 This demonstrates VRF's reliability—even developers with official Source 2 SDK access choose VRF for programmatic asset processing.
 
+## Crediting Source 2 Viewer
+
+If you ship our binaries or use parts of our code, the [MIT license](https://github.com/ValveResourceFormat/ValveResourceFormat/blob/master/LICENSE) requires you to keep the copyright notice with it.
+
+Source 2 Viewer is the result of years of reverse engineering by many contributors. If it helped anywhere in your project, even if you only ran it once to export some assets, please mention it with a link. If your project is substantially built on it, link it in the app itself too, not just the readme.
+
 ## Frequently Asked Questions
 
 ### Does Source 2 Viewer work on Mac and Linux?

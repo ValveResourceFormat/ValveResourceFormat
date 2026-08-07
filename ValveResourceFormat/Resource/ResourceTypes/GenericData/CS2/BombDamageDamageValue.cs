@@ -8,7 +8,7 @@ public struct BombDamageDamageValue
 {
     /// <summary>
     /// Effective distance from the bombsite used for damage falloff.
-    /// The game clamps this to [0, 1800] and computes damage as <c>100 * BombPower / Phase</c>, clamped to 0-255.
+    /// The game clamps this to at most 1800 for the falloff computation; when at most 1800, damage works out to <c>100 * BombPower / Phase</c>, clamped to 0-255 (see <see cref="BombDamage.CalculateDamage"/>).
     /// </summary>
     public ushort Phase { get; set; }
     /// <summary>

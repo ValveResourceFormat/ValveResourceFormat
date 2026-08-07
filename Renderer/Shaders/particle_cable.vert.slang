@@ -18,7 +18,9 @@ layout (location = 4) in vec4 aVertexColor;
     out vec3 vPerVertexLightingOut;
 #endif
 
-#if (S_SCENE_CUBEMAP_TYPE > 0)
+#if (S_SCENE_CUBEMAP_TYPE == 1)
+    flat out uint g_nEnvMapIndex;
+#elif (S_SCENE_CUBEMAP_TYPE == 2)
     flat out uvec4 g_nEnvMapVisibility;
 #endif
 
@@ -46,8 +48,10 @@ void main(void)
     vPerVertexLightingOut = vec3(0.0);
 #endif
 
-#if (S_SCENE_CUBEMAP_TYPE > 0)
-    g_nEnvMapVisibility = uvec4(0u);
+#if (S_SCENE_CUBEMAP_TYPE == 1)
+    g_nEnvMapIndex = 0u;
+#elif (S_SCENE_CUBEMAP_TYPE == 2)
+    g_nEnvMapVisibility = uvec4(0u); // no envmap fetch?
 #endif
 
     gl_Position = g_matWorldToProjection * vec4(aVertexPosition, 1.0);

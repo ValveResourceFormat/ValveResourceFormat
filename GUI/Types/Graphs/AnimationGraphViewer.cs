@@ -788,7 +788,7 @@ internal class AnimationGraphViewer : GLNodeGraphViewer
             }
 
             using var paint = new SKPaint { Color = PoseColor, IsAntialias = true };
-            canvas.DrawText(trimStr, textPosition.X, textPosition.Y, ArialFont, paint);
+            canvas.DrawText(trimStr, textPosition.X, textPosition.Y, SKTextAlign.Left, ArialFont, paint);
         }
 
         private static readonly Dictionary<string, SKSvg> IconCache = [];

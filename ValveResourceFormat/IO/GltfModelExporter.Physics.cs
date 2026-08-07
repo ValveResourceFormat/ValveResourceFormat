@@ -536,7 +536,7 @@ public partial class GltfModelExporter
     }
 
     /// <summary>
-    /// Generates and links a physics texture for the given surface property using MapAutoPhysTextureGenerator.
+    /// Generates and links a physics texture for the given surface property using <see cref="MapAutoPhysTextureGenerator"/>.
     /// </summary>
     private async Task AddPhysicsTexture(Image image, string surfaceProperty)
     {

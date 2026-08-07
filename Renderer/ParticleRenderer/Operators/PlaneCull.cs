@@ -31,7 +31,7 @@ namespace ValveResourceFormat.Renderer.Particles.Operators
             var sign = Vector3.Dot(planeNormal, position - pointOnPlane);
             return sign < 0;
         }
-        public override void Operate(ParticleCollection particles, float frameTime, ParticleSystemRenderState particleSystemState)
+        public override void Operate(ParticleCollection particles, float frameTime, ParticleSystemRenderState particleSystemState, float strength)
         {
             var direction = planeDirection.NextVector(particleSystemState);
             if (direction == Vector3.Zero)

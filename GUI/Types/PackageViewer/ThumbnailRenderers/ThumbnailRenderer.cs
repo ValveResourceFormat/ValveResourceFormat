@@ -56,11 +56,8 @@ internal abstract class ThumbnailRenderer : IDisposable
             StartFocused = false,
         };
 
-        NativeWindow = new NativeWindow(nativeWindowSettings);
-        RendererContext = new RendererContext(context, VrfGuiContext.Logger)
-        {
-            FieldOfView = 75,
-        };
+        NativeWindow = GLViewers.NativeWindowFactory.Create(nativeWindowSettings);
+        RendererContext = new RendererContext(context, VrfGuiContext.Logger);
 
         NativeWindow.MakeCurrent();
 
@@ -133,7 +130,7 @@ internal abstract class ThumbnailRenderer : IDisposable
         // Flip y
         using var canvas = new SkiaSharp.SKCanvas(bitmap);
         canvas.Scale(1, -1, 0, bitmap.Height / 2f);
-        canvas.DrawBitmap(bitmap, new SkiaSharp.SKPoint());
+        canvas.DrawBitmap(bitmap, new SkiaSharp.SKPoint(), SkiaSharp.SKSamplingOptions.Default);
 
         return bitmap.ToBitmap();
     }
@@ -234,7 +231,7 @@ internal abstract class ThumbnailRenderer : IDisposable
         {
             RendererContext?.Dispose();
             SceneRenderer?.Dispose();
-            NativeWindow?.Dispose();
+            GLViewers.NativeWindowFactory.Destroy(NativeWindow);
         }
 
         Loaded = false;

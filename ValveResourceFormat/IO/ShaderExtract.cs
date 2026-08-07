@@ -40,7 +40,7 @@ public sealed class ShaderExtract
         public bool NoHungarianTypeGuessing { get; init; }
         /// <summary>Gets a value indicating whether to write parameters in raw format.</summary>
         public bool WriteParametersRaw { get; init; }
-        /// <summary>Gets or sets a value indicating whether static combos can be read.</summary>
+        /// <summary>Gets a value indicating whether static combos can be read.</summary>
         public bool CanReadStaticCombos
         {
             get => StaticComboReadingCap != 0;
@@ -385,10 +385,13 @@ public sealed class ShaderExtract
             var staticCombo = staticComboEntry.Value.Unserialize();
             var staticConfigState = staticConfig.GetConfigState(staticCombo.StaticComboId);
 
-            foreach (var vsEnd in staticCombo.DynamicCombos)
+            for (var i = 0; i < staticCombo.DynamicCombos.Length; i++)
             {
+                var vsEnd = staticCombo.DynamicCombos[i];
                 var dynamicConfigState = dynamicConfig.GetConfigState(vsEnd.DynamicComboId);
-                var vsInputId = staticCombo.VShaderInputs[vsEnd.ShaderFileId];
+
+                // VShaderInputs is one entry per dynamic combo, indexed positionally.
+                var vsInputId = staticCombo.VShaderInputs[i];
 
                 for (var j = 0; j < staticConfigState.Length; j++)
                 {

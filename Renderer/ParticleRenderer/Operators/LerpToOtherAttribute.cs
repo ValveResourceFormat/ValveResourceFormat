@@ -22,7 +22,7 @@ namespace ValveResourceFormat.Renderer.Particles.Operators
             skip = FieldInput.FieldType() != FieldOutput.FieldType();
         }
 
-        public override void Operate(ParticleCollection particles, float frameTime, ParticleSystemRenderState particleSystemState)
+        public override void Operate(ParticleCollection particles, float frameTime, ParticleSystemRenderState particleSystemState, float strength)
         {
             // We don't have to do weird stuff with this one because it doesn't have the option to set the initial.
             if (!skip)
@@ -31,7 +31,7 @@ namespace ValveResourceFormat.Renderer.Particles.Operators
                 {
                     foreach (ref var particle in particles.Current)
                     {
-                        var interp = interpolation.NextNumber(ref particle, particleSystemState);
+                        var interp = MathUtils.Saturate(interpolation.NextNumber(ref particle, particleSystemState) * strength);
                         var blend = Vector3.Lerp(particle.GetVector(FieldOutput), particle.GetVector(FieldInput), interp);
                         particle.SetVector(FieldOutput, blend);
                     }
@@ -40,7 +40,7 @@ namespace ValveResourceFormat.Renderer.Particles.Operators
                 {
                     foreach (ref var particle in particles.Current)
                     {
-                        var interp = interpolation.NextNumber(ref particle, particleSystemState);
+                        var interp = MathUtils.Saturate(interpolation.NextNumber(ref particle, particleSystemState) * strength);
                         var blend = float.Lerp(particle.GetScalar(FieldOutput), particle.GetScalar(FieldInput), interp);
                         particle.SetScalar(FieldOutput, blend);
                     }

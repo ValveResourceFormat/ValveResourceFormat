@@ -10,12 +10,12 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
     public readonly struct AnimationSequenceParams
     {
         /// <summary>
-        /// Gets or sets the fade-in time in seconds.
+        /// Gets the fade-in time in seconds.
         /// </summary>
         public float FadeInTime { get; init; }
 
         /// <summary>
-        /// Gets or sets the fade-out time in seconds.
+        /// Gets the fade-out time in seconds.
         /// </summary>
         public float FadeOutTime { get; init; }
 

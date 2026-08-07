@@ -19,9 +19,8 @@ namespace ValveResourceFormat.Renderer.Particles.Operators
         public OpRemapParticleCountToScalar(ParticleDefinitionParser parse) : base(parse)
         {
             OutputField = parse.ParticleField("m_nFieldOutput", OutputField);
-            // Modern schema names the index range m_nInputMin/Max; older content uses m_flInputMin/Max.
-            inputMin = parse.NumberProvider("m_nInputMin", parse.NumberProvider("m_flInputMin", inputMin));
-            inputMax = parse.NumberProvider("m_nInputMax", parse.NumberProvider("m_flInputMax", inputMax));
+            inputMin = parse.NumberProvider("m_nInputMin", inputMin);
+            inputMax = parse.NumberProvider("m_nInputMax", inputMax);
             outputMin = parse.NumberProvider("m_flOutputMin", outputMin);
             outputMax = parse.NumberProvider("m_flOutputMax", outputMax);
             activeRange = parse.Boolean("m_bActiveRange", activeRange);
@@ -29,7 +28,7 @@ namespace ValveResourceFormat.Renderer.Particles.Operators
         }
 
         // is this particle id or total particle count?
-        public override void Operate(ParticleCollection particles, float frameTime, ParticleSystemRenderState particleSystemState)
+        public override void Operate(ParticleCollection particles, float frameTime, ParticleSystemRenderState particleSystemState, float strength)
         {
             foreach (ref var particle in particles.Current)
             {
@@ -48,11 +47,17 @@ namespace ValveResourceFormat.Renderer.Particles.Operators
                 var outputMin = this.outputMin.NextNumber(ref particle, particleSystemState);
                 var outputMax = this.outputMax.NextNumber(ref particle, particleSystemState);
 
+                if (OutputField is ParticleField.Alpha or ParticleField.AlphaAlternate)
+                {
+                    outputMin = Math.Clamp(outputMin, 0f, 1f);
+                    outputMax = Math.Clamp(outputMax, 0f, 1f);
+                }
+
                 var finalValue = float.Lerp(outputMin, outputMax, remappedDistance);
 
                 finalValue = particle.ModifyScalarBySetMethod(particles, OutputField, finalValue, setMethod);
 
-                particle.SetScalar(OutputField, finalValue);
+                particle.SetScalar(OutputField, float.Lerp(particle.GetScalar(OutputField), finalValue, strength));
             }
         }
     }

@@ -18,7 +18,7 @@ namespace ValveResourceFormat.ResourceTypes
         public class Entity : KVObject
         {
             /// <summary>
-            /// Gets or sets the entity output connections.
+            /// Gets the entity connections (outputs that fire inputs on other entities, part of the entity I/O system).
             /// </summary>
             public List<Connection>? Connections { get; internal set; }
             /// <summary>

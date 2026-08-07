@@ -43,7 +43,7 @@ namespace ValveResourceFormat.Renderer.SceneNodes
         public AnimationController AnimationController { get; }
 
         /// <summary>
-        /// A collection of animations available for sequential playback on this model.
+        /// A collection of animations available for playback on this model.
         /// </summary>
         public Dictionary<string, Animation> Animations { get; } = new(StringComparer.OrdinalIgnoreCase);
 
@@ -142,6 +142,10 @@ namespace ValveResourceFormat.Renderer.SceneNodes
             SetCharacterEyeRenderParams();
             Attachments = model.Attachments;
             AnimationController.TwistConstraints = ParseTwistConstraints(model);
+
+            // GetAttachmentOrSelfTransform already falls back to this node's own world Transform for an empty/
+            // unmatched name - AnimationController.Transform is not it (see its doc comment), so route through here.
+            AnimationController.ResolvePosition = attachmentName => GetAttachmentOrSelfTransform(attachmentName).Translation;
         }
 
         readonly struct CharacterEyeParameters
@@ -187,8 +191,8 @@ namespace ValveResourceFormat.Renderer.SceneNodes
         {
             var eyeEnablingMaterials = meshRenderers
                 .SelectMany(Mesh => Mesh.DrawCallsOpaque.Select(Draw => (Mesh, Draw)))
-                .Where(meshDraw => meshDraw.Draw.Material.Material.IntParams.GetValueOrDefault("F_EYEBALLS") == 1)
-                .Select(meshDraw => (meshDraw.Mesh, meshDraw.Draw.Material.Material))
+                .Where(meshDraw => meshDraw.Draw.Material.IntParams.GetValueOrDefault("F_EYEBALLS") == 1)
+                .Select(meshDraw => (meshDraw.Mesh, meshDraw.Draw.Material))
                 .ToList();
 
             if (eyeEnablingMaterials.Count == 0)
@@ -203,8 +207,10 @@ namespace ValveResourceFormat.Renderer.SceneNodes
                 return;
             }
 
-            foreach (var (mesh, materialData) in eyeEnablingMaterials)
+            foreach (var (mesh, material) in eyeEnablingMaterials)
             {
+                var materialData = material;
+
                 materialData.IntParams["g_nEyeLBindIdx"] = GetMeshBoneIndex(eyes.LeftEyeBoneIndex, mesh);
                 materialData.IntParams["g_nEyeRBindIdx"] = GetMeshBoneIndex(eyes.RightEyeBoneIndex, mesh);
                 materialData.IntParams["g_nEyeTargetBindIdx"] = GetMeshBoneIndex(eyes.TargetBoneIndex, mesh);
@@ -254,9 +260,6 @@ namespace ValveResourceFormat.Renderer.SceneNodes
                 var meshBones = MemoryMarshal.Cast<float, OpenTK.Mathematics.Matrix3x4>(floatBuffer.AsSpan(0, floatBufferSizeMeshBones));
                 var modelBones = MemoryMarshal.Cast<float, Matrix4x4>(floatBuffer.AsSpan(floatBufferSizeMeshBones));
 
-                UpdateBoundingBox(); // Reset back to the mesh bbox
-                var newBoundingBox = LocalBoundingBox;
-
                 try
                 {
                     AnimationController.GetSkinningMatrices(modelBones);
@@ -274,15 +277,7 @@ namespace ValveResourceFormat.Renderer.SceneNodes
 
                     boneMatricesGpu.Update(floatBuffer, 0, floatBufferSizeMeshBones * sizeof(float));
 
-                    var first = true;
-                    foreach (var matrix in modelBones[..boneCount])
-                    {
-                        var bbox = LocalBoundingBox.Transform(matrix);
-                        newBoundingBox = first ? bbox : newBoundingBox.Union(bbox);
-                        first = false;
-                    }
-
-                    LocalBoundingBox = newBoundingBox;
+                    UpdateAnimatedBoundingBox();
                 }
                 finally
                 {
@@ -433,7 +428,8 @@ namespace ValveResourceFormat.Renderer.SceneNodes
         }
 
         /// <summary>
-        /// Adds the given animations to the collection of available animations for this model.
+        /// Adds the given animations to the collection of available animations for this model,
+        /// prewarming any sound events they can fire so first playback stays allocation-free.
         /// </summary>
         public void AddAnimations(List<Animation> animations)
         {
@@ -441,6 +437,7 @@ namespace ValveResourceFormat.Renderer.SceneNodes
             foreach (var anim in animations)
             {
                 Animations[anim.Name] = anim;
+                AnimationPlayer.PrewarmAnimationSounds(anim);
             }
         }
 
@@ -449,8 +446,9 @@ namespace ValveResourceFormat.Renderer.SceneNodes
         /// </summary>
         public void LoadAnimationClip(AnimationClip clip)
         {
-            var anim = new Animation(clip);
+            var anim = new ClipAnimation(clip);
             Animations[anim.Name] = anim;
+            AnimationPlayer.PrewarmAnimationSounds(anim);
         }
 
         /// <summary>
@@ -592,7 +590,7 @@ namespace ValveResourceFormat.Renderer.SceneNodes
         /// <summary>
         /// Places <paramref name="child"/> once at the named attachment point or bone (or the model's own
         /// transform when no name is given), with <paramref name="offset"/> applied in that anchor's frame.
-        /// Unlike <c>AttachNode</c>, the child does not track the model afterwards. Works for any scene node.
+        /// Unlike <see cref="AttachNode"/>, the child does not track the model afterwards. Works for any scene node.
         /// </summary>
         public void PlaceNode(SceneNode child, string attachmentName, Vector3 offset)
         {
@@ -679,8 +677,15 @@ namespace ValveResourceFormat.Renderer.SceneNodes
         /// Sets the LoD level to display, rebuilding the renderable mesh list accordingly.
         /// Pass <see langword="null"/> to enable automatic distance-based selection.
         /// </summary>
-        public void SetActiveLod(int? lod)
+        public void SetOverrideLod(int? lod)
         {
+            // A forced level is clamped to the model's populated range.
+            if (lod.HasValue)
+            {
+                var highestLevel = lodInfo.AvailableLevels.Count > 0 ? lodInfo.AvailableLevels[^1] : lodInfo.LowestLevel;
+                lod = Math.Clamp(lod.Value, lodInfo.LowestLevel, highestLevel);
+            }
+
             lodOverride = lod;
 
             // A forced level stays put; Auto starts at the lowest populated level and UpdateAutoLod takes over.
@@ -690,8 +695,7 @@ namespace ValveResourceFormat.Renderer.SceneNodes
 
         /// <summary>
         /// In automatic mode, picks the LoD level from the screen-size metric: the model drops to LoD
-        /// <c>n</c> once the metric passes <c>m_lodGroupSwitchDistances[n]</c>. Depends on FOV and
-        /// resolution, not on how big the model is.
+        /// <c>n</c> once the metric passes <c>m_lodGroupSwitchDistances[n]</c>.
         /// </summary>
         private void UpdateAutoLod(Camera camera)
         {
@@ -710,18 +714,25 @@ namespace ValveResourceFormat.Renderer.SceneNodes
         }
 
         /// <summary>
-        /// Computes the LoD metric: <c>100 / on-screen size of a unit sphere at the model origin</c>.
-        /// It depends only on camera distance and FOV/viewport height, so where the model sits on
-        /// screen doesn't matter and looking around won't flip LoDs.
+        /// Computes the LoD metric: <c>100 / on-screen size of a unit sphere at the model origin</c>,
+        /// scaled by the node's transform. It depends on camera distance, FOV/viewport height and the
+        /// model's scale, so where the model sits on screen doesn't matter and looking around won't flip LoDs.
         /// </summary>
         private float ComputeLodMetric(Camera camera)
         {
             var distance = MathF.Sqrt(GetCameraDistance(camera));
 
+            // Largest per-axis scale baked into the transform.
+            var t = Transform;
+            var scaleX = new Vector3(t.M11, t.M12, t.M13).Length();
+            var scaleY = new Vector3(t.M21, t.M22, t.M23).Length();
+            var scaleZ = new Vector3(t.M31, t.M32, t.M33).Length();
+            var scale = MathF.Max(scaleX, MathF.Max(scaleY, scaleZ));
+
             // Size on screen of a unit sphere at this distance. M22 is the projection's
-            // 1/tan(vFov/2) y-scale, so the pixel height is windowHeight * M22 / distance.
+            // 1/tan(vFov/2) y-scale, so the pixel height is windowHeight * M22 * scale / distance.
             var unitSphereSize = distance > 0f
-                ? camera.WindowSize.Y * camera.ProjectionMatrix.M22 / distance
+                ? camera.WindowSize.Y * camera.ProjectionMatrix.M22 * scale / distance
                 : float.MaxValue;
 
             return unitSphereSize > 0f ? 100f / unitSphereSize : 0f;
@@ -770,6 +781,56 @@ namespace ValveResourceFormat.Renderer.SceneNodes
                 LocalBoundingBox = first ? mesh.BoundingBox : LocalBoundingBox.Union(mesh.BoundingBox);
                 first = false;
             }
+        }
+
+        /// <summary>
+        /// Fits the local bounding box to the current pose by placing each bone's authored sphere at that
+        /// bone's posed origin.
+        /// </summary>
+        private void UpdateAnimatedBoundingBox()
+        {
+            const bool SkipNonSkinningBones = true;
+
+            var spheres = AnimationController.Skeleton.BoneSpheres;
+
+            if (spheres.Length == 0)
+            {
+                return;
+            }
+
+            var pose = AnimationController.Pose;
+
+            var min = new Vector3(float.MaxValue);
+            var max = new Vector3(float.MinValue);
+            var anyBoneContributed = false;
+
+            for (var boneIndex = 0; boneIndex < spheres.Length; boneIndex++)
+            {
+                if (SkipNonSkinningBones && spheres[boneIndex] <= 0f)
+                {
+                    continue;
+                }
+
+                var bone = pose[boneIndex];
+
+                // todo: refactor pose to hold single scale factor
+                var scale = new Vector3(bone.M11, bone.M12, bone.M13).Length();
+
+                var radius = new Vector3(spheres[boneIndex] * scale);
+                var origin = bone.Translation;
+
+                min = Vector3.Min(min, origin - radius);
+                max = Vector3.Max(max, origin + radius);
+                anyBoneContributed = true;
+            }
+
+            if (!anyBoneContributed)
+            {
+                UpdateBoundingBox();
+                return;
+            }
+
+            LocalBoundingBox = new AABB(min, max);
         }
 
 #if DEBUG

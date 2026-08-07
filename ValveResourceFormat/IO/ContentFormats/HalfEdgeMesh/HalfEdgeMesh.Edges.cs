@@ -61,10 +61,10 @@ partial class HalfEdgeMesh
     }
 
     /// <summary>
-    /// 
+    /// Returns the canonical half-edge representing the full edge that <paramref name="hEdge"/> belongs to.
     /// </summary>
-    /// <param name="hEdge"></param>
-    /// <returns></returns>
+    /// <param name="hEdge">The half-edge to find the full edge for.</param>
+    /// <returns>The half-edge of the opposite pair with the lower index, or <see cref="HalfEdgeHandle.Invalid"/> if <paramref name="hEdge"/> is invalid.</returns>
     public HalfEdgeHandle GetFullEdgeForHalfEdge(HalfEdgeHandle hEdge)
     {
         if (!hEdge.IsValid)

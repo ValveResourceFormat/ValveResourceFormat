@@ -18,7 +18,7 @@ layout(binding = 1, rgba16f) uniform writeonly image2D g_tDest;
 uniform mat4 g_invViewProjMatrix;
 uniform vec4 g_vLensPlane;
 uniform vec4 g_vNearFarScaleBias;
-layout(binding = 2) uniform sampler2DMS g_tSceneDepth;
+uniform sampler2DMS g_tSceneDepthMsaa; // bound above the reserved slots, this is a per draw input
 #endif
 
 void main()
@@ -55,7 +55,7 @@ void main()
         resolved += s * (invNumSamples / (max(s.r, max(s.g, s.b)) + 1.0));
 
 #if D_DOF == 1
-        lowestDepth = min(texelFetch(g_tSceneDepth, sampleCoord, i).x, lowestDepth);
+        lowestDepth = min(texelFetch(g_tSceneDepthMsaa, sampleCoord, i).x, lowestDepth);
 #else
         outputAlpha += texel.a * invNumSamples;
 #endif

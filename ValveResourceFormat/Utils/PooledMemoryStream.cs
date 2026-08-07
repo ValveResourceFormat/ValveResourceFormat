@@ -10,7 +10,7 @@ namespace ValveResourceFormat.Utils;
 internal sealed class PooledMemoryStream : MemoryStream
 {
     /// <remarks>
-    /// The buffer length is larger than requested. Use BufferSpan for correct size.
+    /// The buffer length may be larger than requested. Use <see cref="BufferSpan"/> for correct size.
     /// </remarks>
     private readonly byte[] Buffer;
 

@@ -35,8 +35,8 @@ void main()
 {
     ObjectData_t object = GetObjectData();
 
-    mat4 skinTransform = object.transform * getSkinMatrix();
-    vFragPosition = (skinTransform * vec4(vPOSITION + getMorphOffset(), 1.0)).xyz;
+    mat3x4 skinTransform = CalculateSkinTransform();
+    vFragPosition = vec4(vPOSITION + getMorphOffset(), 1.0) * skinTransform;
 
     gl_Position = g_matWorldToProjection * vec4(vFragPosition, 1.0);
 

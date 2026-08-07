@@ -174,7 +174,7 @@ namespace ValveResourceFormat.Renderer.World
         }
 
         /// <summary>
-        /// Loads all world components: lighting, entities, world nodes, physics, and navigation mesh.
+        /// Loads all world components: lighting, entities, world nodes, physics, visibility, bomb damage data, and navigation mesh.
         /// Navigation mesh loading is parallelized with resource preloading when references are provided.
         /// </summary>
         /// <param name="mapResourceReferences">Optional external reference list from the map resource, used to preload assets in parallel.</param>
@@ -236,7 +236,7 @@ namespace ValveResourceFormat.Renderer.World
         }
 
         /// <summary>
-        /// Parents entities with a <c>parentname</c> to that parent each frame — snapping onto the
+        /// Parents entities with a <c>parentname</c> to that parent each frame, snapping onto the
         /// <c>parentattachmentname</c> attachment (or the bone with that name when no attachment matches)
         /// when one is given, otherwise following the parent's transform. <c>uselocaloffset</c> is ignored,
         /// as the engine does here too. Done after all entities are loaded so the parent is registered
@@ -355,7 +355,10 @@ namespace ValveResourceFormat.Renderer.World
                     scene.Add(physSceneNode, true);
                 }
 
-                scene.PhysicsWorld = new Rubikon(phys);
+                if (phys.Parts.Length > 0)
+                {
+                    scene.PhysicsWorld = new Rubikon(phys);
+                }
             }
         }
 
@@ -432,7 +435,6 @@ namespace ValveResourceFormat.Renderer.World
                     var srgbRead = name == "irradiance";
                     var renderTexture = RendererContext.MaterialLoader.GetTexture(lightmap, srgbRead);
                     result.Lightmaps[uniformName] = renderTexture;
-                    MaterialLoader.ReservedTextures.Add(uniformName);
 
                     if (name == "direct_light_indices")
                     {
@@ -473,7 +475,7 @@ namespace ValveResourceFormat.Renderer.World
             || cls == "point_camera_vertical_fov"
             || cls == "point_camera";
 
-        internal const string ToolEntitiesLayerName = "Tool Entities";
+        internal const string ToolEntitiesLayerName = "Entities (editor only)";
 
         private void LoadEntitiesFromLump(EntityLump entityLump, string originalLayerName, Matrix4x4 rootTransform)
         {
@@ -530,7 +532,7 @@ namespace ValveResourceFormat.Renderer.World
 
                 if (disabled && layerName == "Entities")
                 {
-                    layerName = "Disabled Entities";
+                    layerName = "Entities (disabled)";
                 }
 
                 if (classname == "info_world_layer")
@@ -567,6 +569,12 @@ namespace ValveResourceFormat.Renderer.World
                         disabled = disabled && Skybox2D != null;
 
                         tintColor = entity.GetColor32Property("tint_color");
+
+                        var skyBrightnessScale = entity.GetFloatProperty("brightnessscale", 1.0f);
+                        if (skyBrightnessScale > 0f)
+                        {
+                            tintColor *= skyBrightnessScale;
+                        }
                     }
 
                     if (!disabled && skyname != null)
@@ -601,6 +609,18 @@ namespace ValveResourceFormat.Renderer.World
                         scene.LightingInfo.EnableDynamicShadows = true;
                         scene.LightingInfo.SunLightShadowCoverageScale = 4f;
                     }
+                }
+                else if (classname == "info_map_parameters")
+                {
+                    scene.EnvironmentWetness = new Vector4(
+                        entity.GetFloatProperty("envwetnesscoverage", 1f),
+                        entity.GetFloatProperty("envwetnessdryingamount", 0f),
+                        entity.GetFloatProperty("envrainstrength", 1f),
+                        entity.GetFloatProperty("envpuddleripplestrength", 1f));
+
+                    // raintracetoskyenabled
+
+                    scene.PuddleWindDirection = entity.GetFloatProperty("envpuddlerippledirection", 0f);
                 }
                 else if (classname == "env_gradient_fog")
                 {
@@ -715,6 +735,7 @@ namespace ValveResourceFormat.Renderer.World
                         else
                         {
                             string? material = null;
+                            var skyBrightnessScale = 1.0f;
 
                             if (fogSource == 1) // Cubemap From Env_Sky
                             {
@@ -729,6 +750,12 @@ namespace ValveResourceFormat.Renderer.World
                                         material = skyEntity.GetStringProperty("skyname") ?? skyEntity.GetStringProperty("skybox_material_day");
                                         var rotationOnly = EntityTransformHelper.CalculateTransformationMatrix(skyEntity) with { Translation = transformationMatrix.Translation };
                                         transformationMatrix = rotationOnly;  // steal rotation from env_sky
+
+                                        var scale = skyEntity.GetFloatProperty("brightnessscale", 1.0f);
+                                        if (scale > 0f)
+                                        {
+                                            skyBrightnessScale = scale;
+                                        }
                                     }
                                     else
                                     {
@@ -753,12 +780,12 @@ namespace ValveResourceFormat.Renderer.World
 
                                 if (mat != null && mat.Textures.TryGetValue("g_tSkyTexture", out fogTexture))
                                 {
-                                    var brightnessExposureBias = mat.Material.FloatParams.GetValueOrDefault("g_flBrightnessExposureBias", 0f);
+                                    var brightnessExposureBias = mat.FloatParams.GetValueOrDefault("g_flBrightnessExposureBias", 0f);
                                     // todo: make sure this matches with scene post process
-                                    var renderOnlyExposureBias = mat.Material.FloatParams.GetValueOrDefault("g_flRenderOnlyExposureBias", 0f);
+                                    var renderOnlyExposureBias = mat.FloatParams.GetValueOrDefault("g_flRenderOnlyExposureBias", 0f);
 
                                     // These are both logarithms, so this is equivalent to a multiply of the raw value
-                                    exposureBias = brightnessExposureBias + renderOnlyExposureBias;
+                                    exposureBias = brightnessExposureBias + renderOnlyExposureBias + MathF.Log2(skyBrightnessScale);
                                 }
                             }
                         }
@@ -834,12 +861,14 @@ namespace ValveResourceFormat.Renderer.World
                             {
                                 LayerName = layerName,
                                 Transform = transformationMatrix,
+                                EntityData = entity,
                                 HandShake = handShake,
                                 ArrayIndex = arrayIndex,
                                 IndoorOutdoorLevel = indoorOutdoorLevel,
                                 EdgeFadeDists = edgeFadeDists,
                                 ProjectionMode = classname == "env_cubemap" ? 0 : 1,
                                 EnvMapTexture = envMapTexture,
+                                NormalizationSH = SceneEnvMap.CalculateNormalizationSH(envMapTexture.RadianceCoefficients, arrayIndex),
                             };
 
                             if (!isCustomTexture)
@@ -860,6 +889,7 @@ namespace ValveResourceFormat.Renderer.World
                         {
                             LayerName = layerName,
                             Transform = transformationMatrix,
+                            EntityData = entity,
                             HandShake = handShake,
                             Irradiance = irradianceTexture,
                             IndoorOutdoorLevel = indoorOutdoorLevel,
@@ -955,6 +985,76 @@ namespace ValveResourceFormat.Renderer.World
                     // A degenerate or failed cable renders nothing. Never fall through to the
                     // generic effect_name path: without a runtime snapshot the cable vpcf loads its m_hSnapshot
                     // editor-preview placeholder and draws a rope at the world origin.
+                    return;
+                }
+
+                if (classname == "xen_flora_animatedmover" && model != null)
+                {
+                    var moverResource = RendererContext.FileLoader.LoadFileCompiled(model);
+
+                    if (moverResource?.DataBlock is not Model moverModel)
+                    {
+                        RendererContext.Logger.LogWarning("xen_flora_animatedmover '{Target}' failed to load model \"{Model}\"",
+                            entity.GetStringProperty("targetname"), model);
+                        return;
+                    }
+
+                    var (moverPath, moverLoopBackIndex) = ResolveFloraMoverPath(entity.GetStringProperty("path_start"));
+
+                    if (moverPath.Count == 0)
+                    {
+                        RendererContext.Logger.LogWarning("xen_flora_animatedmover '{Target}' has no valid path starting at '{PathStart}', it will not move",
+                            entity.GetStringProperty("targetname"), entity.GetStringProperty("path_start"));
+                    }
+
+                    var moverRendercolor = entity.GetColor32Property("rendercolor");
+                    var moverRenderamt = entity.GetFloatProperty("renderamt", 1.0f);
+
+                    if (moverRenderamt > 1f)
+                    {
+                        moverRenderamt /= 255f;
+                    }
+
+                    var moverNode = new XenFloraAnimatedMoverSceneNode(
+                        scene,
+                        moverModel,
+                        skin,
+                        entity,
+                        moverPath,
+                        moverLoopBackIndex,
+                        authoredTransform: transformationMatrix)
+                    {
+                        Tint = new Vector4(moverRendercolor, moverRenderamt),
+                        LayerName = layerName,
+                        Name = model,
+                    };
+
+                    if (entity.GetBooleanProperty("disable_shadows"))
+                    {
+                        moverNode.Flags |= ObjectTypeFlags.NoShadows;
+                    }
+
+                    scene.Add(moverNode, true);
+
+                    var moverParticleName = entity.GetStringProperty("particle_effect");
+
+                    if (moverParticleName != null)
+                    {
+                        var moverParticleResource = RendererContext.FileLoader.LoadFileCompiled(moverParticleName);
+
+                        if (moverParticleResource?.DataBlock is ParticleSystem moverParticleSystem)
+                        {
+                            var moverParticleNode = new ParticleSceneNode(scene, moverParticleSystem)
+                            {
+                                Name = moverParticleName,
+                                LayerName = "Particles",
+                            };
+
+                            scene.Add(moverParticleNode, true);
+                            moverNode.AttachNode(moverParticleNode, rotation: Quaternion.Identity);
+                        }
+                    }
+
                     return;
                 }
 
@@ -1321,7 +1421,7 @@ namespace ValveResourceFormat.Renderer.World
 
             foreach (var node in SkyboxScene.AllNodes)
             {
-                if (node.LayerName == "Tool Entities")
+                if (node.LayerName == ToolEntitiesLayerName)
                 {
                     node.Transform *= offsetTransform;
                 }
@@ -1565,6 +1665,44 @@ namespace ValveResourceFormat.Renderer.World
                 };
                 scene.Add(lineNode, true);
             }
+        }
+
+        // Walks the target chain starting at the path_corner named startName, in the same way path_track/
+        // func_tracktrain follow theirs. LoopBackIndex is set when the chain itself points back to an
+        // already-visited node (an authored closed loop), so a looping mover can honor that entry point
+        // instead of always restarting from the first node.
+        private (List<FloraMoverPathNode> Nodes, int LoopBackIndex) ResolveFloraMoverPath(string? startName)
+        {
+            var nodes = new List<FloraMoverPathNode>();
+            var loopBackIndex = -1;
+
+            if (string.IsNullOrEmpty(startName))
+            {
+                return (nodes, loopBackIndex);
+            }
+
+            var visited = new Dictionary<Entity, int>();
+            var current = FindEntityByKeyValue("targetname", startName);
+
+            while (current != null && current.GetStringProperty("classname") == "path_corner")
+            {
+                if (visited.TryGetValue(current, out var existingIndex))
+                {
+                    loopBackIndex = existingIndex;
+                    break;
+                }
+
+                visited[current] = nodes.Count;
+                nodes.Add(new FloraMoverPathNode(
+                    EntityTransformHelper.CalculateTransformationMatrix(current).Translation,
+                    current.GetFloatProperty("speed"),
+                    current.GetFloatProperty("wait")));
+
+                var nextName = current.GetStringProperty("target");
+                current = string.IsNullOrEmpty(nextName) ? null : FindEntityByKeyValue("targetname", nextName);
+            }
+
+            return (nodes, loopBackIndex);
         }
 
         private Entity? FindEntityByKeyValue(string keyToFind, string valueToFind)

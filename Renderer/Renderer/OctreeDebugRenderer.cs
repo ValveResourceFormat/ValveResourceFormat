@@ -6,36 +6,20 @@ namespace ValveResourceFormat.Renderer
     /// <summary>
     /// Debug visualization renderer for octree spatial partitioning structure.
     /// </summary>
-    public class OctreeDebugRenderer
+    public class OctreeDebugRenderer : LineDebugRenderer
     {
-        private readonly Shader shader;
         private readonly Octree octree;
-        private readonly int vaoHandle;
-        private readonly int vboHandle;
         private readonly bool dynamic;
-        private int vertexCount;
 
         /// <summary>Initializes the octree debug renderer and creates GPU resources.</summary>
         /// <param name="octree">The octree to visualize.</param>
         /// <param name="rendererContext">Renderer context for loading shaders.</param>
         /// <param name="dynamic">When <see langword="true"/>, the vertex buffer is rebuilt every frame.</param>
         public OctreeDebugRenderer(Octree octree, RendererContext rendererContext, bool dynamic)
+            : base(rendererContext, nameof(OctreeDebugRenderer))
         {
             this.octree = octree;
             this.dynamic = dynamic;
-
-            shader = rendererContext.ShaderLoader.LoadShader("vrf.default");
-
-            GL.CreateVertexArrays(1, out vaoHandle);
-            GL.CreateBuffers(1, out vboHandle);
-            GL.VertexArrayVertexBuffer(vaoHandle, 0, vboHandle, 0, SimpleVertex.SizeInBytes);
-            SimpleVertex.BindDefaultShaderLayout(vaoHandle, shader.Program);
-
-#if DEBUG
-            var vaoLabel = nameof(OctreeDebugRenderer);
-            GL.ObjectLabel(ObjectLabelIdentifier.VertexArray, vaoHandle, vaoLabel.Length, vaoLabel);
-            GL.ObjectLabel(ObjectLabelIdentifier.Buffer, vboHandle, vaoLabel.Length, vaoLabel);
-#endif
         }
 
         private static void AddOctreeNode(List<SimpleVertex> vertices, Octree.Node node, int depth)
@@ -74,9 +58,8 @@ namespace ValveResourceFormat.Renderer
         {
             var vertices = new List<SimpleVertex>();
             AddOctreeNode(vertices, octree.Root, 0);
-            vertexCount = vertices.Count;
 
-            GL.NamedBufferData(vboHandle, vertexCount * SimpleVertex.SizeInBytes, ListAccessors<SimpleVertex>.GetBackingArray(vertices), dynamic ? BufferUsageHint.DynamicDraw : BufferUsageHint.StaticDraw);
+            Upload(vertices, dynamic ? BufferUsageHint.DynamicDraw : BufferUsageHint.StaticDraw);
         }
 
         /// <summary>Renders the octree visualization for the current frame, rebuilding geometry if dynamic.</summary>
@@ -87,27 +70,7 @@ namespace ValveResourceFormat.Renderer
                 Rebuild();
             }
 
-            GL.Enable(EnableCap.Blend);
-            GL.DepthMask(false);
-            GL.BlendFunc(BlendingFactor.SrcAlpha, BlendingFactor.OneMinusSrcAlpha);
-
-            shader.Use();
-            shader.SetUniform3x4("transform", Matrix4x4.Identity);
-
-            GL.BindVertexArray(vaoHandle);
-            GL.DrawArrays(PrimitiveType.Lines, 0, vertexCount);
-            GL.UseProgram(0);
-            GL.BindVertexArray(0);
-            GL.DepthMask(true);
-            GL.Disable(EnableCap.Blend);
-        }
-
-
-        /// <summary>Deletes the GPU vertex and vertex array objects.</summary>
-        public void Delete()
-        {
-            GL.DeleteBuffer(vboHandle);
-            GL.DeleteVertexArray(vaoHandle);
+            RenderLines();
         }
     }
 }

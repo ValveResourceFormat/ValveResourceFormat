@@ -62,7 +62,7 @@ namespace ValveResourceFormat.Renderer.Utils
         /// <param name="g">Green component (0.0-1.0).</param>
         /// <param name="b">Blue component (0.0-1.0).</param>
         /// <param name="a">Alpha component (0.0-1.0).</param>
-        public Color32(float r, float g, float b, float a) : this((byte)(r * 255), (byte)(g * 255), (byte)(b * 255), (byte)(a * 255))
+        public Color32(float r, float g, float b, float a) : this((byte)(r * 255f + 0.5f), (byte)(g * 255f + 0.5f), (byte)(b * 255f + 0.5f), (byte)(a * 255f + 0.5f))
         {
             Debug.Assert(
                 r >= 0.0f && r <= 1.0f && g >= 0.0f && g <= 1.0f && b >= 0.0f && b <= 1.0f && a >= 0.0f && a <= 1.0f,
@@ -76,6 +76,11 @@ namespace ValveResourceFormat.Renderer.Utils
         /// <param name="vector">Vector with color components (0.0-1.0).</param>
         /// <returns>The converted color.</returns>
         public static Color32 FromVector4(Vector4 vector) => new(vector.X, vector.Y, vector.Z, vector.W);
+
+        /// <summary>
+        /// Creates a color from a <see cref="Vector4"/> where XYZW maps to RGBA, clamping the input values to [0, 1].
+        /// </summary>
+        public static Color32 FromVector4Clamped(Vector4 vector) => FromVector4(Vector4.Clamp(vector, Vector4.Zero, Vector4.One));
 
         /// <summary>
         /// Converts this color to a linear color space <see cref="Vector4"/> with components in the range [0, 1].

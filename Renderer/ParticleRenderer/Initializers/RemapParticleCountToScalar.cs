@@ -14,6 +14,7 @@ namespace ValveResourceFormat.Renderer.Particles.Initializers
         private readonly long InputMax = 10;
         private readonly float outputMin;
         private readonly float outputMax = 1f;
+        private readonly bool activeRange;
         private readonly bool scaleInitialRange; // legacy
 
         private readonly bool invert;
@@ -32,6 +33,7 @@ namespace ValveResourceFormat.Renderer.Particles.Initializers
             InputMax = parse.Long("m_nInputMax", InputMax);
             outputMin = parse.Float("m_flOutputMin", outputMin);
             outputMax = parse.Float("m_flOutputMax", outputMax);
+            activeRange = parse.Boolean("m_bActiveRange", activeRange);
             scaleInitialRange = parse.Boolean("m_bScaleInitialRange", scaleInitialRange);
             invert = parse.Boolean("m_bInvert", invert);
             wrap = parse.Boolean("m_bWrap", wrap);
@@ -46,6 +48,11 @@ namespace ValveResourceFormat.Renderer.Particles.Initializers
             var count = invert
                 ? particleSystemState.ParticleCount - particle.ParticleID
                 : particle.ParticleID;
+
+            if (activeRange && (count < InputMin || count > InputMax))
+            {
+                return particle;
+            }
 
             var remappedRange = MathUtils.Remap(count, InputMin, InputMax);
 

@@ -43,13 +43,19 @@ public class VfxShaderFileVulkan : VfxShaderFile
 
     public readonly record struct HiddenUAVCounter(byte AssociatedShaderStorageIndex, byte UAVHiddenCounterBinding);
 
+    /// <summary>
+    /// Vertex attribute slot for each vertex shader input location, packed as <c>(usage &lt;&lt; 4) | usageIndex</c>.
+    /// The usage is a <see cref="D3DVertexUsage"/>, which together with the index identifies the
+    /// <see cref="ResourceTypes.Material.InputSignatureElement"/> bound to that location.
+    /// Slots the shader compiler optimized away are still listed, which is why locations are not always contiguous.
+    /// </summary>
     public byte[]? AttribMap { get; }
     public PerDescriptorSetBindingInfo? DefaultDescriptorSetBindingInfo { get; }
     public ShaderStorageBufferBinding[]? ShaderStorageBufferBindings { get; }
     public HiddenUAVCounter[]? HiddenUAVCounters { get; }
     public int[]? ThreadGroupSize { get; }
     // Static descriptor set entries are kept as raw bytes because the per-entry layout differs by version
-    // (v4 = 96 bytes/entry, v6 = 72 bytes/entry).
+    // (version 4+ = 72 bytes/entry, earlier = 64 bytes/entry).
     public byte[]? StaticDescriptorSetBindingInfoData { get; }
     public int PushConstantSize { get; }
     public bool UseShaderStageName { get; }
@@ -60,14 +66,24 @@ public class VfxShaderFileVulkan : VfxShaderFile
 #pragma warning restore CS1591
 
     /// <summary>
-    /// Initializes a new instance from pre-hashed data.
+    /// Initializes a new instance with explicit size and hash.
     /// </summary>
-    public VfxShaderFileVulkan(BinaryReader datareader, int sourceId, Guid hash, VfxStaticComboData parent)
+    public VfxShaderFileVulkan(BinaryReader datareader, int sourceId, int size, Guid hash, VfxStaticComboData parent)
         : base(sourceId, parent)
     {
         HashMD5 = hash;
+        Size = size;
+
+        var end = datareader.BaseStream.Position + size;
         Unserialize(datareader);
-        Size = BytecodeSize + 8;
+
+        // The bytecode is followed by the same metadata block the binary format has, of which only the attribute map is parsed.
+        if (datareader.BaseStream.Position < end)
+        {
+            AttribMap = ReadAttribMap(datareader);
+        }
+
+        datareader.BaseStream.Position = end;
     }
 
     /// <summary>
@@ -91,16 +107,16 @@ public class VfxShaderFileVulkan : VfxShaderFile
         if (Size > 0)
         {
             Unserialize(datareader);
+
+            // Mobile has no metadata block, despite still being padded out to the same size.
+            if (!isMobile)
+            {
+                AttribMap = ReadAttribMap(datareader);
+            }
         }
 
         if (Size > 0 && !isMobile && false)
         {
-            var attribMapSize = datareader.ReadInt32();
-            if (attribMapSize > 0)
-            {
-                AttribMap = datareader.ReadBytes(attribMapSize);
-            }
-
             var bindingInfo = new PerDescriptorSetBindingInfo
             {
                 NumActiveSamplers = datareader.ReadInt16(),
@@ -195,14 +211,12 @@ public class VfxShaderFileVulkan : VfxShaderFile
                 }
             }
         }
-        else if (Size > 0)
-        {
-            // There's still some alignment or something on mobile, despite having no metadata
-            datareader.BaseStream.Position += Size - BytecodeSize - 8;
-        }
 
-        var actuallyRead = datareader.BaseStream.Position - Start - 4;
-        Debug.Assert(actuallyRead == Size);
+        // Skip over the metadata that is not parsed yet.
+        var end = Start + 4 + Size;
+        Debug.Assert(datareader.BaseStream.Position <= end);
+        datareader.BaseStream.Position = end;
+
         HashMD5 = new Guid(datareader.ReadBytes(16));
     }
 
@@ -217,6 +231,37 @@ public class VfxShaderFileVulkan : VfxShaderFile
         {
             Bytecode = datareader.ReadBytes(BytecodeSize);
         }
+    }
+
+    private static byte[]? ReadAttribMap(BinaryReader datareader)
+    {
+        var attribMapSize = datareader.ReadInt32();
+
+        return attribMapSize > 0 ? datareader.ReadBytes(attribMapSize) : null;
+    }
+
+    /// <summary>
+    /// Gets the Direct3D vertex semantic the vertex layout assigns to a shader input location,
+    /// or <see langword="false"/> when this shader has no attribute map or does not use that location.
+    /// </summary>
+    /// <param name="location">The SPIR-V input location.</param>
+    /// <param name="semanticName">The Direct3D semantic name, e.g. <c>TEXCOORD</c>.</param>
+    /// <param name="semanticIndex">The Direct3D semantic index.</param>
+    public bool TryGetInputSemantic(uint location, out string semanticName, out int semanticIndex)
+    {
+        if (AttribMap is null || location >= (uint)AttribMap.Length)
+        {
+            semanticName = string.Empty;
+            semanticIndex = 0;
+            return false;
+        }
+
+        var attribSlot = AttribMap[location];
+        var usage = (D3DVertexUsage)(attribSlot >> 4);
+
+        semanticName = usage.ToD3DSemanticName();
+        semanticIndex = attribSlot & 0xF;
+        return semanticName.Length > 0;
     }
 
     /// <inheritdoc/>

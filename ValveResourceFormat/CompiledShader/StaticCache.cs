@@ -1,7 +1,7 @@
 namespace ValveResourceFormat.CompiledShader
 {
     /// <summary>
-    /// LRU cache for shader static combo data.
+    /// Size-limited cache for shader static combo data, evicting entries in insertion order (FIFO).
     /// </summary>
     public sealed class StaticCache : IDisposable
     {
@@ -25,7 +25,7 @@ namespace ValveResourceFormat.CompiledShader
         }
 
         /// <summary>
-        ///  A ZFrame file cache with a set maximum size, trimmed on an LRU basis.
+        ///  A ZFrame file cache with a set maximum size, trimmed in insertion order (FIFO).
         /// </summary>
         /// <param name="program">Shader file to read zframes from. This reference will be used as a reading lock.</param>
         public StaticCache(VfxProgramData program)

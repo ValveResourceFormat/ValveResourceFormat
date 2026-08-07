@@ -7,7 +7,7 @@ using ValveResourceFormat.Renderer;
 namespace GUI.Types.GLViewers
 {
     /// <summary>
-    /// GL Render control with model controls (render mode, animation panels).
+    /// GL Render control with model controls (render mode, wireframe, grid).
     /// </summary>
     class GLSingleNodeViewer : GLSceneViewer, IDisposable
     {

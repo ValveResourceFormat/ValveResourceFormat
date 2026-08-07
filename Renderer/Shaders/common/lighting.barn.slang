@@ -3,6 +3,8 @@
 #ifndef VRF_LIGHTING_BARN_INCLUDE
 #define VRF_LIGHTING_BARN_INCLUDE
 
+#include "light_cull.slang"
+
 struct BarnLightConstants
 {
     mat4 m_mBarnFrustum;
@@ -25,11 +27,14 @@ layout(std430, binding = 12) readonly buffer BarnLightBuffer {
     BarnLightConstants g_BarnLights[];
 };
 
+int g_nBarnLightsIterated = 0;
+
 // Game uses Texture3D
-uniform sampler2DArray g_tLightCookieTexture; // ClampToBorder
-uniform sampler2DArray g_tLightCookieTextureWrap; // Wrap
+uniform sampler2DArray g_tLightCookieTexture; // ClampToBorder, reserved
+uniform sampler2DArray g_tLightCookieTextureWrap; // Wrap, reserved
+
 // We currently have a separate shadow map for all barn lights
-uniform layout(binding = 14) sampler2DShadow g_tBarnLightShadowDepth;
+uniform sampler2DShadow g_tBarnLightShadowDepth; // reserved
 
 float ComputeBarnLightShadow(vec2 shadowUV, float shadowRef)
 {
@@ -64,9 +69,17 @@ float ComputeBarnLightShadow_PCF_3x3_Gaussian(vec2 shadowUV, float shadowRef, ve
 
 void CalculateBarnLighting(inout LightingTerms_t lighting, in MaterialProperties_t mat, vec4 bakedShadow)
 {
-    // No tile culling
+    uvec4 cullBits = GetCullMaskWords(GetBarnLightCullMasks(mat.PositionWS));
+
     for (uint i = 0; i < g_nNumBarnLights; i++)
     {
+        if (!IsCullBitSet(cullBits, i))
+        {
+            continue;
+        }
+
+        g_nBarnLightsIterated++;
+
         BarnLightConstants barnLight = g_BarnLights[i];
 
         float visibility = saturate(1.0 - dot(bakedShadow, barnLight.m_vBarnLightBakedShadowMask));
@@ -237,6 +250,25 @@ void CalculateBarnLighting(inout LightingTerms_t lighting, in MaterialProperties
         mat.IsometricRoughness = savedIsoRoughness;
         mat.Roughness = savedRoughness;
     }
+}
+
+bool GetBarnLightTileHeatmap(out vec3 color)
+{
+    const float kBusyTile = 12.0;
+
+    if (g_nBarnLightsIterated == 0)
+    {
+        color = vec3(0.0);
+        return false;
+    }
+
+    float t = saturate(float(g_nBarnLightsIterated) / kBusyTile) * 3.0;
+
+    color = mix(vec3(0.0, 0.0, 1.0), vec3(0.0, 1.0, 0.0), saturate(t));
+    color = mix(color, vec3(1.0, 1.0, 0.0), saturate(t - 1.0));
+    color = mix(color, vec3(1.0, 0.0, 0.0), saturate(t - 2.0));
+
+    return true;
 }
 
 #endif

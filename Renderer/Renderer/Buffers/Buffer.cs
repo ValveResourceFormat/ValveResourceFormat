@@ -40,16 +40,6 @@ namespace ValveResourceFormat.Renderer.Buffers
             GL.BindBufferBase((BufferRangeTarget)Target, BindingPoint, Handle);
         }
 
-        /// <summary>Sets the uniform block binding in the given shader to match this buffer's binding point.</summary>
-        public void SetBlockBinding(Shader shader)
-        {
-            var blockIndex = shader.GetUniformBlockIndex(Name);
-            if (blockIndex > -1)
-            {
-                GL.UniformBlockBinding(shader.Program, blockIndex, BindingPoint);
-            }
-        }
-
         /// <summary>Deletes the underlying OpenGL buffer object.</summary>
         public virtual void Delete()
         {

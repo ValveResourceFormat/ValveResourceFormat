@@ -9,8 +9,8 @@ namespace ValveResourceFormat.Renderer.Particles.Initializers
     {
         // unsure if this is actually a vector provider
         private readonly IVectorProvider vectorScale = new LiteralVectorProvider(Vector3.One);
-        private readonly INumberProvider speedMin = new LiteralNumberProvider(0.1f);
-        private readonly INumberProvider speedMax = new LiteralNumberProvider(0.1f);
+        private readonly INumberProvider speedMin = new LiteralNumberProvider(0f);
+        private readonly INumberProvider speedMax = new LiteralNumberProvider(0f);
 
         private readonly int controlPoint;
         private readonly bool ignoreDelta;
