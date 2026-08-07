@@ -33,6 +33,16 @@ partial class ModelExtract
         };
     }
 
+    static string? RemapIKJointConstraintClassname(string className)
+    {
+        return className switch
+        {
+            "CIKJointConstraintData_Hinge" => "IKJointConstraint_Hinge",
+            "CIKJointConstraintData_Plane" => "IKJointConstraint_Plane",
+            _ => null
+        };
+    }
+
     static void AddBoneConstraintProperty<T>(KVObject sourceObject, KVObject targetObject, string sourceName, string targetName)
     {
         if (sourceObject.ContainsKey(sourceName))
@@ -219,6 +229,146 @@ partial class ModelExtract
         );
 
         return constraintListNode;
+    }
+    #endregion
+
+    #region IK Chains
+    static KVObject BuildIKData(IReadOnlyList<KVObject> ikChains)
+    {
+        var childrenKV = KVObject.Array();
+
+        foreach (var ikChain in ikChains)
+        {
+            childrenKV.Add(BuildIKChain(ikChain));
+        }
+
+        return MakeNode("IKData", ("children", childrenKV));
+    }
+
+    static KVObject BuildIKChain(KVObject ikChain)
+    {
+        var chainNode = MakeNode("IKChain", ("name", ikChain.GetStringProperty("m_Name", string.Empty)));
+
+        var joints = ikChain.ContainsKey("m_Joints") ? ikChain.GetArray("m_Joints") : [];
+        if (joints.Count > 0)
+        {
+            var childrenKV = KVObject.Array();
+            childrenKV.Add(BuildIKChainJoint(joints, 0));
+            chainNode.Add("children", childrenKV);
+        }
+
+        var solverSettings = ikChain.GetSubCollection("m_DefaultSolverSettings");
+        var targetSettings = ikChain.GetSubCollection("m_DefaultTargetSettings");
+
+        // Only these exact spellings are read back; anything else compiles and is then ignored.
+        // Setting the solver type also forces the rotation fix up mode to None, hence that fallback.
+        chainNode.Add("m_bDoBonesOrientAlongPositiveX", GetOrDefault(ikChain, "m_bDoBonesOrientAlongPositiveX", true));
+        chainNode.Add("m_DefaultSolverSettings.m_nNumIterations", GetOrDefault(solverSettings, "m_nNumIterations", 6));
+        chainNode.Add("m_DefaultSolverSettings.m_SolverType ", GetOrDefault(solverSettings, "m_SolverType", "IKSOLVER_TwoBone"));
+        chainNode.Add("m_DefaultSolverSettings.m_EndEffectorRotationFixUpMode", GetOrDefault(solverSettings, "m_EndEffectorRotationFixUpMode", "None"));
+        chainNode.Add("m_DefaultTargetSettings.m_Bone", MakeNamedReference(targetSettings, "m_Bone"));
+        chainNode.Add("m_DefaultTargetSettings.m_TargetSource", GetOrDefault(targetSettings, "m_TargetSource", "Bone"));
+        chainNode.Add("m_Data.m_DefaultTargetSettings.m_AnimgraphParameterNamePosition", MakeAnimParamReference(targetSettings, "m_AnimgraphParameterNamePosition"));
+        chainNode.Add("m_Data.m_DefaultTargetSettings.m_AnimgraphParameterNameOrientation", MakeAnimParamReference(targetSettings, "m_AnimgraphParameterNameOrientation"));
+        chainNode.Add("m_Data.m_EndEffectorFixedOffsetAttachment", MakeNamedReference(ikChain, "m_EndEffectorFixedOffsetAttachment"));
+        chainNode.Add("m_Data.m_bParentJointRequiresAlignment", GetOrDefault(ikChain, "m_bParentJointRequiresAlignment", true));
+        chainNode.Add("m_bUseNewPoleVectorForAxis", GetOrDefault(ikChain, "m_bUseNewPoleVectorForAxis", false));
+        chainNode.Add("m_PoleVectorForAxis ", GetOrDefault(ikChain, "m_PoleVectorForAxis", "IKChainDataPoleVectorForAxis::Y"));
+
+        return chainNode;
+    }
+
+    static KVObject BuildIKChainJoint(IReadOnlyList<KVObject> joints, int index)
+    {
+        var joint = joints[index];
+        var boneName = joint.ContainsKey("m_Bone")
+            ? joint.GetSubCollection("m_Bone").GetStringProperty("m_Name", string.Empty)
+            : string.Empty;
+
+        var jointNode = MakeNode("IKChainJoint", ("name", boneName));
+
+        var childrenKV = KVObject.Array();
+
+        if (index + 1 < joints.Count)
+        {
+            childrenKV.Add(BuildIKChainJoint(joints, index + 1));
+        }
+
+        if (joint.ContainsKey("m_JointConstraintData"))
+        {
+            foreach (var constraintData in joint.GetArray("m_JointConstraintData"))
+            {
+                var constraint = BuildIKJointConstraint(constraintData);
+                if (constraint != null)
+                {
+                    childrenKV.Add(constraint);
+                }
+            }
+        }
+
+        if (childrenKV.Count > 0)
+        {
+            jointNode.Add("children", childrenKV);
+        }
+
+        if (!string.IsNullOrEmpty(boneName))
+        {
+            jointNode.Add("bone", boneName);
+        }
+
+        return jointNode;
+    }
+
+    static KVObject? BuildIKJointConstraint(KVObject constraintData)
+    {
+        var compiledClass = constraintData.GetStringProperty("_class", string.Empty);
+        var className = RemapIKJointConstraintClassname(compiledClass);
+        if (className == null)
+        {
+            return null;
+        }
+
+        var constraintNode = MakeNode(className, ("constrained_joint", string.Empty));
+
+        if (compiledClass == "CIKJointConstraintData_Plane")
+        {
+            if (constraintData.ContainsKey("m_Plane"))
+            {
+                constraintNode.Add("plane", MakeArray(constraintData.GetFloatArray("m_Plane").Select(f => (KVObject)f)));
+            }
+        }
+        else
+        {
+            constraintNode.Add("hinge_axis", constraintData.GetStringProperty("m_HingeAxis", string.Empty));
+            constraintNode.Add("min_radians", constraintData.GetFloatProperty("m_flMinRadians"));
+            constraintNode.Add("max_radians", constraintData.GetFloatProperty("m_flMaxRadians"));
+        }
+
+        return constraintNode;
+    }
+
+    /// <summary>
+    /// Reads a key that older compiler eras did not write, falling back to the ModelDoc default.
+    /// </summary>
+    static KVObject GetOrDefault(KVObject? source, string key, KVObject fallback)
+        => source?.ContainsKey(key) == true ? source[key] : fallback;
+
+    static KVObject MakeNamedReference(KVObject? source, string key)
+    {
+        var reference = KVObject.Collection();
+        reference.Add("m_Name", source?.ContainsKey(key) == true
+            ? source.GetSubCollection(key).GetStringProperty("m_Name", string.Empty)
+            : string.Empty);
+        return reference;
+    }
+
+    static KVObject MakeAnimParamReference(KVObject? source, string key)
+    {
+        var reference = KVObject.Collection();
+        reference.Add("m_id", source?.ContainsKey(key) == true
+            ? source.GetSubCollection(key).GetUInt32Property("m_id")
+            : uint.MaxValue);
+        return reference;
     }
     #endregion
 
@@ -1109,6 +1259,12 @@ partial class ModelExtract
                 var boneConstraintListData = keyvalues.GetArray("BoneConstraintList");
                 var boneConstraintList = ExtractBoneConstraints(boneConstraintListData);
                 root.Children.Add(boneConstraintList);
+            }
+
+            var ikChains = AnimGraphModelInfo.GetIKChainsFromModel(model);
+            if (ikChains is { Count: > 0 })
+            {
+                root.Children.Add(BuildIKData(ikChains));
             }
 
             var genericDataClasses = new string[] {

@@ -96,7 +96,7 @@ public sealed class AnimGraphModelInfo
         return boneNamesCache ??= ModelData?.Skeleton.Bones.Select(b => b.Name).ToArray() ?? [];
     }
 
-    private static IReadOnlyList<KVObject>? GetIKChainsFromModel(Model? modelData)
+    internal static IReadOnlyList<KVObject>? GetIKChainsFromModel(Model? modelData)
     {
         if (modelData is null)
         {
