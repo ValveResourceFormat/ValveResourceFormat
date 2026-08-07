@@ -22,6 +22,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
             // NumFrames samples span Duration, so the frame rate counts the intervals between them.
             Fps = clip.Duration > 0 && clip.NumFrames > 1 ? (clip.NumFrames - 1) / clip.Duration : 1;
             IsAdditive = clip.IsAdditive;
+            TargetSkeletonName = clip.SkeletonName;
 
             Clip = clip;
         }
@@ -38,27 +39,11 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
         /// </summary>
         public NmClipEvent[] Events => Clip.Events;
 
-        /// <inheritdoc/>
-        public override bool SupportsMixerAdditive => IsAdditive;
-
-        /// <inheritdoc/>
-        public override bool RequiresRetarget => true;
-
-        /// <inheritdoc/>
-        public override string? TargetSkeletonName => Clip.SkeletonName;
-
         /// <summary>
-        /// Composes an already-decoded additive frame over the skeleton bind pose, in place. Clips
-        /// store an identity delta for un-animated bones, so every bone can be composed.
+        /// A decoded clip bone is already the delta: clips store one for every bone, un-animated ones
+        /// included, and their scale is authored around zero.
         /// </summary>
-        public override void ComposeAdditiveOverBindPose(FrameBone[] bones, Skeleton skeleton)
-        {
-            for (var i = 0; i < bones.Length; i++)
-            {
-                var bindPose = new FrameBone(skeleton.Bones[i].Position, 1f, skeleton.Bones[i].Angle);
-                bones[i] = bones[i].BlendAdd(bindPose, 1f);
-            }
-        }
+        public override FrameBone GetAdditiveDelta(int boneIndex, FrameBone bone) => bone;
 
         /// <inheritdoc/>
         public override void DecodeFrame(Frame outFrame)

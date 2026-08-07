@@ -201,7 +201,7 @@ namespace ValveResourceFormat.Renderer
                     continue;
                 }
 
-                FramePose.ComputeWorldSubtree(root, rootTransform, AnimationFrame, Pose);
+                Skeleton.ComputeWorldSubtree(root, rootTransform, AnimationFrame, Pose);
             }
 
             return true;
