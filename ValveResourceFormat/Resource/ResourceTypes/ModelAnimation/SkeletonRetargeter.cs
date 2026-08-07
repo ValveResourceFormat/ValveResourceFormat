@@ -51,7 +51,7 @@ public sealed class SkeletonRetargeter
     /// </summary>
     public void Retarget(Frame clipFrame, Span<Matrix4x4> modelWorld)
     {
-        FramePose.ComputeWorldPose(clipFrame, SourceSkeleton, sourceWorldScratch);
+        SourceSkeleton.ComputeWorldPose(clipFrame, sourceWorldScratch);
 
         foreach (var root in modelSkeleton.Roots)
         {

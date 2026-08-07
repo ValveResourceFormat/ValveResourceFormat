@@ -153,7 +153,7 @@ namespace ValveResourceFormat.Renderer
 
             foreach (var root in skeleton.Roots)
             {
-                FramePose.ComputeWorldSubtree(root, Matrix4x4.Identity, null, bindPose);
+                Skeleton.ComputeWorldSubtree(root, Matrix4x4.Identity, null, bindPose);
             }
 
             return bindPose;
@@ -310,13 +310,17 @@ namespace ValveResourceFormat.Renderer
         public IReadOnlyDictionary<string, ExternalSkeleton> ExternalSkeletons => externalSkeletons;
 
         /// <summary>
-        /// Whether the animation can play correctly on this controller. Animations targeting another
-        /// skeleton are only playable when that skeleton is registered; without it, playback would map
-        /// the clip's tracks onto the model skeleton by index.
+        /// Whether the animation can play correctly on this controller.
         /// </summary>
         public bool IsPlayable(Animation animation)
-            => animation is not ClipAnimation clipAnimation
-                || externalSkeletons.ContainsKey(clipAnimation.Clip.SkeletonName);
+        {
+            if (animation is ClipAnimation clipAnimation)
+            {
+                return externalSkeletons.ContainsKey(clipAnimation.TargetSkeletonName);
+            }
+
+            return true;
+        }
 
         /// <summary>
         /// Registers an external skeleton animations can be played on, creating a bone remapping table.

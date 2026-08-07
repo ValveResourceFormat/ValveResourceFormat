@@ -91,31 +91,36 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
         public bool IsAdditive { get; set; }
 
         /// <summary>
-        /// Gets whether the mixer may blend this animation additively over other clips.
-        /// </summary>
-        public virtual bool SupportsMixerAdditive => false;
-
-        /// <summary>
         /// Gets whether decoding this animation writes any flex controller data.
         /// </summary>
         public virtual bool HasFlexData => false;
 
         /// <summary>
-        /// Gets whether this animation is authored on a different skeleton and must be retargeted
-        /// onto the model skeleton to play or export on it.
+        /// Gets the resource name of the skeleton this animation is authored on. A model's own
+        /// skeleton is named after the vmdl it came from, so animations on it carry that name.
         /// </summary>
-        public virtual bool RequiresRetarget => false;
+        public string TargetSkeletonName { get; protected init; } = string.Empty;
 
         /// <summary>
-        /// Gets the resource name of the skeleton this animation is authored on, or
-        /// <see langword="null"/> when it is the model's own skeleton.
+        /// The delta a decoded bone of an additive frame contributes, in the one convention everything
+        /// composing deltas expects: add the position and the scale, post-multiply the rotation. The two
+        /// formats do not decode to that convention on their own, which is what this reconciles.
         /// </summary>
-        public virtual string? TargetSkeletonName => null;
+        public abstract FrameBone GetAdditiveDelta(int boneIndex, FrameBone bone);
 
         /// <summary>
         /// Composes an already-decoded additive frame over the skeleton bind pose, in place.
         /// </summary>
-        public abstract void ComposeAdditiveOverBindPose(FrameBone[] bones, Skeleton skeleton);
+        public void ComposeAdditiveOverBindPose(FrameBone[] bones, Skeleton skeleton)
+        {
+            for (var i = 0; i < bones.Length; i++)
+            {
+                var bindPose = skeleton.Bones[i];
+                var delta = GetAdditiveDelta(i, bones[i]);
+
+                bones[i] = new FrameBone(bindPose.Position + delta.Position, 1f + delta.Scale, bindPose.Angle * delta.Angle);
+            }
+        }
 
         /// <summary>
         /// Decodes animation data for the specified frame.

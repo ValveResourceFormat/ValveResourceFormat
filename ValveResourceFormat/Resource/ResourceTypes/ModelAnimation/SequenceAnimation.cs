@@ -335,7 +335,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
             var segmentArray = BuildSegmentArray(animationData, decodeKey, skeleton, flexControllers);
 
             return animArray
-                .Select(anim => new SequenceAnimation(anim, segmentArray))
+                .Select(anim => new SequenceAnimation(anim, segmentArray) { TargetSkeletonName = skeleton.Name })
                 .ToArray();
         }
 
@@ -401,7 +401,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
                 var seqName = seqDesc.GetStringProperty("m_sName");
                 processedAnimNames.Add(seqName);
 
-                animations.Add(new SequenceAnimation(seqDesc, animDesc, segmentArray));
+                animations.Add(new SequenceAnimation(seqDesc, animDesc, segmentArray) { TargetSkeletonName = skeleton.Name });
             }
 
             // Add remaining animations not already output as sequences
@@ -414,7 +414,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
                     continue;
                 }
 
-                animations.Add(new SequenceAnimation(anim, segmentArray));
+                animations.Add(new SequenceAnimation(anim, segmentArray) { TargetSkeletonName = skeleton.Name });
             }
 
             return animations;
@@ -521,46 +521,40 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
         }
 
         /// <summary>
-        /// Composes an already-decoded additive frame over the skeleton bind pose, in place. Sequences
-        /// only decode the channels they actually write and leave the rest at bind pose (see
-        /// <see cref="GetAnimatedChannels"/>), so those channels are held at bind rather than added
-        /// onto the bind pose a second time.
+        /// Sequences decode into a bind-pose frame and only write the channels they animate (see
+        /// <see cref="BuildAnimatedChannels"/>), so a channel the animation leaves alone holds the bind
+        /// pose rather than a delta, and has to be neutralized before it is composed onto a pose.
         /// </summary>
-        public override void ComposeAdditiveOverBindPose(FrameBone[] bones, Skeleton skeleton)
+        public override FrameBone GetAdditiveDelta(int boneIndex, FrameBone bone)
         {
-            var animatedChannels = GetAnimatedChannels(bones.Length);
+            var animated = animatedChannelsCache ??= BuildAnimatedChannels();
+            var channels = boneIndex < animated.Length ? animated[boneIndex] : AnimatedChannels.None;
 
-            for (var i = 0; i < bones.Length; i++)
-            {
-                var bindPose = new FrameBone(skeleton.Bones[i].Position, 1f, skeleton.Bones[i].Angle);
-                var frameBone = bones[i];
+            var position = (channels & AnimatedChannels.Position) != 0 ? bone.Position : Vector3.Zero;
+            var angle = (channels & AnimatedChannels.Angle) != 0 ? bone.Angle : Quaternion.Identity;
 
-                var channels = animatedChannels[i];
-
-                var position = (channels & AnimatedChannels.Position) != 0
-                    ? frameBone.Position + bindPose.Position
-                    : bindPose.Position;
-
-                var angle = (channels & AnimatedChannels.Angle) != 0
-                    ? bindPose.Angle * frameBone.Angle
-                    : bindPose.Angle;
-
-                // Scale is kept at bind so a unit delta scale cannot compound up the bone hierarchy.
-                bones[i] = new FrameBone(position, bindPose.Scale, angle);
-            }
+            // Sequence scale is authored around one rather than around zero, so the delta is what it is
+            // over one. That is also zero for a bone this animation does not scale, masking it for free.
+            return new FrameBone(position, bone.Scale - 1f, angle);
         }
 
         private AnimatedChannels[]? animatedChannelsCache;
 
         /// <summary>
         /// Returns, per bone, which transform channels this animation actually writes, derived from
-        /// the segment decoders' bone targets and channel attributes.
+        /// the segment decoders' bone targets and channel attributes. Bones past the end of it are
+        /// animated by nothing.
         /// </summary>
-        private AnimatedChannels[] GetAnimatedChannels(int boneCount)
+        private AnimatedChannels[] BuildAnimatedChannels()
         {
-            if (animatedChannelsCache != null && animatedChannelsCache.Length == boneCount)
+            var boneCount = 0;
+
+            foreach (var segment in SegmentArray)
             {
-                return animatedChannelsCache;
+                foreach (var boneIndex in segment?.RemapTable ?? [])
+                {
+                    boneCount = Math.Max(boneCount, boneIndex + 1);
+                }
             }
 
             var animated = new AnimatedChannels[boneCount];
@@ -586,14 +580,13 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
 
                 foreach (var boneIndex in segment.RemapTable)
                 {
-                    if (boneIndex >= 0 && boneIndex < boneCount)
+                    if (boneIndex >= 0)
                     {
                         animated[boneIndex] |= channel;
                     }
                 }
             }
 
-            animatedChannelsCache = animated;
             return animated;
         }
 

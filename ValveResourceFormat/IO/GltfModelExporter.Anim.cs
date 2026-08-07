@@ -400,12 +400,13 @@ public partial class GltfModelExporter
         {
             CancellationToken.ThrowIfCancellationRequested();
 
-            if (animation is not { RequiresRetarget: true, TargetSkeletonName: { } targetSkeletonName })
+            if (animation is not ClipAnimation clipAnimation)
             {
                 continue;
             }
 
-            var animationName = ClipAnimationName(animation.Name);
+            var targetSkeletonName = clipAnimation.TargetSkeletonName;
+            var animationName = ClipAnimationName(clipAnimation.Name);
 
             if (!IncludeAnimation(animationFilter, animationName))
             {
@@ -427,16 +428,13 @@ public partial class GltfModelExporter
 
             if (retargeter != null)
             {
-                retargetWriter.WriteRetargetedAnimation(exportedModel, joints, animation, animationName, retargeter);
+                retargetWriter.WriteRetargetedAnimation(exportedModel, joints, clipAnimation, animationName, retargeter);
 
-                if (animation is ClipAnimation clipAnimation)
+                foreach (var secondaryClip in clipAnimation.Clip.SecondaryAnimations)
                 {
-                    foreach (var secondaryClip in clipAnimation.Clip.SecondaryAnimations)
+                    if (GetOrCreateSecondarySkeleton(secondaryClip.SkeletonName) is { } secondary)
                     {
-                        if (GetOrCreateSecondarySkeleton(secondaryClip.SkeletonName) is { } secondary)
-                        {
-                            secondary.Writer.WriteAnimation(exportedModel, secondary.Joints, new ClipAnimation(secondaryClip), animationName);
-                        }
+                        secondary.Writer.WriteAnimation(exportedModel, secondary.Joints, new ClipAnimation(secondaryClip), animationName);
                     }
                 }
 
@@ -517,7 +515,7 @@ public partial class GltfModelExporter
 
         foreach (var animation in model.GetAllAnimations(FileLoader))
         {
-            if (animation.RequiresRetarget || animation.FrameCount == 0 || !animation.HasFlexData || !IncludeAnimation(animationFilter, animation.Name))
+            if (animation is ClipAnimation || animation.FrameCount == 0 || !animation.HasFlexData || !IncludeAnimation(animationFilter, animation.Name))
             {
                 continue;
             }

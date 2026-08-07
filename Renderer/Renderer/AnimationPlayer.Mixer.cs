@@ -266,7 +266,7 @@ namespace ValveResourceFormat.Renderer
                     var weightedBlendFactor = blendFactor * boneMaskWeight;
 
                     BlendedFrame.Bones[i] = clip.IsAdditive
-                        ? BlendedFrame.Bones[i].BlendAdd(frame.Bones[i], weightedBlendFactor)
+                        ? BlendedFrame.Bones[i].BlendAdd(clip.Animation.GetAdditiveDelta(i, frame.Bones[i]), weightedBlendFactor)
                         : BlendedFrame.Bones[i].Blend(frame.Bones[i], weightedBlendFactor);
                 }
 
@@ -320,9 +320,7 @@ namespace ValveResourceFormat.Renderer
             // Check if clip already exists
             if (!clips.TryGetValue(animName, out var newClip))
             {
-                // Only clips whose deltas compose through BlendAdd may blend additively in the mixer.
-                var isAdditive = animation.SupportsMixerAdditive;
-                newClip = new PlaybackClip(animation) { Looping = looping, BlendTime = blendTime, IsAdditive = isAdditive };
+                newClip = new PlaybackClip(animation) { Looping = looping, BlendTime = blendTime, IsAdditive = animation.IsAdditive };
                 clips[animName] = newClip;
 
                 PrewarmAnimationSounds(animation);

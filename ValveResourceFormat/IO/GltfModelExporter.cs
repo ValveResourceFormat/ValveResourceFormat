@@ -706,7 +706,7 @@ namespace ValveResourceFormat.IO
                 foreach (var animation in animations)
                 {
                     // Clips authored on another skeleton are written retargeted by WriteAnimationGraphClips.
-                    if (animation.RequiresRetarget || !IncludeAnimation(animationFilter, animation.Name))
+                    if (animation is ClipAnimation || !IncludeAnimation(animationFilter, animation.Name))
                     {
                         continue;
                     }
