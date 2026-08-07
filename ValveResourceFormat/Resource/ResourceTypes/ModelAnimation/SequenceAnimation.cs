@@ -144,9 +144,12 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
             Name = seqDesc.GetStringProperty("m_sName");
 
             var seqFlags = seqDesc.GetSubCollection("m_flags");
+            var animFlags = animDesc.GetSubCollection("m_flags");
+
             IsLooping = seqFlags.GetBooleanProperty("m_bLooping");
             Hidden = seqFlags.GetBooleanProperty("m_bHidden");
-            Delta = seqFlags.GetBooleanProperty("m_bLegacyDelta");
+            Delta = seqFlags.GetBooleanProperty("m_bLegacyDelta") || animFlags.GetBooleanProperty("m_bDelta");
+
             Worldspace = seqFlags.GetBooleanProperty("m_bLegacyWorldspace");
             Realtime = seqFlags.GetBooleanProperty("m_bLegacyRealtime");
             Autoplay = seqFlags.GetBooleanProperty("m_bAutoplay");
