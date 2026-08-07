@@ -510,6 +510,8 @@ namespace ValveResourceFormat.ResourceTypes
                 }
             }
 
+            animations.AddRange(GetReferencedAnimations(fileLoader));
+
             HashSet<string> additiveSequences;
             try
             {
@@ -530,8 +532,7 @@ namespace ValveResourceFormat.ResourceTypes
                 }
             }
 
-            // Referenced animations are shared instances stamped by their owning model, so they are
-            // appended after this loop untouched. '@' autoplay aliases inherit the wrapped sequence's flag.
+            // '@' autoplay aliases inherit the wrapped sequence's flag.
             foreach (var animation in animations)
             {
                 if (animation is not SequenceAnimation sequenceAnimation)
@@ -544,9 +545,7 @@ namespace ValveResourceFormat.ResourceTypes
                 sequenceAnimation.IsAdditive |= additiveSequences.Contains(sequenceName);
             }
 
-            var referencedAnims = GetReferencedAnimations(fileLoader);
-
-            CachedAnimations = [.. animations, .. referencedAnims];
+            CachedAnimations = animations;
 
             return CachedAnimations;
         }
