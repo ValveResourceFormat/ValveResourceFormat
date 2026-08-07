@@ -175,7 +175,7 @@ namespace ValveResourceFormat.Renderer.Materials
         private readonly List<int> boundSamplerUnits = [];
 
 #if DEBUG
-        private static int maxTextureImageUnits;
+        private static int maxCombinedTextureImageUnits;
 #endif
 
         /// <summary>Initializes a new instance of the <see cref="RenderMaterial"/> class from a parsed material resource, loading its shader and applying render state.</summary>
@@ -590,13 +590,13 @@ namespace ValveResourceFormat.Renderer.Materials
             }
 
 #if DEBUG
-            if (maxTextureImageUnits == 0)
+            if (maxCombinedTextureImageUnits == 0)
             {
-                GL.GetInteger(GetPName.MaxTextureImageUnits, out maxTextureImageUnits);
+                GL.GetInteger(GetPName.MaxCombinedTextureImageUnits, out maxCombinedTextureImageUnits);
             }
 
-            Debug.Assert(textureUnit <= maxTextureImageUnits,
-                $"'{shader.Name}' needs {textureUnit} texture units ({textureUnit - TextureUnitStart} of its own on top of {TextureUnitStart} reserved) but the driver only has {maxTextureImageUnits}.");
+            Debug.Assert(textureUnit <= maxCombinedTextureImageUnits,
+                $"'{shader.Name}' needs {textureUnit} texture units ({textureUnit - TextureUnitStart} of its own on top of {TextureUnitStart} reserved) but the driver only has {maxCombinedTextureImageUnits}.");
 #endif
 
             SetRenderState();
