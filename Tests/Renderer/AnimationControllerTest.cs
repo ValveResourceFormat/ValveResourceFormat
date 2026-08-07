@@ -80,18 +80,18 @@ namespace Tests.Renderer
 
             controller.Update(0f);
 
-            var remap = controller.ExternalSkeletons[clip.SkeletonName].RemapTable;
+            var externalSkeletonBones = controller.ExternalSkeletons[clip.SkeletonName].Skeleton;
             var mapped = 0;
 
             for (var i = 0; i < model.Skeleton.Bones.Length; i++)
             {
-                if (remap[i] == -1)
+                if (externalSkeletonBones[model.Skeleton.Bones[i].Name] is not { } sourceBone)
                 {
                     continue;
                 }
 
                 mapped++;
-                Assert.That(controller.Pose[i], Is.EqualTo(external!.Pose[remap[i]]), $"bone {model.Skeleton.Bones[i].Name}");
+                Assert.That(controller.Pose[i], Is.EqualTo(external!.Pose[sourceBone.Index]), $"bone {model.Skeleton.Bones[i].Name}");
             }
 
             if (mapped == 0)

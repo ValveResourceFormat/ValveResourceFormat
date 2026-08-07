@@ -19,12 +19,6 @@ public sealed class SkeletonRetargeter
     public Skeleton SourceSkeleton { get; }
 
     /// <summary>
-    /// Gets the model-to-source bone index map, indexed by model bone index; -1 marks model
-    /// bones the source skeleton does not drive.
-    /// </summary>
-    public ReadOnlySpan<int> ModelToSource => modelToSource;
-
-    /// <summary>
     /// Gets whether any model bone maps to a source bone by name; retargeting produces the bind
     /// pose when nothing maps.
     /// </summary>
