@@ -97,6 +97,12 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
             };
         }
 
+        /// <summary>
+        /// Interpolates linearly between two movement samples using <paramref name="t"/> in the range [0, 1].
+        /// </summary>
+        public static MovementData Lerp(in MovementData a, in MovementData b, float t)
+            => Lerp(a.Position, a.Angle, b.Position, b.Angle, t);
+
         private static MovementData Lerp(Vector3 aPos, float aAngle, Vector3 bPos, float bAngle, float t)
         {
             var position = Vector3.Lerp(aPos, bPos, t);

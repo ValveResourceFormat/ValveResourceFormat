@@ -96,6 +96,11 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
         public virtual bool SupportsMixerAdditive => false;
 
         /// <summary>
+        /// Gets whether decoding this animation writes any flex controller data.
+        /// </summary>
+        public virtual bool HasFlexData => false;
+
+        /// <summary>
         /// Gets whether this animation is authored on a different skeleton and must be retargeted
         /// onto the model skeleton to play or export on it.
         /// </summary>

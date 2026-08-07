@@ -51,6 +51,12 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
         private AnimationFrameBlock[] FrameBlocks { get; } = [];
         private AnimationSegmentDecoder?[] SegmentArray { get; } = [];
 
+        private bool? hasFlexData;
+
+        /// <inheritdoc/>
+        public override bool HasFlexData => hasFlexData ??=
+            Array.Exists(SegmentArray, segment => segment?.ChannelAttribute == AnimationChannelAttribute.Data);
+
         /// <summary>
         /// Gets the movement data for this animation.
         /// </summary>

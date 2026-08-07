@@ -85,6 +85,18 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
         readonly Dictionary<uint, int> boneHashToIndex = [];
 
         /// <summary>
+        /// Loads a compiled NM skeleton (.vnmskel) resource by name and builds a skeleton from it,
+        /// or returns <see langword="null"/> when the resource cannot be loaded.
+        /// </summary>
+        public static Skeleton? FromSkeletonResource(IO.IFileLoader fileLoader, string skeletonName)
+        {
+            using var resource = fileLoader.LoadFileCompiled(skeletonName);
+            return resource?.DataBlock is BinaryKV3 skeletonData
+                ? FromSkeletonData(skeletonData.Data)
+                : null;
+        }
+
+        /// <summary>
         /// Creates a skeleton from skeleton-specific data.
         /// </summary>
         public static Skeleton FromSkeletonData(KVObject nmSkeleton)

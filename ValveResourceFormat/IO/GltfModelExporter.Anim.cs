@@ -363,26 +363,26 @@ public partial class GltfModelExporter
         var clipRetargeters = new Dictionary<string, SkeletonRetargeter?>();
 
         // Secondary animations (the clip's tracks for further skeletons, e.g. the weapon of a
-        // viewmodel clip) get their own skeleton nodes, created once per skeleton and shared.
-        var secondarySkeletons = new Dictionary<string, (Skeleton Skeleton, Node[] Joints)?>();
+        // viewmodel clip) get their own skeleton nodes and writer, created once per skeleton and shared.
+        var secondarySkeletons = new Dictionary<string, (AnimationWriter Writer, Node[] Joints)?>();
 
-        (Skeleton Skeleton, Node[] Joints)? GetOrCreateSecondarySkeleton(string skeletonName)
+        (AnimationWriter Writer, Node[] Joints)? GetOrCreateSecondarySkeleton(string skeletonName)
         {
             if (secondarySkeletons.TryGetValue(skeletonName, out var cached))
             {
                 return cached;
             }
 
-            (Skeleton Skeleton, Node[] Joints)? created = null;
-            if (FileLoader.LoadFileCompiled(skeletonName)?.DataBlock is BinaryKV3 skeletonData)
+            (AnimationWriter Writer, Node[] Joints)? created = null;
+            if (Skeleton.FromSkeletonResource(FileLoader, skeletonName) is { } skeleton)
             {
-                var skeleton = Skeleton.FromSkeletonData(skeletonData.Data);
                 var (skeletonNode, secondaryJoints) = CreateGltfSkeleton(scene, skeleton, skeletonName);
                 if (skeletonNode != null && secondaryJoints != null)
                 {
                     var meshNode = CreateSkeletonVisualizationMesh(exportedModel, scene, skeleton, secondaryJoints);
                     meshNode.Name = $"{skeletonName}.empty_mesh_reference";
-                    created = (skeleton, secondaryJoints);
+                    var writer = new AnimationWriter(skeleton, []) { ComposeAdditive = ComposeAdditiveAnimations };
+                    created = (writer, secondaryJoints);
                 }
             }
 
@@ -420,9 +420,7 @@ public partial class GltfModelExporter
 
             if (!clipRetargeters.TryGetValue(targetSkeletonName, out var retargeter))
             {
-                var clipSkeleton = FileLoader.LoadFileCompiled(targetSkeletonName)?.DataBlock is BinaryKV3 skeletonData
-                    ? Skeleton.FromSkeletonData(skeletonData.Data)
-                    : null;
+                var clipSkeleton = Skeleton.FromSkeletonResource(FileLoader, targetSkeletonName);
                 retargeter = clipSkeleton != null ? new SkeletonRetargeter(model.Skeleton, clipSkeleton) : null;
                 clipRetargeters[targetSkeletonName] = retargeter;
             }
@@ -437,8 +435,7 @@ public partial class GltfModelExporter
                     {
                         if (GetOrCreateSecondarySkeleton(secondaryClip.SkeletonName) is { } secondary)
                         {
-                            new AnimationWriter(secondary.Skeleton, []) { ComposeAdditive = ComposeAdditiveAnimations }.WriteAnimation(
-                                exportedModel, secondary.Joints, new ClipAnimation(secondaryClip), animationName);
+                            secondary.Writer.WriteAnimation(exportedModel, secondary.Joints, new ClipAnimation(secondaryClip), animationName);
                         }
                     }
                 }
@@ -520,7 +517,7 @@ public partial class GltfModelExporter
 
         foreach (var animation in model.GetAllAnimations(FileLoader))
         {
-            if (animation.RequiresRetarget || animation.FrameCount == 0 || !IncludeAnimation(animationFilter, animation.Name))
+            if (animation.RequiresRetarget || animation.FrameCount == 0 || !animation.HasFlexData || !IncludeAnimation(animationFilter, animation.Name))
             {
                 continue;
             }

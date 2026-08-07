@@ -51,10 +51,9 @@ public class NmClipExtract
         }
 
         var animation = new ResourceTypes.ModelAnimation.ClipAnimation(clip);
-        var skeletonResource = fileLoader.LoadFileCompiled(clip.SkeletonName);
-        if (skeletonResource != null)
+        var skeleton = ResourceTypes.ModelAnimation.Skeleton.FromSkeletonResource(fileLoader, clip.SkeletonName);
+        if (skeleton != null)
         {
-            var skeleton = ResourceTypes.ModelAnimation.Skeleton.FromSkeletonData(((BinaryKV3)skeletonResource.DataBlock!).Data);
             var modelSpaceSamplingChain = clip.Data.Root.GetArray("m_modelSpaceSamplingChain");
             // The array below indexes into the bone sampling chain, which in turn indexes into the skeleton bones.
             var modelSpaceBoneSamplingIndices = clip.Data.Root.GetIntegerArray("m_modelSpaceBoneSamplingIndices");
@@ -71,21 +70,19 @@ public class NmClipExtract
             }
             kv.Add("m_bonesToSampleInModelSpace", bonesToSampleInModelSpace);
 
-            // Secondary animations (e.g. the weapon of a viewmodel clip) share the DMX; the compiler
-            // pulls each declared skeleton's tracks out of it by bone name.
-            var secondaryAnimations = new List<(ResourceTypes.ModelAnimation.Skeleton Skeleton, ResourceTypes.ModelAnimation.Animation Animation)>();
-            foreach (var secAnim in clip.SecondaryAnimations)
-            {
-                if (fileLoader.LoadFileCompiled(secAnim.SkeletonName)?.DataBlock is BinaryKV3 secSkeletonData)
-                {
-                    secondaryAnimations.Add((
-                        ResourceTypes.ModelAnimation.Skeleton.FromSkeletonData(secSkeletonData.Data),
-                        new ResourceTypes.ModelAnimation.ClipAnimation(secAnim)));
-                }
-            }
-
             contentFile.AddSubFile(Path.GetFileName(sourceFileName), () =>
             {
+                // Secondary animations (e.g. the weapon of a viewmodel clip) share the DMX; the compiler
+                // pulls each declared skeleton's tracks out of it by bone name.
+                var secondaryAnimations = new List<(ResourceTypes.ModelAnimation.Skeleton Skeleton, ResourceTypes.ModelAnimation.Animation Animation)>();
+                foreach (var secAnim in clip.SecondaryAnimations)
+                {
+                    if (ResourceTypes.ModelAnimation.Skeleton.FromSkeletonResource(fileLoader, secAnim.SkeletonName) is { } secSkeleton)
+                    {
+                        secondaryAnimations.Add((secSkeleton, new ResourceTypes.ModelAnimation.ClipAnimation(secAnim)));
+                    }
+                }
+
                 return ModelExtract.ToDmxAnim(skeleton, [], animation, secondaryAnimations, nmSkelAxisFixup: true);
             });
         }
