@@ -34,13 +34,25 @@ namespace ValveResourceFormat.Renderer.Materials
         /// <summary>Gets the number of materials currently held in the cache.</summary>
         public int MaterialCount => Materials.Count;
 
-        private readonly Dictionary<string, string[]> TextureAliases = new()
+        /// <summary>
+        /// Maps a material texture parameter name to the shader uniforms it can feed, in preference order.
+        /// The first candidate the shader declares and that is not already bound wins.
+        /// </summary>
+        private static readonly Dictionary<string, string[]> TextureAliases = new(StringComparer.Ordinal)
         {
-            ["g_tLayer2Color"] = ["g_tColorB", "g_tColor2"],
-            ["g_tColor"] = ["g_tColor2", "g_tColor1", "g_tColorA", "g_tColorB", "g_tColorC", "g_tGlassDust"],
-            ["g_tNormal"] = ["g_tNormalA", "g_tNormalRoughness", "g_tLayer1NormalRoughness", "g_tNormalRoughness1"],
-            ["g_tLayer2NormalRoughness"] = ["g_tNormalB", "g_tNormalRoughness2"],
-            ["g_tAmbientOcclusion"] = ["g_tLayer1AmbientOcclusion"],
+            ["g_tColor1"] = ["g_tColor"],
+            ["g_tColor2"] = ["g_tColor", "g_tLayer2Color"],
+            ["g_tColorA"] = ["g_tColor"],
+            ["g_tColorB"] = ["g_tLayer2Color", "g_tColor"],
+            ["g_tColorC"] = ["g_tColor"],
+            ["g_tGlassDust"] = ["g_tColor"],
+            ["g_tNormalA"] = ["g_tNormal"],
+            ["g_tNormalB"] = ["g_tLayer2NormalRoughness"],
+            ["g_tNormalRoughness"] = ["g_tNormal"],
+            ["g_tNormalRoughness1"] = ["g_tNormal"],
+            ["g_tNormalRoughness2"] = ["g_tLayer2NormalRoughness"],
+            ["g_tLayer1NormalRoughness"] = ["g_tNormal"],
+            ["g_tLayer1AmbientOcclusion"] = ["g_tAmbientOcclusion"],
         };
 
         /// <summary>Initializes a new instance of the <see cref="MaterialLoader"/> class.</summary>
@@ -152,24 +164,27 @@ namespace ValveResourceFormat.Renderer.Materials
 
             foreach (var (textureName, texturePath) in mat.Material.TextureParams)
             {
-                if (TryBindTexture(mat, textureName, texturePath))
+                TryBindTexture(mat, textureName, texturePath);
+            }
+
+            foreach (var (textureName, texturePath) in mat.Material.TextureParams)
+            {
+                if (mat.Textures.ContainsKey(textureName)
+                || !TextureAliases.TryGetValue(textureName, out var aliases))
                 {
                     continue;
                 }
 
-                foreach (var (possibleAlias, aliases) in TextureAliases)
+                foreach (var alias in aliases)
                 {
-                    if (mat.Textures.ContainsKey(possibleAlias))
+                    if (mat.Textures.ContainsKey(alias))
                     {
                         continue;
                     }
 
-                    if (aliases.Contains(textureName))
+                    if (TryBindTexture(mat, alias, texturePath))
                     {
-                        if (TryBindTexture(mat, possibleAlias, texturePath))
-                        {
-                            break;
-                        }
+                        break;
                     }
                 }
             }
