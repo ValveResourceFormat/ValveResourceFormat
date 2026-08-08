@@ -5,6 +5,7 @@
 #include "common/texturing.slang"
 
 in vec2 vTexCoordOut;
+in vec4 vTintOut;
 
 uniform sampler2D g_tColor; // SrgbRead(true)
 
@@ -18,5 +19,5 @@ void main()
     color.a = AlphaTestAntiAliasing(color.a, vTexCoordOut);
 #endif
 
-    outputColor = color;
+    outputColor = color * vTintOut;
 }

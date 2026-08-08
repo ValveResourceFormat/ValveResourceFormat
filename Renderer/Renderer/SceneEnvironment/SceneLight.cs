@@ -43,6 +43,21 @@ public class SceneLight(Scene scene) : SceneNode(scene)
         Stationary = 3,
     }
 
+    /// <summary>Runtime cost of a light.</summary>
+    public enum LightCost
+    {
+        /// <summary>Light is free. The result is stored in lightmaps. Strength cannot be adjusted.</summary>
+        Static,
+
+        /// <summary>
+        /// Light cannot move. Lightmap stores indirect bounce, and shadow mask. Strength can be adjusted at runtime.
+        /// </summary>
+        Stationary,
+
+        /// <summary>Light can be moved in the world.</summary>
+        Dynamic,
+    }
+
     /// <summary>
     ///     Shader light type for rendering calculations.
     /// </summary>
@@ -346,6 +361,58 @@ public class SceneLight(Scene scene) : SceneNode(scene)
         light.Direction = AnglesToDirection(entity.GetVector3Property("angles"));
         return light;
     }
+
+    /// <summary>
+    /// What this light costs to render, which is <see cref="DirectLight"/> resolved against
+    /// <see cref="StationaryLightIndex"/>.
+    /// </summary>
+    public LightCost Cost => GetCost(DirectLight, StationaryLightIndex);
+
+    /// <inheritdoc cref="Cost"/>
+    public static LightCost GetCost(DirectLightType directLight, int stationaryLightIndex)
+    {
+        if (directLight is DirectLightType.Stationary)
+        {
+            return LightCost.Stationary;
+        }
+
+        if (directLight is DirectLightType.None)
+        {
+            return LightCost.Static;
+        }
+
+        // A baked shadow index means the lightmap holds this light's shadows, which is what makes it
+        // stationary rather than dynamic. Lights authored as stationary reach here as Static, and
+        // legacy light entities carry no directlight key at all so they reach here as Dynamic.
+        if (stationaryLightIndex >= 0)
+        {
+            return LightCost.Stationary;
+        }
+
+        return directLight is DirectLightType.Static ? LightCost.Static : LightCost.Dynamic;
+    }
+
+    /// <inheritdoc cref="Cost"/>
+    /// <param name="entity">Light entity to read the direct lighting key values from.</param>
+    public static LightCost GetCost(Entity entity)
+    {
+        return GetCost(
+            (DirectLightType)entity.GetInt32Property("directlight", (int)DirectLightType.Dynamic),
+            entity.GetInt32Property("bakedshadowindex", entity.GetInt32Property("bakelightindex", -1)));
+    }
+
+    /// <summary>
+    /// Editor model tint for a light entity, keyed on how expensive it is: teal for static, amber for
+    /// stationary, red for dynamic. These are the colors the Source 2 light entities pass to the
+    /// <c>lightModeTint2</c> editor model helper in their fgd.
+    /// </summary>
+    /// <param name="entity">Light entity to read the direct lighting key values from.</param>
+    public static Vector3 GetEditorTint(Entity entity) => GetCost(entity) switch
+    {
+        LightCost.Stationary => new Vector3(255f, 196f, 64f) / 255f,
+        LightCost.Dynamic => new Vector3(255f, 64f, 64f) / 255f,
+        _ => new Vector3(0f, 255f, 192f) / 255f,
+    };
 
     internal static bool IsRealTimeLight(SceneLight light)
     {

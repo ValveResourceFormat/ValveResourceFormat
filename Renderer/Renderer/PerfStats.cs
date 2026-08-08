@@ -44,6 +44,7 @@ public class PerfStats
     }
 
     private static readonly string[] LightGroupNames = ["omni", "spot", "barn", "rect", "directional"];
+    private static readonly string[] LightCostLabels = ["Static Lights:    ", "Stationary Lights:", "Dynamic Lights:   "];
 
     // Declared after LightGroupNames so the instance created here sees it initialized (static initializers run in textual order).
     /// <summary>Counters for the frame currently being rendered. Collects nothing while <see cref="Capture"/> is off.</summary>
@@ -79,8 +80,20 @@ public class PerfStats
     // Stats
     private readonly int[] counts = new int[Enum.GetValues<Counter>().Length];
     private readonly float[] floatMetrics = new float[Enum.GetValues<Metric>().Length];
-    private readonly int[] lightsInView = new int[LightGroupNames.Length];
-    private readonly int[] staticLightsInView = new int[LightGroupNames.Length];
+    /// <summary>Lights that passed culling this frame, indexed by <see cref="SceneLight.LightCost"/> then <see cref="LightGroup"/>.</summary>
+    private readonly int[][] lightsInView = CreateLightCounters();
+
+    private static int[][] CreateLightCounters()
+    {
+        var counters = new int[LightCostLabels.Length][];
+
+        for (var i = 0; i < counters.Length; i++)
+        {
+            counters[i] = new int[LightGroupNames.Length];
+        }
+
+        return counters;
+    }
 
     /// <summary>GPU primitives-generated queries for one in-flight frame, one segment per unsuspended span of draws.</summary>
     private sealed class TriangleQueryFrame
@@ -120,8 +133,7 @@ public class PerfStats
     private int totalSceneObjects;
     private int totalMaterials;
     private int totalParticleSystems;
-    private readonly int[] totalLights = new int[LightGroupNames.Length];
-    private readonly int[] totalStaticLights = new int[LightGroupNames.Length];
+    private readonly int[][] totalLights = CreateLightCounters();
     private long lastTotalsUpdate;
 
     /// <summary>Suspends stat collection for the following draws until <see cref="ResumeTriangleCounter"/> is called. Nestable.</summary>
@@ -235,14 +247,7 @@ public class PerfStats
             return;
         }
 
-        if (SceneLight.IsRealTimeLight(light))
-        {
-            lightsInView[(int)GetLightGroup(light)]++;
-        }
-        else
-        {
-            staticLightsInView[(int)GetLightGroup(light)]++;
-        }
+        lightsInView[(int)light.Cost][(int)GetLightGroup(light)]++;
     }
 
     private static LightGroup GetLightGroup(SceneLight light) => light.Entity switch
@@ -267,8 +272,10 @@ public class PerfStats
         totalDrawCalls = 0;
         totalSceneObjects = 0;
         totalParticleSystems = 0;
-        Array.Clear(totalLights);
-        Array.Clear(totalStaticLights);
+        foreach (var costGroups in totalLights)
+        {
+            Array.Clear(costGroups);
+        }
 
         AccumulateTotals(scene);
 
@@ -319,14 +326,7 @@ public class PerfStats
                     }
 
                 case SceneLight light:
-                    if (SceneLight.IsRealTimeLight(light))
-                    {
-                        totalLights[(int)GetLightGroup(light)]++;
-                    }
-                    else
-                    {
-                        totalStaticLights[(int)GetLightGroup(light)]++;
-                    }
+                    totalLights[(int)light.Cost][(int)GetLightGroup(light)]++;
                     break;
 
                 case ParticleSceneNode:
@@ -406,8 +406,12 @@ public class PerfStats
         AddLine($"Scene objects:    drawn {counts[(int)Counter.SceneObjectInView]:N0} of {totalSceneObjects:N0} scene objects in {counts[(int)Counter.DrawCall]:N0} draw calls and {counts[(int)Counter.MeshletDispatch]:N0} meshlet dispatches ({totalDrawCalls:N0} total draw calls)", valueColor);
         AddLine($"Materials:        {counts[(int)Counter.MaterialChange]:N0} changes between drawcalls, {totalMaterials:N0} total materials in scene", valueColor);
         AddLine($"VAOs:             {counts[(int)Counter.VaoChange]:N0} binds this frame, {scene.RendererContext.MeshBufferCache.VertexArrayObjectCount:N0} cached", valueColor);
-        AddLine($"Dynamic Lights:   in view {FormatLightCounts(lightsInView, totalLights)} out of total {FormatLightCounts(totalLights, totalLights)}", valueColor);
-        AddLine($"Static Lights:    in view {FormatLightCounts(staticLightsInView, totalStaticLights)} out of total {FormatLightCounts(totalStaticLights, totalStaticLights)}", valueColor);
+
+        for (var cost = 0; cost < LightCostLabels.Length; cost++)
+        {
+            AddLine($"{LightCostLabels[cost]} in view {FormatLightCounts(lightsInView[cost], totalLights[cost])} out of total {FormatLightCounts(totalLights[cost], totalLights[cost])}", valueColor);
+        }
+
         AddLine($"Shadow maps:      {counts[(int)Counter.DirectionalShadowMap]:N0} directional, {counts[(int)Counter.BarnShadowMap]:N0} barn, {counts[(int)Counter.ShadowFaceSubmitted]:N0} faces binned, {floatMetrics[(int)Metric.ShadowAtlasUsage]:0%} atlas utilization", valueColor);
         AddLine($"Particle Systems: {counts[(int)Counter.ParticleSystem]:N0} particle systems rendered in {counts[(int)Counter.ParticleDraw]:N0} draw calls out of {totalParticleSystems:N0} total particle systems", valueColor);
         AddLine($"Light binning:    {FormatBinnerStats(scene.LightBinner.Stats)}", valueColor);
@@ -451,9 +455,12 @@ public class PerfStats
 
         suspendDepth = 0;
         Array.Clear(counts);
-        Array.Clear(lightsInView);
-        Array.Clear(staticLightsInView);
         Array.Clear(floatMetrics);
+
+        foreach (var costGroups in lightsInView)
+        {
+            Array.Clear(costGroups);
+        }
 
         // Oldest first, keeping the newest result that has landed. The slot about to be written is the oldest.
         for (var i = 0; i < TriangleFrameCount; i++)

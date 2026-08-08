@@ -1602,6 +1602,11 @@ namespace ValveResourceFormat.Renderer.World
                 modelNode.EntityData = entity;
                 modelNode.Flags |= flags;
 
+                if (SceneLight.IsAccepted(classname).Accepted)
+                {
+                    modelNode.Tint = new Vector4(SceneLight.GetEditorTint(entity), 1f);
+                }
+
                 var isAnimated = modelNode.SetAnimationForWorldPreview("tools_preview");
 
                 scene.Add(modelNode, true);
@@ -1615,6 +1620,14 @@ namespace ValveResourceFormat.Renderer.World
                     EntityData = entity,
                     Flags = flags,
                 };
+
+                if (SceneLight.IsAccepted(classname).Accepted)
+                {
+                    // light_omni2 has no editor model in the fgd, only an icon, so the cost tint has
+                    // to go on the sprite for it to show up at all.
+                    spriteNode.Tint = new Vector4(SceneLight.GetEditorTint(entity), 1f);
+                }
+
                 scene.Add(spriteNode, true);
             }
             else
