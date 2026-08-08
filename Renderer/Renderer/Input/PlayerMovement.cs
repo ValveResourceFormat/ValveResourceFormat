@@ -236,8 +236,8 @@ public partial class PlayerMovement
     /// Moves the player somewhere else outright, keeping their velocity.
     /// </summary>
     /// <param name="feetPosition">Where the feet arrive.</param>
-    /// <param name="yawDegrees">View yaw to adopt, or null to keep the current one.</param>
-    public void Teleport(Vector3 feetPosition, float? yawDegrees = null)
+    /// <param name="angles">View angles to adopt, or null to keep the current one.</param>
+    public void Teleport(Vector3 feetPosition, Vector3? angles)
     {
         var position = feetPosition + new Vector3(0, 0, HullHalfExtents.Z);
 
@@ -251,9 +251,10 @@ public partial class PlayerMovement
         HasValidPosition = false; // Do not restore positions from before the teleport
         Effects.ClearStepOffset();
 
-        if (yawDegrees is { } yaw)
+        if (angles is { X: var x, Y: var y, Z: var z })
         {
-            Input.Camera.Yaw = float.DegreesToRadians(yaw);
+            Input.Camera.Pitch = float.DegreesToRadians(x);
+            Input.Camera.Yaw = float.DegreesToRadians(y);
 
             // A snapped yaw is not a turn; restart the strafe yaw tracking
             HasPreviousYaw = false;
