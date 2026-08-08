@@ -15,7 +15,7 @@ namespace ValveResourceFormat.Renderer.Particles.Initializers
 
         private readonly int controlPointNumber;
         private readonly int scaleCP = -1;
-        private readonly RandomnessParameters randomness;
+        private readonly RangeSampler rangeSampler;
 
         public CreateWithinBox(ParticleDefinitionParser parse) : base(parse)
         {
@@ -23,7 +23,7 @@ namespace ValveResourceFormat.Renderer.Particles.Initializers
             max = parse.VectorProvider("m_vecMax", max);
             controlPointNumber = parse.Int32("m_nControlPointNumber", controlPointNumber);
             scaleCP = parse.Int32("m_nScaleCP", scaleCP);
-            randomness = RandomnessParameters.Parse(parse);
+            rangeSampler = RangeSampler.Parse(parse);
         }
 
         public override Particle Initialize(ref Particle particle, ParticleCollection particles, ParticleSystemRenderState particleSystemState)
@@ -31,7 +31,7 @@ namespace ValveResourceFormat.Renderer.Particles.Initializers
             var posMin = min.NextVector(ref particle, particleSystemState);
             var posMax = max.NextVector(ref particle, particleSystemState);
 
-            var position = randomness.NextVectorBetween(ref particle, particleSystemState, posMin, posMax);
+            var position = rangeSampler.NextVectorBetween(ref particle, particleSystemState, posMin, posMax);
 
             var offset = particleSystemState.GetControlPoint(controlPointNumber).Position;
 

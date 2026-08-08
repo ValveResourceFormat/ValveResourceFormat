@@ -9,8 +9,30 @@ namespace ValveResourceFormat.Renderer.Particles;
 /// <summary>
 /// Wraps a <see cref="KVObject"/> to provide typed, default-value-aware accessors for particle system definition properties.
 /// </summary>
-record struct ParticleDefinitionParser(KVObject Data, ILogger Logger)
+/// <param name="Data">The block being read.</param>
+/// <param name="Logger">Where parse warnings go.</param>
+/// <param name="InputOrdinal">
+/// Numbers the inputs of one particle function as they are parsed, shared by every nested block of
+/// that function. Held in a cell because the parser is copied by value.
+/// </param>
+record struct ParticleDefinitionParser(KVObject Data, ILogger Logger, int[] InputOrdinal)
 {
+    /// <summary>Reads a particle function, starting its input numbering over.</summary>
+    public ParticleDefinitionParser(KVObject data, ILogger logger) : this(data, logger, new int[1])
+    {
+    }
+
+    /// <summary>Reads a block nested in this one, continuing its input numbering.</summary>
+    public readonly ParticleDefinitionParser Nested(KVObject data) => new(data, Logger, InputOrdinal);
+
+    /// <summary>
+    /// Claims the next displacement for an input whose draw is constant per particle, so that two
+    /// inputs of one function reading the same particle land on different slots of the shared random
+    /// table. Different functions are already separated by
+    /// <see cref="ParticleSystemRenderState.OperatorSampleOffset"/>.
+    /// </summary>
+    public readonly int NextInputOrdinal() => InputOrdinal[0]++;
+
     private readonly T GetValueOrDefault<T>(string key, Func<string, T?> parsingMethod, T @default)
     {
         if (Data.ContainsKey(key))
@@ -32,7 +54,8 @@ record struct ParticleDefinitionParser(KVObject Data, ILogger Logger)
         }
 
         var logger = Logger; // Copy to local variable to avoid capturing 'this' in lambda
-        return [.. Data.GetArray(k).Select(item => new ParticleDefinitionParser(item, logger))];
+        var ordinal = InputOrdinal;
+        return [.. Data.GetArray(k).Select(item => new ParticleDefinitionParser(item, logger, ordinal))];
     }
 
     private readonly float Float(string k)
@@ -176,7 +199,7 @@ record struct ParticleDefinitionParser(KVObject Data, ILogger Logger)
         if (pfParameters.IsCollection)
         {
             var type = pfParameters.GetStringProperty("m_nType");
-            var parse = new ParticleDefinitionParser(pfParameters, Logger);
+            var parse = Nested(pfParameters);
 
             switch (type)
             {
@@ -246,7 +269,7 @@ record struct ParticleDefinitionParser(KVObject Data, ILogger Logger)
         if (pvecParameters.IsCollection && pvecParameters.ContainsKey("m_nType"))
         {
             var type = pvecParameters.GetStringProperty("m_nType");
-            var parse = new ParticleDefinitionParser(pvecParameters, Logger);
+            var parse = Nested(pvecParameters);
 
             switch (type)
             {
@@ -306,7 +329,7 @@ record struct ParticleDefinitionParser(KVObject Data, ILogger Logger)
         if (transformParameters.IsCollection)
         {
             var type = transformParameters.GetStringProperty("m_nType", "PT_TYPE_CONTROL_POINT");
-            var parse = new ParticleDefinitionParser(transformParameters, Logger);
+            var parse = Nested(transformParameters);
 
             switch (type)
             {

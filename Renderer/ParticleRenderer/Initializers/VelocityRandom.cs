@@ -14,7 +14,7 @@ namespace ValveResourceFormat.Renderer.Particles.Initializers
         private readonly INumberProvider speedMax = new LiteralNumberProvider(0f);
         private readonly int controlPoint;
         private readonly bool ignoreDT;
-        private readonly RandomnessParameters randomness;
+        private readonly RangeSampler rangeSampler;
 
         public VelocityRandom(ParticleDefinitionParser parse) : base(parse)
         {
@@ -24,7 +24,7 @@ namespace ValveResourceFormat.Renderer.Particles.Initializers
             speedMax = parse.NumberProvider("m_fSpeedMax", speedMax);
             controlPoint = parse.Int32("m_nControlPointNumber", controlPoint);
             ignoreDT = parse.Boolean("m_bIgnoreDT", ignoreDT);
-            randomness = RandomnessParameters.Parse(parse);
+            rangeSampler = RangeSampler.Parse(parse);
         }
 
         public override Particle Initialize(ref Particle particle, ParticleCollection particles, ParticleSystemRenderState particleSystemState)
@@ -37,7 +37,7 @@ namespace ValveResourceFormat.Renderer.Particles.Initializers
             // The authored speed vector is expressed in the control point's local coordinate system.
             if (vecMin != Vector3.Zero || vecMax != Vector3.Zero)
             {
-                var localSpeed = randomness.NextVectorBetween(ref particle, particleSystemState, vecMin, vecMax);
+                var localSpeed = rangeSampler.NextVectorBetween(ref particle, particleSystemState, vecMin, vecMax);
                 velocity = ControlPointTransformProvider.TransformDirection(particleSystemState, controlPoint, localSpeed);
             }
 

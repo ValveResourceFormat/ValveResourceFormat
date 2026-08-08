@@ -387,8 +387,8 @@ namespace ValveResourceFormat.Renderer.Particles
             particleCollection.Current[index] = particleCollection.Initial[index];
 
             // Both ids must be set before initializing, since initializers read them
-            particleCollection.Current[index].CreationIndex = particlesEmitted++;
-            particleCollection.Current[index].ParticleID = particleCollection.Current[index].CreationIndex + systemRenderState.RandomSeed;
+            particleCollection.Current[index].UniqueParticleId = particlesEmitted++;
+            particleCollection.Current[index].ParticleID = particleCollection.Current[index].UniqueParticleId + systemRenderState.RandomSeed;
             particleCollection.Current[index].Index = index;
             particleCollection.Current[index].Position = MainControlPoint.Position;
             particleCollection.Current[index].CreationTime = systemRenderState.Age - ageAtSpawn;

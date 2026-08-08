@@ -14,7 +14,7 @@ namespace ValveResourceFormat.Renderer.Particles.Initializers
         private readonly ParticleField FieldOutput = ParticleField.Position;
         private readonly Vector3 OutputMin = Vector3.Zero;
         private readonly Vector3 OutputMax = Vector3.One;
-        private readonly RandomnessParameters Randomness;
+        private readonly RangeSampler rangeSampler;
 
         public OffsetVectorToVector(ParticleDefinitionParser parse) : base(parse)
         {
@@ -22,14 +22,14 @@ namespace ValveResourceFormat.Renderer.Particles.Initializers
             FieldOutput = parse.ParticleField("m_nFieldOutput", FieldOutput);
             OutputMin = parse.Vector3("m_vecOutputMin", OutputMin);
             OutputMax = parse.Vector3("m_vecOutputMax", OutputMax);
-            Randomness = RandomnessParameters.Parse(parse);
+            rangeSampler = RangeSampler.Parse(parse);
         }
 
         public override Particle Initialize(ref Particle particle, ParticleCollection particles, ParticleSystemRenderState particleSystemState)
         {
             var input = particle.GetVector(FieldInput);
 
-            var offset = Randomness.NextVectorBetween(ref particle, particleSystemState, OutputMin, OutputMax);
+            var offset = rangeSampler.NextVectorBetween(ref particle, particleSystemState, OutputMin, OutputMax);
 
             particle.SetVector(FieldOutput, input + offset);
 

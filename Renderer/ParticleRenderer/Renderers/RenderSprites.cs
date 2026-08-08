@@ -300,7 +300,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
                 return [];
             }
 
-            var stops = new ParticleDefinitionParser(gradient, textureInput.Logger).Array("m_Stops");
+            var stops = textureInput.Nested(gradient).Array("m_Stops");
             var parsed = new (float Position, Color32 Color)[stops.Length];
 
             for (var i = 0; i < stops.Length; i++)

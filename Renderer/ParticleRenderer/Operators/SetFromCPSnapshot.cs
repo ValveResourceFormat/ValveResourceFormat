@@ -64,7 +64,7 @@ namespace ValveResourceFormat.Renderer.Particles.Operators
 
             foreach (ref var particle in particles.Current)
             {
-                var idx = CPSnapshotSampler.SelectIndex(particle.CreationIndex, numParticles, Random, Reverse,
+                var idx = CPSnapshotSampler.SelectIndex(particle.UniqueParticleId, numParticles, Random, Reverse,
                     StartPoint.NextInt(ref particle, particleSystemState), Increment.NextInt(ref particle, particleSystemState),
                     RandomSeed, ref randomSampleCounter, particleSystemState);
                 CPSnapshotSampler.WriteAttribute(ref particle, AttributeToWrite, readAttributeData, idx, LocalSpaceCP, WritePrevious, atSpawn: false, frameTime, particleSystemState);

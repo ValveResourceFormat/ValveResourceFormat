@@ -95,7 +95,7 @@ namespace ValveResourceFormat.Renderer.Particles.Initializers
             totalCount -= hollowSize;
 
 
-            var relativeCount = particle.CreationIndex % totalCount;
+            var relativeCount = particle.UniqueParticleId % totalCount;
 
             var position = new Vector3();
             var found = false;

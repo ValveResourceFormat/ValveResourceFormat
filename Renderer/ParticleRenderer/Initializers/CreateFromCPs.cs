@@ -45,7 +45,7 @@ namespace ValveResourceFormat.Renderer.Particles.Initializers
                 count = 1;
             }
 
-            var controlPointIndex = particle.CreationIndex % count;
+            var controlPointIndex = particle.UniqueParticleId % count;
             var controlPoint = MinControlPoint + controlPointIndex * Math.Max(1, Increment);
 
             if (controlPoint > MaxControlPoint)

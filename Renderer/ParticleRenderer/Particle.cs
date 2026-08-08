@@ -13,17 +13,31 @@ namespace ValveResourceFormat.Renderer.Particles
         public static ref Particle Default => ref @default;
 
         /// <summary>
-        /// Gets or sets the ordinal this particle was spawned at, counting from 0 over the lifetime of
-        /// the system. Operators that address particles by their place in the emission order use this.
+        /// Gets or sets <b>where this particle sits in the emission order</b>: the count of particles
+        /// the system spawned before it, from 0 over the system's lifetime. Use it to address a
+        /// particle by its place in the sequence, which is what grid and control point placement,
+        /// count remaps, sound ordering, cable chain order and snapshot row mapping all want.
+        /// Never index the random table with it: consecutive particles would read consecutive slots.
         /// </summary>
-        public int CreationIndex { get; set; }
+        /// <remarks>
+        /// The engine calls this <c>m_nUniqueParticleId</c>. Despite the name it is a plain counter,
+        /// and it is <b>not</b> the engine's particle id attribute, which is <see cref="ParticleID"/>.
+        /// </remarks>
+        public int UniqueParticleId { get; set; }
 
         /// <summary>
-        /// Gets or sets the particle's identity for deterministic randomness: its
-        /// <see cref="CreationIndex"/> displaced by the owning system's
-        /// <see cref="ParticleSystemRenderState.RandomSeed"/>, so two instances of one effect draw
-        /// different values. Every random sample is indexed from this.
+        /// Gets or sets <b>the particle's identity for deterministic randomness</b>: its
+        /// <see cref="UniqueParticleId"/> displaced by the owning system's
+        /// <see cref="ParticleSystemRenderState.RandomSeed"/>. Every random draw that must stay
+        /// constant for a particle over its life is indexed from this, and the seed is what makes two
+        /// instances of one effect draw differently. Never use it to order particles: the seed makes
+        /// it an arbitrary large number, not a position.
         /// </summary>
+        /// <remarks>
+        /// This is the engine's particle id <i>attribute</i>, the one <c>PF_TYPE_PARTICLE_ID</c>
+        /// reads, not its <c>m_nUniqueParticleId</c> counter, which is
+        /// <see cref="UniqueParticleId"/>.
+        /// </remarks>
         public int ParticleID { get; set; }
 
         // Varying properties (read from initializers but then change afterwards)

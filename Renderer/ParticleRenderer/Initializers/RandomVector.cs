@@ -11,19 +11,19 @@ namespace ValveResourceFormat.Renderer.Particles.Initializers
         private readonly ParticleField FieldOutput = ParticleField.Position;
         private readonly Vector3 Min;
         private readonly Vector3 Max;
-        private readonly RandomnessParameters Randomness;
+        private readonly RangeSampler rangeSampler;
 
         public RandomVector(ParticleDefinitionParser parse) : base(parse)
         {
             FieldOutput = parse.ParticleField("m_nFieldOutput", FieldOutput);
             Min = parse.Vector3("m_vecMin", Min);
             Max = parse.Vector3("m_vecMax", Max);
-            Randomness = RandomnessParameters.Parse(parse);
+            rangeSampler = RangeSampler.Parse(parse);
         }
 
         public override Particle Initialize(ref Particle particle, ParticleCollection particles, ParticleSystemRenderState particleSystemState)
         {
-            var newVector = Randomness.NextVectorBetween(ref particle, particleSystemState, Min, Max);
+            var newVector = rangeSampler.NextVectorBetween(ref particle, particleSystemState, Min, Max);
 
             particle.SetVector(FieldOutput, newVector);
 
