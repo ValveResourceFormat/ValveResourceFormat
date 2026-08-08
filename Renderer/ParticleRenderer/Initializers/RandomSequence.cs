@@ -4,6 +4,10 @@ namespace ValveResourceFormat.Renderer.Particles.Initializers
     /// Initializes the particle animation sequence to a value between a min and max sequence index.
     /// Supports sequential (linear), shuffled, or pure-random selection modes.
     /// </summary>
+    /// <remarks>
+    /// A weighted list, where one is authored, replaces the range entirely: the sequences come from the
+    /// list and are picked in proportion to their weights, and the min and max are widened to span them.
+    /// </remarks>
     /// <seealso href="https://s2v.app/SchemaExplorer/cs2/particles/C_INIT_RandomSequence">C_INIT_RandomSequence</seealso>
     class RandomSequence : ParticleFunctionInitializer
     {
@@ -12,10 +16,14 @@ namespace ValveResourceFormat.Renderer.Particles.Initializers
         private readonly bool shuffle;
         private readonly bool linear;
 
+        private readonly (int Sequence, float Weight)[] weightedList = [];
+        private readonly float totalWeight;
+        private readonly int initialWeightedCursor;
+        private int weightedCursor;
+
         private readonly int[] list = [];
         private int current;
 
-        // In Behavior Ver 12+ there is a "weight list" that weights the randomness
         public RandomSequence(ParticleDefinitionParser parse) : base(parse)
         {
             sequenceMin = parse.Int32("m_nSequenceMin", sequenceMin);
@@ -23,7 +31,33 @@ namespace ValveResourceFormat.Renderer.Particles.Initializers
             shuffle = parse.Boolean("m_bShuffle", shuffle);
             linear = parse.Boolean("m_bLinear", linear);
 
-            if (shuffle || linear)
+            var entries = parse.Array("m_WeightedList");
+
+            if (entries.Length > 0)
+            {
+                weightedList = new (int, float)[entries.Length];
+                sequenceMin = int.MaxValue;
+                sequenceMax = 0;
+
+                for (var i = 0; i < entries.Length; i++)
+                {
+                    var sequence = entries[i].Int32("m_nSequence");
+                    var weight = entries[i].Float("m_flRelativeWeight", 1f);
+
+                    weightedList[i] = (sequence, weight);
+                    sequenceMin = Math.Min(sequenceMin, sequence);
+                    sequenceMax = Math.Max(sequenceMax, sequence);
+
+                    if (weight > 0f)
+                    {
+                        totalWeight += weight;
+                    }
+                }
+
+                initialWeightedCursor = shuffle || linear ? sequenceMin : 0;
+                weightedCursor = initialWeightedCursor;
+            }
+            else if (shuffle || linear)
             {
                 var count = Math.Max(sequenceMax - sequenceMin + 1, 1);
                 list = new int[count];
@@ -36,9 +70,19 @@ namespace ValveResourceFormat.Renderer.Particles.Initializers
             }
         }
 
+        public override void Reset()
+        {
+            current = list.Length;
+            weightedCursor = initialWeightedCursor;
+        }
+
         public override Particle Initialize(ref Particle particle, ParticleCollection particles, ParticleSystemRenderState particleSystemState)
         {
-            if (shuffle || linear)
+            if (weightedList.Length > 0)
+            {
+                particle.Sequence = NextWeightedSequence(particleSystemState);
+            }
+            else if (shuffle || linear)
             {
                 if (current >= list.Length)
                 {
@@ -63,6 +107,50 @@ namespace ValveResourceFormat.Renderer.Particles.Initializers
             }
 
             return particle;
+        }
+
+        /// <summary>
+        /// Picks the next entry from the weighted list. A linear list walks it with the running cursor
+        /// and takes no random draw at all; otherwise a single draw is scaled by the total weight.
+        /// </summary>
+        private int NextWeightedSequence(ParticleSystemRenderState particleSystemState)
+        {
+            var sequence = 0;
+
+            if (totalWeight > 0f)
+            {
+                var pick = linear
+                    ? weightedCursor
+                    : totalWeight * particleSystemState.NextRandom();
+
+                foreach (var (entrySequence, weight) in weightedList)
+                {
+                    if (weight <= 0f)
+                    {
+                        continue;
+                    }
+
+                    pick -= weight;
+                    sequence = entrySequence;
+
+                    if (pick < 0f)
+                    {
+                        break;
+                    }
+                }
+            }
+
+            if (linear)
+            {
+                weightedCursor++;
+
+                if (weightedCursor >= MathF.Ceiling(totalWeight))
+                {
+                    weightedCursor = 0;
+                }
+            }
+
+            return sequence;
         }
 
         private void Shuffle(ParticleSystemRenderState particleSystemState)

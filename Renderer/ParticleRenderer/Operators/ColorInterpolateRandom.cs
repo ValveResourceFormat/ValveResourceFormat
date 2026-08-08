@@ -30,6 +30,11 @@ namespace ValveResourceFormat.Renderer.Particles.Operators
 
         public override void Operate(ParticleCollection particles, float frameTime, ParticleSystemRenderState particleSystemState, float strength)
         {
+            if (fadeEndTime == fadeStartTime)
+            {
+                return;
+            }
+
             foreach (ref var particle in particles.Current)
             {
                 // Eased fades draw each channel separately, uneased fades scale all three by one draw
@@ -40,20 +45,14 @@ namespace ValveResourceFormat.Renderer.Particles.Operators
                         particleSystemState.RandomForParticleBetween(particle.ParticleID, BlueOffset, colorFadeMin.Z, colorFadeMax.Z))
                     : Vector3.Lerp(colorFadeMin, colorFadeMax, particleSystemState.RandomForParticle(particle.ParticleID, RedOffset));
 
-                var time = particle.NormalizedAge;
+                var t = MathUtils.Saturate(MathUtils.Remap(particle.NormalizedAge, fadeStartTime, fadeEndTime));
 
-                if (time >= fadeStartTime && time <= fadeEndTime)
+                if (easeInOut)
                 {
-                    var t = MathUtils.Remap(time, fadeStartTime, fadeEndTime);
-                    if (easeInOut)
-                    {
-                        // Smoothstep easing
-                        t = t * t * (3 - 2 * t);
-                    }
-
-                    // Interpolate from constant color to fade color
-                    particle.SetVector(FieldOutput, Vector3.Lerp(particle.GetInitialVector(particles, FieldOutput), newColor, t));
+                    t = t * t * (3 - 2 * t);
                 }
+
+                particle.SetVector(FieldOutput, Vector3.Lerp(particle.GetInitialVector(particles, FieldOutput), newColor, t));
             }
         }
     }
