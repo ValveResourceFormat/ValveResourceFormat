@@ -234,6 +234,11 @@ namespace ValveResourceFormat.Renderer.SceneNodes
         /// <summary>Sets the particle detail tier (0 = Low .. 3 = Ultra) used by detail-tiered inputs.</summary>
         public void SetDetailLevel(int level) => particleRenderer.SetDetailLevel(level);
 
+        /// <summary>
+        /// Replaces the texture drawn by every renderer in this system and its children.
+        /// </summary>
+        public void SetTextureOverride(string textureName) => particleRenderer.SetTextureOverride(textureName);
+
         /// <summary>Gets the control point at the given index from the particle renderer.</summary>
         /// <param name="index">The index of the control point to retrieve.</param>
         /// <returns>The control point at the specified index.</returns>

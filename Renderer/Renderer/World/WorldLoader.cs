@@ -1083,10 +1083,15 @@ namespace ValveResourceFormat.Renderer.World
                             var particleNode = new ParticleSceneNode(scene, particleSystem, particleSnapshot)
                             {
                                 Name = particle,
-                                Transform = transformationMatrix,
+                                Transform = ResolveControlPoint0Transform(entity, transformationMatrix),
                                 LayerName = "Particles",
                                 EntityData = entity,
                             };
+
+                            if (classname == "env_particle_glow")
+                            {
+                                ApplyParticleGlowProperties(entity, particleNode);
+                            }
 
                             scene.Add(particleNode, true);
                         }
@@ -1703,6 +1708,45 @@ namespace ValveResourceFormat.Renderer.World
             }
 
             return (nodes, loopBackIndex);
+        }
+
+        // cpoint0 hands the effect's placement to another entity: control point 0 sits at that entity's
+        // location rather than at the particle entity's own origin.
+        private Matrix4x4 ResolveControlPoint0Transform(Entity entity, Matrix4x4 transformationMatrix)
+        {
+            var controlPoint0 = entity.GetStringProperty("cpoint0");
+
+            if (string.IsNullOrEmpty(controlPoint0))
+            {
+                return transformationMatrix;
+            }
+
+            var target = FindEntityByKeyValue("targetname", controlPoint0);
+
+            if (target == null)
+            {
+                RendererContext.Logger.LogWarning("Particle entity '{Target}' points cpoint0 at '{ControlPoint0}', which does not exist",
+                    entity.TargetName, controlPoint0);
+                return transformationMatrix;
+            }
+
+            return EntityTransformHelper.CalculateTransformationMatrix(target);
+        }
+
+        private static void ApplyParticleGlowProperties(Entity entity, ParticleSceneNode particleNode)
+        {
+            particleNode.GetControlPoint(16).Position = entity.GetVector3Property("colortint", new Vector3(255f));
+            particleNode.GetControlPoint(17).Position = new Vector3(
+                entity.GetFloatProperty("alphascale", 1f),
+                entity.GetFloatProperty("scale", 1f),
+                entity.GetFloatProperty("selfillumscale", 1f));
+
+            var textureOverride = entity.GetStringProperty("effect_textureOverride");
+
+            if (!string.IsNullOrEmpty(textureOverride))
+            {
+                particleNode.SetTextureOverride(textureOverride);
+            }
         }
 
         private Entity? FindEntityByKeyValue(string keyToFind, string valueToFind)

@@ -62,6 +62,11 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
             return animationTime * animationRate * framesPerSecond;
         }
 
+        /// <summary>
+        /// Replaces the texture this renderer draws with.
+        /// </summary>
+        public virtual void SetTextureOverride(RenderTexture texture) { }
+
         public virtual void SetWireframe(bool wireframe) { }
         public virtual void SetRenderMode(string renderMode) { }
         public virtual IEnumerable<string> GetSupportedRenderModes() => [];

@@ -150,6 +150,7 @@ namespace ValveResourceFormat.Renderer.Particles
                 ["C_OP_RampScalarLinearSimple"] = operatorInfo => new RampScalarLinearSimple(operatorInfo),
                 ["C_OP_RemapCrossProductOfTwoVectorsToVector"] = operatorInfo => new RemapCrossProductOfTwoVectorsToVector(operatorInfo),
                 ["C_OP_RemapControlPointDirectionToVector"] = operatorInfo => new RemapControlPointDirectionToVector(operatorInfo),
+                ["C_OP_RemapCPtoVector"] = operatorInfo => new RemapCPtoVector(operatorInfo),
                 ["C_OP_SetCPtoVector"] = operatorInfo => new SetCPtoVector(operatorInfo),
                 ["C_OP_RemapParticleCountToScalar"] = operatorInfo => new OpRemapParticleCountToScalar(operatorInfo),
                 ["C_OP_RemapSpeed"] = operatorInfo => new RemapSpeed(operatorInfo),

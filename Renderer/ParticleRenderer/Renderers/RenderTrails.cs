@@ -30,7 +30,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
         private readonly RendererContext RendererContext;
         private readonly int vaoHandle;
         private readonly int vertexBufferHandle;
-        private readonly RenderTexture texture;
+        private RenderTexture texture;
 
         private readonly float animationRate = 0.1f;
         private readonly ParticleAnimationType animationType = ParticleAnimationType.ANIMATION_TYPE_FIXED_RATE;
@@ -111,6 +111,12 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
         public override void SetWireframe(bool isWireframe)
         {
             shader.SetUniform1("isWireframe", isWireframe ? 1 : 0);
+        }
+
+        /// <inheritdoc/>
+        public override void SetTextureOverride(RenderTexture texture)
+        {
+            this.texture = texture;
         }
 
         private (int Vao, int Buffer) SetupQuadBuffer()

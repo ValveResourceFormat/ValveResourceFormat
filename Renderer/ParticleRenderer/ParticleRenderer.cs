@@ -1054,6 +1054,25 @@ namespace ValveResourceFormat.Renderer.Particles
                 || parse.Enum<ParticleEndCapMode>("m_nOpEndCapState", default) == ParticleEndCapMode.PARTICLE_ENDCAP_ENDCAP_ON;
         }
 
+        /// <summary>
+        /// Replaces the texture every renderer in this system and its children draws with.
+        /// </summary>
+        public void SetTextureOverride(string textureName)
+            => SetTextureOverride(RendererContext.MaterialLoader.GetTexture(textureName, srgbRead: true));
+
+        private void SetTextureOverride(RenderTexture texture)
+        {
+            foreach (var renderer in Renderers)
+            {
+                renderer.SetTextureOverride(texture);
+            }
+
+            foreach (var childRenderer in childParticleRenderers)
+            {
+                childRenderer.SetTextureOverride(texture);
+            }
+        }
+
         // todo: set this when viewer checkbox is toggled
         public void SetWireframe(bool isWireframe)
         {

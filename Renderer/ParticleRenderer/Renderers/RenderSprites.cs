@@ -36,7 +36,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
         /// <summary>One entry of m_vecTexturesInput: a texture plus how it folds into the layers below it.</summary>
         private sealed class TextureLayer(RenderTexture texture)
         {
-            public RenderTexture Texture { get; } = texture;
+            public RenderTexture Texture { get; set; } = texture;
             public SpriteCardTextureChannel Channels { get; init; } = SpriteCardTextureChannel.SPRITECARD_TEXTURE_CHANNEL_MIX_RGBA;
             public SpriteCardTextureType EffectMode { get; init; } = SpriteCardTextureType.SPRITECARD_TEXTURE_DIFFUSE;
             public ParticleTextureLayerBlendType BlendMode { get; init; } = ParticleTextureLayerBlendType.SPRITECARD_TEXTURE_BLEND_MULTIPLY;
@@ -236,6 +236,14 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
         {
             // Solid color
             shader.SetUniform1("isWireframe", isWireframe ? 1 : 0);
+        }
+
+        /// <inheritdoc/>
+        // The override stands in for the card's base texture; the layers composited over it keep their
+        // own textures along with the channels and blend settings that fold them together.
+        public override void SetTextureOverride(RenderTexture texture)
+        {
+            layers[0].Texture = texture;
         }
 
         private int SetupQuadBuffer()
