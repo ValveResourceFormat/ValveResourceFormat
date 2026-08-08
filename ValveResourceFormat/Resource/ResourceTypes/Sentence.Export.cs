@@ -11,8 +11,8 @@ namespace ValveResourceFormat.ResourceTypes
         /// </summary>
         /// <remarks>
         /// A compiled sound only stores the flat runtime phoneme stream, so the original word
-        /// grouping, plaintext and emphasis samples cannot be recovered. All phonemes are emitted
-        /// into a single <c>WORD</c> block, which the compiler flattens back to the same stream.
+        /// grouping and plaintext cannot be recovered. All phonemes are emitted into a single
+        /// <c>WORD</c> block, which the compiler flattens back to the same stream.
         /// A phoneme code is the unicode code point of its IPA symbol; the compiler keys off the
         /// numeric code, so the symbol is written purely for readability.
         /// </remarks>
@@ -59,6 +59,19 @@ namespace ValveResourceFormat.ResourceTypes
             writer.WriteLine("}");
             writer.WriteLine("EMPHASIS");
             writer.WriteLine("{");
+
+            if (EmphasisSamples.Length > 0)
+            {
+                writer.Indent++;
+
+                foreach (var sample in EmphasisSamples)
+                {
+                    writer.WriteLine("{0:0.000000} {1:0.000000}", sample.Time, sample.Value);
+                }
+
+                writer.Indent--;
+            }
+
             writer.WriteLine("}");
             writer.WriteLine("OPTIONS");
             writer.WriteLine("{");

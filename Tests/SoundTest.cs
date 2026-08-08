@@ -36,6 +36,39 @@ namespace Tests
         }
 
         [Test]
+        public void TestSoundPhonemesWithEmphasis()
+        {
+            var file = Path.Combine(TestContext.CurrentContext.TestDirectory, "Files", "primal_anger_03.vsnd_c");
+            using var resource = new Resource();
+            resource.Read(file);
+
+            var soundData = (Sound?)resource.DataBlock;
+            Debug.Assert(soundData != null);
+
+            var sentence = soundData.Sentence;
+            Assert.That(sentence, Is.Not.Null);
+
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(sentence.ShouldVoiceDuck, Is.False);
+                Assert.That(sentence.RunTimePhonemes, Has.Length.EqualTo(8));
+                Assert.That(sentence.EmphasisSamples, Has.Length.EqualTo(4));
+
+                Assert.That(sentence.RunTimePhonemes[0].StartTime, Is.EqualTo(0.058f));
+                Assert.That(sentence.RunTimePhonemes[0].EndTime, Is.EqualTo(0.272f));
+                Assert.That(sentence.RunTimePhonemes[0].PhonemeCode, Is.EqualTo(633));
+                Assert.That(sentence.RunTimePhonemes[7].StartTime, Is.EqualTo(1.672f));
+                Assert.That(sentence.RunTimePhonemes[7].EndTime, Is.EqualTo(1.788f));
+                Assert.That(sentence.RunTimePhonemes[7].PhonemeCode, Is.EqualTo(633));
+
+                Assert.That(sentence.EmphasisSamples[0].Time, Is.EqualTo(0.35f));
+                Assert.That(sentence.EmphasisSamples[0].Value, Is.EqualTo(1f));
+                Assert.That(sentence.EmphasisSamples[3].Time, Is.EqualTo(1.2f));
+                Assert.That(sentence.EmphasisSamples[3].Value, Is.EqualTo(0.983333f));
+            }
+        }
+
+        [Test]
         public void TestSentenceExport()
         {
             var sentence = new Sentence
@@ -66,6 +99,49 @@ namespace Tests
                 "OPTIONS",
                 "{",
                 "\tvoice_duck 0",
+                "}",
+                "");
+
+            Assert.That(sentence.ToValveSentence(), Is.EqualTo(expected));
+        }
+
+        [Test]
+        public void TestSentenceExportWithEmphasis()
+        {
+            var sentence = new Sentence
+            {
+                ShouldVoiceDuck = true,
+                RunTimePhonemes =
+                [
+                    new PhonemeTag { StartTime = 0f, EndTime = 0.048f, PhonemeCode = 240 },
+                ],
+                EmphasisSamples =
+                [
+                    new EmphasisSample { Time = 0.1f, Value = 0.75f },
+                    new EmphasisSample { Time = 0.5f, Value = 0.25f },
+                ]
+            };
+
+            var expected = string.Join('\n',
+                "VERSION 1.0",
+                "PLAINTEXT",
+                "{",
+                "}",
+                "WORDS",
+                "{",
+                "\tWORD ð 0.000 0.048",
+                "\t{",
+                "\t\t240 ð 0.000 0.048 1",
+                "\t}",
+                "}",
+                "EMPHASIS",
+                "{",
+                "\t0.100000 0.750000",
+                "\t0.500000 0.250000",
+                "}",
+                "OPTIONS",
+                "{",
+                "\tvoice_duck 1",
                 "}",
                 "");
 

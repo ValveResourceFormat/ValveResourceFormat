@@ -16,12 +16,12 @@ namespace ValveResourceFormat.ResourceTypes
         /// <summary>
         /// Gets the time of the emphasis sample.
         /// </summary>
-        public float Time { get; }
+        public float Time { get; init; }
 
         /// <summary>
         /// Gets the emphasis value.
         /// </summary>
-        public float Value { get; }
+        public float Value { get; init; }
     }
 
     /// <summary>
@@ -62,12 +62,10 @@ namespace ValveResourceFormat.ResourceTypes
         /// </summary>
         public required PhonemeTag[] RunTimePhonemes { get; init; }
 
-        /*
         /// <summary>
         /// Gets the emphasis samples for voice modulation.
         /// </summary>
-        public EmphasisSample[] EmphasisSamples { get; init; }
-        */
+        public EmphasisSample[] EmphasisSamples { get; init; } = [];
     }
 
     /// <summary>
@@ -377,19 +375,24 @@ namespace ValveResourceFormat.ResourceTypes
 
             var numPhonemeTags = reader.ReadInt32();
 
-            var a = reader.ReadInt32(); // numEmphasisSamples ?
-            var b = reader.ReadInt32(); // Sentence.ShouldVoiceDuck ?
+            // Relative offset to the emphasis sample array, 8 when emphasis samples are present, 0 otherwise
+            var emphasisOffset = reader.ReadInt32();
+            var numEmphasisSamples = reader.ReadInt32();
 
-            // Skip sounds that have these
-            if (a != 0 || b != 0)
+            Debug.Assert(emphasisOffset == (numEmphasisSamples > 0 ? 8 : 0));
+
+            var emphasisSamples = new EmphasisSample[numEmphasisSamples];
+
+            for (var i = 0; i < numEmphasisSamples; i++)
             {
-                return;
+                emphasisSamples[i] = new EmphasisSample
+                {
+                    Time = reader.ReadSingle(),
+                    Value = reader.ReadSingle(),
+                };
             }
 
-            Sentence = new Sentence
-            {
-                RunTimePhonemes = new PhonemeTag[numPhonemeTags]
-            };
+            var phonemes = new PhonemeTag[numPhonemeTags];
 
             for (var i = 0; i < numPhonemeTags; i++)
             {
@@ -399,15 +402,19 @@ namespace ValveResourceFormat.ResourceTypes
 
                 reader.BaseStream.Position += 2;
 
-                var phonemeTag = new PhonemeTag
+                phonemes[i] = new PhonemeTag
                 {
                     StartTime = startTime,
                     EndTime = endTime,
                     PhonemeCode = phonemeCode
                 };
-
-                Sentence.RunTimePhonemes[i] = phonemeTag;
             }
+
+            Sentence = new Sentence
+            {
+                RunTimePhonemes = phonemes,
+                EmphasisSamples = emphasisSamples,
+            };
         }
 
         private void ReadSentenceFromCtrl(KVObject sound)
@@ -426,20 +433,36 @@ namespace ValveResourceFormat.ResourceTypes
                 return;
             }
 
-            Sentence = new Sentence
-            {
-                RunTimePhonemes = new PhonemeTag[phonemes.Count]
-            };
+            var runTimePhonemes = new PhonemeTag[phonemes.Count];
 
             for (var i = 0; i < phonemes.Count; i++)
             {
-                Sentence.RunTimePhonemes[i] = new PhonemeTag
+                runTimePhonemes[i] = new PhonemeTag
                 {
                     StartTime = phonemes[i].GetFloatProperty("m_flStartTime"),
                     EndTime = phonemes[i].GetFloatProperty("m_flEndTime"),
                     PhonemeCode = (ushort)phonemes[i].GetInt32Property("m_nPhonemeCode"),
                 };
             }
+
+            var emphasis = sentences[0].GetArray("m_EmphasisSamples");
+            var emphasisSamples = new EmphasisSample[emphasis?.Count ?? 0];
+
+            for (var i = 0; i < emphasisSamples.Length; i++)
+            {
+                emphasisSamples[i] = new EmphasisSample
+                {
+                    Time = emphasis![i].GetFloatProperty("m_flTime"),
+                    Value = emphasis[i].GetFloatProperty("m_flValue"),
+                };
+            }
+
+            Sentence = new Sentence
+            {
+                ShouldVoiceDuck = sentences[0].GetBooleanProperty("m_bShouldVoiceDuck"),
+                RunTimePhonemes = runTimePhonemes,
+                EmphasisSamples = emphasisSamples,
+            };
         }
 
         private static uint ExtractSub(uint l, byte offset, byte nrBits)
@@ -580,11 +603,15 @@ namespace ValveResourceFormat.ResourceTypes
 
             if (Sentence != null)
             {
-                writer.WriteLine($"Sentence[{Sentence.RunTimePhonemes.Length}]:");
+                writer.WriteLine($"Sentence[{Sentence.RunTimePhonemes.Length}] (voice duck: {Sentence.ShouldVoiceDuck}):");
                 writer.Indent++;
                 foreach (var phoneme in Sentence.RunTimePhonemes)
                 {
                     writer.WriteLine($"PhonemeTag(StartTime={phoneme.StartTime}, EndTime={phoneme.EndTime}, PhonemeCode={phoneme.PhonemeCode})");
+                }
+                foreach (var sample in Sentence.EmphasisSamples)
+                {
+                    writer.WriteLine($"EmphasisSample(Time={sample.Time}, Value={sample.Value})");
                 }
                 writer.Indent--;
             }
