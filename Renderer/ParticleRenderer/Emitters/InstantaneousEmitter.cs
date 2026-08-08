@@ -1,5 +1,4 @@
-using ValveResourceFormat.Blocks;
-using ValveResourceFormat.Serialization.KeyValues;
+using ValveResourceFormat.Renderer.Particles.Utils;
 
 namespace ValveResourceFormat.Renderer.Particles.Emitters
 {
@@ -25,14 +24,11 @@ namespace ValveResourceFormat.Renderer.Particles.Emitters
 
         /// <summary>Scales the burst by how many parent particles died this frame, making it recur.</summary>
         private readonly float initFromKilledParentParticles;
-        private readonly int snapshotControlPoint;
-        private readonly bool hasSnapshotSubset;
+        private readonly SnapshotBinding snapshotBinding;
 
         private float time;
         private int remainingToEmit;
         private bool countResolved;
-
-        private ParticleSnapshot? snapshot;
         private bool snapshotResolved;
 
         /// <summary>
@@ -51,8 +47,7 @@ namespace ValveResourceFormat.Renderer.Particles.Emitters
             parentParticleScale = parse.NumberProvider("m_flParentParticleScale", parentParticleScale);
             maxEmittedPerFrame = parse.Int32("m_nMaxEmittedPerFrame", maxEmittedPerFrame);
             initFromKilledParentParticles = parse.Float("m_flInitFromKilledParentParticles", initFromKilledParentParticles);
-            snapshotControlPoint = parse.Int32("m_nSnapshotControlPoint", -1);
-            hasSnapshotSubset = !string.IsNullOrEmpty(parse.Data.GetStringProperty("m_strSnapshotSubset"));
+            snapshotBinding = new SnapshotBinding(parse);
         }
 
         public override void Start(Action<float> particleEmitCallback)
@@ -91,7 +86,12 @@ namespace ValveResourceFormat.Renderer.Particles.Emitters
 
             if (!snapshotResolved)
             {
-                ResolveSnapshot(particleSystemState);
+                snapshotResolved = true;
+
+                if (snapshotBinding.ResolveAttribute(particleSystemState, ParticleField.CreationTime) is float[] times && times.Length > 0)
+                {
+                    snapshotTimes = times;
+                }
             }
 
             if (snapshotTimes != null)
@@ -170,9 +170,9 @@ namespace ValveResourceFormat.Renderer.Particles.Emitters
         /// </summary>
         private int ResolveEmitCount(ParticleSystemRenderState particleSystemState)
         {
-            if (snapshot != null && !hasSnapshotSubset)
+            if (snapshotBinding.IsBound)
             {
-                return (int)snapshot.NumParticles;
+                return snapshotBinding.Count(particleSystemState);
             }
 
             var count = emitCount.NextNumber(particleSystemState);
@@ -184,7 +184,7 @@ namespace ValveResourceFormat.Renderer.Particles.Emitters
                 return (int)((parentSystem?.Data?.KilledLastPass ?? 0) * count * initFromKilledParentParticles);
             }
 
-            if (snapshotControlPoint < 0 && parentSystem != null)
+            if (!snapshotBinding.HasControlPoint && parentSystem != null)
             {
                 var scale = parentParticleScale.NextNumber(particleSystemState);
 
@@ -195,34 +195,6 @@ namespace ValveResourceFormat.Renderer.Particles.Emitters
             }
 
             return (int)count;
-        }
-
-        private void ResolveSnapshot(ParticleSystemRenderState particleSystemState)
-        {
-            snapshotResolved = true;
-
-            if (snapshotControlPoint < 0)
-            {
-                return;
-            }
-
-            snapshot = particleSystemState.GetControlPointSnapshot(snapshotControlPoint);
-
-            if (snapshot == null || hasSnapshotSubset)
-            {
-                return;
-            }
-
-            var timeAttribute = ParticleSnapshot.GetSnapshotAttributeName(ParticleField.CreationTime);
-
-            foreach (var ((name, _), data) in snapshot.AttributeData)
-            {
-                if (name == timeAttribute && data is float[] times && times.Length > 0)
-                {
-                    snapshotTimes = times;
-                    return;
-                }
-            }
         }
     }
 }

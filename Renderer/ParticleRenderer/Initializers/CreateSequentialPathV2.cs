@@ -10,6 +10,9 @@ namespace ValveResourceFormat.Renderer.Particles.Initializers
     /// <seealso href="https://s2v.app/SchemaExplorer/cs2/particles/C_INIT_CreateSequentialPathV2">C_INIT_CreateSequentialPathV2</seealso>
     class CreateSequentialPathV2 : ParticleFunctionInitializer
     {
+        /// <summary>Distance from a span endpoint within which the running parameter snaps to it.</summary>
+        private const float PathParameterEpsilon = 1e-5f;
+
         private readonly INumberProvider maxDistance = new LiteralNumberProvider(0f);
         private readonly INumberProvider numToAssign = new LiteralNumberProvider(100f);
         private readonly bool loop = true;
@@ -126,14 +129,14 @@ namespace ValveResourceFormat.Renderer.Particles.Initializers
             pathParameter += parameterStep;
             var advanced = pathParameter;
 
-            if (parameterStep > 1e-5f)
+            if (parameterStep > 0f)
             {
-                if (MathF.Abs(advanced - spanLength) < 1e-5f)
+                if (MathF.Abs(advanced - spanLength) < PathParameterEpsilon)
                 {
                     advanced = spanLength;
                     pathParameter = advanced;
                 }
-                else if (MathF.Abs(advanced) < 1e-5f)
+                else if (MathF.Abs(advanced) < PathParameterEpsilon)
                 {
                     advanced = 0f;
                     pathParameter = 0f;

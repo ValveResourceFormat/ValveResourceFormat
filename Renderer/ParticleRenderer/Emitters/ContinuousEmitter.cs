@@ -1,3 +1,5 @@
+using ValveResourceFormat.Renderer.Particles.Utils;
+
 namespace ValveResourceFormat.Renderer.Particles.Emitters
 {
     /// <summary>
@@ -18,6 +20,12 @@ namespace ValveResourceFormat.Renderer.Particles.Emitters
         /// <summary>Number of particles to spawn (per second).</summary>
         private readonly INumberProvider emitRate = new LiteralNumberProvider(100);
 
+        /// <summary>
+        /// Scales the rate by the number of rows in a snapshot. A bound control point that carries no
+        /// snapshot scales the rate to zero, so the emitter stays silent until one arrives.
+        /// </summary>
+        private readonly SnapshotBinding snapshotBinding;
+
         private Action<float>? particleEmitCallback;
 
         private float time;
@@ -28,6 +36,7 @@ namespace ValveResourceFormat.Renderer.Particles.Emitters
             emissionDuration = parse.NumberProvider("m_flEmissionDuration", emissionDuration);
             startTime = parse.NumberProvider("m_flStartTime", startTime);
             emitRate = parse.NumberProvider("m_flEmitRate", emitRate);
+            snapshotBinding = new SnapshotBinding(parse);
         }
 
         public override void Start(Action<float> particleEmitCallback)
@@ -65,7 +74,15 @@ namespace ValveResourceFormat.Renderer.Particles.Emitters
                 // rate changes over the emitter's lifetime.
                 var rate = emitRate.NextNumber(particleSystemState) * strength;
 
-                accumulator.Charge(rate, windowStart, windowEnd, time, particleEmitCallback);
+                if (snapshotBinding.IsBound)
+                {
+                    rate *= snapshotBinding.Count(particleSystemState);
+                }
+
+                if (rate > 0f)
+                {
+                    accumulator.Charge(rate, windowStart, windowEnd, time, particleEmitCallback);
+                }
             }
 
             if (nextEmissionDuration != 0f && time > nextStartTime + nextEmissionDuration)
