@@ -324,16 +324,12 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
 
             var sequence = spriteSheetData.Sequences[particle.Sequence % spriteSheetData.Sequences.Length];
 
-            var frame = sequence.Frames.Length > 1
-                ? GetSheetFrame(ref particle, sequence.FramesPerSecond, animationRate, animationType, animateInFps)
-                : 0f;
-
-            var frameId = (int)MathF.Floor(frame);
-            frameBlend = frame - frameId;
+            var (frame, nextFrame, blend) = GetSheetFrame(ref particle, sequence, animationRate, animationType, animateInFps);
+            frameBlend = blend;
 
             // TODO: Support more than one image per frame?
-            var currentImage = sequence.Frames[ResolveSheetFrame(frameId, sequence.Frames.Length, sequence.Clamp)].Images[0];
-            var nextImage = sequence.Frames[ResolveSheetFrame(frameId + 1, sequence.Frames.Length, sequence.Clamp)].Images[0];
+            var currentImage = sequence.Frames[frame].Images[0];
+            var nextImage = sequence.Frames[nextFrame].Images[0];
 
             return (currentImage.UncroppedMin, currentImage.UncroppedMax, nextImage.UncroppedMin, nextImage.UncroppedMax);
         }

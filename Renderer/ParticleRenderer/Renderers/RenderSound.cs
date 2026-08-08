@@ -51,14 +51,14 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
 
             foreach (ref var particle in particles.Current)
             {
-                if (particle.ParticleID < nextParticleId)
+                if (particle.CreationIndex < nextParticleId)
                 {
                     continue;
                 }
 
-                if (particle.ParticleID >= highestId)
+                if (particle.CreationIndex >= highestId)
                 {
-                    highestId = particle.ParticleID + 1;
+                    highestId = particle.CreationIndex + 1;
                 }
 
                 // Renderers do not run during pre-simulation, so the first real update meets every
