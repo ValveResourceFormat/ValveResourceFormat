@@ -25,19 +25,30 @@ namespace ValveResourceFormat.Renderer.Particles.Initializers
 
         public override Particle Initialize(ref Particle particle, ParticleCollection particles, ParticleSystemRenderState particleSystemState)
         {
-            // A bit unclear what the speed is here, but I do know that going under 1.0 does nothing different than 1.0
-            var speedmin = speedMin.NextNumber(ref particle, particleSystemState);
-            var speedmax = speedMax.NextNumber(ref particle, particleSystemState);
-
-            var speed = Math.Max(1.0f, ParticleCollection.RandomBetween(particle.ParticleID, speedmin, speedmax));
-
             var vecMin = vectorMin.NextVector(ref particle, particleSystemState);
             var vecMax = vectorMax.NextVector(ref particle, particleSystemState);
 
-            var localSpeed = ParticleCollection.RandomBetweenPerComponent(particle.ParticleID, vecMin, vecMax);
+            var velocity = Vector3.Zero;
 
             // The authored speed vector is expressed in the control point's local coordinate system.
-            var velocity = ControlPointTransformProvider.TransformDirection(particleSystemState, controlPoint, localSpeed) * speed;
+            if (vecMin != Vector3.Zero || vecMax != Vector3.Zero)
+            {
+                var localSpeed = ParticleCollection.RandomBetweenPerComponent(particle.ParticleID, vecMin, vecMax);
+                velocity = ControlPointTransformProvider.TransformDirection(particleSystemState, controlPoint, localSpeed);
+            }
+
+            var speedmin = speedMin.NextNumber(ref particle, particleSystemState);
+            var speedmax = speedMax.NextNumber(ref particle, particleSystemState);
+
+            // The speed range is a per-component world space box added on top, not a multiplier; the
+            // local draw consumed ids through id + 2, so this starts at id + 3 to stay uncorrelated
+            if (speedmin != 0f || speedmax != 0f)
+            {
+                velocity += ParticleCollection.RandomBetweenPerComponent(
+                    particle.ParticleID + 3,
+                    new Vector3(speedmin),
+                    new Vector3(speedmax));
+            }
 
             // With the flag set the authored value is a raw per-step displacement, not units/second.
             if (ignoreDT)
