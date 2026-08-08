@@ -16,8 +16,6 @@ public partial class PlayerMovement
     private const float AccelerateValue = 5.5f;           // sv_accelerate
     private const float JumpImpulseValue = 301.993377f;   // sv_jump_impulse = sqrt(2*800*57)
     private const float MaxVelocityValue = 3500f;         // sv_maxvelocity
-    private const float MaxMapBounds = 16_384f;           // Maximum distance from -16384 to 16384 that the player can be on all axis
-
     private const float WalkSpeedModifier = 0.52f;        // CS_PLAYER_SPEED_WALK_MODIFIER
     private const float DuckSpeedModifier = 0.34f;        // CS_PLAYER_SPEED_DUCK_MODIFIER
 
@@ -1918,13 +1916,6 @@ public partial class PlayerMovement
 
         var velocityBounds = new AABB(Vector3.Zero, MaxVelocityValue);
         Velocity = Vector3.Clamp(Velocity, velocityBounds.Min, velocityBounds.Max);
-
-        var movementBounds = new AABB(Vector3.Zero, MaxMapBounds);
-        position = Vector3.Clamp(position, movementBounds.Min, movementBounds.Max);
-
-        // sanity check, compare against last position
-        movementBounds = new AABB(TracePosition, MathF.Max(StepSize * 2f, Velocity.Length()));
-        position = Vector3.Clamp(position, movementBounds.Min, movementBounds.Max);
     }
 
     // How far past the sweep end the raw trace looks so that approaching surfaces are
