@@ -54,6 +54,10 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
         private readonly INumberProvider maxSize = new LiteralNumberProvider(5000f);
         private readonly INumberProvider startFadeSize = new LiteralNumberProvider(100000000f);
         private readonly INumberProvider endFadeSize = new LiteralNumberProvider(200000000f);
+        /// <summary>
+        /// Selects the signed distance field alpha treatment, which drives soft edges and outlines.
+        /// It has no bearing on the size clamp or the distance fade.
+        /// </summary>
         private readonly bool distanceAlpha;
 
         // m_flStartFadeDot/m_flEndFadeDot: the normal-aligned modes fade out as the card turns edge-on to
@@ -478,31 +482,26 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
                         }
                     }
 
-                    if (distanceAlpha)
+                    var cameraDistance = Vector3.Distance(camera.Location, particle.Position);
+                    var radius = particle.Radius * radiusScale;
+                    var fadeStart = startFadeSlope * cameraDistance;
+                    var fadeEnd = endFadeSlope * cameraDistance;
+
+                    // The fade reads the raw radius, independently of the size clamp below
+                    if (radius > fadeStart)
                     {
-                        var cameraDistance = Vector3.Distance(camera.Location, particle.Position);
-                        var radius = particle.Radius * radiusScale;
-                        var fadeStart = startFadeSlope * cameraDistance;
-                        var fadeEnd = endFadeSlope * cameraDistance;
-
-                        if (radius > fadeStart)
+                        if (radius >= fadeEnd)
                         {
-                            if (radius >= fadeEnd)
-                            {
-                                // Faded out entirely; emitting the quad would only cost overdraw.
-                                continue;
-                            }
-
-                            colorFade = 1f - ((radius - fadeStart) / (fadeEnd - fadeStart));
+                            continue;
                         }
 
-                        if (particle.Radius > 0f)
-                        {
-                            // Expressed back as a scale, because the corner transform takes one. Nested
-                            // min/max rather than a clamp: an inverted range has to resolve to the maximum
-                            // the way the shader's does, not throw.
-                            radiusScale = MathF.Min(MathF.Max(radius, minSizeSlope * cameraDistance), maxSizeSlope * cameraDistance) / particle.Radius;
-                        }
+                        colorFade = 1f - ((radius - fadeStart) / (fadeEnd - fadeStart));
+                    }
+
+                    // Nested min/max rather than a clamp, so an inverted range resolves to the maximum
+                    if (particle.Radius > 0f)
+                    {
+                        radiusScale = MathF.Min(MathF.Max(radius, minSizeSlope * cameraDistance), maxSizeSlope * cameraDistance) / particle.Radius;
                     }
 
                     var alphaScale = this.alphaScale.NextNumber(ref particle, systemRenderState);
