@@ -10,7 +10,7 @@ The binary name is `Source2Viewer-CLI`.
 | ---------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **Input**                    |                                                                                                                                                                 |
 | `--input` (or `-i`)          | Input file to be processed. With no additional arguments, a summary of the input(s) will be displayed.                                                          |
-| `--recursive`                | If specified and given input is a folder, all subdirectories will be scanned too.                                                                              |
+| `--recursive`                | If specified and given input is a folder, all subdirectories will be scanned too.                                                                               |
 | `--recursive_vpk`            | If specified along with `--recursive`, will also recurse into VPK archives.                                                                                     |
 | `--vpk_extensions` (or `-e`) | File extension(s) filter, example: "vcss_c,vjs_c,vxml_c".                                                                                                       |
 | `--vpk_filepath` (or `-f`)   | File path filter(s), supports comma-separated values. Example: "panorama/,sounds/" or "scripts/items/items_game.txt".                                           |
@@ -35,6 +35,7 @@ The binary name is `Source2Viewer-CLI`.
 | `--tools_asset_info_short`   | Whether to print only file paths for tools_asset_info files.                                                                                                    |
 | **Other**                    |                                                                                                                                                                 |
 | `--threads`                  | If higher than 1, files will be processed concurrently.                                                                                                         |
+| `--game`                     | Path to a `gameinfo.gi` file to load game search paths from. Useful when the input file is not located inside a game folder.                                    |
 | `--version`                  | Show version information.                                                                                                                                       |
 | `--help`                     | Show help information.                                                                                                                                          |
 
