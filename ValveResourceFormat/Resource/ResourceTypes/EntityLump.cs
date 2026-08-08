@@ -1,5 +1,6 @@
 using System.Globalization;
 using System.IO;
+using System.IO.Enumeration;
 using System.Linq;
 using System.Text;
 using ValveKeyValue;
@@ -125,7 +126,7 @@ namespace ValveResourceFormat.ResourceTypes
                         continue;
                     }
 
-                    inputConnections.AddRange(sourceEntity.Connections.Where(connection => connection.TargetName == TargetName));
+                    inputConnections.AddRange(sourceEntity.Connections.Where(connection => EntityNameMatches(connection.TargetName, TargetName)));
                 }
 
                 return inputConnections;
@@ -599,6 +600,17 @@ namespace ValveResourceFormat.ResourceTypes
             }
 
             return value[Prefix.Length..];
+        }
+
+        /// <summary>
+        /// Compares an entity targetname against a target string that may contain wildcards.
+        /// </summary>
+        /// <param name="pattern">Targetname to match against, may contain wildcards: '*' and '?' (e.g. <c>door_*</c>).</param>
+        /// <param name="targetName">Entity targetname.</param>
+        /// <returns>Whether the targetname matches.</returns>
+        public static bool EntityNameMatches(string pattern, string targetName)
+        {
+            return FileSystemName.MatchesSimpleExpression(pattern, targetName, true);
         }
     }
 }

@@ -378,6 +378,29 @@ namespace ValveResourceFormat.Renderer
             return staticNodes.Find(IsMatchingEntity) ?? dynamicNodes.Find(IsMatchingEntity);
         }
 
+
+        /// <summary>
+        /// Finds the first scene node whose entity name matches with the given pattern.
+        /// </summary>
+        /// <param name="pattern">Targetname to match against, may contain wildcards: '*' and '?' (e.g. <c>door_*</c>).</param>
+        /// <returns>The matching <see cref="SceneNode"/>, or <see langword="null"/> if not found.</returns>
+        public SceneNode? FindNodeByTargetName(string pattern)
+        {
+            bool IsMatchingEntity(SceneNode node)
+            {
+                if (node.EntityData == null)
+                {
+                    return false;
+                }
+
+                return node.EntityData.TryGetValue("targetname", out var value)
+                    && value.ValueType == ValveKeyValue.KVValueType.String
+                    && EntityLump.EntityNameMatches(pattern, (string)value);
+            }
+
+            return staticNodes.Find(IsMatchingEntity) ?? dynamicNodes.Find(IsMatchingEntity);
+        }
+
         /// <summary>
         /// Updates all scene nodes for the current frame, advancing animations and rebuilding octrees and GPU buffers if the scene changed.
         /// </summary>
