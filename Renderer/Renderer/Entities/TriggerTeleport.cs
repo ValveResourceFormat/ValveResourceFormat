@@ -38,21 +38,6 @@ public sealed class TriggerTeleport
     {
         var teleports = new List<TriggerTeleport>();
 
-        // A teleport may target any named entity, not just info_teleport_destination
-        var destinations = new Dictionary<string, (Vector3 Origin, float Yaw)>(StringComparer.OrdinalIgnoreCase);
-
-        foreach (var entity in entities)
-        {
-            var name = entity.GetStringProperty("targetname");
-
-            if (!string.IsNullOrEmpty(name) && !destinations.ContainsKey(name))
-            {
-                destinations[name] = (
-                    entity.GetVector3Property("origin"),
-                    entity.GetVector3Property("angles").Y);
-            }
-        }
-
         foreach (var entity in entities)
         {
             if (entity.GetStringProperty("classname") is not "trigger_teleport")
@@ -60,7 +45,7 @@ public sealed class TriggerTeleport
                 continue;
             }
 
-            if (!destinations.TryGetValue(entity.GetStringProperty("target") ?? string.Empty, out var destination))
+            if (FindDestination(entities, entity.GetStringProperty("target")) is not { } destination)
             {
                 continue;
             }
@@ -86,6 +71,26 @@ public sealed class TriggerTeleport
         }
 
         return teleports;
+    }
+
+    /// <summary>
+    /// Finds the entity a teleport targets. A teleport may target any named entity, not just
+    /// info_teleport_destination, and the target may contain wildcards, so the first matching
+    /// entity in map order wins.
+    /// </summary>
+    private static (Vector3 Origin, float Yaw)? FindDestination(IReadOnlyList<Entity> entities, string target)
+    {
+        foreach (var entity in entities)
+        {
+            var name = entity.GetStringProperty("targetname");
+
+            if (EntityLump.EntityNameMatches(target, name))
+            {
+                return (entity.GetVector3Property("origin"), entity.GetVector3Property("angles").Y);
+            }
+        }
+
+        return null;
     }
 
     /// <summary>
