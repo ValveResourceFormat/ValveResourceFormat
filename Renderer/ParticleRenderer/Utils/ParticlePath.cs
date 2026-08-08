@@ -33,7 +33,7 @@ namespace ValveResourceFormat.Renderer.Particles.Utils
                 return;
             }
 
-            parse = new ParticleDefinitionParser(pathParams, parse.Logger);
+            parse = parse.Nested(pathParams);
 
             StartControlPointNumber = parse.Int32("m_nStartControlPointNumber", StartControlPointNumber);
             EndControlPointNumber = parse.Int32("m_nEndControlPointNumber", EndControlPointNumber);

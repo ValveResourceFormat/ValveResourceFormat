@@ -3,17 +3,19 @@ using ValveResourceFormat.Serialization.KeyValues;
 namespace ValveResourceFormat.Renderer.Particles.Utils
 {
     /// <summary>
-    /// The <c>CRandomNumberGeneratorParameters</c> block carried by the initializers that fill a vector
-    /// attribute from a min/max range. When it asks for an even distribution the range is sampled with a
-    /// stratified low-discrepancy sequence keyed to the particle's spawn ordinal, spreading the particles
-    /// out rather than letting them clump, and the system's shared random table is left untouched.
+    /// Picks a point in a min/max vector range for a particle, configured by the
+    /// <c>CRandomNumberGeneratorParameters</c> block the six range-filling initializers carry. The
+    /// default is an ordinary draw from the system's shared random table. Asked for an even
+    /// distribution it instead walks a stratified low-discrepancy sequence keyed to the particle's
+    /// spawn ordinal, spreading the particles out rather than letting them clump, and takes nothing
+    /// from the shared table.
     /// </summary>
-    readonly struct RandomnessParameters
+    readonly struct RangeSampler
     {
         private readonly bool distributeEvenly;
         private readonly int seed;
 
-        private RandomnessParameters(bool distributeEvenly, int seed)
+        private RangeSampler(bool distributeEvenly, int seed)
         {
             this.distributeEvenly = distributeEvenly;
             this.seed = seed;
@@ -23,7 +25,7 @@ namespace ValveResourceFormat.Renderer.Particles.Utils
         /// Reads a particle function's <c>m_randomnessParameters</c> block, falling back to an ordinary
         /// random table draw when the block is absent.
         /// </summary>
-        public static RandomnessParameters Parse(ParticleDefinitionParser parse)
+        public static RangeSampler Parse(ParticleDefinitionParser parse)
         {
             var block = parse.Data.GetSubCollection("m_randomnessParameters");
 
@@ -32,9 +34,9 @@ namespace ValveResourceFormat.Renderer.Particles.Utils
                 return default;
             }
 
-            var parameters = new ParticleDefinitionParser(block, parse.Logger);
+            var parameters = parse.Nested(block);
 
-            return new RandomnessParameters(parameters.Boolean("m_bDistributeEvenly"), parameters.Int32("m_nSeed"));
+            return new RangeSampler(parameters.Boolean("m_bDistributeEvenly"), parameters.Int32("m_nSeed"));
         }
 
         /// <summary>
@@ -51,7 +53,7 @@ namespace ValveResourceFormat.Renderer.Particles.Utils
             }
 
             var start = seed < 0 ? seed + particleSystemState.RandomSeed : seed;
-            var index = (start + particle.CreationIndex) & 0x7FFFFFFF;
+            var index = (start + particle.UniqueParticleId) & 0x7FFFFFFF;
 
             var fractions = new Vector3(
                 RadicalInverse(index, 2),

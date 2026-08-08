@@ -54,8 +54,6 @@ namespace ValveResourceFormat.Renderer.Particles
         /// <summary>Displacement between the value draw and the draw that decides the sign.</summary>
         private const int SignFlipOffset = 37;
 
-        private static int sampleOffsetAllocations;
-
         private readonly float minRange;
         private readonly float maxRange;
         private readonly ParticleFloatRandomMode randomMode;
@@ -83,21 +81,12 @@ namespace ValveResourceFormat.Renderer.Particles
                 biasType = parse.Enum<ParticleFloatBiasType>("m_nBiasType", biasType);
             }
 
+            // Only an input that is constant per particle needs its own slot; a varying one draws from
+            // the running counter and is already separated from its siblings.
             if (randomMode == ParticleFloatRandomMode.PF_RANDOM_MODE_CONSTANT)
             {
-                sampleOffset = AllocateSampleOffset();
+                sampleOffset = parse.NextInputOrdinal();
             }
-        }
-
-        /// <summary>
-        /// Takes this input's own displacement into the shared random table, so that two inputs of one
-        /// operator reading the same particle land on different slots. Only inputs that are constant per
-        /// particle get one.
-        /// </summary>
-        private static int AllocateSampleOffset()
-        {
-            var allocation = (uint)System.Threading.Interlocked.Increment(ref sampleOffsetAllocations);
-            return (int)(RandomFloats.List[allocation % RandomFloats.List.Length] * RandomFloats.List.Length);
         }
 
         public float NextNumber(ref Particle particle, ParticleSystemRenderState renderState)
@@ -232,7 +221,7 @@ namespace ValveResourceFormat.Renderer.Particles
     {
         private readonly AttributeMapping attributeMapping;
         public PerParticleCountNumberProvider(ParticleDefinitionParser parse) { attributeMapping = new AttributeMapping(parse); }
-        public float NextNumber(ref Particle particle, ParticleSystemRenderState renderState) => attributeMapping.ApplyMapping(particle.CreationIndex);
+        public float NextNumber(ref Particle particle, ParticleSystemRenderState renderState) => attributeMapping.ApplyMapping(particle.UniqueParticleId);
     }
 
     // Particle Count Percent of Total Count (0-1)
@@ -243,7 +232,7 @@ namespace ValveResourceFormat.Renderer.Particles
         public float NextNumber(ref Particle particle, ParticleSystemRenderState renderState)
         {
             // Mapping input ranges for this provider type are authored in normalized 0-1 space.
-            // Index is the slot in the alive list; CreationIndex is a lifetime spawn counter and would exceed the count.
+            // Index is the slot in the alive list; UniqueParticleId is a lifetime spawn counter and would exceed the count.
             return attributeMapping.ApplyMapping(particle.Index / (float)Math.Max(renderState.ParticleCount, 1));
         }
     }

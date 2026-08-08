@@ -65,7 +65,7 @@ namespace ValveResourceFormat.Renderer.Particles.Initializers
 
             var startPoint = Math.Max(0, StartIndex.NextInt(ref particle, particleSystemState));
             var increment = Increment.NextInt(ref particle, particleSystemState);
-            var idx = Utils.CPSnapshotSampler.SelectIndex(particle.CreationIndex, numParticles, Random, Reverse, startPoint, increment,
+            var idx = Utils.CPSnapshotSampler.SelectIndex(particle.UniqueParticleId, numParticles, Random, Reverse, startPoint, increment,
                 RandomSeed, ref randomSampleCounter, particleSystemState);
             // A Position write is always mirrored into PositionPrevious. A PREV_XYZ
             // (velocity) write goes through Particle.Velocity for the emit path's Verlet encoding.
