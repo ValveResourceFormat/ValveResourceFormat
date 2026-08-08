@@ -68,9 +68,11 @@ namespace ValveResourceFormat.Renderer.Particles.Initializers
 
             ref var parent = ref parentParticles[parentIndex];
 
+            particle.ParentParticleId = parent.ParticleID;
+
             if (setRopeSegmentID)
             {
-                particle.Sequence2 = parent.CreationIndex;
+                particle.RopeSegmentId = parent.CreationIndex;
             }
 
             var parentPosition = parent.Position;

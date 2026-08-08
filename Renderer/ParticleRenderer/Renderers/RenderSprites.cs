@@ -430,8 +430,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
             modelViewRotation = Quaternion.Inverse(modelViewRotation);
             var billboardMatrix = Matrix4x4.CreateFromQuaternion(modelViewRotation);
 
-            // All four bounds are a radius per unit of camera distance, and the whole group is gated
-            // on m_bDistanceAlpha.
+            // All four bounds are a radius per unit of camera distance
             var minSizeSlope = minSize.NextNumber(systemRenderState);
             var maxSizeSlope = maxSize.NextNumber(systemRenderState);
             var startFadeSlope = startFadeSize.NextNumber(systemRenderState);
