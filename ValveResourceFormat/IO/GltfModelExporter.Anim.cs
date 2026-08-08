@@ -7,8 +7,8 @@ using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.ResourceTypes.ModelAnimation;
 using ValveResourceFormat.ResourceTypes.ModelFlex;
 using VAnim = ValveResourceFormat.ResourceTypes.ModelAnimation.Animation;
-using VModel = ValveResourceFormat.ResourceTypes.Model;
 using VMesh = ValveResourceFormat.ResourceTypes.Mesh;
+using VModel = ValveResourceFormat.ResourceTypes.Model;
 
 namespace ValveResourceFormat.IO;
 

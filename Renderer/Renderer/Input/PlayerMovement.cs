@@ -1,4 +1,4 @@
-﻿namespace ValveResourceFormat.Renderer.Input;
+namespace ValveResourceFormat.Renderer.Input;
 
 /// <summary>
 /// Source engine-style FPS player movement controller.
@@ -375,7 +375,7 @@ public partial class PlayerMovement
             airMoveDelta = TrapezoidDisplacement(Velocity, Velocity + airVelocityDelta, deltaTime);
         }
 
-        CheckVelocity(ref position);
+        ClampVelocity();
 
         // Gravity is applied inside the move now, so the freshest impact speed for a landing the
         // move below may produce is the frame's midpoint - the average the trapezoid sweeps
@@ -399,7 +399,6 @@ public partial class PlayerMovement
         }
 
         CategorizePosition(ref position, playerHull);
-        CheckVelocity(ref position);
 
         CheckStuck(ref position, playerHull);
 
@@ -973,8 +972,6 @@ public partial class PlayerMovement
                 }
             }
 
-            CheckVelocity(ref position);
-
             // A repeated flush contact neither advanced nor learned anything, and repeating it
             // would only burn the bump budget: the move is as constrained as it is going to get
             if (!newPlane && timeFraction <= 0f)
@@ -1364,7 +1361,6 @@ public partial class PlayerMovement
 
             Velocity = velocity;
             SlopeClipNormalZ = clipNormalZ;
-            CheckVelocity(ref position);
 
             if (!newPlane && timeFraction <= 0f)
             {
@@ -1901,21 +1897,11 @@ public partial class PlayerMovement
     }
 
     /// <summary>
-    /// Check and clamp velocity - prevents NaN and enforces max velocity
+    /// Clamps each velocity component to sv_maxvelocity.
     /// </summary>
-    private void CheckVelocity(ref Vector3 position)
+    private void ClampVelocity()
     {
-        position.X = float.IsNaN(position.X) ? TracePosition.X : position.X;
-        position.Y = float.IsNaN(position.Y) ? TracePosition.Y : position.Y;
-        position.Z = float.IsNaN(position.Z) ? TracePosition.Z : position.Z;
-
-        Velocity = new Vector3(
-            float.IsNaN(Velocity.X) ? 0f : Velocity.X,
-            float.IsNaN(Velocity.Y) ? 0f : Velocity.Y,
-            float.IsNaN(Velocity.Z) ? 0f : Velocity.Z);
-
-        var velocityBounds = new AABB(Vector3.Zero, MaxVelocityValue);
-        Velocity = Vector3.Clamp(Velocity, velocityBounds.Min, velocityBounds.Max);
+        Velocity = Vector3.Clamp(Velocity, new Vector3(-MaxVelocityValue), new Vector3(MaxVelocityValue));
     }
 
     // How far past the sweep end the raw trace looks so that approaching surfaces are
