@@ -134,6 +134,17 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
         }
 
         /// <summary>
+        /// Resolves an animation onto this cache's skeleton ahead of decoding it.
+        /// </summary>
+        public void EnsureBinding(Animation anim)
+        {
+            if (anim is SequenceAnimation sequenceAnimation)
+            {
+                sequenceAnimation.EnsureBinding(Skeleton, FlexControllers);
+            }
+        }
+
+        /// <summary>
         /// Purges the frame cache, resetting both previous and next frames.
         /// </summary>
         public void PurgeCache()

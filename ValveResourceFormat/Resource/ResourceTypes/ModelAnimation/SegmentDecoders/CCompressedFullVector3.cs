@@ -11,14 +11,14 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation.SegmentDecoders
         /// <remarks>
         /// Reads full-precision Vector3 data directly from the data buffer.
         /// </remarks>
-        public override void Read(int frameIndex, Frame outFrame)
+        public override void Read(int frameIndex, Frame outFrame, ReadOnlySpan<ElementRemap> remaps)
         {
             var offset = frameIndex * ElementCount;
-            var vectorData = MemoryMarshal.Cast<byte, Vector3>(Data);
+            var vectorData = MemoryMarshal.Cast<byte, Vector3>(Data.Span);
 
-            for (var i = 0; i < RemapTable.Length; i++)
+            foreach (var remap in remaps)
             {
-                outFrame.SetAttribute(RemapTable[i], ChannelAttribute, vectorData[offset + WantedElements[i]]);
+                outFrame.SetAttribute(remap.Dest, ChannelAttribute, vectorData[offset + remap.Source]);
             }
         }
     }

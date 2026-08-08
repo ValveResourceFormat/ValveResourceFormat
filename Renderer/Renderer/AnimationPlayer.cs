@@ -222,6 +222,7 @@ namespace ValveResourceFormat.Renderer
 
             if (animation != null)
             {
+                FrameCache.EnsureBinding(animation);
                 TransitionToClip(animation, blendTime, looping);
             }
             else
