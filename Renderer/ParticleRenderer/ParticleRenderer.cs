@@ -440,7 +440,9 @@ namespace ValveResourceFormat.Renderer.Particles
             systemRenderState.ParticleCount = 0;
             particlesEmitted = 0;
 
-            // A replay is the one path that rewinds the clock, since no particle survives it
+            // A replay stands in for the effect playing again, so the system takes a fresh random
+            // identity along with a rewound clock; no particle survives it
+            systemRenderState.ReseedRandom();
             systemRenderState.Age = 0f;
             targetDrawTime = 0f;
             previousSimTime = 1e23f;

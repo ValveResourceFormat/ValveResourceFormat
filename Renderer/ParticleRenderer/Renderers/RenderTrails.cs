@@ -299,7 +299,8 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
                             : Vector3.Normalize(Vector3.Cross(direction, MathF.Abs(direction.Z) < 0.999f ? Vector3.UnitZ : Vector3.UnitX));
 
                         lengthAxis = direction;
-                        halfWidth = radius * 0.5f;
+                        // The radius is the half extent across the ribbon, while the length spans it end to end
+                        halfWidth = radius;
                         halfLength = length * 0.5f;
 
                         // The engine slides the trail along the motion axis by m_flForwardShift lengths;
