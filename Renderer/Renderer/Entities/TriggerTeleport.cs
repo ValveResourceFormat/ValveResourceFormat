@@ -78,6 +78,8 @@ public sealed class TriggerTeleport
     /// info_teleport_destination, and the target may contain wildcards, so the first matching
     /// entity in map order wins.
     /// </summary>
+    /// <param name="entities">All entities of the loaded map.</param>
+    /// <param name="target">Targetname to match against, may contain wildcards: '*' and '?' (e.g. <c>door_*</c>).</param>
     private static (Vector3 Origin, float Yaw)? FindDestination(IReadOnlyList<Entity> entities, string target)
     {
         foreach (var entity in entities)
