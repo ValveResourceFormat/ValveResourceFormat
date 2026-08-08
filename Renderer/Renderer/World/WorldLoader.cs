@@ -1769,7 +1769,12 @@ namespace ValveResourceFormat.Renderer.World
             return null;
         }
 
-        private Entity? FindEntityByTargetName(string pattern)
+        /// <summary>
+        /// Finds the first entity which matches its name with the given pattern.
+        /// </summary>
+        /// <param name="pattern">Targetname to match against, may contain wildcards: '*' and '?' (e.g. <c>door_*</c>).</param>
+        /// <returns>The matching <see cref="Entity"/>, or <see langword="null"/> if not found.</returns>
+        public Entity? FindEntityByTargetName(string pattern)
         {
             if (pattern == null)
             {

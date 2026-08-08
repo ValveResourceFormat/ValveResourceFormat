@@ -1,5 +1,6 @@
 using ValveResourceFormat.IO;
 using ValveResourceFormat.Renderer.Input;
+using ValveResourceFormat.Renderer.World;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.Serialization.KeyValues;
 using ValveResourceFormat.Utils;
@@ -32,20 +33,20 @@ public sealed class TriggerTeleport
     /// Loads every <c>trigger_teleport</c> in the map. The volume comes from the trigger's own
     /// <c>model</c>, which holds its brush hulls.
     /// </summary>
-    /// <param name="entities">All entities of the loaded map.</param>
+    /// <param name="loadedWorld">The loaded map.</param>
     /// <param name="fileLoader">Loader used to resolve the trigger models.</param>
-    public static List<TriggerTeleport> LoadAll(IReadOnlyList<Entity> entities, IFileLoader fileLoader)
+    public static List<TriggerTeleport> LoadAll(WorldLoader loadedWorld, IFileLoader fileLoader)
     {
         var teleports = new List<TriggerTeleport>();
 
-        foreach (var entity in entities)
+        foreach (var entity in loadedWorld.Entities)
         {
             if (entity.GetStringProperty("classname") is not "trigger_teleport")
             {
                 continue;
             }
 
-            if (FindDestination(entities, entity.GetStringProperty("target")) is not { } destination)
+            if (loadedWorld.FindEntityByTargetName(entity.GetStringProperty("target")) is not { } destination)
             {
                 continue;
             }
@@ -67,32 +68,10 @@ public sealed class TriggerTeleport
                 Transform = EntityTransformHelper.CalculateTransformationMatrix(entity),
             };
 
-            teleports.Add(new TriggerTeleport(collider, destination.Origin, preserveAngles ? null : destination.Yaw));
+            teleports.Add(new TriggerTeleport(collider, destination.GetVector3Property("origin"), preserveAngles ? null : destination.GetVector3Property("angles").Y));
         }
 
         return teleports;
-    }
-
-    /// <summary>
-    /// Finds the entity a teleport targets. A teleport may target any named entity, not just
-    /// info_teleport_destination, and the target may contain wildcards, so the first matching
-    /// entity in map order wins.
-    /// </summary>
-    /// <param name="entities">All entities of the loaded map.</param>
-    /// <param name="target">Targetname to match against, may contain wildcards: '*' and '?' (e.g. <c>door_*</c>).</param>
-    private static (Vector3 Origin, float Yaw)? FindDestination(IReadOnlyList<Entity> entities, string target)
-    {
-        foreach (var entity in entities)
-        {
-            var name = entity.GetStringProperty("targetname");
-
-            if (EntityLump.EntityNameMatches(target, name))
-            {
-                return (entity.GetVector3Property("origin"), entity.GetVector3Property("angles").Y);
-            }
-        }
-
-        return null;
     }
 
     /// <summary>
