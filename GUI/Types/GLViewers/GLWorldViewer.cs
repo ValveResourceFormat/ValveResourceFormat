@@ -813,11 +813,11 @@ namespace GUI.Types.GLViewers
                 return;
             }
 
-            var node = Scene.FindNodeByKeyValue("targetname", entityName);
+            var node = Scene.FindNodeByTargetName(entityName);
 
             if (node == null && SkyboxScene != null)
             {
-                node = SkyboxScene.FindNodeByKeyValue("targetname", entityName);
+                node = SkyboxScene.FindNodeByTargetName(entityName);
             }
 
             if (node == null)

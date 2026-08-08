@@ -742,7 +742,7 @@ namespace ValveResourceFormat.Renderer.World
                                 var skyEntTargetName = entity.GetStringProperty("cubemapfogskyentity");
                                 if (skyEntTargetName != null)
                                 {
-                                    var skyEntity = FindEntityByKeyValue("targetname", skyEntTargetName);
+                                    var skyEntity = FindEntityByTargetName(skyEntTargetName);
 
                                     // env_sky target //  && (scene.Sky.TargetName == skyEntTargetName)
                                     if (skyEntity != null)
@@ -1641,7 +1641,7 @@ namespace ValveResourceFormat.Renderer.World
                 }
 
                 var targetName = connectionData.TargetName;
-                var endEntity = FindEntityByKeyValue("targetname", targetName);
+                var endEntity = FindEntityByTargetName(targetName);
 
                 if (endEntity == null)
                 {
@@ -1687,7 +1687,7 @@ namespace ValveResourceFormat.Renderer.World
             }
 
             var visited = new Dictionary<Entity, int>();
-            var current = FindEntityByKeyValue("targetname", startName);
+            var current = FindEntityByTargetName(startName);
 
             while (current != null && current.GetStringProperty("classname") == "path_corner")
             {
@@ -1704,7 +1704,7 @@ namespace ValveResourceFormat.Renderer.World
                     current.GetFloatProperty("wait")));
 
                 var nextName = current.GetStringProperty("target");
-                current = string.IsNullOrEmpty(nextName) ? null : FindEntityByKeyValue("targetname", nextName);
+                current = string.IsNullOrEmpty(nextName) ? null : FindEntityByTargetName(nextName);
             }
 
             return (nodes, loopBackIndex);
@@ -1721,7 +1721,7 @@ namespace ValveResourceFormat.Renderer.World
                 return transformationMatrix;
             }
 
-            var target = FindEntityByKeyValue("targetname", controlPoint0);
+            var target = FindEntityByTargetName(controlPoint0);
 
             if (target == null)
             {
@@ -1761,6 +1761,26 @@ namespace ValveResourceFormat.Renderer.World
                 if (entity.TryGetValue(keyToFind, out var propertyValue)
                     && propertyValue.ValueType == ValveKeyValue.KVValueType.String
                     && valueToFind.Equals((string)propertyValue, StringComparison.OrdinalIgnoreCase))
+                {
+                    return entity;
+                }
+            }
+
+            return null;
+        }
+
+        private Entity? FindEntityByTargetName(string pattern)
+        {
+            if (pattern == null)
+            {
+                return null;
+            }
+
+            foreach (var entity in Entities)
+            {
+                if (entity.TryGetValue("targetname", out var propertyValue)
+                    && propertyValue.ValueType == ValveKeyValue.KVValueType.String
+                    && EntityNameMatches(pattern, (string)propertyValue))
                 {
                     return entity;
                 }
