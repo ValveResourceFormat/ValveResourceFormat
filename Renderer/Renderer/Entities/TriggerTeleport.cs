@@ -14,19 +14,17 @@ namespace ValveResourceFormat.Renderer.Entities;
 /// </summary>
 public sealed class TriggerTeleport
 {
-    /// <summary>Spawnflag: keep the player's view angles instead of the destination's.</summary>
-    private const int SF_TELEPORT_PRESERVE_ANGLES = 32;
 
     private readonly EntityCollider collider;
     private readonly Vector3 destination;
-    private readonly float? yawDegrees;
+    private readonly Vector3 angles;
     private bool wasInside;
 
-    private TriggerTeleport(EntityCollider collider, Vector3 destination, float? yawDegrees)
+    private TriggerTeleport(EntityCollider collider, Vector3 destination, Vector3 angles)
     {
         this.collider = collider;
         this.destination = destination;
-        this.yawDegrees = yawDegrees;
+        this.angles = angles;
     }
 
     /// <summary>
@@ -60,15 +58,12 @@ public sealed class TriggerTeleport
             {
                 continue;
             }
-
-            var preserveAngles = (entity.GetInt32Property("spawnflags") & SF_TELEPORT_PRESERVE_ANGLES) != 0;
-
             var collider = new EntityCollider(physics)
             {
                 Transform = EntityTransformHelper.CalculateTransformationMatrix(entity),
             };
 
-            teleports.Add(new TriggerTeleport(collider, destination.GetVector3Property("origin"), preserveAngles ? null : destination.GetVector3Property("angles").Y));
+            teleports.Add(new TriggerTeleport(collider, destination.GetVector3Property("origin"), destination.GetVector3Property("angles")));
         }
 
         return teleports;
@@ -86,7 +81,7 @@ public sealed class TriggerTeleport
         if (inside && !wasInside)
         {
             // Lift a unit so the hull does not arrive embedded in the floor
-            movement.Teleport(destination + new Vector3(0, 0, 1f), yawDegrees);
+            movement.Teleport(destination + new Vector3(0, 0, 1f), angles);
         }
 
         wasInside = inside;
