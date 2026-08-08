@@ -1,6 +1,7 @@
 using System.Buffers;
 using OpenTK.Graphics.OpenGL;
 using ValveResourceFormat.Serialization.KeyValues;
+using ValveResourceFormat.Renderer.Particles.Utils;
 
 namespace ValveResourceFormat.Renderer.Particles.Renderers
 {
@@ -273,7 +274,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
                         {
                             var toCamera = camera.Location - particle.Position;
 
-                            if (toCamera.LengthSquared() > 1e-12f)
+                            if (toCamera.LengthSquared() > Epsilon.LengthSquared)
                             {
                                 var facing = MathF.Abs(Vector3.Dot(Vector3.Normalize(particle.Normal), Vector3.Normalize(toCamera)));
                                 alphaFade = 1f - MathUtils.Smoothstep(startFadeDot, endFadeDot, facing);
@@ -294,7 +295,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
                     {
                         // The quad's width axis stays perpendicular to the eye ray, its length axis follows the motion
                         widthAxis = Vector3.Cross(position - camera.Location, direction);
-                        widthAxis = widthAxis.LengthSquared() > 1e-12f
+                        widthAxis = widthAxis.LengthSquared() > Epsilon.LengthSquared
                             ? Vector3.Normalize(widthAxis)
                             : Vector3.Normalize(Vector3.Cross(direction, MathF.Abs(direction.Z) < 0.999f ? Vector3.UnitZ : Vector3.UnitX));
 

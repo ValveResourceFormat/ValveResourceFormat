@@ -1,3 +1,5 @@
+using ValveResourceFormat.Renderer.Particles.Utils;
+
 namespace ValveResourceFormat.Renderer.Particles.Constraints
 {
     /// <summary>
@@ -25,9 +27,6 @@ namespace ValveResourceFormat.Renderer.Particles.Constraints
         private readonly INumberProvider maxDistance = new LiteralNumberProvider(1.1f);
         private readonly INumberProvider initialRestingLength = new LiteralNumberProvider(-1f);
         private readonly float adjustmentScale = 15f;
-
-        // Divisor floor for near-coincident segments, so the correction direction stays finite.
-        private const float MinSegmentLength = 1.1920929e-07f;
 
         // The uniform per-segment base length, captured once from the spawn geometry.
         private bool captured;
@@ -96,7 +95,7 @@ namespace ValveResourceFormat.Renderer.Particles.Constraints
                 // Move b toward / away from a along the connecting axis to reduce the length error, but only
                 // by the soft fraction so gravity can still bend the rope between passes. The divisor is
                 // clamped so near-coincident points still get a finite nudge.
-                var correction = delta * (((target - d) / MathF.Max(d, MinSegmentLength)) * scale);
+                var correction = delta * (((target - d) / MathF.Max(d, Epsilon.Length)) * scale);
 
                 var aPinned = a.ForceScale == 0f;
                 var bPinned = b.ForceScale == 0f;

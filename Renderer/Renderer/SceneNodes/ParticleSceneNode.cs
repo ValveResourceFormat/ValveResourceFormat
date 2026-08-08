@@ -4,6 +4,7 @@ using ValveResourceFormat.Blocks;
 using ValveResourceFormat.Renderer.Particles;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.Serialization.KeyValues;
+using ValveResourceFormat.Renderer.Particles.Utils;
 
 namespace ValveResourceFormat.Renderer.SceneNodes
 {
@@ -421,7 +422,7 @@ namespace ValveResourceFormat.Renderer.SceneNodes
                 if (!Preview)
                 {
                     var controlPointForward = Vector3.TransformNormal(Vector3.UnitX, Transform);
-                    if (controlPointForward.LengthSquared() > 1e-12f)
+                    if (controlPointForward.LengthSquared() > Epsilon.LengthSquared)
                     {
                         controlPoint.Orientation = Vector3.Normalize(controlPointForward);
                         controlPoint.Rotation = Quaternion.Normalize(Quaternion.CreateFromRotationMatrix(Transform));

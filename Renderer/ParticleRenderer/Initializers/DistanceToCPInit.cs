@@ -1,3 +1,5 @@
+using ValveResourceFormat.Renderer.Particles.Utils;
+
 namespace ValveResourceFormat.Renderer.Particles.Initializers
 {
     /// <summary>
@@ -63,20 +65,13 @@ namespace ValveResourceFormat.Renderer.Particles.Initializers
 
             if (hasBias)
             {
-                value = SchlickBias(value, remapBias);
+                value = NumericBias.Standard(Math.Clamp(value, 0f, 1f), remapBias);
             }
 
             value = particle.ModifyScalarBySetMethodAtSpawn(particles, fieldOutput, value, setMethod);
             particle.SetScalar(fieldOutput, value);
 
             return particle;
-        }
-
-        private static float SchlickBias(float x, float bias)
-        {
-            x = x >= 0f ? MathF.Min(1f, x) : 0f;
-            bias = bias >= float.Epsilon ? MathF.Min(1f, bias) : float.Epsilon;
-            return x / ((1f / bias - 2f) * (1f - x) + 1f);
         }
     }
 }

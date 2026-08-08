@@ -1,6 +1,7 @@
 using System.Buffers;
 using OpenTK.Graphics.OpenGL;
 using ValveResourceFormat.Serialization.KeyValues;
+using ValveResourceFormat.Renderer.Particles.Utils;
 
 namespace ValveResourceFormat.Renderer.Particles.Renderers
 {
@@ -369,7 +370,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
             var right = (baseRight * c) + (baseUp * s);
             var up = (baseUp * c) - (baseRight * s);
             var face = Vector3.Cross(right, up);
-            face = face.LengthSquared() > 1e-12f ? Vector3.Normalize(face) : Vector3.UnitZ;
+            face = face.LengthSquared() > Epsilon.LengthSquared ? Vector3.Normalize(face) : Vector3.UnitZ;
             return new Matrix4x4(
                 right.X, right.Y, right.Z, 0f,
                 up.X, up.Y, up.Z, 0f,
@@ -408,7 +409,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
         {
             var n = Vector3.Normalize(normal);
             var w = Vector3.Cross(n, CameraForward(billboard));
-            if (w.LengthSquared() < 1e-8f)
+            if (w.LengthSquared() < Epsilon.LengthSquared)
             {
                 return billboard;
             }
@@ -474,7 +475,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
                     {
                         var toCamera = camera.Location - particle.Position;
 
-                        if (toCamera.LengthSquared() > 1e-12f)
+                        if (toCamera.LengthSquared() > Epsilon.LengthSquared)
                         {
                             var facing = MathF.Abs(Vector3.Dot(Vector3.Normalize(particle.Normal), Vector3.Normalize(toCamera)));
                             alphaFade = 1f - MathUtils.Smoothstep(startFadeDot, endFadeDot, facing);

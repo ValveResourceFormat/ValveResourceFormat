@@ -1,5 +1,6 @@
 using System.Runtime.InteropServices;
 using ValveResourceFormat.Renderer.SceneNodes;
+using ValveResourceFormat.Renderer.Particles.Utils;
 
 namespace ValveResourceFormat.Renderer.Utils
 {
@@ -165,7 +166,7 @@ namespace ValveResourceFormat.Renderer.Utils
             var normal = i == 0 ? InitialNormal(tangent) : NormalFromPrevious(tangent, previousNormal);
 
             var bitangent = Vector3.Cross(tangent, normal);
-            bitangent = bitangent.LengthSquared() > 1e-8f ? Vector3.Normalize(bitangent) : InitialNormal(tangent);
+            bitangent = bitangent.LengthSquared() > Epsilon.LengthSquared ? Vector3.Normalize(bitangent) : InitialNormal(tangent);
 
             return (normal, bitangent);
         }
@@ -190,7 +191,7 @@ namespace ValveResourceFormat.Renderer.Utils
                 dir = a + b;
             }
 
-            return dir.LengthSquared() > 1e-8f ? Vector3.Normalize(dir) : Vector3.UnitX;
+            return dir.LengthSquared() > Epsilon.LengthSquared ? Vector3.Normalize(dir) : Vector3.UnitX;
         }
 
         private static Vector3 InitialNormal(Vector3 tangent)
@@ -202,7 +203,7 @@ namespace ValveResourceFormat.Renderer.Utils
         private static Vector3 NormalFromPrevious(Vector3 tangent, Vector3 previousNormal)
         {
             var projected = previousNormal - (tangent * Vector3.Dot(previousNormal, tangent));
-            return projected.LengthSquared() > 1e-8f ? Vector3.Normalize(projected) : InitialNormal(tangent);
+            return projected.LengthSquared() > Epsilon.LengthSquared ? Vector3.Normalize(projected) : InitialNormal(tangent);
         }
 
         private static void BuildTubeGeometry(ReadOnlySpan<Vector3> positions, ReadOnlySpan<RopeSample> samples,
@@ -279,6 +280,6 @@ namespace ValveResourceFormat.Renderer.Utils
             return length;
         }
 
-        private static Vector3 Normalize(Vector3 v) => v.LengthSquared() > 1e-12f ? Vector3.Normalize(v) : Vector3.UnitZ;
+        private static Vector3 Normalize(Vector3 v) => v.LengthSquared() > Epsilon.LengthSquared ? Vector3.Normalize(v) : Vector3.UnitZ;
     }
 }
