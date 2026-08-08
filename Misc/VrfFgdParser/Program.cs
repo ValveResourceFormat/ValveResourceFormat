@@ -175,19 +175,21 @@ void ParseFile(string file)
             {
                 value = behaviour.Values[0];
 
-                if (!value.StartsWith("models/", StringComparison.Ordinal) && !value.StartsWith("characters/models/", StringComparison.Ordinal))
+                if (value is not "editormodel" and not "static")
                 {
-                    value = "models/" + value;
-                }
+                    if (value.EndsWith(".mdl", StringComparison.Ordinal))
+                    {
+                        value = value[..^4] + ".vmdl";
+                    }
 
-                if (value.EndsWith(".mdl", StringComparison.Ordinal))
-                {
-                    value = value[..^4] + ".vmdl";
+                    if (!value.EndsWith(".vmdl", StringComparison.Ordinal))
+                    {
+                        value += ".vmdl";
+                    }
                 }
-
-                if (!value.EndsWith(".vmdl", StringComparison.Ordinal))
+                else
                 {
-                    value += ".vmdl";
+                    value = null;
                 }
             }
 
