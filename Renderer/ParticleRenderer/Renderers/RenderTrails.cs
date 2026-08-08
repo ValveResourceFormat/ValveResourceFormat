@@ -52,6 +52,13 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
         private readonly float constrainRadiusToLengthRatio = 1f;
         private readonly float forwardShift;
 
+        private readonly INumberProvider headRadiusTaper = new LiteralNumberProvider(1f);
+        private readonly INumberProvider tailRadiusTaper = new LiteralNumberProvider(1f);
+        private readonly INumberProvider headAlphaScale = new LiteralNumberProvider(1f);
+        private readonly INumberProvider tailAlphaScale = new LiteralNumberProvider(1f);
+        private readonly IVectorProvider headColorScale = new LiteralVectorProvider(Vector3.One);
+        private readonly IVectorProvider tailColorScale = new LiteralVectorProvider(Vector3.One);
+
         public RenderTrails(ParticleDefinitionParser parse, RendererContext rendererContext) : base(parse)
         {
             RendererContext = rendererContext;
@@ -102,6 +109,12 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
             animationType = parse.Enum<ParticleAnimationType>("m_nAnimationType", animationType);
             animateInFps = parse.Boolean("m_bAnimateInFPS", animateInFps);
             prevPositionSource = parse.ParticleField("m_nPrevPntSource", prevPositionSource);
+            headRadiusTaper = parse.NumberProvider("m_flRadiusHeadTaper", headRadiusTaper);
+            tailRadiusTaper = parse.NumberProvider("m_flRadiusTaper", tailRadiusTaper);
+            headAlphaScale = parse.NumberProvider("m_flHeadAlphaScale", headAlphaScale);
+            tailAlphaScale = parse.NumberProvider("m_flTailAlphaScale", tailAlphaScale);
+            headColorScale = parse.VectorProvider("m_vecHeadColorScale", headColorScale);
+            tailColorScale = parse.VectorProvider("m_vecTailColorScale", tailColorScale);
 
             if (minLength > maxLength)
             {
@@ -152,8 +165,11 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
         /// <summary>
         /// Builds one quad per visible trail into the shared vertex buffer, returning how many were written.
         /// </summary>
-        private int UpdateVertices(ParticleCollection particleBag, Camera camera)
+        private int UpdateVertices(ParticleCollection particleBag, ParticleSystemRenderState systemRenderState, Camera camera)
         {
+            var headColor = headColorScale.NextVector(systemRenderState);
+            var tailColor = tailColorScale.NextVector(systemRenderState);
+
             // The moved distance is converted back to a velocity (distance / dt) before scaling by
             // the trail-length attribute. The division only applies when the previous point comes
             // from the Verlet pair, and the operator can opt out of it entirely.
@@ -194,35 +210,41 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
                     // A short trail is narrowed so it cannot render wider than it is long
                     var radius = MathF.Min(particle.Radius, constrainRadiusToLengthRatio * length);
 
-                    Matrix4x4 modelMatrix;
+                    Vector3 center;
+                    Vector3 widthAxis;
+                    Vector3 lengthAxis;
+                    float halfWidth;
+                    float halfLength;
+
                     if (orientationType == ParticleOrientation.PARTICLE_ORIENTATION_SCREEN_ALIGNED)
                     {
                         // The quad's width axis stays perpendicular to the eye ray, its length axis follows the motion
-                        var widthAxis = Vector3.Cross(position - camera.Location, direction);
+                        widthAxis = Vector3.Cross(position - camera.Location, direction);
                         widthAxis = widthAxis.LengthSquared() > 1e-12f
                             ? Vector3.Normalize(widthAxis)
                             : Vector3.Normalize(Vector3.Cross(direction, MathF.Abs(direction.Z) < 0.999f ? Vector3.UnitZ : Vector3.UnitX));
-                        var normal = Vector3.Cross(widthAxis, direction);
 
-                        var halfWidth = radius * 0.5f;
-                        var halfLength = length * 0.5f;
+                        lengthAxis = direction;
+                        halfWidth = radius * 0.5f;
+                        halfLength = length * 0.5f;
 
                         // The engine slides the trail along the motion axis by m_flForwardShift lengths;
                         // direction runs backwards along travel here, so the shift subtracts
-                        var center = position + (direction * (length * (0.5f - forwardShift)));
-
-                        modelMatrix = new Matrix4x4(
-                            widthAxis.X * halfWidth, widthAxis.Y * halfWidth, widthAxis.Z * halfWidth, 0f,
-                            direction.X * halfLength, direction.Y * halfLength, direction.Z * halfLength, 0f,
-                            normal.X, normal.Y, normal.Z, 0f,
-                            center.X, center.Y, center.Z, 1f);
+                        center = position + (direction * (length * (0.5f - forwardShift)));
                     }
                     else
                     {
                         // TODO: Other orientation types render as plain unstretched sprites here; the engine
                         // still stretches them along the motion, constrained to the ground/normal plane
-                        modelMatrix = particle.GetTransformationMatrix();
+                        center = position;
+                        widthAxis = Vector3.UnitX;
+                        lengthAxis = Vector3.UnitY;
+                        halfWidth = particle.Radius;
+                        halfLength = particle.Radius;
                     }
+
+                    var headHalfWidth = halfWidth * headRadiusTaper.NextNumber(ref particle, systemRenderState);
+                    var tailHalfWidth = halfWidth * tailRadiusTaper.NextNumber(ref particle, systemRenderState);
 
                     var uvOffset = Vector2.Zero;
                     var uvScale = new Vector2(finalTextureScaleU, finalTextureScaleV);
@@ -231,13 +253,10 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
                     if (spriteSheetData != null && spriteSheetData.Sequences.Length > 0 && spriteSheetData.Sequences[0].Frames.Length > 0)
                     {
                         var sequence = spriteSheetData.Sequences[particle.Sequence % spriteSheetData.Sequences.Length];
-
-                        var frame = sequence.Frames.Length > 1
-                            ? GetSheetFrame(ref particle, sequence.FramesPerSecond, animationRate, animationType, animateInFps)
-                            : 0f;
+                        var (frame, _, _) = GetSheetFrame(ref particle, sequence, animationRate, animationType, animateInFps);
 
                         // TODO: Support more than one image per frame?
-                        var currentImage = sequence.Frames[ResolveSheetFrame((int)MathF.Floor(frame), sequence.Frames.Length, sequence.Clamp)].Images[0];
+                        var currentImage = sequence.Frames[frame].Images[0];
 
                         uvOffset = currentImage.UncroppedMin;
                         uvScale *= currentImage.UncroppedMax - currentImage.UncroppedMin;
@@ -247,20 +266,31 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
                     var quadStart = quadCount * VertexSize * 4;
                     var alpha = particle.Alpha * particle.AlphaAlternate;
 
+                    var head = Vector4.Clamp(
+                        new Vector4(particle.Color * headColor, alpha * headAlphaScale.NextNumber(ref particle, systemRenderState)),
+                        Vector4.Zero, Vector4.One);
+                    var tail = Vector4.Clamp(
+                        new Vector4(particle.Color * tailColor, alpha * tailAlphaScale.NextNumber(ref particle, systemRenderState)),
+                        Vector4.Zero, Vector4.One);
+
                     for (var j = 0; j < 4; ++j)
                     {
                         var corner = QuadCorners[j];
-                        var worldPosition = Vector3.Transform(new Vector3(corner, 0f), modelMatrix);
+                        var isHead = corner.Y < 0f;
+                        var worldPosition = center
+                            + (widthAxis * (corner.X * (isHead ? headHalfWidth : tailHalfWidth)))
+                            + (lengthAxis * (corner.Y * halfLength));
+                        var color = isHead ? head : tail;
                         var uv = uvOffset + ((corner * 0.5f) + new Vector2(0.5f)) * uvScale;
 
                         var vertexStart = quadStart + (VertexSize * j);
                         rawVertices[vertexStart + 0] = worldPosition.X;
                         rawVertices[vertexStart + 1] = worldPosition.Y;
                         rawVertices[vertexStart + 2] = worldPosition.Z;
-                        rawVertices[vertexStart + 3] = particle.Color.X;
-                        rawVertices[vertexStart + 4] = particle.Color.Y;
-                        rawVertices[vertexStart + 5] = particle.Color.Z;
-                        rawVertices[vertexStart + 6] = alpha;
+                        rawVertices[vertexStart + 3] = color.X;
+                        rawVertices[vertexStart + 4] = color.Y;
+                        rawVertices[vertexStart + 5] = color.Z;
+                        rawVertices[vertexStart + 6] = color.W;
                         rawVertices[vertexStart + 7] = uv.X;
                         rawVertices[vertexStart + 8] = uv.Y;
                     }
@@ -293,7 +323,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
                 return;
             }
 
-            var quadCount = UpdateVertices(particleBag, camera);
+            var quadCount = UpdateVertices(particleBag, systemRenderState, camera);
 
             if (quadCount == 0)
             {

@@ -1,3 +1,5 @@
+using ValveResourceFormat.ResourceTypes;
+
 namespace ValveResourceFormat.Renderer.Particles.Renderers
 {
     /// <summary>
@@ -22,30 +24,31 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
         public abstract void Render(ParticleCollection particles, ParticleSystemRenderState systemRenderState, Camera camera);
 
         /// <summary>
-        /// Resolves a sheet frame number against a sequence's length. A clamping sequence holds its last
-        /// frame; otherwise it loops.
+        /// The two sheet frames a particle sits between and how far it has crossed from the first to
+        /// the second. Every frame is held for its own display time as a share of the sequence's total,
+        /// so a sequence whose frames have uneven display times does not play at a uniform rate.
+        /// A clamping sequence holds its last frame; otherwise it wraps back to the first.
         /// </summary>
-        protected static int ResolveSheetFrame(int frameId, int frameCount, bool clamp)
+        protected static (int Frame, int NextFrame, float Blend) GetSheetFrame(ref Particle particle,
+            Texture.SpritesheetData.Sequence sequence, float animationRate, ParticleAnimationType animationType, bool animateInFps)
         {
-            if (clamp)
+            var frameCount = sequence.Frames.Length;
+
+            if (frameCount < 2)
             {
-                return Math.Clamp(frameId, 0, frameCount - 1);
+                return (0, 0, 0f);
             }
 
-            frameId %= frameCount;
-            return frameId < 0 ? frameId + frameCount : frameId;
-        }
+            var totalTime = sequence.TotalTime > 0f ? sequence.TotalTime : 1f;
+            var lastFrame = frameCount - 1;
 
-        /// <summary>
-        /// The fractional sheet frame a particle is on. The integer part selects the frame and the
-        /// remainder is how far into the next one it has travelled.
-        /// </summary>
-        protected static float GetSheetFrame(ref Particle particle, float framesPerSecond, float animationRate,
-            ParticleAnimationType animationType, bool animateInFps)
-        {
             if (animationType == ParticleAnimationType.ANIMATION_TYPE_MANUAL_FRAMES)
             {
-                return particle.ManualAnimationFrame;
+                var manualFrame = sequence.Clamp
+                    ? Math.Clamp(particle.ManualAnimationFrame, 0, lastFrame)
+                    : ((particle.ManualAnimationFrame % frameCount) + frameCount) % frameCount;
+
+                return (manualFrame, manualFrame, 0f);
             }
 
             // The animation time is chosen by type first; animating in FPS only changes how the
@@ -56,13 +59,34 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
                 _ => particle.Age,
             };
 
-            if (animateInFps)
+            var passes = animateInFps
+                ? animationTime * animationRate / totalTime
+                : animationTime * animationRate;
+
+            var position = totalTime * (sequence.Clamp
+                ? Math.Clamp(passes, 0f, 1f)
+                : passes - MathF.Floor(passes));
+
+            var frameStart = 0f;
+
+            for (var frame = 0; frame < lastFrame; frame++)
             {
-                return animationTime * animationRate;
+                var displayTime = sequence.Frames[frame].DisplayTime;
+
+                if (frameStart + displayTime > position)
+                {
+                    return (frame, frame + 1, CrossedFraction(position - frameStart, displayTime));
+                }
+
+                frameStart += displayTime;
             }
 
-            return animationTime * animationRate * framesPerSecond;
+            return sequence.Clamp
+                ? (lastFrame, lastFrame, 0f)
+                : (lastFrame, 0, CrossedFraction(position - frameStart, totalTime - frameStart));
         }
+
+        private static float CrossedFraction(float into, float span) => span > 0f ? into / span : 0f;
 
         /// <summary>
         /// Replaces the texture this renderer draws with.

@@ -156,7 +156,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
             var index = 0;
             foreach (ref var particle in particles.Current)
             {
-                chain[index++] = (particle.ParticleID, particle.Position, particle.Radius, particle.Color);
+                chain[index++] = (particle.CreationIndex, particle.Position, particle.Radius, particle.Color);
             }
 
             chain.Sort(ChainComparer);
