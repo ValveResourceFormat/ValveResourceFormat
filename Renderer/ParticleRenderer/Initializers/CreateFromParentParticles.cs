@@ -55,7 +55,7 @@ namespace ValveResourceFormat.Renderer.Particles.Initializers
 
             if (setRopeSegmentID)
             {
-                particle.Sequence2 = parent.ParticleID;
+                particle.Sequence2 = parent.CreationIndex;
             }
             var parentStep = parent.Position - parent.PositionPrevious;
             var parentFrameTime = parentData.CurrentFrameTime;
@@ -70,7 +70,7 @@ namespace ValveResourceFormat.Renderer.Particles.Initializers
             return particle;
         }
 
-        private int GetParentIndex(int parentCount, int particleId)
+        private int GetParentIndex(int parentCount, int randomSeedBase)
         {
             if (parentCount <= 0)
             {
@@ -83,7 +83,7 @@ namespace ValveResourceFormat.Renderer.Particles.Initializers
 
             if (randomDistribution)
             {
-                index = ParticleCollection.RandomBetween(particleId + randomSeed, 0, lastIndex);
+                index = ParticleCollection.RandomBetween(randomSeedBase + randomSeed, 0, lastIndex);
             }
             else
             {

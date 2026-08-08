@@ -172,7 +172,7 @@ namespace ValveResourceFormat.Renderer.Particles
                 ParticleField.SecondSequenceNumber => particle.Sequence2,
                 ParticleField.ManualAnimationFrame => particle.ManualAnimationFrame,
                 ParticleField.ParentParticleIndex => particle.ParentParticleIndex,
-                ParticleField.ParticleId => particle.ParticleID, // dangerous to set, right?
+                ParticleField.ParticleId => particle.ParticleID,
                 _ => 0,
             };
         }

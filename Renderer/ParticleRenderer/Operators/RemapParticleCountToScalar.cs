@@ -35,15 +35,15 @@ namespace ValveResourceFormat.Renderer.Particles.Operators
                 var inputMin = this.inputMin.NextNumber(ref particle, particleSystemState);
                 var inputMax = this.inputMax.NextNumber(ref particle, particleSystemState);
 
-                if (activeRange && (particle.ParticleID < inputMin || particle.ParticleID > inputMax))
+                if (activeRange && (particle.CreationIndex < inputMin || particle.CreationIndex > inputMax))
                 {
                     continue;
                 }
 
                 // A degenerate input range is a threshold, inclusive on the high side
                 var remappedDistance = inputMin == inputMax
-                    ? (particle.ParticleID >= inputMax ? 1f : 0f)
-                    : MathUtils.Saturate(MathUtils.Remap(particle.ParticleID, inputMin, inputMax));
+                    ? (particle.CreationIndex >= inputMax ? 1f : 0f)
+                    : MathUtils.Saturate(MathUtils.Remap(particle.CreationIndex, inputMin, inputMax));
 
                 var outputMin = this.outputMin.NextNumber(ref particle, particleSystemState);
                 var outputMax = this.outputMax.NextNumber(ref particle, particleSystemState);

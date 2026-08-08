@@ -41,12 +41,12 @@ namespace ValveResourceFormat.Renderer.Particles.Initializers
 
         /// <summary>
         /// A direction drawn uniformly over the unit sphere, from a uniform cosine of the polar angle
-        /// and a uniform azimuth. Consumes random slots <paramref name="particleId"/> and the next one.
+        /// and a uniform azimuth. Consumes random slots <paramref name="randomSeedBase"/> and the next one.
         /// </summary>
-        protected static Vector3 SampleUnitSphereDirection(int particleId)
+        protected static Vector3 SampleUnitSphereDirection(int randomSeedBase)
         {
-            var cosPolar = ParticleCollection.RandomBetween(particleId, -1f, 1f);
-            var azimuth = ParticleCollection.RandomBetween(particleId + 1, 0f, MathF.Tau);
+            var cosPolar = ParticleCollection.RandomBetween(randomSeedBase, -1f, 1f);
+            var azimuth = ParticleCollection.RandomBetween(randomSeedBase + 1, 0f, MathF.Tau);
             var sinPolar = MathF.Sqrt(MathF.Max(0f, 1f - (cosPolar * cosPolar)));
             var (sin, cos) = MathF.SinCos(azimuth);
 
