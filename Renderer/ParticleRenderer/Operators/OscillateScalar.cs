@@ -2,23 +2,33 @@ namespace ValveResourceFormat.Renderer.Particles.Operators
 {
     /// <summary>
     /// Oscillates a scalar particle attribute by adding a sinusoidal delta each frame. The
-    /// oscillation rate and frequency are randomized per particle within configurable min/max ranges.
+    /// oscillation rate and frequency are randomized per particle within configurable min/max ranges,
+    /// as is the window of the particle's life over which the oscillation runs.
     /// </summary>
     /// <seealso href="https://s2v.app/SchemaExplorer/cs2/particles/C_OP_OscillateScalar">C_OP_OscillateScalar</seealso>
     class OscillateScalar : ParticleFunctionOperator
     {
-        /// <summary>Table offsets separating this operator's frequency and rate draws.</summary>
+        /// <summary>Table offsets separating this operator's frequency, rate and window draws.</summary>
         private const int FrequencyOffset = 0;
         private const int RateOffset = 1;
+        private const int StartTimeOffset = 11;
+        private const int EndTimeOffset = 12;
 
         private readonly ParticleField outputField = ParticleField.Alpha;
         private readonly float rateMin;
         private readonly float rateMax;
         private readonly float frequencyMin = 1f;
         private readonly float frequencyMax = 1f;
+        private readonly float startTimeMin;
+        private readonly float startTimeMax;
+        private readonly float endTimeMin = 1f;
+        private readonly float endTimeMax = 1f;
         private readonly float oscillationMultiplier = 2f;
         private readonly float oscillationOffset = 0.5f;
         private readonly bool proportional = true;
+
+        /// <summary>Whether the active window is expressed as a fraction of the particle's lifetime rather than in seconds.</summary>
+        private readonly bool proportionalWindow = true;
 
         public OscillateScalar(ParticleDefinitionParser parse) : base(parse)
         {
@@ -27,15 +37,32 @@ namespace ValveResourceFormat.Renderer.Particles.Operators
             rateMax = parse.Float("m_RateMax", rateMax);
             frequencyMin = parse.Float("m_FrequencyMin", frequencyMin);
             frequencyMax = parse.Float("m_FrequencyMax", frequencyMax);
+            startTimeMin = parse.Float("m_flStartTime_min", startTimeMin);
+            startTimeMax = parse.Float("m_flStartTime_max", startTimeMax);
+            endTimeMin = parse.Float("m_flEndTime_min", endTimeMin);
+            endTimeMax = parse.Float("m_flEndTime_max", endTimeMax);
             oscillationMultiplier = parse.Float("m_flOscMult", oscillationMultiplier);
             oscillationOffset = parse.Float("m_flOscAdd", oscillationOffset);
             proportional = parse.Boolean("m_bProportional", proportional);
+            proportionalWindow = parse.Boolean("m_bProportionalOp", proportionalWindow);
         }
 
         public override void Operate(ParticleCollection particles, float frameTime, ParticleSystemRenderState particleSystemState, float strength)
         {
             foreach (ref var particle in particles.Current)
             {
+                var windowTime = proportionalWindow
+                    ? particle.NormalizedAge
+                    : particle.Age;
+
+                var startTime = particleSystemState.RandomForParticleBetween(particle.ParticleID, StartTimeOffset, startTimeMin, startTimeMax);
+                var endTime = particleSystemState.RandomForParticleBetween(particle.ParticleID, EndTimeOffset, endTimeMin, endTimeMax);
+
+                if (windowTime < startTime || windowTime >= endTime)
+                {
+                    continue;
+                }
+
                 var frequency = particleSystemState.RandomForParticleBetween(particle.ParticleID, FrequencyOffset, frequencyMin, frequencyMax);
                 var rate = particleSystemState.RandomForParticleBetween(particle.ParticleID, RateOffset, rateMin, rateMax);
 
