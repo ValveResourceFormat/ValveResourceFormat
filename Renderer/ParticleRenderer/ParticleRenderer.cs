@@ -259,6 +259,12 @@ namespace ValveResourceFormat.Renderer.Particles
         /// </summary>
         internal Span<Particle> CurrentParticles => particleCollection.Current;
 
+        /// <summary>The most particles this system can hold at once.</summary>
+        internal int ParticleCapacity => particleCollection.Capacity;
+
+        /// <summary>How many particles the last prune removed from this system.</summary>
+        internal int KilledLastPass => particleCollection.KilledLastPass;
+
         /// <summary>
         /// Sets the particle detail tier (0 = Low .. 3 = Ultra) for this system; child systems inherit it.
         /// </summary>

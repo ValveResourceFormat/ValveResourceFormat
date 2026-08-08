@@ -74,7 +74,7 @@ namespace ValveResourceFormat.Renderer.Particles.Initializers
                 };
             }
 
-            particle.SetVector(fieldOutput, particle.ModifyVectorBySetMethodAtSpawn(fieldOutput, value, setMethod));
+            particle.SetVector(fieldOutput, particle.ModifyVectorBySetMethodAtSpawn(particles, fieldOutput, value, setMethod));
 
             return particle;
         }

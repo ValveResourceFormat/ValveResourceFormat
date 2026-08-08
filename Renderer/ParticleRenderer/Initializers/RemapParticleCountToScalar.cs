@@ -101,7 +101,7 @@ namespace ValveResourceFormat.Renderer.Particles.Initializers
 
                 output = scaleInitialRange
                     ? particle.GetScalar(FieldOutput) * output
-                    : particle.ModifyScalarBySetMethodAtSpawn(FieldOutput, output, setMethod);
+                    : particle.ModifyScalarBySetMethodAtSpawn(particles, FieldOutput, output, setMethod);
 
                 particle.SetScalar(FieldOutput, output);
             }
