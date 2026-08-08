@@ -51,6 +51,11 @@ namespace ValveResourceFormat.Renderer.Particles
     // Random Uniform/Random Biased
     class RandomNumberProvider : INumberProvider
     {
+        /// <summary>Displacement between the value draw and the draw that decides the sign.</summary>
+        private const int SignFlipOffset = 37;
+
+        private static int sampleOffsetAllocations;
+
         private readonly float minRange;
         private readonly float maxRange;
         private readonly ParticleFloatRandomMode randomMode;
@@ -61,17 +66,14 @@ namespace ValveResourceFormat.Renderer.Particles
 
         private readonly bool hasRandomSignFlip;
 
+        private readonly int sampleOffset;
+
         public RandomNumberProvider(ParticleDefinitionParser parse, bool isBiased = false)
         {
             minRange = parse.Float("m_flRandomMin");
             maxRange = parse.Float("m_flRandomMax");
             hasRandomSignFlip = parse.Boolean("m_bHasRandomSignFlip", hasRandomSignFlip);
-
-            // Should it be checking behavior version?
-            if (parse.Data.GetStringProperty("m_nType") != parse.Data.GetStringProperty("m_nRandomMode"))
-            {
-                randomMode = parse.Enum<ParticleFloatRandomMode>("m_nRandomMode", randomMode);
-            }
+            randomMode = parse.Enum<ParticleFloatRandomMode>("m_nRandomMode", randomMode);
 
             this.isBiased = isBiased;
 
@@ -80,23 +82,49 @@ namespace ValveResourceFormat.Renderer.Particles
                 biasParam = parse.Float("m_flBiasParameter");
                 biasType = parse.Enum<ParticleFloatBiasType>("m_nBiasType", biasType);
             }
+
+            if (randomMode == ParticleFloatRandomMode.PF_RANDOM_MODE_CONSTANT)
+            {
+                sampleOffset = AllocateSampleOffset();
+            }
+        }
+
+        /// <summary>
+        /// Takes this input's own displacement into the shared random table, so that two inputs of one
+        /// operator reading the same particle land on different slots. Only inputs that are constant per
+        /// particle get one.
+        /// </summary>
+        private static int AllocateSampleOffset()
+        {
+            var allocation = (uint)System.Threading.Interlocked.Increment(ref sampleOffsetAllocations);
+            return (int)(RandomFloats.List[allocation % RandomFloats.List.Length] * RandomFloats.List.Length);
         }
 
         public float NextNumber(ref Particle particle, ParticleSystemRenderState renderState)
         {
-            var random = Random.Shared.NextSingle();
+            var varying = randomMode == ParticleFloatRandomMode.PF_RANDOM_MODE_VARYING;
 
-            // currently does nothing as it's unclear how it's done
+            var random = varying
+                ? renderState.NextRandom()
+                : renderState.RandomForParticle(particle.ParticleID, sampleOffset);
+
             if (isBiased)
             {
-                random = NumericBias.ApplyBias(random, biasParam, biasType);
+                random = NumericBias.FromBiasParameter(random, biasParam, biasType);
             }
 
             var value = float.Lerp(minRange, maxRange, random);
 
-            if (hasRandomSignFlip && Random.Shared.Next(0, 2) == 0) // 50% chance to flip sign
+            if (hasRandomSignFlip)
             {
-                value *= -1f;
+                var sign = varying
+                    ? renderState.NextRandom()
+                    : renderState.RandomForParticle(particle.ParticleID, sampleOffset + SignFlipOffset);
+
+                if (sign < 0.5f)
+                {
+                    value = -value;
+                }
             }
 
             return value;
@@ -263,9 +291,5 @@ namespace ValveResourceFormat.Renderer.Particles
 
     /* Unaccounted for params:
      * m_NamedValue
-     * m_flRandomMin
-     * m_flRandomMax
-     * m_bHasRandomSignFlip
-     * m_nRandomMode
      */
 }

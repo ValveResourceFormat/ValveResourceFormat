@@ -321,14 +321,6 @@ namespace ValveResourceFormat.Renderer.Particles
             point.Orientation = Vector3.Transform(Vector3.UnitZ, rotation);
         }
 
-        /// <summary>
-        /// Return a random float in the range [<paramref name="flLow"/>, <paramref name="flHigh"/>). The distribution is uniform.
-        /// </summary>
-        internal static float RandomFloat(float flLow, float flHigh)
-        {
-            var random = Random.Shared.NextSingle();
-            return float.Lerp(flLow, flHigh, random);
-        }
     }
 
     /// <summary>

@@ -198,10 +198,7 @@ namespace ValveResourceFormat.Renderer.Particles
 
         public virtual Vector3 NextVector(ref Particle particle, ParticleSystemRenderState renderState)
         {
-            return new Vector3(
-                ParticleSystemRenderState.RandomFloat(min.X, max.X),
-                ParticleSystemRenderState.RandomFloat(min.Y, max.Y),
-                ParticleSystemRenderState.RandomFloat(min.Z, max.Z));
+            return renderState.NextRandomBetweenPerComponent(min, max);
         }
     }
 
