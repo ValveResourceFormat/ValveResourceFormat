@@ -41,20 +41,22 @@ namespace ValveResourceFormat.Renderer.Particles.Initializers
             var parentParticles = parentData.CurrentParticles;
             if (parentParticles.Length == 0)
             {
+                // A child with no parent to bind to is born dead rather than left at the origin
+                particle.Lifetime = 0f;
                 return particle;
             }
 
             var parentIndex = Math.Clamp(GetParentIndex(parentParticles.Length, particle.ParticleID), 0, parentParticles.Length - 1);
             particle.ParentParticleIndex = parentIndex;
 
-            if (setRopeSegmentID)
-            {
-                particle.Sequence2 = parentIndex;
-            }
-
             // The child spawns at the parent particle and inherits its velocity, derived from the parent's
             // Verlet step; the emit path encodes it back into Position/PositionPrevious after initializers.
             ref var parent = ref parentParticles[parentIndex];
+
+            if (setRopeSegmentID)
+            {
+                particle.Sequence2 = parent.ParticleID;
+            }
             var parentStep = parent.Position - parent.PositionPrevious;
             var parentFrameTime = parentData.CurrentFrameTime;
             particle.Position = parent.Position;

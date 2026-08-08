@@ -114,6 +114,7 @@ namespace ValveResourceFormat.Renderer.Particles.Initializers
             position += ParticleCollection.RandomBetweenPerComponent(particle.ParticleID, new Vector3(-jitter), new Vector3(jitter));
 
             particle.Position = position;
+            particle.PositionPrevious = position;
 
             var previousParameter = pathParameter;
             pathParameter += parameterStep;
