@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using OpenTK.Graphics.OpenGL;
+using ValveResourceFormat.Renderer.Buffers;
 using ValveResourceFormat.Renderer.World;
 
 namespace ValveResourceFormat.Renderer
@@ -235,6 +236,8 @@ namespace ValveResourceFormat.Renderer
                         context.Scene.TransformBufferGpu.BindBufferBase();
                         context.Scene.InstanceBufferGpu.BindBufferBase();
 
+                        context.Scene.TransformBufferGpu.BindBufferBase(ReservedBufferSlots.BoneTransforms);
+
                         if (config.IndirectDraw)
                         {
                             GL.ProgramUniform1((uint)shader.Program, uniforms.IsInstancing, 1);
@@ -271,6 +274,29 @@ namespace ValveResourceFormat.Renderer
                 GL.ProgramUniform1((uint)shader.Program, uniforms.MeshId, (uint)request.Mesh.MeshIndex);
                 GL.ProgramUniform1((uint)shader.Program, uniforms.ShaderId, request.Call.Material.Shader.NameHash);
                 GL.ProgramUniform1((uint)shader.Program, uniforms.ShaderProgramId, (uint)request.Call.Material.Shader.Program);
+            }
+
+            if (uniforms.AnimationData != -1)
+            {
+                var bAnimated = request.Mesh.BoneMatricesGpu != null;
+                var numBones = 0u;
+                var numWeights = 0u;
+                var boneStart = 0u;
+
+                if (bAnimated)
+                {
+                    request.Mesh.BoneMatricesGpu!.BindBufferBase();
+                    numBones = (uint)request.Mesh.MeshBoneCount;
+                    boneStart = (uint)request.Mesh.MeshBoneOffset;
+                    numWeights = (uint)request.Mesh.BoneWeightCount;
+                }
+                else
+                {
+                    // todo: this is not resetting when there are no aggregates in scene
+                    request.Node.Scene.TransformBufferGpu?.BindBufferBase(ReservedBufferSlots.BoneTransforms);
+                }
+
+                GL.ProgramUniform4((uint)shader.Program, uniforms.AnimationData, bAnimated ? 1u : 0u, boneStart, numBones, numWeights);
             }
 
             if (config.IndirectDraw)
@@ -313,24 +339,6 @@ namespace ValveResourceFormat.Renderer
                 && request.Node.LightProbeBinding is { } lightProbe)
             {
                 request.Node.Scene.LightingInfo.BindInstanceLightProbeTextures(lightProbe);
-            }
-
-            if (uniforms.AnimationData != -1)
-            {
-                var bAnimated = request.Mesh.BoneMatricesGpu != null;
-                var numBones = 0u;
-                var numWeights = 0u;
-                var boneStart = 0u;
-
-                if (bAnimated)
-                {
-                    request.Mesh.BoneMatricesGpu!.BindBufferBase();
-                    numBones = (uint)request.Mesh.MeshBoneCount;
-                    boneStart = (uint)request.Mesh.MeshBoneOffset;
-                    numWeights = (uint)request.Mesh.BoneWeightCount;
-                }
-
-                GL.ProgramUniform4((uint)shader.Program, uniforms.AnimationData, bAnimated ? 1u : 0u, boneStart, numBones, numWeights);
             }
 
             if (uniforms.MorphVertexIdOffset != -1)

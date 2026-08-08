@@ -40,6 +40,14 @@ namespace ValveResourceFormat.Renderer.Buffers
             GL.BindBufferBase((BufferRangeTarget)Target, BindingPoint, Handle);
         }
 
+        /// <summary>Binds this buffer to a binding point other than its own. Binding one buffer to several
+        /// points at once is allowed; all of the blocks reading it are declared <c>readonly</c>.</summary>
+        /// <param name="bindingPoint">The slot to bind to instead of <see cref="BindingPoint"/>.</param>
+        public void BindBufferBase(ReservedBufferSlots bindingPoint)
+        {
+            GL.BindBufferBase((BufferRangeTarget)Target, (int)bindingPoint, Handle);
+        }
+
         /// <summary>Deletes the underlying OpenGL buffer object.</summary>
         public virtual void Delete()
         {
