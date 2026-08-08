@@ -2,6 +2,7 @@ namespace ValveResourceFormat.Renderer.Particles.PreEmissionOperators
 {
     /// <summary>
     /// Sets a control point orientation based on a QAngle, optionally randomizing and interpolating.
+    /// The randomized angle is drawn once when the system starts and reused on every later frame.
     /// </summary>
     /// <seealso href="https://s2v.app/SchemaExplorer/cs2/particles/C_OP_SetControlPointOrientation">C_OP_SetControlPointOrientation</seealso>
     class SetControlPointOrientation : ParticleFunctionPreEmissionOperator
@@ -16,6 +17,8 @@ namespace ValveResourceFormat.Renderer.Particles.PreEmissionOperators
         private readonly INumberProvider interpolation = new LiteralNumberProvider(1f);
 
         private bool hasRunBefore;
+        private bool rotationResolved;
+        private Vector3 resolvedRotation;
 
         public SetControlPointOrientation(ParticleDefinitionParser parse) : base(parse)
         {
@@ -29,18 +32,28 @@ namespace ValveResourceFormat.Renderer.Particles.PreEmissionOperators
             interpolation = parse.NumberProvider("m_flInterpolation", interpolation);
         }
 
+        public override void Reset()
+        {
+            hasRunBefore = false;
+            rotationResolved = false;
+        }
+
         public override void Operate(ref ParticleSystemRenderState particleSystemState, float frameTime)
         {
+            if (!rotationResolved)
+            {
+                rotationResolved = true;
+                resolvedRotation = randomize
+                    ? particleSystemState.NextRandomBetweenPerComponent(rotation, rotationB)
+                    : rotation;
+            }
+
             if (setOnce && hasRunBefore)
             {
                 return;
             }
 
-            var targetRotation = randomize
-                ? ParticleCollection.RandomBetweenPerComponent(rotation, rotationB)
-                : rotation;
-
-            var targetOrientation = EntityTransformHelper.QAngleToForwardDirection(targetRotation);
+            var targetOrientation = EntityTransformHelper.QAngleToForwardDirection(resolvedRotation);
 
             if (!useWorldLocation)
             {

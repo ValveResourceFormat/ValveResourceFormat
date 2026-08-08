@@ -1,8 +1,9 @@
 namespace ValveResourceFormat.Renderer.Particles.PreEmissionOperators
 {
     /// <summary>
-    /// Sets a control point to a random position within a bounding box, optionally re-randomizing
-    /// at a configurable rate and interpolating toward the new target position.
+    /// Sets a control point to a random position within a bounding box, re-randomizing at a configurable
+    /// rate and interpolating toward the new target position every frame. A first target is drawn when the
+    /// system starts, and a negative <c>m_flReRandomRate</c> keeps that target for the system's lifetime.
     /// </summary>
     /// <seealso href="https://s2v.app/SchemaExplorer/cs2/particles/C_OP_SetRandomControlPointPosition">C_OP_SetRandomControlPointPosition</seealso>
     class SetRandomControlPointPosition : ParticleFunctionPreEmissionOperator
@@ -30,15 +31,10 @@ namespace ValveResourceFormat.Renderer.Particles.PreEmissionOperators
             interpolation = parse.NumberProvider("m_flInterpolation", interpolation);
         }
 
-        private bool HasRunBefore;
-        private float timeSinceLastRun;
+        private bool initialised;
+        private float lastDrawTime;
 
         private Vector3 currentPosition = Vector3.Zero;
-
-        private void GenerateNewPosition()
-        {
-            currentPosition = ParticleCollection.RandomBetweenPerComponent(minPos, maxPos);
-        }
 
         /// <summary>
         /// The current position, rotated and translated by the head control point, unless world location is used, in which case the position is returned as-is.
@@ -47,55 +43,47 @@ namespace ValveResourceFormat.Renderer.Particles.PreEmissionOperators
             ? currentPosition
             : ControlPointTransformProvider.TransformPosition(particleSystemState, offsetCP, currentPosition);
 
+        public override void Reset()
+        {
+            initialised = false;
+        }
+
         public override void Operate(ref ParticleSystemRenderState particleSystemState, float frameTime)
         {
-            var orientation = orient
-                ? particleSystemState.GetControlPoint(offsetCP).Orientation
-                : Vector3.Zero;
-
-            // We need to start off with an initial value, regardless of interpolation
-            if (!HasRunBefore)
+            if (!initialised)
             {
-                GenerateNewPosition();
-
-                particleSystemState.SetControlPointValue(cp, GetTargetPosition(particleSystemState));
-
-                if (orient)
-                {
-                    particleSystemState.SetControlPointOrientation(cp, orientation);
-                }
-
-                HasRunBefore = true;
+                initialised = true;
+                lastDrawTime = float.MinValue;
+                currentPosition = particleSystemState.NextRandomBetweenPerComponent(minPos, maxPos);
             }
 
-            timeSinceLastRun += frameTime;
+            // Both inputs are sampled before the gate so their draws stay in step whether or not it fires
+            var lerpAmount = interpolation.NextNumber(particleSystemState);
+            var rate = reRandomRate.NextNumber(particleSystemState);
 
-            var reRandomRate = this.reRandomRate.NextNumber(particleSystemState);
-            if (reRandomRate > 0f)
+            var firstRun = lastDrawTime == float.MinValue;
+
+            if (firstRun)
             {
-                var lerpOld = particleSystemState.GetControlPoint(cp).Position;
-                var lerpNew = GetTargetPosition(particleSystemState);
+                lerpAmount = 1f;
+            }
 
-                // exponential fade like all the other lerps
-                var positionBlended = Vector3.Lerp(lerpOld, lerpNew, interpolation.NextNumber(particleSystemState));
+            if (particleSystemState.Age >= lastDrawTime + rate)
+            {
+                currentPosition = particleSystemState.NextRandomBetweenPerComponent(minPos, maxPos);
+                lastDrawTime = rate < 0f ? float.MaxValue : particleSystemState.Age;
+            }
 
-                // orientation doesn't lerp in the same way that position does
+            var blendedPosition = Vector3.Lerp(
+                particleSystemState.GetControlPoint(cp).Position,
+                GetTargetPosition(particleSystemState),
+                lerpAmount);
 
-                particleSystemState.SetControlPointValue(cp, positionBlended);
+            particleSystemState.SetControlPointValue(cp, blendedPosition);
 
-                if (orient)
-                {
-                    particleSystemState.SetControlPointOrientation(cp, orientation);
-                }
-
-                // If we need to generate a new position
-                if (timeSinceLastRun > reRandomRate)
-                {
-                    GenerateNewPosition();
-
-                    // Subtract reRandomRate instead of resetting to 0 so we can maintain sub-frame timing
-                    timeSinceLastRun -= reRandomRate;
-                }
+            if (orient)
+            {
+                particleSystemState.SetControlPointOrientation(cp, particleSystemState.GetControlPoint(offsetCP).Orientation);
             }
         }
     }

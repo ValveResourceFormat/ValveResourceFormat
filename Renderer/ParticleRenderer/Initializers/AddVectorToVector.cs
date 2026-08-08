@@ -2,7 +2,8 @@ namespace ValveResourceFormat.Renderer.Particles.Initializers
 {
     /// <summary>
     /// Reads a vector from an input field, adds it to the existing output field vector plus a
-    /// per-component random offset, and writes the sum back into the output field.
+    /// per-component random offset, and writes the sum back into the output field. An offset range
+    /// that is zero at both ends takes no random draw.
     /// </summary>
     /// <seealso href="https://s2v.app/SchemaExplorer/cs2/particles/C_INIT_AddVectorToVector">C_INIT_AddVectorToVector</seealso>
     class AddVectorToVector : ParticleFunctionInitializer
@@ -25,7 +26,14 @@ namespace ValveResourceFormat.Renderer.Particles.Initializers
             var input = particle.GetVector(FieldInput);
             var output = particle.GetVector(FieldOutput);
 
-            var offset = ParticleCollection.RandomBetweenPerComponent(particle.ParticleID, OffsetMin, OffsetMax);
+            if (OffsetMin == Vector3.Zero && OffsetMax == Vector3.Zero)
+            {
+                particle.SetVector(FieldOutput, input + output);
+
+                return particle;
+            }
+
+            var offset = particleSystemState.NextRandomBetweenPerComponent(OffsetMin, OffsetMax);
 
             particle.SetVector(FieldOutput, input + output + offset);
 

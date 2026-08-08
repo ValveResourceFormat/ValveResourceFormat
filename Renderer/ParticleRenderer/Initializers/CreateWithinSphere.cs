@@ -41,12 +41,12 @@ namespace ValveResourceFormat.Renderer.Particles.Initializers
 
         /// <summary>
         /// A direction drawn uniformly over the unit sphere, from a uniform cosine of the polar angle
-        /// and a uniform azimuth. Consumes random slots <paramref name="randomSeedBase"/> and the next one.
+        /// and a uniform azimuth. Consumes two random slots, the polar cosine before the azimuth.
         /// </summary>
-        protected static Vector3 SampleUnitSphereDirection(int randomSeedBase)
+        protected static Vector3 SampleUnitSphereDirection(ParticleSystemRenderState particleSystemState)
         {
-            var cosPolar = ParticleCollection.RandomBetween(randomSeedBase, -1f, 1f);
-            var azimuth = ParticleCollection.RandomBetween(randomSeedBase + 1, 0f, MathF.Tau);
+            var cosPolar = particleSystemState.NextRandomBetween(-1f, 1f);
+            var azimuth = particleSystemState.NextRandomBetween(0f, MathF.Tau);
             var sinPolar = MathF.Sqrt(MathF.Max(0f, 1f - (cosPolar * cosPolar)));
             var (sin, cos) = MathF.SinCos(azimuth);
 
@@ -55,24 +55,21 @@ namespace ValveResourceFormat.Renderer.Particles.Initializers
 
         public override Particle Initialize(ref Particle particle, ParticleCollection particles, ParticleSystemRenderState particleSystemState)
         {
-            var direction = SampleUnitSphereDirection(particle.ParticleID);
+            var direction = SampleUnitSphereDirection(particleSystemState);
 
             // A cube root over the radius fraction spreads particles evenly through the sphere's
             // volume; a linear draw would bunch them toward the centre
-            var distance = ParticleCollection.RandomWithExponentBetween(
-                particle.ParticleID + 2,
+            var distance = particleSystemState.NextRandomWithExponentBetween(
                 1f / 3f,
                 radiusMin.NextNumber(ref particle, particleSystemState),
                 radiusMax.NextNumber(ref particle, particleSystemState));
 
-            var speed = ParticleCollection.RandomWithExponentBetween(
-                particle.ParticleID + 3,
+            var speed = particleSystemState.NextRandomWithExponentBetween(
                 speedRandExp,
                 speedMin.NextNumber(ref particle, particleSystemState),
                 speedMax.NextNumber(ref particle, particleSystemState));
 
-            var localCoordinateSystemSpeed = ParticleCollection.RandomBetweenPerComponent(
-                particle.ParticleID + 4,
+            var localCoordinateSystemSpeed = particleSystemState.NextRandomBetweenPerComponent(
                 localCoordinateSystemSpeedMin.NextVector(ref particle, particleSystemState),
                 localCoordinateSystemSpeedMax.NextVector(ref particle, particleSystemState));
 

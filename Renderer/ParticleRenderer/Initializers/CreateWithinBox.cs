@@ -27,7 +27,7 @@ namespace ValveResourceFormat.Renderer.Particles.Initializers
             var posMin = min.NextVector(ref particle, particleSystemState);
             var posMax = max.NextVector(ref particle, particleSystemState);
 
-            var position = ParticleCollection.RandomBetweenPerComponent(particle.ParticleID, posMin, posMax);
+            var position = particleSystemState.NextRandomBetweenPerComponent(posMin, posMax);
 
             var offset = particleSystemState.GetControlPoint(controlPointNumber).Position;
 

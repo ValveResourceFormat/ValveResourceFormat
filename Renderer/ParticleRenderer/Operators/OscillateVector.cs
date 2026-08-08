@@ -8,6 +8,19 @@ namespace ValveResourceFormat.Renderer.Particles.Operators
     /// <seealso href="https://s2v.app/SchemaExplorer/cs2/particles/C_OP_OscillateVector">C_OP_OscillateVector</seealso>
     class OscillateVector : ParticleFunctionOperator
     {
+        /// <summary>
+        /// Table offsets separating this operator's draws. The Y frequency and the end time read the
+        /// same slot.
+        /// </summary>
+        private const int RateOffsetX = 3;
+        private const int RateOffsetY = 7;
+        private const int RateOffsetZ = 9;
+        private const int FrequencyOffsetX = 8;
+        private const int FrequencyOffsetY = 12;
+        private const int FrequencyOffsetZ = 15;
+        private const int StartTimeOffset = 11;
+        private const int EndTimeOffset = 12;
+
         private readonly ParticleField outputField = ParticleField.Position;
         private readonly Vector3 RateMin;
         private readonly Vector3 RateMax;
@@ -44,8 +57,15 @@ namespace ValveResourceFormat.Renderer.Particles.Operators
         {
             foreach (ref var particle in particles.Current)
             {
-                var rate = ParticleCollection.RandomBetweenPerComponent(particle.ParticleID, RateMin, RateMax);
-                var frequency = ParticleCollection.RandomBetweenPerComponent(particle.ParticleID, FrequencyMin, FrequencyMax);
+                var rate = new Vector3(
+                    particleSystemState.RandomForParticleBetween(particle.ParticleID, RateOffsetX, RateMin.X, RateMax.X),
+                    particleSystemState.RandomForParticleBetween(particle.ParticleID, RateOffsetY, RateMin.Y, RateMax.Y),
+                    particleSystemState.RandomForParticleBetween(particle.ParticleID, RateOffsetZ, RateMin.Z, RateMax.Z));
+
+                var frequency = new Vector3(
+                    particleSystemState.RandomForParticleBetween(particle.ParticleID, FrequencyOffsetX, FrequencyMin.X, FrequencyMax.X),
+                    particleSystemState.RandomForParticleBetween(particle.ParticleID, FrequencyOffsetY, FrequencyMin.Y, FrequencyMax.Y),
+                    particleSystemState.RandomForParticleBetween(particle.ParticleID, FrequencyOffsetZ, FrequencyMin.Z, FrequencyMax.Z));
 
                 var t = proportional
                     ? particle.NormalizedAge
@@ -53,8 +73,8 @@ namespace ValveResourceFormat.Renderer.Particles.Operators
 
                 if (particleSystemState.Data?.BehaviorVersion == 10)
                 {
-                    var startTime = ParticleCollection.RandomBetween(particle.ParticleID, startTimeMin, startTimeMax);
-                    var endTime = ParticleCollection.RandomBetween(particle.ParticleID, endTimeMin, endTimeMax);
+                    var startTime = particleSystemState.RandomForParticleBetween(particle.ParticleID, StartTimeOffset, startTimeMin, startTimeMax);
+                    var endTime = particleSystemState.RandomForParticleBetween(particle.ParticleID, EndTimeOffset, endTimeMin, endTimeMax);
 
                     // The randomized window bounds can come out inverted.
                     t = Math.Clamp(t, Math.Min(startTime, endTime), Math.Max(startTime, endTime));

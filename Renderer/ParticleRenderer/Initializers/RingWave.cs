@@ -5,7 +5,8 @@ namespace ValveResourceFormat.Renderer.Particles.Initializers
     /// </summary>
     /// <remarks>
     /// "Position Along Ring" in the particle editor. Like "Position Within Sphere Random", it can
-    /// also impart radial force to particles via the min/max initial speed.
+    /// also impart radial force to particles via the min/max initial speed. Thickness spreads
+    /// particles through a ball around the ring, not just along the radius.
     /// </remarks>
     /// <seealso href="https://s2v.app/SchemaExplorer/cs2/particles/C_INIT_RingWave">C_INIT_RingWave</seealso>
     class RingWave : ParticleFunctionInitializer
@@ -36,25 +37,40 @@ namespace ValveResourceFormat.Renderer.Particles.Initializers
             var thickness = this.thickness.NextNumber(ref particle, particleSystemState);
             var particlesPerOrbit = this.particlesPerOrbit.NextInt(ref particle, particleSystemState);
 
-            var radius = initialRadius.NextNumber(ref particle, particleSystemState) + (Random.Shared.NextSingle() * thickness);
+            var thicknessOffset = SampleUnitBall(particleSystemState) * thickness;
 
-            var angle = GetNextAngle(particlesPerOrbit, particles.Capacity);
+            var radius = initialRadius.NextNumber(ref particle, particleSystemState);
+
+            var angle = GetNextAngle(particlesPerOrbit, particles.Capacity, particleSystemState);
             var radialDirection = new Vector3(MathF.Cos(angle), MathF.Sin(angle), 0);
 
-            particle.Position += radius * radialDirection;
+            particle.Position += (radius * radialDirection) + thicknessOffset;
 
             // Initial speed pushes outward along the ring direction (positive = outward).
             var speedMin = initialSpeedMin.NextNumber(ref particle, particleSystemState);
             var speedMax = initialSpeedMax.NextNumber(ref particle, particleSystemState);
-            if (speedMin != 0f || speedMax != 0f)
-            {
-                particle.Velocity += radialDirection * ParticleSystemRenderState.RandomFloat(speedMin, speedMax);
-            }
+            particle.Velocity += radialDirection * particleSystemState.NextRandomBetween(speedMin, speedMax);
 
             return particle;
         }
 
-        private float GetNextAngle(int particlesPerOrbit, int maxParticles)
+        /// <summary>
+        /// A point drawn uniformly through the unit ball. Consumes three random slots, in the order
+        /// polar cosine, azimuth, then radius fraction.
+        /// </summary>
+        private static Vector3 SampleUnitBall(ParticleSystemRenderState particleSystemState)
+        {
+            var cosPolar = particleSystemState.NextRandomBetween(-1f, 1f);
+            var azimuth = particleSystemState.NextRandomBetween(0f, MathF.Tau);
+            var radius = MathF.Cbrt(particleSystemState.NextRandom());
+
+            var sinPolar = MathF.Sqrt(MathF.Max(0f, 1f - (cosPolar * cosPolar)));
+            var (sin, cos) = MathF.SinCos(azimuth);
+
+            return new Vector3(sinPolar * cos, sinPolar * sin, cosPolar) * radius;
+        }
+
+        private float GetNextAngle(int particlesPerOrbit, int maxParticles, ParticleSystemRenderState particleSystemState)
         {
             if (evenDistribution)
             {
@@ -67,11 +83,8 @@ namespace ValveResourceFormat.Renderer.Particles.Initializers
 
                 return offset * MathF.Tau;
             }
-            else
-            {
-                // Return a random angle between 0 and 2pi
-                return MathF.Tau * Random.Shared.NextSingle();
-            }
+
+            return particleSystemState.NextRandomBetween(0f, MathF.Tau);
         }
     }
 }

@@ -20,7 +20,7 @@ namespace ValveResourceFormat.Renderer.Particles.Initializers
 
         public override Particle Initialize(ref Particle particle, ParticleCollection particles, ParticleSystemRenderState particleSystemState)
         {
-            var alpha = ParticleCollection.RandomBetween(particle.ParticleID, alphaMin, alphaMax) / 255f;
+            var alpha = particleSystemState.NextRandomBetween(alphaMin, alphaMax) / 255f;
 
             particle.Alpha = alpha;
 

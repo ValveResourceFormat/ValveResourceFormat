@@ -7,11 +7,6 @@ namespace ValveResourceFormat.Renderer.Particles.Operators
     /// <seealso href="https://s2v.app/SchemaExplorer/cs2/particles/C_OP_Cull">C_OP_Cull</seealso>
     class Cull : ParticleFunctionOperator
     {
-        // Offsets into the shared deterministic random table, so the cull draw and the cull time
-        // are independent of each other and of other per-particle randomness.
-        private const int CullChanceSeed = 7919;
-        private const int CullTimeSeed = 104729;
-
         private readonly float cullPercentage = 0.5f;
         private readonly float cullStart;
         private readonly float cullEnd = 1f;
@@ -27,19 +22,16 @@ namespace ValveResourceFormat.Renderer.Particles.Operators
 
         public override void Operate(ParticleCollection particles, float frameTime, ParticleSystemRenderState particleSystemState, float strength)
         {
-            if (cullPercentage <= 0f)
-            {
-                return;
-            }
-
             foreach (ref var particle in particles.Current)
             {
-                if (ParticleCollection.RandomSingle(particle.ParticleID + CullChanceSeed) >= cullPercentage)
+                // Both draws are taken for every particle, whether or not it goes on to be culled
+                var cullChance = particleSystemState.NextRandom();
+                var cullTime = particleSystemState.NextRandomWithExponentBetween(cullExponent, cullStart, cullEnd);
+
+                if (cullChance >= cullPercentage)
                 {
                     continue;
                 }
-
-                var cullTime = ParticleCollection.RandomWithExponentBetween(particle.ParticleID + CullTimeSeed, cullExponent, cullStart, cullEnd);
 
                 if (particle.NormalizedAge >= cullTime)
                 {

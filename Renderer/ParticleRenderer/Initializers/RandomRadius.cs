@@ -20,7 +20,7 @@ namespace ValveResourceFormat.Renderer.Particles.Initializers
 
         public override Particle Initialize(ref Particle particle, ParticleCollection particles, ParticleSystemRenderState particleSystemState)
         {
-            particle.Radius = ParticleCollection.RandomWithExponentBetween(particle.ParticleID, radiusRandomExponent, radiusMin, radiusMax);
+            particle.Radius = particleSystemState.NextRandomWithExponentBetween(radiusRandomExponent, radiusMin, radiusMax);
 
             return particle;
         }

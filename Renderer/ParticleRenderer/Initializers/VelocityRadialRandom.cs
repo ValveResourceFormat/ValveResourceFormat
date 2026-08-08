@@ -29,7 +29,7 @@ namespace ValveResourceFormat.Renderer.Particles.Initializers
             var speedmin = speedMin.NextNumber(ref particle, particleSystemState);
             var speedmax = speedMax.NextNumber(ref particle, particleSystemState);
 
-            var speed = ParticleCollection.RandomBetween(particle.ParticleID, speedmin, speedmax);
+            var speed = particleSystemState.NextRandomBetween(speedmin, speedmax);
 
             // With the flag set the authored value is a raw per-step displacement, not units/second.
             if (ignoreDelta)

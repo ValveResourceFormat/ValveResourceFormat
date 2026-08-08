@@ -33,19 +33,17 @@ namespace ValveResourceFormat.Renderer.Particles.Initializers
             // The authored speed vector is expressed in the control point's local coordinate system.
             if (vecMin != Vector3.Zero || vecMax != Vector3.Zero)
             {
-                var localSpeed = ParticleCollection.RandomBetweenPerComponent(particle.ParticleID, vecMin, vecMax);
+                var localSpeed = particleSystemState.NextRandomBetweenPerComponent(vecMin, vecMax);
                 velocity = ControlPointTransformProvider.TransformDirection(particleSystemState, controlPoint, localSpeed);
             }
 
             var speedmin = speedMin.NextNumber(ref particle, particleSystemState);
             var speedmax = speedMax.NextNumber(ref particle, particleSystemState);
 
-            // The speed range is a per-component world space box added on top, not a multiplier; the
-            // local draw consumed ids through id + 2, so this starts at id + 3 to stay uncorrelated
+            // The speed range is a per-component world space box added on top, not a multiplier
             if (speedmin != 0f || speedmax != 0f)
             {
-                velocity += ParticleCollection.RandomBetweenPerComponent(
-                    particle.ParticleID + 3,
+                velocity += particleSystemState.NextRandomBetweenPerComponent(
                     new Vector3(speedmin),
                     new Vector3(speedmax));
             }

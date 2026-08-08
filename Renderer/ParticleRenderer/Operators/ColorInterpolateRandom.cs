@@ -6,6 +6,11 @@ namespace ValveResourceFormat.Renderer.Particles.Operators
     /// <seealso href="https://s2v.app/SchemaExplorer/cs2/particles/C_OP_ColorInterpolateRandom">C_OP_ColorInterpolateRandom</seealso>
     class ColorInterpolateRandom : ParticleFunctionOperator
     {
+        /// <summary>Table offsets separating this operator's red, green and blue draws.</summary>
+        private const int RedOffset = 3;
+        private const int GreenOffset = 7;
+        private const int BlueOffset = 9;
+
         private readonly Vector3 colorFadeMin = Vector3.One;
         private readonly Vector3 colorFadeMax = Vector3.One;
         private readonly float fadeStartTime;
@@ -27,7 +32,13 @@ namespace ValveResourceFormat.Renderer.Particles.Operators
         {
             foreach (ref var particle in particles.Current)
             {
-                var newColor = ParticleCollection.RandomBetweenPerComponent(particle.ParticleID, colorFadeMin, colorFadeMax);
+                // Eased fades draw each channel separately, uneased fades scale all three by one draw
+                var newColor = easeInOut
+                    ? new Vector3(
+                        particleSystemState.RandomForParticleBetween(particle.ParticleID, RedOffset, colorFadeMin.X, colorFadeMax.X),
+                        particleSystemState.RandomForParticleBetween(particle.ParticleID, GreenOffset, colorFadeMin.Y, colorFadeMax.Y),
+                        particleSystemState.RandomForParticleBetween(particle.ParticleID, BlueOffset, colorFadeMin.Z, colorFadeMax.Z))
+                    : Vector3.Lerp(colorFadeMin, colorFadeMax, particleSystemState.RandomForParticle(particle.ParticleID, RedOffset));
 
                 var time = particle.NormalizedAge;
 

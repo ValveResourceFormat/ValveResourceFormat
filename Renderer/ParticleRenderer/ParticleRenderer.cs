@@ -586,6 +586,10 @@ namespace ValveResourceFormat.Renderer.Particles
                 particle.Age = systemRenderState.Age - particle.CreationTime;
             }
 
+            // Each function that runs displaces the per-particle draws of the ones after it. Emitters
+            // and initializers inherit whatever the pre-emission walk left behind.
+            systemRenderState.OperatorSampleOffset = 0;
+
             foreach (var preEmissionOperator in PreEmissionOperators)
             {
                 if (preEmissionOperator.GetOperatorRunStrength(systemRenderState) <= 0f)
@@ -604,6 +608,7 @@ namespace ValveResourceFormat.Renderer.Particles
                 }
 
                 preEmissionOperator.Operate(ref systemRenderState, frameTime);
+                systemRenderState.OperatorSampleOffset += ParticleSystemRenderState.OperatorSampleStride;
             }
 
             foreach (var emitter in Emitters)
@@ -618,6 +623,8 @@ namespace ValveResourceFormat.Renderer.Particles
                 emitter.Emit(frameTime, systemRenderState, strength);
             }
 
+            systemRenderState.OperatorSampleOffset = 0;
+
             foreach (var particleOperator in Operators)
             {
                 var strength = particleOperator.GetOperatorRunStrength(systemRenderState);
@@ -628,6 +635,7 @@ namespace ValveResourceFormat.Renderer.Particles
                 }
 
                 particleOperator.Operate(particleCollection, frameTime, systemRenderState, strength);
+                systemRenderState.OperatorSampleOffset += ParticleSystemRenderState.OperatorSampleStride;
             }
 
             RunConstraints(frameTime);

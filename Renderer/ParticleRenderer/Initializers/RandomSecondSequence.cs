@@ -1,34 +1,28 @@
 namespace ValveResourceFormat.Renderer.Particles.Initializers
 {
     /// <summary>
-    /// Initializes the particle second animation sequence to a value between a min and max sequence index; random when shuffle is enabled, otherwise cycling sequentially through the range.
+    /// Initializes the particle second animation sequence to a random value between a min and max
+    /// sequence index, inclusive. One draw per particle whether or not the range is degenerate.
     /// </summary>
     /// <seealso href="https://s2v.app/SchemaExplorer/cs2/particles/C_INIT_RandomSecondSequence">C_INIT_RandomSecondSequence</seealso>
     class RandomSecondSequence : ParticleFunctionInitializer
     {
         private readonly int sequenceMin;
         private readonly int sequenceMax;
-        private readonly bool shuffle;
-
-        private int counter;
 
         public RandomSecondSequence(ParticleDefinitionParser parse) : base(parse)
         {
             sequenceMin = parse.Int32("m_nSequenceMin", sequenceMin);
             sequenceMax = parse.Int32("m_nSequenceMax", sequenceMax);
-            shuffle = parse.Boolean("m_bShuffle", shuffle);
         }
 
         public override Particle Initialize(ref Particle particle, ParticleCollection particles, ParticleSystemRenderState particleSystemState)
         {
-            if (shuffle)
-            {
-                particle.Sequence2 = Random.Shared.Next(sequenceMin, sequenceMax + 1);
-            }
-            else
-            {
-                particle.Sequence2 = sequenceMin + (sequenceMax > sequenceMin ? (counter++ % (sequenceMax - sequenceMin + 1)) : 0);
-            }
+            var sample = particleSystemState.NextRandom();
+
+            particle.Sequence2 = sequenceMax > sequenceMin
+                ? Math.Min(sequenceMin + (int)(sample * (sequenceMax - sequenceMin + 1)), sequenceMax)
+                : sequenceMin;
 
             return particle;
         }

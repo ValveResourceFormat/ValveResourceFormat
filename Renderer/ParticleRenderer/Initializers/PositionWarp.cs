@@ -22,7 +22,7 @@ namespace ValveResourceFormat.Renderer.Particles.Initializers
         {
             var min = warpMin.NextVector(ref particle, particleSystemState);
             var max = warpMax.NextVector(ref particle, particleSystemState);
-            var warp = ParticleCollection.RandomBetweenPerComponent(particle.ParticleID, min, max);
+            var warp = particleSystemState.NextRandomBetweenPerComponent(min, max);
 
             var origin = particleSystemState.GetControlPoint(controlPointNumber).Position;
             particle.Position = origin + ((particle.Position - origin) * warp);

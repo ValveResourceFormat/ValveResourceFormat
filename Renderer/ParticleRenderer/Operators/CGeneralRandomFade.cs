@@ -23,11 +23,12 @@ namespace ValveResourceFormat.Renderer.Particles.Operators
 
         /// <summary>
         /// The fade duration for this particle, in normalized lifetime or seconds depending on
-        /// <see cref="proportional"/>.
+        /// <see cref="proportional"/>. The duration is fixed by the particle, so it is the same on
+        /// every frame.
         /// </summary>
-        protected float GetFadeTime(ref Particle particle)
+        protected float GetFadeTime(ref Particle particle, ParticleSystemRenderState particleSystemState)
             => fadeTimeMin == fadeTimeMax
                 ? fadeTimeMin
-                : ParticleCollection.RandomWithExponentBetween(particle.ParticleID, randomExponent, fadeTimeMin, fadeTimeMax);
+                : float.Lerp(fadeTimeMin, fadeTimeMax, MathF.Pow(particleSystemState.RandomForParticle(particle.ParticleID), randomExponent));
     }
 }

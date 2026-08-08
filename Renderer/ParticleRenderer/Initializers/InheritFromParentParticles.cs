@@ -50,8 +50,12 @@ namespace ValveResourceFormat.Renderer.Particles.Initializers
             int index;
             if (randomDistribution)
             {
-                var seed = randomSeed != 0 ? randomSeed + randomCounter++ : particle.ParticleID;
-                index = Math.Clamp((int)(count * ParticleCollection.RandomBetween(seed, 0f, 1f)), 0, count - 1);
+                // A non-zero authored seed drives a counter private to this initializer, leaving the
+                // system's shared draw sequence untouched
+                var fraction = randomSeed != 0
+                    ? ParticleCollection.RandomSingle(particleSystemState.RandomSeed + randomSeed + randomCounter++)
+                    : particleSystemState.NextRandom();
+                index = Math.Clamp((int)(count * fraction), 0, count - 1);
                 runningIndex = index;
             }
             else if (runningIndex > count - 1)

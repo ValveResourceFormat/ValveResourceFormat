@@ -32,10 +32,7 @@ namespace ValveResourceFormat.Renderer.Particles.Initializers
                     list[i] = sequenceMin + i;
                 }
 
-                if (shuffle)
-                {
-                    Shuffle();
-                }
+                current = list.Length;
             }
         }
 
@@ -47,7 +44,7 @@ namespace ValveResourceFormat.Renderer.Particles.Initializers
                 {
                     if (shuffle)
                     {
-                        Shuffle();
+                        Shuffle(particleSystemState);
                     }
 
                     current = 0;
@@ -58,17 +55,21 @@ namespace ValveResourceFormat.Renderer.Particles.Initializers
             }
             else
             {
-                particle.Sequence = sequenceMax > sequenceMin ? Random.Shared.Next(sequenceMin, sequenceMax + 1) : sequenceMin;
+                var sample = particleSystemState.NextRandom();
+
+                particle.Sequence = sequenceMax > sequenceMin
+                    ? Math.Min(sequenceMin + (int)(sample * (sequenceMax - sequenceMin + 1)), sequenceMax)
+                    : sequenceMin;
             }
 
             return particle;
         }
 
-        private void Shuffle()
+        private void Shuffle(ParticleSystemRenderState particleSystemState)
         {
             for (var i = list.Length - 1; i > 0; i--)
             {
-                var j = Random.Shared.Next(0, i + 1);
+                var j = Math.Min((int)(particleSystemState.NextRandom() * (i + 1)), i);
                 (list[i], list[j]) = (list[j], list[i]);
             }
         }
