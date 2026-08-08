@@ -33,6 +33,11 @@ namespace ValveResourceFormat.Renderer.Particles
         public float PreviousFrameTime { get; internal set; }
 
         /// <summary>
+        /// Duration of the step being simulated right now; 0 until the first step begins.
+        /// </summary>
+        public float CurrentFrameTime { get; internal set; }
+
+        /// <summary>
         /// Initializes a new <see cref="ParticleCollection"/> with the given constant particle template and capacity.
         /// </summary>
         public ParticleCollection(Particle constants, int maxParticles)
