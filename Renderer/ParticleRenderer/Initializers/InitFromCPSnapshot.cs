@@ -1,5 +1,5 @@
 using System.Collections;
-using ValveResourceFormat.Blocks;
+using ValveResourceFormat.Renderer.Particles.Utils;
 
 namespace ValveResourceFormat.Renderer.Particles.Initializers
 {
@@ -11,7 +11,7 @@ namespace ValveResourceFormat.Renderer.Particles.Initializers
     /// <seealso href="https://s2v.app/SchemaExplorer/cs2/particles/C_INIT_InitFromCPSnapshot">C_INIT_InitFromCPSnapshot</seealso>
     class InitFromCPSnapshot : ParticleFunctionInitializer
     {
-        private readonly int ControlPointNumber;
+        private readonly SnapshotBinding snapshotBinding;
         private readonly ParticleField AttributeToRead;
         private readonly ParticleField AttributeToWrite;
         private readonly int LocalSpaceCP;
@@ -26,15 +26,12 @@ namespace ValveResourceFormat.Renderer.Particles.Initializers
         private readonly INumberProvider StartIndex = new LiteralNumberProvider(-1);
         private readonly INumberProvider Increment = new LiteralNumberProvider(1);
 
-        // Cached snapshot lookup
-        private ParticleSnapshot? cachedSnapshot;
         private bool snapshotResolved;
-        private string? readAttributeName;
         private IEnumerable? readAttributeData;
 
         public InitFromCPSnapshot(ParticleDefinitionParser parse) : base(parse)
         {
-            ControlPointNumber = parse.Int32("m_nControlPointNumber", 0);
+            snapshotBinding = new SnapshotBinding(parse, "m_nControlPointNumber", 0);
             AttributeToWrite = parse.ParticleField("m_nAttributeToWrite", ParticleField.Position);
             AttributeToRead = parse.ParticleField("m_nAttributeToRead", AttributeToWrite);
             LocalSpaceCP = parse.Int32("m_nLocalSpaceCP", 0);
@@ -50,15 +47,16 @@ namespace ValveResourceFormat.Renderer.Particles.Initializers
         {
             if (!snapshotResolved)
             {
-                ResolveSnapshot(particleSystemState);
+                snapshotResolved = true;
+                readAttributeData = snapshotBinding.ResolveAttribute(particleSystemState, AttributeToRead);
             }
 
-            if (cachedSnapshot == null || readAttributeData == null)
+            if (readAttributeData == null)
             {
                 return particle;
             }
 
-            var numParticles = (int)cachedSnapshot.NumParticles;
+            var numParticles = snapshotBinding.Count(particleSystemState);
 
             if (numParticles == 0)
             {
@@ -74,33 +72,6 @@ namespace ValveResourceFormat.Renderer.Particles.Initializers
             Utils.CPSnapshotSampler.WriteAttribute(ref particle, AttributeToWrite, readAttributeData, idx, LocalSpaceCP, true, atSpawn: true, 0f, particleSystemState, LocalSpaceAngles);
 
             return particle;
-        }
-
-        private void ResolveSnapshot(ParticleSystemRenderState particleSystemState)
-        {
-            snapshotResolved = true;
-            cachedSnapshot = particleSystemState.GetControlPointSnapshot(ControlPointNumber);
-
-            if (cachedSnapshot == null)
-            {
-                return;
-            }
-
-            readAttributeName = ParticleSnapshot.GetSnapshotAttributeName(AttributeToRead);
-
-            if (readAttributeName == null)
-            {
-                return;
-            }
-
-            foreach (var ((name, _), data) in cachedSnapshot.AttributeData)
-            {
-                if (name == readAttributeName)
-                {
-                    readAttributeData = data;
-                    return;
-                }
-            }
         }
     }
 }
