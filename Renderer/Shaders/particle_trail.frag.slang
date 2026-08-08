@@ -15,7 +15,13 @@ uniform int uBlendMode = 0; // PARTICLE_OUTPUT_BLEND_MODE_ALPHA
 
 uniform sampler2D uTexture;
 
+// m_bBlendFramesSeq0. Gated on a uniform rather than on vFrameBlend so that the second fetch sits in
+// draw-uniform control flow.
+uniform bool uBlendFrames = true;
+
 in vec2 vTexCoordOut;
+in vec2 vTexCoordNextFrameOut;
+in float vFrameBlend;
 in vec4 vColor;
 in vec3 vFragPosition;
 
@@ -25,6 +31,11 @@ out vec4 fragColor;
 
 void main(void) {
     vec4 color = texture(uTexture, vTexCoordOut);
+
+    if (uBlendFrames)
+    {
+        color = mix(color, texture(uTexture, vTexCoordNextFrameOut), vFrameBlend);
+    }
 
     vec3 finalColor = vColor.rgb * color.rgb;
     float blendingFactor = uOverbrightFactor * GetLuma(finalColor.rgb);

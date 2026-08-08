@@ -117,6 +117,16 @@ namespace ValveResourceFormat.Renderer.Particles
         /// <summary>Gets or sets the index of the particle's parent particle in a parent system.</summary>
         public int ParentParticleIndex { get; set; } = -1;
 
+        /// <summary>
+        /// Gets or sets the <see cref="ParticleID"/> of the parent particle this particle was created
+        /// from, or -1 when it has no parent. Unlike <see cref="ParentParticleIndex"/> this survives the
+        /// parent collection compacting around dead particles.
+        /// </summary>
+        public int ParentParticleId { get; set; } = -1;
+
+        /// <summary>Gets or sets the identifier of the rope segment this particle belongs to.</summary>
+        public int RopeSegmentId { get; set; } = 0;
+
         /// <summary>Gets or sets the alpha window threshold scratch value.</summary>
         public float AlphaWindowThreshold { get; set; } = 0f;
         /// <summary>Gets or sets the first general-purpose scratch float.</summary>

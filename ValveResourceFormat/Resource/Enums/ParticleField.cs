@@ -87,5 +87,21 @@ namespace ValveResourceFormat
         ShaderExtraData1,
         /// <summary>Shader-specific extra data field 2.</summary>
         ShaderExtraData2,
+        /// <summary>Minimum corner of the particle's local bounding box.</summary>
+        BoxMins,
+        /// <summary>Maximum corner of the particle's local bounding box.</summary>
+        BoxMaxs,
+        /// <summary>Orientation of the particle's local bounding box.</summary>
+        BoxAngles,
+        /// <summary>Flags describing how the particle's local bounding box is used.</summary>
+        BoxFlags,
+        /// <summary>Bit field of the user events currently raised on this particle.</summary>
+        UserEventStates,
+        /// <summary>Identifier of the parent particle this particle was created from.</summary>
+        ParentParticleId,
+        /// <summary>Identifier of the rope segment this particle belongs to.</summary>
+        RopeSegmentId,
+        /// <summary>Per-segment payload carried alongside <see cref="RopeSegmentId"/>.</summary>
+        RopeSegmentData,
     }
 }

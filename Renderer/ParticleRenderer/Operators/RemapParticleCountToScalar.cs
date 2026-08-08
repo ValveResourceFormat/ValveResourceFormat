@@ -1,8 +1,8 @@
 namespace ValveResourceFormat.Renderer.Particles.Operators
 {
     /// <summary>
-    /// Remaps the particle's index within a configurable input range to a scalar output range
-    /// and writes the result to a particle attribute.
+    /// Remaps each particle's slot in the collection, within a configurable input range, to a scalar
+    /// output range and writes the result to a particle attribute.
     /// </summary>
     /// <seealso href="https://s2v.app/SchemaExplorer/cs2/particles/C_OP_RemapParticleCountToScalar">C_OP_RemapParticleCountToScalar</seealso>
     class OpRemapParticleCountToScalar : ParticleFunctionOperator
@@ -27,34 +27,33 @@ namespace ValveResourceFormat.Renderer.Particles.Operators
             setMethod = parse.Enum<ParticleSetMethod>("m_nSetMethod", setMethod);
         }
 
-        // is this particle id or total particle count?
+        /// <summary>
+        /// All four bounds are collection scoped, so they are evaluated once for the whole call rather
+        /// than per particle. The input bounds address particle slots, so they truncate to whole slots
+        /// and the range they select is exclusive on the high side.
+        /// </summary>
         public override void Operate(ParticleCollection particles, float frameTime, ParticleSystemRenderState particleSystemState, float strength)
         {
+            var inputMin = (int)this.inputMin.NextNumber(particleSystemState);
+            var inputMax = (int)this.inputMax.NextNumber(particleSystemState);
+            var outputMin = this.outputMin.NextNumber(particleSystemState);
+            var outputMax = this.outputMax.NextNumber(particleSystemState);
+
+            if (OutputField is ParticleField.Alpha or ParticleField.AlphaAlternate)
+            {
+                outputMin = Math.Clamp(outputMin, 0f, 1f);
+                outputMax = Math.Clamp(outputMax, 0f, 1f);
+            }
+
             foreach (ref var particle in particles.Current)
             {
-                var inputMin = this.inputMin.NextNumber(ref particle, particleSystemState);
-                var inputMax = this.inputMax.NextNumber(ref particle, particleSystemState);
-
-                if (activeRange && (particle.CreationIndex < inputMin || particle.CreationIndex > inputMax))
+                if (activeRange && (particle.Index < inputMin || particle.Index >= inputMax))
                 {
                     continue;
                 }
 
                 // A degenerate input range is a threshold, inclusive on the high side
-                var remappedDistance = inputMin == inputMax
-                    ? (particle.CreationIndex >= inputMax ? 1f : 0f)
-                    : MathUtils.Saturate(MathUtils.Remap(particle.CreationIndex, inputMin, inputMax));
-
-                var outputMin = this.outputMin.NextNumber(ref particle, particleSystemState);
-                var outputMax = this.outputMax.NextNumber(ref particle, particleSystemState);
-
-                if (OutputField is ParticleField.Alpha or ParticleField.AlphaAlternate)
-                {
-                    outputMin = Math.Clamp(outputMin, 0f, 1f);
-                    outputMax = Math.Clamp(outputMax, 0f, 1f);
-                }
-
-                var finalValue = float.Lerp(outputMin, outputMax, remappedDistance);
+                var finalValue = MathUtils.RemapValClamped(particle.Index, inputMin, inputMax, outputMin, outputMax);
 
                 finalValue = particle.ModifyScalarBySetMethod(particles, OutputField, finalValue, setMethod);
 

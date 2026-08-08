@@ -1010,7 +1010,7 @@ namespace ValveResourceFormat.Renderer.Particles
                     continue;
                 }
 
-                var chosen = needed > 0 && Random.Shared.Next(remaining) < needed;
+                var chosen = needed > 0 && systemRenderState.NextRandom() * remaining < needed;
                 child.ChildEnabled = chosen;
 
                 if (chosen)
