@@ -31,6 +31,9 @@ namespace ValveResourceFormat.Renderer.Particles
                 case ParticleField.ScratchVector2:
                 case ParticleField.BoneIndices:
                 case ParticleField.BoneWeights:
+                case ParticleField.BoxMins:
+                case ParticleField.BoxMaxs:
+                case ParticleField.BoxAngles:
                     return "vector";
                 case ParticleField.LifeDuration:
                 case ParticleField.Radius:
@@ -63,6 +66,10 @@ namespace ValveResourceFormat.Renderer.Particles
                 case ParticleField.NoneDisabled:
                 case ParticleField.ShaderExtraData1:
                 case ParticleField.ShaderExtraData2:
+                case ParticleField.BoxFlags:
+                case ParticleField.UserEventStates:
+                case ParticleField.ParentParticleId:
+                case ParticleField.RopeSegmentId:
                     return "float";
                 default:
                     return null;
@@ -91,6 +98,8 @@ namespace ValveResourceFormat.Renderer.Particles
                 ParticleField.SecondSequenceNumber => particle.Sequence2,
                 ParticleField.ManualAnimationFrame => particle.ManualAnimationFrame,
                 ParticleField.ParentParticleIndex => particle.ParentParticleIndex,
+                ParticleField.ParentParticleId => particle.ParentParticleId,
+                ParticleField.RopeSegmentId => particle.RopeSegmentId,
                 ParticleField.ScratchFloat => particle.ScratchFloat0,
                 ParticleField.ScratchFloat1 => particle.ScratchFloat1,
                 ParticleField.ScratchFloat2 => particle.ScratchFloat2,
@@ -144,6 +153,12 @@ namespace ValveResourceFormat.Renderer.Particles
                 case ParticleField.ParentParticleIndex:
                     particle.ParentParticleIndex = (int)value;
                     break;
+                case ParticleField.ParentParticleId:
+                    particle.ParentParticleId = (int)value;
+                    break;
+                case ParticleField.RopeSegmentId:
+                    particle.RopeSegmentId = (int)value;
+                    break;
                 case ParticleField.CreationTime:
                     particle.CreationTime = value;
                     break;
@@ -172,6 +187,8 @@ namespace ValveResourceFormat.Renderer.Particles
                 ParticleField.SecondSequenceNumber => particle.Sequence2,
                 ParticleField.ManualAnimationFrame => particle.ManualAnimationFrame,
                 ParticleField.ParentParticleIndex => particle.ParentParticleIndex,
+                ParticleField.ParentParticleId => particle.ParentParticleId,
+                ParticleField.RopeSegmentId => particle.RopeSegmentId,
                 ParticleField.ParticleId => particle.ParticleID,
                 _ => 0,
             };
@@ -270,7 +287,7 @@ namespace ValveResourceFormat.Renderer.Particles
         // Set methods, shared by a bunch of different operators and initializers.
         // The operator form: the particle has a spawn snapshot, so "initial" and "current" differ.
         public static float ModifyScalarBySetMethod(this ref Particle particle, ParticleCollection particles, ParticleField field, float value, ParticleSetMethod setMethod)
-            => ApplySetMethod(value, particle.GetInitialScalar(particles, field), particle.GetScalar(field), particle.Age, setMethod);
+            => ApplySetMethod(value, particle.GetInitialScalar(particles, field), particle.GetScalar(field), particles.CurrentFrameTime, setMethod);
 
         /// <summary>
         /// The initializer-time form. There is no spawn snapshot yet - the collection's initial array

@@ -17,7 +17,8 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
     internal class RenderTrails : ParticleFunctionRenderer
     {
         private const string ShaderName = "particle_trail";
-        private const int VertexSize = 9;
+        // position 3, colour 4, uv 2, next-frame uv 2, frame blend 1
+        private const int VertexSize = 12;
         private const string DefaultTextureName = "materials/particle/base_trail.vtex";
 
         // The shared quad index buffer covers 65532 indices, six per quad
@@ -35,6 +36,17 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
         private readonly float animationRate = 0.1f;
         private readonly ParticleAnimationType animationType = ParticleAnimationType.ANIMATION_TYPE_FIXED_RATE;
         private readonly bool animateInFps;
+        private readonly bool blendFrames = true;
+
+        // m_bEnableFadingAndClamping gates the size clamp, the distance fade and the view angle fade
+        // together. The bounds below are trail-specific and differ from the sprite renderer's.
+        private readonly bool enableFadingAndClamping;
+        private readonly float minSize;
+        private readonly float maxSize = 2000f;
+        private readonly INumberProvider startFadeSize = new LiteralNumberProvider(1000f);
+        private readonly INumberProvider endFadeSize = new LiteralNumberProvider(2000f);
+        private readonly float startFadeDot = 1f;
+        private readonly float endFadeDot = 2f;
 
         private readonly ParticleBlendMode blendMode = ParticleBlendMode.PARTICLE_OUTPUT_BLEND_MODE_ALPHA;
         private readonly INumberProvider overbrightFactor = new LiteralNumberProvider(1);
@@ -108,6 +120,14 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
             forwardShift = parse.Float("m_flForwardShift", forwardShift);
             animationType = parse.Enum<ParticleAnimationType>("m_nAnimationType", animationType);
             animateInFps = parse.Boolean("m_bAnimateInFPS", animateInFps);
+            blendFrames = parse.Boolean("m_bBlendFramesSeq0", blendFrames);
+            enableFadingAndClamping = parse.Boolean("m_bEnableFadingAndClamping", enableFadingAndClamping);
+            minSize = parse.Float("m_flMinSize", minSize);
+            maxSize = parse.Float("m_flMaxSize", maxSize);
+            startFadeSize = parse.NumberProvider("m_flStartFadeSize", startFadeSize);
+            endFadeSize = parse.NumberProvider("m_flEndFadeSize", endFadeSize);
+            startFadeDot = parse.Float("m_flStartFadeDot", startFadeDot);
+            endFadeDot = parse.Float("m_flEndFadeDot", endFadeDot);
             prevPositionSource = parse.ParticleField("m_nPrevPntSource", prevPositionSource);
             headRadiusTaper = parse.NumberProvider("m_flRadiusHeadTaper", headRadiusTaper);
             tailRadiusTaper = parse.NumberProvider("m_flRadiusTaper", tailRadiusTaper);
@@ -143,21 +163,27 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
             GL.VertexArrayVertexBuffer(vao, 0, buffer, 0, stride);
             GL.VertexArrayElementBuffer(vao, RendererContext.MeshBufferCache.QuadIndices.GLHandle);
 
-            var positionAttributeLocation = GL.GetAttribLocation(shader.Program, "aVertexPosition");
-            var colorAttributeLocation = GL.GetAttribLocation(shader.Program, "aVertexColor");
-            var uvAttributeLocation = GL.GetAttribLocation(shader.Program, "aTexCoords");
+            // A driver is free to drop an attribute whose only use sits behind a uniform branch, in which
+            // case GetAttribLocation reports -1 and binding it would raise a GL error.
+            void SetupAttribute(string name, int components, int offsetInFloats)
+            {
+                var location = GL.GetAttribLocation(shader.Program, name);
 
-            GL.EnableVertexArrayAttrib(vao, positionAttributeLocation);
-            GL.EnableVertexArrayAttrib(vao, colorAttributeLocation);
-            GL.EnableVertexArrayAttrib(vao, uvAttributeLocation);
+                if (location < 0)
+                {
+                    return;
+                }
 
-            GL.VertexArrayAttribFormat(vao, positionAttributeLocation, 3, VertexAttribType.Float, false, 0);
-            GL.VertexArrayAttribFormat(vao, colorAttributeLocation, 4, VertexAttribType.Float, false, sizeof(float) * 3);
-            GL.VertexArrayAttribFormat(vao, uvAttributeLocation, 2, VertexAttribType.Float, false, sizeof(float) * 7);
+                GL.EnableVertexArrayAttrib(vao, location);
+                GL.VertexArrayAttribFormat(vao, location, components, VertexAttribType.Float, false, sizeof(float) * offsetInFloats);
+                GL.VertexArrayAttribBinding(vao, location, 0);
+            }
 
-            GL.VertexArrayAttribBinding(vao, positionAttributeLocation, 0);
-            GL.VertexArrayAttribBinding(vao, colorAttributeLocation, 0);
-            GL.VertexArrayAttribBinding(vao, uvAttributeLocation, 0);
+            SetupAttribute("aVertexPosition", 3, 0);
+            SetupAttribute("aVertexColor", 4, 3);
+            SetupAttribute("aTexCoords", 2, 7);
+            SetupAttribute("aTexCoordsNextFrame", 2, 9);
+            SetupAttribute("aFrameBlend", 1, 11);
 
             return (vao, buffer);
         }
@@ -177,6 +203,17 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
             var oneOverDt = ignoreDeltaTime || !usesVerletDelta || particleBag.CurrentFrameTime == 0f
                 ? 1f
                 : 1f / particleBag.CurrentFrameTime;
+
+            // Both fade bounds are a radius per unit of camera distance, as the two size bounds are.
+            var startFadeSlope = startFadeSize.NextNumber(systemRenderState);
+            var endFadeSlope = endFadeSize.NextNumber(systemRenderState);
+
+            // Only the normal-aligned modes fade by view angle, over a range a dot magnitude can enter.
+            var viewAngleFadeActive = enableFadingAndClamping
+                && startFadeDot < 1f
+                && endFadeDot > startFadeDot
+                && orientationType is ParticleOrientation.PARTICLE_ORIENTATION_ALIGN_TO_PARTICLE_NORMAL
+                    or ParticleOrientation.PARTICLE_ORIENTATION_SCREENALIGN_TO_PARTICLE_NORMAL;
 
             var rawVertices = ArrayPool<float>.Shared.Rent(particleBag.Count * VertexSize * 4);
             var quadCount = 0;
@@ -207,8 +244,45 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
                     // The engine clamps the full extent of the trail
                     length = Math.Clamp(length, minLength, maxLength);
 
+                    var particleRadius = particle.Radius;
+
+                    // Scales rgb and alpha alike, as the view angle fade below touches alpha only
+                    var colorFade = 1f;
+                    var alphaFade = 1f;
+
+                    if (enableFadingAndClamping)
+                    {
+                        var cameraDistance = Vector3.Distance(camera.Location, particle.Position);
+                        var fadeStart = startFadeSlope * cameraDistance;
+                        var fadeEnd = endFadeSlope * cameraDistance;
+
+                        // The fade reads the raw radius, independently of the size clamp below
+                        if (particleRadius > fadeStart)
+                        {
+                            if (particleRadius >= fadeEnd)
+                            {
+                                continue;
+                            }
+
+                            colorFade = 1f - ((particleRadius - fadeStart) / (fadeEnd - fadeStart));
+                        }
+
+                        particleRadius = MathF.Min(MathF.Max(particleRadius, minSize * cameraDistance), maxSize * cameraDistance);
+
+                        if (viewAngleFadeActive)
+                        {
+                            var toCamera = camera.Location - particle.Position;
+
+                            if (toCamera.LengthSquared() > 1e-12f)
+                            {
+                                var facing = MathF.Abs(Vector3.Dot(Vector3.Normalize(particle.Normal), Vector3.Normalize(toCamera)));
+                                alphaFade = 1f - MathUtils.Smoothstep(startFadeDot, endFadeDot, facing);
+                            }
+                        }
+                    }
+
                     // A short trail is narrowed so it cannot render wider than it is long
-                    var radius = MathF.Min(particle.Radius, constrainRadiusToLengthRatio * length);
+                    var radius = MathF.Min(particleRadius, constrainRadiusToLengthRatio * length);
 
                     Vector3 center;
                     Vector3 widthAxis;
@@ -239,8 +313,8 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
                         center = position;
                         widthAxis = Vector3.UnitX;
                         lengthAxis = Vector3.UnitY;
-                        halfWidth = particle.Radius;
-                        halfLength = particle.Radius;
+                        halfWidth = particleRadius;
+                        halfLength = particleRadius;
                     }
 
                     var headHalfWidth = halfWidth * headRadiusTaper.NextNumber(ref particle, systemRenderState);
@@ -248,29 +322,37 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
 
                     var uvOffset = Vector2.Zero;
                     var uvScale = new Vector2(finalTextureScaleU, finalTextureScaleV);
+                    var uvNextOffset = uvOffset;
+                    var uvNextScale = uvScale;
+                    var frameBlend = 0f;
 
                     var spriteSheetData = texture.SpriteSheetData;
                     if (spriteSheetData != null && spriteSheetData.Sequences.Length > 0 && spriteSheetData.Sequences[0].Frames.Length > 0)
                     {
                         var sequence = spriteSheetData.Sequences[particle.Sequence % spriteSheetData.Sequences.Length];
-                        var (frame, _, _) = GetSheetFrame(ref particle, sequence, animationRate, animationType, animateInFps);
+                        var (frame, nextFrame, blend) = GetSheetFrame(ref particle, sequence, animationRate, animationType, animateInFps);
+                        frameBlend = blend;
 
                         // TODO: Support more than one image per frame?
                         var currentImage = sequence.Frames[frame].Images[0];
+                        var nextImage = sequence.Frames[nextFrame].Images[0];
 
                         uvOffset = currentImage.UncroppedMin;
                         uvScale *= currentImage.UncroppedMax - currentImage.UncroppedMin;
+                        uvNextOffset = nextImage.UncroppedMin;
+                        uvNextScale *= nextImage.UncroppedMax - nextImage.UncroppedMin;
                     }
 
                     // Corners in index buffer winding order, with the local quad's [-1, 1] axes mapping to [0, 1] uvs
                     var quadStart = quadCount * VertexSize * 4;
-                    var alpha = particle.Alpha * particle.AlphaAlternate;
+                    var alpha = particle.Alpha * particle.AlphaAlternate * colorFade * alphaFade;
+                    var tint = particle.Color * colorFade;
 
                     var head = Vector4.Clamp(
-                        new Vector4(particle.Color * headColor, alpha * headAlphaScale.NextNumber(ref particle, systemRenderState)),
+                        new Vector4(tint * headColor, alpha * headAlphaScale.NextNumber(ref particle, systemRenderState)),
                         Vector4.Zero, Vector4.One);
                     var tail = Vector4.Clamp(
-                        new Vector4(particle.Color * tailColor, alpha * tailAlphaScale.NextNumber(ref particle, systemRenderState)),
+                        new Vector4(tint * tailColor, alpha * tailAlphaScale.NextNumber(ref particle, systemRenderState)),
                         Vector4.Zero, Vector4.One);
 
                     for (var j = 0; j < 4; ++j)
@@ -281,7 +363,9 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
                             + (widthAxis * (corner.X * (isHead ? headHalfWidth : tailHalfWidth)))
                             + (lengthAxis * (corner.Y * halfLength));
                         var color = isHead ? head : tail;
-                        var uv = uvOffset + ((corner * 0.5f) + new Vector2(0.5f)) * uvScale;
+                        var cornerUv = (corner * 0.5f) + new Vector2(0.5f);
+                        var uv = uvOffset + (cornerUv * uvScale);
+                        var uvNext = uvNextOffset + (cornerUv * uvNextScale);
 
                         var vertexStart = quadStart + (VertexSize * j);
                         rawVertices[vertexStart + 0] = worldPosition.X;
@@ -293,6 +377,9 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
                         rawVertices[vertexStart + 6] = color.W;
                         rawVertices[vertexStart + 7] = uv.X;
                         rawVertices[vertexStart + 8] = uv.Y;
+                        rawVertices[vertexStart + 9] = uvNext.X;
+                        rawVertices[vertexStart + 10] = uvNext.Y;
+                        rawVertices[vertexStart + 11] = frameBlend;
                     }
 
                     quadCount++;
@@ -357,6 +444,8 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
 
             // TODO: This formula is a guess but still seems too bright compared to valve particles
             shader.SetUniform1("uOverbrightFactor", (float)overbrightFactor.NextNumber(systemRenderState));
+
+            shader.SetUniform1("uBlendFrames", blendFrames);
 
             // Set every draw: the program is shared with every other trail renderer, whatever their mode.
             shader.SetUniform1("uBlendMode", (int)blendMode);
