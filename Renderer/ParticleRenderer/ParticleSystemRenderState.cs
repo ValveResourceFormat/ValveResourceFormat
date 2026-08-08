@@ -54,7 +54,17 @@ namespace ValveResourceFormat.Renderer.Particles
         /// displaced by, giving each system instance its own sequence. Child systems hold their own value
         /// rather than reading the root's.
         /// </summary>
-        public int RandomSeed { get; } = Random.Shared.Next() & 0xFFF;
+        public int RandomSeed { get; private set; } = Random.Shared.Next() & 0xFFF;
+
+        /// <summary>
+        /// Gives the system a fresh random identity, as a newly created one would have. The engine has
+        /// no equivalent: a restart there keeps the seed, and only a new collection draws another.
+        /// </summary>
+        public void ReseedRandom()
+        {
+            RandomSeed = Random.Shared.Next() & 0xFFF;
+            randomQueryCount = 0;
+        }
 
         /// <summary>
         /// Counts every draw this system has taken from the shared random table. It runs free for the

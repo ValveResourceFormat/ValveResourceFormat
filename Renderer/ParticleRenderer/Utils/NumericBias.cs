@@ -29,7 +29,7 @@ namespace ValveResourceFormat.Renderer.Particles.Utils
         /// Applies one of the <see cref="ParticleFloatBiasType"/> curves to a 0-1 value for a
         /// <c>m_flBiasParameter</c>, which is authored in the -1 to 1 range and is the identity at 0.
         /// This is a different parameterization to <see cref="Standard(float, float)"/> and the two
-        /// take different numbers for the same curve.
+        /// take different numbers for the same curve. Any type outside the three curves returns 0.
         /// </summary>
         /// <param name="x">Value in the 0-1 range.</param>
         /// <param name="biasParameter">Bias parameter in the -1 to 1 range.</param>
@@ -58,6 +58,12 @@ namespace ValveResourceFormat.Renderer.Particles.Utils
                 }
 
                 return MathF.Pow(x, Math.Min(exponent, 20f));
+            }
+
+            if (biasType is not ParticleFloatBiasType.PF_BIAS_TYPE_STANDARD
+                and not ParticleFloatBiasType.PF_BIAS_TYPE_GAIN)
+            {
+                return 0f;
             }
 
             var bias = Math.Clamp((biasParameter + 1f) * 0.5f, 0f, 1f);
