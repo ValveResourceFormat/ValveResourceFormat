@@ -49,6 +49,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
         private readonly float lengthScale = 1f;
         private readonly float lengthFadeInTime;
         private readonly bool ignoreDeltaTime;
+        private readonly float constrainRadiusToLengthRatio = 1f;
         private readonly float forwardShift;
 
         public RenderTrails(ParticleDefinitionParser parse, RendererContext rendererContext) : base(parse)
@@ -96,6 +97,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
             lengthScale = parse.Float("m_flLengthScale", lengthScale);
             lengthFadeInTime = parse.Float("m_flLengthFadeInTime", lengthFadeInTime);
             ignoreDeltaTime = parse.Boolean("m_bIgnoreDT", ignoreDeltaTime);
+            constrainRadiusToLengthRatio = parse.Float("m_flConstrainRadiusToLengthRatio", constrainRadiusToLengthRatio);
             forwardShift = parse.Float("m_flForwardShift", forwardShift);
             animationType = parse.Enum<ParticleAnimationType>("m_nAnimationType", animationType);
             animateInFps = parse.Boolean("m_bAnimateInFPS", animateInFps);
@@ -153,10 +155,12 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
         private int UpdateVertices(ParticleCollection particleBag, Camera camera)
         {
             // The moved distance is converted back to a velocity (distance / dt) before scaling by
-            // the trail-length attribute, unless the operator opts out of the delta-time division.
-            var oneOverDt = ignoreDeltaTime || particleBag.PreviousFrameTime == 0f
+            // the trail-length attribute. The division only applies when the previous point comes
+            // from the Verlet pair, and the operator can opt out of it entirely.
+            var usesVerletDelta = prevPositionSource == ParticleField.PositionPrevious;
+            var oneOverDt = ignoreDeltaTime || !usesVerletDelta || particleBag.CurrentFrameTime == 0f
                 ? 1f
-                : 1f / particleBag.PreviousFrameTime;
+                : 1f / particleBag.CurrentFrameTime;
 
             var rawVertices = ArrayPool<float>.Shared.Rent(particleBag.Count * VertexSize * 4);
             var quadCount = 0;
@@ -187,6 +191,9 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
                     // The engine clamps the full extent of the trail
                     length = Math.Clamp(length, minLength, maxLength);
 
+                    // A short trail is narrowed so it cannot render wider than it is long
+                    var radius = MathF.Min(particle.Radius, constrainRadiusToLengthRatio * length);
+
                     Matrix4x4 modelMatrix;
                     if (orientationType == ParticleOrientation.PARTICLE_ORIENTATION_SCREEN_ALIGNED)
                     {
@@ -197,7 +204,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
                             : Vector3.Normalize(Vector3.Cross(direction, MathF.Abs(direction.Z) < 0.999f ? Vector3.UnitZ : Vector3.UnitX));
                         var normal = Vector3.Cross(widthAxis, direction);
 
-                        var halfWidth = particle.Radius * 0.5f;
+                        var halfWidth = radius * 0.5f;
                         var halfLength = length * 0.5f;
 
                         // The engine slides the trail along the motion axis by m_flForwardShift lengths;

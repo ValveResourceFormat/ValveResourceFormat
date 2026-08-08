@@ -56,11 +56,12 @@ namespace ValveResourceFormat.Renderer.Particles
         public bool DestroyInstantlyOnEnd { get; private set; }
 
         /// <summary>
-        /// Whether reaching <see cref="Duration"/> replays the system rather than ending it.
+        /// Whether reaching <see cref="EndTime"/> replays the system rather than ending it.
         /// </summary>
         public bool RestartOnEnd { get; private set; }
 
-        public float Duration { get; private set; }
+        /// <summary>System age at which the scheduled stop or restart fires.</summary>
+        public float EndTime { get; private set; }
 
         // We don't yet support endcaps (effects that play for when a particle system ends), but if we ever do:
         // This can be set by PlayEndCapWhenFinished and StopAfterDuration
@@ -74,7 +75,7 @@ namespace ValveResourceFormat.Renderer.Particles
         public void SetStopTime(float duration, bool destroyInstantly)
         {
             EndEarly = true;
-            Duration = duration;
+            EndTime = Age + duration;
             DestroyInstantlyOnEnd = destroyInstantly;
             RestartOnEnd = false;
         }
@@ -85,7 +86,7 @@ namespace ValveResourceFormat.Renderer.Particles
         public void SetRestartTime(float duration)
         {
             EndEarly = true;
-            Duration = duration;
+            EndTime = Age + duration;
             DestroyInstantlyOnEnd = false;
             RestartOnEnd = true;
         }

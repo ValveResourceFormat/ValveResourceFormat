@@ -37,9 +37,6 @@ namespace ValveResourceFormat.Renderer.Particles
         // (15s at 0.01 step).
         private const int MaxPreSimulationSteps = 2048;
 
-        // The clamped length of the first simulated step after a restart.
-        private const float RestartFirstStep = 0.0025f;
-
         // Upper bound on constraint work-list rounds per frame (m_nMaxConstraintPasses, default 3).
         // A lone constraint settles in one round; the bound only matters when multiple constraints
         // invalidate each other. ReadConstraintPasses returns 1 for systems with no constraints.
@@ -121,9 +118,18 @@ namespace ValveResourceFormat.Renderer.Particles
         private readonly List<ParticleRenderer> childParticleRenderers;
         private readonly RendererContext RendererContext;
         private bool hasStarted;
-        private bool restartFirstStepPending;
         private bool preSimulating;
         private int simulatedFrames;
+
+        /// <summary>
+        /// Real time the system has been asked to draw, accumulated across frames. A minimum time step
+        /// over-simulates whenever the frame is shorter than it, and the debt is repaid by skipping
+        /// later frames until the draw time catches up with the simulated age.
+        /// </summary>
+        private float targetDrawTime;
+
+        /// <summary>Age at the start of the last simulated step.</summary>
+        private float previousSimTime = 1e23f;
 
         private readonly ParticleCollection particleCollection;
         private readonly Dictionary<int, ParticleSnapshot> controlPointSnapshots = [];
@@ -275,6 +281,20 @@ namespace ValveResourceFormat.Renderer.Particles
 
         private void StartSelf()
         {
+            for (var i = 0; i < InitialParticles; ++i)
+            {
+                EmitParticle(0f);
+            }
+
+            RearmSelf();
+        }
+
+        /// <summary>
+        /// Resets per-instance function state and re-arms the emitters, without seeding the initial
+        /// particle burst. This is what a restart does; only the first start seeds the burst.
+        /// </summary>
+        private void RearmSelf()
+        {
             hasStarted = true;
 
             foreach (var preEmissionOperator in PreEmissionOperators)
@@ -291,11 +311,6 @@ namespace ValveResourceFormat.Renderer.Particles
             foreach (var particleOperator in Operators)
             {
                 particleOperator.Reset();
-            }
-
-            for (var i = 0; i < InitialParticles; ++i)
-            {
-                EmitParticle(0f);
             }
 
             foreach (var emitter in Emitters)
@@ -402,13 +417,6 @@ namespace ValveResourceFormat.Renderer.Particles
         }
 
         /// <summary>
-        /// Restarts the system from age zero, re-arming emission without destroying the particles
-        /// already alive: they keep occupying pool slots, so the next burst is limited to whatever
-        /// <c>m_nMaxParticles</c> leaves free. The first simulated step after a restart is clamped to a
-        /// sliver so burst particles render their first frame at age ~0 instead of pre-aged by however
-        /// much time passed since the triggering event.
-        /// </summary>
-        /// <summary>
         /// Replays the system from scratch, discarding the particles still alive first. This is the
         /// viewer's restart affordance rather than engine behaviour: an effect whose pool is already
         /// saturated would otherwise have no free slots to emit into and appear to do nothing.
@@ -425,20 +433,29 @@ namespace ValveResourceFormat.Renderer.Particles
             systemRenderState.ParticleCount = 0;
             particlesEmitted = 0;
 
+            // A replay is the one path that rewinds the clock, since no particle survives it
+            systemRenderState.Age = 0f;
+            targetDrawTime = 0f;
+            previousSimTime = 1e23f;
+
             foreach (var childParticleRenderer in childParticleRenderers)
             {
                 childParticleRenderer.ClearParticles();
             }
         }
 
+        /// <summary>
+        /// Re-arms emission without destroying the particles already alive and without rewinding the
+        /// system clock: survivors keep occupying pool slots and keep their real ages, so the next
+        /// burst is limited to whatever <c>m_nMaxParticles</c> leaves free.
+        /// </summary>
         public void Restart()
         {
             Stop();
 
-            systemRenderState.Age = 0;
             systemRenderState.EndEarly = false;
             simulatedFrames = 0;
-            StartSelf();
+            RearmSelf();
 
             foreach (var childParticleRenderer in childParticleRenderers)
             {
@@ -446,7 +463,6 @@ namespace ValveResourceFormat.Renderer.Particles
             }
 
             PreSimulate();
-            restartFirstStepPending = true;
         }
 
         public void Update(float frameTime, float worldTime)
@@ -505,6 +521,14 @@ namespace ValveResourceFormat.Renderer.Particles
 
             var remaining = MathF.Min(frameTime, maximumStep * 10f);
 
+            targetDrawTime += remaining;
+
+            // A frame whose draw time already falls inside the last simulated step is skipped
+            if (targetDrawTime >= previousSimTime && systemRenderState.Age > targetDrawTime)
+            {
+                remaining = 0f;
+            }
+
             while (remaining > 0f)
             {
                 var step = remaining > maximumStep
@@ -544,15 +568,13 @@ namespace ValveResourceFormat.Renderer.Particles
                 return;
             }
 
-            if (restartFirstStepPending)
-            {
-                restartFirstStepPending = false;
-                frameTime = MathF.Min(frameTime, RestartFirstStep);
-            }
-
-            frameTime = Math.Clamp(frameTime, MinimumTimeStep, MaximumTimeStep);
+            // The minimum step is imposed by the substep loop, which applies it only to the final
+            // partial step; re-imposing it here would raise every substep
+            frameTime = MathF.Min(frameTime, MaximumTimeStep);
             currentFrameTime = frameTime;
+            particleCollection.CurrentFrameTime = frameTime;
 
+            previousSimTime = systemRenderState.Age;
             systemRenderState.Age += frameTime;
 
             // Age is not stored by the engine, only derived, so recompute it from the creation
@@ -625,7 +647,7 @@ namespace ValveResourceFormat.Renderer.Particles
             }
 
             // TODO: Is this the correct place for this because child particle renderers also check this
-            if (systemRenderState.EndEarly && systemRenderState.Age > systemRenderState.Duration)
+            if (systemRenderState.EndEarly && systemRenderState.Age > systemRenderState.EndTime)
             {
                 if (systemRenderState.RestartOnEnd)
                 {
