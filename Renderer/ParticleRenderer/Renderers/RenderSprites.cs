@@ -22,6 +22,8 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
         // The shader keeps one sampler per layer, so this is a hard ceiling rather than a preference.
         private const int MaxTextureLayers = 5;
 
+        private const string DefaultTextureName = "materials/particle/base_sprite.vtex";
+
         private static readonly INumberProvider OneNumberProvider = new LiteralNumberProvider(1f);
 
         // Interpolated names would allocate on every draw, and this is per-frame renderer code.
@@ -142,11 +144,6 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
                     // A gradient layer synthesizes its ramp from m_Gradient rather than loading a texture.
                     var replaceWithGradient = textureInput.Boolean("m_bReplaceTextureWithGradient", false);
 
-                    if (!replaceWithGradient && !textureInput.Data.ContainsKey("m_hTexture"))
-                    {
-                        continue;
-                    }
-
                     if (parsed.Count == MaxTextureLayers)
                     {
                         break;
@@ -160,7 +157,15 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
                     }
                     else
                     {
-                        var layerTextureName = textureInput.Data.GetStringProperty("m_hTexture");
+                        var layerTextureName = textureInput.Data.ContainsKey("m_hTexture")
+                            ? textureInput.Data.GetStringProperty("m_hTexture")
+                            : null;
+
+                        if (string.IsNullOrEmpty(layerTextureName))
+                        {
+                            layerTextureName = DefaultTextureName;
+                        }
+
                         textureName ??= layerTextureName;
                         layerTexture = rendererContext.MaterialLoader.GetTexture(layerTextureName, srgbRead: true);
                     }
@@ -174,7 +179,9 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
                     });
                 }
 
-                layers = parsed.Count > 0 ? [.. parsed] : [new TextureLayer(rendererContext.MaterialLoader.GetErrorTexture())];
+                layers = parsed.Count > 0
+                    ? [.. parsed]
+                    : [new TextureLayer(rendererContext.MaterialLoader.GetTexture(DefaultTextureName, srgbRead: true))];
             }
 
 #if DEBUG

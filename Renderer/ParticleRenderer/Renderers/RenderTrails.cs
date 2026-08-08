@@ -18,6 +18,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
     {
         private const string ShaderName = "particle_trail";
         private const int VertexSize = 9;
+        private const string DefaultTextureName = "materials/particle/base_trail.vtex";
 
         // The shared quad index buffer covers 65532 indices, six per quad
         private const int MaxQuads = 65532 / 6;
@@ -77,14 +78,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
                 }
             }
 
-            if (textureName == null)
-            {
-                texture = RendererContext.MaterialLoader.GetErrorTexture();
-            }
-            else
-            {
-                texture = RendererContext.MaterialLoader.GetTexture(textureName, srgbRead: true);
-            }
+            texture = RendererContext.MaterialLoader.GetTexture(textureName ?? DefaultTextureName, srgbRead: true);
 
 #if DEBUG
             var vaoLabel = $"{nameof(RenderTrails)}: {System.IO.Path.GetFileName(textureName)}";
