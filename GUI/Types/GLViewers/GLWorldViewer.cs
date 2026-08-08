@@ -229,7 +229,7 @@ namespace GUI.Types.GLViewers
                     ? PlayerMovement.AirAccelerateMovementMaps
                     : PlayerMovement.AirAccelerateCompetitive;
 
-                Input.TriggerVolumes.AddRange(TriggerTeleport.LoadAll(LoadedWorld.Entities, RendererContext.FileLoader));
+                Input.TriggerVolumes.AddRange(TriggerTeleport.LoadAll(LoadedWorld, RendererContext.FileLoader));
             }
 
             if (!cameraSet)

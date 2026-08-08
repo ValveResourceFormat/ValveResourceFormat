@@ -1,5 +1,6 @@
 using ValveResourceFormat.IO;
 using ValveResourceFormat.Renderer.Input;
+using ValveResourceFormat.Renderer.World;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.Serialization.KeyValues;
 using ValveResourceFormat.Utils;
@@ -32,35 +33,20 @@ public sealed class TriggerTeleport
     /// Loads every <c>trigger_teleport</c> in the map. The volume comes from the trigger's own
     /// <c>model</c>, which holds its brush hulls.
     /// </summary>
-    /// <param name="entities">All entities of the loaded map.</param>
+    /// <param name="loadedWorld">The loaded map.</param>
     /// <param name="fileLoader">Loader used to resolve the trigger models.</param>
-    public static List<TriggerTeleport> LoadAll(IReadOnlyList<Entity> entities, IFileLoader fileLoader)
+    public static List<TriggerTeleport> LoadAll(WorldLoader loadedWorld, IFileLoader fileLoader)
     {
         var teleports = new List<TriggerTeleport>();
 
-        // A teleport may target any named entity, not just info_teleport_destination
-        var destinations = new Dictionary<string, (Vector3 Origin, float Yaw)>(StringComparer.OrdinalIgnoreCase);
-
-        foreach (var entity in entities)
-        {
-            var name = entity.GetStringProperty("targetname");
-
-            if (!string.IsNullOrEmpty(name) && !destinations.ContainsKey(name))
-            {
-                destinations[name] = (
-                    entity.GetVector3Property("origin"),
-                    entity.GetVector3Property("angles").Y);
-            }
-        }
-
-        foreach (var entity in entities)
+        foreach (var entity in loadedWorld.Entities)
         {
             if (entity.GetStringProperty("classname") is not "trigger_teleport")
             {
                 continue;
             }
 
-            if (!destinations.TryGetValue(entity.GetStringProperty("target") ?? string.Empty, out var destination))
+            if (loadedWorld.FindEntityByTargetName(entity.GetStringProperty("target")) is not { } destination)
             {
                 continue;
             }
@@ -82,7 +68,7 @@ public sealed class TriggerTeleport
                 Transform = EntityTransformHelper.CalculateTransformationMatrix(entity),
             };
 
-            teleports.Add(new TriggerTeleport(collider, destination.Origin, preserveAngles ? null : destination.Yaw));
+            teleports.Add(new TriggerTeleport(collider, destination.GetVector3Property("origin"), preserveAngles ? null : destination.GetVector3Property("angles").Y));
         }
 
         return teleports;
