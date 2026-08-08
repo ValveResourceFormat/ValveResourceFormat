@@ -105,8 +105,8 @@ public partial class PlayerMovement
     private const float LandMinFallSpeed = 270f;          // CCSPlayer::OnLand - quieter landings are silent (a normal jump lands at ~302)
     private const float FallDamageSpeed = 580f;           // PLAYER_MAX_SAFE_FALL_SPEED
 
-    private float stepSoundTime;
-    private readonly List<Audio.SoundEvent> activeMovementSounds = [];
+    private float StepSoundTime;
+    private readonly List<Audio.SoundEvent> ActiveMovementSounds = [];
 
     /// <summary>
     /// Gets the current jump stamina, from 0 to 1. Landing drains it, it recovers over roughly
@@ -210,9 +210,6 @@ public partial class PlayerMovement
     public PlayerMovement(UserInput input)
     {
         Input = input;
-        Velocity = Vector3.Zero;
-        OnGround = false;
-        Initialize = false;
     }
 
     /// <summary>
@@ -250,7 +247,7 @@ public partial class PlayerMovement
         HasValidPosition = false; // Do not restore positions from before the teleport
         Effects.ClearStepOffset();
 
-        if (angles is { X: var x, Y: var y, Z: var z })
+        if (angles is { X: var x, Y: var y })
         {
             Input.Camera.Pitch = float.DegreesToRadians(x);
             Input.Camera.Yaw = float.DegreesToRadians(y);
@@ -319,7 +316,7 @@ public partial class PlayerMovement
             OnLanded(fallSpeed, wantsToJump, position, playerHull);
         }
 
-        if (wantsToJump && (OnGround || (AutoBunnyHop && justLanded)))
+        if (wantsToJump && OnGround)
         {
             if (!AutoBunnyHop)
             {
@@ -346,7 +343,7 @@ public partial class PlayerMovement
 
         if (OnGround)
         {
-            // Ground friction+acceleration is now integrated per-bump inside GroundMove,
+            // Ground friction+acceleration is integrated per-bump inside GroundMove,
             // coupled to the collision sweep, so nothing is accelerated here
             ZeroVerticalVelocity();
         }
@@ -367,17 +364,14 @@ public partial class PlayerMovement
             //
             // Z is exact — gravity is constant, so the midpoint velocity is the frame's average —
             // but XY is not: the strafe velocity follows TicklessAirStrafe's regime machine, not a
-            // straight line in time, so the trapezoid carries the same second-order error the
-            // ground path used to before Accelerate moved to its closed forms. Nothing catches it
-            // today because no test measures air *distance*; the air tests check end speed, and
-            // the overhang test uses no movement input so it only exercises the exact Z term. An
-            // exact form here means integrating that state machine across its regime transitions.
+            // straight line in time, so the trapezoid carries a second-order error; an exact form
+            // would mean integrating that state machine across its regime transitions.
             airMoveDelta = TrapezoidDisplacement(Velocity, Velocity + airVelocityDelta, deltaTime);
         }
 
         ClampVelocity();
 
-        // Gravity is applied inside the move now, so the freshest impact speed for a landing the
+        // Gravity is applied inside the move, so the freshest impact speed for a landing the
         // move below may produce is the frame's midpoint - the average the trapezoid sweeps
         fallSpeed = MathF.Max(fallSpeed, -(Velocity.Z + (airVelocityDelta.Z * 0.5f)));
 
@@ -473,19 +467,15 @@ public partial class PlayerMovement
         }
 
         // CBasePlayer::UpdateStepSound
-        stepSoundTime = Math.Max(stepSoundTime - deltaTime, 0f);
-        if (stepSoundTime > 0f)
+        StepSoundTime = Math.Max(StepSoundTime - deltaTime, 0f);
+        if (StepSoundTime > 0f)
         {
             return;
         }
 
         var speed = MathF.Sqrt(speedSqr);
-        var groundSpeed = new Vector2(Velocity.X, Velocity.Y).Length();
 
-        var movingFastEnough = speed >= StepSoundVelWalk;
-        var movingAlongGround = groundSpeed > 0.0001f;
-
-        if (!movingFastEnough || !OnGround || !movingAlongGround)
+        if (speed < StepSoundVelWalk || !OnGround)
         {
             return;
         }
@@ -502,11 +492,11 @@ public partial class PlayerMovement
     /// </summary>
     private void SetStepSoundTime(bool walking)
     {
-        stepSoundTime = walking ? 0.4f : 0.3f;
+        StepSoundTime = walking ? 0.4f : 0.3f;
 
         if (HoldingCtrl)
         {
-            stepSoundTime += 0.1f;
+            StepSoundTime += 0.1f;
         }
     }
 
@@ -518,7 +508,7 @@ public partial class PlayerMovement
 
         if (handle != null)
         {
-            activeMovementSounds.Add(handle);
+            ActiveMovementSounds.Add(handle);
         }
     }
 
@@ -529,13 +519,13 @@ public partial class PlayerMovement
     /// </summary>
     private void UpdateMovementSounds()
     {
-        for (var i = activeMovementSounds.Count - 1; i >= 0; i--)
+        for (var i = ActiveMovementSounds.Count - 1; i >= 0; i--)
         {
-            var handle = activeMovementSounds[i];
+            var handle = ActiveMovementSounds[i];
 
             if (!handle.Playing)
             {
-                activeMovementSounds.RemoveAt(i);
+                ActiveMovementSounds.RemoveAt(i);
                 continue;
             }
 
@@ -817,7 +807,7 @@ public partial class PlayerMovement
             Vector3.Normalize(new Vector3(-1, -1, 0)),
         };
 
-        for (var distance = 1f; distance <= 100f; distance += 10f)
+        for (var distance = 1f; distance < 100f; distance += 10f)
         {
             foreach (var dir in directions)
             {
@@ -859,7 +849,7 @@ public partial class PlayerMovement
     /// player actually hit with, and nothing has to be un-applied or restored around the clip.
     /// </summary>
     private Vector3 TryPlayerMove(Vector3 start, Vector3 velocityDelta, float deltaTime, Vector3 halfExtents,
-        Vector3 wishdir = default, float wishspeed = 0f)
+        Vector3 wishdir, float wishspeed)
     {
         const int MaxBumps = 6;
 
@@ -958,8 +948,7 @@ public partial class PlayerMovement
 
             // Rebuild the acceleration for the rest of the frame against the surfaces now known.
             // The strafe half is re-aimed along them, so none of it is spent pushing into a ramp
-            // only for the next sweep to strip it again - that is what made the addspeed gate
-            // saturate at a framerate-dependent value. Recomputed rather than accumulated: each
+            // only for the next sweep to strip it again. Recomputed rather than accumulated: each
             // contact supersedes the last, so this always describes what is left after the most
             // recent one.
             if (timeLeft > 0f && planeCount > 0)
@@ -1063,17 +1052,27 @@ public partial class PlayerMovement
     /// </summary>
     private bool ClipToPlanes(ReadOnlySpan<Vector3> planes, ref Vector3 delta, out Vector3 velocity, out float clipNormalZ)
     {
-        // Prefer a single-plane clip that does not move into any other plane
+        velocity = Velocity;
+        return TryClipToPlanes(planes, ref delta, ref velocity, OnGround, out clipNormalZ);
+    }
+
+    /// <summary>
+    /// Shared plane resolution: prefers a single-plane clip that does not drive into any other
+    /// plane, falls back to the two-plane crease, and fails (zeroing both vectors) when no
+    /// direction satisfies every plane.
+    /// </summary>
+    private static bool TryClipToPlanes(ReadOnlySpan<Vector3> planes, ref Vector3 delta, ref Vector3 velocity, bool onGround, out float clipNormalZ)
+    {
         for (var i = 0; i < planes.Length; i++)
         {
-            var candidateVelocity = Velocity;
+            var candidateVelocity = velocity;
             var candidateDelta = delta;
-            var candidateNormalZ = ClipVelocity(ref candidateDelta, ref candidateVelocity, planes[i], OnGround);
+            var candidateNormalZ = ClipVelocity(ref candidateDelta, ref candidateVelocity, planes[i], onGround);
 
             var valid = true;
             for (var j = 0; j < planes.Length; j++)
             {
-                if (j != i && Vector3.Dot(candidateVelocity, planes[j]) < 0)
+                if (j != i && Vector3.Dot(candidateVelocity, planes[j]) < 0f)
                 {
                     valid = false;
                     break;
@@ -1094,7 +1093,6 @@ public partial class PlayerMovement
         // Two planes form a crease to slide along
         if (planes.Length == 2)
         {
-            velocity = Velocity;
             ClipToCrease(ref delta, ref velocity, planes[0], planes[1]);
             return true;
         }
@@ -1151,42 +1149,9 @@ public partial class PlayerMovement
     /// </summary>
     private static Vector3 ClipWishVelocity(Vector3 wishVelocity, ReadOnlySpan<Vector3> planes, bool onGround, out bool resolved)
     {
-        resolved = true;
-
-        // Prefer a single-plane clip that does not drive into any other plane
-        for (var i = 0; i < planes.Length; i++)
-        {
-            var candidate = wishVelocity;
-            var candidateDelta = wishVelocity;
-            ClipVelocity(ref candidateDelta, ref candidate, planes[i], onGround);
-
-            var valid = true;
-            for (var j = 0; j < planes.Length; j++)
-            {
-                if (j != i && Vector3.Dot(candidate, planes[j]) < 0f)
-                {
-                    valid = false;
-                    break;
-                }
-            }
-
-            if (valid)
-            {
-                return candidate;
-            }
-        }
-
-        // Two planes form a crease to slide along
-        if (planes.Length == 2)
-        {
-            var creased = wishVelocity;
-            var creasedDelta = wishVelocity;
-            ClipToCrease(ref creasedDelta, ref creased, planes[0], planes[1]);
-            return creased;
-        }
-
-        resolved = false;
-        return Vector3.Zero;
+        var delta = wishVelocity;
+        resolved = TryClipToPlanes(planes, ref delta, ref wishVelocity, onGround, out _);
+        return wishVelocity;
     }
 
     /// <summary>
@@ -1231,10 +1196,10 @@ public partial class PlayerMovement
     /// Unified ground move: integrate friction+acceleration and sweep in one loop. Each bump
     /// re-integrates the combined velocity change over the time still left in the frame,
     /// sweeps that displacement (with step support), and — if it hits a surface partway —
-    /// undoes the share of the acceleration it never earned (linear in the swept fraction,
-    /// the simplified model to be sharpened once traces go parabolic), clips the result to
-    /// the surface, and lets the next bump re-accelerate along it. The frame's walls are
-    /// accumulated, and both the wish input and the segment they produce are clipped to parallel
+    /// undoes the share of the acceleration it never earned (linear in the swept fraction),
+    /// clips the result to the surface, and lets the next bump re-accelerate along it. The
+    /// frame's walls are accumulated, and both the wish input and the segment they produce
+    /// are clipped to parallel
     /// all of them, so a regenerated segment slides along instead of re-entering. Clipping the
     /// wish is what stops a player pressing into a wall from re-aiming every bump at the surface
     /// it is already flush with, spending the whole bump budget on zero-fraction contacts. The
@@ -1310,14 +1275,10 @@ public partial class PlayerMovement
                 var speedChangeAlongSweep = Vector3.Dot(segVelocityChange, direction);
                 var speedAlongSweep = segDistance / segDt;
 
-                // Known tradeoff: this is accurate per contact, but it only bites on the first one
-                // of an approach. Once the hull rests against the wall every later contact reports
-                // a zero fraction and converts to nothing, so the whole effect of the conversion
-                // over a run is a single -v*(f-g)*segDt at that first contact — and the fraction
-                // there is set by where the frame boundary happened to fall relative to the wall,
-                // which is uncorrelated across framerates. So it buys accuracy per event at the
-                // cost of a phase-dependent term, and a cross-framerate spread measured over a
-                // long slide can read worse with it on even though each impact is placed better.
+                // Known tradeoff: accurate per contact, but only the first contact of an approach
+                // converts to a nonzero fraction (later flush contacts report zero), and where
+                // that first fraction lands depends on the frame boundary — per-impact accuracy
+                // at the cost of a phase-dependent term uncorrelated across framerates.
                 if (speedAlongSweep > NegligibleMoveDistance)
                 {
                     timeFraction = DistanceToTimeFraction(fraction, speedChangeAlongSweep, speedAlongSweep);
@@ -1352,7 +1313,10 @@ public partial class PlayerMovement
             // the velocity against the way the frame entered. At rest (or crawling) the entry
             // velocity is ~0, so it must not fire — otherwise the first wall contact zeroes
             // the acceleration every frame and the player can never slide out along a wall.
-            if (!ClipToPlanes(planes[..planeCount], ref delta, out var velocity, out var clipNormalZ)
+            // ClipToPlanes also clips a delta; this one is spent, so it takes a scratch copy
+            var clippedDelta = delta;
+
+            if (!ClipToPlanes(planes[..planeCount], ref clippedDelta, out var velocity, out var clipNormalZ)
                 || (entryVelocity.LengthSquared() > 1f && Vector3.Dot(velocity, entryVelocity) < 0f))
             {
                 Velocity = Vector3.Zero;
@@ -1537,8 +1501,9 @@ public partial class PlayerMovement
     /// </summary>
     private (Vector3 wishdir, float wishspeed) CalculateWishVelocity(float yaw, bool isWalking)
     {
-        var forward = new Vector3(MathF.Cos(yaw), MathF.Sin(yaw), 0);
-        var right = new Vector3(MathF.Cos(yaw - MathF.PI / 2f), MathF.Sin(yaw - MathF.PI / 2f), 0);
+        var (sinYaw, cosYaw) = MathF.SinCos(yaw);
+        var forward = new Vector3(cosYaw, sinYaw, 0);
+        var right = new Vector3(sinYaw, -cosYaw, 0);
 
         float forwardMove = 0, sideMove = 0;
 
@@ -1563,7 +1528,6 @@ public partial class PlayerMovement
         }
 
         var wishvel = forward * forwardMove + right * sideMove;
-        wishvel = new Vector3(wishvel.X, wishvel.Y, 0);
 
         var wishspeed = wishvel.Length();
         var wishdir = wishspeed > 0 ? Vector3.Normalize(wishvel) : Vector3.Zero;
@@ -1643,8 +1607,6 @@ public partial class PlayerMovement
             return deltaTime;
         }
 
-        currentspeed = Math.Max(0, currentspeed);
-
         var goalSpeed = AccelerationGoalSpeed(wishspeed, isDucking, isWalking, wishScale);
         var frictionRate = FrictionValue * SurfaceFriction;
 
@@ -1662,8 +1624,8 @@ public partial class PlayerMovement
         var finalAccel = AccelerateValue;
         if (isWalking && currentspeed > goalSpeed - WalkTaperBand)
         {
-            var ratio = Math.Max(0.0f, currentspeed - (goalSpeed - WalkTaperBand)) / WalkTaperBand;
-            finalAccel *= Math.Clamp(1.0f - ratio, 0.0f, 1.0f);
+            var ratio = (currentspeed - (goalSpeed - WalkTaperBand)) / WalkTaperBand;
+            finalAccel *= Math.Max(0f, 1f - ratio);
         }
 
         var preFrictionSpeed = preFrictionVelocity.Length();
@@ -1674,11 +1636,11 @@ public partial class PlayerMovement
         // friction step already applied
         if (preFrictionSpeed <= StopSpeedValue)
         {
-            // Kick accel: below accel·wishspeed/64 the sub-stopspeed friction is cancelled so
-            // the wishdir component reaches this floor within one 1/64s tick (like the engine's
-            // discrete accelspeed jump), keeping starts from rest snappy
+            // Kick accel: below accel·wishspeed·tick the sub-stopspeed friction is cancelled so
+            // the wishdir component reaches this floor within one emulated tick (like the
+            // engine's discrete accelspeed jump), keeping starts from rest snappy
             var kickSpeed = AccelerateValue * wishspeed * SurfaceFriction * TickInterval;
-            var (kickVelocity, _, kickEndVelocity, kickEndTime) = SubStopSpeedAccelerate(preFrictionVelocity, wishdir, wishspeed, accelMagnitude, deltaTime, frictionRate, kickSpeed);
+            var (kickVelocity, kickEndVelocity, kickEndTime) = SubStopSpeedAccelerate(preFrictionVelocity, wishdir, wishspeed, accelMagnitude, deltaTime, frictionRate, kickSpeed);
 
             // The boost switching off is a jump in acceleration and a natural segment
             // boundary: end the segment on the kink so GroundMove sweeps the boosted stretch
@@ -1728,13 +1690,13 @@ public partial class PlayerMovement
     /// the wishspeed below the floor, so folding the two the other way round would hide the
     /// reduction entirely and hand a wall-constrained segment the full open-ground acceleration.
     /// </summary>
-    private float AccelerationGoalSpeed(float wishspeed, bool isDucking, bool isWalking, float wishScale = 1f)
+    private static float AccelerationGoalSpeed(float wishspeed, bool isDucking, bool isWalking, float wishScale = 1f)
     {
         var goalSpeed = MathF.Max(250.0f, wishspeed) * wishScale;
 
         if (isDucking)
         {
-            goalSpeed *= DuckSpeedModifierActive;
+            goalSpeed *= DuckSpeedModifier;
         }
 
         if (isWalking)
@@ -1762,17 +1724,14 @@ public partial class PlayerMovement
     /// would have contributed.
     ///
     /// Note that <see cref="GroundMoveDelta"/> is deliberately the trapezoid on every path, even
-    /// where an exact closed form exists (<see cref="LinearOdeDisplacement"/>,
-    /// <see cref="GateBoundDisplacement"/>, and the displacement
-    /// <see cref="SubStopSpeedAccelerate"/> already computes). The trapezoid *is* the
+    /// where an exact closed form exists. The trapezoid *is* the
     /// linear-velocity model, which is the model <see cref="DistanceToTimeFraction"/> inverts,
     /// so with it the distance -> time conversion applied to a swept segment is exact for the
     /// delta being swept rather than an approximation of it. An exact-ODE delta would make the
     /// segment displacement itself more accurate while breaking that: the average speed the
     /// conversion is handed (segDistance / segDt) would no longer be (v0 + v1) / 2, so the
     /// quadratic would no longer match the chord it is describing. Keeping the whole ground path
-    /// on one consistent velocity model is worth more than the second-order distance error,
-    /// which is what the acceleration-distance regression lock is sized for.
+    /// on one consistent velocity model is worth more than the second-order distance error.
     /// </summary>
     private float WalkMove(Vector3 wishdir, float wishspeed, float deltaTime, bool isDucking, bool isWalking, float wishScale = 1f)
     {
@@ -1815,8 +1774,7 @@ public partial class PlayerMovement
     /// the velocity gain. Three things separate it from <see cref="AirMove"/>:
     ///
     /// The gain is applied along the wish clipped to the surfaces rather than along wishdir, so
-    /// none of it is spent pushing into a ramp only for the sweep to strip it again — which is
-    /// what made the addspeed gate saturate at a framerate-dependent value.
+    /// none of it is spent pushing into a ramp only for the sweep to strip it again.
     ///
     /// The budget is scaled by 1/changeRate. The gate is still measured along the raw wishdir
     /// (unchanged from the engine), but travelling along the clipped direction only raises that
@@ -1918,8 +1876,8 @@ public partial class PlayerMovement
     /// Forward-looking keep-away margin: the raw trace extends a little past the sweep end
     /// and the move stops where the perpendicular gap to the hit surface equals
     /// SurfaceEpsilon. Resting against a surface then yields a stable zero-distance hit
-    /// every frame (velocity gets clipped, position holds), instead of the old
-    /// creep-into-the-margin-then-snap-back cycle that made position and speed visibly
+    /// every frame (velocity gets clipped, position holds), instead of a
+    /// creep-into-the-margin-then-snap-back cycle that would make position and speed visibly
     /// oscillate when pressing against a wall.
     /// </summary>
     private Rubikon.TraceResult TraceBBox(Vector3 from, Vector3 to, Vector3 halfExtents, bool detectStartSolid = false)
@@ -2023,8 +1981,8 @@ public partial class PlayerMovement
 
     /// <summary>
     /// Swept-AABB trace against a static half-space (n·x ≤ d is solid, <paramref name="normal"/>
-    /// pointing out of the solid). The generalisation of <see cref="TraceInfiniteGroundPlane"/>
-    /// to an arbitrary plane, used by the headless collision tests.
+    /// pointing out of the solid). Backs <see cref="TraceInfiniteGroundPlane"/> and the headless
+    /// collision tests' <see cref="DebugCollisionPlanes"/>.
     /// </summary>
     private static Rubikon.TraceResult TraceStaticPlane(Vector3 from, Vector3 to, Vector3 halfExtents, Vector3 normal, float planeOffset, bool detectStartSolid)
     {
@@ -2059,35 +2017,10 @@ public partial class PlayerMovement
     }
 
     /// <summary>
-    /// Cheap trace against an infinite ground plane at Z=0
+    /// Trace against an infinite ground plane at Z=0.
     /// </summary>
     private static Rubikon.TraceResult TraceInfiniteGroundPlane(Vector3 from, Vector3 to, Vector3 halfExtents, bool detectStartSolid)
-    {
-        var bottomStart = from.Z - halfExtents.Z;
-
-        // Already overlapping the plane at the start: the trace cannot move
-        if (bottomStart < 0f)
-        {
-            return new Rubikon.TraceResult(true, from, Vector3.UnitZ, 0f, -1) { StartSolid = detectStartSolid };
-        }
-
-        var descent = from.Z - to.Z; // positive when the sweep moves down
-
-        if (descent <= 0f)
-        {
-            return new Rubikon.TraceResult(); // moving up or level while above the plane - no hit
-        }
-
-        var fraction = bottomStart / descent;
-
-        if (fraction > 1f)
-        {
-            return new Rubikon.TraceResult(); // the sweep ends before reaching the plane
-        }
-
-        var hitPosition = Vector3.Lerp(from, to, fraction);
-        return new Rubikon.TraceResult(true, hitPosition, Vector3.UnitZ, Vector3.Distance(from, hitPosition), -1);
-    }
+        => TraceStaticPlane(from, to, halfExtents, Vector3.UnitZ, 0f, detectStartSolid);
 
     /// <summary>
     /// Cosmetic view-feel state driven by the simulation: jump stamina, the landing

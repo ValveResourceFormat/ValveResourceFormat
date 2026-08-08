@@ -1,6 +1,3 @@
-using System;
-using System.Collections.Generic;
-using System.Numerics;
 using Microsoft.Extensions.Logging.Abstractions;
 using NUnit.Framework;
 using ValveResourceFormat.IO;
@@ -29,26 +26,26 @@ namespace Tests.Renderer
 
         // The harness contexts a test creates, disposed after it. The helper hands back only
         // what the tests use, so the disposables are tracked here rather than at call sites.
-        private readonly List<IDisposable> harnessContexts = [];
+        private readonly List<IDisposable> HarnessContexts = [];
 
         [TearDown]
         public void DisposeHarnessContexts()
         {
-            for (var i = harnessContexts.Count - 1; i >= 0; i--)
+            for (var i = HarnessContexts.Count - 1; i >= 0; i--)
             {
-                harnessContexts[i].Dispose();
+                HarnessContexts[i].Dispose();
             }
 
-            harnessContexts.Clear();
+            HarnessContexts.Clear();
         }
 
         private (UserInput Input, Camera RenderCamera) CreateHeadlessFpsInput(float spawnHeight)
         {
             var fileLoader = new GameFileLoader(null, null);
-            harnessContexts.Add(fileLoader);
+            HarnessContexts.Add(fileLoader);
 
             var context = new RendererContext(fileLoader, NullLogger.Instance);
-            harnessContexts.Add(context);
+            HarnessContexts.Add(context);
 
             var renderer = new ValveResourceFormat.Renderer.Renderer(context);
             var input = new UserInput(renderer);
@@ -65,6 +62,32 @@ namespace Tests.Renderer
         }
 
         private static double HorizontalSpeed(Vector3 v) => double.Hypot(v.X, v.Y);
+
+        private static readonly float[] ComparisonFramerates = [50f, 100f, 250f, 1000f];
+
+        /// <summary>Largest deviation from the first value, the cross-framerate invariance signal.</summary>
+        private static double Spread(double[] values)
+        {
+            var spread = 0.0;
+            foreach (var value in values)
+            {
+                spread = Math.Max(spread, Math.Abs(value - values[0]));
+            }
+            return spread;
+        }
+
+        /// <summary>Settles the player onto the ground with no input held.</summary>
+        private static void SettleOntoGround(UserInput input, Camera renderCamera, float fps)
+        {
+            var dt = 1f / fps;
+
+            for (var i = 0; i < (int)(1f * fps); i++)
+            {
+                input.Tick(dt, TrackedKeys.None, Vector2.Zero, renderCamera);
+            }
+
+            Assert.That(input.PlayerMovement.OnGround, Is.True, "player did not land during settling");
+        }
 
         /// <summary>
         /// Ground truth for one air frame: micro-substepped AirAccelerate with the wishdir
@@ -250,13 +273,7 @@ namespace Tests.Renderer
             var movement = input.PlayerMovement;
             var dt = 1f / fps;
 
-            // Settle onto the ground plane
-            for (var i = 0; i < (int)(1f * fps); i++)
-            {
-                input.Tick(dt, TrackedKeys.None, Vector2.Zero, renderCamera);
-            }
-
-            Assert.That(movement.OnGround, Is.True, "player did not land during settling");
+            SettleOntoGround(input, renderCamera, fps);
             Assert.That(HorizontalSpeed(movement.Velocity), Is.LessThan(0.001), "player did not come to rest");
 
             var accelStart = movement.Position;
@@ -308,32 +325,21 @@ namespace Tests.Renderer
             // From rest, 2s of W reaches the 250 u/s cap; friction-only stop from the cap
             const float AccelSeconds = 2f;
 
-            float[] framerates = [50f, 100f, 250f, 1000f];
-            var accelDistances = new double[framerates.Length];
-            var accelSpeeds = new double[framerates.Length];
-            var stopDistances = new double[framerates.Length];
+            var accelDistances = new double[ComparisonFramerates.Length];
+            var accelSpeeds = new double[ComparisonFramerates.Length];
+            var stopDistances = new double[ComparisonFramerates.Length];
 
-            for (var run = 0; run < framerates.Length; run++)
+            for (var run = 0; run < ComparisonFramerates.Length; run++)
             {
-                (accelDistances[run], accelSpeeds[run], stopDistances[run]) = RunGroundScenario(framerates[run], AccelSeconds);
+                (accelDistances[run], accelSpeeds[run], stopDistances[run]) = RunGroundScenario(ComparisonFramerates[run], AccelSeconds);
             }
 
             TestContext.Out.WriteLine($"Ground movement: {AccelSeconds}s W from rest, then friction-only stop:");
             TestContext.Out.WriteLine($"  {"fps",-8} {"accel dist",-14} {"end speed",-14} {"stop dist",-14}");
 
-            for (var run = 0; run < framerates.Length; run++)
+            for (var run = 0; run < ComparisonFramerates.Length; run++)
             {
-                TestContext.Out.WriteLine($"  {framerates[run],-8:F0} {accelDistances[run],-14:F5} {accelSpeeds[run],-14:F5} {stopDistances[run],-14:F5}");
-            }
-
-            static double Spread(double[] values)
-            {
-                var spread = 0.0;
-                foreach (var value in values)
-                {
-                    spread = Math.Max(spread, Math.Abs(value - values[0]));
-                }
-                return spread;
+                TestContext.Out.WriteLine($"  {ComparisonFramerates[run],-8:F0} {accelDistances[run],-14:F5} {accelSpeeds[run],-14:F5} {stopDistances[run],-14:F5}");
             }
 
             TestContext.Out.WriteLine($"  spreads: dist={Spread(accelDistances):E2} speed={Spread(accelSpeeds):E2} stop={Spread(stopDistances):E2}");
@@ -345,18 +351,6 @@ namespace Tests.Renderer
             Assert.That(Spread(accelDistances), Is.LessThan(AccelDistanceSpreadLock), "ground acceleration distance invariance regressed");
             Assert.That(Spread(accelSpeeds), Is.LessThan(AccelSpeedSpreadLock), "ground speed invariance regressed");
             Assert.That(Spread(stopDistances), Is.LessThan(StopDistanceSpreadLock), "friction stop distance invariance regressed");
-        }
-
-        private static readonly float[] ComparisonFramerates = [50f, 100f, 250f, 1000f];
-
-        private static double Spread(double[] values)
-        {
-            var spread = 0.0;
-            foreach (var value in values)
-            {
-                spread = Math.Max(spread, Math.Abs(value - values[0]));
-            }
-            return spread;
         }
 
         // A single wall turned 45° in XY, so its normal is on neither axis. The player walks
@@ -385,12 +379,7 @@ namespace Tests.Renderer
 
             movement.DebugCollisionPlanes.Add(new Vector4(WallNormal.X, WallNormal.Y, WallNormal.Z, WallOffset));
 
-            for (var i = 0; i < (int)(1f * fps); i++)
-            {
-                input.Tick(dt, TrackedKeys.None, Vector2.Zero, renderCamera);
-            }
-
-            Assert.That(movement.OnGround, Is.True, "player did not land during settling");
+            SettleOntoGround(input, renderCamera, fps);
 
             var start = movement.Position;
 
@@ -459,8 +448,8 @@ namespace Tests.Renderer
             // Locks: slide distance carries the documented high-fps lookahead outlier (measured
             // 4.1e-1), so its lock only catches something qualitatively worse; the resting gap
             // and end speed are tight (measured 3.1e-5 and 0.0)
-            Assert.That(Spread(slideX), Is.LessThan(8e-1), "wall slide distance invariance regressed");
-            Assert.That(Spread(slideY), Is.LessThan(8e-1), "wall slide distance invariance regressed");
+            Assert.That(Spread(slideX), Is.LessThan(8e-1), "wall slide X distance invariance regressed");
+            Assert.That(Spread(slideY), Is.LessThan(8e-1), "wall slide Y distance invariance regressed");
             Assert.That(Spread(gap), Is.LessThan(1e-4), "wall resting gap invariance regressed");
             Assert.That(Spread(endSpeed), Is.LessThan(1e-3), "wall slide end speed invariance regressed");
         }
@@ -468,32 +457,33 @@ namespace Tests.Renderer
         // Headless traces always include the infinite z=0 ground plane, so the ramp has to be
         // lifted clear of it for a 3s descent to stay on the ramp rather than end on the floor
         private const float SurfSpawnHeight = 3000f;
+        private const float SurfDropHeight = 10f;
 
         /// <summary>
-        /// One surf run: drop onto an inclined plane whose face starts <paramref name="dropHeight"/>
+        /// One surf run: drop onto an inclined plane whose face starts <see cref="SurfDropHeight"/>
         /// units below the feet and hold A for 3 seconds, with the view yawed 10° right so the
         /// strafe converts into speed along the ramp instead of straight into it. The ramp is
         /// tilted about Y, so its downhill direction is -X and the wish input is nearly across it.
         /// Returns the horizontal travel, the end speed, how far the player descended and whether
         /// the mover ever considered the surface walkable ground.
         /// </summary>
-        private (double Travel, double EndSpeed, double Descent, bool Grounded, double WishDot) RunSurf(float fps, float slopeDegrees, float dropHeight = 10f)
+        private (double Travel, double EndSpeed, double Descent, bool Grounded, double WishDot) RunSurf(float fps)
         {
             var (input, renderCamera) = CreateHeadlessFpsInput(spawnHeight: SurfSpawnHeight);
             var movement = input.PlayerMovement;
             var dt = 1f / fps;
 
-            // Outward normal of a plane inclined by slopeDegrees, tilted about Y; solid is n·x <= d
-            var alpha = float.DegreesToRadians(slopeDegrees);
+            // Outward normal of a plane inclined by SurfSlopeDegrees, tilted about Y; solid is n·x <= d
+            var alpha = float.DegreesToRadians(SurfSlopeDegrees);
             var n = new Vector3(-MathF.Sin(alpha), 0f, MathF.Cos(alpha));
 
-            // Place the face dropHeight below the hull, measured perpendicular to it. Offsetting
+            // Place the face SurfDropHeight below the hull, measured perpendicular to it. Offsetting
             // the spawn straight down instead would embed the hull once the ramp is tilted: the
             // box's support half-width along a tilted normal is much larger than its half-height.
             var half = movement.HullHalfExtents;
             var center = movement.Position + new Vector3(0, 0, half.Z);
             var extent = (MathF.Abs(n.X) * half.X) + (MathF.Abs(n.Y) * half.Y) + (MathF.Abs(n.Z) * half.Z);
-            var d = Vector3.Dot(n, center) - extent - dropHeight;
+            var d = Vector3.Dot(n, center) - extent - SurfDropHeight;
 
             movement.DebugCollisionPlanes.Add(new Vector4(n.X, n.Y, n.Z, d));
 
@@ -503,8 +493,7 @@ namespace Tests.Renderer
             input.Camera.Yaw = yaw;
 
             // Holding A is sideMove = -RunSpeed, so the wish points along -right (CalculateWishVelocity)
-            var right = new Vector3(MathF.Cos(yaw - MathF.PI / 2f), MathF.Sin(yaw - MathF.PI / 2f), 0f);
-            var wishdir = -right;
+            var wishdir = new Vector3(-MathF.Sin(yaw), MathF.Cos(yaw), 0f);
 
             var start = movement.Position;
             var grounded = false;
@@ -534,8 +523,6 @@ namespace Tests.Renderer
         [Test]
         public void SurfIsFramerateInvariant()
         {
-            const float slopeDegrees = SurfSlopeDegrees;
-
             // Regression locks, ~20% above the measured spreads (travel 2.0, endSpeed 4.3,
             // descent 3.2, wishDot 1.4 over a ~1796u run). When precision improves, LOWER them.
             const double TravelSpreadLock = 2.5;
@@ -557,10 +544,10 @@ namespace Tests.Renderer
 
             for (var run = 0; run < ComparisonFramerates.Length; run++)
             {
-                (travel[run], endSpeed[run], descent[run], grounded[run], wishDot[run]) = RunSurf(ComparisonFramerates[run], slopeDegrees);
+                (travel[run], endSpeed[run], descent[run], grounded[run], wishDot[run]) = RunSurf(ComparisonFramerates[run]);
             }
 
-            TestContext.Out.WriteLine($"{slopeDegrees}° ramp, dropped 10u above it, 3s holding A with the view 10° right:");
+            TestContext.Out.WriteLine($"{SurfSlopeDegrees}° ramp, dropped {SurfDropHeight}u above it, 3s holding A with the view 10° right:");
             TestContext.Out.WriteLine($"  {"fps",-8} {"travel",-16} {"end speed",-14} {"descent",-14} {"v·wishdir",-12} {"grounded",-9}");
 
             for (var run = 0; run < ComparisonFramerates.Length; run++)
@@ -610,12 +597,7 @@ namespace Tests.Renderer
             var n = Vector3.Normalize(new Vector3(1, 0, -1));
             movement.DebugCollisionPlanes.Add(new Vector4(n.X, n.Y, n.Z, -95f));
 
-            for (var i = 0; i < (int)(1f * fps); i++)
-            {
-                input.Tick(dt, TrackedKeys.None, Vector2.Zero, renderCamera);
-            }
-
-            Assert.That(movement.OnGround, Is.True, "player did not land during settling");
+            SettleOntoGround(input, renderCamera, fps);
 
             var launch = movement.Position;
 

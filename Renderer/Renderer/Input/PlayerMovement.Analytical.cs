@@ -108,12 +108,6 @@ public partial class PlayerMovement
     /// </summary>
     private static Vector3 RideCap(Vector3 vStart, Vector3 fallback, Vector3 wishdir, float cap, float time, float frictionRate, float accelMagnitude)
     {
-        Vector3 Capped(Vector3 velocity)
-        {
-            var speed = velocity.Length();
-            return speed > cap ? velocity * (cap / speed) : velocity;
-        }
-
         var equilibrium = wishdir * (accelMagnitude / frictionRate);
 
         // |v(t)|² = j·u² + o·u + |equilibrium|², with u = e^(-kt) falling from 1
@@ -127,7 +121,7 @@ public partial class PlayerMovement
         // Starting on the equilibrium, or on a trajectory that never reaches the cap
         if (j < 1e-6f || discriminant <= 0f)
         {
-            return Capped(fallback);
+            return RescaleToCap(fallback, cap);
         }
 
         var uCross = MathF.Min((-o - MathF.Sqrt(discriminant)) / (2f * j), 1f);
@@ -135,7 +129,7 @@ public partial class PlayerMovement
         if (uCross <= MathF.Exp(-frictionRate * time))
         {
             // The cap is not reached within this frame
-            return Capped(fallback);
+            return RescaleToCap(fallback, cap);
         }
 
         // Time left after the crossing at t = -ln(u)/k
@@ -284,15 +278,6 @@ public partial class PlayerMovement
     }
 
     /// <summary>
-    /// Exact displacement of the friction+acceleration ODE dv/dt = -k·v + A·wishdir:
-    /// d = E·t + (v0 - E)·(1-e^(-kt))/k with E the equilibrium velocity A/k·wishdir.
-    /// </summary>
-    private static Vector3 LinearOdeDisplacement(Vector3 velocity, Vector3 equilibrium, float deltaTime, float frictionRate)
-    {
-        return equilibrium * deltaTime + (velocity - equilibrium) * ((1f - MathF.Exp(-frictionRate * deltaTime)) / frictionRate);
-    }
-
-    /// <summary>
     /// Frame starting below stopspeed under acceleration. The constant-magnitude friction
     /// there opposes the (rotating) velocity direction, so with a misaligned wishdir the
     /// ODE has no elementary closed form; instead the continuous model — thrust gated at
@@ -307,27 +292,22 @@ public partial class PlayerMovement
     /// quadrature on the kink instead of chording across it. KickEndTime is negative when the
     /// frame contains no crossing.
     /// </remarks>
-    private static (Vector3 Velocity, Vector3 Displacement, Vector3 KickEndVelocity, float KickEndTime) SubStopSpeedAccelerate(Vector3 v0, Vector3 wishdir, float wishspeed, float accelMagnitude, float deltaTime, float frictionRate, float kickSpeed)
+    private static (Vector3 Velocity, Vector3 KickEndVelocity, float KickEndTime) SubStopSpeedAccelerate(Vector3 v0, Vector3 wishdir, float wishspeed, float accelMagnitude, float deltaTime, float frictionRate, float kickSpeed)
     {
         const float MaxSubstep = 1f / 2048f;
 
-        (Vector3 Velocity, Vector3 Displacement) Rk4(Vector3 v, float h, float kickBoost)
+        Vector3 Rk4(Vector3 v, float h, float kickBoost)
         {
             var k1 = SubStopSpeedAcceleration(v, wishdir, wishspeed, accelMagnitude, frictionRate, kickBoost);
-            var v2 = v + h / 2f * k1;
-            var k2 = SubStopSpeedAcceleration(v2, wishdir, wishspeed, accelMagnitude, frictionRate, kickBoost);
-            var v3 = v + h / 2f * k2;
-            var k3 = SubStopSpeedAcceleration(v3, wishdir, wishspeed, accelMagnitude, frictionRate, kickBoost);
-            var v4 = v + h * k3;
-            var k4 = SubStopSpeedAcceleration(v4, wishdir, wishspeed, accelMagnitude, frictionRate, kickBoost);
+            var k2 = SubStopSpeedAcceleration(v + h / 2f * k1, wishdir, wishspeed, accelMagnitude, frictionRate, kickBoost);
+            var k3 = SubStopSpeedAcceleration(v + h / 2f * k2, wishdir, wishspeed, accelMagnitude, frictionRate, kickBoost);
+            var k4 = SubStopSpeedAcceleration(v + h * k3, wishdir, wishspeed, accelMagnitude, frictionRate, kickBoost);
 
-            // Simpson displacement over the same stages
-            return (v + h / 6f * (k1 + 2f * k2 + 2f * k3 + k4), h / 6f * (v + 2f * v2 + 2f * v3 + v4));
+            return v + h / 6f * (k1 + 2f * k2 + 2f * k3 + k4);
         }
 
         var kickAccel = StopSpeedValue * frictionRate;
         var v = v0;
-        var displacement = Vector3.Zero;
         var timeLeft = deltaTime;
         var kickEndVelocity = Vector3.Zero;
         var kickEndTime = -1f;
@@ -342,11 +322,12 @@ public partial class PlayerMovement
             // step that reaches the kink exactly on it (bisected). Both keep the substep grid
             // from leaking dt into the result across the crossing
             var kickBoost = v.Length() < kickSpeed ? kickAccel : 0f;
-            var (vNext, disp) = Rk4(v, h, kickBoost);
+            var vNext = Rk4(v, h, kickBoost);
 
-            // >=, not >: the boost ends at exactly 1/64s, an integer multiple of the substep, so
-            // a frame boundary aligned with it lands the step end exactly on kickSpeed. A strict
-            // test would then leave the crossing unreported and the boost would just switch off
+            // >=, not >: the boost ends at exactly one emulated tick, which can be an integer
+            // multiple of the substep, so a frame boundary aligned with it lands the step end
+            // exactly on kickSpeed. A strict test would then leave the crossing unreported and
+            // the boost would just switch off
             if (kickBoost > 0f && vNext.Length() >= kickSpeed)
             {
                 var lo = 0f;
@@ -356,7 +337,7 @@ public partial class PlayerMovement
                 {
                     var mid = 0.5f * (lo + hi);
 
-                    if (Rk4(v, mid, kickBoost).Velocity.Length() > kickSpeed)
+                    if (Rk4(v, mid, kickBoost).Length() > kickSpeed)
                     {
                         hi = mid;
                     }
@@ -367,18 +348,17 @@ public partial class PlayerMovement
                 }
 
                 h = hi;
-                (vNext, disp) = Rk4(v, h, kickBoost);
+                vNext = Rk4(v, h, kickBoost);
 
                 kickEndVelocity = vNext;
                 kickEndTime = deltaTime - timeLeft + h;
             }
 
             v = vNext;
-            displacement += disp;
             timeLeft -= h;
         }
 
-        return (v, displacement, kickEndVelocity, kickEndTime);
+        return (v, kickEndVelocity, kickEndTime);
     }
 
     /// <summary>
@@ -434,75 +414,12 @@ public partial class PlayerMovement
     }
 
     /// <summary>
-    /// Exact displacement of a gate-bound frame in the exponential regime: the ODE runs
-    /// until the wishdir component reaches wishspeed, then the pinned phase holds it there
-    /// while the perpendicular component keeps decaying under friction.
-    /// </summary>
-    private static Vector3 GateBoundDisplacement(Vector3 v0, Vector3 wishdir, float wishspeed, Vector3 equilibrium, float deltaTime, float frictionRate)
-    {
-        var along0 = Vector3.Dot(v0, wishdir);
-        var equilibriumAlong = Vector3.Dot(equilibrium, wishdir);
-
-        // Time the wishdir component crosses wishspeed: u* = e^(-k·t*)
-        var pinTime = 0f;
-
-        if (along0 < wishspeed)
-        {
-            var denominator = along0 - equilibriumAlong;
-
-            if (MathF.Abs(denominator) < 1e-6f)
-            {
-                return TrapezoidDisplacement(v0, wishspeed * wishdir + (v0 - along0 * wishdir) * MathF.Exp(-frictionRate * deltaTime), deltaTime);
-            }
-
-            var uCross = (wishspeed - equilibriumAlong) / denominator;
-
-            if (uCross <= 0f || uCross >= 1f)
-            {
-                return TrapezoidDisplacement(v0, wishspeed * wishdir + (v0 - along0 * wishdir) * MathF.Exp(-frictionRate * deltaTime), deltaTime);
-            }
-
-            pinTime = MathF.Min(MathF.Log(uCross) / -frictionRate, deltaTime);
-        }
-
-        var displacement = LinearOdeDisplacement(v0, equilibrium, pinTime, frictionRate);
-
-        var pinned = deltaTime - pinTime;
-
-        if (pinned > 0f)
-        {
-            var perp0 = v0 - along0 * wishdir;
-            displacement += wishspeed * pinned * wishdir
-                + perp0 * ((MathF.Exp(-frictionRate * pinTime) - MathF.Exp(-frictionRate * deltaTime)) / frictionRate);
-        }
-
-        return displacement;
-    }
-
-    /// <summary>
     /// Second-order fallback displacement for trajectories without an implemented closed
     /// form; exact whenever velocity is linear in time over the frame.
     /// </summary>
     private static Vector3 TrapezoidDisplacement(Vector3 startVelocity, Vector3 endVelocity, float deltaTime)
     {
         return (startVelocity + endVelocity) * (0.5f * deltaTime);
-    }
-
-    /// <summary>
-    /// Normalizes an angle to +-pi.
-    /// </summary>
-    private static double NormalizeAngle(double angle)
-    {
-        // Reduce angle to [-2pi, 2pi]
-        double normalized = angle % (2 * Math.PI);
-
-        // Shift to [-pi, pi]
-        if (normalized > Math.PI)
-            normalized -= 2 * Math.PI;
-        else if (normalized < -Math.PI)
-            normalized += 2 * Math.PI;
-
-        return normalized;
     }
 
     /// <summary>
@@ -532,7 +449,7 @@ public partial class PlayerMovement
         var turnSign = (double)MathF.Sign(yawDelta);
         var turn = (double)MathF.Abs(yawDelta);
 
-        if (turnSign == 0 || turn <= 2e-4)
+        if (turn <= 2e-4)
         {
             return null;
         }
