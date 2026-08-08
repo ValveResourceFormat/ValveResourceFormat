@@ -12,8 +12,19 @@ namespace ValveResourceFormat.Renderer.Particles
         /// <summary>Gets a reference to the shared default particle instance.</summary>
         public static ref Particle Default => ref @default;
 
-        /// <summary>Gets or sets the unique particle ID, starting at 0 for each emission.</summary>
-        public int ParticleID { get; set; } // starts at 0
+        /// <summary>
+        /// Gets or sets the ordinal this particle was spawned at, counting from 0 over the lifetime of
+        /// the system. Operators that address particles by their place in the emission order use this.
+        /// </summary>
+        public int CreationIndex { get; set; }
+
+        /// <summary>
+        /// Gets or sets the particle's identity for deterministic randomness: its
+        /// <see cref="CreationIndex"/> displaced by the owning system's
+        /// <see cref="ParticleSystemRenderState.RandomSeed"/>, so two instances of one effect draw
+        /// different values. Every random sample is indexed from this.
+        /// </summary>
+        public int ParticleID { get; set; }
 
         // Varying properties (read from initializers but then change afterwards)
         /// <summary>Gets or sets the current world-space position of the particle.</summary>

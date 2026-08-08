@@ -204,7 +204,7 @@ namespace ValveResourceFormat.Renderer.Particles
     {
         private readonly AttributeMapping attributeMapping;
         public PerParticleCountNumberProvider(ParticleDefinitionParser parse) { attributeMapping = new AttributeMapping(parse); }
-        public float NextNumber(ref Particle particle, ParticleSystemRenderState renderState) => attributeMapping.ApplyMapping(particle.ParticleID);
+        public float NextNumber(ref Particle particle, ParticleSystemRenderState renderState) => attributeMapping.ApplyMapping(particle.CreationIndex);
     }
 
     // Particle Count Percent of Total Count (0-1)
@@ -215,7 +215,7 @@ namespace ValveResourceFormat.Renderer.Particles
         public float NextNumber(ref Particle particle, ParticleSystemRenderState renderState)
         {
             // Mapping input ranges for this provider type are authored in normalized 0-1 space.
-            // Index is the slot in the alive list; ParticleID is a lifetime spawn counter and would exceed the count.
+            // Index is the slot in the alive list; CreationIndex is a lifetime spawn counter and would exceed the count.
             return attributeMapping.ApplyMapping(particle.Index / (float)Math.Max(renderState.ParticleCount, 1));
         }
     }

@@ -47,6 +47,13 @@ namespace ValveResourceFormat.Renderer.Particles
             set => detailLevel = value;
         }
 
+        /// <summary>
+        /// The offset into the shared random table that every deterministic draw made by this system is
+        /// displaced by, giving each system instance its own sequence. Child systems hold their own value
+        /// rather than reading the root's.
+        /// </summary>
+        public int RandomSeed { get; } = Random.Shared.Next() & 0xFFF;
+
         // Properties
         public long ParticleCount { get; set; }
         public float Age { get; set; }

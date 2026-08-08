@@ -380,8 +380,9 @@ namespace ValveResourceFormat.Renderer.Particles
             // TODO: Make particle positions and control points local space
             particleCollection.Current[index] = particleCollection.Initial[index];
 
-            // Particle id must be set before initializing because the deterministic randomness uses particle ids
-            particleCollection.Current[index].ParticleID = particlesEmitted++;
+            // Both ids must be set before initializing, since initializers read them
+            particleCollection.Current[index].CreationIndex = particlesEmitted++;
+            particleCollection.Current[index].ParticleID = particleCollection.Current[index].CreationIndex + systemRenderState.RandomSeed;
             particleCollection.Current[index].Index = index;
             particleCollection.Current[index].Position = MainControlPoint.Position;
             particleCollection.Current[index].CreationTime = systemRenderState.Age - ageAtSpawn;

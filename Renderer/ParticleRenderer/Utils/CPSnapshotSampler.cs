@@ -9,21 +9,22 @@ namespace ValveResourceFormat.Renderer.Particles.Utils
     static class CPSnapshotSampler
     {
         /// <summary>
-        /// Picks the snapshot element index for a particle. The returned index is always in
-        /// <c>[0, numParticles)</c> (<paramref name="numParticles"/> must be positive).
+        /// Picks the snapshot element index for a particle, walking the snapshot by
+        /// <paramref name="particleId"/> or drawing from <paramref name="randomSeedBase"/>. The returned
+        /// index is always in <c>[0, numParticles)</c> (<paramref name="numParticles"/> must be positive).
         /// </summary>
-        public static int SelectIndex(int particleId, int numParticles, bool random, bool reverse, int startPoint, int increment)
+        public static int SelectIndex(int particleId, int randomSeedBase, int numParticles, bool random, bool reverse, int startPoint, int increment)
         {
             if (random)
             {
                 // Sampling (int)(n * rand01) keeps the last element reachable; RandomSingle is in
-                // [0, 1) so the Min is only a safety clamp. ParticleID can be driven negative, so mask the
+                // [0, 1) so the Min is only a safety clamp. The base can be driven negative, so mask the
                 // sign off before it reaches RandomSingle's array index.
-                return Math.Min((int)(numParticles * ParticleCollection.RandomSingle(particleId & int.MaxValue)), numParticles - 1);
+                return Math.Min((int)(numParticles * ParticleCollection.RandomSingle(randomSeedBase & int.MaxValue)), numParticles - 1);
             }
 
             // Walk the snapshot from the start point by the increment per particle (defaults 0/1 reproduce the
-            // plain particle-id mapping). ParticleID is writable and C# % keeps the dividend's sign, so wrap
+            // plain particle-id mapping). CreationIndex is writable and C# % keeps the dividend's sign, so wrap
             // explicitly to keep the index non-negative and in range.
             var raw = startPoint + (particleId * increment);
             var wrapped = ((raw % numParticles) + numParticles) % numParticles;

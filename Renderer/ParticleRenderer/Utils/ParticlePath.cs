@@ -91,7 +91,9 @@ namespace ValveResourceFormat.Renderer.Particles.Utils
         /// Computes the Bezier control triple for a path at the given timestamp. Endpoint offsets
         /// apply before the midpoint is derived; the bulge displaces the midpoint along the bulge
         /// control point's forward direction scaled by how perpendicular that direction is to the
-        /// path; the midpoint offset applies last.
+        /// path; without a bulge control point the displacement is instead drawn per world axis in
+        /// <c>[-bulge, +bulge)</c> from the system's random seed alone, so it stays fixed for the
+        /// lifetime of the system instance; the midpoint offset applies last.
         /// </summary>
         public static (Vector3 Start, Vector3 Mid, Vector3 End) CalculatePathValues(
             ParticleSystemRenderState state, in ParticlePathParameters path, float timeStamp)
@@ -101,7 +103,7 @@ namespace ValveResourceFormat.Renderer.Particles.Utils
 
             var mid = Vector3.Lerp(start, end, path.MidPoint);
 
-            if (path.Bulge != 0f && path.BulgeControl != 0)
+            if (path.BulgeControl != 0)
             {
                 var bulgeCp = path.BulgeControl == 2 ? path.EndControlPointNumber : path.StartControlPointNumber;
                 var forward = state.GetControlPoint(bulgeCp).Orientation;
@@ -117,6 +119,10 @@ namespace ValveResourceFormat.Renderer.Particles.Utils
                 {
                     mid += forward * (length * path.Bulge * perpendicularity / forwardLength);
                 }
+            }
+            else
+            {
+                mid += ParticleCollection.RandomBetweenPerComponent(state.RandomSeed, new Vector3(-path.Bulge), new Vector3(path.Bulge));
             }
 
             mid += path.MidPointOffset;

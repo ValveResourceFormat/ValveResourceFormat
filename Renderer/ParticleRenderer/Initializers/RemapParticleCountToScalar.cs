@@ -52,8 +52,8 @@ namespace ValveResourceFormat.Renderer.Particles.Initializers
         public override Particle Initialize(ref Particle particle, ParticleCollection particles, ParticleSystemRenderState particleSystemState)
         {
             var count = invert
-                ? particleSystemState.ParticleCount - particle.ParticleID
-                : particle.ParticleID;
+                ? particleSystemState.ParticleCount - particle.CreationIndex
+                : particle.CreationIndex;
 
             if (activeRange && (count < InputMin || count > InputMax))
             {
