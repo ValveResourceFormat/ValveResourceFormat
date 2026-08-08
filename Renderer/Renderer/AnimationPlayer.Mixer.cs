@@ -66,6 +66,7 @@ namespace ValveResourceFormat.Renderer
         private PlaybackClip? activeClip;
         private PlaybackClip? previousClip;
         private readonly Dictionary<string, PlaybackClip> clips = [];
+        private const string WarpSuffix = ".warp";
         private readonly Frame BlendedFrame;
         private float currentBlendTime;
 
@@ -310,10 +311,20 @@ namespace ValveResourceFormat.Renderer
         /// <param name="animation">The animation to transition to.</param>
         /// <param name="blendTime">The blend time in seconds. 0 for instant transition, -1 for manual blending.</param>
         /// <param name="looping">Whether the clip should loop when reaching the end.</param>
-        private void TransitionToClip(Animation animation, float blendTime, bool looping)
+        /// <param name="warp">Whether re-entering the animation already playing should cross
+        /// over into a second instance of it rather than restarting it in place.</param>
+        private void TransitionToClip(Animation animation, float blendTime, bool looping, bool warp)
         {
             var animName = animation.Name;
 
+            if (warp && blendTime > 0f && activeClip?.Animation == animation)
+            {
+                animName = clips.TryGetValue(animName, out var primary) && primary == activeClip
+                    ? animName + WarpSuffix
+                    : animName;
+            }
+
+            // Check if clip already exists
             if (!clips.TryGetValue(animName, out var newClip))
             {
                 newClip = new PlaybackClip(animation) { Looping = looping, BlendTime = blendTime, IsAdditive = animation.IsAdditive };

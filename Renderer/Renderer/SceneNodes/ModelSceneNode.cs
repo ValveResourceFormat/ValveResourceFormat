@@ -497,10 +497,10 @@ namespace ValveResourceFormat.Renderer.SceneNodes
         }
 
         /// <summary>Activates the animation with the given name, or stops animation if not found.</summary>
-        public void SetAnimationByName(string animationName, float blendTime = 0f)
+        public void SetAnimationByName(string animationName, float blendTime = 0f, bool warp = false)
         {
             Animations.TryGetValue(animationName, out var activeAnimation);
-            SetAnimation(activeAnimation, blendTime);
+            SetAnimation(activeAnimation, blendTime, warp);
         }
 
         /// <summary>
@@ -531,9 +531,11 @@ namespace ValveResourceFormat.Renderer.SceneNodes
         /// <summary>Activates the given animation instance with a blend-in time, or clears the active animation when <see langword="null"/>.</summary>
         /// <param name="activeAnimation">The animation to activate, or <see langword="null"/> to clear.</param>
         /// <param name="blendTime">The time in seconds to blend from the current animation to the new one.</param>
-        public void SetAnimation(Animation? activeAnimation, float blendTime = 0f)
+        /// <param name="warp">Whether re-activating the animation already playing should cross over
+        /// into a second instance of it rather than restarting it in place.</param>
+        public void SetAnimation(Animation? activeAnimation, float blendTime = 0f, bool warp = false)
         {
-            AnimationController.SetAnimation(activeAnimation, blendTime);
+            AnimationController.SetAnimation(activeAnimation, blendTime, warp);
             UpdateBoundingBox();
 
             if (activeAnimation != default)

@@ -805,6 +805,12 @@ public class Rubikon
     /// </summary>
     public const string DefaultGeometry = "default";
 
+    /// <summary>Collision name for thrown grenades.</summary>
+    public const string GrenadeCollisionName = "grenade";
+
+    /// <summary>Collision name for the player.</summary>
+    public const string PlayerCollisionName = "player";
+
     private static bool SkipsCollision(string collisionName, string[] interactAs, string[] interactExclude)
     {
         if (collisionName == DefaultGeometry)
@@ -812,20 +818,29 @@ public class Rubikon
             return interactAs.Length > 0;
         }
 
-        if (collisionName != "player")
-        {
-            return false;
-        }
-
-        if (ContainsString(interactExclude, "player"))
+        if (ContainsString(interactExclude, collisionName))
         {
             return true;
         }
 
-        return interactAs.Length > 0
-            && !ContainsString(interactAs, "playerclip")
-            && !ContainsString(interactAs, "passbullets")
-            && !ContainsString(interactAs, "window");
+        // Untagged geometry stops everything; a tagged shape only stops what its tags name.
+        if (interactAs.Length == 0)
+        {
+            return false;
+        }
+
+        return collisionName switch
+        {
+            PlayerCollisionName => !ContainsString(interactAs, "playerclip")
+                && !ContainsString(interactAs, "passbullets")
+                && !ContainsString(interactAs, "window"),
+
+            GrenadeCollisionName => !ContainsString(interactAs, "csgo_grenadeclip")
+                && !ContainsString(interactAs, "passbullets")
+                && !ContainsString(interactAs, "window"),
+
+            _ => false,
+        };
     }
 
     private static bool ContainsString(string[] values, string value)

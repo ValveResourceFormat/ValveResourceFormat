@@ -240,6 +240,19 @@ namespace ValveResourceFormat.Renderer.SceneNodes
         /// </summary>
         public void Restart() => pendingRestart = true;
 
+        /// <summary>Whether the system is switched on. A stopped system neither simulates nor draws.</summary>
+        public bool IsPlaying => LayerEnabled;
+
+        /// <summary>Switches the system on and replays it from its current transform.</summary>
+        public void Play()
+        {
+            LayerEnabled = true;
+            Restart();
+        }
+
+        /// <summary>Switches the system off, dropping whatever it had alive.</summary>
+        public void Stop() => LayerEnabled = false;
+
         private bool pendingRestart;
 
         /// <summary>
@@ -514,33 +527,37 @@ namespace ValveResourceFormat.Renderer.SceneNodes
                 UpdateBoundControlPoints();
             }
 
-            // Control point 0 is seeded from the node transform (position, full rotation frame, and its
-            // transformed +X as the forward direction) whenever the transform changes from outside, like a
-            // non-follow attachment in game. Between seeds the control point belongs to the simulation:
-            // particle functions may move it, and the node transform reflects it back after each step.
-            // Preview drives the control point separately.
-            if (seededTransform != Transform)
-            {
-                var controlPoint = particleRenderer.MainControlPoint;
-                controlPoint.Position = Transform.Translation;
-
-                if (!Preview)
-                {
-                    var controlPointForward = Vector3.TransformNormal(Vector3.UnitX, Transform);
-                    if (controlPointForward.LengthSquared() > ParticleMath.MinimumLengthSquared)
-                    {
-                        controlPoint.Orientation = Vector3.Normalize(controlPointForward);
-                        controlPoint.Rotation = Quaternion.Normalize(Quaternion.CreateFromRotationMatrix(Transform));
-                    }
-                }
-
-                seededTransform = Transform;
-            }
+            SeedControlPointFromTransform();
 
             if (PreviewModel != null && !string.IsNullOrEmpty(PreviewModelAttachmentPoint))
             {
                 particleRenderer.MainControlPoint.Position = PreviewModel.GetAttachmentTransform(PreviewModelAttachmentPoint).Translation;
             }
+        }
+
+        /// <summary>Seeds control point 0 from the node transform when that has changed from outside.
+        /// Between seeds the control point belongs to the simulation.</summary>
+        private void SeedControlPointFromTransform()
+        {
+            if (seededTransform == Transform)
+            {
+                return;
+            }
+
+            var controlPoint = particleRenderer.MainControlPoint;
+            controlPoint.Position = Transform.Translation;
+
+            if (!Preview)
+            {
+                var controlPointForward = Vector3.TransformNormal(Vector3.UnitX, Transform);
+                if (controlPointForward.LengthSquared() > ParticleMath.MinimumLengthSquared)
+                {
+                    controlPoint.Orientation = Vector3.Normalize(controlPointForward);
+                    controlPoint.Rotation = Quaternion.Normalize(Quaternion.CreateFromRotationMatrix(Transform));
+                }
+            }
+
+            seededTransform = Transform;
         }
 
         /// <summary>
@@ -553,6 +570,10 @@ namespace ValveResourceFormat.Renderer.SceneNodes
             if (pendingRestart)
             {
                 pendingRestart = false;
+
+                // The node may have moved after Place ran, or while it was disabled and skipped it.
+                SeedControlPointFromTransform();
+
                 endCapPlayed = PlaybackMode == ParticlePlaybackMode.EndCapOnly;
 
                 if (endCapPlayed)

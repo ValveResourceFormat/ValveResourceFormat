@@ -22,6 +22,15 @@ public sealed class SoundEventBank
         }
     }
 
+    /// <summary>Drops a sound event, so playing it - or resolving it as another event's child - finds nothing.</summary>
+    /// <param name="name">Name of the event to drop (case-insensitive).</param>
+    /// <returns><see langword="true"/> if the bank held the event.</returns>
+    public bool RemoveSoundEvent(string name)
+    {
+        definitions.Remove(name);
+        return soundEvents.Remove(name);
+    }
+
     /// <summary>Adds all sound event definitions from a parsed soundevents file.</summary>
     public void AddSoundEvents(KVObject soundEventsFile)
     {

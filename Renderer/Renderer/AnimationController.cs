@@ -240,7 +240,9 @@ namespace ValveResourceFormat.Renderer
         /// </summary>
         /// <param name="animation">The animation to activate, or <see langword="null"/> to clear.</param>
         /// <param name="blendTime">The time in seconds to blend from previous animations to the new animation.</param>
-        public void SetAnimation(Animation? animation, float blendTime)
+        /// <param name="warp">Whether re-activating the animation already playing should cross over
+        /// into a second instance of it rather than restarting it in place.</param>
+        public void SetAnimation(Animation? animation, float blendTime, bool warp = false)
         {
             var newPlayer = modelPlayer;
             SkeletonRetargeter? newRetargeter = null;
@@ -260,7 +262,7 @@ namespace ValveResourceFormat.Renderer
             player = newPlayer;
             externalRetargeter = newRetargeter;
 
-            player.SetAnimation(animation, blendTime, Looping);
+            player.SetAnimation(animation, blendTime, Looping, warp);
             updateHandler(ActiveAnimation, -1);
         }
 

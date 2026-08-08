@@ -66,6 +66,12 @@ public partial class PlayerMovement : IPlayerController
     /// </summary>
     public bool WasOnGroundLastFrame { get; private set; }
 
+    /// <summary>Upward velocity the last jump left the ground with, after stamina.</summary>
+    public float JumpImpulse { get; private set; }
+
+    /// <summary>Whether a jump left the ground this frame. Leaving it any other way does not count.</summary>
+    public bool Jumped { get; private set; }
+
     // Last known non-overlapping position, restored when stuck
     private Vector3 LastValidPosition;
     private bool HasValidPosition;
@@ -342,6 +348,7 @@ public partial class PlayerMovement : IPlayerController
         var playerHull = HullHalfExtents;
 
         WasOnGroundLastFrame = OnGround;
+        Jumped = false;
 
         // Impact speed to use if this frame turns out to land: ground movement zeroes the
         // vertical velocity, so it must be sampled while still falling
@@ -1533,9 +1540,11 @@ public partial class PlayerMovement : IPlayerController
     private void CheckJump()
     {
         OnGround = false;
+        Jumped = true;
 
         // Jump impulse scales by stamina as in CS: drained stamina makes successive jumps lower
-        Velocity = new Vector3(Velocity.X, Velocity.Y, JumpImpulseValue * Stamina);
+        JumpImpulse = JumpImpulseValue * Stamina;
+        Velocity = new Vector3(Velocity.X, Velocity.Y, JumpImpulse);
         SlopeClipNormalZ = 1f; // jump impulse is genuine vertical velocity
     }
 

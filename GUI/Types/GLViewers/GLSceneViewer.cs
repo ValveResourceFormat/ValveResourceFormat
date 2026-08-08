@@ -58,6 +58,7 @@ namespace GUI.Types.GLViewers
         private bool showStaticOctree;
         private bool showDynamicOctree;
         private bool showVisDebug;
+        protected bool ShowSpeed { get; set; }
         private bool showPhysicsTraces;
         private PhysicsTraceDebugRenderer? physicsTraceRenderer;
 
@@ -656,6 +657,8 @@ namespace GUI.Types.GLViewers
 
                 Renderer.Update(updateContext);
 
+                Input.LateUpdate(Renderer.Camera);
+
                 SelectedNodeRenderer.Update(renderContext, updateContext);
             }
 
@@ -792,7 +795,7 @@ namespace GUI.Types.GLViewers
 
             BlitFramebufferToScreen();
 
-            if (GrabbedMouse)
+            if (GrabbedMouse && ShowSpeed)
             {
                 TextRenderer.AddTextRelative(new ValveResourceFormat.Renderer.TextRenderer.TextRenderRequest
                 {

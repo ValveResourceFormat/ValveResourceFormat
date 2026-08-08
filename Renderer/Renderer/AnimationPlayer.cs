@@ -213,7 +213,9 @@ namespace ValveResourceFormat.Renderer
         /// <param name="animation">The animation to activate, or <see langword="null"/> to clear.</param>
         /// <param name="blendTime">The time in seconds to blend from previous animations to the new animation.</param>
         /// <param name="looping">Whether the clip should loop when reaching the end.</param>
-        public void SetAnimation(Animation? animation, float blendTime, bool looping)
+        /// <param name="warp">Whether re-activating the animation already playing should cross over
+        /// into a second instance of it rather than restarting it in place.</param>
+        public void SetAnimation(Animation? animation, float blendTime, bool looping, bool warp = false)
         {
             FrameCache.PurgeCache();
             ApplyAdditive = animation?.IsAdditive ?? false;
@@ -222,7 +224,7 @@ namespace ValveResourceFormat.Renderer
 
             if (animation != null)
             {
-                TransitionToClip(animation, blendTime, looping);
+                TransitionToClip(animation, blendTime, looping, warp);
             }
             else
             {

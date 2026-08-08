@@ -52,6 +52,9 @@ public class UserInput
     private Vector3? _orbitTarget;
     private bool _forceUpdate = true;
 
+    private bool following;
+    private CameraLite followReturn;
+
     // Orbit controls
     /// <summary>Gets a value indicating whether the camera is currently in orbit mode.</summary>
     public bool OrbitMode => _orbitTarget != null;
@@ -59,6 +62,11 @@ public class UserInput
     public bool OrbitModeAlways { get; set; }
     /// <summary>Gets or sets an optional callback that provides a world-space orbit target point.</summary>
     public Func<Vector3?>? OrbitTargetProvider { get; set; }
+
+    /// <summary>Something the camera can orbit in place of the point under the crosshair.</summary>
+    internal readonly record struct OrbitFollow(bool Wanted, Vector3? Position);
+
+    internal Func<OrbitFollow>? OrbitFollowProvider { get; set; }
 
     /// <summary>Gets or sets the world-space point the camera orbits around; setting this also updates <see cref="OrbitDistance"/>.</summary>
     public Vector3? OrbitTarget
@@ -198,16 +206,25 @@ public class UserInput
 
                 if (Released(TrackedKeys.Alt))
                 {
-                    PlayerMovement.Initialize = !NoClip;
-
-                    if (!NoClip)
+                    if (following)
                     {
-                        // Orbiting zooms with a transition of its own, so the same settling applies
-                        SettleCamera();
+                        Camera.Pitch = followReturn.Pitch;
+                        Camera.Yaw = followReturn.Yaw;
+                    }
+                    else
+                    {
+                        PlayerMovement.Initialize = !NoClip;
+
+                        if (!NoClip)
+                        {
+                            SettleCamera();
+                        }
                     }
                 }
+
+                following = false;
             }
-            else if (Pressed(TrackedKeys.Alt))
+            else if (Pressed(TrackedKeys.Alt) && !TryFollowOrbit())
             {
                 OrbitTarget = null;
 
@@ -267,7 +284,11 @@ public class UserInput
 
         Camera.Roll = 0f;
 
-        if (OrbitMode)
+        if (following && OrbitTarget is { } followTarget)
+        {
+            HandleFollowOrbit(followTarget);
+        }
+        else if (OrbitMode)
         {
             HandleOrbitControls(deltaTime, keyboardState, !NoClip);
         }
@@ -292,6 +313,13 @@ public class UserInput
 
         Viewmodel?.ProcessInput(this, Renderer.Uptime);
 
+        ApplyToRenderCamera(renderCamera);
+
+        PreviousKeys = keyboardState;
+    }
+
+    private void ApplyToRenderCamera(Camera renderCamera)
+    {
         var finalCamera = GetInterpolatedCamera();
 
         // The landing punch tilts the rendered view down without touching the stored aim.
@@ -301,8 +329,36 @@ public class UserInput
         renderCamera.ClampRotation();
 
         renderCamera.Roll = Camera.Roll;
+    }
 
-        PreviousKeys = keyboardState;
+    /// <summary>
+    /// Re-places a camera following a moving target, after the scene has stepped it.
+    /// </summary>
+    /// <param name="renderCamera">The camera the frame is drawn with.</param>
+    public void LateUpdate(Camera renderCamera)
+    {
+        if (!following)
+        {
+            return;
+        }
+
+        if (OrbitFollowProvider?.Invoke().Position is { } position)
+        {
+            if (OrbitTarget == null)
+            {
+                AttachFollowOrbit(position);
+            }
+            else
+            {
+                _orbitTarget = position;
+            }
+        }
+
+        if (OrbitTarget is { } target)
+        {
+            PlaceFollowOrbitCamera(target);
+            ApplyToRenderCamera(renderCamera);
+        }
     }
 
     private CameraLite CameraPositionAngles
@@ -368,6 +424,52 @@ public class UserInput
         var yaw = MathUtils.LerpAngle(StartingCamera.Yaw, Camera.Yaw, time);
 
         return new(location, pitch, yaw);
+    }
+
+    private const float FollowOrbitDistance = 64f;
+
+    private bool TryFollowOrbit()
+    {
+        var follow = OrbitFollowProvider?.Invoke() ?? default;
+        following = follow.Wanted;
+
+        if (!following)
+        {
+            return false;
+        }
+
+        _orbitTarget = null;
+        followReturn = CameraPositionAngles;
+
+        if (follow.Position is { } position)
+        {
+            AttachFollowOrbit(position);
+        }
+
+        return true;
+    }
+
+    private void AttachFollowOrbit(Vector3 target)
+    {
+        _orbitTarget = target;
+        OrbitDistance = FollowOrbitDistance;
+    }
+
+    private void HandleFollowOrbit(Vector3 target)
+    {
+        Camera.Yaw -= MouseDeltaPitchYaw.Y;
+        Camera.Pitch += MouseDeltaPitchYaw.X;
+        Camera.ClampRotation();
+
+        PlaceFollowOrbitCamera(target);
+
+        Velocity = Vector3.Zero;
+    }
+
+    private void PlaceFollowOrbitCamera(Vector3 target)
+    {
+        Camera.RecalculateDirectionVectors();
+        Camera.Location = target - Camera.Forward * OrbitDistance;
     }
 
     private void HandleOrbitControls(float deltaTime, TrackedKeys keyboardState, bool walking)
@@ -600,6 +702,7 @@ public class UserInput
     public bool TryLoadViewmodel(Scene scene)
     {
         Viewmodel = ViewmodelSceneNode.TryLoadCs2Viewmodel(scene);
+        OrbitFollowProvider = Viewmodel is null ? null : Viewmodel.GetOrbitFollow;
         return Viewmodel != null;
     }
 }

@@ -38,6 +38,17 @@ public class ViewmodelSceneNode : ModelSceneNode
 
     private int PreviousSelectedIndex;
 
+    /// <summary>Item index of the smoke grenade.</summary>
+    private const int SmokeItemIndex = 4;
+
+    /// <summary>Item index of the high explosive grenade, first up on slot 4.</summary>
+    private const int ExplosiveItemIndex = 5;
+
+    /// <summary>Item index of the molotov, last in slot 4's cycle.</summary>
+    private const int FireItemIndex = 6;
+
+    private bool IsGrenadeSelected => SelectedItemIndex is SmokeItemIndex or ExplosiveItemIndex or FireItemIndex;
+
     /// <summary>
     /// The selected item slot.
     /// </summary>
@@ -54,12 +65,15 @@ public class ViewmodelSceneNode : ModelSceneNode
             PreviousSelectedIndex = field;
             field = value;
 
+            CancelGrenadeThrow();
+            deployTimeLeft = DeployDuration;
             SetState(AnimationState.Draw);
         }
     } = 3;
 
     readonly SkeletonSceneNode PrimarySkeletonDebug;
     ParticleSceneNode? muzzleFlashParticle;
+    ParticleSceneNode? molotovHeldParticle;
 
     private bool FirstPersonMode { get; set; } = true;
     private Matrix4x4 TargetTransform = Matrix4x4.Identity;
@@ -93,6 +107,8 @@ public class ViewmodelSceneNode : ModelSceneNode
         LookAt,
         Attack,
         AlternateAttack,
+        PullPin,
+        ThrowCharge,
     }
 
     private enum Posture
@@ -234,9 +250,18 @@ public class ViewmodelSceneNode : ModelSceneNode
                 {
                     AnimationState.Idle => anim.Idle,
                     AnimationState.Draw => anim.Draw,
-                    AnimationState.LookAt => anim.LookAt,
+                    AnimationState.LookAt => lookAtVariant == 1 ? anim.LookAt2 ?? anim.LookAt : anim.LookAt,
                     AnimationState.Attack => anim.Attack,
                     AnimationState.AlternateAttack => anim.AltAttack,
+                    AnimationState.PullPin => anim.PullPin,
+
+                    AnimationState.ThrowCharge => ChargeState switch
+                    {
+                        2 => anim.ChargeHigh,
+                        0 => anim.ChargeLow,
+                        _ => anim.ChargeMid,
+                    },
+
                     _ => string.Empty,
                 };
             }
@@ -264,11 +289,19 @@ public class ViewmodelSceneNode : ModelSceneNode
         KnifeSlashSound,
         KnifeHeavySwishSound,
         KnifeHitWallSound,
+        JumpThrowSound,
     ];
 
     private static void CacheSounds()
     {
+        Sound.Player?.Bank.RemoveSoundEvent("BaseExplosionEffect.Sound"); // src1_3d
+
         foreach (var soundEvent in AttackSounds)
+        {
+            Sound.Cache(soundEvent);
+        }
+
+        foreach (var soundEvent in CS2ProjectileSceneNode.Sounds)
         {
             Sound.Cache(soundEvent);
         }
@@ -313,6 +346,282 @@ public class ViewmodelSceneNode : ModelSceneNode
         }
     }
 
+    private const float GrenadeThrowVelocity = 750f;
+    private const float GrenadeThrowDelay = 0.1f;
+    private const float ThrowVelocityScale = 0.9f;
+    private const float MinThrowVelocity = 15f;
+    private const float MaxThrowVelocity = 750f;
+    private const float UnderhandThrowDampening = 0.3f;
+    private const float UnderhandThrowLower = 12f;
+    private const float ThrowStrengthTransition = 1.3f;
+    private const float ThrowPitchBias = 10f;
+    private const float ThrowTraceDistance = 22f;
+    private const float ThrowPullback = 6f;
+    private const float JumpThrowWindow = 0.2f;
+    private const float ThrownPlayerVelocityScale = 1.25f;
+    private const int MaxProjectiles = 8;
+
+    private const string JumpThrowSound = "BaseGrenade.JumpThrowM";
+
+    private readonly List<CS2ProjectileSceneNode> projectiles = [];
+    private CS2ProjectileSceneNode? lastThrown;
+
+    /// <summary>What each kind of grenade is thrown as, and what its detonation spawns.</summary>
+    private readonly Dictionary<CS2ProjectileSceneNode.GrenadeKind, (Model Model, ParticleSystem? Effect, ParticleSystem? FlightEffect)> grenadeResources = [];
+
+    private float uptime;
+    private float jumpUptime = float.NegativeInfinity;
+    private Vector3 groundEyePosition;
+    private Vector3 groundVelocity;
+    private bool jumpThrow;
+
+    private bool pinPulled;
+    private bool grenadeInHand = true;
+    private float throwStrength = 1f;
+    private float throwTimer;
+    private float deployTimeLeft;
+    private float frameTime;
+
+    /// <summary>Whether the item in hand has finished coming up. Opens half a frame early, because a press
+    /// is only seen once a frame and waiting for the deploy to be strictly over always runs late.</summary>
+    private bool Deployed => deployTimeLeft <= frameTime * 0.5f;
+
+    private void CancelGrenadeThrow()
+    {
+        pinPulled = false;
+        throwTimer = 0f;
+        throwStrength = 1f;
+        grenadeInHand = true;
+    }
+
+    /// <summary>Moves <paramref name="value"/> toward <paramref name="target"/> without overshooting.</summary>
+    private static float Approach(float target, float value, float speed)
+    {
+        var delta = target - value;
+
+        return delta > speed ? value + speed
+            : delta < -speed ? value - speed
+            : target;
+    }
+
+    /// <summary>Which of the three charge poses the current throw strength holds.</summary>
+    private int ChargeState => throwStrength switch
+    {
+        > 0.75f => 2,
+        < 0.25f => 0,
+        _ => 1,
+    };
+
+    /// <summary>Which lookat clip is playing, where the item has more than one.</summary>
+    private int lookAtVariant;
+
+    /// <summary>Whether the item can be inspected. One already under way holds off a second until halfway.</summary>
+    private bool CanInspect
+    {
+        get
+        {
+            if (pinPulled || throwTimer > 0f || !grenadeInHand)
+            {
+                return false;
+            }
+
+            if (State != AnimationState.LookAt)
+            {
+                return true;
+            }
+
+            var animation = AnimationController.ActiveAnimation;
+
+            return animation is not { Duration: > 0f }
+                || AnimationController.Time >= animation.Duration * 0.5f;
+        }
+    }
+
+    private void ProcessGrenadeInput(UserInput input, float dt)
+    {
+        if (throwTimer > 0f)
+        {
+            throwTimer -= dt;
+
+            if (throwTimer <= 0f)
+            {
+                throwTimer = 0f;
+                ThrowGrenade(input);
+            }
+
+            return;
+        }
+
+        var attack = input.Holding(TrackedKeys.MouseLeft);
+        var attack2 = input.Holding(TrackedKeys.MouseRight);
+
+        if (!pinPulled)
+        {
+            // Nothing comes out until the grenade is all the way up.
+            if (grenadeInHand && Deployed && (attack || attack2))
+            {
+                pinPulled = true;
+
+                if (attack2)
+                {
+                    throwStrength = 0f;
+                }
+
+                SetState(AnimationState.PullPin);
+            }
+
+            return;
+        }
+
+        if (attack || attack2)
+        {
+            // Primary raises the strength, secondary lowers it, holding both sits between the two.
+            var idealStrength = 0.5f;
+
+            if (attack)
+            {
+                idealStrength += 0.5f;
+            }
+
+            if (attack2)
+            {
+                idealStrength -= 0.5f;
+            }
+
+            // Walks rather than snaps, so a tap only bends the throw as far as it was held.
+            var previousCharge = ChargeState;
+            throwStrength = Approach(idealStrength, throwStrength, dt * ThrowStrengthTransition);
+
+            // Only re-enter on a pose change; the strength itself moves every frame.
+            if (State == AnimationState.ThrowCharge && ChargeState != previousCharge)
+            {
+                SetState(AnimationState.ThrowCharge);
+            }
+
+            return;
+        }
+
+        pinPulled = false;
+        throwTimer = GrenadeThrowDelay;
+        jumpThrow = JumpedWithin(JumpThrowWindow);
+
+        SetState(ChargeState == 0 ? AnimationState.AlternateAttack : AnimationState.Attack);
+    }
+
+    private bool JumpedWithin(float window) => uptime - jumpUptime <= window;
+
+    private void ThrowGrenade(UserInput input)
+    {
+        grenadeInHand = false;
+
+        jumpThrow = jumpThrow || JumpedWithin(JumpThrowWindow);
+
+        if (jumpThrow)
+        {
+            Sound.Play(JumpThrowSound);
+        }
+
+        var kind = SelectedItemIndex switch
+        {
+            SmokeItemIndex => CS2ProjectileSceneNode.GrenadeKind.Smoke,
+            FireItemIndex => CS2ProjectileSceneNode.GrenadeKind.Fire,
+            _ => CS2ProjectileSceneNode.GrenadeKind.Explosive,
+        };
+
+        var projectile = AcquireProjectile(kind);
+
+        if (projectile == null)
+        {
+            return;
+        }
+
+        var (origin, velocity) = CalculateThrow(input, throwStrength);
+        projectile.Launch(origin, velocity);
+
+        lastThrown = projectile;
+    }
+
+    /// <summary>World position of the last grenade thrown while it is still on its way.</summary>
+    private Vector3? GrenadeInFlightPosition => lastThrown is { InFlight: true } grenade ? grenade.Position : null;
+
+    internal UserInput.OrbitFollow GetOrbitFollow()
+        => GrenadeThrowPending
+            ? new UserInput.OrbitFollow(true, null)
+            : new UserInput.OrbitFollow(GrenadeInFlightPosition.HasValue, GrenadeInFlightPosition);
+
+    /// <summary>Whether a grenade is being wound up or is waiting out the throw delay.</summary>
+    private bool GrenadeThrowPending => pinPulled || throwTimer > 0f;
+
+    /// <summary>Where and how fast a thrown grenade leaves the hand.</summary>
+    private (Vector3 Origin, Vector3 Velocity) CalculateThrow(UserInput input, float throwStrength)
+    {
+        var camera = input.Camera;
+
+        var pitch = float.RadiansToDegrees(camera.Pitch);
+        var throwPitch = pitch - ThrowPitchBias * (90f - MathF.Abs(pitch)) / 90f;
+
+        var speed = Math.Clamp(GrenadeThrowVelocity * ThrowVelocityScale, MinThrowVelocity, MaxThrowVelocity);
+        speed *= float.Lerp(UnderhandThrowDampening, 1f, throwStrength);
+
+        var (pitchSin, pitchCos) = MathF.SinCos(float.DegreesToRadians(throwPitch));
+        var (yawSin, yawCos) = MathF.SinCos(camera.Yaw);
+        var forward = new Vector3(yawCos * pitchCos, yawSin * pitchCos, -pitchSin);
+
+        var origin = jumpThrow ? groundEyePosition : input.PlayerMovement.EyePosition;
+        var carried = jumpThrow
+            ? new Vector3(groundVelocity.X, groundVelocity.Y, input.PlayerMovement.JumpImpulse)
+            : input.Velocity;
+
+        origin.Z += float.Lerp(-UnderhandThrowLower, 0f, throwStrength);
+
+        var reach = origin + forward * ThrowTraceDistance;
+
+        if (input.PhysicsWorld is { } physics)
+        {
+            var trace = CS2ProjectileSceneNode.SweepHull(physics, origin, reach);
+
+            if (trace is { Hit: true, IsValid: true })
+            {
+                reach = trace.HitPosition;
+            }
+        }
+
+        origin = reach - forward * ThrowPullback;
+
+        return (origin, forward * speed + carried * ThrownPlayerVelocityScale);
+    }
+
+    private CS2ProjectileSceneNode? AcquireProjectile(CS2ProjectileSceneNode.GrenadeKind kind)
+    {
+        foreach (var projectile in projectiles)
+        {
+            if (projectile.Kind == kind && !projectile.Live)
+            {
+                return projectile;
+            }
+        }
+
+        if (!grenadeResources.TryGetValue(kind, out var resources))
+        {
+            return null;
+        }
+
+        if (projectiles.Count >= MaxProjectiles)
+        {
+            return projectiles.Find(projectile => projectile.Kind == kind);
+        }
+
+        var node = new CS2ProjectileSceneNode(Scene, resources.Model, kind, resources.Effect, resources.FlightEffect)
+        {
+            Parent = this,
+        };
+
+        Scene.Add(node, true);
+        projectiles.Add(node);
+
+        return node;
+    }
+
     private (float fire, float altFire) GetWeaponFireDelays()
         => SelectedItemIndex switch
         {
@@ -332,29 +641,45 @@ public class ViewmodelSceneNode : ModelSceneNode
             1 => 225f, // m4a1_silencer
             2 => 240f, // usp_silencer
             3 => 250f, // knife
+            SmokeItemIndex => 245f,     // weapon_smokegrenade
+            ExplosiveItemIndex => 245f, // weapon_hegrenade
+            FireItemIndex => 245f,      // weapon_molotov
             _ => 250f,
+        };
+
+    /// <summary>
+    /// Gets how long after this item is drawn before it can be used, <c>m_flDeployDuration</c> in
+    /// weapons.vdata. A second for everything here bar the rifle.
+    /// </summary>
+    public float DeployDuration
+        => SelectedItemIndex switch
+        {
+            1 => 1.133333f, // m4a1_silencer
+            _ => 1f,
         };
 
     void SetState(AnimationState newState)
     {
         State = newState;
-        var looping = newState == AnimationState.Idle;
+        var looping = newState is AnimationState.Idle or AnimationState.ThrowCharge;
 
         var timeScale = 1f; // 0.3f;
 
-        var fadeIn = newState is AnimationState.Draw or AnimationState.Attack or AnimationState.AlternateAttack
+        var fadeIn = newState is AnimationState.Draw or AnimationState.Attack or AnimationState.AlternateAttack or AnimationState.PullPin
             ? 0f
             : 0.35f;
+
+        var warp = newState == AnimationState.LookAt;
 
         AnimationController.IsPaused = false;
         AnimationController.Looping = looping;
         AnimationController.FrametimeMultiplier = timeScale;
-        SetAnimationByName(TargetAnimation, fadeIn);
+        SetAnimationByName(TargetAnimation, fadeIn, warp);
 
         SelectedItem?.AnimationController.IsPaused = false;
         SelectedItem?.AnimationController.Looping = looping;
         SelectedItem?.AnimationController.FrametimeMultiplier = timeScale;
-        SelectedItem?.SetAnimationByName(TargetAnimation, fadeIn);
+        SelectedItem?.SetAnimationByName(TargetAnimation, fadeIn, warp);
     }
 
     internal const string WorldLayerName = "Internal - First Person Model";
@@ -363,6 +688,8 @@ public class ViewmodelSceneNode : ModelSceneNode
     private const string BreathingClip = "animation/anims/world/shared/breathing.vnmclip";
     private const string LandedClip = "animation/anims/world/shared/jump_additive_land.vnmclip";
     private const string MuzzleFlashAttachment = "muzzle_flash2";
+    private const string MolotovHeldEffect = "particles/weapons/cs_weapon_fx/weapon_molotov_held.vpcf";
+    private const string MolotovFlameAttachment = "molotov_particle";
 
     internal ViewmodelSceneNode(Scene scene, Model model)
         : base(scene, model, isWorldPreview: true)
@@ -370,6 +697,7 @@ public class ViewmodelSceneNode : ModelSceneNode
         LoadItemAnimations();
 
         AnimationController.EnableFirstPersonConstraints = true;
+
         SetState(AnimationState.Idle);
         TargetTransform = Transform;
 
@@ -453,7 +781,8 @@ public class ViewmodelSceneNode : ModelSceneNode
         Legs.AnimationController.SetAnimationWeight(BreathingClip, 1f);
     }
 
-    record struct Anim(string Idle, string Draw, string LookAt, string Attack, string? AltAttack = null, string? Attack2 = null, string? AltAttack2 = null);
+    record struct Anim(string Idle, string Draw, string LookAt, string Attack, string? AltAttack = null, string? Attack2 = null, string? AltAttack2 = null,
+        string? PullPin = null, string? ChargeLow = null, string? ChargeMid = null, string? ChargeHigh = null, string? LookAt2 = null);
 
     readonly Dictionary<int, Anim> ItemAnimations = new()
     {
@@ -479,19 +808,63 @@ public class ViewmodelSceneNode : ModelSceneNode
             "knife/knife_karambit/heavy_miss1_karambit.vnmclip",
             "knife/knife_karambit/light_miss2_karambit.vnmclip"
         ),
+        [SmokeItemIndex] = new Anim(
+            "grenade/grenade_smokegrenade/idle_smoke.vnmclip",
+            "grenade/grenade_smokegrenade/draw_smoke.vnmclip",
+            "grenade/grenade_smokegrenade/lookat01_smoke.vnmclip",
+            "grenade/grenade_smokegrenade/throw_overhand_smoke.vnmclip",
+            "grenade/grenade_smokegrenade/throw_underhand_smoke.vnmclip",
+            PullPin: "grenade/grenade_smokegrenade/pullpin_smoke.vnmclip",
+            ChargeLow: "grenade/grenade_smokegrenade/throwcharge_low_smoke.vnmclip",
+            ChargeMid: "grenade/grenade_smokegrenade/throwcharge_mid_smoke.vnmclip",
+            ChargeHigh: "grenade/grenade_smokegrenade/throwcharge_high_smoke.vnmclip",
+            LookAt2: "grenade/grenade_smokegrenade/lookat02_smoke.vnmclip"
+        ),
+        [ExplosiveItemIndex] = new Anim(
+            "grenade/grenade_hegrenade/idle_hegrenade.vnmclip",
+            "grenade/grenade_hegrenade/draw_hegrenade.vnmclip",
+            "grenade/grenade_hegrenade/lookat01_hegrenade.vnmclip",
+            "grenade/grenade_hegrenade/throw_overhand_hegrenade.vnmclip",
+            "grenade/grenade_hegrenade/throw_underhand_hegrenade.vnmclip",
+            PullPin: "grenade/grenade_hegrenade/pullpin_hegrenade.vnmclip",
+            ChargeLow: "grenade/grenade_hegrenade/throwcharge_low_hegrenade.vnmclip",
+            ChargeMid: "grenade/grenade_hegrenade/throwcharge_mid_hegrenade.vnmclip",
+            ChargeHigh: "grenade/grenade_hegrenade/throwcharge_high_hegrenade.vnmclip",
+            LookAt2: "grenade/grenade_hegrenade/lookat02_hegrenade.vnmclip"
+        ),
+        [FireItemIndex] = new Anim(
+            "grenade/grenade_molotov/idle_molotov.vnmclip",
+            "grenade/grenade_molotov/draw_molotov.vnmclip",
+            "grenade/grenade_molotov/lookat01_molotov.vnmclip",
+            "grenade/grenade_molotov/throw_overhand_molotov.vnmclip",
+            "grenade/grenade_molotov/throw_underhand_molotov.vnmclip",
+            PullPin: "grenade/grenade_molotov/pullpin_molotov.vnmclip",
+            ChargeLow: "grenade/grenade_molotov/throwcharge_low_molotov.vnmclip",
+            ChargeMid: "grenade/grenade_molotov/throwcharge_mid_molotov.vnmclip",
+            ChargeHigh: "grenade/grenade_molotov/throwcharge_high_molotov.vnmclip",
+            LookAt2: "grenade/grenade_molotov/lookat02_molotov.vnmclip"
+        ),
     };
 
     private void LoadItemAnimations()
     {
         foreach (var (_, anim) in ItemAnimations)
         {
-            string?[] clips = [anim.Idle, anim.Draw, anim.LookAt, anim.Attack, anim.AltAttack, anim.Attack2, anim.AltAttack2];
+            string?[] clips = [
+                anim.Idle, anim.Draw, anim.LookAt, anim.Attack, anim.AltAttack, anim.Attack2, anim.AltAttack2,
+                anim.PullPin, anim.ChargeLow, anim.ChargeMid, anim.ChargeHigh, anim.LookAt2,
+            ];
 
             foreach (var clip in clips)
             {
-                if (clip != null)
+                if (clip == null)
                 {
-                    LoadAnimationClip(ViewmodelAnimPath + clip);
+                    continue;
+                }
+
+                if (!LoadAnimationClip(ViewmodelAnimPath + clip))
+                {
+                    Scene.RendererContext.Logger.LogWarning("Wrong animation path: {Clip}", ViewmodelAnimPath + clip);
                 }
             }
         }
@@ -534,6 +907,9 @@ public class ViewmodelSceneNode : ModelSceneNode
             "weapons/models/m4a1_silencer/weapon_rif_m4a1_silencer.vmdl",
             "weapons/models/usp_silencer/weapon_pist_usp_silencer.vmdl",
             "weapons/models/knife/knife_karambit/weapon_knife_karambit.vmdl",
+            "weapons/models/grenade/smokegrenade/weapon_smokegrenade.vmdl",
+            "weapons/models/grenade/hegrenade/weapon_hegrenade.vmdl",
+            "weapons/models/grenade/molotov/weapon_molotov.vmdl",
         ];
 
         List<Model> models = [];
@@ -565,6 +941,22 @@ public class ViewmodelSceneNode : ModelSceneNode
         scene.Add(stattrakModule, true);
         primary.AttachNode(stattrakModule, "stattrak");
 
+        Span<(CS2ProjectileSceneNode.GrenadeKind Kind, Model Model, string Effect, string? FlightEffect)> grenades = [
+            (CS2ProjectileSceneNode.GrenadeKind.Smoke, models[5], "particles/explosions_fx/explosion_smokegrenade.vpcf", null),
+            (CS2ProjectileSceneNode.GrenadeKind.Explosive, models[6], "particles/explosions_fx/explosion_hegrenade.vpcf", null),
+            (CS2ProjectileSceneNode.GrenadeKind.Fire, models[7], "particles/inferno_fx/molotov_explosion.vpcf", "particles/weapons/cs_weapon_fx/weapon_molotov_thrown.vpcf"),
+        ];
+
+        foreach (var (kind, model, effect, flightEffect) in grenades)
+        {
+            viewmodel.grenadeResources[kind] = (
+                model,
+                loader.LoadFileCompiled(effect)?.DataBlock as ParticleSystem,
+                flightEffect == null ? null : loader.LoadFileCompiled(flightEffect)?.DataBlock as ParticleSystem);
+
+            viewmodel.AcquireProjectile(kind);
+        }
+
         viewmodel.SelectedItemIndex = 2;
         viewmodel.SelectedItemIndex = 3;
 
@@ -573,6 +965,22 @@ public class ViewmodelSceneNode : ModelSceneNode
         viewmodel.LayerName = ViewmodelLayerName;
         viewmodel.Flags |= ObjectTypeFlags.DisableVisCulling;
         viewmodel.RenderPasses |= CustomRenderPasses.Viewmodel;
+
+        var molotovHeldResource = loader.LoadFileCompiled(MolotovHeldEffect);
+        if (molotovHeldResource?.DataBlock is ParticleSystem molotovHeldSystem)
+        {
+            viewmodel.molotovHeldParticle = new ParticleSceneNode(scene, molotovHeldSystem)
+            {
+                LayerName = ViewmodelLayerName,
+                Flags = ObjectTypeFlags.DisableVisCulling,
+                LayerEnabled = false,
+            };
+
+            viewmodel.molotovHeldParticle.RenderPasses |= CustomRenderPasses.Viewmodel;
+
+            scene.Add(viewmodel.molotovHeldParticle, true);
+            viewmodel.Items[FireItemIndex - 1]!.AttachNode(viewmodel.molotovHeldParticle, MolotovFlameAttachment);
+        }
 
         // Load muzzle flash particle
         var muzzleFlashResource = loader.LoadFileCompiled("particles/unified_weapon_fx/uweapon_muzflsh_riffle_fps.vpcf");
@@ -825,32 +1233,59 @@ public class ViewmodelSceneNode : ModelSceneNode
             legsController.SetAnimationWeight(BreathingClip, 1f);
         }
 
-        var (fireDelay, altFireDelay) = GetWeaponFireDelays();
-
-        var requestedFire = SelectedItemIndex == 2
-            ? input.Pressed(TrackedKeys.MouseLeft)
-            : input.Holding(TrackedKeys.MouseLeft);
-
-        if (requestedFire && attackCooldown <= 0f)
+        // Nothing is usable until it is all the way up, whichever item it is.
+        if (deployTimeLeft > 0f)
         {
-            SetState(AnimationState.Attack);
-            PlayAttackSound(input, heavyKnifeAttack: false);
-            attackCooldown = fireDelay;
-            if (SelectedItemIndex != 3 && muzzleFlashParticle != null)
-            {
-                muzzleFlashParticle.Restart();
-            }
+            deployTimeLeft = MathF.Max(0f, deployTimeLeft - dt);
         }
-        else if (input.Holding(TrackedKeys.MouseRight) && alternateAttackCooldown <= 0f)
+
+        frameTime = dt;
+        this.uptime = uptime;
+
+        if (input.PlayerMovement.OnGround)
         {
-            SetState(AnimationState.AlternateAttack);
+            groundEyePosition = input.PlayerMovement.EyePosition;
+            groundVelocity = input.Velocity;
+        }
 
-            if (SelectedItemIndex == 3)
+        if (input.PlayerMovement.Jumped)
+        {
+            jumpUptime = uptime;
+        }
+
+        if (IsGrenadeSelected)
+        {
+            ProcessGrenadeInput(input, dt);
+        }
+        else
+        {
+            var (fireDelay, altFireDelay) = GetWeaponFireDelays();
+
+            var requestedFire = Deployed && (SelectedItemIndex == 2
+                ? input.Pressed(TrackedKeys.MouseLeft)
+                : input.Holding(TrackedKeys.MouseLeft));
+
+            if (requestedFire && attackCooldown <= 0f)
             {
-                PlayAttackSound(input, heavyKnifeAttack: true);
+                SetState(AnimationState.Attack);
+                PlayAttackSound(input, heavyKnifeAttack: false);
+                attackCooldown = fireDelay;
+                if (SelectedItemIndex != 3 && muzzleFlashParticle != null)
+                {
+                    muzzleFlashParticle.Restart();
+                }
             }
+            else if (input.Holding(TrackedKeys.MouseRight) && alternateAttackCooldown <= 0f && Deployed)
+            {
+                SetState(AnimationState.AlternateAttack);
 
-            alternateAttackCooldown = altFireDelay;
+                if (SelectedItemIndex == 3)
+                {
+                    PlayAttackSound(input, heavyKnifeAttack: true);
+                }
+
+                alternateAttackCooldown = altFireDelay;
+            }
         }
 
         if (input.Pressed(TrackedKeys.Slot1))
@@ -865,13 +1300,29 @@ public class ViewmodelSceneNode : ModelSceneNode
         {
             SelectedItemIndex = 3;
         }
+        else if (input.Pressed(TrackedKeys.Slot4))
+        {
+            // Slot 4 holds the grenades: the HE comes up first, then the smoke, then the molotov.
+            SelectedItemIndex = SelectedItemIndex switch
+            {
+                ExplosiveItemIndex => SmokeItemIndex,
+                SmokeItemIndex => FireItemIndex,
+                _ => ExplosiveItemIndex,
+            };
+        }
         else if (input.Pressed(TrackedKeys.Q))
         {
             SelectPreviousItem();
         }
 
-        if (input.Pressed(TrackedKeys.F))
+        if (input.Pressed(TrackedKeys.F) && CanInspect)
         {
+            // transition to a different lookat if possible
+            if (ItemAnimations.TryGetValue(SelectedItemIndex, out var itemAnim) && itemAnim.LookAt2 != null)
+            {
+                lookAtVariant ^= 1;
+            }
+
             SetState(AnimationState.LookAt);
         }
     }
@@ -961,6 +1412,14 @@ public class ViewmodelSceneNode : ModelSceneNode
             Transform *= Matrix4x4.CreateScale(0);
         }
 
+        // Grenades already in the air keep flying whatever the viewmodel is doing, including
+        // while the camera is off in noclip.
+        foreach (var projectile in projectiles)
+        {
+            projectile.Simulate(context.Timestep);
+            projectile.Update(context);
+        }
+
         if (!active)
         {
             return;
@@ -989,9 +1448,23 @@ public class ViewmodelSceneNode : ModelSceneNode
         {
             var frame = AnimationController.Frame;
 
-            if (State != AnimationState.Idle && AnimationController.ActiveClipFinished)
+            if (AnimationController.ActiveClipFinished)
             {
-                SetState(AnimationState.Idle);
+                if (State == AnimationState.PullPin)
+                {
+                    // Hold the grenade back until the throw button comes up.
+                    SetState(AnimationState.ThrowCharge);
+                }
+                else if (State is AnimationState.Attack or AnimationState.AlternateAttack && !grenadeInHand)
+                {
+                    grenadeInHand = true;
+                    deployTimeLeft = DeployDuration;
+                    SetState(AnimationState.Draw);
+                }
+                else if (State is not AnimationState.Idle and not AnimationState.ThrowCharge)
+                {
+                    SetState(AnimationState.Idle);
+                }
             }
 
             PrimarySkeletonDebug.Transform = Transform;
@@ -1010,7 +1483,7 @@ public class ViewmodelSceneNode : ModelSceneNode
         var i = 1;
         foreach (var item in Items)
         {
-            var isSelected = i == SelectedItemIndex;
+            var isSelected = i == SelectedItemIndex && (grenadeInHand || !IsGrenadeSelected);
             i++;
 
             if (item != null)
@@ -1042,6 +1515,8 @@ public class ViewmodelSceneNode : ModelSceneNode
                 item.Transform = wpnTransform * Transform;
                 UpdateItem(item, context, LocalBoundingBox);
 
+                UpdateMolotovFlame();
+
                 // The effect's control point configuration drives control point 0 from the weapon's muzzle_flash attachment
                 if (muzzleFlashParticle != null)
                 {
@@ -1051,6 +1526,25 @@ public class ViewmodelSceneNode : ModelSceneNode
                     muzzleFlashParticle.Update(context);
                 }
             }
+        }
+    }
+
+    private bool MolotovLit => SelectedItemIndex == FireItemIndex && grenadeInHand && (pinPulled || throwTimer > 0f);
+
+    private void UpdateMolotovFlame()
+    {
+        if (molotovHeldParticle == null)
+        {
+            return;
+        }
+
+        if (!MolotovLit)
+        {
+            molotovHeldParticle.Stop();
+        }
+        else if (!molotovHeldParticle.IsPlaying)
+        {
+            molotovHeldParticle.Play();
         }
     }
 
