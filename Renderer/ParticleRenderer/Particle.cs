@@ -114,6 +114,12 @@ namespace ValveResourceFormat.Renderer.Particles
         public float ScratchFloat1 { get; set; } = 0f;
         /// <summary>Gets or sets the third general-purpose scratch float.</summary>
         public float ScratchFloat2 { get; set; } = 0f;
+        /// <summary>
+        /// Gets or sets the hitbox offset position attribute. The sequential path initializers store
+        /// (path parameter, segment start control point, segment end control point) here when saving
+        /// the path offset.
+        /// </summary>
+        public Vector3 HitboxOffsetPosition { get; set; } = Vector3.Zero;
         /// <summary>Gets or sets a general-purpose scratch vector.</summary>
         public Vector3 ScratchVector { get; set; } = Vector3.Zero;
         /// <summary>Gets or sets a second general-purpose scratch vector.</summary>

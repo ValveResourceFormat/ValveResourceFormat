@@ -124,9 +124,10 @@ namespace ValveResourceFormat.ResourceTypes
                 public Frame[] Frames { get; set; } = [];
 
                 /// <summary>
-                /// Gets or sets the playback rate of this sequence in frames per second.
+                /// Gets or sets the time this sequence spans in total. The frames divide it between
+                /// themselves by their display times.
                 /// </summary>
-                public float FramesPerSecond { get; set; }
+                public float TotalTime { get; set; }
 
                 /// <summary>
                 /// Gets or sets the name of this sequence.

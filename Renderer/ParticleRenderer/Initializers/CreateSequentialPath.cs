@@ -5,8 +5,7 @@ namespace ValveResourceFormat.Renderer.Particles.Initializers
     /// <summary>
     /// Places successive particles at evenly spaced parameters along a Bezier path between control
     /// points, walking sequential control point pairs when enabled, looping or ping-ponging at the
-    /// ends. The running position carries over between emissions. Saving the path offset to the
-    /// hitbox offset field is not supported.
+    /// ends. The running position carries over between emissions.
     /// </summary>
     /// <seealso href="https://s2v.app/SchemaExplorer/cs2/particles/C_INIT_CreateSequentialPath">C_INIT_CreateSequentialPath</seealso>
     class CreateSequentialPath : ParticleFunctionInitializer
@@ -15,6 +14,7 @@ namespace ValveResourceFormat.Renderer.Particles.Initializers
         private readonly float numToAssign = 100f;
         private readonly bool loop = true;
         private readonly bool cpPairs;
+        private readonly bool saveOffset;
         private readonly ParticlePathParameters pathParams;
 
         private float pathParameter;
@@ -29,6 +29,7 @@ namespace ValveResourceFormat.Renderer.Particles.Initializers
             numToAssign = parse.Float("m_flNumToAssign", numToAssign);
             loop = parse.Boolean("m_bLoop", loop);
             cpPairs = parse.Boolean("m_bCPPairs", cpPairs);
+            saveOffset = parse.Boolean("m_bSaveOffset", saveOffset);
             pathParams = new ParticlePathParameters(parse);
 
             Reset();
@@ -110,6 +111,12 @@ namespace ValveResourceFormat.Renderer.Particles.Initializers
             var (start, mid, end) = ParticlePath.CalculatePathValues(particleSystemState, segment, particle.CreationTime);
 
             var position = ParticlePath.Evaluate(start, mid, end, t);
+
+            if (saveOffset)
+            {
+                particle.HitboxOffsetPosition = new Vector3(t, segmentStart, segmentEnd);
+            }
+
             position += ParticleCollection.RandomBetweenPerComponent(particle.ParticleID, new Vector3(-maxDistance), new Vector3(maxDistance));
 
             particle.Position = position;
