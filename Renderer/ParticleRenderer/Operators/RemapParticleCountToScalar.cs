@@ -40,9 +40,10 @@ namespace ValveResourceFormat.Renderer.Particles.Operators
                     continue;
                 }
 
-                var remappedDistance = MathUtils.Remap(particle.ParticleID, inputMin, inputMax);
-
-                remappedDistance = MathUtils.Saturate(remappedDistance);
+                // A degenerate input range is a threshold, inclusive on the high side
+                var remappedDistance = inputMin == inputMax
+                    ? (particle.ParticleID >= inputMax ? 1f : 0f)
+                    : MathUtils.Saturate(MathUtils.Remap(particle.ParticleID, inputMin, inputMax));
 
                 var outputMin = this.outputMin.NextNumber(ref particle, particleSystemState);
                 var outputMax = this.outputMax.NextNumber(ref particle, particleSystemState);

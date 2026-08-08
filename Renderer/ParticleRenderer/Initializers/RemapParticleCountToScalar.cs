@@ -54,7 +54,10 @@ namespace ValveResourceFormat.Renderer.Particles.Initializers
                 return particle;
             }
 
-            var remappedRange = MathUtils.Remap(count, InputMin, InputMax);
+            // A degenerate input range is a threshold, inclusive on the high side
+            var remappedRange = InputMin == InputMax
+                ? (count >= InputMax ? 1f : 0f)
+                : MathUtils.Remap(count, InputMin, InputMax);
 
             remappedRange = NumericBias.ApplyBias(remappedRange, remapBias);
 
