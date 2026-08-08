@@ -153,7 +153,6 @@ namespace ValveResourceFormat.Renderer.Particles
             StopSimulationAfterTime = parse.Float("m_flStopSimulationAfterTime", 0f);
 
             MaximumTimeStep = Math.Max(MinimumTimeStep, MaximumTimeStep);
-            MaximumSimTime = Math.Max(MinimumSimTime, MaximumSimTime);
 
             // A zero max timestep would clamp every simulated frame to 0 and freeze the effect; fall back to
             // the 0.1 default instead of treating 0 as "no time passes".
