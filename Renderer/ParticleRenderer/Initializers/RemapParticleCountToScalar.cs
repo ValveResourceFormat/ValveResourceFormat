@@ -41,6 +41,12 @@ namespace ValveResourceFormat.Renderer.Particles.Initializers
             setMethod = parse.Enum<ParticleSetMethod>("m_nSetMethod", setMethod);
             controlPoint = parse.Int32("m_nScaleControlPoint", controlPoint);
             controlPointComponent = parse.Int32("m_nScaleControlPointField", controlPointComponent);
+
+            if (FieldOutput is ParticleField.Alpha or ParticleField.AlphaAlternate)
+            {
+                outputMin = Math.Clamp(outputMin, 0f, 1f);
+                outputMax = Math.Clamp(outputMax, 0f, 1f);
+            }
         }
 
         public override Particle Initialize(ref Particle particle, ParticleCollection particles, ParticleSystemRenderState particleSystemState)
@@ -59,8 +65,6 @@ namespace ValveResourceFormat.Renderer.Particles.Initializers
                 ? (count >= InputMax ? 1f : 0f)
                 : MathUtils.Remap(count, InputMin, InputMax);
 
-            remappedRange = NumericBias.ApplyBias(remappedRange, remapBias);
-
             if (controlPoint != -1)
             {
                 var cp = particleSystemState.GetControlPoint(controlPoint);
@@ -72,6 +76,12 @@ namespace ValveResourceFormat.Renderer.Particles.Initializers
                 : MathUtils.Saturate(remappedRange);
 
             var output = float.Lerp(outputMin, outputMax, remappedRange);
+
+            // The bias shapes the output value, after the lerp, and is skipped entirely at its identity
+            if (remapBias != 0.5f)
+            {
+                output = NumericBias.Standard(output, remapBias);
+            }
 
             if (scaleInitialRange || setMethod == ParticleSetMethod.PARTICLE_SET_SCALE_INITIAL_VALUE)
             {

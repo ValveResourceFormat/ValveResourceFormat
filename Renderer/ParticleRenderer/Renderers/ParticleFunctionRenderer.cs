@@ -48,16 +48,18 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
                 return particle.ManualAnimationFrame;
             }
 
-            if (animateInFps)
-            {
-                return animationRate * particle.Age;
-            }
-
+            // The animation time is chosen by type first; animating in FPS only changes how the
+            // rate is interpreted afterwards, it does not replace the type
             var animationTime = animationType switch
             {
                 ParticleAnimationType.ANIMATION_TYPE_FIT_LIFETIME => particle.NormalizedAge,
                 _ => particle.Age,
             };
+
+            if (animateInFps)
+            {
+                return animationTime * animationRate;
+            }
 
             return animationTime * animationRate * framesPerSecond;
         }
