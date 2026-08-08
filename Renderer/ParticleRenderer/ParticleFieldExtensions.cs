@@ -185,6 +185,7 @@ namespace ValveResourceFormat.Renderer.Particles
                 ParticleField.Position => particle.Position,
                 ParticleField.PositionPrevious => particle.PositionPrevious,
                 ParticleField.Color => particle.Color,
+                ParticleField.HitboxOffsetPosition => particle.HitboxOffsetPosition,
                 ParticleField.ScratchVector => particle.ScratchVector,
                 ParticleField.ScratchVector2 => particle.ScratchVector2,
                 ParticleField.Normal => particle.Normal,
@@ -237,6 +238,9 @@ namespace ValveResourceFormat.Renderer.Particles
                     break;
                 case ParticleField.PositionPrevious:
                     particle.PositionPrevious = value;
+                    break;
+                case ParticleField.HitboxOffsetPosition:
+                    particle.HitboxOffsetPosition = value;
                     break;
                 case ParticleField.ScratchVector:
                     particle.ScratchVector = value;
