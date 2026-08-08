@@ -382,7 +382,7 @@ namespace ValveResourceFormat.Renderer
         /// <summary>
         /// Finds the first scene node whose entity name matches with the given pattern.
         /// </summary>
-        /// <param name="pattern">Targetname to match against, may contain wildcards: '*' and '?' (e.g. <c>door_*</c>).</param>
+        /// <param name="pattern">Targetname to match against, may contain wildcards: `*` and `?` (e.g. <c>door_*</c>).</param>
         /// <returns>The matching <see cref="SceneNode"/>, or <see langword="null"/> if not found.</returns>
         public SceneNode? FindNodeByTargetName(string pattern)
         {
