@@ -1,3 +1,5 @@
+using ValveResourceFormat.Renderer.Particles.Utils;
+
 namespace ValveResourceFormat.Renderer.Particles.Operators
 {
     /// <summary>
@@ -92,6 +94,9 @@ namespace ValveResourceFormat.Renderer.Particles.Operators
             // A start fadeout of 1 (the default) means the lock never fades and is applied every frame
             var alwaysLocked = startTimeMin >= 1f;
 
+            // The range bias is a collection-scope input, evaluated once for the whole frame
+            var bias = rangeBias.NextNumber(particleSystemState);
+
             foreach (ref var particle in particles.Current)
             {
                 var lockStrength = strength;
@@ -119,15 +124,24 @@ namespace ValveResourceFormat.Renderer.Particles.Operators
 
                 var currentPosition = particle.GetVector(outputField);
 
+                // A particle born partway through the step only travelled with the transform for the
+                // part of the step it existed for
+                var creationFraction = frameTime > 0f
+                    ? MathF.Min(particle.Age, frameTime) / frameTime
+                    : 1f;
+
+                var scaledDelta = delta * (creationFraction * lockStrength);
+                var rotationLockStrength = lockStrength;
+
                 if (fadeRange > 0f)
                 {
-                    var distance = Vector3.Distance(transformPosition, currentPosition);
+                    // Distance is measured against the position the particle is about to occupy
+                    var distance = Vector3.Distance(transformPosition, currentPosition + scaledDelta);
                     var normalizedDistance = MathUtils.Saturate(distance / fadeRange);
-                    var bias = rangeBias.NextNumber(ref particle, particleSystemState);
-                    var remapped = bias <= 0f
-                        ? normalizedDistance
-                        : MathF.Pow(normalizedDistance, 1f / MathF.Max(0.0001f, bias));
-                    lockStrength *= 1f - remapped;
+                    var fade = NumericBias.Standard(normalizedDistance, bias);
+
+                    scaledDelta *= 1f - fade;
+                    rotationLockStrength = 1f - (fade * lockStrength);
                 }
 
                 if (lockRotation)
@@ -137,15 +151,17 @@ namespace ValveResourceFormat.Renderer.Particles.Operators
                     var rotatedPosition = Vector3.Transform(currentPosition, rotationLock);
                     var rotatedPrevious = Vector3.Transform(currentPrevious, rotationLock);
 
-                    particle.SetVector(outputFieldPrev, currentPrevious + (rotatedPrevious - currentPrevious) * (lockStrength * prevPosScale));
-                    particle.SetVector(outputField, currentPosition + (rotatedPosition - currentPosition) * lockStrength);
+                    var rotationStrength = rotationLockStrength * creationFraction;
+
+                    particle.SetVector(outputFieldPrev, currentPrevious + (rotatedPrevious - currentPrevious) * (rotationStrength * prevPosScale));
+                    particle.SetVector(outputField, currentPosition + (rotatedPosition - currentPosition) * rotationStrength);
                     particle.Normal = transformInput.GetOrientation(ref particle, particleSystemState);
                 }
                 else
                 {
                     // Translate the particle with the transform, preserving its offset from it
-                    particle.SetVector(outputFieldPrev, particle.GetVector(outputFieldPrev) + delta * (lockStrength * prevPosScale));
-                    particle.SetVector(outputField, currentPosition + delta * lockStrength);
+                    particle.SetVector(outputFieldPrev, particle.GetVector(outputFieldPrev) + (scaledDelta * prevPosScale));
+                    particle.SetVector(outputField, currentPosition + scaledDelta);
                 }
             }
         }
