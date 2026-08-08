@@ -80,7 +80,13 @@ namespace ValveResourceFormat.Renderer.Particles.Emitters
             }
 
             var perFrameCap = maxEmittedPerFrame >= 0 ? maxEmittedPerFrame : 100000;
-            var numToEmit = Math.Min(remainingToEmit, (int)(perFrameCap * strength));
+
+            // The burst budget is spent before the strength fade is applied, so a faded frame loses
+            // its share of the burst outright rather than deferring it to a later frame
+            var claimed = Math.Min(remainingToEmit, perFrameCap);
+            remainingToEmit -= claimed;
+
+            var numToEmit = (int)(claimed * strength);
 
             // Every burst particle is stamped with the start-time instant, not the frame it spawns in
             var ageAtSpawn = time - nextStartTime;
@@ -89,8 +95,6 @@ namespace ValveResourceFormat.Renderer.Particles.Emitters
             {
                 particleEmitCallback?.Invoke(ageAtSpawn);
             }
-
-            remainingToEmit -= numToEmit;
 
             if (remainingToEmit <= 0)
             {

@@ -13,6 +13,13 @@ namespace ValveResourceFormat.Renderer.Particles.Initializers
         private readonly bool subFrame = true;
         private readonly bool setRopeSegmentID;
 
+        private float currentParentIndex;
+
+        public override void Reset()
+        {
+            currentParentIndex = 0f;
+        }
+
         public CreateFromParentParticles(ParticleDefinitionParser parse) : base(parse)
         {
             velocityScale = parse.Float("m_flVelocityScale", velocityScale);
@@ -68,16 +75,29 @@ namespace ValveResourceFormat.Renderer.Particles.Initializers
                 return 0;
             }
 
+            var lastIndex = parentCount - 1;
+
+            float index;
+
             if (randomDistribution)
             {
-                var randomIndex = ParticleCollection.RandomBetween(particleId + randomSeed, 0, parentCount - 1);
-                return Math.Clamp((int)MathF.Floor(randomIndex), 0, parentCount - 1);
+                index = ParticleCollection.RandomBetween(particleId + randomSeed, 0, lastIndex);
+            }
+            else
+            {
+                // The walk is a running index carried between spawns, wrapping to the start once it
+                // passes the last parent rather than folding back with a modulo
+                if (currentParentIndex > lastIndex)
+                {
+                    currentParentIndex = 0f;
+                }
+
+                index = currentParentIndex;
             }
 
-            // Walk the parent list by the raw (possibly fractional) increment; the running
-            // index uses % which keeps the dividend's sign, so wrap explicitly.
-            var index = (int)MathF.Floor(particleId * increment);
-            return ((index % parentCount) + parentCount) % parentCount;
+            currentParentIndex += increment;
+
+            return Math.Clamp((int)MathF.Floor(index), 0, lastIndex);
         }
     }
 }
