@@ -605,7 +605,7 @@ namespace ValveResourceFormat.ResourceTypes
         /// <summary>
         /// Compares an entity targetname against a target string that may contain wildcards.
         /// </summary>
-        /// <param name="pattern">Targetname to match against, may contain wildcards: '*' and '?' (e.g. <c>door_*</c>).</param>
+        /// <param name="pattern">Targetname to match against, may contain wildcards: `*` and `?` (e.g. <c>door_*</c>).</param>
         /// <param name="targetName">Entity targetname.</param>
         /// <returns>Whether the targetname matches.</returns>
         public static bool EntityNameMatches(string pattern, string targetName)
