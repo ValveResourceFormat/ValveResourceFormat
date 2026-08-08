@@ -22,6 +22,9 @@ namespace ValveResourceFormat.Renderer.Particles.Emitters
         private readonly INumberProvider parentParticleScale = new LiteralNumberProvider(-1);
 
         private readonly int maxEmittedPerFrame = -1;
+
+        /// <summary>Scales the burst by how many parent particles died this frame, making it recur.</summary>
+        private readonly float initFromKilledParentParticles;
         private readonly int snapshotControlPoint;
         private readonly bool hasSnapshotSubset;
 
@@ -47,6 +50,7 @@ namespace ValveResourceFormat.Renderer.Particles.Emitters
             startTime = parse.NumberProvider("m_flStartTime", startTime);
             parentParticleScale = parse.NumberProvider("m_flParentParticleScale", parentParticleScale);
             maxEmittedPerFrame = parse.Int32("m_nMaxEmittedPerFrame", maxEmittedPerFrame);
+            initFromKilledParentParticles = parse.Float("m_flInitFromKilledParentParticles", initFromKilledParentParticles);
             snapshotControlPoint = parse.Int32("m_nSnapshotControlPoint", -1);
             hasSnapshotSubset = !string.IsNullOrEmpty(parse.Data.GetStringProperty("m_strSnapshotSubset"));
         }
@@ -100,13 +104,21 @@ namespace ValveResourceFormat.Renderer.Particles.Emitters
 
                 remainingToEmit = CountDueSnapshotParticles();
             }
+            else if (initFromKilledParentParticles > 0f)
+            {
+                remainingToEmit = ResolveEmitCount(particleSystemState);
+            }
             else if (!countResolved)
             {
                 countResolved = true;
                 remainingToEmit = ResolveEmitCount(particleSystemState);
             }
 
-            var perFrameCap = maxEmittedPerFrame >= 0 ? maxEmittedPerFrame : 100000;
+            // A negative cap means "no authored limit", which resolves to the pool size rather than
+            // to no limit at all, so an oversized burst drips out as slots free
+            var perFrameCap = maxEmittedPerFrame >= 0
+                ? maxEmittedPerFrame
+                : Math.Min(particleSystemState.Data?.ParticleCapacity ?? 20000, 20000);
 
             // The burst budget is spent before the strength fade, so a faded frame loses its share outright
             var claimed = Math.Min(remainingToEmit, perFrameCap);
@@ -128,7 +140,7 @@ namespace ValveResourceFormat.Renderer.Particles.Emitters
                 particleEmitCallback?.Invoke(ageAtSpawn);
             }
 
-            if (snapshotTimes == null && remainingToEmit <= 0)
+            if (snapshotTimes == null && initFromKilledParentParticles <= 0f && remainingToEmit <= 0)
             {
                 IsFinished = true;
             }
@@ -165,6 +177,12 @@ namespace ValveResourceFormat.Renderer.Particles.Emitters
 
             var count = emitCount.NextNumber(particleSystemState);
             var parentSystem = particleSystemState.ParentSystem;
+
+            // Spawning from killed parents is a per-frame count rather than a one-shot burst
+            if (initFromKilledParentParticles > 0f)
+            {
+                return (int)((parentSystem?.Data?.KilledLastPass ?? 0) * count * initFromKilledParentParticles);
+            }
 
             if (snapshotControlPoint < 0 && parentSystem != null)
             {

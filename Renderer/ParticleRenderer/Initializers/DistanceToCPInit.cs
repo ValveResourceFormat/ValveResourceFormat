@@ -66,7 +66,7 @@ namespace ValveResourceFormat.Renderer.Particles.Initializers
                 value = SchlickBias(value, remapBias);
             }
 
-            value = particle.ModifyScalarBySetMethodAtSpawn(fieldOutput, value, setMethod);
+            value = particle.ModifyScalarBySetMethodAtSpawn(particles, fieldOutput, value, setMethod);
             particle.SetScalar(fieldOutput, value);
 
             return particle;

@@ -34,7 +34,7 @@ namespace ValveResourceFormat.Renderer.Particles.Initializers
                 value = float.DegreesToRadians(value);
             }
 
-            var finalValue = particle.ModifyScalarBySetMethodAtSpawn(OutputField, value, SetMethod);
+            var finalValue = particle.ModifyScalarBySetMethodAtSpawn(particles, OutputField, value, SetMethod);
 
             particle.SetScalar(OutputField, finalValue);
 

@@ -43,7 +43,7 @@ namespace ValveResourceFormat.Renderer.Particles.Initializers
 
             var output = MathUtils.RemapValClamped(speed, inputMin, inputMax, outputMin, outputMax);
 
-            output = particle.ModifyScalarBySetMethodAtSpawn(FieldOutput, output, setMethod);
+            output = particle.ModifyScalarBySetMethodAtSpawn(particles, FieldOutput, output, setMethod);
             particle.SetScalar(FieldOutput, output);
 
             return particle;
