@@ -27,10 +27,7 @@ namespace ValveResourceFormat.Renderer.Particles.Initializers
             var transform = transformInput.NextTransform(ref particle, particleSystemState);
             var position = transform.Translation;
 
-            var randomVector = ParticleCollection.RandomBetweenPerComponent(
-                particle.ParticleID,
-                new Vector3(-1),
-                new Vector3(1));
+            var randomVector = SampleUnitSphereDirection(particle.ParticleID);
 
             // Absolute value per axis folds the sphere into a hemisphere/ovoid.
             if (distanceBiasAbs.X != 0)
@@ -50,20 +47,22 @@ namespace ValveResourceFormat.Renderer.Particles.Initializers
 
             var biasedDirection = Vector3.Normalize(randomVector * bias);
 
-            // The direction consumed the random table at the particle id through id + 2; sharing a
-            // slot with it correlates the radius with one axis and pulls the spawn cloud off centre.
-            var distance = ParticleCollection.RandomBetween(
-                particle.ParticleID + 3,
+            // A cube root over the radius fraction spreads particles evenly through the sphere's
+            // volume; a linear draw would bunch them toward the centre
+            var distance = ParticleCollection.RandomWithExponentBetween(
+                particle.ParticleID + 2,
+                1f / 3f,
                 radiusMin.NextNumber(ref particle, particleSystemState),
                 radiusMax.NextNumber(ref particle, particleSystemState));
 
-            var speed = ParticleCollection.RandomBetween(
-                particle.ParticleID + 4,
+            var speed = ParticleCollection.RandomWithExponentBetween(
+                particle.ParticleID + 3,
+                speedRandExp,
                 speedMin.NextNumber(ref particle, particleSystemState),
                 speedMax.NextNumber(ref particle, particleSystemState));
 
             var localCoordinateSystemSpeed = ParticleCollection.RandomBetweenPerComponent(
-                particle.ParticleID + 5,
+                particle.ParticleID + 4,
                 localCoordinateSystemSpeedMin.NextVector(ref particle, particleSystemState),
                 localCoordinateSystemSpeedMax.NextVector(ref particle, particleSystemState));
 
@@ -82,18 +81,13 @@ namespace ValveResourceFormat.Renderer.Particles.Initializers
 
             particle.Position = worldOffset;
 
-            Vector3 velocityDirection;
-            Vector3 velocityLocal;
-            if (localCoords)
-            {
-                velocityDirection = Vector3.TransformNormal(biasedDirection, transform);
-                velocityLocal = Vector3.TransformNormal(localCoordinateSystemSpeed, transform);
-            }
-            else
-            {
-                velocityDirection = biasedDirection;
-                velocityLocal = localCoordinateSystemSpeed;
-            }
+            var velocityDirection = localCoords
+                ? Vector3.TransformNormal(biasedDirection, transform)
+                : biasedDirection;
+
+            // The local coordinate speed is named for the transform's frame, so it rotates whether
+            // or not the spawn offset does
+            var velocityLocal = Vector3.TransformNormal(localCoordinateSystemSpeed, transform);
 
             particle.Velocity = (velocityDirection * speed) + velocityLocal;
 
