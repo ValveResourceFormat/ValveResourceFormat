@@ -1,3 +1,5 @@
+using ValveResourceFormat.Renderer.Particles.Utils;
+
 namespace ValveResourceFormat.Renderer.Particles.ForceGenerators;
 
 /// <summary>
@@ -12,8 +14,6 @@ namespace ValveResourceFormat.Renderer.Particles.ForceGenerators;
 /// <seealso href="https://s2v.app/SchemaExplorer/cs2/particles/C_OP_TwistAroundAxis">C_OP_TwistAroundAxis</seealso>
 class TwistAroundAxis : ParticleFunctionForceGenerator
 {
-    private const float Epsilon = 1.192e-7f;
-
     private readonly float forceAmount;
     private readonly Vector3 twistAxis = Vector3.UnitZ;
     private readonly bool localSpace;
@@ -42,7 +42,7 @@ class TwistAroundAxis : ParticleFunctionForceGenerator
         {
             var delta = particle.Position - center;
 
-            if (delta.LengthSquared() <= Epsilon)
+            if (delta.LengthSquared() <= Epsilon.LengthSquared)
             {
                 continue;
             }
@@ -50,7 +50,7 @@ class TwistAroundAxis : ParticleFunctionForceGenerator
             var direction = Vector3.Normalize(delta);
             var alignment = 1f - Vector3.Dot(direction, axis);
 
-            if (alignment * alignment <= Epsilon)
+            if (alignment * alignment <= Epsilon.LengthSquared)
             {
                 continue;
             }

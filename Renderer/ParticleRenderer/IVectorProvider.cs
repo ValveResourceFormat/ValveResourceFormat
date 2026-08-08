@@ -187,9 +187,6 @@ namespace ValveResourceFormat.Renderer.Particles
 
     class RandomUniformVectorProvider : IVectorProvider
     {
-        /// <summary>Squared length below which the authored range counts as a single point.</summary>
-        private const float DegenerateRangeEpsilon = 1.1920929e-7f;
-
         private readonly Vector3 min;
         private readonly Vector3 max;
 
@@ -203,7 +200,7 @@ namespace ValveResourceFormat.Renderer.Particles
         {
             min = parse.Vector3("m_vRandomMin");
             max = parse.Vector3("m_vRandomMax");
-            isDegenerate = (min - max).LengthSquared() <= DegenerateRangeEpsilon;
+            isDegenerate = min == max;
         }
 
         public virtual Vector3 NextVector(ref Particle particle, ParticleSystemRenderState renderState)

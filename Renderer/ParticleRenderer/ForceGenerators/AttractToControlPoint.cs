@@ -1,3 +1,5 @@
+using ValveResourceFormat.Renderer.Particles.Utils;
+
 namespace ValveResourceFormat.Renderer.Particles.ForceGenerators;
 
 /// <summary>
@@ -40,7 +42,7 @@ class AttractToControlPoint : ParticleFunctionForceGenerator
         {
             var diff = target - particle.Position;
             var distance = diff.Length();
-            if (distance < 1e-6f)
+            if (distance < Epsilon.Length)
             {
                 continue;
             }
