@@ -113,6 +113,7 @@ namespace ValveResourceFormat.Renderer.Particles.Initializers
             position += ParticleCollection.RandomBetweenPerComponent(particle.ParticleID, new Vector3(-maxDistance), new Vector3(maxDistance));
 
             particle.Position = position;
+            particle.PositionPrevious = position;
 
             pathParameter += parameterStep;
             controlPoint += controlPointStep;
