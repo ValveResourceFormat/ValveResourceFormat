@@ -42,13 +42,17 @@ namespace ValveResourceFormat.Renderer.Particles.Operators
             transformInput = parse.TransformInput("m_TransformInput", transformInput);
             startTimeMin = parse.Float("m_flStartTime_min", startTimeMin);
             startTimeMax = parse.Float("m_flStartTime_max", startTimeMax);
-            startTimeExp = parse.Float("m_flStartTime_exp", startTimeExp);
+            startTimeExp = Math.Clamp(parse.Float("m_flStartTime_exp", startTimeExp), -255f, 255f);
             endTimeMin = parse.Float("m_flEndTime_min", endTimeMin);
             endTimeMax = parse.Float("m_flEndTime_max", endTimeMax);
-            endTimeExp = parse.Float("m_flEndTime_exp", endTimeExp);
+            endTimeExp = Math.Clamp(parse.Float("m_flEndTime_exp", endTimeExp), -255f, 255f);
             fadeRange = parse.Float("m_flRange", fadeRange);
             rangeBias = parse.NumberProvider("m_flRangeBias", rangeBias);
+
+            // The threshold is authored as a distance and squared once at load, so the per-frame
+            // test can compare against a squared delta
             instantJumpThreshold = parse.Float("m_flJumpThreshold", instantJumpThreshold);
+            instantJumpThreshold *= instantJumpThreshold;
             prevPosScale = parse.Float("m_flPrevPosScale", prevPosScale);
             lockRotation = parse.Boolean("m_bLockRot", lockRotation);
             componentScale = parse.VectorProvider("m_vecScale", componentScale);
@@ -61,7 +65,8 @@ namespace ValveResourceFormat.Renderer.Particles.Operators
             // The transform delta must be computed once per frame, not per particle,
             // otherwise only the first particle ever observes the transform moving
             var transform = transformInput.NextTransform(particleSystemState);
-            var transformPosition = Vector3.Multiply(transform.Translation, componentScale.NextVector(particleSystemState));
+            var transformPosition = transform.Translation;
+            var scale = componentScale.NextVector(particleSystemState);
 
             if (previousTransformPosition.X == float.MaxValue)
             {
@@ -130,7 +135,7 @@ namespace ValveResourceFormat.Renderer.Particles.Operators
                     ? MathF.Min(particle.Age, frameTime) / frameTime
                     : 1f;
 
-                var scaledDelta = delta * (creationFraction * lockStrength);
+                var scaledDelta = delta * scale * (creationFraction * lockStrength);
                 var rotationLockStrength = lockStrength;
 
                 if (fadeRange > 0f)
