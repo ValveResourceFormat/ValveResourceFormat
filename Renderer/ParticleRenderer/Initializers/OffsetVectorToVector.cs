@@ -25,7 +25,7 @@ namespace ValveResourceFormat.Renderer.Particles.Initializers
         {
             var input = particle.GetVector(FieldInput);
 
-            var offset = ParticleCollection.RandomBetweenPerComponent(particle.ParticleID, OutputMin, OutputMax);
+            var offset = particleSystemState.NextRandomBetweenPerComponent(OutputMin, OutputMax);
 
             particle.SetVector(FieldOutput, input + offset);
 

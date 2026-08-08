@@ -4,7 +4,8 @@ namespace ValveResourceFormat.Renderer.Particles.Constraints
     /// Keeps every particle within a distance band around a center point, snapping any particle outside
     /// the band onto the nearer shell along its direction from the center. The center is a control point
     /// plus an offset rotated into that control point's frame, or the bare offset in world space when
-    /// <c>m_bGlobalCenter</c> is set. A negative <c>m_fMaxDistance</c> disables the outer shell.
+    /// <c>m_bGlobalCenter</c> is set. A negative <c>m_fMaxDistance</c> disables the outer shell, and a
+    /// particle sitting exactly on the center has no direction to snap along so it is left where it is.
     ///
     /// <para>Only <see cref="Particle.Position"/> is written; <see cref="Particle.PositionPrevious"/> is
     /// left where it was, so the correction shows up as velocity on the next movement step.</para>
@@ -56,18 +57,12 @@ namespace ValveResourceFormat.Renderer.Particles.Constraints
                     continue;
                 }
 
-                var target = distanceSquared < minSquared ? min : max;
-
-                if (min > 0f && distanceSquared == 0f)
+                if (distanceSquared == 0f)
                 {
-                    delta = new Vector3(
-                        (Random.Shared.NextSingle() * 0.002f) - 0.001f,
-                        (Random.Shared.NextSingle() * 0.002f) - 0.001f,
-                        (Random.Shared.NextSingle() * 0.002f) - 0.001f
-                    );
-
-                    distanceSquared = delta.LengthSquared();
+                    continue;
                 }
+
+                var target = distanceSquared < minSquared ? min : max;
 
                 particle.Position = center + (delta * (target / MathF.Sqrt(distanceSquared)));
                 moved = true;

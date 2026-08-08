@@ -27,7 +27,7 @@ namespace ValveResourceFormat.Renderer.Particles.Initializers
             var transform = transformInput.NextTransform(ref particle, particleSystemState);
             var position = transform.Translation;
 
-            var randomVector = SampleUnitSphereDirection(particle.ParticleID);
+            var randomVector = SampleUnitSphereDirection(particleSystemState);
 
             // Absolute value per axis folds the sphere into a hemisphere/ovoid.
             if (distanceBiasAbs.X != 0)
@@ -49,20 +49,17 @@ namespace ValveResourceFormat.Renderer.Particles.Initializers
 
             // A cube root over the radius fraction spreads particles evenly through the sphere's
             // volume; a linear draw would bunch them toward the centre
-            var distance = ParticleCollection.RandomWithExponentBetween(
-                particle.ParticleID + 2,
+            var distance = particleSystemState.NextRandomWithExponentBetween(
                 1f / 3f,
                 radiusMin.NextNumber(ref particle, particleSystemState),
                 radiusMax.NextNumber(ref particle, particleSystemState));
 
-            var speed = ParticleCollection.RandomWithExponentBetween(
-                particle.ParticleID + 3,
+            var speed = particleSystemState.NextRandomWithExponentBetween(
                 speedRandExp,
                 speedMin.NextNumber(ref particle, particleSystemState),
                 speedMax.NextNumber(ref particle, particleSystemState));
 
-            var localCoordinateSystemSpeed = ParticleCollection.RandomBetweenPerComponent(
-                particle.ParticleID + 4,
+            var localCoordinateSystemSpeed = particleSystemState.NextRandomBetweenPerComponent(
                 localCoordinateSystemSpeedMin.NextVector(ref particle, particleSystemState),
                 localCoordinateSystemSpeedMax.NextVector(ref particle, particleSystemState));
 

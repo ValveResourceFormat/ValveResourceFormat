@@ -117,7 +117,7 @@ namespace ValveResourceFormat.Renderer.Particles.Initializers
             }
 
             var jitter = maxDistance.NextNumber(ref particle, particleSystemState);
-            position += ParticleCollection.RandomBetweenPerComponent(particle.ParticleID, new Vector3(-jitter), new Vector3(jitter));
+            position += particleSystemState.NextRandomBetweenPerComponent(new Vector3(-jitter), new Vector3(jitter));
 
             particle.Position = position;
             particle.PositionPrevious = position;

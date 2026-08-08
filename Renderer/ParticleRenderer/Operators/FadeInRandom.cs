@@ -17,7 +17,7 @@ namespace ValveResourceFormat.Renderer.Particles.Operators
         {
             foreach (ref var particle in particles.Current)
             {
-                var fadeInTime = GetFadeTime(ref particle);
+                var fadeInTime = GetFadeTime(ref particle, particleSystemState);
 
                 var time = proportional
                     ? particle.NormalizedAge

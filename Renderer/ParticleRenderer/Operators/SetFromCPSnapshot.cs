@@ -18,6 +18,7 @@ namespace ValveResourceFormat.Renderer.Particles.Operators
         private readonly int LocalSpaceCP;
         private readonly bool Random;
         private readonly bool Reverse;
+        private readonly int RandomSeed;
         private readonly bool WritePrevious = true;
         private readonly INumberProvider StartPoint = new LiteralNumberProvider(0);
         private readonly INumberProvider Increment = new LiteralNumberProvider(1);
@@ -25,6 +26,9 @@ namespace ValveResourceFormat.Renderer.Particles.Operators
         private bool snapshotResolved;
         private ParticleSnapshot? cachedSnapshot;
         private IEnumerable? readAttributeData;
+
+        // Advanced once per random draw, so a fixed seed still walks the table rather than repeating
+        private int randomSampleCounter;
 
         public SetFromCPSnapshot(ParticleDefinitionParser parse) : base(parse)
         {
@@ -34,6 +38,7 @@ namespace ValveResourceFormat.Renderer.Particles.Operators
             LocalSpaceCP = parse.Int32("m_nLocalSpaceCP", 0);
             Random = parse.Boolean("m_bRandom", false);
             Reverse = parse.Boolean("m_bReverse", false);
+            RandomSeed = parse.Int32("m_nRandomSeed", 0);
             WritePrevious = parse.Boolean("m_bPrev", WritePrevious);
             StartPoint = parse.NumberProvider("m_nSnapShotStartPoint", StartPoint);
             Increment = parse.NumberProvider("m_nSnapShotIncrement", Increment);
@@ -59,8 +64,9 @@ namespace ValveResourceFormat.Renderer.Particles.Operators
 
             foreach (ref var particle in particles.Current)
             {
-                var idx = CPSnapshotSampler.SelectIndex(particle.CreationIndex, particle.ParticleID, numParticles, Random, Reverse,
-                    StartPoint.NextInt(ref particle, particleSystemState), Increment.NextInt(ref particle, particleSystemState));
+                var idx = CPSnapshotSampler.SelectIndex(particle.CreationIndex, numParticles, Random, Reverse,
+                    StartPoint.NextInt(ref particle, particleSystemState), Increment.NextInt(ref particle, particleSystemState),
+                    RandomSeed, ref randomSampleCounter, particleSystemState);
                 CPSnapshotSampler.WriteAttribute(ref particle, AttributeToWrite, readAttributeData, idx, LocalSpaceCP, WritePrevious, atSpawn: false, frameTime, particleSystemState);
             }
         }

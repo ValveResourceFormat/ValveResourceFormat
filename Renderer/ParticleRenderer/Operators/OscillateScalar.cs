@@ -7,6 +7,10 @@ namespace ValveResourceFormat.Renderer.Particles.Operators
     /// <seealso href="https://s2v.app/SchemaExplorer/cs2/particles/C_OP_OscillateScalar">C_OP_OscillateScalar</seealso>
     class OscillateScalar : ParticleFunctionOperator
     {
+        /// <summary>Table offsets separating this operator's frequency and rate draws.</summary>
+        private const int FrequencyOffset = 0;
+        private const int RateOffset = 1;
+
         private readonly ParticleField outputField = ParticleField.Alpha;
         private readonly float rateMin;
         private readonly float rateMax;
@@ -32,8 +36,8 @@ namespace ValveResourceFormat.Renderer.Particles.Operators
         {
             foreach (ref var particle in particles.Current)
             {
-                var rate = ParticleCollection.RandomBetween(particle.ParticleID, rateMin, rateMax);
-                var frequency = ParticleCollection.RandomBetween(particle.ParticleID, frequencyMin, frequencyMax);
+                var frequency = particleSystemState.RandomForParticleBetween(particle.ParticleID, FrequencyOffset, frequencyMin, frequencyMax);
+                var rate = particleSystemState.RandomForParticleBetween(particle.ParticleID, RateOffset, rateMin, rateMax);
 
                 var t = proportional
                     ? particle.NormalizedAge

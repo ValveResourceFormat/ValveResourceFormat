@@ -7,6 +7,11 @@ namespace ValveResourceFormat.Renderer.Particles.Operators
     /// <seealso href="https://s2v.app/SchemaExplorer/cs2/particles/C_OP_RampScalarLinear">C_OP_RampScalarLinear</seealso>
     class RampScalarLinear : ParticleFunctionOperator
     {
+        /// <summary>Table offsets separating this operator's rate, start time and end time draws.</summary>
+        private const int RateOffset = 0;
+        private const int StartTimeOffset = 11;
+        private const int EndTimeOffset = 12;
+
         private readonly float rateMin;
         private readonly float rateMax;
         private readonly float startTimeMin;
@@ -55,8 +60,8 @@ namespace ValveResourceFormat.Renderer.Particles.Operators
                 if (hasTimeWindow)
                 {
                     var time = proportional ? particle.NormalizedAge : particle.Age;
-                    var startTime = ParticleCollection.RandomBetween(particle.ParticleID + 11, startTimeMin, startTimeMax);
-                    var endTime = ParticleCollection.RandomBetween(particle.ParticleID + 12, endTimeMin, endTimeMax);
+                    var startTime = particleSystemState.RandomForParticleBetween(particle.ParticleID, StartTimeOffset, startTimeMin, startTimeMax);
+                    var endTime = particleSystemState.RandomForParticleBetween(particle.ParticleID, EndTimeOffset, endTimeMin, endTimeMax);
 
                     if (time < startTime || time >= endTime)
                     {
@@ -64,7 +69,7 @@ namespace ValveResourceFormat.Renderer.Particles.Operators
                     }
                 }
 
-                var rate = ParticleCollection.RandomBetween(particle.ParticleID, rateMin, rateMax);
+                var rate = particleSystemState.RandomForParticleBetween(particle.ParticleID, RateOffset, rateMin, rateMax);
                 var value = particle.GetScalar(field) + (rate * frameTime * strength);
 
                 particle.SetScalar(field, Math.Clamp(value, clampMin, clampMax));

@@ -45,14 +45,14 @@ namespace ValveResourceFormat.Renderer.Particles.Operators
                 return;
             }
 
-            particleSystemState.SetRestartTime(ScaleDuration(SampleDuration(), particleSystemState));
+            particleSystemState.SetRestartTime(ScaleDuration(SampleDuration(particleSystemState), particleSystemState));
         }
 
         private void OperateOnChildren(ParticleSystemRenderState particleSystemState)
         {
             if (childInterval < 0f)
             {
-                childInterval = SampleDuration();
+                childInterval = SampleDuration(particleSystemState);
                 childIntervalStart = particleSystemState.Age;
             }
 
@@ -65,14 +65,16 @@ namespace ValveResourceFormat.Renderer.Particles.Operators
 
             // The interval is re-rolled only once a restart has actually fired, not every frame
             childIntervalStart = particleSystemState.Age;
-            childInterval = SampleDuration();
+            childInterval = SampleDuration(particleSystemState);
         }
 
-        private float SampleDuration()
+        /// <summary>
+        /// Takes the next duration from the shared random table. The draw is taken even when the range
+        /// is empty, so the table position stays in step with the other functions in the system.
+        /// </summary>
+        private float SampleDuration(ParticleSystemRenderState particleSystemState)
         {
-            return durationMax != durationMin
-                ? ParticleSystemRenderState.RandomFloat(durationMin, durationMax)
-                : durationMin;
+            return particleSystemState.NextRandomBetween(durationMin, durationMax);
         }
 
         private float ScaleDuration(float duration, ParticleSystemRenderState particleSystemState)

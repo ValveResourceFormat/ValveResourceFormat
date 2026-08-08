@@ -20,7 +20,7 @@ namespace ValveResourceFormat.Renderer.Particles.Initializers
 
         public override Particle Initialize(ref Particle particle, ParticleCollection particles, ParticleSystemRenderState particleSystemState)
         {
-            var lifetime = ParticleCollection.RandomWithExponentBetween(particle.ParticleID, lifetimeRandomExponent, lifetimeMin, lifetimeMax);
+            var lifetime = particleSystemState.NextRandomWithExponentBetween(lifetimeRandomExponent, lifetimeMin, lifetimeMax);
 
             particle.Lifetime = lifetime;
 

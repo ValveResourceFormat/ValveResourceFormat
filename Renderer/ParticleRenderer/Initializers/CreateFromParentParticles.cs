@@ -14,10 +14,12 @@ namespace ValveResourceFormat.Renderer.Particles.Initializers
         private readonly bool setRopeSegmentID;
 
         private float currentParentIndex;
+        private int randomCounter;
 
         public override void Reset()
         {
             currentParentIndex = 0f;
+            randomCounter = 0;
         }
 
         public CreateFromParentParticles(ParticleDefinitionParser parse) : base(parse)
@@ -46,7 +48,7 @@ namespace ValveResourceFormat.Renderer.Particles.Initializers
                 return particle;
             }
 
-            var parentIndex = Math.Clamp(GetParentIndex(parentParticles.Length, particle.ParticleID), 0, parentParticles.Length - 1);
+            var parentIndex = Math.Clamp(GetParentIndex(parentParticles.Length, particleSystemState), 0, parentParticles.Length - 1);
             particle.ParentParticleIndex = parentIndex;
 
             // The child spawns at the parent particle and inherits its velocity, derived from the parent's
@@ -70,7 +72,7 @@ namespace ValveResourceFormat.Renderer.Particles.Initializers
             return particle;
         }
 
-        private int GetParentIndex(int parentCount, int randomSeedBase)
+        private int GetParentIndex(int parentCount, ParticleSystemRenderState particleSystemState)
         {
             if (parentCount <= 0)
             {
@@ -83,7 +85,11 @@ namespace ValveResourceFormat.Renderer.Particles.Initializers
 
             if (randomDistribution)
             {
-                index = ParticleCollection.RandomBetween(randomSeedBase + randomSeed, 0, lastIndex);
+                // A non-zero authored seed drives a counter private to this initializer, leaving the
+                // system's shared draw sequence untouched
+                index = randomSeed != 0
+                    ? ParticleCollection.RandomBetween(particleSystemState.RandomSeed + randomSeed + randomCounter++, 0, lastIndex)
+                    : particleSystemState.NextRandomBetween(0, lastIndex);
             }
             else
             {

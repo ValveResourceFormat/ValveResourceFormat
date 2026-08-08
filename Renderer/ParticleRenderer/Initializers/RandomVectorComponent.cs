@@ -22,7 +22,7 @@ namespace ValveResourceFormat.Renderer.Particles.Initializers
 
         public override Particle Initialize(ref Particle particle, ParticleCollection particles, ParticleSystemRenderState particleSystemState)
         {
-            var newComponent = ParticleCollection.RandomBetween(particle.ParticleID, min, max);
+            var newComponent = particleSystemState.NextRandomBetween(min, max);
 
             particle.SetVectorComponent(FieldOutput, newComponent, component);
 
