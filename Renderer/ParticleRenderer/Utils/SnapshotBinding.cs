@@ -1,5 +1,6 @@
 using System.Collections;
 using ValveResourceFormat.Blocks;
+using ValveResourceFormat.IO;
 using ValveResourceFormat.Serialization.KeyValues;
 
 namespace ValveResourceFormat.Renderer.Particles.Utils
@@ -30,6 +31,29 @@ namespace ValveResourceFormat.Renderer.Particles.Utils
         {
             controlPoint = parse.Int32(controlPointKey, defaultControlPoint);
             hasSubset = !string.IsNullOrEmpty(parse.Data.GetStringProperty("m_strSnapshotSubset"));
+        }
+
+
+        /// <summary>
+        /// Loads the snapshot a particle system authors as <c>m_hSnapshot</c>, which it publishes on a
+        /// control point for its own functions and its children to read. This is the producing side of
+        /// a binding; everything else on this class is the consuming side.
+        /// </summary>
+        public static ParticleSnapshot? LoadAuthored(ParticleDefinitionParser parse, IFileLoader fileLoader)
+        {
+            if (!parse.Data.ContainsKey("m_hSnapshot"))
+            {
+                return null;
+            }
+
+            var path = parse.Data.GetStringProperty("m_hSnapshot");
+
+            if (string.IsNullOrEmpty(path))
+            {
+                return null;
+            }
+
+            return fileLoader.LoadFileCompiled(path)?.GetBlockByType(BlockType.SNAP) as ParticleSnapshot;
         }
 
         /// <summary>Whether a snapshot control point is authored at all, supported or not.</summary>
