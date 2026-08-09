@@ -19,6 +19,14 @@ namespace ValveResourceFormat.Renderer.Shaders
 
         /// <summary>The GLSL version directive that must appear as the first line of every shader file.</summary>
         public const string ExpectedShaderVersion = "#version 460";
+
+        /// <summary>
+        /// The define naming whether material sampler handles are packed into the globals block. Emitted by
+        /// <see cref="ShaderLoader"/> from <see cref="GLEnvironment.BindlessTexturesSupported"/>, and read by
+        /// the sampler declarations this parser guards with it.
+        /// </summary>
+        public const string BindlessTexturesDefine = "VRF_BINDLESS_TEXTURES";
+
         private const string RenderModeDefinePrefix = "renderMode_";
 
         [GeneratedRegex("^#include \"(?<IncludeName>[^\"]+)\"")]
@@ -99,6 +107,20 @@ namespace ValveResourceFormat.Renderer.Shaders
                 builder.Append(' ');
                 builder.Append(b.ToString(CultureInfo.InvariantCulture));
                 builder.Append('\n');
+            }
+
+            // Emits a sampler declaration that only compiles when there are no bindless textures, for the
+            // samplers a uniform block declares instead when there are.
+            void AppendBindlessAlternative(string line, int lineNum, int sourceFileNumber)
+            {
+                builder.Append("#if !");
+                builder.Append(BindlessTexturesDefine);
+                builder.Append('\n');
+                builder.Append(line);
+                builder.Append('\n');
+                builder.Append("#endif\n");
+
+                AppendLineNumber(lineNum, sourceFileNumber);
             }
 
             // simulate first time compile
@@ -288,6 +310,22 @@ namespace ValveResourceFormat.Renderer.Shaders
                             if (uniformType.StartsWith("sampler", StringComparison.Ordinal) && MaterialLoader.IsReservedTexture(uniformName))
                             {
                                 parsedData.ReservedTextures.Add(uniformName);
+
+                                var reserved = MaterialLoader.ReservedSamplerByName[uniformName];
+
+                                // The block the header emits declares these, and the null texture standing in
+                                // for a scene that has none is created from the same description, so a sampler
+                                // whose type changed here has to be changed there too.
+                                Debug.Assert(reserved.PerInstance || uniformType == GlobalsLayout.GetGlslName(reserved.Kind),
+                                    $"'{uniformName}' is declared '{uniformType}' in '{shaderFileToLoad}', but {nameof(ReservedTextureSlots)} says '{GlobalsLayout.GetGlslName(reserved.Kind)}'.");
+
+                                // The scene-wide ones are declared by the block the header emits, so the
+                                // declaration here is only for drivers that read them off a texture unit.
+                                if (SceneTexturesLayout.Members.ContainsKey(uniformName))
+                                {
+                                    AppendBindlessAlternative(line, lineNum, currentSourceFileNumber);
+                                    continue;
+                                }
                             }
 
                             if (match.Groups["SrgbRead"].Success)
@@ -311,6 +349,21 @@ namespace ValveResourceFormat.Renderer.Shaders
                                 builder.Append("// :VrfPacked ");
                                 builder.Append(line);
                                 builder.Append('\n');
+                                continue;
+                            }
+
+                            // A material texture's handle is packed alongside its other inputs, so that a draw
+                            // binds one buffer instead of a texture unit per sampler. Reserved textures are
+                            // globally bound once and stay on their unit.
+                            if (!match.Groups["Array"].Success
+                            && IsPackableUniformName(uniformName)
+                            && !MaterialLoader.IsReservedTexture(uniformName)
+                            && GlobalsLayout.TryGetSamplerKind(uniformType, out var samplerKind))
+                            {
+                                parsedData.GlobalsDeclarations.Add(new GlobalsDeclaration(uniformName, GlobalsType.Sampler,
+                                    null, match.Groups["SrgbRead"].Success, samplerKind));
+
+                                AppendBindlessAlternative(line, lineNum, currentSourceFileNumber);
                                 continue;
                             }
                         }

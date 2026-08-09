@@ -402,7 +402,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
             material.Render(shader);
 
             // todo: batch tube draws and call this less often
-            scene.LightingInfo.BindLightmapTextures();
+            scene.LightingInfo.BindLightmapTextures(scene.RendererContext.SceneTextures);
 
             if (lightProbe is not null)
             {

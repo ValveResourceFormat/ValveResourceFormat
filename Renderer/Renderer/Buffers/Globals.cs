@@ -125,6 +125,15 @@ public sealed class Globals : Buffer
         Commit(constant, staged);
     }
 
+    /// <summary>Writes a <see cref="GlobalsType.Sampler"/> member, whose value is a bindless texture handle.</summary>
+    public void SetHandle(in GlobalsMember constant, long handle)
+    {
+        Span<byte> staged = stackalloc byte[sizeof(long)];
+        MemoryMarshal.Write(staged, handle);
+
+        Commit(constant, staged);
+    }
+
     /// <summary>Writes a <see cref="GlobalsType.Mat4"/> member.</summary>
     /// <remarks>
     /// Written in <see cref="Matrix4x4"/> memory order, which puts each of its rows in a column of the GLSL

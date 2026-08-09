@@ -85,11 +85,30 @@ namespace ValveResourceFormat.Renderer.Shaders
             /// <summary>Gets the packable uniform declarations collected from every stage, in source order.</summary>
             public List<GlobalsDeclaration> GlobalsDeclarations { get; } = [];
 
+            private GlobalsLayout? globalsLayout;
+
             /// <summary>
-            /// Gets the packed layout of <see cref="GlobalsDeclarations"/>. Built once all stages have been
-            /// preprocessed, and shared by every static combo variant compiled from this source.
+            /// Gets the packed layout of <see cref="GlobalsDeclarations"/>, shared by every static combo
+            /// variant compiled from this source.
             /// </summary>
-            public GlobalsLayout GlobalsLayout { get; set; } = GlobalsLayout.Empty;
+            /// <remarks>
+            /// Built on the first compile rather than as soon as the source has been preprocessed, because
+            /// whether texture handles are packed into it depends on the driver, and preprocessing runs on a
+            /// background thread that can get there before the GL context has been queried.
+            /// </remarks>
+            public GlobalsLayout GlobalsLayout
+            {
+                get
+                {
+                    if (globalsLayout != null)
+                    {
+                        return globalsLayout;
+                    }
+
+                    using var _ = ParserLock.EnterScope();
+                    return globalsLayout ??= GlobalsLayout.Build(GlobalsDeclarations, GLEnvironment.BindlessTextures);
+                }
+            }
 
             /// <summary>Gets the set of uniform names annotated with <c>// SrgbRead(true)</c>.</summary>
             public HashSet<string> SrgbUniforms { get; } = [];
@@ -240,8 +259,6 @@ namespace ValveResourceFormat.Renderer.Shaders
                 Parser.ClearBuilder();
             }
 
-            parsedData.GlobalsLayout = GlobalsLayout.Build(parsedData.GlobalsDeclarations);
-
             ParsedCache[shaderFileName] = parsedData;
             return parsedData;
         }
@@ -367,11 +384,26 @@ namespace ValveResourceFormat.Renderer.Shaders
             header.Append("#extension GL_KHR_shader_subgroup_arithmetic : enable\n");
             header.Append("#extension GL_KHR_shader_subgroup_vote : enable\n");
 
+            var globalsLayout = parsedData.GlobalsLayout;
+            var bindless = GLEnvironment.BindlessTextures;
+
+            System.Diagnostics.Debug.Assert(globalsLayout.Size == 0 || globalsLayout.PacksSamplers == bindless,
+                "The layout was built before the driver was queried, and disagrees with the source it is about to be compiled into.");
+
+            if (bindless)
+            {
+                header.Append("#extension GL_ARB_bindless_texture : require\n");
+            }
+
             foreach (var extension in parsedData.Extensions)
             {
                 header.Append(extension);
                 header.Append('\n');
             }
+
+            header.Append("#define ");
+            header.Append(ShaderParser.BindlessTexturesDefine);
+            header.Append(bindless ? " 1\n" : " 0\n");
 
             // Only Valve shader names activate a shader variant, renderer shader files are loaded as themselves
             var variantName = IsVfxShaderName(originalShaderName)
@@ -399,7 +431,12 @@ namespace ValveResourceFormat.Renderer.Shaders
                 header.Append('\n');
             }
 
-            header.Append(parsedData.GlobalsLayout.BlockSource);
+            if (bindless)
+            {
+                header.Append(SceneTexturesLayout.BlockSource);
+            }
+
+            header.Append(globalsLayout.BlockSource);
 
             var headerText = header.ToString();
 

@@ -415,15 +415,10 @@ public class Framebuffer
     {
         GL.DeleteFramebuffer(FboHandle);
 
-        if (Color != null)
-        {
-            GL.DeleteTexture(Color.Handle);
-        }
-
-        if (Depth != null)
-        {
-            GL.DeleteTexture(Depth.Handle);
-        }
+        // Through RenderTexture, so that any bindless handle referring to an attachment stops being resident
+        // before the texture it names goes away.
+        Color?.Delete();
+        Depth?.Delete();
     }
 
     /// <summary>

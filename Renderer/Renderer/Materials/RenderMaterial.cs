@@ -10,13 +10,27 @@ using ValveResourceFormat.Serialization.VfxEval;
 
 namespace ValveResourceFormat.Renderer.Materials
 {
-    /// <summary>Names the sampler uniforms bound to a <see cref="ReservedTextureSlots"/> member. Names may share a slot when their texture targets differ, since a unit holds one binding per target, or when no shader variant declares both.</summary>
-    /// <param name="names">The sampler uniform names bound to this slot.</param>
-    [AttributeUsage(AttributeTargets.Field)]
-    public sealed class SamplerNameAttribute(params string[] names) : Attribute
+    /// <summary>
+    /// Names a sampler uniform the renderer supplies rather than a material, and the slot it is bound to when
+    /// bindless textures are unavailable. Names may share a slot when their texture targets differ, since a
+    /// unit holds one binding per target, or when no shader variant declares both.
+    /// </summary>
+    /// <param name="name">The sampler uniform name.</param>
+    /// <param name="kind">The sampler type the shaders declare it as.</param>
+    [AttributeUsage(AttributeTargets.Field, AllowMultiple = true)]
+    public sealed class SamplerNameAttribute(string name, SamplerKind kind) : Attribute
     {
-        /// <summary>Gets the sampler uniform names bound to this slot.</summary>
-        public IReadOnlyList<string> Names { get; } = names;
+        /// <summary>Gets the sampler uniform name.</summary>
+        public string Name { get; } = name;
+
+        /// <summary>Gets the sampler type the shaders declare this name as.</summary>
+        public SamplerKind Kind { get; } = kind;
+
+        /// <summary>
+        /// Gets or sets a value indicating whether this sampler is rebound per draw rather than once for the
+        /// scene, which keeps it on a texture unit instead of moving into <see cref="SceneTexturesLayout"/>.
+        /// </summary>
+        public bool PerInstance { get; set; }
     }
 
     /// <summary>
@@ -25,58 +39,65 @@ namespace ValveResourceFormat.Renderer.Materials
     public enum ReservedTextureSlots
     {
         /// <summary>BRDF lookup texture for PBR shading.</summary>
-        [SamplerName("g_tBRDFLookup")]
+        [SamplerName("g_tBRDFLookup", SamplerKind.Texture2DArray)]
         BRDFLookup = 0,
         /// <summary>Blue noise texture for dithering and randomization.</summary>
-        [SamplerName("g_tBlueNoise")]
+        [SamplerName("g_tBlueNoise", SamplerKind.Texture2D)]
         BlueNoise,
         /// <summary>Fog cube texture for atmospheric fog rendering.</summary>
-        [SamplerName("g_tFogCubeTexture")]
+        [SamplerName("g_tFogCubeTexture", SamplerKind.TextureCube)]
         FogCubeTexture,
         /// <summary>Baked irradiance, from the lightmap or the light probe volume.</summary>
-        [SamplerName("g_tIrradiance", "g_tLPV_Irradiance")]
+        [SamplerName("g_tIrradiance", SamplerKind.Texture2DArray)]
+        [SamplerName("g_tLPV_Irradiance", SamplerKind.Texture3D, PerInstance = true)]
         Lightmap1,
         /// <summary>Baked directional irradiance, whole or red split.</summary>
-        [SamplerName("g_tDirectionalIrradiance", "g_tDirectionalIrradianceR")]
+        [SamplerName("g_tDirectionalIrradiance", SamplerKind.Texture2DArray)]
+        [SamplerName("g_tDirectionalIrradianceR", SamplerKind.Texture2DArray)]
         Lightmap2,
         /// <summary>Baked direct light indices, or green split directional irradiance.</summary>
-        [SamplerName("g_tDirectLightIndices", "g_tLPV_Indices", "g_tDirectionalIrradianceG")]
+        [SamplerName("g_tDirectLightIndices", SamplerKind.Texture2DArray)]
+        [SamplerName("g_tLPV_Indices", SamplerKind.Texture3D, PerInstance = true)]
+        [SamplerName("g_tDirectionalIrradianceG", SamplerKind.Texture2DArray)]
         Lightmap3,
         /// <summary>Baked direct light strengths, or blue split directional irradiance.</summary>
-        [SamplerName("g_tDirectLightStrengths", "g_tLPV_Scalars", "g_tDirectionalIrradianceB")]
+        [SamplerName("g_tDirectLightStrengths", SamplerKind.Texture2DArray)]
+        [SamplerName("g_tLPV_Scalars", SamplerKind.Texture3D, PerInstance = true)]
+        [SamplerName("g_tDirectionalIrradianceB", SamplerKind.Texture2DArray)]
         Lightmap4,
         /// <summary>Baked direct light shadows.</summary>
-        [SamplerName("g_tDirectLightShadows", "g_tLPV_Shadows")]
+        [SamplerName("g_tDirectLightShadows", SamplerKind.Texture2DArray)]
+        [SamplerName("g_tLPV_Shadows", SamplerKind.Texture3D, PerInstance = true)]
         Lightmap5,
         /// <summary>Lightmap irradiance debug chart.</summary>
-        [SamplerName("g_tIrradianceDebugChart")]
+        [SamplerName("g_tIrradianceDebugChart", SamplerKind.Texture2DArray)]
         Lightmap6,
-        /// <summary>Environment cubemap for reflections.</summary>
-        [SamplerName("g_tEnvironmentMap")]
+        /// <summary>Environment cubemap for reflections. Declared as a cube or a cube array by combo, and picked per draw.</summary>
+        [SamplerName("g_tEnvironmentMap", SamplerKind.TextureCube, PerInstance = true)]
         EnvironmentMap,
-        /// <summary>Shadow depth buffer for primary shadow pass.</summary>
-        [SamplerName("g_tShadowDepthBufferDepth")]
+        /// <summary>Shadow depth buffer for the sun, one layer per cascade.</summary>
+        [SamplerName("g_tShadowDepthBufferDepth", SamplerKind.Texture2DArrayShadow)]
         ShadowDepthBufferDepth,
         /// <summary>Shadow depth buffer for barn lights.</summary>
-        [SamplerName("g_tBarnLightShadowDepth")]
+        [SamplerName("g_tBarnLightShadowDepth", SamplerKind.Texture2DShadow)]
         BarnLightShadowDepth,
         /// <summary>Light cookie texture (clamped wrap mode).</summary>
-        [SamplerName("g_tLightCookieTexture")]
+        [SamplerName("g_tLightCookieTexture", SamplerKind.Texture2DArray)]
         LightCookieTexture,
         /// <summary>Light cookie texture (repeat wrap mode).</summary>
-        [SamplerName("g_tLightCookieTextureWrap")]
+        [SamplerName("g_tLightCookieTextureWrap", SamplerKind.Texture2DArray)]
         LightCookieTextureWrap,
         /// <summary>Scrolling wave normals and blotch mask.</summary>
-        [SamplerName("g_tWetnessWaves")]
+        [SamplerName("g_tWetnessWaves", SamplerKind.Texture2D)]
         WetnessWaves,
         /// <summary>Resolved opaque scene color for refraction.</summary>
-        [SamplerName("g_tSceneColor")]
+        [SamplerName("g_tSceneColor", SamplerKind.Texture2D)]
         SceneColor,
         /// <summary>Resolved scene depth buffer.</summary>
-        [SamplerName("g_tSceneDepth")]
+        [SamplerName("g_tSceneDepth", SamplerKind.Texture2D)]
         SceneDepth,
-        /// <summary>Morph composite texture for vertex animation.</summary>
-        [SamplerName("morphCompositeTexture")]
+        /// <summary>Morph composite texture for vertex animation, picked per draw.</summary>
+        [SamplerName("morphCompositeTexture", SamplerKind.Texture2D, PerInstance = true)]
         MorphCompositeTexture,
         /// <summary>Last reserved slot; equal to <see cref="MorphCompositeTexture"/>.</summary>
         Last = MorphCompositeTexture,
@@ -158,8 +179,6 @@ namespace ValveResourceFormat.Renderer.Materials
         /// <summary>Gets a value indicating whether this material uses alpha-to-coverage alpha testing.</summary>
         public bool IsAlphaTest => blendMode == BlendMode.AlphaTest;
 
-        private readonly MaterialLoader? Loader;
-
         private Globals? globals;
         private GlobalsLayout? filledLayout;
         private uint filledVersion;
@@ -186,8 +205,6 @@ namespace ValveResourceFormat.Renderer.Materials
         public RenderMaterial(Material material, RendererContext rendererContext, Dictionary<string, byte>? shaderArguments)
             : this(material)
         {
-            Loader = rendererContext.MaterialLoader;
-
             var materialArguments = material.GetShaderArguments();
             var combinedShaderParameters = shaderArguments ?? materialArguments;
 
@@ -469,7 +486,72 @@ namespace ValveResourceFormat.Renderer.Materials
                 EvalStaticOverlayColorAdjust(shader, buffer);
             }
 
+            FillSamplerHandles(shader, layout, buffer);
+
             buffer.EndFill();
+        }
+
+        /// <summary>
+        /// Writes a bindless texture handle for every sampler the layout packs. All of them, not just the ones
+        /// this material has a texture for: the buffer holds no handle at all for the rest, and sampling one of
+        /// those is not something the GPU recovers from.
+        /// </summary>
+        private void FillSamplerHandles(Shader shader, GlobalsLayout layout, Globals buffer)
+        {
+            var samplers = layout.Samplers;
+
+            if (samplers.Count == 0)
+            {
+                return;
+            }
+
+            var loader = shader.MaterialLoader;
+            var userConfigSampler = GetUserConfigSampler(shader);
+
+            foreach (var member in samplers)
+            {
+                if (!Textures.TryGetValue(member.Name, out var texture)
+                && !shader.Default.Textures.TryGetValue(member.Name, out texture))
+                {
+                    texture = loader.GetNullTexture(member.Sampler);
+                }
+
+                if (texture.Target != MaterialLoader.GetTextureTarget(member.Sampler))
+                {
+                    Debug.Assert(false,
+                        $"'{member.Name}' in '{shader.Name}' is a {member.Sampler} sampler, but '{Material.Name}' put a {texture.Target} texture in it.");
+
+                    texture = loader.GetNullTexture(member.Sampler);
+                }
+                else if (texture.Handle == 0)
+                {
+                    // Deleted out from under the material, which the scene teardown order allows.
+                    texture = loader.GetNullTexture(member.Sampler);
+                }
+
+                var sampler = userConfigSampler != 0 && shader.SamplerUserConfigUniforms.Contains(member.Name)
+                    ? userConfigSampler
+                    : 0;
+
+                buffer.SetHandle(member, texture.GetBindlessHandle(sampler));
+            }
+        }
+
+        /// <summary>
+        /// Returns the sampler object holding this material's own texture address modes, which the samplers
+        /// annotated <c>// Sampler(UserConfig)</c> are read through, or 0 when the defaults will do.
+        /// </summary>
+        private int GetUserConfigSampler(Shader shader)
+        {
+            if (shader.SamplerUserConfigUniforms.Count == 0)
+            {
+                return 0;
+            }
+
+            var addressModeU = (int)IntParams.GetValueOrDefault("g_nTextureAddressModeU");
+            var addressModeV = (int)IntParams.GetValueOrDefault("g_nTextureAddressModeV");
+
+            return shader.MaterialLoader.GetOrCreateSampler(addressModeU, addressModeV);
         }
 
         [Conditional("DEBUG")]
@@ -536,6 +618,35 @@ namespace ValveResourceFormat.Renderer.Materials
             }
         }
 
+        /// <summary>
+        /// Points a packed sampler at a texture by writing its bindless handle into this material's constant
+        /// buffer. Returns <see langword="false"/> when the sampler is not one this shader packs, which is when
+        /// the caller has to fall back to binding a texture unit.
+        /// </summary>
+        /// <remarks>The write lasts as long as any other <see cref="SetUniform(string, float)"/> does.</remarks>
+        /// <param name="name">The sampler uniform name.</param>
+        /// <param name="texture">The texture to sample.</param>
+        internal bool SetTexture(string name, RenderTexture texture)
+        {
+            AssertGlobalsAreForThisShader();
+
+            if (!Shader.GlobalsLayout.Members.TryGetValue(name, out var constant) || constant.Type != GlobalsType.Sampler)
+            {
+                return false;
+            }
+
+            if (texture.Target != MaterialLoader.GetTextureTarget(constant.Sampler))
+            {
+                Debug.Assert(false,
+                    $"'{name}' in '{Shader.Name}' is a {constant.Sampler} sampler, but a {texture.Target} texture was set on it.");
+
+                texture = Shader.MaterialLoader.GetNullTexture(constant.Sampler);
+            }
+
+            EnsureGlobals(Shader).SetHandle(constant, texture.GetBindlessHandle());
+            return true;
+        }
+
         /// <summary>Releases the GPU resources this material owns. Safe to call more than once.</summary>
         public void Delete()
         {
@@ -572,16 +683,18 @@ namespace ValveResourceFormat.Renderer.Materials
 
             boundSamplerUnits.Clear();
 
-            var userConfigSampler = 0;
-            if (shader.SamplerUserConfigUniforms.Count > 0 && Loader != null)
-            {
-                var addressModeU = (int)IntParams.GetValueOrDefault("g_nTextureAddressModeU");
-                var addressModeV = (int)IntParams.GetValueOrDefault("g_nTextureAddressModeV");
-                userConfigSampler = Loader.GetOrCreateSampler(addressModeU, addressModeV);
-            }
+            var members = shader.GlobalsLayout.Members;
+            var userConfigSampler = GetUserConfigSampler(shader);
 
             foreach (var (name, defaultTexture) in shader.Default.Textures)
             {
+                // The handle for a packed sampler went into the buffer that was just bound. What is left here
+                // are the samplers no handle can be packed for, such as the multisample and integer ones.
+                if (members.ContainsKey(name))
+                {
+                    continue;
+                }
+
                 var texture = Textures.GetValueOrDefault(name, defaultTexture);
 
                 if (!shader.SetTexture(textureUnit, name, texture))

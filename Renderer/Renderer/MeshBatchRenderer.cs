@@ -107,15 +107,23 @@ namespace ValveResourceFormat.Renderer
             DrawBatch(requests, context);
         }
 
-        /// <summary>Binds the scene-wide textures to their reserved texture units for this pass.</summary>
+        /// <summary>
+        /// Makes the scene-wide textures readable for this pass, either by writing their handles into the
+        /// buffer every shader shares or by binding each to its reserved texture unit.
+        /// </summary>
         private static void BindReservedTextures(Scene.RenderContext context)
         {
-            foreach (var (slot, _, texture) in context.Textures)
+            var sceneTextures = context.Scene.RendererContext.SceneTextures;
+
+            foreach (var (slot, name, texture) in context.Textures)
             {
-                GL.BindTextureUnit((int)slot, texture.Handle);
+                if (!sceneTextures.SetTexture(name, texture))
+                {
+                    GL.BindTextureUnit((int)slot, texture.Handle);
+                }
             }
 
-            context.Scene.LightingInfo.BindLightmapTextures();
+            context.Scene.LightingInfo.BindLightmapTextures(sceneTextures);
         }
 
         private ref struct Uniforms
