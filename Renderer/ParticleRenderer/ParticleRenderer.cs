@@ -251,9 +251,9 @@ namespace ValveResourceFormat.Renderer.Particles
         internal int KilledLastPass => particleCollection.KilledLastPass;
 
         /// <summary>
-        /// Sets the particle detail tier (0 = Low .. 3 = Ultra) for this system; child systems inherit it.
+        /// Sets the particle detail tier for this system; child systems inherit it.
         /// </summary>
-        public void SetDetailLevel(int level)
+        public void SetDetailLevel(ParticleDetailLevel level)
         {
             systemRenderState.DetailLevel = level;
         }

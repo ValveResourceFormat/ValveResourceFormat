@@ -34,6 +34,7 @@ namespace ValveResourceFormat.Renderer.Particles
                 case ParticleField.BoxMins:
                 case ParticleField.BoxMaxs:
                 case ParticleField.BoxAngles:
+                case ParticleField.RopeSegmentData:
                     return "vector";
                 case ParticleField.LifeDuration:
                 case ParticleField.Radius:

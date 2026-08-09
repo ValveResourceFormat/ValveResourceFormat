@@ -162,6 +162,13 @@ namespace ValveResourceFormat.Renderer.Particles
         /// <summary>Gets or sets the flags describing how the particle's own bounding box is used.</summary>
         public float BoxFlags { get; set; } = 0f;
 
+        /// <summary>
+        /// Gets or sets the per-segment payload carried alongside <see cref="RopeSegmentId"/>. Three
+        /// components, of which the engine's debug overlay prints X and Z as a segment position and
+        /// count, and <c>PF_TYPE_PARTICLE_ROPE_SEGMENT_NORMALIZED</c> reads Y.
+        /// </summary>
+        public Vector3 RopeSegmentData { get; set; } = Vector3.Zero;
+
         /// <summary>Gets or sets the alpha window threshold scratch value.</summary>
         public float AlphaWindowThreshold { get; set; } = 0f;
         /// <summary>Gets or sets the first general-purpose scratch float.</summary>
