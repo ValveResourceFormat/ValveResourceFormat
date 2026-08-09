@@ -53,6 +53,9 @@ namespace ValveResourceFormat.Renderer.Particles.Initializers
         /// <summary>Control point supplying per-axis scales. Parsed, but not applied.</summary>
         protected readonly int scaleCP = -1;
 
+        /// <summary>Attribute the spawn position is written to.</summary>
+        protected readonly ParticleField outputField = ParticleField.Position;
+
         public CreateWithinSphere(ParticleDefinitionParser parse) : this(parse, new ControlPointTransformProvider())
         {
         }
@@ -71,6 +74,7 @@ namespace ValveResourceFormat.Renderer.Particles.Initializers
             distanceBiasAbs = parse.Vector3("m_vecDistanceBiasAbs", distanceBiasAbs);
             localCoords = parse.Boolean("m_bLocalCoords", localCoords);
             scaleCP = parse.Int32("m_nScaleCP", scaleCP);
+            outputField = parse.ParticleField("m_nFieldOutput", outputField);
         }
 
         /// <summary>
@@ -141,7 +145,7 @@ namespace ValveResourceFormat.Renderer.Particles.Initializers
                 worldOffset = position + offset;
             }
 
-            particle.Position = worldOffset;
+            particle.SetVector(outputField, worldOffset);
 
             var velocityDirection = localCoords
                 ? Vector3.TransformNormal(biasedDirection, transform)
