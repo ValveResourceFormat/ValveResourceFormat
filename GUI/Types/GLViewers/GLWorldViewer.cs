@@ -667,15 +667,23 @@ namespace GUI.Types.GLViewers
             SelectedNodeRenderer.SelectNode(node, forceDisableDepth: true);
 
             var bbox = node.BoundingBox;
+            var center = bbox.Center;
             var size = bbox.Size;
             var maxDimension = Math.Max(Math.Max(size.X, size.Y), size.Z);
-            var distance = maxDimension * 1.2f;
-            var cameraHeight = bbox.Center.Y + size.Y * 2f;
 
-            var location = new Vector3(bbox.Center.X + distance, cameraHeight, bbox.Center.Z + distance);
+            if (!float.IsFinite(maxDimension) || maxDimension < 1f)
+            {
+                maxDimension = 64f;
+                size = new Vector3(maxDimension);
+            }
+
+            var distance = maxDimension * 1.2f;
+            var cameraHeight = center.Y + size.Y * 2f;
+
+            var location = new Vector3(center.X + distance, cameraHeight, center.Z + distance);
             Input.SaveCameraForTransition();
             Input.Camera.SetLocation(location);
-            Input.Camera.LookAt(bbox.Center);
+            Input.Camera.LookAt(center);
 
             // Ensure the node is visible
             if (!node.LayerEnabled && worldLayersComboBox != null && node.LayerName != null)
