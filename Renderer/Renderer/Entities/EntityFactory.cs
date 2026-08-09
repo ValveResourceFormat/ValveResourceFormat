@@ -24,11 +24,10 @@ public static class EntityFactory
 {
     private static readonly Dictionary<string, EntityCreator> Creators = new(StringComparer.OrdinalIgnoreCase);
 
-#pragma warning disable CA1810 // Initialize static fields inline
     static EntityFactory()
-#pragma warning restore CA1810
     {
         Register<FuncRotating>("func_rotating", static (system, spawnInfo) => new FuncRotating(system, spawnInfo));
+        Register<TriggerTeleport>("trigger_teleport", static (system, spawnInfo) => new TriggerTeleport(system, spawnInfo));
     }
 
     /// <summary>Gets the classnames the entity system implements.</summary>

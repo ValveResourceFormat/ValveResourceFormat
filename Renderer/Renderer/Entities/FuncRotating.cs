@@ -91,7 +91,7 @@ public sealed class FuncRotating : BaseEntity
     public override void Spawn()
     {
         // KeyValue: m_flFanFriction = atof(szValue) / 100
-        FanFriction = Data.GetFloatProperty("fanfriction", 20f) / 100f;
+        FanFriction = KeyValues.GetFloatProperty("fanfriction", 20f) / 100f;
 
         // Prevent a divide by zero if the level designer forgot the friction
         if (FanFriction == 0f)
@@ -121,7 +121,7 @@ public sealed class FuncRotating : BaseEntity
 
         // Did the level designer forget to assign a maximum speed? Prevent a divide
         // by zero in the sound ramp as well as silliness with the rotation
-        MaxSpeed = MathF.Abs(Data.GetFloatProperty("maxspeed"));
+        MaxSpeed = MathF.Abs(KeyValues.GetFloatProperty("maxspeed"));
 
         if (MaxSpeed == 0f)
         {
@@ -130,7 +130,7 @@ public sealed class FuncRotating : BaseEntity
 
         startAngles = Angles;
 
-        SetModel(Data.GetStringProperty("model"));
+        SetModel();
 
         // Some rotating objects, like fake volumetric lights, are never solid
         IsSolid = !HasSpawnFlags(SF_ROTATING_NOT_SOLID);

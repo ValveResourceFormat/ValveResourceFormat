@@ -1,5 +1,6 @@
 using Microsoft.Extensions.Logging;
 using ValveResourceFormat.IO;
+using ValveResourceFormat.Renderer.Input;
 using ValveResourceFormat.ResourceTypes;
 using Entity = ValveResourceFormat.ResourceTypes.EntityLump.Entity;
 
@@ -35,6 +36,9 @@ public sealed class EntitySystem
 
     /// <summary>Gets every living entity, in spawn order.</summary>
     public IReadOnlyList<BaseEntity> Entities => entities;
+
+    /// <summary>Gets the player, once one has been spawned into this world.</summary>
+    public PlayerEntity? Player { get; private set; }
 
     /// <summary>Gets the current simulation time in seconds, the engine's <c>curtime</c>.</summary>
     public float CurrentTime { get; private set; }
@@ -83,10 +87,35 @@ public sealed class EntitySystem
             return null;
         }
 
-        entities.Add(entity);
-        Scene.Add(entity, dynamic: true);
+        Add(entity);
 
         return entity;
+    }
+
+    /// <summary>
+    /// Puts the player into the world, so triggers have something to touch. Replaces any player already
+    /// spawned.
+    /// </summary>
+    /// <param name="movement">The movement the player entity mirrors.</param>
+    /// <returns>The player entity.</returns>
+    public PlayerEntity SpawnPlayer(PlayerMovement movement)
+    {
+        if (Player != null)
+        {
+            Remove(Player);
+        }
+
+        Player = new PlayerEntity(this, movement);
+        Player.Spawn();
+        Add(Player);
+
+        return Player;
+    }
+
+    private void Add(BaseEntity entity)
+    {
+        entities.Add(entity);
+        Scene.Add(entity, dynamic: true);
     }
 
     /// <summary>
@@ -111,8 +140,53 @@ public sealed class EntitySystem
             return;
         }
 
+        // Anything it was standing in should hear that it left before it stops existing
+        foreach (var other in entities)
+        {
+            other.UpdateTouchLink(entity, isOverlapping: false);
+        }
+
         entity.RemoveFromScene();
         hasRemovedEntities = true;
+
+        if (Player == entity)
+        {
+            Player = null;
+        }
+    }
+
+    /// <summary>
+    /// Tests every trigger volume against every entity that occupies space, opening and closing touch
+    /// links as they change. Both sides of a touch hear about it, the way the engine marks a pair of
+    /// entities as touching.
+    /// </summary>
+    /// <remarks>
+    /// Runs each tick, and again right after the player moves, because the player moves per rendered frame
+    /// rather than on the tick. Firing twice within a tick costs nothing: a link only reports on its edges.
+    /// </remarks>
+    public void UpdateTouchLinks()
+    {
+        foreach (var entity in entities)
+        {
+            if (!entity.IsTrigger || entity.IsRemoved || entity.Collider is not { IsEmpty: false } volume)
+            {
+                continue;
+            }
+
+            foreach (var other in entities)
+            {
+                if (other == entity || other.IsRemoved || !other.TryGetTouchBounds(out var center, out var halfExtents))
+                {
+                    continue;
+                }
+
+                // Overlaps rejects on world bounds first, so a distant pair costs one box test
+                var isOverlapping = volume.Overlaps(center, halfExtents);
+
+                entity.UpdateTouchLink(other, isOverlapping);
+                other.UpdateTouchLink(entity, isOverlapping);
+            }
+        }
     }
 
     /// <summary>
@@ -122,6 +196,7 @@ public sealed class EntitySystem
     public void Clear()
     {
         entities.Clear();
+        Player = null;
         inputQueue.Clear();
         dueInputs.Clear();
         hasRemovedEntities = false;
@@ -180,6 +255,8 @@ public sealed class EntitySystem
             entities.RemoveAll(static entity => entity.IsRemoved);
             hasRemovedEntities = false;
         }
+
+        UpdateTouchLinks();
     }
 
     /// <summary>
@@ -282,7 +359,7 @@ public sealed class EntitySystem
     /// <param name="activator">The entity that started the I/O chain.</param>
     public void TriggerOutput(BaseEntity source, string outputName, BaseEntity? activator = null)
     {
-        if (source.Data.Connections == null)
+        if (source.Data?.Connections == null)
         {
             return;
         }

@@ -82,8 +82,6 @@ public class UserInput
     /// </summary>
     public PlayerMovement PlayerMovement { get; }
 
-    /// <summary>Gets the map's trigger volumes, tested against the player after each movement tick.</summary>
-    public List<TriggerTeleport> TriggerVolumes { get; } = [];
     /// <summary>Gets a value indicating whether the camera is in noclip (free-flight) mode rather than FPS movement mode.</summary>
     public bool NoClip { get; private set; } = true;
 
@@ -265,10 +263,8 @@ public class UserInput
 
             PlayerMovement.ProcessMovement(Camera, deltaTime);
 
-            foreach (var trigger in TriggerVolumes)
-            {
-                trigger.Touch(PlayerMovement);
-            }
+            // The player moved, so re-test the trigger volumes it may have just entered or left
+            EntitySystem?.UpdateTouchLinks();
 
             Velocity = PlayerMovement.Velocity;
             Camera.Pitch += MouseDeltaPitchYaw.X;

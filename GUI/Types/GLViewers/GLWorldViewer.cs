@@ -240,8 +240,6 @@ namespace GUI.Types.GLViewers
                 Input.PlayerMovement.AirAccelerate = isKzMap
                     ? PlayerMovement.AirAccelerateMovementMaps
                     : PlayerMovement.AirAccelerateCompetitive;
-
-                Input.TriggerVolumes.AddRange(TriggerTeleport.LoadAll(LoadedWorld, RendererContext.FileLoader));
             }
 
             if (!cameraSet)

@@ -38,8 +38,19 @@ public class BaseEntity : SceneNode
     /// <summary>Gets the world this entity lives in.</summary>
     public EntitySystem EntitySystem { get; }
 
-    /// <summary>Gets the entity's keyvalues, as authored in the map.</summary>
-    public Entity Data { get; }
+    /// <summary>
+    /// Gets the entity's keyvalues as authored in the map, or <see langword="null"/> for an entity created
+    /// at runtime rather than loaded from one. Use <see cref="KeyValues"/> from a class that only ever
+    /// comes from a map.
+    /// </summary>
+    public Entity? Data { get; }
+
+    /// <summary>
+    /// Gets the map keyvalues this entity was authored with. Throws for an entity created at runtime,
+    /// which has none; read <see cref="Data"/> instead in a class that can be either.
+    /// </summary>
+    protected Entity KeyValues => Data
+        ?? throw new InvalidOperationException($"'{Classname}' was created at runtime and has no map keyvalues");
 
     /// <summary>Gets the entity's <c>classname</c>.</summary>
     public string Classname { get; }
@@ -55,6 +66,13 @@ public class BaseEntity : SceneNode
 
     /// <summary>Gets the authored <c>scales</c>, which movement never changes.</summary>
     public Vector3 EntityScale { get; }
+
+    /// <summary>
+    /// Gets the <c>model</c> the map authored, before anything applies it. Source's <c>m_ModelName</c>:
+    /// reading the keyvalue is generic, but applying it is each class's own business, which is why
+    /// <see cref="SetModel()"/> is called from <see cref="Spawn"/> rather than for you.
+    /// </summary>
+    public string? ModelName { get; protected set; }
 
     /// <summary>Gets or sets the origin. Setting it rebuilds <see cref="SceneNode.Transform"/>.</summary>
     public Vector3 Origin
@@ -102,7 +120,7 @@ public class BaseEntity : SceneNode
 
     /// <summary>
     /// Gets the entity's collision shape, or <see langword="null"/> when it has none. Built by
-    /// <see cref="SetModel"/> from the model's physics, and moved with the entity every tick.
+    /// <see cref="SetModel(string?)"/> from the model's physics, and moved with the entity every tick.
     /// </summary>
     public EntityCollider? Collider { get; private set; }
 
@@ -113,9 +131,19 @@ public class BaseEntity : SceneNode
     /// </summary>
     public bool IsSolid { get; set; } = true;
 
-    /// <summary>Gets whether the entity currently takes part in collision traces.</summary>
-    public bool IsCollidable => IsSolid && Collider is { IsEmpty: false } && !IsRemoved;
+    /// <summary>
+    /// Gets or sets whether the entity is a trigger volume: something passes through it and it reports
+    /// the touch, rather than blocking. Source's <c>FSOLID_TRIGGER</c>.
+    /// </summary>
+    public bool IsTrigger { get; set; }
 
+    /// <summary>Gets whether the entity currently takes part in collision traces.</summary>
+    public bool IsCollidable => IsSolid && !IsTrigger && Collider is { IsEmpty: false } && !IsRemoved;
+
+    /// <summary>Gets the entities currently inside this one's volume.</summary>
+    public IReadOnlyCollection<BaseEntity> TouchingEntities => touching;
+
+    private readonly HashSet<BaseEntity> touching = [];
     private readonly List<EntityChild> children = [];
     private Vector3 previousOrigin;
     private Vector3 previousAngles;
@@ -135,13 +163,17 @@ public class BaseEntity : SceneNode
         Data = spawnInfo.Data;
         ParentTransform = spawnInfo.ParentTransform;
 
-        Classname = Data.GetStringProperty("classname") ?? string.Empty;
-        TargetName = Data.TargetName;
-        SpawnFlags = Data.GetUInt32Property("spawnflags");
-        EntityScale = Data.GetVector3Property("scales", Vector3.One);
+        var data = spawnInfo.Data;
 
-        Origin = Data.GetVector3Property("origin");
-        Angles = Data.GetVector3Property("angles");
+        Classname = data.GetStringProperty("classname") ?? string.Empty;
+        TargetName = data.TargetName;
+        SpawnFlags = data.GetUInt32Property("spawnflags");
+        EntityScale = data.GetVector3Property("scales", Vector3.One);
+
+        ModelName = data.GetStringProperty("model");
+
+        Origin = data.GetVector3Property("origin");
+        Angles = data.GetVector3Property("angles");
         previousOrigin = Origin;
         previousAngles = Angles;
 
@@ -150,6 +182,26 @@ public class BaseEntity : SceneNode
         Name = TargetName ?? Classname;
 
         // The entity itself draws nothing; its children carry the geometry.
+        RenderPasses = CustomRenderPasses.None;
+
+        UpdateTransform();
+    }
+
+    /// <summary>
+    /// Initializes an entity created at runtime rather than loaded from a map, so it has no keyvalues to
+    /// read and starts at the world origin.
+    /// </summary>
+    /// <param name="system">The world this entity belongs to.</param>
+    /// <param name="classname">The classname to report, as the map would have given.</param>
+    protected BaseEntity(EntitySystem system, string classname) : base(system.Scene)
+    {
+        EntitySystem = system;
+        ParentTransform = Matrix4x4.Identity;
+        EntityScale = Vector3.One;
+
+        Classname = classname;
+        Name = classname;
+
         RenderPasses = CustomRenderPasses.None;
 
         UpdateTransform();
@@ -183,6 +235,107 @@ public class BaseEntity : SceneNode
     /// <summary>Runs when <see cref="MoveDoneTime"/> comes due, after the tick's movement was applied.</summary>
     public virtual void MoveDone()
     {
+    }
+
+    /// <summary>
+    /// Reports the box this entity occupies for touch tests, which by default is the world-space bounds of
+    /// its collision shape. An entity with no shape has no volume and cannot be touched, so it says so.
+    /// </summary>
+    /// <remarks>
+    /// A box, not the shape itself, because that is what a trigger volume can be asked to test against, and
+    /// it is what the engine tests a trigger against too.
+    /// </remarks>
+    /// <param name="center">The box centre in world space.</param>
+    /// <param name="halfExtents">Half-extents of the box.</param>
+    /// <returns><see langword="true"/> when this entity occupies space.</returns>
+    public virtual bool TryGetTouchBounds(out Vector3 center, out Vector3 halfExtents)
+    {
+        if (Collider is { IsEmpty: false } collider)
+        {
+            var bounds = collider.WorldBounds;
+
+            center = bounds.Center;
+            halfExtents = bounds.Size * 0.5f;
+            return true;
+        }
+
+        center = default;
+        halfExtents = default;
+        return false;
+    }
+
+    /// <summary>
+    /// Whether this entity is interested in being touched by <paramref name="other"/>. A refusal keeps the
+    /// touch link from opening at all, which is where a trigger's filters belong.
+    /// </summary>
+    /// <param name="other">The entity inside this one's volume.</param>
+    protected virtual bool AcceptsTouchFrom(BaseEntity other) => true;
+
+    /// <summary>Runs on the tick <paramref name="other"/> enters this entity's volume. Source's <c>StartTouch</c>.</summary>
+    /// <param name="other">The entity that entered.</param>
+    protected virtual void OnStartTouch(BaseEntity other)
+    {
+    }
+
+    /// <summary>Runs every tick <paramref name="other"/> stays inside this entity's volume. Source's <c>Touch</c>.</summary>
+    /// <param name="other">The entity inside the volume.</param>
+    protected virtual void OnTouch(BaseEntity other)
+    {
+    }
+
+    /// <summary>Runs on the tick <paramref name="other"/> leaves this entity's volume. Source's <c>EndTouch</c>.</summary>
+    /// <param name="other">The entity that left.</param>
+    protected virtual void OnEndTouch(BaseEntity other)
+    {
+    }
+
+    /// <summary>
+    /// Moves the entity somewhere else outright, rather than by travelling there. Source's
+    /// <c>CBaseEntity::Teleport</c>.
+    /// </summary>
+    /// <param name="origin">Where the entity arrives.</param>
+    /// <param name="angles">Angles to adopt, or <see langword="null"/> to keep the current ones.</param>
+    public virtual void Teleport(Vector3 origin, Vector3? angles)
+    {
+        Origin = origin;
+
+        if (angles is { } newAngles)
+        {
+            Angles = newAngles;
+        }
+
+        // A teleport is not movement, so it must not be interpolated across
+        SnapInterpolation();
+    }
+
+    /// <summary>
+    /// Opens, sustains, or closes the touch link between this volume and <paramref name="other"/>, firing
+    /// the matching handler on the edges.
+    /// </summary>
+    /// <param name="other">The entity being tested against this volume.</param>
+    /// <param name="isOverlapping">Whether it currently overlaps.</param>
+    internal void UpdateTouchLink(BaseEntity other, bool isOverlapping)
+    {
+        if (isOverlapping && !AcceptsTouchFrom(other))
+        {
+            isOverlapping = false;
+        }
+
+        if (isOverlapping)
+        {
+            if (touching.Add(other))
+            {
+                OnStartTouch(other);
+            }
+            else
+            {
+                OnTouch(other);
+            }
+        }
+        else if (touching.Remove(other))
+        {
+            OnEndTouch(other);
+        }
     }
 
     /// <summary>
@@ -288,6 +441,12 @@ public class BaseEntity : SceneNode
     }
 
     /// <summary>
+    /// Loads the model the map authored on this entity, <see cref="ModelName"/>.
+    /// </summary>
+    /// <returns>The model node that was created, or <see langword="null"/> when there is nothing to draw.</returns>
+    protected ModelSceneNode? SetModel() => SetModel(ModelName);
+
+    /// <summary>
     /// Loads a model and attaches its renderable and physics nodes to this entity. Source's <c>SetModel</c>.
     /// Brush entities carry their geometry this way, in a model compiled next to the map.
     /// </summary>
@@ -309,15 +468,15 @@ public class BaseEntity : SceneNode
         }
 
         // rendercolor might sometimes be vec4, which holds renderamt
-        var renderColor = Data.GetColor32Property("rendercolor");
-        var renderAmount = Data.GetFloatProperty("renderamt", 1.0f);
+        var renderColor = Data?.GetColor32Property("rendercolor") ?? Vector3.One;
+        var renderAmount = Data?.GetFloatProperty("renderamt", 1.0f) ?? 1.0f;
 
         if (renderAmount > 1f)
         {
             renderAmount /= 255f;
         }
 
-        var modelNode = new ModelSceneNode(Scene, model, Data.GetStringProperty("skin"))
+        var modelNode = new ModelSceneNode(Scene, model, Data?.GetStringProperty("skin"))
         {
             Name = modelName,
             Tint = new Vector4(renderColor, renderAmount),
