@@ -15,6 +15,11 @@ namespace ValveResourceFormat.Renderer.Particles.Operators
 
         public override void Operate(ParticleCollection particles, float frameTime, ParticleSystemRenderState particleSystemState, float strength)
         {
+            if (!particleSystemState.InEndCap)
+            {
+                return;
+            }
+
             if (particleSystemState.EndCapAge <= decayTime.NextNumber(particleSystemState))
             {
                 return;

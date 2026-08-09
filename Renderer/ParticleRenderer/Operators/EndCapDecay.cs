@@ -13,6 +13,11 @@ namespace ValveResourceFormat.Renderer.Particles.Operators
 
         public override void Operate(ParticleCollection particles, float frameTime, ParticleSystemRenderState particleSystemState, float strength)
         {
+            if (!particleSystemState.InEndCap)
+            {
+                return;
+            }
+
             var endCapAge = particleSystemState.EndCapAge;
 
             foreach (ref var particle in particles.Current)

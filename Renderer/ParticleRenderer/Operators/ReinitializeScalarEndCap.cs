@@ -33,7 +33,7 @@ namespace ValveResourceFormat.Renderer.Particles.Operators
 
         public override void Operate(ParticleCollection particles, float frameTime, ParticleSystemRenderState particleSystemState, float strength)
         {
-            if (hasRun)
+            if (hasRun || !particleSystemState.InEndCap)
             {
                 return;
             }

@@ -144,6 +144,11 @@ namespace ValveResourceFormat.Renderer.Particles
 
             foreach (var initializer in initializers)
             {
+                if (!initializer.RunsInCurrentPhase(systemRenderState))
+                {
+                    continue;
+                }
+
                 initializer.Initialize(ref particleCollection.Current[index], particleCollection, systemRenderState);
             }
 
