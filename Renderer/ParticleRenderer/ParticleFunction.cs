@@ -57,6 +57,14 @@ namespace ValveResourceFormat.Renderer.Particles
                 && opStrengthInput is LiteralNumberProvider { Value: 1f };
         }
 
+        /// <summary>
+        /// Whether the authored <c>m_nOpEndCapState</c> lets the function run in the phase the system is
+        /// in. Walks with no operator strength to evaluate, such as the initializers, test this alone.
+        /// </summary>
+        public bool RunsInCurrentPhase(ParticleSystemRenderState systemState)
+            => opEndCapState == ParticleEndCapMode.PARTICLE_ENDCAP_ALWAYS_ON
+                || systemState.InEndCap == (opEndCapState == ParticleEndCapMode.PARTICLE_ENDCAP_ENDCAP_ON);
+
         public float GetOperatorRunStrength(ParticleSystemRenderState systemState) // CheckIfOperatorShouldRun
         {
             if (StrengthFastPath)
@@ -64,8 +72,7 @@ namespace ValveResourceFormat.Renderer.Particles
                 return 1f;
             }
 
-            if (opEndCapState != ParticleEndCapMode.PARTICLE_ENDCAP_ALWAYS_ON
-                && systemState.InEndCap != (opEndCapState == ParticleEndCapMode.PARTICLE_ENDCAP_ENDCAP_ON))
+            if (!RunsInCurrentPhase(systemState))
             {
                 return 0f;
             }
