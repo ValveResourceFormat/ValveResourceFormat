@@ -1,6 +1,5 @@
 using Microsoft.Extensions.Logging;
 using ValveResourceFormat.IO;
-using ValveResourceFormat.Renderer.Input;
 using ValveResourceFormat.ResourceTypes;
 using Entity = ValveResourceFormat.ResourceTypes.EntityLump.Entity;
 
@@ -96,9 +95,9 @@ public sealed class EntitySystem
     /// Puts the player into the world, so triggers have something to touch. Replaces any player already
     /// spawned.
     /// </summary>
-    /// <param name="movement">The movement the player entity mirrors.</param>
+    /// <param name="controller">The player state the entity mirrors.</param>
     /// <returns>The player entity.</returns>
-    public PlayerEntity SpawnPlayer(PlayerMovement movement)
+    public PlayerEntity SpawnPlayer(IPlayerController controller)
     {
         if (Player != null)
         {
@@ -108,7 +107,7 @@ public sealed class EntitySystem
         // Registration is what usually binds a class's inputs; the player never goes through the factory
         EntityInputTable.Bind<PlayerEntity>();
 
-        Player = new PlayerEntity(this, movement);
+        Player = new PlayerEntity(this, controller);
         Player.Spawn();
         Add(Player);
 

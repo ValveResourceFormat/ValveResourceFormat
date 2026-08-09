@@ -1,9 +1,11 @@
+using ValveResourceFormat.Renderer.Entities;
+
 namespace ValveResourceFormat.Renderer.Input;
 
 /// <summary>
 /// Source engine-style FPS player movement controller.
 /// </summary>
-public partial class PlayerMovement
+public partial class PlayerMovement : IPlayerController
 {
     // Half-extents around the hull center. Standing 32x32x72, ducked 32x32x48.
     private static readonly Vector3 StandingHullHalfExtents = new(16, 16, 36);
