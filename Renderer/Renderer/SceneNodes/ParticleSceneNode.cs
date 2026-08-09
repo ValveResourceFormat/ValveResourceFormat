@@ -228,6 +228,16 @@ namespace ValveResourceFormat.Renderer.SceneNodes
         private bool pendingRestart;
 
         /// <summary>
+        /// Stops emission and plays the system's endcap, which is what the engine does when something
+        /// tells a running effect to end.
+        /// </summary>
+        public void PlayEndCap()
+        {
+            particleRenderer.Stop();
+            particleRenderer.PlayEndCap();
+        }
+
+        /// <summary>
         /// Forces this system's renderers to draw once with temporary particles.
         /// </summary>
         public void Prewarm(Camera camera) => particleRenderer.Prewarm(camera);
