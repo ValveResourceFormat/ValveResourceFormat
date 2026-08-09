@@ -160,7 +160,7 @@ namespace ValveResourceFormat.Renderer.Particles
 
         public float NextNumber(ref Particle particle, ParticleSystemRenderState renderState)
         {
-            return tiers[Math.Clamp(renderState.DetailLevel, 0, 3)];
+            return tiers[Math.Clamp((int)renderState.DetailLevel, 0, tiers.Length - 1)];
         }
     }
 

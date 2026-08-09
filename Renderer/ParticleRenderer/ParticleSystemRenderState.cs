@@ -37,13 +37,13 @@ namespace ValveResourceFormat.Renderer.Particles
             set => worldTime = value;
         }
 
-        private int detailLevel = 3;
+        private ParticleDetailLevel detailLevel = ParticleDetailLevel.PARTICLEDETAIL_ULTRA;
 
         /// <summary>
-        /// Active particle detail tier (0 = Low .. 3 = Ultra) used by <c>PF_TYPE_PARTICLE_DETAIL_LEVEL</c>
-        /// inputs; child systems inherit the root system's level.
+        /// Active particle detail tier, used by <c>PF_TYPE_PARTICLE_DETAIL_LEVEL</c> inputs and by the
+        /// child systems' own <c>m_nDetailLevel</c>; child systems inherit the root system's tier.
         /// </summary>
-        public int DetailLevel
+        public ParticleDetailLevel DetailLevel
         {
             get => ParentSystem?.DetailLevel ?? detailLevel;
             set => detailLevel = value;

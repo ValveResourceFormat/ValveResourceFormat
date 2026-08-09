@@ -41,7 +41,9 @@ namespace ValveResourceFormat.Renderer.Particles.PreEmissionOperators
 
         public override void Operate(ref ParticleSystemRenderState particleSystemState, float frameTime)
         {
-            if (outControlPoint < 0 || field < 0 || frameTime <= 0f)
+            // The engine's control point writer takes the field index unsigned and rejects anything
+            // above 3, and index 3 addresses a component the position vector does not have
+            if (outControlPoint < 0 || field < 0 || field > 2 || frameTime <= 0f)
             {
                 return;
             }

@@ -77,11 +77,11 @@ namespace GUI.Types.GLViewers
                 }
 
                 using var lockedGl = MakeCurrent();
-                particleSceneNode?.SetDetailLevel(i);
+                particleSceneNode?.SetDetailLevel((ParticleDetailLevel)i);
                 particleSceneNode?.Restart();
             }, horizontal: true, fill: true);
             detailLevelComboBox.Items.AddRange(["Low", "Medium", "High", "Ultra"]);
-            detailLevelComboBox.SelectedIndex = 3;
+            detailLevelComboBox.SelectedIndex = (int)ParticleDetailLevel.PARTICLEDETAIL_ULTRA;
 
             AddBaseGridControl();
 

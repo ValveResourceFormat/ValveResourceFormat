@@ -141,7 +141,7 @@ namespace ValveResourceFormat.Renderer.Particles
         /// </summary>
         private bool ChildShouldRun(ParticleSystemRenderState parentState)
         {
-            if (!childEnabled || (int)detailLevel > parentState.DetailLevel)
+            if (!childEnabled || detailLevel > parentState.DetailLevel)
             {
                 return false;
             }

@@ -242,8 +242,8 @@ namespace ValveResourceFormat.Renderer.SceneNodes
         /// </summary>
         public void Prewarm(Camera camera) => particleRenderer.Prewarm(camera);
 
-        /// <summary>Sets the particle detail tier (0 = Low .. 3 = Ultra) used by detail-tiered inputs.</summary>
-        public void SetDetailLevel(int level) => particleRenderer.SetDetailLevel(level);
+        /// <summary>Sets the particle detail tier used by detail-tiered inputs and by child systems.</summary>
+        public void SetDetailLevel(ParticleDetailLevel level) => particleRenderer.SetDetailLevel(level);
 
         /// <summary>
         /// Replaces the texture drawn by every renderer in this system and its children.
