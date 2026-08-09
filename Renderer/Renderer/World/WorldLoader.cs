@@ -253,6 +253,9 @@ namespace ValveResourceFormat.Renderer.World
 
             ResolveAttachmentParenting();
 
+            // Every entity exists now, so the simulated ones can resolve each other by name
+            scene.EntitySystem.Activate();
+
             Action<List<SceneLight>> lightEntityStore = (scene.LightingInfo.LightmapVersionNumber, scene.LightingInfo.LightmapGameVersionNumber) switch
             {
                 (6, 0) or (8, 0) or (8, 1) => scene.LightingInfo.StoreLightMappedLights_V1,
@@ -288,6 +291,11 @@ namespace ValveResourceFormat.Renderer.World
 
             foreach (var node in scene.AllNodes)
             {
+                if (node is BaseEntity || node.Parent != null)
+                {
+                    continue; // already driven by a simulated entity, which owns its transform
+                }
+
                 var parentName = node.EntityData?.GetStringProperty("parentname");
 
                 if (parentName is null || !modelsByTargetName.TryGetValue(parentName, out var parentNode))
@@ -564,6 +572,14 @@ namespace ValveResourceFormat.Renderer.World
                 if (disabled && layerName == "Entities")
                 {
                     layerName = "Entities (disabled)";
+                }
+
+                // Classnames the entity system implements are spawned as simulated entities, which are
+                // scene nodes themselves and create whatever geometry they need.
+                if (EntityFactory.IsRegistered(classname))
+                {
+                    scene.EntitySystem.CreateEntity(entity, parentTransform, layerName);
+                    return;
                 }
 
                 var defaultEntityLayer = toolEntityLayer == ToolEntitiesLayerName && HammerEntities.Get(classname)?.Studio == true

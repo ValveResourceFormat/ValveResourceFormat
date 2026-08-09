@@ -8,6 +8,7 @@ using Microsoft.Extensions.Logging;
 using OpenTK.Graphics.OpenGL;
 using ValveResourceFormat.Blocks;
 using ValveResourceFormat.Renderer.Buffers;
+using ValveResourceFormat.Renderer.Entities;
 using ValveResourceFormat.Renderer.SceneEnvironment;
 using ValveResourceFormat.Renderer.SceneNodes;
 using ValveResourceFormat.Renderer.World;
@@ -76,6 +77,14 @@ namespace ValveResourceFormat.Renderer
 
         /// <summary>Gets or sets the physics simulation world associated with this scene.</summary>
         public Rubikon? PhysicsWorld { get; set; }
+
+        /// <summary>
+        /// Gets the entity context for this scene, created on first use. Simulated entities live here and
+        /// are ticked by <see cref="Update"/> before the scene nodes are updated.
+        /// </summary>
+        public EntitySystem EntitySystem => entitySystem ??= new EntitySystem(this);
+
+        private EntitySystem? entitySystem;
 
         /// <summary>Gets or sets the voxel visibility data.</summary>
         public VoxelVisibility? VoxelVisibility { get; set; }
@@ -315,6 +324,8 @@ namespace ValveResourceFormat.Renderer
             }
             staticNodes.Clear();
 
+            entitySystem?.Clear();
+
             StaticOctree.Clear();
             DynamicOctree.Clear();
 
@@ -407,6 +418,9 @@ namespace ValveResourceFormat.Renderer
         /// <param name="updateContext">Per-frame context data including camera and timestep.</param>
         public void Update(Scene.UpdateContext updateContext)
         {
+            // Entities simulate on their own fixed tick, then their scene nodes pick the result up below
+            entitySystem?.Update(updateContext.Timestep);
+
             foreach (var node in staticNodes)
             {
                 node.Update(updateContext);
