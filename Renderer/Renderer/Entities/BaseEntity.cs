@@ -85,7 +85,10 @@ public class BaseEntity : SceneNode
     /// <summary>Gets or sets the linear velocity in units per second.</summary>
     public Vector3 Velocity { get; set; }
 
-    /// <summary>Gets or sets the angular velocity as a QAngle in degrees per second.</summary>
+    /// <summary>
+    /// Gets or sets the angular velocity as a QAngle in degrees per second, turning the entity about its
+    /// own axes. Source's <c>SetLocalAngularVelocity</c>.
+    /// </summary>
     public Vector3 AngularVelocity { get; set; }
 
     /// <summary>
@@ -389,9 +392,17 @@ public class BaseEntity : SceneNode
     }
 
     /// <summary>
-    /// Integrates this tick's movement. The default advances <see cref="Origin"/> and <see cref="Angles"/>
-    /// by the current velocities.
+    /// Integrates this tick's movement, advancing <see cref="Origin"/> by <see cref="Velocity"/> and
+    /// turning by <see cref="AngularVelocity"/>.
     /// </summary>
+    /// <remarks>
+    /// The turn goes about the entity's own axes rather than onto the QAngle components. The two only
+    /// agree while nothing ahead of a component in the euler composition tilts it, which holds for roll
+    /// and for an entity the map left unrotated, but not for the yaw of a brush authored on its side:
+    /// that one would swing about the world's up axis instead of its own. Source 1 adds the components
+    /// (<c>physics_main.cpp</c>: <c>angles += GetLocalAngularVelocity() * movetime</c>); Source 2 turns
+    /// the body, and these are Source 2 maps.
+    /// </remarks>
     /// <param name="tickInterval">The fixed tick length in seconds.</param>
     protected virtual void PhysicsSimulate(float tickInterval)
     {
@@ -400,11 +411,22 @@ public class BaseEntity : SceneNode
             return;
         }
 
-        var angles = Angles + AngularVelocity * tickInterval;
-
         SetOriginAndAngles(
             Origin + Velocity * tickInterval,
-            new Vector3(AngleMod(angles.X), AngleMod(angles.Y), AngleMod(angles.Z)));
+            AngularVelocity == Vector3.Zero ? Angles : TurnBody(Angles, AngularVelocity * tickInterval));
+    }
+
+    /// <summary>
+    /// Turns a QAngle by a delta given in the body's own frame, and reports where that lands as a QAngle.
+    /// </summary>
+    /// <param name="from">The orientation to turn.</param>
+    /// <param name="bodyDelta">The turn, as a QAngle about the body's own axes.</param>
+    protected static Vector3 TurnBody(Vector3 from, Vector3 bodyDelta)
+    {
+        var turned = EntityTransformHelper.CreateQuaternionFromEulerAngles(from)
+            * EntityTransformHelper.CreateQuaternionFromEulerAngles(bodyDelta);
+
+        return EntityTransformHelper.ToEulerAngles(turned);
     }
 
     /// <summary>

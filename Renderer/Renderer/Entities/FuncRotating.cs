@@ -84,6 +84,7 @@ public sealed class FuncRotating : BaseEntity
 
     private bool stopAtStartPos;
     private Vector3 startAngles;
+    private float turnedFromStart;
     private MoveDoneFunction moveDoneFunction;
 
     /// <summary>
@@ -155,6 +156,16 @@ public sealed class FuncRotating : BaseEntity
     /// schedules, so there is nothing to dispatch on.
     /// </summary>
     public override void Think() => Toggle();
+
+    /// <inheritdoc/>
+    protected override void PhysicsSimulate(float tickInterval)
+    {
+        base.PhysicsSimulate(tickInterval);
+
+        // Tracked as it turns, because once the body has turned off the axes the map authored it on,
+        // how far it has come round is no longer a component of the QAngle to be read back
+        turnedFromStart = AngleMod(turnedFromStart + Speed * tickInterval);
+    }
 
     /// <inheritdoc/>
     public override void MoveDone()
@@ -275,25 +286,39 @@ public sealed class FuncRotating : BaseEntity
     /// there. Source's <c>UpdateSpeed</c>, minus the sound pitch and volume ramp.
     /// </summary>
     /// <remarks>
-    /// A pending <c>StopAtStartPos</c> overrides a stop that would leave the brush short of its start
-    /// angle: below 100 degrees per second it keeps crawling at 25 until the angle comes back around,
-    /// then snaps onto it. Same shape as the engine's ramp, which also holds a slow speed until arrival.
+    /// A pending <c>StopAtStartPos</c> steers the last stretch, as <c>bmodels.cpp</c> does: more than 90
+    /// degrees out it holds the speed it had, inside that it eases towards the angle still to go with a
+    /// floor of 20 degrees per second, and once it is slow and within a degree it lands on the start.
     /// </remarks>
     /// <param name="newSpeed">The speed to apply, before clamping to <see cref="MaxSpeed"/>.</param>
     private void UpdateSpeed(float newSpeed)
     {
+        var oldSpeed = Speed;
         var speed = Math.Clamp(newSpeed, -MaxSpeed, MaxSpeed);
 
-        if (stopAtStartPos && MathF.Abs(speed) < 100f)
+        if (stopAtStartPos && speed < 100f)
         {
-            if (MathF.Abs(speed) <= 25f && MathF.Abs(GetAngleDeltaFromStart()) < 1f)
+            var angleDelta = GetAngleDeltaFromStart();
+
+            if (speed <= 25f && MathF.Abs(angleDelta) < 1f)
             {
+                Speed = 0f;
+                AngularVelocity = Vector3.Zero;
                 StopAtStartAngles();
-                speed = 0f;
+
+                return;
+            }
+
+            if (MathF.Abs(angleDelta) > 90f)
+            {
+                // Still most of a turn from home, so keep the speed it had
+                speed = oldSpeed;
             }
             else
             {
-                speed = SpinDirection(speed) * MathF.Max(MathF.Abs(speed), 25f);
+                var minSpeed = MathF.Max(MathF.Abs(angleDelta), 20f);
+
+                speed = oldSpeed > 0f ? minSpeed : -minSpeed;
             }
         }
 
@@ -309,23 +334,10 @@ public sealed class FuncRotating : BaseEntity
     {
         TargetSpeed = 0f;
         stopAtStartPos = false;
+        turnedFromStart = 0f;
+
         Angles = startAngles;
         SnapInterpolation();
-    }
-
-    /// <summary>
-    /// Which way the brush is turning: from the speed offered, else the speed it already had, else the
-    /// direction its reverse state implies. A brush crawling to a stop must not lose its direction.
-    /// </summary>
-    /// <param name="speed">The speed about to be applied.</param>
-    private float SpinDirection(float speed)
-    {
-        if (speed != 0f)
-        {
-            return MathF.Sign(speed);
-        }
-
-        return Speed != 0f ? MathF.Sign(Speed) : (IsReversed ? -1f : 1f);
     }
 
     private void SpinUpMove()
@@ -397,7 +409,7 @@ public sealed class FuncRotating : BaseEntity
         SetMoveDoneTime(GetNextMoveInterval());
 
         var angleDelta = GetAngleDeltaFromStart();
-        var anglesPerTick = GetSpinAxisComponent(AngularVelocity) * EntitySystem.TickInterval;
+        var anglesPerTick = Speed * EntitySystem.TickInterval;
 
         // Close enough that the next tick would overshoot the start angle: stop on it exactly
         if (MathF.Abs(angleDelta) < MathF.Abs(anglesPerTick))
@@ -407,17 +419,10 @@ public sealed class FuncRotating : BaseEntity
         }
     }
 
-    /// <summary>
-    /// Reads the one QAngle component that is actually turning. <see cref="MoveAngles"/> is a signed unit
-    /// basis vector, so projecting onto its absolute value picks that component out.
-    /// </summary>
-    /// <param name="angles">The angles, or angular rate, to read.</param>
-    private float GetSpinAxisComponent(Vector3 angles) => Vector3.Dot(angles, Vector3.Abs(MoveAngles));
-
-    /// <summary>Signed degrees from the spawn orientation, in [-180, 180].</summary>
+    /// <summary>Signed degrees turned from the spawn orientation, in [-180, 180].</summary>
     private float GetAngleDeltaFromStart()
     {
-        var delta = AngleMod(GetSpinAxisComponent(Angles - startAngles));
+        var delta = AngleMod(turnedFromStart);
 
         return delta > 180f ? delta - 360f : delta;
     }
