@@ -44,11 +44,18 @@ namespace ValveResourceFormat.Renderer.Particles.Operators
                 }
             }
 
-            var t = MathUtils.Saturate((particleSystemState.Age - startAge) / (lerpTime + Epsilon.Duration));
+            var t = (particleSystemState.Age - startAge) / (lerpTime + Epsilon.Duration);
+
+            // The vector form stops writing once the ramp is over, where the scalar form keeps saturating,
+            // and it scales the ramp position by strength rather than blending the result
+            if (t > 1f)
+            {
+                return;
+            }
 
             foreach (ref var particle in particles.Current)
             {
-                particle.SetVector(outputField, Vector3.Lerp(particle.GetInitialVector(particles, outputField), output, t));
+                particle.SetVector(outputField, Vector3.Lerp(particle.GetInitialVector(particles, outputField), output, t * strength));
             }
         }
     }

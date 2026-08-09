@@ -8,7 +8,9 @@ namespace ValveResourceFormat.Renderer.Particles.PreEmissionOperators
     class PlayEndCapWhenFinished : ParticleFunctionPreEmissionOperator
     {
         private readonly bool fireOnEmissionEnd;
-        private readonly bool includeChildren;
+
+        /// <summary>Defaults on; content only ever authors this key to turn it off.</summary>
+        private readonly bool includeChildren = true;
 
         private bool fired;
 
