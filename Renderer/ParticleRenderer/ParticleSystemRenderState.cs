@@ -50,94 +50,10 @@ namespace ValveResourceFormat.Renderer.Particles
         }
 
         /// <summary>
-        /// The offset into the shared random table that every deterministic draw made by this system is
-        /// displaced by, giving each system instance its own sequence. Child systems hold their own value
-        /// rather than reading the root's.
+        /// This system's access to the shared random table. Every random value the system produces
+        /// comes from here.
         /// </summary>
-        public int RandomSeed { get; private set; } = Random.Shared.Next() & 0xFFF;
-
-        /// <summary>
-        /// Gives the system a fresh random identity, as a newly created one would have. The engine has
-        /// no equivalent: a restart there keeps the seed, and only a new collection draws another.
-        /// </summary>
-        public void ReseedRandom()
-        {
-            RandomSeed = Random.Shared.Next() & 0xFFF;
-            randomQueryCount = 0;
-        }
-
-        /// <summary>
-        /// Counts every draw this system has taken from the shared random table. It runs free for the
-        /// life of the system, so consecutive draws land on unrelated table slots instead of every
-        /// consumer of one particle reading the same one.
-        /// </summary>
-        private int randomQueryCount;
-
-        /// <summary>
-        /// Takes the next value from the shared random table, in [0, 1).
-        /// </summary>
-        public float NextRandom()
-        {
-            return RandomFloats.List[(uint)(randomQueryCount++ + RandomSeed) % RandomFloats.List.Length];
-        }
-
-        /// <summary>
-        /// Takes the next value from the shared random table, interpolated into
-        /// [<paramref name="min"/>, <paramref name="max"/>].
-        /// </summary>
-        public float NextRandomBetween(float min, float max) => float.Lerp(min, max, NextRandom());
-
-        /// <summary>
-        /// Takes the next value from the shared random table, raised to <paramref name="exponent"/>
-        /// before being interpolated into [<paramref name="min"/>, <paramref name="max"/>].
-        /// </summary>
-        public float NextRandomWithExponentBetween(float exponent, float min, float max)
-        {
-            return float.Lerp(min, max, MathF.Pow(NextRandom(), exponent));
-        }
-
-        /// <summary>
-        /// Displaces the per-particle draws of the operator currently running, so two operators
-        /// reading the same particle do not read the same table slot. Reset before each operator list
-        /// and advanced once per operator.
-        /// </summary>
-        public int OperatorSampleOffset { get; set; }
-
-        /// <summary>
-        /// The step by which <see cref="OperatorSampleOffset"/> advances between operators.
-        /// </summary>
-        public const int OperatorSampleStride = 17;
-
-        /// <summary>
-        /// Reads the shared random table at a position fixed by the particle, so the value is the same
-        /// on every frame. <paramref name="fieldOffset"/> separates the draws one operator makes for
-        /// different fields of the same particle.
-        /// </summary>
-        public float RandomForParticle(int particleId, int fieldOffset = 0)
-        {
-            var index = RandomSeed + OperatorSampleOffset + fieldOffset + particleId;
-            return RandomFloats.List[(uint)index % RandomFloats.List.Length];
-        }
-
-        /// <summary>
-        /// Reads the shared random table at a position fixed by the particle, interpolated into
-        /// [<paramref name="min"/>, <paramref name="max"/>].
-        /// </summary>
-        public float RandomForParticleBetween(int particleId, int fieldOffset, float min, float max)
-        {
-            return float.Lerp(min, max, RandomForParticle(particleId, fieldOffset));
-        }
-
-        /// <summary>
-        /// Takes three consecutive values from the shared random table, one per component.
-        /// </summary>
-        public Vector3 NextRandomBetweenPerComponent(Vector3 min, Vector3 max)
-        {
-            return new Vector3(
-                NextRandomBetween(min.X, max.X),
-                NextRandomBetween(min.Y, max.Y),
-                NextRandomBetween(min.Z, max.Z));
-        }
+        public ParticleRandom Random { get; } = new();
 
         // Properties
         public long ParticleCount { get; set; }

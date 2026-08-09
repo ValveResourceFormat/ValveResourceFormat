@@ -40,10 +40,10 @@ namespace ValveResourceFormat.Renderer.Particles.Operators
                 // Eased fades draw each channel separately, uneased fades scale all three by one draw
                 var newColor = easeInOut
                     ? new Vector3(
-                        particleSystemState.RandomForParticleBetween(particle.ParticleID, RedOffset, colorFadeMin.X, colorFadeMax.X),
-                        particleSystemState.RandomForParticleBetween(particle.ParticleID, GreenOffset, colorFadeMin.Y, colorFadeMax.Y),
-                        particleSystemState.RandomForParticleBetween(particle.ParticleID, BlueOffset, colorFadeMin.Z, colorFadeMax.Z))
-                    : Vector3.Lerp(colorFadeMin, colorFadeMax, particleSystemState.RandomForParticle(particle.ParticleID, RedOffset));
+                        particleSystemState.Random.ForParticleBetween(particle.ParticleId, RedOffset, colorFadeMin.X, colorFadeMax.X),
+                        particleSystemState.Random.ForParticleBetween(particle.ParticleId, GreenOffset, colorFadeMin.Y, colorFadeMax.Y),
+                        particleSystemState.Random.ForParticleBetween(particle.ParticleId, BlueOffset, colorFadeMin.Z, colorFadeMax.Z))
+                    : particleSystemState.Random.ForParticleBetween(particle.ParticleId, RedOffset, colorFadeMin, colorFadeMax);
 
                 var t = MathUtils.Saturate(MathUtils.Remap(particle.NormalizedAge, fadeStartTime, fadeEndTime));
 

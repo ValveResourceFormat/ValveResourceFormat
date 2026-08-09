@@ -30,7 +30,7 @@ namespace ValveResourceFormat.Renderer.Particles.Initializers
 
         public override Particle Initialize(ref Particle particle, ParticleCollection particles, ParticleSystemRenderState particleSystemState)
         {
-            var color = Vector3.Lerp(colorMin, colorMax, particleSystemState.NextRandom());
+            var color = particleSystemState.Random.NextBetween(colorMin, colorMax);
 
             // Tinting is off unless the effect asks for it; the tint colour itself is driven onto a
             // control point game-side and clamped here to the authored range.

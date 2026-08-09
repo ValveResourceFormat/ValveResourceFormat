@@ -94,8 +94,8 @@ namespace ValveResourceFormat.Renderer.Particles
             var varying = randomMode == ParticleFloatRandomMode.PF_RANDOM_MODE_VARYING;
 
             var random = varying
-                ? renderState.NextRandom()
-                : renderState.RandomForParticle(particle.ParticleID, sampleOffset);
+                ? renderState.Random.Next()
+                : renderState.Random.ForParticle(particle.ParticleId, sampleOffset);
 
             if (isBiased)
             {
@@ -107,8 +107,8 @@ namespace ValveResourceFormat.Renderer.Particles
             if (hasRandomSignFlip)
             {
                 var sign = varying
-                    ? renderState.NextRandom()
-                    : renderState.RandomForParticle(particle.ParticleID, sampleOffset + SignFlipOffset);
+                    ? renderState.Random.Next()
+                    : renderState.Random.ForParticle(particle.ParticleId, sampleOffset + SignFlipOffset);
 
                 if (sign < 0.5f)
                 {

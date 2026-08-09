@@ -29,14 +29,14 @@ namespace ValveResourceFormat.Renderer.Particles.Initializers
             if (UseRandomCPs)
             {
                 var endCp = path.StartControlPointNumber + 1
-                    + (int)(particleSystemState.NextRandom() * (path.EndControlPointNumber - path.StartControlPointNumber));
+                    + (int)(particleSystemState.Random.Next() * (path.EndControlPointNumber - path.StartControlPointNumber));
                 path = path.WithControlPoints(endCp - 1, endCp);
             }
 
             var (start, mid, end) = ParticlePath.CalculatePathValues(particleSystemState, path, particle.CreationTime);
 
-            var position = ParticlePath.Evaluate(start, mid, end, particleSystemState.NextRandom());
-            position += particleSystemState.NextRandomBetweenPerComponent(new Vector3(-MaxDistance), new Vector3(MaxDistance));
+            var position = ParticlePath.Evaluate(start, mid, end, particleSystemState.Random.Next());
+            position += particleSystemState.Random.NextBetweenPerComponent(new Vector3(-MaxDistance), new Vector3(MaxDistance));
 
             particle.SetVector(ParticleField.Position, position);
 

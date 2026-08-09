@@ -1,3 +1,5 @@
+using ValveResourceFormat.Renderer.Particles.Utils;
+
 namespace ValveResourceFormat.Renderer.Particles.Operators
 {
     /// <summary>
@@ -46,7 +48,7 @@ namespace ValveResourceFormat.Renderer.Particles.Operators
             foreach (ref var particle in particles.Current)
             {
                 // Spatial noise is approximated here with per-particle randomness.
-                var noiseValue = ParticleCollection.RandomBetween(particle.ParticleID, -1f, 1f);
+                var noiseValue = ParticleRandom.ForSampleBetween(particle.ParticleId, -1f, 1f);
 
                 var finalValue = valueBase + valueScale * noiseValue;
                 finalValue = particle.ModifyScalarBySetMethod(particles, OutputField, finalValue, setMethod);

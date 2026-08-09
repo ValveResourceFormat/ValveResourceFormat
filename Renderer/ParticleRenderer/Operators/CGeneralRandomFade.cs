@@ -29,6 +29,6 @@ namespace ValveResourceFormat.Renderer.Particles.Operators
         protected float GetFadeTime(ref Particle particle, ParticleSystemRenderState particleSystemState)
             => fadeTimeMin == fadeTimeMax
                 ? fadeTimeMin
-                : float.Lerp(fadeTimeMin, fadeTimeMax, MathF.Pow(particleSystemState.RandomForParticle(particle.ParticleID), randomExponent));
+                : particleSystemState.Random.ForParticleWithExponentBetween(particle.ParticleId, 0, randomExponent, fadeTimeMin, fadeTimeMax);
     }
 }

@@ -117,7 +117,7 @@ namespace ValveResourceFormat.Renderer.Particles.Initializers
                 particle.HitboxOffsetPosition = new Vector3(t, segmentStart, segmentEnd);
             }
 
-            position += particleSystemState.NextRandomBetweenPerComponent(new Vector3(-maxDistance), new Vector3(maxDistance));
+            position += particleSystemState.Random.NextBetweenPerComponent(new Vector3(-maxDistance), new Vector3(maxDistance));
 
             particle.Position = position;
             particle.PositionPrevious = position;

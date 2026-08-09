@@ -1,3 +1,5 @@
+using ValveResourceFormat.Renderer.Particles.Utils;
+
 namespace ValveResourceFormat.Renderer.Particles.Initializers
 {
     /// <summary>
@@ -68,11 +70,11 @@ namespace ValveResourceFormat.Renderer.Particles.Initializers
 
             ref var parent = ref parentParticles[parentIndex];
 
-            particle.ParentParticleId = parent.ParticleID;
+            particle.ParentParticleId = parent.ParticleId;
 
             if (setRopeSegmentID)
             {
-                particle.RopeSegmentId = parent.ParticleID;
+                particle.RopeSegmentId = parent.ParticleId;
             }
 
             var parentPosition = parent.Position;
@@ -130,8 +132,8 @@ namespace ValveResourceFormat.Renderer.Particles.Initializers
             if (randomDistribution)
             {
                 var sample = randomSeed != 0
-                    ? ParticleCollection.RandomSingle(particleSystemState.RandomSeed + randomSeed + randomCounter++)
-                    : particleSystemState.NextRandom();
+                    ? ParticleRandom.ForSample(particleSystemState.Random.Seed + randomSeed + randomCounter++)
+                    : particleSystemState.Random.Next();
 
                 currentParentIndex = fractionalIncrement
                     ? sample * lastIndex

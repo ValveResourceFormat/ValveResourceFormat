@@ -122,7 +122,7 @@ namespace ValveResourceFormat.Renderer.Particles.Utils
             }
             else
             {
-                mid += ParticleCollection.RandomBetweenPerComponent(state.RandomSeed, new Vector3(-path.Bulge), new Vector3(path.Bulge));
+                mid += ParticleRandom.ForSampleBetweenPerComponent(state.Random.Seed, new Vector3(-path.Bulge), new Vector3(path.Bulge));
             }
 
             mid += path.MidPointOffset;

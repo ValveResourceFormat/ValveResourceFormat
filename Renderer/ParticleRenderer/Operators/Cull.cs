@@ -25,8 +25,8 @@ namespace ValveResourceFormat.Renderer.Particles.Operators
             foreach (ref var particle in particles.Current)
             {
                 // Both draws are taken for every particle, whether or not it goes on to be culled
-                var cullChance = particleSystemState.NextRandom();
-                var cullTime = particleSystemState.NextRandomWithExponentBetween(cullExponent, cullStart, cullEnd);
+                var cullChance = particleSystemState.Random.Next();
+                var cullTime = particleSystemState.Random.NextWithExponentBetween(cullExponent, cullStart, cullEnd);
 
                 if (cullChance >= cullPercentage)
                 {

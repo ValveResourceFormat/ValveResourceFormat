@@ -22,7 +22,7 @@ namespace ValveResourceFormat.Renderer.Particles.Initializers
 
         public override Particle Initialize(ref Particle particle, ParticleCollection particles, ParticleSystemRenderState particleSystemState)
         {
-            particle.SetScalar(outputField, particleSystemState.NextRandomWithExponentBetween(alphaExponent, alphaMin, alphaMax));
+            particle.SetScalar(outputField, particleSystemState.Random.NextWithExponentBetween(alphaExponent, alphaMin, alphaMax));
 
             return particle;
         }

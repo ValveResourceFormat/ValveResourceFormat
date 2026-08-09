@@ -21,7 +21,7 @@ class RandomForce : ParticleFunctionForceGenerator
     {
         foreach (ref var particle in particles.Current)
         {
-            particle.ForceAccumulator += particleSystemState.NextRandomBetweenPerComponent(Min, Max) * strength;
+            particle.ForceAccumulator += particleSystemState.Random.NextBetweenPerComponent(Min, Max) * strength;
         }
     }
 }

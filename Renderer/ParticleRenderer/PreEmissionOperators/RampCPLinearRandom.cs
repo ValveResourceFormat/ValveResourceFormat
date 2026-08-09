@@ -1,3 +1,5 @@
+using ValveResourceFormat.Renderer.Particles.Utils;
+
 namespace ValveResourceFormat.Renderer.Particles.PreEmissionOperators
 {
     /// <summary>
@@ -23,8 +25,8 @@ namespace ValveResourceFormat.Renderer.Particles.PreEmissionOperators
         public override void Operate(ref ParticleSystemRenderState particleSystemState, float frameTime)
         {
             // This operator counts the seed twice where the shared per-particle draw counts it once
-            var sampleId = (2 * particleSystemState.RandomSeed) + particleSystemState.OperatorSampleOffset;
-            var rampRate = ParticleCollection.RandomBetweenPerComponent(sampleId, rateMin, rateMax);
+            var sampleId = (2 * particleSystemState.Random.Seed) + particleSystemState.Random.OperatorOffset;
+            var rampRate = ParticleRandom.ForSampleBetweenPerComponent(sampleId, rateMin, rateMax);
 
             var cpPos = particleSystemState.GetControlPoint(cp).Position;
             particleSystemState.SetControlPointValue(cp, cpPos + (rampRate * frameTime));

@@ -74,7 +74,7 @@ namespace ValveResourceFormat.Renderer.Particles.Operators
         /// </summary>
         private float SampleDuration(ParticleSystemRenderState particleSystemState)
         {
-            return particleSystemState.NextRandomBetween(durationMin, durationMax);
+            return particleSystemState.Random.NextBetween(durationMin, durationMax);
         }
 
         private float ScaleDuration(float duration, ParticleSystemRenderState particleSystemState)

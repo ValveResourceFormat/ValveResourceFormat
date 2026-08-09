@@ -49,7 +49,7 @@ namespace ValveResourceFormat.Renderer.Particles.Initializers
             // Initial speed pushes outward along the ring direction (positive = outward).
             var speedMin = initialSpeedMin.NextNumber(ref particle, particleSystemState);
             var speedMax = initialSpeedMax.NextNumber(ref particle, particleSystemState);
-            particle.Velocity += radialDirection * particleSystemState.NextRandomBetween(speedMin, speedMax);
+            particle.Velocity += radialDirection * particleSystemState.Random.NextBetween(speedMin, speedMax);
 
             return particle;
         }
@@ -60,9 +60,9 @@ namespace ValveResourceFormat.Renderer.Particles.Initializers
         /// </summary>
         private static Vector3 SampleUnitBall(ParticleSystemRenderState particleSystemState)
         {
-            var cosPolar = particleSystemState.NextRandomBetween(-1f, 1f);
-            var azimuth = particleSystemState.NextRandomBetween(0f, MathF.Tau);
-            var radius = MathF.Cbrt(particleSystemState.NextRandom());
+            var cosPolar = particleSystemState.Random.NextBetween(-1f, 1f);
+            var azimuth = particleSystemState.Random.NextBetween(0f, MathF.Tau);
+            var radius = MathF.Cbrt(particleSystemState.Random.Next());
 
             var sinPolar = MathF.Sqrt(MathF.Max(0f, 1f - (cosPolar * cosPolar)));
             var (sin, cos) = MathF.SinCos(azimuth);
@@ -84,7 +84,7 @@ namespace ValveResourceFormat.Renderer.Particles.Initializers
                 return offset * MathF.Tau;
             }
 
-            return particleSystemState.NextRandomBetween(0f, MathF.Tau);
+            return particleSystemState.Random.NextBetween(0f, MathF.Tau);
         }
     }
 }

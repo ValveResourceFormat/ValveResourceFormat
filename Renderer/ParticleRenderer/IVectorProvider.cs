@@ -207,7 +207,7 @@ namespace ValveResourceFormat.Renderer.Particles
         {
             return isDegenerate
                 ? min
-                : renderState.NextRandomBetweenPerComponent(min, max);
+                : renderState.Random.NextBetweenPerComponent(min, max);
         }
     }
 

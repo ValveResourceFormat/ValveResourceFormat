@@ -21,7 +21,7 @@ namespace ValveResourceFormat.Renderer.Particles.Initializers
 
         public override Particle Initialize(ref Particle particle, ParticleCollection particles, ParticleSystemRenderState particleSystemState)
         {
-            var value = particleSystemState.NextRandomWithExponentBetween(exponent, scalarMin, scalarMax);
+            var value = particleSystemState.Random.NextWithExponentBetween(exponent, scalarMin, scalarMax);
 
             particle.SetScalar(FieldOutput, value);
 

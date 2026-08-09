@@ -99,7 +99,7 @@ namespace ValveResourceFormat.Renderer.Particles.Initializers
             }
             else
             {
-                var sample = particleSystemState.NextRandom();
+                var sample = particleSystemState.Random.Next();
 
                 particle.Sequence = sequenceMax > sequenceMin
                     ? Math.Min(sequenceMin + (int)(sample * (sequenceMax - sequenceMin + 1)), sequenceMax)
@@ -121,7 +121,7 @@ namespace ValveResourceFormat.Renderer.Particles.Initializers
             {
                 var pick = linear
                     ? weightedCursor
-                    : totalWeight * particleSystemState.NextRandom();
+                    : totalWeight * particleSystemState.Random.Next();
 
                 foreach (var (entrySequence, weight) in weightedList)
                 {
@@ -157,7 +157,7 @@ namespace ValveResourceFormat.Renderer.Particles.Initializers
         {
             for (var i = list.Length - 1; i > 0; i--)
             {
-                var j = Math.Min((int)(particleSystemState.NextRandom() * (i + 1)), i);
+                var j = Math.Min((int)(particleSystemState.Random.Next() * (i + 1)), i);
                 (list[i], list[j]) = (list[j], list[i]);
             }
         }

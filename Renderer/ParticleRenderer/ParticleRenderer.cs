@@ -13,6 +13,7 @@ using ValveResourceFormat.Renderer.Particles.PreEmissionOperators;
 using ValveResourceFormat.Renderer.Particles.Renderers;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.Serialization.KeyValues;
+using ValveResourceFormat.Renderer.Particles.Utils;
 
 namespace ValveResourceFormat.Renderer.Particles
 {
@@ -388,7 +389,7 @@ namespace ValveResourceFormat.Renderer.Particles
 
             // Both ids must be set before initializing, since initializers read them
             particleCollection.Current[index].UniqueParticleId = particlesEmitted++;
-            particleCollection.Current[index].ParticleID = particleCollection.Current[index].UniqueParticleId + systemRenderState.RandomSeed;
+            particleCollection.Current[index].ParticleId = particleCollection.Current[index].UniqueParticleId + systemRenderState.Random.Seed;
             particleCollection.Current[index].Index = index;
             particleCollection.Current[index].Position = MainControlPoint.Position;
             particleCollection.Current[index].CreationTime = systemRenderState.Age - ageAtSpawn;
@@ -442,7 +443,7 @@ namespace ValveResourceFormat.Renderer.Particles
 
             // A replay stands in for the effect playing again, so the system takes a fresh random
             // identity along with a rewound clock; no particle survives it
-            systemRenderState.ReseedRandom();
+            systemRenderState.Random.Reseed();
             systemRenderState.Age = 0f;
             targetDrawTime = 0f;
             previousSimTime = 1e23f;
@@ -596,7 +597,7 @@ namespace ValveResourceFormat.Renderer.Particles
 
             // Each function that runs displaces the per-particle draws of the ones after it. Emitters
             // and initializers inherit whatever the pre-emission walk left behind.
-            systemRenderState.OperatorSampleOffset = 0;
+            systemRenderState.Random.OperatorOffset = 0;
 
             foreach (var preEmissionOperator in PreEmissionOperators)
             {
@@ -616,7 +617,7 @@ namespace ValveResourceFormat.Renderer.Particles
                 }
 
                 preEmissionOperator.Operate(ref systemRenderState, frameTime);
-                systemRenderState.OperatorSampleOffset += ParticleSystemRenderState.OperatorSampleStride;
+                systemRenderState.Random.OperatorOffset += ParticleRandom.OperatorStride;
             }
 
             foreach (var emitter in Emitters)
@@ -631,7 +632,7 @@ namespace ValveResourceFormat.Renderer.Particles
                 emitter.Emit(frameTime, systemRenderState, strength);
             }
 
-            systemRenderState.OperatorSampleOffset = 0;
+            systemRenderState.Random.OperatorOffset = 0;
 
             foreach (var particleOperator in Operators)
             {
@@ -643,7 +644,7 @@ namespace ValveResourceFormat.Renderer.Particles
                 }
 
                 particleOperator.Operate(particleCollection, frameTime, systemRenderState, strength);
-                systemRenderState.OperatorSampleOffset += ParticleSystemRenderState.OperatorSampleStride;
+                systemRenderState.Random.OperatorOffset += ParticleRandom.OperatorStride;
             }
 
             RunConstraints(frameTime);
@@ -1018,7 +1019,7 @@ namespace ValveResourceFormat.Renderer.Particles
                     continue;
                 }
 
-                var chosen = needed > 0 && systemRenderState.NextRandom() * remaining < needed;
+                var chosen = needed > 0 && systemRenderState.Random.Next() * remaining < needed;
                 child.ChildEnabled = chosen;
 
                 if (chosen)

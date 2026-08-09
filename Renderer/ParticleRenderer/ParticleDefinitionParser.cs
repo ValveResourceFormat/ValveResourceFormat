@@ -29,7 +29,7 @@ record struct ParticleDefinitionParser(KVObject Data, ILogger Logger, int[] Inpu
     /// Claims the next displacement for an input whose draw is constant per particle, so that two
     /// inputs of one function reading the same particle land on different slots of the shared random
     /// table. Different functions are already separated by
-    /// <see cref="ParticleSystemRenderState.OperatorSampleOffset"/>.
+    /// <see cref="Utils.ParticleRandom.OperatorOffset"/>.
     /// </summary>
     public readonly int NextInputOrdinal() => InputOrdinal[0]++;
 
