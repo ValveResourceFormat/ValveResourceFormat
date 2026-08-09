@@ -9,7 +9,7 @@ namespace ValveResourceFormat.Renderer.Particles.Operators
     class NormalLock : ParticleFunctionOperator
     {
         private readonly int controlPoint;
-        private readonly ITransformProvider transform;
+        private readonly ControlPointTransformProvider transform;
 
         private Matrix4x4 previousTransform = Matrix4x4.Identity;
         private bool hasPrevious;
@@ -28,7 +28,7 @@ namespace ValveResourceFormat.Renderer.Particles.Operators
 
         public override void Operate(ParticleCollection particles, float frameTime, ParticleSystemRenderState particleSystemState, float strength)
         {
-            var current = transform.NextTransform(particleSystemState);
+            var current = transform.NextTransform(ref Particle.Default, particleSystemState);
 
             if (!hasPrevious)
             {
