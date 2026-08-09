@@ -25,26 +25,35 @@ namespace ValveResourceFormat.Renderer.Entities;
 /// </remarks>
 public sealed class FuncRotating : BaseEntity
 {
-    /// <summary>Spawns already spinning at <c>maxspeed</c>.</summary>
-    public const uint SF_BRUSH_ROTATE_START_ON = 1;
+    /// <summary>
+    /// What a <c>func_rotating</c>'s <c>spawnflags</c> mean. The axis flags are named for what they do;
+    /// the engine's own constants name them for the QAngle component they set, which is why its
+    /// <c>Z_AXIS</c> rolls and its <c>X_AXIS</c> pitches.
+    /// </summary>
+    [Flags]
+    public enum SpawnFlag : uint
+    {
+        /// <summary>Spawns already spinning at <c>maxspeed</c>.</summary>
+        StartOn = 1,
 
-    /// <summary>Spins the other way.</summary>
-    public const uint SF_BRUSH_ROTATE_BACKWARDS = 2;
+        /// <summary>Spins the other way.</summary>
+        Backwards = 2,
 
-    /// <summary>Rotates about the world X axis (roll). Hammer labels this one "X Axis".</summary>
-    public const uint SF_BRUSH_ROTATE_Z_AXIS = 4;
+        /// <summary>Rotates about the world X axis (roll). Hammer "X Axis".</summary>
+        RollAxis = 4,
 
-    /// <summary>Rotates about the world Y axis (pitch). Hammer labels this one "Y Axis".</summary>
-    public const uint SF_BRUSH_ROTATE_X_AXIS = 8;
+        /// <summary>Rotates about the world Y axis (pitch). Hammer "Y Axis".</summary>
+        PitchAxis = 8,
 
-    /// <summary>Ramps up to speed and back down instead of snapping.</summary>
-    public const uint SF_BRUSH_ACCDCC = 16;
+        /// <summary>Ramps up to speed and back down instead of snapping.</summary>
+        AccelerateDecelerate = 16,
 
-    /// <summary>Hurts whatever it touches, scaled by rotation speed. Not simulated.</summary>
-    public const uint SF_BRUSH_HURT = 32;
+        /// <summary>Hurts whatever it touches, scaled by rotation speed. Hammer "Fan Pain". Not simulated.</summary>
+        Hurt = 32,
 
-    /// <summary>Never solid, for things like fake volumetric light cones.</summary>
-    public const uint SF_ROTATING_NOT_SOLID = 64;
+        /// <summary>Never solid, for things like fake volumetric light cones.</summary>
+        NotSolid = 64,
+    }
 
     /// <summary>How the ramp progresses; Source picks between these with <c>SetMoveDone</c>.</summary>
     private enum MoveDoneFunction
@@ -99,11 +108,11 @@ public sealed class FuncRotating : BaseEntity
         }
 
         // Set the axis of rotation
-        if (HasSpawnFlags(SF_BRUSH_ROTATE_Z_AXIS))
+        if (HasSpawnFlags(SpawnFlag.RollAxis))
         {
             MoveAngles = new Vector3(0, 0, 1); // roll
         }
-        else if (HasSpawnFlags(SF_BRUSH_ROTATE_X_AXIS))
+        else if (HasSpawnFlags(SpawnFlag.PitchAxis))
         {
             MoveAngles = new Vector3(1, 0, 0); // pitch
         }
@@ -113,7 +122,7 @@ public sealed class FuncRotating : BaseEntity
         }
 
         // Check for reverse rotation
-        if (HasSpawnFlags(SF_BRUSH_ROTATE_BACKWARDS))
+        if (HasSpawnFlags(SpawnFlag.Backwards))
         {
             MoveAngles = -MoveAngles;
         }
@@ -132,9 +141,9 @@ public sealed class FuncRotating : BaseEntity
         SetModel();
 
         // Some rotating objects, like fake volumetric lights, are never solid
-        IsSolid = !HasSpawnFlags(SF_ROTATING_NOT_SOLID);
+        IsSolid = !HasSpawnFlags(SpawnFlag.NotSolid);
 
-        if (HasSpawnFlags(SF_BRUSH_ROTATE_START_ON))
+        if (HasSpawnFlags(SpawnFlag.StartOn))
         {
             // Leave a magic delay for the client to start up, then toggle ourselves on
             SetNextThink(EntitySystem.CurrentTime + 0.2f);
@@ -233,7 +242,7 @@ public sealed class FuncRotating : BaseEntity
 
         TargetSpeed = speed;
 
-        if (!HasSpawnFlags(SF_BRUSH_ACCDCC))
+        if (!HasSpawnFlags(SpawnFlag.AccelerateDecelerate))
         {
             // No acceleration, change to the new speed instantly
             UpdateSpeed(TargetSpeed);

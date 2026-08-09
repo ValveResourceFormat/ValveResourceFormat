@@ -1,3 +1,4 @@
+using System.Runtime.CompilerServices;
 using Microsoft.Extensions.Logging;
 using ValveResourceFormat.Renderer.SceneNodes;
 using ValveResourceFormat.ResourceTypes;
@@ -192,9 +193,16 @@ public class BaseEntity : SceneNode
         UpdateTransform();
     }
 
-    /// <summary>Tests whether any of the given <c>spawnflags</c> bits are set, as Source's <c>HasSpawnFlags</c> does.</summary>
-    /// <param name="flags">The bits to test.</param>
-    public bool HasSpawnFlags(uint flags) => (SpawnFlags & flags) != 0;
+    /// <summary>
+    /// Tests whether any of the given <c>spawnflags</c> bits are set, as Source's <c>HasSpawnFlags</c> does.
+    /// Each entity class declares what its flags mean as a <see cref="FlagsAttribute"/> enum backed by
+    /// <see cref="uint"/>.
+    /// </summary>
+    /// <typeparam name="TSpawnFlags">The entity class's spawnflags enum.</typeparam>
+    /// <param name="flags">The bits to test. Any one of them being set is a match.</param>
+    public bool HasSpawnFlags<TSpawnFlags>(TSpawnFlags flags)
+        where TSpawnFlags : struct, Enum
+        => (SpawnFlags & Unsafe.BitCast<TSpawnFlags, uint>(flags)) != 0;
 
     /// <summary>
     /// Sets up the entity: loads its model, reads class-specific keyvalues, and schedules its first think.

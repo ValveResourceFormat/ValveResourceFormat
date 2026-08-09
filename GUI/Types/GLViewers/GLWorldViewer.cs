@@ -241,7 +241,6 @@ namespace GUI.Types.GLViewers
                     ? PlayerMovement.AirAccelerateMovementMaps
                     : PlayerMovement.AirAccelerateCompetitive;
 
-                // Entities only exist in a map, and so does the player that walks around one
                 Input.EntitySystem = Scene.EntitySystem;
                 Scene.EntitySystem.SpawnPlayer(Input.PlayerMovement);
             }

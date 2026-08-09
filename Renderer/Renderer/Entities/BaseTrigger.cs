@@ -13,20 +13,26 @@ namespace ValveResourceFormat.Renderer.Entities;
 /// </remarks>
 public abstract class BaseTrigger : BaseEntity
 {
-    /// <summary>Players may touch this trigger.</summary>
-    public const uint SF_TRIGGER_ALLOW_CLIENTS = 1;
+    /// <summary>Who a trigger reacts to, from its <c>spawnflags</c>.</summary>
+    [Flags]
+    public enum SpawnFlag : uint
+    {
 
-    /// <summary>NPCs may touch this trigger. Nothing here is an NPC yet.</summary>
-    public const uint SF_TRIGGER_ALLOW_NPCS = 2;
+        /// <summary>Players may touch this trigger.</summary>
+        AllowClients = 1,
 
-    /// <summary>Pushable props may touch this trigger. Nothing here is pushable yet.</summary>
-    public const uint SF_TRIGGER_ALLOW_PUSHABLES = 4;
+        /// <summary>NPCs may touch this trigger. Nothing here is an NPC yet.</summary>
+        AllowNpcs = 2,
 
-    /// <summary>Physics props may touch this trigger. Nothing here is a physics prop yet.</summary>
-    public const uint SF_TRIGGER_ALLOW_PHYSICS = 8;
+        /// <summary>Pushable props may touch this trigger. Nothing here is pushable yet.</summary>
+        AllowPushables = 4,
 
-    /// <summary>Everything may touch this trigger.</summary>
-    public const uint SF_TRIGGER_ALLOW_ALL = 64;
+        /// <summary>Physics props may touch this trigger. Nothing here is a physics prop yet.</summary>
+        AllowPhysics = 8,
+
+        /// <summary>Everything may touch this trigger.</summary>
+        AllowAll = 64,
+    }
 
     /// <summary>
     /// Initializes a trigger from its keyvalues.
@@ -63,15 +69,12 @@ public abstract class BaseTrigger : BaseEntity
     /// <returns><see langword="true"/> when the touch should register.</returns>
     protected override bool AcceptsTouchFrom(BaseEntity other)
     {
-        const uint anyAllowFlag = SF_TRIGGER_ALLOW_CLIENTS | SF_TRIGGER_ALLOW_NPCS
-            | SF_TRIGGER_ALLOW_PUSHABLES | SF_TRIGGER_ALLOW_PHYSICS | SF_TRIGGER_ALLOW_ALL;
-
-        if (!HasSpawnFlags(anyAllowFlag) || HasSpawnFlags(SF_TRIGGER_ALLOW_ALL))
+        if (HasSpawnFlags(SpawnFlag.AllowAll))
         {
             return true;
         }
 
-        return other is PlayerEntity && HasSpawnFlags(SF_TRIGGER_ALLOW_CLIENTS);
+        return other is PlayerEntity && HasSpawnFlags(SpawnFlag.AllowClients);
     }
 
     /// <inheritdoc/>

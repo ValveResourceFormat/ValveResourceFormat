@@ -10,11 +10,8 @@ namespace ValveResourceFormat.Renderer.Entities;
 /// list of living entities, runs them on a fixed tick, and carries the entity I/O queue between them.
 /// </summary>
 /// <remarks>
-/// Entities tick at <see cref="TickInterval"/> rather than once per rendered frame, because Source's entity
-/// code is written against a fixed tick: think intervals, spin-up ramps and the like are expressed in whole
-/// ticks and drift if you hand them a variable frame time. A frame runs as many ticks as it has time for,
-/// up to <see cref="MaxTicksPerFrame"/>, so a hitch cannot make the world take longer to simulate than to
-/// draw.
+/// Entities tick at <see cref="TickInterval"/> rather than once per rendered frame. A frame runs as many ticks as it has time for,
+/// up to <see cref="MaxTicksPerFrame"/>, so a hitch cannot make the world take longer to simulate than to draw.
 /// </remarks>
 public sealed class EntitySystem
 {
