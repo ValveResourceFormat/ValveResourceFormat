@@ -100,6 +100,8 @@ namespace ValveResourceFormat.Renderer.Particles
                 ParticleField.ParentParticleIndex => particle.ParentParticleIndex,
                 ParticleField.ParentParticleId => particle.ParentParticleId,
                 ParticleField.RopeSegmentId => particle.RopeSegmentId,
+                ParticleField.UserEventStates => particle.UserEventStates,
+                ParticleField.BoxFlags => particle.BoxFlags,
                 ParticleField.ScratchFloat => particle.ScratchFloat0,
                 ParticleField.ScratchFloat1 => particle.ScratchFloat1,
                 ParticleField.ScratchFloat2 => particle.ScratchFloat2,
@@ -159,6 +161,12 @@ namespace ValveResourceFormat.Renderer.Particles
                 case ParticleField.RopeSegmentId:
                     particle.RopeSegmentId = (int)value;
                     break;
+                case ParticleField.UserEventStates:
+                    particle.UserEventStates = (int)value;
+                    break;
+                case ParticleField.BoxFlags:
+                    particle.BoxFlags = value;
+                    break;
                 case ParticleField.CreationTime:
                     particle.CreationTime = value;
                     break;
@@ -189,6 +197,7 @@ namespace ValveResourceFormat.Renderer.Particles
                 ParticleField.ParentParticleIndex => particle.ParentParticleIndex,
                 ParticleField.ParentParticleId => particle.ParentParticleId,
                 ParticleField.RopeSegmentId => particle.RopeSegmentId,
+                ParticleField.UserEventStates => particle.UserEventStates,
                 ParticleField.ParticleId => particle.ParticleId,
                 _ => 0,
             };
@@ -206,6 +215,9 @@ namespace ValveResourceFormat.Renderer.Particles
                 ParticleField.ScratchVector => particle.ScratchVector,
                 ParticleField.ScratchVector2 => particle.ScratchVector2,
                 ParticleField.Normal => particle.Normal,
+                ParticleField.BoxMins => particle.BoxMins,
+                ParticleField.BoxMaxs => particle.BoxMaxs,
+                ParticleField.BoxAngles => particle.BoxAngles,
                 _ => Vector3.Zero,
             };
         }
@@ -265,6 +277,15 @@ namespace ValveResourceFormat.Renderer.Particles
                 case ParticleField.ScratchVector2:
                     particle.ScratchVector2 = value;
                     break;
+                case ParticleField.BoxMins:
+                    particle.BoxMins = value;
+                    break;
+                case ParticleField.BoxMaxs:
+                    particle.BoxMaxs = value;
+                    break;
+                case ParticleField.BoxAngles:
+                    particle.BoxAngles = value;
+                    break;
                 default:
                     break;
             }
@@ -283,6 +304,17 @@ namespace ValveResourceFormat.Renderer.Particles
             var initialParticle = particles.Initial[particle.Index];
             return initialParticle.GetVector(field);
         }
+
+        /// <summary>
+        /// Rewrites a particle's spawn snapshot, which the endcap lerps do so that a fade starting
+        /// mid-life runs from where the particle currently is.
+        /// </summary>
+        public static void SetInitialScalar(this ref Particle particle, ParticleCollection particles, ParticleField field, float value)
+            => particles.Initial[particle.Index].SetScalar(field, value);
+
+        /// <inheritdoc cref="SetInitialScalar"/>
+        public static void SetInitialVector(this ref Particle particle, ParticleCollection particles, ParticleField field, Vector3 value)
+            => particles.Initial[particle.Index].SetVector(field, value);
 
         // Set methods, shared by a bunch of different operators and initializers.
         // The operator form: the particle has a spawn snapshot, so "initial" and "current" differ.

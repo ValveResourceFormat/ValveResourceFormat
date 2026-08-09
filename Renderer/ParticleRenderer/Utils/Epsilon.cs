@@ -12,5 +12,8 @@ namespace ValveResourceFormat.Renderer.Particles.Utils
 
         /// <summary>Squared length below which a vector is too short to normalise.</summary>
         public const float LengthSquared = 1e-12f;
+
+        /// <summary>Added to a duration the engine divides by, so a zero-length ramp is a step.</summary>
+        public const float Duration = 1.1920929e-7f;
     }
 }

@@ -172,6 +172,79 @@ namespace ValveResourceFormat.Renderer.Particles
         }
 
         /// <summary>
+        /// Starts the endcap on this system and everything below it, stamping each with its own age so
+        /// a child's endcap timers run on the child's clock.
+        /// </summary>
+        public void PlayEndCap()
+        {
+            systemRenderState.StartEndCap();
+
+            foreach (var childParticleRenderer in childParticleRenderers)
+            {
+                childParticleRenderer.PlayEndCap();
+            }
+        }
+
+        /// <summary>
+        /// Holds every system below this one in place. <see cref="Operators.EndCapTimedFreeze"/> freezes
+        /// its own system directly and the rest of the tree through here.
+        /// </summary>
+        public void FreezeChildren()
+        {
+            foreach (var childParticleRenderer in childParticleRenderers)
+            {
+                childParticleRenderer.systemRenderState.Frozen = true;
+                childParticleRenderer.FreezeChildren();
+            }
+        }
+
+        /// <summary>
+        /// Whether the system has run out: nothing left to emit and, unless
+        /// <paramref name="emissionEndIsEnough"/>, no particle that survives another step.
+        /// <see cref="PreEmissionOperators.PlayEndCapWhenFinished"/> tests this to decide when to start
+        /// the endcap.
+        /// </summary>
+        public bool HasFinishedEmitting(bool emissionEndIsEnough, bool includeChildren)
+        {
+            if (systemRenderState.InEndCap)
+            {
+                return true;
+            }
+
+            foreach (var emitter in emitters)
+            {
+                if (!emitter.IsFinished)
+                {
+                    return false;
+                }
+            }
+
+            if (!emissionEndIsEnough)
+            {
+                foreach (ref var particle in particleCollection.Current)
+                {
+                    if (particle.Lifetime - particle.Age > currentFrameTime)
+                    {
+                        return false;
+                    }
+                }
+            }
+
+            if (includeChildren)
+            {
+                foreach (var childParticleRenderer in childParticleRenderers)
+                {
+                    if (!childParticleRenderer.HasFinishedEmitting(emissionEndIsEnough, includeChildren: true))
+                    {
+                        return false;
+                    }
+                }
+            }
+
+            return true;
+        }
+
+        /// <summary>
         /// Replays the system from scratch, discarding the particles still alive first. This is the
         /// viewer's restart affordance rather than engine behaviour: an effect whose pool is already
         /// saturated would otherwise have no free slots to emit into and appear to do nothing.
@@ -211,6 +284,7 @@ namespace ValveResourceFormat.Renderer.Particles
             Stop();
 
             systemRenderState.EndEarly = false;
+            systemRenderState.ClearEndCap();
             simulatedFrames = 0;
             RearmSelf();
 
@@ -316,6 +390,11 @@ namespace ValveResourceFormat.Renderer.Particles
                 return;
             }
 
+            if (systemRenderState.Frozen)
+            {
+                return;
+            }
+
             // The minimum step is imposed by the substep loop, which applies it only to the final
             // partial step; re-imposing it here would raise every substep
             frameTime = MathF.Min(frameTime, maximumTimeStep);
@@ -412,6 +491,11 @@ namespace ValveResourceFormat.Renderer.Particles
                 else
                 {
                     Stop();
+
+                    if (systemRenderState.PlayEndCapOnEnd)
+                    {
+                        PlayEndCap();
+                    }
 
                     // "Destroy immediately" drops the particles still alive; without it they are left
                     // to finish their lifetimes and only emission stops.

@@ -211,6 +211,8 @@ record struct ParticleDefinitionParser(KVObject Data, ILogger Logger, int[] Inpu
                     return new RandomNumberProvider(parse, true);
                 case "PF_TYPE_COLLECTION_AGE":
                     return new CollectionAgeNumberProvider(parse);
+                case "PF_TYPE_ENDCAP_AGE":
+                    return new EndCapAgeNumberProvider(parse);
                 case "PF_TYPE_CONTROL_POINT_COMPONENT":
                     return new ControlPointComponentNumberProvider(parse);
                 case "PF_TYPE_PARTICLE_DETAIL_LEVEL":
@@ -232,7 +234,6 @@ record struct ParticleDefinitionParser(KVObject Data, ILogger Logger, int[] Inpu
                 case "PF_TYPE_CONTROL_POINT_SPEED":
                     return new ControlPointSpeedNumberProvider(parse);
                 // KNOWN TYPES WE DON'T SUPPORT:
-                // PF_TYPE_ENDCAP_AGE - unsupported because we don't support endcaps
                 // PF_TYPE_CONTROL_POINT_CHANGE_AGE - no way.
                 // PF_TYPE_PARTICLE_NOISE - exists only in deskjob and CS2. Likely added in behavior version 11 or 12.
                 // PF_TYPE_NAMED_VALUE - seen in dota's particle.dll?? not in deskjob's, so in behavior version 13+?

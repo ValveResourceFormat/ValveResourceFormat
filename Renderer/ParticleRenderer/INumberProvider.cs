@@ -128,6 +128,14 @@ namespace ValveResourceFormat.Renderer.Particles
         public float NextNumber(ref Particle particle, ParticleSystemRenderState renderState) => attributeMapping.ApplyMapping(renderState.Age);
     }
 
+    // How long the endcap has been running, 0 outside it
+    class EndCapAgeNumberProvider : INumberProvider
+    {
+        private readonly AttributeMapping attributeMapping;
+        public EndCapAgeNumberProvider(ParticleDefinitionParser parse) { attributeMapping = new AttributeMapping(parse); }
+        public float NextNumber(ref Particle particle, ParticleSystemRenderState renderState) => attributeMapping.ApplyMapping(renderState.EndCapAge);
+    }
+
     class DetailLevelNumberProvider : INumberProvider
     {
         private readonly float[] tiers = new float[4];
