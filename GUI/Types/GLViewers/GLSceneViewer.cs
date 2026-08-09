@@ -647,6 +647,7 @@ namespace GUI.Types.GLViewers
             }
 
             Renderer.ForceResolveSceneDepth = ShowBaseGrid;
+            Renderer.BaseGrid = ShowBaseGrid ? baseGrid : null;
 
             var quadOverdrawThisFrame = false;
 
@@ -717,8 +718,6 @@ namespace GUI.Types.GLViewers
 
                 if (ShowBaseGrid && baseGrid != null)
                 {
-                    baseGrid.Render();
-
                     DrawWorldSpaceText("+X", 10f, Vector3.UnitX * 120f, Color32.Red, renderContext);
                     DrawWorldSpaceText("-X", 10f, -Vector3.UnitX * 120f, Color32.Red, renderContext);
                     DrawWorldSpaceText("+Y", 10f, Vector3.UnitY * 120f, Color32.Green, renderContext);
