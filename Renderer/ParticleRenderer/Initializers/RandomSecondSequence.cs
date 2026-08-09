@@ -20,7 +20,7 @@ namespace ValveResourceFormat.Renderer.Particles.Initializers
         {
             var sample = particleSystemState.Random.Next();
 
-            particle.Sequence2 = sequenceMax > sequenceMin
+            particle.SecondSequenceNumber = sequenceMax > sequenceMin
                 ? Math.Min(sequenceMin + (int)(sample * (sequenceMax - sequenceMin + 1)), sequenceMax)
                 : sequenceMin;
 

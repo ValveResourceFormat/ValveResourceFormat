@@ -59,8 +59,8 @@ namespace ValveResourceFormat.Renderer.Particles
             Ceil,
         }
 
-        private readonly PfMapType MapType;
-        private readonly PfInputMode InputMode = PfInputMode.Clamped;
+        private readonly PfMapType mapType;
+        private readonly PfInputMode inputMode = PfInputMode.Clamped;
         private readonly PfRoundType roundType = PfRoundType.Nearest;
 
         private readonly float multFactor;
@@ -83,10 +83,10 @@ namespace ValveResourceFormat.Renderer.Particles
 
         public AttributeMapping(ParticleDefinitionParser parse)
         {
-            MapType = parse.EnumNormalized<PfMapType>("m_nMapType");
-            InputMode = parse.EnumNormalized<PfInputMode>("m_nInputMode", InputMode);
+            mapType = parse.EnumNormalized<PfMapType>("m_nMapType");
+            inputMode = parse.EnumNormalized<PfInputMode>("m_nInputMode", inputMode);
 
-            switch (MapType)
+            switch (mapType)
             {
                 case PfMapType.Direct:
                     break;
@@ -122,7 +122,7 @@ namespace ValveResourceFormat.Renderer.Particles
 
                 case PfMapType.Curve:
                     var curveData = parse.Data.GetSubCollection("m_Curve");
-                    curve = new PiecewiseCurve(curveData, InputMode == PfInputMode.Looped);
+                    curve = new PiecewiseCurve(curveData, inputMode == PfInputMode.Looped);
                     break;
 
                 case PfMapType.Notched:
@@ -144,13 +144,13 @@ namespace ValveResourceFormat.Renderer.Particles
 
         public float ApplyMapping(float value)
         {
-            switch (MapType)
+            switch (mapType)
             {
                 case PfMapType.Mult:
                     return value * multFactor;
 
                 case PfMapType.Remap:
-                    var valueIn = InputMode switch
+                    var valueIn = inputMode switch
                     {
                         PfInputMode.Clamped => Math.Clamp(value, input0, input1),
                         PfInputMode.Looped => value % (input1 - input0),
@@ -162,7 +162,7 @@ namespace ValveResourceFormat.Renderer.Particles
                 case PfMapType.RemapBiased:
                     var remappedTo0_1RangeBiased = MathUtils.Remap(value, input0, input1);
 
-                    remappedTo0_1RangeBiased = InputMode == PfInputMode.Looped
+                    remappedTo0_1RangeBiased = inputMode == PfInputMode.Looped
                         ? MathUtils.Fract(remappedTo0_1RangeBiased)
                         : MathF.Min(remappedTo0_1RangeBiased, 1f);
 

@@ -7,13 +7,13 @@ namespace ValveResourceFormat.Renderer.Particles.Operators
     /// <seealso href="https://s2v.app/SchemaExplorer/cs2/particles/C_OP_RemapControlPointDirectionToVector">C_OP_RemapControlPointDirectionToVector</seealso>
     class RemapControlPointDirectionToVector : ParticleFunctionOperator
     {
-        private readonly ParticleField FieldOutput = ParticleField.Position;
+        private readonly ParticleField fieldOutput = ParticleField.Position;
         private readonly int cp;
         private readonly float scale;
 
         public RemapControlPointDirectionToVector(ParticleDefinitionParser parse) : base(parse)
         {
-            FieldOutput = parse.ParticleField("m_nFieldOutput", FieldOutput);
+            fieldOutput = parse.ParticleField("m_nFieldOutput", fieldOutput);
             scale = parse.Float("m_flScale", scale);
             cp = parse.Int32("m_nControlPointNumber", cp);
         }
@@ -24,7 +24,7 @@ namespace ValveResourceFormat.Renderer.Particles.Operators
             {
                 // direction or orientation??
                 var direction = particleSystemState.GetControlPoint(cp).Orientation;
-                particle.SetVector(FieldOutput, direction * scale);
+                particle.SetVector(fieldOutput, direction * scale);
             }
         }
     }

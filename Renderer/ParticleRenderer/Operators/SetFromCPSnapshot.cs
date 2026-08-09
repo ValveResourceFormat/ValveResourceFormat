@@ -1,5 +1,3 @@
-using System.Collections;
-using ValveResourceFormat.Blocks;
 using ValveResourceFormat.Renderer.Particles.Utils;
 
 namespace ValveResourceFormat.Renderer.Particles.Operators
@@ -12,62 +10,33 @@ namespace ValveResourceFormat.Renderer.Particles.Operators
     /// <seealso href="https://s2v.app/SchemaExplorer/cs2/particles/C_OP_SetFromCPSnapshot">C_OP_SetFromCPSnapshot</seealso>
     class SetFromCPSnapshot : ParticleFunctionOperator
     {
-        private readonly SnapshotBinding snapshotBinding;
-        private readonly ParticleField AttributeToWrite;
-        private readonly ParticleField AttributeToRead;
-        private readonly int LocalSpaceCP;
-        private readonly bool Random;
-        private readonly bool Reverse;
-        private readonly int RandomSeed;
-        private readonly bool WritePrevious = true;
-        private readonly INumberProvider StartPoint = new LiteralNumberProvider(0);
-        private readonly INumberProvider Increment = new LiteralNumberProvider(1);
-
-        private bool snapshotResolved;
-        private IEnumerable? readAttributeData;
-
-        // Advanced once per random draw, so a fixed seed still walks the table rather than repeating
-        private int randomSampleCounter;
+        private readonly SnapshotRead snapshot;
+        private readonly bool writePrevious = true;
+        private readonly INumberProvider startPoint = new LiteralNumberProvider(0);
 
         public SetFromCPSnapshot(ParticleDefinitionParser parse) : base(parse)
         {
-            snapshotBinding = new SnapshotBinding(parse, "m_nControlPointNumber", 0);
-            AttributeToWrite = parse.ParticleField("m_nAttributeToWrite", ParticleField.Position);
-            AttributeToRead = parse.ParticleField("m_nAttributeToRead", AttributeToWrite);
-            LocalSpaceCP = parse.Int32("m_nLocalSpaceCP", 0);
-            Random = parse.Boolean("m_bRandom", false);
-            Reverse = parse.Boolean("m_bReverse", false);
-            RandomSeed = parse.Int32("m_nRandomSeed", 0);
-            WritePrevious = parse.Boolean("m_bPrev", WritePrevious);
-            StartPoint = parse.NumberProvider("m_nSnapShotStartPoint", StartPoint);
-            Increment = parse.NumberProvider("m_nSnapShotIncrement", Increment);
+            snapshot = new SnapshotRead(parse);
+            writePrevious = parse.Boolean("m_bPrev", writePrevious);
+            startPoint = parse.NumberProvider("m_nSnapShotStartPoint", startPoint);
         }
 
         public override void Operate(ParticleCollection particles, float frameTime, ParticleSystemRenderState particleSystemState, float strength)
         {
-            if (!snapshotResolved)
-            {
-                snapshotResolved = true;
-                readAttributeData = snapshotBinding.ResolveAttribute(particleSystemState, AttributeToRead);
-            }
+            var column = snapshot.Column(particleSystemState);
+            var rowCount = snapshot.RowCount(particleSystemState);
 
-            if (readAttributeData == null)
-            {
-                return;
-            }
-
-            var numParticles = snapshotBinding.Count(particleSystemState);
-            if (numParticles == 0)
+            if (column == null || rowCount == 0)
             {
                 return;
             }
 
             foreach (ref var particle in particles.Current)
             {
-                var idx = CPSnapshotSampler.SelectIndex(particle.UniqueParticleId, numParticles, Random, Reverse,
-                    StartPoint.NextInt(ref particle, particleSystemState), Increment.NextInt(ref particle, particleSystemState),
-                    RandomSeed, ref randomSampleCounter, particleSystemState);
-                CPSnapshotSampler.WriteAttribute(ref particle, AttributeToWrite, readAttributeData, idx, LocalSpaceCP, WritePrevious, atSpawn: false, frameTime, particleSystemState);
+                var row = snapshot.SelectRow(ref particle, rowCount, startPoint.NextInt(ref particle, particleSystemState), particleSystemState);
+
+                CPSnapshotSampler.WriteAttribute(ref particle, snapshot.AttributeToWrite, column, row, snapshot.LocalSpaceCP,
+                    writePrevious, atSpawn: false, frameTime, particleSystemState);
             }
         }
     }

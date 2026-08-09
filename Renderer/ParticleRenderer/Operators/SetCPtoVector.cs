@@ -7,12 +7,12 @@ namespace ValveResourceFormat.Renderer.Particles.Operators
     class SetCPtoVector : ParticleFunctionOperator
     {
         private readonly int inputCpNumber;
-        private readonly ParticleField FieldOutput = ParticleField.Position;
+        private readonly ParticleField fieldOutput = ParticleField.Position;
 
         public SetCPtoVector(ParticleDefinitionParser parse) : base(parse)
         {
             inputCpNumber = parse.Int32("m_nCPInput", inputCpNumber);
-            FieldOutput = parse.ParticleField("m_nFieldOutput", FieldOutput);
+            fieldOutput = parse.ParticleField("m_nFieldOutput", fieldOutput);
         }
 
         public override void Operate(ParticleCollection particles, float frameTime, ParticleSystemRenderState particleSystemState, float strength)
@@ -21,7 +21,7 @@ namespace ValveResourceFormat.Renderer.Particles.Operators
 
             foreach (ref var particle in particles.Current)
             {
-                particle.SetVector(FieldOutput, value);
+                particle.SetVector(fieldOutput, value);
             }
         }
     }

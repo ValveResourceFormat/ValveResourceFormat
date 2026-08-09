@@ -12,13 +12,13 @@ namespace ValveResourceFormat.Renderer.Particles.Operators
         private readonly INumberProvider outputMin = new LiteralNumberProvider(0);
         private readonly INumberProvider outputMax = new LiteralNumberProvider(1);
 
-        private readonly ParticleField OutputField = ParticleField.Radius;
+        private readonly ParticleField outputField = ParticleField.Radius;
         private readonly ParticleSetMethod setMethod = ParticleSetMethod.PARTICLE_SET_REPLACE_VALUE;
         private readonly bool activeRange;
 
         public OpRemapParticleCountToScalar(ParticleDefinitionParser parse) : base(parse)
         {
-            OutputField = parse.ParticleField("m_nFieldOutput", OutputField);
+            outputField = parse.ParticleField("m_nFieldOutput", outputField);
             inputMin = parse.NumberProvider("m_nInputMin", inputMin);
             inputMax = parse.NumberProvider("m_nInputMax", inputMax);
             outputMin = parse.NumberProvider("m_flOutputMin", outputMin);
@@ -39,7 +39,7 @@ namespace ValveResourceFormat.Renderer.Particles.Operators
             var outputMin = this.outputMin.NextNumber(particleSystemState);
             var outputMax = this.outputMax.NextNumber(particleSystemState);
 
-            if (OutputField is ParticleField.Alpha or ParticleField.AlphaAlternate)
+            if (outputField is ParticleField.Alpha or ParticleField.AlphaAlternate)
             {
                 outputMin = Math.Clamp(outputMin, 0f, 1f);
                 outputMax = Math.Clamp(outputMax, 0f, 1f);
@@ -55,9 +55,9 @@ namespace ValveResourceFormat.Renderer.Particles.Operators
                 // A degenerate input range is a threshold, inclusive on the high side
                 var finalValue = MathUtils.RemapValClamped(particle.Index, inputMin, inputMax, outputMin, outputMax);
 
-                finalValue = particle.ModifyScalarBySetMethod(particles, OutputField, finalValue, setMethod);
+                finalValue = particle.ModifyScalarBySetMethod(particles, outputField, finalValue, setMethod);
 
-                particle.SetScalar(OutputField, float.Lerp(particle.GetScalar(OutputField), finalValue, strength));
+                particle.SetScalar(outputField, float.Lerp(particle.GetScalar(outputField), finalValue, strength));
             }
         }
     }

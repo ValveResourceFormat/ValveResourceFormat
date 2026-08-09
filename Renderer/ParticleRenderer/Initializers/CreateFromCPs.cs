@@ -8,33 +8,33 @@ namespace ValveResourceFormat.Renderer.Particles.Initializers
     /// <seealso href="https://s2v.app/SchemaExplorer/cs2/particles/C_INIT_CreateFromCPs">C_INIT_CreateFromCPs</seealso>
     class CreateFromCPs : ParticleFunctionInitializer
     {
-        private readonly int Increment = 1;
-        private readonly int MinControlPoint;
-        private readonly int MaxControlPoint;
-        private readonly INumberProvider DynamicControlPointCount = new LiteralNumberProvider(-1);
+        private readonly int increment = 1;
+        private readonly int minControlPoint;
+        private readonly int maxControlPoint;
+        private readonly INumberProvider dynamicControlPointCount = new LiteralNumberProvider(-1);
 
         public CreateFromCPs(ParticleDefinitionParser parse) : base(parse)
         {
-            Increment = parse.Int32("m_nIncrement", Increment);
-            MinControlPoint = parse.Int32("m_nMinCP", MinControlPoint);
-            MaxControlPoint = parse.Int32("m_nMaxCP", MaxControlPoint);
-            DynamicControlPointCount = parse.NumberProvider("m_nDynamicCPCount", DynamicControlPointCount);
+            increment = parse.Int32("m_nIncrement", increment);
+            minControlPoint = parse.Int32("m_nMinCP", minControlPoint);
+            maxControlPoint = parse.Int32("m_nMaxCP", maxControlPoint);
+            dynamicControlPointCount = parse.NumberProvider("m_nDynamicCPCount", dynamicControlPointCount);
         }
 
         private int GetControlPointCount(ref Particle particle, ParticleSystemRenderState particleSystemState)
         {
-            var dynamicCount = (int)DynamicControlPointCount.NextNumber(ref particle, particleSystemState);
+            var dynamicCount = (int)dynamicControlPointCount.NextNumber(ref particle, particleSystemState);
             if (dynamicCount > 0)
             {
                 return dynamicCount;
             }
 
-            if (Increment <= 0 || MaxControlPoint < MinControlPoint)
+            if (increment <= 0 || maxControlPoint < minControlPoint)
             {
                 return 1;
             }
 
-            return ((MaxControlPoint - MinControlPoint) / Increment) + 1;
+            return ((maxControlPoint - minControlPoint) / increment) + 1;
         }
 
         public override Particle Initialize(ref Particle particle, ParticleCollection particles, ParticleSystemRenderState particleSystemState)
@@ -46,18 +46,18 @@ namespace ValveResourceFormat.Renderer.Particles.Initializers
             }
 
             var controlPointIndex = particle.UniqueParticleId % count;
-            var controlPoint = MinControlPoint + controlPointIndex * Math.Max(1, Increment);
+            var controlPoint = minControlPoint + controlPointIndex * Math.Max(1, increment);
 
-            if (controlPoint > MaxControlPoint)
+            if (controlPoint > maxControlPoint)
             {
-                if (Increment > 0 && MaxControlPoint >= MinControlPoint)
+                if (increment > 0 && maxControlPoint >= minControlPoint)
                 {
-                    var rangeCount = ((MaxControlPoint - MinControlPoint) / Increment) + 1;
-                    controlPoint = MinControlPoint + (controlPointIndex % rangeCount) * Increment;
+                    var rangeCount = ((maxControlPoint - minControlPoint) / increment) + 1;
+                    controlPoint = minControlPoint + (controlPointIndex % rangeCount) * increment;
                 }
                 else
                 {
-                    controlPoint = MinControlPoint;
+                    controlPoint = minControlPoint;
                 }
             }
 

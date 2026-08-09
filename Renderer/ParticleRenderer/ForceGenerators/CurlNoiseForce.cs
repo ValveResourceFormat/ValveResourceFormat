@@ -7,21 +7,21 @@ namespace ValveResourceFormat.Renderer.Particles.ForceGenerators;
 /// <seealso href="https://s2v.app/SchemaExplorer/cs2/particles/C_OP_CurlNoiseForce">C_OP_CurlNoiseForce</seealso>
 class CurlNoiseForce : ParticleFunctionForceGenerator
 {
-    private readonly IVectorProvider NoiseFrequency = new LiteralVectorProvider(new Vector3(0.02f));
+    private readonly IVectorProvider noiseFrequency = new LiteralVectorProvider(new Vector3(0.02f));
 
     /// <summary>Amplitude of the noise.</summary>
-    private readonly IVectorProvider NoiseScale = new LiteralVectorProvider(new Vector3(1000f));
+    private readonly IVectorProvider noiseScale = new LiteralVectorProvider(new Vector3(1000f));
 
     public CurlNoiseForce(ParticleDefinitionParser parse) : base(parse)
     {
-        NoiseFrequency = parse.VectorProvider("m_vecNoiseFreq", NoiseFrequency);
-        NoiseScale = parse.VectorProvider("m_vecNoiseScale", NoiseScale);
+        noiseFrequency = parse.VectorProvider("m_vecNoiseFreq", noiseFrequency);
+        noiseScale = parse.VectorProvider("m_vecNoiseScale", noiseScale);
     }
 
     public override void GenerateForces(ParticleCollection particles, float frameTime, ParticleSystemRenderState particleSystemState, float strength)
     {
-        var freq = NoiseFrequency.NextVector(particleSystemState);
-        var scale = NoiseScale.NextVector(particleSystemState);
+        var freq = noiseFrequency.NextVector(particleSystemState);
+        var scale = noiseScale.NextVector(particleSystemState);
 
         foreach (ref var particle in particles.Current)
         {

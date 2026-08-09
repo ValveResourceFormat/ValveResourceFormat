@@ -11,14 +11,14 @@ namespace ValveResourceFormat.Renderer.Particles.Operators
         private readonly float outputMax = 1;
         private readonly int controlPoint;
 
-        private readonly ParticleField OutputField = ParticleField.Radius;
+        private readonly ParticleField outputField = ParticleField.Radius;
         private readonly ParticleSetMethod setMethod = ParticleSetMethod.PARTICLE_SET_REPLACE_VALUE;
         private readonly bool additive;
         private readonly bool activeRange;
 
         public DistanceToCP(ParticleDefinitionParser parse) : base(parse)
         {
-            OutputField = parse.ParticleField("m_nFieldOutput", OutputField);
+            outputField = parse.ParticleField("m_nFieldOutput", outputField);
             distanceMin = parse.Float("m_flInputMin", distanceMin);
             distanceMax = parse.Float("m_flInputMax", distanceMax);
             outputMin = parse.Float("m_flOutputMin", outputMin);
@@ -51,15 +51,15 @@ namespace ValveResourceFormat.Renderer.Particles.Operators
 
                 var finalValue = float.Lerp(outputMin, outputMax, remappedDistance);
 
-                finalValue = particle.ModifyScalarBySetMethod(particles, OutputField, finalValue, setMethod);
+                finalValue = particle.ModifyScalarBySetMethod(particles, outputField, finalValue, setMethod);
 
                 if (additive)
                 {
                     // Yes, this causes it to continuously grow larger. Yes, this is in the original too.
-                    finalValue += particle.GetScalar(OutputField);
+                    finalValue += particle.GetScalar(outputField);
                 }
 
-                particle.SetScalar(OutputField, float.Lerp(particle.GetScalar(OutputField), finalValue, strength));
+                particle.SetScalar(outputField, float.Lerp(particle.GetScalar(outputField), finalValue, strength));
             }
         }
     }

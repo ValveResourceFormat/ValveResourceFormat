@@ -7,14 +7,14 @@ namespace ValveResourceFormat.Renderer.Particles.Operators
     /// <seealso href="https://s2v.app/SchemaExplorer/cs2/particles/C_OP_SetFloat">C_OP_SetFloat</seealso>
     class SetFloat : ParticleFunctionOperator
     {
-        private readonly ParticleField OutputField = ParticleField.Radius;
+        private readonly ParticleField outputField = ParticleField.Radius;
         private readonly INumberProvider value = new LiteralNumberProvider(0f);
         private readonly ParticleSetMethod setMethod = ParticleSetMethod.PARTICLE_SET_REPLACE_VALUE;
         private readonly INumberProvider lerp = new LiteralNumberProvider(1f);
 
         public SetFloat(ParticleDefinitionParser parse) : base(parse)
         {
-            OutputField = parse.ParticleField("m_nOutputField", OutputField);
+            outputField = parse.ParticleField("m_nOutputField", outputField);
             value = parse.NumberProvider("m_InputValue", value);
             setMethod = parse.Enum<ParticleSetMethod>("m_nSetMethod", setMethod);
             lerp = parse.NumberProvider("m_Lerp", lerp);
@@ -30,17 +30,17 @@ namespace ValveResourceFormat.Renderer.Particles.Operators
                 var value = this.value.NextNumber(ref particle, particleSystemState);
                 var lerp = MathUtils.Saturate(this.lerp.NextNumber(ref particle, particleSystemState));
 
-                var target = particle.ModifyScalarBySetMethod(particles, OutputField, value, setMethod);
-                var currentValue = particle.GetScalar(OutputField);
+                var target = particle.ModifyScalarBySetMethod(particles, outputField, value, setMethod);
+                var currentValue = particle.GetScalar(outputField);
 
                 var blended = float.Lerp(currentValue, target, lerp);
 
                 // Strength lerps from the spawn initial for the two initial-value set methods
                 var strengthBase = setMethod is ParticleSetMethod.PARTICLE_SET_SCALE_INITIAL_VALUE or ParticleSetMethod.PARTICLE_SET_ADD_TO_INITIAL_VALUE
-                    ? particle.GetInitialScalar(particles, OutputField)
+                    ? particle.GetInitialScalar(particles, outputField)
                     : currentValue;
 
-                particle.SetScalar(OutputField, float.Lerp(strengthBase, blended, strength));
+                particle.SetScalar(outputField, float.Lerp(strengthBase, blended, strength));
             }
         }
     }

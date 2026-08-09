@@ -5,7 +5,7 @@ namespace ValveResourceFormat.Renderer.Particles
 {
     abstract class ParticleFunction
     {
-        private readonly INumberProvider OpStrength = new LiteralNumberProvider(1f);
+        private readonly INumberProvider opStrengthInput = new LiteralNumberProvider(1f);
         //ParticleEndCapMode OpEndCapState; // operator end cap state
         public readonly float OpStartFadeInTime; // operator start fadein
         public readonly float OpEndFadeInTime; // operator end fadein
@@ -13,12 +13,12 @@ namespace ValveResourceFormat.Renderer.Particles
         public readonly float OpEndFadeOutTime; // operator end fadeout
         public readonly float OpFadeOscillatePeriod; // operator fade oscillate
         //bool NormalizeToStopTime; // normalize fade times to endcap
-        private readonly float OpTimeOffsetMin;
-        private readonly float OpTimeOffsetMax;
+        private readonly float opTimeOffsetMin;
+        private readonly float opTimeOffsetMax;
         //int OpTimeOffsetSeed; // operator fade time offset seed
         //int OpTimeScaleSeed; // operator fade time scale seed
-        private readonly float OpTimeScaleMin = 1f;
-        private readonly float OpTimeScaleMax = 1f;
+        private readonly float opTimeScaleMin = 1f;
+        private readonly float opTimeScaleMax = 1f;
 
         /// <summary>Every field feeding the fade curve is at its default, so the curve is always 1.</summary>
         readonly bool FadeCurveIsUnity;
@@ -30,29 +30,29 @@ namespace ValveResourceFormat.Renderer.Particles
         public ParticleFunction(ParticleDefinitionParser parse)
         {
             Logger = parse.Logger;
-            OpStrength = parse.NumberProvider("m_flOpStrength", OpStrength);
+            opStrengthInput = parse.NumberProvider("m_flOpStrength", opStrengthInput);
             OpStartFadeInTime = parse.Float("m_flOpStartFadeInTime");
             OpEndFadeInTime = parse.Float("m_flOpEndFadeInTime");
             OpStartFadeOutTime = parse.Float("m_flOpStartFadeOutTime");
             OpEndFadeOutTime = parse.Float("m_flOpEndFadeOutTime");
             OpFadeOscillatePeriod = parse.Float("m_flOpFadeOscillatePeriod");
-            OpTimeOffsetMin = parse.Float("m_flOpTimeOffsetMin", OpTimeOffsetMin);
-            OpTimeOffsetMax = parse.Float("m_flOpTimeOffsetMax", OpTimeOffsetMax);
-            OpTimeScaleMin = parse.Float("m_flOpTimeScaleMin", OpTimeScaleMin);
-            OpTimeScaleMax = parse.Float("m_flOpTimeScaleMax", OpTimeScaleMax);
+            opTimeOffsetMin = parse.Float("m_flOpTimeOffsetMin", opTimeOffsetMin);
+            opTimeOffsetMax = parse.Float("m_flOpTimeOffsetMax", opTimeOffsetMax);
+            opTimeScaleMin = parse.Float("m_flOpTimeScaleMin", opTimeScaleMin);
+            opTimeScaleMax = parse.Float("m_flOpTimeScaleMax", opTimeScaleMax);
 
             FadeCurveIsUnity =
                 OpStartFadeInTime == 0f &&
                 OpEndFadeInTime == 0f &&
                 OpStartFadeOutTime == 0f &&
                 OpEndFadeOutTime == 0f &&
-                OpTimeOffsetMin == 0f &&
-                OpTimeOffsetMax == 0f &&
-                OpTimeScaleMin == 1f &&
-                OpTimeScaleMax == 1f;
+                opTimeOffsetMin == 0f &&
+                opTimeOffsetMax == 0f &&
+                opTimeScaleMin == 1f &&
+                opTimeScaleMax == 1f;
             //OpEndCapState == ParticleEndCapMode.PARTICLE_ENDCAP_ALWAYS_ON);
 
-            StrengthFastPath = FadeCurveIsUnity && OpStrength is LiteralNumberProvider { Value: 1f };
+            StrengthFastPath = FadeCurveIsUnity && opStrengthInput is LiteralNumberProvider { Value: 1f };
         }
 
         public float GetOperatorRunStrength(ParticleSystemRenderState systemState) // CheckIfOperatorShouldRun
@@ -62,7 +62,7 @@ namespace ValveResourceFormat.Renderer.Particles
                 return 1f;
             }
 
-            var opStrength = OpStrength.NextNumber(systemState);
+            var opStrength = opStrengthInput.NextNumber(systemState);
 
             if (FadeCurveIsUnity || opStrength <= 0f)
             {
@@ -82,14 +82,14 @@ namespace ValveResourceFormat.Renderer.Particles
             /* TODO
             if (OpTimeOffsetSeed) // allow per-instance-of-particle-system random phase control for operator strength.
             {
-                float flOffset = RandomFloat(OpTimeOffsetSeed, OpTimeOffsetMin, OpTimeOffsetMax);
+                float flOffset = RandomFloat(OpTimeOffsetSeed, opTimeOffsetMin, opTimeOffsetMax);
                 time += flOffset;
                 time = MathF.Max(0f, time);
             }
 
             if (OpTimeScaleSeed && time > OpStartFadeInTime)
             {
-                float timeScalar = 1.0 / MathF.Max(0.0001f, RandomFloat(OpTimeScaleSeed, OpTimeScaleMin, OpTimeScaleMax));
+                float timeScalar = 1.0 / MathF.Max(0.0001f, RandomFloat(OpTimeScaleSeed, opTimeScaleMin, opTimeScaleMax));
                 time = OpStartFadeInTime + timeScalar * (time - OpStartFadeInTime);
             }
             */

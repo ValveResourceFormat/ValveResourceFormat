@@ -29,7 +29,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
         private static readonly Vector2[] QuadCorners = [new(-1f, -1f), new(-1f, 1f), new(1f, 1f), new(1f, -1f)];
 
         private readonly Shader shader;
-        private readonly RendererContext RendererContext;
+        private readonly RendererContext rendererContext;
         private readonly int vaoHandle;
         private readonly int vertexBufferHandle;
         private RenderTexture texture;
@@ -74,11 +74,11 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
 
         public RenderTrails(ParticleDefinitionParser parse, RendererContext rendererContext) : base(parse)
         {
-            RendererContext = rendererContext;
+            this.rendererContext = rendererContext;
 
             blendMode = parse.Enum<ParticleBlendMode>("m_nOutputBlendMode", blendMode);
 
-            shader = RendererContext.ShaderLoader.LoadShader(ShaderName);
+            shader = rendererContext.ShaderLoader.LoadShader(ShaderName);
 
             // All trails of this renderer are batched into a single dynamic vertex buffer
             (vaoHandle, vertexBufferHandle) = SetupQuadBuffer();
@@ -99,7 +99,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
                 }
             }
 
-            texture = RendererContext.MaterialLoader.GetTexture(textureName ?? DefaultTextureName, srgbRead: true);
+            texture = rendererContext.MaterialLoader.GetTexture(textureName ?? DefaultTextureName, srgbRead: true);
 
 #if DEBUG
             var vaoLabel = $"{nameof(RenderTrails)}: {System.IO.Path.GetFileName(textureName)}";
@@ -162,7 +162,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
             GL.CreateVertexArrays(1, out int vao);
             GL.CreateBuffers(1, out int buffer);
             GL.VertexArrayVertexBuffer(vao, 0, buffer, 0, stride);
-            GL.VertexArrayElementBuffer(vao, RendererContext.MeshBufferCache.QuadIndices.GLHandle);
+            GL.VertexArrayElementBuffer(vao, rendererContext.MeshBufferCache.QuadIndices.GLHandle);
 
             // A driver is free to drop an attribute whose only use sits behind a uniform branch, in which
             // case GetAttribLocation reports -1 and binding it would raise a GL error.
@@ -331,7 +331,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
                     var spriteSheetData = texture.SpriteSheetData;
                     if (spriteSheetData != null && spriteSheetData.Sequences.Length > 0 && spriteSheetData.Sequences[0].Frames.Length > 0)
                     {
-                        var sequence = spriteSheetData.Sequences[particle.Sequence % spriteSheetData.Sequences.Length];
+                        var sequence = spriteSheetData.Sequences[particle.SequenceNumber % spriteSheetData.Sequences.Length];
                         var (frame, nextFrame, blend) = GetSheetFrame(ref particle, sequence, animationRate, animationType, animateInFps);
                         frameBlend = blend;
 

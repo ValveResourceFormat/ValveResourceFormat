@@ -13,20 +13,20 @@ namespace ValveResourceFormat.Renderer.Particles.ForceGenerators;
 /// <seealso href="https://s2v.app/SchemaExplorer/cs2/particles/C_OP_AttractToControlPoint">C_OP_AttractToControlPoint</seealso>
 class AttractToControlPoint : ParticleFunctionForceGenerator
 {
-    private readonly Vector3 ComponentScale = Vector3.One;
-    private readonly INumberProvider ForceAmount = new LiteralNumberProvider(100);
-    private readonly INumberProvider ForceAmountMin = new LiteralNumberProvider(0);
-    private readonly bool ApplyMinForce;
-    private readonly float Falloff = 2;
+    private readonly Vector3 componentScale = Vector3.One;
+    private readonly INumberProvider forceAmount = new LiteralNumberProvider(100);
+    private readonly INumberProvider forceAmountMin = new LiteralNumberProvider(0);
+    private readonly bool applyMinForce;
+    private readonly float falloff = 2;
     private readonly ITransformProvider transformInput;
 
     public AttractToControlPoint(ParticleDefinitionParser parse) : base(parse)
     {
-        ComponentScale = parse.Vector3("m_vecComponentScale", ComponentScale);
-        ForceAmount = parse.NumberProvider("m_fForceAmount", ForceAmount);
-        ForceAmountMin = parse.NumberProvider("m_fForceAmountMin", ForceAmountMin);
-        ApplyMinForce = parse.Boolean("m_bApplyMinForce", ApplyMinForce);
-        Falloff = parse.Float("m_fFalloffPower", Falloff);
+        componentScale = parse.Vector3("m_vecComponentScale", componentScale);
+        forceAmount = parse.NumberProvider("m_fForceAmount", forceAmount);
+        forceAmountMin = parse.NumberProvider("m_fForceAmountMin", forceAmountMin);
+        applyMinForce = parse.Boolean("m_bApplyMinForce", applyMinForce);
+        falloff = parse.Float("m_fFalloffPower", falloff);
         // The target is m_TransformInput (a transform input defaulting to control point 1); older content
         // stores it as the legacy m_nControlPointNumber field instead.
         var legacyControlPoint = parse.Data.ContainsKey("m_nControlPointNumber") ? parse.Int32("m_nControlPointNumber") : 1;
@@ -36,7 +36,7 @@ class AttractToControlPoint : ParticleFunctionForceGenerator
     public override void GenerateForces(ParticleCollection particles, float frameTime, ParticleSystemRenderState particleSystemState, float strength)
     {
         var target = transformInput.NextTransform(particleSystemState).Translation;
-        var scale = ComponentScale * strength;
+        var scale = componentScale * strength;
 
         foreach (ref var particle in particles.Current)
         {
@@ -47,13 +47,13 @@ class AttractToControlPoint : ParticleFunctionForceGenerator
                 continue;
             }
 
-            var amount = ForceAmount.NextNumber(ref particle, particleSystemState);
-            if (ApplyMinForce)
+            var amount = forceAmount.NextNumber(ref particle, particleSystemState);
+            if (applyMinForce)
             {
-                amount = MathF.Max(amount, ForceAmountMin.NextNumber(ref particle, particleSystemState));
+                amount = MathF.Max(amount, forceAmountMin.NextNumber(ref particle, particleSystemState));
             }
 
-            var forceMagnitude = amount / MathF.Pow(distance, Falloff);
+            var forceMagnitude = amount / MathF.Pow(distance, falloff);
             particle.ForceAccumulator += (diff / distance) * forceMagnitude * scale;
         }
     }

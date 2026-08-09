@@ -7,14 +7,14 @@ namespace ValveResourceFormat.Renderer.Particles.Operators
     /// <seealso href="https://s2v.app/SchemaExplorer/cs2/particles/C_OP_LerpScalar">C_OP_LerpScalar</seealso>
     class LerpScalar : ParticleFunctionOperator
     {
-        private readonly ParticleField FieldOutput = ParticleField.Radius;
+        private readonly ParticleField fieldOutput = ParticleField.Radius;
         private readonly INumberProvider output = new LiteralNumberProvider(1);
         private readonly float startTime;
         private readonly float endTime = 1f;
 
         public LerpScalar(ParticleDefinitionParser parse) : base(parse)
         {
-            FieldOutput = parse.ParticleField("m_nFieldOutput", FieldOutput);
+            fieldOutput = parse.ParticleField("m_nFieldOutput", fieldOutput);
             output = parse.NumberProvider("m_flOutput", output);
             startTime = parse.Float("m_flStartTime", startTime);
             endTime = parse.Float("m_flEndTime", endTime);
@@ -27,9 +27,9 @@ namespace ValveResourceFormat.Renderer.Particles.Operators
 
                 var lerpWeight = MathUtils.Saturate(MathUtils.Remap(particle.NormalizedAge, startTime, endTime));
 
-                var scalarOutput = float.Lerp(particle.GetInitialScalar(particles, FieldOutput), lerpTarget, lerpWeight);
+                var scalarOutput = float.Lerp(particle.GetInitialScalar(particles, fieldOutput), lerpTarget, lerpWeight);
 
-                particle.SetScalar(FieldOutput, float.Lerp(particle.GetScalar(FieldOutput), scalarOutput, strength));
+                particle.SetScalar(fieldOutput, float.Lerp(particle.GetScalar(fieldOutput), scalarOutput, strength));
             }
         }
     }

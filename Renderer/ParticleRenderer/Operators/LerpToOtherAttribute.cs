@@ -7,19 +7,19 @@ namespace ValveResourceFormat.Renderer.Particles.Operators
     /// <seealso href="https://s2v.app/SchemaExplorer/cs2/particles/C_OP_LerpToOtherAttribute">C_OP_LerpToOtherAttribute</seealso>
     class LerpToOtherAttribute : ParticleFunctionOperator
     {
-        private readonly ParticleField FieldInput = ParticleField.Color;
-        private readonly ParticleField FieldOutput = ParticleField.Color;
+        private readonly ParticleField fieldInput = ParticleField.Color;
+        private readonly ParticleField fieldOutput = ParticleField.Color;
         private readonly INumberProvider interpolation = new LiteralNumberProvider(1.0f);
 
         private readonly bool skip;
         public LerpToOtherAttribute(ParticleDefinitionParser parse) : base(parse)
         {
-            FieldInput = parse.ParticleField("m_nFieldInput", FieldInput);
-            FieldOutput = parse.ParticleField("m_nFieldOutput", FieldOutput);
+            fieldInput = parse.ParticleField("m_nFieldInput", fieldInput);
+            fieldOutput = parse.ParticleField("m_nFieldOutput", fieldOutput);
             interpolation = parse.NumberProvider("m_flInterpolation", interpolation);
 
             // If the two fields are different types, the operator does nothing.
-            skip = FieldInput.FieldType() != FieldOutput.FieldType();
+            skip = fieldInput.FieldType() != fieldOutput.FieldType();
         }
 
         public override void Operate(ParticleCollection particles, float frameTime, ParticleSystemRenderState particleSystemState, float strength)
@@ -27,22 +27,22 @@ namespace ValveResourceFormat.Renderer.Particles.Operators
             // We don't have to do weird stuff with this one because it doesn't have the option to set the initial.
             if (!skip)
             {
-                if (FieldInput.FieldType() == "vector")
+                if (fieldInput.FieldType() == "vector")
                 {
                     foreach (ref var particle in particles.Current)
                     {
                         var interp = MathUtils.Saturate(interpolation.NextNumber(ref particle, particleSystemState) * strength);
-                        var blend = Vector3.Lerp(particle.GetVector(FieldOutput), particle.GetVector(FieldInput), interp);
-                        particle.SetVector(FieldOutput, blend);
+                        var blend = Vector3.Lerp(particle.GetVector(fieldOutput), particle.GetVector(fieldInput), interp);
+                        particle.SetVector(fieldOutput, blend);
                     }
                 }
-                else if (FieldInput.FieldType() == "float")
+                else if (fieldInput.FieldType() == "float")
                 {
                     foreach (ref var particle in particles.Current)
                     {
                         var interp = MathUtils.Saturate(interpolation.NextNumber(ref particle, particleSystemState) * strength);
-                        var blend = float.Lerp(particle.GetScalar(FieldOutput), particle.GetScalar(FieldInput), interp);
-                        particle.SetScalar(FieldOutput, blend);
+                        var blend = float.Lerp(particle.GetScalar(fieldOutput), particle.GetScalar(fieldInput), interp);
+                        particle.SetScalar(fieldOutput, blend);
                     }
                 }
             }

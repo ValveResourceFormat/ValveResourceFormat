@@ -45,7 +45,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
         }
 
         private readonly Shader shader;
-        private readonly RendererContext RendererContext;
+        private readonly RendererContext rendererContext;
         private readonly int vaoHandle;
         private readonly TextureLayer[] layers;
 
@@ -107,11 +107,11 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
 
         public RenderSprites(ParticleDefinitionParser parse, RendererContext rendererContext) : base(parse)
         {
-            RendererContext = rendererContext;
+            this.rendererContext = rendererContext;
 
             blendMode = parse.Enum<ParticleBlendMode>("m_nOutputBlendMode", blendMode);
 
-            shader = RendererContext.ShaderLoader.LoadShader(ShaderName);
+            shader = rendererContext.ShaderLoader.LoadShader(ShaderName);
 
             // The same quad is reused for all particles
             vaoHandle = SetupQuadBuffer();
@@ -258,7 +258,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
             GL.CreateVertexArrays(1, out int vao);
             GL.CreateBuffers(1, out vertexBufferHandle);
             GL.VertexArrayVertexBuffer(vao, 0, vertexBufferHandle, 0, stride);
-            GL.VertexArrayElementBuffer(vao, RendererContext.MeshBufferCache.QuadIndices.GLHandle);
+            GL.VertexArrayElementBuffer(vao, rendererContext.MeshBufferCache.QuadIndices.GLHandle);
 
             // A driver is free to drop an attribute whose only use sits behind a uniform branch, in which
             // case GetAttribLocation reports -1 and binding it would raise a GL error.
@@ -327,7 +327,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
                 return (Vector2.Zero, Vector2.One, Vector2.Zero, Vector2.One);
             }
 
-            var sequence = spriteSheetData.Sequences[particle.Sequence % spriteSheetData.Sequences.Length];
+            var sequence = spriteSheetData.Sequences[particle.SequenceNumber % spriteSheetData.Sequences.Length];
 
             var (frame, nextFrame, blend) = GetSheetFrame(ref particle, sequence, animationRate, animationType, animateInFps);
             frameBlend = blend;

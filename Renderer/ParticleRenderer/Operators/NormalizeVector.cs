@@ -7,19 +7,19 @@ namespace ValveResourceFormat.Renderer.Particles.Operators
     /// <seealso href="https://s2v.app/SchemaExplorer/cs2/particles/C_OP_NormalizeVector">C_OP_NormalizeVector</seealso>
     class NormalizeVector : ParticleFunctionOperator
     {
-        private readonly ParticleField OutputField = ParticleField.Position;
-        private readonly float Scale = 1.0f;
+        private readonly ParticleField outputField = ParticleField.Position;
+        private readonly float scale = 1.0f;
 
         public NormalizeVector(ParticleDefinitionParser parse) : base(parse)
         {
-            OutputField = parse.ParticleField("m_nFieldOutput", OutputField);
-            Scale = parse.Float("m_flScale", Scale);
+            outputField = parse.ParticleField("m_nFieldOutput", outputField);
+            scale = parse.Float("m_flScale", scale);
         }
         public override void Operate(ParticleCollection particles, float frameTime, ParticleSystemRenderState particleSystemState, float strength)
         {
             foreach (ref var particle in particles.Current)
             {
-                var vector = particle.GetVector(OutputField);
+                var vector = particle.GetVector(outputField);
 
                 // A zero vector has no direction to normalize
                 if (vector == Vector3.Zero)
@@ -27,9 +27,9 @@ namespace ValveResourceFormat.Renderer.Particles.Operators
                     continue;
                 }
 
-                vector = Vector3.Normalize(vector) * Scale;
+                vector = Vector3.Normalize(vector) * scale;
 
-                particle.SetVector(OutputField, vector);
+                particle.SetVector(outputField, vector);
             }
         }
     }

@@ -11,12 +11,12 @@ namespace ValveResourceFormat.Renderer.Particles.Operators
     class FadeInSimple : ParticleFunctionOperator
     {
         private readonly float fadeInTime = 0.25f;
-        private readonly ParticleField FieldOutput = ParticleField.Alpha;
+        private readonly ParticleField fieldOutput = ParticleField.Alpha;
 
         public FadeInSimple(ParticleDefinitionParser parse) : base(parse)
         {
             fadeInTime = parse.Float("m_flFadeInTime", fadeInTime);
-            FieldOutput = parse.ParticleField("m_nFieldOutput", FieldOutput);
+            fieldOutput = parse.ParticleField("m_nFieldOutput", fieldOutput);
         }
 
         public override void Operate(ParticleCollection particles, float frameTime, ParticleSystemRenderState particleSystemState, float strength)
@@ -27,7 +27,7 @@ namespace ValveResourceFormat.Renderer.Particles.Operators
                 if (time <= fadeInTime)
                 {
                     var newAlpha = (time / fadeInTime) * particle.GetInitialScalar(particles, ParticleField.Alpha);
-                    particle.SetScalar(FieldOutput, newAlpha);
+                    particle.SetScalar(fieldOutput, newAlpha);
                 }
             }
         }

@@ -8,11 +8,11 @@ namespace ValveResourceFormat.Renderer.Particles.Operators
     {
         private readonly INumberProvider outputMin = new LiteralNumberProvider(0);
         private readonly INumberProvider outputMax = new LiteralNumberProvider(1);
-        private readonly ParticleField OutputField = ParticleField.Radius;
+        private readonly ParticleField outputField = ParticleField.Radius;
 
         public ClampScalar(ParticleDefinitionParser parse) : base(parse)
         {
-            OutputField = parse.ParticleField("m_nFieldOutput", OutputField);
+            outputField = parse.ParticleField("m_nFieldOutput", outputField);
             outputMin = parse.NumberProvider("m_flOutputMin", outputMin);
             outputMax = parse.NumberProvider("m_flOutputMax", outputMax);
         }
@@ -25,10 +25,10 @@ namespace ValveResourceFormat.Renderer.Particles.Operators
                 var max = outputMax.NextNumber(ref particle, particleSystemState);
                 MathUtils.MinMaxFixUp(ref min, ref max);
 
-                var currentValue = particle.GetScalar(OutputField);
+                var currentValue = particle.GetScalar(outputField);
                 var clampedValue = Math.Clamp(currentValue, min, max);
 
-                particle.SetScalar(OutputField, float.Lerp(currentValue, clampedValue, strength));
+                particle.SetScalar(outputField, float.Lerp(currentValue, clampedValue, strength));
             }
         }
     }

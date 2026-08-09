@@ -7,11 +7,11 @@ namespace ValveResourceFormat.Renderer.Particles.Operators
     /// <seealso href="https://s2v.app/SchemaExplorer/cs2/particles/C_OP_RotateVector">C_OP_RotateVector</seealso>
     class RotateVector : ParticleFunctionOperator
     {
-        private readonly ParticleField OutputField = ParticleField.Normal;
-        private readonly Vector3 RotAxisMin = new(0, 0, 1);
-        private readonly Vector3 RotAxisMax = new(0, 0, 1);
+        private readonly ParticleField outputField = ParticleField.Normal;
+        private readonly Vector3 rotAxisMin = new(0, 0, 1);
+        private readonly Vector3 rotAxisMax = new(0, 0, 1);
 
-        private readonly float RotRateMin = 180f;
+        private readonly float rotRateMin = 180f;
         private readonly float rotRateMax = 180f;
 
         private readonly INumberProvider perParticleScale = new LiteralNumberProvider(1f);
@@ -19,10 +19,10 @@ namespace ValveResourceFormat.Renderer.Particles.Operators
 
         public RotateVector(ParticleDefinitionParser parse) : base(parse)
         {
-            OutputField = parse.ParticleField("m_nFieldOutput", OutputField);
-            RotAxisMin = parse.Vector3("m_vecRotAxisMin", RotAxisMin);
-            RotAxisMax = parse.Vector3("m_vecRotAxisMax", RotAxisMax);
-            RotRateMin = parse.Float("m_flRotRateMin", RotRateMin);
+            outputField = parse.ParticleField("m_nFieldOutput", outputField);
+            rotAxisMin = parse.Vector3("m_vecRotAxisMin", rotAxisMin);
+            rotAxisMax = parse.Vector3("m_vecRotAxisMax", rotAxisMax);
+            rotRateMin = parse.Float("m_flRotRateMin", rotRateMin);
 
 
             rotRateMax = parse.Float("m_flRotRateMax", rotRateMax);
@@ -43,20 +43,20 @@ namespace ValveResourceFormat.Renderer.Particles.Operators
             {
                 // The rotation rate shares the axis draw rather than taking one of its own
                 var random = particleSystemState.Random.ForParticle(particle.ParticleId);
-                var axis = Vector3.Normalize(Vector3.Lerp(RotAxisMin, RotAxisMax, random));
-                var rotationRate = float.DegreesToRadians(float.Lerp(RotRateMin, rotRateMax, random));
+                var axis = Vector3.Normalize(Vector3.Lerp(rotAxisMin, rotAxisMax, random));
+                var rotationRate = float.DegreesToRadians(float.Lerp(rotRateMin, rotRateMax, random));
 
                 var scale = perParticleScale.NextNumber(ref particle, particleSystemState);
 
                 // probably slow but who knows???
-                var currentVector = particle.GetVector(OutputField);
+                var currentVector = particle.GetVector(outputField);
                 var rotatedVector = MatrixMul(currentVector, Matrix4x4.CreateFromAxisAngle(axis, rotationRate * scale * frameTime));
 
                 rotatedVector = normalize
                     ? Vector3.Normalize(rotatedVector)
                     : rotatedVector;
 
-                particle.SetVector(OutputField, Vector3.Lerp(currentVector, rotatedVector, strength));
+                particle.SetVector(outputField, Vector3.Lerp(currentVector, rotatedVector, strength));
             }
         }
     }
