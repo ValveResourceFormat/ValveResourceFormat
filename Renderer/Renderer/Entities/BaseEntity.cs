@@ -100,6 +100,22 @@ public class BaseEntity : SceneNode
     /// <summary>Gets whether this entity has been removed from the world and is awaiting cleanup.</summary>
     public bool IsRemoved { get; private set; }
 
+    /// <summary>
+    /// Gets the entity's collision shape, or <see langword="null"/> when it has none. Built by
+    /// <see cref="SetModel"/> from the model's physics, and moved with the entity every tick.
+    /// </summary>
+    public EntityCollider? Collider { get; private set; }
+
+    /// <summary>
+    /// Gets or sets whether the entity collides with the player. Setting it to <see langword="false"/>
+    /// leaves the shape built but takes the entity out of traces, which is what Source's
+    /// <c>SOLID_NONE</c> amounts to here.
+    /// </summary>
+    public bool IsSolid { get; set; } = true;
+
+    /// <summary>Gets whether the entity currently takes part in collision traces.</summary>
+    public bool IsCollidable => IsSolid && Collider is { IsEmpty: false } && !IsRemoved;
+
     private readonly List<EntityChild> children = [];
     private Vector3 previousOrigin;
     private Vector3 previousAngles;
@@ -316,6 +332,9 @@ public class BaseEntity : SceneNode
 
         if (EntityCollider.LoadPhysics(model, fileLoader) is { } physics)
         {
+            Collider = new EntityCollider(physics);
+            UpdateColliderTransform();
+
             foreach (var physicsNode in PhysSceneNode.CreatePhysSceneNodes(Scene, physics, modelName, Classname))
             {
                 AddChild(physicsNode);
@@ -363,7 +382,33 @@ public class BaseEntity : SceneNode
     }
 
     /// <summary>Rebuilds <see cref="SceneNode.Transform"/> from the current scale, angles, and origin.</summary>
-    protected void UpdateTransform() => SetTransform(Origin, Angles);
+    protected void UpdateTransform()
+    {
+        SetTransform(Origin, Angles);
+        UpdateColliderTransform();
+    }
+
+    /// <summary>
+    /// Moves the collision shape onto the entity's current tick state.
+    /// </summary>
+    /// <remarks>
+    /// Deliberately the tick state and not the interpolated one drawn this frame: collision answers where
+    /// the entity <i>is</i>, which is the same split the engine has between a server tracing against tick
+    /// state and a client drawing between snapshots. The transform is also kept rigid, leaving
+    /// <see cref="EntityScale"/> out, because the shape's sweeps assume distances survive the round trip
+    /// into its local space.
+    /// </remarks>
+    private void UpdateColliderTransform()
+    {
+        if (Collider == null)
+        {
+            return;
+        }
+
+        Collider.Transform = EntityTransformHelper.CreateRotationMatrixFromEulerAngles(Angles)
+            * Matrix4x4.CreateTranslation(Origin)
+            * ParentTransform;
+    }
 
     /// <summary>
     /// Rebuilds <see cref="SceneNode.Transform"/> for drawing, somewhere between the last two ticks.

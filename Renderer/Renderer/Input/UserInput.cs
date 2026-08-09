@@ -43,6 +43,12 @@ public class UserInput
     /// <summary>Gets or sets the physics world used for orbit-target and player-movement ray traces.</summary>
     public Rubikon? PhysicsWorld { get; set; }
 
+    /// <summary>
+    /// Gets or sets the entity world whose solid entities the player collides with, on top of
+    /// <see cref="PhysicsWorld"/>. Brush entities move, so they are traced separately from the static world.
+    /// </summary>
+    public EntitySystem? EntitySystem { get; set; }
+
     private Vector3? _orbitTarget;
     private bool _forceUpdate = true;
 

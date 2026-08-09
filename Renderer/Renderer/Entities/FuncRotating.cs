@@ -18,8 +18,9 @@ namespace ValveResourceFormat.Renderer.Entities;
 /// the world Z axis. That mismatch is the engine's, kept here so maps rotate the way they do in game.
 /// </para>
 /// <para>
-/// Not simulated: the fan sounds, the "Fan Pain" damage flag, and blocking. The viewer's player does not
-/// collide with brush entities, so a rotating brush cannot push or crush anything here.
+/// The brush is solid and the player collides with it as it turns, unless the "Not Solid" flag is set.
+/// Not simulated: the fan sounds, the "Fan Pain" damage flag, and the pusher physics that would carry a
+/// player standing on it or push one the brush rotates into.
 /// </para>
 /// </remarks>
 public sealed class FuncRotating : BaseEntity
@@ -130,6 +131,9 @@ public sealed class FuncRotating : BaseEntity
         startAngles = Angles;
 
         SetModel(Data.GetStringProperty("model"));
+
+        // Some rotating objects, like fake volumetric lights, are never solid
+        IsSolid = !HasSpawnFlags(SF_ROTATING_NOT_SOLID);
 
         if (HasSpawnFlags(SF_BRUSH_ROTATE_START_ON))
         {

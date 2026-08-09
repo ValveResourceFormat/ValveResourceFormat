@@ -183,6 +183,56 @@ public sealed class EntitySystem
     }
 
     /// <summary>
+    /// Sweeps an axis-aligned box against every solid entity, keeping the nearest hit.
+    /// </summary>
+    /// <param name="from">Sweep start, the box centre in world space.</param>
+    /// <param name="to">Sweep end in world space.</param>
+    /// <param name="halfExtents">Half-extents of the swept box.</param>
+    /// <param name="detectStartSolid">Whether an overlap at <paramref name="from"/> reports as start-solid.</param>
+    /// <param name="result">The trace to narrow; a nearer entity hit replaces it.</param>
+    /// <returns><see langword="true"/> when an entity produced the nearest hit.</returns>
+    public bool TraceAABB(Vector3 from, Vector3 to, Vector3 halfExtents, bool detectStartSolid, ref Rubikon.TraceResult result)
+    {
+        var hitEntity = false;
+
+        foreach (var entity in entities)
+        {
+            if (!entity.IsCollidable || !entity.Collider!.MightHit(from, to, halfExtents))
+            {
+                continue;
+            }
+
+            hitEntity |= result.MinimizeWith(entity.Collider.TraceAABB(from, to, halfExtents, detectStartSolid));
+        }
+
+        return hitEntity;
+    }
+
+    /// <summary>
+    /// Traces a ray against every solid entity, keeping the nearest hit.
+    /// </summary>
+    /// <param name="from">Ray start in world space.</param>
+    /// <param name="to">Ray end in world space.</param>
+    /// <param name="result">The trace to narrow; a nearer entity hit replaces it.</param>
+    /// <returns><see langword="true"/> when an entity produced the nearest hit.</returns>
+    public bool TraceRay(Vector3 from, Vector3 to, ref Rubikon.TraceResult result)
+    {
+        var hitEntity = false;
+
+        foreach (var entity in entities)
+        {
+            if (!entity.IsCollidable)
+            {
+                continue;
+            }
+
+            hitEntity |= result.MinimizeWith(entity.Collider!.TraceRay(from, to));
+        }
+
+        return hitEntity;
+    }
+
+    /// <summary>
     /// Fires an entity I/O input at one entity, after its delay has elapsed.
     /// </summary>
     /// <param name="target">The entity receiving the input.</param>
