@@ -186,8 +186,30 @@ namespace ValveResourceFormat.Renderer.Particles
 
             foreach (var childParticleRenderer in childParticleRenderers)
             {
+                // An endcap child is the effect that plays during the endcap, so it rewinds and starts
+                // rather than entering the phase itself; the parent's flag is what lets it run at all.
+                if (childParticleRenderer.isEndCapChild)
+                {
+                    childParticleRenderer.RewindForEndCap();
+                    continue;
+                }
+
                 childParticleRenderer.PlayEndCap();
             }
+        }
+
+        /// <summary>
+        /// Returns an endcap child to its unstarted state, so the endcap plays it from the beginning
+        /// complete with the initial burst that only a first start seeds.
+        /// </summary>
+        private void RewindForEndCap()
+        {
+            ClearParticles();
+
+            hasStarted = false;
+            simulatedFrames = 0;
+            systemRenderState.EndEarly = false;
+            systemRenderState.ClearEndCap();
         }
 
         /// <summary>
@@ -211,7 +233,7 @@ namespace ValveResourceFormat.Renderer.Particles
         /// </summary>
         public bool HasFinishedEmitting(bool emissionEndIsEnough, bool includeChildren)
         {
-            if (systemRenderState.InEndCap)
+            if (systemRenderState.InEndCap || isEndCapChild)
             {
                 return true;
             }
@@ -376,7 +398,7 @@ namespace ValveResourceFormat.Renderer.Particles
 
             foreach (var childParticleRenderer in childParticleRenderers)
             {
-                if (!childParticleRenderer.childEnabled)
+                if (!childParticleRenderer.ChildShouldRun(systemRenderState))
                 {
                     continue;
                 }
@@ -582,7 +604,13 @@ namespace ValveResourceFormat.Renderer.Particles
 
             foreach (var childRenderer in childParticleRenderers)
             {
-                if (childRenderer.childEnabled && !childRenderer.IsFinished())
+                // An endcap child never counts toward whether the system has finished.
+                if (childRenderer.isEndCapChild || !childRenderer.childEnabled)
+                {
+                    continue;
+                }
+
+                if (!childRenderer.IsFinished())
                 {
                     return false;
                 }

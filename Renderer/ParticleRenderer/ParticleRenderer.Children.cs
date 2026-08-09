@@ -99,10 +99,18 @@ namespace ValveResourceFormat.Renderer.Particles
             }
         }
 
-        private void SetupChildParticles(IEnumerable<string> childNames)
+        private void SetupChildParticles(IEnumerable<KVObject> children)
         {
-            foreach (var childName in childNames)
+            foreach (var childInfo in children)
             {
+                var parse = new ParticleDefinitionParser(childInfo, rendererContext.Logger);
+
+                if (parse.Boolean("m_bDisableChild", false))
+                {
+                    continue;
+                }
+
+                var childName = childInfo.GetStringProperty("m_ChildRef");
                 var childResource = rendererContext.FileLoader.LoadFileCompiled(childName);
 
                 if (childResource == null)
@@ -118,8 +126,32 @@ namespace ValveResourceFormat.Renderer.Particles
                     MainControlPoint = MainControlPoint
                 };
 
+                childSystem.startDelay = parse.Float("m_flDelay", 0f);
+                childSystem.isEndCapChild = parse.Boolean("m_bEndCap", false);
+                childSystem.detailLevel = parse.Enum("m_nDetailLevel", ParticleDetailLevel.PARTICLEDETAIL_LOW);
+
                 childParticleRenderers.Add(childSystem);
             }
+        }
+
+        /// <summary>
+        /// Whether the parent should advance this child this frame. An endcap child lies dormant until
+        /// the parent starts its endcap, a delayed child waits out its delay on the parent's clock, and a
+        /// child authored above the active detail tier never runs at all.
+        /// </summary>
+        private bool ChildShouldRun(ParticleSystemRenderState parentState)
+        {
+            if (!childEnabled || (int)detailLevel > parentState.DetailLevel)
+            {
+                return false;
+            }
+
+            if (isEndCapChild)
+            {
+                return parentState.InEndCap;
+            }
+
+            return parentState.Age >= startDelay;
         }
     }
 }
