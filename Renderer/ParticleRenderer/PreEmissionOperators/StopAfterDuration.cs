@@ -9,7 +9,12 @@ namespace ValveResourceFormat.Renderer.Particles.PreEmissionOperators
     {
         private readonly INumberProvider duration = new LiteralNumberProvider(1.0f);
         private readonly bool destroy;
-        private readonly bool playEndCap;
+
+        /// <summary>
+        /// Defaults on: the engine's stop path always enters the endcap, and content only ever authors
+        /// this key to turn it off.
+        /// </summary>
+        private readonly bool playEndCap = true;
 
         public StopAfterDuration(ParticleDefinitionParser parse) : base(parse)
         {
