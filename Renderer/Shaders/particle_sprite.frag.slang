@@ -114,10 +114,10 @@ vec4 ApplyChannelMask(vec4 accum, vec4 layer, int maskMode, float sub)
             return vec4(layer.rgb, dot(layer.rgb, LUMA_601));
         case SPRITECARD_TEXTURE_CHANNEL_MIX_A_RGBALPHA:
             return vec4(mix(accum.rgb, vec3(0.0), sub), dot(layer.rgb, LUMA_601));
-        // Its name reads as the RGB_A mode with the layer's luminance standing in for its alpha, and the
-        // colour follows that: it comes from the layer, as it does in RGB_A and RGBA_RGBALPHA.
+        // The accumulator keeps its colour here and only lends its alpha to the layer's luminance, unlike
+        // the RGB_A and RGBA_RGBALPHA modes above which take the layer's colour.
         case SPRITECARD_TEXTURE_CHANNEL_MIX_RGB_A_RGBALPHA:
-            return vec4(layer.rgb, accum.a * dot(layer.rgb, LUMA_601));
+            return vec4(accum.rgb, accum.a * dot(layer.rgb, LUMA_601));
 
         // The single-channel modes keep their own channel and drop the rest under SUBTRACT.
         case SPRITECARD_TEXTURE_CHANNEL_MIX_R:
@@ -186,8 +186,13 @@ vec4 ApplyLayerBlend(vec4 accum, vec4 masked, int blendMode)
 
 // Shifts the hue and scales saturation and value, going through HSV and back. Ported from the spritecard
 // pixel shader, which rolls its own conversion rather than using a library one.
-vec3 ApplyHsvShift(vec3 rgb)
+vec3 ApplyHsvShift(vec3 sourceColor)
 {
+    // The conversion runs on a normalized copy and the magnitude is put back afterwards, so a colour
+    // brighter than 1 keeps its overbright rather than being crushed to the top of the value axis.
+    float overbright = max(max(sourceColor.r, max(sourceColor.g, sourceColor.b)), 1.0);
+    vec3 rgb = saturate(sourceColor / overbright);
+
     float valueMax = max(rgb.r, max(rgb.g, rgb.b));
     float chroma = valueMax - min(rgb.r, min(rgb.g, rgb.b));
 
@@ -211,7 +216,7 @@ vec3 ApplyHsvShift(vec3 rgb)
 
     if (satVal.x == 0.0)
     {
-        return vec3(satVal.y);
+        return vec3(satVal.y) * overbright;
     }
 
     float sector = hue * 6.0;
@@ -222,13 +227,13 @@ vec3 ApplyHsvShift(vec3 rgb)
     float q = satVal.y * (1.0 - (satVal.x * f));
     float t = satVal.y * (1.0 - (satVal.x * (1.0 - f)));
 
-    if (index == 0.0) { return vec3(satVal.y, t, p); }
-    if (index == 1.0) { return vec3(q, satVal.y, p); }
-    if (index == 2.0) { return vec3(p, satVal.y, t); }
-    if (index == 3.0) { return vec3(p, q, satVal.y); }
-    if (index == 4.0) { return vec3(t, p, satVal.y); }
+    if (index == 0.0) { return vec3(satVal.y, t, p) * overbright; }
+    if (index == 1.0) { return vec3(q, satVal.y, p) * overbright; }
+    if (index == 2.0) { return vec3(p, satVal.y, t) * overbright; }
+    if (index == 3.0) { return vec3(p, q, satVal.y) * overbright; }
+    if (index == 4.0) { return vec3(t, p, satVal.y) * overbright; }
 
-    return vec3(satVal.y, p, q);
+    return vec3(satVal.y, p, q) * overbright;
 }
 
 void main(void) {
@@ -286,64 +291,72 @@ void main(void) {
 
     vec3 finalColor = vColor.rgb * color.rgb;
 
-    // Texture alpha remap.
-    float alpha = color.a;
-
-    if (uAlphaRemapRange.x < uAlphaRemapRange.y)
-    {
-        alpha = smoothstep(uAlphaRemapRange.x, uAlphaRemapRange.y, alpha);
-    }
-
-    // Overlay the outline colour across its alpha band. Solid between Start1 and End0, feathered outside;
-    // the second smoothstep runs with its edges swapped so that it falls rather than rises.
-    if (uOutline && alpha >= uOutlineRanges.x && alpha <= uOutlineRanges.w)
-    {
-        float outlineRamp = alpha <= uOutlineRanges.z
-            ? smoothstep(uOutlineRanges.x, uOutlineRanges.z, alpha)
-            : smoothstep(uOutlineRanges.w, uOutlineRanges.y, alpha);
-
-        finalColor = mix(finalColor, uOutlineColor.rgb, outlineRamp);
-        alpha = mix(alpha, uOutlineColor.a, outlineRamp);
-    }
-
-    // Pulls the whole card toward its own luminance. Sits after the outline, so the overlay desaturates
-    // with everything else, and ahead of the hue shift, as the reference spritecard orders them.
-    finalColor = mix(finalColor, vec3(GetLuma(finalColor)), uDesaturation);
-
     if (uHsvShift != vec3(0.0, 1.0, 1.0))
     {
         finalColor = ApplyHsvShift(finalColor);
     }
 
-    // spritecard shading: brightness from diffuse+selfillum, optionally clamped before the alpha blend.
-    // Applied after the outline so the overlay colour is lit the same way the sample is.
-    finalColor = finalColor * (uOverbrightFactor * uColorFactor);
+    // Both the remap and the outline band read the raw texture alpha; only the remap's result is carried
+    // forward, so an outline lands in the same place whether or not a remap is active.
+    float rawAlpha = color.a;
+    float alpha = rawAlpha;
 
-    if (uSaturateColorPreAlphaBlend)
+    if (uAlphaRemapRange.x < uAlphaRemapRange.y)
     {
-        finalColor = saturate(finalColor);
+        alpha = smoothstep(uAlphaRemapRange.x, uAlphaRemapRange.y, rawAlpha);
     }
+
+    // Overlay the outline colour across its alpha band. Solid between Start1 and End0, feathered outside;
+    // the second smoothstep runs with its edges swapped so that it falls rather than rises.
+    if (uOutline && rawAlpha >= uOutlineRanges.x && rawAlpha <= uOutlineRanges.w)
+    {
+        float outlineRamp = rawAlpha <= uOutlineRanges.z
+            ? smoothstep(uOutlineRanges.x, uOutlineRanges.z, rawAlpha)
+            : smoothstep(uOutlineRanges.w, uOutlineRanges.y, rawAlpha);
+
+        finalColor = mix(finalColor, uOutlineColor.rgb, outlineRamp);
+        alpha = mix(alpha, uOutlineColor.a, outlineRamp);
+    }
+
+    // Pulls the whole card toward its own luminance, after the outline so the overlay desaturates with
+    // everything else.
+    finalColor = mix(finalColor, vec3(GetLuma(finalColor)), uDesaturation);
 
     alpha *= vColor.a;
 
-    // MOD2X composites like ADD. The modulate-2x in spritecard is a texture combiner inside the layer
-    // chain (SPRITECARD_TEXTURE_BLEND_MOD2X above), not a framebuffer op: every blend state the
-    // shader ships with is an Add with a One destination, so it never scales what is behind it.
-    bool isAdditive = uBlendMode == PARTICLE_OUTPUT_BLEND_MODE_ADD
-        || uBlendMode == PARTICLE_OUTPUT_BLEND_MODE_MOD2X;
-
-    // Additive contributions fade with fog density instead of tinting toward the fog color.
-    if (isAdditive)
+    if (uBlendMode == PARTICLE_OUTPUT_BLEND_MODE_MOD2X)
     {
-        finalColor *= GetFogAttenuation(vFragPosition);
+        // Modulate-2x is its own output, not an additive one: 0.5 is the neutral that leaves the
+        // destination untouched, and the vertex colour weights each channel away from grey rather than
+        // scaling it. The lighting, overbright and fog stages are all skipped on this path.
+        vec3 mod2xColor = mix(vec3(0.5), mix(vec3(0.5), finalColor, vColor.rgb), vec3(alpha));
+
+        fragColor = vec4(saturate(mod2xColor), alpha);
     }
     else
     {
-        ApplyFog(finalColor, vFragPosition);
-    }
+        // spritecard shading: brightness from diffuse+selfillum, optionally clamped before the alpha blend
+        finalColor = finalColor * (uOverbrightFactor * uColorFactor);
 
-    // Premultiplied alpha; additive keeps the color term and zeroes the blend weight.
-    fragColor = vec4(finalColor * alpha, isAdditive ? 0.0 : alpha);
+        if (uSaturateColorPreAlphaBlend)
+        {
+            finalColor = saturate(finalColor);
+        }
+
+        bool isAdditive = uBlendMode == PARTICLE_OUTPUT_BLEND_MODE_ADD;
+
+        // Additive contributions fade with fog density instead of tinting toward the fog color.
+        if (isAdditive)
+        {
+            finalColor *= GetFogAttenuation(vFragPosition);
+        }
+        else
+        {
+            ApplyFog(finalColor, vFragPosition);
+        }
+
+        fragColor = vec4(finalColor * alpha, isAdditive ? 0.0 : alpha);
+    }
 
     if (g_iRenderMode == renderMode_Color)
     {
