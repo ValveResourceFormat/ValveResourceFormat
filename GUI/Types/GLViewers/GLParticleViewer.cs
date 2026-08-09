@@ -23,6 +23,7 @@ namespace GUI.Types.GLViewers
         private ParticleSceneNode? particleSceneNode;
         private GLViewerSliderControl? slowmodeTrackBar;
         private ThemedButton? restartButton;
+        private ThemedButton? endCapButton;
         private bool ShowRenderBounds { get; set; }
 
         public GLParticleViewer(VrfGuiContext vrfGuiContext, RendererContext rendererContext, ParticleSystem particleSystem) : base(vrfGuiContext, rendererContext, Frustum.CreateEmpty())
@@ -36,6 +37,7 @@ namespace GUI.Types.GLViewers
 
             slowmodeTrackBar?.Dispose();
             restartButton?.Dispose();
+            endCapButton?.Dispose();
         }
 
         protected override void LoadScene()
@@ -94,9 +96,21 @@ namespace GUI.Types.GLViewers
                 particleSceneNode?.Restart();
             };
 
+            endCapButton = new ThemedButton
+            {
+                Text = "Play Endcap",
+                AutoSize = true,
+            };
+            endCapButton.Click += (_, _) =>
+            {
+                using var lockedGl = MakeCurrent();
+                particleSceneNode?.PlayEndCap();
+            };
+
             using (UiControl.BeginGroup("Playback"))
             {
                 UiControl.AddControl(restartButton);
+                UiControl.AddControl(endCapButton);
 
                 slowmodeTrackBar = UiControl.AddTrackBar(value =>
                 {
