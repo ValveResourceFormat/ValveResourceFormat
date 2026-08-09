@@ -427,7 +427,15 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
             GL.Enable(EnableCap.Blend);
             GL.DepthMask(false);
 
-            GL.BlendFunc(BlendingFactor.One, BlendingFactor.OneMinusSrcAlpha);
+            // Modulate-2x scales what is behind it, so it needs its own state; see RenderSprites
+            if (blendMode == ParticleBlendMode.PARTICLE_OUTPUT_BLEND_MODE_MOD2X)
+            {
+                GL.BlendFunc(BlendingFactor.DstColor, BlendingFactor.SrcColor);
+            }
+            else
+            {
+                GL.BlendFunc(BlendingFactor.One, BlendingFactor.OneMinusSrcAlpha);
+            }
 
             // Trail quads are oriented by motion direction, so either side can face the camera
             GL.Disable(EnableCap.CullFace);

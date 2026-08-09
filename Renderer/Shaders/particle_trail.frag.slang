@@ -36,26 +36,53 @@ in vec3 vFragPosition;
 
 out vec4 fragColor;
 
-// Shifts the hue and scales saturation and value, going through HSV and back. Kept identical to the
-// copy in particle_sprite.frag.slang, which is ported from the spritecard pixel shader.
-vec3 ApplyHsvShift(vec3 rgb)
+// Shifts the hue and scales saturation and value, going through HSV and back. The same conversion the
+// spritecard pixel shader rolls by hand, including the normalize and rescale that preserves overbright.
+vec3 ApplyHsvShift(vec3 sourceColor)
 {
-    vec4 k = vec4(0.0, -1.0 / 3.0, 2.0 / 3.0, -1.0);
-    vec4 p = mix(vec4(rgb.bg, k.wz), vec4(rgb.gb, k.xy), step(rgb.b, rgb.g));
-    vec4 q = mix(vec4(p.xyw, rgb.r), vec4(rgb.r, p.yzx), step(p.x, rgb.r));
+    float overbright = max(max(sourceColor.r, max(sourceColor.g, sourceColor.b)), 1.0);
+    vec3 rgb = saturate(sourceColor / overbright);
 
-    float d = q.x - min(q.w, q.y);
-    float e = 1.0e-10;
-    vec3 hsv = vec3(abs(q.z + (q.w - q.y) / ((6.0 * d) + e)), d / (q.x + e), q.x);
+    float valueMax = max(rgb.r, max(rgb.g, rgb.b));
+    float chroma = valueMax - min(rgb.r, min(rgb.g, rgb.b));
 
-    hsv.x = fract(hsv.x + uHsvShift.x);
-    hsv.y = saturate(hsv.y * uHsvShift.y);
-    hsv.z *= uHsvShift.z;
+    vec3 hsv = vec3(0.0, 0.0, valueMax);
 
-    vec4 k2 = vec4(1.0, 2.0 / 3.0, 1.0 / 3.0, 3.0);
-    vec3 p2 = abs((fract(hsv.xxx + k2.xyz) * 6.0) - k2.www);
+    if (chroma != 0.0)
+    {
+        vec3 distance = (vec3(valueMax) - rgb) / vec3(chroma);
+        vec3 delta = distance - distance.zxy;
 
-    return hsv.z * mix(k2.xxx, saturate(p2 - k2.xxx), hsv.y);
+        if (rgb.r >= valueMax)      { hsv = vec3(delta.z,       chroma / valueMax, valueMax); }
+        else if (rgb.g >= valueMax) { hsv = vec3(delta.x + 2.0, chroma / valueMax, valueMax); }
+        else                        { hsv = vec3(delta.y + 4.0, chroma / valueMax, valueMax); }
+
+        hsv.x = fract(hsv.x * (1.0 / 6.0));
+    }
+
+    float hue = fract(hsv.x + uHsvShift.x);
+    vec2 satVal = saturate(hsv.yz * uHsvShift.yz);
+
+    if (satVal.x == 0.0)
+    {
+        return vec3(satVal.y) * overbright;
+    }
+
+    float sector = hue * 6.0;
+    float index = floor(sector);
+    float f = sector - index;
+
+    float p = satVal.y * (1.0 - satVal.x);
+    float q = satVal.y * (1.0 - (satVal.x * f));
+    float t = satVal.y * (1.0 - (satVal.x * (1.0 - f)));
+
+    if (index == 0.0) { return vec3(satVal.y, t, p) * overbright; }
+    if (index == 1.0) { return vec3(q, satVal.y, p) * overbright; }
+    if (index == 2.0) { return vec3(p, satVal.y, t) * overbright; }
+    if (index == 3.0) { return vec3(p, q, satVal.y) * overbright; }
+    if (index == 4.0) { return vec3(t, p, satVal.y) * overbright; }
+
+    return vec3(satVal.y, p, q) * overbright;
 }
 
 void main(void) {
@@ -79,6 +106,11 @@ void main(void) {
 
     vec3 finalColor = vColor.rgb * color.rgb;
 
+    if (uHsvShift != vec3(0.0, 1.0, 1.0))
+    {
+        finalColor = ApplyHsvShift(finalColor);
+    }
+
     float alpha = color.a;
 
     if (uAlphaRemapRange.x < uAlphaRemapRange.y)
@@ -88,36 +120,38 @@ void main(void) {
 
     finalColor = mix(finalColor, vec3(GetLuma(finalColor)), uDesaturation);
 
-    if (uHsvShift != vec3(0.0, 1.0, 1.0))
-    {
-        finalColor = ApplyHsvShift(finalColor);
-    }
-
-    finalColor = finalColor * (uOverbrightFactor * uColorFactor);
-
-    if (uSaturateColorPreAlphaBlend)
-    {
-        finalColor = saturate(finalColor);
-    }
-
     alpha *= vColor.a;
 
-    // MOD2X composites like ADD -- see the note in particle_sprite.frag.slang.
-    bool isAdditive = uBlendMode == PARTICLE_OUTPUT_BLEND_MODE_ADD
-        || uBlendMode == PARTICLE_OUTPUT_BLEND_MODE_MOD2X;
-
-    // Additive contributions fade with fog density instead of tinting toward the fog color.
-    if (isAdditive)
+    if (uBlendMode == PARTICLE_OUTPUT_BLEND_MODE_MOD2X)
     {
-        finalColor *= GetFogAttenuation(vFragPosition);
+        // Its own output path, neutral at 0.5 -- see the note in particle_sprite.frag.slang.
+        vec3 mod2xColor = mix(vec3(0.5), mix(vec3(0.5), finalColor, vColor.rgb), vec3(alpha));
+
+        fragColor = vec4(saturate(mod2xColor), alpha);
     }
     else
     {
-        ApplyFog(finalColor, vFragPosition);
-    }
+        finalColor = finalColor * (uOverbrightFactor * uColorFactor);
 
-    // Premultiplied alpha; additive keeps the color term and zeroes the blend weight.
-    fragColor = vec4(finalColor * alpha, isAdditive ? 0.0 : alpha);
+        if (uSaturateColorPreAlphaBlend)
+        {
+            finalColor = saturate(finalColor);
+        }
+
+        bool isAdditive = uBlendMode == PARTICLE_OUTPUT_BLEND_MODE_ADD;
+
+        // Additive contributions fade with fog density instead of tinting toward the fog color.
+        if (isAdditive)
+        {
+            finalColor *= GetFogAttenuation(vFragPosition);
+        }
+        else
+        {
+            ApplyFog(finalColor, vFragPosition);
+        }
+
+        fragColor = vec4(finalColor * alpha, isAdditive ? 0.0 : alpha);
+    }
 
     if (g_iRenderMode == renderMode_Color)
     {

@@ -610,7 +610,17 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
             // stop depth writes here; otherwise sprites are opaque. The cable renderer instead draws opaque with depth writes.
             GL.Enable(EnableCap.Blend);
             GL.DepthMask(false);
-            GL.BlendFunc(BlendingFactor.One, BlendingFactor.OneMinusSrcAlpha);
+
+            // Modulate-2x scales what is behind it, so it needs its own state; everything else composites
+            // premultiplied, with the additive path having zeroed its own alpha in the shader.
+            if (blendMode == ParticleBlendMode.PARTICLE_OUTPUT_BLEND_MODE_MOD2X)
+            {
+                GL.BlendFunc(BlendingFactor.DstColor, BlendingFactor.SrcColor);
+            }
+            else
+            {
+                GL.BlendFunc(BlendingFactor.One, BlendingFactor.OneMinusSrcAlpha);
+            }
 
             GL.Disable(EnableCap.CullFace);
 
