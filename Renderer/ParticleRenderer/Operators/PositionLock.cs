@@ -89,7 +89,7 @@ namespace ValveResourceFormat.Renderer.Particles.Operators
 
             // A jump beyond the threshold teleports particles with the transform at full strength;
             // the squared delta is tested against the raw threshold value
-            var instantJump = delta.LengthSquared() > instantJumpThreshold;
+            var instantJump = instantJumpThreshold != 0f && delta.LengthSquared() > instantJumpThreshold;
 
             if (delta == Vector3.Zero && !lockRotation)
             {
@@ -104,7 +104,7 @@ namespace ValveResourceFormat.Renderer.Particles.Operators
 
             foreach (ref var particle in particles.Current)
             {
-                var lockStrength = strength;
+                var timeFade = 1f;
 
                 if (!alwaysLocked)
                 {
@@ -112,15 +112,17 @@ namespace ValveResourceFormat.Renderer.Particles.Operators
                     var endTime = ParticleRandom.ForSampleWithExponentBetween(particle.ParticleId, endTimeExp, endTimeMin, endTimeMax);
 
                     // Fully locked until startTime, fading the lock out until endTime, using normalized lifetime
-                    lockStrength *= particle.NormalizedAge <= startTime
+                    timeFade = particle.NormalizedAge <= startTime
                         ? 1f
                         : 1f - MathUtils.Saturate(MathUtils.Remap(particle.NormalizedAge, startTime, endTime));
+
+                    if (instantJump)
+                    {
+                        timeFade = 1f;
+                    }
                 }
 
-                if (instantJump)
-                {
-                    lockStrength = strength;
-                }
+                var lockStrength = strength * timeFade;
 
                 if (lockStrength <= 0f)
                 {
@@ -136,7 +138,10 @@ namespace ValveResourceFormat.Renderer.Particles.Operators
                     : 1f;
 
                 var scaledDelta = delta * scale * (creationFraction * lockStrength);
-                var rotationLockStrength = lockStrength;
+
+                // The always-locked loop weights the rotation by operator strength where the fading one
+                // weights it by the time fade alone
+                var rotationLockStrength = alwaysLocked ? strength : timeFade;
 
                 if (fadeRange > 0f)
                 {
@@ -146,7 +151,7 @@ namespace ValveResourceFormat.Renderer.Particles.Operators
                     var fade = NumericBias.Standard(normalizedDistance, bias);
 
                     scaledDelta *= 1f - fade;
-                    rotationLockStrength = 1f - (fade * lockStrength);
+                    rotationLockStrength = 1f - (fade * rotationLockStrength);
                 }
 
                 if (lockRotation)
