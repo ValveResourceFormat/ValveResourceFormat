@@ -1,3 +1,5 @@
+using ValveResourceFormat.Renderer.Particles.Utils;
+
 namespace ValveResourceFormat.Renderer.Particles.Initializers
 {
     /// <summary>
@@ -53,8 +55,8 @@ namespace ValveResourceFormat.Renderer.Particles.Initializers
                 // A non-zero authored seed drives a counter private to this initializer, leaving the
                 // system's shared draw sequence untouched
                 var fraction = randomSeed != 0
-                    ? ParticleCollection.RandomSingle(particleSystemState.RandomSeed + randomSeed + randomCounter++)
-                    : particleSystemState.NextRandom();
+                    ? ParticleRandom.ForSample(particleSystemState.Random.Seed + randomSeed + randomCounter++)
+                    : particleSystemState.Random.Next();
                 index = Math.Clamp((int)(count * fraction), 0, count - 1);
                 runningIndex = index;
             }

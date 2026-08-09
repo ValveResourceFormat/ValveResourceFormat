@@ -29,9 +29,9 @@ namespace ValveResourceFormat.Renderer.Particles.Initializers
 
         public override Particle Initialize(ref Particle particle, ParticleCollection particles, ParticleSystemRenderState particleSystemState)
         {
-            var value = float.DegreesToRadians(degrees + particleSystemState.NextRandomWithExponentBetween(randomExponent, degreesMin, degreesMax));
+            var value = float.DegreesToRadians(degrees + particleSystemState.Random.NextWithExponentBetween(randomExponent, degreesMin, degreesMax));
 
-            if (randomlyFlipDirection && particleSystemState.NextRandom() < 0.5f)
+            if (randomlyFlipDirection && particleSystemState.Random.Next() < 0.5f)
             {
                 value *= -1;
             }

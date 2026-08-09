@@ -55,16 +55,16 @@ namespace ValveResourceFormat.Renderer.Particles.Operators
                     ? particle.NormalizedAge
                     : particle.Age;
 
-                var startTime = particleSystemState.RandomForParticleBetween(particle.ParticleID, StartTimeOffset, startTimeMin, startTimeMax);
-                var endTime = particleSystemState.RandomForParticleBetween(particle.ParticleID, EndTimeOffset, endTimeMin, endTimeMax);
+                var startTime = particleSystemState.Random.ForParticleBetween(particle.ParticleId, StartTimeOffset, startTimeMin, startTimeMax);
+                var endTime = particleSystemState.Random.ForParticleBetween(particle.ParticleId, EndTimeOffset, endTimeMin, endTimeMax);
 
                 if (windowTime < startTime || windowTime >= endTime)
                 {
                     continue;
                 }
 
-                var frequency = particleSystemState.RandomForParticleBetween(particle.ParticleID, FrequencyOffset, frequencyMin, frequencyMax);
-                var rate = particleSystemState.RandomForParticleBetween(particle.ParticleID, RateOffset, rateMin, rateMax);
+                var frequency = particleSystemState.Random.ForParticleBetween(particle.ParticleId, FrequencyOffset, frequencyMin, frequencyMax);
+                var rate = particleSystemState.Random.ForParticleBetween(particle.ParticleId, RateOffset, rateMin, rateMax);
 
                 var t = proportional
                     ? particle.NormalizedAge

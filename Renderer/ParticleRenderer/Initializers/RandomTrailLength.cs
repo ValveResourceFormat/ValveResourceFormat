@@ -17,7 +17,7 @@ namespace ValveResourceFormat.Renderer.Particles.Initializers
 
         public override Particle Initialize(ref Particle particle, ParticleCollection particles, ParticleSystemRenderState particleSystemState)
         {
-            particle.TrailLength = particleSystemState.NextRandomBetween(minLength, maxLength);
+            particle.TrailLength = particleSystemState.Random.NextBetween(minLength, maxLength);
 
             return particle;
         }

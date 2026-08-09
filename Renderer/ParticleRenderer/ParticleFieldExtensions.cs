@@ -90,7 +90,7 @@ namespace ValveResourceFormat.Renderer.Particles
                 ParticleField.CreationTime => particle.CreationTime,
                 ParticleField.LifeDuration => particle.Lifetime,
                 ParticleField.Yaw => particle.Rotation.X,
-                ParticleField.ParticleId => particle.ParticleID,
+                ParticleField.ParticleId => particle.ParticleId,
                 ParticleField.Pitch => particle.Rotation.Y,
                 ParticleField.Roll => particle.Rotation.Z,
                 ParticleField.RollSpeed => particle.RotationSpeed.Z,
@@ -148,7 +148,7 @@ namespace ValveResourceFormat.Renderer.Particles
                     particle.ManualAnimationFrame = (int)value;
                     break;
                 case ParticleField.ParticleId:
-                    particle.ParticleID = (int)value;
+                    particle.ParticleId = (int)value;
                     break;
                 case ParticleField.ParentParticleIndex:
                     particle.ParentParticleIndex = (int)value;
@@ -189,7 +189,7 @@ namespace ValveResourceFormat.Renderer.Particles
                 ParticleField.ParentParticleIndex => particle.ParentParticleIndex,
                 ParticleField.ParentParticleId => particle.ParentParticleId,
                 ParticleField.RopeSegmentId => particle.RopeSegmentId,
-                ParticleField.ParticleId => particle.ParticleID,
+                ParticleField.ParticleId => particle.ParticleId,
                 _ => 0,
             };
         }

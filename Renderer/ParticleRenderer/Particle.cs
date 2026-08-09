@@ -21,14 +21,14 @@ namespace ValveResourceFormat.Renderer.Particles
         /// </summary>
         /// <remarks>
         /// The engine calls this <c>m_nUniqueParticleId</c>. Despite the name it is a plain counter,
-        /// and it is <b>not</b> the engine's particle id attribute, which is <see cref="ParticleID"/>.
+        /// and it is <b>not</b> the engine's particle id attribute, which is <see cref="ParticleId"/>.
         /// </remarks>
         public int UniqueParticleId { get; set; }
 
         /// <summary>
         /// Gets or sets <b>the particle's identity for deterministic randomness</b>: its
         /// <see cref="UniqueParticleId"/> displaced by the owning system's
-        /// <see cref="ParticleSystemRenderState.RandomSeed"/>. Every random draw that must stay
+        /// <see cref="Utils.ParticleRandom.Seed"/>. Every random draw that must stay
         /// constant for a particle over its life is indexed from this, and the seed is what makes two
         /// instances of one effect draw differently. Never use it to order particles: the seed makes
         /// it an arbitrary large number, not a position.
@@ -38,7 +38,7 @@ namespace ValveResourceFormat.Renderer.Particles
         /// reads, not its <c>m_nUniqueParticleId</c> counter, which is
         /// <see cref="UniqueParticleId"/>.
         /// </remarks>
-        public int ParticleID { get; set; }
+        public int ParticleId { get; set; }
 
         // Varying properties (read from initializers but then change afterwards)
         /// <summary>Gets or sets the current world-space position of the particle.</summary>
@@ -132,7 +132,7 @@ namespace ValveResourceFormat.Renderer.Particles
         public int ParentParticleIndex { get; set; } = -1;
 
         /// <summary>
-        /// Gets or sets the <see cref="ParticleID"/> of the parent particle this particle was created
+        /// Gets or sets the <see cref="ParticleId"/> of the parent particle this particle was created
         /// from, or -1 when it has no parent. Unlike <see cref="ParentParticleIndex"/> this survives the
         /// parent collection compacting around dead particles.
         /// </summary>

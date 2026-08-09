@@ -44,7 +44,7 @@ namespace ValveResourceFormat.Renderer.Particles.PreEmissionOperators
             {
                 rotationResolved = true;
                 resolvedRotation = randomize
-                    ? particleSystemState.NextRandomBetweenPerComponent(rotation, rotationB)
+                    ? particleSystemState.Random.NextBetweenPerComponent(rotation, rotationB)
                     : rotation;
             }
 

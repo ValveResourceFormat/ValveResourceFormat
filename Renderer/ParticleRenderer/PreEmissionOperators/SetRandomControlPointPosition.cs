@@ -54,7 +54,7 @@ namespace ValveResourceFormat.Renderer.Particles.PreEmissionOperators
             {
                 initialised = true;
                 lastDrawTime = float.MinValue;
-                currentPosition = particleSystemState.NextRandomBetweenPerComponent(minPos, maxPos);
+                currentPosition = particleSystemState.Random.NextBetweenPerComponent(minPos, maxPos);
             }
 
             // Both inputs are sampled before the gate so their draws stay in step whether or not it fires
@@ -70,7 +70,7 @@ namespace ValveResourceFormat.Renderer.Particles.PreEmissionOperators
 
             if (particleSystemState.Age >= lastDrawTime + rate)
             {
-                currentPosition = particleSystemState.NextRandomBetweenPerComponent(minPos, maxPos);
+                currentPosition = particleSystemState.Random.NextBetweenPerComponent(minPos, maxPos);
                 lastDrawTime = rate < 0f ? float.MaxValue : particleSystemState.Age;
             }
 

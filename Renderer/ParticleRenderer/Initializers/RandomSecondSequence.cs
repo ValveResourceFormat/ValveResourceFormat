@@ -18,7 +18,7 @@ namespace ValveResourceFormat.Renderer.Particles.Initializers
 
         public override Particle Initialize(ref Particle particle, ParticleCollection particles, ParticleSystemRenderState particleSystemState)
         {
-            var sample = particleSystemState.NextRandom();
+            var sample = particleSystemState.Random.Next();
 
             particle.Sequence2 = sequenceMax > sequenceMin
                 ? Math.Min(sequenceMin + (int)(sample * (sequenceMax - sequenceMin + 1)), sequenceMax)

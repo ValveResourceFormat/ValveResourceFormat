@@ -47,7 +47,7 @@ namespace ValveResourceFormat.Renderer.Particles.Initializers
             // The speed range is a per-component world space box added on top, not a multiplier
             if (speedmin != 0f || speedmax != 0f)
             {
-                velocity += particleSystemState.NextRandomBetweenPerComponent(
+                velocity += particleSystemState.Random.NextBetweenPerComponent(
                     new Vector3(speedmin),
                     new Vector3(speedmax));
             }

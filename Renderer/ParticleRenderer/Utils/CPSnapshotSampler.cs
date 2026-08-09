@@ -22,8 +22,8 @@ namespace ValveResourceFormat.Renderer.Particles.Utils
             if (random)
             {
                 var sample = randomSeed != 0
-                    ? ParticleCollection.RandomSingle(particleSystemState.RandomSeed + randomSeed + privateSampleCounter++)
-                    : particleSystemState.NextRandom();
+                    ? ParticleRandom.ForSample(particleSystemState.Random.Seed + randomSeed + privateSampleCounter++)
+                    : particleSystemState.Random.Next();
 
                 // Sampling (int)(n * rand01) keeps the last element reachable; the table tops out below 1.0
                 // so the Min only guards against that changing.

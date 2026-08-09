@@ -79,8 +79,8 @@ namespace ValveResourceFormat.Renderer.Particles.Initializers
         /// </summary>
         protected static Vector3 SampleUnitSphereDirection(ParticleSystemRenderState particleSystemState)
         {
-            var cosPolar = particleSystemState.NextRandomBetween(-1f, 1f);
-            var azimuth = particleSystemState.NextRandomBetween(0f, MathF.Tau);
+            var cosPolar = particleSystemState.Random.NextBetween(-1f, 1f);
+            var azimuth = particleSystemState.Random.NextBetween(0f, MathF.Tau);
             var sinPolar = MathF.Sqrt(MathF.Max(0f, 1f - (cosPolar * cosPolar)));
             var (sin, cos) = MathF.SinCos(azimuth);
 
@@ -115,17 +115,17 @@ namespace ValveResourceFormat.Renderer.Particles.Initializers
 
             var biasedDirection = Vector3.Normalize(randomVector * bias);
 
-            var distance = particleSystemState.NextRandomWithExponentBetween(
+            var distance = particleSystemState.Random.NextWithExponentBetween(
                 1f / 3f,
                 radiusMin.NextNumber(ref particle, particleSystemState),
                 radiusMax.NextNumber(ref particle, particleSystemState));
 
-            var speed = particleSystemState.NextRandomWithExponentBetween(
+            var speed = particleSystemState.Random.NextWithExponentBetween(
                 speedRandExp,
                 speedMin.NextNumber(ref particle, particleSystemState),
                 speedMax.NextNumber(ref particle, particleSystemState));
 
-            var localCoordinateSystemSpeed = particleSystemState.NextRandomBetweenPerComponent(
+            var localCoordinateSystemSpeed = particleSystemState.Random.NextBetweenPerComponent(
                 localCoordinateSystemSpeedMin.NextVector(ref particle, particleSystemState),
                 localCoordinateSystemSpeedMax.NextVector(ref particle, particleSystemState));
 

@@ -60,8 +60,8 @@ namespace ValveResourceFormat.Renderer.Particles.Operators
                 if (hasTimeWindow)
                 {
                     var time = proportional ? particle.NormalizedAge : particle.Age;
-                    var startTime = particleSystemState.RandomForParticleBetween(particle.ParticleID, StartTimeOffset, startTimeMin, startTimeMax);
-                    var endTime = particleSystemState.RandomForParticleBetween(particle.ParticleID, EndTimeOffset, endTimeMin, endTimeMax);
+                    var startTime = particleSystemState.Random.ForParticleBetween(particle.ParticleId, StartTimeOffset, startTimeMin, startTimeMax);
+                    var endTime = particleSystemState.Random.ForParticleBetween(particle.ParticleId, EndTimeOffset, endTimeMin, endTimeMax);
 
                     if (time < startTime || time >= endTime)
                     {
@@ -69,7 +69,7 @@ namespace ValveResourceFormat.Renderer.Particles.Operators
                     }
                 }
 
-                var rate = particleSystemState.RandomForParticleBetween(particle.ParticleID, RateOffset, rateMin, rateMax);
+                var rate = particleSystemState.Random.ForParticleBetween(particle.ParticleId, RateOffset, rateMin, rateMax);
                 var value = particle.GetScalar(field) + (rate * frameTime * strength);
 
                 particle.SetScalar(field, Math.Clamp(value, clampMin, clampMax));

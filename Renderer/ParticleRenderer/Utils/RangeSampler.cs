@@ -49,10 +49,10 @@ namespace ValveResourceFormat.Renderer.Particles.Utils
         {
             if (!distributeEvenly)
             {
-                return particleSystemState.NextRandomBetweenPerComponent(min, max);
+                return particleSystemState.Random.NextBetweenPerComponent(min, max);
             }
 
-            var start = seed < 0 ? seed + particleSystemState.RandomSeed : seed;
+            var start = seed < 0 ? seed + particleSystemState.Random.Seed : seed;
             var index = (start + particle.UniqueParticleId) & 0x7FFFFFFF;
 
             var fractions = new Vector3(

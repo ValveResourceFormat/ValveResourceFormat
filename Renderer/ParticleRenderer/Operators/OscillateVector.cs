@@ -58,14 +58,14 @@ namespace ValveResourceFormat.Renderer.Particles.Operators
             foreach (ref var particle in particles.Current)
             {
                 var rate = new Vector3(
-                    particleSystemState.RandomForParticleBetween(particle.ParticleID, RateOffsetX, RateMin.X, RateMax.X),
-                    particleSystemState.RandomForParticleBetween(particle.ParticleID, RateOffsetY, RateMin.Y, RateMax.Y),
-                    particleSystemState.RandomForParticleBetween(particle.ParticleID, RateOffsetZ, RateMin.Z, RateMax.Z));
+                    particleSystemState.Random.ForParticleBetween(particle.ParticleId, RateOffsetX, RateMin.X, RateMax.X),
+                    particleSystemState.Random.ForParticleBetween(particle.ParticleId, RateOffsetY, RateMin.Y, RateMax.Y),
+                    particleSystemState.Random.ForParticleBetween(particle.ParticleId, RateOffsetZ, RateMin.Z, RateMax.Z));
 
                 var frequency = new Vector3(
-                    particleSystemState.RandomForParticleBetween(particle.ParticleID, FrequencyOffsetX, FrequencyMin.X, FrequencyMax.X),
-                    particleSystemState.RandomForParticleBetween(particle.ParticleID, FrequencyOffsetY, FrequencyMin.Y, FrequencyMax.Y),
-                    particleSystemState.RandomForParticleBetween(particle.ParticleID, FrequencyOffsetZ, FrequencyMin.Z, FrequencyMax.Z));
+                    particleSystemState.Random.ForParticleBetween(particle.ParticleId, FrequencyOffsetX, FrequencyMin.X, FrequencyMax.X),
+                    particleSystemState.Random.ForParticleBetween(particle.ParticleId, FrequencyOffsetY, FrequencyMin.Y, FrequencyMax.Y),
+                    particleSystemState.Random.ForParticleBetween(particle.ParticleId, FrequencyOffsetZ, FrequencyMin.Z, FrequencyMax.Z));
 
                 var t = proportional
                     ? particle.NormalizedAge
@@ -73,8 +73,8 @@ namespace ValveResourceFormat.Renderer.Particles.Operators
 
                 if (particleSystemState.Data?.BehaviorVersion == 10)
                 {
-                    var startTime = particleSystemState.RandomForParticleBetween(particle.ParticleID, StartTimeOffset, startTimeMin, startTimeMax);
-                    var endTime = particleSystemState.RandomForParticleBetween(particle.ParticleID, EndTimeOffset, endTimeMin, endTimeMax);
+                    var startTime = particleSystemState.Random.ForParticleBetween(particle.ParticleId, StartTimeOffset, startTimeMin, startTimeMax);
+                    var endTime = particleSystemState.Random.ForParticleBetween(particle.ParticleId, EndTimeOffset, endTimeMin, endTimeMax);
 
                     // The randomized window bounds can come out inverted.
                     t = Math.Clamp(t, Math.Min(startTime, endTime), Math.Max(startTime, endTime));
