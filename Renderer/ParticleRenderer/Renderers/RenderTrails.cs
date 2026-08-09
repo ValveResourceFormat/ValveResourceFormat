@@ -207,11 +207,9 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
             var startFadeSlope = startFadeSize.NextNumber(systemRenderState);
             var endFadeSlope = endFadeSize.NextNumber(systemRenderState);
 
-            // The shader fades by view angle in every mode, not just the normal-aligned one; the
+            // The shader fades by view angle in every mode and outside the fade-and-clamp gate; the
             // defaults of (1, 2) put the smoothstep past its own range, which is what makes it inert.
-            var viewAngleFadeActive = enableFadingAndClamping
-                && startFadeDot < 1f
-                && endFadeDot > startFadeDot;
+            var viewAngleFadeActive = startFadeDot < 1f && endFadeDot > startFadeDot;
 
             var rawVertices = ArrayPool<float>.Shared.Rent(particleBag.Count * VertexSize * 4);
             var quadCount = 0;
@@ -268,22 +266,22 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
                         }
 
                         particleRadius = MathF.Min(MathF.Max(particleRadius, minSize * cameraDistance), maxSize * cameraDistance);
+                    }
 
-                        if (viewAngleFadeActive)
+                    if (viewAngleFadeActive)
+                    {
+                        var toCamera = camera.Location - particle.Position;
+
+                        if (toCamera.LengthSquared() > Epsilon.LengthSquared)
                         {
-                            var toCamera = camera.Location - particle.Position;
+                            // Only the normal-aligned mode has a normal to face with; the others
+                            // substitute the direction the ribbon runs in.
+                            var facingAxis = orientationType == ParticleOrientation.PARTICLE_ORIENTATION_ALIGN_TO_PARTICLE_NORMAL
+                                ? particle.Normal
+                                : direction;
 
-                            if (toCamera.LengthSquared() > Epsilon.LengthSquared)
-                            {
-                                // Only the normal-aligned mode has a normal to face with; the others
-                                // substitute the direction the ribbon runs in.
-                                var facingAxis = orientationType == ParticleOrientation.PARTICLE_ORIENTATION_ALIGN_TO_PARTICLE_NORMAL
-                                    ? particle.Normal
-                                    : direction;
-
-                                var facing = MathF.Abs(Vector3.Dot(Vector3.Normalize(facingAxis), Vector3.Normalize(toCamera)));
-                                alphaFade = 1f - MathUtils.Smoothstep(startFadeDot, endFadeDot, facing);
-                            }
+                            var facing = MathF.Abs(Vector3.Dot(Vector3.Normalize(facingAxis), Vector3.Normalize(toCamera)));
+                            alphaFade = 1f - MathUtils.Smoothstep(startFadeDot, endFadeDot, facing);
                         }
                     }
 
@@ -298,10 +296,10 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
                     {
                         ParticleOrientation.PARTICLE_ORIENTATION_ALIGN_TO_PARTICLE_NORMAL => particle.Normal,
                         ParticleOrientation.PARTICLE_ORIENTATION_WORLD_Z_ALIGNED => Vector3.UnitZ,
-                        _ => position - camera.Location,
+                        _ => camera.Location - position,
                     };
 
-                    var widthAxis = Vector3.Cross(planeNormal, direction);
+                    var widthAxis = Vector3.Cross(direction, planeNormal);
                     widthAxis = widthAxis.LengthSquared() > Epsilon.LengthSquared
                         ? Vector3.Normalize(widthAxis)
                         : Vector3.Normalize(Vector3.Cross(direction, MathF.Abs(direction.Z) < 0.999f ? Vector3.UnitZ : Vector3.UnitX));
