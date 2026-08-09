@@ -79,12 +79,10 @@ namespace ValveResourceFormat.Renderer
         public Rubikon? PhysicsWorld { get; set; }
 
         /// <summary>
-        /// Gets the entity context for this scene, created on first use. Simulated entities live here and
-        /// are ticked by <see cref="Update"/> before the scene nodes are updated.
+        /// Gets the entity context for this scene. Simulated entities live here and are ticked by
+        /// <see cref="Update"/> before the scene nodes are updated.
         /// </summary>
-        public EntitySystem EntitySystem => entitySystem ??= new EntitySystem(this);
-
-        private EntitySystem? entitySystem;
+        public EntitySystem EntitySystem { get; }
 
         /// <summary>Gets or sets the voxel visibility data.</summary>
         public VoxelVisibility? VoxelVisibility { get; set; }
@@ -209,6 +207,7 @@ namespace ValveResourceFormat.Renderer
 
             LightingInfo = new(this);
             LightBinner = new(this);
+            EntitySystem = new(this);
         }
 
         /// <summary>
@@ -324,7 +323,7 @@ namespace ValveResourceFormat.Renderer
             }
             staticNodes.Clear();
 
-            entitySystem?.Clear();
+            EntitySystem.Clear();
 
             StaticOctree.Clear();
             DynamicOctree.Clear();
@@ -419,7 +418,7 @@ namespace ValveResourceFormat.Renderer
         public void Update(Scene.UpdateContext updateContext)
         {
             // Entities simulate on their own fixed tick, then their scene nodes pick the result up below
-            entitySystem?.Update(updateContext.Timestep);
+            EntitySystem.Update(updateContext.Timestep);
 
             foreach (var node in staticNodes)
             {

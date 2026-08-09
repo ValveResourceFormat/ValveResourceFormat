@@ -58,23 +58,13 @@ internal static class EntityInputTable
     /// <returns><see langword="true"/> when a handler ran.</returns>
     public static bool TryDispatch(BaseEntity entity, string inputName, EntityInputData data)
     {
-        // Walking up covers an entity class that subclasses a registered one without registering itself
-        for (var type = entity.GetType(); type != null; type = type.BaseType)
+        // A class's table already carries the inputs it inherited, so its own entry is the whole answer
+        if (!Tables.TryGetValue(entity.GetType(), out var table) || !table.TryGetValue(inputName, out var handler))
         {
-            if (!Tables.TryGetValue(type, out var table))
-            {
-                continue;
-            }
-
-            if (!table.TryGetValue(inputName, out var handler))
-            {
-                return false;
-            }
-
-            handler(entity, data);
-            return true;
+            return false;
         }
 
-        return false;
+        handler(entity, data);
+        return true;
     }
 }

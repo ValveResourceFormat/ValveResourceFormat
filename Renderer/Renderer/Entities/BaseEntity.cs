@@ -16,13 +16,6 @@ namespace ValveResourceFormat.Renderer.Entities;
 public readonly record struct EntitySpawnInfo(Entity Data, Matrix4x4 ParentTransform, string? LayerName);
 
 /// <summary>
-/// A scene node an entity spawned and drives, and where it sits in the entity's own frame.
-/// </summary>
-/// <param name="Node">The scene node.</param>
-/// <param name="LocalTransform">The node's transform relative to the entity.</param>
-public readonly record struct EntityChild(SceneNode Node, Matrix4x4 LocalTransform);
-
-/// <summary>
 /// The base of the simulated entity hierarchy, Source's <c>CBaseEntity</c>. An entity <i>is</i> the scene
 /// node for the thing it represents: it carries the origin and angles, ticks inside
 /// <see cref="EntitySystem"/>, and owns the renderable nodes (model, physics hulls) it spawned as children.
@@ -77,23 +70,15 @@ public class BaseEntity : SceneNode
     /// <summary>Gets or sets the origin. Setting it rebuilds <see cref="SceneNode.Transform"/>.</summary>
     public Vector3 Origin
     {
-        get;
-        set
-        {
-            field = value;
-            UpdateTransform();
-        }
+        get => origin;
+        set => SetOriginAndAngles(value, angles);
     }
 
     /// <summary>Gets or sets the orientation as a QAngle (pitch, yaw, roll) in degrees. Setting it rebuilds <see cref="SceneNode.Transform"/>.</summary>
     public Vector3 Angles
     {
-        get;
-        set
-        {
-            field = value;
-            UpdateTransform();
-        }
+        get => angles;
+        set => SetOriginAndAngles(origin, value);
     }
 
     /// <summary>Gets or sets the linear velocity in units per second.</summary>
@@ -144,13 +129,13 @@ public class BaseEntity : SceneNode
     public IReadOnlyCollection<BaseEntity> TouchingEntities => touching;
 
     private readonly HashSet<BaseEntity> touching = [];
-    private readonly List<EntityChild> children = [];
+    private Vector3 origin;
+    private Vector3 angles;
+    private bool transformDirty = true;
+    private readonly List<(SceneNode Node, Matrix4x4 LocalTransform)> children = [];
     private Vector3 previousOrigin;
     private Vector3 previousAngles;
     private bool isInterpolating;
-
-    /// <summary>Gets the scene nodes this entity spawned and drives.</summary>
-    public IReadOnlyList<EntityChild> Children => children;
 
     /// <summary>
     /// Initializes the entity from its keyvalues, reading the properties every entity has.
@@ -172,10 +157,10 @@ public class BaseEntity : SceneNode
 
         ModelName = data.GetStringProperty("model");
 
-        Origin = data.GetVector3Property("origin");
-        Angles = data.GetVector3Property("angles");
-        previousOrigin = Origin;
-        previousAngles = Angles;
+        origin = data.GetVector3Property("origin");
+        angles = data.GetVector3Property("angles");
+        previousOrigin = origin;
+        previousAngles = angles;
 
         EntityData = Data;
         LayerName = spawnInfo.LayerName;
@@ -407,11 +392,30 @@ public class BaseEntity : SceneNode
             return;
         }
 
-        var origin = Origin + Velocity * tickInterval;
         var angles = Angles + AngularVelocity * tickInterval;
 
-        Origin = origin;
-        Angles = new Vector3(AngleMod(angles.X), AngleMod(angles.Y), AngleMod(angles.Z));
+        SetOriginAndAngles(
+            Origin + Velocity * tickInterval,
+            new Vector3(AngleMod(angles.X), AngleMod(angles.Y), AngleMod(angles.Z)));
+    }
+
+    /// <summary>
+    /// Moves and turns in one go, so a tick's movement rebuilds the transform once rather than once per
+    /// property, and an unchanged write costs nothing.
+    /// </summary>
+    /// <param name="newOrigin">The new origin.</param>
+    /// <param name="newAngles">The new angles.</param>
+    protected void SetOriginAndAngles(Vector3 newOrigin, Vector3 newAngles)
+    {
+        if (origin == newOrigin && angles == newAngles)
+        {
+            return;
+        }
+
+        origin = newOrigin;
+        angles = newAngles;
+
+        UpdateTransform();
     }
 
     /// <inheritdoc/>
@@ -426,11 +430,19 @@ public class BaseEntity : SceneNode
             isInterpolating = hasMoved;
         }
 
+        // A still entity's children are already where they belong, so only a moved transform is pushed down
+        var moveChildren = transformDirty;
+        transformDirty = false;
+
         foreach (var (node, localTransform) in children)
         {
             var oldBounds = node.BoundingBox;
 
-            node.Transform = localTransform * Transform;
+            if (moveChildren)
+            {
+                node.Transform = localTransform * Transform;
+            }
+
             node.Update(context);
 
             if (node.LayerEnabled && !oldBounds.Equals(node.BoundingBox))
@@ -467,19 +479,10 @@ public class BaseEntity : SceneNode
             return null;
         }
 
-        // rendercolor might sometimes be vec4, which holds renderamt
-        var renderColor = Data?.GetColor32Property("rendercolor") ?? Vector3.One;
-        var renderAmount = Data?.GetFloatProperty("renderamt", 1.0f) ?? 1.0f;
-
-        if (renderAmount > 1f)
-        {
-            renderAmount /= 255f;
-        }
-
         var modelNode = new ModelSceneNode(Scene, model, Data?.GetStringProperty("skin"))
         {
             Name = modelName,
-            Tint = new Vector4(renderColor, renderAmount),
+            Tint = Data?.GetRenderTint() ?? Vector4.One,
         };
 
         var hasMeshes = modelNode.HasMeshes;
@@ -518,7 +521,7 @@ public class BaseEntity : SceneNode
         node.LayerName = LayerName;
         node.Transform = local * Transform;
 
-        children.Add(new EntityChild(node, local));
+        children.Add((node, local));
         Scene.Add(node, dynamic: true);
     }
 
@@ -592,6 +595,8 @@ public class BaseEntity : SceneNode
             * Matrix4x4.CreateFromQuaternion(rotation)
             * Matrix4x4.CreateTranslation(origin)
             * ParentTransform;
+
+        transformDirty = true;
     }
 
     /// <summary>
@@ -613,6 +618,8 @@ public class BaseEntity : SceneNode
             * EntityTransformHelper.CreateRotationMatrixFromEulerAngles(angles)
             * Matrix4x4.CreateTranslation(origin)
             * ParentTransform;
+
+        transformDirty = true;
     }
 
     /// <summary>
@@ -622,14 +629,4 @@ public class BaseEntity : SceneNode
     /// <param name="degrees">The angle in degrees.</param>
     public static float AngleMod(float degrees)
         => 360f / 65536f * ((int)(degrees * (65536f / 360f)) & 65535);
-
-    /// <summary>Reads one component of a QAngle by index: 0 pitch, 1 yaw, 2 roll.</summary>
-    /// <param name="angles">The angles to read from.</param>
-    /// <param name="axis">The component index.</param>
-    protected static float GetAngleAxis(Vector3 angles, int axis) => axis switch
-    {
-        0 => angles.X,
-        1 => angles.Y,
-        _ => angles.Z,
-    };
 }

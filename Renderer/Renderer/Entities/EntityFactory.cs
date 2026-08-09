@@ -30,9 +30,6 @@ public static class EntityFactory
         Register<TriggerTeleport>("trigger_teleport", static (system, spawnInfo) => new TriggerTeleport(system, spawnInfo));
     }
 
-    /// <summary>Gets the classnames the entity system implements.</summary>
-    public static IReadOnlyCollection<string> RegisteredClassnames => Creators.Keys;
-
     /// <summary>
     /// Whether this classname is simulated by the entity system.
     /// </summary>

@@ -1058,14 +1058,6 @@ namespace ValveResourceFormat.Renderer.World
                             entity.GetStringProperty("targetname"), entity.GetStringProperty("path_start"));
                     }
 
-                    var moverRendercolor = entity.GetColor32Property("rendercolor");
-                    var moverRenderamt = entity.GetFloatProperty("renderamt", 1.0f);
-
-                    if (moverRenderamt > 1f)
-                    {
-                        moverRenderamt /= 255f;
-                    }
-
                     var moverNode = new XenFloraAnimatedMoverSceneNode(
                         scene,
                         moverModel,
@@ -1075,7 +1067,7 @@ namespace ValveResourceFormat.Renderer.World
                         moverLoopBackIndex,
                         authoredTransform: transformationMatrix)
                     {
-                        Tint = new Vector4(moverRendercolor, moverRenderamt),
+                        Tint = entity.GetRenderTint(),
                         LayerName = layerName,
                         Name = model,
                     };
@@ -1317,15 +1309,6 @@ namespace ValveResourceFormat.Renderer.World
                     return;
                 }
 
-                // todo: rendercolor might sometimes be vec4, which holds renderamt
-                var rendercolor = entity.GetColor32Property("rendercolor");
-                var renderamt = entity.GetFloatProperty("renderamt", 1.0f);
-
-                if (renderamt > 1f)
-                {
-                    renderamt /= 255f;
-                }
-
                 if (newEntity.DataBlock is not Model newModel)
                 {
                     return;
@@ -1334,7 +1317,7 @@ namespace ValveResourceFormat.Renderer.World
                 var modelNode = new ModelSceneNode(scene, newModel, skin)
                 {
                     Transform = transformationMatrix,
-                    Tint = new Vector4(rendercolor, renderamt),
+                    Tint = entity.GetRenderTint(),
                     LayerName = layerName,
                     Name = model,
                     EntityData = entity,

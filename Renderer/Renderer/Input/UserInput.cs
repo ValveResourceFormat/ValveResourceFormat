@@ -263,9 +263,6 @@ public class UserInput
 
             PlayerMovement.ProcessMovement(Camera, deltaTime);
 
-            // The player moved, so re-test the trigger volumes it may have just entered or left
-            EntitySystem?.UpdateTouchLinks();
-
             Velocity = PlayerMovement.Velocity;
             Camera.Pitch += MouseDeltaPitchYaw.X;
             Camera.Yaw -= MouseDeltaPitchYaw.Y;

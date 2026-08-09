@@ -60,7 +60,8 @@ public abstract class BaseTrigger : BaseEntity
     /// spelled differently, rather than silently doing nothing.
     /// </remarks>
     /// <param name="other">The entity inside the volume.</param>
-    protected virtual bool PassesTriggerFilters(BaseEntity other)
+    /// <returns><see langword="true"/> when the touch should register.</returns>
+    protected override bool AcceptsTouchFrom(BaseEntity other)
     {
         const uint anyAllowFlag = SF_TRIGGER_ALLOW_CLIENTS | SF_TRIGGER_ALLOW_NPCS
             | SF_TRIGGER_ALLOW_PUSHABLES | SF_TRIGGER_ALLOW_PHYSICS | SF_TRIGGER_ALLOW_ALL;
@@ -72,9 +73,6 @@ public abstract class BaseTrigger : BaseEntity
 
         return other is PlayerEntity && HasSpawnFlags(SF_TRIGGER_ALLOW_CLIENTS);
     }
-
-    /// <inheritdoc/>
-    protected override bool AcceptsTouchFrom(BaseEntity other) => PassesTriggerFilters(other);
 
     /// <inheritdoc/>
     protected override void OnStartTouch(BaseEntity other)

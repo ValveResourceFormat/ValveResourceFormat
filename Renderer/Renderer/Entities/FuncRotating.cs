@@ -74,7 +74,6 @@ public sealed class FuncRotating : BaseEntity
     public bool IsReversed { get; private set; }
 
     private bool stopAtStartPos;
-    private bool startOnPending;
     private Vector3 startAngles;
     private MoveDoneFunction moveDoneFunction;
 
@@ -138,20 +137,15 @@ public sealed class FuncRotating : BaseEntity
         if (HasSpawnFlags(SF_BRUSH_ROTATE_START_ON))
         {
             // Leave a magic delay for the client to start up, then toggle ourselves on
-            startOnPending = true;
             SetNextThink(EntitySystem.CurrentTime + 0.2f);
         }
     }
 
-    /// <inheritdoc/>
-    public override void Think()
-    {
-        if (startOnPending)
-        {
-            startOnPending = false;
-            Toggle();
-        }
-    }
+    /// <summary>
+    /// Starts a brush that spawned switched on. That deferred toggle is the only think this entity
+    /// schedules, so there is nothing to dispatch on.
+    /// </summary>
+    public override void Think() => Toggle();
 
     /// <inheritdoc/>
     public override void MoveDone()
@@ -168,9 +162,6 @@ public sealed class FuncRotating : BaseEntity
 
             case MoveDoneFunction.Rotate:
                 RotateMove();
-                break;
-
-            default:
                 break;
         }
     }
@@ -288,16 +279,12 @@ public sealed class FuncRotating : BaseEntity
         {
             if (MathF.Abs(speed) <= 25f && MathF.Abs(GetAngleDeltaFromStart()) < 1f)
             {
-                TargetSpeed = 0f;
-                stopAtStartPos = false;
+                StopAtStartAngles();
                 speed = 0f;
-                Angles = startAngles;
-                SnapInterpolation();
             }
             else
             {
-                var direction = FirstNonZeroSign(speed, Speed, IsReversed ? -1f : 1f);
-                speed = direction * MathF.Max(MathF.Abs(speed), 25f);
+                speed = SpinDirection(speed) * MathF.Max(MathF.Abs(speed), 25f);
             }
         }
 
@@ -305,15 +292,31 @@ public sealed class FuncRotating : BaseEntity
         AngularVelocity = MoveAngles * Speed;
     }
 
-    /// <summary>Sign of the first of these that is not zero, so a stopped brush keeps its old direction.</summary>
-    private static float FirstNonZeroSign(float first, float second, float fallback)
+    /// <summary>
+    /// Lands the brush on the angle it spawned at and forgets the pending stop. A snap, not movement, so
+    /// the interpolation history goes with it.
+    /// </summary>
+    private void StopAtStartAngles()
     {
-        if (first != 0f)
+        TargetSpeed = 0f;
+        stopAtStartPos = false;
+        Angles = startAngles;
+        SnapInterpolation();
+    }
+
+    /// <summary>
+    /// Which way the brush is turning: from the speed offered, else the speed it already had, else the
+    /// direction its reverse state implies. A brush crawling to a stop must not lose its direction.
+    /// </summary>
+    /// <param name="speed">The speed about to be applied.</param>
+    private float SpinDirection(float speed)
+    {
+        if (speed != 0f)
         {
-            return MathF.Sign(first);
+            return MathF.Sign(speed);
         }
 
-        return second != 0f ? MathF.Sign(second) : MathF.Sign(fallback);
+        return Speed != 0f ? MathF.Sign(Speed) : (IsReversed ? -1f : 1f);
     }
 
     private void SpinUpMove()
@@ -385,37 +388,27 @@ public sealed class FuncRotating : BaseEntity
         SetMoveDoneTime(GetNextMoveInterval());
 
         var angleDelta = GetAngleDeltaFromStart();
-        var anglesPerTick = GetAngleAxis(AngularVelocity, GetCheckAxis()) * EntitySystem.TickInterval;
+        var anglesPerTick = GetSpinAxisComponent(AngularVelocity) * EntitySystem.TickInterval;
 
         // Close enough that the next tick would overshoot the start angle: stop on it exactly
         if (MathF.Abs(angleDelta) < MathF.Abs(anglesPerTick))
         {
             SetTargetSpeed(0f);
-            Angles = startAngles;
-            stopAtStartPos = false;
-            SnapInterpolation();
+            StopAtStartAngles();
         }
     }
 
     /// <summary>
-    /// The axis the brush spins about, as an index into a QAngle, so the stop-at-start test reads the one
-    /// component that is actually turning.
+    /// Reads the one QAngle component that is actually turning. <see cref="MoveAngles"/> is a signed unit
+    /// basis vector, so projecting onto its absolute value picks that component out.
     /// </summary>
-    private int GetCheckAxis()
-    {
-        if (MoveAngles.X != 0f)
-        {
-            return 0;
-        }
-
-        return MoveAngles.Y != 0f ? 1 : 2;
-    }
+    /// <param name="angles">The angles, or angular rate, to read.</param>
+    private float GetSpinAxisComponent(Vector3 angles) => Vector3.Dot(angles, Vector3.Abs(MoveAngles));
 
     /// <summary>Signed degrees from the spawn orientation, in [-180, 180].</summary>
     private float GetAngleDeltaFromStart()
     {
-        var checkAxis = GetCheckAxis();
-        var delta = AngleMod(GetAngleAxis(Angles, checkAxis) - GetAngleAxis(startAngles, checkAxis));
+        var delta = AngleMod(GetSpinAxisComponent(Angles - startAngles));
 
         return delta > 180f ? delta - 360f : delta;
     }

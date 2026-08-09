@@ -105,6 +105,9 @@ public sealed class EntitySystem
             Remove(Player);
         }
 
+        // Registration is what usually binds a class's inputs; the player never goes through the factory
+        EntityInputTable.Bind<PlayerEntity>();
+
         Player = new PlayerEntity(this, movement);
         Player.Spawn();
         Add(Player);
@@ -161,10 +164,13 @@ public sealed class EntitySystem
     /// entities as touching.
     /// </summary>
     /// <remarks>
-    /// Runs each tick, and again right after the player moves, because the player moves per rendered frame
-    /// rather than on the tick. Firing twice within a tick costs nothing: a link only reports on its edges.
+    /// Driven by the tick and nothing else, because a touch handler is entity logic: it teleports things,
+    /// queues inputs against <see cref="CurrentTime"/>, spawns and removes entities. Sampling it per
+    /// rendered frame instead would make all of that depend on framerate. The player still moves per frame,
+    /// so a touch resolves up to one tick after the frame that caused it, and reads the player's live
+    /// position when it does.
     /// </remarks>
-    public void UpdateTouchLinks()
+    private void UpdateTouchLinks()
     {
         foreach (var entity in entities)
         {
@@ -286,30 +292,6 @@ public sealed class EntitySystem
     }
 
     /// <summary>
-    /// Traces a ray against every solid entity, keeping the nearest hit.
-    /// </summary>
-    /// <param name="from">Ray start in world space.</param>
-    /// <param name="to">Ray end in world space.</param>
-    /// <param name="result">The trace to narrow; a nearer entity hit replaces it.</param>
-    /// <returns><see langword="true"/> when an entity produced the nearest hit.</returns>
-    public bool TraceRay(Vector3 from, Vector3 to, ref Rubikon.TraceResult result)
-    {
-        var hitEntity = false;
-
-        foreach (var entity in entities)
-        {
-            if (!entity.IsCollidable)
-            {
-                continue;
-            }
-
-            hitEntity |= result.MinimizeWith(entity.Collider!.TraceRay(from, to));
-        }
-
-        return hitEntity;
-    }
-
-    /// <summary>
     /// Fires an entity I/O input at one entity, after its delay has elapsed.
     /// </summary>
     /// <param name="target">The entity receiving the input.</param>
@@ -321,15 +303,7 @@ public sealed class EntitySystem
     public void QueueInput(BaseEntity target, string inputName, string? parameter = null,
         BaseEntity? activator = null, BaseEntity? caller = null, float delay = 0f)
     {
-        inputQueue.Add(new QueuedInput
-        {
-            Target = target,
-            InputName = inputName,
-            Parameter = parameter,
-            Activator = activator,
-            Caller = caller,
-            FireTime = CurrentTime + MathF.Max(delay, 0f),
-        });
+        inputQueue.Add(new QueuedInput(target, inputName, parameter, activator, caller, CurrentTime + MathF.Max(delay, 0f)));
     }
 
     /// <summary>
@@ -380,24 +354,6 @@ public sealed class EntitySystem
     }
 
     /// <summary>
-    /// Finds the first entity whose targetname matches.
-    /// </summary>
-    /// <param name="pattern">Targetname to match, may contain <c>*</c> and <c>?</c>.</param>
-    /// <returns>The entity, or <see langword="null"/> when nothing matches.</returns>
-    public BaseEntity? FindByTargetName(string pattern)
-    {
-        foreach (var entity in entities)
-        {
-            if (Matches(entity, pattern))
-            {
-                return entity;
-            }
-        }
-
-        return null;
-    }
-
-    /// <summary>
     /// Finds every entity whose targetname matches.
     /// </summary>
     /// <param name="pattern">Targetname to match, may contain <c>*</c> and <c>?</c>.</param>
@@ -425,17 +381,23 @@ public sealed class EntitySystem
         }
 
         // Copied out first, in fire order, because handling an input can queue more of them
-        var now = CurrentTime;
+        var remaining = 0;
 
-        foreach (var input in inputQueue)
+        for (var i = 0; i < inputQueue.Count; i++)
         {
-            if (input.FireTime <= now)
+            var input = inputQueue[i];
+
+            if (input.FireTime <= CurrentTime)
             {
                 dueInputs.Add(input);
             }
+            else
+            {
+                inputQueue[remaining++] = input;
+            }
         }
 
-        inputQueue.RemoveAll(input => input.FireTime <= now);
+        inputQueue.RemoveRange(remaining, inputQueue.Count - remaining);
 
         foreach (var input in dueInputs)
         {
@@ -453,13 +415,11 @@ public sealed class EntitySystem
         dueInputs.Clear();
     }
 
-    private readonly struct QueuedInput
-    {
-        public required BaseEntity Target { get; init; }
-        public required string InputName { get; init; }
-        public required string? Parameter { get; init; }
-        public required BaseEntity? Activator { get; init; }
-        public required BaseEntity? Caller { get; init; }
-        public required float FireTime { get; init; }
-    }
+    private readonly record struct QueuedInput(
+        BaseEntity Target,
+        string InputName,
+        string? Parameter,
+        BaseEntity? Activator,
+        BaseEntity? Caller,
+        float FireTime);
 }

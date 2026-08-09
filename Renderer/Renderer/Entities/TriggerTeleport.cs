@@ -15,9 +15,7 @@ namespace ValveResourceFormat.Renderer.Entities;
 /// </remarks>
 public sealed class TriggerTeleport : BaseTrigger
 {
-    private Vector3 destination;
-    private Vector3 destinationAngles;
-    private bool hasDestination;
+    private (Vector3 Origin, Vector3 Angles)? destination;
 
     /// <summary>
     /// Initializes a <c>trigger_teleport</c> from its keyvalues.
@@ -52,9 +50,7 @@ public sealed class TriggerTeleport : BaseTrigger
             return;
         }
 
-        destination = target.GetVector3Property("origin");
-        destinationAngles = target.GetVector3Property("angles");
-        hasDestination = true;
+        destination = (target.GetVector3Property("origin"), target.GetVector3Property("angles"));
     }
 
     /// <inheritdoc/>
@@ -62,12 +58,12 @@ public sealed class TriggerTeleport : BaseTrigger
     {
         base.OnStartTouch(other);
 
-        if (!hasDestination)
+        if (destination is not { } target)
         {
             return;
         }
 
         // Lift a unit so the hull does not arrive embedded in the floor
-        other.Teleport(destination + new Vector3(0, 0, 1f), destinationAngles);
+        other.Teleport(target.Origin + new Vector3(0, 0, 1f), target.Angles);
     }
 }
