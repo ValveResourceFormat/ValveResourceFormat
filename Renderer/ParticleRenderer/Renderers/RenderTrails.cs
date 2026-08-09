@@ -50,7 +50,6 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
         private readonly float endFadeDot = 2f;
 
         private readonly ParticleBlendMode blendMode = ParticleBlendMode.PARTICLE_OUTPUT_BLEND_MODE_ALPHA;
-        private readonly INumberProvider overbrightFactor = new LiteralNumberProvider(1);
         private readonly ParticleOrientation orientationType;
         private readonly ParticleField prevPositionSource = ParticleField.PositionPrevious; // this is a real thing
 
@@ -107,7 +106,6 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
             GL.ObjectLabel(ObjectLabelIdentifier.Buffer, vertexBufferHandle, Math.Min(GLEnvironment.MaxLabelLength, vaoLabel.Length), vaoLabel);
 #endif
 
-            overbrightFactor = parse.NumberProvider("m_flOverbrightFactor", overbrightFactor);
             orientationType = parse.Enum("m_nOrientationType", orientationType);
             animationRate = parse.Float("m_flAnimationRate", animationRate);
             finalTextureScaleU = parse.Float("m_flFinalTextureScaleU", finalTextureScaleU);
@@ -209,12 +207,11 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
             var startFadeSlope = startFadeSize.NextNumber(systemRenderState);
             var endFadeSlope = endFadeSize.NextNumber(systemRenderState);
 
-            // Only the normal-aligned modes fade by view angle, over a range a dot magnitude can enter.
+            // The shader fades by view angle in every mode, not just the normal-aligned one; the
+            // defaults of (1, 2) put the smoothstep past its own range, which is what makes it inert.
             var viewAngleFadeActive = enableFadingAndClamping
                 && startFadeDot < 1f
-                && endFadeDot > startFadeDot
-                && orientationType is ParticleOrientation.PARTICLE_ORIENTATION_ALIGN_TO_PARTICLE_NORMAL
-                    or ParticleOrientation.PARTICLE_ORIENTATION_SCREENALIGN_TO_PARTICLE_NORMAL;
+                && endFadeDot > startFadeDot;
 
             var rawVertices = ArrayPool<float>.Shared.Rent(particleBag.Count * VertexSize * 4);
             var quadCount = 0;
@@ -237,15 +234,17 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
                         length *= particle.Age / lengthFadeInTime;
                     }
 
-                    if (length <= 0f)
+                    // The engine clamps the full extent of the trail, and it clamps unconditionally: an
+                    // effect that authors m_flLengthScale 0 alongside a minimum length is asking for a
+                    // fixed streak that does not track speed, so a zero raw length still draws.
+                    length = Math.Clamp(length, minLength, maxLength);
+
+                    if (length == 0f)
                     {
                         continue;
                     }
 
-                    // The engine clamps the full extent of the trail
-                    length = Math.Clamp(length, minLength, maxLength);
-
-                    var particleRadius = particle.Radius;
+                    var particleRadius = particle.Radius * RadiusScale.NextNumber(ref particle, systemRenderState);
 
                     // Scales rgb and alpha alike, as the view angle fade below touches alpha only
                     var colorFade = 1f;
@@ -276,7 +275,13 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
 
                             if (toCamera.LengthSquared() > Epsilon.LengthSquared)
                             {
-                                var facing = MathF.Abs(Vector3.Dot(Vector3.Normalize(particle.Normal), Vector3.Normalize(toCamera)));
+                                // Only the normal-aligned mode has a normal to face with; the others
+                                // substitute the direction the ribbon runs in.
+                                var facingAxis = orientationType == ParticleOrientation.PARTICLE_ORIENTATION_ALIGN_TO_PARTICLE_NORMAL
+                                    ? particle.Normal
+                                    : direction;
+
+                                var facing = MathF.Abs(Vector3.Dot(Vector3.Normalize(facingAxis), Vector3.Normalize(toCamera)));
                                 alphaFade = 1f - MathUtils.Smoothstep(startFadeDot, endFadeDot, facing);
                             }
                         }
@@ -285,39 +290,30 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
                     // A short trail is narrowed so it cannot render wider than it is long
                     var radius = MathF.Min(particleRadius, constrainRadiusToLengthRatio * length);
 
-                    Vector3 center;
-                    Vector3 widthAxis;
-                    Vector3 lengthAxis;
-                    float halfWidth;
-                    float halfLength;
-
-                    if (orientationType == ParticleOrientation.PARTICLE_ORIENTATION_SCREEN_ALIGNED)
+                    // The ribbon always runs along the motion; only the plane it is flattened into
+                    // changes with the orientation. The spritecard vertex shader takes the up vector
+                    // for that plane from three buckets, and only ALIGN_TO_PARTICLE_NORMAL reads the
+                    // particle's normal: it is the sole mode whose instance record carries one.
+                    var planeNormal = orientationType switch
                     {
-                        // The quad's width axis stays perpendicular to the eye ray, its length axis follows the motion
-                        widthAxis = Vector3.Cross(position - camera.Location, direction);
-                        widthAxis = widthAxis.LengthSquared() > Epsilon.LengthSquared
-                            ? Vector3.Normalize(widthAxis)
-                            : Vector3.Normalize(Vector3.Cross(direction, MathF.Abs(direction.Z) < 0.999f ? Vector3.UnitZ : Vector3.UnitX));
+                        ParticleOrientation.PARTICLE_ORIENTATION_ALIGN_TO_PARTICLE_NORMAL => particle.Normal,
+                        ParticleOrientation.PARTICLE_ORIENTATION_WORLD_Z_ALIGNED => Vector3.UnitZ,
+                        _ => position - camera.Location,
+                    };
 
-                        lengthAxis = direction;
-                        // The radius is the half extent across the ribbon, while the length spans it end to end
-                        halfWidth = radius;
-                        halfLength = length * 0.5f;
+                    var widthAxis = Vector3.Cross(planeNormal, direction);
+                    widthAxis = widthAxis.LengthSquared() > Epsilon.LengthSquared
+                        ? Vector3.Normalize(widthAxis)
+                        : Vector3.Normalize(Vector3.Cross(direction, MathF.Abs(direction.Z) < 0.999f ? Vector3.UnitZ : Vector3.UnitX));
 
-                        // The engine slides the trail along the motion axis by m_flForwardShift lengths;
-                        // direction runs backwards along travel here, so the shift subtracts
-                        center = position + (direction * (length * (0.5f - forwardShift)));
-                    }
-                    else
-                    {
-                        // TODO: Other orientation types render as plain unstretched sprites here; the engine
-                        // still stretches them along the motion, constrained to the ground/normal plane
-                        center = position;
-                        widthAxis = Vector3.UnitX;
-                        lengthAxis = Vector3.UnitY;
-                        halfWidth = particleRadius;
-                        halfLength = particleRadius;
-                    }
+                    var lengthAxis = direction;
+                    // The radius is the half extent across the ribbon, while the length spans it end to end
+                    var halfWidth = radius;
+                    var halfLength = length * 0.5f;
+
+                    // The engine slides the trail along the motion axis by m_flForwardShift lengths;
+                    // direction runs backwards along travel here, so the shift subtracts
+                    var center = position + (direction * (length * (0.5f - forwardShift)));
 
                     var headHalfWidth = halfWidth * headRadiusTaper.NextNumber(ref particle, systemRenderState);
                     var tailHalfWidth = halfWidth * tailRadiusTaper.NextNumber(ref particle, systemRenderState);
@@ -347,7 +343,8 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
 
                     // Corners in index buffer winding order, with the local quad's [-1, 1] axes mapping to [0, 1] uvs
                     var quadStart = quadCount * VertexSize * 4;
-                    var alpha = particle.Alpha * particle.AlphaAlternate * colorFade * alphaFade;
+                    var alpha = particle.Alpha * particle.AlphaAlternate * colorFade * alphaFade
+                        * AlphaScale.NextNumber(ref particle, systemRenderState);
                     var tint = particle.Color * colorFade;
 
                     var head = Vector4.Clamp(
@@ -424,16 +421,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
             GL.Enable(EnableCap.Blend);
             GL.DepthMask(false);
 
-            // MOD2X adds like ADD does; spritecard has no blend state that scales the destination.
-            if (blendMode is ParticleBlendMode.PARTICLE_OUTPUT_BLEND_MODE_ADD
-                or ParticleBlendMode.PARTICLE_OUTPUT_BLEND_MODE_MOD2X)
-            {
-                GL.BlendFunc(BlendingFactor.SrcAlpha, BlendingFactor.One);
-            }
-            else /* if (blendMode == ParticleBlendMode.PARTICLE_OUTPUT_BLEND_MODE_ALPHA) */
-            {
-                GL.BlendFunc(BlendingFactor.SrcAlpha, BlendingFactor.OneMinusSrcAlpha);
-            }
+            GL.BlendFunc(BlendingFactor.One, BlendingFactor.OneMinusSrcAlpha);
 
             // Trail quads are oriented by motion direction, so either side can face the camera
             GL.Disable(EnableCap.CullFace);
@@ -445,7 +433,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
             shader.SetTexture(RenderMaterial.TextureUnitStart, "uTexture", texture);
 
             // TODO: This formula is a guess but still seems too bright compared to valve particles
-            shader.SetUniform1("uOverbrightFactor", (float)overbrightFactor.NextNumber(systemRenderState));
+            SetSharedUniforms(shader, systemRenderState);
 
             shader.SetUniform1("uBlendFrames", blendFrames);
 

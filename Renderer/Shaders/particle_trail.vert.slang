@@ -8,6 +8,11 @@ layout (location = 5) in vec2 aTexCoordsNextFrame;
 layout (location = 6) in float aFrameBlend;
 
 #include "common/ViewConstants.slang"
+#include "common/utils.slang"
+
+// m_bGammaCorrectVertexColors and m_vecColorScale, shared with the sprite renderer.
+uniform bool uGammaCorrectVertexColors = true;
+uniform vec3 uColorScale = vec3(1.0);
 
 out vec2 vTexCoordOut;
 out vec2 vTexCoordNextFrameOut;
@@ -17,6 +22,14 @@ out vec3 vFragPosition;
 
 void main(void) {
     vColor = aVertexColor;
+
+    if (uGammaCorrectVertexColors)
+    {
+        vColor.rgb = SrgbGammaToLinear(vColor.rgb);
+    }
+
+    vColor.rgb *= uColorScale;
+
     vTexCoordOut = aTexCoords;
     vTexCoordNextFrameOut = aTexCoordsNextFrame;
     vFrameBlend = aFrameBlend;
