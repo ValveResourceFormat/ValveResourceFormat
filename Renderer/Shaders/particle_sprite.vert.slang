@@ -22,6 +22,10 @@ uniform bool uGammaCorrectVertexColors = true;
 // m_vecColorScale, a linear tint applied after the gamma correction above.
 uniform vec3 uColorScale = vec3(1.0);
 
+// m_flDepthBias, in world units along the view direction. The card keeps its drawn position and only
+// its depth is re-taken from the shifted point, so an effect can sit in front of nearby geometry.
+uniform float uDepthBias = 0.0;
+
 out vec2 vTexCoordOut;
 out vec2 vTexCoordNextFrameOut;
 out vec4 vLayerUvOut[4];
@@ -48,4 +52,12 @@ void main(void) {
     vFrameBlend = aFrameBlend;
     vFragPosition = aVertexPosition;
     gl_Position = g_matWorldToProjection * vec4(aVertexPosition, 1.0);
+
+    if (uDepthBias != 0.0)
+    {
+        vec4 biased = g_matWorldToProjection * vec4(aVertexPosition + (g_vCameraDirWs * uDepthBias), 1.0);
+
+        // Rehomogenised against the unbiased w so only depth moves, then floored off the near plane
+        gl_Position.z = max(gl_Position.w * (biased.z / biased.w), min(0.001, gl_Position.z));
+    }
 }

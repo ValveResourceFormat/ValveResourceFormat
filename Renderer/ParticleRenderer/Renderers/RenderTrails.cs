@@ -254,7 +254,6 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
                         var fadeStart = startFadeSlope * cameraDistance;
                         var fadeEnd = endFadeSlope * cameraDistance;
 
-                        // The fade reads the raw radius, independently of the size clamp below
                         if (particleRadius > fadeStart)
                         {
                             if (particleRadius >= fadeEnd)
@@ -264,8 +263,6 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
 
                             colorFade = 1f - ((particleRadius - fadeStart) / (fadeEnd - fadeStart));
                         }
-
-                        particleRadius = MathF.Min(MathF.Max(particleRadius, minSize * cameraDistance), maxSize * cameraDistance);
                     }
 
                     if (viewAngleFadeActive)
@@ -315,6 +312,17 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
 
                     var headHalfWidth = halfWidth * headRadiusTaper.NextNumber(ref particle, systemRenderState);
                     var tailHalfWidth = halfWidth * tailRadiusTaper.NextNumber(ref particle, systemRenderState);
+
+                    // The shader clamps per vertex, on the radius the CPU has already constrained and
+                    // tapered, so each end is bounded against its own distance rather than the centre's
+                    if (enableFadingAndClamping)
+                    {
+                        var headDistance = Vector3.Distance(camera.Location, center - (lengthAxis * halfLength));
+                        var tailDistance = Vector3.Distance(camera.Location, center + (lengthAxis * halfLength));
+
+                        headHalfWidth = MathF.Min(MathF.Max(headHalfWidth, minSize * headDistance), maxSize * headDistance);
+                        tailHalfWidth = MathF.Min(MathF.Max(tailHalfWidth, minSize * tailDistance), maxSize * tailDistance);
+                    }
 
                     var uvOffset = Vector2.Zero;
                     var uvScale = new Vector2(finalTextureScaleU, finalTextureScaleV);
