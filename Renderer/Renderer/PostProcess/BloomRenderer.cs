@@ -96,18 +96,23 @@ public class BloomRenderer
         var settings = PostProcessRenderer.State.BloomSettings;
         var tonemapScalar = PostProcessRenderer.TonemapScalar;
 
-        Accumulation.Resize(maxBloomRes.X, maxBloomRes.Y);
-        Ping.Resize(maxBloomRes.X, maxBloomRes.Y);
-        Pong.Resize(maxBloomRes.X, maxBloomRes.Y);
+        if (Accumulation.Resize(maxBloomRes.X, maxBloomRes.Y))
+        {
+            Accumulation.Color.SetFiltering(TextureMinFilter.LinearMipmapLinear, TextureMagFilter.Linear);
+            Accumulation.Color.SetWrapMode(TextureWrapMode.ClampToEdge);
+        }
 
-        // todo: only set these when size actually changes (texture re-allocation)
-        Accumulation.Color.SetFiltering(TextureMinFilter.LinearMipmapLinear, TextureMagFilter.Linear);
-        Accumulation.Color.SetWrapMode(TextureWrapMode.ClampToEdge);
+        if (Ping.Resize(maxBloomRes.X, maxBloomRes.Y))
+        {
+            Ping.Color.SetFiltering(TextureMinFilter.Linear, TextureMagFilter.Linear);
+            Ping.Color.SetWrapMode(TextureWrapMode.ClampToEdge);
+        }
 
-        Ping.Color.SetFiltering(TextureMinFilter.Linear, TextureMagFilter.Linear);
-        Ping.Color.SetWrapMode(TextureWrapMode.ClampToEdge);
-        Pong.Color.SetFiltering(TextureMinFilter.Linear, TextureMagFilter.Linear);
-        Pong.Color.SetWrapMode(TextureWrapMode.ClampToEdge);
+        if (Pong.Resize(maxBloomRes.X, maxBloomRes.Y))
+        {
+            Pong.Color.SetFiltering(TextureMinFilter.Linear, TextureMagFilter.Linear);
+            Pong.Color.SetWrapMode(TextureWrapMode.ClampToEdge);
+        }
 
         using (new GLDebugGroup("Bloom Downsample Threshold Pass"))
         {

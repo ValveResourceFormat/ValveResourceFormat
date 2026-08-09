@@ -28,6 +28,7 @@ namespace ValveResourceFormat.Renderer.Materials
         private RenderTexture? DefaultNormal;
         private RenderTexture? DefaultMask;
         private RenderTexture? DefaultColor;
+        private RenderTexture? DefaultVolume;
         /// <summary>Gets or sets the maximum anisotropy level applied to newly loaded textures when anisotropic filtering is enabled.</summary>
         public static float MaxTextureMaxAnisotropy { get; set; }
 
@@ -545,6 +546,30 @@ namespace ValveResourceFormat.Renderer.Materials
 
         /// <summary>Returns a lazily created 1×1 solid white colour texture, a neutral fallback albedo.</summary>
         public RenderTexture GetDefaultColor() => DefaultColor ??= CreateSolidTexture(255, 255, 255);
+
+        /// <summary>
+        /// Returns a lazily created 1×1×1 white volume texture.
+        /// </summary>
+        public RenderTexture GetDefaultVolume()
+        {
+            if (DefaultVolume == null)
+            {
+                DefaultVolume = new RenderTexture(TextureTarget.Texture3D, 1, 1, 1, 1);
+                DefaultVolume.SetFiltering(TextureMinFilter.Nearest, TextureMagFilter.Nearest);
+                DefaultVolume.SetWrapMode(TextureWrapMode.ClampToEdge);
+
+                GL.TextureStorage3D(DefaultVolume.Handle, 1, SizedInternalFormat.Rgb8, 1, 1, 1);
+                GL.TextureSubImage3D(DefaultVolume.Handle, 0, 0, 0, 0, 1, 1, 1, PixelFormat.Rgb, PixelType.UnsignedByte, WhiteTexel);
+
+#if DEBUG
+                DefaultVolume.SetLabel("DefaultVolume");
+#endif
+            }
+
+            return DefaultVolume;
+        }
+
+        private static readonly byte[] WhiteTexel = [255, 255, 255];
 
         /// <summary>Returns the OpenGL format triple appropriate for exporting a rendered image, choosing between 8-bit BGRA and 32-bit float RGBA.</summary>
         /// <param name="hdr">Whether to use the HDR (32-bit float) format.</param>

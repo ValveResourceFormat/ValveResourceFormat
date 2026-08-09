@@ -191,7 +191,8 @@ namespace ValveResourceFormat.Renderer.PostProcess
                 GL.Viewport(0, 0, colorBufferRead.Width, colorBufferRead.Height);
 
                 postProcessShader.SetTexture(0, "g_tColorBuffer", resolvedScene);
-                postProcessShader.SetTexture(2, "g_tColorCorrectionLUT", State.ColorCorrectionLUT ?? RendererContext.MaterialLoader.GetErrorTexture()); // todo: error postprocess texture
+                postProcessShader.SetTexture(2, "g_tColorCorrectionLUT",
+                    State.ColorCorrectionLUT ?? RendererContext.MaterialLoader.GetDefaultVolume());
 
                 // Bound here too, in case post processing runs before the scene binds it.
                 postProcessShader.SetTexture((int)ReservedTextureSlots.BlueNoise, "g_tBlueNoise", BlueNoise);
