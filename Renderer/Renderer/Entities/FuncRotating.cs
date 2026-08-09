@@ -61,6 +61,7 @@ public sealed class FuncRotating : BaseEntity
         None,
         SpinUp,
         SpinDown,
+        Reverse,
         Rotate,
     }
 
@@ -180,34 +181,78 @@ public sealed class FuncRotating : BaseEntity
                 SpinDownMove();
                 break;
 
+            case MoveDoneFunction.Reverse:
+                ReverseMove();
+                break;
+
             case MoveDoneFunction.Rotate:
                 RotateMove();
                 break;
         }
     }
 
-    /// <summary>Spins the brush up to <c>maxspeed</c>.</summary>
+    /// <summary>Spins the brush up to <c>maxspeed</c>, whichever way it was already set to turn.</summary>
     /// <param name="data">The input's parameter and sender, unused.</param>
     [EntityInput("Start")]
-    private void InputStart(EntityInputData data) => SetTargetSpeed(MaxSpeed);
+    private void InputStart(EntityInputData data)
+    {
+        stopAtStartPos = false;
+
+        SetTargetSpeed(MaxSpeed);
+    }
+
+    /// <summary>Spins the brush up to <c>maxspeed</c> forwards.</summary>
+    /// <remarks>
+    /// Unlike every other way of starting it, this one leaves a pending <c>StopAtStartPos</c> alone, so a
+    /// brush told to stop at its start angle still will. That asymmetry is the engine's.
+    /// </remarks>
+    /// <param name="data">The input's parameter and sender, unused.</param>
+    [EntityInput("StartForward")]
+    private void InputStartForward(EntityInputData data)
+    {
+        IsReversed = false;
+
+        SetTargetSpeed(MaxSpeed);
+    }
+
+    /// <summary>Spins the brush up to <c>maxspeed</c> backwards.</summary>
+    /// <param name="data">The input's parameter and sender, unused.</param>
+    [EntityInput("StartBackward")]
+    private void InputStartBackward(EntityInputData data)
+    {
+        stopAtStartPos = false;
+        IsReversed = true;
+
+        SetTargetSpeed(MaxSpeed);
+    }
 
     /// <summary>Brings the brush to a stop wherever it happens to be.</summary>
     /// <param name="data">The input's parameter and sender, unused.</param>
     [EntityInput("Stop")]
-    private void InputStop(EntityInputData data) => SetTargetSpeed(0f);
+    private void InputStop(EntityInputData data)
+    {
+        stopAtStartPos = false;
 
-    /// <summary>Starts the brush if it is stopped, stops it if it is spinning.</summary>
+        SetTargetSpeed(0f);
+    }
+
+    /// <summary>
+    /// Starts the brush if it is stopped, stops it if it is spinning. Tests the speed rather than the
+    /// angular velocity, as the input handler does; a brush that is running backwards starts again.
+    /// </summary>
     /// <param name="data">The input's parameter and sender, unused.</param>
     [EntityInput("Toggle")]
-    private void InputToggle(EntityInputData data) => Toggle();
+    private void InputToggle(EntityInputData data) => SetTargetSpeed(Speed > 0f ? 0f : MaxSpeed);
 
-    /// <summary>Flips the spin direction and runs back up to speed.</summary>
+    /// <summary>Flips the spin direction, keeping the speed it was already turning at.</summary>
     /// <param name="data">The input's parameter and sender, unused.</param>
     [EntityInput("Reverse")]
     private void InputReverse(EntityInputData data)
     {
+        stopAtStartPos = false;
         IsReversed = !IsReversed;
-        SetTargetSpeed(MaxSpeed);
+
+        SetTargetSpeed(Speed);
     }
 
     /// <summary>Stops the brush once it comes back around to the angle it spawned at.</summary>
@@ -227,6 +272,7 @@ public sealed class FuncRotating : BaseEntity
     {
         var fraction = data.Float();
 
+        stopAtStartPos = false;
         IsReversed = fraction < 0f;
         SetTargetSpeed(Math.Clamp(MathF.Abs(fraction) * MaxSpeed, 0f, MaxSpeed));
     }
@@ -274,9 +320,24 @@ public sealed class FuncRotating : BaseEntity
         }
 
         // Otherwise ramp towards it, a tenth of a second at a time
-        moveDoneFunction = MathF.Abs(TargetSpeed) > MathF.Abs(Speed)
-            ? MoveDoneFunction.SpinUp
-            : MoveDoneFunction.SpinDown;
+        if ((Speed > 0f && TargetSpeed < 0f) || (Speed < 0f && TargetSpeed > 0f))
+        {
+            // Turning the other way means coming to a stop first
+            moveDoneFunction = MoveDoneFunction.Reverse;
+        }
+        else if (MathF.Abs(Speed) < MathF.Abs(TargetSpeed))
+        {
+            moveDoneFunction = MoveDoneFunction.SpinUp;
+        }
+        else if (MathF.Abs(Speed) > MathF.Abs(TargetSpeed))
+        {
+            moveDoneFunction = MoveDoneFunction.SpinDown;
+        }
+        else
+        {
+            // Already there, so just keep turning
+            moveDoneFunction = MoveDoneFunction.Rotate;
+        }
 
         SetMoveDoneTime(GetNextMoveInterval());
     }
@@ -302,8 +363,7 @@ public sealed class FuncRotating : BaseEntity
 
             if (speed <= 25f && MathF.Abs(angleDelta) < 1f)
             {
-                Speed = 0f;
-                AngularVelocity = Vector3.Zero;
+                ApplySpeed(0f);
                 StopAtStartAngles();
 
                 return;
@@ -322,8 +382,29 @@ public sealed class FuncRotating : BaseEntity
             }
         }
 
+        ApplySpeed(speed);
+    }
+
+    /// <summary>
+    /// Applies the speed and reports the brush starting or stopping. Those are the two edges the engine
+    /// starts and stops the rotation sound on, which is what <c>OnStarted</c> and <c>OnStopped</c> name.
+    /// </summary>
+    /// <param name="speed">The speed to turn at, already clamped.</param>
+    private void ApplySpeed(float speed)
+    {
+        var wasTurning = Speed != 0f;
+
         Speed = speed;
         AngularVelocity = MoveAngles * Speed;
+
+        if (!wasTurning && speed != 0f)
+        {
+            EntitySystem.TriggerOutput(this, "OnStarted");
+        }
+        else if (wasTurning && speed == 0f)
+        {
+            EntitySystem.TriggerOutput(this, "OnStopped");
+        }
     }
 
     /// <summary>
@@ -338,21 +419,73 @@ public sealed class FuncRotating : BaseEntity
 
         Angles = startAngles;
         SnapInterpolation();
+
+        EntitySystem.TriggerOutput(this, "OnReachedStart");
     }
 
     private void SpinUpMove()
     {
         var newSpeed = MathF.Abs(Speed) + 0.2f * MaxSpeed * FanFriction;
-        var spinUpDone = newSpeed >= MathF.Abs(TargetSpeed);
+        var spinUpDone = false;
+
+        if (newSpeed >= MathF.Abs(TargetSpeed))
+        {
+            newSpeed = TargetSpeed;
+
+            // A brush still working its way back to the start angle keeps ramping, so that the approach
+            // in UpdateSpeed goes on steering it
+            spinUpDone = !stopAtStartPos;
+        }
+        else if (TargetSpeed < 0f)
+        {
+            newSpeed = -newSpeed;
+        }
+
+        UpdateSpeed(newSpeed);
 
         if (spinUpDone)
         {
-            newSpeed = MathF.Abs(TargetSpeed);
+            moveDoneFunction = MoveDoneFunction.Rotate;
+            RotateMove();
         }
 
-        UpdateSpeed(TargetSpeed < 0f ? -newSpeed : newSpeed);
+        SetMoveDoneTime(GetNextMoveInterval());
+    }
 
-        if (spinUpDone)
+    /// <summary>
+    /// Bleeds off a little speed, slower than it spins up.
+    /// </summary>
+    /// <param name="targetSpeed">The speed being shed towards, which is zero when reversing.</param>
+    /// <returns><see langword="true"/> once it has arrived and the ramp is over.</returns>
+    private bool SpinDown(float targetSpeed)
+    {
+        var newSpeed = MathF.Abs(Speed) - 0.1f * MaxSpeed * FanFriction;
+        var spinDownDone = false;
+
+        if (newSpeed < 0f)
+        {
+            newSpeed = 0f;
+        }
+
+        if (newSpeed <= MathF.Abs(targetSpeed))
+        {
+            newSpeed = targetSpeed;
+            spinDownDone = !stopAtStartPos;
+        }
+        else if (Speed < 0f)
+        {
+            // Shedding speed must not flip the direction it is already turning
+            newSpeed = -newSpeed;
+        }
+
+        UpdateSpeed(newSpeed);
+
+        return spinDownDone;
+    }
+
+    private void SpinDownMove()
+    {
+        if (SpinDown(TargetSpeed))
         {
             moveDoneFunction = MoveDoneFunction.Rotate;
             RotateMove();
@@ -363,29 +496,13 @@ public sealed class FuncRotating : BaseEntity
         }
     }
 
-    private void SpinDownMove()
+    /// <summary>Comes to a stop before turning the other way.</summary>
+    private void ReverseMove()
     {
-        // Spins down slower than it spins up
-        var newSpeed = MathF.Abs(Speed) - 0.1f * MaxSpeed * FanFriction;
-
-        if (newSpeed < 0f)
+        if (SpinDown(0f))
         {
-            newSpeed = 0f;
-        }
-
-        var spinDownDone = newSpeed <= MathF.Abs(TargetSpeed);
-
-        if (spinDownDone)
-        {
-            newSpeed = MathF.Abs(TargetSpeed);
-        }
-
-        UpdateSpeed(TargetSpeed < 0f ? -newSpeed : newSpeed);
-
-        if (spinDownDone)
-        {
-            moveDoneFunction = MoveDoneFunction.Rotate;
-            RotateMove();
+            // Stopped, so now spin back up the other way
+            SetTargetSpeed(TargetSpeed);
         }
         else
         {
