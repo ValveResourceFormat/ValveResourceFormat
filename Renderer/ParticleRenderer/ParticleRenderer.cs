@@ -76,6 +76,19 @@ namespace ValveResourceFormat.Renderer.Particles
         /// </summary>
         private bool childEnabled = true;
 
+        /// <summary>How long into the parent's life this child waits before starting (<c>m_flDelay</c>).</summary>
+        private float startDelay;
+
+        /// <summary>
+        /// Whether this child exists only for the parent's endcap (<c>m_bEndCap</c>). It is not started
+        /// with the parent, it does not enter the endcap phase itself, and it never holds the parent back
+        /// from counting as finished.
+        /// </summary>
+        private bool isEndCapChild;
+
+        /// <summary>The lowest detail tier this child appears at (<c>m_nDetailLevel</c>).</summary>
+        private ParticleDetailLevel detailLevel;
+
         private readonly int initialParticles;
         private readonly int maxParticles;
         private readonly float minimumTimeStep;
@@ -198,7 +211,7 @@ namespace ValveResourceFormat.Renderer.Particles
 
             SetupFunctions(particleSystem.GetPreEmissionOperators(), ParticleControllerFactory.TryCreatePreEmissionOperator, preEmissionOperators, "pre-emission operator");
 
-            SetupChildParticles(particleSystem.GetChildParticleNames(true));
+            SetupChildParticles(particleSystem.GetChildren());
 
             Passes = CollectPasses();
 
@@ -255,7 +268,7 @@ namespace ValveResourceFormat.Renderer.Particles
 
             foreach (var childParticleRenderer in childParticleRenderers)
             {
-                if (!childParticleRenderer.childEnabled)
+                if (!childParticleRenderer.ChildShouldRun(systemRenderState))
                 {
                     continue;
                 }
@@ -297,7 +310,7 @@ namespace ValveResourceFormat.Renderer.Particles
         {
             foreach (var childParticleRenderer in childParticleRenderers)
             {
-                if (!childParticleRenderer.childEnabled)
+                if (!childParticleRenderer.ChildShouldRun(systemRenderState))
                 {
                     continue;
                 }
