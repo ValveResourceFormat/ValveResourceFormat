@@ -220,17 +220,20 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
                 {
                     var position = particle.Position;
                     var previousPosition = particle.GetVector(prevPositionSource);
-                    // The trail extends from the particle back toward its previous position
+                    // A particle that has not moved has no direction to run in, and the engine collapses
+                    // its four control points onto the position rather than streaking along a fixed axis
                     var difference = previousPosition - position;
-                    var direction = difference == Vector3.Zero ? Vector3.UnitY : Vector3.Normalize(difference);
+
+                    if (difference == Vector3.Zero)
+                    {
+                        continue;
+                    }
+
+                    var direction = Vector3.Normalize(difference);
 
                     var length = lengthScale * particle.TrailLength * difference.Length() * oneOverDt;
 
-                    // The length fades in before clamping so clamped trails still reach full length on time
-                    if (particle.Age < lengthFadeInTime)
-                    {
-                        length *= particle.Age / lengthFadeInTime;
-                    }
+                    length *= MathF.Min(1f, particle.Age / MathF.Max(lengthFadeInTime, 1e-9f));
 
                     // The engine clamps the full extent of the trail, and it clamps unconditionally: an
                     // effect that authors m_flLengthScale 0 alongside a minimum length is asking for a
