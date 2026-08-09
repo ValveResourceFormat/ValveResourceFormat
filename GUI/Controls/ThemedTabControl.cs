@@ -226,7 +226,10 @@ namespace GUI.Controls
         {
             base.OnControlRemoved(e);
 
-            BeginInvoke(() => CalculateTabWidth());
+            if (IsHandleCreated && !Disposing && !IsDisposed)
+            {
+                BeginInvoke(() => CalculateTabWidth());
+            }
         }
 
         protected override void OnResize(EventArgs e)
