@@ -7,36 +7,36 @@ namespace ValveResourceFormat.Renderer.Particles.Initializers
     /// <seealso href="https://s2v.app/SchemaExplorer/cs2/particles/C_INIT_InitFloat">C_INIT_InitFloat</seealso>
     class InitFloat : ParticleFunctionInitializer
     {
-        private readonly ParticleField OutputField = ParticleField.Radius;
-        private readonly INumberProvider InputValue = new LiteralNumberProvider(0);
-        private readonly INumberProvider InputStrength = new LiteralNumberProvider(1f);
-        private readonly ParticleSetMethod SetMethod = ParticleSetMethod.PARTICLE_SET_REPLACE_VALUE;
+        private readonly ParticleField outputField = ParticleField.Radius;
+        private readonly INumberProvider inputValue = new LiteralNumberProvider(0);
+        private readonly INumberProvider inputStrength = new LiteralNumberProvider(1f);
+        private readonly ParticleSetMethod setMethod = ParticleSetMethod.PARTICLE_SET_REPLACE_VALUE;
 
         public InitFloat(ParticleDefinitionParser parse) : base(parse)
         {
-            OutputField = parse.ParticleField("m_nOutputField", OutputField);
-            InputValue = parse.NumberProvider("m_InputValue", InputValue);
-            InputStrength = parse.NumberProvider("m_InputStrength", InputStrength);
-            SetMethod = parse.Enum<ParticleSetMethod>("m_nSetMethod", SetMethod);
+            outputField = parse.ParticleField("m_nOutputField", outputField);
+            inputValue = parse.NumberProvider("m_InputValue", inputValue);
+            inputStrength = parse.NumberProvider("m_InputStrength", inputStrength);
+            setMethod = parse.Enum<ParticleSetMethod>("m_nSetMethod", setMethod);
         }
 
         public override Particle Initialize(ref Particle particle, ParticleCollection particles, ParticleSystemRenderState particleSystemState)
         {
-            var value = InputValue.NextNumber(ref particle, particleSystemState);
-            value *= InputStrength.NextNumber(ref particle, particleSystemState);
+            var value = inputValue.NextNumber(ref particle, particleSystemState);
+            value *= inputStrength.NextNumber(ref particle, particleSystemState);
 
             // Angles are authored in degrees and stored in radians, the same conversion the dedicated
             // rotation initializers do. The scaling set methods take a unitless multiplier, not an angle,
             // so they are left alone.
-            if (OutputField.IsAngleField()
-                && SetMethod is not (ParticleSetMethod.PARTICLE_SET_SCALE_INITIAL_VALUE or ParticleSetMethod.PARTICLE_SET_SCALE_CURRENT_VALUE))
+            if (outputField.IsAngleField()
+                && setMethod is not (ParticleSetMethod.PARTICLE_SET_SCALE_INITIAL_VALUE or ParticleSetMethod.PARTICLE_SET_SCALE_CURRENT_VALUE))
             {
                 value = float.DegreesToRadians(value);
             }
 
-            var finalValue = particle.ModifyScalarBySetMethodAtSpawn(particles, OutputField, value, SetMethod);
+            var finalValue = particle.ModifyScalarBySetMethodAtSpawn(particles, outputField, value, setMethod);
 
-            particle.SetScalar(OutputField, finalValue);
+            particle.SetScalar(outputField, finalValue);
 
             return particle;
         }

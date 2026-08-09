@@ -12,7 +12,7 @@ namespace ValveResourceFormat.Renderer.Particles.Initializers
         private readonly float degreesMax = 360f;
         private readonly float degreesOffset;
         private readonly float randomExponent = 1.0f;
-        private readonly ParticleField FieldOutput = ParticleField.Roll;
+        private readonly ParticleField fieldOutput = ParticleField.Roll;
         private readonly bool randomlyFlipDirection;
 
         public RandomRotation(ParticleDefinitionParser parse) : base(parse)
@@ -20,7 +20,7 @@ namespace ValveResourceFormat.Renderer.Particles.Initializers
             degreesMin = parse.Float("m_flDegreesMin", degreesMin);
             degreesMax = parse.Float("m_flDegreesMax", degreesMax);
             degreesOffset = parse.Float("m_flDegrees", degreesOffset);
-            FieldOutput = parse.ParticleField("m_nFieldOutput", FieldOutput);
+            fieldOutput = parse.ParticleField("m_nFieldOutput", fieldOutput);
             randomlyFlipDirection = parse.Boolean("m_bRandomlyFlipDirection", randomlyFlipDirection);
             randomExponent = parse.Float("m_flRotationRandExponent", randomExponent);
         }
@@ -33,7 +33,7 @@ namespace ValveResourceFormat.Renderer.Particles.Initializers
                 degrees *= -1;
             }
 
-            particle.SetScalar(FieldOutput, float.DegreesToRadians(degrees));
+            particle.SetScalar(fieldOutput, float.DegreesToRadians(degrees));
 
             return particle;
         }

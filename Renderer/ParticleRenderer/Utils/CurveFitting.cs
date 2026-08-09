@@ -95,19 +95,19 @@ namespace ValveResourceFormat.Renderer.Particles.Utils
     /// </summary>
     class PiecewiseCurve
     {
-        private readonly Vector2 CurveDomainMin;
-        private readonly Vector2 CurveDomainMax;
-        private readonly SplineCurve[] CurveSegments;
-        private readonly bool IsLooped;
+        private readonly Vector2 curveDomainMin;
+        private readonly Vector2 curveDomainMax;
+        private readonly SplineCurve[] curveSegments;
+        private readonly bool isLooped;
         public PiecewiseCurve(KVObject curveInfo, bool isLooped)
         {
-            IsLooped = isLooped;
+            this.isLooped = isLooped;
 
             var domainMin = curveInfo.GetFloatArray("m_vDomainMins");
             var domainMax = curveInfo.GetFloatArray("m_vDomainMaxs");
 
-            CurveDomainMin = new Vector2(domainMin[0], domainMin[1]);
-            CurveDomainMax = new Vector2(domainMax[0], domainMax[1]);
+            curveDomainMin = new Vector2(domainMin[0], domainMin[1]);
+            curveDomainMax = new Vector2(domainMax[0], domainMax[1]);
 
             // Gather curve points. The engine truncates both arrays to the shorter count when their
             // lengths differ (m_tangents can be missing or short in old content).
@@ -130,19 +130,19 @@ namespace ValveResourceFormat.Renderer.Particles.Utils
                 };
             }
 
-            CurveSegments = new SplineCurve[Math.Max(0, pointCount - 1)];
+            curveSegments = new SplineCurve[Math.Max(0, pointCount - 1)];
 
             for (var i = 0; i < CurvePoints.Length - 1; i++)
             {
-                CurveSegments[i] = CurveFitting.GetCoefficients(CurvePoints[i], CurvePoints[i + 1]);
+                curveSegments[i] = CurveFitting.GetCoefficients(CurvePoints[i], CurvePoints[i + 1]);
             }
         }
         private float ClampToDomainSpace(float value)
         {
-            var min = CurveDomainMin.X;
-            var max = CurveDomainMax.X;
+            var min = curveDomainMin.X;
+            var max = curveDomainMax.X;
 
-            if (IsLooped)
+            if (isLooped)
             {
                 // Wrap value past min-max range
                 return MathUtils.Wrap(value, min, max);
@@ -155,7 +155,7 @@ namespace ValveResourceFormat.Renderer.Particles.Utils
         }
         public float Evaluate(float value)
         {
-            if (CurveSegments.Length == 0)
+            if (curveSegments.Length == 0)
             {
                 return 0f;
             }
@@ -163,32 +163,32 @@ namespace ValveResourceFormat.Renderer.Particles.Utils
             value = ClampToDomainSpace(value);
 
             // If coordinate is on/before the first point
-            if (value <= CurveSegments[0].Start.X)
+            if (value <= curveSegments[0].Start.X)
             {
-                return Math.Clamp(CurveSegments[0].Start.Y, CurveDomainMin.Y, CurveDomainMax.Y);
+                return Math.Clamp(curveSegments[0].Start.Y, curveDomainMin.Y, curveDomainMax.Y);
             }
             // If coordinate is on/after the last point
-            else if (value >= CurveSegments[^1].End.X)
+            else if (value >= curveSegments[^1].End.X)
             {
-                return Math.Clamp(CurveSegments[^1].End.Y, CurveDomainMin.Y, CurveDomainMax.Y);
+                return Math.Clamp(curveSegments[^1].End.Y, curveDomainMin.Y, curveDomainMax.Y);
             }
             // If coordinate is on or between two points
             else
             {
                 // Find the two points that we want to interpolate between
-                for (var i = 0; i < CurveSegments.Length; i++)
+                for (var i = 0; i < curveSegments.Length; i++)
                 {
                     // If the coordinate is in between two points (the biggie!)
-                    if (CurveSegments[i].IsInCurve(value))
+                    if (curveSegments[i].IsInCurve(value))
                     {
-                        value = CurveSegments[i].Evaluate(value);
+                        value = curveSegments[i].Evaluate(value);
 
-                        return Math.Clamp(value, CurveDomainMin.Y, CurveDomainMax.Y);
+                        return Math.Clamp(value, curveDomainMin.Y, curveDomainMax.Y);
                     }
                 }
 
                 // I guess we just return the last point?
-                return Math.Clamp(CurveSegments[^1].End.Y, CurveDomainMin.Y, CurveDomainMax.Y);
+                return Math.Clamp(curveSegments[^1].End.Y, curveDomainMin.Y, curveDomainMax.Y);
             }
         }
     }

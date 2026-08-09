@@ -6,14 +6,14 @@ namespace ValveResourceFormat.Renderer.Particles.Initializers
     /// <seealso href="https://s2v.app/SchemaExplorer/cs2/particles/C_INIT_RandomVectorComponent">C_INIT_RandomVectorComponent</seealso>
     class RandomVectorComponent : ParticleFunctionInitializer
     {
-        private readonly ParticleField FieldOutput = ParticleField.Position;
+        private readonly ParticleField fieldOutput = ParticleField.Position;
         private readonly float min;
         private readonly float max;
         private readonly int component;
 
         public RandomVectorComponent(ParticleDefinitionParser parse) : base(parse)
         {
-            FieldOutput = parse.ParticleField("m_nFieldOutput", FieldOutput);
+            fieldOutput = parse.ParticleField("m_nFieldOutput", fieldOutput);
             min = parse.Float("m_flMin", min);
             max = parse.Float("m_flMax", max);
             // Out-of-range components are clamped into [0, 2] after parsing.
@@ -24,7 +24,7 @@ namespace ValveResourceFormat.Renderer.Particles.Initializers
         {
             var newComponent = particleSystemState.Random.NextBetween(min, max);
 
-            particle.SetVectorComponent(FieldOutput, newComponent, component);
+            particle.SetVectorComponent(fieldOutput, newComponent, component);
 
             return particle;
         }

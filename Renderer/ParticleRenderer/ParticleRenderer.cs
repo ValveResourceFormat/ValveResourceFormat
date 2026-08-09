@@ -19,20 +19,20 @@ namespace ValveResourceFormat.Renderer.Particles
 {
     internal class ParticleRenderer
     {
-        private readonly List<ParticleFunctionPreEmissionOperator> PreEmissionOperators = [];
-        private readonly List<ParticleFunctionEmitter> Emitters = [];
+        private readonly List<ParticleFunctionPreEmissionOperator> preEmissionOperators = [];
+        private readonly List<ParticleFunctionEmitter> emitters = [];
 
-        private readonly List<ParticleFunctionInitializer> Initializers = [];
+        private readonly List<ParticleFunctionInitializer> initializers = [];
 
-        private readonly List<ParticleFunctionOperator> Operators = [];
+        private readonly List<ParticleFunctionOperator> operators = [];
 
         // Run by C_OP_BasicMovement (not the operator loop): each of its instances asks every force
         // generator to add accelerations into Particle.ForceAccumulator, then integrates and clears it.
         internal readonly List<ParticleFunctionForceGenerator> ForceGenerators = [];
 
-        private readonly List<ParticleFunctionConstraint> Constraints = [];
+        private readonly List<ParticleFunctionConstraint> constraints = [];
 
-        private readonly List<ParticleFunctionRenderer> Renderers = [];
+        private readonly List<ParticleFunctionRenderer> renderers = [];
 
         // Caps pre-simulation substeps for pathological content; the largest shipped effect needs 1500
         // (15s at 0.01 step).
@@ -41,7 +41,7 @@ namespace ValveResourceFormat.Renderer.Particles
         // Upper bound on constraint work-list rounds per frame (m_nMaxConstraintPasses, default 3).
         // A lone constraint settles in one round; the bound only matters when multiple constraints
         // invalidate each other. ReadConstraintPasses returns 1 for systems with no constraints.
-        private readonly int ConstraintPasses;
+        private readonly int constraintPasses;
 
         private const string UnsupportedClassWarning = "Unsupported {ComponentType} class '{ClassName}' {File}";
 
@@ -56,7 +56,7 @@ namespace ValveResourceFormat.Renderer.Particles
         public CustomRenderPasses Passes { get; private set; }
 
         /// <summary>
-        /// The scene node this system renders under, when created for one. Renderers use its
+        /// The scene node this system renders under, when created for one. renderers use its
         /// per-node lighting bindings.
         /// </summary>
         public SceneNode? OwnerNode { get; set; }
@@ -66,42 +66,42 @@ namespace ValveResourceFormat.Renderer.Particles
 
         /// <summary>
         /// The group this system belongs to when it is used as a child, matched by
-        /// <see cref="PreEmissionOperators.ChooseRandomChildrenInGroup"/> on the parent.
+        /// <see cref="ChooseRandomChildrenInGroup"/> on the parent.
         /// </summary>
-        private readonly int GroupId;
+        private readonly int groupId;
 
         /// <summary>
         /// Whether the parent's child selection currently lets this system run. Always true for a
         /// root system and for children in a group nobody selects from.
         /// </summary>
-        private bool ChildEnabled = true;
+        private bool childEnabled = true;
 
-        private readonly int InitialParticles;
-        private readonly int MaxParticles;
-        private readonly float MinimumTimeStep;
-        private readonly float MaximumTimeStep;
+        private readonly int initialParticles;
+        private readonly int maxParticles;
+        private readonly float minimumTimeStep;
+        private readonly float maximumTimeStep;
 
         // The simulation step currently being run; spawn-time velocity encoding (prev = pos - vel*dt)
         // uses it.
         private float currentFrameTime;
 
         internal float CurrentFrameTime => currentFrameTime;
-        private readonly float MinimumSimTime;
-        private readonly float MaximumSimTime;
-        private readonly int MinimumFrames;
-        private readonly float PreSimulationTime;
-        private readonly float StopSimulationAfterTime;
+        private readonly float minimumSimTime;
+        private readonly float maximumSimTime;
+        private readonly int minimumFrames;
+        private readonly float preSimulationTime;
+        private readonly float stopSimulationAfterTime;
 
         /// <summary>
         /// The particle bounds to use when calculating the bounding box of the particle system.
         /// This is added over the particle's radius value.
         /// </summary>
-        private readonly AABB ParticleBoundingBox;
+        private readonly AABB particleBoundingBox;
 
         /// <summary>
         /// Set to true to never cull this particle system.
         /// </summary>
-        private readonly bool InfiniteBounds;
+        private readonly bool infiniteBounds;
 
         /// <summary>
         /// Cache a reference to <see cref="EmitParticle"/> as to not allocate one for every emitted particle.
@@ -117,7 +117,7 @@ namespace ValveResourceFormat.Renderer.Particles
         public ControlPoint GetControlPoint(int cp) => systemRenderState.GetControlPoint(cp);
 
         private readonly List<ParticleRenderer> childParticleRenderers;
-        private readonly RendererContext RendererContext;
+        private readonly RendererContext rendererContext;
         private bool hasStarted;
         private bool preSimulating;
         private int simulatedFrames;
@@ -143,41 +143,41 @@ namespace ValveResourceFormat.Renderer.Particles
             emitParticleAction = EmitParticle;
 
             childParticleRenderers = [];
-            this.RendererContext = rendererContext;
+            this.rendererContext = rendererContext;
             this.scene = scene;
 
             var parse = new ParticleDefinitionParser(particleSystem.Data, rendererContext.Logger);
             BehaviorVersion = parse.Int32("m_nBehaviorVersion", 13);
-            GroupId = parse.Int32("m_nGroupID", 0);
-            InitialParticles = parse.Int32("m_nInitialParticles", 0);
-            MaxParticles = parse.Int32("m_nMaxParticles", 1000);
-            MinimumTimeStep = parse.Float("m_flMinimumTimeStep", 0f);
-            MaximumTimeStep = parse.Float("m_flMaximumTimeStep", 0.1f);
-            MinimumSimTime = parse.Float("m_flMinimumSimTime", 0f);
-            MaximumSimTime = parse.Float("m_flMaximumSimTime", 0f);
-            MinimumFrames = parse.Int32("m_nMinimumFrames", 0);
-            PreSimulationTime = parse.Float("m_flPreSimulationTime", 0f);
-            StopSimulationAfterTime = parse.Float("m_flStopSimulationAfterTime", 0f);
+            groupId = parse.Int32("m_nGroupID", 0);
+            initialParticles = parse.Int32("m_nInitialParticles", 0);
+            maxParticles = parse.Int32("m_nMaxParticles", 1000);
+            minimumTimeStep = parse.Float("m_flMinimumTimeStep", 0f);
+            maximumTimeStep = parse.Float("m_flMaximumTimeStep", 0.1f);
+            minimumSimTime = parse.Float("m_flMinimumSimTime", 0f);
+            maximumSimTime = parse.Float("m_flMaximumSimTime", 0f);
+            minimumFrames = parse.Int32("m_nMinimumFrames", 0);
+            preSimulationTime = parse.Float("m_flPreSimulationTime", 0f);
+            stopSimulationAfterTime = parse.Float("m_flStopSimulationAfterTime", 0f);
 
-            MaximumTimeStep = Math.Max(MinimumTimeStep, MaximumTimeStep);
+            maximumTimeStep = Math.Max(minimumTimeStep, maximumTimeStep);
 
             // A zero max timestep would clamp every simulated frame to 0 and freeze the effect; fall back to
             // the 0.1 default instead of treating 0 as "no time passes".
-            if (MaximumTimeStep <= 0f)
+            if (maximumTimeStep <= 0f)
             {
-                MaximumTimeStep = 0.1f;
+                maximumTimeStep = 0.1f;
             }
 
-            currentFrameTime = MaximumTimeStep;
+            currentFrameTime = maximumTimeStep;
 
-            InfiniteBounds = parse.Boolean("m_bInfiniteBounds", false);
-            ParticleBoundingBox = new AABB(
+            infiniteBounds = parse.Boolean("m_bInfiniteBounds", false);
+            particleBoundingBox = new AABB(
                 parse.Vector3("m_BoundingBoxMin", new Vector3(-10)),
                 parse.Vector3("m_BoundingBoxMax", new Vector3(10))
             );
 
             var constantAttributes = new Particle(parse);
-            particleCollection = new ParticleCollection(constantAttributes, MaxParticles);
+            particleCollection = new ParticleCollection(constantAttributes, maxParticles);
 
             systemRenderState = new ParticleSystemRenderState(parentSystemRenderState)
             {
@@ -197,7 +197,7 @@ namespace ValveResourceFormat.Renderer.Particles
 
                 if (!string.IsNullOrEmpty(snapshotPath))
                 {
-                    var snapshotResource = RendererContext.FileLoader.LoadFileCompiled(snapshotPath);
+                    var snapshotResource = rendererContext.FileLoader.LoadFileCompiled(snapshotPath);
 
                     if (snapshotResource?.GetBlockByType(BlockType.SNAP) is ParticleSnapshot snap)
                     {
@@ -208,16 +208,16 @@ namespace ValveResourceFormat.Renderer.Particles
 
             Name = particleSystem.Resource?.FileName ?? "<unnamed>";
 
-            SetupFunctions(particleSystem.GetEmitters(), ParticleControllerFactory.TryCreateEmitter, Emitters, "emitter");
-            SetupFunctions(particleSystem.GetInitializers(), ParticleControllerFactory.TryCreateInitializer, Initializers, "initializer");
+            SetupFunctions(particleSystem.GetEmitters(), ParticleControllerFactory.TryCreateEmitter, emitters, "emitter");
+            SetupFunctions(particleSystem.GetInitializers(), ParticleControllerFactory.TryCreateInitializer, initializers, "initializer");
             SetupFunctions(particleSystem.GetForceGenerators(), ParticleControllerFactory.TryCreateForceGenerator, ForceGenerators, "force generator");
-            SetupFunctions(particleSystem.GetOperators(), ParticleControllerFactory.TryCreateOperator, Operators, "operator");
-            SetupFunctions(particleSystem.GetConstraints(), ParticleControllerFactory.TryCreateConstraint, Constraints, "constraint");
-            ConstraintPasses = ReadConstraintPasses(particleSystem);
+            SetupFunctions(particleSystem.GetOperators(), ParticleControllerFactory.TryCreateOperator, operators, "operator");
+            SetupFunctions(particleSystem.GetConstraints(), ParticleControllerFactory.TryCreateConstraint, constraints, "constraint");
+            constraintPasses = ReadConstraintPasses(particleSystem);
 
             SetupRenderers(particleSystem.GetRenderers());
 
-            SetupFunctions(particleSystem.GetPreEmissionOperators(), ParticleControllerFactory.TryCreatePreEmissionOperator, PreEmissionOperators, "pre-emission operator");
+            SetupFunctions(particleSystem.GetPreEmissionOperators(), ParticleControllerFactory.TryCreatePreEmissionOperator, preEmissionOperators, "pre-emission operator");
 
             SetupChildParticles(particleSystem.GetChildParticleNames(true));
 
@@ -230,7 +230,7 @@ namespace ValveResourceFormat.Renderer.Particles
         {
             var passes = CustomRenderPasses.None;
 
-            foreach (var renderer in Renderers)
+            foreach (var renderer in renderers)
             {
                 passes |= renderer.Pass == RenderPass.Opaque
                     ? CustomRenderPasses.Opaque
@@ -288,7 +288,7 @@ namespace ValveResourceFormat.Renderer.Particles
 
         private void StartSelf()
         {
-            for (var i = 0; i < InitialParticles; ++i)
+            for (var i = 0; i < initialParticles; ++i)
             {
                 EmitParticle(0f);
             }
@@ -304,23 +304,23 @@ namespace ValveResourceFormat.Renderer.Particles
         {
             hasStarted = true;
 
-            foreach (var preEmissionOperator in PreEmissionOperators)
+            foreach (var preEmissionOperator in preEmissionOperators)
             {
                 preEmissionOperator.HasRun = false;
                 preEmissionOperator.Reset();
             }
 
-            foreach (var initializer in Initializers)
+            foreach (var initializer in initializers)
             {
                 initializer.Reset();
             }
 
-            foreach (var particleOperator in Operators)
+            foreach (var particleOperator in operators)
             {
                 particleOperator.Reset();
             }
 
-            foreach (var emitter in Emitters)
+            foreach (var emitter in emitters)
             {
                 emitter.Start(emitParticleAction);
             }
@@ -336,7 +336,7 @@ namespace ValveResourceFormat.Renderer.Particles
         {
             // A system that restarts within its own pre-simulation window re-enters this through
             // Restart(), so the burst runs only for the outermost call.
-            if (PreSimulationTime <= 0f || preSimulating)
+            if (preSimulationTime <= 0f || preSimulating)
             {
                 return;
             }
@@ -355,13 +355,13 @@ namespace ValveResourceFormat.Renderer.Particles
 
         private void PreSimulateSteps()
         {
-            var step = MaximumTimeStep > 0f ? MaximumTimeStep : PreSimulationTime;
-            var neededSteps = (int)MathF.Ceiling(PreSimulationTime / step);
+            var step = maximumTimeStep > 0f ? maximumTimeStep : preSimulationTime;
+            var neededSteps = (int)MathF.Ceiling(preSimulationTime / step);
             var steps = Math.Min(MaxPreSimulationSteps, neededSteps);
 
             if (neededSteps > MaxPreSimulationSteps)
             {
-                RendererContext.Logger.LogUniqueWarning(
+                rendererContext.Logger.LogUniqueWarning(
                     "Effect wants {NeededSteps} pre-simulation substeps, capped at {MaxSteps} {File}",
                     neededSteps, MaxPreSimulationSteps, Name);
             }
@@ -395,7 +395,7 @@ namespace ValveResourceFormat.Renderer.Particles
             particleCollection.Current[index].CreationTime = systemRenderState.Age - ageAtSpawn;
             particleCollection.Current[index].Age = ageAtSpawn;
 
-            foreach (var initializer in Initializers)
+            foreach (var initializer in initializers)
             {
                 initializer.Initialize(ref particleCollection.Current[index], particleCollection, systemRenderState);
             }
@@ -413,7 +413,7 @@ namespace ValveResourceFormat.Renderer.Particles
 
         public void Stop()
         {
-            foreach (var emitter in Emitters)
+            foreach (var emitter in emitters)
             {
                 emitter.Stop();
             }
@@ -503,10 +503,10 @@ namespace ValveResourceFormat.Renderer.Particles
 
         /// <summary>
         /// Advances the system by one frame. Ordinary frames simulate in a single step; only a frame
-        /// longer than <see cref="MaximumTimeStep"/> is broken into substeps, and the total is capped
+        /// longer than <see cref="maximumTimeStep"/> is broken into substeps, and the total is capped
         /// so a long stall cannot make the system catch up indefinitely. Children advance once per
         /// frame with the raw frame time, each substepping against its own timestep settings.
-        /// A system frozen by <see cref="StopSimulationAfterTime"/> holds its children frozen with it.
+        /// A system frozen by <see cref="stopSimulationAfterTime"/> holds its children frozen with it.
         /// </summary>
         private void UpdateFrame(float frameTime, bool presimulating)
         {
@@ -515,15 +515,15 @@ namespace ValveResourceFormat.Renderer.Particles
                 Start();
             }
 
-            var maximumStep = MaximumTimeStep > 0f ? MaximumTimeStep : 0.1f;
+            var maximumStep = maximumTimeStep > 0f ? maximumTimeStep : 0.1f;
 
             // m_flMaximumSimTime caps the system's total simulated lifetime, measured against the
             // accumulated age; the cap only applies for the first m_nMinimumFrames frames
-            if (MaximumSimTime != 0f && simulatedFrames <= MinimumFrames)
+            if (maximumSimTime != 0f && simulatedFrames <= minimumFrames)
             {
-                if (systemRenderState.Age + frameTime > MaximumSimTime)
+                if (systemRenderState.Age + frameTime > maximumSimTime)
                 {
-                    frameTime = MathF.Max(MinimumSimTime, MaximumSimTime - systemRenderState.Age);
+                    frameTime = MathF.Max(minimumSimTime, maximumSimTime - systemRenderState.Age);
                 }
 
                 simulatedFrames++;
@@ -543,7 +543,7 @@ namespace ValveResourceFormat.Renderer.Particles
             {
                 var step = remaining > maximumStep
                     ? maximumStep
-                    : MathF.Max(remaining, MinimumTimeStep);
+                    : MathF.Max(remaining, minimumTimeStep);
 
                 remaining -= step;
 
@@ -552,14 +552,14 @@ namespace ValveResourceFormat.Renderer.Particles
                 Simulate(step, presimulating: presimulating || remaining > 0f);
             }
 
-            if (StopSimulationAfterTime > 0f && systemRenderState.Age >= StopSimulationAfterTime)
+            if (stopSimulationAfterTime > 0f && systemRenderState.Age >= stopSimulationAfterTime)
             {
                 return;
             }
 
             foreach (var childParticleRenderer in childParticleRenderers)
             {
-                if (!childParticleRenderer.ChildEnabled)
+                if (!childParticleRenderer.childEnabled)
                 {
                     continue;
                 }
@@ -573,14 +573,14 @@ namespace ValveResourceFormat.Renderer.Particles
             // Simulation stops after m_flStopSimulationAfterTime and the particles are held
             // in place; a settled static cable freezes here because its pre-simulation already advanced the age
             // to the stop time. Rendering continues from the frozen state.
-            if (StopSimulationAfterTime > 0f && systemRenderState.Age >= StopSimulationAfterTime)
+            if (stopSimulationAfterTime > 0f && systemRenderState.Age >= stopSimulationAfterTime)
             {
                 return;
             }
 
             // The minimum step is imposed by the substep loop, which applies it only to the final
             // partial step; re-imposing it here would raise every substep
-            frameTime = MathF.Min(frameTime, MaximumTimeStep);
+            frameTime = MathF.Min(frameTime, maximumTimeStep);
             currentFrameTime = frameTime;
             particleCollection.CurrentFrameTime = frameTime;
 
@@ -595,11 +595,11 @@ namespace ValveResourceFormat.Renderer.Particles
                 particle.Age = systemRenderState.Age - particle.CreationTime;
             }
 
-            // Each function that runs displaces the per-particle draws of the ones after it. Emitters
+            // Each function that runs displaces the per-particle draws of the ones after it. emitters
             // and initializers inherit whatever the pre-emission walk left behind.
             systemRenderState.Random.OperatorOffset = 0;
 
-            foreach (var preEmissionOperator in PreEmissionOperators)
+            foreach (var preEmissionOperator in preEmissionOperators)
             {
                 if (preEmissionOperator.GetOperatorRunStrength(systemRenderState) <= 0f)
                 {
@@ -620,7 +620,7 @@ namespace ValveResourceFormat.Renderer.Particles
                 systemRenderState.Random.OperatorOffset += ParticleRandom.OperatorStride;
             }
 
-            foreach (var emitter in Emitters)
+            foreach (var emitter in emitters)
             {
                 var strength = emitter.GetOperatorRunStrength(systemRenderState);
 
@@ -634,7 +634,7 @@ namespace ValveResourceFormat.Renderer.Particles
 
             systemRenderState.Random.OperatorOffset = 0;
 
-            foreach (var particleOperator in Operators)
+            foreach (var particleOperator in operators)
             {
                 var strength = particleOperator.GetOperatorRunStrength(systemRenderState);
 
@@ -656,7 +656,7 @@ namespace ValveResourceFormat.Renderer.Particles
 
             if (!presimulating)
             {
-                foreach (var renderer in Renderers)
+                foreach (var renderer in renderers)
                 {
                     renderer.Update(particleCollection, systemRenderState);
                 }
@@ -687,23 +687,23 @@ namespace ValveResourceFormat.Renderer.Particles
             systemRenderState.ParticleCount = particleCollection.Count;
         }
 
-        // Constraints run from a work list bounded by m_nMaxConstraintPasses: each constraint runs once,
+        // constraints run from a work list bounded by m_nMaxConstraintPasses: each constraint runs once,
         // then is re-run only when a different constraint moved particles this frame. A lone constraint
         // therefore runs once.
         private void RunConstraints(float frameTime)
         {
-            if (Constraints.Count == 0)
+            if (constraints.Count == 0)
             {
                 return;
             }
 
-            Span<bool> satisfied = Constraints.Count <= 64 ? stackalloc bool[Constraints.Count] : new bool[Constraints.Count];
+            Span<bool> satisfied = constraints.Count <= 64 ? stackalloc bool[constraints.Count] : new bool[constraints.Count];
 
-            for (var pass = 0; pass < ConstraintPasses; pass++)
+            for (var pass = 0; pass < constraintPasses; pass++)
             {
                 var changed = false;
 
-                for (var i = 0; i < Constraints.Count; i++)
+                for (var i = 0; i < constraints.Count; i++)
                 {
                     if (satisfied[i])
                     {
@@ -712,7 +712,7 @@ namespace ValveResourceFormat.Renderer.Particles
 
                     satisfied[i] = true;
 
-                    var constraint = Constraints[i];
+                    var constraint = constraints[i];
                     if (constraint.GetOperatorRunStrength(systemRenderState) <= 0.0f)
                     {
                         continue;
@@ -721,7 +721,7 @@ namespace ValveResourceFormat.Renderer.Particles
                     if (constraint.ApplyConstraint(particleCollection, frameTime, systemRenderState))
                     {
                         changed = true;
-                        for (var j = 0; j < Constraints.Count; j++)
+                        for (var j = 0; j < constraints.Count; j++)
                         {
                             if (j != i)
                             {
@@ -745,7 +745,7 @@ namespace ValveResourceFormat.Renderer.Particles
                 return false;
             }
 
-            foreach (var emitter in Emitters)
+            foreach (var emitter in emitters)
             {
                 if (!emitter.IsFinished)
                 {
@@ -755,7 +755,7 @@ namespace ValveResourceFormat.Renderer.Particles
 
             foreach (var childRenderer in childParticleRenderers)
             {
-                if (childRenderer.ChildEnabled && !childRenderer.IsFinished())
+                if (childRenderer.childEnabled && !childRenderer.IsFinished())
                 {
                     return false;
                 }
@@ -773,7 +773,7 @@ namespace ValveResourceFormat.Renderer.Particles
 
             foreach (var childParticleRenderer in childParticleRenderers)
             {
-                if (!childParticleRenderer.ChildEnabled)
+                if (!childParticleRenderer.childEnabled)
                 {
                     continue;
                 }
@@ -785,7 +785,7 @@ namespace ValveResourceFormat.Renderer.Particles
             {
                 var rendered = false;
 
-                foreach (var renderer in Renderers)
+                foreach (var renderer in renderers)
                 {
                     if (renderer.Pass != wantedPass)
                     {
@@ -815,7 +815,7 @@ namespace ValveResourceFormat.Renderer.Particles
         {
             foreach (var childParticleRenderer in childParticleRenderers)
             {
-                if (!childParticleRenderer.ChildEnabled)
+                if (!childParticleRenderer.childEnabled)
                 {
                     continue;
                 }
@@ -823,7 +823,7 @@ namespace ValveResourceFormat.Renderer.Particles
                 childParticleRenderer.Prewarm(camera);
             }
 
-            if (Renderers.Count == 0 || particleCollection.Count > 0)
+            if (renderers.Count == 0 || particleCollection.Count > 0)
             {
                 return;
             }
@@ -841,7 +841,7 @@ namespace ValveResourceFormat.Renderer.Particles
                 EmitParticle(0f);
             }
 
-            foreach (var renderer in Renderers)
+            foreach (var renderer in renderers)
             {
                 if (renderer.GetOperatorRunStrength(systemRenderState) <= 0.0f)
                 {
@@ -857,13 +857,13 @@ namespace ValveResourceFormat.Renderer.Particles
         }
 
         public IEnumerable<string> GetSupportedRenderModes()
-            => Renderers
+            => renderers
                 .SelectMany(static renderer => renderer.GetSupportedRenderModes())
                 .Concat(childParticleRenderers.SelectMany(static child => child.GetSupportedRenderModes()));
 
         public void SetRenderMode(string renderMode)
         {
-            foreach (var renderer in Renderers)
+            foreach (var renderer in renderers)
             {
                 renderer.SetRenderMode(renderMode);
             }
@@ -883,7 +883,7 @@ namespace ValveResourceFormat.Renderer.Particles
                 childParticleRenderer.RefreshRenderState();
             }
 
-            foreach (var renderer in Renderers)
+            foreach (var renderer in renderers)
             {
                 renderer.Update(particleCollection, systemRenderState);
             }
@@ -893,7 +893,7 @@ namespace ValveResourceFormat.Renderer.Particles
 
         private void CalculateBounds()
         {
-            if (InfiniteBounds)
+            if (infiniteBounds)
             {
                 return;
             }
@@ -901,7 +901,7 @@ namespace ValveResourceFormat.Renderer.Particles
             var newBounds = new AABB();
             var hasBounds = false;
             var worldCenter = MainControlPoint.Position;
-            var additionalBounds = ParticleBoundingBox;
+            var additionalBounds = particleBoundingBox;
 
             foreach (ref var particle in particleCollection.Current)
             {
@@ -915,7 +915,7 @@ namespace ValveResourceFormat.Renderer.Particles
 
             foreach (var childParticleRenderer in childParticleRenderers)
             {
-                if (!childParticleRenderer.ChildEnabled)
+                if (!childParticleRenderer.childEnabled)
                 {
                     continue;
                 }
@@ -933,19 +933,19 @@ namespace ValveResourceFormat.Renderer.Particles
         {
             foreach (var info in data)
             {
-                if (IsOperatorDisabled(info, RendererContext.Logger))
+                if (IsOperatorDisabled(info, rendererContext.Logger))
                 {
                     continue;
                 }
 
                 var className = info.GetStringProperty("_class");
-                if (tryCreate(className, info, RendererContext.Logger, out var function))
+                if (tryCreate(className, info, rendererContext.Logger, out var function))
                 {
                     target.Add(function);
                 }
                 else
                 {
-                    RendererContext.Logger.LogUniqueWarningFor([label, className], UnsupportedClassWarning, label, className, Name);
+                    rendererContext.Logger.LogUniqueWarningFor([label, className], UnsupportedClassWarning, label, className, Name);
                 }
             }
         }
@@ -953,7 +953,7 @@ namespace ValveResourceFormat.Renderer.Particles
         // Read m_nMaxConstraintPasses (default 3) so rope springs get enough constraint passes.
         private int ReadConstraintPasses(ParticleSystem particleSystem)
         {
-            if (Constraints.Count == 0)
+            if (constraints.Count == 0)
             {
                 return 1;
             }
@@ -963,7 +963,7 @@ namespace ValveResourceFormat.Renderer.Particles
             {
                 if (op.GetStringProperty("_class") == "C_OP_BasicMovement")
                 {
-                    var parse = new ParticleDefinitionParser(op, RendererContext.Logger);
+                    var parse = new ParticleDefinitionParser(op, rendererContext.Logger);
                     passes = Math.Max(passes, parse.Int32("m_nMaxConstraintPasses", 3));
                 }
             }
@@ -975,19 +975,19 @@ namespace ValveResourceFormat.Renderer.Particles
         {
             foreach (var rendererInfo in rendererData)
             {
-                if (IsOperatorDisabled(rendererInfo, RendererContext.Logger))
+                if (IsOperatorDisabled(rendererInfo, rendererContext.Logger))
                 {
                     continue;
                 }
 
                 var rendererClass = rendererInfo.GetStringProperty("_class");
-                if (ParticleControllerFactory.TryCreateRender(rendererClass, rendererInfo, RendererContext, scene, out var renderer))
+                if (ParticleControllerFactory.TryCreateRender(rendererClass, rendererInfo, rendererContext, scene, out var renderer))
                 {
-                    Renderers.Add(renderer);
+                    renderers.Add(renderer);
                 }
                 else
                 {
-                    RendererContext.Logger.LogUniqueWarningFor(["renderer", rendererClass], UnsupportedClassWarning, "renderer", rendererClass, Name);
+                    rendererContext.Logger.LogUniqueWarningFor(["renderer", rendererClass], UnsupportedClassWarning, "renderer", rendererClass, Name);
                 }
             }
         }
@@ -1002,7 +1002,7 @@ namespace ValveResourceFormat.Renderer.Particles
 
             foreach (var child in childParticleRenderers)
             {
-                if (child.GroupId == groupId)
+                if (child.groupId == groupId)
                 {
                     remaining++;
                 }
@@ -1014,13 +1014,13 @@ namespace ValveResourceFormat.Renderer.Particles
             // needed/remaining. Uniform over all subsets of that size, and needs no scratch buffer.
             foreach (var child in childParticleRenderers)
             {
-                if (child.GroupId != groupId)
+                if (child.groupId != groupId)
                 {
                     continue;
                 }
 
                 var chosen = needed > 0 && systemRenderState.Random.Next() * remaining < needed;
-                child.ChildEnabled = chosen;
+                child.childEnabled = chosen;
 
                 if (chosen)
                 {
@@ -1039,7 +1039,7 @@ namespace ValveResourceFormat.Renderer.Particles
         {
             foreach (var child in childParticleRenderers)
             {
-                if (child.GroupId == groupId)
+                if (child.groupId == groupId)
                 {
                     destination.Add(child.systemRenderState);
                 }
@@ -1054,7 +1054,7 @@ namespace ValveResourceFormat.Renderer.Particles
         {
             foreach (var child in childParticleRenderers)
             {
-                if (child.GroupId == groupId)
+                if (child.groupId == groupId)
                 {
                     child.systemRenderState.SetRestartTime(duration);
                 }
@@ -1065,7 +1065,7 @@ namespace ValveResourceFormat.Renderer.Particles
         {
             foreach (var childName in childNames)
             {
-                var childResource = RendererContext.FileLoader.LoadFileCompiled(childName);
+                var childResource = rendererContext.FileLoader.LoadFileCompiled(childName);
 
                 if (childResource == null)
                 {
@@ -1075,7 +1075,7 @@ namespace ValveResourceFormat.Renderer.Particles
                 var childSystemDefinition = (ParticleSystem?)childResource.DataBlock;
                 Debug.Assert(childSystemDefinition != null);
 
-                var childSystem = new ParticleRenderer(childSystemDefinition, RendererContext, scene, null, systemRenderState)
+                var childSystem = new ParticleRenderer(childSystemDefinition, rendererContext, scene, null, systemRenderState)
                 {
                     MainControlPoint = MainControlPoint
                 };
@@ -1097,11 +1097,11 @@ namespace ValveResourceFormat.Renderer.Particles
         /// Replaces the texture every renderer in this system and its children draws with.
         /// </summary>
         public void SetTextureOverride(string textureName)
-            => SetTextureOverride(RendererContext.MaterialLoader.GetTexture(textureName, srgbRead: true));
+            => SetTextureOverride(rendererContext.MaterialLoader.GetTexture(textureName, srgbRead: true));
 
         private void SetTextureOverride(RenderTexture texture)
         {
-            foreach (var renderer in Renderers)
+            foreach (var renderer in renderers)
             {
                 renderer.SetTextureOverride(texture);
             }
@@ -1115,7 +1115,7 @@ namespace ValveResourceFormat.Renderer.Particles
         // todo: set this when viewer checkbox is toggled
         public void SetWireframe(bool isWireframe)
         {
-            foreach (var renderer in Renderers)
+            foreach (var renderer in renderers)
             {
                 renderer.SetWireframe(isWireframe);
             }
@@ -1127,7 +1127,7 @@ namespace ValveResourceFormat.Renderer.Particles
 
         public void Delete()
         {
-            foreach (var renderer in Renderers)
+            foreach (var renderer in renderers)
             {
                 renderer.Delete();
             }

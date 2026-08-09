@@ -55,41 +55,41 @@ namespace ValveResourceFormat.Renderer.Particles
     // Per-Particle Vector
     readonly struct PerParticleVectorProvider : IVectorProvider
     {
-        private readonly ParticleField VectorAttribute;
-        private readonly Vector3 VectorAttributeScale = Vector3.One;
-        private readonly int ControlPoint = -1;
-        private readonly Vector3 ControlPointValueScale = Vector3.One;
-        private readonly Vector3 ControlPointRelativePosition = Vector3.Zero;
-        private readonly Vector3 ControlPointRelativeDirection = Vector3.Zero;
+        private readonly ParticleField vectorAttribute;
+        private readonly Vector3 vectorAttributeScale = Vector3.One;
+        private readonly int controlPoint = -1;
+        private readonly Vector3 controlPointValueScale = Vector3.One;
+        private readonly Vector3 controlPointRelativePosition = Vector3.Zero;
+        private readonly Vector3 controlPointRelativeDirection = Vector3.Zero;
 
         public PerParticleVectorProvider(ParticleDefinitionParser parse)
         {
-            VectorAttribute = parse.ParticleField("m_nVectorAttribute");
-            VectorAttributeScale = parse.Vector3("m_vVectorAttributeScale", VectorAttributeScale);
-            ControlPoint = parse.Int32("m_nControlPoint", ControlPoint);
-            ControlPointValueScale = parse.Vector3("m_vCPValueScale", ControlPointValueScale);
-            ControlPointRelativePosition = parse.Vector3("m_vCPRelativePosition", ControlPointRelativePosition);
-            ControlPointRelativeDirection = parse.Vector3("m_vCPRelativeDir", ControlPointRelativeDirection);
+            vectorAttribute = parse.ParticleField("m_nVectorAttribute");
+            vectorAttributeScale = parse.Vector3("m_vVectorAttributeScale", vectorAttributeScale);
+            controlPoint = parse.Int32("m_nControlPoint", controlPoint);
+            controlPointValueScale = parse.Vector3("m_vCPValueScale", controlPointValueScale);
+            controlPointRelativePosition = parse.Vector3("m_vCPRelativePosition", controlPointRelativePosition);
+            controlPointRelativeDirection = parse.Vector3("m_vCPRelativeDir", controlPointRelativeDirection);
         }
 
         public Vector3 NextVector(ref Particle particle, ParticleSystemRenderState renderState)
         {
-            var result = VectorAttributeScale * particle.GetVector(VectorAttribute);
+            var result = vectorAttributeScale * particle.GetVector(vectorAttribute);
 
-            if (ControlPoint < 0)
+            if (controlPoint < 0)
             {
                 return result;
             }
 
-            var cp = renderState.GetControlPoint(ControlPoint);
-            result = cp.Position * ControlPointValueScale;
-            result += ControlPointRelativePosition;
+            var cp = renderState.GetControlPoint(controlPoint);
+            result = cp.Position * controlPointValueScale;
+            result += controlPointRelativePosition;
 
-            if (ControlPointRelativeDirection != Vector3.Zero)
+            if (controlPointRelativeDirection != Vector3.Zero)
             {
                 result += cp.Orientation != Vector3.Zero
-                    ? cp.Orientation - ControlPointRelativeDirection
-                    : -ControlPointRelativeDirection;
+                    ? cp.Orientation - controlPointRelativeDirection
+                    : -controlPointRelativeDirection;
             }
 
             return result;
@@ -213,18 +213,18 @@ namespace ValveResourceFormat.Renderer.Particles
 
     class RandomUniformOffsetVectorProvider : RandomUniformVectorProvider
     {
-        private readonly ParticleField VectorAttribute;
-        private readonly Vector3 VectorAttributeScale = Vector3.One;
+        private readonly ParticleField vectorAttribute;
+        private readonly Vector3 vectorAttributeScale = Vector3.One;
 
         public RandomUniformOffsetVectorProvider(ParticleDefinitionParser parse) : base(parse)
         {
-            VectorAttribute = parse.ParticleField("m_nVectorAttribute");
-            VectorAttributeScale = parse.Vector3("m_vVectorAttributeScale", VectorAttributeScale);
+            vectorAttribute = parse.ParticleField("m_nVectorAttribute");
+            vectorAttributeScale = parse.Vector3("m_vVectorAttributeScale", vectorAttributeScale);
         }
 
         public override Vector3 NextVector(ref Particle particle, ParticleSystemRenderState renderState)
         {
-            var baseValue = VectorAttributeScale * particle.GetVector(VectorAttribute);
+            var baseValue = vectorAttributeScale * particle.GetVector(vectorAttribute);
             return baseValue + base.NextVector(ref particle, renderState);
         }
     }
@@ -232,21 +232,21 @@ namespace ValveResourceFormat.Renderer.Particles
     // 3 Float Inputs
     readonly struct FloatComponentsVectorProvider : IVectorProvider
     {
-        private readonly INumberProvider X = new LiteralNumberProvider(0);
-        private readonly INumberProvider Y = new LiteralNumberProvider(0);
-        private readonly INumberProvider Z = new LiteralNumberProvider(0);
+        private readonly INumberProvider x = new LiteralNumberProvider(0);
+        private readonly INumberProvider y = new LiteralNumberProvider(0);
+        private readonly INumberProvider z = new LiteralNumberProvider(0);
 
         public FloatComponentsVectorProvider(ParticleDefinitionParser parse)
         {
-            X = parse.NumberProvider("m_FloatComponentX", X);
-            Y = parse.NumberProvider("m_FloatComponentY", Y);
-            Z = parse.NumberProvider("m_FloatComponentZ", Z);
+            x = parse.NumberProvider("m_FloatComponentX", x);
+            y = parse.NumberProvider("m_FloatComponentY", y);
+            z = parse.NumberProvider("m_FloatComponentZ", z);
         }
 
         public Vector3 NextVector(ref Particle particle, ParticleSystemRenderState renderState) => new(
-            X.NextNumber(ref particle, renderState),
-            Y.NextNumber(ref particle, renderState),
-            Z.NextNumber(ref particle, renderState));
+            x.NextNumber(ref particle, renderState),
+            y.NextNumber(ref particle, renderState),
+            z.NextNumber(ref particle, renderState));
     }
 
     // Float Interp (Clamped) & Float Interp (Open)

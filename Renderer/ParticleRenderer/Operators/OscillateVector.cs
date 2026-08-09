@@ -22,10 +22,10 @@ namespace ValveResourceFormat.Renderer.Particles.Operators
         private const int EndTimeOffset = 12;
 
         private readonly ParticleField outputField = ParticleField.Position;
-        private readonly Vector3 RateMin;
-        private readonly Vector3 RateMax;
-        private readonly Vector3 FrequencyMin = Vector3.One;
-        private readonly Vector3 FrequencyMax = Vector3.One;
+        private readonly Vector3 rateMin;
+        private readonly Vector3 rateMax;
+        private readonly Vector3 frequencyMin = Vector3.One;
+        private readonly Vector3 frequencyMax = Vector3.One;
         private readonly INumberProvider oscillationMultiplier = new LiteralNumberProvider(2.0f);
         private readonly INumberProvider oscillationOffset = new LiteralNumberProvider(0.5f);
         private readonly bool proportional = true;
@@ -39,10 +39,10 @@ namespace ValveResourceFormat.Renderer.Particles.Operators
         public OscillateVector(ParticleDefinitionParser parse) : base(parse)
         {
             outputField = parse.ParticleField("m_nField", outputField);
-            RateMin = parse.Vector3("m_RateMin", RateMin);
-            RateMax = parse.Vector3("m_RateMax", RateMax);
-            FrequencyMin = parse.Vector3("m_FrequencyMin", FrequencyMin);
-            FrequencyMax = parse.Vector3("m_FrequencyMax", FrequencyMax);
+            rateMin = parse.Vector3("m_RateMin", rateMin);
+            rateMax = parse.Vector3("m_RateMax", rateMax);
+            frequencyMin = parse.Vector3("m_FrequencyMin", frequencyMin);
+            frequencyMax = parse.Vector3("m_FrequencyMax", frequencyMax);
             oscillationMultiplier = parse.NumberProvider("m_flOscMult", oscillationMultiplier);
             oscillationOffset = parse.NumberProvider("m_flOscAdd", oscillationOffset);
             proportional = parse.Boolean("m_bProportional", proportional);
@@ -58,14 +58,14 @@ namespace ValveResourceFormat.Renderer.Particles.Operators
             foreach (ref var particle in particles.Current)
             {
                 var rate = new Vector3(
-                    particleSystemState.Random.ForParticleBetween(particle.ParticleId, RateOffsetX, RateMin.X, RateMax.X),
-                    particleSystemState.Random.ForParticleBetween(particle.ParticleId, RateOffsetY, RateMin.Y, RateMax.Y),
-                    particleSystemState.Random.ForParticleBetween(particle.ParticleId, RateOffsetZ, RateMin.Z, RateMax.Z));
+                    particleSystemState.Random.ForParticleBetween(particle.ParticleId, RateOffsetX, rateMin.X, rateMax.X),
+                    particleSystemState.Random.ForParticleBetween(particle.ParticleId, RateOffsetY, rateMin.Y, rateMax.Y),
+                    particleSystemState.Random.ForParticleBetween(particle.ParticleId, RateOffsetZ, rateMin.Z, rateMax.Z));
 
                 var frequency = new Vector3(
-                    particleSystemState.Random.ForParticleBetween(particle.ParticleId, FrequencyOffsetX, FrequencyMin.X, FrequencyMax.X),
-                    particleSystemState.Random.ForParticleBetween(particle.ParticleId, FrequencyOffsetY, FrequencyMin.Y, FrequencyMax.Y),
-                    particleSystemState.Random.ForParticleBetween(particle.ParticleId, FrequencyOffsetZ, FrequencyMin.Z, FrequencyMax.Z));
+                    particleSystemState.Random.ForParticleBetween(particle.ParticleId, FrequencyOffsetX, frequencyMin.X, frequencyMax.X),
+                    particleSystemState.Random.ForParticleBetween(particle.ParticleId, FrequencyOffsetY, frequencyMin.Y, frequencyMax.Y),
+                    particleSystemState.Random.ForParticleBetween(particle.ParticleId, FrequencyOffsetZ, frequencyMin.Z, frequencyMax.Z));
 
                 var t = proportional
                     ? particle.NormalizedAge

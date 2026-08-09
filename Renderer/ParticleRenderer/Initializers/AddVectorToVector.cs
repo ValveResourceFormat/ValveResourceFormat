@@ -10,36 +10,36 @@ namespace ValveResourceFormat.Renderer.Particles.Initializers
     /// <seealso href="https://s2v.app/SchemaExplorer/cs2/particles/C_INIT_AddVectorToVector">C_INIT_AddVectorToVector</seealso>
     class AddVectorToVector : ParticleFunctionInitializer
     {
-        private readonly ParticleField FieldInput = ParticleField.Position;
-        private readonly ParticleField FieldOutput = ParticleField.Position;
-        private readonly Vector3 OffsetMin = Vector3.Zero;
-        private readonly Vector3 OffsetMax = Vector3.Zero;
+        private readonly ParticleField fieldInput = ParticleField.Position;
+        private readonly ParticleField fieldOutput = ParticleField.Position;
+        private readonly Vector3 offsetMin = Vector3.Zero;
+        private readonly Vector3 offsetMax = Vector3.Zero;
         private readonly RangeSampler rangeSampler;
 
         public AddVectorToVector(ParticleDefinitionParser parse) : base(parse)
         {
-            FieldInput = parse.ParticleField("m_nFieldInput", FieldInput);
-            FieldOutput = parse.ParticleField("m_nFieldOutput", FieldOutput);
-            OffsetMin = parse.Vector3("m_vOffsetMin", OffsetMin);
-            OffsetMax = parse.Vector3("m_vOffsetMax", OffsetMax);
+            fieldInput = parse.ParticleField("m_nFieldInput", fieldInput);
+            fieldOutput = parse.ParticleField("m_nFieldOutput", fieldOutput);
+            offsetMin = parse.Vector3("m_vOffsetMin", offsetMin);
+            offsetMax = parse.Vector3("m_vOffsetMax", offsetMax);
             rangeSampler = RangeSampler.Parse(parse);
         }
 
         public override Particle Initialize(ref Particle particle, ParticleCollection particles, ParticleSystemRenderState particleSystemState)
         {
-            var input = particle.GetVector(FieldInput);
-            var output = particle.GetVector(FieldOutput);
+            var input = particle.GetVector(fieldInput);
+            var output = particle.GetVector(fieldOutput);
 
-            if (OffsetMin == Vector3.Zero && OffsetMax == Vector3.Zero)
+            if (offsetMin == Vector3.Zero && offsetMax == Vector3.Zero)
             {
-                particle.SetVector(FieldOutput, input + output);
+                particle.SetVector(fieldOutput, input + output);
 
                 return particle;
             }
 
-            var offset = rangeSampler.NextVectorBetween(ref particle, particleSystemState, OffsetMin, OffsetMax);
+            var offset = rangeSampler.NextVectorBetween(ref particle, particleSystemState, offsetMin, offsetMax);
 
-            particle.SetVector(FieldOutput, input + output + offset);
+            particle.SetVector(fieldOutput, input + output + offset);
 
             return particle;
         }

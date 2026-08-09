@@ -6,8 +6,8 @@ namespace ValveResourceFormat.Renderer.Particles.Initializers
     /// </summary>
     class RemapScalar : ParticleFunctionInitializer
     {
-        private readonly ParticleField FieldInput = ParticleField.Alpha;
-        private readonly ParticleField FieldOutput = ParticleField.Radius;
+        private readonly ParticleField fieldInput = ParticleField.Alpha;
+        private readonly ParticleField fieldOutput = ParticleField.Radius;
         private readonly float inputMin;
         private readonly float inputMax;
         private readonly float outputMin;
@@ -15,8 +15,8 @@ namespace ValveResourceFormat.Renderer.Particles.Initializers
 
         public RemapScalar(ParticleDefinitionParser parse) : base(parse)
         {
-            FieldInput = parse.ParticleField("m_nFieldInput", FieldInput);
-            FieldOutput = parse.ParticleField("m_nFieldOutput", FieldOutput);
+            fieldInput = parse.ParticleField("m_nFieldInput", fieldInput);
+            fieldOutput = parse.ParticleField("m_nFieldOutput", fieldOutput);
             inputMin = parse.Float("m_flInputMin", inputMin);
             inputMax = parse.Float("m_flInputMax", inputMax);
             outputMin = parse.Float("m_flOutputMin", outputMin);
@@ -25,11 +25,11 @@ namespace ValveResourceFormat.Renderer.Particles.Initializers
 
         public override Particle Initialize(ref Particle particle, ParticleCollection particles, ParticleSystemRenderState particleSystemState)
         {
-            var value = particle.GetScalar(FieldInput);
+            var value = particle.GetScalar(fieldInput);
 
             value = MathUtils.RemapValClamped(value, inputMin, inputMax, outputMin, outputMax);
 
-            particle.SetScalar(FieldOutput, value);
+            particle.SetScalar(fieldOutput, value);
 
             return particle;
         }

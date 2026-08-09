@@ -6,14 +6,14 @@ namespace ValveResourceFormat.Renderer.Particles.Initializers
     /// <seealso href="https://s2v.app/SchemaExplorer/cs2/particles/C_INIT_RandomScalar">C_INIT_RandomScalar</seealso>
     class RandomScalar : ParticleFunctionInitializer
     {
-        private readonly ParticleField FieldOutput = ParticleField.Radius;
+        private readonly ParticleField fieldOutput = ParticleField.Radius;
         private readonly float scalarMin;
         private readonly float scalarMax;
         private readonly float exponent = 1;
 
         public RandomScalar(ParticleDefinitionParser parse) : base(parse)
         {
-            FieldOutput = parse.ParticleField("m_nFieldOutput", FieldOutput);
+            fieldOutput = parse.ParticleField("m_nFieldOutput", fieldOutput);
             scalarMin = parse.Float("m_flMin", scalarMin);
             scalarMax = parse.Float("m_flMax", scalarMax);
             exponent = parse.Float("m_flExponent", exponent);
@@ -23,7 +23,7 @@ namespace ValveResourceFormat.Renderer.Particles.Initializers
         {
             var value = particleSystemState.Random.NextWithExponentBetween(exponent, scalarMin, scalarMax);
 
-            particle.SetScalar(FieldOutput, value);
+            particle.SetScalar(fieldOutput, value);
 
             return particle;
         }

@@ -7,7 +7,7 @@ namespace ValveResourceFormat.Renderer.Particles.Initializers
     /// </summary>
     class RemapSpeedToScalar : ParticleFunctionInitializer
     {
-        private readonly ParticleField FieldOutput = ParticleField.Radius;
+        private readonly ParticleField fieldOutput = ParticleField.Radius;
         private readonly int controlPointNumber;
         private readonly float inputMin;
         private readonly float inputMax = 10;
@@ -19,7 +19,7 @@ namespace ValveResourceFormat.Renderer.Particles.Initializers
 
         public RemapSpeedToScalar(ParticleDefinitionParser parse) : base(parse)
         {
-            FieldOutput = parse.ParticleField("m_nFieldOutput", FieldOutput);
+            fieldOutput = parse.ParticleField("m_nFieldOutput", fieldOutput);
             controlPointNumber = parse.Int32("m_nControlPointNumber", controlPointNumber);
             inputMin = parse.Float("m_flInputMin", inputMin);
             inputMax = parse.Float("m_flInputMax", inputMax);
@@ -43,8 +43,8 @@ namespace ValveResourceFormat.Renderer.Particles.Initializers
 
             var output = MathUtils.RemapValClamped(speed, inputMin, inputMax, outputMin, outputMax);
 
-            output = particle.ModifyScalarBySetMethodAtSpawn(particles, FieldOutput, output, setMethod);
-            particle.SetScalar(FieldOutput, output);
+            output = particle.ModifyScalarBySetMethodAtSpawn(particles, fieldOutput, output, setMethod);
+            particle.SetScalar(fieldOutput, output);
 
             return particle;
         }

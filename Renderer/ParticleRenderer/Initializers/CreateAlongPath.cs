@@ -10,23 +10,23 @@ namespace ValveResourceFormat.Renderer.Particles.Initializers
     /// <seealso href="https://s2v.app/SchemaExplorer/cs2/particles/C_INIT_CreateAlongPath">C_INIT_CreateAlongPath</seealso>
     class CreateAlongPath : ParticleFunctionInitializer
     {
-        private readonly float MaxDistance;
-        private readonly bool UseRandomCPs; // randomly select sequential CP pairs between start and end points
-        private readonly ParticlePathParameters PathParams;
+        private readonly float maxDistance;
+        private readonly bool useRandomCPs; // randomly select sequential CP pairs between start and end points
+        private readonly ParticlePathParameters pathParams;
 
         public CreateAlongPath(ParticleDefinitionParser parse) : base(parse)
         {
-            UseRandomCPs = parse.Boolean("m_bUseRandomCPs", UseRandomCPs);
+            useRandomCPs = parse.Boolean("m_bUseRandomCPs", useRandomCPs);
             // Modern schema names it m_fMaxDistance; older content uses m_flMaxDistance.
-            MaxDistance = parse.Float("m_fMaxDistance", parse.Float("m_flMaxDistance", MaxDistance));
-            PathParams = new ParticlePathParameters(parse);
+            maxDistance = parse.Float("m_fMaxDistance", parse.Float("m_flMaxDistance", maxDistance));
+            pathParams = new ParticlePathParameters(parse);
         }
 
         public override Particle Initialize(ref Particle particle, ParticleCollection particles, ParticleSystemRenderState particleSystemState)
         {
-            var path = PathParams;
+            var path = pathParams;
 
-            if (UseRandomCPs)
+            if (useRandomCPs)
             {
                 var endCp = path.StartControlPointNumber + 1
                     + (int)(particleSystemState.Random.Next() * (path.EndControlPointNumber - path.StartControlPointNumber));
@@ -36,7 +36,7 @@ namespace ValveResourceFormat.Renderer.Particles.Initializers
             var (start, mid, end) = ParticlePath.CalculatePathValues(particleSystemState, path, particle.CreationTime);
 
             var position = ParticlePath.Evaluate(start, mid, end, particleSystemState.Random.Next());
-            position += particleSystemState.Random.NextBetweenPerComponent(new Vector3(-MaxDistance), new Vector3(MaxDistance));
+            position += particleSystemState.Random.NextBetweenPerComponent(new Vector3(-maxDistance), new Vector3(maxDistance));
 
             particle.SetVector(ParticleField.Position, position);
 

@@ -8,7 +8,7 @@ namespace ValveResourceFormat.Renderer.Particles.Operators
     /// <seealso href="https://s2v.app/SchemaExplorer/cs2/particles/C_OP_SetAttributeToScalarExpression">C_OP_SetAttributeToScalarExpression</seealso>
     class SetAttributeToScalarExpression : ParticleFunctionOperator
     {
-        private readonly ParticleField OutputField = ParticleField.Radius;
+        private readonly ParticleField outputField = ParticleField.Radius;
         private readonly INumberProvider input1 = new LiteralNumberProvider(0);
         private readonly INumberProvider input2 = new LiteralNumberProvider(0);
         private readonly ScalarExpressionType expression = ScalarExpressionType.SCALAR_EXPRESSION_ADD;
@@ -16,7 +16,7 @@ namespace ValveResourceFormat.Renderer.Particles.Operators
 
         public SetAttributeToScalarExpression(ParticleDefinitionParser parse) : base(parse)
         {
-            OutputField = parse.ParticleField("m_nOutputField", OutputField);
+            outputField = parse.ParticleField("m_nOutputField", outputField);
             input1 = parse.NumberProvider("m_flInput1", input1);
             input2 = parse.NumberProvider("m_flInput2", input2);
             expression = parse.Enum<ScalarExpressionType>("m_nExpression", expression);
@@ -68,7 +68,7 @@ namespace ValveResourceFormat.Renderer.Particles.Operators
                     output *= strength;
                 }
 
-                particle.SetScalar(OutputField, particle.ModifyScalarBySetMethod(particles, OutputField, output, setMethod));
+                particle.SetScalar(outputField, particle.ModifyScalarBySetMethod(particles, outputField, output, setMethod));
             }
         }
     }

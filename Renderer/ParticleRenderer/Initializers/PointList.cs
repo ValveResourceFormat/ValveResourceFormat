@@ -26,7 +26,7 @@ namespace ValveResourceFormat.Renderer.Particles.Initializers
             }
         }
 
-        private readonly ParticleField FieldOutput = ParticleField.Position;
+        private readonly ParticleField fieldOutput = ParticleField.Position;
         private readonly List<PointDefinition> pointList = [];
 
         private readonly int numPointsOnPath = 20;
@@ -35,7 +35,7 @@ namespace ValveResourceFormat.Renderer.Particles.Initializers
 
         public PointList(ParticleDefinitionParser parse) : base(parse)
         {
-            FieldOutput = parse.ParticleField("m_nFieldOutput", FieldOutput);
+            fieldOutput = parse.ParticleField("m_nFieldOutput", fieldOutput);
             numPointsOnPath = parse.Int32("m_nNumPointsAlongPath", numPointsOnPath);
             usePath = parse.Boolean("m_bPlaceAlongPath", usePath);
             closedLoop = parse.Boolean("m_bClosedLoop", closedLoop);
@@ -128,7 +128,7 @@ namespace ValveResourceFormat.Renderer.Particles.Initializers
         {
             var particlePosition = GetParticlePosition(particleSystemState);
 
-            particle.SetVector(FieldOutput, particlePosition);
+            particle.SetVector(fieldOutput, particlePosition);
 
             return particle;
         }

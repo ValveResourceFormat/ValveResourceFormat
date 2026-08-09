@@ -80,7 +80,7 @@ namespace ValveResourceFormat.Renderer.Particles.Initializers
         {
             if (weightedList.Length > 0)
             {
-                particle.Sequence = NextWeightedSequence(particleSystemState);
+                particle.SequenceNumber = NextWeightedSequence(particleSystemState);
             }
             else if (shuffle || linear)
             {
@@ -94,14 +94,14 @@ namespace ValveResourceFormat.Renderer.Particles.Initializers
                     current = 0;
                 }
 
-                particle.Sequence = list[current];
+                particle.SequenceNumber = list[current];
                 current++;
             }
             else
             {
                 var sample = particleSystemState.Random.Next();
 
-                particle.Sequence = sequenceMax > sequenceMin
+                particle.SequenceNumber = sequenceMax > sequenceMin
                     ? Math.Min(sequenceMin + (int)(sample * (sequenceMax - sequenceMin + 1)), sequenceMax)
                     : sequenceMin;
             }

@@ -7,19 +7,19 @@ namespace ValveResourceFormat.Renderer.Particles.Initializers
     /// <seealso href="https://s2v.app/SchemaExplorer/cs2/particles/C_INIT_InitVec">C_INIT_InitVec</seealso>
     class InitVec : ParticleFunctionInitializer
     {
-        private readonly ParticleField OutputField = ParticleField.Color;
-        private readonly IVectorProvider InputValue = new LiteralVectorProvider(Vector3.Zero);
+        private readonly ParticleField outputField = ParticleField.Color;
+        private readonly IVectorProvider inputValue = new LiteralVectorProvider(Vector3.Zero);
 
         public InitVec(ParticleDefinitionParser parse) : base(parse)
         {
-            OutputField = parse.ParticleField("m_nOutputField", OutputField);
-            InputValue = parse.VectorProvider("m_InputValue", InputValue);
+            outputField = parse.ParticleField("m_nOutputField", outputField);
+            inputValue = parse.VectorProvider("m_InputValue", inputValue);
         }
 
         // todo: these (operators and initializers) can reference either the current value and the initial value. do we need to store the initial value of all attributes?
         public override Particle Initialize(ref Particle particle, ParticleCollection particles, ParticleSystemRenderState particleSystemState)
         {
-            particle.SetVector(OutputField, InputValue.NextVector(ref particle, particleSystemState));
+            particle.SetVector(outputField, inputValue.NextVector(ref particle, particleSystemState));
 
             return particle;
         }

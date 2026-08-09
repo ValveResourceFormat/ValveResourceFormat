@@ -118,15 +118,22 @@ namespace ValveResourceFormat.Renderer.Particles
         /// </summary>
         public Vector3 ForceAccumulator { get; set; } = Vector3.Zero;
 
-        /// <summary>Gets or sets the sprite sheet sequence number.</summary>
-        public int Sequence { get; set; } = 0;
+        /// <summary>
+        /// Gets or sets which of the sprite sheet's animation sequences this particle plays. One sheet
+        /// can carry several separate animations, and the renderers index into them with this.
+        /// </summary>
+        public int SequenceNumber { get; set; } = 0;
 
         /// <summary>Gets or sets the manually selected animation frame index.</summary>
         public int ManualAnimationFrame { get; set; } = 0;
 
         // Varying properties that we don't really support but are here in case they're used across operators
-        /// <summary>Gets or sets a secondary sprite sheet sequence number.</summary>
-        public int Sequence2 { get; set; } = 0;
+        /// <summary>
+        /// Gets or sets the second sprite sheet sequence, which the engine's spritecard can sample
+        /// alongside <see cref="SequenceNumber"/>. Authored as <c>m_nConstantSequenceNumber1</c>, so the
+        /// engine's suffix is 1 where this is the second. No renderer reads it yet.
+        /// </summary>
+        public int SecondSequenceNumber { get; set; } = 0;
 
         /// <summary>Gets or sets the index of the particle's parent particle in a parent system.</summary>
         public int ParentParticleIndex { get; set; } = -1;
@@ -185,8 +192,8 @@ namespace ValveResourceFormat.Renderer.Particles
             Rotation = Rotation with { Z = float.DegreesToRadians(parse.Float("m_flConstantRotation", 0f)) };
             RotationSpeed = RotationSpeed with { Z = float.DegreesToRadians(parse.Float("m_flConstantRotationSpeed", 0f)) };
             Normal = parse.Vector3("m_ConstantNormal", Normal);
-            Sequence = parse.Int32("m_nConstantSequenceNumber", Sequence);
-            Sequence2 = parse.Int32("m_nConstantSequenceNumber1", Sequence2);
+            SequenceNumber = parse.Int32("m_nConstantSequenceNumber", SequenceNumber);
+            SecondSequenceNumber = parse.Int32("m_nConstantSequenceNumber1", SecondSequenceNumber);
         }
 
         /// <summary>

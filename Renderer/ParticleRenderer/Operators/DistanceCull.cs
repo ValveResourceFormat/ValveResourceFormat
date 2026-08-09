@@ -8,18 +8,18 @@ namespace ValveResourceFormat.Renderer.Particles.Operators
     {
         private readonly int cp;
         private readonly INumberProvider distance = new LiteralNumberProvider(0);
-        private readonly Vector3 PointOffset = Vector3.Zero;
+        private readonly Vector3 pointOffset = Vector3.Zero;
         private readonly bool cullInside;
         public DistanceCull(ParticleDefinitionParser parse) : base(parse)
         {
             cp = parse.Int32("m_nControlPoint", cp);
-            PointOffset = parse.Vector3("m_vecPointOffset", PointOffset);
+            pointOffset = parse.Vector3("m_vecPointOffset", pointOffset);
             distance = parse.NumberProvider("m_flDistance", distance);
             cullInside = parse.Boolean("m_bCullInside", cullInside);
         }
         private bool CulledBySphere(Vector3 position, float radius, ParticleSystemRenderState particleSystemState)
         {
-            var sphereOrigin = particleSystemState.GetControlPoint(cp).Position + PointOffset;
+            var sphereOrigin = particleSystemState.GetControlPoint(cp).Position + pointOffset;
 
             var distanceFromEdge = Vector3.Distance(sphereOrigin, position) - radius;
 

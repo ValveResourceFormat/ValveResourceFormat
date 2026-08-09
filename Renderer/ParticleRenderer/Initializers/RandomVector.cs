@@ -8,24 +8,24 @@ namespace ValveResourceFormat.Renderer.Particles.Initializers
     /// <seealso href="https://s2v.app/SchemaExplorer/cs2/particles/C_INIT_RandomVector">C_INIT_RandomVector</seealso>
     class RandomVector : ParticleFunctionInitializer
     {
-        private readonly ParticleField FieldOutput = ParticleField.Position;
-        private readonly Vector3 Min;
-        private readonly Vector3 Max;
+        private readonly ParticleField fieldOutput = ParticleField.Position;
+        private readonly Vector3 min;
+        private readonly Vector3 max;
         private readonly RangeSampler rangeSampler;
 
         public RandomVector(ParticleDefinitionParser parse) : base(parse)
         {
-            FieldOutput = parse.ParticleField("m_nFieldOutput", FieldOutput);
-            Min = parse.Vector3("m_vecMin", Min);
-            Max = parse.Vector3("m_vecMax", Max);
+            fieldOutput = parse.ParticleField("m_nFieldOutput", fieldOutput);
+            min = parse.Vector3("m_vecMin", min);
+            max = parse.Vector3("m_vecMax", max);
             rangeSampler = RangeSampler.Parse(parse);
         }
 
         public override Particle Initialize(ref Particle particle, ParticleCollection particles, ParticleSystemRenderState particleSystemState)
         {
-            var newVector = rangeSampler.NextVectorBetween(ref particle, particleSystemState, Min, Max);
+            var newVector = rangeSampler.NextVectorBetween(ref particle, particleSystemState, min, max);
 
-            particle.SetVector(FieldOutput, newVector);
+            particle.SetVector(fieldOutput, newVector);
 
             return particle;
         }

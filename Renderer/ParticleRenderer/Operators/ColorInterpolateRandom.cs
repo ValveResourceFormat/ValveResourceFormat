@@ -15,7 +15,7 @@ namespace ValveResourceFormat.Renderer.Particles.Operators
         private readonly Vector3 colorFadeMax = Vector3.One;
         private readonly float fadeStartTime;
         private readonly float fadeEndTime = 1f;
-        private readonly ParticleField FieldOutput = ParticleField.Color;
+        private readonly ParticleField fieldOutput = ParticleField.Color;
         private readonly bool easeInOut = true;
 
         public ColorInterpolateRandom(ParticleDefinitionParser parse) : base(parse)
@@ -24,7 +24,7 @@ namespace ValveResourceFormat.Renderer.Particles.Operators
             colorFadeMax = parse.Color24("m_ColorFadeMax", colorFadeMax);
             fadeStartTime = parse.Float("m_flFadeStartTime", fadeStartTime);
             fadeEndTime = parse.Float("m_flFadeEndTime", fadeEndTime);
-            FieldOutput = parse.ParticleField("m_nFieldOutput", FieldOutput);
+            fieldOutput = parse.ParticleField("m_nFieldOutput", fieldOutput);
             easeInOut = parse.Boolean("m_bEaseInOut", easeInOut);
         }
 
@@ -52,7 +52,7 @@ namespace ValveResourceFormat.Renderer.Particles.Operators
                     t = t * t * (3 - 2 * t);
                 }
 
-                particle.SetVector(FieldOutput, Vector3.Lerp(particle.GetInitialVector(particles, FieldOutput), newColor, t));
+                particle.SetVector(fieldOutput, Vector3.Lerp(particle.GetInitialVector(particles, fieldOutput), newColor, t));
             }
         }
     }

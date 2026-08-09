@@ -94,8 +94,8 @@ namespace ValveResourceFormat.Renderer.Particles
                 ParticleField.Pitch => particle.Rotation.Y,
                 ParticleField.Roll => particle.Rotation.Z,
                 ParticleField.RollSpeed => particle.RotationSpeed.Z,
-                ParticleField.SequenceNumber => particle.Sequence,
-                ParticleField.SecondSequenceNumber => particle.Sequence2,
+                ParticleField.SequenceNumber => particle.SequenceNumber,
+                ParticleField.SecondSequenceNumber => particle.SecondSequenceNumber,
                 ParticleField.ManualAnimationFrame => particle.ManualAnimationFrame,
                 ParticleField.ParentParticleIndex => particle.ParentParticleIndex,
                 ParticleField.ParentParticleId => particle.ParentParticleId,
@@ -139,10 +139,10 @@ namespace ValveResourceFormat.Renderer.Particles
                     particle.Lifetime = value;
                     break;
                 case ParticleField.SequenceNumber:
-                    particle.Sequence = (int)value;
+                    particle.SequenceNumber = (int)value;
                     break;
                 case ParticleField.SecondSequenceNumber:
-                    particle.Sequence2 = (int)value;
+                    particle.SecondSequenceNumber = (int)value;
                     break;
                 case ParticleField.ManualAnimationFrame:
                     particle.ManualAnimationFrame = (int)value;
@@ -183,8 +183,8 @@ namespace ValveResourceFormat.Renderer.Particles
         {
             return field switch
             {
-                ParticleField.SequenceNumber => particle.Sequence,
-                ParticleField.SecondSequenceNumber => particle.Sequence2,
+                ParticleField.SequenceNumber => particle.SequenceNumber,
+                ParticleField.SecondSequenceNumber => particle.SecondSequenceNumber,
                 ParticleField.ManualAnimationFrame => particle.ManualAnimationFrame,
                 ParticleField.ParentParticleIndex => particle.ParentParticleIndex,
                 ParticleField.ParentParticleId => particle.ParentParticleId,

@@ -12,12 +12,12 @@ namespace ValveResourceFormat.Renderer.Particles.Operators
         private readonly INumberProvider outputMin = new LiteralNumberProvider(0);
         private readonly INumberProvider outputMax = new LiteralNumberProvider(1);
 
-        private readonly ParticleField OutputField = ParticleField.Radius;
+        private readonly ParticleField outputField = ParticleField.Radius;
         private readonly ParticleSetMethod setMethod = ParticleSetMethod.PARTICLE_SET_REPLACE_VALUE;
 
         public RemapSpeed(ParticleDefinitionParser parse) : base(parse)
         {
-            OutputField = parse.ParticleField("m_nFieldOutput", OutputField);
+            outputField = parse.ParticleField("m_nFieldOutput", outputField);
             inputMin = parse.NumberProvider("m_flInputMin", inputMin);
             inputMax = parse.NumberProvider("m_flInputMax", inputMax);
             outputMin = parse.NumberProvider("m_flOutputMin", outputMin);
@@ -35,9 +35,9 @@ namespace ValveResourceFormat.Renderer.Particles.Operators
                 var outputMax = this.outputMax.NextNumber(ref particle, particleSystemState);
 
                 var finalValue = MathUtils.RemapValClamped(particle.Speed, inputMin, inputMax, outputMin, outputMax);
-                finalValue = particle.ModifyScalarBySetMethod(particles, OutputField, finalValue, setMethod);
+                finalValue = particle.ModifyScalarBySetMethod(particles, outputField, finalValue, setMethod);
 
-                particle.SetScalar(OutputField, float.Lerp(particle.GetScalar(OutputField), finalValue, strength));
+                particle.SetScalar(outputField, float.Lerp(particle.GetScalar(outputField), finalValue, strength));
             }
         }
     }
