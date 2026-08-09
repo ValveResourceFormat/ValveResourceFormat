@@ -444,9 +444,7 @@ namespace ValveResourceFormat.Renderer.Particles
         {
             var parse = new ParticleDefinitionParser(op, logger);
 
-            // Also skip ops that only run during endcap (currently unsupported)
-            return parse.Boolean("m_bDisableOperator", default)
-                || parse.Enum<ParticleEndCapMode>("m_nOpEndCapState", default) == ParticleEndCapMode.PARTICLE_ENDCAP_ENDCAP_ON;
+            return parse.Boolean("m_bDisableOperator", default);
         }
 
         /// <summary>

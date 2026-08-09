@@ -148,6 +148,21 @@ namespace ValveResourceFormat.Renderer.Particles
         /// <summary>Gets or sets the identifier of the rope segment this particle belongs to.</summary>
         public int RopeSegmentId { get; set; } = 0;
 
+        /// <summary>Gets or sets the bit field of user events currently raised on this particle.</summary>
+        public int UserEventStates { get; set; } = 0;
+
+        /// <summary>Gets or sets the minimum corner of the particle's own bounding box.</summary>
+        public Vector3 BoxMins { get; set; } = Vector3.Zero;
+
+        /// <summary>Gets or sets the maximum corner of the particle's own bounding box.</summary>
+        public Vector3 BoxMaxs { get; set; } = Vector3.Zero;
+
+        /// <summary>Gets or sets the orientation of the particle's own bounding box.</summary>
+        public Vector3 BoxAngles { get; set; } = Vector3.Zero;
+
+        /// <summary>Gets or sets the flags describing how the particle's own bounding box is used.</summary>
+        public float BoxFlags { get; set; } = 0f;
+
         /// <summary>Gets or sets the alpha window threshold scratch value.</summary>
         public float AlphaWindowThreshold { get; set; } = 0f;
         /// <summary>Gets or sets the first general-purpose scratch float.</summary>

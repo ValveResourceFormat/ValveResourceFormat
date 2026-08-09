@@ -6,7 +6,7 @@ namespace ValveResourceFormat.Renderer.Particles
     abstract class ParticleFunction
     {
         private readonly INumberProvider opStrengthInput = new LiteralNumberProvider(1f);
-        //ParticleEndCapMode OpEndCapState; // operator end cap state
+        private readonly ParticleEndCapMode opEndCapState = ParticleEndCapMode.PARTICLE_ENDCAP_ALWAYS_ON;
         public readonly float OpStartFadeInTime; // operator start fadein
         public readonly float OpEndFadeInTime; // operator end fadein
         public readonly float OpStartFadeOutTime; // operator start fadeout
@@ -31,6 +31,7 @@ namespace ValveResourceFormat.Renderer.Particles
         {
             Logger = parse.Logger;
             opStrengthInput = parse.NumberProvider("m_flOpStrength", opStrengthInput);
+            opEndCapState = parse.Enum("m_nOpEndCapState", opEndCapState);
             OpStartFadeInTime = parse.Float("m_flOpStartFadeInTime");
             OpEndFadeInTime = parse.Float("m_flOpEndFadeInTime");
             OpStartFadeOutTime = parse.Float("m_flOpStartFadeOutTime");
@@ -50,9 +51,10 @@ namespace ValveResourceFormat.Renderer.Particles
                 opTimeOffsetMax == 0f &&
                 opTimeScaleMin == 1f &&
                 opTimeScaleMax == 1f;
-            //OpEndCapState == ParticleEndCapMode.PARTICLE_ENDCAP_ALWAYS_ON);
 
-            StrengthFastPath = FadeCurveIsUnity && opStrengthInput is LiteralNumberProvider { Value: 1f };
+            StrengthFastPath = FadeCurveIsUnity
+                && opEndCapState == ParticleEndCapMode.PARTICLE_ENDCAP_ALWAYS_ON
+                && opStrengthInput is LiteralNumberProvider { Value: 1f };
         }
 
         public float GetOperatorRunStrength(ParticleSystemRenderState systemState) // CheckIfOperatorShouldRun
@@ -62,20 +64,18 @@ namespace ValveResourceFormat.Renderer.Particles
                 return 1f;
             }
 
+            if (opEndCapState != ParticleEndCapMode.PARTICLE_ENDCAP_ALWAYS_ON
+                && systemState.InEndCap != (opEndCapState == ParticleEndCapMode.PARTICLE_ENDCAP_ENDCAP_ON))
+            {
+                return 0f;
+            }
+
             var opStrength = opStrengthInput.NextNumber(systemState);
 
             if (FadeCurveIsUnity || opStrength <= 0f)
             {
                 return opStrength;
             }
-
-            /* TODO
-            if (OpEndCapState != -1)
-            {
-                if (systemState.InEndCap != (OpEndCapState == 1))
-                    return false;
-            }
-            */
 
             var time = systemState.Age;
 

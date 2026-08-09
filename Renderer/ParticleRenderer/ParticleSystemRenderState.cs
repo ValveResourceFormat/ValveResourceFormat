@@ -71,21 +71,61 @@ namespace ValveResourceFormat.Renderer.Particles
         /// <summary>System age at which the scheduled stop or restart fires.</summary>
         public float EndTime { get; private set; }
 
-        // We don't yet support endcaps (effects that play for when a particle system ends), but if we ever do:
-        // This can be set by PlayEndCapWhenFinished and StopAfterDuration
-        public bool PlayEndCap { get; private set; }
+        /// <summary>Whether reaching <see cref="EndTime"/> also starts the endcap.</summary>
+        public bool PlayEndCapOnEnd { get; private set; }
+
+        /// <summary>
+        /// Whether the system is playing its endcap, the phase an effect runs once it has been told to
+        /// stop. Only functions whose <c>m_nOpEndCapState</c> allows it run in each phase, so an endcap
+        /// swaps part of the operator list for another.
+        /// </summary>
+        public bool InEndCap { get; private set; }
+
+        /// <summary>System age at which the endcap began.</summary>
+        public float EndCapStartAge { get; private set; }
+
+        /// <summary>How long the endcap has been running, or 0 outside it.</summary>
+        public float EndCapAge => InEndCap ? Age - EndCapStartAge : 0f;
+
+        /// <summary>
+        /// Whether simulation is held in place. <see cref="Operators.EndCapTimedFreeze"/> sets it when
+        /// its timer runs out, and it stays set until the system restarts.
+        /// </summary>
+        public bool Frozen { get; set; }
+
+        /// <summary>Enters the endcap phase, unless the system is in it already.</summary>
+        public void StartEndCap()
+        {
+            if (InEndCap)
+            {
+                return;
+            }
+
+            InEndCap = true;
+            EndCapStartAge = Age;
+        }
+
+        /// <summary>Leaves the endcap phase and unfreezes.</summary>
+        public void ClearEndCap()
+        {
+            InEndCap = false;
+            EndCapStartAge = 0f;
+            Frozen = false;
+        }
 
         /// <summary>
         /// Ends the system after <paramref name="duration"/>: emission stops, and with
         /// <paramref name="destroyInstantly"/> the particles still alive are dropped instead of being
-        /// left to finish their lifetimes.
+        /// left to finish their lifetimes. With <paramref name="playEndCap"/> the stop also starts the
+        /// endcap.
         /// </summary>
-        public void SetStopTime(float duration, bool destroyInstantly)
+        public void SetStopTime(float duration, bool destroyInstantly, bool playEndCap)
         {
             EndEarly = true;
             EndTime = Age + duration;
             DestroyInstantlyOnEnd = destroyInstantly;
             RestartOnEnd = false;
+            PlayEndCapOnEnd = playEndCap;
         }
 
         /// <summary>
@@ -97,6 +137,7 @@ namespace ValveResourceFormat.Renderer.Particles
             EndTime = Age + duration;
             DestroyInstantlyOnEnd = false;
             RestartOnEnd = true;
+            PlayEndCapOnEnd = false;
         }
 
         // Control Points
