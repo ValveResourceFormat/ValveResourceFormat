@@ -83,11 +83,13 @@ namespace ValveResourceFormat.Renderer.Particles
         public Vector3 Velocity { get; set; } = Vector3.Zero;
 
         /// <summary>
-        /// Gets or sets the normalized direction vector derived from the particle's yaw/pitch rotation.
+        /// Gets or sets the particle's normal, the engine's own attribute rather than anything derived
+        /// from <see cref="Rotation"/>. A zero write is ignored, and the value is stored as given: the
+        /// normal-aligned quad basis leaves its axes un-normalized, so a longer normal widens the card.
         /// </summary>
         public Vector3 Normal
         {
-            readonly get => Vector3.Transform(new Vector3(0, 0, 1), GetRotationMatrix());
+            readonly get => normal;
             set
             {
                 if (value == Vector3.Zero)
@@ -95,14 +97,11 @@ namespace ValveResourceFormat.Renderer.Particles
                     return;
                 }
 
-                var normal = Vector3.Normalize(value);
-
-                var yaw = MathF.Atan2(normal.X, normal.Z);
-                // The getter yields Y = -sin(pitch), so the pitch must be negated here for get/set round trips
-                var pitch = MathF.Asin(-Math.Clamp(normal.Y, -1f, 1f));
-                Rotation = new Vector3(yaw, pitch, Rotation.Z);
+                normal = value;
             }
         }
+
+        private Vector3 normal = new(0f, 0f, 1f);
 
         /// <summary>Gets the particle's age as a fraction of its lifetime. May exceed 1 if the particle outlives its lifetime.</summary>
         public readonly float NormalizedAge => Age / Math.Max(0.0001f, Lifetime); //Old version: 1 - (Lifetime / ConstantLifetime);
