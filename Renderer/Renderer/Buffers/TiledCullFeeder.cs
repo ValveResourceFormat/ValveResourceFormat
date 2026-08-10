@@ -60,10 +60,9 @@ public sealed class TiledCullFeeder
 
     /// <summary>
     /// Slots reserved per batch. Must be a multiple of <see cref="ItemsPerMask"/>: <see cref="End"/> pads
-    /// each batch out to whole masks, so a stride that is not would run past the item array. Five masks
-    /// covers the 144 env map probes the shader array holds with room to spare.
+    /// each batch out to whole masks, so a stride that is not would run past the item array.
     /// </summary>
-    private const int MaxItemsPerBatch = 160;
+    private const int MaxItemsPerBatch = 320; // 10 words
     private const int MaxItems = BatchCount * MaxItemsPerBatch;
 
     private const int TileGroupSizeX = 8;
@@ -180,10 +179,11 @@ public sealed class TiledCullFeeder
         // the item array.
         Debug.Assert(MaxItemsPerBatch % ItemsPerMask == 0, $"Batch stride must be a multiple of {ItemsPerMask}");
 
-        // AddEnvMaps drops a probe whose shader index reaches the stride, and says nothing when it does:
-        // the probe would keep shading from the UBO while never being binned to a tile again.
         Debug.Assert(EnvMapArray.MAX_ENVMAPS <= MaxItemsPerBatch,
             $"Env map probes must fit the {MaxItemsPerBatch} slot batch stride");
+
+        Debug.Assert(BarnLightConstants.MAX_BARN_LIGHTS <= MaxItemsPerBatch,
+            $"Barn light faces must fit the {MaxItemsPerBatch} slot batch stride");
 
         this.tileCols = tileCols;
         this.tileRows = tileRows;

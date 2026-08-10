@@ -74,8 +74,8 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
             var brightness = MathF.Max(0f, intensity.NextNumber(ref particle, systemRenderState));
 
             light.Color = color;
-            light.Brightness = brightness;
-            light.BrightnessScale = 500f;
+            light.BrightnessLegacy = brightness;
+            light.BrightnessScale = 1f;
             light.Range = range;
             light.Position = particle.Position;
             light.Transform = Matrix4x4.CreateTranslation(particle.Position);

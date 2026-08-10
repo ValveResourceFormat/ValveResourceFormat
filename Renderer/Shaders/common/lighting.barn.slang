@@ -27,6 +27,8 @@ layout(std430, binding = 12) readonly buffer BarnLightBuffer {
     BarnLightConstants g_BarnLights[];
 };
 
+const int MAX_BARN_LIGHTS = 320;
+
 int g_nBarnLightsIterated = 0;
 
 // Game uses Texture3D
@@ -69,14 +71,26 @@ float ComputeBarnLightShadow_PCF_3x3_Gaussian(vec2 shadowUV, float shadowRef, ve
 
 void CalculateBarnLighting(inout LightingTerms_t lighting, in MaterialProperties_t mat, vec4 bakedShadow)
 {
-    uvec4 cullBits = GetCullMaskWords(GetBarnLightCullMasks(mat.PositionWS));
+    CullMasks_t masks = GetBarnLightCullMasks(mat.PositionWS);
 
-    for (uint i = 0; i < g_nNumBarnLights; i++)
+    uint word = 0u;
+    uint mask = 0u;
+
+    while (g_nBarnLightsIterated < MAX_BARN_LIGHTS)
     {
-        if (!IsCullBitSet(cullBits, i))
+        while (mask == 0u)
         {
-            continue;
+            if (word >= masks.m_nWords)
+            {
+                return;
+            }
+
+            mask = GetCullMaskWord(masks, word, GetCullLiveMask(word, g_nNumBarnLights));
+            word++;
         }
+
+        uint i = uint(findLSB(mask)) + ((word - 1u) * 32u);
+        mask &= mask - 1u;
 
         g_nBarnLightsIterated++;
 

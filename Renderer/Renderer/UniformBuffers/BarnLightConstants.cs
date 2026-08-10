@@ -7,7 +7,7 @@ namespace ValveResourceFormat.Renderer.Buffers
     public struct BarnLightConstants
     {
         /// <summary>Maximum number of barn lights that can be active in a scene.</summary>
-        public const int MAX_BARN_LIGHTS = 128; // 320 would be the max lights in a scene
+        public const int MAX_BARN_LIGHTS = 320;
 
         /// <summary>Frustum matrix used for barn light shadow projection.</summary>
         public Matrix4x4 BarnFrustum;

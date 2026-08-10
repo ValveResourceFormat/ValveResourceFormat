@@ -113,6 +113,9 @@ public class SceneLight(Scene scene) : SceneNode(scene)
     /// <summary>Gets or sets the brightness (intensity) of the light.</summary>
     public float Brightness { get; set; } = 1.0f;
 
+    /// <summary>Gets or sets the <c>brightness_legacy</c> intensity, measured at <see cref="LegacyBrightnessDistance"/>, or <see cref="float.NaN"/> when the entity has none.</summary>
+    public float BrightnessLegacy { get; set; } = float.NaN;
+
     /// <summary>Gets or sets the additional brightness scale multiplier.</summary>
     public float BrightnessScale { get; set; } = 1.0f;
 
@@ -235,7 +238,8 @@ public class SceneLight(Scene scene) : SceneNode(scene)
     /// <summary>
     /// Returns whether this light will produce energy based on its properties.
     /// </summary>
-    public bool IsVisible => BarnFaces.Length > 0 && Brightness > 0f && BrightnessScale > 0f && Color != Vector3.Zero;
+    public bool IsVisible => BarnFaces.Length > 0 && BrightnessScale > 0f && Color != Vector3.Zero
+        && (float.IsNaN(BrightnessLegacy) ? Brightness : BrightnessLegacy) > 0f;
 
     internal Dictionary<int, (int FrustumHash, DepthOnlyDrawBuckets? DrawCalls)> FaceShadowCache { get; } = [];
 
@@ -309,6 +313,10 @@ public class SceneLight(Scene scene) : SceneNode(scene)
             }
 
         }
+        else
+        {
+            light.BrightnessLegacy = entity.GetFloatProperty("brightness_legacy", float.NaN);
+        }
 
         var defaultDirectLight = isNewLightType
             ? DirectLightType.Dynamic 
@@ -350,6 +358,16 @@ public class SceneLight(Scene scene) : SceneNode(scene)
             light.MinRoughness = entity.GetFloatProperty("minroughness", 0.04f);
 
             light.Shear = entity.GetVector2Property("shear");
+        }
+
+        if (type is EntityType.Rect)
+        {
+            light.SizeParams = entity.GetVector3Property("size_params");
+            light.MinRoughness = entity.GetFloatProperty("minroughness", 0.04f);
+            light.Shape = entity.GetFloatProperty("shape"); // 0 = rectangle, 1 = disc
+            light.SoftX = 0f;
+            light.SoftY = 0f;
+            light.SkirtNear = 0f;
         }
 
         if (type is EntityType.Omni2)
@@ -452,7 +470,7 @@ public class SceneLight(Scene scene) : SceneNode(scene)
 
     internal static bool IsRealTimeLight(SceneLight light)
     {
-        if (light.Entity is not (EntityType.Barn or EntityType.Omni2))
+        if (light.Entity is not (EntityType.Barn or EntityType.Omni2 or EntityType.Rect))
         {
             return false;
         }
@@ -477,7 +495,7 @@ public class SceneLight(Scene scene) : SceneNode(scene)
             return;
         }
 
-        if (Entity == EntityType.Barn)
+        if (Entity is EntityType.Barn or EntityType.Rect)
         {
             if (BarnFaces is not { Length: 1 })
             {
@@ -507,6 +525,24 @@ public class SceneLight(Scene scene) : SceneNode(scene)
         return aspect >= 1f
             ? (size, (int)MathF.Round(size / aspect))
             : ((int)MathF.Round(size * aspect), size);
+    }
+
+    /// <summary>Distance, in world units, that <c>brightness_legacy</c> is measured at.</summary>
+    private const float LegacyBrightnessDistance = 100f;
+
+    /// <summary>Linear intensity for the shader, rescaled to the reference distance whose square is <paramref name="referenceDistSq"/> (zero for a light with no falloff).</summary>
+    private static float ComputeIntensity(SceneLight light, float referenceDistSq, float divisor)
+    {
+        if (float.IsNaN(light.BrightnessLegacy))
+        {
+            return divisor > 0.000001f ? light.Brightness * light.BrightnessScale / divisor : 0f;
+        }
+
+        var intensity = light.BrightnessLegacy * light.BrightnessScale;
+
+        return referenceDistSq > 0f
+            ? intensity * (LegacyBrightnessDistance * LegacyBrightnessDistance / referenceDistSq)
+            : intensity;
     }
 
     private static (Matrix4x4 WorldToFrustum, Vector4 Position, float SkirtNear, float SkirtFar, float Divisor)
@@ -599,7 +635,7 @@ public class SceneLight(Scene scene) : SceneNode(scene)
             ? ComputeOrthographicBarnGeometry(light, forwardDir, upDir, rightDir)
             : ComputePerspectiveBarnGeometry(light, forwardDir, upDir, rightDir);
 
-        var colorIntensity = divisor > 0.000001f ? light.Brightness * light.BrightnessScale / divisor : 0f;
+        var colorIntensity = ComputeIntensity(light, barnLightPosition.W, divisor);
         var linearColor = ColorSpace.SrgbGammaToLinear(light.Color) * colorIntensity;
 
         var cookieW = 0f;
@@ -757,7 +793,8 @@ public class SceneLight(Scene scene) : SceneNode(scene)
 
     private static Vector3 ComputeOmni2Color(SceneLight light)
     {
-        var colorIntensity = light.Brightness * light.BrightnessScale * (4f * MathF.PI * 10f) / light.ComputeConeSolidAngle();
+        var divisor = light.ComputeConeSolidAngle() / (4f * MathF.PI * 10f);
+        var colorIntensity = ComputeIntensity(light, 1f, divisor);
         return ColorSpace.SrgbGammaToLinear(light.Color) * colorIntensity;
     }
 
