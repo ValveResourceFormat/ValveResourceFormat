@@ -1292,9 +1292,6 @@ namespace CLI
                 var rawFileData = ArrayPool<byte>.Shared.Rent(totalLength);
                 ContentFile? contentFile = null;
 
-                // Must outlive DumpContentFile because content subfiles can be generated lazily from the resource.
-                Resource? resource = null;
-
                 try
                 {
                     package.ReadEntry(file, rawFileData);
@@ -1325,6 +1322,8 @@ namespace CLI
 
                     if (OutputFile != null)
                     {
+                        // Must outlive DumpContentFile because content subfiles can be generated lazily from the resource.
+                        using var resource = new Resource();
                         string outputFile;
                         // VCS files require multiple files to be decompiled together
                         if (isVcsFile)
@@ -1348,10 +1347,7 @@ namespace CLI
                         }
                         else
                         {
-                            resource = new Resource
-                            {
-                                FileName = filePath,
-                            };
+                            resource.FileName = filePath;
                             resource.Read(memory);
 
                             if (GltfExportFormat != null && GltfModelExporter.CanExport(resource))
@@ -1402,7 +1398,6 @@ namespace CLI
                 finally
                 {
                     contentFile?.Dispose();
-                    resource?.Dispose();
                     ArrayPool<byte>.Shared.Return(rawFileData);
                 }
             }
