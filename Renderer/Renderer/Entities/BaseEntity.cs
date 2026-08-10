@@ -549,6 +549,8 @@ public class BaseEntity
     {
         IsRemoved = true;
 
+        OnRemove();
+
         foreach (var node in ownedNodes)
         {
             node.EntityInstance = null;
@@ -558,6 +560,14 @@ public class BaseEntity
         }
 
         ownedNodes.Clear();
+    }
+
+    /// <summary>
+    /// Called as the entity leaves the world, before its nodes are taken out of the scene. Source's
+    /// <c>UpdateOnRemove</c>: the place to let go of anything the entity started, such as a playing sound.
+    /// </summary>
+    protected virtual void OnRemove()
+    {
     }
 
     /// <summary>Rebuilds <see cref="Transform"/> from the current scale, angles, and origin.</summary>
