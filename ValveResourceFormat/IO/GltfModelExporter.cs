@@ -682,7 +682,7 @@ namespace ValveResourceFormat.IO
             // When exporting map entities, only export the default animation
             if (entity != null)
             {
-                var entityAnimation = entity.GetStringProperty("defaultanim") ?? entity.GetStringProperty("idleanim");
+                var entityAnimation = entity.GetStringProperty("defaultanim") ?? entity.GetStringProperty("startinganim") ?? entity.GetStringProperty("idleanim");
                 if (entityAnimation != null)
                 {
                     animationFilter = [
