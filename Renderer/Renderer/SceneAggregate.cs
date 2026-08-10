@@ -213,6 +213,9 @@ namespace ValveResourceFormat.Renderer
                 var tintColor = fragmentData.GetSubCollection("m_vTintColor").ToVector3();
                 var flags = fragmentData.GetEnumValue<ObjectTypeFlags>("m_objectFlags", normalize: true);
                 var lodGroupMask = fragmentData.GetUInt32Property("m_nLODGroupMask");
+                var fragmentTransform = fragmentData.GetBooleanProperty("m_bHasTransform") == true
+                    ? fragmentTransforms[transformIndex++]
+                    : null;
 
                 var isHighestDetailMesh = lodGroupMask == 0 || (lodGroupMask & lowestLodBit) != 0;
                 if (!isHighestDetailMesh)
@@ -230,10 +233,10 @@ namespace ValveResourceFormat.Renderer
                     Flags = flags,
                 };
 
-                if (fragmentData.GetBooleanProperty("m_bHasTransform") == true)
+                if (fragmentTransform != null)
                 {
                     CanDrawIndirect = false; // skip indirect draw path for instanced draws
-                    fragment.Transform *= fragmentTransforms[transformIndex++].ToMatrix4x4();
+                    fragment.Transform *= fragmentTransform.ToMatrix4x4();
                 }
 
                 yield return fragment;
