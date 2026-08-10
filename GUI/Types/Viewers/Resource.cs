@@ -34,6 +34,7 @@ namespace GUI.Types.Viewers
     {
         private ValveResourceFormat.Resource? resource;
         private RendererContext? rendererContext;
+        private readonly List<(GLGraphViewer Viewer, string TabName)> preparedGraphViewers = [];
         public GLBaseControl? GLViewer { get; private set; }
         private CodeTextBox? GLViewerError;
         private string? GLViewerTabName;
@@ -243,6 +244,12 @@ namespace GUI.Types.Viewers
             }
 
             GLViewer?.InitializeLoad();
+
+            // Preview only ever shows the first tab, so the extra graph tabs would be built and thrown away.
+            if (viewMode != ResourceViewMode.ViewerOnly)
+            {
+                PrepareExtraGraphViewers(vrfGuiContext, resource);
+            }
         }
 
         public void NotifyVisible() => GLViewer?.NotifyVisible();
@@ -281,6 +288,7 @@ namespace GUI.Types.Viewers
                 {
                     GLViewer?.Dispose();
                     GLViewer = null;
+                    DisposeExtraGraphViewers();
                     var errorTab = new ThemedTabPage("Viewer Error");
                     errorTab.Controls.Add(GLViewerError);
                     resTabs.TabPages.Add(errorTab);
@@ -480,10 +488,144 @@ namespace GUI.Types.Viewers
                     resTabs.TabPages.Add(entitiesTabPage);
                 }
 
+                if (!isPreview)
+                {
+                    foreach (var (viewer, tabName) in preparedGraphViewers)
+                    {
+                        AddGraphViewerTab(viewer, tabName, resTabs);
+                    }
+                }
+
                 GLViewer.InitializeRenderLoop();
                 return true;
             }
 
+            return AddSpecialViewerData(resource, isPreview, resTabs);
+        }
+
+        private static void AddGraphViewerTab(GLGraphViewer viewer, string tabName, TabControl resTabs)
+        {
+            viewer.InitializeLoad();
+            var tabPage = new ThemedTabPage(tabName);
+            tabPage.Controls.Add(viewer.InitializeUiControls(isPreview: false));
+            resTabs.TabPages.Add(tabPage);
+            viewer.InitializeRenderLoop();
+        }
+
+        // Runs on the background load thread: graph construction (entity scans, icon decoding,
+        // layout) is expensive and must not block the UI thread's loading indicator. The UI
+        // thread later only creates the tabs and GL windows in AddSpecialViewer.
+        private void PrepareExtraGraphViewers(VrfGuiContext vrfGuiContext, ValveResourceFormat.Resource resource)
+        {
+            if (rendererContext == null)
+            {
+                return;
+            }
+
+            if (GLViewer is GLWorldViewer { LoadedWorld: { } loadedWorld })
+            {
+                PrepareMapPulseGraphViewers(vrfGuiContext, loadedWorld.Entities);
+            }
+
+            if (GLViewer is GLModelViewer && resource.DataBlock is Model model)
+            {
+                PrepareModelAnimGraphViewers(vrfGuiContext, model);
+            }
+        }
+
+        // Maps bind pulse scripts through point_pulse entities referencing the graph resource.
+        private void PrepareMapPulseGraphViewers(VrfGuiContext vrfGuiContext, List<EntityLump.Entity> entities)
+        {
+            Debug.Assert(rendererContext != null);
+
+            var scripts = new List<string>();
+
+            foreach (var entity in entities)
+            {
+                if (entity.GetStringProperty("classname") != "point_pulse")
+                {
+                    continue;
+                }
+
+                var graphDef = entity.GetStringProperty("graph_def");
+
+                if (!string.IsNullOrEmpty(graphDef) && !scripts.Contains(graphDef))
+                {
+                    scripts.Add(graphDef);
+                }
+            }
+
+            foreach (var script in scripts)
+            {
+                if (rendererContext.FileLoader.LoadFileCompiled(script)?.DataBlock is BinaryKV3 pulseData)
+                {
+                    var tabName = scripts.Count > 1 ? $"PULSE GRAPH ({Path.GetFileNameWithoutExtension(script)})" : "PULSE GRAPH";
+                    var viewer = new PulseGraphViewer(vrfGuiContext, rendererContext, pulseData.Data);
+                    preparedGraphViewers.Add((viewer, tabName));
+                }
+            }
+        }
+
+        private void PrepareModelAnimGraphViewers(VrfGuiContext vrfGuiContext, Model model)
+        {
+            Debug.Assert(rendererContext != null);
+
+            var graphPaths = new List<string>();
+
+            void AddGraphPath(string? path)
+            {
+                if (!string.IsNullOrEmpty(path) && !graphPaths.Contains(path))
+                {
+                    graphPaths.Add(path);
+                }
+            }
+
+            if (model.Data.GetArray("m_animGraph2Refs") is { } animGraph2Refs)
+            {
+                foreach (var graphRef in animGraph2Refs)
+                {
+                    AddGraphPath(graphRef.GetStringProperty("m_hGraph"));
+                }
+            }
+            else if (model.Data.ContainsKey("m_animGraph2Refs"))
+            {
+                Log.Warn(nameof(Resource), "Model has a non-array m_animGraph2Refs value, skipping its animation graph tabs.");
+            }
+
+            if (model.Data.ContainsKey("m_refAnimGraph"))
+            {
+                AddGraphPath(model.Data.GetStringProperty("m_refAnimGraph"));
+            }
+
+            // HLA/SteamVR-era models and compiled Deadlock AG1 bind their graph through the keyvalues block.
+            AddGraphPath(model.KeyValues.GetStringProperty("anim_graph_resource"));
+
+            foreach (var path in graphPaths)
+            {
+                GLGraphViewer viewer;
+                string baseName;
+
+                switch (rendererContext.FileLoader.LoadFileCompiled(path)?.DataBlock)
+                {
+                    case AnimGraph ag1Data:
+                        viewer = new AG1GraphViewer(vrfGuiContext, rendererContext, ag1Data.Data);
+                        baseName = "AG1 ANIMATION GRAPH";
+                        break;
+                    case BinaryKV3 nmGraphData:
+                        viewer = new AG2GraphViewer(vrfGuiContext, rendererContext, nmGraphData.Data);
+                        baseName = "AG2 ANIMATION GRAPH";
+                        break;
+                    default:
+                        continue;
+                }
+
+                var tabName = graphPaths.Count > 1 ? $"{baseName} ({Path.GetFileNameWithoutExtension(path)})" : baseName;
+                preparedGraphViewers.Add((viewer, tabName));
+            }
+        }
+
+        private bool AddSpecialViewerData(ValveResourceFormat.Resource resource, bool isPreview, TabControl resTabs)
+        {
             switch (resource.ResourceType)
             {
                 case ResourceType.Panorama:
@@ -889,11 +1031,22 @@ namespace GUI.Types.Viewers
             }
         }
 
+        private void DisposeExtraGraphViewers()
+        {
+            foreach (var (viewer, _) in preparedGraphViewers)
+            {
+                viewer.Dispose();
+            }
+
+            preparedGraphViewers.Clear();
+        }
+
         public void Dispose()
         {
             resource?.Dispose();
             rendererContext?.Dispose();
             GLViewer?.Dispose();
+            DisposeExtraGraphViewers();
             GLViewerError?.Dispose();
         }
     }
