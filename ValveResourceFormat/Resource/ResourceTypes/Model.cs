@@ -573,7 +573,7 @@ namespace ValveResourceFormat.ResourceTypes
         {
             var defaultGroupMask = Data.GetUnsignedIntegerProperty("m_nDefaultMeshGroupMask");
 
-            return GetMeshGroups().Where((group, index) => ((ulong)(1 << index) & defaultGroupMask) != 0);
+            return GetMeshGroups().Where((group, index) => index < 64 && ((1UL << index) & defaultGroupMask) != 0);
         }
 
         KVObject? ParseKeyValuesText()
