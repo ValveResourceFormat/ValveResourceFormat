@@ -17,9 +17,9 @@ namespace GUI.Controls
         {
             base.OnCreateControl();
 
-            BackColor = Parent?.BackColor ?? Themer.CurrentThemeColors.AppMiddle;
+            // BackColor stays ambient so it tracks the parent live; freezing the parent's
+            // colour here samples it before theming has settled.
             ForeColor = Themer.CurrentThemeColors.Contrast;
-
         }
 
         // todo: fix behavior with fill = false

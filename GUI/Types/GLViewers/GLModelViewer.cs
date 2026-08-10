@@ -82,12 +82,10 @@ namespace GUI.Types.GLViewers
             hitboxComboBox?.Dispose();
         }
 
-        protected void AddAnimationControls()
+        private void AddAnimationListComboBox()
         {
             Debug.Assert(UiControl != null);
             Debug.Assert(animationController != null);
-
-            using var _ = UiControl.BeginGroup("Animation");
 
             animationComboBox = UiControl.AddSelection("Animation", (animation, i) =>
             {
@@ -128,6 +126,19 @@ namespace GUI.Types.GLViewers
 
                 SyncAnimationToggles();
             });
+        }
+
+        protected void AddAnimationControls(bool includeAnimationList = true)
+        {
+            Debug.Assert(UiControl != null);
+            Debug.Assert(animationController != null);
+
+            using var _ = UiControl.BeginGroup("Animation");
+
+            if (includeAnimationList)
+            {
+                AddAnimationListComboBox();
+            }
 
             animationTimeLabel = new Label()
             {
