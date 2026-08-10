@@ -1348,10 +1348,12 @@ namespace CLI
                         }
                         else
                         {
+#pragma warning disable CA2000 // False positive, resource is disposed in the finally block
                             resource = new Resource
                             {
                                 FileName = filePath,
                             };
+#pragma warning restore CA2000
                             resource.Read(memory);
 
                             if (GltfExportFormat != null && GltfModelExporter.CanExport(resource))
