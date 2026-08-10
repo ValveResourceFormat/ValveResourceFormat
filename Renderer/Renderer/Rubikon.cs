@@ -681,11 +681,17 @@ public class Rubikon
     }
 
     /// <summary>
-    /// Player collision rules: player traces never collide with shapes that exclude the player,
-    /// and only collide with default geometry, player clips, and passbullets shapes.
+    /// Solid untagged geometry that closely resembles the render mesh.
     /// </summary>
+    public const string DefaultGeometry = "default";
+
     private static bool SkipsCollision(string collisionName, string[] interactAs, string[] interactExclude)
     {
+        if (collisionName == DefaultGeometry)
+        {
+            return interactAs.Length > 0;
+        }
+
         if (collisionName != "player")
         {
             return false;

@@ -13,6 +13,7 @@ using ValveResourceFormat.Renderer.Entities;
 using ValveResourceFormat.Renderer.Input;
 using ValveResourceFormat.Renderer.SceneEnvironment;
 using ValveResourceFormat.Renderer.SceneNodes;
+using ValveResourceFormat.Renderer.Utils;
 using ValveResourceFormat.Renderer.World;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.Serialization.KeyValues;
@@ -662,9 +663,7 @@ namespace GUI.Types.GLViewers
                 // Tool entities (logic, sounds, finished particles) have no renderable
                 // scene node; fly to the entity origin instead.
                 var origin = entity.GetVector3Property("origin");
-                Input.SaveCameraForTransition();
-                Input.Camera.SetLocation(origin + new Vector3(96f, 96f, 64f));
-                Input.Camera.LookAt(origin);
+                FocusCameraOnBounds(new AABB(origin - new Vector3(32f), origin + new Vector3(32f)));
                 return;
             }
 
@@ -762,13 +761,13 @@ namespace GUI.Types.GLViewers
             if (!float.IsFinite(maxDimension) || maxDimension < 1f)
             {
                 maxDimension = 64f;
-                size = new Vector3(maxDimension);
             }
 
-            var distance = maxDimension * 1.2f;
-            var cameraHeight = center.Y + size.Y * 2f;
+            // Orbit far enough out to frame the bounds, then let the physics probe move the camera
+            // off any wall or ceiling it would otherwise be spawned inside of.
+            var distance = Math.Max(maxDimension * 2.5f, 64f);
+            var location = CameraPlacement.FindOrbitPosition(Scene.PhysicsWorld, center, distance, maxDimension * 0.5f);
 
-            var location = new Vector3(center.X + distance, cameraHeight, center.Z + distance);
             Input.SaveCameraForTransition();
             Input.Camera.SetLocation(location);
             Input.Camera.LookAt(center);
