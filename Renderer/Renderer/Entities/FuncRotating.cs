@@ -1,3 +1,4 @@
+using ValveResourceFormat.Renderer.Audio;
 using ValveResourceFormat.Serialization.KeyValues;
 
 namespace ValveResourceFormat.Renderer.Entities;
@@ -19,8 +20,14 @@ namespace ValveResourceFormat.Renderer.Entities;
 /// </para>
 /// <para>
 /// The brush is solid and the player collides with it as it turns, unless the "Not Solid" flag is set.
-/// Not simulated: the fan sounds, the "Fan Pain" damage flag, and the pusher physics that would carry a
-/// player standing on it or push one the brush rotates into.
+/// Not simulated: the "Fan Pain" damage flag, and the pusher physics that would carry a player standing on
+/// it or push one the brush rotates into.
+/// </para>
+/// <para>
+/// The rotation sound follows the speed the way <c>RampPitchVol</c> does, except in pitch: the engine winds
+/// the sample from 30% to 100% of its authored pitch as the brush comes up to speed, which the sound player
+/// has no control for. Volume ramps, so a fan still fades in and out with its spin. The sound radius flags
+/// pick an attenuation, which is likewise not exposed, so a small-radius fan carries as far as a large one.
 /// </para>
 /// </remarks>
 public sealed class FuncRotating : BaseModelEntity
@@ -53,6 +60,15 @@ public sealed class FuncRotating : BaseModelEntity
 
         /// <summary>Never solid, for things like fake volumetric light cones.</summary>
         NotSolid = 64,
+
+        /// <summary>Rotation sound is heard from close by. Attenuation is not simulated.</summary>
+        SmallSoundRadius = 128,
+
+        /// <summary>Rotation sound carries a middling distance. Attenuation is not simulated.</summary>
+        MediumSoundRadius = 256,
+
+        /// <summary>Rotation sound carries a long way, the Hammer default. Attenuation is not simulated.</summary>
+        LargeSoundRadius = 512,
     }
 
     /// <summary>How the ramp progresses; Source picks between these with <c>SetMoveDone</c>.</summary>
@@ -83,10 +99,19 @@ public sealed class FuncRotating : BaseModelEntity
     /// <summary>Gets whether the <c>Reverse</c> input flipped the spin direction.</summary>
     public bool IsReversed { get; private set; }
 
+    /// <summary>Gets the sound played while the brush turns, the <c>message</c> keyvalue.</summary>
+    public string? SoundName { get; private set; }
+
+    /// <summary>
+    /// Gets the volume that sound reaches at full speed, 0 to 1. Authored as <c>volume</c>, 0 to 10.
+    /// </summary>
+    public float Volume { get; private set; } = 1f;
+
     private bool stopAtStartPos;
     private Vector3 startAngles;
     private float turnedFromStart;
     private MoveDoneFunction moveDoneFunction;
+    private SoundEvent? playing;
 
     /// <summary>
     /// Initializes a <c>func_rotating</c> from its keyvalues.
@@ -136,6 +161,22 @@ public sealed class FuncRotating : BaseModelEntity
         if (MaxSpeed == 0f)
         {
             MaxSpeed = 100f;
+        }
+
+        SoundName = KeyValues.GetStringProperty("message");
+
+        // Authored 0 to 10, and emitted as a fraction of full volume. A map that leaves it at zero means
+        // the default rather than silence, as it did before the keyvalue existed.
+        Volume = Math.Clamp(KeyValues.GetFloatProperty("volume") / 10f, 0f, 1f);
+
+        if (Volume == 0f)
+        {
+            Volume = 1f;
+        }
+
+        if (!string.IsNullOrEmpty(SoundName))
+        {
+            Sound.Cache(SoundName);
         }
 
         startAngles = Angles;
@@ -397,12 +438,63 @@ public sealed class FuncRotating : BaseModelEntity
 
         if (!wasTurning && speed != 0f)
         {
+            StartSound();
+
             EntitySystem.TriggerOutput(this, "OnStarted");
         }
         else if (wasTurning && speed == 0f)
         {
+            StopSound();
+
             EntitySystem.TriggerOutput(this, "OnStopped");
         }
+        else
+        {
+            // Changing speed, so ride the volume up or down with it
+            RampVolume();
+        }
+    }
+
+    /// <summary>Starts the rotation sound, at the volume the speed it is starting from calls for.</summary>
+    private void StartSound()
+    {
+        if (string.IsNullOrEmpty(SoundName))
+        {
+            return;
+        }
+
+        StopSound();
+
+        playing = Sound.Play(SoundName, Transform.Translation, volume: GetRampedVolume());
+    }
+
+    /// <summary>Stops the rotation sound, if one is playing.</summary>
+    private void StopSound()
+    {
+        playing?.Stop();
+        playing = null;
+    }
+
+    /// <summary>
+    /// Follows the volume up and down with the speed, Source's <c>RampPitchVol</c> without the pitch.
+    /// </summary>
+    private void RampVolume()
+    {
+        if (playing != null)
+        {
+            playing.VolumeOverride = GetRampedVolume();
+        }
+    }
+
+    /// <summary>The volume for the current speed: full volume at <see cref="MaxSpeed"/>, silence stopped.</summary>
+    private float GetRampedVolume() => Math.Clamp(Volume * (MathF.Abs(Speed) / MaxSpeed), 0f, 1f);
+
+    /// <inheritdoc/>
+    protected override void OnRemove()
+    {
+        StopSound();
+
+        base.OnRemove();
     }
 
     /// <summary>
