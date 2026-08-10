@@ -1292,6 +1292,9 @@ namespace CLI
                 var rawFileData = ArrayPool<byte>.Shared.Rent(totalLength);
                 ContentFile? contentFile = null;
 
+                // Must outlive DumpContentFile because content subfiles can be generated lazily from the resource.
+                Resource? resource = null;
+
                 try
                 {
                     package.ReadEntry(file, rawFileData);
@@ -1345,7 +1348,7 @@ namespace CLI
                         }
                         else
                         {
-                            using var resource = new Resource
+                            resource = new Resource
                             {
                                 FileName = filePath,
                             };
@@ -1399,6 +1402,7 @@ namespace CLI
                 finally
                 {
                     contentFile?.Dispose();
+                    resource?.Dispose();
                     ArrayPool<byte>.Shared.Return(rawFileData);
                 }
             }
