@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using Microsoft.Extensions.Logging;
 using ValveResourceFormat.IO;
 using ValveResourceFormat.ResourceTypes;
@@ -55,6 +56,18 @@ public sealed class EntitySystem
     /// than stepping at the tick rate.
     /// </summary>
     public float InterpolationFraction => tickAccumulator / TickInterval;
+
+    /// <summary>
+    /// Gets what the last <see cref="Update"/> call cost, covering the ticks it ran and the entity updates
+    /// after them.
+    /// </summary>
+    /// <remarks>
+    /// Most frames run no tick at all, the world being simulated at <see cref="TickInterval"/> and drawn as
+    /// fast as the machine can, so this reads near zero on all of them and jumps on the ones that do tick.
+    /// A reader after the cost of simulating should take the largest value it sees over a span rather than
+    /// whichever frame it happened to sample.
+    /// </remarks>
+    public TimeSpan LastUpdateTime { get; private set; }
 
     private readonly List<BaseEntity> entities = [];
     private readonly List<QueuedInput> inputQueue = [];
@@ -161,19 +174,34 @@ public sealed class EntitySystem
     }
 
     /// <summary>
-    /// Tests every trigger volume against every entity that occupies space, opening and closing touch
-    /// links as they change. Both sides of a touch hear about it, the way the engine marks a pair of
-    /// entities as touching.
+    /// Tests every trigger volume against the player, opening and closing touch links as they change. Both
+    /// sides of a touch hear about it, the way the engine marks a pair of entities as touching.
     /// </summary>
     /// <remarks>
+    /// <para>
+    /// Only the player is tested. Every pair of entities would be the general answer, but that is one test
+    /// per trigger per entity per tick for a map full of entities that never move, and the player is the
+    /// only thing here that walks into a volume. An entity moved by the simulation into a trigger it was not
+    /// already in therefore does not fire the trigger; the touch machinery itself stays general, so this is
+    /// the one place to widen if something other than the player ever needs to touch.
+    /// </para>
+    /// <para>
     /// Driven by the tick and nothing else, because a touch handler is entity logic: it teleports things,
     /// queues inputs against <see cref="CurrentTime"/>, spawns and removes entities. Sampling it per
     /// rendered frame instead would make all of that depend on framerate. The player still moves per frame,
     /// so a touch resolves up to one tick after the frame that caused it, and reads the player's live
     /// position when it does.
+    /// </para>
     /// </remarks>
     private void UpdateTouchLinks()
     {
+        // Read once: the player is the same for every trigger, and its bounds come off the live controller
+        if (Player is not { IsRemoved: false } player
+            || !player.TryGetTouchBounds(out var center, out var halfExtents))
+        {
+            return;
+        }
+
         foreach (var entity in entities)
         {
             if (!entity.IsTrigger || entity.IsRemoved || entity.Collider is not { IsEmpty: false } volume)
@@ -181,19 +209,11 @@ public sealed class EntitySystem
                 continue;
             }
 
-            foreach (var other in entities)
-            {
-                if (other == entity || other.IsRemoved || !other.TryGetTouchBounds(out var center, out var halfExtents))
-                {
-                    continue;
-                }
+            // Overlaps rejects on world bounds first, so a trigger nowhere near costs one box test
+            var isOverlapping = volume.Overlaps(center, halfExtents);
 
-                // Overlaps rejects on world bounds first, so a distant pair costs one box test
-                var isOverlapping = volume.Overlaps(center, halfExtents);
-
-                entity.UpdateTouchLink(other, isOverlapping);
-                other.UpdateTouchLink(entity, isOverlapping);
-            }
+            entity.UpdateTouchLink(player, isOverlapping);
+            player.UpdateTouchLink(entity, isOverlapping);
         }
     }
 
@@ -221,8 +241,11 @@ public sealed class EntitySystem
     {
         if (entities.Count == 0)
         {
+            LastUpdateTime = TimeSpan.Zero;
             return;
         }
+
+        var updateStart = Stopwatch.GetTimestamp();
 
         if (Enabled)
         {
@@ -253,6 +276,8 @@ public sealed class EntitySystem
         {
             entity.Update();
         }
+
+        LastUpdateTime = Stopwatch.GetElapsedTime(updateStart);
     }
 
     private void Tick()
