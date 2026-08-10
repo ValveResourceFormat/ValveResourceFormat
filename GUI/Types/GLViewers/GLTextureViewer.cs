@@ -1045,10 +1045,6 @@ namespace GUI.Types.GLViewers
                 scaleMinMax.X = graphViewer.MinTextureScale();
                 scaleMinMax.Y = 2f;
             }
-            else if (this is GLNodeGraphViewer)
-            {
-                scaleMinMax.Y = 2f;
-            }
 
             TextureScale = Math.Clamp(TextureScale, scaleMinMax.X, scaleMinMax.Y);
 
