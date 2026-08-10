@@ -145,7 +145,7 @@ internal sealed class SoundEventCitadel : SoundEvent
         var decibels = (VolumeOverride ?? Definition.Volume) + volumeOffsetDecibels;
         var baseVolume = Math.Clamp(MathUtils.DecibelsToLinear(decibels), 0f, 1f);
         var mixGroupVolume = Mixer.Player.GetMixGroupVolume(mixGroup);
-        targetVolume = baseVolume * volumeMult * volumeCurveGain * mixGroupVolume;
+        targetVolume = baseVolume * volumeMult * volumeCurveGain * mixGroupVolume * VolumeScale;
 
         fadeInSecondsRemaining = volumeFadeIn;
         startTimestamp = Stopwatch.GetTimestamp();
@@ -165,7 +165,7 @@ internal sealed class SoundEventCitadel : SoundEvent
     private protected override bool StayAliveAfterFinishing() => CheckRetrigger();
 
     /// <inheritdoc/>
-    public override bool Update(Vector3 listenerPosition, Vector3 rightEarDirection)
+    public override bool Update(in ListenerState listener)
     {
         if (trackProvider != null && fadeInSecondsRemaining > 0f)
         {
@@ -182,6 +182,6 @@ internal sealed class SoundEventCitadel : SoundEvent
             }
         }
 
-        return base.Update(listenerPosition, rightEarDirection);
+        return base.Update(listener);
     }
 }

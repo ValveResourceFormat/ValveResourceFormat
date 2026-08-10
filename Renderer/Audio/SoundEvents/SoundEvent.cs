@@ -48,6 +48,13 @@ public abstract class SoundEvent
     public float? VolumeOverride { get; set; }
 
     /// <summary>
+    /// Gets or sets an extra multiplier applied on top of whatever volume this event ends up playing at,
+    /// including a <see cref="VolumeOverride"/>. Carries a scripted soundscape's "playsoundscape" volume,
+    /// which scales everything the soundscape it pulls in plays, and so cascades to child events.
+    /// </summary>
+    public float VolumeScale { get; set; } = 1f;
+
+    /// <summary>
     /// Gets or sets a playback start delay in seconds, passed by a container, replacing the definition's
     /// "delay" property. Used to stagger otherwise-identical children (e.g. quad-channel ambient beds) so
     /// they do not all loop in phase lock; a negative value seeks ahead into the track instead of adding
@@ -213,18 +220,22 @@ public abstract class SoundEvent
     private protected virtual (float Min, float Max)? RetriggerInterval
         => Definition.EnableRetrigger ? (Definition.RetriggerIntervalMin, Definition.RetriggerIntervalMax) : null;
 
+    /// <summary>Gets whether a replay is already armed and only waiting out its interval.</summary>
+    private protected bool RetriggerArmed => waitingForRetrigger;
+
     /// <summary>
     /// Arms the next replay at a random point in <see cref="RetriggerInterval"/> and returns whether it
     /// did. <see cref="Update"/> performs the replay once the interval elapses.
     /// </summary>
-    private protected bool CheckRetrigger()
+    /// <param name="intervalScale">Fraction of the drawn interval to actually wait out.</param>
+    private protected bool CheckRetrigger(float intervalScale = 1f)
     {
         if (RetriggerInterval is not { } interval)
         {
             return false;
         }
 
-        var retriggerAt = float.Lerp(interval.Min, interval.Max, Random.NextSingle());
+        var retriggerAt = float.Lerp(interval.Min, interval.Max, Random.NextSingle()) * intervalScale;
         retriggerTimestamp = Stopwatch.GetTimestamp() + (long)(retriggerAt * Stopwatch.Frequency);
         waitingForRetrigger = true;
         return true;
@@ -235,7 +246,8 @@ public abstract class SoundEvent
     /// retriggering event's area should not fire it instantly. Returns whether the calling
     /// <see cref="DoStart"/> should return without starting anything.
     /// </summary>
-    private protected bool WaitOutFirstInterval()
+    /// <param name="intervalScale">Fraction of the drawn interval to wait out before the first play.</param>
+    private protected bool WaitOutFirstInterval(float intervalScale = 1f)
     {
         if (wasInitialized)
         {
@@ -243,7 +255,7 @@ public abstract class SoundEvent
         }
 
         wasInitialized = true;
-        return CheckRetrigger();
+        return CheckRetrigger(intervalScale);
     }
 
     /// <summary>
@@ -328,6 +340,9 @@ public abstract class SoundEvent
         {
             childSoundEvent.Position = Position;
         }
+
+        // A trim applied to this event applies to everything it plays through its children too
+        childSoundEvent.VolumeScale = VolumeScale;
 
         if (childSoundEvent.SampleProvider is null)
         {
@@ -437,7 +452,7 @@ public abstract class SoundEvent
             volume += float.Lerp(randomMin, randomMax, Random.NextSingle());
         }
 
-        return Math.Clamp(volume, 0f, 1f) * Mixer.Player.GetMixGroupVolume(mixGroup);
+        return Math.Clamp(volume, 0f, 1f) * VolumeScale * Mixer.Player.GetMixGroupVolume(mixGroup);
     }
 
     /// <summary>
@@ -684,7 +699,7 @@ public abstract class SoundEvent
     }
 
     /// <summary>Updates spatialization and time-based behavior. Returns whether any sample provider is currently audible.</summary>
-    public virtual bool Update(Vector3 listenerPosition, Vector3 rightEarDirection)
+    public virtual bool Update(in ListenerState listener)
     {
         if (Started && !FadingOut && waitingForRetrigger && Stopwatch.GetTimestamp() >= retriggerTimestamp)
         {
@@ -723,12 +738,12 @@ public abstract class SoundEvent
 
                 if (occlusionTrace != null)
                 {
-                    spatialProvider.OcclusionTarget = occlusionTrace(listenerPosition, spatialProvider.Position)
+                    spatialProvider.OcclusionTarget = occlusionTrace(listener.Position, spatialProvider.Position)
                         ? 1f - Definition.OcclusionIntensity
                         : 1f;
                 }
 
-                if (spatialProvider.Update(listenerPosition, rightEarDirection))
+                if (spatialProvider.Update(listener))
                 {
                     anyPlaying = true;
                 }
@@ -737,7 +752,7 @@ public abstract class SoundEvent
 
         foreach (var child in ChildSoundEvents)
         {
-            if (child.Update(listenerPosition, rightEarDirection))
+            if (child.Update(listener))
             {
                 anyPlaying = true;
             }
@@ -761,6 +776,7 @@ public abstract class SoundEvent
         Position = null;
         PositionOffset = default;
         VolumeOverride = null;
+        VolumeScale = 1f;
         DelayOverride = null;
         PlayingSoundFile = null;
         SampleProvider?.ResetFades();

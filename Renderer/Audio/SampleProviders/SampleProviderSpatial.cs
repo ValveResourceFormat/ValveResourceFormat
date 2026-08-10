@@ -38,6 +38,13 @@ public abstract class SampleProviderSpatial : SampleProvider2D
             buffer[offset + i] = float.Lerp(buffer[offset + i] * lastVolume, buffer[offset + i] * volume, (float)i / lastIndex);
         }
 
+        // Where the sound is above, below or behind the listener, which no arrangement of the two gains
+        // above can express. Skipped outright for the common case of a sound at ear level in front of them.
+        if (cueSampleRate > 0 && cueFilters.Update(cueSampleRate, read / 2))
+        {
+            cueFilters.Process(buffer, offset, read);
+        }
+
         LastLeftVolume = LeftVolume;
         LastRightVolume = RightVolume;
 
@@ -52,18 +59,73 @@ public abstract class SampleProviderSpatial : SampleProvider2D
     private bool volumesInitialized;
 
     /// <summary>
-    /// Recomputes the per-ear volumes for the given listener. Returns whether the sound is currently audible.
+    /// How much of a sound behind the listener survives the fold into the front pair, for when the
+    /// spectral cues are turned off. Stereo output has no rear speakers to pan to, so the engine mixes
+    /// what would go to them in at three quarters. A broadband trim is a blunt stand-in for what the ear
+    /// actually does to a sound from behind - see <see cref="SpectralCueFilters"/> - but it is what the
+    /// engine's own stereo path does.
     /// </summary>
-    public virtual bool Update(Vector3 listenerPosition, Vector3 rightEarDirection)
-    {
-        var dot = GetDirectionMix(listenerPosition, rightEarDirection);
+    private const float RearVolumeScale = 0.75f;
 
-        // The near ear plays at full volume and the far ear falls off with the angle; without the
-        // cap a sound hard to one side would play at double volume in the near ear and sound
-        // closer (louder) than a centered sound at the same distance
-        LeftVolume = Math.Clamp(-dot + 1, 0, 1) * Volume;
-        RightVolume = Math.Clamp(dot + 1, 0, 1) * Volume;
-        return true;
+    private readonly SpectralCueFilters cueFilters = new();
+
+    // Set alongside the filter targets; 0 until the first update, so Read leaves untouched anything that
+    // has not been spatialized yet
+    private int cueSampleRate;
+
+    /// <summary>
+    /// Recomputes the per-ear volumes for the given listener, through <see cref="ApplyPanning"/>.
+    /// Returns whether the sound is currently audible.
+    /// </summary>
+    public abstract bool Update(in ListenerState listener);
+
+    /// <summary>
+    /// Splits <paramref name="gain"/> across the two ears by where <paramref name="listenerToSound"/>
+    /// points, and folds the rear into the front pair.
+    /// </summary>
+    /// <param name="listenerToSound">Unit vector from the listener towards the sound.</param>
+    /// <param name="listener">The listener to pan against.</param>
+    /// <param name="gain">The gain to split, before panning.</param>
+    private protected void ApplyPanning(Vector3 listenerToSound, in ListenerState listener, float gain)
+    {
+        var rightDot = Math.Clamp(Vector3.Dot(listenerToSound, listener.Right), -1f, 1f);
+        var forwardDot = Math.Clamp(Vector3.Dot(listenerToSound, listener.Forward), -1f, 1f);
+
+        if (listener.SpectralCueStrength > 0f)
+        {
+            // Elevation and front/back are both spectral, so they are voiced by the filters instead - see
+            // SpectralCueFilters on why a rear sound is not simply a quieter one. Measured against the
+            // listener's own up, so it follows their pitch rather than the world's.
+            var upDot = Math.Clamp(Vector3.Dot(listenerToSound, listener.Up), -1f, 1f);
+
+            cueFilters.SetTarget(
+                float.RadiansToDegrees(MathF.Asin(upDot)),
+                Math.Max(0f, -forwardDot),
+                listener.SpectralCueStrength);
+
+            cueSampleRate = listener.SampleRate;
+        }
+        else
+        {
+            cueFilters.SetTarget(0f, 0f, 0f);
+            gain *= float.Lerp(1f, RearVolumeScale, (1f - forwardDot) * 0.5f);
+        }
+
+        // How much of the sound each ear is pointed at, (1 -/+ cos) / 2. The ratio between the two is
+        // what localizes the sound, and the exponent sharpens or widens it without touching the level.
+        var left = (1f - rightDot) * 0.5f;
+        var right = (1f + rightDot) * 0.5f;
+
+        if (listener.PanSharpness != 1f)
+        {
+            left = MathF.Pow(left, listener.PanSharpness);
+            right = MathF.Pow(right, listener.PanSharpness);
+        }
+
+        var scale = gain / MathF.Sqrt((left * left) + (right * right));
+
+        LeftVolume = left * scale;
+        RightVolume = right * scale;
     }
 
     /// <summary>
@@ -88,10 +150,6 @@ public abstract class SampleProviderSpatial : SampleProvider2D
         volumesInitialized = false;
         LastLeftVolume = 0f;
         LastRightVolume = 0f;
+        cueFilters.Reset();
     }
-
-    /// <summary>
-    /// Returns how much the sound leans towards the right ear (-1 fully left, 1 fully right).
-    /// </summary>
-    protected abstract float GetDirectionMix(Vector3 listenerPosition, Vector3 rightEarDirection);
 }

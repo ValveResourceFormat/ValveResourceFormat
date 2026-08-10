@@ -301,7 +301,8 @@ public class ViewmodelSceneNode : ModelSceneNode
 
                 if (trace is { Hit: true } hit)
                 {
-                    Sound.Play(KnifeHitWallSound, hit.HitPosition, volume: AttackSoundVolume);
+                    // this is played in-ear but i'd like to keep it positional
+                    Sound.Play(KnifeHitWallSound, hit.HitPosition - new Vector3(0, 0, 60), volume: AttackSoundVolume);
                 }
                 else
                 {

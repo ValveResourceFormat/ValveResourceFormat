@@ -55,7 +55,7 @@ internal sealed class SoundEventHLVRAmbientFixedRotation : SoundEvent
         // On top of the definition's own offset the base already applied
         PositionOffset += rotationOffset;
 
-        var volume = Math.Clamp(VolumeOverride ?? Definition.Volume, 0f, 1f) * Mixer.Player.GetMixGroupVolume(mixGroup);
+        var volume = Math.Clamp(VolumeOverride ?? Definition.Volume, 0f, 1f) * VolumeScale * Mixer.Player.GetMixGroupVolume(mixGroup);
 
         StartTrack(trackNames, volume, Definition.Pitch, range, distanceVolumeCurve);
 

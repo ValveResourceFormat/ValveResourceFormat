@@ -17,6 +17,16 @@ public sealed class CachedSoundSampleProvider : AudioSampleProvider
     /// </summary>
     public float Pitch { get; set; } = 1f;
 
+    /// <summary>
+    /// Gets or sets the doppler shift multiplying <see cref="Pitch"/>, written by the spatializer every
+    /// update (see <see cref="SampleProvider3D.DopplerScale"/>) and kept separate from it so it does not
+    /// have to know what pitch the sound event authored.
+    /// </summary>
+    public float DopplerShift { get; set; } = 1f;
+
+    /// <summary>Gets the rate samples are actually consumed at.</summary>
+    private float PlaybackRate => Pitch * DopplerShift;
+
     private int delaySamples;
 
     /// <summary>
@@ -68,6 +78,10 @@ public sealed class CachedSoundSampleProvider : AudioSampleProvider
     {
         sound = newSound;
         framePosition = 0;
+
+        // The next play may not be spatialized at all, and nothing would clear a shift left behind by
+        // whatever was moving during the last one
+        DopplerShift = 1f;
     }
 
     /// <inheritdoc/>
@@ -97,7 +111,7 @@ public sealed class CachedSoundSampleProvider : AudioSampleProvider
             }
         }
 
-        var read = Pitch == 1f
+        var read = PlaybackRate == 1f
             ? ReadDirect(buffer, offset + written, count - written)
             : ReadResampled(buffer, offset + written, count - written);
 
@@ -150,6 +164,7 @@ public sealed class CachedSoundSampleProvider : AudioSampleProvider
 
     private int ReadResampled(float[] buffer, int offset, int count)
     {
+        var rate = PlaybackRate;
         var samples = sound.Samples;
         var sampleOffset = sound.SampleOffset;
         var totalFrames = sound.SampleLength / ChannelCount;
@@ -185,7 +200,7 @@ public sealed class CachedSoundSampleProvider : AudioSampleProvider
                 buffer[offset + read++] = float.Lerp(s0, s1, t);
             }
 
-            framePosition += Pitch;
+            framePosition += rate;
         }
 
         if (read < count)

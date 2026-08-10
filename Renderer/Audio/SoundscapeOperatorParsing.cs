@@ -108,35 +108,54 @@ internal static class SoundscapeOperatorParsing
 
     /// <summary>
     /// Converts a "soundlevel" token ("SNDLVL_140db", a named constant like "SNDLVL_NORM", or a bare
-    /// number) into an approximate audible range in world units, or <paramref name="fallbackRange"/> when
-    /// missing or unrecognized. This is a rough heuristic (6 dB falloff per doubling of distance from a "normal conversation" reference).
+    /// number) into the engine's distance multiplier: the reciprocal of the distance the sound stays at
+    /// full volume out to, past which it follows the inverse distance law (see
+    /// <see cref="SampleProviders.SampleProvider3D.DistanceMult"/>). Zero means it never attenuates
+    /// (SNDLVL_NONE). Missing and unrecognized tokens fall back to <paramref name="fallbackDecibels"/>.
     /// </summary>
-    public static float SoundLevelToRange(string? token, float fallbackRange)
+    /// <remarks>
+    /// A sound level is the sound pressure the source is authored at, so the model is the physical one the
+    /// engine uses: a source at <see cref="ReferenceDecibels"/> is played at full volume out to
+    /// <see cref="ReferenceDistance"/> units, and every doubling of distance past that halves the
+    /// amplitude. It never reaches zero - which is the point of it, a loud sound stays faintly audible far
+    /// past where a "range" would have cut it off entirely.
+    /// </remarks>
+    public static float SoundLevelToDistanceMult(string? token, float fallbackDecibels = 75f)
+    {
+        var db = ParseSoundLevel(token) ?? fallbackDecibels;
+
+        if (db <= 0f)
+        {
+            // SNDLVL_NONE: heard at the same volume wherever it is
+            return 0f;
+        }
+
+        return MathF.Pow(10f, (ReferenceDecibels - db) / 20f) / ReferenceDistance;
+    }
+
+    private static float? ParseSoundLevel(string? token)
     {
         if (string.IsNullOrEmpty(token))
         {
-            return fallbackRange;
+            return null;
         }
 
         var suffix = token.StartsWith("SNDLVL_", StringComparison.OrdinalIgnoreCase)
             ? token["SNDLVL_".Length..]
             : token;
 
-        float db;
-
         if (suffix.EndsWith("db", StringComparison.OrdinalIgnoreCase)
             && float.TryParse(suffix[..^2], NumberStyles.Float, CultureInfo.InvariantCulture, out var parsedDb))
         {
-            db = parsedDb;
-        }
-        else if (!NamedSoundLevels.TryGetValue(suffix, out db)
-            && !float.TryParse(suffix, NumberStyles.Float, CultureInfo.InvariantCulture, out db))
-        {
-            return fallbackRange;
+            return parsedDb;
         }
 
-        var range = ReferenceRange * MathF.Pow(2f, (db - ReferenceDb) / 6f);
-        return Math.Clamp(range, MinRange, MaxRange);
+        if (NamedSoundLevels.TryGetValue(suffix, out var named))
+        {
+            return named;
+        }
+
+        return float.TryParse(suffix, NumberStyles.Float, CultureInfo.InvariantCulture, out var bare) ? bare : null;
     }
 
     private static readonly Dictionary<string, float> NamedSoundLevels = new(StringComparer.OrdinalIgnoreCase)
@@ -151,9 +170,7 @@ internal static class SoundscapeOperatorParsing
         ["WEAPON"] = 150f,
     };
 
-    // "Normal conversation" (SNDLVL_NORM) audible out to a modest ambient range; every +6 dB doubles it.
-    private const float ReferenceDb = 75f;
-    private const float ReferenceRange = 400f;
-    private const float MinRange = 100f;
-    private const float MaxRange = 4000f;
+    // The engine's reference pair (its snd_refdb/snd_refdist): 60 dB reproduced at full volume three feet out.
+    private const float ReferenceDecibels = 60f;
+    private const float ReferenceDistance = 36f;
 }

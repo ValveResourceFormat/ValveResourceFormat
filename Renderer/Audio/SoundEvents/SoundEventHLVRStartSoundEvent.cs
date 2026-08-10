@@ -79,7 +79,7 @@ internal sealed class SoundEventHLVRStartSoundEvent : SoundEvent
 
     /// <inheritdoc/>
     /// <remarks>The restart deferred by <see cref="StayAliveAfterFinishing"/> happens here, on the game thread.</remarks>
-    public override bool Update(Vector3 listenerPosition, Vector3 rightEarDirection)
+    public override bool Update(in ListenerState listener)
     {
         if (Started && !FadingOut && restartPending)
         {
@@ -87,7 +87,7 @@ internal sealed class SoundEventHLVRStartSoundEvent : SoundEvent
             Start();
         }
 
-        return base.Update(listenerPosition, rightEarDirection);
+        return base.Update(listener);
     }
 
     internal override void ResetForReplay()

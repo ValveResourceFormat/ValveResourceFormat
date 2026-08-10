@@ -20,7 +20,20 @@ internal sealed class SoundEventScriptedRandom : SoundEvent
     private readonly (float Min, float Max) timeRange;
     private readonly bool randomPosition;
     private readonly Vector3? origin;
-    private readonly float range;
+    private readonly float distanceMult;
+
+    /// <summary>
+    /// The first play waits out half an interval rather than a whole one, the way the engine seeds the
+    /// timer when a soundscape becomes active.
+    /// </summary>
+    private const float FirstIntervalScale = 0.5f;
+
+    /// <summary>
+    /// How far from the listener a "position" "random" sound is placed. The operator randomizes which
+    /// direction an ambient one shot comes from, not how far away it is: scaling this with the operator's
+    /// audible range instead puts it far enough out that the falloff swallows it.
+    /// </summary>
+    private const float RandomPositionRadius = 100f;
 
     private protected override (float Min, float Max)? RetriggerInterval => timeRange;
 
@@ -34,12 +47,12 @@ internal sealed class SoundEventScriptedRandom : SoundEvent
         timeRange = SoundscapeOperatorParsing.ParseRange(data, "time", 10f);
         randomPosition = string.Equals(data.GetStringProperty("position"), "random", StringComparison.OrdinalIgnoreCase);
         origin = SoundscapeOperatorParsing.ParseOrigin(data);
-        range = SoundscapeOperatorParsing.SoundLevelToRange(data.GetStringProperty("soundlevel"), 1000f);
+        distanceMult = SoundscapeOperatorParsing.SoundLevelToDistanceMult(data.GetStringProperty("soundlevel"));
     }
 
     protected override void DoStart()
     {
-        if (WaitOutFirstInterval())
+        if (WaitOutFirstInterval(FirstIntervalScale))
         {
             return;
         }
@@ -49,29 +62,39 @@ internal sealed class SoundEventScriptedRandom : SoundEvent
             return;
         }
 
+        // Armed from this play starting, not from it finishing: counting the interval only once the track
+        // has run out stretches every gap by the length of the sound, so the operator fires late and sparser
+        // than it is authored to
+        CheckRetrigger();
+
         Position = randomPosition ? PickRandomPosition() : origin;
 
         var pitch = Math.Clamp(float.Lerp(pitchRange.Min, pitchRange.Max, Random.NextSingle()) / 100f, 0.25f, 4f);
-        var volume = Math.Clamp(VolumeOverride ?? float.Lerp(volumeRange.Min, volumeRange.Max, Random.NextSingle()), 0f, 1f);
+        var volume = Math.Clamp(VolumeOverride ?? float.Lerp(volumeRange.Min, volumeRange.Max, Random.NextSingle()), 0f, 1f) * VolumeScale;
 
-        StartTrack(trackNames, volume, pitch, range);
+        if (StartTrack(trackNames, volume, pitch, range: 0f) is SampleProvider3D spatial)
+        {
+            spatial.DistanceMult = distanceMult;
+        }
     }
 
     internal override void Prewarm(int depth) => PrewarmTracks(trackNames);
 
-    private protected override bool StayAliveAfterFinishing() => CheckRetrigger();
+    /// <summary>
+    /// The next play is already armed by <see cref="DoStart"/>; this only keeps the event in the mixer
+    /// until it comes around.
+    /// </summary>
+    private protected override bool StayAliveAfterFinishing() => RetriggerArmed;
 
     /// <summary>
-    /// Picks a random point on a ring around the listener. A real soundscape would pick between a
-    /// handful of map-authored position markers instead - we don't have those wired through, so this
-    /// spreads retriggers across random directions/distances within the operator's audible range.
+    /// Picks a random direction around the listener, at a fixed distance. A real soundscape would pick
+    /// between a handful of map-authored position markers instead - we don't have those wired through.
     /// </summary>
     private Vector3 PickRandomPosition()
     {
         var listener = Mixer.ListenerPosition;
         var angle = Random.NextSingle() * MathF.Tau;
-        var distance = float.Lerp(range * 0.25f, range * 0.9f, Random.NextSingle());
 
-        return listener + new Vector3(MathF.Cos(angle) * distance, MathF.Sin(angle) * distance, 0f);
+        return listener + new Vector3(MathF.Cos(angle) * RandomPositionRadius, MathF.Sin(angle) * RandomPositionRadius, 0f);
     }
 }

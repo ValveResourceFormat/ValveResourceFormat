@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using ValveResourceFormat.Renderer.Audio.SampleProviders;
 
 namespace ValveResourceFormat.Renderer.Audio;
@@ -36,33 +37,56 @@ public sealed class AudioMixer : IDisposable
         Player = player;
     }
 
-    private Vector3 listenerPosition;
-    private Vector3 listenerRightEarDirection = Vector3.UnitY;
+    private ListenerState listener = new(Vector3.Zero, Vector3.UnitX, -Vector3.UnitY, Vector3.UnitZ, Vector3.Zero, 0f);
+    private long lastUpdateTimestamp;
+
+    // Longer than this and the listener did not walk, it was placed there (a load, a camera jump, a
+    // paused viewer coming back): the implied velocity is meaningless, so the frame runs without one.
+    private const float MaxListenerSpeed = 5000f;
+
+    // Beyond this the gap is a stall rather than a frame, and smoothing a whole second of it in one
+    // step just snaps whatever it drives.
+    private const float MaxDeltaTime = 0.25f;
 
     /// <summary>Gets the listener position from the most recent <see cref="Update"/>.</summary>
-    internal Vector3 ListenerPosition => listenerPosition;
+    internal Vector3 ListenerPosition => listener.Position;
 
     /// <summary>
-    /// Applies the current listener state to a sound event immediately.
+    /// Applies the current listener state to a sound event immediately. No time has passed since the last
+    /// update, so this primes spatialization without advancing anything time-based.
     /// </summary>
     internal void PrimeListener(SoundEvent soundEvent)
     {
-        soundEvent.Update(listenerPosition, listenerRightEarDirection);
+        soundEvent.Update(listener with { DeltaTime = 0f });
     }
 
     /// <summary>
-    /// Updates spatialization for all active sound events.
+    /// Updates spatialization for all active sound events. The three direction vectors are the listener's
+    /// own head frame - taken from the camera rather than rebuilt here, since deriving them by cross
+    /// product has no answer when the listener looks straight up or straight down.
     /// </summary>
-    public void Update(Vector3 listenerPosition, Vector3 listenerForward)
+    public void Update(Vector3 listenerPosition, Vector3 listenerForward, Vector3 listenerRight, Vector3 listenerUp)
     {
-        var rightEarDirection = Vector3.Cross(Vector3.UnitZ, listenerForward);
-        if (rightEarDirection.LengthSquared() > float.Epsilon)
+        var now = Stopwatch.GetTimestamp();
+        var deltaTime = lastUpdateTimestamp == 0
+            ? 0f
+            : Math.Clamp((float)Stopwatch.GetElapsedTime(lastUpdateTimestamp).TotalSeconds, 0f, MaxDeltaTime);
+        lastUpdateTimestamp = now;
+
+        var velocity = Vector3.Zero;
+
+        if (deltaTime > 0f)
         {
-            rightEarDirection = Vector3.Normalize(rightEarDirection);
+            velocity = (listenerPosition - listener.Position) / deltaTime;
+
+            if (velocity.LengthSquared() > MaxListenerSpeed * MaxListenerSpeed)
+            {
+                velocity = Vector3.Zero;
+            }
         }
 
-        this.listenerPosition = listenerPosition;
-        listenerRightEarDirection = rightEarDirection;
+        listener = new ListenerState(listenerPosition, listenerForward, listenerRight, listenerUp, velocity, deltaTime,
+            Player.PositionalSharpness, Player.SpectralCueStrength, Player.SampleRate);
 
         lock (soundEvents)
         {
@@ -72,7 +96,7 @@ public sealed class AudioMixer : IDisposable
 
         for (var i = 0; i < updateSnapshot.Count; i++)
         {
-            updateSnapshot[i].Update(listenerPosition, rightEarDirection);
+            updateSnapshot[i].Update(listener);
         }
     }
 
