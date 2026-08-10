@@ -258,6 +258,13 @@ namespace ValveResourceFormat.Serialization.KeyValues
                         result[i] = (ulong)(int)elem;
                     }
                 }
+                else if (elem.ValueType == KVValueType.Int64)
+                {
+                    unchecked
+                    {
+                        result[i] = (ulong)(long)elem;
+                    }
+                }
                 else
                 {
                     result[i] = (ulong)elem;

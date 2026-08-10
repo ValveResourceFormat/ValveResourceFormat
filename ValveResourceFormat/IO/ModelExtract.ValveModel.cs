@@ -570,7 +570,10 @@ partial class ModelExtract
                 {
                     var fromMaterial = defaultMaterials[i];
                     var toMaterial = variantMaterials[i];
-                    if (string.Equals(fromMaterial, toMaterial, StringComparison.OrdinalIgnoreCase))
+
+                    // A null slot carries no remap for that material.
+                    if (fromMaterial == null || toMaterial == null
+                        || string.Equals(fromMaterial, toMaterial, StringComparison.OrdinalIgnoreCase))
                     {
                         continue;
                     }
