@@ -195,6 +195,14 @@ namespace GUI.Types.Viewers
                     }
                     break;
 
+                case ResourceType.EntityLump:
+                    if (resource.DataBlock is EntityLump entityLumpData)
+                    {
+                        GLViewer = new EntityIOGraphViewer(vrfGuiContext, rendererContext, entityLumpData);
+                        GLViewerTabName = "ENTITY I/O GRAPH";
+                    }
+                    break;
+
                 case ResourceType.Material:
                     {
                         if (resource.DataBlock is Material { ShaderName: "sky.vfx" })
@@ -292,6 +300,15 @@ namespace GUI.Types.Viewers
                     var errorTab = new ThemedTabPage("Viewer Error");
                     errorTab.Controls.Add(GLViewerError);
                     resTabs.TabPages.Add(errorTab);
+                }
+
+                // Entity lumps get the same browsable grid a map's world viewer provides, with or
+                // without the graph tab the GL viewer adds.
+                if (!isPreview && resource.DataBlock is EntityLump standaloneLump)
+                {
+                    var entitiesTabPage = new ThemedTabPage("Entity List");
+                    entitiesTabPage.Controls.Add(new EntityViewer(vrfGuiContext, standaloneLump.GetEntities()));
+                    resTabs.TabPages.Add(entitiesTabPage);
                 }
             }
 
@@ -493,6 +510,12 @@ namespace GUI.Types.Viewers
                     foreach (var (viewer, tabName) in preparedGraphViewers)
                     {
                         AddGraphViewerTab(viewer, tabName, resTabs);
+
+                        if (GLViewer is GLWorldViewer worldViewerWithGraph && viewer is EntityIOGraphViewer entityGraphViewer)
+                        {
+                            worldViewerWithGraph.ShowEntityInGraph = entityGraphViewer.ShowEntity;
+                            worldViewerWithGraph.EntityHasGraphNode = entityGraphViewer.HasEntity;
+                        }
                     }
                 }
 
@@ -522,8 +545,24 @@ namespace GUI.Types.Viewers
                 return;
             }
 
-            if (GLViewer is GLWorldViewer { LoadedWorld: { } loadedWorld })
+            if (GLViewer is GLWorldViewer { LoadedWorld: { } loadedWorld } glWorldViewer)
             {
+                var hasConnections = false;
+
+                foreach (var entity in loadedWorld.Entities)
+                {
+                    if (entity.Connections is { Count: > 0 })
+                    {
+                        hasConnections = true;
+                        break;
+                    }
+                }
+
+                if (hasConnections)
+                {
+                    preparedGraphViewers.Add((new EntityIOGraphViewer(vrfGuiContext, rendererContext, loadedWorld.Entities, glWorldViewer.SelectAndFocusEntities), "ENTITY I/O GRAPH"));
+                }
+
                 PrepareMapPulseGraphViewers(vrfGuiContext, loadedWorld.Entities);
             }
 
@@ -685,16 +724,6 @@ namespace GUI.Types.Viewers
                             specialTabPage.Controls.Add(msg);
                         }
 
-                        resTabs.TabPages.Add(specialTabPage);
-                        return true;
-                    }
-                    break;
-
-                case ResourceType.EntityLump:
-                    if (resource.DataBlock is EntityLump entityLumpData)
-                    {
-                        var specialTabPage = new ThemedTabPage("Entities");
-                        specialTabPage.Controls.Add(new EntityViewer(vrfGuiContext, entityLumpData.GetEntities()));
                         resTabs.TabPages.Add(specialTabPage);
                         return true;
                     }
