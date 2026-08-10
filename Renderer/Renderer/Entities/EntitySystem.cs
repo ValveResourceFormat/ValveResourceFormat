@@ -33,6 +33,13 @@ public sealed class EntitySystem
     /// <summary>Gets every living entity, in spawn order.</summary>
     public IReadOnlyList<BaseEntity> Entities => entities;
 
+    /// <summary>
+    /// Gets or sets whether the world is simulated. Switching it off holds every entity where it stands:
+    /// the ticks stop, so nothing thinks, moves, touches, or fires entity I/O. What is already spawned
+    /// stays in the scene and stays drawn.
+    /// </summary>
+    public bool Enabled { get; set; }
+
     /// <summary>Gets the player, once one has been spawned into this world.</summary>
     public PlayerEntity? Player { get; private set; }
 
@@ -217,19 +224,28 @@ public sealed class EntitySystem
             return;
         }
 
-        tickAccumulator += frameTime;
-
-        for (var i = 0; tickAccumulator >= TickInterval; i++)
+        if (Enabled)
         {
-            if (i == MaxTicksPerFrame)
-            {
-                // Fell too far behind to catch up; drop the backlog rather than spiral
-                tickAccumulator = 0f;
-                break;
-            }
+            tickAccumulator += frameTime;
 
-            tickAccumulator -= TickInterval;
-            Tick();
+            for (var i = 0; tickAccumulator >= TickInterval; i++)
+            {
+                if (i == MaxTicksPerFrame)
+                {
+                    // Fell too far behind to catch up; drop the backlog rather than spiral
+                    tickAccumulator = 0f;
+                    break;
+                }
+
+                tickAccumulator -= TickInterval;
+                Tick();
+            }
+        }
+        else
+        {
+            // Time spent paused is not owed back: switching it on again resumes rather than catching up,
+            // and the entities rest on their last tick state rather than part way to the next one
+            tickAccumulator = 0f;
         }
 
         // Entities are not scene nodes, so nothing else would place what they own

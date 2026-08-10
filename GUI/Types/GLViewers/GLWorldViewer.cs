@@ -493,6 +493,9 @@ namespace GUI.Types.GLViewers
                     }
 
                     UiControl.AddCheckBox("Show Fog", Scene.FogEnabled, v => Scene.FogEnabled = v);
+
+                    UiControl.AddCheckBox("Entity System", Scene.EntitySystem.Enabled, v => Scene.EntitySystem.Enabled = v);
+
                     UiControl.AddCheckBox("Color Correction", Renderer.Postprocess.ColorCorrectionEnabled, v => Renderer.Postprocess.ColorCorrectionEnabled = v);
 
                     // TODO: PVS culling is not implemented yet
