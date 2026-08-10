@@ -291,7 +291,7 @@ namespace ValveResourceFormat.Renderer.World
 
             foreach (var node in scene.AllNodes)
             {
-                if (node is BaseEntity || node.Parent != null)
+                if (node.Parent != null || node.EntityInstance != null)
                 {
                     continue; // already driven by a simulated entity, which owns its transform
                 }
@@ -574,8 +574,8 @@ namespace ValveResourceFormat.Renderer.World
                     layerName = "Entities (disabled)";
                 }
 
-                // Classnames the entity system implements are spawned as simulated entities, which are
-                // scene nodes themselves and create whatever geometry they need.
+                // Classnames the entity system implements are spawned as simulated entities, which own
+                // whatever scene nodes they need.
                 if (EntityFactory.IsRegistered(classname))
                 {
                     scene.EntitySystem.CreateEntity(entity, parentTransform, layerName);

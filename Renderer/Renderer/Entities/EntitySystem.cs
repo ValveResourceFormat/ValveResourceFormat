@@ -114,7 +114,6 @@ public sealed class EntitySystem
     private void Add(BaseEntity entity)
     {
         entities.Add(entity);
-        Scene.Add(entity, dynamic: true);
     }
 
     /// <summary>
@@ -231,6 +230,12 @@ public sealed class EntitySystem
 
             tickAccumulator -= TickInterval;
             Tick();
+        }
+
+        // Entities are not scene nodes, so nothing else would place what they own
+        foreach (var entity in entities)
+        {
+            entity.Update();
         }
     }
 

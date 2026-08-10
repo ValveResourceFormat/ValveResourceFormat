@@ -23,7 +23,7 @@ namespace ValveResourceFormat.Renderer.Entities;
 /// player standing on it or push one the brush rotates into.
 /// </para>
 /// </remarks>
-public sealed class FuncRotating : BaseEntity
+public sealed class FuncRotating : BaseModelEntity
 {
     /// <summary>
     /// What a <c>func_rotating</c>'s <c>spawnflags</c> mean. The axis flags are named for what they do;
@@ -139,8 +139,6 @@ public sealed class FuncRotating : BaseEntity
         }
 
         startAngles = Angles;
-
-        SetModel();
 
         // Some rotating objects, like fake volumetric lights, are never solid
         IsSolid = !HasSpawnFlags(SpawnFlag.NotSolid);

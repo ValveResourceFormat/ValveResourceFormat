@@ -17,18 +17,32 @@ namespace ValveResourceFormat.Renderer.Entities;
 public readonly record struct EntitySpawnInfo(Entity Data, Matrix4x4 ParentTransform, string? LayerName);
 
 /// <summary>
-/// The base of the simulated entity hierarchy, Source's <c>CBaseEntity</c>. An entity <i>is</i> the scene
-/// node for the thing it represents: it carries the origin and angles, ticks inside
-/// <see cref="EntitySystem"/>, and owns the renderable nodes (model, physics hulls) it spawned as children.
+/// The base of the simulated entity hierarchy, Source's <c>CBaseEntity</c>. It carries the origin and
+/// angles, ticks inside <see cref="EntitySystem"/>, and owns the scene nodes that draw it.
 /// </summary>
 /// <remarks>
 /// Movement is integrated on the entity system's fixed tick, not the render frame, so think intervals and
-/// spin-up ramps land where the engine puts them regardless of framerate. Children are ordinary scene nodes
-/// parented to this one, which keeps them out of <see cref="Scene"/>'s own update pass; this entity pushes
-/// its transform down to them and refreshes their octree entries in <see cref="Update"/>.
+/// spin-up ramps land where the engine puts them regardless of framerate. The entity is not itself a scene
+/// node: it owns one, <see cref="RootNode"/>, which it positions each frame. By default that is the editor
+/// box the loader would otherwise draw for a point entity; a class with real geometry replaces it.
 /// </remarks>
-public class BaseEntity : SceneNode
+public class BaseEntity
 {
+    /// <summary>Gets the scene this entity's nodes live in.</summary>
+    public Scene Scene => EntitySystem.Scene;
+
+    /// <summary>
+    /// Gets the node this entity is drawn as, from <see cref="CreateRootNode"/>. The entity positions it;
+    /// anything hanging off it follows by the scene graph's own rules.
+    /// </summary>
+    public SceneNode? RootNode { get; private set; }
+
+    /// <summary>Gets the world transform the entity is drawn at, interpolated between ticks.</summary>
+    public Matrix4x4 Transform { get; private set; } = Matrix4x4.Identity;
+
+    /// <summary>Gets the visibility layer this entity's nodes belong to.</summary>
+    public string? LayerName { get; }
+
     /// <summary>Gets the world this entity lives in.</summary>
     public EntitySystem EntitySystem { get; }
 
@@ -62,20 +76,19 @@ public class BaseEntity : SceneNode
     public Vector3 EntityScale { get; }
 
     /// <summary>
-    /// Gets the <c>model</c> the map authored, before anything applies it. Source's <c>m_ModelName</c>:
-    /// reading the keyvalue is generic, but applying it is each class's own business, which is why
-    /// <see cref="SetModel()"/> is called from <see cref="Spawn"/> rather than for you.
+    /// Gets the <c>model</c> the map authored. Source's <c>m_ModelName</c>. Reading the keyvalue is generic;
+    /// an entity that has something to draw applies it by deriving from <see cref="BaseModelEntity"/>.
     /// </summary>
     public string? ModelName { get; protected set; }
 
-    /// <summary>Gets or sets the origin. Setting it rebuilds <see cref="SceneNode.Transform"/>.</summary>
+    /// <summary>Gets or sets the origin. Setting it rebuilds <see cref="Transform"/>.</summary>
     public Vector3 Origin
     {
         get => origin;
         set => SetOriginAndAngles(value, angles);
     }
 
-    /// <summary>Gets or sets the orientation as a QAngle (pitch, yaw, roll) in degrees. Setting it rebuilds <see cref="SceneNode.Transform"/>.</summary>
+    /// <summary>Gets or sets the orientation as a QAngle (pitch, yaw, roll) in degrees. Setting it rebuilds <see cref="Transform"/>.</summary>
     public Vector3 Angles
     {
         get => angles;
@@ -109,9 +122,9 @@ public class BaseEntity : SceneNode
 
     /// <summary>
     /// Gets the entity's collision shape, or <see langword="null"/> when it has none. Built by
-    /// <see cref="SetModel(string?)"/> from the model's physics, and moved with the entity every tick.
+    /// <see cref="BaseModelEntity"/> from the model's physics, and moved with the entity every tick.
     /// </summary>
-    public EntityCollider? Collider { get; private set; }
+    public EntityCollider? Collider { get; protected set; }
 
     /// <summary>
     /// Gets or sets whether the entity collides with the player. Setting it to <see langword="false"/>
@@ -133,10 +146,10 @@ public class BaseEntity : SceneNode
     public IReadOnlyCollection<BaseEntity> TouchingEntities => touching;
 
     private readonly HashSet<BaseEntity> touching = [];
+    private readonly List<SceneNode> ownedNodes = [];
     private Vector3 origin;
     private Vector3 angles;
     private bool transformDirty = true;
-    private readonly List<(SceneNode Node, Matrix4x4 LocalTransform)> children = [];
     private Vector3 previousOrigin;
     private Vector3 previousAngles;
     private bool isInterpolating;
@@ -146,7 +159,7 @@ public class BaseEntity : SceneNode
     /// </summary>
     /// <param name="system">The world this entity belongs to.</param>
     /// <param name="spawnInfo">The entity's keyvalues and spawn context.</param>
-    protected BaseEntity(EntitySystem system, EntitySpawnInfo spawnInfo) : base(system.Scene)
+    protected BaseEntity(EntitySystem system, EntitySpawnInfo spawnInfo)
     {
         EntitySystem = system;
         Data = spawnInfo.Data;
@@ -166,14 +179,18 @@ public class BaseEntity : SceneNode
         previousOrigin = origin;
         previousAngles = angles;
 
-        EntityData = Data;
         LayerName = spawnInfo.LayerName;
-        Name = TargetName ?? Classname;
-
-        // The entity itself draws nothing; its children carry the geometry.
-        RenderPasses = CustomRenderPasses.None;
 
         UpdateTransform();
+
+        // Last, so the override reads a fully built entity. Only the field initializers of the deriving
+        // class have run by now, which is all any override here needs.
+        RootNode = CreateRootNode();
+
+        if (RootNode != null)
+        {
+            AddNode(RootNode);
+        }
     }
 
     /// <summary>
@@ -182,18 +199,31 @@ public class BaseEntity : SceneNode
     /// </summary>
     /// <param name="system">The world this entity belongs to.</param>
     /// <param name="classname">The classname to report, as the map would have given.</param>
-    protected BaseEntity(EntitySystem system, string classname) : base(system.Scene)
+    protected BaseEntity(EntitySystem system, string classname)
     {
         EntitySystem = system;
         ParentTransform = Matrix4x4.Identity;
         EntityScale = Vector3.One;
 
         Classname = classname;
-        Name = classname;
-
-        RenderPasses = CustomRenderPasses.None;
 
         UpdateTransform();
+    }
+
+    /// <summary>
+    /// Builds the node this entity is drawn as, or returns <see langword="null"/> for one that draws nothing.
+    /// </summary>
+    /// <remarks>
+    /// The default is the editor box <c>CreateDefaultEntity</c> gives a point entity with no model of its
+    /// own, in the colour its Hammer class is drawn with. A class with real geometry overrides this, and
+    /// because the choice is made here rather than afterwards, the box is never built for one that does.
+    /// </remarks>
+    /// <returns>The node, or <see langword="null"/> to own none.</returns>
+    protected virtual SceneNode? CreateRootNode()
+    {
+        var color = HammerEntities.Get(Classname)?.Color ?? new Color32(255, 0, 255, 255);
+
+        return new SimpleBoxSceneNode(Scene, color, new Vector3(16f));
     }
 
     /// <summary>
@@ -448,10 +478,18 @@ public class BaseEntity : SceneNode
         UpdateTransform();
     }
 
-    /// <inheritdoc/>
-    public override void Update(Scene.UpdateContext context)
+    /// <summary>
+    /// Brings the entity's node up to date for this frame: interpolate between the last two ticks, then put
+    /// the node where that lands.
+    /// </summary>
+    /// <remarks>
+    /// The octree entry is moved here rather than left to <see cref="Scene.Update"/>. That loop maintains it
+    /// by measuring a node's bounds around the node's own update, and this write happens before the loop is
+    /// reached, so the measurement would come up empty and the entry would go stale.
+    /// </remarks>
+    internal void Update()
     {
-        var hasMoved = previousOrigin != Origin || previousAngles != Angles;
+        var hasMoved = previousOrigin != origin || previousAngles != angles;
 
         if (hasMoved || isInterpolating)
         {
@@ -460,20 +498,19 @@ public class BaseEntity : SceneNode
             isInterpolating = hasMoved;
         }
 
-        // A still entity's children are already where they belong, so only a moved transform is pushed down
-        var moveChildren = transformDirty;
+        // A still entity's nodes are already where they belong
+        if (!transformDirty)
+        {
+            return;
+        }
+
         transformDirty = false;
 
-        foreach (var (node, localTransform) in children)
+        foreach (var node in ownedNodes)
         {
             var oldBounds = node.BoundingBox;
 
-            if (moveChildren)
-            {
-                node.Transform = localTransform * Transform;
-            }
-
-            node.Update(context);
+            node.Transform = Transform;
 
             if (node.LayerEnabled && !oldBounds.Equals(node.BoundingBox))
             {
@@ -483,75 +520,19 @@ public class BaseEntity : SceneNode
     }
 
     /// <summary>
-    /// Loads the model the map authored on this entity, <see cref="ModelName"/>.
+    /// Puts a node this entity owns into the scene, and takes responsibility for its lifetime and its
+    /// placement. <see cref="RootNode"/> is the one the entity is drawn as; a model entity also owns the
+    /// collision hulls its model was compiled with.
     /// </summary>
-    /// <returns>The model node that was created, or <see langword="null"/> when there is nothing to draw.</returns>
-    protected ModelSceneNode? SetModel() => SetModel(ModelName);
-
-    /// <summary>
-    /// Loads a model and attaches its renderable and physics nodes to this entity. Source's <c>SetModel</c>.
-    /// Brush entities carry their geometry this way, in a model compiled next to the map.
-    /// </summary>
-    /// <param name="modelName">Resource path of the model, usually the entity's <c>model</c> keyvalue.</param>
-    /// <returns>The model node that was created, or <see langword="null"/> when the model has no meshes.</returns>
-    protected ModelSceneNode? SetModel(string? modelName)
+    /// <param name="node">The node to add.</param>
+    protected void AddNode(SceneNode node)
     {
-        if (string.IsNullOrEmpty(modelName))
-        {
-            return null;
-        }
-
-        var fileLoader = EntitySystem.FileLoader;
-
-        if (fileLoader.LoadFileCompiled(modelName)?.DataBlock is not Model model)
-        {
-            EntitySystem.Logger.LogWarning("{Classname} '{TargetName}' failed to load model \"{Model}\"", Classname, TargetName, modelName);
-            return null;
-        }
-
-        var modelNode = new ModelSceneNode(Scene, model, Data?.GetStringProperty("skin"))
-        {
-            Name = modelName,
-            Tint = Data?.GetRenderTint() ?? Vector4.One,
-        };
-
-        var hasMeshes = modelNode.HasMeshes;
-
-        if (hasMeshes)
-        {
-            AddChild(modelNode);
-        }
-
-        if (EntityCollider.LoadPhysics(model, fileLoader) is { } physics)
-        {
-            Collider = new EntityCollider(physics);
-            UpdateColliderTransform();
-
-            foreach (var physicsNode in PhysSceneNode.CreatePhysSceneNodes(Scene, physics, modelName, Classname))
-            {
-                AddChild(physicsNode);
-            }
-        }
-
-        return hasMeshes ? modelNode : null;
-    }
-
-    /// <summary>
-    /// Adds a scene node this entity owns and drives. The node follows this entity's transform, with
-    /// <paramref name="localTransform"/> applied in the entity's own frame.
-    /// </summary>
-    /// <param name="node">The node to attach.</param>
-    /// <param name="localTransform">The node's transform relative to this entity.</param>
-    protected void AddChild(SceneNode node, Matrix4x4? localTransform = null)
-    {
-        var local = localTransform ?? Matrix4x4.Identity;
-
-        node.Parent = this;
         node.EntityData = Data;
+        node.EntityInstance = this;
         node.LayerName = LayerName;
-        node.Transform = local * Transform;
+        node.Transform = Transform;
 
-        children.Add((node, local));
+        ownedNodes.Add(node);
         Scene.Add(node, dynamic: true);
     }
 
@@ -563,17 +544,18 @@ public class BaseEntity : SceneNode
     {
         IsRemoved = true;
 
-        foreach (var (node, _) in children)
+        foreach (var node in ownedNodes)
         {
+            node.EntityInstance = null;
+
             Scene.Remove(node, dynamic: true);
             node.Delete();
         }
 
-        children.Clear();
-        Scene.Remove(this, dynamic: true);
+        ownedNodes.Clear();
     }
 
-    /// <summary>Rebuilds <see cref="SceneNode.Transform"/> from the current scale, angles, and origin.</summary>
+    /// <summary>Rebuilds <see cref="Transform"/> from the current scale, angles, and origin.</summary>
     protected void UpdateTransform()
     {
         SetTransform(Origin, Angles);
@@ -590,7 +572,7 @@ public class BaseEntity : SceneNode
     /// <see cref="EntityScale"/> out, because the shape's sweeps assume distances survive the round trip
     /// into its local space.
     /// </remarks>
-    private void UpdateColliderTransform()
+    protected void UpdateColliderTransform()
     {
         if (Collider == null)
         {
@@ -603,7 +585,7 @@ public class BaseEntity : SceneNode
     }
 
     /// <summary>
-    /// Rebuilds <see cref="SceneNode.Transform"/> for drawing, somewhere between the last two ticks.
+    /// Rebuilds <see cref="Transform"/> for drawing, somewhere between the last two ticks.
     /// </summary>
     /// <remarks>
     /// This is the engine's client-side interpolation: rather than draw the newest state, the client draws

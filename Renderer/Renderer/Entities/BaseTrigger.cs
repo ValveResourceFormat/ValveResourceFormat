@@ -11,7 +11,7 @@ namespace ValveResourceFormat.Renderer.Entities;
 /// engine the volume is left visible, because a viewer showing a map's triggers is the point; they draw
 /// with the tools materials, so the tools-material toggle still hides them.
 /// </remarks>
-public abstract class BaseTrigger : BaseEntity
+public abstract class BaseTrigger : BaseModelEntity
 {
     /// <summary>Who a trigger reacts to, from its <c>spawnflags</c>.</summary>
     [Flags]
@@ -49,8 +49,6 @@ public abstract class BaseTrigger : BaseEntity
     /// </summary>
     protected void InitTrigger()
     {
-        SetModel();
-
         IsSolid = false;
         IsTrigger = true;
     }
