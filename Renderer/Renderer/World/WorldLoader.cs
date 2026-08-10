@@ -506,14 +506,6 @@ namespace ValveResourceFormat.Renderer.World
             scene.RenderAttributes.TryAdd("S_LIGHTMAP_VERSION_MINOR", (byte)scene.LightingInfo.LightmapGameVersionNumber);
         }
 
-        static bool IsCamera(string cls)
-            => cls == "sky_camera"
-            || cls == "point_devshot_camera"
-            || cls == "point_camera_vertical_fov"
-            || cls == "point_camera";
-
-        internal const string ToolEntitiesLayerName = "Entities (editor only)";
-
         private void LoadEntitiesFromLump(EntityLump entityLump, string originalLayerName, Matrix4x4 rootTransform)
         {
             static bool IsCubemapOrProbe(string cls)
@@ -560,7 +552,7 @@ namespace ValveResourceFormat.Renderer.World
                 var layerName = fromTemplate ? "Template Entities" : originalLayerName;
 
                 // group the point_template marker and its spawned children under the same layer
-                var toolEntityLayer = fromTemplate || classname == "point_template" ? "Template Entities" : ToolEntitiesLayerName;
+                var toolEntityLayer = fromTemplate || classname == "point_template" ? "Template Entities" : EditorEntityNode.ToolEntitiesLayerName;
 
                 var disabled = entity.GetBooleanProperty("startdisabled");
 
@@ -1145,7 +1137,7 @@ namespace ValveResourceFormat.Renderer.World
                     }
                 }
 
-                if (IsCamera(classname))
+                if (EditorEntityNode.IsCamera(classname))
                 {
                     var cameraName = entity.GetStringProperty("cameraname") ?? entity.TargetName ?? classname;
                     CameraNames.Add(cameraName);
@@ -1165,7 +1157,7 @@ namespace ValveResourceFormat.Renderer.World
                     {
                         var spawnMatrix = transformationMatrix;
 
-                        if (!IsCamera(classname))
+                        if (!EditorEntityNode.IsCamera(classname))
                         {
                             spawnMatrix.Translation += new Vector3(0, 0, PlayerEyeHeight);
                         }
@@ -1493,7 +1485,7 @@ namespace ValveResourceFormat.Renderer.World
 
             foreach (var node in SkyboxScene.AllNodes)
             {
-                if (node.LayerName == ToolEntitiesLayerName)
+                if (node.LayerName == EditorEntityNode.ToolEntitiesLayerName)
                 {
                     node.Transform *= offsetTransform;
                 }
@@ -1569,87 +1561,13 @@ namespace ValveResourceFormat.Renderer.World
             }
         }
 
-        private void CreateDefaultEntity(Entity entity, string classname, Matrix4x4 transformationMatrix, ObjectTypeFlags flags = ObjectTypeFlags.None, string layerName = ToolEntitiesLayerName)
+        private void CreateDefaultEntity(Entity entity, string classname, Matrix4x4 transformationMatrix, ObjectTypeFlags flags = ObjectTypeFlags.None, string layerName = EditorEntityNode.ToolEntitiesLayerName)
         {
+            var createdNode = EditorEntityNode.Create(scene, entity, classname, transformationMatrix, flags, layerName);
+
+            scene.Add(createdNode, true);
+
             var hammerEntity = HammerEntities.Get(classname);
-            string? filename = null;
-            Resource? resource = null;
-
-            if (hammerEntity?.Icons.Length > 0)
-            {
-                foreach (var file in hammerEntity.Icons)
-                {
-                    filename = file;
-
-                    resource = RendererContext.FileLoader.LoadFileCompiled(file);
-
-                    if (resource != null)
-                    {
-                        break;
-                    }
-                }
-            }
-
-            if (resource == null)
-            {
-                var color = hammerEntity?.Color ?? new Color32(255, 0, 255, 255);
-
-                // Do not use transformationMatrix because scales need to be ignored
-                EntityTransformHelper.GetTransformComponents(entity, out _, out var rotationMatrix, out var positionVector);
-
-                var boxNode = new SimpleBoxSceneNode(scene, color, new Vector3(16f))
-                {
-                    Transform = rotationMatrix * Matrix4x4.CreateTranslation(positionVector),
-                    LayerName = layerName,
-                    Name = filename,
-                    EntityData = entity,
-                    Flags = flags,
-                };
-                scene.Add(boxNode, true);
-            }
-            else if (resource.ResourceType == ResourceType.Model && resource.DataBlock is Model modelData)
-            {
-                var modelNode = IsCamera(classname)
-                    ? new CameraSceneNode(scene, modelData)
-                    : new ModelSceneNode(scene, modelData, null, isWorldPreview: true) { Name = filename };
-
-                modelNode.Transform = transformationMatrix;
-                modelNode.LayerName = layerName;
-                modelNode.EntityData = entity;
-                modelNode.Flags |= flags;
-
-                if (SceneLight.IsAccepted(classname).Accepted)
-                {
-                    modelNode.Tint = new Vector4(SceneLight.GetEditorTint(entity), 1f);
-                }
-
-                var isAnimated = modelNode.SetAnimationForWorldPreview("tools_preview");
-
-                scene.Add(modelNode, true);
-            }
-            else if (resource.ResourceType == ResourceType.Material)
-            {
-                var spriteNode = new SpriteSceneNode(scene, RendererContext, resource, transformationMatrix.Translation)
-                {
-                    LayerName = layerName,
-                    Name = filename,
-                    EntityData = entity,
-                    Flags = flags,
-                };
-
-                if (SceneLight.IsAccepted(classname).Accepted)
-                {
-                    // light_omni2 has no editor model in the fgd, only an icon, so the cost tint has
-                    // to go on the sprite for it to show up at all.
-                    spriteNode.Tint = new Vector4(SceneLight.GetEditorTint(entity), 1f);
-                }
-
-                scene.Add(spriteNode, true);
-            }
-            else
-            {
-                throw new InvalidDataException($"Got resource {resource.ResourceType} for class \"{classname}\"");
-            }
 
             if (hammerEntity?.Lines.Length > 0)
             {

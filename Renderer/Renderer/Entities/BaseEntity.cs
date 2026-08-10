@@ -214,16 +214,21 @@ public class BaseEntity
     /// Builds the node this entity is drawn as, or returns <see langword="null"/> for one that draws nothing.
     /// </summary>
     /// <remarks>
-    /// The default is the editor box <c>CreateDefaultEntity</c> gives a point entity with no model of its
-    /// own, in the colour its Hammer class is drawn with. A class with real geometry overrides this, and
-    /// because the choice is made here rather than afterwards, the box is never built for one that does.
+    /// The default is what the loader draws for a classname the entity system does not implement: the icon
+    /// the entity's Hammer class names, or a box in its colour. A class with real geometry overrides this,
+    /// and because the choice is made here rather than afterwards, the icon is never built for one that does.
     /// </remarks>
     /// <returns>The node, or <see langword="null"/> to own none.</returns>
     protected virtual SceneNode? CreateRootNode()
     {
-        var color = HammerEntities.Get(Classname)?.Color ?? new Color32(255, 0, 255, 255);
+        if (Data == null)
+        {
+            return null;
+        }
 
-        return new SimpleBoxSceneNode(Scene, color, new Vector3(16f));
+        // On the editor-only layer, so it hides with the other markers rather than with the world. Geometry
+        // an entity really has stays on the entity's own layer.
+        return World.EditorEntityNode.Create(Scene, Data, Classname, Transform);
     }
 
     /// <summary>
