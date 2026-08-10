@@ -950,9 +950,9 @@ partial class GraphView : IDisposable
                 positions[node] = node.Position;
             }
 
-            var previousBudget = LayoutOptions.CrossingRepairBudgetMs;
-            LayoutOptions.CrossingRepairBudgetMs = 0;
-            LayoutOptions.RepairSliceMs = null;
+            var previousBudget = LayoutOptions.LayoutBudgetMs;
+            LayoutOptions.LayoutBudgetMs = 0;
+            LayoutOptions.LayoutSliceMs = null;
 
             try
             {
@@ -966,7 +966,7 @@ partial class GraphView : IDisposable
             }
             finally
             {
-                LayoutOptions.CrossingRepairBudgetMs = previousBudget;
+                LayoutOptions.LayoutBudgetMs = previousBudget;
             }
 
             // The repair moves cards out from under the routes the layout built for them, so the
@@ -1044,9 +1044,9 @@ partial class GraphView : IDisposable
             }
         }
 
-        // The repair budget is what the caller is prepared to wait for a layout, not what it will
+        // The budget is what the caller is prepared to wait for a layout, not what it will
         // wait for each of a hundred islands, so it is shared out before any island starts.
-        var slices = GraphLayout.SplitRepairBudget([.. components.Select(static c => c.Count)], LayoutOptions.CrossingRepairBudgetMs);
+        var slices = GraphLayout.SplitBudget([.. components.Select(static c => c.Count)], LayoutOptions.LayoutBudgetMs);
 
         for (var i = 0; i < components.Count; i++)
         {
@@ -1058,11 +1058,11 @@ partial class GraphView : IDisposable
                 continue;
             }
 
-            LayoutOptions.RepairSliceMs = slices[i];
+            LayoutOptions.LayoutSliceMs = slices[i];
             GraphLayout.Layout(component, componentWires[i], Geometry, LayoutOptions);
         }
 
-        LayoutOptions.RepairSliceMs = null;
+        LayoutOptions.LayoutSliceMs = null;
 
         // Nodes with no wires at all carry no structure to read, so mixing them into the packing
         // just pushes the parts that do connect further apart and buries them among the rest.

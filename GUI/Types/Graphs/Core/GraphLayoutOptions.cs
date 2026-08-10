@@ -1,5 +1,26 @@
 namespace GUI.Types.Graphs.Core;
 
+/// <summary>
+/// Wall-clock cutoff shared by the refining passes of one island's layout. A default instance
+/// never expires, which is what the unlimited full-quality command runs with.
+/// </summary>
+readonly struct LayoutDeadline
+{
+    private readonly long expiresAt;
+
+    private LayoutDeadline(long expiresAt)
+    {
+        this.expiresAt = expiresAt;
+    }
+
+    /// <summary>A deadline <paramref name="milliseconds"/> from now, or an unlimited one when that is not positive.</summary>
+    public static LayoutDeadline After(int milliseconds) => milliseconds > 0
+        ? new LayoutDeadline(System.Diagnostics.Stopwatch.GetTimestamp() + (milliseconds * System.Diagnostics.Stopwatch.Frequency / 1000))
+        : default;
+
+    public bool Expired => expiresAt != 0 && System.Diagnostics.Stopwatch.GetTimestamp() >= expiresAt;
+}
+
 /// <summary>Layout tuning for the placement engine.</summary>
 sealed class GraphLayoutOptions
 {
@@ -69,19 +90,19 @@ sealed class GraphLayoutOptions
     public float CrossingSlideStep { get; set; } = 14f;
 
     /// <summary>
-    /// Wall-clock milliseconds the whole layout may spend on crossing repair before it stops and
-    /// keeps what it has. Zero removes the limit, which is what the manual full-quality command
-    /// uses. The caller splits it across the islands with
-    /// <see cref="GraphLayout.SplitRepairBudget"/>.
+    /// Wall-clock milliseconds the whole layout may spend refining before it stops and keeps what
+    /// it has. Covers both the ordering sweeps and the crossing repair, which share one deadline
+    /// per island. Zero removes the limit, which is what the manual full-quality command uses. The
+    /// caller splits it across the islands with <see cref="GraphLayout.SplitBudget"/>.
     /// </summary>
-    public int CrossingRepairBudgetMs { get; set; } = 4000;
+    public int LayoutBudgetMs { get; set; } = 4000;
 
     /// <summary>
-    /// Milliseconds the island being laid out right now may spend, timed from when its own repair
-    /// starts so no island can eat the time meant for the ones after it. Null lets the repair take
-    /// the whole of <see cref="CrossingRepairBudgetMs"/>; zero means unlimited, as it does there.
+    /// Milliseconds the island being laid out right now may spend, timed from when its own layout
+    /// starts so no island can eat the time meant for the ones after it. Null lets the island take
+    /// the whole of <see cref="LayoutBudgetMs"/>; zero means unlimited, as it does there.
     /// </summary>
-    internal int? RepairSliceMs { get; set; }
+    internal int? LayoutSliceMs { get; set; }
 
     /// <summary>Largest branch that may be shifted as one to reorder two wires into a card.</summary>
     public int BranchShiftMaxNodes { get; set; } = 40;

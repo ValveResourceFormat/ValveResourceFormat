@@ -26,6 +26,7 @@ internal sealed class CrossingRepair
     private readonly List<GraphNode> component;
     private readonly GraphGeometry geometry;
     private readonly GraphLayoutOptions options;
+    private readonly LayoutDeadline deadline;
 
     private readonly GraphWire[] wires;
     private readonly Vector2[] from;
@@ -55,11 +56,12 @@ internal sealed class CrossingRepair
     private readonly float maxWidth;
 
 
-    public CrossingRepair(List<GraphNode> component, List<GraphWire> componentWires, GraphGeometry geometry, GraphLayoutOptions options)
+    public CrossingRepair(List<GraphNode> component, List<GraphWire> componentWires, GraphGeometry geometry, GraphLayoutOptions options, LayoutDeadline deadline)
     {
         this.component = component;
         this.geometry = geometry;
         this.options = options;
+        this.deadline = deadline;
 
         wires = [.. componentWires.Where(static w => w.From.Owner != w.To.Owner)];
         from = new Vector2[wires.Length];
@@ -192,15 +194,12 @@ internal sealed class CrossingRepair
         }
     }
 
-    private readonly System.Diagnostics.Stopwatch clock = new();
-    private int budgetMs;
-
     /// <summary>
-    /// Whether the repair has spent the slice of the layout's budget this island was given. Checked
-    /// between moves rather than inside the scoring loops, so it always stops on a consistent
-    /// layout, never half way through a swap.
+    /// Whether the layout deadline this island runs under has passed. Checked between moves rather
+    /// than inside the scoring loops, so it always stops on a consistent layout, never half way
+    /// through a swap.
     /// </summary>
-    private bool Spent => budgetMs > 0 && clock.ElapsedMilliseconds >= budgetMs;
+    private bool Spent => deadline.Expired;
 
     public void Run()
     {
@@ -208,9 +207,6 @@ internal sealed class CrossingRepair
         {
             return;
         }
-
-        budgetMs = options.RepairSliceMs ?? options.CrossingRepairBudgetMs;
-        clock.Restart();
 
         for (var pass = 0; pass < options.CrossingRepairPasses && !Spent; pass++)
         {
@@ -702,7 +698,7 @@ internal sealed class CrossingRepair
     {
         var found = new List<(int, int)>();
 
-        for (var i = 0; i < wires.Length && found.Count < budget; i++)
+        for (var i = 0; i < wires.Length && found.Count < budget && !Spent; i++)
         {
             for (var j = i + 1; j < wires.Length && found.Count < budget; j++)
             {

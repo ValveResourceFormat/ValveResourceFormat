@@ -16,8 +16,8 @@ internal static class GraphLayout
     /// <summary>Gap between the wrapped sub-columns of one oversized rank.</summary>
     private const float SubColumnSeparation = 64f;
 
-    /// <summary>Repair time every island is given before the rest is shared out by size.</summary>
-    private const int RepairSliceFloorMs = 250;
+    /// <summary>Layout time every island is given before the rest is shared out by size.</summary>
+    private const int SliceFloorMs = 250;
 
     public static void Layout(
         List<GraphNode> component,
@@ -27,7 +27,7 @@ internal static class GraphLayout
     {
         if (component.Count > 1)
         {
-            new LayeredSolver(component, componentWires, geometry, options).Run();
+            new LayeredSolver(component, componentWires, geometry, options, DeadlineFor(options)).Run();
         }
 
         foreach (var wire in componentWires)
@@ -68,21 +68,28 @@ internal static class GraphLayout
     /// Runs last, on geometry, and is the only pass that sees which socket row a wire docks at.
     /// </remarks>
     public static void RepairCrossings(List<GraphNode> component, List<GraphWire> componentWires, GraphGeometry geometry, GraphLayoutOptions options)
+        => RepairCrossings(component, componentWires, geometry, options, DeadlineFor(options));
+
+    private static void RepairCrossings(List<GraphNode> component, List<GraphWire> componentWires, GraphGeometry geometry, GraphLayoutOptions options, LayoutDeadline deadline)
     {
         if (component.Count > 1)
         {
-            new CrossingRepair(component, componentWires, geometry, options).Run();
+            new CrossingRepair(component, componentWires, geometry, options, deadline).Run();
         }
     }
 
+    /// <summary>The cutoff one island's layout runs under, from its own slice or the whole budget.</summary>
+    private static LayoutDeadline DeadlineFor(GraphLayoutOptions options)
+        => LayoutDeadline.After(options.LayoutSliceMs ?? options.LayoutBudgetMs);
+
     /// <summary>
-    /// Splits a repair budget across the islands of one layout, so the first island cannot spend
+    /// Splits a layout budget across the islands of one layout, so the first island cannot spend
     /// all of it. Islands of fewer than two nodes get nothing, every other island gets a floor plus
     /// a share of what is left in proportion to its node count, and the slices together stay inside
     /// <paramref name="totalMs"/>. A zero total stays zero, which means unlimited; a slice is never
     /// rounded down to zero, which would mean the same thing.
     /// </summary>
-    public static int[] SplitRepairBudget(IReadOnlyList<int> nodeCounts, int totalMs)
+    public static int[] SplitBudget(IReadOnlyList<int> nodeCounts, int totalMs)
     {
         var slices = new int[nodeCounts.Count];
 
@@ -110,7 +117,7 @@ internal static class GraphLayout
             return slices;
         }
 
-        var floor = Math.Min(RepairSliceFloorMs, totalMs / islands);
+        var floor = Math.Min(SliceFloorMs, totalMs / islands);
         var shared = totalMs - (floor * islands);
 
         for (var i = 0; i < nodeCounts.Count; i++)
@@ -240,7 +247,8 @@ internal static class GraphLayout
         List<GraphNode> component,
         List<GraphWire> componentWires,
         GraphGeometry geometry,
-        GraphLayoutOptions options)
+        GraphLayoutOptions options,
+        LayoutDeadline deadline)
     {
         /// <summary>
         /// One entry of a node's adjacency. <paramref name="Far"/> and <paramref name="Near"/> are
@@ -292,7 +300,7 @@ internal static class GraphLayout
             AssignHeights();
             ApplyPositions();
 
-            RepairCrossings(component, componentWires, geometry, options);
+            RepairCrossings(component, componentWires, geometry, options, deadline);
 
             // The repair moves cards, so the lanes the long wires run through are re-derived from
             // where the cards ended up rather than from where they were placed.
@@ -575,12 +583,21 @@ internal static class GraphLayout
         // Layer-by-layer barycentre ordering. The repaired version normalises the keys so ranks
         // of different sizes compare, alternates sweep direction, runs an adjacent-swap pass and
         // keeps whichever sweep actually measured fewest crossings.
+        /// <summary>
+        /// Barycentre sweeps under the layout deadline. A sweep is only kept when the count that
+        /// judges it completed, so an unmeasurable graph keeps the order the layers were built in.
+        /// </summary>
         private void OrderLayers()
         {
             var best = Snapshot();
             var bestCrossings = CountCrossings();
 
-            for (var sweep = 0; sweep < 12; sweep++)
+            if (bestCrossings < 0)
+            {
+                return;
+            }
+
+            for (var sweep = 0; sweep < 12 && !deadline.Expired; sweep++)
             {
                 var forward = sweep % 2 == 0;
 
@@ -600,6 +617,11 @@ internal static class GraphLayout
                 Transpose();
 
                 var crossings = CountCrossings();
+
+                if (crossings < 0)
+                {
+                    break;
+                }
 
                 if (crossings < bestCrossings)
                 {
@@ -718,18 +740,27 @@ internal static class GraphLayout
             }
         }
 
+        /// <summary>Projections and boundaries counted between two checks of the layout deadline.</summary>
+        private const int CrossingCountCheckInterval = 512;
+
         /// <summary>
         /// Inversions across every rank boundary, counted with a Fenwick tree so hub-heavy ranks
         /// stay affordable. A wire spanning several ranks is projected onto each boundary it
         /// crosses, so ordering sees the wires that have no dummies standing in for them too.
         /// Heights are normalised per rank, so the two sides of a boundary compare.
         /// </summary>
+        /// <returns>The crossing count, or -1 when the layout deadline passed before it was complete.</returns>
         private int CountCrossings()
         {
             var boundaries = new List<(float Upper, float Lower)>[Math.Max(1, ranks.Length)];
 
             for (var i = 0; i < count; i++)
             {
+                if (i % CrossingCountCheckInterval == 0 && deadline.Expired)
+                {
+                    return -1;
+                }
+
                 foreach (var link in down[i])
                 {
                     var fromRank = rankOf[i];
@@ -757,6 +788,11 @@ internal static class GraphLayout
 
             for (var r = 0; r + 1 < ranks.Length; r++)
             {
+                if (r % CrossingCountCheckInterval == 0 && deadline.Expired)
+                {
+                    return -1;
+                }
+
                 var edges = boundaries[r];
 
                 if (edges == null || edges.Count < 2)
