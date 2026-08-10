@@ -978,7 +978,7 @@ namespace ValveResourceFormat.Renderer.World
 
                 var model = entity.GetStringProperty("model");
                 var particle = entity.GetStringProperty("effect_name");
-                var animation = entity.GetStringProperty("defaultanim") ?? entity.GetStringProperty("idleanim");
+                var animation = entity.GetStringProperty("startinganim") ?? entity.GetStringProperty("defaultanim") ?? entity.GetStringProperty("idleanim");
 
                 var skin = entity.GetStringProperty("skin");
                 var positionVector = transformationMatrix.Translation;
