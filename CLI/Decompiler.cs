@@ -1380,6 +1380,17 @@ namespace CLI
                             {
                                 outputFile = Path.ChangeExtension(outputFile, extension);
                             }
+
+                            if (RecursiveSearchArchives)
+                            {
+                                outputFile = Path.Combine(parentPath, outputFile);
+                            }
+
+                            outputFile = GetOutputPath(outputFile, useOutputAsDirectory);
+
+                            // Dump before disposing resource because texture subfiles are generated lazily.
+                            DumpContentFile(outputFile, contentFile, singleFileOutput: !useOutputAsDirectory);
+                            continue;
                         }
 
                         if (RecursiveSearchArchives)
