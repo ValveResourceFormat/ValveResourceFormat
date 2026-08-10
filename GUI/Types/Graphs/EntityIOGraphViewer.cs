@@ -256,6 +256,19 @@ internal class EntityIOGraphViewer : GLGraphViewer
         return true;
     }
 
+    /// <summary>Double clicking an entity shows it in the map viewer; the asset a node references
+    /// stays available through the context menu.</summary>
+    protected override void OnNodeDoubleClick(GraphNode node)
+    {
+        if (showInMap != null && node.Tag is EntityLump.Entity entity)
+        {
+            showInMap(nodeMembers.GetValueOrDefault(node) ?? [entity]);
+            return;
+        }
+
+        base.OnNodeDoubleClick(node);
+    }
+
     protected override void AddNodeContextMenuItems(ThemedContextMenuStrip menu, GraphNode node)
     {
         if (showInMap != null && node.Tag is EntityLump.Entity entity)

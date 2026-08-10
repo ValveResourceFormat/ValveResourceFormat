@@ -544,9 +544,17 @@ namespace GUI.Types.GLViewers
         private void OnMouseDoubleClick(object? sender, MouseEventArgs e)
         {
             var graphPoint = ScreenToGraph(e.Location);
-            var element = View.FindElementAt(graphPoint);
 
-            if (element is GraphNode { ExternalResourceName: not null } node)
+            if (View.FindElementAt(graphPoint) is GraphNode node)
+            {
+                OnNodeDoubleClick(node);
+            }
+        }
+
+        /// <summary>What double clicking a node does. Opens the asset the node references.</summary>
+        protected virtual void OnNodeDoubleClick(GraphNode node)
+        {
+            if (node.ExternalResourceName != null)
             {
                 OpenExternalResource(node);
             }
