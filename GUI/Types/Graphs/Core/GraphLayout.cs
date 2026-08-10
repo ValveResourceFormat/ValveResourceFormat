@@ -16,6 +16,9 @@ internal static class GraphLayout
     /// <summary>Gap between the wrapped sub-columns of one oversized rank.</summary>
     private const float SubColumnSeparation = 64f;
 
+    /// <summary>Repair time every island is given before the rest is shared out by size.</summary>
+    private const int RepairSliceFloorMs = 250;
+
     public static void Layout(
         List<GraphNode> component,
         List<GraphWire> componentWires,
@@ -56,6 +59,79 @@ internal static class GraphLayout
             new Vector2(to.X - 36f, to.Y),
         ];
     }
+
+    /// <summary>
+    /// Moves placed cards to remove wire crossings and to clear wires that run across them,
+    /// judged on the straight run between the real socket pivots.
+    /// </summary>
+    /// <remarks>
+    /// Runs last, on geometry, and is the only pass that sees which socket row a wire docks at.
+    /// </remarks>
+    public static void RepairCrossings(List<GraphNode> component, List<GraphWire> componentWires, GraphGeometry geometry, GraphLayoutOptions options)
+    {
+        if (component.Count > 1)
+        {
+            new CrossingRepair(component, componentWires, geometry, options).Run();
+        }
+    }
+
+    /// <summary>
+    /// Splits a repair budget across the islands of one layout, so the first island cannot spend
+    /// all of it. Islands of fewer than two nodes get nothing, every other island gets a floor plus
+    /// a share of what is left in proportion to its node count, and the slices together stay inside
+    /// <paramref name="totalMs"/>. A zero total stays zero, which means unlimited; a slice is never
+    /// rounded down to zero, which would mean the same thing.
+    /// </summary>
+    public static int[] SplitRepairBudget(IReadOnlyList<int> nodeCounts, int totalMs)
+    {
+        var slices = new int[nodeCounts.Count];
+
+        if (totalMs <= 0)
+        {
+            return slices;
+        }
+
+        var islands = 0;
+        var totalNodes = 0;
+
+        for (var i = 0; i < nodeCounts.Count; i++)
+        {
+            if (nodeCounts[i] < 2)
+            {
+                continue;
+            }
+
+            islands++;
+            totalNodes += nodeCounts[i];
+        }
+
+        if (islands == 0)
+        {
+            return slices;
+        }
+
+        var floor = Math.Min(RepairSliceFloorMs, totalMs / islands);
+        var shared = totalMs - (floor * islands);
+
+        for (var i = 0; i < nodeCounts.Count; i++)
+        {
+            if (nodeCounts[i] >= 2)
+            {
+                slices[i] = Math.Max(1, floor + (int)((long)shared * nodeCounts[i] / totalNodes));
+            }
+        }
+
+        return slices;
+    }
+
+    /// <summary>
+    /// Whether two cards clear each other: they either miss in x entirely, or keep
+    /// <paramref name="spacing"/> between them in y. Placement leaves every pair in that state,
+    /// so it is the condition every later move has to preserve.
+    /// </summary>
+    internal static bool CardsClear(Vector2 aMin, Vector2 aMax, Vector2 bMin, Vector2 bMax, float spacing)
+        => aMax.X <= bMin.X || bMax.X <= aMin.X
+        || bMin.Y - aMax.Y >= spacing || aMin.Y - bMax.Y >= spacing;
 
     private static float WeightedMedian(List<(float Value, float Weight)> samples)
     {
@@ -215,6 +291,11 @@ internal static class GraphLayout
             AssignColumns();
             AssignHeights();
             ApplyPositions();
+
+            RepairCrossings(component, componentWires, geometry, options);
+
+            // The repair moves cards, so the lanes the long wires run through are re-derived from
+            // where the cards ended up rather than from where they were placed.
             AssignDummyHeights();
             EmitRoutes();
         }
