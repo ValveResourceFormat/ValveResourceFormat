@@ -1,4 +1,4 @@
-namespace ValveResourceFormat.Renderer.Input;
+﻿namespace ValveResourceFormat.Renderer.Input;
 
 /// <summary>
 /// Source engine-style FPS player movement controller.
@@ -26,7 +26,7 @@ public partial class PlayerMovement
 
     private const float ViewHeightOffset = 8f;
     private static readonly float ViewHeightStanding = StandingHullHalfExtents.Z * 2f - ViewHeightOffset;
-    private static readonly float ViewHeightDucked = DuckedHullHalfExtents.Z * 2f - ViewHeightOffset;
+    private const float ViewHeightDucked = 46f;
 
     private const float BunnyjumpMaxSpeedFactor = 1.1f;   // Only allow bunny jumping up to 1.1x max speed
 
@@ -154,7 +154,7 @@ public partial class PlayerMovement
     /// <summary>The current eye position</summary>
     public Vector3 EyePosition { get; private set; }
 
-    private float DuckSpeedModifierActive => (HoldingCtrl || CrouchBlend > 0f) ? DuckSpeedModifier : 1f;
+    private float DuckSpeedModifierActive => float.Lerp(1f, DuckSpeedModifier, CrouchBlend);
     private Vector3 SnappedHullHalfExtents => HoldingCtrl ? DuckedHullHalfExtents : StandingHullHalfExtents;
 
     /// <summary>
@@ -184,7 +184,7 @@ public partial class PlayerMovement
     /// <summary>sv_airaccelerate for movement maps, far above the engine default so surf and strafe maps have air control.</summary>
     public const float AirAccelerateMovementMaps = 150f;
     /// <summary>sv_airaccelerate for competitive play.</summary>
-    public const float AirAccelerateCompetitive = 10f;
+    public const float AirAccelerateCompetitive = 12f;
 
     /// <summary>Gets or sets sv_airaccelerate, the air-control acceleration rate.</summary>
     public float AirAccelerate { get; set; } = AirAccelerateMovementMaps;
@@ -380,7 +380,7 @@ public partial class PlayerMovement
         var moveStart = position;
 
         position = OnGround
-            ? GroundMove(position, wishdir, wishspeed, deltaTime, isDucking, isWalking, playerHull)
+            ? GroundMove(position, wishdir, wishspeed, deltaTime, DuckSpeedModifierActive, isWalking, playerHull)
             : TryPlayerMove(position, airVelocityDelta, deltaTime, playerHull, wishdir, wishspeed);
 
         if (OnGround)
@@ -627,7 +627,7 @@ public partial class PlayerMovement
     /// Whether a trace landed on a surface flat enough to stand on.
     /// </summary>
     private static bool IsWalkableGroundHit(Rubikon.TraceResult trace)
-        => trace.Hit && trace.HitNormal.Z > WalkableSlope;
+        => trace.Hit && trace.HitNormal.Z >= WalkableSlope;
 
     /// <summary>
     /// Snaps the position's Z onto the ground found by <paramref name="trace"/>, keeping a
@@ -911,7 +911,7 @@ public partial class PlayerMovement
             }
 
             // 2024-11-07 CS2 update
-            if (!OnGround && Velocity.Z < 0f && result.HitNormal.Z > WalkableSlope
+            if (!OnGround && Velocity.Z < 0f && result.HitNormal.Z >= WalkableSlope
                 && new Vector2(Velocity.X, Velocity.Y).LengthSquared() < 1f)
             {
                 Velocity = Vector3.Zero;
@@ -1206,7 +1206,7 @@ public partial class PlayerMovement
     /// segment horizon reported by <see cref="WalkMove"/> (e.g. the sub-stopspeed kick kink)
     /// also ends a bump early, so the boosted and unboosted stretches sweep as separate traces.
     /// </summary>
-    private Vector3 GroundMove(Vector3 position, Vector3 wishdir, float wishspeed, float deltaTime, bool isDucking, bool isWalking, Vector3 halfExtents)
+    private Vector3 GroundMove(Vector3 position, Vector3 wishdir, float wishspeed, float deltaTime, float duckModifier, bool isWalking, Vector3 halfExtents)
     {
         const int MaxBumps = 8;
 
@@ -1232,7 +1232,7 @@ public partial class PlayerMovement
             // (and so into the sub-stopspeed kick, which is defined off wishspeed).
             var (segWishdir, segWishspeed, wishScale) = ClipWish(wishdir, wishspeed, planes[..planeCount]);
 
-            var segDt = WalkMove(segWishdir, segWishspeed, remaining, isDucking, isWalking, wishScale);
+            var segDt = WalkMove(segWishdir, segWishspeed, remaining, duckModifier, isWalking, wishScale);
             var freeVelocity = Velocity;
             var delta = GroundMoveDelta;
 
@@ -1419,7 +1419,7 @@ public partial class PlayerMovement
     private static float ClipVelocity(ref Vector3 delta, ref Vector3 velocity, Vector3 normal, bool onGround)
     {
         // Walkable slopes on ground maintain horizontal speed
-        if (onGround && normal.Z > WalkableSlope)
+        if (onGround && normal.Z >= WalkableSlope)
         {
             var horizontalVel = new Vector3(velocity.X, velocity.Y, 0);
             var horizontalSpeed = horizontalVel.Length();
@@ -1597,7 +1597,7 @@ public partial class PlayerMovement
     /// sub-stopspeed kick boost switching off), so the caller can end the segment there and
     /// sweep the boosted and unboosted stretches as separate traces.
     /// </summary>
-    private float Accelerate(Vector3 wishdir, float wishspeed, Vector3 preFrictionVelocity, float deltaTime, bool isDucking, bool isWalking, float wishScale = 1f)
+    private float Accelerate(Vector3 wishdir, float wishspeed, Vector3 preFrictionVelocity, float deltaTime, float duckModifier, bool isWalking, float wishScale = 1f)
     {
         var currentspeed = Vector3.Dot(Velocity, wishdir);
         var addspeed = wishspeed - currentspeed;
@@ -1607,7 +1607,7 @@ public partial class PlayerMovement
             return deltaTime;
         }
 
-        var goalSpeed = AccelerationGoalSpeed(wishspeed, isDucking, isWalking, wishScale);
+        var goalSpeed = AccelerationGoalSpeed(wishspeed, duckModifier, isWalking, wishScale);
         var frictionRate = FrictionValue * SurfaceFriction;
 
         // Walking tapers acceleration over the last 5 u/s to the goal; that band stays a
@@ -1684,20 +1684,16 @@ public partial class PlayerMovement
 
     /// <summary>
     /// The speed the acceleration ramp aims for: at least 250, scaled by
-    /// the duck/walk modifiers and by how much of the wish survived clipping.
+    /// <paramref name="duckModifier"/> and the walk modifier, and by how much of the wish
+    /// survived clipping.
     ///
     /// The 250 floor is applied before <paramref name="wishScale"/> deliberately. Clipping shrinks
     /// the wishspeed below the floor, so folding the two the other way round would hide the
     /// reduction entirely and hand a wall-constrained segment the full open-ground acceleration.
     /// </summary>
-    private static float AccelerationGoalSpeed(float wishspeed, bool isDucking, bool isWalking, float wishScale = 1f)
+    private static float AccelerationGoalSpeed(float wishspeed, float duckModifier, bool isWalking, float wishScale = 1f)
     {
-        var goalSpeed = MathF.Max(250.0f, wishspeed) * wishScale;
-
-        if (isDucking)
-        {
-            goalSpeed *= DuckSpeedModifier;
-        }
+        var goalSpeed = MathF.Max(250.0f, wishspeed) * wishScale * duckModifier;
 
         if (isWalking)
         {
@@ -1733,7 +1729,7 @@ public partial class PlayerMovement
     /// quadratic would no longer match the chord it is describing. Keeping the whole ground path
     /// on one consistent velocity model is worth more than the second-order distance error.
     /// </summary>
-    private float WalkMove(Vector3 wishdir, float wishspeed, float deltaTime, bool isDucking, bool isWalking, float wishScale = 1f)
+    private float WalkMove(Vector3 wishdir, float wishspeed, float deltaTime, float duckModifier, bool isWalking, float wishScale = 1f)
     {
         // Come to a complete stop from a crawl. Source runs this before Accelerate; after
         // it, high framerates would re-zero every frame's sub-unit acceleration gain and
@@ -1748,14 +1744,14 @@ public partial class PlayerMovement
         Friction(deltaTime);
         var previousSpeed = Velocity.Length();
 
-        var segDt = Accelerate(wishdir, wishspeed, preFrictionVelocity, deltaTime, isDucking, isWalking, wishScale);
+        var segDt = Accelerate(wishdir, wishspeed, preFrictionVelocity, deltaTime, duckModifier, isWalking, wishScale);
 
         // The cap's closed forms assume a full frame; a shortened (kinked) segment stays
         // deep below the cap, so only apply it when the whole frame was integrated
         if (!PrestrafeEnabled && segDt >= deltaTime - 1e-6f)
         {
             var frictionRate = FrictionValue * SurfaceFriction;
-            var accelMagnitude = AccelerateValue * AccelerationGoalSpeed(wishspeed, isDucking, isWalking, wishScale) * SurfaceFriction;
+            var accelMagnitude = AccelerateValue * AccelerationGoalSpeed(wishspeed, duckModifier, isWalking, wishScale) * SurfaceFriction;
             var preCapVelocity = Velocity;
             Velocity = CapSpeedNoPrestrafe(Velocity, wishdir, wishspeed, previousSpeed, preFrictionVelocity, deltaTime, frictionRate, accelMagnitude);
 
