@@ -531,6 +531,8 @@ namespace ValveResourceFormat.Renderer.World
 
             Entities.AddRange(traversed.Select(t => t.Entity));
 
+            var connectionTargets = new EntityIOTargetResolver(Entities);
+
             void LoadEntity(string classname, Entity entity, Matrix4x4 parentTransform, bool fromTemplate)
             {
                 if (classname == "worldspawn")
@@ -543,7 +545,7 @@ namespace ValveResourceFormat.Renderer.World
 
                 if (entity.Connections != null)
                 {
-                    CreateEntityConnectionLines(entity, transformationMatrix.Translation);
+                    CreateEntityConnectionLines(entity, transformationMatrix.Translation, connectionTargets);
                 }
 
                 var layerName = fromTemplate ? "Template Entities" : originalLayerName;
@@ -1685,7 +1687,7 @@ namespace ValveResourceFormat.Renderer.World
             }
         }
 
-        private void CreateEntityConnectionLines(Entity entity, Vector3 start)
+        private void CreateEntityConnectionLines(Entity entity, Vector3 start, EntityIOTargetResolver connectionTargets)
         {
             if (entity.Connections == null)
             {
@@ -1693,46 +1695,42 @@ namespace ValveResourceFormat.Renderer.World
             }
 
             var alreadySeen = new HashSet<Entity>(entity.Connections.Count);
+            var targets = new List<Entity>();
 
             foreach (var connectionData in entity.Connections)
             {
-                var targetType = connectionData.TargetType;
+                targets.Clear();
+                var outcome = connectionTargets.Resolve(connectionData, targets);
 
-                if (targetType != EntityIOTargetType.EntityNameOrClassName)
+                if (outcome != EntityIOTargetOutcome.Matched)
                 {
-                    RendererContext.Logger.LogDebug("Skipping entity i/o type {TargetType}", targetType);
+                    RendererContext.Logger.LogDebug("Skipping entity i/o output {TargetName}: {Outcome}", connectionData.TargetName, outcome);
                     continue;
                 }
 
-                var targetName = connectionData.TargetName;
-                var endEntity = FindEntityByTargetName(targetName);
-
-                if (endEntity == null)
+                foreach (var endEntity in targets)
                 {
-                    RendererContext.Logger.LogDebug("Did not find entity i/o output {TargetName}", targetName);
-                    continue;
-                }
+                    if (!alreadySeen.Add(endEntity))
+                    {
+                        continue;
+                    }
 
-                if (!alreadySeen.Add(endEntity))
-                {
-                    continue;
-                }
+                    var end = EntityTransformHelper.CalculateTransformationMatrix(endEntity).Translation;
 
-                var end = EntityTransformHelper.CalculateTransformationMatrix(endEntity).Translation;
+                    var origin = (start + end) / 2f;
+                    end -= origin;
+                    var lineStart = start - origin;
 
-                var origin = (start + end) / 2f;
-                end -= origin;
-                var lineStart = start - origin;
-
-                var lineNode = new LineSceneNode(scene, lineStart, end, new Color32(0, 255, 0), new Color32(255, 0, 0))
-                {
-                    LayerName = "Entity Connections",
-                    Transform = Matrix4x4.CreateTranslation(origin),
+                    var lineNode = new LineSceneNode(scene, lineStart, end, new Color32(0, 255, 0), new Color32(255, 0, 0))
+                    {
+                        LayerName = "Entity Connections",
+                        Transform = Matrix4x4.CreateTranslation(origin),
 #if DEBUG
-                    Name = $"Line from {entity.GetStringProperty("hammeruniqueid")} to {endEntity.GetStringProperty("hammeruniqueid")}"
+                        Name = $"Line from {entity.GetStringProperty("hammeruniqueid")} to {endEntity.GetStringProperty("hammeruniqueid")}"
 #endif
-                };
-                scene.Add(lineNode, true);
+                    };
+                    scene.Add(lineNode, true);
+                }
             }
         }
 
