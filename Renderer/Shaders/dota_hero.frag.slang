@@ -94,7 +94,7 @@ void main()
     //Get shadow and light color
     //vec3 shadowColor = texture(g_tDiffuseWarp, vec2(0, mask1.g)).rgb;
 
-    vec3 lightDirection = GetEnvLightDirection(0u);
+    vec3 lightDirection = GetSunDirection();
 
     //Calculate half-lambert lighting
     float illumination = max(0.0, dot(worldNormal, lightDirection));

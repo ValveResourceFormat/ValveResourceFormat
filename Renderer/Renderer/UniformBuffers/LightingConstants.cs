@@ -19,7 +19,11 @@ namespace ValveResourceFormat.Renderer.Buffers
         public uint NumBarnLights;
         /// <summary>Per-type light counts (index matches light type enum).</summary>
         [MarshalAs(UnmanagedType.ByValArray, SizeConst = 4)] private readonly uint[] NumLights;
-        /// <summary>Sun light baked shadow mask (one-hot per baked shadow channel).</summary>
+        /// <summary>Surface-to-sun direction (XYZ) of the environment light, or zero when the scene has none.</summary>
+        public Vector4 SunDirection;
+        /// <summary>Sun color: linear color premultiplied by brightness (RGB), render-specular flag (W).</summary>
+        public Vector4 SunColor;
+        /// <summary>Sun baked shadow data: V2 stores the one-hot shadow channel mask, V1 stores the sun's baked light index 0-255 in X (-1 for none).</summary>
         public Vector4 SunLightBakedShadowMask;
         /// <summary>World-space position (XYZ) and type (W) for each light.</summary>
         [MarshalAs(UnmanagedType.ByValArray, SizeConst = MAX_LIGHTS)] public Vector4[] LightPosition_Type;
@@ -30,11 +34,11 @@ namespace ValveResourceFormat.Renderer.Buffers
         /// <summary>Transform matrix from light space to world space for each light.</summary>
         [MarshalAs(UnmanagedType.ByValArray, SizeConst = MAX_LIGHTS)] public Matrix4x4[] LightToWorld;
 
-        /// <summary>Linear color (RGB) and brightness (W) for each light.</summary>
+        /// <summary>Light color per light. V1: premultiplied linear color (RGB) and render-specular flag (W), like <c>g_vBakedLightColor</c>. V2: linear color (RGB) and brightness (W).</summary>
         [MarshalAs(UnmanagedType.ByValArray, SizeConst = MAX_LIGHTS)] public Vector4[] LightColor_Brightness;
-        /// <summary>Inner and outer spot cone cosines for each light.</summary>
+        /// <summary>Spot cone cosines or ortho half extents (XY), plus the diffuse and transmissive render gates (ZW), for each light.</summary>
         [MarshalAs(UnmanagedType.ByValArray, SizeConst = MAX_LIGHTS)] public Vector4[] LightSpotInnerOuterCosines;
-        /// <summary>Falloff curve parameters for each light.</summary>
+        /// <summary>Per-light falloff shaped like <c>g_vSingleLightFalloffParams</c>: linear (X) and quadratic (Y) attenuation, squared range cutoff (Z), zero-at-range bias (W).</summary>
         [MarshalAs(UnmanagedType.ByValArray, SizeConst = MAX_LIGHTS)] public Vector4[] LightFallOff;
 
         /// <summary>Mip level and size constants used when sampling environment maps.</summary>
@@ -50,6 +54,7 @@ namespace ValveResourceFormat.Renderer.Buffers
         public LightingConstants()
         {
             NumLights = new uint[4];
+            SunLightBakedShadowMask = new Vector4(-1f, 0f, 0f, 0f);
             LightPosition_Type = new Vector4[MAX_LIGHTS];
             LightDirection_InvRange = new Vector4[MAX_LIGHTS];
             LightToWorld = new Matrix4x4[MAX_LIGHTS];

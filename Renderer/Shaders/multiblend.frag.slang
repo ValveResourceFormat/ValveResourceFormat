@@ -211,7 +211,7 @@ void main()
     vec3 finalNormal = normalize(vNormalOut.xyz);
 #endif
 
-    vec3 lightDirection = GetEnvLightDirection(0u);
+    vec3 lightDirection = GetSunDirection();
 
     float illumination = max(0.0, dot(finalNormal, lightDirection));
     illumination *= CalculateSunShadowMapVisibility(vFragPosition);

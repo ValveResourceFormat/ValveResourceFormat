@@ -20,6 +20,8 @@ public class SceneLight(Scene scene) : SceneNode(scene)
         Omni,
         /// <summary>Cone-shaped spot light.</summary>
         Spot,
+        /// <summary>Orthographic projected light (parallel rays within a box).</summary>
+        Ortho,
         /// <summary>Second-generation omnidirectional point light.</summary>
         Omni2,
         /// <summary>Barn-door shaped area light.</summary>
@@ -174,6 +176,18 @@ public class SceneLight(Scene scene) : SceneNode(scene)
     /// <summary>Gets or sets the direct lighting type.</summary>
     public DirectLightType DirectLight { get; set; } = DirectLightType.Dynamic;
 
+    /// <summary>Gets or sets whether this light is enabled at spawn.</summary>
+    public bool Enabled { get; set; } = true;
+
+    /// <summary>Gets or sets whether this light contributes diffuse lighting.</summary>
+    public bool RenderDiffuse { get; set; } = true;
+
+    /// <summary>Gets or sets whether this light contributes specular lighting.</summary>
+    public bool RenderSpecular { get; set; } = true;
+
+    /// <summary>Gets or sets whether this light passes through transmissive materials.</summary>
+    public bool RenderTransmissive { get; set; } = true;
+
     /// <summary>Gets or sets whether this light casts shadows.</summary>
     public int CastShadows { get; set; } = 1;
 
@@ -252,6 +266,7 @@ public class SceneLight(Scene scene) : SceneNode(scene)
             Type = type switch
             {
                 EntityType.Environment => LightType.Directional,
+                EntityType.Ortho => LightType.Directional,
 
                 EntityType.Omni => LightType.Point,
                 EntityType.Omni2 => LightType.Point,
@@ -266,14 +281,19 @@ public class SceneLight(Scene scene) : SceneNode(scene)
 
             Brightness = type switch
             {
-                EntityType.Environment or EntityType.Omni or EntityType.Spot => entity.GetFloatProperty(
-                    "brightness", 1.0f),
+                EntityType.Environment or EntityType.Omni or EntityType.Spot or EntityType.Ortho
+                    => entity.GetFloatProperty("brightness", 1.0f),
                 _ => entity.GetFloatProperty("brightness_lumens", 224.0f)
             },
 
             BrightnessScale = entity.GetFloatProperty("brightnessscale", 1.0f),
             Range = entity.GetFloatProperty("range", 512.0f),
-            FallOff = entity.GetFloatProperty("skirt", 0.1f)
+            FallOff = entity.GetFloatProperty("skirt", 0.1f),
+
+            Enabled = entity.GetInt32Property("enabled", 1) != 0,
+            RenderDiffuse = entity.GetInt32Property("renderdiffuse", 1) != 0,
+            RenderSpecular = entity.GetInt32Property("renderspecular", 1) == 1, // 0 = off, 1 = real time, 2 = baked into cubemaps
+            RenderTransmissive = entity.GetInt32Property("rendertransmissive", 1) != 0,
         };
 
         var isNewLightType = type is EntityType.Omni2 or EntityType.Barn or EntityType.Rect;
@@ -282,23 +302,38 @@ public class SceneLight(Scene scene) : SceneNode(scene)
         {
             light.AttenuationLinear = entity.GetFloatProperty("attenuation1");
             light.AttenuationQuadratic = entity.GetFloatProperty("attenuation2");
+
+            if (entity.GetInt32Property("baked_light_indexing", 1) == 0)
+            {
+                light.StationaryLightIndex = -1;
+            }
+
         }
 
-        if (isNewLightType || type is EntityType.Environment)
+        var defaultDirectLight = isNewLightType
+            ? DirectLightType.Dynamic 
+            : DirectLightType.Static;
+
+        light.DirectLight = (DirectLightType)entity.GetInt32Property("directlight", (int)defaultDirectLight);
+        light.CastShadows = entity.GetInt32Property("castshadows", 1);
+        light.ShadowMapSize = entity.GetInt32Property("shadowmapsize", 1024);
+        if (light.ShadowMapSize <= 0)
         {
-            light.DirectLight = (DirectLightType)entity.GetInt32Property("directlight", 2);
-            light.CastShadows = entity.GetInt32Property("castshadows", 1);
-            light.ShadowMapSize = entity.GetInt32Property("shadowmapsize", 1024);
-            if (light.ShadowMapSize <= 0)
-            {
-                light.ShadowMapSize = 1024;
-            }
+            light.ShadowMapSize = 1024;
         }
 
         if (type is EntityType.Spot or EntityType.Barn)
         {
             light.SpotInnerAngle = entity.GetFloatProperty("innerconeangle", light.SpotInnerAngle);
             light.SpotOuterAngle = entity.GetFloatProperty("outerconeangle", light.SpotOuterAngle);
+        }
+
+        if (type is EntityType.Ortho)
+        {
+            light.SizeParams = new Vector3(
+                entity.GetFloatProperty("ortholightwidth", 512.0f) * 0.5f,
+                entity.GetFloatProperty("ortholightheight", 512.0f) * 0.5f,
+                0f);
         }
 
         if (type is EntityType.Barn)
@@ -382,8 +417,9 @@ public class SceneLight(Scene scene) : SceneNode(scene)
         }
 
         // A baked shadow index means the lightmap holds this light's shadows, which is what makes it
-        // stationary rather than dynamic. Lights authored as stationary reach here as Static, and
-        // legacy light entities carry no directlight key at all so they reach here as Dynamic.
+        // stationary rather than dynamic. Lights authored as stationary reach here as Static: Alyx-era
+        // entities say directlight 1 (baked) plus baked_light_indexing, and pre-Alyx light entities
+        // carry no directlight key at all so they reach here as Dynamic.
         if (stationaryLightIndex >= 0)
         {
             return LightCost.Stationary;

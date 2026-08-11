@@ -128,7 +128,7 @@ void main()
     }
 #endif
 
-    vec3 lightDirection = GetEnvLightDirection(0u);
+    vec3 lightDirection = GetSunDirection();
     vec3 viewDirection = normalize(g_vCameraPositionWs - vFragPosition);
 
 #if F_FULLBRIGHT == 1 || (F_TRANSLUCENT == 1 && F_ALLOW_LIGHTING_ON_TRANSLUCENT == 0)

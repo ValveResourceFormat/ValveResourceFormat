@@ -489,8 +489,8 @@ void main()
         finalPerturbedSurfaceNormal = normalize(mix(perturbedSurfaceNormal, ditheredNormal, edgeLimitFactor));
     }
 
-    vec3 sunColor = GetLightColor(0);
-    vec3 sunDir = GetEnvLightDirection(0);
+    vec3 sunColor = GetSunColor();
+    vec3 sunDir = GetSunDirection();
 
     float cosNormAngle = saturate(dot(viewDirInv, finalPerturbedSurfaceNormal.xyz));
     float fresnel = SafePow(1.0 - cosNormAngle, g_flFresnelExponent);

@@ -52,68 +52,172 @@
 
 #include "lighting.barn.slang"
 
-// https://lisyarus.github.io/blog/graphics/2022/07/30/point-light-attenuation.html
-float attenuate_cusp(float s, float falloff)
-{
-    if (s >= 1.0)
-        return 0.0;
+const float MIN_LIGHT_ALPHA = 0.0001;
 
-    float s2 = pow2(s);
-    return pow2(1 - s2) / (1 + falloff * s);
+void CalculateShadingGated(inout LightingTerms_t lighting, vec3 lightVector, vec3 lightColor, MaterialProperties_t mat, uint nLightIndex)
+{
+    vec3 previousDiffuse = lighting.DiffuseDirect;
+    vec3 previousSpecular = lighting.SpecularDirect;
+    vec3 previousTransmissive = lighting.TransmissiveDirect;
+
+    CalculateShading(lighting, lightVector, lightColor, mat);
+
+    vec3 vRenderGates = GetLightRenderGates(nLightIndex);
+
+    // (renderdiffuse / renderspecular / rendertransmissive)
+    lighting.DiffuseDirect = mix(previousDiffuse, lighting.DiffuseDirect, vRenderGates.x);
+    lighting.SpecularDirect = mix(previousSpecular, lighting.SpecularDirect, vRenderGates.y);
+    lighting.TransmissiveDirect = mix(previousTransmissive, lighting.TransmissiveDirect, vRenderGates.z);
+}
+
+// The global sun, valid across all lightmap versions. bakedVisibility carries whatever shadowing
+// the lightmap already provides (the V2 shadow channel); the sun shadow map goes on top.
+void CalculateSunLighting(inout LightingTerms_t lighting, MaterialProperties_t mat, float bakedVisibility)
+{
+    vec3 vSunColor = GetSunColor();
+
+    if (vSunColor == vec3(0.0))
+    {
+        return;
+    }
+
+    float visibility = bakedVisibility;
+
+    if (visibility > MIN_LIGHT_ALPHA)
+    {
+        visibility *= CalculateSunShadowMapVisibility(mat.PositionWS);
+    }
+
+    if (visibility > MIN_LIGHT_ALPHA)
+    {
+        vec3 previousSpecular = lighting.SpecularDirect;
+
+        CalculateShading(lighting, GetSunDirection(), vSunColor * visibility, mat);
+
+        if (g_vSunColor.a == 0.0)
+        {
+            lighting.SpecularDirect = previousSpecular;
+        }
+    }
+}
+
+float CalculateStationaryLightRealtimeShadow(uint nLightIndex, vec3 vPositionWs)
+{
+    if (float(nLightIndex) == g_vSunLightBakedShadowMask.x)
+    {
+        return CalculateSunShadowMapVisibility(vPositionWs);
+    }
+
+    // todo
+    return 1.0;
+}
+
+// Per-pixel dynamic light evaluation for legacy lights
+void CalculateDynamicLightV1(inout LightingTerms_t lighting, MaterialProperties_t mat, uint nLightIndex)
+{
+    uint nLightType = GetLightType(nLightIndex);
+
+    vec4 vFalloffParams = g_vLightFallOff[nLightIndex];
+    vec3 vLightVector;
+    float flDistanceSquared;
+
+    if (nLightType == LIGHT_TYPE_DIRECTIONAL)
+    {
+        // light_ortho: parallel rays inside a box. Test in beam space and light along the constant beam direction.
+        vec3 vDelta = mat.PositionWS - GetLightPositionWs(nLightIndex);
+        vec3 vForward = g_vLightDirection_InvRange[nLightIndex].xyz;
+        mat3 mLightAxes = mat3(g_matLightToWorld[nLightIndex]);
+        vec2 vHalfExtents = g_vLightSpotInnerOuterConeCosines[nLightIndex].xy;
+
+        float flDepth = dot(vDelta, vForward);
+        vec2 vSide = vec2(dot(vDelta, mLightAxes[1]), dot(vDelta, mLightAxes[2]));
+
+        if (flDepth < 0.0 || any(greaterThan(abs(vSide), vHalfExtents)))
+        {
+            return;
+        }
+
+        vLightVector = -vForward;
+        flDistanceSquared = flDepth * flDepth;
+    }
+    else
+    {
+        vec3 vToLight = GetLightPositionWs(nLightIndex) - mat.PositionWS;
+        vLightVector = normalize(vToLight);
+        flDistanceSquared = dot(vToLight, vToLight);
+    }
+
+    if (flDistanceSquared > vFalloffParams.z)
+    {
+        return;
+    }
+
+    float flClampedDistanceSquared = max(flDistanceSquared, 1.0);
+    float flAttenuation = saturate(1.0 / dot(vec2(sqrt(flClampedDistanceSquared), flClampedDistanceSquared), vFalloffParams.xy) - vFalloffParams.w);
+
+    if (nLightType == LIGHT_TYPE_SPOT)
+    {
+        // todo: light cookie
+
+        vec2 vConeCosines = g_vLightSpotInnerOuterConeCosines[nLightIndex].xy;
+        vec3 vForward = g_vLightDirection_InvRange[nLightIndex].xyz;
+        float flCosAngle = dot(vForward, -vLightVector);
+        flAttenuation *= saturate((flCosAngle - vConeCosines.y) / max(vConeCosines.x - vConeCosines.y, 0.0001));
+    }
+
+    if (flAttenuation <= MIN_LIGHT_ALPHA)
+    {
+        return;
+    }
+
+    CalculateShadingGated(lighting, vLightVector, GetLightColor(nLightIndex) * flAttenuation, mat, nLightIndex);
 }
 
 void CalculateDirectLighting(inout LightingTerms_t lighting, inout MaterialProperties_t mat)
 {
-    const float MIN_ALPHA = 0.0001;
     vec4 dlsh = vec4(1, 1, 1, 1);
 
     #if (S_LIGHTMAP_VERSION_MINOR == 1)
-        #if (D_BAKED_LIGHTING_FROM_LIGHTMAP == 1)
-            vec4 dls = texture(g_tDirectLightStrengths, mat.LightmapUv);
-            vec4 dli = texture(g_tDirectLightIndices, mat.LightmapUv);
-        #elif (D_BAKED_LIGHTING_FROM_PROBE == 1)
-            vec3 vLightProbeShadowCoords = CalculateProbeShadowCoords(mat.PositionWS);
-            vec4 dls = textureLod(g_tLPV_Scalars, vLightProbeShadowCoords, 0.0);
-            vec4 dli = textureLod(g_tLPV_Indices, vLightProbeShadowCoords, 0.0);
-        #else
-            vec4 dls = vec4(1, 0, 0, 0);
-            vec4 dli = vec4(0, 0, 0, 0);
-        #endif
+        #if (D_BAKED_LIGHTING_FROM_VERTEX_STREAM == 1)
+            // Per-vertex baked geometry carries no direct light info.
+        #elif (D_BAKED_LIGHTING_FROM_LIGHTMAP == 1) || (D_BAKED_LIGHTING_FROM_PROBE == 1)
+            #if (D_BAKED_LIGHTING_FROM_LIGHTMAP == 1)
+                vec4 dls = texture(g_tDirectLightStrengths, mat.LightmapUv);
+                vec4 dli = texture(g_tDirectLightIndices, mat.LightmapUv);
+            #else
+                vec3 vLightProbeShadowCoords = CalculateProbeShadowCoords(mat.PositionWS);
+                vec4 dls = textureLod(g_tLPV_Scalars, vLightProbeShadowCoords, 0.0);
+                vec4 dli = textureLod(g_tLPV_Indices, vLightProbeShadowCoords, 0.0);
+            #endif
 
-        vec4 vLightStrengths = pow2(dls);
-        uvec4 vLightIndices = uvec4(dli * 255.0);
+            vec4 vLightStrengths = pow2(dls);
+            uvec4 vLightIndices = uvec4(dli * 255.0);
 
-        for (int i = 0; i < 4; i++)
-        {
-            float visibility = vLightStrengths[i];
-            if (visibility <= MIN_ALPHA)
+            for (int i = 0; i < 4; i++)
             {
-                continue;
-            }
-
-            uint uLightIndex = vLightIndices[i];
-            bool bLightmapBakedDirectDiffuse = true;
-
-            if (IsDirectionalLight(uLightIndex))
-            {
-                bLightmapBakedDirectDiffuse = false;
-                visibility *= CalculateSunShadowMapVisibility(mat.PositionWS);
-            }
-
-            if (visibility > MIN_ALPHA)
-            {
-                vec3 lightVector = GetLightDirection(mat.PositionWS, uLightIndex);
-                vec3 lightColor = GetLightColor(uLightIndex);
-                vec3 lightColorModulated = lightColor * visibility;
-
-                vec3 previousDiffuse = lighting.DiffuseDirect;
-                CalculateShading(lighting, lightVector, lightColorModulated, mat);
-
-                if (D_BAKED_LIGHTING_FROM_LIGHTMAP == 1 && bLightmapBakedDirectDiffuse)
+                float visibility = vLightStrengths[i];
+                if (visibility <= MIN_LIGHT_ALPHA)
                 {
-                    lighting.DiffuseDirect = previousDiffuse + lightColorModulated;
+                    continue;
+                }
+
+                uint uLightIndex = vLightIndices[i];
+                visibility *= CalculateStationaryLightRealtimeShadow(uLightIndex, mat.PositionWS);
+
+                if (visibility > MIN_LIGHT_ALPHA)
+                {
+                    vec3 lightVector = GetLightDirection(mat.PositionWS, uLightIndex);
+                    CalculateShadingGated(lighting, lightVector, GetLightColor(uLightIndex) * visibility, mat, uLightIndex);
                 }
             }
+        #else
+            CalculateSunLighting(lighting, mat, 1.0);
+        #endif
+
+        // Dynamic (directlight 2) lights, evaluated per pixel.
+        for (uint i = g_nNumLights[0]; i < g_nNumLights[1]; i++)
+        {
+            CalculateDynamicLightV1(lighting, mat, i);
         }
 
     #elif (S_LIGHTMAP_VERSION_MINOR >= 2)
@@ -124,37 +228,14 @@ void CalculateDirectLighting(inout LightingTerms_t lighting, inout MaterialPrope
             dlsh = textureLod(g_tLPV_Shadows, vLightProbeShadowCoords, 0.0);
         #endif
 
-        if (g_nNumLights[0] > 0u)
-        {
-            float visibility = saturate(1.0 - dot(dlsh, g_vSunLightBakedShadowMask));
-            
-            if (visibility > MIN_ALPHA)
-            {
-                visibility *= CalculateSunShadowMapVisibility(mat.PositionWS);
-            }
-
-            if (visibility > MIN_ALPHA)
-            {
-                vec3 lightVector = GetLightDirection(mat.PositionWS, 0u);
-                vec3 lightColor = GetLightColor(0u);
-                CalculateShading(lighting, lightVector, visibility * lightColor, mat);
-            }
-        }
+        CalculateSunLighting(lighting, mat, saturate(1.0 - dot(dlsh, g_vSunLightBakedShadowMask)));
     #else
         // Non lightmapped scene
+        CalculateSunLighting(lighting, mat, 1.0);
+
         for (uint i = g_nNumLights[0]; i < g_nNumLights[1]; i++)
         {
-            if (IsDirectionalLight(i))
-            {
-                float visibility = CalculateSunShadowMapVisibility(mat.PositionWS);
-
-                if (visibility > MIN_ALPHA)
-                {
-                    vec3 lightVector = GetLightDirection(mat.PositionWS, i);
-                    vec3 lightColor = GetLightColor(i);
-                    CalculateShading(lighting, lightVector, visibility * lightColor, mat);
-                }
-            }
+            CalculateDynamicLightV1(lighting, mat, i);
         }
 #endif
 

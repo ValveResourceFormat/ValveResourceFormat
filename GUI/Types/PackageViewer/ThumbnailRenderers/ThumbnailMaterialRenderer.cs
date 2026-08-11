@@ -39,7 +39,7 @@ internal class ThumbnailMaterialRenderer : ThumbnailRenderer
         {
             planeMesh.Transform = Matrix4x4.CreateRotationZ(float.DegreesToRadians(90f));
 
-            SceneRenderer.Scene.LightingInfo.LightingData.LightToWorld[0] = EntityTransformHelper.EulerAnglesToRotationMatrix(new Vector3(71, -196, 0));
+            SceneRenderer.Scene.LightingInfo.SetSunDirectionFromAngles(new Vector3(71, -196, 0));
 
             SceneRenderer.Camera.FrameObjectFromAngle(Vector3.Zero, 32, 32, 0, 0, float.DegreesToRadians(90f));
         }
@@ -47,7 +47,7 @@ internal class ThumbnailMaterialRenderer : ThumbnailRenderer
         {
             planeMesh.Transform *= Matrix4x4.CreateRotationY(float.DegreesToRadians(90f)) * Matrix4x4.CreateRotationX(float.DegreesToRadians(90f));
 
-            SceneRenderer.Scene.LightingInfo.LightingData.LightToWorld[0] = EntityTransformHelper.EulerAnglesToRotationMatrix(new Vector3(-22, 205, 0));
+            SceneRenderer.Scene.LightingInfo.SetSunDirectionFromAngles(new Vector3(-22, 205, 0));
 
             SceneRenderer.Camera.FrameObjectFromAngle(Vector3.Zero, 0, 32, 32, float.DegreesToRadians(180f), 0);
         }

@@ -238,10 +238,10 @@ public class Renderer
         scene.LightingInfo.AddEnvironmentMap(environmentMap);
         scene.LightingInfo.UseSceneBoundsForSunLightFrustum = true;
 
-        scene.LightingInfo.LightingData.DynamicLightCount = 1;
-        scene.LightingInfo.LightingData.LightColor_Brightness[0] = DefaultSunColor;
-
-        scene.LightingInfo.LightingData.LightToWorld[0] = EntityTransformHelper.EulerAnglesToRotationMatrix(new Vector3(DefaultSunAngles.X, DefaultSunAngles.Y, 0f));
+        var sunForward = EntityTransformHelper.EulerAnglesToForwardDirection(new Vector3(DefaultSunAngles.X, DefaultSunAngles.Y, 0f));
+        scene.LightingInfo.LightingData.SunDirection = new Vector4(-sunForward, 0f);
+        scene.LightingInfo.LightingData.SunColor =
+            new Vector4(new Vector3(DefaultSunColor.X, DefaultSunColor.Y, DefaultSunColor.Z) * DefaultSunColor.W, 1f);
     }
 
     /// <summary>

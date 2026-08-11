@@ -251,8 +251,9 @@ namespace ValveResourceFormat.Renderer.World
         /// <param name="shadowMapSize">The shadow map resolution used to compute coverage and texel snapping.</param>
         public void UpdateSunLightFrustum(Camera camera, float shadowMapSize = 512f)
         {
-            var sunMatrix = LightingData.LightToWorld[0];
-            var sunDir = Vector3.Normalize(Vector3.Transform(Vector3.UnitX, sunMatrix with { Translation = Vector3.Zero })); // why is sun dir calculated like so?.
+            // The uniform stores surface-to-sun; the frustum looks along the rays, away from the sun
+            var toSun = new Vector3(LightingData.SunDirection.X, LightingData.SunDirection.Y, LightingData.SunDirection.Z);
+            var sunDir = toSun.LengthSquared() > 0.0001f ? Vector3.Normalize(-toSun) : Vector3.UnitX;
 
             var bbox = Math.Max(shadowMapSize / 2.5f, 512f) * SunLightShadowCoverageScale;
             var farPlane = 8096f;
@@ -309,6 +310,8 @@ namespace ValveResourceFormat.Renderer.World
 
         /// <summary>
         /// Stores stationary and dynamic light data into <see cref="LightingData"/> using the V1 lightmap format.
+        /// Stationary lights sit at their baked lightmap index and are lit through the per-texel strength
+        /// textures; dynamic lights are appended after them and evaluated per pixel.
         /// </summary>
         /// <param name="lights">The list of scene lights to store.</param>
         public void StoreLightMappedLights_V1(List<SceneLight> lights)
@@ -317,35 +320,75 @@ namespace ValveResourceFormat.Renderer.World
             {
                 LightingData.LightPosition_Type[index] = new Vector4(light.Position, (int)light.Type);
                 LightingData.LightDirection_InvRange[index] = new Vector4(light.Direction, 1.0f / light.Range);
-
-                //Matrix4x4.Invert(light.Transform, out var lightToWorld);
                 LightingData.LightToWorld[index] = light.Transform;
 
-                LightingData.LightColor_Brightness[index] = new Vector4(ColorSpace.SrgbGammaToLinear(light.Color), light.Brightness);
-                LightingData.LightSpotInnerOuterCosines[index] = new Vector4(MathF.Cos(light.SpotInnerAngle), MathF.Cos(light.SpotOuterAngle), 0.0f, 0.0f);
-                LightingData.LightFallOff[index] = new Vector4(light.FallOff, light.Range, light.AttenuationLinear, light.AttenuationQuadratic);
+                // g_vBakedLightColor: linear color premultiplied by brightness, render-specular flag in w.
+                // The strength texels hold plain sqrt(saturate(attenuation) * visibility); lights that
+                // look far dimmer than their surroundings in baked cubemaps (like the "light_disabled"
+                // prefabs) are scripted to raise their brightness at runtime, not scaled at load.
+                var premultipliedColor = ColorSpace.SrgbGammaToLinear(light.Color) * light.Brightness * light.BrightnessScale;
+                LightingData.LightColor_Brightness[index] = new Vector4(premultipliedColor, light.RenderSpecular ? 1f : 0f);
+
+                // zw carry the remaining render gates (diffuse, transmissive); specular sits in the color
+                // zw layout not confirmed to match real shaders
+                var diffuseGate = light.RenderDiffuse ? 1f : 0f;
+                var transmissiveGate = light.RenderTransmissive ? 1f : 0f;
+
+                LightingData.LightSpotInnerOuterCosines[index] = light.Entity == SceneLight.EntityType.Ortho
+                    ? new Vector4(light.SizeParams.X, light.SizeParams.Y, diffuseGate, transmissiveGate)
+                    : new Vector4(
+                        MathF.Cos(float.DegreesToRadians(light.SpotInnerAngle)),
+                        MathF.Cos(float.DegreesToRadians(light.SpotOuterAngle)),
+                        diffuseGate, transmissiveGate);
+
+                // g_vSingleLightFalloffParams. The shader evaluates 1 / (x * d + y * d^2) in world units,
+                // so the coefficients carry the range normalization: the entity's attenuation is stated
+                // over the light's range, not per unit. Without it a quadratic light is 1/d^2 with no
+                // scale, which is black everywhere past a couple of units. The bias then makes the curve
+                // reach zero exactly at the range, where the normalized distance is 1.
+                var invRange = light.Range > 0f ? 1f / light.Range : 0f;
+                var falloffAtRange = light.AttenuationLinear + light.AttenuationQuadratic;
+
+                LightingData.LightFallOff[index] = new Vector4(
+                    light.AttenuationLinear * invRange,
+                    light.AttenuationQuadratic * invRange * invRange,
+                    light.Range * light.Range,
+                    falloffAtRange > 0f ? 1f / falloffAtRange : 0f);
             }
 
-            var staticLights = lights.Where(l => l.StationaryLightIndex >= 0).OrderBy(l => l.StationaryLightIndex).ToList();
-            var dynamicLights = lights.Where(l => l.StationaryLightIndex == -1).ToList();
 
-            foreach (var light in staticLights)
+            foreach (var light in lights)
             {
-                var index = (uint)light.StationaryLightIndex;
-
-                if (index >= LightingConstants.MAX_LIGHTS)
+                if (light.Cost != SceneLight.LightCost.Stationary
+                    || light.StationaryLightIndex >= LightingConstants.MAX_LIGHTS
+                    || !light.Enabled)
                 {
                     continue;
                 }
 
+                var index = (uint)light.StationaryLightIndex;
                 AddLight(light, index);
 
-                LightingData.StaticLightCount = index + 1;
+                LightingData.StaticLightCount = Math.Max(LightingData.StaticLightCount, index + 1);
+            }
+
+            static bool IsDynamicSegmentLight(SceneLight light)
+            {
+                // Env light has its own fast path
+                if (light.Entity == SceneLight.EntityType.Environment)
+                {
+                    return false;
+                }
+
+                // Only entities authored as per-pixel are dynamic
+                return light.Cost == SceneLight.LightCost.Dynamic
+                    && light.Enabled
+                    && (light.RenderDiffuse || light.RenderSpecular || light.RenderTransmissive);
             }
 
             var currentLightIndex = LightingData.StaticLightCount;
 
-            foreach (var light in dynamicLights)
+            foreach (var light in lights.Where(IsDynamicSegmentLight))
             {
                 if (currentLightIndex >= LightingConstants.MAX_LIGHTS)
                 {
@@ -358,13 +401,37 @@ namespace ValveResourceFormat.Renderer.World
 
             LightingData.DynamicLightCount = currentLightIndex;
 
-            var envLight = lights.FirstOrDefault(l => l.Entity == SceneLight.EntityType.Environment);
+            scene.RendererContext.Logger.LogDebug(
+                "Lightmap version {Major}.{Minor}: {Stationary} stationary and {Dynamic} per-pixel lights of {Total} light entities",
+                LightmapVersionNumber, LightmapGameVersionNumber, LightingData.StaticLightCount,
+                currentLightIndex - LightingData.StaticLightCount, lights.Count);
+
+            var envLight = lights.FirstOrDefault(static l => l.Entity == SceneLight.EntityType.Environment);
             if (envLight != null)
             {
-                LightingData.LightToWorld[0] = envLight.Transform;
-                LightingData.LightPosition_Type[0] = new Vector4(envLight.Position, (int)envLight.Type);
-                LightingData.LightColor_Brightness[0] = new Vector4(ColorSpace.SrgbGammaToLinear(envLight.Color), envLight.Brightness);
+                var bakedLightIndex = envLight.Cost == SceneLight.LightCost.Stationary ? envLight.StationaryLightIndex : -1;
+                StoreSunLight(envLight, new Vector4(bakedLightIndex, 0f, 0f, 0f));
             }
+        }
+
+        /// <summary>Points the sun uniforms at the given Euler angles, keeping the sun color.</summary>
+        public void SetSunDirectionFromAngles(Vector3 angles)
+        {
+            LightingData.SunDirection = new Vector4(-EntityTransformHelper.EulerAnglesToForwardDirection(angles), 0f);
+        }
+
+        /// <summary>
+        /// Stores the environment light into the dedicated sun uniforms, which work across all
+        /// lightmap versions like the HLVR sun fast path. The baked shadow data is the V2 one-hot
+        /// channel mask, or the sun's baked light index in X for V1.
+        /// </summary>
+        private void StoreSunLight(SceneLight envLight, Vector4 bakedShadowData)
+        {
+            var premultipliedColor = ColorSpace.SrgbGammaToLinear(envLight.Color) * envLight.Brightness * envLight.BrightnessScale;
+
+            LightingData.SunDirection = new Vector4(-envLight.Direction, 0f);
+            LightingData.SunColor = new Vector4(premultipliedColor, envLight.RenderSpecular ? 1f : 0f);
+            LightingData.SunLightBakedShadowMask = bakedShadowData;
         }
 
         /// <summary>
@@ -373,18 +440,11 @@ namespace ValveResourceFormat.Renderer.World
         /// <param name="lights">The list of scene lights to store.</param>
         public void StoreLightMappedLights_V2(List<SceneLight> lights)
         {
-            var envLight = lights.FirstOrDefault(l => l.Entity == SceneLight.EntityType.Environment);
+            var envLight = lights.FirstOrDefault(static l => l.Entity == SceneLight.EntityType.Environment);
 
             if (envLight != null)
             {
-                LightingData.LightPosition_Type[0] = new Vector4(envLight.Position, (int)envLight.Type);
-                LightingData.LightDirection_InvRange[0] = new Vector4(envLight.Direction, 1.0f / envLight.Range);
-                LightingData.LightToWorld[0] = envLight.Transform;
-                LightingData.LightColor_Brightness[0] = new Vector4(ColorSpace.SrgbGammaToLinear(envLight.Color), envLight.Brightness);
-                LightingData.LightFallOff[0] = new Vector4(envLight.FallOff, envLight.Range, 0.0f, 0.0f);
-                LightingData.SunLightBakedShadowMask = envLight.BakedShadowMask;
-
-                LightingData.StaticLightCount = 1;
+                StoreSunLight(envLight, envLight.BakedShadowMask);
             }
 
             LightingData.NumBarnLights = 0; // changed dynamically
