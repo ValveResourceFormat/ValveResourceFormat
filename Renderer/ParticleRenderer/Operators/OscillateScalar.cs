@@ -113,7 +113,8 @@ namespace ValveResourceFormat.Renderer.Particles.Operators
         {
             foreach (ref var particle in particles.Current)
             {
-                var delta = float.SinPi((particle.Age * frequency * oscillationMultiplier) + oscillationOffset);
+                // The frequency scales the whole phase, offset included, not just the age term.
+                var delta = float.SinPi(frequency * ((oscillationMultiplier * particle.Age) + oscillationOffset));
 
                 var finalScalar = delta * rate * frameTime;
 
