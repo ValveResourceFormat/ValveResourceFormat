@@ -510,13 +510,15 @@ public class BaseEntity
     /// </remarks>
     internal void Update()
     {
-        var hasMoved = previousOrigin != origin || previousAngles != angles;
+        // A paused world has no span to interpolate across, and reading one would draw every entity at
+        // the tick it last started rather than where it stands, re-dirtying the transform every frame
+        var isMoving = EntitySystem.Enabled && (previousOrigin != origin || previousAngles != angles);
 
-        if (hasMoved || isInterpolating)
+        if (isMoving || isInterpolating)
         {
             // Once it stops moving, one last frame at the far end lands on the tick state exactly
-            UpdateRenderTransform(hasMoved ? EntitySystem.InterpolationFraction : 1f);
-            isInterpolating = hasMoved;
+            UpdateRenderTransform(isMoving ? EntitySystem.InterpolationFraction : 1f);
+            isInterpolating = isMoving;
         }
 
         // A still entity's nodes are already where they belong
@@ -550,7 +552,10 @@ public class BaseEntity
     {
         node.EntityData = Data;
         node.EntityInstance = this;
-        node.LayerName = LayerName;
+
+        // A node that came with a layer keeps it: the editor box is built on the editor-only layer so it
+        // hides with the other markers, while geometry an entity really has belongs on the entity's own
+        node.LayerName ??= LayerName;
         node.Transform = Transform;
 
         ownedNodes.Add(node);

@@ -104,7 +104,6 @@ public sealed class EntitySystem
 
     private readonly List<BaseEntity> entities = [];
     private readonly List<QueuedInput> inputQueue = [];
-    private readonly List<BaseEntity> dueTargets = [];
     private readonly Dictionary<EntityLump.Connection, int> firedCounts = [];
     private long sequence;
     private float tickAccumulator;
@@ -176,9 +175,11 @@ public sealed class EntitySystem
     /// </summary>
     public void Activate()
     {
-        foreach (var entity in entities)
+        // Indexed, because activating an entity may spawn another; one spawned here is activated too,
+        // which is what it needs
+        for (var i = 0; i < entities.Count; i++)
         {
-            entity.Activate();
+            entities[i].Activate();
         }
     }
 
@@ -193,10 +194,11 @@ public sealed class EntitySystem
             return;
         }
 
-        // Anything it was standing in should hear that it left before it stops existing
-        foreach (var other in entities)
+        // Anything it was standing in should hear that it left before it stops existing. Indexed, since
+        // a touch handler may spawn or remove entities.
+        for (var i = 0; i < entities.Count; i++)
         {
-            other.UpdateTouchLink(entity, isOverlapping: false);
+            entities[i].UpdateTouchLink(entity, isOverlapping: false);
         }
 
         entity.RemoveFromScene();
@@ -230,18 +232,22 @@ public sealed class EntitySystem
     /// </remarks>
     private void UpdateTouchLinks()
     {
-        // Read once: the player is the same for every trigger, and its bounds come off the live controller
-        if (Player is not { IsRemoved: false } player
-            || !player.TryGetTouchBounds(out var center, out var halfExtents))
+        // Indexed, because a touch handler may spawn or remove entities
+        for (var i = 0; i < entities.Count; i++)
         {
-            return;
-        }
+            var entity = entities[i];
 
-        foreach (var entity in entities)
-        {
             if (!entity.IsTrigger || entity.IsRemoved || entity.Collider is not { IsEmpty: false } volume)
             {
                 continue;
+            }
+
+            // Re-read every time rather than once: a trigger earlier in this pass may have teleported the
+            // player, and the rest of the pass has to test where they are now, not where they set off from
+            if (Player is not { IsRemoved: false } player
+                || !player.TryGetTouchBounds(out var center, out var halfExtents))
+            {
+                return;
             }
 
             // Overlaps rejects on world bounds first, so a trigger nowhere near costs one box test
@@ -261,7 +267,6 @@ public sealed class EntitySystem
         entities.Clear();
         Player = null;
         inputQueue.Clear();
-        dueTargets.Clear();
         firedCounts.Clear();
         hasRemovedEntities = false;
         tickAccumulator = 0f;
@@ -566,19 +571,20 @@ public sealed class EntitySystem
             return;
         }
 
-        // Copied out: a handler may spawn or remove entities, which would disturb the walk
-        dueTargets.Clear();
-        dueTargets.AddRange(FindTargets(target, input.Activator, input.Caller));
+        // Copied out, and into a list of its own rather than a shared buffer: a handler may spawn or
+        // remove entities, and may deliver further inputs, either of which would disturb a walk over
+        // state the next delivery down also uses
+        var targets = new List<BaseEntity>();
 
-        foreach (var entity in dueTargets)
+        targets.AddRange(FindTargets(target, input.Activator, input.Caller));
+
+        foreach (var entity in targets)
         {
             if (!entity.IsRemoved)
             {
                 entity.AcceptInput(input.InputName, data);
             }
         }
-
-        dueTargets.Clear();
     }
 
     /// <summary>Whether a target name is the given <c>!</c> name, whatever case the map wrote it in.</summary>
