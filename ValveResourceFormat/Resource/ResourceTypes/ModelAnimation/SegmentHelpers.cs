@@ -46,7 +46,8 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
             var y = (bytes[3] & 64) == 0 ? c * (i2 - 16384) : c * i2;
             var z = (bytes[5] & 64) == 0 ? c * (i3 - 16384) : c * i3;
 
-            var w = MathF.Sqrt(1 - (x * x) - (y * y) - (z * z));
+            // The omitted component is the largest, so valid data never goes negative here; truncated data can
+            var w = MathF.Sqrt(MathF.Max(0f, 1 - (x * x) - (y * y) - (z * z)));
 
             // Apply sign 3
             if (s3 == 128)

@@ -417,14 +417,15 @@ namespace ValveResourceFormat.IO
                     // TODO: Add point and spot lights
                     if (className == "light_environment")
                     {
-                        if (!Matrix4x4.Decompose(transform, out var _, out var _, out var positionVector))
+                        if (!Matrix4x4.Decompose(transform, out _, out var rotation, out var positionVector))
                         {
                             throw new InvalidOperationException("Matrix decompose failed");
                         }
 
                         // glTF directional lights emit along node-local -Z; orient the node so that
                         // -Z matches the sun's forward (travel) direction, i.e. the entity's local +X.
-                        var rotation = EntityTransformHelper.EulerAnglesToRotationMatrix(entity.GetVector3Property("angles"));
+                        // Taken from the decomposed transform rather than the entity's own angles, so a
+                        // light inside a rotated child lump points where the lump put it.
                         var direction = Vector3.Transform(Vector3.UnitX, rotation);
 
                         var directionGltf = Vector3.Transform(direction, SourceToGltfRotation);

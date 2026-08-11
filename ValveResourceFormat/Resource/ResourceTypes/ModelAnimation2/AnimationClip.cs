@@ -305,7 +305,9 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation2
             vData = Vector4.FusedMultiplyAdd(vData, vRangeMultiplier15Bit, vValueRangeMin);
 
             var sum = Vector3.Dot(vData.AsVector3(), vData.AsVector3());
-            vData.W = MathF.Sqrt(1f - sum);
+
+            // The omitted component is the largest, so valid data never goes negative here; truncated data can
+            vData.W = MathF.Sqrt(MathF.Max(0f, 1f - sum));
 
             // Vector128.Shuffle(vData.AsVector128(), Vector128.Create([3, 0, 1, 2]));
 

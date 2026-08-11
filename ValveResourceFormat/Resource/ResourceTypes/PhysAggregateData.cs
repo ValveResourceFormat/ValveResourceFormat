@@ -1,4 +1,3 @@
-using System.Globalization;
 using System.Linq;
 using ValveKeyValue;
 using ValveResourceFormat.ResourceTypes.RubikonPhysics;
@@ -23,9 +22,7 @@ namespace ValveResourceFormat.ResourceTypes
         /// </summary>
         public Matrix4x4[] BindPose
            => bindPose ??= Data.GetArray("m_bindPose")
-                .Select(v => Matrix4x4FromArray(v.Children.Select(c => c.Value)
-                    .Select(m => Convert.ToSingle(m, CultureInfo.InvariantCulture))
-                    .ToArray()))
+                .Select(v => v.ToMatrix4x4())
                 .ToArray();
 
         /// <summary>
@@ -74,12 +71,6 @@ namespace ValveResourceFormat.ResourceTypes
         public PhysAggregateData(BlockType type) : base(type, "VPhysXAggregateData_t")
         {
         }
-
-        static Matrix4x4 Matrix4x4FromArray(float[] a)
-            => new(a[0], a[4], a[8], 0,
-                   a[1], a[5], a[9], 0,
-                   a[2], a[6], a[10], 0,
-                   a[3], a[7], a[11], 1);
 
         /// <summary>
         /// Gets the parent bone name for a given physics aggregate part.

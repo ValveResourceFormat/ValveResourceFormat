@@ -1310,11 +1310,19 @@ public sealed class MapExtract
             if (parentTransform is not null)
             {
                 // parent transform is rigid (rotation and translation only), so worldTransform is affine and
-                // decomposes cleanly unless the child itself shears (non-uniform scale + rotation)
-                _ = Matrix4x4.Decompose(worldTransform, out var scales, out var rotation, out var translation);
-                mapEntity.Origin = translation;
-                mapEntity.Angles = EntityTransformHelper.ToEulerAngles(rotation);
-                mapEntity.Scales = scales;
+                // decomposes cleanly unless the child itself shears (non-uniform scale + rotation). Where it
+                // does shear, keep the entity's own placement rather than silently writing out an identity
+                // rotation the decompose left behind.
+                if (Matrix4x4.Decompose(worldTransform, out var scales, out var rotation, out var translation))
+                {
+                    mapEntity.Origin = translation;
+                    mapEntity.Angles = EntityTransformHelper.ToEulerAngles(rotation);
+                    mapEntity.Scales = scales;
+                }
+                else
+                {
+                    ProgressReporter?.Report($"Failed to decompose transform for entity '{className}', its placement may be wrong.");
+                }
 
                 if (TryDeduplicateTemplateChild(compiledEntity))
                 {

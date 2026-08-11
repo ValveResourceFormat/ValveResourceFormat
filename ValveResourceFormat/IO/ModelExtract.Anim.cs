@@ -115,7 +115,9 @@ partial class ModelExtract
         using var dmx = new Datamodel.Datamodel("model", 22);
 
         var rootMotionBone = skeleton["root_motion"];
-        var dmeSkeleton = BuildDmeDagSkeleton(skeleton, out var transforms);
+
+        // The frames below get the axis fixup, so the bind pose it is written against has to have it too
+        var dmeSkeleton = BuildDmeDagSkeleton(skeleton, out var transforms, nmSkelAxisFixup);
 
         var animationList = new DmeAnimationList();
         var clip = new DmeChannelsClip
@@ -139,12 +141,12 @@ partial class ModelExtract
 
                 if (nmSkelAxisFixup && rootMotionBone != null)
                 {
+                    frame.Bones[rootMotionBone.Index].Angle = NmAxisFixupRootMotion(frame.Bones[rootMotionBone.Index].Angle);
+
                     foreach (var root in rootMotionBone.Children)
                     {
-                        frame.Bones[root.Index].Position = Vector3.Transform(frame.Bones[root.Index].Position, NmSkelRotationFixup);
-
-                        var q = frame.Bones[root.Index].Angle * NmSkelRotationFixup;
-                        frame.Bones[root.Index].Angle = new(q.Y, q.Z, q.X, q.W);
+                        (frame.Bones[root.Index].Position, frame.Bones[root.Index].Angle)
+                            = NmAxisFixupChild(frame.Bones[root.Index].Position, frame.Bones[root.Index].Angle);
                     }
                 }
             }
@@ -198,7 +200,26 @@ partial class ModelExtract
         return stream.ToArray();
     }
 
-    private static Quaternion NmSkelRotationFixup = new(-0.5f, -0.5f, -0.5f, 0.5f);
+    private static readonly Quaternion NmSkelRotationFixup = new(-0.5f, -0.5f, -0.5f, 0.5f);
+    private static readonly Quaternion NmSkelRotationFixupInverse = Quaternion.Inverse(NmSkelRotationFixup);
+
+    /// <summary>
+    /// NM skeletons compile the bones under root_motion in a permuted axis frame. This re-frames one of
+    /// them, in root_motion's space, which is why the rotation is multiplied on the left.
+    /// </summary>
+    private static (Vector3 Position, Quaternion Rotation) NmAxisFixupChild(Vector3 position, Quaternion rotation)
+        => (Vector3.Transform(position, NmSkelRotationFixup), NmSkelRotationFixup * rotation);
+
+    /// <summary>
+    /// The other half of <see cref="NmAxisFixupChild"/>. root_motion takes the inverse, so what its children
+    /// gained cancels against it and the subtree below them does not move.
+    /// </summary>
+    /// <remarks>
+    /// Both halves have to be applied to the bind pose and to every frame alike, since a clip writes a
+    /// channel for each of these bones and the frame values override what the bind pose declared.
+    /// </remarks>
+    private static Quaternion NmAxisFixupRootMotion(Quaternion rotation)
+        => rotation * NmSkelRotationFixupInverse;
 
     /// <summary>Emits cloth bones with the '_' prefix the compiler sanitizes '$' to, so round-trips don't duplicate them.</summary>
     internal static string GetExportBoneName(Bone bone)
@@ -220,13 +241,12 @@ partial class ModelExtract
             // dmeSkeleton.AxisSystem.ForwardParity = -1;
             // dmeSkeleton.AxisSystem.CoordSys = 2;
 
-            var inverseNmSkelFixup = Quaternion.Inverse(NmSkelRotationFixup);
-            transforms[rootMotionBone.Index].Orientation *= inverseNmSkelFixup;
+            transforms[rootMotionBone.Index].Orientation = NmAxisFixupRootMotion(transforms[rootMotionBone.Index].Orientation);
 
             foreach (var root in rootMotionBone.Children)
             {
-                transforms[root.Index].Position = Vector3.Transform(root.Position, NmSkelRotationFixup);
-                transforms[root.Index].Orientation *= NmSkelRotationFixup;
+                (transforms[root.Index].Position, transforms[root.Index].Orientation)
+                    = NmAxisFixupChild(transforms[root.Index].Position, transforms[root.Index].Orientation);
             }
         }
 
@@ -347,8 +367,8 @@ partial class ModelExtract
             rootPositionLayer.LayerValues[i] = new Vector3(movement.Position.X, movement.Position.Y, 0f);
             rootPositionLayer.Times.Add(timespan);
 
-            var degrees = movement.Angle * 0.0174532925f; //Deg to rad
-            rootOrientationLayer.LayerValues[i] = Quaternion.CreateFromAxisAngle(Vector3.UnitZ, degrees);
+            var radians = float.DegreesToRadians(movement.Angle);
+            rootOrientationLayer.LayerValues[i] = Quaternion.CreateFromAxisAngle(Vector3.UnitZ, radians);
             rootOrientationLayer.Times.Add(timespan);
         }
 

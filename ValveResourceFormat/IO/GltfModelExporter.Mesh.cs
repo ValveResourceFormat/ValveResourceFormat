@@ -511,7 +511,10 @@ public partial class GltfModelExporter
             {
                 transform *= fragmentTransforms[transformIndex++].ToMatrix4x4();
 
-                if (transform.M11 == 0f && transform.M22 == 0f && transform.M33 == 0f)
+                // A zero determinant means the transform collapses the fragment to nothing. Testing the
+                // diagonal instead would also match an honest rotation that maps every axis onto a
+                // different one, and throw the fragment away.
+                if (transform.GetDeterminant() == 0f)
                 {
                     ProgressReporter?.Report($"Skipping mesh: {meshName} because it has a scale of zero.");
                     continue;
