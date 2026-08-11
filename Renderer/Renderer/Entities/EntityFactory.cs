@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using System.Diagnostics.CodeAnalysis;
 using ValveResourceFormat.Serialization.KeyValues;
 
@@ -22,7 +23,10 @@ public delegate BaseEntity EntityCreator(EntitySystem system, EntitySpawnInfo sp
 /// </remarks>
 public static class EntityFactory
 {
-    private static readonly Dictionary<string, EntityCreator> Creators = new(StringComparer.OrdinalIgnoreCase);
+    // Concurrent for the same reason the input tables are: the registrations themselves all happen in the
+    // static constructor, but the map loads that read this run on several threads at once, and nothing in
+    // the type stops a caller registering a classname of its own later
+    private static readonly ConcurrentDictionary<string, EntityCreator> Creators = new(StringComparer.OrdinalIgnoreCase);
 
     static EntityFactory()
     {
@@ -38,8 +42,8 @@ public static class EntityFactory
 
     /// <summary>
     /// Registers a classname the entity system should simulate, and builds the entity class's table of
-    /// <see cref="EntityInputAttribute"/> handlers. Not thread safe: call it during startup, before any
-    /// map is loaded.
+    /// <see cref="EntityInputAttribute"/> handlers. Safe to call while maps are loading, though the static
+    /// constructor below is where the entity system's own classnames are declared.
     /// </summary>
     /// <typeparam name="T">The entity class the classname spawns.</typeparam>
     /// <param name="classname">The classname to link, matched case-insensitively.</param>

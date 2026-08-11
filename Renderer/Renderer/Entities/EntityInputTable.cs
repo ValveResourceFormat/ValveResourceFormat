@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using System.Collections.Frozen;
 using System.Diagnostics.CodeAnalysis;
 using System.Reflection;
@@ -9,9 +10,14 @@ namespace ValveResourceFormat.Renderer.Entities;
 /// data description tables. Built once per class when the class registers with <see cref="EntityFactory"/>,
 /// so firing an input is a dictionary lookup and a delegate call rather than a chain of name comparisons.
 /// </summary>
+/// <remarks>
+/// Concurrent because not every bind happens at startup: a class the factory never sees, the player being
+/// the one, binds as its world loads, and two worlds can load at once. A table itself is frozen once built,
+/// so only the act of publishing one needs guarding.
+/// </remarks>
 internal static class EntityInputTable
 {
-    private static readonly Dictionary<Type, FrozenDictionary<string, Action<BaseEntity, EntityInputData>>> Tables = [];
+    private static readonly ConcurrentDictionary<Type, FrozenDictionary<string, Action<BaseEntity, EntityInputData>>> Tables = [];
 
     /// <summary>
     /// Builds the input table for an entity class. The <see cref="DynamicallyAccessedMembersAttribute"/> is
@@ -26,6 +32,10 @@ internal static class EntityInputTable
         {
             return;
         }
+
+        // Two threads reaching here for one class both build a table and one of them wins the publish
+        // below. The loser's copy is identical and thrown away, which is cheaper than holding a lock
+        // across the reflection.
 
         var handlers = new Dictionary<string, Action<BaseEntity, EntityInputData>>(StringComparer.OrdinalIgnoreCase);
 
@@ -46,7 +56,7 @@ internal static class EntityInputTable
             handlers.Add(attribute.Name, (entity, data) => handler((T)entity, data));
         }
 
-        Tables[typeof(T)] = handlers.ToFrozenDictionary(StringComparer.OrdinalIgnoreCase);
+        Tables.TryAdd(typeof(T), handlers.ToFrozenDictionary(StringComparer.OrdinalIgnoreCase));
     }
 
     /// <summary>

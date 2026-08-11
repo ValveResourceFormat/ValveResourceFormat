@@ -1,5 +1,4 @@
 using ValveResourceFormat.Renderer.Audio;
-using System.Globalization;
 using ValveResourceFormat.Serialization.KeyValues;
 
 namespace ValveResourceFormat.Renderer.Entities;
@@ -109,6 +108,7 @@ public sealed class FuncRotating : BaseModelEntity
     public float Volume { get; private set; } = 1f;
 
     private bool stopAtStartPos;
+    private bool acceleratesAndDecelerates;
     private Vector3 startAngles;
     private float turnedFromStart;
     private MoveDoneFunction moveDoneFunction;
@@ -182,6 +182,7 @@ public sealed class FuncRotating : BaseModelEntity
         }
 
         startAngles = Angles;
+        acceleratesAndDecelerates = HasSpawnFlags(SpawnFlag.AccelerateDecelerate);
 
         // Some rotating objects, like fake volumetric lights, are never solid
         IsSolid = !HasSpawnFlags(SpawnFlag.NotSolid);
@@ -311,13 +312,51 @@ public sealed class FuncRotating : BaseModelEntity
     }
 
     /// <summary>
-    /// Reports the current speed through <c>OnGetSpeed</c>, unsigned as the engine reports it.
+    /// Puts the brush back on its start angle and stops it there, without waiting to come round.
     /// </summary>
-    /// <param name="data">The input's parameter and sender; the activator is passed along.</param>
-    [EntityInput("GetSpeed")]
-    private void InputGetSpeed(EntityInputData data)
-        => EntitySystem.TriggerOutput(this, "OnGetSpeed", data.Activator,
-            MathF.Abs(Speed).ToString(CultureInfo.InvariantCulture));
+    /// <remarks>
+    /// <c>OnReachedStart</c> is not fired: that output belongs to a pending <c>StopAtStartPos</c> running
+    /// its course, and a snap cancels that pending stop rather than completing it. Stopping still reports
+    /// through <c>OnStopped</c>, as any other way of stopping does.
+    /// </remarks>
+    /// <param name="data">The input's parameter and sender, unused.</param>
+    [EntityInput("SnapToStartPos")]
+    private void InputSnapToStartPos(EntityInputData data)
+    {
+        stopAtStartPos = false;
+        TargetSpeed = 0f;
+        moveDoneFunction = MoveDoneFunction.None;
+
+        ApplySpeed(0f);
+        SetMoveDoneTime(-1f);
+
+        turnedFromStart = 0f;
+        Angles = startAngles;
+
+        SnapInterpolation();
+    }
+
+    /// <summary>Changes the angle the brush treats as its start, the one it snaps and stops back to.</summary>
+    /// <param name="data">Carries the new start angles as a QAngle.</param>
+    [EntityInput("SetStartPos")]
+    private void InputSetStartPos(EntityInputData data)
+    {
+        startAngles = data.Vector(startAngles);
+
+        // Re-based rather than zeroed: how far it has come round is measured from the new start, which is
+        // what the engine reads off the live angles every time it asks
+        turnedFromStart = AngleMod(GetAxisAngle(Angles) - GetAxisAngle(startAngles));
+    }
+
+    /// <summary>Makes the brush ramp up and down instead of snapping to speed.</summary>
+    /// <param name="data">The input's parameter and sender, unused.</param>
+    [EntityInput("EnableAccelDecel")]
+    private void InputEnableAccelDecel(EntityInputData data) => acceleratesAndDecelerates = true;
+
+    /// <summary>Makes the brush start and stop instantly.</summary>
+    /// <param name="data">The input's parameter and sender, unused.</param>
+    [EntityInput("DisableAccelDecel")]
+    private void InputDisableAccelDecel(EntityInputData data) => acceleratesAndDecelerates = false;
 
     /// <summary>Sets the speed as a fraction of <c>maxspeed</c>; a negative fraction spins in reverse.</summary>
     /// <param name="data">Carries the fraction as its parameter.</param>
@@ -353,7 +392,7 @@ public sealed class FuncRotating : BaseModelEntity
 
         TargetSpeed = speed;
 
-        if (!HasSpawnFlags(SpawnFlag.AccelerateDecelerate))
+        if (!acceleratesAndDecelerates)
         {
             // No acceleration, change to the new speed instantly
             UpdateSpeed(TargetSpeed);
@@ -411,7 +450,9 @@ public sealed class FuncRotating : BaseModelEntity
         var oldSpeed = Speed;
         var speed = Math.Clamp(newSpeed, -MaxSpeed, MaxSpeed);
 
-        if (stopAtStartPos && speed < 100f)
+        // The requested speed, not the clamped one: bmodels.cpp:911 tests flNewSpeed, which for a slow
+        // brush with high friction can be the larger of the two and decide the approach a step earlier
+        if (stopAtStartPos && newSpeed < 100f)
         {
             var angleDelta = GetAngleDeltaFromStart();
 
@@ -651,6 +692,21 @@ public sealed class FuncRotating : BaseModelEntity
             SetTargetSpeed(0f);
             StopAtStartAngles();
         }
+    }
+
+    /// <summary>
+    /// The component of a QAngle that lies on the axis this brush turns about, the engine's
+    /// <c>checkAxis</c> (<c>bmodels.cpp:1121-1131</c>).
+    /// </summary>
+    /// <param name="angles">The QAngle to read.</param>
+    private float GetAxisAngle(Vector3 angles)
+    {
+        if (MoveAngles.X != 0f)
+        {
+            return angles.X;
+        }
+
+        return MoveAngles.Y != 0f ? angles.Y : angles.Z;
     }
 
     /// <summary>

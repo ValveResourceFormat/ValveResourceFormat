@@ -54,6 +54,30 @@ public readonly struct EntityInputData
             ? value
             : defaultValue;
 
+    /// <summary>
+    /// Reads the parameter as a vector, three numbers separated by spaces, the way a map authors one.
+    /// </summary>
+    /// <param name="defaultValue">Returned when there is no parameter or it does not parse.</param>
+    public Vector3 Vector(Vector3 defaultValue = default)
+    {
+        if (string.IsNullOrEmpty(Parameter))
+        {
+            return defaultValue;
+        }
+
+        var parts = Parameter.Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+
+        if (parts.Length < 3
+            || !float.TryParse(parts[0], NumberStyles.Float, CultureInfo.InvariantCulture, out var x)
+            || !float.TryParse(parts[1], NumberStyles.Float, CultureInfo.InvariantCulture, out var y)
+            || !float.TryParse(parts[2], NumberStyles.Float, CultureInfo.InvariantCulture, out var z))
+        {
+            return defaultValue;
+        }
+
+        return new Vector3(x, y, z);
+    }
+
     /// <summary>Reads the parameter as a boolean, accepting both <c>1</c> and <c>true</c>.</summary>
     /// <param name="defaultValue">Returned when there is no parameter or it does not parse.</param>
     public bool Bool(bool defaultValue = false)
