@@ -88,6 +88,9 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
         /// It has no bearing on the size clamp or the distance fade.
         /// </summary>
         private readonly bool distanceAlpha;
+        private readonly bool softEdges;
+        private readonly float edgeSoftnessStart = 0.6f;
+        private readonly float edgeSoftnessEnd = 0.5f;
 
         // m_flStartFadeDot/m_flEndFadeDot: the normal-aligned modes fade out as the card turns edge-on to
         // the camera. The defaults span 1..2 against a value that never exceeds 1, so no fade by default.
@@ -210,6 +213,9 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
             startFadeSize = parse.NumberProvider("m_flStartFadeSize", startFadeSize);
             endFadeSize = parse.NumberProvider("m_flEndFadeSize", endFadeSize);
             distanceAlpha = parse.Boolean("m_bDistanceAlpha", distanceAlpha);
+            softEdges = parse.Boolean("m_bSoftEdges", softEdges);
+            edgeSoftnessStart = parse.Float("m_flEdgeSoftnessStart", edgeSoftnessStart);
+            edgeSoftnessEnd = parse.Float("m_flEdgeSoftnessEnd", edgeSoftnessEnd);
             startFadeDot = parse.Float("m_flStartFadeDot", startFadeDot);
             endFadeDot = parse.Float("m_flEndFadeDot", endFadeDot);
             animationType = parse.Enum<ParticleAnimationType>("m_nAnimationType", animationType);
@@ -624,6 +630,16 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
             shader.SetUniform1("uOutline", outline);
             shader.SetUniform4("uOutlineColor", outlineColor);
             shader.SetUniform4("uOutlineRanges", outlineRanges);
+
+            // Distance alpha renders an SDF texture through the alpha remap smoothstep: the edge
+            // softness pair replaces the remap range, or a hard threshold just under 0.5.
+            if (distanceAlpha)
+            {
+                var remap = softEdges
+                    ? new Vector2(edgeSoftnessEnd, edgeSoftnessStart)
+                    : new Vector2(GetAlphaRemapRange(systemRenderState).X, 0.499f);
+                shader.SetUniform2("uAlphaRemapRange", remap);
+            }
 
             // Set every draw: the program is shared with every other sprite renderer, whatever their mode.
             shader.SetUniform1("uBlendMode", (int)blendMode);
