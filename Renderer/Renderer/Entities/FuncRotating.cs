@@ -203,8 +203,12 @@ public sealed class FuncRotating : BaseModelEntity
         base.PhysicsSimulate(tickInterval);
 
         // Tracked as it turns, because once the body has turned off the axes the map authored it on,
-        // how far it has come round is no longer a component of the QAngle to be read back
-        turnedFromStart = AngleMod(turnedFromStart + Speed * tickInterval);
+        // how far it has come round is no longer a component of the QAngle to be read back.
+        // Wrapped rather than run through AngleMod: that quantizes to 1/65536 of a turn and truncates
+        // towards zero, so accumulating through it drops the same fraction of a step every tick and the
+        // tracker walks away from the truth without bound. The engine never accumulates at all - it takes
+        // the difference from the live angles and applies anglemod once, at the point of reading it.
+        turnedFromStart = (turnedFromStart + Speed * tickInterval) % 360f;
     }
 
     /// <inheritdoc/>
@@ -626,7 +630,10 @@ public sealed class FuncRotating : BaseModelEntity
         }
     }
 
-    /// <summary>Signed degrees turned from the spawn orientation, in [-180, 180].</summary>
+    /// <summary>
+    /// Signed degrees turned from the spawn orientation, in [-180, 180]. The one place the quantization
+    /// belongs, so it costs a fixed 1/65536 of a turn rather than compounding.
+    /// </summary>
     private float GetAngleDeltaFromStart()
     {
         var delta = AngleMod(turnedFromStart);
