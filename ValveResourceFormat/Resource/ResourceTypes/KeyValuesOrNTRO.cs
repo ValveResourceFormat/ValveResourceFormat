@@ -17,7 +17,7 @@ namespace ValveResourceFormat.ResourceTypes
         /// <summary>
         /// Gets the parsed data as a <see cref="KVObject"/>.
         /// </summary>
-        public KVObject Data { get; private set; } = null!;
+        public KVObject Data { get; protected set; } = null!;
 
         private Block BackingData = null!;
 

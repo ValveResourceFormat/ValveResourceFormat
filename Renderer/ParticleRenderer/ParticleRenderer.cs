@@ -466,7 +466,7 @@ namespace ValveResourceFormat.Renderer.Particles
         public void SetTextureOverride(string textureName)
             => SetTextureOverride(rendererContext.MaterialLoader.GetTexture(textureName, srgbRead: true));
 
-        private void SetTextureOverride(RenderTexture texture)
+        public void SetTextureOverride(RenderTexture texture)
         {
             foreach (var renderer in renderers)
             {

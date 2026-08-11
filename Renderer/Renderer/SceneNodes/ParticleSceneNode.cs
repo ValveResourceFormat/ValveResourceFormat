@@ -250,6 +250,9 @@ namespace ValveResourceFormat.Renderer.SceneNodes
         /// </summary>
         public void SetTextureOverride(string textureName) => particleRenderer.SetTextureOverride(textureName);
 
+        /// <inheritdoc cref="SetTextureOverride(string)"/>
+        public void SetTextureOverride(RenderTexture texture) => particleRenderer.SetTextureOverride(texture);
+
         /// <summary>Gets the control point at the given index from the particle renderer.</summary>
         /// <param name="index">The index of the control point to retrieve.</param>
         /// <returns>The control point at the specified index.</returns>

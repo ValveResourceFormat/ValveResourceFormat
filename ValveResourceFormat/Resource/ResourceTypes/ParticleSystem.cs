@@ -10,6 +10,14 @@ namespace ValveResourceFormat.ResourceTypes
     /// <seealso href="https://s2v.app/SchemaExplorer/cs2/particles/CParticleSystemDefinition">CParticleSystemDefinition</seealso>
     public class ParticleSystem : KeyValuesOrNTRO
     {
+        /// <summary>Builds a particle system from the provided keyvalues.</summary>
+        public static ParticleSystem Create(KVObject data)
+            => new()
+            {
+                Resource = null!,
+                Data = data,
+            };
+
         /// <summary>
         /// Gets the renderers in the particle system.
         /// </summary>

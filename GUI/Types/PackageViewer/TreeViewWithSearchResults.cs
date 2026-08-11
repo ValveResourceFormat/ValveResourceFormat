@@ -478,6 +478,7 @@ namespace GUI.Types.PackageViewer
             {"vtex_c", new ThumbnailTextureRenderer() },
             {"vsvg_c", new ThumbnailSVGRenderer() },
             {"vpcf_c", new ThumbnailParticleRenderer() },
+            {"vsnap_c", new ThumbnailSnapshotRenderer() },
         };
 
         /// <summary>

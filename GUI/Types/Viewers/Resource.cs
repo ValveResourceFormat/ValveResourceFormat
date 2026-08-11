@@ -16,6 +16,7 @@ using ValveResourceFormat;
 using ValveResourceFormat.Blocks;
 using ValveResourceFormat.IO;
 using ValveResourceFormat.Renderer;
+using ValveResourceFormat.Renderer.Particles;
 using ValveResourceFormat.Renderer.World;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.ResourceTypes.GenericData.CS2;
@@ -101,6 +102,14 @@ namespace GUI.Types.Viewers
                     {
                         GLViewer = new GLParticleViewer(vrfGuiContext, rendererContext, particleData);
                         GLViewerTabName = "PARTICLE";
+                    }
+                    break;
+
+                case ResourceType.ParticleSnapshot:
+                    if (resource.GetBlockByType(BlockType.SNAP) is ParticleSnapshot snapshot && SnapshotParticleSystem.CanPreview(snapshot))
+                    {
+                        GLViewer = new GLParticleViewer(vrfGuiContext, rendererContext, SnapshotParticleSystem.Create(snapshot), snapshot);
+                        GLViewerTabName = "SNAPSHOT";
                     }
                     break;
 

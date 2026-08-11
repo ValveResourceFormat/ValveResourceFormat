@@ -5,6 +5,7 @@ using System.Windows.Forms;
 using GUI.Controls;
 using GUI.Utils;
 using ValveKeyValue;
+using ValveResourceFormat.Blocks;
 using ValveResourceFormat.Renderer;
 using ValveResourceFormat.Renderer.Particles;
 using ValveResourceFormat.Renderer.SceneNodes;
@@ -20,15 +21,19 @@ namespace GUI.Types.GLViewers
     class GLParticleViewer : GLSceneViewer
     {
         private readonly ParticleSystem particleSystem;
+        private readonly ParticleSnapshot? particleSnapshot;
         private ParticleSceneNode? particleSceneNode;
         private GLViewerSliderControl? slowmodeTrackBar;
         private ThemedButton? restartButton;
         private ThemedButton? endCapButton;
+        private float screenSize = SnapshotParticleSystem.DefaultScreenSize;
         private bool ShowRenderBounds { get; set; }
 
-        public GLParticleViewer(VrfGuiContext vrfGuiContext, RendererContext rendererContext, ParticleSystem particleSystem) : base(vrfGuiContext, rendererContext, Frustum.CreateEmpty())
+        public GLParticleViewer(VrfGuiContext vrfGuiContext, RendererContext rendererContext, ParticleSystem particleSystem, ParticleSnapshot? particleSnapshot = null)
+            : base(vrfGuiContext, rendererContext, Frustum.CreateEmpty())
         {
             this.particleSystem = particleSystem;
+            this.particleSnapshot = particleSnapshot;
         }
 
         public override void Dispose()
@@ -47,10 +52,16 @@ namespace GUI.Types.GLViewers
             Scene.LightingInfo.UseSceneBoundsForSunLightFrustum = false;
             Renderer.ViewBuffer!.Data!.ExperimentalLightsEnabled = true;
 
-            particleSceneNode = new ParticleSceneNode(Scene, particleSystem, null, true)
+            particleSceneNode = new ParticleSceneNode(Scene, particleSystem, particleSnapshot, true)
             {
                 Transform = Matrix4x4.Identity
             };
+
+            if (particleSnapshot != null)
+            {
+                particleSceneNode.SetTextureOverride(Scene.RendererContext.MaterialLoader.GetDefaultColor());
+            }
+
             Scene.Add(particleSceneNode, true);
         }
 
@@ -58,8 +69,28 @@ namespace GUI.Types.GLViewers
         {
             base.OnGLLoad();
 
+            if (particleSnapshot != null)
+            {
+                var bounds = SnapshotParticleSystem.GetBounds(particleSnapshot);
+                var size = bounds.Size;
+
+                Input.Camera.FrameObject(bounds.Center, size.X, size.Y, size.Z);
+                Input.OrbitTargetProvider = () => bounds.Center;
+
+                ApplyScreenSize();
+                return;
+            }
+
             Input.Camera.SetLocation(new Vector3(200, 200, 200));
             Input.Camera.LookAt(Vector3.Zero);
+        }
+
+        private void ApplyScreenSize()
+        {
+            if (particleSceneNode != null && particleSnapshot != null && SnapshotParticleSystem.UsesConstantScreenSize(particleSnapshot))
+            {
+                SnapshotParticleSystem.SetScreenSize(particleSceneNode, screenSize, Input.Camera.GetFOV());
+            }
         }
 
         protected override void AddUiControls()
@@ -121,6 +152,16 @@ namespace GUI.Types.GLViewers
             using (UiControl.BeginGroup("Display"))
             {
                 UiControl.AddCheckBox("Show Render Bounds", ShowRenderBounds, value => SelectedNodeRenderer.SelectNode(value ? particleSceneNode : null));
+
+                // Only when the snapshot stores no radius, in which case the preview invents a size.
+                if (particleSnapshot != null && SnapshotParticleSystem.UsesConstantScreenSize(particleSnapshot))
+                {
+                    UiControl.AddControl(RendererControl.CreateFloatInput("Point Size", value =>
+                    {
+                        screenSize = value / 100f;
+                        ApplyScreenSize();
+                    }, SnapshotParticleSystem.DefaultScreenSize * 100f, 0.05f, 5f));
+                }
             }
 
             AddOperatorTree();
