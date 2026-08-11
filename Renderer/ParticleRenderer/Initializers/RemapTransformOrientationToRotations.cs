@@ -8,14 +8,14 @@ namespace ValveResourceFormat.Renderer.Particles.Initializers
     /// with the operator variant.
     /// </summary>
     /// <seealso href="https://s2v.app/SchemaExplorer/cs2/particles/C_INIT_RemapTransformOrientationToRotations">C_INIT_RemapTransformOrientationToRotations</seealso>
-    class RemapTransformOrientationToRotationsInit : ParticleFunctionInitializer
+    class RemapTransformOrientationToRotations : ParticleFunctionInitializer
     {
         private readonly ITransformProvider transformInput = new ControlPointTransformProvider();
         private readonly Vector3 rotationOffset = Vector3.Zero;
         private readonly bool useQuat;
         private readonly bool writeNormal;
 
-        public RemapTransformOrientationToRotationsInit(ParticleDefinitionParser parse) : base(parse)
+        public RemapTransformOrientationToRotations(ParticleDefinitionParser parse) : base(parse)
         {
             transformInput = parse.TransformInput("m_TransformInput", transformInput);
             rotationOffset = parse.Vector3("m_vecRotation", rotationOffset);
