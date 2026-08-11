@@ -58,10 +58,11 @@ public abstract class BaseTrigger : BaseModelEntity
     /// Source's <c>PassesTriggerFilters</c>, without the <c>filtername</c> entity filters.
     /// </summary>
     /// <remarks>
-    /// A trigger with no "allow" flags at all is treated as allowing everything. In the engine it would
-    /// simply never fire, but these flag values come from Source 1 and the Source 2 games this renders have
-    /// not been confirmed to match; defaulting to permissive keeps a trigger working when its flags are
-    /// spelled differently, rather than silently doing nothing.
+    /// A trigger reacts only to what its spawnflags name, as the engine's does: one that names nothing it
+    /// accepts never fires. Of the flags, only "everything" and "clients" can be satisfied here, the
+    /// player being the one thing in the world that can enter a volume; a trigger that admits only NPCs,
+    /// pushables or physics props therefore stays shut. The <c>filtername</c> entity filters are not
+    /// consulted at all, so a trigger that passes its flags is not further narrowed by its filter.
     /// </remarks>
     /// <param name="other">The entity inside the volume.</param>
     /// <returns><see langword="true"/> when the touch should register.</returns>
@@ -79,6 +80,13 @@ public abstract class BaseTrigger : BaseModelEntity
     protected override void OnStartTouch(BaseEntity other)
     {
         EntitySystem.TriggerOutput(this, "OnStartTouch", other);
+
+        // The first thing to get through the filters, which the touching set has already taken by the
+        // time this runs. The counterpart of OnEndTouchAll, and what a map wires to mean "occupied"
+        if (TouchingEntities.Count == 1)
+        {
+            EntitySystem.TriggerOutput(this, "OnStartTouchAll", other);
+        }
     }
 
     /// <inheritdoc/>

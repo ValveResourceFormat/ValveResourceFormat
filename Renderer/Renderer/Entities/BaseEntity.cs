@@ -387,7 +387,8 @@ public class BaseEntity
 
     /// <summary>Schedules <see cref="Think"/> to run at an absolute time; -1 stops thinking.</summary>
     /// <param name="time">Absolute time in <see cref="EntitySystem.CurrentTime"/> seconds.</param>
-    public void SetNextThink(float time) => NextThink = time;
+    public void SetNextThink(float time)
+        => NextThink = time < 0f ? -1f : EntitySystem.SnapToTick(time);
 
     /// <summary>
     /// Schedules <see cref="MoveDone"/> to run after a delay, matching Source's <c>SetMoveDoneTime</c>.
@@ -417,7 +418,22 @@ public class BaseEntity
             return;
         }
 
-        PhysicsSimulate(tickInterval);
+        // Only as far as the scheduled arrival, never past it. Source's pusher does the same
+        // (physics_main.cpp: movetime is clamped to the frame), and without it a 0.1s ramp step would
+        // take a whole 7th tick of movement it was never given time for.
+        var moveTime = tickInterval;
+
+        if (MoveDoneTime > 0f)
+        {
+            var remaining = MoveDoneTime - (EntitySystem.CurrentTime - tickInterval);
+
+            if (remaining < moveTime)
+            {
+                moveTime = MathF.Max(remaining, 0f);
+            }
+        }
+
+        PhysicsSimulate(moveTime);
 
         if (MoveDoneTime > 0f && MoveDoneTime <= EntitySystem.CurrentTime)
         {

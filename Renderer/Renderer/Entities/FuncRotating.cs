@@ -1,4 +1,5 @@
 using ValveResourceFormat.Renderer.Audio;
+using System.Globalization;
 using ValveResourceFormat.Serialization.KeyValues;
 
 namespace ValveResourceFormat.Renderer.Entities;
@@ -125,8 +126,9 @@ public sealed class FuncRotating : BaseModelEntity
     /// <inheritdoc/>
     public override void Spawn()
     {
-        // KeyValue: m_flFanFriction = atof(szValue) / 100
-        FanFriction = KeyValues.GetFloatProperty("fanfriction", 20f) / 100f;
+        // KeyValue: m_flFanFriction = atof(szValue) / 100. Absent means zero rather than the FGD's 20,
+        // as it does in the engine, so the guard below is what a map that omits it actually gets.
+        FanFriction = KeyValues.GetFloatProperty("fanfriction") / 100f;
 
         // Prevent a divide by zero if the level designer forgot the friction
         if (FanFriction == 0f)
@@ -307,6 +309,15 @@ public sealed class FuncRotating : BaseModelEntity
         SetTargetSpeed(0f);
         SetMoveDoneTime(GetNextMoveInterval());
     }
+
+    /// <summary>
+    /// Reports the current speed through <c>OnGetSpeed</c>, unsigned as the engine reports it.
+    /// </summary>
+    /// <param name="data">The input's parameter and sender; the activator is passed along.</param>
+    [EntityInput("GetSpeed")]
+    private void InputGetSpeed(EntityInputData data)
+        => EntitySystem.TriggerOutput(this, "OnGetSpeed", data.Activator,
+            MathF.Abs(Speed).ToString(CultureInfo.InvariantCulture));
 
     /// <summary>Sets the speed as a fraction of <c>maxspeed</c>; a negative fraction spins in reverse.</summary>
     /// <param name="data">Carries the fraction as its parameter.</param>
@@ -505,8 +516,19 @@ public sealed class FuncRotating : BaseModelEntity
     /// Lands the brush on the angle it spawned at and forgets the pending stop. A snap, not movement, so
     /// the interpolation history goes with it.
     /// </summary>
+    /// <remarks>
+    /// The landing happens once, and the pending stop is what records whether it still has to. Both ways
+    /// in run through <see cref="SetTargetSpeed"/>, which for a brush that does not accelerate lands the
+    /// stop itself before its caller gets to: the engine runs the same pair of paths and does not care,
+    /// because there it is two assignments rather than an output a map can count.
+    /// </remarks>
     private void StopAtStartAngles()
     {
+        if (!stopAtStartPos)
+        {
+            return;
+        }
+
         TargetSpeed = 0f;
         stopAtStartPos = false;
         turnedFromStart = 0f;
