@@ -31,6 +31,21 @@ namespace ValveResourceFormat.Renderer.SceneNodes
         public bool Preview { get; set; }
 
         /// <summary>
+        /// Whether the system starts over once it has finished. Set for preview playback; off in a
+        /// scene, where an effect that has run out stays gone. Changing it takes effect at the next
+        /// <see cref="Restart"/>.
+        /// </summary>
+        public bool Loop { get; set; }
+
+        /// <summary>
+        /// Which parts of the effect a playback cycle covers. Changing it takes effect at the next
+        /// <see cref="Restart"/>.
+        /// </summary>
+        public ParticlePlaybackMode PlaybackMode { get; set; }
+
+        private bool endCapPlayed;
+
+        /// <summary>
         /// Initializes a new instance of the <see cref="ParticleSceneNode"/> class.
         /// </summary>
         /// <param name="scene">The scene this node belongs to.</param>
@@ -55,6 +70,7 @@ namespace ValveResourceFormat.Renderer.SceneNodes
             if (preview)
             {
                 Preview = true;
+                Loop = true;
                 PreviewModel = CreatePreviewModel(particleSystem);
                 if (PreviewModel != null)
                 {
@@ -509,7 +525,16 @@ namespace ValveResourceFormat.Renderer.SceneNodes
             if (pendingRestart)
             {
                 pendingRestart = false;
-                particleRenderer.Replay();
+                endCapPlayed = PlaybackMode == ParticlePlaybackMode.EndCapOnly;
+
+                if (endCapPlayed)
+                {
+                    particleRenderer.PlayEndCapOnly();
+                }
+                else
+                {
+                    particleRenderer.Replay();
+                }
             }
 
             if (frameTime > 0f)
@@ -525,8 +550,17 @@ namespace ValveResourceFormat.Renderer.SceneNodes
                 UpdateBounds();
             }
 
+            // The endcap starts where emission ends, so the particles it decays and freezes are still alive.
+            if (PlaybackMode == ParticlePlaybackMode.NormalWithEndCap
+                && !endCapPlayed
+                && particleRenderer.HasFinishedEmitting(emissionEndIsEnough: true, includeChildren: true))
+            {
+                PlayEndCap();
+                endCapPlayed = true;
+            }
+
             // Restart if all emitters are done and all particles expired
-            if (Preview && particleRenderer.IsFinished())
+            if (Loop && particleRenderer.IsFinished())
             {
                 pendingRestart = true;
             }

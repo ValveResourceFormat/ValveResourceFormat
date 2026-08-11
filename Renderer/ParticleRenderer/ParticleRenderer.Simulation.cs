@@ -300,6 +300,19 @@ namespace ValveResourceFormat.Renderer.Particles
             Restart();
         }
 
+        /// <summary>
+        /// Plays the endcap by itself: the system is rewound, emission is stopped before a particle of
+        /// its own can live, and anything a pre-simulated system spawned during the rewind is dropped.
+        /// Only the endcap children are left to play.
+        /// </summary>
+        public void PlayEndCapOnly()
+        {
+            Replay();
+            Stop();
+            PlayEndCap();
+            ClearParticles();
+        }
+
         private void ClearParticles()
         {
             particleCollection.Clear();
