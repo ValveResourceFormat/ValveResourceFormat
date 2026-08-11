@@ -324,7 +324,11 @@ void CalculateIndirectLighting(inout LightingTerms_t lighting, inout MaterialPro
 
     // Environment Maps
 #if defined(IBL) && (IBL == 1)
-    vec3 environment = GetEnvironment(mat);
+    #if (S_LIGHTMAP_VERSION_MINOR == 0)
+        vec3 environment = SrgbGammaToLinear(GetEnvironment(mat));
+    #else
+        vec3 environment = GetEnvironment(mat);
+    #endif
 
     lighting.SpecularIndirect = environment
         * GetEnvMapNormalization(mat.IsometricRoughness, mat.AmbientNormal, lighting.DiffuseIndirect);
