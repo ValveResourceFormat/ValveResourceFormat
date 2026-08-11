@@ -39,6 +39,14 @@ namespace ValveResourceFormat.Renderer.SceneEnvironment
 
         /// <summary>Gets the white point value; passed through the tonemapper before GPU upload.</summary>
         public float WhitePoint { get; init; } // This is run through the tonemapper before being given to the shader
+
+        /// <summary>
+        /// The scale the shader applies to the exposed scene before the curve.
+        /// </summary>
+        public const float PreTonemapScale = 2.8f;
+
+        /// <summary>Gets the white point the curve is actually normalized against: <see cref="WhitePoint"/> scaled by <see cref="PreTonemapScale"/>.</summary>
+        public readonly float EffectiveWhitePoint => WhitePoint * PreTonemapScale;
         // The following params aren't used, I think?
         /*float LuminanceSource; // CS2
         float ExposureBiasShadows; // CS2
@@ -118,6 +126,68 @@ namespace ValveResourceFormat.Renderer.SceneEnvironment
             var num = inputValue * (inputValue * ShoulderStrength + (LinearAngle * LinearStrength)) + (ToeStrength * ToeNum);
             var denom = inputValue * (inputValue * ShoulderStrength + LinearStrength) + (ToeStrength * ToeDenom);
             return (num / denom) - (ToeNum / ToeDenom);
+        }
+
+        /// <summary>
+        /// Runs the full tonemap the shader performs: the pre-curve scale and clamp, the curve, and the
+        /// white point normalization.
+        /// </summary>
+        /// <param name="sceneValue">The exposed linear scene value.</param>
+        /// <returns>The displayed value, in the 0-1 range before the sRGB encode.</returns>
+        public readonly float Display(float sceneValue)
+        {
+            var effectiveWhitePoint = EffectiveWhitePoint;
+            var curveInput = MathF.Min(sceneValue * PreTonemapScale, effectiveWhitePoint);
+
+            return ApplyTonemapping(curveInput) / ApplyTonemapping(effectiveWhitePoint);
+        }
+
+        /// <summary>
+        /// Inverts <see cref="Display"/>: the exposed scene value that displays as <paramref name="displayValue"/>.
+        /// </summary>
+        /// <param name="displayValue">The desired displayed value, in the 0-1 range the shader outputs.</param>
+        /// <returns>
+        /// The exposed linear scene value that displays as <paramref name="displayValue"/>,
+        /// or <see cref="float.NaN"/> if this curve cannot be inverted.
+        /// </returns>
+        public readonly float InvertTonemapping(float displayValue)
+        {
+            // Solving ApplyTonemapping(x) = displayValue * ApplyTonemapping(EffectiveWhitePoint) for x, after
+            // clearing the curve's denominator, leaves a quadratic in x with these coefficients. g is the
+            // curve's numerator/denominator ratio before the ToeNum/ToeDenom shift. x is the curve input,
+            // so the result is divided by the pre-curve scale to land back in scene space.
+            var g = (displayValue * ApplyTonemapping(EffectiveWhitePoint)) + (ToeNum / ToeDenom);
+
+            var a = ShoulderStrength * (1f - g);
+            var b = LinearStrength * (LinearAngle - g);
+            var c = ToeStrength * (ToeNum - (g * ToeDenom));
+
+            float result;
+
+            if (a == 0f)
+            {
+                // No shoulder, so the curve is a straight line.
+                result = -c / b;
+            }
+            else
+            {
+                var discriminant = (b * b) - (4f * a * c);
+
+                if (discriminant < 0f)
+                {
+                    return float.NaN;
+                }
+
+                var root = MathF.Sqrt(discriminant);
+                result = (-b + root) / (2f * a);
+
+                if (result <= 0f)
+                {
+                    result = (-b - root) / (2f * a);
+                }
+            }
+
+            return (float.IsFinite(result) && result > 0f) ? result / PreTonemapScale : float.NaN;
         }
     }
 

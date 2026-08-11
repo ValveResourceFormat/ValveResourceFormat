@@ -27,6 +27,13 @@ internal enum Counter
 internal enum Metric
 {
     ShadowAtlasUsage,
+    SceneLuminance,
+    ExposureTargetLuminance,
+    Exposure,
+    ExposureMin,
+    ExposureMax,
+    TonemapScalar,
+    FullScreenGamma,
 }
 
 /// <summary>
@@ -417,8 +424,37 @@ public class PerfStats
         AddLine($"Light binning:    {FormatBinnerStats(scene.LightBinner.Stats)}", valueColor);
 
         AddLine($"Sound cache:      {counts[(int)Counter.SoundCacheMegabytes]:N0} MB decoded, {counts[(int)Counter.SoundDecodeQueue]:N0} queued to decode", valueColor);
+        AddLine($"Tonemapping:      {FormatTonemapStats()}", valueColor);
     }
 
+
+    /// <summary>
+    /// One line of what auto exposure decided: what the frame metered at, what it was aiming for, and
+    /// the exposure it reached within the range the post process volume allows. Exposure resting on one
+    /// of those bounds is called out, because a pinned exposure means the metering has no say in how
+    /// bright the image ends up and only the scene's own brightness does.
+    /// </summary>
+    private string FormatTonemapStats()
+    {
+        var scalar = floatMetrics[(int)Metric.TonemapScalar];
+        var gamma = floatMetrics[(int)Metric.FullScreenGamma];
+        var luminance = floatMetrics[(int)Metric.SceneLuminance];
+        var min = floatMetrics[(int)Metric.ExposureMin];
+        var max = floatMetrics[(int)Metric.ExposureMax];
+
+        if (max <= 0f)
+        {
+            return $"scene luminance {luminance:0.0000}, fixed exposure, tonemap scalar {scalar:0.00}, gamma {gamma:0.00}";
+        }
+
+        var exposure = floatMetrics[(int)Metric.Exposure];
+        var pinned = exposure <= min * 1.001f ? " (pinned low)"
+            : exposure >= max * 0.999f ? " (pinned high)"
+            : string.Empty;
+
+        return $"scene luminance {luminance:0.0000} aiming at {floatMetrics[(int)Metric.ExposureTargetLuminance]:0.0000}, "
+            + $"exposure {exposure:0.00} of [{min:0.00}-{max:0.00}]{pinned}, tonemap scalar {scalar:0.00}, gamma {gamma:0.00}";
+    }
 
     /// <summary>
     /// One line of what binning produced. Counts are per barn light face, the unit the binner works in,

@@ -368,6 +368,9 @@ namespace GUI.Types.GLViewers
             TextRenderer.Load();
             Renderer.Postprocess.Load(NumSamples);
 
+            Renderer.Postprocess.FullScreenGamma = 2.01f; // 100% Brightness
+            Renderer.Postprocess.ExposureCompensation = -0.4f; // eyeballed
+
             baseGrid = new InfiniteGrid(Scene);
             SelectedNodeRenderer = new(Scene.RendererContext);
             Picker = new(Scene.RendererContext, OnPicked);

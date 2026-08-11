@@ -38,8 +38,28 @@ namespace ValveResourceFormat.Renderer.PostProcess
 
         /// <summary>Gets the per-frame raw exposure scalar history used for temporal smoothing.</summary>
         public List<float> ExposureHistory { get; } = new(10);
+
         /// <summary>Gets or sets a manually overridden exposure value; set to -1 to use auto-exposure.</summary>
         public float CustomExposure { get; set; } = -1;
+
+        /// <summary>Gets or sets the display gamma, the game's brightness setting. 2.2 is identity; lower is brighter.</summary>
+        public float FullScreenGamma { get; set; } = 2.2f;
+
+        /// <summary>
+        /// Gets or sets the viewer's exposure compensation in stops, added on top of whatever the post
+        /// process volume authors. Applied after the exposure clamp, so it still works on the many scenes
+        /// that pin exposure to an authored bound.
+        /// </summary>
+        public float ExposureCompensation { get; set; }
+
+        /// <summary>The displayed luminance that auto-exposure places the scene's log-average on.</summary>
+        private const float MiddleGrey = 0.18f;
+
+        /// <summary>
+        /// Gets the pre-tonemap scene luminance auto-exposure aims for: the value the active tonemap
+        /// curve displays as <see cref="MiddleGrey"/>.
+        /// </summary>
+        public float ExposureTargetLuminance { get; private set; } = MiddleGrey;
         /// <summary>Gets the smoothed exposure value applied in the current frame.</summary>
         public float CurrentExposure { get; private set; } = 1.0f;
         /// <summary>Gets the target exposure value that <see cref="CurrentExposure"/> is adapting towards.</summary>
@@ -208,9 +228,11 @@ namespace ValveResourceFormat.Renderer.PostProcess
             shader.SetUniform("g_flToeNum", TonemapSettings.ToeNum);
             shader.SetUniform("g_flToeDenom", TonemapSettings.ToeDenom);
 
-            var tonemappedWhitePoint = TonemapSettings.ApplyTonemapping(TonemapSettings.WhitePoint);
-            shader.SetUniform("g_flWhitePoint", TonemapSettings.WhitePoint);
+            var effectiveWhitePoint = TonemapSettings.EffectiveWhitePoint;
+            var tonemappedWhitePoint = TonemapSettings.ApplyTonemapping(effectiveWhitePoint);
+            shader.SetUniform("g_flWhitePoint", effectiveWhitePoint);
             shader.SetUniform("g_flWhitePointScale", 1.0f / tonemappedWhitePoint);
+            shader.SetUniform("g_flFullScreenGamma", FullScreenGamma);
         }
 
         /// <summary>
@@ -326,13 +348,31 @@ namespace ValveResourceFormat.Renderer.PostProcess
             {
                 TonemapScalar = CustomExposure;
                 State = State with { ExposureSettings = State.ExposureSettings with { AutoExposureEnabled = false } };
+                ReportTonemapStats();
                 return;
             }
 
             exposure = AutoAdjustExposure(exposure, deltaTime);
 
-            exposure *= MathF.Pow(2.0f, State.ExposureSettings.ExposureCompensation);
+            exposure *= MathF.Pow(2.0f, State.ExposureSettings.ExposureCompensation + ExposureCompensation);
             TonemapScalar = exposure;
+
+            ReportTonemapStats();
+        }
+
+        /// <summary> Publishes tonemapping state to the render stats.</summary>
+        private void ReportTonemapStats()
+        {
+            var settings = State.ExposureSettings;
+            var stats = PerfStats.Active;
+
+            stats.Set(Metric.SceneLuminance, AverageLuminance);
+            stats.Set(Metric.TonemapScalar, TonemapScalar);
+            stats.Set(Metric.FullScreenGamma, FullScreenGamma);
+            stats.Set(Metric.ExposureTargetLuminance, ExposureTargetLuminance);
+            stats.Set(Metric.Exposure, CurrentExposure);
+            stats.Set(Metric.ExposureMin, settings.AutoExposureEnabled ? settings.ExposureMin : 0f);
+            stats.Set(Metric.ExposureMax, settings.AutoExposureEnabled ? settings.ExposureMax : 0f);
         }
 
         private float AutoAdjustExposure(float exposure, float deltaTime)
@@ -342,8 +382,10 @@ namespace ValveResourceFormat.Renderer.PostProcess
                 return exposure;
             }
 
-            // Implement auto-exposure logic
-            var rawScalar = 0.18f / AverageLuminance;
+            var curveInput = State.TonemapSettings.InvertTonemapping(MiddleGrey);
+            ExposureTargetLuminance = float.IsNaN(curveInput) ? MiddleGrey : curveInput;
+
+            var rawScalar = ExposureTargetLuminance / AverageLuminance;
             if (!float.IsFinite(rawScalar))
             {
                 return exposure;
@@ -370,7 +412,7 @@ namespace ValveResourceFormat.Renderer.PostProcess
 
                 for (var i = 0; i < 10; i++)
                 {
-                    var weight = (5 - Math.Abs(5 - i)) * 0.2f;
+                    var weight = Math.Abs(5 - i) * 0.2f; // might be (5 - Math.Abs(5 - i))
                     weightTotal += weight;
                     weightedSum += weight * ExposureHistory[i];
                 }

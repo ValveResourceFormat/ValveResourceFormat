@@ -15,6 +15,7 @@ uniform float g_flToeNum;
 uniform float g_flToeDenom;
 uniform float g_flWhitePoint;
 uniform float g_flWhitePointScale;
+uniform float g_flFullScreenGamma = 2.2;
 
 uniform float g_flColorCorrectionDefaultWeight = 1.0;
 uniform vec2 g_vColorCorrectionColorRange = vec2(0.96875, 0.015625);
@@ -41,6 +42,8 @@ layout (location = 0) out vec4 outputColor;
 
 vec3 TonemapColor(vec3 vColor)
 {
+    vColor = min(vColor * 2.8, vec3(g_flWhitePoint));
+
     // Uncharted tonemapper
     vec3 tonemapNumerator = vColor * (g_flShoulderStrength * vColor + g_flLinearStrength * g_flLinearAngle) + g_flToeNum * g_flToeStrength;
     vec3 tonemapDenominator = vColor * (g_flShoulderStrength * vColor + g_flLinearStrength) + g_flToeDenom * g_flToeStrength;
@@ -79,8 +82,10 @@ void main()
 
     if (g_bPostProcessEnabled)
     {
-        vColor.rgb *= (g_flToneMapScalarLinear * g_flExposureBiasScaleFactor);
-        vec3 vRawColor = vColor.rgb;
+        // The bloom terms are weighted by the exposure on its own, not by the exposed color, so keep it
+        // around after the scene has been multiplied through.
+        float flExposure = g_flToneMapScalarLinear * g_flExposureBiasScaleFactor;
+        vColor.rgb *= flExposure;
 
         #if (D_BLOOM == 1)
             vec3 bloomSample = textureLod(g_tBloom, (min(fragCoord, g_vBloomUvScaleClamp.zw) * g_vBloomUvScaleClamp.xy).xy, 0.0).xyz;
@@ -89,12 +94,10 @@ void main()
             // bloomSample += ((bloomSample * textureLod(g_tDirt, fragCoord.xy, 0.0).xyz) * g_flBloomLensDirtIntensity);
 
             // BLUR bloom
-            // this looks just wrong and I'm not sure why
-            // very few maps use this anyways, it looks weird to begin with
             vColor.rgb *= 1.0 - g_vUnNormalizedBloomStrengths.z;
-            vColor.rgb += bloomSample.xyz * g_vNormalizedBloomStrengths.z * vRawColor.rgb;
+            vColor.rgb += bloomSample * (g_vNormalizedBloomStrengths.z * flExposure);
 
-            // ADD bloom
+            // ADD bloom, not weighted by exposure
             vColor.rgb += (bloomSample.rgb * g_vNormalizedBloomStrengths.x);
 
             //outputColor.rgb = SrgbLinearToGamma(bloomSample);
@@ -105,9 +108,9 @@ void main()
         vColor.rgb = SrgbLinearToGamma(vColor.rgb);
         
         #if (D_BLOOM == 1)
-            // SCREEN bloom
-            vec3 screenBloomSample = bloomSample.rgb * vRawColor.rgb;
-            vec3 screenBlend = saturate((screenBloomSample / (screenBloomSample + 0.187)) * 1.034);
+            // SCREEN bloom, blended against the gamma encoded color
+            vec3 screenBloomSample = bloomSample.rgb * flExposure;
+            vec3 screenBlend = saturate((screenBloomSample / (screenBloomSample + 0.187)) * 1.035);
             screenBlend *= g_vNormalizedBloomStrengths.y;
 
             vColor.rgb = (vColor.rgb + screenBlend) - (vColor.rgb * screenBlend);
@@ -118,6 +121,7 @@ void main()
             vColor.rgb = ApplyColorCorrection(vColor.rgb);
         }
 
+        vColor.rgb = pow(ClampToPositive(vColor.rgb), vec3(g_flFullScreenGamma * (1.0 / 2.2)));
         vColor.rgb = DitherColor(vColor.rgb);
     }
 
