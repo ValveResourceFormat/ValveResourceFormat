@@ -233,10 +233,7 @@ namespace ValveResourceFormat.Renderer.Particles
         /// Returns a rotation matrix derived from the particle's Euler angles.
         /// </summary>
         public readonly Matrix4x4 GetRotationMatrix()
-        {
-            var rotationMatrix = Matrix4x4.CreateFromYawPitchRoll(Rotation.X, Rotation.Y, Rotation.Z);
-            return rotationMatrix;
-        }
+            => EntityTransformHelper.EulerAnglesToRotationMatrixRadians(new Vector3(Rotation.Y, Rotation.X, Rotation.Z));
 
         /// <summary>
         /// Marks this particle for removal at the end of the current frame.

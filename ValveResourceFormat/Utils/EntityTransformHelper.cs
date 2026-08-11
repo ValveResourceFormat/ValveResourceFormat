@@ -41,10 +41,19 @@ namespace ValveResourceFormat.Utils
         /// <param name="pitchYawRoll">The Euler angles.</param>
         /// <returns>The rotation matrix.</returns>
         public static Matrix4x4 EulerAnglesToRotationMatrix(Vector3 pitchYawRoll)
+            => EulerAnglesToRotationMatrixRadians(Vector3.DegreesToRadians(pitchYawRoll));
+
+        /// <summary>
+        /// Converts Euler angles (pitch, yaw, roll) in radians to a rotation matrix, for the callers
+        /// that hold their angles that way, such as a particle's rotation attributes.
+        /// </summary>
+        /// <param name="pitchYawRoll">The Euler angles, in radians.</param>
+        /// <returns>The rotation matrix.</returns>
+        public static Matrix4x4 EulerAnglesToRotationMatrixRadians(Vector3 pitchYawRoll)
         {
-            var rollMatrix = Matrix4x4.CreateRotationX(float.DegreesToRadians(pitchYawRoll.Z));
-            var pitchMatrix = Matrix4x4.CreateRotationY(float.DegreesToRadians(pitchYawRoll.X));
-            var yawMatrix = Matrix4x4.CreateRotationZ(float.DegreesToRadians(pitchYawRoll.Y));
+            var rollMatrix = Matrix4x4.CreateRotationX(pitchYawRoll.Z);
+            var pitchMatrix = Matrix4x4.CreateRotationY(pitchYawRoll.X);
+            var yawMatrix = Matrix4x4.CreateRotationZ(pitchYawRoll.Y);
 
             return rollMatrix * pitchMatrix * yawMatrix;
         }
