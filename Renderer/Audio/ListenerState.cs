@@ -13,6 +13,7 @@ namespace ValveResourceFormat.Renderer.Audio;
 /// <param name="DeltaTime">Real time elapsed since the previous update, in seconds. Zero when there was no previous update.</param>
 /// <param name="PanSharpness">How hard sounds pull towards the near ear (see <see cref="SoundEventPlayer.PositionalSharpness"/>).</param>
 /// <param name="SpectralCueStrength">How strongly above/below and front/behind are voiced (see <see cref="SoundEventPlayer.SpectralCueStrength"/>).</param>
+/// <param name="DopplerScale">How strongly approach speed shifts pitch (see <see cref="SoundEventPlayer.DopplerScale"/>).</param>
 /// <param name="SampleRate">Mixer output rate, which the cue filters are tuned against.</param>
 public readonly record struct ListenerState(Vector3 Position, Vector3 Forward, Vector3 Right, Vector3 Up, Vector3 Velocity,
-    float DeltaTime, float PanSharpness = 1f, float SpectralCueStrength = 0f, int SampleRate = 48000);
+    float DeltaTime, float PanSharpness = 1f, float SpectralCueStrength = 0f, float DopplerScale = 1f, int SampleRate = 48000);

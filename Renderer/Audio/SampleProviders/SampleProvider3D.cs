@@ -55,12 +55,13 @@ public class SampleProvider3D : SampleProviderSpatial
     // Shorter than the occlusion ramp: this only takes the jitter out of a position sampled once a frame.
     private const float VelocitySmoothingSeconds = 0.05f;
 
-    // Speed of sound, in Valve units (inches) per second.
-    private const float SpeedOfSound = 13503.9f;
+    // Speed of sound, in hammer units.
+    private const float SpeedOfSound = 343 * 39.37f;
 
-    // A sound that moved further than this in a second was repositioned rather than moved (a retriggered
-    // one shot picking a new spot, an emitter following an entity that teleported) - no doppler for it.
-    private const float MaxSourceSpeed = 4000f;
+    /// <summary>
+    /// Fastest approach the shift is allowed to be computed from.
+    /// </summary>
+    private const float MaxDopplerRate = 1000f;
 
     // Closer than this the listener is effectively on top of the sound and there is no approach axis left.
     private const float MinDopplerDistance = 8f;
@@ -186,20 +187,17 @@ public class SampleProvider3D : SampleProviderSpatial
         {
             var instantVelocity = hasLastPosition ? (Position - lastPosition) / listener.DeltaTime : Vector3.Zero;
 
-            if (instantVelocity.LengthSquared() > MaxSourceSpeed * MaxSourceSpeed)
-            {
-                instantVelocity = Vector3.Zero;
-            }
-
             velocity = Vector3.Lerp(velocity, instantVelocity, Smoothing(listener.DeltaTime, VelocitySmoothingSeconds));
         }
 
         lastPosition = Position;
         hasLastPosition = true;
 
+        var scale = DopplerScale * listener.DopplerScale;
+
         // A sound in the listener's own head has no axis to close along, and the direction it falls back
         // to would read the listener's own movement as a shift
-        if (DopplerScale == 0f || distance < MinDopplerDistance)
+        if (scale <= 0f || distance < MinDopplerDistance)
         {
             dopplerTarget.DopplerShift = 1f;
             return;
@@ -207,10 +205,10 @@ public class SampleProvider3D : SampleProviderSpatial
 
         // Along the listener-to-sound axis: the listener moving towards the sound raises the pitch, the
         // sound moving away from the listener lowers it
-        var closingRate = Vector3.Dot(listener.Velocity, direction);
-        var recedingRate = Vector3.Dot(velocity, direction);
+        var closingRate = Math.Clamp(Vector3.Dot(listener.Velocity, direction), -MaxDopplerRate, MaxDopplerRate);
+        var recedingRate = Math.Clamp(Vector3.Dot(velocity, direction), -MaxDopplerRate, MaxDopplerRate);
 
-        var shift = Math.Clamp(1f + ((SpeedOfSound + closingRate) / (SpeedOfSound + recedingRate) - 1f) * DopplerScale, 0.5f, 2f);
+        var shift = Math.Clamp(1f + ((SpeedOfSound + closingRate) / (SpeedOfSound + recedingRate) - 1f) * scale, 0.5f, 2f);
 
         // Anything below this is inaudible as a pitch change, and it is worth snapping to exactly 1:
         // that is what lets a still listener keep streaming samples straight through instead of resampling

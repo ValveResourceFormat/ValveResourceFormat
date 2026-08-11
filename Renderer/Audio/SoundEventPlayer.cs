@@ -102,6 +102,17 @@ public sealed class SoundEventPlayer : IDisposable
         set => spectralCueStrength = Math.Clamp(value, 0f, 1f);
     }
 
+    private float dopplerScale = 0.2f;
+
+    /// <summary>
+    /// Gets or sets how strongly closing on a sound (or it closing on the listener) shifts its pitch.
+    /// </summary>
+    public float DopplerScale
+    {
+        get => dopplerScale;
+        set => dopplerScale = Math.Clamp(value, 0f, 2f);
+    }
+
     private readonly IFileLoader fileLoader;
     private readonly IAudioDevice device;
     private readonly ILogger logger;

@@ -44,6 +44,11 @@ public sealed class AudioMixer : IDisposable
     // paused viewer coming back): the implied velocity is meaningless, so the frame runs without one.
     private const float MaxListenerSpeed = 5000f;
 
+    // The position comes from the camera and the interval from a stopwatch on this thread, and the two
+    // are not measuring the same frame: any jitter between them lands in the velocity at full weight,
+    // which the doppler shift then turns into audible warble. Smoothed over the same span as a sound's own.
+    private const float VelocitySmoothingSeconds = 0.05f;
+
     // Beyond this the gap is a stall rather than a frame, and smoothing a whole second of it in one
     // step just snaps whatever it drives.
     private const float MaxDeltaTime = 0.25f;
@@ -77,16 +82,17 @@ public sealed class AudioMixer : IDisposable
 
         if (deltaTime > 0f)
         {
-            velocity = (listenerPosition - listener.Position) / deltaTime;
+            var instantVelocity = (listenerPosition - listener.Position) / deltaTime;
 
-            if (velocity.LengthSquared() > MaxListenerSpeed * MaxListenerSpeed)
+            // A jump leaves the running average behind entirely rather than smoothing towards the spike
+            if (instantVelocity.LengthSquared() <= MaxListenerSpeed * MaxListenerSpeed)
             {
-                velocity = Vector3.Zero;
+                velocity = Vector3.Lerp(listener.Velocity, instantVelocity, 1f - MathF.Exp(-deltaTime / VelocitySmoothingSeconds));
             }
         }
 
         listener = new ListenerState(listenerPosition, listenerForward, listenerRight, listenerUp, velocity, deltaTime,
-            Player.PositionalSharpness, Player.SpectralCueStrength, Player.SampleRate);
+            Player.PositionalSharpness, Player.SpectralCueStrength, Player.DopplerScale, Player.SampleRate);
 
         lock (soundEvents)
         {
