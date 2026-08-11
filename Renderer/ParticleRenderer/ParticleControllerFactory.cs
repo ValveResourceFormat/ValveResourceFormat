@@ -206,7 +206,7 @@ namespace ValveResourceFormat.Renderer.Particles
             {
                 ["C_OP_RenderSprites"] = (rendererInfo, rendererContext, scene) => new RenderSprites(rendererInfo, rendererContext),
                 ["C_OP_RenderCables"] = (rendererInfo, rendererContext, scene) => new RenderCables(rendererInfo, rendererContext, scene),
-                ["C_OP_RenderRopes"] = (rendererInfo, rendererContext, scene) => new RenderCables(rendererInfo, rendererContext, scene), // Rope renderer variant, drawn with RenderCables as a tube approximation.
+                ["C_OP_RenderRopes"] = (rendererInfo, rendererContext, scene) => new RenderRopes(rendererInfo, rendererContext),
 
                 ["C_OP_RenderTrails"] = (rendererInfo, rendererContext, scene) => new RenderTrails(rendererInfo, rendererContext),
                 ["C_OP_RenderSound"] = (rendererInfo, rendererContext, scene) => new RenderSound(rendererInfo),
