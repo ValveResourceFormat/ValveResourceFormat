@@ -150,9 +150,16 @@ namespace ValveResourceFormat.Renderer.Particles.Utils
             else
             {
                 // Clamp to edges
-                return Math.Clamp(value, min, max);
+                return MathF.Min(MathF.Max(value, min), max);
             }
         }
+
+        private float ClampToDomainRange(float value)
+        {
+            // Inverted domain bounds resolve like the engine's successive min and max, not an exception
+            return MathF.Min(MathF.Max(value, curveDomainMin.Y), curveDomainMax.Y);
+        }
+
         public float Evaluate(float value)
         {
             if (curveSegments.Length == 0)
@@ -165,12 +172,12 @@ namespace ValveResourceFormat.Renderer.Particles.Utils
             // If coordinate is on/before the first point
             if (value <= curveSegments[0].Start.X)
             {
-                return Math.Clamp(curveSegments[0].Start.Y, curveDomainMin.Y, curveDomainMax.Y);
+                return ClampToDomainRange(curveSegments[0].Start.Y);
             }
             // If coordinate is on/after the last point
             else if (value >= curveSegments[^1].End.X)
             {
-                return Math.Clamp(curveSegments[^1].End.Y, curveDomainMin.Y, curveDomainMax.Y);
+                return ClampToDomainRange(curveSegments[^1].End.Y);
             }
             // If coordinate is on or between two points
             else
@@ -183,12 +190,12 @@ namespace ValveResourceFormat.Renderer.Particles.Utils
                     {
                         value = curveSegments[i].Evaluate(value);
 
-                        return Math.Clamp(value, curveDomainMin.Y, curveDomainMax.Y);
+                        return ClampToDomainRange(value);
                     }
                 }
 
                 // I guess we just return the last point?
-                return Math.Clamp(curveSegments[^1].End.Y, curveDomainMin.Y, curveDomainMax.Y);
+                return ClampToDomainRange(curveSegments[^1].End.Y);
             }
         }
     }
