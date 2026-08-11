@@ -1,8 +1,9 @@
 namespace ValveResourceFormat.Renderer.Particles.Operators
 {
     /// <summary>
-    /// Kills each particle once the endcap has been running for as long as that particle's whole
-    /// lifetime, so the collection drains over the spread of its authored lifetimes rather than at once.
+    /// Kills each particle whose whole lifetime is shorter than the endcap has been running, so the
+    /// collection drains over the spread of its authored lifetimes rather than at once. The engine
+    /// offsets the threshold by the collection age at which the endcap started, delaying the drain.
     /// </summary>
     /// <seealso href="https://s2v.app/SchemaExplorer/cs2/particles/C_OP_EndCapDecay">C_OP_EndCapDecay</seealso>
     class EndCapDecay : ParticleFunctionOperator
@@ -18,7 +19,7 @@ namespace ValveResourceFormat.Renderer.Particles.Operators
                 return;
             }
 
-            var endCapAge = particleSystemState.EndCapAge;
+            var endCapAge = particleSystemState.EndCapAge - particleSystemState.EndCapStartAge;
 
             foreach (ref var particle in particles.Current)
             {
