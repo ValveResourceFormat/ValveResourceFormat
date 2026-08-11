@@ -497,6 +497,7 @@ public sealed class FuncRotating : BaseModelEntity
     {
         if (playing != null)
         {
+            // FIXME: sound system does not allow this rn
             playing.VolumeOverride = GetRampedVolume();
         }
     }
