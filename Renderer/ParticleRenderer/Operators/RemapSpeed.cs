@@ -15,9 +15,16 @@ namespace ValveResourceFormat.Renderer.Particles.Operators
         private readonly ParticleField outputField = ParticleField.Radius;
         private readonly ParticleSetMethod setMethod = ParticleSetMethod.PARTICLE_SET_REPLACE_VALUE;
 
+        /// <summary>
+        /// Reads the distance the particle moved this frame instead of its speed: the engine divides
+        /// the step by the frame time, and this leaves the divisor at one.
+        /// </summary>
+        private readonly bool ignoreDelta;
+
         public RemapSpeed(ParticleDefinitionParser parse) : base(parse)
         {
             outputField = parse.ParticleField("m_nFieldOutput", outputField);
+            ignoreDelta = parse.Boolean("m_bIgnoreDelta", ignoreDelta);
             inputMin = parse.NumberProvider("m_flInputMin", inputMin);
             inputMax = parse.NumberProvider("m_flInputMax", inputMax);
             outputMin = parse.NumberProvider("m_flOutputMin", outputMin);
@@ -34,7 +41,8 @@ namespace ValveResourceFormat.Renderer.Particles.Operators
                 var outputMin = this.outputMin.NextNumber(ref particle, particleSystemState);
                 var outputMax = this.outputMax.NextNumber(ref particle, particleSystemState);
 
-                var finalValue = MathUtils.RemapValClamped(particle.Speed, inputMin, inputMax, outputMin, outputMax);
+                var speed = ignoreDelta ? particle.Speed * frameTime : particle.Speed;
+                var finalValue = MathUtils.RemapValClamped(speed, inputMin, inputMax, outputMin, outputMax);
                 finalValue = particle.ModifyScalarBySetMethod(particles, outputField, finalValue, setMethod);
 
                 particle.SetScalar(outputField, float.Lerp(particle.GetScalar(outputField), finalValue, strength));
