@@ -50,6 +50,9 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
         /// <summary>Whether sheet frame blending keeps the brighter of the two frames per channel.</summary>
         protected bool MaxLuminanceFrameBlend { get; }
 
+        /// <summary>Additive self-colour laid over the alpha blend; uploaded as 1 + amount.</summary>
+        protected INumberProvider AddSelfAmount { get; } = new LiteralNumberProvider(0f);
+
         /// <summary>Shifts the drawn quad within its own plane, in radii.</summary>
         protected INumberProvider CenterXOffset { get; } = new LiteralNumberProvider(0f);
 
@@ -60,7 +63,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
         /// Distance along the view direction the depth is re-taken from, in world units, leaving the
         /// drawn position alone. Pulls a card in front of geometry it would otherwise intersect.
         /// </summary>
-        protected float DepthBias { get; }
+        protected INumberProvider DepthBias { get; } = new LiteralNumberProvider(0f);
 
         protected ParticleFunctionRenderer(ParticleDefinitionParser parse) : base(parse)
         {
@@ -68,7 +71,8 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
             AlphaScale = parse.NumberProvider("m_flAlphaScale", AlphaScale);
             ColorScale = parse.VectorProvider("m_vecColorScale", ColorScale);
             OverbrightFactor = parse.NumberProvider("m_flOverbrightFactor", OverbrightFactor);
-            DepthBias = parse.Float("m_flDepthBias", DepthBias);
+            AddSelfAmount = parse.NumberProvider("m_flAddSelfAmount", AddSelfAmount);
+            DepthBias = parse.NumberProvider("m_flDepthBias", DepthBias);
             DiffuseAmount = parse.NumberProvider("m_flDiffuseAmount", DiffuseAmount);
             SelfIllumAmount = parse.NumberProvider("m_flSelfIllumAmount", SelfIllumAmount);
             Desaturation = parse.NumberProvider("m_flDesaturation", Desaturation);
@@ -104,13 +108,14 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
         protected void SetSharedUniforms(Shader shader, ParticleSystemRenderState systemRenderState)
         {
             shader.SetUniform1("uOverbrightFactor", OverbrightFactor.NextNumber(systemRenderState));
+            shader.SetUniform1("uAddSelfAmount", 1f + AddSelfAmount.NextNumber(systemRenderState));
             shader.SetUniform1("uColorFactor", DiffuseAmount.NextNumber(systemRenderState) + SelfIllumAmount.NextNumber(systemRenderState));
             shader.SetUniform1("uDesaturation", Desaturation.NextNumber(systemRenderState));
             shader.SetUniform3("uHsvShift", GetHsvShift(systemRenderState));
             shader.SetUniform2("uAlphaRemapRange", GetAlphaRemapRange(systemRenderState));
             shader.SetUniform3("uColorScale", ColorScale.NextVector(systemRenderState));
             shader.SetUniform1("uGammaCorrectVertexColors", GammaCorrectVertexColors);
-            shader.SetUniform1("uDepthBias", DepthBias);
+            shader.SetUniform1("uDepthBias", DepthBias.NextNumber(systemRenderState));
             shader.SetUniform1("uSaturateColorPreAlphaBlend", SaturateColorPreAlphaBlend);
             shader.SetUniform1("uMaxLuminanceFrameBlend", MaxLuminanceFrameBlend);
         }

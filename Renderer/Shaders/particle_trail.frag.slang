@@ -22,6 +22,7 @@ uniform bool uMaxLuminanceFrameBlend = false;
 
 // The shared CBaseRendererSource2 colour treatment, the same set the sprite renderer uploads.
 uniform float uOverbrightFactor;
+uniform float uAddSelfAmount = 1.0; // 1 + m_flAddSelfAmount
 uniform float uColorFactor = 1.0; // m_flDiffuseAmount + m_flSelfIllumAmount
 uniform float uDesaturation = 0.0; // m_flDesaturation
 uniform bool uSaturateColorPreAlphaBlend = true;
@@ -137,6 +138,8 @@ void main(void) {
         {
             finalColor = saturate(finalColor);
         }
+
+        finalColor *= uAddSelfAmount;
 
         bool isAdditive = uBlendMode == PARTICLE_OUTPUT_BLEND_MODE_ADD;
 
