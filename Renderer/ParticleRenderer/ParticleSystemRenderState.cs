@@ -285,7 +285,7 @@ namespace ValveResourceFormat.Renderer.Particles
         {
             var point = GetControlPoint(cp);
             point.Rotation = rotation;
-            point.Orientation = Vector3.Transform(Vector3.UnitZ, rotation);
+            point.Orientation = Vector3.Transform(Vector3.UnitX, rotation);
         }
 
     }
@@ -375,9 +375,7 @@ namespace ValveResourceFormat.Renderer.Particles
                 return Quaternion.Identity;
             }
 
-            var matrix = EntityTransformHelper.ForwardDirectionToRotationMatrix(Vector3.Normalize(orientation));
-
-            return Quaternion.CreateFromRotationMatrix(matrix);
+            return EntityTransformHelper.ForwardDirectionToQuaternion(orientation);
         }
 
         /// <summary>

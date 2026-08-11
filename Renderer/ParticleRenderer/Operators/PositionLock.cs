@@ -68,6 +68,9 @@ namespace ValveResourceFormat.Renderer.Particles.Operators
             var transformPosition = transform.Translation;
             var scale = componentScale.NextVector(particleSystemState);
 
+            // Also per frame: the transform does not vary per particle, so neither does its direction
+            var hasOrientation = transformInput.TryGetOrientation(ref Particle.Default, particleSystemState, out var lockedNormal);
+
             if (previousTransformPosition.X == float.MaxValue)
             {
                 previousTransformPosition = transformPosition;
@@ -165,7 +168,12 @@ namespace ValveResourceFormat.Renderer.Particles.Operators
 
                     particle.SetVector(outputFieldPrev, currentPrevious + (rotatedPrevious - currentPrevious) * (rotationStrength * prevPosScale));
                     particle.SetVector(outputField, currentPosition + (rotatedPosition - currentPosition) * rotationStrength);
-                    particle.Normal = transformInput.GetOrientation(ref particle, particleSystemState);
+                    // A transform with no orientation of its own has no direction to hand the normal,
+                    // so the particle keeps the one it had
+                    if (hasOrientation)
+                    {
+                        particle.Normal = lockedNormal;
+                    }
                 }
                 else
                 {

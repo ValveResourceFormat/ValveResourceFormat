@@ -395,8 +395,7 @@ namespace ValveResourceFormat.Renderer.SceneNodes
                 else
                 {
                     point.Orientation = EntityTransformHelper.EulerAnglesToForwardDirection(angleOffset);
-                    point.Rotation = Quaternion.CreateFromRotationMatrix(
-                        EntityTransformHelper.EulerAnglesToRotationMatrix(angleOffset));
+                    point.Rotation = EntityTransformHelper.EulerAnglesToQuaternion(angleOffset);
                 }
                 point.AttachType = attachType;
             }

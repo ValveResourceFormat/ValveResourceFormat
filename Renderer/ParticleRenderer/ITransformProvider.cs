@@ -26,12 +26,19 @@ namespace ValveResourceFormat.Renderer.Particles
         }
 
         /// <summary>
-        /// Gets the orientation (forward direction) from the transform.
+        /// Gets the orientation, meaning the forward direction, that this provider carries.
         /// </summary>
-        Vector3 GetOrientation(ref Particle particle, ParticleSystemRenderState renderState)
+        /// <remarks>
+        /// Providers that only place things answer <see langword="false"/> rather than reporting the +X an
+        /// identity rotation would give, so a caller does not overwrite a direction with a meaningless one.
+        /// That is the default, so a provider has to opt in to having an orientation rather than remember
+        /// to opt out of reporting a bogus one.
+        /// </remarks>
+        /// <returns>Whether the provider has an orientation to report.</returns>
+        bool TryGetOrientation(ref Particle particle, ParticleSystemRenderState renderState, out Vector3 orientation)
         {
-            var transform = NextTransform(ref particle, renderState);
-            return new Vector3(transform.M31, transform.M32, transform.M33);
+            orientation = Vector3.Zero;
+            return false;
         }
     }
 
@@ -57,32 +64,50 @@ namespace ValveResourceFormat.Renderer.Particles
         {
         }
 
+        /// <summary>
+        /// Whether this control point says anything about which way it faces, as opposed to only where it is.
+        /// </summary>
+        private bool HasOrientation(ControlPoint cp)
+            => useOrientation && (cp.Rotation is not null || cp.Orientation != Vector3.Zero);
+
         /// <inheritdoc/>
         public Matrix4x4 NextTransform(ref Particle particle, ParticleSystemRenderState renderState)
         {
             var cp = renderState.GetControlPoint(controlPoint);
             var position = cp.Position;
 
-            if (!useOrientation)
+            if (!HasOrientation(cp))
             {
                 return Matrix4x4.CreateTranslation(position);
             }
 
             // A full rotation (e.g. from a map entity's angles) can express frames a bare forward
             // vector cannot; prefer it when the control point carries one.
-            if (cp.Rotation is { } fullRotation)
-            {
-                return Matrix4x4.CreateFromQuaternion(fullRotation) * Matrix4x4.CreateTranslation(position);
-            }
-
-            if (cp.Orientation == Vector3.Zero)
-            {
-                return Matrix4x4.CreateTranslation(position);
-            }
-
-            var rotation = EntityTransformHelper.ForwardDirectionToRotationMatrix(Vector3.Normalize(cp.Orientation));
+            var rotation = cp.Rotation is { } fullRotation
+                ? Matrix4x4.CreateFromQuaternion(fullRotation)
+                : EntityTransformHelper.ForwardDirectionToRotationMatrix(cp.Orientation);
 
             return rotation * Matrix4x4.CreateTranslation(position);
+        }
+
+        /// <inheritdoc/>
+        public bool TryGetOrientation(ref Particle particle, ParticleSystemRenderState renderState, out Vector3 orientation)
+        {
+            var cp = renderState.GetControlPoint(controlPoint);
+
+            if (!HasOrientation(cp))
+            {
+                orientation = Vector3.Zero;
+                return false;
+            }
+
+            // Forward is the frame's first row either way, and for the direction-only case that is the
+            // direction itself, so there is nothing to build here.
+            orientation = cp.Rotation is { } fullRotation
+                ? Vector3.Transform(Vector3.UnitX, fullRotation)
+                : Vector3.Normalize(cp.Orientation);
+
+            return true;
         }
 
         /// <summary>

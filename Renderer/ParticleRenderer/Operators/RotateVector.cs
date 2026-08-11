@@ -30,27 +30,27 @@ namespace ValveResourceFormat.Renderer.Particles.Operators
             normalize = parse.Boolean("m_bNormalize", normalize);
         }
 
-        private static Vector3 MatrixMul(Vector3 vector, Matrix4x4 rotatedMatrix)
-        {
-            return vector.X * new Vector3(rotatedMatrix.M11, rotatedMatrix.M12, rotatedMatrix.M13) +
-                vector.Y * new Vector3(rotatedMatrix.M21, rotatedMatrix.M22, rotatedMatrix.M23) +
-                vector.Z * new Vector3(rotatedMatrix.M31, rotatedMatrix.M32, rotatedMatrix.M33);
-        }
-
         public override void Operate(ParticleCollection particles, float frameTime, ParticleSystemRenderState particleSystemState, float strength)
         {
             foreach (ref var particle in particles.Current)
             {
                 // The rotation rate shares the axis draw rather than taking one of its own
                 var random = particleSystemState.Random.ForParticle(particle.ParticleId);
-                var axis = Vector3.Normalize(Vector3.Lerp(rotAxisMin, rotAxisMax, random));
+                var drawnAxis = Vector3.Lerp(rotAxisMin, rotAxisMax, random);
+
+                // Authored as zero, or as a pair that cancels at this draw, leaves nothing to rotate about
+                if (drawnAxis == Vector3.Zero)
+                {
+                    continue;
+                }
+
+                var axis = Vector3.Normalize(drawnAxis);
                 var rotationRate = float.DegreesToRadians(float.Lerp(rotRateMin, rotRateMax, random));
 
                 var scale = perParticleScale.NextNumber(ref particle, particleSystemState);
 
-                // probably slow but who knows???
                 var currentVector = particle.GetVector(outputField);
-                var rotatedVector = MatrixMul(currentVector, Matrix4x4.CreateFromAxisAngle(axis, rotationRate * scale * frameTime));
+                var rotatedVector = Vector3.TransformNormal(currentVector, Matrix4x4.CreateFromAxisAngle(axis, rotationRate * scale * frameTime));
 
                 rotatedVector = normalize
                     ? Vector3.Normalize(rotatedVector)
