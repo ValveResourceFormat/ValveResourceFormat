@@ -323,6 +323,21 @@ namespace ValveResourceFormat.Renderer.Materials
 
             var tex = new RenderTexture(target, data);
             var format = GetTextureFormat(data.Format);
+
+            // todo: BC7 and BC6H are also problematic on pre-RDNA AMD GPUs, when using immutable storage
+            // see https://github.com/ValveResourceFormat/ValveResourceFormat/issues/721
+            var rgba8UncompressedFallback = target == TextureTarget.Texture3D && IsOpenGLUnsupportedTexture3DFormat(data.Format);
+
+            if (rgba8UncompressedFallback)
+            {
+                format = new TextureFormatMapping(
+                    SizedInternalFormat.Rgba8,
+                    PixelFormat.Rgba,
+                    PixelType.UnsignedByte,
+                    format.InternalSrgbFormat is not null ? SizedInternalFormat.Srgb8Alpha8 : null
+                );
+            }
+
             var sizedInternalFormat = srgbRead && format.InternalSrgbFormat is not null ? format.InternalSrgbFormat.Value : format.InternalFormat;
 
 #if DEBUG
@@ -368,12 +383,25 @@ namespace ValveResourceFormat.Renderer.Materials
             }
 
             var buffer = ArrayPool<byte>.Shared.Rent(data.GetBiggestBufferSize());
+            byte[]? decodedBuffer = null;
+
+            if (rgba8UncompressedFallback)
+            {
+                decodedBuffer = ArrayPool<byte>.Shared.Rent(data.Width * data.Height * data.Depth * 4);
+            }
 
             try
             {
                 foreach (var (level, width, height, depth, bufferSize) in data.GetEveryMipLevelTexture(buffer, minMipLevelAllowed))
                 {
                     var realLevel = (int)level - minMipLevelAllowed;
+                    var uploadBuffer = buffer;
+
+                    if (decodedBuffer != null)
+                    {
+                        data.DecodeTexture(buffer.AsSpan(0, bufferSize), decodedBuffer, width, height, depth);
+                        uploadBuffer = decodedBuffer;
+                    }
 
                     if (format.PixelType is not null)
                     {
@@ -381,22 +409,22 @@ namespace ValveResourceFormat.Renderer.Materials
 
                         if (is3d)
                         {
-                            GL.TextureSubImage3D(tex.Handle, realLevel, 0, 0, 0, width, height, depth, format.PixelFormat.Value, format.PixelType.Value, buffer);
+                            GL.TextureSubImage3D(tex.Handle, realLevel, 0, 0, 0, width, height, depth, format.PixelFormat.Value, format.PixelType.Value, uploadBuffer);
                         }
                         else
                         {
-                            GL.TextureSubImage2D(tex.Handle, realLevel, 0, 0, width, height, format.PixelFormat.Value, format.PixelType.Value, buffer);
+                            GL.TextureSubImage2D(tex.Handle, realLevel, 0, 0, width, height, format.PixelFormat.Value, format.PixelType.Value, uploadBuffer);
                         }
                     }
                     else
                     {
                         if (is3d)
                         {
-                            GL.CompressedTextureSubImage3D(tex.Handle, realLevel, 0, 0, 0, width, height, depth, (PixelFormat)sizedInternalFormat, bufferSize, buffer);
+                            GL.CompressedTextureSubImage3D(tex.Handle, realLevel, 0, 0, 0, width, height, depth, (PixelFormat)sizedInternalFormat, bufferSize, uploadBuffer);
                         }
                         else
                         {
-                            GL.CompressedTextureSubImage2D(tex.Handle, realLevel, 0, 0, width, height, (PixelFormat)sizedInternalFormat, bufferSize, buffer);
+                            GL.CompressedTextureSubImage2D(tex.Handle, realLevel, 0, 0, width, height, (PixelFormat)sizedInternalFormat, bufferSize, uploadBuffer);
                         }
                     }
                 }
@@ -404,6 +432,11 @@ namespace ValveResourceFormat.Renderer.Materials
             finally
             {
                 ArrayPool<byte>.Shared.Return(buffer);
+
+                if (decodedBuffer != null)
+                {
+                    ArrayPool<byte>.Shared.Return(decodedBuffer);
+                }
             }
 
             if (!isViewerRequest)
@@ -429,6 +462,19 @@ namespace ValveResourceFormat.Renderer.Materials
         /// <see href="https://registry.khronos.org/OpenGL-Refpages/gl4/html/glTexStorage2D.xhtml"/>
         /// <see href="https://registry.khronos.org/OpenGL-Refpages/gl4/html/glTexSubImage2D.xhtml"/>
         record struct TextureFormatMapping(SizedInternalFormat InternalFormat, PixelFormat? PixelFormat = null, PixelType? PixelType = null, SizedInternalFormat? InternalSrgbFormat = null);
+
+        /// <summary>
+        /// Whether a format has to be decompressed before it can be uploaded to a <see cref="TextureTarget.Texture3D"/>.
+        /// Of the block compressed formats only BPTC is specified to work with 3D textures, as a stack of
+        /// independently compressed 2D slices. S3TC and RGTC are two-dimensional only:
+        /// NVIDIA accepts them through NV_texture_compression_vtc, which reuses the very same format enums but expects
+        /// 4x4x4 VTC tiling, so the slices get read back scrambled, and other drivers reject the upload outright.
+        /// </summary>
+        private static bool IsOpenGLUnsupportedTexture3DFormat(VTexFormat vformat) => vformat
+            is VTexFormat.DXT1
+            or VTexFormat.DXT5
+            or VTexFormat.ATI1N
+            or VTexFormat.ATI2N;
 
         private static TextureFormatMapping GetTextureFormat(VTexFormat vformat) => vformat switch
         {

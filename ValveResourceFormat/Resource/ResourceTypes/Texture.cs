@@ -6,6 +6,7 @@ using System.Runtime.CompilerServices;
 using System.Text;
 using K4os.Compression.LZ4;
 using SkiaSharp;
+using TinyBCSharp;
 using ValveResourceFormat.TextureDecoders;
 
 namespace ValveResourceFormat.ResourceTypes
@@ -694,6 +695,41 @@ namespace ValveResourceFormat.ResourceTypes
             {
                 ArrayPool<byte>.Shared.Return(buf);
                 skiaBitmap?.Dispose();
+            }
+        }
+
+        /// <summary>
+        /// Decompress every slice of one block compressed mip level into RGBA8.
+        /// </summary>
+        /// <param name="compressedSource">Compressed mip level, as returned by <see cref="GetEveryMipLevelTexture"/>.</param>
+        /// <param name="dest">Buffer of at least <c>width * height * depth * 4</c> bytes.</param>
+        /// <param name="width">Width of the mip level.</param>
+        /// <param name="height">Height of the mip level.</param>
+        /// <param name="depth">Number of slices in the mip level to decode if this is 2DArray or 3D.</param>
+        public void DecodeTexture(ReadOnlySpan<byte> compressedSource, Span<byte> dest, int width, int height, int depth = 1)
+        {
+            var blockFormat = Format switch
+            {
+                VTexFormat.DXT1 => BlockFormat.BC1NoAlpha,
+                VTexFormat.DXT5 => BlockFormat.BC3,
+                VTexFormat.ATI1N => BlockFormat.BC4U,
+                VTexFormat.ATI2N => BlockFormat.BC5U,
+                VTexFormat.BC7 => BlockFormat.BC7,
+                _ => throw new NotSupportedException($"Texture format {Format} can not be decompressed to RGBA8."),
+            };
+
+            var decoder = BlockDecoder.Create(blockFormat);
+            var sourceSliceSize = BlockDecoder.SourceSize(width, height, blockFormat);
+            var destinationSliceSize = width * height * 4;
+
+            for (var slice = 0; slice < depth; slice++)
+            {
+                decoder.Decode(
+                    compressedSource.Slice(slice * sourceSliceSize, sourceSliceSize),
+                    width,
+                    height,
+                    dest.Slice(slice * destinationSliceSize, destinationSliceSize)
+                );
             }
         }
 
