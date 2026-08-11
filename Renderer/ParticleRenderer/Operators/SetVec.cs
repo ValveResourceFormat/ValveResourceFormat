@@ -11,6 +11,7 @@ namespace ValveResourceFormat.Renderer.Particles.Operators
         private readonly IVectorProvider value = new LiteralVectorProvider(Vector3.Zero);
         private readonly ParticleSetMethod setMethod = ParticleSetMethod.PARTICLE_SET_REPLACE_VALUE;
         private readonly INumberProvider lerp = new LiteralNumberProvider(1f);
+        private readonly bool normalizedOutput;
 
         public SetVec(ParticleDefinitionParser parse) : base(parse)
         {
@@ -18,6 +19,7 @@ namespace ValveResourceFormat.Renderer.Particles.Operators
             value = parse.VectorProvider("m_InputValue", value);
             setMethod = parse.Enum<ParticleSetMethod>("m_nSetMethod", setMethod);
             lerp = parse.NumberProvider("m_Lerp", lerp);
+            normalizedOutput = parse.Boolean("m_bNormalizedOutput", normalizedOutput);
 
         }
         public override void Operate(ParticleCollection particles, float frameTime, ParticleSystemRenderState particleSystemState, float strength)
@@ -31,6 +33,11 @@ namespace ValveResourceFormat.Renderer.Particles.Operators
                 var initialValue = particle.GetVector(outputField);
 
                 value = Vector3.Lerp(initialValue, currentValue, lerp);
+
+                if (normalizedOutput && value != Vector3.Zero)
+                {
+                    value = Vector3.Normalize(value);
+                }
 
                 particle.SetVector(outputField, value);
             }
