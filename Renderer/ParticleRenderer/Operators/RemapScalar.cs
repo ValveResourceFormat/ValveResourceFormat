@@ -15,6 +15,9 @@ namespace ValveResourceFormat.Renderer.Particles.Operators
         private readonly float outputMin;
         private readonly float outputMax = 1f;
 
+        /// <summary>Selects the retired remap, which clamps the ratio instead of the input.</summary>
+        private readonly bool oldCode;
+
         public RemapScalar(ParticleDefinitionParser parse) : base(parse)
         {
             fieldInput = parse.ParticleField("m_nFieldInput", fieldInput);
@@ -23,6 +26,7 @@ namespace ValveResourceFormat.Renderer.Particles.Operators
             inputMax = parse.Float("m_flInputMax", inputMax);
             outputMin = parse.Float("m_flOutputMin", outputMin);
             outputMax = parse.Float("m_flOutputMax", outputMax);
+            oldCode = parse.Boolean("m_bOldCode", oldCode);
 
             if (fieldOutput is ParticleField.Alpha or ParticleField.AlphaAlternate)
             {
@@ -39,9 +43,23 @@ namespace ValveResourceFormat.Renderer.Particles.Operators
             {
                 var input = particle.GetScalar(fieldInput);
 
-                var output = inputMin == inputMax
-                    ? (input >= inputMax ? outputMax : outputMin)
-                    : MathUtils.RemapValClamped(input, inputMin, inputMax, outputMin, outputMax);
+                float output;
+
+                if (inputMin == inputMax)
+                {
+                    output = input >= inputMax ? outputMax : outputMin;
+                }
+                else if (oldCode)
+                {
+                    output = MathUtils.RemapValClamped(input, inputMin, inputMax, outputMin, outputMax);
+                }
+                else
+                {
+                    // The current path clamps the input into the range and then maps it, rather than
+                    // clamping the ratio, which differs once the input range is inverted.
+                    var clamped = MathF.Max(inputMin, MathF.Min(inputMax, input));
+                    output = outputMin + ((outputMax - outputMin) * (clamped - inputMin) / (inputMax - inputMin));
+                }
 
                 particle.SetScalar(fieldOutput, float.Lerp(particle.GetScalar(fieldOutput), output, blend));
             }

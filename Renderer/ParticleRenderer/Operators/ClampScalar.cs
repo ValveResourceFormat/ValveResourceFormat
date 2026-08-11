@@ -23,10 +23,12 @@ namespace ValveResourceFormat.Renderer.Particles.Operators
             {
                 var min = outputMin.NextNumber(ref particle, particleSystemState);
                 var max = outputMax.NextNumber(ref particle, particleSystemState);
-                MathUtils.MinMaxFixUp(ref min, ref max);
 
                 var currentValue = particle.GetScalar(outputField);
-                var clampedValue = Math.Clamp(currentValue, min, max);
+
+                // An inverted range is not corrected: the engine applies the bounds in order, so
+                // the maximum wins outright.
+                var clampedValue = MathF.Min(max, MathF.Max(currentValue, min));
 
                 particle.SetScalar(outputField, float.Lerp(currentValue, clampedValue, strength));
             }
