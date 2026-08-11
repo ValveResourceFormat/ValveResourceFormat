@@ -101,16 +101,12 @@ namespace GUI.Types.GLViewers
 
         private void OnGetOrSetPositionFromClipboardRequest(object? sender, bool isSetRequest)
         {
-            var pitch = 0.0f;
-            var yaw = 0.0f;
-
             if (!isSetRequest)
             {
                 var loc = Renderer.Camera.Location;
-                pitch = -1.0f * float.RadiansToDegrees(Renderer.Camera.Pitch);
-                yaw = float.RadiansToDegrees(Renderer.Camera.Yaw);
+                var cameraAngles = Renderer.Camera.GetQAngle();
 
-                AppClipboard.SetText($"setpos {loc.X:F6} {loc.Y:F6} {loc.Z:F6}; setang {pitch:F6} {yaw:F6} 0.0");
+                AppClipboard.SetText($"setpos {loc.X:F6} {loc.Y:F6} {loc.Z:F6}; setang {cameraAngles.X:F6} {cameraAngles.Y:F6} {cameraAngles.Z:F6}");
 
                 return;
             }
@@ -129,14 +125,16 @@ namespace GUI.Types.GLViewers
             var y = float.Parse(pos.Groups["y"].Value, CultureInfo.InvariantCulture);
             var z = float.Parse(pos.Groups["z"].Value, CultureInfo.InvariantCulture);
 
-            if (ang.Success)
-            {
-                pitch = -1f * float.DegreesToRadians(float.Parse(ang.Groups["pitch"].Value, CultureInfo.InvariantCulture));
-                yaw = float.DegreesToRadians(float.Parse(ang.Groups["yaw"].Value, CultureInfo.InvariantCulture));
-            }
+            var viewAngles = ang.Success
+                ? new Vector3(
+                    float.Parse(ang.Groups["pitch"].Value, CultureInfo.InvariantCulture),
+                    float.Parse(ang.Groups["yaw"].Value, CultureInfo.InvariantCulture),
+                    0f)
+                : Vector3.Zero;
 
             Input.SaveCameraForTransition(exitWalkMode: false);
-            Input.Camera.SetLocationPitchYaw(new Vector3(x, y, z), pitch, yaw);
+            Input.Camera.SetLocation(new Vector3(x, y, z));
+            Input.Camera.SetFromQAngle(viewAngles);
         }
 
         private void OnRestoreCameraRequest(object? sender, RestoreCameraRequestEvent e)
@@ -146,9 +144,12 @@ namespace GUI.Types.GLViewers
                 if (savedFloats.Length == 5)
                 {
                     Input.SaveCameraForTransition();
+
+                    // Saved cameras predate the camera holding pitch the engine's way round, and are
+                    // stored positive upwards, so already saved ones keep pointing where they did.
                     Input.Camera.SetLocationPitchYaw(
                         new Vector3(savedFloats[0], savedFloats[1], savedFloats[2]),
-                        savedFloats[3],
+                        -savedFloats[3],
                         savedFloats[4]);
                 }
             }
@@ -166,7 +167,7 @@ namespace GUI.Types.GLViewers
                 saveName = $"{originalName} (#{duplicateCameraIndex++})";
             }
 
-            Settings.Config.SavedCameras.Add(saveName, [cam.Location.X, cam.Location.Y, cam.Location.Z, cam.Pitch, cam.Yaw]);
+            Settings.Config.SavedCameras.Add(saveName, [cam.Location.X, cam.Location.Y, cam.Location.Z, -cam.Pitch, cam.Yaw]);
             Settings.InvokeRefreshCamerasOnSave();
         }
 
@@ -1082,15 +1083,14 @@ namespace GUI.Types.GLViewers
 
             foundFile.Context.GLPostLoadAction = (viewerControl) =>
             {
-                var yaw = MathF.Atan2(-transform.M32, -transform.M31);
-                var scaleZ = MathF.Sqrt(transform.M31 * transform.M31 + transform.M32 * transform.M32 + transform.M33 * transform.M33);
-                var unscaledZ = transform.M33 / scaleZ;
-                var pitch = MathF.Asin(-unscaledZ);
+                // The inverse of a view matrix, so its third row is the camera's backward direction
+                var forward = -new Vector3(transform.M31, transform.M32, transform.M33);
 
                 if (viewerControl is GLSceneViewer sceneViewer)
                 {
                     sceneViewer.Input.Camera.CopyFrom(Renderer.Camera);
-                    sceneViewer.Input.Camera.SetLocationPitchYaw(transform.Translation, pitch, yaw);
+                    sceneViewer.Input.Camera.SetLocation(transform.Translation);
+                    sceneViewer.Input.Camera.SetFromQAngle(EntityTransformHelper.ForwardDirectionToEulerAngles(forward));
                 }
 
                 if (viewerControl is not GLModelViewer glModelViewer || sceneNode is not ModelSceneNode worldModel)

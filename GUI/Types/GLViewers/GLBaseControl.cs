@@ -630,6 +630,10 @@ internal abstract class GLBaseControl : IDisposable, IMessageFilter
                 RendererContext.ViewmodelFieldOfView = Settings.Config.ViewmodelFieldOfView;
                 viewer.Renderer.Camera.FieldOfView = Settings.Config.FieldOfView;
                 viewer.Renderer.Camera.CreateProjectionMatrix();
+
+                // The input camera frames objects using its own field of view, so it follows the setting too
+                viewer.Input.Camera.FieldOfView = Settings.Config.FieldOfView;
+                viewer.Input.Camera.CreateProjectionMatrix();
             }
         }
     }

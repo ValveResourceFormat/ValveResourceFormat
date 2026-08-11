@@ -247,10 +247,9 @@ public partial class PlayerMovement
         HasValidPosition = false; // Do not restore positions from before the teleport
         Effects.ClearStepOffset();
 
-        if (angles is { X: var x, Y: var y })
+        if (angles is { } viewAngles)
         {
-            Input.Camera.Pitch = float.DegreesToRadians(x);
-            Input.Camera.Yaw = float.DegreesToRadians(y);
+            Input.Camera.SetFromQAngle(viewAngles);
 
             // A snapped yaw is not a turn; restart the strafe yaw tracking
             HasPreviousYaw = false;

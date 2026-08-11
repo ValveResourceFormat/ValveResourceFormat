@@ -710,7 +710,7 @@ namespace GUI.Types.GLViewers
             Input.Camera.FrameObjectFromAngle(Vector3.Zero, 0, 32, 32, float.DegreesToRadians(180f), 0);
             if (renderMat != null && renderMat.IsCs2Water)
             {
-                Input.Camera.FrameObjectFromAngle(Vector3.Zero, 32, 32, 0, 0, float.DegreesToRadians(-90f));
+                Input.Camera.FrameObjectFromAngle(Vector3.Zero, 32, 32, 0, 0, float.DegreesToRadians(90f));
             }
 
             if (previewNode != null)

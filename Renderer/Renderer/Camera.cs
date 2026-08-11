@@ -11,7 +11,7 @@ namespace ValveResourceFormat.Renderer
         public Vector3 Location { get; set; }
 
         /// <summary>
-        /// Vertical rotation angle in radians.
+        /// Vertical rotation angle in radians, positive looking down, as in a Source QAngle.
         /// </summary>
         public float Pitch { get; set; }
 
@@ -93,7 +93,7 @@ namespace ValveResourceFormat.Renderer
         /// </summary>
         public void RecalculateMatrices()
         {
-            var (location, pitch, yaw) = (Location, Pitch, Yaw);
+            var location = Location;
 
             RecalculateDirectionVectors();
 
@@ -110,20 +110,22 @@ namespace ValveResourceFormat.Renderer
             var (yawSin, yawCos) = MathF.SinCos(Yaw);
             var (pitchSin, pitchCos) = MathF.SinCos(Pitch);
 
-            Forward = new Vector3(yawCos * pitchCos, yawSin * pitchCos, pitchSin);
-            Up = new Vector3(-yawCos * pitchSin, -yawSin * pitchSin, pitchCos);
+            Forward = new Vector3(yawCos * pitchCos, yawSin * pitchCos, -pitchSin);
+            Up = new Vector3(yawCos * pitchSin, yawSin * pitchSin, pitchCos);
 
-            const float PiOver2 = MathF.PI / 2f;
-            var (piOver2Sin, piOver2Cos) = MathF.SinCos(Yaw - PiOver2);
-
-            Right = new Vector3(piOver2Cos, piOver2Sin, 0);
-            // Right = Vector3.Cross(Forward, Up);
+            // Cross(Forward, Up) worked through by hand: it comes out as yaw shifted a quarter turn, with
+            // no pitch term at all, so there is still a right to point along when looking straight down.
+            Right = new Vector3(yawSin, -yawCos, 0);
 
             if (Roll != 0f)
             {
-                var qRoll = Quaternion.CreateFromAxisAngle(Forward, Roll);
-                Up = Vector3.Transform(Up, qRoll);
-                Right = Vector3.Transform(Right, qRoll);
+                // Rolling turns Up and Right about Forward, which both are perpendicular to, so the
+                // rotation is just the pair leaning into each other
+                var (rollSin, rollCos) = MathF.SinCos(Roll);
+                var rolledUp = (Up * rollCos) + (Right * rollSin);
+
+                Right = (Right * rollCos) - (Up * rollSin);
+                Up = rolledUp;
             }
         }
 
@@ -279,14 +281,40 @@ namespace ValveResourceFormat.Renderer
         }
 
         /// <summary>
+        /// Adopts the orientation of a Source QAngle, as read from an entity's "angles" keyvalue.
+        /// </summary>
+        /// <remarks>
+        /// Only the degrees to radians conversion; the camera holds these the same way round as the engine
+        /// does. All three are adopted, so angles that carry no roll clear whatever roll was there rather
+        /// than leaving it to show through. Not clamped, so an entity may point the camera anywhere.
+        /// </remarks>
+        /// <param name="anglesDegrees">The QAngle, as (pitch, yaw, roll) in degrees.</param>
+        public void SetFromQAngle(Vector3 anglesDegrees)
+        {
+            Pitch = float.DegreesToRadians(anglesDegrees.X);
+            Yaw = float.DegreesToRadians(anglesDegrees.Y);
+            Roll = float.DegreesToRadians(anglesDegrees.Z);
+        }
+
+        /// <summary>
+        /// The camera's orientation as a Source QAngle, the inverse of <see cref="SetFromQAngle"/>.
+        /// </summary>
+        /// <returns>The QAngle, as (pitch, yaw, roll) in degrees.</returns>
+        public Vector3 GetQAngle()
+            => new(float.RadiansToDegrees(Pitch), float.RadiansToDegrees(Yaw), float.RadiansToDegrees(Roll));
+
+        /// <summary>
         /// Orients the camera to face the given world-space target.
         /// </summary>
         public void LookAt(Vector3 target)
         {
-            var dir = Vector3.Normalize(target - Location);
-            Yaw = MathF.Atan2(dir.Y, dir.X);
-            Pitch = MathF.Asin(dir.Z);
-            Roll = 0f;
+            // Normalized because the helper decides "straight up or down" on absolute length, which is
+            // right for a world direction but would make a target a thousandth of a unit away read as one
+            var direction = target - Location;
+
+            // A direction carries no roll, so adopting these angles levels the camera too
+            SetFromQAngle(EntityTransformHelper.ForwardDirectionToEulerAngles(
+                direction == Vector3.Zero ? direction : Vector3.Normalize(direction)));
 
             ClampRotation();
         }
@@ -360,7 +388,7 @@ namespace ValveResourceFormat.Renderer
         /// <param name="height">Height of the object's bounding box.</param>
         /// <param name="depth">Depth of the object's bounding box.</param>
         /// <param name="yaw">Horizontal angle in radians.</param>
-        /// <param name="pitch">Vertical angle in radians.</param>
+        /// <param name="pitch">Vertical angle in radians, positive looking down.</param>
         public void FrameObjectFromAngle(Vector3 objectPosition, float width, float height, float depth,
             float yaw, float pitch)
         {
@@ -380,10 +408,16 @@ namespace ValveResourceFormat.Renderer
         {
             Location = matrix.Translation;
 
-            // Extract view direction from view matrix and use it to calculate pitch and yaw
+            // Forward is the matrix's first row. The helper is scale invariant, which matters because an
+            // entity's "scales" is baked in here, but it cannot answer for a row that is entirely zero.
             var dir = new Vector3(matrix.M11, matrix.M12, matrix.M13);
-            Yaw = MathF.Atan2(dir.Y, dir.X);
-            Pitch = MathF.Asin(dir.Z);
+
+            if (dir == Vector3.Zero)
+            {
+                return;
+            }
+
+            SetFromQAngle(EntityTransformHelper.ForwardDirectionToEulerAngles(dir));
         }
 
         /// <summary>
@@ -391,8 +425,14 @@ namespace ValveResourceFormat.Renderer
         /// </summary>
         public void ClampRotation()
         {
-            const float PITCH_LIMIT = 89.5f * MathF.PI / 180f;
-            Pitch = Math.Clamp(Pitch, -PITCH_LIMIT, PITCH_LIMIT);
+            // Straight down is as far as it goes, and it is reachable: the direction vectors have no
+            // singularity there, so the limit is where looking would tip over rather than where the maths
+            // would give out.
+            Pitch = Math.Clamp(Pitch, -MathF.PI / 2f, MathF.PI / 2f);
+
+            // Mouse look accumulates yaw without bound, and sin and cos of a few million radians are not
+            // the ones asked for, so keep it to one turn
+            Yaw = MathF.IEEERemainder(Yaw, MathF.Tau);
         }
 
         /// <summary>
@@ -407,7 +447,9 @@ namespace ValveResourceFormat.Renderer
         /// <summary>
         /// Converts a horizontal field of view at a 4:3 aspect ratio to the equivalent vertical field of view in radians.
         /// The result is used directly as the vertical FOV in <see cref="CreatePerspectiveFieldOfView_ReverseZ"/> regardless
-        /// of the actual aspect ratio (Vert- scaling).
+        /// of the actual aspect ratio, so a wider screen sees more to the sides rather than less above and
+        /// below (Hor+ scaling). The engine reaches the same place by scaling the horizontal field of view
+        /// by the aspect ratio and then dividing it back out again.
         /// </summary>
         /// <param name="horizontalDegreesAt4By3">Horizontal field of view in degrees at a 4:3 aspect ratio.</param>
         public static float Calculate4By3Fov(float horizontalDegreesAt4By3)

@@ -253,7 +253,7 @@ public class UserInput
             }
 
             Velocity = PlayerMovement.Velocity;
-            Camera.Pitch -= MouseDeltaPitchYaw.X;
+            Camera.Pitch += MouseDeltaPitchYaw.X;
             Camera.Yaw -= MouseDeltaPitchYaw.Y;
             Camera.ClampRotation();
         }
@@ -265,7 +265,7 @@ public class UserInput
         // The landing punch tilts the rendered view down without touching the stored aim.
         var viewPunchPitch = float.DegreesToRadians(PlayerMovement.ViewPunchPitchDegrees);
 
-        renderCamera.SetLocationPitchYaw(finalCamera.Location, finalCamera.Pitch - viewPunchPitch, finalCamera.Yaw);
+        renderCamera.SetLocationPitchYaw(finalCamera.Location, finalCamera.Pitch + viewPunchPitch, finalCamera.Yaw);
         renderCamera.ClampRotation();
 
         renderCamera.Roll = Camera.Roll;
@@ -336,7 +336,7 @@ public class UserInput
         if ((keyboardState & TrackedKeys.MouseLeft) != 0 || walking)
         {
             Camera.Yaw -= MouseDeltaPitchYaw.Y;
-            Camera.Pitch -= MouseDeltaPitchYaw.X;
+            Camera.Pitch += MouseDeltaPitchYaw.X;
             Camera.ClampRotation();
         }
 
@@ -361,7 +361,9 @@ public class UserInput
         if (clipped)
         {
             Camera.Location = clippedPos;
-            Camera.Yaw = float.Lerp(previousCamera.Yaw, Camera.Yaw, clippedTime);
+            // Yaw wraps, so the two ends can sit either side of the cut and a plain lerp would take the
+            // long way round, whipping the camera half a turn
+            Camera.Yaw = MathUtils.LerpAngle(previousCamera.Yaw, Camera.Yaw, clippedTime);
             Camera.Pitch = float.Lerp(previousCamera.Pitch, Camera.Pitch, clippedTime);
 
             var direction = clippedPos - target;
@@ -405,7 +407,9 @@ public class UserInput
         {
             // Camera truck and pedestal movement (blender calls this pan)
             var speed = AltMovementSpeed * deltaTime * SpeedModifiers[CurrentSpeedModifier];
-            var screenRight = Vector3.Normalize(Vector3.Cross(Vector3.UnitZ, Camera.Forward));
+            // Cross(worldUp, forward) is the camera's left, and unlike that cross it stays defined when
+            // the camera looks straight down
+            var screenRight = -Camera.Right;
             var screenUp = Vector3.Cross(Camera.Forward, screenRight);
 
             Camera.Location -= screenRight * speed * MouseDelta2D.X;
@@ -416,7 +420,7 @@ public class UserInput
         // Use the keyboard state to update position
         HandleKeyboardInput(deltaTime, keyboardState);
 
-        Camera.Pitch -= MouseDeltaPitchYaw.X;
+        Camera.Pitch += MouseDeltaPitchYaw.X;
         Camera.Yaw -= MouseDeltaPitchYaw.Y;
         Camera.ClampRotation();
     }

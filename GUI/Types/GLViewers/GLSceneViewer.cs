@@ -282,6 +282,10 @@ namespace GUI.Types.GLViewers
             base.OnResize(w, h);
 
             Renderer.Camera.SetViewportSize(w, h);
+
+            // The input camera frames objects against its own aspect ratio, so it needs the size too
+            Input.Camera.SetViewportSize(w, h);
+
             Picker?.Resize(w, h);
         }
 
@@ -622,8 +626,6 @@ namespace GUI.Types.GLViewers
             Renderer.PerfStats.MarkFrameBegin();
             GL.BeginQuery(QueryTarget.TimeElapsed, frametimeQuery1);
 
-            UpdateSoundPlayer();
-
             var renderContext = new Scene.RenderContext
             {
                 Camera = Renderer.Camera,
@@ -645,6 +647,10 @@ namespace GUI.Types.GLViewers
 
                 SelectedNodeRenderer.Update(renderContext, updateContext);
             }
+
+            // After the update, so the listener is placed with this frame's camera vectors rather than
+            // this frame's position and last frame's facing
+            UpdateSoundPlayer();
 
             Renderer.ForceResolveSceneDepth = ShowBaseGrid;
 

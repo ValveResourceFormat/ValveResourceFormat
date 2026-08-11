@@ -59,8 +59,11 @@ namespace ValveResourceFormat.Renderer
             Planes[1] = Plane.Normalize(new Plane(c4 - c1)); // Right
             Planes[2] = Plane.Normalize(new Plane(c4 - c2)); // Top
             Planes[3] = Plane.Normalize(new Plane(c4 + c2)); // Bottom
-            Planes[4] = Plane.Normalize(new Plane(c3));       // Near
-            Planes[5] = Plane.Normalize(new Plane(c4 - c3)); // Far
+            // Depth is reversed, so c3 is the far plane and c4 - c3 the near one. With the default
+            // infinite far plane c3 has no normal at all, and every comparison against the NaN that
+            // normalizing it produces is false, which reads as "inside" and is the right answer.
+            Planes[4] = Plane.Normalize(new Plane(c3));       // Far
+            Planes[5] = Plane.Normalize(new Plane(c4 - c3)); // Near
         }
 
         /// <summary>

@@ -867,13 +867,10 @@ public class ViewmodelSceneNode : ModelSceneNode
         var forward = Vector3.Normalize(camera.Forward);
         var worldUp = Vector3.UnitZ;
 
-        var right = Vector3.Normalize(Vector3.Cross(worldUp, forward));
-        if (right.LengthSquared() < 1e-4f)
-        {
-            // Looking straight up/down: fallback to camera's right vector.
-            right = Vector3.Normalize(camera.Right);
-        }
-
+        // This is the +Y (left) axis rather than right, which is why the rows below come out cyclically
+        // permuted; viewmodelOffsetRot is tuned against that frame, so leave it be. Taken from the camera
+        // rather than as Cross(worldUp, forward), which is the same vector but collapses looking straight down.
+        var right = -camera.Right;
         var up = Vector3.Cross(forward, right);
 
         var cameraRotation = Quaternion.CreateFromRotationMatrix(new Matrix4x4(

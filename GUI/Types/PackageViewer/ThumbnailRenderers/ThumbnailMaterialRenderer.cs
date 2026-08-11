@@ -25,8 +25,7 @@ internal class ThumbnailMaterialRenderer : ThumbnailRenderer
             skybox ??= new SceneSkybox2D(renderMat);
             skybox.Material = renderMat;
             SceneRenderer.Skybox2D = skybox;
-            SceneRenderer.Camera.Pitch = float.DegreesToRadians(20);
-            SceneRenderer.Camera.Yaw = float.DegreesToRadians(180);
+            SceneRenderer.Camera.SetFromQAngle(new Vector3(-20f, 180f, 0f));
             return;
         }
 
@@ -42,7 +41,7 @@ internal class ThumbnailMaterialRenderer : ThumbnailRenderer
 
             SceneRenderer.Scene.LightingInfo.LightingData.LightToWorld[0] = EntityTransformHelper.EulerAnglesToRotationMatrix(new Vector3(71, -196, 0));
 
-            SceneRenderer.Camera.FrameObjectFromAngle(Vector3.Zero, 32, 32, 0, 0, float.DegreesToRadians(-90f));
+            SceneRenderer.Camera.FrameObjectFromAngle(Vector3.Zero, 32, 32, 0, 0, float.DegreesToRadians(90f));
         }
         else
         {

@@ -29,7 +29,7 @@ namespace ValveResourceFormat.Renderer.Utils
         ];
 
         /// <summary>Elevations tried at each yaw: the usual one, then flat for low rooms, then from above.</summary>
-        private static readonly float[] Pitches = [30f * MathF.PI / 180f, 15f * MathF.PI / 180f, 60f * MathF.PI / 180f];
+        private static readonly float[] Elevations = [30f * MathF.PI / 180f, 15f * MathF.PI / 180f, 60f * MathF.PI / 180f];
 
         /// <summary>
         /// Finds a camera position orbiting <paramref name="center"/> that is not embedded in world
@@ -42,7 +42,7 @@ namespace ValveResourceFormat.Renderer.Utils
         /// <returns>The chosen camera position, falling back to the preferred one when the target cannot be seen from anywhere.</returns>
         public static Vector3 FindOrbitPosition(Rubikon? physics, Vector3 center, float distance, float targetRadius = 0f)
         {
-            var preferred = OrbitPosition(center, distance, Yaws[0], Pitches[0]);
+            var preferred = OrbitPosition(center, distance, Yaws[0], Elevations[0]);
 
             if (physics == null)
             {
@@ -84,14 +84,14 @@ namespace ValveResourceFormat.Renderer.Utils
 
             // Yaw is the inner axis so every horizontal angle is exhausted before the camera is
             // tilted: swinging around the target reads better than climbing over it.
-            var candidateCount = Math.Min(Pitches.Length * Yaws.Length, MaxTests);
+            var candidateCount = Math.Min(Elevations.Length * Yaws.Length, MaxTests);
 
             for (var i = 0; i < candidateCount; i++)
             {
-                var pitch = Pitches[i / Yaws.Length];
+                var elevation = Elevations[i / Yaws.Length];
                 var yaw = Yaws[i % Yaws.Length];
 
-                var direction = OrbitDirection(yaw, pitch);
+                var direction = OrbitDirection(yaw, elevation);
                 var candidate = center + direction * distance;
                 var eye = center + direction * eyeOffset;
 
@@ -139,14 +139,14 @@ namespace ValveResourceFormat.Renderer.Utils
             return false;
         }
 
-        private static Vector3 OrbitDirection(float yaw, float pitch)
+        private static Vector3 OrbitDirection(float yaw, float elevation)
         {
-            var cosPitch = MathF.Cos(pitch);
+            var cosElevation = MathF.Cos(elevation);
 
-            return new Vector3(cosPitch * MathF.Cos(yaw), cosPitch * MathF.Sin(yaw), MathF.Sin(pitch));
+            return new Vector3(cosElevation * MathF.Cos(yaw), cosElevation * MathF.Sin(yaw), MathF.Sin(elevation));
         }
 
-        private static Vector3 OrbitPosition(Vector3 center, float distance, float yaw, float pitch)
-            => center + OrbitDirection(yaw, pitch) * distance;
+        private static Vector3 OrbitPosition(Vector3 center, float distance, float yaw, float elevation)
+            => center + OrbitDirection(yaw, elevation) * distance;
     }
 }
