@@ -104,6 +104,7 @@ namespace ValveResourceFormat.Renderer.Particles
                 ["C_OP_ColorInterpolate"] = operatorInfo => new ColorInterpolate(operatorInfo),
                 ["C_OP_ColorInterpolateRandom"] = operatorInfo => new ColorInterpolateRandom(operatorInfo),
                 ["C_OP_Cull"] = operatorInfo => new Cull(operatorInfo),
+                ["C_OP_CycleScalar"] = operatorInfo => new CycleScalar(operatorInfo),
                 ["C_OP_DampenToCP"] = operatorInfo => new DampenToCP(operatorInfo),
                 ["C_OP_Decay"] = operatorInfo => new Decay(operatorInfo),
                 ["C_OP_DistanceCull"] = operatorInfo => new DistanceCull(operatorInfo),
