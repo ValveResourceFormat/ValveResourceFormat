@@ -92,7 +92,7 @@ namespace ValveResourceFormat.IO
 
         private string DstDir = string.Empty;
         private CancellationToken CancellationToken;
-        private readonly Dictionary<string, Mesh> ExportedMeshes = [];
+        private readonly Dictionary<(string Name, Vector2? LightmapUvScale), Mesh> ExportedMeshes = [];
         private readonly List<(PhysAggregateData Phys, string? Classname, Matrix4x4 Transform)> PhysicsToExport = [];
         private bool IsExporting;
 
@@ -167,6 +167,7 @@ namespace ValveResourceFormat.IO
             {
                 matchedAnimationFilter.Clear();
                 ExportedMeshes.Clear();
+                ScaledLightmapUvAccessors.Clear();
                 PhysicsToExport.Clear();
                 TextureExportingTasks.Clear();
                 ExportedTextures.Clear();
@@ -307,6 +308,7 @@ namespace ValveResourceFormat.IO
         private void ExportToFile(string resourceName, string? fileName, VWorld world)
         {
             var exportedModel = CreateModelRoot(resourceName, out var scene);
+            var lightmapUvScale = GetLightmapUvScale(world);
 
             // First the WorldNodes
             foreach (var worldNodeName in world.GetWorldNodeNames())
@@ -323,7 +325,7 @@ namespace ValveResourceFormat.IO
                 }
 
                 var worldNode = (VWorldNode)worldResource.DataBlock!;
-                LoadWorldNodeModels(exportedModel, scene, worldNode);
+                LoadWorldNodeModels(exportedModel, scene, worldNode, lightmapUvScale);
             }
 
             // Then the Entities
@@ -525,7 +527,18 @@ namespace ValveResourceFormat.IO
             WriteModelFile(exportedModel, fileName);
         }
 
-        private void LoadWorldNodeModels(ModelRoot exportedModel, Scene scene, VWorldNode worldNode)
+        private static Vector2? GetLightmapUvScale(VWorld world)
+        {
+            var worldLightingInfo = world.GetWorldLightingInfo();
+            if (worldLightingInfo == null || worldLightingInfo.GetInt32Property("m_nLightmapVersionNumber") != 8)
+            {
+                return null;
+            }
+
+            return worldLightingInfo.GetSubCollection("m_vLightmapUvScale")?.ToVector2();
+        }
+
+        private void LoadWorldNodeModels(ModelRoot exportedModel, Scene scene, VWorldNode worldNode, Vector2? lightmapUvScale = null)
         {
             foreach (var sceneObject in worldNode.SceneObjects)
             {
@@ -551,7 +564,7 @@ namespace ValveResourceFormat.IO
                     tintColor = Vector4.One;
                 }
 
-                LoadModel(exportedModel, scene, model, name, matrix, tintColor);
+                LoadModel(exportedModel, scene, model, name, matrix, tintColor, lightmapUvScale: lightmapUvScale);
             }
 
             foreach (var sceneObject in worldNode.AggregateSceneObjects)
@@ -570,9 +583,9 @@ namespace ValveResourceFormat.IO
                     var name = Path.GetFileNameWithoutExtension(renderableModel);
                     var model = (VModel)modelResource.DataBlock!;
 
-                    if (!AggregateCreateFragments(exportedModel, scene, model, sceneObject, name))
+                    if (!AggregateCreateFragments(exportedModel, scene, model, sceneObject, name, lightmapUvScale))
                     {
-                        LoadModel(exportedModel, scene, model, name, Matrix4x4.Identity, Vector4.One);
+                        LoadModel(exportedModel, scene, model, name, Matrix4x4.Identity, Vector4.One, lightmapUvScale: lightmapUvScale);
                     }
                 }
             }
@@ -669,7 +682,8 @@ namespace ValveResourceFormat.IO
         }
 
         private void LoadModel(ModelRoot exportedModel, Scene scene, VModel model, string name,
-            Matrix4x4 transform, Vector4 tintColor, string? skinName = null, EntityLump.Entity? entity = null)
+            Matrix4x4 transform, Vector4 tintColor, string? skinName = null, EntityLump.Entity? entity = null,
+            Vector2? lightmapUvScale = null)
         {
 #if DEBUG
             ProgressReporter?.Report($"Loading model {name}");
@@ -744,7 +758,7 @@ namespace ValveResourceFormat.IO
                 }
 
                 var boneRemapTable = model.GetRemapTable(m.MeshIndex);
-                var node = AddMeshNode(exportedModel, scene, meshName, tintColor, m.Mesh, m.Mesh.VBIB, joints, out var meshNode, boneRemapTable, skinMaterialPath, entity);
+                var node = AddMeshNode(exportedModel, scene, meshName, tintColor, m.Mesh, m.Mesh.VBIB, joints, out var meshNode, boneRemapTable, skinMaterialPath, entity, lightmapUvScale);
                 if (node != null)
                 {
                     node.WorldMatrix = nodeTransform;
@@ -821,7 +835,7 @@ namespace ValveResourceFormat.IO
 
         private Node? AddMeshNode(ModelRoot exportedModel, Scene scene, string name, Vector4 tintColor,
             VMesh mesh, Blocks.VBIB vbib, Node[]? joints, out Node? meshNode, int[]? boneRemapTable = null,
-            string? skinMaterialPath = null, EntityLump.Entity? entity = null)
+            string? skinMaterialPath = null, EntityLump.Entity? entity = null, Vector2? lightmapUvScale = null)
         {
             meshNode = null;
 
@@ -832,15 +846,16 @@ namespace ValveResourceFormat.IO
 
             var newNode = scene.CreateNode(name);
             meshNode = newNode;
-            if (ExportedMeshes.TryGetValue(name, out var exportedMesh))
+            var exportedMeshKey = (name, lightmapUvScale);
+            if (ExportedMeshes.TryGetValue(exportedMeshKey, out var exportedMesh))
             {
                 // Make a new node that uses the existing mesh
                 newNode.Mesh = exportedMesh;
                 return newNode;
             }
 
-            exportedMesh = CreateGltfMesh(name, mesh, vbib, exportedModel, boneRemapTable, skinMaterialPath, tintColor);
-            ExportedMeshes.Add(name, exportedMesh);
+            exportedMesh = CreateGltfMesh(name, mesh, vbib, exportedModel, boneRemapTable, skinMaterialPath, tintColor, lightmapUvScale);
+            ExportedMeshes.Add(exportedMeshKey, exportedMesh);
 
             if (entity != null && ExportExtras)
             {

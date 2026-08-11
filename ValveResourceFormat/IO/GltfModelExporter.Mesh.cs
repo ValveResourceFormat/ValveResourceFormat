@@ -27,8 +27,9 @@ public partial class GltfModelExporter
     private readonly record struct ExportedMaterial(string Name, Vector4 Tint);
     private readonly record struct ExportedMaterialData(Material Material, bool IsOverlay);
     private readonly Dictionary<ExportedMaterial, ExportedMaterialData> ExportedMaterials = [];
+    private readonly Dictionary<(Accessor Accessor, Vector2 Scale), Accessor> ScaledLightmapUvAccessors = [];
 
-    private Mesh CreateGltfMesh(string meshName, VMesh vmesh, VBIB vbib, ModelRoot exportedModel, int[]? boneRemapTable, string? skinMaterialPath, Vector4 tintColor)
+    private Mesh CreateGltfMesh(string meshName, VMesh vmesh, VBIB vbib, ModelRoot exportedModel, int[]? boneRemapTable, string? skinMaterialPath, Vector4 tintColor, Vector2? lightmapUvScale)
     {
         ProgressReporter?.Report($"Creating mesh: {meshName}");
 
@@ -46,7 +47,7 @@ public partial class GltfModelExporter
         {
             foreach (var drawCall in sceneObject.GetArray("m_drawCalls"))
             {
-                var primitive = CreateMeshFromDrawCall(drawCall, mesh, vbib, vertexBufferAccessors, exportedModel, skinMaterialPath, tintColor);
+                var primitive = CreateMeshFromDrawCall(drawCall, mesh, vbib, vertexBufferAccessors, exportedModel, skinMaterialPath, tintColor, lightmapUvScale);
 
                 if (vmesh.MorphData != null)
                 {
@@ -309,7 +310,8 @@ public partial class GltfModelExporter
     }
 
     private MeshPrimitive CreateMeshFromDrawCall(KVObject drawCall, Mesh mesh, VBIB vbib, Dictionary<string,
-        Accessor>[] vertexBufferAccessors, ModelRoot exportedModel, string? skinMaterialPath, Vector4 parentTintColor)
+        Accessor>[] vertexBufferAccessors, ModelRoot exportedModel, string? skinMaterialPath, Vector4 parentTintColor,
+        Vector2? lightmapUvScale)
     {
         CancellationToken.ThrowIfCancellationRequested();
 
@@ -347,7 +349,19 @@ public partial class GltfModelExporter
                     key = attributeKey;
                 }
 
-                primitive.SetVertexAccessor(key, accessor);
+                var vertexAccessor = accessor;
+                // Lightmap UVs may be locally named TEXCOORD_0, so scale after primitive remapping.
+                if (key == "TEXCOORD_1" && lightmapUvScale is { } scale)
+                {
+                    var scaledAccessorKey = (accessor, scale);
+                    if (!ScaledLightmapUvAccessors.TryGetValue(scaledAccessorKey, out vertexAccessor))
+                    {
+                        vertexAccessor = ApplyLightmapUvScale(exportedModel, accessor, scale);
+                        ScaledLightmapUvAccessors.Add(scaledAccessorKey, vertexAccessor);
+                    }
+                }
+
+                primitive.SetVertexAccessor(key, vertexAccessor);
 
                 DebugValidateGLTF();
             }
@@ -441,7 +455,7 @@ public partial class GltfModelExporter
     }
 
     // Copied from ValveResourceFormat.Renderer.SceneAggregate.CreateFragments
-    private bool AggregateCreateFragments(ModelRoot exportedModel, Scene scene, VModel model, KVObject aggregateSceneObject, string name)
+    private bool AggregateCreateFragments(ModelRoot exportedModel, Scene scene, VModel model, KVObject aggregateSceneObject, string name, Vector2? lightmapUvScale)
     {
         var embeddedMeshes = model.GetEmbeddedMeshesAndLoD().ToList();
         VMesh vmesh;
@@ -531,7 +545,7 @@ public partial class GltfModelExporter
             var mesh = exportedModel.CreateMesh(meshName);
             mesh.Extras = new JsonObject();
 
-            CreateMeshFromDrawCall(drawCall, mesh, vbib, vertexBufferAccessors, exportedModel, skinMaterialPath: null, tintColor);
+            CreateMeshFromDrawCall(drawCall, mesh, vbib, vertexBufferAccessors, exportedModel, skinMaterialPath: null, tintColor, lightmapUvScale);
 
             var newNode = scene.CreateNode(name).WithMesh(mesh);
             // The conversion is baked into the geometry (CreateVertexBufferAccessors), so the placement
@@ -604,6 +618,12 @@ public partial class GltfModelExporter
         }
 
         return indices;
+    }
+
+    private static Accessor ApplyLightmapUvScale(ModelRoot exportedModel, Accessor accessor, Vector2 scale)
+    {
+        var scaledUvs = accessor.AsVector2Array().Select(uv => uv * scale).ToArray();
+        return CreateAccessor(exportedModel, scaledUvs);
     }
 
     private static Accessor CreateAccessor(ModelRoot exportedModel, Vector2[] vectors)
