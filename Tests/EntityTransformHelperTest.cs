@@ -1,3 +1,4 @@
+using System.Linq;
 using NUnit.Framework;
 using ValveResourceFormat;
 using ValveResourceFormat.ResourceTypes;
@@ -35,19 +36,58 @@ namespace Tests
         ];
 
         /// <summary>
-        /// The forward direction has to agree with the matrix the angles build, since callers mix the two.
+        /// Checked against the engine's own AngleVectors formula rather than against the matrix the helper
+        /// builds it from, which would only be comparing the implementation with itself.
         /// </summary>
         [Test]
-        public void EulerAnglesToForwardDirectionMatchesRotationMatrix()
+        public void EulerAnglesToForwardDirectionMatchesEngineFormula()
         {
             foreach (var angles in Angles)
             {
-                var fromMatrix = Vector3.Transform(Vector3.UnitX, EntityTransformHelper.EulerAnglesToRotationMatrix(angles));
+                var (sinPitch, cosPitch) = MathF.SinCos(float.DegreesToRadians(angles.X));
+                var (sinYaw, cosYaw) = MathF.SinCos(float.DegreesToRadians(angles.Y));
+
+                var expected = new Vector3(cosPitch * cosYaw, cosPitch * sinYaw, -sinPitch);
                 var direction = EntityTransformHelper.EulerAnglesToForwardDirection(angles);
 
-                Assert.That(direction.X, Is.EqualTo(fromMatrix.X).Within(Tolerance), $"X for {angles}");
-                Assert.That(direction.Y, Is.EqualTo(fromMatrix.Y).Within(Tolerance), $"Y for {angles}");
-                Assert.That(direction.Z, Is.EqualTo(fromMatrix.Z).Within(Tolerance), $"Z for {angles}");
+                Assert.That(direction.X, Is.EqualTo(expected.X).Within(Tolerance), $"X for {angles}");
+                Assert.That(direction.Y, Is.EqualTo(expected.Y).Within(Tolerance), $"Y for {angles}");
+                Assert.That(direction.Z, Is.EqualTo(expected.Z).Within(Tolerance), $"Z for {angles}");
+            }
+        }
+
+        /// <summary>
+        /// At a pitch of +/-90 yaw and roll turn about the same axis, so the recovered angles cannot match
+        /// what went in; what they must still do is describe the same rotation.
+        /// </summary>
+        [Test]
+        public void ToEulerAnglesHandlesGimbalLock()
+        {
+            Vector3[] lockedAngles =
+            [
+                new(90f, 0f, 0f),
+                new(-90f, 0f, 0f),
+                new(90f, 40f, 0f),
+                new(-90f, 200f, 0f),
+                new(90f, 0f, 35f),
+            ];
+
+            foreach (var angles in lockedAngles)
+            {
+                var quaternion = EntityTransformHelper.EulerAnglesToQuaternion(angles);
+                var recovered = EntityTransformHelper.ToEulerAngles(quaternion);
+
+                Assert.That(MathF.Abs(recovered.X), Is.EqualTo(90f).Within(1e-2f), $"pitch for {angles}");
+                Assert.That(MathF.Sign(recovered.X), Is.EqualTo(MathF.Sign(angles.X)), $"pitch sign for {angles}");
+                Assert.That(recovered.Z, Is.EqualTo(0f).Within(Tolerance), $"roll is pinned for {angles}");
+
+                // Rebuilding from the recovered angles has to land on the same rotation
+                var original = Vector3.Transform(Vector3.UnitY, quaternion);
+                var rebuilt = Vector3.Transform(Vector3.UnitY, EntityTransformHelper.EulerAnglesToQuaternion(recovered));
+
+                Assert.That(rebuilt.X, Is.EqualTo(original.X).Within(1e-2f), $"left X for {angles}");
+                Assert.That(rebuilt.Y, Is.EqualTo(original.Y).Within(1e-2f), $"left Y for {angles}");
+                Assert.That(rebuilt.Z, Is.EqualTo(original.Z).Within(1e-2f), $"left Z for {angles}");
             }
         }
 
@@ -150,36 +190,66 @@ namespace Tests
             }
         }
 
+        private static readonly Vector3[] Directions =
+        [
+            Vector3.UnitX,
+            Vector3.UnitZ,
+            -Vector3.UnitZ,
+            Vector3.Normalize(new Vector3(1f, 2f, 3f)),
+            Vector3.Normalize(new Vector3(-4f, 0.5f, -1f)),
+            Vector3.Normalize(new Vector3(0f, 1f, 0f)),
+        ];
+
+        /// <summary>
+        /// The frame built straight from a direction has to be the one the angles read off that direction
+        /// would build, since it exists only to skip going through them.
+        /// </summary>
         [Test]
-        public void ForwardDirectionToRotationMatrixIsOrthonormal()
+        public void ForwardDirectionToRotationMatrixMatchesGoingThroughAngles()
         {
-            Vector3[] directions =
-            [
-                Vector3.UnitX,
-                Vector3.UnitZ,
-                Vector3.Normalize(new Vector3(1f, 2f, 3f)),
-                Vector3.Normalize(new Vector3(-4f, 0.5f, -1f)),
-                Vector3.Normalize(new Vector3(0f, 1f, 0f)),
-            ];
-
-            foreach (var forward in directions)
+            foreach (var direction in Directions.Append(new Vector3(3f, -4f, 12f)))
             {
-                var matrix = EntityTransformHelper.ForwardDirectionToRotationMatrix(forward);
+                var direct = EntityTransformHelper.ForwardDirectionToRotationMatrix(direction);
+                var viaAngles = EntityTransformHelper.EulerAnglesToRotationMatrix(
+                    EntityTransformHelper.ForwardDirectionToEulerAngles(direction));
 
-                var right = new Vector3(matrix.M11, matrix.M12, matrix.M13);
-                var up = new Vector3(matrix.M21, matrix.M22, matrix.M23);
-                var outForward = new Vector3(matrix.M31, matrix.M32, matrix.M33);
+                foreach (var axis in new[] { Vector3.UnitX, Vector3.UnitY, Vector3.UnitZ })
+                {
+                    var byDirect = Vector3.Transform(axis, direct);
+                    var byAngles = Vector3.Transform(axis, viaAngles);
 
-                Assert.That(outForward.X, Is.EqualTo(forward.X).Within(Tolerance), $"forward X for {forward}");
-                Assert.That(outForward.Y, Is.EqualTo(forward.Y).Within(Tolerance), $"forward Y for {forward}");
-                Assert.That(outForward.Z, Is.EqualTo(forward.Z).Within(Tolerance), $"forward Z for {forward}");
+                    Assert.That(byDirect.X, Is.EqualTo(byAngles.X).Within(1e-3f), $"X of {axis} for {direction}");
+                    Assert.That(byDirect.Y, Is.EqualTo(byAngles.Y).Within(1e-3f), $"Y of {axis} for {direction}");
+                    Assert.That(byDirect.Z, Is.EqualTo(byAngles.Z).Within(1e-3f), $"Z of {axis} for {direction}");
+                }
+            }
+        }
 
-                Assert.That(right.Length(), Is.EqualTo(1f).Within(Tolerance), $"right length for {forward}");
-                Assert.That(up.Length(), Is.EqualTo(1f).Within(Tolerance), $"up length for {forward}");
+        /// <summary>
+        /// Completing a frame from a bare direction has to put forward on the first row, the same place a
+        /// full rotation puts it, or the two ways of orienting something disagree about which axis is which.
+        /// </summary>
+        [Test]
+        public void FrameFromDirectionKeepsForwardOnFirstRow()
+        {
+            foreach (var direction in Directions)
+            {
+                var matrix = EntityTransformHelper.ForwardDirectionToRotationMatrix(direction);
 
-                Assert.That(Vector3.Dot(right, up), Is.EqualTo(0f).Within(Tolerance), $"right/up for {forward}");
-                Assert.That(Vector3.Dot(right, outForward), Is.EqualTo(0f).Within(Tolerance), $"right/forward for {forward}");
-                Assert.That(Vector3.Dot(up, outForward), Is.EqualTo(0f).Within(Tolerance), $"up/forward for {forward}");
+                var forward = new Vector3(matrix.M11, matrix.M12, matrix.M13);
+                var left = new Vector3(matrix.M21, matrix.M22, matrix.M23);
+                var up = new Vector3(matrix.M31, matrix.M32, matrix.M33);
+
+                Assert.That(forward.X, Is.EqualTo(direction.X).Within(Tolerance), $"forward X for {direction}");
+                Assert.That(forward.Y, Is.EqualTo(direction.Y).Within(Tolerance), $"forward Y for {direction}");
+                Assert.That(forward.Z, Is.EqualTo(direction.Z).Within(Tolerance), $"forward Z for {direction}");
+
+                Assert.That(left.Length(), Is.EqualTo(1f).Within(Tolerance), $"left length for {direction}");
+                Assert.That(up.Length(), Is.EqualTo(1f).Within(Tolerance), $"up length for {direction}");
+
+                Assert.That(Vector3.Dot(forward, left), Is.EqualTo(0f).Within(Tolerance), $"forward/left for {direction}");
+                Assert.That(Vector3.Dot(forward, up), Is.EqualTo(0f).Within(Tolerance), $"forward/up for {direction}");
+                Assert.That(Vector3.Dot(left, up), Is.EqualTo(0f).Within(Tolerance), $"left/up for {direction}");
             }
         }
 
@@ -284,6 +354,159 @@ namespace Tests
             Assert.That(EntityTransformHelper.ParseVector2(""), Is.EqualTo(Vector2.Zero));
             Assert.That(EntityTransformHelper.ParseVector2("1"), Is.EqualTo(Vector2.Zero));
             Assert.That(EntityTransformHelper.ParseVector2("1 2 3"), Is.EqualTo(Vector2.Zero));
+        }
+
+        [Test]
+        public void TryParseVectorReportsWhetherItParsed()
+        {
+            Assert.That(EntityTransformHelper.TryParseVector3("1 2 3", out var vector3), Is.True);
+            Assert.That(vector3, Is.EqualTo(new Vector3(1f, 2f, 3f)));
+
+            Assert.That(EntityTransformHelper.TryParseVector3("1 2", out _), Is.False);
+            Assert.That(EntityTransformHelper.TryParseVector3("1 2 banana", out _), Is.False);
+            Assert.That(EntityTransformHelper.TryParseVector3("", out _), Is.False);
+
+            Assert.That(EntityTransformHelper.TryParseVector2("1 2", out var vector2), Is.True);
+            Assert.That(vector2, Is.EqualTo(new Vector2(1f, 2f)));
+
+            Assert.That(EntityTransformHelper.TryParseVector2("1 2 3", out _), Is.False);
+        }
+
+        /// <summary>
+        /// A malformed value has to fall back to what the caller asked for, not to zero: "scales" defaults
+        /// to one, and collapsing it to zero would make the entity vanish.
+        /// </summary>
+        [Test]
+        public void GetVector3PropertyFallsBackToItsDefaultForMalformedInput()
+        {
+            var entity = MakeEntity(("scales", "1 1"), ("origin", "not a vector"));
+
+            Assert.That(entity.GetVector3Property("scales", Vector3.One), Is.EqualTo(Vector3.One));
+            Assert.That(entity.GetVector3Property("origin"), Is.EqualTo(Vector3.Zero));
+
+            EntityTransformHelper.GetTransformComponents(entity, out var scale, out _, out _);
+
+            Assert.That(scale, Is.EqualTo(Vector3.One));
+        }
+
+        /// <summary>
+        /// The six axis directions, with the angles the engine reports for each. Yaw is given here in the
+        /// -180..180 form these helpers return, where the engine's own tests use the 0..360 one.
+        /// </summary>
+        [Test]
+        public void ForwardDirectionToEulerAnglesMatchesEngineCardinals()
+        {
+            (Vector3 Direction, float Pitch, float Yaw)[] cases =
+            [
+                (new Vector3(1f, 0f, 0f), 0f, 0f),      // forward
+                (new Vector3(-1f, 0f, 0f), 0f, 180f),   // backward
+                (new Vector3(0f, 1f, 0f), 0f, 90f),     // left
+                (new Vector3(0f, -1f, 0f), 0f, -90f),   // right, the engine's yaw 270
+                (new Vector3(0f, 0f, 1f), -90f, 0f),    // up, the engine's pitch 270
+                (new Vector3(0f, 0f, -1f), 90f, 0f),    // down
+            ];
+
+            foreach (var (direction, pitch, yaw) in cases)
+            {
+                var angles = EntityTransformHelper.ForwardDirectionToEulerAngles(direction);
+
+                Assert.That(angles.X, Is.EqualTo(pitch).Within(1e-3f), $"pitch for {direction}");
+                Assert.That(angles.Y, Is.EqualTo(yaw).Within(1e-3f), $"yaw for {direction}");
+                Assert.That(angles.Z, Is.EqualTo(0f).Within(Tolerance), $"roll for {direction}");
+            }
+        }
+
+        /// <summary>
+        /// At the poles yaw and roll turn about the same axis, so the pair collapses into yaw alone. These
+        /// are the collapsed values the engine produces, which it in turn checks against other engines.
+        /// </summary>
+        [Test]
+        public void ToEulerAnglesCollapsesGimbalLockLikeTheEngine()
+        {
+            (Vector3 Input, Vector3 Expected)[] cases =
+            [
+                (new Vector3(90f, 112f, 19f), new Vector3(90f, 93f, 0f)),
+                (new Vector3(90f, 12f, 180f), new Vector3(90f, -168f, 0f)),
+                (new Vector3(-90f, 90f, -60f), new Vector3(-90f, 30f, 0f)),
+            ];
+
+            foreach (var (input, expected) in cases)
+            {
+                var angles = EntityTransformHelper.ToEulerAngles(EntityTransformHelper.EulerAnglesToQuaternion(input));
+
+                Assert.That(angles.X, Is.EqualTo(expected.X).Within(1e-2f), $"pitch for {input}");
+                Assert.That(angles.Y, Is.EqualTo(expected.Y).Within(1e-2f), $"yaw for {input}");
+                Assert.That(angles.Z, Is.EqualTo(expected.Z).Within(1e-2f), $"roll for {input}");
+            }
+        }
+
+        /// <summary>
+        /// Sweeping through the pole, the angles that come back must always name the rotation that went in,
+        /// even where they cannot name it with the same components.
+        /// </summary>
+        [Test]
+        public void ToEulerAnglesRoundTripsThroughThePole()
+        {
+            for (var pitch = 87f; pitch <= 93f; pitch += 0.125f)
+            {
+                for (var yaw = -180f; yaw < 180f; yaw += 15f)
+                {
+                    foreach (var sign in new[] { -1f, 1f })
+                    {
+                        var input = new Vector3(pitch * sign, yaw, 0f);
+                        var rotation = EntityTransformHelper.EulerAnglesToQuaternion(input);
+                        var roundTripped = EntityTransformHelper.EulerAnglesToQuaternion(
+                            EntityTransformHelper.ToEulerAngles(rotation));
+
+                        // Quaternions double cover, so q and -q are the same rotation
+                        var dot = MathF.Abs(Quaternion.Dot(rotation, roundTripped));
+
+                        Assert.That(dot, Is.EqualTo(1f).Within(1e-3f), $"round trip for {input}");
+                    }
+                }
+            }
+        }
+
+        /// <summary>
+        /// Pinned against known quaternions so a sign error cannot hide by being made twice, once here and
+        /// once in the matrix this is otherwise checked against.
+        /// </summary>
+        [Test]
+        public void EulerAnglesToQuaternionMatchesKnownValues()
+        {
+            var root = MathF.Sqrt(0.5f);
+
+            (Vector3 Angles, Quaternion Expected)[] cases =
+            [
+                (Vector3.Zero, Quaternion.Identity),
+                (new Vector3(0f, 90f, 0f), new Quaternion(0f, 0f, root, root)),   // yaw turns about +Z
+                (new Vector3(90f, 0f, 0f), new Quaternion(0f, root, 0f, root)),   // pitch turns about +Y
+                (new Vector3(0f, 0f, 90f), new Quaternion(root, 0f, 0f, root)),   // roll turns about +X
+            ];
+
+            foreach (var (angles, expected) in cases)
+            {
+                var quaternion = EntityTransformHelper.EulerAnglesToQuaternion(angles);
+
+                Assert.That(quaternion.X, Is.EqualTo(expected.X).Within(Tolerance), $"X for {angles}");
+                Assert.That(quaternion.Y, Is.EqualTo(expected.Y).Within(Tolerance), $"Y for {angles}");
+                Assert.That(quaternion.Z, Is.EqualTo(expected.Z).Within(Tolerance), $"Z for {angles}");
+                Assert.That(quaternion.W, Is.EqualTo(expected.W).Within(Tolerance), $"W for {angles}");
+            }
+        }
+
+        /// <summary>
+        /// A zero direction says nothing about where to face, and callers get the vertical answer rather
+        /// than a NaN out of the horizontal length.
+        /// </summary>
+        [Test]
+        public void ForwardDirectionToEulerAnglesHandlesZeroVector()
+        {
+            var angles = EntityTransformHelper.ForwardDirectionToEulerAngles(Vector3.Zero);
+
+            Assert.That(float.IsNaN(angles.X), Is.False);
+            Assert.That(float.IsNaN(angles.Y), Is.False);
+            Assert.That(float.IsNaN(angles.Z), Is.False);
         }
 
         private static float NormalizeDegrees(float degrees)

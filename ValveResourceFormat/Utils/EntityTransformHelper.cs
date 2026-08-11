@@ -42,13 +42,11 @@ namespace ValveResourceFormat.Utils
         /// <returns>The rotation matrix.</returns>
         public static Matrix4x4 EulerAnglesToRotationMatrix(Vector3 pitchYawRoll)
         {
-            Matrix4x4 rotationMatrix;
             var rollMatrix = Matrix4x4.CreateRotationX(float.DegreesToRadians(pitchYawRoll.Z));
             var pitchMatrix = Matrix4x4.CreateRotationY(float.DegreesToRadians(pitchYawRoll.X));
             var yawMatrix = Matrix4x4.CreateRotationZ(float.DegreesToRadians(pitchYawRoll.Y));
 
-            rotationMatrix = rollMatrix * pitchMatrix * yawMatrix;
-            return rotationMatrix;
+            return rollMatrix * pitchMatrix * yawMatrix;
         }
 
         /// <summary>
@@ -114,8 +112,12 @@ namespace ValveResourceFormat.Utils
         /// <returns>The normalized forward direction.</returns>
         public static Vector3 EulerAnglesToForwardDirection(Vector3 pitchYawRoll)
         {
-            var rotationMatrix = EulerAnglesToRotationMatrix(pitchYawRoll);
-            return Vector3.Normalize(Vector3.Transform(new Vector3(1, 0, 0), rotationMatrix));
+            // The first row of the matrix the angles build, which is already unit length. Roll turns about
+            // forward, so it cannot move it, and does not appear.
+            var (sinPitch, cosPitch) = MathF.SinCos(float.DegreesToRadians(pitchYawRoll.X));
+            var (sinYaw, cosYaw) = MathF.SinCos(float.DegreesToRadians(pitchYawRoll.Y));
+
+            return new Vector3(cosPitch * cosYaw, cosPitch * sinYaw, -sinPitch);
         }
 
         /// <summary>
@@ -146,24 +148,60 @@ namespace ValveResourceFormat.Utils
         }
 
         /// <summary>
-        /// Builds a rotation whose forward axis is <paramref name="forward"/>, picking an arbitrary but
-        /// stable roll about it. For callers that have a direction and need a full frame; a direction
-        /// cannot express roll, so one is chosen rather than recovered.
+        /// Completes a rotation frame around a forward direction, with zero roll: the same frame
+        /// <see cref="EulerAnglesToRotationMatrix"/> builds from <see cref="ForwardDirectionToEulerAngles"/>,
+        /// so forward lands on the first row.
         /// </summary>
-        /// <param name="forward">The forward direction. Must be normalized and non-zero.</param>
-        /// <returns>The rotation matrix, with right, up and forward as its rows.</returns>
-        public static Matrix4x4 ForwardDirectionToRotationMatrix(Vector3 forward)
+        /// <remarks>
+        /// A direction cannot express roll, so one is chosen rather than recovered, and world up is the
+        /// reference that chooses it. Computed straight from the direction rather than by going through
+        /// angles, since this runs per particle in places.
+        /// </remarks>
+        /// <param name="direction">The forward direction. Does not need to be normalized.</param>
+        /// <returns>The rotation matrix, with forward, left and up as its rows.</returns>
+        public static Matrix4x4 ForwardDirectionToRotationMatrix(Vector3 direction)
         {
-            var up = MathF.Abs(forward.Y) < 0.999f ? Vector3.UnitY : Vector3.UnitZ;
-            var right = Vector3.Normalize(Vector3.Cross(up, forward));
-            up = Vector3.Cross(forward, right);
+            var (forward, left, up) = ForwardDirectionToFrame(direction);
 
             return new Matrix4x4(
-                right.X, right.Y, right.Z, 0,
-                up.X, up.Y, up.Z, 0,
                 forward.X, forward.Y, forward.Z, 0,
-                0, 0, 0, 1
-            );
+                left.X, left.Y, left.Z, 0,
+                up.X, up.Y, up.Z, 0,
+                0, 0, 0, 1);
+        }
+
+        /// <summary>
+        /// The rotation <see cref="ForwardDirectionToRotationMatrix"/> builds, as a quaternion.
+        /// </summary>
+        /// <param name="direction">The forward direction. Does not need to be normalized.</param>
+        /// <returns>The rotation quaternion.</returns>
+        public static Quaternion ForwardDirectionToQuaternion(Vector3 direction)
+            => Quaternion.CreateFromRotationMatrix(ForwardDirectionToRotationMatrix(direction));
+
+        private static (Vector3 Forward, Vector3 Left, Vector3 Up) ForwardDirectionToFrame(Vector3 direction)
+        {
+            var xyDist = MathF.Sqrt(direction.X * direction.X + direction.Y * direction.Y);
+
+            if (xyDist <= 0.001f)
+            {
+                // Straight up or down, where yaw is pinned to zero the same way the angles pin it
+                return direction.Z > 0f
+                    ? (Vector3.UnitZ, Vector3.UnitY, -Vector3.UnitX)
+                    : (-Vector3.UnitZ, Vector3.UnitY, Vector3.UnitX);
+            }
+
+            var forward = Vector3.Normalize(direction);
+
+            // Yaw's sine and cosine come straight off the flattened direction, and pitch's off forward's
+            // own components, so the frame needs no trigonometry at all
+            var flat = MathF.Sqrt(forward.X * forward.X + forward.Y * forward.Y);
+            var cosYaw = forward.X / flat;
+            var sinYaw = forward.Y / flat;
+
+            return (
+                forward,
+                new Vector3(-sinYaw, cosYaw, 0f),
+                new Vector3(-forward.Z * cosYaw, -forward.Z * sinYaw, flat));
         }
 
         /// <summary>
@@ -197,47 +235,78 @@ namespace ValveResourceFormat.Utils
         /// Parses a string representation of a Vector2.
         /// </summary>
         /// <param name="input">The input string.</param>
-        /// <returns>The parsed vector.</returns>
+        /// <returns>The parsed vector, or zero if the input is not two numbers.</returns>
         public static Vector2 ParseVector2(string input)
+            => TryParseVector2(input, out var value) ? value : default;
+
+        /// <summary>
+        /// Parses a string representation of a Vector2, reporting whether it was one.
+        /// </summary>
+        /// <param name="input">The input string.</param>
+        /// <param name="value">The parsed vector, or zero if the input is not two numbers.</param>
+        /// <returns>Whether the input parsed.</returns>
+        public static bool TryParseVector2(string input, out Vector2 value)
         {
+            value = default;
+
             if (string.IsNullOrEmpty(input))
             {
-                return default;
+                return false;
             }
+
             var split = input.Split(' ');
 
-            if (split.Length != 2)
+            if (split.Length != 2
+                || !float.TryParse(split[0], NumberStyles.Float, CultureInfo.InvariantCulture, out var x)
+                || !float.TryParse(split[1], NumberStyles.Float, CultureInfo.InvariantCulture, out var y))
             {
-                return default;
+                return false;
             }
 
-            return new Vector2(
-                float.Parse(split[0], CultureInfo.InvariantCulture),
-                float.Parse(split[1], CultureInfo.InvariantCulture));
+            value = new Vector2(x, y);
+            return true;
         }
 
         /// <summary>
         /// Parses a string representation of a Vector3.
         /// </summary>
         /// <param name="input">The input string.</param>
-        /// <returns>The parsed vector.</returns>
+        /// <returns>The parsed vector, or zero if the input is not three numbers.</returns>
         public static Vector3 ParseVector3(string input)
+            => TryParseVector3(input, out var value) ? value : default;
+
+        /// <summary>
+        /// Parses a string representation of a Vector3, reporting whether it was one.
+        /// </summary>
+        /// <remarks>
+        /// Callers with a meaningful default need this rather than <see cref="ParseVector3"/>, whose zero
+        /// is indistinguishable from a genuine "0 0 0" - a malformed "scales" falling back to zero rather
+        /// than to one collapses the thing being scaled.
+        /// </remarks>
+        /// <param name="input">The input string.</param>
+        /// <param name="value">The parsed vector, or zero if the input is not three numbers.</param>
+        /// <returns>Whether the input parsed.</returns>
+        public static bool TryParseVector3(string input, out Vector3 value)
         {
+            value = default;
+
             if (string.IsNullOrEmpty(input))
             {
-                return default;
+                return false;
             }
+
             var split = input.Split(' ');
 
-            if (split.Length != 3)
+            if (split.Length != 3
+                || !float.TryParse(split[0], NumberStyles.Float, CultureInfo.InvariantCulture, out var x)
+                || !float.TryParse(split[1], NumberStyles.Float, CultureInfo.InvariantCulture, out var y)
+                || !float.TryParse(split[2], NumberStyles.Float, CultureInfo.InvariantCulture, out var z))
             {
-                return default;
+                return false;
             }
 
-            return new Vector3(
-                float.Parse(split[0], CultureInfo.InvariantCulture),
-                float.Parse(split[1], CultureInfo.InvariantCulture),
-                float.Parse(split[2], CultureInfo.InvariantCulture));
+            value = new Vector3(x, y, z);
+            return true;
         }
     }
 }

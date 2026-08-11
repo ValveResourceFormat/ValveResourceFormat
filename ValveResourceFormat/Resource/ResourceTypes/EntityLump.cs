@@ -58,7 +58,7 @@ namespace ValveResourceFormat.ResourceTypes
 
                     if (value.ValueType == KVValueType.String)
                     {
-                        return EntityTransformHelper.ParseVector2((string)value);
+                        return EntityTransformHelper.TryParseVector2((string)value, out var parsed) ? parsed : defaultValue;
                     }
                 }
 
@@ -87,7 +87,7 @@ namespace ValveResourceFormat.ResourceTypes
 
                     if (value.ValueType == KVValueType.String)
                     {
-                        return EntityTransformHelper.ParseVector3((string)value);
+                        return EntityTransformHelper.TryParseVector3((string)value, out var parsed) ? parsed : defaultValue;
                     }
                 }
 
