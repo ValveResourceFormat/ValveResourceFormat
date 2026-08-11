@@ -22,7 +22,9 @@ internal static class EditorEntityNode
 
     /// <summary>
     /// Builds the node for an entity, without adding it to the scene: the caller owns it, and decides
-    /// where it goes and what drives it. The transform is ignored for the box, which drops scale, see below.
+    /// where it goes and what drives it. The transform is ignored for the box, which drops scale, see below;
+    /// the box instead composes <c>parentTransform</c>, the transform of the <c>point_template</c> that
+    /// spawned the entity, onto keyvalues that are in template space.
     /// </summary>
     /// <returns>The node, which is never <see langword="null"/> but may be a plain box.</returns>
     /// <exception cref="InvalidDataException">The Hammer class names an icon of a type not handled here.</exception>
@@ -32,7 +34,8 @@ internal static class EditorEntityNode
         string classname,
         Matrix4x4 transform,
         ObjectTypeFlags flags = ObjectTypeFlags.None,
-        string layerName = LayerName)
+        string layerName = LayerName,
+        Matrix4x4? parentTransform = null)
     {
         var hammerEntity = HammerEntities.Get(classname);
         string? filename = null;
@@ -59,10 +62,16 @@ internal static class EditorEntityNode
 
             // Do not use transform because scales need to be ignored
             EntityTransformHelper.GetTransformComponents(entity, out _, out var rotationMatrix, out var positionVector);
+            var boxTransform = rotationMatrix * Matrix4x4.CreateTranslation(positionVector);
+
+            if (parentTransform.HasValue)
+            {
+                boxTransform *= parentTransform.Value;
+            }
 
             return new SimpleBoxSceneNode(scene, color, new Vector3(16f))
             {
-                Transform = rotationMatrix * Matrix4x4.CreateTranslation(positionVector),
+                Transform = boxTransform,
                 LayerName = layerName,
                 Name = filename,
                 EntityData = entity,
