@@ -17,7 +17,7 @@ namespace ValveResourceFormat.Renderer.Particles.Operators
         private readonly INumberProvider startScale = new LiteralNumberProvider(1);
         private readonly INumberProvider endScale = new LiteralNumberProvider(1);
         private readonly bool easeInAndOut;
-        private readonly INumberProvider bias = new LiteralNumberProvider(0);
+        private readonly INumberProvider bias = new LiteralNumberProvider(0.5f);
 
 
         public InterpolateRadius(ParticleDefinitionParser parse) : base(parse)

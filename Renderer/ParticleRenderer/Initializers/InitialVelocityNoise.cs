@@ -11,7 +11,7 @@ namespace ValveResourceFormat.Renderer.Particles.Initializers
     {
         private readonly IVectorProvider outputMin = new LiteralVectorProvider(Vector3.Zero);
         private readonly IVectorProvider outputMax = new LiteralVectorProvider(Vector3.One);
-        private readonly INumberProvider noiseScale = new LiteralNumberProvider(1f);
+        private readonly INumberProvider noiseScale = new LiteralNumberProvider(0.1f);
         private readonly INumberProvider noiseScaleLoc = new LiteralNumberProvider(0.01f);
         private readonly INumberProvider offset = new LiteralNumberProvider(0f);
         private readonly IVectorProvider offsetLoc = new LiteralVectorProvider(Vector3.Zero);

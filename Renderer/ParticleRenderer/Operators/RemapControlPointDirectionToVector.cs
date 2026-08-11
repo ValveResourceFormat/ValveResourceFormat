@@ -9,7 +9,7 @@ namespace ValveResourceFormat.Renderer.Particles.Operators
     {
         private readonly ParticleField fieldOutput = ParticleField.Position;
         private readonly int cp;
-        private readonly float scale;
+        private readonly float scale = 1f;
 
         public RemapControlPointDirectionToVector(ParticleDefinitionParser parse) : base(parse)
         {

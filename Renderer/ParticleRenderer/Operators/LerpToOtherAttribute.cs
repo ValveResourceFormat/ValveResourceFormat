@@ -7,8 +7,8 @@ namespace ValveResourceFormat.Renderer.Particles.Operators
     /// <seealso href="https://s2v.app/SchemaExplorer/cs2/particles/C_OP_LerpToOtherAttribute">C_OP_LerpToOtherAttribute</seealso>
     class LerpToOtherAttribute : ParticleFunctionOperator
     {
-        private readonly ParticleField fieldInput = ParticleField.Color;
-        private readonly ParticleField fieldOutput = ParticleField.Color;
+        private readonly ParticleField fieldInput = ParticleField.Position;
+        private readonly ParticleField fieldOutput = ParticleField.Position;
         private readonly INumberProvider interpolation = new LiteralNumberProvider(1.0f);
 
         private readonly bool skip;

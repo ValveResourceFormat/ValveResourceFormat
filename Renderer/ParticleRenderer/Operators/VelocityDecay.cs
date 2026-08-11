@@ -6,7 +6,7 @@ namespace ValveResourceFormat.Renderer.Particles.Operators
     /// <seealso href="https://s2v.app/SchemaExplorer/cs2/particles/C_OP_VelocityDecay">C_OP_VelocityDecay</seealso>
     class VelocityDecay : ParticleFunctionOperator
     {
-        private readonly float minVelocity;
+        private readonly float minVelocity = 1f;
         public VelocityDecay(ParticleDefinitionParser parse) : base(parse)
         {
             minVelocity = parse.Float("m_flMinVelocity", minVelocity);
