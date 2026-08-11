@@ -84,7 +84,8 @@ namespace GUI.Forms
         {
             foreach (var child in entity.Children)
             {
-                AddProperty(child.Key, StringifyValue(child.Value));
+                var resourcePath = ResourcePath(child.Value);
+                AddProperty(child.Key, resourcePath ?? StringifyValue(child.Value), resourcePath);
             }
 
             if (entity.Connections != null)
@@ -99,7 +100,8 @@ namespace GUI.Forms
         {
             foreach (var child in entity.Children)
             {
-                AddProperty(child.Key, StringifyValue(child.Value));
+                var resourcePath = ResourcePath(child.Value);
+                AddProperty(child.Key, resourcePath ?? StringifyValue(child.Value), resourcePath);
             }
 
             if (entity.Connections != null)
@@ -116,10 +118,23 @@ namespace GUI.Forms
             }
         }
 
-        public void AddProperty(string name, string value)
+        public void AddProperty(string name, string value, string? externalReference = null)
         {
-            dataGridProperties.Rows.Add([name, value]);
+            var rowIndex = dataGridProperties.Rows.Add([name, value]);
+
+            if (externalReference != null)
+            {
+                dataGridProperties.Rows[rowIndex].Cells[ColumnValue.Name].Tag = externalReference;
+            }
         }
+
+        /// <summary>
+        /// The bare text of a string property. The KV3 form a value serializes to carries its quotes
+        /// and, for a resource, its type prefix (<c>resource_name:"particles/foo.vpcf"</c>), which is
+        /// neither what the grid should show nor a path anything can be looked up by.
+        /// </summary>
+        private static string? ResourcePath(KVObject value)
+            => value.ValueType == KVValueType.String ? (string)value : null;
 
         public void AddOutputConnection(Connection connectionData)
         {
@@ -168,7 +183,8 @@ namespace GUI.Forms
 
                 var row = grid.Rows[e.RowIndex];
                 var colName = columnName;
-                var name = (string)row.Cells[colName].Value!;
+                var cell = row.Cells[colName];
+                var name = cell.Tag as string ?? (string)cell.Value!;
 
                 var found = Types.Viewers.Resource.OpenExternalReference(vrfGuiContext, name);
 
