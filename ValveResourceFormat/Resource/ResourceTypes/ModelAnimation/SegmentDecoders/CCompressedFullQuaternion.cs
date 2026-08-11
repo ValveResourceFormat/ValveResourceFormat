@@ -11,14 +11,14 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation.SegmentDecoders
         /// <remarks>
         /// Reads full-precision quaternion data directly from the data buffer.
         /// </remarks>
-        public override void Read(int frameIndex, Frame outFrame)
+        public override void Read(int frameIndex, Frame outFrame, ReadOnlySpan<ElementRemap> remaps)
         {
             var offset = frameIndex * ElementCount;
-            var quaternionData = MemoryMarshal.Cast<byte, Quaternion>(Data);
+            var quaternionData = MemoryMarshal.Cast<byte, Quaternion>(Data.Span);
 
-            for (var i = 0; i < RemapTable.Length; i++)
+            foreach (var remap in remaps)
             {
-                outFrame.SetAttribute(RemapTable[i], ChannelAttribute, quaternionData[offset + WantedElements[i]]);
+                outFrame.SetAttribute(remap.Dest, ChannelAttribute, quaternionData[offset + remap.Source]);
             }
         }
     }

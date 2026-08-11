@@ -5,28 +5,26 @@ using ValveResourceFormat.Serialization.KeyValues;
 namespace ValveResourceFormat.ResourceTypes.ModelAnimation
 {
     /// <summary>
-    /// Represents a data channel in an animation, mapping bones or flex controllers to animation elements.
+    /// Represents a data channel in an animation, naming the bones or flex controllers it drives.
     /// </summary>
     /// <seealso href="https://s2v.app/SchemaExplorer/cs2/animationsystem/CAnimDataChannelDesc">CAnimDataChannelDesc</seealso>
     public class AnimationDataChannel
     {
         /// <summary>
-        /// Gets the remap table that maps bone or flex controller IDs to element indices.
-        /// </summary>
-        public int[] RemapTable { get; }
-
-        /// <summary>
         /// Gets the attribute type of this channel.
         /// </summary>
         public AnimationChannelAttribute Attribute { get; }
 
+        private readonly string[] elementNameArray;
+        private readonly long[] elementIndexArray;
+
         /// <summary>
         /// Initializes a new instance of the <see cref="AnimationDataChannel"/> class.
         /// </summary>
-        public AnimationDataChannel(Skeleton skeleton, FlexController[] flexControllers, KVObject dataChannel)
+        public AnimationDataChannel(KVObject dataChannel)
         {
-            var elementNameArray = dataChannel.GetArray<string>("m_szElementNameArray");
-            var elementIndexArray = dataChannel.GetIntegerArray("m_nElementIndexArray");
+            elementNameArray = dataChannel.GetArray<string>("m_szElementNameArray");
+            elementIndexArray = dataChannel.GetIntegerArray("m_nElementIndexArray");
 
             var channelAttribute = dataChannel.GetStringProperty("m_szVariableName");
             Attribute = channelAttribute switch
@@ -37,7 +35,15 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
                 "data" => AnimationChannelAttribute.Data,
                 _ => AnimationChannelAttribute.Unknown,
             };
+        }
 
+        /// <summary>
+        /// Resolves this channel's element names against a target skeleton, producing a table that maps
+        /// each bone (or flex controller, for <see cref="AnimationChannelAttribute.Data"/> channels) to the
+        /// element index driving it, or -1 when this channel carries nothing for it.
+        /// </summary>
+        public int[] CreateRemapTable(Skeleton skeleton, FlexController[] flexControllers)
+        {
             int remapLength;
             if (Attribute == AnimationChannelAttribute.Data)
             {
@@ -72,7 +78,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
                 }
             }
 
-            RemapTable = remapTable;
+            return remapTable;
         }
     }
 }

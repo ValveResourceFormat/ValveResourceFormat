@@ -11,13 +11,13 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation.SegmentDecoders
         /// <remarks>
         /// Reads static Vector3 values that remain constant across all frames.
         /// </remarks>
-        public override void Read(int frameIndex, Frame outFrame)
+        public override void Read(int frameIndex, Frame outFrame, ReadOnlySpan<ElementRemap> remaps)
         {
-            var vectorData = MemoryMarshal.Cast<byte, Vector3>(Data);
+            var vectorData = MemoryMarshal.Cast<byte, Vector3>(Data.Span);
 
-            for (var i = 0; i < RemapTable.Length; i++)
+            foreach (var remap in remaps)
             {
-                outFrame.SetAttribute(RemapTable[i], ChannelAttribute, vectorData[WantedElements[i]]);
+                outFrame.SetAttribute(remap.Dest, ChannelAttribute, vectorData[remap.Source]);
             }
         }
     }

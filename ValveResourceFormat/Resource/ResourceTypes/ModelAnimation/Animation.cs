@@ -99,7 +99,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
         /// Gets the resource name of the skeleton this animation is authored on. A model's own
         /// skeleton is named after the vmdl it came from, so animations on it carry that name.
         /// </summary>
-        public string TargetSkeletonName { get; protected init; } = string.Empty;
+        public abstract string TargetSkeletonName { get; }
 
         /// <summary>
         /// The delta a decoded bone of an additive frame contributes, in the one convention everything
