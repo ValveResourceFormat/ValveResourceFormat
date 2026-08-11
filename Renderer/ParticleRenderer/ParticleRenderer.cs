@@ -457,7 +457,7 @@ namespace ValveResourceFormat.Renderer.Particles
             var passes = 1;
             foreach (var op in operatorData)
             {
-                if (op.GetStringProperty("_class") == "C_OP_BasicMovement")
+                if (op.GetStringProperty("_class") == "C_OP_BasicMovement" && !IsOperatorDisabled(op, rendererContext.Logger))
                 {
                     var parse = new ParticleDefinitionParser(op, rendererContext.Logger, BehaviorVersion);
                     passes = Math.Max(passes, parse.Int32("m_nMaxConstraintPasses", 3));
