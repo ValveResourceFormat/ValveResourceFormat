@@ -191,6 +191,12 @@ public class UserInput
                 if (Released(TrackedKeys.Alt))
                 {
                     PlayerMovement.Initialize = !NoClip;
+
+                    if (!NoClip)
+                    {
+                        // Orbiting zooms with a transition of its own, so the same settling applies
+                        SettleCamera();
+                    }
                 }
             }
             else if (Pressed(TrackedKeys.Alt))
@@ -226,6 +232,12 @@ public class UserInput
         {
             MoveCamera(new Vector3(0, 0, 32), transition: true);
             CurrentSpeedModifier = 7;
+        }
+        else if (!wasClipping && !NoClip)
+        {
+            // Only reachable on the frame X hands control back, since otherwise the two agree. The body
+            // is about to be seeded from the camera, so the view has to stop trailing it first.
+            SettleCamera();
         }
 
         Camera.Roll = 0f;
@@ -295,6 +307,24 @@ public class UserInput
 
         NoClip = true;
         TransitionCamera(transitionDuration);
+    }
+
+    /// <summary>
+    /// Ends any camera transition where it has got to, so the view stops lagging behind the camera it is
+    /// lerping towards.
+    /// </summary>
+    /// <remarks>
+    /// Handing control to the player means the camera stops being something the view chases and starts
+    /// being the body's eyes: the body is seeded from where the camera is, and drawn there, so a view
+    /// still lerping in from behind would watch itself materialise in front of it. Adopting the pose the
+    /// transition had reached rather than its destination keeps the player where they were looking from.
+    /// </remarks>
+    private void SettleCamera()
+    {
+        var view = GetInterpolatedCamera();
+
+        Camera.SetLocationPitchYaw(view.Location, view.Pitch, view.Yaw);
+        TransitionEndTime = -1f;
     }
 
     private void TransitionCamera(float transitionDuration = 1.5f)
