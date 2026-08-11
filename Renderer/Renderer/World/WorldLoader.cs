@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
@@ -26,6 +27,13 @@ namespace ValveResourceFormat.Renderer.World
     {
         private readonly Scene scene;
         private readonly RendererContext RendererContext;
+
+        // A template child's own keyvalues are in template space, so the spawning point_template's
+        // transform is kept here to compose a world transform for entities looked up by name.
+        private readonly Dictionary<Entity, Matrix4x4> entityParentTransforms = [];
+        private readonly List<ParticleSceneNode> entityParticleNodes = [];
+
+        private static readonly string[] ControlPointKeys = CreateControlPointKeys();
 
         /// <summary>The directory path of the map, e.g. <c>maps/de_dust2</c>.</summary>
         public string MapName { get; }
@@ -252,6 +260,7 @@ namespace ValveResourceFormat.Renderer.World
             }
 
             ResolveAttachmentParenting();
+            ResolveParticleControlPoints();
 
             // Every entity exists now, so the simulated ones can resolve each other by name
             scene.EntitySystem.Activate();
@@ -533,6 +542,13 @@ namespace ValveResourceFormat.Renderer.World
 
             Entities.AddRange(traversed.Select(t => t.Entity));
 
+            foreach (var t in traversed)
+            {
+                if (t.ParentTransform != Matrix4x4.Identity)
+                {
+                    entityParentTransforms[t.Entity] = t.ParentTransform;
+                }
+            }
             var connectionTargets = new EntityIOTargetResolver(Entities);
 
             void LoadEntity(string classname, Entity entity, Matrix4x4 parentTransform, bool fromTemplate)
@@ -792,7 +808,7 @@ namespace ValveResourceFormat.Renderer.World
                                     if (skyEntity != null)
                                     {
                                         material = skyEntity.GetStringProperty("skyname") ?? skyEntity.GetStringProperty("skybox_material_day");
-                                        var rotationOnly = EntityTransformHelper.ToTransformationMatrix(skyEntity) with { Translation = transformationMatrix.Translation };
+                                        var rotationOnly = GetEntityWorldTransform(skyEntity) with { Translation = transformationMatrix.Translation };
                                         transformationMatrix = rotationOnly;  // steal rotation from env_sky
 
                                         var scale = skyEntity.GetFloatProperty("brightnessscale", 1.0f);
@@ -1116,7 +1132,7 @@ namespace ValveResourceFormat.Renderer.World
                                 }
                             }
 
-                            var particleNode = new ParticleSceneNode(scene, particleSystem, particleSnapshot)
+                            var particleNode = new ParticleSceneNode(scene, particleSystem, particleSnapshot, playedByEntity: true)
                             {
                                 Name = particle,
                                 Transform = ResolveControlPoint0Transform(entity, transformationMatrix),
@@ -1124,11 +1140,7 @@ namespace ValveResourceFormat.Renderer.World
                                 EntityData = entity,
                             };
 
-                            if (classname == "env_particle_glow")
-                            {
-                                ApplyParticleGlowProperties(entity, particleNode);
-                            }
-
+                            entityParticleNodes.Add(particleNode);
                             scene.Add(particleNode, true);
                         }
                         catch (Exception e)
@@ -1477,6 +1489,11 @@ namespace ValveResourceFormat.Renderer.World
             EntityTransformHelper.GetTransformComponents(entity, out _, out var skyboxReferenceRotationMatrix, out var skyboxReferencePositionMatrix);
             var skyboxReference = skyboxReferenceRotationMatrix * Matrix4x4.CreateTranslation(skyboxReferencePositionMatrix);
 
+            if (entityParentTransforms.TryGetValue(entity, out var skyboxParentTransform))
+            {
+                skyboxReference *= skyboxParentTransform;
+            }
+
             var offsetTransform = Matrix4x4.CreateTranslation(-skyboxResult.WorldOffset);
             var offsetAndScaleTransform = offsetTransform;
 
@@ -1564,7 +1581,10 @@ namespace ValveResourceFormat.Renderer.World
 
         private void CreateDefaultEntity(Entity entity, string classname, Matrix4x4 transformationMatrix, ObjectTypeFlags flags = ObjectTypeFlags.None, string layerName = EditorEntityNode.LayerName)
         {
-            var createdNode = EditorEntityNode.Create(scene, entity, classname, transformationMatrix, flags, layerName);
+            entityParentTransforms.TryGetValue(entity, out var entityParentTransform);
+
+            var createdNode = EditorEntityNode.Create(scene, entity, classname, transformationMatrix, flags, layerName,
+                entityParentTransform == default ? null : entityParentTransform);
 
             scene.Add(createdNode, true);
 
@@ -1587,7 +1607,7 @@ namespace ValveResourceFormat.Renderer.World
                     }
 
                     var end = transformationMatrix.Translation;
-                    var start = EntityTransformHelper.ToTransformationMatrix(startEntity).Translation;
+                    var start = GetEntityWorldTransform(startEntity).Translation;
 
                     if (line.EndKey != null && line.EndValueKey != null)
                     {
@@ -1603,7 +1623,7 @@ namespace ValveResourceFormat.Renderer.World
                             continue;
                         }
 
-                        end = EntityTransformHelper.ToTransformationMatrix(endEntity).Translation;
+                        end = GetEntityWorldTransform(endEntity).Translation;
                     }
 
                     var origin = (start + end) / 2f;
@@ -1648,7 +1668,7 @@ namespace ValveResourceFormat.Renderer.World
                         continue;
                     }
 
-                    var end = EntityTransformHelper.ToTransformationMatrix(endEntity).Translation;
+                    var end = GetEntityWorldTransform(endEntity).Translation;
 
                     var origin = (start + end) / 2f;
                     end -= origin;
@@ -1694,7 +1714,7 @@ namespace ValveResourceFormat.Renderer.World
 
                 visited[current] = nodes.Count;
                 nodes.Add(new FloraMoverPathNode(
-                    EntityTransformHelper.ToTransformationMatrix(current).Translation,
+                    GetEntityWorldTransform(current).Translation,
                     current.GetFloatProperty("speed"),
                     current.GetFloatProperty("wait")));
 
@@ -1725,7 +1745,7 @@ namespace ValveResourceFormat.Renderer.World
                 return transformationMatrix;
             }
 
-            return EntityTransformHelper.ToTransformationMatrix(target);
+            return GetEntityWorldTransform(target);
         }
 
         private static void ApplyParticleGlowProperties(Entity entity, ParticleSceneNode particleNode)
@@ -1742,6 +1762,158 @@ namespace ValveResourceFormat.Renderer.World
             {
                 particleNode.SetTextureOverride(textureOverride);
             }
+        }
+
+        private static string[] CreateControlPointKeys()
+        {
+            var keys = new string[64];
+
+            for (var i = 0; i < keys.Length; i++)
+            {
+                keys[i] = string.Concat("cpoint", i.ToString(CultureInfo.InvariantCulture));
+            }
+
+            return keys;
+        }
+
+        /// <summary>
+        /// Applies the control point overrides authored on particle entities: <c>cpoint1</c> to
+        /// <c>cpoint63</c> each name an entity whose transform that control point takes. Runs once
+        /// every lump is loaded, so a target in another lump resolves regardless of load order.
+        /// </summary>
+        private void ResolveParticleControlPoints()
+        {
+            if (entityParticleNodes.Count == 0)
+            {
+                return;
+            }
+
+            var entitiesByTargetName = new Dictionary<string, Entity>(Entities.Count, StringComparer.OrdinalIgnoreCase);
+
+            foreach (var entity in Entities)
+            {
+                var targetName = entity.TargetName;
+
+                if (!string.IsNullOrEmpty(targetName))
+                {
+                    entitiesByTargetName.TryAdd(targetName, entity);
+                }
+            }
+
+            var nodesByEntity = new Dictionary<Entity, SceneNode>();
+
+            foreach (var node in scene.AllNodes)
+            {
+                // A particle entity also spawns its own effect node, whose transform follows the
+                // simulation rather than staying at the origin the entity was authored at.
+                if (node.EntityData != null && node is not ParticleSceneNode)
+                {
+                    nodesByEntity.TryAdd(node.EntityData, node);
+                }
+            }
+
+            foreach (var particleNode in entityParticleNodes)
+            {
+                var entity = particleNode.EntityData!;
+
+                for (var index = 1; index < ControlPointKeys.Length; index++)
+                {
+                    var targetName = entity.GetStringProperty(ControlPointKeys[index]);
+
+                    if (string.IsNullOrEmpty(targetName))
+                    {
+                        continue;
+                    }
+
+                    if (targetName[0] == '!')
+                    {
+                        if (string.Equals(targetName, "!self", StringComparison.OrdinalIgnoreCase))
+                        {
+                            particleNode.SetControlPoint(index, GetEntityWorldTransform(entity));
+                        }
+                        else
+                        {
+                            RendererContext.Logger.LogDebug("Particle entity '{Target}' points {Key} at '{ControlPointTarget}', which only exists at runtime",
+                                entity.TargetName, ControlPointKeys[index], targetName);
+                        }
+
+                        continue;
+                    }
+
+                    if (!entitiesByTargetName.TryGetValue(targetName, out var target))
+                    {
+                        RendererContext.Logger.LogWarning("Particle entity '{Target}' points {Key} at '{ControlPointTarget}', which does not exist",
+                            entity.TargetName, ControlPointKeys[index], targetName);
+                        continue;
+                    }
+
+                    var transform = GetEntityWorldTransform(target);
+
+                    if (nodesByEntity.TryGetValue(target, out var targetNode))
+                    {
+                        particleNode.BindControlPoint(index, targetNode, transform);
+                    }
+                    else
+                    {
+                        particleNode.SetControlPoint(index, transform);
+                    }
+                }
+
+                ApplyLiteralControlPointValues(entity, particleNode);
+
+                if (entity.GetStringProperty("classname") == "env_particle_glow")
+                {
+                    ApplyParticleGlowProperties(entity, particleNode);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Pins control points to the literal values authored on the entity: <c>data_cp</c> takes a
+        /// vector and <c>tint_cp</c> a colour, both fed through as authored. Applied after the
+        /// <c>cpointN</c> bindings, which is the order the engine resolves the two in.
+        /// </summary>
+        private static void ApplyLiteralControlPointValues(Entity entity, ParticleSceneNode particleNode)
+        {
+            var dataControlPoint = LiteralControlPointIndex(entity, "data_cp");
+
+            if (dataControlPoint >= 0)
+            {
+                particleNode.GetControlPoint(dataControlPoint).Position = entity.GetVector3Property("data_cp_value");
+            }
+
+            var tintControlPoint = LiteralControlPointIndex(entity, "tint_cp");
+
+            if (tintControlPoint >= 0)
+            {
+                particleNode.GetControlPoint(tintControlPoint).Position = entity.GetVector3Property("tint_cp_color", new Vector3(255f));
+            }
+        }
+
+        /// <summary>
+        /// Reads a literal control point index, clamped the way the engine clamps it at spawn. Returns
+        /// -1 when unused, which is also what an index past the last control point resolves to.
+        /// </summary>
+        private static int LiteralControlPointIndex(Entity entity, string key)
+        {
+            var index = Math.Clamp(entity.GetInt32Property(key, -1), -1, 64);
+
+            return index < ControlPointKeys.Length ? index : -1;
+        }
+
+        /// <summary>
+        /// Gets the world transform of an entity, composing the transform of the
+        /// <c>point_template</c> that spawned it when it came from a template child lump.
+        /// </summary>
+        /// <param name="entity">The entity to place.</param>
+        /// <returns>The entity's transform in world space.</returns>
+        public Matrix4x4 GetEntityWorldTransform(Entity entity)
+        {
+            var transform = EntityTransformHelper.ToTransformationMatrix(entity);
+
+            return entityParentTransforms.TryGetValue(entity, out var parentTransform)
+                ? transform * parentTransform
+                : transform;
         }
 
         private Entity? FindEntityByKeyValue(string keyToFind, string valueToFind)

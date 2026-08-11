@@ -37,7 +37,11 @@ namespace ValveResourceFormat.Renderer.SceneNodes
         /// <param name="particleSystem">The particle system resource to simulate and render.</param>
         /// <param name="particleSnapshot">Optional snapshot to provide initial particle data (e.g. from a map entity).</param>
         /// <param name="preview">Whether to load preview control point state, and loop playback when finished.</param>
-        public ParticleSceneNode(Scene scene, ParticleSystem particleSystem, ParticleSnapshot? particleSnapshot = null, bool preview = false)
+        /// <param name="playedByEntity">
+        /// Whether a map entity plays this effect, in which case its control points come from that entity
+        /// rather than from a control point configuration.
+        /// </param>
+        public ParticleSceneNode(Scene scene, ParticleSystem particleSystem, ParticleSnapshot? particleSnapshot = null, bool preview = false, bool playedByEntity = false)
             : base(scene)
         {
             particleRenderer = new ParticleRenderer(particleSystem, Scene.RendererContext, scene, particleSnapshot)
@@ -57,7 +61,7 @@ namespace ValveResourceFormat.Renderer.SceneNodes
                     Scene.Add(PreviewModel, true);
                 }
             }
-            else
+            else if (!playedByEntity)
             {
                 ApplyRuntimeControlPointValues(particleSystem);
             }
@@ -190,26 +194,21 @@ namespace ValveResourceFormat.Renderer.SceneNodes
             return nodes;
         }
 
-        // Maps a ParticleAttachment_t kind onto the model's generic attach primitives (no placement math
-        // of its own): *_follow kinds track the model or a named attachment point, the rest are placed once,
-        // and kinds with no distinct viewer anchor (eyes/overhead/rootbone/center/...) fall back to the model origin.
+        // Maps a ParticleAttachment_t kind onto the model's generic attach primitives: custom origin and
+        // world origin are placed once, every other kind tracks the model or its named attachment point.
         private static void AttachOnModel(ModelSceneNode modelNode, SceneNode node, ParticleAttachment attachType, string attachmentName, Vector3 offset)
         {
             switch (attachType)
             {
+                case ParticleAttachment.PATTACH_POINT:
                 case ParticleAttachment.PATTACH_POINT_FOLLOW:
                     modelNode.AttachNode(node, attachmentName, offset);
-                    break;
-
-                case ParticleAttachment.PATTACH_POINT:
-                    modelNode.PlaceNode(node, attachmentName, offset);
                     break;
 
                 case ParticleAttachment.PATTACH_WORLDORIGIN:
                     node.Transform = Matrix4x4.CreateTranslation(offset);
                     break;
 
-                case ParticleAttachment.PATTACH_ABSORIGIN:
                 case ParticleAttachment.PATTACH_CUSTOMORIGIN:
                     modelNode.PlaceNode(node, string.Empty, offset);
                     break;
@@ -257,6 +256,60 @@ namespace ValveResourceFormat.Renderer.SceneNodes
         /// <param name="index">The index of the control point to retrieve.</param>
         /// <returns>The control point at the specified index.</returns>
         public ControlPoint GetControlPoint(int index) => particleRenderer.GetControlPoint(index);
+
+        /// <summary>
+        /// Places a control point at a transform, taking its position and full orientation frame the
+        /// same way control point 0 is seeded from this node's transform.
+        /// </summary>
+        /// <param name="index">The index of the control point to place.</param>
+        /// <param name="transform">The world transform the control point takes.</param>
+        public void SetControlPoint(int index, Matrix4x4 transform)
+        {
+            var controlPoint = particleRenderer.GetControlPoint(index);
+            controlPoint.Position = transform.Translation;
+
+            var forward = Vector3.TransformNormal(Vector3.UnitX, transform);
+
+            if (forward.LengthSquared() > Epsilon.LengthSquared)
+            {
+                controlPoint.Orientation = Vector3.Normalize(forward);
+                controlPoint.Rotation = Quaternion.Normalize(Quaternion.CreateFromRotationMatrix(transform));
+            }
+        }
+
+        /// <summary>
+        /// Places a control point at a transform and keeps it there relative to a scene node, so a
+        /// control point bound to an entity follows that entity when something moves it.
+        /// </summary>
+        /// <param name="index">The index of the control point to place.</param>
+        /// <param name="target">The node the control point follows.</param>
+        /// <param name="transform">The world transform the control point takes while the node is still.</param>
+        public void BindControlPoint(int index, SceneNode target, Matrix4x4 transform)
+        {
+            controlPointBindings ??= [];
+            controlPointBindings.Add(new ControlPointBinding(index, target, target.Transform, transform));
+            SetControlPoint(index, transform);
+        }
+
+        private List<ControlPointBinding>? controlPointBindings;
+
+        private readonly record struct ControlPointBinding(int Index, SceneNode Target, Matrix4x4 TargetOrigin, Matrix4x4 Transform);
+
+        private void UpdateBoundControlPoints()
+        {
+            foreach (var binding in controlPointBindings!)
+            {
+                var moved = binding.Target.Transform;
+                var transform = binding.Transform;
+
+                if (moved != binding.TargetOrigin && Matrix4x4.Invert(binding.TargetOrigin, out var toOrigin))
+                {
+                    transform *= toOrigin * moved;
+                }
+
+                SetControlPoint(binding.Index, transform);
+            }
+        }
 
         private ModelSceneNode? CreatePreviewModel(ParticleSystem particleSystem)
         {
@@ -426,6 +479,11 @@ namespace ValveResourceFormat.Renderer.SceneNodes
             // non-follow attachment in game. Between seeds the control point belongs to the simulation:
             // particle functions may move it, and the node transform reflects it back after each step.
             // Preview drives the control point separately.
+            if (controlPointBindings != null)
+            {
+                UpdateBoundControlPoints();
+            }
+
             if (seededTransform != Transform)
             {
                 var controlPoint = particleRenderer.MainControlPoint;
