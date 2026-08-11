@@ -566,6 +566,10 @@ namespace ValveResourceFormat.Renderer.World
                     layerName = "Entities (disabled)";
                 }
 
+                var defaultEntityLayer = toolEntityLayer == ToolEntitiesLayerName && HammerEntities.Get(classname)?.Studio == true
+                    ? layerName
+                    : toolEntityLayer;
+
                 if (classname == "info_world_layer")
                 {
                     var spawnflags = entity.GetUInt32Property("spawnflags");
@@ -1271,7 +1275,7 @@ namespace ValveResourceFormat.Renderer.World
 
                 if (model == null)
                 {
-                    CreateDefaultEntity(entity, classname, transformationMatrix, entityFlags, toolEntityLayer);
+                    CreateDefaultEntity(entity, classname, transformationMatrix, entityFlags, defaultEntityLayer);
                     return;
                 }
 
@@ -1389,7 +1393,7 @@ namespace ValveResourceFormat.Renderer.World
                 else if (!modelNode.HasMeshes && modelParticleNodes.Count == 0)
                 {
                     // If the loaded model has no meshes, particles, or physics, fallback to default entity
-                    CreateDefaultEntity(entity, classname, transformationMatrix, layerName: toolEntityLayer);
+                    CreateDefaultEntity(entity, classname, transformationMatrix, layerName: defaultEntityLayer);
                 }
             }
 
