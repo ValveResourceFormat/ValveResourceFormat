@@ -61,10 +61,12 @@ record struct ParticleDefinitionParser(KVObject Data, ILogger Logger, int[] Inpu
     private readonly float Float(string k)
     {
         // Newer content authors many scalar fields as full float-input structures; the call site
-        // must read those with NumberProvider instead of as a literal.
+        // should read those with NumberProvider instead. Fall back to the block's literal value so
+        // such content still loads.
         if (Data.GetSubCollection(k) is { IsCollection: true })
         {
             Logger.LogWarning("Field {Key} is authored as a number provider, but is parsed as a literal float; it should be read with NumberProvider", k);
+            return NumberProvider(k)?.NextNumber() ?? 0f;
         }
 
         return Data.GetFloatProperty(k);
@@ -78,6 +80,7 @@ record struct ParticleDefinitionParser(KVObject Data, ILogger Logger, int[] Inpu
         if (Data.GetSubCollection(k) is { IsCollection: true })
         {
             Logger.LogWarning("Field {Key} is authored as a number provider, but is parsed as a literal int; it should be read with NumberProvider", k);
+            return (int)(NumberProvider(k)?.NextNumber() ?? 0f);
         }
 
         return Data.GetInt32Property(k);
@@ -205,6 +208,8 @@ record struct ParticleDefinitionParser(KVObject Data, ILogger Logger, int[] Inpu
 
             switch (type)
             {
+                case "PF_TYPE_INVALID":
+                    return null;
                 case "PF_TYPE_LITERAL":
                     return new LiteralNumberProvider(parse.Float("m_flLiteralValue"));
                 case "PF_TYPE_RANDOM_UNIFORM":
@@ -225,8 +230,13 @@ record struct ParticleDefinitionParser(KVObject Data, ILogger Logger, int[] Inpu
                     return new ParticleAgeNormalizedNumberProvider(parse);
                 case "PF_TYPE_PARTICLE_FLOAT":
                     return new PerParticleNumberProvider(parse);
+                case "PF_TYPE_PARTICLE_INITIAL_FLOAT":
+                    return new PerParticleInitialNumberProvider(parse);
                 case "PF_TYPE_PARTICLE_VECTOR_COMPONENT":
+                case "PF_TYPE_PARTICLE_INITIAL_VECTOR_COMPONENT":
                     return new PerParticleVectorComponentNumberProvider(parse);
+                case "PF_TYPE_RENDERER_CAMERA_DISTANCE":
+                    return new RendererCameraDistanceNumberProvider(parse);
                 case "PF_TYPE_PARTICLE_SPEED":
                     return new PerParticleSpeedNumberProvider(parse);
                 case "PF_TYPE_PARTICLE_NUMBER":
@@ -235,26 +245,27 @@ record struct ParticleDefinitionParser(KVObject Data, ILogger Logger, int[] Inpu
                     return new PerParticleCountNormalizedNumberProvider(parse);
                 case "PF_TYPE_CONTROL_POINT_SPEED":
                     return new ControlPointSpeedNumberProvider(parse);
+                case "PF_TYPE_PARTICLE_NOISE":
+                    return new NoiseNumberProvider(parse);
                 // KNOWN TYPES WE DON'T SUPPORT:
-                // PF_TYPE_CONTROL_POINT_CHANGE_AGE - no way.
-                // PF_TYPE_PARTICLE_NOISE - exists only in deskjob and CS2. Likely added in behavior version 11 or 12.
-                // PF_TYPE_NAMED_VALUE - seen in dota's particle.dll?? not in deskjob's, so in behavior version 13+?
+                // PF_TYPE_CONTROL_POINT_CHANGE_AGE, PF_TYPE_NAMED_VALUE (needs game VData),
+                // PF_TYPE_SNAPSHOT_COUNT, PF_TYPE_PARTICLE_ROPE_SEGMENT_NORMALIZED, PF_TYPE_RANGE
                 default:
-                    if (pfParameters.ContainsKey("m_flLiteralValue"))
-                    {
-                        Logger.LogWarning("Number provider of type {Type} is not directly supported, but it has m_flLiteralValue", type);
-                        return new LiteralNumberProvider(pfParameters.GetFloatProperty("m_flLiteralValue"));
-                    }
-
                     if (type == null)
                     {
-                        // Old serialization omits every default-valued key, including m_nType; fall back to the
-                        // caller-supplied default.
-                        Logger.LogWarning("Number provider has no m_nType and no m_flLiteralValue, using the caller default");
+                        // Old serialization omits every default-valued key, and the default type is the
+                        // literal one, so a block carrying a literal value is that literal.
+                        if (pfParameters.ContainsKey("m_flLiteralValue"))
+                        {
+                            return new LiteralNumberProvider(pfParameters.GetFloatProperty("m_flLiteralValue"));
+                        }
+
+                        Logger.LogWarning("Number provider has no m_nType, using the caller default");
                         return null;
                     }
 
-                    throw new InvalidCastException($"Could not create number provider of type {type}.");
+                    Logger.LogWarning("Number provider of type {Type} is not supported, using its literal value", type);
+                    return new LiteralNumberProvider(pfParameters.GetFloatProperty("m_flLiteralValue"));
             }
         }
         else
@@ -280,8 +291,12 @@ record struct ParticleDefinitionParser(KVObject Data, ILogger Logger, int[] Inpu
                     return new LiteralVectorProvider(parse.Vector3("m_vLiteralValue"));
                 case "PVEC_TYPE_LITERAL_COLOR":
                     return new LiteralColorVectorProvider(parse.Vector3("m_LiteralColor"));
+                // The INITIAL variant reads the current value, exact for attributes nothing rewrites after spawn.
                 case "PVEC_TYPE_PARTICLE_VECTOR":
+                case "PVEC_TYPE_PARTICLE_INITIAL_VECTOR":
                     return new PerParticleVectorProvider(parse);
+                case "PVEC_TYPE_CLOSEST_CAMERA_POSITION":
+                    return new ClosestCameraPositionVectorProvider();
                 case "PVEC_TYPE_PARTICLE_VELOCITY":
                     return new ParticleVelocityVectorProvider();
                 case "PVEC_TYPE_CP_VALUE":
@@ -305,18 +320,12 @@ record struct ParticleDefinitionParser(KVObject Data, ILogger Logger, int[] Inpu
                 case "PVEC_TYPE_RANDOM_UNIFORM_OFFSET":
                     return new RandomUniformOffsetVectorProvider(parse);
                 /* UNSUPPORTED:
-                 * PVEC_TYPE_NAMED_VALUE - new in dota
-                 * PVEC_TYPE_PARTICLE_VELOCITY - new in dota
+                 * PVEC_TYPE_NAMED_VALUE - needs game VData
                  * PVEC_TYPE_CP_RELATIVE_RANDOM_DIR - new in dota. presumably relative dir but the value is random per particle?
                  */
                 default:
-                    if (pvecParameters.ContainsKey("m_vLiteralValue"))
-                    {
-                        Logger.LogWarning("Vector provider of type {Type} is not directly supported, but it has m_vLiteralValue", type);
-                        return new LiteralVectorProvider(parse.Vector3("m_vLiteralValue"));
-                    }
-
-                    throw new InvalidCastException($"Could not create vector provider of type {type}.");
+                    Logger.LogWarning("Vector provider of type {Type} is not supported, using its literal value", type);
+                    return new LiteralVectorProvider(parse.Vector3("m_vLiteralValue"));
             }
         }
 

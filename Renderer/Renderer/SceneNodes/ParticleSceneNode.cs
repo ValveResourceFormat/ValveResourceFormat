@@ -517,6 +517,7 @@ namespace ValveResourceFormat.Renderer.SceneNodes
 
             if (frameTime > 0f)
             {
+                particleRenderer.SetCameraPosition(context.Camera.Location);
                 particleRenderer.Update(frameTime, context.Uptime);
 
                 if (!Preview)

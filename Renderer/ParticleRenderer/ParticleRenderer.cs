@@ -127,6 +127,20 @@ namespace ValveResourceFormat.Renderer.Particles
             set => systemRenderState.SetControlPoint(0, value);
         }
 
+        /// <summary>
+        /// Publishes the render camera position to this system and every child for
+        /// camera-dependent particle inputs.
+        /// </summary>
+        public void SetCameraPosition(Vector3 position)
+        {
+            systemRenderState.CameraPosition = position;
+
+            foreach (var childParticleRenderer in childParticleRenderers)
+            {
+                childParticleRenderer.SetCameraPosition(position);
+            }
+        }
+
         public ControlPoint GetControlPoint(int cp) => systemRenderState.GetControlPoint(cp);
 
         private readonly List<ParticleRenderer> childParticleRenderers;

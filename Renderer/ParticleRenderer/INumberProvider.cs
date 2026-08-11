@@ -196,6 +196,25 @@ namespace ValveResourceFormat.Renderer.Particles
         public float NextNumber(ref Particle particle, ParticleSystemRenderState renderState) => mapping.ApplyMapping(particle.GetScalar(field));
     }
 
+    /// <summary>
+    /// PF_TYPE_PARTICLE_INITIAL_FLOAT. Reads the particle's current attribute value, which equals
+    /// the initial value for attributes that never mutate after spawn (creation time, particle id);
+    /// for attributes operators rewrite it is an approximation.
+    /// </summary>
+    class PerParticleInitialNumberProvider : INumberProvider
+    {
+        private readonly ParticleField field;
+
+        private readonly AttributeMapping mapping;
+
+        public PerParticleInitialNumberProvider(ParticleDefinitionParser parse)
+        {
+            field = parse.ParticleField("m_nScalarAttribute");
+            mapping = new AttributeMapping(parse);
+        }
+        public float NextNumber(ref Particle particle, ParticleSystemRenderState renderState) => mapping.ApplyMapping(particle.GetScalar(field));
+    }
+
     // Particle Vector Component
     class PerParticleVectorComponentNumberProvider : INumberProvider
     {
@@ -265,6 +284,45 @@ namespace ValveResourceFormat.Renderer.Particles
             // effect actually wants - an unset point commonly has to read as a multiplier of 1, not 0.
             return attributeMapping.ApplyMapping(renderState.GetControlPoint(cp).Position.GetComponent(vectorComponent));
         }
+    }
+
+    /// <summary>PF_TYPE_RENDERER_CAMERA_DISTANCE. Distance from the render camera to the particle.</summary>
+    class RendererCameraDistanceNumberProvider : INumberProvider
+    {
+        private readonly AttributeMapping attributeMapping;
+        public RendererCameraDistanceNumberProvider(ParticleDefinitionParser parse) { attributeMapping = new AttributeMapping(parse); }
+        public float NextNumber(ref Particle particle, ParticleSystemRenderState renderState)
+            => attributeMapping.ApplyMapping(Vector3.Distance(renderState.CameraPosition, particle.Position));
+    }
+
+    /// <summary>
+    /// PF_TYPE_PARTICLE_NOISE. Fractal noise over a particle vector attribute, or over the live
+    /// position of the input's control point when evaluated at collection level (emitters,
+    /// renderers); a negative control point index samples the origin. The evaluation pipeline
+    /// lives in <see cref="Utils.NoiseEvaluator"/>.
+    /// </summary>
+    class NoiseNumberProvider : INumberProvider
+    {
+        private readonly ParticleField inputField = ParticleField.Position;
+        private readonly int controlPoint;
+        private readonly Utils.NoiseEvaluator noise;
+        private readonly AttributeMapping mapping;
+
+        public NoiseNumberProvider(ParticleDefinitionParser parse)
+        {
+            inputField = parse.ParticleField("m_nNoiseInputVectorAttribute", inputField);
+            controlPoint = parse.Int32("m_nControlPoint", controlPoint);
+            noise = new Utils.NoiseEvaluator(parse);
+            mapping = new AttributeMapping(parse);
+        }
+
+        public float NextNumber(ref Particle particle, ParticleSystemRenderState renderState)
+            => mapping.ApplyMapping(noise.Evaluate(particle.GetVector(inputField), renderState.Age));
+
+        public float NextNumber(ParticleSystemRenderState renderState)
+            => mapping.ApplyMapping(noise.Evaluate(
+                controlPoint < 0 ? Vector3.Zero : renderState.GetControlPoint(controlPoint).Position,
+                renderState.Age));
     }
 
     // Control Point Speed

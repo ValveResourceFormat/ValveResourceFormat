@@ -58,6 +58,9 @@ namespace ValveResourceFormat.Renderer.Particles
         public long ParticleCount { get; set; }
         public float Age { get; set; }
 
+        /// <summary>World-space position of the render camera, updated once per simulation step.</summary>
+        public Vector3 CameraPosition { get; set; }
+
         public bool EndEarly { get; set; }
 
         public bool DestroyInstantlyOnEnd { get; private set; }
@@ -178,6 +181,9 @@ namespace ValveResourceFormat.Renderer.Particles
             return Data?.GetControlPointSnapshot(cp) ?? ParentSystem?.GetControlPointSnapshot(cp);
         }
 
+        /// <summary>Highest control point index this system has touched; some emitters scale their rate by it.</summary>
+        public int HighestControlPoint { get; private set; }
+
         public void SetControlPoint(int cp, ControlPoint point)
         {
             if (ParentSystem != null)
@@ -185,6 +191,7 @@ namespace ValveResourceFormat.Renderer.Particles
                 ParentSystem.SetControlPoint(cp, point);
             }
 
+            HighestControlPoint = Math.Max(HighestControlPoint, cp);
             controlPoints[cp] = point;
         }
 
