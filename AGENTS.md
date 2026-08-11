@@ -21,6 +21,13 @@ ValveResourceFormat (VRF) is a C# library and toolset for parsing Valve's Source
 - Material float/int/vector params are set as uniforms by iterating the shader's default values and overriding with material values.
 - Render mode defines (e.g. `renderMode_Illumination`) default to 0 and are overridden via static combos at compile time.
 
+### Transforms and Angles
+All angle, quaternion and direction conversions live in `EntityTransformHelper` - use it instead of hand-rolling trig, and read its class remarks before touching this area.
+- Source 2 is Z-up and right-handed: +X forward, +Y left, +Z up.
+- An entity's `angles` is a QAngle: (pitch, yaw, roll) in degrees, pitch positive **downwards**.
+- Matrices are row-vector, so a rotation's first row is forward. Frames built from a direction must put it on +X.
+- `Camera` holds the same angles in radians. Convert at that boundary via `Camera.SetFromQAngle`/`GetQAngle`.
+
 ## Code Style
 Follow standard Microsoft C# conventions. Key rules:
 
