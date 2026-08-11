@@ -20,6 +20,7 @@ uniform sampler2D uTextureLayer3;
 uniform sampler2D uTextureLayer4;
 
 uniform float uOverbrightFactor;
+uniform float uAddSelfAmount = 1.0; // 1 + m_flAddSelfAmount
 uniform float uColorFactor = 1.0; // m_flDiffuseAmount + m_flSelfIllumAmount
 uniform float uDesaturation = 0.0; // m_flDesaturation
 // m_bSaturateColorPreAlphaBlend, which defaults on. A good deal of shipped content turns it off to let
@@ -341,6 +342,10 @@ void main(void) {
         {
             finalColor = saturate(finalColor);
         }
+
+        // m_flAddSelfAmount arrives as 1 + amount; over an alpha blend the extra term lays the
+        // particle's own colour additively on top. Placed after the saturate to keep the overshoot.
+        finalColor *= uAddSelfAmount;
 
         bool isAdditive = uBlendMode == PARTICLE_OUTPUT_BLEND_MODE_ADD;
 
