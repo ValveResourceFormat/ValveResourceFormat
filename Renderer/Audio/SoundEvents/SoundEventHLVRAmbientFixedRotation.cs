@@ -30,13 +30,10 @@ internal sealed class SoundEventHLVRAmbientFixedRotation : SoundEvent
         mixGroup = data.GetStringProperty("mixgroup", string.Empty);
 
         var radius = data.GetFloatProperty("radius");
-        var yaw = float.DegreesToRadians(data.GetFloatProperty("rotation_angle"));
-        var pitch = float.DegreesToRadians(data.GetFloatProperty("vertical_rotation_angle"));
+        var yaw = data.GetFloatProperty("rotation_angle");
+        var pitch = data.GetFloatProperty("vertical_rotation_angle");
 
-        rotationOffset = radius * new Vector3(
-            MathF.Cos(yaw) * MathF.Cos(pitch),
-            MathF.Sin(yaw) * MathF.Cos(pitch),
-            MathF.Sin(pitch));
+        rotationOffset = radius * EntityTransformHelper.EulerAnglesToForwardDirection(new Vector3(pitch, yaw, 0f));
 
         if (data.ContainsKey("volume_falloff_max"))
         {

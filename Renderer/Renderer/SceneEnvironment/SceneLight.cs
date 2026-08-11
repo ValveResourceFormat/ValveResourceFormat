@@ -358,7 +358,7 @@ public class SceneLight(Scene scene) : SceneNode(scene)
         }
 
         light.Position = entity.GetVector3Property("origin");
-        light.Direction = AnglesToDirection(entity.GetVector3Property("angles"));
+        light.Direction = EntityTransformHelper.EulerAnglesToForwardDirection(entity.GetVector3Property("angles"));
         return light;
     }
 
@@ -427,17 +427,6 @@ public class SceneLight(Scene scene) : SceneNode(scene)
             DirectLightType.Static => light.StationaryLightIndex is >= 0 and <= 3,
             _ => true
         };
-    }
-
-    /// <summary>
-    /// Converts Euler pitch/yaw angles to a normalized forward direction vector.
-    /// </summary>
-    public static Vector3 AnglesToDirection(Vector3 angles)
-    {
-        var (sinPitch, cosPitch) = MathF.SinCos(float.DegreesToRadians(angles.X));
-        var (sinYaw, cosYaw) = MathF.SinCos(float.DegreesToRadians(angles.Y));
-
-        return Vector3.Normalize(new Vector3(cosYaw * cosPitch, sinYaw * cosPitch, sinPitch));
     }
 
     /// <summary>

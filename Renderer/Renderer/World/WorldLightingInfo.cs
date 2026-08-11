@@ -282,7 +282,11 @@ namespace ValveResourceFormat.Renderer.World
 
             // Stabilize shadow map by snapping eye position to texel-sized increments in world space
             var texelWorldSize = (4.0f * bbox) / shadowMapSize;
-            var right = Vector3.Normalize(Vector3.Cross(sunDir, Vector3.UnitZ));
+
+            // A sun pointing straight down leaves no horizontal axis to snap against, and world up is
+            // no use as a reference either, so the frame is completed against forward instead
+            var upReference = MathF.Abs(sunDir.Z) < 0.999f ? Vector3.UnitZ : Vector3.UnitX;
+            var right = Vector3.Normalize(Vector3.Cross(sunDir, upReference));
             var up = Vector3.Cross(right, sunDir);
 
             // Project eye onto shadow camera's right/up axes and snap
@@ -295,7 +299,7 @@ namespace ValveResourceFormat.Renderer.World
 
             eye = right * eyeOffsetX + up * eyeOffsetY + sunDir * eyeOffsetZ;
 
-            var sunCameraView = Matrix4x4.CreateLookAt(eye, eye + sunDir, Vector3.UnitZ);
+            var sunCameraView = Matrix4x4.CreateLookAt(eye, eye + sunDir, upReference);
             var sunCameraProjection = Matrix4x4.CreateOrthographicOffCenter(-bbox, bbox, -bbox, bbox, farPlane, -nearPlaneExtend);
 
             SunViewProjection = sunCameraView * sunCameraProjection;

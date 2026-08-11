@@ -629,7 +629,7 @@ namespace ValveResourceFormat.Renderer.World
                         {
                             Type = SceneLight.LightType.Directional,
                             Transform = EntityTransformHelper.EulerAnglesToRotationMatrix(angles),
-                            Direction = SceneLight.AnglesToDirection(angles),
+                            Direction = EntityTransformHelper.EulerAnglesToForwardDirection(angles),
                             Color = new Vector3(1.0f, 1.0f, 1.0f),
                             Brightness = 1.0f,
                             LayerName = "world_layer_base",
