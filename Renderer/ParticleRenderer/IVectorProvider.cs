@@ -20,6 +20,12 @@ namespace ValveResourceFormat.Renderer.Particles
             => NextVector(ref Particle.Default, renderState);
     }
 
+    /// <summary>PVEC_TYPE_CLOSEST_CAMERA_POSITION. The single render camera is always the closest one.</summary>
+    class ClosestCameraPositionVectorProvider : IVectorProvider
+    {
+        public Vector3 NextVector(ref Particle particle, ParticleSystemRenderState renderState) => renderState.CameraPosition;
+    }
+
     readonly struct LiteralVectorProvider : IVectorProvider
     {
         private readonly Vector3 value;
