@@ -1,4 +1,4 @@
-﻿namespace ValveResourceFormat.Renderer.Input;
+namespace ValveResourceFormat.Renderer.Input;
 
 /// <summary>
 /// Source engine-style FPS player movement controller.

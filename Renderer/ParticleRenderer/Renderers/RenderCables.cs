@@ -1,10 +1,10 @@
 using System.Buffers;
 using System.Runtime.InteropServices;
 using OpenTK.Graphics.OpenGL;
+using ValveResourceFormat.Renderer.Particles.Utils;
 using ValveResourceFormat.Renderer.SceneEnvironment;
 using ValveResourceFormat.Renderer.World;
 using ValveResourceFormat.Serialization.KeyValues;
-using ValveResourceFormat.Renderer.Particles.Utils;
 
 namespace ValveResourceFormat.Renderer.Particles.Renderers
 {

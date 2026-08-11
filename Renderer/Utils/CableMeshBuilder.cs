@@ -1,6 +1,6 @@
 using System.Runtime.InteropServices;
-using ValveResourceFormat.Renderer.SceneNodes;
 using ValveResourceFormat.Renderer.Particles.Utils;
+using ValveResourceFormat.Renderer.SceneNodes;
 
 namespace ValveResourceFormat.Renderer.Utils
 {

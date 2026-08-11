@@ -1,4 +1,4 @@
-﻿using System.Globalization;
+using System.Globalization;
 using System.Linq;
 using GUI.Types.GLViewers;
 using GUI.Types.Graphs.Core;

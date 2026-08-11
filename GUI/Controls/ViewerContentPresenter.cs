@@ -41,31 +41,31 @@ static class ViewerContentPresenter
                 return CodeTextBox.Create(text.Content, text.Language, text.SourceMap);
 
             case ViewerContent.LazyText lazy:
-            {
-                string producedText;
-
-                try
                 {
-                    producedText = lazy.GetContent();
-                }
-                catch (Exception e)
-                {
-                    producedText = e.ToString();
-                    contentFailed = true;
-                }
+                    string producedText;
 
-                return CodeTextBox.Create(producedText, lazy.Language);
-            }
+                    try
+                    {
+                        producedText = lazy.GetContent();
+                    }
+                    catch (Exception e)
+                    {
+                        producedText = e.ToString();
+                        contentFailed = true;
+                    }
+
+                    return CodeTextBox.Create(producedText, lazy.Language);
+                }
 
             case ViewerContent.HexDump hex:
-            {
-                var control = new System.ComponentModel.Design.ByteViewer
                 {
-                    Dock = DockStyle.Fill,
-                };
-                control.SetBytes(hex.Bytes);
-                return control;
-            }
+                    var control = new System.ComponentModel.Design.ByteViewer
+                    {
+                        Dock = DockStyle.Fill,
+                    };
+                    control.SetBytes(hex.Bytes);
+                    return control;
+                }
 
             case ViewerContent.Grid grid:
                 return new DataGridView
@@ -80,19 +80,19 @@ static class ViewerContentPresenter
                 };
 
             case ViewerContent.Tabs tabs:
-            {
-                var tabControl = new ThemedTabControl
                 {
-                    Dock = DockStyle.Fill,
-                };
+                    var tabControl = new ThemedTabControl
+                    {
+                        Dock = DockStyle.Fill,
+                    };
 
-                foreach (var tab in tabs.Items)
-                {
-                    AddContentTab(tabControl, tab);
+                    foreach (var tab in tabs.Items)
+                    {
+                        AddContentTab(tabControl, tab);
+                    }
+
+                    return tabControl;
                 }
-
-                return tabControl;
-            }
 
             default:
                 throw new NotSupportedException($"Unknown content type {content.GetType().Name}");
