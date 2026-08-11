@@ -6,7 +6,7 @@ namespace ValveResourceFormat.Renderer.Particles.Operators
     /// <seealso href="https://s2v.app/SchemaExplorer/cs2/particles/C_OP_EndCapTimedDecay">C_OP_EndCapTimedDecay</seealso>
     class EndCapTimedDecay : ParticleFunctionOperator
     {
-        private readonly INumberProvider decayTime = new LiteralNumberProvider(1f);
+        private readonly INumberProvider decayTime = new LiteralNumberProvider(0f);
 
         public EndCapTimedDecay(ParticleDefinitionParser parse) : base(parse)
         {

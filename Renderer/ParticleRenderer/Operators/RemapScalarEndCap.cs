@@ -6,7 +6,7 @@ namespace ValveResourceFormat.Renderer.Particles.Operators
     /// <seealso href="https://s2v.app/SchemaExplorer/cs2/particles/C_OP_RemapScalarEndCap">C_OP_RemapScalarEndCap</seealso>
     class RemapScalarEndCap : ParticleFunctionOperator
     {
-        private readonly ParticleField inputField = ParticleField.Radius;
+        private readonly ParticleField inputField = ParticleField.Alpha;
         private readonly ParticleField outputField = ParticleField.Radius;
         private readonly float inputMin;
         private readonly float inputMax = 1f;

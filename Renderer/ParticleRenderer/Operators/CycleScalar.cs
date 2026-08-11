@@ -9,15 +9,15 @@ namespace ValveResourceFormat.Renderer.Particles.Operators
     /// <seealso href="https://s2v.app/SchemaExplorer/cs2/particles/C_OP_CycleScalar">C_OP_CycleScalar</seealso>
     class CycleScalar : ParticleFunctionOperator
     {
-        private readonly ParticleField destField = ParticleField.Radius;
+        private readonly ParticleField destField = ParticleField.Alpha;
         private readonly float startValue;
-        private readonly float endValue;
+        private readonly float endValue = 1f;
         private readonly float cycleTime = 1f;
         private readonly bool doNotRepeatCycle;
         private readonly bool synchronizeParticles;
         private readonly int cpScale = -1;
-        private readonly int cpFieldMin = -1;
-        private readonly int cpFieldMax = -1;
+        private readonly int cpFieldMin;
+        private readonly int cpFieldMax;
         private readonly ParticleSetMethod setMethod = ParticleSetMethod.PARTICLE_SET_REPLACE_VALUE;
 
         public CycleScalar(ParticleDefinitionParser parse) : base(parse)

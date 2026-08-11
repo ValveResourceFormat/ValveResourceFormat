@@ -9,9 +9,9 @@ namespace ValveResourceFormat.Renderer.Particles.Operators
     /// <seealso href="https://s2v.app/SchemaExplorer/cs2/particles/C_OP_LerpEndCapScalar">C_OP_LerpEndCapScalar</seealso>
     class LerpEndCapScalar : ParticleFunctionOperator
     {
-        private readonly ParticleField outputField = ParticleField.Alpha;
-        private readonly float output;
-        private readonly float lerpTime;
+        private readonly ParticleField outputField = ParticleField.Radius;
+        private readonly float output = 1f;
+        private readonly float lerpTime = 1f;
 
         private float startAge = -1f;
 

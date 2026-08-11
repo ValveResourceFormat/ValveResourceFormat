@@ -12,7 +12,7 @@ namespace ValveResourceFormat.Renderer.Particles.Operators
     {
         private readonly ParticleField outputField = ParticleField.Radius;
         private readonly int inputMin;
-        private readonly int inputMax = 10;
+        private readonly int inputMax = 1;
         private readonly float outputMin;
         private readonly float outputMax = 1f;
         private readonly bool backwards;

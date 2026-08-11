@@ -9,7 +9,7 @@ namespace ValveResourceFormat.Renderer.Particles.Operators
     class SetAttributeToScalarExpression : ParticleFunctionOperator
     {
         private readonly ParticleField outputField = ParticleField.Radius;
-        private readonly INumberProvider input1 = new LiteralNumberProvider(0);
+        private readonly INumberProvider input1 = new LiteralNumberProvider(1f);
         private readonly INumberProvider input2 = new LiteralNumberProvider(0);
         private readonly ScalarExpressionType expression = ScalarExpressionType.SCALAR_EXPRESSION_ADD;
         private readonly ParticleSetMethod setMethod = ParticleSetMethod.PARTICLE_SET_REPLACE_VALUE;
