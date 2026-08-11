@@ -65,14 +65,11 @@ namespace ValveResourceFormat.Renderer.Particles.Operators
             if (useQuat)
             {
                 // The offset's components map pitch, yaw, roll = Y, Z, X on this path
-                var offset = AngleQuaternion(rotationOffset.Y, rotationOffset.Z, rotationOffset.X);
+                var offset = EntityTransformHelper.EulerAnglesToQuaternion(
+                    new Vector3(rotationOffset.Y, rotationOffset.Z, rotationOffset.X));
                 var final = offset * baseRotation;
 
-                var angles = QuaternionAngles(final);
-                anglesRadians = new Vector3(
-                    float.DegreesToRadians(angles.X),
-                    float.DegreesToRadians(angles.Y),
-                    float.DegreesToRadians(angles.Z));
+                anglesRadians = Vector3.DegreesToRadians(EntityTransformHelper.ToEulerAngles(final));
                 forward = Vector3.Transform(Vector3.UnitX, final);
             }
             else
@@ -80,78 +77,11 @@ namespace ValveResourceFormat.Renderer.Particles.Operators
                 var baseForward = Vector3.Transform(Vector3.UnitX, baseRotation);
 
                 // The offset's components map pitch, yaw, roll = X, Y, Z on this path
-                var angles = VectorAngles(baseForward) + rotationOffset;
-                anglesRadians = new Vector3(
-                    float.DegreesToRadians(angles.X),
-                    float.DegreesToRadians(angles.Y),
-                    float.DegreesToRadians(angles.Z));
-                forward = AngleVectors(angles);
+                var angles = EntityTransformHelper.ForwardDirectionToEulerAngles(baseForward) + rotationOffset;
+
+                anglesRadians = Vector3.DegreesToRadians(angles);
+                forward = EntityTransformHelper.EulerAnglesToForwardDirection(angles);
             }
-        }
-
-        /// <summary>Pitch/yaw from a forward direction, roll zero, in degrees.</summary>
-        private static Vector3 VectorAngles(Vector3 forward)
-        {
-            var lengthXY = MathF.Sqrt(forward.X * forward.X + forward.Y * forward.Y);
-
-            if (lengthXY <= 0.001f)
-            {
-                return new Vector3(forward.Z > 0f ? -90f : 90f, 0f, 0f);
-            }
-
-            return new Vector3(
-                float.RadiansToDegrees(MathF.Atan2(-forward.Z, lengthXY)),
-                float.RadiansToDegrees(MathF.Atan2(forward.Y, forward.X)),
-                0f);
-        }
-
-        /// <summary>Forward direction from pitch/yaw angles in degrees.</summary>
-        private static Vector3 AngleVectors(Vector3 anglesDegrees)
-        {
-            var pitch = float.DegreesToRadians(anglesDegrees.X);
-            var yaw = float.DegreesToRadians(anglesDegrees.Y);
-
-            return new Vector3(
-                MathF.Cos(yaw) * MathF.Cos(pitch),
-                MathF.Sin(yaw) * MathF.Cos(pitch),
-                -MathF.Sin(pitch));
-        }
-
-        /// <summary>Quaternion from pitch/yaw/roll degrees in the Source convention.</summary>
-        private static Quaternion AngleQuaternion(float pitchDegrees, float yawDegrees, float rollDegrees)
-        {
-            var (sy, cy) = MathF.SinCos(float.DegreesToRadians(yawDegrees) * 0.5f);
-            var (sp, cp) = MathF.SinCos(float.DegreesToRadians(pitchDegrees) * 0.5f);
-            var (sr, cr) = MathF.SinCos(float.DegreesToRadians(rollDegrees) * 0.5f);
-
-            return new Quaternion(
-                sr * cp * cy - cr * sp * sy,
-                cr * sp * cy + sr * cp * sy,
-                cr * cp * sy - sr * sp * cy,
-                cr * cp * cy + sr * sp * sy);
-        }
-
-        /// <summary>Pitch/yaw/roll degrees from a quaternion in the Source convention.</summary>
-        private static Vector3 QuaternionAngles(Quaternion rotation)
-        {
-            var forward = Vector3.Transform(Vector3.UnitX, rotation);
-            var left = Vector3.Transform(Vector3.UnitY, rotation);
-            var up = Vector3.Transform(Vector3.UnitZ, rotation);
-
-            var lengthXY = MathF.Sqrt(forward.X * forward.X + forward.Y * forward.Y);
-
-            if (lengthXY > 0.001f)
-            {
-                return new Vector3(
-                    float.RadiansToDegrees(MathF.Atan2(-forward.Z, lengthXY)),
-                    float.RadiansToDegrees(MathF.Atan2(forward.Y, forward.X)),
-                    float.RadiansToDegrees(MathF.Atan2(left.Z, up.Z)));
-            }
-
-            return new Vector3(
-                float.RadiansToDegrees(MathF.Atan2(-forward.Z, lengthXY)),
-                float.RadiansToDegrees(MathF.Atan2(-left.X, left.Y)),
-                0f);
         }
     }
 }

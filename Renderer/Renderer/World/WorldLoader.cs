@@ -540,7 +540,7 @@ namespace ValveResourceFormat.Renderer.World
                     return; // do not draw
                 }
 
-                var transformationMatrix = EntityTransformHelper.CalculateTransformationMatrix(entity) * parentTransform;
+                var transformationMatrix = EntityTransformHelper.ToTransformationMatrix(entity) * parentTransform;
                 var light = SceneLight.IsAccepted(classname);
 
                 if (entity.Connections != null)
@@ -628,7 +628,7 @@ namespace ValveResourceFormat.Renderer.World
                         scene.Add(new SceneLight(scene)
                         {
                             Type = SceneLight.LightType.Directional,
-                            Transform = EntityTransformHelper.CreateRotationMatrixFromEulerAngles(angles),
+                            Transform = EntityTransformHelper.EulerAnglesToRotationMatrix(angles),
                             Direction = SceneLight.AnglesToDirection(angles),
                             Color = new Vector3(1.0f, 1.0f, 1.0f),
                             Brightness = 1.0f,
@@ -778,7 +778,7 @@ namespace ValveResourceFormat.Renderer.World
                                     if (skyEntity != null)
                                     {
                                         material = skyEntity.GetStringProperty("skyname") ?? skyEntity.GetStringProperty("skybox_material_day");
-                                        var rotationOnly = EntityTransformHelper.CalculateTransformationMatrix(skyEntity) with { Translation = transformationMatrix.Translation };
+                                        var rotationOnly = EntityTransformHelper.ToTransformationMatrix(skyEntity) with { Translation = transformationMatrix.Translation };
                                         transformationMatrix = rotationOnly;  // steal rotation from env_sky
 
                                         var scale = skyEntity.GetFloatProperty("brightnessscale", 1.0f);
@@ -1467,7 +1467,7 @@ namespace ValveResourceFormat.Renderer.World
             var skyboxResult = LoadMap(targetmapname, SkyboxScene);
 
             // Take origin and angles from skybox_reference
-            EntityTransformHelper.DecomposeTransformationMatrix(entity, out _, out var skyboxReferenceRotationMatrix, out var skyboxReferencePositionMatrix);
+            EntityTransformHelper.GetTransformComponents(entity, out _, out var skyboxReferenceRotationMatrix, out var skyboxReferencePositionMatrix);
             var skyboxReference = skyboxReferenceRotationMatrix * Matrix4x4.CreateTranslation(skyboxReferencePositionMatrix);
 
             var offsetTransform = Matrix4x4.CreateTranslation(-skyboxResult.WorldOffset);
@@ -1581,7 +1581,7 @@ namespace ValveResourceFormat.Renderer.World
                 var color = hammerEntity?.Color ?? new Color32(255, 0, 255, 255);
 
                 // Do not use transformationMatrix because scales need to be ignored
-                EntityTransformHelper.DecomposeTransformationMatrix(entity, out _, out var rotationMatrix, out var positionVector);
+                EntityTransformHelper.GetTransformComponents(entity, out _, out var rotationMatrix, out var positionVector);
 
                 var boxNode = new SimpleBoxSceneNode(scene, color, new Vector3(16f))
                 {
@@ -1654,7 +1654,7 @@ namespace ValveResourceFormat.Renderer.World
                     }
 
                     var end = transformationMatrix.Translation;
-                    var start = EntityTransformHelper.CalculateTransformationMatrix(startEntity).Translation;
+                    var start = EntityTransformHelper.ToTransformationMatrix(startEntity).Translation;
 
                     if (line.EndKey != null && line.EndValueKey != null)
                     {
@@ -1670,7 +1670,7 @@ namespace ValveResourceFormat.Renderer.World
                             continue;
                         }
 
-                        end = EntityTransformHelper.CalculateTransformationMatrix(endEntity).Translation;
+                        end = EntityTransformHelper.ToTransformationMatrix(endEntity).Translation;
                     }
 
                     var origin = (start + end) / 2f;
@@ -1715,7 +1715,7 @@ namespace ValveResourceFormat.Renderer.World
                         continue;
                     }
 
-                    var end = EntityTransformHelper.CalculateTransformationMatrix(endEntity).Translation;
+                    var end = EntityTransformHelper.ToTransformationMatrix(endEntity).Translation;
 
                     var origin = (start + end) / 2f;
                     end -= origin;
@@ -1761,7 +1761,7 @@ namespace ValveResourceFormat.Renderer.World
 
                 visited[current] = nodes.Count;
                 nodes.Add(new FloraMoverPathNode(
-                    EntityTransformHelper.CalculateTransformationMatrix(current).Translation,
+                    EntityTransformHelper.ToTransformationMatrix(current).Translation,
                     current.GetFloatProperty("speed"),
                     current.GetFloatProperty("wait")));
 
@@ -1792,7 +1792,7 @@ namespace ValveResourceFormat.Renderer.World
                 return transformationMatrix;
             }
 
-            return EntityTransformHelper.CalculateTransformationMatrix(target);
+            return EntityTransformHelper.ToTransformationMatrix(target);
         }
 
         private static void ApplyParticleGlowProperties(Entity entity, ParticleSceneNode particleNode)

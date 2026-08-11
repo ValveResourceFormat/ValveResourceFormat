@@ -79,7 +79,7 @@ namespace ValveResourceFormat.Utils
                         continue;
                     }
 
-                    var childTransform = EntityTransformHelper.CalculateRigidTransformationMatrix(entity) * parentTransform;
+                    var childTransform = EntityTransformHelper.ToRigidTransformationMatrix(entity) * parentTransform;
 
                     foreach (var nested in Traverse(templateLump, fileLoader, childTransform, fromTemplate: true, childLumps, visited, onMissingChildLump))
                     {

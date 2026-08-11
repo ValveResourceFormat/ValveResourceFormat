@@ -1305,7 +1305,7 @@ public sealed class MapExtract
 
             var mapEntity = new CMapEntity();
             var entityLineage = AddProperties(className, compiledEntity, mapEntity);
-            var localTransform = EntityTransformHelper.CalculateTransformationMatrix(compiledEntity);
+            var localTransform = EntityTransformHelper.ToTransformationMatrix(compiledEntity);
             var worldTransform = parentTransform is { } parent ? localTransform * parent : localTransform;
             if (parentTransform is not null)
             {
@@ -1369,7 +1369,7 @@ public sealed class MapExtract
                 {
                     if (ChildEntityLumps.Remove(entityLumpName, out var childEntityLump))
                     {
-                        var childLumpTransform = EntityTransformHelper.CalculateRigidTransformationMatrix(compiledEntity) * (parentTransform ?? Matrix4x4.Identity);
+                        var childLumpTransform = EntityTransformHelper.ToRigidTransformationMatrix(compiledEntity) * (parentTransform ?? Matrix4x4.Identity);
                         GatherEntitiesFromLump(childEntityLump, childLumpTransform);
                     }
                     else

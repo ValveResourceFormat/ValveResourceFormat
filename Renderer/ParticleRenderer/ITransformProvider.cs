@@ -80,17 +80,7 @@ namespace ValveResourceFormat.Renderer.Particles
                 return Matrix4x4.CreateTranslation(position);
             }
 
-            var forward = Vector3.Normalize(cp.Orientation);
-            var up = Math.Abs(forward.Y) < 0.999f ? Vector3.UnitY : Vector3.UnitZ;
-            var right = Vector3.Normalize(Vector3.Cross(up, forward));
-            up = Vector3.Cross(forward, right);
-
-            var rotation = new Matrix4x4(
-                right.X, right.Y, right.Z, 0,
-                up.X, up.Y, up.Z, 0,
-                forward.X, forward.Y, forward.Z, 0,
-                0, 0, 0, 1
-            );
+            var rotation = EntityTransformHelper.ForwardDirectionToRotationMatrix(Vector3.Normalize(cp.Orientation));
 
             return rotation * Matrix4x4.CreateTranslation(position);
         }
@@ -121,7 +111,7 @@ namespace ValveResourceFormat.Renderer.Particles
                 _ => new Vector3(0f, 0f, degrees),
             };
 
-            var composed = EntityTransformHelper.CreateRotationMatrixFromEulerAngles(angles)
+            var composed = EntityTransformHelper.EulerAnglesToRotationMatrix(angles)
                 * new ControlPointTransformProvider(cp, true).NextTransform(ref Particle.Default, state);
             var result = EntityTransformHelper.ToEulerAngles(Quaternion.CreateFromRotationMatrix(composed));
 

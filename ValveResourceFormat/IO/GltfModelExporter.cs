@@ -406,7 +406,7 @@ namespace ValveResourceFormat.IO
 
             foreach (var (entity, parentTransform, _) in traversed)
             {
-                var transform = EntityTransformHelper.CalculateTransformationMatrix(entity) * parentTransform;
+                var transform = EntityTransformHelper.ToTransformationMatrix(entity) * parentTransform;
                 var modelName = entity.GetStringProperty("model");
                 var className = entity.GetStringProperty("classname");
 
@@ -424,7 +424,7 @@ namespace ValveResourceFormat.IO
 
                         // glTF directional lights emit along node-local -Z; orient the node so that
                         // -Z matches the sun's forward (travel) direction, i.e. the entity's local +X.
-                        var rotation = EntityTransformHelper.CreateRotationMatrixFromEulerAngles(entity.GetVector3Property("angles"));
+                        var rotation = EntityTransformHelper.EulerAnglesToRotationMatrix(entity.GetVector3Property("angles"));
                         var direction = Vector3.Transform(Vector3.UnitX, rotation);
 
                         var directionGltf = Vector3.Transform(direction, SourceToGltfRotation);

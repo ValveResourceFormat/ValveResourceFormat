@@ -294,12 +294,12 @@ namespace ValveResourceFormat.Renderer
                         if (boundsMins != null && boundsMaxs != null && obbExtent != null && obbOrigin != null)
                         {
                             var bounds = new AABB(
-                                EntityTransformHelper.ParseVector(boundsMins),
-                                EntityTransformHelper.ParseVector(boundsMaxs)
+                                EntityTransformHelper.ParseVector3(boundsMins),
+                                EntityTransformHelper.ParseVector3(boundsMaxs)
                             );
 
-                            var origin = EntityTransformHelper.ParseVector(obbExtent);
-                            var extent = EntityTransformHelper.ParseVector(obbOrigin);
+                            var origin = EntityTransformHelper.ParseVector3(obbExtent);
+                            var extent = EntityTransformHelper.ParseVector3(obbOrigin);
 
                             AddBox(renderContext.Camera, updateContext.TextRenderer, vertices, Matrix4x4.Identity, bounds, new(0.0f, 1.0f, 0.0f, 1.0f));
 

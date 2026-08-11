@@ -87,7 +87,7 @@ namespace ValveResourceFormat.ResourceTypes
 
                     if (value.ValueType == KVValueType.String)
                     {
-                        return EntityTransformHelper.ParseVector((string)value);
+                        return EntityTransformHelper.ParseVector3((string)value);
                     }
                 }
 

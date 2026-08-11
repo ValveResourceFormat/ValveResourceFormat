@@ -109,7 +109,7 @@ namespace ValveResourceFormat.Renderer.SceneNodes
 
             // The rope simulates in world space: the entity-local pathnodes are placed by the entity's own
             // transform (origin + angles + scale) and any parent/prefab transform. Gravity stays world-down.
-            var worldTransform = EntityTransformHelper.CalculateTransformationMatrix(entity) * parentTransform;
+            var worldTransform = EntityTransformHelper.ToTransformationMatrix(entity) * parentTransform;
             var snapshot = BuildSnapshot(samples, worldTransform, entity.GetColor32Property("color_tint"));
 
             // The effect settles via its own m_flPreSimulationTime and freezes via m_flStopSimulationAfterTime

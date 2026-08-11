@@ -53,7 +53,7 @@ namespace ValveResourceFormat.Renderer.Particles.PreEmissionOperators
                 return;
             }
 
-            var targetOrientation = EntityTransformHelper.QAngleToForwardDirection(resolvedRotation);
+            var targetOrientation = EntityTransformHelper.EulerAnglesToForwardDirection(resolvedRotation);
 
             if (!useWorldLocation)
             {

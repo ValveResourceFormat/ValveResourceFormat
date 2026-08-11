@@ -838,7 +838,7 @@ public class SceneLight(Scene scene) : SceneNode(scene)
     private static (OpenTK.Mathematics.Matrix3x4 IlluminationFromWorld, Matrix4x4 ObbToWorld)
         ComputeObbMatrices(Vector3 center, Vector3 extent, Vector3 angles)
     {
-        var rotMatrix = EntityTransformHelper.CreateRotationMatrixFromEulerAngles(angles);
+        var rotMatrix = EntityTransformHelper.EulerAnglesToRotationMatrix(angles);
 
         var axis0 = new Vector3(rotMatrix.M11, rotMatrix.M12, rotMatrix.M13);
         var axis1 = new Vector3(rotMatrix.M21, rotMatrix.M22, rotMatrix.M23);

@@ -159,7 +159,7 @@ public class XenFloraAnimatedMoverSceneNode : ModelSceneNode
 
         if (faceForward)
         {
-            currentRotation = EntityTransformHelper.CreateRotationMatrixFromEulerAngles(EntityTransformHelper.ForwardDirectionToQAngle(segmentVector));
+            currentRotation = EntityTransformHelper.EulerAnglesToRotationMatrix(EntityTransformHelper.ForwardDirectionToEulerAngles(segmentVector));
         }
     }
 

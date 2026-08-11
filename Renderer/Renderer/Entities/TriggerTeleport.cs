@@ -60,7 +60,7 @@ public sealed class TriggerTeleport
             }
             var collider = new EntityCollider(physics)
             {
-                Transform = EntityTransformHelper.CalculateTransformationMatrix(entity),
+                Transform = EntityTransformHelper.ToTransformationMatrix(entity),
             };
 
             teleports.Add(new TriggerTeleport(collider, destination.GetVector3Property("origin"), destination.GetVector3Property("angles")));

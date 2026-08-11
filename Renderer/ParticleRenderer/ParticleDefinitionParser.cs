@@ -99,7 +99,7 @@ record struct ParticleDefinitionParser(KVObject Data, ILogger Logger, int[] Inpu
         // Some content authors vectors as space-separated strings ("0.7 0.5 0.25").
         if (Data.TryGetValue(k, out var value) && value.ValueType == KVValueType.String)
         {
-            return EntityTransformHelper.ParseVector(Data.GetStringProperty(k));
+            return EntityTransformHelper.ParseVector3(Data.GetStringProperty(k));
         }
 
         var sub = Data.GetSubCollection(k);
