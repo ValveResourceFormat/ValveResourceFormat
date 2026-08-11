@@ -159,6 +159,32 @@ namespace GUI.Types.GLViewers
 
             using (UiControl.BeginGroup("Playback"))
             {
+                var playbackModeComboBox = UiControl.AddSelection("Mode", (_, i) =>
+                {
+                    if (i < 0 || particleSceneNode == null)
+                    {
+                        return;
+                    }
+
+                    using var lockedGl = MakeCurrent();
+                    particleSceneNode.PlaybackMode = (ParticlePlaybackMode)i;
+                    particleSceneNode.Restart();
+                }, horizontal: true, fill: true);
+                playbackModeComboBox.Items.AddRange(["Normal", "Normal + Endcap", "Endcap Only"]);
+                playbackModeComboBox.SelectedIndex = (int)ParticlePlaybackMode.Normal;
+
+                UiControl.AddCheckBox("Loop", true, value =>
+                {
+                    if (particleSceneNode == null)
+                    {
+                        return;
+                    }
+
+                    using var lockedGl = MakeCurrent();
+                    particleSceneNode.Loop = value;
+                    particleSceneNode.Restart();
+                });
+
                 UiControl.AddControl(restartButton);
                 UiControl.AddControl(endCapButton);
 
