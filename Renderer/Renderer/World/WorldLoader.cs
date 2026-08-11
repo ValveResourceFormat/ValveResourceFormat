@@ -8,6 +8,7 @@ using SteamDatabase.ValvePak;
 using ValveResourceFormat.Blocks;
 using ValveResourceFormat.IO;
 using ValveResourceFormat.NavMesh;
+using ValveResourceFormat.Renderer.Entities;
 using ValveResourceFormat.Renderer.SceneEnvironment;
 using ValveResourceFormat.Renderer.SceneNodes;
 using ValveResourceFormat.ResourceTypes;
@@ -1168,7 +1169,7 @@ namespace ValveResourceFormat.Renderer.World
 
                     var isMaster = entity.GetBooleanProperty("master");
                     var useExposure = entity.GetBooleanProperty("enableexposure");
-                    var fadeTime = entity.GetFloatProperty("fadetime");
+                    var fadeTime = entity.GetFloatProperty("fadetime", 1.0f);
 
                     var postProcess = new ScenePostProcessVolume(scene)
                     {
@@ -1176,6 +1177,7 @@ namespace ValveResourceFormat.Renderer.World
                         FadeTime = fadeTime,
                         UseExposure = useExposure,
                         IsMaster = isMaster,
+                        StartDisabled = entity.GetBooleanProperty("startdisabled"),
                         Transform = transformationMatrix, // needed if model is used
                     };
 
@@ -1200,6 +1202,16 @@ namespace ValveResourceFormat.Renderer.World
                         if (postProcessModel?.DataBlock is Model ppModelResource)
                         {
                             postProcess.ModelVolume = ppModelResource;
+
+                            // Local volumes apply while the camera is inside their trigger shape
+                            var volumePhysics = EntityCollider.LoadPhysics(ppModelResource, RendererContext.FileLoader);
+                            if (volumePhysics != null)
+                            {
+                                postProcess.Collider = new EntityCollider(volumePhysics)
+                                {
+                                    Transform = transformationMatrix,
+                                };
+                            }
 
                             var ppModelNode = new ModelSceneNode(scene, ppModelResource, skin)
                             {

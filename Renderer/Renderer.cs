@@ -477,6 +477,7 @@ public class Renderer
         if (Postprocess != null)
         {
             Postprocess.State = scene.PostProcessInfo.CurrentState;
+            Postprocess.ResolveColorCorrection(scene.PostProcessInfo.ActiveLuts);
             Postprocess.CalculateTonemapScalar(deltaTime);
         }
     }
@@ -1067,7 +1068,7 @@ public class Renderer
         Scene.Update(updateContext);
         SkyboxScene?.Update(updateContext);
 
-        Scene.PostProcessInfo.UpdatePostProcessing(updateContext.Camera);
+        Scene.PostProcessInfo.UpdatePostProcessing(updateContext.Camera, updateContext.Timestep);
 
         Scene.SetupSceneShadows(updateContext.Camera, DisableAllCulling ? -1 : ShadowDepthBuffer.Width);
 

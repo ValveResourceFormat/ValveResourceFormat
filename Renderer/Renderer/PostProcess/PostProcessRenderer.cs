@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using OpenTK.Graphics.OpenGL;
 using ValveResourceFormat.Renderer.SceneEnvironment;
+using ValveResourceFormat.Renderer.World;
 
 namespace ValveResourceFormat.Renderer.PostProcess
 {
@@ -14,6 +15,10 @@ namespace ValveResourceFormat.Renderer.PostProcess
         private Shader? shaderDepthResolve;
         private Shader? shaderPostProcess;
         private Shader? shaderPostProcessBloom;
+        private Shader? shaderCombineLuts;
+        private RenderTexture? combinedLut;
+        private static readonly string[] LutSamplerNames =
+            ["g_tColorCorrection0", "g_tColorCorrection1", "g_tColorCorrection2", "g_tColorCorrection3"];
         private readonly OutlineRenderer Outline;
 
         /// <summary>Gets or sets the blue noise texture used for dithering in the tonemap pass.</summary>
@@ -72,6 +77,7 @@ namespace ValveResourceFormat.Renderer.PostProcess
             shaderDepthResolve = RendererContext.ShaderLoader.LoadShader("depth_resolve", ("D_MSAA_SAMPLES", msaa));
             shaderPostProcess = RendererContext.ShaderLoader.LoadShader("post_processing", ("D_BLOOM", 0));
             shaderPostProcessBloom = RendererContext.ShaderLoader.LoadShader("post_processing", ("D_BLOOM", 1));
+            shaderCombineLuts = RendererContext.ShaderLoader.LoadShader("combine_luts");
 
             DOF.MsaaSamples = msaa;
             Bloom.Load();
@@ -110,6 +116,80 @@ namespace ValveResourceFormat.Renderer.PostProcess
             }
 
             GL.MemoryBarrier(MemoryBarrierFlags.ShaderImageAccessBarrierBit | MemoryBarrierFlags.TextureFetchBarrierBit);
+        }
+
+        /// <summary>
+        /// Resolves the frame's weighted color correction LUTs into <see cref="PostProcessState.ColorCorrectionLUT"/>.
+        /// A single full-weight LUT passes through; anything else runs the combine compute shader, which
+        /// weighs up to four LUTs and fills the remainder with the neutral LUT.
+        /// </summary>
+        /// <param name="luts">The LUTs contributing this frame with their blend weights.</param>
+        public void ResolveColorCorrection(List<WeightedLut> luts)
+        {
+            if (luts.Count == 0)
+            {
+                State = State with { ColorCorrectionLUT = null, NumLutsActive = 0 };
+                return;
+            }
+
+            if (luts.Count == 1 && luts[0].Weight >= 0.999f)
+            {
+                State = State with
+                {
+                    ColorCorrectionLUT = luts[0].Lut,
+                    ColorCorrectionLutDimensions = luts[0].Dimensions,
+                    NumLutsActive = 1,
+                };
+                return;
+            }
+
+            Debug.Assert(shaderCombineLuts != null);
+
+            var dimensions = luts[0].Dimensions;
+
+            if (combinedLut == null || combinedLut.Width != dimensions)
+            {
+                combinedLut?.Delete();
+                combinedLut = new RenderTexture(TextureTarget.Texture3D, dimensions, dimensions, dimensions, 1);
+                combinedLut.SetLabel("CombinedColorCorrectionLUT");
+                combinedLut.SetWrapMode(TextureWrapMode.ClampToEdge);
+                combinedLut.SetFiltering(TextureMinFilter.Linear, TextureMagFilter.Linear);
+                GL.TextureStorage3D(combinedLut.Handle, 1, SizedInternalFormat.Rgba8, dimensions, dimensions, dimensions);
+            }
+
+            var weights = Vector4.Zero;
+            var totalWeight = 0f;
+
+            shaderCombineLuts.Use();
+
+            for (var i = 0; i < WorldPostProcessInfo.MaxBlendedLuts; i++)
+            {
+                // The combine shader texel-fetches, so every input has to share the output's dimensions;
+                // a mismatched LUT drops out and its share goes to the neutral remainder.
+                var valid = i < luts.Count && luts[i].Dimensions == dimensions;
+                var entry = valid ? luts[i] : luts[0];
+                var weight = valid ? entry.Weight : 0f;
+
+                weights[i] = weight;
+                totalWeight += weight;
+                shaderCombineLuts.SetTexture(i, LutSamplerNames[i], entry.Lut);
+            }
+
+            shaderCombineLuts.SetUniform("g_vColorCorrectionWeights0", weights);
+            shaderCombineLuts.SetUniform("g_flIdentityWeight", MathF.Max(0f, 1f - totalWeight));
+
+            GL.BindImageTexture(0, combinedLut.Handle, 0, true, 0, TextureAccess.WriteOnly, SizedInternalFormat.Rgba8);
+
+            var groups = (dimensions + 3) / 4;
+            GL.DispatchCompute(groups, groups, groups);
+            GL.MemoryBarrier(MemoryBarrierFlags.TextureFetchBarrierBit);
+
+            State = State with
+            {
+                ColorCorrectionLUT = combinedLut,
+                ColorCorrectionLutDimensions = dimensions,
+                NumLutsActive = luts.Count,
+            };
         }
 
         private void SetPostProcessUniforms(Shader shader, TonemapSettings TonemapSettings)
@@ -279,8 +359,10 @@ namespace ValveResourceFormat.Renderer.PostProcess
             var settings = State.ExposureSettings;
             // CurrentExposure is persistent between frames
 
+            // Sequential min-then-max clamp: authored data contains locked (min == max) and even
+            // inverted ranges
             var (min, max) = (settings.ExposureMin, settings.ExposureMax);
-            var clampedScalar = Math.Clamp(rawScalar, min, max);
+            var clampedScalar = MathF.Min(MathF.Max(rawScalar, min), max);
             if (ExposureHistory.Count == 10)
             {
                 var weightedSum = 0.0f;
@@ -288,12 +370,12 @@ namespace ValveResourceFormat.Renderer.PostProcess
 
                 for (var i = 0; i < 10; i++)
                 {
-                    var weight = Math.Abs(5 - i) * 0.2f;
+                    var weight = (5 - Math.Abs(5 - i)) * 0.2f;
                     weightTotal += weight;
                     weightedSum += weight * ExposureHistory[i];
                 }
 
-                clampedScalar = Math.Clamp(weightedSum / weightTotal, min, max);
+                clampedScalar = MathF.Min(MathF.Max(weightedSum / weightTotal, min), max);
             }
 
             if (!float.IsFinite(clampedScalar))

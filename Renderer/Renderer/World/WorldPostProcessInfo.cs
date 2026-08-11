@@ -2,22 +2,25 @@ using ValveResourceFormat.Renderer.SceneEnvironment;
 
 namespace ValveResourceFormat.Renderer.World
 {
+    /// <summary>One color correction LUT contributing to the current frame, with its blend weight.</summary>
+    public readonly record struct WeightedLut(RenderTexture Lut, float Weight, int Dimensions);
+
     /// <summary>
     /// Manages post-processing volumes and current post-processing state for the scene.
     /// </summary>
     public class WorldPostProcessInfo()
     {
-        // This may seem like a really stupid structure, but because of
-        // lack of collision detection in S2V, we can only handle one
-        // PPV at once. This means we're only using the master volume.
-        // Despite this, this system is generally built with the correct many-volumes
-        // behavior in mind, to minimize changes if implemented.
+        /// <summary>The most volume LUTs that can be weighted together in one frame, matching the game's combine shader.</summary>
+        public const int MaxBlendedLuts = 4;
 
-        // So, currently, this list won't be used.
-        //public List<ScenePostProcessVolume> PostProcessVolumes { get; set; } = [];
+        private const float MinWeight = 0.001f;
 
-        /// <summary>Gets or sets the master post-process volume, which overrides all others.</summary>
+        /// <summary>Gets the non-master post-process volumes, applied while the camera is inside them.</summary>
+        public List<ScenePostProcessVolume> PostProcessVolumes { get; } = [];
+
+        /// <summary>Gets or sets the master post-process volume: the unbound volume that is the base state everywhere.</summary>
         public ScenePostProcessVolume? MasterPostProcessVolume { get; set; }
+
         /// <summary>
         /// env_tonemap_controller is a legacy entity (S1) that still has functionality, so we want to account for it.
         /// The way this works is a little unclear, even after quite a bit of testing, but I think an env_tonemap_controller
@@ -30,12 +33,21 @@ namespace ValveResourceFormat.Renderer.World
         /// <summary>Gets the post-processing state computed for the current frame.</summary>
         public PostProcessState CurrentState { get; private set; } = new();
 
+        /// <summary>Gets the LUTs contributing this frame, strongest last; the remainder up to weight one is the neutral LUT.</summary>
+        public List<WeightedLut> ActiveLuts { get; } = [];
+
         /// <summary>
-        /// Registers a post-process volume; only the first master volume is retained.
+        /// Registers a post-process volume. Only the first master volume is retained; the rest apply by
+        /// camera containment.
         /// </summary>
         /// <param name="postProcess">The post-process volume to register.</param>
         public void AddPostProcessVolume(ScenePostProcessVolume postProcess)
         {
+            if (postProcess.StartDisabled)
+            {
+                return;
+            }
+
             if (postProcess.IsMaster)
             {
                 // If there are multiple master volumes, S2 only takes the first one
@@ -44,42 +56,62 @@ namespace ValveResourceFormat.Renderer.World
             }
             else
             {
-                // Currently unused as we currently don't consider any volume but the master volume
-                //PostProcessVolumes.Add(postProcess);
+                PostProcessVolumes.Add(postProcess);
             }
         }
 
-        // This is where we would update and blend between volumes per frame.
-        // Because we only take the master volume currently, we don't need to do this yet.
-        // The Camera variable is present but not referenced as we currently can't check collision detection.
-        // Also, this needs to be guaranteed to run every frame, and before buffers
         /// <summary>
-        /// Recalculates <see cref="CurrentState"/> from the active post-process volumes and tonemap controller.
-        /// Must be called every frame before rendering post-processing.
+        /// Recalculates <see cref="CurrentState"/>: the master volume is the base, and every non-master
+        /// volume containing the camera crossfades on top of it over its fade time.
         /// </summary>
-        /// <param name="camera">The active camera (reserved for future volume weighting by position).</param>
-        public void UpdatePostProcessing(Camera camera)
+        /// <param name="camera">The active camera, tested against each volume's collider.</param>
+        /// <param name="deltaTime">Elapsed time in seconds since the last frame, driving the crossfades.</param>
+        public void UpdatePostProcessing(Camera camera, float deltaTime)
         {
-            // Recalculate post process state
             var newState = PostProcessState.Default;
+            ActiveLuts.Clear();
 
-            // First we SHOULD find the weight of each volume, then blend the values together, and finally blend the remaining values with the Master
-
-            // instead we just take the master only
             if (MasterPostProcessVolume != null)
             {
-                newState.ExposureSettings = MasterPostProcessVolume.ExposureSettings;
-                newState.TonemapSettings = MasterPostProcessVolume.PostProcessTonemapSettings;
-                newState.BloomSettings = MasterPostProcessVolume.BloomSettings;
-                newState.HasBloom = MasterPostProcessVolume.HasBloom;
+                ApplyVolume(ref newState, MasterPostProcessVolume, 1f);
+            }
 
-                if (MasterPostProcessVolume.ColorCorrectionLUT != null)
+            foreach (var volume in PostProcessVolumes)
+            {
+                var inside = volume.Collider != null
+                    && volume.Collider.ContainsPoint(camera.Location);
+
+                var targetWeight = inside ? 1f : 0f;
+                var fadeStep = volume.FadeTime > 0f ? deltaTime / volume.FadeTime : 1f;
+
+                volume.Weight = float.Clamp(volume.Weight + float.Clamp(targetWeight - volume.Weight, -fadeStep, fadeStep), 0f, 1f);
+
+                if (volume.Weight > MinWeight)
                 {
-                    newState.NumLutsActive += 1;
-                    newState.ColorCorrectionLUT = MasterPostProcessVolume.ColorCorrectionLUT;
-                    newState.ColorCorrectionLutDimensions = MasterPostProcessVolume.ColorCorrectionLutDimensions;
+                    ApplyVolume(ref newState, volume, volume.Weight);
                 }
             }
+
+            // A later volume at full weight replaces everything under it, so earlier contributions
+            // scale down by what the volumes above them leave over.
+            var remainder = 1f;
+            for (var i = ActiveLuts.Count - 1; i >= 0; i--)
+            {
+                var entry = ActiveLuts[i];
+                ActiveLuts[i] = entry with { Weight = entry.Weight * remainder };
+                remainder *= 1f - entry.Weight;
+            }
+
+            ActiveLuts.RemoveAll(static lut => lut.Weight <= MinWeight);
+
+            if (ActiveLuts.Count > MaxBlendedLuts)
+            {
+                // The combine is a weighted sum, so order does not matter; drop the weakest contributors
+                ActiveLuts.Sort(static (a, b) => a.Weight.CompareTo(b.Weight));
+                ActiveLuts.RemoveRange(0, ActiveLuts.Count - MaxBlendedLuts);
+            }
+
+            newState.NumLutsActive = ActiveLuts.Count;
 
             // env_tonemap_controller overrides the settings
             if (MasterTonemapController != null)
@@ -88,6 +120,35 @@ namespace ValveResourceFormat.Renderer.World
             }
 
             CurrentState = newState;
+        }
+
+        private void ApplyVolume(ref PostProcessState state, ScenePostProcessVolume volume, float weight)
+        {
+            if (volume.HasTonemap)
+            {
+                state.TonemapSettings = TonemapSettings.BlendTonemapSettings(weight, state.TonemapSettings, volume.PostProcessTonemapSettings);
+            }
+
+            if (volume.UseExposure)
+            {
+                state.ExposureSettings = ExposureSettings.Blend(weight, state.ExposureSettings, volume.ExposureSettings);
+            }
+
+            if (volume.HasBloom)
+            {
+                // With no bloom under this volume, fade in from the volume's own settings at zero strength
+                var baseBloom = state.HasBloom
+                    ? state.BloomSettings
+                    : volume.BloomSettings with { AddBloomStrength = 0f, ScreenBloomStrength = 0f, BlurBloomStrength = 0f };
+
+                state.BloomSettings = BloomSettings.Blend(weight, baseBloom, volume.BloomSettings);
+                state.HasBloom = true;
+            }
+
+            if (volume.ColorCorrectionLUT != null)
+            {
+                ActiveLuts.Add(new WeightedLut(volume.ColorCorrectionLUT, weight, volume.ColorCorrectionLutDimensions));
+            }
         }
     }
 }

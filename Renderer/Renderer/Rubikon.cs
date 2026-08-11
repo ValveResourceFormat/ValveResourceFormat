@@ -422,6 +422,41 @@ public class Rubikon
         return false;
     }
 
+    /// <summary>
+    /// Tests whether a point lies inside any convex hull of this shape.
+    /// </summary>
+    /// <param name="point">The point to test, in this shape's local space.</param>
+    /// <returns><see langword="true"/> when the point is inside a hull.</returns>
+    public bool ContainsPoint(Vector3 point)
+    {
+        foreach (var hull in Hulls)
+        {
+            if (point.X < hull.Min.X || point.Y < hull.Min.Y || point.Z < hull.Min.Z
+                || point.X > hull.Max.X || point.Y > hull.Max.Y || point.Z > hull.Max.Z)
+            {
+                continue;
+            }
+
+            var inside = true;
+
+            foreach (var plane in hull.Planes)
+            {
+                if (Vector3.Dot(plane.Normal, point) - plane.Offset > 0f)
+                {
+                    inside = false;
+                    break;
+                }
+            }
+
+            if (inside)
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     /// <summary>A volume query runnable against a BVH by <see cref="TraverseBvh"/>. Implemented by
     /// structs so the constrained calls devirtualize; mutable query state lives in the struct.</summary>
     private interface IBvhQuery

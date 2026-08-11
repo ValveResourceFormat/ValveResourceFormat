@@ -162,6 +162,22 @@ public sealed class EntityCollider
     }
 
     /// <summary>
+    /// Tests whether a world-space point is inside this shape's solid volume. This is the containment
+    /// test for trigger-style volumes; <see cref="Overlaps"/> only detects contact with the surface.
+    /// </summary>
+    /// <param name="point">The point to test, in world space.</param>
+    /// <returns><see langword="true"/> when the point is inside one of the shape's hulls.</returns>
+    public bool ContainsPoint(Vector3 point)
+    {
+        if (IsEmpty || !WorldBounds.Contains(point))
+        {
+            return false;
+        }
+
+        return Shape.ContainsPoint(Vector3.Transform(point, inverseTransform));
+    }
+
+    /// <summary>
     /// Tests whether a world-space swept box could possibly reach this collider, so callers can skip
     /// the transform and descent entirely.
     /// </summary>
