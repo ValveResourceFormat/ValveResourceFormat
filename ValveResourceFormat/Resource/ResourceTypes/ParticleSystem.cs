@@ -78,20 +78,7 @@ namespace ValveResourceFormat.ResourceTypes
         /// Gets the operators in the particle system.
         /// </summary>
         public IEnumerable<KVObject> GetOperators()
-            => Data.GetArray("m_Operators") ?? Enumerable.Empty<KVObject>();
-
-        /// <summary>
-        /// Gets the force generators in the particle system.
-        /// </summary>
-        public IEnumerable<KVObject> GetForceGenerators()
-            => Data.GetArray("m_ForceGenerators") ?? Enumerable.Empty<KVObject>();
-
-        /// <summary>
-        /// Gets the constraints in the particle system. Constraints run after operators each frame and
-        /// relax particle positions (e.g. distance/rope/plane/world-collision constraints).
-        /// </summary>
-        public IEnumerable<KVObject> GetConstraints()
-            => Data.GetArray("m_Constraints") ?? Enumerable.Empty<KVObject>();
+            => GetUpgradedData().GetArray("m_Operators") ?? Enumerable.Empty<KVObject>();
 
         /// <summary>
         /// Gets the initializers in the particle system.
@@ -104,12 +91,6 @@ namespace ValveResourceFormat.ResourceTypes
         /// </summary>
         public IEnumerable<KVObject> GetEmitters()
             => GetUpgradedData().GetArray("m_Emitters") ?? Enumerable.Empty<KVObject>();
-
-        /// <summary>
-        /// Gets the pre-emission operators in the particle system.
-        /// </summary>
-        public IEnumerable<KVObject> GetPreEmissionOperators()
-            => GetUpgradedData().GetArray("m_PreEmissionOperators") ?? Enumerable.Empty<KVObject>();
 
         /// <summary>
         /// Gets whether a child entry runs. <c>m_bDisableChild</c> only removes a child from
