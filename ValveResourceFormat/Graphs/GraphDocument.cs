@@ -633,11 +633,8 @@ public sealed class GraphDocument
                 continue;
             }
 
-            LayoutOptions.LayoutSliceMs = slices[i];
-            GraphModelLayout.Layout(component, componentWires[i], Geometry, LayoutOptions);
+            GraphModelLayout.Layout(component, componentWires[i], Geometry, LayoutOptions, slices[i]);
         }
-
-        LayoutOptions.LayoutSliceMs = null;
 
         var loose = components.Where(static c => c.Count == 1 && c[0].Inputs.Concat(c[0].Outputs).All(static s => s.Wires.Count == 0)).ToList();
 
@@ -746,23 +743,12 @@ public sealed class GraphDocument
             positions[node] = node.Position;
         }
 
-        var previousBudget = LayoutOptions.LayoutBudgetMs;
-        LayoutOptions.LayoutBudgetMs = 0;
-        LayoutOptions.LayoutSliceMs = null;
-
-        try
+        foreach (var component in GetVisibleComponents())
         {
-            foreach (var component in GetVisibleComponents())
-            {
-                var componentNodes = new HashSet<GraphNode>(component);
-                var componentWires = wires.Where(w => componentNodes.Contains(w.From.Owner) && componentNodes.Contains(w.To.Owner)).ToList();
+            var componentNodes = new HashSet<GraphNode>(component);
+            var componentWires = wires.Where(w => componentNodes.Contains(w.From.Owner) && componentNodes.Contains(w.To.Owner)).ToList();
 
-                GraphModelLayout.RepairCrossings(component, componentWires, Geometry, LayoutOptions);
-            }
-        }
-        finally
-        {
-            LayoutOptions.LayoutBudgetMs = previousBudget;
+            GraphModelLayout.RepairCrossings(component, componentWires, Geometry, LayoutOptions, budgetMs: 0);
         }
 
         foreach (var wire in wires)

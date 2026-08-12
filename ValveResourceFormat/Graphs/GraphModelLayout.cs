@@ -11,12 +11,13 @@ internal static class GraphModelLayout
         List<GraphNode> component,
         List<GraphWire> componentWires,
         GraphGeometry geometry,
-        GraphLayoutOptions options)
+        GraphLayoutOptions options,
+        int budgetMs)
     {
         var (sizes, edges) = Describe(component, componentWires, geometry);
         var positions = new Vector2[component.Count];
 
-        var routes = GraphLayout.Layout(positions, sizes, edges, options);
+        var routes = GraphLayout.Layout(positions, sizes, edges, options, budgetMs);
 
         for (var i = 0; i < component.Count; i++)
         {
@@ -48,7 +49,8 @@ internal static class GraphModelLayout
         List<GraphNode> component,
         List<GraphWire> componentWires,
         GraphGeometry geometry,
-        GraphLayoutOptions options)
+        GraphLayoutOptions options,
+        int budgetMs)
     {
         var (sizes, edges) = Describe(component, componentWires, geometry);
         var positions = new Vector2[component.Count];
@@ -58,7 +60,7 @@ internal static class GraphModelLayout
             positions[i] = component[i].Position;
         }
 
-        GraphLayout.RepairCrossings(positions, sizes, edges, options);
+        GraphLayout.RepairCrossings(positions, sizes, edges, options, budgetMs);
 
         for (var i = 0; i < component.Count; i++)
         {

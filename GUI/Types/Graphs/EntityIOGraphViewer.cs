@@ -61,7 +61,8 @@ internal class EntityIOGraphViewer : GLGraphViewer
     {
         this.showInMap = showInMap;
         entityCount = entities.Count;
-        EntityIOGraphBuilder.Build(View.Document, entities, nodeMembers);
+        EntityIOGraphBuilder.Build(View.Document, entities, nodeMembers,
+            new Progress<string>(message => Log.Debug(nameof(EntityIOGraphViewer), message)));
 
         View.Legend.AddRange(
         [

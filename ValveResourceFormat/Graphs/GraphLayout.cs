@@ -30,7 +30,8 @@ public static class GraphLayout
     /// <param name="sizes">Measured size of each node.</param>
     /// <param name="edges">The wires between them. A wire from a node to itself is ignored.</param>
     /// <param name="options">Layout tuning.</param>
-    public static Vector2[]?[] Layout(Vector2[] positions, Vector2[] sizes, GraphLayoutEdge[] edges, GraphLayoutOptions options)
+    /// <param name="budgetMs">Milliseconds this island may spend refining, or zero for unlimited.</param>
+    public static Vector2[]?[] Layout(Vector2[] positions, Vector2[] sizes, GraphLayoutEdge[] edges, GraphLayoutOptions options, int budgetMs)
     {
         ArgumentNullException.ThrowIfNull(positions);
         ArgumentNullException.ThrowIfNull(sizes);
@@ -41,7 +42,7 @@ public static class GraphLayout
 
         if (sizes.Length > 1)
         {
-            new LayeredSolver(positions, sizes, edges, options, DeadlineFor(options), routes).Run();
+            new LayeredSolver(positions, sizes, edges, options, LayoutDeadline.After(budgetMs), routes).Run();
         }
 
         return routes;
@@ -58,14 +59,15 @@ public static class GraphLayout
     /// <param name="sizes">Measured size of each node.</param>
     /// <param name="edges">The wires between them. A wire from a node to itself is ignored.</param>
     /// <param name="options">Layout tuning.</param>
-    public static void RepairCrossings(Vector2[] positions, Vector2[] sizes, GraphLayoutEdge[] edges, GraphLayoutOptions options)
+    /// <param name="budgetMs">Milliseconds the repair may spend, or zero for unlimited.</param>
+    public static void RepairCrossings(Vector2[] positions, Vector2[] sizes, GraphLayoutEdge[] edges, GraphLayoutOptions options, int budgetMs)
     {
         ArgumentNullException.ThrowIfNull(positions);
         ArgumentNullException.ThrowIfNull(sizes);
         ArgumentNullException.ThrowIfNull(edges);
         ArgumentNullException.ThrowIfNull(options);
 
-        RepairCrossings(positions, sizes, edges, options, DeadlineFor(options));
+        RepairCrossings(positions, sizes, edges, options, LayoutDeadline.After(budgetMs));
     }
 
     private static void RepairCrossings(Vector2[] positions, Vector2[] sizes, GraphLayoutEdge[] edges, GraphLayoutOptions options, LayoutDeadline deadline)
@@ -140,10 +142,6 @@ public static class GraphLayout
 
         return components;
     }
-
-    /// <summary>The cutoff one island's layout runs under, from its own slice or the whole budget.</summary>
-    private static LayoutDeadline DeadlineFor(GraphLayoutOptions options)
-        => LayoutDeadline.After(options.LayoutSliceMs ?? options.LayoutBudgetMs);
 
     /// <summary>
     /// Splits a layout budget across the islands of one layout, so the first island cannot spend

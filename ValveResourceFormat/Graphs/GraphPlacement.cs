@@ -98,9 +98,7 @@ internal static class GraphPlacement
 
         var islandPositions = new Vector2[island.Count];
 
-        options.LayoutSliceMs = sliceMs;
-        GraphLayout.Layout(islandPositions, sizes, islandEdges, options);
-        options.LayoutSliceMs = null;
+        GraphLayout.Layout(islandPositions, sizes, islandEdges, options, sliceMs);
 
         min = new Vector2(float.MaxValue);
         var max = new Vector2(float.MinValue);
