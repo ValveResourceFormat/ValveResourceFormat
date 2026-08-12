@@ -6,10 +6,10 @@ namespace ValveResourceFormat.Renderer.Entities;
 /// only what it does on a touch differs.
 /// </summary>
 /// <remarks>
-/// <see cref="InitTrigger"/> is the shared half of <c>Spawn</c>, exactly as it is in the engine: a
-/// trigger's own <c>Spawn</c> calls it rather than repeating the model and solidity setup. Unlike the
-/// engine the volume is left visible, because a viewer showing a map's triggers is the point; they draw
-/// with the tools materials, so the tools-material toggle still hides them.
+/// <see cref="InitTrigger"/> is the shared half of <c>Spawn</c>, as in the engine: a trigger's own
+/// <c>Spawn</c> calls it instead of repeating the model and solidity setup. Unlike the engine, the volume
+/// stays visible, since showing a map's triggers is the point. They use tools materials, so the
+/// tools-material toggle still hides them.
 /// </remarks>
 public abstract class BaseTrigger : BaseModelEntity
 {
@@ -58,11 +58,10 @@ public abstract class BaseTrigger : BaseModelEntity
     /// Source's <c>PassesTriggerFilters</c>, without the <c>filtername</c> entity filters.
     /// </summary>
     /// <remarks>
-    /// A trigger reacts only to what its spawnflags name, as the engine's does: one that names nothing it
-    /// accepts never fires. Of the flags, only "everything" and "clients" can be satisfied here, the
-    /// player being the one thing in the world that can enter a volume; a trigger that admits only NPCs,
-    /// pushables or physics props therefore stays shut. The <c>filtername</c> entity filters are not
-    /// consulted at all, so a trigger that passes its flags is not further narrowed by its filter.
+    /// A trigger reacts only to what its spawnflags name, like the engine's, so one that names nothing it
+    /// accepts never fires. The player is the only thing here that can enter a volume, so only
+    /// "everything" and "clients" can pass; a trigger for NPCs, pushables or physics props stays shut.
+    /// <c>filtername</c> filters are not read, so passing the flags is enough.
     /// </remarks>
     /// <param name="other">The entity inside the volume.</param>
     /// <returns><see langword="true"/> when the touch should register.</returns>

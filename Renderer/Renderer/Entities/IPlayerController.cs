@@ -5,9 +5,9 @@ namespace ValveResourceFormat.Renderer.Entities;
 /// how big, and how to move them somewhere else.
 /// </summary>
 /// <remarks>
-/// Declared here, next to its consumer, so the entity world does not depend on whatever drives the player.
-/// The player is simulated per rendered frame rather than on the entity tick, so <see cref="PlayerEntity"/>
-/// observes an implementation of this rather than owning the state itself.
+/// Declared next to its consumer so the entity world does not depend on whatever drives the player. The
+/// player moves per rendered frame rather than on the entity tick, so <see cref="PlayerEntity"/> reads an
+/// implementation of this instead of owning the state.
 /// </remarks>
 public interface IPlayerController
 {

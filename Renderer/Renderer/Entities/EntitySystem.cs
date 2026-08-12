@@ -1,4 +1,3 @@
-using System.Diagnostics;
 using Microsoft.Extensions.Logging;
 using ValveResourceFormat.IO;
 using ValveResourceFormat.ResourceTypes;
@@ -21,8 +20,9 @@ public readonly record struct EntityIOTarget(string Name, EntityIOTargetType Typ
 /// list of living entities, runs them on a fixed tick, and carries the entity I/O queue between them.
 /// </summary>
 /// <remarks>
-/// Entities tick at <see cref="TickInterval"/> rather than once per rendered frame. A frame runs as many ticks as it has time for,
-/// up to <see cref="MaxTicksPerFrame"/>, so a hitch cannot make the world take longer to simulate than to draw.
+/// Entities tick at <see cref="TickInterval"/> rather than once per rendered frame. A frame runs as many
+/// ticks as it owes, up to <see cref="MaxTicksPerFrame"/>, so a hitch cannot leave the world simulating
+/// for longer than it takes to draw.
 /// </remarks>
 public sealed class EntitySystem
 {
@@ -33,11 +33,10 @@ public sealed class EntitySystem
     /// How many inputs one tick may deliver before the world is assumed to be looping.
     /// </summary>
     /// <remarks>
-    /// Not the engine's: <c>CEventQueue::ServiceEvents</c> has no limit at all, so a map that wires a
-    /// zero-delay cycle hangs the server, and that is accepted there. A viewer opening someone else's map
-    /// should refuse to hang instead. The figure is far above any real wiring - the busiest output in a
-    /// large jailbreak map reaches under two thousand connections across the whole map, and one tick
-    /// delivers a few dozen - so reaching it means a cycle rather than a busy moment.
+    /// Not the engine's: <c>CEventQueue::ServiceEvents</c> has no limit, so a zero-delay cycle hangs the
+    /// server, which is accepted there but not in a viewer opening someone else's map. The limit is far
+    /// above real wiring - a large jailbreak map has under two thousand connections in total and a tick
+    /// delivers a few dozen - so hitting it means a cycle, not a busy moment.
     /// </remarks>
     private const int MaxInputsPerTick = 100_000;
 
@@ -73,8 +72,8 @@ public sealed class EntitySystem
     /// Rounds a time onto the tick it lands nearest, the way the engine's <c>TIME_TO_TICKS</c> does.
     /// </summary>
     /// <remarks>
-    /// Scheduling to the first tick at or after a time instead would round every interval up: a repeating
-    /// 0.1s think would come round every 7 ticks rather than 6, running about a sixth slow.
+    /// Scheduling to the first tick at or after the time would round every interval up: a repeating 0.1s
+    /// think would run every 7 ticks instead of 6, about a sixth slow.
     /// </remarks>
     /// <param name="time">The absolute time to round.</param>
     /// <returns>The time of the nearest tick.</returns>
@@ -89,18 +88,6 @@ public sealed class EntitySystem
     /// than stepping at the tick rate.
     /// </summary>
     public float InterpolationFraction => tickAccumulator / TickInterval;
-
-    /// <summary>
-    /// Gets what the last <see cref="Update"/> call cost, covering the ticks it ran and the entity updates
-    /// after them.
-    /// </summary>
-    /// <remarks>
-    /// Most frames run no tick at all, the world being simulated at <see cref="TickInterval"/> and drawn as
-    /// fast as the machine can, so this reads near zero on all of them and jumps on the ones that do tick.
-    /// A reader after the cost of simulating should take the largest value it sees over a span rather than
-    /// whichever frame it happened to sample.
-    /// </remarks>
-    public TimeSpan LastUpdateTime { get; private set; }
 
     private readonly List<BaseEntity> entities = [];
     private readonly List<QueuedInput> inputQueue = [];
@@ -216,18 +203,16 @@ public sealed class EntitySystem
     /// </summary>
     /// <remarks>
     /// <para>
-    /// Only the player is tested. Every pair of entities would be the general answer, but that is one test
-    /// per trigger per entity per tick for a map full of entities that never move, and the player is the
-    /// only thing here that walks into a volume. An entity moved by the simulation into a trigger it was not
-    /// already in therefore does not fire the trigger; the touch machinery itself stays general, so this is
-    /// the one place to widen if something other than the player ever needs to touch.
+    /// Only the player is tested. Testing every pair would be general, but costs a test per trigger per
+    /// entity per tick in a map full of entities that never move, and the player is the only thing here
+    /// that walks into a volume. So an entity the simulation moves into a trigger does not fire it. The
+    /// touch machinery stays general, so this is the one place to widen if that changes.
     /// </para>
     /// <para>
-    /// Driven by the tick and nothing else, because a touch handler is entity logic: it teleports things,
-    /// queues inputs against <see cref="CurrentTime"/>, spawns and removes entities. Sampling it per
-    /// rendered frame instead would make all of that depend on framerate. The player still moves per frame,
-    /// so a touch resolves up to one tick after the frame that caused it, and reads the player's live
-    /// position when it does.
+    /// Run on the tick only, because touch handlers are entity logic: they teleport things, queue inputs
+    /// against <see cref="CurrentTime"/>, and spawn or remove entities, all of which would become
+    /// framerate-dependent if sampled per frame. The player still moves per frame, so a touch resolves up
+    /// to one tick late, reading the player's live position.
     /// </para>
     /// </remarks>
     private void UpdateTouchLinks()
@@ -282,11 +267,10 @@ public sealed class EntitySystem
     {
         if (entities.Count == 0)
         {
-            LastUpdateTime = TimeSpan.Zero;
             return;
         }
 
-        var updateStart = Stopwatch.GetTimestamp();
+        using var profilerScope = new ProfilerScope("Entity System");
 
         if (Enabled)
         {
@@ -317,8 +301,6 @@ public sealed class EntitySystem
         {
             entity.Update();
         }
-
-        LastUpdateTime = Stopwatch.GetElapsedTime(updateStart);
     }
 
     private void Tick()
@@ -378,47 +360,40 @@ public sealed class EntitySystem
     }
 
     /// <summary>
-    /// Fires an entity I/O input at one entity, after its delay has elapsed.
+    /// Fires an entity I/O input at one entity, after a delay in seconds.
     /// </summary>
-    /// <param name="target">The entity receiving the input.</param>
-    /// <param name="inputName">The input's name.</param>
-    /// <param name="parameter">The parameter passed with the input, if any.</param>
-    /// <param name="activator">The entity that started the I/O chain.</param>
-    /// <param name="caller">The entity that fired the output.</param>
-    /// <param name="delay">Seconds to wait before the input is delivered.</param>
     public void QueueInput(BaseEntity target, string inputName, string? parameter = null,
         BaseEntity? activator = null, BaseEntity? caller = null, float delay = 0f)
-        => Enqueue(new QueuedInput(target, null, inputName, parameter, activator, caller,
-            CurrentTime + MathF.Max(delay, 0f), sequence++, null));
+    {
+        var fireTime = CurrentTime + MathF.Max(delay, 0f);
+
+        Enqueue(new QueuedInput(target, null, inputName, parameter, activator, caller, fireTime, sequence++, null));
+    }
 
     /// <summary>
-    /// Fires an entity I/O input at every entity whose targetname matches, wildcards included.
+    /// Fires an entity I/O input at every entity whose targetname matches, <c>*</c> and <c>?</c> wildcards
+    /// included, after a delay in seconds.
     /// </summary>
-    /// <param name="targetName">Targetname to match, may contain <c>*</c> and <c>?</c>.</param>
-    /// <param name="inputName">The input's name.</param>
-    /// <param name="parameter">The parameter passed with the input, if any.</param>
-    /// <param name="activator">The entity that started the I/O chain.</param>
-    /// <param name="caller">The entity that fired the output.</param>
-    /// <param name="delay">Seconds to wait before the input is delivered.</param>
     public void QueueInputByTargetName(string targetName, string inputName, string? parameter = null,
         BaseEntity? activator = null, BaseEntity? caller = null, float delay = 0f)
-        => Enqueue(new QueuedInput(null, new EntityIOTarget(targetName, EntityIOTargetType.EntityNameOrClassName),
-            inputName, parameter, activator, caller, CurrentTime + MathF.Max(delay, 0f), sequence++, null));
+    {
+        var target = new EntityIOTarget(targetName, EntityIOTargetType.EntityNameOrClassName);
+        var fireTime = CurrentTime + MathF.Max(delay, 0f);
+
+        Enqueue(new QueuedInput(null, target, inputName, parameter, activator, caller, fireTime, sequence++, null));
+    }
 
     /// <summary>
-    /// Queues an input by target, the way an authored connection addresses one.
+    /// Queues an input by target, the way an authored connection addresses one. The connection is passed
+    /// when one limits how often it may fire.
     /// </summary>
-    /// <param name="target">The connection's target name and how to read it.</param>
-    /// <param name="inputName">The input's name.</param>
-    /// <param name="parameter">The parameter passed with the input, if any.</param>
-    /// <param name="activator">The entity that started the I/O chain.</param>
-    /// <param name="caller">The entity that fired the output.</param>
-    /// <param name="delay">Seconds to wait before the input is delivered.</param>
-    /// <param name="connection">The connection this came from, when one limits how often it may fire.</param>
     private void QueueInputByTarget(EntityIOTarget target, string inputName, string? parameter,
         BaseEntity? activator, BaseEntity? caller, float delay, EntityLump.Connection? connection)
-        => Enqueue(new QueuedInput(null, target, inputName, parameter, activator, caller,
-            CurrentTime + MathF.Max(delay, 0f), sequence++, connection));
+    {
+        var fireTime = CurrentTime + MathF.Max(delay, 0f);
+
+        Enqueue(new QueuedInput(null, target, inputName, parameter, activator, caller, fireTime, sequence++, connection));
+    }
 
     private void Enqueue(QueuedInput input)
     {
@@ -509,11 +484,10 @@ public sealed class EntitySystem
     /// Delivers everything the clock has reached, and everything those deliveries queue for now.
     /// </summary>
     /// <remarks>
-    /// The engine's <c>CEventQueue::ServiceEvents</c> restarts from the head of the queue after each
-    /// event, so a chain of zero-delay connections completes inside the tick that set it off. Taking one
-    /// snapshot instead would spread an N-hop chain of relays over N ticks, which a map that fires a
-    /// button and expects the result the same instant would notice. The one departure is
-    /// <see cref="MaxInputsPerTick"/>, which the engine does without.
+    /// The engine's <c>CEventQueue::ServiceEvents</c> restarts from the head of the queue after each event,
+    /// so a chain of zero-delay connections finishes in the tick that started it. Taking one snapshot
+    /// instead would spread an N-hop relay chain over N ticks, which a map expecting a button to act at
+    /// once would notice. The only difference here is <see cref="MaxInputsPerTick"/>.
     /// </remarks>
     private void DispatchDueInputs()
     {

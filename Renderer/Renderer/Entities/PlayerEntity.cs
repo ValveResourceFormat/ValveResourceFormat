@@ -6,9 +6,9 @@ namespace ValveResourceFormat.Renderer.Entities;
 /// mirrors it into the entity world so triggers have something to touch and teleports something to move.
 /// </summary>
 /// <remarks>
-/// Position is read from the controller rather than simulated: the player moves per rendered frame, off
-/// the input, not on the entity tick. That makes this entity a view onto the controller's state, which is
-/// why <see cref="TryGetTouchBounds"/> reads the hull live instead of trusting the last tick's copy.
+/// Position comes from the controller rather than being simulated: the player moves off the input, per
+/// rendered frame, not on the entity tick. This entity is only a view onto that state, so
+/// <see cref="TryGetTouchBounds"/> reads the hull live rather than the last tick's copy.
 /// </remarks>
 public sealed class PlayerEntity : BaseEntity
 {

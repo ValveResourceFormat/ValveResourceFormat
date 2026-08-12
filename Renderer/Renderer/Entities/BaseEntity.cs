@@ -21,10 +21,9 @@ public readonly record struct EntitySpawnInfo(Entity Data, Matrix4x4 ParentTrans
 /// angles, ticks inside <see cref="EntitySystem"/>, and owns the scene nodes that draw it.
 /// </summary>
 /// <remarks>
-/// Movement is integrated on the entity system's fixed tick, not the render frame, so think intervals and
-/// spin-up ramps land where the engine puts them regardless of framerate. The entity is not itself a scene
-/// node: it owns one, <see cref="RootNode"/>, which it positions each frame. By default that is the editor
-/// box the loader would otherwise draw for a point entity; a class with real geometry replaces it.
+/// Entities move on the fixed tick rather than the render frame, so think intervals and ramps match the
+/// engine at any framerate. An entity is not a scene node; it owns one, <see cref="RootNode"/>, and places
+/// it each frame. That node defaults to the editor box, and a class with real geometry replaces it.
 /// </remarks>
 public class BaseEntity
 {
@@ -214,9 +213,9 @@ public class BaseEntity
     /// Builds the node this entity is drawn as, or returns <see langword="null"/> for one that draws nothing.
     /// </summary>
     /// <remarks>
-    /// The default is what the loader draws for a classname the entity system does not implement: the icon
-    /// the entity's Hammer class names, or a box in its colour. A class with real geometry overrides this,
-    /// and because the choice is made here rather than afterwards, the icon is never built for one that does.
+    /// The default is what the loader draws for an unimplemented classname: the icon the entity's Hammer
+    /// class names, or a box in its colour. A class with real geometry overrides this, so the icon is
+    /// never built for one that has geometry.
     /// </remarks>
     /// <returns>The node, or <see langword="null"/> to own none.</returns>
     protected virtual SceneNode? CreateRootNode()
@@ -273,8 +272,8 @@ public class BaseEntity
     /// its collision shape. An entity with no shape has no volume and cannot be touched, so it says so.
     /// </summary>
     /// <remarks>
-    /// A box, not the shape itself, because that is what a trigger volume can be asked to test against, and
-    /// it is what the engine tests a trigger against too.
+    /// A box rather than the real shape, because that is what trigger volumes test against, here and in
+    /// the engine.
     /// </remarks>
     /// <param name="center">The box centre in world space.</param>
     /// <param name="halfExtents">Half-extents of the box.</param>
@@ -447,12 +446,10 @@ public class BaseEntity
     /// turning by <see cref="AngularVelocity"/>.
     /// </summary>
     /// <remarks>
-    /// The turn goes about the entity's own axes rather than onto the QAngle components. The two only
-    /// agree while nothing ahead of a component in the euler composition tilts it, which holds for roll
-    /// and for an entity the map left unrotated, but not for the yaw of a brush authored on its side:
-    /// that one would swing about the world's up axis instead of its own. Source 1 adds the components
-    /// (<c>physics_main.cpp</c>: <c>angles += GetLocalAngularVelocity() * movetime</c>); Source 2 turns
-    /// the body, and these are Source 2 maps.
+    /// The turn goes about the entity's own axes, not onto the QAngle components. Source 1 adds the
+    /// components (<c>physics_main.cpp</c>: <c>angles += GetLocalAngularVelocity() * movetime</c>), Source 2
+    /// turns the body, and these are Source 2 maps. The two only differ for an entity the map already
+    /// rotated, such as a brush authored on its side, which would otherwise yaw about the world's up axis.
     /// </remarks>
     /// <param name="tickInterval">The fixed tick length in seconds.</param>
     protected virtual void PhysicsSimulate(float tickInterval)
@@ -504,9 +501,9 @@ public class BaseEntity
     /// the node where that lands.
     /// </summary>
     /// <remarks>
-    /// The octree entry is moved here rather than left to <see cref="Scene.Update"/>. That loop maintains it
-    /// by measuring a node's bounds around the node's own update, and this write happens before the loop is
-    /// reached, so the measurement would come up empty and the entry would go stale.
+    /// The octree entry is moved here rather than in <see cref="Scene.Update"/>, which measures a node's
+    /// bounds around the node's own update. This write happens before that loop runs, so it would measure
+    /// no change and leave the entry stale.
     /// </remarks>
     internal void Update()
     {
@@ -602,11 +599,10 @@ public class BaseEntity
     /// Moves the collision shape onto the entity's current tick state.
     /// </summary>
     /// <remarks>
-    /// Deliberately the tick state and not the interpolated one drawn this frame: collision answers where
-    /// the entity <i>is</i>, which is the same split the engine has between a server tracing against tick
-    /// state and a client drawing between snapshots. The transform is also kept rigid, leaving
-    /// <see cref="EntityScale"/> out, because the shape's sweeps assume distances survive the round trip
-    /// into its local space.
+    /// Uses the tick state, not the interpolated one drawn this frame, because collision answers where the
+    /// entity is - the same split the engine has between the server tracing and the client drawing. The
+    /// transform stays rigid, leaving <see cref="EntityScale"/> out, because the shape's sweeps assume
+    /// distances do not change in its local space.
     /// </remarks>
     protected void UpdateColliderTransform()
     {
@@ -624,11 +620,10 @@ public class BaseEntity
     /// Rebuilds <see cref="Transform"/> for drawing, somewhere between the last two ticks.
     /// </summary>
     /// <remarks>
-    /// This is the engine's client-side interpolation: rather than draw the newest state, the client draws
-    /// between the two most recent ones and so renders slightly in the past, which is what keeps movement
-    /// smooth at any framerate. Angles go through a slerp, matching mathlib's <c>Lerp&lt;QAngle&gt;</c>,
-    /// which takes the shortest arc between the two orientations. The tick state stays authoritative:
-    /// interpolating here only affects what is drawn, never what is simulated.
+    /// The engine's client-side interpolation: draw between the two most recent tick states instead of the
+    /// newest one, which renders slightly in the past but stays smooth at any framerate. Angles slerp, like
+    /// mathlib's <c>Lerp&lt;QAngle&gt;</c>, taking the shortest arc. Only what is drawn changes; the tick
+    /// state stays authoritative.
     /// </remarks>
     /// <param name="fraction">Where the frame falls between the two ticks, from <see cref="EntitySystem.InterpolationFraction"/>.</param>
     protected virtual void UpdateRenderTransform(float fraction)

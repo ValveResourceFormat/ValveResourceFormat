@@ -11,9 +11,9 @@ namespace ValveResourceFormat.Renderer.World;
 /// falling back to a coloured box. What Hammer itself shows for an entity that has no geometry of its own.
 /// </summary>
 /// <remarks>
-/// Shared by the two things that need it. The loader draws these for classnames the entity system does not
-/// implement, and <see cref="Entities.BaseEntity"/> draws one for an entity that has nothing else to show,
-/// so an implemented classname does not become invisible by virtue of being implemented.
+/// The loader draws these for classnames the entity system does not implement, and
+/// <see cref="Entities.BaseEntity"/> draws one for an entity with nothing else to show, so implementing a
+/// classname does not make it invisible.
 /// </remarks>
 internal static class EditorEntityNode
 {

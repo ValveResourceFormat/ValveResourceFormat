@@ -11,9 +11,9 @@ namespace ValveResourceFormat.Renderer.Entities;
 /// so firing an input is a dictionary lookup and a delegate call rather than a chain of name comparisons.
 /// </summary>
 /// <remarks>
-/// Concurrent because not every bind happens at startup: a class the factory never sees, the player being
-/// the one, binds as its world loads, and two worlds can load at once. A table itself is frozen once built,
-/// so only the act of publishing one needs guarding.
+/// Concurrent because not every bind happens at startup: the player is never seen by the factory and binds
+/// as its world loads, and two worlds can load at once. A built table is frozen, so only publishing one
+/// needs guarding.
 /// </remarks>
 internal static class EntityInputTable
 {

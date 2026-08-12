@@ -6,9 +6,7 @@ using ValveResourceFormat.Serialization.KeyValues;
 namespace ValveResourceFormat.Renderer.Entities;
 
 /// <summary>
-/// An entity with something to draw, Source's <c>CBaseModelEntity</c>. The entity is its model: the
-/// <see cref="ModelSceneNode"/> is the node it owns rather than a child hanging off it, alongside the
-/// collision hulls the model was compiled with.
+/// An entity with something to draw, Source's <c>CBaseModelEntity</c>.
 /// </summary>
 public abstract class BaseModelEntity : BaseEntity
 {

@@ -87,11 +87,10 @@ namespace GUI.Types.GLViewers
         private int frameTimeNextId;
         private int frameTimeCount;
 
-        private readonly ValveResourceFormat.Renderer.TextRenderer.TextBuffer fpsText = new("FPS: 10000  CPU: 10000.0ms  GPU: 10000.0ms  ENT: 10000.0ms");
+        private readonly ValveResourceFormat.Renderer.TextRenderer.TextBuffer fpsText = new("FPS: 10000  CPU: 10000.0ms  GPU: 10000.0ms");
         private readonly ValveResourceFormat.Renderer.TextRenderer.TextBuffer speedText = new("Speed: 100000.0 u/s");
         private int frametimeQuery1;
         private int frametimeQuery2;
-        private double entityPeakTime;
 
         protected GLSceneViewer(VrfGuiContext vrfGuiContext, RendererContext rendererContext, Frustum cullFrustum) : this(vrfGuiContext, rendererContext)
         {
@@ -746,8 +745,6 @@ namespace GUI.Types.GLViewers
                 var currentTime = Stopwatch.GetTimestamp();
                 var fpsElapsed = Stopwatch.GetElapsedTime(lastFpsUpdate, currentTime);
 
-                entityPeakTime = Math.Max(entityPeakTime, Scene.EntitySystem.LastUpdateTime.TotalMilliseconds);
-
                 // Zero length frames (the first frame after resuming) would inflate the average.
                 if (frameTime > 0f)
                 {
@@ -776,11 +773,8 @@ namespace GUI.Types.GLViewers
                     var fps = frameTimeCount / frameTimeSum;
                     var cpuFrameTime = Stopwatch.GetElapsedTime(LastUpdate, currentTime).TotalMilliseconds;
 
-                    var entityFrameTime = entityPeakTime;
-
                     lastFpsUpdate = currentTime;
-                    entityPeakTime = 0d;
-                    fpsText.Format($"FPS: {fps,-3:0}  CPU: {cpuFrameTime,-4:0.0}ms  GPU: {gpuFrameTime,-4:0.0}ms  ENT: {entityFrameTime,-4:0.00}ms");
+                    fpsText.Format($"FPS: {fps,-3:0}  CPU: {cpuFrameTime,-4:0.0}ms  GPU: {gpuFrameTime,-4:0.0}ms");
                 }
 
                 DrawLowerCornerText(fpsText, Color32.White);

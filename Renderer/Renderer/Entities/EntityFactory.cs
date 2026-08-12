@@ -17,9 +17,9 @@ public delegate BaseEntity EntityCreator(EntitySystem system, EntitySpawnInfo sp
 /// registers here, and anything absent from the table is not one the entity system implements.
 /// </summary>
 /// <remarks>
-/// The table is populated statically rather than by scanning types, so the renderer stays trim-safe and
-/// AOT-compatible. Add a classname here to make <see cref="World.WorldLoader"/> hand it over to
-/// <see cref="EntitySystem"/> instead of loading it as a static scene node.
+/// The table is filled in statically rather than by scanning types, to stay trim-safe and AOT-compatible.
+/// Add a classname here and <see cref="World.WorldLoader"/> hands it to <see cref="EntitySystem"/> instead
+/// of loading it as a static scene node.
 /// </remarks>
 public static class EntityFactory
 {

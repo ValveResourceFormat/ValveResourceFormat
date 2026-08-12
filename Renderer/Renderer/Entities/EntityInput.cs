@@ -6,11 +6,10 @@ namespace ValveResourceFormat.Renderer.Entities;
 /// Marks a method as an entity I/O input handler, the equivalent of Source's <c>DEFINE_INPUTFUNC</c>.
 /// </summary>
 /// <remarks>
-/// The method must be an instance method taking a single <see cref="EntityInputData"/> and returning void.
-/// A class's own inputs can be private; declare one protected to hand the input down to subclasses too, as
+/// The method must be an instance method taking one <see cref="EntityInputData"/> and returning void. A
+/// class's own inputs can be private, but declare one protected to pass it down to subclasses, since
 /// private methods are not visible on the derived class the table is built for. The name is always spelled
-/// out, because it is the name maps were authored against: it is a contract with the map, not a
-/// consequence of what the method happens to be called.
+/// out because it is what maps were authored against, not whatever the method happens to be called.
 /// </remarks>
 [AttributeUsage(AttributeTargets.Method)]
 public sealed class EntityInputAttribute : Attribute
@@ -59,24 +58,9 @@ public readonly struct EntityInputData
     /// </summary>
     /// <param name="defaultValue">Returned when there is no parameter or it does not parse.</param>
     public Vector3 Vector(Vector3 defaultValue = default)
-    {
-        if (string.IsNullOrEmpty(Parameter))
-        {
-            return defaultValue;
-        }
-
-        var parts = Parameter.Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-
-        if (parts.Length < 3
-            || !float.TryParse(parts[0], NumberStyles.Float, CultureInfo.InvariantCulture, out var x)
-            || !float.TryParse(parts[1], NumberStyles.Float, CultureInfo.InvariantCulture, out var y)
-            || !float.TryParse(parts[2], NumberStyles.Float, CultureInfo.InvariantCulture, out var z))
-        {
-            return defaultValue;
-        }
-
-        return new Vector3(x, y, z);
-    }
+        => Parameter != null && EntityTransformHelper.TryParseVector3(Parameter, out var value)
+            ? value
+            : defaultValue;
 
     /// <summary>Reads the parameter as a boolean, accepting both <c>1</c> and <c>true</c>.</summary>
     /// <param name="defaultValue">Returned when there is no parameter or it does not parse.</param>

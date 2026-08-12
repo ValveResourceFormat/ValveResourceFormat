@@ -10,24 +10,24 @@ namespace ValveResourceFormat.Renderer.Entities;
 /// <remarks>
 /// <para>
 /// Ported from Source's <c>CFuncRotating</c>, structure included: the speed ramp is a chain of move-done
-/// callbacks 0.1s apart (<c>SpinUpMove</c> / <c>SpinDownMove</c>) that hand over to <c>RotateMove</c> once
-/// the target speed is reached, and the angles themselves are integrated by the fixed tick.
+/// callbacks 0.1s apart (<c>SpinUpMove</c> / <c>SpinDownMove</c>) that hand over to <c>RotateMove</c> at
+/// the target speed, and the fixed tick integrates the angles.
 /// </para>
 /// <para>
-/// The axis flags are named after the code's <c>m_vecMoveAng</c>, which is a QAngle: the flag Hammer labels
-/// "X Axis" sets roll and the one it labels "Y Axis" sets pitch, and with neither set the brush yaws about
-/// the world Z axis. That mismatch is the engine's, kept here so maps rotate the way they do in game.
+/// The axis flags are named after the code's <c>m_vecMoveAng</c>, a QAngle, so Hammer's "X Axis" sets roll
+/// and its "Y Axis" sets pitch, and with neither set the brush yaws about world Z. The mismatch is the
+/// engine's, kept so maps rotate the way they do in game.
 /// </para>
 /// <para>
-/// The brush is solid and the player collides with it as it turns, unless the "Not Solid" flag is set.
-/// Not simulated: the "Fan Pain" damage flag, and the pusher physics that would carry a player standing on
-/// it or push one the brush rotates into.
+/// The brush is solid and the player collides with it as it turns, unless the "Not Solid" flag is set. The
+/// "Fan Pain" damage flag is not simulated, nor is the pusher physics that would carry a player standing
+/// on it or shove one it turns into.
 /// </para>
 /// <para>
-/// The rotation sound follows the speed the way <c>RampPitchVol</c> does, except in pitch: the engine winds
-/// the sample from 30% to 100% of its authored pitch as the brush comes up to speed, which the sound player
-/// has no control for. Volume ramps, so a fan still fades in and out with its spin. The sound radius flags
-/// pick an attenuation, which is likewise not exposed, so a small-radius fan carries as far as a large one.
+/// The sound follows the speed like <c>RampPitchVol</c>, except in pitch: the engine winds the sample from
+/// 30% to 100% pitch during spin-up, which the sound player cannot do. Volume still ramps, so a fan fades
+/// in and out with its spin. The sound radius flags pick an attenuation, also not exposed, so a
+/// small-radius fan carries as far as a large one.
 /// </para>
 /// </remarks>
 public sealed class FuncRotating : BaseModelEntity
@@ -249,8 +249,8 @@ public sealed class FuncRotating : BaseModelEntity
 
     /// <summary>Spins the brush up to <c>maxspeed</c> forwards.</summary>
     /// <remarks>
-    /// Unlike every other way of starting it, this one leaves a pending <c>StopAtStartPos</c> alone, so a
-    /// brush told to stop at its start angle still will. That asymmetry is the engine's.
+    /// Unlike the other ways of starting it, this one leaves a pending <c>StopAtStartPos</c> alone, so a
+    /// brush told to stop at its start angle still does. The asymmetry is the engine's.
     /// </remarks>
     /// <param name="data">The input's parameter and sender, unused.</param>
     [EntityInput("StartForward")]
@@ -315,9 +315,9 @@ public sealed class FuncRotating : BaseModelEntity
     /// Puts the brush back on its start angle and stops it there, without waiting to come round.
     /// </summary>
     /// <remarks>
-    /// <c>OnReachedStart</c> is not fired: that output belongs to a pending <c>StopAtStartPos</c> running
-    /// its course, and a snap cancels that pending stop rather than completing it. Stopping still reports
-    /// through <c>OnStopped</c>, as any other way of stopping does.
+    /// <c>OnReachedStart</c> is not fired, because it belongs to a pending <c>StopAtStartPos</c> running
+    /// its course and a snap cancels that stop rather than completing it. Stopping still reports through
+    /// <c>OnStopped</c>, like any other stop.
     /// </remarks>
     /// <param name="data">The input's parameter and sender, unused.</param>
     [EntityInput("SnapToStartPos")]
@@ -440,9 +440,9 @@ public sealed class FuncRotating : BaseModelEntity
     /// there. Source's <c>UpdateSpeed</c>, minus the sound pitch and volume ramp.
     /// </summary>
     /// <remarks>
-    /// A pending <c>StopAtStartPos</c> steers the last stretch, as <c>bmodels.cpp</c> does: more than 90
-    /// degrees out it holds the speed it had, inside that it eases towards the angle still to go with a
-    /// floor of 20 degrees per second, and once it is slow and within a degree it lands on the start.
+    /// A pending <c>StopAtStartPos</c> steers the last stretch, like <c>bmodels.cpp</c>: over 90 degrees
+    /// out it keeps its speed, inside that it eases towards the remaining angle but never below 20 degrees
+    /// per second, and once slow and within a degree it lands on the start.
     /// </remarks>
     /// <param name="newSpeed">The speed to apply, before clamping to <see cref="MaxSpeed"/>.</param>
     private void UpdateSpeed(float newSpeed)
@@ -559,10 +559,10 @@ public sealed class FuncRotating : BaseModelEntity
     /// the interpolation history goes with it.
     /// </summary>
     /// <remarks>
-    /// The landing happens once, and the pending stop is what records whether it still has to. Both ways
-    /// in run through <see cref="SetTargetSpeed"/>, which for a brush that does not accelerate lands the
-    /// stop itself before its caller gets to: the engine runs the same pair of paths and does not care,
-    /// because there it is two assignments rather than an output a map can count.
+    /// The landing happens once, and the pending stop records whether it still has to. Both callers go
+    /// through <see cref="SetTargetSpeed"/>, which for a brush that does not accelerate lands the stop
+    /// before its caller can. The engine has the same two paths and does not mind, because there it is two
+    /// assignments rather than an output a map can count.
     /// </remarks>
     private void StopAtStartAngles()
     {
