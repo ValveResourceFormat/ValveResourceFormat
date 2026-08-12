@@ -452,7 +452,7 @@ namespace ValveResourceFormat.Renderer.PostProcess
                 adaptRate = -adaptRate;
             }
 
-            // Decide the clamp direction before the deltaTime multiply: a zero-length frame must hold, not snap
+            // Decide the clamp direction before the deltaTime multiply
             var adaptingUpward = adaptRate >= 0.0;
             adaptRate *= deltaTime;
 
