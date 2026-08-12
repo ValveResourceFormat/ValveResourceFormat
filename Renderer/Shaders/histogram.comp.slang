@@ -25,7 +25,6 @@ layout(binding = 3, std140) buffer Luminance { float outputLuminance; };
 #else
     layout (local_size_x = 256) in;
 
-    // Weighted bin sums; a uint sum wraps above 255 * 16,843,009 pixels (2^32 - 1)
     shared float localHistogram[256];
 #endif
 
