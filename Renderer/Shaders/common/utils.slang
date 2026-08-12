@@ -98,9 +98,8 @@ float length_squared(vec4 vector)
 const vec3 gamma = vec3(2.4);
 const vec3 invGamma = vec3(1.0 / gamma);
 
-// The game weighs luminance with these values, not standard Rec.709
 float GetLuma(vec3 Color) {
-	return dot( Color, vec3(0.2125, 0.7154, 0.0721) );
+	return dot( Color, vec3(0.2125, 0.7154, 0.0721) ); // BT.709-1, same as Valve
 }
 
 float LevelsAdjust(float component, vec3 L_BlackWhiteGamma)

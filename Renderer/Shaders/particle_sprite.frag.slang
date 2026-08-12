@@ -74,7 +74,6 @@ uniform float uLayerBlend[MAX_TEXTURE_LAYERS];
 #define SPRITECARD_TEXTURE_1D_COLOR_LOOKUP 2
 uniform int uLayerEffectMode[MAX_TEXTURE_LAYERS];
 
-// The mask modes use Rec.601 weights, while the LUMINANCE blend below uses GetLuma.
 const vec3 LUMA_601 = vec3(0.299, 0.587, 0.114);
 
 // A constant table from the reference, indexed by mask mode: .x premultiplies the ramp's source colour by
