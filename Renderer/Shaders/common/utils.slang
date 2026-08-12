@@ -97,7 +97,7 @@ const vec3 gamma = vec3(2.4);
 const vec3 invGamma = vec3(1.0 / gamma);
 
 float GetLuma(vec3 Color) {
-	return dot( Color, vec3(0.2126, 0.7152, 0.0722) );
+	return dot( Color, vec3(0.2125, 0.7154, 0.0721) ); // BT.709-1, same as Valve
 }
 
 float LevelsAdjust(float component, vec3 L_BlackWhiteGamma)
