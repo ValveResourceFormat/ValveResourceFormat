@@ -906,10 +906,8 @@ public class Renderer
 
         static void Dispatch(Shader shader, RenderTexture texture, int x, int y)
         {
-            var minLuminance = 0.005f / 256.0f;
-            var maxLuminance = 8f; //65_204f;
-            var logMin = MathF.Log2(minLuminance);
-            var logRange = MathF.Log2(maxLuminance) - logMin;
+            var logMin = -8f;
+            var logRange = 13f;
 
             shader.Use();
             shader.SetTexture(0, "inputImage", texture);
