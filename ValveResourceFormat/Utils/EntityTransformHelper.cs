@@ -70,26 +70,6 @@ namespace ValveResourceFormat.Utils
         }
 
         /// <summary>
-        /// Creates a rotation quaternion from Euler angles (pitch, yaw, roll), the rotation
-        /// <see cref="CreateRotationMatrixFromEulerAngles"/> builds as a matrix. Inverse of
-        /// <see cref="ToEulerAngles"/>.
-        /// </summary>
-        /// <param name="pitchYawRoll">The Euler angles.</param>
-        /// <returns>The rotation quaternion.</returns>
-        public static Quaternion CreateQuaternionFromEulerAngles(Vector3 pitchYawRoll)
-        {
-            var (sp, cp) = MathF.SinCos(float.DegreesToRadians(pitchYawRoll.X) * 0.5f);
-            var (sy, cy) = MathF.SinCos(float.DegreesToRadians(pitchYawRoll.Y) * 0.5f);
-            var (sr, cr) = MathF.SinCos(float.DegreesToRadians(pitchYawRoll.Z) * 0.5f);
-
-            return new Quaternion(
-                sr * cp * cy - cr * sp * sy,
-                cr * sp * cy + sr * cp * sy,
-                cr * cp * sy - sr * sp * cy,
-                cr * cp * cy + sr * sp * sy);
-        }
-
-        /// <summary>
         /// Converts a quaternion to Euler angles (pitch, yaw, roll) in degrees.
         /// Includes gimbal lock handling when pitch is near +/-90 degrees.
         /// Inverse of <see cref="EulerAnglesToQuaternion"/>.

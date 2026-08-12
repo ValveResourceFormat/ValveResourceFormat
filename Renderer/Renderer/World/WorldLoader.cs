@@ -552,7 +552,7 @@ namespace ValveResourceFormat.Renderer.World
                 var layerName = fromTemplate ? "Template Entities" : originalLayerName;
 
                 // group the point_template marker and its spawned children under the same layer
-                var toolEntityLayer = fromTemplate || classname == "point_template" ? "Template Entities" : EditorEntityNode.ToolEntitiesLayerName;
+                var toolEntityLayer = fromTemplate || classname == "point_template" ? "Template Entities" : EditorEntityNode.LayerName;
 
                 var disabled = entity.GetBooleanProperty("startdisabled");
 
@@ -574,7 +574,7 @@ namespace ValveResourceFormat.Renderer.World
                     return;
                 }
 
-                var defaultEntityLayer = toolEntityLayer == ToolEntitiesLayerName && HammerEntities.Get(classname)?.Studio == true
+                var defaultEntityLayer = toolEntityLayer == EditorEntityNode.LayerName && HammerEntities.Get(classname)?.Studio == true
                     ? layerName
                     : toolEntityLayer;
 
@@ -1485,7 +1485,7 @@ namespace ValveResourceFormat.Renderer.World
 
             foreach (var node in SkyboxScene.AllNodes)
             {
-                if (node.LayerName == EditorEntityNode.ToolEntitiesLayerName)
+                if (node.LayerName == EditorEntityNode.LayerName)
                 {
                     node.Transform *= offsetTransform;
                 }
@@ -1561,7 +1561,7 @@ namespace ValveResourceFormat.Renderer.World
             }
         }
 
-        private void CreateDefaultEntity(Entity entity, string classname, Matrix4x4 transformationMatrix, ObjectTypeFlags flags = ObjectTypeFlags.None, string layerName = EditorEntityNode.ToolEntitiesLayerName)
+        private void CreateDefaultEntity(Entity entity, string classname, Matrix4x4 transformationMatrix, ObjectTypeFlags flags = ObjectTypeFlags.None, string layerName = EditorEntityNode.LayerName)
         {
             var createdNode = EditorEntityNode.Create(scene, entity, classname, transformationMatrix, flags, layerName);
 

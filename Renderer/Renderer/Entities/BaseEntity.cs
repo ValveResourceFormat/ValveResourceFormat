@@ -451,8 +451,8 @@ public class BaseEntity
     /// </summary>
     protected static Vector3 TurnBody(Vector3 from, Vector3 bodyDelta)
     {
-        var turned = EntityTransformHelper.CreateQuaternionFromEulerAngles(from)
-            * EntityTransformHelper.CreateQuaternionFromEulerAngles(bodyDelta);
+        var turned = EntityTransformHelper.EulerAnglesToQuaternion(from)
+            * EntityTransformHelper.EulerAnglesToQuaternion(bodyDelta);
 
         return EntityTransformHelper.ToEulerAngles(turned);
     }
@@ -588,7 +588,7 @@ public class BaseEntity
             return;
         }
 
-        Collider.Transform = EntityTransformHelper.CreateRotationMatrixFromEulerAngles(Angles)
+        Collider.Transform = EntityTransformHelper.EulerAnglesToRotationMatrix(Angles)
             * Matrix4x4.CreateTranslation(Origin)
             * ParentTransform;
     }
@@ -606,8 +606,8 @@ public class BaseEntity
     {
         var origin = Vector3.Lerp(previousOrigin, Origin, fraction);
         var rotation = Quaternion.Slerp(
-            EntityTransformHelper.CreateQuaternionFromEulerAngles(previousAngles),
-            EntityTransformHelper.CreateQuaternionFromEulerAngles(Angles),
+            EntityTransformHelper.EulerAnglesToQuaternion(previousAngles),
+            EntityTransformHelper.EulerAnglesToQuaternion(Angles),
             fraction);
 
         Transform = Matrix4x4.CreateScale(EntityScale)
@@ -634,7 +634,7 @@ public class BaseEntity
     private void SetTransform(Vector3 origin, Vector3 angles)
     {
         Transform = Matrix4x4.CreateScale(EntityScale)
-            * EntityTransformHelper.CreateRotationMatrixFromEulerAngles(angles)
+            * EntityTransformHelper.EulerAnglesToRotationMatrix(angles)
             * Matrix4x4.CreateTranslation(origin)
             * ParentTransform;
 

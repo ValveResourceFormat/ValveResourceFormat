@@ -18,7 +18,7 @@ namespace ValveResourceFormat.Renderer.World;
 internal static class EditorEntityNode
 {
     /// <summary>Visibility layer these are drawn on, so they can be hidden apart from the world.</summary>
-    internal const string ToolEntitiesLayerName = "Entities (editor only)";
+    internal const string LayerName = "Entities (editor only)";
 
     /// <summary>
     /// Builds the node for an entity, without adding it to the scene: the caller owns it, and decides
@@ -32,7 +32,7 @@ internal static class EditorEntityNode
         string classname,
         Matrix4x4 transform,
         ObjectTypeFlags flags = ObjectTypeFlags.None,
-        string layerName = ToolEntitiesLayerName)
+        string layerName = LayerName)
     {
         var hammerEntity = HammerEntities.Get(classname);
         string? filename = null;
@@ -58,7 +58,7 @@ internal static class EditorEntityNode
             var color = hammerEntity?.Color ?? new Color32(255, 0, 255, 255);
 
             // Do not use transform because scales need to be ignored
-            EntityTransformHelper.DecomposeTransformationMatrix(entity, out _, out var rotationMatrix, out var positionVector);
+            EntityTransformHelper.GetTransformComponents(entity, out _, out var rotationMatrix, out var positionVector);
 
             return new SimpleBoxSceneNode(scene, color, new Vector3(16f))
             {
