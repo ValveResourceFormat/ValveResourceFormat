@@ -376,5 +376,12 @@ namespace ValveResourceFormat.Renderer.Particles
         /// </summary>
         public static bool IsAngleField(this ParticleField field)
             => field is ParticleField.Roll or ParticleField.Yaw or ParticleField.Pitch or ParticleField.RollSpeed;
+
+        /// <summary>
+        /// Whether the field holds an orientation angle, so is stored in radians while content authors
+        /// it in degrees. Narrower than <see cref="IsAngleField"/>: the angular rate is excluded.
+        /// </summary>
+        public static bool IsOrientationField(this ParticleField field)
+            => field is ParticleField.Roll or ParticleField.Yaw or ParticleField.Pitch;
     }
 }

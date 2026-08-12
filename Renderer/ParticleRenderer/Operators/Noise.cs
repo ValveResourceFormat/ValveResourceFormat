@@ -31,7 +31,7 @@ namespace ValveResourceFormat.Renderer.Particles.Operators
             var min = outputMin.NextNumber(particleSystemState);
             var max = outputMax.NextNumber(particleSystemState);
 
-            if (outputField.IsAngleField())
+            if (outputField.IsOrientationField())
             {
                 min = float.DegreesToRadians(min);
                 max = float.DegreesToRadians(max);
