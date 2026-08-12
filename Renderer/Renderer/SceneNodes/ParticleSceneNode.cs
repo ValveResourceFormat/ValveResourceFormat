@@ -283,7 +283,7 @@ namespace ValveResourceFormat.Renderer.SceneNodes
 
             var forward = Vector3.TransformNormal(Vector3.UnitX, transform);
 
-            if (forward.LengthSquared() > Epsilon.LengthSquared)
+            if (forward.LengthSquared() > ParticleMath.MinimumLengthSquared)
             {
                 controlPoint.Orientation = Vector3.Normalize(forward);
                 controlPoint.Rotation = Quaternion.Normalize(Quaternion.CreateFromRotationMatrix(transform));
@@ -505,7 +505,7 @@ namespace ValveResourceFormat.Renderer.SceneNodes
                 if (!Preview)
                 {
                     var controlPointForward = Vector3.TransformNormal(Vector3.UnitX, Transform);
-                    if (controlPointForward.LengthSquared() > Epsilon.LengthSquared)
+                    if (controlPointForward.LengthSquared() > ParticleMath.MinimumLengthSquared)
                     {
                         controlPoint.Orientation = Vector3.Normalize(controlPointForward);
                         controlPoint.Rotation = Quaternion.Normalize(Quaternion.CreateFromRotationMatrix(Transform));

@@ -166,7 +166,7 @@ namespace ValveResourceFormat.Renderer.Particles
                         ? MathUtils.Fract(remappedTo0_1RangeBiased)
                         : MathF.Min(remappedTo0_1RangeBiased, 1f);
 
-                    var biased = NumericBias.FromBiasParameter(remappedTo0_1RangeBiased, biasParameter, biasType);
+                    var biased = ParticleMath.BiasFromParameter(remappedTo0_1RangeBiased, biasParameter, biasType);
 
                     // The lower end of the input range is never clamped; the output range is what bounds
                     // the result, and the bias curve is free to run past either end on the way there

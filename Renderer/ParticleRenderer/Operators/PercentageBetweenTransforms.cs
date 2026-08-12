@@ -1,3 +1,5 @@
+using ValveResourceFormat.Renderer.Particles.Utils;
+
 namespace ValveResourceFormat.Renderer.Particles.Operators
 {
     /// <summary>
@@ -14,8 +16,6 @@ namespace ValveResourceFormat.Renderer.Particles.Operators
     /// <seealso href="https://s2v.app/SchemaExplorer/cs2/particles/C_OP_PercentageBetweenTransforms">C_OP_PercentageBetweenTransforms</seealso>
     class PercentageBetweenTransforms : ParticleFunctionOperator
     {
-        internal const float FltEpsilon = 1.1920929e-7f;
-
         private readonly ParticleField outputField = ParticleField.Radius;
         private readonly float inputMin;
         private readonly float inputMax = 1f;
@@ -81,7 +81,7 @@ namespace ValveResourceFormat.Renderer.Particles.Operators
         {
             if (radialCheck)
             {
-                return 1f / ((length + FltEpsilon) / (Vector3.Distance(position, start) + FltEpsilon));
+                return 1f / ((length + ParticleMath.FloatEpsilon) / (Vector3.Distance(position, start) + ParticleMath.FloatEpsilon));
             }
 
             var axis = end - start;

@@ -44,7 +44,7 @@ namespace ValveResourceFormat.Renderer.Particles.Operators
 
                     if (fadeBias != 0.5f)
                     {
-                        elapsedFraction = NumericBias.Standard(elapsedFraction, fadeBias);
+                        elapsedFraction = ParticleMath.Bias(elapsedFraction, fadeBias);
                     }
 
                     particle.Alpha = (1f - elapsedFraction) * particle.GetInitialScalar(particles, ParticleField.Alpha);

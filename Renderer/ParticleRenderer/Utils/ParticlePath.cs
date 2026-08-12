@@ -110,12 +110,12 @@ namespace ValveResourceFormat.Renderer.Particles.Utils
                 var direction = end - start;
                 var length = direction.Length();
 
-                var perpendicularity = length > Epsilon.Length
+                var perpendicularity = length > ParticleMath.MinimumLength
                     ? 1f - MathF.Abs(Vector3.Dot(direction / length, forward))
                     : 0f;
 
                 var forwardLength = forward.Length();
-                if (forwardLength > Epsilon.Length)
+                if (forwardLength > ParticleMath.MinimumLength)
                 {
                     mid += forward * (length * path.Bulge * perpendicularity / forwardLength);
                 }

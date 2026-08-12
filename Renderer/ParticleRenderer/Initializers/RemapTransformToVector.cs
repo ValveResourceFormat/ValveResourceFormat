@@ -88,9 +88,9 @@ namespace ValveResourceFormat.Renderer.Particles.Initializers
             if (remapBias != 0.5f)
             {
                 value = new Vector3(
-                    NumericBias.Standard(MathUtils.Saturate(value.X), remapBias),
-                    NumericBias.Standard(MathUtils.Saturate(value.Y), remapBias),
-                    NumericBias.Standard(MathUtils.Saturate(value.Z), remapBias));
+                    ParticleMath.Bias(MathUtils.Saturate(value.X), remapBias),
+                    ParticleMath.Bias(MathUtils.Saturate(value.Y), remapBias),
+                    ParticleMath.Bias(MathUtils.Saturate(value.Z), remapBias));
             }
 
             value = particle.ModifyVectorBySetMethodAtSpawn(particles, fieldOutput, value, setMethod);

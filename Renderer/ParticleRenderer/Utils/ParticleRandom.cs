@@ -75,7 +75,7 @@ namespace ValveResourceFormat.Renderer.Particles.Utils
             radiusFraction = MathF.Pow(NextInterior(), 1f / 3f);
 
             var sinPolar = MathF.Sqrt(MathF.Max(0f, 1f - (cosPolar * cosPolar)));
-            var (sin, cos) = FastTrig.SinCos(azimuth);
+            var (sin, cos) = ParticleMath.SinCos(azimuth);
             var ring = sinPolar * radiusFraction;
 
             return new Vector3(ring * cos, ring * sin, radiusFraction * cosPolar);

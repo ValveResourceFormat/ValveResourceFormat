@@ -82,7 +82,7 @@ namespace ValveResourceFormat.Renderer.Particles.Operators
                 var rate = particleSystemState.Random.ForParticleBetween(particle.ParticleId, RateOffset, rateMin, rateMax);
 
                 // Proportional scales the age term alone, the other branch scales the whole system phase.
-                var delta = FastTrig.SinPi(proportional
+                var delta = ParticleMath.SinPi(proportional
                     ? (particle.NormalizedAge * frequency * oscillationMultiplier) + oscillationOffset
                     : frequency * systemPhase);
 
@@ -128,7 +128,7 @@ namespace ValveResourceFormat.Renderer.Particles.Operators
         {
             // The frequency scales the whole phase, offset included, and the phase runs off the system
             // clock rather than particle age, so every particle takes the same delta.
-            var delta = FastTrig.SinPi(frequency * ((oscillationMultiplier * particleSystemState.Age) + oscillationOffset));
+            var delta = ParticleMath.SinPi(frequency * ((oscillationMultiplier * particleSystemState.Age) + oscillationOffset));
             var finalScalar = delta * (rate * (strength * frameTime));
 
             foreach (ref var particle in particles.Current)

@@ -95,7 +95,7 @@ namespace ValveResourceFormat.Renderer.Particles.Constraints
                 // Move b toward / away from a along the connecting axis to reduce the length error, but only
                 // by the soft fraction so gravity can still bend the rope between passes. The divisor is
                 // clamped so near-coincident points still get a finite nudge.
-                var correction = delta * (((target - d) / MathF.Max(d, Epsilon.Length)) * scale);
+                var correction = delta * (((target - d) / MathF.Max(d, ParticleMath.MinimumLength)) * scale);
 
                 var aPinned = a.ForceScale == 0f;
                 var bPinned = b.ForceScale == 0f;

@@ -99,7 +99,7 @@ namespace ValveResourceFormat.Renderer.Particles.Initializers
                 // The bias shapes the output value, after the lerp, and is skipped entirely at its identity
                 if (remapBias != 0.5f)
                 {
-                    output = NumericBias.Standard(output, remapBias);
+                    output = ParticleMath.Bias(output, remapBias);
                 }
 
                 output = scaleInitialRange

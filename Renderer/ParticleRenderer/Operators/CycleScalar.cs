@@ -1,3 +1,5 @@
+using ValveResourceFormat.Renderer.Particles.Utils;
+
 namespace ValveResourceFormat.Renderer.Particles.Operators
 {
     /// <summary>
@@ -56,7 +58,7 @@ namespace ValveResourceFormat.Renderer.Particles.Operators
 
             // The engine multiplies by a reciprocal rather than dividing, and halves the rate when the
             // cycle does not repeat so the ramp spans the whole cycle instead of half of it.
-            var rate = 1f / MathF.Max(1.1920929e-7f, cycleTime);
+            var rate = 1f / MathF.Max(ParticleMath.FloatEpsilon, cycleTime);
             var clamp = doNotRepeatCycle ? cycleTime : float.MaxValue;
 
             if (doNotRepeatCycle)

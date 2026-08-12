@@ -44,7 +44,7 @@ namespace ValveResourceFormat.Renderer.Particles.Operators
                 }
             }
 
-            var t = MathUtils.Saturate((particleSystemState.Age - startAge) / (lerpTime + Epsilon.Duration));
+            var t = MathUtils.Saturate((particleSystemState.Age - startAge) / (lerpTime + ParticleMath.FloatEpsilon));
 
             foreach (ref var particle in particles.Current)
             {

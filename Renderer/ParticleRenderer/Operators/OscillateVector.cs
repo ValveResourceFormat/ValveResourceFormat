@@ -109,17 +109,17 @@ namespace ValveResourceFormat.Renderer.Particles.Operators
                 {
                     var t = particle.NormalizedAge;
 
-                    delta.X = FastTrig.SinPi((t * frequency.X * multiplier) + offset);
-                    delta.Y = FastTrig.SinPi((t * frequency.Y * multiplier) + offset);
-                    delta.Z = FastTrig.SinPi((t * frequency.Z * multiplier) + offset);
+                    delta.X = ParticleMath.SinPi((t * frequency.X * multiplier) + offset);
+                    delta.Y = ParticleMath.SinPi((t * frequency.Y * multiplier) + offset);
+                    delta.Z = ParticleMath.SinPi((t * frequency.Z * multiplier) + offset);
                 }
                 else
                 {
                     var phase = (multiplier * particleSystemState.Age) + offset;
 
-                    delta.X = FastTrig.SinPi(frequency.X * phase);
-                    delta.Y = FastTrig.SinPi(frequency.Y * phase);
-                    delta.Z = FastTrig.SinPi(frequency.Z * phase);
+                    delta.X = ParticleMath.SinPi(frequency.X * phase);
+                    delta.Y = ParticleMath.SinPi(frequency.Y * phase);
+                    delta.Z = ParticleMath.SinPi(frequency.Z * phase);
                 }
 
                 var value = new Vector3(rate.X * scale * delta.X, rate.Y * scale * delta.Y, rate.Z * scale * delta.Z);
@@ -174,9 +174,9 @@ namespace ValveResourceFormat.Renderer.Particles.Operators
             var step = strength * frameTime;
 
             Vector3 delta;
-            delta.X = FastTrig.SinPi(frequency.X * phase);
-            delta.Y = FastTrig.SinPi(frequency.Y * phase);
-            delta.Z = FastTrig.SinPi(frequency.Z * phase);
+            delta.X = ParticleMath.SinPi(frequency.X * phase);
+            delta.Y = ParticleMath.SinPi(frequency.Y * phase);
+            delta.Z = ParticleMath.SinPi(frequency.Z * phase);
 
             var value = new Vector3(rate.X * step * delta.X, rate.Y * step * delta.Y, rate.Z * step * delta.Z);
 

@@ -42,7 +42,7 @@ class TwistAroundAxis : ParticleFunctionForceGenerator
         {
             var delta = particle.Position - center;
 
-            if (delta.LengthSquared() <= Epsilon.LengthSquared)
+            if (delta.LengthSquared() <= ParticleMath.MinimumLengthSquared)
             {
                 continue;
             }
@@ -50,7 +50,7 @@ class TwistAroundAxis : ParticleFunctionForceGenerator
             var direction = Vector3.Normalize(delta);
             var alignment = 1f - Vector3.Dot(direction, axis);
 
-            if (alignment * alignment <= Epsilon.LengthSquared)
+            if (alignment * alignment <= ParticleMath.MinimumLengthSquared)
             {
                 continue;
             }
