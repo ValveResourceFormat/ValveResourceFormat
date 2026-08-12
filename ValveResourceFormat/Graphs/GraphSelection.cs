@@ -1,12 +1,14 @@
-namespace GUI.Types.Graphs.Core;
+namespace ValveResourceFormat.Graphs;
 
 /// <summary>
 /// Selection state of a graph: a primary node with its transitive chain and one-hop wire
 /// neighbors, or a single selected wire. The render tiers derive from this.
 /// </summary>
-internal sealed class GraphSelection
+public sealed class GraphSelection
 {
+    /// <summary>The node the selection is centred on, if any.</summary>
     public GraphNode? PrimaryNode { get; private set; }
+    /// <summary>The selected wire, if a wire is selected instead of a node.</summary>
     public GraphWire? Wire { get; private set; }
 
     /// <summary>Transitive upstream and downstream chain of the primary node, including it.</summary>
@@ -21,9 +23,12 @@ internal sealed class GraphSelection
     /// <summary>One-hop downstream neighbors (over the primary node's outputs).</summary>
     public HashSet<GraphNode> DirectOut { get; } = [];
 
+    /// <summary>Whether nothing is selected.</summary>
     public bool IsEmpty => PrimaryNode == null && Wire == null;
 
     // Clicking a wire focuses just its two endpoint nodes; clicking it again deselects.
+    /// <summary>Selects a wire, or clears it when that wire is already selected.</summary>
+    /// <param name="wire">The wire to toggle.</param>
     public void SelectWire(GraphWire wire)
     {
         PrimaryNode = null;
@@ -32,6 +37,8 @@ internal sealed class GraphSelection
         Wire = Wire == wire ? null : wire;
     }
 
+    /// <summary>Makes a node the primary selection and recomputes its chain and neighbours.</summary>
+    /// <param name="node">The node to select.</param>
     public void SetPrimary(GraphNode node)
     {
         PrimaryNode = node;
@@ -40,6 +47,7 @@ internal sealed class GraphSelection
         CollectDirectNeighbors(node);
     }
 
+    /// <summary>Clears the selection.</summary>
     public void Clear()
     {
         PrimaryNode = null;
@@ -79,6 +87,8 @@ internal sealed class GraphSelection
     }
 
     /// <summary>Clears the set and fills it with the transitive upstream and downstream chain of <paramref name="startNode"/>, including it.</summary>
+    /// <param name="startNode">The node to walk from.</param>
+    /// <param name="connectedNodes">The set that receives the chain.</param>
     public static void TraverseConnected(GraphNode startNode, HashSet<GraphNode> connectedNodes)
     {
         connectedNodes.Clear();
@@ -93,6 +103,9 @@ internal sealed class GraphSelection
     /// <paramref name="reached"/>. Each direction tracks its own visited set, so a node already
     /// reached the other way is still walked through rather than cutting the cone short.
     /// </summary>
+    /// <param name="startNode">The node to walk from.</param>
+    /// <param name="reached">The set that receives every node reached.</param>
+    /// <param name="upstream">Whether to walk the inputs rather than the outputs.</param>
     public static void TraverseDirection(GraphNode startNode, HashSet<GraphNode> reached, bool upstream)
     {
         var visited = new HashSet<GraphNode> { startNode };

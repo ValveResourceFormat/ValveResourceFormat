@@ -3,6 +3,7 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using ValveKeyValue;
+using ValveResourceFormat.Graphs;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.ResourceTypes.ModelData.Attachments;
 using ValveResourceFormat.Serialization.KeyValues;
@@ -373,7 +374,6 @@ public class AnimationGraphExtract : IDisposable
         KVObject compiledNode,
         string key,
         KVObject value,
-        List<long> outConnections,
         PropAction action,
         string? outputKey)
     {
@@ -392,7 +392,6 @@ public class AnimationGraphExtract : IDisposable
                     var nodeIndex = value.GetIntegerProperty("m_nodeIndex");
                     if (nodeIndexToIdMap?.TryGetValue(nodeIndex, out var nodeId) == true)
                     {
-                        outConnections.Add(nodeId);
                         node.Add("m_inputConnection", MakeInputConnection(nodeId));
                     }
                     break;
@@ -451,6 +450,12 @@ public class AnimationGraphExtract : IDisposable
     public ContentFile ToContentFile()
     {
         var isUncompiledAnimationGraph = Graph.GetStringProperty("_class") == "CAnimationGraph";
+
+        if (isUncompiledAnimationGraph)
+        {
+            RelayoutEditorGraph(resourceData.Data);
+        }
+
         var contentFile = new ContentFile
         {
             Data = Encoding.UTF8.GetBytes(isUncompiledAnimationGraph
@@ -540,62 +545,244 @@ public class AnimationGraphExtract : IDisposable
         return cursor++;
     }
 
-    private sealed class LayoutNode(long id)
+    /// <summary>An unset node reference in an uncompiled graph.</summary>
+    private const long InvalidEditorNodeId = 0xFFFFFFFF;
+
+    /// <summary>
+    /// Fields naming a node's inputs. animgraph1 names the source node alone, animgraph19 wraps it
+    /// in a connection alongside the output it reads, so a node carries one vocabulary or the other
+    /// and both are tried against every node.
+    /// </summary>
+    private static readonly string[] EditorChildFields =
+    [
+        "m_childID", "m_baseChildID", "m_additiveChildID", "m_subtractChildID", "m_child1ID", "m_child2ID",
+        "m_inputConnection", "m_baseInput", "m_additiveInput", "m_baseInputConnection",
+        "m_subtractInputConnection", "m_inputConnection1", "m_inputConnection2",
+    ];
+
+    /// <summary>
+    /// Places every canvas of a graph document. A node manager is its own canvas in the editor, as
+    /// is each state machine, so each is laid out in its own coordinate space. Whatever positions
+    /// the document arrived with are replaced, so a decompiled graph opens arranged rather than
+    /// however it was last dragged around.
+    /// </summary>
+    private static void RelayoutEditorGraph(KVObject root)
     {
-        public long Id { get; } = id;
-        public Vector2 Position { get; set; }
+        foreach (var container in EditorNodeContainers(root))
+        {
+            RelayoutEditorContainer(container);
+        }
+
+        if (root.GetSubCollection("m_componentManager") is { } componentManager
+            && componentManager.ContainsKey("m_components"))
+        {
+            foreach (var component in componentManager.GetArray("m_components"))
+            {
+                if (component.ContainsKey("m_states"))
+                {
+                    RelayoutEditorStates(component.GetArray("m_states"));
+                }
+            }
+        }
     }
 
-    private sealed class LayoutConnection(LayoutNode source, LayoutNode target)
+    /// <summary>Every node list of an uncompiled graph: the root canvas and each nested one.</summary>
+    private static IEnumerable<IReadOnlyList<KVObject>> EditorNodeContainers(KVObject root)
     {
-        public LayoutNode Source { get; } = source;
-        public LayoutNode Target { get; } = target;
+        var pending = new Stack<IReadOnlyList<KVObject>>();
+
+        if (ResolveEditorNodes(root) is { Count: > 0 } rootNodes)
+        {
+            pending.Push(rootNodes);
+        }
+
+        while (pending.Count > 0)
+        {
+            var container = pending.Pop();
+            yield return container;
+
+            foreach (var pair in container)
+            {
+                if (pair.GetSubCollection("value") is { } value
+                    && ResolveEditorNodes(value) is { Count: > 0 } nested)
+                {
+                    pending.Push(nested);
+                }
+            }
+        }
     }
 
-    private static void ApplyLayoutPositions(
-        Dictionary<long, KVObject> createdNodes,
-        Dictionary<long, LayoutNode> layoutNodes,
-        List<LayoutConnection> connections)
+    /// <summary>
+    /// The node list a container holds. animgraph1 keeps it on the object itself, animgraph19
+    /// moves it under a node manager.
+    /// </summary>
+    private static IReadOnlyList<KVObject>? ResolveEditorNodes(KVObject container)
     {
-        if (layoutNodes.Count == 0)
+        if (container.ContainsKey("m_nodes"))
+        {
+            return container.GetArray("m_nodes");
+        }
+
+        foreach (var managerField in new[] { "m_nodeManager", "m_nodeMgr" })
+        {
+            if (container.GetSubCollection(managerField) is { } manager && manager.ContainsKey("m_nodes"))
+            {
+                return manager.GetArray("m_nodes");
+            }
+        }
+
+        return null;
+    }
+
+    private static void RelayoutEditorContainer(IReadOnlyList<KVObject> nodePairs)
+    {
+        var index = new Dictionary<long, int>(nodePairs.Count);
+        var values = new List<KVObject>(nodePairs.Count);
+
+        foreach (var pair in nodePairs)
+        {
+            if (pair.GetSubCollection("key") is not { } key || pair.GetSubCollection("value") is not { } value)
+            {
+                continue;
+            }
+
+            if (index.TryAdd(key.GetIntegerProperty("m_id"), values.Count))
+            {
+                values.Add(value);
+            }
+        }
+
+        if (values.Count == 0)
         {
             return;
         }
 
-        var nodeInputs = new Dictionary<LayoutNode, List<LayoutConnection>>();
-        var nodeOutputs = new Dictionary<LayoutNode, List<LayoutConnection>>();
+        var edges = new List<GraphLayoutEdge>();
 
-        foreach (var node in layoutNodes.Values)
+        for (var target = 0; target < values.Count; target++)
         {
-            nodeInputs[node] = [];
-            nodeOutputs[node] = [];
+            foreach (var source in EditorInputsOf(values[target]))
+            {
+                if (index.TryGetValue(source, out var from) && from != target)
+                {
+                    edges.Add(GraphPlacement.MakeEdge(from, target));
+                }
+            }
         }
 
-        foreach (var conn in connections)
+        var positions = GraphPlacement.Layout(values.Count, [.. edges]);
+
+        for (var i = 0; i < values.Count; i++)
         {
-            nodeOutputs[conn.Source].Add(conn);
-            nodeInputs[conn.Target].Add(conn);
+            SetVector2(values[i], "m_vecPosition", positions[i]);
+
+            if (values[i].ContainsKey("m_states"))
+            {
+                RelayoutEditorStates(values[i].GetArray("m_states"));
+            }
+        }
+    }
+
+    /// <summary>
+    /// Lays out one state machine's states on their own canvas, wired by the transitions between
+    /// them, replacing whatever positions the state machine was authored with.
+    /// </summary>
+    private static void RelayoutEditorStates(IReadOnlyList<KVObject> states)
+    {
+        var index = new Dictionary<long, int>(states.Count);
+
+        for (var i = 0; i < states.Count; i++)
+        {
+            if (states[i].GetSubCollection("m_stateID") is { } stateId)
+            {
+                index.TryAdd(stateId.GetIntegerProperty("m_id"), i);
+            }
         }
 
-        var defaultSize = new Vector2(200f, 80f);
+        var edges = new List<GraphLayoutEdge>();
 
-        GraphLayout.LayoutNodes(
-            nodes: layoutNodes.Values,
-            connections: connections,
-            getPosition: n => n.Position,
-            setPosition: (n, p) => n.Position = p,
-            getSize: _ => defaultSize,
-            getSourceNode: c => c.Source,
-            getTargetNode: c => c.Target,
-            getInputConnections: n => nodeInputs.GetValueOrDefault(n) ?? [],
-            getOutputConnections: n => nodeOutputs.GetValueOrDefault(n) ?? []
-        );
-
-        foreach (var (nodeId, node) in createdNodes)
+        for (var source = 0; source < states.Count; source++)
         {
-            var pos = layoutNodes[nodeId].Position;
-            node.Add("m_vecPosition", MakeVector2(pos.X, pos.Y));
+            if (!states[source].ContainsKey("m_transitions"))
+            {
+                continue;
+            }
+
+            foreach (var transition in states[source].GetArray("m_transitions"))
+            {
+                if (transition.GetSubCollection("m_destState") is { } destination
+                    && index.TryGetValue(destination.GetIntegerProperty("m_id"), out var target)
+                    && target != source)
+                {
+                    edges.Add(GraphPlacement.MakeEdge(source, target));
+                }
+            }
         }
+
+        var positions = GraphPlacement.Layout(states.Count, [.. edges]);
+
+        for (var i = 0; i < states.Count; i++)
+        {
+            SetVector2(states[i], "m_position", positions[i]);
+        }
+    }
+
+    /// <summary>Ids of the nodes feeding one uncompiled node, however that node spells them.</summary>
+    private static IEnumerable<long> EditorInputsOf(KVObject node)
+    {
+        foreach (var field in EditorChildFields)
+        {
+            if (node.GetSubCollection(field) is { } childRef && EditorSourceOf(childRef) is { } source)
+            {
+                yield return source;
+            }
+        }
+
+        if (node.ContainsKey("m_children"))
+        {
+            foreach (var child in node.GetArray("m_children"))
+            {
+                // A child is either a bare connection or a wrapper carrying one alongside its
+                // blend value or selection label.
+                var connection = child.ContainsKey("m_nodeID") ? child : child.GetSubCollection("m_inputConnection");
+
+                if (connection != null && EditorSourceOf(connection) is { } source)
+                {
+                    yield return source;
+                }
+            }
+        }
+
+        foreach (var listField in new[] { "m_proxyItems", "m_states" })
+        {
+            if (!node.ContainsKey(listField))
+            {
+                continue;
+            }
+
+            foreach (var entry in node.GetArray(listField))
+            {
+                if (entry.GetSubCollection("m_inputConnection") is { } connection && EditorSourceOf(connection) is { } source)
+                {
+                    yield return source;
+                }
+            }
+        }
+
+        if (node.GetSubCollection("m_outputNodeID") is { } interiorOutput && EditorSourceOf(interiorOutput) is { } interior)
+        {
+            yield return interior;
+        }
+    }
+
+    /// <summary>The node an input reference names, or null when it is unset.</summary>
+    private static long? EditorSourceOf(KVObject reference)
+    {
+        var id = reference.GetSubCollection("m_nodeID") is { } nodeRef
+            ? nodeRef.GetIntegerProperty("m_id")
+            : reference.ContainsKey("m_id") ? reference.GetIntegerProperty("m_id") : InvalidEditorNodeId;
+
+        return id == InvalidEditorNodeId ? null : id;
     }
 
     private string FindMatchingAttachmentName(KVObject compiledAttachment) => modelInfo.FindMatchingAttachmentName(compiledAttachment);
@@ -676,8 +863,6 @@ public class AnimationGraphExtract : IDisposable
         }
 
         var createdNodes = new Dictionary<long, KVObject>();
-        var layoutNodes = new Dictionary<long, LayoutNode>();
-        var nodeOutConnections = new Dictionary<long, List<long>>();
 
         for (var i = 0; i < compiledNodes.Count; i++)
         {
@@ -688,28 +873,11 @@ public class AnimationGraphExtract : IDisposable
                 continue;
             }
 
-            var outConnections = new List<long>();
-            var nodeData = ConvertToUncompiled(compiledNode, outConnections);
+            var nodeData = ConvertToUncompiled(compiledNode);
             nodeData.Add("m_nNodeID", MakeNodeIdObjectValue(nodeId));
 
             createdNodes[nodeId] = nodeData;
-            layoutNodes[nodeId] = new LayoutNode(nodeId);
-            nodeOutConnections[nodeId] = outConnections;
         }
-
-        var connections = new List<LayoutConnection>();
-        foreach (var (nodeId, outConns) in nodeOutConnections)
-        {
-            foreach (var targetId in outConns)
-            {
-                if (layoutNodes.TryGetValue(targetId, out var targetNode))
-                {
-                    connections.Add(new LayoutConnection(layoutNodes[nodeId], targetNode));
-                }
-            }
-        }
-
-        ApplyLayoutPositions(createdNodes, layoutNodes, connections);
 
         foreach (var (nodeId, nodeData) in createdNodes)
         {
@@ -735,6 +903,8 @@ public class AnimationGraphExtract : IDisposable
                 ("m_clipDataManager", clipDataManager),
                 ("m_modelName", Graph.GetStringProperty("m_modelName")),
             ]);
+
+        RelayoutEditorGraph(kv);
 
         return kv.ToKV3String(format: KV3IDLookup.Get("animgraph19"));
     }
@@ -827,6 +997,19 @@ public class AnimationGraphExtract : IDisposable
     {
         var inputConnection = MakeInputConnection(childNodeId);
         node.Add("m_inputConnection", inputConnection);
+    }
+
+    /// <summary>Writes a laid-out position, whether or not the object already carries that key.</summary>
+    private static void SetVector2(KVObject target, string key, Vector2 value)
+    {
+        if (target.ContainsKey(key))
+        {
+            target[key] = MakeVector2(value.X, value.Y);
+        }
+        else
+        {
+            target.Add(key, MakeVector2(value.X, value.Y));
+        }
     }
 
     private static KVObject MakeVector2(float x, float y)
@@ -1019,16 +1202,6 @@ public class AnimationGraphExtract : IDisposable
         var compiledTransitions = compiledStateMachine.GetArray("m_transitions");
         var states = new KVObject[compiledStates.Count];
 
-        var startStateIndex = -1;
-        for (var i = 0; i < compiledStates.Count; i++)
-        {
-            if (compiledStates[i].GetIntegerProperty("m_bIsStartState") > 0)
-            {
-                startStateIndex = i;
-                break;
-            }
-        }
-
         for (var i = 0; i < compiledStates.Count; i++)
         {
             var compiledState = compiledStates[i];
@@ -1037,22 +1210,6 @@ public class AnimationGraphExtract : IDisposable
             var stateNodeType = isComponent ? "CAnimComponentState" : "CAnimNodeState";
             var stateNode = MakeNode(stateNodeType);
 
-            float stateX, stateY;
-            var random = new Random(i);
-
-            if (i == startStateIndex)
-            {
-                stateX = -50.0f + random.Next(-20, 21);
-                stateY = -30.0f + random.Next(-15, 16);
-            }
-            else
-            {
-                var positionFromStart = i > startStateIndex ? i - startStateIndex : i + (compiledStates.Count - startStateIndex);
-                stateX = 150.0f * positionFromStart + random.Next(-30, 31);
-                stateY = 40.0f + random.Next(-10, 11);
-            }
-
-            stateNode.Add("m_position", MakeVector2(stateX, stateY));
             stateNode.Add("m_name", compiledState.GetStringProperty("m_name", string.Empty));
             stateNode.Add("m_stateID", compiledState.GetSubCollection("m_stateID"));
             stateNode.Add("m_bIsStartState", compiledState.GetIntegerProperty("m_bIsStartState") > 0);
@@ -2484,22 +2641,16 @@ public class AnimationGraphExtract : IDisposable
         rootAnimNode.Add("m_nNodeID", MakeNodeIdObjectValue(rootAnimNodeId));
         rootAnimNode.Add("m_networkMode", "ServerAuthoritative");
 
-        var random = new Random((int)rootAnimNodeId);
-        var posX = 400 + random.Next(0, 200);
-        var posY = 50 + random.Next(0, 100);
-        rootAnimNode.Add("m_vecPosition", MakeVector2(posX, posY));
-
         rootAnimNode.Add("m_inputConnection", MakeInputConnection(rootNodeNewId));
         nodes.Add(MakeNodeManagerEntry(rootAnimNodeId, rootAnimNode));
 
         return nodes;
     }
 
-    private KVObject CreateSequenceMotionNode(KVObject compiledMotionNode, float posX, float posY)
+    private KVObject CreateSequenceMotionNode(KVObject compiledMotionNode)
     {
         var sequenceNode = MakeNode("CSequenceAnimNode");
         sequenceNode.Add("m_sName", compiledMotionNode.GetStringProperty("m_name") ?? "Unnamed");
-        sequenceNode.Add("m_vecPosition", MakeVector2(posX, posY));
         sequenceNode.Add("m_sequenceName", compiledMotionNode.ContainsKey("m_hSequence")
             ? GetSequenceName(compiledMotionNode.GetIntegerProperty("m_hSequence"))
             : "");
@@ -2511,11 +2662,10 @@ public class AnimationGraphExtract : IDisposable
         return sequenceNode;
     }
 
-    private static KVObject CreateBlendMotionNode(KVObject compiledMotionNode, List<long> motionParamIds, Dictionary<long, long> idMap, float posX, float posY)
+    private static KVObject CreateBlendMotionNode(KVObject compiledMotionNode, List<long> motionParamIds, Dictionary<long, long> idMap)
     {
         var blendNode = MakeNode("CBlendAnimNode");
         blendNode.Add("m_sName", compiledMotionNode.GetStringProperty("m_name") ?? "Unnamed");
-        blendNode.Add("m_vecPosition", MakeVector2(posX, posY));
 
         if (compiledMotionNode.ContainsKey("m_blendItems"))
         {
@@ -2570,26 +2720,22 @@ public class AnimationGraphExtract : IDisposable
 
         var compiledNodeId = compiledMotionNode.GetSubCollection("m_id").GetIntegerProperty("m_id");
         var newNodeId = idMap[compiledNodeId];
-        var random = new Random((int)newNodeId);
-        var posX = -200 + random.Next(0, 400);
-        var posY = -200 + random.Next(0, 400);
 
         if ((className == "CMotionNodeSequence") ||
             (className == "CMotionNode" && compiledMotionNode.ContainsKey("m_hSequence")))
         {
-            return CreateSequenceMotionNode(compiledMotionNode, posX, posY);
+            return CreateSequenceMotionNode(compiledMotionNode);
         }
 
         if ((className == "CMotionNodeBlend1D") ||
             (className == "CMotionNode" && compiledMotionNode.ContainsKey("m_blendItems")))
         {
-            return CreateBlendMotionNode(compiledMotionNode, motionParamIds, idMap, posX, posY);
+            return CreateBlendMotionNode(compiledMotionNode, motionParamIds, idMap);
         }
 
         // Default fallback
         var defaultNode = MakeNode("CSequenceAnimNode");
         defaultNode.Add("m_sName", compiledMotionNode.GetStringProperty("m_name") ?? "Unnamed");
-        defaultNode.Add("m_vecPosition", MakeVector2(posX, posY));
         defaultNode.Add("m_sequenceName", "");
         defaultNode.Add("m_playbackSpeed", 1.0f);
         defaultNode.Add("m_bLoop", false);
@@ -2600,7 +2746,7 @@ public class AnimationGraphExtract : IDisposable
         return defaultNode;
     }
 
-    private KVObject ConvertToUncompiled(KVObject compiledNode, List<long> outConnections)
+    private KVObject ConvertToUncompiled(KVObject compiledNode)
     {
         footPinningItems = [];
         var className = compiledNode.GetStringProperty("_class");
@@ -2615,11 +2761,6 @@ public class AnimationGraphExtract : IDisposable
             var nodeIndex = child.GetIntegerProperty("m_nodeIndex");
             return nodeIndexToIdMap?.TryGetValue(nodeIndex, out var nodeId) == true ? nodeId : -1L;
         }).Where(id => id != -1).ToArray();
-
-        if (inputNodeIds != null)
-        {
-            outConnections.AddRange(inputNodeIds);
-        }
 
         foreach (var (key, value) in compiledNode.Children)
         {
@@ -2636,7 +2777,7 @@ public class AnimationGraphExtract : IDisposable
                 {
                     continue;
                 }
-                HandleMappedProperty(node, compiledNode, key, value, outConnections, mapEntry.Action, mapEntry.OutputKey);
+                HandleMappedProperty(node, compiledNode, key, value, mapEntry.Action, mapEntry.OutputKey);
                 continue;
             }
 
@@ -2650,8 +2791,6 @@ public class AnimationGraphExtract : IDisposable
                 var nodeIndex = value.GetIntegerProperty("m_nodeIndex");
                 if (nodeIndexToIdMap?.TryGetValue(nodeIndex, out var nodeId) == true)
                 {
-                    outConnections.Add(nodeId);
-
                     var connectionKey = key switch
                     {
                         "m_pChildNode" => "m_inputConnection",

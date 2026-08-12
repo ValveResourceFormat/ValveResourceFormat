@@ -1,36 +1,19 @@
 using SkiaSharp;
+using ValveResourceFormat.Graphs;
 using Svg.Skia;
 
 namespace GUI.Types.Graphs.Core;
 
 partial class GraphView
 {
-    private const float HeaderHeight = 26f;
-    private const float CornerRadius = 5f;
-    private const float RowPitch = 22f;
-    private const float CompactRowPitch = 14f;
-    private const float RowStartPad = 6f;
-    private const float BottomPad = 8f;
-    private const float MarginX = 10f;
-    private const float MinWidth = 160f;
-    private const float SocketRadius = 5f;
-    private const float WireWidth = 2.5f;
-    private const float PairGap = 28f;
-
     // Below this zoom only header, body and wires are drawn.
     private const float DetailZoomCutoff = 0.2f;
-
-    private static readonly SKFont TitleFont = SKTypeface.FromFamilyName("Segoe UI", new SKFontStyle(SKFontStyleWeight.SemiBold, SKFontStyleWidth.Normal, SKFontStyleSlant.Upright)).ToFont(13.5f);
-    private static readonly SKFont SubtitleFont = SKTypeface.FromFamilyName("Segoe UI").ToFont(10.5f);
-    private static readonly SKFont RowFont = SKTypeface.FromFamilyName("Segoe UI").ToFont(12f);
-    private static readonly SKFont MessageFont = SKTypeface.FromFamilyName("Segoe UI", new SKFontStyle(SKFontStyleWeight.Normal, SKFontStyleWidth.Normal, SKFontStyleSlant.Italic)).ToFont(12f);
-    private static readonly SKFont WireLabelFont = SKTypeface.FromFamilyName("Segoe UI").ToFont(10.5f);
 
     private const string MessageIconResource = "GUI.Icons.About.svg";
 
     static GraphView()
     {
-        SKFont[] fonts = [TitleFont, SubtitleFont, RowFont, MessageFont, WireLabelFont];
+        SKFont[] fonts = [GraphMetrics.TitleFont, GraphMetrics.SubtitleFont, GraphMetrics.RowFont, GraphMetrics.MessageFont, GraphMetrics.WireLabelFont];
         foreach (var font in fonts)
         {
             font.Hinting = SKFontHinting.Normal;
@@ -172,162 +155,10 @@ partial class GraphView
 
     private void EnsureAllGeometry()
     {
-        var anyChanged = false;
-
-        foreach (var node in nodes)
-        {
-            anyChanged |= EnsureGeometry(node);
-        }
-
-        if (anyChanged)
+        if (Document.EnsureGeometry())
         {
             ClearWirePaths();
         }
-    }
-
-    private bool EnsureGeometry(GraphNode node)
-    {
-        var geometry = Geometry.NodeOf(node);
-
-        if (geometry.ComputedVersion == node.ContentVersion)
-        {
-            return false;
-        }
-
-        BuildLayoutRows(node, geometry);
-        var layoutRows = geometry.LayoutRows;
-
-        var width = MarginX * 2f + TitleFont.MeasureText(node.Title);
-
-        if (!string.IsNullOrEmpty(node.Subtitle))
-        {
-            width += 14f + SubtitleFont.MeasureText(node.Subtitle);
-        }
-
-        width = Math.Max(MinWidth, width);
-
-        foreach (var row in layoutRows)
-        {
-            var rowWidth = row switch
-            {
-                TextRow text => MarginX * 2f + (text.IsMessage ? 19f : 0f) + (text.Text.Length == 0 ? 0f : RowFont.MeasureText(text.Text)),
-                SocketRow socket => MarginX * 2f + (socket.Socket.Name.Length == 0 ? 0f : RowFont.MeasureText(socket.Socket.Name)),
-                // Both names share the line, so the row must fit them side by side.
-                PairedSocketRow paired => MarginX * 2f + PairGap
-                    + (paired.Input is { Name.Length: > 0 } input ? RowFont.MeasureText(input.Name) : 0f)
-                    + (paired.Output is { Name.Length: > 0 } output ? RowFont.MeasureText(output.Name) : 0f),
-                ResourceRow resource => MarginX * 2f + 19f + RowFont.MeasureText(resource.Text),
-                AnnotationRow annotation => MarginX * 2f + 14f + RowFont.MeasureText(annotation.Text),
-                _ => 0f,
-            };
-
-            width = Math.Max(width, rowWidth);
-        }
-
-        var rowsHeight = 0f;
-
-        foreach (var row in layoutRows)
-        {
-            rowsHeight += PitchOf(row);
-        }
-
-        var height = layoutRows.Count > 0
-            ? HeaderHeight + RowStartPad + rowsHeight + BottomPad
-            : HeaderHeight + 14f;
-
-        // Room for the header entity icon; the title starts after it.
-        width += node.IconKey != null ? HeaderHeight : 0f;
-
-        geometry.RowCenters = new float[layoutRows.Count];
-        var rowTop = HeaderHeight + RowStartPad;
-
-        for (var i = 0; i < layoutRows.Count; i++)
-        {
-            var row = layoutRows[i];
-            var pitch = PitchOf(row);
-            var centerOffsetY = rowTop + pitch * 0.5f;
-            rowTop += pitch;
-            geometry.RowCenters[i] = centerOffsetY;
-
-            if (row is SocketRow socketRow)
-            {
-                Geometry.SetPivotOffset(socketRow.Socket, new Vector2(socketRow.Socket.IsInput ? 0f : width, centerOffsetY));
-            }
-            else if (row is PairedSocketRow pairedRow)
-            {
-                if (pairedRow.Input != null)
-                {
-                    Geometry.SetPivotOffset(pairedRow.Input, new Vector2(0f, centerOffsetY));
-                }
-
-                if (pairedRow.Output != null)
-                {
-                    Geometry.SetPivotOffset(pairedRow.Output, new Vector2(width, centerOffsetY));
-                }
-            }
-        }
-
-        geometry.Size = new Vector2(width, height);
-        geometry.ComputedVersion = node.ContentVersion;
-        return true;
-    }
-
-    // Socket rows without any name carry only the dot; they stack tighter than text rows.
-    private static float PitchOf(GraphRow row) => row switch
-    {
-        SocketRow socket when socket.Socket.Name.Length == 0 => CompactRowPitch,
-        PairedSocketRow paired when paired.Input is not { Name.Length: > 0 } &&
-                                    paired.Output is not { Name.Length: > 0 } => CompactRowPitch,
-        _ => RowPitch,
-    };
-
-    // Consecutive socket rows collapse into shared input|output lines; anything else keeps
-    // its own row. Frontend-declared paired rows pass through untouched.
-    private static void BuildLayoutRows(GraphNode node, NodeGeometry geometry)
-    {
-        var layoutRows = geometry.LayoutRows;
-        layoutRows.Clear();
-
-        var runInputs = new List<GraphSocket>();
-        var runOutputs = new List<GraphSocket>();
-
-        void FlushRun()
-        {
-            var count = Math.Max(runInputs.Count, runOutputs.Count);
-
-            for (var i = 0; i < count; i++)
-            {
-                var input = i < runInputs.Count ? runInputs[i] : null;
-                var output = i < runOutputs.Count ? runOutputs[i] : null;
-
-                if (input != null && output != null)
-                {
-                    layoutRows.Add(new PairedSocketRow(input, output));
-                }
-                else
-                {
-                    layoutRows.Add(new SocketRow((input ?? output)!));
-                }
-            }
-
-            runInputs.Clear();
-            runOutputs.Clear();
-        }
-
-        foreach (var row in node.Rows)
-        {
-            if (row is SocketRow socketRow)
-            {
-                (socketRow.Socket.IsInput ? runInputs : runOutputs).Add(socketRow.Socket);
-            }
-            else
-            {
-                FlushRun();
-                layoutRows.Add(row);
-            }
-        }
-
-        FlushRun();
     }
 
     public void RenderToCanvas(SKCanvas canvas, SKRect visibleRect, float zoom)
@@ -675,7 +506,7 @@ partial class GraphView
         // the deterministic synthetic loop instead.
         if (wire.From.Owner == wire.To.Owner && Geometry.TryRouteOf(wire)?.Waypoints == null)
         {
-            GraphLayout.SynthesizeSelfLoop(wire, Geometry);
+            Document.ReanchorWireWaypoints(wire.From.Owner);
 
             if (wirePaths.Remove(wire, out var stale))
             {
@@ -686,7 +517,7 @@ partial class GraphView
         var cached = EnsureWirePath(wire);
         var path = cached.Path!;
 
-        var width = WireWidth * Math.Max(1f, 1f / zoom);
+        var width = GraphMetrics.WireWidth * Math.Max(1f, 1f / zoom);
 
         if (wire == lastHovered || wire == Selection.Wire)
         {
@@ -740,8 +571,8 @@ partial class GraphView
         var midX = (from.X + to.X) / 2f;
         var midY = (from.Y + to.Y) / 2f;
 
-        var textWidth = WireLabelFont.MeasureText(label);
-        var metrics = WireLabelFont.Metrics;
+        var textWidth = GraphMetrics.WireLabelFont.MeasureText(label);
+        var metrics = GraphMetrics.WireLabelFont.Metrics;
         var textHeight = metrics.Descent - metrics.Ascent;
 
         var rect = new SKRect(midX - textWidth / 2f - 4f, midY - textHeight / 2f - 2f, midX + textWidth / 2f + 4f, midY + textHeight / 2f + 2f);
@@ -749,13 +580,13 @@ partial class GraphView
         canvas.DrawRoundRect(rect, 4f, 4f, fillPaint);
 
         textPaint.Color = Palette.TextDim;
-        canvas.DrawText(label, midX - textWidth / 2f, midY - (metrics.Ascent + metrics.Descent) / 2f, SKTextAlign.Left, WireLabelFont, textPaint);
+        canvas.DrawText(label, midX - textWidth / 2f, midY - (metrics.Ascent + metrics.Descent) / 2f, SKTextAlign.Left, GraphMetrics.WireLabelFont, textPaint);
     }
 
     private static readonly SKPoint[] HeaderCornerRadii =
     [
-        new(CornerRadius, CornerRadius),
-        new(CornerRadius, CornerRadius),
+        new(GraphMetrics.CornerRadius, GraphMetrics.CornerRadius),
+        new(GraphMetrics.CornerRadius, GraphMetrics.CornerRadius),
         new(0, 0),
         new(0, 0),
     ];
@@ -783,10 +614,10 @@ partial class GraphView
         fillPaint.Color = node.BodyTint is { } tint
             ? BlendColors(Palette.NodeBody, Palette.Category(tint), 0.55f)
             : Palette.NodeBody;
-        canvas.DrawRoundRect(rect, CornerRadius, CornerRadius, fillPaint);
+        canvas.DrawRoundRect(rect, GraphMetrics.CornerRadius, GraphMetrics.CornerRadius, fillPaint);
         fillPaint.ImageFilter = null;
 
-        headerRoundRect.SetRectRadii(new SKRect(x, y, x + size.X, y + HeaderHeight), HeaderCornerRadii);
+        headerRoundRect.SetRectRadii(new SKRect(x, y, x + size.X, y + GraphMetrics.HeaderHeight), HeaderCornerRadii);
         fillPaint.Color = Palette.Category(node.EffectiveCategory);
         canvas.DrawRoundRect(headerRoundRect, fillPaint);
 
@@ -795,11 +626,11 @@ partial class GraphView
 
         if (node.IconKey != null)
         {
-            titleOffset = HeaderHeight;
+            titleOffset = GraphMetrics.HeaderHeight;
 
             if (zoom >= DetailZoomCutoff && IconResolver?.Invoke(node.IconKey) is { } icon)
             {
-                var iconRect = new SKRect(x + 4f, y + 2f, x + 26f, y + HeaderHeight - 2f);
+                var iconRect = new SKRect(x + 4f, y + 2f, x + 26f, y + GraphMetrics.HeaderHeight - 2f);
                 canvas.DrawImage(icon, iconRect, IconSampling);
             }
         }
@@ -825,19 +656,19 @@ partial class GraphView
             strokePaint.StrokeWidth = 1f;
         }
 
-        canvas.DrawRoundRect(rect, CornerRadius, CornerRadius, strokePaint);
+        canvas.DrawRoundRect(rect, GraphMetrics.CornerRadius, GraphMetrics.CornerRadius, strokePaint);
 
-        var titleMetrics = TitleFont.Metrics;
-        var titleBaseline = y + HeaderHeight / 2f - (titleMetrics.Ascent + titleMetrics.Descent) / 2f;
+        var titleMetrics = GraphMetrics.TitleFont.Metrics;
+        var titleBaseline = y + GraphMetrics.HeaderHeight / 2f - (titleMetrics.Ascent + titleMetrics.Descent) / 2f;
 
         textPaint.Color = Palette.HeaderText;
-        canvas.DrawText(node.Title, x + titleOffset + MarginX, titleBaseline, SKTextAlign.Left, TitleFont, textPaint);
+        canvas.DrawText(node.Title, x + titleOffset + GraphMetrics.MarginX, titleBaseline, SKTextAlign.Left, GraphMetrics.TitleFont, textPaint);
 
         if (!string.IsNullOrEmpty(node.Subtitle))
         {
-            var subtitleWidth = SubtitleFont.MeasureText(node.Subtitle);
+            var subtitleWidth = GraphMetrics.SubtitleFont.MeasureText(node.Subtitle);
             textPaint.Color = Palette.HeaderTextDim;
-            canvas.DrawText(node.Subtitle, rect.Right - MarginX - subtitleWidth, titleBaseline, SKTextAlign.Left, SubtitleFont, textPaint);
+            canvas.DrawText(node.Subtitle, rect.Right - GraphMetrics.MarginX - subtitleWidth, titleBaseline, SKTextAlign.Left, GraphMetrics.SubtitleFont, textPaint);
         }
 
         if (zoom < DetailZoomCutoff)
@@ -888,21 +719,21 @@ partial class GraphView
 
     private void DrawResourceRow(SKCanvas canvas, ResourceRow row, float x, float rowCenterY)
     {
-        var textX = x + MarginX;
+        var textX = x + GraphMetrics.MarginX;
         DrawIcon(canvas, GetIcon($"GUI.Icons.AssetTypes.{row.Icon}.svg"), textX, rowCenterY);
         textX += 19f;
 
-        var metrics = RowFont.Metrics;
+        var metrics = GraphMetrics.RowFont.Metrics;
         var baseline = rowCenterY - (metrics.Ascent + metrics.Descent) / 2f;
 
         textPaint.Color = Palette.Signal(row.Hue);
-        canvas.DrawText(row.Text, textX, baseline, SKTextAlign.Left, RowFont, textPaint);
+        canvas.DrawText(row.Text, textX, baseline, SKTextAlign.Left, GraphMetrics.RowFont, textPaint);
     }
 
     private void DrawAnnotationRow(SKCanvas canvas, AnnotationRow row, float x, float rowCenterY)
     {
         var color = Palette.Signal(row.Hue);
-        var markerX = x + MarginX + 4f;
+        var markerX = x + GraphMetrics.MarginX + 4f;
 
         using var markerBuilder = new SKPathBuilder();
         markerBuilder.MoveTo(new SKPoint(markerX, rowCenterY - 4f));
@@ -914,10 +745,10 @@ partial class GraphView
         arrowPaint.Color = color;
         canvas.DrawPath(markerPath, arrowPaint);
 
-        var metrics = RowFont.Metrics;
+        var metrics = GraphMetrics.RowFont.Metrics;
         var baseline = rowCenterY - (metrics.Ascent + metrics.Descent) / 2f;
         textPaint.Color = color;
-        canvas.DrawText(row.Text, x + MarginX + 14f, baseline, SKTextAlign.Left, RowFont, textPaint);
+        canvas.DrawText(row.Text, x + GraphMetrics.MarginX + 14f, baseline, SKTextAlign.Left, GraphMetrics.RowFont, textPaint);
     }
 
     private void DrawTextRow(SKCanvas canvas, TextRow row, float x, float rowCenterY)
@@ -927,8 +758,8 @@ partial class GraphView
             return;
         }
 
-        var textX = x + MarginX;
-        var font = row.IsMessage ? MessageFont : RowFont;
+        var textX = x + GraphMetrics.MarginX;
+        var font = row.IsMessage ? GraphMetrics.MessageFont : GraphMetrics.RowFont;
 
         if (row.IsMessage)
         {
@@ -971,17 +802,17 @@ partial class GraphView
         else if (socket.IsConnected)
         {
             fillPaint.Color = color;
-            canvas.DrawCircle(pivotX, rowCenterY, SocketRadius, fillPaint);
+            canvas.DrawCircle(pivotX, rowCenterY, GraphMetrics.SocketRadius, fillPaint);
 
             strokePaint.Color = Palette.SocketOutline;
             strokePaint.StrokeWidth = 1f;
-            canvas.DrawCircle(pivotX, rowCenterY, SocketRadius, strokePaint);
+            canvas.DrawCircle(pivotX, rowCenterY, GraphMetrics.SocketRadius, strokePaint);
         }
         else
         {
             strokePaint.Color = color;
             strokePaint.StrokeWidth = 1.8f;
-            canvas.DrawCircle(pivotX, rowCenterY, SocketRadius - 0.9f, strokePaint);
+            canvas.DrawCircle(pivotX, rowCenterY, GraphMetrics.SocketRadius - 0.9f, strokePaint);
         }
 
         if (socket.Name.Length == 0)
@@ -989,19 +820,19 @@ partial class GraphView
             return;
         }
 
-        var metrics = RowFont.Metrics;
+        var metrics = GraphMetrics.RowFont.Metrics;
         var baseline = rowCenterY - (metrics.Ascent + metrics.Descent) / 2f;
 
         textPaint.Color = Palette.Text;
 
         if (socket.IsInput)
         {
-            canvas.DrawText(socket.Name, nodeRect.Left + MarginX, baseline, SKTextAlign.Left, RowFont, textPaint);
+            canvas.DrawText(socket.Name, nodeRect.Left + GraphMetrics.MarginX, baseline, SKTextAlign.Left, GraphMetrics.RowFont, textPaint);
         }
         else
         {
-            var textWidth = RowFont.MeasureText(socket.Name);
-            canvas.DrawText(socket.Name, nodeRect.Right - MarginX - textWidth, baseline, SKTextAlign.Left, RowFont, textPaint);
+            var textWidth = GraphMetrics.RowFont.MeasureText(socket.Name);
+            canvas.DrawText(socket.Name, nodeRect.Right - GraphMetrics.MarginX - textWidth, baseline, SKTextAlign.Left, GraphMetrics.RowFont, textPaint);
         }
     }
 }

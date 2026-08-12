@@ -11,6 +11,7 @@ using ValveKeyValue;
 using ValveResourceFormat.Renderer;
 using ValveResourceFormat.Serialization.KeyValues;
 
+using ValveResourceFormat.Graphs;
 namespace GUI.Types.Viewers;
 
 /// <summary>

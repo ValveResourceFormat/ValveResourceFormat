@@ -1,6 +1,7 @@
 using System.Linq;
 using System.Windows.Forms;
 using SkiaSharp;
+using ValveResourceFormat.Graphs;
 
 namespace GUI.Types.Graphs.Core;
 
@@ -12,29 +13,31 @@ partial class GraphView : IDisposable
 {
     public GraphPalette Palette { get; }
 
+    /// <summary>The graph being presented. Every model and layout operation lives there.</summary>
+    public GraphDocument Document { get; } = new();
+
     /// <summary>Resolves a node's <see cref="GraphNode.IconKey"/> to the icon drawn in its left gutter.</summary>
     public Func<string, SKImage?>? IconResolver { get; set; }
 
-    private readonly List<GraphNode> nodes = [];
-    private readonly List<GraphWire> wires = [];
     private readonly Dictionary<GraphWire, WirePaths> wirePaths = [];
 
     private IGraphElement? lastHovered;
-    private string? searchHighlight;
+
+    private IReadOnlyList<GraphNode> nodes => Document.Nodes;
+    private IReadOnlyList<GraphWire> wires => Document.Wires;
+    private string? searchHighlight => Document.SearchHighlight;
 
     /// <summary>Current selection; render tiers and the host's focus actions derive from it.</summary>
-    public GraphSelection Selection { get; } = new();
+    public GraphSelection Selection => Document.Selection;
 
-    /// <summary>All geometry this view derived from the model: sizes, pivots, routed wires.</summary>
-    internal GraphGeometry Geometry { get; } = new();
+    /// <summary>All geometry derived from the model: sizes, pivots, routed wires.</summary>
+    internal GraphGeometry Geometry => Document.Geometry;
 
     /// <summary>Measured size of a node, safe to call while the render thread is drawing.</summary>
     public Vector2 MeasuredSizeOf(GraphNode node)
     {
         using var _ = stateLock.EnterScope();
-
-        EnsureAllGeometry();
-        return Geometry.SizeOf(node);
+        return Document.MeasuredSizeOf(node);
     }
 
     public bool IsMoving { get; private set; }
@@ -48,14 +51,14 @@ partial class GraphView : IDisposable
 
     public event EventHandler? GraphChanged;
 
-    public int NodeCount => nodes.Count;
-    public int WireCount => wires.Count;
+    public int NodeCount => Document.NodeCount;
+    public int WireCount => Document.WireCount;
 
     /// <summary>Live node list in z-order; do not mutate.</summary>
-    public IReadOnlyList<GraphNode> Nodes => nodes;
+    public IReadOnlyList<GraphNode> Nodes => Document.Nodes;
 
     /// <summary>Live wire list in creation order; do not mutate.</summary>
-    public IReadOnlyList<GraphWire> Wires => wires;
+    public IReadOnlyList<GraphWire> Wires => Document.Wires;
 
     /// <summary>Monotonic counter of visual state changes; the host skips repainting while it is stable.</summary>
     public int VisualVersion { get; private set; }
@@ -70,7 +73,7 @@ partial class GraphView : IDisposable
     }
 
     /// <summary>Which layout improvements the placement engine applies.</summary>
-    internal GraphLayoutOptions LayoutOptions { get; } = new();
+    internal GraphLayoutOptions LayoutOptions => Document.LayoutOptions;
 
     private bool straightWires;
 
@@ -96,51 +99,23 @@ partial class GraphView : IDisposable
     }
 
     /// <summary>Legend rows describing this graph's color semantics, declared by the frontend.</summary>
-    public List<GraphLegendEntry> Legend { get; } = [];
+    public List<GraphLegendEntry> Legend => Document.Legend;
 
     public GraphView(GraphPalette? palette = null)
     {
         Palette = palette ?? GraphPalette.ForCurrentTheme();
     }
 
-    private int nextNodeSequence;
-
     public T AddNode<T>(T node) where T : GraphNode
     {
         using var _ = stateLock.EnterScope();
-
-        node.Sequence = nextNodeSequence++;
-        nodes.Add(node);
-        return node;
+        return Document.AddNode(node);
     }
 
     public GraphWire Connect(GraphSocket from, GraphSocket to, bool dashed = false, string? label = null)
     {
-        if (from.IsInput || !to.IsInput)
-        {
-            throw new ArgumentException("Wires connect an output socket to an input socket.");
-        }
-
         using var _ = stateLock.EnterScope();
-
-        if (to.Wires.Any(existing => existing.From == from))
-        {
-            throw new InvalidOperationException("Connection already exists");
-        }
-
-        if (!to.AllowMultiple)
-        {
-            foreach (var existing in to.Wires.ToArray())
-            {
-                RemoveWire(existing);
-            }
-        }
-
-        var wire = new GraphWire(from, to) { Dashed = dashed, Label = label };
-        from.Wires.Add(wire);
-        to.Wires.Add(wire);
-        wires.Add(wire);
-        return wire;
+        return Document.Connect(from, to, dashed, label);
     }
 
     /// <summary>Removes a wire from both sockets and the wire list.</summary>
@@ -154,17 +129,12 @@ partial class GraphView : IDisposable
     public void RemoveSocket(GraphNode node, GraphSocket socket)
     {
         using var _ = stateLock.EnterScope();
-
-        node.RemoveSocket(socket);
-        Geometry.RemoveSocket(socket);
+        Document.RemoveSocket(node, socket);
     }
 
     private void RemoveWire(GraphWire wire)
     {
-        wire.From.Wires.Remove(wire);
-        wire.To.Wires.Remove(wire);
-        wires.Remove(wire);
-        Geometry.RemoveWire(wire);
+        Document.Disconnect(wire);
 
         if (wirePaths.Remove(wire, out var entry))
         {
@@ -300,13 +270,13 @@ partial class GraphView : IDisposable
                 foreach (var node in Selection.Connected)
                 {
                     node.Position += delta;
-                    ReanchorWireWaypoints(node);
+                    Document.ReanchorWireWaypoints(node);
                 }
             }
             else if (Selection.PrimaryNode != null)
             {
                 Selection.PrimaryNode.Position += delta;
-                ReanchorWireWaypoints(Selection.PrimaryNode);
+                Document.ReanchorWireWaypoints(Selection.PrimaryNode);
             }
 
             ClearWirePaths();
@@ -357,7 +327,7 @@ partial class GraphView : IDisposable
 
     private IGraphElement? FindElementAtCore(SKPoint point)
     {
-        const float socketHitRadius = SocketRadius + 3f;
+        const float socketHitRadius = GraphMetrics.SocketRadius + 3f;
 
         // A hit test can land between a rebuild and the next paint, when nothing has measured yet.
         EnsureAllGeometry();
@@ -426,315 +396,74 @@ partial class GraphView : IDisposable
         return null;
     }
 
-    // Dragging keeps routes orthogonal: terminal runs re-anchor live to the moving sockets.
-    private void ReanchorWireWaypoints(GraphNode node)
-    {
-        foreach (var socket in node.Inputs)
-        {
-            foreach (var wire in socket.Wires)
-            {
-                ReanchorWire(wire);
-            }
-        }
-
-        foreach (var socket in node.Outputs)
-        {
-            foreach (var wire in socket.Wires)
-            {
-                ReanchorWire(wire);
-            }
-        }
-
-        void ReanchorWire(GraphWire wire)
-        {
-            // Self-loops keep their synthetic route pinned to the moving node.
-            if (wire.From.Owner == wire.To.Owner)
-            {
-                GraphLayout.SynthesizeSelfLoop(wire, Geometry);
-                return;
-            }
-
-            // A routed curve cannot follow a moving node; fall back to the default
-            // bezier until the drop re-anchors the island.
-            var route = Geometry.TryRouteOf(wire);
-
-            if (route != null)
-            {
-                route.Waypoints = null;
-            }
-        }
-    }
-
     private void BringNodeToFront(GraphNode node)
     {
-        if (nodes.Remove(node))
-        {
-            nodes.Add(node);
-        }
-
+        Document.BringNodeToFront(node);
         OnGraphChanged();
     }
 
     private void SelectWire(GraphWire wire)
     {
-        Selection.SelectWire(wire);
+        Document.SelectWire(wire);
         OnGraphChanged();
     }
 
     private void SetPrimarySelection(GraphNode node)
     {
-        Selection.SetPrimary(node);
-
-        // Raise the whole chain, primary on top, so the focused nodes draw over the rest.
-        foreach (var connectedNode in Selection.Connected)
-        {
-            if (connectedNode != node && nodes.Remove(connectedNode))
-            {
-                nodes.Add(connectedNode);
-            }
-        }
-
-        if (nodes.Remove(node))
-        {
-            nodes.Add(node);
-        }
-
+        Document.SelectNode(node);
         MarkVisualDirty();
     }
 
     private void ToggleSelection(GraphNode node)
     {
-        if (Selection.PrimaryNode == node || Selection.Connected.Contains(node))
-        {
-            Selection.Clear();
-        }
-        else
-        {
-            SetPrimarySelection(node);
-        }
-
+        Document.ToggleSelection(node);
         OnGraphChanged();
     }
 
     /// <summary>Clears the current node or wire selection.</summary>
     public void ClearSelection()
     {
-        Selection.Clear();
+        using (stateLock.EnterScope())
+        {
+            Document.ClearSelection();
+        }
+
         OnGraphChanged();
     }
 
-    /// <summary>
-    /// Returns the connected components of the graph (each node in exactly one list).
-    /// </summary>
-    public List<List<GraphNode>> GetComponents() => CollectComponents(includeHidden: true);
-
-    private List<List<GraphNode>> GetVisibleComponents() => CollectComponents(includeHidden: false);
-
-    private List<List<GraphNode>> CollectComponents(bool includeHidden, bool skipDashed = false)
-    {
-        var visited = new HashSet<GraphNode>();
-        var components = new List<List<GraphNode>>();
-
-        foreach (var start in nodes)
-        {
-            if ((!includeHidden && start.Hidden) || !visited.Add(start))
-            {
-                continue;
-            }
-
-            var component = new List<GraphNode>();
-            WalkComponent(start, visited, component, includeHidden, skipDashed);
-            components.Add(component);
-        }
-
-        return components;
-    }
-
-    // Undirected flood fill across socket wires; appends every newly visited node to component.
-    // Callers seed visited with start.
-    private static void WalkComponent(GraphNode start, HashSet<GraphNode> visited, List<GraphNode> component, bool includeHidden, bool skipDashed = false)
-    {
-        var stack = new Stack<GraphNode>();
-        stack.Push(start);
-
-        while (stack.Count > 0)
-        {
-            var node = stack.Pop();
-            component.Add(node);
-
-            foreach (var socket in node.Inputs)
-            {
-                foreach (var wire in socket.Wires)
-                {
-                    Visit(wire, wire.From.Owner);
-                }
-            }
-
-            foreach (var socket in node.Outputs)
-            {
-                foreach (var wire in socket.Wires)
-                {
-                    Visit(wire, wire.To.Owner);
-                }
-            }
-        }
-
-        void Visit(GraphWire wire, GraphNode neighbor)
-        {
-            if (skipDashed && wire.Dashed)
-            {
-                return;
-            }
-
-            if ((includeHidden || !neighbor.Hidden) && visited.Add(neighbor))
-            {
-                stack.Push(neighbor);
-            }
-        }
-    }
-
-    /// <summary>
-    /// Visible components for packing: dashed wires (variable links, transitions) do not fuse two
-    /// islands into one block, but a node reached only over dashed wires still packs with the
-    /// island it links to the most, rather than drifting off as its own island.
-    /// </summary>
-    private List<List<GraphNode>> GetPackingComponents()
-    {
-        var components = CollectComponents(includeHidden: false, skipDashed: true);
-        var componentOf = new Dictionary<GraphNode, int>();
-
-        for (var i = 0; i < components.Count; i++)
-        {
-            foreach (var node in components[i])
-            {
-                componentOf[node] = i;
-            }
-        }
-
-        var dashedOnly = new List<GraphNode>();
-
-        foreach (var node in nodes)
-        {
-            if (node.Hidden || !componentOf.ContainsKey(node))
-            {
-                continue;
-            }
-
-            var wireCount = 0;
-            var dashedCount = 0;
-
-            foreach (var wire in WiresOf(node))
-            {
-                wireCount++;
-                dashedCount += wire.Dashed ? 1 : 0;
-            }
-
-            if (wireCount > 0 && wireCount == dashedCount)
-            {
-                dashedOnly.Add(node);
-            }
-        }
-
-        dashedOnly.Sort(static (a, b) => a.Sequence.CompareTo(b.Sequence));
-
-        var shared = new Dictionary<int, (int Count, int LowestSequence)>();
-
-        foreach (var node in dashedOnly)
-        {
-            shared.Clear();
-            var from = componentOf[node];
-
-            foreach (var wire in WiresOf(node))
-            {
-                var partner = wire.From.Owner == node ? wire.To.Owner : wire.From.Owner;
-
-                if (partner == node || !componentOf.TryGetValue(partner, out var partnerComponent) || partnerComponent == from)
-                {
-                    continue;
-                }
-
-                if (!shared.TryGetValue(partnerComponent, out var entry))
-                {
-                    entry = (0, int.MaxValue);
-                }
-
-                shared[partnerComponent] = (entry.Count + 1, Math.Min(entry.LowestSequence, partner.Sequence));
-            }
-
-            var target = -1;
-            var best = (Count: 0, LowestSequence: int.MaxValue);
-
-            foreach (var (component, entry) in shared)
-            {
-                if (entry.Count > best.Count || (entry.Count == best.Count && entry.LowestSequence < best.LowestSequence))
-                {
-                    target = component;
-                    best = entry;
-                }
-            }
-
-            if (target < 0)
-            {
-                continue;
-            }
-
-            components[from].Remove(node);
-            components[target].Add(node);
-            componentOf[node] = target;
-        }
-
-        components.RemoveAll(static component => component.Count == 0);
-        return components;
-    }
-
-    private static IEnumerable<GraphWire> WiresOf(GraphNode node)
-    {
-        foreach (var socket in node.Inputs)
-        {
-            foreach (var wire in socket.Wires)
-            {
-                yield return wire;
-            }
-        }
-
-        foreach (var socket in node.Outputs)
-        {
-            foreach (var wire in socket.Wires)
-            {
-                yield return wire;
-            }
-        }
-    }
+    /// <summary>Returns the connected components of the graph (each node in exactly one list).</summary>
+    public List<List<GraphNode>> GetComponents() => Document.GetComponents();
 
     /// <summary>Makes <paramref name="node"/> the primary selection.</summary>
     public void SelectNode(GraphNode node)
     {
-        using var _ = stateLock.EnterScope();
-        SetPrimarySelection(node);
+        using (stateLock.EnterScope())
+        {
+            Document.SelectNode(node);
+        }
+
         OnGraphChanged();
     }
 
     /// <summary>Live search filter: non-matching nodes render dimmed. Null or whitespace clears it.</summary>
     public void SetSearchHighlight(string? query)
     {
-        var normalized = string.IsNullOrWhiteSpace(query) ? null : query;
-
         using (stateLock.EnterScope())
         {
-            if (normalized == searchHighlight)
+            var normalized = string.IsNullOrWhiteSpace(query) ? null : query;
+
+            if (normalized == Document.SearchHighlight)
             {
                 return;
             }
 
-            searchHighlight = normalized;
+            Document.SearchHighlight = normalized;
         }
 
         OnGraphChanged();
     }
 
-    private bool MatchesSearchHighlight(GraphNode node) => searchHighlight == null
-        || node.Title.Contains(searchHighlight, StringComparison.OrdinalIgnoreCase)
-        || (node.Subtitle?.Contains(searchHighlight, StringComparison.OrdinalIgnoreCase) ?? false);
+    private bool MatchesSearchHighlight(GraphNode node) => Document.MatchesSearchHighlight(node);
 
     /// <summary>
     /// Finds the next node (cycling, starting after <paramref name="after"/>) whose title or
@@ -743,72 +472,22 @@ partial class GraphView : IDisposable
     public GraphNode? FindNextNode(string query, GraphNode? after)
     {
         using var _ = stateLock.EnterScope();
-
-        if (nodes.Count == 0 || string.IsNullOrWhiteSpace(query))
-        {
-            return null;
-        }
-
-        // Matches cycle in stable creation order (Sequence), independent of the z-ordered nodes list.
-        GraphNode? next = null;
-        GraphNode? first = null;
-
-        foreach (var node in nodes)
-        {
-            if (!node.Title.Contains(query, StringComparison.OrdinalIgnoreCase) &&
-                !(node.Subtitle?.Contains(query, StringComparison.OrdinalIgnoreCase) ?? false))
-            {
-                continue;
-            }
-
-            if (first == null || node.Sequence < first.Sequence)
-            {
-                first = node;
-            }
-
-            if (after != null && node.Sequence > after.Sequence && (next == null || node.Sequence < next.Sequence))
-            {
-                next = node;
-            }
-        }
-
-        return next ?? first;
+        return Document.FindNextNode(query, after);
     }
 
     /// <summary>Hides nodes whose subtitle is not in <paramref name="visibleSubtitles"/>; nodes without a subtitle stay visible.</summary>
     public void SetSubtitleFilter(IEnumerable<string> visibleSubtitles)
     {
-        var visible = new HashSet<string>(visibleSubtitles, StringComparer.OrdinalIgnoreCase);
-
         using (stateLock.EnterScope())
         {
-            foreach (var node in nodes)
-            {
-                if (!string.IsNullOrEmpty(node.Subtitle))
-                {
-                    node.Hidden = !visible.Contains(node.Subtitle);
-                }
-            }
+            Document.SetSubtitleFilter(visibleSubtitles);
         }
 
         OnGraphChanged();
     }
 
     /// <summary>Distinct node subtitles (entity classnames, node types), sorted.</summary>
-    public List<string> GetDistinctSubtitles()
-    {
-        var subtitles = new SortedSet<string>(StringComparer.OrdinalIgnoreCase);
-
-        foreach (var node in nodes)
-        {
-            if (!string.IsNullOrEmpty(node.Subtitle))
-            {
-                subtitles.Add(node.Subtitle);
-            }
-        }
-
-        return [.. subtitles];
-    }
+    public List<string> GetDistinctSubtitles() => Document.GetDistinctSubtitles();
 
     /// <summary>
     /// Hides every node outside the set <paramref name="mode"/> selects around
@@ -816,101 +495,28 @@ partial class GraphView : IDisposable
     /// </summary>
     public void Isolate(GraphNode node, GraphIsolateMode mode)
     {
-        if (mode == GraphIsolateMode.Group && node.GroupPath == null)
-        {
-            return;
-        }
-
         using (stateLock.EnterScope())
         {
-            var keep = NodesToKeep(node, mode);
-
-            foreach (var member in nodes)
-            {
-                member.Hidden = !keep.Contains(member);
-            }
+            Document.Isolate(node, mode);
         }
 
         OnGraphChanged();
-    }
-
-    private HashSet<GraphNode> NodesToKeep(GraphNode node, GraphIsolateMode mode)
-    {
-        switch (mode)
-        {
-            case GraphIsolateMode.Chain:
-                var chain = new HashSet<GraphNode>();
-                GraphSelection.TraverseConnected(node, chain);
-                return chain;
-
-            case GraphIsolateMode.Upstream:
-            case GraphIsolateMode.Downstream:
-                var cone = new HashSet<GraphNode> { node };
-                GraphSelection.TraverseDirection(node, cone, mode == GraphIsolateMode.Upstream);
-                return cone;
-
-            case GraphIsolateMode.Group:
-                var prefix = node.GroupPath + "/";
-                return [.. nodes.Where(member => member.GroupPath != null
-                    && (member.GroupPath == node.GroupPath || member.GroupPath.StartsWith(prefix, StringComparison.Ordinal)))];
-
-            default:
-                return [.. GetComponents().Find(component => component.Contains(node)) ?? [node]];
-        }
     }
 
     public void ShowAllNodes()
     {
         using (stateLock.EnterScope())
         {
-            foreach (var node in nodes)
-            {
-                node.Hidden = false;
-            }
+            Document.ShowAllNodes();
         }
 
         OnGraphChanged();
     }
 
-    public bool HasMultipleIslands() => GetComponents().Count > 1;
+    public bool HasMultipleIslands() => Document.HasMultipleIslands();
 
     /// <summary>Self-loop wire count and the number of nodes no wire touches.</summary>
-    public (int SelfLoops, int Orphans) GetGraphHealthCounts()
-    {
-        var selfLoops = 0;
-
-        foreach (var wire in wires)
-        {
-            if (wire.From.Owner == wire.To.Owner)
-            {
-                selfLoops++;
-            }
-        }
-
-        var orphans = 0;
-
-        foreach (var node in nodes)
-        {
-            var connected = false;
-
-            foreach (var socket in node.Inputs)
-            {
-                connected |= socket.Wires.Count > 0;
-            }
-
-            foreach (var socket in node.Outputs)
-            {
-                connected |= socket.Wires.Count > 0;
-            }
-
-            if (!connected)
-            {
-                orphans++;
-            }
-        }
-
-        return (selfLoops, orphans);
-    }
+    public (int SelfLoops, int Orphans) GetGraphHealthCounts() => Document.GetGraphHealthCounts();
 
     /// <summary>
     /// Lays out each connected component independently and packs the components toward a
@@ -919,17 +525,18 @@ partial class GraphView : IDisposable
     /// </summary>
     public void LayoutNodesPacked(float padding = 150f)
     {
-        if (nodes.Count == 0)
+        if (Document.NodeCount == 0)
         {
             return;
         }
 
         // The render thread enumerates nodes/wires under this lock.
-        using var _ = stateLock.EnterScope();
+        using (stateLock.EnterScope())
+        {
+            Document.LayoutNodesPacked(padding);
+            ClearWirePaths();
+        }
 
-        LayoutPass(padding);
-
-        ClearWirePaths();
         OnGraphChanged();
     }
 
@@ -941,226 +548,13 @@ partial class GraphView : IDisposable
     {
         using (stateLock.EnterScope())
         {
-            EnsureAllGeometry();
-
-            var positions = new Dictionary<GraphNode, Vector2>(nodes.Count);
-
-            foreach (var node in nodes)
-            {
-                positions[node] = node.Position;
-            }
-
-            var previousBudget = LayoutOptions.LayoutBudgetMs;
-            LayoutOptions.LayoutBudgetMs = 0;
-            LayoutOptions.LayoutSliceMs = null;
-
-            try
-            {
-                foreach (var component in GetVisibleComponents())
-                {
-                    var componentNodes = new HashSet<GraphNode>(component);
-                    var componentWires = wires.Where(w => componentNodes.Contains(w.From.Owner) && componentNodes.Contains(w.To.Owner)).ToList();
-
-                    GraphLayout.RepairCrossings(component, componentWires, Geometry, LayoutOptions);
-                }
-            }
-            finally
-            {
-                LayoutOptions.LayoutBudgetMs = previousBudget;
-            }
-
-            // The repair moves cards out from under the routes the layout built for them, so the
-            // wires it moved drop back to plain curves; only self-loops keep a synthetic route.
-            foreach (var wire in wires)
-            {
-                if (positions[wire.From.Owner] == wire.From.Owner.Position &&
-                    positions[wire.To.Owner] == wire.To.Owner.Position)
-                {
-                    continue;
-                }
-
-                if (wire.From.Owner == wire.To.Owner)
-                {
-                    GraphLayout.SynthesizeSelfLoop(wire, Geometry);
-                    continue;
-                }
-
-                var route = Geometry.TryRouteOf(wire);
-
-                if (route != null)
-                {
-                    route.Waypoints = null;
-                }
-            }
-
+            Document.ReduceVisualComplexity();
             ClearWirePaths();
         }
 
         OnGraphChanged();
     }
 
-    private void LayoutPass(float padding)
-    {
-        EnsureAllGeometry();
-        Geometry.ClearAllRoutes();
-
-        var components = GetPackingComponents();
-
-        // Component discovery walks the z-ordered node list, which mutates as nodes are
-        // clicked; layout runs on the stable creation order instead so a relayout always
-        // reproduces the load-time picture.
-        foreach (var component in components)
-        {
-            component.Sort(static (a, b) => a.Sequence.CompareTo(b.Sequence));
-        }
-
-        components.Sort(static (a, b) => a[0].Sequence.CompareTo(b[0].Sequence));
-
-        var componentOf = new Dictionary<GraphNode, int>();
-
-        for (var i = 0; i < components.Count; i++)
-        {
-            foreach (var node in components[i])
-            {
-                componentOf[node] = i;
-            }
-        }
-
-        var componentWires = new List<GraphWire>[components.Count];
-
-        for (var i = 0; i < components.Count; i++)
-        {
-            componentWires[i] = [];
-        }
-
-        // A dashed wire between two packed islands stays out of both layouts and draws as a plain
-        // curve across the gap.
-        foreach (var wire in wires)
-        {
-            if (componentOf.TryGetValue(wire.From.Owner, out var c) &&
-                componentOf.TryGetValue(wire.To.Owner, out var to) && c == to)
-            {
-                componentWires[c].Add(wire);
-            }
-        }
-
-        // The budget is what the caller is prepared to wait for a layout, not what it will
-        // wait for each of a hundred islands, so it is shared out before any island starts.
-        var slices = GraphLayout.SplitBudget([.. components.Select(static c => c.Count)], LayoutOptions.LayoutBudgetMs);
-
-        for (var i = 0; i < components.Count; i++)
-        {
-            var component = components[i];
-
-            if (component.Count == 1)
-            {
-                component[0].Position = Vector2.Zero;
-                continue;
-            }
-
-            LayoutOptions.LayoutSliceMs = slices[i];
-            GraphLayout.Layout(component, componentWires[i], Geometry, LayoutOptions);
-        }
-
-        LayoutOptions.LayoutSliceMs = null;
-
-        // Nodes with no wires at all carry no structure to read, so mixing them into the packing
-        // just pushes the parts that do connect further apart and buries them among the rest.
-        // They go in their own column off to the right instead, the way the viewer this replaces
-        // parked them, leaving the packed area to the graphs that actually have edges.
-        var loose = components.Where(static c => c.Count == 1 && c[0].Inputs.Concat(c[0].Outputs).All(static s => s.Wires.Count == 0)).ToList();
-
-        if (loose.Count > 0 && loose.Count < components.Count)
-        {
-            components = [.. components.Where(c => !loose.Contains(c))];
-        }
-        else
-        {
-            loose.Clear();
-        }
-
-        // Pack the island bounding boxes toward a screen-like aspect so large graphs open
-        // dense instead of in sparse rows.
-        var mins = new Vector2[components.Count];
-        var sizes = new Vector2[components.Count];
-
-        for (var i = 0; i < components.Count; i++)
-        {
-            var min = new Vector2(float.MaxValue);
-            var max = new Vector2(float.MinValue);
-
-            foreach (var node in components[i])
-            {
-                min = Vector2.Min(min, node.Position);
-                max = Vector2.Max(max, node.Position + Geometry.SizeOf(node));
-            }
-
-            mins[i] = min;
-            sizes[i] = max - min;
-        }
-
-        var origins = GraphLayout.PackComponents(sizes, padding);
-
-        for (var i = 0; i < components.Count; i++)
-        {
-            var offset = origins[i] - mins[i];
-
-            foreach (var node in components[i])
-            {
-                node.Position += offset;
-
-                // Routed wire waypoints live in the same island space and must shift along.
-                foreach (var socket in node.Outputs)
-                {
-                    foreach (var wire in socket.Wires)
-                    {
-                        if (Geometry.TryRouteOf(wire)?.Waypoints is { } waypoints)
-                        {
-                            for (var w = 0; w < waypoints.Count; w++)
-                            {
-                                waypoints[w] += offset;
-                            }
-                        }
-                    }
-                }
-            }
-        }
-
-        StackLooseNodes(loose, padding);
-    }
-
-    /// <summary>
-    /// Puts the wireless nodes in a single column past the right edge of everything else, stacked
-    /// in creation order.
-    /// </summary>
-    private void StackLooseNodes(List<List<GraphNode>> loose, float padding)
-    {
-        if (loose.Count == 0)
-        {
-            return;
-        }
-
-        var right = float.MinValue;
-
-        foreach (var node in nodes)
-        {
-            if (!node.Hidden && !loose.Any(c => c[0] == node))
-            {
-                right = Math.Max(right, node.Position.X + Geometry.SizeOf(node).X);
-            }
-        }
-
-        var x = right > float.MinValue ? right + padding * 2f : 0f;
-        var y = 0f;
-
-        foreach (var node in loose.Select(static c => c[0]).OrderBy(static n => n.Sequence))
-        {
-            node.Position = new Vector2(x, y);
-            y += Geometry.SizeOf(node).Y + LayoutOptions.NodeSpacing;
-        }
-    }
-
-    /// <summary>
     /// Atomically discards the current graph document and derived state, then runs
     /// <paramref name="build"/> to repopulate it, holding the state lock across the whole
     /// swap so a concurrent render never sees a half-built graph.
@@ -1170,15 +564,9 @@ partial class GraphView : IDisposable
         using var _ = stateLock.EnterScope();
 
         ClearWirePaths();
-        nodes.Clear();
-        wires.Clear();
-        Legend.Clear();
-        Selection.Clear();
-        Geometry.Clear();
+        Document.Clear();
 
         lastHovered = null;
-        searchHighlight = null;
-        nextNodeSequence = 0;
         IsMoving = false;
         dragStarted = false;
 

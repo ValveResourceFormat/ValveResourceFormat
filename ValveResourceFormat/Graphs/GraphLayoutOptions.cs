@@ -1,4 +1,4 @@
-namespace GUI.Types.Graphs.Core;
+namespace ValveResourceFormat.Graphs;
 
 /// <summary>
 /// Wall-clock cutoff shared by the refining passes of one island's layout. A default instance
@@ -22,7 +22,7 @@ readonly struct LayoutDeadline
 }
 
 /// <summary>Layout tuning for the placement engine.</summary>
-sealed class GraphLayoutOptions
+public sealed class GraphLayoutOptions
 {
     /// <summary>
     /// Insert a dummy node per intermediate rank for every wire spanning more than one rank,
@@ -102,7 +102,7 @@ sealed class GraphLayoutOptions
     /// starts so no island can eat the time meant for the ones after it. Null lets the island take
     /// the whole of <see cref="LayoutBudgetMs"/>; zero means unlimited, as it does there.
     /// </summary>
-    internal int? LayoutSliceMs { get; set; }
+    public int? LayoutSliceMs { get; set; }
 
     /// <summary>Largest branch that may be shifted as one to reorder two wires into a card.</summary>
     public int BranchShiftMaxNodes { get; set; } = 40;

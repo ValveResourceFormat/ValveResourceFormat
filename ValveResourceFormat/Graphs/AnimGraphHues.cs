@@ -1,28 +1,42 @@
-using GUI.Types.Graphs.Core;
 
-namespace GUI.Types.Graphs;
+namespace ValveResourceFormat.Graphs;
 
 /// <summary>
 /// Functional bucket an animation graph node belongs to. AG1 and AG2 describe the same domain
 /// with different class vocabularies, so both map onto this one set and a node of a given kind
 /// reads the same colour in either viewer.
 /// </summary>
-enum AnimGraphCategory
+public enum AnimGraphCategory
 {
+    /// <summary>Anything the schemes do not bucket.</summary>
     Other,
+    /// <summary>Authoring note, carrying no pose.</summary>
     Comment,
+    /// <summary>State machine and its states.</summary>
     StateMachine,
+    /// <summary>Additive and layering nodes.</summary>
     Additive,
+    /// <summary>Bone mask and weight list nodes.</summary>
     BoneMask,
+    /// <summary>Graph root and output nodes.</summary>
     Output,
+    /// <summary>Speed, cycle and trigger nodes.</summary>
     Timing,
+    /// <summary>IK and other pose constraints.</summary>
     Constraint,
+    /// <summary>One dimensional blends.</summary>
     Blend,
+    /// <summary>Two dimensional blends.</summary>
     Blend2D,
+    /// <summary>Source poses entering the graph.</summary>
     Input,
+    /// <summary>Selector and choice nodes.</summary>
     Selector,
+    /// <summary>Movement and motion matching nodes.</summary>
     Motion,
+    /// <summary>Sequences and clips.</summary>
     Clip,
+    /// <summary>Aim and lean matrix nodes.</summary>
     AimMatrix,
 
     /// <summary>Points at another file. Reserved, never shared with a category or a data type.</summary>
@@ -33,16 +47,25 @@ enum AnimGraphCategory
 /// The pose and value kinds an animation graph wire carries. AG2 bakes these into every node
 /// constructor as pin types; AG1 expresses the same things through its parameter types.
 /// </summary>
-enum AnimGraphValueKind
+public enum AnimGraphValueKind
 {
+    /// <summary>A pose.</summary>
     Pose,
+    /// <summary>A scalar.</summary>
     Float,
+    /// <summary>A boolean.</summary>
     Bool,
+    /// <summary>An identifier.</summary>
     Id,
+    /// <summary>A target.</summary>
     Target,
+    /// <summary>A bone mask.</summary>
     BoneMask,
+    /// <summary>A vector.</summary>
     Vector,
+    /// <summary>A quaternion.</summary>
     Quaternion,
+    /// <summary>A kind the schemes do not name.</summary>
     Unknown,
 }
 
@@ -50,8 +73,10 @@ enum AnimGraphValueKind
 /// The shared animation graph palette: node headers are coloured by <see cref="AnimGraphCategory"/>,
 /// sockets and wires by <see cref="AnimGraphValueKind"/>.
 /// </summary>
-static class AnimGraphHues
+public static class AnimGraphHues
 {
+    /// <summary>Colour slot a node category is drawn in.</summary>
+    /// <param name="category">The category to colour.</param>
     public static GraphHue HueOf(AnimGraphCategory category) => category switch
     {
         AnimGraphCategory.Comment => GraphHue.Neutral,
@@ -72,6 +97,8 @@ static class AnimGraphHues
         _ => GraphHue.Neutral,
     };
 
+    /// <summary>Colour slot a wire value kind is drawn in.</summary>
+    /// <param name="kind">The value kind to colour.</param>
     public static GraphHue HueOf(AnimGraphValueKind kind) => kind switch
     {
         AnimGraphValueKind.Pose => GraphHue.Green,
@@ -93,15 +120,19 @@ static class AnimGraphHues
     /// either card already carries. Transitions repeated between the same pair of states share
     /// one wire and merge their labels onto it.
     /// </summary>
-    public static void ConnectTransition(GraphView view, GraphNode source, GraphNode target, string? label = null)
+    public static void ConnectTransition(GraphDocument document, GraphNode source, GraphNode target, string? label = null)
     {
+        ArgumentNullException.ThrowIfNull(document);
+        ArgumentNullException.ThrowIfNull(source);
+        ArgumentNullException.ThrowIfNull(target);
+
         var from = source.GetOrAddOutput("Transitions", TransitionHue);
         var to = target.GetOrAddInput("From", TransitionHue);
         var existing = to.Wires.Find(wire => wire.From == from);
 
         if (existing == null)
         {
-            view.Connect(from, to, dashed: true, label: label);
+            document.Connect(from, to, dashed: true, label: label);
         }
         else if (label != null)
         {

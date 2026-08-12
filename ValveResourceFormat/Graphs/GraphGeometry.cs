@@ -1,41 +1,47 @@
-namespace GUI.Types.Graphs.Core;
+using System.Diagnostics.CodeAnalysis;
+
+namespace ValveResourceFormat.Graphs;
 
 /// <summary>Measured size and layout freshness of one node.</summary>
-sealed class NodeGeometry
+public sealed class NodeGeometry
 {
-    public Vector2 Size;
+    /// <summary>Measured card size.</summary>
+    public Vector2 Size { get; set; }
 
     /// <summary>The <see cref="GraphNode.ContentVersion"/> the size and offsets were computed for.</summary>
-    public int ComputedVersion = -1;
+    public int ComputedVersion { get; set; } = -1;
 
     /// <summary>
-    /// Presentation rows: consecutive socket rows collapse into shared input|output lines;
+    /// Presentation rows: consecutive socket rows collapse into shared input-output lines;
     /// text rows pass through. Parallel to <see cref="RowCenters"/>.
     /// </summary>
-    public List<GraphRow> LayoutRows = [];
+    public List<GraphRow> LayoutRows { get; } = [];
 
     /// <summary>Row baselines as offsets from the node top, parallel to <see cref="LayoutRows"/>.</summary>
-    public float[] RowCenters = [];
+    public float[] RowCenters { get; set; } = [];
 }
 
 /// <summary>Routed geometry of one wire; stays null for a plain socket-to-socket curve.</summary>
-sealed class WireRoute
+public sealed class WireRoute
 {
     /// <summary>Corner points of the orthogonal route computed by the layout.</summary>
-    public List<Vector2>? Waypoints;
+    [SuppressMessage("Usage", "CA2227:Collection properties should be read only", Justification = "The layout replaces the whole route, and clearing it back to null means the wire draws as a plain curve.")]
+    public List<Vector2>? Waypoints { get; set; }
 }
 
 /// <summary>
-/// All geometry derived from the model by the active view: measured node sizes, socket
-/// pivots, row baselines and routed wire paths. The model itself stays pure content so a
-/// different renderer can present it from scratch.
+/// All geometry derived from the model: measured node sizes, socket pivots, row baselines and
+/// routed wire paths. The model itself stays pure content, so a renderer can present it from
+/// scratch without the model knowing how it is drawn.
 /// </summary>
-internal sealed class GraphGeometry
+public sealed class GraphGeometry
 {
     private readonly Dictionary<GraphNode, NodeGeometry> nodes = [];
     private readonly Dictionary<GraphSocket, Vector2> pivotOffsets = [];
     private readonly Dictionary<GraphWire, WireRoute> routes = [];
 
+    /// <summary>The geometry of a node, created empty on first use.</summary>
+    /// <param name="node">The node to look up.</param>
     public NodeGeometry NodeOf(GraphNode node)
     {
         if (!nodes.TryGetValue(node, out var geometry))
@@ -47,15 +53,29 @@ internal sealed class GraphGeometry
         return geometry;
     }
 
+    /// <summary>Measured size of a node, or zero if it has never been measured.</summary>
+    /// <param name="node">The node to size.</param>
     public Vector2 SizeOf(GraphNode node) => nodes.TryGetValue(node, out var geometry) ? geometry.Size : Vector2.Zero;
 
+    /// <summary>Records where a socket sits relative to its node's top-left corner.</summary>
+    /// <param name="socket">The socket to place.</param>
+    /// <param name="offset">Its offset from the node origin.</param>
     public void SetPivotOffset(GraphSocket socket, Vector2 offset) => pivotOffsets[socket] = offset;
 
+    /// <summary>Where a socket sits relative to its node's top-left corner.</summary>
+    /// <param name="socket">The socket to locate.</param>
     public Vector2 PivotOffsetOf(GraphSocket socket) => pivotOffsets.GetValueOrDefault(socket);
 
     /// <summary>Absolute canvas position of a socket.</summary>
-    public Vector2 PivotOf(GraphSocket socket) => socket.Owner.Position + PivotOffsetOf(socket);
+    /// <param name="socket">The socket to locate.</param>
+    public Vector2 PivotOf(GraphSocket socket)
+    {
+        ArgumentNullException.ThrowIfNull(socket);
+        return socket.Owner.Position + PivotOffsetOf(socket);
+    }
 
+    /// <summary>The route of a wire, created empty on first use.</summary>
+    /// <param name="wire">The wire to look up.</param>
     public WireRoute RouteOf(GraphWire wire)
     {
         if (!routes.TryGetValue(wire, out var route))
@@ -67,14 +87,19 @@ internal sealed class GraphGeometry
         return route;
     }
 
+    /// <summary>The route of a wire, or null when it has none.</summary>
+    /// <param name="wire">The wire to look up.</param>
     public WireRoute? TryRouteOf(GraphWire wire) => routes.GetValueOrDefault(wire);
 
     /// <summary>Drops the route of a wire that no longer exists.</summary>
+    /// <param name="wire">The wire that was removed.</param>
     public void RemoveWire(GraphWire wire) => routes.Remove(wire);
 
     /// <summary>Drops the pivot of a socket that no longer exists.</summary>
+    /// <param name="socket">The socket that was removed.</param>
     public void RemoveSocket(GraphSocket socket) => pivotOffsets.Remove(socket);
 
+    /// <summary>Drops every routed wire path, leaving the wires to draw as plain curves.</summary>
     public void ClearAllRoutes()
     {
         foreach (var route in routes.Values)

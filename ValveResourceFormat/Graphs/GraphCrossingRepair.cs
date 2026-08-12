@@ -2,7 +2,7 @@ using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 
-namespace GUI.Types.Graphs.Core;
+namespace ValveResourceFormat.Graphs;
 
 /// <summary>
 /// Moves placed cards to remove wire crossings, judged on the straight run between real socket
@@ -23,12 +23,12 @@ internal sealed class CrossingRepair
     /// <summary>Slack allowed on the separation test, so gaps laid out at exactly the spacing pass.</summary>
     private const float SeparationTolerance = 0.5f;
 
-    private readonly List<GraphNode> component;
-    private readonly GraphGeometry geometry;
+    private readonly Vector2[] positions;
+    private readonly Vector2[] sizes;
     private readonly GraphLayoutOptions options;
     private readonly LayoutDeadline deadline;
 
-    private readonly GraphWire[] wires;
+    private readonly GraphLayoutEdge[] wires;
     private readonly Vector2[] from;
     private readonly Vector2[] to;
     private readonly float[] minX;
@@ -42,28 +42,28 @@ internal sealed class CrossingRepair
     private readonly float[] minY;
     private readonly float[] maxY;
 
-    private readonly Dictionary<GraphNode, List<int>> incident = [];
-    private readonly Dictionary<GraphNode, List<GraphNode>> columnOf = [];
-    private readonly List<List<GraphNode>> columns = [];
+    private readonly List<int>[] incident;
+    private readonly List<int>[] upstream;
+    private readonly int[] columnOf;
+    private readonly List<List<int>> columns = [];
 
     /// <summary>
     /// The island's cards ordered by left edge, with their widths. Every move here is vertical, so
     /// this is built once and stays valid, and it is what the separation veto searches: quantised
     /// columns say nothing about which cards actually overlap in x once widths differ.
     /// </summary>
-    private readonly GraphNode[] byLeft;
+    private readonly int[] byLeft;
     private readonly float[] lefts;
     private readonly float maxWidth;
 
-
-    public CrossingRepair(List<GraphNode> component, List<GraphWire> componentWires, GraphGeometry geometry, GraphLayoutOptions options, LayoutDeadline deadline)
+    public CrossingRepair(Vector2[] positions, Vector2[] sizes, GraphLayoutEdge[] edges, GraphLayoutOptions options, LayoutDeadline deadline)
     {
-        this.component = component;
-        this.geometry = geometry;
+        this.positions = positions;
+        this.sizes = sizes;
         this.options = options;
         this.deadline = deadline;
 
-        wires = [.. componentWires.Where(static w => w.From.Owner != w.To.Owner)];
+        wires = [.. edges.Where(static e => e.From != e.To)];
         from = new Vector2[wires.Length];
         to = new Vector2[wires.Length];
         minX = new float[wires.Length];
@@ -71,40 +71,50 @@ internal sealed class CrossingRepair
         minY = new float[wires.Length];
         maxY = new float[wires.Length];
 
+        incident = new List<int>[sizes.Length];
+        upstream = new List<int>[sizes.Length];
+        columnOf = new int[sizes.Length];
+
+        for (var i = 0; i < sizes.Length; i++)
+        {
+            incident[i] = [];
+            upstream[i] = [];
+        }
+
         for (var i = 0; i < wires.Length; i++)
         {
             Refresh(i);
-            Track(wires[i].From.Owner, i);
-            Track(wires[i].To.Owner, i);
-
+            incident[wires[i].From].Add(i);
+            incident[wires[i].To].Add(i);
+            upstream[wires[i].To].Add(wires[i].From);
         }
 
         unionMarks = new int[wires.Length];
         allWires = [.. Enumerable.Range(0, wires.Length)];
 
-        var buckets = new Dictionary<int, List<GraphNode>>();
+        var buckets = new Dictionary<int, int>();
 
-        foreach (var node in component)
+        for (var node = 0; node < sizes.Length; node++)
         {
-            var key = (int)MathF.Round(node.Position.X / ColumnQuantum);
+            var key = (int)MathF.Round(positions[node].X / ColumnQuantum);
 
             if (!buckets.TryGetValue(key, out var column))
             {
-                buckets[key] = column = [];
-                columns.Add(column);
+                buckets[key] = column = columns.Count;
+                columns.Add([]);
             }
 
-            column.Add(node);
+            columns[column].Add(node);
             columnOf[node] = column;
         }
 
-        byLeft = [.. component.OrderBy(static n => n.Position.X)];
+        byLeft = [.. Enumerable.Range(0, sizes.Length).OrderBy(n => positions[n].X)];
         lefts = new float[byLeft.Length];
 
         for (var i = 0; i < byLeft.Length; i++)
         {
-            lefts[i] = byLeft[i].Position.X;
-            maxWidth = Math.Max(maxWidth, geometry.SizeOf(byLeft[i]).X);
+            lefts[i] = positions[byLeft[i]].X;
+            maxWidth = Math.Max(maxWidth, sizes[byLeft[i]].X);
         }
     }
 
@@ -113,10 +123,10 @@ internal sealed class CrossingRepair
     /// overlap in x have to keep <see cref="GraphLayoutOptions.NodeSpacing"/> between them in y.
     /// Placement leaves every pair like that, so every move is vetoed against it.
     /// </summary>
-    private bool Blocked(GraphNode node)
+    private bool Blocked(int node)
     {
-        var min = node.Position;
-        var max = min + geometry.SizeOf(node);
+        var min = positions[node];
+        var max = min + sizes[node];
         var spacing = options.NodeSpacing - SeparationTolerance;
 
         for (var i = FirstReaching(min.X); i < byLeft.Length && lefts[i] < max.X; i++)
@@ -128,9 +138,9 @@ internal sealed class CrossingRepair
                 continue;
             }
 
-            var otherMin = other.Position;
+            var otherMin = positions[other];
 
-            if (!GraphLayout.CardsClear(min, max, otherMin, otherMin + geometry.SizeOf(other), spacing))
+            if (!GraphLayout.CardsClear(min, max, otherMin, otherMin + sizes[other], spacing))
             {
                 return true;
             }
@@ -163,34 +173,21 @@ internal sealed class CrossingRepair
         return low;
     }
 
-    private void Track(GraphNode node, int wire)
-    {
-        if (!incident.TryGetValue(node, out var list))
-        {
-            incident[node] = list = [];
-        }
-
-        list.Add(wire);
-    }
-
     private void Refresh(int wire)
     {
-        from[wire] = geometry.PivotOf(wires[wire].From);
-        to[wire] = geometry.PivotOf(wires[wire].To);
+        from[wire] = positions[wires[wire].From] + wires[wire].FromPivot;
+        to[wire] = positions[wires[wire].To] + wires[wire].ToPivot;
         minX[wire] = Math.Min(from[wire].X, to[wire].X);
         maxX[wire] = Math.Max(from[wire].X, to[wire].X);
         minY[wire] = Math.Min(from[wire].Y, to[wire].Y);
         maxY[wire] = Math.Max(from[wire].Y, to[wire].Y);
     }
 
-    private void RefreshNode(GraphNode node)
+    private void RefreshNode(int node)
     {
-        if (incident.TryGetValue(node, out var list))
+        foreach (var wire in incident[node])
         {
-            foreach (var wire in list)
-            {
-                Refresh(wire);
-            }
+            Refresh(wire);
         }
     }
 
@@ -224,7 +221,7 @@ internal sealed class CrossingRepair
                     continue;
                 }
 
-                column.Sort(static (a, b) => a.Position.Y.CompareTo(b.Position.Y));
+                column.Sort((a, b) => positions[a].Y.CompareTo(positions[b].Y));
 
                 for (var i = 0; i + 1 < column.Count && !Spent; i++)
                 {
@@ -245,7 +242,7 @@ internal sealed class CrossingRepair
                     break;
                 }
 
-                if (TrySwap(wires[a].From.Owner, wires[b].From.Owner) || TrySwap(wires[a].To.Owner, wires[b].To.Owner)
+                if (TrySwap(wires[a].From, wires[b].From) || TrySwap(wires[a].To, wires[b].To)
                     || TrySwapBranches(a, b))
                 {
                     improved = true;
@@ -264,24 +261,14 @@ internal sealed class CrossingRepair
 
             // Nothing above or below constrains a card that is alone in its column, so neither
             // move can reach it, yet it is the freest card in the layout.
-            foreach (var node in component)
+            for (var node = 0; node < sizes.Length && !Spent; node++)
             {
-                if (Spent)
-                {
-                    break;
-                }
-
                 improved |= TrySlide(node);
             }
 
             // Last, because it only makes sense once the cards have stopped moving for crossings.
-            foreach (var node in component)
+            for (var node = 0; node < sizes.Length && !Spent; node++)
             {
-                if (Spent)
-                {
-                    break;
-                }
-
                 improved |= TryClearWires(node);
             }
 
@@ -292,11 +279,10 @@ internal sealed class CrossingRepair
         }
     }
 
-    private bool TrySwap(GraphNode x, GraphNode y)
+    private bool TrySwap(int x, int y)
     {
-        if (x == y
-            || !columnOf.TryGetValue(x, out var column) || !columnOf.TryGetValue(y, out var other) || column != other
-            || (!incident.ContainsKey(x) && !incident.ContainsKey(y)))
+        if (x == y || columnOf[x] != columnOf[y]
+            || (incident[x].Count == 0 && incident[y].Count == 0))
         {
             return false;
         }
@@ -320,26 +306,23 @@ internal sealed class CrossingRepair
         return true;
     }
 
-    private bool TryReinsert(List<GraphNode> column)
+    private bool TryReinsert(List<int> column)
     {
         // Reinsertion restacks a whole column at uniform gaps, which discards the pivot alignment
         // for every card in it. On a small graph that is a good trade for the crossings it buys;
         // on a large one it stretches far more wire than it saves, so it is left off there.
-        if (column.Count is < 3 or > 40 || component.Count > options.CrossingReinsertMaxNodes)
+        if (column.Count is < 3 or > 40 || sizes.Length > options.CrossingReinsertMaxNodes)
         {
             return false;
         }
 
-        column.Sort(static (a, b) => a.Position.Y.CompareTo(b.Position.Y));
+        column.Sort((a, b) => positions[a].Y.CompareTo(positions[b].Y));
 
         var subset = new List<int>();
 
         foreach (var node in column)
         {
-            if (incident.TryGetValue(node, out var list))
-            {
-                subset.AddRange(list);
-            }
+            subset.AddRange(incident[node]);
         }
 
         if (subset.Count == 0)
@@ -348,20 +331,20 @@ internal sealed class CrossingRepair
         }
 
         // Reinsertion restacks the column, so a card can travel the column's whole height.
-        var top = column[0].Position.Y;
+        var top = positions[column[0]].Y;
         var last = column[^1];
-        var candidates = LocalCandidates(subset, last.Position.Y + geometry.SizeOf(last).Y - top);
+        var candidates = LocalCandidates(subset, positions[last].Y + sizes[last].Y - top);
 
         var placed = new float[column.Count];
 
         for (var i = 0; i < column.Count; i++)
         {
-            placed[i] = column[i].Position.Y;
+            placed[i] = positions[column[i]].Y;
         }
 
         var best = Count(subset, candidates);
-        var bestOrder = new List<GraphNode>(column);
-        var order = new List<GraphNode>(column);
+        var bestOrder = new List<int>(column);
+        var order = new List<int>(column);
         var moved = false;
         var budget = options.CrossingReinsertBudget;
 
@@ -403,7 +386,7 @@ internal sealed class CrossingRepair
                 if (score < best)
                 {
                     best = score;
-                    bestOrder = new List<GraphNode>(order);
+                    bestOrder = new List<int>(order);
                     moved = true;
                 }
             }
@@ -424,7 +407,7 @@ internal sealed class CrossingRepair
         column.AddRange(bestOrder);
         return true;
 
-        bool Fits(List<GraphNode> stacked)
+        bool Fits(List<int> stacked)
         {
             foreach (var node in stacked)
             {
@@ -438,9 +421,11 @@ internal sealed class CrossingRepair
         }
     }
 
-    private bool TrySlide(GraphNode node)
+    private bool TrySlide(int node)
     {
-        if (!incident.TryGetValue(node, out var touching))
+        var touching = incident[node];
+
+        if (touching.Count == 0)
         {
             return false;
         }
@@ -451,7 +436,7 @@ internal sealed class CrossingRepair
         // scanning every wire in the graph tens of times per card and scanning it once.
         var candidates = LocalCandidates(touching, options.CrossingSlideLimit);
 
-        var originalY = node.Position.Y;
+        var originalY = positions[node].Y;
         var bestY = originalY;
         var best = Count(touching, candidates);
 
@@ -487,12 +472,12 @@ internal sealed class CrossingRepair
 
         foreach (var wire in touching)
         {
-            var mineSocket = wires[wire].From.Owner == node ? wires[wire].From : wires[wire].To;
-            var theirsSocket = wires[wire].From.Owner == node ? wires[wire].To : wires[wire].From;
-            var mine = geometry.PivotOf(mineSocket);
+            var atSource = wires[wire].From == node;
+            var mine = atSource ? from[wire] : to[wire];
+            var theirs = atSource ? to[wire] : from[wire];
 
             // The height that makes this wire run dead level.
-            Consider(geometry.PivotOf(theirsSocket).Y - mine.Y);
+            Consider(theirs.Y - mine.Y);
 
             // Levelling a wire often lands just short of clearing the wire it crosses, because
             // what actually matters is being on the correct side of the other wire's endpoints,
@@ -500,7 +485,7 @@ internal sealed class CrossingRepair
             foreach (var other in candidates)
             {
                 if (other == wire || SharesSocket(wires[wire], wires[other])
-                    || !GraphWireGeometry.SegmentsIntersect(from[wire], to[wire], from[other], to[other]))
+                    || !GraphSegmentGeometry.SegmentsIntersect(from[wire], to[wire], from[other], to[other]))
                 {
                     continue;
                 }
@@ -543,31 +528,31 @@ internal sealed class CrossingRepair
         return bestY != originalY;
     }
 
-    private void Move(GraphNode node, float y)
+    private void Move(int node, float y)
     {
-        node.Position = node.Position with { Y = y };
+        positions[node] = positions[node] with { Y = y };
         RefreshNode(node);
     }
 
-    private void Exchange(GraphNode a, GraphNode b)
+    private void Exchange(int a, int b)
     {
-        var halfA = geometry.SizeOf(a).Y / 2f;
-        var halfB = geometry.SizeOf(b).Y / 2f;
-        var centerA = a.Position.Y + halfA;
-        var centerB = b.Position.Y + halfB;
+        var halfA = sizes[a].Y / 2f;
+        var halfB = sizes[b].Y / 2f;
+        var centerA = positions[a].Y + halfA;
+        var centerB = positions[b].Y + halfB;
 
         Move(a, centerB - halfA);
         Move(b, centerA - halfB);
     }
 
-    private void Restack(List<GraphNode> order, float top)
+    private void Restack(List<int> order, float top)
     {
         var y = top;
 
         foreach (var node in order)
         {
             Move(node, y);
-            y += geometry.SizeOf(node).Y + options.NodeSpacing;
+            y += sizes[node].Y + options.NodeSpacing;
         }
     }
 
@@ -575,7 +560,7 @@ internal sealed class CrossingRepair
     /// The wires of both cards, deduplicated. Uses a stamp array rather than a fresh list and a
     /// linear Contains, because a swap is the most frequently attempted move in the whole repair.
     /// </summary>
-    private List<int> Union(GraphNode a, GraphNode b)
+    private List<int> Union(int a, int b)
     {
         var subset = BeginUnion();
         Take(a);
@@ -584,7 +569,7 @@ internal sealed class CrossingRepair
     }
 
     /// <summary>The same union over a whole branch, for the moves that shift many cards at once.</summary>
-    private List<int> Union(IEnumerable<GraphNode> nodes)
+    private List<int> Union(IEnumerable<int> nodes)
     {
         var subset = BeginUnion();
 
@@ -603,14 +588,9 @@ internal sealed class CrossingRepair
         return unionScratch;
     }
 
-    private void Take(GraphNode node)
+    private void Take(int node)
     {
-        if (!incident.TryGetValue(node, out var list))
-        {
-            return;
-        }
-
-        foreach (var wire in list)
+        foreach (var wire in incident[node])
         {
             if (unionMarks[wire] != unionStamp)
             {
@@ -620,8 +600,8 @@ internal sealed class CrossingRepair
         }
     }
 
-    private bool Crosses(GraphNode node, ReadOnlySpan<int> candidates)
-        => incident.TryGetValue(node, out var list) && Count(list, candidates) > 0;
+    private bool Crosses(int node, ReadOnlySpan<int> candidates)
+        => Count(incident[node], candidates) > 0;
 
     private readonly List<int> localScratch = [];
     private int[] allWires = [];
@@ -684,7 +664,7 @@ internal sealed class CrossingRepair
                     continue;
                 }
 
-                if (GraphWireGeometry.SegmentsIntersect(from[wire], to[wire], from[other], to[other]))
+                if (GraphSegmentGeometry.SegmentsIntersect(from[wire], to[wire], from[other], to[other]))
                 {
                     crossings++;
                 }
@@ -707,7 +687,7 @@ internal sealed class CrossingRepair
                     continue;
                 }
 
-                if (GraphWireGeometry.SegmentsIntersect(from[i], to[i], from[j], to[j]))
+                if (GraphSegmentGeometry.SegmentsIntersect(from[i], to[i], from[j], to[j]))
                 {
                     found.Add((i, j));
                 }
@@ -717,8 +697,9 @@ internal sealed class CrossingRepair
         return found;
     }
 
-    private static bool SharesSocket(GraphWire a, GraphWire b)
-        => a.From == b.From || a.To == b.To || a.From == b.To || a.To == b.From;
+    private static bool SharesSocket(GraphLayoutEdge a, GraphLayoutEdge b)
+        => a.FromSocket == b.FromSocket || a.ToSocket == b.ToSocket
+        || a.FromSocket == b.ToSocket || a.ToSocket == b.FromSocket;
 
     /// <summary>
     /// Moves a card out from under any wire that merely passes across it. Unlike the other moves
@@ -726,7 +707,7 @@ internal sealed class CrossingRepair
     /// step, so scoring nudges never finds the way out. Instead the exact distance that clears
     /// every offending wire is computed and taken in one move, if it is allowed.
     /// </summary>
-    private bool TryClearWires(GraphNode node)
+    private bool TryClearWires(int node)
     {
         var offenders = Underlaps(node, out var lowest, out var highest);
 
@@ -738,12 +719,12 @@ internal sealed class CrossingRepair
         // Under everything, or over everything. The shorter move is tried first, but leaving on
         // one side can force this card's own wires across the very wire it is escaping, so both
         // directions get a turn before giving up.
-        var originalY = node.Position.Y;
-        var height = geometry.SizeOf(node).Y;
+        var originalY = positions[node].Y;
+        var height = sizes[node].Y;
         var down = lowest + options.WireClearance - originalY;
         var up = highest - options.WireClearance - (originalY + height);
 
-        var touching = incident.GetValueOrDefault(node) ?? [];
+        var touching = incident[node];
         var before = Count(touching, allWires);
 
         foreach (var shift in Math.Abs(down) <= Math.Abs(up) ? (float[])[down, up] : [up, down])
@@ -774,12 +755,12 @@ internal sealed class CrossingRepair
     /// a wire sits at that line is what decides which side to leave by; its overall extent could
     /// be dominated by a far-away end.
     /// </summary>
-    private int Underlaps(GraphNode node, out float lowest, out float highest)
+    private int Underlaps(int node, out float lowest, out float highest)
     {
-        var size = geometry.SizeOf(node);
-        var top = node.Position.Y;
+        var size = sizes[node];
+        var top = positions[node].Y;
         var bottom = top + size.Y;
-        var middle = node.Position.X + (size.X / 2f);
+        var middle = positions[node].X + (size.X / 2f);
 
         lowest = float.MinValue;
         highest = float.MaxValue;
@@ -787,11 +768,11 @@ internal sealed class CrossingRepair
 
         foreach (var wire in allWires)
         {
-            if (wires[wire].From.Owner == node || wires[wire].To.Owner == node
-                || !GraphWireGeometry.BoxesOverlap(minX[wire], maxX[wire], minY[wire], maxY[wire],
-                    node.Position.X, node.Position.X + size.X, top, bottom)
-                || !GraphWireGeometry.SegmentCrossesBox(from[wire], to[wire],
-                    node.Position, node.Position + size))
+            if (wires[wire].From == node || wires[wire].To == node
+                || !GraphSegmentGeometry.BoxesOverlap(minX[wire], maxX[wire], minY[wire], maxY[wire],
+                    positions[node].X, positions[node].X + size.X, top, bottom)
+                || !GraphSegmentGeometry.SegmentCrossesBox(from[wire], to[wire],
+                    positions[node], positions[node] + size))
             {
                 continue;
             }
@@ -818,14 +799,14 @@ internal sealed class CrossingRepair
     /// </summary>
     private bool TrySwapBranches(int wireA, int wireB)
     {
-        var target = wires[wireA].To.Owner;
+        var target = wires[wireA].To;
 
-        if (target != wires[wireB].To.Owner)
+        if (target != wires[wireB].To)
         {
             return false;
         }
 
-        if (wires[wireA].From.Owner == wires[wireB].From.Owner)
+        if (wires[wireA].From == wires[wireB].From)
         {
             return false;
         }
@@ -839,8 +820,8 @@ internal sealed class CrossingRepair
             return false;
         }
 
-        var upperSource = wires[upperDock].From.Owner;
-        var lowerSource = wires[lowerDock].From.Owner;
+        var upperSource = wires[upperDock].From;
+        var lowerSource = wires[lowerDock].From;
 
         var branchUpper = Branch(upperSource, target);
         var branchLower = Branch(lowerSource, target);
@@ -862,9 +843,9 @@ internal sealed class CrossingRepair
 
         // Sharing a column makes the two sources stacked cards as well as inverted docks, so the
         // branch has to travel far enough to clear the other card rather than just its socket.
-        if (columnOf.GetValueOrDefault(upperSource) == columnOf.GetValueOrDefault(lowerSource))
+        if (columnOf[upperSource] == columnOf[lowerSource])
         {
-            shift = Math.Min(shift, lowerSource.Position.Y - geometry.SizeOf(upperSource).Y - options.NodeSpacing - upperSource.Position.Y);
+            shift = Math.Min(shift, positions[lowerSource].Y - sizes[upperSource].Y - options.NodeSpacing - positions[upperSource].Y);
         }
 
         // Only wires touching the branch can change, so scoring the whole island per candidate
@@ -884,7 +865,7 @@ internal sealed class CrossingRepair
 
             foreach (var node in branchUpper)
             {
-                Move(node, node.Position.Y + candidate);
+                Move(node, positions[node].Y + candidate);
             }
 
             var blocked = branchUpper.Any(Blocked);
@@ -897,7 +878,7 @@ internal sealed class CrossingRepair
 
             foreach (var node in branchUpper)
             {
-                Move(node, node.Position.Y - candidate);
+                Move(node, positions[node].Y - candidate);
             }
         }
 
@@ -908,15 +889,15 @@ internal sealed class CrossingRepair
     /// Distance that lifts a branch clear above, or drops it clear below, everything it is not
     /// part of. Nothing occupies the space outside the island, so a shift this far always fits.
     /// </summary>
-    private float ParkingShift(HashSet<GraphNode> branch, bool above)
+    private float ParkingShift(HashSet<int> branch, bool above)
     {
         var branchEdge = above ? float.MinValue : float.MaxValue;
         var restEdge = above ? float.MaxValue : float.MinValue;
 
-        foreach (var node in component)
+        for (var node = 0; node < sizes.Length; node++)
         {
-            var top = node.Position.Y;
-            var bottom = top + geometry.SizeOf(node).Y;
+            var top = positions[node].Y;
+            var bottom = top + sizes[node].Y;
 
             if (branch.Contains(node))
             {
@@ -940,22 +921,21 @@ internal sealed class CrossingRepair
     }
 
     /// <summary>
-    /// Everything upstream of a card, stopping before the consumer it feeds. Cards that are hidden
-    /// or belong to another island are left out, since nothing here may move them. Null when the
-    /// cone grows past what may be shifted at once, so an oversized walk stops rather than
+    /// Everything upstream of a card, stopping before the consumer it feeds. Null when the cone
+    /// grows past what may be shifted at once, so an oversized walk stops rather than
     /// materialising a branch that is going to be refused.
     /// </summary>
-    private HashSet<GraphNode>? Branch(GraphNode node, GraphNode stop)
+    private HashSet<int>? Branch(int node, int stop)
     {
-        var branch = new HashSet<GraphNode>();
-        var pending = new Stack<GraphNode>();
+        var branch = new HashSet<int>();
+        var pending = new Stack<int>();
         pending.Push(node);
 
         while (pending.Count > 0)
         {
             var current = pending.Pop();
 
-            if (current == stop || current.Hidden || !columnOf.ContainsKey(current) || !branch.Add(current))
+            if (current == stop || !branch.Add(current))
             {
                 continue;
             }
@@ -965,12 +945,9 @@ internal sealed class CrossingRepair
                 return null;
             }
 
-            foreach (var socket in current.Inputs)
+            foreach (var source in upstream[current])
             {
-                foreach (var wire in socket.Wires)
-                {
-                    pending.Push(wire.From.Owner);
-                }
+                pending.Push(source);
             }
         }
 
@@ -980,5 +957,5 @@ internal sealed class CrossingRepair
     /// <summary>Whether two wires overlap in both axes, and so could possibly cross.</summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private bool Overlaps(int a, int b)
-        => GraphWireGeometry.BoxesOverlap(minX[a], maxX[a], minY[a], maxY[a], minX[b], maxX[b], minY[b], maxY[b]);
+        => GraphSegmentGeometry.BoxesOverlap(minX[a], maxX[a], minY[a], maxY[a], minX[b], maxX[b], minY[b], maxY[b]);
 }

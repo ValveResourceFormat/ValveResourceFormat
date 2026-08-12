@@ -22,6 +22,7 @@ using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.ResourceTypes.GenericData.CS2;
 using ValveResourceFormat.Serialization.KeyValues;
 
+using ValveResourceFormat.Graphs;
 namespace GUI.Types.Viewers
 {
     enum ResourceViewMode
