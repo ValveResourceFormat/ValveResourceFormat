@@ -712,6 +712,7 @@ namespace ValveResourceFormat.Renderer.Shaders
             }
 
             GLEnvironment.Initialize(renderContext.Logger);
+            GLEnvironment.EnableParallelShaderCompile();
 
             foreach (var shader in allShaders)
             {
@@ -733,10 +734,13 @@ namespace ValveResourceFormat.Renderer.Shaders
                     continue;
                 }
 
-                loader.LoadShader(shaderName);
+                // Compile without waiting on link status so the driver can link the variants in parallel;
+                // statuses are collected at the end of this shader's batch
+                loader.LoadShader(shaderName, blocking: false);
 
                 // Test all defines one by one
-                var parsed = GetOrParseShader(GetShaderFileByName(shaderName));
+                var shaderFileName = GetShaderFileByName(shaderName);
+                var parsed = GetOrParseShader(shaderFileName);
                 var defines = parsed.Defines.Where(static x => !x.Key.StartsWith("GameVfx_", StringComparison.Ordinal)).ToDictionary();
                 var variants = parsed.Defines.Keys.Where(static x => x.StartsWith("GameVfx_", StringComparison.Ordinal));
                 var sourceLines = parsed.SourceFileLines;
@@ -753,7 +757,7 @@ namespace ValveResourceFormat.Renderer.Shaders
                         loader.LoadShader(shaderName, new Dictionary<string, byte>
                         {
                             [define] = (byte)value,
-                        });
+                        }, blocking: false);
                     }
                 }
 
@@ -763,7 +767,7 @@ namespace ValveResourceFormat.Renderer.Shaders
                     var vfxName = string.Concat(name.AsSpan()["GameVfx_".Length..], ".vfx");
                     progressReporter.Report($"Compiling variant {vfxName}");
 
-                    loader.LoadShader(vfxName);
+                    loader.LoadShader(vfxName, blocking: false);
 
                     // Test all defines one by one in combination with the shader variant name
                     foreach (var define in defines.Keys)
@@ -777,14 +781,32 @@ namespace ValveResourceFormat.Renderer.Shaders
                             loader.LoadShader(vfxName, new Dictionary<string, byte>
                             {
                                 [define] = (byte)value,
-                            });
+                            }, blocking: false);
                         }
                     }
 
                     // Test all defines at once with their maximum values
                     progressReporter.Report($"Compiling variant {vfxName} with all defines");
 
-                    loader.LoadShader(vfxName, defines.Keys.ToDictionary(static d => d, d => (byte)maxValues.GetValueOrDefault(d, 1)));
+                    loader.LoadShader(vfxName, defines.Keys.ToDictionary(static d => d, d => (byte)maxValues.GetValueOrDefault(d, 1)), blocking: false);
+                }
+
+                // Collect the link statuses that were deferred above, failing like a blocking load would
+                progressReporter.Report($"Linking {shaderName} variants");
+
+                foreach (var compiledShader in loader.CachedShaders.Values)
+                {
+                    if (compiledShader.IsLoaded)
+                    {
+                        continue;
+                    }
+
+                    if (!compiledShader.EnsureLoaded())
+                    {
+                        GL.GetProgramInfoLog(compiledShader.Program, out var log);
+                        var argsDescription = GetArgumentDescription(SortAndFilterArguments(parsed.Defines, compiledShader.Parameters));
+                        ThrowShaderError(log, string.Concat(shaderFileName, argsDescription), compiledShader.Name, "Failed to link shader", parsed);
+                    }
                 }
 
                 if (IsCI)

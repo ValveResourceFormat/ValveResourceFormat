@@ -128,6 +128,14 @@ public static class GLEnvironment
         GL.DepthFunc(DepthFunction.Greater);
         GL.ClearDepth(0.0f);
 
+        EnableParallelShaderCompile();
+    }
+
+    /// <summary>
+    /// Allows the driver to compile and link shaders on its own worker threads.
+    /// </summary>
+    public static void EnableParallelShaderCompile()
+    {
         // Process-global driver setting; configure exactly once (re-issuing it mid-compile crashes some drivers).
         if (Interlocked.CompareExchange(ref parallelShaderCompileConfigured, 1, 0) == 0)
         {
