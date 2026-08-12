@@ -87,7 +87,7 @@ namespace ValveResourceFormat.Renderer.Particles.Utils
 
         /// <inheritdoc cref="ForParticle(int, int)"/>
         public float ForParticleBetween(int particleId, int fieldOffset, float min, float max)
-            => float.Lerp(min, max, ForParticle(particleId, fieldOffset));
+            => (ForParticle(particleId, fieldOffset) * (max - min)) + min;
 
         /// <inheritdoc cref="ForParticle(int, int)"/>
         public Vector3 ForParticleBetween(int particleId, int fieldOffset, Vector3 min, Vector3 max)
