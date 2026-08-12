@@ -417,7 +417,7 @@ namespace ValveResourceFormat.Renderer.PostProcess
                     weightedSum += weight * ExposureHistory[i];
                 }
 
-                clampedScalar = MathF.Min(MathF.Max(weightedSum / weightTotal, min), max);
+                clampedScalar = MathF.Min(MathF.Max(weightedSum * (1.0f / weightTotal), min), max);
             }
 
             if (!float.IsFinite(clampedScalar))
