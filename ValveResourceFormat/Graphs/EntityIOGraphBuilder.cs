@@ -18,9 +18,6 @@ public static class EntityIOGraphBuilder
     /// <summary>Hue of an entity's inputs and the wires arriving at them.</summary>
     public const GraphHue InputHue = GraphHue.Cyan;
 
-    /// <summary>Receives diagnostics about connections the lump could not be read cleanly from.</summary>
-    public static IProgress<string>? ProgressReporter { get; set; }
-
     // Prefab-instanced entities carry a "[PR#]" targetname prefix, hide it for display.
     private static string StripTargetnamePrefix(string value)
     {
@@ -74,7 +71,12 @@ public static class EntityIOGraphBuilder
     /// <param name="document">The graph to fill.</param>
     /// <param name="entities">The entities to build nodes from.</param>
     /// <param name="groupMembers">Receives the entities merged into each name-group node.</param>
-    public static void Build(GraphDocument document, List<EntityLump.Entity> entities, Dictionary<GraphNode, List<EntityLump.Entity>>? groupMembers = null)
+    /// <param name="progressReporter">Receives diagnostics about connections that could not be read cleanly.</param>
+    public static void Build(
+        GraphDocument document,
+        List<EntityLump.Entity> entities,
+        Dictionary<GraphNode, List<EntityLump.Entity>>? groupMembers = null,
+        IProgress<string>? progressReporter = null)
     {
         var connections = new List<Connection>();
         var malformedConnections = 0;
@@ -95,7 +97,7 @@ public static class EntityIOGraphBuilder
                     if (malformedConnections <= MaxMalformedConnectionWarnings)
                     {
                         var owner = entity.TargetName ?? entity.GetStringProperty("classname") ?? "unknown entity";
-                        ProgressReporter?.Report($"Skipping connection with a missing or non-string name field on '{owner}'.");
+                        progressReporter?.Report($"Skipping connection with a missing or non-string name field on '{owner}'.");
                     }
 
                     continue;
@@ -107,7 +109,7 @@ public static class EntityIOGraphBuilder
 
         if (malformedConnections > MaxMalformedConnectionWarnings)
         {
-            ProgressReporter?.Report($"Skipped {malformedConnections} connections with a missing or non-string name field.");
+            progressReporter?.Report($"Skipped {malformedConnections} connections with a missing or non-string name field.");
         }
 
         var resolver = new EntityIOTargetResolver(entities);
@@ -320,6 +322,6 @@ public static class EntityIOGraphBuilder
             node.AddAnnotation(text, GraphHue.Magenta);
         }
 
-        ProgressReporter?.Report($"Created {entityNodes.Count + syntheticNodes.Count} nodes from {connections.Count} connections ({entities.Count} entities).");
+        progressReporter?.Report($"Created {entityNodes.Count + syntheticNodes.Count} nodes from {connections.Count} connections ({entities.Count} entities).");
     }
 }

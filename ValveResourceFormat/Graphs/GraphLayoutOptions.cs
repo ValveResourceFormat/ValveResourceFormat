@@ -93,16 +93,10 @@ public sealed class GraphLayoutOptions
     /// Wall-clock milliseconds the whole layout may spend refining before it stops and keeps what
     /// it has. Covers both the ordering sweeps and the crossing repair, which share one deadline
     /// per island. Zero removes the limit, which is what the manual full-quality command uses. The
-    /// caller splits it across the islands with <see cref="GraphLayout.SplitBudget"/>.
+    /// caller splits it across the islands with <see cref="GraphLayout.SplitBudget"/> and passes
+    /// each island its own share.
     /// </summary>
     public int LayoutBudgetMs { get; set; } = 4000;
-
-    /// <summary>
-    /// Milliseconds the island being laid out right now may spend, timed from when its own layout
-    /// starts so no island can eat the time meant for the ones after it. Null lets the island take
-    /// the whole of <see cref="LayoutBudgetMs"/>; zero means unlimited, as it does there.
-    /// </summary>
-    public int? LayoutSliceMs { get; set; }
 
     /// <summary>Largest branch that may be shifted as one to reorder two wires into a card.</summary>
     public int BranchShiftMaxNodes { get; set; } = 40;
