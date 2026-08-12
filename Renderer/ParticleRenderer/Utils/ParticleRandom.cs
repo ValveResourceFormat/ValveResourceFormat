@@ -84,19 +84,19 @@ namespace ValveResourceFormat.Renderer.Particles.Utils
         /// <summary>
         /// Takes the next value, interpolated into [<paramref name="min"/>, <paramref name="max"/>].
         /// </summary>
-        public float NextBetween(float min, float max) => float.Lerp(min, max, Next());
+        public float NextBetween(float min, float max) => Between(Next(), min, max);
 
         /// <summary>
         /// Takes the next value, interpolating every component of the result from that one value.
         /// </summary>
-        public Vector3 NextBetween(Vector3 min, Vector3 max) => Vector3.Lerp(min, max, Next());
+        public Vector3 NextBetween(Vector3 min, Vector3 max) => Between(Next(), min, max);
 
         /// <summary>
         /// Takes the next value, raised to <paramref name="exponent"/> before being interpolated into
         /// [<paramref name="min"/>, <paramref name="max"/>].
         /// </summary>
         public float NextWithExponentBetween(float exponent, float min, float max)
-            => float.Lerp(min, max, MathF.Pow(Next(), exponent));
+            => Between(MathF.Pow(Next(), exponent), min, max);
 
         /// <summary>Takes three consecutive values, one per component.</summary>
         public Vector3 NextBetweenPerComponent(Vector3 min, Vector3 max)
@@ -112,15 +112,15 @@ namespace ValveResourceFormat.Renderer.Particles.Utils
 
         /// <inheritdoc cref="ForParticle(int, int)"/>
         public float ForParticleBetween(int particleId, int fieldOffset, float min, float max)
-            => (ForParticle(particleId, fieldOffset) * (max - min)) + min;
+            => Between(ForParticle(particleId, fieldOffset), min, max);
 
         /// <inheritdoc cref="ForParticle(int, int)"/>
         public Vector3 ForParticleBetween(int particleId, int fieldOffset, Vector3 min, Vector3 max)
-            => Vector3.Lerp(min, max, ForParticle(particleId, fieldOffset));
+            => Between(ForParticle(particleId, fieldOffset), min, max);
 
         /// <inheritdoc cref="ForParticle(int, int)"/>
         public float ForParticleWithExponentBetween(int particleId, int fieldOffset, float exponent, float min, float max)
-            => float.Lerp(min, max, MathF.Pow(ForParticle(particleId, fieldOffset), exponent));
+            => Between(MathF.Pow(ForParticle(particleId, fieldOffset), exponent), min, max);
 
         /// <summary>
         /// Reads the slot a caller has already worked out in full, for the draws that key on neither
@@ -130,11 +130,11 @@ namespace ValveResourceFormat.Renderer.Particles.Utils
 
         /// <inheritdoc cref="ForSample(int)"/>
         public static float ForSampleBetween(int sampleId, float min, float max)
-            => float.Lerp(min, max, At(sampleId));
+            => Between(At(sampleId), min, max);
 
         /// <inheritdoc cref="ForSample(int)"/>
         public static Vector3 ForSampleBetween(int sampleId, Vector3 min, Vector3 max)
-            => Vector3.Lerp(min, max, At(sampleId));
+            => Between(At(sampleId), min, max);
 
         /// <summary>Reads three consecutive slots from <paramref name="sampleId"/>, one per component.</summary>
         public static Vector3 ForSampleBetweenPerComponent(int sampleId, Vector3 min, Vector3 max)
@@ -145,7 +145,16 @@ namespace ValveResourceFormat.Renderer.Particles.Utils
 
         /// <inheritdoc cref="ForSample(int)"/>
         public static float ForSampleWithExponentBetween(int sampleId, float exponent, float min, float max)
-            => float.Lerp(min, max, MathF.Pow(At(sampleId), exponent));
+            => Between(MathF.Pow(At(sampleId), exponent), min, max);
+
+        /// <summary>
+        /// Scales a drawn value into [<paramref name="min"/>, <paramref name="max"/>] the way the
+        /// engine does, off the range's width rather than by weighting the two ends.
+        /// </summary>
+        private static float Between(float draw, float min, float max) => (draw * (max - min)) + min;
+
+        /// <inheritdoc cref="Between(float, float, float)"/>
+        private static Vector3 Between(float draw, Vector3 min, Vector3 max) => ((max - min) * draw) + min;
 
         // Unsigned modulo keeps the index valid for any id, including ids that wrapped negative
         private static float At(int index) => RandomFloats.List[(uint)index % RandomFloats.List.Length];

@@ -52,7 +52,9 @@ namespace ValveResourceFormat.Renderer.Particles.Operators
                     t = t * t * (3 - 2 * t);
                 }
 
-                particle.SetVector(fieldOutput, Vector3.Lerp(particle.GetInitialVector(particles, fieldOutput), newColor, t));
+                var initialColor = particle.GetInitialVector(particles, fieldOutput);
+
+                particle.SetVector(fieldOutput, initialColor + ((newColor - initialColor) * t));
             }
         }
     }
