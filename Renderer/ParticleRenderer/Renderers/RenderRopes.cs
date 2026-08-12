@@ -518,7 +518,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
             var radius = CatmullRom(n0.Radius, n1.Radius, n2.Radius, n3.Radius, t);
 
             var tangent = CatmullRomTangent(n0.Position, n1.Position, n2.Position, n3.Position, t);
-            tangent = tangent.LengthSquared() > Epsilon.LengthSquared ? Vector3.Normalize(tangent) : Vector3.UnitX;
+            tangent = tangent.LengthSquared() > ParticleMath.MinimumLengthSquared ? Vector3.Normalize(tangent) : Vector3.UnitX;
 
             var planeNormal = orientationType switch
             {
@@ -528,7 +528,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
             };
 
             var widthAxis = Vector3.Cross(tangent, planeNormal);
-            widthAxis = widthAxis.LengthSquared() > Epsilon.LengthSquared
+            widthAxis = widthAxis.LengthSquared() > ParticleMath.MinimumLengthSquared
                 ? Vector3.Normalize(widthAxis)
                 : Vector3.Normalize(Vector3.Cross(tangent, MathF.Abs(tangent.Z) < 0.999f ? Vector3.UnitZ : Vector3.UnitX));
 
@@ -615,7 +615,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
         {
             var toCamera = camera.Location - sample.Position;
 
-            if (toCamera.LengthSquared() <= Epsilon.LengthSquared)
+            if (toCamera.LengthSquared() <= ParticleMath.MinimumLengthSquared)
             {
                 return 1f;
             }

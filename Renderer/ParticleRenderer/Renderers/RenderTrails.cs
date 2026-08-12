@@ -250,7 +250,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
                     {
                         var toCamera = camera.Location - particle.Position;
 
-                        if (toCamera.LengthSquared() > Epsilon.LengthSquared)
+                        if (toCamera.LengthSquared() > ParticleMath.MinimumLengthSquared)
                         {
                             // Only the normal-aligned mode has a normal to face with; the others
                             // substitute the direction the ribbon runs in.
@@ -278,7 +278,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
                     };
 
                     var widthAxis = Vector3.Cross(direction, planeNormal);
-                    widthAxis = widthAxis.LengthSquared() > Epsilon.LengthSquared
+                    widthAxis = widthAxis.LengthSquared() > ParticleMath.MinimumLengthSquared
                         ? Vector3.Normalize(widthAxis)
                         : Vector3.Normalize(Vector3.Cross(direction, MathF.Abs(direction.Z) < 0.999f ? Vector3.UnitZ : Vector3.UnitX));
 

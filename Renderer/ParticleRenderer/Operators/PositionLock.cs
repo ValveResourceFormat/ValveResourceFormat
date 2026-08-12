@@ -151,7 +151,7 @@ namespace ValveResourceFormat.Renderer.Particles.Operators
                     // Distance is measured against the position the particle is about to occupy
                     var distance = Vector3.Distance(transformPosition, currentPosition + scaledDelta);
                     var normalizedDistance = MathUtils.Saturate(distance / fadeRange);
-                    var fade = NumericBias.Standard(normalizedDistance, bias);
+                    var fade = ParticleMath.Bias(normalizedDistance, bias);
 
                     scaledDelta *= 1f - fade;
                     rotationLockStrength = 1f - (fade * rotationLockStrength);

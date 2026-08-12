@@ -44,7 +44,7 @@ namespace ValveResourceFormat.Renderer.Particles.Operators
                 }
             }
 
-            var t = (particleSystemState.Age - startAge) / (lerpTime + Epsilon.Duration);
+            var t = (particleSystemState.Age - startAge) / (lerpTime + ParticleMath.FloatEpsilon);
 
             // The vector form stops writing once the ramp is over, where the scalar form keeps saturating,
             // and it scales the ramp position by strength rather than blending the result

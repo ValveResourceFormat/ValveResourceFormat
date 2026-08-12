@@ -1,3 +1,5 @@
+using ValveResourceFormat.Renderer.Particles.Utils;
+
 namespace ValveResourceFormat.Renderer.Particles.Operators
 {
     /// <summary>
@@ -11,8 +13,6 @@ namespace ValveResourceFormat.Renderer.Particles.Operators
     /// <seealso href="https://s2v.app/SchemaExplorer/cs2/particles/C_OP_CylindricalDistanceToTransform">C_OP_CylindricalDistanceToTransform</seealso>
     class CylindricalDistanceToTransform : ParticleFunctionOperator
     {
-        private const float FltEpsilon = 1.1920929e-7f;
-
         private readonly ParticleField outputField = ParticleField.Radius;
         private readonly INumberProvider innerRadius = new LiteralNumberProvider(0f);
         private readonly INumberProvider outerRadius = new LiteralNumberProvider(64f);
@@ -79,7 +79,7 @@ namespace ValveResourceFormat.Renderer.Particles.Operators
 
                     if (outer == inner)
                     {
-                        inner -= FltEpsilon;
+                        inner -= ParticleMath.FloatEpsilon;
                     }
 
                     if (capsule)

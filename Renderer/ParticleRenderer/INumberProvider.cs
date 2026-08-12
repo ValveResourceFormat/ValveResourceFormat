@@ -99,7 +99,7 @@ namespace ValveResourceFormat.Renderer.Particles
 
             if (isBiased)
             {
-                random = NumericBias.FromBiasParameter(random, biasParam, biasType);
+                random = ParticleMath.BiasFromParameter(random, biasParam, biasType);
             }
 
             var value = float.Lerp(minRange, maxRange, random);

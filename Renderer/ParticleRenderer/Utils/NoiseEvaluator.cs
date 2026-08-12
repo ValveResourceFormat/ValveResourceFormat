@@ -92,8 +92,7 @@ namespace ValveResourceFormat.Renderer.Particles.Utils
                 case ParticleNoiseTurbulence.PF_NOISE_TURB_LOOPY:
                 {
                     var magnitude = MathF.Abs(value);
-                    var fraction = magnitude - MathF.Truncate(magnitude);
-                    var triangle = (4f - (4f * fraction)) * fraction;
+                    var triangle = ParticleMath.HalfWave(magnitude - MathF.Truncate(magnitude));
                     var wave = MathF.CopySign(triangle, value);
 
                     if (((int)magnitude & 1) == 1)
@@ -114,7 +113,7 @@ namespace ValveResourceFormat.Renderer.Particles.Utils
                         ? Noise.Simplex3D(warped)
                         : Noise.Worley3D(warped, 0.97f, 22f);
 
-                    target = RoundTripThroughOne(value * resampled);
+                    target = ParticleMath.RoundTripThroughOne(value * resampled);
                     break;
                 }
                 default:
@@ -127,19 +126,11 @@ namespace ValveResourceFormat.Renderer.Particles.Utils
         private float ApplyModifier(float value) => modifier switch
         {
             ParticleNoiseModifier.PF_NOISE_MODIFIER_NONE => (value * 0.5f) + 0.5f,
-            ParticleNoiseModifier.PF_NOISE_MODIFIER_LINES => Square(MathF.Sin(value * (3f * MathF.PI))),
+            ParticleNoiseModifier.PF_NOISE_MODIFIER_LINES => ParticleMath.Square(MathF.Sin(value * (3f * MathF.PI))),
             ParticleNoiseModifier.PF_NOISE_MODIFIER_CLUMPS => Clumps(value),
             ParticleNoiseModifier.PF_NOISE_MODIFIER_RINGS => Math.Clamp((MathF.Abs(MathF.Sin(value * MathF.PI)) + 0.25f) / 1.25f, 0f, 1f),
             _ => 1f,
         };
-
-        private static float Square(float value) => value * value;
-
-        /// <summary>
-        /// A subtraction from one and back, which the alternate turbulence puts its target through.
-        /// It is not an identity in floats: it moves about a third of inputs by a ulp.
-        /// </summary>
-        private static float RoundTripThroughOne(float value) => 1f - (1f - value);
 
         /// <summary>
         /// The 2.5x gain the clumps modifier applies, summed one halving divisor at a time as the

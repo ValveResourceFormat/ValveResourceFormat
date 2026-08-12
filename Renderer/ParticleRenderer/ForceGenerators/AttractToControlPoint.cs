@@ -39,7 +39,7 @@ class AttractToControlPoint : ParticleFunctionForceGenerator
         {
             var diff = target - particle.Position;
             var distance = diff.Length();
-            if (distance < Epsilon.Length)
+            if (distance < ParticleMath.MinimumLength)
             {
                 continue;
             }

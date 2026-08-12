@@ -67,7 +67,7 @@ namespace ValveResourceFormat.Renderer.Particles.Initializers
 
             if (hasBias)
             {
-                value = NumericBias.Standard(Math.Clamp(value, 0f, 1f), remapBias);
+                value = ParticleMath.Bias(Math.Clamp(value, 0f, 1f), remapBias);
             }
 
             value = particle.ModifyScalarBySetMethodAtSpawn(particles, fieldOutput, value, setMethod);

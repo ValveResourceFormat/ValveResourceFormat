@@ -322,13 +322,13 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
 
             // Yaw turns the card about its own up axis, foreshortening it horizontally to nothing at 90
             // degrees. Only the right axis is turned, and the axis is normalized without touching up.
-            if (yaw != 0f && up.LengthSquared() > Epsilon.LengthSquared)
+            if (yaw != 0f && up.LengthSquared() > ParticleMath.MinimumLengthSquared)
             {
                 right = Vector3.Transform(right, Matrix4x4.CreateFromAxisAngle(Vector3.Normalize(up), yaw));
             }
 
             var face = Vector3.Cross(right, up);
-            face = face.LengthSquared() > Epsilon.LengthSquared ? Vector3.Normalize(face) : Vector3.UnitZ;
+            face = face.LengthSquared() > ParticleMath.MinimumLengthSquared ? Vector3.Normalize(face) : Vector3.UnitZ;
             return new Matrix4x4(
                 right.X, right.Y, right.Z, 0f,
                 up.X, up.Y, up.Z, 0f,
@@ -374,7 +374,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
         {
             var n = Vector3.Normalize(normal);
             var w = Vector3.Cross(n, CameraForward(billboard));
-            if (w.LengthSquared() < Epsilon.LengthSquared)
+            if (w.LengthSquared() < ParticleMath.MinimumLengthSquared)
             {
                 return billboard;
             }
@@ -440,7 +440,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
                     {
                         var toCamera = camera.Location - particle.Position;
 
-                        if (toCamera.LengthSquared() > Epsilon.LengthSquared)
+                        if (toCamera.LengthSquared() > ParticleMath.MinimumLengthSquared)
                         {
                             var facing = MathF.Abs(Vector3.Dot(Vector3.Normalize(particle.Normal), Vector3.Normalize(toCamera)));
                             alphaFade = 1f - MathUtils.Smoothstep(startFadeDot, endFadeDot, facing);
