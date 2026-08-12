@@ -57,6 +57,31 @@ namespace ValveResourceFormat.Renderer.Particles.Utils
         public float Next() => At(queryCount++ + Seed);
 
         /// <summary>
+        /// Takes the next value, remapped clear of both ends of the interval. The initializers that
+        /// draw a direction go through this so that a drawn polar cosine is never exactly +/-1.
+        /// </summary>
+        private float NextInterior() => (Next() * 0.99989998f) + 0.000099999997f;
+
+        /// <summary>
+        /// Takes three consecutive values as a point drawn uniformly through the unit ball, in the
+        /// order polar cosine, azimuth, then <paramref name="radiusFraction"/>. The returned point is
+        /// already scaled by that fraction.
+        /// </summary>
+        public Vector3 NextInUnitBall(out float radiusFraction)
+        {
+            var interior = NextInterior();
+            var cosPolar = interior + interior - 1f;
+            var azimuth = NextInterior() * MathF.Tau;
+            radiusFraction = MathF.Pow(NextInterior(), 1f / 3f);
+
+            var sinPolar = MathF.Sqrt(MathF.Max(0f, 1f - (cosPolar * cosPolar)));
+            var (sin, cos) = FastTrig.SinCos(azimuth);
+            var ring = sinPolar * radiusFraction;
+
+            return new Vector3(ring * cos, ring * sin, radiusFraction * cosPolar);
+        }
+
+        /// <summary>
         /// Takes the next value, interpolated into [<paramref name="min"/>, <paramref name="max"/>].
         /// </summary>
         public float NextBetween(float min, float max) => float.Lerp(min, max, Next());

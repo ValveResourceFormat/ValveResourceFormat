@@ -77,24 +77,6 @@ namespace ValveResourceFormat.Renderer.Particles.Initializers
             velocityField = parse.ParticleField("m_nFieldVelocity", velocityField);
         }
 
-        /// <summary>
-        /// A direction drawn uniformly over the unit sphere, from a uniform cosine of the polar angle
-        /// and a uniform azimuth. Consumes two random slots, the polar cosine before the azimuth.
-        /// </summary>
-        protected static Vector3 SampleUnitSphereDirection(ParticleSystemRenderState particleSystemState)
-        {
-            var cosPolar = particleSystemState.Random.NextBetween(-1f, 1f);
-            var azimuth = particleSystemState.Random.NextBetween(0f, MathF.Tau);
-            var sinPolar = MathF.Sqrt(MathF.Max(0f, 1f - (cosPolar * cosPolar)));
-            var (sin, cos) = MathF.SinCos(azimuth);
-
-            return new Vector3(sinPolar * cos, sinPolar * sin, cosPolar);
-        }
-
-        /// <remarks>
-        /// The cube root over the radius fraction spreads particles evenly through the sphere's
-        /// volume; a linear draw would bunch them toward the centre.
-        /// </remarks>
         public override ulong WrittenFields => outputField == ParticleField.Position
             ? FieldMask(ParticleField.Position) | FieldMask(ParticleField.PositionPrevious) | FieldMask(velocityField)
             : FieldMask(outputField) | FieldMask(velocityField);
@@ -104,7 +86,7 @@ namespace ValveResourceFormat.Renderer.Particles.Initializers
             var transform = transformInput.NextTransform(ref particle, particleSystemState);
             var position = transform.Translation;
 
-            var randomVector = SampleUnitSphereDirection(particleSystemState);
+            var randomVector = particleSystemState.Random.NextInUnitBall(out var radiusFraction);
 
             if (distanceBiasAbs.X != 0)
             {
@@ -123,10 +105,9 @@ namespace ValveResourceFormat.Renderer.Particles.Initializers
 
             var biasedDirection = Vector3.Normalize(randomVector * bias);
 
-            var distance = particleSystemState.Random.NextWithExponentBetween(
-                1f / 3f,
-                radiusMin.NextNumber(ref particle, particleSystemState),
-                radiusMax.NextNumber(ref particle, particleSystemState));
+            var radiusMinValue = radiusMin.NextNumber(ref particle, particleSystemState);
+            var radiusMaxValue = radiusMax.NextNumber(ref particle, particleSystemState);
+            var distance = ((radiusMaxValue - radiusMinValue) * radiusFraction) + radiusMinValue;
 
             var speed = particleSystemState.Random.NextWithExponentBetween(
                 speedRandExp,

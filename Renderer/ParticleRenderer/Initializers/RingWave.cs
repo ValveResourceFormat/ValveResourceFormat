@@ -39,7 +39,7 @@ namespace ValveResourceFormat.Renderer.Particles.Initializers
             var thickness = this.thickness.NextNumber(ref particle, particleSystemState);
             var particlesPerOrbit = this.particlesPerOrbit.NextInt(ref particle, particleSystemState);
 
-            var thicknessOffset = SampleUnitBall(particleSystemState) * thickness;
+            var thicknessOffset = particleSystemState.Random.NextInUnitBall(out _) * thickness;
 
             var radius = initialRadius.NextNumber(ref particle, particleSystemState);
 
@@ -54,22 +54,6 @@ namespace ValveResourceFormat.Renderer.Particles.Initializers
             particle.Velocity += radialDirection * particleSystemState.Random.NextBetween(speedMin, speedMax);
 
             return particle;
-        }
-
-        /// <summary>
-        /// A point drawn uniformly through the unit ball. Consumes three random slots, in the order
-        /// polar cosine, azimuth, then radius fraction.
-        /// </summary>
-        private static Vector3 SampleUnitBall(ParticleSystemRenderState particleSystemState)
-        {
-            var cosPolar = particleSystemState.Random.NextBetween(-1f, 1f);
-            var azimuth = particleSystemState.Random.NextBetween(0f, MathF.Tau);
-            var radius = MathF.Cbrt(particleSystemState.Random.Next());
-
-            var sinPolar = MathF.Sqrt(MathF.Max(0f, 1f - (cosPolar * cosPolar)));
-            var (sin, cos) = MathF.SinCos(azimuth);
-
-            return new Vector3(sinPolar * cos, sinPolar * sin, cosPolar) * radius;
         }
 
         private float GetNextAngle(int particlesPerOrbit, int maxParticles, ParticleSystemRenderState particleSystemState)
