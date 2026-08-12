@@ -1,22 +1,27 @@
-using System.Linq;
+using System.Diagnostics.CodeAnalysis;
 
-namespace GUI.Types.Graphs.Core;
+namespace ValveResourceFormat.Graphs;
 
-interface IGraphElement
+/// <summary>
+/// Anything a host can hit-test to in a graph: a node, one of its sockets, or a wire.
+/// </summary>
+[SuppressMessage("Design", "CA1040:Avoid empty interfaces", Justification = "Marker for the hit-test result union of node, socket and wire.")]
+public interface IGraphElement
 {
 }
 
 /// <summary>
 /// Renderer-agnostic node description: pure content with no derived geometry. Content is an
 /// ordered list of rows (sockets and text); all colors are expressed as <see cref="GraphHue"/>
-/// slots resolved by the palette at draw time. <see cref="Position"/> is document state (the
-/// layout's or the user's placement); everything measured lives in <see cref="GraphGeometry"/>.
+/// slots the host resolves at draw time. <see cref="Position"/> is document state (the layout's
+/// or the user's placement); everything measured lives in <see cref="GraphGeometry"/>.
 /// </summary>
-class GraphNode : IGraphElement
+public class GraphNode : IGraphElement
 {
     private string title = string.Empty;
     private string? subtitle;
 
+    /// <summary>Name drawn in the node's header band.</summary>
     public string Title
     {
         get => title;
@@ -27,6 +32,7 @@ class GraphNode : IGraphElement
         }
     }
 
+    /// <summary>Secondary name drawn beside the title, usually the node's type.</summary>
     public string? Subtitle
     {
         get => subtitle;
@@ -62,8 +68,8 @@ class GraphNode : IGraphElement
     private string? iconKey;
 
     /// <summary>
-    /// Key resolved through <see cref="GraphView.IconResolver"/> to an icon image.
-    /// Nodes with one get a neutral left gutter holding the icon.
+    /// Key the host resolves to an icon image. Nodes with one get a neutral left gutter holding
+    /// the icon.
     /// </summary>
     public string? IconKey
     {
@@ -75,16 +81,23 @@ class GraphNode : IGraphElement
         }
     }
 
+    /// <summary>Free slot for the frontend that built this node.</summary>
     public object? Tag { get; set; }
 
+    /// <summary>Content rows in the order they are drawn.</summary>
     public List<GraphRow> Rows { get; } = [];
+
+    /// <summary>Input sockets, in the order they were added.</summary>
     public List<GraphSocket> Inputs { get; } = [];
+
+    /// <summary>Output sockets, in the order they were added.</summary>
     public List<GraphSocket> Outputs { get; } = [];
 
     /// <summary>
     /// Nodes one wire away, walking the inputs upstream or the outputs downstream. Repeats a
     /// neighbour once per wire that reaches it.
     /// </summary>
+    /// <param name="upstream">Whether to walk the inputs rather than the outputs.</param>
     public IEnumerable<GraphNode> Neighbors(bool upstream)
     {
         foreach (var socket in upstream ? Inputs : Outputs)
@@ -96,11 +109,16 @@ class GraphNode : IGraphElement
         }
     }
 
+    /// <summary>Top-left corner of the node on the canvas.</summary>
     public Vector2 Position { get; set; }
 
     /// <summary>Bumped by every content mutation; views compare it against their measured geometry.</summary>
     public int ContentVersion { get; private set; }
 
+    /// <summary>Adds an input socket and the row that carries it.</summary>
+    /// <param name="name">Socket name, drawn beside the dot.</param>
+    /// <param name="hue">Colour slot of the socket and the wires reaching it.</param>
+    /// <param name="allowMultiple">Whether more than one wire may land here.</param>
     public GraphSocket AddInput(string name, GraphHue hue, bool allowMultiple = true)
     {
         var socket = new GraphSocket(this, name, hue, isInput: true, allowMultiple);
@@ -110,6 +128,9 @@ class GraphNode : IGraphElement
         return socket;
     }
 
+    /// <summary>Adds an output socket and the row that carries it.</summary>
+    /// <param name="name">Socket name, drawn beside the dot.</param>
+    /// <param name="hue">Colour slot of the socket and the wires leaving it.</param>
     public GraphSocket AddOutput(string name, GraphHue hue)
     {
         var socket = new GraphSocket(this, name, hue, isInput: false, allowMultiple: true);
@@ -120,13 +141,20 @@ class GraphNode : IGraphElement
     }
 
     /// <summary>The named input, added with the given hue if the node does not have one yet.</summary>
+    /// <param name="name">Socket name to find or create.</param>
+    /// <param name="hue">Colour slot used if it has to be created.</param>
+    /// <param name="allowMultiple">Whether more than one wire may land here.</param>
     public GraphSocket GetOrAddInput(string name, GraphHue hue, bool allowMultiple = true)
         => Inputs.Find(socket => socket.Name == name) ?? AddInput(name, hue, allowMultiple);
 
     /// <summary>The named output, added with the given hue if the node does not have one yet.</summary>
+    /// <param name="name">Socket name to find or create.</param>
+    /// <param name="hue">Colour slot used if it has to be created.</param>
     public GraphSocket GetOrAddOutput(string name, GraphHue hue)
         => Outputs.Find(socket => socket.Name == name) ?? AddOutput(name, hue);
 
+    /// <summary>Adds a plain text row.</summary>
+    /// <param name="text">The text to draw.</param>
     public void AddText(string text)
     {
         Rows.Add(new TextRow(text, message: false));
@@ -134,21 +162,31 @@ class GraphNode : IGraphElement
     }
 
     /// <summary>Removes a socket and its row, e.g. after its last wire was disconnected.</summary>
+    /// <param name="socket">The socket to remove.</param>
     public void RemoveSocket(GraphSocket socket)
     {
+        ArgumentNullException.ThrowIfNull(socket);
+
         (socket.IsInput ? Inputs : Outputs).Remove(socket);
         Rows.RemoveAll(row => row is SocketRow socketRow && socketRow.Socket == socket);
         ContentVersion++;
     }
 
+    /// <summary>Adds an empty row, leaving a gap between the rows around it.</summary>
     public void AddSpace() => AddText(string.Empty);
 
+    /// <summary>Adds a row marked as a message rather than data.</summary>
+    /// <param name="text">The message to draw.</param>
     public void AddMessage(string text)
     {
         Rows.Add(new TextRow(text, message: true));
         ContentVersion++;
     }
 
+    /// <summary>Adds a row carrying an icon beside its text.</summary>
+    /// <param name="text">The text to draw.</param>
+    /// <param name="icon">Icon key the host resolves.</param>
+    /// <param name="hue">Colour slot of the row.</param>
     public void AddResourceRow(string text, string icon, GraphHue hue)
     {
         Rows.Add(new ResourceRow(text, icon, hue));
@@ -160,6 +198,9 @@ class GraphNode : IGraphElement
     /// resource row with the asset <paramref name="icon"/> and the file's trimmed display name.
     /// Shared by the graph frontends so a referenced file reads and opens the same way in each.
     /// </summary>
+    /// <param name="resourcePath">Path of the referenced file.</param>
+    /// <param name="icon">Icon key the host resolves.</param>
+    /// <param name="hue">Colour slot of the row.</param>
     public void AddResourceReference(string resourcePath, string icon, GraphHue hue)
     {
         ExternalResourceName = resourcePath;
@@ -186,7 +227,9 @@ class GraphNode : IGraphElement
         return display.Length > 23 ? '…' + display[^22..] : display;
     }
 
-    /// <summary>Compact hue-marked note row, e.g. an inlined special-target connection.</summary>
+    /// <summary>Adds a compact hue-marked note row, e.g. an inlined special-target connection.</summary>
+    /// <param name="text">The note to draw.</param>
+    /// <param name="hue">Colour slot of the note.</param>
     public void AddAnnotation(string text, GraphHue hue)
     {
         Rows.Add(new AnnotationRow(text, hue));
@@ -213,53 +256,98 @@ class GraphNode : IGraphElement
         ContentVersion++;
     }
 
+    /// <summary>The header hue, falling back to the first socket's hue when none was set.</summary>
     public GraphHue EffectiveCategory => Category
         ?? (Outputs.Count > 0 ? Outputs[0].Hue : Inputs.Count > 0 ? Inputs[0].Hue : GraphHue.Neutral);
 }
 
-abstract class GraphRow
+/// <summary>One line of a node's content.</summary>
+public abstract class GraphRow
 {
 }
 
-sealed class TextRow(string text, bool message) : GraphRow
+/// <summary>A row of plain text, or of a message when <see cref="IsMessage"/> is set.</summary>
+/// <param name="text">The text to draw.</param>
+/// <param name="message">Whether the row is a message rather than data.</param>
+public sealed class TextRow(string text, bool message) : GraphRow
 {
+    /// <summary>The text drawn on this row.</summary>
     public string Text { get; } = text;
+
+    /// <summary>Whether this row is a message rather than data.</summary>
     public bool IsMessage { get; } = message;
 }
 
-sealed class SocketRow(GraphSocket socket) : GraphRow
+/// <summary>A row carrying one socket.</summary>
+/// <param name="socket">The socket on this row.</param>
+public sealed class SocketRow(GraphSocket socket) : GraphRow
 {
+    /// <summary>The socket drawn on this row.</summary>
     public GraphSocket Socket { get; } = socket;
 }
 
-sealed class PairedSocketRow(GraphSocket? input, GraphSocket? output) : GraphRow
+/// <summary>A row carrying an input on the left edge and an output on the right.</summary>
+/// <param name="input">The input socket, or null.</param>
+/// <param name="output">The output socket, or null.</param>
+public sealed class PairedSocketRow(GraphSocket? input, GraphSocket? output) : GraphRow
 {
+    /// <summary>The socket on the left edge, if any.</summary>
     public GraphSocket? Input { get; } = input;
+
+    /// <summary>The socket on the right edge, if any.</summary>
     public GraphSocket? Output { get; } = output;
 }
 
-sealed class ResourceRow(string text, string icon, GraphHue hue) : GraphRow
+/// <summary>A row naming a referenced file, drawn with an asset icon.</summary>
+/// <param name="text">Display name of the file.</param>
+/// <param name="icon">Icon key the host resolves.</param>
+/// <param name="hue">Colour slot of the row.</param>
+public sealed class ResourceRow(string text, string icon, GraphHue hue) : GraphRow
 {
+    /// <summary>Display name of the referenced file.</summary>
     public string Text { get; } = text;
+
+    /// <summary>Icon key the host resolves to an image.</summary>
     public string Icon { get; } = icon;
+
+    /// <summary>Colour slot of the row.</summary>
     public GraphHue Hue { get; } = hue;
 }
 
-sealed class AnnotationRow(string text, GraphHue hue) : GraphRow
+/// <summary>A compact hue-marked note row.</summary>
+/// <param name="text">The note to draw.</param>
+/// <param name="hue">Colour slot of the note.</param>
+public sealed class AnnotationRow(string text, GraphHue hue) : GraphRow
 {
+    /// <summary>The note drawn on this row.</summary>
     public string Text { get; } = text;
+
+    /// <summary>Colour slot of the note.</summary>
     public GraphHue Hue { get; } = hue;
 }
 
-class GraphSocket : IGraphElement
+/// <summary>One endpoint a wire can dock at, owned by a node.</summary>
+public class GraphSocket : IGraphElement
 {
+    /// <summary>The node this socket belongs to.</summary>
     public GraphNode Owner { get; }
+
+    /// <summary>Name drawn beside the socket dot; may be empty.</summary>
     public string Name { get; }
+
+    /// <summary>Colour slot of the socket and the wires it carries.</summary>
     public GraphHue Hue { get; }
+
+    /// <summary>Whether this socket takes wires in rather than sending them out.</summary>
     public bool IsInput { get; }
+
+    /// <summary>Whether more than one wire may dock here.</summary>
     public bool AllowMultiple { get; }
+
+    /// <summary>Wires docked at this socket.</summary>
     public List<GraphWire> Wires { get; } = [];
 
+    /// <summary>Whether any wire is docked here.</summary>
     public bool IsConnected => Wires.Count > 0;
 
     internal GraphSocket(GraphNode owner, string name, GraphHue hue, bool isInput, bool allowMultiple)
@@ -273,7 +361,7 @@ class GraphSocket : IGraphElement
 }
 
 /// <summary>Which nodes around a target an isolate command keeps visible.</summary>
-enum GraphIsolateMode
+public enum GraphIsolateMode
 {
     /// <summary>The transitive upstream and downstream chain of the node.</summary>
     Chain,
@@ -292,7 +380,7 @@ enum GraphIsolateMode
 }
 
 /// <summary>How a legend row's color sample is drawn.</summary>
-enum GraphLegendKind
+public enum GraphLegendKind
 {
     /// <summary>Filled swatch in the muted node-header palette.</summary>
     Category,
@@ -311,12 +399,21 @@ enum GraphLegendKind
 /// One legend row. Colors are palette slots, never raw ARGB, so the legend adapts to the
 /// active theme like the graph itself; the host resolves them at paint time.
 /// </summary>
-readonly record struct GraphLegendEntry(string Label, GraphHue Hue, GraphLegendKind Kind = GraphLegendKind.Category);
+/// <param name="Label">Text of the legend row.</param>
+/// <param name="Hue">Colour slot the sample is drawn in.</param>
+/// <param name="Kind">How the sample is drawn.</param>
+public readonly record struct GraphLegendEntry(string Label, GraphHue Hue, GraphLegendKind Kind = GraphLegendKind.Category);
 
-class GraphWire : IGraphElement
+/// <summary>A directed connection from an output socket to an input socket.</summary>
+public class GraphWire : IGraphElement
 {
+    /// <summary>The output socket this wire leaves.</summary>
     public GraphSocket From { get; }
+
+    /// <summary>The input socket this wire enters.</summary>
     public GraphSocket To { get; }
+
+    /// <summary>Whether this is a secondary binding rather than primary flow.</summary>
     public bool Dashed { get; init; }
 
     /// <summary>Short text drawn at the wire midpoint (e.g. entity I/O delay/parameter).</summary>

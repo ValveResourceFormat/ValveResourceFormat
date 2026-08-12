@@ -60,9 +60,6 @@ internal static class NmGraphExtractExtensions
 /// </summary>
 public sealed partial class NmGraphExtract : IDisposable
 {
-    private const float NodeColumnSpacing = 240.0f;
-    private const float NodeRowSpacing = 144.0f;
-
     private readonly Resource _resource;
     private readonly IFileLoader _fileLoader;
     private readonly KVObject _graph;
@@ -284,10 +281,9 @@ public sealed partial class NmGraphExtract : IDisposable
         var globalTransitions = transitionInfos.Where(info => info.GroupKind == StateMachineTransitionGroup.Global).ToArray();
         nodes.Add(BuildGlobalTransitionConduit(nodeIndex, stateDefinitions, globalTransitions, stateNodes));
 
-        var conduitRow = 0;
         foreach (var conduitGroup in transitionInfos.Where(info => info.GroupKind == StateMachineTransitionGroup.Standard).GroupBy(info => (info.SourceStateNodeIndex, info.TargetStateNodeIndex)))
         {
-            nodes.Add(BuildTransitionConduit(nodeIndex, conduitGroup.ToArray(), stateNodes, conduitRow++));
+            nodes.Add(BuildTransitionConduit(nodeIndex, conduitGroup.ToArray(), stateNodes));
         }
 
         graphNode.Add("m_nodes", nodes);
@@ -444,8 +440,8 @@ public sealed partial class NmGraphExtract : IDisposable
             var transition = transitionsByTargetState.GetValueOrDefault(targetStateNodeIndex);
 
             var transitionNode = transition is { }
-                ? CreateTransitionResultNode("CNmGraphDocGlobalTransitionNode", transition.TransitionNodeIndex, transition.CanBeForced, stateId, row++)
-                : CreateDefaultGlobalTransitionNode(targetStateNodeIndex, stateId, row++);
+                ? CreateTransitionResultNode("CNmGraphDocGlobalTransitionNode", transition.TransitionNodeIndex, transition.CanBeForced, stateId)
+                : CreateDefaultGlobalTransitionNode(targetStateNodeIndex, stateId);
             graphBuilder.Nodes.Add(transitionNode);
 
             if (transition is null)
@@ -548,21 +544,19 @@ public sealed partial class NmGraphExtract : IDisposable
         return [.. orderedStateDefinitions];
     }
 
-    private KVObject BuildTransitionConduit(int stateMachineNodeIndex, IReadOnlyList<TransitionInfo> transitions, Dictionary<int, KVObject> stateNodes, int conduitRow)
+    private KVObject BuildTransitionConduit(int stateMachineNodeIndex, IReadOnlyList<TransitionInfo> transitions, Dictionary<int, KVObject> stateNodes)
     {
         var firstTransition = transitions[0];
         var conduitKey = GetTransitionConduitKey(stateMachineNodeIndex, firstTransition);
         var conduitNode = CreateBaseNode("CNmGraphDocTransitionConduitNode", MakeGuid(), GetPathLeaf(firstTransition.GroupPath));
-        conduitNode["m_position"] = MakeVector2(0.0f, conduitRow * NodeRowSpacing);
         conduitNode.Add("m_startStateID", stateNodes[firstTransition.SourceStateNodeIndex].GetStringProperty("m_ID"));
         conduitNode.Add("m_endStateID", stateNodes[firstTransition.TargetStateNodeIndex].GetStringProperty("m_ID"));
 
         var graphBuilder = new FlowGraphBuilder(conduitKey, "TransitionConduit");
 
-        var row = 0;
         foreach (var transition in transitions)
         {
-            var transitionNode = CreateTransitionResultNode("CNmGraphDocTransitionNode", transition.TransitionNodeIndex, transition.CanBeForced, null, row++);
+            var transitionNode = CreateTransitionResultNode("CNmGraphDocTransitionNode", transition.TransitionNodeIndex, transition.CanBeForced, null);
             graphBuilder.Nodes.Add(transitionNode);
 
             foreach (var (sourceIndex, inputIndex) in EnumerateTransitionInputs(transition.CompiledTransitionNode, transition.ConditionNodeIndex))
@@ -2145,14 +2139,13 @@ public sealed partial class NmGraphExtract : IDisposable
         return node;
     }
 
-    private KVObject CreateTransitionResultNode(string className, int transitionNodeIndex, bool canBeForced, string? stateId, int row)
+    private KVObject CreateTransitionResultNode(string className, int transitionNodeIndex, bool canBeForced, string? stateId)
     {
         var compiledNode = GetCompiledNode(transitionNodeIndex)
             ?? throw new InvalidDataException($"Missing transition node {transitionNodeIndex}.");
         var transitionFlags = (uint)(compiledNode.GetSubCollection("m_transitionOptions")?.GetInt64Property("m_flags") ?? 0);
 
         var node = CreateBaseNode(className, MakeGuid(), GetNodeName(transitionNodeIndex));
-        node["m_position"] = MakeVector2(0.0f, row * NodeRowSpacing);
         node.Add("m_inputPins", MakePins([
             new PinDef("Condition", "Bool"),
             new PinDef("Duration Override", "Float"),
@@ -2231,10 +2224,9 @@ public sealed partial class NmGraphExtract : IDisposable
         return "None";
     }
 
-    private KVObject CreateDefaultGlobalTransitionNode(int stateNodeIndex, string stateId, int row)
+    private KVObject CreateDefaultGlobalTransitionNode(int stateNodeIndex, string stateId)
     {
         var node = CreateBaseNode("CNmGraphDocGlobalTransitionNode", MakeGuid(), GetNodeName(stateNodeIndex));
-        node["m_position"] = MakeVector2(0.0f, row * NodeRowSpacing);
         node.Add("m_inputPins", MakePins([
             new PinDef("Condition", "Bool"),
             new PinDef("Duration Override", "Float"),

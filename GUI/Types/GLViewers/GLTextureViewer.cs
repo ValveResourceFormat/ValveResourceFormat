@@ -20,6 +20,7 @@ using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.TextureDecoders;
 using static ValveResourceFormat.ResourceTypes.Texture;
 
+using ValveResourceFormat.Graphs;
 namespace GUI.Types.GLViewers
 {
     class GLTextureViewer : GLBaseControl, IDisposable

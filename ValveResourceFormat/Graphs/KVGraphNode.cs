@@ -1,29 +1,33 @@
 using System.Globalization;
 using System.Text;
-using GUI.Types.Graphs.Core;
 using ValveKeyValue;
 
-namespace GUI.Types.Graphs;
+namespace ValveResourceFormat.Graphs;
 
 /// <summary>
 /// Graph node carrying its source <see cref="KVObject"/> and exposing the Name/NodeType
 /// naming used by the resource graph frontends.
 /// </summary>
-class KVGraphNode : GraphNode
+public class KVGraphNode : GraphNode
 {
+    /// <summary>The keyvalues object this node was built from.</summary>
     public KVObject? Data { get; set; }
 
+    /// <summary>Creates a node carrying its source keyvalues object.</summary>
+    /// <param name="data">The object this node was built from.</param>
     public KVGraphNode(KVObject? data)
     {
         Data = data;
     }
 
+    /// <summary>The node's title, under the name the resource graph frontends use.</summary>
     public string? Name
     {
         get => Title;
         set => Title = value ?? string.Empty;
     }
 
+    /// <summary>The node's subtitle, under the name the resource graph frontends use.</summary>
     public string NodeType
     {
         get => Subtitle ?? string.Empty;
@@ -31,7 +35,8 @@ class KVGraphNode : GraphNode
     }
 
     /// <summary>Single-line display form of a KV value.</summary>
-    internal static string StringifyValue(KVObject obj)
+    /// <param name="obj">The value to render.</param>
+    public static string StringifyValue(KVObject obj)
     {
         switch (obj.ValueType)
         {

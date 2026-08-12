@@ -1,6 +1,5 @@
-using GUI.Types.Graphs.Core;
 
-namespace GUI.Types.Graphs;
+namespace ValveResourceFormat.Graphs;
 
 /// <summary>
 /// Entity classname to header hue for the entity I/O graph. Lookup order: exact overrides
@@ -8,8 +7,10 @@ namespace GUI.Types.Graphs;
 /// family prefixes, Neutral. Pink is reserved for sound entities and Emerald for
 /// point_template.
 /// </summary>
-internal static class EntityClassHues
+public static class EntityClassHues
 {
+    /// <summary>Header hue for an entity classname.</summary>
+    /// <param name="classname">The entity classname to colour.</param>
     public static GraphHue For(string classname)
     {
         if (Overrides.TryGetValue(classname, out var hue))
