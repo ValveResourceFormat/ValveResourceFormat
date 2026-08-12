@@ -25,6 +25,7 @@ layout(binding = 3, std140) buffer Luminance { float outputLuminance; };
 #else
     layout (local_size_x = 256) in;
 
+    // Weighted bin sums
     shared float localHistogram[256];
 #endif
 
