@@ -389,7 +389,57 @@ public class Rubikon
     /// <param name="halfExtents">Half-extents of the box.</param>
     /// <param name="collisionName">Collision interaction name used to filter shapes.</param>
     /// <returns><see langword="true"/> if any physics triangle overlaps the box.</returns>
-    public bool CheckOverlap(Vector3 center, Vector3 halfExtents, string collisionName)
+    public bool IntersectsAABB(Vector3 center, Vector3 halfExtents, string collisionName)
+    {
+        if (CheckMeshOverlap(center, halfExtents, collisionName))
+        {
+            return true;
+        }
+
+        if (HullTree.Length > 0)
+        {
+            var hullQuery = new OverlapHullsQuery(center, halfExtents, collisionName, Hulls, HullIndices);
+            TraverseBvh(HullTree, ref hullQuery);
+
+            if (hullQuery.Overlaps)
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /// <summary>
+    /// Tests a box at rest against the solid volume of this shape, rather than against its surface.
+    /// </summary>
+    /// <remarks>
+    /// What a trigger volume asks, and the difference from <see cref="IntersectsAABB"/> is a box that has
+    /// gone all the way inside a hull: no surface is in contact there, so the surface test calls it a
+    /// miss and a trigger driven by it would let go of anything that walked far enough in.
+    /// </remarks>
+    /// <param name="center">Center of the box.</param>
+    /// <param name="halfExtents">Half-extents of the box.</param>
+    /// <param name="collisionName">Collision interaction name used to filter shapes.</param>
+    /// <returns><see langword="true"/> if the box is inside or touching one of the hulls.</returns>
+    public bool IntersectsOrContainsAABB(Vector3 center, Vector3 halfExtents, string collisionName)
+    {
+        if (HullTree.Length > 0)
+        {
+            var hullQuery = new VolumeOverlapHullsQuery(center, halfExtents, collisionName, Hulls, HullIndices);
+            TraverseBvh(HullTree, ref hullQuery);
+
+            if (hullQuery.Overlaps)
+            {
+                return true;
+            }
+        }
+
+        // A triangle mesh is a surface and encloses nothing, so contact is the only overlap it can report
+        return CheckMeshOverlap(center, halfExtents, collisionName);
+    }
+
+    private bool CheckMeshOverlap(Vector3 center, Vector3 halfExtents, string collisionName)
     {
         foreach (var mesh in Meshes)
         {
@@ -407,12 +457,22 @@ public class Rubikon
             }
         }
 
-        if (HullTree.Length > 0)
-        {
-            var hullQuery = new OverlapHullsQuery(center, halfExtents, collisionName, Hulls, HullIndices);
-            TraverseBvh(HullTree, ref hullQuery);
+        return false;
+    }
 
-            if (hullQuery.Overlaps)
+    /// <summary>
+    /// Whether one of a hull's face planes has the whole box on its outside, which is what makes the box
+    /// and the hull disjoint. Passing every plane is taken as an overlap, which is exact except just
+    /// outside a hull's edges and corners, where a box can clear every face and still miss the hull.
+    /// </summary>
+    private static bool HullSeparatesBox(in PhysicsHullData hull, Vector3 center, Vector3 halfExtents)
+    {
+        foreach (var plane in hull.Planes)
+        {
+            // The nearest point of the box to the hull's inside, so the whole box is out when it is out
+            var nearest = Vector3.Dot(plane.Normal, center) - Vector3.Dot(Vector3.Abs(plane.Normal), halfExtents);
+
+            if (nearest - plane.Offset > 0f)
             {
                 return true;
             }
@@ -436,18 +496,8 @@ public class Rubikon
                 continue;
             }
 
-            var inside = true;
-
-            foreach (var plane in hull.Planes)
-            {
-                if (Vector3.Dot(plane.Normal, point) - plane.Offset > 0f)
-                {
-                    inside = false;
-                    break;
-                }
-            }
-
-            if (inside)
+            // A point is a box with no extents, so the plane test is the same one
+            if (!HullSeparatesBox(hull, point, Vector3.Zero))
             {
                 return true;
             }
@@ -526,6 +576,42 @@ public class Rubikon
                 var v2 = mesh.VertexPositions[triangle.Z];
 
                 if (TriangleOverlaps(center, halfExtents, v0, v1, v2))
+                {
+                    Overlaps = true;
+                    return true;
+                }
+            }
+
+            return false;
+        }
+    }
+
+    /// <summary>The <see cref="OverlapHullsQuery"/> for solid volumes: a box inside a hull counts.</summary>
+    private struct VolumeOverlapHullsQuery(Vector3 center, Vector3 halfExtents, string collisionName, PhysicsHullData[] hulls, int[] hullIndices) : IBvhQuery
+    {
+        public bool Overlaps;
+
+        public readonly bool IntersectsNode(in Node node) => BoxIntersectsAABB(center, halfExtents, node.Min, node.Max);
+
+        public readonly bool DescendLeftFirst(int splitAxis) => true;
+
+        public bool VisitLeaf(int start, int count)
+        {
+            for (var i = start; i < start + count; i++)
+            {
+                var hull = hulls[hullIndices[i]];
+
+                if (SkipsCollision(collisionName, hull.InteractAs, hull.InteractExclude))
+                {
+                    continue;
+                }
+
+                if (!BoxIntersectsAABB(center, halfExtents, hull.Min, hull.Max))
+                {
+                    continue;
+                }
+
+                if (!HullSeparatesBox(hull, center, halfExtents))
                 {
                     Overlaps = true;
                     return true;

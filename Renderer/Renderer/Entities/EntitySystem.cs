@@ -228,8 +228,9 @@ public sealed class EntitySystem
                 return;
             }
 
-            // Overlaps rejects on world bounds first, so a trigger nowhere near costs one box test
-            var isOverlapping = volume.Overlaps(center, halfExtents);
+            // Against the volume rather than its surface: a player standing well inside a big trigger is
+            // still touching it. Rejects on world bounds first, so a trigger nowhere near costs one box test.
+            var isOverlapping = volume.OverlapsVolume(center, halfExtents);
 
             entity.UpdateTouchLink(player, isOverlapping);
             player.UpdateTouchLink(entity, isOverlapping);
