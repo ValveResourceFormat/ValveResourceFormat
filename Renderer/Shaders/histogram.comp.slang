@@ -10,9 +10,6 @@ layout(binding = 2, std430) buffer HistogramBuffer
     uint histogram[256];
 };
 
-// Shared histogram used inside a workgroup
-shared uint localHistogram[256];
-
 uniform float logMinLuminance;      // Minimum log luminance value
 uniform float logLuminanceRange;    // Range of log luminance (inverse scale factor)
 
@@ -22,8 +19,14 @@ layout(binding = 3, std140) buffer Luminance { float outputLuminance; };
 
 #if D_HISTOGRAM_MODE == 0
     layout (local_size_x = 16, local_size_y = 16) in;
+
+    // Shared histogram used inside a workgroup
+    shared uint localHistogram[256];
 #else
     layout (local_size_x = 256) in;
+
+    // Weighted bin sums; a uint sum wraps above 255 * 16,843,009 pixels (2^32 - 1)
+    shared float localHistogram[256];
 #endif
 
 void main()
@@ -71,7 +74,7 @@ void main()
     uint totalPixels = imageResolution.x * imageResolution.y;
 
     // sum up weighted bin values
-    localHistogram[bin] = histogram[bin] * bin;
+    localHistogram[bin] = float(histogram[bin]) * float(bin);
     memoryBarrierShared();
     barrier();
     for (uint stride = 128; stride > 0; stride >>= 1)
@@ -86,8 +89,8 @@ void main()
 
     if(bin == 0)
     {
-        uint weightedSum = localHistogram[0];
-        float averageBin = totalPixels > 0u ? float(weightedSum) / float(totalPixels) : 0.0;
+        float weightedSum = localHistogram[0];
+        float averageBin = totalPixels > 0u ? weightedSum / float(totalPixels) : 0.0;
         float logLuma = averageBin * (logLuminanceRange / 255.0) + logMinLuminance;
         outputLuminance = exp2(logLuma);
     }
