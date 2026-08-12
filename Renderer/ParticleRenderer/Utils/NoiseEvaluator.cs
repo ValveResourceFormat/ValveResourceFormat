@@ -114,7 +114,7 @@ namespace ValveResourceFormat.Renderer.Particles.Utils
                         ? Noise.Simplex3D(warped)
                         : Noise.Worley3D(warped, 0.97f, 22f);
 
-                    target = value * resampled;
+                    target = RoundTripThroughOne(value * resampled);
                     break;
                 }
                 default:
@@ -127,10 +127,30 @@ namespace ValveResourceFormat.Renderer.Particles.Utils
         private float ApplyModifier(float value) => modifier switch
         {
             ParticleNoiseModifier.PF_NOISE_MODIFIER_NONE => (value * 0.5f) + 0.5f,
-            ParticleNoiseModifier.PF_NOISE_MODIFIER_LINES => MathF.Pow(MathF.Sin(value * (3f * MathF.PI)), 2f),
-            ParticleNoiseModifier.PF_NOISE_MODIFIER_CLUMPS => (2.5f * MathF.Abs(value)) - 0.5f,
+            ParticleNoiseModifier.PF_NOISE_MODIFIER_LINES => Square(MathF.Sin(value * (3f * MathF.PI))),
+            ParticleNoiseModifier.PF_NOISE_MODIFIER_CLUMPS => Clumps(value),
             ParticleNoiseModifier.PF_NOISE_MODIFIER_RINGS => Math.Clamp((MathF.Abs(MathF.Sin(value * MathF.PI)) + 0.25f) / 1.25f, 0f, 1f),
             _ => 1f,
         };
+
+        private static float Square(float value) => value * value;
+
+        /// <summary>
+        /// A subtraction from one and back, which the alternate turbulence puts its target through.
+        /// It is not an identity in floats: it moves about a third of inputs by a ulp.
+        /// </summary>
+        private static float RoundTripThroughOne(float value) => 1f - (1f - value);
+
+        /// <summary>
+        /// The 2.5x gain the clumps modifier applies, summed one halving divisor at a time as the
+        /// engine does rather than as a single multiply, which lands a ulp away over a third of the
+        /// time.
+        /// </summary>
+        private static float Clumps(float value)
+        {
+            var magnitude = MathF.Abs(value);
+
+            return -0.5f + (magnitude / 0.75f) + (magnitude / 1.5f) + (magnitude / 3f) + (magnitude / 6f);
+        }
     }
 }
