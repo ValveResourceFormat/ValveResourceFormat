@@ -27,7 +27,7 @@ internal static class GraphModelLayout
         {
             if (routes[i] is { } waypoints)
             {
-                geometry.RouteOf(componentWires[i]).Waypoints = [.. waypoints];
+                geometry.RouteOf(componentWires[i]).SetRoute(waypoints);
             }
         }
 
@@ -76,13 +76,13 @@ internal static class GraphModelLayout
         var top = owner.Position.Y - 26f;
 
         var route = geometry.RouteOf(wire);
-        route.Waypoints =
+        route.SetRoute(
         [
             new Vector2(from.X + 36f, from.Y),
             new Vector2(from.X + 36f, top),
             new Vector2(to.X - 36f, top),
             new Vector2(to.X - 36f, to.Y),
-        ];
+        ]);
     }
 
     /// <summary>

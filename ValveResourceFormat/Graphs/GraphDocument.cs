@@ -1,4 +1,3 @@
-using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 
 namespace ValveResourceFormat.Graphs;
@@ -341,15 +340,15 @@ public sealed class GraphDocument
     }
 
     /// <summary>The connected components of the graph, each node in exactly one list.</summary>
-    [SuppressMessage("Design", "CA1024:Use properties where appropriate", Justification = "Walks the whole graph on every call.")]
     public List<List<GraphNode>> GetComponents() => CollectComponents(includeHidden: true);
 
     /// <summary>Whether the graph is made of more than one island.</summary>
     public bool HasMultipleIslands() => GetComponents().Count > 1;
 
-    /// <summary>Self-loop wire count and the number of nodes no wire touches.</summary>
-    [SuppressMessage("Design", "CA1024:Use properties where appropriate", Justification = "Walks every node and wire on every call.")]
-    public (int SelfLoops, int Orphans) GetGraphHealthCounts()
+    /// <summary>
+    /// Counts the self-loop wires and the nodes no wire touches, by walking every node and wire.
+    /// </summary>
+    public (int SelfLoops, int Orphans) CountSelfLoopsAndOrphans()
     {
         var selfLoops = 0;
 
@@ -683,11 +682,11 @@ public sealed class GraphDocument
                 {
                     foreach (var wire in socket.Wires)
                     {
-                        if (Geometry.TryRouteOf(wire)?.Waypoints is { } waypoints)
+                        if (Geometry.TryRouteOf(wire) is { IsRouted: true } route)
                         {
-                            for (var w = 0; w < waypoints.Count; w++)
+                            for (var w = 0; w < route.Waypoints.Count; w++)
                             {
-                                waypoints[w] += offset;
+                                route.Waypoints[w] += offset;
                             }
                         }
                     }
@@ -784,7 +783,7 @@ public sealed class GraphDocument
 
             if (route != null)
             {
-                route.Waypoints = null;
+                route.ClearRoute();
             }
         }
     }
@@ -811,7 +810,7 @@ public sealed class GraphDocument
 
             if (route != null)
             {
-                route.Waypoints = null;
+                route.ClearRoute();
             }
         }
     }

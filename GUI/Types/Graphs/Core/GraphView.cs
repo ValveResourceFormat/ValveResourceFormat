@@ -21,7 +21,8 @@ partial class GraphView : IDisposable
 
     private readonly Dictionary<GraphWire, WirePaths> wirePaths = [];
 
-    private IGraphElement? lastHovered;
+    private GraphNode? hoveredNode;
+    private GraphWire? hoveredWire;
 
     private IReadOnlyList<GraphNode> nodes => Document.Nodes;
     private IReadOnlyList<GraphWire> wires => Document.Wires;
@@ -199,27 +200,22 @@ partial class GraphView : IDisposable
 
         lastLocation = graphPoint;
 
-        var element = FindElementAtCore(graphPoint);
-
-        // Sockets are inert click targets; treat them as their owner node so edges stay draggable.
-        if (element is GraphSocket socket)
-        {
-            element = socket.Owner;
-        }
+        // A socket is an inert click target: the hit test reports its owner so edges stay draggable.
+        var (hitNode, hitWire) = HitTest(graphPoint);
 
         if ((button & MouseButtons.Left) != 0)
         {
-            if (element == null && modifiers != Keys.Shift)
+            if (hitNode == null && hitWire == null && modifiers != Keys.Shift)
             {
                 ClearSelection();
             }
 
-            if (element is GraphWire wire)
+            if (hitWire is { } wire)
             {
                 SelectWire(wire);
             }
 
-            if (!IsMoving && element is GraphNode selectedNode)
+            if (!IsMoving && hitNode is { } selectedNode)
             {
                 if (modifiers == Keys.Shift)
                 {
@@ -231,7 +227,7 @@ partial class GraphView : IDisposable
                 }
             }
 
-            if (!IsMoving && element is GraphNode node && Selection.PrimaryNode != null)
+            if (!IsMoving && hitNode is { } node && Selection.PrimaryNode != null)
             {
                 IsMoving = true;
                 dragStarted = false;
@@ -285,11 +281,12 @@ partial class GraphView : IDisposable
             return;
         }
 
-        var element = FindElementAtCore(graphPoint);
+        var (hitNode, hitWire) = HitTest(graphPoint);
 
-        if (lastHovered != element)
+        if (hoveredNode != hitNode || hoveredWire != hitWire)
         {
-            lastHovered = element;
+            hoveredNode = hitNode;
+            hoveredWire = hitWire;
             OnGraphChanged();
         }
     }
@@ -319,13 +316,28 @@ partial class GraphView : IDisposable
         dragStarted = false;
     }
 
-    public IGraphElement? FindElementAt(SKPoint point)
+    /// <summary>
+    /// The node under <paramref name="point"/>, whether the point is on its card or on one of its
+    /// socket dots. Null when the point is over a wire or over empty canvas.
+    /// </summary>
+    public GraphNode? FindNodeAt(SKPoint point)
     {
         using var _ = stateLock.EnterScope();
-        return FindElementAtCore(point);
+        return HitTest(point).Node;
     }
 
-    private IGraphElement? FindElementAtCore(SKPoint point)
+    /// <summary>The wire under <paramref name="point"/>, or null. Nodes take priority over wires.</summary>
+    public GraphWire? FindWireAt(SKPoint point)
+    {
+        using var _ = stateLock.EnterScope();
+        return HitTest(point).Wire;
+    }
+
+    /// <summary>
+    /// What sits under a point: the node whose card or socket was hit, else the wire that was hit,
+    /// else neither. Nodes are searched in z-order and take priority over wires.
+    /// </summary>
+    private (GraphNode? Node, GraphWire? Wire) HitTest(SKPoint point)
     {
         const float socketHitRadius = GraphMetrics.SocketRadius + 3f;
 
@@ -356,7 +368,7 @@ partial class GraphView : IDisposable
                 var pivot = Geometry.PivotOf(socket);
                 if (Math.Abs(point.X - pivot.X) <= socketHitRadius && Math.Abs(point.Y - pivot.Y) <= socketHitRadius)
                 {
-                    return socket;
+                    return (node, null);
                 }
             }
 
@@ -365,14 +377,14 @@ partial class GraphView : IDisposable
                 var pivot = Geometry.PivotOf(socket);
                 if (Math.Abs(point.X - pivot.X) <= socketHitRadius && Math.Abs(point.Y - pivot.Y) <= socketHitRadius)
                 {
-                    return socket;
+                    return (node, null);
                 }
             }
 
             if (point.X >= node.Position.X && point.X <= node.Position.X + size.X &&
                 point.Y >= node.Position.Y && point.Y <= node.Position.Y + size.Y)
             {
-                return node;
+                return (node, null);
             }
         }
 
@@ -389,11 +401,11 @@ partial class GraphView : IDisposable
 
             if (entry.HitBounds.Contains(point.X, point.Y) && entry.HitPath!.Contains(point.X, point.Y))
             {
-                return wire;
+                return (null, wire);
             }
         }
 
-        return null;
+        return (null, null);
     }
 
     private void BringNodeToFront(GraphNode node)
@@ -516,7 +528,7 @@ partial class GraphView : IDisposable
     public bool HasMultipleIslands() => Document.HasMultipleIslands();
 
     /// <summary>Self-loop wire count and the number of nodes no wire touches.</summary>
-    public (int SelfLoops, int Orphans) GetGraphHealthCounts() => Document.GetGraphHealthCounts();
+    public (int SelfLoops, int Orphans) CountSelfLoopsAndOrphans() => Document.CountSelfLoopsAndOrphans();
 
     /// <summary>
     /// Lays out each connected component independently and packs the components toward a
@@ -566,7 +578,8 @@ partial class GraphView : IDisposable
         ClearWirePaths();
         Document.Clear();
 
-        lastHovered = null;
+        hoveredNode = null;
+        hoveredWire = null;
         IsMoving = false;
         dragStarted = false;
 

@@ -1,14 +1,4 @@
-using System.Diagnostics.CodeAnalysis;
-
 namespace ValveResourceFormat.Graphs;
-
-/// <summary>
-/// Anything a host can hit-test to in a graph: a node, one of its sockets, or a wire.
-/// </summary>
-[SuppressMessage("Design", "CA1040:Avoid empty interfaces", Justification = "Marker for the hit-test result union of node, socket and wire.")]
-public interface IGraphElement
-{
-}
 
 /// <summary>
 /// Renderer-agnostic node description: pure content with no derived geometry. Content is an
@@ -16,7 +6,7 @@ public interface IGraphElement
 /// slots the host resolves at draw time. <see cref="Position"/> is document state (the layout's
 /// or the user's placement); everything measured lives in <see cref="GraphGeometry"/>.
 /// </summary>
-public class GraphNode : IGraphElement
+public class GraphNode
 {
     private string title = string.Empty;
     private string? subtitle;
@@ -327,7 +317,7 @@ public sealed class AnnotationRow(string text, GraphHue hue) : GraphRow
 }
 
 /// <summary>One endpoint a wire can dock at, owned by a node.</summary>
-public class GraphSocket : IGraphElement
+public class GraphSocket
 {
     /// <summary>The node this socket belongs to.</summary>
     public GraphNode Owner { get; }
@@ -405,7 +395,7 @@ public enum GraphLegendKind
 public readonly record struct GraphLegendEntry(string Label, GraphHue Hue, GraphLegendKind Kind = GraphLegendKind.Category);
 
 /// <summary>A directed connection from an output socket to an input socket.</summary>
-public class GraphWire : IGraphElement
+public class GraphWire
 {
     /// <summary>The output socket this wire leaves.</summary>
     public GraphSocket From { get; }
