@@ -70,6 +70,15 @@ vec3 CalculateProbeIndirectCoords(vec3 fragPosition)
     return indirectCoords;
 }
 
+vec3 DecodeProbeSample(vec4 value)
+{
+    #if (S_LIGHTMAP_VERSION_MINOR == 0)
+        return DecodeRGBM(value);
+    #endif
+
+    return value.rgb;
+}
+
 vec3 ComputeLightProbeShading(in MaterialProperties_t mat)
 {
     vec3 vIndirectSampleCoords = CalculateProbeIndirectCoords(mat.PositionWS);
@@ -84,14 +93,9 @@ vec3 ComputeLightProbeShading(in MaterialProperties_t mat)
 
     for (int i = 0; i < 3; i++)
     {
-        vAmbient[i] = textureLod(g_tLPV_Irradiance, vIndirectSampleCoords + vec3(0, 0, vDepthSliceOffsets[i]), 0.0).rgb;
+        vAmbient[i] = DecodeProbeSample(textureLod(g_tLPV_Irradiance, vIndirectSampleCoords + vec3(0, 0, vDepthSliceOffsets[i]), 0.0));
         indirectDiffuse += vAmbient[i] * vNormalSquared[i];
     }
-
-    // SteamVR Home lpv irradiance is RGBM Dxt5
-    #if (S_LIGHTMAP_VERSION_MINOR == 0)
-        indirectDiffuse = pow2(indirectDiffuse); // not bothering with RGBM
-    #endif
 
     return indirectDiffuse;
 }

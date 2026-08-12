@@ -229,7 +229,11 @@ vec3 GetEnvironmentNoBRDF(MaterialProperties_t mat, float reflectionCorrectionAm
         vec3 envMapLocalPos = envMapWorldToLocal * vec4(vFragPosition, 1.0);
 
         vec3 coords = GetCorrectedSampleCoords(R, envMapWorldToLocal, envMapLocalPos, isBoxProjection, envMapBoxMin, envMapBoxMax);
-        envMap = textureLod(g_tEnvironmentMap, coords, lod).rgb;
+        #if (S_LIGHTMAP_VERSION_MINOR == 0)
+            envMap = DecodeRGBM(textureLod(g_tEnvironmentMap, coords, lod));
+        #else
+            envMap = textureLod(g_tEnvironmentMap, coords, lod).rgb;
+        #endif
         g_vEnvMapNormalizationSH = envData.NormalizationSH;
     #elif (S_SCENE_CUBEMAP_TYPE == 2)
 
