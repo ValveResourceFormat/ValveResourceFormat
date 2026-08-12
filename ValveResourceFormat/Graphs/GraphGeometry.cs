@@ -1,5 +1,3 @@
-using System.Diagnostics.CodeAnalysis;
-
 namespace ValveResourceFormat.Graphs;
 
 /// <summary>Measured size and layout freshness of one node.</summary>
@@ -21,12 +19,25 @@ public sealed class NodeGeometry
     public float[] RowCenters { get; set; } = [];
 }
 
-/// <summary>Routed geometry of one wire; stays null for a plain socket-to-socket curve.</summary>
+/// <summary>Routed geometry of one wire; empty for a plain socket-to-socket curve.</summary>
 public sealed class WireRoute
 {
     /// <summary>Corner points of the orthogonal route computed by the layout.</summary>
-    [SuppressMessage("Usage", "CA2227:Collection properties should be read only", Justification = "The layout replaces the whole route, and clearing it back to null means the wire draws as a plain curve.")]
-    public List<Vector2>? Waypoints { get; set; }
+    public List<Vector2> Waypoints { get; } = [];
+
+    /// <summary>Whether the layout routed this wire rather than leaving it a plain curve.</summary>
+    public bool IsRouted => Waypoints.Count > 0;
+
+    /// <summary>Replaces the route with the given corner points.</summary>
+    /// <param name="waypoints">The corners to draw the wire through.</param>
+    public void SetRoute(IEnumerable<Vector2> waypoints)
+    {
+        Waypoints.Clear();
+        Waypoints.AddRange(waypoints);
+    }
+
+    /// <summary>Drops the route, leaving the wire to draw as a plain curve.</summary>
+    public void ClearRoute() => Waypoints.Clear();
 }
 
 /// <summary>
@@ -104,7 +115,7 @@ public sealed class GraphGeometry
     {
         foreach (var route in routes.Values)
         {
-            route.Waypoints = null;
+            route.ClearRoute();
         }
     }
 

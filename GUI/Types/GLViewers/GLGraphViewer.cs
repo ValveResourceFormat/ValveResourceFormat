@@ -349,7 +349,7 @@ namespace GUI.Types.GLViewers
         {
             var islandSuffix = islandCount == 1 ? "island" : "islands";
             var text = $"{View.NodeCount} nodes\n{View.WireCount} connections\n{islandCount} {islandSuffix}";
-            var (selfLoops, orphans) = View.GetGraphHealthCounts();
+            var (selfLoops, orphans) = View.CountSelfLoopsAndOrphans();
 
             if (selfLoops > 0)
             {
@@ -546,7 +546,7 @@ namespace GUI.Types.GLViewers
         {
             var graphPoint = ScreenToGraph(e.Location);
 
-            if (View.FindElementAt(graphPoint) is GraphNode node)
+            if (View.FindNodeAt(graphPoint) is { } node)
             {
                 OnNodeDoubleClick(node);
             }
@@ -719,13 +719,7 @@ namespace GUI.Types.GLViewers
             Debug.Assert(GLControl != null);
 
             var graphPoint = ScreenToGraph(location);
-            var node = View.FindElementAt(graphPoint) switch
-            {
-                GraphNode n => n,
-                GraphSocket socket => socket.Owner,
-                GraphWire wire => wire.From.Owner,
-                _ => null,
-            };
+            var node = View.FindNodeAt(graphPoint);
 
             // Selecting the node dims the rest of the graph, so it is unambiguous which
             // node the menu actions will apply to.
@@ -994,9 +988,9 @@ namespace GUI.Types.GLViewers
 
             if (e.Button == MouseButtons.Left && Control.ModifierKeys == Keys.None)
             {
-                var element = View.FindElementAt(graphPoint);
+                var clickedNothing = View.FindNodeAt(graphPoint) == null && View.FindWireAt(graphPoint) == null;
 
-                if (element == null)
+                if (clickedNothing)
                 {
                     base.OnMouseDown(sender, e);
                 }

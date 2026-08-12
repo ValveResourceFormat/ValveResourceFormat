@@ -269,9 +269,9 @@ partial class GraphView
                 Math.Max(from.X, to.X) + 260f,
                 Math.Max(from.Y, to.Y) + 10f);
 
-            if (Geometry.TryRouteOf(wire)?.Waypoints is { Count: > 0 } routedPoints)
+            if (Geometry.TryRouteOf(wire) is { IsRouted: true } routedRoute)
             {
-                foreach (var waypoint in routedPoints)
+                foreach (var waypoint in routedRoute.Waypoints)
                 {
                     wireBounds.Left = Math.Min(wireBounds.Left, waypoint.X - 40f);
                     wireBounds.Top = Math.Min(wireBounds.Top, waypoint.Y - 40f);
@@ -331,7 +331,7 @@ partial class GraphView
                 }
             }
 
-            var isHovered = !isPrimarySelected && connectedColor == null && node == lastHovered;
+            var isHovered = !isPrimarySelected && connectedColor == null && node == hoveredNode;
 
             DrawNode(canvas, node, isPrimarySelected, connectedColor, isHovered, zoom);
         }
@@ -458,7 +458,7 @@ partial class GraphView
 
     private void BuildWirePath(SKPathBuilder path, GraphWire wire, WireRoute? route, SKPoint from, SKPoint to)
     {
-        if (route?.Waypoints is not { Count: > 0 } waypoints)
+        if (route is not { IsRouted: true })
         {
             if (StraightWires)
             {
@@ -478,7 +478,7 @@ partial class GraphView
         {
             path.MoveTo(from);
 
-            foreach (var waypoint in waypoints)
+            foreach (var waypoint in route.Waypoints)
             {
                 path.LineTo(new SKPoint(waypoint.X, waypoint.Y));
             }
@@ -487,7 +487,7 @@ partial class GraphView
             return;
         }
 
-        BuildSmoothRoute(path, from, waypoints, to);
+        BuildSmoothRoute(path, from, route.Waypoints, to);
     }
 
     private void DrawWire(SKCanvas canvas, GraphWire wire, float zoom)
@@ -504,7 +504,7 @@ partial class GraphView
 
         // A self-wire without a route would draw straight through its own card; give it
         // the deterministic synthetic loop instead.
-        if (wire.From.Owner == wire.To.Owner && Geometry.TryRouteOf(wire)?.Waypoints == null)
+        if (wire.From.Owner == wire.To.Owner && Geometry.TryRouteOf(wire) is not { IsRouted: true })
         {
             Document.ReanchorWireWaypoints(wire.From.Owner);
 
@@ -519,7 +519,7 @@ partial class GraphView
 
         var width = GraphMetrics.WireWidth * Math.Max(1f, 1f / zoom);
 
-        if (wire == lastHovered || wire == Selection.Wire)
+        if (wire == hoveredWire || wire == Selection.Wire)
         {
             width *= 1.8f;
         }
