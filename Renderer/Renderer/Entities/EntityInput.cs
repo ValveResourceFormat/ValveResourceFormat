@@ -18,7 +18,6 @@ public sealed class EntityInputAttribute : Attribute
     public string Name { get; }
 
     /// <summary>Names the input.</summary>
-    /// <param name="name">The input's name as authored in maps, matched case-insensitively.</param>
     public EntityInputAttribute(string name)
     {
         Name = name;
@@ -40,14 +39,12 @@ public readonly struct EntityInputData
     public BaseEntity? Caller { get; init; }
 
     /// <summary>Reads the parameter as a float, as Source's <c>inputdata.value.Float()</c> does.</summary>
-    /// <param name="defaultValue">Returned when there is no parameter or it does not parse.</param>
     public float Float(float defaultValue = 0f)
         => float.TryParse(Parameter, NumberStyles.Float, CultureInfo.InvariantCulture, out var value)
             ? value
             : defaultValue;
 
     /// <summary>Reads the parameter as an integer.</summary>
-    /// <param name="defaultValue">Returned when there is no parameter or it does not parse.</param>
     public int Int(int defaultValue = 0)
         => int.TryParse(Parameter, NumberStyles.Integer, CultureInfo.InvariantCulture, out var value)
             ? value
@@ -56,14 +53,12 @@ public readonly struct EntityInputData
     /// <summary>
     /// Reads the parameter as a vector, three numbers separated by spaces, the way a map authors one.
     /// </summary>
-    /// <param name="defaultValue">Returned when there is no parameter or it does not parse.</param>
     public Vector3 Vector(Vector3 defaultValue = default)
         => Parameter != null && EntityTransformHelper.TryParseVector3(Parameter, out var value)
             ? value
             : defaultValue;
 
     /// <summary>Reads the parameter as a boolean, accepting both <c>1</c> and <c>true</c>.</summary>
-    /// <param name="defaultValue">Returned when there is no parameter or it does not parse.</param>
     public bool Bool(bool defaultValue = false)
     {
         if (bool.TryParse(Parameter, out var value))

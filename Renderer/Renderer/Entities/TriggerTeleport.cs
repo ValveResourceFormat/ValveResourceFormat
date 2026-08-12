@@ -20,8 +20,6 @@ public sealed class TriggerTeleport : BaseTrigger
     /// <summary>
     /// Initializes a <c>trigger_teleport</c> from its keyvalues.
     /// </summary>
-    /// <param name="system">The world this entity belongs to.</param>
-    /// <param name="spawnInfo">The entity's keyvalues and spawn context.</param>
     public TriggerTeleport(EntitySystem system, EntitySpawnInfo spawnInfo) : base(system, spawnInfo)
     {
     }

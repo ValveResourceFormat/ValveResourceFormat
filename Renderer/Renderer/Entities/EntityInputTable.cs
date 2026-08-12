@@ -62,9 +62,6 @@ internal static class EntityInputTable
     /// <summary>
     /// Runs the handler an entity declared for an input.
     /// </summary>
-    /// <param name="entity">The entity receiving the input.</param>
-    /// <param name="inputName">The input's name, matched case-insensitively.</param>
-    /// <param name="data">The parameter and the entities that sent it.</param>
     /// <returns><see langword="true"/> when a handler ran.</returns>
     public static bool TryDispatch(BaseEntity entity, string inputName, EntityInputData data)
     {

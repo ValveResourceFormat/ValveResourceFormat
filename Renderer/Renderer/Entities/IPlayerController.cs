@@ -21,9 +21,7 @@ public interface IPlayerController
     Vector3 HullHalfExtents { get; }
 
     /// <summary>
-    /// Moves the player somewhere else outright, keeping their velocity.
+    /// Moves the player somewhere else outright, keeping their velocity. Null angles keep the current ones.
     /// </summary>
-    /// <param name="feetPosition">Where the feet arrive.</param>
-    /// <param name="angles">View angles to adopt, or <see langword="null"/> to keep the current ones.</param>
     void Teleport(Vector3 feetPosition, Vector3? angles);
 }

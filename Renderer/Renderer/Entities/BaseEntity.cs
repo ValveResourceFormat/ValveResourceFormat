@@ -156,8 +156,6 @@ public class BaseEntity
     /// <summary>
     /// Initializes the entity from its keyvalues, reading the properties every entity has.
     /// </summary>
-    /// <param name="system">The world this entity belongs to.</param>
-    /// <param name="spawnInfo">The entity's keyvalues and spawn context.</param>
     protected BaseEntity(EntitySystem system, EntitySpawnInfo spawnInfo)
     {
         EntitySystem = system;
@@ -196,8 +194,6 @@ public class BaseEntity
     /// Initializes an entity created at runtime rather than loaded from a map, so it has no keyvalues to
     /// read and starts at the world origin.
     /// </summary>
-    /// <param name="system">The world this entity belongs to.</param>
-    /// <param name="classname">The classname to report, as the map would have given.</param>
     protected BaseEntity(EntitySystem system, string classname)
     {
         EntitySystem = system;
@@ -236,7 +232,6 @@ public class BaseEntity
     /// <see cref="uint"/>.
     /// </summary>
     /// <typeparam name="TSpawnFlags">The entity class's spawnflags enum.</typeparam>
-    /// <param name="flags">The bits to test. Any one of them being set is a match.</param>
     public bool HasSpawnFlags<TSpawnFlags>(TSpawnFlags flags)
         where TSpawnFlags : struct, Enum
         => (SpawnFlags & Unsafe.BitCast<TSpawnFlags, uint>(flags)) != 0;
@@ -275,8 +270,6 @@ public class BaseEntity
     /// A box rather than the real shape, because that is what trigger volumes test against, here and in
     /// the engine.
     /// </remarks>
-    /// <param name="center">The box centre in world space.</param>
-    /// <param name="halfExtents">Half-extents of the box.</param>
     /// <returns><see langword="true"/> when this entity occupies space.</returns>
     public virtual bool TryGetTouchBounds(out Vector3 center, out Vector3 halfExtents)
     {
@@ -298,33 +291,27 @@ public class BaseEntity
     /// Whether this entity is interested in being touched by <paramref name="other"/>. A refusal keeps the
     /// touch link from opening at all, which is where a trigger's filters belong.
     /// </summary>
-    /// <param name="other">The entity inside this one's volume.</param>
     protected virtual bool AcceptsTouchFrom(BaseEntity other) => true;
 
     /// <summary>Runs on the tick <paramref name="other"/> enters this entity's volume. Source's <c>StartTouch</c>.</summary>
-    /// <param name="other">The entity that entered.</param>
     protected virtual void OnStartTouch(BaseEntity other)
     {
     }
 
     /// <summary>Runs every tick <paramref name="other"/> stays inside this entity's volume. Source's <c>Touch</c>.</summary>
-    /// <param name="other">The entity inside the volume.</param>
     protected virtual void OnTouch(BaseEntity other)
     {
     }
 
     /// <summary>Runs on the tick <paramref name="other"/> leaves this entity's volume. Source's <c>EndTouch</c>.</summary>
-    /// <param name="other">The entity that left.</param>
     protected virtual void OnEndTouch(BaseEntity other)
     {
     }
 
     /// <summary>
     /// Moves the entity somewhere else outright, rather than by travelling there. Source's
-    /// <c>CBaseEntity::Teleport</c>.
+    /// <c>CBaseEntity::Teleport</c>. Null angles keep the current ones.
     /// </summary>
-    /// <param name="origin">Where the entity arrives.</param>
-    /// <param name="angles">Angles to adopt, or <see langword="null"/> to keep the current ones.</param>
     public virtual void Teleport(Vector3 origin, Vector3? angles)
     {
         Origin = origin;
@@ -342,8 +329,6 @@ public class BaseEntity
     /// Opens, sustains, or closes the touch link between this volume and <paramref name="other"/>, firing
     /// the matching handler on the edges.
     /// </summary>
-    /// <param name="other">The entity being tested against this volume.</param>
-    /// <param name="isOverlapping">Whether it currently overlaps.</param>
     internal void UpdateTouchLink(BaseEntity other, bool isOverlapping)
     {
         if (isOverlapping && !AcceptsTouchFrom(other))
@@ -373,33 +358,31 @@ public class BaseEntity
     /// declared for it with <see cref="EntityInputAttribute"/>. Override only to intercept inputs that
     /// cannot be a fixed method, and call the base to fall back to the table.
     /// </summary>
-    /// <param name="inputName">The input's name, matched case-insensitively.</param>
-    /// <param name="data">The parameter and the entities that sent it.</param>
     /// <returns><see langword="true"/> when the input was handled.</returns>
     public virtual bool AcceptInput(string inputName, EntityInputData data)
         => EntityInputTable.TryDispatch(this, inputName, data);
 
     /// <summary>Removes the entity from the world.</summary>
-    /// <param name="data">The input's parameter and sender, unused.</param>
     [EntityInput("Kill")]
     protected void InputKill(EntityInputData data) => EntitySystem.Remove(this);
 
-    /// <summary>Schedules <see cref="Think"/> to run at an absolute time; -1 stops thinking.</summary>
-    /// <param name="time">Absolute time in <see cref="EntitySystem.CurrentTime"/> seconds.</param>
+    /// <summary>
+    /// Schedules <see cref="Think"/> to run at an absolute <see cref="EntitySystem.CurrentTime"/> in
+    /// seconds; -1 stops thinking.
+    /// </summary>
     public void SetNextThink(float time)
         => NextThink = time < 0f ? -1f : EntitySystem.SnapToTick(time);
 
     /// <summary>
-    /// Schedules <see cref="MoveDone"/> to run after a delay, matching Source's <c>SetMoveDoneTime</c>.
+    /// Schedules <see cref="MoveDone"/> to run after a delay in seconds, matching Source's
+    /// <c>SetMoveDoneTime</c>. A negative delay cancels the scheduled move.
     /// </summary>
-    /// <param name="delay">Delay in seconds, or a negative value to cancel the scheduled move.</param>
     public void SetMoveDoneTime(float delay)
         => MoveDoneTime = delay >= 0f ? EntitySystem.CurrentTime + delay : -1f;
 
     /// <summary>
     /// Runs one entity tick: think, move, then move-done, the order Source's pusher physics uses.
     /// </summary>
-    /// <param name="tickInterval">The fixed tick length in seconds.</param>
     internal void Simulate(float tickInterval)
     {
         // The state this tick starts from is the one frames interpolate out of
@@ -451,7 +434,6 @@ public class BaseEntity
     /// turns the body, and these are Source 2 maps. The two only differ for an entity the map already
     /// rotated, such as a brush authored on its side, which would otherwise yaw about the world's up axis.
     /// </remarks>
-    /// <param name="tickInterval">The fixed tick length in seconds.</param>
     protected virtual void PhysicsSimulate(float tickInterval)
     {
         if (Velocity == Vector3.Zero && AngularVelocity == Vector3.Zero)
@@ -467,8 +449,6 @@ public class BaseEntity
     /// <summary>
     /// Turns a QAngle by a delta given in the body's own frame, and reports where that lands as a QAngle.
     /// </summary>
-    /// <param name="from">The orientation to turn.</param>
-    /// <param name="bodyDelta">The turn, as a QAngle about the body's own axes.</param>
     protected static Vector3 TurnBody(Vector3 from, Vector3 bodyDelta)
     {
         var turned = EntityTransformHelper.CreateQuaternionFromEulerAngles(from)
@@ -481,8 +461,6 @@ public class BaseEntity
     /// Moves and turns in one go, so a tick's movement rebuilds the transform once rather than once per
     /// property, and an unchanged write costs nothing.
     /// </summary>
-    /// <param name="newOrigin">The new origin.</param>
-    /// <param name="newAngles">The new angles.</param>
     protected void SetOriginAndAngles(Vector3 newOrigin, Vector3 newAngles)
     {
         if (origin == newOrigin && angles == newAngles)
@@ -544,7 +522,6 @@ public class BaseEntity
     /// placement. <see cref="RootNode"/> is the one the entity is drawn as; a model entity also owns the
     /// collision hulls its model was compiled with.
     /// </summary>
-    /// <param name="node">The node to add.</param>
     protected void AddNode(SceneNode node)
     {
         node.EntityData = Data;
@@ -625,7 +602,6 @@ public class BaseEntity
     /// mathlib's <c>Lerp&lt;QAngle&gt;</c>, taking the shortest arc. Only what is drawn changes; the tick
     /// state stays authoritative.
     /// </remarks>
-    /// <param name="fraction">Where the frame falls between the two ticks, from <see cref="EntitySystem.InterpolationFraction"/>.</param>
     protected virtual void UpdateRenderTransform(float fraction)
     {
         var origin = Vector3.Lerp(previousOrigin, Origin, fraction);
@@ -669,7 +645,6 @@ public class BaseEntity
     /// Wraps an angle into [0, 360), the way the engine's <c>anglemod</c> does, quantization included, so
     /// comparisons against a stored angle behave the same here as they do in Source.
     /// </summary>
-    /// <param name="degrees">The angle in degrees.</param>
     public static float AngleMod(float degrees)
         => 360f / 65536f * ((int)(degrees * (65536f / 360f)) & 65535);
 }

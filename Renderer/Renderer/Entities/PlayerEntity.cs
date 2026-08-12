@@ -18,8 +18,6 @@ public sealed class PlayerEntity : BaseEntity
     /// <summary>
     /// Creates the player entity for a movement controller.
     /// </summary>
-    /// <param name="system">The world the player belongs to.</param>
-    /// <param name="controller">The player state to mirror.</param>
     public PlayerEntity(EntitySystem system, IPlayerController controller) : base(system, "player")
     {
         Controller = controller;
@@ -41,8 +39,6 @@ public sealed class PlayerEntity : BaseEntity
     /// Teleports the player. <see cref="BaseEntity.Origin"/> is the feet, which is what
     /// <see cref="IPlayerController.Teleport"/> takes, so the destination passes straight through.
     /// </summary>
-    /// <param name="origin">Where the feet arrive.</param>
-    /// <param name="angles">View angles to adopt, or <see langword="null"/> to keep the current ones.</param>
     public override void Teleport(Vector3 origin, Vector3? angles)
     {
         Controller.Teleport(origin, angles);

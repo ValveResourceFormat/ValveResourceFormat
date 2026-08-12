@@ -22,14 +22,8 @@ internal static class EditorEntityNode
 
     /// <summary>
     /// Builds the node for an entity, without adding it to the scene: the caller owns it, and decides
-    /// where it goes and what drives it.
+    /// where it goes and what drives it. The transform is ignored for the box, which drops scale, see below.
     /// </summary>
-    /// <param name="scene">The scene the node is built for.</param>
-    /// <param name="entity">The entity's keyvalues, stamped onto the node for the property viewer.</param>
-    /// <param name="classname">The classname whose Hammer class supplies the icon.</param>
-    /// <param name="transform">Where to place it. Ignored for the box, which drops scale, see below.</param>
-    /// <param name="flags">Object type flags to stamp onto the node.</param>
-    /// <param name="layerName">Visibility layer for the node.</param>
     /// <returns>The node, which is never <see langword="null"/> but may be a plain box.</returns>
     /// <exception cref="InvalidDataException">The Hammer class names an icon of a type not handled here.</exception>
     internal static SceneNode Create(
@@ -121,7 +115,6 @@ internal static class EditorEntityNode
     }
 
     /// <summary>Gets whether a classname is one Hammer draws as a camera.</summary>
-    /// <param name="classname">The entity's classname.</param>
     internal static bool IsCamera(string classname)
         => classname is "sky_camera"
         or "point_devshot_camera"

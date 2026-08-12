@@ -7,8 +7,6 @@ namespace ValveResourceFormat.Renderer.Entities;
 /// <summary>
 /// Constructs an entity of one classname.
 /// </summary>
-/// <param name="system">The world the entity is being created in.</param>
-/// <param name="spawnInfo">The entity's keyvalues and spawn context.</param>
 /// <returns>The constructed entity, before <see cref="BaseEntity.Spawn"/> has run.</returns>
 public delegate BaseEntity EntityCreator(EntitySystem system, EntitySpawnInfo spawnInfo);
 
@@ -37,7 +35,6 @@ public static class EntityFactory
     /// <summary>
     /// Whether this classname is simulated by the entity system.
     /// </summary>
-    /// <param name="classname">The classname to look up.</param>
     public static bool IsRegistered(string classname) => Creators.ContainsKey(classname);
 
     /// <summary>
@@ -60,8 +57,6 @@ public static class EntityFactory
     /// Creates and spawns the entity for a classname. The entity is fully set up when this returns, but
     /// is not in the world yet; <see cref="EntitySystem.CreateEntity"/> is what puts it there.
     /// </summary>
-    /// <param name="system">The world the entity is being created in.</param>
-    /// <param name="spawnInfo">The entity's keyvalues and spawn context.</param>
     /// <returns>The spawned entity, or <see langword="null"/> when the classname is not implemented.</returns>
     public static BaseEntity? Create(EntitySystem system, EntitySpawnInfo spawnInfo)
     {

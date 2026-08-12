@@ -117,8 +117,6 @@ public sealed class FuncRotating : BaseModelEntity
     /// <summary>
     /// Initializes a <c>func_rotating</c> from its keyvalues.
     /// </summary>
-    /// <param name="system">The world this entity belongs to.</param>
-    /// <param name="spawnInfo">The entity's keyvalues and spawn context.</param>
     public FuncRotating(EntitySystem system, EntitySpawnInfo spawnInfo) : base(system, spawnInfo)
     {
     }
@@ -238,7 +236,6 @@ public sealed class FuncRotating : BaseModelEntity
     }
 
     /// <summary>Spins the brush up to <c>maxspeed</c>, whichever way it was already set to turn.</summary>
-    /// <param name="data">The input's parameter and sender, unused.</param>
     [EntityInput("Start")]
     private void InputStart(EntityInputData data)
     {
@@ -252,7 +249,6 @@ public sealed class FuncRotating : BaseModelEntity
     /// Unlike the other ways of starting it, this one leaves a pending <c>StopAtStartPos</c> alone, so a
     /// brush told to stop at its start angle still does. The asymmetry is the engine's.
     /// </remarks>
-    /// <param name="data">The input's parameter and sender, unused.</param>
     [EntityInput("StartForward")]
     private void InputStartForward(EntityInputData data)
     {
@@ -262,7 +258,6 @@ public sealed class FuncRotating : BaseModelEntity
     }
 
     /// <summary>Spins the brush up to <c>maxspeed</c> backwards.</summary>
-    /// <param name="data">The input's parameter and sender, unused.</param>
     [EntityInput("StartBackward")]
     private void InputStartBackward(EntityInputData data)
     {
@@ -273,7 +268,6 @@ public sealed class FuncRotating : BaseModelEntity
     }
 
     /// <summary>Brings the brush to a stop wherever it happens to be.</summary>
-    /// <param name="data">The input's parameter and sender, unused.</param>
     [EntityInput("Stop")]
     private void InputStop(EntityInputData data)
     {
@@ -286,12 +280,10 @@ public sealed class FuncRotating : BaseModelEntity
     /// Starts the brush if it is stopped, stops it if it is spinning. Tests the speed rather than the
     /// angular velocity, as the input handler does; a brush that is running backwards starts again.
     /// </summary>
-    /// <param name="data">The input's parameter and sender, unused.</param>
     [EntityInput("Toggle")]
     private void InputToggle(EntityInputData data) => SetTargetSpeed(Speed > 0f ? 0f : MaxSpeed);
 
     /// <summary>Flips the spin direction, keeping the speed it was already turning at.</summary>
-    /// <param name="data">The input's parameter and sender, unused.</param>
     [EntityInput("Reverse")]
     private void InputReverse(EntityInputData data)
     {
@@ -302,7 +294,6 @@ public sealed class FuncRotating : BaseModelEntity
     }
 
     /// <summary>Stops the brush once it comes back around to the angle it spawned at.</summary>
-    /// <param name="data">The input's parameter and sender, unused.</param>
     [EntityInput("StopAtStartPos")]
     private void InputStopAtStartPos(EntityInputData data)
     {
@@ -319,7 +310,6 @@ public sealed class FuncRotating : BaseModelEntity
     /// its course and a snap cancels that stop rather than completing it. Stopping still reports through
     /// <c>OnStopped</c>, like any other stop.
     /// </remarks>
-    /// <param name="data">The input's parameter and sender, unused.</param>
     [EntityInput("SnapToStartPos")]
     private void InputSnapToStartPos(EntityInputData data)
     {
@@ -336,8 +326,10 @@ public sealed class FuncRotating : BaseModelEntity
         SnapInterpolation();
     }
 
-    /// <summary>Changes the angle the brush treats as its start, the one it snaps and stops back to.</summary>
-    /// <param name="data">Carries the new start angles as a QAngle.</param>
+    /// <summary>
+    /// Changes the angle the brush treats as its start, the one it snaps and stops back to. The parameter
+    /// is the new start angles as a QAngle.
+    /// </summary>
     [EntityInput("SetStartPos")]
     private void InputSetStartPos(EntityInputData data)
     {
@@ -349,17 +341,16 @@ public sealed class FuncRotating : BaseModelEntity
     }
 
     /// <summary>Makes the brush ramp up and down instead of snapping to speed.</summary>
-    /// <param name="data">The input's parameter and sender, unused.</param>
     [EntityInput("EnableAccelDecel")]
     private void InputEnableAccelDecel(EntityInputData data) => acceleratesAndDecelerates = true;
 
     /// <summary>Makes the brush start and stop instantly.</summary>
-    /// <param name="data">The input's parameter and sender, unused.</param>
     [EntityInput("DisableAccelDecel")]
     private void InputDisableAccelDecel(EntityInputData data) => acceleratesAndDecelerates = false;
 
-    /// <summary>Sets the speed as a fraction of <c>maxspeed</c>; a negative fraction spins in reverse.</summary>
-    /// <param name="data">Carries the fraction as its parameter.</param>
+    /// <summary>
+    /// Sets the speed to the parameter's fraction of <c>maxspeed</c>; a negative fraction spins in reverse.
+    /// </summary>
     [EntityInput("SetSpeed")]
     private void InputSetSpeed(EntityInputData data)
     {
@@ -377,9 +368,9 @@ public sealed class FuncRotating : BaseModelEntity
     public void Toggle() => SetTargetSpeed(AngularVelocity != Vector3.Zero ? 0f : MaxSpeed);
 
     /// <summary>
-    /// Sets the speed to ramp towards, or jumps straight to it when the brush does not accelerate.
+    /// Sets the speed in degrees per second to ramp towards, or jumps straight to it when the brush does
+    /// not accelerate. The sign comes from the reverse state, not from the speed passed in.
     /// </summary>
-    /// <param name="speed">The target speed in degrees per second; the sign comes from the reverse state.</param>
     public void SetTargetSpeed(float speed)
     {
         // Make sure the sign is correct - positive for forward rotation, negative for reverse
@@ -444,7 +435,6 @@ public sealed class FuncRotating : BaseModelEntity
     /// out it keeps its speed, inside that it eases towards the remaining angle but never below 20 degrees
     /// per second, and once slow and within a degree it lands on the start.
     /// </remarks>
-    /// <param name="newSpeed">The speed to apply, before clamping to <see cref="MaxSpeed"/>.</param>
     private void UpdateSpeed(float newSpeed)
     {
         var oldSpeed = Speed;
@@ -484,7 +474,6 @@ public sealed class FuncRotating : BaseModelEntity
     /// Applies the speed and reports the brush starting or stopping. Those are the two edges the engine
     /// starts and stops the rotation sound on, which is what <c>OnStarted</c> and <c>OnStopped</c> name.
     /// </summary>
-    /// <param name="speed">The speed to turn at, already clamped.</param>
     private void ApplySpeed(float speed)
     {
         var wasTurning = Speed != 0f;
@@ -613,7 +602,6 @@ public sealed class FuncRotating : BaseModelEntity
     /// <summary>
     /// Bleeds off a little speed, slower than it spins up.
     /// </summary>
-    /// <param name="targetSpeed">The speed being shed towards, which is zero when reversing.</param>
     /// <returns><see langword="true"/> once it has arrived and the ramp is over.</returns>
     private bool SpinDown(float targetSpeed)
     {
@@ -698,7 +686,6 @@ public sealed class FuncRotating : BaseModelEntity
     /// The component of a QAngle that lies on the axis this brush turns about, the engine's
     /// <c>checkAxis</c> (<c>bmodels.cpp:1121-1131</c>).
     /// </summary>
-    /// <param name="angles">The QAngle to read.</param>
     private float GetAxisAngle(Vector3 angles)
     {
         if (MoveAngles.X != 0f)

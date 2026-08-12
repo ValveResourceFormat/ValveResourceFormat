@@ -75,7 +75,6 @@ public sealed class EntitySystem
     /// Scheduling to the first tick at or after the time would round every interval up: a repeating 0.1s
     /// think would run every 7 ticks instead of 6, about a sixth slow.
     /// </remarks>
-    /// <param name="time">The absolute time to round.</param>
     /// <returns>The time of the nearest tick.</returns>
     public static float SnapToTick(float time) => (int)(0.5f + (time / TickInterval)) * TickInterval;
 
@@ -100,7 +99,6 @@ public sealed class EntitySystem
     /// Initializes an entity system for a scene. Prefer <see cref="Scene.EntitySystem"/> over constructing
     /// one directly; a scene has exactly one world.
     /// </summary>
-    /// <param name="scene">The scene the entities render into.</param>
     public EntitySystem(Scene scene)
     {
         Scene = scene;
@@ -111,9 +109,6 @@ public sealed class EntitySystem
     /// <see langword="null"/> when the classname is not one the entity system implements, in which case
     /// the caller keeps ownership of it.
     /// </summary>
-    /// <param name="data">The entity's keyvalues, as authored in the map.</param>
-    /// <param name="parentTransform">Transform of the spawner, or identity for plain map entities.</param>
-    /// <param name="layerName">Visibility layer for the entity and every node it creates.</param>
     /// <returns>The spawned entity, or <see langword="null"/> if the classname is not implemented.</returns>
     public BaseEntity? CreateEntity(Entity data, Matrix4x4 parentTransform, string? layerName)
     {
@@ -133,7 +128,6 @@ public sealed class EntitySystem
     /// Puts the player into the world, so triggers have something to touch. Replaces any player already
     /// spawned.
     /// </summary>
-    /// <param name="controller">The player state the entity mirrors.</param>
     /// <returns>The player entity.</returns>
     public PlayerEntity SpawnPlayer(IPlayerController controller)
     {
@@ -173,7 +167,6 @@ public sealed class EntitySystem
     /// <summary>
     /// Removes an entity from the world and takes its nodes out of the scene.
     /// </summary>
-    /// <param name="entity">The entity to remove.</param>
     public void Remove(BaseEntity entity)
     {
         if (entity.IsRemoved)
@@ -262,7 +255,6 @@ public sealed class EntitySystem
     /// <summary>
     /// Advances the world by a rendered frame's worth of time, running whole ticks.
     /// </summary>
-    /// <param name="frameTime">Elapsed time in seconds since the last frame.</param>
     public void Update(float frameTime)
     {
         if (entities.Count == 0)
@@ -334,13 +326,9 @@ public sealed class EntitySystem
     }
 
     /// <summary>
-    /// Sweeps an axis-aligned box against every solid entity, keeping the nearest hit.
+    /// Sweeps an axis-aligned box against every solid entity, narrowing <paramref name="result"/> to the
+    /// nearest hit.
     /// </summary>
-    /// <param name="from">Sweep start, the box centre in world space.</param>
-    /// <param name="to">Sweep end in world space.</param>
-    /// <param name="halfExtents">Half-extents of the swept box.</param>
-    /// <param name="detectStartSolid">Whether an overlap at <paramref name="from"/> reports as start-solid.</param>
-    /// <param name="result">The trace to narrow; a nearer entity hit replaces it.</param>
     /// <returns><see langword="true"/> when an entity produced the nearest hit.</returns>
     public bool TraceAABB(Vector3 from, Vector3 to, Vector3 halfExtents, bool detectStartSolid, ref Rubikon.TraceResult result)
     {
@@ -420,15 +408,9 @@ public sealed class EntitySystem
 
     /// <summary>
     /// Fires one of an entity's authored outputs, delivering it to every connection with that name.
-    /// Source's <c>FireOutput</c>.
+    /// Source's <c>FireOutput</c>. The value is what the output reports, for the ones that carry a reading;
+    /// a connection authored with its own parameter overrides it, as in the engine.
     /// </summary>
-    /// <param name="source">The entity firing the output.</param>
-    /// <param name="outputName">The output's name, as authored in the map.</param>
-    /// <param name="activator">The entity that started the I/O chain.</param>
-    /// <param name="value">
-    /// What the output reports, for the ones that carry a reading rather than only the fact that they
-    /// fired. A connection that was authored with its own parameter overrides it, as in the engine.
-    /// </param>
     public void TriggerOutput(BaseEntity source, string outputName, BaseEntity? activator = null, string? value = null)
     {
         if (source.Data?.Connections == null)
@@ -463,7 +445,6 @@ public sealed class EntitySystem
     /// <summary>
     /// Finds every entity whose targetname matches.
     /// </summary>
-    /// <param name="pattern">Targetname to match, may contain <c>*</c> and <c>?</c>.</param>
     public IEnumerable<BaseEntity> FindAllByTargetName(string pattern)
     {
         foreach (var entity in entities)
@@ -562,8 +543,6 @@ public sealed class EntitySystem
     }
 
     /// <summary>Whether a target name is the given <c>!</c> name, whatever case the map wrote it in.</summary>
-    /// <param name="targetName">The name a connection addresses.</param>
-    /// <param name="proceduralName">The procedural name to test for, including its leading <c>!</c>.</param>
     private static bool IsProceduralName(string targetName, string proceduralName)
         => targetName.Equals(proceduralName, StringComparison.OrdinalIgnoreCase);
 
@@ -575,9 +554,6 @@ public sealed class EntitySystem
     /// Resolves what an authored connection addresses: the <c>!</c> names that stand for an entity in the
     /// firing chain, then names and classnames.
     /// </summary>
-    /// <param name="target">The connection's target name and how to read it.</param>
-    /// <param name="activator">The entity that started the chain, for <c>!activator</c>.</param>
-    /// <param name="caller">The entity that fired the output, for <c>!caller</c> and <c>!self</c>.</param>
     /// <returns>The entities the target stands for, which may be none.</returns>
     public IEnumerable<BaseEntity> FindTargets(EntityIOTarget target, BaseEntity? activator = null, BaseEntity? caller = null)
     {

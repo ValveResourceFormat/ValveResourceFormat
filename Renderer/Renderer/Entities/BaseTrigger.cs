@@ -37,8 +37,6 @@ public abstract class BaseTrigger : BaseModelEntity
     /// <summary>
     /// Initializes a trigger from its keyvalues.
     /// </summary>
-    /// <param name="system">The world this entity belongs to.</param>
-    /// <param name="spawnInfo">The entity's keyvalues and spawn context.</param>
     protected BaseTrigger(EntitySystem system, EntitySpawnInfo spawnInfo) : base(system, spawnInfo)
     {
     }
@@ -63,7 +61,6 @@ public abstract class BaseTrigger : BaseModelEntity
     /// "everything" and "clients" can pass; a trigger for NPCs, pushables or physics props stays shut.
     /// <c>filtername</c> filters are not read, so passing the flags is enough.
     /// </remarks>
-    /// <param name="other">The entity inside the volume.</param>
     /// <returns><see langword="true"/> when the touch should register.</returns>
     protected override bool AcceptsTouchFrom(BaseEntity other)
     {
