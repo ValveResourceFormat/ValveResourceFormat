@@ -10,7 +10,7 @@ namespace ValveResourceFormat.Graphs;
 /// definition, wired by the pose and value pins the node constructors declare.
 /// </summary>
 /// <param name="graphDefinition">The compiled graph definition to read.</param>
-public sealed class NmGraphBuilder(KVObject graphDefinition)
+internal sealed class NmGraphBuilder(KVObject graphDefinition)
 {
     private static readonly GraphHue PoseHue = AnimGraphHues.HueOf(AnimGraphValueKind.Pose);
 

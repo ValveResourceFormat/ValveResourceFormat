@@ -6,7 +6,7 @@ namespace ValveResourceFormat.Graphs;
 /// slots the host resolves at draw time. <see cref="Position"/> is document state (the layout's
 /// or the user's placement); everything measured lives in <see cref="GraphGeometry"/>.
 /// </summary>
-public class GraphNode
+internal class GraphNode
 {
     private string title = string.Empty;
     private string? subtitle;
@@ -252,14 +252,14 @@ public class GraphNode
 }
 
 /// <summary>One line of a node's content.</summary>
-public abstract class GraphRow
+internal abstract class GraphRow
 {
 }
 
 /// <summary>A row of plain text, or of a message when <see cref="IsMessage"/> is set.</summary>
 /// <param name="text">The text to draw.</param>
 /// <param name="message">Whether the row is a message rather than data.</param>
-public sealed class TextRow(string text, bool message) : GraphRow
+internal sealed class TextRow(string text, bool message) : GraphRow
 {
     /// <summary>The text drawn on this row.</summary>
     public string Text { get; } = text;
@@ -270,7 +270,7 @@ public sealed class TextRow(string text, bool message) : GraphRow
 
 /// <summary>A row carrying one socket.</summary>
 /// <param name="socket">The socket on this row.</param>
-public sealed class SocketRow(GraphSocket socket) : GraphRow
+internal sealed class SocketRow(GraphSocket socket) : GraphRow
 {
     /// <summary>The socket drawn on this row.</summary>
     public GraphSocket Socket { get; } = socket;
@@ -279,7 +279,7 @@ public sealed class SocketRow(GraphSocket socket) : GraphRow
 /// <summary>A row carrying an input on the left edge and an output on the right.</summary>
 /// <param name="input">The input socket, or null.</param>
 /// <param name="output">The output socket, or null.</param>
-public sealed class PairedSocketRow(GraphSocket? input, GraphSocket? output) : GraphRow
+internal sealed class PairedSocketRow(GraphSocket? input, GraphSocket? output) : GraphRow
 {
     /// <summary>The socket on the left edge, if any.</summary>
     public GraphSocket? Input { get; } = input;
@@ -292,7 +292,7 @@ public sealed class PairedSocketRow(GraphSocket? input, GraphSocket? output) : G
 /// <param name="text">Display name of the file.</param>
 /// <param name="icon">Icon key the host resolves.</param>
 /// <param name="hue">Colour slot of the row.</param>
-public sealed class ResourceRow(string text, string icon, GraphHue hue) : GraphRow
+internal sealed class ResourceRow(string text, string icon, GraphHue hue) : GraphRow
 {
     /// <summary>Display name of the referenced file.</summary>
     public string Text { get; } = text;
@@ -307,7 +307,7 @@ public sealed class ResourceRow(string text, string icon, GraphHue hue) : GraphR
 /// <summary>A compact hue-marked note row.</summary>
 /// <param name="text">The note to draw.</param>
 /// <param name="hue">Colour slot of the note.</param>
-public sealed class AnnotationRow(string text, GraphHue hue) : GraphRow
+internal sealed class AnnotationRow(string text, GraphHue hue) : GraphRow
 {
     /// <summary>The note drawn on this row.</summary>
     public string Text { get; } = text;
@@ -317,7 +317,7 @@ public sealed class AnnotationRow(string text, GraphHue hue) : GraphRow
 }
 
 /// <summary>One endpoint a wire can dock at, owned by a node.</summary>
-public class GraphSocket
+internal class GraphSocket
 {
     /// <summary>The node this socket belongs to.</summary>
     public GraphNode Owner { get; }
@@ -351,7 +351,7 @@ public class GraphSocket
 }
 
 /// <summary>Which nodes around a target an isolate command keeps visible.</summary>
-public enum GraphIsolateMode
+internal enum GraphIsolateMode
 {
     /// <summary>The transitive upstream and downstream chain of the node.</summary>
     Chain,
@@ -370,7 +370,7 @@ public enum GraphIsolateMode
 }
 
 /// <summary>How a legend row's color sample is drawn.</summary>
-public enum GraphLegendKind
+internal enum GraphLegendKind
 {
     /// <summary>Filled swatch in the muted node-header palette.</summary>
     Category,
@@ -392,10 +392,10 @@ public enum GraphLegendKind
 /// <param name="Label">Text of the legend row.</param>
 /// <param name="Hue">Colour slot the sample is drawn in.</param>
 /// <param name="Kind">How the sample is drawn.</param>
-public readonly record struct GraphLegendEntry(string Label, GraphHue Hue, GraphLegendKind Kind = GraphLegendKind.Category);
+internal readonly record struct GraphLegendEntry(string Label, GraphHue Hue, GraphLegendKind Kind = GraphLegendKind.Category);
 
 /// <summary>A directed connection from an output socket to an input socket.</summary>
-public class GraphWire
+internal class GraphWire
 {
     /// <summary>The output socket this wire leaves.</summary>
     public GraphSocket From { get; }

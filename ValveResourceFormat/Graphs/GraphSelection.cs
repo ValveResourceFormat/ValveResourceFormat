@@ -4,7 +4,7 @@ namespace ValveResourceFormat.Graphs;
 /// Selection state of a graph: a primary node with its transitive chain and one-hop wire
 /// neighbors, or a single selected wire. The render tiers derive from this.
 /// </summary>
-public sealed class GraphSelection
+internal sealed class GraphSelection
 {
     /// <summary>The node the selection is centred on, if any.</summary>
     public GraphNode? PrimaryNode { get; private set; }

@@ -1,7 +1,7 @@
 namespace ValveResourceFormat.Graphs;
 
 /// <summary>Measured size and layout freshness of one node.</summary>
-public sealed class NodeGeometry
+internal sealed class NodeGeometry
 {
     /// <summary>Measured card size.</summary>
     public Vector2 Size { get; set; }
@@ -20,7 +20,7 @@ public sealed class NodeGeometry
 }
 
 /// <summary>Routed geometry of one wire; empty for a plain socket-to-socket curve.</summary>
-public sealed class WireRoute
+internal sealed class WireRoute
 {
     /// <summary>Corner points of the orthogonal route computed by the layout.</summary>
     public List<Vector2> Waypoints { get; } = [];
@@ -45,7 +45,7 @@ public sealed class WireRoute
 /// routed wire paths. The model itself stays pure content, so a renderer can present it from
 /// scratch without the model knowing how it is drawn.
 /// </summary>
-public sealed class GraphGeometry
+internal sealed class GraphGeometry
 {
     private readonly Dictionary<GraphNode, NodeGeometry> nodes = [];
     private readonly Dictionary<GraphSocket, Vector2> pivotOffsets = [];

@@ -7,7 +7,7 @@ namespace ValveResourceFormat.Graphs;
 /// family prefixes, Neutral. Pink is reserved for sound entities and Emerald for
 /// point_template.
 /// </summary>
-public static class EntityClassHues
+internal static class EntityClassHues
 {
     /// <summary>Header hue for an entity classname.</summary>
     /// <param name="classname">The entity classname to colour.</param>

@@ -10,7 +10,7 @@ namespace ValveResourceFormat.Graphs;
 /// Builds the entity I/O graph of a map: one node per entity (same-name same-class entities merge
 /// into one) and one wire per connection between them.
 /// </summary>
-public static class EntityIOGraphBuilder
+internal static class EntityIOGraphBuilder
 {
     /// <summary>Hue of an entity's outputs and the wires leaving them.</summary>
     public const GraphHue OutputHue = GraphHue.Orange;
