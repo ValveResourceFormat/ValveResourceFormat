@@ -111,7 +111,6 @@ namespace ValveResourceFormat.Renderer.Particles.Operators
 
         public override void Operate(ParticleCollection particles, float frameTime, ParticleSystemRenderState particleSystemState, float strength)
         {
-            // Update remaining particles
             foreach (ref var particle in particles.Current)
             {
                 var delta = float.SinPi((particle.Age * frequency * oscillationMultiplier) + oscillationOffset);

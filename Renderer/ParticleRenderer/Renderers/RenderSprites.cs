@@ -435,7 +435,6 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
                 && orientationType is ParticleOrientation.PARTICLE_ORIENTATION_ALIGN_TO_PARTICLE_NORMAL
                     or ParticleOrientation.PARTICLE_ORIENTATION_SCREENALIGN_TO_PARTICLE_NORMAL;
 
-            // Update vertex buffer
             var rawVertices = ArrayPool<float>.Shared.Rent(particles.Count * VertexSize * 4);
 
             try
@@ -654,7 +653,6 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
             // Set every draw: the program is shared with every other sprite renderer, whatever their mode.
             shader.SetUniform1("uBlendMode", (int)blendMode);
 
-            // DRAW
             PerfStats.Active.Count(Counter.ParticleDraw);
             GL.DrawElements(PrimitiveType.Triangles, quadCount * 6, DrawElementsType.UnsignedShort, 0);
 

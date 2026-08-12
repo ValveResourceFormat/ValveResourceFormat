@@ -930,9 +930,7 @@ public class ViewmodelSceneNode : ModelSceneNode
         PlayerTransform = Matrix4x4.CreateFromQuaternion(playerRotation) * Matrix4x4.CreateTranslation(input.PlayerMovement.Position);
     }
 
-    /// <summary>
-    /// Update
-    /// </summary>
+    /// <inheritdoc/>
     public override void Update(Scene.UpdateContext context)
     {
         Transform = TargetTransform;

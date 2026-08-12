@@ -49,27 +49,21 @@ uniform float g_flSpecularExponent = 100.0;
 #include "common/lighting_common.slang"
 #include "common/shadowmapping.slang"
 
-//Calculate the normal of this fragment in world space
 vec3 calculateWorldNormal(vec3 vNormalTs)
 {
     vec3 normal = normalize(vNormalOut);
     vec3 tangent = normalize(vTangentOut.xyz);
     vec3 bitangent = normalize(vBitangentOut);
 
-    //Make the tangent space matrix
     mat3 tangentSpace = mat3(tangent, bitangent, normal);
 
-    //Calculate the tangent normal in world space and return it
     return normalize(tangentSpace * vNormalTs);
 }
 
-//Main entry point
 void main()
 {
-    //Get the view direction
     vec3 viewDirection = normalize(g_vCameraPositionWs - vFragPosition);
 
-    //Read textures
     vec4 color = texture(g_tColor, vTexCoordOut);
 
 #if F_ALPHA_TEST == 1
@@ -87,7 +81,6 @@ void main()
     vec4 mask2 = texture(g_tMasks2, vTexCoordOut);
 #endif
 
-    //Get the world normal for this fragment
     vec3 vNormalTs = DecodeDxt5Normal(texture(g_tNormal, vTexCoordOut));
     vec3 worldNormal = calculateWorldNormal(vNormalTs);
 
@@ -112,7 +105,6 @@ void main()
         illumination = 1.0;
     }
 
-    //Calculate ambient color
     vec3 ambientColor = illumination * color.rgb;
 
 #if F_MASKS_1
@@ -139,7 +131,6 @@ void main()
     float specular = 0.0;
 #endif
 
-    //Calculate rim light
     float rimLight = 1.0 - abs(dot(worldNormal, viewDirection));
     rimLight = pow2(rimLight);
 
@@ -148,14 +139,10 @@ void main()
     rimLight = rimLight * mask2.g;
 #endif
 
-    //Final color
     vec3 finalColor = ambientColor * mix(1.0, 0.5, metalness) + specularColor * specular + color.rgb * rimLight;
 
-    //Simply multiply the color from the color texture with the illumination
     outputColor = vec4(finalColor, color.a);
     outputColor *= vTintColorFadeOut;
-
-    // == End of shader
 
     // Different render mode definitions
     if (g_iRenderMode == renderMode_Color)

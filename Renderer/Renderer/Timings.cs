@@ -198,7 +198,6 @@ public class Timings
 
         yOffset += lineHeight;
 
-        // Header
         textRenderer.AddTextRelative(new TextRenderer.TextRenderRequest
         {
             X = x,
@@ -266,7 +265,6 @@ public class Timings
             yOffset += lineHeight;
         }
 
-        // Add total line
         textRenderer.AddTextRelative(new TextRenderer.TextRenderRequest
         {
             X = x,

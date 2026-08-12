@@ -26,7 +26,6 @@ namespace ValveResourceFormat.Renderer
 
             shader = scene.RendererContext.ShaderLoader.LoadShader("grid");
 
-            // Create VAO
             GL.CreateVertexArrays(1, out vao);
             GL.CreateBuffers(1, out int buffer);
             GL.NamedBufferData(buffer, vertices.Length * sizeof(float), vertices, BufferUsageHint.StaticDraw);

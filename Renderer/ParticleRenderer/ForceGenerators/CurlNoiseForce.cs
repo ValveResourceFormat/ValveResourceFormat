@@ -28,10 +28,8 @@ class CurlNoiseForce : ParticleFunctionForceGenerator
             var pos = particle.Position;
             var noisePos = pos * freq;
 
-            // Compute curl noise
             var curl = ComputeCurlNoise(noisePos);
 
-            // Apply scale and strength
             var force = curl * scale * strength;
 
             particle.ForceAccumulator += force;

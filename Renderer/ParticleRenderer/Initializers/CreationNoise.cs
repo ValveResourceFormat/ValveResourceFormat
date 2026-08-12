@@ -5,7 +5,7 @@ namespace ValveResourceFormat.Renderer.Particles.Initializers
     /// <summary>
     /// Initializes a scalar particle attribute from spatial noise sampled at the particle's creation
     /// position, remapped into an output range. Sparse convolution noise is approximated here
-    /// with simplex noise over a linear position hash.
+    /// with the value-noise lattice sampled along its diagonal, at a linear blend of position and time.
     /// </summary>
     /// <seealso href="https://s2v.app/SchemaExplorer/cs2/particles/C_INIT_CreationNoise">C_INIT_CreationNoise</seealso>
     class CreationNoise : ParticleFunctionInitializer

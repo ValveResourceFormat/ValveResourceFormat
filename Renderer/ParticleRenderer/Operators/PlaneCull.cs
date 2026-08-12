@@ -25,7 +25,6 @@ namespace ValveResourceFormat.Renderer.Particles.Operators
         {
             var pointOnPlane = particleSystemState.GetControlPoint(cp).Position;
 
-            // Offset in normal direction by planeOffset
             pointOnPlane -= (planeNormal * planeOffset);
 
             var sign = Vector3.Dot(planeNormal, position - pointOnPlane);

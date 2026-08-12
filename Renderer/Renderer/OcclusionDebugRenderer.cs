@@ -81,7 +81,6 @@ namespace ValveResourceFormat.Renderer
 
             shader.Use();
 
-            // Bind the occluded bounds buffer to shader
             OccludedBoundsDebugGpu.BindBufferBase();
 
             GL.BindVertexArray(renderContext.MeshBufferCache.EmptyVAO);

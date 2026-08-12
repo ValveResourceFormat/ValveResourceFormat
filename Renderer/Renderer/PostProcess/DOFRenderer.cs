@@ -7,9 +7,9 @@ namespace ValveResourceFormat.Renderer.PostProcess;
 public class DOFRenderer
 {
     /// <summary>Golden angle in radians used to distribute bokeh samples in a spiral pattern.</summary>
-    public const float GOLDEN_ANGLE = 2.39996322f; // constant to 2.39996322 i think?
+    public const float GOLDEN_ANGLE = 2.39996322f; // MathF.PI * (3f - MathF.Sqrt(5f))
     /// <summary>Maximum number of spiral bokeh samples.</summary>
-    public const int MAX_DOF_SAMPLES = 256; // constant to 2.39996322 i think?
+    public const int MAX_DOF_SAMPLES = 256;
 
     /// <summary>Gets or sets the world-space depth at which the near blur becomes fully blurred.</summary>
     public float NearBlurry { get; set; } = -100;
@@ -85,7 +85,6 @@ public class DOFRenderer
         /// <summary>Gets or sets the bokeh spiral radius scale (r_dof2_radiusscale convar).</summary>
         public float RadScale { get; set; } // r_dof2_radiusscale convar (0.25)
 
-        // rt size
         /// <summary>Gets or sets the render target width in pixels.</summary>
         public int Width { get; set; }
         /// <summary>Gets or sets the render target height in pixels.</summary>

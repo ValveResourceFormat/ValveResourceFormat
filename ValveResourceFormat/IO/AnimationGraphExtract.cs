@@ -2574,14 +2574,12 @@ public class AnimationGraphExtract : IDisposable
         var posX = -200 + random.Next(0, 400);
         var posY = -200 + random.Next(0, 400);
 
-        // Check for sequence node
         if ((className == "CMotionNodeSequence") ||
             (className == "CMotionNode" && compiledMotionNode.ContainsKey("m_hSequence")))
         {
             return CreateSequenceMotionNode(compiledMotionNode, posX, posY);
         }
 
-        // Check for blend node
         if ((className == "CMotionNodeBlend1D") ||
             (className == "CMotionNode" && compiledMotionNode.ContainsKey("m_blendItems")))
         {

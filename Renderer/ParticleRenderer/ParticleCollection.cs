@@ -65,14 +65,14 @@ namespace ValveResourceFormat.Renderer.Particles
         }
 
         /// <summary>
-        /// Removes all particles that have been marked as killed, compacting the live array.
-        /// </summary>
-        /// <summary>
         /// How many particles the last <see cref="PruneExpired"/> removed. Emitters that spawn from
         /// killed parent particles read it from their parent system.
         /// </summary>
         public int KilledLastPass { get; private set; }
 
+        /// <summary>
+        /// Removes all particles that have been marked as killed, compacting the live array.
+        /// </summary>
         public void PruneExpired()
         {
             var alive = 0;

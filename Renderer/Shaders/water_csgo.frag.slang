@@ -128,7 +128,7 @@ void main()
     vec2 blueNoiseNegHalfToHalf = blueNoiseZeroToOne.xy - 0.5;
     float blueNoiseNegOneToOne = blueNoiseNegHalfToHalf.x * 2.0;
 
-    // --- Position & View Vectors ---
+    // Position & View Vectors
     vec2 gbufferUV = gl_FragCoord.xy / textureSize(g_tSceneColor, 0);
 
     vec2 unbiasedUV = (mat.PositionWS.xy - g_vMapUVMin.xy) / (g_vMapUVMax.xy - g_vMapUVMin.xy);
@@ -143,18 +143,18 @@ void main()
     const float flSkyboxScale = 1.0; // g_bIsSkybox ? g_flSkyBoxScale : 1.0
     float distanceToFrag = length(vPositionViewSpace) * flSkyboxScale;
 
-    // ---- Skybox corrected projection stuff ---------
+    // Skybox corrected projection stuff
 
     vec3 viewDepOffsetFactor = mix(vec3(viewDir.xy / viewDir.z, sqrt(viewDirInv.z)), vec3(0.0), vec3(g_bIsSkybox));
 
-    // ---- Something about Refraction (idk either) ------
+    // Something about Refraction (idk either)
     float refractionDistortionFactor = 0.0;
     float waterColumnOpticalDepthFactor = 1.0;
     vec4 refractionColorSample = vec4(0.0);
     float sceneNormalizedDepth = 1.0;
     vec3 sceneHitPositionWs = vec3(0.0);
 
-    // ----- INITIAL SCENE COLOR/DEPTH SAMPLE ------
+    // INITIAL SCENE COLOR/DEPTH SAMPLE
 
     if (!g_bIsSkybox)
     {
@@ -182,7 +182,7 @@ void main()
     float adjustedWaterColumnDepth = ClampToPositive(waterColumnOpticalDepthFactor - 0.02);
     float refractedVerticalFactor = waterColumnOpticalDepthFactor * viewDirInv.z;
 
-    // --- Get Roughness, Foam and Debris ----
+    // Get Roughness, Foam and Debris
     float currentWaterRoughness = g_bIsSkybox
         ? g_flWaterRoughnessMax
         : ClampToPositive(mix(g_flWaterRoughnessMin, g_flWaterRoughnessMax, vColorBlendValues.x));
@@ -233,7 +233,7 @@ void main()
     //TODO: this can just be reconstructedWorldNormal.xy += blueNoiseNegHalfToHalf * 0.05;
     vec2 ditheredRefractShiftNormalXY = reconstructedWorldNormal.xy + blueNoiseNegHalfToHalf * 0.05;
 
-    // ------ WAVE LOGIC -------
+    // WAVE LOGIC
     vec2 accumulatedWaveUVOffset = vec2(0.0); // For UV distortion by waves
     vec2 currentWaveTexScale = g_vWaveScale.xy;
     vec3 accumulatedWaveNormal = vec3(0.0, 0.0, 1.0); // Start with up vector
@@ -318,7 +318,7 @@ void main()
     vec3 ditheredNormal = vec3(0.0, 0.0, 1.0);
     float edgeFactorQ = g_flEdgeShapeEffect;
 
-    //---RECONSTRUCT WORLD NORMAL FROM DEPTH BUFFER
+    // RECONSTRUCT WORLD NORMAL FROM DEPTH BUFFER
     if (F_REFRACTION == 1 && !g_bIsSkybox)
     {
         ditheredNormal = reconstructedWorldNormal;
@@ -340,7 +340,7 @@ void main()
 
     vec3 effectsSamplePos = mat.PositionWS.xyz + (viewDepOffsetFactor * (mix(0.5, scaledAccumulatedWaveHeight, edgeFactorQ) - g_flWaterPlaneOffset));
 
-     // ----READ FROM EFFECTS MAP FOR DECAL BASED EFFECTS (shots, people running through water, etc...)
+     // READ FROM EFFECTS MAP FOR DECAL BASED EFFECTS (shots, people running through water, etc...)
     if(!g_bIsSkybox)
     {
         mat4 transposedWorldToProj = transpose(g_matWorldToProjection);
@@ -875,7 +875,7 @@ void main()
 
     ApplyFog(returnColor, finalSurfacePos);
 
-    // --- DITHER INTO SKYBOX ---
+    // DITHER INTO SKYBOX
     if (!g_bIsSkybox)
     {
         vec2 _3206 = abs(vec2(0.5) - unbiasedUV) * 2.0;
@@ -887,7 +887,7 @@ void main()
 
     float flEdgeBlend = saturate(fma(g_flEdgeHardness, effectiveWaterDepthForFog, saturate(combinedfinalFoamIntensity)) + fma(debrisHeightVal, 2.0, -0.5));
 
-    // --- PERFORM EDGE BLEND ---
+    // PERFORM EDGE BLEND
     if (F_REFRACTION == 1 && !g_bIsSkybox)
     {
         returnColor = vec3(mix((refractionColorSample.xyz * mix(1.0, 0.6, saturate(refractedVerticalFactor * 60.0) / fma(distanceToFrag, 0.002, 1.0))).xyz, returnColor.xyz, vec3(flEdgeBlend)));

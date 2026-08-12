@@ -574,7 +574,6 @@ internal abstract class GLBaseControl : IDisposable, IMessageFilter
 
     protected virtual void OnMouseWheel(int delta, Point location)
     {
-        // Track mouse wheel state
         using var _ = inputStateLock.EnterScope();
         if (delta > 0)
         {

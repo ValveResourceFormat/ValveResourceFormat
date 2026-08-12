@@ -224,12 +224,10 @@ public class SceneLight(Scene scene) : SceneNode(scene)
     /// <summary>Gets or sets the Euler angles of the precomputed sub-OBBs, one per frustum.</summary>
     public Vector3[]? PrecomputedSubObbAngles { get; set; }
 
-    // Precomputed barn light faces (1 for a barn light, 1-6 for an omni light)
     /// <summary>Gets the precomputed face data array (1 face for barn lights, 1-6 for omni lights).</summary>
     public BarnFaceData[] BarnFaces { get; private set; } = [];
 
-    // Marks a barn light dirty. This will recalculate all faces.
-    /// <summary>Gets or sets whether this light's face data needs to be recomputed.</summary>
+    /// <summary>Gets or sets whether this light's face data needs to be recomputed. Setting it recalculates all faces.</summary>
     public bool IsDirty { get; set; } = true;
 
     internal int AdaptiveShadowSize { get; set; }

@@ -1159,7 +1159,6 @@ public class Renderer
             return;
         }
 
-        // Delete old texture
         Scene.DepthPyramid?.Delete();
 
         // Calculate mips needed to go from targetSize down to 1x1

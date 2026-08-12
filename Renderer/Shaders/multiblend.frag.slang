@@ -80,15 +80,12 @@ uniform vec3 g_vColorTintB3 = vec3(1.0); // SrgbRead(true)
 uniform float g_flBumpStrength = 1.0;
 
 #if (F_NORMAL_MAP == 1)
-    //Calculate the normal of this fragment in world space
     vec3 calculateWorldNormal(vec3 normalMap, vec3 normal, vec3 tangent, vec3 bitangent)
     {
         //vec3 tangent = vec3(vNormalOut.z, vNormalOut.y, -vNormalOut.x);
         //vec3 bitangent = cross(vNormalOut, tangent);
-        //Make the tangent space matrix
         mat3 tangentSpace = mat3(tangent, bitangent, normal);
 
-        //Calculate the tangent normal in world space and return it
         return normalize(tangentSpace * normalMap);
     }
 #endif
@@ -106,10 +103,8 @@ float ApplyBlendModulation(float blendFactor, float blendMask, float blendSoftne
 #include "common/lighting_common.slang"
 #include "common/shadowmapping.slang"
 
-//Main entry point
 void main()
 {
-    //Get the base color from the color texture
     vec4 color0 = texture(g_tColor0, vTexCoordOut);
     vec4 color1 = texture(g_tColor1, vTexCoord1Out);
 #if F_TWO_LAYER_BLEND == 0
@@ -137,7 +132,6 @@ void main()
     float blendWeight0 = invBlendWeight1;
 #endif
 
-    //Get specular
     vec4 specular0 = texture(g_tSpecular0, vTexCoordOut);
     vec4 specular1 = texture(g_tSpecular1, vTexCoord1Out);
 #if (F_TWO_LAYER_BLEND == 0)
@@ -146,8 +140,6 @@ void main()
 #endif
 
 
-    //Simple blending
-    //Calculate each of the 4 colours to blend
 #if (F_TINT_MASK == 1)
     // Include tint mask
     vec3 tint0 = interpolateTint(0, g_vColorTintB0.rgb, g_vColorTint0.rgb, vTexCoordOut);
@@ -171,10 +163,8 @@ void main()
     #endif
 
 #if (F_TWO_LAYER_BLEND == 0)
-    //Add up the result
     vec3 finalColor = c0 + c1 + c2 + c3;
 #else
-    //Add up the result
     vec3 finalColor = c0 + c1;
 #endif
 
@@ -190,14 +180,11 @@ void main()
         vec4 normal2 = texture(g_tNormal2, vTexCoord2Out);
         vec4 normal3 = texture(g_tNormal3, vTexCoord3Out);
 
-        //calculate blended normal
         vec4 bumpNormal = blendWeight0 * normal0 + blendWeight1 * normal1 + blendWeight2 * normal2 + blendWeight3 * normal3;
     #else
-        //calculate blended normal
         vec4 bumpNormal = blendWeight0 * normal0 + blendWeight1 * normal1;
     #endif
 
-    //Reconstruct the tangent vector from the map
     vec3 finalBumpNormal = DecodeDxt5Normal(bumpNormal);
 
     finalBumpNormal.xy *= g_flBumpStrength;
@@ -224,10 +211,8 @@ void main()
     }
 
 #if (F_TWO_LAYER_BLEND == 0)
-    //Calculate specular
     vec4 blendSpecular = blendWeight0 * specular0 + blendWeight1 * specular1 + blendWeight2 * specular2 + blendWeight3 * specular3;
 #else
-    //Calculate specular
     vec4 blendSpecular = blendWeight0 * specular0 + blendWeight1 * specular1;
 #endif
 

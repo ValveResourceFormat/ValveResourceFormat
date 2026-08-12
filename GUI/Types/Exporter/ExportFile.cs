@@ -169,12 +169,10 @@ namespace GUI.Types.Exporter
             {
                 var file = selectedNode.PackageEntry;
                 Debug.Assert(file != null);
-                // We are a file
                 await ExtractFileFromPackageEntry(file, vrfGuiContext, decompile).ConfigureAwait(true);
             }
             else
             {
-                // We are a folder
                 var exportData = new ExportData
                 {
                     VrfGuiContext = vrfGuiContext,

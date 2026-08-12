@@ -211,7 +211,6 @@ namespace GUI.Types.GLViewers
 
         protected void UpdateSunAngles()
         {
-            // clamp and wrap angles
             sunAngles.X = Math.Clamp(sunAngles.X, 0f, 89f);
             sunAngles.Y %= 360f;
 

@@ -447,7 +447,6 @@ public class UserInput
             return;
         }
 
-        // Use the keyboard state to update position
         HandleKeyboardInput(deltaTime, keyboardState);
 
         Camera.Pitch += MouseDeltaPitchYaw.X;
@@ -556,7 +555,6 @@ public class UserInput
             Velocity = targetVelocity;
         }
 
-        // Apply velocity to camera position
         Camera.Location += Velocity * deltaTime;
     }
 

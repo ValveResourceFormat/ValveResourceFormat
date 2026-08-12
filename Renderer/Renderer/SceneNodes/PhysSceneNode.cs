@@ -67,7 +67,6 @@ namespace ValveResourceFormat.Renderer.SceneNodes
                     var shape = phys.Parts[p].Shape;
                     //var partCollisionAttributeIndex = phys.Parts[p].CollisionAttributeIndex;
 
-                    // Spheres
                     foreach (var sphere in shape.Spheres)
                     {
                         if (collisionAttributeIndex != sphere.CollisionAttributeIndex)
@@ -103,7 +102,6 @@ namespace ValveResourceFormat.Renderer.SceneNodes
                         }
                     }
 
-                    // Capsules
                     foreach (var capsule in shape.Capsules)
                     {
                         if (collisionAttributeIndex != capsule.CollisionAttributeIndex)
@@ -143,7 +141,6 @@ namespace ValveResourceFormat.Renderer.SceneNodes
                         }
                     }
 
-                    // Hulls
                     foreach (var hull in shape.Hulls)
                     {
                         if (collisionAttributeIndex != hull.CollisionAttributeIndex)
@@ -157,7 +154,6 @@ namespace ValveResourceFormat.Renderer.SceneNodes
 
                         var pose = bindPose.Length == 0 ? Matrix4x4.Identity : bindPose[p];
 
-                        // vertex positions
                         var positionsBuffer = ArrayPool<float>.Shared.Rent(vertexPositions.Length * 3);
 
                         try
@@ -223,7 +219,6 @@ namespace ValveResourceFormat.Renderer.SceneNodes
                         }
                     }
 
-                    // Meshes
                     foreach (var mesh in shape.Meshes)
                     {
                         if (collisionAttributeIndex != mesh.CollisionAttributeIndex)
@@ -242,7 +237,6 @@ namespace ValveResourceFormat.Renderer.SceneNodes
                         verts.EnsureCapacity(verts.Count + numTriangles * 3);
                         inds.EnsureCapacity(inds.Count + numTriangles * 6);
 
-                        // vertex positions
                         var positions = new Vector3[vertices.Length];
                         for (var i = 0; i < vertices.Length; i++)
                         {

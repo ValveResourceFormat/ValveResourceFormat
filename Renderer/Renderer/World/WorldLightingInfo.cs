@@ -92,7 +92,6 @@ namespace ValveResourceFormat.Renderer.World
         /// <summary>Gets or sets a value indicating whether the sun light frustum is fitted to the scene bounds rather than the camera.</summary>
         public bool UseSceneBoundsForSunLightFrustum { get; set; }
 
-        // Barn lights
         /// <summary>Gets the size of the barn light shadow atlas texture, as recorded by the last <see cref="BinBarnLights"/> call.</summary>
         public int BarnLightShadowAtlasSize { get; private set; } = 4096;
 

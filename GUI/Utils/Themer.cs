@@ -343,7 +343,6 @@ namespace GUI.Utils
 
             foreach (Control childControl in control.Controls)
             {
-                // Recursively process its children
                 ThemeControlInternal(childControl);
             }
         }

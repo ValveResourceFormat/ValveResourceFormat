@@ -526,13 +526,10 @@ MaterialProperties_t GetMaterial(vec3 vertexNormals)
     return mat;
 }
 
-// MAIN
-
 void main()
 {
     vec3 vertexNormal = SwitchCentroidNormal(vNormalOut, vCentroidNormalOut);
 
-    // Get material
     MaterialProperties_t mat = GetMaterial(vertexNormal);
 
     LightingTerms_t lighting = CalculateLighting(mat);

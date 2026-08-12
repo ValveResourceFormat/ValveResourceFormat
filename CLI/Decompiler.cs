@@ -709,10 +709,6 @@ namespace CLI
                 return;
             }
 
-            //Console.WriteLine("\tInput Path: \"{0}\"", args[fi]);
-            //Console.WriteLine("\tResource Name: \"{0}\"", "???");
-            //Console.WriteLine("\tID: {0:x16}", 0);
-
             lock (ConsoleWriterLock)
             {
                 // Highlight resource type line if undetermined
@@ -1122,7 +1118,6 @@ namespace CLI
                     var firstLine = true;
                     var goodCachedVersion = false;
 
-                    // add version
                     while ((line = file.ReadLine()) != null)
                     {
                         var lineSpan = line.AsSpan();

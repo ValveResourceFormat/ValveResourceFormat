@@ -55,7 +55,6 @@ namespace ValveResourceFormat.Renderer.Particles
         /// </summary>
         public ParticleRandom Random { get; } = new();
 
-        // Properties
         public long ParticleCount { get; set; }
         public float Age { get; set; }
 

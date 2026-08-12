@@ -165,7 +165,6 @@ namespace ValveResourceFormat.Renderer
         /// </summary>
         public void SetViewportSize(int viewportWidth, int viewportHeight)
         {
-            // Store window size and aspect ratio
             AspectRatio = viewportWidth / (float)viewportHeight;
             WindowSize = new Vector2(viewportWidth, viewportHeight);
 

@@ -27,9 +27,10 @@ namespace ValveResourceFormat.Renderer.Particles.Initializers
         private readonly ParticleSetMethod setMethod = ParticleSetMethod.PARTICLE_SET_REPLACE_VALUE;
 
         /// <summary>
-        /// How many particles this initializer has been handed since the system started. It advances
-        /// for particles that <see cref="activeRange"/> excludes, and is what the input range is
-        /// measured against - not the particle's own spawn ordinal.
+        /// How many particles this initializer has been handed since the system started. This is what
+        /// the input range is measured against - not the particle's own spawn ordinal. It keeps
+        /// advancing for particles below the range, but stops once <see cref="activeRange"/> rejects
+        /// a particle for being past the high end.
         /// </summary>
         private int count;
 

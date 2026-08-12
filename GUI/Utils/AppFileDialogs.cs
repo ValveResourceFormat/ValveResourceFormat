@@ -80,7 +80,7 @@ public static class AppFileDialogs
         return SaveFile(title, defaultFileName, defaultExtension, filter, out _, remember);
     }
 
-    // selectedFilterIndex is 1 based, 0 means used canceled
+    // selectedFilterIndex is 1 based, 0 means user canceled
     public static string? SaveFile(string title, string? defaultFileName, string? defaultExtension, string filter, out int selectedFilterIndex, RememberIn remember = RememberIn.SaveDirectory)
     {
         using var dialog = new SaveFileDialog

@@ -44,7 +44,7 @@ namespace ValveResourceFormat.Renderer.Particles
         /// <summary>Gets or sets the current world-space position of the particle.</summary>
         public Vector3 Position { get; set; } = Vector3.Zero;
         /// <summary>Gets or sets the world-space position from the previous frame, used for velocity computation.</summary>
-        public Vector3 PositionPrevious { get; set; } = Vector3.Zero; // Used for velocity computation
+        public Vector3 PositionPrevious { get; set; } = Vector3.Zero;
         /// <summary>Gets or sets the current age of the particle in seconds.</summary>
         public float Age { get; set; } = 0f;
         /// <summary>Gets or sets the total lifetime of the particle in seconds.</summary>

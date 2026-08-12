@@ -240,7 +240,6 @@ namespace ValveResourceFormat.Renderer.SceneNodes
             {
                 Debug.Assert(boneMatricesGpu != null, "boneMatricesGpu should not be null when IsAnimated is true");
 
-                // Update animation matrices
                 var meshBoneCount = remappingTable.Length;
 
                 var floatBufferSizeMeshBones = meshBoneCount * 12;
@@ -491,7 +490,6 @@ namespace ValveResourceFormat.Renderer.SceneNodes
                 meshRenderers.Add(new RenderableMesh(mesh, refMesh.MeshIndex, Scene, model, materialTable));
             }
 
-            // Set active meshes to default
             SetActiveMeshGroups(model.GetDefaultMeshGroups());
         }
 
@@ -875,7 +873,6 @@ namespace ValveResourceFormat.Renderer.SceneNodes
                     SlaveAxis = (int)constraintData.GetIntegerProperty("m_nSlaveAxis"),
                 };
 
-                // Parse slaves
                 var slaves = constraintData.GetArray("m_slaves");
                 constraint.Slaves = slaves.Select(s =>
                 {
@@ -892,7 +889,6 @@ namespace ValveResourceFormat.Renderer.SceneNodes
                     };
                 }).ToArray();
 
-                // Parse targets
                 var targets = constraintData.GetArray("m_targets");
                 constraint.Targets = targets.Select(t =>
                 {

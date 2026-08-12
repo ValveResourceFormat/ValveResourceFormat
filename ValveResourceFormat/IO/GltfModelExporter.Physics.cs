@@ -309,7 +309,6 @@ public partial class GltfModelExporter
     /// </summary>
     private static void CreateCapsuleMesh(List<Vector3> verts, List<Vector3> normals, List<Vector2> uvs, List<int> indices, Vector3 start, Vector3 end, float radius)
     {
-        // Create a capsule as a cylinder with hemisphere caps
         var direction = Vector3.Normalize(end - start);
         var length = Vector3.Distance(start, end);
         var center = (start + end) * 0.5f;
@@ -389,9 +388,6 @@ public partial class GltfModelExporter
     /// </summary>
     private static Vector2 GeneratePlanarUV(Vector3 position, Vector3 normal)
     {
-        // Generate UV coordinates using planar projection based on the surface normal
-        // This provides better texture mapping than simple world coordinates
-
         var absNormal = new Vector3(Math.Abs(normal.X), Math.Abs(normal.Y), Math.Abs(normal.Z));
         const float uvScale = 0.02f; // Scale factor for reasonable texture tiling
 
@@ -495,7 +491,6 @@ public partial class GltfModelExporter
                         texture.Name = newImage.Name;
                         ExportedTextures[textureName] = texture;
 
-                        // Generate auto-generated tool texture using AddPhysicsTexture
                         var toolTexTask = AddPhysicsTexture(newImage, $"TOOL_{toolTextureName.ToUpperInvariant()}");
                         TextureExportingTasks.Add(toolTexTask);
                     }

@@ -594,7 +594,7 @@ namespace Tests
         [Test]
         public void TestMixedOperatorPrecedence()
         {
-            // (1*2)+3-4 → ((1*2)+3)-4
+            // (1*2)+3-4 is decompiled as ((1*2)+3)-4
             var exampleStr = "07 00 00 80 3F 07 00 00 00 40 15 07 00 00 40 40 13 07 00 00 80 40 14 00";
             var expectedResult = "return ((1*2)+3)-4;";
             Assert.That(new VfxEval(ParseString(exampleStr)).DynamicExpressionResult, Is.EqualTo(expectedResult));

@@ -57,7 +57,6 @@ namespace ValveResourceFormat.Renderer.SceneEnvironment
         float MaxHighlightLum; // CS2
         */
 
-        // Default settings (filmic)
         /// <summary>Initializes a new <see cref="TonemapSettings"/> with default filmic curve values.</summary>
         public TonemapSettings()
         {
@@ -550,7 +549,6 @@ namespace ValveResourceFormat.Renderer.SceneEnvironment
         // Additionally, due to collision detection being An Absolute Pain, we can't
         // use local post process volumes, and can only use the master.
 
-        //
         /// <summary>
         /// Reads tonemapping, bloom, and color correction data from the given post-processing resource.
         /// </summary>

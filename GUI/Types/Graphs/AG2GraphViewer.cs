@@ -398,7 +398,6 @@ internal class AG2GraphViewer : GLGraphViewer
                     var weightDesc = string.Empty;
                     if (hasWeightsSet)
                     {
-                        // If weights are set, show the weight and its percentage.
                         var weight = weights[i];
                         var weightPercentage = weight / (float)totalWeight * 100;
 

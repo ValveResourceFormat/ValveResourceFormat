@@ -103,7 +103,6 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
 
         private SequenceAnimation(KVObject animDesc, AnimationSegmentDecoder?[] segmentArray)
         {
-            // Get animation properties
             Name = animDesc.GetStringProperty("m_name");
             Fps = animDesc.GetFloatProperty("fps");
             SegmentArray = segmentArray;
@@ -208,7 +207,6 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
                 .Select(x => new AnimationEvent(x))
                 .ToArray();
 
-            // Auto layers
             var autoLayerArray = seqDesc.GetArray("m_autoLayerArray");
             AutoLayers = new AnimationAutoLayer[autoLayerArray.Count];
             for (var i = 0; i < autoLayerArray.Count; i++)
@@ -216,7 +214,6 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
                 AutoLayers[i] = new AnimationAutoLayer(autoLayerArray[i]);
             }
 
-            // Fetch
             var fetch = seqDesc.GetSubCollection("m_fetch");
             Fetch = new AnimationFetch(fetch);
 
@@ -358,7 +355,6 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
                 return [];
             }
 
-            // Build segment array from animation data
             var segmentArray = BuildSegmentArray(animationData, decodeKey, skeleton, flexControllers);
             var sequenceNameArray = sequenceData.GetArray<string>("m_localSequenceNameArray");
 
@@ -593,7 +589,6 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
         /// <inheritdoc/>
         public override void DecodeFrame(Frame outFrame)
         {
-            // Read all frame blocks
             foreach (var frameBlock in FrameBlocks)
             {
                 // Only consider blocks that actually contain info for this frame

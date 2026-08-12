@@ -156,7 +156,6 @@ namespace ValveResourceFormat.Renderer.SceneNodes
                 ]
             });
 
-            // Index buffer
             vbib.IndexBuffers.Add(new VBIB.OnDiskBufferData
             {
                 ElementCount = (uint)indices.Length,

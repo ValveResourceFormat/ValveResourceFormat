@@ -82,7 +82,6 @@ internal class AG1GraphViewer : GLGraphViewer
     private static (string Name, GraphHue Hue) ComponentClassInfo(string className)
         => ComponentClasses.TryGetValue(className, out var info) ? info : (className, GraphHue.Neutral);
 
-    // ---- Dictionaries for class-based lookups ----
     private static readonly Dictionary<string, string> ClassDisplayName = new(StringComparer.Ordinal)
     {
         ["CSequenceUpdateNode"] = "Sequence",
@@ -201,7 +200,7 @@ internal class AG1GraphViewer : GLGraphViewer
         ["m_networkMode"] = "NetworkMode",
     };
 
-    // ---- Properties to skip in generic display for specific classes ----
+    // Properties to skip in generic display for specific classes
     private static readonly Dictionary<string, HashSet<string>> ClassPropertySkips = new(StringComparer.Ordinal)
     {
         ["CChoiceUpdateNode"] = new(StringComparer.Ordinal) { "m_weights", "m_blendTimes", "m_choiceMethod", "m_blendMethod", "m_choiceChangeMethod", "m_bCrossFade", "m_bResetChosen", "m_bDontResetSameSelection" },

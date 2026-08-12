@@ -289,7 +289,6 @@ uniform sampler2D g_tTintMask;
 
 #include "features/csgo_character_eyes_ps.slang"
 
-// Get material properties
 MaterialProperties_t GetMaterial(vec2 texCoord, vec3 vertexNormals)
 {
     MaterialProperties_t mat;
@@ -671,7 +670,6 @@ void main()
     vec3 vertexNormal = SwitchCentroidNormal(vNormalOut, vCentroidNormalOut);
     vec2 texCoord = vTexCoordOut;
 
-    // Get material
     MaterialProperties_t mat = GetMaterial(texCoord, vertexNormal);
     outputColor.a = mat.Opacity;
 

@@ -126,10 +126,8 @@ namespace GUI.Utils
                 return ViewerType.Default;
             }
 
-            // Determine viewer type from DisposableContents
             var contents = exportData.DisposableContents;
 
-            // Check if Resource viewer with GL component
             if (contents is Types.Viewers.Resource resourceViewer)
             {
                 var glViewer = resourceViewer.GLViewer;
@@ -149,7 +147,6 @@ namespace GUI.Utils
                 return ViewerType.Default;
             }
 
-            // Check other viewer types
             return contents switch
             {
                 Types.Viewers.Audio => ViewerType.AudioPlayer,

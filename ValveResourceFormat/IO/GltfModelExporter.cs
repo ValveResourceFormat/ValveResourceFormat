@@ -479,7 +479,6 @@ namespace ValveResourceFormat.IO
                 LoadModel(exportedModel, scene, model, Path.GetFileNameWithoutExtension(modelName),
                     transform, tintColor, skinName, entity);
 
-                // Load model physics
                 var phys = model.GetEmbeddedPhys();
                 if (phys == null)
                 {
@@ -594,7 +593,6 @@ namespace ValveResourceFormat.IO
 
             WriteModelFile(exportedModel, fileName);
 
-            // Add embedded phys
             var phys = model.GetEmbeddedPhys();
             if (phys != null)
             {
@@ -733,7 +731,6 @@ namespace ValveResourceFormat.IO
             {
                 var meshName = m.Name;
 
-                // Apply mesh filter if specified
                 if (MeshFilter.Count > 0 && !MeshFilter.Contains(meshName.Split('.')[^1]))
                 {
                     continue;
@@ -970,7 +967,6 @@ namespace ValveResourceFormat.IO
                 .WithLocalRotation(rotation);
             joints[bone.Index] = node;
 
-            // Recurse into children
             foreach (var child in bone.Children)
             {
                 CreateBonesRecursive(child, node, ref joints, isRoot: false);

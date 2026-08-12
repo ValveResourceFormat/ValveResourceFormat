@@ -396,7 +396,6 @@ namespace ValveResourceFormat.ToolsAssetInfo
                 {
                     count = reader.ReadInt32();
 
-                    // Game search paths
                     while (count-- > 0)
                     {
                         var hash = reader.ReadUInt64();

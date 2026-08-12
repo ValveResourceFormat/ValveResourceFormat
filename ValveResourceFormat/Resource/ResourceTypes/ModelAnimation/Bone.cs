@@ -71,7 +71,6 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
             Position = position;
             Angle = rotation;
 
-            // Calculate matrices
             BindPose = Matrix4x4.CreateFromQuaternion(rotation) * Matrix4x4.CreateTranslation(position);
 
             if (!Matrix4x4.Invert(BindPose, out var inverseBindPose))

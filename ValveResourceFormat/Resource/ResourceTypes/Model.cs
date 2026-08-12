@@ -423,7 +423,6 @@ namespace ValveResourceFormat.ResourceTypes
         /// <summary>
         /// Get the embedded animations with a different skeleton as animation target.
         /// </summary>
-        /// <returns></returns>
         public static IEnumerable<Animation> GetEmbeddedAnimationsWithSkeleton(IFileLoader fileLoader, Skeleton skeleton, Model model)
         {
             var old = model.cachedSkeleton;

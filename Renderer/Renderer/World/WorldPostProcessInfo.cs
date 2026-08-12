@@ -29,7 +29,6 @@ namespace ValveResourceFormat.Renderer.World
         /// </summary>
         public SceneTonemapController? MasterTonemapController { get; set; }
 
-        // Current post processing state
         /// <summary>Gets the post-processing state computed for the current frame.</summary>
         public PostProcessState CurrentState { get; private set; } = new();
 

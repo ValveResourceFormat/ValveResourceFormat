@@ -48,7 +48,6 @@ namespace GUI.Types.PackageViewer
                 OnScroll(new ScrollEventArgs((ScrollEventType)(m.WParam.ToInt32() & 0xffff), 0));
             }
 
-            // Mouse wheel
             if (m.Msg == PInvoke.WM_MOUSEWHEEL)
             {
                 OnScroll(new ScrollEventArgs(

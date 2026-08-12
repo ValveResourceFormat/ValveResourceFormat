@@ -141,9 +141,6 @@ public sealed class TextureExtract
 
         Func<SKBitmap, byte[]> ImageEncode = ExportExr ? ToExrImage : ToPngImage;
 
-        //
-        // Multiple images path
-        //
         if (isArray || isCubeMap)
         {
             var contentFile = new ContentFile()
@@ -758,7 +755,6 @@ public sealed class TextureExtract
                 var (sinU, cosU) = MathF.SinCos(u);
                 var (sinV, cosV) = MathF.SinCos(v);
 
-                // direction vector
                 var dir = new Vector3(sinV * cosU, cosV, sinV * sinU);
 
                 var color = SampleCubemapDirection(faces, dir);

@@ -196,9 +196,6 @@ namespace GUI.Controls
         private void OnTextChanged(object? sender, TextChangedEventArgs e)
         {
             ClearUndo();
-
-            //e.ChangedRange.SetFoldingMarkers("{", "}");
-            //e.ChangedRange.SetFoldingMarkers("\\[", "\\]");
         }
 
         private static TextBox CreateBasicTextBox(string text)

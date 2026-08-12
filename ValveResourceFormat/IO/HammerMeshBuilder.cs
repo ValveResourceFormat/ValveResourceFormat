@@ -895,13 +895,11 @@ namespace ValveResourceFormat.IO
 
         private static bool AreVerticesCollinear(Vector3 v1, Vector3 v2, Vector3 v3)
         {
-            // Calculate the cross product of the vectors
             var vector1 = v2 - v1;
             var vector2 = v3 - v1;
 
             var crossProduct = Vector3.Cross(vector1, vector2);
 
-            // Check if the magnitude of the cross product is close to zero
             const float epsilon = 1e-10f;
             return crossProduct.Length() < epsilon;
         }

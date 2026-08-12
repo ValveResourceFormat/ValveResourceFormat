@@ -84,7 +84,6 @@ public class PerfStats
 
     private bool IsNotOwningThread => Environment.CurrentManagedThreadId != owningThreadId;
 
-    // Stats
     private readonly int[] counts = new int[Enum.GetValues<Counter>().Length];
     private readonly float[] floatMetrics = new float[Enum.GetValues<Metric>().Length];
     /// <summary>Lights that passed culling this frame, indexed by <see cref="SceneLight.LightCost"/> then <see cref="LightGroup"/>.</summary>

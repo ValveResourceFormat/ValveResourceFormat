@@ -360,10 +360,8 @@ public static class GraphLayout
             nodeBarycenters.Add((node, barycenter));
         }
 
-        // Sort by barycenter value
         nodeBarycenters.Sort((a, b) => a.barycenter.CompareTo(b.barycenter));
 
-        // Update layer order
         nodeLayers[targetLayer].Clear();
         foreach (var (node, _) in nodeBarycenters)
         {
@@ -424,7 +422,6 @@ public static class GraphLayout
                 }
             }
 
-            // Count crossings
             var currentCrossings = CountCrossings(nodeLayers, nodeToLayer, getOutputConnections, getTargetNode);
 
             // Track best configuration
@@ -637,7 +634,7 @@ public static class GraphLayout
             currentX += layerSpacing;
         }
 
-        // Step 3: Refine positions for nodes without inputs now that outputs are positioned
+        // Refine positions for nodes without inputs now that outputs are positioned
         RefineNodesWithoutInputs(
             nodeLayers, getPosition, setPosition, getSize,
             getInputConnections, getOutputConnections,

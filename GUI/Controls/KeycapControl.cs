@@ -75,14 +75,11 @@ namespace GUI.Controls
             graphics.SmoothingMode = SmoothingMode.AntiAlias;
             graphics.InterpolationMode = InterpolationMode.HighQualityBicubic;
 
-            // Create bold font for key text
             using var boldFont = new Font(Font, FontStyle.Bold);
 
-            // Measure text sizes
             var keySize = TextRenderer.MeasureText(KeyText, boldFont);
             var descSize = TextRenderer.MeasureText(Description, Font);
 
-            // Calculate keycap rectangle
             var keycapWidth = keySize.Width + this.AdjustForDPI(KeycapPadding * 2);
             var keycapMargin = this.AdjustForDPI(1);
             var keycapHeight = Height - (keycapMargin * 2);

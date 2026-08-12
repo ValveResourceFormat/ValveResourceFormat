@@ -116,7 +116,6 @@ namespace ValveResourceFormat.Renderer
                 return;
             }
 
-            // Update time for all clips
             foreach (var clip in clips.Values)
             {
                 if (!clip.IsPaused && clip.Animation.FrameCount > 1)
@@ -219,7 +218,6 @@ namespace ValveResourceFormat.Renderer
                 return null;
             }
 
-            // Check if blending is needed
             var needsBlending = false;
             foreach (var clip in clips.Values)
             {
@@ -253,7 +251,6 @@ namespace ValveResourceFormat.Renderer
                     ? clip.Weight
                     : clip.Weight / (totalWeight + clip.Weight);
 
-                // Apply bone mask if specified
                 Half[]? boneMask = null;
                 if (!string.IsNullOrEmpty(clip.BoneMask))
                 {
@@ -317,7 +314,6 @@ namespace ValveResourceFormat.Renderer
         {
             var animName = animation.Name;
 
-            // Check if clip already exists
             if (!clips.TryGetValue(animName, out var newClip))
             {
                 newClip = new PlaybackClip(animation) { Looping = looping, BlendTime = blendTime, IsAdditive = animation.IsAdditive };
@@ -327,7 +323,6 @@ namespace ValveResourceFormat.Renderer
             }
             else
             {
-                // Update existing clip properties
                 newClip.Looping = looping;
                 newClip.BlendTime = blendTime;
 
@@ -335,7 +330,6 @@ namespace ValveResourceFormat.Renderer
                 newClip.Frame = 0;
             }
 
-            // Handle blending
             if (activeClip == newClip)
             {
                 // Re-setting the same animation should not create a self-blend transition.

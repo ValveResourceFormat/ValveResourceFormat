@@ -45,7 +45,6 @@ vec3 calculateWorldNormal()
     return normalize(bumpNormal);
 }
 
-//Main entry point
 void main()
 {
     vec3 normal = calculateWorldNormal();

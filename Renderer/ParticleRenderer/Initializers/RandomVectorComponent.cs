@@ -16,7 +16,6 @@ namespace ValveResourceFormat.Renderer.Particles.Initializers
             fieldOutput = parse.ParticleField("m_nFieldOutput", fieldOutput);
             min = parse.Float("m_flMin", min);
             max = parse.Float("m_flMax", max);
-            // Out-of-range components are clamped into [0, 2] after parsing.
             component = Math.Clamp(parse.Int32("m_nComponent", component), 0, 2);
         }
 

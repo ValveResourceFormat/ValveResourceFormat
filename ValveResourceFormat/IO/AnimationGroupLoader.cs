@@ -45,14 +45,12 @@ namespace ValveResourceFormat.IO
             // Get the list of animation files
             var animArray = data.GetArray<string>("m_localHAnimArray")!.Where(a => !string.IsNullOrEmpty(a));
 
-            // Load animation files
             foreach (var animationFile in animArray)
             {
                 var animResource = fileLoader.LoadFileCompiled(animationFile);
 
                 if (animResource != null)
                 {
-                    // Build animation classes
                     animationList.AddRange(SequenceAnimation.FromResource(animResource, decodeKey, skeleton, flexControllers));
                 }
             }

@@ -706,7 +706,6 @@ namespace ValveResourceFormat.Renderer.Shaders
             var compShaders = Directory.GetFiles(folder, "*.comp.slang");
             var allShaders = vertShaders.Concat(compShaders).ToArray();
 
-            // Apply filter if specified
             if (filter != null)
             {
                 allShaders = [.. allShaders.Where(s => Path.GetFileName(s).Contains(filter, StringComparison.OrdinalIgnoreCase))];
@@ -771,7 +770,6 @@ namespace ValveResourceFormat.Renderer.Shaders
                     {
                         var maxValue = maxValues.GetValueOrDefault(define, 1);
 
-                        // Test all values from 1 to maxValue
                         for (var value = 1; value <= maxValue; value++)
                         {
                             progressReporter.Report($"Compiling variant {vfxName} with {define}={value}");

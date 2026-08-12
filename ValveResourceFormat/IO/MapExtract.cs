@@ -432,7 +432,6 @@ public sealed class MapExtract
             }
         }
 
-        //convert phys to hammer meshes
         if (phys != null)
         {
             foreach (var hammermesh in PhysToHammerMeshes(phys))

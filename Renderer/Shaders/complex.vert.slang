@@ -101,7 +101,6 @@ uniform int F_TEXTURE_ANIMATION_MODE; // csgo_complex, csgo_static_overlay, csgo
         vec3 heightOffset;
     };
 
-    // Function to calculate animated position
     vec3 vertexAnimation(vec3 pos, FoliageAnimParams params)
     {
         // Sample and calculate sway noise
@@ -288,10 +287,8 @@ void main()
         // Interpolate out for debug visualization
         vFoliageParamsOut = vFoliageParams;
 
-        // Clamp foliage parameters
         vec4 foliageParams = clamp(vFoliageParams, vec4(0.001), vec4(1.0));
 
-        // Initialize animation parameters
         FoliageAnimParams animParams;
 
         // Calculate strengths

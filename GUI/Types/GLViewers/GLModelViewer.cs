@@ -101,7 +101,6 @@ namespace GUI.Types.GLViewers
                     return;
                 }
 
-                // Check if this is a header item (ThemedComboBoxItem with IsHeader = true)
                 if (animationComboBox!.Items[i] is ThemedComboBoxItem item && item.IsHeader)
                 {
                     // Skip header selection and jump to adjacent non-header item

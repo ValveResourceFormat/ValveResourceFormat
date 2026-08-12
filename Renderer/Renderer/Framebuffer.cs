@@ -313,7 +313,6 @@ public class Framebuffer
             {
                 Depth.AttachToFramebuffer(this, FramebufferAttachment.DepthStencilAttachment, 0);
 
-                // Create stencil view
                 Stencil = Depth.CreateView(DepthFormat.InternalFormat);
 
                 Stencil.SetLabel("FramebufferStencil");

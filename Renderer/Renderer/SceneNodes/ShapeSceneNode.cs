@@ -20,7 +20,7 @@ namespace ValveResourceFormat.Renderer.SceneNodes
         // sphere/capsule constants
         private const int SphereSegments = 8;
         private const int SphereBands = 5;
-        // constants for sizes of spheres/capsules
+
         /// <summary>Number of vertices in one hemisphere (used for sphere and capsule allocation).</summary>
         public const int HemisphereVerts = SphereBands * SphereSegments + 1;
 

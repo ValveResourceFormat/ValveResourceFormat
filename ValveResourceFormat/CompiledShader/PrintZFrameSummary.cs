@@ -13,8 +13,6 @@ namespace ValveResourceFormat.CompiledShader
         public IndentedTextWriter OutputWriter { get; set; }
         private readonly VfxStaticComboData StaticCombo;
 
-        // If OutputWriter is left as null; output will be written to Console.
-        // Otherwise output is directed to the passed HandleOutputWrite object (defined by the calling application, for example GUI element or file)
         /// <summary>
         /// Initializes a new instance and prints the summary.
         /// </summary>

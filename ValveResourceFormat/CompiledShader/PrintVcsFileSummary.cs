@@ -199,7 +199,6 @@ namespace ValveResourceFormat.CompiledShader
             }
             var dynExpCount = 0;
             var indexPad = program.VariableDescriptions.Length > 100 ? 3 : 2;
-            // parameters
             output.WriteLine($"VARIABLE DESCRIPTIONS({program.VariableDescriptions.Length})    *dyn-expressions shown separately");
             output.DefineHeaders(["index",
                 nameof(VfxVariableDescription.Name),

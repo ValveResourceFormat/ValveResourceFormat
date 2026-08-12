@@ -1328,7 +1328,6 @@ namespace ValveResourceFormat.Renderer.World
 
                 if (modelNode.HasMeshes)
                 {
-                    // Animation
                     if (animation != null)
                     {
                         var isAnimated = modelNode.SetAnimationForWorldPreview(animation);

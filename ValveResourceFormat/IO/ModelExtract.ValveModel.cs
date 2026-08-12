@@ -1257,7 +1257,6 @@ partial class ModelExtract
                     ("m_flTraceRadius", "traceradius"),
                 };
 
-                // Convert each foot entry to a Foot child node
                 foreach (var (_, footEntry) in feetSettings.Children)
                 {
                     if (footEntry.ValueType != KVValueType.Collection)
@@ -1287,7 +1286,6 @@ partial class ModelExtract
                     return null;
                 }
 
-                // Create the Feet node
                 var feetNode = MakeNode("Feet", ("children", children));
 
                 // Parent-level field mappings

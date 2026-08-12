@@ -55,7 +55,6 @@ uniform vec2 g_vTexCoordScroll3;
 
 vec2 getTexCoord(float scale, float rotation, vec2 offset, vec2 scroll) {
 
-    //Transform degrees to radians
     float r = radians(rotation);
 
     vec2 totalOffset = (scroll.xy * g_flTime) + offset.xy;

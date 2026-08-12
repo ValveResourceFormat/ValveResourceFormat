@@ -83,10 +83,8 @@ vec3 calculateWorldNormal(vec3 vNormalTs)
     vec3 tangent = vTangentOut.xyz;
     vec3 bitangent = vBitangentOut;
 
-    //Make the tangent space matrix
     mat3 tangentSpace = mat3(tangent, bitangent, normal);
 
-    //Calculate the tangent normal in world space and return it
     return normalize(tangentSpace * vNormalTs);
 }
 
@@ -156,7 +154,6 @@ void main()
 
     tintFactor *= g_vColorTint.rgb;
 
-    //Simply multiply the color from the color texture with the illumination
     outputColor = vec4(illumination * 2.0 * color.rgb * tintFactor, color.a);
 
     #if (F_PAINT_VERTEX_COLORS == 1)

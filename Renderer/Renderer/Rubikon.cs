@@ -360,7 +360,6 @@ public class Rubikon
             | (computeContactPoint ? TraceOptions.ComputeContactPoint : TraceOptions.None);
         var trace = new AABBTraceContext(from, to, halfExtents, options);
 
-        // Check against all meshes
         foreach (var mesh in Meshes)
         {
             if (SkipsCollision(collisionName, mesh.InteractAs, mesh.InteractExclude))
@@ -768,7 +767,6 @@ public class Rubikon
 
         while (triangles.MoveNext(out var v0, out var v1, out var v2))
         {
-            // Update if this is the closest hit
             if (RayIntersectsTriangle(ray, v0, v1, v2, out var intersection) && intersection.Distance < closestHit.Distance)
             {
                 closestHit = new(true, ray.Origin + ray.Direction * intersection.Distance, intersection.Normal, intersection.Distance, -1);
@@ -872,7 +870,6 @@ public class Rubikon
                     continue;
                 }
 
-                // Update if this is the closest hit
                 if (intersection.Distance < ClosestHit.Distance)
                 {
                     ClosestHit = new(true, ray.Origin + ray.Direction * intersection.Distance, intersection.Normal, intersection.Distance, i);

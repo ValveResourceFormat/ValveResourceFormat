@@ -112,14 +112,11 @@ namespace Tests
             }
             AssertEvents(vcd.Events, ChoreoEventType.Section, ChoreoEventType.Section, ChoreoEventType.Loop);
 
-            //actor
             var target1Actor = GetActor(vcd, "!Target1", 7);
 
-            //move channel
             var moveChannel = GetChannel(target1Actor, "Move", 2);
             AssertEvents(moveChannel.Events, ChoreoEventType.MoveTo, ChoreoEventType.MoveTo);
 
-            //look channel
             var lookChannel = GetChannel(target1Actor, "LookAt", 1);
             AssertEvents(lookChannel.Events, ChoreoEventType.LookAt);
             var lookAtEvent = GetEvent(lookChannel, "Look at !self", ChoreoEventType.LookAt);
@@ -149,7 +146,6 @@ namespace Tests
                 Assert.That(vcd.IgnorePhonemes, Is.True);
             }
 
-            //scene events
             AssertEvents(vcd.Events, ChoreoEventType.Loop, ChoreoEventType.StopPoint);
             var loopEvent = GetEvent(vcd, "loop", ChoreoEventType.Loop);
             using (Assert.EnterMultipleScope())
@@ -160,13 +156,11 @@ namespace Tests
                 Assert.That(loopEvent.EndTime, Is.EqualTo(-1f));
             }
 
-            //actor 1
             var actor1 = GetActor(vcd, "actor 1", 1);
 
             var actor1Channel1 = GetChannel(actor1, "channel 1");
             AssertEvents(actor1Channel1.Events, ChoreoEventType.Expression, ChoreoEventType.Speak);
 
-            //actor 2
             var actor2 = GetActor(vcd, "actor 2", 2);
 
             var actor2Channel1 = GetChannel(actor2, "channel 1");
@@ -199,7 +193,6 @@ namespace Tests
                 ChoreoEventType.IgnoreCollision,
                 ChoreoEventType.IgnoreLookAts);
 
-            //flex animation event
             var flexEvent = GetEvent(actor2Channel2, "flex animation event", ChoreoEventType.FlexAnimation);
 
             Debug.Assert(flexEvent.Ramp.LeftEdge != null);
@@ -257,7 +250,6 @@ namespace Tests
                 Assert.That(flexTrack.ComboRamp.Samples, Has.Length.EqualTo(3));
             }
 
-            //scene ramp
             var sceneRamp = vcd.Ramp;
             Debug.Assert(sceneRamp.LeftEdge != null);
             Debug.Assert(sceneRamp.RightEdge != null);

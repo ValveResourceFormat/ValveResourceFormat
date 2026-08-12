@@ -104,9 +104,6 @@ namespace ValveResourceFormat.IO
         /// <summary>
         /// Gets or sets the file name (relative to the content file).
         /// </summary>
-        /// <remarks>
-        /// This is relative to the content file.
-        /// </remarks>
         public string FileName { get; set; } = string.Empty;
 
         /// <summary>

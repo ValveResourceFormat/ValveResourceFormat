@@ -91,9 +91,7 @@ float length_squared(vec4 vector)
 }
 
 
-//-------------------------------------------------------------------------------------------------------------------------------------------------------------
 // Color
-//-------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 const vec3 gamma = vec3(2.4);
 const vec3 invGamma = vec3(1.0 / gamma);
@@ -248,7 +246,6 @@ vec3 QuaternionRotation( vec3 v, vec4 q )
 // All of this is directly ported from The Lab Renderer from the unity store.
 // These are their utility functions, at least as of the lab.
 
-//-------------------------------------------------------------------------------------------------------------------------------------------------------------
 float ClampToPositive( float flValue )
 {
 	return max( 0.0, flValue );
@@ -269,16 +266,13 @@ vec4 ClampToPositive( vec4 vValue )
 	return max( vec4(0.0), vValue.xyzw );
 }
 
-//-------------------------------------------------------------------------------------------------------------------------------------------------------------
 // basically map to 0-1
 float LinearRamp( float flMin, float flMax, float flInput )
 {
 	return saturate( ( flInput - flMin ) / ( flMax - flMin ) );
 }
 
-//-------------------------------------------------------------------------------------------------------------------------------------------------------------
 // Remap a value in the range [A,B] to [C,D].
-//-------------------------------------------------------------------------------------------------------------------------------------------------------------
 float RemapVal( float flOldVal, float flOldMin, float flOldMax, float flNewMin, float flNewMax )
 {
 	// Put the old val into 0-1 range based on the old min/max
@@ -288,9 +282,7 @@ float RemapVal( float flOldVal, float flOldMin, float flOldMax, float flNewMin, 
 	return ( flValNormalized * ( flNewMax - flNewMin ) ) + flNewMin;
 }
 
-//-------------------------------------------------------------------------------------------------------------------------------------------------------------
 // Remap a value in the range [A,B] to [C,D]. Values <A map to C, and >B maps to D.
-//-------------------------------------------------------------------------------------------------------------------------------------------------------------
 float RemapValClamped( float flOldVal, float flOldMin, float flOldMax, float flNewMin, float flNewMax )
 {
 	// Put the old val into 0-1 range based on the old min/max
@@ -300,7 +292,6 @@ float RemapValClamped( float flOldVal, float flOldMin, float flOldMax, float flN
 	return ( flValNormalized * ( flNewMax - flNewMin ) ) + flNewMin;
 }
 
-//-------------------------------------------------------------------------------------------------------------------------------------------------------------
 vec4 PackToColor( vec4 vValue )
 {
 	return ( ( vValue.xyzw * 0.5 ) + 0.5 );

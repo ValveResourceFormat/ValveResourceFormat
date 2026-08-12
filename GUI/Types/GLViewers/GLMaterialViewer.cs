@@ -163,7 +163,6 @@ namespace GUI.Types.GLViewers
                 }
             }
 
-            // Process all parameters
             foreach (var paramName in allParameterNames)
             {
                 var inMaterial = materialParams.FloatParams.ContainsKey(paramName) ||
@@ -481,7 +480,6 @@ namespace GUI.Types.GLViewers
                 }
             }
 
-            // Start with empty result
             var result = new System.Text.StringBuilder();
 
             for (var i = 0; i < paramName.Length; i++)

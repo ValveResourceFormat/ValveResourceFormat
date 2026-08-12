@@ -53,7 +53,6 @@ namespace GUI.Controls
 
             var textPoint = new Point(rect.X + this.AdjustForDPI(10), rect.Y);
 
-            // Create rounded rectangle path
             using var path = GetRoundedRect(rect, this.AdjustForDPI(CornerRadius), textSize, textPoint);
 
             e.Graphics.CompositingQuality = CompositingQuality.HighQuality;

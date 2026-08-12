@@ -98,7 +98,6 @@ namespace GUI.Types.GLViewers
                 {
                     Debug.Assert(animationController != null);
 
-                    // Register update handler
                     SetAnimationControllerUpdateHandler();
 
                     // Set trackbar length to the animation length
