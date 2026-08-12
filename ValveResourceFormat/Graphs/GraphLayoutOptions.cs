@@ -22,7 +22,7 @@ readonly struct LayoutDeadline
 }
 
 /// <summary>Layout tuning for the placement engine.</summary>
-public sealed class GraphLayoutOptions
+internal sealed class GraphLayoutOptions
 {
     /// <summary>
     /// Insert a dummy node per intermediate rank for every wire spanning more than one rank,

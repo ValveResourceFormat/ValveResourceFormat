@@ -12,7 +12,6 @@
     <GarbageCollectionAdaptationMode>1</GarbageCollectionAdaptationMode>
     <StartupObject>GUI.Program</StartupObject>
     <AssemblyName>Source2Viewer</AssemblyName>
-    <SignAssembly>false</SignAssembly>
     <PublishSingleFile Condition="'$(Configuration)' != 'Debug'">true</PublishSingleFile>
     <EnableCompressionInSingleFile>true</EnableCompressionInSingleFile>
     <NoWarn>$(NoWarn);NU1901;NU1902;NU1903</NoWarn>

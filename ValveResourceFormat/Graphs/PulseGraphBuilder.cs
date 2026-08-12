@@ -9,7 +9,7 @@ namespace ValveResourceFormat.Graphs;
 /// Builds the node graph of a compiled Pulse graph: one card per cell, wired by the instruction
 /// flow and the register bindings between them.
 /// </summary>
-public sealed class PulseGraphBuilder
+internal sealed class PulseGraphBuilder
 {
     /// <summary>Receives diagnostics about cells the definition could not be read cleanly from.</summary>
     public IProgress<string>? ProgressReporter { get; set; }

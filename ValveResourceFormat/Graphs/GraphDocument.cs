@@ -7,7 +7,7 @@ namespace ValveResourceFormat.Graphs;
 /// the measured geometry, and the layout that arranges it. Holds no drawing or input state, so a
 /// host presents it without the graph needing to know a window exists.
 /// </summary>
-public sealed class GraphDocument
+internal sealed class GraphDocument
 {
     private readonly List<GraphNode> nodes = [];
     private readonly List<GraphWire> wires = [];

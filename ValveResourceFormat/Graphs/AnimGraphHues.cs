@@ -6,7 +6,7 @@ namespace ValveResourceFormat.Graphs;
 /// with different class vocabularies, so both map onto this one set and a node of a given kind
 /// reads the same colour in either viewer.
 /// </summary>
-public enum AnimGraphCategory
+internal enum AnimGraphCategory
 {
     /// <summary>Anything the schemes do not bucket.</summary>
     Other,
@@ -47,7 +47,7 @@ public enum AnimGraphCategory
 /// The pose and value kinds an animation graph wire carries. AG2 bakes these into every node
 /// constructor as pin types; AG1 expresses the same things through its parameter types.
 /// </summary>
-public enum AnimGraphValueKind
+internal enum AnimGraphValueKind
 {
     /// <summary>A pose.</summary>
     Pose,
@@ -73,7 +73,7 @@ public enum AnimGraphValueKind
 /// The shared animation graph palette: node headers are coloured by <see cref="AnimGraphCategory"/>,
 /// sockets and wires by <see cref="AnimGraphValueKind"/>.
 /// </summary>
-public static class AnimGraphHues
+internal static class AnimGraphHues
 {
     /// <summary>Colour slot a node category is drawn in.</summary>
     /// <param name="category">The category to colour.</param>

@@ -23,7 +23,7 @@ namespace ValveResourceFormat.Graphs;
 /// <see cref="GraphLayoutOptions.DashedWireWeight"/> during alignment instead of
 /// <see cref="GraphLayoutOptions.SolidWireWeight"/>.
 /// </param>
-public readonly record struct GraphLayoutEdge(
+internal readonly record struct GraphLayoutEdge(
     int From,
     int To,
     Vector2 FromPivot,

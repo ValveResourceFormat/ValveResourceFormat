@@ -7,7 +7,7 @@ namespace ValveResourceFormat.Graphs;
 /// paddings between them. Measurement runs here rather than in the host so a graph can be laid out
 /// without a window, and so the sizes the layout works from are the ones that get drawn.
 /// </summary>
-public static class GraphMetrics
+internal static class GraphMetrics
 {
     /// <summary>Height of a node's title band.</summary>
     public const float HeaderHeight = 26f;

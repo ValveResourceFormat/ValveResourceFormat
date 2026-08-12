@@ -4,7 +4,7 @@ namespace ValveResourceFormat.Graphs;
 /// Named color slot for graph elements. Frontends bind semantics (pose, flow, bool, ...) to a hue;
 /// the host resolves each hue to concrete colors for the theme it is drawing in.
 /// </summary>
-public enum GraphHue
+internal enum GraphHue
 {
     /// <summary>No semantic colour; drawn in the theme's plain foreground.</summary>
     Neutral,

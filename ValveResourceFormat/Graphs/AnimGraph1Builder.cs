@@ -11,7 +11,7 @@ namespace ValveResourceFormat.Graphs;
 /// uncompiled editor one: one card per node, wired by the child links the node declares, with
 /// parameter, tag and component hubs beside them.
 /// </summary>
-public sealed class AnimGraph1Builder : IDisposable
+internal sealed class AnimGraph1Builder : IDisposable
 {
     /// <summary>Whether parameter feeds are drawn as wires instead of being named on the cards.</summary>
     public bool DrawParameterWires { get; set; }

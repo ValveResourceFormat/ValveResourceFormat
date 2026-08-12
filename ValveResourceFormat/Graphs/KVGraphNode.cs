@@ -8,7 +8,7 @@ namespace ValveResourceFormat.Graphs;
 /// Graph node carrying its source <see cref="KVObject"/> and exposing the Name/NodeType
 /// naming used by the resource graph frontends.
 /// </summary>
-public class KVGraphNode : GraphNode
+internal class KVGraphNode : GraphNode
 {
     /// <summary>The keyvalues object this node was built from.</summary>
     public KVObject? Data { get; set; }

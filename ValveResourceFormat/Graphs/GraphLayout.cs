@@ -8,7 +8,7 @@ namespace ValveResourceFormat.Graphs;
 /// <see cref="GraphLayoutEdge"/> values against those indices, so a caller drives it without
 /// handing over its own node type.
 /// </summary>
-public static class GraphLayout
+internal static class GraphLayout
 {
     private const float PackingAspect = 16f / 9f;
 
