@@ -63,8 +63,8 @@ namespace ValveResourceFormat.Renderer
 
             if (missing != 0)
             {
-                shader.Logger.LogDebug("Shader {ShaderName} reads {Attributes}, which {Geometry} does not supply",
-                    shader.Name, shader.DescribeAttributes(missing), geometry);
+                shader.Logger.LogDebug("{Attributes} ({ShaderName}) missing from vbib {Geometry}",
+                    shader.DescribeAttributes(missing), shader.Name, geometry);
             }
 
             if (wrongKind != 0)
