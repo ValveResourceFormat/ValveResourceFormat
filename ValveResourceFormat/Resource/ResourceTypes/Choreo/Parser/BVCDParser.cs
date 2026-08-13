@@ -8,7 +8,7 @@ namespace ValveResourceFormat.ResourceTypes.Choreo.Parser
     /// <summary>
     /// Parser for binary VCD (BVCD) choreography scene files.
     /// </summary>
-    public class BVCDParser
+    internal class BVCDParser
     {
         /// <summary>
         /// Magic number for BVCD files ("bvcd").

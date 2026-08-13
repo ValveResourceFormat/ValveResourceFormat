@@ -28,7 +28,7 @@ public enum D3DVertexUsage
 /// <summary>
 /// Extensions for <see cref="D3DVertexUsage"/>.
 /// </summary>
-public static class D3DVertexUsageExtensions
+internal static class D3DVertexUsageExtensions
 {
     /// <summary>
     /// Gets the Direct3D semantic name for a vertex usage, as it appears in

@@ -5,7 +5,7 @@ namespace ValveResourceFormat.Compression
     /// <summary>
     /// Provides methods for block compression and decompression.
     /// </summary>
-    public static class BlockCompress
+    internal static class BlockCompress
     {
         /// <summary>
         /// Contains information about compression state and size.

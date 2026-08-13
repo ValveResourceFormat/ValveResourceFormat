@@ -9,7 +9,7 @@ namespace ValveResourceFormat.CompiledShader
     /// <summary>
     /// Prints a summary of VCS file contents.
     /// </summary>
-    public class PrintVcsFileSummary
+    internal class PrintVcsFileSummary
     {
         private readonly OutputFormatterTabulatedData output;
 
