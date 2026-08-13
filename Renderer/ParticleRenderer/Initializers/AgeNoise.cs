@@ -3,9 +3,9 @@ using ValveResourceFormat.Renderer.Particles.Utils;
 namespace ValveResourceFormat.Renderer.Particles.Initializers
 {
     /// <summary>
-    /// Starts particles partly aged, with the starting age taken from noise sampled at the
-    /// particle's creation position plus a time term. Decorrelates bursts that would otherwise
-    /// animate in lockstep.
+    /// Starts particles partly aged: the value lattice sampled at the particle's scaled creation
+    /// position with a time term added to every component maps to a clamped fraction of the
+    /// particle's lifetime. Decorrelates bursts that would otherwise animate in lockstep.
     /// </summary>
     /// <seealso href="https://s2v.app/SchemaExplorer/cs2/particles/C_INIT_AgeNoise">C_INIT_AgeNoise</seealso>
     class AgeNoise : ParticleFunctionInitializer
@@ -34,10 +34,8 @@ namespace ValveResourceFormat.Renderer.Particles.Initializers
         public override Particle Initialize(ref Particle particle, ParticleCollection particles, ParticleSystemRenderState particleSystemState)
         {
             var samplePosition = (particle.Position + offsetLoc) * noiseScaleLoc;
-            var coordinate = (samplePosition.X * 0.7f) + (samplePosition.Y * 1.3f) + (samplePosition.Z * 2.1f)
-                + ((particleSystemState.Age + offset) * noiseScale);
-
-            var noise = Noise.ValueDiagonal(coordinate);
+            var sampleTime = (particle.CreationTime + offset) * noiseScale;
+            var noise = Noise.Value3D(samplePosition + new Vector3(sampleTime));
 
             // abs folds the signed noise into the full range; otherwise the half-span scale centers
             // it. absValInv inverts either way. Matches C_INIT_CreationNoise.
@@ -50,10 +48,11 @@ namespace ValveResourceFormat.Renderer.Particles.Initializers
             }
 
             var span = ageMax - ageMin;
-            var age = ageMin + ((1f - absScale) * span) + (absScale * span * normalized);
+            var fraction = Math.Clamp(ageMin + ((1f - absScale) * span) + (absScale * span * normalized), 0f, 1f);
+            var age = fraction * particle.Lifetime;
 
-            particle.Age = age;
-            particle.CreationTime = particleSystemState.Age - age;
+            particle.Age += age;
+            particle.CreationTime -= age;
 
             return particle;
         }

@@ -3,9 +3,9 @@ using ValveResourceFormat.Renderer.Particles.Utils;
 namespace ValveResourceFormat.Renderer.Particles.Initializers
 {
     /// <summary>
-    /// Initializes a scalar particle attribute from spatial noise sampled at the particle's creation
-    /// position, remapped into an output range. Sparse convolution noise is approximated here
-    /// with the value-noise lattice sampled along its diagonal, at a linear blend of position and time.
+    /// Initializes a scalar particle attribute from the value lattice sampled at the particle's
+    /// scaled creation position with a time term added to every component, remapped into an output
+    /// range. Angle fields author the range in degrees; alpha fields clamp to [0, 1].
     /// </summary>
     /// <seealso href="https://s2v.app/SchemaExplorer/cs2/particles/C_INIT_CreationNoise">C_INIT_CreationNoise</seealso>
     class CreationNoise : ParticleFunctionInitializer
@@ -43,8 +43,11 @@ namespace ValveResourceFormat.Renderer.Particles.Initializers
             }
 
             var samplePosition = (particle.Position + offsetLoc) * noiseScaleLoc;
-            var sampleTime = ((particleSystemState.Age + offset) * noiseScale) + (particleSystemState.WorldTime * worldTimeScale);
-            var noise = Noise.ValueDiagonal((samplePosition.X * 0.7f) + (samplePosition.Y * 1.3f) + (samplePosition.Z * 2.1f) + sampleTime);
+
+            // The engine's world time term ticks in milliseconds
+            var sampleTime = ((particle.CreationTime + offset) * noiseScale)
+                + (particleSystemState.WorldTime * 1000f * worldTimeScale);
+            var noise = Noise.Value3D(samplePosition + new Vector3(sampleTime));
 
             // abs folds the signed noise into the full output range; otherwise the half-span
             // scale centers it in the range. absValInv inverts either way.
@@ -56,8 +59,24 @@ namespace ValveResourceFormat.Renderer.Particles.Initializers
                 normalized = 1f - normalized;
             }
 
-            var span = outputMax - outputMin;
-            particle.SetScalar(fieldOutput, outputMin + ((1f - absScale) * span) + (absScale * span * normalized));
+            var min = outputMin;
+            var max = outputMax;
+
+            if (fieldOutput is ParticleField.Roll or ParticleField.Yaw or ParticleField.Pitch)
+            {
+                min *= 0.017453292f;
+                max *= 0.017453292f;
+            }
+
+            var span = max - min;
+            var value = min + ((1f - absScale) * span) + (absScale * span * normalized);
+
+            if (fieldOutput is ParticleField.Alpha or ParticleField.AlphaAlternate)
+            {
+                value = Math.Clamp(value, 0f, 1f);
+            }
+
+            particle.SetScalar(fieldOutput, value);
 
             return particle;
         }
