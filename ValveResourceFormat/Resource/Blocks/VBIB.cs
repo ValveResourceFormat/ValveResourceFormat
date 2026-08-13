@@ -189,9 +189,9 @@ namespace ValveResourceFormat.Blocks
             var size = reader.ReadInt32();
             buffer.ElementSizeInBytes = (uint)(size & 0x3FFFFFF);
 
-            var isSizeNegative = size < 0; // TODO: what does this actually indicate? Maybe indicates that it is meshopt compressed?
+            // Bits 28 to 31 are GPU buffer creation flags and do not affect parsing.
+            var isMeshoptCompressed = (size & 0x4000000) == 0;
             var isZstdCompressed = (size & 0x8000000) != 0;
-            //var unknownThing = ~(size >> 26); // TODO: What is this for? It's stored as (unknownThing & 1)
 
             var refA = reader.BaseStream.Position;
             var attributeOffset = reader.ReadUInt32();
@@ -237,7 +237,7 @@ namespace ValveResourceFormat.Blocks
                     var span = temp.AsSpan(0, totalSize);
                     reader.Read(span);
 
-                    buffer.Data = DecompressData(buffer, span, decompressedSize, isVertex, isZstdCompressed);
+                    buffer.Data = DecompressData(buffer, span, decompressedSize, isVertex, isZstdCompressed, isMeshoptCompressed);
                 }
                 finally
                 {
@@ -254,7 +254,7 @@ namespace ValveResourceFormat.Blocks
             return buffer;
         }
 
-        private static byte[] DecompressData(OnDiskBufferData buffer, Span<byte> span, int decompressedSize, bool isVertex, bool isZstdCompressed)
+        private static byte[] DecompressData(OnDiskBufferData buffer, Span<byte> span, int decompressedSize, bool isVertex, bool isZstdCompressed, bool isMeshoptCompressed)
         {
             byte[]? tempZstd = null;
 
@@ -274,6 +274,13 @@ namespace ValveResourceFormat.Blocks
                     }
 
                     span = tempZstd.AsSpan(0, written);
+                }
+
+                if (!isMeshoptCompressed)
+                {
+                    var data = new byte[decompressedSize];
+                    span.CopyTo(data);
+                    return data;
                 }
 
                 if (isVertex)
@@ -341,7 +348,7 @@ namespace ValveResourceFormat.Blocks
 
                 buffer.Data = bufferData.Length == decompressedSize
                     ? bufferData
-                    : DecompressData(buffer, bufferData, decompressedSize, isVertex, isZstdCompressed: false);
+                    : DecompressData(buffer, bufferData, decompressedSize, isVertex, isZstdCompressed: false, isMeshoptCompressed: true);
             }
             else // MVTX MIDX update
             {
@@ -362,7 +369,7 @@ namespace ValveResourceFormat.Blocks
 
                     if (isMeshoptCompressed)
                     {
-                        buffer.Data = DecompressData(buffer, span, (int)buffer.TotalSizeInBytes, isVertex, isZstdCompressed);
+                        buffer.Data = DecompressData(buffer, span, (int)buffer.TotalSizeInBytes, isVertex, isZstdCompressed, isMeshoptCompressed);
                     }
                     else
                     {
