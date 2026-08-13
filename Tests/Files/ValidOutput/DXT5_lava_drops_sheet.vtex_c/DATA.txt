@@ -1,0 +1,76 @@
+VTEX Version = 1
+Width        = 32
+Height       = 32
+Depth        = 1
+DisplayRectW = 0
+DisplayRectH = 0
+MotionVecMax = 0
+RangeMin     = ( 0.000000, 0.000000, 0.000000, 0.000000 )
+RangeMax     = ( 0.000000, 0.000000, 0.000000, 0.000000 )
+Reflectivity = ( 0.217382, 0.019649, 0.001183, 0.296872 )
+NumMipLevels = 2
+Picmip0Res   = 0
+Format       = 2 (VTEX_FORMAT_DXT5)
+Flags        = 0x00000000
+Extra Data   = 2 entries:
+               [ Entry 0: VTEX_EXTRA_DATA_FALLBACK_BITS - 1024 bytes ]
+               [ Entry 1: VTEX_EXTRA_DATA_SHEET - 392 bytes ]
+                 4 Sheet Sequences:
+                 [Sequence 0]:
+                   m_name            = 'CDmeSheetSequence'
+                   m_bClamp          = False
+                   m_bAlphaCrop      = False
+                   m_bNoColor        = False
+                   m_bNoAlpha        = False
+                   m_flTotalTime     = 1.000000
+                   0 Float Params:
+                   1 Frames:
+                     [Sequence 0 Frame 0]:
+                       m_flDisplayTime  = 1.000000
+                       1 Images:
+                         [0.0.0] uvCropped    = { ( 0.023438, 0.132812 ), ( 0.476562, 0.367188 ) }
+                         [0.0.0] uvUncropped  = { ( 0.007812, 0.007812 ), ( 0.492188, 0.492188 ) }
+                 [Sequence 1]:
+                   m_name            = 'CDmeSheetSequence'
+                   m_bClamp          = False
+                   m_bAlphaCrop      = False
+                   m_bNoColor        = False
+                   m_bNoAlpha        = False
+                   m_flTotalTime     = 1.000000
+                   0 Float Params:
+                   1 Frames:
+                     [Sequence 1 Frame 0]:
+                       m_flDisplayTime  = 1.000000
+                       1 Images:
+                         [1.0.0] uvCropped    = { ( 0.507812, 0.148438 ), ( 0.992188, 0.351562 ) }
+                         [1.0.0] uvUncropped  = { ( 0.507812, 0.007812 ), ( 0.992188, 0.492188 ) }
+                 [Sequence 2]:
+                   m_name            = 'CDmeSheetSequence'
+                   m_bClamp          = False
+                   m_bAlphaCrop      = False
+                   m_bNoColor        = False
+                   m_bNoAlpha        = False
+                   m_flTotalTime     = 1.000000
+                   0 Float Params:
+                   1 Frames:
+                     [Sequence 2 Frame 0]:
+                       m_flDisplayTime  = 1.000000
+                       1 Images:
+                         [2.0.0] uvCropped    = { ( 0.007812, 0.570312 ), ( 0.492188, 0.929688 ) }
+                         [2.0.0] uvUncropped  = { ( 0.007812, 0.507812 ), ( 0.492188, 0.992188 ) }
+                 [Sequence 3]:
+                   m_name            = 'CDmeSheetSequence'
+                   m_bClamp          = False
+                   m_bAlphaCrop      = False
+                   m_bNoColor        = False
+                   m_bNoAlpha        = False
+                   m_flTotalTime     = 1.000000
+                   0 Float Params:
+                   1 Frames:
+                     [Sequence 3 Frame 0]:
+                       m_flDisplayTime  = 1.000000
+                       1 Images:
+                         [3.0.0] uvCropped    = { ( 0.507812, 0.570312 ), ( 0.992188, 0.929688 ) }
+                         [3.0.0] uvUncropped  = { ( 0.507812, 0.507812 ), ( 0.992188, 0.992188 ) }
+Mip level 0 - buffer size: 1024
+Mip level 1 - buffer size: 256

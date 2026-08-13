@@ -4,6 +4,7 @@ using System.Linq;
 using NUnit.Framework;
 using SkiaSharp;
 using ValveResourceFormat;
+using ValveResourceFormat.IO;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.TextureDecoders;
 
@@ -31,6 +32,52 @@ namespace Tests
             if (texture.IsHighDynamicRange)
             {
                 using var __ = texture.GenerateBitmap(decodeFlags: TextureCodec.ForceLDR);
+            }
+        }
+
+        [Test]
+        public void SpriteSheetRectsCoverTheInclusiveTexelRange()
+        {
+            using var resource = new Resource();
+            resource.Read(Path.Combine(TexturesDir, "DXT5_lava_drops_sheet.vtex_c"));
+
+            var texture = (Texture?)resource.DataBlock;
+            Debug.Assert(texture != null);
+
+            var spriteSheet = texture.GetSpriteSheetData();
+            Debug.Assert(spriteSheet != null);
+
+            Assert.That(spriteSheet.Sequences, Has.Length.EqualTo(4));
+
+            // This sheet is a 2x2 grid of 16x16 cells in a 32x32 texture, authored at 64x64.
+            // The uncropped UVs of the first cell are 0.25 and 15.75 texels, which is texel 0 up to and including texel 15.
+            var firstImage = spriteSheet.Sequences[0].Frames[0].Images[0];
+            var lastImage = spriteSheet.Sequences[3].Frames[0].Images[0];
+
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(firstImage.GetUncroppedRect(texture.ActualWidth, texture.ActualHeight), Is.EqualTo(new SKRectI(0, 0, 16, 16)));
+                Assert.That(firstImage.GetCroppedRect(texture.ActualWidth, texture.ActualHeight), Is.EqualTo(new SKRectI(0, 4, 16, 12)));
+                Assert.That(lastImage.GetUncroppedRect(texture.ActualWidth, texture.ActualHeight), Is.EqualTo(new SKRectI(16, 16, 32, 32)));
+                Assert.That(lastImage.GetCroppedRect(texture.ActualWidth, texture.ActualHeight), Is.EqualTo(new SKRectI(16, 18, 32, 30)));
+            }
+        }
+
+        [Test]
+        public void SpriteSheetExtractsOneSpritePerSequence()
+        {
+            using var resource = new Resource();
+            resource.Read(Path.Combine(TexturesDir, "DXT5_lava_drops_sheet.vtex_c"));
+
+            var extract = new TextureExtract(resource);
+
+            Assert.That(extract.TryGetMksData(out var sprites, out var mks), Is.True);
+
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(sprites, Has.Count.EqualTo(4));
+                Assert.That(sprites.Keys, Is.All.Matches<SKRectI>(rect => rect.Width == 16));
+                Assert.That(mks, Does.Contain("frame DXT5_lava_drops_sheet_seq0.png 1"));
             }
         }
 

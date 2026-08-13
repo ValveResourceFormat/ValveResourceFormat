@@ -83,12 +83,7 @@ namespace ValveResourceFormat.ResourceTypes
                         /// <returns>A rectangle representing the cropped area in pixel coordinates.</returns>
                         public SKRectI GetCroppedRect(int width, int height)
                         {
-                            var startX = (int)(CroppedMin.X * width);
-                            var startY = (int)(CroppedMin.Y * height);
-                            var endX = (int)(CroppedMax.X * width);
-                            var endY = (int)(CroppedMax.Y * height);
-
-                            return new SKRectI(startX, startY, endX, endY);
+                            return ToPixelRect(CroppedMin, CroppedMax, width, height);
                         }
 
                         /// <summary>
@@ -99,10 +94,25 @@ namespace ValveResourceFormat.ResourceTypes
                         /// <returns>A rectangle representing the uncropped area in pixel coordinates.</returns>
                         public SKRectI GetUncroppedRect(int width, int height)
                         {
-                            var startX = (int)(UncroppedMin.X * width);
-                            var startY = (int)(UncroppedMin.Y * height);
-                            var endX = (int)(UncroppedMax.X * width);
-                            var endY = (int)(UncroppedMax.Y * height);
+                            return ToPixelRect(UncroppedMin, UncroppedMax, width, height);
+                        }
+
+                        // The sheet compiler stores texel centers of the image it was built from: the min corner is
+                        // (x + 0.5) / dim and the max corner is (xLast + 0.5) / dim, where xLast is inclusive.
+                        // Flooring maps each corner back onto the texel it sits in, so the exclusive edge of the
+                        // rectangle is one texel past the max corner.
+                        private static SKRectI ToPixelRect(Vector2 min, Vector2 max, int width, int height)
+                        {
+                            // Empty frames are stored as a degenerate rectangle
+                            if (max.X <= min.X || max.Y <= min.Y)
+                            {
+                                return SKRectI.Empty;
+                            }
+
+                            var startX = (int)(min.X * width);
+                            var startY = (int)(min.Y * height);
+                            var endX = Math.Min((int)(max.X * width) + 1, width);
+                            var endY = Math.Min((int)(max.Y * height) + 1, height);
 
                             return new SKRectI(startX, startY, endX, endY);
                         }
@@ -118,6 +128,11 @@ namespace ValveResourceFormat.ResourceTypes
                     /// </summary>
                     public float DisplayTime { get; set; }
                 }
+
+                /// <summary>
+                /// Gets or sets the sequence number this sequence was authored with.
+                /// </summary>
+                public uint Id { get; set; }
 
                 /// <summary>
                 /// Gets or sets the array of frames in this sequence.
@@ -462,26 +477,22 @@ namespace ValveResourceFormat.ResourceTypes
 
                 for (var s = 0; s < numSequences; s++)
                 {
-                    var sequence = new SpritesheetData.Sequence();
-                    var id = reader.ReadUInt32();
-                    sequence.Clamp = reader.ReadBoolean();
-                    sequence.AlphaCrop = reader.ReadBoolean();
-                    sequence.NoColor = reader.ReadBoolean();
-                    sequence.NoAlpha = reader.ReadBoolean();
-                    var framesOffset = reader.BaseStream.Position + reader.ReadUInt32();
+                    var sequence = new SpritesheetData.Sequence
+                    {
+                        Id = reader.ReadUInt32(),
+                        Clamp = reader.ReadBoolean(),
+                        AlphaCrop = reader.ReadBoolean(),
+                        NoColor = reader.ReadBoolean(),
+                        NoAlpha = reader.ReadBoolean(),
+                    };
+                    var framesOffset = reader.BaseStream.Position + reader.ReadInt32();
                     var numFrames = reader.ReadUInt32();
                     sequence.TotalTime = reader.ReadSingle();
-                    var nameOffset = reader.BaseStream.Position + reader.ReadUInt32();
-                    var floatParamsOffset = reader.BaseStream.Position + reader.ReadUInt32();
+                    sequence.Name = reader.ReadOffsetString(Encoding.UTF8);
+                    var floatParamsOffset = reader.BaseStream.Position + reader.ReadInt32();
                     var floatParamsCount = reader.ReadUInt32();
 
                     var endOfHeaderOffset = reader.BaseStream.Position;
-
-                    // Seek to start of the sequence data
-                    reader.BaseStream.Position = nameOffset;
-
-                    sequence.Name = reader.ReadNullTermString(Encoding.UTF8);
-                    // There may be alignment bytes after the name, so the data always falls on 4-byte boundary
 
                     if (floatParamsCount > 0)
                     {
@@ -489,13 +500,8 @@ namespace ValveResourceFormat.ResourceTypes
 
                         for (var p = 0; p < floatParamsCount; p++)
                         {
-                            var floatParamNameOffset = reader.BaseStream.Position + reader.ReadUInt32();
+                            var floatName = reader.ReadOffsetString(Encoding.UTF8);
                             var floatValue = reader.ReadSingle();
-
-                            var offsetNextParam = reader.BaseStream.Position;
-                            reader.BaseStream.Position = floatParamNameOffset;
-                            var floatName = reader.ReadNullTermString(Encoding.UTF8);
-                            reader.BaseStream.Position = offsetNextParam;
 
                             sequence.FloatParams.Add(floatName, floatValue);
                         }
@@ -508,7 +514,7 @@ namespace ValveResourceFormat.ResourceTypes
                     for (var f = 0; f < numFrames; f++)
                     {
                         var displayTime = reader.ReadSingle();
-                        var imageOffset = reader.BaseStream.Position + reader.ReadUInt32();
+                        var imageOffset = reader.BaseStream.Position + reader.ReadInt32();
                         var imageCount = reader.ReadUInt32();
                         var originalOffset = reader.BaseStream.Position;
 
