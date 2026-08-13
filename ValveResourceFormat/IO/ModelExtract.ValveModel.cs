@@ -374,6 +374,9 @@ partial class ModelExtract
 
     const float ClothSourceBaseGravity = FeModel.ClothSourceBaseGravity;
 
+    // An unrolled proxy ring sits on the joint frame's +Y, so an authored twist counts down from 90 degrees.
+    const float ClothExtrudeTwistBase = 90f;
+
     // Explicitly declares a two-node distance constraint (a "rod") by NODE NAME. CModelDocClothSpring in
     // physicsbuilder.dll - a real, direct analogue of ClothQuad for edges instead of faces.
     // is_length_explicit=false (the compiler's own default) pins min_length=max_length=rest distance
@@ -604,7 +607,7 @@ partial class ModelExtract
 
         var chainData = KVObject.Collection();
         chainData.Add("joints", joints);
-        chainData.Add("attrs", MakeClothChainAttrs(chain.ExtrudeSides, chain.ExtrudeRadius));
+        chainData.Add("attrs", MakeClothChainAttrs(chain.ExtrudeSides, chain.ExtrudeRadius, chain.ExtrudeTwist));
         chainData.Add("selection", KVObject.Array());
         // Version 2 is the current ModelDoc chain format (v1 shows an "Update version 1->2" banner);
         // the compiled FeModel is identical for both (verified byte-level on the PHYS block).
@@ -678,6 +681,14 @@ partial class ModelExtract
         if (chainExtrudes)
         {
             kv.Add("extrude_sides", joint.ExtrudeSides);
+
+            // Ring geometry varies along a chain, so the chain-level defaults only fit one joint. Emit each
+            // joint's own measured ring instead.
+            if (joint.ExtrudeSides > 0)
+            {
+                kv.Add("extrude_radius", joint.ExtrudeRadius);
+                kv.Add("extrude_twist", ClothExtrudeTwistBase - joint.ExtrudeTwist);
+            }
         }
 
         kv.Add("extra_iterations", 0);
@@ -745,7 +756,7 @@ partial class ModelExtract
     // The cloth-chain joint datatable schema (per-column UI metadata + defaults), matched to the editable
     // ModelDoc source produced by the tools. The compiler uses the "default" values for any joint field not
     // explicitly written above, so this block is included verbatim to keep cloth defaults correct.
-    static KVObject MakeClothChainAttrs(int extrudeSides = 0, float extrudeRadius = 0f)
+    static KVObject MakeClothChainAttrs(int extrudeSides = 0, float extrudeRadius = 0f, float extrudeTwist = 0f)
     {
         var attrs = KVObject.Collection();
 
@@ -833,7 +844,7 @@ partial class ModelExtract
         // extrudeSides 0 keeps the stock default (plain rope) so genuine 1-wide chains are byte-identical.
         IntAttr("extrude_sides", "Extrude Sides", false, 31, extrudeSides, 0, 4);
         FloatAttr("extrude_radius", "Extrude Radius", false, 32, extrudeSides >= 1 ? extrudeRadius : 5.0f, 0.0f);
-        FloatAttr("extrude_twist", "Extrude Twist", false, 33, 0.0f);
+        FloatAttr("extrude_twist", "Extrude Twist", false, 33, extrudeSides >= 1 ? extrudeTwist : 0.0f);
         StringAttr("extrude_forward_axis", "Extrude Forward Axis", false, 34).Add("verify", "extrude_forward_axis");
         FloatAttr("world_friction", "Ground Softness (\"world friction\" in Source1)", false, 35, 0.0f, 0.0f, 1.0f);
         FloatAttr("ground_friction", "Ground Friction", false, 36, 0.0f, 0.0f, 1.0f);
