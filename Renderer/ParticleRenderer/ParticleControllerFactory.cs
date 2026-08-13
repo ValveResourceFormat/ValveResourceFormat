@@ -70,7 +70,7 @@ namespace ValveResourceFormat.Renderer.Particles
                 ["C_INIT_GlobalScale"] = initializerInfo => new GlobalScale(initializerInfo),
                 ["C_INIT_InitFromCPSnapshot"] = initializerInfo => new InitFromCPSnapshot(initializerInfo),
                 ["C_INIT_InitFloat"] = initializerInfo => new InitFloat(initializerInfo),
-                ["C_INIT_InitFloatCollection"] = initializerInfo => new InitFloat(initializerInfo), // initfloat but the numberprovider has fewer options
+                ["C_INIT_InitFloatCollection"] = initializerInfo => new InitFloat(initializerInfo, convertsAngles: false), // initfloat but the numberprovider has fewer options
                 ["C_INIT_InitVec"] = initializerInfo => new InitVec(initializerInfo),
                 ["C_INIT_InitialVelocityNoise"] = initializerInfo => new InitialVelocityNoise(initializerInfo),
                 ["C_INIT_PointList"] = initializerInfo => new PointList(initializerInfo),
@@ -172,7 +172,7 @@ namespace ValveResourceFormat.Renderer.Particles
                 ["C_OP_RotateVector"] = operatorInfo => new RotateVector(operatorInfo),
                 ["C_OP_SetAttributeToScalarExpression"] = operatorInfo => new SetAttributeToScalarExpression(operatorInfo),
                 ["C_OP_SetFloat"] = operatorInfo => new SetFloat(operatorInfo),
-                ["C_OP_SetFloatCollection"] = operatorInfo => new SetFloat(operatorInfo), // same as initfloatcollection
+                ["C_OP_SetFloatCollection"] = operatorInfo => new SetFloat(operatorInfo, convertsAngles: false), // same as initfloatcollection
                 ["C_OP_SetFromCPSnapshot"] = operatorInfo => new SetFromCPSnapshot(operatorInfo),
                 ["C_OP_SetToCP"] = operatorInfo => new SetToCP(operatorInfo),
                 ["C_OP_SetVec"] = operatorInfo => new SetVec(operatorInfo),
