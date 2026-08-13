@@ -9,14 +9,18 @@ namespace ValveResourceFormat.Renderer.Particles.Initializers
     {
         private readonly ParticleField outputField = ParticleField.Color;
         private readonly IVectorProvider inputValue = new LiteralVectorProvider(Vector3.Zero);
+        private readonly bool writePreviousPosition;
 
         public InitVec(ParticleDefinitionParser parse) : base(parse)
         {
             outputField = parse.ParticleField("m_nOutputField", outputField);
             inputValue = parse.VectorProvider("m_InputValue", inputValue);
+            writePreviousPosition = parse.Boolean("m_bWritePreviousPosition", writePreviousPosition);
         }
 
-        public override ulong WrittenFields => FieldMask(outputField);
+        public override ulong WrittenFields => writePreviousPosition && outputField == ParticleField.Position
+            ? FieldMask(ParticleField.Position) | FieldMask(ParticleField.PositionPrevious)
+            : FieldMask(outputField);
 
         // todo: these (operators and initializers) can reference either the current value and the initial value. do we need to store the initial value of all attributes?
         public override Particle Initialize(ref Particle particle, ParticleCollection particles, ParticleSystemRenderState particleSystemState)

@@ -51,6 +51,10 @@ namespace ValveResourceFormat.Renderer.Particles.Initializers
         /// keeping the share of the parent's velocity left once the particle is born. The emit path
         /// encodes that velocity back into Position/PositionPrevious after initializers run.
         /// </summary>
+        public override ulong WrittenFields => FieldMask(ParticleField.Position) | FieldMask(ParticleField.LifeDuration) | FieldMask(ParticleField.PositionPrevious)
+            | FieldMask(ParticleField.ParentParticleIndex) | FieldMask(ParticleField.ParentParticleId)
+            | (setRopeSegmentID ? FieldMask(ParticleField.RopeSegmentId) : 0);
+
         public override Particle Initialize(ref Particle particle, ParticleCollection particles, ParticleSystemRenderState particleSystemState)
         {
             var parentData = particleSystemState.ParentSystem?.Data;

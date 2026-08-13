@@ -37,7 +37,7 @@ namespace ValveResourceFormat.Renderer.Particles.Initializers
             remapBias = parse.Float("m_flRemapBias", remapBias);
         }
 
-        public override ulong WrittenFields => FieldMask(fieldOutput);
+        public override ulong WrittenFields => FieldMask(fieldOutput) | FieldMask(ParticleField.PositionPrevious);
 
         public override Particle Initialize(ref Particle particle, ParticleCollection particles, ParticleSystemRenderState particleSystemState)
         {

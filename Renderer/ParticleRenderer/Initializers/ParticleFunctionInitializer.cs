@@ -22,10 +22,12 @@ namespace ValveResourceFormat.Renderer.Particles.Initializers
 
         /// <summary>
         /// The particle attributes this initializer writes, as a bit mask over
-        /// <see cref="ParticleField"/> values. Zero means the write set is not declared; such an
-        /// initializer always runs under the pre-version-6 first-writer-wins rule.
+        /// <see cref="ParticleField"/> values, matching what the engine's class declares rather
+        /// than what this port happens to assign. Under the pre-version-6 first-writer-wins rule
+        /// an initializer runs only while some attribute it declares is still unwritten, so a
+        /// class declaring nothing never runs there.
         /// </summary>
-        public virtual ulong WrittenFields => 0;
+        public abstract ulong WrittenFields { get; }
 
         /// <summary>
         /// Position of this initializer in the definition's initializer list, counting entries the

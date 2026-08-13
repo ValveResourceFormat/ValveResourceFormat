@@ -11,6 +11,8 @@ namespace ValveResourceFormat.Renderer.Particles.Initializers
         {
         }
 
+        public override ulong WrittenFields => FieldMask(ParticleField.Normal);
+
         public override Particle Initialize(ref Particle particle, ParticleCollection particles, ParticleSystemRenderState particleSystemState)
         {
             var orientation = particleSystemState.GetControlPoint(0).Orientation;

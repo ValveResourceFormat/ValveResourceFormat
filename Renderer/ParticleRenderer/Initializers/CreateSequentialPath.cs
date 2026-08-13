@@ -53,6 +53,8 @@ namespace ValveResourceFormat.Renderer.Particles.Initializers
             }
         }
 
+        public override ulong WrittenFields => FieldMask(ParticleField.Position) | FieldMask(ParticleField.PositionPrevious) | FieldMask(ParticleField.HitboxOffsetPosition);
+
         public override Particle Initialize(ref Particle particle, ParticleCollection particles, ParticleSystemRenderState particleSystemState)
         {
             var t = pathParameter;

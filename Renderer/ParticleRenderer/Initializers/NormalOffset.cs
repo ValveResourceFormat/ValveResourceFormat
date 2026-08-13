@@ -21,6 +21,8 @@ namespace ValveResourceFormat.Renderer.Particles.Initializers
             normalize = parse.Boolean("m_bNormalize", normalize);
         }
 
+        public override ulong WrittenFields => FieldMask(ParticleField.CreationTime) | FieldMask(ParticleField.Normal);
+
         public override Particle Initialize(ref Particle particle, ParticleCollection particles, ParticleSystemRenderState particleSystemState)
         {
             var offset = particleSystemState.Random.NextBetweenPerComponent(offsetMin, offsetMax);

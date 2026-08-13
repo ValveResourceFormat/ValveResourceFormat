@@ -17,6 +17,8 @@ namespace ValveResourceFormat.Renderer.Particles.Initializers
             velocityScale = parse.Float("m_flVelocityScale", velocityScale);
         }
 
+        public override ulong WrittenFields => FieldMask(ParticleField.PositionPrevious);
+
         public override Particle Initialize(ref Particle particle, ParticleCollection particles, ParticleSystemRenderState particleSystemState)
         {
             // The inherited velocity comes from the control point's motion over the last frame; a move

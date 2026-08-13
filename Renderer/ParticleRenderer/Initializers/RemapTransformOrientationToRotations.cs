@@ -23,6 +23,10 @@ namespace ValveResourceFormat.Renderer.Particles.Initializers
             writeNormal = parse.Boolean("m_bWriteNormal", writeNormal);
         }
 
+        public override ulong WrittenFields => writeNormal
+            ? FieldMask(ParticleField.Normal)
+            : FieldMask(ParticleField.Roll) | FieldMask(ParticleField.Yaw) | FieldMask(ParticleField.Pitch);
+
         public override Particle Initialize(ref Particle particle, ParticleCollection particles, ParticleSystemRenderState particleSystemState)
         {
             TransformOrientationMath.Compute(transformInput, particleSystemState, rotationOffset, useQuat,

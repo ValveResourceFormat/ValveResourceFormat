@@ -19,6 +19,8 @@ namespace ValveResourceFormat.Renderer.Particles.Initializers
             directionOnly = parse.Boolean("m_bDirectionOnly", directionOnly);
         }
 
+        public override ulong WrittenFields => FieldMask(ParticleField.PositionPrevious);
+
         public override Particle Initialize(ref Particle particle, ParticleCollection particles, ParticleSystemRenderState particleSystemRenderState)
         {
             var velocity = velocityInput.NextVector(ref particle, particleSystemRenderState);

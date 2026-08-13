@@ -32,6 +32,8 @@ namespace ValveResourceFormat.Renderer.Particles.Initializers
             // other properties: m_flRoll
         }
 
+        public override ulong WrittenFields => FieldMask(ParticleField.Position) | FieldMask(ParticleField.PositionPrevious);
+
         public override Particle Initialize(ref Particle particle, ParticleCollection particles, ParticleSystemRenderState particleSystemState)
         {
             var thickness = this.thickness.NextNumber(ref particle, particleSystemState);

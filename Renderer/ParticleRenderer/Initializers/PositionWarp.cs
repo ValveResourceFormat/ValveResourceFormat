@@ -42,6 +42,8 @@ namespace ValveResourceFormat.Renderer.Particles.Initializers
             warpCount = 0;
         }
 
+        public override ulong WrittenFields => FieldMask(ParticleField.Position) | FieldMask(ParticleField.PositionPrevious) | FieldMask(ParticleField.Radius);
+
         public override Particle Initialize(ref Particle particle, ParticleCollection particles, ParticleSystemRenderState particleSystemState)
         {
             var rampStart = warpMin.NextVector(ref particle, particleSystemState);

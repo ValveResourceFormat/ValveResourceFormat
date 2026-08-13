@@ -46,6 +46,8 @@ namespace ValveResourceFormat.Renderer.Particles.Initializers
         }
 
         // We're simulating a lot of weird and incorrect behavior here, but it's accurate to source 2
+        public override ulong WrittenFields => FieldMask(ParticleField.Position) | FieldMask(ParticleField.PositionPrevious);
+
         public override Particle Initialize(ref Particle particle, ParticleCollection particles, ParticleSystemRenderState particleSystemState)
         {
             var rawDimenX = this.dimenX.NextNumber(ref particle, particleSystemState);

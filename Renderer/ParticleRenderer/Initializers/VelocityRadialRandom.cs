@@ -24,6 +24,8 @@ namespace ValveResourceFormat.Renderer.Particles.Initializers
             controlPoint = parse.Int32("m_nControlPointNumber", controlPoint);
         }
 
+        public override ulong WrittenFields => FieldMask(ParticleField.PositionPrevious);
+
         public override Particle Initialize(ref Particle particle, ParticleCollection particles, ParticleSystemRenderState particleSystemState)
         {
             var speedmin = speedMin.NextNumber(ref particle, particleSystemState);

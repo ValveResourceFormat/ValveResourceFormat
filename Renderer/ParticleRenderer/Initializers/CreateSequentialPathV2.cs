@@ -61,6 +61,8 @@ namespace ValveResourceFormat.Renderer.Particles.Initializers
             cachedNumToAssign = float.NaN;
         }
 
+        public override ulong WrittenFields => FieldMask(ParticleField.Position) | FieldMask(ParticleField.PositionPrevious) | FieldMask(ParticleField.HitboxOffsetPosition);
+
         public override Particle Initialize(ref Particle particle, ParticleCollection particles, ParticleSystemRenderState particleSystemState)
         {
             var assignCount = numToAssign.NextNumber(particleSystemState);
