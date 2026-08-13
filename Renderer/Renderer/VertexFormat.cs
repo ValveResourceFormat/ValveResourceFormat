@@ -10,21 +10,27 @@ using ValveResourceFormat.Blocks;
 namespace ValveResourceFormat.Renderer
 {
     /// <summary>
-    /// Marks a vertex struct field as the shader input bound to a <see cref="VertexAttributeSlot"/>. The
+    /// Marks a vertex struct field as the shader input bound to a <see cref="VertexSlot"/>. The
     /// buffer format follows from the field type, see <see cref="VertexFormat.FromStruct{TVertex}"/>.
     /// </summary>
     [AttributeUsage(AttributeTargets.Field)]
-    public sealed class VertexAttributeAttribute(VertexAttributeSlot slot, DXGI_FORMAT format = DXGI_FORMAT.UNKNOWN) : Attribute
+    public sealed class VertexAttributeAttribute(VertexSlot slot, DXGI_FORMAT format = DXGI_FORMAT.UNKNOWN) : Attribute
     {
         /// <summary>Gets the slot this field supplies.</summary>
-        public VertexAttributeSlot Slot { get; } = slot;
+        public VertexSlot Slot { get; } = slot;
 
         /// <summary>Gets the buffer format, or <see cref="DXGI_FORMAT.UNKNOWN"/> to derive it from the field type.</summary>
         public DXGI_FORMAT Format { get; } = format;
+
+        /// <summary>Marks a field of geometry belonging to one renderer.</summary>
+        public VertexAttributeAttribute(CustomVertexSlot slot, DXGI_FORMAT format = DXGI_FORMAT.UNKNOWN)
+            : this((VertexSlot)slot, format)
+        {
+        }
     }
 
     /// <summary>One attribute of a <see cref="VertexFormat"/>. An offset of -1 packs it after the last one.</summary>
-    public readonly record struct VertexAttribute(VertexAttributeSlot Slot, DXGI_FORMAT Format, int OffsetInBytes = -1);
+    public readonly record struct VertexAttribute(VertexSlot Slot, DXGI_FORMAT Format, int OffsetInBytes = -1);
 
     /// <summary>
     /// Interleaved vertex layout of handbuilt geometry. Element order is buffer order, and offsets pack in

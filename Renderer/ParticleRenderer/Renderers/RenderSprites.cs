@@ -25,15 +25,15 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
         [StructLayout(LayoutKind.Sequential)]
         private struct Vertex
         {
-            [VertexAttribute(VertexAttributeSlot.Position)] public Vector3 Position;
-            [VertexAttribute(VertexAttributeSlot.Color)] public Vector4 Color;
-            [VertexAttribute(VertexAttributeSlot.TexCoord)] public Vector2 UV;
-            [VertexAttribute(VertexAttributeSlot.TexCoord1)] public Vector2 UVNextFrame;
-            [VertexAttribute(VertexAttributeSlot.FrameBlend)] public float FrameBlend;
-            [VertexAttribute(VertexAttributeSlot.LayerUv0)] public Vector4 LayerUv0;
-            [VertexAttribute(VertexAttributeSlot.LayerUv1)] public Vector4 LayerUv1;
-            [VertexAttribute(VertexAttributeSlot.LayerUv2)] public Vector4 LayerUv2;
-            [VertexAttribute(VertexAttributeSlot.LayerUv3)] public Vector4 LayerUv3;
+            [VertexAttribute(VertexSlot.Position)] public Vector3 Position;
+            [VertexAttribute(VertexSlot.Color)] public Vector4 Color;
+            [VertexAttribute(VertexSlot.TexCoord)] public Vector2 UV;
+            [VertexAttribute(VertexSlot.TexCoord1)] public Vector2 UVNextFrame;
+            [VertexAttribute(CustomVertexSlot.FrameBlend)] public float FrameBlend;
+            [VertexAttribute(CustomVertexSlot.LayerUv0)] public Vector4 LayerUv0;
+            [VertexAttribute(CustomVertexSlot.LayerUv1)] public Vector4 LayerUv1;
+            [VertexAttribute(CustomVertexSlot.LayerUv2)] public Vector4 LayerUv2;
+            [VertexAttribute(CustomVertexSlot.LayerUv3)] public Vector4 LayerUv3;
 
             public void SetLayerUv(int layer, Vector4 uvs)
             {

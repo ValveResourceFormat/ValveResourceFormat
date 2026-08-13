@@ -45,10 +45,10 @@ public class CS2BombDamageSceneNode : SceneNode
     [StructLayout(LayoutKind.Sequential)]
     private struct Vertex
     {
-        [VertexAttribute(VertexAttributeSlot.Position)] public Vector3 Position;
-        [VertexAttribute(VertexAttributeSlot.TexCoord)] public Vector2 UVs;
-        [VertexAttribute(VertexAttributeSlot.Color)] public Color32 Color;
-        [VertexAttribute(VertexAttributeSlot.Phase)] public float Phase;
+        [VertexAttribute(VertexSlot.Position)] public Vector3 Position;
+        [VertexAttribute(VertexSlot.TexCoord)] public Vector2 UVs;
+        [VertexAttribute(VertexSlot.Color)] public Color32 Color;
+        [VertexAttribute(CustomVertexSlot.Phase)] public float Phase;
     }
 
     private static readonly VertexFormat Format = VertexFormat.FromStruct<Vertex>();

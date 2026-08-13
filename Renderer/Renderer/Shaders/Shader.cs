@@ -173,7 +173,7 @@ namespace ValveResourceFormat.Renderer.Shaders
 
         /// <summary>
         /// Caches the attribute locations the linked program reads, and verifies each landed where its
-        /// <see cref="VertexAttributeSlot"/> puts it. Attributes the linker dropped are not active.
+        /// <see cref="VertexSlot"/> puts it. Attributes the linker dropped are not active.
         /// </summary>
         private void StoreRequiredAttributes()
         {
@@ -197,14 +197,14 @@ namespace ValveResourceFormat.Renderer.Shaders
                 if (VertexAttributeLocations.Get(name) != location)
                 {
                     throw new ShaderLoader.ShaderCompilerException(
-                        $"Shader '{Name}' has attribute '{name}' at location {location}, but {nameof(VertexAttributeSlot)} puts it at {VertexAttributeLocations.Get(name)}. Its declaration was not stamped, check that it reads 'in <type> {name};'.");
+                        $"Shader '{Name}' has attribute '{name}' at location {location}, but {nameof(VertexSlot)} puts it at {VertexAttributeLocations.Get(name)}. Its declaration was not stamped, check that it reads 'in <type> {name};'.");
                 }
 
                 // These span a location per element or column, silently taking the slots declared after them
                 if (elements > 1 || IsMatrix(type))
                 {
                     throw new ShaderLoader.ShaderCompilerException(
-                        $"Shader '{Name}' declares attribute '{name}' as {type}[{elements}], which spans several locations. Vertex attributes have to fit one {nameof(VertexAttributeSlot)}.");
+                        $"Shader '{Name}' declares attribute '{name}' as {type}[{elements}], which spans several locations. Vertex attributes have to fit one {nameof(VertexSlot)}.");
                 }
 
                 RequiredAttributes |= 1 << location;

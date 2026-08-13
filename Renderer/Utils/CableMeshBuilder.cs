@@ -36,10 +36,10 @@ namespace ValveResourceFormat.Renderer.Utils
         [StructLayout(LayoutKind.Sequential)]
         internal readonly struct Vertex(Vector3 position, Vector3 normal, Vector2 uv, Color32 color)
         {
-            [VertexAttribute(VertexAttributeSlot.Position)] public readonly Vector3 Position = position;
-            [VertexAttribute(VertexAttributeSlot.Normal)] public readonly Vector3 Normal = normal;
-            [VertexAttribute(VertexAttributeSlot.TexCoord)] public readonly Vector2 UV = uv;
-            [VertexAttribute(VertexAttributeSlot.Color)] public readonly Color32 Color = color;
+            [VertexAttribute(VertexSlot.Position)] public readonly Vector3 Position = position;
+            [VertexAttribute(VertexSlot.Normal)] public readonly Vector3 Normal = normal;
+            [VertexAttribute(VertexSlot.TexCoord)] public readonly Vector2 UV = uv;
+            [VertexAttribute(VertexSlot.Color)] public readonly Color32 Color = color;
         }
 
         /// <summary>

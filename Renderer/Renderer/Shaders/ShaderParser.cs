@@ -305,7 +305,7 @@ namespace ValveResourceFormat.Renderer.Shaders
 
                                 if (location == -1)
                                 {
-                                    throw new ShaderCompilerException($"Line {lineNum} in '{shaderFileToLoad}' declares vertex attribute '{attributeName}', which no {nameof(VertexAttributeSlot)} is named for. Declarations must name a canonical attribute, a #define alias of one will not do.");
+                                    throw new ShaderCompilerException($"Line {lineNum} in '{shaderFileToLoad}' declares vertex attribute '{attributeName}', which no {nameof(VertexSlot)} is named for. Declarations must name a canonical attribute, a #define alias of one will not do.");
                                 }
 
                                 builder.Append("layout (location = ");

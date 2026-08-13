@@ -122,10 +122,10 @@ namespace ValveResourceFormat.Renderer
         [StructLayout(LayoutKind.Sequential)]
         private struct MorphRectVertex
         {
-            [VertexAttribute(VertexAttributeSlot.Position)] public Vector4 PositionWeights;
-            [VertexAttribute(VertexAttributeSlot.TexCoord)] public Vector4 TexCoords;
-            [VertexAttribute(VertexAttributeSlot.TexCoord1)] public Vector4 OffsetsPositionSpeed;
-            [VertexAttribute(VertexAttributeSlot.TexCoord2)] public Vector4 RangesPositionSpeed;
+            [VertexAttribute(VertexSlot.Position)] public Vector4 PositionWeights;
+            [VertexAttribute(VertexSlot.TexCoord)] public Vector4 TexCoords;
+            [VertexAttribute(VertexSlot.TexCoord1)] public Vector4 OffsetsPositionSpeed;
+            [VertexAttribute(VertexSlot.TexCoord2)] public Vector4 RangesPositionSpeed;
         }
 
         private static readonly VertexFormat VertexFormat = VertexFormat.FromStruct<MorphRectVertex>();

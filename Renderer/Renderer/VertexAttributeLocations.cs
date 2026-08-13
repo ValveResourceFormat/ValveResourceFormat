@@ -1,4 +1,5 @@
 using System.Collections.Frozen;
+using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Reflection;
 using ValveResourceFormat.Blocks;
@@ -6,7 +7,7 @@ using ValveResourceFormat.ResourceTypes;
 
 namespace ValveResourceFormat.Renderer
 {
-    /// <summary>Gives the shader input names of a <see cref="VertexAttributeSlot"/>, and the buffer semantic
+    /// <summary>Gives the shader input names of a <see cref="VertexSlot"/>, and the buffer semantic
     /// that gets that slot.</summary>
     [AttributeUsage(AttributeTargets.Field)]
     public sealed class VertexAttributeNameAttribute(params string[] names) : Attribute
@@ -25,7 +26,7 @@ namespace ValveResourceFormat.Renderer
     /// Canonical vertex attribute locations, fixed per name so one VAO serves every shader that draws the
     /// geometry. <see cref="ShaderParser"/> stamps them onto the <c>in</c> declarations.
     /// </summary>
-    public enum VertexAttributeSlot
+    public enum VertexSlot
     {
         // Depth only and picking read nothing above slot 3
 
@@ -97,40 +98,48 @@ namespace ValveResourceFormat.Renderer
         [VertexAttributeName(Semantic = "BLENDWEIGHTS")]
         BlendWeightsAlias = BlendWeight,
 
-        // Below belong to one renderer's geometry. Reserving them is what makes them deterministic, and each
-        // takes the slot of a mesh attribute that geometry cannot have. Declaring both is a compile error.
-
-        /// <summary>Bomb damage quad phase.</summary>
-        [VertexAttributeName("vPHASE", Semantic = "PHASE")]
-        Phase = BlendIndices2,
-
-        /// <summary>Text depth.</summary>
-        [VertexAttributeName("vDEPTH")]
-        TextDepth = BlendIndices,
-
-        /// <summary>Particle sheet frame blend.</summary>
-        [VertexAttributeName("vFrameBlend")]
-        FrameBlend = BlendWeight,
-
-        /// <summary>Particle sheet layer coordinates.</summary>
-        [VertexAttributeName("vLayerUv0")]
-        LayerUv0 = BlendIndices,
-
-        /// <summary>Particle sheet layer coordinates.</summary>
-        [VertexAttributeName("vLayerUv1")]
-        LayerUv1 = BlendIndices2,
-
-        /// <summary>Particle sheet layer coordinates.</summary>
-        [VertexAttributeName("vLayerUv2")]
-        LayerUv2 = BlendWeight2,
-
-        /// <summary>Particle sheet layer coordinates.</summary>
-        [VertexAttributeName("vLayerUv3")]
-        LayerUv3 = Normal,
     }
 
     /// <summary>
-    /// Resolves shader input names and buffer semantics to their <see cref="VertexAttributeSlot"/>.
+    /// Attributes of one renderer's own geometry. Each takes the slot of a mesh attribute that geometry
+    /// cannot have, since the 16 guaranteed slots are already spoken for. Declaring both in one shader is a
+    /// duplicate location error.
+    /// </summary>
+#pragma warning disable CA1069, CA1027 // Aliasing is the point: two renderers can take the same mesh slot
+    public enum CustomVertexSlot
+    {
+        /// <summary>Bomb damage quad phase.</summary>
+        [VertexAttributeName("vPHASE", Semantic = "PHASE")]
+        Phase = VertexSlot.BlendIndices2,
+
+        /// <summary>Text depth.</summary>
+        [VertexAttributeName("vDEPTH")]
+        TextDepth = VertexSlot.BlendIndices,
+
+        /// <summary>Particle sheet frame blend.</summary>
+        [VertexAttributeName("vFrameBlend")]
+        FrameBlend = VertexSlot.BlendWeight,
+
+        /// <summary>Particle sheet layer coordinates.</summary>
+        [VertexAttributeName("vLayerUv0")]
+        LayerUv0 = VertexSlot.BlendIndices,
+
+        /// <summary>Particle sheet layer coordinates.</summary>
+        [VertexAttributeName("vLayerUv1")]
+        LayerUv1 = VertexSlot.BlendIndices2,
+
+        /// <summary>Particle sheet layer coordinates.</summary>
+        [VertexAttributeName("vLayerUv2")]
+        LayerUv2 = VertexSlot.BlendWeight2,
+
+        /// <summary>Particle sheet layer coordinates.</summary>
+        [VertexAttributeName("vLayerUv3")]
+        LayerUv3 = VertexSlot.Normal,
+    }
+#pragma warning restore CA1069, CA1027
+
+    /// <summary>
+    /// Resolves shader input names and buffer semantics to their <see cref="VertexSlot"/>.
     /// </summary>
     public static class VertexAttributeLocations
     {
@@ -142,8 +151,12 @@ namespace ValveResourceFormat.Renderer
             .ToFrozenDictionary(group => group.Key, group => group.First());
 
         private static IEnumerable<(VertexAttributeNameAttribute Attribute, int Slot)> EnumerateSlots()
+            => EnumerateSlots<VertexSlot>().Concat(EnumerateSlots<CustomVertexSlot>());
+
+        private static IEnumerable<(VertexAttributeNameAttribute Attribute, int Slot)> EnumerateSlots<
+            [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicFields)] TSlot>() where TSlot : struct, Enum
         {
-            foreach (var field in typeof(VertexAttributeSlot).GetFields(BindingFlags.Public | BindingFlags.Static))
+            foreach (var field in typeof(TSlot).GetFields(BindingFlags.Public | BindingFlags.Static))
             {
                 if (field.GetCustomAttribute<VertexAttributeNameAttribute>() is { } attribute)
                 {
@@ -203,7 +216,7 @@ namespace ValveResourceFormat.Renderer
         }
 
         /// <summary>The buffer semantic a slot is filled from, for describing handbuilt geometry as a layout.</summary>
-        public static (string Name, int Index) GetSemantic(VertexAttributeSlot slot)
+        public static (string Name, int Index) GetSemantic(VertexSlot slot)
             => SemanticBySlot.TryGetValue((int)slot, out var semantic)
                 ? semantic
                 : throw new ArgumentException($"'{slot}' has no buffer semantic.", nameof(slot));

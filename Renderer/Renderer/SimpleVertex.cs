@@ -7,8 +7,8 @@ namespace ValveResourceFormat.Renderer
     /// </summary>
     [StructLayout(LayoutKind.Sequential)]
     public record struct SimpleVertex(
-        [field: VertexAttribute(VertexAttributeSlot.Position)] Vector3 Position,
-        [field: VertexAttribute(VertexAttributeSlot.Color)] Color32 Color)
+        [field: VertexAttribute(VertexSlot.Position)] Vector3 Position,
+        [field: VertexAttribute(VertexSlot.Color)] Color32 Color)
     {
         /// <summary>Vertex layout, for creating VAOs.</summary>
         public static readonly VertexFormat Format = VertexFormat.FromStruct<SimpleVertex>();
@@ -19,9 +19,9 @@ namespace ValveResourceFormat.Renderer
     /// </summary>
     [StructLayout(LayoutKind.Sequential)]
     public record struct SimpleVertexNormal(
-        [field: VertexAttribute(VertexAttributeSlot.Position)] Vector3 Position,
-        [field: VertexAttribute(VertexAttributeSlot.Color)] Color32 Color,
-        [field: VertexAttribute(VertexAttributeSlot.Normal)] Vector3 Normal)
+        [field: VertexAttribute(VertexSlot.Position)] Vector3 Position,
+        [field: VertexAttribute(VertexSlot.Color)] Color32 Color,
+        [field: VertexAttribute(VertexSlot.Normal)] Vector3 Normal)
     {
         /// <summary>Vertex layout, for creating VAOs.</summary>
         public static readonly VertexFormat Format = VertexFormat.FromStruct<SimpleVertexNormal>();

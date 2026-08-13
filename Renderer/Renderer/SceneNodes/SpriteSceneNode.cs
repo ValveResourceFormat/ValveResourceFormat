@@ -9,9 +9,9 @@ namespace ValveResourceFormat.Renderer.SceneNodes
         [StructLayout(LayoutKind.Sequential)]
         private struct Vertex
         {
-            [VertexAttribute(VertexAttributeSlot.Position)] public Vector3 Position;
-            [VertexAttribute(VertexAttributeSlot.TexCoord)] public Vector2 TexCoord;
-            [VertexAttribute(VertexAttributeSlot.Color)] public Color32 Color;
+            [VertexAttribute(VertexSlot.Position)] public Vector3 Position;
+            [VertexAttribute(VertexSlot.TexCoord)] public Vector2 TexCoord;
+            [VertexAttribute(VertexSlot.Color)] public Color32 Color;
         }
 
         private static readonly VertexFormat Format = VertexFormat.FromStruct<Vertex>();
