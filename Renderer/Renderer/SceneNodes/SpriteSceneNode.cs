@@ -73,7 +73,7 @@ namespace ValveResourceFormat.Renderer.SceneNodes
             var renderShader = context.ReplacementShader ?? material.Shader;
             renderShader.Use();
 
-            GL.BindVertexArray(vao.Get(renderShader));
+            GL.BindVertexArray(vao.Get());
 
             // Create billboarding rotation (always facing camera)
             if (!Matrix4x4.Decompose(context.Camera.CameraViewMatrix, out _, out var modelViewRotation, out _))

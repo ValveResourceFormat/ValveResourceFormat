@@ -104,9 +104,6 @@ namespace ValveResourceFormat.Renderer.Shaders
         /// <summary>Gets the <see cref="MaterialLoader"/> used to resolve fallback textures.</summary>
         internal MaterialLoader MaterialLoader { get; init; }
 
-        /// <summary>Gets a mapping from vertex attribute names to their OpenGL attribute locations.</summary>
-        public Dictionary<string, int> Attributes { get; } = [];
-
         /// <summary>Gets a value indicating whether material data (textures and params) should be skipped during rendering.</summary>
         public bool IgnoreMaterialData { get; }
 
@@ -132,7 +129,7 @@ namespace ValveResourceFormat.Renderer.Shaders
                                       or "quad_overdraw";
         }
 
-        /// <summary>Ensures the shader program has been linked and its uniforms and attributes have been cached.</summary>
+        /// <summary>Ensures the shader program has been linked and its uniforms have been cached.</summary>
         /// <returns><see langword="true"/> if the shader linked successfully; otherwise <see langword="false"/>.</returns>
         public bool EnsureLoaded()
         {
@@ -151,7 +148,6 @@ namespace ValveResourceFormat.Renderer.Shaders
 
                 if (IsValid)
                 {
-                    StoreAttributeLocations();
                     StoreUniformLocations();
                     BindReservedTextureSlots();
 
@@ -392,21 +388,6 @@ namespace ValveResourceFormat.Renderer.Shaders
         }
 #endif
 
-        /// <summary>Queries and caches the OpenGL locations of all active vertex attributes.</summary>
-        public void StoreAttributeLocations()
-        {
-            GL.GetProgram(Program, GetProgramParameterName.ActiveAttributes, out var attributeCount);
-
-            Attributes.EnsureCapacity(attributeCount);
-
-            for (var i = 0; i < attributeCount; i++)
-            {
-                GL.GetActiveAttrib(Program, i, 64, out var length, out var size, out var type, out var name);
-                var attribLocation = GL.GetAttribLocation(Program, name);
-                Attributes[name] = attribLocation;
-            }
-        }
-
         /// <summary>Returns the OpenGL location of the named uniform, querying the driver and caching the result on first access.</summary>
         /// <param name="name">The uniform variable name.</param>
         /// <returns>The uniform location, or -1 if the uniform does not exist in the program.</returns>
@@ -640,7 +621,6 @@ namespace ValveResourceFormat.Renderer.Shaders
             ReservedTexturesUsed.UnionWith(shader.ReservedTexturesUsed);
 
             Uniforms.Clear();
-            Attributes.Clear();
         }
 #endif
     }

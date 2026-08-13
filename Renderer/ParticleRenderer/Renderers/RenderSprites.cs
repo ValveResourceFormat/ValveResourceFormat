@@ -1,4 +1,5 @@
 using System.Buffers;
+using System.Runtime.InteropServices;
 using OpenTK.Graphics.OpenGL;
 using ValveResourceFormat.Renderer.Particles.Utils;
 using ValveResourceFormat.Serialization.KeyValues;
@@ -17,11 +18,35 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
     internal class RenderSprites : ParticleFunctionRenderer
     {
         private const string ShaderName = "particle_sprite";
-        // position 3, colour 4, uv 2, next-frame uv 2, frame blend 1
-        private const int VertexSize = 12 + ((MaxTextureLayers - 1) * 4);
 
         // The shader keeps one sampler per layer, so this is a hard ceiling rather than a preference.
         private const int MaxTextureLayers = 5;
+
+        [StructLayout(LayoutKind.Sequential)]
+        private struct Vertex
+        {
+            [VertexAttribute(0, "aVertexPosition")] public Vector3 Position;
+            [VertexAttribute(1, "aVertexColor")] public Vector4 Color;
+            [VertexAttribute(2, "aTexCoords")] public Vector2 UV;
+            [VertexAttribute(3, "aTexCoordsNextFrame")] public Vector2 UVNextFrame;
+            [VertexAttribute(4, "aFrameBlend")] public float FrameBlend;
+            [VertexAttribute(5, "aLayerUv0")] public Vector4 LayerUv0;
+            [VertexAttribute(6, "aLayerUv1")] public Vector4 LayerUv1;
+            [VertexAttribute(7, "aLayerUv2")] public Vector4 LayerUv2;
+            [VertexAttribute(8, "aLayerUv3")] public Vector4 LayerUv3;
+
+            public void SetLayerUv(int layer, Vector4 uvs)
+            {
+                switch (layer)
+                {
+                    case 0: LayerUv0 = uvs; break;
+                    case 1: LayerUv1 = uvs; break;
+                    case 2: LayerUv2 = uvs; break;
+                    case 3: LayerUv3 = uvs; break;
+                    default: throw new ArgumentOutOfRangeException(nameof(layer));
+                }
+            }
+        }
 
         private const string DefaultTextureName = "materials/particle/base_sprite.vtex";
 
@@ -216,42 +241,13 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
             layers[0].Texture = texture;
         }
 
+        private static readonly VertexFormat QuadFormat = VertexFormat.FromStruct<Vertex>();
+
         private int SetupQuadBuffer()
         {
-            const int stride = sizeof(float) * VertexSize;
-
-            GL.CreateVertexArrays(1, out int vao);
             GL.CreateBuffers(1, out vertexBufferHandle);
-            GL.VertexArrayVertexBuffer(vao, 0, vertexBufferHandle, 0, stride);
-            GL.VertexArrayElementBuffer(vao, rendererContext.MeshBufferCache.QuadIndices.GLHandle);
 
-            // A driver is free to drop an attribute whose only use sits behind a uniform branch, in which
-            // case GetAttribLocation reports -1 and binding it would raise a GL error.
-            void SetupAttribute(string name, int components, int offsetInFloats)
-            {
-                var location = GL.GetAttribLocation(shader.Program, name);
-
-                if (location < 0)
-                {
-                    return;
-                }
-
-                GL.EnableVertexArrayAttrib(vao, location);
-                GL.VertexArrayAttribFormat(vao, location, components, VertexAttribType.Float, false, sizeof(float) * offsetInFloats);
-                GL.VertexArrayAttribBinding(vao, location, 0);
-            }
-
-            SetupAttribute("aVertexPosition", 3, 0);
-            SetupAttribute("aVertexColor", 4, 3);
-            SetupAttribute("aTexCoords", 2, 7);
-            SetupAttribute("aTexCoordsNextFrame", 2, 9);
-            SetupAttribute("aFrameBlend", 1, 11);
-            SetupAttribute("aLayerUv0", 4, 12);
-            SetupAttribute("aLayerUv1", 4, 16);
-            SetupAttribute("aLayerUv2", 4, 20);
-            SetupAttribute("aLayerUv3", 4, 24);
-
-            return vao;
+            return QuadFormat.CreateVertexArray(nameof(RenderSprites), shader, vertexBufferHandle, rendererContext.MeshBufferCache.QuadIndices.GLHandle);
         }
 
         // m_Gradient's stops, as the ramp generator wants them. A stop's colour is authored as a byte
@@ -304,26 +300,16 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
             return (currentImage.UncroppedMin, currentImage.UncroppedMax, nextImage.UncroppedMin, nextImage.UncroppedMax);
         }
 
-        // Writes a layer's current+next uv rectangle pair as one vec4 per corner.
-        private static void WriteQuadUvPair(float[] vertices, int offset, (Vector2 UvMin, Vector2 UvMax, Vector2 NextMin, Vector2 NextMax) uvs)
+        // One corner of a uv rectangle, in the quad's winding order (top-left, bottom-left,
+        // bottom-right, top-right) with v increasing downward.
+        private static Vector2 CornerUv(int corner, Vector2 min, Vector2 max) => corner switch
         {
-            WriteQuadUv(vertices, offset, uvs.UvMin, uvs.UvMax);
-            WriteQuadUv(vertices, offset + 2, uvs.NextMin, uvs.NextMax);
-        }
-
-        // Writes one uv rectangle across the quad's four corners, at the given offset within each vertex.
-        // The quad winds top-left, bottom-left, bottom-right, top-right with v increasing downward.
-        private static void WriteQuadUv(float[] vertices, int offset, Vector2 min, Vector2 max)
-        {
-            vertices[offset + (VertexSize * 0) + 0] = min.X;
-            vertices[offset + (VertexSize * 0) + 1] = max.Y;
-            vertices[offset + (VertexSize * 1) + 0] = min.X;
-            vertices[offset + (VertexSize * 1) + 1] = min.Y;
-            vertices[offset + (VertexSize * 2) + 0] = max.X;
-            vertices[offset + (VertexSize * 2) + 1] = min.Y;
-            vertices[offset + (VertexSize * 3) + 0] = max.X;
-            vertices[offset + (VertexSize * 3) + 1] = max.Y;
-        }
+            0 => new Vector2(min.X, max.Y),
+            1 => new Vector2(min.X, min.Y),
+            2 => new Vector2(max.X, min.Y),
+            3 => new Vector2(max.X, max.Y),
+            _ => throw new ArgumentOutOfRangeException(nameof(corner)),
+        };
 
         // A quad orientation matrix from a base (right, up) pair with the particle roll folded in, matching the
         // spritecard vertex shader. The axes are intentionally not re-normalized (some modes rely on that, e.g.
@@ -435,7 +421,8 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
                 && orientationType is ParticleOrientation.PARTICLE_ORIENTATION_ALIGN_TO_PARTICLE_NORMAL
                     or ParticleOrientation.PARTICLE_ORIENTATION_SCREENALIGN_TO_PARTICLE_NORMAL;
 
-            var rawVertices = ArrayPool<float>.Shared.Rent(particles.Count * VertexSize * 4);
+            // Update vertex buffer
+            var rawVertices = ArrayPool<Vertex>.Shared.Rent(particles.Count * 4);
 
             try
             {
@@ -535,57 +522,57 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
                     var br = Vector4.Transform(new Vector4(centerOffset.X + 1, centerOffset.Y + 1, 0, 1), modelMatrix);
                     var tr = Vector4.Transform(new Vector4(centerOffset.X + 1, centerOffset.Y - 1, 0, 1), modelMatrix);
 
-                    var quadStart = i * VertexSize * 4;
-                    rawVertices[quadStart + 0] = tl.X;
-                    rawVertices[quadStart + 1] = tl.Y;
-                    rawVertices[quadStart + 2] = tl.Z;
-                    rawVertices[quadStart + (VertexSize * 1) + 0] = bl.X;
-                    rawVertices[quadStart + (VertexSize * 1) + 1] = bl.Y;
-                    rawVertices[quadStart + (VertexSize * 1) + 2] = bl.Z;
-                    rawVertices[quadStart + (VertexSize * 2) + 0] = br.X;
-                    rawVertices[quadStart + (VertexSize * 2) + 1] = br.Y;
-                    rawVertices[quadStart + (VertexSize * 2) + 2] = br.Z;
-                    rawVertices[quadStart + (VertexSize * 3) + 0] = tr.X;
-                    rawVertices[quadStart + (VertexSize * 3) + 1] = tr.Y;
-                    rawVertices[quadStart + (VertexSize * 3) + 2] = tr.Z;
+                    // Corners in index buffer winding order: top-left, bottom-left, bottom-right, top-right.
+                    Span<Vector3> corners =
+                    [
+                        new(tl.X, tl.Y, tl.Z),
+                        new(bl.X, bl.Y, bl.Z),
+                        new(br.X, br.Y, br.Z),
+                        new(tr.X, tr.Y, tr.Z),
+                    ];
 
-                    // Colors
-                    for (var j = 0; j < 4; ++j)
-                    {
-                        rawVertices[quadStart + (VertexSize * j) + 3] = particle.Color.X * colorFade;
-                        rawVertices[quadStart + (VertexSize * j) + 4] = particle.Color.Y * colorFade;
-                        rawVertices[quadStart + (VertexSize * j) + 5] = particle.Color.Z * colorFade;
-                        rawVertices[quadStart + (VertexSize * j) + 6] = alpha;
-                    }
+                    var color = new Vector4(particle.Color * colorFade, alpha);
 
                     // Each layer resolves frame rects against its own sheet, timed by the base sequence:
                     // companion sheets match the base rects, one-frame sequences pin an atlas region.
                     var (uvMin, uvMax, uvNextMin, uvNextMax) = GetLayerSheetUvs(0, ref particle, out var frameBlend);
 
-                    WriteQuadUv(rawVertices, quadStart + 7, uvMin, uvMax);
-                    WriteQuadUv(rawVertices, quadStart + 9, uvNextMin, uvNextMax);
-
-                    for (var layer = 1; layer < layers.Length; layer++)
-                    {
-                        var layerUvs = GetLayerSheetUvs(layer, ref particle, out _);
-                        WriteQuadUvPair(rawVertices, quadStart + 12 + ((layer - 1) * 4), layerUvs);
-                    }
+                    var quadStart = i * 4;
 
                     for (var j = 0; j < 4; ++j)
                     {
-                        rawVertices[quadStart + (VertexSize * j) + 11] = frameBlend;
+                        rawVertices[quadStart + j] = new Vertex
+                        {
+                            Position = corners[j],
+                            Color = color,
+                            UV = CornerUv(j, uvMin, uvMax),
+                            UVNextFrame = CornerUv(j, uvNextMin, uvNextMax),
+                            FrameBlend = frameBlend,
+                        };
+                    }
+
+                    for (var layer = 1; layer < layers.Length; layer++)
+                    {
+                        var (layerMin, layerMax, layerNextMin, layerNextMax) = GetLayerSheetUvs(layer, ref particle, out _);
+
+                        for (var j = 0; j < 4; ++j)
+                        {
+                            var uv = CornerUv(j, layerMin, layerMax);
+                            var uvNext = CornerUv(j, layerNextMin, layerNextMax);
+                            rawVertices[quadStart + j].SetLayerUv(layer - 1, new Vector4(uv.X, uv.Y, uvNext.X, uvNext.Y));
+                        }
                     }
 
                     i++;
                 }
 
-                GL.NamedBufferData(vertexBufferHandle, i * VertexSize * 4 * sizeof(float), rawVertices, BufferUsageHint.DynamicDraw);
+                GL.NamedBufferData(vertexBufferHandle, i * 4 * QuadFormat.Stride, rawVertices, BufferUsageHint.DynamicDraw);
 
                 return i;
             }
             finally
             {
-                ArrayPool<float>.Shared.Return(rawVertices);
+                ArrayPool<Vertex>.Shared.Return(rawVertices);
             }
         }
 

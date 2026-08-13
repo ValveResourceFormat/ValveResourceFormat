@@ -3,10 +3,11 @@
 #include "common/utils.slang"
 #include "common/ViewConstants.slang"
 
+// Locations and names pair with the VertexFormat in RenderCables.cs.
 layout (location = 0) in vec3 aVertexPosition;
 layout (location = 1) in vec3 aVertexNormal;
-layout (location = 3) in vec2 aTexCoords;
-layout (location = 4) in vec4 aVertexColor;
+layout (location = 2) in vec2 aTexCoords;
+layout (location = 3) in vec4 aVertexColor;
 
 #if (D_BAKED_LIGHTING_FROM_LIGHTMAP == 1)
     // Cables carry no lightmap coordinates; these combos exist only so the shared lighting include links.

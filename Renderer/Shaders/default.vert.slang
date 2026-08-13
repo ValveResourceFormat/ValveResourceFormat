@@ -1,7 +1,8 @@
 #version 460
 
-layout (location = 0) in vec3 vPOSITION;
-layout (location = 1) in vec4 vCOLOR;
+#include "common/vertex_layout.slang"
+layout (location = ATTRIBUTE_POSITION) in vec3 vPOSITION;
+layout (location = ATTRIBUTE_COLOR) in vec4 vCOLOR;
 out vec4 vtxColor;
 
 #include "common/ViewConstants.slang"

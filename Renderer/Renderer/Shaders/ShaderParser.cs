@@ -43,6 +43,49 @@ namespace ValveResourceFormat.Renderer.Shaders
         [GeneratedRegex("^#define (?<From>(?:g|F)_[A-Za-z0-9_]+) (?<To>[A-Za-z_][A-Za-z0-9_]*)$")]
         private static partial Regex RegexUniformAlias();
 
+        [GeneratedRegex(@"^\s*#define\s+(?<Name>ATTRIBUTE_\w+)\s+(?<Value>\w+)\s*$")]
+        private static partial Regex RegexAttributeDefine();
+
+        /// <summary>Parses <c>ATTRIBUTE_*</c> macros out of <c>common/vertex_layout.slang</c>,
+        /// and resolves alias defines to their numeric values, <see cref="VertexAttributeLocations"/> initializes from this
+        /// so the C# VAO code can never drift from the shaders.</summary>
+        internal static Dictionary<string, int> ParseVertexLayoutMacros()
+        {
+            using var stream = GetShaderStream("common/vertex_layout.slang");
+            using var reader = new StreamReader(stream);
+
+            var macros = new Dictionary<string, int>();
+
+            while (reader.ReadLine() is { } line)
+            {
+                var match = RegexAttributeDefine().Match(line);
+
+                if (!match.Success)
+                {
+                    continue;
+                }
+
+                var name = match.Groups["Name"].Value;
+                var valueText = match.Groups["Value"].Value;
+
+                if (int.TryParse(valueText, CultureInfo.InvariantCulture, out var number))
+                {
+                    macros[name] = number;
+                }
+                else if (macros.TryGetValue(valueText, out var aliased))
+                {
+                    // An alias refers to a macro defined earlier in the file
+                    macros[name] = aliased;
+                }
+                else
+                {
+                    throw new ShaderCompilerException($"vertex_layout.slang macro '{name}' aliases '{valueText}', which is not defined above it.");
+                }
+            }
+
+            return macros;
+        }
+
         private static bool IsPackableUniformName(string name)
             => name.StartsWith("g_", StringComparison.Ordinal) || name.StartsWith("F_", StringComparison.Ordinal);
 
@@ -401,7 +444,7 @@ namespace ValveResourceFormat.Renderer.Shaders
         /// shaders shipped with the renderer.
         /// </summary>
         /// <param name="name">Root relative shader file name using forward slashes (e.g. <c>common/lighting.slang</c>).</param>
-        private static Stream GetShaderStream(string name)
+        internal static Stream GetShaderStream(string name)
         {
             return ShaderRegistry.TryOpenShaderFile(name) ?? GetBuiltinShaderStream(name);
         }

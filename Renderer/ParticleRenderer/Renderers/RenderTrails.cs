@@ -1,4 +1,5 @@
 using System.Buffers;
+using System.Runtime.InteropServices;
 using OpenTK.Graphics.OpenGL;
 using ValveResourceFormat.Renderer.Particles.Utils;
 using ValveResourceFormat.Serialization.KeyValues;
@@ -18,9 +19,17 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
     internal class RenderTrails : ParticleFunctionRenderer
     {
         private const string ShaderName = "particle_trail";
-        // position 3, colour 4, uv 2, next-frame uv 2, frame blend 1
-        private const int VertexSize = 12;
         private const string DefaultTextureName = "materials/particle/base_trail.vtex";
+
+        [StructLayout(LayoutKind.Sequential)]
+        private readonly struct Vertex(Vector3 position, Vector4 color, Vector2 uv, Vector2 uvNextFrame, float frameBlend)
+        {
+            [VertexAttribute(0, "aVertexPosition")] public readonly Vector3 Position = position;
+            [VertexAttribute(1, "aVertexColor")] public readonly Vector4 Color = color;
+            [VertexAttribute(2, "aTexCoords")] public readonly Vector2 UV = uv;
+            [VertexAttribute(3, "aTexCoordsNextFrame")] public readonly Vector2 UVNextFrame = uvNextFrame;
+            [VertexAttribute(4, "aFrameBlend")] public readonly float FrameBlend = frameBlend;
+        }
 
         // The shared quad index buffer covers 65532 indices, six per quad
         private const int MaxQuads = 65532 / 6;
@@ -153,36 +162,13 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
             this.texture = texture;
         }
 
+        private static readonly VertexFormat QuadFormat = VertexFormat.FromStruct<Vertex>();
+
         private (int Vao, int Buffer) SetupQuadBuffer()
         {
-            const int stride = sizeof(float) * VertexSize;
-
-            GL.CreateVertexArrays(1, out int vao);
             GL.CreateBuffers(1, out int buffer);
-            GL.VertexArrayVertexBuffer(vao, 0, buffer, 0, stride);
-            GL.VertexArrayElementBuffer(vao, rendererContext.MeshBufferCache.QuadIndices.GLHandle);
 
-            // A driver is free to drop an attribute whose only use sits behind a uniform branch, in which
-            // case GetAttribLocation reports -1 and binding it would raise a GL error.
-            void SetupAttribute(string name, int components, int offsetInFloats)
-            {
-                var location = GL.GetAttribLocation(shader.Program, name);
-
-                if (location < 0)
-                {
-                    return;
-                }
-
-                GL.EnableVertexArrayAttrib(vao, location);
-                GL.VertexArrayAttribFormat(vao, location, components, VertexAttribType.Float, false, sizeof(float) * offsetInFloats);
-                GL.VertexArrayAttribBinding(vao, location, 0);
-            }
-
-            SetupAttribute("aVertexPosition", 3, 0);
-            SetupAttribute("aVertexColor", 4, 3);
-            SetupAttribute("aTexCoords", 2, 7);
-            SetupAttribute("aTexCoordsNextFrame", 2, 9);
-            SetupAttribute("aFrameBlend", 1, 11);
+            var vao = QuadFormat.CreateVertexArray(nameof(RenderTrails), shader, buffer, rendererContext.MeshBufferCache.QuadIndices.GLHandle);
 
             return (vao, buffer);
         }
@@ -211,7 +197,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
             // defaults of (1, 2) put the smoothstep past its own range, which is what makes it inert.
             var viewAngleFadeActive = startFadeDot < 1f && endFadeDot > startFadeDot;
 
-            var rawVertices = ArrayPool<float>.Shared.Rent(particleBag.Count * VertexSize * 4);
+            var rawVertices = ArrayPool<Vertex>.Shared.Rent(particleBag.Count * 4);
             var quadCount = 0;
 
             try
@@ -351,7 +337,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
                     }
 
                     // Corners in index buffer winding order, with the local quad's [-1, 1] axes mapping to [0, 1] uvs
-                    var quadStart = quadCount * VertexSize * 4;
+                    var quadStart = quadCount * 4;
                     var alpha = particle.Alpha * particle.AlphaAlternate * colorFade * alphaFade
                         * AlphaScale.NextNumber(ref particle, systemRenderState);
                     var tint = particle.Color * colorFade;
@@ -375,19 +361,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
                         var uv = uvOffset + (cornerUv * uvScale);
                         var uvNext = uvNextOffset + (cornerUv * uvNextScale);
 
-                        var vertexStart = quadStart + (VertexSize * j);
-                        rawVertices[vertexStart + 0] = worldPosition.X;
-                        rawVertices[vertexStart + 1] = worldPosition.Y;
-                        rawVertices[vertexStart + 2] = worldPosition.Z;
-                        rawVertices[vertexStart + 3] = color.X;
-                        rawVertices[vertexStart + 4] = color.Y;
-                        rawVertices[vertexStart + 5] = color.Z;
-                        rawVertices[vertexStart + 6] = color.W;
-                        rawVertices[vertexStart + 7] = uv.X;
-                        rawVertices[vertexStart + 8] = uv.Y;
-                        rawVertices[vertexStart + 9] = uvNext.X;
-                        rawVertices[vertexStart + 10] = uvNext.Y;
-                        rawVertices[vertexStart + 11] = frameBlend;
+                        rawVertices[quadStart + j] = new Vertex(worldPosition, color, uv, uvNext, frameBlend);
                     }
 
                     quadCount++;
@@ -400,12 +374,12 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
 
                 if (quadCount > 0)
                 {
-                    GL.NamedBufferData(vertexBufferHandle, quadCount * VertexSize * 4 * sizeof(float), rawVertices, BufferUsageHint.DynamicDraw);
+                    GL.NamedBufferData(vertexBufferHandle, quadCount * 4 * QuadFormat.Stride, rawVertices, BufferUsageHint.DynamicDraw);
                 }
             }
             finally
             {
-                ArrayPool<float>.Shared.Return(rawVertices);
+                ArrayPool<Vertex>.Shared.Return(rawVertices);
             }
 
             return quadCount;

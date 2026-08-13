@@ -7,8 +7,9 @@
 #include "common/animation.slang"
 #include "common/morph.slang"
 
-layout (location = 0) in vec3 vPOSITION;
-layout (location = 3) in vec2 vTEXCOORD;
+#include "common/vertex_layout.slang"
+layout (location = ATTRIBUTE_POSITION) in vec3 vPOSITION;
+layout (location = ATTRIBUTE_TEXCOORD) in vec2 vTEXCOORD;
 #include "common/compression.slang"
 
 centroid out vec4 vVertexColorOut;

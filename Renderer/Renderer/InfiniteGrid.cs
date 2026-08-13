@@ -26,19 +26,14 @@ namespace ValveResourceFormat.Renderer
 
             shader = scene.RendererContext.ShaderLoader.LoadShader("grid");
 
-            GL.CreateVertexArrays(1, out vao);
             GL.CreateBuffers(1, out int buffer);
             GL.NamedBufferData(buffer, vertices.Length * sizeof(float), vertices, BufferUsageHint.StaticDraw);
-            GL.VertexArrayVertexBuffer(vao, 0, buffer, 0, sizeof(float) * 2);
 
-            var attributeLocation = GL.GetAttribLocation(shader.Program, "aVertexPosition");
-            GL.EnableVertexArrayAttrib(vao, attributeLocation);
-            GL.VertexArrayAttribFormat(vao, attributeLocation, 2, VertexAttribType.Float, false, 0);
-            GL.VertexArrayAttribBinding(vao, attributeLocation, 0);
+            var format = new VertexFormat(sizeof(float) * 2, new VertexAttribute(0, "aVertexPosition", DXGI_FORMAT.R32G32_FLOAT));
+            vao = format.CreateVertexArray(nameof(InfiniteGrid), shader, buffer);
 
 #if DEBUG
             var vaoLabel = nameof(InfiniteGrid);
-            GL.ObjectLabel(ObjectLabelIdentifier.VertexArray, vao, vaoLabel.Length, vaoLabel);
             GL.ObjectLabel(ObjectLabelIdentifier.Buffer, buffer, vaoLabel.Length, vaoLabel);
 #endif
         }

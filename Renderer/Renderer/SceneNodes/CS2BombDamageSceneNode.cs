@@ -57,7 +57,7 @@ public class CS2BombDamageSceneNode : SceneNode
     private Vector3 boundsMax;
 
     [StructLayout(LayoutKind.Explicit, Size = VertexSize)]
-    private struct VertexFormat
+    private struct Vertex
     {
         [FieldOffset(VertexPositionOffset)]
         public Vector3 Position;
@@ -122,7 +122,7 @@ public class CS2BombDamageSceneNode : SceneNode
 
         var vertexData = new byte[vertexCount * VertexSize];
         var indexData = new byte[indexCount * sizeof(int)];
-        var vertices = MemoryMarshal.Cast<byte, VertexFormat>(vertexData.AsSpan());
+        var vertices = MemoryMarshal.Cast<byte, Vertex>(vertexData.AsSpan());
         var indices = MemoryMarshal.Cast<byte, int>(indexData.AsSpan());
 
         if (positions.Length > 0)
@@ -157,7 +157,7 @@ public class CS2BombDamageSceneNode : SceneNode
         vao = Scene.RendererContext.MeshBufferCache.UploadBuffersAndCreateVertexArray(meshName, vbib, material.Material.InputSignature);
     }
 
-    private void AddFace(Span<VertexFormat> vertices, Span<int> indices, int positionIndex, Vector3 basePosition, in BombDamageDamageValue damage, in BombDamageBombsite bombsite, in AABB bombsiteBounds)
+    private void AddFace(Span<Vertex> vertices, Span<int> indices, int positionIndex, Vector3 basePosition, in BombDamageDamageValue damage, in BombDamageBombsite bombsite, in AABB bombsiteBounds)
     {
         var baseVertex = positionIndex * 4;
         var baseIndex = positionIndex * 6;
@@ -178,7 +178,7 @@ public class CS2BombDamageSceneNode : SceneNode
             boundsMax = Vector3.Max(boundsMax, position);
             boundsMin = Vector3.Min(boundsMin, position);
 
-            vertices[baseVertex + i] = new VertexFormat
+            vertices[baseVertex + i] = new Vertex
             {
                 Position = position,
                 UVs = VertexUVs[i],
@@ -212,7 +212,7 @@ public class CS2BombDamageSceneNode : SceneNode
 
         var renderShader = context.ReplacementShader ?? material.Shader;
         renderShader.Use();
-        GL.BindVertexArray(vao.Get(renderShader));
+        GL.BindVertexArray(vao.Get());
         material.Render(renderShader);
         renderShader.SetUniform3x4("transform", Matrix4x4.Identity);
 

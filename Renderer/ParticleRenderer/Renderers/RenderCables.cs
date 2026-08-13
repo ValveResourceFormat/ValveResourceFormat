@@ -1,5 +1,4 @@
 using System.Buffers;
-using System.Runtime.InteropServices;
 using OpenTK.Graphics.OpenGL;
 using ValveResourceFormat.Renderer.Particles.Utils;
 using ValveResourceFormat.Renderer.SceneEnvironment;
@@ -110,35 +109,14 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
             vaoHandle = SetupBuffers();
         }
 
+        private static readonly VertexFormat CableFormat = VertexFormat.FromStruct<CableMeshBuilder.Vertex>();
+
         private int SetupBuffers()
         {
-            GL.CreateVertexArrays(1, out int vao);
             GL.CreateBuffers(1, out vertexBufferHandle);
             GL.CreateBuffers(1, out indexBufferHandle);
 
-            var stride = Marshal.SizeOf<CableMeshBuilder.Vertex>();
-            GL.VertexArrayVertexBuffer(vao, 0, vertexBufferHandle, 0, stride);
-            GL.VertexArrayElementBuffer(vao, indexBufferHandle);
-
-            SetupAttrib(vao, "aVertexPosition", 3, VertexAttribType.Float, false, nameof(CableMeshBuilder.Vertex.Position));
-            SetupAttrib(vao, "aVertexNormal", 3, VertexAttribType.Float, false, nameof(CableMeshBuilder.Vertex.Normal));
-            SetupAttrib(vao, "aTexCoords", 2, VertexAttribType.Float, false, nameof(CableMeshBuilder.Vertex.UV));
-            SetupAttrib(vao, "aVertexColor", 4, VertexAttribType.UnsignedByte, true, nameof(CableMeshBuilder.Vertex.Color));
-
-            return vao;
-        }
-
-        private void SetupAttrib(int vao, string attribName, int size, VertexAttribType type, bool normalized, string field)
-        {
-            var location = GL.GetAttribLocation(shader.Program, attribName);
-            if (location < 0)
-            {
-                return;
-            }
-
-            GL.EnableVertexArrayAttrib(vao, location);
-            GL.VertexArrayAttribFormat(vao, location, size, type, normalized, (int)Marshal.OffsetOf<CableMeshBuilder.Vertex>(field));
-            GL.VertexArrayAttribBinding(vao, location, 0);
+            return CableFormat.CreateVertexArray(nameof(RenderCables), shader, vertexBufferHandle, indexBufferHandle);
         }
 
         public override void Render(ParticleCollection particles, ParticleSystemRenderState systemRenderState, Camera camera)
@@ -238,7 +216,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
                     return;
                 }
 
-                var stride = Marshal.SizeOf<CableMeshBuilder.Vertex>();
+                var stride = CableFormat.Stride;
                 GL.NamedBufferData(vertexBufferHandle, vertexCount * stride, vertexArray, BufferUsageHint.DynamicDraw);
                 GL.NamedBufferData(indexBufferHandle, tubeIndexCount * sizeof(uint), indexArray, BufferUsageHint.DynamicDraw);
                 indexCount = tubeIndexCount;

@@ -948,9 +948,17 @@ namespace ValveResourceFormat.Blocks
         /// Gets the element size and count for a given render input layout field format.
         /// </summary>
         public static (int ElementSize, int ElementCount) GetFormatInfo(RenderInputLayoutField attribute)
+            => GetFormatInfo(attribute.Format, attribute.SemanticName);
+
+        /// <summary>
+        /// Gets the element size and count for a given vertex attribute format.
+        /// </summary>
+        /// <param name="format">Vertex attribute format.</param>
+        /// <param name="attributeName">Optional attribute name included in the error when the format is unsupported.</param>
+        public static (int ElementSize, int ElementCount) GetFormatInfo(DXGI_FORMAT format, string? attributeName = null)
         {
             // :VertexAttributeFormat - When adding new attribute here, also implement it in the renderer - GPUMeshBufferCache
-            return attribute.Format switch
+            return format switch
             {
                 DXGI_FORMAT.R8G8B8A8_UINT => (1, 4),
                 DXGI_FORMAT.R8G8B8A8_UNORM => (1, 4),
@@ -972,7 +980,7 @@ namespace ValveResourceFormat.Blocks
                 DXGI_FORMAT.R32G32B32A32_FLOAT => (4, 4),
                 DXGI_FORMAT.R32G32B32A32_SINT => (4, 4),
 
-                _ => throw new NotImplementedException($"Unsupported \"{attribute.SemanticName}\" DXGI_FORMAT.{attribute.Format}"),
+                _ => throw new NotImplementedException($"Unsupported \"{attributeName}\" DXGI_FORMAT.{format}"),
             };
         }
     }

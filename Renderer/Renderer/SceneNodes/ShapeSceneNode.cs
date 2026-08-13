@@ -365,7 +365,7 @@ namespace ValveResourceFormat.Renderer.SceneNodes
                 renderShader.SetTexture(0, "g_tColor", ToolTexture);
             }
 
-            GL.BindVertexArray(vao.Get(renderShader));
+            GL.BindVertexArray(vao.Get());
 
             GL.DepthFunc(DepthFunction.Gequal);
 

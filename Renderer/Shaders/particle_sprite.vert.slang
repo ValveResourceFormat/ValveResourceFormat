@@ -1,16 +1,17 @@
 #version 460
 
+// Locations and names pair with the VertexFormat in RenderSprites.cs.
 layout (location = 0) in vec3 aVertexPosition;
-layout (location = 3) in vec2 aTexCoords;
-layout (location = 4) in vec4 aVertexColor;
+layout (location = 1) in vec4 aVertexColor;
+layout (location = 2) in vec2 aTexCoords;
 // The frame after the one aTexCoords addresses, and how far between the two this particle sits.
-layout (location = 5) in vec2 aTexCoordsNextFrame;
-layout (location = 6) in float aFrameBlend;
+layout (location = 3) in vec2 aTexCoordsNextFrame;
+layout (location = 4) in float aFrameBlend;
 // Each extra layer's own current (xy) and next (zw) sheet frame uvs.
-layout (location = 7) in vec4 aLayerUv0;
-layout (location = 8) in vec4 aLayerUv1;
-layout (location = 9) in vec4 aLayerUv2;
-layout (location = 10) in vec4 aLayerUv3;
+layout (location = 5) in vec4 aLayerUv0;
+layout (location = 6) in vec4 aLayerUv1;
+layout (location = 7) in vec4 aLayerUv2;
+layout (location = 8) in vec4 aLayerUv3;
 
 #include "common/utils.slang"
 #include "common/ViewConstants.slang"

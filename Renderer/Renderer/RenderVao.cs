@@ -4,10 +4,11 @@ using ValveResourceFormat.ResourceTypes;
 namespace ValveResourceFormat.Renderer
 {
     /// <summary>
-    /// Vertex array state for geometry that is unique per pipeline.
-    /// Bind sites probe this with the shader about to be used. The VAOs themselves are created and owned by
-    /// <see cref="GPUMeshBufferCache"/>, keyed by the shader plus the actual GPU buffer handles involved; this
-    /// only memoizes the most recent lookups so repeat draws with the same shader skip the dictionary lookup.
+    /// Vertex array state for a piece of geometry. Attribute locations are canonical
+    /// (<see cref="VertexAttributeLocations"/>), so one VAO serves every shader that draws the
+    /// geometry. The VAO itself is created and owned by <see cref="GPUMeshBufferCache"/>, keyed by
+    /// the resolved attribute bindings plus the actual GPU buffer handles involved; this only
+    /// memoizes the lookup.
     /// </summary>
     /// <param name="meshBuffers">The cache that creates and owns the VAOs.</param>
     /// <param name="vertexBuffers">Vertex buffer bindings describing the geometry layout.</param>
@@ -38,38 +39,15 @@ namespace ValveResourceFormat.Renderer
         {
         }
 
-        private int primaryProgram = -1;
-        private int primaryVao = -1;
-        private int replacementProgram = -1;
-        private int replacementVao = -1;
+        private int vao = -1;
 
-        /// <summary>Returns the VAO matching the given shader, creating it through the cache on first use.</summary>
-        /// <param name="shader">The shader the geometry is about to be rendered with.</param>
+        /// <summary>Returns the VAO for this geometry, creating it through the cache on first use.</summary>
         /// <returns>The OpenGL VAO handle.</returns>
-        public int Get(Shader shader)
+        public int Get()
         {
-            if (shader.Program == primaryProgram)
+            if (vao == -1)
             {
-                return primaryVao;
-            }
-
-            if (shader.Program == replacementProgram)
-            {
-                return replacementVao;
-            }
-
-            shader.EnsureLoaded();
-            var vao = meshBuffers.GetVertexArrayObject(vertexBuffers, shader, inputSignature, indexBuffer, debugLabel);
-
-            if (primaryProgram == -1)
-            {
-                primaryProgram = shader.Program;
-                primaryVao = vao;
-            }
-            else
-            {
-                replacementProgram = shader.Program;
-                replacementVao = vao;
+                vao = meshBuffers.GetVertexArrayObject(vertexBuffers, inputSignature, indexBuffer, debugLabel);
             }
 
             return vao;
@@ -81,10 +59,7 @@ namespace ValveResourceFormat.Renderer
         {
             meshBuffers.InvalidateVertexArrayObjectsForFreedBuffers([.. Array.ConvertAll(vertexBuffers, vb => vb.Handle), indexBuffer]);
 
-            primaryProgram = -1;
-            primaryVao = -1;
-            replacementProgram = -1;
-            replacementVao = -1;
+            vao = -1;
         }
     }
 }

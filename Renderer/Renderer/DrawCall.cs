@@ -84,26 +84,22 @@ namespace ValveResourceFormat.Renderer
             UpdateVertexArrayObject();
         }
 
-        /// <summary>Returns the VAO matching the shader this draw call is about to be rendered with,
-        /// creating it if necessary. Replacement shaders (depth only, outline, picking) get their own
-        /// VAOs since their attribute locations differ from the material shader's.</summary>
-        /// <param name="shader">The shader the draw call will be rendered with.</param>
+        /// <summary>Returns the VAO for this draw call, creating it if necessary. Attribute locations
+        /// are canonical, so the same VAO serves the material shader and every replacement shader
+        /// (depth only, outline, picking).</summary>
         /// <returns>The OpenGL VAO handle.</returns>
-        public int GetVertexArrayObject(Shader shader)
+        public int GetVertexArrayObject()
         {
             vao ??= new RenderVao(MeshBuffers, VertexBuffers, IndexBuffer.Handle, Material.Material.InputSignature, MeshName);
-            return vao.Get(shader);
+            return vao.Get();
         }
 
-        /// <summary>Resets the vertex array state and recreates the material shader VAO if the shader is ready.</summary>
+        /// <summary>Resets the vertex array state and recreates the VAO, picking up the new material's
+        /// input signature.</summary>
         public void UpdateVertexArrayObject()
         {
             vao = null;
-
-            if (Material.Shader.IsLoaded)
-            {
-                GetVertexArrayObject(Material.Shader);
-            }
+            GetVertexArrayObject();
         }
     }
 

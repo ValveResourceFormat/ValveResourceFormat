@@ -55,10 +55,9 @@ namespace ValveResourceFormat.Renderer
 
         /// <summary>Draws the lines, with the object id as instancing base for picking.</summary>
         /// <param name="objectId">Object id used as instancing base for picking.</param>
-        /// <param name="replacementShader">Replacement shader the lines are being drawn with, if any. Selects a VAO matching its attribute layout.</param>
-        public void Draw(uint objectId = 0, Shader? replacementShader = null)
+        public void Draw(uint objectId = 0)
         {
-            GL.BindVertexArray(vao.Get(replacementShader ?? Shader));
+            GL.BindVertexArray(vao.Get());
             GL.DrawArraysInstancedBaseInstance(PrimitiveType.Lines, 0, VertexCount, 1, objectId);
         }
 

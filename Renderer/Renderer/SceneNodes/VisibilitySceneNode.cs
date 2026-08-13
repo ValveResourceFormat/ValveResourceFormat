@@ -75,7 +75,7 @@ namespace ValveResourceFormat.Renderer.SceneNodes
 
             GL.DepthMask(false);
             GL.BlendFunc(BlendingFactor.SrcAlpha, BlendingFactor.OneMinusSrcAlpha);
-            GL.BindVertexArray(vao.Get(renderShader));
+            GL.BindVertexArray(vao.Get());
 
             if (Scene.CurrentFramePvs == null)
             {

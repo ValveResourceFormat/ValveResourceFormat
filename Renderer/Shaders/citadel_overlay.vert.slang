@@ -7,20 +7,21 @@
 #include "common/instancing.slang"
 #include "common/animation.slang"
 
-layout (location = 0) in vec3 vPOSITION;
-layout (location = 3) in vec2 vTEXCOORD;
+#include "common/vertex_layout.slang"
+layout (location = ATTRIBUTE_POSITION) in vec3 vPOSITION;
+layout (location = ATTRIBUTE_TEXCOORD) in vec2 vTEXCOORD;
 #include "common/compression.slang"
 
 #if (F_DECAL_SPACE_NORMALS == 1)
-    in vec4 vTEXCOORD5; // OverlayProjectionDirection
+    layout (location = ATTRIBUTE_TEXCOORD5) in vec4 vTEXCOORD5; // OverlayProjectionDirection
     out vec4 vProjectionDir;
 #endif
 
 #if D_BAKED_LIGHTING_FROM_LIGHTMAP == 1
-    in vec2 vLightmapUV;
+    layout (location = ATTRIBUTE_LIGHTMAP_UV) in vec2 vLightmapUV;
     out vec3 vLightmapUVScaled;
 #elif D_BAKED_LIGHTING_FROM_VERTEX_STREAM == 1
-    in vec4 vPerVertexLighting; // COLOR1
+    layout (location = ATTRIBUTE_PER_VERTEX_LIGHTING) in vec4 vPerVertexLighting; // COLOR1
     out vec3 vPerVertexLightingOut;
 #endif
 

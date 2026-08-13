@@ -1,5 +1,6 @@
 using System.Diagnostics.CodeAnalysis;
 using System.Linq;
+using System.Runtime.InteropServices;
 using OpenTK.Graphics.OpenGL;
 using ValveKeyValue;
 using ValveResourceFormat.ResourceTypes;
@@ -12,8 +13,6 @@ namespace ValveResourceFormat.Renderer
     /// </summary>
     public class MorphComposite
     {
-        private const int VertexSize = 16;
-
         /// <summary>Gets the GPU texture containing the composited morph target offsets.</summary>
         public RenderTexture CompositeTexture { get; }
 
@@ -21,7 +20,7 @@ namespace ValveResourceFormat.Renderer
         private readonly Shader shader;
         private int vao;
         private int bufferHandle;
-        private float[] allVertices;
+        private Vertex[] allVertices;
         private readonly RenderTexture morphAtlas;
         private List<int>[] morphRects;
         private readonly HashSet<int> usedRects = [];
@@ -89,9 +88,9 @@ namespace ValveResourceFormat.Renderer
         /// <summary>Composites all active morph targets into <see cref="CompositeTexture"/>.</summary>
         public void Render()
         {
-            var usedVerticesLength = usedRects.Count * 4 * VertexSize;
+            var usedVertexCount = usedRects.Count * 4;
 
-            GL.NamedBufferData(bufferHandle, usedVerticesLength * sizeof(float), allVertices, BufferUsageHint.DynamicDraw);
+            GL.NamedBufferData(bufferHandle, usedVertexCount * VertexFormat.Stride, allVertices, BufferUsageHint.DynamicDraw);
 
             if (!renderTargetInitialized)
             {
@@ -113,40 +112,29 @@ namespace ValveResourceFormat.Renderer
 
             GL.BindVertexArray(vao);
 
-            GL.DrawElements(PrimitiveType.Triangles, (usedVerticesLength / VertexSize / 4) * 6, DrawElementsType.UnsignedShort, 0);
+            GL.DrawElements(PrimitiveType.Triangles, usedRects.Count * 6, DrawElementsType.UnsignedShort, 0);
 
             GL.Disable(EnableCap.Blend);
             GL.Enable(EnableCap.CullFace);
         }
 
+        // Mutable because SetVertexMorphValue pokes the current weight into PositionWeights in place.
+        [StructLayout(LayoutKind.Sequential)]
+        private struct Vertex
+        {
+            [VertexAttribute(0, "vPositionWeights")] public Vector4 PositionWeights;
+            [VertexAttribute(1, "vTexCoords")] public Vector4 TexCoords;
+            [VertexAttribute(2, "vOffsetsPositionSpeed")] public Vector4 OffsetsPositionSpeed;
+            [VertexAttribute(3, "vRangesPositionSpeed")] public Vector4 RangesPositionSpeed;
+        }
+
+        private static readonly VertexFormat VertexFormat = VertexFormat.FromStruct<Vertex>();
+
         private void InitVertexBuffer(RendererContext renderContext)
         {
-            var stride = sizeof(float) * VertexSize;
-
-            GL.CreateVertexArrays(1, out vao);
             GL.CreateBuffers(1, out bufferHandle);
-            GL.VertexArrayVertexBuffer(vao, 0, bufferHandle, 0, stride);
-            GL.VertexArrayElementBuffer(vao, renderContext.MeshBufferCache.QuadIndices.GLHandle);
 
-            var positionWeightsLocation = GL.GetAttribLocation(shader.Program, "vPositionWeights");
-            var texCoordsLocation = GL.GetAttribLocation(shader.Program, "vTexCoords");
-            var offsetsLocation = GL.GetAttribLocation(shader.Program, "vOffsetsPositionSpeed");
-            var rangesLocation = GL.GetAttribLocation(shader.Program, "vRangesPositionSpeed");
-
-            GL.EnableVertexArrayAttrib(vao, positionWeightsLocation);
-            GL.EnableVertexArrayAttrib(vao, texCoordsLocation);
-            GL.EnableVertexArrayAttrib(vao, offsetsLocation);
-            GL.EnableVertexArrayAttrib(vao, rangesLocation);
-
-            GL.VertexArrayAttribFormat(vao, positionWeightsLocation, 4, VertexAttribType.Float, false, 0);
-            GL.VertexArrayAttribFormat(vao, texCoordsLocation, 4, VertexAttribType.Float, false, sizeof(float) * 4);
-            GL.VertexArrayAttribFormat(vao, offsetsLocation, 4, VertexAttribType.Float, false, sizeof(float) * 8);
-            GL.VertexArrayAttribFormat(vao, rangesLocation, 4, VertexAttribType.Float, false, sizeof(float) * 12);
-
-            GL.VertexArrayAttribBinding(vao, positionWeightsLocation, 0);
-            GL.VertexArrayAttribBinding(vao, texCoordsLocation, 0);
-            GL.VertexArrayAttribBinding(vao, offsetsLocation, 0);
-            GL.VertexArrayAttribBinding(vao, rangesLocation, 0);
+            vao = VertexFormat.CreateVertexArray(nameof(MorphComposite), shader, bufferHandle, renderContext.MeshBufferCache.QuadIndices.GLHandle);
         }
 
         [MemberNotNull(nameof(allVertices), nameof(morphRects))]
@@ -163,7 +151,7 @@ namespace ValveResourceFormat.Renderer
 
             var bundleCount = morphDatas.Sum(morphData => GetMorphDataBundleCount(morphData));
 
-            allVertices = new float[bundleCount * 4 * VertexSize];
+            allVertices = new Vertex[bundleCount * 4];
             morphCount = morph.GetMorphCount();
             morphRects = new List<int>[morphCount];
 
@@ -215,12 +203,12 @@ namespace ValveResourceFormat.Renderer
             }
         }
 
-        private void BuildVertexBuffer(float[] usedVertices)
+        private void BuildVertexBuffer(Vertex[] usedVertices)
         {
             var addedRects = 0;
             foreach (var rect in usedRects)
             {
-                Array.Copy(allVertices, rect * 4 * VertexSize, usedVertices, addedRects * 4 * VertexSize, VertexSize * 4);
+                Array.Copy(allVertices, rect * 4, usedVertices, addedRects * 4, 4);
                 addedRects++;
             }
         }
@@ -254,32 +242,21 @@ namespace ValveResourceFormat.Renderer
 
         private void SetVertex(int vertex, float x, float y, float u, float v, MorphCompositeRectData data)
         {
-            var stride = vertex * VertexSize;
-
-            allVertices[stride + 0] = x;
-            allVertices[stride + 1] = y;
-            allVertices[stride + 2] = 0f;
-            allVertices[stride + 3] = 0f;
-            allVertices[stride + 4] = u;
-            allVertices[stride + 5] = v;
-            allVertices[stride + 6] = u;
-            allVertices[stride + 7] = v;
-            allVertices[stride + 8] = data.Offsets.X;
-            allVertices[stride + 9] = data.Offsets.Y;
-            allVertices[stride + 10] = data.Offsets.Z;
-            allVertices[stride + 11] = data.Offsets.W;
-            allVertices[stride + 12] = data.Ranges.X;
-            allVertices[stride + 13] = data.Ranges.Y;
-            allVertices[stride + 14] = data.Ranges.Z;
-            allVertices[stride + 15] = data.Ranges.W;
+            allVertices[vertex] = new Vertex
+            {
+                PositionWeights = new Vector4(x, y, 0f, 0f),
+                TexCoords = new Vector4(u, v, u, v),
+                OffsetsPositionSpeed = data.Offsets,
+                RangesPositionSpeed = data.Ranges,
+            };
         }
 
         private void SetVertexMorphValue(int vertex, float val)
         {
-            var stride = vertex * VertexSize;
+            ref var positionWeights = ref allVertices[vertex].PositionWeights;
 
-            allVertices[stride + 2] = val;
-            allVertices[stride + 3] = val;
+            positionWeights.Z = val;
+            positionWeights.W = val;
         }
 
         private float GetMorphValue(int morphId)
@@ -290,7 +267,7 @@ namespace ValveResourceFormat.Renderer
                 return 0f;
             }
 
-            return allVertices[rects.First() * 4 * VertexSize];
+            return allVertices[rects.First() * 4].PositionWeights.X;
         }
 
         /// <summary>Sets the blend weight for the specified morph target and marks its rects as active or inactive.</summary>

@@ -3,7 +3,8 @@
 #include "common/instancing.slang"
 #include "common/animation.slang"
 
-layout (location = 0) in vec3 vPOSITION;
+#include "common/vertex_layout.slang"
+layout (location = ATTRIBUTE_POSITION) in vec3 vPOSITION;
 
 #include "common/ViewConstants.slang"
 

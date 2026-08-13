@@ -1,9 +1,10 @@
 #version 460
 
-layout (location = 0) in vec3 vPOSITION;
-layout (location = 1) in vec4 vCOLOR;
-layout (location = 2) in vec2 vTEXCOORD;
-layout (location = 3) in float vPHASE;
+#include "common/vertex_layout.slang"
+layout (location = ATTRIBUTE_POSITION) in vec3 vPOSITION;
+layout (location = ATTRIBUTE_COLOR) in vec4 vCOLOR;
+layout (location = ATTRIBUTE_TEXCOORD) in vec2 vTEXCOORD;
+layout (location = ATTRIBUTE_PHASE) in float vPHASE;
 
 out vec4 vtxColor;
 out vec2 vtxUv;

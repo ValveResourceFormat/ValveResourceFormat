@@ -1,6 +1,6 @@
 #version 460
 
-in vec2 aVertexPosition;
+layout (location = 0) in vec2 aVertexPosition;
 sample out vec3 nearPoint;
 sample out vec3 farPoint;
 

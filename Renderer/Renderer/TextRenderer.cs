@@ -20,10 +20,10 @@ namespace ValveResourceFormat.Renderer
         {
             public const int Size = 6;
 
-            public Vector2 Position;
-            public Vector2 TexCoord;
-            public float Depth;
-            public Color32 Color;
+            [VertexAttribute(0, "vPOSITION")] public Vector2 Position;
+            [VertexAttribute(1, "vTEXCOORD")] public Vector2 TexCoord;
+            [VertexAttribute(2, "vDEPTH")] public float Depth;
+            [VertexAttribute(3, "vCOLOR")] public Color32 Color;
         }
 
         /// <summary>
@@ -226,6 +226,8 @@ namespace ValveResourceFormat.Renderer
         private int bufferHandle;
         private int vao;
 
+        private static readonly VertexFormat QuadFormat = VertexFormat.FromStruct<Vertex>();
+
         /// <summary>Initializes the text renderer.</summary>
         /// <param name="rendererContext">Renderer context for loading shaders.</param>
         /// <param name="camera">Camera (unused at construction; required at render time).</param>
@@ -248,34 +250,12 @@ namespace ValveResourceFormat.Renderer
             GL.TextureStorage2D(fontTexture.Handle, 1, SizedInternalFormat.Rgba8, bitmap.Width, bitmap.Height);
             GL.TextureSubImage2D(fontTexture.Handle, 0, 0, 0, bitmap.Width, bitmap.Height, PixelFormat.Bgra, PixelType.UnsignedByte, bitmap.GetPixels());
 
-            var attributes = new List<(string Name, int Size, VertexAttribType Type, bool Normalized)>
-            {
-                ("vPOSITION", 2, VertexAttribType.Float, false),
-                ("vTEXCOORD", 2, VertexAttribType.Float, false),
-                ("vDEPTH", 1, VertexAttribType.Float, false),
-                ("vCOLOR", 4, VertexAttribType.UnsignedByte, true),
-            };
-
-            var stride = sizeof(float) * Vertex.Size;
-            var offset = 0;
-
-            GL.CreateVertexArrays(1, out vao);
             GL.CreateBuffers(1, out bufferHandle);
-            GL.VertexArrayVertexBuffer(vao, 0, bufferHandle, 0, stride);
-            GL.VertexArrayElementBuffer(vao, RendererContext.MeshBufferCache.QuadIndices.GLHandle);
 
-            foreach (var (name, size, type, normalized) in attributes)
-            {
-                var attributeLocation = GL.GetAttribLocation(shader.Program, name);
-                GL.EnableVertexArrayAttrib(vao, attributeLocation);
-                GL.VertexArrayAttribFormat(vao, attributeLocation, size, type, normalized, offset);
-                GL.VertexArrayAttribBinding(vao, attributeLocation, 0);
-                offset += sizeof(float) * size;
-            }
+            vao = QuadFormat.CreateVertexArray(nameof(TextRenderer), shader!, bufferHandle, RendererContext.MeshBufferCache.QuadIndices.GLHandle);
 
 #if DEBUG
             var objectLabel = nameof(TextRenderer);
-            GL.ObjectLabel(ObjectLabelIdentifier.VertexArray, vao, objectLabel.Length, objectLabel);
             GL.ObjectLabel(ObjectLabelIdentifier.Buffer, bufferHandle, objectLabel.Length, objectLabel);
             GL.ObjectLabel(ObjectLabelIdentifier.Texture, fontTexture.Handle, objectLabel.Length, objectLabel);
 #endif
