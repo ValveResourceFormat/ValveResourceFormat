@@ -134,7 +134,6 @@ public sealed class FuncRotating : BaseModelEntity
             FanFriction = 1f;
         }
 
-        // Set the axis of rotation
         if (HasSpawnFlags(SpawnFlag.RollAxis))
         {
             MoveAngles = new Vector3(0, 0, 1); // roll
@@ -148,7 +147,6 @@ public sealed class FuncRotating : BaseModelEntity
             MoveAngles = new Vector3(0, 1, 0); // yaw
         }
 
-        // Check for reverse rotation
         if (HasSpawnFlags(SpawnFlag.Backwards))
         {
             MoveAngles = -MoveAngles;
@@ -373,7 +371,6 @@ public sealed class FuncRotating : BaseModelEntity
     /// </summary>
     public void SetTargetSpeed(float speed)
     {
-        // Make sure the sign is correct - positive for forward rotation, negative for reverse
         speed = MathF.Abs(speed);
 
         if (IsReversed)
@@ -385,7 +382,6 @@ public sealed class FuncRotating : BaseModelEntity
 
         if (!acceleratesAndDecelerates)
         {
-            // No acceleration, change to the new speed instantly
             UpdateSpeed(TargetSpeed);
 
             if (stopAtStartPos)
@@ -495,7 +491,6 @@ public sealed class FuncRotating : BaseModelEntity
         }
         else
         {
-            // Changing speed, so ride the volume up or down with it
             RampVolume();
         }
     }

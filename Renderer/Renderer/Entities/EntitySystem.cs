@@ -88,6 +88,8 @@ public sealed class EntitySystem
     /// </summary>
     public float InterpolationFraction => tickAccumulator / TickInterval;
 
+    // Walked by index everywhere: a think, an input, or a touch handler may spawn or remove entities
+    // part way through, and one spawned mid-walk is meant to be reached by it
     private readonly List<BaseEntity> entities = [];
     private readonly List<QueuedInput> inputQueue = [];
     private readonly Dictionary<EntityLump.Connection, int> firedCounts = [];
@@ -156,8 +158,6 @@ public sealed class EntitySystem
     /// </summary>
     public void Activate()
     {
-        // Indexed, because activating an entity may spawn another; one spawned here is activated too,
-        // which is what it needs
         for (var i = 0; i < entities.Count; i++)
         {
             entities[i].Activate();
@@ -174,8 +174,7 @@ public sealed class EntitySystem
             return;
         }
 
-        // Anything it was standing in should hear that it left before it stops existing. Indexed, since
-        // a touch handler may spawn or remove entities.
+        // Anything it was standing in should hear that it left before it stops existing
         for (var i = 0; i < entities.Count; i++)
         {
             entities[i].UpdateTouchLink(entity, isOverlapping: false);
@@ -210,7 +209,6 @@ public sealed class EntitySystem
     /// </remarks>
     private void UpdateTouchLinks()
     {
-        // Indexed, because a touch handler may spawn or remove entities
         for (var i = 0; i < entities.Count; i++)
         {
             var entity = entities[i];
@@ -301,7 +299,6 @@ public sealed class EntitySystem
         TickCount++;
         CurrentTime = TickCount * TickInterval;
 
-        // Indexed, because an input or a think can spawn or remove entities mid-tick
         for (var i = 0; i < entities.Count; i++)
         {
             var entity = entities[i];
