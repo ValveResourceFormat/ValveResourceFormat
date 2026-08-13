@@ -5,7 +5,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation.SegmentDecoders
     /// <summary>
     /// Decodes full-precision quaternion animation data.
     /// </summary>
-    public class CCompressedFullQuaternion : AnimationSegmentDecoder
+    internal class CCompressedFullQuaternion : AnimationSegmentDecoder
     {
         /// <inheritdoc/>
         public override void Read(int frameIndex, Frame outFrame)

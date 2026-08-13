@@ -3,7 +3,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelFlex.FlexOps
     /// <summary>
     /// Flex operation that subtracts two values.
     /// </summary>
-    public class FlexOpSub : FlexOp
+    internal class FlexOpSub : FlexOp
     {
         /// <summary>
         /// Initializes a new instance of the <see cref="FlexOpSub"/> class.

@@ -5,7 +5,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation.SegmentDecoders
     /// <summary>
     /// Decodes static float data that doesn't change per frame.
     /// </summary>
-    public class CCompressedStaticFloat : AnimationSegmentDecoder
+    internal class CCompressedStaticFloat : AnimationSegmentDecoder
     {
         /// <inheritdoc/>
         public override void Read(int frameIndex, Frame outFrame)

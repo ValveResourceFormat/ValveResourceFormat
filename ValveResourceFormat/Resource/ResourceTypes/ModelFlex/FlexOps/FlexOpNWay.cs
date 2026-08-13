@@ -3,7 +3,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelFlex.FlexOps
     /// <summary>
     /// Flex operation that performs N-way blending between values.
     /// </summary>
-    public class FlexOpNWay : FlexOp
+    internal class FlexOpNWay : FlexOp
     {
         /// <summary>
         /// Initializes a new instance of the <see cref="FlexOpNWay"/> class.

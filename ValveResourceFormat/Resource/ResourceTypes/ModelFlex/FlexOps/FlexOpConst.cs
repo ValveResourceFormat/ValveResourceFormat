@@ -3,7 +3,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelFlex.FlexOps
     /// <summary>
     /// Flex operation that pushes a constant value.
     /// </summary>
-    public class FlexOpConst : FlexOp
+    internal class FlexOpConst : FlexOp
     {
         /// <summary>
         /// Initializes a new instance of the <see cref="FlexOpConst"/> class.

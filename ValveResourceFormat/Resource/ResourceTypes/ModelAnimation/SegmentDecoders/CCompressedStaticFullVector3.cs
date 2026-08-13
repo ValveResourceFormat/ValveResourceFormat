@@ -5,7 +5,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation.SegmentDecoders
     /// <summary>
     /// Decodes static full-precision Vector3 data that doesn't change per frame.
     /// </summary>
-    public class CCompressedStaticFullVector3 : AnimationSegmentDecoder
+    internal class CCompressedStaticFullVector3 : AnimationSegmentDecoder
     {
         /// <inheritdoc/>
         public override void Read(int frameIndex, Frame outFrame)

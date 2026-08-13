@@ -5,7 +5,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation.SegmentDecoders
     /// <summary>
     /// Decodes full-precision float animation data.
     /// </summary>
-    public class CCompressedFullFloat : AnimationSegmentDecoder
+    internal class CCompressedFullFloat : AnimationSegmentDecoder
     {
         /// <inheritdoc/>
         public override void Read(int frameIndex, Frame outFrame)
