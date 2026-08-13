@@ -37,7 +37,7 @@ namespace ValveResourceFormat.ResourceTypes
             Version = reader.ReadInt32();
             var sceneCount = reader.ReadInt32();
             var strings = ReadStrings(reader);
-            reader.ReadInt32(); //Proportional to total length of strings or file size. Probably nothing useful.
+            reader.ReadInt32(); //Size of the string data in bytes, aligned to 4 bytes
 
             Scenes = ReadScenes(reader, sceneCount, strings);
         }

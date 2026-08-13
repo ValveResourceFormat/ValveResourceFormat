@@ -226,8 +226,8 @@ namespace ValveResourceFormat.ResourceTypes.Choreo
 
             if (EventFlex.Tracks.Length > 0)
             {
-                //If samples_use_time is 1, samples in the flex animations are interpreted as real time (probably meaning values are not clamped to 0.0-1.0)
-                //They're stored as real time in the vcd, so this has to be set to true
+                //If samples_use_time is 1, sample times in the flex animations are absolute seconds instead of 0-1 fractions of the event's duration
+                //They're stored as real time here, so this has to be set to true
                 kv.Add("samples_use_time", true);
                 kv.Add("flexanimations", EventFlex.ToKeyValues());
             }
