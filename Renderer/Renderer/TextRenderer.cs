@@ -24,6 +24,9 @@ namespace ValveResourceFormat.Renderer
             [VertexAttribute(VertexSlot.TexCoord)] public Vector2 TexCoord;
             [VertexAttribute("vDEPTH")] public float Depth;
             [VertexAttribute(VertexSlot.Color)] public Color32 Color;
+
+            /// <summary>The layout of this vertex, for creating vertex array objects.</summary>
+            public static readonly VertexFormat Format = VertexFormat.FromStruct<Vertex>();
         }
 
         /// <summary>
@@ -226,7 +229,6 @@ namespace ValveResourceFormat.Renderer
         private int bufferHandle;
         private int vao;
 
-        private static readonly VertexFormat QuadFormat = VertexFormat.FromStruct<Vertex>();
 
         /// <summary>Initializes the text renderer.</summary>
         /// <param name="rendererContext">Renderer context for loading shaders.</param>
@@ -252,7 +254,7 @@ namespace ValveResourceFormat.Renderer
 
             GL.CreateBuffers(1, out bufferHandle);
 
-            vao = QuadFormat.CreateVertexArray(nameof(TextRenderer), bufferHandle, RendererContext.MeshBufferCache.QuadIndices.GLHandle);
+            vao = Vertex.Format.CreateVertexArray(nameof(TextRenderer), bufferHandle, RendererContext.MeshBufferCache.QuadIndices.GLHandle);
 
 #if DEBUG
             var objectLabel = nameof(TextRenderer);

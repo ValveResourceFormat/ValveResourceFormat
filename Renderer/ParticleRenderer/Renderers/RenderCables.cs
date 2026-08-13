@@ -109,14 +109,13 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
             vaoHandle = SetupBuffers();
         }
 
-        private static readonly VertexFormat CableFormat = VertexFormat.FromStruct<CableMeshBuilder.Vertex>();
 
         private int SetupBuffers()
         {
             GL.CreateBuffers(1, out vertexBufferHandle);
             GL.CreateBuffers(1, out indexBufferHandle);
 
-            return CableFormat.CreateVertexArray(nameof(RenderCables), vertexBufferHandle, indexBufferHandle);
+            return CableVertex.Format.CreateVertexArray(nameof(RenderCables), vertexBufferHandle, indexBufferHandle);
         }
 
         public override void Render(ParticleCollection particles, ParticleSystemRenderState systemRenderState, Camera camera)
@@ -202,7 +201,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
 
             var ringPositions = ArrayPool<Vector3>.Shared.Rent(ringCount);
             var ringSamples = ArrayPool<RopeSample>.Shared.Rent(ringCount);
-            var vertexArray = ArrayPool<CableMeshBuilder.Vertex>.Shared.Rent(vertexCount);
+            var vertexArray = ArrayPool<CableVertex>.Shared.Rent(vertexCount);
             var indexArray = IndexArrayPool.Rent(tubeIndexCount);
 
             try
@@ -216,7 +215,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
                     return;
                 }
 
-                var stride = CableFormat.Stride;
+                var stride = CableVertex.Format.Stride;
                 GL.NamedBufferData(vertexBufferHandle, vertexCount * stride, vertexArray, BufferUsageHint.DynamicDraw);
                 GL.NamedBufferData(indexBufferHandle, tubeIndexCount * sizeof(uint), indexArray, BufferUsageHint.DynamicDraw);
                 indexCount = tubeIndexCount;
@@ -225,7 +224,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
             {
                 ArrayPool<Vector3>.Shared.Return(ringPositions);
                 ArrayPool<RopeSample>.Shared.Return(ringSamples);
-                ArrayPool<CableMeshBuilder.Vertex>.Shared.Return(vertexArray);
+                ArrayPool<CableVertex>.Shared.Return(vertexArray);
                 IndexArrayPool.Return(indexArray);
             }
 

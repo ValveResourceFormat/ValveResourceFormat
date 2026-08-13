@@ -12,9 +12,11 @@ namespace ValveResourceFormat.Renderer.SceneNodes
             [VertexAttribute(VertexSlot.Position)] public Vector3 Position;
             [VertexAttribute(VertexSlot.TexCoord)] public Vector2 TexCoord;
             [VertexAttribute(VertexSlot.Color)] public Color32 Color;
+
+            /// <summary>The layout of this vertex, for creating vertex array objects.</summary>
+            public static readonly VertexFormat Format = VertexFormat.FromStruct<Vertex>();
         }
 
-        private static readonly VertexFormat Format = VertexFormat.FromStruct<Vertex>();
 
         private static readonly Vertex[] Vertices =
         [
@@ -52,9 +54,9 @@ namespace ValveResourceFormat.Renderer.SceneNodes
             }
 
             GL.CreateBuffers(1, out int vboHandle);
-            GL.NamedBufferData(vboHandle, Vertices.Length * Format.Stride, Vertices, BufferUsageHint.StaticDraw);
+            GL.NamedBufferData(vboHandle, Vertices.Length * Vertex.Format.Stride, Vertices, BufferUsageHint.StaticDraw);
 
-            vao = Format.CreateVertexArray(nameof(SpriteSceneNode), vboHandle);
+            vao = Vertex.Format.CreateVertexArray(nameof(SpriteSceneNode), vboHandle);
 
 #if DEBUG
             var vaoLabel = $"{nameof(SpriteSceneNode)}: {System.IO.Path.GetFileName(resource.FileName)}";

@@ -23,6 +23,21 @@ namespace ValveResourceFormat.Renderer.Utils
     }
 
     /// <summary>
+    /// One vertex of the tessellated cable tube.
+    /// </summary>
+    [StructLayout(LayoutKind.Sequential)]
+    readonly struct CableVertex(Vector3 position, Vector3 normal, Vector2 uv, Color32 color)
+    {
+        [VertexAttribute(VertexSlot.Position)] public readonly Vector3 Position = position;
+        [VertexAttribute(VertexSlot.Normal)] public readonly Vector3 Normal = normal;
+        [VertexAttribute(VertexSlot.TexCoord)] public readonly Vector2 UV = uv;
+        [VertexAttribute(VertexSlot.Color)] public readonly Color32 Color = color;
+
+        /// <summary>The layout of this vertex, for creating vertex array objects.</summary>
+        public static readonly VertexFormat Format = VertexFormat.FromStruct<CableVertex>();
+    }
+
+    /// <summary>
     /// Builds the cable geometry for a <c>path_particle_rope</c>: samples the stored cubic spline into
     /// rope particles, then (after the particle simulation has drooped them) tessellates a round tube
     /// through the settled positions (circular cross-section, sides = <c>2^clamp(roundness,0,3)*4</c>).
@@ -33,14 +48,6 @@ namespace ValveResourceFormat.Renderer.Utils
         private const int MaxSamples = 5000;
         private const int MaxStepsPerSegment = 256;
 
-        [StructLayout(LayoutKind.Sequential)]
-        internal readonly struct Vertex(Vector3 position, Vector3 normal, Vector2 uv, Color32 color)
-        {
-            [VertexAttribute(VertexSlot.Position)] public readonly Vector3 Position = position;
-            [VertexAttribute(VertexSlot.Normal)] public readonly Vector3 Normal = normal;
-            [VertexAttribute(VertexSlot.TexCoord)] public readonly Vector2 UV = uv;
-            [VertexAttribute(VertexSlot.Color)] public readonly Color32 Color = color;
-        }
 
         /// <summary>
         /// Samples the cable's cubic spline (no sag) at roughly <c>particle_spacing</c> intervals. Every
@@ -149,7 +156,7 @@ namespace ValveResourceFormat.Renderer.Utils
         /// <paramref name="sides"/> from <see cref="SideCount"/>. Returns false for degenerate input.
         /// </summary>
         internal static bool BuildTubeMesh(ReadOnlySpan<Vector3> positions, ReadOnlySpan<RopeSample> samples,
-            int sides, float circumferenceRepeats, Span<Vertex> vertices, Span<uint> indices)
+            int sides, float circumferenceRepeats, Span<CableVertex> vertices, Span<uint> indices)
         {
             if (positions.Length < 2 || positions.Length != samples.Length)
             {
@@ -207,7 +214,7 @@ namespace ValveResourceFormat.Renderer.Utils
         }
 
         private static void BuildTubeGeometry(ReadOnlySpan<Vector3> positions, ReadOnlySpan<RopeSample> samples,
-            float circumferenceRepeats, int sides, Span<Vertex> vertices, Span<uint> indices)
+            float circumferenceRepeats, int sides, Span<CableVertex> vertices, Span<uint> indices)
         {
             var ringCount = positions.Length;
             var previousNormal = Vector3.Zero;
@@ -233,7 +240,7 @@ namespace ValveResourceFormat.Renderer.Utils
                     var radial = (normal * MathF.Cos(angle)) + (bitangent * MathF.Sin(angle));
                     var pos = center + (radial * sample.Radius);
                     var v = j / (float)sides * circumferenceRepeats;
-                    vertices[vertexCursor++] = new Vertex(pos, Normalize(radial), new Vector2(sample.U, v), color);
+                    vertices[vertexCursor++] = new CableVertex(pos, Normalize(radial), new Vector2(sample.U, v), color);
                 }
             }
 

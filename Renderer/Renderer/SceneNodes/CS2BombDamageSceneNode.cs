@@ -49,9 +49,11 @@ public class CS2BombDamageSceneNode : SceneNode
         [VertexAttribute(VertexSlot.TexCoord)] public Vector2 UVs;
         [VertexAttribute(VertexSlot.Color)] public Color32 Color;
         [VertexAttribute("vPHASE")] public float Phase;
+
+        /// <summary>The layout of this vertex, for creating vertex array objects.</summary>
+        public static readonly VertexFormat Format = VertexFormat.FromStruct<Vertex>();
     }
 
-    private static readonly VertexFormat Format = VertexFormat.FromStruct<Vertex>();
 
     /// <summary>
     /// Initializes a baked bomb damage visualization scene node for a specific bombsite.
@@ -104,7 +106,7 @@ public class CS2BombDamageSceneNode : SceneNode
         var vertexCount = positions.Length * 4;
         var indexCount = positions.Length * 6;
 
-        var vertexData = new byte[vertexCount * Format.Stride];
+        var vertexData = new byte[vertexCount * Vertex.Format.Stride];
         var indexData = new byte[indexCount * sizeof(int)];
         var vertices = MemoryMarshal.Cast<byte, Vertex>(vertexData.AsSpan());
         var indices = MemoryMarshal.Cast<byte, int>(indexData.AsSpan());
@@ -126,8 +128,8 @@ public class CS2BombDamageSceneNode : SceneNode
         vbib.VertexBuffers.Add(new VBIB.OnDiskBufferData
         {
             ElementCount = (uint)vertexCount,
-            ElementSizeInBytes = (uint)Format.Stride,
-            InputLayoutFields = Format.ToInputLayout(),
+            ElementSizeInBytes = (uint)Vertex.Format.Stride,
+            InputLayoutFields = Vertex.Format.ToInputLayout(),
             Data = vertexData,
         });
         vbib.IndexBuffers.Add(new VBIB.OnDiskBufferData

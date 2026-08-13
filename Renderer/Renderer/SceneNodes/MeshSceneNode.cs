@@ -60,6 +60,9 @@ namespace ValveResourceFormat.Renderer.SceneNodes
             [VertexAttribute(VertexSlot.TexCoord)] public readonly Vector2 UV;
             [VertexAttribute(VertexSlot.TexCoord4)] public readonly Color32 VertexPaintBlendParams;
 
+            /// <summary>The layout of this vertex, for creating vertex array objects.</summary>
+            public static readonly VertexFormat Format = VertexFormat.FromStruct<Vertex>();
+
             public Vertex(Vector3 position, Vector2 uv, Color32 vertexPaint, Vector3? normal = null, Vector4? tangentU_SignV = null)
             {
                 Position = position;
@@ -70,7 +73,6 @@ namespace ValveResourceFormat.Renderer.SceneNodes
             }
         }
 
-        private static readonly VertexFormat VertexFormat = VertexFormat.FromStruct<Vertex>();
 
         /// <summary>
         /// Creates a flat quad mesh node suitable for previewing a material, with vertex paint gradient strips.
@@ -119,9 +121,9 @@ namespace ValveResourceFormat.Renderer.SceneNodes
             vbib.VertexBuffers.Add(new VBIB.OnDiskBufferData
             {
                 ElementCount = (uint)vertices.Length,
-                ElementSizeInBytes = (uint)VertexFormat.Stride,
+                ElementSizeInBytes = (uint)Vertex.Format.Stride,
                 Data = MemoryMarshal.Cast<Vertex, byte>(vertices).ToArray(),
-                InputLayoutFields = VertexFormat.ToInputLayout(),
+                InputLayoutFields = Vertex.Format.ToInputLayout(),
             });
 
             vbib.IndexBuffers.Add(new VBIB.OnDiskBufferData

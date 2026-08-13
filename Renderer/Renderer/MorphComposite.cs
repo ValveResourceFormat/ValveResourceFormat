@@ -90,7 +90,7 @@ namespace ValveResourceFormat.Renderer
         {
             var usedVertexCount = usedRects.Count * 4;
 
-            GL.NamedBufferData(bufferHandle, usedVertexCount * VertexFormat.Stride, allVertices, BufferUsageHint.DynamicDraw);
+            GL.NamedBufferData(bufferHandle, usedVertexCount * MorphRectVertex.Format.Stride, allVertices, BufferUsageHint.DynamicDraw);
 
             if (!renderTargetInitialized)
             {
@@ -126,15 +126,17 @@ namespace ValveResourceFormat.Renderer
             [VertexAttribute(VertexSlot.TexCoord)] public Vector4 TexCoords;
             [VertexAttribute(VertexSlot.TexCoord1)] public Vector4 OffsetsPositionSpeed;
             [VertexAttribute(VertexSlot.TexCoord2)] public Vector4 RangesPositionSpeed;
+
+            /// <summary>The layout of this vertex, for creating vertex array objects.</summary>
+            public static readonly VertexFormat Format = VertexFormat.FromStruct<MorphRectVertex>();
         }
 
-        private static readonly VertexFormat VertexFormat = VertexFormat.FromStruct<MorphRectVertex>();
 
         private void InitVertexBuffer(RendererContext renderContext)
         {
             GL.CreateBuffers(1, out bufferHandle);
 
-            vao = VertexFormat.CreateVertexArray(nameof(MorphComposite), bufferHandle, renderContext.MeshBufferCache.QuadIndices.GLHandle);
+            vao = MorphRectVertex.Format.CreateVertexArray(nameof(MorphComposite), bufferHandle, renderContext.MeshBufferCache.QuadIndices.GLHandle);
         }
 
         [MemberNotNull(nameof(allVertices), nameof(morphRects))]
