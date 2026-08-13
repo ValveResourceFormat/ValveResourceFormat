@@ -17,7 +17,6 @@ namespace ValveResourceFormat.Renderer.SceneNodes
             public static readonly VertexInputLayout InputLayout = VertexInputLayout.FromStruct<Vertex>();
         }
 
-
         private static readonly Vertex[] Vertices =
         [
             NewVertex(new(1.0f, -1.0f, 0.0f), new(1.0f, 1.0f)),

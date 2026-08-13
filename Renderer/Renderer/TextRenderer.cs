@@ -229,7 +229,6 @@ namespace ValveResourceFormat.Renderer
         private int bufferHandle;
         private int vao;
 
-
         /// <summary>Initializes the text renderer.</summary>
         /// <param name="rendererContext">Renderer context for loading shaders.</param>
         /// <param name="camera">Camera (unused at construction; required at render time).</param>

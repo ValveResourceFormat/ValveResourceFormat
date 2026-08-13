@@ -109,7 +109,6 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
             vaoHandle = SetupBuffers();
         }
 
-
         private int SetupBuffers()
         {
             GL.CreateBuffers(1, out vertexBufferHandle);

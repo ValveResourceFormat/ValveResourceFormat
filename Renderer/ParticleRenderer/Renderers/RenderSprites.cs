@@ -94,7 +94,6 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
         private readonly float startFadeDot = 1f;
         private readonly float endFadeDot = 2f;
 
-
         // m_bBlendFramesSeq0 cross-fades consecutive sheet frames instead of stepping between them.
         // m_bMaxLuminanceBlendingSequence0 swaps the plain lerp for a luminance-weighted one, which keeps
         // the brighter of the two frames dominant through the cross-fade.

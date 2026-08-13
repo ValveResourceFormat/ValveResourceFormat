@@ -54,7 +54,6 @@ public class CS2BombDamageSceneNode : SceneNode
         public static readonly VertexInputLayout InputLayout = VertexInputLayout.FromStruct<Vertex>();
     }
 
-
     /// <summary>
     /// Initializes a baked bomb damage visualization scene node for a specific bombsite.
     /// </summary>

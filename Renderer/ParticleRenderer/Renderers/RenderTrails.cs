@@ -165,7 +165,6 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
             this.texture = texture;
         }
 
-
         private (int Vao, int Buffer) SetupQuadBuffer()
         {
             GL.CreateBuffers(1, out int buffer);

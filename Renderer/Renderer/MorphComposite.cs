@@ -131,7 +131,6 @@ namespace ValveResourceFormat.Renderer
             public static readonly VertexInputLayout InputLayout = VertexInputLayout.FromStruct<MorphRectVertex>();
         }
 
-
         private void InitVertexBuffer(RendererContext renderContext)
         {
             GL.CreateBuffers(1, out bufferHandle);

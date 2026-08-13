@@ -50,7 +50,6 @@ namespace ValveResourceFormat.Renderer.SceneNodes
         public override void UpdateVertexArrayObjects() => RenderableMeshes[0].UpdateVertexArrayObjects();
 #endif
 
-
         [StructLayout(LayoutKind.Sequential)]
         private readonly struct Vertex
         {
