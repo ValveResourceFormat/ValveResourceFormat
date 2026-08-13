@@ -171,7 +171,7 @@ namespace ValveResourceFormat.Renderer.Shaders
         /// <summary>
         /// Caches which attribute locations the linked program reads, and checks each one landed where
         /// <see cref="VertexAttributeSlot"/> says it should. Attributes the linker dropped (behind a disabled
-        /// combo, or simply unused) are not active and do not count as required (debug builds only).
+        /// combo, or simply unused) are not active and do not count as required.
         /// </summary>
         private void StoreRequiredAttributes()
         {

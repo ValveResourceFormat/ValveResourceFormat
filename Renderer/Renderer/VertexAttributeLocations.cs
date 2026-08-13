@@ -100,7 +100,7 @@ namespace ValveResourceFormat.Renderer
 
         /// <summary>The spelling some meshes use for the weight stream.</summary>
         [VertexAttributeName(Semantic = "BLENDWEIGHTS")]
-        BlendWeightsSpelling = BlendWeight,
+        BlendWeightsAlias = BlendWeight,
 
         // Attributes a single renderer's own geometry carries. Reserving them here is what makes their
         // location deterministic, the driver's own assignment is implementation defined. They take the slot
@@ -142,9 +142,7 @@ namespace ValveResourceFormat.Renderer
     {
         private static readonly FrozenDictionary<string, int> SlotByName = BuildSlotByName();
         private static readonly FrozenDictionary<(string Semantic, int Index), int> SlotBySemantic = BuildSlotBySemantic();
-        private static readonly FrozenDictionary<int, string> NamesBySlot = SlotByName
-            .GroupBy(entry => entry.Value, entry => entry.Key)
-            .ToFrozenDictionary(group => group.Key, group => string.Join('/', group));
+        private static readonly FrozenDictionary<int, string> NamesBySlot = BuildNamesBySlot();
 
         private static readonly FrozenDictionary<int, (string Name, int Index)> SemanticBySlot = SlotBySemantic
             .GroupBy(entry => entry.Value, entry => entry.Key)
@@ -175,6 +173,31 @@ namespace ValveResourceFormat.Renderer
             }
 
             return slotByName.ToFrozenDictionary(StringComparer.Ordinal);
+        }
+
+        /// <summary>Names each slot for diagnostics. A slot several attributes share is named after the mesh
+        /// one, which is the likely reading, with the rest kept as alternatives.</summary>
+        private static FrozenDictionary<int, string> BuildNamesBySlot()
+        {
+            var namesBySlot = new Dictionary<int, List<string>>();
+
+            foreach (var (attribute, slot) in EnumerateSlots())
+            {
+                if (!namesBySlot.TryGetValue(slot, out var names))
+                {
+                    names = namesBySlot[slot] = [];
+                }
+
+                // A buffer semantic means a mesh fills it, so that name leads
+                names.InsertRange(attribute.Semantic != null ? 0 : names.Count, attribute.Names);
+            }
+
+            return namesBySlot.ToFrozenDictionary(entry => entry.Key, entry => entry.Value switch
+            {
+                [var only] => only,
+                [var mesh, .. var alternatives] => $"{mesh} (or {string.Join(", ", alternatives)})",
+                _ => "unnamed",
+            });
         }
 
         private static FrozenDictionary<(string, int), int> BuildSlotBySemantic()
