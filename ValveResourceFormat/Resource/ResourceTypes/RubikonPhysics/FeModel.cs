@@ -149,6 +149,9 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics
         /// </summary>
         public float[] NodeCollisionRadii { get; }
 
+        /// <summary>Gets the per-dynamic-node friction (<c>m_DynNodeFriction</c>).</summary>
+        public float[] DynNodeFriction { get; }
+
         /// <summary>Gets the world-collision radius for control node <paramref name="node"/>, or 0 when absent.</summary>
         public float GetCollisionRadius(int node)
         {
@@ -169,7 +172,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics
         /// Gets the per-node animation stray radii (<c>m_AnimStrayRadii</c>): the maximum distance a
         /// simulated node may stray from its animated position (per-joint <c>stray_radius</c> in the source).
         /// </summary>
-        public IReadOnlyDictionary<int, float> AnimStrayRadii { get; }
+        public IReadOnlyDictionary<int, (float MaxDistance, float RelaxationFactor)> AnimStrayRadii { get; }
 
         /// <summary>
         /// Gets the control nodes driven by a back-solved fit matrix (<c>m_FitMatrices</c>) - bones whose
@@ -288,7 +291,17 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics
         }
 
         /// <summary>Gets the stray radius for <paramref name="node"/>, or 0 when unconstrained.</summary>
-        public float GetStrayRadius(int node) => AnimStrayRadii.GetValueOrDefault(node);
+        public float GetStrayRadius(int node) => AnimStrayRadii.GetValueOrDefault(node).MaxDistance;
+
+        /// <summary>Gets how far <paramref name="node"/> may stretch past its stray radius, or 0.</summary>
+        public float GetStrayRelaxation(int node) => AnimStrayRadii.GetValueOrDefault(node).RelaxationFactor;
+
+        /// <summary>Gets the friction painted on <paramref name="node"/>, or 0 when it has none.</summary>
+        public float GetNodeFriction(int node)
+        {
+            var dynamicIndex = node - StaticNodeCount;
+            return dynamicIndex >= 0 && dynamicIndex < DynNodeFriction.Length ? DynNodeFriction[dynamicIndex] : 0f;
+        }
 
         // Scalar cloth solver parameters (surfaced as <c>ClothParams</c> when rebuilding source).
 #pragma warning disable CS1591
@@ -366,15 +379,21 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics
                 ? data.GetIntegerArray("m_WorldCollisionNodes").Select(static v => (int)v).ToHashSet()
                 : new HashSet<int>();
 
-            var strayRadii = new Dictionary<int, float>();
+            DynNodeFriction = data.GetFloatArray("m_DynNodeFriction");
+
+            // An entry constrains one node to its own animated position; the pair form links two different
+            // nodes and is not a per-node stray radius.
+            var strayRadii = new Dictionary<int, (float, float)>();
             if (data.GetArray("m_AnimStrayRadii") is { } strayArray)
             {
                 foreach (var entry in strayArray)
                 {
                     var nodes = entry.GetIntegerArray("nNode");
-                    if (nodes.Length > 0)
+                    if (nodes.Length >= 2 && nodes[0] == nodes[1])
                     {
-                        strayRadii[(int)nodes[0]] = entry.GetFloatProperty("flMaxDist");
+                        strayRadii[(int)nodes[0]] = (
+                            entry.GetFloatProperty("flMaxDist"),
+                            entry.GetFloatProperty("flRelaxationFactor"));
                     }
                 }
             }

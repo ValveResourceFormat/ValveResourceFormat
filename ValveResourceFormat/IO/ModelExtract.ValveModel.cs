@@ -546,9 +546,12 @@ partial class ModelExtract
         node.Add("inverted_collision", false);
         node.Add("planarize", false);
         node.Add("bounciness", 0.0f);
-        node.Add("offset_origin", ToKVArray(box.Origin));
-        node.Add("offset_angles", ToKVArray(EntityTransformHelper.ToEulerAngles(box.Rotation)));
-        node.Add("dimensions", ToKVArray(box.Size));
+        // The shape otherwise snaps to its parent bone, discarding the authored offset, and dimensions are
+        // the full box size while the compiled vSize keeps half-extents.
+        node.Add("recenter_on_parent_bone", false);
+        node.Add("origin", ToKVArray(box.Origin));
+        node.Add("angles", ToKVArray(EntityTransformHelper.ToEulerAngles(box.Rotation)));
+        node.Add("dimensions", ToKVArray(box.Size * 2f));
         return node;
     }
 
@@ -669,6 +672,8 @@ partial class ModelExtract
 
         // Stray radius (m_AnimStrayRadii): the max distance the node may stray from its animated position.
         kv.Add("stray_radius", feModel.GetStrayRadius(joint.Node));
+        kv.Add("stray_radius_stretchiness", feModel.GetStrayRelaxation(joint.Node));
+        kv.Add("friction", feModel.GetNodeFriction(joint.Node));
 
         // Per-joint extrude width. The chain-level extrude_sides (MakeClothChainAttrs) is one uniform value,
         // so it cannot reproduce a ribbon whose END-CAP joint fans wider than its body (primal_beast
