@@ -1,6 +1,7 @@
+using ValveResourceFormat.Particles;
 using System.Buffers;
 using OpenTK.Graphics.OpenGL;
-using ValveResourceFormat.Renderer.Particles.Utils;
+using ValveResourceFormat.Particles.Utils;
 using ValveResourceFormat.Renderer.SceneEnvironment;
 using ValveResourceFormat.Renderer.World;
 using ValveResourceFormat.Serialization.KeyValues;
@@ -123,7 +124,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
             return CableVertex.InputLayout.CreateVertexArray(nameof(RenderCables), vertexBufferHandle, indexBufferHandle);
         }
 
-        public override void Render(ParticleCollection particles, ParticleSystemRenderState systemRenderState, Camera camera)
+        public override void Render(ParticleCollection particles, ParticleSystemState systemState, Camera camera)
         {
             if (particles.Count < 2)
             {
@@ -146,7 +147,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
 
             if (!lightProbeResolved)
             {
-                ResolveLightProbe(systemRenderState, chain[count / 2].Position);
+                ResolveLightProbe(systemState, chain[count / 2].Position);
             }
 
             positionsScratch = EnsureCapacity(positionsScratch, count);
@@ -180,13 +181,13 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
             radii.CopyTo(lastRadii);
             colors.CopyTo(lastColors);
 
-            var repeatsPerSegment = textureRepeatsPerSegment.NextNumber(systemRenderState);
+            var repeatsPerSegment = textureRepeatsPerSegment.NextNumber(systemState);
             if (repeatsPerSegment == 0f)
             {
                 repeatsPerSegment = 1f;
             }
 
-            var circumference = circumferenceRepeats.NextNumber(systemRenderState);
+            var circumference = circumferenceRepeats.NextNumber(systemState);
             if (circumference == 0f)
             {
                 circumference = 1f;
@@ -346,7 +347,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
         // Prefers the probe volume containing the cable midpoint, falling back to the binding the
         // scene assigned to the owning node. Failing to find one is a lighting problem and the
         // cable renders unlit, the same way a model with a bad probe binding would.
-        private void ResolveLightProbe(ParticleSystemRenderState systemRenderState, Vector3 cablePosition)
+        private void ResolveLightProbe(ParticleSystemState systemState, Vector3 cablePosition)
         {
             lightProbeResolved = true;
 
@@ -355,7 +356,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
                 return;
             }
 
-            lightProbe = scene.FindLightProbe(cablePosition) ?? systemRenderState.OwnerNode?.LightProbeBinding;
+            lightProbe = scene.FindLightProbe(cablePosition) ?? OwnerNode?.LightProbeBinding;
         }
 
         private bool GeometryChanged(ReadOnlySpan<Vector3> positions, ReadOnlySpan<int> levels, ReadOnlySpan<float> radii, ReadOnlySpan<Vector3> colors)

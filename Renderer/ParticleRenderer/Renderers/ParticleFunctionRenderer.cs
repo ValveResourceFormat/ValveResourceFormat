@@ -1,3 +1,4 @@
+using ValveResourceFormat.Particles;
 using ValveResourceFormat.ResourceTypes;
 
 namespace ValveResourceFormat.Renderer.Particles.Renderers
@@ -90,32 +91,32 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
         /// The hue shift, saturation and lightness scale carried by <see cref="HsvShiftControlPoint"/>,
         /// or the identity when no control point is bound.
         /// </summary>
-        protected Vector3 GetHsvShift(ParticleSystemRenderState systemRenderState)
+        protected Vector3 GetHsvShift(ParticleSystemState systemState)
             => HsvShiftControlPoint >= 0
-                ? systemRenderState.GetControlPoint(HsvShiftControlPoint).Position
+                ? systemState.GetControlPoint(HsvShiftControlPoint).Position
                 : new Vector3(0f, 1f, 1f);
 
         /// <summary>
         /// The remap the shader applies to the sampled alpha, as the pair the shader expects.
         /// </summary>
-        protected Vector2 GetAlphaRemapRange(ParticleSystemRenderState systemRenderState)
-            => new(SourceAlphaValueToMapToZero.NextNumber(systemRenderState),
-                SourceAlphaValueToMapToOne.NextNumber(systemRenderState));
+        protected Vector2 GetAlphaRemapRange(ParticleSystemState systemState)
+            => new(SourceAlphaValueToMapToZero.NextNumber(systemState),
+                SourceAlphaValueToMapToOne.NextNumber(systemState));
 
         /// <summary>
         /// Uploads the shared source 2 renderer state every particle shader reads.
         /// </summary>
-        protected void SetSharedUniforms(Shader shader, ParticleSystemRenderState systemRenderState)
+        protected void SetSharedUniforms(Shader shader, ParticleSystemState systemState)
         {
-            shader.SetUniform1("uOverbrightFactor", OverbrightFactor.NextNumber(systemRenderState));
-            shader.SetUniform1("uAddSelfAmount", 1f + AddSelfAmount.NextNumber(systemRenderState));
-            shader.SetUniform1("uColorFactor", DiffuseAmount.NextNumber(systemRenderState) + SelfIllumAmount.NextNumber(systemRenderState));
-            shader.SetUniform1("uDesaturation", Desaturation.NextNumber(systemRenderState));
-            shader.SetUniform3("uHsvShift", GetHsvShift(systemRenderState));
-            shader.SetUniform2("uAlphaRemapRange", GetAlphaRemapRange(systemRenderState));
-            shader.SetUniform3("uColorScale", ColorScale.NextVector(systemRenderState));
+            shader.SetUniform1("uOverbrightFactor", OverbrightFactor.NextNumber(systemState));
+            shader.SetUniform1("uAddSelfAmount", 1f + AddSelfAmount.NextNumber(systemState));
+            shader.SetUniform1("uColorFactor", DiffuseAmount.NextNumber(systemState) + SelfIllumAmount.NextNumber(systemState));
+            shader.SetUniform1("uDesaturation", Desaturation.NextNumber(systemState));
+            shader.SetUniform3("uHsvShift", GetHsvShift(systemState));
+            shader.SetUniform2("uAlphaRemapRange", GetAlphaRemapRange(systemState));
+            shader.SetUniform3("uColorScale", ColorScale.NextVector(systemState));
             shader.SetUniform1("uGammaCorrectVertexColors", GammaCorrectVertexColors);
-            shader.SetUniform1("uDepthBias", DepthBias.NextNumber(systemRenderState));
+            shader.SetUniform1("uDepthBias", DepthBias.NextNumber(systemState));
             shader.SetUniform1("uSaturateColorPreAlphaBlend", SaturateColorPreAlphaBlend);
             shader.SetUniform1("uMaxLuminanceFrameBlend", MaxLuminanceFrameBlend);
         }
@@ -125,11 +126,17 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
         /// </summary>
         public RenderPass Pass { get; protected set; } = RenderPass.Translucent;
 
-        public virtual void Update(ParticleCollection particles, ParticleSystemRenderState systemRenderState)
+        /// <summary>
+        /// The scene node the system this belongs to renders under, when it was created for one.
+        /// Set by the system renderer; renderers that light themselves read its bindings through it.
+        /// </summary>
+        public SceneNode? OwnerNode { get; set; }
+
+        public virtual void Update(ParticleCollection particles, ParticleSystemState systemState)
         {
         }
 
-        public abstract void Render(ParticleCollection particles, ParticleSystemRenderState systemRenderState, Camera camera);
+        public abstract void Render(ParticleCollection particles, ParticleSystemState systemState, Camera camera);
 
         /// <summary>
         /// The two sheet frames a particle sits between and how far it has crossed from the first to

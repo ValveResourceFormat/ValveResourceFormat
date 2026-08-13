@@ -5,9 +5,10 @@ using System.Windows.Forms;
 using GUI.Controls;
 using GUI.Utils;
 using ValveKeyValue;
+using ValveResourceFormat.Renderer.Particles;
 using ValveResourceFormat.Blocks;
 using ValveResourceFormat.Renderer;
-using ValveResourceFormat.Renderer.Particles;
+using ValveResourceFormat.Particles;
 using ValveResourceFormat.Renderer.SceneNodes;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.Particles.Upgrade;
@@ -37,7 +38,7 @@ namespace GUI.Types.GLViewers
             ("Operators", "m_Operators", ParticleSupportInfo.IsOperatorSupported),
             ("Force Generators", "m_ForceGenerators", ParticleSupportInfo.IsForceGeneratorSupported),
             ("Constraints", "m_Constraints", ParticleSupportInfo.IsConstraintSupported),
-            ("Renderers", "m_Renderers", ParticleSupportInfo.IsRendererSupported),
+            ("Renderers", "m_Renderers", ParticleRendererFactory.IsSupported),
         ];
 
         private readonly ParticleSystem particleSystem;
@@ -113,7 +114,7 @@ namespace GUI.Types.GLViewers
         {
             if (particleSceneNode != null && particleSnapshot != null && SnapshotParticleSystem.UsesConstantScreenSize(particleSnapshot))
             {
-                SnapshotParticleSystem.SetScreenSize(particleSceneNode, screenSize, Input.Camera.GetFOV());
+                SnapshotParticleSystem.SetScreenSize(particleSceneNode.GetControlPoint(SnapshotParticleSystem.ScreenSizeControlPoint), screenSize, Input.Camera.GetFOV());
             }
         }
 

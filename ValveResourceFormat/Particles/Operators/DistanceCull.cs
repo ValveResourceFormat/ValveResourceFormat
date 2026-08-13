@@ -1,0 +1,43 @@
+namespace ValveResourceFormat.Particles.Operators
+{
+    /// <summary>
+    /// Kills particles that cross a spherical boundary around a control point, culling either inside or outside the sphere.
+    /// </summary>
+    /// <seealso href="https://s2v.app/SchemaExplorer/cs2/particles/C_OP_DistanceCull">C_OP_DistanceCull</seealso>
+    class DistanceCull : ParticleFunctionOperator
+    {
+        private readonly int cp;
+        private readonly INumberProvider distance = new LiteralNumberProvider(0);
+        private readonly Vector3 pointOffset = Vector3.Zero;
+        private readonly bool cullInside;
+        public DistanceCull(ParticleDefinitionParser parse) : base(parse)
+        {
+            cp = parse.Int32("m_nControlPoint", cp);
+            pointOffset = parse.Vector3("m_vecPointOffset", pointOffset);
+            distance = parse.NumberProvider("m_flDistance", distance);
+            cullInside = parse.Boolean("m_bCullInside", cullInside);
+        }
+        private bool CulledBySphere(Vector3 position, float radius, ParticleSystemState particleSystemState)
+        {
+            var sphereOrigin = particleSystemState.GetControlPoint(cp).Position + pointOffset;
+
+            var distanceFromEdge = Vector3.Distance(sphereOrigin, position) - radius;
+
+            return cullInside
+                ? distanceFromEdge < 0
+                : distanceFromEdge > 0;
+        }
+        public override void Operate(ParticleCollection particles, float frameTime, ParticleSystemState particleSystemState, float strength)
+        {
+            var radius = distance.NextNumber(particleSystemState);
+
+            foreach (ref var particle in particles.Current)
+            {
+                if (CulledBySphere(particle.Position, radius, particleSystemState))
+                {
+                    particle.Kill();
+                }
+            }
+        }
+    }
+}

@@ -1,3 +1,4 @@
+using ValveResourceFormat.Particles;
 using ValveResourceFormat.Renderer.SceneEnvironment;
 
 namespace ValveResourceFormat.Renderer.Particles.Renderers
@@ -26,7 +27,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
             scene.LightingInfo.BarnLights.Add(light);
         }
 
-        public override void Update(ParticleCollection particles, ParticleSystemRenderState systemRenderState)
+        public override void Update(ParticleCollection particles, ParticleSystemState systemState)
         {
             if (particles.Count == 0)
             {
@@ -36,10 +37,10 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
             }
 
             ref var particle = ref particles.Current[0];
-            UpdateLight(light, ref particle, systemRenderState);
+            UpdateLight(light, ref particle, systemState);
         }
 
-        public override void Render(ParticleCollection particles, ParticleSystemRenderState systemRenderState, Camera camera)
+        public override void Render(ParticleCollection particles, ParticleSystemState systemState, Camera camera)
         {
             // Light rendering is handled externally by the scene/light system.
         }
@@ -65,13 +66,13 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
             };
         }
 
-        private void UpdateLight(SceneLight light, ref Particle particle, ParticleSystemRenderState systemRenderState)
+        private void UpdateLight(SceneLight light, ref Particle particle, ParticleSystemState systemState)
         {
             // Should we use the particle color?
-            var color = colorScale.NextVector(ref particle, systemRenderState);
+            var color = colorScale.NextVector(ref particle, systemState);
             var radius = particle.Radius;
-            var range = radius * radiusMultiplier.NextNumber(ref particle, systemRenderState);
-            var brightness = MathF.Max(0f, intensity.NextNumber(ref particle, systemRenderState));
+            var range = radius * radiusMultiplier.NextNumber(ref particle, systemState);
+            var brightness = MathF.Max(0f, intensity.NextNumber(ref particle, systemState));
 
             light.Color = color;
             light.BrightnessLegacy = brightness;

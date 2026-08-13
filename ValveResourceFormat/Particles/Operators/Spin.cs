@@ -1,0 +1,87 @@
+namespace ValveResourceFormat.Particles.Operators
+{
+    /// <summary>
+    /// Base class for spin operators that rotate particles at a constant rate.
+    /// </summary>
+    /// <seealso href="https://s2v.app/SchemaExplorer/cs2/particles/CGeneralSpin">CGeneralSpin</seealso>
+    abstract class CGeneralSpin : ParticleFunctionOperator
+    {
+        protected readonly int spinRateDegrees;
+        protected readonly int spinRateMinDegrees;
+        protected readonly float spinRateStopTime;
+
+        protected CGeneralSpin(ParticleDefinitionParser parse) : base(parse)
+        {
+            spinRateDegrees = parse.Int32("m_nSpinRateDegrees", spinRateDegrees);
+            spinRateMinDegrees = parse.Int32("m_nSpinRateMinDegrees", spinRateMinDegrees);
+            spinRateStopTime = parse.Float("m_fSpinRateStopTime", spinRateStopTime);
+        }
+
+        /// <summary>
+        /// Spin rate in degrees per second at the given particle age: the strength-scaled rate decays
+        /// linearly toward the min floor over the stop time; a stop time of 0 means no decay. The min
+        /// floor itself is not scaled by strength.
+        /// </summary>
+        private float GetSpinRate(float age, float strength)
+        {
+            if (spinRateStopTime == 0f)
+            {
+                return spinRateDegrees * strength;
+            }
+
+            var decayed = spinRateDegrees * strength * MathF.Max(0f, 1f - (age / spinRateStopTime));
+
+            return spinRateDegrees >= 0
+                ? MathF.Max(decayed, spinRateMinDegrees)
+                : MathF.Min(decayed, spinRateMinDegrees);
+        }
+
+        /// <summary>
+        /// This frame's rotation increment in radians. Rotation is stored in radians, the spin rate
+        /// in degrees per second; the engine scales the converted rate by an extra 2*pi, inherited
+        /// from S1 CGeneralSpin (57 deg/s spins roughly one full turn per second).
+        /// </summary>
+        protected float GetSpinDelta(float age, float frameTime, float strength)
+            => float.DegreesToRadians(GetSpinRate(age, strength)) * MathF.Tau * frameTime;
+    }
+
+    /// <summary>
+    /// Continuously rotates a particle's roll angle at a constant spin rate (in degrees per second)
+    /// until the particle exceeds the spin stop time.
+    /// </summary>
+    /// <seealso href="https://s2v.app/SchemaExplorer/cs2/particles/C_OP_Spin">C_OP_Spin</seealso>
+    class Spin : CGeneralSpin
+    {
+        public Spin(ParticleDefinitionParser parse) : base(parse)
+        {
+        }
+
+        public override void Operate(ParticleCollection particles, float frameTime, ParticleSystemState particleSystemState, float strength)
+        {
+            foreach (ref var particle in particles.Current)
+            {
+                particle.SetScalar(ParticleField.Roll, particle.Rotation.Z + GetSpinDelta(particle.Age, frameTime, strength));
+            }
+        }
+    }
+
+    /// <summary>
+    /// Continuously rotates a particle's yaw angle at a constant spin rate (in degrees per second)
+    /// until the particle exceeds the spin stop time.
+    /// </summary>
+    /// <seealso href="https://s2v.app/SchemaExplorer/cs2/particles/C_OP_SpinYaw">C_OP_SpinYaw</seealso>
+    class SpinYaw : CGeneralSpin
+    {
+        public SpinYaw(ParticleDefinitionParser parse) : base(parse)
+        {
+        }
+
+        public override void Operate(ParticleCollection particles, float frameTime, ParticleSystemState particleSystemState, float strength)
+        {
+            foreach (ref var particle in particles.Current)
+            {
+                particle.SetScalar(ParticleField.Yaw, particle.Rotation.X + GetSpinDelta(particle.Age, frameTime, strength));
+            }
+        }
+    }
+}
