@@ -3,21 +3,46 @@ using DMElement = Datamodel.Element;
 
 namespace ValveResourceFormat.IO.ContentFormats.DmxModel;
 
-#pragma warning disable CA2227 // Collection properties should be read only
+/// <summary>
+/// Root element of a model content file, holding the scene graph and the bind pose.
+/// </summary>
 [CamelCaseProperties]
-internal class DmeModel : DMElement
+public class DmeModel : DMElement
 {
-    public DmeTransform Transform { get; set; } = [];
-    public DMElement? Shape { get; set; }
+    /// <summary>
+    /// Transform of the model root.
+    /// </summary>
+    public DmeTransform Transform { get; init; } = [];
+
+    /// <summary>
+    /// Shape attached to the model root, usually null.
+    /// </summary>
+    public DMElement? Shape { get; init; }
+
+    /// <summary>
+    /// Whether the model is visible.
+    /// </summary>
     public bool Visible { get; set; } = true;
+
+    /// <summary>
+    /// List of <see cref="DmeDag"/> elements forming the scene graph.
+    /// </summary>
     public Datamodel.ElementArray Children { get; } = [];
-    public Datamodel.ElementArray JointList { get; set; } = [];
+
+    /// <summary>
+    /// List of <see cref="DmeTransform"/> elements, one per bone, in skinning order.
+    /// </summary>
+    public Datamodel.ElementArray JointList { get; init; } = [];
 
     /// <summary>
     /// List of <see cref="DmeTransformsList"/> elements.
     /// </summary>
-    public Datamodel.ElementArray BaseStates { get; set; } = [];
-    public DmeAxisSystem AxisSystem { get; set; } = [];
+    public Datamodel.ElementArray BaseStates { get; init; } = [];
+
+    /// <summary>
+    /// Axis convention the model was authored in.
+    /// </summary>
+    public DmeAxisSystem AxisSystem { get; init; } = [];
 }
 
 /// <summary>
@@ -98,7 +123,7 @@ public class DmeDag : DMElement
     /// Gets or sets the mesh shape of this DAG node. Null for joints, which carry no geometry;
     /// emitting an empty shape makes Blender Source Tools reject the DMX on import.
     /// </summary>
-    public DmeShape? Shape { get; set; }
+    public DmeShape? Shape { get; init; }
 
     /// <summary>
     /// Gets or sets a value indicating whether this node is visible.
@@ -125,12 +150,12 @@ public class DmeMesh : DmeShape
     /// <summary>
     /// Gets or sets the bind state of the mesh.
     /// </summary>
-    public DMElement? BindState { get; set; }
+    public DMElement? BindState { get; init; }
 
     /// <summary>
     /// Gets or sets the current state of the mesh.
     /// </summary>
-    public DMElement? CurrentState { get; set; }
+    public DMElement? CurrentState { get; init; }
 
     /// <summary>
     /// Gets the base states of the mesh.
@@ -323,7 +348,7 @@ public class DmeChannel : DMElement
     /// <summary>
     /// Gets or sets the source element.
     /// </summary>
-    public DMElement? FromElement { get; set; }
+    public DMElement? FromElement { get; init; }
 
     /// <summary>
     /// Gets or sets the source attribute name.
@@ -338,7 +363,7 @@ public class DmeChannel : DMElement
     /// <summary>
     /// Gets or sets the target element.
     /// </summary>
-    public DMElement? ToElement { get; set; }
+    public DMElement? ToElement { get; init; }
 
     /// <summary>
     /// Gets or sets the target attribute name.
@@ -366,7 +391,7 @@ public class DmeChannel : DMElement
         {
             return _log;
         }
-        set
+        init
         {
             if (value is null)
             {
@@ -430,13 +455,13 @@ public class DmeLog<T> : DmeTypedLog<T>
     /// Gets or sets the log layers containing keyframe data.
     /// </summary>
     [DMProperty("layers")]
-    public Datamodel.ElementArray Layers { get; set; } = [];
+    public Datamodel.ElementArray Layers { get; init; } = [];
 
     /// <summary>
     /// Gets or sets the curve interpolation information.
     /// </summary>
     [DMProperty("curveinfo")]
-    public DMElement? CurveInfo { get; set; }
+    public DMElement? CurveInfo { get; init; }
 
     /// <summary>
     /// Gets or sets a value indicating whether to use the default value.
@@ -501,7 +526,7 @@ public class DmeLogLayer<T> : DmeTypedLog<T>
     /// <summary>
     /// Gets or sets the keyframe times.
     /// </summary>
-    public Datamodel.TimeSpanArray Times { get; set; } = [];
+    public Datamodel.TimeSpanArray Times { get; } = [];
 
     /// <summary>
     /// Gets the curve interpolation types for each keyframe.
@@ -553,4 +578,3 @@ public class DmeLogLayer<T> : DmeTypedLog<T>
         return true;
     }
 }
-#pragma warning restore CA2227 // Collection properties should be read only

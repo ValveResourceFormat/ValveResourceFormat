@@ -163,32 +163,69 @@ namespace ValveResourceFormat.IO
         }
     }
 
-    // Most of the work is handled by HalfEdgeMesh.cs, it handles building and making sure the half edge mesh is valid
-    // All attribute data lives in data streams attached to the mesh components (position per vertex, corner data per half edge, material per face)
-    // GenerateMesh() loops through the mesh and writes the data to the vmap in the correct format
-    internal class HammerMeshBuilder
+    /// <summary>
+    /// Builds a Hammer editable mesh out of faces, and writes it out as a <see cref="CDmePolygonMesh"/>.
+    /// </summary>
+    /// <remarks>
+    /// Most of the work is handled by HalfEdgeMesh, which builds the mesh and keeps it valid. All attribute data
+    /// lives in data streams attached to the mesh components: position per vertex, corner data per half edge,
+    /// material per face. <see cref="GenerateMesh"/> then loops through the mesh and writes the vmap format.
+    /// </remarks>
+    public class HammerMeshBuilder
     {
+        /// <summary>
+        /// How an edge shades across its two faces.
+        /// </summary>
         [Flags]
         public enum EdgeFlag
         {
+            /// <summary>Shading follows the smoothing angle.</summary>
             None = 0x0,
+
+            /// <summary>Normals are averaged across the edge.</summary>
             SoftNormals = 0x1,
+
+            /// <summary>Normals break at the edge.</summary>
             HardNormals = 0x2,
         }
 
+        /// <summary>
+        /// Per vertex source data handed to <see cref="AddVertices"/>. Every stream is either empty or
+        /// the same length as <see cref="Positions"/>, and is indexed by input vertex index.
+        /// </summary>
         public class VertexStreams
         {
-            public List<Vector3> positions = [];
-            public List<Vector2> texcoords = [];
-            public List<Vector2> texcoords1 = [];
-            public List<Vector3> normals = [];
-            public List<Vector4> tangents = [];
-            public List<Vector4> VertexPaintBlendParams = [];
-            public List<Vector4> VertexPaintTintColor = [];
+            /// <summary>Vertex positions. The only required stream.</summary>
+            public List<Vector3> Positions { get; } = [];
+
+            /// <summary>First texture coordinate channel.</summary>
+            public List<Vector2> TexCoords { get; } = [];
+
+            /// <summary>Second texture coordinate channel.</summary>
+            public List<Vector2> TexCoords1 { get; } = [];
+
+            /// <summary>Vertex normals, used to decide whether an edge is soft or hard.</summary>
+            public List<Vector3> Normals { get; } = [];
+
+            /// <summary>Vertex tangents.</summary>
+            public List<Vector4> Tangents { get; } = [];
+
+            /// <summary>Vertex paint blend parameters.</summary>
+            public List<Vector4> VertexPaintBlendParams { get; } = [];
+
+            /// <summary>Vertex paint tint colors.</summary>
+            public List<Vector4> VertexPaintTintColor { get; } = [];
         }
 
-        public int FacesRemoved;
-        public int OriginalFaceCount;
+        /// <summary>
+        /// Number of faces dropped while building, either degenerate or non manifold.
+        /// </summary>
+        public int FacesRemoved { get; private set; }
+
+        /// <summary>
+        /// Number of faces handed to the builder, including the ones it dropped.
+        /// </summary>
+        public int OriginalFaceCount { get; private set; }
 
         private readonly HalfEdgeMesh HalfEdgeMesh = new();
         private readonly List<VertexHandle> Vertices = [];
@@ -209,9 +246,19 @@ namespace ValveResourceFormat.IO
         // read in order to propagate the vertex data onto the half edges
         private VertexStreams SourceStreams = new();
 
+        /// <summary>
+        /// Matcher that reports which physics vertices a render mesh already covers.
+        /// </summary>
         public PhysicsVertexMatcher? PhysicsVertexMatcher { get; init; }
+
+        /// <summary>
+        /// Receives diagnostics about faces the builder had to drop.
+        /// </summary>
         public IProgress<string>? ProgressReporter { get; init; }
 
+        /// <summary>
+        /// Initializes a new instance of the <see cref="HammerMeshBuilder"/> class.
+        /// </summary>
         public HammerMeshBuilder()
         {
             Positions = HalfEdgeMesh.CreateVertexData<Vector3>(nameof(Positions));
@@ -244,6 +291,9 @@ namespace ValveResourceFormat.IO
             };
         }
 
+        /// <summary>
+        /// Writes everything added so far out as a Hammer mesh.
+        /// </summary>
         public CDmePolygonMesh GenerateMesh()
         {
 #if DEBUG
@@ -389,20 +439,31 @@ namespace ValveResourceFormat.IO
             return mesh;
         }
 
+        /// <summary>
+        /// Adds the vertices of one source mesh. Faces added afterwards index into these vertices.
+        /// </summary>
+        /// <param name="streams">Per vertex source data.</param>
+        /// <param name="positionOffset">Offset added to every position.</param>
         public void AddVertices(VertexStreams streams, Vector3 positionOffset = new Vector3())
         {
             SourceStreams = streams;
 
             var baseVertex = Vertices.Count;
-            Vertices.EnsureCapacity(baseVertex + streams.positions.Count);
-            Vertices.AddRange(HalfEdgeMesh.AddVertices(streams.positions.Count));
+            Vertices.EnsureCapacity(baseVertex + streams.Positions.Count);
+            Vertices.AddRange(HalfEdgeMesh.AddVertices(streams.Positions.Count));
 
-            for (var i = 0; i < streams.positions.Count; i++)
+            for (var i = 0; i < streams.Positions.Count; i++)
             {
-                Positions[Vertices[baseVertex + i]] = streams.positions[i] + positionOffset;
+                Positions[Vertices[baseVertex + i]] = streams.Positions[i] + positionOffset;
             }
         }
 
+        /// <summary>
+        /// Adds one face. Faces that would leave the mesh non manifold are dropped and counted in
+        /// <see cref="FacesRemoved"/>.
+        /// </summary>
+        /// <param name="indices">Corner vertices, as indices into the vertices added so far.</param>
+        /// <param name="material">Material the face uses.</param>
         public void AddFace(ReadOnlySpan<int> indices, string material)
         {
             OriginalFaceCount++;
@@ -467,12 +528,12 @@ namespace ValveResourceFormat.IO
             {
                 var sourceIndex = sourceIndices[i];
 
-                var normal = SourceStreams.normals.Count > 0
-                    ? SourceStreams.normals[sourceIndex]
+                var normal = SourceStreams.Normals.Count > 0
+                    ? SourceStreams.Normals[sourceIndex]
                     : CalculateNormal(hEdge);
 
-                var tangent = SourceStreams.tangents.Count > 0
-                    ? SourceStreams.tangents[sourceIndex]
+                var tangent = SourceStreams.Tangents.Count > 0
+                    ? SourceStreams.Tangents[sourceIndex]
                     : CalculateTangentFromNormal(normal);
 
                 var position = Positions[hEdge.Vertex];
@@ -480,12 +541,12 @@ namespace ValveResourceFormat.IO
                 Normals[hEdge] = normal;
                 Tangents[hEdge] = tangent;
 
-                TextureCoords[hEdge] = SourceStreams.texcoords.Count > 0
-                    ? SourceStreams.texcoords[sourceIndex]
+                TextureCoords[hEdge] = SourceStreams.TexCoords.Count > 0
+                    ? SourceStreams.TexCoords[sourceIndex]
                     : CalculateTriplanarUVs(position, normal);
 
-                TextureCoords1[hEdge] = SourceStreams.texcoords1.Count > 0
-                    ? SourceStreams.texcoords1[sourceIndex]
+                TextureCoords1[hEdge] = SourceStreams.TexCoords1.Count > 0
+                    ? SourceStreams.TexCoords1[sourceIndex]
                     : CalculateTriplanarUVs(position, normal);
 
                 if (SourceStreams.VertexPaintBlendParams.Count > 0)
@@ -548,6 +609,14 @@ namespace ValveResourceFormat.IO
             WriteFaceData(hFace, indices, material);
         }
 
+        /// <summary>
+        /// Adds a physics hull as mesh faces.
+        /// </summary>
+        /// <param name="desc">Hull to add.</param>
+        /// <param name="phys">Physics data the hull belongs to, read for its collision attributes.</param>
+        /// <param name="materialNameProvider">Maps a surface property to the material to use.</param>
+        /// <param name="positionOffset">Offset added to every position.</param>
+        /// <param name="materialOverride">Material to use instead of the one the surface property picks.</param>
         public void AddPhysHull(HullDescriptor desc, PhysAggregateData phys, Func<string, string> materialNameProvider, Vector3 positionOffset = new Vector3(), string? materialOverride = null)
         {
             var attributes = phys.CollisionAttributes[desc.CollisionAttributeIndex];
@@ -564,10 +633,8 @@ namespace ValveResourceFormat.IO
             }
 
             var hull = desc.Shape;
-            VertexStreams streams = new()
-            {
-                positions = hull.GetVertexPositions().ToArray().ToList()
-            };
+            VertexStreams streams = new();
+            streams.Positions.AddRange(hull.GetVertexPositions());
             AddVertices(streams, positionOffset);
 
             var hullFaces = hull.GetFaces();
@@ -600,6 +667,18 @@ namespace ValveResourceFormat.IO
             }
         }
 
+        /// <summary>
+        /// Adds a physics mesh as mesh faces.
+        /// </summary>
+        /// <param name="desc">Mesh to add.</param>
+        /// <param name="phys">Physics data the mesh belongs to, read for its collision attributes.</param>
+        /// <param name="materialNameProvider">Maps a surface property to the material to use.</param>
+        /// <param name="deletedIndices">Vertices to leave out, usually the ones a render mesh already covers.</param>
+        /// <param name="positionOffset">Offset added to every position.</param>
+        /// <param name="materialOverride">Material to use instead of the one the surface property picks.</param>
+        /// <param name="triangleRangeMin">First triangle to add when <paramref name="useTriangleRange"/> is set.</param>
+        /// <param name="triangleRangeMax">Triangle to stop before when <paramref name="useTriangleRange"/> is set.</param>
+        /// <param name="useTriangleRange">Whether to add only the given triangle range.</param>
         public void AddPhysMesh(MeshDescriptor desc, PhysAggregateData phys, Func<string, string> materialNameProvider, HashSet<int> deletedIndices,
             Vector3 positionOffset = new Vector3(), string? materialOverride = null, int triangleRangeMin = 0, int triangleRangeMax = 0, bool useTriangleRange = false)
         {
@@ -626,10 +705,8 @@ namespace ValveResourceFormat.IO
 
             var newMesh = ReindexTriangleMesh(mesh.GetVertices(), meshTriangles, triangleStart, triangleStop);
 
-            VertexStreams streams = new()
-            {
-                positions = newMesh.NewVertices
-            };
+            VertexStreams streams = new();
+            streams.Positions.AddRange(newMesh.NewVertices);
             AddVertices(streams, positionOffset);
 
             Span<int> inds = stackalloc int[3];
@@ -682,6 +759,11 @@ namespace ValveResourceFormat.IO
             }
         }
 
+        /// <summary>
+        /// Adds a render mesh, splitting it per face set so each keeps its own material.
+        /// </summary>
+        /// <param name="shape">Mesh to add.</param>
+        /// <param name="transform">Transform applied to positions, normals and tangents.</param>
         public void AddRenderMesh(DmeMesh shape, Matrix4x4 transform)
         {
             var facesets = shape.FaceSets;
@@ -811,16 +893,14 @@ namespace ValveResourceFormat.IO
                 TransformVertexStreams(newVertices, newNormals, newTangents, transform, normalMatrix);
             }
 
-            VertexStreams streams = new()
-            {
-                positions = newVertices,
-                texcoords = newTexcoords,
-                texcoords1 = newTexcoords1,
-                normals = newNormals,
-                tangents = newTangents,
-                VertexPaintBlendParams = newVertexPaintBlendParams,
-                VertexPaintTintColor = newVertexPaintTintColor,
-            };
+            VertexStreams streams = new();
+            streams.Positions.AddRange(newVertices);
+            streams.TexCoords.AddRange(newTexcoords);
+            streams.TexCoords1.AddRange(newTexcoords1);
+            streams.Normals.AddRange(newNormals);
+            streams.Tangents.AddRange(newTangents);
+            streams.VertexPaintBlendParams.AddRange(newVertexPaintBlendParams);
+            streams.VertexPaintTintColor.AddRange(newVertexPaintTintColor);
 
             AddVertices(streams);
 
@@ -904,6 +984,13 @@ namespace ValveResourceFormat.IO
             return crossProduct.Length() < epsilon;
         }
 
+        /// <summary>
+        /// Rebuilds a triangle range against a vertex list holding only the vertices that range uses.
+        /// </summary>
+        /// <param name="vertices">Vertices the triangles index into.</param>
+        /// <param name="triangles">Triangles to reindex.</param>
+        /// <param name="trianglesRangeStart">First triangle to take.</param>
+        /// <param name="trianglesRangeEnd">Triangle to stop before.</param>
         public static (List<Vector3> NewTriangles, List<Vector3> NewVertices) ReindexTriangleMesh(ReadOnlySpan<Vector3> vertices, ReadOnlySpan<Triangle> triangles, int trianglesRangeStart, int trianglesRangeEnd)
         {
             ArgumentOutOfRangeException.ThrowIfLessThan(vertices.Length, 1, "ReindexMesh vertices can't be empty");
@@ -951,6 +1038,15 @@ namespace ValveResourceFormat.IO
             return (newTriangles, newVertices);
         }
 
+        /// <summary>
+        /// Creates a named mesh data stream, optionally filled with initial values.
+        /// </summary>
+        /// <typeparam name="TArray">Datamodel array type backing the stream.</typeparam>
+        /// <typeparam name="T">Element type of the stream.</typeparam>
+        /// <param name="dataStateFlags">Flags describing how the stream is stored.</param>
+        /// <param name="name">Stream name, in "semantic:index" form.</param>
+        /// <param name="standardAttributeName">Name Hammer knows the stream by, defaults to the semantic.</param>
+        /// <param name="data">Values to seed the stream with.</param>
         public static CDmePolygonMeshDataStream<T> CreateStream<TArray, T>(int dataStateFlags, string name, string? standardAttributeName = null, params T[] data)
             where TArray : Array<T>, new()
             where T : notnull

@@ -6,6 +6,9 @@ namespace ValveResourceFormat.IO.ContentFormats.HalfEdgeMesh;
 
 partial class HalfEdgeMesh
 {
+    /// <summary>
+    /// Collects the vertices one edge away from a vertex.
+    /// </summary>
     public static int ComputeNumEdgesConnectedToVertex(VertexHandle hVertex)
     {
         if (!hVertex.IsValid)
@@ -26,6 +29,9 @@ partial class HalfEdgeMesh
         return nEdgeCount;
     }
 
+    /// <summary>
+    /// Counts the faces meeting at a vertex.
+    /// </summary>
     public static int ComputeNumFacesConnectedToVertex(VertexHandle hVertex)
     {
         if (!hVertex.IsValid)
@@ -58,6 +64,9 @@ partial class HalfEdgeMesh
         return nFaceCount;
     }
 
+    /// <summary>
+    /// Whether every edge at the vertex borders two faces.
+    /// </summary>
     public static bool IsVertexInternal(VertexHandle hVertex)
     {
         if (!hVertex.IsValid)
@@ -80,6 +89,9 @@ partial class HalfEdgeMesh
         return false;
     }
 
+    /// <summary>
+    /// Returns the edge a vertex loop starts at.
+    /// </summary>
     public static HalfEdgeHandle GetFirstEdgeInVertexLoop(VertexHandle hVertex)
     {
         if (!hVertex.IsValid)
@@ -88,6 +100,9 @@ partial class HalfEdgeMesh
         return hVertex.Edge;
     }
 
+    /// <summary>
+    /// Returns the next edge around the vertex.
+    /// </summary>
     public static HalfEdgeHandle GetNextEdgeInVertexLoop(HalfEdgeHandle hHalfEdge)
     {
         if (hHalfEdge.IsValid)
@@ -96,6 +111,9 @@ partial class HalfEdgeMesh
         return HalfEdgeHandle.Invalid;
     }
 
+    /// <summary>
+    /// Returns the previous edge around the vertex.
+    /// </summary>
     public static HalfEdgeHandle FindPreviousEdgeInVertexLoop(HalfEdgeHandle hEdge)
     {
         if (!hEdge.IsValid)
@@ -113,6 +131,9 @@ partial class HalfEdgeMesh
         return hPreviousEdge;
     }
 
+    /// <summary>
+    /// Collects the full edges at a vertex, filtered by how many faces they border.
+    /// </summary>
     public bool GetFullEdgesConnectedToVertex(VertexHandle hVertex, out List<HalfEdgeHandle> edges, EdgeConnectivityType nEdgeType = EdgeConnectivityType.Any)
     {
         edges = new List<HalfEdgeHandle>();
@@ -143,6 +164,9 @@ partial class HalfEdgeMesh
         return edges.Count > 0;
     }
 
+    /// <summary>
+    /// Collects the half edges leaving a vertex.
+    /// </summary>
     public static bool GetOutgoingHalfEdgesConnectedToVertex(VertexHandle hVertex, out List<HalfEdgeHandle> edges)
     {
         edges = new List<HalfEdgeHandle>();
@@ -168,6 +192,9 @@ partial class HalfEdgeMesh
         return (edges.Count == nNumEdges);
     }
 
+    /// <summary>
+    /// Collects the half edges arriving at a vertex.
+    /// </summary>
     public static bool GetIncomingHalfEdgesConnectedToVertex(VertexHandle hVertex, out List<HalfEdgeHandle> edges)
     {
         edges = new List<HalfEdgeHandle>();
@@ -194,6 +221,9 @@ partial class HalfEdgeMesh
         return edges.Count == nNumEdges;
     }
 
+    /// <summary>
+    /// Collects the vertices one edge away from a vertex.
+    /// </summary>
     public static bool GetVerticesConnectedToVertexByEdge(VertexHandle hVertex, out List<VertexHandle> vertices)
     {
         vertices = new List<VertexHandle>();
@@ -219,6 +249,9 @@ partial class HalfEdgeMesh
         return vertices.Count == nNumVertices;
     }
 
+    /// <summary>
+    /// Collects the faces meeting at a vertex.
+    /// </summary>
     public static bool GetFacesConnectedToVertex(VertexHandle hVertex, out List<FaceHandle> faces)
     {
         faces = new List<FaceHandle>();
@@ -256,6 +289,9 @@ partial class HalfEdgeMesh
         return faces.Count == nNumFaces;
     }
 
+    /// <summary>
+    /// Returns the half edge running from one vertex to the other.
+    /// </summary>
     public static HalfEdgeHandle FindHalfEdgeConnectingVertices(VertexHandle hVertexA, VertexHandle hVertexB)
     {
         if (!hVertexA.IsValid)
@@ -277,16 +313,25 @@ partial class HalfEdgeMesh
         return HalfEdgeHandle.Invalid;
     }
 
+    /// <summary>
+    /// Returns the full edge connecting two vertices.
+    /// </summary>
     public HalfEdgeHandle FindFullEdgeConnectingVertices(VertexHandle hVertexA, VertexHandle hVertexB)
     {
         return GetFullEdgeForHalfEdge(FindHalfEdgeConnectingVertices(hVertexA, hVertexB));
     }
 
+    /// <summary>
+    /// Returns the face bordered by the edge connecting two vertices.
+    /// </summary>
     public static FaceHandle FindFaceWithEdgeConnectingVertices(VertexHandle hVertexA, VertexHandle hVertexB)
     {
         return GetFaceConnectedToHalfEdge(FindHalfEdgeConnectingVertices(hVertexA, hVertexB));
     }
 
+    /// <summary>
+    /// Returns a face both vertices are corners of.
+    /// </summary>
     public static FaceHandle FindFaceSharedByVertices(VertexHandle hVertexA, VertexHandle hVertexB)
     {
         var hFirstEdgeA = GetFirstEdgeInVertexLoop(hVertexA);
@@ -328,6 +373,9 @@ partial class HalfEdgeMesh
         return FaceHandle.Invalid;
     }
 
+    /// <summary>
+    /// Collects every face both vertices are corners of.
+    /// </summary>
     public static bool FindFacesSharedByVertices(VertexHandle hVertexA, VertexHandle hVertexB, out List<FaceHandle> faces)
     {
         GetFacesConnectedToVertex(hVertexA, out var connectedFacesA);
@@ -397,6 +445,9 @@ partial class HalfEdgeMesh
         return -1;
     }
 
+    /// <summary>
+    /// Collects the faces touched by a set of vertices, along with how many of those vertices each face uses.
+    /// </summary>
     public static void FindFacesConnectedToVertices(IReadOnlyList<VertexHandle> hVertices, int nNumVertices, out FaceHandle[] newFaces, out int[] faceVertexCounts)
     {
         var uniqueFaces = new Dictionary<FaceHandle, int>(nNumVertices * 5);
@@ -439,6 +490,9 @@ partial class HalfEdgeMesh
         }
     }
 
+    /// <summary>
+    /// Collects the full edges touched by a set of vertices, along with how many of those vertices each edge uses.
+    /// </summary>
     public void FindFullEdgesConnectedToVertices(IReadOnlyList<VertexHandle> hVertices, int nNumVertices, out HalfEdgeHandle[] newEdges, out int[] edgeVertexCounts)
     {
         var uniqueEdges = new Dictionary<HalfEdgeHandle, int>(nNumVertices * 2);
@@ -481,6 +535,9 @@ partial class HalfEdgeMesh
         }
     }
 
+    /// <summary>
+    /// Splits a set of vertices into groups connected by edges.
+    /// </summary>
     public static void FindVertexIslands(IReadOnlyList<VertexHandle> hVertices, int nNumVertices, out List<List<VertexHandle>> pOutVertexList)
     {
         pOutVertexList = new List<List<VertexHandle>>();

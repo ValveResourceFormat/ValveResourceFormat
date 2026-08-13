@@ -3,27 +3,66 @@ using System.Linq;
 
 namespace ValveResourceFormat.IO.ContentFormats.HalfEdgeMesh;
 
-internal struct Vertex
+/// <summary>
+/// Topology of one vertex.
+/// </summary>
+public struct Vertex
 {
-    public int Edge { get; set; } // Half edge emanating from the vertex
+    /// <summary>
+    /// Half edge emanating from the vertex.
+    /// </summary>
+    public int Edge { get; set; }
 
+    /// <summary>
+    /// A vertex that points at no edge.
+    /// </summary>
     public static Vertex Invalid => new() { Edge = -1 };
 }
 
-internal struct Face
+/// <summary>
+/// Topology of one face.
+/// </summary>
+public struct Face
 {
-    public int Edge { get; set; } // One of the edges opposite to the face
+    /// <summary>
+    /// One of the edges opposite to the face.
+    /// </summary>
+    public int Edge { get; set; }
 
+    /// <summary>
+    /// A face that points at no edge.
+    /// </summary>
     public static Face Invalid => new() { Edge = -1 };
 }
 
-internal struct HalfEdge
+/// <summary>
+/// Topology of one half edge.
+/// </summary>
+public struct HalfEdge
 {
-    public int Vertex { get; set; } // Vertex at the end of the edge
-    public int OppositeEdge { get; set; } // Half edge which runs the opposite direction from this edge
-    public int NextEdge { get; set; } // Next half edge in the edge loop around the face to which this edge belongs
-    public int Face { get; set; } // Face to which the half edge belongs
+    /// <summary>
+    /// Vertex at the end of the edge.
+    /// </summary>
+    public int Vertex { get; set; }
 
+    /// <summary>
+    /// Half edge which runs the opposite direction from this edge.
+    /// </summary>
+    public int OppositeEdge { get; set; }
+
+    /// <summary>
+    /// Next half edge in the edge loop around the face to which this edge belongs.
+    /// </summary>
+    public int NextEdge { get; set; }
+
+    /// <summary>
+    /// Face to which the half edge belongs.
+    /// </summary>
+    public int Face { get; set; }
+
+    /// <summary>
+    /// A half edge that points at nothing.
+    /// </summary>
     public static HalfEdge Invalid => new()
     {
         Vertex = -1,
@@ -33,28 +72,55 @@ internal struct HalfEdge
     };
 }
 
-internal enum EdgeConnectivityType
+/// <summary>
+/// How many faces an edge is allowed to border.
+/// </summary>
+public enum EdgeConnectivityType
 {
-    Open,   // Edge is open (connected to 1 face)
-    Closed, // Edge is closed (connected to 2 faces)
-    Any,    // Edge is open or closed (connected to 1 or 2 faces)
+    /// <summary>Edge is open (connected to 1 face).</summary>
+    Open,
+
+    /// <summary>Edge is closed (connected to 2 faces).</summary>
+    Closed,
+
+    /// <summary>Edge is open or closed (connected to 1 or 2 faces).</summary>
+    Any,
 }
 
-internal enum ComponentConnectivityType
+/// <summary>
+/// Shape a set of edges forms once their connections are followed.
+/// </summary>
+public enum ComponentConnectivityType
 {
-    None,   // None of the edges in the set are connected to any other edges
-    Mixed,  // Some of the edges are connected but not all edges are connected to a single group
-    List,   // All of the edges are connected in a single list
-    Loop,   // All of the edges are connected in a single closed loop
-    Tree,   // All of the edges are connected in a single group, but there a branches in the connection
+    /// <summary>None of the edges in the set are connected to any other edges.</summary>
+    None,
+
+    /// <summary>Some of the edges are connected but not all edges are connected to a single group.</summary>
+    Mixed,
+
+    /// <summary>All of the edges are connected in a single list.</summary>
+    List,
+
+    /// <summary>All of the edges are connected in a single closed loop.</summary>
+    Loop,
+
+    /// <summary>All of the edges are connected in a single group, but there a branches in the connection.</summary>
+    Tree,
 }
 
 // Handles are basically just wrappers over raw integer indices into topology data lists (verts, half edges, faces)
 // It offers a nicer and safer way to interact with the data structure
 
-internal readonly record struct VertexHandle
+/// <summary>
+/// A vertex of a specific mesh, addressed through the mesh it came from.
+/// </summary>
+public readonly record struct VertexHandle
 {
+    /// <summary>
+    /// Index of the vertex within the mesh.
+    /// </summary>
     public int Index { get; private init; }
+
     internal HalfEdgeMesh? Mesh { get; private init; }
 
     internal VertexHandle(int index, HalfEdgeMesh? mesh)
@@ -63,21 +129,39 @@ internal readonly record struct VertexHandle
         Mesh = index >= 0 ? mesh : null;
     }
 
+    /// <summary>
+    /// Whether the handle still addresses a live vertex.
+    /// </summary>
     public bool IsValid => Index >= 0 && Mesh is not null && Mesh.IsVertexAllocated(Index);
+
+    /// <summary>
+    /// A handle that addresses no vertex.
+    /// </summary>
     public static VertexHandle Invalid => new(-1, null);
 
+    /// <summary>
+    /// Gets or sets the half edge emanating from this vertex.
+    /// </summary>
     public HalfEdgeHandle Edge
     {
         get => new(Mesh is null ? -1 : Mesh[this].Edge, Mesh);
         set => Mesh?.SetVertexEdge(this, value);
     }
 
+    /// <inheritdoc/>
     public override string ToString() => $"{Index}";
 }
 
-internal readonly record struct FaceHandle
+/// <summary>
+/// A face of a specific mesh, addressed through the mesh it came from.
+/// </summary>
+public readonly record struct FaceHandle
 {
+    /// <summary>
+    /// Index of the face within the mesh.
+    /// </summary>
     public int Index { get; private init; }
+
     internal HalfEdgeMesh? Mesh { get; private init; }
 
     internal FaceHandle(int index, HalfEdgeMesh? mesh)
@@ -86,21 +170,39 @@ internal readonly record struct FaceHandle
         Mesh = index >= 0 ? mesh : null;
     }
 
+    /// <summary>
+    /// Whether the handle still addresses a live face.
+    /// </summary>
     public bool IsValid => Index >= 0 && Mesh is not null && Mesh.IsFaceAllocated(Index);
+
+    /// <summary>
+    /// A handle that addresses no face.
+    /// </summary>
     public static FaceHandle Invalid => new(-1, null);
 
+    /// <summary>
+    /// Gets or sets one of the half edges bordering this face.
+    /// </summary>
     public HalfEdgeHandle Edge
     {
         get => new(Mesh is null ? -1 : Mesh[this].Edge, Mesh);
         set => Mesh?.SetFaceEdge(this, value);
     }
 
+    /// <inheritdoc/>
     public override string ToString() => $"{Index}";
 }
 
-internal readonly record struct HalfEdgeHandle
+/// <summary>
+/// A half edge of a specific mesh, addressed through the mesh it came from.
+/// </summary>
+public readonly record struct HalfEdgeHandle
 {
+    /// <summary>
+    /// Index of the half edge within the mesh.
+    /// </summary>
     public int Index { get; private init; }
+
     internal HalfEdgeMesh? Mesh { get; private init; }
 
     internal HalfEdgeHandle(int index, HalfEdgeMesh? mesh)
@@ -109,33 +211,53 @@ internal readonly record struct HalfEdgeHandle
         Mesh = index >= 0 ? mesh : null;
     }
 
+    /// <summary>
+    /// Whether the handle still addresses a live half edge.
+    /// </summary>
     public bool IsValid => Index >= 0 && Mesh is not null && Mesh.IsHalfEdgeAllocated(Index);
+
+    /// <summary>
+    /// A handle that addresses no half edge.
+    /// </summary>
     public static HalfEdgeHandle Invalid => new(-1, null);
 
+    /// <summary>
+    /// Gets or sets the vertex at the end of this edge.
+    /// </summary>
     public VertexHandle Vertex
     {
         get => new(Mesh is null ? -1 : Mesh[this].Vertex, Mesh);
         set => Mesh?.SetEdgeVertex(this, value);
     }
 
+    /// <summary>
+    /// Gets or sets the half edge running the opposite direction.
+    /// </summary>
     public HalfEdgeHandle OppositeEdge
     {
         get => new(Mesh is null ? -1 : Mesh[this].OppositeEdge, Mesh);
         set => Mesh?.SetEdgeOpposite(this, value);
     }
 
+    /// <summary>
+    /// Gets or sets the next half edge in the loop around this edge's face.
+    /// </summary>
     public HalfEdgeHandle NextEdge
     {
         get => new(Mesh is null ? -1 : Mesh[this].NextEdge, Mesh);
         set => Mesh?.SetEdgeNext(this, value);
     }
 
+    /// <summary>
+    /// Gets or sets the face this half edge borders.
+    /// </summary>
     public FaceHandle Face
     {
         get => new(Mesh is null ? -1 : Mesh[this].Face, Mesh);
         set => Mesh?.SetEdgeFace(this, value);
     }
 
+    /// <inheritdoc/>
     public override string ToString() => $"{Index}";
 }
 
@@ -145,13 +267,20 @@ internal readonly record struct HalfEdgeHandle
 /// <remarks>
 /// Taken from <see href="https://github.com/Facepunch/sbox-public/tree/master/engine/Sandbox.Engine/Scene/Components/Mesh/HalfEdgeMesh">Sbox</see>.
 /// </remarks>
-internal sealed partial class HalfEdgeMesh
+public partial class HalfEdgeMesh
 {
     private ComponentList<Vertex> VertexList { get; set; } = new();
     private ComponentList<Face> FaceList { get; set; } = new();
     private ComponentList<HalfEdge> HalfEdgeList { get; set; } = new();
 
+    /// <summary>
+    /// Called when corner data must follow a half edge, with the source edge first and the destination second.
+    /// </summary>
     public Action<HalfEdgeHandle, HalfEdgeHandle>? OnCopyFaceVertexData { get; set; }
+
+    /// <summary>
+    /// Called when a half edge loses its corner data.
+    /// </summary>
     public Action<HalfEdgeHandle>? OnClearFaceVertexData { get; set; }
 
     internal int VertexCount => VertexList.Count;
@@ -164,20 +293,55 @@ internal sealed partial class HalfEdgeMesh
     private FaceHandle AllocateFace(Face face, int sourceIndex = -1) => new(FaceList.Allocate(face, sourceIndex), this);
     private HalfEdgeHandle AllocateHalfEdge(HalfEdge halfEdge, int sourceIndex = -1) => new(HalfEdgeList.Allocate(halfEdge, sourceIndex), this);
 
+    /// <summary>
+    /// Whether the vertex slot is still in use.
+    /// </summary>
+    /// <param name="hVertex">Vertex to test.</param>
     public bool IsVertexAllocated(VertexHandle hVertex) => VertexList.IsAllocated(hVertex.Index);
+
+    /// <summary>
+    /// Whether the face slot is still in use.
+    /// </summary>
+    /// <param name="hFace">Face to test.</param>
     public bool IsFaceAllocated(FaceHandle hFace) => FaceList.IsAllocated(hFace.Index);
+
+    /// <summary>
+    /// Whether the half edge slot is still in use.
+    /// </summary>
+    /// <param name="hHalfEdge">Half edge to test.</param>
     public bool IsHalfEdgeAllocated(HalfEdgeHandle hHalfEdge) => HalfEdgeList.IsAllocated(hHalfEdge.Index);
 
     internal bool IsVertexAllocated(int index) => VertexList.IsAllocated(index);
     internal bool IsFaceAllocated(int index) => FaceList.IsAllocated(index);
     internal bool IsHalfEdgeAllocated(int index) => HalfEdgeList.IsAllocated(index);
 
+    /// <summary>
+    /// Handles of every live vertex.
+    /// </summary>
     public IEnumerable<VertexHandle> VertexHandles => VertexList.ActiveList.Select(i => new VertexHandle(i, this));
+
+    /// <summary>
+    /// Handles of every live face.
+    /// </summary>
     public IEnumerable<FaceHandle> FaceHandles => FaceList.ActiveList.Select(i => new FaceHandle(i, this));
+
+    /// <summary>
+    /// Handles of every live half edge.
+    /// </summary>
     public IEnumerable<HalfEdgeHandle> HalfEdgeHandles => HalfEdgeList.ActiveList.Select(i => new HalfEdgeHandle(i, this));
 
+    /// <summary>
+    /// Adds one vertex that borders no edge yet.
+    /// </summary>
     public VertexHandle AddVertex() => AllocateVertex(Vertex.Invalid);
 
+    /// <summary>
+    /// Copies every component of another mesh into this one, reporting the handle each source component landed on.
+    /// </summary>
+    /// <param name="sourceMesh">Mesh to copy from.</param>
+    /// <param name="newVertices">Source vertex to new vertex.</param>
+    /// <param name="newHalfEdges">Source half edge to new half edge.</param>
+    /// <param name="newFaces">Source face to new face.</param>
     public void AppendComponentsFromMesh(HalfEdgeMesh sourceMesh,
         out Dictionary<VertexHandle, VertexHandle> newVertices,
         out Dictionary<HalfEdgeHandle, HalfEdgeHandle> newHalfEdges,
@@ -242,6 +406,10 @@ internal sealed partial class HalfEdgeMesh
         }
     }
 
+    /// <summary>
+    /// Adds several vertices that border no edge yet.
+    /// </summary>
+    /// <param name="count">How many vertices to add.</param>
     public IEnumerable<VertexHandle> AddVertices(int count)
     {
         int vertexCount = VertexCount;
@@ -251,6 +419,11 @@ internal sealed partial class HalfEdgeMesh
             yield return new(vertexCount + i, this);
     }
 
+    /// <summary>
+    /// Adds a face bounded by the given vertices, in order.
+    /// </summary>
+    /// <param name="hVertices">Corner vertices of the new face.</param>
+    /// <returns>The new face, or <see cref="FaceHandle.Invalid"/> when the face would break the mesh.</returns>
     public FaceHandle AddFace(params VertexHandle[] hVertices)
     {
         if (!AddFace(hVertices, out var hFace))
@@ -259,6 +432,12 @@ internal sealed partial class HalfEdgeMesh
         return hFace;
     }
 
+    /// <summary>
+    /// Adds a face bounded by the given vertices, in order.
+    /// </summary>
+    /// <param name="hOutFace">The new face, set only when this returns true.</param>
+    /// <param name="hVertices">Corner vertices of the new face.</param>
+    /// <returns>Whether the face was added.</returns>
     public bool AddFace(out FaceHandle hOutFace, params VertexHandle[] hVertices)
     {
         if (!AddFace(hVertices, out hOutFace))
@@ -267,6 +446,10 @@ internal sealed partial class HalfEdgeMesh
         return true;
     }
 
+    /// <summary>
+    /// Counts the edges around a vertex that border no face.
+    /// </summary>
+    /// <param name="hVertex">Vertex whose edge loop is walked.</param>
     public static int ComputeNumOpenEdgesInVertexLoop(VertexHandle hVertex)
     {
         if (!hVertex.IsValid)
@@ -292,6 +475,11 @@ internal sealed partial class HalfEdgeMesh
         return nNumOpenEdges;
     }
 
+    /// <summary>
+    /// Finds an edge pointing at a vertex that borders no face.
+    /// </summary>
+    /// <param name="hVertex">Vertex whose edge loop is walked.</param>
+    /// <returns>The open edge, or <see cref="HalfEdgeHandle.Invalid"/> when the vertex is closed.</returns>
     public static HalfEdgeHandle FindOpenOppositeEdgeInVertexLoop(VertexHandle hVertex)
     {
         if (!hVertex.IsValid)
@@ -315,6 +503,12 @@ internal sealed partial class HalfEdgeMesh
         return HalfEdgeHandle.Invalid;
     }
 
+    /// <summary>
+    /// Finds the edge pointing at a vertex whose next edge is the given one.
+    /// </summary>
+    /// <param name="hVertex">Vertex whose edge loop is walked.</param>
+    /// <param name="hNextEdge">Edge the result must lead into.</param>
+    /// <returns>The matching edge, or <see cref="HalfEdgeHandle.Invalid"/> when there is none.</returns>
     public static HalfEdgeHandle FindOppositeEdgeWithNextEdgeInVertexLoop(VertexHandle hVertex, HalfEdgeHandle hNextEdge)
     {
         if (!hVertex.IsValid)
@@ -359,6 +553,13 @@ internal sealed partial class HalfEdgeMesh
         return hHalfEdge.IsValid;
     }
 
+    /// <summary>
+    /// Walks the vertex loop from an edge and returns the first edge that appears in the given set.
+    /// </summary>
+    /// <param name="hEdge">Edge to start from.</param>
+    /// <param name="pEdges">Set to look in.</param>
+    /// <param name="nNumEdges">How many entries of <paramref name="pEdges"/> to consider.</param>
+    /// <returns>The connected edge, or <see cref="HalfEdgeHandle.Invalid"/> when none is in the set.</returns>
     public static HalfEdgeHandle FindConnectedHalfEdgeInSet(HalfEdgeHandle hEdge, IReadOnlyList<HalfEdgeHandle> pEdges, int nNumEdges)
     {
         if (!hEdge.IsValid)
@@ -686,7 +887,13 @@ internal sealed partial class HalfEdgeMesh
     }
 
     // Removes an interior edge, merging the two faces connected to it into a single face
-    // The face of the given half edge survives, the opposite face is freed together with the edge pair
+    /// <summary>
+    /// Merges the two faces sharing an edge. The face of the given half edge survives, the opposite face is
+    /// freed together with the edge pair.
+    /// </summary>
+    /// <param name="hEdge">Edge to dissolve.</param>
+    /// <param name="hOutFace">The surviving face, set only when this returns true.</param>
+    /// <returns>Whether the edge was dissolved.</returns>
     public bool DissolveEdge(HalfEdgeHandle hEdge, out FaceHandle hOutFace)
     {
         hOutFace = FaceHandle.Invalid;
@@ -764,6 +971,11 @@ internal sealed partial class HalfEdgeMesh
         return true;
     }
 
+#pragma warning disable CA1043
+    /// <summary>
+    /// Gets the topology of a vertex, or <see cref="Vertex.Invalid"/> when the handle is not from this mesh.
+    /// </summary>
+    /// <param name="hVertex">Vertex to look up.</param>
     public Vertex this[VertexHandle hVertex]
     {
         get => hVertex.Mesh is not null && hVertex.Index >= 0 && hVertex.Index < VertexList.Count ? VertexList[hVertex.Index] : Vertex.Invalid;
@@ -774,6 +986,10 @@ internal sealed partial class HalfEdgeMesh
         }
     }
 
+    /// <summary>
+    /// Gets the topology of a face, or <see cref="Face.Invalid"/> when the handle is not from this mesh.
+    /// </summary>
+    /// <param name="hFace">Face to look up.</param>
     public Face this[FaceHandle hFace]
     {
         get => hFace.Mesh is not null && hFace.Index >= 0 && hFace.Index < FaceList.Count ? FaceList[hFace.Index] : Face.Invalid;
@@ -784,6 +1000,10 @@ internal sealed partial class HalfEdgeMesh
         }
     }
 
+    /// <summary>
+    /// Gets the topology of a half edge, or <see cref="HalfEdge.Invalid"/> when the handle is not from this mesh.
+    /// </summary>
+    /// <param name="hEdge">Half edge to look up.</param>
     public HalfEdge this[HalfEdgeHandle hEdge]
     {
         get => hEdge.Mesh is not null && hEdge.Index >= 0 && hEdge.Index < HalfEdgeList.Count ? HalfEdgeList[hEdge.Index] : HalfEdge.Invalid;
@@ -793,5 +1013,6 @@ internal sealed partial class HalfEdgeMesh
                 HalfEdgeList[hEdge.Index] = value;
         }
     }
+#pragma warning restore CA1043
 }
 
