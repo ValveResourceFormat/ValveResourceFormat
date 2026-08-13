@@ -2059,6 +2059,12 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics
             /// the chain-level extrude per joint so an end-cap fan is not lost to the uniform chain width.
             /// </summary>
             public int ExtrudeSides { get; set; }
+            /// <summary>
+            /// Gets one of the <c>$cc</c> proxy nodes generated from this joint, or -1 when it has none.
+            /// A joint's own node is position-driven and compiles with no gravity, so the authored
+            /// <c>gravity_z</c> survives only on its proxies.
+            /// </summary>
+            public int ProxyNode { get; set; } = -1;
             /// <summary>Gets a value indicating whether this joint is simulated (invMass &gt; 0).</summary>
             public bool Simulated => InvMass > 0f;
             /// <summary>Gets a value indicating whether this joint is the chain root.</summary>
@@ -2275,6 +2281,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics
                     }
 
                     joint.ExtrudeSides = Math.Min(proxies.Count, 4);
+                    joint.ProxyNode = proxies[0];
                     sideFrequency[proxies.Count] = sideFrequency.GetValueOrDefault(proxies.Count) + 1;
                     if (joint.Node < InitPosePositions.Length)
                     {
