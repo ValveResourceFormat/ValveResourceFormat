@@ -1201,9 +1201,7 @@ namespace ValveResourceFormat.ResourceTypes
                         continue;
                     }
 
-                    var flagObject = Enum.ToObject(typeof(VTexFlags), flag);
-
-                    if (Enum.IsDefined(typeof(VTexFlags), flagObject))
+                    if (Enum.IsDefined((VTexFlags)flag))
                     {
                         writer.WriteLine("{0,-12} | 0x{1:X8} = VTEX_FLAG_{2}", string.Empty, flag, (VTexFlags)flag);
                     }

@@ -162,9 +162,11 @@ record struct ParticleDefinitionParser(KVObject Data, ILogger Logger, int[] Inpu
 
     private readonly T FromEnumValue<T>(string key, int value, T @default) where T : struct, Enum
     {
-        if (System.Enum.IsDefined(typeof(T), value))
+        var enumValue = (T)(object)value;
+
+        if (System.Enum.IsDefined(enumValue))
         {
-            return (T)(object)value;
+            return enumValue;
         }
 
         Logger.LogUniqueWarning("Enum {Enum} has no member with value {Value} read from {Key}, using {Default}",
