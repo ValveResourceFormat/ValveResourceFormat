@@ -663,7 +663,10 @@ partial class ModelExtract
         // instead produces a bogus 4-node "Rope" fallback constraint per chain (m_Ropes, entirely absent
         // from the original). Recover per-joint from the ORIGINAL's own m_Twists participation
         // (FeModel.TwistNodes) rather than guessing a single constant for every model.
-        kv.Add("twist_relax", feModel.TwistNodes.Contains(joint.Node) ? 1.0f : 0.0f);
+        kv.Add("twist_relax", feModel.GetTwistRelax(joint.Node));
+
+        // flPointDamping is the authored 0..1 drag scaled by the solver's fixed factor.
+        kv.Add("drag", Math.Clamp(integrator.PointDamping / FeModel.ClothDragPointDampingScale, 0f, 1f));
 
         // World collision membership + radius (m_WorldCollisionNodes / m_NodeCollisionRadii); without
         // them the recompiled tail/leg chains clip into the ground.
