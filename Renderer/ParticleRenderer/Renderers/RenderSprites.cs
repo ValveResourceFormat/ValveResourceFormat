@@ -29,11 +29,11 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
             [VertexAttribute(VertexAttributeSlot.Color)] public Vector4 Color;
             [VertexAttribute(VertexAttributeSlot.TexCoord)] public Vector2 UV;
             [VertexAttribute(VertexAttributeSlot.TexCoord1)] public Vector2 UVNextFrame;
-            [VertexAttribute(VertexAttributeSlot.BlendWeight)] public float FrameBlend;
-            [VertexAttribute(VertexAttributeSlot.TexCoord2)] public Vector4 LayerUv0;
-            [VertexAttribute(VertexAttributeSlot.TexCoord3)] public Vector4 LayerUv1;
-            [VertexAttribute(VertexAttributeSlot.TexCoord4)] public Vector4 LayerUv2;
-            [VertexAttribute(VertexAttributeSlot.TexCoord5)] public Vector4 LayerUv3;
+            [VertexAttribute(VertexAttributeSlot.FrameBlend)] public float FrameBlend;
+            [VertexAttribute(VertexAttributeSlot.LayerUv0)] public Vector4 LayerUv0;
+            [VertexAttribute(VertexAttributeSlot.LayerUv1)] public Vector4 LayerUv1;
+            [VertexAttribute(VertexAttributeSlot.LayerUv2)] public Vector4 LayerUv2;
+            [VertexAttribute(VertexAttributeSlot.LayerUv3)] public Vector4 LayerUv3;
 
             public void SetLayerUv(int layer, Vector4 uvs)
             {

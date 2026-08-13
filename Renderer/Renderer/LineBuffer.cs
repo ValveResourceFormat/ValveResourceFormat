@@ -43,7 +43,7 @@ namespace ValveResourceFormat.Renderer
 
             fixed (SimpleVertex* data = vertices)
             {
-                GL.NamedBufferData(vboHandle, VertexCount * SimpleVertex.SizeInBytes, (nint)data, usageHint);
+                GL.NamedBufferData(vboHandle, VertexCount * SimpleVertex.Format.Stride, (nint)data, usageHint);
             }
         }
 

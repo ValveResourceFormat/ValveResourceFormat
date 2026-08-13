@@ -2,6 +2,7 @@ using System.Collections.Frozen;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Reflection;
+using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using OpenTK.Graphics.OpenGL;
 using ValveResourceFormat.Blocks;
@@ -82,6 +83,12 @@ namespace ValveResourceFormat.Renderer
         /// <returns>The vertex format.</returns>
         public static VertexFormat FromStruct<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicFields | DynamicallyAccessedMemberTypes.NonPublicFields)] TVertex>() where TVertex : struct
         {
+            // Offsets and stride come from the marshalled layout, but what reaches the buffer is the managed
+            // one. They agree for a blittable sequential struct, which every vertex struct has to be anyway,
+            // and disagree silently the moment a field type marshals to a different size.
+            Debug.Assert(Marshal.SizeOf<TVertex>() == Unsafe.SizeOf<TVertex>(),
+                $"{typeof(TVertex).Name} marshals to {Marshal.SizeOf<TVertex>()} bytes but is {Unsafe.SizeOf<TVertex>()} in memory, so its attribute offsets would not match the uploaded vertices.");
+
             var elements = new List<VertexAttribute>();
 
             foreach (var field in typeof(TVertex).GetFields(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance))

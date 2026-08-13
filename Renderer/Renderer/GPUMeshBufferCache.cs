@@ -233,24 +233,7 @@ namespace ValveResourceFormat.Renderer
 
                 foreach (var attribute in curVertexBuffer.InputLayoutFields)
                 {
-                    var attributeLocation = -1;
-                    var insgElemName = string.Empty;
-
-                    if (inputSignature.Elements is { Length: > 0 })
-                    {
-                        var matchingName = Material.FindD3DInputSignatureElement(inputSignature, attribute.SemanticName, attribute.SemanticIndex).Name;
-                        if (!string.IsNullOrEmpty(matchingName))
-                        {
-                            insgElemName = matchingName;
-                            attributeLocation = VertexAttributeLocations.Get(insgElemName);
-                        }
-                    }
-
-                    // Fall back to the buffer's own semantic if INSG does not exist or the name was unknown
-                    if (attributeLocation == -1)
-                    {
-                        attributeLocation = VertexAttributeLocations.Get(attribute.SemanticName, attribute.SemanticIndex);
-                    }
+                    var attributeLocation = VertexAttributeLocations.Resolve(inputSignature, attribute, out var insgElemName);
 
                     // Ignore attributes with no canonical location, and any that would take a location
                     // already bound - the aliases in the table make that possible in principle

@@ -112,7 +112,7 @@ namespace ValveResourceFormat.Renderer.SceneNodes
             GL.CreateBuffers(1, out int vboHandle);
             GL.CreateBuffers(1, out int iboHandle);
 
-            GL.NamedBufferData(vboHandle, verts.Count * SimpleVertexNormal.SizeInBytes, ListAccessors<SimpleVertexNormal>.GetBackingArray(verts), BufferUsageHint.StaticDraw);
+            GL.NamedBufferData(vboHandle, verts.Count * SimpleVertexNormal.Format.Stride, ListAccessors<SimpleVertexNormal>.GetBackingArray(verts), BufferUsageHint.StaticDraw);
             GL.NamedBufferData(iboHandle, inds.Count * sizeof(int), ListAccessors<int>.GetBackingArray(inds), BufferUsageHint.StaticDraw);
 
             vao = SimpleVertexNormal.Format.CreateVertexArray(nameof(ShapeSceneNode), vboHandle, iboHandle);

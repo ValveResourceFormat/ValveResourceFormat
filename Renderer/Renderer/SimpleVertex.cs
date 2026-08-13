@@ -10,9 +10,6 @@ namespace ValveResourceFormat.Renderer
         [field: VertexAttribute(VertexAttributeSlot.Position)] Vector3 Position,
         [field: VertexAttribute(VertexAttributeSlot.Color)] Color32 Color)
     {
-        /// <summary>Size of a <see cref="SimpleVertex"/> in bytes.</summary>
-        public static readonly int SizeInBytes = Marshal.SizeOf<SimpleVertex>();
-
         /// <summary>Vertex layout, for creating VAOs.</summary>
         public static readonly VertexFormat Format = VertexFormat.FromStruct<SimpleVertex>();
     }
@@ -26,9 +23,6 @@ namespace ValveResourceFormat.Renderer
         [field: VertexAttribute(VertexAttributeSlot.Color)] Color32 Color,
         [field: VertexAttribute(VertexAttributeSlot.Normal)] Vector3 Normal)
     {
-        /// <summary>Size of a <see cref="SimpleVertexNormal"/> in bytes.</summary>
-        public static readonly int SizeInBytes = Marshal.SizeOf<SimpleVertexNormal>();
-
         /// <summary>Vertex layout, for creating VAOs.</summary>
         public static readonly VertexFormat Format = VertexFormat.FromStruct<SimpleVertexNormal>();
 
