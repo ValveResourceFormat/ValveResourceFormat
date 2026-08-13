@@ -22,11 +22,9 @@ namespace ValveResourceFormat.Renderer
         /// <summary>Gets the number of distinct vertex array objects currently cached.</summary>
         public int VertexArrayObjectCount => vertexArrayObjects.Count;
 
-        /// <summary>Identifies a VAO by what it actually is: a material input signature's attribute layout
-        /// bound to a set of GPU buffer objects. Locations are canonical, so the key carries no shader, but
-        /// the input signature does decide which attribute a buffer semantic resolves to. Not tied to any
-        /// resource name, so buffers sharing a mesh name (or having none) still dedupe correctly, and are
-        /// never confused with buffers reusing a freed handle under an unrelated name.</summary>
+        /// <summary>Identifies a VAO by what it actually is: an input signature's attribute layout bound to a
+        /// set of GPU buffer objects. Locations are canonical, so no shader is part of the key, but the input
+        /// signature is, since it decides which attribute a buffer semantic resolves to.</summary>
         private readonly struct VAOKey : IEquatable<VAOKey>
         {
             public required int InputSignature { get; init; }
@@ -127,11 +125,10 @@ namespace ValveResourceFormat.Renderer
 
             foreach (var item in vertexArrayObjects)
             {
-                GL.DeleteVertexArray(item.Value);
+                VertexArray.Delete(item.Value);
             }
 
             vertexArrayObjects.Clear();
-            VertexArray.Forget();
         }
 
         /// <summary>Deletes and removes the cached GPU buffers and vertex arrays for the specified mesh.</summary>

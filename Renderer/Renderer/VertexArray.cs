@@ -19,12 +19,12 @@ namespace ValveResourceFormat.Renderer
         [Conditional("DEBUG")]
         public static void Record(int vao, int boundLocations) => BoundByVao[vao] = boundLocations;
 
-        /// <summary>Forgets deleted vertex array objects, whose handles OpenGL hands out again.</summary>
+        /// <summary>Forgets a deleted vertex array object, whose handle OpenGL hands out again.</summary>
         [Conditional("DEBUG")]
-        public static void Forget()
+        private static void Forget(int vao)
         {
-            BoundByVao.Clear();
-            Validated.Clear();
+            BoundByVao.Remove(vao);
+            Validated.RemoveWhere(pair => pair.Vao == vao);
         }
 
         /// <summary>Asserts that <paramref name="shader"/> reads nothing <paramref name="vao"/> leaves
@@ -36,8 +36,8 @@ namespace ValveResourceFormat.Renderer
         {
 #if DEBUG
             if (!shader.EnsureLoaded()
-            || !Validated.Add((vao, shader.Program))
-            || !BoundByVao.TryGetValue(vao, out var boundLocations))
+            || !BoundByVao.TryGetValue(vao, out var boundLocations)
+            || !Validated.Add((vao, shader.Program)))
             {
                 return;
             }
@@ -63,7 +63,7 @@ namespace ValveResourceFormat.Renderer
         public static void Delete(int vao)
         {
             GL.DeleteVertexArray(vao);
-            Forget();
+            Forget(vao);
         }
     }
 }

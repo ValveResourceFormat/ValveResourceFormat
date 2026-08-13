@@ -613,7 +613,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
             GL.Disable(EnableCap.CullFace);
 
             shader.Use();
-            GL.BindVertexArray(vaoHandle);
+            VertexArray.Bind(vaoHandle, shader);
 
             // Layer 0 keeps the plain uTexture name; the rest take a sampler each. Units past the layer
             // count are never sampled, but they get layer 0's texture so no sampler is left unbound.

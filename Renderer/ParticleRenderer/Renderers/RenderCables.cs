@@ -400,7 +400,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
             }
 
             shader.Use();
-            GL.BindVertexArray(vaoHandle);
+            VertexArray.Bind(vaoHandle, shader);
             material.Render(shader);
 
             // todo: batch tube draws and call this less often

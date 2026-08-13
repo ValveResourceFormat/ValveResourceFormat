@@ -110,7 +110,7 @@ namespace ValveResourceFormat.Renderer
             GL.ClearColor(0, 0, 0, 0);
             GL.Clear(ClearBufferMask.ColorBufferBit);
 
-            GL.BindVertexArray(vao);
+            VertexArray.Bind(vao, shader);
 
             GL.DrawElements(PrimitiveType.Triangles, usedRects.Count * 6, DrawElementsType.UnsignedShort, 0);
 

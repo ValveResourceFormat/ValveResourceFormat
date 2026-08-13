@@ -45,7 +45,7 @@ namespace ValveResourceFormat.Renderer
             GL.BlendFunc(BlendingFactor.SrcAlpha, BlendingFactor.OneMinusSrcAlpha);
 
             shader.Use();
-            GL.BindVertexArray(vao);
+            VertexArray.Bind(vao, shader);
 
             GL.DrawArrays(PrimitiveType.Triangles, 0, 6);
 

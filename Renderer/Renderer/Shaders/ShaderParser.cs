@@ -293,8 +293,7 @@ namespace ValveResourceFormat.Renderer.Shaders
                             }
                         }
 
-                        // Vertex attributes get the canonical location of their name stamped on, so that one
-                        // vertex array object is valid for every shader that draws the same geometry.
+                        // Vertex attributes get the canonical location of their name stamped on
                         if (isVertexStage)
                         {
                             match = RegexVertexAttribute().Match(line);

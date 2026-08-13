@@ -421,7 +421,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
 
             shader.Use();
 
-            GL.BindVertexArray(vaoHandle);
+            VertexArray.Bind(vaoHandle, shader);
 
             shader.SetTexture(RenderMaterial.TextureUnitStart, "uTexture", texture);
 

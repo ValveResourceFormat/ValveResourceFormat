@@ -112,9 +112,7 @@ namespace ValveResourceFormat.Renderer.Shaders
         /// <summary>Gets the shader file name on disk (debug builds only).</summary>
         public required string FileName { get; init; }
 
-        /// <summary>Gets the mask of <see cref="VertexAttributeSlot"/> locations this program reads, as the
-        /// linker sees them. A vertex array object that does not bind one of these leaves the shader reading
-        /// the generic attribute value (0, 0, 0, 1) instead of failing, so this is what makes that visible.</summary>
+        /// <summary>Gets the mask of attribute locations this program reads, see <see cref="VertexArray"/>.</summary>
         public int RequiredAttributes { get; private set; }
 #endif
 
@@ -394,9 +392,8 @@ namespace ValveResourceFormat.Renderer.Shaders
         }
 
         /// <summary>
-        /// Caches which attribute locations the linked program reads, for <see cref="RequiredAttributes"/>.
-        /// Attributes the linker dropped (behind a disabled combo, or simply unused) are not active and do
-        /// not count as required (debug builds only).
+        /// Caches which attribute locations the linked program reads. Attributes the linker dropped (behind a
+        /// disabled combo, or simply unused) are not active and do not count as required (debug builds only).
         /// </summary>
         private void StoreRequiredAttributes()
         {

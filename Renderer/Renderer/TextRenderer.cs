@@ -492,7 +492,7 @@ namespace ValveResourceFormat.Renderer
 
             shader.SetUniform("g_fRange", TextureRange);
 
-            GL.BindVertexArray(vao);
+            VertexArray.Bind(vao, shader);
             GL.DrawElements(PrimitiveType.Triangles, letters * 6, DrawElementsType.UnsignedShort, 0);
 
             GL.Disable(EnableCap.Blend);
