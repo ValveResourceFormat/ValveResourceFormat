@@ -220,13 +220,17 @@ namespace ValveResourceFormat.Renderer
 
             var location = signatureName.Length > 0 ? Get(signatureName) : -1;
 
-            return location != -1 ? location : Get(attribute.SemanticName, attribute.SemanticIndex);
+            if (location == -1)
+            {
+                location = Get(attribute.SemanticName, attribute.SemanticIndex);
+            }
+
+            // Handbuilt geometry names its shader input directly, and a custom attribute has no semantic
+            return location == -1 && attribute.ShaderSemantic is { Length: > 0 } shaderInput ? Get(shaderInput) : location;
         }
 
         /// <summary>The buffer semantic a slot is filled from, for describing handbuilt geometry as a layout.</summary>
         public static (string Name, int Index) GetSemantic(int slot)
-            => SemanticBySlot.TryGetValue(slot, out var semantic)
-                ? semantic
-                : throw new ArgumentException($"'{slot}' has no buffer semantic.", nameof(slot));
+            => SemanticBySlot.GetValueOrDefault(slot, (string.Empty, 0));
     }
 }

@@ -41,14 +41,12 @@ namespace ValveResourceFormat.Renderer
     }
 
     /// <summary>
-    /// Interleaved vertex layout of handbuilt geometry. Element order is buffer order, and offsets pack in
-    /// declaration order unless given explicitly. Game meshes instead resolve their buffer semantics through
-    /// <see cref="VertexAttributeLocations"/> in <see cref="GPUMeshBufferCache"/>.
+    /// Interleaved vertex layout of handbuilt geometry, held as the same input layout fields a mesh carries.
+    /// Element order is buffer order, and offsets pack in declaration order unless given explicitly.
     /// </summary>
     public sealed class VertexFormat
     {
-        private readonly VertexAttribute[] elements;
-        private readonly int[] offsets;
+        private readonly VBIB.RenderInputLayoutField[] fields;
         private readonly int[] locations;
 
         /// <summary>Gets the size in bytes of a single vertex.</summary>
@@ -57,8 +55,7 @@ namespace ValveResourceFormat.Renderer
         /// <summary>Initializes a vertex format from a stride and its attributes in buffer order.</summary>
         public VertexFormat(int stride, params VertexAttribute[] elements)
         {
-            this.elements = elements;
-            offsets = new int[elements.Length];
+            fields = new VBIB.RenderInputLayoutField[elements.Length];
             locations = new int[elements.Length];
             Stride = stride;
 
@@ -72,10 +69,19 @@ namespace ValveResourceFormat.Renderer
             {
                 var element = elements[i];
                 var (elementSize, elementCount) = VBIB.GetFormatInfo(element.Format, element.Name);
+                var offset = element.OffsetInBytes >= 0 ? element.OffsetInBytes : packedOffset;
 
-                offsets[i] = element.OffsetInBytes >= 0 ? element.OffsetInBytes : packedOffset;
-                packedOffset = offsets[i] + (elementSize * elementCount);
+                packedOffset = offset + (elementSize * elementCount);
                 locations[i] = allocated[element.Name];
+
+                // A custom attribute has no semantic to carry, its name is what resolves it
+                var (semantic, semanticIndex) = VertexAttributeLocations.GetSemantic(locations[i]);
+
+                fields[i] = new VBIB.RenderInputLayoutField(semantic, element.Format, (uint)offset)
+                {
+                    SemanticIndex = semanticIndex,
+                    ShaderSemantic = element.Name,
+                };
 
                 Debug.Assert(packedOffset <= stride, $"Attribute '{element.Name}' ends at byte {packedOffset}, past the vertex stride of {stride}.");
                 Debug.Assert((boundLocations & (1 << locations[i])) == 0, $"Vertex format binds the location of '{element.Name}' twice.");
@@ -123,19 +129,8 @@ namespace ValveResourceFormat.Renderer
                 ? format
                 : throw new NotImplementedException($"Field type {fieldType.Name} maps to no vertex attribute format, pass one to [VertexAttribute].");
 
-        /// <summary>Describes this format as <see cref="VBIB"/> input layout fields, for the upload path.</summary>
-        public VBIB.RenderInputLayoutField[] ToInputLayout()
-        {
-            var fields = new VBIB.RenderInputLayoutField[elements.Length];
-
-            for (var i = 0; i < elements.Length; i++)
-            {
-                var (name, index) = VertexAttributeLocations.GetSemantic(locations[i]);
-                fields[i] = new VBIB.RenderInputLayoutField(name, elements[i].Format, (uint)offsets[i]) { SemanticIndex = index };
-            }
-
-            return fields;
-        }
+        /// <summary>This format as <see cref="VBIB"/> input layout fields, for the upload path.</summary>
+        public VBIB.RenderInputLayoutField[] ToInputLayout() => fields;
 
         /// <summary>Creates a VAO binding one vertex buffer. An index buffer of 0 means non-indexed.</summary>
         public int CreateVertexArray(string? debugLabel, int vertexBuffer, int indexBuffer = 0)
@@ -149,11 +144,11 @@ namespace ValveResourceFormat.Renderer
 
             GL.VertexArrayVertexBuffer(vao, 0, vertexBuffer, 0, Stride);
 
-            for (var i = 0; i < elements.Length; i++)
+            for (var i = 0; i < locations.Length; i++)
             {
                 GL.EnableVertexArrayAttrib(vao, locations[i]);
                 GL.VertexArrayAttribBinding(vao, locations[i], 0);
-                VertexArray.SetAttribFormat(vao, locations[i], elements[i].Format, offsets[i]);
+                VertexArray.SetAttribFormat(vao, locations[i], fields[i].Format, (int)fields[i].Offset);
             }
 
 #if DEBUG
