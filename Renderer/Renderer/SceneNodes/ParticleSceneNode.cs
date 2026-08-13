@@ -67,22 +67,19 @@ namespace ValveResourceFormat.Renderer.SceneNodes
             }
         }
 
-        // Outside the editor an effect is played under one of its control point configurations, and the
-        // configuration is where several constants its operators depend on actually live - a global scale
-        // control point that has to read 0.5 rather than 0, or a flag switching an effect into its
-        // first-person sizing. Those arrive as a driver's literal offset, so seed the control points that
-        // carry one. Points a driver leaves at zero are skipped: control point 0 is the effect's placement
-        // and comes from the node transform, and the rest we would only be writing their default back.
+        // An effect dispatched by code plays under a control point configuration, which carries constants its
+        // operators depend on as driver offsets. Control point 0 is skipped, it is the effect's placement.
         private void ApplyRuntimeControlPointValues(ParticleSystem particleSystem)
         {
-            var configurations = particleSystem.Data.GetArray("m_controlPointConfigurations");
+            var data = particleSystem.GetUpgradedData();
+            var configurations = data.GetArray("m_controlPointConfigurations");
             if (configurations == null)
             {
                 return;
             }
 
             // Viewmodel effects carry a first-person configuration; everything else plays under "game".
-            var viewModelEffect = particleSystem.Data.GetStringProperty("m_nViewModelEffect") == "INHERITABLE_BOOL_TRUE";
+            var viewModelEffect = data.GetStringProperty("m_nViewModelEffect") == "INHERITABLE_BOOL_TRUE";
             var wantedConfiguration = viewModelEffect ? "fps_view" : "game";
 
             KVObject? chosen = null;
@@ -313,7 +310,7 @@ namespace ValveResourceFormat.Renderer.SceneNodes
 
         private ModelSceneNode? CreatePreviewModel(ParticleSystem particleSystem)
         {
-            var configurations = particleSystem.Data.GetArray("m_controlPointConfigurations");
+            var configurations = particleSystem.GetUpgradedData().GetArray("m_controlPointConfigurations");
             if (configurations == null)
             {
                 return null;

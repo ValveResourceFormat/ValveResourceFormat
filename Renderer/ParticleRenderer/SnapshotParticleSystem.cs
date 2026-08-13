@@ -3,6 +3,7 @@ using ValveKeyValue;
 using ValveResourceFormat.Blocks;
 using ValveResourceFormat.Renderer.SceneNodes;
 using ValveResourceFormat.ResourceTypes;
+using ValveResourceFormat.ResourceTypes.ParticleUpgrade;
 
 namespace ValveResourceFormat.Renderer.Particles
 {
@@ -100,7 +101,7 @@ namespace ValveResourceFormat.Renderer.Particles
 
             var system = KVObject.Collection();
             system.Add("_class", "CParticleSystemDefinition");
-            system.Add("m_nBehaviorVersion", 13);
+            system.Add("m_nBehaviorVersion", ParticleFormatUpgrader.LatestBehaviorVersion);
             system.Add("m_nMaxParticles", count);
             system.Add("m_nSnapshotControlPoint", SnapshotControlPoint);
 
@@ -114,7 +115,7 @@ namespace ValveResourceFormat.Renderer.Particles
             system.Add("m_Initializers", initializers);
             system.Add("m_Renderers", SingleItemArray(MakeRenderer(constantScreenSize)));
 
-            return ParticleSystem.Create(system);
+            return ParticleSystem.Create(system, ParticleFormatUpgrader.LatestFormat);
         }
 
         /// <summary>

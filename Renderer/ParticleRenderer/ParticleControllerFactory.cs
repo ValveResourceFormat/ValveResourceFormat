@@ -226,11 +226,12 @@ namespace ValveResourceFormat.Renderer.Particles
             string name,
             KVObject info,
             ILogger logger,
+            int behaviorVersion,
             [MaybeNullWhen(false)] out TFunction function)
         {
             if (dictionary.TryGetValue(name, out var factory))
             {
-                function = factory(new ParticleDefinitionParser(info, logger));
+                function = factory(new ParticleDefinitionParser(info, logger, behaviorVersion));
                 return true;
             }
 
@@ -242,53 +243,53 @@ namespace ValveResourceFormat.Renderer.Particles
         /// Attempts to create a particle pre-emission operator by its Source 2 class name.
         /// </summary>
         /// <returns><see langword="true"/> if the pre-emission operator type is supported; otherwise <see langword="false"/>.</returns>
-        public static bool TryCreatePreEmissionOperator(string name, KVObject preEmissionOperatorInfo, ILogger logger, [MaybeNullWhen(false)] out ParticleFunctionPreEmissionOperator preEmissionOperator)
-            => TryCreate(PreEmissionOperatorDictionary, name, preEmissionOperatorInfo, logger, out preEmissionOperator);
+        public static bool TryCreatePreEmissionOperator(string name, KVObject preEmissionOperatorInfo, ILogger logger, int behaviorVersion, [MaybeNullWhen(false)] out ParticleFunctionPreEmissionOperator preEmissionOperator)
+            => TryCreate(PreEmissionOperatorDictionary, name, preEmissionOperatorInfo, logger, behaviorVersion, out preEmissionOperator);
 
         /// <summary>
         /// Attempts to create a particle emitter by its Source 2 class name.
         /// </summary>
         /// <returns><see langword="true"/> if the emitter type is supported; otherwise <see langword="false"/>.</returns>
-        public static bool TryCreateEmitter(string name, KVObject emitterInfo, ILogger logger, [MaybeNullWhen(false)] out ParticleFunctionEmitter emitter)
-            => TryCreate(EmitterDictionary, name, emitterInfo, logger, out emitter);
+        public static bool TryCreateEmitter(string name, KVObject emitterInfo, ILogger logger, int behaviorVersion, [MaybeNullWhen(false)] out ParticleFunctionEmitter emitter)
+            => TryCreate(EmitterDictionary, name, emitterInfo, logger, behaviorVersion, out emitter);
 
         /// <summary>
         /// Attempts to create a particle initializer by its Source 2 class name.
         /// </summary>
         /// <returns><see langword="true"/> if the initializer type is supported; otherwise <see langword="false"/>.</returns>
-        public static bool TryCreateInitializer(string name, KVObject initializerInfo, ILogger logger, [MaybeNullWhen(false)] out ParticleFunctionInitializer initializer)
-            => TryCreate(InitializerDictionary, name, initializerInfo, logger, out initializer);
+        public static bool TryCreateInitializer(string name, KVObject initializerInfo, ILogger logger, int behaviorVersion, [MaybeNullWhen(false)] out ParticleFunctionInitializer initializer)
+            => TryCreate(InitializerDictionary, name, initializerInfo, logger, behaviorVersion, out initializer);
 
         /// <summary>
         /// Attempts to create a particle operator by its Source 2 class name.
         /// </summary>
         /// <returns><see langword="true"/> if the operator type is supported; otherwise <see langword="false"/>.</returns>
-        public static bool TryCreateOperator(string name, KVObject operatorInfo, ILogger logger, [MaybeNullWhen(false)] out ParticleFunctionOperator @operator)
-            => TryCreate(OperatorDictionary, name, operatorInfo, logger, out @operator);
+        public static bool TryCreateOperator(string name, KVObject operatorInfo, ILogger logger, int behaviorVersion, [MaybeNullWhen(false)] out ParticleFunctionOperator @operator)
+            => TryCreate(OperatorDictionary, name, operatorInfo, logger, behaviorVersion, out @operator);
 
         /// <summary>
         /// Attempts to create a particle force generator by its Source 2 class name.
         /// </summary>
         /// <returns><see langword="true"/> if the force generator type is supported; otherwise <see langword="false"/>.</returns>
-        public static bool TryCreateForceGenerator(string name, KVObject forceGeneratorInfo, ILogger logger, [MaybeNullWhen(false)] out ParticleFunctionForceGenerator forceGenerator)
-            => TryCreate(ForceGeneratorDictionary, name, forceGeneratorInfo, logger, out forceGenerator);
+        public static bool TryCreateForceGenerator(string name, KVObject forceGeneratorInfo, ILogger logger, int behaviorVersion, [MaybeNullWhen(false)] out ParticleFunctionForceGenerator forceGenerator)
+            => TryCreate(ForceGeneratorDictionary, name, forceGeneratorInfo, logger, behaviorVersion, out forceGenerator);
 
         /// <summary>
         /// Attempts to create a particle constraint by its Source 2 class name.
         /// </summary>
         /// <returns><see langword="true"/> if the constraint type is supported; otherwise <see langword="false"/>.</returns>
-        public static bool TryCreateConstraint(string name, KVObject constraintInfo, ILogger logger, [MaybeNullWhen(false)] out ParticleFunctionConstraint constraint)
-            => TryCreate(ConstraintDictionary, name, constraintInfo, logger, out constraint);
+        public static bool TryCreateConstraint(string name, KVObject constraintInfo, ILogger logger, int behaviorVersion, [MaybeNullWhen(false)] out ParticleFunctionConstraint constraint)
+            => TryCreate(ConstraintDictionary, name, constraintInfo, logger, behaviorVersion, out constraint);
 
         /// <summary>
         /// Attempts to create a particle renderer by its Source 2 class name.
         /// </summary>
         /// <returns><see langword="true"/> if the renderer type is supported; otherwise <see langword="false"/>.</returns>
-        public static bool TryCreateRender(string name, KVObject rendererInfo, RendererContext rendererContext, Scene scene, [MaybeNullWhen(false)] out ParticleFunctionRenderer renderer)
+        public static bool TryCreateRender(string name, KVObject rendererInfo, RendererContext rendererContext, Scene scene, int behaviorVersion, [MaybeNullWhen(false)] out ParticleFunctionRenderer renderer)
         {
             if (RendererDictionary.TryGetValue(name, out var factory))
             {
-                renderer = factory(new ParticleDefinitionParser(rendererInfo, rendererContext.Logger), rendererContext, scene);
+                renderer = factory(new ParticleDefinitionParser(rendererInfo, rendererContext.Logger, behaviorVersion), rendererContext, scene);
                 return true;
             }
 
