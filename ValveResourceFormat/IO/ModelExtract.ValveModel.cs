@@ -668,6 +668,10 @@ partial class ModelExtract
         // World collision membership + radius (m_WorldCollisionNodes / m_NodeCollisionRadii); without
         // them the recompiled tail/leg chains clip into the ground.
         kv.Add("world_collision", feModel.IsWorldCollisionNode(joint.Node));
+
+        var (worldFriction, groundFriction) = feModel.GetWorldFriction(joint.Node);
+        kv.Add("world_friction", worldFriction);
+        kv.Add("ground_friction", groundFriction);
         kv.Add("collision_radius", feModel.GetCollisionRadius(joint.Node));
 
         // Stray radius (m_AnimStrayRadii): the max distance the node may stray from its animated position.
