@@ -197,7 +197,9 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
             // defaults of (1, 2) put the smoothstep past its own range, which is what makes it inert.
             var viewAngleFadeActive = startFadeDot < 1f && endFadeDot > startFadeDot;
 
-            var rawVertices = ArrayPool<Vertex>.Shared.Rent(particleBag.Count * 4);
+            // Rented from the shared float pool so the memory is reused across renderers, and viewed as vertices.
+            var rawVertices = ArrayPool<float>.Shared.Rent(particleBag.Count * 4 * (QuadFormat.Stride / sizeof(float)));
+            var vertices = MemoryMarshal.Cast<float, Vertex>(rawVertices.AsSpan());
             var quadCount = 0;
 
             try
@@ -361,7 +363,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
                         var uv = uvOffset + (cornerUv * uvScale);
                         var uvNext = uvNextOffset + (cornerUv * uvNextScale);
 
-                        rawVertices[quadStart + j] = new Vertex(worldPosition, color, uv, uvNext, frameBlend);
+                        vertices[quadStart + j] = new Vertex(worldPosition, color, uv, uvNext, frameBlend);
                     }
 
                     quadCount++;
@@ -379,7 +381,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
             }
             finally
             {
-                ArrayPool<Vertex>.Shared.Return(rawVertices);
+                ArrayPool<float>.Shared.Return(rawVertices);
             }
 
             return quadCount;

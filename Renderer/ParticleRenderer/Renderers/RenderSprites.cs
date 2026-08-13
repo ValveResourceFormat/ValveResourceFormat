@@ -422,7 +422,9 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
                     or ParticleOrientation.PARTICLE_ORIENTATION_SCREENALIGN_TO_PARTICLE_NORMAL;
 
             // Update vertex buffer
-            var rawVertices = ArrayPool<Vertex>.Shared.Rent(particles.Count * 4);
+            // Rented from the shared float pool so the memory is reused across renderers, and viewed as vertices.
+            var rawVertices = ArrayPool<float>.Shared.Rent(particles.Count * 4 * (QuadFormat.Stride / sizeof(float)));
+            var vertices = MemoryMarshal.Cast<float, Vertex>(rawVertices.AsSpan());
 
             try
             {
@@ -541,7 +543,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
 
                     for (var j = 0; j < 4; ++j)
                     {
-                        rawVertices[quadStart + j] = new Vertex
+                        vertices[quadStart + j] = new Vertex
                         {
                             Position = corners[j],
                             Color = color,
@@ -559,7 +561,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
                         {
                             var uv = CornerUv(j, layerMin, layerMax);
                             var uvNext = CornerUv(j, layerNextMin, layerNextMax);
-                            rawVertices[quadStart + j].SetLayerUv(layer - 1, new Vector4(uv.X, uv.Y, uvNext.X, uvNext.Y));
+                            vertices[quadStart + j].SetLayerUv(layer - 1, new Vector4(uv.X, uv.Y, uvNext.X, uvNext.Y));
                         }
                     }
 
@@ -572,7 +574,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
             }
             finally
             {
-                ArrayPool<Vertex>.Shared.Return(rawVertices);
+                ArrayPool<float>.Shared.Return(rawVertices);
             }
         }
 
