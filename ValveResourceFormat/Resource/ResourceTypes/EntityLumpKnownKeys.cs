@@ -2,7 +2,7 @@
 
 #nullable enable
 
-namespace ValveResourceFormat.Utils;
+namespace ValveResourceFormat.ResourceTypes;
 
 class EntityLumpKnownKeys
 {

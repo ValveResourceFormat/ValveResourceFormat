@@ -1,6 +1,6 @@
 using System.Globalization;
 
-namespace ValveResourceFormat.Utils
+namespace ValveResourceFormat.ResourceTypes
 {
     /// <summary>
     /// A single node of a <c>path_particle_rope</c> spline: a position plus the incoming and

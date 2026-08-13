@@ -2,6 +2,7 @@ using System.Globalization;
 using System.Linq;
 using Microsoft.Extensions.Logging;
 using ValveKeyValue;
+using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.Serialization.KeyValues;
 
 namespace ValveResourceFormat.Particles;

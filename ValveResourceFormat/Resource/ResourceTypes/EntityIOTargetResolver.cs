@@ -1,7 +1,7 @@
 using ValveResourceFormat.Serialization.KeyValues;
 using static ValveResourceFormat.ResourceTypes.EntityLump;
 
-namespace ValveResourceFormat.Utils
+namespace ValveResourceFormat.ResourceTypes
 {
     /// <summary>
     /// Outcome of resolving an entity I/O connection target against a set of entities.

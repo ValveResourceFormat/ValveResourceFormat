@@ -3,7 +3,7 @@ using ValveResourceFormat.Serialization.KeyValues;
 using static ValveResourceFormat.ResourceTypes.EntityLump;
 using VEntityLump = ValveResourceFormat.ResourceTypes.EntityLump;
 
-namespace ValveResourceFormat.Utils
+namespace ValveResourceFormat.ResourceTypes
 {
     /// <summary>
     /// Walks an entity lump plus the child lumps its <c>point_template</c> entities reference, pairing each entity with the parent transform that applies to it.
