@@ -351,13 +351,13 @@ void main()
         //TODO: Figure out what that shit before and if this is really ndc, I am using the naming straight from Gemini.
         vec2 effectsPos0NcdCoords = effectsPos0Transformed.xy / effectsPos0Transformed.w;
         //TODO: Do we need a GBuffer ratio? 1.0 is gbuffer ratio in decompile, but I am just setting 1 here.
-        vec4 effectsSample0 = texture(g_tWaterEffectsMap, ((vec2(effectsPos0NcdCoords.x, -effectsPos0NcdCoords.y) * 0.5) + vec2(0.5)).xy * 1.0) - vec4(0.5);
+        vec4 effectsSample0 = texture(g_tWaterEffectsMap, ((vec2(effectsPos0NcdCoords.x, effectsPos0NcdCoords.y) * 0.5) + vec2(0.5)).xy * 1.0) - vec4(0.5);
 
         vec3 effectsPos1 = effectsPos0 + (viewDepOffsetFactor * fma(20.0, effectsSample0.x, 2.0 * saturate(effectsSample0.yz * 2.0).x));
         vec4 effectsPos1Transformed = (vec4(effectsPos1.xyz, 1.0) - vec4(g_vCameraPositionWs, 1.0)).xyzw * transposedWorldToProj;
         vec2 effectsPos1NcdCoords = effectsPos1Transformed.xy / effectsPos1Transformed.w;
         //Same as before, gbuffer ratio??
-        vec2 effectsPos1UV = ((vec2(effectsPos1NcdCoords.x, -effectsPos1NcdCoords.y) * 0.5) + vec2(0.5)).xy * 1.0;
+        vec2 effectsPos1UV = ((vec2(effectsPos1NcdCoords.x, effectsPos1NcdCoords.y) * 0.5) + vec2(0.5)).xy * 1.0;
 
         // Recentered like every other read of the map: the channels are signed around 0.5.
         vec4 effectsSample1 = texture(g_tWaterEffectsMap, effectsPos1UV) - vec4(0.5);
