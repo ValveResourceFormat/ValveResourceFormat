@@ -18,9 +18,18 @@ namespace ValveResourceFormat.Renderer
         private static readonly Dictionary<int, Supplies> SuppliesByVao = [];
         private static readonly HashSet<(int Program, int Missing, int WrongKind)> Reported = [];
 
+        // Draws are batched by material, so the pair hardly ever changes. Without this every draw call pays
+        // for two hash lookups, which a debug build feels.
+        private static int lastVao = -1;
+        private static int lastProgram = -1;
+
         /// <summary>Forgets a deleted vertex array object, whose handle OpenGL hands out again.</summary>
         [Conditional("DEBUG")]
-        private static void Forget(int vao) => SuppliesByVao.Remove(vao);
+        private static void Forget(int vao)
+        {
+            SuppliesByVao.Remove(vao);
+            lastVao = -1;
+        }
 
         [Conditional("DEBUG")]
         private static void Record(int vao, int location, bool integer)
@@ -43,6 +52,14 @@ namespace ValveResourceFormat.Renderer
         [Conditional("DEBUG")]
         public static void Validate(int vao, Shader shader)
         {
+            if (vao == lastVao && shader.Program == lastProgram)
+            {
+                return;
+            }
+
+            lastVao = vao;
+            lastProgram = shader.Program;
+
             if (!shader.EnsureLoaded() || !SuppliesByVao.TryGetValue(vao, out var supplies))
             {
                 return;
