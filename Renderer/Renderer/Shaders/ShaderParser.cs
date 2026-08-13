@@ -43,7 +43,7 @@ namespace ValveResourceFormat.Renderer.Shaders
         [GeneratedRegex("^#define (?<From>(?:g|F)_[A-Za-z0-9_]+) (?<To>[A-Za-z_][A-Za-z0-9_]*)$")]
         private static partial Regex RegexUniformAlias();
 
-        // Vertex shader attribute declaration, e.g. "in vec4 vCOLOR;" or "in uint vNORMAL; // comment"
+        // An attribute declaration of a vertex shader, for example "in vec4 vCOLOR;"
         [GeneratedRegex(@"^in\s+[a-z0-9]+\s+(?<Name>[A-Za-z_][A-Za-z0-9_]*)\s*;")]
         private static partial Regex RegexVertexAttribute();
 
@@ -293,7 +293,7 @@ namespace ValveResourceFormat.Renderer.Shaders
                             }
                         }
 
-                        // Vertex attributes get the canonical location of their name stamped on
+                        // Write the canonical location of the name into the declaration
                         if (isVertexStage)
                         {
                             match = RegexVertexAttribute().Match(line);

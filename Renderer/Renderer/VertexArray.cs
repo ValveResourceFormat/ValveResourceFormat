@@ -6,24 +6,22 @@ using OpenTK.Graphics.OpenGL;
 namespace ValveResourceFormat.Renderer
 {
     /// <summary>
-    /// Binds and deletes vertex array objects, and reports in debug builds when a shader disagrees with the
-    /// VAO it draws with. Canonical locations let any shader draw any VAO, so nothing else catches an
-    /// attribute the geometry does not have, or one it supplies in the wrong kind of format.
+    /// Binds and deletes vertex array objects. Canonical locations let any shader draw any VAO, so nothing
+    /// else catches a mismatch between the two. Debug builds check it here.
     /// </summary>
     public static class VertexArray
     {
-        /// <summary>What a vertex array object supplies, as bitmasks over attribute locations.</summary>
+        /// <summary>What a VAO supplies, as location bitmasks.</summary>
         private record struct Supplies(int Locations, int AsInteger);
 
         private static readonly Dictionary<int, Supplies> SuppliesByVao = [];
         private static readonly HashSet<(int Program, int Missing, int WrongKind)> Reported = [];
 
-        // Draws are batched by material, so the pair hardly ever changes. Without this every draw call pays
-        // for two hash lookups, which a debug build feels.
+        // Draws are batched by material, so this pair rarely changes. Without it every draw costs two hash lookups.
         private static int lastVao = -1;
         private static int lastProgram = -1;
 
-        /// <summary>Forgets a deleted vertex array object, whose handle OpenGL hands out again.</summary>
+        /// <summary>Forgets a deleted VAO, whose handle OpenGL hands out again.</summary>
         [Conditional("DEBUG")]
         private static void Forget(int vao)
         {
@@ -44,11 +42,8 @@ namespace ValveResourceFormat.Renderer
             }
         }
 
-        /// <summary>Logs where <paramref name="shader"/> and <paramref name="vao"/> disagree about the
-        /// attributes being drawn. Reported once per shader and problem, naming the first geometry it was
-        /// seen on, because every mesh drawn with that shader hits the same one.</summary>
-        /// <param name="vao">The vertex array object being drawn.</param>
-        /// <param name="shader">The shader it is drawn with.</param>
+        /// <summary>Reports a shader and VAO that disagree about attributes. Once per shader and problem,
+        /// since every mesh drawn with that shader repeats it.</summary>
         [Conditional("DEBUG")]
         public static void Validate(int vao, Shader shader)
         {
@@ -67,8 +62,7 @@ namespace ValveResourceFormat.Renderer
 
             var missing = shader.RequiredAttributes & ~supplies.Locations;
 
-            // An integer attribute fed through the float path, or the reverse, reads undefined values. Nvidia
-            // patches the shader to cope with it, which shows up as "recompiled based on GL state"
+            // Undefined per spec, and Nvidia patches the shader for it: "recompiled based on GL state"
             var wrongKind = (shader.IntegerAttributes ^ supplies.AsInteger) & shader.RequiredAttributes & supplies.Locations;
 
             if ((missing | wrongKind) == 0 || !Reported.Add((shader.Program, missing, wrongKind)))
@@ -92,7 +86,7 @@ namespace ValveResourceFormat.Renderer
             }
         }
 
-        /// <summary>Names a vertex array object by the debug label its geometry was created with.</summary>
+        /// <summary>Names a VAO by the debug label of its geometry.</summary>
         private static string DescribeVertexArray(int vao)
         {
             GL.GetObjectLabel(ObjectLabelIdentifier.VertexArray, vao, 256, out _, out var label);
@@ -100,26 +94,16 @@ namespace ValveResourceFormat.Renderer
             return string.IsNullOrEmpty(label) ? $"vertex array {vao}" : label;
         }
 
-        /// <summary>Binds a vertex array object for drawing with a shader.</summary>
-        /// <param name="vao">The vertex array object to bind.</param>
-        /// <param name="shader">The shader it is drawn with.</param>
+        /// <summary>Binds a VAO to draw with a shader.</summary>
         public static void Bind(int vao, Shader shader)
         {
             Validate(vao, shader);
             GL.BindVertexArray(vao);
         }
 
-        /// <summary>
-        /// Sets one VAO attribute's data format, mapping the <see cref="DXGI_FORMAT"/> to the matching float
-        /// or integer GL attribute format. Shared by handbuilt formats and the game mesh path.
-        /// </summary>
-        /// <param name="vao">The OpenGL VAO handle.</param>
-        /// <param name="location">Attribute location.</param>
-        /// <param name="format">Data format of the attribute.</param>
-        /// <param name="offset">Byte offset of the attribute within a vertex.</param>
+        /// <summary>Sets one attribute's format, for both the handbuilt and the game mesh paths.</summary>
         public static void SetAttribFormat(int vao, int location, DXGI_FORMAT format, int offset)
         {
-            // Integer attributes take the I variant, which has no normalized flag
             var (count, type, normalized, integer) = format switch
             {
                 DXGI_FORMAT.R32_FLOAT => (1, VertexAttribType.Float, false, false),
@@ -157,8 +141,7 @@ namespace ValveResourceFormat.Renderer
             }
         }
 
-        /// <summary>Deletes a vertex array object.</summary>
-        /// <param name="vao">The vertex array object to delete.</param>
+        /// <summary>Deletes a VAO.</summary>
         public static void Delete(int vao)
         {
             GL.DeleteVertexArray(vao);

@@ -105,17 +105,16 @@ namespace ValveResourceFormat.Renderer.Shaders
         /// <summary>Gets the <see cref="MaterialLoader"/> used to resolve fallback textures.</summary>
         internal MaterialLoader MaterialLoader { get; init; }
 
-        /// <summary>Gets the logger for diagnostic messages about this shader.</summary>
+        /// <summary>Gets the logger for messages about this shader.</summary>
         internal ILogger Logger { get; init; }
 
         /// <summary>Gets a value indicating whether material data (textures and params) should be skipped during rendering.</summary>
         public bool IgnoreMaterialData { get; }
 
-        /// <summary>Gets the mask of attribute locations this program reads, see <see cref="VertexArray"/>.</summary>
+        /// <summary>Gets the locations this program reads, as a mask. Checked in <see cref="VertexArray"/>.</summary>
         public int RequiredAttributes { get; private set; }
 
-        /// <summary>Gets the mask of those attribute locations declared as an integer type, which have to be
-        /// supplied by an integer format buffer.</summary>
+        /// <summary>Gets those locations declared as an integer type, which need an integer format.</summary>
         public int IntegerAttributes { get; private set; }
 
 #if DEBUG
@@ -173,9 +172,8 @@ namespace ValveResourceFormat.Renderer.Shaders
         }
 
         /// <summary>
-        /// Caches which attribute locations the linked program reads, and checks each one landed where
-        /// <see cref="VertexAttributeSlot"/> says it should. Attributes the linker dropped (behind a disabled
-        /// combo, or simply unused) are not active and do not count as required.
+        /// Caches the attribute locations the linked program reads, and verifies each landed where its
+        /// <see cref="VertexAttributeSlot"/> puts it. Attributes the linker dropped are not active.
         /// </summary>
         private void StoreRequiredAttributes()
         {
@@ -195,16 +193,14 @@ namespace ValveResourceFormat.Renderer.Shaders
                     continue; // A gl_ builtin
                 }
 
-                // A declaration ShaderParser did not recognise is left for the driver to place, which puts it
-                // somewhere the vertex array objects know nothing about
+                // A declaration ShaderParser did not stamp is placed by the driver, where no VAO expects it
                 if (VertexAttributeLocations.Get(name) != location)
                 {
                     throw new ShaderLoader.ShaderCompilerException(
                         $"Shader '{Name}' has attribute '{name}' at location {location}, but {nameof(VertexAttributeSlot)} puts it at {VertexAttributeLocations.Get(name)}. Its declaration was not stamped, check that it reads 'in <type> {name};'.");
                 }
 
-                // Arrays and matrices take a location per element or column, which the slot table cannot
-                // express, and would silently occupy the slots of whatever is declared after them
+                // These span a location per element or column, silently taking the slots declared after them
                 if (elements > 1 || IsMatrix(type))
                 {
                     throw new ShaderLoader.ShaderCompilerException(
@@ -220,9 +216,7 @@ namespace ValveResourceFormat.Renderer.Shaders
             }
         }
 
-        /// <summary>Names the attributes this program declares at the given locations, for diagnostics.</summary>
-        /// <param name="locationMask">Bitmask of attribute locations.</param>
-        /// <returns>The names this shader knows them by.</returns>
+        /// <summary>Names the attributes this program declares at the given locations.</summary>
         public string DescribeAttributes(int locationMask)
         {
             GL.GetProgram(Program, GetProgramParameterName.ActiveAttributes, out var attributeCount);

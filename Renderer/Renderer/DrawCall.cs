@@ -51,7 +51,8 @@ namespace ValveResourceFormat.Renderer
         /// <summary>Gets or sets the name of the mesh this draw call belongs to.</summary>
         public string MeshName { get; set; } = string.Empty;
 
-        /// <summary>VAO for this draw call's geometry. Created lazily; owned by <see cref="MeshBuffers"/>.</summary>
+        /// <summary>The vertex array object of the geometry. <see cref="MeshBuffers"/> makes it at the first
+        /// draw and holds it.</summary>
         private int vao;
 
         /// <summary>Gets the vertex buffer bindings used by this draw call.</summary>

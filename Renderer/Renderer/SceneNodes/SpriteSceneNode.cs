@@ -24,8 +24,8 @@ namespace ValveResourceFormat.Renderer.SceneNodes
             NewVertex(new(-1.0f, 1.0f, 0.0f), new(0.0f, 0.0f)),
         ];
 
-        // White, because a material shader reading vCOLOR expects the engine default where there is no
-        // color stream, the same one GPUMeshBufferCache binds for meshes that have none.
+        // The color is white. If a material shader reads vCOLOR, it gets the default of the engine.
+        // GPUMeshBufferCache binds the same value for a mesh with no color stream.
         private static Vertex NewVertex(Vector3 position, Vector2 texCoord) => new()
         {
             Position = position,

@@ -22,9 +22,8 @@ namespace ValveResourceFormat.Renderer
         /// <summary>Gets the number of distinct vertex array objects currently cached.</summary>
         public int VertexArrayObjectCount => vertexArrayObjects.Count;
 
-        /// <summary>Identifies a VAO by what it actually is: an input signature's attribute layout bound to a
-        /// set of GPU buffer objects. Locations are canonical, so no shader is part of the key, but the input
-        /// signature is, since it decides which attribute a buffer semantic resolves to.</summary>
+        /// <summary>Identifies a vertex array object by the attribute layout of an input signature and the
+        /// GPU buffers.</summary>
         private readonly struct VAOKey : IEquatable<VAOKey>
         {
             public required int InputSignature { get; init; }
@@ -235,8 +234,7 @@ namespace ValveResourceFormat.Renderer
                 {
                     var attributeLocation = VertexAttributeLocations.Resolve(inputSignature, attribute, out var insgElemName);
 
-                    // Ignore attributes with no canonical location, and any that would take a location
-                    // already bound - the aliases in the table make that possible in principle
+                    // Unknown, or a location an earlier buffer already took, which the table's aliases allow
                     if (attributeLocation == -1 || (boundLocations & (1 << attributeLocation)) != 0)
                     {
 #if DEBUG
@@ -270,7 +268,7 @@ namespace ValveResourceFormat.Renderer
 
         private VertexDrawBuffer[] AddMissingAttributes(VertexDrawBuffer[] vertexBuffers)
         {
-            // Shaders read white where a mesh has no COLOR stream, matching the engine default.
+            // Shaders read white where a mesh has no COLOR stream, matching the engine default
             if (!vertexBuffers.Any(vb => vb.InputLayoutFields.Any(f => f.SemanticName == "COLOR")))
             {
                 var defaultColor = new VertexDrawBuffer
