@@ -86,7 +86,7 @@ namespace ValveResourceFormat.Renderer
         /// Builds the format of a vertex struct whose fields carry <see cref="VertexAttributeAttribute"/>.
         ///
         /// This is the recommended way to build vertex formats, as it makes the struct be the single source of truth.
-        ///
+        /// </summary>
         /// <typeparam name="TVertex">The vertex struct.</typeparam>
         /// <returns>The vertex format.</returns>
         public static VertexFormat FromStruct<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicFields | DynamicallyAccessedMemberTypes.NonPublicFields)] TVertex>() where TVertex : struct

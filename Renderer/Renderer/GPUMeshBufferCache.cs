@@ -221,7 +221,7 @@ namespace ValveResourceFormat.Renderer
         /// name wins when it resolves, otherwise the attribute's own buffer semantic. Attributes unknown
         /// to the canonical table are skipped, as is any duplicate resolution to an already-taken
         /// location (shared slots in the table make that possible in principle).</summary>
-        private AttributeBinding[] ResolveAttributeBindings(VertexDrawBuffer[] vertexBuffers, Material.VsInputSignature inputSignature)
+        private static AttributeBinding[] ResolveAttributeBindings(VertexDrawBuffer[] vertexBuffers, Material.VsInputSignature inputSignature)
         {
             var bindings = new List<AttributeBinding>();
             var usedLocations = 0;

@@ -19,10 +19,9 @@ namespace ValveResourceFormat.Renderer
     /// </summary>
     public static class VertexAttributeLocations
     {
-        private static readonly FrozenDictionary<string, int> ByName;
-        private static readonly FrozenDictionary<(string Semantic, int Index), int> BySemantic;
+        private static readonly (FrozenDictionary<string, int> ByName, FrozenDictionary<(string Semantic, int Index), int> BySemantic) Tables = BuildTables();
 
-        static VertexAttributeLocations()
+        private static (FrozenDictionary<string, int>, FrozenDictionary<(string Semantic, int Index), int>) BuildTables()
         {
             var macros = ShaderParser.ParseVertexLayoutMacros();
 
@@ -71,21 +70,20 @@ namespace ValveResourceFormat.Renderer
                 }
             }
 
-            ByName = byName.ToFrozenDictionary(StringComparer.Ordinal);
-            BySemantic = bySemantic.ToFrozenDictionary();
+            return (byName.ToFrozenDictionary(StringComparer.Ordinal), bySemantic.ToFrozenDictionary());
         }
 
         /// <summary>Resolves a shader attribute name from a material input signature to its canonical
         /// location, or -1 if the name is unknown.</summary>
         /// <param name="attributeName">Shader attribute name, e.g. <c>vTEXCOORD1</c> or <c>vLightmapUV</c>.</param>
         /// <returns>The canonical attribute location, or -1.</returns>
-        public static int Get(string attributeName) => ByName.GetValueOrDefault(attributeName, -1);
+        public static int Get(string attributeName) => Tables.ByName.GetValueOrDefault(attributeName, -1);
 
         /// <summary>Resolves a vertex buffer semantic to its canonical location, or -1 if the semantic
         /// is unknown. This is the fallback when no material input signature name resolves.</summary>
         /// <param name="semanticName">Buffer semantic name, e.g. <c>TEXCOORD</c>.</param>
         /// <param name="semanticIndex">Buffer semantic index.</param>
         /// <returns>The canonical attribute location, or -1.</returns>
-        public static int Get(string semanticName, int semanticIndex) => BySemantic.GetValueOrDefault((semanticName, semanticIndex), -1);
+        public static int Get(string semanticName, int semanticIndex) => Tables.BySemantic.GetValueOrDefault((semanticName, semanticIndex), -1);
     }
 }
