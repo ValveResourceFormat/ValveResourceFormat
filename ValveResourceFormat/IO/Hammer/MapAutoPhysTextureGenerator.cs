@@ -8,7 +8,7 @@ namespace ValveResourceFormat.IO;
 /// <summary>
 /// Generates placeholder textures for auto-generated physics surfaces.
 /// </summary>
-public static class MapAutoPhysTextureGenerator
+internal static class MapAutoPhysTextureGenerator
 {
     /// <summary>
     /// Generates a texture with the surface name for auto physics.
