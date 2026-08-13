@@ -1,3 +1,5 @@
+using ValveResourceFormat.Renderer.Particles.Utils;
+
 namespace ValveResourceFormat.Renderer.Particles.Operators
 {
     /// <summary>
@@ -70,7 +72,7 @@ namespace ValveResourceFormat.Renderer.Particles.Operators
                     ? particle.NormalizedAge
                     : particle.Age;
 
-                var delta = float.SinPi((t * frequency * oscillationMultiplier) + oscillationOffset);
+                var delta = FastTrig.SinPi((t * frequency * oscillationMultiplier) + oscillationOffset);
 
                 var finalScalar = delta * rate * frameTime * strength;
                 particle.SetScalar(outputField, particle.GetScalar(outputField) + finalScalar);
@@ -111,13 +113,13 @@ namespace ValveResourceFormat.Renderer.Particles.Operators
 
         public override void Operate(ParticleCollection particles, float frameTime, ParticleSystemRenderState particleSystemState, float strength)
         {
+            // The frequency scales the whole phase, offset included, and the phase runs off the system
+            // clock rather than particle age, so every particle takes the same delta.
+            var delta = FastTrig.SinPi(frequency * ((oscillationMultiplier * particleSystemState.Age) + oscillationOffset));
+            var finalScalar = delta * (rate * (strength * frameTime));
+
             foreach (ref var particle in particles.Current)
             {
-                // The frequency scales the whole phase, offset included, not just the age term.
-                var delta = float.SinPi(frequency * ((oscillationMultiplier * particle.Age) + oscillationOffset));
-
-                var finalScalar = delta * rate * frameTime;
-
                 var oscillated = particle.GetScalar(outputField) + finalScalar;
                 particle.SetScalar(outputField, Math.Clamp(oscillated, clampMin, clampMax));
             }
