@@ -114,6 +114,10 @@ namespace ValveResourceFormat.Renderer.Shaders
         /// <summary>Gets the mask of attribute locations this program reads, see <see cref="VertexArray"/>.</summary>
         public int RequiredAttributes { get; private set; }
 
+        /// <summary>Gets the mask of those attribute locations declared as an integer type, which have to be
+        /// supplied by an integer format buffer.</summary>
+        public int IntegerAttributes { get; private set; }
+
 #if DEBUG
         /// <summary>Gets the shader file name on disk (debug builds only).</summary>
         public required string FileName { get; init; }
@@ -178,10 +182,11 @@ namespace ValveResourceFormat.Renderer.Shaders
             GL.GetProgram(Program, GetProgramParameterName.ActiveAttributes, out var attributeCount);
 
             RequiredAttributes = 0;
+            IntegerAttributes = 0;
 
             for (var i = 0; i < attributeCount; i++)
             {
-                GL.GetActiveAttrib(Program, i, 64, out _, out _, out _, out var name);
+                GL.GetActiveAttrib(Program, i, 64, out _, out var elements, out var type, out var name);
 
                 var location = GL.GetAttribLocation(Program, name);
 
@@ -198,9 +203,56 @@ namespace ValveResourceFormat.Renderer.Shaders
                         $"Shader '{Name}' has attribute '{name}' at location {location}, but {nameof(VertexAttributeSlot)} puts it at {VertexAttributeLocations.Get(name)}. Its declaration was not stamped, check that it reads 'in <type> {name};'.");
                 }
 
+                // Arrays and matrices take a location per element or column, which the slot table cannot
+                // express, and would silently occupy the slots of whatever is declared after them
+                if (elements > 1 || IsMatrix(type))
+                {
+                    throw new ShaderLoader.ShaderCompilerException(
+                        $"Shader '{Name}' declares attribute '{name}' as {type}[{elements}], which spans several locations. Vertex attributes have to fit one {nameof(VertexAttributeSlot)}.");
+                }
+
                 RequiredAttributes |= 1 << location;
+
+                if (IsInteger(type))
+                {
+                    IntegerAttributes |= 1 << location;
+                }
             }
         }
+
+        /// <summary>Names the attributes this program declares at the given locations, for diagnostics.</summary>
+        /// <param name="locationMask">Bitmask of attribute locations.</param>
+        /// <returns>The names this shader knows them by.</returns>
+        public string DescribeAttributes(int locationMask)
+        {
+            GL.GetProgram(Program, GetProgramParameterName.ActiveAttributes, out var attributeCount);
+
+            var names = new List<string>();
+
+            for (var i = 0; i < attributeCount; i++)
+            {
+                GL.GetActiveAttrib(Program, i, 64, out _, out _, out _, out var name);
+
+                var location = GL.GetAttribLocation(Program, name);
+
+                if (location >= 0 && (locationMask & (1 << location)) != 0)
+                {
+                    names.Add(name);
+                }
+            }
+
+            return string.Join(", ", names);
+        }
+
+        private static bool IsInteger(ActiveAttribType type) => type
+            is ActiveAttribType.Int or ActiveAttribType.IntVec2 or ActiveAttribType.IntVec3 or ActiveAttribType.IntVec4
+            or ActiveAttribType.UnsignedInt or ActiveAttribType.UnsignedIntVec2 or ActiveAttribType.UnsignedIntVec3 or ActiveAttribType.UnsignedIntVec4;
+
+        private static bool IsMatrix(ActiveAttribType type) => type
+            is ActiveAttribType.FloatMat2 or ActiveAttribType.FloatMat3 or ActiveAttribType.FloatMat4
+            or ActiveAttribType.FloatMat2x3 or ActiveAttribType.FloatMat2x4
+            or ActiveAttribType.FloatMat3x2 or ActiveAttribType.FloatMat3x4
+            or ActiveAttribType.FloatMat4x2 or ActiveAttribType.FloatMat4x3;
 
         private unsafe void StoreUniformLocations()
         {

@@ -142,7 +142,6 @@ namespace ValveResourceFormat.Renderer
     {
         private static readonly FrozenDictionary<string, int> SlotByName = BuildSlotByName();
         private static readonly FrozenDictionary<(string Semantic, int Index), int> SlotBySemantic = BuildSlotBySemantic();
-        private static readonly FrozenDictionary<int, string> NamesBySlot = BuildNamesBySlot();
 
         private static readonly FrozenDictionary<int, (string Name, int Index)> SemanticBySlot = SlotBySemantic
             .GroupBy(entry => entry.Value, entry => entry.Key)
@@ -173,31 +172,6 @@ namespace ValveResourceFormat.Renderer
             }
 
             return slotByName.ToFrozenDictionary(StringComparer.Ordinal);
-        }
-
-        /// <summary>Names each slot for diagnostics. A slot several attributes share is named after the mesh
-        /// one, which is the likely reading, with the rest kept as alternatives.</summary>
-        private static FrozenDictionary<int, string> BuildNamesBySlot()
-        {
-            var namesBySlot = new Dictionary<int, List<string>>();
-
-            foreach (var (attribute, slot) in EnumerateSlots())
-            {
-                if (!namesBySlot.TryGetValue(slot, out var names))
-                {
-                    names = namesBySlot[slot] = [];
-                }
-
-                // A buffer semantic means a mesh fills it, so that name leads
-                names.InsertRange(attribute.Semantic != null ? 0 : names.Count, attribute.Names);
-            }
-
-            return namesBySlot.ToFrozenDictionary(entry => entry.Key, entry => entry.Value switch
-            {
-                [var only] => only,
-                [var mesh, .. var alternatives] => $"{mesh} (or {string.Join(", ", alternatives)})",
-                _ => "unnamed",
-            });
         }
 
         private static FrozenDictionary<(string, int), int> BuildSlotBySemantic()
@@ -253,23 +227,5 @@ namespace ValveResourceFormat.Renderer
             => SemanticBySlot.TryGetValue((int)slot, out var semantic)
                 ? semantic
                 : throw new ArgumentException($"'{slot}' has no buffer semantic.", nameof(slot));
-
-        /// <summary>Names the attributes in a location bitmask, for diagnostics.</summary>
-        /// <param name="locationMask">Bitmask of attribute locations.</param>
-        /// <returns>A readable list of attribute names.</returns>
-        public static string DescribeMask(int locationMask)
-        {
-            var names = new List<string>();
-
-            for (var location = 0; locationMask >> location != 0; location++)
-            {
-                if ((locationMask & (1 << location)) != 0)
-                {
-                    names.Add(NamesBySlot.GetValueOrDefault(location, $"location {location}"));
-                }
-            }
-
-            return names.Count > 0 ? string.Join(", ", names) : "no attributes";
-        }
     }
 }

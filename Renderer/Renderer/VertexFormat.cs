@@ -47,9 +47,6 @@ namespace ValveResourceFormat.Renderer
         /// <summary>Gets the size in bytes of a single vertex.</summary>
         public int Stride { get; }
 
-        /// <summary>Gets the bitmask of attribute locations this format binds.</summary>
-        public int BoundLocations { get; }
-
         /// <summary>Initializes a vertex format.</summary>
         /// <param name="stride">Size in bytes of a single vertex.</param>
         /// <param name="elements">The vertex attributes, in buffer order.</param>
@@ -60,6 +57,7 @@ namespace ValveResourceFormat.Renderer
             Stride = stride;
 
             var packedOffset = 0;
+            var boundLocations = 0;
 
             for (var i = 0; i < elements.Length; i++)
             {
@@ -70,8 +68,8 @@ namespace ValveResourceFormat.Renderer
                 packedOffset = offsets[i] + (elementSize * elementCount);
 
                 Debug.Assert(packedOffset <= stride, $"Attribute '{element.Slot}' ends at byte {packedOffset}, past the vertex stride of {stride}.");
-                Debug.Assert((BoundLocations & (1 << (int)element.Slot)) == 0, $"Vertex format binds the slot of '{element.Slot}' twice.");
-                BoundLocations |= 1 << (int)element.Slot;
+                Debug.Assert((boundLocations & (1 << (int)element.Slot)) == 0, $"Vertex format binds the slot of '{element.Slot}' twice.");
+                boundLocations |= 1 << (int)element.Slot;
             }
         }
 
@@ -161,8 +159,6 @@ namespace ValveResourceFormat.Renderer
                 GL.VertexArrayAttribBinding(vao, location, 0);
                 VertexArray.SetAttribFormat(vao, location, elements[i].Format, offsets[i]);
             }
-
-            VertexArray.Record(vao, BoundLocations);
 
 #if DEBUG
             if (debugLabel != null)

@@ -1,54 +1,86 @@
 using System.Diagnostics;
+using System.Runtime.InteropServices;
 using Microsoft.Extensions.Logging;
 using OpenTK.Graphics.OpenGL;
 
 namespace ValveResourceFormat.Renderer
 {
     /// <summary>
-    /// Binds and deletes vertex array objects, and reports in debug builds when a shader reads an attribute
-    /// the VAO it draws with does not bind. Canonical locations let any shader draw any VAO, which also means
-    /// such a shader silently gets the generic attribute value (0, 0, 0, 1) rather than an error.
+    /// Binds and deletes vertex array objects, and reports in debug builds when a shader disagrees with the
+    /// VAO it draws with. Canonical locations let any shader draw any VAO, so nothing else catches an
+    /// attribute the geometry does not have, or one it supplies in the wrong kind of format.
     /// </summary>
     public static class VertexArray
     {
-        private static readonly Dictionary<int, int> BoundByVao = [];
-        private static readonly HashSet<(int Vao, int Program)> Validated = [];
+        /// <summary>What a vertex array object supplies, as bitmasks over attribute locations.</summary>
+        private record struct Supplies(int Locations, int AsInteger);
 
-        /// <summary>Records which locations a newly created vertex array object binds.</summary>
-        /// <param name="vao">The vertex array object.</param>
-        /// <param name="boundLocations">Bitmask of the locations it binds.</param>
-        [Conditional("DEBUG")]
-        public static void Record(int vao, int boundLocations) => BoundByVao[vao] = boundLocations;
+        private static readonly Dictionary<int, Supplies> SuppliesByVao = [];
+        private static readonly HashSet<(int Program, int Missing, int WrongKind)> Reported = [];
 
         /// <summary>Forgets a deleted vertex array object, whose handle OpenGL hands out again.</summary>
         [Conditional("DEBUG")]
-        private static void Forget(int vao)
+        private static void Forget(int vao) => SuppliesByVao.Remove(vao);
+
+        [Conditional("DEBUG")]
+        private static void Record(int vao, int location, bool integer)
         {
-            BoundByVao.Remove(vao);
-            Validated.RemoveWhere(pair => pair.Vao == vao);
+            ref var supplies = ref CollectionsMarshal.GetValueRefOrAddDefault(SuppliesByVao, vao, out _);
+
+            supplies.Locations |= 1 << location;
+
+            if (integer)
+            {
+                supplies.AsInteger |= 1 << location;
+            }
         }
 
-        /// <summary>Logs the attributes <paramref name="shader"/> reads that <paramref name="vao"/> leaves
-        /// unbound. Each shader and VAO pair is checked once.</summary>
+        /// <summary>Logs where <paramref name="shader"/> and <paramref name="vao"/> disagree about the
+        /// attributes being drawn. Reported once per shader and problem, naming the first geometry it was
+        /// seen on, because every mesh drawn with that shader hits the same one.</summary>
         /// <param name="vao">The vertex array object being drawn.</param>
         /// <param name="shader">The shader it is drawn with.</param>
         [Conditional("DEBUG")]
         public static void Validate(int vao, Shader shader)
         {
-            if (!shader.EnsureLoaded()
-            || !BoundByVao.TryGetValue(vao, out var boundLocations)
-            || !Validated.Add((vao, shader.Program)))
+            if (!shader.EnsureLoaded() || !SuppliesByVao.TryGetValue(vao, out var supplies))
             {
                 return;
             }
 
-            var missingIndex = shader.RequiredAttributes & ~boundLocations;
+            var missing = shader.RequiredAttributes & ~supplies.Locations;
 
-            if (missingIndex != 0)
+            // An integer attribute fed through the float path, or the reverse, reads undefined values. Nvidia
+            // patches the shader to cope with it, which shows up as "recompiled based on GL state"
+            var wrongKind = (shader.IntegerAttributes ^ supplies.AsInteger) & shader.RequiredAttributes & supplies.Locations;
+
+            if ((missing | wrongKind) == 0 || !Reported.Add((shader.Program, missing, wrongKind)))
             {
-                var missingAttributeDesc = VertexAttributeLocations.DescribeMask(missingIndex);
-                shader.Logger.LogDebug("Attribute {Attributes} is not bound in shader {ShaderName} (missing from VBIB)", missingAttributeDesc, shader.Name);
+                return;
             }
+
+            var geometry = DescribeVertexArray(vao);
+
+            if (missing != 0)
+            {
+                shader.Logger.LogDebug("Shader {ShaderName} reads {Attributes}, which {Geometry} does not supply",
+                    shader.Name, shader.DescribeAttributes(missing), geometry);
+            }
+
+            if (wrongKind != 0)
+            {
+                shader.Logger.LogDebug("Shader {ShaderName} declares {Attributes} as {Declared}, but {Geometry} supplies {Supplied} data",
+                    shader.Name, shader.DescribeAttributes(wrongKind), (shader.IntegerAttributes & wrongKind) != 0 ? "integer" : "float",
+                    geometry, (supplies.AsInteger & wrongKind) != 0 ? "integer" : "float");
+            }
+        }
+
+        /// <summary>Names a vertex array object by the debug label its geometry was created with.</summary>
+        private static string DescribeVertexArray(int vao)
+        {
+            GL.GetObjectLabel(ObjectLabelIdentifier.VertexArray, vao, 256, out _, out var label);
+
+            return string.IsNullOrEmpty(label) ? $"vertex array {vao}" : label;
         }
 
         /// <summary>Binds a vertex array object for drawing with a shader.</summary>
@@ -95,6 +127,8 @@ namespace ValveResourceFormat.Renderer
                 // :VertexAttributeFormat - When adding new attribute here, also implement it in the VBIB code
                 _ => throw new NotImplementedException($"Unknown vertex attribute format {format} (location {location})"),
             };
+
+            Record(vao, location, integer);
 
             if (integer)
             {

@@ -258,8 +258,6 @@ namespace ValveResourceFormat.Renderer
                 bindingIndex++;
             }
 
-            VertexArray.Record(newVaoHandle, boundLocations);
-
 #if DEBUG
             if (debugLabel != null)
             {
