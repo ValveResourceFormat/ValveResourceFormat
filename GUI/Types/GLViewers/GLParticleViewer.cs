@@ -42,6 +42,7 @@ namespace GUI.Types.GLViewers
 
         private readonly ParticleSystem particleSystem;
         private readonly ParticleSnapshot? particleSnapshot;
+        private IReadOnlyDictionary<string, IReadOnlyList<ParticleUpgradeTrace.TracedFunction>>? functionLists;
         private ParticleSceneNode? particleSceneNode;
         private GLViewerSliderControl? slowmodeTrackBar;
         private ThemedButton? restartButton;
@@ -70,6 +71,10 @@ namespace GUI.Types.GLViewers
             InitializeSoundPlayer();
             LoadDefaultLighting();
             Scene.LightingInfo.UseSceneBoundsForSunLightFrustum = false;
+
+            // Taken before the scene node reads the upgraded tree, so the chain runs once and the
+            // function list describes the tree that is being simulated.
+            functionLists = particleSystem.GetUpgradeTrace();
 
             particleSceneNode = new ParticleSceneNode(Scene, particleSystem, particleSnapshot, true)
             {
@@ -218,11 +223,11 @@ namespace GUI.Types.GLViewers
         {
             Debug.Assert(UiControl != null);
 
-            var functionLists = particleSystem.GetUpgradeTrace();
+            var lists = functionLists ?? particleSystem.GetUpgradeTrace();
 
             foreach (var (title, listName, isSupported) in FunctionGroups)
             {
-                AddFunctionGroup(title, functionLists[listName], isSupported);
+                AddFunctionGroup(title, lists[listName], isSupported);
             }
 
             AddChildList();
