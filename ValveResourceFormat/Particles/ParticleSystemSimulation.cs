@@ -2,6 +2,7 @@ using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 using ValveKeyValue;
 using ValveResourceFormat.Blocks;
 using ValveResourceFormat.IO;
@@ -174,20 +175,21 @@ namespace ValveResourceFormat.Particles
         /// <summary>Builds a runnable system from its definition.</summary>
         /// <param name="particleSystem">The system definition, read through its upgraded tree.</param>
         /// <param name="fileLoader">Resolves the child systems and snapshots the definition names.</param>
-        /// <param name="logger">Receives warnings about classes and fields that are not implemented.</param>
+        /// <param name="logger">Receives warnings about classes and fields that are not implemented. Pass
+        /// nothing to run without any.</param>
         /// <param name="particleSnapshot">A snapshot to publish to the system, when it runs off one.</param>
         /// <param name="parentSystemState">The state of the system running this one as a child.</param>
-        public ParticleSystemSimulation(ParticleSystem particleSystem, IFileLoader fileLoader, ILogger logger, ParticleSnapshot? particleSnapshot = null, ParticleSystemState? parentSystemState = null)
+        public ParticleSystemSimulation(ParticleSystem particleSystem, IFileLoader fileLoader, ILogger? logger = null, ParticleSnapshot? particleSnapshot = null, ParticleSystemState? parentSystemState = null)
         {
             emitParticleAction = EmitParticle;
 
             childSimulations = [];
-            this.logger = logger;
+            this.logger = logger ?? NullLogger.Instance;
             this.fileLoader = fileLoader;
 
             var rootData = particleSystem.GetUpgradedData();
             Definition = rootData;
-            var parse = new ParticleDefinitionParser(rootData, logger);
+            var parse = new ParticleDefinitionParser(rootData, this.logger);
             BehaviorVersion = parse.Int32("m_nBehaviorVersion", 0);
             parse = parse with { BehaviorVersion = BehaviorVersion };
             firstMultipleOverride = parse.Int32("m_nFirstMultipleOverride_BackwardCompat", -1);
