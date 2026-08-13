@@ -16,7 +16,7 @@ namespace ValveResourceFormat.Renderer
         public int VertexCount { get; private set; }
 
         private readonly int vboHandle;
-        private readonly RenderVao vao;
+        private readonly int vao;
 
         /// <summary>Creates the GL objects and binds the default shader layout.</summary>
         public LineBuffer(RendererContext rendererContext, string label)
@@ -25,7 +25,7 @@ namespace ValveResourceFormat.Renderer
 
             GL.CreateBuffers(1, out vboHandle);
 
-            vao = new RenderVao(rendererContext.MeshBufferCache, label, vboHandle, SimpleVertex.SizeInBytes, SimpleVertex.InputLayout);
+            vao = SimpleVertex.Format.CreateVertexArray(label, vboHandle);
 
 #if DEBUG
             GL.ObjectLabel(ObjectLabelIdentifier.Buffer, vboHandle, label.Length, label);
@@ -57,14 +57,14 @@ namespace ValveResourceFormat.Renderer
         /// <param name="objectId">Object id used as instancing base for picking.</param>
         public void Draw(uint objectId = 0)
         {
-            GL.BindVertexArray(vao.Get());
+            VertexArray.Bind(vao, Shader);
             GL.DrawArraysInstancedBaseInstance(PrimitiveType.Lines, 0, VertexCount, 1, objectId);
         }
 
         /// <summary>Deletes the GL objects.</summary>
         public void Delete()
         {
-            vao.Delete();
+            VertexArray.Delete(vao);
             GL.DeleteBuffer(vboHandle);
         }
     }

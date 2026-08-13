@@ -51,8 +51,8 @@ namespace ValveResourceFormat.Renderer
         /// <summary>Gets or sets the name of the mesh this draw call belongs to.</summary>
         public string MeshName { get; set; } = string.Empty;
 
-        /// <summary>Vertex array state for this draw call's geometry. Created lazily; owned by <see cref="MeshBuffers"/>.</summary>
-        private RenderVao? vao;
+        /// <summary>VAO for this draw call's geometry. Created lazily; owned by <see cref="MeshBuffers"/>.</summary>
+        private int vao;
 
         /// <summary>Gets the vertex buffer bindings used by this draw call.</summary>
         public required VertexDrawBuffer[] VertexBuffers { get; init; }
@@ -84,21 +84,23 @@ namespace ValveResourceFormat.Renderer
             UpdateVertexArrayObject();
         }
 
-        /// <summary>Returns the VAO for this draw call, creating it if necessary. Attribute locations
-        /// are canonical, so the same VAO serves the material shader and every replacement shader
-        /// (depth only, outline, picking).</summary>
+        /// <summary>Returns the VAO for this draw call, creating it if necessary. Locations are canonical,
+        /// so it serves the material shader and every replacement shader (depth only, outline, picking).</summary>
         /// <returns>The OpenGL VAO handle.</returns>
         public int GetVertexArrayObject()
         {
-            vao ??= new RenderVao(MeshBuffers, VertexBuffers, IndexBuffer.Handle, Material.Material.InputSignature, MeshName);
-            return vao.Get();
+            if (vao == 0)
+            {
+                vao = MeshBuffers.GetVertexArrayObject(VertexBuffers, Material.Material.InputSignature, IndexBuffer.Handle, MeshName);
+            }
+
+            return vao;
         }
 
-        /// <summary>Resets the vertex array state and recreates the VAO, picking up the new material's
-        /// input signature.</summary>
+        /// <summary>Recreates the VAO, picking up the new material's input signature.</summary>
         public void UpdateVertexArrayObject()
         {
-            vao = null;
+            vao = 0;
             GetVertexArrayObject();
         }
     }

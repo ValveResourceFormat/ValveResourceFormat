@@ -8,48 +8,41 @@ using ValveResourceFormat.Blocks;
 namespace ValveResourceFormat.Renderer
 {
     /// <summary>
-    /// Marks a vertex struct field as a shader vertex attribute, naming the shader input it feeds.
-    ///
-    /// Use <see cref="VertexFormat.FromStruct{TVertex}"/> to automatically derive field types, offsets and stride from the struct.
+    /// Marks a vertex struct field as the shader input bound to a <see cref="VertexAttributeSlot"/>. The
+    /// buffer format follows from the field type, see <see cref="VertexFormat.FromStruct{TVertex}"/>.
     /// </summary>
-    /// <param name="name">Shader input name, e.g. <c>vPOSITION</c>. Must be named by a <see cref="VertexAttributeSlot"/>.</param>
+    /// <param name="slot">The attribute this field feeds.</param>
     [AttributeUsage(AttributeTargets.Field)]
-    public sealed class VertexAttributeAttribute(string name) : Attribute
+    public sealed class VertexAttributeAttribute(VertexAttributeSlot slot) : Attribute
     {
-        /// <summary>Gets the shader input name.</summary>
-        public string Name { get; } = name;
+        /// <summary>Gets the attribute this field feeds.</summary>
+        public VertexAttributeSlot Slot { get; } = slot;
     }
 
     /// <summary>
     /// One attribute of a <see cref="VertexFormat"/>.
     /// </summary>
-    /// <param name="Name">Shader input name, e.g. <c>vPOSITION</c>. Its location comes from the
-    /// <see cref="VertexAttributeSlot"/> naming it, the same table the shaders are stamped from.</param>
-    /// <param name="Format">Data format of the attribute in the vertex buffer, in the same
-    /// <see cref="DXGI_FORMAT"/> vocabulary game mesh layouts use.</param>
+    /// <param name="Slot">The attribute this element feeds, which is also its shader location.</param>
+    /// <param name="Format">Data format in the vertex buffer, in the <see cref="DXGI_FORMAT"/> vocabulary
+    /// game mesh layouts use.</param>
     /// <param name="OffsetInBytes">Explicit byte offset within a vertex, or -1 to pack in order.</param>
-    public readonly record struct VertexAttribute(string Name, DXGI_FORMAT Format, int OffsetInBytes = -1);
+    public readonly record struct VertexAttribute(VertexAttributeSlot Slot, DXGI_FORMAT Format, int OffsetInBytes = -1);
 
     /// <summary>
-    /// Describes the interleaved vertex layout of handbuilt geometry or special renderers.
-    ///
-    /// Each element is located by name through <see cref="VertexAttributeLocations"/>, the same table
-    /// <see cref="ShaderParser"/> stamps the shader's <c>in</c> declarations from, so the two cannot disagree.
-    ///
-    /// Element order is buffer order, offsets pack in declaration order unless given explicitly.
-    ///
-    /// Mesh geometry with arbitrary gamedata layouts instead resolves buffer semantics through the same
-    /// table, in <see cref="GPUMeshBufferCache"/>.
-    ///
+    /// Interleaved vertex layout of handbuilt geometry. Element order is buffer order, and offsets pack in
+    /// declaration order unless given explicitly. Game meshes instead resolve their buffer semantics through
+    /// <see cref="VertexAttributeLocations"/> in <see cref="GPUMeshBufferCache"/>.
     /// </summary>
     public sealed class VertexFormat
     {
         private readonly VertexAttribute[] elements;
         private readonly int[] offsets;
-        private readonly int[] locations;
 
         /// <summary>Gets the size in bytes of a single vertex.</summary>
         public int Stride { get; }
+
+        /// <summary>Gets the bitmask of attribute locations this format binds.</summary>
+        public int BoundLocations { get; }
 
         /// <summary>Initializes a vertex format.</summary>
         /// <param name="stride">Size in bytes of a single vertex.</param>
@@ -58,37 +51,27 @@ namespace ValveResourceFormat.Renderer
         {
             this.elements = elements;
             offsets = new int[elements.Length];
-            locations = new int[elements.Length];
             Stride = stride;
 
             var packedOffset = 0;
-            var usedLocations = 0;
 
             for (var i = 0; i < elements.Length; i++)
             {
                 var element = elements[i];
-                var (elementSize, elementCount) = VBIB.GetFormatInfo(element.Format, element.Name);
+                var (elementSize, elementCount) = VBIB.GetFormatInfo(element.Format, element.Slot.ToString());
 
                 offsets[i] = element.OffsetInBytes >= 0 ? element.OffsetInBytes : packedOffset;
                 packedOffset = offsets[i] + (elementSize * elementCount);
-                locations[i] = VertexAttributeLocations.Get(element.Name);
 
-                if (locations[i] == -1)
-                {
-                    throw new ArgumentException($"Attribute '{element.Name}' is not named by any {nameof(VertexAttributeSlot)}.", nameof(elements));
-                }
-
-                Debug.Assert(packedOffset <= stride, $"Attribute '{element.Name}' ends at byte {packedOffset}, past the vertex stride of {stride}.");
-                Debug.Assert((usedLocations & (1 << locations[i])) == 0, $"Vertex format uses location {locations[i]} twice, for '{element.Name}' and an attribute sharing its slot.");
-                usedLocations |= 1 << locations[i];
+                Debug.Assert(packedOffset <= stride, $"Attribute '{element.Slot}' ends at byte {packedOffset}, past the vertex stride of {stride}.");
+                Debug.Assert((BoundLocations & (1 << (int)element.Slot)) == 0, $"Vertex format binds the slot of '{element.Slot}' twice.");
+                BoundLocations |= 1 << (int)element.Slot;
             }
         }
 
         /// <summary>
-        ///
-        /// Builds the format of a vertex struct whose fields carry <see cref="VertexAttributeAttribute"/>.
-        ///
-        /// This is the recommended way to build vertex formats, as it makes the struct be the single source of truth.
+        /// Builds the format of a vertex struct whose fields carry <see cref="VertexAttributeAttribute"/>,
+        /// deriving formats, offsets and stride from the struct itself.
         /// </summary>
         /// <typeparam name="TVertex">The vertex struct.</typeparam>
         /// <returns>The vertex format.</returns>
@@ -103,7 +86,7 @@ namespace ValveResourceFormat.Renderer
                     continue;
                 }
 
-                elements.Add(new VertexAttribute(attribute.Name, FormatForType(field.FieldType), (int)Marshal.OffsetOf<TVertex>(field.Name)));
+                elements.Add(new VertexAttribute(attribute.Slot, FormatForType(field.FieldType), (int)Marshal.OffsetOf<TVertex>(field.Name)));
             }
 
             return new VertexFormat(Marshal.SizeOf<TVertex>(), [.. elements]);
@@ -144,21 +127,29 @@ namespace ValveResourceFormat.Renderer
             throw new NotImplementedException($"No vertex attribute format mapping for field type {fieldType.Name}");
         }
 
-        /// <summary>
-        ///
-        /// Creates a VAO binding one interleaved vertex buffer with this format.
-        ///
-        /// Debug builds verify that <paramref name="shader"/> inputs match this format by name and location.</summary>
-        /// 
+        /// <summary>Describes this format as vertex buffer input layout fields, for geometry uploaded as a
+        /// <see cref="VBIB"/> through <see cref="GPUMeshBufferCache"/>.</summary>
+        /// <returns>The input layout fields, in buffer order.</returns>
+        public VBIB.RenderInputLayoutField[] ToInputLayout()
+        {
+            var fields = new VBIB.RenderInputLayoutField[elements.Length];
+
+            for (var i = 0; i < elements.Length; i++)
+            {
+                var (name, index) = VertexAttributeLocations.GetSemantic(elements[i].Slot);
+                fields[i] = new VBIB.RenderInputLayoutField(name, elements[i].Format, (uint)offsets[i]) { SemanticIndex = index };
+            }
+
+            return fields;
+        }
+
+        /// <summary>Creates a VAO binding one interleaved vertex buffer with this format.</summary>
         /// <param name="debugLabel">Label applied to the VAO in debug builds.</param>
-        /// <param name="shader">The shader family this format's geometry is drawn with.</param>
         /// <param name="vertexBuffer">OpenGL handle of the vertex buffer.</param>
         /// <param name="indexBuffer">OpenGL handle of the index buffer, or 0 for non-indexed geometry.</param>
         /// <returns>The OpenGL VAO handle.</returns>
-        public int CreateVertexArray(string? debugLabel, Shader shader, int vertexBuffer, int indexBuffer = 0)
+        public int CreateVertexArray(string? debugLabel, int vertexBuffer, int indexBuffer = 0)
         {
-            ValidateMatches(shader);
-
             GL.CreateVertexArrays(1, out int vao);
 
             if (indexBuffer != 0)
@@ -170,10 +161,14 @@ namespace ValveResourceFormat.Renderer
 
             for (var i = 0; i < elements.Length; i++)
             {
-                GL.EnableVertexArrayAttrib(vao, locations[i]);
-                GL.VertexArrayAttribBinding(vao, locations[i], 0);
-                SetVertexArrayAttribFormat(vao, locations[i], elements[i].Format, offsets[i]);
+                var location = (int)elements[i].Slot;
+
+                GL.EnableVertexArrayAttrib(vao, location);
+                GL.VertexArrayAttribBinding(vao, location, 0);
+                SetVertexArrayAttribFormat(vao, location, elements[i].Format, offsets[i]);
             }
+
+            VertexArray.Record(vao, BoundLocations);
 
 #if DEBUG
             if (debugLabel != null)
@@ -186,47 +181,9 @@ namespace ValveResourceFormat.Renderer
         }
 
         /// <summary>
-        ///
-        /// Debug check that every attribute the shader actually reads exists in this format
-        /// with the same name and location.
-        ///
-        /// Attributes the driver eliminated (e.g. behind a disabled combo) are simply absent from the active list and stay unchecked.</summary>
-        /// <param name="shader">The linked shader this format's geometry is drawn with.</param>
-        [Conditional("DEBUG")]
-        private void ValidateMatches(Shader shader)
-        {
-            if (!shader.EnsureLoaded())
-            {
-                return;
-            }
-
-            GL.GetProgram(shader.Program, GetProgramParameterName.ActiveAttributes, out var attributeCount);
-
-            for (var i = 0; i < attributeCount; i++)
-            {
-                GL.GetActiveAttrib(shader.Program, i, 64, out _, out _, out _, out var name);
-
-                if (name.StartsWith("gl_", StringComparison.Ordinal))
-                {
-                    continue;
-                }
-
-                var location = GL.GetAttribLocation(shader.Program, name);
-                var index = Array.FindIndex(elements, e => e.Name == name);
-
-                Debug.Assert(index >= 0,
-                    $"Shader '{shader.Name}' reads attribute '{name}' which is not an element of the vertex format.");
-                Debug.Assert(index < 0 || locations[index] == location,
-                    $"Shader '{shader.Name}' attribute '{name}' is at location {location}, but the vertex format resolved it to {locations[index]}.");
-            }
-        }
-
-        /// <summary>
-        ///
-        /// Sets one VAO attribute's data format, mapping the <see cref="DXGI_FORMAT"/> to the appropriate float or integer GL attribute format.
-        ///
-        /// Shared between handbuilt formats and the gamemesh path in <see cref="GPUMeshBufferCache"/>.</summary>
-        /// 
+        /// Sets one VAO attribute's data format, mapping the <see cref="DXGI_FORMAT"/> to the matching float
+        /// or integer GL attribute format. Shared with the game mesh path in <see cref="GPUMeshBufferCache"/>.
+        /// </summary>
         /// <param name="vao">The OpenGL VAO handle.</param>
         /// <param name="location">Attribute location.</param>
         /// <param name="format">Data format of the attribute.</param>
@@ -304,6 +261,5 @@ namespace ValveResourceFormat.Renderer
                     throw new NotImplementedException($"Unknown vertex attribute format {format} (location {location})");
             }
         }
-
     }
 }

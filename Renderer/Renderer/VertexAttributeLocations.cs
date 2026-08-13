@@ -4,18 +4,16 @@ using System.Reflection;
 
 namespace ValveResourceFormat.Renderer
 {
-    /// <summary>Names the shader inputs bound to a <see cref="VertexAttributeSlot"/>, and optionally the
-    /// vertex buffer semantics that resolve to it. Several names may share a slot when no shader variant
-    /// can declare both, the same way <see cref="Materials.ReservedTextureSlots"/> shares texture units.</summary>
-    /// <param name="names">Shader input names bound to this slot, e.g. <c>vTEXCOORD1</c>.</param>
+    /// <summary>Names the shader inputs bound to a <see cref="VertexAttributeSlot"/>, and the buffer
+    /// semantics that resolve to it.</summary>
+    /// <param name="names">Shader input names, e.g. <c>vTEXCOORD1</c>.</param>
     [AttributeUsage(AttributeTargets.Field)]
     public sealed class VertexAttributeNameAttribute(params string[] names) : Attribute
     {
-        /// <summary>Gets the shader input names bound to this slot.</summary>
+        /// <summary>Gets the shader input names.</summary>
         public IReadOnlyList<string> Names { get; } = names;
 
-        /// <summary>Gets the vertex buffer semantic names that resolve to this slot, e.g. <c>TEXCOORD</c>.
-        /// Empty for attributes that only exist under a shader name, such as <c>vLightmapUV</c>.</summary>
+        /// <summary>Gets the buffer semantic names resolving to this slot, if any.</summary>
         public string[] Semantics { get; init; } = [];
 
         /// <summary>Gets the semantic index <see cref="Semantics"/> resolve at.</summary>
@@ -23,22 +21,16 @@ namespace ValveResourceFormat.Renderer
     }
 
     /// <summary>
-    /// Canonical vertex attribute locations, shared by every shader.
+    /// Canonical vertex attribute locations, fixed per attribute name so that one vertex array object is
+    /// valid for every shader drawing the geometry, and the renderer never has to ask the driver which slot
+    /// it picked. <see cref="ShaderParser"/> stamps these onto the shader's <c>in</c> declarations.
     ///
-    /// A slot is fixed per attribute name, so a vertex array object built for a mesh is valid for any shader
-    /// that draws it (material, depth-only, picking, outline), and the renderer never has to ask the driver
-    /// which slot it picked. <see cref="Shaders.ShaderParser"/> stamps these numbers onto the shader's
-    /// <c>in</c> declarations while preprocessing, so the shaders cannot drift from this table.
-    ///
-    /// OpenGL only guarantees 16 slots, and the mesh attributes below take all of them. Anything else shares
-    /// a slot with an attribute it can never be declared next to, which the GLSL compiler enforces per
-    /// variant as a duplicate location error. One-off attributes belonging to a single renderer are always
-    /// aliases, never slots of their own.
+    /// OpenGL only guarantees 16 slots and the mesh attributes take all of them, so anything else aliases a
+    /// slot it can never be declared next to, which the GLSL compiler enforces per variant.
     /// </summary>
     public enum VertexAttributeSlot
     {
-        /// <summary>Vertex position. Depth-only and picking read slots 0-3 and nothing else, so the
-        /// attributes they need come first.</summary>
+        /// <summary>Vertex position. Depth-only and picking read nothing above slot 3.</summary>
         [VertexAttributeName("vPOSITION", Semantics = ["POSITION"])]
         Position = 0,
 
@@ -78,7 +70,7 @@ namespace ValveResourceFormat.Renderer
         [VertexAttributeName("vTEXCOORD1", Semantics = ["TEXCOORD"], SemanticIndex = 1)]
         TexCoord1,
 
-        /// <summary>Blend weights for the layered material shaders.</summary>
+        /// <summary>Layer blend weights.</summary>
         [VertexAttributeName("vTEXCOORD2", Semantics = ["TEXCOORD"], SemanticIndex = 2)]
         TexCoord2,
 
@@ -94,8 +86,8 @@ namespace ValveResourceFormat.Renderer
         [VertexAttributeName("vTEXCOORD5", Semantics = ["TEXCOORD"], SemanticIndex = 5)]
         TexCoord5,
 
-        /// <summary>Lightmap coordinates. Baked at map compile time, so it carries no buffer semantic and
-        /// only ever resolves through the material input signature.</summary>
+        /// <summary>Lightmap coordinates. Baked at map compile time, so it has no buffer semantic and only
+        /// ever resolves through the material input signature.</summary>
         [VertexAttributeName("vLightmapUV", "vLightmapUVW")]
         LightmapUV,
 
@@ -103,8 +95,7 @@ namespace ValveResourceFormat.Renderer
         [VertexAttributeName("vCOLOR1", "vPerVertexLighting", Semantics = ["COLOR"], SemanticIndex = 1)]
         Color1,
 
-        ///////// Aliases /////////
-        // Attributes belonging to one renderer, sharing the slot of a mesh attribute that renderer never declares.
+        // One-off attributes of a single renderer, sharing the slot of a mesh attribute it never declares.
 
         /// <summary>Bomb damage quad phase. Those quads are never skinned.</summary>
         [VertexAttributeName("vPHASE", Semantics = ["PHASE"])]
@@ -114,46 +105,13 @@ namespace ValveResourceFormat.Renderer
         [VertexAttributeName("vDEPTH")]
         TextDepth = BlendIndices,
 
-        /// <summary>Particle sprite animation frame blend. Particles are never skinned.</summary>
+        /// <summary>Particle sprite sheet frame blend. Particles are never skinned.</summary>
         [VertexAttributeName("vFrameBlend")]
         FrameBlend = BlendWeight,
-
-        /// <summary>Particle sprite sheet layer coordinates.</summary>
-        [VertexAttributeName("vLayerUv0")]
-        LayerUv0 = BlendIndices,
-
-        /// <summary>Particle sprite sheet layer coordinates.</summary>
-        [VertexAttributeName("vLayerUv1")]
-        LayerUv1 = BlendIndices2,
-
-        /// <summary>Particle sprite sheet layer coordinates.</summary>
-        [VertexAttributeName("vLayerUv2")]
-        LayerUv2 = BlendWeight2,
-
-        /// <summary>Particle sprite sheet layer coordinates.</summary>
-        [VertexAttributeName("vLayerUv3")]
-        LayerUv3 = Normal,
-
-        /// <summary>Morph composite rect position and weights. The composite pass draws rects, not meshes.</summary>
-        [VertexAttributeName("vPositionWeights")]
-        MorphPositionWeights = Position,
-
-        /// <summary>Morph composite rect texture coordinates.</summary>
-        [VertexAttributeName("vTexCoords")]
-        MorphTexCoords = TexCoord,
-
-        /// <summary>Morph composite rect offsets.</summary>
-        [VertexAttributeName("vOffsetsPositionSpeed")]
-        MorphOffsets = BlendIndices,
-
-        /// <summary>Morph composite rect ranges.</summary>
-        [VertexAttributeName("vRangesPositionSpeed")]
-        MorphRanges = BlendWeight,
     }
 
     /// <summary>
-    /// Resolves shader input names and vertex buffer semantics to the <see cref="VertexAttributeSlot"/> they
-    /// are bound to.
+    /// Resolves shader input names and buffer semantics to their <see cref="VertexAttributeSlot"/>.
     /// </summary>
     public static class VertexAttributeLocations
     {
@@ -162,6 +120,10 @@ namespace ValveResourceFormat.Renderer
         private static readonly FrozenDictionary<int, string> NamesBySlot = SlotByName
             .GroupBy(entry => entry.Value, entry => entry.Key)
             .ToFrozenDictionary(group => group.Key, group => string.Join('/', group));
+
+        private static readonly FrozenDictionary<int, (string Name, int Index)> SemanticBySlot = SlotBySemantic
+            .GroupBy(entry => entry.Value, entry => entry.Key)
+            .ToFrozenDictionary(group => group.Key, group => group.First());
 
         private static IEnumerable<(VertexAttributeNameAttribute Attribute, int Slot)> EnumerateSlots()
         {
@@ -205,21 +167,28 @@ namespace ValveResourceFormat.Renderer
             return slotBySemantic.ToFrozenDictionary();
         }
 
-        /// <summary>Resolves a shader input name, such as one from a material input signature, to its
-        /// canonical location.</summary>
-        /// <param name="attributeName">Shader input name, e.g. <c>vTEXCOORD1</c> or <c>vLightmapUV</c>.</param>
-        /// <returns>The canonical attribute location, or -1 if the name is unknown.</returns>
+        /// <summary>Resolves a shader input name to its location, or -1 if unknown.</summary>
+        /// <param name="attributeName">Shader input name, e.g. <c>vTEXCOORD1</c>.</param>
+        /// <returns>The attribute location, or -1.</returns>
         public static int Get(string attributeName) => SlotByName.GetValueOrDefault(attributeName, -1);
 
-        /// <summary>Resolves a vertex buffer semantic to its canonical location. This is the fallback when
-        /// no material input signature name resolves.</summary>
+        /// <summary>Resolves a buffer semantic to its location, or -1 if unknown. The fallback when no
+        /// material input signature name resolves.</summary>
         /// <param name="semanticName">Buffer semantic name, e.g. <c>TEXCOORD</c>.</param>
         /// <param name="semanticIndex">Buffer semantic index.</param>
-        /// <returns>The canonical attribute location, or -1 if the semantic is unknown.</returns>
+        /// <returns>The attribute location, or -1.</returns>
         public static int Get(string semanticName, int semanticIndex) => SlotBySemantic.GetValueOrDefault((semanticName, semanticIndex), -1);
 
-        /// <summary>Names the attributes in a location bitmask, for diagnostics. Slots shared by several
-        /// names list all of them, since a bitmask cannot say which one was meant.</summary>
+        /// <summary>Returns the buffer semantic a location is filled from, for describing handbuilt geometry
+        /// as a vertex buffer layout.</summary>
+        /// <param name="slot">The attribute.</param>
+        /// <returns>The semantic name and index.</returns>
+        public static (string Name, int Index) GetSemantic(VertexAttributeSlot slot)
+            => SemanticBySlot.TryGetValue((int)slot, out var semantic)
+                ? semantic
+                : throw new ArgumentException($"'{slot}' has no buffer semantic.", nameof(slot));
+
+        /// <summary>Names the attributes in a location bitmask, for diagnostics.</summary>
         /// <param name="locationMask">Bitmask of attribute locations.</param>
         /// <returns>A readable list of attribute names.</returns>
         public static string DescribeMask(int locationMask)
