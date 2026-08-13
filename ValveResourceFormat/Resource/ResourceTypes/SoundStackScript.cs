@@ -29,22 +29,11 @@ namespace ValveResourceFormat.ResourceTypes
             }
 
             var count = reader.ReadInt32();
-            var offset = reader.BaseStream.Position;
 
             for (var i = 0; i < count; i++)
             {
-                var offsetToName = offset + reader.ReadInt32();
-                offset += 4;
-                var offsetToValue = offset + reader.ReadInt32();
-                offset += 4;
-
-                reader.BaseStream.Position = offsetToName;
-                var name = reader.ReadNullTermString(Encoding.UTF8);
-
-                reader.BaseStream.Position = offsetToValue;
-                var value = reader.ReadNullTermString(Encoding.UTF8);
-
-                reader.BaseStream.Position = offset;
+                var name = reader.ReadOffsetString(Encoding.UTF8);
+                var value = reader.ReadOffsetString(Encoding.UTF8);
 
                 // Valve have duplicates, assume last is correct?
                 SoundStackScriptValue.Remove(name);

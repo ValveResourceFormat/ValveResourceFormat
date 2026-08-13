@@ -75,14 +75,7 @@ namespace ValveResourceFormat.ResourceTypes
 
                 for (var i = 0; i < count; i++)
                 {
-                    var returnOffset = reader.BaseStream.Position;
-                    var stringOffset = reader.ReadInt32();
-                    reader.BaseStream.Position = returnOffset + stringOffset;
-
-                    var value = reader.ReadNullTermString(Encoding.UTF8);
-                    strings.Add(value);
-
-                    reader.BaseStream.Position = returnOffset + 4;
+                    strings.Add(reader.ReadOffsetString(Encoding.UTF8));
                 }
 
                 reader.BaseStream.Position = originalOffset + 8;
