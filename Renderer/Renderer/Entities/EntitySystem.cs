@@ -60,7 +60,7 @@ public sealed class EntitySystem
     /// the ticks stop, so nothing thinks, moves, touches, or fires entity I/O. What is already spawned
     /// stays in the scene and stays drawn.
     /// </summary>
-    public bool Enabled { get; set; }
+    public bool Enabled { get; set; } = true;
 
     /// <summary>Gets the player, once one has been spawned into this world.</summary>
     public PlayerEntity? Player { get; private set; }
