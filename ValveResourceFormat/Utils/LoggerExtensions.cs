@@ -1,7 +1,7 @@
 using System.Threading;
 using Microsoft.Extensions.Logging;
 
-namespace ValveResourceFormat.Renderer;
+namespace ValveResourceFormat.Utils;
 
 /// <summary>
 /// Logging helpers shared across the renderer.
