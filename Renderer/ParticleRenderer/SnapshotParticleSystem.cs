@@ -3,7 +3,7 @@ using ValveKeyValue;
 using ValveResourceFormat.Blocks;
 using ValveResourceFormat.Renderer.SceneNodes;
 using ValveResourceFormat.ResourceTypes;
-using ValveResourceFormat.ResourceTypes.ParticleUpgrade;
+using ValveResourceFormat.Particles.Upgrade;
 
 namespace ValveResourceFormat.Renderer.Particles
 {
