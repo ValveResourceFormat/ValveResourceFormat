@@ -1,0 +1,22 @@
+VTEX Version = 1
+Width        = 256
+Height       = 256
+Depth        = 1
+DisplayRectW = 256
+DisplayRectH = 170
+MotionVecMax = 0
+RangeMin     = ( 0.000000, 0.000000, 0.000000, 0.000000 )
+RangeMax     = ( 0.000000, 0.000000, 0.000000, 0.000000 )
+Reflectivity = ( 0.566779, 0.511462, 0.086572, 0.436277 )
+NumMipLevels = 1
+Picmip0Res   = 0
+Format       = 2 (VTEX_FORMAT_DXT5)
+Flags        = 0x0000000F
+             | 0x00000001 = VTEX_FLAG_SUGGEST_CLAMPS
+             | 0x00000002 = VTEX_FLAG_SUGGEST_CLAMPT
+             | 0x00000004 = VTEX_FLAG_SUGGEST_CLAMPU
+             | 0x00000008 = VTEX_FLAG_NO_LOD
+Extra Data   = 2 entries:
+               [ Entry 0: VTEX_EXTRA_DATA_FALLBACK_BITS - 1024 bytes ]
+               [ Entry 1: VTEX_EXTRA_DATA_METADATA - 128 bytes ]
+Mip level 0 - buffer size: 65536

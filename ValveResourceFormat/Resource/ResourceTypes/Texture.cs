@@ -192,6 +192,10 @@ namespace ValveResourceFormat.ResourceTypes
             VTexFormat.ETC2_EAC => 16,
             VTexFormat.BGRA8888 => 4,
             VTexFormat.ATI1N => 8,
+            // TODO: ATI2N and RG11_EAC (16 bytes per 4x4 block) and R11_EAC (8 bytes per block) are
+            // block-compressed but fall through to 1 here, so their mip sizes are calculated as
+            // 1 byte per pixel with no block rounding. CalculateBufferSizeForMipLevel must also
+            // treat them as block-compressed.
             _ => 1,
         };
 
@@ -242,7 +246,7 @@ namespace ValveResourceFormat.ResourceTypes
         public byte NumMipLevels { get; private set; }
 
         /// <summary>
-        /// Gets the picmip 0 resolution value.
+        /// Gets the picmip 0 resolution value. Unused, always 0 in modern files.
         /// </summary>
         public uint Picmip0Res { get; private set; }
 
@@ -252,14 +256,34 @@ namespace ValveResourceFormat.ResourceTypes
         public Dictionary<VTexExtraData, byte[]> ExtraData { get; private set; }
 
         /// <summary>
-        /// Gets the non-power-of-2 width value, if different from the main width.
+        /// Gets the width of the sub-rect of the texture that should actually be displayed.
+        /// Zero when it does not fit within <see cref="Width"/>.
         /// </summary>
-        public ushort NonPow2Width { get; private set; }
+        public ushort DisplayRectWidth { get; private set; }
 
         /// <summary>
-        /// Gets the non-power-of-2 height value, if different from the main height.
+        /// Gets the height of the sub-rect of the texture that should actually be displayed.
+        /// Zero when it does not fit within <see cref="Height"/>.
         /// </summary>
-        public ushort NonPow2Height { get; private set; }
+        public ushort DisplayRectHeight { get; private set; }
+
+        /// <summary>
+        /// Gets the maximum distance in pixels that a motion vector texture may displace per frame.
+        /// Zero for regular textures.
+        /// </summary>
+        public short MotionVectorsMaxDistance { get; private set; }
+
+        /// <summary>
+        /// Gets the lower bound of the value range each channel was remapped from, only used by
+        /// textures that store range compressed data such as spherical harmonics.
+        /// </summary>
+        public Vector4 RangeMin { get; private set; }
+
+        /// <summary>
+        /// Gets the upper bound of the value range each channel was remapped from, only used by
+        /// textures that store range compressed data such as spherical harmonics.
+        /// </summary>
+        public Vector4 RangeMax { get; private set; }
 
         private int[]? CompressedMips;
         private bool IsActuallyCompressedMips;
@@ -272,18 +296,18 @@ namespace ValveResourceFormat.ResourceTypes
         public float[]? RadianceCoefficients { get; private set; }
 
         /// <summary>
-        /// Gets the actual width of the texture, using <see cref="NonPow2Width"/> if available and valid, otherwise <see cref="Width"/>.
+        /// Gets the actual width of the texture, using <see cref="DisplayRectWidth"/> if available and valid, otherwise <see cref="Width"/>.
         /// Some textures have displayrect set to 1x1, but that's not the expected size.
         /// If it's set to 1x1, but the real size does not expand to 4x4 (the usual block compression size), it's ignored.
         /// </summary>
-        public ushort ActualWidth => NonPow2Width > 0 && (NonPow2Width != 1 || Width == 4) ? NonPow2Width : Width;
+        public ushort ActualWidth => DisplayRectWidth > 0 && (DisplayRectWidth != 1 || Width == 4) ? DisplayRectWidth : Width;
 
         /// <summary>
-        /// Gets the actual height of the texture, using <see cref="NonPow2Height"/> if available and valid, otherwise <see cref="Height"/>.
+        /// Gets the actual height of the texture, using <see cref="DisplayRectHeight"/> if available and valid, otherwise <see cref="Height"/>.
         /// Some textures have displayrect set to 1x1, but that's not the expected size.
         /// If it's set to 1x1, but the real size does not expand to 4x4 (the usual block compression size), it's ignored.
         /// </summary>
-        public ushort ActualHeight => NonPow2Height > 0 && (NonPow2Height != 1 || Height == 4) ? NonPow2Height : Height;
+        public ushort ActualHeight => DisplayRectHeight > 0 && (DisplayRectHeight != 1 || Height == 4) ? DisplayRectHeight : Height;
 
         /// <summary>
         /// Initializes a new instance of the <see cref="Texture"/> class.
@@ -316,8 +340,6 @@ namespace ValveResourceFormat.ResourceTypes
             Width = reader.ReadUInt16();
             Height = reader.ReadUInt16();
             Depth = reader.ReadUInt16();
-            NonPow2Width = 0;
-            NonPow2Height = 0;
             Format = (VTexFormat)reader.ReadByte();
             NumMipLevels = reader.ReadByte();
             Picmip0Res = reader.ReadUInt32();
@@ -345,21 +367,34 @@ namespace ValveResourceFormat.ResourceTypes
 
                     if (type == VTexExtraData.METADATA)
                     {
-                        reader.ReadUInt16();
-                        var nw = reader.ReadUInt16();
-                        var nh = reader.ReadUInt16();
-                        if (nw > 0 && nh > 0 && Width >= nw && Height >= nh)
+                        // This block is the on-disk tail of the engine's texture description, always padded to 128 bytes.
+                        reader.ReadUInt16(); // Always zero in every file we have seen
+
+                        var displayRectWidth = reader.ReadUInt16();
+                        var displayRectHeight = reader.ReadUInt16();
+                        MotionVectorsMaxDistance = reader.ReadInt16();
+
+                        // The display rect is authored against the source image, so it can exceed the compiled size
+                        if (displayRectWidth > 0 && displayRectHeight > 0 && Width >= displayRectWidth && Height >= displayRectHeight)
                         {
-                            NonPow2Width = nw;
-                            NonPow2Height = nh;
+                            DisplayRectWidth = displayRectWidth;
+                            DisplayRectHeight = displayRectHeight;
                         }
-                        /* TODO:
-                        [Entry 1: VTEX_EXTRA_DATA_METADATA - 128 bytes ]
-                        DisplayRect =[4096  4096]
-                        MotionVectorsMaxDistanceInPx = 0
-                        RangeMin =[0.00 0.00 0.00 0.00]
-                        RangeMax =[0.00 0.00 0.00 0.00]
-                        */
+
+                        RangeMin = new(
+                            reader.ReadSingle(),
+                            reader.ReadSingle(),
+                            reader.ReadSingle(),
+                            reader.ReadSingle()
+                        );
+                        RangeMax = new(
+                            reader.ReadSingle(),
+                            reader.ReadSingle(),
+                            reader.ReadSingle(),
+                            reader.ReadSingle()
+                        );
+
+                        // The remaining 88 bytes are padding.
                     }
                     else if (type == VTexExtraData.COMPRESSED_MIP_SIZE)
                     {
@@ -1176,8 +1211,11 @@ namespace ValveResourceFormat.ResourceTypes
             writer.WriteLine("{0,-12} = {1}", "Width", Width);
             writer.WriteLine("{0,-12} = {1}", "Height", Height);
             writer.WriteLine("{0,-12} = {1}", "Depth", Depth);
-            writer.WriteLine("{0,-12} = {1}", "NonPow2W", NonPow2Width);
-            writer.WriteLine("{0,-12} = {1}", "NonPow2H", NonPow2Height);
+            writer.WriteLine("{0,-12} = {1}", "DisplayRectW", DisplayRectWidth);
+            writer.WriteLine("{0,-12} = {1}", "DisplayRectH", DisplayRectHeight);
+            writer.WriteLine("{0,-12} = {1}", "MotionVecMax", MotionVectorsMaxDistance);
+            writer.WriteLine("{0,-12} = ( {1:F6}, {2:F6}, {3:F6}, {4:F6} )", "RangeMin", RangeMin.X, RangeMin.Y, RangeMin.Z, RangeMin.W);
+            writer.WriteLine("{0,-12} = ( {1:F6}, {2:F6}, {3:F6}, {4:F6} )", "RangeMax", RangeMax.X, RangeMax.Y, RangeMax.Z, RangeMax.W);
             writer.WriteLine("{0,-12} = ( {1:F6}, {2:F6}, {3:F6}, {4:F6} )", "Reflectivity", Reflectivity[0], Reflectivity[1], Reflectivity[2], Reflectivity[3]);
             writer.WriteLine("{0,-12} = {1}", "NumMipLevels", NumMipLevels);
             writer.WriteLine("{0,-12} = {1}", "Picmip0Res", Picmip0Res);
