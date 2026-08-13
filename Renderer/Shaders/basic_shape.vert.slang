@@ -1,9 +1,8 @@
 #version 460
 
-#include "common/vertex_layout.slang"
-layout (location = ATTRIBUTE_POSITION) in vec3 vPOSITION;
-layout (location = ATTRIBUTE_NORMAL) in vec3 vNORMAL;
-layout (location = ATTRIBUTE_COLOR) in vec4 vCOLOR;
+in vec3 vPOSITION;
+in vec3 vNORMAL;
+in vec4 vCOLOR;
 out vec4 vtxColor;
 out vec3 vtxNormal;
 out vec3 vtxPos;

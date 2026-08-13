@@ -8,23 +8,22 @@
 #include "common/features.slang"
 #include "csgo_environment_features.slang"
 
-#include "common/vertex_layout.slang"
-layout (location = ATTRIBUTE_POSITION) in vec3 vPOSITION;
-layout (location = ATTRIBUTE_TEXCOORD) in vec2 vTEXCOORD;
+in vec3 vPOSITION;
+in vec2 vTEXCOORD;
 #include "common/compression.slang"
 
-layout (location = ATTRIBUTE_COLOR) in vec4 vCOLOR;
-layout (location = ATTRIBUTE_TEXCOORD1) in vec2 vTEXCOORD1;
+in vec4 vCOLOR;
+in vec2 vTEXCOORD1;
 
 #if D_BAKED_LIGHTING_FROM_LIGHTMAP == 1
-    layout (location = ATTRIBUTE_LIGHTMAP_UV) in vec2 vLightmapUV;
+    in vec2 vLightmapUV;
     out vec3 vLightmapUVScaled;
 #elif D_BAKED_LIGHTING_FROM_VERTEX_STREAM == 1
-    layout (location = ATTRIBUTE_PER_VERTEX_LIGHTING) in vec4 vPerVertexLighting;  // COLOR1
+    in vec4 vPerVertexLighting;  // COLOR1
     out vec3 vPerVertexLightingOut;
 #endif
 
-layout (location = ATTRIBUTE_TEXCOORD4) in vec4 vTEXCOORD4; // default should be (0, 0, 0, 1)
+in vec4 vTEXCOORD4; // default should be (0, 0, 0, 1)
 out vec4 vColorBlendValues;
 
 

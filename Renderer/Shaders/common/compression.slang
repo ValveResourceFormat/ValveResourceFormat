@@ -4,19 +4,18 @@
 #define VRF_COMPRESSION_INCLUDE
 
 #include "utils.slang"
-#include "vertex_layout.slang"
 
 // File containing vertex inputs and functions to deal with compressed normals and tangents.
 
 #define D_COMPRESSED_NORMALS_AND_TANGENTS 0
 
 #if (D_COMPRESSED_NORMALS_AND_TANGENTS == 0 || D_COMPRESSED_NORMALS_AND_TANGENTS == 1)
-    layout (location = ATTRIBUTE_NORMAL) in vec4 vNORMAL; // OptionallyCompressedTangentFrame
+    in vec4 vNORMAL; // OptionallyCompressedTangentFrame
     #if (D_COMPRESSED_NORMALS_AND_TANGENTS == 0)
-        layout (location = ATTRIBUTE_TANGENT) in vec4 vTANGENT; // TangentU_SignV
+        in vec4 vTANGENT; // TangentU_SignV
     #endif
 #elif (D_COMPRESSED_NORMALS_AND_TANGENTS == 2)
-    layout (location = ATTRIBUTE_NORMAL) in uint vNORMAL; // CompressedTangentFrame
+    in uint vNORMAL; // CompressedTangentFrame
 #endif
 
 //Decompress a byte4 normal in the 0..255 range to a float4 tangent

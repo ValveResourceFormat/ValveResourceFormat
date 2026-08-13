@@ -19,45 +19,44 @@ namespace ValveResourceFormat.Renderer
         private readonly Dictionary<string, GPUMeshBuffers> gpuBuffers = [];
         private readonly Dictionary<VAOKey, int> vertexArrayObjects = [];
 
+#if DEBUG
+        private readonly Dictionary<int, int> boundAttributesByVao = [];
+        private readonly HashSet<(int Vao, int Program)> validatedShaderVaoPairs = [];
+#endif
+
         /// <summary>Gets the number of distinct vertex array objects currently cached.</summary>
         public int VertexArrayObjectCount => vertexArrayObjects.Count;
 
-        /// <summary>A vertex attribute resolved to its canonical location, ready to be bound into a VAO.</summary>
-        private readonly record struct AttributeBinding(int Location, DXGI_FORMAT Format, int Offset, int BindingIndex);
-
-        /// <summary>Identifies a VAO by what it actually is: a set of GPU buffer objects with resolved
-        /// attribute bindings. Attribute locations are canonical (<see cref="VertexAttributeLocations"/>),
-        /// so the key carries no shader - one VAO serves every shader that draws the mesh. The resolved
-        /// bindings participate because a material's input signature can alias the same buffers onto
-        /// different attribute names. Not tied to any higher-level resource name, so buffers that happen
-        /// to share a mesh name (or none at all) still dedupe correctly, and are never confused with
-        /// buffers that happen to reuse a freed handle under an unrelated name.</summary>
+        /// <summary>Identifies a VAO by what it actually is: a material input signature's attribute layout
+        /// bound to a specific set of GPU buffer objects. Attribute locations are canonical
+        /// (<see cref="VertexAttributeLocations"/>), so the key carries no shader - one VAO serves every
+        /// shader that draws the mesh. The input signature does participate, because it decides which
+        /// attribute name, and therefore which location, a buffer semantic resolves to. Not tied to any
+        /// higher-level resource name, so buffers that happen to share a mesh name (or none at all) still
+        /// dedupe correctly, and are never confused with buffers that happen to reuse a freed handle under
+        /// an unrelated name.</summary>
         private readonly struct VAOKey : IEquatable<VAOKey>
         {
+            public required int InputSignature { get; init; }
             public required int IndexBuffer { get; init; }
             public required int[] VertexBuffers { get; init; }
-            public required AttributeBinding[] Attributes { get; init; }
 
             public bool Equals(VAOKey other)
-                => IndexBuffer == other.IndexBuffer
-                && VertexBuffers.AsSpan().SequenceEqual(other.VertexBuffers)
-                && Attributes.AsSpan().SequenceEqual(other.Attributes);
+                => InputSignature == other.InputSignature
+                && IndexBuffer == other.IndexBuffer
+                && VertexBuffers.AsSpan().SequenceEqual(other.VertexBuffers);
 
             public override bool Equals(object? obj) => obj is VAOKey other && Equals(other);
 
             public override int GetHashCode()
             {
                 var hash = new HashCode();
+                hash.Add(InputSignature);
                 hash.Add(IndexBuffer);
 
                 foreach (var handle in VertexBuffers)
                 {
                     hash.Add(handle);
-                }
-
-                foreach (var attribute in Attributes)
-                {
-                    hash.Add(attribute);
                 }
 
                 return hash.ToHashCode();
@@ -140,6 +139,7 @@ namespace ValveResourceFormat.Renderer
             }
 
             vertexArrayObjects.Clear();
+            ForgetDeletedVertexArrayObjects();
         }
 
         /// <summary>Deletes and removes the cached GPU buffers and vertex arrays for the specified mesh.</summary>
@@ -166,6 +166,17 @@ namespace ValveResourceFormat.Renderer
                 => Array.IndexOf(bufferHandles, key.IndexBuffer) >= 0
                 || key.VertexBuffers.Any(handle => Array.IndexOf(bufferHandles, handle) >= 0));
 
+        /// <summary>Drops the debug bookkeeping of deleted VAOs, so nothing is validated against a handle
+        /// OpenGL has since handed to an unrelated vertex array.</summary>
+        [Conditional("DEBUG")]
+        private void ForgetDeletedVertexArrayObjects()
+        {
+#if DEBUG
+            boundAttributesByVao.Clear();
+            validatedShaderVaoPairs.Clear();
+#endif
+        }
+
         private void DeleteVertexArrayObjects(Func<VAOKey, bool> predicate)
         {
             List<VAOKey>? keysToRemove = null;
@@ -179,12 +190,17 @@ namespace ValveResourceFormat.Renderer
                 }
             }
 
+            if (keysToRemove != null)
+            {
+                ForgetDeletedVertexArrayObjects();
+            }
+
             keysToRemove?.ForEach(key => vertexArrayObjects.Remove(key));
         }
 
         /// <summary>Returns a cached VAO for the given buffers, creating it if necessary. Attribute
         /// locations are canonical, so the returned VAO is valid for every shader that draws these
-        /// buffers. The cache key is the resolved attribute bindings plus the actual GPU buffer handles -
+        /// buffers. The cache key is the input signature plus the actual GPU buffer handles bound to it -
         /// what a VAO fundamentally is - so callers never need to invent a unique name to keep unrelated
         /// geometry from colliding, and identical layouts dedupe automatically regardless of which mesh
         /// (if any) they came from.</summary>
@@ -195,16 +211,11 @@ namespace ValveResourceFormat.Renderer
         /// <returns>The OpenGL VAO handle.</returns>
         public int GetVertexArrayObject(VertexDrawBuffer[] vertexBuffers, Material.VsInputSignature inputSignature, int idxIndex, string? debugLabel = null)
         {
-            Debug.Assert(vertexBuffers != null && vertexBuffers.Length > 0);
-
-            vertexBuffers = AddMissingAttributes(vertexBuffers);
-            var attributes = ResolveAttributeBindings(vertexBuffers, inputSignature);
-
             var vaoKey = new VAOKey
             {
+                InputSignature = inputSignature.Hash,
                 IndexBuffer = idxIndex,
                 VertexBuffers = Array.ConvertAll(vertexBuffers, vb => vb.Handle),
-                Attributes = attributes,
             };
 
             if (vertexArrayObjects.TryGetValue(vaoKey, out var vaoHandle))
@@ -212,23 +223,44 @@ namespace ValveResourceFormat.Renderer
                 return vaoHandle;
             }
 
-            var newVaoHandle = CreateVertexArrayObject(vertexBuffers, attributes, idxIndex, debugLabel);
+            var newVaoHandle = CreateVertexArrayObject(vertexBuffers, inputSignature, idxIndex, debugLabel);
             vertexArrayObjects.Add(vaoKey, newVaoHandle);
             return newVaoHandle;
         }
 
-        /// <summary>Resolves each buffer attribute to its canonical location: the material input signature
-        /// name wins when it resolves, otherwise the attribute's own buffer semantic. Attributes unknown
-        /// to the canonical table are skipped, as is any duplicate resolution to an already-taken
-        /// location (shared slots in the table make that possible in principle).</summary>
-        private static AttributeBinding[] ResolveAttributeBindings(VertexDrawBuffer[] vertexBuffers, Material.VsInputSignature inputSignature)
+        /// <summary>Builds a new VAO for the given buffers without caching it. Each attribute takes the
+        /// canonical location of its material input signature name, or of its own buffer semantic when the
+        /// signature is absent or names something unknown.</summary>
+        /// <param name="vertexBuffers">Vertex buffer bindings for the draw call.</param>
+        /// <param name="inputSignature">Material input signature mapping buffer semantics to shader attribute names.</param>
+        /// <param name="idxIndex">OpenGL handle of the index buffer.</param>
+        /// <param name="debugLabel">Optional label applied to the VAO in debug builds.</param>
+        /// <returns>The OpenGL VAO handle.</returns>
+        private int CreateVertexArrayObject(VertexDrawBuffer[] vertexBuffers, Material.VsInputSignature inputSignature, int idxIndex, string? debugLabel = null)
         {
-            var bindings = new List<AttributeBinding>();
-            var usedLocations = 0;
+            Debug.Assert(vertexBuffers != null && vertexBuffers.Length > 0);
+
+            GL.CreateVertexArrays(1, out int newVaoHandle);
+
+            // Check for non-indexed geometry
+            if (idxIndex != 0)
+            {
+                GL.VertexArrayElementBuffer(newVaoHandle, idxIndex);
+            }
+
+            // Workaround a bug in Intel drivers when mixing float and integer attributes
+            // See https://gist.github.com/stefalie/e17a20a88a0fdbd97110611569a6605f for reference
+            // We are using DSA apis, so we don't actually need to bind the VAO
+            GL.BindVertexArray(newVaoHandle);
+
             var bindingIndex = 0;
+            var boundLocations = 0;
+            vertexBuffers = AddMissingAttributes(vertexBuffers);
 
             foreach (var curVertexBuffer in vertexBuffers)
             {
+                GL.VertexArrayVertexBuffer(newVaoHandle, bindingIndex, curVertexBuffer.Handle, 0, (int)curVertexBuffer.ElementSizeInBytes);
+
                 foreach (var attribute in curVertexBuffer.InputLayoutFields)
                 {
                     var attributeLocation = -1;
@@ -250,7 +282,9 @@ namespace ValveResourceFormat.Renderer
                         attributeLocation = VertexAttributeLocations.Get(attribute.SemanticName, attribute.SemanticIndex);
                     }
 
-                    if (attributeLocation == -1 || (usedLocations & (1 << attributeLocation)) != 0)
+                    // Ignore attributes with no canonical location, and any that would take a location an
+                    // earlier buffer already bound - the aliases in the table make that possible in principle.
+                    if (attributeLocation == -1 || (boundLocations & (1 << attributeLocation)) != 0)
                     {
 #if DEBUG
                         if (attributeLocation == -1 && !string.IsNullOrEmpty(insgElemName))
@@ -261,49 +295,19 @@ namespace ValveResourceFormat.Renderer
                         continue;
                     }
 
-                    usedLocations |= 1 << attributeLocation;
-                    bindings.Add(new AttributeBinding(attributeLocation, attribute.Format, (int)attribute.Offset, bindingIndex));
+                    boundLocations |= 1 << attributeLocation;
+
+                    GL.EnableVertexArrayAttrib(newVaoHandle, attributeLocation);
+                    GL.VertexArrayAttribBinding(newVaoHandle, attributeLocation, bindingIndex);
+                    VertexFormat.SetVertexArrayAttribFormat(newVaoHandle, attributeLocation, attribute.Format, (int)attribute.Offset);
                 }
 
                 bindingIndex++;
             }
 
-            return [.. bindings];
-        }
-
-        /// <summary>Builds a new VAO for the given buffers and resolved attribute bindings without caching it.</summary>
-        /// <param name="vertexBuffers">Vertex buffer bindings for the draw call.</param>
-        /// <param name="attributes">Attribute bindings resolved by <see cref="ResolveAttributeBindings"/>.</param>
-        /// <param name="idxIndex">OpenGL handle of the index buffer.</param>
-        /// <param name="debugLabel">Optional label applied to the VAO in debug builds.</param>
-        /// <returns>The OpenGL VAO handle.</returns>
-        private static int CreateVertexArrayObject(VertexDrawBuffer[] vertexBuffers, AttributeBinding[] attributes, int idxIndex, string? debugLabel = null)
-        {
-            GL.CreateVertexArrays(1, out int newVaoHandle);
-
-            // Check for non-indexed geometry
-            if (idxIndex != 0)
-            {
-                GL.VertexArrayElementBuffer(newVaoHandle, idxIndex);
-            }
-
-            // Workaround a bug in Intel drivers when mixing float and integer attributes
-            // See https://gist.github.com/stefalie/e17a20a88a0fdbd97110611569a6605f for reference
-            // We are using DSA apis, so we don't actually need to bind the VAO
-            GL.BindVertexArray(newVaoHandle);
-
-            for (var bindingIndex = 0; bindingIndex < vertexBuffers.Length; bindingIndex++)
-            {
-                var curVertexBuffer = vertexBuffers[bindingIndex];
-                GL.VertexArrayVertexBuffer(newVaoHandle, bindingIndex, curVertexBuffer.Handle, 0, (int)curVertexBuffer.ElementSizeInBytes);
-            }
-
-            foreach (var attribute in attributes)
-            {
-                BindVertexAttrib(newVaoHandle, attribute);
-            }
-
 #if DEBUG
+            boundAttributesByVao[newVaoHandle] = boundLocations;
+
             if (debugLabel != null)
             {
                 GL.ObjectLabel(ObjectLabelIdentifier.VertexArray, newVaoHandle, Math.Min(GLEnvironment.MaxLabelLength, debugLabel.Length), debugLabel);
@@ -338,13 +342,29 @@ namespace ValveResourceFormat.Renderer
             return vertexBuffers;
         }
 
-        private static void BindVertexAttrib(int vao, AttributeBinding binding)
+        /// <summary>
+        /// Asserts that every attribute <paramref name="shader"/> reads is bound in <paramref name="vao"/>.
+        /// Canonical locations let any shader draw any VAO, which also means a shader reading an attribute the
+        /// mesh does not have gets the generic attribute value (0, 0, 0, 1) rather than an error, so the pairing
+        /// is checked here where it happens. Each shader/VAO pair is only checked once (debug builds only).
+        /// </summary>
+        /// <param name="vao">The bound vertex array object.</param>
+        /// <param name="shader">The shader it is about to be drawn with.</param>
+        [Conditional("DEBUG")]
+        public void ValidateShaderAttributes(int vao, Shader shader)
         {
-            var (attributeLocation, format, offset, bindingIndex) = binding;
+#if DEBUG
+            if (!validatedShaderVaoPairs.Add((vao, shader.Program))
+            || !boundAttributesByVao.TryGetValue(vao, out var boundAttributes))
+            {
+                return;
+            }
 
-            GL.EnableVertexArrayAttrib(vao, attributeLocation);
-            GL.VertexArrayAttribBinding(vao, attributeLocation, bindingIndex);
-            VertexFormat.SetVertexArrayAttribFormat(vao, attributeLocation, format, offset);
+            var missing = shader.RequiredAttributes & ~boundAttributes;
+
+            Debug.Assert(missing == 0,
+                $"Shader '{shader.Name}' reads {VertexAttributeLocations.DescribeMask(missing)}, which the geometry it is drawing does not bind.");
+#endif
         }
     }
 }

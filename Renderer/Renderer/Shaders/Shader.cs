@@ -111,6 +111,11 @@ namespace ValveResourceFormat.Renderer.Shaders
 #if DEBUG
         /// <summary>Gets the shader file name on disk (debug builds only).</summary>
         public required string FileName { get; init; }
+
+        /// <summary>Gets the mask of <see cref="VertexAttributeSlot"/> locations this program reads, as the
+        /// linker sees them. A vertex array object that does not bind one of these leaves the shader reading
+        /// the generic attribute value (0, 0, 0, 1) instead of failing, so this is what makes that visible.</summary>
+        public int RequiredAttributes { get; private set; }
 #endif
 
         /// <summary>Initializes a new instance of the <see cref="Shader"/> class.</summary>
@@ -152,6 +157,7 @@ namespace ValveResourceFormat.Renderer.Shaders
                     BindReservedTextureSlots();
 
 #if DEBUG
+                    StoreRequiredAttributes();
                     VerifyGlobalsLayout();
 #endif
                 }
@@ -384,6 +390,30 @@ namespace ValveResourceFormat.Renderer.Shaders
 
                 System.Diagnostics.Debug.Assert(offsets[i] == expected[i],
                     $"'{names[i]}' is at offset {offsets[i]} in '{Name}', but the layout put it at {expected[i]}.");
+            }
+        }
+
+        /// <summary>
+        /// Caches which attribute locations the linked program reads, for <see cref="RequiredAttributes"/>.
+        /// Attributes the linker dropped (behind a disabled combo, or simply unused) are not active and do
+        /// not count as required (debug builds only).
+        /// </summary>
+        private void StoreRequiredAttributes()
+        {
+            GL.GetProgram(Program, GetProgramParameterName.ActiveAttributes, out var attributeCount);
+
+            RequiredAttributes = 0;
+
+            for (var i = 0; i < attributeCount; i++)
+            {
+                GL.GetActiveAttrib(Program, i, 64, out _, out _, out _, out var name);
+
+                var location = GL.GetAttribLocation(Program, name);
+
+                if (location >= 0)
+                {
+                    RequiredAttributes |= 1 << location;
+                }
             }
         }
 #endif

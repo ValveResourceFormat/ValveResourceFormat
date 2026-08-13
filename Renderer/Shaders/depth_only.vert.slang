@@ -6,10 +6,9 @@
 #define D_MORPHED 0
 #define F_ALPHA_TEST 0 // most shaders
 
-#include "common/vertex_layout.slang"
-layout (location = ATTRIBUTE_POSITION) in vec3 vPOSITION;
+in vec3 vPOSITION;
 #if (F_ALPHA_TEST == 1)
-    layout (location = ATTRIBUTE_TEXCOORD) in vec2 vTEXCOORD;
+    in vec2 vTEXCOORD;
     layout (location = 0) out vec2 texCoord;
 #endif
 

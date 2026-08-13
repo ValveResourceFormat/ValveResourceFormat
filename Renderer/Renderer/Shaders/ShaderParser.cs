@@ -43,48 +43,9 @@ namespace ValveResourceFormat.Renderer.Shaders
         [GeneratedRegex("^#define (?<From>(?:g|F)_[A-Za-z0-9_]+) (?<To>[A-Za-z_][A-Za-z0-9_]*)$")]
         private static partial Regex RegexUniformAlias();
 
-        [GeneratedRegex(@"^\s*#define\s+(?<Name>ATTRIBUTE_\w+)\s+(?<Value>\w+)\s*$")]
-        private static partial Regex RegexAttributeDefine();
-
-        /// <summary>Parses <c>ATTRIBUTE_*</c> macros out of <c>common/vertex_layout.slang</c>,
-        /// and resolves alias defines to their numeric values, <see cref="VertexAttributeLocations"/> initializes from this
-        /// so the C# VAO code can never drift from the shaders.</summary>
-        internal static Dictionary<string, int> ParseVertexLayoutMacros()
-        {
-            using var stream = GetShaderStream("common/vertex_layout.slang");
-            using var reader = new StreamReader(stream);
-
-            var macros = new Dictionary<string, int>();
-
-            while (reader.ReadLine() is { } line)
-            {
-                var match = RegexAttributeDefine().Match(line);
-
-                if (!match.Success)
-                {
-                    continue;
-                }
-
-                var name = match.Groups["Name"].Value;
-                var valueText = match.Groups["Value"].Value;
-
-                if (int.TryParse(valueText, CultureInfo.InvariantCulture, out var number))
-                {
-                    macros[name] = number;
-                }
-                else if (macros.TryGetValue(valueText, out var aliased))
-                {
-                    // An alias refers to a macro defined earlier in the file
-                    macros[name] = aliased;
-                }
-                else
-                {
-                    throw new ShaderCompilerException($"vertex_layout.slang macro '{name}' aliases '{valueText}', which is not defined above it.");
-                }
-            }
-
-            return macros;
-        }
+        // Vertex shader attribute declaration, e.g. "in vec4 vCOLOR;" or "in uint vNORMAL; // comment"
+        [GeneratedRegex(@"^in\s+[a-z0-9]+\s+(?<Name>[A-Za-z_][A-Za-z0-9_]*)\s*;")]
+        private static partial Regex RegexVertexAttribute();
 
         private static bool IsPackableUniformName(string name)
             => name.StartsWith("g_", StringComparison.Ordinal) || name.StartsWith("F_", StringComparison.Ordinal);
@@ -105,6 +66,7 @@ namespace ValveResourceFormat.Renderer.Shaders
         {
             var sourceFileNumber = parsedData.SourceFiles.Count;
             var resolvedIncludes = new HashSet<string>(4);
+            var isVertexStage = GetTypeFromFileName(shaderFile) == ShaderProgramType.Vertex;
 
             var uniformAliases = new Dictionary<string, string>(0);
 
@@ -330,6 +292,28 @@ namespace ValveResourceFormat.Renderer.Shaders
                                 continue;
                             }
                         }
+
+                        // Vertex attributes get the canonical location of their name stamped on, so that one
+                        // vertex array object is valid for every shader that draws the same geometry.
+                        if (isVertexStage)
+                        {
+                            match = RegexVertexAttribute().Match(line);
+
+                            if (match.Success)
+                            {
+                                var attributeName = match.Groups["Name"].Value;
+                                var location = VertexAttributeLocations.Get(attributeName);
+
+                                if (location == -1)
+                                {
+                                    throw new ShaderCompilerException($"Line {lineNum} in '{shaderFileToLoad}' declares vertex attribute '{attributeName}', which no {nameof(VertexAttributeSlot)} is named for. Declarations must name a canonical attribute, a #define alias of one will not do.");
+                                }
+
+                                builder.Append("layout (location = ");
+                                builder.Append(location.ToString(CultureInfo.InvariantCulture));
+                                builder.Append(") "); // :VrfPreprocessed
+                            }
+                        }
                     }
 
                     builder.Append(line);
@@ -444,7 +428,7 @@ namespace ValveResourceFormat.Renderer.Shaders
         /// shaders shipped with the renderer.
         /// </summary>
         /// <param name="name">Root relative shader file name using forward slashes (e.g. <c>common/lighting.slang</c>).</param>
-        internal static Stream GetShaderStream(string name)
+        private static Stream GetShaderStream(string name)
         {
             return ShaderRegistry.TryOpenShaderFile(name) ?? GetBuiltinShaderStream(name);
         }

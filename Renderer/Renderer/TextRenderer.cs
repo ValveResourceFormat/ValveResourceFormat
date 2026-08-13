@@ -20,10 +20,10 @@ namespace ValveResourceFormat.Renderer
         {
             public const int Size = 6;
 
-            [VertexAttribute(0, "vPOSITION")] public Vector2 Position;
-            [VertexAttribute(1, "vTEXCOORD")] public Vector2 TexCoord;
-            [VertexAttribute(2, "vDEPTH")] public float Depth;
-            [VertexAttribute(3, "vCOLOR")] public Color32 Color;
+            [VertexAttribute("vPOSITION")] public Vector2 Position;
+            [VertexAttribute("vTEXCOORD")] public Vector2 TexCoord;
+            [VertexAttribute("vDEPTH")] public float Depth;
+            [VertexAttribute("vCOLOR")] public Color32 Color;
         }
 
         /// <summary>

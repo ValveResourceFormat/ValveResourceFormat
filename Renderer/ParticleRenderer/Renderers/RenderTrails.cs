@@ -24,11 +24,11 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
         [StructLayout(LayoutKind.Sequential)]
         private readonly struct Vertex(Vector3 position, Vector4 color, Vector2 uv, Vector2 uvNextFrame, float frameBlend)
         {
-            [VertexAttribute(0, "aVertexPosition")] public readonly Vector3 Position = position;
-            [VertexAttribute(1, "aVertexColor")] public readonly Vector4 Color = color;
-            [VertexAttribute(2, "aTexCoords")] public readonly Vector2 UV = uv;
-            [VertexAttribute(3, "aTexCoordsNextFrame")] public readonly Vector2 UVNextFrame = uvNextFrame;
-            [VertexAttribute(4, "aFrameBlend")] public readonly float FrameBlend = frameBlend;
+            [VertexAttribute("vPOSITION")] public readonly Vector3 Position = position;
+            [VertexAttribute("vCOLOR")] public readonly Vector4 Color = color;
+            [VertexAttribute("vTEXCOORD")] public readonly Vector2 UV = uv;
+            [VertexAttribute("vTEXCOORD1")] public readonly Vector2 UVNextFrame = uvNextFrame;
+            [VertexAttribute("vFrameBlend")] public readonly float FrameBlend = frameBlend;
         }
 
         // The shared quad index buffer covers 65532 indices, six per quad

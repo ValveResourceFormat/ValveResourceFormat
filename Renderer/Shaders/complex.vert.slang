@@ -21,9 +21,8 @@
 #include "common/animation.slang"
 #include "common/morph.slang"
 
-#include "common/vertex_layout.slang"
-layout (location = ATTRIBUTE_POSITION) in vec3 vPOSITION;
-layout (location = ATTRIBUTE_TEXCOORD) in vec2 vTEXCOORD;
+in vec3 vPOSITION;
+in vec2 vTEXCOORD;
 #include "common/compression.slang"
 
 //Parameter defines - These are default values and can be overwritten based on material/model parameters
@@ -39,35 +38,35 @@ uniform int F_TEXTURE_ANIMATION_MODE; // csgo_complex, csgo_static_overlay, csgo
 #endif
 
 #if D_BAKED_LIGHTING_FROM_LIGHTMAP == 1
-    layout (location = ATTRIBUTE_LIGHTMAP_UV) in vec2 vLightmapUV;
+    in vec2 vLightmapUV;
     centroid out vec3 vLightmapUVScaled;
 #elif D_BAKED_LIGHTING_FROM_VERTEX_STREAM == 1
-    layout (location = ATTRIBUTE_PER_VERTEX_LIGHTING) in vec4 vPerVertexLighting;
+    in vec4 vPerVertexLighting;
     out vec3 vPerVertexLightingOut;
 #endif
 
 #if (F_LAYERS > 0) || (GameVfx_csgo_simple_2way_blend != 0) || defined(vr_blend_vfx_common)
+    // Declarations name the attribute, the defines are only readable aliases for the code below
     #define vBLEND_COLOR vTEXCOORD4
     #if defined(vr_blend_vfx_common)
         #define vBLEND_ALPHA vTEXCOORD5
-        layout (location = ATTRIBUTE_TEXCOORD5) in vec4 vBLEND_ALPHA;
+        in vec4 vTEXCOORD5;
     #endif
 
-    layout (location = ATTRIBUTE_TEXCOORD4) in vec4 vBLEND_COLOR;
+    in vec4 vTEXCOORD4;
     out vec4 vColorBlendValues;
 #endif
 
 #if defined(foliage_vfx_common)
     #if (GameVfx_csgo_foliage != 0)
+        in vec4 vCOLOR;
         #define vFoliageParams vCOLOR
-        #define FOLIAGE_ATTRIBUTE ATTRIBUTE_COLOR
     #elif (GameVfx_vr_complex != 0)
+        in vec4 vTEXCOORD3;
         #define vFoliageParams vTEXCOORD3
-        #define FOLIAGE_ATTRIBUTE ATTRIBUTE_TEXCOORD3
     #else
-        #define FOLIAGE_ATTRIBUTE ATTRIBUTE_FOLIAGE
+        in vec4 vFoliageParams;
     #endif
-    layout (location = FOLIAGE_ATTRIBUTE) in vec4 vFoliageParams;
     out vec4 vFoliageParamsOut;
 
     // Vertex Animation
@@ -135,12 +134,12 @@ uniform int F_TEXTURE_ANIMATION_MODE; // csgo_complex, csgo_static_overlay, csgo
 #endif
 
 #if (F_SECONDARY_UV == 1) || (F_FORCE_UV2 == 1)
-    layout (location = ATTRIBUTE_TEXCOORD1) in vec4 vTEXCOORD1;
+    in vec4 vTEXCOORD1;
     out vec2 vTexCoord2;
 #endif
 
 #if !defined(vFoliageParams) && ((F_VERTEX_COLOR == 1) || (F_PAINT_VERTEX_COLORS == 1))
-    layout (location = ATTRIBUTE_COLOR) in vec4 vCOLOR;
+    in vec4 vCOLOR;
 #endif
 
 centroid out vec4 vVertexColorOut;

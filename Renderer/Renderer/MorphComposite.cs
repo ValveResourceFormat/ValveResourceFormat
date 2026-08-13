@@ -122,10 +122,10 @@ namespace ValveResourceFormat.Renderer
         [StructLayout(LayoutKind.Sequential)]
         private struct Vertex
         {
-            [VertexAttribute(0, "vPositionWeights")] public Vector4 PositionWeights;
-            [VertexAttribute(1, "vTexCoords")] public Vector4 TexCoords;
-            [VertexAttribute(2, "vOffsetsPositionSpeed")] public Vector4 OffsetsPositionSpeed;
-            [VertexAttribute(3, "vRangesPositionSpeed")] public Vector4 RangesPositionSpeed;
+            [VertexAttribute("vPositionWeights")] public Vector4 PositionWeights;
+            [VertexAttribute("vTexCoords")] public Vector4 TexCoords;
+            [VertexAttribute("vOffsetsPositionSpeed")] public Vector4 OffsetsPositionSpeed;
+            [VertexAttribute("vRangesPositionSpeed")] public Vector4 RangesPositionSpeed;
         }
 
         private static readonly VertexFormat VertexFormat = VertexFormat.FromStruct<Vertex>();

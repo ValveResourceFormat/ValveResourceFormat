@@ -5,16 +5,15 @@
 
 #include "instancing.slang"
 #include "utils.slang"
-#include "vertex_layout.slang"
 
-layout (location = ATTRIBUTE_BLENDINDICES) in uvec4 vBLENDINDICES;
-layout (location = ATTRIBUTE_BLENDWEIGHT) in vec4 vBLENDWEIGHT;
+in uvec4 vBLENDINDICES;
+in vec4 vBLENDWEIGHT;
 
 #define D_EIGHT_BONE_BLENDING 0
 
 #if (D_EIGHT_BONE_BLENDING == 1)
-    layout (location = ATTRIBUTE_BLENDINDICES2) in uvec4 vBLENDINDICES2;
-    layout (location = ATTRIBUTE_BLENDWEIGHT2) in vec4 vBLENDWEIGHT2;
+    in uvec4 vBLENDINDICES2;
+    in vec4 vBLENDWEIGHT2;
 #endif
 
 uniform uvec4 uAnimationData;

@@ -1,8 +1,7 @@
 #version 460
 
-#include "common/vertex_layout.slang"
-layout (location = ATTRIBUTE_POSITION) in vec3 vPOSITION;
-layout (location = ATTRIBUTE_TEXCOORD) in vec2 vTEXCOORD;
+in vec3 vPOSITION;
+in vec2 vTEXCOORD;
 #include "common/compression.slang"
 
 out vec3 vFragPosition;
