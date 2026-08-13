@@ -92,6 +92,7 @@ namespace ValveResourceFormat.IO
 
         private string DstDir = string.Empty;
         private CancellationToken CancellationToken;
+        private Vector2 LightmapUvScale = Vector2.One;
         private readonly Dictionary<string, Mesh> ExportedMeshes = [];
         private readonly List<(PhysAggregateData Phys, string? Classname, Matrix4x4 Transform)> PhysicsToExport = [];
         private bool IsExporting;
@@ -167,6 +168,9 @@ namespace ValveResourceFormat.IO
             {
                 matchedAnimationFilter.Clear();
                 ExportedMeshes.Clear();
+                LightmapUvScale = Vector2.One;
+                MaterialInputSignatures.Clear();
+                ScaledLightmapUvAccessors.Clear();
                 PhysicsToExport.Clear();
                 TextureExportingTasks.Clear();
                 ExportedTextures.Clear();
@@ -307,6 +311,8 @@ namespace ValveResourceFormat.IO
         private void ExportToFile(string resourceName, string? fileName, VWorld world)
         {
             var exportedModel = CreateModelRoot(resourceName, out var scene);
+
+            LightmapUvScale = world.GetLightmapUvScale();
 
             // First the WorldNodes
             foreach (var worldNodeName in world.GetWorldNodeNames())

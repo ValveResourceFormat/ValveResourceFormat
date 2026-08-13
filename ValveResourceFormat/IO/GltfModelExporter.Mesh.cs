@@ -28,6 +28,12 @@ public partial class GltfModelExporter
     private readonly record struct ExportedMaterialData(Material Material, bool IsOverlay);
     private readonly Dictionary<ExportedMaterial, ExportedMaterialData> ExportedMaterials = [];
 
+    // Accessor paired with the Source 2 vertex attribute semantic it was created from, null for synthesized data.
+    private readonly record struct AttributeAccessor(Accessor Accessor, (string Name, int Index)? Semantic = null);
+    private readonly Dictionary<string, VMaterial.VsInputSignature> MaterialInputSignatures = [];
+    // Scaled copies keyed by source accessor, so draw calls sharing a vertex buffer reuse one copy.
+    private readonly Dictionary<Accessor, Accessor> ScaledLightmapUvAccessors = [];
+
     private Mesh CreateGltfMesh(string meshName, VMesh vmesh, VBIB vbib, ModelRoot exportedModel, int[]? boneRemapTable, string? skinMaterialPath, Vector4 tintColor)
     {
         ProgressReporter?.Report($"Creating mesh: {meshName}");
@@ -64,11 +70,11 @@ public partial class GltfModelExporter
         return mesh;
     }
 
-    private static Dictionary<string, Accessor>[] CreateVertexBufferAccessors(ModelRoot exportedModel, VBIB vbib, int boneWeightCount, int[]? boneRemapTable = null)
+    private static Dictionary<string, AttributeAccessor>[] CreateVertexBufferAccessors(ModelRoot exportedModel, VBIB vbib, int boneWeightCount, int[]? boneRemapTable = null)
     {
         return vbib.VertexBuffers.Select((vertexBuffer, vertexBufferIndex) =>
         {
-            var accessors = new Dictionary<string, Accessor>();
+            var accessors = new Dictionary<string, AttributeAccessor>();
 
             if (vertexBuffer.ElementCount == 0)
             {
@@ -140,6 +146,8 @@ public partial class GltfModelExporter
                     throw new NotImplementedException($"Got attribute \"{attribute.SemanticName}\" more than once, but that is not supported.");
                 }
 
+                AttributeAccessor WithSemantic(Accessor a) => new(a, (attribute.SemanticName, attribute.SemanticIndex));
+
                 if (attribute.SemanticName == "NORMAL")
                 {
                     var (normals, tangents) = VBIB.GetNormalTangentArray(vertexBuffer, attribute);
@@ -150,12 +158,12 @@ public partial class GltfModelExporter
                     {
                         FixZeroLengthVectors(tangents);
                         BakeTangents(tangents);
-                        accessors["NORMAL"] = CreateAccessor(exportedModel, normals);
-                        accessors["TANGENT"] = CreateAccessor(exportedModel, tangents);
+                        accessors["NORMAL"] = WithSemantic(CreateAccessor(exportedModel, normals));
+                        accessors["TANGENT"] = WithSemantic(CreateAccessor(exportedModel, tangents));
                     }
                     else
                     {
-                        accessors[accessorName] = CreateAccessor(exportedModel, normals);
+                        accessors[accessorName] = WithSemantic(CreateAccessor(exportedModel, normals));
                     }
                 }
                 else
@@ -170,14 +178,14 @@ public partial class GltfModelExporter
                                 new ScalarArray(bufferView.Content).Fill(buffer);
                                 var accessor = exportedModel.CreateAccessor();
                                 accessor.SetVertexData(bufferView, 0, buffer.Length, AttributeFormat.Float1);
-                                accessors[accessorName] = accessor;
+                                accessors[accessorName] = WithSemantic(accessor);
                                 break;
                             }
 
                         case 2:
                             {
                                 var vectors = VBIB.GetVector2AttributeArray(vertexBuffer, attribute);
-                                accessors[accessorName] = CreateAccessor(exportedModel, vectors);
+                                accessors[accessorName] = WithSemantic(CreateAccessor(exportedModel, vectors));
                                 break;
                             }
                         case 3:
@@ -187,7 +195,7 @@ public partial class GltfModelExporter
                                 {
                                     BakePositions(vectors);
                                 }
-                                accessors[accessorName] = CreateAccessor(exportedModel, vectors);
+                                accessors[accessorName] = WithSemantic(CreateAccessor(exportedModel, vectors));
                                 break;
                             }
                         case 4:
@@ -200,7 +208,7 @@ public partial class GltfModelExporter
                                     BakeTangents(vectors);
                                 }
 
-                                accessors[accessorName] = CreateAccessor(exportedModel, vectors);
+                                accessors[accessorName] = WithSemantic(CreateAccessor(exportedModel, vectors));
                                 break;
                             }
 
@@ -269,8 +277,8 @@ public partial class GltfModelExporter
                     accessor0.SetVertexData(bufferView, 0, joints.Length / 8, new AttributeFormat(DimensionType.VEC4, EncodingType.UNSIGNED_SHORT));
                     accessor1.SetVertexData(bufferView, joints.Length, joints.Length / 8, new AttributeFormat(DimensionType.VEC4, EncodingType.UNSIGNED_SHORT));
 
-                    accessors["JOINTS_0"] = accessor0;
-                    accessors["JOINTS_1"] = accessor1;
+                    accessors["JOINTS_0"] = new(accessor0);
+                    accessors["JOINTS_1"] = new(accessor1);
                 }
                 else
                 {
@@ -278,7 +286,7 @@ public partial class GltfModelExporter
 
                     var accessor = exportedModel.CreateAccessor();
                     accessor.SetVertexData(bufferView, 0, joints.Length / 4, new AttributeFormat(DimensionType.VEC4, EncodingType.UNSIGNED_SHORT));
-                    accessors["JOINTS_0"] = accessor;
+                    accessors["JOINTS_0"] = new(accessor);
                 }
 
                 // weights
@@ -295,12 +303,12 @@ public partial class GltfModelExporter
                         w++;
                     }
 
-                    accessors["WEIGHTS_0"] = CreateAccessor(exportedModel, weights0);
-                    accessors["WEIGHTS_1"] = CreateAccessor(exportedModel, weights1);
+                    accessors["WEIGHTS_0"] = new(CreateAccessor(exportedModel, weights0));
+                    accessors["WEIGHTS_1"] = new(CreateAccessor(exportedModel, weights1));
                 }
                 else
                 {
-                    accessors["WEIGHTS_0"] = CreateAccessor(exportedModel, weights);
+                    accessors["WEIGHTS_0"] = new(CreateAccessor(exportedModel, weights));
                 }
             }
 
@@ -309,13 +317,33 @@ public partial class GltfModelExporter
     }
 
     private MeshPrimitive CreateMeshFromDrawCall(KVObject drawCall, Mesh mesh, VBIB vbib, Dictionary<string,
-        Accessor>[] vertexBufferAccessors, ModelRoot exportedModel, string? skinMaterialPath, Vector4 parentTintColor)
+        AttributeAccessor>[] vertexBufferAccessors, ModelRoot exportedModel, string? skinMaterialPath, Vector4 parentTintColor)
     {
         CancellationToken.ThrowIfCancellationRequested();
 
         var indexBufferInfo = drawCall.GetSubCollection("m_indexBuffer");
         var indexBufferIndex = indexBufferInfo.GetInt32Property("m_hBuffer");
         var indexBuffer = vbib.IndexBuffers[indexBufferIndex];
+
+        var materialPath = skinMaterialPath ?? drawCall.GetStringProperty("m_material") ?? drawCall.GetStringProperty("m_pMaterial");
+        Resource? materialResource = null;
+
+        // Bake g_vLightmapUvScale into lightmap UVs. Like the renderer, only draw calls with baked
+        // lightmapping are affected, and the UV channel comes from the material's input signature.
+        var materialInputSignature = VMaterial.VsInputSignature.Empty;
+        if (LightmapUvScale != Vector2.One && VMesh.HasBakedLightingFromLightMap(drawCall))
+        {
+            if (!MaterialInputSignatures.TryGetValue(materialPath, out materialInputSignature))
+            {
+                materialResource = FileLoader.LoadFileCompiled(materialPath);
+
+                materialInputSignature = materialResource?.DataBlock is VMaterial loadedMaterial
+                    ? loadedMaterial.InputSignature
+                    : VMaterial.VsInputSignature.Empty;
+
+                MaterialInputSignatures.Add(materialPath, materialInputSignature);
+            }
+        }
 
         // Create one primitive per draw call
         var primitive = mesh.CreatePrimitive();
@@ -331,7 +359,7 @@ public partial class GltfModelExporter
         {
             var vertexBufferIndex = vertexBufferInfo.GetInt32Property("m_hBuffer");
 
-            foreach (var (attributeKey, accessor) in vertexBufferAccessors[vertexBufferIndex])
+            foreach (var (attributeKey, attributeAccessor) in vertexBufferAccessors[vertexBufferIndex])
             {
                 string key;
                 if (attributeKey.StartsWith("TEXCOORD_", StringComparison.Ordinal))
@@ -345,6 +373,15 @@ public partial class GltfModelExporter
                 else
                 {
                     key = attributeKey;
+                }
+
+                var accessor = attributeAccessor.Accessor;
+
+                if (attributeAccessor.Semantic is { } semantic
+                    && accessor.Dimensions == DimensionType.VEC2
+                    && VMaterial.FindD3DInputSignatureElement(materialInputSignature, semantic.Name, semantic.Index).Name is "vLightmapUV" or "vLightmapUVW")
+                {
+                    accessor = GetScaledLightmapUvAccessor(exportedModel, accessor);
                 }
 
                 primitive.SetVertexAccessor(key, accessor);
@@ -393,8 +430,6 @@ public partial class GltfModelExporter
             modelTintColor *= dcTintColorWithAlpha;
         }
 
-        var materialPath = skinMaterialPath ?? drawCall.GetStringProperty("m_material") ?? drawCall.GetStringProperty("m_pMaterial");
-
         var materialNameTrimmed = Path.GetFileNameWithoutExtension(materialPath);
         var materialHashKey = new ExportedMaterial(materialPath, modelTintColor);
 
@@ -412,7 +447,7 @@ public partial class GltfModelExporter
 
         ProgressReporter?.Report($"Loading material: {materialPath}");
 
-        var materialResource = FileLoader.LoadFileCompiled(materialPath);
+        materialResource ??= FileLoader.LoadFileCompiled(materialPath);
 
         if (materialResource == null)
         {
@@ -607,6 +642,31 @@ public partial class GltfModelExporter
         }
 
         return indices;
+    }
+
+    private Accessor GetScaledLightmapUvAccessor(ModelRoot exportedModel, Accessor accessor)
+    {
+        if (ScaledLightmapUvAccessors.TryGetValue(accessor, out var scaledAccessor))
+        {
+            return scaledAccessor;
+        }
+
+        Debug.Assert(accessor.Format.Encoding == EncodingType.FLOAT);
+
+        var bufferView = exportedModel.CreateBufferView(2 * sizeof(float) * accessor.Count, 0, BufferMode.ARRAY_BUFFER);
+        var source = MemoryMarshal.Cast<byte, Vector2>(((Memory<byte>)accessor.SourceBufferView.Content).Span);
+        var target = MemoryMarshal.Cast<byte, Vector2>(((Memory<byte>)bufferView.Content).Span);
+
+        for (var i = 0; i < source.Length; i++)
+        {
+            target[i] = source[i] * LightmapUvScale;
+        }
+
+        scaledAccessor = exportedModel.CreateAccessor();
+        scaledAccessor.SetVertexData(bufferView, 0, accessor.Count, AttributeFormat.Float2);
+
+        ScaledLightmapUvAccessors.Add(accessor, scaledAccessor);
+        return scaledAccessor;
     }
 
     private static Accessor CreateAccessor(ModelRoot exportedModel, Vector2[] vectors)

@@ -23,6 +23,20 @@ namespace ValveResourceFormat.ResourceTypes
             => Data.GetSubCollection("m_worldLightingInfo");
 
         /// <summary>
+        /// Gets the scale to apply to lightmap UVs when sampling lightmaps, <see cref="Vector2.One"/> when not applicable.
+        /// </summary>
+        public Vector2 GetLightmapUvScale()
+        {
+            var worldLightingInfo = GetWorldLightingInfo();
+            if (worldLightingInfo == null || worldLightingInfo.GetInt32Property("m_nLightmapVersionNumber") != 8)
+            {
+                return Vector2.One;
+            }
+
+            return worldLightingInfo.GetSubCollection("m_vLightmapUvScale")?.ToVector2() ?? Vector2.One;
+        }
+
+        /// <summary>
         /// Gets the world node names.
         /// </summary>
         public IReadOnlyCollection<string> GetWorldNodeNames()

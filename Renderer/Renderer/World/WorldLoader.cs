@@ -456,10 +456,10 @@ namespace ValveResourceFormat.Renderer.World
 
             var result = scene.LightingInfo;
             result.LightmapVersionNumber = worldLightingInfo.GetInt32Property("m_nLightmapVersionNumber");
+            result.LightingData.LightmapUvScale = World.GetLightmapUvScale();
             if (scene.LightingInfo.LightmapVersionNumber == 8)
             {
                 result.LightmapGameVersionNumber = worldLightingInfo.GetInt32Property("m_nLightmapGameVersionNumber");
-                result.LightingData.LightmapUvScale = worldLightingInfo.GetSubCollection("m_vLightmapUvScale").ToVector2();
             }
 
             var lightmaps = worldLightingInfo.GetArray<string>("m_lightMaps") ?? [];
