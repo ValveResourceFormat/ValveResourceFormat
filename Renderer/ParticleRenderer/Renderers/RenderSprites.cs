@@ -657,7 +657,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
 
         public override void Delete()
         {
-            GL.DeleteVertexArray(vaoHandle);
+            VertexArray.Delete(vaoHandle);
             GL.DeleteBuffer(vertexBufferHandle);
         }
     }

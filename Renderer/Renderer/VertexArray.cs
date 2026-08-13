@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.Runtime.InteropServices;
+using System.Threading;
 using Microsoft.Extensions.Logging;
 using OpenTK.Graphics.OpenGL;
 
@@ -11,11 +12,14 @@ namespace ValveResourceFormat.Renderer
     /// </summary>
     public static class VertexArray
     {
-        /// <summary>What a VAO supplies, as location bitmasks.</summary>
-        private record struct Supplies(int Locations, int AsInteger);
+        /// <summary>What a VAO supplies: location bitmasks, and the names when the geometry knows them.</summary>
+        private record struct Supplies(int Locations, int AsInteger, string[]? Names);
 
         private static readonly Dictionary<int, Supplies> SuppliesByVao = [];
         private static readonly HashSet<(int Program, int Missing, int WrongKind)> Reported = [];
+
+        // Every GL context has its own render loop thread, and they all create geometry through here
+        private static readonly Lock StateLock = new();
 
         // Draws are batched by material, so this pair rarely changes. Without it every draw costs two hash lookups.
         private static int lastVao = -1;
@@ -25,20 +29,38 @@ namespace ValveResourceFormat.Renderer
         [Conditional("DEBUG")]
         private static void Forget(int vao)
         {
-            SuppliesByVao.Remove(vao);
-            lastVao = -1;
+            lock (StateLock)
+            {
+                SuppliesByVao.Remove(vao);
+                lastVao = -1;
+            }
+        }
+
+        /// <summary>Starts recording a newly created VAO. The handle may have belonged to a deleted one.
+        /// Handbuilt geometry also passes the names it declares, which locate its custom attributes.</summary>
+        [Conditional("DEBUG")]
+        internal static void StartRecording(int vao, string[]? names = null)
+        {
+            lock (StateLock)
+            {
+                SuppliesByVao[vao] = new Supplies(0, 0, names);
+                lastVao = -1;
+            }
         }
 
         [Conditional("DEBUG")]
         private static void Record(int vao, int location, bool integer)
         {
-            ref var supplies = ref CollectionsMarshal.GetValueRefOrAddDefault(SuppliesByVao, vao, out _);
-
-            supplies.Locations |= 1 << location;
-
-            if (integer)
+            lock (StateLock)
             {
-                supplies.AsInteger |= 1 << location;
+                ref var supplies = ref CollectionsMarshal.GetValueRefOrAddDefault(SuppliesByVao, vao, out _);
+
+                supplies.Locations |= 1 << location;
+
+                if (integer)
+                {
+                    supplies.AsInteger |= 1 << location;
+                }
             }
         }
 
@@ -47,15 +69,25 @@ namespace ValveResourceFormat.Renderer
         [Conditional("DEBUG")]
         public static void Validate(int vao, Shader shader)
         {
-            if (vao == lastVao && shader.Program == lastProgram)
+            Supplies supplies;
+
+            lock (StateLock)
             {
-                return;
+                if (vao == lastVao && shader.Program == lastProgram)
+                {
+                    return;
+                }
+
+                lastVao = vao;
+                lastProgram = shader.Program;
+
+                if (!SuppliesByVao.TryGetValue(vao, out supplies))
+                {
+                    return;
+                }
             }
 
-            lastVao = vao;
-            lastProgram = shader.Program;
-
-            if (!shader.EnsureLoaded() || !SuppliesByVao.TryGetValue(vao, out var supplies))
+            if (!shader.EnsureLoaded())
             {
                 return;
             }
@@ -65,9 +97,17 @@ namespace ValveResourceFormat.Renderer
             // Undefined per spec, and Nvidia patches the shader for it: "recompiled based on GL state"
             var wrongKind = (shader.IntegerAttributes ^ supplies.AsInteger) & shader.RequiredAttributes & supplies.Locations;
 
-            if ((missing | wrongKind) == 0 || !Reported.Add((shader.Program, missing, wrongKind)))
+            if ((missing | wrongKind) == 0)
             {
                 return;
+            }
+
+            lock (StateLock)
+            {
+                if (!Reported.Add((shader.Program, missing, wrongKind)))
+                {
+                    return;
+                }
             }
 
             var geometry = DescribeVertexArray(vao);
@@ -76,6 +116,17 @@ namespace ValveResourceFormat.Renderer
             {
                 shader.Logger.LogDebug("{Attributes} ({ShaderName}) missing from vbib {Geometry}",
                     shader.DescribeAttributes(missing), shader.Name, geometry);
+
+                // A name the geometry does not know shifts the slots of the custom attributes sorted after
+                // it, so the other locations are wrong too, not just this one
+                foreach (var name in shader.DescribeAttributes(missing).Split(", "))
+                {
+                    if (supplies.Names != null && Array.IndexOf(supplies.Names, name) < 0)
+                    {
+                        shader.Logger.LogDebug("{Geometry} declares {Names}, so every custom attribute after {Attribute} sits at a different location than {ShaderName} expects",
+                            geometry, string.Join(", ", supplies.Names), name, shader.Name);
+                    }
+                }
             }
 
             if (wrongKind != 0)

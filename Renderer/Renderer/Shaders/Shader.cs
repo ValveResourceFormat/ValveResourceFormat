@@ -197,15 +197,13 @@ namespace ValveResourceFormat.Renderer.Shaders
                 // A custom attribute has no canonical location, its slot comes from the declaring set.
                 if (VertexAttributeLocations.Get(name) is var canonical && canonical != -1 && canonical != location)
                 {
-                    throw new ShaderLoader.ShaderCompilerException(
-                        $"Shader '{Name}' has attribute '{name}' at location {location}, but {nameof(VertexSlot)} puts it at {VertexAttributeLocations.Get(name)}. Its declaration was not stamped, check that it reads 'in <type> {name};'.");
+                    ReportBadAttribute($"Shader '{Name}' has attribute '{name}' at location {location}, but {nameof(VertexSlot)} puts it at {canonical}. Its declaration was not stamped, check that it reads 'in <type> {name};'.");
                 }
 
                 // These span a location per element or column, silently taking the slots declared after them
-                if (elements > 1 || IsMatrix(type))
+                else if (elements > 1 || IsMatrix(type))
                 {
-                    throw new ShaderLoader.ShaderCompilerException(
-                        $"Shader '{Name}' declares attribute '{name}' as {type}[{elements}], which spans several locations. Vertex attributes have to fit one {nameof(VertexSlot)}.");
+                    ReportBadAttribute($"Shader '{Name}' declares attribute '{name}' as {type}[{elements}], which spans several locations. Vertex attributes have to fit one {nameof(VertexSlot)}.");
                 }
 
                 RequiredAttributes |= 1 << location;
@@ -215,6 +213,20 @@ namespace ValveResourceFormat.Renderer.Shaders
                     IntegerAttributes |= 1 << location;
                 }
             }
+        }
+
+        /// <summary>
+        /// A shader whose attributes the renderer cannot place is an authoring fault, so development builds
+        /// stop on it. A release build only logs, because a mounted shader must not take the viewer down
+        /// from inside a draw call.
+        /// </summary>
+        private void ReportBadAttribute(string message)
+        {
+#if DEBUG
+            throw new ShaderLoader.ShaderCompilerException(message);
+#else
+            Logger.LogError("{Message}", message);
+#endif
         }
 
         /// <summary>Names the attributes this program declares at the given locations.</summary>

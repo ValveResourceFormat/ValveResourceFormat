@@ -210,6 +210,7 @@ namespace ValveResourceFormat.Renderer
             Debug.Assert(vertexBuffers != null && vertexBuffers.Length > 0);
 
             GL.CreateVertexArrays(1, out int newVaoHandle);
+            VertexArray.StartRecording(newVaoHandle);
 
             // Check for non-indexed geometry
             if (idxIndex != 0)

@@ -136,6 +136,7 @@ namespace ValveResourceFormat.Renderer
         public int CreateVertexArray(string? debugLabel, int vertexBuffer, int indexBuffer = 0)
         {
             GL.CreateVertexArrays(1, out int vao);
+            VertexArray.StartRecording(vao, Array.ConvertAll(fields, field => field.ShaderSemantic));
 
             if (indexBuffer != 0)
             {
