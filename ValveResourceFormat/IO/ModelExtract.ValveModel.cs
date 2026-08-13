@@ -517,6 +517,32 @@ partial class ModelExtract
     // Emits cloth collision shapes (capsules/spheres) recovered from the FeModel rigids into a Softbody.
     // Most Dota cloth (including dark_willow) has none - then this is a no-op. Shapes are how the engine
     // keeps the cloth off the body for models that use them (e.g. primal_beast).
+    // Rods the chains do not rebuild themselves (extra copies of a parent span) have to be re-declared,
+    // or every node they touch compiles lighter than the original.
+    static void AddClothChainSurplusRods(KVObject softbodyChildren, FeModel feModel,
+        List<FeModel.BoneChain> chains)
+    {
+        var controlNames = feModel.CtrlNames;
+
+        foreach (var rod in feModel.GetUngeneratedRods(chains))
+        {
+            if (rod.NodeA < 0 || rod.NodeA >= controlNames.Length
+            || rod.NodeB < 0 || rod.NodeB >= controlNames.Length)
+            {
+                continue;
+            }
+
+            var name0 = controlNames[rod.NodeA];
+            var name1 = controlNames[rod.NodeB];
+            if (FeModel.IsProxyNodeName(name0) || FeModel.IsProxyNodeName(name1))
+            {
+                continue;
+            }
+
+            softbodyChildren.Add(MakeClothSpring($"rod_{name0}_{name1}", name0, name1, rod.MinDist, rod.MaxDist));
+        }
+    }
+
     static void AddClothCollisionShapes(KVObject softbodyChildren, FeModel feModel)
     {
         foreach (var capsule in feModel.BuildCollisionCapsules())
@@ -2032,6 +2058,7 @@ partial class ModelExtract
                     clothFolderChildren.Add(gridNode);
                 }
 
+                AddClothChainSurplusRods(softbodyChildren, feModel, boneChains);
                 AddClothCollisionShapes(softbodyChildren, feModel);
                 root.Children.Add(softbody);
                 clothEmitted = true;
