@@ -31,7 +31,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
             [VertexAttribute("vFrameBlend")] public readonly float FrameBlend = frameBlend;
 
             /// <summary>The layout of this vertex, for creating vertex array objects.</summary>
-            public static readonly VertexFormat Format = VertexFormat.FromStruct<Vertex>();
+            public static readonly VertexInputLayout InputLayout = VertexInputLayout.FromStruct<Vertex>();
         }
 
         // The shared quad index buffer covers 65532 indices, six per quad
@@ -170,7 +170,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
         {
             GL.CreateBuffers(1, out int buffer);
 
-            var vao = Vertex.Format.CreateVertexArray(nameof(RenderTrails), buffer, rendererContext.MeshBufferCache.QuadIndices.GLHandle);
+            var vao = Vertex.InputLayout.CreateVertexArray(nameof(RenderTrails), buffer, rendererContext.MeshBufferCache.QuadIndices.GLHandle);
 
             return (vao, buffer);
         }
@@ -200,7 +200,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
             var viewAngleFadeActive = startFadeDot < 1f && endFadeDot > startFadeDot;
 
             // Rented from the shared float pool so the memory is reused across renderers, and viewed as vertices.
-            var rawVertices = ArrayPool<float>.Shared.Rent(particleBag.Count * 4 * (Vertex.Format.Stride / sizeof(float)));
+            var rawVertices = ArrayPool<float>.Shared.Rent(particleBag.Count * 4 * (Vertex.InputLayout.Stride / sizeof(float)));
             var vertices = MemoryMarshal.Cast<float, Vertex>(rawVertices.AsSpan());
             var quadCount = 0;
 
@@ -378,7 +378,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
 
                 if (quadCount > 0)
                 {
-                    GL.NamedBufferData(vertexBufferHandle, quadCount * 4 * Vertex.Format.Stride, rawVertices, BufferUsageHint.DynamicDraw);
+                    GL.NamedBufferData(vertexBufferHandle, quadCount * 4 * Vertex.InputLayout.Stride, rawVertices, BufferUsageHint.DynamicDraw);
                 }
             }
             finally

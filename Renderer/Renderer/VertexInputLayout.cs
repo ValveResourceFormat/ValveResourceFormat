@@ -11,7 +11,7 @@ namespace ValveResourceFormat.Renderer
 {
     /// <summary>
     /// Marks a vertex struct field as a shader input. The buffer format follows from the field type, see
-    /// <see cref="VertexFormat.FromStruct{TVertex}"/>.
+    /// <see cref="VertexInputLayout.FromStruct{TVertex}"/>.
     /// </summary>
     [AttributeUsage(AttributeTargets.Field)]
     public sealed class VertexAttributeAttribute(string name, DXGI_FORMAT format = DXGI_FORMAT.UNKNOWN) : Attribute
@@ -30,7 +30,7 @@ namespace ValveResourceFormat.Renderer
         }
     }
 
-    /// <summary>One attribute of a <see cref="VertexFormat"/>. An offset of -1 packs it after the last one.</summary>
+    /// <summary>One attribute of a <see cref="VertexInputLayout"/>. An offset of -1 packs it after the last one.</summary>
     public readonly record struct VertexAttribute(string Name, DXGI_FORMAT Format, int OffsetInBytes = -1)
     {
         /// <summary>Initializes an attribute supplying a mesh slot.</summary>
@@ -44,7 +44,7 @@ namespace ValveResourceFormat.Renderer
     /// Interleaved vertex layout of handbuilt geometry, held as the same input layout fields a mesh carries.
     /// Element order is buffer order, and offsets pack in declaration order unless given explicitly.
     /// </summary>
-    public sealed class VertexFormat
+    public sealed class VertexInputLayout
     {
         private readonly VBIB.RenderInputLayoutField[] fields;
         private readonly int[] locations;
@@ -53,7 +53,7 @@ namespace ValveResourceFormat.Renderer
         public int Stride { get; }
 
         /// <summary>Initializes a vertex format from a stride and its attributes in buffer order.</summary>
-        public VertexFormat(int stride, params VertexAttribute[] elements)
+        public VertexInputLayout(int stride, params VertexAttribute[] elements)
         {
             fields = new VBIB.RenderInputLayoutField[elements.Length];
             locations = new int[elements.Length];
@@ -90,7 +90,7 @@ namespace ValveResourceFormat.Renderer
         }
 
         /// <summary>Derives the format of a vertex struct from its <see cref="VertexAttributeAttribute"/> fields.</summary>
-        public static VertexFormat FromStruct<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicFields | DynamicallyAccessedMemberTypes.NonPublicFields)] TVertex>() where TVertex : struct
+        public static VertexInputLayout FromStruct<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicFields | DynamicallyAccessedMemberTypes.NonPublicFields)] TVertex>() where TVertex : struct
         {
             // Offsets come from the marshalled layout, the buffer gets the managed one. They only agree
             // while the struct stays blittable and sequential.
@@ -111,7 +111,7 @@ namespace ValveResourceFormat.Renderer
                 elements.Add(new VertexAttribute(attribute.Name, format, (int)Marshal.OffsetOf<TVertex>(field.Name)));
             }
 
-            return new VertexFormat(Marshal.SizeOf<TVertex>(), [.. elements]);
+            return new VertexInputLayout(Marshal.SizeOf<TVertex>(), [.. elements]);
         }
 
         private static readonly FrozenDictionary<Type, DXGI_FORMAT> FormatByFieldType = new Dictionary<Type, DXGI_FORMAT>
@@ -130,7 +130,7 @@ namespace ValveResourceFormat.Renderer
                 : throw new NotImplementedException($"Field type {fieldType.Name} maps to no vertex attribute format, pass one to [VertexAttribute].");
 
         /// <summary>This format as <see cref="VBIB"/> input layout fields, for the upload path.</summary>
-        public VBIB.RenderInputLayoutField[] ToInputLayout() => fields;
+        public VBIB.RenderInputLayoutField[] Fields() => fields;
 
         /// <summary>Creates a VAO binding one vertex buffer. An index buffer of 0 means non-indexed.</summary>
         public int CreateVertexArray(string? debugLabel, int vertexBuffer, int indexBuffer = 0)

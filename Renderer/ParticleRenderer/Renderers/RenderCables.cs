@@ -115,7 +115,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
             GL.CreateBuffers(1, out vertexBufferHandle);
             GL.CreateBuffers(1, out indexBufferHandle);
 
-            return CableVertex.Format.CreateVertexArray(nameof(RenderCables), vertexBufferHandle, indexBufferHandle);
+            return CableVertex.InputLayout.CreateVertexArray(nameof(RenderCables), vertexBufferHandle, indexBufferHandle);
         }
 
         public override void Render(ParticleCollection particles, ParticleSystemRenderState systemRenderState, Camera camera)
@@ -215,7 +215,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
                     return;
                 }
 
-                var stride = CableVertex.Format.Stride;
+                var stride = CableVertex.InputLayout.Stride;
                 GL.NamedBufferData(vertexBufferHandle, vertexCount * stride, vertexArray, BufferUsageHint.DynamicDraw);
                 GL.NamedBufferData(indexBufferHandle, tubeIndexCount * sizeof(uint), indexArray, BufferUsageHint.DynamicDraw);
                 indexCount = tubeIndexCount;

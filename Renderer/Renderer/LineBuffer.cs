@@ -25,7 +25,7 @@ namespace ValveResourceFormat.Renderer
 
             GL.CreateBuffers(1, out vboHandle);
 
-            vao = SimpleVertex.Format.CreateVertexArray(label, vboHandle);
+            vao = SimpleVertex.InputLayout.CreateVertexArray(label, vboHandle);
 
 #if DEBUG
             GL.ObjectLabel(ObjectLabelIdentifier.Buffer, vboHandle, label.Length, label);
@@ -43,7 +43,7 @@ namespace ValveResourceFormat.Renderer
 
             fixed (SimpleVertex* data = vertices)
             {
-                GL.NamedBufferData(vboHandle, VertexCount * SimpleVertex.Format.Stride, (nint)data, usageHint);
+                GL.NamedBufferData(vboHandle, VertexCount * SimpleVertex.InputLayout.Stride, (nint)data, usageHint);
             }
         }
 

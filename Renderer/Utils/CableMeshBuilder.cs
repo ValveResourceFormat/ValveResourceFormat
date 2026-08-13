@@ -34,7 +34,7 @@ namespace ValveResourceFormat.Renderer.Utils
         [VertexAttribute(VertexSlot.Color)] public readonly Color32 Color = color;
 
         /// <summary>The layout of this vertex, for creating vertex array objects.</summary>
-        public static readonly VertexFormat Format = VertexFormat.FromStruct<CableVertex>();
+        public static readonly VertexInputLayout InputLayout = VertexInputLayout.FromStruct<CableVertex>();
     }
 
     /// <summary>

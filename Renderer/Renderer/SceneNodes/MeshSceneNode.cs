@@ -61,7 +61,7 @@ namespace ValveResourceFormat.Renderer.SceneNodes
             [VertexAttribute(VertexSlot.TexCoord4)] public readonly Color32 VertexPaintBlendParams;
 
             /// <summary>The layout of this vertex, for creating vertex array objects.</summary>
-            public static readonly VertexFormat Format = VertexFormat.FromStruct<Vertex>();
+            public static readonly VertexInputLayout InputLayout = VertexInputLayout.FromStruct<Vertex>();
 
             public Vertex(Vector3 position, Vector2 uv, Color32 vertexPaint, Vector3? normal = null, Vector4? tangentU_SignV = null)
             {
@@ -121,9 +121,9 @@ namespace ValveResourceFormat.Renderer.SceneNodes
             vbib.VertexBuffers.Add(new VBIB.OnDiskBufferData
             {
                 ElementCount = (uint)vertices.Length,
-                ElementSizeInBytes = (uint)Vertex.Format.Stride,
+                ElementSizeInBytes = (uint)Vertex.InputLayout.Stride,
                 Data = MemoryMarshal.Cast<Vertex, byte>(vertices).ToArray(),
-                InputLayoutFields = Vertex.Format.ToInputLayout(),
+                InputLayoutFields = Vertex.InputLayout.Fields(),
             });
 
             vbib.IndexBuffers.Add(new VBIB.OnDiskBufferData

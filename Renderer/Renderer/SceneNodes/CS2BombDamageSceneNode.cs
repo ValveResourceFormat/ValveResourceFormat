@@ -51,7 +51,7 @@ public class CS2BombDamageSceneNode : SceneNode
         [VertexAttribute("vPHASE")] public float Phase;
 
         /// <summary>The layout of this vertex, for creating vertex array objects.</summary>
-        public static readonly VertexFormat Format = VertexFormat.FromStruct<Vertex>();
+        public static readonly VertexInputLayout InputLayout = VertexInputLayout.FromStruct<Vertex>();
     }
 
 
@@ -106,7 +106,7 @@ public class CS2BombDamageSceneNode : SceneNode
         var vertexCount = positions.Length * 4;
         var indexCount = positions.Length * 6;
 
-        var vertexData = new byte[vertexCount * Vertex.Format.Stride];
+        var vertexData = new byte[vertexCount * Vertex.InputLayout.Stride];
         var indexData = new byte[indexCount * sizeof(int)];
         var vertices = MemoryMarshal.Cast<byte, Vertex>(vertexData.AsSpan());
         var indices = MemoryMarshal.Cast<byte, int>(indexData.AsSpan());
@@ -128,8 +128,8 @@ public class CS2BombDamageSceneNode : SceneNode
         vbib.VertexBuffers.Add(new VBIB.OnDiskBufferData
         {
             ElementCount = (uint)vertexCount,
-            ElementSizeInBytes = (uint)Vertex.Format.Stride,
-            InputLayoutFields = Vertex.Format.ToInputLayout(),
+            ElementSizeInBytes = (uint)Vertex.InputLayout.Stride,
+            InputLayoutFields = Vertex.InputLayout.Fields(),
             Data = vertexData,
         });
         vbib.IndexBuffers.Add(new VBIB.OnDiskBufferData

@@ -47,10 +47,10 @@ namespace ValveResourceFormat.Renderer.SceneNodes
 
             GL.CreateBuffers(1, out int vboHandle);
 
-            GL.NamedBufferData(vboHandle, totalVertexCount * SimpleVertex.Format.Stride,
+            GL.NamedBufferData(vboHandle, totalVertexCount * SimpleVertex.InputLayout.Stride,
                 ListAccessors<SimpleVertex>.GetBackingArray(vertices), BufferUsageHint.StaticDraw);
 
-            vao = SimpleVertex.Format.CreateVertexArray(nameof(VisibilitySceneNode), vboHandle);
+            vao = SimpleVertex.InputLayout.CreateVertexArray(nameof(VisibilitySceneNode), vboHandle);
 
 #if DEBUG
             var label = nameof(VisibilitySceneNode);

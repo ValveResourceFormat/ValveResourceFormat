@@ -36,7 +36,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
             [VertexAttribute("vLayerUv3")] public Vector4 LayerUv3;
 
             /// <summary>The layout of this vertex, for creating vertex array objects.</summary>
-            public static readonly VertexFormat Format = VertexFormat.FromStruct<Vertex>();
+            public static readonly VertexInputLayout InputLayout = VertexInputLayout.FromStruct<Vertex>();
 
             public void SetLayerUv(int layer, Vector4 uvs)
             {
@@ -249,7 +249,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
         {
             GL.CreateBuffers(1, out vertexBufferHandle);
 
-            return Vertex.Format.CreateVertexArray(nameof(RenderSprites), vertexBufferHandle, rendererContext.MeshBufferCache.QuadIndices.GLHandle);
+            return Vertex.InputLayout.CreateVertexArray(nameof(RenderSprites), vertexBufferHandle, rendererContext.MeshBufferCache.QuadIndices.GLHandle);
         }
 
         // m_Gradient's stops, as the ramp generator wants them. A stop's colour is authored as a byte
@@ -425,7 +425,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
 
             // Update vertex buffer
             // Rented from the shared float pool so the memory is reused across renderers, and viewed as vertices.
-            var rawVertices = ArrayPool<float>.Shared.Rent(particles.Count * 4 * (Vertex.Format.Stride / sizeof(float)));
+            var rawVertices = ArrayPool<float>.Shared.Rent(particles.Count * 4 * (Vertex.InputLayout.Stride / sizeof(float)));
             var vertices = MemoryMarshal.Cast<float, Vertex>(rawVertices.AsSpan());
 
             try
@@ -570,7 +570,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
                     i++;
                 }
 
-                GL.NamedBufferData(vertexBufferHandle, i * 4 * Vertex.Format.Stride, rawVertices, BufferUsageHint.DynamicDraw);
+                GL.NamedBufferData(vertexBufferHandle, i * 4 * Vertex.InputLayout.Stride, rawVertices, BufferUsageHint.DynamicDraw);
 
                 return i;
             }

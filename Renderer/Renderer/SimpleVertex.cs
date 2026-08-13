@@ -11,7 +11,7 @@ namespace ValveResourceFormat.Renderer
         [field: VertexAttribute(VertexSlot.Color)] Color32 Color)
     {
         /// <summary>Vertex layout, for creating VAOs.</summary>
-        public static readonly VertexFormat Format = VertexFormat.FromStruct<SimpleVertex>();
+        public static readonly VertexInputLayout InputLayout = VertexInputLayout.FromStruct<SimpleVertex>();
     }
 
     /// <summary>
@@ -24,7 +24,7 @@ namespace ValveResourceFormat.Renderer
         [field: VertexAttribute(VertexSlot.Normal)] Vector3 Normal)
     {
         /// <summary>Vertex layout, for creating VAOs.</summary>
-        public static readonly VertexFormat Format = VertexFormat.FromStruct<SimpleVertexNormal>();
+        public static readonly VertexInputLayout InputLayout = VertexInputLayout.FromStruct<SimpleVertexNormal>();
 
         /// <summary>Initializes a <see cref="SimpleVertexNormal"/> with a zero normal.</summary>
         /// <param name="Position">Vertex position.</param>

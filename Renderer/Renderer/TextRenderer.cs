@@ -26,7 +26,7 @@ namespace ValveResourceFormat.Renderer
             [VertexAttribute(VertexSlot.Color)] public Color32 Color;
 
             /// <summary>The layout of this vertex, for creating vertex array objects.</summary>
-            public static readonly VertexFormat Format = VertexFormat.FromStruct<Vertex>();
+            public static readonly VertexInputLayout InputLayout = VertexInputLayout.FromStruct<Vertex>();
         }
 
         /// <summary>
@@ -254,7 +254,7 @@ namespace ValveResourceFormat.Renderer
 
             GL.CreateBuffers(1, out bufferHandle);
 
-            vao = Vertex.Format.CreateVertexArray(nameof(TextRenderer), bufferHandle, RendererContext.MeshBufferCache.QuadIndices.GLHandle);
+            vao = Vertex.InputLayout.CreateVertexArray(nameof(TextRenderer), bufferHandle, RendererContext.MeshBufferCache.QuadIndices.GLHandle);
 
 #if DEBUG
             var objectLabel = nameof(TextRenderer);
