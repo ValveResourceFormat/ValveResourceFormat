@@ -218,83 +218,32 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics
         // compiled per-node flGravity back into the source gravity_z scale (ClothChain joints and ClothNode).
         internal const float ClothSourceBaseGravity = 360f;
 
-        // The source goal_damping drives flAnimationVertexAttraction via an EXPONENTIAL SATURATION curve
-        // approaching the ceiling (1 - fa), not a plain linear ramp: va = fa + (1-fa) * (1 - exp(-gd *
-        // S(goal_strength) / (1-fa))). S (the curve's initial slope at gd=0) is sampled per goal strength
-        // from the compiler (gs=0.5 + gd=0.005 compiles to va=0.15106 - dark_carnival's exact original,
-        // deep in the small-gd region where the exponential and a plain linear model agree to 4+ digits).
-        // Verified the CURVE SHAPE (not just the small-gd slope) directly against meepo_naruto_set's own
-        // standalone ClothNode data: a goal_strength=0.6 node (fa=0.216) with the SAME slope entry (3.72)
-        // reproduces a real authored goal_damping=0.3 (fa+excess=0.797273) almost exactly via the
-        // exponential inverse (recovers 0.285, within 5%) while the OLD plain-linear inverse
-        // (excess/slope, no saturation) recovered 0.156 - 48% off - because 0.3 is far outside the
-        // small-gd linear region the original dark_carnival calibration point happened to sit in.
-        static readonly (float GoalStrength, float Slope)[] GoalDampingSlopes =
-        [
-            (0.05f, 163.6f),
-            (0.1f, 61.2f),
-            (0.2f, 19.9f),
-            (0.4f, 7.34f),
-            (0.5f, 5.16f),
-            (0.6f, 3.72f),
-            (0.8f, 1.91f),
-        ];
+        // Outside this range the compiler skips the attraction solve and writes goal_damping through
+        // unchanged, so the inverse is the identity.
+        internal const float GoalDampingSolveMaxAttraction = 0.9999f;
+        internal const float GoalDampingSolveMinAttraction = 0.0001f;
 
         /// <summary>
-        /// Recovers the source <c>goal_damping</c> from the compiled excess of
-        /// <c>flAnimationVertexAttraction</c> over <c>flAnimationForceAttraction</c> at the given painted
-        /// goal strength, by inverting the compiler's measured exponential-saturation response (log-log
-        /// interpolated initial slope). Legacy out-of-range attractions clamp to the strongest
-        /// reproducible damping.
+        /// Recovers the source <c>goal_damping</c> from a node's compiled attractions, inverting the
+        /// builder's <c>va = 1 - ((1-fa) / (sqrt((1-fa)*fa + d*d) + d))^2 * fa</c>, where <c>fa</c> is
+        /// <c>flAnimationForceAttraction</c> and <c>d</c> the source damping. Legacy nodes compiled with an
+        /// out-of-range attraction clamp to the strongest damping the modern solver can express.
         /// </summary>
-        public static float GoalDampingFromAttraction(float goalStrength, float vertexAttractionExcess)
+        public static float GoalDampingFromAttraction(float forceAttraction, float vertexAttraction)
         {
-            if (vertexAttractionExcess <= 0f || goalStrength <= 0f)
+            if (forceAttraction is >= GoalDampingSolveMaxAttraction or < GoalDampingSolveMinAttraction)
             {
-                return 0f;
+                return Math.Clamp(vertexAttraction, 0f, 1f);
             }
 
-            float slope;
-            if (goalStrength <= GoalDampingSlopes[0].GoalStrength)
-            {
-                slope = GoalDampingSlopes[0].Slope;
-            }
-            else if (goalStrength >= GoalDampingSlopes[^1].GoalStrength)
-            {
-                slope = GoalDampingSlopes[^1].Slope;
-            }
-            else
-            {
-                slope = GoalDampingSlopes[^1].Slope;
-                for (var i = 1; i < GoalDampingSlopes.Length; i++)
-                {
-                    if (goalStrength <= GoalDampingSlopes[i].GoalStrength)
-                    {
-                        var (gs0, s0) = GoalDampingSlopes[i - 1];
-                        var (gs1, s1) = GoalDampingSlopes[i];
-                        var t = (MathF.Log(goalStrength) - MathF.Log(gs0)) / (MathF.Log(gs1) - MathF.Log(gs0));
-                        slope = MathF.Exp(MathF.Log(s0) + (MathF.Log(s1) - MathF.Log(s0)) * t);
-                        break;
-                    }
-                }
-            }
-
-            // flAnimationForceAttraction = goal_strength^3 (the same cubing the caller already inverted
-            // via cbrt to arrive at goalStrength), so recompute it here to get the true asymptote.
-            var forceAttraction = goalStrength * goalStrength * goalStrength;
-            var ceiling = 1f - forceAttraction;
-            if (ceiling <= 0f)
-            {
-                return 0f;
-            }
-
-            var ratio = vertexAttractionExcess / ceiling;
-            if (ratio >= 1f)
+            var t = MathF.Sqrt(Math.Clamp(1f - vertexAttraction, 0f, 1f) / forceAttraction);
+            if (t <= 0f)
             {
                 return 1f;
             }
 
-            return Math.Clamp(-ceiling / slope * MathF.Log(1f - ratio), 0f, 1f);
+            var s = (1f - forceAttraction) / t;
+            return Math.Clamp((s * s - (1f - forceAttraction) * forceAttraction) / (2f * s), 0f, 1f);
         }
 
         /// <summary>Gets the stray radius for <paramref name="node"/>, or 0 when unconstrained.</summary>
@@ -1260,7 +1209,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics
             // the original's own compiled values, with no feel-calibrated constants (this saturates va to
             // ~0.98, which reads stiffer than the legacy snap-then-relax, an accepted platform ceiling).
             var goalStrength = MathF.Cbrt(Math.Clamp(integrator.ForceAttraction, 0f, 1f));
-            var goalDamping = GoalDampingFromAttraction(goalStrength, integrator.VertexAttraction - integrator.ForceAttraction);
+            var goalDamping = GoalDampingFromAttraction(integrator.ForceAttraction, integrator.VertexAttraction);
 
             var collisionRadius = GetCollisionRadius(node);
 
@@ -2532,8 +2481,9 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics
                     var ib = GetIntegrator(b.Node);
                     var strength = MathF.Cbrt(Math.Clamp(ia.ForceAttraction + (ib.ForceAttraction - ia.ForceAttraction) * t, 0f, 1f));
                     var radius = GetCollisionRadius(a.Node) + (GetCollisionRadius(b.Node) - GetCollisionRadius(a.Node)) * t;
-                    var attractionExcess = (ia.VertexAttraction - ia.ForceAttraction) + ((ib.VertexAttraction - ib.ForceAttraction) - (ia.VertexAttraction - ia.ForceAttraction)) * t;
-                    var damping = GoalDampingFromAttraction(strength, attractionExcess);
+                    var forceAttraction = ia.ForceAttraction + (ib.ForceAttraction - ia.ForceAttraction) * t;
+                    var vertexAttraction = ia.VertexAttraction + (ib.VertexAttraction - ia.VertexAttraction) * t;
+                    var damping = GoalDampingFromAttraction(forceAttraction, vertexAttraction);
                     var friction = FrictionAt(a.Node) + (FrictionAt(b.Node) - FrictionAt(a.Node)) * t;
                     var drag = Math.Clamp((ia.PointDamping + (ib.PointDamping - ia.PointDamping) * t) / ClothDragPointDampingScale, 0f, 1f);
 
