@@ -122,10 +122,10 @@ namespace ValveResourceFormat.Renderer
         [StructLayout(LayoutKind.Sequential)]
         private struct Vertex
         {
-            [VertexAttribute("vPositionWeights")] public Vector4 PositionWeights;
-            [VertexAttribute("vTexCoords")] public Vector4 TexCoords;
-            [VertexAttribute("vOffsetsPositionSpeed")] public Vector4 OffsetsPositionSpeed;
-            [VertexAttribute("vRangesPositionSpeed")] public Vector4 RangesPositionSpeed;
+            [VertexAttribute(VertexAttributeSlot.Position)] public Vector4 PositionWeights;
+            [VertexAttribute(VertexAttributeSlot.TexCoord)] public Vector4 TexCoords;
+            [VertexAttribute(VertexAttributeSlot.TexCoord1)] public Vector4 OffsetsPositionSpeed;
+            [VertexAttribute(VertexAttributeSlot.TexCoord2)] public Vector4 RangesPositionSpeed;
         }
 
         private static readonly VertexFormat VertexFormat = VertexFormat.FromStruct<Vertex>();
@@ -134,7 +134,7 @@ namespace ValveResourceFormat.Renderer
         {
             GL.CreateBuffers(1, out bufferHandle);
 
-            vao = VertexFormat.CreateVertexArray(nameof(MorphComposite), shader, bufferHandle, renderContext.MeshBufferCache.QuadIndices.GLHandle);
+            vao = VertexFormat.CreateVertexArray(nameof(MorphComposite), bufferHandle, renderContext.MeshBufferCache.QuadIndices.GLHandle);
         }
 
         [MemberNotNull(nameof(allVertices), nameof(morphRects))]

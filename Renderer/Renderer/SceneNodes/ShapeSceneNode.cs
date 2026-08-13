@@ -37,7 +37,7 @@ namespace ValveResourceFormat.Renderer.SceneNodes
         protected int indexCount { get; private set; }
 
         /// <summary>Gets the vertex array state for this shape.</summary>
-        protected RenderVao vao { get; private set; } = null!;
+        protected int vao { get; private set; }
 
         /// <summary>Gets whether this shape uses normal-based shading.</summary>
         protected virtual bool Shaded { get; } = true;
@@ -115,7 +115,7 @@ namespace ValveResourceFormat.Renderer.SceneNodes
             GL.NamedBufferData(vboHandle, verts.Count * SimpleVertexNormal.SizeInBytes, ListAccessors<SimpleVertexNormal>.GetBackingArray(verts), BufferUsageHint.StaticDraw);
             GL.NamedBufferData(iboHandle, inds.Count * sizeof(int), ListAccessors<int>.GetBackingArray(inds), BufferUsageHint.StaticDraw);
 
-            vao = new RenderVao(Scene.RendererContext.MeshBufferCache, nameof(ShapeSceneNode), vboHandle, SimpleVertexNormal.SizeInBytes, SimpleVertexNormal.InputLayout, iboHandle);
+            vao = SimpleVertexNormal.Format.CreateVertexArray(nameof(ShapeSceneNode), vboHandle, iboHandle);
 
 #if DEBUG
             var vaoLabel = nameof(PhysSceneNode);
@@ -365,7 +365,7 @@ namespace ValveResourceFormat.Renderer.SceneNodes
                 renderShader.SetTexture(0, "g_tColor", ToolTexture);
             }
 
-            GL.BindVertexArray(vao.Get());
+            VertexArray.Bind(vao, renderShader);
 
             GL.DepthFunc(DepthFunction.Gequal);
 

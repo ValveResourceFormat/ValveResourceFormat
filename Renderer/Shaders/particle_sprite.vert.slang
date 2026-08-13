@@ -7,10 +7,10 @@ in vec4 vCOLOR;
 in vec2 vTEXCOORD1;
 in float vFrameBlend;
 // Each extra layer's own current (xy) and next (zw) sheet frame uvs.
-in vec4 vLayerUv0;
-in vec4 vLayerUv1;
-in vec4 vLayerUv2;
-in vec4 vLayerUv3;
+in vec4 vTEXCOORD2;
+in vec4 vTEXCOORD3;
+in vec4 vTEXCOORD4;
+in vec4 vTEXCOORD5;
 
 #include "common/utils.slang"
 #include "common/ViewConstants.slang"
@@ -45,10 +45,10 @@ void main(void) {
 
     vTexCoordOut = vTEXCOORD;
     vTexCoordNextFrameOut = vTEXCOORD1;
-    vLayerUvOut[0] = vLayerUv0;
-    vLayerUvOut[1] = vLayerUv1;
-    vLayerUvOut[2] = vLayerUv2;
-    vLayerUvOut[3] = vLayerUv3;
+    vLayerUvOut[0] = vTEXCOORD2;
+    vLayerUvOut[1] = vTEXCOORD3;
+    vLayerUvOut[2] = vTEXCOORD4;
+    vLayerUvOut[3] = vTEXCOORD5;
     vFrameBlend = vFrameBlend;
     vFragPosition = vPOSITION;
     gl_Position = g_matWorldToProjection * vec4(vPOSITION, 1.0);

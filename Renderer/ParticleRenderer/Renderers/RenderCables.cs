@@ -116,7 +116,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
             GL.CreateBuffers(1, out vertexBufferHandle);
             GL.CreateBuffers(1, out indexBufferHandle);
 
-            return CableFormat.CreateVertexArray(nameof(RenderCables), shader, vertexBufferHandle, indexBufferHandle);
+            return CableFormat.CreateVertexArray(nameof(RenderCables), vertexBufferHandle, indexBufferHandle);
         }
 
         public override void Render(ParticleCollection particles, ParticleSystemRenderState systemRenderState, Camera camera)

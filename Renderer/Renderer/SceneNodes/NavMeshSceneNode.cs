@@ -95,7 +95,7 @@ namespace ValveResourceFormat.Renderer.SceneNodes
             renderShader.SetUniform("g_bNormalShaded", true);
             renderShader.SetUniform("g_bTriplanarMapping", false);
 
-            GL.BindVertexArray(vao.Get());
+            VertexArray.Bind(vao, renderShader);
 
             GL.BlendFunc(BlendingFactor.SrcAlpha, BlendingFactor.OneMinusSrcAlpha);
 

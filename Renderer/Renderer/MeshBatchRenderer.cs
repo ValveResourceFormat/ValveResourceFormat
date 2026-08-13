@@ -250,7 +250,7 @@ namespace ValveResourceFormat.Renderer
 
                 var requestVao = request.Call.GetVertexArrayObject();
 
-                request.Call.MeshBuffers.ValidateShaderAttributes(requestVao, shader!);
+                VertexArray.Validate(requestVao, shader!);
 
                 if (vao != requestVao)
                 {

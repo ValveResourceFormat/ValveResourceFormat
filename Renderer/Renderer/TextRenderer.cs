@@ -20,10 +20,10 @@ namespace ValveResourceFormat.Renderer
         {
             public const int Size = 6;
 
-            [VertexAttribute("vPOSITION")] public Vector2 Position;
-            [VertexAttribute("vTEXCOORD")] public Vector2 TexCoord;
-            [VertexAttribute("vDEPTH")] public float Depth;
-            [VertexAttribute("vCOLOR")] public Color32 Color;
+            [VertexAttribute(VertexAttributeSlot.Position)] public Vector2 Position;
+            [VertexAttribute(VertexAttributeSlot.TexCoord)] public Vector2 TexCoord;
+            [VertexAttribute(VertexAttributeSlot.TextDepth)] public float Depth;
+            [VertexAttribute(VertexAttributeSlot.Color)] public Color32 Color;
         }
 
         /// <summary>
@@ -252,7 +252,7 @@ namespace ValveResourceFormat.Renderer
 
             GL.CreateBuffers(1, out bufferHandle);
 
-            vao = QuadFormat.CreateVertexArray(nameof(TextRenderer), shader!, bufferHandle, RendererContext.MeshBufferCache.QuadIndices.GLHandle);
+            vao = QuadFormat.CreateVertexArray(nameof(TextRenderer), bufferHandle, RendererContext.MeshBufferCache.QuadIndices.GLHandle);
 
 #if DEBUG
             var objectLabel = nameof(TextRenderer);

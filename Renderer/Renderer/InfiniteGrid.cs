@@ -29,8 +29,8 @@ namespace ValveResourceFormat.Renderer
             GL.CreateBuffers(1, out int buffer);
             GL.NamedBufferData(buffer, vertices.Length * sizeof(float), vertices, BufferUsageHint.StaticDraw);
 
-            var format = new VertexFormat(sizeof(float) * 2, new VertexAttribute("vPOSITION", DXGI_FORMAT.R32G32_FLOAT));
-            vao = format.CreateVertexArray(nameof(InfiniteGrid), shader, buffer);
+            var format = new VertexFormat(sizeof(float) * 2, new VertexAttribute(VertexAttributeSlot.Position, DXGI_FORMAT.R32G32_FLOAT));
+            vao = format.CreateVertexArray(nameof(InfiniteGrid), buffer);
 
 #if DEBUG
             var vaoLabel = nameof(InfiniteGrid);

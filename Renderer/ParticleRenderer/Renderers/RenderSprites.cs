@@ -25,15 +25,15 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
         [StructLayout(LayoutKind.Sequential)]
         private struct Vertex
         {
-            [VertexAttribute("vPOSITION")] public Vector3 Position;
-            [VertexAttribute("vCOLOR")] public Vector4 Color;
-            [VertexAttribute("vTEXCOORD")] public Vector2 UV;
-            [VertexAttribute("vTEXCOORD1")] public Vector2 UVNextFrame;
-            [VertexAttribute("vFrameBlend")] public float FrameBlend;
-            [VertexAttribute("vLayerUv0")] public Vector4 LayerUv0;
-            [VertexAttribute("vLayerUv1")] public Vector4 LayerUv1;
-            [VertexAttribute("vLayerUv2")] public Vector4 LayerUv2;
-            [VertexAttribute("vLayerUv3")] public Vector4 LayerUv3;
+            [VertexAttribute(VertexAttributeSlot.Position)] public Vector3 Position;
+            [VertexAttribute(VertexAttributeSlot.Color)] public Vector4 Color;
+            [VertexAttribute(VertexAttributeSlot.TexCoord)] public Vector2 UV;
+            [VertexAttribute(VertexAttributeSlot.TexCoord1)] public Vector2 UVNextFrame;
+            [VertexAttribute(VertexAttributeSlot.FrameBlend)] public float FrameBlend;
+            [VertexAttribute(VertexAttributeSlot.TexCoord2)] public Vector4 LayerUv0;
+            [VertexAttribute(VertexAttributeSlot.TexCoord3)] public Vector4 LayerUv1;
+            [VertexAttribute(VertexAttributeSlot.TexCoord4)] public Vector4 LayerUv2;
+            [VertexAttribute(VertexAttributeSlot.TexCoord5)] public Vector4 LayerUv3;
 
             public void SetLayerUv(int layer, Vector4 uvs)
             {
@@ -247,7 +247,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
         {
             GL.CreateBuffers(1, out vertexBufferHandle);
 
-            return QuadFormat.CreateVertexArray(nameof(RenderSprites), shader, vertexBufferHandle, rendererContext.MeshBufferCache.QuadIndices.GLHandle);
+            return QuadFormat.CreateVertexArray(nameof(RenderSprites), vertexBufferHandle, rendererContext.MeshBufferCache.QuadIndices.GLHandle);
         }
 
         // m_Gradient's stops, as the ramp generator wants them. A stop's colour is authored as a byte

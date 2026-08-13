@@ -24,11 +24,11 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
         [StructLayout(LayoutKind.Sequential)]
         private readonly struct Vertex(Vector3 position, Vector4 color, Vector2 uv, Vector2 uvNextFrame, float frameBlend)
         {
-            [VertexAttribute("vPOSITION")] public readonly Vector3 Position = position;
-            [VertexAttribute("vCOLOR")] public readonly Vector4 Color = color;
-            [VertexAttribute("vTEXCOORD")] public readonly Vector2 UV = uv;
-            [VertexAttribute("vTEXCOORD1")] public readonly Vector2 UVNextFrame = uvNextFrame;
-            [VertexAttribute("vFrameBlend")] public readonly float FrameBlend = frameBlend;
+            [VertexAttribute(VertexAttributeSlot.Position)] public readonly Vector3 Position = position;
+            [VertexAttribute(VertexAttributeSlot.Color)] public readonly Vector4 Color = color;
+            [VertexAttribute(VertexAttributeSlot.TexCoord)] public readonly Vector2 UV = uv;
+            [VertexAttribute(VertexAttributeSlot.TexCoord1)] public readonly Vector2 UVNextFrame = uvNextFrame;
+            [VertexAttribute(VertexAttributeSlot.FrameBlend)] public readonly float FrameBlend = frameBlend;
         }
 
         // The shared quad index buffer covers 65532 indices, six per quad
@@ -168,7 +168,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
         {
             GL.CreateBuffers(1, out int buffer);
 
-            var vao = QuadFormat.CreateVertexArray(nameof(RenderTrails), shader, buffer, rendererContext.MeshBufferCache.QuadIndices.GLHandle);
+            var vao = QuadFormat.CreateVertexArray(nameof(RenderTrails), buffer, rendererContext.MeshBufferCache.QuadIndices.GLHandle);
 
             return (vao, buffer);
         }

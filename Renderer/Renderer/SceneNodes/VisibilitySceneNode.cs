@@ -12,7 +12,7 @@ namespace ValveResourceFormat.Renderer.SceneNodes
         private readonly record struct ClusterDrawRange(int Start, int Count, ushort ClusterId);
 
         private readonly Shader shader;
-        private readonly RenderVao vao;
+        private readonly int vao;
         private readonly int totalVertexCount;
         private readonly ClusterDrawRange[] clusterDrawRanges;
 
@@ -50,7 +50,7 @@ namespace ValveResourceFormat.Renderer.SceneNodes
             GL.NamedBufferData(vboHandle, totalVertexCount * SimpleVertex.SizeInBytes,
                 ListAccessors<SimpleVertex>.GetBackingArray(vertices), BufferUsageHint.StaticDraw);
 
-            vao = new RenderVao(Scene.RendererContext.MeshBufferCache, nameof(VisibilitySceneNode), vboHandle, SimpleVertex.SizeInBytes, SimpleVertex.InputLayout);
+            vao = SimpleVertex.Format.CreateVertexArray(nameof(VisibilitySceneNode), vboHandle);
 
 #if DEBUG
             var label = nameof(VisibilitySceneNode);
@@ -75,7 +75,7 @@ namespace ValveResourceFormat.Renderer.SceneNodes
 
             GL.DepthMask(false);
             GL.BlendFunc(BlendingFactor.SrcAlpha, BlendingFactor.OneMinusSrcAlpha);
-            GL.BindVertexArray(vao.Get());
+            VertexArray.Bind(vao, renderShader);
 
             if (Scene.CurrentFramePvs == null)
             {
