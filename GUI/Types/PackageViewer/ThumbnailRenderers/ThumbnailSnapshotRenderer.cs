@@ -1,6 +1,6 @@
 using ValveResourceFormat;
 using ValveResourceFormat.Blocks;
-using ValveResourceFormat.Renderer.Particles;
+using ValveResourceFormat.Particles;
 using ValveResourceFormat.Renderer.SceneNodes;
 
 namespace GUI.Types.PackageViewer.ThumbnailRenderers;
@@ -20,7 +20,7 @@ internal class ThumbnailSnapshotRenderer : ThumbnailRenderer
 
         var particleSceneNode = new ParticleSceneNode(SceneRenderer!.Scene, particleSystem, snapshot, true);
         particleSceneNode.SetTextureOverride(SceneRenderer.Scene.RendererContext.MaterialLoader.GetDefaultColor());
-        SnapshotParticleSystem.SetScreenSize(particleSceneNode, PointScreenSize, SceneRenderer.Camera.GetFOV());
+        SnapshotParticleSystem.SetScreenSize(particleSceneNode.GetControlPoint(SnapshotParticleSystem.ScreenSizeControlPoint), PointScreenSize, SceneRenderer.Camera.GetFOV());
 
         SceneRenderer.Scene.Add(particleSceneNode, true);
 

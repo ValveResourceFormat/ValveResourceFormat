@@ -1,7 +1,7 @@
 using System.Collections;
 using Microsoft.Extensions.Logging;
 using ValveResourceFormat.Blocks;
-using ValveResourceFormat.Renderer.Particles;
+using ValveResourceFormat.Particles;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.Serialization.KeyValues;
 using static ValveResourceFormat.ResourceTypes.EntityLump;

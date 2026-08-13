@@ -1,3 +1,4 @@
+using ValveResourceFormat.Particles;
 using ValveResourceFormat.Renderer.SceneEnvironment;
 using ValveResourceFormat.Serialization.KeyValues;
 
@@ -52,7 +53,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
             scene.LightingInfo.BarnLights.Add(light);
         }
 
-        public override void Update(ParticleCollection particles, ParticleSystemRenderState systemRenderState)
+        public override void Update(ParticleCollection particles, ParticleSystemState systemState)
         {
             if (particles.Count == 0)
             {
@@ -62,10 +63,10 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
             }
 
             ref var particle = ref particles.Current[0];
-            UpdateLight(light, ref particle, systemRenderState);
+            UpdateLight(light, ref particle, systemState);
         }
 
-        public override void Render(ParticleCollection particles, ParticleSystemRenderState systemRenderState, Camera camera)
+        public override void Render(ParticleCollection particles, ParticleSystemState systemState, Camera camera)
         {
             // Light rendering is handled by the scene/light system.
         }
@@ -83,12 +84,12 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
                 Entity = SceneLight.EntityType.Omni2,
                 DirectLight = SceneLight.DirectLightType.Dynamic,
                 CastShadows = castShadows ? 1 : 0,
-                SpotOuterAngle = outerConeAngle.NextNumber(ref Particle.Default, ParticleSystemRenderState.Default),
-                SpotInnerAngle = innerConeAngle.NextNumber(ref Particle.Default, ParticleSystemRenderState.Default),
+                SpotOuterAngle = outerConeAngle.NextNumber(ref Particle.Default, ParticleSystemState.Default),
+                SpotInnerAngle = innerConeAngle.NextNumber(ref Particle.Default, ParticleSystemState.Default),
                 BrightnessScale = 1f,
-                Range = range.NextNumber(ref Particle.Default, ParticleSystemRenderState.Default),
-                FallOff = skirt.NextNumber(ref Particle.Default, ParticleSystemRenderState.Default),
-                LuminaireSize = luminaireRadius.NextNumber(ref Particle.Default, ParticleSystemRenderState.Default),
+                Range = range.NextNumber(ref Particle.Default, ParticleSystemState.Default),
+                FallOff = skirt.NextNumber(ref Particle.Default, ParticleSystemState.Default),
+                LuminaireSize = luminaireRadius.NextNumber(ref Particle.Default, ParticleSystemState.Default),
                 LuminaireShape = lightType switch
                 {
                     ParticleOmni2LightTypeChoiceList.PARTICLE_OMNI2_LIGHT_TYPE_POINT => -1,
@@ -102,19 +103,19 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
             };
         }
 
-        private void UpdateLight(SceneLight light, ref Particle particle, ParticleSystemRenderState systemRenderState)
+        private void UpdateLight(SceneLight light, ref Particle particle, ParticleSystemState systemState)
         {
-            var baseColor = colorBlend.NextVector(ref particle, systemRenderState);
+            var baseColor = colorBlend.NextVector(ref particle, systemState);
             var color = Vector3.Clamp(baseColor, Vector3.Zero, Vector3.One);
 
             var brightness = brightnessUnit switch
             {
-                ParticleLightUnitChoiceList.PARTICLE_LIGHT_UNIT_CANDELAS => light.ComputeConeSolidAngle() * brightnessCandelas.NextNumber(ref particle, systemRenderState),
-                _ => brightnessLumens.NextNumber(ref particle, systemRenderState)
+                ParticleLightUnitChoiceList.PARTICLE_LIGHT_UNIT_CANDELAS => light.ComputeConeSolidAngle() * brightnessCandelas.NextNumber(ref particle, systemState),
+                _ => brightnessLumens.NextNumber(ref particle, systemState)
             };
 
-            var lightRange = MathF.Max(0f, range.NextNumber(ref particle, systemRenderState));
-            var skirtValue = skirt.NextNumber(ref particle, systemRenderState);
+            var lightRange = MathF.Max(0f, range.NextNumber(ref particle, systemState));
+            var skirtValue = skirt.NextNumber(ref particle, systemState);
 
             light.Color = color;
             light.Brightness = MathF.Max(0f, brightness);

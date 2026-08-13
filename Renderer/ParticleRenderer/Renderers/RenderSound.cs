@@ -1,3 +1,4 @@
+using ValveResourceFormat.Particles;
 using ValveResourceFormat.Serialization.KeyValues;
 
 namespace ValveResourceFormat.Renderer.Particles.Renderers
@@ -40,7 +41,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
             }
         }
 
-        public override void Update(ParticleCollection particles, ParticleSystemRenderState systemRenderState)
+        public override void Update(ParticleCollection particles, ParticleSystemState systemState)
         {
             if (soundName.Length == 0)
             {
@@ -69,7 +70,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
                 }
 
                 var position = controlPointReference >= 0
-                    ? systemRenderState.GetControlPoint(controlPointReference).Position
+                    ? systemState.GetControlPoint(controlPointReference).Position
                     : particle.Position;
 
                 var fieldVolume = particle.GetInitialScalar(particles, volumeField);
@@ -84,7 +85,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
             nextParticleId = highestId;
         }
 
-        public override void Render(ParticleCollection particles, ParticleSystemRenderState systemRenderState, Camera camera)
+        public override void Render(ParticleCollection particles, ParticleSystemState systemState, Camera camera)
         {
             // Nothing to draw; the sound is started from Update.
         }

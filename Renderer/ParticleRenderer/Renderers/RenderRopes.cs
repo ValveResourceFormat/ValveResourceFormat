@@ -1,7 +1,8 @@
+using ValveResourceFormat.Particles;
 using System.Buffers;
 using OpenTK.Graphics.OpenGL;
 using ValveResourceFormat.Serialization.KeyValues;
-using ValveResourceFormat.Renderer.Particles.Utils;
+using ValveResourceFormat.Particles.Utils;
 
 namespace ValveResourceFormat.Renderer.Particles.Renderers
 {
@@ -324,15 +325,15 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
         /// <c>m_nTextureVParamsCP</c> replaces all three outright; otherwise the control point
         /// distance factors add to them in world units. The two are mutually exclusive.
         /// </summary>
-        private (float ScrollRate, float Offset, float OneOverWorldSize) ResolveTextureV(ParticleSystemRenderState systemRenderState)
+        private (float ScrollRate, float Offset, float OneOverWorldSize) ResolveTextureV(ParticleSystemState systemState)
         {
-            var scrollRate = textureVScrollRate.NextNumber(systemRenderState);
-            var offset = textureVOffset.NextNumber(systemRenderState);
-            var worldSize = textureVWorldSize.NextNumber(systemRenderState);
+            var scrollRate = textureVScrollRate.NextNumber(systemState);
+            var offset = textureVOffset.NextNumber(systemState);
+            var worldSize = textureVWorldSize.NextNumber(systemState);
 
             if (textureVParamsControlPoint >= 0)
             {
-                var parameters = systemRenderState.GetControlPoint(textureVParamsControlPoint).Position;
+                var parameters = systemState.GetControlPoint(textureVParamsControlPoint).Position;
 
                 return (parameters.Y, parameters.Z, 1f / MathF.Max(float.Epsilon, parameters.X));
             }
@@ -346,8 +347,8 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
             if (modulated)
             {
                 var distance = Vector3.Distance(
-                    systemRenderState.GetControlPoint(scaleControlPoint1).Position,
-                    systemRenderState.GetControlPoint(scaleControlPoint2).Position);
+                    systemState.GetControlPoint(scaleControlPoint1).Position,
+                    systemState.GetControlPoint(scaleControlPoint2).Position);
 
                 if (scaleVSizeByControlPointDistance > 0f)
                 {
@@ -372,7 +373,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
         /// Copies the live particles into the node scratch in walk order, applying the size clamp and
         /// the distance fade that <c>m_bEnableFadingAndClamping</c> gates.
         /// </summary>
-        private int CollectNodes(ParticleCollection particleBag, ParticleSystemRenderState systemRenderState, Camera camera)
+        private int CollectNodes(ParticleCollection particleBag, ParticleSystemState systemState, Camera camera)
         {
             var count = particleBag.Count;
 
@@ -381,15 +382,15 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
                 nodeScratch = new RopeNode[count];
             }
 
-            var startFadeSlope = startFadeSize.NextNumber(systemRenderState);
-            var endFadeSlope = endFadeSize.NextNumber(systemRenderState);
+            var startFadeSlope = startFadeSize.NextNumber(systemState);
+            var endFadeSlope = endFadeSize.NextNumber(systemState);
 
             for (var i = 0; i < count; i++)
             {
                 ref var particle = ref particleBag.Current[reverseOrder ? count - i - 1 : i];
 
-                var radius = particle.Radius * RadiusScale.NextNumber(ref particle, systemRenderState);
-                var alpha = particle.Alpha * particle.AlphaAlternate * AlphaScale.NextNumber(ref particle, systemRenderState);
+                var radius = particle.Radius * RadiusScale.NextNumber(ref particle, systemState);
+                var alpha = particle.Alpha * particle.AlphaAlternate * AlphaScale.NextNumber(ref particle, systemState);
 
                 if (enableFadingAndClamping)
                 {
@@ -426,9 +427,9 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
         /// V is raw world arc length measured between the particles themselves, so subdividing a
         /// segment keeps the same V span as the straight chord it replaces.
         /// </summary>
-        private int UpdateVertices(ParticleCollection particleBag, ParticleSystemRenderState systemRenderState, Camera camera)
+        private int UpdateVertices(ParticleCollection particleBag, ParticleSystemState systemState, Camera camera)
         {
-            var nodeCount = CollectNodes(particleBag, systemRenderState, camera);
+            var nodeCount = CollectNodes(particleBag, systemState, camera);
 
             if (nodeCount < 2)
             {
@@ -439,14 +440,14 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
             var segmentCount = closedLoop ? nodeCount : nodeCount - 1;
             var subdivisions = 1 << ComputeTessellationLevel(nodes, camera);
 
-            var (scrollRate, vOffset, oneOverWorldSize) = ResolveTextureV(systemRenderState);
+            var (scrollRate, vOffset, oneOverWorldSize) = ResolveTextureV(systemState);
             var viewAngleFadeActive = startFadeDot < 1f && endFadeDot > startFadeDot;
             var sheet = ResolveSheetFrame(particleBag);
 
             var maxQuads = Math.Min(MaxQuads, segmentCount * subdivisions);
             var rawVertices = ArrayPool<float>.Shared.Rent(maxQuads * VertexSize * 4);
             var quadCount = 0;
-            var arcLength = scrollRate * systemRenderState.Age;
+            var arcLength = scrollRate * systemState.Age;
 
             try
             {
@@ -667,14 +668,14 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
         }
 
         /// <inheritdoc/>
-        public override void Render(ParticleCollection particleBag, ParticleSystemRenderState systemRenderState, Camera camera)
+        public override void Render(ParticleCollection particleBag, ParticleSystemState systemState, Camera camera)
         {
             if (particleBag.Count < 2)
             {
                 return;
             }
 
-            var quadCount = UpdateVertices(particleBag, systemRenderState, camera);
+            var quadCount = UpdateVertices(particleBag, systemState, camera);
 
             if (quadCount == 0)
             {
@@ -702,7 +703,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
             GL.BindVertexArray(vaoHandle);
 
             shader.SetTexture(RenderMaterial.TextureUnitStart, "uTexture", texture);
-            SetSharedUniforms(shader, systemRenderState);
+            SetSharedUniforms(shader, systemState);
             shader.SetUniform1("uBlendFrames", blendFrames);
             shader.SetUniform1("uBlendMode", (int)blendMode);
 

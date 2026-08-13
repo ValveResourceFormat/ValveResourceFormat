@@ -1,0 +1,46 @@
+namespace ValveResourceFormat.Particles.Operators
+{
+    /// <summary>
+    /// Sets a vector particle attribute to a per-particle vector value, with an optional
+    /// interpolation factor that blends between the current value and the target each frame.
+    /// </summary>
+    /// <seealso href="https://s2v.app/SchemaExplorer/cs2/particles/C_OP_SetVec">C_OP_SetVec</seealso>
+    class SetVec : ParticleFunctionOperator
+    {
+        private readonly ParticleField outputField = ParticleField.Color;
+        private readonly IVectorProvider value = new LiteralVectorProvider(Vector3.Zero);
+        private readonly ParticleSetMethod setMethod = ParticleSetMethod.PARTICLE_SET_REPLACE_VALUE;
+        private readonly INumberProvider lerp = new LiteralNumberProvider(1f);
+        private readonly bool normalizedOutput;
+
+        public SetVec(ParticleDefinitionParser parse) : base(parse)
+        {
+            outputField = parse.ParticleField("m_nOutputField", outputField);
+            value = parse.VectorProvider("m_InputValue", value);
+            setMethod = parse.Enum<ParticleSetMethod>("m_nSetMethod", setMethod);
+            lerp = parse.NumberProvider("m_Lerp", lerp);
+            normalizedOutput = parse.Boolean("m_bNormalizedOutput", normalizedOutput);
+
+        }
+        public override void Operate(ParticleCollection particles, float frameTime, ParticleSystemState particleSystemState, float strength)
+        {
+            foreach (ref var particle in particles.Current)
+            {
+                var value = this.value.NextVector(ref particle, particleSystemState);
+                var lerp = Math.Clamp(this.lerp.NextNumber(ref particle, particleSystemState) * strength, 0f, 1f);
+
+                var currentValue = particle.ModifyVectorBySetMethod(particles, outputField, value, setMethod);
+                var initialValue = particle.GetVector(outputField);
+
+                value = Vector3.Lerp(initialValue, currentValue, lerp);
+
+                if (normalizedOutput && value != Vector3.Zero)
+                {
+                    value = Vector3.Normalize(value);
+                }
+
+                particle.SetVector(outputField, value);
+            }
+        }
+    }
+}

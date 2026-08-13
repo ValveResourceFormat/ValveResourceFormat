@@ -1,7 +1,8 @@
 using System.Runtime.InteropServices;
 using OpenTK.Graphics.OpenGL;
 using ValveResourceFormat.CompiledShader;
-using ValveResourceFormat.Renderer.Particles.Utils;
+using ValveResourceFormat.Particles;
+using ValveResourceFormat.Particles.Utils;
 using ValveResourceFormat.Serialization.KeyValues;
 
 namespace ValveResourceFormat.Renderer.Particles.Renderers
@@ -383,7 +384,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
         }
 
         /// <summary>Fills and uploads the quad buffer, returning the number of quads actually emitted.</summary>
-        private int UpdateVertices(ParticleCollection particles, ParticleSystemRenderState systemRenderState, Camera camera)
+        private int UpdateVertices(ParticleCollection particles, ParticleSystemState systemState, Camera camera)
         {
             var modelViewMatrix = camera.CameraViewMatrix;
 
@@ -397,14 +398,14 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
             var billboardMatrix = Matrix4x4.CreateFromQuaternion(modelViewRotation);
 
             // All four bounds are a radius per unit of camera distance
-            var minSizeSlope = minSize.NextNumber(systemRenderState);
-            var maxSizeSlope = maxSize.NextNumber(systemRenderState);
-            var startFadeSlope = startFadeSize.NextNumber(systemRenderState);
-            var endFadeSlope = endFadeSize.NextNumber(systemRenderState);
+            var minSizeSlope = minSize.NextNumber(systemState);
+            var maxSizeSlope = maxSize.NextNumber(systemState);
+            var startFadeSlope = startFadeSize.NextNumber(systemState);
+            var endFadeSlope = endFadeSize.NextNumber(systemState);
 
             var centerOffset = new Vector2(
-                CenterXOffset.NextNumber(systemRenderState),
-                CenterYOffset.NextNumber(systemRenderState));
+                CenterXOffset.NextNumber(systemState),
+                CenterYOffset.NextNumber(systemState));
 
 
             // Distance from the quad centre to its furthest corner, in half-widths, so a particle can be
@@ -428,7 +429,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
                 var i = 0;
                 foreach (ref var particle in particles.Current)
                 {
-                    var radiusScale = RadiusScale.NextNumber(ref particle, systemRenderState);
+                    var radiusScale = RadiusScale.NextNumber(ref particle, systemState);
 
                     // Scales rgb and alpha alike, matching the shader's fade of the whole vertex colour.
                     var colorFade = 1f;
@@ -469,7 +470,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
                         radiusScale = MathF.Min(MathF.Max(radius, minSizeSlope * cameraDistance), maxSizeSlope * cameraDistance) / particle.Radius;
                     }
 
-                    var alphaScale = AlphaScale.NextNumber(ref particle, systemRenderState);
+                    var alphaScale = AlphaScale.NextNumber(ref particle, systemState);
                     var alpha = particle.Alpha * alphaScale * colorFade * alphaFade;
                     var halfWidth = particle.Radius * radiusScale;
 
@@ -571,7 +572,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
             }
         }
 
-        public override void Render(ParticleCollection particleBag, ParticleSystemRenderState systemRenderState, Camera camera)
+        public override void Render(ParticleCollection particleBag, ParticleSystemState systemState, Camera camera)
         {
             if (particleBag.Count == 0)
             {
@@ -580,7 +581,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
 
             // Update vertex buffer. Fully faded particles are skipped, so this can be fewer than the
             // live particle count.
-            var quadCount = UpdateVertices(particleBag, systemRenderState, camera);
+            var quadCount = UpdateVertices(particleBag, systemState, camera);
 
             if (quadCount == 0)
             {
@@ -613,11 +614,11 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
             {
                 shader.SetUniform1(LayerChannelsUniforms[layer], (int)layers[layer].Channels);
                 shader.SetUniform1(LayerBlendModeUniforms[layer], (int)layers[layer].BlendMode);
-                shader.SetUniform1(LayerBlendUniforms[layer], layers[layer].Blend.NextNumber(systemRenderState));
+                shader.SetUniform1(LayerBlendUniforms[layer], layers[layer].Blend.NextNumber(systemState));
                 shader.SetUniform1(LayerEffectModeUniforms[layer], (int)layers[layer].EffectMode);
             }
 
-            SetSharedUniforms(shader, systemRenderState);
+            SetSharedUniforms(shader, systemState);
             shader.SetUniform1("uBlendFrames", blendFrames);
             shader.SetUniform1("uOutline", outline);
             shader.SetUniform4("uOutlineColor", outlineColor);
@@ -629,7 +630,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
             {
                 var remap = softEdges
                     ? new Vector2(edgeSoftnessEnd, edgeSoftnessStart)
-                    : new Vector2(GetAlphaRemapRange(systemRenderState).X, 0.499f);
+                    : new Vector2(GetAlphaRemapRange(systemState).X, 0.499f);
                 shader.SetUniform2("uAlphaRemapRange", remap);
             }
 

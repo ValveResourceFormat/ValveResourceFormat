@@ -1,7 +1,8 @@
 using System.Runtime.InteropServices;
 using OpenTK.Graphics.OpenGL;
 using ValveResourceFormat.CompiledShader;
-using ValveResourceFormat.Renderer.Particles.Utils;
+using ValveResourceFormat.Particles;
+using ValveResourceFormat.Particles.Utils;
 using ValveResourceFormat.Serialization.KeyValues;
 
 namespace ValveResourceFormat.Renderer.Particles.Renderers
@@ -166,10 +167,10 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
         /// <summary>
         /// Builds one quad per visible trail into the shared vertex buffer, returning how many were written.
         /// </summary>
-        private int UpdateVertices(ParticleCollection particleBag, ParticleSystemRenderState systemRenderState, Camera camera)
+        private int UpdateVertices(ParticleCollection particleBag, ParticleSystemState systemState, Camera camera)
         {
-            var headColor = headColorScale.NextVector(systemRenderState);
-            var tailColor = tailColorScale.NextVector(systemRenderState);
+            var headColor = headColorScale.NextVector(systemState);
+            var tailColor = tailColorScale.NextVector(systemState);
 
             // The moved distance is converted back to a velocity (distance / dt) before scaling by
             // the trail-length attribute. The division only applies when the previous point comes
@@ -180,8 +181,8 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
                 : 1f / particleBag.CurrentFrameTime;
 
             // Both fade bounds are a radius per unit of camera distance, as the two size bounds are.
-            var startFadeSlope = startFadeSize.NextNumber(systemRenderState);
-            var endFadeSlope = endFadeSize.NextNumber(systemRenderState);
+            var startFadeSlope = startFadeSize.NextNumber(systemState);
+            var endFadeSlope = endFadeSize.NextNumber(systemState);
 
             // The shader fades by view angle in every mode and outside the fade-and-clamp gate; the
             // defaults of (1, 2) put the smoothstep past its own range, which is what makes it inert.
@@ -223,7 +224,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
                         continue;
                     }
 
-                    var particleRadius = particle.Radius * RadiusScale.NextNumber(ref particle, systemRenderState);
+                    var particleRadius = particle.Radius * RadiusScale.NextNumber(ref particle, systemState);
 
                     // Scales rgb and alpha alike, as the view angle fade below touches alpha only
                     var colorFade = 1f;
@@ -291,8 +292,8 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
                     // direction runs backwards along travel here, so the shift subtracts
                     var center = position + (direction * (length * (0.5f - forwardShift)));
 
-                    var headHalfWidth = halfWidth * headRadiusTaper.NextNumber(ref particle, systemRenderState);
-                    var tailHalfWidth = halfWidth * tailRadiusTaper.NextNumber(ref particle, systemRenderState);
+                    var headHalfWidth = halfWidth * headRadiusTaper.NextNumber(ref particle, systemState);
+                    var tailHalfWidth = halfWidth * tailRadiusTaper.NextNumber(ref particle, systemState);
 
                     // The shader clamps per vertex, on the radius the CPU has already constrained and
                     // tapered, so each end is bounded against its own distance rather than the centre's
@@ -331,14 +332,14 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
                     // Corners in index buffer winding order, with the local quad's [-1, 1] axes mapping to [0, 1] uvs
                     var quadStart = quadCount * 4;
                     var alpha = particle.Alpha * particle.AlphaAlternate * colorFade * alphaFade
-                        * AlphaScale.NextNumber(ref particle, systemRenderState);
+                        * AlphaScale.NextNumber(ref particle, systemState);
                     var tint = particle.Color * colorFade;
 
                     var head = Vector4.Clamp(
-                        new Vector4(tint * headColor, alpha * headAlphaScale.NextNumber(ref particle, systemRenderState)),
+                        new Vector4(tint * headColor, alpha * headAlphaScale.NextNumber(ref particle, systemState)),
                         Vector4.Zero, Vector4.One);
                     var tail = Vector4.Clamp(
-                        new Vector4(tint * tailColor, alpha * tailAlphaScale.NextNumber(ref particle, systemRenderState)),
+                        new Vector4(tint * tailColor, alpha * tailAlphaScale.NextNumber(ref particle, systemState)),
                         Vector4.Zero, Vector4.One);
 
                     for (var j = 0; j < 4; ++j)
@@ -373,14 +374,14 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
             return quadCount;
         }
 
-        public override void Render(ParticleCollection particleBag, ParticleSystemRenderState systemRenderState, Camera camera)
+        public override void Render(ParticleCollection particleBag, ParticleSystemState systemState, Camera camera)
         {
             if (particleBag.Count == 0)
             {
                 return;
             }
 
-            var quadCount = UpdateVertices(particleBag, systemRenderState, camera);
+            var quadCount = UpdateVertices(particleBag, systemState, camera);
 
             if (quadCount == 0)
             {
@@ -403,7 +404,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
             shader.SetTexture(RenderMaterial.TextureUnitStart, "uTexture", texture);
 
             // TODO: This formula is a guess but still seems too bright compared to valve particles
-            SetSharedUniforms(shader, systemRenderState);
+            SetSharedUniforms(shader, systemState);
 
             shader.SetUniform1("uBlendFrames", blendFrames);
 

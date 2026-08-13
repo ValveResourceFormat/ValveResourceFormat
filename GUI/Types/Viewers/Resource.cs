@@ -17,7 +17,7 @@ using ValveResourceFormat.Blocks;
 using ValveResourceFormat.Graphs;
 using ValveResourceFormat.IO;
 using ValveResourceFormat.Renderer;
-using ValveResourceFormat.Renderer.Particles;
+using ValveResourceFormat.Particles;
 using ValveResourceFormat.Renderer.World;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.ResourceTypes.GenericData.CS2;
