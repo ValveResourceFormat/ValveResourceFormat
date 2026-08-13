@@ -35,6 +35,16 @@ namespace ValveResourceFormat.NavMesh
         public float ShortHeight { get; set; }
 
         /// <summary>
+        /// Gets or sets whether crawling navigating agent capsules are enabled in addition to regular height capsules.
+        /// </summary>
+        public bool AgentCrawlEnabled { get; set; }
+
+        /// <summary>
+        /// Gets or sets the crawl height of the navigating agent capsule when <see cref="AgentCrawlEnabled"/> is <see langword="true"/>.
+        /// </summary>
+        public float AgentCrawlHeight { get; set; }
+
+        /// <summary>
         /// Gets or sets the maximum vertical offset that the agent simply ignores and walks over.
         /// </summary>
         public float MaxClimb { get; set; }
@@ -86,9 +96,8 @@ namespace ValveResourceFormat.NavMesh
 
             if (generationParams.NavGenVersion >= 13)
             {
-                //TODO: Figure out the two values below
-                binaryReader.ReadByte();
-                binaryReader.ReadSingle();
+                AgentCrawlEnabled = binaryReader.ReadByte() > 0;
+                AgentCrawlHeight = binaryReader.ReadSingle();
             }
 
             MaxClimb = binaryReader.ReadSingle();

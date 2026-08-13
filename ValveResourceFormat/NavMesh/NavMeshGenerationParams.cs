@@ -1,4 +1,3 @@
-using System.Diagnostics;
 using System.IO;
 using System.Text;
 
@@ -95,6 +94,11 @@ namespace ValveResourceFormat.NavMesh
         public NavMeshGenerationHullParams[] HullParams { get; set; } = [];
 
         /// <summary>
+        /// Gets or sets whether gravity follows the rotation of movable nav meshes.
+        /// </summary>
+        public bool GravityFollowsRotation { get; set; }
+
+        /// <summary>
         /// Reads generation parameters from a binary reader.
         /// </summary>
         public void Read(BinaryReader binaryReader, NavMeshFile navMeshFile)
@@ -155,8 +159,8 @@ namespace ValveResourceFormat.NavMesh
 
             if (NavGenVersion >= 12)
             {
-                var unkByte = binaryReader.ReadByte();
-                Debug.Assert(unkByte == 0 || unkByte == 1);
+                // The association of this value with the movable mesh gravity setting is probable, but not proven
+                GravityFollowsRotation = binaryReader.ReadByte() != 0;
             }
         }
     }

@@ -54,7 +54,12 @@ namespace Tests
                 Assert.That(navMeshFile.Areas, Has.Count.EqualTo(4));
                 Assert.That(navMeshFile.Ladders, Is.Empty);
                 Assert.That(navMeshFile.GenerationParams?.NavGenVersion, Is.EqualTo(12));
+                Assert.That(navMeshFile.GenerationParams?.GravityFollowsRotation, Is.False);
+                Assert.That(navMeshFile.MovableMeshIds, Is.Empty);
+                Assert.That(navMeshFile.TransformedBounds, Is.Empty);
+                Assert.That(navMeshFile.Areas.Values.Select(area => area.MovableMeshId), Is.All.EqualTo(NavMeshFile.NoMovableMesh));
                 Assert.That(navMeshFile.CustomData, Is.Not.Null);
+                Assert.That(navMeshFile.CustomData?.Header?.Format.Name, Is.EqualTo("navmeshcustomdata1"));
             }
         }
     }

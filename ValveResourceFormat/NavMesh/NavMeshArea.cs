@@ -19,9 +19,19 @@ namespace ValveResourceFormat.NavMesh
         public byte HullIndex { get; set; }
 
         /// <summary>
-        /// Gets or sets the dynamic attribute flags.
+        /// Gets or sets the base attribute flags of this area.
         /// </summary>
-        public DynamicAttributeFlags DynamicAttributeFlags { get; set; }
+        /// <remarks>
+        /// Areas also have a dynamic attribute set, that one is a 32-bit runtime only value and is never stored in the file.
+        /// The named values of <see cref="NavAttributeFlags"/> only apply to version 35 and newer.
+        /// </remarks>
+        public NavAttributeFlags AttributeFlags { get; set; }
+
+        /// <summary>
+        /// Gets or sets the id of the movable nav mesh this area belongs to,
+        /// or <see cref="NavMeshFile.NoMovableMesh"/> when it belongs to the static world.
+        /// </summary>
+        public uint MovableMeshId { get; set; } = NavMeshFile.NoMovableMesh;
 
         /// <summary>
         /// Gets or sets the corner vertices.
@@ -61,10 +71,10 @@ namespace ValveResourceFormat.NavMesh
         /// <summary>
         /// Reads the navigation mesh area from a binary reader.
         /// </summary>
-        public void Read(BinaryReader binaryReader, NavMeshFile navMeshFile, Vector3[][]? polygons = null)
+        public void Read(BinaryReader binaryReader, NavMeshFile navMeshFile, NavMeshPolygon[]? polygons = null)
         {
             AreaId = binaryReader.ReadUInt32();
-            DynamicAttributeFlags = (DynamicAttributeFlags)binaryReader.ReadInt64();
+            AttributeFlags = (NavAttributeFlags)binaryReader.ReadInt64();
             HullIndex = binaryReader.ReadByte();
 
             if (navMeshFile.Version >= 31)
@@ -75,7 +85,9 @@ namespace ValveResourceFormat.NavMesh
                 }
 
                 var polygonIndex = binaryReader.ReadUInt32();
-                Corners = polygons[polygonIndex];
+                var polygon = polygons[polygonIndex];
+                Corners = polygon.Corners;
+                MovableMeshId = polygon.MovableMeshId;
             }
             else
             {
