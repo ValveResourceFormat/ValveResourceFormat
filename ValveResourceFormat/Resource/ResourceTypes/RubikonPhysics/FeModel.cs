@@ -228,7 +228,10 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics
         /// original entirely) - re-declaring twist_relax as nonzero for exactly these nodes is what
         /// recovers the original's real Twist network and drops the bogus Ropes.
         /// </summary>
-        public IReadOnlySet<int> TwistNodes { get; }
+        public IReadOnlyDictionary<int, float> TwistNodes { get; }
+
+        /// <summary>Gets the twist relaxation authored on <paramref name="node"/>, or 0 when untwisted.</summary>
+        public float GetTwistRelax(int node) => TwistNodes.GetValueOrDefault(node);
 
         // The cloth_drag paint compiles to flPointDamping = paint * 30 (measured: 0.2 -> 6.0, 0.5 -> 15.0).
         internal const float ClothDragPointDampingScale = 30f;
@@ -431,13 +434,14 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics
                 ? fitMatrices.Select(static o => o.GetInt32Property("nNode")).ToHashSet()
                 : new HashSet<int>();
 
-            var twistNodes = new HashSet<int>();
+            var twistNodes = new Dictionary<int, float>();
             if (data.GetArray("m_Twists") is { } twistsArray)
             {
                 foreach (var entry in twistsArray)
                 {
-                    twistNodes.Add(entry.GetInt32Property("nNodeOrient"));
-                    twistNodes.Add(entry.GetInt32Property("nNodeEnd"));
+                    var relax = entry.GetFloatProperty("flTwistRelax");
+                    twistNodes[entry.GetInt32Property("nNodeOrient")] = relax;
+                    twistNodes[entry.GetInt32Property("nNodeEnd")] = relax;
                 }
             }
 
