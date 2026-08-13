@@ -26,7 +26,7 @@ uniform float uDesaturation = 0.0; // m_flDesaturation
 // the brightness run past 1 into the blend.
 uniform bool uSaturateColorPreAlphaBlend = true;
 
-// m_bBlendFramesSeq0 / m_bMaxLuminanceBlendingSequence0. Gated on a uniform rather than on vFrameBlend
+// m_bBlendFramesSeq0 / m_bMaxLuminanceBlendingSequence0. Gated on a uniform rather than on vFrameBlendOut
 // so that the second fetch sits in draw-uniform control flow.
 uniform bool uBlendFrames = true;
 uniform bool uMaxLuminanceFrameBlend = false;
@@ -86,7 +86,7 @@ const vec2 MASK_RAMP_FLAGS[15] = vec2[](
 in vec2 vTexCoordOut;
 in vec2 vTexCoordNextFrameOut;
 in vec4 vLayerUvOut[4];
-in float vFrameBlend;
+in float vFrameBlendOut;
 in vec4 vColor;
 in vec3 vFragPosition;
 
@@ -257,13 +257,13 @@ void main(void) {
             {
                 // Weighting each frame by the square root of its luminance keeps the brighter one
                 // dominant through the cross-fade, so a spark does not dim as it crosses a frame.
-                float weight = (1.0 - vFrameBlend) * sqrt(max(0.001, GetLuma(layer.rgb)));
-                float nextWeight = vFrameBlend * sqrt(max(0.001, GetLuma(nextFrame.rgb)));
+                float weight = (1.0 - vFrameBlendOut) * sqrt(max(0.001, GetLuma(layer.rgb)));
+                float nextWeight = vFrameBlendOut * sqrt(max(0.001, GetLuma(nextFrame.rgb)));
                 layer = ((layer * weight) + (nextFrame * nextWeight)) / (weight + nextWeight);
             }
             else
             {
-                layer = mix(layer, nextFrame, vFrameBlend);
+                layer = mix(layer, nextFrame, vFrameBlendOut);
             }
         }
 

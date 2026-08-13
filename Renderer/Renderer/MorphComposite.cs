@@ -20,7 +20,7 @@ namespace ValveResourceFormat.Renderer
         private readonly Shader shader;
         private int vao;
         private int bufferHandle;
-        private Vertex[] allVertices;
+        private MorphRectVertex[] allVertices;
         private readonly RenderTexture morphAtlas;
         private List<int>[] morphRects;
         private readonly HashSet<int> usedRects = [];
@@ -120,7 +120,7 @@ namespace ValveResourceFormat.Renderer
 
         // Mutable because SetVertexMorphValue pokes the current weight into PositionWeights in place.
         [StructLayout(LayoutKind.Sequential)]
-        private struct Vertex
+        private struct MorphRectVertex
         {
             [VertexAttribute(VertexAttributeSlot.Position)] public Vector4 PositionWeights;
             [VertexAttribute(VertexAttributeSlot.TexCoord)] public Vector4 TexCoords;
@@ -128,7 +128,7 @@ namespace ValveResourceFormat.Renderer
             [VertexAttribute(VertexAttributeSlot.TexCoord2)] public Vector4 RangesPositionSpeed;
         }
 
-        private static readonly VertexFormat VertexFormat = VertexFormat.FromStruct<Vertex>();
+        private static readonly VertexFormat VertexFormat = VertexFormat.FromStruct<MorphRectVertex>();
 
         private void InitVertexBuffer(RendererContext renderContext)
         {
@@ -151,7 +151,7 @@ namespace ValveResourceFormat.Renderer
 
             var bundleCount = morphDatas.Sum(morphData => GetMorphDataBundleCount(morphData));
 
-            allVertices = new Vertex[bundleCount * 4];
+            allVertices = new MorphRectVertex[bundleCount * 4];
             morphCount = morph.GetMorphCount();
             morphRects = new List<int>[morphCount];
 
@@ -203,7 +203,7 @@ namespace ValveResourceFormat.Renderer
             }
         }
 
-        private void BuildVertexBuffer(Vertex[] usedVertices)
+        private void BuildVertexBuffer(MorphRectVertex[] usedVertices)
         {
             var addedRects = 0;
             foreach (var rect in usedRects)
@@ -242,7 +242,7 @@ namespace ValveResourceFormat.Renderer
 
         private void SetVertex(int vertex, float x, float y, float u, float v, MorphCompositeRectData data)
         {
-            allVertices[vertex] = new Vertex
+            allVertices[vertex] = new MorphRectVertex
             {
                 PositionWeights = new Vector4(x, y, 0f, 0f),
                 TexCoords = new Vector4(u, v, u, v),

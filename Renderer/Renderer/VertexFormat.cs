@@ -1,3 +1,4 @@
+using System.Collections.Frozen;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Reflection;
@@ -12,11 +13,15 @@ namespace ValveResourceFormat.Renderer
     /// buffer format follows from the field type, see <see cref="VertexFormat.FromStruct{TVertex}"/>.
     /// </summary>
     /// <param name="slot">The attribute this field feeds.</param>
+    /// <param name="format">Buffer format of the field, when it is not the one its type maps to.</param>
     [AttributeUsage(AttributeTargets.Field)]
-    public sealed class VertexAttributeAttribute(VertexAttributeSlot slot) : Attribute
+    public sealed class VertexAttributeAttribute(VertexAttributeSlot slot, DXGI_FORMAT format = DXGI_FORMAT.UNKNOWN) : Attribute
     {
         /// <summary>Gets the attribute this field feeds.</summary>
         public VertexAttributeSlot Slot { get; } = slot;
+
+        /// <summary>Gets the buffer format, or <see cref="DXGI_FORMAT.UNKNOWN"/> to derive it from the field type.</summary>
+        public DXGI_FORMAT Format { get; } = format;
     }
 
     /// <summary>
@@ -86,46 +91,28 @@ namespace ValveResourceFormat.Renderer
                     continue;
                 }
 
-                elements.Add(new VertexAttribute(attribute.Slot, FormatForType(field.FieldType), (int)Marshal.OffsetOf<TVertex>(field.Name)));
+                var format = attribute.Format == DXGI_FORMAT.UNKNOWN ? FormatForType(field.FieldType) : attribute.Format;
+
+                elements.Add(new VertexAttribute(attribute.Slot, format, (int)Marshal.OffsetOf<TVertex>(field.Name)));
             }
 
             return new VertexFormat(Marshal.SizeOf<TVertex>(), [.. elements]);
         }
 
-        private static DXGI_FORMAT FormatForType(Type fieldType)
+        private static readonly FrozenDictionary<Type, DXGI_FORMAT> FormatByFieldType = new Dictionary<Type, DXGI_FORMAT>
         {
-            if (fieldType == typeof(float))
-            {
-                return DXGI_FORMAT.R32_FLOAT;
-            }
+            [typeof(float)] = DXGI_FORMAT.R32_FLOAT,
+            [typeof(Vector2)] = DXGI_FORMAT.R32G32_FLOAT,
+            [typeof(Vector3)] = DXGI_FORMAT.R32G32B32_FLOAT,
+            [typeof(Vector4)] = DXGI_FORMAT.R32G32B32A32_FLOAT,
+            [typeof(Color32)] = DXGI_FORMAT.R8G8B8A8_UNORM,
+            [typeof(uint)] = DXGI_FORMAT.R32_UINT,
+        }.ToFrozenDictionary();
 
-            if (fieldType == typeof(Vector2))
-            {
-                return DXGI_FORMAT.R32G32_FLOAT;
-            }
-
-            if (fieldType == typeof(Vector3))
-            {
-                return DXGI_FORMAT.R32G32B32_FLOAT;
-            }
-
-            if (fieldType == typeof(Vector4))
-            {
-                return DXGI_FORMAT.R32G32B32A32_FLOAT;
-            }
-
-            if (fieldType == typeof(Color32))
-            {
-                return DXGI_FORMAT.R8G8B8A8_UNORM;
-            }
-
-            if (fieldType == typeof(uint))
-            {
-                return DXGI_FORMAT.R32_UINT;
-            }
-
-            throw new NotImplementedException($"No vertex attribute format mapping for field type {fieldType.Name}");
-        }
+        private static DXGI_FORMAT FormatForType(Type fieldType)
+            => FormatByFieldType.TryGetValue(fieldType, out var format)
+                ? format
+                : throw new NotImplementedException($"Field type {fieldType.Name} maps to no vertex attribute format, pass one to [VertexAttribute].");
 
         /// <summary>Describes this format as vertex buffer input layout fields, for geometry uploaded as a
         /// <see cref="VBIB"/> through <see cref="GPUMeshBufferCache"/>.</summary>
@@ -165,7 +152,7 @@ namespace ValveResourceFormat.Renderer
 
                 GL.EnableVertexArrayAttrib(vao, location);
                 GL.VertexArrayAttribBinding(vao, location, 0);
-                SetVertexArrayAttribFormat(vao, location, elements[i].Format, offsets[i]);
+                VertexArray.SetAttribFormat(vao, location, elements[i].Format, offsets[i]);
             }
 
             VertexArray.Record(vao, BoundLocations);
@@ -178,88 +165,6 @@ namespace ValveResourceFormat.Renderer
 #endif
 
             return vao;
-        }
-
-        /// <summary>
-        /// Sets one VAO attribute's data format, mapping the <see cref="DXGI_FORMAT"/> to the matching float
-        /// or integer GL attribute format. Shared with the game mesh path in <see cref="GPUMeshBufferCache"/>.
-        /// </summary>
-        /// <param name="vao">The OpenGL VAO handle.</param>
-        /// <param name="location">Attribute location.</param>
-        /// <param name="format">Data format of the attribute.</param>
-        /// <param name="offset">Byte offset of the attribute within a vertex.</param>
-        internal static void SetVertexArrayAttribFormat(int vao, int location, DXGI_FORMAT format, int offset)
-        {
-            switch (format)
-            {
-                case DXGI_FORMAT.R32G32B32_FLOAT:
-                    GL.VertexArrayAttribFormat(vao, location, 3, VertexAttribType.Float, false, offset);
-                    break;
-
-                case DXGI_FORMAT.R8G8B8A8_UNORM:
-                    GL.VertexArrayAttribFormat(vao, location, 4, VertexAttribType.UnsignedByte, true, offset);
-                    break;
-
-                case DXGI_FORMAT.R32_FLOAT:
-                    GL.VertexArrayAttribFormat(vao, location, 1, VertexAttribType.Float, false, offset);
-                    break;
-
-                case DXGI_FORMAT.R32G32_FLOAT:
-                    GL.VertexArrayAttribFormat(vao, location, 2, VertexAttribType.Float, false, offset);
-                    break;
-
-                case DXGI_FORMAT.R16G16_FLOAT:
-                    GL.VertexArrayAttribFormat(vao, location, 2, VertexAttribType.HalfFloat, false, offset);
-                    break;
-
-                case DXGI_FORMAT.R32G32B32A32_FLOAT:
-                    GL.VertexArrayAttribFormat(vao, location, 4, VertexAttribType.Float, false, offset);
-                    break;
-
-                case DXGI_FORMAT.R32G32B32A32_SINT:
-                    GL.VertexArrayAttribIFormat(vao, location, 4, VertexAttribType.Int, offset);
-                    break;
-
-                case DXGI_FORMAT.R8G8B8A8_UINT:
-                    GL.VertexArrayAttribIFormat(vao, location, 4, VertexAttribType.UnsignedByte, offset);
-                    break;
-
-                case DXGI_FORMAT.R16G16_SINT:
-                    GL.VertexArrayAttribIFormat(vao, location, 2, VertexAttribType.Short, offset);
-                    break;
-
-                case DXGI_FORMAT.R16G16B16A16_SINT:
-                    GL.VertexArrayAttribIFormat(vao, location, 4, VertexAttribType.Short, offset);
-                    break;
-
-                case DXGI_FORMAT.R16G16B16A16_UINT:
-                    GL.VertexArrayAttribIFormat(vao, location, 4, VertexAttribType.UnsignedShort, offset);
-                    break;
-
-                case DXGI_FORMAT.R16G16B16A16_UNORM:
-                    GL.VertexArrayAttribFormat(vao, location, 4, VertexAttribType.UnsignedShort, true, offset);
-                    break;
-
-                case DXGI_FORMAT.R16G16B16A16_FLOAT:
-                    GL.VertexArrayAttribFormat(vao, location, 4, VertexAttribType.HalfFloat, false, offset);
-                    break;
-
-                case DXGI_FORMAT.R16G16_SNORM:
-                    GL.VertexArrayAttribFormat(vao, location, 2, VertexAttribType.Short, true, offset);
-                    break;
-
-                case DXGI_FORMAT.R16G16_UNORM:
-                    GL.VertexArrayAttribFormat(vao, location, 2, VertexAttribType.UnsignedShort, true, offset);
-                    break;
-
-                case DXGI_FORMAT.R32_UINT:
-                    GL.VertexArrayAttribIFormat(vao, location, 1, VertexAttribType.UnsignedInt, offset);
-                    break;
-
-                // :VertexAttributeFormat - When adding new attribute here, also implement it in the VBIB code
-                default:
-                    throw new NotImplementedException($"Unknown vertex attribute format {format} (location {location})");
-            }
         }
     }
 }

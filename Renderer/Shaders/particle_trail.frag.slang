@@ -15,7 +15,7 @@ uniform int uBlendMode = 0; // PARTICLE_OUTPUT_BLEND_MODE_ALPHA
 
 uniform sampler2D uTexture;
 
-// m_bBlendFramesSeq0. Gated on a uniform rather than on vFrameBlend so that the second fetch sits in
+// m_bBlendFramesSeq0. Gated on a uniform rather than on vFrameBlendOut so that the second fetch sits in
 // draw-uniform control flow.
 uniform bool uBlendFrames = true;
 uniform bool uMaxLuminanceFrameBlend = false;
@@ -30,7 +30,7 @@ uniform vec2 uAlphaRemapRange = vec2(1.0, 0.0);
 
 in vec2 vTexCoordOut;
 in vec2 vTexCoordNextFrameOut;
-in float vFrameBlend;
+in float vFrameBlendOut;
 in vec4 vColor;
 in vec3 vFragPosition;
 
@@ -94,13 +94,13 @@ void main(void) {
 
         if (uMaxLuminanceFrameBlend)
         {
-            float weight = (1.0 - vFrameBlend) * sqrt(max(0.001, GetLuma(color.rgb)));
-            float nextWeight = vFrameBlend * sqrt(max(0.001, GetLuma(nextFrame.rgb)));
+            float weight = (1.0 - vFrameBlendOut) * sqrt(max(0.001, GetLuma(color.rgb)));
+            float nextWeight = vFrameBlendOut * sqrt(max(0.001, GetLuma(nextFrame.rgb)));
             color = ((color * weight) + (nextFrame * nextWeight)) / (weight + nextWeight);
         }
         else
         {
-            color = mix(color, nextFrame, vFrameBlend);
+            color = mix(color, nextFrame, vFrameBlendOut);
         }
     }
 

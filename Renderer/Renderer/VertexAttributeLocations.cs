@@ -25,8 +25,9 @@ namespace ValveResourceFormat.Renderer
     /// valid for every shader drawing the geometry, and the renderer never has to ask the driver which slot
     /// it picked. <see cref="ShaderParser"/> stamps these onto the shader's <c>in</c> declarations.
     ///
-    /// OpenGL only guarantees 16 slots and the mesh attributes take all of them, so anything else aliases a
-    /// slot it can never be declared next to, which the GLSL compiler enforces per variant.
+    /// OpenGL only guarantees 16 slots and these take all of them, so geometry with an attribute of its own
+    /// (text depth, particle frame blend) names the slot of a mesh attribute it never declares, rather than
+    /// reserving one. Declaring both in one shader is a duplicate location error.
     /// </summary>
     public enum VertexAttributeSlot
     {
@@ -94,20 +95,6 @@ namespace ValveResourceFormat.Renderer
         /// <summary>Baked per vertex lighting, the second color stream under its engine name.</summary>
         [VertexAttributeName("vCOLOR1", "vPerVertexLighting", Semantics = ["COLOR"], SemanticIndex = 1)]
         Color1,
-
-        // One-off attributes of a single renderer, sharing the slot of a mesh attribute it never declares.
-
-        /// <summary>Bomb damage quad phase. Those quads are never skinned.</summary>
-        [VertexAttributeName("vPHASE", Semantics = ["PHASE"])]
-        Phase = BlendIndices2,
-
-        /// <summary>Text depth. Text is never skinned.</summary>
-        [VertexAttributeName("vDEPTH")]
-        TextDepth = BlendIndices,
-
-        /// <summary>Particle sprite sheet frame blend. Particles are never skinned.</summary>
-        [VertexAttributeName("vFrameBlend")]
-        FrameBlend = BlendWeight,
     }
 
     /// <summary>

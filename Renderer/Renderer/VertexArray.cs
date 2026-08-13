@@ -58,6 +58,52 @@ namespace ValveResourceFormat.Renderer
             GL.BindVertexArray(vao);
         }
 
+        /// <summary>
+        /// Sets one VAO attribute's data format, mapping the <see cref="DXGI_FORMAT"/> to the matching float
+        /// or integer GL attribute format. Shared by handbuilt formats and the game mesh path.
+        /// </summary>
+        /// <param name="vao">The OpenGL VAO handle.</param>
+        /// <param name="location">Attribute location.</param>
+        /// <param name="format">Data format of the attribute.</param>
+        /// <param name="offset">Byte offset of the attribute within a vertex.</param>
+        public static void SetAttribFormat(int vao, int location, DXGI_FORMAT format, int offset)
+        {
+            // Integer attributes take the I variant, which has no normalized flag
+            var (count, type, normalized, integer) = format switch
+            {
+                DXGI_FORMAT.R32_FLOAT => (1, VertexAttribType.Float, false, false),
+                DXGI_FORMAT.R32G32_FLOAT => (2, VertexAttribType.Float, false, false),
+                DXGI_FORMAT.R32G32B32_FLOAT => (3, VertexAttribType.Float, false, false),
+                DXGI_FORMAT.R32G32B32A32_FLOAT => (4, VertexAttribType.Float, false, false),
+                DXGI_FORMAT.R16G16_FLOAT => (2, VertexAttribType.HalfFloat, false, false),
+                DXGI_FORMAT.R16G16B16A16_FLOAT => (4, VertexAttribType.HalfFloat, false, false),
+
+                DXGI_FORMAT.R8G8B8A8_UNORM => (4, VertexAttribType.UnsignedByte, true, false),
+                DXGI_FORMAT.R16G16_UNORM => (2, VertexAttribType.UnsignedShort, true, false),
+                DXGI_FORMAT.R16G16B16A16_UNORM => (4, VertexAttribType.UnsignedShort, true, false),
+                DXGI_FORMAT.R16G16_SNORM => (2, VertexAttribType.Short, true, false),
+
+                DXGI_FORMAT.R32_UINT => (1, VertexAttribType.UnsignedInt, false, true),
+                DXGI_FORMAT.R8G8B8A8_UINT => (4, VertexAttribType.UnsignedByte, false, true),
+                DXGI_FORMAT.R16G16B16A16_UINT => (4, VertexAttribType.UnsignedShort, false, true),
+                DXGI_FORMAT.R16G16_SINT => (2, VertexAttribType.Short, false, true),
+                DXGI_FORMAT.R16G16B16A16_SINT => (4, VertexAttribType.Short, false, true),
+                DXGI_FORMAT.R32G32B32A32_SINT => (4, VertexAttribType.Int, false, true),
+
+                // :VertexAttributeFormat - When adding new attribute here, also implement it in the VBIB code
+                _ => throw new NotImplementedException($"Unknown vertex attribute format {format} (location {location})"),
+            };
+
+            if (integer)
+            {
+                GL.VertexArrayAttribIFormat(vao, location, count, type, offset);
+            }
+            else
+            {
+                GL.VertexArrayAttribFormat(vao, location, count, type, normalized, offset);
+            }
+        }
+
         /// <summary>Deletes a vertex array object.</summary>
         /// <param name="vao">The vertex array object to delete.</param>
         public static void Delete(int vao)

@@ -5,7 +5,7 @@ in vec2 vTEXCOORD;
 in vec4 vCOLOR;
 // The frame after the one vTEXCOORD addresses, and how far between the two this particle sits.
 in vec2 vTEXCOORD1;
-in float vFrameBlend;
+in float vBLENDWEIGHT; // blend between this frame and the next
 
 #include "common/ViewConstants.slang"
 #include "common/utils.slang"
@@ -17,7 +17,7 @@ uniform float uDepthBias = 0.0;
 
 out vec2 vTexCoordOut;
 out vec2 vTexCoordNextFrameOut;
-out float vFrameBlend;
+out float vFrameBlendOut;
 out vec4 vColor;
 out vec3 vFragPosition;
 
@@ -33,7 +33,7 @@ void main(void) {
 
     vTexCoordOut = vTEXCOORD;
     vTexCoordNextFrameOut = vTEXCOORD1;
-    vFrameBlend = vFrameBlend;
+    vFrameBlendOut = vBLENDWEIGHT;
     vFragPosition = vPOSITION;
     gl_Position = g_matWorldToProjection * vec4(vPOSITION, 1.0);
 

@@ -3,7 +3,7 @@
 in vec3 vPOSITION;
 in vec4 vCOLOR;
 in vec2 vTEXCOORD;
-in float vPHASE;
+in float vTEXCOORD1; // damage phase
 
 out vec4 vtxColor;
 out vec2 vtxUv;
@@ -17,7 +17,7 @@ out float vtxPhase;
 void main(void) {
     vtxColor = vCOLOR;
     vtxUv = vTEXCOORD;
-    vtxPhase = vPHASE;
+    vtxPhase = vTEXCOORD1;
 
     vec3 worldPos = vec4(vPOSITION, 1.0) * CalculateObjectToWorldMatrix();
     vtxWorldPos = worldPos;

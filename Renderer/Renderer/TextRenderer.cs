@@ -22,7 +22,7 @@ namespace ValveResourceFormat.Renderer
 
             [VertexAttribute(VertexAttributeSlot.Position)] public Vector2 Position;
             [VertexAttribute(VertexAttributeSlot.TexCoord)] public Vector2 TexCoord;
-            [VertexAttribute(VertexAttributeSlot.TextDepth)] public float Depth;
+            [VertexAttribute(VertexAttributeSlot.TexCoord1)] public float Depth;
             [VertexAttribute(VertexAttributeSlot.Color)] public Color32 Color;
         }
 

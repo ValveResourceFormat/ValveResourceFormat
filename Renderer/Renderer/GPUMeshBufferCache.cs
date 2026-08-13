@@ -269,7 +269,7 @@ namespace ValveResourceFormat.Renderer
 
                     GL.EnableVertexArrayAttrib(newVaoHandle, attributeLocation);
                     GL.VertexArrayAttribBinding(newVaoHandle, attributeLocation, bindingIndex);
-                    VertexFormat.SetVertexArrayAttribFormat(newVaoHandle, attributeLocation, attribute.Format, (int)attribute.Offset);
+                    VertexArray.SetAttribFormat(newVaoHandle, attributeLocation, attribute.Format, (int)attribute.Offset);
                 }
 
                 bindingIndex++;

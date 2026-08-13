@@ -5,7 +5,7 @@ in vec2 vTEXCOORD;
 in vec4 vCOLOR;
 // The frame after the one vTEXCOORD addresses, and how far between the two this particle sits.
 in vec2 vTEXCOORD1;
-in float vFrameBlend;
+in float vBLENDWEIGHT; // blend between this frame and the next
 // Each extra layer's own current (xy) and next (zw) sheet frame uvs.
 in vec4 vTEXCOORD2;
 in vec4 vTEXCOORD3;
@@ -29,7 +29,7 @@ uniform float uDepthBias = 0.0;
 out vec2 vTexCoordOut;
 out vec2 vTexCoordNextFrameOut;
 out vec4 vLayerUvOut[4];
-out float vFrameBlend;
+out float vFrameBlendOut;
 out vec4 vColor;
 out vec3 vFragPosition;
 
@@ -49,7 +49,7 @@ void main(void) {
     vLayerUvOut[1] = vTEXCOORD3;
     vLayerUvOut[2] = vTEXCOORD4;
     vLayerUvOut[3] = vTEXCOORD5;
-    vFrameBlend = vFrameBlend;
+    vFrameBlendOut = vBLENDWEIGHT;
     vFragPosition = vPOSITION;
     gl_Position = g_matWorldToProjection * vec4(vPOSITION, 1.0);
 

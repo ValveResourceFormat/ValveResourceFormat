@@ -3,7 +3,7 @@
 in vec2 vPOSITION;
 in vec2 vTEXCOORD;
 in vec4 vCOLOR;
-in float vDEPTH;
+in float vTEXCOORD1; // scene depth
 
 out vec2 vTexCoord;
 out vec4 vFragColor;
@@ -15,5 +15,5 @@ void main(void) {
     gl_Position = transform * vec4(vPOSITION, 0, 1);
     vTexCoord = vTEXCOORD;
     vFragColor = vCOLOR;
-    vSceneDepth = vDEPTH;
+    vSceneDepth = vTEXCOORD1;
 }
