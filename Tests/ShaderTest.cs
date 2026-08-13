@@ -355,9 +355,20 @@ namespace Tests
                 Assert.That(ChannelMapping.G, Is.EqualTo(ChannelMapping.FromUInt32(0xFFFFFF01)));
                 Assert.That(ChannelMapping.AG, Is.EqualTo(ChannelMapping.FromUInt32(0xFFFF0103)));
 
-                // New in version 67
-                Assert.That(ChannelMapping.RGBA, Is.EqualTo(ChannelMapping.FromUInt32(0x33221100)));
-                Assert.That(ChannelMapping.AG, Is.EqualTo(ChannelMapping.FromUInt32(0xFFFF1130)));
+                // Version 67 and newer pack the destination channel into the low nibble of each byte
+                Assert.That(ChannelMapping.RGBA, Is.EqualTo(ChannelMapping.FromUInt32(0x33221100, packedDestinations: true)));
+                Assert.That(ChannelMapping.AG, Is.EqualTo(ChannelMapping.FromUInt32(0xFFFF1130, packedDestinations: true)));
+
+                Assert.That(ChannelMapping.RGBA.Destinations, Is.EqualTo(new byte[] { 0, 1, 2, 3 }));
+                Assert.That(ChannelMapping.AG.Destinations, Is.EqualTo(new byte[] { 0, 1 }));
+
+                var rotated = ChannelMapping.FromUInt32(0x23120130, packedDestinations: true);
+                Assert.That(rotated.ValidChannels, Is.EqualTo(new[] { ChannelMapping.Channel.A, ChannelMapping.Channel.R, ChannelMapping.Channel.G, ChannelMapping.Channel.B }));
+                Assert.That(rotated.Destinations, Is.EqualTo(new byte[] { 0, 1, 2, 3 }));
+
+                var offset = ChannelMapping.FromUInt32(0xFFFF1201, packedDestinations: true);
+                Assert.That(offset.ValidChannels, Is.EqualTo(new[] { ChannelMapping.Channel.R, ChannelMapping.Channel.G }));
+                Assert.That(offset.Destinations, Is.EqualTo(new byte[] { 1, 2 }));
 
                 Assert.That(ChannelMapping.R.ToString(), Is.EqualTo("R"));
                 Assert.That(ChannelMapping.G.ToString(), Is.EqualTo("G"));

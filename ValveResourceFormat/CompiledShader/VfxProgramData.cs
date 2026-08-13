@@ -392,7 +392,7 @@ namespace ValveResourceFormat.CompiledShader
             TextureChannelProcessors = new VfxTextureChannelProcessor[textureChannelProcessorsCount];
             for (var i = 0; i < textureChannelProcessorsCount; i++)
             {
-                VfxTextureChannelProcessor nextChannelBlock = new(DataReader, i);
+                VfxTextureChannelProcessor nextChannelBlock = new(DataReader, i, VcsVersion);
                 TextureChannelProcessors[i] = nextChannelBlock;
             }
 

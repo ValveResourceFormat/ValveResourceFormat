@@ -1,3 +1,4 @@
+using System.Buffers.Binary;
 using System.IO;
 using ValveKeyValue;
 using ValveResourceFormat.Serialization.KeyValues;
@@ -31,7 +32,7 @@ public class VfxTextureChannelProcessor : ShaderDataBlock
         BlockIndex = blockIndex;
 
         var channelDesc = data.GetArray<byte>("m_nChannelDesc")!;
-        Channel = ChannelMapping.FromChannels(channelDesc[0], channelDesc[1], channelDesc[2], channelDesc[3]);
+        Channel = ChannelMapping.FromUInt32(BinaryPrimitives.ReadUInt32LittleEndian(channelDesc), packedDestinations: true);
         InputTextureIndices = data.GetArray<int>("m_nInputTextures")!;
         ColorMode = data.GetInt32Property("m_outputColorSpace");
         TexProcessorName = data.GetStringProperty("m_mipProcessingCommand");
@@ -40,11 +41,11 @@ public class VfxTextureChannelProcessor : ShaderDataBlock
     /// <summary>
     /// Initializes a new instance from a binary reader.
     /// </summary>
-    public VfxTextureChannelProcessor(BinaryReader datareader, int blockIndex) : base(datareader)
+    public VfxTextureChannelProcessor(BinaryReader datareader, int blockIndex, int vcsVersion) : base(datareader)
     {
         // VfxTextureChannelProcessor::Unserialize
         BlockIndex = blockIndex;
-        Channel = (ChannelMapping)datareader.ReadUInt32();
+        Channel = ChannelMapping.FromUInt32(datareader.ReadUInt32(), packedDestinations: vcsVersion >= 67);
         InputTextureIndices[0] = datareader.ReadInt32();
         InputTextureIndices[1] = datareader.ReadInt32();
         InputTextureIndices[2] = datareader.ReadInt32();

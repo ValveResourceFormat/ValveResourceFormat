@@ -46,22 +46,22 @@ namespace ValveResourceFormat.CompiledShader
         /// <summary>Maximum number of channels.</summary>
         public const int MaxChannels = 4;
         private readonly byte[] _channels = new byte[MaxChannels];
-        private readonly byte[] _indices = new byte[MaxChannels];
+        private readonly byte[] _destinations = new byte[MaxChannels];
 
         /// <summary>Gets all channel bytes.</summary>
         public IReadOnlyList<byte> Channels => _channels;
         /// <summary>Gets valid channel bytes.</summary>
         public IReadOnlyList<byte> ValidChannels => _channels[..Count];
 
-        /// <summary>Gets channel indices.</summary>
-        public IReadOnlyList<byte> Indices => _indices[..Count];
+        /// <summary>Gets the output channel each mapped source channel is written to.</summary>
+        public IReadOnlyList<byte> Destinations => _destinations[..Count];
 
         /// <summary>Gets the packed uint value.</summary>
         public uint PackedValue { get; private init; }
         /// <summary>Gets the number of valid channels.</summary>
         public int Count { get; private init; }
 
-        private ChannelMapping(uint packedValue)
+        private ChannelMapping(uint packedValue, bool packedDestinations)
         {
             PackedValue = packedValue;
 
@@ -73,26 +73,20 @@ namespace ValveResourceFormat.CompiledShader
                     break;
                 }
 
-                // Vcs version 67 adds an index for unknown reasons
-                var componentWithoutIndex = (byte)((component & 0xF0) >> 4);
-                var index = (byte)(component & 0x0F);
-                if (componentWithoutIndex > 0)
+                var channel = packedDestinations ? (byte)(component >> 4) : component;
+                var destination = packedDestinations ? (byte)(component & 0x0F) : (byte)i;
+
+                if (channel > Channel.A || destination >= MaxChannels)
                 {
-                    component = componentWithoutIndex;
-                    _indices[i] = index;
+                    throw new ArgumentOutOfRangeException(
+                        nameof(packedValue),
+                        $"Packed value contains byte outside of range [0x00, 0x03] + 0xFF: 0x{component:X2} at index {i} (0x{packedValue:X8})."
+                    );
                 }
 
-                if (component >= Channel.R && component <= Channel.A)
-                {
-                    _channels[i] = component;
-                    Count++;
-                    continue;
-                }
-
-                throw new ArgumentOutOfRangeException(
-                    nameof(packedValue),
-                    $"Packed value contains byte outside of range [0x00, 0x03] + 0xFF: 0x{component:X2} at index {i} (0x{packedValue:X8})."
-                );
+                _channels[i] = channel;
+                _destinations[i] = destination;
+                Count++;
             }
         }
 
@@ -105,8 +99,14 @@ namespace ValveResourceFormat.CompiledShader
         /// <summary>
         /// Creates a <see cref="ChannelMapping"/> from a packed uint value.
         /// </summary>
-        public static ChannelMapping FromUInt32(uint packedValue)
-            => new(packedValue);
+        /// <param name="packedValue">One byte per mapped channel, terminated by <see cref="Channel.NULL"/>.</param>
+        /// <param name="packedDestinations">
+        /// Whether each byte holds the source channel in the high nibble and the destination channel in the low nibble,
+        /// which is how vcs version 67 and newer store the mapping. Older files store just the source channel,
+        /// and the destination is the position of the byte.
+        /// </param>
+        public static ChannelMapping FromUInt32(uint packedValue, bool packedDestinations = false)
+            => new(packedValue, packedDestinations);
 
         /// <summary>
         /// Gets a component byte from a packed value.
@@ -134,6 +134,7 @@ namespace ValveResourceFormat.CompiledShader
 
         /// <summary>
         /// Creates a <see cref="ChannelMapping"/> from channel bytes, filling missing slots with <see cref="Channel.NULL"/>.
+        /// Each channel is written to the output channel of the same position.
         /// </summary>
         public static ChannelMapping FromChannels(byte first, byte second = Channel.NULL, byte third = Channel.NULL, byte fourth = Channel.NULL)
         {
