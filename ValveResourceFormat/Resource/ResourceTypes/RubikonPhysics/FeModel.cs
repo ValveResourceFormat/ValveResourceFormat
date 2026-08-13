@@ -62,6 +62,12 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics
         public Vector3[] InitPosePositions { get; }
 
         /// <summary>
+        /// Gets the per-node rest orientations, parsed from the last four components of each
+        /// <c>m_InitPose</c> entry. Length matches <see cref="InitPosePositions"/>.
+        /// </summary>
+        public Quaternion[] InitPoseRotations { get; }
+
+        /// <summary>
         /// Gets the cloth surface quads. Each entry is a 4-element array of control-node indices.
         /// </summary>
         public int[][] Quads { get; }
@@ -284,7 +290,10 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics
             var initPose = data.GetArray("m_InitPose");
             InitPosePositions = initPose is null
                 ? []
-                : initPose.Select(static p => p.ToVector3()).ToArray();
+                : initPose.Select(static p => p.ToTransform().Position).ToArray();
+            InitPoseRotations = initPose is null
+                ? []
+                : initPose.Select(static p => p.ToTransform().Rotation).ToArray();
 
             Quads = ReadNodeIndexArray(data, "m_Quads", 4);
             Tris = ReadNodeIndexArray(data, "m_Tris", 3);
@@ -2117,6 +2126,14 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics
             /// <c>gravity_z</c> survives only on its proxies.
             /// </summary>
             public int ProxyNode { get; set; } = -1;
+            /// <summary>Gets the distance from this joint to its own proxy ring.</summary>
+            public float ExtrudeRadius { get; set; }
+            /// <summary>
+            /// Gets the roll (degrees) of this joint's proxy ring about the forward axis, measured in the
+            /// joint's rest frame. The ring's unrolled direction is the frame's +Y, so the value authored
+            /// as <c>extrude_twist</c> is this angle's complement.
+            /// </summary>
+            public float ExtrudeTwist { get; set; }
             /// <summary>Gets a value indicating whether this joint is simulated (invMass &gt; 0).</summary>
             public bool Simulated => InvMass > 0f;
             /// <summary>Gets a value indicating whether this joint is the chain root.</summary>
@@ -2141,6 +2158,12 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics
             public int ExtrudeSides { get; set; }
             /// <summary>Gets the mean distance from a joint bone to its <c>$cc</c> proxy nodes (the extrude half-width).</summary>
             public float ExtrudeRadius { get; set; }
+            /// <summary>
+            /// Gets the roll (degrees) applied to the extruded proxy ring about the chain's forward axis.
+            /// Recovered from where the compiler actually placed the <c>$cc</c> proxies in the joint's rest
+            /// frame; a chain whose ring is not rolled recovers 0.
+            /// </summary>
+            public float ExtrudeTwist { get; set; }
         }
 
         /// <summary>
@@ -2325,6 +2348,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics
                 // extrude) so genuine 1-wide chains - meepo/dark_willow/legion - are byte-identical as before.
                 var sideFrequency = new Dictionary<int, int>();
                 var radii = new List<float>();
+                var twists = new List<float>();
                 foreach (var joint in chain.Joints)
                 {
                     if (!proxyChildrenOf.TryGetValue(joint.Node, out var proxies) || proxies.Count == 0)
@@ -2337,6 +2361,24 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics
                     sideFrequency[proxies.Count] = sideFrequency.GetValueOrDefault(proxies.Count) + 1;
                     if (joint.Node < InitPosePositions.Length)
                     {
+                        // The ring is laid out around the joint's forward axis, so the roll the compiler
+                        // used shows up as the angle of the first proxy in the joint's own rest frame.
+                        if (joint.Node < InitPoseRotations.Length && proxies[0] < InitPosePositions.Length)
+                        {
+                            var offset = Vector3.Transform(
+                                InitPosePositions[proxies[0]] - InitPosePositions[joint.Node],
+                                Quaternion.Conjugate(InitPoseRotations[joint.Node]));
+                            if (new Vector2(offset.Y, offset.Z).LengthSquared() > 1e-6f)
+                            {
+                                var twist = float.RadiansToDegrees(MathF.Atan2(offset.Y, offset.Z));
+                                joint.ExtrudeTwist = twist;
+                                twists.Add(twist);
+                            }
+
+                            joint.ExtrudeRadius = Vector3.Distance(
+                                InitPosePositions[joint.Node], InitPosePositions[proxies[0]]);
+                        }
+
                         foreach (var proxy in proxies)
                         {
                             if (proxy < InitPosePositions.Length)
@@ -2365,6 +2407,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics
                     // extrude_sides' authored range is [0,4]; a wider strip is clamped (best-effort width).
                     chain.ExtrudeSides = Math.Min(bodySides, 4);
                     chain.ExtrudeRadius = radii.Count > 0 ? radii.Average() : 0f;
+                    chain.ExtrudeTwist = twists.Count > 0 ? twists.Average() : 0f;
                 }
 
                 chains.Add(chain);
