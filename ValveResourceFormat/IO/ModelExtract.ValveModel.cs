@@ -620,7 +620,7 @@ partial class ModelExtract
 
         kv.Add("simulate", joint.Simulated);
         kv.Add("goal_strength", goalStrength);
-        kv.Add("goal_damping", FeModel.GoalDampingFromAttraction(goalStrength, integrator.VertexAttraction - integrator.ForceAttraction));
+        kv.Add("goal_damping", FeModel.GoalDampingFromAttraction(integrator.ForceAttraction, integrator.VertexAttraction));
         kv.Add("gravity_z", integrator.Gravity / ClothSourceBaseGravity);
 
         // Everything below is recovered per node; NO invented stiffness defaults. Emitting non-zero
@@ -681,7 +681,7 @@ partial class ModelExtract
     {
         var integrator = feModel.GetIntegrator(node);
         var goalStrength = MathF.Cbrt(Math.Clamp(integrator.ForceAttraction, 0f, 1f));
-        var goalDamping = FeModel.GoalDampingFromAttraction(goalStrength, integrator.VertexAttraction - integrator.ForceAttraction);
+        var goalDamping = FeModel.GoalDampingFromAttraction(integrator.ForceAttraction, integrator.VertexAttraction);
         var strayRadius = feModel.GetStrayRadius(node);
 
         var hasBasis = feModel.NodeBases.TryGetValue(node, out var basis);
