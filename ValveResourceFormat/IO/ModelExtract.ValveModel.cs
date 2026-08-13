@@ -621,7 +621,10 @@ partial class ModelExtract
         kv.Add("simulate", joint.Simulated);
         kv.Add("goal_strength", goalStrength);
         kv.Add("goal_damping", FeModel.GoalDampingFromAttraction(integrator.ForceAttraction, integrator.VertexAttraction));
-        kv.Add("gravity_z", integrator.Gravity / ClothSourceBaseGravity);
+        // A joint's own node is position-driven and compiles with flGravity 0; the authored gravity_z
+        // lands on the $cc proxies the compiler extrudes from it.
+        var gravityNode = joint.ProxyNode >= 0 ? joint.ProxyNode : joint.Node;
+        kv.Add("gravity_z", feModel.GetIntegrator(gravityNode).Gravity / ClothSourceBaseGravity);
 
         // Everything below is recovered per node; NO invented stiffness defaults. Emitting non-zero
         // twist_relax / stiff_hinge / motion_bias makes the compiler build a Twist/KelagerBend constraint
