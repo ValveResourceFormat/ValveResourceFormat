@@ -1,3 +1,5 @@
+using System.Diagnostics;
+using System.Globalization;
 using System.IO;
 using System.Text;
 using ValveKeyValue;
@@ -10,6 +12,21 @@ namespace ValveResourceFormat.ToolsAssetInfo
     /// </summary>
     public class ToolsAssetInfo
     {
+        /// <summary>
+        /// The root an asset path is relative to.
+        /// </summary>
+        public enum AssetLocation
+        {
+            /// <summary>The game root, containing the compiled assets.</summary>
+            Game = 0,
+
+            /// <summary>The content root, containing the source assets.</summary>
+            Content = 1,
+
+            /// <summary>No specific root, used by location agnostic paths and by resource names.</summary>
+            None = 7,
+        }
+
         /// <summary>
         /// Represents a file entry in the tools asset info.
         /// </summary>
@@ -51,16 +68,27 @@ namespace ValveResourceFormat.ToolsAssetInfo
                 /// </summary>
                 public string Filename { get; init; }
 
-                // Valve reads them as 16 bytes
                 /// <summary>
-                /// Gets unknown bits (first 8 bytes).
+                /// Gets the CRC32 of the file, or zero when it was not computed.
                 /// </summary>
-                public ulong UnknownBits1 { get; init; }
+                public uint FileCRC { get; init; }
 
                 /// <summary>
-                /// Gets unknown bits (second 8 bytes).
+                /// Gets the last modification time of the file as a FILETIME. It has a resolution
+                /// of 25.6 microseconds because the low 8 bits are not stored.
                 /// </summary>
-                public ulong UnknownBits2 { get; init; }
+                [KVIgnore]
+                public long ModificationTimeFileTime { get; init; }
+
+                /// <summary>
+                /// Gets the last modification time of the file, as an ISO 8601 string.
+                /// </summary>
+                public string ModificationTime => DateTime.FromFileTimeUtc(ModificationTimeFileTime).ToString("O", CultureInfo.InvariantCulture);
+
+                /// <summary>
+                /// Gets the size of the file in bytes.
+                /// </summary>
+                public long FileSize { get; init; }
             }
 
             /// <summary>
@@ -90,29 +118,34 @@ namespace ValveResourceFormat.ToolsAssetInfo
             }
 
             /// <summary>
-            /// Represents an extended dependency (version 15+).
+            /// Represents a special input dependency (version 15+).
             /// </summary>
-            public readonly struct ExtendedDependency
+            public readonly struct SpecialInputDependency
             {
                 /// <summary>
-                /// Gets unknown bits.
+                /// Gets the compiler identifier, or an empty string when there is none.
                 /// </summary>
-                public uint Unknown1 { get; init; }
+                public string CompilerIdentifier { get; init; }
 
                 /// <summary>
-                /// Gets unknown bits.
+                /// Gets the special string.
                 /// </summary>
-                public uint Unknown2 { get; init; }
+                public string Special { get; init; }
 
                 /// <summary>
-                /// Gets unknown bits (could be a crc).
+                /// Gets the user data, which is a KV3 text string.
                 /// </summary>
-                public uint Unknown3 { get; init; }
+                public string UserData { get; init; }
 
                 /// <summary>
                 /// Gets the filename.
                 /// </summary>
                 public string Filename { get; init; }
+
+                /// <summary>
+                /// Gets the fingerprint.
+                /// </summary>
+                public uint Fingerprint { get; init; }
             }
 
             /// <summary>
@@ -181,9 +214,9 @@ namespace ValveResourceFormat.ToolsAssetInfo
             public List<SpecialDependency> SpecialDependencies { get; } = [];
 
             /// <summary>
-            /// Gets the extended dependencies.
+            /// Gets the special input dependencies.
             /// </summary>
-            public List<ExtendedDependency> ExtendedDependencies { get; } = [];
+            public List<SpecialInputDependency> SpecialInputDependencies { get; } = [];
 
             /// <summary>
             /// Gets the searchable user data.
@@ -272,11 +305,13 @@ namespace ValveResourceFormat.ToolsAssetInfo
             }
 
             var fileCount = reader.ReadInt32();
-            var unknownConst = reader.ReadUInt32(); // block id?
 
-            if (unknownConst != 1)
+            // Whether the edit info and misc string tables are stored, files without them are not supported here
+            var hasEditInfoAndMiscStrings = reader.ReadUInt32();
+
+            if (hasEditInfoAndMiscStrings != 1)
             {
-                throw new UnexpectedMagicException("Unexpected", unknownConst, nameof(unknownConst));
+                throw new UnexpectedMagicException("Unexpected", hasEditInfoAndMiscStrings, nameof(hasEditInfoAndMiscStrings));
             }
 
             var mods = ReadStringsBlock(reader);
@@ -301,9 +336,9 @@ namespace ValveResourceFormat.ToolsAssetInfo
 
             var path = new StringBuilder(128);
 
+            // The top 3 bits are the asset location, which is not part of the path
             string ConstructFilePath(ulong hash)
             {
-                var unk1 = (int)((hash >> 61) & 7);
                 var addonIndex = (int)((hash >> 52) & 0x1FF);
                 var directoryIndex = (int)((hash >> 33) & 0x7FFFF);
                 var filenameIndex = (int)((hash >> 10) & 0x7FFFFF);
@@ -336,6 +371,8 @@ namespace ValveResourceFormat.ToolsAssetInfo
 
                 return path.ToString();
             }
+
+            string GetMiscString(int index) => index >= 0 ? miscStrings[index] : string.Empty;
 
             Files.EnsureCapacity(fileCount);
 
@@ -400,15 +437,22 @@ namespace ValveResourceFormat.ToolsAssetInfo
                     {
                         var hash = reader.ReadUInt64();
 
-                        // packed bytes of multiple bits of info, what are they?
-                        var unk1 = reader.ReadUInt64();
-                        var unk2 = reader.ReadUInt64();
+                        // The location bits of the hash always match the search path type
+                        Debug.Assert((AssetLocation)(hash >> 61) == (searchPathType == 0 ? AssetLocation.Game : AssetLocation.Content));
+
+                        // One 128-bit record: crc32 (bits 0-31), modification time (bits 32-87),
+                        // file size (bits 88-126), and a runtime only marker that is always zero on disk (bit 127).
+                        var packedLow = reader.ReadUInt64();
+                        var packedHigh = reader.ReadUInt64();
+
+                        Debug.Assert((packedHigh >> 63) == 0);
 
                         var searchPath = new File.SearchPath
                         {
                             Filename = ConstructFilePath(hash),
-                            UnknownBits1 = unk1,
-                            UnknownBits2 = unk2,
+                            FileCRC = (uint)packedLow,
+                            ModificationTimeFileTime = (long)(((packedLow >> 32) | ((packedHigh & 0xFFFFFF) << 32)) << 8),
+                            FileSize = (long)((packedHigh >> 24) & 0x7F_FFFF_FFFF),
                         };
 
                         switch (searchPathType)
@@ -516,22 +560,25 @@ namespace ValveResourceFormat.ToolsAssetInfo
 
                 if (Version >= 15)
                 {
+                    // m_SpecialInputDependencies
                     count = reader.ReadInt32();
-                    file.ExtendedDependencies.Capacity = count;
+                    file.SpecialInputDependencies.Capacity = count;
 
                     while (count-- > 0)
                     {
-                        var unk1 = reader.ReadUInt32();
-                        var unk2 = reader.ReadUInt32();
+                        var compilerIdentifierId = reader.ReadInt32();
+                        var specialId = reader.ReadInt32();
+                        var userDataId = reader.ReadInt32();
                         var fileHash = reader.ReadUInt64();
-                        var unk3 = reader.ReadUInt32(); // read as 4 bytes, a crc?
+                        var fingerprint = reader.ReadUInt32();
 
-                        file.ExtendedDependencies.Add(new File.ExtendedDependency
+                        file.SpecialInputDependencies.Add(new File.SpecialInputDependency
                         {
-                            Unknown1 = unk1,
-                            Unknown2 = unk2,
-                            Unknown3 = unk3,
+                            CompilerIdentifier = GetMiscString(compilerIdentifierId),
+                            Special = GetMiscString(specialId),
+                            UserData = GetMiscString(userDataId),
                             Filename = ConstructFilePath(fileHash),
+                            Fingerprint = fingerprint,
                         });
                     }
                 }
@@ -559,14 +606,7 @@ namespace ValveResourceFormat.ToolsAssetInfo
                             assetInfoValue = reader.ReadInt16();
                         }
 
-                        if (assetInfoValue > -1)
-                        {
-                            value = miscStrings[assetInfoValue];
-                        }
-                        else
-                        {
-                            value = string.Empty;
-                        }
+                        value = GetMiscString(assetInfoValue);
                     }
                     else if (type == 1)
                     {
