@@ -1,3 +1,5 @@
+using ValveResourceFormat.Renderer.Input;
+
 namespace ValveResourceFormat.Renderer.Entities;
 
 /// <summary>
@@ -19,6 +21,19 @@ public interface IPlayerController
 
     /// <summary>Gets the half-extents of the player's collision hull, which shrink when ducking.</summary>
     Vector3 HullHalfExtents { get; }
+
+    /// <summary>Gets where the view sits, which is what entity logic traces from.</summary>
+    Vector3 EyePosition { get; }
+
+    /// <summary>Gets the direction the player is looking.</summary>
+    Vector3 ViewForward { get; }
+
+    /// <summary>
+    /// Takes the buttons seen since the last call, reporting them against the state the previous call
+    /// left. Called once per tick, by the player entity.
+    /// </summary>
+    /// <returns>What is held, and what changed, for the tick collecting it.</returns>
+    PlayerButtonState ConsumeButtons();
 
     /// <summary>
     /// Moves the player somewhere else outright, keeping their velocity. Null angles keep the current ones.
