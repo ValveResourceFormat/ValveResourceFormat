@@ -2219,6 +2219,16 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics
             /// <c>gravity_z</c> survives only on its proxies.
             /// </summary>
             public int ProxyNode { get; set; } = -1;
+            /// <summary>
+            /// Gets whether a rod spans this joint and its grandparent, i.e. whether the source authored a
+            /// non-zero <c>bend_spring</c> here.
+            /// </summary>
+            public bool BendSpring { get; set; }
+            /// <summary>
+            /// Gets whether a rod spans this joint and its great-grandparent, i.e. whether the source
+            /// authored a non-zero <c>torsion_spring</c> here.
+            /// </summary>
+            public bool TorsionSpring { get; set; }
             /// <summary>Gets the distance from this joint to its own proxy ring.</summary>
             public float ExtrudeRadius { get; set; }
             /// <summary>
@@ -2501,6 +2511,21 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics
                     chain.ExtrudeSides = Math.Min(bodySides, 4);
                     chain.ExtrudeRadius = radii.Count > 0 ? radii.Average() : 0f;
                     chain.ExtrudeTwist = twists.Count > 0 ? twists.Average() : 0f;
+                }
+
+                // A joint's bend/torsion springs are what make the compiler span a rod to its grandparent
+                // and great-grandparent, so the presence of those rods is what the source authored.
+                var jointByNode = chain.Joints.ToDictionary(static j => j.Node);
+                foreach (var joint in chain.Joints)
+                {
+                    var parent = joint.ParentNode;
+                    var grandParent = parent >= 0 && jointByNode.TryGetValue(parent, out var p1) ? p1.ParentNode : -1;
+                    var greatGrandParent = grandParent >= 0 && jointByNode.TryGetValue(grandParent, out var p2) ? p2.ParentNode : -1;
+
+                    joint.BendSpring = grandParent >= 0 && rodPairs.Contains(
+                        grandParent < joint.Node ? (grandParent, joint.Node) : (joint.Node, grandParent));
+                    joint.TorsionSpring = greatGrandParent >= 0 && rodPairs.Contains(
+                        greatGrandParent < joint.Node ? (greatGrandParent, joint.Node) : (joint.Node, greatGrandParent));
                 }
 
                 chains.Add(chain);
