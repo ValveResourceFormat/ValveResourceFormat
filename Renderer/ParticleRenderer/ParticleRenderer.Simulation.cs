@@ -21,6 +21,9 @@ namespace ValveResourceFormat.Renderer.Particles
     /// <summary>Emission, the substep loop and the start/stop/restart lifecycle.</summary>
     internal partial class ParticleRenderer
     {
+        /// <summary>Attributes the emit path stamps before initializers run.</summary>
+        private const ulong SpawnWrittenFields = 1UL << (int)ParticleField.CreationTime;
+
         public void Start()
         {
             StartSelf();
@@ -142,6 +145,10 @@ namespace ValveResourceFormat.Renderer.Particles
             particleCollection.Current[index].CreationTime = systemRenderState.Age - ageAtSpawn;
             particleCollection.Current[index].Age = ageAtSpawn;
 
+            // Below behavior version 6 the first writer of an attribute wins: a later initializer whose
+            // declared write set is already fully initialized is skipped, up to firstMultipleOverride.
+            var written = SpawnWrittenFields;
+
             foreach (var initializer in initializers)
             {
                 if (!initializer.RunsInCurrentPhase(systemRenderState))
@@ -149,7 +156,18 @@ namespace ValveResourceFormat.Renderer.Particles
                     continue;
                 }
 
+                var fields = initializer.WrittenFields;
+
+                if (BehaviorVersion < 6
+                    && (firstMultipleOverride < 0 || initializer.DefinitionIndex < firstMultipleOverride)
+                    && fields != 0
+                    && (fields & ~written) == 0)
+                {
+                    continue;
+                }
+
                 initializer.Initialize(ref particleCollection.Current[index], particleCollection, systemRenderState);
+                written |= fields;
             }
 
             // The initial velocity is encoded into the Verlet state at spawn (prev = pos - vel*dt);

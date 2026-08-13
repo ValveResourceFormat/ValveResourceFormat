@@ -24,7 +24,7 @@ class TwistAroundAxis : ParticleFunctionForceGenerator
         forceAmount = parse.Float("m_fForceAmount", forceAmount);
         twistAxis = parse.Vector3("m_TwistAxis", twistAxis);
         localSpace = parse.Boolean("m_bLocalSpace", localSpace);
-        controlPoint = parse.Int32("m_nControlPointNumber", controlPoint);
+        controlPoint = parse.BehaviorVersion >= 3 ? parse.Int32("m_nControlPointNumber", controlPoint) : 0;
     }
 
     public override void GenerateForces(ParticleCollection particles, float frameTime, ParticleSystemRenderState particleSystemState, float strength)

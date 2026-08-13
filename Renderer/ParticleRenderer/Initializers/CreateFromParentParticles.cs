@@ -21,6 +21,9 @@ namespace ValveResourceFormat.Renderer.Particles.Initializers
         /// </summary>
         private readonly bool fractionalIncrement;
 
+        /// <summary>The parent particle index attribute is only written from behavior version 9.</summary>
+        private readonly bool writeParentIndex;
+
         private float currentParentIndex;
         private int randomCounter;
 
@@ -38,6 +41,7 @@ namespace ValveResourceFormat.Renderer.Particles.Initializers
             randomSeed = parse.Int32("m_nRandomSeed", randomSeed);
             subFrame = parse.Boolean("m_bSubFrame", subFrame);
             setRopeSegmentID = parse.Boolean("m_bSetRopeSegmentID", setRopeSegmentID);
+            writeParentIndex = parse.BehaviorVersion >= 9;
 
             fractionalIncrement = increment != MathF.Floor(increment);
         }
@@ -66,7 +70,11 @@ namespace ValveResourceFormat.Renderer.Particles.Initializers
             var lastIndex = parentParticles.Length - 1;
             var walkIndex = NextParentIndex(lastIndex, particleSystemState);
             var parentIndex = Math.Clamp((int)MathF.Floor(walkIndex), 0, lastIndex);
-            particle.ParentParticleIndex = parentIndex;
+
+            if (writeParentIndex)
+            {
+                particle.ParentParticleIndex = parentIndex;
+            }
 
             ref var parent = ref parentParticles[parentIndex];
 

@@ -19,6 +19,8 @@ namespace ValveResourceFormat.Renderer.Particles.Initializers
             component = Math.Clamp(parse.Int32("m_nComponent", component), 0, 2);
         }
 
+        public override ulong WrittenFields => FieldMask(fieldOutput);
+
         public override Particle Initialize(ref Particle particle, ParticleCollection particles, ParticleSystemRenderState particleSystemState)
         {
             var newComponent = particleSystemState.Random.NextBetween(min, max);

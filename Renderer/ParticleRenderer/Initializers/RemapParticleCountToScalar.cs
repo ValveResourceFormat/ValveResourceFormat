@@ -62,6 +62,8 @@ namespace ValveResourceFormat.Renderer.Particles.Initializers
             count = 0;
         }
 
+        public override ulong WrittenFields => FieldMask(fieldOutput);
+
         /// <summary>
         /// Inverting mirrors the input range about the live particle count rather than the counter.
         /// A scale control point scales the range bounds, again leaving the counter untouched.

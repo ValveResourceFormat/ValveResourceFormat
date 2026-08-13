@@ -17,7 +17,7 @@ namespace ValveResourceFormat.Renderer.Particles.Initializers
         {
             increment = parse.Int32("m_nIncrement", increment);
             minControlPoint = parse.Int32("m_nMinCP", minControlPoint);
-            maxControlPoint = parse.Int32("m_nMaxCP", maxControlPoint);
+            maxControlPoint = parse.BehaviorVersion < 2 ? 63 : parse.Int32("m_nMaxCP", maxControlPoint);
             dynamicControlPointCount = parse.NumberProvider("m_nDynamicCPCount", dynamicControlPointCount);
         }
 

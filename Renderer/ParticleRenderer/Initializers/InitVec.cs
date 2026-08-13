@@ -16,6 +16,8 @@ namespace ValveResourceFormat.Renderer.Particles.Initializers
             inputValue = parse.VectorProvider("m_InputValue", inputValue);
         }
 
+        public override ulong WrittenFields => FieldMask(outputField);
+
         // todo: these (operators and initializers) can reference either the current value and the initial value. do we need to store the initial value of all attributes?
         public override Particle Initialize(ref Particle particle, ParticleCollection particles, ParticleSystemRenderState particleSystemState)
         {

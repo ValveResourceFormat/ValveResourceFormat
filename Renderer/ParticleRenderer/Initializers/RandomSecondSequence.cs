@@ -16,6 +16,8 @@ namespace ValveResourceFormat.Renderer.Particles.Initializers
             sequenceMax = parse.Int32("m_nSequenceMax", sequenceMax);
         }
 
+        public override ulong WrittenFields => FieldMask(ParticleField.SecondSequenceNumber);
+
         public override Particle Initialize(ref Particle particle, ParticleCollection particles, ParticleSystemRenderState particleSystemState)
         {
             var sample = particleSystemState.Random.Next();

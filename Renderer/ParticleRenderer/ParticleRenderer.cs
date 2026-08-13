@@ -417,22 +417,32 @@ namespace ValveResourceFormat.Renderer.Particles
 
         private void SetupFunctions<T>(IEnumerable<KVObject> data, TryCreateFunction<T> tryCreate, List<T> target, string label)
         {
+            var definitionIndex = 0;
+
             foreach (var info in data)
             {
                 if (IsOperatorDisabled(info, rendererContext.Logger))
                 {
+                    definitionIndex++;
                     continue;
                 }
 
                 var className = info.GetStringProperty("_class");
                 if (tryCreate(className, info, rendererContext.Logger, BehaviorVersion, out var function))
                 {
+                    if (function is ParticleFunctionInitializer initializer)
+                    {
+                        initializer.DefinitionIndex = definitionIndex;
+                    }
+
                     target.Add(function);
                 }
                 else
                 {
                     rendererContext.Logger.LogUniqueWarningFor([label, className], UnsupportedClassWarning, label, className, Name);
                 }
+
+                definitionIndex++;
             }
         }
 

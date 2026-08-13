@@ -57,6 +57,18 @@ namespace ValveResourceFormat.Renderer.Particles.Operators
         {
             foreach (ref var particle in particles.Current)
             {
+                var windowTime = proportionalOp
+                    ? particle.NormalizedAge
+                    : particle.Age;
+
+                var startTime = particleSystemState.Random.ForParticleBetween(particle.ParticleId, StartTimeOffset, startTimeMin, startTimeMax);
+                var endTime = particleSystemState.Random.ForParticleBetween(particle.ParticleId, EndTimeOffset, endTimeMin, endTimeMax);
+
+                if (windowTime < startTime || windowTime >= endTime)
+                {
+                    continue;
+                }
+
                 var rate = new Vector3(
                     particleSystemState.Random.ForParticleBetween(particle.ParticleId, RateOffsetX, rateMin.X, rateMax.X),
                     particleSystemState.Random.ForParticleBetween(particle.ParticleId, RateOffsetY, rateMin.Y, rateMax.Y),
@@ -70,15 +82,6 @@ namespace ValveResourceFormat.Renderer.Particles.Operators
                 var t = proportional
                     ? particle.NormalizedAge
                     : particle.Age;
-
-                if (particleSystemState.Data?.BehaviorVersion == 10)
-                {
-                    var startTime = particleSystemState.Random.ForParticleBetween(particle.ParticleId, StartTimeOffset, startTimeMin, startTimeMax);
-                    var endTime = particleSystemState.Random.ForParticleBetween(particle.ParticleId, EndTimeOffset, endTimeMin, endTimeMax);
-
-                    // The randomized window bounds can come out inverted.
-                    t = Math.Clamp(t, Math.Min(startTime, endTime), Math.Max(startTime, endTime));
-                }
 
                 var multiplier = oscillationMultiplier.NextNumber(ref particle, particleSystemState);
                 var offset = oscillationOffset.NextNumber(ref particle, particleSystemState);

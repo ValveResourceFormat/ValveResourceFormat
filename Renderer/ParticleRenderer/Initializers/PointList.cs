@@ -57,6 +57,8 @@ namespace ValveResourceFormat.Renderer.Particles.Initializers
             }
         }
 
+        public override ulong WrittenFields => FieldMask(fieldOutput);
+
         private int currentNumber;
         private Vector3 GetParticlePosition(ParticleSystemRenderState particleSystem)
         {
