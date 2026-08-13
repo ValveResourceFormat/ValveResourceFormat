@@ -1,4 +1,4 @@
-namespace ValveResourceFormat.Renderer
+namespace ValveResourceFormat.Utils
 {
     /// <summary>
     /// Axis-aligned bounding box for spatial queries and culling.
