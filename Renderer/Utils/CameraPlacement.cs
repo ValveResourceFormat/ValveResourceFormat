@@ -122,7 +122,7 @@ namespace ValveResourceFormat.Renderer.Utils
 
                 // Last resort for a target that cannot be seen from any angle: a spot that is at
                 // least not inside the map.
-                if (!foundFree && !physics.CheckOverlap(candidate, halfExtents, Rubikon.DefaultGeometry))
+                if (!foundFree && !physics.IntersectsAABB(candidate, halfExtents, Rubikon.DefaultGeometry))
                 {
                     firstFree = candidate;
                     foundFree = true;

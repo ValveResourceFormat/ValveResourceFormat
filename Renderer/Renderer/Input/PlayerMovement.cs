@@ -1,9 +1,11 @@
+using ValveResourceFormat.Renderer.Entities;
+
 namespace ValveResourceFormat.Renderer.Input;
 
 /// <summary>
 /// Source engine-style FPS player movement controller.
 /// </summary>
-public partial class PlayerMovement
+public partial class PlayerMovement : IPlayerController
 {
     // Half-extents around the hull center. Standing 32x32x72, ducked 32x32x48.
     private static readonly Vector3 StandingHullHalfExtents = new(16, 16, 36);
@@ -1970,6 +1972,9 @@ public partial class PlayerMovement
             var normal = new Vector3(plane.X, plane.Y, plane.Z);
             result.MinimizeWith(TraceStaticPlane(from, to, halfExtents, normal, plane.W, detectStartSolid));
         }
+
+        // Brush entities are not part of the world's physics, so they get swept separately
+        Input.EntitySystem?.TraceAABB(from, to, halfExtents, detectStartSolid, ref result);
 
         return result;
     }

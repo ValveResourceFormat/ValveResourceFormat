@@ -43,6 +43,12 @@ public class UserInput
     /// <summary>Gets or sets the physics world used for orbit-target and player-movement ray traces.</summary>
     public Rubikon? PhysicsWorld { get; set; }
 
+    /// <summary>
+    /// Gets or sets the entity world whose solid entities the player collides with, on top of
+    /// <see cref="PhysicsWorld"/>. Brush entities move, so they are traced separately from the static world.
+    /// </summary>
+    public EntitySystem? EntitySystem { get; set; }
+
     private Vector3? _orbitTarget;
     private bool _forceUpdate = true;
 
@@ -76,8 +82,6 @@ public class UserInput
     /// </summary>
     public PlayerMovement PlayerMovement { get; }
 
-    /// <summary>Gets the map's trigger volumes, tested against the player after each movement tick.</summary>
-    public List<TriggerTeleport> TriggerVolumes { get; } = [];
     /// <summary>Gets a value indicating whether the camera is in noclip (free-flight) mode rather than FPS movement mode.</summary>
     public bool NoClip { get; private set; } = true;
 
@@ -258,11 +262,6 @@ public class UserInput
             }
 
             PlayerMovement.ProcessMovement(Camera, deltaTime);
-
-            foreach (var trigger in TriggerVolumes)
-            {
-                trigger.Touch(PlayerMovement);
-            }
 
             Velocity = PlayerMovement.Velocity;
             Camera.Pitch += MouseDeltaPitchYaw.X;

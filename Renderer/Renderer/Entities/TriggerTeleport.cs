@@ -1,89 +1,67 @@
-using ValveResourceFormat.IO;
-using ValveResourceFormat.Renderer.Input;
-using ValveResourceFormat.Renderer.World;
-using ValveResourceFormat.ResourceTypes;
+using Microsoft.Extensions.Logging;
 using ValveResourceFormat.Serialization.KeyValues;
-using ValveResourceFormat.Utils;
-using Entity = ValveResourceFormat.ResourceTypes.EntityLump.Entity;
 
 namespace ValveResourceFormat.Renderer.Entities;
 
 /// <summary>
-/// <c>trigger_teleport</c>. Teleports the player to its <c>target</c> entity when they enter
-/// the volume, keeping their velocity.
+/// <c>trigger_teleport</c>. Moves whatever enters its volume to the entity named by <c>target</c>, keeping
+/// their velocity.
 /// </summary>
-public sealed class TriggerTeleport
+/// <remarks>
+/// The volume is the trigger's own <c>model</c>, the brush hulls it was compiled with, supplied by
+/// <see cref="BaseTrigger.InitTrigger"/>. The destination is a plain map entity, usually an
+/// <c>info_teleport_destination</c>, that nothing simulates, so it is found through its scene node in
+/// <see cref="Activate"/> once the whole map has loaded.
+/// </remarks>
+public sealed class TriggerTeleport : BaseTrigger
 {
-
-    private readonly EntityCollider collider;
-    private readonly Vector3 destination;
-    private readonly Vector3 angles;
-    private bool wasInside;
-
-    private TriggerTeleport(EntityCollider collider, Vector3 destination, Vector3 angles)
-    {
-        this.collider = collider;
-        this.destination = destination;
-        this.angles = angles;
-    }
+    private (Vector3 Origin, Vector3 Angles)? destination;
 
     /// <summary>
-    /// Loads every <c>trigger_teleport</c> in the map. The volume comes from the trigger's own
-    /// <c>model</c>, which holds its brush hulls.
+    /// Initializes a <c>trigger_teleport</c> from its keyvalues.
     /// </summary>
-    /// <param name="loadedWorld">The loaded map.</param>
-    /// <param name="fileLoader">Loader used to resolve the trigger models.</param>
-    public static List<TriggerTeleport> LoadAll(WorldLoader loadedWorld, IFileLoader fileLoader)
+    public TriggerTeleport(EntitySystem system, EntitySpawnInfo spawnInfo) : base(system, spawnInfo)
     {
-        var teleports = new List<TriggerTeleport>();
-
-        foreach (var entity in loadedWorld.Entities)
-        {
-            if (entity.GetStringProperty("classname") is not "trigger_teleport")
-            {
-                continue;
-            }
-
-            if (loadedWorld.FindEntityByTargetName(entity.GetStringProperty("target")) is not { } destination)
-            {
-                continue;
-            }
-
-            if (fileLoader.LoadFileCompiled(entity.GetStringProperty("model"))?.DataBlock is not Model model)
-            {
-                continue;
-            }
-
-            if (EntityCollider.LoadPhysics(model, fileLoader) is not { } physics)
-            {
-                continue;
-            }
-            var collider = new EntityCollider(physics)
-            {
-                Transform = EntityTransformHelper.ToTransformationMatrix(entity),
-            };
-
-            teleports.Add(new TriggerTeleport(collider, destination.GetVector3Property("origin"), destination.GetVector3Property("angles")));
-        }
-
-        return teleports;
     }
 
-    /// <summary>
-    /// Teleports the player on the frame they enter the volume.
-    /// </summary>
-    /// <param name="movement">The player to test against the volume.</param>
-    public void Touch(PlayerMovement movement)
+    /// <inheritdoc/>
+    public override void Spawn()
     {
-        var hullCenter = movement.Position + new Vector3(0, 0, movement.HullHalfExtents.Z);
-        var inside = collider.Overlaps(hullCenter, movement.HullHalfExtents);
+        InitTrigger();
+    }
 
-        if (inside && !wasInside)
+    /// <inheritdoc/>
+    public override void Activate()
+    {
+        var targetName = KeyValues.GetStringProperty("target");
+
+        if (string.IsNullOrEmpty(targetName))
         {
-            // Lift a unit so the hull does not arrive embedded in the floor
-            movement.Teleport(destination + new Vector3(0, 0, 1f), angles);
+            EntitySystem.Logger.LogWarning("trigger_teleport '{TargetName}' has no target to teleport to", TargetName);
+            return;
         }
 
-        wasInside = inside;
+        // The destination is a marker nothing simulates, but it still has a scene node carrying its keyvalues
+        if (Scene.FindNodeByTargetName(targetName)?.EntityData is not { } target)
+        {
+            EntitySystem.Logger.LogWarning("trigger_teleport '{TargetName}' target '{Target}' was not found", TargetName, targetName);
+            return;
+        }
+
+        destination = (target.GetVector3Property("origin"), target.GetVector3Property("angles"));
+    }
+
+    /// <inheritdoc/>
+    protected override void OnStartTouch(BaseEntity other)
+    {
+        base.OnStartTouch(other);
+
+        if (destination is not { } target)
+        {
+            return;
+        }
+
+        // Lift a unit so the hull does not arrive embedded in the floor
+        other.Teleport(target.Origin + new Vector3(0, 0, 1f), target.Angles);
     }
 }

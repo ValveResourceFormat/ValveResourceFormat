@@ -28,6 +28,7 @@ namespace ValveResourceFormat.Renderer.SceneNodes
 
         private readonly RenderVao vao;
         private readonly RenderMaterial material;
+        private readonly float spriteSize;
 
         /// <summary>Color multiplier applied to the sprite, in gamma space.</summary>
         public Vector4 Tint { get; set; } = Vector4.One;
@@ -55,11 +56,11 @@ namespace ValveResourceFormat.Renderer.SceneNodes
             GL.ObjectLabel(ObjectLabelIdentifier.Buffer, vboHandle, Math.Min(GLEnvironment.MaxLabelLength, vaoLabel.Length), vaoLabel);
 #endif
 
-            var spriteSize = material.FloatParams.GetValueOrDefault("g_flUniformPointSize", 16);
+            spriteSize = material.FloatParams.GetValueOrDefault("g_flUniformPointSize", 16);
             spriteSize /= 2f; // correct the scale to actually be 16x16
 
-            LocalBoundingBox = new AABB(-Vector3.One, Vector3.One);
-            Transform = Matrix4x4.CreateScale(spriteSize) * Matrix4x4.CreateTranslation(position.X, position.Y, position.Z);
+            LocalBoundingBox = new AABB(-Vector3.One * spriteSize, Vector3.One * spriteSize);
+            Transform = Matrix4x4.CreateTranslation(position.X, position.Y, position.Z);
         }
 
         public override void Render(Scene.RenderContext context)
@@ -83,7 +84,9 @@ namespace ValveResourceFormat.Renderer.SceneNodes
             modelViewRotation = Quaternion.Inverse(modelViewRotation);
             var billboardMatrix = Matrix4x4.CreateFromQuaternion(modelViewRotation);
 
-            var transform = billboardMatrix * Transform;
+            var transform = Matrix4x4.CreateScale(spriteSize)
+                * billboardMatrix
+                * Matrix4x4.CreateTranslation(Transform.Translation);
             renderShader.SetUniform3x4("transform", transform);
 
             renderShader.SetBoneAnimationData(false);

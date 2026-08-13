@@ -147,6 +147,13 @@ namespace ValveResourceFormat.Renderer
         /// </summary>
         public EntityLump.Entity? EntityData { get; set; }
 
+        /// <summary>
+        /// Gets the entity that owns this node and drives its transform, or <see langword="null"/> when
+        /// nothing simulates it. Where <see cref="EntityData"/> is what the map authored, this is the live
+        /// entity built from it.
+        /// </summary>
+        public Entities.BaseEntity? EntityInstance { get; internal set; }
+
         private AABB localBoundingBox;
         private Matrix4x4 transform = Matrix4x4.Identity;
 

@@ -106,6 +106,24 @@ namespace ValveResourceFormat.ResourceTypes
             }
 
             /// <summary>
+            /// Gets the render tint as a colour plus alpha, from <c>rendercolor</c> and <c>renderamt</c>.
+            /// </summary>
+            /// <returns>The tint, with each channel normalized to 0-1.</returns>
+            public Vector4 GetRenderTint()
+            {
+                // todo: rendercolor might sometimes be vec4, which holds renderamt
+                var color = GetColor32Property("rendercolor");
+                var amount = this.GetFloatProperty("renderamt", 1.0f);
+
+                if (amount > 1f)
+                {
+                    amount /= 255f;
+                }
+
+                return new Vector4(color, amount);
+            }
+
+            /// <summary>
             /// Finds all connections in the parent lump that target this entity by its targetname.
             /// </summary>
             /// <param name="entities">List of world entities to look for connections for, defaults to the current lump.</param>

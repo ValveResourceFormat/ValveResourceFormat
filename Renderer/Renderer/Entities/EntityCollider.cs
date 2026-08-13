@@ -146,27 +146,21 @@ public sealed class EntityCollider
     }
 
     /// <summary>
-    /// Tests a resting axis-aligned box for overlap with this shape.
+    /// Tests a resting axis-aligned box against this shape's solid volume, containment included.
     /// </summary>
-    /// <param name="center">Box centre in world space.</param>
-    /// <param name="halfExtents">Half-extents of the box.</param>
-    /// <returns><see langword="true"/> when the box overlaps the shape.</returns>
-    public bool Overlaps(Vector3 center, Vector3 halfExtents)
+    public bool OverlapsVolume(Vector3 center, Vector3 halfExtents)
     {
         if (IsEmpty || !WorldBounds.Intersects(new AABB(center - halfExtents, center + halfExtents)))
         {
             return false;
         }
 
-        return Shape.CheckOverlap(Vector3.Transform(center, inverseTransform), halfExtents, "player");
+        return Shape.IntersectsOrContainsAABB(Vector3.Transform(center, inverseTransform), halfExtents, "player");
     }
 
     /// <summary>
-    /// Tests whether a world-space point is inside this shape's solid volume. This is the containment
-    /// test for trigger-style volumes; <see cref="Overlaps"/> only detects contact with the surface.
+    /// Tests whether a world-space point is inside this shape's solid volume.
     /// </summary>
-    /// <param name="point">The point to test, in world space.</param>
-    /// <returns><see langword="true"/> when the point is inside one of the shape's hulls.</returns>
     public bool ContainsPoint(Vector3 point)
     {
         if (IsEmpty || !WorldBounds.Contains(point))
