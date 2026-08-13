@@ -1,5 +1,6 @@
 using System.IO;
 using ValveKeyValue;
+using ValveKeyValue.KeyValues3;
 using ValveResourceFormat.Serialization.KeyValues;
 
 namespace ValveResourceFormat.ResourceTypes
@@ -18,6 +19,11 @@ namespace ValveResourceFormat.ResourceTypes
         /// Gets the parsed data as a <see cref="KVObject"/>.
         /// </summary>
         public KVObject Data { get; protected set; } = null!;
+
+        /// <summary>
+        /// Gets the KV3 format id the data was serialized with, or null for NTRO-backed data.
+        /// </summary>
+        public KV3ID? Format => (BackingData as BinaryKV3)?.Data.Header?.Format;
 
         private Block BackingData = null!;
 
