@@ -2,10 +2,12 @@ using System.Diagnostics;
 using System.IO;
 using System.Reflection;
 using OpenTK.Graphics.OpenGL;
+using ValveResourceFormat.CompiledShader;
 using ValveResourceFormat.Renderer.PostProcess;
 using ValveResourceFormat.Renderer.SceneEnvironment;
 using ValveResourceFormat.Renderer.World;
 using ValveResourceFormat.ResourceTypes;
+using Color4 = OpenTK.Mathematics.Color4;
 
 namespace ValveResourceFormat.Renderer;
 
@@ -142,6 +144,20 @@ public class Renderer
     /// Filled by <see cref="GrabFramebufferCopy"/>.
     /// </summary>
     public RenderTexture? ResolvedSceneDepth { get; private set; }
+
+    /// <summary>Screen space map of ripple, silt and foam decals that the fancy water shader reads.</summary>
+    public Framebuffer? WaterEffectsBuffer { get; private set; }
+
+    /// <summary>The water effects map's "nothing here" value; its channels are read signed around the midpoint.</summary>
+    private static readonly Color4 WaterEffectsNeutral = new(32767f / 65535f, 32767f / 65535f, 32767f / 65535f, 0f);
+
+    private Shader depthDownsampleShader = null!;
+
+    /// <summary>Scene pixels per water effects texel, horizontally and vertically.</summary>
+    public static (int X, int Y) WaterEffectsDownsample { get; } = (4, 2); // 6:3 in low settings
+
+    /// <summary>Whether <see cref="WaterEffectsBuffer"/> currently holds nothing but <see cref="WaterEffectsNeutral"/>.</summary>
+    private bool waterEffectsMapIsNeutral;
 
     /// <summary>
     /// When set, forces <see cref="ResolvedSceneDepth"/> to be refreshed this frame even if no material
@@ -283,6 +299,7 @@ public class Renderer
         Textures.Add(new(ReservedTextureSlots.BarnLightShadowDepth, "g_tBarnLightShadowDepth", BarnLightShadowBuffer.Depth));
 
         depthOnlyShader = Scene.RendererContext.ShaderLoader.LoadShader("depth_only");
+        depthDownsampleShader = Scene.RendererContext.ShaderLoader.LoadShader("depth_downsample");
 
         histogramShaders[0] = Scene.RendererContext.ShaderLoader.LoadShader("histogram");
         histogramShaders[1] = Scene.RendererContext.ShaderLoader.LoadShader("histogram", ("D_HISTOGRAM_MODE", 1));
@@ -298,6 +315,15 @@ public class Renderer
 
         Textures.Add(new(ReservedTextureSlots.SceneColor, "g_tSceneColor", ResolvedSceneColor));
         Textures.Add(new(ReservedTextureSlots.SceneDepth, "g_tSceneDepth", ResolvedSceneDepth));
+
+        // The game's own target is D24S8; nothing here needs the stencil.
+        WaterEffectsBuffer = Framebuffer.Prepare(nameof(WaterEffectsBuffer), 4, 4, 0,
+            ImageFormat.RGBA16161616, ImageFormat.D16);
+        WaterEffectsBuffer.Initialize();
+        WaterEffectsBuffer.ClearColor = WaterEffectsNeutral;
+
+        WaterEffectsBuffer.SetColorSamplerState(TextureMinFilter.Linear, TextureMagFilter.Linear, RsTextureAddressMode.Border);
+        SetupWaterEffectsTexture();
 
         EnsureDepthPyramidSize(256, 256);
     }
@@ -536,6 +562,14 @@ public class Renderer
         Scene.SetSceneBuffers();
 
         Scene.RenderOpaqueLayer(renderContext);
+
+        // No grab of its own, so resolve the depth the water effects pass occludes against.
+        if (NeedsWaterEffectsMap)
+        {
+            GrabFramebufferCopy(renderContext.Framebuffer, false, true);
+        }
+
+        RenderWaterEffectsMap(renderContext);
         RenderTranslucentLayer(Scene, renderContext);
     }
 
@@ -699,7 +733,7 @@ public class Renderer
                     && !DisableAllCulling
                     && Uptime >= OcclusionCullWarmupSeconds;
 
-                copyDepth |= generateDepthPyramid;
+                copyDepth |= generateDepthPyramid || NeedsWaterEffectsMap;
                 Scene.DepthPyramidValid = !DisableAllCulling && (generateDepthPyramid || LockedCullFrustum != null);
                 SkyboxScene?.DepthPyramidValid = Scene.DepthPyramidValid;
 
@@ -720,6 +754,12 @@ public class Renderer
                         SkyboxScene.DepthPyramidValid = true;
                     }
                 }
+
+                // After the grab, so it occludes against the depth resolved there rather than resolving
+                // its own. The particles are scene geometry, not sky.
+                GraphicsContext.RenderState.SetDepthRange(DepthRange.Scene);
+                RenderWaterEffectsMap(renderContext);
+                GraphicsContext.RenderState.SetDepthRange(DepthRange.Sky);
             }
 
             if (render3DSkybox)
@@ -1008,6 +1048,87 @@ public class Renderer
         return OutlineMaskBuffer;
     }
 
+    /// <summary>Points the reserved <c>g_tWaterEffectsMap</c> slot at the current color attachment.</summary>
+    private void SetupWaterEffectsTexture()
+    {
+        Debug.Assert(WaterEffectsBuffer?.Color != null);
+
+        // Reprojections land off-screen at grazing angles; a neutral border reads as "no effect there".
+        GL.TextureParameter(WaterEffectsBuffer.Color.Handle, TextureParameterName.TextureBorderColor,
+            [WaterEffectsNeutral.R, WaterEffectsNeutral.G, WaterEffectsNeutral.B, WaterEffectsNeutral.A]);
+
+        Textures.RemoveAll(static t => t.Slot == ReservedTextureSlots.WaterEffectsMap);
+        Textures.Add(new(ReservedTextureSlots.WaterEffectsMap, "g_tWaterEffectsMap", WaterEffectsBuffer.Color));
+    }
+
+    /// <summary>Whether anything draws into the water effects map this frame, and anything reads it.</summary>
+    private bool NeedsWaterEffectsMap => Scene.HasWater && Scene.HasWaterEffects;
+
+    /// <summary>Fills <see cref="WaterEffectsBuffer"/>; must run before any water layer this frame.</summary>
+    private void RenderWaterEffectsMap(Scene.RenderContext renderContext)
+    {
+        Debug.Assert(WaterEffectsBuffer != null && ViewBuffer != null);
+
+        var hasDraws = NeedsWaterEffectsMap;
+
+        if (!hasDraws && waterEffectsMapIsNeutral)
+        {
+            return;
+        }
+
+        using var _ = new GLDebugGroup("Fancy Water Effects");
+
+        var (downsampleX, downsampleY) = WaterEffectsDownsample;
+        var width = Math.Max(1, (renderContext.Framebuffer.Width + downsampleX - 1) / downsampleX);
+        var height = Math.Max(1, (renderContext.Framebuffer.Height + downsampleY - 1) / downsampleY);
+
+        if (WaterEffectsBuffer.Resize(width, height))
+        {
+            SetupWaterEffectsTexture();
+        }
+
+        var sceneFramebuffer = renderContext.Framebuffer;
+
+        GL.Viewport(0, 0, width, height);
+        WaterEffectsBuffer.BindAndClear();
+
+        renderContext.Framebuffer = WaterEffectsBuffer;
+
+        // Data rather than an image: fog would write its color into the ripple and foam channels.
+        Scene.FogInfo.SetFogUniforms(ViewBuffer.Data, viewerFogEnabled: false);
+        ViewBuffer.Update();
+
+        if (hasDraws)
+        {
+            Debug.Assert(ResolvedSceneDepth != null);
+
+            using (GraphicsContext.RenderState.Scope(depthTest: true, depthWrite: true,
+                depthFunc: RsComparison.Always, blend: false, colorWriteMask: RsColorWriteEnableBits.None))
+            {
+                // Furthest depth per block, so an occluder never reaches past its own silhouette.
+                depthDownsampleShader.Use();
+                depthDownsampleShader.SetTexture(0, "g_tSceneDepth", ResolvedSceneDepth);
+                depthDownsampleShader.SetUniform("g_vDownsampleFactor", new Vector2(downsampleX, downsampleY));
+                GL.BindVertexArray(RendererContext.MeshBufferCache.EmptyVAO);
+                GL.DrawArrays(PrimitiveType.Triangles, 0, 3);
+            }
+
+            using (GraphicsContext.RenderState.Scope(depthTest: true, depthWrite: false, depthFunc: RsComparison.CloserEqual))
+            {
+                renderContext.Scene = Scene;
+                Scene.RenderWaterEffectsLayer(renderContext);
+            }
+        }
+
+        Scene.SetFogConstants(ViewBuffer.Data);
+        ViewBuffer.Update();
+
+        GL.Viewport(0, 0, sceneFramebuffer.Width, sceneFramebuffer.Height);
+        sceneFramebuffer.Bind(FramebufferTarget.Framebuffer);
+
+        waterEffectsMapIsNeutral = !hasDraws;
+    }
+
     private void EnsureResolvedTextureSize(int width, int height)
     {
         if (ResolvedSceneColor!.Width != width ||
@@ -1089,6 +1210,7 @@ public class Renderer
         BarnLightShadowBuffer?.Delete();
         histogramBuffers[0]?.Delete();
         histogramBuffers[1]?.Delete();
+        WaterEffectsBuffer?.Delete();
         Skybox2D?.Delete();
 
         if (BaseBackground != Skybox2D && BaseBackground != null)

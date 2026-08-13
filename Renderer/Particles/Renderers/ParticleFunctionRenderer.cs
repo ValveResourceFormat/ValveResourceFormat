@@ -66,8 +66,15 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
         /// </summary>
         protected INumberProvider DepthBias { get; } = new LiteralNumberProvider(0f);
 
+        /// <summary>Whether this renderer draws only into the water effects map, never into the scene.</summary>
+        public bool OnlyRenderInEffectsWaterPass { get; }
+
+        /// <summary>Whether what this renderer draws is an image; the water effects map takes data instead.</summary>
+        protected bool OutputIsColor => !OnlyRenderInEffectsWaterPass;
+
         protected ParticleFunctionRenderer(ParticleDefinitionParser parse) : base(parse)
         {
+            OnlyRenderInEffectsWaterPass = parse.Boolean("m_bOnlyRenderInEffectsWaterPass", false);
             RadiusScale = parse.NumberProvider("m_flRadiusScale", RadiusScale);
             AlphaScale = parse.NumberProvider("m_flAlphaScale", AlphaScale);
             ColorScale = parse.VectorProvider("m_vecColorScale", ColorScale);
@@ -85,6 +92,8 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
             MaxLuminanceFrameBlend = parse.Boolean("m_bMaxLuminanceBlendingSequence0", MaxLuminanceFrameBlend);
             CenterXOffset = parse.NumberProvider("m_flCenterXOffset", CenterXOffset);
             CenterYOffset = parse.NumberProvider("m_flCenterYOffset", CenterYOffset);
+
+            GammaCorrectVertexColors &= OutputIsColor;
         }
 
         /// <summary>
@@ -142,9 +151,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
             shader.SetUniform1("uMaxLuminanceFrameBlend", MaxLuminanceFrameBlend);
         }
 
-        /// <summary>
-        /// The pass this renderer draws in.
-        /// </summary>
+        /// <summary>The pass this renderer draws in.</summary>
         public RenderPass Pass { get; protected set; } = RenderPass.Translucent;
 
         /// <summary>

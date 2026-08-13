@@ -53,6 +53,9 @@ namespace ValveResourceFormat.Renderer
             /// <summary>Gets or sets the current render pass being executed.</summary>
             public RenderPass RenderPass { get; set; }
 
+            /// <summary>Gets or sets which layer the pass is drawing into.</summary>
+            public RenderLayer Layer { get; set; }
+
             /// <summary>Gets or sets an optional shader that overrides per-material shaders for this pass.</summary>
             public Shader? ReplacementShader { get; set; }
 
@@ -860,6 +863,12 @@ namespace ValveResourceFormat.Renderer
         /// <summary>Gets whether there are any selected nodes queued for outline rendering.</summary>
         public bool HasOutlineObjects => renderLists[RenderPass.Outline].Count > 0;
 
+        /// <summary>Gets whether anything is queued to draw into the water effects map this frame.</summary>
+        public bool HasWaterEffects => waterEffectsRenderList.Count > 0;
+
+        /// <summary>Gets whether any water surface is queued to draw this frame.</summary>
+        public bool HasWater => renderLists[RenderPass.Water].Count > 0;
+
         private readonly Dictionary<RenderPass, List<MeshBatchRenderer.Request>> renderLists = new()
         {
             [RenderPass.OpaqueAggregate] = [],
@@ -875,6 +884,9 @@ namespace ValveResourceFormat.Renderer
         /// <summary>
         /// Draw calls for first-person layer geometry.
         /// </summary>
+        /// <summary>Translucent draws that go to the water effects map instead of the scene.</summary>
+        private readonly List<MeshBatchRenderer.Request> waterEffectsRenderList = [];
+
         private readonly Dictionary<RenderPass, List<MeshBatchRenderer.Request>> viewmodelRenderLists = new()
         {
             [RenderPass.Opaque] = [],
@@ -968,6 +980,8 @@ namespace ValveResourceFormat.Renderer
             {
                 bucket.Clear();
             }
+
+            waterEffectsRenderList.Clear();
 
             foreach (var bucket in depthOnlyDraws.Values)
             {
@@ -1095,6 +1109,11 @@ namespace ValveResourceFormat.Renderer
                     if ((customPasses & CustomRenderPasses.Translucent) != 0)
                     {
                         customLists[RenderPass.Translucent].Add(customRender);
+                    }
+
+                    if ((customPasses & CustomRenderPasses.WaterEffects) != 0)
+                    {
+                        waterEffectsRenderList.Add(customRender);
                     }
 
                     if (node.IsSelected)
@@ -1699,6 +1718,15 @@ namespace ValveResourceFormat.Renderer
                 renderContext.RenderPass = RenderPass.OpaqueRefract;
                 MeshBatchRenderer.Render(requests, renderContext);
             }
+        }
+
+        /// <summary>Renders the draw calls that fill the water effects map; the caller owns the render target.</summary>
+        /// <param name="renderContext">The render context for this pass.</param>
+        public void RenderWaterEffectsLayer(RenderContext renderContext)
+        {
+            renderContext.RenderPass = RenderPass.Translucent;
+            renderContext.Layer = RenderLayer.WaterEffects;
+            MeshBatchRenderer.Render(waterEffectsRenderList, renderContext);
         }
 
         /// <summary>Renders water draw calls collected during <see cref="CollectSceneDrawCalls"/>.</summary>

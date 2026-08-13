@@ -18,7 +18,6 @@ in vec4 vColorBlendValues;
 #include "common/fog.slang"
 #include "common/lighting.slang"
 
-
 out vec4 outputColor;
 
 #define F_REFLECTION_TYPE 0 // csgo_water_fancy; (0="Sky Color Only", 1="Environment Cube Map", 2="SSR over Environment Cube Map")
@@ -111,13 +110,18 @@ uniform sampler2D g_tFoam;
 uniform sampler2D g_tDebris; // SrgbRead(true)
 uniform sampler2D g_tDebrisNormal;
 
-//uniform sampler2D g_tWaterEffectsMap;
+uniform sampler2D g_tWaterEffectsMap; // reserved
 uniform sampler2D g_tWavesNormalHeight;
 
 uniform vec4 g_vSimpleSkyReflectionColor = vec4(1.0);
 
 uniform sampler2D g_tSceneColor; // reserved
 uniform sampler2D g_tSceneDepth; // reserved
+
+vec2 WaterEffectsUV(vec4 clipPos)
+{
+    return clipPos.w > 1e-4 ? (clipPos.xy / clipPos.w) * 0.5 + 0.5 : vec2(-1.0);
+}
 
 void main()
 {
@@ -145,7 +149,7 @@ void main()
 
     // Skybox corrected projection stuff
 
-    vec3 viewDepOffsetFactor = mix(vec3(viewDir.xy / viewDir.z, sqrt(viewDirInv.z)), vec3(0.0), vec3(g_bIsSkybox));
+    vec3 viewDepOffsetFactor = mix(vec3(viewDir.xy / viewDir.z, sqrt(ClampToPositive(viewDirInv.z))), vec3(0.0), vec3(g_bIsSkybox));
 
     // Something about Refraction (idk either)
     float refractionDistortionFactor = 0.0;
@@ -204,7 +208,8 @@ void main()
 
     //(gl_FragCoord.xy - g_vViewportOffset.xy) * g_vInvViewportSize.xy * g_vViewportToGBufferRatio.xy, just assuming a size of SceneColor and ratio of 1.0
     vec2 waterEffectsMapUV = gbufferUV;
-    vec4 waterEffectsSampleRaw = vec4(vec3(0.5), 0.0); //texture(g_tWaterEffectsMap, waterEffectsMapUV);
+    vec4 waterEffectsSampleRaw = texture(g_tWaterEffectsMap, waterEffectsMapUV);
+
     vec2 waterEffectsDisturbanceXY = saturate((waterEffectsSampleRaw.yz - 0.5) * 2.0);
     float waterEffectsFoam = waterEffectsDisturbanceXY.y;
 
@@ -348,18 +353,15 @@ void main()
         vec3 effectsPos0 = (mat.PositionWS + (viewDepOffsetFactor * (mix(0.0, scaledAccumulatedWaveHeight, edgeFactorQ) - g_flWaterPlaneOffset))) + (vec3(roughedWaveNormal.xy, 0.0) * (-16.0));
 
         vec4 effectsPos0Transformed = (vec4(effectsPos0 - g_vCameraPositionWs, 1.0)) * transposedWorldToProj;
-        //TODO: Figure out what that shit before and if this is really ndc, I am using the naming straight from Gemini.
-        vec2 effectsPos0NcdCoords = effectsPos0Transformed.xy / effectsPos0Transformed.w;
         //TODO: Do we need a GBuffer ratio? 1.0 is gbuffer ratio in decompile, but I am just setting 1 here.
-        vec4 effectsSample0 = vec4(vec3(0.5), 0.0) - 0.5; //texture(g_tWaterEffectsMap,  ((vec2(effectsPos0NcdCoords.x, -effectsPos0NcdCoords.y) * 0.5) + vec2(0.5)).xy * 1.0    ) - vec4(0.5);
+        vec4 effectsSample0 = texture(g_tWaterEffectsMap, WaterEffectsUV(effectsPos0Transformed)) - vec4(0.5);
 
         vec3 effectsPos1 = effectsPos0 + (viewDepOffsetFactor * fma(20.0, effectsSample0.x, 2.0 * saturate(effectsSample0.yz * 2.0).x));
         vec4 effectsPos1Transformed = (vec4(effectsPos1.xyz, 1.0) - vec4(g_vCameraPositionWs, 1.0)).xyzw * transposedWorldToProj;
-        vec2 effectsPos1NcdCoords = effectsPos1Transformed.xy / effectsPos1Transformed.w;
         //Same as before, gbuffer ratio??
-        vec2 effectsPos1UV = ((vec2(effectsPos1NcdCoords.x, -effectsPos1NcdCoords.y) * 0.5) + vec2(0.5)).xy * 1.0;
+        vec2 effectsPos1UV = WaterEffectsUV(effectsPos1Transformed);
 
-        vec4 effectsSample1 = vec4(vec3(0.5), 0.0) - 0.5; //texture(g_tWaterEffectsMap, effectsPos1UV);
+        vec4 effectsSample1 = texture(g_tWaterEffectsMap, effectsPos1UV) - vec4(0.5);
 
         vec2 rippleFoamFromEffectsMap = saturate(effectsSample1.yz*2.0);
         //float rippleBaseFromEffectsMap = rippleFoamFromEffectsMap.x;
@@ -368,18 +370,17 @@ void main()
         vec4 _24771;
         _24771.z = rippleFoamFromEffectsMap.y;
 
-        vec4 offsetClipPosX = (vec4(effectsPos1 - g_vCameraPositionWs +vec3(1,0,0) ,1.0))*transposedWorldToProj;
+        vec4 offsetClipPosX = (vec4(effectsPos1 - g_vCameraPositionWs + vec3(1,0,0) ,1.0))*transposedWorldToProj;
         vec4 offsetClipPosY = (vec4(effectsPos1 - g_vCameraPositionWs + vec3(0,-1,0),1.0))*transposedWorldToProj;
 
-        vec2 offsetNdcX = offsetClipPosX.xy / offsetClipPosX.w;
-        vec2 offsetNdcY = offsetClipPosY.xy / offsetClipPosY.w;
         //again gbuffer ratio
-        vec2 duv_dx_approx = (( (vec2(offsetNdcX.x,-offsetNdcX.y) * 0.5 ) + 0.5 ) * 1.0 ) - effectsPos1UV;
-        vec2 duv_dy_approx = (( (vec2(offsetNdcY.x,-offsetNdcY.y) * 0.5 ) + 0.5 ) * 1.0 ) - effectsPos1UV;
-        vec2 stepScale = vec2(0.0004)/ vec2(length(duv_dx_approx),length(duv_dy_approx));
+        vec2 duv_dx_approx = WaterEffectsUV(offsetClipPosX) - effectsPos1UV;
+        vec2 duv_dy_approx = WaterEffectsUV(offsetClipPosY) - effectsPos1UV;
 
-        vec4 xOffsetEffectsSample = vec4(vec3(0.5), 0.0) - 0.5; //texture(g_tWaterEffectsMap, effectsPos1UV * 1.0 + normalize(duv_dx_approx) * 0.005) - 0.5;
-        vec4 yOffsetEffectsSample = vec4(vec3(0.5), 0.0) - 0.5; //texture(g_tWaterEffectsMap, effectsPos1UV * 1.0 + normalize(duv_dy_approx) * 0.005) - 0.5;
+        vec2 stepScale = vec2(0.0004) / vec2(length(duv_dx_approx), length(duv_dy_approx));
+
+        vec4 xOffsetEffectsSample = texture(g_tWaterEffectsMap, effectsPos1UV + normalize(duv_dx_approx) * 0.005) - 0.5;
+        vec4 yOffsetEffectsSample = texture(g_tWaterEffectsMap, effectsPos1UV + normalize(duv_dy_approx) * 0.005) - 0.5;
 
         vec2 rippleFoamDX = saturate(xOffsetEffectsSample.yz * 2.0);
         vec2 rippleFoamDY = saturate(yOffsetEffectsSample.yz * 2.0);
@@ -392,13 +393,12 @@ void main()
 
         foamFromEffects = rippleFoamFromEffectsMap.x * g_flWaterEffectFoamStrength;
 
-        //TODO: crosscheck with decompile again on _24771
-        finalFoam = effectsSample1.z;
-        debrisDisturbanceForWaves = ((effectsSample1.x + effectsSample1.y ) * g_flWaterEffectDisturbanceStrength) * 0.25;
+        finalFoam = rippleFoamFromEffectsMap.y;
+        debrisDisturbanceForWaves = ((rippleFoamFromEffectsMap.x + rippleFoamFromEffectsMap.y) * g_flWaterEffectDisturbanceStrength) * 0.25;
 
-        foamSiltEffectNormalXY = (normalize(cross(vec3(stepScale.x,0, effectsSample1.y -rippleFoamDX.y),vec3(0,stepScale.y, effectsSample1.y - rippleFoamDY.y))).xy*vec2(-1,1)) * pow(effectsSample1.y,3.5); // Original used rippleFoam_plusDY.y
+        foamSiltEffectNormalXY = (normalize(cross(vec3(stepScale.x,0, rippleFoamFromEffectsMap.y - rippleFoamDX.y),vec3(0,stepScale.y, rippleFoamFromEffectsMap.y - rippleFoamDY.y))).xy*vec2(-1,1)) * pow(rippleFoamFromEffectsMap.y,3.5);
 
-        effectsSamplePos += (vec3(foamEffectDisplacementUV.xy, 0.0) * (-4.0));
+        effectsSamplePos = (mat.PositionWS + (viewDepOffsetFactor * (mix(0.5, finalFoamHeightContrib, edgeFactorQ) - g_flWaterPlaneOffset))) + (vec3(foamEffectDisplacementUV.xy, 0.0) * (-4.0));
     }
 
     vec3 rippleDisplacementAsVec3 = vec3(foamEffectDisplacementUV, 0.0);
@@ -520,10 +520,8 @@ void main()
 
         vec2 finalRefractionUVOffset = refractionUVOffsetRaw * refractionOffsetAttenuation;
 
-
         float finalRefractedNormalizedDepth = (textureLod(g_tSceneDepth, gbufferUV + finalRefractionUVOffset, 0).x - g_flViewportMinZ) / depthBufferRange;
         finalRefractedNormalizedDepth = max(finalRefractedNormalizedDepth, 0.0000001);
-
 
         #if F_BLUR_REFRACTION == 1
             float smallOffset = 0.001 * ClampToPositive(waterExtent) * 0.01;
@@ -532,7 +530,6 @@ void main()
             vec4 sample3 = textureLod(g_tSceneColor, clamp(gbufferUV + (finalRefractionUVOffset * (1.0 + g_flRefractSampleOffset * ClampToPositive(waterExtent) * 0.01 * 2.0)) - vec2(0.0, smallOffset), vec2(0.0), vec2(1.0)), 0);
             vec4 sample4 = textureLod(g_tSceneColor, clamp(gbufferUV + (finalRefractionUVOffset * (1.0 + g_flRefractSampleOffset * ClampToPositive(waterExtent) * 0.01 * 3.0)) + vec2(smallOffset, 0.0), vec2(0.0), vec2(1.0)), 0);
             vec4 sample5 = textureLod(g_tSceneColor, clamp(gbufferUV + (finalRefractionUVOffset * (1.0 + g_flRefractSampleOffset * ClampToPositive(waterExtent) * 0.01 * 4.0)) - vec2(smallOffset, 0.0), vec2(0.0), vec2(1.0)), 0);
-
 
             // 4. Mix the color channels from different samples to create the aberration
             // This is a direct translation of the fma chain in the original shader
@@ -547,7 +544,6 @@ void main()
         #else
             vec4 finalRefractedColor = textureLod(g_tSceneColor, saturate(gbufferUV + finalRefractionUVOffset), 0);
         #endif // F_BLUR_REFRACTION == 1
-
 
         vec3 darkenedRefractedColor = pow(finalRefractedColor.rgb, vec3(1.1)) * g_flUnderwaterDarkening;
 
@@ -645,11 +641,9 @@ void main()
             vec3 subPart = (causticRayTarget.xyz + ((vec3(currWaveNormalXY, 0.0) * 60.0) * currWaveSampleSum1.x));
             subPart -= g_vCameraPositionWs * 1.0;
             vec4 causticsClipPos = vec4(subPart, 1.0) * transpose(g_matWorldToProjection);
-            vec2 causticsNdc = causticsClipPos.xy / causticsClipPos.w;
 
-            //TODO: should the y be flipped here? should depend on texture convention, no?
-            vec2 causticsUV = vec2(causticsNdc.x, -causticsNdc.y) * 0.5 - 0.5;
-            vec4 causticsEffectsSampleRaw = vec4(vec3(0.5), 0.0) - 0.5; //texture(g_tWaterEffectsMap, causticsUV) - 0.5;
+            vec2 causticsUV = WaterEffectsUV(causticsClipPos);
+            vec4 causticsEffectsSampleRaw = texture(g_tWaterEffectsMap, causticsUV) - 0.5;
             vec2 causticsClampedESampleXY = saturate(causticsEffectsSampleRaw.yz * 2.0);
 
             vec4 finalCausticsEffectsSample = causticsEffectsSampleRaw;

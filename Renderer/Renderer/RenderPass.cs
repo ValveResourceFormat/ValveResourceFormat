@@ -26,6 +26,21 @@ namespace ValveResourceFormat.Renderer
     }
 
     /// <summary>
+    /// Which target a pass draws into, for the layers that share one.
+    /// </summary>
+    public enum RenderLayer
+    {
+        /// <summary>The scene itself.</summary>
+        Scene,
+
+        /// <summary>The water effects map the fancy water shader samples.</summary>
+        WaterEffects,
+
+        /// <summary>Effects rendered in the bloom buffer.</summary>
+        Bloom,
+    }
+
+    /// <summary>
     /// Per node flags about their desired render passes.
     /// </summary>
     [Flags]
@@ -47,6 +62,9 @@ namespace ValveResourceFormat.Renderer
         /// Routes the node's drawing into the dedicated first-person viewmodel layer.
         /// </summary>
         Viewmodel = 1 << 2,
+
+        /// <summary>Draws in the translucent pass, into the water effects map instead of the scene.</summary>
+        WaterEffects = 1 << 3,
 
         /// <summary>Draws in the opaque and translucent passes, the default for a node that draws itself.</summary>
         Default = Opaque | Translucent,

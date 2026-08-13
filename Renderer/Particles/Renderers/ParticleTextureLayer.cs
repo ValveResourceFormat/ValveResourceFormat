@@ -129,9 +129,10 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
         /// <param name="parse">The renderer's definition.</param>
         /// <param name="rendererContext">Loads the layer textures.</param>
         /// <param name="defaultTextureName">Texture for a layer that names none, and for the fallback layer.</param>
+        /// <param name="srgbRead">Whether the layers are colour; water effects cards carry data instead.</param>
         /// <returns>The layers in composite order, and the name of the first texture loaded.</returns>
         public static (ParticleTextureLayer[] Layers, string? FirstTextureName) Build(
-            ParticleDefinitionParser parse, RendererContext rendererContext, string defaultTextureName)
+            ParticleDefinitionParser parse, RendererContext rendererContext, string defaultTextureName, bool srgbRead = true)
         {
             string? firstTextureName = null;
             var parsed = new List<ParticleTextureLayer>();
@@ -177,7 +178,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
                     }
 
                     firstTextureName ??= layerTextureName;
-                    layerTexture = rendererContext.MaterialLoader.GetTexture(layerTextureName, srgbRead: true);
+                    layerTexture = rendererContext.MaterialLoader.GetTexture(layerTextureName, srgbRead);
                 }
 
                 var controls = textureInput.Data.GetSubCollection("m_TextureControls");
@@ -202,7 +203,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
 
             if (parsed.Count == 0)
             {
-                parsed.Add(new ParticleTextureLayer(rendererContext.MaterialLoader.GetTexture(defaultTextureName, srgbRead: true)));
+                parsed.Add(new ParticleTextureLayer(rendererContext.MaterialLoader.GetTexture(defaultTextureName, srgbRead)));
             }
 
             return ([.. parsed], firstTextureName);
