@@ -156,6 +156,15 @@ public partial class PlayerMovement : IPlayerController
     /// <summary>The current eye position</summary>
     public Vector3 EyePosition { get; private set; }
 
+    /// <inheritdoc/>
+    public Vector3 ViewForward => Input.Camera.Forward;
+
+    // Buttons seen since the entity tick last collected them, and what it collected that time. Frames
+    // are folded together rather than replaced so a tap between two ticks survives to be reported.
+    private TrackedKeys PendingButtons;
+    private TrackedKeys HeldButtons;
+    private TrackedKeys LastCollectedButtons;
+
     private float DuckSpeedModifierActive => float.Lerp(1f, DuckSpeedModifier, CrouchBlend);
     private Vector3 SnappedHullHalfExtents => HoldingCtrl ? DuckedHullHalfExtents : StandingHullHalfExtents;
 
@@ -258,6 +267,31 @@ public partial class PlayerMovement : IPlayerController
         }
     }
 
+    /// <summary>
+    /// Folds this frame's buttons into what the next entity tick will collect. Runs once per simulated
+    /// frame, since the tick that collects them is slower than the frames that see them.
+    /// </summary>
+    private void SampleButtons()
+    {
+        HeldButtons = Input.Keys;
+        PendingButtons |= HeldButtons;
+    }
+
+    /// <inheritdoc/>
+    public PlayerButtonState ConsumeButtons()
+    {
+        var held = PendingButtons;
+        var changed = held ^ LastCollectedButtons;
+
+        LastCollectedButtons = held;
+
+        // Only what is still physically down survives into the next tick, so a button tapped between two
+        // ticks reports pressed once and released on the tick after, rather than sticking down
+        PendingButtons = HeldButtons;
+
+        return new PlayerButtonState(held, changed & held, changed & ~held);
+    }
+
     /// <summary>Pre-decodes the sounds movement can fire, so the first step does not decode mid-frame.</summary>
     public static void CacheSounds()
     {
@@ -278,7 +312,15 @@ public partial class PlayerMovement : IPlayerController
             TryUnstuck(ref TracePosition, SnappedHullHalfExtents);
             Velocity = Input.Velocity;
             Initialize = false;
+
+            // Nothing pressed while the camera was flying was pressed at anything in the world, and a key
+            // held across the switch is not a fresh press either, so start from what is down right now
+            PendingButtons = Input.Keys;
+            HeldButtons = Input.Keys;
+            LastCollectedButtons = Input.Keys;
         }
+
+        SampleButtons();
 
         var position = TracePosition;
         var yaw = camera.Yaw;

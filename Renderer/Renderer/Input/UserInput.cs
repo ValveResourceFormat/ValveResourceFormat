@@ -85,7 +85,9 @@ public class UserInput
     /// <summary>Gets a value indicating whether the camera is in noclip (free-flight) mode rather than FPS movement mode.</summary>
     public bool NoClip { get; private set; } = true;
 
-    private TrackedKeys Keys;
+    /// <summary>The buttons down as of this frame's sample, which movement folds into its own tick state.</summary>
+    internal TrackedKeys Keys { get; private set; }
+
     private TrackedKeys PreviousKeys;
     /// <summary>Gets the current camera velocity in world units per second.</summary>
     public Vector3 Velocity { get; private set; }

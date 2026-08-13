@@ -16,6 +16,11 @@ public sealed class PlayerEntity : BaseEntity
     public IPlayerController Controller { get; }
 
     /// <summary>
+    /// Gets the buttons as of the current tick: what is held, and what changed since the tick before.
+    /// </summary>
+    public PlayerButtonState Buttons { get; private set; }
+
+    /// <summary>
     /// Creates the player entity for a movement controller.
     /// </summary>
     public PlayerEntity(EntitySystem system, IPlayerController controller) : base(system, "player")
@@ -48,6 +53,10 @@ public sealed class PlayerEntity : BaseEntity
     /// <inheritdoc/>
     protected override void PhysicsSimulate(float tickInterval)
     {
+        // Resets key latches inside player movement, if a key is presseed,
+        // unpressed and pressed again in within 3 frames the tick will see it as one press.
+        Buttons = Controller.ConsumeButtons();
+
         // The controller owns the position, so there is nothing to integrate; just keep up with it
         SyncFromController();
     }
