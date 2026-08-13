@@ -131,8 +131,12 @@ namespace ValveResourceFormat.Renderer
         /// Gives every attribute of one piece of geometry its location. A mesh attribute keeps its canonical
         /// slot. Any other name takes the lowest slot this set leaves free, in name order, so that the shader
         /// and the vertex struct declaring the same set both arrive at the same numbers.
+        ///
+        /// A name in <paramref name="pinned"/> keeps the location it was given, and the rest allocate around
+        /// it. That is how a shader that places an attribute itself, with an explicit layout qualifier, stays
+        /// consistent with the geometry that feeds it.
         /// </summary>
-        public static FrozenDictionary<string, int> Allocate(IEnumerable<string> attributeNames)
+        public static FrozenDictionary<string, int> Allocate(IEnumerable<string> attributeNames, IReadOnlyDictionary<string, int>? pinned = null)
         {
             var locations = new Dictionary<string, int>(StringComparer.Ordinal);
             var custom = new List<string>();
@@ -140,7 +144,7 @@ namespace ValveResourceFormat.Renderer
 
             foreach (var name in attributeNames)
             {
-                var slot = Get(name);
+                var slot = pinned != null && pinned.TryGetValue(name, out var pinnedSlot) ? pinnedSlot : Get(name);
 
                 if (slot == -1)
                 {

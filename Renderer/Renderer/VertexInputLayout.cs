@@ -1,5 +1,6 @@
 using System.Collections.Frozen;
 using System.Diagnostics;
+using System.Linq;
 using System.Diagnostics.CodeAnalysis;
 using System.Reflection;
 using System.Runtime.CompilerServices;
@@ -14,13 +15,17 @@ namespace ValveResourceFormat.Renderer
     /// <see cref="VertexInputLayout.FromStruct{TVertex}"/>.
     /// </summary>
     [AttributeUsage(AttributeTargets.Field)]
-    public sealed class VertexAttributeAttribute(string name, DXGI_FORMAT format = DXGI_FORMAT.UNKNOWN) : Attribute
+    public sealed class VertexAttributeAttribute(string name, DXGI_FORMAT format = DXGI_FORMAT.UNKNOWN, int location = -1) : Attribute
     {
         /// <summary>Gets the shader input name this field supplies.</summary>
         public string Name { get; } = name;
 
         /// <summary>Gets the buffer format, or <see cref="DXGI_FORMAT.UNKNOWN"/> to derive it from the field type.</summary>
         public DXGI_FORMAT Format { get; } = format;
+
+        /// <summary>Gets the location this field is pinned to, or -1 to let the layout place it. Pin it only to
+        /// match a shader that declares its own <c>layout (location = ...)</c>.</summary>
+        public int Location { get; } = location;
 
         /// <summary>Marks a field supplying a mesh attribute.</summary>
         [SuppressMessage("Design", "CA1019:Define accessors for attribute arguments", Justification = "The slot is exposed as its name")]
@@ -30,8 +35,9 @@ namespace ValveResourceFormat.Renderer
         }
     }
 
-    /// <summary>One attribute of a <see cref="VertexInputLayout"/>. An offset of -1 packs it after the last one.</summary>
-    public readonly record struct VertexAttribute(string Name, DXGI_FORMAT Format, int OffsetInBytes = -1)
+    /// <summary>One attribute of a <see cref="VertexInputLayout"/>. An offset of -1 packs it after the last
+    /// one, and a location of -1 lets the layout place it.</summary>
+    public readonly record struct VertexAttribute(string Name, DXGI_FORMAT Format, int OffsetInBytes = -1, int Location = -1)
     {
         /// <summary>Initializes an attribute supplying a mesh slot.</summary>
         public VertexAttribute(VertexSlot slot, DXGI_FORMAT format, int offsetInBytes = -1)
@@ -61,7 +67,8 @@ namespace ValveResourceFormat.Renderer
 
             // The declaring set decides where a custom attribute goes, so a shader declaring the same set
             // arrives at the same locations without either side naming a number
-            var allocated = VertexAttributeLocations.Allocate(Array.ConvertAll(elements, element => element.Name));
+            var pinned = elements.Where(element => element.Location >= 0).ToDictionary(element => element.Name, element => element.Location, StringComparer.Ordinal);
+            var allocated = VertexAttributeLocations.Allocate(Array.ConvertAll(elements, element => element.Name), pinned);
             var packedOffset = 0;
             var boundLocations = 0;
 
@@ -108,7 +115,7 @@ namespace ValveResourceFormat.Renderer
 
                 var format = attribute.Format == DXGI_FORMAT.UNKNOWN ? FormatForType(field.FieldType) : attribute.Format;
 
-                elements.Add(new VertexAttribute(attribute.Name, format, (int)Marshal.OffsetOf<TVertex>(field.Name)));
+                elements.Add(new VertexAttribute(attribute.Name, format, (int)Marshal.OffsetOf<TVertex>(field.Name), attribute.Location));
             }
 
             return new VertexInputLayout(Marshal.SizeOf<TVertex>(), [.. elements]);

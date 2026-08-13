@@ -48,6 +48,10 @@ namespace ValveResourceFormat.Renderer.Shaders
         [GeneratedRegex(@"^in\s+[a-z0-9]+\s+(?<Name>[A-Za-z_][A-Za-z0-9_]*)\s*;", RegexOptions.Multiline)]
         private static partial Regex RegexVertexAttribute();
 
+        // A declaration that places itself, which the allocation has to work around rather than stamp
+        [GeneratedRegex(@"^layout\s*\(\s*location\s*=\s*(?<Location>[0-9]+)\s*\)\s*in\s+[a-z0-9]+\s+(?<Name>[A-Za-z_][A-Za-z0-9_]*)\s*;", RegexOptions.Multiline)]
+        private static partial Regex RegexLocatedVertexAttribute();
+
         /// <summary>
         /// Writes each attribute's location into its declaration, once every declaration in the shader is
         /// known. A custom attribute takes a slot this set leaves free, so a vertex struct declaring the same
@@ -55,7 +59,10 @@ namespace ValveResourceFormat.Renderer.Shaders
         /// </summary>
         private static string StampAttributeLocations(string source, HashSet<string> declaredAttributes)
         {
-            var locations = VertexAttributeLocations.Allocate(declaredAttributes);
+            var pinned = RegexLocatedVertexAttribute().Matches(source)
+                .ToDictionary(match => match.Groups["Name"].Value, match => int.Parse(match.Groups["Location"].Value, CultureInfo.InvariantCulture), StringComparer.Ordinal);
+
+            var locations = VertexAttributeLocations.Allocate(declaredAttributes.Concat(pinned.Keys), pinned);
 
             return RegexVertexAttribute().Replace(source, match =>
                 $"layout (location = {locations[match.Groups["Name"].Value].ToString(CultureInfo.InvariantCulture)}) {match.Value}");
