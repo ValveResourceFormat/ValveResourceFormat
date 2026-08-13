@@ -383,5 +383,12 @@ namespace ValveResourceFormat.Renderer.Particles
         /// </summary>
         public static bool IsOrientationField(this ParticleField field)
             => field is ParticleField.Roll or ParticleField.Yaw or ParticleField.Pitch;
+
+        /// <summary>
+        /// Whether the field is normalized to [0, 1], which the operators that write it clamp into.
+        /// </summary>
+        public static bool IsNormalizedField(this ParticleField field)
+            => field is ParticleField.Color or ParticleField.Alpha or ParticleField.AlphaAlternate
+                or ParticleField.GlowRgb or ParticleField.GlowAlpha;
     }
 }

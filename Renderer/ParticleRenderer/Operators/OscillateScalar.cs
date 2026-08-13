@@ -32,6 +32,9 @@ namespace ValveResourceFormat.Renderer.Particles.Operators
         /// <summary>Whether the active window is expressed as a fraction of the particle's lifetime rather than in seconds.</summary>
         private readonly bool proportionalWindow = true;
 
+        /// <summary>Whether the output field is one of the two normalized to [0, 1].</summary>
+        private readonly bool clampToUnit;
+
         public OscillateScalar(ParticleDefinitionParser parse) : base(parse)
         {
             outputField = parse.ParticleField("m_nField", outputField);
@@ -47,12 +50,22 @@ namespace ValveResourceFormat.Renderer.Particles.Operators
             oscillationOffset = parse.Float("m_flOscAdd", oscillationOffset);
             proportional = parse.Boolean("m_bProportional", proportional);
             proportionalWindow = parse.Boolean("m_bProportionalOp", proportionalWindow);
+
+            clampToUnit = outputField is ParticleField.Alpha or ParticleField.AlphaAlternate;
         }
 
         public override void Operate(ParticleCollection particles, float frameTime, ParticleSystemRenderState particleSystemState, float strength)
         {
+            var systemPhase = (oscillationMultiplier * particleSystemState.Age) + oscillationOffset;
+            var step = strength * frameTime;
+
             foreach (ref var particle in particles.Current)
             {
+                if (particle.Lifetime <= 0f)
+                {
+                    continue;
+                }
+
                 var windowTime = proportionalWindow
                     ? particle.NormalizedAge
                     : particle.Age;
@@ -68,14 +81,14 @@ namespace ValveResourceFormat.Renderer.Particles.Operators
                 var frequency = particleSystemState.Random.ForParticleBetween(particle.ParticleId, FrequencyOffset, frequencyMin, frequencyMax);
                 var rate = particleSystemState.Random.ForParticleBetween(particle.ParticleId, RateOffset, rateMin, rateMax);
 
-                var t = proportional
-                    ? particle.NormalizedAge
-                    : particle.Age;
+                // Proportional scales the age term alone, the other branch scales the whole system phase.
+                var delta = FastTrig.SinPi(proportional
+                    ? (particle.NormalizedAge * frequency * oscillationMultiplier) + oscillationOffset
+                    : frequency * systemPhase);
 
-                var delta = FastTrig.SinPi((t * frequency * oscillationMultiplier) + oscillationOffset);
+                var oscillated = particle.GetScalar(outputField) + (delta * (rate * step));
 
-                var finalScalar = delta * rate * frameTime * strength;
-                particle.SetScalar(outputField, particle.GetScalar(outputField) + finalScalar);
+                particle.SetScalar(outputField, clampToUnit ? Math.Clamp(oscillated, 0f, 1f) : oscillated);
             }
         }
     }
