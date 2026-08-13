@@ -1,7 +1,7 @@
 using System.Globalization;
 using static ValveResourceFormat.ResourceTypes.EntityLump;
 
-namespace ValveResourceFormat.Utils
+namespace ValveResourceFormat.ResourceTypes
 {
     /// <summary>
     /// Helper methods for entity transformations.

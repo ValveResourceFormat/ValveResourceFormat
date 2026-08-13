@@ -1,3 +1,5 @@
+using ValveResourceFormat.ResourceTypes;
+
 namespace ValveResourceFormat.Particles.Operators
 {
     /// <summary>

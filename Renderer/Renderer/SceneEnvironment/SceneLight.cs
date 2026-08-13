@@ -1,4 +1,5 @@
 using ValveResourceFormat.Renderer.Buffers;
+using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.Serialization.KeyValues;
 using static ValveResourceFormat.ResourceTypes.EntityLump;
 

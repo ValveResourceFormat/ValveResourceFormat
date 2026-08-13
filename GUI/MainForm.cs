@@ -19,6 +19,7 @@ using OpenTK.Windowing.Desktop;
 using SteamDatabase.ValvePak;
 using Svg.Skia;
 using ValveResourceFormat.IO;
+using ValveResourceFormat.TextureDecoders;
 using Windows.Win32;
 using Windows.Win32.Graphics.Gdi;
 using Windows.Win32.UI.WindowsAndMessaging;

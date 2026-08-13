@@ -1,4 +1,5 @@
 using System.Threading.Tasks;
+using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.Utils;
 
 namespace Tests

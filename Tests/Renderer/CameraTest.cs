@@ -1,6 +1,7 @@
 using System.Linq;
 using System.Threading.Tasks;
 using ValveResourceFormat.Renderer;
+using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.Utils;
 
 namespace Tests.Renderer

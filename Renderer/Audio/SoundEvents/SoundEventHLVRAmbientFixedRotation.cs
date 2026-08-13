@@ -1,4 +1,5 @@
 using ValveResourceFormat.Renderer.Audio.SampleProviders;
+using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.Serialization.KeyValues;
 
 namespace ValveResourceFormat.Renderer.Audio;

@@ -1,4 +1,5 @@
 using System.Collections.Concurrent;
+using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.ThirdParty;
 
 namespace ValveResourceFormat.Utils

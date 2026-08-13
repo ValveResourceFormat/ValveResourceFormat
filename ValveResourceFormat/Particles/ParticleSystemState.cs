@@ -1,4 +1,5 @@
 using ValveResourceFormat.Particles.Utils;
+using ValveResourceFormat.ResourceTypes;
 
 namespace ValveResourceFormat.Particles
 {

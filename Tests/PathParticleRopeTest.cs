@@ -1,5 +1,6 @@
 using System.Threading.Tasks;
 using TUnit.Assertions.Enums;
+using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.Utils;
 
 namespace Tests

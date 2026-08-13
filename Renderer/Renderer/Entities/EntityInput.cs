@@ -1,4 +1,5 @@
 using System.Globalization;
+using ValveResourceFormat.ResourceTypes;
 
 namespace ValveResourceFormat.Renderer.Entities;
 

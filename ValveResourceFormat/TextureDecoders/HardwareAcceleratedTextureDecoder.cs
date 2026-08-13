@@ -3,7 +3,7 @@ using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.TextureDecoders;
 using static ValveResourceFormat.ResourceTypes.Texture;
 
-namespace ValveResourceFormat.Utils;
+namespace ValveResourceFormat.TextureDecoders;
 
 /// <summary>
 /// Provides access to an optional hardware-assisted texture decoder implementation.
