@@ -322,11 +322,22 @@ partial class ModelExtract
         return node;
     }
 
+    // Bits of m_nDynamicNodeFlags that carry a ClothParams boolean. The remaining ClothParams switches
+    // leave no bit behind and fall back to the modern Source 2 defaults.
+    const uint ClothFlagUninertialRods = 0x10;
+    const uint ClothFlagFollowTheLead = 0x20;
+    const uint ClothFlagImmovable = 0x4000;
+    const uint ClothFlagCollideWorldCapsulesAndSpheres = 0x30000;
+    const uint ClothFlagCollideWorldHulls = 0x40000;
+    const uint ClothFlagCollideWorldMeshes = 0x80000;
+
     // Global cloth solver parameters, populated from the FeModel scalars. Field names match the compiled
-    // ClothParams source node (e.g. siren_legs.vmdl). Boolean/style fields use the modern Source 2 defaults
-    // (the originals are not recoverable from the compiled FeModel); the compiler re-derives the rest.
+    // ClothParams source node (e.g. siren_legs.vmdl); the compiler re-derives everything not emitted here.
     static KVObject MakeClothParams(FeModel fe)
     {
+        var flags = fe.DynamicNodeFlags;
+        bool Flag(uint bits) => (flags & bits) != 0;
+
         return MakeNode("ClothParams",
             ("default_stretch", fe.DefaultSurfaceStretch),
             // Mirrors default_stretch's own recovery (fe.DefaultSurfaceStretch <- m_flDefaultSurfaceStretch):
@@ -342,12 +353,12 @@ partial class ModelExtract
             ("default_gravity_scale", fe.DefaultGravityScale),
             ("default_vel_air_drag", fe.DefaultVelAirDrag),
             ("default_exp_air_drag", fe.DefaultExpAirDrag),
-            ("velocity_smooth_rate", 0.0f),
+            ("velocity_smooth_rate", fe.VelocitySmoothRate),
             ("internal_pressure", fe.InternalPressure),
             ("windage", fe.Windage),
             ("wind_drag", fe.WindDrag),
-            ("velocity_smooth_iterations", 0),
-            ("default_ground_friction", 0.0f),
+            ("velocity_smooth_iterations", fe.VelocitySmoothIterations),
+            ("default_ground_friction", fe.DefaultGroundFriction),
             ("default_world_collision_penetration", 0.0f),
             ("add_world_collision_radius", fe.AddWorldCollisionRadius),
             ("local_force", fe.LocalForce),
@@ -355,21 +366,20 @@ partial class ModelExtract
             ("add_curvature", 0.0f),
             ("quad_bend_tolerance", 0.05f),
             ("local_drag1", fe.LocalDrag1),
-            // follow_the_lead=false matches the original compiled node flags (bit 5 clear on shipped Dota cloth).
-            ("follow_the_lead", false),
+            ("follow_the_lead", Flag(ClothFlagFollowTheLead)),
             ("use_per_node_local_force_and_rotation", false),
-            ("uninertial_rods", false),
+            ("uninertial_rods", Flag(ClothFlagUninertialRods)),
             ("explicit_masses", false),
             ("unitless_damping", true),
-            ("force_world_collision_on_all_nodes", false),
+            ("force_world_collision_on_all_nodes", fe.ForcesWorldCollisionOnAllNodes),
             ("new_style", true),
-            ("can_collide_with_world_hulls", false),
-            ("can_collide_with_world_meshes", false),
-            ("can_collide_with_world_capsule_and_spheres", false),
+            ("can_collide_with_world_hulls", Flag(ClothFlagCollideWorldHulls)),
+            ("can_collide_with_world_meshes", Flag(ClothFlagCollideWorldMeshes)),
+            ("can_collide_with_world_capsule_and_spheres", Flag(ClothFlagCollideWorldCapsulesAndSpheres)),
             ("add_stiffness_rods", false),
             ("rigid_edge_hinges", false),
             ("add_bend_only_rods", false),
-            ("immovable", false));
+            ("immovable", Flag(ClothFlagImmovable)));
     }
 
     const float ClothSourceBaseGravity = FeModel.ClothSourceBaseGravity;

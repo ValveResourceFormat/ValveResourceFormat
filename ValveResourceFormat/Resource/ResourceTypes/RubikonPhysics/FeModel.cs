@@ -368,6 +368,21 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics
             return surplus;
         }
 
+        /// <summary>
+        /// Gets whether every simulated node collides with the world, which is how the source's
+        /// force-world-collision-on-all-nodes switch shows up (the switch itself leaves no flag bit).
+        /// </summary>
+        public bool ForcesWorldCollisionOnAllNodes
+            => NodeCount > StaticNodeCount && WorldCollisionNodes.Count == NodeCount - StaticNodeCount;
+
+        /// <summary>
+        /// Gets the ground friction shared by the world-colliding nodes, which is what the source authored
+        /// as the cloth's default. Zero when the model has no world collision params.
+        /// </summary>
+        public float DefaultGroundFriction => WorldCollisionFriction.Count > 0
+            ? WorldCollisionFriction.Values.GroupBy(static f => f.Ground).OrderByDescending(static g => g.Count()).First().Key
+            : 0f;
+
         /// <summary>Gets the stray radius for <paramref name="node"/>, or 0 when unconstrained.</summary>
         public float GetStrayRadius(int node) => AnimStrayRadii.GetValueOrDefault(node).MaxDistance;
 
@@ -398,6 +413,9 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics
         public int ExtraIterations => Data.GetInt32Property("m_nExtraIterations");
         public int ExtraGoalIterations => Data.GetInt32Property("m_nExtraGoalIterations");
         public int ExtraPressureIterations => Data.GetInt32Property("m_nExtraPressureIterations");
+        public float VelocitySmoothRate => Data.GetFloatProperty("m_flRodVelocitySmoothRate");
+        public int VelocitySmoothIterations => Data.GetInt32Property("m_nRodVelocitySmoothIterations");
+        public uint DynamicNodeFlags => Data.GetUInt32Property("m_nDynamicNodeFlags");
 #pragma warning restore CS1591
 
         /// <summary>
