@@ -48,7 +48,7 @@ public class CS2BombDamageSceneNode : SceneNode
         [VertexAttribute(VertexSlot.Position)] public Vector3 Position;
         [VertexAttribute(VertexSlot.TexCoord)] public Vector2 UVs;
         [VertexAttribute(VertexSlot.Color)] public Color32 Color;
-        [VertexAttribute(CustomVertexSlot.Phase)] public float Phase;
+        [VertexAttribute("vPHASE")] public float Phase;
     }
 
     private static readonly VertexFormat Format = VertexFormat.FromStruct<Vertex>();

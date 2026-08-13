@@ -43,9 +43,23 @@ namespace ValveResourceFormat.Renderer.Shaders
         [GeneratedRegex("^#define (?<From>(?:g|F)_[A-Za-z0-9_]+) (?<To>[A-Za-z_][A-Za-z0-9_]*)$")]
         private static partial Regex RegexUniformAlias();
 
-        // An attribute declaration of a vertex shader, for example "in vec4 vCOLOR;"
-        [GeneratedRegex(@"^in\s+[a-z0-9]+\s+(?<Name>[A-Za-z_][A-Za-z0-9_]*)\s*;")]
+        // An attribute declaration of a vertex shader, for example "in vec4 vCOLOR;". Multiline, because the
+        // locations are stamped over the whole assembled source rather than line by line.
+        [GeneratedRegex(@"^in\s+[a-z0-9]+\s+(?<Name>[A-Za-z_][A-Za-z0-9_]*)\s*;", RegexOptions.Multiline)]
         private static partial Regex RegexVertexAttribute();
+
+        /// <summary>
+        /// Writes each attribute's location into its declaration, once every declaration in the shader is
+        /// known. A custom attribute takes a slot this set leaves free, so a vertex struct declaring the same
+        /// set reaches the same numbers without either side naming one.
+        /// </summary>
+        private static string StampAttributeLocations(string source, HashSet<string> declaredAttributes)
+        {
+            var locations = VertexAttributeLocations.Allocate(declaredAttributes);
+
+            return RegexVertexAttribute().Replace(source, match =>
+                $"layout (location = {locations[match.Groups["Name"].Value].ToString(CultureInfo.InvariantCulture)}) {match.Value}");
+        }
 
         private static bool IsPackableUniformName(string name)
             => name.StartsWith("g_", StringComparison.Ordinal) || name.StartsWith("F_", StringComparison.Ordinal);
@@ -67,6 +81,7 @@ namespace ValveResourceFormat.Renderer.Shaders
             var sourceFileNumber = parsedData.SourceFiles.Count;
             var resolvedIncludes = new HashSet<string>(4);
             var isVertexStage = GetTypeFromFileName(shaderFile) == ShaderProgramType.Vertex;
+            var declaredAttributes = new HashSet<string>(StringComparer.Ordinal);
 
             var uniformAliases = new Dictionary<string, string>(0);
 
@@ -293,24 +308,14 @@ namespace ValveResourceFormat.Renderer.Shaders
                             }
                         }
 
-                        // Write the canonical location of the name into the declaration
+                        // Collected now, located once the whole declaring set is known
                         if (isVertexStage)
                         {
                             match = RegexVertexAttribute().Match(line);
 
                             if (match.Success)
                             {
-                                var attributeName = match.Groups["Name"].Value;
-                                var location = VertexAttributeLocations.Get(attributeName);
-
-                                if (location == -1)
-                                {
-                                    throw new ShaderCompilerException($"Line {lineNum} in '{shaderFileToLoad}' declares vertex attribute '{attributeName}', which no {nameof(VertexSlot)} is named for. Declarations must name a canonical attribute, a #define alias of one will not do.");
-                                }
-
-                                builder.Append("layout (location = ");
-                                builder.Append(location.ToString(CultureInfo.InvariantCulture));
-                                builder.Append(") "); // :VrfPreprocessed
+                                declaredAttributes.Add(match.Groups["Name"].Value);
                             }
                         }
                     }
@@ -328,7 +333,7 @@ namespace ValveResourceFormat.Renderer.Shaders
 
             LoadShaderString(shaderFile, null, isInclude: false);
 
-            return builder.ToString();
+            return declaredAttributes.Count > 0 ? StampAttributeLocations(builder.ToString(), declaredAttributes) : builder.ToString();
         }
 
         internal static readonly Dictionary<ShaderProgramType, string> ProgramTypeToExtension = new()

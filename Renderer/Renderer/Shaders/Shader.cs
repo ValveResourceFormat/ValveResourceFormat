@@ -193,8 +193,9 @@ namespace ValveResourceFormat.Renderer.Shaders
                     continue; // A gl_ builtin
                 }
 
-                // A declaration ShaderParser did not stamp is placed by the driver, where no VAO expects it
-                if (VertexAttributeLocations.Get(name) != location)
+                // A declaration ShaderParser did not stamp is placed by the driver, where no VAO expects it.
+                // A custom attribute has no canonical location, its slot comes from the declaring set.
+                if (VertexAttributeLocations.Get(name) is var canonical && canonical != -1 && canonical != location)
                 {
                     throw new ShaderLoader.ShaderCompilerException(
                         $"Shader '{Name}' has attribute '{name}' at location {location}, but {nameof(VertexSlot)} puts it at {VertexAttributeLocations.Get(name)}. Its declaration was not stamped, check that it reads 'in <type> {name};'.");

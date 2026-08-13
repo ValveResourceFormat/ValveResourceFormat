@@ -28,7 +28,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
             [VertexAttribute(VertexSlot.Color)] public readonly Vector4 Color = color;
             [VertexAttribute(VertexSlot.TexCoord)] public readonly Vector2 UV = uv;
             [VertexAttribute(VertexSlot.TexCoord1)] public readonly Vector2 UVNextFrame = uvNextFrame;
-            [VertexAttribute(CustomVertexSlot.FrameBlend)] public readonly float FrameBlend = frameBlend;
+            [VertexAttribute("vFrameBlend")] public readonly float FrameBlend = frameBlend;
         }
 
         // The shared quad index buffer covers 65532 indices, six per quad

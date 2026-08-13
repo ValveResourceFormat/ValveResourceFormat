@@ -10,27 +10,35 @@ using ValveResourceFormat.Blocks;
 namespace ValveResourceFormat.Renderer
 {
     /// <summary>
-    /// Marks a vertex struct field as the shader input bound to a <see cref="VertexSlot"/>. The
-    /// buffer format follows from the field type, see <see cref="VertexFormat.FromStruct{TVertex}"/>.
+    /// Marks a vertex struct field as a shader input. The buffer format follows from the field type, see
+    /// <see cref="VertexFormat.FromStruct{TVertex}"/>.
     /// </summary>
     [AttributeUsage(AttributeTargets.Field)]
-    public sealed class VertexAttributeAttribute(VertexSlot slot, DXGI_FORMAT format = DXGI_FORMAT.UNKNOWN) : Attribute
+    public sealed class VertexAttributeAttribute(string name, DXGI_FORMAT format = DXGI_FORMAT.UNKNOWN) : Attribute
     {
-        /// <summary>Gets the slot this field supplies.</summary>
-        public VertexSlot Slot { get; } = slot;
+        /// <summary>Gets the shader input name this field supplies.</summary>
+        public string Name { get; } = name;
 
         /// <summary>Gets the buffer format, or <see cref="DXGI_FORMAT.UNKNOWN"/> to derive it from the field type.</summary>
         public DXGI_FORMAT Format { get; } = format;
 
-        /// <summary>Marks a field of geometry belonging to one renderer.</summary>
-        public VertexAttributeAttribute(CustomVertexSlot slot, DXGI_FORMAT format = DXGI_FORMAT.UNKNOWN)
-            : this((VertexSlot)slot, format)
+        /// <summary>Marks a field supplying a mesh attribute.</summary>
+        [SuppressMessage("Design", "CA1019:Define accessors for attribute arguments", Justification = "The slot is exposed as its name")]
+        public VertexAttributeAttribute(VertexSlot slot, DXGI_FORMAT format = DXGI_FORMAT.UNKNOWN)
+            : this(VertexAttributeLocations.GetName(slot), format)
         {
         }
     }
 
     /// <summary>One attribute of a <see cref="VertexFormat"/>. An offset of -1 packs it after the last one.</summary>
-    public readonly record struct VertexAttribute(VertexSlot Slot, DXGI_FORMAT Format, int OffsetInBytes = -1);
+    public readonly record struct VertexAttribute(string Name, DXGI_FORMAT Format, int OffsetInBytes = -1)
+    {
+        /// <summary>Initializes an attribute supplying a mesh slot.</summary>
+        public VertexAttribute(VertexSlot slot, DXGI_FORMAT format, int offsetInBytes = -1)
+            : this(VertexAttributeLocations.GetName(slot), format, offsetInBytes)
+        {
+        }
+    }
 
     /// <summary>
     /// Interleaved vertex layout of handbuilt geometry. Element order is buffer order, and offsets pack in
@@ -41,6 +49,7 @@ namespace ValveResourceFormat.Renderer
     {
         private readonly VertexAttribute[] elements;
         private readonly int[] offsets;
+        private readonly int[] locations;
 
         /// <summary>Gets the size in bytes of a single vertex.</summary>
         public int Stride { get; }
@@ -50,22 +59,27 @@ namespace ValveResourceFormat.Renderer
         {
             this.elements = elements;
             offsets = new int[elements.Length];
+            locations = new int[elements.Length];
             Stride = stride;
 
+            // The declaring set decides where a custom attribute goes, so a shader declaring the same set
+            // arrives at the same locations without either side naming a number
+            var allocated = VertexAttributeLocations.Allocate(Array.ConvertAll(elements, element => element.Name));
             var packedOffset = 0;
             var boundLocations = 0;
 
             for (var i = 0; i < elements.Length; i++)
             {
                 var element = elements[i];
-                var (elementSize, elementCount) = VBIB.GetFormatInfo(element.Format, element.Slot.ToString());
+                var (elementSize, elementCount) = VBIB.GetFormatInfo(element.Format, element.Name);
 
                 offsets[i] = element.OffsetInBytes >= 0 ? element.OffsetInBytes : packedOffset;
                 packedOffset = offsets[i] + (elementSize * elementCount);
+                locations[i] = allocated[element.Name];
 
-                Debug.Assert(packedOffset <= stride, $"Attribute '{element.Slot}' ends at byte {packedOffset}, past the vertex stride of {stride}.");
-                Debug.Assert((boundLocations & (1 << (int)element.Slot)) == 0, $"Vertex format binds the slot of '{element.Slot}' twice.");
-                boundLocations |= 1 << (int)element.Slot;
+                Debug.Assert(packedOffset <= stride, $"Attribute '{element.Name}' ends at byte {packedOffset}, past the vertex stride of {stride}.");
+                Debug.Assert((boundLocations & (1 << locations[i])) == 0, $"Vertex format binds the location of '{element.Name}' twice.");
+                boundLocations |= 1 << locations[i];
             }
         }
 
@@ -88,7 +102,7 @@ namespace ValveResourceFormat.Renderer
 
                 var format = attribute.Format == DXGI_FORMAT.UNKNOWN ? FormatForType(field.FieldType) : attribute.Format;
 
-                elements.Add(new VertexAttribute(attribute.Slot, format, (int)Marshal.OffsetOf<TVertex>(field.Name)));
+                elements.Add(new VertexAttribute(attribute.Name, format, (int)Marshal.OffsetOf<TVertex>(field.Name)));
             }
 
             return new VertexFormat(Marshal.SizeOf<TVertex>(), [.. elements]);
@@ -116,7 +130,7 @@ namespace ValveResourceFormat.Renderer
 
             for (var i = 0; i < elements.Length; i++)
             {
-                var (name, index) = VertexAttributeLocations.GetSemantic(elements[i].Slot);
+                var (name, index) = VertexAttributeLocations.GetSemantic(locations[i]);
                 fields[i] = new VBIB.RenderInputLayoutField(name, elements[i].Format, (uint)offsets[i]) { SemanticIndex = index };
             }
 
@@ -137,11 +151,9 @@ namespace ValveResourceFormat.Renderer
 
             for (var i = 0; i < elements.Length; i++)
             {
-                var location = (int)elements[i].Slot;
-
-                GL.EnableVertexArrayAttrib(vao, location);
-                GL.VertexArrayAttribBinding(vao, location, 0);
-                VertexArray.SetAttribFormat(vao, location, elements[i].Format, offsets[i]);
+                GL.EnableVertexArrayAttrib(vao, locations[i]);
+                GL.VertexArrayAttribBinding(vao, locations[i], 0);
+                VertexArray.SetAttribFormat(vao, locations[i], elements[i].Format, offsets[i]);
             }
 
 #if DEBUG

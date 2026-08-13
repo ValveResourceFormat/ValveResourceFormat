@@ -101,44 +101,6 @@ namespace ValveResourceFormat.Renderer
     }
 
     /// <summary>
-    /// Attributes of one renderer's own geometry. Each takes the slot of a mesh attribute that geometry
-    /// cannot have, since the 16 guaranteed slots are already spoken for. Declaring both in one shader is a
-    /// duplicate location error.
-    /// </summary>
-#pragma warning disable CA1069, CA1027 // Aliasing is the point: two renderers can take the same mesh slot
-    public enum CustomVertexSlot
-    {
-        /// <summary>Bomb damage quad phase.</summary>
-        [VertexAttributeName("vPHASE", Semantic = "PHASE")]
-        Phase = VertexSlot.BlendIndices2,
-
-        /// <summary>Text depth.</summary>
-        [VertexAttributeName("vDEPTH")]
-        TextDepth = VertexSlot.BlendIndices,
-
-        /// <summary>Particle sheet frame blend.</summary>
-        [VertexAttributeName("vFrameBlend")]
-        FrameBlend = VertexSlot.BlendWeight,
-
-        /// <summary>Particle sheet layer coordinates.</summary>
-        [VertexAttributeName("vLayerUv0")]
-        LayerUv0 = VertexSlot.BlendIndices,
-
-        /// <summary>Particle sheet layer coordinates.</summary>
-        [VertexAttributeName("vLayerUv1")]
-        LayerUv1 = VertexSlot.BlendIndices2,
-
-        /// <summary>Particle sheet layer coordinates.</summary>
-        [VertexAttributeName("vLayerUv2")]
-        LayerUv2 = VertexSlot.BlendWeight2,
-
-        /// <summary>Particle sheet layer coordinates.</summary>
-        [VertexAttributeName("vLayerUv3")]
-        LayerUv3 = VertexSlot.Normal,
-    }
-#pragma warning restore CA1069, CA1027
-
-    /// <summary>
     /// Resolves shader input names and buffer semantics to their <see cref="VertexSlot"/>.
     /// </summary>
     public static class VertexAttributeLocations
@@ -146,23 +108,66 @@ namespace ValveResourceFormat.Renderer
         private static readonly FrozenDictionary<string, int> SlotByName = BuildSlotByName();
         private static readonly FrozenDictionary<(string Semantic, int Index), int> SlotBySemantic = BuildSlotBySemantic();
 
+        private static readonly FrozenDictionary<int, string> NameBySlot = SlotByName
+            .GroupBy(entry => entry.Value, entry => entry.Key)
+            .ToFrozenDictionary(group => group.Key, group => group.First());
+
         private static readonly FrozenDictionary<int, (string Name, int Index)> SemanticBySlot = SlotBySemantic
             .GroupBy(entry => entry.Value, entry => entry.Key)
             .ToFrozenDictionary(group => group.Key, group => group.First());
 
         private static IEnumerable<(VertexAttributeNameAttribute Attribute, int Slot)> EnumerateSlots()
-            => EnumerateSlots<VertexSlot>().Concat(EnumerateSlots<CustomVertexSlot>());
-
-        private static IEnumerable<(VertexAttributeNameAttribute Attribute, int Slot)> EnumerateSlots<
-            [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicFields)] TSlot>() where TSlot : struct, Enum
         {
-            foreach (var field in typeof(TSlot).GetFields(BindingFlags.Public | BindingFlags.Static))
+            foreach (var field in typeof(VertexSlot).GetFields(BindingFlags.Public | BindingFlags.Static))
             {
                 if (field.GetCustomAttribute<VertexAttributeNameAttribute>() is { } attribute)
                 {
                     yield return (attribute, (int)field.GetRawConstantValue()!);
                 }
             }
+        }
+
+        /// <summary>
+        /// Gives every attribute of one piece of geometry its location. A mesh attribute keeps its canonical
+        /// slot. Any other name takes the lowest slot this set leaves free, in name order, so that the shader
+        /// and the vertex struct declaring the same set both arrive at the same numbers.
+        /// </summary>
+        public static FrozenDictionary<string, int> Allocate(IEnumerable<string> attributeNames)
+        {
+            var locations = new Dictionary<string, int>(StringComparer.Ordinal);
+            var custom = new List<string>();
+            var used = 0;
+
+            foreach (var name in attributeNames)
+            {
+                var slot = Get(name);
+
+                if (slot == -1)
+                {
+                    custom.Add(name);
+                    continue;
+                }
+
+                locations[name] = slot;
+                used |= 1 << slot;
+            }
+
+            custom.Sort(StringComparer.Ordinal);
+
+            var free = 0;
+
+            foreach (var name in custom)
+            {
+                while ((used & (1 << free)) != 0)
+                {
+                    free++;
+                }
+
+                locations[name] = free;
+                used |= 1 << free;
+            }
+
+            return locations.ToFrozenDictionary(StringComparer.Ordinal);
         }
 
         private static FrozenDictionary<string, int> BuildSlotByName()
@@ -196,6 +201,9 @@ namespace ValveResourceFormat.Renderer
             return slotBySemantic.ToFrozenDictionary();
         }
 
+        /// <summary>The name of a mesh attribute, as its shaders declare it.</summary>
+        public static string GetName(VertexSlot slot) => NameBySlot[(int)slot];
+
         /// <summary>Resolves a shader input name, or -1 if unknown.</summary>
         public static int Get(string attributeName) => SlotByName.GetValueOrDefault(attributeName, -1);
 
@@ -216,8 +224,8 @@ namespace ValveResourceFormat.Renderer
         }
 
         /// <summary>The buffer semantic a slot is filled from, for describing handbuilt geometry as a layout.</summary>
-        public static (string Name, int Index) GetSemantic(VertexSlot slot)
-            => SemanticBySlot.TryGetValue((int)slot, out var semantic)
+        public static (string Name, int Index) GetSemantic(int slot)
+            => SemanticBySlot.TryGetValue(slot, out var semantic)
                 ? semantic
                 : throw new ArgumentException($"'{slot}' has no buffer semantic.", nameof(slot));
     }
