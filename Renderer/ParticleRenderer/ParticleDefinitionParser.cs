@@ -15,15 +15,18 @@ namespace ValveResourceFormat.Renderer.Particles;
 /// Numbers the inputs of one particle function as they are parsed, shared by every nested block of
 /// that function. Held in a cell because the parser is copied by value.
 /// </param>
-record struct ParticleDefinitionParser(KVObject Data, ILogger Logger, int[] InputOrdinal)
+/// <param name="BehaviorVersion">
+/// The <c>m_nBehaviorVersion</c> of the definition this block belongs to, for parse-time version gates.
+/// </param>
+record struct ParticleDefinitionParser(KVObject Data, ILogger Logger, int[] InputOrdinal, int BehaviorVersion = 0)
 {
     /// <summary>Reads a particle function, starting its input numbering over.</summary>
-    public ParticleDefinitionParser(KVObject data, ILogger logger) : this(data, logger, new int[1])
+    public ParticleDefinitionParser(KVObject data, ILogger logger, int behaviorVersion = 0) : this(data, logger, new int[1], behaviorVersion)
     {
     }
 
     /// <summary>Reads a block nested in this one, continuing its input numbering.</summary>
-    public readonly ParticleDefinitionParser Nested(KVObject data) => new(data, Logger, InputOrdinal);
+    public readonly ParticleDefinitionParser Nested(KVObject data) => new(data, Logger, InputOrdinal, BehaviorVersion);
 
     /// <summary>
     /// Claims the next displacement for an input whose draw is constant per particle, so that two
@@ -55,7 +58,8 @@ record struct ParticleDefinitionParser(KVObject Data, ILogger Logger, int[] Inpu
 
         var logger = Logger; // Copy to local variable to avoid capturing 'this' in lambda
         var ordinal = InputOrdinal;
-        return [.. Data.GetArray(k).Select(item => new ParticleDefinitionParser(item, logger, ordinal))];
+        var behaviorVersion = BehaviorVersion;
+        return [.. Data.GetArray(k).Select(item => new ParticleDefinitionParser(item, logger, ordinal, behaviorVersion))];
     }
 
     private readonly float Float(string k)

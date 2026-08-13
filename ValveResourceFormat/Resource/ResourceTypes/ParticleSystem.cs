@@ -130,11 +130,5 @@ namespace ValveResourceFormat.ResourceTypes
 
             return children.Select(c => c.GetStringProperty("m_ChildRef")).ToList();
         }
-
-        /// <summary>
-        /// Gets the child particle entries, which carry the child's delay, endcap and detail level
-        /// alongside its reference.
-        /// </summary>
-        public IEnumerable<KVObject> GetChildren() => Data.GetArray("m_Children") ?? [];
     }
 }

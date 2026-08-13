@@ -65,6 +65,13 @@ namespace ValveResourceFormat.Renderer.Particles
         public int BehaviorVersion { get; }
 
         /// <summary>
+        /// First initializer list index allowed to overwrite an already-initialized attribute below
+        /// behavior version 6 (<c>m_nFirstMultipleOverride_BackwardCompat</c>); -1 applies
+        /// first-writer-wins to the whole list.
+        /// </summary>
+        private readonly int firstMultipleOverride;
+
+        /// <summary>
         /// The group this system belongs to when it is used as a child, matched by
         /// <see cref="ChooseRandomChildrenInGroup"/> on the parent.
         /// </summary>
@@ -171,8 +178,11 @@ namespace ValveResourceFormat.Renderer.Particles
             this.rendererContext = rendererContext;
             this.scene = scene;
 
-            var parse = new ParticleDefinitionParser(particleSystem.Data, rendererContext.Logger);
-            BehaviorVersion = parse.Int32("m_nBehaviorVersion", 13);
+            var rootData = particleSystem.GetUpgradedData();
+            var parse = new ParticleDefinitionParser(rootData, rendererContext.Logger);
+            BehaviorVersion = parse.Int32("m_nBehaviorVersion", 0);
+            parse = parse with { BehaviorVersion = BehaviorVersion };
+            firstMultipleOverride = parse.Int32("m_nFirstMultipleOverride_BackwardCompat", -1);
             groupId = parse.Int32("m_nGroupID", 0);
             initialParticles = parse.Int32("m_nInitialParticles", 0);
             maxParticles = parse.Int32("m_nMaxParticles", 1000);
@@ -214,18 +224,20 @@ namespace ValveResourceFormat.Renderer.Particles
 
             Name = particleSystem.Resource?.FileName ?? "<unnamed>";
 
-            SetupFunctions(particleSystem.GetEmitters(), ParticleControllerFactory.TryCreateEmitter, emitters, "emitter");
-            SetupFunctions(particleSystem.GetInitializers(), ParticleControllerFactory.TryCreateInitializer, initializers, "initializer");
-            SetupFunctions(particleSystem.GetForceGenerators(), ParticleControllerFactory.TryCreateForceGenerator, ForceGenerators, "force generator");
-            SetupFunctions(particleSystem.GetOperators(), ParticleControllerFactory.TryCreateOperator, operators, "operator");
-            SetupFunctions(particleSystem.GetConstraints(), ParticleControllerFactory.TryCreateConstraint, constraints, "constraint");
-            constraintPasses = ReadConstraintPasses(particleSystem);
+            IReadOnlyList<KVObject> Functions(string key) => rootData.GetArray(key) ?? [];
 
-            SetupRenderers(particleSystem.GetRenderers());
+            SetupFunctions(Functions("m_Emitters"), ParticleControllerFactory.TryCreateEmitter, emitters, "emitter");
+            SetupFunctions(Functions("m_Initializers"), ParticleControllerFactory.TryCreateInitializer, initializers, "initializer");
+            SetupFunctions(Functions("m_ForceGenerators"), ParticleControllerFactory.TryCreateForceGenerator, ForceGenerators, "force generator");
+            SetupFunctions(Functions("m_Operators"), ParticleControllerFactory.TryCreateOperator, operators, "operator");
+            SetupFunctions(Functions("m_Constraints"), ParticleControllerFactory.TryCreateConstraint, constraints, "constraint");
+            constraintPasses = ReadConstraintPasses(Functions("m_Operators"));
 
-            SetupFunctions(particleSystem.GetPreEmissionOperators(), ParticleControllerFactory.TryCreatePreEmissionOperator, preEmissionOperators, "pre-emission operator");
+            SetupRenderers(Functions("m_Renderers"));
 
-            SetupChildParticles(particleSystem.GetChildren());
+            SetupFunctions(Functions("m_PreEmissionOperators"), ParticleControllerFactory.TryCreatePreEmissionOperator, preEmissionOperators, "pre-emission operator");
+
+            SetupChildParticles(Functions("m_Children"));
 
             Passes = CollectPasses();
 
@@ -401,7 +413,7 @@ namespace ValveResourceFormat.Renderer.Particles
         }
 
 
-        private delegate bool TryCreateFunction<T>(string className, KVObject data, ILogger logger, [MaybeNullWhen(false)] out T result);
+        private delegate bool TryCreateFunction<T>(string className, KVObject data, ILogger logger, int behaviorVersion, [MaybeNullWhen(false)] out T result);
 
         private void SetupFunctions<T>(IEnumerable<KVObject> data, TryCreateFunction<T> tryCreate, List<T> target, string label)
         {
@@ -413,7 +425,7 @@ namespace ValveResourceFormat.Renderer.Particles
                 }
 
                 var className = info.GetStringProperty("_class");
-                if (tryCreate(className, info, rendererContext.Logger, out var function))
+                if (tryCreate(className, info, rendererContext.Logger, BehaviorVersion, out var function))
                 {
                     target.Add(function);
                 }
@@ -425,7 +437,7 @@ namespace ValveResourceFormat.Renderer.Particles
         }
 
         // Read m_nMaxConstraintPasses (default 3) so rope springs get enough constraint passes.
-        private int ReadConstraintPasses(ParticleSystem particleSystem)
+        private int ReadConstraintPasses(IReadOnlyList<KVObject> operatorData)
         {
             if (constraints.Count == 0)
             {
@@ -433,11 +445,11 @@ namespace ValveResourceFormat.Renderer.Particles
             }
 
             var passes = 1;
-            foreach (var op in particleSystem.GetOperators())
+            foreach (var op in operatorData)
             {
                 if (op.GetStringProperty("_class") == "C_OP_BasicMovement")
                 {
-                    var parse = new ParticleDefinitionParser(op, rendererContext.Logger);
+                    var parse = new ParticleDefinitionParser(op, rendererContext.Logger, BehaviorVersion);
                     passes = Math.Max(passes, parse.Int32("m_nMaxConstraintPasses", 3));
                 }
             }
@@ -455,7 +467,7 @@ namespace ValveResourceFormat.Renderer.Particles
                 }
 
                 var rendererClass = rendererInfo.GetStringProperty("_class");
-                if (ParticleControllerFactory.TryCreateRender(rendererClass, rendererInfo, rendererContext, scene, out var renderer))
+                if (ParticleControllerFactory.TryCreateRender(rendererClass, rendererInfo, rendererContext, scene, BehaviorVersion, out var renderer))
                 {
                     renderers.Add(renderer);
                 }
