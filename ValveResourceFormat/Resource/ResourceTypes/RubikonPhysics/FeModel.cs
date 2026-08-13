@@ -230,8 +230,12 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics
         /// </summary>
         public IReadOnlyDictionary<int, float> TwistNodes { get; }
 
-        /// <summary>Gets the twist relaxation authored on <paramref name="node"/>, or 0 when untwisted.</summary>
-        public float GetTwistRelax(int node) => TwistNodes.GetValueOrDefault(node);
+        /// <summary>
+        /// Gets the compiled twist relaxation of <paramref name="node"/>, or 0 when untwisted. This is the
+        /// solver's own per-constraint value, which decays along a chain, not the authored
+        /// <c>twist_relax</c> it was derived from.
+        /// </summary>
+        public float GetCompiledTwistRelax(int node) => TwistNodes.GetValueOrDefault(node);
 
         // The cloth_drag paint compiles to flPointDamping = paint * 30 (measured: 0.2 -> 6.0, 0.5 -> 15.0).
         internal const float ClothDragPointDampingScale = 30f;
