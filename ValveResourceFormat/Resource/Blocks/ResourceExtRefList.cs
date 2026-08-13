@@ -90,14 +90,10 @@ namespace ValveResourceFormat.Blocks
                 var id = reader.ReadUInt64();
                 var previousPosition = reader.BaseStream.Position;
 
-                // jump to string
-                // offset is counted from current position,
-                // so we will need to add 8 to position later
-                reader.BaseStream.Position += reader.ReadInt64();
+                var name = reader.ReadOffsetString(Encoding.UTF8);
 
-                var name = reader.ReadNullTermString(Encoding.UTF8);
-
-                reader.BaseStream.Position = previousPosition + 8; // 8 is to account for string offset
+                // 8 is the string offset and the alignment padding that follows it
+                reader.BaseStream.Position = previousPosition + 8;
 
                 ResourceRefInfoList.Add(new ResourceReferenceInfo
                 {
@@ -122,7 +118,8 @@ namespace ValveResourceFormat.Blocks
             writer.Write(8u); // size of the 2 ints we are writing right now
             writer.Write(ResourceRefInfoList.Count);
 
-            const uint EntrySize = sizeof(ulong) + sizeof(long);
+            // uint64 m_nId, int32 string offset, int32 alignment padding
+            const int EntrySize = sizeof(ulong) + sizeof(int) + sizeof(int);
             var stringsStartOffset = ResourceRefInfoList.Count * EntrySize;
             var currentStringOffset = 0;
 
@@ -137,6 +134,7 @@ namespace ValveResourceFormat.Blocks
                 var relativeOffset = stringAbsolutePos - currentPosAfterID;
 
                 writer.Write(relativeOffset);
+                writer.Write(0);
 
                 currentStringOffset += Encoding.UTF8.GetByteCount(refInfo.Name) + 1;
             }
