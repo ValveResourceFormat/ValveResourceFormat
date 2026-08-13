@@ -165,6 +165,16 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics
         /// </summary>
         public IReadOnlySet<int> WorldCollisionNodes { get; }
 
+        /// <summary>
+        /// Gets the world and ground friction of each world-colliding node
+        /// (<c>m_WorldCollisionParams</c>), from per-joint <c>world_friction</c>/<c>ground_friction</c>.
+        /// </summary>
+        public IReadOnlyDictionary<int, (float World, float Ground)> WorldCollisionFriction { get; }
+
+        /// <summary>Gets the world and ground friction for <paramref name="node"/>, or zero for both.</summary>
+        public (float World, float Ground) GetWorldFriction(int node)
+            => WorldCollisionFriction.GetValueOrDefault(node);
+
         /// <summary>Returns whether <paramref name="node"/> collides with the world.</summary>
         public bool IsWorldCollisionNode(int node) => WorldCollisionNodes.Contains(node);
 
@@ -375,9 +385,26 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics
                     o.GetFloatProperty("flGravity"))).ToArray();
 
             NodeCollisionRadii = data.GetFloatArray("m_NodeCollisionRadii");
-            WorldCollisionNodes = data.ContainsKey("m_WorldCollisionNodes")
-                ? data.GetIntegerArray("m_WorldCollisionNodes").Select(static v => (int)v).ToHashSet()
-                : new HashSet<int>();
+            var worldCollisionOrder = data.ContainsKey("m_WorldCollisionNodes")
+                ? data.GetIntegerArray("m_WorldCollisionNodes").Select(static v => (int)v).ToArray()
+                : [];
+            WorldCollisionNodes = worldCollisionOrder.ToHashSet();
+
+            // Each params entry covers a run of m_WorldCollisionNodes, so a node's friction is the entry
+            // whose range contains its position in that list.
+            var worldFriction = new Dictionary<int, (float World, float Ground)>();
+            foreach (var entry in data.GetArray("m_WorldCollisionParams") ?? [])
+            {
+                var begin = entry.GetInt32Property("nListBegin");
+                var end = Math.Min(entry.GetInt32Property("nListEnd"), worldCollisionOrder.Length);
+                var frictions = (entry.GetFloatProperty("flWorldFriction"), entry.GetFloatProperty("flGroundFriction"));
+                for (var i = Math.Max(begin, 0); i < end; i++)
+                {
+                    worldFriction[worldCollisionOrder[i]] = frictions;
+                }
+            }
+
+            WorldCollisionFriction = worldFriction;
 
             DynNodeFriction = data.GetFloatArray("m_DynNodeFriction");
 
