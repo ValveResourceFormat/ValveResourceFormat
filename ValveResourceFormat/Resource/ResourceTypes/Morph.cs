@@ -241,9 +241,9 @@ namespace ValveResourceFormat.ResourceTypes
                 var bundleTypeString = (string)bundleType;
                 return bundleTypeString switch
                 {
-                    "MORPH_BUNDLE_TYPE_POSITION_SPEED" => MorphBundleType.PositionSpeed,
-                    "BUNDLE_TYPE_POSITION_SPEED" => MorphBundleType.PositionSpeed,
-                    "MORPH_BUNDLE_TYPE_NORMAL_WRINKLE" => MorphBundleType.NormalWrinkle,
+                    "MORPH_BUNDLE_TYPE_NONE" or "BUNDLE_TYPE_NONE" => MorphBundleType.None,
+                    "MORPH_BUNDLE_TYPE_POSITION_SPEED" or "BUNDLE_TYPE_POSITION_SPEED" => MorphBundleType.PositionSpeed,
+                    "MORPH_BUNDLE_TYPE_NORMAL_WRINKLE" or "BUNDLE_TYPE_NORMAL_WRINKLE" => MorphBundleType.NormalWrinkle,
                     _ => throw new NotImplementedException($"Unhandled bundle type: {bundleTypeString}"),
                 };
             }

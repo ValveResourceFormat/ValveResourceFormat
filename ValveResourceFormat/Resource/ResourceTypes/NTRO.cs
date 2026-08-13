@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Runtime.InteropServices;
 using System.Text;
 using ValveKeyValue;
 using ValveResourceFormat.Blocks;
@@ -65,44 +66,53 @@ namespace ValveResourceFormat.ResourceTypes
 
             var structEntry = KVObject.Collection();
 
-            foreach (var field in refStruct.FieldIntrospection)
-            {
-                Reader.BaseStream.Position = startingOffset + field.OnDiskOffset;
+            ReadStructureFields(refStruct, startingOffset, structEntry);
 
-                ReadFieldIntrospection(field, structEntry);
+            // Valve doesn't print the base struct's type, so we can't just call ReadStructure *sigh*
+            // Inheritance can be arbitrarily deep, and every ancestor lays its fields out at offsets
+            // relative to the same object, so keep appending fields while walking up the chain.
+            // The depth limit guards against manifests with an inheritance cycle.
+            var baseStructId = refStruct.BaseStructId;
+
+            for (var depth = 0; baseStructId != 0 && depth < 16; depth++)
+            {
+                var baseStruct = IntrospectionManifest.GetStructById(baseStructId);
+
+                if (baseStruct == null)
+                {
+                    break;
+                }
+
+                ReadStructureFields(baseStruct, startingOffset, structEntry);
+
+                baseStructId = baseStruct.BaseStructId;
             }
 
             // Some structs are padded, so all the field sizes do not add up to the size on disk
             Reader.BaseStream.Position = startingOffset + refStruct.DiskSize;
 
-            if (refStruct.BaseStructId != 0)
+            return structEntry;
+        }
+
+        private void ReadStructureFields(ResourceIntrospectionManifest.ResourceDiskStruct refStruct, long startingOffset, KVObject structEntry)
+        {
+            foreach (var field in refStruct.FieldIntrospection)
             {
-                var previousOffset = Reader.BaseStream.Position;
-
-                var newStruct = IntrospectionManifest.ReferencedStructs.First(x => x.Id == refStruct.BaseStructId);
-
-                // Valve doesn't print this struct's type, so we can't just call ReadStructure *sigh*
-                foreach (var field in newStruct.FieldIntrospection)
+                // A negative offset (-1) means this field is not serialized to disk, there is nothing to read
+                if (field.OnDiskOffset < 0)
                 {
-                    Reader.BaseStream.Position = startingOffset + field.OnDiskOffset;
-
-                    ReadFieldIntrospection(field, structEntry);
+                    continue;
                 }
 
-                Reader.BaseStream.Position = previousOffset;
-            }
+                Reader.BaseStream.Position = startingOffset + field.OnDiskOffset;
 
-            return structEntry;
+                ReadFieldIntrospection(field, structEntry);
+            }
         }
 
         private void ReadFieldIntrospection(ResourceIntrospectionManifest.ResourceDiskStruct.Field field, KVObject structEntry)
         {
-            var count = (uint)field.Count;
-
-            if (count == 0)
-            {
-                count = 1;
-            }
+            var count = field.Count > 0 ? (uint)field.Count : 1;
 
             long prevOffset = 0;
 
@@ -212,7 +222,7 @@ namespace ValveResourceFormat.ResourceTypes
                     };
 
                     //special case for byte arrays for faster access
-                    fieldValue = KVObject.Blob(Reader.ReadBytes((int)count / size));
+                    fieldValue = KVObject.Blob(Reader.ReadBytes((int)count * size));
                 }
                 else
                 {
@@ -229,7 +239,6 @@ namespace ValveResourceFormat.ResourceTypes
             }
             else
             {
-                Debug.Assert(count == 1 && field.Count == 0);
                 fieldValue = ReadField(field);
             }
 
@@ -252,8 +261,19 @@ namespace ValveResourceFormat.ResourceTypes
                     return ReadStructure(newStruct, Reader.BaseStream.Position);
 
                 case SchemaFieldType.Enum:
-                    // TODO: Lookup in ReferencedEnums
-                    return (uint)Reader.ReadUInt32();
+                    {
+                        // The type data is the hash of the enum name, which is what the enum introspection is keyed by
+                        var enumValue = Reader.ReadInt32();
+                        var enumeratorName = IntrospectionManifest.GetEnumValueName(field.TypeData, enumValue);
+
+                        if (enumeratorName != null)
+                        {
+                            return enumeratorName;
+                        }
+
+                        // Flag combinations and values the manifest does not name stay numeric
+                        return enumValue;
+                    }
 
                 case SchemaFieldType.SByte:
                     return (int)Reader.ReadSByte();
@@ -270,12 +290,15 @@ namespace ValveResourceFormat.ResourceTypes
                 case SchemaFieldType.UInt16:
                     return (uint)Reader.ReadUInt16(); // TODO: Could actually be uint16
 
+                case SchemaFieldType.Int:
                 case SchemaFieldType.Int32:
                     return Reader.ReadInt32();
 
+                case SchemaFieldType.UInt:
                 case SchemaFieldType.UInt32:
                     return (uint)Reader.ReadUInt32();
 
+                case SchemaFieldType.Float_8:
                 case SchemaFieldType.Float:
                     return (double)Reader.ReadSingle(); // TODO: Could actually be float
 
@@ -301,6 +324,7 @@ namespace ValveResourceFormat.ResourceTypes
                     return (ulong)Reader.ReadUInt64();
 
                 case SchemaFieldType.Vector3D:
+                case SchemaFieldType.QAngle:
                     {
                         var arrayObject = KVObject.Array();
                         arrayObject.Add(Reader.ReadSingle());
@@ -312,13 +336,32 @@ namespace ValveResourceFormat.ResourceTypes
                 case SchemaFieldType.Quaternion:
                 case SchemaFieldType.Fltx4:
                 case SchemaFieldType.Vector4D:
-                case SchemaFieldType.FourVectors:
                     {
                         var arrayObject = KVObject.Array();
                         arrayObject.Add(Reader.ReadSingle());
                         arrayObject.Add(Reader.ReadSingle());
                         arrayObject.Add(Reader.ReadSingle());
                         arrayObject.Add(Reader.ReadSingle());
+                        return arrayObject;
+                    }
+
+                case SchemaFieldType.FourVectors:
+                    {
+                        // Three fltx4 laid out as x[4], y[4], z[4], which is four vectors in structure of arrays form
+                        Span<float> components = stackalloc float[12];
+                        Reader.BaseStream.ReadExactly(MemoryMarshal.AsBytes(components));
+
+                        var arrayObject = KVObject.Array();
+
+                        for (var i = 0; i < 4; i++)
+                        {
+                            var vector = KVObject.Array();
+                            vector.Add(components[i]);
+                            vector.Add(components[4 + i]);
+                            vector.Add(components[8 + i]);
+                            arrayObject.Add(vector);
+                        }
+
                         return arrayObject;
                     }
 

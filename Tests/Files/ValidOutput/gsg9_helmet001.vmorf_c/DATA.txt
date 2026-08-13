@@ -1,0 +1,60 @@
+<!-- kv3 encoding:text:version{e21c7f3c-8a33-41c5-9977-a76d3a32aa0d} format:generic:version{7412167c-06e9-4698-aff2-e63eb59037e7} -->
+{
+	m_nWidth = 44
+	m_nHeight = 44
+	m_nLookupType = "MorphSetData_t::LOOKUP_TYPE_VERTEX_ID"
+	m_nEncodingType = "MorphSetData_t::ENCODING_TYPE_OBJECT_SPACE"
+	m_bundleTypes =
+	[
+		"BUNDLE_TYPE_POSITION_SPEED",
+		"BUNDLE_TYPE_NORMAL_WRINKLE",
+	]
+	m_morphDatas =
+	[
+		{
+			m_name = resource:""
+			m_morphRectDatas = [  ]
+		},
+	]
+	m_pTextureAtlas = resource_name:"models/props/hats/gsg9_helmet001_vmorf.vtex"
+	m_pMorphSetBase = null
+	m_FlexDesc =
+	[
+		{
+			m_szFacs = resource:"jawOpen"
+		},
+	]
+	m_FlexControllers =
+	[
+		{
+			m_szName = resource:"jawOpen"
+			m_szType = resource:"jawOpen"
+			localToGlobal = -1
+			min = 0.0
+			max = 1.0
+		},
+	]
+	m_FlexRules =
+	[
+		{
+			m_nFlex = 0
+			m_FlexOps =
+			[
+				{
+					m_OpCode = 2
+					m_Data = 0
+				},
+			]
+		},
+		{
+			m_nFlex = 0
+			m_FlexOps =
+			[
+				{
+					m_OpCode = 2
+					m_Data = 0
+				},
+			]
+		},
+	]
+}

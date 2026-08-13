@@ -33,7 +33,7 @@ namespace ValveResourceFormat.Blocks
                 public short Count { get; set; }
 
                 /// <summary>
-                /// Gets or sets the offset of the field on disk.
+                /// Gets or sets the offset of the field on disk. A negative value (-1) means the field is not serialized to disk.
                 /// </summary>
                 public short OnDiskOffset { get; set; }
 
@@ -301,6 +301,9 @@ namespace ValveResourceFormat.Blocks
         /// </summary>
         public List<ResourceDiskEnum> ReferencedEnums { get; }
 
+        private Dictionary<uint, ResourceDiskStruct>? structLookup;
+        private Dictionary<uint, Dictionary<int, string>>? enumValueLookup;
+
         /// <summary>
         /// Initializes a new instance of the <see cref="ResourceIntrospectionManifest"/> class.
         /// </summary>
@@ -308,6 +311,52 @@ namespace ValveResourceFormat.Blocks
         {
             ReferencedStructs = [];
             ReferencedEnums = [];
+        }
+
+        /// <summary>
+        /// Gets the structure definition with the given id, or null when the manifest does not contain it.
+        /// </summary>
+        public ResourceDiskStruct? GetStructById(uint id)
+        {
+            if (structLookup == null)
+            {
+                structLookup = new(ReferencedStructs.Count);
+
+                foreach (var diskStruct in ReferencedStructs)
+                {
+                    structLookup.TryAdd(diskStruct.Id, diskStruct);
+                }
+            }
+
+            return structLookup.GetValueOrDefault(id);
+        }
+
+        /// <summary>
+        /// Gets the name of the enumerator with the given value in the enum definition with the given id,
+        /// or null when either the enum or an enumerator with that exact value is unknown.
+        /// </summary>
+        public string? GetEnumValueName(uint enumId, int value)
+        {
+            if (enumValueLookup == null)
+            {
+                enumValueLookup = new(ReferencedEnums.Count);
+
+                foreach (var diskEnum in ReferencedEnums)
+                {
+                    var values = new Dictionary<int, string>(diskEnum.EnumValueIntrospection.Count);
+
+                    foreach (var enumerator in diskEnum.EnumValueIntrospection)
+                    {
+                        values.TryAdd(enumerator.EnumValue, enumerator.EnumValueName);
+                    }
+
+                    enumValueLookup.TryAdd(diskEnum.Id, values);
+                }
+            }
+
+            return enumValueLookup.TryGetValue(enumId, out var enumValues)
+                ? enumValues.GetValueOrDefault(value)
+                : null;
         }
 
         /// <inheritdoc/>
@@ -326,7 +375,7 @@ namespace ValveResourceFormat.Blocks
 
         private void ReadStructs(BinaryReader reader)
         {
-            var entriesOffset = reader.ReadUInt32();
+            var entriesOffset = reader.ReadInt32();
             var entriesCount = reader.ReadUInt32();
 
             if (entriesCount == 0)
@@ -350,7 +399,7 @@ namespace ValveResourceFormat.Blocks
                     BaseStructId = reader.ReadUInt32()
                 };
 
-                var fieldsOffset = reader.ReadUInt32();
+                var fieldsOffset = reader.ReadInt32();
                 var fieldsSize = reader.ReadUInt32();
 
                 // jump to fields
@@ -368,7 +417,7 @@ namespace ValveResourceFormat.Blocks
                             OnDiskOffset = reader.ReadInt16()
                         };
 
-                        var indirectionOffset = reader.ReadUInt32();
+                        var indirectionOffset = reader.ReadInt32();
                         var indirectionSize = reader.ReadUInt32();
 
                         if (indirectionSize > 0)
@@ -406,7 +455,7 @@ namespace ValveResourceFormat.Blocks
 
         private void ReadEnums(BinaryReader reader)
         {
-            var entriesOffset = reader.ReadUInt32();
+            var entriesOffset = reader.ReadInt32();
             var entriesCount = reader.ReadUInt32();
 
             if (entriesCount == 0)
@@ -427,7 +476,7 @@ namespace ValveResourceFormat.Blocks
                     UserVersion = reader.ReadInt32()
                 };
 
-                var fieldsOffset = reader.ReadUInt32();
+                var fieldsOffset = reader.ReadInt32();
                 var fieldsSize = reader.ReadUInt32();
 
                 // jump to fields
