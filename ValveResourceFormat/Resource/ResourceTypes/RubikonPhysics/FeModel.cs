@@ -252,6 +252,41 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics
             return Math.Clamp((s * s - (1f - forceAttraction) * forceAttraction) / (2f * s), 0f, 1f);
         }
 
+        // Rope cloth ships no m_SkelParents, so the only record of which node follows which is m_Ropes:
+        // its first m_nRopeCount entries are the exclusive end offsets of the ordered node runs that follow.
+        static int[] BuildRopeParents(KVObject data)
+        {
+            var nodeCount = data.GetInt32Property("m_nNodeCount");
+            var ropeCount = data.GetInt32Property("m_nRopeCount");
+            var ropes = data.GetIntegerArray("m_Ropes");
+            if (ropeCount <= 0 || nodeCount <= 0 || ropes.Length <= ropeCount)
+            {
+                return [];
+            }
+
+            var parents = new int[nodeCount];
+            Array.Fill(parents, -1);
+
+            var begin = ropeCount;
+            for (var rope = 0; rope < ropeCount; rope++)
+            {
+                var end = Math.Min((int)ropes[rope], ropes.Length);
+                for (var i = begin + 1; i < end; i++)
+                {
+                    var node = (int)ropes[i];
+                    var parent = (int)ropes[i - 1];
+                    if (node >= 0 && node < nodeCount && parent >= 0 && parent < nodeCount)
+                    {
+                        parents[node] = parent;
+                    }
+                }
+
+                begin = end;
+            }
+
+            return parents;
+        }
+
         /// <summary>Gets the stray radius for <paramref name="node"/>, or 0 when unconstrained.</summary>
         public float GetStrayRadius(int node) => AnimStrayRadii.GetValueOrDefault(node);
 
@@ -282,6 +317,10 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics
             Data = data;
             CtrlNames = data.GetArray<string>("m_CtrlName") ?? [];
             SkelParents = (data.GetIntegerArray("m_SkelParents")).Select(static v => (int)v).ToArray();
+            if (SkelParents.Length == 0)
+            {
+                SkelParents = BuildRopeParents(data);
+            }
             NodeInvMasses = data.GetFloatArray("m_NodeInvMasses");
             NodeCount = data.GetInt32Property("m_nNodeCount");
             StaticNodeCount = data.GetInt32Property("m_nStaticNodes");
