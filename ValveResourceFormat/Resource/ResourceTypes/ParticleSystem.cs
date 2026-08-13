@@ -1,4 +1,5 @@
 using System.Linq;
+using System.Threading;
 using ValveKeyValue;
 using ValveKeyValue.KeyValues3;
 using ValveResourceFormat.ResourceTypes.ParticleUpgrade;
@@ -13,6 +14,7 @@ namespace ValveResourceFormat.ResourceTypes
     /// <seealso href="https://s2v.app/SchemaExplorer/cs2/particles/CParticleSystemDefinition">CParticleSystemDefinition</seealso>
     public class ParticleSystem : KeyValuesOrNTRO
     {
+        private readonly Lock upgradeLock = new();
         private KVObject? upgradedData;
         private IReadOnlyDictionary<string, IReadOnlyList<ParticleUpgradeTrace.TracedFunction>>? upgradeTrace;
         private KV3ID? createdFormat;
@@ -25,36 +27,44 @@ namespace ValveResourceFormat.ResourceTypes
 
         /// <summary>
         /// Gets the particle system data upgraded through the vpcf format-conversion chain to the
-        /// newest implemented format. Computed once and cached; <see cref="KeyValuesOrNTRO.Data"/>
-        /// is never mutated.
+        /// newest implemented format. Computed once and cached; the result is always a copy, so
+        /// <see cref="KeyValuesOrNTRO.Data"/> is neither returned nor mutated.
         /// </summary>
         public KVObject GetUpgradedData()
         {
-            upgradedData ??= ParticleFormatUpgrader.UpgradeToLatest(Data, SourceFormat);
-            return upgradedData;
+            lock (upgradeLock)
+            {
+                upgradedData ??= ParticleFormatUpgrader.UpgradeToLatest(Data, SourceFormat);
+                return upgradedData;
+            }
         }
 
         /// <summary>
         /// Gets the function entries traced through the conversion chain, reporting which entries
-        /// survive, under which class name, and which the chain removes. Shares the upgrade with
-        /// <see cref="GetUpgradedData"/>, so asking for both runs the chain once.
+        /// survive, under which class name, and which the chain removes. The trace carries the
+        /// upgraded tree it describes, so taking it before <see cref="GetUpgradedData"/> runs the
+        /// chain once for both; taking it afterwards runs the chain a second time.
         /// </summary>
         public IReadOnlyDictionary<string, IReadOnlyList<ParticleUpgradeTrace.TracedFunction>> GetUpgradeTrace()
         {
-            if (upgradeTrace == null)
+            lock (upgradeLock)
             {
-                var traced = ParticleUpgradeTrace.TraceFunctions(Data, SourceFormat);
-                upgradeTrace = traced.Functions;
-                upgradedData ??= traced.UpgradedRoot;
-            }
+                if (upgradeTrace == null)
+                {
+                    var traced = ParticleUpgradeTrace.TraceFunctions(Data, SourceFormat);
+                    upgradeTrace = traced.Functions;
+                    upgradedData ??= traced.UpgradedRoot;
+                }
 
-            return upgradeTrace;
+                return upgradeTrace;
+            }
         }
 
         /// <summary>Builds a particle system from the provided keyvalues.</summary>
         /// <param name="data">The particle system definition.</param>
-        /// <param name="format">The KV3 format the definition is authored in. Pass the newest
-        /// format for definitions built in memory so the conversion chain does not re-run on them.</param>
+        /// <param name="format">The KV3 format the definition is authored in. Defaults to the
+        /// newest format, which is what a definition built in memory against the current schema
+        /// is; pass an older one only for data that really is authored in it.</param>
         public static ParticleSystem Create(KVObject data, KV3ID? format = null)
         {
             var system = new ParticleSystem
@@ -63,7 +73,7 @@ namespace ValveResourceFormat.ResourceTypes
                 Data = data,
             };
 
-            system.createdFormat = format;
+            system.createdFormat = format ?? ParticleFormatUpgrader.LatestFormat;
 
             return system;
         }

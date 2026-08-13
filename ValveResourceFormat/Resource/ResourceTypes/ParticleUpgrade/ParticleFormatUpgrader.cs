@@ -118,22 +118,15 @@ public static class ParticleFormatUpgrader
     /// <summary>
     /// Deep-clones the given document root and applies every implemented chain step past the
     /// stored format, returning the upgraded clone. Missing and unknown formats start at the
-    /// oldest step, matching the engine treating headerless data as oldest. A stored format
-    /// newer than the implemented steps returns the root unchanged.
+    /// oldest step, matching the engine treating headerless data as oldest. The result is always
+    /// a clone, so a caller that edits it never reaches the document it was given.
     /// </summary>
     public static KVObject UpgradeToLatest(KVObject root, KV3ID? storedFormat)
     {
         ArgumentNullException.ThrowIfNull(root);
 
-        var start = ResolveStartIndex(storedFormat);
-
-        if (start >= Steps.Count)
-        {
-            return root;
-        }
-
         var upgraded = KVObjectDeepClone.Clone(root);
-        ApplyFrom(upgraded, start);
+        ApplyFrom(upgraded, ResolveStartIndex(storedFormat));
 
         return upgraded;
     }
