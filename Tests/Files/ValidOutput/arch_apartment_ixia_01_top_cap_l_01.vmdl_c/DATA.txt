@@ -1,0 +1,51 @@
+<!-- kv3 encoding:text:version{e21c7f3c-8a33-41c5-9977-a76d3a32aa0d} format:generic:version{7412167c-06e9-4698-aff2-e63eb59037e7} -->
+{
+	m_name = "models/architecture/arch_apartment_ixia_01/arch_apartment_ixia_01_top_cap_l_01.vmdl"
+	m_modelInfo = 
+	{
+		m_nFlags = 8388608
+		m_vHullMin = [ 0.0, 0.0, 0.0 ]
+		m_vHullMax = [ 0.0, 0.0, 0.0 ]
+		m_vViewMin = [ 0.0, 0.0, 0.0 ]
+		m_vViewMax = [ 0.0, 0.0, 0.0 ]
+		m_flMass = 0.0
+		m_vEyePosition = [ 0.0, 0.0, 0.0 ]
+		m_flMaxEyeDeflection = 0.0
+		m_sSurfaceProperty = ""
+		m_keyValueText = ""
+	}
+	m_ExtParts = [  ]
+	m_refMeshes = 
+	[
+		resource:"",
+	]
+	m_refMeshGroupMasks = [ 18446744073709551615 ]
+	m_refPhysGroupMasks = [  ]
+	m_refLODGroupMasks = [ 255 ]
+	m_lodGroupSwitchDistances = [  ]
+	m_refPhysicsData = [  ]
+	m_refPhysicsHitboxData = [  ]
+	m_refAnimGroups = [  ]
+	m_refSequenceGroups = [  ]
+	m_meshGroups = [  ]
+	m_materialGroups = [  ]
+	m_nDefaultMeshGroupMask = 18446744073709551615
+	m_modelSkeleton = 
+	{
+		m_boneName = [  ]
+		m_nParent = [  ]
+		m_boneSphere = [  ]
+		m_nFlag = [  ]
+		m_bonePosParent = [  ]
+		m_boneRotParent = [  ]
+		m_boneScaleParent = [  ]
+	}
+	m_remappingTable = [  ]
+	m_remappingTableStarts = [ 0 ]
+	m_boneFlexDrivers = [  ]
+	m_pModelConfigList = null
+	m_BodyGroupsHiddenInTools = [  ]
+	m_refAnimIncludeModels = [  ]
+	m_AnimatedMaterialAttributes = [  ]
+}
+
