@@ -18,6 +18,15 @@ internal static class EntityIOGraphBuilder
     /// <summary>Hue of an entity's inputs and the wires arriving at them.</summary>
     public const GraphHue InputHue = GraphHue.Cyan;
 
+    /// <summary>Target names that resolve to something the map does not contain.</summary>
+    public const GraphHue UnresolvedTargetHue = GraphHue.Red;
+
+    /// <summary>Targets naming an engine keyword rather than an entity, such as !activator.</summary>
+    public const GraphHue SpecialTargetHue = GraphHue.Magenta;
+
+    /// <summary>Wires and sockets linking a point_template to the entities it spawns.</summary>
+    public const GraphHue TemplateSpawnHue = GraphHue.Purple;
+
     // Prefab-instanced entities carry a "[PR#]" targetname prefix, hide it for display.
     private static string StripTargetnamePrefix(string value)
     {
@@ -192,7 +201,7 @@ internal static class EntityIOGraphBuilder
                 {
                     Title = StripTargetnamePrefix(targetName),
                     Subtitle = unresolved ? "unresolved target" : "special target",
-                    Category = unresolved ? GraphHue.Red : GraphHue.Magenta,
+                    Category = unresolved ? UnresolvedTargetHue : SpecialTargetHue,
                 });
                 syntheticNodes[targetName] = node;
             }
@@ -240,11 +249,11 @@ internal static class EntityIOGraphBuilder
                     continue;
                 }
 
-                var output = OutputFor(NodeFor(entity), "spawns", GraphHue.Purple);
+                var output = OutputFor(NodeFor(entity), "spawns", TemplateSpawnHue);
 
                 foreach (var childEntity in childEntities)
                 {
-                    var input = InputFor(NodeFor(childEntity), "spawned by", GraphHue.Purple);
+                    var input = InputFor(NodeFor(childEntity), "spawned by", TemplateSpawnHue);
 
                     if (!mergedWires.ContainsKey((output, input)))
                     {
@@ -256,7 +265,7 @@ internal static class EntityIOGraphBuilder
 
         if (connections.Count == 0 && mergedWires.Count == 0)
         {
-            var infoNode = document.AddNode(new GraphNode { Title = "No entity I/O", Subtitle = "EntityLump" });
+            var infoNode = document.AddNode(new GraphNode { Title = "No entity I/O", Subtitle = "EntityLump", Category = GraphHue.Neutral });
             infoNode.AddText($"{entities.Count} entities, no connections");
             return;
         }
@@ -319,7 +328,7 @@ internal static class EntityIOGraphBuilder
         // After pairing, so the annotation rows sit below the socket lines.
         foreach (var (node, text) in annotations)
         {
-            node.AddAnnotation(text, GraphHue.Magenta);
+            node.AddAnnotation(text, SpecialTargetHue);
         }
 
         progressReporter?.Report($"Created {entityNodes.Count + syntheticNodes.Count} nodes from {connections.Count} connections ({entities.Count} entities).");

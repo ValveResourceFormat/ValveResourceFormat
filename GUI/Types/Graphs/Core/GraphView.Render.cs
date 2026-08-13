@@ -44,16 +44,6 @@ partial class GraphView
         }
     }
 
-    private static SKColor BlendColors(SKColor from, SKColor to, float t)
-    {
-        static byte Lerp(byte a, byte b, float t) => (byte)(a + (b - a) * t);
-        return new SKColor(
-            Lerp(from.Red, to.Red, t),
-            Lerp(from.Green, to.Green, t),
-            Lerp(from.Blue, to.Blue, t),
-            from.Alpha);
-    }
-
     private static void DrawIcon(SKCanvas canvas, SKSvg? svg, float x, float rowCenterY)
     {
         if (svg?.Picture is { } picture && picture.CullRect.Width > 0)
@@ -611,9 +601,7 @@ partial class GraphView
             fillPaint.ImageFilter = isPrimarySelected ? shadowSelected : connectedColor != null ? shadowConnected : shadowNormal;
         }
 
-        fillPaint.Color = node.BodyTint is { } tint
-            ? BlendColors(Palette.NodeBody, Palette.Category(tint), 0.55f)
-            : Palette.NodeBody;
+        fillPaint.Color = node.BodyTint is { } tint ? Palette.BodyTint(tint) : Palette.NodeBody;
         canvas.DrawRoundRect(rect, GraphMetrics.CornerRadius, GraphMetrics.CornerRadius, fillPaint);
         fillPaint.ImageFilter = null;
 

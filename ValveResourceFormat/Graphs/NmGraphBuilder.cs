@@ -17,6 +17,11 @@ internal sealed class NmGraphBuilder(KVObject graphDefinition)
     /// <summary>Name a card and a label take for an index that names no node.</summary>
     private const string MissingNodeName = "missing node";
 
+    /// <summary>Node type of the cards a layer blend grows for each of its layers.</summary>
+    private const string LayerDefinitionType = "_LayerDefinition_";
+
+    private readonly HashSet<string> reportedUnknownNodeTypes = [];
+
     /// <summary>Whether state machine states are drawn as their own cards.</summary>
     public bool DrawStateMachines { get; set; }
 
@@ -126,13 +131,12 @@ internal sealed class NmGraphBuilder(KVObject graphDefinition)
                 var lastSlash = path.LastIndexOf('/');
                 node.GroupPath = lastSlash > 0 ? path[..lastSlash] : null;
 
-                // Nodes the shared table buckets get the category colour; the rest keep deriving
-                // their header from their first socket.
                 var category = AnimGraphHues.CategoryOfAG2(node.NodeType);
+                node.Category = AnimGraphHues.HueOf(category);
 
-                if (category != AnimGraphCategory.Other)
+                if (category == AnimGraphCategory.Other && reportedUnknownNodeTypes.Add(node.NodeType))
                 {
-                    node.Category = AnimGraphHues.HueOf(category);
+                    ProgressReporter?.Report($"Unclassified AG2 node type \"{node.NodeType}\".");
                 }
             }
 
@@ -490,7 +494,8 @@ internal sealed class NmGraphBuilder(KVObject graphDefinition)
                     var layerNode = document.AddNode(new Node(layerDefinition[layerIndex])
                     {
                         Name = $"Layer{layerIndex}",
-                        NodeType = "_LayerDefinition_",
+                        NodeType = LayerDefinitionType,
+                        Category = AnimGraphHues.HueOf(AnimGraphHues.CategoryOfAG2(LayerDefinitionType)),
                     });
 
                     var layerOutput = layerNode.AddOutput(string.Empty, PoseHue);
@@ -906,8 +911,6 @@ internal sealed class NmGraphBuilder(KVObject graphDefinition)
                 document.Legend.Add(new($"{ValueKindLabel(kind)} value", AnimGraphHues.HueOf(kind), GraphLegendKind.Wire));
             }
         }
-
-        document.Legend.Add(new("Missing node", GraphHue.Red));
 
         ProgressReporter?.Report($"Created {createdNodes.Count} nodes (out of {nodes.Count}) or {createdNodes.Count / (float)nodes.Count:P}.");
     }

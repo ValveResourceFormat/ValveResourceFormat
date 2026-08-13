@@ -1,3 +1,4 @@
+using System.Linq;
 using System.Windows.Forms;
 
 namespace GUI.Controls
@@ -48,6 +49,21 @@ namespace GUI.Controls
             {
                 Height = desired;
             }
+        }
+
+        public void ClearRows()
+        {
+            var rows = tableLayout.Controls.Cast<Control>().ToList();
+            tableLayout.Controls.Clear();
+            tableLayout.RowStyles.Clear();
+            tableLayout.RowCount = 0;
+
+            foreach (var row in rows)
+            {
+                row.Dispose();
+            }
+
+            FitToContent();
         }
 
         public void AddRow(Control control)

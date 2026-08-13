@@ -383,6 +383,9 @@ internal enum GraphLegendKind
 
     /// <summary>Diamond marker in the bright wire/socket palette.</summary>
     Marker,
+
+    /// <summary>Filled swatch in the blended card-body colour a tinted node is drawn with.</summary>
+    BodyTint,
 }
 
 /// <summary>

@@ -219,14 +219,22 @@ namespace GUI.Types.GLViewers
 
             if (HasStateMachineToggle)
             {
-                var checkbox = RendererControl.CreateCheckBox("Draw state machines", false, SetDrawStateMachines);
+                var checkbox = RendererControl.CreateCheckBox("Draw state machines", false, draw =>
+                {
+                    SetDrawStateMachines(draw);
+                    RefreshLegend();
+                });
                 stateMachinesCheckBox = checkbox.CheckBox;
                 section.AddRow(checkbox);
             }
 
             if (HasParameterWireToggle)
             {
-                var checkbox = RendererControl.CreateCheckBox("Draw parameter wires", false, SetDrawParameterWires);
+                var checkbox = RendererControl.CreateCheckBox("Draw parameter wires", false, draw =>
+                {
+                    SetDrawParameterWires(draw);
+                    RefreshLegend();
+                });
                 parameterWiresCheckBox = checkbox.CheckBox;
                 section.AddRow(checkbox);
             }
@@ -403,15 +411,57 @@ namespace GUI.Types.GLViewers
             FocusNode(match);
         }
 
+        /// <summary>The declared rows whose colour something in the current graph draws.</summary>
+        private List<GraphLegendEntry> PresentLegendEntries()
+        {
+            HashSet<GraphHue> categories = [];
+            HashSet<GraphHue> tints = [];
+            HashSet<GraphHue> lines = [];
+            HashSet<GraphHue> dashed = [];
+
+            foreach (var node in View.Nodes)
+            {
+                categories.Add(node.EffectiveCategory);
+
+                if (node.BodyTint is { } tint)
+                {
+                    tints.Add(tint);
+                }
+
+                foreach (var socket in node.Inputs)
+                {
+                    lines.Add(socket.Hue);
+                }
+
+                foreach (var socket in node.Outputs)
+                {
+                    lines.Add(socket.Hue);
+                }
+            }
+
+            foreach (var wire in View.Wires)
+            {
+                (wire.Dashed ? dashed : lines).Add(wire.From.Hue);
+            }
+
+            return View.Legend.FindAll(entry => entry.Kind switch
+            {
+                GraphLegendKind.Category => categories.Contains(entry.Hue),
+                GraphLegendKind.BodyTint => tints.Contains(entry.Hue),
+                GraphLegendKind.DashedWire => dashed.Contains(entry.Hue),
+                _ => lines.Contains(entry.Hue),
+            });
+        }
+
         /// <summary>The legend split by sample kind: line samples first, then the node colour swatches.</summary>
         private List<(string Title, List<GraphLegendEntry> Entries)> LegendSections()
         {
             List<GraphLegendEntry> lineEntries = [];
             List<GraphLegendEntry> nodeEntries = [];
 
-            foreach (var entry in View.Legend)
+            foreach (var entry in PresentLegendEntries())
             {
-                (entry.Kind == GraphLegendKind.Category ? nodeEntries : lineEntries).Add(entry);
+                (entry.Kind is GraphLegendKind.Category or GraphLegendKind.BodyTint ? nodeEntries : lineEntries).Add(entry);
             }
 
             List<(string, List<GraphLegendEntry>)> sections = [];
@@ -429,9 +479,6 @@ namespace GUI.Types.GLViewers
             return sections;
         }
 
-        // The legend is built once and survives graph rebuilds: the frontends emit the same
-        // rows on every rebuild (toggle-dependent entries are always listed), so nothing has
-        // to resize when a toggle rebuilds the graph.
         private GLViewerGroupedSectionControl? legendSection;
 
         private void AddLegendPanel()
@@ -448,13 +495,28 @@ namespace GUI.Types.GLViewers
             UiControl.AddControl(legendSection);
         }
 
+        /// <summary>Re-reads which colours the graph draws and rebuilds the legend rows.</summary>
+        private void RefreshLegend()
+        {
+            if (legendSection == null)
+            {
+                return;
+            }
+
+            legendSection.ClearRows();
+            PopulateLegendRows();
+        }
+
         private void PopulateLegendRows()
         {
             Debug.Assert(legendSection != null);
 
+            var sections = LegendSections();
+            legendSection.Visible = sections.Count > 0;
+
             var first = true;
 
-            foreach (var (title, entries) in LegendSections())
+            foreach (var (title, entries) in sections)
             {
                 var heading = new Label
                 {
@@ -504,7 +566,12 @@ namespace GUI.Types.GLViewers
                 base.OnPaint(e);
 
                 // Palette slots resolve at paint time so the legend follows the theme.
-                var skColor = entry.Kind == GraphLegendKind.Category ? view.Palette.Category(entry.Hue) : view.Palette.Signal(entry.Hue);
+                var skColor = entry.Kind switch
+                {
+                    GraphLegendKind.Category => view.Palette.Category(entry.Hue),
+                    GraphLegendKind.BodyTint => view.Palette.BodyTint(entry.Hue),
+                    _ => view.Palette.Signal(entry.Hue),
+                };
                 var color = System.Drawing.Color.FromArgb(skColor.Red, skColor.Green, skColor.Blue);
                 var mid = Height / 2;
 

@@ -26,8 +26,6 @@ internal enum AnimGraphCategory
     Constraint,
     /// <summary>One dimensional blends.</summary>
     Blend,
-    /// <summary>Two dimensional blends.</summary>
-    Blend2D,
     /// <summary>Source poses entering the graph.</summary>
     Input,
     /// <summary>Selector and choice nodes.</summary>
@@ -38,6 +36,8 @@ internal enum AnimGraphCategory
     Clip,
     /// <summary>Aim and lean matrix nodes.</summary>
     AimMatrix,
+    /// <summary>Arithmetic, curve and comparison nodes feeding a value into the graph.</summary>
+    Value,
 
     /// <summary>Points at another file. Reserved, never shared with a category or a data type.</summary>
     ExternalReference,
@@ -87,14 +87,14 @@ internal static class AnimGraphHues
         AnimGraphCategory.Timing => GraphHue.Olive,
         AnimGraphCategory.Constraint => GraphHue.Green,
         AnimGraphCategory.Blend => GraphHue.Emerald,
-        AnimGraphCategory.Blend2D => GraphHue.Teal,
         AnimGraphCategory.Input => GraphHue.Cyan,
         AnimGraphCategory.Selector => GraphHue.Blue,
         AnimGraphCategory.Motion => GraphHue.Indigo,
         AnimGraphCategory.Clip => GraphHue.Purple,
         AnimGraphCategory.AimMatrix => GraphHue.Magenta,
         AnimGraphCategory.ExternalReference => GraphHue.Pink,
-        _ => GraphHue.Neutral,
+        AnimGraphCategory.Value => GraphHue.Teal,
+        _ => GraphHue.Red,
     };
 
     /// <summary>Colour slot a wire value kind is drawn in.</summary>
@@ -149,8 +149,7 @@ internal static class AnimGraphHues
         yield return new("Pose flow", HueOf(AnimGraphValueKind.Pose), GraphLegendKind.Wire);
         yield return new("Transition", TransitionHue, GraphLegendKind.DashedWire);
         yield return new("Clip / sequence", HueOf(AnimGraphCategory.Clip));
-        yield return new("Blend", HueOf(AnimGraphCategory.Blend));
-        yield return new("Blend 2D", HueOf(AnimGraphCategory.Blend2D));
+        yield return new("Blend (1D / 2D)", HueOf(AnimGraphCategory.Blend));
         yield return new("Additive / layer", HueOf(AnimGraphCategory.Additive));
         yield return new("IK / constraint", HueOf(AnimGraphCategory.Constraint));
         yield return new("Aim / lean matrix", HueOf(AnimGraphCategory.AimMatrix));
@@ -161,7 +160,10 @@ internal static class AnimGraphHues
         yield return new("Bone mask", HueOf(AnimGraphCategory.BoneMask));
         yield return new("Timing / speed", HueOf(AnimGraphCategory.Timing));
         yield return new("Output / root", HueOf(AnimGraphCategory.Output));
+        yield return new("Value / condition", HueOf(AnimGraphCategory.Value));
         yield return new("Subgraph / referenced file", HueOf(AnimGraphCategory.ExternalReference));
+        yield return new("Comment", HueOf(AnimGraphCategory.Comment));
+        yield return new("Missing / unclassified", HueOf(AnimGraphCategory.Other));
     }
 
     /// <summary>
@@ -173,8 +175,9 @@ internal static class AnimGraphHues
         "CSequenceUpdateNode" or "CSingleFrameUpdateNode" or "CCycleControlClipUpdateNode"
             or "CChoreoUpdateNode" or "CDirectPlaybackUpdateNode" => AnimGraphCategory.Clip,
 
-        "CBlendUpdateNode" or "CDirectionalBlendUpdateNode" => AnimGraphCategory.Blend,
-        "CBlend2DUpdateNode" => AnimGraphCategory.Blend2D,
+        "CBlendUpdateNode" or "CDirectionalBlendUpdateNode"
+            or "CBlend2DUpdateNode" => AnimGraphCategory.Blend,
+        
 
         "CAddUpdateNode" or "CSubtractUpdateNode" => AnimGraphCategory.Additive,
         "CBoneMaskUpdateNode" => AnimGraphCategory.BoneMask,
@@ -242,39 +245,60 @@ internal static class AnimGraphHues
     /// Buckets an AG2 node type, the class name with its CNm prefix and Node::CDefinition suffix
     /// already stripped by the viewer.
     /// </summary>
-    public static AnimGraphCategory CategoryOfAG2(string nodeType) => nodeType switch
+    public static AnimGraphCategory CategoryOfAG2(string nodeType)
     {
-        "Clip" or "ClipSelector" or "AnimationClipSelector" or "ParameterizedClipSelector"
-            or "ParameterizedAnimationClipSelector" or "AnimationPose" => AnimGraphCategory.Clip,
+        ArgumentNullException.ThrowIfNull(nodeType);
 
-        "Blend1D" or "ParameterizedBlend" or "VelocityBlend" or "BoneMaskBlend" => AnimGraphCategory.Blend,
-        "Blend2D" => AnimGraphCategory.Blend2D,
+        // These families are spelled per value type, so they match by affix.
+        if (nodeType.StartsWith("ControlParameter", StringComparison.Ordinal)
+            || nodeType.StartsWith("VirtualParameter", StringComparison.Ordinal)
+            || nodeType.StartsWith("Const", StringComparison.Ordinal)
+            || nodeType.StartsWith("Cached", StringComparison.Ordinal)
+            || nodeType.EndsWith("Condition", StringComparison.Ordinal)
+            || nodeType.EndsWith("Comparison", StringComparison.Ordinal))
+        {
+            return AnimGraphCategory.Value;
+        }
 
-        "LayerBlend" or "_LayerDefinition_" => AnimGraphCategory.Additive,
+        return nodeType switch
+        {
+            "Clip" or "ClipSelector" or "AnimationClipSelector" or "ParameterizedClipSelector"
+                or "ParameterizedAnimationClipSelector" or "AnimationPose" => AnimGraphCategory.Clip,
 
-        "BoneMask" or "BoneMaskSelector" or "BoneMaskSwitch" or "BoneMaskValue"
-            or "FixedWeightBoneMask" => AnimGraphCategory.BoneMask,
+            "Blend1D" or "Blend2D" or "ParameterizedBlend" or "VelocityBlend"
+                or "BoneMaskBlend" => AnimGraphCategory.Blend,
+            
 
-        "FootIK" or "TwoBoneIK" or "ChainLookat" or "FollowBone" or "SnapWeapon" => AnimGraphCategory.Constraint,
+            "LayerBlend" or "_LayerDefinition_" => AnimGraphCategory.Additive,
 
-        "AimCS" => AnimGraphCategory.AimMatrix,
+            "BoneMask" or "BoneMaskSelector" or "BoneMaskSwitch" or "BoneMaskValue"
+                or "FixedWeightBoneMask" => AnimGraphCategory.BoneMask,
 
-        "Selector" or "ParameterizedSelector" or "FloatSelector" or "IDSelector"
-            or "TargetSelector" or "BoneMaskSelectorNode" => AnimGraphCategory.Selector,
+            "FootIK" or "TwoBoneIK" or "ChainLookat" or "FollowBone" or "SnapWeapon" => AnimGraphCategory.Constraint,
 
-        "StateMachine" or "State" or "Transition" or "EntryOverride"
-            or "EntryStateOverride" => AnimGraphCategory.StateMachine,
+            "AimCS" => AnimGraphCategory.AimMatrix,
 
-        "RootMotionOverride" or "TargetWarp" or "OrientationWarp" or "TargetOffset"
-            or "TargetPoint" or "TargetInfo" => AnimGraphCategory.Motion,
+            "Selector" or "ParameterizedSelector" or "FloatSelector" or "IDSelector"
+                or "TargetSelector" or "BoneMaskSelectorNode" or "FloatSwitch" or "IDSwitch"
+                or "IDBasedSelector" or "IDBasedClipSelector" => AnimGraphCategory.Selector,
 
-        "ExternalPose" or "ZeroPose" or "ReferencePose" or "Passthrough" => AnimGraphCategory.Input,
+            "FloatMath" or "FloatCurve" or "FloatRemap" or "FloatEase" or "Scale"
+                or "Not" or "And" or "Or" or "IsTargetSet" => AnimGraphCategory.Value,
 
-        "SpeedScale" or "VelocityBasedSpeedScale" or "DurationScale" or "TimeCondition"
-            or "CurrentSyncEvent" or "CurrentSyncEventID" => AnimGraphCategory.Timing,
+            "StateMachine" or "State" or "Transition" or "EntryOverride"
+                or "EntryStateOverride" => AnimGraphCategory.StateMachine,
 
-        "ReferencedGraph" => AnimGraphCategory.ExternalReference,
+            "RootMotionOverride" or "TargetWarp" or "OrientationWarp" or "TargetOffset"
+                or "TargetPoint" or "TargetInfo" => AnimGraphCategory.Motion,
 
-        _ => AnimGraphCategory.Other,
-    };
+            "ExternalPose" or "ZeroPose" or "ReferencePose" or "Passthrough" => AnimGraphCategory.Input,
+
+            "SpeedScale" or "VelocityBasedSpeedScale" or "DurationScale" or "TimeCondition"
+                or "CurrentSyncEvent" or "CurrentSyncEventID" => AnimGraphCategory.Timing,
+
+            "ReferencedGraph" => AnimGraphCategory.ExternalReference,
+
+            _ => AnimGraphCategory.Other,
+        };
+    }
 }

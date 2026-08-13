@@ -115,6 +115,11 @@ internal sealed class AnimGraph1Builder : IDisposable
     private static (string Name, GraphHue Hue) ComponentClassInfo(string className)
         => ComponentClasses.TryGetValue(className, out var info) ? info : (className, GraphHue.Neutral);
 
+    // Tags, components and parameters are coloured per class, so their legend rows are the ones drawn.
+    private readonly SortedDictionary<string, GraphHue> drawnTagClasses = new(StringComparer.Ordinal);
+    private readonly SortedDictionary<string, GraphHue> drawnComponentClasses = new(StringComparer.Ordinal);
+    private readonly SortedDictionary<string, GraphHue> drawnParameterTypes = new(StringComparer.Ordinal);
+
     private static readonly Dictionary<string, string> ClassDisplayName = new(StringComparer.Ordinal)
     {
         ["CSequenceUpdateNode"] = "Sequence",
@@ -288,14 +293,22 @@ internal sealed class AnimGraph1Builder : IDisposable
 
         document.Legend.AddRange(AnimGraphHues.Legend());
 
-        // Always listed, wires drawn or not, so toggling never resizes the legend.
-        document.Legend.AddRange(
-        [
-            new("Parameter link (hue per type)", GraphHue.Neutral, GraphLegendKind.DashedWire),
-            new("Tag group (hue per class)", GraphHue.Teal),
-            new("Component (hue per class)", GraphHue.Neutral),
-            new("Client-simulated (body tint)", GraphHue.Purple),
-        ]);
+        foreach (var (name, hue) in drawnParameterTypes)
+        {
+            document.Legend.Add(new($"{name} parameter link", hue, GraphLegendKind.DashedWire));
+        }
+
+        foreach (var (name, hue) in drawnTagClasses)
+        {
+            document.Legend.Add(new(name, hue));
+        }
+
+        foreach (var (name, hue) in drawnComponentClasses)
+        {
+            document.Legend.Add(new(name, hue));
+        }
+
+        document.Legend.Add(new("Client-simulated (body tint)", GraphHue.Purple, GraphLegendKind.BodyTint));
     }
 
     // animgraph1 names a child by id, animgraph19 by connection; a node carries one vocabulary
@@ -1646,8 +1659,8 @@ internal sealed class AnimGraph1Builder : IDisposable
             "VECTOR" => GraphHue.Green,
             "QUATERNION" => GraphHue.Maroon,
             "SYMBOL" => GraphHue.Neutral,
-            "VIRTUAL" => GraphHue.Neutral,
-            _ => GraphHue.Neutral,
+            "VIRTUAL" => GraphHue.Cyan,
+            _ => GraphHue.Red,
         };
     }
 
@@ -1680,6 +1693,7 @@ internal sealed class AnimGraph1Builder : IDisposable
 
             var ordered = list.OrderBy(p => parameterObjectToIndex.TryGetValue(p, out var idx) ? idx : int.MaxValue).ToList();
             var friendlyName = ParameterTypeDisplayName.TryGetValue(type, out var display) ? display : type;
+            drawnParameterTypes[friendlyName] = GetParameterTypeHue(type);
 
             var node = new Node(null)
             {
@@ -1719,6 +1733,7 @@ internal sealed class AnimGraph1Builder : IDisposable
             {
                 var className = group.Key;
                 var (friendlyName, tagHue) = TagClassInfo(className);
+                drawnTagClasses[friendlyName] = tagHue;
 
                 var ordered = group.OrderBy(t => tagIndexMap.TryGetValue(t, out var idx) ? idx : int.MaxValue).ToList();
 
@@ -1747,6 +1762,7 @@ internal sealed class AnimGraph1Builder : IDisposable
         {
             var className = comp.GetStringProperty("_class") ?? "Unknown";
             var (friendlyName, componentHue) = ComponentClassInfo(className);
+            drawnComponentClasses[friendlyName] = componentHue;
             var name = comp.GetStringProperty("m_name") ?? "";
             var displayName = string.IsNullOrEmpty(name) ? friendlyName : $"{friendlyName} ({name})";
 

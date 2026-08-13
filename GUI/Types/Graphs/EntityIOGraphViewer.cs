@@ -68,11 +68,18 @@ internal class EntityIOGraphViewer : GLGraphViewer
         [
             new("Output", OutputHue, GraphLegendKind.Wire),
             new("Input", InputHue, GraphLegendKind.Wire),
-            new("point_template", GraphHue.Emerald),
-            new("Template spawn", GraphHue.Purple, GraphLegendKind.DashedWire),
-            new("Sound entity", GraphHue.Pink),
-            new("Special target", GraphHue.Magenta),
-            new("Unresolved target", GraphHue.Red),
+            // Closes the line samples, meeting the point_template swatch that opens the node rows.
+            new("Template spawn", EntityIOGraphBuilder.TemplateSpawnHue, GraphLegendKind.DashedWire),
+        ]);
+
+        // Named from the classnames this graph draws, resolved through the lookup that colours the cards.
+        View.Legend.AddRange(EntityClassHues.Legend(
+            entities.Select(entity => entity.GetStringProperty("classname") ?? "unknown")));
+
+        View.Legend.AddRange(
+        [
+            new("Special target", EntityIOGraphBuilder.SpecialTargetHue),
+            new("Unresolved target", EntityIOGraphBuilder.UnresolvedTargetHue),
         ]);
 
         islands = View.GetComponents();

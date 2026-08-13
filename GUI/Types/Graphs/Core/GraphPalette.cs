@@ -36,6 +36,16 @@ class GraphPalette
     /// <summary>Muted variant used for node header bands.</summary>
     public SKColor Category(GraphHue hue) => category[(int)hue];
 
+    /// <summary>The card body colour a tinted node is filled with, as drawn on the canvas.</summary>
+    public SKColor BodyTint(GraphHue hue) => Blend(NodeBody, Category(hue), 0.55f);
+
+    /// <summary>Mixes two colours, keeping the first one's alpha.</summary>
+    private static SKColor Blend(SKColor from, SKColor to, float t)
+    {
+        static byte Lerp(byte a, byte b, float t) => (byte)(a + (b - a) * t);
+        return new SKColor(Lerp(from.Red, to.Red, t), Lerp(from.Green, to.Green, t), Lerp(from.Blue, to.Blue, t), from.Alpha);
+    }
+
     public static GraphPalette ForCurrentTheme()
         => new(Themer.CurrentTheme == Themer.AppTheme.Dark, Themer.CurrentThemeColors);
 
@@ -71,19 +81,20 @@ class GraphPalette
     private readonly record struct HueColors(SKColor SignalDark, SKColor CategoryDark, SKColor SignalLight, SKColor CategoryLight);
 
     // One row per GraphHue, in enum order: socket/wire color and header band color for each theme.
+    // Both category columns clear 4.9:1 against the header text they carry.
     private static readonly HueColors[] HueTable =
     [
-        /* Neutral */ new(new(158, 162, 171), new(100, 104, 113), new(95, 100, 110), new(192, 196, 204)),
+        /* Neutral */ new(new(158, 162, 171), new(97, 100, 108), new(95, 100, 110), new(192, 196, 204)),
         /* Slate   */ new(new(115, 149, 172), new(74, 98, 115), new(52, 102, 134), new(156, 186, 207)),
         /* Maroon  */ new(new(212, 108, 131), new(150, 58, 79), new(192, 32, 72), new(240, 148, 168)),
         /* Red     */ new(new(233, 80, 80), new(163, 40, 40), new(220, 24, 24), new(248, 142, 142)),
         /* Orange  */ new(new(235, 115, 45), new(152, 76, 30), new(222, 88, 0), new(250, 168, 116)),
-        /* Amber   */ new(new(231, 186, 74), new(158, 124, 38), new(196, 134, 0), new(246, 206, 118)),
-        /* Olive   */ new(new(202, 202, 60), new(126, 126, 46), new(146, 146, 0), new(224, 224, 120)),
-        /* Green   */ new(new(108, 222, 138), new(52, 158, 79), new(0, 164, 58), new(132, 230, 160)),
-        /* Emerald */ new(new(38, 209, 157), new(36, 126, 97), new(0, 166, 112), new(118, 232, 196)),
-        /* Teal    */ new(new(70, 199, 199), new(50, 126, 126), new(0, 154, 154), new(128, 224, 224)),
-        /* Cyan    */ new(new(76, 188, 235), new(35, 126, 163), new(0, 134, 194), new(126, 206, 242)),
+        /* Amber   */ new(new(231, 186, 74), new(126, 96, 4), new(196, 134, 0), new(246, 206, 118)),
+        /* Olive   */ new(new(202, 202, 60), new(103, 104, 25), new(146, 146, 0), new(224, 224, 120)),
+        /* Green   */ new(new(108, 222, 138), new(0, 117, 43), new(0, 164, 58), new(132, 230, 160)),
+        /* Emerald */ new(new(38, 209, 157), new(22, 114, 86), new(0, 166, 112), new(118, 232, 196)),
+        /* Teal    */ new(new(70, 199, 199), new(32, 111, 111), new(0, 154, 154), new(128, 224, 224)),
+        /* Cyan    */ new(new(76, 188, 235), new(0, 109, 144), new(0, 134, 194), new(126, 206, 242)),
         /* Blue    */ new(new(99, 161, 255), new(24, 90, 192), new(18, 100, 235), new(140, 188, 252)),
         /* Indigo  */ new(new(135, 135, 238), new(44, 44, 172), new(78, 78, 224), new(168, 168, 246)),
         /* Purple  */ new(new(172, 115, 230), new(108, 50, 168), new(132, 48, 220), new(200, 158, 246)),
