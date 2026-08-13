@@ -46,6 +46,12 @@ namespace ValveResourceFormat.Blocks
         public List<string> ChildResourceList { get; } = [];
 
         /// <summary>
+        /// Gets the ids of the child resources, matching the order of <see cref="ChildResourceList"/>.
+        /// </summary>
+        /// <remarks>Only "REDI" blocks store these ids, it is empty for "RED2".</remarks>
+        public List<ulong> ChildResourceIds { get; } = [];
+
+        /// <summary>
         /// Gets the searchable user data.
         /// </summary>
         public KVObject SearchableUserData { get; } = KVObject.Collection();
@@ -114,13 +120,16 @@ namespace ValveResourceFormat.Blocks
             }
 
             ReadItems(AdditionalRelatedFiles, static (reader) => new AdditionalRelatedFile(reader));
-            ReadItems(ChildResourceList, static (reader) =>
+            var childResourceCount = AdvanceGetCount();
+            ChildResourceList.EnsureCapacity(childResourceCount);
+            ChildResourceIds.EnsureCapacity(childResourceCount);
+
+            for (var i = 0; i < childResourceCount; i++)
             {
-                var id = reader.ReadUInt64();
-                var name = reader.ReadOffsetString(Encoding.UTF8);
-                var unknown = reader.ReadInt32();
-                return name; // Ignoring 'id' to match RED2
-            });
+                ChildResourceIds.Add(reader.ReadUInt64());
+                ChildResourceList.Add(reader.ReadOffsetString(Encoding.UTF8));
+                reader.ReadInt32(); // Trailing padding, the uint64 id aligns the struct to 16 bytes
+            }
 
             ReadKeyValues(SearchableUserData, static (reader) => (long)reader.ReadInt32());
             ReadKeyValues(SearchableUserData, static (reader) => (double)reader.ReadSingle());
