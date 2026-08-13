@@ -20,19 +20,7 @@ namespace ValveResourceFormat.Renderer.Particles.PreEmissionOperators
             cp1 = parse.Int32("m_nCP1", cp1);
             cp1Pos = parse.VectorProvider("m_vecCP1Pos", cp1Pos);
             setOnce = parse.Boolean("m_bSetOnce", setOnce);
-
-            // Content predating the transform input places the position with these two keys instead, and
-            // both spellings still ship: 63 CS2 systems author the transform, a handful the older pair.
-            if (parse.Data.ContainsKey("m_bUseWorldLocation") || parse.Data.ContainsKey("m_nHeadLocation"))
-            {
-                transformInput = parse.Boolean("m_bUseWorldLocation", false)
-                    ? new IdentityTransformProvider()
-                    : new ControlPointTransformProvider(parse.Int32("m_nHeadLocation", 0), useOrientation: true);
-            }
-            else
-            {
-                transformInput = parse.TransformInput("m_transformInput", transformInput);
-            }
+            transformInput = parse.TransformInput("m_transformInput", transformInput);
         }
 
         public override void Operate(ref ParticleSystemRenderState particleSystemState, float frameTime)

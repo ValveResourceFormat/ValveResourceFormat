@@ -7,16 +7,13 @@ namespace ValveResourceFormat.Renderer.Particles.Initializers
     /// <seealso href="https://s2v.app/SchemaExplorer/cs2/particles/C_INIT_NormalAlignToCP">C_INIT_NormalAlignToCP</seealso>
     class NormalAlignToCP : ParticleFunctionInitializer
     {
-        private readonly int controlPointNumber;
-
         public NormalAlignToCP(ParticleDefinitionParser parse) : base(parse)
         {
-            controlPointNumber = parse.Int32("m_nControlPointNumber", 0);
         }
 
         public override Particle Initialize(ref Particle particle, ParticleCollection particles, ParticleSystemRenderState particleSystemState)
         {
-            var orientation = particleSystemState.GetControlPoint(controlPointNumber).Orientation;
+            var orientation = particleSystemState.GetControlPoint(0).Orientation;
 
             // The control point orientation is a forward direction; zero means unset, so keep the default normal.
             if (orientation != Vector3.Zero)

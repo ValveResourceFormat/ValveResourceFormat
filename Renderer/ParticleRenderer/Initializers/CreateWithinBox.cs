@@ -4,8 +4,7 @@ namespace ValveResourceFormat.Renderer.Particles.Initializers
 {
     /// <summary>
     /// Places particles at random positions within an axis-aligned box defined by a minimum and
-    /// maximum corner vector, offset by a control point. An optional scale control point can
-    /// uniformly scale the box extents.
+    /// maximum corner vector, offset by a control point.
     /// </summary>
     /// <seealso href="https://s2v.app/SchemaExplorer/cs2/particles/C_INIT_CreateWithinBox">C_INIT_CreateWithinBox</seealso>
     class CreateWithinBox : ParticleFunctionInitializer
@@ -14,7 +13,6 @@ namespace ValveResourceFormat.Renderer.Particles.Initializers
         private readonly IVectorProvider max = new LiteralVectorProvider(Vector3.Zero);
 
         private readonly int controlPointNumber;
-        private readonly int scaleCP = -1;
         private readonly RangeSampler rangeSampler;
 
         public CreateWithinBox(ParticleDefinitionParser parse) : base(parse)
@@ -22,7 +20,6 @@ namespace ValveResourceFormat.Renderer.Particles.Initializers
             min = parse.VectorProvider("m_vecMin", min);
             max = parse.VectorProvider("m_vecMax", max);
             controlPointNumber = parse.Int32("m_nControlPointNumber", controlPointNumber);
-            scaleCP = parse.Int32("m_nScaleCP", scaleCP);
             rangeSampler = RangeSampler.Parse(parse);
         }
 
@@ -34,12 +31,6 @@ namespace ValveResourceFormat.Renderer.Particles.Initializers
             var position = rangeSampler.NextVectorBetween(ref particle, particleSystemState, posMin, posMax);
 
             var offset = particleSystemState.GetControlPoint(controlPointNumber).Position;
-
-            if (scaleCP > -1)
-            {
-                // Scale CP uses X position as scale value. Not applied to the CP Offset
-                position *= particleSystemState.GetControlPoint(scaleCP).Position.X;
-            }
 
             particle.Position += position + offset;
 

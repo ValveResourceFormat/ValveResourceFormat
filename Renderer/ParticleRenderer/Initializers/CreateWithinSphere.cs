@@ -56,10 +56,6 @@ namespace ValveResourceFormat.Renderer.Particles.Initializers
         /// <summary>Attribute the spawn position is written to.</summary>
         protected readonly ParticleField outputField = ParticleField.Position;
 
-        public CreateWithinSphere(ParticleDefinitionParser parse) : this(parse, new ControlPointTransformProvider())
-        {
-        }
-
         protected CreateWithinSphere(ParticleDefinitionParser parse, ITransformProvider transformInput) : base(parse)
         {
             this.transformInput = transformInput;
