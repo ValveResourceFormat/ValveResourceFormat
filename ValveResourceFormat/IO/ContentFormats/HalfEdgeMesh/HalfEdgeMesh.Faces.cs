@@ -5,6 +5,9 @@ namespace ValveResourceFormat.IO.ContentFormats.HalfEdgeMesh;
 
 partial class HalfEdgeMesh
 {
+    /// <summary>
+    /// Collects the corner vertices of a face.
+    /// </summary>
     public static int ComputeNumEdgesInFace(FaceHandle hFace)
     {
         var nNumEdges = 0;
@@ -23,6 +26,9 @@ partial class HalfEdgeMesh
         return nNumEdges;
     }
 
+    /// <summary>
+    /// Returns the edge a face loop starts at.
+    /// </summary>
     public static HalfEdgeHandle GetFirstEdgeInFaceLoop(FaceHandle hFace)
     {
         if (!hFace.IsValid)
@@ -31,6 +37,9 @@ partial class HalfEdgeMesh
         return hFace.Edge;
     }
 
+    /// <summary>
+    /// Returns the next edge around the face.
+    /// </summary>
     public static HalfEdgeHandle GetNextEdgeInFaceLoop(HalfEdgeHandle hEdge)
     {
         if (!hEdge.IsValid)
@@ -39,6 +48,9 @@ partial class HalfEdgeMesh
         return hEdge.NextEdge;
     }
 
+    /// <summary>
+    /// Returns the previous edge around the face.
+    /// </summary>
     public static HalfEdgeHandle FindPreviousEdgeInFaceLoop(HalfEdgeHandle hEdge)
     {
         if (!hEdge.IsValid)
@@ -57,6 +69,9 @@ partial class HalfEdgeMesh
         return HalfEdgeHandle.Invalid;
     }
 
+    /// <summary>
+    /// Returns the edge of a face that ends at the given vertex.
+    /// </summary>
     public static HalfEdgeHandle FindEdgeConnectedToFaceEndingAtVertex(FaceHandle hFace, VertexHandle hVertex)
     {
         if (!hVertex.IsValid)
@@ -78,6 +93,9 @@ partial class HalfEdgeMesh
         return HalfEdgeHandle.Invalid;
     }
 
+    /// <summary>
+    /// Returns the edge shared by two faces.
+    /// </summary>
     public HalfEdgeHandle FindEdgeConnectingFaces(FaceHandle hFaceA, FaceHandle hFaceB)
     {
         if (!hFaceA.IsValid)
@@ -96,6 +114,9 @@ partial class HalfEdgeMesh
         return HalfEdgeHandle.Invalid;
     }
 
+    /// <summary>
+    /// Collects the half edges bounding a face.
+    /// </summary>
     public static bool GetHalfEdgesConnectedToFace(FaceHandle hFace, out HalfEdgeHandle[]? hEdges)
     {
         hEdges = null;
@@ -121,6 +142,9 @@ partial class HalfEdgeMesh
         return hEdges.Length == nNumEdges;
     }
 
+    /// <summary>
+    /// Collects the full edges bounding a face.
+    /// </summary>
     public bool GetFullEdgesConnectedToFace(FaceHandle hFace, out List<HalfEdgeHandle> edges)
     {
         edges = new List<HalfEdgeHandle>();
@@ -146,6 +170,9 @@ partial class HalfEdgeMesh
         return edges.Count == nNumEdges;
     }
 
+    /// <summary>
+    /// Collects the corner vertices of a face.
+    /// </summary>
     public static bool GetVerticesConnectedToFace(FaceHandle hFace, out VertexHandle[]? vertices)
     {
         vertices = null;
@@ -171,6 +198,9 @@ partial class HalfEdgeMesh
         return i == nNumVertices;
     }
 
+    /// <summary>
+    /// Collects every vertex touched by a set of faces.
+    /// </summary>
     public static void FindVerticesConnectedToFaces(IReadOnlyList<FaceHandle> pFaceList, int nNumFaces, out VertexHandle[] outVertices)
     {
         var uniqueVertices = new Dictionary<VertexHandle, int>();
@@ -199,6 +229,9 @@ partial class HalfEdgeMesh
             outVertices[hVertex.Value] = hVertex.Key;
     }
 
+    /// <summary>
+    /// Collects the full edges of a set of faces, along with how many of those faces each edge borders.
+    /// </summary>
     public void FindFullEdgesConnectedToFaces(IReadOnlyList<FaceHandle> pFaceList, int nNumFaces, out HalfEdgeHandle[] pOutEdgeList, out int[] pOutEdgeFaceCounts)
     {
         var nNumTotalFaceEdges = 0;
@@ -260,6 +293,9 @@ partial class HalfEdgeMesh
         }
     }
 
+    /// <summary>
+    /// Collects the faces sharing an edge with the given face.
+    /// </summary>
     public static bool GetFacesConnectedToFace(FaceHandle hFace, out List<FaceHandle> faces)
     {
         faces = [];
@@ -289,6 +325,9 @@ partial class HalfEdgeMesh
         return true;
     }
 
+    /// <summary>
+    /// Returns the faces of a set whose every edge borders two faces.
+    /// </summary>
     public static void FindClosedFaces(IReadOnlyList<FaceHandle> faceList, out List<FaceHandle> outClosedFaces)
     {
         outClosedFaces = new List<FaceHandle>(faceList.Count);
@@ -323,6 +362,9 @@ partial class HalfEdgeMesh
         }
     }
 
+    /// <summary>
+    /// Collects the edges on the boundary of a set of faces.
+    /// </summary>
     public void FindBoundaryEdgesConnectedToFaces(IReadOnlyList<FaceHandle> faceList, int numFaces, out List<HalfEdgeHandle> outBoundaryEdges)
     {
         FindFullEdgesConnectedToFaces(faceList, numFaces, out var allConnectedEdges, out var edgeFaceCounts);

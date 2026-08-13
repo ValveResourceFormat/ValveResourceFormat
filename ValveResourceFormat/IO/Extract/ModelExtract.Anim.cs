@@ -299,19 +299,18 @@ partial class ModelExtract
 
     private static DmeChannel BuildDmeChannel<T>(string name, Element toElement, string toAttribute, out DmeLog<T> log)
     {
+        log = [];
+
         var channel = new DmeChannel
         {
             Name = name,
             ToElement = toElement,
             ToAttribute = toAttribute,
-            Mode = 3
+            Mode = 3,
+            Log = log
         };
 
-        log = [];
-        var logLayer = new DmeLogLayer<T>();
-
-        channel.Log = log;
-        log.AddLayer(logLayer);
+        log.AddLayer(new DmeLogLayer<T>());
 
         return channel;
     }
@@ -470,7 +469,8 @@ partial class ModelExtract
         }
 
         logLayer.LayerValues = newLayerValues;
-        logLayer.Times = newTimes;
+        logLayer.Times.Clear();
+        logLayer.Times.AddRange(newTimes);
     }
 
     private static bool DoesLayerHaveMotion(DmeLogLayer<Vector3> logLayer)

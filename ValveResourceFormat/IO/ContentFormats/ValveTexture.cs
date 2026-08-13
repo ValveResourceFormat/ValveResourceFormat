@@ -3,13 +3,16 @@ using DMElement = Datamodel.Element;
 
 namespace ValveResourceFormat.IO.ContentFormats.ValveTexture;
 
+/// <summary>
+/// Root element of a texture content file (.vtex), describing the inputs and the output image to compile.
+/// </summary>
 [HungarianProperties]
-internal class CDmeVtex : DMElement
+public class CDmeVtex : DMElement
 {
     /// <summary>
     /// Array of <see cref="CDmeInputTexture"/> elements describing each input image.
     /// </summary>
-    public Datamodel.ElementArray InputTextureArray { get; set; } = [];
+    public Datamodel.ElementArray InputTextureArray { get; } = [];
 
     /// <summary>
     /// Type of texture to generate.
@@ -43,7 +46,7 @@ internal class CDmeVtex : DMElement
     /// <summary>
     /// Array of <see cref="CDmeTextureOutputChannel"/> elements describing sets of output channels.
     /// </summary>
-    public Datamodel.ElementArray TextureOutputChannelArray { get; set; } = [];
+    public Datamodel.ElementArray TextureOutputChannelArray { get; } = [];
 
     /// <summary>
     /// Whether to clamp the S, T and U coordinates respectively.

@@ -743,21 +743,20 @@ partial class ModelExtract
 
     private static DmeDag CreateDmxDag(DmeModel dmeModel, DmeVertexData vertexData, string name)
     {
-        var dag = new DmeDag() { Name = name };
-        dmeModel.Children.Add(dag);
-        dmeModel.JointList.Add(dag);
-
-        var transformList = new DmeTransformsList();
-        transformList.Transforms.Add(new DmeTransform());
-        dmeModel.BaseStates.Add(transformList);
-
         var shape = new DmeMesh
         {
             Name = name,
             CurrentState = vertexData
         };
         shape.BaseStates.Add(vertexData);
-        dag.Shape = shape;
+
+        var dag = new DmeDag() { Name = name, Shape = shape };
+        dmeModel.Children.Add(dag);
+        dmeModel.JointList.Add(dag);
+
+        var transformList = new DmeTransformsList();
+        transformList.Transforms.Add(new DmeTransform());
+        dmeModel.BaseStates.Add(transformList);
 
         return dag;
     }
