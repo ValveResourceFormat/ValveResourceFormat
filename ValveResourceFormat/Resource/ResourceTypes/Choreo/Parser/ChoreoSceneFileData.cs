@@ -83,7 +83,7 @@ namespace ValveResourceFormat.ResourceTypes
             reader.BaseStream.Position = previousPosition;
 
             using var sceneStream = new MemoryStream(sceneBlock);
-            var scene = BVCDParser.Parse(sceneStream, strings);
+            var scene = new BVCDParser().Read(sceneStream, strings);
             scene.Name = name;
             scene.Duration = sceneDuration;
             scene.SoundDuration = sceneSoundDuration;

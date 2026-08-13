@@ -27,6 +27,12 @@ namespace ValveResourceFormat.ResourceTypes.Choreo.Curves
             "bezier",
         ];
 
+        internal static byte ValidateInterpolator(byte type)
+        {
+            UnexpectedMagicException.Assert(type < Interpolators.Length, type);
+            return type;
+        }
+
         /// <summary>
         /// Gets or sets the input curve type.
         /// </summary>
