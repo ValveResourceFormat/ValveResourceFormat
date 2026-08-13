@@ -18,7 +18,7 @@ public sealed class PlayerEntity : BaseEntity
     /// <summary>
     /// Gets the buttons as of the current tick: what is held, and what changed since the tick before.
     /// </summary>
-    public PlayerButtonState Buttons { get; private set; }
+    private PlayerButtonState Buttons;
 
     /// <summary>
     /// Creates the player entity for a movement controller.
