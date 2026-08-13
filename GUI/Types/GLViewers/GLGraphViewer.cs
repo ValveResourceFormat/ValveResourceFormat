@@ -7,9 +7,9 @@ using GUI.Types.Graphs.Core;
 using GUI.Utils;
 using OpenTK.Graphics.OpenGL;
 using SkiaSharp;
+using ValveResourceFormat.Graphs;
 using ValveResourceFormat.Renderer;
 
-using ValveResourceFormat.Graphs;
 namespace GUI.Types.GLViewers
 {
     /// <summary>

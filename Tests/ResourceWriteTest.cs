@@ -92,14 +92,52 @@ namespace Tests
             {
                 Assert.That(reparsed.CRC32, Is.EqualTo(block.CRC32));
                 Assert.That(reparsed.Data, Is.EqualTo(block.Data));
-                Assert.That(reparsed.Names, Has.Count.EqualTo(block.Names.Count));
+                Assert.That(reparsed.Images, Has.Count.EqualTo(block.Images.Count));
 
-                for (var i = 0; i < block.Names.Count; i++)
+                for (var i = 0; i < block.Images.Count; i++)
                 {
-                    Assert.That(reparsed.Names[i].Name, Is.EqualTo(block.Names[i].Name));
-                    Assert.That(reparsed.Names[i].Unknown1, Is.EqualTo(block.Names[i].Unknown1));
-                    Assert.That(reparsed.Names[i].Unknown2, Is.EqualTo(block.Names[i].Unknown2));
+                    Assert.That(reparsed.Images[i].Name, Is.EqualTo(block.Images[i].Name));
+                    Assert.That(reparsed.Images[i].Width, Is.EqualTo(block.Images[i].Width));
+                    Assert.That(reparsed.Images[i].Height, Is.EqualTo(block.Images[i].Height));
+                    Assert.That(reparsed.Images[i].CRC32, Is.EqualTo(block.Images[i].CRC32));
                 }
+            }
+        }
+
+        [Test]
+        public void SerializePanoramaStyleVersion2()
+        {
+            // Version 2 image entries have no per-image CRC32
+            using var resource = GetTestResource("thelab_debugger_v2.vcss_c");
+            var block = (Panorama)resource.DataBlock!;
+
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(block.Images, Has.Count.EqualTo(2));
+                Assert.That(block.Images[0].Name, Is.EqualTo("panorama/images/collapse_tga.vtex"));
+                Assert.That(block.Images[1].Name, Is.EqualTo("panorama/images/expand_tga.vtex"));
+
+                foreach (var image in block.Images)
+                {
+                    Assert.That(image.Width, Is.EqualTo(9));
+                    Assert.That(image.Height, Is.EqualTo(9));
+                    Assert.That(image.CRC32, Is.Zero);
+                }
+            }
+
+            var ms = new MemoryStream();
+            block.Serialize(ms);
+            ms.Position = 0;
+
+            using var reader = new BinaryReader(ms);
+            var reparsed = new PanoramaStyle { Resource = resource, Size = (uint)ms.Length };
+            reparsed.Read(reader);
+
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(reparsed.CRC32, Is.EqualTo(block.CRC32));
+                Assert.That(reparsed.Data, Is.EqualTo(block.Data));
+                Assert.That(reparsed.Images, Has.Count.EqualTo(block.Images.Count));
             }
         }
 

@@ -16,14 +16,11 @@ namespace ValveResourceFormat.ResourceTypes
         {
             writer.WriteLine($"CRC: {CRC32:X8}");
             writer.WriteLine();
-            writer.WriteLine($"Images({Names.Count}):");
+            writer.WriteLine($"Images({Images.Count}):");
 
-            foreach (var name in Names)
+            foreach (var image in Images)
             {
-                var w = name.Unknown1 & 0xFFFF;
-                var h = (name.Unknown1 >> 16) & 0xFFFF;
-
-                writer.WriteLine($" - {name.Name} [{w}x{h} - {name.Unknown2:X8}]");
+                writer.WriteLine($" - {image.Name} [{image.Width}x{image.Height} - {image.CRC32:X8}]");
             }
 
             writer.WriteLine();

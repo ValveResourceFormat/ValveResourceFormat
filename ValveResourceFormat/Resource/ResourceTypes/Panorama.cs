@@ -11,28 +11,32 @@ namespace ValveResourceFormat.ResourceTypes
     public class Panorama : Block
     {
         /// <summary>
-        /// Represents a name entry.
+        /// Represents an image referenced by this panorama file.
         /// </summary>
-        public class NameEntry
+        public class ImageEntry
         {
             /// <summary>
-            /// Gets or sets the name.
+            /// Gets or sets the image file name.
             /// </summary>
             public required string Name { get; set; }
             /// <summary>
-            /// Gets or sets the first unknown value.
+            /// Gets or sets the original width of the image.
             /// </summary>
-            public uint Unknown1 { get; set; } // TODO: unconfirmed
+            public ushort Width { get; set; }
             /// <summary>
-            /// Gets or sets the second unknown value.
+            /// Gets or sets the original height of the image.
             /// </summary>
-            public uint Unknown2 { get; set; } // TODO: unconfirmed
+            public ushort Height { get; set; }
+            /// <summary>
+            /// Gets or sets the CRC32 checksum of the image file.
+            /// </summary>
+            public uint CRC32 { get; set; }
         }
 
         /// <summary>
-        /// Gets the list of name entries.
+        /// Gets the image mapping table listing images referenced by this file with their original dimensions.
         /// </summary>
-        public List<NameEntry> Names { get; } = [];
+        public List<ImageEntry> Images { get; } = [];
 
         /// <summary>
         /// Gets the raw data.
@@ -56,11 +60,11 @@ namespace ValveResourceFormat.ResourceTypes
         /// The <see cref="CRC32"/> checksum is computed from the data.
         /// </summary>
         /// <param name="data">The content as UTF-8 encoded text, such as layout, style, or script source.</param>
-        /// <param name="names">The name entries to store in the block header.</param>
-        public Panorama(byte[] data, List<NameEntry> names)
+        /// <param name="images">The image entries to store in the block header.</param>
+        public Panorama(byte[] data, List<ImageEntry> images)
         {
             Data = data;
-            Names = names;
+            Images = images;
             CRC32 = Crc32.HashToUInt32(data);
         }
 
@@ -80,18 +84,23 @@ namespace ValveResourceFormat.ResourceTypes
 
             CRC32 = reader.ReadUInt32();
 
-            var size = reader.ReadUInt16();
+            var imageCount = reader.ReadUInt16();
 
-            for (var i = 0; i < size; i++)
+            for (var i = 0; i < imageCount; i++)
             {
-                var entry = new NameEntry
+                var entry = new ImageEntry
                 {
                     Name = reader.ReadNullTermString(Encoding.UTF8),
-                    Unknown1 = reader.ReadUInt32(), // TODO: This might be uint64 and be m_nId, same as RERL
-                    Unknown2 = reader.ReadUInt32(),
+                    Width = reader.ReadUInt16(),
+                    Height = reader.ReadUInt16(),
                 };
 
-                Names.Add(entry);
+                if (Resource.Version >= 3)
+                {
+                    entry.CRC32 = reader.ReadUInt32();
+                }
+
+                Images.Add(entry);
             }
 
             var headerSize = reader.BaseStream.Position - Offset;
@@ -115,17 +124,24 @@ namespace ValveResourceFormat.ResourceTypes
                 return;
             }
 
+            Debug.Assert(Resource != null);
+
             using var writer = new BinaryWriter(stream, Encoding.UTF8, leaveOpen: true);
 
             writer.Write(CRC32);
-            writer.Write((ushort)Names.Count);
+            writer.Write((ushort)Images.Count);
 
-            foreach (var entry in Names)
+            foreach (var entry in Images)
             {
                 writer.Write(Encoding.UTF8.GetBytes(entry.Name));
                 writer.Write((byte)0); // null terminator
-                writer.Write(entry.Unknown1);
-                writer.Write(entry.Unknown2);
+                writer.Write(entry.Width);
+                writer.Write(entry.Height);
+
+                if (Resource.Version >= 3)
+                {
+                    writer.Write(entry.CRC32);
+                }
             }
 
             writer.Write(Data);

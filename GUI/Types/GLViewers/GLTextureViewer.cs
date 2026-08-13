@@ -12,6 +12,7 @@ using SkiaSharp;
 using Svg.Skia;
 using ValveResourceFormat;
 using ValveResourceFormat.CompiledShader;
+using ValveResourceFormat.Graphs;
 using ValveResourceFormat.Renderer;
 using ValveResourceFormat.Renderer.Input;
 using ValveResourceFormat.Renderer.Materials;
@@ -20,7 +21,6 @@ using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.TextureDecoders;
 using static ValveResourceFormat.ResourceTypes.Texture;
 
-using ValveResourceFormat.Graphs;
 namespace GUI.Types.GLViewers
 {
     class GLTextureViewer : GLBaseControl, IDisposable

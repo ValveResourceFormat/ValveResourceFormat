@@ -14,6 +14,7 @@ using GUI.Utils;
 using ValveKeyValue;
 using ValveResourceFormat;
 using ValveResourceFormat.Blocks;
+using ValveResourceFormat.Graphs;
 using ValveResourceFormat.IO;
 using ValveResourceFormat.Renderer;
 using ValveResourceFormat.Renderer.Particles;
@@ -22,7 +23,6 @@ using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.ResourceTypes.GenericData.CS2;
 using ValveResourceFormat.Serialization.KeyValues;
 
-using ValveResourceFormat.Graphs;
 namespace GUI.Types.Viewers
 {
     enum ResourceViewMode
@@ -678,7 +678,7 @@ namespace GUI.Types.Viewers
             switch (resource.ResourceType)
             {
                 case ResourceType.Panorama:
-                    if (resource.DataBlock is Panorama { Names.Count: > 0 })
+                    if (resource.DataBlock is Panorama { Images.Count: > 0 })
                     {
                         var nameControl = new DataGridView
                         {
@@ -689,9 +689,9 @@ namespace GUI.Types.Viewers
                             AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill,
                             DataSource =
                                 new BindingSource(
-                                    new BindingList<Panorama.NameEntry>(((Panorama)resource.DataBlock).Names), string.Empty),
+                                    new BindingList<Panorama.ImageEntry>(((Panorama)resource.DataBlock).Images), string.Empty),
                         };
-                        var specialTabPage = new ThemedTabPage("PANORAMA NAMES");
+                        var specialTabPage = new ThemedTabPage("PANORAMA IMAGES");
                         specialTabPage.Controls.Add(nameControl);
                         resTabs.TabPages.Add(specialTabPage);
                     }

@@ -478,7 +478,7 @@ internal sealed class PulseGraphBuilder
         return node.CreateFlowOut("");
     }
 
-    private void AddNodeRegisterInput(GraphDocument document, 
+    private void AddNodeRegisterInput(GraphDocument document,
         Node node,
         int chunkIndex,
         Dictionary<int, KVObject> registerConstValueMap,
@@ -765,7 +765,7 @@ internal sealed class PulseGraphBuilder
         return null;
     }
 
-    private void CreateInputsFromRegisterMap(GraphDocument document, 
+    private void CreateInputsFromRegisterMap(GraphDocument document,
         Node node,
         int chunkIndex,
         Dictionary<int, KVObject> registerConstValueMap,
@@ -800,7 +800,7 @@ internal sealed class PulseGraphBuilder
         }
     }
 
-    private GraphSocket? TraverseNodesForChunk(GraphDocument document, 
+    private GraphSocket? TraverseNodesForChunk(GraphDocument document,
         int chunkIndex,
         GraphSocket sourceActionOutSocket,
         Dictionary<int, KVObject> registerConstValueMap,

@@ -1,8 +1,8 @@
 using GUI.Types.GLViewers;
 using GUI.Types.Graphs.Core;
 using GUI.Utils;
-using ValveResourceFormat.Graphs;
 using ValveKeyValue;
+using ValveResourceFormat.Graphs;
 using ValveResourceFormat.Renderer;
 
 namespace GUI.Types.Graphs;

@@ -1,6 +1,6 @@
 using SkiaSharp;
-using ValveResourceFormat.Graphs;
 using Svg.Skia;
+using ValveResourceFormat.Graphs;
 
 namespace GUI.Types.Graphs.Core;
 

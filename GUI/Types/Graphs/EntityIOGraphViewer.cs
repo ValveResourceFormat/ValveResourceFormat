@@ -6,12 +6,12 @@ using GUI.Types.Graphs.Core;
 using GUI.Utils;
 using SkiaSharp;
 using ValveResourceFormat;
+using ValveResourceFormat.Graphs;
 using ValveResourceFormat.Renderer;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.Serialization.KeyValues;
 using Connection = ValveResourceFormat.ResourceTypes.EntityLump.Connection;
 
-using ValveResourceFormat.Graphs;
 namespace GUI.Types.Graphs;
 
 /// <summary>

@@ -317,7 +317,7 @@ public class SceneLight(Scene scene) : SceneNode(scene)
         }
 
         var defaultDirectLight = isNewLightType
-            ? DirectLightType.Dynamic 
+            ? DirectLightType.Dynamic
             : DirectLightType.Static;
 
         light.DirectLight = (DirectLightType)entity.GetInt32Property("directlight", (int)defaultDirectLight);
