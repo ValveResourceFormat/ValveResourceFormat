@@ -62,7 +62,11 @@ public class VfxShaderFileVulkan : VfxShaderFile
     public uint[]? DescriptorSetHashes { get; }
     public uint[]? EntryPoints { get; }
     public short RequiredSubgroupSize { get; }
-    public byte[]? UnknownTrailingData { get; }
+    /// <summary>
+    /// Base scalar type of every vertex shader input location, one byte per entry of <see cref="AttribMap"/>.
+    /// The known values are 4 for float and 2 for unsigned int. It is null for stages other than the vertex shader.
+    /// </summary>
+    public byte[]? VertexInputScalarTypes { get; }
 #pragma warning restore CS1591
 
     /// <summary>
@@ -204,10 +208,10 @@ public class VfxShaderFileVulkan : VfxShaderFile
 
                 RequiredSubgroupSize = datareader.ReadInt16();
 
-                var trailingByteCount = datareader.ReadByte();
-                if (trailingByteCount > 0)
+                var vertexInputScalarTypeCount = datareader.ReadByte();
+                if (vertexInputScalarTypeCount > 0)
                 {
-                    UnknownTrailingData = datareader.ReadBytes(trailingByteCount);
+                    VertexInputScalarTypes = datareader.ReadBytes(vertexInputScalarTypeCount);
                 }
             }
         }

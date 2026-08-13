@@ -11,7 +11,10 @@ namespace ValveResourceFormat.CompiledShader;
 /// </summary>
 public class FeaturesHeaderBlock : ShaderDataBlock
 {
-    /// <summary>Gets the features file version.</summary>
+    /// <summary>
+    /// Gets the version of the shader source this file was compiled from. It increments whenever the source changes,
+    /// and is identical across all platforms and shader models the shader was compiled for.
+    /// </summary>
     public int Version { get; }
     /// <summary>Gets the file description.</summary>
     public string FileDescription { get; }
@@ -61,7 +64,7 @@ public class FeaturesHeaderBlock : ShaderDataBlock
     /// </summary>
     public FeaturesHeaderBlock(BinaryReader datareader, int programTypesCount) : base(datareader)
     {
-        Version = datareader.ReadInt32(); // this is probably not a version
+        Version = datareader.ReadInt32();
 
         var nameLength = datareader.ReadInt32();
         FileDescription = datareader.ReadNullTermString(Encoding.UTF8);

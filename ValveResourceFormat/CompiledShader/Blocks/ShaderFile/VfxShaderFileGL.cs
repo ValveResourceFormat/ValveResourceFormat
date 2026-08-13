@@ -11,8 +11,8 @@ public class VfxShaderFileGL : VfxShaderFile
     /// <inheritdoc/>
     public override string BlockName => "GLSL";
 
-    /// <summary>Gets the argument value.</summary>
-    public int Arg0 { get; }
+    /// <summary>Gets the shader file version. It is 2 for PCGL and 3 for MOBILE_GLES.</summary>
+    public int Version { get; }
 
     /// <summary>Gets the shader source code size.</summary>
     public int BytecodeSize { get; } = -1;
@@ -24,7 +24,7 @@ public class VfxShaderFileGL : VfxShaderFile
     {
         if (Size > 0)
         {
-            Arg0 = datareader.ReadInt32();
+            Version = datareader.ReadInt32();
             BytecodeSize = datareader.ReadInt32();
             Bytecode = datareader.ReadBytes(BytecodeSize - 1); // -1 because the sourcebytes are null-term
             datareader.BaseStream.Position += 1;
