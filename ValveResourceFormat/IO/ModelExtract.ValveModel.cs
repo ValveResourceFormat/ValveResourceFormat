@@ -525,6 +525,28 @@ partial class ModelExtract
         {
             softbodyChildren.Add(MakeClothShapeSphere(sphere));
         }
+
+        foreach (var box in feModel.BuildCollisionBoxes())
+        {
+            softbodyChildren.Add(MakeClothShapeBox(box));
+        }
+    }
+
+    static KVObject MakeClothShapeBox(FeModel.CollisionBox box)
+    {
+        var node = MakeNode("ClothShapeBox",
+            ("name", (box.ParentBone ?? "cloth") + "_clothBox"),
+            ("parent_bone", box.ParentBone ?? string.Empty));
+        AddClothCollisionLayers(node, box.CollisionMask);
+        node.Add("cloth_collision_priority", 0);
+        node.Add("vertex_map", "");
+        node.Add("inverted_collision", false);
+        node.Add("planarize", false);
+        node.Add("bounciness", 0.0f);
+        node.Add("offset_origin", ToKVArray(box.Origin));
+        node.Add("offset_angles", ToKVArray(EntityTransformHelper.ToEulerAngles(box.Rotation)));
+        node.Add("dimensions", ToKVArray(box.Size));
+        return node;
     }
 
     static KVObject MakeClothShapeCapsule(FeModel.CollisionCapsule capsule)

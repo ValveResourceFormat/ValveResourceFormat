@@ -1927,6 +1927,21 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics
             public int CollisionMask { get; init; }
         }
 
+        /// <summary>A cloth collision box recovered from <c>m_BoxRigids</c>.</summary>
+        public sealed class CollisionBox
+        {
+            /// <summary>Gets the bone the box is attached to.</summary>
+            public required string? ParentBone { get; init; }
+            /// <summary>Gets the box centre (bone-local).</summary>
+            public required Vector3 Origin { get; init; }
+            /// <summary>Gets the box orientation (bone-local).</summary>
+            public required Quaternion Rotation { get; init; }
+            /// <summary>Gets the box half-extents.</summary>
+            public required Vector3 Size { get; init; }
+            /// <summary>Gets the 4-bit collision-layer mask.</summary>
+            public int CollisionMask { get; init; }
+        }
+
         /// <summary>A cloth collision sphere recovered from <c>m_SphereRigids</c>.</summary>
         public sealed class CollisionSphere
         {
@@ -1985,6 +2000,43 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics
                     Radius0 = s0.W,
                     Point1 = new Vector3(s1.X, s1.Y, s1.Z),
                     Radius1 = s1.W,
+                    CollisionMask = rigid.GetInt32Property("nCollisionMask"),
+                });
+            }
+
+            return result;
+        }
+
+        /// <summary>
+        /// Reconstructs the cloth collision boxes (<c>m_BoxRigids</c>). Returns an empty list when the
+        /// model has no box rigids.
+        /// </summary>
+        public List<CollisionBox> BuildCollisionBoxes()
+        {
+            var result = new List<CollisionBox>();
+            var rigids = Data.GetArray("m_BoxRigids");
+            if (rigids is null)
+            {
+                return result;
+            }
+
+            foreach (var rigid in rigids)
+            {
+                var frame = rigid.GetSubCollection("tmFrame2");
+                if (frame is null)
+                {
+                    continue;
+                }
+
+                var (origin, _, rotation) = frame.ToTransform();
+                var node = rigid.GetInt32Property("nNode");
+
+                result.Add(new CollisionBox
+                {
+                    ParentBone = ResolveRigidBone(node),
+                    Origin = origin,
+                    Rotation = rotation,
+                    Size = rigid.GetSubCollection("vSize").ToVector3(),
                     CollisionMask = rigid.GetInt32Property("nCollisionMask"),
                 });
             }
