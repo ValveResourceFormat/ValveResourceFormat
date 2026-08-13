@@ -6,17 +6,20 @@
 #include "instancing.slang"
 #include "utils.slang"
 
-in uvec4 vBLENDINDICES;
-in vec4 vBLENDWEIGHT;
+#define D_SKINNING 0
 
-#define D_EIGHT_BONE_BLENDING 0
-
-#if (D_EIGHT_BONE_BLENDING == 1)
+#if (D_SKINNING > 0)
+    in uvec4 vBLENDINDICES;
+#endif
+#if (D_SKINNING > 1)
+    in vec4 vBLENDWEIGHT;
+#endif
+#if (D_SKINNING > 2)
     in uvec4 vBLENDINDICES2;
     in vec4 vBLENDWEIGHT2;
 #endif
 
-uniform uvec4 uAnimationData;
+uniform uvec3 uAnimationData;
 
 layout(std430, binding = 11) readonly buffer g_boneTransformBuffer
 {
@@ -26,7 +29,6 @@ layout(std430, binding = 11) readonly buffer g_boneTransformBuffer
 #define bAnimated (uAnimationData.x != 0u)
 #define meshBoneOffset uAnimationData.y
 #define meshBoneCount uAnimationData.z
-#define numWeights uAnimationData.w
 
 // Scale is assumed to be uniform.
 vec3 TransformDirectionToWorld(mat3x4 objectToWorld, vec3 vDirectionOs)
@@ -49,6 +51,7 @@ mat3x4 getMatrix(uint boneIndex)
     return boneTransforms[boneIndex];
 }
 
+#if (D_SKINNING > 0)
 mat3x4 getSkinMatrix()
 {
     if (!bAnimated)
@@ -56,34 +59,37 @@ mat3x4 getSkinMatrix()
         return mat3x4(1.0);
     }
 
-    if (numWeights == 1u)
-    {
+    #if (D_SKINNING == 1)
         return getMatrix(vBLENDINDICES.x);
-    }
+    #else
+        mat3x4 skinMatrix = mat3x4(0.0);
 
-    mat3x4 skinMatrix = mat3x4(0.0);
+        skinMatrix += vBLENDWEIGHT.x * getMatrix(vBLENDINDICES.x);
+        skinMatrix += vBLENDWEIGHT.y * getMatrix(vBLENDINDICES.y);
+        skinMatrix += vBLENDWEIGHT.z * getMatrix(vBLENDINDICES.z);
+        skinMatrix += vBLENDWEIGHT.w * getMatrix(vBLENDINDICES.w);
 
+        #if (D_SKINNING == 3)
+            skinMatrix += vBLENDWEIGHT2.x * getMatrix(vBLENDINDICES2.x);
+            skinMatrix += vBLENDWEIGHT2.y * getMatrix(vBLENDINDICES2.y);
+            skinMatrix += vBLENDWEIGHT2.z * getMatrix(vBLENDINDICES2.z);
+            skinMatrix += vBLENDWEIGHT2.w * getMatrix(vBLENDINDICES2.w);
+        #endif
 
-    skinMatrix += vBLENDWEIGHT.x * getMatrix(vBLENDINDICES.x);
-    skinMatrix += vBLENDWEIGHT.y * getMatrix(vBLENDINDICES.y);
-    skinMatrix += vBLENDWEIGHT.z * getMatrix(vBLENDINDICES.z);
-    skinMatrix += vBLENDWEIGHT.w * getMatrix(vBLENDINDICES.w);
-
-    #if (D_EIGHT_BONE_BLENDING == 1)
-        skinMatrix += vBLENDWEIGHT2.x * getMatrix(vBLENDINDICES2.x);
-        skinMatrix += vBLENDWEIGHT2.y * getMatrix(vBLENDINDICES2.y);
-        skinMatrix += vBLENDWEIGHT2.z * getMatrix(vBLENDINDICES2.z);
-        skinMatrix += vBLENDWEIGHT2.w * getMatrix(vBLENDINDICES2.w);
+        return skinMatrix;
     #endif
-
-    return skinMatrix;
 }
+#endif
 
 // The full object to world matrix for this vertex. The skinning matrices stay in object space, so the
 // object transform still has to be applied on top of them here.
 mat3x4 CalculateSkinTransform()
 {
+#if (D_SKINNING == 0)
+    return CalculateObjectToWorldMatrix();
+#else
     return ConcatTransforms(getSkinMatrix(), CalculateObjectToWorldMatrix());
+#endif
 }
 
 #endif

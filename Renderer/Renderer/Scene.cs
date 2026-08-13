@@ -1,4 +1,4 @@
-global using DepthOnlyDrawBuckets = System.Collections.Generic.Dictionary<ValveResourceFormat.Renderer.DepthOnlyProgram, System.Collections.Generic.List<ValveResourceFormat.Renderer.MeshBatchRenderer.Request>>;
+global using DepthOnlyDrawBuckets = System.Collections.Generic.Dictionary<ValveResourceFormat.Renderer.DepthOnlyBucket, System.Collections.Generic.List<ValveResourceFormat.Renderer.MeshBatchRenderer.Request>>;
 
 using System.Diagnostics;
 using System.Linq;
@@ -773,13 +773,7 @@ namespace ValveResourceFormat.Renderer
             [RenderPass.Translucent] = [],
         };
 
-        private DepthOnlyDrawBuckets depthOnlyDraws { get; } = new()
-        {
-            [DepthOnlyProgram.Static] = [],
-            [DepthOnlyProgram.Animated] = [],
-            [DepthOnlyProgram.AnimatedEightBones] = [],
-            [DepthOnlyProgram.Unspecified] = [],
-        };
+        private DepthOnlyDrawBuckets depthOnlyDraws { get; } = CreateDepthOnlyDrawCallCollection();
 
         private void Add(MeshBatchRenderer.Request request, RenderPass renderPass)
         {
@@ -806,7 +800,7 @@ namespace ValveResourceFormat.Renderer
                 {
                     if (EnableDepthPrepass)
                     {
-                        var bucket = GetSpecializedDepthOnlyShader(false, request.Mesh, request.Call);
+                        var bucket = GetDepthOnlyBucket(request.Call);
                         depthOnlyDraws[bucket].Add(request);
                     }
                 }
@@ -994,13 +988,8 @@ namespace ValveResourceFormat.Renderer
         private List<SceneNode> CulledShadowNodes { get; } = [];
         private readonly List<RenderableMesh> listWithSingleMesh = [null!];
         internal DepthOnlyDrawBuckets CulledShadowDrawCalls { get; } = CreateDepthOnlyDrawCallCollection();
-        internal static DepthOnlyDrawBuckets CreateDepthOnlyDrawCallCollection() => new()
-        {
-            [DepthOnlyProgram.Static] = [],
-            [DepthOnlyProgram.Animated] = [],
-            [DepthOnlyProgram.AnimatedEightBones] = [],
-            [DepthOnlyProgram.Unspecified] = [],
-        };
+        internal static DepthOnlyDrawBuckets CreateDepthOnlyDrawCallCollection()
+            => Enum.GetValues<DepthOnlyBucket>().ToDictionary(static bucket => bucket, static _ => new List<MeshBatchRenderer.Request>());
 
         /// <summary>
         /// Updates the sun light shadow frustum and collects shadow draw calls for the directional light, if dynamic shadows are enabled.
@@ -1124,11 +1113,10 @@ namespace ValveResourceFormat.Renderer
                 else
                 {
                     // Nodes that draw their own solid geometry cast shadows by drawing into the depth pass
-                    // with their own shaders. The unspecified bucket is the one with no depth-only
-                    // replacement shader, which is exactly what that needs.
+                    // with their own shaders, which is what this bucket is for.
                     if ((node.Flags & skipFlags) == 0 && (node.RenderPasses & CustomRenderPasses.Opaque) != 0)
                     {
-                        drawBuckets[DepthOnlyProgram.Unspecified].Add(new MeshBatchRenderer.Request
+                        drawBuckets[DepthOnlyBucket.MaterialShader].Add(new MeshBatchRenderer.Request
                         {
                             Node = node,
                         });
@@ -1136,8 +1124,6 @@ namespace ValveResourceFormat.Renderer
 
                     continue;
                 }
-
-                var animated = node is ModelSceneNode model && model.IsAnimated;
 
                 foreach (var mesh in meshes)
                 {
@@ -1153,7 +1139,7 @@ namespace ValveResourceFormat.Renderer
                             continue;
                         }
 
-                        var bucket = GetSpecializedDepthOnlyShader(animated, mesh, opaqueCall);
+                        var bucket = GetDepthOnlyBucket(opaqueCall);
 
                         drawBuckets[bucket].Add(new MeshBatchRenderer.Request
                         {
@@ -1168,23 +1154,12 @@ namespace ValveResourceFormat.Renderer
             CulledShadowNodes.Clear();
         }
 
-        private static DepthOnlyProgram GetSpecializedDepthOnlyShader(bool animated, RenderableMesh mesh, DrawCall opaqueCall)
+        // The skinning variant is picked per draw, so the bucket only says which shader draws it
+        private static DepthOnlyBucket GetDepthOnlyBucket(DrawCall opaqueCall)
         {
-            var renderWithUnoptimizedShader = opaqueCall.Material.VertexAnimation || opaqueCall.Material.IsAlphaTest;
-
-            var bucket = (renderWithUnoptimizedShader, animated) switch
-            {
-                (true, _) => DepthOnlyProgram.Unspecified, // shader will be null
-                (false, false) => DepthOnlyProgram.Static,
-                (false, true) => DepthOnlyProgram.Animated,
-            };
-
-            if (mesh.BoneWeightCount > 4)
-            {
-                bucket = DepthOnlyProgram.AnimatedEightBones;
-            }
-
-            return bucket;
+            return opaqueCall.Material.VertexAnimation || opaqueCall.Material.IsAlphaTest
+                ? DepthOnlyBucket.MaterialShader
+                : DepthOnlyBucket.Specialized;
         }
 
         internal void UpdateIndirectRenderingState()
@@ -1385,17 +1360,17 @@ namespace ValveResourceFormat.Renderer
         /// Renders shadow depth passes for all draw call buckets using their corresponding specialized depth-only shaders.
         /// </summary>
         /// <param name="renderContext">The render context for this shadow pass.</param>
-        /// <param name="depthOnlyShaders">A span of shaders indexed by <see cref="DepthOnlyProgram"/>.</param>
+        /// <param name="depthOnlyShader">The depth-only shader, which the pass takes skinning variants of.</param>
         /// <param name="drawCalls">The bucketed draw calls to render.</param>
-        public static void RenderOpaqueShadows(RenderContext renderContext, Span<Shader> depthOnlyShaders, DepthOnlyDrawBuckets drawCalls)
+        public static void RenderOpaqueShadows(RenderContext renderContext, Shader depthOnlyShader, DepthOnlyDrawBuckets drawCalls)
         {
             renderContext.RenderPass = RenderPass.DepthOnly;
 
             PerfStats.Active.SuspendTriangleCounter();
 
-            foreach (var (program, calls) in drawCalls)
+            foreach (var (bucket, calls) in drawCalls)
             {
-                renderContext.ReplacementShader = depthOnlyShaders[(int)program];
+                renderContext.ReplacementShader = bucket == DepthOnlyBucket.MaterialShader ? null : depthOnlyShader;
                 MeshBatchRenderer.Render(calls, renderContext);
             }
 
@@ -1406,12 +1381,12 @@ namespace ValveResourceFormat.Renderer
         /// Renders the opaque pass, optionally with a depth prepass, followed by aggregate indirect draws and static overlay geometry.
         /// </summary>
         /// <param name="renderContext">The render context for this pass.</param>
-        /// <param name="depthOnlyShaders">An optional span of depth-only shaders; when provided and <see cref="EnableDepthPrepass"/> is set, a depth prepass is performed.</param>
-        public void RenderOpaqueLayer(RenderContext renderContext, Span<Shader> depthOnlyShaders = default)
+        /// <param name="depthOnlyShader">Optional depth-only shader; when provided and <see cref="EnableDepthPrepass"/> is set, a depth prepass is performed.</param>
+        public void RenderOpaqueLayer(RenderContext renderContext, Shader? depthOnlyShader = null)
         {
             var camera = renderContext.Camera;
 
-            var depthPrepass = !depthOnlyShaders.IsEmpty && EnableDepthPrepass;
+            var depthPrepass = depthOnlyShader != null && EnableDepthPrepass;
 
             if (DrawMeshletsIndirect)
             {
@@ -1428,9 +1403,9 @@ namespace ValveResourceFormat.Renderer
                     PerfStats.Active.SuspendTriangleCounter();
 
                     renderContext.RenderPass = RenderPass.DepthOnly;
-                    foreach (var (program, calls) in depthOnlyDraws)
+                    foreach (var (bucket, calls) in depthOnlyDraws)
                     {
-                        renderContext.ReplacementShader = depthOnlyShaders[(int)program];
+                        renderContext.ReplacementShader = bucket == DepthOnlyBucket.MaterialShader ? null : depthOnlyShader;
                         MeshBatchRenderer.Render(calls, renderContext);
                     }
 

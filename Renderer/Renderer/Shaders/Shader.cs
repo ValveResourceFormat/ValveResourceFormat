@@ -111,6 +111,53 @@ namespace ValveResourceFormat.Renderer.Shaders
         /// <summary>Gets a value indicating whether material data (textures and params) should be skipped during rendering.</summary>
         public bool IgnoreMaterialData { get; }
 
+        private readonly ShaderLoader shaderLoader;
+        private Dictionary<(string Combo, byte Value), Shader>? variants;
+
+        /// <summary>
+        /// Gets this shader with one combo set differently. Cached, so a pass can pick a variant per draw
+        /// instead of loading every combination up front. Chain the calls to move on more than one combo.
+        /// </summary>
+        public Shader WithCombo(string combo, byte value)
+        {
+            if (Parameters.GetValueOrDefault(combo) == value)
+            {
+                return this;
+            }
+
+            variants ??= [];
+
+            if (!variants.TryGetValue((combo, value), out var variant))
+            {
+                var combos = new Dictionary<string, byte>(Parameters, StringComparer.Ordinal)
+                {
+                    [combo] = value,
+                };
+
+                variant = shaderLoader.LoadShader(Name, combos);
+                variants.Add((combo, value), variant);
+            }
+
+            return variant;
+        }
+
+        /// <summary>Sets a uniform on this shader and on every variant taken from it, which are separate
+        /// programs and so hold their own copy.</summary>
+        public void SetUniform1AllVariants(string name, uint value)
+        {
+            SetUniform1(name, value);
+
+            if (variants == null)
+            {
+                return;
+            }
+
+            foreach (var variant in variants.Values)
+            {
+                variant.SetUniform1(name, value);
+            }
+        }
+
         /// <summary>Gets the locations this program reads, as a mask. Checked in <see cref="VertexArray"/>.</summary>
         public int RequiredAttributes { get; private set; }
 
@@ -132,6 +179,7 @@ namespace ValveResourceFormat.Renderer.Shaders
             Default = new RenderMaterial(this);
             MaterialLoader = rendererContext.MaterialLoader;
             Logger = rendererContext.Logger;
+            shaderLoader = rendererContext.ShaderLoader;
 
             IgnoreMaterialData = Name is "picking"
                                       or "outline"
@@ -609,17 +657,23 @@ namespace ValveResourceFormat.Renderer.Shaders
             }
         }
 
+
+        /// <summary>
+        /// Gets this shader built for what a mesh supplies. Only a pass that replaces material shaders needs
+        /// it, since a material shader already carries the combo of the mesh it was loaded for.
+        /// </summary>
+        public Shader WithSkinning(MeshSkinning skinning) => WithCombo("D_SKINNING", (byte)skinning);
+
         /// <summary>Sets the <c>uAnimationData</c> uniform used by skinned mesh shaders.</summary>
         /// <param name="animated">Whether skeletal animation is active.</param>
         /// <param name="boneOffset">Offset into the bone transform buffer.</param>
         /// <param name="boneCount">Number of bones influencing this draw call.</param>
-        /// <param name="weightCount">Number of bone weights per vertex.</param>
-        public void SetBoneAnimationData(bool animated, int boneOffset = 0, int boneCount = 0, int weightCount = 0)
+        public void SetBoneAnimationData(bool animated, int boneOffset = 0, int boneCount = 0)
         {
             var uniformLocation = GetUniformLocation("uAnimationData");
             if (uniformLocation > -1)
             {
-                GL.ProgramUniform4((uint)Program, uniformLocation, animated ? 1u : 0u, (uint)boneOffset, (uint)boneCount, (uint)weightCount);
+                GL.ProgramUniform3((uint)Program, uniformLocation, animated ? 1u : 0u, (uint)boneOffset, (uint)boneCount);
             }
         }
 

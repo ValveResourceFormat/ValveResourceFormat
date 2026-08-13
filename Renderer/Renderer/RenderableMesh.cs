@@ -53,6 +53,12 @@ namespace ValveResourceFormat.Renderer
         /// <summary>Gets the number of bone weights per vertex (up to 8, or 0 when the mesh has no skeleton).</summary>
         public int BoneWeightCount { get; private set; }
 
+        /// <summary>Gets the <c>D_SKINNING</c> variant this mesh's buffers can feed.</summary>
+        public MeshSkinning Skinning { get; private set; }
+
+        /// <summary>Gets the variant to draw with now. Bind pose does not need skinning.</summary>
+        public MeshSkinning ActiveSkinning => BoneMatricesGpu != null ? Skinning : MeshSkinning.None;
+
         /// <summary>Gets the name of the source mesh resource.</summary>
         public string Name { get; }
 
@@ -95,6 +101,7 @@ namespace ValveResourceFormat.Renderer
             }
 
             BoneWeightCount = mesh.Data.GetSubCollection("m_skeleton")?.GetInt32Property("m_nBoneWeightCount") ?? 0;
+            Skinning = GetSkinning(vbib, BoneWeightCount);
 
             mesh.GetBounds();
             BoundingBox = new AABB(mesh.MinBounds, mesh.MaxBounds);
@@ -212,6 +219,38 @@ namespace ValveResourceFormat.Renderer
             }
         }
 
+        /// <remarks>
+        /// Read off the buffers, never off <paramref name="boneWeightCount"/> alone, which is 4 on plenty of
+        /// meshes that carry no blend attributes at all.
+        /// </remarks>
+        private static MeshSkinning GetSkinning(VBIB vbib, int boneWeightCount)
+        {
+            var hasIndices = false;
+            var hasWeights = false;
+
+            foreach (var buffer in vbib.VertexBuffers)
+            {
+                foreach (var field in buffer.InputLayoutFields)
+                {
+                    hasIndices |= field.SemanticName == "BLENDINDICES";
+                    hasWeights |= field.SemanticName is "BLENDWEIGHT" or "BLENDWEIGHTS";
+                }
+            }
+
+            if (!hasIndices)
+            {
+                return MeshSkinning.None;
+            }
+
+            if (!hasWeights)
+            {
+                return MeshSkinning.OneBone;
+            }
+
+            // The second set of four is split out of the first at draw time, see CreateDrawCall
+            return boneWeightCount > 4 ? MeshSkinning.EightBones : MeshSkinning.FourBones;
+        }
+
         private void ConfigureDrawCalls(Scene scene, VBIB vbib, IReadOnlyList<KVObject> sceneObjects, Dictionary<string, string>? materialReplacementTable, bool isAggregate)
         {
             if (vbib.VertexBuffers.Count == 0)
@@ -248,9 +287,9 @@ namespace ValveResourceFormat.Renderer
 
                     var shaderArguments = new Dictionary<string, byte>(scene.RenderAttributes);
 
-                    if (BoneWeightCount > 4)
+                    if (Skinning != MeshSkinning.None)
                     {
-                        shaderArguments.Add("D_EIGHT_BONE_BLENDING", 1);
+                        shaderArguments.Add("D_SKINNING", (byte)Skinning);
                     }
 
                     if (Mesh.IsCompressedNormalTangent(objectDrawCall))
@@ -403,7 +442,7 @@ namespace ValveResourceFormat.Renderer
                     var vertexBufferVbib = vbib.VertexBuffers[(int)bufferIndex];
                     var inputLayoutFields = vertexBufferVbib.InputLayoutFields;
 
-                    if (BoneWeightCount > 4)
+                    if (Skinning == MeshSkinning.EightBones)
                     {
                         var newInputLayout = new List<VBIB.RenderInputLayoutField>(inputLayoutFields.Length + 2);
                         foreach (var inputField in inputLayoutFields)

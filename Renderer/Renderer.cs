@@ -114,7 +114,7 @@ public class Renderer
     /// </summary>
     public List<(ReservedTextureSlots Slot, string Name, RenderTexture Texture)> Textures { get; } = [];
 
-    internal readonly Shader[] depthOnlyShaders = new Shader[Enum.GetValues<DepthOnlyProgram>().Length];
+    internal Shader depthOnlyShader = null!;
     private readonly Frustum barnLightShadowFrustum = new();
     /// <summary>
     /// Depth-only framebuffer used for directional (sun) light shadow mapping.
@@ -273,10 +273,7 @@ public class Renderer
         BarnLightShadowBuffer.SetShadowDepthSamplerState(true);
         Textures.Add(new(ReservedTextureSlots.BarnLightShadowDepth, "g_tBarnLightShadowDepth", BarnLightShadowBuffer.Depth));
 
-        depthOnlyShaders[(int)DepthOnlyProgram.Static] = Scene.RendererContext.ShaderLoader.LoadShader("depth_only");
-        //depthOnlyShaders[(int)DepthOnlyProgram.StaticAlphaTest] = GuiContext.ShaderLoader.LoadShader("depth_only", ("F_ALPHA_TEST", 1));
-        depthOnlyShaders[(int)DepthOnlyProgram.Animated] = Scene.RendererContext.ShaderLoader.LoadShader("depth_only", ("D_ANIMATED", 1));
-        depthOnlyShaders[(int)DepthOnlyProgram.AnimatedEightBones] = Scene.RendererContext.ShaderLoader.LoadShader("depth_only", ("D_ANIMATED", 1), ("D_EIGHT_BONE_BLENDING", 1));
+        depthOnlyShader = Scene.RendererContext.ShaderLoader.LoadShader("depth_only");
 
         histogramShaders[0] = Scene.RendererContext.ShaderLoader.LoadShader("histogram");
         histogramShaders[1] = Scene.RendererContext.ShaderLoader.LoadShader("histogram", ("D_HISTOGRAM_MODE", 1));
@@ -637,14 +634,14 @@ public class Renderer
         using (new GLDebugGroup("Main Scene Opaque Render"))
         {
             renderContext.Scene = Scene;
-            Scene.RenderOpaqueLayer(renderContext, isStandardPass ? depthOnlyShaders : Span<Shader>.Empty);
+            Scene.RenderOpaqueLayer(renderContext, isStandardPass ? depthOnlyShader : null);
         }
 
         //using (new GLDebugGroup("Sky Render"))
         {
             DepthRange.Sky.Apply();
 
-            renderContext.ReplacementShader?.SetUniform1("isSkybox", 1u);
+            renderContext.ReplacementShader?.SetUniform1AllVariants("isSkybox", 1u);
             var skyboxScene = SkyboxScene;
             var render3DSkybox = ShowSkybox && skyboxScene != null;
             var (copyColor, copyDepth) = (Scene.WantsSceneColor, Scene.WantsSceneDepth);
@@ -713,7 +710,7 @@ public class Renderer
                 renderContext.Scene = Scene;
             }
 
-            renderContext.ReplacementShader?.SetUniform1("isSkybox", 0u);
+            renderContext.ReplacementShader?.SetUniform1AllVariants("isSkybox", 0u);
             DepthRange.Scene.Apply();
         }
 
@@ -818,7 +815,7 @@ public class Renderer
         using (new GLDebugGroup("Direct Light Shadows"))
         {
             PerfStats.Active.Count(Counter.DirectionalShadowMap);
-            Scene.RenderOpaqueShadows(renderContext, depthOnlyShaders, Scene.CulledShadowDrawCalls);
+            Scene.RenderOpaqueShadows(renderContext, depthOnlyShader, Scene.CulledShadowDrawCalls);
         }
     }
 
@@ -885,7 +882,7 @@ public class Renderer
             // Should be in update loop.
             Scene.SetupBarnLightFaceShadow(caster.Light, caster.FaceIndex, barnLightShadowFrustum);
 
-            Scene.RenderOpaqueShadows(renderContext, depthOnlyShaders, caster.Light.FaceShadowCache[caster.FaceIndex].DrawCalls!);
+            Scene.RenderOpaqueShadows(renderContext, depthOnlyShader, caster.Light.FaceShadowCache[caster.FaceIndex].DrawCalls!);
         }
 
         GL.Disable(EnableCap.ScissorTest);

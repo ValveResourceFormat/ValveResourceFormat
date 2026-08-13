@@ -184,7 +184,9 @@ namespace ValveResourceFormat.Renderer
 
                 var requestMaterial = request.Call.Material;
 
-                if (material != requestMaterial)
+                var requestShader = context.ReplacementShader?.WithSkinning(request.Mesh.ActiveSkinning) ?? requestMaterial.Shader;
+
+                if (material != requestMaterial || shader != requestShader)
                 {
                     counters.Count(Counter.MaterialChange);
 
@@ -193,9 +195,6 @@ namespace ValveResourceFormat.Renderer
                         material?.PostRender();
                     }
 
-                    var requestShader = context.ReplacementShader ?? requestMaterial.Shader;
-
-                    // If the material did not change, shader could not have changed
                     if (shader != requestShader)
                     {
                         shader = requestShader;
@@ -282,7 +281,6 @@ namespace ValveResourceFormat.Renderer
             {
                 var bAnimated = request.Mesh.BoneMatricesGpu != null;
                 var numBones = 0u;
-                var numWeights = 0u;
                 var boneStart = 0u;
 
                 if (bAnimated)
@@ -290,7 +288,6 @@ namespace ValveResourceFormat.Renderer
                     request.Mesh.BoneMatricesGpu!.BindBufferBase();
                     numBones = (uint)request.Mesh.MeshBoneCount;
                     boneStart = (uint)request.Mesh.MeshBoneOffset;
-                    numWeights = (uint)request.Mesh.BoneWeightCount;
                 }
                 else
                 {
@@ -298,7 +295,7 @@ namespace ValveResourceFormat.Renderer
                     request.Node.Scene.TransformBufferGpu?.BindBufferBase(ReservedBufferSlots.BoneTransforms);
                 }
 
-                GL.ProgramUniform4((uint)shader.Program, uniforms.AnimationData, bAnimated ? 1u : 0u, boneStart, numBones, numWeights);
+                GL.ProgramUniform3((uint)shader.Program, uniforms.AnimationData, bAnimated ? 1u : 0u, boneStart, numBones);
             }
 
             if (config.IndirectDraw)

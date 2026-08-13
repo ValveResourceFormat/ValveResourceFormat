@@ -2,7 +2,6 @@
 
 #include "common/ViewConstants.slang"
 
-#define D_ANIMATED 0
 #define D_MORPHED 0
 #define F_ALPHA_TEST 0 // most shaders
 
@@ -28,11 +27,7 @@ void main()
         texCoord = vTEXCOORD;
     #endif
 
-    #if (D_ANIMATED == 1)
-        vec3 fragPosition = vec4(vertexPosition, 1.0) * CalculateSkinTransform();
-    #else
-        vec3 fragPosition = vec4(vertexPosition, 1.0) * CalculateObjectToWorldMatrix();
-    #endif
+    vec3 fragPosition = vec4(vertexPosition, 1.0) * CalculateSkinTransform();
 
     gl_Position = g_matWorldToProjection * vec4(fragPosition, 1.0);
 }
