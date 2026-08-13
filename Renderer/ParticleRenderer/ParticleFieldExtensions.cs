@@ -372,7 +372,7 @@ namespace ValveResourceFormat.Renderer.Particles
         /// <summary>
         /// Whether the field holds an angle, and so is stored in radians while content authors it in
         /// degrees. <see cref="ParticleField.RollSpeed"/> counts: an angular rate is authored in degrees
-        /// per second, which is why <c>C_INIT_RandomRotationSpeed</c> converts on the way in.
+        /// per second.
         /// </summary>
         public static bool IsAngleField(this ParticleField field)
             => field is ParticleField.Roll or ParticleField.Yaw or ParticleField.Pitch or ParticleField.RollSpeed;

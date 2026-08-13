@@ -37,6 +37,8 @@ namespace ValveResourceFormat.Renderer.Particles.Initializers
             hasBias = remapBias != 0.5f;
         }
 
+        public override ulong WrittenFields => FieldMask(fieldOutput);
+
         public override Particle Initialize(ref Particle particle, ParticleCollection particles, ParticleSystemRenderState particleSystemState)
         {
             var controlPointPosition = particleSystemState.GetControlPoint(startCP).Position;

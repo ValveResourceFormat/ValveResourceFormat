@@ -109,11 +109,25 @@ namespace ValveResourceFormat.ResourceTypes
         /// Gets the pre-emission operators in the particle system.
         /// </summary>
         public IEnumerable<KVObject> GetPreEmissionOperators()
-            => Data.GetArray("m_PreEmissionOperators") ?? Enumerable.Empty<KVObject>();
+            => GetUpgradedData().GetArray("m_PreEmissionOperators") ?? Enumerable.Empty<KVObject>();
+
+        /// <summary>
+        /// Gets whether a child entry runs. <c>m_bDisableChild</c> only removes a child from
+        /// behavior version 5 on; older definitions keep disabled children.
+        /// </summary>
+        /// <param name="childEntry">An entry of the <c>m_Children</c> array.</param>
+        public bool IsChildEnabled(KVObject childEntry)
+        {
+            ArgumentNullException.ThrowIfNull(childEntry);
+
+            return GetUpgradedData().GetInt32Property("m_nBehaviorVersion") < 5
+                || !childEntry.GetBooleanProperty("m_bDisableChild");
+        }
 
         /// <summary>
         /// Gets the names of child particles.
         /// </summary>
+        /// <param name="enabledOnly">Whether to skip children disabled by <see cref="IsChildEnabled"/>.</param>
         public IEnumerable<string> GetChildParticleNames(bool enabledOnly = false)
         {
             IEnumerable<KVObject> children = GetUpgradedData().GetArray("m_Children");
@@ -125,7 +139,7 @@ namespace ValveResourceFormat.ResourceTypes
 
             if (enabledOnly)
             {
-                children = children.Where(c => !c.GetBooleanProperty("m_bDisableChild"));
+                children = children.Where(IsChildEnabled);
             }
 
             return children.Select(c => c.GetStringProperty("m_ChildRef")).ToList();

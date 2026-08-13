@@ -28,6 +28,8 @@ namespace ValveResourceFormat.Renderer.Particles.Initializers
             fieldOutput = parse.ParticleField("m_nFieldOutput", fieldOutput);
         }
 
+        public override ulong WrittenFields => FieldMask(fieldOutput);
+
         public override Particle Initialize(ref Particle particle, ParticleCollection particles, ParticleSystemRenderState particleSystemState)
         {
             var color = particleSystemState.Random.NextBetween(colorMin, colorMax);

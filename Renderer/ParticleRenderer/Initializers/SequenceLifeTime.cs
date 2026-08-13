@@ -13,6 +13,8 @@ namespace ValveResourceFormat.Renderer.Particles.Initializers
             frameRate = parse.Float("m_flFramerate", frameRate);
         }
 
+        public override ulong WrittenFields => FieldMask(ParticleField.LifeDuration);
+
         public override Particle Initialize(ref Particle particle, ParticleCollection particles, ParticleSystemRenderState particleSystemState)
         {
             var rate = Math.Max(0.0001f, frameRate);

@@ -260,7 +260,11 @@ namespace ValveResourceFormat.Renderer.Particles
         {
             // Mapping input ranges for this provider type are authored in normalized 0-1 space.
             // Index is the slot in the alive list; UniqueParticleId is a lifetime spawn counter and would exceed the count.
-            return attributeMapping.ApplyMapping(particle.Index / (float)Math.Max(renderState.ParticleCount, 1));
+            // From behavior version 12 the last live particle reads 1 instead of count/(count+1).
+            var divisor = renderState.Data?.BehaviorVersion >= 12
+                ? Math.Max(renderState.ParticleCount - 1, 1)
+                : Math.Max(renderState.ParticleCount, 1);
+            return attributeMapping.ApplyMapping(particle.Index / (float)divisor);
         }
     }
 

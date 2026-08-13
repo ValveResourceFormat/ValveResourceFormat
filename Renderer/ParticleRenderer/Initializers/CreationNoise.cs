@@ -35,6 +35,8 @@ namespace ValveResourceFormat.Renderer.Particles.Initializers
             offsetLoc = parse.Vector3("m_vecOffsetLoc", offsetLoc);
         }
 
+        public override ulong WrittenFields => FieldMask(fieldOutput);
+
         public override Particle Initialize(ref Particle particle, ParticleCollection particles, ParticleSystemRenderState particleSystemState)
         {
             if (fieldOutput.FieldType() != "float")

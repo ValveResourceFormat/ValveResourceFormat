@@ -20,6 +20,8 @@ namespace ValveResourceFormat.Renderer.Particles.Initializers
             setMethod = parse.Enum<ParticleSetMethod>("m_nSetMethod", setMethod);
         }
 
+        public override ulong WrittenFields => FieldMask(outputField);
+
         public override Particle Initialize(ref Particle particle, ParticleCollection particles, ParticleSystemRenderState particleSystemState)
         {
             var value = inputValue.NextNumber(ref particle, particleSystemState);

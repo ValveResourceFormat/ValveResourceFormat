@@ -76,6 +76,8 @@ namespace ValveResourceFormat.Renderer.Particles.Initializers
             weightedCursor = initialWeightedCursor;
         }
 
+        public override ulong WrittenFields => FieldMask(ParticleField.SequenceNumber);
+
         public override Particle Initialize(ref Particle particle, ParticleCollection particles, ParticleSystemRenderState particleSystemState)
         {
             if (weightedList.Length > 0)
