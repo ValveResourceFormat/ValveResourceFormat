@@ -27,10 +27,7 @@ class AttractToControlPoint : ParticleFunctionForceGenerator
         forceAmountMin = parse.NumberProvider("m_fForceAmountMin", forceAmountMin);
         applyMinForce = parse.Boolean("m_bApplyMinForce", applyMinForce);
         falloff = parse.Float("m_fFalloffPower", falloff);
-        // The target is m_TransformInput (a transform input defaulting to control point 1); older content
-        // stores it as the legacy m_nControlPointNumber field instead.
-        var legacyControlPoint = parse.Data.ContainsKey("m_nControlPointNumber") ? parse.Int32("m_nControlPointNumber") : 1;
-        transformInput = parse.TransformInput("m_TransformInput", new ControlPointTransformProvider(legacyControlPoint, false));
+        transformInput = parse.TransformInput("m_TransformInput", new ControlPointTransformProvider(1, false));
     }
 
     public override void GenerateForces(ParticleCollection particles, float frameTime, ParticleSystemRenderState particleSystemState, float strength)

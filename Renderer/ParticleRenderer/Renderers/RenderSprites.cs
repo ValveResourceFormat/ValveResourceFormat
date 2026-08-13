@@ -128,76 +128,66 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
 
             string? textureName = null;
 
-            if (parse.Data.ContainsKey("m_hTexture"))
-            {
-                // Legacy single-texture form; equivalent to one layer with every control at its default.
-                textureName = parse.Data.GetStringProperty("m_hTexture");
-                layers = [new TextureLayer(rendererContext.MaterialLoader.GetTexture(textureName, srgbRead: true))];
-            }
-            else
-            {
-                var parsed = new List<TextureLayer>();
+            var parsed = new List<TextureLayer>();
 
-                foreach (var textureInput in parse.Array("m_vecTexturesInput"))
+            foreach (var textureInput in parse.Array("m_vecTexturesInput"))
+            {
+                if (!textureInput.Boolean("m_bEnabled", true))
                 {
-                    if (!textureInput.Boolean("m_bEnabled", true))
-                    {
-                        continue;
-                    }
-
-                    // Normal maps and motion vector sheets are not colour: compositing them into the chain
-                    // would tint the card with a tangent-space basis or a flow field. They are the majority
-                    // of the extra layers in shipped content, so this matters more than it sounds.
-                    var textureType = textureInput.Enum("m_nTextureType", SpriteCardTextureType.SPRITECARD_TEXTURE_DIFFUSE);
-
-                    if (textureType is SpriteCardTextureType.SPRITECARD_TEXTURE_NORMALMAP
-                        or SpriteCardTextureType.SPRITECARD_TEXTURE_ANIMMOTIONVEC)
-                    {
-                        continue;
-                    }
-
-                    // A gradient layer synthesizes its ramp from m_Gradient rather than loading a texture.
-                    var replaceWithGradient = textureInput.Boolean("m_bReplaceTextureWithGradient", false);
-
-                    if (parsed.Count == MaxTextureLayers)
-                    {
-                        break;
-                    }
-
-                    RenderTexture layerTexture;
-
-                    if (replaceWithGradient)
-                    {
-                        layerTexture = MaterialLoader.GenerateGradientTexture(ParseGradientStops(textureInput));
-                    }
-                    else
-                    {
-                        var layerTextureName = textureInput.Data.ContainsKey("m_hTexture")
-                            ? textureInput.Data.GetStringProperty("m_hTexture")
-                            : null;
-
-                        if (string.IsNullOrEmpty(layerTextureName))
-                        {
-                            layerTextureName = DefaultTextureName;
-                        }
-
-                        textureName ??= layerTextureName;
-                        layerTexture = rendererContext.MaterialLoader.GetTexture(layerTextureName, srgbRead: true);
-                    }
-
-                    parsed.Add(new TextureLayer(layerTexture)
-                    {
-                        Channels = textureInput.Enum("m_nTextureChannels", SpriteCardTextureChannel.SPRITECARD_TEXTURE_CHANNEL_MIX_RGBA),
-                        BlendMode = textureInput.Enum("m_nTextureBlendMode", ParticleTextureLayerBlendType.SPRITECARD_TEXTURE_BLEND_MULTIPLY),
-                        Blend = textureInput.NumberProvider("m_flTextureBlend", OneNumberProvider),
-                        EffectMode = textureType,
-                    });
+                    continue;
                 }
 
-                layers = parsed.Count > 0
-                    ? [.. parsed]
-                    : [new TextureLayer(rendererContext.MaterialLoader.GetTexture(DefaultTextureName, srgbRead: true))];
+                // Normal maps and motion vector sheets are not colour: compositing them into the chain
+                // would tint the card with a tangent-space basis or a flow field.
+                var textureType = textureInput.Enum("m_nTextureType", SpriteCardTextureType.SPRITECARD_TEXTURE_DIFFUSE);
+
+                if (textureType is SpriteCardTextureType.SPRITECARD_TEXTURE_NORMALMAP
+                    or SpriteCardTextureType.SPRITECARD_TEXTURE_ANIMMOTIONVEC)
+                {
+                    continue;
+                }
+
+                // A gradient layer synthesizes its ramp from m_Gradient rather than loading a texture.
+                var replaceWithGradient = textureInput.Boolean("m_bReplaceTextureWithGradient", false);
+
+                if (parsed.Count == MaxTextureLayers)
+                {
+                    break;
+                }
+
+                RenderTexture layerTexture;
+
+                if (replaceWithGradient)
+                {
+                    layerTexture = MaterialLoader.GenerateGradientTexture(ParseGradientStops(textureInput));
+                }
+                else
+                {
+                    var layerTextureName = textureInput.Data.ContainsKey("m_hTexture")
+                        ? textureInput.Data.GetStringProperty("m_hTexture")
+                        : null;
+
+                    if (string.IsNullOrEmpty(layerTextureName))
+                    {
+                        layerTextureName = DefaultTextureName;
+                    }
+
+                    textureName ??= layerTextureName;
+                    layerTexture = rendererContext.MaterialLoader.GetTexture(layerTextureName, srgbRead: true);
+                }
+
+                parsed.Add(new TextureLayer(layerTexture)
+                {
+                    Channels = textureInput.Enum("m_nTextureChannels", SpriteCardTextureChannel.SPRITECARD_TEXTURE_CHANNEL_MIX_RGBA),
+                    BlendMode = textureInput.Enum("m_nTextureBlendMode", ParticleTextureLayerBlendType.SPRITECARD_TEXTURE_BLEND_MULTIPLY),
+                    Blend = textureInput.NumberProvider("m_flTextureBlend", OneNumberProvider),
+                    EffectMode = textureType,
+                });
             }
+
+            layers = parsed.Count > 0
+                ? [.. parsed]
+                : [new TextureLayer(rendererContext.MaterialLoader.GetTexture(DefaultTextureName, srgbRead: true))];
 
 #if DEBUG
             var vaoLabel = $"{nameof(RenderSprites)}: {System.IO.Path.GetFileName(textureName)}";
