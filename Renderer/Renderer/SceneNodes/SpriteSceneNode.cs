@@ -12,6 +12,7 @@ namespace ValveResourceFormat.Renderer.SceneNodes
             [VertexAttribute(VertexAttributeSlot.Position)] public Vector3 Position;
             [VertexAttribute(VertexAttributeSlot.Normal)] public Vector4 Normal;
             [VertexAttribute(VertexAttributeSlot.TexCoord)] public Vector2 TexCoord;
+            [VertexAttribute(VertexAttributeSlot.Color)] public Color32 Color;
             [VertexAttribute(VertexAttributeSlot.Tangent)] public Vector4 Tangent;
             [VertexAttribute(VertexAttributeSlot.BlendIndices)] public Vector4 BlendIndices;
             [VertexAttribute(VertexAttributeSlot.BlendWeight)] public Vector4 BlendWeight;
@@ -27,11 +28,14 @@ namespace ValveResourceFormat.Renderer.SceneNodes
             NewVertex(new(-1.0f, 1.0f, 0.0f), new(0.0f, 0.0f)),
         ];
 
+        // White, because a material shader reading vCOLOR expects the engine default where there is no
+        // color stream, the same one GPUMeshBufferCache binds for meshes that have none.
         private static Vertex NewVertex(Vector3 position, Vector2 texCoord) => new()
         {
             Position = position,
             Normal = Vector4.UnitW,
             TexCoord = texCoord,
+            Color = Color32.White,
             Tangent = Vector4.UnitX,
         };
 

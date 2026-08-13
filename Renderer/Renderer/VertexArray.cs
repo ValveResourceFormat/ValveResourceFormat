@@ -1,12 +1,13 @@
 using System.Diagnostics;
+using Microsoft.Extensions.Logging;
 using OpenTK.Graphics.OpenGL;
 
 namespace ValveResourceFormat.Renderer
 {
     /// <summary>
-    /// Binds and deletes vertex array objects, and checks in debug builds that a shader only reads attributes
-    /// the VAO it draws with binds. Canonical locations let any shader draw any VAO, which also means a shader
-    /// reading an attribute the geometry does not have silently gets the generic value (0, 0, 0, 1).
+    /// Binds and deletes vertex array objects, and reports in debug builds when a shader reads an attribute
+    /// the VAO it draws with does not bind. Canonical locations let any shader draw any VAO, which also means
+    /// such a shader silently gets the generic attribute value (0, 0, 0, 1) rather than an error.
     /// </summary>
     public static class VertexArray
     {
@@ -27,14 +28,13 @@ namespace ValveResourceFormat.Renderer
             Validated.RemoveWhere(pair => pair.Vao == vao);
         }
 
-        /// <summary>Asserts that <paramref name="shader"/> reads nothing <paramref name="vao"/> leaves
+        /// <summary>Logs the attributes <paramref name="shader"/> reads that <paramref name="vao"/> leaves
         /// unbound. Each shader and VAO pair is checked once.</summary>
         /// <param name="vao">The vertex array object being drawn.</param>
         /// <param name="shader">The shader it is drawn with.</param>
         [Conditional("DEBUG")]
         public static void Validate(int vao, Shader shader)
         {
-#if DEBUG
             if (!shader.EnsureLoaded()
             || !BoundByVao.TryGetValue(vao, out var boundLocations)
             || !Validated.Add((vao, shader.Program)))
@@ -42,11 +42,13 @@ namespace ValveResourceFormat.Renderer
                 return;
             }
 
-            var missing = shader.RequiredAttributes & ~boundLocations;
+            var missingIndex = shader.RequiredAttributes & ~boundLocations;
 
-            Debug.Assert(missing == 0,
-                $"Shader '{shader.Name}' reads {VertexAttributeLocations.DescribeMask(missing)}, which the geometry it draws does not bind.");
-#endif
+            if (missingIndex != 0)
+            {
+                var missingAttributeDesc = VertexAttributeLocations.DescribeMask(missingIndex);
+                shader.Logger.LogDebug("Attribute {Attributes} is not bound in shader {ShaderName} (missing from VBIB)", missingAttributeDesc, shader.Name);
+            }
         }
 
         /// <summary>Binds a vertex array object for drawing with a shader.</summary>

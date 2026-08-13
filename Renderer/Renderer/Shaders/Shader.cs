@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Logging;
 using OpenTK.Graphics.OpenGL;
 using ValveResourceFormat.ThirdParty;
 
@@ -104,16 +105,18 @@ namespace ValveResourceFormat.Renderer.Shaders
         /// <summary>Gets the <see cref="MaterialLoader"/> used to resolve fallback textures.</summary>
         internal MaterialLoader MaterialLoader { get; init; }
 
+        /// <summary>Gets the logger for diagnostic messages about this shader.</summary>
+        internal ILogger Logger { get; init; }
+
         /// <summary>Gets a value indicating whether material data (textures and params) should be skipped during rendering.</summary>
         public bool IgnoreMaterialData { get; }
 
+        /// <summary>Gets the mask of attribute locations this program reads, see <see cref="VertexArray"/>.</summary>
+        public int RequiredAttributes { get; private set; }
 
 #if DEBUG
         /// <summary>Gets the shader file name on disk (debug builds only).</summary>
         public required string FileName { get; init; }
-
-        /// <summary>Gets the mask of attribute locations this program reads, see <see cref="VertexArray"/>.</summary>
-        public int RequiredAttributes { get; private set; }
 #endif
 
         /// <summary>Initializes a new instance of the <see cref="Shader"/> class.</summary>
@@ -125,6 +128,7 @@ namespace ValveResourceFormat.Renderer.Shaders
             NameHash = MurmurHash2.Hash(Name, StringToken.MURMUR2SEED);
             Default = new RenderMaterial(this);
             MaterialLoader = rendererContext.MaterialLoader;
+            Logger = rendererContext.Logger;
 
             IgnoreMaterialData = Name is "picking"
                                       or "outline"
@@ -153,15 +157,49 @@ namespace ValveResourceFormat.Renderer.Shaders
                 {
                     StoreUniformLocations();
                     BindReservedTextureSlots();
+                    StoreRequiredAttributes();
 
 #if DEBUG
-                    StoreRequiredAttributes();
                     VerifyGlobalsLayout();
 #endif
                 }
             }
 
             return IsValid;
+        }
+
+        /// <summary>
+        /// Caches which attribute locations the linked program reads, and checks each one landed where
+        /// <see cref="VertexAttributeSlot"/> says it should. Attributes the linker dropped (behind a disabled
+        /// combo, or simply unused) are not active and do not count as required (debug builds only).
+        /// </summary>
+        private void StoreRequiredAttributes()
+        {
+            GL.GetProgram(Program, GetProgramParameterName.ActiveAttributes, out var attributeCount);
+
+            RequiredAttributes = 0;
+
+            for (var i = 0; i < attributeCount; i++)
+            {
+                GL.GetActiveAttrib(Program, i, 64, out _, out _, out _, out var name);
+
+                var location = GL.GetAttribLocation(Program, name);
+
+                if (location < 0)
+                {
+                    continue; // A gl_ builtin
+                }
+
+                // A declaration ShaderParser did not recognise is left for the driver to place, which puts it
+                // somewhere the vertex array objects know nothing about
+                if (VertexAttributeLocations.Get(name) != location)
+                {
+                    throw new ShaderLoader.ShaderCompilerException(
+                        $"Shader '{Name}' has attribute '{name}' at location {location}, but {nameof(VertexAttributeSlot)} puts it at {VertexAttributeLocations.Get(name)}. Its declaration was not stamped, check that it reads 'in <type> {name};'.");
+                }
+
+                RequiredAttributes |= 1 << location;
+            }
         }
 
         private unsafe void StoreUniformLocations()
@@ -391,28 +429,6 @@ namespace ValveResourceFormat.Renderer.Shaders
             }
         }
 
-        /// <summary>
-        /// Caches which attribute locations the linked program reads. Attributes the linker dropped (behind a
-        /// disabled combo, or simply unused) are not active and do not count as required (debug builds only).
-        /// </summary>
-        private void StoreRequiredAttributes()
-        {
-            GL.GetProgram(Program, GetProgramParameterName.ActiveAttributes, out var attributeCount);
-
-            RequiredAttributes = 0;
-
-            for (var i = 0; i < attributeCount; i++)
-            {
-                GL.GetActiveAttrib(Program, i, 64, out _, out _, out _, out var name);
-
-                var location = GL.GetAttribLocation(Program, name);
-
-                if (location >= 0)
-                {
-                    RequiredAttributes |= 1 << location;
-                }
-            }
-        }
 #endif
 
         /// <summary>Returns the OpenGL location of the named uniform, querying the driver and caching the result on first access.</summary>
