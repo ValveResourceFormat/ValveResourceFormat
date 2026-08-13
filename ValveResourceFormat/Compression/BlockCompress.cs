@@ -3,9 +3,9 @@ using System.IO;
 namespace ValveResourceFormat.Compression
 {
     /// <summary>
-    /// Provides methods for block compression and decompression.
+    /// Decompresses Valve's block compressed buffers.
     /// </summary>
-    internal static class BlockCompress
+    public static class BlockCompress
     {
         /// <summary>
         /// Contains information about compression state and size.
