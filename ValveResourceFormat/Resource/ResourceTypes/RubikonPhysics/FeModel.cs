@@ -307,6 +307,67 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics
             return parents;
         }
 
+        /// <summary>
+        /// Returns the rods that <paramref name="chains"/> will not regenerate on their own. A chain emits
+        /// one rod per joint to its parent (plus a grandparent/great-grandparent rod where the joint's bend
+        /// or torsion spring is set), but a model can carry extra copies of those spans; each surplus copy
+        /// has to be re-declared as its own spring or the nodes come out too light.
+        /// </summary>
+        public List<Rod> GetUngeneratedRods(List<BoneChain> chains)
+        {
+            var generated = new Dictionary<(int, int), int>();
+
+            void Generate(int a, int b)
+            {
+                if (a < 0 || b < 0)
+                {
+                    return;
+                }
+
+                var key = a < b ? (a, b) : (b, a);
+                generated[key] = generated.GetValueOrDefault(key) + 1;
+            }
+
+            foreach (var chain in chains)
+            {
+                var byNode = chain.Joints.ToDictionary(static j => j.Node);
+                foreach (var joint in chain.Joints)
+                {
+                    var parent = joint.ParentNode;
+                    Generate(parent, joint.Node);
+
+                    var grandParent = parent >= 0 && byNode.TryGetValue(parent, out var p1) ? p1.ParentNode : -1;
+                    if (joint.BendSpring)
+                    {
+                        Generate(grandParent, joint.Node);
+                    }
+
+                    if (joint.TorsionSpring)
+                    {
+                        var greatGrandParent = grandParent >= 0 && byNode.TryGetValue(grandParent, out var p2)
+                            ? p2.ParentNode
+                            : -1;
+                        Generate(greatGrandParent, joint.Node);
+                    }
+                }
+            }
+
+            var surplus = new List<Rod>();
+            foreach (var rod in Rods)
+            {
+                var key = rod.NodeA < rod.NodeB ? (rod.NodeA, rod.NodeB) : (rod.NodeB, rod.NodeA);
+                if (generated.TryGetValue(key, out var remaining) && remaining > 0)
+                {
+                    generated[key] = remaining - 1;
+                    continue;
+                }
+
+                surplus.Add(rod);
+            }
+
+            return surplus;
+        }
+
         /// <summary>Gets the stray radius for <paramref name="node"/>, or 0 when unconstrained.</summary>
         public float GetStrayRadius(int node) => AnimStrayRadii.GetValueOrDefault(node).MaxDistance;
 
