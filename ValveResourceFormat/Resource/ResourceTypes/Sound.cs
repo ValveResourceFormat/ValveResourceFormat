@@ -232,18 +232,19 @@ namespace ValveResourceFormat.ResourceTypes
             SampleCount = reader.ReadUInt32();
             Duration = reader.ReadSingle();
 
-            var sentenceOffset = reader.ReadUInt32();
-            var b = reader.ReadUInt32(); // size?
+            var sentencePosition = reader.BaseStream.Position;
+            var sentenceOffset = reader.ReadUInt32(); // CResourcePointer<CSentence_t> m_Sentence
 
-            if (sentenceOffset != 0)
-            {
-                sentenceOffset = (uint)(reader.BaseStream.Position + sentenceOffset);
-            }
-
+            var headerPosition = reader.BaseStream.Position;
+            var headerOffset = reader.ReadUInt32(); // CResourceArray<uint8> m_pHeader
             var headerSize = reader.ReadInt32();
             StreamingDataSize = reader.ReadUInt32();
 
-            // m_nSeekTable (seek table for seeking compressed audio)
+            if (sentenceOffset != 0)
+            {
+                sentenceOffset = (uint)(sentencePosition + sentenceOffset);
+            }
+
             if (Resource.Version >= 1)
             {
                 var d = reader.ReadUInt32();
@@ -278,7 +279,9 @@ namespace ValveResourceFormat.ResourceTypes
             if (headerSize > 0)
             {
                 Debug.Assert(AudioFormat == WaveAudioFormat.ADPCM);
+                Debug.Assert(reader.BaseStream.Position == headerPosition + headerOffset);
 
+                reader.BaseStream.Position = headerPosition + headerOffset;
                 Header = reader.ReadBytes(headerSize);
             }
 
@@ -373,45 +376,59 @@ namespace ValveResourceFormat.ResourceTypes
 
             reader.BaseStream.Position = sentenceOffset;
 
+            var shouldVoiceDuck = reader.ReadByte() != 0;
+            reader.BaseStream.Position += 3; // Padding to align the resource arrays
+
+            var phonemesPosition = reader.BaseStream.Position;
+            var phonemesOffset = reader.ReadInt32(); // CResourceArray<CBasePhonemeTag_t> m_RunTimePhonemes
             var numPhonemeTags = reader.ReadInt32();
 
-            // Relative offset to the emphasis sample array, 8 when emphasis samples are present, 0 otherwise
-            var emphasisOffset = reader.ReadInt32();
+            var emphasisPosition = reader.BaseStream.Position;
+            var emphasisOffset = reader.ReadInt32(); // CResourceArray<CEmphasisSample_t> m_EmphasisSamples
             var numEmphasisSamples = reader.ReadInt32();
-
-            Debug.Assert(emphasisOffset == (numEmphasisSamples > 0 ? 8 : 0));
 
             var emphasisSamples = new EmphasisSample[numEmphasisSamples];
 
-            for (var i = 0; i < numEmphasisSamples; i++)
+            if (numEmphasisSamples > 0)
             {
-                emphasisSamples[i] = new EmphasisSample
+                reader.BaseStream.Position = emphasisPosition + emphasisOffset;
+
+                for (var i = 0; i < numEmphasisSamples; i++)
                 {
-                    Time = reader.ReadSingle(),
-                    Value = reader.ReadSingle(),
-                };
+                    emphasisSamples[i] = new EmphasisSample
+                    {
+                        Time = reader.ReadSingle(),
+                        Value = reader.ReadSingle(),
+                    };
+                }
             }
 
             var phonemes = new PhonemeTag[numPhonemeTags];
 
-            for (var i = 0; i < numPhonemeTags; i++)
+            if (numPhonemeTags > 0)
             {
-                var startTime = reader.ReadSingle();
-                var endTime = reader.ReadSingle();
-                var phonemeCode = reader.ReadUInt16();
+                reader.BaseStream.Position = phonemesPosition + phonemesOffset;
 
-                reader.BaseStream.Position += 2;
-
-                phonemes[i] = new PhonemeTag
+                for (var i = 0; i < numPhonemeTags; i++)
                 {
-                    StartTime = startTime,
-                    EndTime = endTime,
-                    PhonemeCode = phonemeCode
-                };
+                    var startTime = reader.ReadSingle();
+                    var endTime = reader.ReadSingle();
+                    var phonemeCode = reader.ReadUInt16();
+
+                    reader.BaseStream.Position += 2; // Padding, CBasePhonemeTag_t is 4-byte aligned
+
+                    phonemes[i] = new PhonemeTag
+                    {
+                        StartTime = startTime,
+                        EndTime = endTime,
+                        PhonemeCode = phonemeCode
+                    };
+                }
             }
 
             Sentence = new Sentence
             {
+                ShouldVoiceDuck = shouldVoiceDuck,
                 RunTimePhonemes = phonemes,
                 EmphasisSamples = emphasisSamples,
             };
