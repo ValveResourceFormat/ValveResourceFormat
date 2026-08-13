@@ -1,6 +1,6 @@
 using System.Numerics;
 using System.Threading.Tasks;
-using ValveResourceFormat.Renderer.Utils;
+using ValveResourceFormat.Utils;
 
 namespace Tests.Renderer
 {
