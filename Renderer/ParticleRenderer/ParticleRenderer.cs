@@ -224,9 +224,12 @@ namespace ValveResourceFormat.Renderer.Particles
 
             foreach (var renderer in renderers)
             {
-                passes |= renderer.Pass == RenderPass.Opaque
-                    ? CustomRenderPasses.Opaque
-                    : CustomRenderPasses.Translucent;
+                passes |= renderer.Pass switch
+                {
+                    RenderPass.Opaque => CustomRenderPasses.Opaque,
+                    RenderPass.WaterEffects => CustomRenderPasses.WaterEffects,
+                    _ => CustomRenderPasses.Translucent,
+                };
             }
 
             foreach (var childParticleRenderer in childParticleRenderers)

@@ -17,6 +17,11 @@ namespace ValveResourceFormat.Renderer
         StaticOverlay,
         /// <summary>Geometry that reads the scene color.</summary>
         OpaqueRefract,
+        /// <summary>
+        /// Off-screen pass filling the water effects map that <see cref="Water"/> samples. Runs before it,
+        /// and draws into its own render target rather than the scene framebuffer.
+        /// </summary>
+        WaterEffects,
         /// <summary>Water surface pass.</summary>
         Water,
         /// <summary>Translucent (alpha-blended) pass.</summary>
@@ -47,6 +52,12 @@ namespace ValveResourceFormat.Renderer
         /// Routes the node's drawing into the dedicated first-person viewmodel layer.
         /// </summary>
         Viewmodel = 1 << 2,
+
+        /// <summary>
+        /// Draws in <see cref="RenderPass.WaterEffects"/>, into the water effects map instead of the scene.
+        /// Set by particle systems whose renderers carry <c>m_bOnlyRenderInEffectsWaterPass</c>.
+        /// </summary>
+        WaterEffects = 1 << 3,
 
         /// <summary>Draws in the opaque and translucent passes, the default for a node that draws itself.</summary>
         Default = Opaque | Translucent,

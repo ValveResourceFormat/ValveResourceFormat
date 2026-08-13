@@ -6,6 +6,7 @@ using ValveResourceFormat.Renderer.Buffers;
 using ValveResourceFormat.Renderer.PostProcess;
 using ValveResourceFormat.Renderer.SceneEnvironment;
 using ValveResourceFormat.ResourceTypes;
+using Color4 = OpenTK.Mathematics.Color4;
 
 namespace ValveResourceFormat.Renderer;
 
@@ -136,6 +137,21 @@ public class Renderer
     /// Filled by <see cref="GrabFramebufferCopy"/>.
     /// </summary>
     public RenderTexture? ResolvedSceneDepth { get; private set; }
+
+    /// <summary>
+    /// Screen space map the fancy water shader reads its ripples, silt and foam decals out of, filled by
+    /// <see cref="RenderPass.WaterEffects"/> draws. Bound for all passes as <c>g_tWaterEffectsMap</c>.
+    /// </summary>
+    public Framebuffer? WaterEffectsBuffer { get; private set; }
+
+    /// <summary>
+    /// The value the water effects map means "nothing here" by: the ripple, silt and foam channels are
+    /// read signed around 0.5.
+    /// </summary>
+    private static readonly Color4 WaterEffectsNeutral = new(0.5f, 0.5f, 0.5f, 0f);
+
+    /// <summary>Whether <see cref="WaterEffectsBuffer"/> currently holds nothing but <see cref="WaterEffectsNeutral"/>.</summary>
+    private bool waterEffectsMapIsNeutral;
 
     /// <summary>
     /// When set, forces <see cref="ResolvedSceneDepth"/> to be refreshed this frame even if no material
@@ -292,6 +308,16 @@ public class Renderer
 
         Textures.Add(new(ReservedTextureSlots.SceneColor, "g_tSceneColor", ResolvedSceneColor));
         Textures.Add(new(ReservedTextureSlots.SceneDepth, "g_tSceneDepth", ResolvedSceneDepth));
+
+        // Eight bits a channel is what the water shader gets out of it: every read is either recentered
+        // around 0.5 or saturated, so the map never carries range beyond what a unorm target holds.
+        WaterEffectsBuffer = Framebuffer.Prepare(nameof(WaterEffectsBuffer), 4, 4, 0,
+            new(PixelInternalFormat.Rgba8, PixelFormat.Rgba, PixelType.UnsignedByte), null);
+        WaterEffectsBuffer.Initialize();
+        WaterEffectsBuffer.CheckStatus_ThrowIfIncomplete(nameof(WaterEffectsBuffer));
+        WaterEffectsBuffer.ClearColor = WaterEffectsNeutral;
+        WaterEffectsBuffer.ClearMask = ClearBufferMask.ColorBufferBit;
+        SetupWaterEffectsTexture();
 
         EnsureDepthPyramidSize(256, 256);
     }
@@ -519,6 +545,7 @@ public class Renderer
         Scene.SetSceneBuffers();
 
         Scene.RenderOpaqueLayer(renderContext);
+        RenderWaterEffectsMap(renderContext);
         RenderTranslucentLayer(Scene, renderContext);
     }
 
@@ -639,6 +666,9 @@ public class Renderer
             renderContext.Scene = Scene;
             Scene.RenderOpaqueLayer(renderContext, isStandardPass ? depthOnlyShaders : Span<Shader>.Empty);
         }
+
+        // Both the 3D sky scene and the main scene draw water below, and both read the same map.
+        RenderWaterEffectsMap(renderContext);
 
         //using (new GLDebugGroup("Sky Render"))
         {
@@ -961,6 +991,81 @@ public class Renderer
         GL.DepthMask(true);
     }
 
+    /// <summary>Points the reserved <c>g_tWaterEffectsMap</c> slot at the current color attachment.</summary>
+    private void SetupWaterEffectsTexture()
+    {
+        Debug.Assert(WaterEffectsBuffer?.Color != null);
+
+        // The shader reprojects world positions into this map and samples them a few texels apart, so the
+        // reads land off-center and off-screen; clamping keeps the edges from wrapping ripples around.
+        WaterEffectsBuffer.Color.SetFiltering(TextureMinFilter.Linear, TextureMagFilter.Linear);
+        WaterEffectsBuffer.Color.SetWrapMode(TextureWrapMode.ClampToEdge);
+
+        Textures.RemoveAll(static t => t.Slot == ReservedTextureSlots.WaterEffectsMap);
+        Textures.Add(new(ReservedTextureSlots.WaterEffectsMap, "g_tWaterEffectsMap", WaterEffectsBuffer.Color));
+    }
+
+    /// <summary>
+    /// Draws the nodes flagged <see cref="CustomRenderPasses.WaterEffects"/> into <see cref="WaterEffectsBuffer"/>,
+    /// which the water pass then samples. Must run before any water layer this frame.
+    /// </summary>
+    private void RenderWaterEffectsMap(Scene.RenderContext renderContext)
+    {
+        Debug.Assert(WaterEffectsBuffer != null);
+
+        var skyboxScene = ShowSkybox ? SkyboxScene : null;
+        var hasDraws = Scene.HasWaterEffects || skyboxScene?.HasWaterEffects == true;
+
+        // A map that is already neutral everywhere stays a valid thing to sample, so there is nothing to
+        // do until something actually draws into it again.
+        if (!hasDraws && waterEffectsMapIsNeutral)
+        {
+            return;
+        }
+
+        using var _ = new GLDebugGroup("Water Effects Render");
+
+        var (width, height) = (renderContext.Framebuffer.Width, renderContext.Framebuffer.Height);
+
+        if (WaterEffectsBuffer.Resize(width, height))
+        {
+            SetupWaterEffectsTexture();
+        }
+
+        // The render context is a struct, so the scene framebuffer has to be remembered rather than
+        // restored: only the GL state below outlives this call.
+        var sceneFramebuffer = renderContext.Framebuffer;
+
+        GL.Viewport(0, 0, width, height);
+        WaterEffectsBuffer.BindAndClear();
+
+        // The map is a flat screen space accumulation with no depth of its own, and the particle renderers
+        // set up their own blend state per draw.
+        GL.Disable(EnableCap.DepthTest);
+        renderContext.Framebuffer = WaterEffectsBuffer;
+
+        if (hasDraws)
+        {
+            if (skyboxScene != null)
+            {
+                renderContext.Scene = skyboxScene;
+                skyboxScene.RenderWaterEffectsLayer(renderContext);
+            }
+
+            renderContext.Scene = Scene;
+            Scene.RenderWaterEffectsLayer(renderContext);
+        }
+
+        GL.Disable(EnableCap.Blend);
+        GL.DepthMask(true);
+        GL.Enable(EnableCap.DepthTest);
+
+        GL.Viewport(0, 0, sceneFramebuffer.Width, sceneFramebuffer.Height);
+        sceneFramebuffer.Bind(FramebufferTarget.Framebuffer);
+
+        waterEffectsMapIsNeutral = !hasDraws;
+    }
+
     private void EnsureResolvedTextureSize(int width, int height)
     {
         if (ResolvedSceneColor!.Width != width ||
@@ -1037,6 +1142,7 @@ public class Renderer
         PerfStats?.Dispose();
         ResolvedSceneColor?.Delete();
         ResolvedSceneDepth?.Delete();
+        WaterEffectsBuffer?.Delete();
         Skybox2D?.Delete();
 
         if (BaseBackground != Skybox2D && BaseBackground != null)

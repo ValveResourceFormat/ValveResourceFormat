@@ -62,8 +62,15 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
         /// </summary>
         protected float DepthBias { get; }
 
+        /// <summary>
+        /// Whether this renderer draws only into the water effects map (<c>m_bOnlyRenderInEffectsWaterPass</c>),
+        /// and never into the scene itself.
+        /// </summary>
+        protected bool OnlyRenderInEffectsWaterPass { get; }
+
         protected ParticleFunctionRenderer(ParticleDefinitionParser parse) : base(parse)
         {
+            OnlyRenderInEffectsWaterPass = parse.Boolean("m_bOnlyRenderInEffectsWaterPass", false);
             RadiusScale = parse.NumberProvider("m_flRadiusScale", RadiusScale);
             AlphaScale = parse.NumberProvider("m_flAlphaScale", AlphaScale);
             ColorScale = parse.VectorProvider("m_vecColorScale", ColorScale);
@@ -115,10 +122,17 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
             shader.SetUniform1("uMaxLuminanceFrameBlend", MaxLuminanceFrameBlend);
         }
 
+        private RenderPass pass = RenderPass.Translucent;
+
         /// <summary>
-        /// The pass this renderer draws in.
+        /// The pass this renderer draws in. The water effects pass wins over whatever a subclass picks
+        /// for itself, since such a renderer never contributes to the scene image at all.
         /// </summary>
-        public RenderPass Pass { get; protected set; } = RenderPass.Translucent;
+        public RenderPass Pass
+        {
+            get => OnlyRenderInEffectsWaterPass ? RenderPass.WaterEffects : pass;
+            protected set => pass = value;
+        }
 
         public virtual void Update(ParticleCollection particles, ParticleSystemRenderState systemRenderState)
         {

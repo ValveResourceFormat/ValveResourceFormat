@@ -111,7 +111,7 @@ uniform sampler2D g_tFoam;
 uniform sampler2D g_tDebris; // SrgbRead(true)
 uniform sampler2D g_tDebrisNormal;
 
-//uniform sampler2D g_tWaterEffectsMap;
+uniform sampler2D g_tWaterEffectsMap; // reserved
 uniform sampler2D g_tWavesNormalHeight;
 
 uniform vec4 g_vSimpleSkyReflectionColor = vec4(1.0);
@@ -204,7 +204,7 @@ void main()
 
     //(gl_FragCoord.xy - g_vViewportOffset.xy) * g_vInvViewportSize.xy * g_vViewportToGBufferRatio.xy, just assuming a size of SceneColor and ratio of 1.0
     vec2 waterEffectsMapUV = gbufferUV;
-    vec4 waterEffectsSampleRaw = vec4(vec3(0.5), 0.0); //texture(g_tWaterEffectsMap, waterEffectsMapUV);
+    vec4 waterEffectsSampleRaw = texture(g_tWaterEffectsMap, waterEffectsMapUV);
     vec2 waterEffectsDisturbanceXY = saturate((waterEffectsSampleRaw.yz - 0.5) * 2.0);
     float waterEffectsFoam = waterEffectsDisturbanceXY.y;
 
@@ -351,7 +351,7 @@ void main()
         //TODO: Figure out what that shit before and if this is really ndc, I am using the naming straight from Gemini.
         vec2 effectsPos0NcdCoords = effectsPos0Transformed.xy / effectsPos0Transformed.w;
         //TODO: Do we need a GBuffer ratio? 1.0 is gbuffer ratio in decompile, but I am just setting 1 here.
-        vec4 effectsSample0 = vec4(vec3(0.5), 0.0) - 0.5; //texture(g_tWaterEffectsMap,  ((vec2(effectsPos0NcdCoords.x, -effectsPos0NcdCoords.y) * 0.5) + vec2(0.5)).xy * 1.0    ) - vec4(0.5);
+        vec4 effectsSample0 = texture(g_tWaterEffectsMap, ((vec2(effectsPos0NcdCoords.x, -effectsPos0NcdCoords.y) * 0.5) + vec2(0.5)).xy * 1.0) - vec4(0.5);
 
         vec3 effectsPos1 = effectsPos0 + (viewDepOffsetFactor * fma(20.0, effectsSample0.x, 2.0 * saturate(effectsSample0.yz * 2.0).x));
         vec4 effectsPos1Transformed = (vec4(effectsPos1.xyz, 1.0) - vec4(g_vCameraPositionWs, 1.0)).xyzw * transposedWorldToProj;
@@ -359,7 +359,8 @@ void main()
         //Same as before, gbuffer ratio??
         vec2 effectsPos1UV = ((vec2(effectsPos1NcdCoords.x, -effectsPos1NcdCoords.y) * 0.5) + vec2(0.5)).xy * 1.0;
 
-        vec4 effectsSample1 = vec4(vec3(0.5), 0.0) - 0.5; //texture(g_tWaterEffectsMap, effectsPos1UV);
+        // Recentered like every other read of the map: the channels are signed around 0.5.
+        vec4 effectsSample1 = texture(g_tWaterEffectsMap, effectsPos1UV) - vec4(0.5);
 
         vec2 rippleFoamFromEffectsMap = saturate(effectsSample1.yz*2.0);
         //float rippleBaseFromEffectsMap = rippleFoamFromEffectsMap.x;
@@ -378,8 +379,8 @@ void main()
         vec2 duv_dy_approx = (( (vec2(offsetNdcY.x,-offsetNdcY.y) * 0.5 ) + 0.5 ) * 1.0 ) - effectsPos1UV;
         vec2 stepScale = vec2(0.0004)/ vec2(length(duv_dx_approx),length(duv_dy_approx));
 
-        vec4 xOffsetEffectsSample = vec4(vec3(0.5), 0.0) - 0.5; //texture(g_tWaterEffectsMap, effectsPos1UV * 1.0 + normalize(duv_dx_approx) * 0.005) - 0.5;
-        vec4 yOffsetEffectsSample = vec4(vec3(0.5), 0.0) - 0.5; //texture(g_tWaterEffectsMap, effectsPos1UV * 1.0 + normalize(duv_dy_approx) * 0.005) - 0.5;
+        vec4 xOffsetEffectsSample = texture(g_tWaterEffectsMap, effectsPos1UV * 1.0 + normalize(duv_dx_approx) * 0.005) - 0.5;
+        vec4 yOffsetEffectsSample = texture(g_tWaterEffectsMap, effectsPos1UV * 1.0 + normalize(duv_dy_approx) * 0.005) - 0.5;
 
         vec2 rippleFoamDX = saturate(xOffsetEffectsSample.yz * 2.0);
         vec2 rippleFoamDY = saturate(yOffsetEffectsSample.yz * 2.0);
@@ -648,8 +649,10 @@ void main()
             vec2 causticsNdc = causticsClipPos.xy / causticsClipPos.w;
 
             //TODO: should the y be flipped here? should depend on texture convention, no?
-            vec2 causticsUV = vec2(causticsNdc.x, -causticsNdc.y) * 0.5 - 0.5;
-            vec4 causticsEffectsSampleRaw = vec4(vec3(0.5), 0.0) - 0.5; //texture(g_tWaterEffectsMap, causticsUV) - 0.5;
+            // The other three reprojections into this map all land on * 0.5 + 0.5; with - 0.5 the uv never
+            // enters [0, 1] and the window term below zeroes the whole caustics contribution.
+            vec2 causticsUV = vec2(causticsNdc.x, -causticsNdc.y) * 0.5 + 0.5;
+            vec4 causticsEffectsSampleRaw = texture(g_tWaterEffectsMap, causticsUV) - 0.5;
             vec2 causticsClampedESampleXY = saturate(causticsEffectsSampleRaw.yz * 2.0);
 
             vec4 finalCausticsEffectsSample = causticsEffectsSampleRaw;

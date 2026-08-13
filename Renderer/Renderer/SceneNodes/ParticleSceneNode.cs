@@ -511,7 +511,7 @@ namespace ValveResourceFormat.Renderer.SceneNodes
                 return;
             }
 
-            if (context.RenderPass is not (RenderPass.Opaque or RenderPass.Translucent or RenderPass.DepthOnly))
+            if (context.RenderPass is not (RenderPass.Opaque or RenderPass.Translucent or RenderPass.DepthOnly or RenderPass.WaterEffects))
             {
                 return;
             }

@@ -752,6 +752,9 @@ namespace ValveResourceFormat.Renderer
         /// <summary>Gets whether there are any selected nodes queued for outline rendering.</summary>
         public bool HasOutlineObjects => renderLists[RenderPass.Outline].Count > 0;
 
+        /// <summary>Gets whether anything is queued to draw into the water effects map this frame.</summary>
+        public bool HasWaterEffects => renderLists[RenderPass.WaterEffects].Count > 0;
+
         private readonly Dictionary<RenderPass, List<MeshBatchRenderer.Request>> renderLists = new()
         {
             [RenderPass.OpaqueAggregate] = [],
@@ -759,6 +762,7 @@ namespace ValveResourceFormat.Renderer
             [RenderPass.Opaque] = [],
             [RenderPass.StaticOverlay] = [],
             [RenderPass.OpaqueRefract] = [],
+            [RenderPass.WaterEffects] = [],
             [RenderPass.Water] = [],
             [RenderPass.Translucent] = [],
             [RenderPass.Outline] = [],
@@ -981,6 +985,13 @@ namespace ValveResourceFormat.Renderer
                     if ((customPasses & CustomRenderPasses.Translucent) != 0)
                     {
                         customLists[RenderPass.Translucent].Add(customRender);
+                    }
+
+                    // The water effects map is one screen space target shared by the whole frame, so this
+                    // pass has no viewmodel counterpart to route into.
+                    if ((customPasses & CustomRenderPasses.WaterEffects) != 0)
+                    {
+                        renderLists[RenderPass.WaterEffects].Add(customRender);
                     }
 
                     if (node.IsSelected)
@@ -1530,6 +1541,17 @@ namespace ValveResourceFormat.Renderer
                 renderContext.RenderPass = RenderPass.OpaqueRefract;
                 MeshBatchRenderer.Render(requests, renderContext);
             }
+        }
+
+        /// <summary>
+        /// Renders the draw calls that fill the water effects map, collected during <see cref="CollectSceneDrawCalls"/>.
+        /// The caller owns the render target: this only issues the draws.
+        /// </summary>
+        /// <param name="renderContext">The render context for this pass.</param>
+        public void RenderWaterEffectsLayer(RenderContext renderContext)
+        {
+            renderContext.RenderPass = RenderPass.WaterEffects;
+            MeshBatchRenderer.Render(renderLists[RenderPass.WaterEffects], renderContext);
         }
 
         /// <summary>Renders water draw calls collected during <see cref="CollectSceneDrawCalls"/>.</summary>

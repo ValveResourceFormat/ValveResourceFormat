@@ -75,6 +75,9 @@ namespace ValveResourceFormat.Renderer.Materials
         /// <summary>Resolved scene depth buffer.</summary>
         [SamplerName("g_tSceneDepth")]
         SceneDepth,
+        /// <summary>Screen space water effects map written by <see cref="RenderPass.WaterEffects"/>.</summary>
+        [SamplerName("g_tWaterEffectsMap")]
+        WaterEffectsMap,
         /// <summary>Morph composite texture for vertex animation.</summary>
         [SamplerName("morphCompositeTexture")]
         MorphCompositeTexture,
