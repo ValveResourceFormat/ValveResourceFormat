@@ -3,7 +3,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelFlex.FlexOps
     /// <summary>
     /// Flex operation that computes the maximum of two values.
     /// </summary>
-    public class FlexOpMax : FlexOp
+    internal class FlexOpMax : FlexOp
     {
         /// <summary>
         /// Initializes a new instance of the <see cref="FlexOpMax"/> class.

@@ -5,7 +5,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation.SegmentDecoders
     /// <summary>
     /// Decodes delta-compressed Vector3 animation data with a base value and half-precision deltas.
     /// </summary>
-    public class CCompressedDeltaVector3 : AnimationSegmentDecoder
+    internal class CCompressedDeltaVector3 : AnimationSegmentDecoder
     {
         /// <inheritdoc/>
         public override void Read(int frameIndex, Frame outFrame)

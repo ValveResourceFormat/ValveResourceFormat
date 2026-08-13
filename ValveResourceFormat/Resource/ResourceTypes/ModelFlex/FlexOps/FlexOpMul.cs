@@ -3,7 +3,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelFlex.FlexOps
     /// <summary>
     /// Flex operation that multiplies two values.
     /// </summary>
-    public class FlexOpMul : FlexOp
+    internal class FlexOpMul : FlexOp
     {
         /// <summary>
         /// Initializes a new instance of the <see cref="FlexOpMul"/> class.

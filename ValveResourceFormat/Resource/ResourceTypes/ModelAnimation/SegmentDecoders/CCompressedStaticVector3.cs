@@ -5,7 +5,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation.SegmentDecoders
     /// <summary>
     /// Decodes static Vector3 data using half-precision floats that don't change per frame.
     /// </summary>
-    public class CCompressedStaticVector3 : AnimationSegmentDecoder
+    internal class CCompressedStaticVector3 : AnimationSegmentDecoder
     {
         /// <inheritdoc/>
         /// <remarks>

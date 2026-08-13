@@ -3,7 +3,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelFlex.FlexOps
     /// <summary>
     /// Flex operation that adds two values.
     /// </summary>
-    public class FlexOpAdd : FlexOp
+    internal class FlexOpAdd : FlexOp
     {
         /// <summary>
         /// Initializes a new instance of the <see cref="FlexOpAdd"/> class.

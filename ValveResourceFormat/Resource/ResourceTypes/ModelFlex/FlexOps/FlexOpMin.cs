@@ -3,7 +3,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelFlex.FlexOps
     /// <summary>
     /// Flex operation that computes the minimum of two values.
     /// </summary>
-    public class FlexOpMin : FlexOp
+    internal class FlexOpMin : FlexOp
     {
         /// <summary>
         /// Initializes a new instance of the <see cref="FlexOpMin"/> class.

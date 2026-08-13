@@ -3,7 +3,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
     /// <summary>
     /// Base class for animation segment decoders that read compressed animation data.
     /// </summary>
-    public abstract class AnimationSegmentDecoder
+    internal abstract class AnimationSegmentDecoder
     {
         /// <summary>
         /// Gets the raw animation data segment.

@@ -3,7 +3,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelFlex.FlexOps
     /// <summary>
     /// Flex operation that divides two values.
     /// </summary>
-    public class FlexOpDiv : FlexOp
+    internal class FlexOpDiv : FlexOp
     {
         /// <summary>
         /// Initializes a new instance of the <see cref="FlexOpDiv"/> class.

@@ -3,7 +3,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelFlex.FlexOps
     /// <summary>
     /// Flex operation that fetches a controller value.
     /// </summary>
-    public class FlexOpFetch1 : FlexOp
+    internal class FlexOpFetch1 : FlexOp
     {
         /// <summary>
         /// Gets the controller ID to fetch.
