@@ -1,3 +1,5 @@
+using ValveResourceFormat.Renderer.Particles.Utils;
+
 namespace ValveResourceFormat.Renderer.Particles.Operators
 {
     /// <summary>
@@ -87,9 +89,9 @@ namespace ValveResourceFormat.Renderer.Particles.Operators
                 var offset = oscillationOffset.NextNumber(ref particle, particleSystemState);
 
                 Vector3 delta;
-                delta.X = float.SinPi((t * frequency.X * multiplier) + offset);
-                delta.Y = float.SinPi((t * frequency.Y * multiplier) + offset);
-                delta.Z = float.SinPi((t * frequency.Z * multiplier) + offset);
+                delta.X = FastTrig.SinPi((t * frequency.X * multiplier) + offset);
+                delta.Y = FastTrig.SinPi((t * frequency.Y * multiplier) + offset);
+                delta.Z = FastTrig.SinPi((t * frequency.Z * multiplier) + offset);
 
                 var value = rate * frameTime * strength * delta;
 
@@ -125,9 +127,9 @@ namespace ValveResourceFormat.Renderer.Particles.Operators
             foreach (ref var particle in particles.Current)
             {
                 Vector3 delta;
-                delta.X = float.SinPi((particle.Age * frequency.X * oscillationMultiplier) + oscillationOffset);
-                delta.Y = float.SinPi((particle.Age * frequency.Y * oscillationMultiplier) + oscillationOffset);
-                delta.Z = float.SinPi((particle.Age * frequency.Z * oscillationMultiplier) + oscillationOffset);
+                delta.X = FastTrig.SinPi((particle.Age * frequency.X * oscillationMultiplier) + oscillationOffset);
+                delta.Y = FastTrig.SinPi((particle.Age * frequency.Y * oscillationMultiplier) + oscillationOffset);
+                delta.Z = FastTrig.SinPi((particle.Age * frequency.Z * oscillationMultiplier) + oscillationOffset);
 
                 var value = rate * frameTime * delta;
 
