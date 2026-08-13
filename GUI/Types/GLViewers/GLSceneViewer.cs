@@ -392,11 +392,6 @@ namespace GUI.Types.GLViewers
 
             PostSceneLoad();
 
-            if (this is GLWorldViewer)
-            {
-                PrewarmDrawCalls();
-            }
-
             GuiContext.ClearCache();
             GuiContext.GLPostLoadAction?.Invoke(this);
             GuiContext.GLPostLoadAction = null;
@@ -405,6 +400,10 @@ namespace GUI.Types.GLViewers
         /// <summary>
         /// Renders one full frame with culling disabled so the driver specializes every
         /// (program, vertex layout, framebuffer) combination once.
+        ///
+        /// Must run on the render loop thread. Nvidia specializes per thread, so a frame drawn while the
+        /// context still belongs to the loading thread specializes nothing the render loop can use, and every
+        /// program pays for it again on its first real draw.
         /// </summary>
         private void PrewarmDrawCalls()
         {
@@ -434,10 +433,11 @@ namespace GUI.Types.GLViewers
 
             if (this is GLWorldViewer)
             {
-                // Fixes compile stutters, but performance is lower!
-                // PrewarmDrawCalls();
-                // var elapsed = Stopwatch.GetElapsedTime(LastUpdate, Stopwatch.GetTimestamp());
-                // Log.Debug(GetType().Name, $"Prewarm time: {elapsed}");
+                var start = Stopwatch.GetTimestamp();
+
+                PrewarmDrawCalls();
+
+                Log.Debug(GetType().Name, $"Prewarm time: {Stopwatch.GetElapsedTime(start)}");
             }
         }
 

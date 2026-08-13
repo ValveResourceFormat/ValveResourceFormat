@@ -16,7 +16,7 @@ namespace ValveResourceFormat.Renderer
         public int VertexCount { get; private set; }
 
         private readonly int vboHandle;
-        private readonly RenderVao vao;
+        private readonly int vao;
 
         /// <summary>Creates the GL objects and binds the default shader layout.</summary>
         public LineBuffer(RendererContext rendererContext, string label)
@@ -25,7 +25,7 @@ namespace ValveResourceFormat.Renderer
 
             GL.CreateBuffers(1, out vboHandle);
 
-            vao = new RenderVao(rendererContext.MeshBufferCache, label, vboHandle, SimpleVertex.SizeInBytes, SimpleVertex.InputLayout);
+            vao = SimpleVertex.InputLayout.CreateVertexArray(label, vboHandle);
 
 #if DEBUG
             GL.ObjectLabel(ObjectLabelIdentifier.Buffer, vboHandle, label.Length, label);
@@ -43,7 +43,7 @@ namespace ValveResourceFormat.Renderer
 
             fixed (SimpleVertex* data = vertices)
             {
-                GL.NamedBufferData(vboHandle, VertexCount * SimpleVertex.SizeInBytes, (nint)data, usageHint);
+                GL.NamedBufferData(vboHandle, VertexCount * SimpleVertex.InputLayout.Stride, (nint)data, usageHint);
             }
         }
 
@@ -55,17 +55,16 @@ namespace ValveResourceFormat.Renderer
 
         /// <summary>Draws the lines, with the object id as instancing base for picking.</summary>
         /// <param name="objectId">Object id used as instancing base for picking.</param>
-        /// <param name="replacementShader">Replacement shader the lines are being drawn with, if any. Selects a VAO matching its attribute layout.</param>
-        public void Draw(uint objectId = 0, Shader? replacementShader = null)
+        public void Draw(uint objectId = 0)
         {
-            GL.BindVertexArray(vao.Get(replacementShader ?? Shader));
+            VertexArray.Bind(vao, Shader);
             GL.DrawArraysInstancedBaseInstance(PrimitiveType.Lines, 0, VertexCount, 1, objectId);
         }
 
         /// <summary>Deletes the GL objects.</summary>
         public void Delete()
         {
-            vao.Delete();
+            VertexArray.Delete(vao);
             GL.DeleteBuffer(vboHandle);
         }
     }

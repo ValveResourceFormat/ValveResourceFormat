@@ -439,7 +439,7 @@ partial class ModelExtract
             }
         }
 
-        if (vertexData.VertexFormat.Contains("blendindices$0") && !vertexData.VertexFormat.Contains("blendweights$0"))
+        if (vertexData.VertexInputLayout.Contains("blendindices$0") && !vertexData.VertexInputLayout.Contains("blendweights$0"))
         {
             if (!vertexData.TryGetValue("blendindices$0", out var blendIndices) || blendIndices is not ICollection<int> collection)
             {

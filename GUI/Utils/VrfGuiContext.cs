@@ -310,6 +310,7 @@ namespace GUI.Utils
             {
                 loggerFactory = LoggerFactory.Create(static builder =>
                 {
+                    builder.SetMinimumLevel(LogLevel.Debug);
                     builder.AddProvider(new GuiLoggerProvider());
                 });
                 var logger = loggerFactory.CreateLogger(nameof(RendererContext));

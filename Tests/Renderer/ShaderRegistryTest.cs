@@ -1,7 +1,13 @@
 using System;
 using System.IO;
+using System.Numerics;
+using System.Runtime.InteropServices;
 using NUnit.Framework;
+using ValveResourceFormat;
+using ValveResourceFormat.Blocks;
+using ValveResourceFormat.Renderer;
 using ValveResourceFormat.Renderer.Shaders;
+using ValveResourceFormat.Renderer.Utils;
 
 namespace Tests.Renderer
 {
@@ -113,6 +119,66 @@ namespace Tests.Renderer
                 Assert.That(patched, Does.Contain("void PatchedMain()"));
                 Assert.That(patched, Does.Not.Contain("void main()"));
                 Assert.That(parsedData.Sources, Is.Empty, "Sources are only filled in by ShaderLoader when it compiles a shader");
+            }
+        }
+
+
+        // Field order deliberately differs from the shader's declaration order, since neither decides a location
+        [StructLayout(LayoutKind.Sequential)]
+        private struct TestVertex
+        {
+            [VertexAttribute(VertexSlot.Position)] public Vector3 Position;
+            [VertexAttribute("vAttr1")] public float Attribute1;
+            [VertexAttribute(VertexSlot.TexCoord)] public Vector2 TexCoord;
+            [VertexAttribute("vAttr2", location: 12)] public float Attribute2;
+            [VertexAttribute("vAttr3")] public float Attribute3;
+        }
+
+        private static (string Name, int Index) SemanticOf(VBIB.RenderInputLayoutField[] fields, string shaderInput)
+        {
+            var field = Array.Find(fields, field => field.ShaderSemantic == shaderInput);
+            return (field.SemanticName, field.SemanticIndex);
+        }
+
+        [Test]
+        public void CustomShaderAndVertexStructAgreeOnLocations()
+        {
+            WriteShader("custom_vertex.vert.slang", """
+                #version 460
+                in vec3 vPOSITION;
+                in float vAttr1;
+                in vec2 vTEXCOORD;
+                layout (location = 12) in float vAttr2;
+                in float vAttr3;
+                void main() { gl_Position = vec4(vPOSITION, vAttr1 + vAttr2 + vAttr3 + vTEXCOORD.x); }
+                """);
+
+            ShaderRegistry.AddShaderDirectory(customShaderDirectory);
+
+            var source = Preprocess("custom_vertex.vert.slang");
+            var fields = VertexInputLayout.FromStruct<TestVertex>().Fields();
+
+            using (Assert.EnterMultipleScope())
+            {
+                // Mesh attributes keep their canonical slot
+                Assert.That(source, Does.Contain($"layout (location = {(int)VertexSlot.Position}) in vec3 vPOSITION;"));
+                Assert.That(source, Does.Contain($"layout (location = {(int)VertexSlot.TexCoord}) in vec2 vTEXCOORD;"));
+
+                // A declaration that places itself is left alone, not stamped a second time
+                Assert.That(source, Does.Contain("layout (location = 12) in float vAttr2;"));
+                Assert.That(source, Does.Not.Contain(") layout ("));
+
+                // The custom ones fill the slots left free, in name order rather than declaration order, and
+                // the pinned slot is out of that pool even though it is declared between them
+                Assert.That(source, Does.Contain($"layout (location = {(int)VertexSlot.BlendIndices}) in float vAttr1;"));
+                Assert.That(source, Does.Contain($"layout (location = {(int)VertexSlot.BlendWeight}) in float vAttr3;"));
+
+                // The struct declares the same names and reaches the same locations, which is what lets its
+                // vertex array object feed this shader. A custom attribute carries the semantic of the slot it
+                // landed on, which is how the mesh path resolves it back.
+                Assert.That(SemanticOf(fields, "vAttr1"), Is.EqualTo(VertexAttributeLocations.GetSemantic((int)VertexSlot.BlendIndices)));
+                Assert.That(SemanticOf(fields, "vAttr3"), Is.EqualTo(VertexAttributeLocations.GetSemantic((int)VertexSlot.BlendWeight)));
+                Assert.That(SemanticOf(fields, "vAttr2"), Is.EqualTo(VertexAttributeLocations.GetSemantic(12)));
             }
         }
 

@@ -3,8 +3,8 @@
 #include "common/instancing.slang"
 #include "common/animation.slang"
 
-layout (location = 0) in vec3 vPOSITION;
-layout (location = 3) in vec2 vTEXCOORD;
+in vec3 vPOSITION;
+in vec2 vTEXCOORD;
 
 out vec2 vTexCoordOut;
 

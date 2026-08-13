@@ -1,8 +1,8 @@
 #version 460
 
-layout (location = 0) in vec3 vPOSITION;
-layout (location = 1) in vec3 vNORMAL;
-layout (location = 2) in vec4 vCOLOR;
+in vec3 vPOSITION;
+in vec3 vNORMAL;
+in vec4 vCOLOR;
 out vec4 vtxColor;
 out vec3 vtxNormal;
 out vec3 vtxPos;

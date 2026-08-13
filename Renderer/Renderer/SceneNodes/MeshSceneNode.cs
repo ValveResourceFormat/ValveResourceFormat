@@ -50,15 +50,17 @@ namespace ValveResourceFormat.Renderer.SceneNodes
         public override void UpdateVertexArrayObjects() => RenderableMeshes[0].UpdateVertexArrayObjects();
 #endif
 
-
         [StructLayout(LayoutKind.Sequential)]
         private readonly struct Vertex
         {
-            public readonly Vector3 Position;
-            public readonly Vector3 Normal;
-            public readonly Vector4 TangentU_SignV;
-            public readonly Vector2 UV;
-            public readonly Color32 VertexPaintBlendParams;
+            [VertexAttribute(VertexSlot.Position)] public readonly Vector3 Position;
+            [VertexAttribute(VertexSlot.Normal)] public readonly Vector3 Normal;
+            [VertexAttribute(VertexSlot.Tangent)] public readonly Vector4 TangentU_SignV;
+            [VertexAttribute(VertexSlot.TexCoord)] public readonly Vector2 UV;
+            [VertexAttribute(VertexSlot.TexCoord4)] public readonly Color32 VertexPaintBlendParams;
+
+            /// <summary>The layout of this vertex, for creating vertex array objects.</summary>
+            public static readonly VertexInputLayout InputLayout = VertexInputLayout.FromStruct<Vertex>();
 
             public Vertex(Vector3 position, Vector2 uv, Color32 vertexPaint, Vector3? normal = null, Vector4? tangentU_SignV = null)
             {
@@ -69,6 +71,7 @@ namespace ValveResourceFormat.Renderer.SceneNodes
                 TangentU_SignV = tangentU_SignV ?? new Vector4(1.0f, 0.0f, 0.0f, 1.0f);
             }
         }
+
 
         /// <summary>
         /// Creates a flat quad mesh node suitable for previewing a material, with vertex paint gradient strips.
@@ -117,43 +120,9 @@ namespace ValveResourceFormat.Renderer.SceneNodes
             vbib.VertexBuffers.Add(new VBIB.OnDiskBufferData
             {
                 ElementCount = (uint)vertices.Length,
-                ElementSizeInBytes = (uint)Marshal.SizeOf<Vertex>(),
+                ElementSizeInBytes = (uint)Vertex.InputLayout.Stride,
                 Data = MemoryMarshal.Cast<Vertex, byte>(vertices).ToArray(),
-                InputLayoutFields =
-                [
-                    new()
-                    {
-                        SemanticName = "POSITION",
-                        Format = DXGI_FORMAT.R32G32B32_FLOAT,
-                        Offset = (uint)Marshal.OffsetOf<Vertex>(nameof(Vertex.Position)),
-                    },
-                    new()
-                    {
-                        SemanticName = "NORMAL",
-                        Format = DXGI_FORMAT.R32G32B32_FLOAT,
-                        Offset = (uint)Marshal.OffsetOf<Vertex>(nameof(Vertex.Normal)),
-                    },
-                    new()
-                    {
-                        SemanticName = "TANGENT",
-                        Format = DXGI_FORMAT.R32G32B32A32_FLOAT,
-                        Offset = (uint)Marshal.OffsetOf<Vertex>(nameof(Vertex.TangentU_SignV)),
-                    },
-                    new()
-                    {
-                        SemanticName = "TEXCOORD",
-                        Format = DXGI_FORMAT.R32G32_FLOAT,
-                        Offset = (uint)Marshal.OffsetOf<Vertex>(nameof(Vertex.UV)),
-                    },
-                    new()
-                    {
-                        SemanticName = "TEXCOORD",
-                        SemanticIndex = 4,
-                        ShaderSemantic = "vColorBlendValues",//nameof(Vertex.VertexPaintBlendParams),
-                        Format = DXGI_FORMAT.R8G8B8A8_UNORM,
-                        Offset = (uint)Marshal.OffsetOf<Vertex>(nameof(Vertex.VertexPaintBlendParams)),
-                    },
-                ]
+                InputLayoutFields = Vertex.InputLayout.Fields(),
             });
 
             vbib.IndexBuffers.Add(new VBIB.OnDiskBufferData

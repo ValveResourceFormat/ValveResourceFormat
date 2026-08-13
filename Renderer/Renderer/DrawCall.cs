@@ -51,8 +51,9 @@ namespace ValveResourceFormat.Renderer
         /// <summary>Gets or sets the name of the mesh this draw call belongs to.</summary>
         public string MeshName { get; set; } = string.Empty;
 
-        /// <summary>Vertex array state for this draw call's geometry. Created lazily; owned by <see cref="MeshBuffers"/>.</summary>
-        private RenderVao? vao;
+        /// <summary>The vertex array object of the geometry. <see cref="MeshBuffers"/> makes it at the first
+        /// draw and holds it.</summary>
+        private int vao;
 
         /// <summary>Gets the vertex buffer bindings used by this draw call.</summary>
         public required VertexDrawBuffer[] VertexBuffers { get; init; }
@@ -84,26 +85,24 @@ namespace ValveResourceFormat.Renderer
             UpdateVertexArrayObject();
         }
 
-        /// <summary>Returns the VAO matching the shader this draw call is about to be rendered with,
-        /// creating it if necessary. Replacement shaders (depth only, outline, picking) get their own
-        /// VAOs since their attribute locations differ from the material shader's.</summary>
-        /// <param name="shader">The shader the draw call will be rendered with.</param>
+        /// <summary>Returns the VAO for this draw call, creating it if necessary. Locations are canonical,
+        /// so it serves the material shader and every replacement shader (depth only, outline, picking).</summary>
         /// <returns>The OpenGL VAO handle.</returns>
-        public int GetVertexArrayObject(Shader shader)
+        public int GetVertexArrayObject()
         {
-            vao ??= new RenderVao(MeshBuffers, VertexBuffers, IndexBuffer.Handle, Material.Material.InputSignature, MeshName);
-            return vao.Get(shader);
+            if (vao == 0)
+            {
+                vao = MeshBuffers.GetVertexArrayObject(VertexBuffers, Material.Material.InputSignature, IndexBuffer.Handle, MeshName);
+            }
+
+            return vao;
         }
 
-        /// <summary>Resets the vertex array state and recreates the material shader VAO if the shader is ready.</summary>
+        /// <summary>Recreates the VAO, picking up the new material's input signature.</summary>
         public void UpdateVertexArrayObject()
         {
-            vao = null;
-
-            if (Material.Shader.IsLoaded)
-            {
-                GetVertexArrayObject(Material.Shader);
-            }
+            vao = 0;
+            GetVertexArrayObject();
         }
     }
 

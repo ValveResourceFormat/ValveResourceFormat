@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Logging;
 using OpenTK.Graphics.OpenGL;
 using ValveResourceFormat.ThirdParty;
 
@@ -104,12 +105,17 @@ namespace ValveResourceFormat.Renderer.Shaders
         /// <summary>Gets the <see cref="MaterialLoader"/> used to resolve fallback textures.</summary>
         internal MaterialLoader MaterialLoader { get; init; }
 
-        /// <summary>Gets a mapping from vertex attribute names to their OpenGL attribute locations.</summary>
-        public Dictionary<string, int> Attributes { get; } = [];
+        /// <summary>Gets the logger for messages about this shader.</summary>
+        internal ILogger Logger { get; init; }
 
         /// <summary>Gets a value indicating whether material data (textures and params) should be skipped during rendering.</summary>
         public bool IgnoreMaterialData { get; }
 
+        /// <summary>Gets the locations this program reads, as a mask. Checked in <see cref="VertexArray"/>.</summary>
+        public int RequiredAttributes { get; private set; }
+
+        /// <summary>Gets those locations declared as an integer type, which need an integer format.</summary>
+        public int IntegerAttributes { get; private set; }
 
 #if DEBUG
         /// <summary>Gets the shader file name on disk (debug builds only).</summary>
@@ -125,6 +131,7 @@ namespace ValveResourceFormat.Renderer.Shaders
             NameHash = MurmurHash2.Hash(Name, StringToken.MURMUR2SEED);
             Default = new RenderMaterial(this);
             MaterialLoader = rendererContext.MaterialLoader;
+            Logger = rendererContext.Logger;
 
             IgnoreMaterialData = Name is "picking"
                                       or "outline"
@@ -132,7 +139,7 @@ namespace ValveResourceFormat.Renderer.Shaders
                                       or "quad_overdraw";
         }
 
-        /// <summary>Ensures the shader program has been linked and its uniforms and attributes have been cached.</summary>
+        /// <summary>Ensures the shader program has been linked and its uniforms have been cached.</summary>
         /// <returns><see langword="true"/> if the shader linked successfully; otherwise <see langword="false"/>.</returns>
         public bool EnsureLoaded()
         {
@@ -151,9 +158,9 @@ namespace ValveResourceFormat.Renderer.Shaders
 
                 if (IsValid)
                 {
-                    StoreAttributeLocations();
                     StoreUniformLocations();
                     BindReservedTextureSlots();
+                    StoreRequiredAttributes();
 
 #if DEBUG
                     VerifyGlobalsLayout();
@@ -163,6 +170,96 @@ namespace ValveResourceFormat.Renderer.Shaders
 
             return IsValid;
         }
+
+        /// <summary>
+        /// Caches the attribute locations the linked program reads, and verifies each landed where its
+        /// <see cref="VertexSlot"/> puts it. Attributes the linker dropped are not active.
+        /// </summary>
+        private void StoreRequiredAttributes()
+        {
+            GL.GetProgram(Program, GetProgramParameterName.ActiveAttributes, out var attributeCount);
+
+            RequiredAttributes = 0;
+            IntegerAttributes = 0;
+
+            for (var i = 0; i < attributeCount; i++)
+            {
+                GL.GetActiveAttrib(Program, i, 64, out _, out var elements, out var type, out var name);
+
+                var location = GL.GetAttribLocation(Program, name);
+
+                if (location < 0)
+                {
+                    continue; // A gl_ builtin
+                }
+
+                // A declaration ShaderParser did not stamp is placed by the driver, where no VAO expects it.
+                // A custom attribute has no canonical location, its slot comes from the declaring set.
+                if (VertexAttributeLocations.Get(name) is var canonical && canonical != -1 && canonical != location)
+                {
+                    ReportBadAttribute($"Shader '{Name}' has attribute '{name}' at location {location}, but {nameof(VertexSlot)} puts it at {canonical}. Its declaration was not stamped, check that it reads 'in <type> {name};'.");
+                }
+
+                // These span a location per element or column, silently taking the slots declared after them
+                else if (elements > 1 || IsMatrix(type))
+                {
+                    ReportBadAttribute($"Shader '{Name}' declares attribute '{name}' as {type}[{elements}], which spans several locations. Vertex attributes have to fit one {nameof(VertexSlot)}.");
+                }
+
+                RequiredAttributes |= 1 << location;
+
+                if (IsInteger(type))
+                {
+                    IntegerAttributes |= 1 << location;
+                }
+            }
+        }
+
+        /// <summary>
+        /// A shader whose attributes the renderer cannot place is an authoring fault, so development builds
+        /// stop on it. A release build only logs, because a mounted shader must not take the viewer down
+        /// from inside a draw call.
+        /// </summary>
+        private void ReportBadAttribute(string message)
+        {
+#if DEBUG
+            throw new ShaderLoader.ShaderCompilerException(message);
+#else
+            Logger.LogError("{Message}", message);
+#endif
+        }
+
+        /// <summary>Names the attributes this program declares at the given locations.</summary>
+        public string DescribeAttributes(int locationMask)
+        {
+            GL.GetProgram(Program, GetProgramParameterName.ActiveAttributes, out var attributeCount);
+
+            var names = new List<string>();
+
+            for (var i = 0; i < attributeCount; i++)
+            {
+                GL.GetActiveAttrib(Program, i, 64, out _, out _, out _, out var name);
+
+                var location = GL.GetAttribLocation(Program, name);
+
+                if (location >= 0 && (locationMask & (1 << location)) != 0)
+                {
+                    names.Add(name);
+                }
+            }
+
+            return string.Join(", ", names);
+        }
+
+        private static bool IsInteger(ActiveAttribType type) => type
+            is ActiveAttribType.Int or ActiveAttribType.IntVec2 or ActiveAttribType.IntVec3 or ActiveAttribType.IntVec4
+            or ActiveAttribType.UnsignedInt or ActiveAttribType.UnsignedIntVec2 or ActiveAttribType.UnsignedIntVec3 or ActiveAttribType.UnsignedIntVec4;
+
+        private static bool IsMatrix(ActiveAttribType type) => type
+            is ActiveAttribType.FloatMat2 or ActiveAttribType.FloatMat3 or ActiveAttribType.FloatMat4
+            or ActiveAttribType.FloatMat2x3 or ActiveAttribType.FloatMat2x4
+            or ActiveAttribType.FloatMat3x2 or ActiveAttribType.FloatMat3x4
+            or ActiveAttribType.FloatMat4x2 or ActiveAttribType.FloatMat4x3;
 
         private unsafe void StoreUniformLocations()
         {
@@ -390,22 +487,8 @@ namespace ValveResourceFormat.Renderer.Shaders
                     $"'{names[i]}' is at offset {offsets[i]} in '{Name}', but the layout put it at {expected[i]}.");
             }
         }
+
 #endif
-
-        /// <summary>Queries and caches the OpenGL locations of all active vertex attributes.</summary>
-        public void StoreAttributeLocations()
-        {
-            GL.GetProgram(Program, GetProgramParameterName.ActiveAttributes, out var attributeCount);
-
-            Attributes.EnsureCapacity(attributeCount);
-
-            for (var i = 0; i < attributeCount; i++)
-            {
-                GL.GetActiveAttrib(Program, i, 64, out var length, out var size, out var type, out var name);
-                var attribLocation = GL.GetAttribLocation(Program, name);
-                Attributes[name] = attribLocation;
-            }
-        }
 
         /// <summary>Returns the OpenGL location of the named uniform, querying the driver and caching the result on first access.</summary>
         /// <param name="name">The uniform variable name.</param>
@@ -640,7 +723,6 @@ namespace ValveResourceFormat.Renderer.Shaders
             ReservedTexturesUsed.UnionWith(shader.ReservedTexturesUsed);
 
             Uniforms.Clear();
-            Attributes.Clear();
         }
 #endif
     }

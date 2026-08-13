@@ -35,38 +35,23 @@ public class CS2BombDamageSceneNode : SceneNode
 
     private readonly RenderMaterial material;
     private readonly string meshName;
-    private RenderVao vao = null!;
-
-    private const int VertexPositionOffset = 0;
-    private const int VertexUVOffset = 12;
-    private const int VertexColorOffset = 20;
-    private const int VertexPhaseOffset = 24;
-    private const int VertexSize = 28;
-
-    private static readonly VBIB.RenderInputLayoutField[] InputLayout =
-    [
-        new("POSITION", DXGI_FORMAT.R32G32B32_FLOAT, VertexPositionOffset),
-        new("TEXCOORD", DXGI_FORMAT.R32G32_FLOAT, VertexUVOffset),
-        new("COLOR", DXGI_FORMAT.R8G8B8A8_UNORM, VertexColorOffset),
-        new("PHASE", DXGI_FORMAT.R32_FLOAT, VertexPhaseOffset),
-    ];
+    private int vao;
 
     private int indicesCount;
 
     private Vector3 boundsMin;
     private Vector3 boundsMax;
 
-    [StructLayout(LayoutKind.Explicit, Size = VertexSize)]
-    private struct VertexFormat
+    [StructLayout(LayoutKind.Sequential)]
+    private struct Vertex
     {
-        [FieldOffset(VertexPositionOffset)]
-        public Vector3 Position;
-        [FieldOffset(VertexUVOffset)]
-        public Vector2 UVs;
-        [FieldOffset(VertexColorOffset)]
-        public Color32 Color;
-        [FieldOffset(VertexPhaseOffset)]
-        public float Phase;
+        [VertexAttribute(VertexSlot.Position)] public Vector3 Position;
+        [VertexAttribute(VertexSlot.TexCoord)] public Vector2 UVs;
+        [VertexAttribute(VertexSlot.Color)] public Color32 Color;
+        [VertexAttribute("vPHASE")] public float Phase;
+
+        /// <summary>The layout of this vertex, for creating vertex array objects.</summary>
+        public static readonly VertexInputLayout InputLayout = VertexInputLayout.FromStruct<Vertex>();
     }
 
     /// <summary>
@@ -120,9 +105,9 @@ public class CS2BombDamageSceneNode : SceneNode
         var vertexCount = positions.Length * 4;
         var indexCount = positions.Length * 6;
 
-        var vertexData = new byte[vertexCount * VertexSize];
+        var vertexData = new byte[vertexCount * Vertex.InputLayout.Stride];
         var indexData = new byte[indexCount * sizeof(int)];
-        var vertices = MemoryMarshal.Cast<byte, VertexFormat>(vertexData.AsSpan());
+        var vertices = MemoryMarshal.Cast<byte, Vertex>(vertexData.AsSpan());
         var indices = MemoryMarshal.Cast<byte, int>(indexData.AsSpan());
 
         if (positions.Length > 0)
@@ -142,8 +127,8 @@ public class CS2BombDamageSceneNode : SceneNode
         vbib.VertexBuffers.Add(new VBIB.OnDiskBufferData
         {
             ElementCount = (uint)vertexCount,
-            ElementSizeInBytes = VertexSize,
-            InputLayoutFields = InputLayout,
+            ElementSizeInBytes = (uint)Vertex.InputLayout.Stride,
+            InputLayoutFields = Vertex.InputLayout.Fields(),
             Data = vertexData,
         });
         vbib.IndexBuffers.Add(new VBIB.OnDiskBufferData
@@ -157,7 +142,7 @@ public class CS2BombDamageSceneNode : SceneNode
         vao = Scene.RendererContext.MeshBufferCache.UploadBuffersAndCreateVertexArray(meshName, vbib, material.Material.InputSignature);
     }
 
-    private void AddFace(Span<VertexFormat> vertices, Span<int> indices, int positionIndex, Vector3 basePosition, in BombDamageDamageValue damage, in BombDamageBombsite bombsite, in AABB bombsiteBounds)
+    private void AddFace(Span<Vertex> vertices, Span<int> indices, int positionIndex, Vector3 basePosition, in BombDamageDamageValue damage, in BombDamageBombsite bombsite, in AABB bombsiteBounds)
     {
         var baseVertex = positionIndex * 4;
         var baseIndex = positionIndex * 6;
@@ -178,7 +163,7 @@ public class CS2BombDamageSceneNode : SceneNode
             boundsMax = Vector3.Max(boundsMax, position);
             boundsMin = Vector3.Min(boundsMin, position);
 
-            vertices[baseVertex + i] = new VertexFormat
+            vertices[baseVertex + i] = new Vertex
             {
                 Position = position,
                 UVs = VertexUVs[i],
@@ -212,7 +197,7 @@ public class CS2BombDamageSceneNode : SceneNode
 
         var renderShader = context.ReplacementShader ?? material.Shader;
         renderShader.Use();
-        GL.BindVertexArray(vao.Get(renderShader));
+        VertexArray.Bind(vao, renderShader);
         material.Render(renderShader);
         renderShader.SetUniform3x4("transform", Matrix4x4.Identity);
 

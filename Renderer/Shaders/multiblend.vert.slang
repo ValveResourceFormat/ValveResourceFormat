@@ -6,12 +6,12 @@
 
 #define F_WORLDSPACE_UVS 0 // multiblend
 
-layout (location = 0) in vec3 vPOSITION;
+in vec3 vPOSITION;
 #include "common/compression.slang"
-layout (location = 6) in vec2 vTEXCOORD;
-layout (location = 7) in vec4 vTEXCOORD1;
-layout (location = 8) in vec4 vTEXCOORD2;
-layout (location = 9) in vec4 vTEXCOORD3;
+in vec2 vTEXCOORD;
+in vec4 vTEXCOORD1;
+in vec4 vTEXCOORD2;
+in vec4 vTEXCOORD3;
 
 out vec3 vFragPosition;
 

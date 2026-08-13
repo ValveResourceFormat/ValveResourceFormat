@@ -1,9 +1,9 @@
 #version 460
 
-layout (location = 0) in vec2 vPOSITION;
-layout (location = 1) in vec2 vTEXCOORD;
-layout (location = 2) in vec4 vCOLOR;
-layout (location = 3) in float vDEPTH;
+in vec2 vPOSITION;
+in vec2 vTEXCOORD;
+in vec4 vCOLOR;
+in float vDEPTH;
 
 out vec2 vTexCoord;
 out vec4 vFragColor;

@@ -6,9 +6,9 @@
 #define D_MORPHED 0
 #define F_ALPHA_TEST 0 // most shaders
 
-layout (location = 0) in vec3 vPOSITION;
+in vec3 vPOSITION;
 #if (F_ALPHA_TEST == 1)
-    layout (location = 3) in vec2 vTEXCOORD;
+    in vec2 vTEXCOORD;
     layout (location = 0) out vec2 texCoord;
 #endif
 

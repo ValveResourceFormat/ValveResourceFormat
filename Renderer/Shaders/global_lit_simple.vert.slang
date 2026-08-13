@@ -7,8 +7,8 @@
 #define F_PAINT_VERTEX_COLORS 0 // citycrawl_building_anim, csgo_complex, csgo_depth_only, csgo_glass, csgo_simple, csgo_simple_2way_blend, csgo_static_overlay, generic, global_lit_boardspray, global_lit_erosion, global_lit_simple, liquid_fx, pbr
 //End of parameter defines
 
-layout (location = 0) in vec3 vPOSITION;
-layout (location = 3) in vec2 vTEXCOORD;
+in vec3 vPOSITION;
+in vec2 vTEXCOORD;
 #include "common/compression.slang"
 
 #if (F_PAINT_VERTEX_COLORS == 1)

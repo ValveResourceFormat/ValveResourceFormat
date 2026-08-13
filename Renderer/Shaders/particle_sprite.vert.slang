@@ -1,16 +1,16 @@
 #version 460
 
-layout (location = 0) in vec3 aVertexPosition;
-layout (location = 3) in vec2 aTexCoords;
-layout (location = 4) in vec4 aVertexColor;
-// The frame after the one aTexCoords addresses, and how far between the two this particle sits.
-layout (location = 5) in vec2 aTexCoordsNextFrame;
-layout (location = 6) in float aFrameBlend;
+in vec3 vPOSITION;
+in vec2 vTEXCOORD;
+in vec4 vCOLOR;
+// The frame after the one vTEXCOORD addresses, and how far between the two this particle sits.
+in vec2 vTEXCOORD1;
+in float vFrameBlend;
 // Each extra layer's own current (xy) and next (zw) sheet frame uvs.
-layout (location = 7) in vec4 aLayerUv0;
-layout (location = 8) in vec4 aLayerUv1;
-layout (location = 9) in vec4 aLayerUv2;
-layout (location = 10) in vec4 aLayerUv3;
+in vec4 vLayerUv0;
+in vec4 vLayerUv1;
+in vec4 vLayerUv2;
+in vec4 vLayerUv3;
 
 #include "common/utils.slang"
 #include "common/ViewConstants.slang"
@@ -29,12 +29,12 @@ uniform float uDepthBias = 0.0;
 out vec2 vTexCoordOut;
 out vec2 vTexCoordNextFrameOut;
 out vec4 vLayerUvOut[4];
-out float vFrameBlend;
+out float vFrameBlendOut;
 out vec4 vColor;
 out vec3 vFragPosition;
 
 void main(void) {
-    vColor = aVertexColor;
+    vColor = vCOLOR;
 
     if (uGammaCorrectVertexColors)
     {
@@ -43,19 +43,19 @@ void main(void) {
 
     vColor.rgb *= uColorScale;
 
-    vTexCoordOut = aTexCoords;
-    vTexCoordNextFrameOut = aTexCoordsNextFrame;
-    vLayerUvOut[0] = aLayerUv0;
-    vLayerUvOut[1] = aLayerUv1;
-    vLayerUvOut[2] = aLayerUv2;
-    vLayerUvOut[3] = aLayerUv3;
-    vFrameBlend = aFrameBlend;
-    vFragPosition = aVertexPosition;
-    gl_Position = g_matWorldToProjection * vec4(aVertexPosition, 1.0);
+    vTexCoordOut = vTEXCOORD;
+    vTexCoordNextFrameOut = vTEXCOORD1;
+    vLayerUvOut[0] = vLayerUv0;
+    vLayerUvOut[1] = vLayerUv1;
+    vLayerUvOut[2] = vLayerUv2;
+    vLayerUvOut[3] = vLayerUv3;
+    vFrameBlendOut = vFrameBlend;
+    vFragPosition = vPOSITION;
+    gl_Position = g_matWorldToProjection * vec4(vPOSITION, 1.0);
 
     if (uDepthBias != 0.0)
     {
-        vec4 biased = g_matWorldToProjection * vec4(aVertexPosition + (g_vCameraDirWs * uDepthBias), 1.0);
+        vec4 biased = g_matWorldToProjection * vec4(vPOSITION + (g_vCameraDirWs * uDepthBias), 1.0);
 
         // Rehomogenised against the unbiased w so only depth moves, then floored off the near plane
         gl_Position.z = max(gl_Position.w * (biased.z / biased.w), min(0.001, gl_Position.z));

@@ -1,9 +1,9 @@
 #version 460
 
-layout (location = 0) in vec3 vPOSITION;
-layout (location = 1) in vec4 vCOLOR;
-layout (location = 2) in vec2 vTEXCOORD;
-layout (location = 3) in float vPHASE;
+in vec3 vPOSITION;
+in vec4 vCOLOR;
+in vec2 vTEXCOORD;
+in float vPHASE;
 
 out vec4 vtxColor;
 out vec2 vtxUv;

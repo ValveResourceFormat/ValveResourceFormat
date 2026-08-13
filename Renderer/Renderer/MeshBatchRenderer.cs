@@ -248,7 +248,9 @@ namespace ValveResourceFormat.Renderer
                     material.Render(shader);
                 }
 
-                var requestVao = request.Call.GetVertexArrayObject(shader!);
+                var requestVao = request.Call.GetVertexArrayObject();
+
+                VertexArray.Validate(requestVao, shader!);
 
                 if (vao != requestVao)
                 {

@@ -1,3 +1,4 @@
+using System.Runtime.InteropServices;
 using OpenTK.Graphics.OpenGL;
 using PrimitiveType = OpenTK.Graphics.OpenGL.PrimitiveType;
 
@@ -5,28 +6,35 @@ namespace ValveResourceFormat.Renderer.SceneNodes
 {
     class SpriteSceneNode : SceneNode
     {
-        private static readonly float[] Vertices =
+        [StructLayout(LayoutKind.Sequential)]
+        private struct Vertex
+        {
+            [VertexAttribute(VertexSlot.Position)] public Vector3 Position;
+            [VertexAttribute(VertexSlot.TexCoord)] public Vector2 TexCoord;
+            [VertexAttribute(VertexSlot.Color)] public Color32 Color;
+
+            /// <summary>The layout of this vertex, for creating vertex array objects.</summary>
+            public static readonly VertexInputLayout InputLayout = VertexInputLayout.FromStruct<Vertex>();
+        }
+
+        private static readonly Vertex[] Vertices =
         [
-#pragma warning disable format
-            // position          ; normal                  ; texcoord    ; tangent                 ; blendindices            ; blendweight
-            1.0f, -1.0f, 0.0f,   0.0f, 0.0f, 0.0f, 1.0f,   1.0f, 1.0f,   1.0f, 0.0f, 0.0f, 0.0f,   0.0f, 0.0f, 0.0f, 0.0f,   0.0f, 0.0f, 0.0f, 0.0f,
-            1.0f, 1.0f, 0.0f,    0.0f, 0.0f, 0.0f, 1.0f,   1.0f, 0.0f,   1.0f, 0.0f, 0.0f, 0.0f,   0.0f, 0.0f, 0.0f, 0.0f,   0.0f, 0.0f, 0.0f, 0.0f,
-            -1.0f, -1.0f, 0.0f,  0.0f, 0.0f, 0.0f, 1.0f,   0.0f, 1.0f,   1.0f, 0.0f, 0.0f, 0.0f,   0.0f, 0.0f, 0.0f, 0.0f,   0.0f, 0.0f, 0.0f, 0.0f,
-            -1.0f, 1.0f, 0.0f,   0.0f, 0.0f, 0.0f, 1.0f,   0.0f, 0.0f,   1.0f, 0.0f, 0.0f, 0.0f,   0.0f, 0.0f, 0.0f, 0.0f,   0.0f, 0.0f, 0.0f, 0.0f,
-#pragma warning restore format
+            NewVertex(new(1.0f, -1.0f, 0.0f), new(1.0f, 1.0f)),
+            NewVertex(new(1.0f, 1.0f, 0.0f), new(1.0f, 0.0f)),
+            NewVertex(new(-1.0f, -1.0f, 0.0f), new(0.0f, 1.0f)),
+            NewVertex(new(-1.0f, 1.0f, 0.0f), new(0.0f, 0.0f)),
         ];
 
-        private static readonly ValveResourceFormat.Blocks.VBIB.RenderInputLayoutField[] InputLayout =
-        [
-            new("POSITION", DXGI_FORMAT.R32G32B32_FLOAT, offset: 0),
-            new("NORMAL", DXGI_FORMAT.R32G32B32A32_FLOAT, offset: 12),
-            new("TEXCOORD", DXGI_FORMAT.R32G32_FLOAT, offset: 28),
-            new("TANGENT", DXGI_FORMAT.R32G32B32A32_FLOAT, offset: 36),
-            new("BLENDINDICES", DXGI_FORMAT.R32G32B32A32_FLOAT, offset: 52),
-            new("BLENDWEIGHT", DXGI_FORMAT.R32G32B32A32_FLOAT, offset: 68),
-        ];
+        // The color is white. If a material shader reads vCOLOR, it gets the default of the engine.
+        // GPUMeshBufferCache binds the same value for a mesh with no color stream.
+        private static Vertex NewVertex(Vector3 position, Vector2 texCoord) => new()
+        {
+            Position = position,
+            TexCoord = texCoord,
+            Color = Color32.White,
+        };
 
-        private readonly RenderVao vao;
+        private readonly int vao;
         private readonly RenderMaterial material;
         private readonly float spriteSize;
 
@@ -44,12 +52,10 @@ namespace ValveResourceFormat.Renderer.SceneNodes
                 texture.SetWrapMode(TextureWrapMode.ClampToEdge);
             }
 
-            const int stride = sizeof(float) * 21;
-
             GL.CreateBuffers(1, out int vboHandle);
-            GL.NamedBufferData(vboHandle, Vertices.Length * sizeof(float), Vertices, BufferUsageHint.StaticDraw);
+            GL.NamedBufferData(vboHandle, Vertices.Length * Vertex.InputLayout.Stride, Vertices, BufferUsageHint.StaticDraw);
 
-            vao = new RenderVao(renderContext.MeshBufferCache, nameof(SpriteSceneNode), vboHandle, stride, InputLayout, inputSignature: material.Material.InputSignature);
+            vao = Vertex.InputLayout.CreateVertexArray(nameof(SpriteSceneNode), vboHandle);
 
 #if DEBUG
             var vaoLabel = $"{nameof(SpriteSceneNode)}: {System.IO.Path.GetFileName(resource.FileName)}";
@@ -73,7 +79,7 @@ namespace ValveResourceFormat.Renderer.SceneNodes
             var renderShader = context.ReplacementShader ?? material.Shader;
             renderShader.Use();
 
-            GL.BindVertexArray(vao.Get(renderShader));
+            VertexArray.Bind(vao, renderShader);
 
             // Create billboarding rotation (always facing camera)
             if (!Matrix4x4.Decompose(context.Camera.CameraViewMatrix, out _, out var modelViewRotation, out _))

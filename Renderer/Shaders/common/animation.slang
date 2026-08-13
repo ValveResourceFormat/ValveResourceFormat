@@ -6,14 +6,14 @@
 #include "instancing.slang"
 #include "utils.slang"
 
-layout (location = 1) in uvec4 vBLENDINDICES;
-layout (location = 2) in vec4 vBLENDWEIGHT;
+in uvec4 vBLENDINDICES;
+in vec4 vBLENDWEIGHT;
 
 #define D_EIGHT_BONE_BLENDING 0
 
 #if (D_EIGHT_BONE_BLENDING == 1)
-    layout (location = 4) in uvec4 vBLENDINDICES2;
-    layout (location = 5) in vec4 vBLENDWEIGHT2;
+    in uvec4 vBLENDINDICES2;
+    in vec4 vBLENDWEIGHT2;
 #endif
 
 uniform uvec4 uAnimationData;

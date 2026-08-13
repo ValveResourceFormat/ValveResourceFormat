@@ -21,8 +21,8 @@
 #include "common/animation.slang"
 #include "common/morph.slang"
 
-layout (location = 0) in vec3 vPOSITION;
-layout (location = 3) in vec2 vTEXCOORD;
+in vec3 vPOSITION;
+in vec2 vTEXCOORD;
 #include "common/compression.slang"
 
 //Parameter defines - These are default values and can be overwritten based on material/model parameters
@@ -46,23 +46,27 @@ uniform int F_TEXTURE_ANIMATION_MODE; // csgo_complex, csgo_static_overlay, csgo
 #endif
 
 #if (F_LAYERS > 0) || (GameVfx_csgo_simple_2way_blend != 0) || defined(vr_blend_vfx_common)
+    // Declarations name the attribute, the defines are only readable aliases for the code below
     #define vBLEND_COLOR vTEXCOORD4
     #if defined(vr_blend_vfx_common)
         #define vBLEND_ALPHA vTEXCOORD5
-        in vec4 vBLEND_ALPHA;
+        in vec4 vTEXCOORD5;
     #endif
 
-    in vec4 vBLEND_COLOR;
+    in vec4 vTEXCOORD4;
     out vec4 vColorBlendValues;
 #endif
 
 #if defined(foliage_vfx_common)
     #if (GameVfx_csgo_foliage != 0)
+        in vec4 vCOLOR;
         #define vFoliageParams vCOLOR
     #elif (GameVfx_vr_complex != 0)
+        in vec4 vTEXCOORD3;
         #define vFoliageParams vTEXCOORD3
+    #else
+        in vec4 vFoliageParams;
     #endif
-    in vec4 vFoliageParams;
     out vec4 vFoliageParamsOut;
 
     // Vertex Animation
