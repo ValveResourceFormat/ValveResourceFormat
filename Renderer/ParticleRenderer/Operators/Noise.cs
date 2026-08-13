@@ -13,6 +13,8 @@ namespace ValveResourceFormat.Renderer.Particles.Operators
         private readonly INumberProvider outputMax = new LiteralNumberProvider(1);
         private readonly ParticleField outputField = ParticleField.Radius;
         private readonly bool additive;
+        private readonly float noiseScale = 0.1f;
+        private readonly float animationTimeScale;
 
         public Noise(ParticleDefinitionParser parse) : base(parse)
         {
@@ -20,6 +22,8 @@ namespace ValveResourceFormat.Renderer.Particles.Operators
             outputMin = parse.NumberProvider("m_flOutputMin", outputMin);
             outputMax = parse.NumberProvider("m_flOutputMax", outputMax);
             additive = parse.Boolean("m_bAdditive", false);
+            noiseScale = parse.Float("m_fl4NoiseScale", noiseScale);
+            animationTimeScale = parse.Float("m_flNoiseAnimationTimeScale", animationTimeScale);
         }
 
         public override void Operate(ParticleCollection particles, float frameTime, ParticleSystemRenderState particleSystemState, float strength)
@@ -45,10 +49,13 @@ namespace ValveResourceFormat.Renderer.Particles.Operators
 
             var setMethod = additive ? ParticleSetMethod.PARTICLE_SET_ADD_TO_CURRENT_VALUE : ParticleSetMethod.PARTICLE_SET_REPLACE_VALUE;
 
+            // The animation time offset moves the sample point along X only.
+            var timeOffset = animationTimeScale * particleSystemState.Age;
+
             foreach (ref var particle in particles.Current)
             {
-                // Spatial noise is approximated here with per-particle randomness.
-                var noiseValue = ParticleRandom.ForSampleBetween(particle.ParticleId, -1f, 1f);
+                var samplePoint = particle.Position * noiseScale;
+                var noiseValue = Utils.Noise.Value3D(samplePoint.X + timeOffset, samplePoint.Y, samplePoint.Z);
 
                 var finalValue = valueBase + valueScale * noiseValue;
                 finalValue = particle.ModifyScalarBySetMethod(particles, outputField, finalValue, setMethod);
