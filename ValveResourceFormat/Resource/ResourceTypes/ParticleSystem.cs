@@ -2,7 +2,7 @@ using System.Linq;
 using System.Threading;
 using ValveKeyValue;
 using ValveKeyValue.KeyValues3;
-using ValveResourceFormat.ResourceTypes.ParticleUpgrade;
+using ValveResourceFormat.Particles.Upgrade;
 using ValveResourceFormat.Serialization.KeyValues;
 
 namespace ValveResourceFormat.ResourceTypes

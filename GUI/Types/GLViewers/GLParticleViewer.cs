@@ -10,7 +10,7 @@ using ValveResourceFormat.Renderer;
 using ValveResourceFormat.Renderer.Particles;
 using ValveResourceFormat.Renderer.SceneNodes;
 using ValveResourceFormat.ResourceTypes;
-using ValveResourceFormat.ResourceTypes.ParticleUpgrade;
+using ValveResourceFormat.Particles.Upgrade;
 using ValveResourceFormat.Serialization.KeyValues;
 
 namespace GUI.Types.GLViewers
