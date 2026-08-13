@@ -34,6 +34,8 @@ namespace ValveResourceFormat.Renderer.Particles.Initializers
             transformInput = parse.TransformInput("m_TransformInput", new IdentityTransformProvider());
         }
 
+        public override ulong WrittenFields => FieldMask(ParticleField.PositionPrevious);
+
         public override Particle Initialize(ref Particle particle, ParticleCollection particles, ParticleSystemRenderState particleSystemState)
         {
             var noiseScale = this.noiseScale.NextNumber(ref particle, particleSystemState);

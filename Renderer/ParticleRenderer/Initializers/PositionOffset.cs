@@ -28,6 +28,8 @@ namespace ValveResourceFormat.Renderer.Particles.Initializers
             rangeSampler = RangeSampler.Parse(parse);
         }
 
+        public override ulong WrittenFields => FieldMask(ParticleField.Position) | FieldMask(ParticleField.PositionPrevious);
+
         public override Particle Initialize(ref Particle particle, ParticleCollection particles, ParticleSystemRenderState particleSystemState)
         {
 

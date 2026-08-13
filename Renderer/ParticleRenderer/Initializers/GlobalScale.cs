@@ -24,6 +24,8 @@ namespace ValveResourceFormat.Renderer.Particles.Initializers
             scaleVelocity = parse.Boolean("m_bScaleVelocity", scaleVelocity);
         }
 
+        public override ulong WrittenFields => FieldMask(ParticleField.Position) | FieldMask(ParticleField.PositionPrevious) | FieldMask(ParticleField.Radius) | FieldMask(ParticleField.HitboxOffsetPosition);
+
         public override Particle Initialize(ref Particle particle, ParticleCollection particles, ParticleSystemRenderState particleSystemState)
         {
             var finalScale = scale;

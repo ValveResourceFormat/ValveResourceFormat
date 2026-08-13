@@ -37,6 +37,8 @@ namespace ValveResourceFormat.Renderer.Particles.Initializers
             return ((maxControlPoint - minControlPoint) / increment) + 1;
         }
 
+        public override ulong WrittenFields => FieldMask(ParticleField.Position) | FieldMask(ParticleField.LifeDuration) | FieldMask(ParticleField.PositionPrevious);
+
         public override Particle Initialize(ref Particle particle, ParticleCollection particles, ParticleSystemRenderState particleSystemState)
         {
             var count = GetControlPointCount(ref particle, particleSystemState);

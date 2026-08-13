@@ -22,6 +22,8 @@ namespace ValveResourceFormat.Renderer.Particles.Initializers
             pathParams = new ParticlePathParameters(parse);
         }
 
+        public override ulong WrittenFields => FieldMask(ParticleField.Position) | FieldMask(ParticleField.PositionPrevious) | FieldMask(ParticleField.HitboxOffsetPosition);
+
         public override Particle Initialize(ref Particle particle, ParticleCollection particles, ParticleSystemRenderState particleSystemState)
         {
             var path = pathParams;

@@ -38,7 +38,8 @@ namespace ValveResourceFormat.Renderer.Particles.Initializers
             randomCounter = 0;
         }
 
-        public override ulong WrittenFields => FieldMask(fieldOutput);
+        public override ulong WrittenFields
+            => FieldMask(fieldOutput) | FieldMask(ParticleField.ParentParticleIndex) | FieldMask(ParticleField.ParentParticleId);
 
         public override Particle Initialize(ref Particle particle, ParticleCollection particles, ParticleSystemRenderState particleSystemState)
         {

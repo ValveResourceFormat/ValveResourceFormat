@@ -56,6 +56,9 @@ namespace ValveResourceFormat.Renderer.Particles.Initializers
         /// <summary>Attribute the spawn position is written to.</summary>
         protected readonly ParticleField outputField = ParticleField.Position;
 
+        /// <summary>Attribute the spawn velocity is written to.</summary>
+        protected readonly ParticleField velocityField = ParticleField.PositionPrevious;
+
         protected CreateWithinSphere(ParticleDefinitionParser parse, ITransformProvider transformInput) : base(parse)
         {
             this.transformInput = transformInput;
@@ -71,6 +74,7 @@ namespace ValveResourceFormat.Renderer.Particles.Initializers
             localCoords = parse.Boolean("m_bLocalCoords", localCoords);
             scaleCP = parse.Int32("m_nScaleCP", scaleCP);
             outputField = parse.ParticleField("m_nFieldOutput", outputField);
+            velocityField = parse.ParticleField("m_nFieldVelocity", velocityField);
         }
 
         /// <summary>
@@ -91,6 +95,10 @@ namespace ValveResourceFormat.Renderer.Particles.Initializers
         /// The cube root over the radius fraction spreads particles evenly through the sphere's
         /// volume; a linear draw would bunch them toward the centre.
         /// </remarks>
+        public override ulong WrittenFields => outputField == ParticleField.Position
+            ? FieldMask(ParticleField.Position) | FieldMask(ParticleField.PositionPrevious) | FieldMask(velocityField)
+            : FieldMask(outputField) | FieldMask(velocityField);
+
         public override Particle Initialize(ref Particle particle, ParticleCollection particles, ParticleSystemRenderState particleSystemState)
         {
             var transform = transformInput.NextTransform(ref particle, particleSystemState);

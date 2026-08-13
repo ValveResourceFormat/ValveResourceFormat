@@ -21,7 +21,10 @@ namespace ValveResourceFormat.Renderer.Particles
     /// <summary>Emission, the substep loop and the start/stop/restart lifecycle.</summary>
     internal partial class ParticleRenderer
     {
-        /// <summary>Attributes the emit path stamps before initializers run.</summary>
+        /// <summary>
+        /// Attributes counted as written before the first initializer runs. The engine takes this
+        /// from the emitter, and all four report creation time on the path that emits.
+        /// </summary>
         private const ulong SpawnWrittenFields = 1UL << (int)ParticleField.CreationTime;
 
         public void Start()
@@ -160,7 +163,6 @@ namespace ValveResourceFormat.Renderer.Particles
 
                 if (BehaviorVersion < 6
                     && (firstMultipleOverride < 0 || initializer.DefinitionIndex < firstMultipleOverride)
-                    && fields != 0
                     && (fields & ~written) == 0)
                 {
                     continue;

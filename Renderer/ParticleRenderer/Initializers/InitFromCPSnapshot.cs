@@ -22,6 +22,10 @@ namespace ValveResourceFormat.Renderer.Particles.Initializers
             startIndex = parse.NumberProvider("m_nManualSnapshotIndex", startIndex);
         }
 
+        public override ulong WrittenFields => snapshot.AttributeToWrite == ParticleField.Position
+            ? FieldMask(ParticleField.Position) | FieldMask(ParticleField.PositionPrevious)
+            : FieldMask(snapshot.AttributeToWrite);
+
         public override Particle Initialize(ref Particle particle, ParticleCollection particles, ParticleSystemRenderState particleSystemState)
         {
             var column = snapshot.Column(particleSystemState);
