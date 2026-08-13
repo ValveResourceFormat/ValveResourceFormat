@@ -114,7 +114,7 @@ namespace ValveResourceFormat.Renderer
 
             if (missing != 0)
             {
-                shader.Logger.LogDebug("{Attributes} ({ShaderName}) missing from vbib {Geometry}",
+                shader.Logger.LogDebug("{Attributes} ({ShaderName}) missing from mesh {Geometry}",
                     shader.DescribeAttributes(missing), shader.Name, geometry);
 
                 // A name the geometry does not know shifts the slots of the custom attributes sorted after
