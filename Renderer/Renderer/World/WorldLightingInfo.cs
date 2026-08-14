@@ -76,6 +76,11 @@ namespace ValveResourceFormat.Renderer.World
             set => scene.RenderAttributes["S_SCENE_PROBE_TYPE"] = (byte)value;
         }
 
+        /// <summary>
+        /// Gets or sets whether barn, rect and omni lights take their intensity from <c>brightness_legacy</c>.
+        /// </summary>
+        public bool UsesLegacyBarnBrightness { get; set; }
+
         /// <summary>Gets a value indicating whether the lightmap contains baked shadow data.</summary>
         public bool HasBakedShadowsFromLightmap => scene.RenderAttributes.GetValueOrDefault("S_LIGHTMAP_VERSION_MINOR") > 0;
         /// <summary>Gets or sets a value indicating whether dynamic shadow rendering is enabled.</summary>

@@ -113,7 +113,8 @@ public class SceneLight(Scene scene) : SceneNode(scene)
     /// <summary>Gets or sets the brightness (intensity) of the light.</summary>
     public float Brightness { get; set; } = 1.0f;
 
-    /// <summary>Gets or sets the <c>brightness_legacy</c> intensity, measured at <see cref="LegacyBrightnessDistance"/>, or <see cref="float.NaN"/> when the entity has none.</summary>
+    /// <summary>Gets or sets a linear intensity measured at <see cref="LegacyBrightnessDistance"/>, which is
+    /// used in place of converting <see cref="Brightness"/>. <see cref="float.NaN"/> when unset.</summary>
     public float BrightnessLegacy { get; set; } = float.NaN;
 
     /// <summary>Gets or sets the additional brightness scale multiplier.</summary>
@@ -300,6 +301,11 @@ public class SceneLight(Scene scene) : SceneNode(scene)
 
         var isNewLightType = type is EntityType.Omni2 or EntityType.Barn or EntityType.Rect;
 
+        if (isNewLightType && scene.LightingInfo.UsesLegacyBarnBrightness)
+        {
+            light.BrightnessLegacy = entity.GetFloatProperty("brightness_legacy", float.NaN);
+        }
+
         if (!isNewLightType)
         {
             light.AttenuationLinear = entity.GetFloatProperty("attenuation1");
@@ -310,10 +316,6 @@ public class SceneLight(Scene scene) : SceneNode(scene)
                 light.StationaryLightIndex = -1;
             }
 
-        }
-        else
-        {
-            light.BrightnessLegacy = entity.GetFloatProperty("brightness_legacy", float.NaN);
         }
 
         var defaultDirectLight = isNewLightType
