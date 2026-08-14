@@ -39,7 +39,7 @@ namespace ValveResourceFormat.Utils
         /// </summary>
         /// <param name="key">The string to hash.</param>
         /// <returns>The hash token.</returns>
-        public static uint Get(string key) => MurmurHash2.Hash(key, MURMUR2SEED);
+        public static uint Get(ReadOnlySpan<char> key) => MurmurHash2.Hash(key, MURMUR2SEED);
 
         /// <summary>
         /// Gets a known string for the given <paramref name="hash"/>, or returns an unknown key placeholder.
@@ -60,11 +60,15 @@ namespace ValveResourceFormat.Utils
         /// <summary>
         /// Store a string to the table of known string hashes, so it can later be retrieved using <see cref="GetKnownString"/>.
         /// </summary>
-        public static uint Store(string key)
+        public static uint Store(ReadOnlySpan<char> key)
         {
-            var token = Get(key);
+            var token = MurmurHash2.Hash(key, MURMUR2SEED);
 
-            InvertedTable[token] = key;
+            if (!InvertedTable.ContainsKey(token))
+            {
+                InvertedTable[token] = key.ToString();
+            }
+
             return token;
         }
 

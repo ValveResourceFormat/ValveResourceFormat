@@ -452,15 +452,6 @@ namespace GUI.Types.GLViewers
             ParamsTable.Controls.Add(inputRow, 1, row);
         }
 
-        static readonly string[] GlobalShaderPrefixes =
-        [
-            "g_fl",
-            "g_f",
-            "g_v",
-            "g_b",
-            "g_n",
-        ];
-
         private static string NormalizeParameterName(string paramNameString)
         {
             // Handle feature flags (F_ prefix) - all uppercase, split by underscores
@@ -471,7 +462,7 @@ namespace GUI.Types.GLViewers
 
             var paramName = paramNameString.AsSpan();
 
-            foreach (var prefix in GlobalShaderPrefixes)
+            foreach (var prefix in VfxVariableDescription.TypePrefixes)
             {
                 if (paramName.StartsWith(prefix))
                 {

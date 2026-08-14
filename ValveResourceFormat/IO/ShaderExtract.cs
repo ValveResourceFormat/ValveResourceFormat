@@ -103,7 +103,6 @@ public sealed class ShaderExtract
     public VfxProgramData? Raytracing => Shaders.Raytracing;
 
     private readonly string[] FeatureNames;
-    private readonly string[] Globals;
     private HashSet<string> VariantParameterNames = [];
     private HashSet<int> VariantParameterIndices = [];
 
@@ -133,7 +132,6 @@ public sealed class ShaderExtract
         }
 
         FeatureNames = [.. Features.StaticComboArray.Select(f => f.Name)];
-        Globals = [.. Features.VariableDescriptions.Select(p => p.Name)];
     }
 
     /// <summary>
@@ -970,7 +968,7 @@ public sealed class ShaderExtract
             }
             else if (attribute.DynExpression!.Length > 0)
             {
-                value = new VfxEval(attribute.DynExpression, Globals, omitReturnStatement: true, FeatureNames).DynamicExpressionResult!;
+                value = new VfxEval(attribute.DynExpression, omitReturnStatement: true, features: FeatureNames).DynamicExpressionResult!;
             }
             else
             {
@@ -1273,7 +1271,7 @@ public sealed class ShaderExtract
         string enumMapper(int v) => enumSource is null ? v.ToString(CultureInfo.InvariantCulture) : ShaderUtilHelpers.GetEnumName(enumSource, v);
 
         var stateValue = param.DynExp.Length > 0
-            ? new VfxEval(param.DynExp, Globals, omitReturnStatement: true, FeatureNames, enumMapper).DynamicExpressionResult
+            ? new VfxEval(param.DynExp, omitReturnStatement: true, features: FeatureNames, enumMapper: enumMapper).DynamicExpressionResult
             : enumMapper(param.IntDefs[0]);
 
         if (param.RegisterType == VfxRegisterType.RenderState)
@@ -1373,17 +1371,15 @@ public sealed class ShaderExtract
             annotations.Add($"MaxRes(\"{param.MaxRes}\");");
         }
 
-        var stageSpecificGlobals = new Lazy<string[]>(() => [.. paramBlocks.Select(p => p.Name)]);
-
         if (param.DynExp.Length > 0)
         {
-            var dynEx = GetDynamicExpressionStringShared(param.DynExp, param, writer, FeatureNames, stageSpecificGlobals.Value);
+            var dynEx = GetDynamicExpressionStringShared(param.DynExp, param, writer, FeatureNames);
             annotations.Add($"Expression({dynEx});");
         }
 
         if (param.UiVisibilityExp.Length > 0)
         {
-            var dynEx = GetDynamicExpressionStringShared(param.UiVisibilityExp, param, writer, FeatureNames, stageSpecificGlobals.Value);
+            var dynEx = GetDynamicExpressionStringShared(param.UiVisibilityExp, param, writer, FeatureNames);
             annotations.Add($"UiVisibility({dynEx});");
         }
 
@@ -1501,9 +1497,9 @@ public sealed class ShaderExtract
             : string.Empty;
     }
 
-    private static string GetDynamicExpressionStringShared(byte[] bytecode, VfxVariableDescription param, IndentedTextWriter writer, string[] features, string[] globals)
+    private static string GetDynamicExpressionStringShared(byte[] bytecode, VfxVariableDescription param, IndentedTextWriter writer, string[] features)
     {
-        var dynEx = new VfxEval(bytecode, globals, omitReturnStatement: true, features).DynamicExpressionResult;
+        var dynEx = new VfxEval(bytecode, omitReturnStatement: true, features: features).DynamicExpressionResult;
         dynEx = ReplaceIdentifier(dynEx, param.Name, "this");
         dynEx = dynEx.Replace("\n", "\n" + new string('\t', writer.Indent + 1), StringComparison.Ordinal);
         return dynEx;

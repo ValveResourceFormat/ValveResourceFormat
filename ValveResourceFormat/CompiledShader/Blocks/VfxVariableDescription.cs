@@ -136,7 +136,7 @@ public class VfxVariableDescription : ShaderDataBlock
     public VfxVariableDescription(KVObject data, int blockIndex) : base()
     {
         BlockIndex = blockIndex;
-        Name = data.GetStringProperty("m_szName");
+        Name = RegisterName(data.GetStringProperty("m_szName"));
         UiGroup = UiGroup.FromCompactString(data.GetStringProperty("m_szUiGroup"));
         UiType = (UiType)data.GetInt32Property("m_uiType");
         UiStep = data.GetFloatProperty("m_flUiStep");
@@ -227,7 +227,7 @@ public class VfxVariableDescription : ShaderDataBlock
     {
         // CVfxVariableDescription::Unserialize
         BlockIndex = blockIndex;
-        Name = ReadStringWithMaxLength(datareader, 64);
+        Name = RegisterName(ReadStringWithMaxLength(datareader, 64));
         UiGroup = UiGroup.FromCompactString(ReadStringWithMaxLength(datareader, 64));
         UiType = (UiType)datareader.ReadInt32();
         UiStep = datareader.ReadSingle();
@@ -325,6 +325,29 @@ public class VfxVariableDescription : ShaderDataBlock
     public bool HasDynamicExpression
         => VariableSource is VfxVariableSourceType.__Expression__
                           or VfxVariableSourceType.__SetByArtistAndExpression__;
+
+    /// <summary>
+    /// Type prefixes used in shader variable names, longest first.
+    /// </summary>
+    public static IReadOnlyList<string> TypePrefixes { get; } = ["g_fl", "g_f", "g_v", "g_n", "g_b", "g_t"];
+
+    // Dynamic expressions refer to variables by the hash of their name, and some of them hash
+    // the name without the type prefix it is declared with.
+    private static string RegisterName(string name)
+    {
+        StringToken.Store(name);
+
+        foreach (var prefix in TypePrefixes)
+        {
+            if (name.Length > prefix.Length && name.StartsWith(prefix, StringComparison.Ordinal))
+            {
+                StringToken.Store(name.AsSpan(prefix.Length));
+                break;
+            }
+        }
+
+        return name;
+    }
 
     private void FixupIntMinsMaxs()
     {
