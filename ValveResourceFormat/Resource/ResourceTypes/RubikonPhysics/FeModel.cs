@@ -631,6 +631,21 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics
         /// <summary>Gets how many auto-generated proxy nodes the compiler extruded from a joint.</summary>
         public int ProxyCountOf(int jointNode) => ProxyRingOf(jointNode).Count;
 
+        // A generated node hanging off a hinged joint - its ring and its hinge anchor alike - is rebuilt by
+        // the ClothChain that carries the hinge, so a proxy sheet must leave it alone or the two drive it
+        // twice and the sheet contributes a duplicate of every one.
+        bool IsHingeRegeneratedProxy(int node)
+        {
+            if (node >= CtrlNames.Length || !IsProxyNodeName(CtrlNames[node]))
+            {
+                return false;
+            }
+
+            var parent = node < SkelParents.Length ? SkelParents[node] : -1;
+            return parent >= 0 && parent < CtrlNames.Length
+                && Array.IndexOf(CtrlNames, HingeAnchorPrefix + CtrlNames[parent]) >= 0;
+        }
+
         // The auto-generated proxy nodes extruded from a joint, in the order their names number them.
         List<int> ProxyRingOf(int jointNode)
         {
@@ -1731,7 +1746,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics
                 {
                     foreach (var n in face)
                     {
-                        if (n >= 0 && n < InitPosePositions.Length)
+                        if (n >= 0 && n < InitPosePositions.Length && !IsHingeRegeneratedProxy(n))
                         {
                             referenced.Add(n);
                         }
@@ -1797,15 +1812,25 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics
             // LIVE full-weight replicas of real constraints (dark_willow: 9 of 26 tris solved 2-3x per
             // iteration - measurably stiffer cloth than the original). The lane-major expansion is the
             // closest recoverable stand-in for the authored face order.
+            // A face reaching into a corner the sheet gave up (one a hinged chain rebuilds itself) is not
+            // this sheet's to draw.
             var faces = new List<int[]>(Quads.Length + Tris.Length);
+            bool Kept(int[] face) => Array.TrueForAll(face, corner => remap.ContainsKey(corner));
+
             foreach (var q in OrderFacesBySimdLanes(Quads, "m_SimdQuads"))
             {
-                faces.Add([remap[q[0]], remap[q[1]], remap[q[2]], remap[q[3]]]);
+                if (Kept(q))
+                {
+                    faces.Add([remap[q[0]], remap[q[1]], remap[q[2]], remap[q[3]]]);
+                }
             }
 
             foreach (var t in OrderFacesBySimdLanes(Tris, "m_SimdTris"))
             {
-                faces.Add([remap[t[0]], remap[t[1]], remap[t[2]]]);
+                if (Kept(t))
+                {
+                    faces.Add([remap[t[0]], remap[t[1]], remap[t[2]]]);
+                }
             }
 
             return new ProxyMesh
@@ -2142,7 +2167,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics
             for (var node = 0; node < n && node < InitPosePositions.Length; node++)
             {
                 isProxy[node] = IsProxyNodeName(CtrlNames[node]) && !string.IsNullOrEmpty(CtrlNames[node])
-                    && !coveredNodes.Contains(node);
+                    && !coveredNodes.Contains(node) && !IsHingeRegeneratedProxy(node);
             }
 
             // Group rod-only proxy vertices by ROD CONNECTIVITY, not by name. One authored cloth panel can
@@ -3260,7 +3285,13 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics
                 // (those static root_0 descendants carry NO proxies, so this never links them).
                 var proxyRibbon = proxyChildrenOf.ContainsKey(i);
 
-                if (rodLinked || bothDrivenSim || proxyRibbon)
+                // A bone the compiler built a hinge anchor for is a hinged chain's root by construction,
+                // so its real children belong to that chain however few traces they leave of their own. The
+                // hinge puts the whole ribbon's proxies on the ROOT, which is what makes the three tests
+                // above miss these chains entirely (legion_commander's earrings, tinker's cosmic back).
+                var hingedRoot = Array.IndexOf(CtrlNames, HingeAnchorPrefix + CtrlNames[p]) >= 0;
+
+                if (rodLinked || bothDrivenSim || proxyRibbon || hingedRoot)
                 {
                     realParent[i] = p;
                 }
