@@ -1619,6 +1619,7 @@ namespace CLI
                     break;
 
                 case ResourceType.EntityLump:
+                    // TODO: Also collect unknown attribute/material param hashes from compiled shader dynamic expressions
                     if (DumpUnknownEntityKeys)
                     {
                         var entityLump = (EntityLump?)resource.DataBlock;

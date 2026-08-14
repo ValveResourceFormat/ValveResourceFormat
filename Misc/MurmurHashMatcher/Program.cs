@@ -16,7 +16,7 @@ var unknownKeys = File.ReadAllLines("unknown_keys.txt")
 var foundKeys = new HashSet<string>();
 
 // Valid key bytes; used to vectorize run scanning.
-var keyBytes = SearchValues.Create("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789._-"u8);
+var keyBytes = SearchValues.Create("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789._-$"u8);
 
 // Prepass: drop any hashes that are already known in code (EntityLumpKnownKeys).
 var alreadyKnown = unknownKeys.RemoveWhere(StringToken.InvertedTable.ContainsKey);
@@ -114,7 +114,7 @@ void ScanFile(string file)
     var pos = 0;
 
     // Reusable window buffer, no key is longer than this many characters.
-    Span<char> window = stackalloc char[50];
+    Span<char> window = stackalloc char[64];
 
     while (pos < bytes.Length)
     {
@@ -185,7 +185,7 @@ void BruteForceShortKeys(int maxLength)
 {
     Console.WriteLine($"Bruteforcing the keyspace up to {maxLength} characters");
 
-    ReadOnlySpan<char> alphabet = "abcdefghijklmnopqrstuvwxyz0123456789._-";
+    ReadOnlySpan<char> alphabet = "abcdefghijklmnopqrstuvwxyz0123456789._-$";
     Span<char> buffer = stackalloc char[maxLength];
 
     for (var length = 1; length <= maxLength; length++)
